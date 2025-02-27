@@ -1,6 +1,9 @@
+import { daToUnix, parseDa } from '@urbit/aura';
+
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import { AnalyticsEvent, normalizeUrbitColor } from '../logic';
+import { AnalyticsEvent } from '../domain';
+import { normalizeUrbitColor } from '../logic';
 import * as ub from '../urbit';
 import { getCurrentUserId, poke, scry, subscribe } from './urbit';
 
@@ -80,10 +83,6 @@ export const updateContactMetadata = async (
       : null;
   }
 
-  if (Object.keys(contactUpdate).length !== 0) {
-    logger.trackEvent(AnalyticsEvent.ContactEdited);
-  }
-
   return poke({
     app: 'contacts',
     mark: 'contact-action-1',
@@ -93,7 +92,6 @@ export const updateContactMetadata = async (
 
 export const addContact = async (contactId: string) => {
   removeContactSuggestion(contactId);
-  logger.trackEvent(AnalyticsEvent.ContactAdded);
   return poke({
     app: 'contacts',
     mark: 'contact-action-1',
@@ -282,6 +280,21 @@ export const v0PeerToClientProfile = (
     isContactSuggestion: config?.isContactSuggestion && id !== currentUserId,
   };
 };
+
+function contactVerifyToClientForm(
+  contact?: ub.Contact | ub.ContactBookProfile | null
+): Partial<db.Contact> {
+  if (!contact) {
+    return {};
+  }
+  return {
+    hasVerifiedPhone: contact['lanyard-tmp-phone-sign']?.value ? true : false,
+    verifiedPhoneSignature: contact['lanyard-tmp-phone-sign']?.value ?? null,
+    verifiedPhoneAt: contact['lanyard-tmp-phone-since']?.value
+      ? daToUnix(parseDa(contact['lanyard-tmp-phone-since'].value))
+      : null,
+  };
+}
 
 export const v1PeersToClientProfiles = (
   peers: ub.ContactsAllScryResult1,

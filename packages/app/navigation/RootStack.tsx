@@ -1,6 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useTheme } from '@tloncorp/ui';
 import { Platform, StatusBar } from 'react-native';
 
 import { ChannelMembersScreen } from '../features/channels/ChannelMembersScreen';
@@ -12,21 +11,25 @@ import { BlockedUsersScreen } from '../features/settings/BlockedUsersScreen';
 import { EditProfileScreen } from '../features/settings/EditProfileScreen';
 import { FeatureFlagScreen } from '../features/settings/FeatureFlagScreen';
 import { ManageAccountScreen } from '../features/settings/ManageAccountScreen';
-import ProfileScreen from '../features/settings/ProfileScreen';
 import { PushNotificationSettingsScreen } from '../features/settings/PushNotificationSettingsScreen';
+import SettingsScreen from '../features/settings/SettingsScreen';
 import { ThemeScreen } from '../features/settings/ThemeScreen';
 import { UserBugReportScreen } from '../features/settings/UserBugReportScreen';
 import { ActivityScreen } from '../features/top/ActivityScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
 import ChannelSearchScreen from '../features/top/ChannelSearchScreen';
+import { ChatDetailsScreen } from '../features/top/ChatDetailsScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
+import { ChatVolumeScreen } from '../features/top/ChatVolumeScreen';
 import ContactsScreen from '../features/top/ContactsScreen';
 import { GroupChannelsScreen } from '../features/top/GroupChannelsScreen';
 import ImageViewerScreen from '../features/top/ImageViewerScreen';
 import PostScreen from '../features/top/PostScreen';
+import { PostUsingContentConfigurationScreen } from '../features/top/PostUsingContentConfigurationScreen';
 import { UserProfileScreen } from '../features/top/UserProfileScreen';
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import { useFeatureFlag } from '../lib/featureFlags';
+import { useTheme } from '../ui';
 import { GroupSettingsStack } from './GroupSettingsStack';
 import type { RootStackParamList } from './types';
 
@@ -71,8 +74,8 @@ export function RootStack() {
         options={{ animation: 'none', gestureEnabled: false }}
       />
       <Root.Screen
-        name="Profile"
-        component={ProfileScreen}
+        name="Settings"
+        component={SettingsScreen}
         options={{
           animation: contactsTabEnabled ? undefined : 'none',
           gestureEnabled: false,
@@ -93,7 +96,8 @@ export function RootStack() {
         component={ImageViewerScreen}
         options={{ animation: 'fade' }}
       />
-
+      <Root.Screen name="ChatDetails" component={ChatDetailsScreen} />
+      <Root.Screen name="ChatVolume" component={ChatVolumeScreen} />
       <Root.Screen
         name="ManageAccount"
         component={ManageAccountScreen}
@@ -112,6 +116,10 @@ export function RootStack() {
       <Root.Screen name="WompWomp" component={UserBugReportScreen} />
       <Root.Screen name="ChannelMembers" component={ChannelMembersScreen} />
       <Root.Screen name="ChannelMeta" component={ChannelMetaScreen} />
+      <Root.Screen
+        name="PostUsingContentConfiguration"
+        component={PostUsingContentConfigurationScreen}
+      />
       <Root.Screen name="ChannelTemplate" component={ChannelTemplateScreen} />
     </Root.Navigator>
   );

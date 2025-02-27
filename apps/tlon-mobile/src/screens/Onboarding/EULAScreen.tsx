@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ScreenHeader, SizableText, View, YStack } from '@tloncorp/ui';
+import { ScreenHeader, SizableText, View, YStack } from '@tloncorp/app/ui';
 import { ScrollView } from 'react-native';
 
 import type { OnboardingStackParamList } from '../../types';

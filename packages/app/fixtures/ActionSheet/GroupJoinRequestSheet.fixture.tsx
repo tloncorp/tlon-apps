@@ -1,6 +1,5 @@
-import { AppDataContextProvider } from '@tloncorp/ui';
-import { GroupJoinRequestSheet } from '@tloncorp/ui/src/components/GroupJoinRequestSheet';
-
+import { AppDataContextProvider } from '../../ui';
+import { GroupJoinRequestSheet } from '../../ui/components/GroupJoinRequestSheet';
 import { brianContact } from '../fakeData';
 
 export default {

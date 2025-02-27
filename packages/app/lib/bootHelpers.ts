@@ -1,10 +1,12 @@
-import { AppInvite } from '@tloncorp/shared';
-import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
+import { AnalyticsEvent, AppInvite, createDevLogger } from '@tloncorp/shared';
+import { HostedNodeStatus } from '@tloncorp/shared';
+import * as hostingApi from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 
-import * as hostingApi from '../lib/hostingApi';
 import { trackOnboardingAction } from '../utils/posthog';
-import { getShipFromCookie, getShipUrl } from '../utils/ship';
+
+const logger = createDevLogger('bootHelpers', true);
 
 export enum NodeBootPhase {
   IDLE = 1,
@@ -47,7 +49,6 @@ export default {
   NodeBootPhase,
   reserveNode,
   checkNodeBooted,
-  authenticateNode,
   getInvitedGroupAndDm,
 };
 
@@ -59,6 +60,7 @@ export async function reserveNode(
 
   // if the hosting user already has a ship tied to their account, use that
   if (user.ships?.length) {
+    await db.hostedUserNodeId.setValue(user.ships[0]);
     return user.ships[0];
   }
 
@@ -83,42 +85,18 @@ export async function reserveNode(
     ship: ship.id,
   });
 
+  await db.hostedUserNodeId.setValue(ship.id);
+
   return ship.id;
 }
 
-async function checkNodeBooted(nodeId: string): Promise<boolean> {
-  const shipsWithStatus = await hostingApi.getShipsWithStatus([nodeId]);
-  if (!shipsWithStatus) {
+export async function checkNodeBooted(): Promise<boolean> {
+  try {
+    const nodeStatus = await store.checkHostingNodeStatus();
+    return nodeStatus === HostedNodeStatus.Running;
+  } catch (e) {
     return false;
   }
-
-  const { status: shipStatus } = shipsWithStatus;
-
-  if (shipStatus !== 'Ready') {
-    return false;
-  }
-
-  return true;
-}
-
-async function authenticateNode(
-  nodeId: string
-): Promise<{ nodeId: string; nodeUrl: string; authCookie: string }> {
-  const { code: accessCode } = await hostingApi.getShipAccessCode(nodeId);
-  const nodeUrl = getShipUrl(nodeId);
-  const authCookie = await getLandscapeAuthCookie(nodeUrl, accessCode);
-  if (!authCookie) {
-    throw new Error("Couldn't log you into your ship.");
-  }
-
-  // TODO: shouldn't this be the same?
-  const ship = getShipFromCookie(authCookie);
-
-  return {
-    nodeId,
-    nodeUrl,
-    authCookie,
-  };
 }
 
 async function getInvitedGroupAndDm(lureMeta: AppInvite | null): Promise<{
@@ -133,9 +111,13 @@ async function getInvitedGroupAndDm(lureMeta: AppInvite | null): Promise<{
   const tlonTeam = `~wittyr-witbes`;
   const isPersonalInvite = inviteType === 'user';
   if (!inviterUserId || (!isPersonalInvite && !invitedGroupId)) {
-    throw new Error(
-      `invalid invite metadata: group[${invitedGroupId}] inviter[${inviterUserId}]`
-    );
+    logger.trackEvent(AnalyticsEvent.InviteError, {
+      message: 'invite is missing metadata',
+      context:
+        'this will prevent the group from being auto-joined, but an invite should still be delivered',
+      invite: lureMeta,
+    });
+    throw new Error('invite is missing metadata');
   }
   // use api client to see if you have pending DM and group invite
   const invitedDm = await db.getChannel({ id: inviterUserId });

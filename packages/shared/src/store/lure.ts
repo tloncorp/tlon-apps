@@ -1,17 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import produce from 'immer';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import create from 'zustand';
 
-import { getCurrentUserId, poke, scry, subscribeOnce } from '../api/urbit';
+import { getCurrentUserId, scry, subscribeOnce } from '../api/urbit';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { AnalyticsEvent } from '../domain';
 import { DeepLinkMetadata, createDeepLink } from '../logic/branch';
-import { asyncWithDefault, getFlagParts, withRetry } from '../logic/utils';
-import { stringToTa } from '../urbit';
-import { GroupMeta } from '../urbit/groups';
-
-const logger = createDevLogger('lure', true);
+import { asyncWithDefault } from '../logic/utils';
+import { createGroupInviteLink } from './inviteActions';
 
 interface LureMetadata {
   tag: string;
@@ -43,132 +41,64 @@ interface LureState {
     inviteServiceEndpoint: string,
     inviteServiceIsDev: boolean
   ) => Promise<void>;
-  describe: (flag: string) => Promise<void>;
-  toggle: (flag: string) => Promise<void>;
   start: () => Promise<void>;
 }
 
 const lureLogger = createDevLogger('lure', false);
 
-function groupsDescribe(meta: GroupMeta & DeepLinkMetadata) {
-  return {
-    tag: 'groups-0',
-    fields: { ...meta }, // makes typescript happy
-  };
-}
-
 export const useLureState = create<LureState>((set, get) => ({
   bait: null,
   lures: {},
-  describe: async (flag) => {
-    const currentUserId = getCurrentUserId();
-    const group = await db.getGroup({ id: flag });
-    const user = await db.getContact({ id: currentUserId });
-
-    if (!group || !user) {
-      lureLogger.trackError('[describe] Error looking up group or user', {
-        groupId: flag,
-        group,
-        user,
-      });
-    }
-
-    await poke({
-      app: 'reel',
-      mark: 'reel-describe',
-      json: {
-        token: flag,
-        metadata: groupsDescribe({
-          // legacy keys
-          title: group?.title ?? '',
-          description: group?.description ?? '',
-          cover: group?.coverImage ?? '',
-          image: group?.iconImage ?? '',
-
-          // new-style metadata keys
-          inviterUserId: currentUserId,
-          inviterNickname: user?.nickname ?? '',
-          inviterAvatarImage: user?.avatarImage ?? '',
-          invitedGroupId: flag,
-          invitedGroupTitle: group?.title ?? '',
-          invitedGroupDescription: group?.description ?? '',
-          invitedGroupIconImageUrl: group?.iconImage ?? '',
-        }),
-      },
-    });
-  },
-  toggle: async (flag) => {
-    const { name } = getFlagParts(flag);
-    const lure = get().lures[flag];
-    const enabled = !lure?.enabled;
-    if (!enabled) {
-      lureLogger.crumb('not enabled, poking reel-undescribe', flag);
-      await poke({
-        app: 'reel',
-        mark: 'reel-undescribe',
-        json: {
-          token: flag,
-        },
-      });
-    } else {
-      get().describe(flag);
-    }
-
-    set(
-      produce((draft: LureState) => {
-        draft.lures[flag] = {
-          ...lure,
-          enabled,
-        };
-      })
-    );
-
-    await poke({
-      app: 'grouper',
-      mark: enabled ? 'grouper-enable' : 'grouper-disable',
-      json: name,
-    });
-  },
   start: async () => {
-    const bait = await scry<Bait>({
-      app: 'reel',
-      path: '/bait',
-    });
+    try {
+      const bait = await scry<Bait>({
+        app: 'reel',
+        path: '/bait',
+      });
 
-    set(
-      produce((draft: LureState) => {
-        draft.bait = bait;
-      })
-    );
+      set(
+        produce((draft: LureState) => {
+          draft.bait = bait;
+        })
+      );
+    } catch (e) {
+      lureLogger.trackEvent(AnalyticsEvent.InviteError, {
+        context: 'failed to get bait on start',
+        errorMessage: e.message,
+        errorStack: e.stack,
+      });
+    }
   },
-  fetchLure: async (flag, inviteServiceEndpoint, inviteServiceIsDev) => {
-    const { name } = getFlagParts(flag);
-    const prevLure = get().lures[flag];
+  fetchLure: async (flag) => {
+    const { lures } = get();
+    const prevLure = lures[flag];
     lureLogger.crumb('fetching', flag, 'prevLure', prevLure);
-    const [enabled, url] = await Promise.all([
-      // enabled
-      asyncWithDefault(async () => {
-        lureLogger.crumb(performance.now(), 'fetching enabled', flag);
-        return subscribeOnce<boolean>(
-          {
-            app: 'grouper',
-            path: `/group-enabled/${flag}`,
-          },
-          LURE_REQUEST_TIMEOUT
-        )
-          .then((en) => {
-            lureLogger.crumb(performance.now(), 'enabled fetched', flag);
+    lureLogger.crumb(performance.now(), 'fetching url with scry', flag);
+    // url (includes the token as last element of the path)
+    const localUrl = await scry<string>({
+      app: 'reel',
+      path: `/v1/id-url/${flag}`,
+    })
+      .then((u) => {
+        lureLogger.crumb(performance.now(), 'url fetched', u, flag);
+        return u;
+      })
+      .catch((e) => {
+        lureLogger.trackEvent(AnalyticsEvent.InviteDebug, {
+          context: `id-link failed`,
+          errorMessage: e.message,
+          errorStack: e.stack,
+        });
+        return prevLure?.url;
+      });
 
-            return en;
-          })
-          .catch((e) => {
-            lureLogger.error(`group-enabled failed`, e);
-            return prevLure?.enabled;
-          });
-      }, prevLure?.enabled),
-      // url (includes the token as last element of the path)
-      asyncWithDefault<string | undefined>(async () => {
-        lureLogger.crumb(performance.now(), 'fetching url', flag);
+    let url = localUrl;
+    if (!url || checkOldLureToken(url)) {
+      // start the process of creating the lure
+      createGroupInviteLink(flag);
+      // listen for the result
+      url = await asyncWithDefault<string | undefined>(async () => {
+        lureLogger.crumb(performance.now(), 'fetching url with sub', flag);
         return subscribeOnce<string>(
           { app: 'reel', path: `/v1/id-link/${flag}` },
           LURE_REQUEST_TIMEOUT
@@ -178,36 +108,24 @@ export const useLureState = create<LureState>((set, get) => ({
             return u;
           })
           .catch((e) => {
-            lureLogger.error(`id-link failed`, e);
+            lureLogger.trackEvent(AnalyticsEvent.InviteDebug, {
+              context: `id-link failed`,
+              errorMessage: e.message,
+              errorStack: e.stack,
+            });
             return prevLure?.url;
           });
-      }, prevLure?.url),
-    ]);
+      }, prevLure?.url);
+    }
 
-    lureLogger.crumb('fetched', { flag, enabled, url });
+    lureLogger.crumb('fetched', { flag, url });
 
     let deepLinkUrl: string | undefined;
-    lureLogger.crumb('enabled', enabled);
-    if (enabled && checkLureToken(url)) {
+    if (checkLureToken(url)) {
       const currentUserId = getCurrentUserId();
       const group = await db.getGroup({ id: flag });
       const user = await db.getContact({ id: currentUserId });
-      const name = group?.title || group?.id;
-      const title = name ? `Join ${name}` : undefined;
-      const description = group?.description ?? undefined;
-      const image = group?.coverImage ?? group?.iconImage ?? undefined;
       const metadata: DeepLinkMetadata = {
-        $og_title: title,
-        $og_description: description,
-        $og_image_url: image,
-        $twitter_title: title,
-        $twitter_description: description,
-        $twitter_image_url: image,
-        $twitter_card: group?.coverImage
-          ? 'summary_large_image'
-          : group?.iconImage
-            ? 'summary'
-            : undefined,
         inviterUserId: currentUserId,
         inviterNickname: user?.nickname ?? undefined,
         inviterAvatarImage: user?.avatarImage ?? undefined,
@@ -227,11 +145,17 @@ export const useLureState = create<LureState>((set, get) => ({
       lureLogger.crumb('deepLinkUrl created', deepLinkUrl);
     }
 
+    lureLogger.trackEvent(AnalyticsEvent.InviteDebug, {
+      context: 'fetchLure result',
+      flag,
+      url,
+      deepLinkUrl,
+    });
+
     set(
       produce((draft: LureState) => {
         draft.lures[flag] = {
           fetched: true,
-          enabled,
           url,
           deepLinkUrl,
         };
@@ -256,24 +180,19 @@ export function useLure({
   inviteServiceIsDev: boolean;
   disableLoading?: boolean;
 }) {
+  const [lastLoggedStatus, setLastLoggedStatus] = useState('');
   const fetchLure = useLureState((state) => state.fetchLure);
   const { bait, lure } = useLureState(selLure(flag));
 
-  lureLogger.crumb('bait', bait);
-  lureLogger.crumb('lure', lure);
-
   const canCheckForUpdate = useMemo(() => {
-    return Boolean(bait && !disableLoading);
-  }, [bait, disableLoading]);
-
-  const uninitialized = useMemo(() => {
-    return Boolean(
-      (lure.enabled || !lure.fetched) &&
+    const uninitialized = Boolean(
+      !lure.fetched &&
         (!lure.url || !checkLureToken(lure.url) || !lure.deepLinkUrl)
     );
-  }, [lure]);
+    return Boolean(bait && !disableLoading && uninitialized);
+  }, [bait, lure, disableLoading]);
 
-  lureLogger.crumb('lure fetcher', { canCheckForUpdate, uninitialized });
+  lureLogger.crumb('lure fetcher', canCheckForUpdate);
   useQuery({
     queryKey: ['lureFetcher', flag],
     queryFn: async () => {
@@ -286,118 +205,64 @@ export function useLure({
       await fetchLure(flag, inviteServiceEndpoint, inviteServiceIsDev);
       return true;
     },
-    enabled: canCheckForUpdate && uninitialized,
+    enabled: canCheckForUpdate,
     refetchInterval: 5000,
   });
 
-  const toggle = async () => {
-    lureLogger.crumb('toggling', flag);
-    return useLureState.getState().toggle(flag);
-  };
+  lureLogger.crumb('useLure', flag, bait, lure);
 
-  const describe = useCallback(() => {
-    return useLureState.getState().describe(flag);
-  }, [flag]);
-
-  lureLogger.crumb('useLure', flag, bait, lure, describe);
-
-  return {
-    ...lure,
-    supported: bait,
-    describe,
-    toggle,
-  };
-}
-
-export function useLureLinkChecked(url: string | undefined, enabled: boolean) {
-  const prevData = useRef<boolean | undefined>(false);
-  const pathEncodedUrl = stringToTa(url ?? '');
-  const { data, ...query } = useQuery({
-    queryKey: ['lure-check', url],
-    queryFn: async () =>
-      subscribeOnce<boolean>(
-        { app: 'grouper', path: `/v1/check-link/${pathEncodedUrl}` },
-        4500
-      ),
-    enabled: enabled && Boolean(url),
-    refetchInterval: 5000,
-  });
-
-  prevData.current = data;
-
-  lureLogger.crumb('useLureLinkChecked', url, data);
-
-  return {
-    ...query,
-    good: data,
-    checked: query.isFetched && !query.isLoading,
-  };
-}
-
-export function useLureLinkStatus({
-  flag,
-  inviteServiceEndpoint,
-  inviteServiceIsDev,
-}: {
-  flag: string;
-  inviteServiceEndpoint: string;
-  inviteServiceIsDev: boolean;
-}) {
-  const { supported, fetched, enabled, url, deepLinkUrl, toggle, describe } =
-    useLure({
-      flag,
-      inviteServiceEndpoint,
-      inviteServiceIsDev,
-    });
-  const { good, checked } = useLureLinkChecked(url, !!enabled);
-
-  lureLogger.crumb('useLureLinkStatus', {
-    flag,
-    supported,
-    fetched,
-    enabled,
-    checked,
-    good,
-    url,
-    deepLinkUrl,
-  });
+  const { fetched, url, deepLinkUrl } = lure;
 
   const status = useMemo(() => {
-    if (!supported) {
+    if (!bait) {
       return 'unsupported';
-    }
-
-    if (fetched && !enabled) {
-      return 'disabled';
     }
 
     if ((url && checkOldLureToken(url)) || (fetched && !url)) {
       return 'stale';
     }
 
-    if (!url || !checkLureToken(url) || !fetched || !checked || !deepLinkUrl) {
-      lureLogger.crumb('loading', fetched, checked, url, deepLinkUrl);
+    if (!url || !checkLureToken(url) || !fetched || !deepLinkUrl) {
+      lureLogger.crumb('loading', fetched, url, deepLinkUrl);
       return 'loading';
     }
 
-    if (checked && !good) {
-      lureLogger.trackError('useLureLinkStatus has error status', {
-        flag,
-        enabled,
-        checked,
-        good,
-        url,
-        deepLinkUrl,
-      });
-      return 'error';
-    }
-
     return 'ready';
-  }, [supported, fetched, enabled, url, checked, deepLinkUrl, good, flag]);
+  }, [bait, fetched, url, deepLinkUrl, flag]);
 
-  lureLogger.crumb('url', url, 'deepLinkUrl', deepLinkUrl, 'status', status);
+  // prevent over zealous logging
+  const statusKey = useMemo(() => {
+    return `${status}-${lure?.fetched}`;
+  }, [status, lure]);
 
-  return { status, shareUrl: deepLinkUrl, toggle, describe };
+  const inviteInfo = useMemo(
+    () => ({
+      flag,
+      supported: Boolean(bait),
+      fetched,
+      url,
+      deepLinkUrl,
+    }),
+    [flag, bait, fetched, url, deepLinkUrl]
+  );
+
+  useEffect(() => {
+    if (statusKey !== lastLoggedStatus) {
+      lureLogger.trackEvent(AnalyticsEvent.InviteDebug, {
+        context: 'useLure status log',
+        inviteStatus: status,
+        inviteInfo,
+      });
+      setLastLoggedStatus(statusKey);
+    }
+  }, [statusKey, inviteInfo, lastLoggedStatus, status]);
+
+  return {
+    ...lure,
+    status,
+    shareUrl: deepLinkUrl,
+    supported: bait,
+  };
 }
 
 // hack: we get an intermediate state while generating lure links where

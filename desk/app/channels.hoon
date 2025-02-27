@@ -47,6 +47,7 @@
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
+      log   ~(. logs [our.bowl /logs])
       cor   ~(. +> [bowl ~])
   ++  on-init
     ^-  (quip card _this)
@@ -82,7 +83,7 @@
     |=  [=term =tang]
     ^-  (quip card _this)
     :_  this
-    [(log-fail:logs /logs our.bowl (fail-event:logs term tang))]~
+    [(fail:log term tang ~)]~
   ::
   ++  on-agent
     |=  [=wire =sign:agent:gall]
@@ -389,9 +390,6 @@
     (~(unsubscribe s [subs bowl]) wire dock)
   (emil caz)
 ++  inflate-io
-  ::  initiate version negotiation with our own channels-server
-  ::
-  =.  cor  (emit (initiate:neg our.bowl server))
   ::  leave all subscriptions we don't recognize
   ::
   =.  cor

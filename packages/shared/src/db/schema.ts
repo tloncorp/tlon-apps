@@ -79,6 +79,9 @@ export const contacts = sqliteTable('contacts', {
   isBlocked: boolean('blocked'),
   isContact: boolean('isContact'),
   isContactSuggestion: boolean('isContactSuggestion'),
+  hasVerifiedPhone: boolean('hasVerifiedPhone'),
+  verifiedPhoneSignature: text('verifiedPhoneSignature'),
+  verifiedPhoneAt: timestamp('verifiedPhoneAt'),
 });
 
 export const contactsRelations = relations(contacts, ({ many }) => ({
@@ -312,6 +315,7 @@ export const groups = sqliteTable('groups', {
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
   lastVisitedChannelId: text('last_visited_channel_id'),
+  syncedAt: timestamp('synced_at'),
 });
 
 export const groupsRelations = relations(groups, ({ one, many }) => ({
@@ -400,6 +404,26 @@ export const groupFlaggedPosts = sqliteTable(
       pk: primaryKey({
         columns: [table.groupId, table.postId],
       }),
+    };
+  }
+);
+
+export type VerificationType = 'phone' | 'node';
+export type VerificationVisibility = 'public' | 'discoverable' | 'hidden';
+export type VerificationStatus = 'waiting' | 'pending' | 'verified';
+export const verifications = sqliteTable(
+  'verifications',
+  {
+    provider: text('provider').notNull(),
+    type: text('type').$type<VerificationType>().notNull(),
+    value: text('value').notNull(),
+    initiatedAt: timestamp('initiated_at'),
+    visibility: text('visibility').$type<VerificationVisibility>().notNull(),
+    status: text('status').$type<VerificationStatus>().notNull(),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({ columns: [table.provider, table.type, table.value] }),
     };
   }
 );
@@ -728,6 +752,7 @@ export const channels = sqliteTable(
     contactId: text('contact_id'),
     addedToGroupAt: timestamp('added_to_group_at'),
     currentUserIsMember: boolean('current_user_is_member'),
+    currentUserIsHost: boolean('current_user_is_host'),
     postCount: integer('post_count'),
     unreadCount: integer('unread_count'),
     firstUnreadPostId: text('first_unread_post_id'),

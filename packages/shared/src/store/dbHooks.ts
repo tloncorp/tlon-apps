@@ -6,6 +6,7 @@ import {
 import { useMemo } from 'react';
 
 import * as api from '../api';
+import { getMessagesFilter } from '../api';
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
 import * as ub from '../urbit';
@@ -80,6 +81,17 @@ export const useCalmSettings = (options: { userId: string }) => {
         disableNicknames: r?.disableNicknames ?? false,
         disableRemoteContent: r?.disableRemoteContent ?? false,
       })),
+  });
+};
+
+export const useMessagesFilter = (options: { userId: string }) => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['messagesFilter', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings(options.userId);
+      return getMessagesFilter(settings?.messagesFilter);
+    },
   });
 };
 
@@ -460,5 +472,13 @@ export const usePostWithRelations = (
     staleTime: Infinity,
     ...(initialData ? { initialData } : {}),
     queryFn: () => db.getPostWithRelations(options),
+  });
+};
+
+export const useVerifications = () => {
+  const deps = useKeyFromQueryDeps(db.getVerifications);
+  return useQuery({
+    queryKey: ['verifications', deps],
+    queryFn: () => db.getVerifications(),
   });
 };

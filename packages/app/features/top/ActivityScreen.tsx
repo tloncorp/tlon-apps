@@ -2,7 +2,6 @@ import { useIsFocused } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { ActivityScreenView, NavBarView, View } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 import { useTheme } from 'tamagui';
 
@@ -11,6 +10,7 @@ import { useGroupActions } from '../../hooks/useGroupActions';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
+import { ActivityScreenView, NavBarView, View } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Activity'>;
 
@@ -56,7 +56,7 @@ export function ActivityScreen(props: Props) {
 
   const handleGoToGroup = useCallback(
     (group: db.Group) => {
-      store.markGroupRead(group);
+      store.markGroupRead(group.id);
       props.navigation.navigate('GroupSettings', {
         screen: 'GroupMembers',
         params: { groupId: group.id },
@@ -73,24 +73,26 @@ export function ActivityScreen(props: Props) {
   );
   return (
     <View backgroundColor={theme.background?.val} flex={1}>
-      <ActivityScreenView
-        bucketFetchers={bucketedActivity}
-        isFocused={isFocused}
-        goToChannel={handleGoToChannel}
-        goToThread={handleGoToThread}
-        goToGroup={handleGoToGroup}
-        goToUserProfile={handleGoToUserProfile}
-        refresh={handleRefreshActivity}
-        onGroupAction={performGroupAction}
-      />
-      <NavBarView
-        navigateToContacts={() => props.navigation.navigate('Contacts')}
-        navigateToHome={() => props.navigation.navigate('ChatList')}
-        navigateToNotifications={() => props.navigation.navigate('Activity')}
-        currentRoute="Activity"
-        currentUserId={currentUserId}
-        showContactsTab={contactsTabEnabled}
-      />
+      <View flex={1} width="100%" maxWidth={600} marginHorizontal="auto">
+        <ActivityScreenView
+          bucketFetchers={bucketedActivity}
+          isFocused={isFocused}
+          goToChannel={handleGoToChannel}
+          goToThread={handleGoToThread}
+          goToGroup={handleGoToGroup}
+          goToUserProfile={handleGoToUserProfile}
+          refresh={handleRefreshActivity}
+          onGroupAction={performGroupAction}
+        />
+        <NavBarView
+          navigateToContacts={() => props.navigation.navigate('Contacts')}
+          navigateToHome={() => props.navigation.navigate('ChatList')}
+          navigateToNotifications={() => props.navigation.navigate('Activity')}
+          currentRoute="Activity"
+          currentUserId={currentUserId}
+          showContactsTab={contactsTabEnabled}
+        />
+      </View>
     </View>
   );
 }

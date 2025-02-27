@@ -1,16 +1,23 @@
-import { getCurrentUserId } from '../api';
+import {
+  createInviteLink,
+  enableGroup,
+  getCurrentUserId,
+  groupsDescribe,
+} from '../api';
 import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { AnalyticsEvent } from '../domain';
 import {
   checkInviteServiceLinkExists,
   createDeepLink,
   extractNormalizedInviteLink,
   extractTokenFromInviteLink,
+  getFlagParts,
   withRetry,
 } from '../logic';
 
-const logger = createDevLogger('inviteActions', true);
+const logger = createDevLogger('inviteActions', false);
 
 export async function verifyUserInviteLink() {
   try {
@@ -94,4 +101,51 @@ export async function createPersonalInviteLinkOnService(
   }
 
   return inviteLink;
+}
+
+export async function enableGroupLinks(groupId: string) {
+  const { name } = getFlagParts(groupId);
+  return enableGroup(name);
+}
+
+export async function createGroupInviteLink(groupId: string) {
+  const currentUserId = getCurrentUserId();
+  const group = await db.getGroup({ id: groupId });
+  const user = await db.getContact({ id: currentUserId });
+
+  if (!group || !user) {
+    logger.trackError('[describe] Error looking up group or user', {
+      groupId,
+      group,
+      user,
+    });
+  }
+
+  try {
+    await createInviteLink(
+      groupId,
+      groupsDescribe({
+        // legacy keys
+        title: group?.title ?? '',
+        description: group?.description ?? '',
+        cover: group?.coverImage ?? '',
+        image: group?.iconImage ?? '',
+
+        // new-style metadata keys
+        inviterUserId: currentUserId,
+        inviterNickname: user?.nickname ?? '',
+        inviterAvatarImage: user?.avatarImage ?? '',
+        invitedGroupId: groupId,
+        invitedGroupTitle: group?.title ?? '',
+        invitedGroupDescription: group?.description ?? '',
+        invitedGroupIconImageUrl: group?.iconImage ?? '',
+      })
+    );
+  } catch (e) {
+    logger.trackError(AnalyticsEvent.InviteError, {
+      context: 'reel describe failed',
+      errorMessage: e.message,
+      errorStack: e.stack,
+    });
+  }
 }

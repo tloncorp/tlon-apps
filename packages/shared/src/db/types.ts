@@ -95,6 +95,9 @@ export type PinType = schema.PinType;
 export type Settings = BaseModel<'settings'>;
 export type PostWindow = BaseModel<'postWindows'>;
 export type VolumeSettings = BaseModel<'volumeSettings'>;
+export type Verification = BaseModel<'verifications'>;
+export type VerificationStatus = schema.VerificationStatus;
+export type VerificationVisibility = schema.VerificationVisibility;
 
 export type Chat = {
   id: string;

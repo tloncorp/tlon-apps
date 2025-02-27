@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { EMAIL_REGEX } from '@tloncorp/app/constants';
-import { requestPasswordReset } from '@tloncorp/app/lib/hostingApi';
 import { trackError } from '@tloncorp/app/utils/posthog';
+import { requestPasswordReset } from '@tloncorp/shared/api';
 import {
   Field,
   KeyboardAvoidingView,
@@ -10,7 +10,7 @@ import {
   TextInput,
   View,
   YStack,
-} from '@tloncorp/ui';
+} from '@tloncorp/app/ui';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 

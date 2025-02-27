@@ -16,11 +16,10 @@ import {
   OnboardingTextBlock,
   ScreenHeader,
   TextInput,
-  TextInputWithButton,
   TlonText,
   View,
   YStack,
-} from '@tloncorp/ui';
+} from '@tloncorp/app/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
@@ -211,7 +210,7 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
               }}
               render={({ field: { onChange, onBlur, value } }) => (
                 <Field label="Access Code" error={errors.accessCode?.message}>
-                  <TextInputWithButton
+                  <TextInput
                     testID="textInput accessCode"
                     placeholder="xxxxxx-xxxxxx-xxxxxx-xxxxxx"
                     onBlur={() => {
@@ -226,8 +225,12 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
                     autoCorrect={false}
                     returnKeyType="send"
                     enablesReturnKeyAutomatically
-                    buttonText={codevisible ? 'Hide' : 'Show'}
-                    onButtonPress={() => setCodeVisible(!codevisible)}
+                    rightControls={
+                      <TextInput.InnerButton
+                        label={codevisible ? 'Hide' : 'Show'}
+                        onPress={() => setCodeVisible(!codevisible)}
+                      />
+                    }
                   />
                 </Field>
               )}

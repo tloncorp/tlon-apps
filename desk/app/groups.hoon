@@ -40,6 +40,7 @@
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
+      log   ~(. logs [our.bowl /logs])
       cor   ~(. +> [bowl ~])
   ++  on-init
     ^-  (quip card _this)
@@ -73,7 +74,7 @@
     |=  [=term =tang]
     ^-  (quip card _this)
     :_  this
-    [(log-fail:logs /logs our.bowl (fail-event:logs term tang))]~
+    [(fail:log term tang ~)]~
   ::
   ++  on-agent
     |=  [=wire =sign:agent:gall]
@@ -2061,7 +2062,9 @@
     ::  already in the group
     ?:  (~(has by groups) flag)  ga-core
     ::  already valid join in progress
-    ?:  &(?=(^ cam.gang) !=(%error progress.u.cam.gang))
+    ?:  ?&  ?=(^ cam.gang)
+            !?=(?(%knocking %error) progress.u.cam.gang)
+        ==
       ga-core
     =.  cam.gang  `[join-all %adding]
     =.  cor  (emit add-self:ga-pass)
@@ -2080,6 +2083,8 @@
     ga-core
   ++  ga-rescind
     ^+  ga-core
+    =.  cam.gang  ~
+    =.  cor  ga-give-update
     =.  cor  (emit rescind:ga-pass)
     ga-core
   ++  ga-watch
@@ -2160,8 +2165,6 @@
           =.  progress.u.cam.gang  %error
           %-  (slog leaf/"Rescind failed" u.p.sign)
           ga-core
-        =.  cam.gang  ~
-        =.  cor  ga-give-update
         ga-core
     ==
   ::

@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getChannelIdType } from '../api/apiUtils';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import { AnalyticsEvent } from '../logic';
+import { AnalyticsEvent } from '../domain';
 import {
   useDebouncedValue,
   useLiveRef,
@@ -174,6 +174,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     db.getUnconfirmedPosts({ channelId: options.channelId }).then(
       setUnconfirmedPosts
     );
+    setNewPosts([]);
   }, [options.channelId]);
   const rawPosts = useMemo<db.Post[] | null>(() => {
     const rawPostsWithoutUnconfirmeds = (() => {

@@ -1,10 +1,10 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as store from '@tloncorp/shared/store';
-import { EditChannelScreenView } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
+import { EditChannelScreenView } from '../../ui';
 
 type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'EditChannel'>;
 
@@ -26,14 +26,23 @@ export function EditChannelScreen(props: Props) {
   }, [data, deleteChannel, props.navigation, groupId]);
 
   const handleSubmit = useCallback(
-    (title: string, description?: string) => {
+    async (
+      title: string,
+      readers: string[],
+      writers: string[],
+      description?: string
+    ) => {
       const prevChannel = data;
       if (prevChannel) {
-        updateChannel({
-          ...prevChannel,
-          title,
-          description,
-        });
+        updateChannel(
+          {
+            ...prevChannel,
+            title,
+            description,
+          },
+          readers,
+          writers
+        );
         props.navigation.goBack();
       }
     },

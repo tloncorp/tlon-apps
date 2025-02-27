@@ -1,14 +1,8 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import {
-  AppDataContextProvider,
-  AttachmentProvider,
-  GroupPreviewAction,
-  GroupPreviewSheet,
-  NavigationProvider,
-  UserProfileScreenView,
-} from '@tloncorp/ui';
 import { useState } from 'react';
 import { useCallback } from 'react';
 
@@ -16,14 +10,27 @@ import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
+import {
+  AppDataContextProvider,
+  AttachmentProvider,
+  GroupPreviewAction,
+  GroupPreviewSheet,
+  NavigationProvider,
+  UserProfileScreenView,
+  useIsWindowNarrow,
+} from '../../ui';
 import { useConnectionStatus } from './useConnectionStatus';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
 
-export function UserProfileScreen({ route: { params }, navigation }: Props) {
-  const userId = params.userId;
+const logger = createDevLogger('UserProfileScreen', false);
+
+export function UserProfileScreen({ route, navigation }: Props) {
+  const { params } = route;
+  const isWindowNarrow = useIsWindowNarrow();
   const { performGroupAction } = useGroupActions();
   const currentUserId = useCurrentUserId();
+  const userId = params?.userId || currentUserId;
   const { data: contacts } = store.useContacts();
   const connectionStatus = useConnectionStatus(userId);
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
@@ -44,8 +51,13 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
   );
 
   const handlePressEdit = useCallback(() => {
-    navigation.push('EditProfile', { userId });
-  }, [navigation, userId]);
+    if (isWindowNarrow) {
+      navigation.push('EditProfile', { userId });
+      return;
+    }
+
+    navigation.navigate('EditProfile', { userId });
+  }, [isWindowNarrow, navigation, userId]);
 
   const canUpload = store.useCanUpload();
 
@@ -56,6 +68,14 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
     },
     [performGroupAction]
   );
+
+  const handlePressGroup = useCallback((group: db.Group) => {
+    logger.trackEvent(
+      AnalyticsEvent.ActionViewProfileGroup,
+      logic.getModelAnalytics({ group })
+    );
+    setSelectedGroup(group);
+  }, []);
 
   return (
     <AppDataContextProvider
@@ -71,7 +91,7 @@ export function UserProfileScreen({ route: { params }, navigation }: Props) {
             userId={userId}
             onBack={() => navigation.goBack()}
             connectionStatus={connectionStatus}
-            onPressGroup={setSelectedGroup}
+            onPressGroup={handlePressGroup}
             onPressEdit={handlePressEdit}
           />
           <GroupPreviewSheet

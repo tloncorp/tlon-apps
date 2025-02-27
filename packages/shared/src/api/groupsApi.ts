@@ -12,7 +12,7 @@ import {
   getChannelType,
   getJoinStatusFromGang,
 } from '../urbit';
-import { parseGroupId, toClientMeta } from './apiUtils';
+import { parseGroupChannelId, parseGroupId, toClientMeta } from './apiUtils';
 import { StructuredChannelDescriptionPayload } from './channelContentConfig';
 import {
   getCurrentUserId,
@@ -698,6 +698,119 @@ export const moveChannel = async ({
   );
 };
 
+export const addGroupRole = async ({
+  groupId,
+  roleId,
+  meta,
+}: {
+  groupId: string;
+  roleId: string;
+  meta: db.ClientMeta;
+}) => {
+  return await poke(
+    groupAction(groupId, {
+      cabal: {
+        sect: roleId,
+        diff: {
+          add: {
+            title: meta.title ?? '',
+            description: meta.description ?? '',
+            image: '',
+            cover: '',
+          },
+        },
+      },
+    })
+  );
+};
+
+export const deleteGroupRole = async ({
+  groupId,
+  roleId,
+}: {
+  groupId: string;
+  roleId: string;
+}) => {
+  return await poke(
+    groupAction(groupId, {
+      cabal: {
+        sect: roleId,
+        diff: {
+          del: null,
+        },
+      },
+    })
+  );
+};
+
+export const updateGroupRole = async ({
+  groupId,
+  roleId,
+  meta,
+}: {
+  groupId: string;
+  roleId: string;
+  meta: db.ClientMeta;
+}) => {
+  return await poke(
+    groupAction(groupId, {
+      cabal: {
+        sect: roleId,
+        diff: {
+          edit: {
+            title: meta.title ?? '',
+            description: meta.description ?? '',
+            image: '',
+            cover: '',
+          },
+        },
+      },
+    })
+  );
+};
+
+export const addMembersToRole = async ({
+  groupId,
+  roleId,
+  ships,
+}: {
+  groupId: string;
+  roleId: string;
+  ships: string[];
+}) => {
+  return await poke(
+    groupAction(groupId, {
+      fleet: {
+        ships,
+        diff: {
+          'add-sects': [roleId],
+        },
+      },
+    })
+  );
+};
+
+export const removeMembersFromRole = async ({
+  groupId,
+  roleId,
+  ships,
+}: {
+  groupId: string;
+  roleId: string;
+  ships: string[];
+}) => {
+  return await poke(
+    groupAction(groupId, {
+      fleet: {
+        ships,
+        diff: {
+          'del-sects': [roleId],
+        },
+      },
+    })
+  );
+};
+
 export type GroupDelete = {
   type: 'deleteGroup';
   groupId: string;
@@ -743,6 +856,7 @@ export type GroupChannelDelete = {
 export type GroupChannelNavSectionAdd = {
   type: 'addChannelToNavSection';
   channelId: string;
+  groupId: string;
   navSectionId: string;
   sectionId: string;
 };
@@ -778,6 +892,7 @@ export type GroupnavSectionMoveChannel = {
   type: 'moveChannel';
   navSectionId: string;
   sectionId: string;
+  groupId: string;
   channelId: string;
   index: number;
 };
@@ -876,13 +991,13 @@ export type GroupUnbanAzimuthRanks = {
   ranks: Rank[];
 };
 
-export type GroupSetAsPublic = {
-  type: 'setGroupAsPublic';
+export type GroupSetAsOpen = {
+  type: 'setGroupAsOpen';
   groupId: string;
 };
 
-export type GroupSetAsPrivate = {
-  type: 'setGroupAsPrivate';
+export type GroupSetAsShut = {
+  type: 'setGroupAsShut';
   groupId: string;
 };
 
@@ -943,8 +1058,8 @@ export type GroupUpdate =
   | GroupUnbanMembers
   | GroupBanAzimuthRanks
   | GroupUnbanAzimuthRanks
-  | GroupSetAsPublic
-  | GroupSetAsPrivate
+  | GroupSetAsOpen
+  | GroupSetAsShut
   | GroupSetAsSecret
   | GroupSetAsNotSecret
   | GroupFlagContent
@@ -1087,14 +1202,14 @@ export const toGroupUpdate = (
     if ('swap' in updateDiff.cordon) {
       if ('open' in updateDiff.cordon.swap) {
         return {
-          type: 'setGroupAsPublic',
+          type: 'setGroupAsOpen',
           groupId,
         };
       }
 
       if ('shut' in updateDiff.cordon.swap) {
         return {
-          type: 'setGroupAsPrivate',
+          type: 'setGroupAsShut',
           groupId,
         };
       }
@@ -1205,6 +1320,7 @@ export const toGroupUpdate = (
         type: 'moveChannel',
         navSectionId,
         sectionId,
+        groupId,
         channelId: zoneDelta['mov-nest'].nest,
         index: zoneDelta['mov-nest'].idx,
       };
@@ -1262,6 +1378,7 @@ export const toGroupUpdate = (
       return {
         type: 'addChannelToNavSection',
         channelId,
+        groupId,
         navSectionId: `${groupId}-${zoneId}`,
         sectionId: zoneId,
       };
@@ -1370,7 +1487,8 @@ export function toClientGroup(
     roles,
     privacy: extractGroupPrivacy(group),
     ...toClientGroupMeta(group.meta),
-    haveInvite: false,
+    haveInvite: isJoined ? false : undefined,
+    haveRequestedInvite: isJoined ? false : undefined,
     currentUserIsMember: isJoined,
     currentUserIsHost: hostUserId === currentUserId,
     joinStatus: groupIsSyncing(group) ? 'joining' : undefined,
@@ -1535,6 +1653,9 @@ function toClientChannel({
     roleId,
   }));
 
+  const currentUserId = getCurrentUserId();
+  const { host: hostUserId } = parseGroupChannelId(id);
+
   return {
     id,
     groupId,
@@ -1544,6 +1665,7 @@ function toClientChannel({
     coverImage: omitEmpty(channel.meta.cover),
     description,
     contentConfiguration: channelContentConfiguration,
+    currentUserIsHost: hostUserId === currentUserId,
     readerRoles,
     writerRoles,
   };

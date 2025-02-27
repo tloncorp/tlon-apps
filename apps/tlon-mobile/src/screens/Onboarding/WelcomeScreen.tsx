@@ -16,13 +16,12 @@ import {
   View,
   XStack,
   YStack,
-} from '@tloncorp/ui';
-import { OnboardingBenefitsSheet } from '@tloncorp/ui/src/components/Onboarding/OnboardingBenefitsSheet';
+} from '@tloncorp/app/ui';
+import { OnboardingBenefitsSheet } from '@tloncorp/app/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useCheckAppInstalled } from '../../hooks/analytics';
-import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
 
 export const Text = TlonText.Text;
@@ -34,7 +33,6 @@ export const WelcomeScreen = ({ navigation }: Props) => {
   const { bottom, top } = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   const didShowBenefitsSheet = db.benefitsSheetDismissed.useValue();
-  const signupContext = useSignupContext();
   const { isAuthenticated } = useShip();
   const finishingSelfHostedLogin = selfHostedLoginStatus.useValue();
 
@@ -60,7 +58,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
         lure: lureMeta.id,
         inviteType:
           lureMeta.inviteType && lureMeta.inviteType === 'user'
-            ? 'personal'
+            ? 'user'
             : 'group',
       });
     }
@@ -119,15 +117,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
                     navigation.navigate('PasteInviteLink');
                   }}
                 >
-                  <Button.Text>Claim invite</Button.Text>
-                </OnboardingButton>
-                <OnboardingButton
-                  secondary
-                  onPress={() => {
-                    navigation.navigate('JoinWaitList', {});
-                  }}
-                >
-                  <Button.Text>Join waitlist</Button.Text>
+                  <Button.Text>Sign up</Button.Text>
                 </OnboardingButton>
               </>
             )}
@@ -146,10 +136,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
           </XStack>
         </YStack>
       </View>
-      <ActionSheet
-        open={signupContext.reviveCheckComplete && open}
-        onOpenChange={setOpen}
-      >
+      <ActionSheet open={open} onOpenChange={setOpen}>
         <ActionSheet.Content>
           <ActionSheet.ActionGroup accent="neutral">
             <ActionSheet.Action
@@ -195,7 +182,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
         until after checking for onboarding revive (which may auto navigate) 
       */}
       <OnboardingBenefitsSheet
-        open={signupContext.reviveCheckComplete && !didShowBenefitsSheet}
+        open={!didShowBenefitsSheet}
         onOpenChange={handleBenefitsSheetOpenChange}
       />
     </View>

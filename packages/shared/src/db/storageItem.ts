@@ -43,7 +43,40 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
 
   const getValue = async (): Promise<T> => {
     const value = await storage.getItem(key);
-    return value ? deserialize(value) : defaultValue;
+
+    if (!value) {
+      return defaultValue;
+    }
+
+    try {
+      const deserializedValue = deserialize(value);
+
+      // Check to handle migration from a previous storage library
+      // that prefixed all keys
+      if (
+        deserializedValue &&
+        typeof deserializedValue === 'object' &&
+        'rawData' in deserializedValue
+      ) {
+        return deserializedValue.rawData;
+      }
+      return deserializedValue;
+    } catch (e) {
+      // Handle migration from previous secure storage implementation which
+      // didn't serialize values on write
+      if (
+        config.isSecure &&
+        typeof config.defaultValue === 'string' &&
+        value.length > 0
+      ) {
+        await setValue(value as unknown as T);
+        return value as unknown as T;
+      } else {
+        // In other cases of deserialization failure, don't interfere with the throw
+        logger.trackEvent('Failed to deserialize StorageItem', { key });
+        throw e;
+      }
+    }
   };
 
   const resetValue = async (): Promise<T> => {

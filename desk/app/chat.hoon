@@ -2,7 +2,7 @@
 /-  meta
 /-  ha=hark
 /-  contacts-0
-/+  default-agent, verb-lib=verb, dbug, neg=negotiate
+/+  default-agent, verb-lib=verb, dbug, neg=negotiate, logs
 /+  pac=dm
 /+  utils=channel-utils
 /+  volume
@@ -53,6 +53,7 @@
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
+      log   ~(. logs [our.bowl /logs])
       cor   ~(. +> [bowl ~])
   ++  on-init
     ^-  (quip card _this)
@@ -84,7 +85,11 @@
   ++  on-peek   peek:cor
   ::
   ++  on-leave   on-leave:def
-  ++  on-fail    on-fail:def
+  ++  on-fail
+    |=  [=term =tang]
+    ^-  (quip card _this)
+    :_  this
+    [(fail:log term tang ~)]~
   ::
   ++  on-agent
     |=  [=wire =sign:agent:gall]

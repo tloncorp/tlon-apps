@@ -5,10 +5,22 @@ import {
 } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Keyboard } from 'react-native';
+import { ColorTokens, Text, YStack, useTheme } from 'tamagui';
+
+import { TLON_EMPLOYEE_GROUP } from '../../constants';
+import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { useFilteredChats } from '../../hooks/useFilteredChats';
+import { TabName } from '../../hooks/useFilteredChats';
+import { useGroupActions } from '../../hooks/useGroupActions';
+import type { RootStackParamList } from '../../navigation/types';
+import { useRootNavigation } from '../../navigation/utils';
 import {
-  ChatList,
   ChatOptionsProvider,
   GroupPreviewAction,
   GroupPreviewSheet,
@@ -16,23 +28,18 @@ import {
   NavBarView,
   NavigationProvider,
   PersonalInviteSheet,
+  Pressable,
   RequestsProvider,
   ScreenHeader,
   View,
   WelcomeSheet,
   useGlobalSearch,
   useIsWindowNarrow,
-} from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ColorTokens, useTheme } from 'tamagui';
-
-import { TLON_EMPLOYEE_GROUP } from '../../constants';
-import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
-import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { useGroupActions } from '../../hooks/useGroupActions';
-import type { RootStackParamList } from '../../navigation/types';
-import { useRootNavigation } from '../../navigation/utils';
+} from '../../ui';
 import { identifyTlonEmployee } from '../../utils/posthog';
+import { ChatList } from '../chat-list/ChatList';
+import { ChatListSearch } from '../chat-list/ChatListSearch';
+import { ChatListTabs } from '../chat-list/ChatListTabs';
 import { CreateChatSheet, CreateChatSheetMethods } from './CreateChatSheet';
 
 const logger = createDevLogger('ChatListScreen', false);
@@ -54,7 +61,7 @@ export function ChatListScreenView({
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
   const [screenTitle, setScreenTitle] = useState('Home');
-  const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
+  const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>();
   const personalInvite = db.personalInviteLink.useValue();
   const viewedPersonalInvite = db.hasViewedPersonalInvite.useValue();
   const { isOpen, setIsOpen } = useGlobalSearch();
@@ -71,9 +78,7 @@ export function ChatListScreenView({
     ]
   );
 
-  const [activeTab, setActiveTab] = useState<'all' | 'groups' | 'messages'>(
-    'all'
-  );
+  const [activeTab, setActiveTab] = useState<TabName>('home');
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
     previewGroupId ?? null
   );
@@ -194,7 +199,7 @@ export function ChatListScreenView({
 
   const handleSectionChange = useCallback(
     (title: string) => {
-      if (activeTab === 'all') {
+      if (activeTab === 'home') {
         setScreenTitle(title);
       }
     },
@@ -202,7 +207,7 @@ export function ChatListScreenView({
   );
 
   useEffect(() => {
-    if (activeTab === 'all') {
+    if (activeTab === 'home') {
       setScreenTitle('Home');
     } else if (activeTab === 'groups') {
       setScreenTitle('Groups');
@@ -237,6 +242,7 @@ export function ChatListScreenView({
     if (isWindowNarrow) {
       if (showSearchInput) {
         setSearchQuery('');
+        Keyboard.dismiss();
       }
       setShowSearchInput(!showSearchInput);
     } else {
@@ -257,6 +263,24 @@ export function ChatListScreenView({
     db.hasViewedPersonalInvite.setValue(true);
     setPersonalInviteOpen(true);
   }, []);
+
+  const handlePressTryAll = useCallback(() => {
+    setActiveTab('home');
+  }, [setActiveTab]);
+
+  const handlePressClear = useCallback(() => {
+    setSearchQuery('');
+  }, [setSearchQuery]);
+
+  const handlePressClose = useCallback(() => {
+    handleSearchInputToggled();
+  }, [handleSearchInputToggled]);
+
+  const displayData = useFilteredChats({
+    ...resolvedChats,
+    searchQuery,
+    activeTab,
+  });
 
   return (
     <RequestsProvider
@@ -291,27 +315,41 @@ export function ChatListScreenView({
                     type="Search"
                     onPress={handleSearchInputToggled}
                   />
-                  <ScreenHeader.IconButton
-                    type="Add"
-                    onPress={handlePressAddChat}
-                  />
+                  {isWindowNarrow ? (
+                    <ScreenHeader.IconButton
+                      type="Add"
+                      onPress={handlePressAddChat}
+                      testID="CreateGroupButton"
+                    />
+                  ) : (
+                    <CreateChatSheet
+                      ref={createChatSheetRef}
+                      trigger={<ScreenHeader.IconButton type="Add" />}
+                    />
+                  )}
                 </>
               }
             />
             {chats && chats.unpinned.length ? (
-              <ChatList
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
-                pinned={resolvedChats.pinned}
-                unpinned={resolvedChats.unpinned}
-                pending={resolvedChats.pending}
-                onPressItem={onPressChat}
-                onSectionChange={handleSectionChange}
-                showSearchInput={showSearchInput}
-                onSearchToggle={handleSearchInputToggled}
-                searchQuery={searchQuery}
-                onSearchQueryChange={setSearchQuery}
-              />
+              <>
+                <ChatListTabs onPressTab={setActiveTab} activeTab={activeTab} />
+                <ChatListSearch
+                  query={searchQuery}
+                  onQueryChange={setSearchQuery}
+                  isOpen={showSearchInput}
+                  onPressClear={handlePressClear}
+                  onPressClose={handlePressClose}
+                />
+                {searchQuery !== '' && !displayData[0]?.data.length ? (
+                  <SearchResultsEmpty
+                    activeTab={activeTab}
+                    onPressClear={handlePressClear}
+                    onPressTryAll={handlePressTryAll}
+                  />
+                ) : (
+                  <ChatList data={displayData} onPressItem={onPressChat} />
+                )}
+              </>
             ) : null}
 
             <WelcomeSheet
@@ -328,7 +366,7 @@ export function ChatListScreenView({
               open={inviteSheetGroup !== null}
               onOpenChange={handleInviteSheetOpenChange}
               onInviteComplete={() => setInviteSheetGroup(null)}
-              group={inviteSheetGroup ?? undefined}
+              groupId={inviteSheetGroup ?? undefined}
             />
           </View>
         </NavigationProvider>
@@ -347,11 +385,41 @@ export function ChatListScreenView({
         />
       </ChatOptionsProvider>
 
-      <CreateChatSheet ref={createChatSheetRef} />
+      {isWindowNarrow && <CreateChatSheet ref={createChatSheetRef} />}
       <PersonalInviteSheet
         open={personalInviteOpen}
         onOpenChange={() => setPersonalInviteOpen(false)}
       />
     </RequestsProvider>
+  );
+}
+
+function SearchResultsEmpty({
+  activeTab,
+  onPressClear,
+  onPressTryAll,
+}: {
+  activeTab: TabName;
+  onPressTryAll: () => void;
+  onPressClear: () => void;
+}) {
+  return (
+    <YStack
+      gap="$l"
+      alignItems="center"
+      justifyContent="center"
+      paddingHorizontal="$l"
+      paddingVertical="$m"
+    >
+      <Text>No results found.</Text>
+      {activeTab !== 'home' && (
+        <Pressable onPress={onPressTryAll}>
+          <Text textDecorationLine="underline">Try in All?</Text>
+        </Pressable>
+      )}
+      <Pressable onPress={onPressClear}>
+        <Text color="$positiveActionText">Clear search</Text>
+      </Pressable>
+    </YStack>
   );
 }

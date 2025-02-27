@@ -14,6 +14,8 @@ import { TRIGGER_SETUP } from './triggers';
 
 export class NativeDb extends BaseDb {
   private connection: SQLiteConnection | null = null;
+  private isProcessingChanges: boolean = false;
+  private changesPending: boolean = false;
 
   async setupDb() {
     if (this.connection || this.client) {
@@ -31,9 +33,7 @@ export class NativeDb extends BaseDb {
     this.connection.execute('PRAGMA journal_mode=MEMORY');
     this.connection.execute('PRAGMA synchronous=OFF');
 
-    this.connection.updateHook(() => {
-      this.processChanges();
-    });
+    this.connection.updateHook(() => this.handleUpdate());
 
     this.client = this.connection.createClient({
       schema,
@@ -47,6 +47,20 @@ export class NativeDb extends BaseDb {
     });
     setClient(this.client);
     logger.log('SQLite database opened at', this.connection.getDbPath());
+  }
+
+  async handleUpdate() {
+    if (this.isProcessingChanges) {
+      this.changesPending = true;
+      return;
+    }
+    this.isProcessingChanges = true;
+    await this.processChanges();
+    this.isProcessingChanges = false;
+    if (this.changesPending) {
+      this.changesPending = false;
+      this.handleUpdate();
+    }
   }
 
   async purgeDb() {
@@ -68,6 +82,11 @@ export class NativeDb extends BaseDb {
   }
 
   async runMigrations() {
+    if (!this.client || !this.connection) {
+      logger.warn('runMigrations called before setupDb, ignoring');
+      return;
+    }
+
     try {
       await this.connection?.migrateClient(this.client!);
       this.connection?.execute(TRIGGER_SETUP);

@@ -1,24 +1,22 @@
 // tamagui-ignore
+import { NavigationContainer } from '@react-navigation/native';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared';
-import type { ColorProp } from '@tloncorp/ui';
-import { AppDataContextProvider, Theme, View } from '@tloncorp/ui';
 import type { PropsWithChildren } from 'react';
 import { useFixtureSelect } from 'react-cosmos/client';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useChatSettingsNavigation } from '../hooks/useChatSettingsNavigation';
+import type { ColorProp } from '../ui';
+import {
+  AppDataContextProvider,
+  ChatOptionsProvider,
+  Theme,
+  View,
+} from '../ui';
 import { initialContacts } from './fakeData';
 
-export const FixtureWrapper = ({
-  fillWidth,
-  fillHeight,
-  verticalAlign,
-  horizontalAlign,
-  children,
-  backgroundColor,
-  innerBackgroundColor,
-  safeArea,
-}: PropsWithChildren<{
+type FixtureWrapperProps = PropsWithChildren<{
   fillWidth?: boolean;
   fillHeight?: boolean;
   verticalAlign?: 'top' | 'center' | 'bottom';
@@ -26,7 +24,28 @@ export const FixtureWrapper = ({
   backgroundColor?: ColorProp;
   innerBackgroundColor?: ColorProp;
   safeArea?: boolean;
-}>) => {
+}>;
+
+export const FixtureWrapper = (props: FixtureWrapperProps) => {
+  return (
+    <NavigationContainer>
+      <InnerWrapper {...props} />
+    </NavigationContainer>
+  );
+};
+
+FixtureWrapper.displayName = 'FixtureWrapper';
+
+const InnerWrapper = ({
+  fillWidth,
+  fillHeight,
+  verticalAlign,
+  horizontalAlign,
+  backgroundColor,
+  innerBackgroundColor,
+  safeArea,
+  children,
+}: FixtureWrapperProps) => {
   const insets = useSafeAreaInsets();
 
   const [theme] = useFixtureSelect('themeName', {
@@ -47,47 +66,47 @@ export const FixtureWrapper = ({
             disableNicknames: false,
           }}
         >
-          <Theme name={theme}>
-            <View
-              flex={1}
-              paddingBottom={safeArea ? insets.bottom : 0}
-              paddingTop={safeArea ? insets.top : 0}
-            >
+          <ChatOptionsProvider {...useChatSettingsNavigation()}>
+            <Theme name={theme}>
               <View
-                backgroundColor={backgroundColor ?? '$secondaryBackground'}
                 flex={1}
-                flexDirection="column"
-                width={fillWidth ? '100%' : 'unset'}
-                height={fillHeight ? '100%' : 'unset'}
-                justifyContent={
-                  verticalAlign === 'top'
-                    ? 'flex-start'
-                    : verticalAlign === 'bottom'
-                      ? 'flex-end'
-                      : 'center'
-                }
-                alignItems={
-                  horizontalAlign === 'left'
-                    ? 'flex-start'
-                    : horizontalAlign === 'right'
-                      ? 'flex-end'
-                      : 'center'
-                }
+                paddingBottom={safeArea ? insets.bottom : 0}
+                paddingTop={safeArea ? insets.top : 0}
               >
                 <View
-                  backgroundColor={innerBackgroundColor ?? '$background'}
+                  backgroundColor={backgroundColor ?? '$secondaryBackground'}
+                  flex={1}
+                  flexDirection="column"
                   width={fillWidth ? '100%' : 'unset'}
                   height={fillHeight ? '100%' : 'unset'}
+                  justifyContent={
+                    verticalAlign === 'top'
+                      ? 'flex-start'
+                      : verticalAlign === 'bottom'
+                        ? 'flex-end'
+                        : 'center'
+                  }
+                  alignItems={
+                    horizontalAlign === 'left'
+                      ? 'flex-start'
+                      : horizontalAlign === 'right'
+                        ? 'flex-end'
+                        : 'center'
+                  }
                 >
-                  {children}
+                  <View
+                    backgroundColor={innerBackgroundColor ?? '$background'}
+                    width={fillWidth ? '100%' : 'unset'}
+                    height={fillHeight ? '100%' : 'unset'}
+                  >
+                    {children}
+                  </View>
                 </View>
               </View>
-            </View>
-          </Theme>
+            </Theme>
+          </ChatOptionsProvider>
         </AppDataContextProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>
   );
 };
-
-FixtureWrapper.displayName = 'FixtureWrapper';

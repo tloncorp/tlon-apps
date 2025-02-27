@@ -1,9 +1,5 @@
-import { ListItem } from '@tloncorp/ui';
-import {
-  ActionGroup,
-  ActionSheet,
-} from '@tloncorp/ui/src/components/ActionSheet';
-
+import { ListItem } from '../../ui';
+import { ActionGroup, ActionSheet } from '../../ui/components/ActionSheet';
 import { FixtureWrapper } from '../FixtureWrapper';
 
 const ActionSheetFixture = () => {

@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { EMAIL_REGEX } from '@tloncorp/app/constants';
-import { addUserToWaitlist } from '@tloncorp/app/lib/hostingApi';
 import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import { addUserToWaitlist } from '@tloncorp/shared/api';
 import {
   Field,
   ScreenHeader,
@@ -9,7 +9,7 @@ import {
   TlonText,
   View,
   YStack,
-} from '@tloncorp/ui';
+} from '@tloncorp/app/ui';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Alert } from 'react-native';

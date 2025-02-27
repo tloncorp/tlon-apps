@@ -94,34 +94,56 @@ export const useDebugStore = create<DebugStore>(
       uploadLogs: async () => {
         const { logs, errorLogger, platform, appInfo, debugBreadcrumbs } =
           get();
+
+        console.log('getting debug info');
         const platformInfo = await platform?.getDebugInfo();
+        console.log('got debug info', platformInfo, appInfo);
         const debugInfo = {
           ...appInfo,
           ...platformInfo,
         };
-        const infoSize = roughMeasure(debugInfo);
-        const crumbSize = roughMeasure(debugBreadcrumbs);
-        const mappedLogs = logs.map((log) => log.message);
-        const runSize = MAX_POSTHOG_EVENT_SIZE - crumbSize - infoSize;
-        const runs = splitLogs(mappedLogs, runSize);
-        const logId = uuidv4();
 
-        for (let i = 0; i < runs.length; i++) {
-          errorLogger?.capture('debug_logs', {
+        try {
+          console.log('measuring sizes');
+          const infoSize = roughMeasure(debugInfo);
+          console.log('info size', infoSize);
+          const crumbSize = roughMeasure(debugBreadcrumbs);
+          console.log('crumb size', crumbSize);
+          const mappedLogs = logs.map((log) => log.message);
+          console.log('mapped logs', mappedLogs);
+          const runSize = MAX_POSTHOG_EVENT_SIZE - crumbSize - infoSize;
+          console.log('run size', runSize);
+          const runs = splitLogs(mappedLogs, runSize);
+          console.log('split logs', runs);
+          const logId = uuidv4();
+
+          for (let i = 0; i < runs.length; i++) {
+            console.log('capturing logs', i);
+            errorLogger?.capture('Debug Logs', {
+              logId,
+              page: `Page ${i + 1} of ${runs.length}`,
+              logs: runs[i],
+              breadcrumbs: debugBreadcrumbs,
+              debugInfo,
+            });
+            console.log('captured log', i);
+          }
+
+          set(() => ({
+            logs: [],
             logId,
-            page: `Page ${i + 1} of ${runs.length}`,
-            logs: runs[i],
-            breadcrumbs: debugBreadcrumbs,
+          }));
+
+          return logId;
+        } catch (error) {
+          errorLogger?.capture('App Error', {
             debugInfo,
+            message: 'message' in error ? error.message : JSON.stringify(error),
+            breadcrumbs: useDebugStore.getState().getBreadcrumbs(),
           });
         }
 
-        set(() => ({
-          logs: [],
-          logId,
-        }));
-
-        return logId;
+        return '';
       },
       addBreadcrumb: (crumb: Breadcrumb) => {
         set((state) => {
@@ -253,6 +275,7 @@ export function createDevLogger(tag: string, enabled: boolean) {
             errorLogger?.capture(args[0], {
               ...customProps,
               message: `[${tag}] ${args[0]}`,
+              logger: tag,
             });
           }
           resolvedProp = 'log';
@@ -463,6 +486,7 @@ function splitLogs(logs: string[], maxSize: number): string[][] {
 
   for (const log of logs) {
     const logSize = log.length;
+    console.log('log size', logSize, currentSize + logSize, maxSize);
     if (currentSize + logSize > maxSize) {
       splits.push(currentSplit);
       currentSplit = [log];
@@ -473,5 +497,5 @@ function splitLogs(logs: string[], maxSize: number): string[][] {
     currentSize += logSize;
   }
 
-  return splits;
+  return [...splits, currentSplit];
 }
