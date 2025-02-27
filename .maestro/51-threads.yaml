@@ -78,6 +78,8 @@ appId: io.tlon.groups
     commands:
       - assertVisible: '.*👍.*'
 # Un-react to the message
+# This is optional because the interaction is flaky; works fine
+# for reactions on others' thread replies, but not on own replies
 - tapOn:
     id: 'ReactionDisplay'
     optional: true
