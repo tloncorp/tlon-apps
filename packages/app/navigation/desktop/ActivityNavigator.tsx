@@ -9,7 +9,7 @@ import * as store from '@tloncorp/shared/store';
 import { useCallback, useMemo } from 'react';
 
 import { useGroupActions } from '../../hooks/useGroupActions';
-import { ActivityScreenView } from '../../ui';
+import { ActivityScreenView, DESKTOP_SIDEBAR_WIDTH } from '../../ui';
 import { useRootNavigation } from '../utils';
 
 const ActivityDrawer = createDrawerNavigator();
@@ -92,7 +92,7 @@ export const ActivityNavigator = () => {
         headerShown: false,
         drawerType: 'permanent',
         drawerStyle: {
-          width: 450,
+          width: DESKTOP_SIDEBAR_WIDTH,
           backgroundColor: getVariableValue(useTheme().background),
           borderRightColor: getVariableValue(useTheme().border),
         },

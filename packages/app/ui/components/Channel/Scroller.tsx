@@ -7,7 +7,11 @@ import {
 import * as db from '@tloncorp/shared/db';
 import { isSameDay } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { useIsWindowNarrow } from '@tloncorp/ui';
+import {
+  DESKTOP_SIDEBAR_WIDTH,
+  DESKTOP_TOPLEVEL_SIDEBAR_WIDTH,
+  useIsWindowNarrow,
+} from '@tloncorp/ui';
 import { FloatingActionButton } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { LoadingSpinner } from '@tloncorp/ui';
@@ -38,7 +42,7 @@ import {
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, getTokens, styled, useStyle, useTheme } from 'tamagui';
+import { View, getTokens, isWeb, styled, useStyle, useTheme } from 'tamagui';
 
 import { RenderItemType } from '../../contexts/componentsKits';
 import { useLivePost } from '../../contexts/requests';
@@ -143,8 +147,14 @@ const Scroller = forwardRef(
       [channel]
     );
     const { width } = useWindowDimensions();
+    const isWindowNarrow = useIsWindowNarrow();
     const availableSpace = useMemo(() => {
-      return Math.floor(width - 388 - 2 * getTokens().space.m.val);
+      const sidebarsTotalWidth = isWindowNarrow
+        ? 0
+        : DESKTOP_TOPLEVEL_SIDEBAR_WIDTH + DESKTOP_SIDEBAR_WIDTH;
+      return Math.floor(
+        width - sidebarsTotalWidth - 2 * getTokens().space.m.val
+      );
     }, [width]);
 
     const columns = useMemo(() => {
@@ -158,6 +168,8 @@ const Scroller = forwardRef(
       const totalGap = (columns - 1) * getTokens().space.l.val;
       return Math.floor((availableSpace - totalGap) / columns);
     }, [availableSpace, columns]);
+
+    console.log({ availableSpace, columns, itemWidth });
 
     const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
     const [viewReactionsPost, setViewReactionsPost] = useState<null | db.Post>(
@@ -319,7 +331,8 @@ const Scroller = forwardRef(
         showDividers,
         collectionLayout.dividersEnabled,
         collectionLayout.itemAspectRatio,
-        collectionLayout.columnCount,
+        columns,
+        itemWidth,
         setActiveMessage,
         setEditingPost,
       ]
@@ -450,8 +463,6 @@ const Scroller = forwardRef(
       setEmojiPickerOpen(false)
     );
 
-    const isWindowNarrow = useIsWindowNarrow();
-
     return (
       <View flex={1}>
         {shouldShowScrollButton() && (
@@ -473,7 +484,7 @@ const Scroller = forwardRef(
             ref={flatListRef as React.RefObject<Animated.FlatList<db.Post>>}
             // This is needed so that we can force a refresh of the list when
             // we need to switch from 1 to 2 columns or vice versa.
-            key={channel.type + '-' + collectionLayout.columnCount}
+            key={channel.type + '-' + columns}
             data={postsWithNeighbors}
             // Disabled to prevent the user from accidentally blurring the edit
             // input while they're typing.

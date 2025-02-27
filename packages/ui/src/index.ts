@@ -1,3 +1,6 @@
+export const DESKTOP_TOPLEVEL_SIDEBAR_WIDTH = 56;
+export const DESKTOP_SIDEBAR_WIDTH = 450;
+
 export * from './types';
 export * from './components/Button';
 export * from './components/Carousel';
