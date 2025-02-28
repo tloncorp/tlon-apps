@@ -83,7 +83,7 @@ export function registerBackgroundSyncTask() {
       await BackgroundFetch.registerTaskAsync(TASK_ID, {
         // Uses expo-notification default - at time of writing, 10 minutes on
         // Android, system minimum on iOS (10-15 minutes)
-        minimumInterval: undefined,
+        // minimumInterval: undefined,
 
         // Android-only
         // We could flip these to be more aggressive; let's start with lower
