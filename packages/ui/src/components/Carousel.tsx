@@ -37,6 +37,7 @@ const _Carousel = React.forwardRef<
     {
       onVisibleIndexChange?: (index: number) => void;
       scrollDirection?: 'horizontal' | 'vertical';
+      hideOverlayOnTap?: boolean;
     }
   >
 >(function Carousel(
@@ -44,6 +45,7 @@ const _Carousel = React.forwardRef<
     children,
     onVisibleIndexChange,
     scrollDirection = 'horizontal',
+    hideOverlayOnTap = true,
     ...passedProps
   },
   forwardedRef
@@ -52,9 +54,11 @@ const _Carousel = React.forwardRef<
   const [visibleIndex, setVisibleIndex] = React.useState(0);
   const [isOverlayShown, setIsOverlayShown] = React.useState(false);
   const [overlay, setOverlay] = React.useState<JSX.Element | null>(null);
-  const tap = Gesture.Tap().onEnd((_event, success) => {
-    success && runOnJS(setIsOverlayShown)(!isOverlayShown);
-  });
+  const tap = Gesture.Tap()
+    .onEnd((_event, success) => {
+      success && runOnJS(setIsOverlayShown)(!isOverlayShown);
+    })
+    .enabled(hideOverlayOnTap);
   const [rect, setRect] = React.useState<{
     width: number;
     height: number;
@@ -144,7 +148,7 @@ const _Carousel = React.forwardRef<
           />
         </CarouselContext.Provider>
         <AnimatePresence>
-          {isOverlayShown && (
+          {(!hideOverlayOnTap || isOverlayShown) && (
             <View
               key="overlay"
               animation="simple"
