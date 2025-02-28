@@ -250,6 +250,20 @@
       [~ %| *]  ~&  [dap.bowl %overwriting-pending-import]
                 cor(pimp `|+egg-any)
     ==
+  ::
+      %handle-http-request
+    ::  we may (in some Tlon hosting circumstances) have been bound to serve
+    ::  on the root path, making us act as a catch-all for http requests.
+    ::  handle all requests that hit us by redirecting back into the web app.
+    ::
+    =+  !<([id=@ta inbound-request:eyre] vase)
+    =/  pax=path                 /http-response/[id]
+    =/  pay=simple-payload:http  [[307 ['location' '/apps/groups/']~] ~]
+    %-  emil
+    :~  [%give %fact ~[pax] %http-response-header !>(response-header.pay)]
+        [%give %fact ~[pax] %http-response-data !>(data.pay)]
+        [%give %kick ~[pax] ~]
+    ==
   ==
 ::
 ++  run-import
@@ -481,6 +495,7 @@
   ^+  cor
   ~|  watch-path=`path`pole
   ?+  pole  ~|(%bad-watch-path !!)
+    [%http-response *]    cor
     [%init ~]             (give %kick ~ ~)
     [%groups ~]           cor
     [%groups %ui ~]       cor
