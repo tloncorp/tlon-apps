@@ -38,6 +38,9 @@ const _Carousel = React.forwardRef<
       onVisibleIndexChange?: (index: number) => void;
       scrollDirection?: 'horizontal' | 'vertical';
       hideOverlayOnTap?: boolean;
+      flatListProps?: Partial<
+        React.ComponentPropsWithoutRef<typeof FlatList<React.ReactElement>>
+      >;
     }
   >
 >(function Carousel(
@@ -46,6 +49,7 @@ const _Carousel = React.forwardRef<
     onVisibleIndexChange,
     scrollDirection = 'horizontal',
     hideOverlayOnTap = true,
+    flatListProps,
     ...passedProps
   },
   forwardedRef
@@ -145,6 +149,7 @@ const _Carousel = React.forwardRef<
                 {item}
               </CarouselItemContext.Provider>
             )}
+            {...flatListProps}
           />
         </CarouselContext.Provider>
         <AnimatePresence>
