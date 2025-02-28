@@ -190,6 +190,8 @@ export function PresentationalCarouselPostScreenContent({
         windowSize={3}
         renderItem={renderItem}
         getItemLayout={getItemLayout}
+        // always maintain content position when new content is loaded in
+        maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
       />
     </View>
   ) : null;
