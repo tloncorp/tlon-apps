@@ -44,11 +44,7 @@ export default function PostScreen(props: Props) {
     >
       <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
         {mode === 'carousel' ? (
-          <CarouselPostScreenContent
-            channelId={channelId}
-            postId={postId}
-            authorId={authorId}
-          />
+          <CarouselPostScreenContent channelId={channelId} postId={postId} />
         ) : (
           <PostScreenContent
             postId={postId}
@@ -63,16 +59,15 @@ export default function PostScreen(props: Props) {
 
 function CarouselPostScreenContent({
   channelId,
-  authorId,
   postId,
 }: {
   channelId: string;
-  authorId: string;
   postId: string;
 }) {
-  const navigation = useNavigation();
-
-  const { posts, query } = store.useChannelPosts({
+  const {
+    posts,
+    query: { fetchNextPage, fetchPreviousPage },
+  } = store.useChannelPosts({
     enabled: true,
     channelId: channelId,
     count: 10,
@@ -80,12 +75,39 @@ function CarouselPostScreenContent({
     cursor: postId,
     firstPageCount: 50,
   });
+  const { data: channel } = store.useChannel({ id: channelId });
 
   const initialPostIndex = useMemo(() => {
     return posts?.findIndex((p) => p.id === postId) ?? -1;
   }, [posts, postId]);
 
-  const { fetchNextPage, fetchPreviousPage } = query;
+  return (
+    <PresentationalCarouselPostScreenContent
+      {...{
+        posts: posts ?? null,
+        channel: channel ?? null,
+        initialPostIndex,
+        fetchNewerPage: fetchNextPage,
+        fetchOlderPage: fetchPreviousPage,
+      }}
+    />
+  );
+}
+
+export function PresentationalCarouselPostScreenContent({
+  posts,
+  channel,
+  initialPostIndex,
+  fetchNewerPage,
+  fetchOlderPage,
+}: {
+  posts: db.Post[] | null;
+  channel: db.Channel | null;
+  initialPostIndex: number;
+  fetchNewerPage: () => void;
+  fetchOlderPage: () => void;
+}) {
+  const navigation = useNavigation();
 
   const [visibleIndex, setVisibleIndex] = useState(initialPostIndex);
   const windowWidth = Dimensions.get('window').width;
@@ -98,16 +120,6 @@ function CarouselPostScreenContent({
     [windowWidth]
   );
 
-  const handleEndReached = useCallback(() => {
-    fetchNextPage();
-  }, [fetchNextPage]);
-
-  const handleStartReached = useCallback(() => {
-    fetchPreviousPage();
-  }, [fetchPreviousPage]);
-
-  const { data: channel } = store.useChannel({ id: channelId });
-
   const activePost = posts?.[visibleIndex];
 
   const renderItem = useCallback(
@@ -116,18 +128,18 @@ function CarouselPostScreenContent({
         <View width={windowWidth}>
           <PostScreenContent
             postId={item.id}
-            authorId={authorId}
-            channelId={channelId}
+            authorId={item.authorId}
+            channelId={item.channelId}
             headerHidden={true}
           />
         </View>
       );
     },
-    [authorId, channelId, windowWidth]
+    [windowWidth]
   );
 
   const getItemLayout = useCallback(
-    (data: db.Post[], index: number) => ({
+    (_data: db.Post[], index: number) => ({
       length: windowWidth,
       offset: windowWidth * index,
       index,
@@ -161,8 +173,8 @@ function CarouselPostScreenContent({
         horizontal={true}
         scrollEventThrottle={33}
         onScroll={handleScroll}
-        onEndReached={handleEndReached}
-        onStartReached={handleStartReached}
+        onEndReached={fetchNewerPage}
+        onStartReached={fetchOlderPage}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
         disableIntervalMomentum={true}
