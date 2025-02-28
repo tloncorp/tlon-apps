@@ -18,7 +18,7 @@ import { ChatVolumeScreen } from '../../features/top/ChatVolumeScreen';
 import ImageViewerScreen from '../../features/top/ImageViewerScreen';
 import PostScreen from '../../features/top/PostScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
-import { useGlobalSearch } from '../../ui';
+import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
 import { GroupSettingsStack } from '../GroupSettingsStack';
 import { HomeDrawerParamList } from '../types';
 import { MessagesSidebar } from './MessagesSidebar';
@@ -26,7 +26,11 @@ import { MessagesSidebar } from './MessagesSidebar';
 const MessagesDrawer = createDrawerNavigator();
 
 export const MessagesNavigator = () => {
+  const theme = useTheme();
   const { setLastOpenTab } = useGlobalSearch();
+  const backgroundColor = getVariableValue(theme.background);
+  const borderColor = getVariableValue(theme.border);
+
   useEffect(() => {
     setLastOpenTab('Messages');
   }, []);
@@ -35,14 +39,21 @@ export const MessagesNavigator = () => {
     <MessagesDrawer.Navigator
       drawerContent={DrawerContent}
       initialRouteName="ChatList"
-      screenOptions={{
-        drawerType: 'permanent',
-        headerShown: false,
-        drawerStyle: {
-          width: 450,
-          backgroundColor: getVariableValue(useTheme().background),
-          borderRightColor: getVariableValue(useTheme().border),
-        },
+      screenOptions={({ navigation }) => {
+        const state = navigation.getState();
+        const routes = state.routes[state.index].state?.routes;
+        const currentScreen = routes?.[routes.length - 1];
+        const isImageViewer = currentScreen?.name === 'ImageViewer';
+
+        return {
+          drawerType: 'permanent',
+          headerShown: false,
+          drawerStyle: {
+            width: isImageViewer ? 0 : DESKTOP_SIDEBAR_WIDTH,
+            backgroundColor,
+            borderRightColor: borderColor,
+          },
+        };
       }}
     >
       <MessagesDrawer.Screen name="ChatList" component={MainStack} />
