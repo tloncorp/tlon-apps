@@ -51,6 +51,68 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
     : fetch(input, newInit);
 };
 
+export function configureUrbitClient({
+  ship,
+  shipUrl,
+  authType,
+  onAuthFailure,
+}: {
+  ship: string;
+  shipUrl: string;
+  authType: 'self' | 'hosted';
+  onAuthFailure?: () => void;
+}) {
+  configureClient({
+    shipName: ship,
+    shipUrl: shipUrl,
+    verbose: ENABLED_LOGGERS.includes('urbit'),
+    fetchFn: apiFetch,
+    onQuitOrReset: sync.handleDiscontinuity,
+    onChannelStatusChange: sync.handleChannelStatusChange,
+    getCode: async () => {
+      clientLogger.log('Cliet getting access code');
+      // use stored access code to reauth if we have it
+      const accessCode = await db.nodeAccessCode.getValue();
+      if (accessCode) {
+        clientLogger.trackEvent('Recovered Auth Code from Storage');
+        return accessCode;
+      }
+
+      // if missing and they're hosted, try to fetch it
+      if (authType === 'self') {
+        const message = 'Self hosted user has no stored access code';
+        clientLogger.trackEvent(AnalyticsEvent.AuthFailedToGetCode, {
+          authType,
+          context: message,
+        });
+        throw new Error(message);
+      }
+
+      if (!ship) {
+        const message = 'Cannot get access code, no ship set';
+        clientLogger.trackEvent(AnalyticsEvent.AuthFailedToGetCode, {
+          authType,
+          context: message,
+        });
+        throw new Error(message);
+      }
+      const { code } = await getShipAccessCode(ship);
+      if (!code) {
+        const message = 'Failed to fetch access code';
+        clientLogger.trackEvent(AnalyticsEvent.AuthFailedToGetCode, {
+          authType,
+          context: message,
+        });
+        throw new Error(message);
+      } else {
+        clientLogger.trackEvent('Recovered Auth Code from Hosting');
+      }
+      return code;
+    },
+    handleAuthFailure: onAuthFailure,
+  });
+}
+
 export function useConfigureUrbitClient() {
   const shipInfo = useShip();
   const { ship, shipUrl, authType } = shipInfo;
@@ -64,54 +126,11 @@ export function useConfigureUrbitClient() {
 
   return useCallback(
     (params?: Partial<ClientParams>) => {
-      configureClient({
-        shipName: params?.shipName ?? ship ?? '',
+      configureUrbitClient({
+        ship: params?.shipName ?? ship ?? '',
         shipUrl: params?.shipUrl ?? shipUrl ?? '',
-        verbose: ENABLED_LOGGERS.includes('urbit'),
-        fetchFn: apiFetch,
-        onQuitOrReset: sync.handleDiscontinuity,
-        onChannelStatusChange: sync.handleChannelStatusChange,
-        getCode: async () => {
-          clientLogger.log('Cliet getting access code');
-          // use stored access code to reauth if we have it
-          const accessCode = await db.nodeAccessCode.getValue();
-          if (accessCode) {
-            clientLogger.trackEvent('Recovered Auth Code from Storage');
-            return accessCode;
-          }
-
-          // if missing and they're hosted, try to fetch it
-          if (authType === 'self') {
-            const message = 'Self hosted user has no stored access code';
-            clientLogger.trackEvent(AnalyticsEvent.AuthFailedToGetCode, {
-              authType,
-              context: message,
-            });
-            throw new Error(message);
-          }
-
-          if (!ship) {
-            const message = 'Cannot get access code, no ship set';
-            clientLogger.trackEvent(AnalyticsEvent.AuthFailedToGetCode, {
-              authType,
-              context: message,
-            });
-            throw new Error(message);
-          }
-          const { code } = await getShipAccessCode(ship);
-          if (!code) {
-            const message = 'Failed to fetch access code';
-            clientLogger.trackEvent(AnalyticsEvent.AuthFailedToGetCode, {
-              authType,
-              context: message,
-            });
-            throw new Error(message);
-          } else {
-            clientLogger.trackEvent('Recovered Auth Code from Hosting');
-          }
-          return code;
-        },
-        handleAuthFailure: async () => {
+        authType,
+        onAuthFailure: async () => {
           clientLogger.log('Cliet handling auth failure');
           if (authType === 'self') {
             // there's nothing we can do to recover, must log out
