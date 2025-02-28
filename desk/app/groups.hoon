@@ -1125,17 +1125,19 @@
     ==
   ::
   ++  go-preview
-    :: TODO: either use ?> to enforce request permissions; or return a preview
-    ::   with limited info? for rendering a secret group reference
-    :: ?>  (~(has by fleet.group) src.bowl)
-    :: TODO: if user is in the allowed to join list, they should see a preview;
-    ::   reusing some of the below logic
-    :: ?>  ?|  =(p.flag our.bowl) :: self
-    ::     =(p.flag src.bowl) :: subscription
-    ::     &((~(has in ships) src.bowl) =(1 ~(wyt in ships)))  :: user join
+    ?>  ?-  -.cordon.group
+          %afar  &
+          %open  !secret.group  :: should never be secret
+        ::
+            %shut
+          ::  if a private group yes
+          ::  if secret, only invites should get previews
+          ?.  secret.group  &
+          (~(has in pend.cordon.group) src.bowl)
+        ==
     =/  =preview:g
       =,  group
-      [flag meta cordon now.bowl secret.group]
+      [flag meta cordon now.bowl secret]
     =.  cor
       (emit %give %fact ~ group-preview+!>(preview))
     =.  cor
