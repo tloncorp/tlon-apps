@@ -36,6 +36,9 @@ export default function PostScreen(props: Props) {
   const chatOptionsNavProps = useChatSettingsNavigation();
   const canUpload = store.useCanUpload();
   const mode: 'single' | 'carousel' = 'carousel';
+  const { data: post } = store.usePostWithThreadUnreads({
+    id: postId,
+  });
 
   return (
     <ChatOptionsProvider
@@ -46,11 +49,13 @@ export default function PostScreen(props: Props) {
         {mode === 'carousel' ? (
           <CarouselPostScreenContent channelId={channelId} postId={postId} />
         ) : (
-          <PostScreenContent
-            postId={postId}
-            channelId={channelId}
-            authorId={authorId}
-          />
+          post && (
+            <PostScreenContent
+              post={post}
+              channelId={channelId}
+              authorId={authorId}
+            />
+          )
         )}
       </AttachmentProvider>
     </ChatOptionsProvider>
@@ -127,7 +132,7 @@ export function PresentationalCarouselPostScreenContent({
       return (
         <View width={windowWidth}>
           <PostScreenContent
-            postId={item.id}
+            post={item}
             authorId={item.authorId}
             channelId={item.channelId}
             headerHidden={true}
@@ -191,16 +196,17 @@ export function PresentationalCarouselPostScreenContent({
 }
 
 function PostScreenContent({
-  postId,
+  post,
   authorId,
   channelId,
   headerHidden,
 }: {
-  postId: string;
+  post: db.Post;
   authorId: string;
   channelId: string;
   headerHidden?: boolean;
 }) {
+  const postId = post.id;
   const navigation = useNavigation();
   const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
   const {
@@ -237,10 +243,6 @@ function PostScreenContent({
     }
     initializeChannelUnread();
   }, [postId]);
-
-  const { data: post } = store.usePostWithThreadUnreads({
-    id: postId,
-  });
 
   const { data: threadPosts, isLoading: isLoadingPosts } = store.useThreadPosts(
     {
