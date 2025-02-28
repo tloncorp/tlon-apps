@@ -53,20 +53,24 @@ const TASK_ID = 'backgroundSync';
 export function registerBackgroundSyncTask() {
   TaskManager.defineTask<Record<string, unknown>>(
     TASK_ID,
-    async ({ error }) => {
+    async ({ error }): Promise<BackgroundFetch.BackgroundFetchResult> => {
       logger.log(`Running background sync background task`);
       if (error) {
         logger.error(`Failed background sync background task`, error.message);
-        return;
+        return BackgroundFetch.BackgroundFetchResult.Failed;
       }
 
       try {
         await performSync();
+        // We always return NewData because we don't have a way to know whether
+        // there actually was new data.
+        return BackgroundFetch.BackgroundFetchResult.NewData;
       } catch (err) {
         logger.error(
           'Failed background sync',
           err instanceof Error ? err.message : err
         );
+        return BackgroundFetch.BackgroundFetchResult.Failed;
       }
     }
   );
