@@ -171,8 +171,6 @@ export function useNavigateToPost() {
   const currentScreenIsActivity =
     navigation.getState()?.index === activityIndex;
 
-  logger.log('useNavigateToPost', currentScreenIsActivity);
-
   return useCallback(
     (post: db.Post) => {
       if (!isWindowNarrow && currentScreenIsActivity) {
