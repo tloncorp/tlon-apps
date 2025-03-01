@@ -38,6 +38,7 @@ const _Carousel = React.forwardRef<
       onVisibleIndexChange?: (index: number) => void;
       scrollDirection?: 'horizontal' | 'vertical';
       hideOverlayOnTap?: boolean;
+      initialVisibleIndex?: number;
       flatListProps?: Partial<
         React.ComponentPropsWithoutRef<typeof FlatList<React.ReactElement>>
       >;
@@ -50,12 +51,15 @@ const _Carousel = React.forwardRef<
     scrollDirection = 'horizontal',
     hideOverlayOnTap = true,
     flatListProps,
+    initialVisibleIndex,
     ...passedProps
   },
   forwardedRef
 ) {
   const scrollRef = React.useRef<FlatList>(null);
-  const [visibleIndex, setVisibleIndex] = React.useState(0);
+  const [visibleIndex, setVisibleIndex] = React.useState(
+    initialVisibleIndex ?? 0
+  );
   const [isOverlayShown, setIsOverlayShown] = React.useState(false);
   const [overlay, setOverlay] = React.useState<JSX.Element | null>(null);
   const tap = Gesture.Tap()
@@ -129,6 +133,7 @@ const _Carousel = React.forwardRef<
             data={childrenArray}
             decelerationRate="fast"
             disableIntervalMomentum
+            initialScrollIndex={initialVisibleIndex}
             style={[
               {
                 flexDirection:
