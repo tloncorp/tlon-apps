@@ -1,5 +1,4 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useChannelContext } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as urbit from '@tloncorp/shared/urbit';
@@ -21,6 +20,7 @@ import {
   PostScreenView,
   useCurrentUserId,
 } from '../../ui';
+import { useStore } from '../../ui/contexts/storeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Post'>;
 
@@ -200,7 +200,7 @@ function PostScreenContent({
     setEditingPost,
     editPost,
     headerMode,
-  } = useChannelContext({
+  } = useStore().useChannelContext({
     channelId: channelId,
     draftKey: postId,
     isChannelSwitcherEnabled,
