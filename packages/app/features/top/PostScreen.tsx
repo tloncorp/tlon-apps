@@ -4,7 +4,7 @@ import * as store from '@tloncorp/shared/store';
 import * as urbit from '@tloncorp/shared/urbit';
 import { Carousel, ForwardingProps } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { LayoutChangeEvent, useWindowDimensions } from 'react-native';
+import { LayoutChangeEvent } from 'react-native';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
@@ -78,7 +78,6 @@ function CarouselPostScreenContent({
   const initialPostIndex = useMemo(() => {
     return posts?.findIndex((p) => p.id === postId) ?? -1;
   }, [posts, postId]);
-  const windowDimensions = useWindowDimensions();
 
   return (
     <PresentationalCarouselPostScreenContent
@@ -89,7 +88,7 @@ function CarouselPostScreenContent({
         fetchNewerPage: fetchNextPage,
         fetchOlderPage: fetchPreviousPage,
         flex: 1,
-        width: windowDimensions.width,
+        width: '100%',
       }}
     />
   );
