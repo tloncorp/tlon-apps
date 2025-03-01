@@ -1,3 +1,4 @@
+import * as baseStore from '@tloncorp/shared/store';
 import { range } from 'lodash';
 import { useCallback, useMemo, useState } from 'react';
 import { useValue } from 'react-cosmos/client';
@@ -8,6 +9,7 @@ import {
   AppDataContextProvider,
   Button,
   PostScreenView,
+  StoreProvider,
   Text,
   View,
 } from '../ui';
@@ -18,8 +20,23 @@ import {
   group,
   initialContacts,
   tlonLocalBulletinBoard,
-  tlonLocalIntros,
+  tlonLocalCommunityCatalog,
 } from './fakeData';
+
+function spyOn<T extends object, MethodName extends keyof T>(
+  base: T,
+  method: MethodName,
+  fn: T[MethodName]
+) {
+  return new Proxy(base, {
+    get(target, prop) {
+      if (prop === method) {
+        return fn;
+      }
+      return target[prop as keyof T];
+    },
+  });
+}
 
 const posts = createFakePosts(10);
 
@@ -27,10 +44,11 @@ let seed = 0;
 function createImagePosts(count: number) {
   return range(count).map(
     () =>
-      createFakePosts(1, 'block', {
+      createFakePosts(1, 'chat', {
         content: createImageContent(
           `https://picsum.photos/seed/s${seed++}/536/350`
         ),
+        channelId: tlonLocalCommunityCatalog.id,
       })[0]
   );
 }
@@ -82,54 +100,83 @@ export default {
     });
 
     const [data, setData] = useState(() => ({
-      channel: tlonLocalIntros,
+      channel: tlonLocalCommunityCatalog,
       posts: createImagePosts(5),
     }));
 
     const pendingAction = useFixturePendingAction();
 
-    return (
-      <FixtureWrapper fillWidth fillHeight>
-        <PresentationalCarouselPostScreenContent
-          flex={1}
-          width="100%"
-          {...{
-            initialPostIndex: 2,
-            channel: data.channel,
-            posts: data.posts,
-            fetchNewerPage: useCallback(() => {
-              if (!hasNewerPosts) {
-                return;
-              }
+    const fetchNewerPage = useCallback(() => {
+      if (!hasNewerPosts) {
+        return;
+      }
 
-              pendingAction.queue({
-                title: 'fetch newer',
-                complete: () => {
-                  setData((prev) => ({
-                    ...prev,
-                    posts: [...prev.posts, ...createImagePosts(5)],
-                  }));
-                },
-              });
-            }, [pendingAction, hasNewerPosts]),
-            fetchOlderPage: useCallback(() => {
-              if (!hasOlderPosts) {
-                return;
-              }
-              pendingAction.queue({
-                title: 'fetch older',
-                complete: () => {
-                  setData((prev) => ({
-                    ...prev,
-                    posts: [...createImagePosts(5), ...prev.posts],
-                  }));
-                },
-              });
-            }, [hasOlderPosts, pendingAction]),
-          }}
-        />
-        {pendingAction.mountControl()}
-      </FixtureWrapper>
+      pendingAction.queue({
+        title: 'fetch newer',
+        complete: () => {
+          setData((prev) => ({
+            ...prev,
+            posts: [...prev.posts, ...createImagePosts(5)],
+          }));
+        },
+      });
+    }, [pendingAction, hasNewerPosts]);
+    const fetchOlderPage = useCallback(() => {
+      if (!hasOlderPosts) {
+        return;
+      }
+      pendingAction.queue({
+        title: 'fetch older',
+        complete: () => {
+          setData((prev) => ({
+            ...prev,
+            posts: [...createImagePosts(5), ...prev.posts],
+          }));
+        },
+      });
+    }, [hasOlderPosts, pendingAction]);
+
+    console.log('fixture using channel', data.channel);
+
+    const store = useMemo(() => {
+      const fail = () => {
+        throw new Error();
+      };
+      // `useChannelContext` is used deep in the post detail screen to
+      // determine how to present the post.
+      return spyOn(baseStore, 'useChannelContext', () => ({
+        // @ts-expect-error - close enough
+        group: data.channel.group,
+        channel: data.channel,
+        // @ts-expect-error - negotiationStatus is hard to stub
+        negotiationStatus: 'todo',
+        getDraft: fail,
+        storeDraft: fail,
+        clearDraft: fail,
+        editingPost: undefined,
+        setEditingPost: fail,
+        editPost: fail,
+        headerMode: 'default',
+      }));
+    }, [data.channel]);
+
+    return (
+      <StoreProvider stub={store}>
+        <FixtureWrapper fillWidth fillHeight>
+          <PresentationalCarouselPostScreenContent
+            {...{
+              flex: 1,
+              width: '100%',
+              initialPostIndex: 2,
+              channel: data.channel,
+              posts: data.posts,
+              fetchNewerPage,
+              fetchOlderPage,
+            }}
+          />
+          {pendingAction.mountControl()}
+        </FixtureWrapper>
+      </StoreProvider>
     );
   },
 };
