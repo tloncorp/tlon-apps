@@ -3,15 +3,9 @@ import { useChannelContext } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as urbit from '@tloncorp/shared/urbit';
+import { Carousel, ForwardingProps } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import React from 'react';
-import {
-  Dimensions,
-  FlatList,
-  ListRenderItemInfo,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-} from 'react-native';
+import { LayoutChangeEvent, useWindowDimensions } from 'react-native';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
@@ -25,7 +19,6 @@ import {
   ChannelHeader,
   ChatOptionsProvider,
   PostScreenView,
-  View,
   useCurrentUserId,
 } from '../../ui';
 
@@ -85,6 +78,7 @@ function CarouselPostScreenContent({
   const initialPostIndex = useMemo(() => {
     return posts?.findIndex((p) => p.id === postId) ?? -1;
   }, [posts, postId]);
+  const windowDimensions = useWindowDimensions();
 
   return (
     <PresentationalCarouselPostScreenContent
@@ -94,6 +88,8 @@ function CarouselPostScreenContent({
         initialPostIndex,
         fetchNewerPage: fetchNextPage,
         fetchOlderPage: fetchPreviousPage,
+        flex: 1,
+        width: windowDimensions.width,
       }}
     />
   );
@@ -105,95 +101,77 @@ export function PresentationalCarouselPostScreenContent({
   initialPostIndex,
   fetchNewerPage,
   fetchOlderPage,
-}: {
-  posts: db.Post[] | null;
-  channel: db.Channel | null;
-  initialPostIndex: number;
-  fetchNewerPage: () => void;
-  fetchOlderPage: () => void;
-}) {
+  ...passedProps
+}: ForwardingProps<
+  typeof Carousel,
+  {
+    posts: db.Post[] | null;
+    channel: db.Channel | null;
+    initialPostIndex: number;
+    fetchNewerPage: () => void;
+    fetchOlderPage: () => void;
+  },
+  | 'initialVisibleIndex'
+  | 'scrollDirection'
+  | 'hideOverlayOnTap'
+  | 'flatListProps'
+>) {
   const navigation = useNavigation();
-
-  const [visibleIndex, setVisibleIndex] = useState(initialPostIndex);
-  const windowWidth = Dimensions.get('window').width;
-
-  const handleScroll = React.useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const index = Math.round(event.nativeEvent.contentOffset.x / windowWidth);
-      setVisibleIndex(index);
-    },
-    [windowWidth]
-  );
-
-  const activePost = posts?.[visibleIndex];
-
-  const renderItem = useCallback(
-    ({ item }: ListRenderItemInfo<db.Post>) => {
-      return (
-        <View width={windowWidth}>
-          <PostScreenContent
-            post={item}
-            authorId={item.authorId}
-            channelId={item.channelId}
-            headerHidden={true}
-          />
-        </View>
-      );
-    },
-    [windowWidth]
-  );
-
+  const [viewportWidth, setViewportWidth] = useState<null | number>(null);
+  const handleLayout = useCallback<(e: LayoutChangeEvent) => void>((event) => {
+    setViewportWidth(event.nativeEvent.layout.width);
+  }, []);
   const getItemLayout = useCallback(
-    (_data: db.Post[], index: number) => ({
-      length: windowWidth,
-      offset: windowWidth * index,
+    (_data: unknown, index: number) => ({
+      length: viewportWidth ?? 0,
+      offset: viewportWidth ?? 0 * index,
       index,
     }),
-    [windowWidth]
+    [viewportWidth]
   );
 
-  const contentContainerStyle = useMemo(() => {
-    return { alignItems: 'stretch' } as const;
-  }, []);
-
   return channel && posts?.length && initialPostIndex !== -1 ? (
-    <View flex={1} width={windowWidth}>
-      <ChannelHeader
-        channel={channel}
-        group={channel?.group}
-        title={
-          activePost?.title && activePost?.title !== ''
-            ? activePost.title
-            : 'Untitled Post'
-        }
-        goBack={() => navigation.goBack()}
-        showSearchButton={false}
-        post={activePost ?? undefined}
-      />
-      <FlatList
-        keyExtractor={(item) => item.id}
-        data={posts}
-        decelerationRate="fast"
-        initialScrollIndex={initialPostIndex}
-        horizontal={true}
-        scrollEventThrottle={33}
-        onScroll={handleScroll}
-        onEndReached={fetchNewerPage}
-        onStartReached={fetchOlderPage}
-        showsVerticalScrollIndicator={false}
-        showsHorizontalScrollIndicator={false}
-        disableIntervalMomentum={true}
-        snapToInterval={windowWidth}
-        initialNumToRender={3}
-        maxToRenderPerBatch={3}
-        contentContainerStyle={contentContainerStyle}
-        windowSize={3}
-        renderItem={renderItem}
-        getItemLayout={getItemLayout}
-        // always maintain content position when new content is loaded in
-        maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-      />
-    </View>
+    <Carousel
+      onLayout={handleLayout}
+      initialVisibleIndex={initialPostIndex}
+      scrollDirection="horizontal"
+      hideOverlayOnTap={false}
+      flatListProps={{
+        onEndReached: fetchNewerPage,
+        onStartReached: fetchOlderPage,
+        getItemLayout,
+        maintainVisibleContentPosition: { minIndexForVisible: 0 },
+      }}
+      {...passedProps}
+    >
+      {posts.map((post) => (
+        <Carousel.Item
+          key={post.id}
+          flex={1}
+          overlay={
+            <Carousel.Overlay
+              header={
+                <ChannelHeader
+                  channel={channel}
+                  group={channel.group}
+                  title={post.title ?? 'Untitled Post'}
+                  goBack={() => navigation.goBack()}
+                  showSearchButton={false}
+                  post={post}
+                />
+              }
+            />
+          }
+        >
+          <PostScreenContent
+            post={post}
+            authorId={post.authorId}
+            channelId={post.channelId}
+            headerHidden
+          />
+        </Carousel.Item>
+      ))}
+    </Carousel>
   ) : null;
 }
 

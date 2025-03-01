@@ -85,6 +85,8 @@ export default {
     return (
       <FixtureWrapper fillWidth fillHeight>
         <PresentationalCarouselPostScreenContent
+          flex={1}
+          width="100%"
           {...{
             initialPostIndex: 0,
             channel: data.channel,
