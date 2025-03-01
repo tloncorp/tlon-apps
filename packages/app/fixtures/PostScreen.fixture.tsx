@@ -4,7 +4,13 @@ import { useValue } from 'react-cosmos/client';
 import { SafeAreaView } from 'react-native';
 
 import { PresentationalCarouselPostScreenContent } from '../features/top/PostScreen';
-import { AppDataContextProvider, Button, PostScreenView, Text } from '../ui';
+import {
+  AppDataContextProvider,
+  Button,
+  PostScreenView,
+  Text,
+  View,
+} from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 import {
   createFakePosts,
@@ -72,7 +78,7 @@ export default {
       defaultValue: true,
     });
     const [hasOlderPosts] = useValue('Has older posts', {
-      defaultValue: false,
+      defaultValue: true,
     });
 
     const [data, setData] = useState(() => ({
@@ -88,7 +94,7 @@ export default {
           flex={1}
           width="100%"
           {...{
-            initialPostIndex: 0,
+            initialPostIndex: 2,
             channel: data.channel,
             posts: data.posts,
             fetchNewerPage: useCallback(() => {
@@ -135,44 +141,48 @@ export default {
  * then simulate the network call completing)
  */
 function useFixturePendingAction() {
-  const [pendingLoad, setPendingLoad] = useState<null | {
-    title: string;
-    complete: () => void;
-  }>(null);
+  const [pendingLoad, setPendingLoad] = useState<
+    Array<{
+      title: string;
+      complete: () => void;
+    }>
+  >([]);
 
   return useMemo(
     () => ({
       queue: ({ title, complete }: { title: string; complete: () => void }) => {
-        setPendingLoad({ title, complete });
+        setPendingLoad((prev) => [...prev, { title, complete }]);
       },
       mountControl() {
         return (
-          pendingLoad && (
-            <SafeAreaView
-              style={{
-                position: 'absolute',
-                alignSelf: 'center',
-                padding: 8,
-              }}
-            >
-              <Text>{pendingLoad.title}</Text>
-              <Button
-                onPress={() => {
-                  pendingLoad.complete();
-                  setPendingLoad(null);
-                }}
-              >
-                <Text>Complete</Text>
-              </Button>
-              <Button
-                onPress={() => {
-                  setPendingLoad(null);
-                }}
-              >
-                <Text>Cancel</Text>
-              </Button>
-            </SafeAreaView>
-          )
+          <SafeAreaView
+            style={{
+              position: 'absolute',
+              alignSelf: 'center',
+              padding: 8,
+            }}
+          >
+            {pendingLoad.map((action, idx) => (
+              <View key={idx}>
+                <Text>{action.title}</Text>
+                <Button
+                  onPress={() => {
+                    action.complete();
+                    setPendingLoad((prev) => prev.filter((a) => a !== action));
+                  }}
+                >
+                  <Text>Complete</Text>
+                </Button>
+                <Button
+                  onPress={() => {
+                    setPendingLoad((prev) => prev.filter((a) => a !== action));
+                  }}
+                >
+                  <Text>Cancel</Text>
+                </Button>
+              </View>
+            ))}
+          </SafeAreaView>
         );
       },
     }),
