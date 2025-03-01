@@ -18,6 +18,7 @@ import {
   ChannelHeader,
   ChatOptionsProvider,
   PostScreenView,
+  YStack,
   useCurrentUserId,
 } from '../../ui';
 import { useStore } from '../../ui/contexts/storeContext';
@@ -102,18 +103,14 @@ export function PresentationalCarouselPostScreenContent({
   fetchOlderPage,
   ...passedProps
 }: ForwardingProps<
-  typeof Carousel,
+  typeof YStack,
   {
     posts: db.Post[] | null;
     channel: db.Channel | null;
     initialPostIndex: number;
     fetchNewerPage: () => void;
     fetchOlderPage: () => void;
-  },
-  | 'initialVisibleIndex'
-  | 'scrollDirection'
-  | 'hideOverlayOnTap'
-  | 'flatListProps'
+  }
 >) {
   const navigation = useNavigation();
   const [viewportWidth, setViewportWidth] = useState<null | number>(null);
@@ -129,48 +126,47 @@ export function PresentationalCarouselPostScreenContent({
     [viewportWidth]
   );
 
+  const [visibleIndex, setVisibleIndex] = useState<number | null>(null);
+  const activePost = posts?.[visibleIndex ?? initialPostIndex];
+
   return channel && posts?.length && initialPostIndex !== -1 ? (
-    <Carousel
-      onLayout={handleLayout}
-      initialVisibleIndex={initialPostIndex}
-      scrollDirection="horizontal"
-      hideOverlayOnTap={false}
-      flatListProps={{
-        onEndReached: fetchNewerPage,
-        onStartReached: fetchOlderPage,
-        getItemLayout,
-        maintainVisibleContentPosition: { minIndexForVisible: 0 },
-      }}
-      {...passedProps}
-    >
-      {posts.map((post) => (
-        <Carousel.Item
-          key={post.id}
-          flex={1}
-          overlay={
-            <Carousel.Overlay
-              header={
-                <ChannelHeader
-                  channel={channel}
-                  group={channel.group}
-                  title={post.title ?? 'Untitled Post'}
-                  goBack={() => navigation.goBack()}
-                  showSearchButton={false}
-                  post={post}
-                />
-              }
+    <YStack {...passedProps}>
+      <ChannelHeader
+        channel={channel}
+        group={channel.group}
+        title={
+          activePost == null ? '' : activePost.title ?? activePost.authorId
+        }
+        goBack={() => navigation.goBack()}
+        showSearchButton={false}
+        post={activePost}
+      />
+      <Carousel
+        flex={1}
+        onVisibleIndexChange={setVisibleIndex}
+        onLayout={handleLayout}
+        initialVisibleIndex={initialPostIndex}
+        scrollDirection="horizontal"
+        hideOverlayOnTap={false}
+        flatListProps={{
+          onEndReached: fetchNewerPage,
+          onStartReached: fetchOlderPage,
+          getItemLayout,
+          maintainVisibleContentPosition: { minIndexForVisible: 0 },
+        }}
+      >
+        {posts.map((post) => (
+          <Carousel.Item key={post.id} flex={1}>
+            <PostScreenContent
+              post={post}
+              authorId={post.authorId}
+              channelId={post.channelId}
+              headerHidden
             />
-          }
-        >
-          <PostScreenContent
-            post={post}
-            authorId={post.authorId}
-            channelId={post.channelId}
-            headerHidden
-          />
-        </Carousel.Item>
-      ))}
-    </Carousel>
+          </Carousel.Item>
+        ))}
+      </Carousel>
+    </YStack>
   ) : null;
 }
 
