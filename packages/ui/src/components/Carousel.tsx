@@ -127,7 +127,7 @@ const _Carousel = React.forwardRef<
 
   return (
     <GestureDetector gesture={tap}>
-      <View backgroundColor="black" {...passedProps}>
+      <View {...passedProps}>
         <CarouselContext.Provider value={ctxValue}>
           <FlatList
             data={childrenArray}
