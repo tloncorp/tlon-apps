@@ -306,7 +306,9 @@ function SinglePostView({
   );
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
 
-  const containingProperties: any = useMemo(() => {
+  const containingProperties: Partial<
+    React.ComponentPropsWithoutRef<typeof View>
+  > = useMemo(() => {
     return isChatChannel
       ? {}
       : {
