@@ -130,6 +130,25 @@ export function PresentationalCarouselPostScreenContent({
     10 // found through experimentation
   );
 
+  // `Carousel's `onStartReached`/`onEndReached` are called once per unique
+  // `children` value (a React Native quirk). If we don't memoize this children
+  // list, `onStartReached`/`onEndReached` are called inconsistently on
+  // `Carousel`.
+  const carouselChildren = useMemo(
+    () =>
+      posts?.map((post) => (
+        <Carousel.Item key={post.id} flex={1}>
+          <PostScreenContent
+            post={post}
+            authorId={post.authorId}
+            channelId={post.channelId}
+            headerHidden
+          />
+        </Carousel.Item>
+      )),
+    [posts]
+  );
+
   return channel && posts?.length && initialPostIndex !== -1 ? (
     <YStack {...passedProps}>
       <ChannelHeader
@@ -153,16 +172,7 @@ export function PresentationalCarouselPostScreenContent({
           onStartReached: fetchOlderPage,
         }}
       >
-        {posts.map((post) => (
-          <Carousel.Item key={post.id} flex={1}>
-            <PostScreenContent
-              post={post}
-              authorId={post.authorId}
-              channelId={post.channelId}
-              headerHidden
-            />
-          </Carousel.Item>
-        ))}
+        {carouselChildren}
       </Carousel>
     </YStack>
   ) : null;
