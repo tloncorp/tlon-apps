@@ -29,10 +29,12 @@ export default function PostScreen(props: Props) {
   const { postId, channelId, authorId } = props.route.params;
   const chatOptionsNavProps = useChatSettingsNavigation();
   const canUpload = store.useCanUpload();
-  const mode: 'single' | 'carousel' = 'carousel';
   const { data: post } = store.usePostWithThreadUnreads({
     id: postId,
   });
+  const { data: channel } = store.useChannel({ id: channelId });
+  const mode: 'single' | 'carousel' =
+    channel?.type === 'gallery' ? 'carousel' : 'single';
 
   return (
     <ChatOptionsProvider
