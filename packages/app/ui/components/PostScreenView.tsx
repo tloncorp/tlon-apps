@@ -287,6 +287,7 @@ function SinglePostView({
   onPressDelete: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => Promise<void>;
   parentPost: db.Post | null;
+  /** Thread root (i.e. `parentPost`) and replies */
   posts: db.Post[] | null;
   sendReply: (content: urbit.Story, channelId: string) => Promise<void>;
   setEditingPost?: (post: db.Post | undefined) => void;
