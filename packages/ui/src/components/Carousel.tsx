@@ -148,7 +148,15 @@ const _Carousel = React.forwardRef<
       <View {...passedProps}>
         <CarouselContext.Provider value={ctxValue}>
           <FlatList
-            data={childrenArray}
+            data={
+              // Carousel's items will likely be sized to the viewport - if
+              // they are shown before the viewport is measured, there's a good
+              // chance that there will be a flash of 0-length items. If this
+              // happens, the initial scroll position will be incorrect (once
+              // the viewport length is resolved).
+              // To avoid, only render once the viewport length is known.
+              rect == null ? undefined : childrenArray
+            }
             decelerationRate="fast"
             disableIntervalMomentum
             initialScrollIndex={initialVisibleIndex}
