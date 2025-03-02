@@ -4,7 +4,6 @@ import * as store from '@tloncorp/shared/store';
 import * as urbit from '@tloncorp/shared/urbit';
 import { Carousel, ForwardingProps } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { LayoutChangeEvent } from 'react-native';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
@@ -113,18 +112,6 @@ export function PresentationalCarouselPostScreenContent({
   }
 >) {
   const navigation = useNavigation();
-  const [viewportWidth, setViewportWidth] = useState<null | number>(null);
-  const handleLayout = useCallback<(e: LayoutChangeEvent) => void>((event) => {
-    setViewportWidth(event.nativeEvent.layout.width);
-  }, []);
-  const getItemLayout = useCallback(
-    (_data: unknown, index: number) => ({
-      length: viewportWidth ?? 0,
-      offset: viewportWidth ?? 0 * index,
-      index,
-    }),
-    [viewportWidth]
-  );
 
   const [visibleIndex, setVisibleIndex] = useState<number | null>(null);
   const activePost = posts?.[visibleIndex ?? initialPostIndex];
@@ -144,14 +131,12 @@ export function PresentationalCarouselPostScreenContent({
       <Carousel
         flex={1}
         onVisibleIndexChange={setVisibleIndex}
-        onLayout={handleLayout}
         initialVisibleIndex={initialPostIndex}
         scrollDirection="horizontal"
         hideOverlayOnTap={false}
         flatListProps={{
           onEndReached: fetchNewerPage,
           onStartReached: fetchOlderPage,
-          getItemLayout,
           maintainVisibleContentPosition: { minIndexForVisible: 0 },
         }}
       >

@@ -125,6 +125,24 @@ const _Carousel = React.forwardRef<
     [children]
   );
 
+  const getItemLayout = React.useMemo<
+    React.ComponentPropsWithoutRef<typeof FlatList>['getItemLayout']
+  >(
+    () =>
+      rect == null
+        ? undefined
+        : (_data, index) => {
+            const length =
+              scrollDirection === 'horizontal' ? rect.width : rect.height;
+            return {
+              length,
+              offset: length * index,
+              index,
+            };
+          },
+    [rect, scrollDirection]
+  );
+
   return (
     <GestureDetector gesture={tap}>
       <View {...passedProps}>
@@ -154,6 +172,7 @@ const _Carousel = React.forwardRef<
                 {item}
               </CarouselItemContext.Provider>
             )}
+            getItemLayout={getItemLayout}
             {...flatListProps}
           />
         </CarouselContext.Provider>
