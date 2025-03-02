@@ -151,7 +151,6 @@ export function PresentationalCarouselPostScreenContent({
         flatListProps={{
           onEndReached: fetchNewerPage,
           onStartReached: fetchOlderPage,
-          maintainVisibleContentPosition: { minIndexForVisible: 0 },
         }}
       >
         {posts.map((post) => (

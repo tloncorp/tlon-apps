@@ -181,6 +181,7 @@ const _Carousel = React.forwardRef<
               </CarouselItemContext.Provider>
             )}
             getItemLayout={getItemLayout}
+            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
             {...flatListProps}
           />
         </CarouselContext.Provider>

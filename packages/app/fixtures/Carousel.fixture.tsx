@@ -36,9 +36,6 @@ export default function CarouselFixture() {
           flex={1}
           scrollDirection={direction}
           onVisibleIndexChange={setVisibleIndex}
-          flatListProps={{
-            maintainVisibleContentPosition: { minIndexForVisible: 0 },
-          }}
         >
           {pageSeeds
             .map((seed) => [seed, uriForPage(seed)] as const)
