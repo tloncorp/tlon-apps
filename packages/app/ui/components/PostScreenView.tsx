@@ -22,7 +22,6 @@ import { ChannelHeader } from './Channel/ChannelHeader';
 import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
-import { TlonEditorBridge } from './MessageInput/toolbarActions.native';
 
 export function PostScreenView({
   channel,
@@ -83,23 +82,12 @@ export function PostScreenView({
   headerHidden?: boolean;
   headerMode: 'default' | 'next';
 }) {
-  const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
-  const [inputShouldBlur, setInputShouldBlur] = useState(false);
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = utils.useIsAdmin(
     channel.groupId ?? '',
     currentUserId
   );
-  const canWrite = utils.useCanWrite(channel, currentUserId);
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
-  const postsWithoutParent = useMemo(
-    () => posts?.filter((p) => p.id !== parentPost?.id) ?? [],
-    [posts, parentPost]
-  );
-  const editorRef = useRef<{
-    editor: TlonEditorBridge | null;
-  }>(null);
-  const [editorIsFocused, setEditorIsFocused] = useState(false);
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
@@ -121,12 +109,6 @@ export function PostScreenView({
     setEditingPost?.(parentPost ?? undefined);
   }, [parentPost, setEditingPost]);
 
-  // We track the editor focus state to determine when we need to scroll to the
-  // bottom of the screen when the keyboard is opened/editor is focused.
-  editorRef.current?.editor?._subscribeToEditorStateUpdate((editorState) => {
-    setEditorIsFocused(editorState.isFocused);
-  });
-
   const { bottom } = useSafeAreaInsets();
 
   const headerTitle = isChatChannel
@@ -134,17 +116,6 @@ export function PostScreenView({
     : parentPost?.title && parentPost.title !== ''
       ? parentPost.title
       : 'Post';
-
-  const isChat = channel.type !== 'notebook' && channel.type !== 'gallery';
-  const containingProperties: any = useMemo(() => {
-    return isChat
-      ? {}
-      : {
-          width: '100%',
-          marginHorizontal: 'auto',
-          maxWidth: 600,
-        };
-  }, [isChat]);
 
   const hasLoaded = !!(posts && channel && parentPost);
   useEffect(() => {
@@ -207,23 +178,6 @@ export function PostScreenView({
     }
   }, [channel.type, clearDraft, goBack, isEditingParent, setEditingPost]);
 
-  const bareInputDraftProps = useMemo(() => {
-    // For notebook post, the channel draft corresponds to the note
-    // itself (not the reply input)
-    if (channel.type === 'notebook') {
-      return {
-        getDraft: async () => null,
-        storeDraft: async () => {},
-        clearDraft: async () => {},
-      };
-    }
-    return {
-      getDraft,
-      storeDraft,
-      clearDraft,
-    };
-  }, [channel.type, getDraft, storeDraft, clearDraft]);
-
   const { attachAssets } = useAttachmentContext();
 
   return (
@@ -255,98 +209,29 @@ export function PostScreenView({
                 goToEdit={handleEditPress}
               />
             )}
-            <KeyboardAvoidingView enabled={!activeMessage}>
-              {parentPost ? (
-                <DetailView
-                  post={parentPost}
-                  channel={channel}
-                  initialPostUnread={initialThreadUnread}
-                  onPressImage={handleGoToImage}
-                  editingPost={editingPost}
-                  setEditingPost={setEditingPost}
-                  onPressRetry={onPressRetry}
-                  onPressDelete={onPressDelete}
-                  posts={postsWithoutParent}
-                  goBack={goBack}
-                  activeMessage={activeMessage}
-                  setActiveMessage={setActiveMessage}
-                  headerMode={headerMode}
-                  editorIsFocused={editorIsFocused}
-                  flatListRef={flatListRef}
-                />
-              ) : null}
-
-              {negotiationMatch &&
-                channel &&
-                canWrite &&
-                !(isEditingParent && channel.type === 'notebook') && (
-                  <View id="reply-container" {...containingProperties}>
-                    <BareChatInput
-                      placeholder="Reply"
-                      shouldBlur={inputShouldBlur}
-                      setShouldBlur={setInputShouldBlur}
-                      send={sendReply}
-                      channelId={channel.id}
-                      groupMembers={groupMembers}
-                      {...bareInputDraftProps}
-                      editingPost={editingPost}
-                      setEditingPost={setEditingPost}
-                      editPost={editPost}
-                      channelType="chat"
-                      showAttachmentButton={channel.type === 'chat'}
-                      showInlineAttachments={channel.type === 'chat'}
-                      shouldAutoFocus={
-                        (channel.type === 'chat' &&
-                          parentPost?.replyCount === 0) ||
-                        !!editingPost
-                      }
-                    />
-                  </View>
-                )}
-              {!negotiationMatch && channel && canWrite && (
-                <View
-                  position={isChatChannel ? undefined : 'absolute'}
-                  bottom={0}
-                  width="90%"
-                  alignItems="center"
-                  justifyContent="center"
-                  backgroundColor="$secondaryBackground"
-                  borderRadius="$xl"
-                  padding="$l"
-                >
-                  <Text>
-                    Your ship&apos;s version of the Tlon app doesn&apos;t match
-                    the channel host.
-                  </Text>
-                </View>
-              )}
-
-              {parentPost &&
-              isEditingParent &&
-              (channel.type === 'notebook' || channel.type === 'gallery') ? (
-                <BigInput
-                  channelType={urbit.getChannelType(parentPost.channelId)}
-                  channelId={parentPost?.channelId}
-                  editingPost={editingPost}
-                  setEditingPost={setEditingPost}
-                  editPost={editPost}
-                  shouldBlur={inputShouldBlur}
-                  setShouldBlur={setInputShouldBlur}
-                  send={async () => {}}
-                  getDraft={getDraft}
-                  storeDraft={storeDraft}
-                  clearDraft={clearDraft}
-                  groupMembers={groupMembers}
-                />
-              ) : null}
-              {headerMode === 'next' && (
-                <ChannelFooter
-                  showSearchButton={false}
-                  title={'Thread: ' + channel.title}
-                  goBack={goBack}
-                />
-              )}
-            </KeyboardAvoidingView>
+            <SinglePostView
+              {...{
+                channel,
+                clearDraft,
+                editPost,
+                editingPost,
+                flatListRef,
+                getDraft,
+                goBack,
+                groupMembers,
+                handleGoToImage,
+                headerMode,
+                initialThreadUnread,
+                negotiationMatch,
+                onPressDelete,
+                onPressRetry,
+                parentPost,
+                posts,
+                sendReply,
+                setEditingPost,
+                storeDraft,
+              }}
+            />
             <GroupPreviewSheet
               group={groupPreview ?? undefined}
               open={!!groupPreview}
@@ -357,5 +242,187 @@ export function PostScreenView({
         </FileDrop>
       </ChannelProvider>
     </NavigationProvider>
+  );
+}
+
+function SinglePostView({
+  channel,
+  clearDraft,
+  editPost,
+  editingPost,
+  flatListRef,
+  getDraft,
+  goBack,
+  groupMembers,
+  handleGoToImage,
+  headerMode,
+  initialThreadUnread,
+  negotiationMatch,
+  onPressDelete,
+  onPressRetry,
+  parentPost,
+  posts,
+  sendReply,
+  setEditingPost,
+  storeDraft,
+}: {
+  channel: db.Channel;
+  clearDraft: () => Promise<void>;
+  editPost: (
+    post: db.Post,
+    content: Story,
+    parentId?: string,
+    metadata?: db.PostMetadata
+  ) => Promise<void>;
+  editingPost?: db.Post;
+  flatListRef?: React.RefObject<React.ElementRef<typeof FlatList>>;
+  getDraft: () => Promise<urbit.JSONContent | null>;
+  goBack?: () => void;
+  group?: db.Group | null;
+  groupMembers: db.ChatMember[];
+  handleGoToImage?: (post: db.Post, uri?: string) => void;
+  headerMode: 'default' | 'next';
+  initialThreadUnread?: db.ThreadUnreadState | null;
+  negotiationMatch: boolean;
+  onPressDelete: (post: db.Post) => void;
+  onPressRetry?: (post: db.Post) => Promise<void>;
+  parentPost: db.Post | null;
+  posts: db.Post[] | null;
+  sendReply: (content: urbit.Story, channelId: string) => Promise<void>;
+  setEditingPost?: (post: db.Post | undefined) => void;
+  storeDraft: (draft: urbit.JSONContent) => Promise<void>;
+}) {
+  const currentUserId = useCurrentUserId();
+  const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
+  const [inputShouldBlur, setInputShouldBlur] = useState(false);
+
+  const isEditingParent = useMemo(() => {
+    return editingPost && editingPost.id === parentPost?.id;
+  }, [editingPost, parentPost]);
+  const canWrite = utils.useCanWrite(channel, currentUserId);
+  const postsWithoutParent = useMemo(
+    () => posts?.filter((p) => p.id !== parentPost?.id) ?? [],
+    [posts, parentPost]
+  );
+  const isChatChannel = channel ? getIsChatChannel(channel) : true;
+
+  const containingProperties: any = useMemo(() => {
+    return isChatChannel
+      ? {}
+      : {
+          width: '100%',
+          marginHorizontal: 'auto',
+          maxWidth: 600,
+        };
+  }, [isChatChannel]);
+  const bareInputDraftProps = useMemo(() => {
+    // For notebook post, the channel draft corresponds to the note
+    // itself (not the reply input)
+    if (channel.type === 'notebook') {
+      return {
+        getDraft: async () => null,
+        storeDraft: async () => {},
+        clearDraft: async () => {},
+      };
+    }
+    return {
+      getDraft,
+      storeDraft,
+      clearDraft,
+    };
+  }, [channel.type, getDraft, storeDraft, clearDraft]);
+
+  return (
+    <KeyboardAvoidingView enabled={!activeMessage}>
+      {parentPost ? (
+        <DetailView
+          post={parentPost}
+          channel={channel}
+          initialPostUnread={initialThreadUnread}
+          onPressImage={handleGoToImage}
+          editingPost={editingPost}
+          setEditingPost={setEditingPost}
+          onPressRetry={onPressRetry}
+          onPressDelete={onPressDelete}
+          posts={postsWithoutParent}
+          goBack={goBack}
+          activeMessage={activeMessage}
+          setActiveMessage={setActiveMessage}
+          headerMode={headerMode}
+          editorIsFocused={false}
+          flatListRef={flatListRef}
+        />
+      ) : null}
+
+      {negotiationMatch &&
+        channel &&
+        canWrite &&
+        !(isEditingParent && channel.type === 'notebook') && (
+          <View id="reply-container" {...containingProperties}>
+            <BareChatInput
+              placeholder="Reply"
+              shouldBlur={inputShouldBlur}
+              setShouldBlur={setInputShouldBlur}
+              send={sendReply}
+              channelId={channel.id}
+              groupMembers={groupMembers}
+              {...bareInputDraftProps}
+              editingPost={editingPost}
+              setEditingPost={setEditingPost}
+              editPost={editPost}
+              channelType="chat"
+              showAttachmentButton={channel.type === 'chat'}
+              showInlineAttachments={channel.type === 'chat'}
+              shouldAutoFocus={
+                (channel.type === 'chat' && parentPost?.replyCount === 0) ||
+                !!editingPost
+              }
+            />
+          </View>
+        )}
+      {!negotiationMatch && channel && canWrite && (
+        <View
+          position={isChatChannel ? undefined : 'absolute'}
+          bottom={0}
+          width="90%"
+          alignItems="center"
+          justifyContent="center"
+          backgroundColor="$secondaryBackground"
+          borderRadius="$xl"
+          padding="$l"
+        >
+          <Text>
+            Your ship&apos;s version of the Tlon app doesn&apos;t match the
+            channel host.
+          </Text>
+        </View>
+      )}
+
+      {parentPost &&
+      isEditingParent &&
+      (channel.type === 'notebook' || channel.type === 'gallery') ? (
+        <BigInput
+          channelType={urbit.getChannelType(parentPost.channelId)}
+          channelId={parentPost?.channelId}
+          editingPost={editingPost}
+          setEditingPost={setEditingPost}
+          editPost={editPost}
+          shouldBlur={inputShouldBlur}
+          setShouldBlur={setInputShouldBlur}
+          send={async () => {}}
+          getDraft={getDraft}
+          storeDraft={storeDraft}
+          clearDraft={clearDraft}
+          groupMembers={groupMembers}
+        />
+      ) : null}
+      {headerMode === 'next' && (
+        <ChannelFooter
+          showSearchButton={false}
+          title={'Thread: ' + channel.title}
+          goBack={goBack}
+        />
+      )}
+    </KeyboardAvoidingView>
   );
 }
