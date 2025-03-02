@@ -4,6 +4,7 @@ import * as store from '@tloncorp/shared/store';
 import * as urbit from '@tloncorp/shared/urbit';
 import { Carousel, ForwardingProps } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useDebounceValue } from 'tamagui';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
@@ -114,7 +115,18 @@ export function PresentationalCarouselPostScreenContent({
   const navigation = useNavigation();
 
   const [visibleIndex, setVisibleIndex] = useState<number | null>(null);
-  const activePost = posts?.[visibleIndex ?? initialPostIndex];
+
+  /*
+   * Without this `useDebounceValue`, the header will flicker when adding
+   * older posts. With `maintainVisibleContentPosition`, adding new posts to the
+   * beginning of the scroll yields a frame where the visible index is
+   * incorrect (i.e. a frame between updating content height/offset and
+   * receiving the corresponding `onScroll`).
+   */
+  const headerPost = useDebounceValue(
+    posts?.[visibleIndex ?? initialPostIndex],
+    10 // found through experimentation
+  );
 
   return channel && posts?.length && initialPostIndex !== -1 ? (
     <YStack {...passedProps}>
@@ -122,11 +134,11 @@ export function PresentationalCarouselPostScreenContent({
         channel={channel}
         group={channel.group}
         title={
-          activePost == null ? '' : activePost.title ?? activePost.authorId
+          headerPost == null ? '' : headerPost.title ?? headerPost.authorId
         }
         goBack={() => navigation.goBack()}
         showSearchButton={false}
-        post={activePost}
+        post={headerPost}
       />
       <Carousel
         flex={1}
