@@ -39,6 +39,7 @@ const _Carousel = React.forwardRef<
       scrollDirection?: 'horizontal' | 'vertical';
       hideOverlayOnTap?: boolean;
       initialVisibleIndex?: number;
+      disableCarouselInteraction?: boolean;
       flatListProps?: Partial<
         React.ComponentPropsWithoutRef<typeof FlatList<React.ReactElement>>
       >;
@@ -50,6 +51,7 @@ const _Carousel = React.forwardRef<
     onVisibleIndexChange,
     scrollDirection = 'horizontal',
     hideOverlayOnTap = true,
+    disableCarouselInteraction = false,
     flatListProps,
     initialVisibleIndex,
     ...passedProps
@@ -159,6 +161,7 @@ const _Carousel = React.forwardRef<
             }
             decelerationRate="fast"
             disableIntervalMomentum
+            scrollEnabled={!disableCarouselInteraction}
             initialScrollIndex={initialVisibleIndex}
             style={[
               {
