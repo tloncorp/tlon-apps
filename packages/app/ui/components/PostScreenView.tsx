@@ -11,7 +11,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDebounceValue } from 'tamagui';
 import { Text, View, YStack } from 'tamagui';
 
-import { useRootNavigation } from '../../navigation/utils';
 import {
   ChannelProvider,
   NavigationProvider,
@@ -92,7 +91,6 @@ export function PostScreenView({
     channel.groupId ?? '',
     currentUserId
   );
-  const isChatChannel = channel ? getIsChatChannel(channel) : true;
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
@@ -115,13 +113,6 @@ export function PostScreenView({
   }, [parentPost, setEditingPost]);
 
   const { bottom } = useSafeAreaInsets();
-
-  // TODO: Swap title (and other header properties) based on currently-focused post in carousel
-  const headerTitle = isChatChannel
-    ? `Thread: ${channel?.title ?? null}`
-    : parentPost?.title && parentPost.title !== ''
-      ? parentPost.title
-      : 'Post';
 
   const hasLoaded = !!(posts && channel && parentPost);
   useEffect(() => {
@@ -205,14 +196,11 @@ export function PostScreenView({
         >
           <KeyboardAvoidingView>
             <YStack flex={1} backgroundColor={'$background'}>
-              <ChannelHeader
+              <ConnectedHeader
                 channel={channel}
-                group={channel.group}
-                title={headerTitle}
                 goBack={handleGoBack}
-                showSearchButton={false}
                 showSpinner={isLoadingPosts}
-                post={parentPost ?? undefined}
+                parentPost={parentPost}
                 mode={headerMode}
                 showEditButton={showEdit}
                 goToEdit={handleEditPress}
@@ -273,6 +261,39 @@ export function PostScreenView({
         </FileDrop>
       </ChannelProvider>
     </NavigationProvider>
+  );
+}
+
+function ConnectedHeader({
+  channel,
+  parentPost,
+  ...passedProps
+}: ForwardingProps<
+  typeof ChannelHeader,
+  {
+    channel: db.Channel;
+    parentPost: db.Post | null;
+  },
+  'channel' | 'group' | 'title' | 'showSearchButton' | 'post'
+>) {
+  const isChatChannel = getIsChatChannel(channel);
+
+  // TODO: Swap title (and other header properties) based on currently-focused post in carousel
+  const headerTitle = isChatChannel
+    ? `Thread: ${channel?.title ?? null}`
+    : parentPost?.title && parentPost.title !== ''
+      ? parentPost.title
+      : 'Post';
+
+  return (
+    <ChannelHeader
+      channel={channel}
+      group={channel.group}
+      title={headerTitle}
+      showSearchButton={false}
+      post={parentPost ?? undefined}
+      {...passedProps}
+    />
   );
 }
 
