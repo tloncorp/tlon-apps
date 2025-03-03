@@ -17,9 +17,12 @@ export function FavoriteGroupsDisplay(props: {
 
   // if editable, get sorted groups to pass to the selector
   const allGroups = useGroups();
+  const filteredGroups = useMemo(() => {
+    return allGroups?.filter((g) => g.privacy !== 'secret') ?? [];
+  }, [allGroups]);
 
   const alphaSegmentedGroups = useAlphabeticallySegmentedGroups({
-    groups: allGroups ?? [],
+    groups: filteredGroups ?? [],
     enabled: true,
   });
 
