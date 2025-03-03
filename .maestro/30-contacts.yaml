@@ -26,13 +26,12 @@ appId: io.tlon.groups
 - tapOn: '~zod'
 - inputText: 'Testing pet name'
 - 'hideKeyboard'
-- runFlow:
-    when:
-      platform: ios
-    commands:
-      - tapOn: 'Change avatar image'
-      - tapOn: 'Photo Library'
-      - tapOn: 'Photo, March 30, 2018, 3:14 PM'
+- tapOn: 'Change avatar image'
+- assertVisible: 'Photo Library'
+- swipe:
+    direction: 'DOWN'
+- waitForAnimationToEnd:
+    timeout: 5000
 - tapOn: 'Done'
 - assertVisible: 'Profile'
 - assertVisible: 'Testing pet name'
@@ -47,3 +46,10 @@ appId: io.tlon.groups
 - assertVisible: 'Message'
 - tapOn:
     id: 'HeaderBackButton'
+# Log out
+- tapOn:
+    id: 'AvatarNavIcon'
+- tapOn:
+    id: 'ContactsSettingsButton'
+- tapOn: 'Log out'
+- tapOn: 'Log out now'

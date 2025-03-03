@@ -20,7 +20,7 @@ import ImageViewerScreen from '../../features/top/ImageViewerScreen';
 import PostScreen from '../../features/top/PostScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
-import { useGlobalSearch } from '../../ui';
+import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
 import { HomeDrawerParamList } from '../types';
 import { HomeSidebar } from './HomeSidebar';
 
@@ -50,7 +50,7 @@ export const HomeNavigator = () => {
           drawerType: 'permanent',
           headerShown: false,
           drawerStyle: {
-            width: isImageViewer ? 0 : 400,
+            width: isImageViewer ? 0 : DESKTOP_SIDEBAR_WIDTH,
             backgroundColor,
             borderRightColor: borderColor,
           },

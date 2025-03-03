@@ -11,6 +11,7 @@ import { GlobalSearch } from '../../features/chat-list/GlobalSearch';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import {
   AvatarNavIcon,
+  DESKTOP_TOPLEVEL_SIDEBAR_WIDTH,
   GlobalSearchProvider,
   NavIcon,
   YStack,
@@ -168,7 +169,7 @@ const TopLevelDrawerInner = () => {
           drawerType: 'permanent',
           headerShown: false,
           drawerStyle: {
-            width: 56,
+            width: DESKTOP_TOPLEVEL_SIDEBAR_WIDTH,
             backgroundColor: getVariableValue(useTheme().background),
             borderRightColor: getVariableValue(useTheme().border),
           },

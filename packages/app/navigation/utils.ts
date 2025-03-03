@@ -3,6 +3,7 @@ import {
   NavigationProp,
   useNavigation as useReactNavigation,
 } from '@react-navigation/native';
+import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -10,7 +11,13 @@ import { useCallback, useMemo } from 'react';
 
 import { useFeatureFlagStore } from '../lib/featureFlags';
 import { useGlobalSearch, useIsWindowNarrow } from '../ui';
+import {
+  DesktopBasePathStackParamList,
+  MobileBasePathStackParamList,
+} from './BasePathNavigator';
 import { CombinedParamList, RootStackParamList } from './types';
+
+const logger = createDevLogger('nav-utils', false);
 
 export const useNavigation = () => {
   return useReactNavigation<NavigationProp<CombinedParamList>>();
@@ -50,6 +57,7 @@ function useResetToChannel() {
   const navigation = useNavigation();
   const reset = useTypedReset();
   const isWindowNarrow = useIsWindowNarrow();
+  const { lastOpenTab } = useGlobalSearch();
 
   return function resetToChannel(
     channelId: string,
@@ -73,7 +81,8 @@ function useResetToChannel() {
         },
       ]);
     } else {
-      const tab = getTab(navigation);
+      const tab = getTab(navigation, lastOpenTab);
+      logger.log('resetToChannel', { tab, channelId, options });
       const channelRoute = getDesktopChannelRoute(
         tab,
         channelId,
@@ -138,7 +147,7 @@ function useNavigateToChannel() {
           ...(channel.groupId ? { groupId: channel.groupId } : {}),
         });
       } else {
-        const tab = (lastOpenTab as 'Home' | 'Messages') ?? getTab(navigation);
+        const tab = getTab(navigation, lastOpenTab);
         const channelRoute = getDesktopChannelRoute(
           tab,
           channel.id,
@@ -155,16 +164,19 @@ function useNavigateToChannel() {
 export function useNavigateToPost() {
   const isWindowNarrow = useIsWindowNarrow();
   const navigation = useNavigation();
+  const { lastOpenTab } = useGlobalSearch();
   const activityIndex = navigation
     .getState()
     ?.routes.findIndex((route) => route.name === 'Activity');
   const currentScreenIsActivity =
     navigation.getState()?.index === activityIndex;
 
+  logger.log('useNavigateToPost', currentScreenIsActivity);
+
   return useCallback(
     (post: db.Post) => {
       if (!isWindowNarrow && currentScreenIsActivity) {
-        navigation.navigate(getTab(navigation), {
+        navigation.navigate(getTab(navigation, lastOpenTab), {
           screen: 'Channel',
           params: {
             screen: 'Post',
@@ -228,18 +240,40 @@ export function useNavigateBackFromPost() {
 
 function getTab(
   navigation:
+    | NavigationProp<
+        MobileBasePathStackParamList & DesktopBasePathStackParamList
+      >
     | NavigationProp<RootStackParamList>
-    | NavigationProp<CombinedParamList>
+    | NavigationProp<CombinedParamList>,
+  lastOpenTab: 'Home' | 'Messages'
 ): 'Home' | 'Messages' {
   const parent = navigation.getParent()?.getState();
-  const state = parent?.type === 'Drawer' ? parent : navigation.getState();
-  if (state.type !== 'drawer') {
-    console.log(parent, navigation.getState());
-    throw new Error('Top-level navigator is not a drawer navigator');
+  const state =
+    parent?.type.toLocaleLowerCase() === 'drawer'
+      ? parent
+      : navigation.getState();
+
+  logger.log(parent, navigation.getState());
+  if (state.type !== 'drawer' || state.routes[state.index]?.name === 'Root') {
+    console.warn(
+      'Top-level navigator is not a drawer navigator, using lastOpenTab'
+    );
+    return lastOpenTab;
   }
 
   const last = state.routes[state.index];
-  return last.name === 'Messages' ? 'Messages' : 'Home';
+  logger.log('last route name', last.name);
+  const drawers = ['Home', 'Messages', 'Activity', 'Profile', 'Settings'];
+  if (!drawers.includes(last.name)) {
+    logger.log('not top level drawer, getting tab from parent');
+    return getTab(navigation.getParent(), lastOpenTab);
+  }
+
+  if (last.name === 'Home' || last.name === 'Messages') {
+    return last.name;
+  }
+
+  return lastOpenTab;
 }
 
 export function useRootNavigation() {
@@ -257,6 +291,7 @@ export function useRootNavigation() {
 
   const useNavigateToChatDetails = () => {
     const isWindowNarrow = useIsWindowNarrow();
+    const { lastOpenTab } = useGlobalSearch();
 
     return useCallback(
       (chat: { type: 'group' | 'channel'; id: string }) => {
@@ -266,7 +301,7 @@ export function useRootNavigation() {
             chatType: chat.type,
           });
         } else {
-          const tab = getTab(navigationRef.current);
+          const tab = getTab(navigationRef.current, lastOpenTab);
           navigationRef.current.navigate(tab, {
             screen: 'ChatDetails',
             params: {
@@ -282,6 +317,7 @@ export function useRootNavigation() {
 
   const useNavigateToChatVolume = () => {
     const isWindowNarrow = useIsWindowNarrow();
+    const { lastOpenTab } = useGlobalSearch();
 
     return useCallback(
       (chat: { type: 'group' | 'channel'; id: string }) => {
@@ -291,7 +327,7 @@ export function useRootNavigation() {
             chatType: chat.type,
           });
         } else {
-          const tab = getTab(navigationRef.current);
+          const tab = getTab(navigationRef.current, lastOpenTab);
           navigationRef.current.navigate(tab, {
             screen: 'ChatVolume',
             params: {
@@ -355,6 +391,7 @@ export function getDesktopChannelRoute(
   selectedPostId?: string
 ) {
   const screenName = screenNameFromChannelId(channelId);
+  logger.log('getDesktopChannelRoute', screenName);
   return {
     name: tab,
     params: {

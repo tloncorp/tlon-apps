@@ -390,9 +390,6 @@
     (~(unsubscribe s [subs bowl]) wire dock)
   (emil caz)
 ++  inflate-io
-  ::  initiate version negotiation with our own channels-server
-  ::
-  =.  cor  (emit (initiate:neg our.bowl server))
   ::  leave all subscriptions we don't recognize
   ::
   =.  cor

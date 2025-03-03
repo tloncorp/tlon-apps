@@ -147,15 +147,15 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
 
               if (route.name === 'GroupChannels') {
                 if (groupData) {
-                  return `${groupData.title} | Tlon`;
+                  return `${groupData.title}`;
                 }
-                return 'Group Channels | Tlon';
+                return 'Group Channels';
               }
 
               // For channel routes
               if (route.name === 'Channel' || route.name === 'ChannelRoot') {
                 if (channelData && groupData) {
-                  return `${channelData.title} - ${groupData.title} | Tlon`;
+                  return `${channelData.title} - ${groupData.title}`;
                 }
               }
 
@@ -168,22 +168,22 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
                     channelData.contact?.customNickname ||
                     channelData.contactId ||
                     'Chat';
-                  return `${title} | Tlon`;
+                  return `${title}`;
                 }
-                return 'Chat | Tlon';
+                return 'Chat';
               }
 
               // For Group DM routes
               if (route.name === 'GroupDM') {
                 if (channelData) {
-                  return `${channelData.title !== '' ? channelData.title : 'Group DM'} | Tlon`;
+                  return `${channelData.title !== '' ? channelData.title : 'Group DM'}`;
                 }
-                return 'Group DM | Tlon';
+                return 'Group DM';
               }
 
               // For other routes
               const screenName = getFriendlyName(route.name);
-              return `${screenName} | Tlon`;
+              return `${screenName}`;
             },
           }}
         >
@@ -218,9 +218,9 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
               if (route.name === 'Channel' || route.name === 'ChannelRoot') {
                 if (channelData && groupData) {
                   if (groupData?.title) {
-                    return `${channelData.title} - ${groupData.title} | Tlon`;
+                    return `${channelData.title} - ${groupData.title}`;
                   } else {
-                    return `${channelData.title} | Tlon`;
+                    return `${channelData.title}`;  
                   }
                 }
                 if (channelData) {
@@ -230,14 +230,14 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
                     channelData.contact?.customNickname ||
                     channelData.contactId ||
                     'Chat';
-                  return `${title} | Tlon`;
+                  return `${title}`;
                 }
-                return 'Chat | Tlon';
+                return 'Chat';
               }
 
               // For other routes
               const screenName = getFriendlyName(route.name);
-              return `${screenName} | Tlon`;
+              return `${screenName}`;
             },
           }}
         >
@@ -264,9 +264,9 @@ const App = React.memo(function AppComponent() {
   const isDarkMode = useIsDark();
   const currentUserId = useCurrentUserId();
   const [dbIsLoaded, setDbIsLoaded] = useState(false);
-  const [startedSync, setStartedSync] = useState(false);
   const configureClient = useConfigureUrbitClient();
   useFindSuggestedContacts();
+  const hasSyncedRef = React.useRef(false);
 
   useEffect(() => {
     handleError(() => {
@@ -280,11 +280,14 @@ const App = React.memo(function AppComponent() {
       shipUrl: '',
     });
     const syncStart = async () => {
-      // Web doesn't persist database, so headsSyncedAt is misleading
-      await db.headsSyncedAt.resetValue();
+      // Only call sync.syncStart once during the app's lifecycle
+      if (!hasSyncedRef.current) {
+        // Web doesn't persist database, so headsSyncedAt is misleading
+        await db.headsSyncedAt.resetValue();
 
-      await sync.syncStart(startedSync);
-      setStartedSync(true);
+        await sync.syncStart(false);
+        hasSyncedRef.current = true;
+      }
 
       // we need to check the size of the database here to see if it's not zero
       // if it's not zero, set the dbIsLoaded to true
@@ -310,7 +313,7 @@ const App = React.memo(function AppComponent() {
     };
 
     syncStart();
-  }, [dbIsLoaded, currentUserId, startedSync]);
+  }, [dbIsLoaded, currentUserId]);
 
   return (
     <div className="flex h-full w-full flex-col">
