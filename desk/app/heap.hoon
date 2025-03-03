@@ -371,8 +371,8 @@
       (slog tank u.p.sign)
     ::
         %fact
-      ?.  =(act:mar:g p.cage.sign)  cor
-      (take-groups !<(=action:g q.cage.sign))
+      ?.  =(%group-action-3 p.cage.sign)  cor
+      (take-groups !<(=action:v2:g q.cage.sign))
     ==
   ==
 ++  watch-epic
@@ -413,7 +413,7 @@
   ==
 ::
 ++  take-groups
-  |=  =action:g
+  |=  =action:v2:g
   =/  affected=(list flag:h)
     %+  murn  ~(tap by stash)
     |=  [=flag:h =heap:h]
@@ -797,12 +797,12 @@
   ++  he-pass
     |%
     ++  poke-group
-      |=  [=term =action:g]
+      |=  [=term =action:v2:g]
       ^+  he-core
       =/  =dock      [our.bowl %groups] :: XX which ship
       =/  =wire      (snoc he-area term)
       =.  cor
-        (emit %pass wire %agent dock %poke act:mar:g !>(action))
+        (emit %pass wire %agent dock %poke group-action-3+!>(action))
       he-core
     ::
     ++  create-channel

@@ -159,14 +159,18 @@ export const syncLatestPosts = async (
   queryCtx?: QueryCtx,
   yieldWriter?: boolean
 ): Promise<() => Promise<void>> => {
+  const syncedAt = await db.headsSyncedAt.getValue();
   const result = await syncQueue.add('latestPosts', ctx, () =>
-    api.getLatestPosts({})
+    api.getLatestPosts({
+      afterCursor: new Date(syncedAt),
+    })
   );
   logger.crumb('got latest posts from api');
   const allPosts = result.map((p) => p.latestPost);
   const writer = async (): Promise<void> => {
     allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
     await db.insertLatestPosts(allPosts, queryCtx);
+    await db.headsSyncedAt.setValue(Date.now());
   };
 
   if (yieldWriter) {
@@ -181,6 +185,7 @@ export const syncSettings = async (ctx?: SyncCtx) => {
   const settings = await syncQueue.add('settings', ctx, () =>
     api.getSettings()
   );
+  console.log('got settings from api', settings);
   return db.insertSettings(settings);
 };
 
@@ -214,6 +219,20 @@ export const syncContacts = async (ctx?: SyncCtx) => {
   } catch (e) {
     logger.error('error getting contacts from db', e);
   }
+};
+
+export const syncVerifications = async (ctx?: SyncCtx) => {
+  logger.log('syncing verifications');
+  const verifications = await syncQueue.add('verifications', ctx, () =>
+    api.fetchVerifications()
+  );
+  try {
+    await db.insertVerifications({ verifications });
+  } catch (e) {
+    logger.error('error inserting verifications', e);
+  }
+
+  logger.log('inserted verifications from api', verifications);
 };
 
 export const syncPinnedItems = async (ctx?: SyncCtx) => {
@@ -833,6 +852,18 @@ export const handleStorageUpdate = async (update: api.StorageUpdate) => {
   }
 };
 
+export const handleSettingsUpdate = async (update: api.SettingsUpdate) => {
+  const userId = api.getCurrentUserId();
+  switch (update.type) {
+    case 'updateSetting':
+      await db.insertSettings({
+        userId,
+        ...update.setting,
+      });
+      break;
+  }
+};
+
 export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
   logger.log('event: channels update', update);
   switch (update.type) {
@@ -1258,6 +1289,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
   await verifyUserInviteLink();
 
   isSyncing = false;
+  db.userHasCompletedFirstSync.setValue(true);
 };
 
 export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {
@@ -1276,6 +1308,7 @@ export const setupLowPrioritySubscriptions = async (ctx?: SyncCtx) => {
       api.subscribeGroups(handleGroupUpdate),
       api.subscribeToContactUpdates(handleContactUpdate),
       api.subscribeToStorageUpdates(handleStorageUpdate),
+      api.subscribeToSettings(handleSettingsUpdate),
     ]);
   });
 };

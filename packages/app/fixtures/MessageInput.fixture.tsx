@@ -1,7 +1,7 @@
-import { BigInput, MessageInput, View } from '@tloncorp/ui';
 import { useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BigInput, MessageInput, View } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 import { group } from './fakeData';
 
@@ -19,8 +19,8 @@ const ChatMessageInputFixture = () => {
           channelId="channel-id"
           groupMembers={group.members ?? []}
           getDraft={async () => ({})}
-          storeDraft={() => {}}
-          clearDraft={() => {}}
+          storeDraft={async () => {}}
+          clearDraft={async () => {}}
         />
       </View>
     </FixtureWrapper>
@@ -42,8 +42,8 @@ const NotebookInputFixture = () => {
           channelId="channel-id"
           groupMembers={group.members ?? []}
           getDraft={async () => ({})}
-          storeDraft={() => {}}
-          clearDraft={() => {}}
+          storeDraft={async () => {}}
+          clearDraft={async () => {}}
           placeholder="Write a note..."
         />
       </View>

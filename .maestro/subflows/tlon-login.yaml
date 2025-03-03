@@ -50,6 +50,15 @@ appId: io.tlon.groups
       visible: 'Not now'
     commands:
       - tapOn: 'Not now'
+# Wait if we encounter the ship-restarting screen
+- runFlow:
+    when:
+      visible: 'Notify me when.*'
+    commands:
+      - extendedWaitUntil:
+          notVisible: 'Notify me when.*'
+          timeout: 600000 # 10 minutes
+# Dismiss welcome sheet
 - assertVisible: 'Welcome to TM'
 - swipe:
     direction: 'DOWN'

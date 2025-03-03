@@ -1,0 +1,6 @@
+appId: io.tlon.groups
+---
+- killApp
+- clearState
+- clearKeychain
+- launchApp

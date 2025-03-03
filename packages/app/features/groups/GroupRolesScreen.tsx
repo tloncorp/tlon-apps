@@ -1,6 +1,17 @@
 import { useRoute } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
+import { useCallback, useMemo, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { Keyboard } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { useGroupContext } from '../../hooks/useGroupContext';
+import {
+  GroupSettingsStackParamList,
+  GroupSettingsStackRouteProp,
+} from '../../navigation/types';
+import { useRootNavigation } from '../../navigation/utils';
 import {
   ActionSheet,
   Button,
@@ -13,18 +24,7 @@ import {
   TextInput,
   View,
   YStack,
-} from '@tloncorp/ui';
-import { useCallback, useMemo, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
-import { Keyboard } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-import { useGroupContext } from '../../hooks/useGroupContext';
-import {
-  GroupSettingsStackParamList,
-  GroupSettingsStackRouteProp,
-} from '../../navigation/types';
-import { useRootNavigation } from '../../navigation/utils';
+} from '../../ui';
 
 type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'GroupRoles'>;
 
@@ -325,6 +325,7 @@ function EditRoleSheet({
                   }}
                   value={value}
                   editable={role.title !== 'Admin'}
+                  testID="RoleTitleInput"
                 />
               </Field>
             )}
@@ -429,6 +430,7 @@ function AddRoleSheet({
                     Keyboard.dismiss();
                   }}
                   value={value}
+                  testID="RoleTitleInput"
                 />
               </Field>
             )}

@@ -644,6 +644,7 @@
       [%logs *]  cor
       [%epic ~]  cor
       [%hook *]  cor
+      [%logs ~]  cor
   ::
       [%migrate ~]
     ?>  ?=(%poke-ack -.sign)

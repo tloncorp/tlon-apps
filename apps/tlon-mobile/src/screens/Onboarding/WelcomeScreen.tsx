@@ -16,8 +16,8 @@ import {
   View,
   XStack,
   YStack,
-} from '@tloncorp/ui';
-import { OnboardingBenefitsSheet } from '@tloncorp/ui/src/components/Onboarding/OnboardingBenefitsSheet';
+} from '@tloncorp/app/ui';
+import { OnboardingBenefitsSheet } from '@tloncorp/app/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -117,15 +117,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
                     navigation.navigate('PasteInviteLink');
                   }}
                 >
-                  <Button.Text>Claim invite</Button.Text>
-                </OnboardingButton>
-                <OnboardingButton
-                  secondary
-                  onPress={() => {
-                    navigation.navigate('JoinWaitList', {});
-                  }}
-                >
-                  <Button.Text>Join waitlist</Button.Text>
+                  <Button.Text>Sign up</Button.Text>
                 </OnboardingButton>
               </>
             )}

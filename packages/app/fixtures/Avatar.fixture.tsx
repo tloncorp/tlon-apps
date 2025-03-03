@@ -8,8 +8,7 @@ import {
   View,
   XStack,
   YStack,
-} from '@tloncorp/ui';
-
+} from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 import { brianContact } from './fakeData';
 

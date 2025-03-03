@@ -1,10 +1,17 @@
 appId: io.tlon.groups
 ---
-- clearState:
-    appId: io.tlon.groups
-- launchApp:
-    appId: io.tlon.groups
 - runFlow: 01-self-hosted-login.yaml
 - runFlow: 02-tlon-login.yaml
 - runFlow: 10-settings.yaml
 - runFlow: 20-profile.yaml
+# Only run the Contacts test on iOS because of the issue where SSEs don't work in the Android emulator
+- runFlow:
+    file: 30-contacts.yaml
+    when:
+      platform: ios
+- runFlow: 40-create-group.yaml
+- runFlow: 41-customize-group.yaml
+- runFlow: 42-group-info-settings.yaml
+- runFlow: 43-roles.yaml
+- runFlow: 50-chat.yaml
+- runFlow: 51-threads.yaml

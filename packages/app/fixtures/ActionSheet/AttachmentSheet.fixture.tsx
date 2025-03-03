@@ -1,5 +1,5 @@
-import { AppDataContextProvider } from '@tloncorp/ui';
-import AttachmentSheet from '@tloncorp/ui/src/components/AttachmentSheet';
+import { AppDataContextProvider } from '../../ui';
+import AttachmentSheet from '../../ui/components/AttachmentSheet';
 
 export default (
   <AppDataContextProvider contacts={[]}>

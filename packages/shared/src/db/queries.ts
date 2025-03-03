@@ -32,6 +32,7 @@ import {
 } from '../api';
 import { parseGroupId } from '../api/apiUtils';
 import { createDevLogger } from '../debug';
+import * as domain from '../domain';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
 import {
   SourceActivityEvents,
@@ -72,7 +73,9 @@ import {
   posts as $posts,
   settings as $settings,
   threadUnreads as $threadUnreads,
+  verifications as $verifications,
   volumeSettings as $volumeSettings,
+  channels,
 } from './schema';
 import {
   ActivityBucket,
@@ -95,6 +98,7 @@ import {
   Settings,
   TableName,
   ThreadUnreadState,
+  Verification,
   VolumeSettings,
 } from './types';
 
@@ -142,7 +146,7 @@ export const getSettings = createReadQuery(
   async (userId: string, ctx: QueryCtx) => {
     return ctx.db.query.settings.findFirst({
       where(fields) {
-        return eq(fields.userId, desig(userId));
+        return eq(fields.userId, userId);
       },
     });
   },
@@ -306,6 +310,133 @@ export const getUnjoinedGroupChannels = createReadQuery(
   ['channels', 'groups']
 );
 
+export const getAnalyticsDigest = createReadQuery(
+  'getAnalyticsDigest',
+  async (ctx: QueryCtx): Promise<domain.AnalyticsDigest> => {
+    const numContacts = await ctx.db
+      .select({ count: count() })
+      .from($contacts)
+      .where(eq($contacts.isContact, true));
+
+    const groups = await ctx.db.query.groups.findMany({
+      where: eq($groups.currentUserIsMember, true),
+      with: {
+        channels: true,
+      },
+    });
+    const numGroups = groups.length;
+    const numGroupchats = groups.filter((g) => g.channels.length === 1).length;
+    const numGroupsHosted = groups.filter((g) => g.currentUserIsHost).length;
+
+    const channels = await ctx.db.query.channels.findMany({
+      where: eq($channels.currentUserIsMember, true),
+    });
+
+    const numChannels = channels.length;
+    const numDms = channels.filter((c) => c.type === 'dm').length;
+    const numLegacyGroupDms = channels.filter(
+      (c) => c.type === 'groupDm'
+    ).length;
+    const numGalleries = channels.filter((c) => c.type === 'gallery').length;
+    const numNotebooks = channels.filter((c) => c.type === 'notebook').length;
+
+    return {
+      numContacts: numContacts[0]?.count ?? 0,
+      numGroups,
+      numGroupchats,
+      numGroupsHosted,
+      numChannels,
+      numDms,
+      numLegacyGroupDms,
+      numGalleries,
+      numNotebooks,
+    };
+  },
+  []
+);
+
+export const insertVerifications = createWriteQuery(
+  'insertVerifications',
+  async (
+    { verifications }: { verifications: Verification[] },
+    ctx: QueryCtx
+  ) => {
+    if (verifications.length === 0) {
+      await ctx.db
+        .delete($verifications)
+        .where(isNotNull($verifications.value));
+      return;
+    } else {
+      const values = verifications.map((v) => v.value);
+      await ctx.db
+        .delete($verifications)
+        .where(not(inArray($verifications.value, values)));
+    }
+
+    return ctx.db
+      .insert($verifications)
+      .values(verifications)
+      .onConflictDoUpdate({
+        target: [
+          $verifications.type,
+          $verifications.value,
+          $verifications.provider,
+        ],
+        set: conflictUpdateSetAll($verifications),
+      });
+  },
+  ['verifications']
+);
+
+export const updateVerification = createWriteQuery(
+  'updateVerification',
+  async (
+    {
+      verification,
+    }: {
+      verification: Partial<Verification> & {
+        type: Verification['type'];
+        value: string;
+      };
+    },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .update($verifications)
+      .set(verification)
+      .where(
+        and(
+          eq($verifications.type, verification.type),
+          eq($verifications.value, verification.value)
+        )
+      );
+  },
+  ['verifications']
+);
+
+export const deleteVerification = createWriteQuery(
+  'deleteVerifications',
+  async (
+    { type, value }: { type: Verification['type']; value: string },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .delete($verifications)
+      .where(
+        and(eq($verifications.type, type), eq($verifications.value, value))
+      );
+  },
+  ['verifications']
+);
+
+export const getVerifications = createReadQuery(
+  'getVerifications',
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.verifications.findMany();
+  },
+  ['verifications']
+);
+
 export const getPins = createReadQuery(
   'getPins',
   async (ctx: QueryCtx): Promise<Pin[]> => {
@@ -358,8 +489,8 @@ export const getChats = createReadQuery(
     });
 
     const channels = await ctx.db.query.channels.findMany({
-      where: isNull($channels.groupId),
       with: {
+        group: true,
         volumeSettings: true,
         unread: true,
         members: {
@@ -462,7 +593,8 @@ export const insertGroups = createWriteQuery(
                 $groups.privacy,
                 $groups.joinStatus,
                 $groups.currentUserIsMember,
-                $groups.haveInvite
+                $groups.haveInvite,
+                $groups.haveRequestedInvite
               ),
             });
         } else {

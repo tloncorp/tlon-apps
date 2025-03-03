@@ -1,8 +1,17 @@
 /-  g=groups, d=channels, c=chat, a=activity
 |%
++$  init-5
+  $:  groups=groups-ui:v5:g
+      =gangs:v5:g
+      channel=channel-0
+      =activity:a
+      pins=(list whom)
+      chat=chat-2
+      profile=?
+  ==
 +$  init-4
-  $:  groups=groups-ui:g
-      =gangs:g
+  $:  groups=groups-ui:v2:g
+      =gangs:v2:g
       channel=channel-0
       =activity:a
       pins=(list whom)
@@ -10,8 +19,8 @@
       profile=?
   ==
 +$  init-3
-  $:  groups=groups-ui:g
-      =gangs:g
+  $:  groups=groups-ui:v2:g
+      =gangs:v2:g
       =channels:d
       =activity:v3:old:a
       pins=(list whom)
@@ -19,8 +28,8 @@
       profile=?
   ==
 +$  init-2
-  $:  groups=groups-ui:g
-      =gangs:g
+  $:  groups=groups-ui:v2:g
+      =gangs:v2:g
       =channels:d
       activity=activity:v2:old:a
       pins=(list whom)
@@ -29,8 +38,8 @@
   ==
 ::
 +$  init-1
-  $:  groups=groups-ui:g
-      =gangs:g
+  $:  groups=groups-ui:v2:g
+      =gangs:v2:g
       =channels:d
       =unreads:d
       pins=(list whom)
@@ -39,8 +48,8 @@
   ==
 ::
 +$  init-0
-  $:  groups=groups-ui:g
-      =gangs:g
+  $:  groups=groups-ui:v2:g
+      =gangs:v2:g
       channels=channels-0:d
       =unreads:d
       pins=(list whom)

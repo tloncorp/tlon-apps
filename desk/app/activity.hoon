@@ -1195,7 +1195,7 @@
   =/  soft  (~(got by old-volumes:a) %soft)
   ::  bail early if we've set something other than the old default
   ?.  =(soft base-volume)  cor
-  =+  .^(=groups-ui:g %gx (scry-path %groups /groups/light/v1/noun))
+  =+  .^(=groups-ui:v2:g %gx (scry-path %groups /groups/light/v1/noun))
   =/  groups  ~(tap by groups-ui)
   ::  iterate through all groups and set volume to old default
   |-
@@ -1205,7 +1205,7 @@
       (~(put by volume-settings) [%base ~] default-volumes:a)
     cor
   =*  next  $(groups t.groups)
-  =/  [=flag:g group=group-ui:g]  i.groups
+  =/  [=flag:g group=group-ui:v2:g]  i.groups
   ?:  (~(has by volume-settings) [%group flag])  next
   =.  volume-settings  (~(put by volume-settings) [%group flag] soft)
   next

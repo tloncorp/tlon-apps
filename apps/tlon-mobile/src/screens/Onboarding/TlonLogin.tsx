@@ -18,7 +18,7 @@ import {
   TlonText,
   View,
   YStack,
-} from '@tloncorp/ui';
+} from '@tloncorp/app/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Platform, TouchableOpacity } from 'react-native';

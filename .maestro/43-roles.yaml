@@ -1,0 +1,202 @@
+appId: io.tlon.groups
+---
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/tlon-login.yaml
+- assertVisible: 'Home'
+# Tap on the "+" button
+- tapOn:
+    id: 'CreateGroupButton'
+# Assert that the sheet pops
+- assertVisible: 'Create customizable group chat'
+- tapOn: 'New group'
+# Assert that the contacts sheet pops
+- assertVisible: 'Select contacts to invite'
+# Create the group
+- tapOn: 'Create group'
+- runFlow:
+    when:
+      visible: 'General'
+    commands:
+      - assertVisible: 'Welcome to your group!'
+# Navigate back to Home and assert that the group is created
+- tapOn:
+    id: 'HeaderBackButton'
+- runFlow:
+    when:
+      visible: 'Home'
+    commands:
+      - assertVisible: 'Untitled group'
+      - tapOn: 'Untitled group'
+      - assertVisible: 'General'
+# Open the overflow menu from the channel header and navigate to the Roles screen
+- tapOn:
+    id: 'ChannelHeaderOverflowMenuButton'
+- assertVisible: 'Secret group with 1 member'
+- tapOn: 'Group info & settings'
+- assertVisible: 'Group info'
+- tapOn: 'Roles'
+# Create a role and check that the count label updates
+- tapOn: 'Add Role'
+- assertVisible: 'Add role'
+- tapOn: 'Role title'
+- inputText: 'Testing role'
+- tapOn: 'Role description'
+- tapOn: 'Role description'
+- inputText: 'Description for test role'
+- tapOn: 'Save'
+- assertVisible: 'Testing role'
+- tapOn:
+    id: 'HeaderBackButton'
+- assertVisible:
+    text: '2'
+    rightOf: 'Roles'
+# Assign a role to a user
+- tapOn: 'Manage members'
+- assertVisible: 'Members'
+- assertVisible:
+    id: 'MemberRow'
+    below: 'Admin'
+- tapOn:
+    id: 'MemberRow'
+    index: 0
+- assertVisible: 'Send message'
+- assertVisible: 'Copy user ID'
+- tapOn: 'Assign role'
+- tapOn: 'Testing role'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible:
+    id: 'MemberRow'
+    below: 'Testing role'
+- tapOn:
+    id: 'HeaderBackButton'
+# Change a channel's permissions to use a role
+- tapOn: 'Channels'
+- tapOn:
+    id: 'EditChannelButton'
+- assertVisible: 'Edit channel'
+- tapOn: 'Custom'
+- tapOn:
+    id: 'ReaderRoleSelector'
+- tapOn: 'Testing role'
+- swipe:
+    direction: 'DOWN'
+- assertVisible:
+    text: 'Testing role'
+    below: 'Readers'
+- tapOn:
+    id: 'WriterRoleSelector'
+- tapOn: 'Testing role'
+- swipe:
+    direction: 'DOWN'
+- assertVisible:
+    text: 'Testing role'
+    below: 'Writers'
+- tapOn: 'Save'
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    id: 'HeaderBackButton'
+# Attempt to delete a role that still has members/channels assigned to it
+- tapOn: 'Roles'
+- tapOn: 'Testing role'
+- assertVisible: 'Edit role'
+- assertVisible: 'This role cannot be deleted.*'
+- tapOn: 'Save'
+- waitForAnimationToEnd:
+    timeout: 5000
+# Rename the role
+- tapOn: 'Testing role'
+- assertVisible: 'Edit role'
+- doubleTapOn:
+    id: 'RoleTitleInput'
+- runFlow:
+    when:
+      visible: 'Select All'
+    commands:
+      - tapOn: 'Select All'
+- eraseText
+- inputText: 'Renamed role'
+- tapOn: 'Save'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'Renamed role'
+- tapOn:
+    id: 'HeaderBackButton'
+# Remove a role from a user
+- tapOn: 'Manage members'
+- tapOn:
+    id: 'MemberRow'
+    below: 'Renamed role'
+- tapOn: 'Assign role'
+- tapOn: 'Renamed role'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertNotVisible:
+    id: 'MemberRow'
+    below: 'Renamed role'
+- assertVisible:
+    id: 'MemberRow'
+    below: 'Admin'
+- tapOn:
+    id: 'HeaderBackButton'
+# Remove a role from a channel's permissions
+- tapOn: 'Channels'
+- tapOn:
+    id: 'EditChannelButton'
+    index: 0
+- assertVisible: 'Edit channel'
+- tapOn:
+    id: 'ReaderRoleSelector'
+- tapOn: 'Renamed role'
+- swipe:
+    direction: 'DOWN'
+- assertNotVisible:
+    text: 'Renamed role'
+    below: 'Readers'
+- assertNotVisible:
+    text: 'Renamed role'
+    below: 'Writers'
+- tapOn: 'Save'
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    id: 'HeaderBackButton'
+# Delete a role that has no members or channels assigned to it
+- tapOn: 'Roles'
+- tapOn: 'Renamed role'
+- assertVisible: 'Edit role'
+- assertVisible: 'Delete role'
+- tapOn: 'Delete role'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertNotVisible: 'Renamed role'
+- tapOn:
+    id: 'HeaderBackButton'
+- assertVisible:
+    text: '1'
+    rightOf: 'Roles'
+# Delete group and clean up
+- scrollUntilVisible:
+    direction: DOWN
+    element:
+      text: 'Delete group'
+- tapOn: 'Delete group'
+- runFlow:
+    when:
+      visible: 'This action cannot be undone.'
+    commands:
+      - tapOn: 'Delete group'
+- runFlow:
+    when:
+      visible: 'Home'
+    commands:
+      - assertVisible: 'Home'
+      - assertNotVisible: 'Untitled group'
+# Log out
+- tapOn:
+    id: 'AvatarNavIcon'
+- tapOn:
+    id: 'ContactsSettingsButton'
+- tapOn: 'Log out'
+- tapOn: 'Log out now'

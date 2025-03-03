@@ -1,5 +1,4 @@
-import { AudioEmbed } from '@tloncorp/ui';
-
+import { AudioEmbed } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 
 const AudioEmbedFixture = () => {

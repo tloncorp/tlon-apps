@@ -1,3 +1,5 @@
+import { formatUw, patp2bn, patp2dec } from '@urbit/aura';
+import { Atom, Cell, Noun, dejs, enjs, jam } from '@urbit/nockjs';
 import { isBrowser } from 'browser-or-node';
 
 import { desig } from '../urbit';
@@ -9,6 +11,8 @@ import {
   AuthenticationInterface,
   FatalError,
   Message,
+  NounPoke,
+  NounPokeInterface,
   PokeHandlers,
   PokeInterface,
   ReapError,
@@ -18,7 +22,12 @@ import {
   Thread,
   headers,
 } from './types';
-import EventEmitter, { hexString } from './utils';
+import EventEmitter, { hexString, unpackJamBytes } from './utils';
+
+//TODO  move into nockjs utils
+function isNoun(a: any): a is Noun {
+  return a instanceof Atom || a instanceof Cell;
+}
 
 /**
  * A class for interacting with an urbit ship, given its URL and code
@@ -118,6 +127,40 @@ export class Urbit {
 
     return {
       credentials: isBrowser ? 'include' : undefined,
+      accept: '*',
+      headers,
+      signal: this.abort.signal,
+    };
+  }
+
+  private fetchOptionsNoun(
+    method: 'PUT' | 'GET' = 'PUT',
+    mode: 'noun' | 'json' = 'noun'
+  ): any {
+    let type;
+    switch (mode) {
+      case 'noun':
+        type = 'application/x-urb-jam';
+        break;
+      case 'json':
+        type = 'application/json';
+        break;
+    }
+    const headers: Record<string, string | undefined> = {};
+    switch (method) {
+      case 'PUT':
+        headers['Content-Type'] = type;
+        headers['Accept'] = type;
+        break;
+      case 'GET':
+        headers['X-Channel-Format'] = type;
+        break;
+    }
+    if (!isBrowser) {
+      headers.Cookie = this.cookie;
+    }
+    return {
+      credentials: 'include',
       accept: '*',
       headers,
       signal: this.abort.signal,
@@ -350,6 +393,8 @@ export class Urbit {
           if (event.data && JSON.parse(event.data)) {
             const data: any = JSON.parse(event.data);
 
+            console.log(`received data`, data);
+
             if (
               data.response === 'poke' &&
               this.outstandingPokes.has(data.id)
@@ -508,6 +553,34 @@ export class Urbit {
     return eventId;
   }
 
+  //NOTE  every arg is interpreted (through nockjs.dwim) as a noun, which
+  //      should result in a noun nesting inside of the xx $eyre-command type
+  private async sendNounsToChannel(...args: (Noun | any)[]): Promise<void> {
+    const options = this.fetchOptionsNoun('PUT', 'noun');
+    const body = formatUw(jam(dejs.list(args)).number.toString());
+    const response = await this.fetchFn(this.channelUrl, {
+      ...options,
+      method: 'PUT',
+      body,
+    });
+    if (!response.ok) {
+      console.log(response.status, response.statusText, await response.text());
+      throw new Error('Failed to PUT channel command(s)');
+    }
+    if (!this.sseClientInitialized) {
+      if (this.verbose) {
+        console.log('initializing event source');
+      }
+      await Promise.all([this.getOurName(), this.getShipName()]);
+
+      if (this.our !== this.nodeId) {
+        throw new AuthError('invalid session');
+      }
+
+      await this.eventSource();
+    }
+  }
+
   private async sendJSONtoChannel(...json: (Message | Ack)[]): Promise<void> {
     const response = await this.fetchFn(this.channelUrl, {
       ...this.fetchOptions,
@@ -586,6 +659,31 @@ export class Urbit {
         }
       });
     });
+  }
+
+  async pokeNoun(params: NounPokeInterface): Promise<number> {
+    params.onSuccess = params.onSuccess || (() => {});
+    params.onError = params.onError || (() => {});
+    const { app, mark, noun, ship } = {
+      ship: this.nodeId?.replace('~', '') || '',
+      ...params,
+    };
+
+    if (this.lastEventId === 0) {
+      this.emit('status-update', { status: 'opening' });
+    }
+
+    const eventId = this.getEventId();
+    this.outstandingPokes.set(eventId, params);
+
+    if (isNoun(noun)) {
+      const shipAtom = new Atom(BigInt(patp2bn(`~${ship}`).toString()));
+      const non = ['poke', eventId, shipAtom, app, mark, noun];
+      await this.sendNounsToChannel(non);
+    } else {
+      throw new Error('pokeNoun requires a noun');
+    }
+    return eventId;
   }
 
   /**
@@ -751,6 +849,34 @@ export class Urbit {
     }
 
     return await response.json();
+  }
+
+  async scryNoun(params: Scry): Promise<Noun> {
+    const { app, path } = params;
+
+    try {
+      const response = await this.fetchFn(
+        `${this.url}/~/scry/${app}${path}.noun`,
+        this.fetchOptionsNoun('GET', 'noun')
+      );
+      const responseBlob = await response.blob();
+      const buffer: ArrayBuffer = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as ArrayBuffer);
+        reader.readAsArrayBuffer(responseBlob);
+      });
+
+      try {
+        const unpacked = await unpackJamBytes(buffer);
+        return unpacked;
+      } catch (e) {
+        console.error('Unpack failed', e);
+        throw e;
+      }
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
   }
 
   /**

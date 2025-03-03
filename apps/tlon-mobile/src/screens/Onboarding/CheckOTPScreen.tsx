@@ -15,7 +15,7 @@ import { HostingError } from '@tloncorp/shared/api';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
 import { storage } from '@tloncorp/shared/db';
 import * as db from '@tloncorp/shared/db';
-import { ScreenHeader, TlonText, View, YStack, useStore } from '@tloncorp/ui';
+import { ScreenHeader, TlonText, View, YStack, useStore } from '@tloncorp/app/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 

@@ -26,6 +26,7 @@ export { default as Clock } from './Clock.svg';
 export { default as Close } from './Close.svg';
 export { default as Code } from './Code.svg';
 export { default as CodeBlock } from './CodeBlock.svg';
+export { default as Command } from './Command.svg';
 export { default as Copy } from './Copy.svg';
 export { default as Discover } from './Discover.svg';
 export { default as Dragger } from './Dragger.svg';
