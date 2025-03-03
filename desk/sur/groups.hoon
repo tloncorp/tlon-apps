@@ -2,7 +2,7 @@
 |%
 ::  +okay: protocol version, defunct
 ::
-++  okay  `epic:e`3
+++  okay  `epic:e`4
 ::  $flag: ID for a group
 ::
 +$  flag  (pair ship term)
@@ -341,7 +341,7 @@
 ::  $progress: the state of a group join
 ::
 +$  progress
-  ?(%knocking %adding %watching %done %error)
+  ?(%knocking %adding %watching %missing %error)
 ::
 ::  $claim: a mark for gangs to represent a join in progress
 ::
@@ -487,6 +487,14 @@
     ::
     ++  log-on
       ((on time diff) lte)
+    ::
+    +$  progress
+      ?(%knocking %adding %watching %done %error)
+    ::
+    +$  claim
+      $:  join-all=?
+          =progress
+      ==
     ::
     +$  gang
       $:  cam=(unit claim)

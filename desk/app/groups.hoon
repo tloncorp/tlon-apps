@@ -527,6 +527,16 @@
         flagged-content
     ==
   ::
+  ++  claim-2-to-5
+    |=  claim:v2:g
+    ^-  claim:v5:g
+    ::  there is no trace of %done ever being used
+    ::  since the earliest recorded version of %groups.
+    ::  thus we are free to treat such claims as an %error.
+    ::
+    :-  join-all
+    ?:(?=(%done progress) %error progress)
+  ::
   ++  preview-2-to-5
     |=  preview:v2:g
     ^-  preview:v5:g
@@ -535,7 +545,7 @@
   ++  gang-2-to-5
     |=  gang:v2:g
     ^-  gang:v5:g
-    [cam (bind pev preview-2-to-5) vit]
+    [(bind cam claim-2-to-5) (bind pev preview-2-to-5) vit]
   ::
   ++  groups-1-to-2
     =*  v2  v2:g
@@ -627,7 +637,7 @@
   ::
       [%gangs %index ship=@ ~]
     =/  =ship  (slav %p ship.pole)
-    ?:  =(our.bowl ship)  res-gang-index
+    ?:  =(our.bowl ship)  res-gang-index-2
     ::  XX remove when ames fix is in
     =+  (check-known ship)
     ?.  ?=(%known -)  (hi-and-req-gang-index ship)
@@ -635,13 +645,25 @@
   ::
       [%gangs ship=@ name=@ rest=*]
     =/  ship=@p  (slav %p ship.pole)
-    ga-abet:(ga-watch:(ga-abed:gang-core ship name.pole) rest.pole)
+    ga-abet:(ga-watch:(ga-abed:gang-core ship name.pole) %v0 rest.pole)
   ::
     ::
     ::  /v1/gangs
     ::
   ::
     [%v1 %gangs %updates ~]   cor
+  ::
+      [%v1 %gangs %index ship=@ ~]
+    =/  =ship  (slav %p ship.pole)
+    ?:  =(our.bowl ship)  res-gang-index-5
+    ::  XX remove when ames fix is in
+    =+  (check-known ship)
+    ?.  ?=(%known -)  (hi-and-req-gang-index ship)
+    (req-gang-index ship)
+  ::
+      [%v1 %gangs ship=@ name=@ rest=*]
+    =/  ship=@p  (slav %p ship.pole)
+    ga-abet:(ga-watch:(ga-abed:gang-core ship name.pole) %v1 rest.pole)
   ::
     [%epic ~]  (give %fact ~ epic+!>(okay:g))
   ::
@@ -662,7 +684,9 @@
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
-  =*  xeno-2  (~(run by xeno) to-gang-2)
+  =*  xeno-2
+    ^-  gangs:v2:g
+    (~(run by xeno) to-gang-2)
   ?+    pole  [~ ~]
   ::
     [%x %gangs ~]  ``gangs+!>(xeno-2)
@@ -759,6 +783,12 @@
     (~(gut by fleet.group) our.bowl *vessel:fleet:g)
   group
 ::
+++  to-claim-2
+  |=  claim:g
+  ^-  claim:v2:g
+  =+  ?:(?=(%missing progress) %error progress)
+  [join-all -]
+::
 ++  to-preview-2
   |=  preview:g
   ^-  preview:v2:g
@@ -767,7 +797,10 @@
 ++  to-gang-2
   |=  gang:v5:g
   ^-  gang:v2:g
-  [cam (bind pev to-preview-2) vit]
+  :*  (bind cam to-claim-2)
+      (bind pev to-preview-2)
+      vit
+  ==
 ::
 ++  to-group-2
   |=  group:g
@@ -1084,7 +1117,7 @@
     %-  emil
     %+  turn  ~(tap in groups.con.update-0)
     |=  =flag:g
-    [%pass /gangs/(scot %p p.flag)/[q.flag]/preview %agent [p.flag dap.bowl] %watch /groups/(scot %p p.flag)/[q.flag]/preview]
+    [%pass /gangs/(scot %p p.flag)/[q.flag]/preview %agent [p.flag dap.bowl] %watch /v1/groups/(scot %p p.flag)/[q.flag]/preview]
   ==
 ::
 ++  watch-epic
@@ -1342,6 +1375,8 @@
       (emit remove-self:go-pass)
     =.  cor
       (emit %give %fact ~[/groups /groups/ui] group-leave+!>(flag))
+    =.  cor
+      (emit %give %fact ~[/v1/groups /v1/groups/ui] group-leave+!>(flag))
     go-core(gone &)
   ::
   ++  go-init
@@ -1391,7 +1426,7 @@
     =/  =time
       ?.(?=(%sub -.net) *time p.net)
     =/  base=wire  (snoc go-area %updates)
-    =/  =path      (snoc base ?:(init %init (scot %da time)))
+    =/  =path      (snoc `path`[%v1 base] ?:(init %init (scot %da time)))
     =.  cor  ((subscribe base [p.flag dap.bowl] path) delay)
     go-core
   ::
@@ -2208,7 +2243,7 @@
     |=(=realm:zone:g realm(ord (~(push of ord.realm) ch)))
   --
 ::
-++  res-gang-index
+++  res-gang-index-2
   ^+  cor
   =;  =cage
     =.  cor  (emit %give %fact ~ cage)
@@ -2223,12 +2258,28 @@
     ~
   `[flag =,(group [flag meta cordon now.bowl |])]
 ::
+++  res-gang-index-5
+  ^+  cor
+  =;  =cage
+    =.  cor  (emit %give %fact ~ cage)
+    (emit %give %kick ~ ~)
+  :-  %group-previews-1
+  !>  ^-  previews:v5:g
+  %-  ~(gas by *previews:v5:g)
+  %+  murn  ~(tap by groups)
+  |=  [=flag:g =net:g =group:g]
+  ^-  (unit [flag:g preview:v5:g])
+  ?.  &(=(our.bowl p.flag) !secret.group)
+    ~
+  `[flag =,(group [flag meta cordon now.bowl | ~(wyt by fleet)])]
+::
+::
 ++  req-gang-index
   |=  =ship
   ^+  cor
   =/  =wire  /gangs/index/(scot %p ship)
   =/  =dock  [ship dap.bowl]
-  =/  watch  [%pass wire %agent dock %watch `path`wire]
+  =/  watch  [%pass wire %agent dock %watch `path`[%v1 wire]]
   %-  emil
   ?:  =(ship our.bowl)  ~[watch]
   :~  [%pass wire %agent dock %leave ~]
@@ -2244,7 +2295,7 @@
   =/  gang-dock  [ship dap.bowl]
   %-  emil
   :~  [%pass hi-wire %agent hi-dock %poke %helm-hi !>('')]
-      [%pass gang-wire %agent gang-dock %watch `path`gang-wire]
+      [%pass gang-wire %agent gang-dock %watch `path`[%v1 gang-wire]]
   ==
 ::
 ++  hi-ship
@@ -2272,18 +2323,29 @@
   |=  [=ship =sign:agent:gall]
   ^+  cor
   =/  =path  /gangs/index/(scot %p ship)
+  =*  path-v1  `^path`[%v1 path]
   ?+  -.sign  !!
-      %kick  (emit %give %kick ~[path] ~)
+      %kick  (emit %give %kick ~[path path-v1] ~)
   ::
       %watch-ack
     ?~  p.sign  cor
     %-  (slog leaf/"failed to watch gang index" u.p.sign)
-    (emit %give %kick ~[path] ~)
+    (emit %give %kick ~[path path-v1] ~)
   ::
       %fact
-    ?.  =(%group-previews p.cage.sign)  cor
-    =+  !<(=previews:g q.cage.sign)
-    =.  cor  (emit %give %fact ~[path] cage.sign)
+    ?.  =(%group-previews-1 p.cage.sign)  cor
+    =+  !<(=previews:v5:g q.cage.sign)
+    ::  v1
+    =.  cor  (emit %give %fact ~[path-v1] cage.sign)
+    =.  cor  (emit %give %kick ~[path-v1] ~)
+    ::  v0
+    =.  cor
+      %:  emit  %give  %fact
+        ~[path]
+        ::
+        :-  %group-previews
+        !>(`previews:v2:g`(~(run by previews) to-preview-2))
+      ==
     (emit %give %kick ~[path] ~)
   ==
 ::
@@ -2335,9 +2397,10 @@
       (poke-host /rescind group-action-4+!>(action))
     ++  get-preview
       |=  invite=?
-      =/  =wire  (welp ga-area ?:(invite /preview/invite /preview))
+      =/  =wire
+        (welp ga-area ?:(invite /preview/invite /preview))
       =/  =dock  [p.flag dap.bowl]
-      =/  =path  /groups/(scot %p p.flag)/[q.flag]/preview
+      =/  =path  /v1/groups/(scot %p p.flag)/[q.flag]/preview
       =/  watch  [%pass wire %agent dock %watch path]
       ^+  cor
       %-  emil
@@ -2351,6 +2414,7 @@
     ^+  ga-core
     ::  already in the group
     ?:  (~(has by groups) flag)  ga-core
+    =.  cor  (emit (initiate:neg [p.flag dap.bowl]))
     ::  already valid join in progress
     ?:  ?&  ?=(^ cam.gang)
             !?=(?(%knocking %error) progress.u.cam.gang)
@@ -2380,13 +2444,16 @@
     ga-core
   ::
   ++  ga-watch
-    |=  =(pole knot)
+    |=  [ver=?(%v0 %v1) =(pole knot)]
     ^+  ga-core
     =.  cor  (get-preview:ga-pass |)
     ga-core
   ::
   ++  ga-give-update
-    (give %fact ~[/gangs/updates] gangs+!>((~(put by xeno) flag gang)))
+    =.  cor
+      =+  (~(put by xeno) flag gang)
+      (give %fact ~[/gangs/updates] gangs+!>((~(run by -) to-gang-2)))
+    (give %fact ~[/v1/gangs/updates] gangs+!>((~(put by xeno) flag gang)))
   ++  ga-agent
     |=  [=(pole knot) =sign:agent:gall]
     ^+  ga-core
@@ -2409,15 +2476,20 @@
           ga-core
         ::
             %fact
-          ?.  =(%group-preview p.cage.sign)  ga-core
-          =+  !<(=preview:g q.cage.sign)
+          ?.  ?=(%group-preview-1 p.cage.sign)
+            ga-core
+          =+  !<(=preview:v5:g q.cage.sign)
           =.  pev.gang  `preview
           =.  cor  ga-give-update
           =/  =path  (snoc ga-area %preview)
           =.  cor
-            (emit %give %fact ~[path] cage.sign)
+            (emit %give %fact ~[path] group-preview+!>((to-preview-2 preview)))
           =.  cor
             (emit %give %kick ~[path] ~)
+          =.  cor
+            (emit %give %fact ~[[%v1 path]] cage.sign)
+          =.  cor
+            (emit %give %kick ~[[%v1 path]] ~)
           ?:  from-self  ga-core
           ?~  pev.gang   ga-core
           ?~  vit.gang   ga-core

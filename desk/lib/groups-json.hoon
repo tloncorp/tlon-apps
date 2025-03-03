@@ -534,6 +534,13 @@
       |=  [f=flag:g gr=gang:v2:g]
       [(flag f) (gang gr)]
     ::
+    ++  claim
+      |=  c=claim:v2:g
+      %-  pairs
+      :~  join-all/b/join-all.c
+          progress/s/`@t`progress.c
+      ==
+    ::
     ++  gang
       |=  ga=gang:v2:g
       %-  pairs
