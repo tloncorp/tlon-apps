@@ -57,21 +57,25 @@ export function EmojiToolbar({
           details={details}
           shortCode="+1"
           handlePress={handlePress}
+          testID="EmojiToolbarButton-thumb"
         />
         <EmojiToolbarButton
           details={details}
           shortCode="heart"
           handlePress={handlePress}
+          testID="EmojiToolbarButton-heart"
         />
         <EmojiToolbarButton
           details={details}
           shortCode="laughing"
           handlePress={handlePress}
+          testID="EmojiToolbarButton-laughing"
         />
         <EmojiToolbarButton
           details={details}
           shortCode={lastShortCode}
           handlePress={handlePress}
+          testID="EmojiToolbarButton-last"
         />
         <Button padding="$xs" borderWidth={0} onPress={handleSheetOpen}>
           <Icon type="ChevronDown" size="$l" />
@@ -90,10 +94,12 @@ function EmojiToolbarButton({
   shortCode,
   details,
   handlePress,
+  testID,
 }: {
   shortCode: string;
   details: ReactionDetails;
   handlePress: (shortCode: string) => void;
+  testID: string;
 }) {
   return (
     <Button
@@ -105,6 +111,7 @@ function EmojiToolbarButton({
           : undefined
       }
       onPress={() => handlePress(shortCode)}
+      testID={testID}
     >
       <SizableEmoji shortCode={shortCode} fontSize={32} />
     </Button>

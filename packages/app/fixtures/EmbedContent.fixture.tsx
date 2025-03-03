@@ -1,10 +1,10 @@
 import { QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { PropsWithChildren } from 'react';
 
-import { OutsideEmbed } from '../ui';
+import { EmbedContent } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 
-const OutsideEmbedFixtureWrapper = ({ children }: PropsWithChildren) => {
+const EmbedContentFixtureWrapper = ({ children }: PropsWithChildren) => {
   return (
     <FixtureWrapper>
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
@@ -14,25 +14,25 @@ const OutsideEmbedFixtureWrapper = ({ children }: PropsWithChildren) => {
 
 const YoutubeEmbedFixture = () => {
   return (
-    <OutsideEmbedFixtureWrapper>
-      <OutsideEmbed url="https://www.youtube.com/watch?v=3K3D9LGzvBA" />
-    </OutsideEmbedFixtureWrapper>
+    <EmbedContentFixtureWrapper>
+      <EmbedContent url="https://www.youtube.com/watch?v=3K3D9LGzvBA" />
+    </EmbedContentFixtureWrapper>
   );
 };
 
 const SpotifyEmbedFixture = () => {
   return (
-    <OutsideEmbedFixtureWrapper>
-      <OutsideEmbed url="https://open.spotify.com/track/1k7lK8tjU5BPsXez7WEpg0?si=21cac0122b5141f0" />
-    </OutsideEmbedFixtureWrapper>
+    <EmbedContentFixtureWrapper>
+      <EmbedContent url="https://open.spotify.com/track/1k7lK8tjU5BPsXez7WEpg0?si=21cac0122b5141f0" />
+    </EmbedContentFixtureWrapper>
   );
 };
 
 const TwitterEmbedFixture = () => {
   return (
-    <OutsideEmbedFixtureWrapper>
-      <OutsideEmbed url="https://x.com/tloncorporation/status/1768691579794157746" />
-    </OutsideEmbedFixtureWrapper>
+    <EmbedContentFixtureWrapper>
+      <EmbedContent url="https://x.com/tloncorporation/status/1768691579794157746" />
+    </EmbedContentFixtureWrapper>
   );
 };
 

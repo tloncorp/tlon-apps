@@ -18,7 +18,7 @@ import { useDMLureLink } from '../../hooks/useBranchLink';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
-import { SettingsScreenView } from '../../ui';
+import { DESKTOP_SIDEBAR_WIDTH, SettingsScreenView } from '../../ui';
 
 const SettingsDrawer = createDrawerNavigator();
 
@@ -86,7 +86,7 @@ export const SettingsNavigator = () => {
         headerShown: false,
         drawerType: 'permanent',
         drawerStyle: {
-          width: 450,
+          width: DESKTOP_SIDEBAR_WIDTH,
           backgroundColor: getVariableValue(useTheme().background),
           borderRightColor: getVariableValue(useTheme().border),
         },

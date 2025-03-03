@@ -60,6 +60,7 @@ export function ReactionsDisplay({
             borderRadius="$s"
             onPress={() => handleModifyYourReaction(reaction.value)}
             onLongPress={() => handleOpenReactions(post)}
+            testID={`ReactionDisplay`}
           >
             <Tooltip placement="top" delay={0} restMs={25}>
               <Tooltip.Trigger>

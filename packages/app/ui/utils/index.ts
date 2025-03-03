@@ -1,5 +1,6 @@
 export * from './channelUtils';
 export * from './groupUtils';
+export * from './colorUtils';
 export * from './user';
 export * from './animation';
 
