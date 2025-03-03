@@ -27,6 +27,7 @@ interface Props {
 interface JoinStatus {
   isMember: boolean;
   isJoining: boolean;
+  isErrored: boolean;
   needsInvite: boolean;
   hasInvite: boolean;
   requestedInvite: boolean;
@@ -85,6 +86,7 @@ export function GroupPreviewPane({
     () => ({
       isMember: group?.currentUserIsMember ?? false,
       isJoining: group?.joinStatus === 'joining' || isJoining,
+      isErrored: group?.joinStatus === 'errored',
       needsInvite: group?.privacy !== 'public',
       hasInvite: group?.haveInvite ?? false,
       requestedInvite: group?.haveRequestedInvite ?? false,
@@ -124,6 +126,11 @@ export function GroupPreviewPane({
   const joinGroup = () => {
     store.joinGroup(group);
     setIsJoining(true);
+  };
+  const cancelJoin = () => {
+    store.cancelGroupJoin(group);
+    setIsJoining(false);
+    onActionComplete('other', group);
   };
 
   const goToGroup = () => {
@@ -171,6 +178,7 @@ export function GroupPreviewPane({
             rescindInvite,
             joinGroup,
             goToGroup,
+            cancelJoin,
           })}
         />
       </ActionSheet.Content>
@@ -188,6 +196,7 @@ export function getActionGroups(
     rescindInvite: () => void;
     joinGroup: () => void;
     goToGroup: () => void;
+    cancelJoin: () => void;
   }
 ): ActionGroup[] {
   if (status.isMember) {
@@ -200,10 +209,25 @@ export function getActionGroups(
     ]);
   } else if (status.isJoining) {
     return createActionGroups([
-      'disabled',
+      'neutral',
       {
         title: 'Joining, please wait...',
         disabled: true,
+        accent: 'disabled',
+      },
+      {
+        title: 'Cancel join',
+        action: actions.cancelJoin,
+        accent: 'negative',
+      },
+    ]);
+  } else if (status.isErrored) {
+    return createActionGroups([
+      'negative',
+      {
+        title: 'Cancel join',
+        description: 'Group joining failed or timed out',
+        action: actions.cancelJoin,
       },
     ]);
   } else if (status.hasInvite) {
