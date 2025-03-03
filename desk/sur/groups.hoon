@@ -341,7 +341,7 @@
 ::  $progress: the state of a group join
 ::
 +$  progress
-  ?(%knocking %adding %watching %missing %error)
+  ?(%knocking %adding %watching %error)
 ::
 ::  $claim: a mark for gangs to represent a join in progress
 ::

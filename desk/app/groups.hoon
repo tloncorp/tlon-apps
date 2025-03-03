@@ -784,10 +784,9 @@
   group
 ::
 ++  to-claim-2
-  |=  claim:g
+  |=  =claim:g
   ^-  claim:v2:g
-  =+  ?:(?=(%missing progress) %error progress)
-  [join-all -]
+  claim
 ::
 ++  to-preview-2
   |=  preview:g
