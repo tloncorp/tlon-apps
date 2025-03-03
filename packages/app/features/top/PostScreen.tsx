@@ -2,9 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as urbit from '@tloncorp/shared/urbit';
-import { Carousel, ForwardingProps } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useDebounceValue } from 'tamagui';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
@@ -15,10 +13,8 @@ import { useNavigation } from '../../navigation/utils';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   AttachmentProvider,
-  ChannelHeader,
   ChatOptionsProvider,
   PostScreenView,
-  YStack,
   useCurrentUserId,
 } from '../../ui';
 import { useStore } from '../../ui/contexts/storeContext';
@@ -32,9 +28,6 @@ export default function PostScreen(props: Props) {
   const { data: post } = store.usePostWithThreadUnreads({
     id: postId,
   });
-  const { data: channel } = store.useChannel({ id: channelId });
-  const mode: 'single' | 'carousel' =
-    channel?.type === 'gallery' ? 'carousel' : 'single';
 
   return (
     <ChatOptionsProvider
@@ -42,152 +35,26 @@ export default function PostScreen(props: Props) {
       {...chatOptionsNavProps}
     >
       <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
-        {mode === 'carousel' ? (
-          <CarouselPostScreenContent channelId={channelId} postId={postId} />
-        ) : (
-          post && (
-            <PostScreenContent
-              post={post}
-              channelId={channelId}
-              authorId={authorId}
-            />
-          )
+        {post && (
+          <PostScreenContent
+            post={post}
+            channelId={channelId}
+            authorId={authorId}
+          />
         )}
       </AttachmentProvider>
     </ChatOptionsProvider>
   );
 }
 
-function CarouselPostScreenContent({
-  channelId,
-  postId,
-}: {
-  channelId: string;
-  postId: string;
-}) {
-  const {
-    posts,
-    query: { fetchNextPage, fetchPreviousPage },
-  } = store.useChannelPosts({
-    enabled: true,
-    channelId: channelId,
-    count: 10,
-    mode: 'around',
-    cursor: postId,
-    firstPageCount: 50,
-  });
-  const { data: channel } = store.useChannel({ id: channelId });
-
-  const initialPostIndex = useMemo(() => {
-    return posts?.findIndex((p) => p.id === postId) ?? -1;
-  }, [posts, postId]);
-
-  return (
-    <PresentationalCarouselPostScreenContent
-      {...{
-        posts: posts ?? null,
-        channel: channel ?? null,
-        initialPostIndex,
-        fetchNewerPage: fetchNextPage,
-        fetchOlderPage: fetchPreviousPage,
-        flex: 1,
-        width: '100%',
-      }}
-    />
-  );
-}
-
-export function PresentationalCarouselPostScreenContent({
-  posts,
-  channel,
-  initialPostIndex,
-  fetchNewerPage,
-  fetchOlderPage,
-  ...passedProps
-}: ForwardingProps<
-  typeof YStack,
-  {
-    posts: db.Post[] | null;
-    channel: db.Channel | null;
-    initialPostIndex: number;
-    fetchNewerPage: () => void;
-    fetchOlderPage: () => void;
-  }
->) {
-  const navigation = useNavigation();
-
-  const [visibleIndex, setVisibleIndex] = useState<number | null>(null);
-
-  /*
-   * Without this `useDebounceValue`, the header will flicker when adding
-   * older posts. With `maintainVisibleContentPosition`, adding new posts to the
-   * beginning of the scroll yields a frame where the visible index is
-   * incorrect (i.e. a frame between updating content height/offset and
-   * receiving the corresponding `onScroll`).
-   */
-  const headerPost = useDebounceValue(
-    posts?.[visibleIndex ?? initialPostIndex],
-    10 // found through experimentation
-  );
-
-  // `Carousel's `onStartReached`/`onEndReached` are called once per unique
-  // `children` value (a React Native quirk). If we don't memoize this children
-  // list, `onStartReached`/`onEndReached` are called inconsistently on
-  // `Carousel`.
-  const carouselChildren = useMemo(
-    () =>
-      posts?.map((post) => (
-        <Carousel.Item key={post.id} flex={1}>
-          <PostScreenContent
-            post={post}
-            authorId={post.authorId}
-            channelId={post.channelId}
-            headerHidden
-          />
-        </Carousel.Item>
-      )),
-    [posts]
-  );
-
-  return channel && posts?.length && initialPostIndex !== -1 ? (
-    <YStack {...passedProps}>
-      <ChannelHeader
-        channel={channel}
-        group={channel.group}
-        title={
-          headerPost == null ? '' : headerPost.title ?? headerPost.authorId
-        }
-        goBack={() => navigation.goBack()}
-        showSearchButton={false}
-        post={headerPost}
-      />
-      <Carousel
-        flex={1}
-        onVisibleIndexChange={setVisibleIndex}
-        initialVisibleIndex={initialPostIndex}
-        scrollDirection="horizontal"
-        hideOverlayOnTap={false}
-        flatListProps={{
-          onEndReached: fetchNewerPage,
-          onStartReached: fetchOlderPage,
-        }}
-      >
-        {carouselChildren}
-      </Carousel>
-    </YStack>
-  ) : null;
-}
-
 function PostScreenContent({
   post,
   authorId,
   channelId,
-  headerHidden,
 }: {
   post: db.Post;
   authorId: string;
   channelId: string;
-  headerHidden?: boolean;
 }) {
   const postId = post.id;
   const navigation = useNavigation();
@@ -343,7 +210,6 @@ function PostScreenContent({
       editPost={editPost}
       negotiationMatch={negotiationStatus.matchedOrPending}
       headerMode={headerMode}
-      headerHidden={headerHidden}
     />
   ) : null;
 }

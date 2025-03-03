@@ -1,13 +1,17 @@
 import { isChatChannel as getIsChatChannel } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import * as urbit from '@tloncorp/shared/urbit';
 import { Story } from '@tloncorp/shared/urbit';
+import { Carousel, ForwardingProps } from '@tloncorp/ui';
 import { KeyboardAvoidingView } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useDebounceValue } from 'tamagui';
 import { Text, View, YStack } from 'tamagui';
 
+import { useRootNavigation } from '../../navigation/utils';
 import {
   ChannelProvider,
   NavigationProvider,
@@ -22,6 +26,27 @@ import { ChannelHeader } from './Channel/ChannelHeader';
 import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
+
+interface ChannelContext {
+  group?: db.Group | null;
+  sendReply: (content: urbit.Story, channelId: string) => Promise<void>;
+  groupMembers: db.ChatMember[];
+  storeDraft: (draft: urbit.JSONContent) => Promise<void>;
+  clearDraft: () => Promise<void>;
+  getDraft: () => Promise<urbit.JSONContent | null>;
+  editingPost?: db.Post;
+  setEditingPost?: (post: db.Post | undefined) => void;
+  editPost: (
+    post: db.Post,
+    content: Story,
+    parentId?: string,
+    metadata?: db.PostMetadata
+  ) => Promise<void>;
+  negotiationMatch: boolean;
+  headerMode: 'default' | 'next';
+  onPressRetry?: (post: db.Post) => Promise<void>;
+  onPressDelete: (post: db.Post) => void;
+}
 
 export function PostScreenView({
   channel,
@@ -48,40 +73,20 @@ export function PostScreenView({
   goToDm,
   negotiationMatch,
   headerMode,
-  headerHidden,
 }: {
   channel: db.Channel;
   initialThreadUnread?: db.ThreadUnreadState | null;
-  group?: db.Group | null;
   parentPost: db.Post | null;
   posts: db.Post[] | null;
   isLoadingPosts: boolean;
-  sendReply: (content: urbit.Story, channelId: string) => Promise<void>;
   markRead: () => void;
   goBack?: () => void;
-  groupMembers: db.ChatMember[];
   handleGoToImage?: (post: db.Post, uri?: string) => void;
   handleGoToUserProfile: (userId: string) => void;
-  storeDraft: (draft: urbit.JSONContent) => Promise<void>;
-  clearDraft: () => Promise<void>;
-  getDraft: () => Promise<urbit.JSONContent | null>;
-  editingPost?: db.Post;
-  setEditingPost?: (post: db.Post | undefined) => void;
-  editPost: (
-    post: db.Post,
-    content: Story,
-    parentId?: string,
-    metadata?: db.PostMetadata
-  ) => Promise<void>;
-  onPressRetry?: (post: db.Post) => Promise<void>;
-  onPressDelete: (post: db.Post) => void;
   onPressRef: (channel: db.Channel, post: db.Post) => void;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   goToDm: (participants: string[]) => void;
-  negotiationMatch: boolean;
-  headerHidden?: boolean;
-  headerMode: 'default' | 'next';
-}) {
+} & ChannelContext) {
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = utils.useIsAdmin(
     channel.groupId ?? '',
@@ -111,6 +116,7 @@ export function PostScreenView({
 
   const { bottom } = useSafeAreaInsets();
 
+  // TODO: Swap title (and other header properties) based on currently-focused post in carousel
   const headerTitle = isChatChannel
     ? `Thread: ${channel?.title ?? null}`
     : parentPost?.title && parentPost.title !== ''
@@ -180,6 +186,9 @@ export function PostScreenView({
 
   const { attachAssets } = useAttachmentContext();
 
+  const mode: 'single' | 'carousel' =
+    channel?.type === 'gallery' ? 'carousel' : 'single';
+
   return (
     <NavigationProvider
       onGoToUserProfile={handleGoToUserProfile}
@@ -194,8 +203,8 @@ export function PostScreenView({
           flex={1}
           onAssetsDropped={attachAssets}
         >
-          <YStack flex={1} backgroundColor={'$background'}>
-            {headerHidden ? null : (
+          <KeyboardAvoidingView>
+            <YStack flex={1} backgroundColor={'$background'}>
               <ChannelHeader
                 channel={channel}
                 group={channel.group}
@@ -208,37 +217,59 @@ export function PostScreenView({
                 showEditButton={showEdit}
                 goToEdit={handleEditPress}
               />
-            )}
-            <SinglePostView
-              {...{
-                channel,
-                clearDraft,
-                editPost,
-                editingPost,
-                flatListRef,
-                getDraft,
-                goBack,
-                groupMembers,
-                handleGoToImage,
-                headerMode,
-                initialThreadUnread,
-                negotiationMatch,
-                onPressDelete,
-                onPressRetry,
-                parentPost,
-                posts,
-                sendReply,
-                setEditingPost,
-                storeDraft,
-              }}
-            />
-            <GroupPreviewSheet
-              group={groupPreview ?? undefined}
-              open={!!groupPreview}
-              onOpenChange={() => setGroupPreview(null)}
-              onActionComplete={handleGroupAction}
-            />
-          </YStack>
+              {parentPost &&
+                (mode === 'single' ? (
+                  <SinglePostView
+                    {...{
+                      channel,
+                      clearDraft,
+                      editPost,
+                      editingPost,
+                      flatListRef,
+                      getDraft,
+                      goBack,
+                      groupMembers,
+                      handleGoToImage,
+                      headerMode,
+                      initialThreadUnread,
+                      negotiationMatch,
+                      onPressDelete,
+                      onPressRetry,
+                      parentPost,
+                      posts,
+                      sendReply,
+                      setEditingPost,
+                      storeDraft,
+                    }}
+                  />
+                ) : (
+                  <CarouselPostScreenContent
+                    channelId={channel.id}
+                    initialPostId={parentPost.id}
+                    channelContext={{
+                      clearDraft,
+                      editPost,
+                      editingPost,
+                      getDraft,
+                      groupMembers,
+                      headerMode,
+                      negotiationMatch,
+                      onPressDelete,
+                      onPressRetry,
+                      sendReply,
+                      setEditingPost,
+                      storeDraft,
+                    }}
+                  />
+                ))}
+              <GroupPreviewSheet
+                group={groupPreview ?? undefined}
+                open={!!groupPreview}
+                onOpenChange={() => setGroupPreview(null)}
+                onActionComplete={handleGroupAction}
+              />
+            </YStack>
+          </KeyboardAvoidingView>
         </FileDrop>
       </ChannelProvider>
     </NavigationProvider>
@@ -261,7 +292,6 @@ function SinglePostView({
   onPressDelete,
   onPressRetry,
   parentPost,
-  posts,
   sendReply,
   setEditingPost,
   storeDraft,
@@ -286,13 +316,22 @@ function SinglePostView({
   negotiationMatch: boolean;
   onPressDelete: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => Promise<void>;
-  parentPost: db.Post | null;
-  /** Thread root (i.e. `parentPost`) and replies */
-  posts: db.Post[] | null;
+  parentPost: db.Post;
   sendReply: (content: urbit.Story, channelId: string) => Promise<void>;
   setEditingPost?: (post: db.Post | undefined) => void;
   storeDraft: (draft: urbit.JSONContent) => Promise<void>;
 }) {
+  const { data: threadPosts, isLoading: isLoadingPosts } = store.useThreadPosts(
+    {
+      postId: parentPost.id,
+      authorId: parentPost.id,
+      channelId: channel.id,
+    }
+  );
+  const posts = useMemo(() => {
+    return parentPost ? [...(threadPosts ?? []), parentPost] : null;
+  }, [parentPost, threadPosts]);
+
   const currentUserId = useCurrentUserId();
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
@@ -336,7 +375,7 @@ function SinglePostView({
   }, [channel.type, getDraft, storeDraft, clearDraft]);
 
   return (
-    <KeyboardAvoidingView enabled={!activeMessage}>
+    <YStack flex={1}>
       {parentPost ? (
         <DetailView
           post={parentPost}
@@ -426,6 +465,122 @@ function SinglePostView({
           goBack={goBack}
         />
       )}
-    </KeyboardAvoidingView>
+    </YStack>
   );
+}
+
+function CarouselPostScreenContent({
+  channelId,
+  initialPostId,
+  channelContext,
+}: {
+  channelId: string;
+  initialPostId: string;
+  channelContext: ChannelContext;
+}) {
+  const {
+    posts,
+    query: { fetchNextPage, fetchPreviousPage },
+  } = store.useChannelPosts({
+    enabled: true,
+    channelId: channelId,
+    count: 10,
+    mode: 'around',
+    cursor: initialPostId,
+    firstPageCount: 50,
+  });
+  const { data: channel } = store.useChannel({ id: channelId });
+
+  const initialPostIndex = useMemo(() => {
+    return posts?.findIndex((p) => p.id === initialPostId) ?? -1;
+  }, [posts, initialPostId]);
+
+  return (
+    <PresentationalCarouselPostScreenContent
+      {...{
+        posts: posts ?? null,
+        channel: channel ?? null,
+        initialPostIndex,
+        fetchNewerPage: fetchNextPage,
+        fetchOlderPage: fetchPreviousPage,
+        flex: 1,
+        width: '100%',
+        channelContext,
+      }}
+    />
+  );
+}
+
+export function PresentationalCarouselPostScreenContent({
+  posts,
+  channel,
+  initialPostIndex,
+  fetchNewerPage,
+  fetchOlderPage,
+  channelContext,
+  ...passedProps
+}: ForwardingProps<
+  typeof YStack,
+  {
+    posts: db.Post[] | null;
+    channel: db.Channel | null;
+    initialPostIndex: number;
+    fetchNewerPage: () => void;
+    fetchOlderPage: () => void;
+    channelContext: ChannelContext;
+  }
+>) {
+  const [visibleIndex, setVisibleIndex] = useState<number | null>(null);
+
+  /*
+   * Without this `useDebounceValue`, the header will flicker when adding
+   * older posts. With `maintainVisibleContentPosition`, adding new posts to the
+   * beginning of the scroll yields a frame where the visible index is
+   * incorrect (i.e. a frame between updating content height/offset and
+   * receiving the corresponding `onScroll`).
+   */
+  const headerPost = useDebounceValue(
+    posts?.[visibleIndex ?? initialPostIndex],
+    10 // found through experimentation
+  );
+
+  // `Carousel's `onStartReached`/`onEndReached` are called once per unique
+  // `children` value (a React Native quirk). If we don't memoize this children
+  // list, `onStartReached`/`onEndReached` are called inconsistently on
+  // `Carousel`.
+  const carouselChildren = useMemo(
+    () =>
+      channel != null &&
+      posts?.map((post) => (
+        <Carousel.Item key={post.id} flex={1}>
+          <SinglePostView
+            {...{
+              channel,
+              ...channelContext,
+              parentPost: post,
+              posts,
+            }}
+          />
+        </Carousel.Item>
+      )),
+    [posts, channel, channelContext]
+  );
+
+  return channel && posts?.length && initialPostIndex !== -1 ? (
+    <YStack {...passedProps}>
+      <Carousel
+        flex={1}
+        onVisibleIndexChange={setVisibleIndex}
+        initialVisibleIndex={initialPostIndex}
+        scrollDirection="horizontal"
+        hideOverlayOnTap={false}
+        flatListProps={{
+          onEndReached: fetchNewerPage,
+          onStartReached: fetchOlderPage,
+        }}
+      >
+        {carouselChildren}
+      </Carousel>
+    </YStack>
+  ) : null;
 }
