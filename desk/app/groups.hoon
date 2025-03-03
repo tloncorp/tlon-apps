@@ -6,22 +6,31 @@
 /-  g=groups, zero=groups-0, ha=hark, h=heap, d=channels, c=chat,
     tac=contacts-0, activity
 /-  meta
-/-  e=epic
 /+  default-agent, verb, dbug
 /+  v=volume, s=subscriber, imp=import-aid, logs
 /+  of
-/+  epos-lib=saga
+/+  neg=negotiate
 ::  performance, keep warm
 /+  groups-json
 /*  desk-bill  %bill  /desk/bill
 =/  verbose  |
+%-  %-  agent:neg
+    :+  notify=|
+      [~.groups^%0 ~ ~]
+    %-  my
+    :~  %channels^[~.channels^%1 ~ ~]
+        %contacts^[~.contacts^%1 ~ ~]
+    ==
+%-  agent:dbug
+%+  verb  |
+::
 ^-  agent:gall
 =>
   |%
   +$  card  card:agent:gall
   ++  import-epoch  ~2022.10.11
   +$  current-state
-    $:  %4
+    $:  %5
         groups=net-groups:g
         =volume:v
         xeno=gangs:g
@@ -35,8 +44,6 @@
 =|  current-state
 =*  state  -
 =<
-  %+  verb  |
-  %-  agent:dbug
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
@@ -44,7 +51,9 @@
       cor   ~(. +> [bowl ~])
   ++  on-init
     ^-  (quip card _this)
-    `this
+    =^  cards  state
+      abet:init:cor
+    [cards this]
   ::
   ++  on-save  !>([state okay:g])
   ++  on-load
@@ -118,7 +127,7 @@
 ++  poke
   |=  [=mark =vase]
   ^+  cor
-  ?+    mark  ~|(bad-mark/mark !!)
+  ?+    mark  ~|(bad-mark+mark !!)
       %noun
     ?+  q.vase  !!
       %reset-all-perms  reset-all-perms
@@ -165,7 +174,7 @@
       [sects *time]
     =/  =group:g
       :*  fleet
-          ~  ~  ~  ~  ~  ~
+          ~  ~  ~  ~  ~  ~  ~
           cordon.create
           secret.create
           :*  title.create
@@ -178,9 +187,21 @@
     =.  groups  (~(put by groups) flag *net:g group)
     =.  cor  (give-invites flag ~(key by members.create))
     go-abet:(go-init:(go-abed:group-core flag) ~)
-  ::
+    ::
+      ::TODO  the $action type is unfortunately interwined
+      ::      with the $diff type, causing it to change without a real need.
+      ::      it should be disentangled with dedicated action
+      ::      and response types.
+      ::
       ?(%group-action-3 %group-action-2 %group-action-1 %group-action-0)
-    =+  !<(=action:g vase)
+    =+  !<(action-3=action:v2:g vase)
+    =/  =action:g
+      ?.  ?=(%create -.q.q.action-3)  action-3
+      ~|("group action %create poke unsupported, use %group-create" !!)
+    $(mark %group-action-4, vase !>(`action:v5:g`action))
+    ::
+        %group-action-4
+    =+  !<(action=action:v5:g vase)
     =.  p.q.action  now.bowl
     =/  group-core  (go-abed:group-core p.action)
     ?:  &(!=(our.bowl p.p.action) from-self)
@@ -324,8 +345,8 @@
       ^-  card
       =/  wire  /groups
       =/  dock  [our.bowl dap.bowl]
-      =/  =action:g  [flag [now.bowl [%channel nest [%del-sects readers.channel]]]]
-      =/  cage  [act:mar:g !>(action)]
+      =/  =action:v5:g  [flag [now.bowl [%channel nest [%del-sects readers.channel]]]]
+      =/  cage  group-action-4+!>(action)
       [%pass wire %agent dock %poke cage]
     ^-  card
     =/  =path  (welp (channel-scry nest) /perm/noun)
@@ -336,35 +357,50 @@
     =/  =cage  [%channel-command !>(c-channels)]
     [%pass wire %agent dock %poke cage]
   core
-::
+::  +init: initialize agent
+++  init
+  ^+  cor
+  inflate-io
 ::  +load: load next state
 ++  load
   |^  |=  =vase
   ^+  cor
-  =+  !<([old=versioned-state cool=epic:e] vase)
-  |-
-  ?-  -.old
-      %0  $(old (state-0-to-1 old))
-      %1  $(old (state-1-to-2 old))
-      %2  $(old (state-2-to-3 old))
+  =+  !<([old=versioned-state cool=*] vase)
+  =?  old  ?=(%0 -.old)  (state-0-to-1 old)
+  =?  old  ?=(%1 -.old)  (state-1-to-2 old)
+  =?  old  ?=(%2 -.old)  (state-2-to-3 old)
+  =?  old  ?=(%3 -.old)  (state-3-to-4 old)
   ::
-      %3
-    =.  state  (state-3-to-4 old)
-    =.  cor  restore-missing-subs
-    =.  cor  (watch-contact |)
-    ?:  =(okay:g cool)  cor
-    =.  cor  (emil (drop load:epos))
-    =/  groups  ~(tap in ~(key by groups))
-    |-
-    ?~  groups
-      cor
-    =.  cor
-      go-abet:go-upgrade:(go-abed:group-core i.groups)
-    $(groups t.groups)
+  ::  v4 -> v5
   ::
-      %4  cor(state old)
-  ==
-  +$  versioned-state  $%(current-state state-3 state-2 state-1 state-0)
+  ::  leave all /epic subscriptions
+  ::
+  =?  cor  ?=(%4 -.old)
+    %+  roll  ~(tap by wex.bowl)
+    |=  [[[=wire =dock] *] =_cor]
+    ?.  ?=([%epic ~] wire)  cor
+    =^  caz=(list card)  subs
+      (~(unsubscribe s [subs bowl]) wire dock)
+    =.  cor  (emil caz)
+    ::  force leave
+    (emit [%pass wire %agent dock %leave ~])
+  =?  cor  ?=(%4 -.old)
+    (emit [%pass /load/active-channels %arvo %b %wait now.bowl])
+  =?  old  ?=(%4 -.old)  (state-4-to-5 old)
+  ::
+  ?>  ?=(%5 -.old)
+  =.  state  old
+  inflate-io
+  ::
+  ::
+  +$  versioned-state
+    $%  state-5
+        state-4
+        state-3
+        state-2
+        state-1
+        state-0
+    ==
   +$  state-0
     $:  %0
         groups=net-groups:zero
@@ -389,7 +425,7 @@
   ::
   +$  state-2
     $:  %2
-        groups=net-groups:g
+        groups=net-groups:v2:g
       ::
         $=  volume
         $:  base=level:v
@@ -397,20 +433,34 @@
             chan=(map nest:g level:v)  ::  override per channel
         ==
       ::
-        xeno=gangs:g
+        xeno=gangs:v2:g
         ::  graph -> agent
         shoal=(map flag:g dude:gall)
     ==
   ::
   +$  state-3
     $:  %3
-        groups=net-groups:g
+        groups=net-groups:v2:g
         =volume:v
-        xeno=gangs:g
+        xeno=gangs:v2:g
         ::  graph -> agent
         shoal=(map flag:g dude:gall)
         =^subs:s
     ==
+  ::
+  +$  state-4
+    $:  %4
+        groups=net-groups:v2:g
+        =volume:v
+        xeno=gangs:v2:g
+        ::  graph -> agent
+        shoal=(map flag:g dude:gall)
+        =^subs:s
+        =pimp:imp
+    ==
+  ::
+  +$  state-5  current-state
+  ::
   ++  state-0-to-1
     |=  state-0
     ^-  state-1
@@ -428,25 +478,92 @@
   ::
   ++  state-3-to-4
     |=  state-3
-    ^-  current-state
+    ^-  state-4
     [%4 groups volume xeno shoal subs ~]
   ::
+  ++  state-4-to-5
+    |=  state-4
+    ^-  state-5
+    :*  %5
+        (~(run by groups) net-group-2-to-5)
+        volume
+        (~(run by xeno) gang-2-to-5)
+        shoal
+        subs
+        ~
+    ==
+  ::
+  ++  net-group-2-to-5
+    |=  [old-net=net:v2:g old-group=group:v2:g]
+    [(net-2-to-5 old-net) (group-2-to-5 old-group)]
+  ::
+  ++  net-2-to-5
+    |=  =net:v2:g
+    ^-  net:v5:g
+    ?:  ?=(%sub -.net)
+      [%sub p.net load.net]
+    net(p (run:log-on:v2:g p.net diff-2-to-5))
+  ::
+  ++  diff-2-to-5
+    |=  =diff:v2:g
+    ^-  diff:v5:g
+    ?.  ?=(%create -.diff)  diff
+    diff(p (group-2-to-5 p.diff))
+  ::
+  ++  group-2-to-5
+    |=  group:v2:g
+    ^-  group:v5:g
+    :*  fleet
+        cabals
+        zones
+        zone-ord
+        bloc
+        channels
+        ~  ::  active-channels
+        imported
+        cordon
+        secret
+        meta
+        flagged-content
+    ==
+  ::
+  ++  claim-2-to-5
+    |=  claim:v2:g
+    ^-  claim:v5:g
+    ::  there is no trace of %done ever being used
+    ::  since the earliest recorded version of %groups.
+    ::  thus we are free to treat such claims as an %error.
+    ::
+    :-  join-all
+    ?:(?=(%done progress) %error progress)
+  ::
+  ++  preview-2-to-5
+    |=  preview:v2:g
+    ^-  preview:v5:g
+    [flag meta cordon time secret 0]
+  ::
+  ++  gang-2-to-5
+    |=  gang:v2:g
+    ^-  gang:v5:g
+    [(bind cam claim-2-to-5) (bind pev preview-2-to-5) vit]
+  ::
   ++  groups-1-to-2
+    =*  v2  v2:g
     |=  groups=net-groups:zero
-    ^-  net-groups:g
+    ^-  net-groups:v2
     %-  ~(run by groups)
     |=  [=net:zero gr=group:zero]
-    ^-  [net:g group:g]
+    ^-  [net:v2 group:v2]
     :_  (group-1-to-2 gr)
     ?-  -.net
         %sub  net
         %pub
       :-  %pub
-      %+  gas:log-on:g  *log:g
+      %+  gas:log-on:v2  *log:v2
       %+  turn
         (tap:log-on:zero p.net)
       |=  [t=time =diff:zero]
-      ^-  [time diff:g]
+      ^-  [time diff:v2]
       :-  t
       ?+  -.diff  diff
         %create  [%create (group-1-to-2 p.diff)]
@@ -454,8 +571,8 @@
     ==
   ++  group-1-to-2
     |=  gr=group:zero
-    ^-  group:g
-    %*  .  *group:g
+    ^-  group:v2:g
+    %*  .  *group:v2:g
       fleet            fleet.gr
       cabals           cabals.gr
       zones            zones.gr
@@ -468,48 +585,96 @@
       meta             meta.gr
       flagged-content  ~
     ==
+  --
+::
+++  inflate-io
+  ^+  cor
   ::
-  ++  restore-missing-subs
+  =.  cor  (watch-contact |)
+  =.  cor  (watch-channels |)
+  ::
+  =.  cor
     %+  roll
       ~(tap by groups)
     |=  [[=flag:g *] core=_cor]
     go-abet:(go-safe-sub:(go-abed:group-core:core flag) &)
-  --
+  cor
 ::
 ++  watch
   |=  =(pole knot)
   ^+  cor
   ~|  watch-path=`path`pole
   ?+  pole  ~|(%bad-watch-path !!)
+  ::
+    ::
+    ::  /v0/groups
+    ::
+  ::
     [%init ~]             (give %kick ~ ~)
     [%groups ~]           cor
     [%groups %ui ~]       cor
-    [%gangs %updates ~]   cor
-  ::
-    [%epic ~]  (give %fact ~ epic+!>(okay:g))
-  ::
-      [%bait s=@ n=@ gs=@ gn=@ ~]
-    =,(pole (cast [(slav %p gs) gn] [(slav %p s) n]))
   ::
       [%groups ship=@ name=@ rest=*]
     =/  ship=@p  (slav %p ship.pole)
-    go-abet:(go-watch:(go-abed:group-core ship name.pole) rest.pole)
+    go-abet:(go-watch:(go-abed:group-core ship name.pole) %v0 rest.pole)
+  ::
+    ::
+    ::  /v1/groups
+    ::
+  ::
+    [%v1 %groups ~]  cor
+    [%v1 %groups %ui ~]  cor
+  ::
+      [%v1 %groups ship=@ name=@ rest=*]
+    =/  ship=@p  (slav %p ship.pole)
+    go-abet:(go-watch:(go-abed:group-core ship name.pole) %v1 rest.pole)
+  ::
+    ::
+    ::  /v0/gangs
+    ::
+  ::
+    [%gangs %updates ~]   cor
   ::
       [%gangs %index ship=@ ~]
     =/  =ship  (slav %p ship.pole)
-    ?:  =(our.bowl ship)  res-gang-index
+    ?:  =(our.bowl ship)  res-gang-index-2
     ::  XX remove when ames fix is in
     =+  (check-known ship)
     ?.  ?=(%known -)  (hi-and-req-gang-index ship)
     (req-gang-index ship)
   ::
+      [%gangs ship=@ name=@ rest=*]
+    =/  ship=@p  (slav %p ship.pole)
+    ga-abet:(ga-watch:(ga-abed:gang-core ship name.pole) %v0 rest.pole)
+  ::
+    ::
+    ::  /v1/gangs
+    ::
+  ::
+    [%v1 %gangs %updates ~]   cor
+  ::
+      [%v1 %gangs %index ship=@ ~]
+    =/  =ship  (slav %p ship.pole)
+    ?:  =(our.bowl ship)  res-gang-index-5
+    ::  XX remove when ames fix is in
+    =+  (check-known ship)
+    ?.  ?=(%known -)  (hi-and-req-gang-index ship)
+    (req-gang-index ship)
+  ::
+      [%v1 %gangs ship=@ name=@ rest=*]
+    =/  ship=@p  (slav %p ship.pole)
+    ga-abet:(ga-watch:(ga-abed:gang-core ship name.pole) %v1 rest.pole)
+  ::
+    [%epic ~]  (give %fact ~ epic+!>(okay:g))
+  ::
+      ::XX  seems defunct, should remove /bait functionality
+      ::    from this agent
+      [%bait s=@ n=@ gs=@ gn=@ ~]
+    =,(pole (cast [(slav %p gs) gn] [(slav %p s) n]))
+  ::
       [%hi ship=@ ~]
     =/  =ship  (slav %p ship.pole)
     (hi-ship ship)
-  ::
-     [%gangs ship=@ name=@ rest=*]
-    =/  ship=@p  (slav %p ship.pole)
-    ga-abet:(ga-watch:(ga-abed:gang-core ship name.pole) rest.pole)
   ::
      [%chan app=@ ship=@ name=@ rest=*]
     =/  ship=@p  (slav %p ship.pole)
@@ -519,35 +684,59 @@
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
+  =*  xeno-2
+    ^-  gangs:v2:g
+    (~(run by xeno) to-gang-2)
   ?+    pole  [~ ~]
-      [%x %gangs ~]  ``gangs+!>(xeno)
-      [%x %init ~]  ``noun+!>([groups-light xeno])
-      [%x %init %v0 ~]  ``noun+!>([groups-light-ui-v0 xeno])
-      [%x %init %v1 ~]  ``noun+!>([groups-light-ui xeno])
-      [%x %groups %light ~]  ``groups+!>(groups-light)
-      [%x %groups %light %v0 ~]  ``groups-ui-v0+!>(groups-light-ui-v0)
-      [%x %groups %light %v1 ~]  ``groups-ui+!>(groups-light-ui)
+  ::
+    [%x %gangs ~]  ``gangs+!>(xeno-2)
+    [%x %v1 %gangs ~]  ``gangs-1+!>(xeno)
+  ::
+    [%x %init ~]  ``noun+!>([groups-light-2 xeno-2])
+    [%x %init %v0 ~]  ``noun+!>([groups-light-ui-v0 xeno-2])
+    [%x %init %v1 ~]  ``noun+!>([groups-light-ui-2 xeno-2])
+    [%x %v2 %init ~]    ``noun+!>([groups-light-ui-5 xeno])
+  ::
+    [%x %groups %light ~]  ``groups+!>(groups-light-2)
+    [%x %groups %light %v0 ~]  ``groups-ui-v0+!>(groups-light-ui-v0)
+    [%x %groups %light %v1 ~]  ``groups-ui+!>(groups-light-ui-2)
   ::
       [%x %groups ~]
-    ``groups+!>(`groups:g`(~(run by groups) tail))
+    =/  groups-2=groups:v2:g
+      %-  ~(run by groups)
+      |=  [net:g =group:g]
+      (to-group-2 group)
+    ``groups+!>(groups-2)
+  ::
+      [%x %v1 %groups ~]
+    ``groups-1+!>((~(run by groups) tail))
   ::
       [%x %groups %v0 ~]
-    ``groups-ui-v0+!>(`groups-ui:zero`(~(run by groups) to-group-ui-v0))
+    ``groups-ui-v0+!>(`groups-ui:zero`(~(urn by groups) to-group-ui-v0))
   ::
       [%x %groups %v1 ~]
-    ``groups-ui+!>(`groups-ui:g`(~(run by groups) to-group-ui))
+    ``groups-ui+!>(`groups-ui:v2:g`(~(urn by groups) to-group-ui-2))
   ::
       [%x %groups ship=@ name=@ rest=*]
     =/  ship  (slav %p ship.pole)
-    =/  group  (~(get by groups) [ship name.pole])
+    =*  flag  [ship name.pole]
+    =/  group  (~(get by groups) flag)
     ?~  group  [~ ~]
     ?~  rest.pole
-      ``group+!>(+.u.group)
-    ?:  =(/v0 rest.pole)
-      ``group-ui-v0+!>(`group-ui:zero`(to-group-ui-v0 u.group))
-    ?:  =(/v1 rest.pole)
-      ``group-ui+!>(`group-ui:g`(to-group-ui u.group))
-    (go-peek:(go-abed:group-core ship name.pole) rest.pole)
+      ``group+!>((to-group-2 +.u.group))
+    ?+    rest.pole
+        (go-peek:(go-abed:group-core ship name.pole) rest.pole)
+      ::
+    ::
+        [%v0 ~]
+      ``group-ui-v0+!>(`group-ui:zero`(to-group-ui-v0 flag u.group))
+    ::
+        [%v1 ~]
+      ``group-ui+!>((to-group-ui-2 flag u.group))
+    ::
+        [%v2 ~]
+      ``group-ui-1+!>((to-group-ui-5 u.group))
+    ==
   ::
       [%x %exists ship=@ name=@ rest=*]
       =/  src  (slav %p ship.pole)
@@ -593,36 +782,111 @@
       our.bowl
     (~(gut by fleet.group) our.bowl *vessel:fleet:g)
   group
-++  groups-light
-  ^-  groups:g
-  %-  ~(run by groups)
-  |=  [=net:g =group:g]
-  (drop-fleet group)
 ::
-++  groups-light-ui
-  ^-  groups-ui:g
+++  to-claim-2
+  |=  =claim:g
+  ^-  claim:v2:g
+  claim
+::
+++  to-preview-2
+  |=  preview:g
+  ^-  preview:v2:g
+  [flag meta cordon time secret]
+::
+++  to-gang-2
+  |=  gang:v5:g
+  ^-  gang:v2:g
+  :*  (bind cam to-claim-2)
+      (bind pev to-preview-2)
+      vit
+  ==
+::
+++  to-group-2
+  |=  group:g
+  ^-  group:v2:g
+  :*  fleet
+      cabals
+      zones
+      zone-ord
+      bloc
+      channels
+      imported
+      cordon
+      secret
+      meta
+      flagged-content
+  ==
+::
+++  groups-light-2
+  ^-  groups:v2:g
   %-  ~(run by groups)
   |=  [=net:g =group:g]
-  (to-group-ui net (drop-fleet group))
+  (to-group-2 (drop-fleet group))
+::
+++  groups-light-ui-2
+  ^-  groups-ui:v2:g
+  %-  ~(urn by groups)
+  |=  [=flag:g [=net:g =group:g]]
+  (to-group-ui-2 flag net (drop-fleet group))
+::
+++  groups-light-ui-5
+  ^-  groups-ui:v5:g
+  %-  ~(run by groups)
+  |=  [=net:g =group:g]
+  :*  (drop-fleet group)
+      ::  init
+      ?:(?=(%pub -.net) & load.net)
+      ::  member count
+      ~(wyt by fleet.group)
+  ==
+::
+++  to-groups-ui-5
+  |=  [=net:g =group:g]
+  ^-  group-ui:v5:g
+  :*  (drop-fleet group)
+      ::  init
+      ?:(?=(%pub -.net) & load.net)
+      ::  member count
+      ~(wyt by fleet.group)
+  ==
+::
 ++  groups-light-ui-v0
   ^-  groups-ui:zero
-  %-  ~(run by groups)
+  %-  ~(urn by groups)
+  |=  [=flag:g [=net:g =group:g]]
+  (to-group-ui-v0 flag net (drop-fleet group))
+::
+++  to-group-ui-5
   |=  [=net:g =group:g]
-  (to-group-ui-v0 net (drop-fleet group))
-++  to-group-ui
-  |=  [=net:g =group:g]
-  ^-  group-ui:g
-  :-  group
-  ?+  -.net  ~
-      %sub  `saga.net
+  ^-  group-ui:v5:g
+  :*  group
+      ::  init
+      ?:(?=(%pub -.net) & load.net)
+      ::  member count
+      ~(wyt by fleet.group)
+  ==
+::
+++  to-group-ui-2
+  |=  [=flag:g =net:g =group:g]
+  ^-  group-ui:v2:g
+  :-  (to-group-2 group)
+  ?.  ?=(%sub -.net)  ~
+  =/  =status:neg
+    (read-status:neg bowl [p.flag %groups])
+  ?+  status  ~
+    %match  `[%chi ~]
+    %clash  `[%lev ~]
   ==
 ++  to-group-ui-v0
-  |=  [=net:g =group:g]
+  |=  [=flag:g =net:g =group:g]
   ^-  group-ui:zero
-  :_
-    ?+  -.net  ~
-        %sub  `saga.net
-    ==
+  :_  ?.  ?=(%sub -.net)  ~
+      =/  =status:neg
+        (read-status:neg bowl [p.flag %groups])
+      ?+  status  ~
+        %match  `[%chi ~]
+        %clash  `[%lev ~]
+      ==
   :*  fleet.group
       cabals.group
       zones.group
@@ -634,13 +898,24 @@
       secret.group
       meta.group
   ==
+::
+++  to-log-2
+  |=  =log:g
+  ^-  log:v2:g
+  (run:log-on:g log to-diff-2)
+::
+++  to-diff-2
+  |=  =diff:g
+  ^-  diff:v2:g
+  ?.  ?=(%create -.diff)  diff
+  diff(p (to-group-2 p.diff))
+::
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
   ~|  `wire`pole
   ?+    pole  ~|(bad-agent-take/pole !!)
       ~   cor
-      [%epic ~]  (take-epic sign)
       [%logs ~]  cor
       [%helm *]  cor
       [%activity %submit *]  cor
@@ -658,17 +933,12 @@
     %.  cor
     (slog leaf/"Error giving invite" u.p.sign)
   ::
-      [%groups ship=@ name=@ rest=?(%proxy %leave-channels) ~]
+      [%groups ship=@ name=@ %proxy ~]
     ?>  ?=(%poke-ack -.sign)
     ::  whether it's an ack or nack, nothing to do on our end
     ?~  p.sign  cor
-    %.  cor
-    ?-  rest.pole
-        %proxy
-      (slog leaf/"Error forwarding poke" u.p.sign)
-        %leave-channels
-      (slog leaf/"Failed to leave channel" u.p.sign)
-    ==
+    %-  (slog leaf/"Error forwarding poke" u.p.sign)
+    cor
   ::
       [%groups ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
@@ -685,6 +955,10 @@
     =/  =ship  (slav %p ship.pole)
     =/  =nest:g  [app.pole ship name.pole]
     (take-chan nest sign)
+  ::
+      [%channels ~]
+    (take-channels sign)
+  ::
       [%contact ~]
     (take-contact sign)
   ==
@@ -699,6 +973,22 @@
     =^  caz=(list card)  subs
       (~(handle-wakeup s [subs bowl]) pole)
     (emil caz)
+  ::
+      [%load %active-channels ~]
+    ::
+    =.  groups
+      %-  ~(run by groups)
+      |=  [=net:g =group:g]
+      =/  nests
+        ~(tap in ~(key by channels.group))
+      :-  net
+      %_  group  active-channels
+        %-  silt
+        %+  skim  nests
+        |=  =nest:g
+        .^(? %gu (channel-scry nest))
+      ==
+    cor
   ==
 ::
 ++  subscribe
@@ -751,6 +1041,63 @@
     (give %kick matching ~)
   ==
 ::
+++  watch-channels
+  (subscribe /channels [our.bowl %channels] /v1)
+::
+++  take-channels
+  |=  =sign:agent:gall
+  ?+    -.sign  cor
+  ::
+      %kick
+    (watch-channels &)
+  ::
+      %fact
+    =+  !<(=r-channels:d q.cage.sign)
+    =*  rc  r-channel.r-channels
+    ?+    -.rc  cor
+        %create
+      ?.  (~(has by groups) group.perm.rc)  cor
+      =+  group=(~(got by groups) group.perm.rc)
+      %_  cor  groups
+        %+  ~(put by groups)
+          group.perm.rc
+        %_  group  active-channels
+          (~(put in active-channels.group) nest.r-channels)
+        ==
+      ==
+    ::
+        %join
+      ?.  (~(has by groups) group.rc)  cor
+      =+  group=(~(got by groups) group.rc)
+      %_  cor  groups
+        %+  ~(put by groups)
+          group.rc
+        %_  group  active-channels
+          (~(put in active-channels.group) nest.r-channels)
+        ==
+      ==
+    ::
+    ::XX  this is inefficient, but %leave, unlike %join and %create,
+    ::    does not carry group information. thus, we have
+    ::    to comb through our groups to find matches.
+    ::
+        %leave
+      %_  cor  groups
+        %-  ~(run by groups)
+        |=  [=net:g =group:g]
+        ^-  [_net _group]
+        ?:  =(~ channels.group)
+          [net group]
+        ?.  (~(has by channels.group) nest.r-channels)
+          [net group]
+        :-  net
+        %_  group  active-channels
+          (~(del in active-channels.group) nest.r-channels)
+        ==
+      ==
+    ==
+  ==
+::
 ++  watch-contact
   (subscribe /contact [our.bowl %contacts] /contact)
 ::
@@ -769,7 +1116,7 @@
     %-  emil
     %+  turn  ~(tap in groups.con.update-0)
     |=  =flag:g
-    [%pass /gangs/(scot %p p.flag)/[q.flag]/preview %agent [p.flag dap.bowl] %watch /groups/(scot %p p.flag)/[q.flag]/preview]
+    [%pass /gangs/(scot %p p.flag)/[q.flag]/preview %agent [p.flag dap.bowl] %watch /v1/groups/(scot %p p.flag)/[q.flag]/preview]
   ==
 ::
 ++  watch-epic
@@ -781,32 +1128,6 @@
     cor
   ((subscribe wire dock wire) delay)
 ::
-++  take-epic
-  |=  =sign:agent:gall
-  ^+  cor
-  ?+    -.sign  cor
-      %kick
-    (watch-epic src.bowl &)
-  ::
-      %fact
-    ?.  =(%epic p.cage.sign)
-      ~&  [p.cage.sign '!!! weird fact on /epic']
-      cor
-    =+  !<(=epic:e q.cage.sign)
-    ?.  =(epic okay:g)  cor
-    ~&  >>  "good news everyone!"
-    %+  roll  ~(tap by groups)
-    |=  [[=flag:g =net:g =group:g] out=_cor]
-    ?:  =(our.bowl p.flag)  out
-    go-abet:(go-take-epic:(go-abed:group-core:out flag) epic)
-  ::
-      %watch-ack
-    %.  cor
-    ?~  p.sign
-      same
-    (slog leaf/"weird watch nack" u.p.sign)
-  ==
-::
 ++  watch-chan
   |=  =nest:g
   ^+  cor
@@ -815,6 +1136,7 @@
     ?:  (~(has by wex.bowl) [wire p.q.nest dap.bowl])
       cor
     (emit [%pass wire %agent [p.q.nest dap.bowl] %watch `path`wire])
+  ::
   =/  gs  ~(tap by groups)
   |-
   ?~  gs
@@ -824,7 +1146,7 @@
     $(gs t.gs)
   ?.  (go-can-read:(go-abed:group-core flag) src.bowl (~(got by channels.group) nest))
     $(gs t.gs)
-  =/  =preview:channel:g
+  =/  =preview:channel:v2:g
     =,  group
     :*  nest
         meta:(~(got by channels.group) nest)
@@ -901,9 +1223,11 @@
         (~(del by groups) flag)
       (~(put by groups) flag net group)
     ?.  gone  cor
+    ::  delete group
+    ::
     =?  cor  !=(p.flag our.bowl)  (emil leave:go-pass)
-    =/  =action:g  [flag now.bowl %del ~]
-    (give %fact ~[/groups/ui] act:mar:g !>(action))
+    =/  =action:v5:g  [flag now.bowl %del ~]
+    (give %fact ~[/groups/ui] group-action-4+!>(action))
   ++  go-abed
     |=  f=flag:g
     ^+  go-core
@@ -990,8 +1314,8 @@
       =/  =wire  (snoc go-area %proxy)
       =/  =dock  [p.flag dap.bowl]
       =/  =cage
-        :-  act:mar:g
-        !>  ^-  action:g
+        :-  %group-action-4
+        !>  ^-  action:v5:g
         [flag now.bowl %fleet (silt our.bowl ~) %del ~]
       [%pass wire %agent dock %poke cage]
     ::
@@ -1038,15 +1362,20 @@
   ::
   ++  go-leave
     |=  send-remove=?
-    =/  joined-channels  ~(tap in ~(key by channels.group))
+    ::NOTE  we leave *all* channels, not just those that
+    ::      are joined.
+    ::
+    =/  channels  ~(tap in ~(key by channels.group))
     =.  cor
-      (emil (leave-channels:go-pass joined-channels))
+      (emil (leave-channels:go-pass channels))
     =.  cor
       (submit-activity [%del %group flag])
     =?  cor  send-remove
       (emit remove-self:go-pass)
     =.  cor
       (emit %give %fact ~[/groups /groups/ui] group-leave+!>(flag))
+    =.  cor
+      (emit %give %fact ~[/v1/groups /v1/groups/ui] group-leave+!>(flag))
     go-core(gone &)
   ::
   ++  go-init
@@ -1096,18 +1425,19 @@
     =/  =time
       ?.(?=(%sub -.net) *time p.net)
     =/  base=wire  (snoc go-area %updates)
-    =/  =path      (snoc base ?:(init %init (scot %da time)))
+    =/  =path      (snoc `path`[%v1 base] ?:(init %init (scot %da time)))
     =.  cor  ((subscribe base [p.flag dap.bowl] path) delay)
     go-core
   ::
   ++  go-watch
-    |=  =(pole knot)
+    |=  [ver=?(%v0 %v1) =(pole knot)]
     ^+  go-core
     ?+    pole  !!
-        [%updates rest=*]  (go-pub rest.pole)
+        [%updates rest=*]  (go-pub ver rest.pole)
         [%ui ~]            go-core
-        [%preview ~]       go-preview
+        [%preview ~]       (go-preview ver)
     ::
+        ::XX seems defunct, remove
         [%bait host=@ name=@ ~]
       ?>  ?=(%open -.cordon.group)
       =/  =flag:g  [(slav %p host.pole) name.pole]
@@ -1125,6 +1455,7 @@
     ==
   ::
   ++  go-preview
+    |=  ver=?(%v0 %v1)
     :: TODO: either use ?> to enforce request permissions; or return a preview
     ::   with limited info? for rendering a secret group reference
     :: ?>  (~(has by fleet.group) src.bowl)
@@ -1135,9 +1466,11 @@
     ::     &((~(has in ships) src.bowl) =(1 ~(wyt in ships)))  :: user join
     =/  =preview:g
       =,  group
-      [flag meta cordon now.bowl secret.group]
+      [flag meta cordon now.bowl secret.group ~(wyt by fleet)]
     =.  cor
-      (emit %give %fact ~ group-preview+!>(preview))
+      ?:  ?=(%v0 ver)
+        (emit %give %fact ~ group-preview+!>((to-preview-2 preview)))
+      (emit %give %fact ~ group-preview-1+!>(preview))
     =.  cor
       (emit %give %kick ~ ~)
     go-core
@@ -1211,33 +1544,21 @@
         [%updates ~]  (go-take-update sign)
         [%wake ~]     go-core
     ::
-        [%join-channels ~]
+        [?(%join-channels %leave-channels) ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign
         go-core
-      %-  (slog leaf/"Failed to autojoin channel" u.p.sign)
-      go-core
+      %.  go-core
+      ?-    i.wire
+        ::
+            %join-channels
+          (slog leaf/"Failed to join channel" u.p.sign)
+        ::
+            %leave-channels
+          (slog leaf/"Failed to leave channel" u.p.sign)
+      ==
+    ::
     ==
-  ::
-  ++  go-upgrade
-    ^+  go-core
-    ?.  ?=(%sub -.net)       go-core
-    ?.  ?=(%dex -.saga.net)  go-core
-    ?.  =(okay:g ver.saga.net)
-      ~&  future-shock/[ver.saga.net flag]
-      go-core
-    go-make-chi
-  ::
-  ++  go-take-epic
-    |=  her=epic:e
-    ^+  go-core
-    ?>  ?=(%sub -.net)
-    ?:  =(her okay:g)
-      go-make-chi
-    ?:  (gth her okay:g)
-      =.  saga.net  dex+her
-      go-core
-    go-make-lev
   ::
   ++  go-take-update
     |=  =sign:agent:gall
@@ -1245,7 +1566,6 @@
     ?+    -.sign  (go-sub | &)
         %kick
       ?>  ?=(%sub -.net)
-      ?.  ?=(%chi -.saga.net)  go-core
       (go-sub !load.net &)
     ::
         %watch-ack
@@ -1258,40 +1578,15 @@
         %fact
       =*  cage  cage.sign
       ::  XX: does init need to be handled specially?
-      ?+  p.cage  (go-odd-update p.cage)
-        %epic            (go-take-epic !<(epic:e q.cage))
-        %group-log-3     (go-apply-log !<(log:g q.cage))
-        %group-update-3  (go-update !<(update:g q.cage))
-        %group-init-3    (go-fact-init !<(init:g q.cage))
+      ?+  p.cage  ~|(bad-mark+p.cage !!)
+        %group-log-4     (go-apply-log !<(log:g q.cage))
+        %group-update-4  (go-update !<(update:g q.cage))
+        %group-init-4    (go-fact-init !<(init:g q.cage))
       ==
     ==
   ::
-  ++  go-odd-update
-    |=  =mark
-    ?.  (is-old:epos mark)
-      go-core
-    ?.  ?=(%sub -.net)
-      go-core
-    go-make-lev
-  ::
-  ++  go-make-lev
-    ?.  ?=(%sub -.net)
-       go-core
-    ~&  "took lev epic: {<flag>}"
-    =.  saga.net  lev/~
-    =.  cor  (watch-epic p.flag |)
-    go-core
-  ::
-  ++  go-make-chi
-    ^+  go-core
-    ?.  ?=(%sub -.net)
-       go-core
-    ~&  "took chi epic: {<flag>}"
-    =.  saga.net  chi/~
-    (go-safe-sub !load.net)
-  ::
   ++  go-proxy
-    |=  =update:g
+    |=  =update:v5:g
     ^+  go-core
     =*  diff  q.update
     ::  don't allow anyone else to proxy through us
@@ -1305,12 +1600,12 @@
       ~|("%group-action poke failed: can't write to host" !!)
     =/  =wire  (snoc go-area %proxy)
     =/  =dock  [p.flag dap.bowl]
-    =/  =cage  [act:mar:g !>([flag update])]
+    =/  =cage  group-action-4+!>([flag update])
     =.  cor  (emit %pass wire %agent dock %poke cage)
     go-core
   ::
   ++  go-pub
-    |=  =path
+    |=  [ver=?(%v0 %v1) =path]
     ^+  go-core
     ?>  ?=(%pub -.net)
     =;  =cage
@@ -1318,12 +1613,18 @@
       go-core
     ?:  ?=([%init ~] path)
       =/  [=time *]  (need (ram:log-on:g p.net))
-      [int:mar:g !>([time group])]
+      ?:  ?=(%v0 ver)
+        group-init-3+!>([time (to-group-2 group)])
+      ::  v1
+      group-init-4+!>([time group])
     ?>  ?=([@ ~] path)
     =/  =time  (slav %da i.path)
     =/  =log:g
       (lot:log-on:g p.net `time ~)
-    [log:mar:g !>(log)]
+    ?:  ?=(%v0 ver)
+      group-log-3+!>((to-log-2 log))
+    ::  %v1
+    group-log-4+!>(log)
   ::
   ++  go-apply-log
     |=  =log:g
@@ -1336,8 +1637,8 @@
   ++  go-fact-init
     |=  [=time gr=group:g]
     =.  group  gr
-    =.  net  [%sub time & %chi ~]
-    =/  create=diff:g  [%create group]
+    =.  net  [%sub time &]
+    =/  create=diff:v5:g  [%create group]
     =/  readable-channels
       %-  ~(gas in *(set nest:g))
       %+  murn  ~(tap in channels.group)
@@ -1345,9 +1646,13 @@
       ?.  (go-can-read our.bowl channel)  ~
       [~ ch]
     =.  cor
-      (give %fact ~[/groups /groups/ui] act:mar:g !>(`action:g`[flag now.bowl create]))
+      (give %fact ~[/groups /groups/ui] group-action-3+!>(`action:v2:g`[flag now.bowl (to-diff-2 create)]))
     =.  cor
       (give %fact ~[/groups /groups/ui] gang-gone+!>(flag))
+    =.  cor
+      (give %fact ~[/v1/groups /v1/groups/ui] group-action-4+!>(`action:v5:g`[flag now.bowl create]))
+    =.  cor
+      (give %fact ~[/v1/groups /v1/groups/ui] gang-gone+!>(flag))
     =.  cor
       (emil (join-channels:go-pass ~(tap in readable-channels)))
     go-core
@@ -1355,17 +1660,37 @@
   ++  go-give-update
     |=  [=time =diff:g]
     ^+  go-core
-    =/  paths=(set path)
+    =/  v0-paths=(set path)
       %+  roll  ~(val by sup.bowl)
       |=  [[=ship =path] out=(set path)]
       ?.  =((scag 4 path) (snoc go-area %updates))
         out
       (~(put in out) path)
-    =.  paths  (~(put in paths) (snoc go-area %ui))
-    =.  cor
-      (give %fact ~[/groups /groups/ui] act:mar:g !>(`action:g`[flag time diff]))
-    =.  cor
-      (give %fact ~(tap in paths) upd:mar:g !>(`update:g`[time diff]))
+    =.  v0-paths  (~(put in v0-paths) (snoc go-area %ui))
+    =/  v1-paths=(set path)
+      %+  roll  ~(val by sup.bowl)
+      |=  [[=ship =path] out=(set path)]
+      ?.  =((scag 5 path) (snoc `^path`[%v1 go-area] %updates))
+        out
+      (~(put in out) path)
+    =.  v1-paths  (~(put in v1-paths) (snoc `path`[%v1 go-area] %ui))
+    ::
+    =/  diff-2=diff:v2:g
+      ?:  ?=(%create -.diff)
+        diff(p (to-group-2 p.diff))
+      diff
+    =.  cor  %^  give  %fact
+               ~[/groups /groups/ui]
+             group-action-3+!>(`action:v2:g`[flag time diff-2])
+    =.  cor  %^  give  %fact
+               ~(tap in v0-paths)
+             group-update-3+!>(`update:v2:g`[time diff-2])
+    =.  cor  %^  give  %fact
+               ~[/v1/groups /v1/groups/ui]
+             group-action-4+!>(`action:v5:g`[flag time diff])
+    =.  cor  %^  give  %fact
+               ~(tap in v1-paths)
+             group-update-4+!>(`update:v5:g`[time diff])
     go-core
   ::
   ++  go-tell-update
@@ -1386,7 +1711,7 @@
     =.  net
       ?:    ?=(%pub -.net)
         pub/(put:log-on:g p.net time diff)
-      [%sub time load.net %chi ~]
+      [%sub time load.net]
     ?-  -.diff
       %channel  (go-channel-update [p q]:diff)
       %fleet    (go-fleet-update [p q]:diff)
@@ -1917,27 +2242,43 @@
     |=(=realm:zone:g realm(ord (~(push of ord.realm) ch)))
   --
 ::
-++  res-gang-index
+++  res-gang-index-2
   ^+  cor
   =;  =cage
     =.  cor  (emit %give %fact ~ cage)
     (emit %give %kick ~ ~)
   :-  %group-previews
-  !>  ^-  previews:g
-  %-  ~(gas by *previews:g)
+  !>  ^-  previews:v2:g
+  %-  ~(gas by *previews:v2:g)
   %+  murn  ~(tap by groups)
   |=  [=flag:g =net:g =group:g]
-  ^-  (unit [flag:g preview:g])
+  ^-  (unit [flag:g preview:v2:g])
   ?.  &(=(our.bowl p.flag) !secret.group)
     ~
   `[flag =,(group [flag meta cordon now.bowl |])]
+::
+++  res-gang-index-5
+  ^+  cor
+  =;  =cage
+    =.  cor  (emit %give %fact ~ cage)
+    (emit %give %kick ~ ~)
+  :-  %group-previews-1
+  !>  ^-  previews:v5:g
+  %-  ~(gas by *previews:v5:g)
+  %+  murn  ~(tap by groups)
+  |=  [=flag:g =net:g =group:g]
+  ^-  (unit [flag:g preview:v5:g])
+  ?.  &(=(our.bowl p.flag) !secret.group)
+    ~
+  `[flag =,(group [flag meta cordon now.bowl | ~(wyt by fleet)])]
+::
 ::
 ++  req-gang-index
   |=  =ship
   ^+  cor
   =/  =wire  /gangs/index/(scot %p ship)
   =/  =dock  [ship dap.bowl]
-  =/  watch  [%pass wire %agent dock %watch `path`wire]
+  =/  watch  [%pass wire %agent dock %watch `path`[%v1 wire]]
   %-  emil
   ?:  =(ship our.bowl)  ~[watch]
   :~  [%pass wire %agent dock %leave ~]
@@ -1953,7 +2294,7 @@
   =/  gang-dock  [ship dap.bowl]
   %-  emil
   :~  [%pass hi-wire %agent hi-dock %poke %helm-hi !>('')]
-      [%pass gang-wire %agent gang-dock %watch `path`gang-wire]
+      [%pass gang-wire %agent gang-dock %watch `path`[%v1 gang-wire]]
   ==
 ::
 ++  hi-ship
@@ -1981,18 +2322,29 @@
   |=  [=ship =sign:agent:gall]
   ^+  cor
   =/  =path  /gangs/index/(scot %p ship)
+  =*  path-v1  `^path`[%v1 path]
   ?+  -.sign  !!
-      %kick  (emit %give %kick ~[path] ~)
+      %kick  (emit %give %kick ~[path path-v1] ~)
   ::
       %watch-ack
     ?~  p.sign  cor
     %-  (slog leaf/"failed to watch gang index" u.p.sign)
-    (emit %give %kick ~[path] ~)
+    (emit %give %kick ~[path path-v1] ~)
   ::
       %fact
-    ?.  =(%group-previews p.cage.sign)  cor
-    =+  !<(=previews:g q.cage.sign)
-    =.  cor  (emit %give %fact ~[path] cage.sign)
+    ?.  =(%group-previews-1 p.cage.sign)  cor
+    =+  !<(=previews:v5:g q.cage.sign)
+    ::  v1
+    =.  cor  (emit %give %fact ~[path-v1] cage.sign)
+    =.  cor  (emit %give %kick ~[path-v1] ~)
+    ::  v0
+    =.  cor
+      %:  emit  %give  %fact
+        ~[path]
+        ::
+        :-  %group-previews
+        !>(`previews:v2:g`(~(run by previews) to-preview-2))
+      ==
     (emit %give %kick ~[path] ~)
   ==
 ::
@@ -2031,23 +2383,23 @@
       ^-  card
       [%pass (welp ga-area wire) %agent [p.flag dap.bowl] task]
     ++  add-self
-      =/  =vessel:fleet:g  [~ now.bowl]
-      =/  =action:g  [flag now.bowl %fleet (silt ~[our.bowl]) %add ~]
-      (poke-host /join/add act:mar:g !>(action))
+      =/  =action:v5:g  [flag now.bowl %fleet (silt ~[our.bowl]) %add ~]
+      (poke-host /join/add group-action-4+!>(action))
     ::
     ++  knock
       =/  ships=(set ship)  (~(put in *(set ship)) our.bowl)
-      =/  =action:g  [flag now.bowl %cordon %shut %add-ships %ask ships]
-      (poke-host /knock act:mar:g !>(action))
+      =/  =action:v5:g  [flag now.bowl %cordon %shut %add-ships %ask ships]
+      (poke-host /knock group-action-4+!>(action))
     ++  rescind
       =/  ships=(set ship)  (~(put in *(set ship)) our.bowl)
-      =/  =action:g  [flag now.bowl %cordon %shut %del-ships %ask ships]
-      (poke-host /rescind act:mar:g !>(action))
+      =/  =action:v5:g  [flag now.bowl %cordon %shut %del-ships %ask ships]
+      (poke-host /rescind group-action-4+!>(action))
     ++  get-preview
       |=  invite=?
-      =/  =wire  (welp ga-area ?:(invite /preview/invite /preview))
+      =/  =wire
+        (welp ga-area ?:(invite /preview/invite /preview))
       =/  =dock  [p.flag dap.bowl]
-      =/  =path  /groups/(scot %p p.flag)/[q.flag]/preview
+      =/  =path  /v1/groups/(scot %p p.flag)/[q.flag]/preview
       =/  watch  [%pass wire %agent dock %watch path]
       ^+  cor
       %-  emil
@@ -2061,6 +2413,7 @@
     ^+  ga-core
     ::  already in the group
     ?:  (~(has by groups) flag)  ga-core
+    =.  cor  (emit (initiate:neg [p.flag dap.bowl]))
     ::  already valid join in progress
     ?:  ?&  ?=(^ cam.gang)
             !?=(?(%knocking %error) progress.u.cam.gang)
@@ -2081,24 +2434,30 @@
     =.  cam.gang  `[| %knocking]
     =.  cor  (emit knock:ga-pass)
     ga-core
+  ::
   ++  ga-rescind
     ^+  ga-core
     =.  cam.gang  ~
     =.  cor  ga-give-update
     =.  cor  (emit rescind:ga-pass)
     ga-core
+  ::
   ++  ga-watch
-    |=  =(pole knot)
+    |=  [ver=?(%v0 %v1) =(pole knot)]
     ^+  ga-core
     =.  cor  (get-preview:ga-pass |)
     ga-core
   ::
   ++  ga-give-update
-    (give %fact ~[/gangs/updates] gangs+!>((~(put by xeno) flag gang)))
+    =.  cor
+      =+  (~(put by xeno) flag gang)
+      (give %fact ~[/gangs/updates] gangs+!>((~(run by -) to-gang-2)))
+    (give %fact ~[/v1/gangs/updates] gangs+!>((~(put by xeno) flag gang)))
   ++  ga-agent
     |=  [=(pole knot) =sign:agent:gall]
     ^+  ga-core
     ?+    pole  ~|(bad-agent-take/pole !!)
+      ::
           [%invite ~]
         ?>  ?=(%poke-ack -.sign)
         :: ?~  p.sign  ga-core
@@ -2106,23 +2465,30 @@
         ga-core
       ::
           [%preview inv=?(~ [%invite ~])]
-        ?+  -.sign  ~|(weird-take/[pole -.sign] !!)
+        ?+    -.sign  ~|(weird-take/[pole -.sign] !!)
+        ::
           %kick  ga-core  ::  kick for single response sub, just take it
-          %watch-ack
+        ::
+            %watch-ack
           ?~  p.sign  ga-core :: TODO: report retreival failure
           %-  (slog u.p.sign)
           ga-core
-          ::
+        ::
             %fact
-          ?.  =(%group-preview p.cage.sign)  ga-core
-          =+  !<(=preview:g q.cage.sign)
+          ?.  ?=(%group-preview-1 p.cage.sign)
+            ga-core
+          =+  !<(=preview:v5:g q.cage.sign)
           =.  pev.gang  `preview
           =.  cor  ga-give-update
           =/  =path  (snoc ga-area %preview)
           =.  cor
-            (emit %give %fact ~[path] cage.sign)
+            (emit %give %fact ~[path] group-preview+!>((to-preview-2 preview)))
           =.  cor
             (emit %give %kick ~[path] ~)
+          =.  cor
+            (emit %give %fact ~[[%v1 path]] cage.sign)
+          =.  cor
+            (emit %give %kick ~[[%v1 path]] ~)
           ?:  from-self  ga-core
           ?~  pev.gang   ga-core
           ?~  vit.gang   ga-core
@@ -2142,13 +2508,15 @@
           %-  (slog leaf/"Joining failed" u.p.sign)
           ga-core
         =.  progress.u.cam.gang  %watching
-        =/  =net:g  [%sub now.bowl | %chi ~]
+        =/  =net:g  [%sub now.bowl |]
         =|  =group:g
+        =?  meta.group  ?=(^ pev.gang)  meta.u.pev.gang
         =.  groups  (~(put by groups) flag net group)
         ::
         =.  cor
           go-abet:(go-sub:(go-abed:group-core flag) & |)
         ga-core
+      ::
           [%knock ~]
         ?>  ?=(%poke-ack -.sign)
         ?>  ?=(^ cam.gang)
@@ -2158,6 +2526,7 @@
           ga-core
         =.  cor  ga-give-update
         ga-core
+      ::
           [%rescind ~]
         ?>  ?=(%poke-ack -.sign)
         ?^  p.sign
