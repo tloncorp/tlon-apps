@@ -1,4 +1,5 @@
 import { useEmbed, utils, validOembedCheck } from '@tloncorp/shared';
+import { memo, useCallback, useMemo } from 'react';
 import { Linking, Platform } from 'react-native';
 import { Text } from 'tamagui';
 
@@ -40,65 +41,66 @@ interface GenericEmbedProps {
 }
 
 // Currently unused, could be used to display opengraph or oembed data
-const GenericEmbed: React.FC<GenericEmbedProps> = ({
-  provider,
-  title,
-  author,
-  description,
-  thumbnailUrl,
-  openLink,
-}) => {
-  return (
-    <Embed onPress={openLink}>
-      <Embed.Header onPress={openLink}>
-        <Embed.Title>{provider}</Embed.Title>
-        <Embed.PopOutIcon type="ArrowRef" />
-      </Embed.Header>
-      <Embed.Preview onPress={openLink}>
-        {thumbnailUrl && (
-          <Embed.Thumbnail height={100} width={100} source={thumbnailUrl} />
-        )}
-        <Text lineHeight="$l" fontSize="$l" fontWeight="$xl">
-          {title}
-        </Text>
-        {author && (
-          <Text lineHeight="$xs" fontSize="$xs" color="$secondaryText">
-            {author}
+const GenericEmbed = memo<GenericEmbedProps>(
+  ({ provider, title, author, description, thumbnailUrl, openLink }) => {
+    return (
+      <Embed onPress={openLink}>
+        <Embed.Header onPress={openLink}>
+          <Embed.Title>{provider}</Embed.Title>
+          <Embed.PopOutIcon type="ArrowRef" />
+        </Embed.Header>
+        <Embed.Preview onPress={openLink}>
+          {thumbnailUrl && (
+            <Embed.Thumbnail height={100} width={100} source={thumbnailUrl} />
+          )}
+          <Text lineHeight="$l" fontSize="$l" fontWeight="$xl">
+            {title}
           </Text>
-        )}
-        {description && (
-          <Text
-            flexWrap="wrap"
-            lineHeight="$m"
-            fontSize="$s"
-            color="$secondaryText"
-            maxWidth="100%"
-          >
-            {description}
-          </Text>
-        )}
-      </Embed.Preview>
-    </Embed>
-  );
-};
+          {author && (
+            <Text lineHeight="$xs" fontSize="$xs" color="$secondaryText">
+              {author}
+            </Text>
+          )}
+          {description && (
+            <Text
+              flexWrap="wrap"
+              lineHeight="$m"
+              fontSize="$s"
+              color="$secondaryText"
+              maxWidth="100%"
+            >
+              {description}
+            </Text>
+          )}
+        </Embed.Preview>
+      </Embed>
+    );
+  }
+);
+
+GenericEmbed.displayName = 'GenericEmbed';
 
 interface EmbedContentProps {
   url: string;
   content?: string;
 }
 
-export default function EmbedContent({ url, content }: EmbedContentProps) {
+const EmbedContent = memo(function EmbedContent({
+  url,
+  content,
+}: EmbedContentProps) {
   const { embed } = useEmbed(url);
   const isValidWithHtml = validOembedCheck(embed, url);
   const isValidWithoutHtml = embed && embed.title && embed.author_name;
   const calm = useCalm();
 
-  const isAudio = utils.AUDIO_REGEX.test(url);
-  const isTrusted = trustedProviders.some((provider) =>
-    provider.regex.test(url)
+  const isAudio = useMemo(() => utils.AUDIO_REGEX.test(url), [url]);
+  const isTrusted = useMemo(
+    () => trustedProviders.some((provider) => provider.regex.test(url)),
+    [url]
   );
 
-  const openLink = async () => {
+  const openLink = useCallback(async () => {
     if (Platform.OS === 'web') {
       window.open(url, '_blank', 'noopener,noreferrer');
     } else {
@@ -107,7 +109,11 @@ export default function EmbedContent({ url, content }: EmbedContentProps) {
         await Linking.openURL(url);
       }
     }
-  };
+  }, [url]);
+
+  const onEmbedError = useCallback((error: any) => {
+    console.warn('Embed error:', error);
+  }, []);
 
   if (!calm.disableRemoteContent) {
     if (isAudio) {
@@ -130,7 +136,7 @@ export default function EmbedContent({ url, content }: EmbedContentProps) {
               url={embedUrl ?? url}
               provider={providerConfig}
               embedHtml={embedHtml}
-              onError={(error) => console.warn('Embed error:', error)}
+              onError={onEmbedError}
             />
           );
         }
@@ -167,4 +173,6 @@ export default function EmbedContent({ url, content }: EmbedContentProps) {
       {content || url}
     </Text>
   );
-}
+});
+
+export default EmbedContent;
