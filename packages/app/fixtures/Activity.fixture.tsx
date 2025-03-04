@@ -1,11 +1,8 @@
 import * as logic from '@tloncorp/shared/logic';
-import {
-  ActivityScreenContent,
-  AppDataContextProvider,
-} from '@tloncorp/ui/src';
 import { PropsWithChildren } from 'react';
 import { Alert } from 'react-native';
 
+import { ActivityScreenContent, AppDataContextProvider } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 import { activityItems } from './activityHelpers';
 import { exampleContacts, postsByType } from './contentHelpers';

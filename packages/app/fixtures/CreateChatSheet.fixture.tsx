@@ -1,6 +1,5 @@
-import { AppDataContextProvider } from '@tloncorp/ui';
-
 import { CreateChatSheet } from '../features/top/CreateChatSheet';
+import { AppDataContextProvider } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 import { initialContacts } from './fakeData';
 

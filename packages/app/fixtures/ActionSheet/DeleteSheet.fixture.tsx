@@ -1,4 +1,4 @@
-import { DeleteSheet } from '@tloncorp/ui';
+import { DeleteSheet } from '../../ui';
 
 export default (
   <DeleteSheet

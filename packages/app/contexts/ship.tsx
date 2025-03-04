@@ -1,4 +1,5 @@
 import crashlytics from '@react-native-firebase/crashlytics';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { ShipInfo, storage } from '@tloncorp/shared/db';
 import { preSig } from '@urbit/aura';
 import type { ReactNode } from 'react';
@@ -11,7 +12,10 @@ import {
 } from 'react';
 import { NativeModules } from 'react-native';
 
+import { cancelNodeResumeNudge } from '../lib/notifications';
 import { transformShipURL } from '../utils/string';
+
+const logger = createDevLogger('useShip', false);
 
 const { UrbitModule } = NativeModules;
 
@@ -111,6 +115,7 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
         })();
       }
 
+      logger.trackEvent(AnalyticsEvent.NodeAuthSaved);
       setIsLoading(false);
     },
     []
@@ -140,6 +145,14 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
     setShipInfo(emptyShip);
     storage.shipInfo.resetValue();
   }, []);
+
+  useEffect(() => {
+    if (shipInfo.ship) {
+      cancelNodeResumeNudge().catch((err) => {
+        logger.error('Failed cancelling node resume nudge', err);
+      });
+    }
+  }, [shipInfo]);
 
   return (
     <Context.Provider

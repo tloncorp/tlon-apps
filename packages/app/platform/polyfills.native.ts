@@ -8,6 +8,6 @@ import { polyfill as polyfillReadableStream } from 'react-native-polyfill-global
 export const initializePolyfills = () => {
   polyfillReadableStream();
   polyfillEncoding();
-}
+};
 
 export const platformFetch = streamingFetch;

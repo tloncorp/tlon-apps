@@ -200,19 +200,19 @@
     =+  .^(=group:groups %gx :(weld prefix /groups gnat))
     ?+  -.cordon.group  ~
         %open
-      :-  %^  lure-log  %info  group-event
+      :-  %^  lure-log  %info  'Group Invite Sent'
           ~[leaf+"{<joiner.bite>} invited to public group {<p.flag>}/{(trip q.flag)}"]
       ~[[%pass /invite %agent [our.bowl %groups] %poke %group-invite !>(invite)]]
     ::
         %shut
-      =/  =action:groups
+      =/  =action:v2:groups
         :-  flag
         :-  now.bowl
         :-  %cordon
         [%shut [%add-ships %pending (~(gas in *(set ship)) ~[joiner.bite])]]
       :-  %^  lure-log  %info  'Group Invite Sent'
           ~[leaf+"{<joiner.bite>} invited to restricted group {<p.flag>}/{(trip q.flag)}"]
-      ~[[%pass /invite %agent [our.bowl %groups] %poke act:mar:groups !>(action)]]
+      ~[[%pass /invite %agent [our.bowl %groups] %poke group-action-3+!>(action)]]
     ==
   ==
 ::

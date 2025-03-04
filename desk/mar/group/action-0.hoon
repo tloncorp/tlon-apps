@@ -1,15 +1,15 @@
 /-  g=groups
 /+  j=groups-json
-|_  =action:g
+|_  =action:v2:ver:g
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  action
-  ++  json  (action:enjs:j action)
+  ++  json  (action:v2:enjs:j action)
   --
 ++  grab
   |%
-  ++  noun  action:g
-  ++  json  action:dejs:j
+  ++  noun  action:v2:g
+  ++  json  action:v2:dejs:j
   --
 --

@@ -16,7 +16,7 @@ import {
 import { addChannelToNavSection, moveChannel } from './groupActions';
 import { verifyUserInviteLink } from './inviteActions';
 import { useLureState } from './lure';
-import { getSyncing, updateIsSyncing, updateSession } from './session';
+import { getSession, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
@@ -170,14 +170,18 @@ export const syncLatestPosts = async (
   queryCtx?: QueryCtx,
   yieldWriter?: boolean
 ): Promise<() => Promise<void>> => {
+  const syncedAt = await db.headsSyncedAt.getValue();
   const result = await syncQueue.add('latestPosts', ctx, () =>
-    api.getLatestPosts({})
+    api.getLatestPosts({
+      afterCursor: new Date(syncedAt),
+    })
   );
   logger.crumb('got latest posts from api');
   const allPosts = result.map((p) => p.latestPost);
   const writer = async (): Promise<void> => {
     allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
     await db.insertLatestPosts(allPosts, queryCtx);
+    await db.headsSyncedAt.setValue(Date.now());
   };
 
   if (yieldWriter) {
@@ -192,6 +196,7 @@ export const syncSettings = async (ctx?: SyncCtx) => {
   const settings = await syncQueue.add('settings', ctx, () =>
     api.getSettings()
   );
+  console.log('got settings from api', settings);
   return db.insertSettings(settings);
 };
 
@@ -225,6 +230,20 @@ export const syncContacts = async (ctx?: SyncCtx) => {
   } catch (e) {
     logger.error('error getting contacts from db', e);
   }
+};
+
+export const syncVerifications = async (ctx?: SyncCtx) => {
+  logger.log('syncing verifications');
+  const verifications = await syncQueue.add('verifications', ctx, () =>
+    api.fetchVerifications()
+  );
+  try {
+    await db.insertVerifications({ verifications });
+  } catch (e) {
+    logger.error('error inserting verifications', e);
+  }
+
+  logger.log('inserted verifications from api', verifications);
 };
 
 export const syncPinnedItems = async (ctx?: SyncCtx) => {
@@ -364,11 +383,32 @@ export async function syncThreadPosts(
   });
 }
 
+const groupSyncsInProgress = new Set<string>();
+
 export async function syncGroup(id: string, ctx?: SyncCtx) {
-  const response = await syncQueue.add('syncGroup', ctx, () =>
-    api.getGroup(id)
-  );
-  await db.insertGroups({ groups: [response] });
+  if (groupSyncsInProgress.has(id)) {
+    return;
+  }
+  groupSyncsInProgress.add(id);
+  try {
+    const group = await db.getGroup({ id });
+    const session = getSession();
+    if (group && session && (session.startTime ?? 0) < (group.syncedAt ?? 0)) {
+      return;
+    }
+    const response = await syncQueue.add('syncGroup', ctx, () =>
+      api.getGroup(id)
+    );
+    await batchEffects('syncGroup', async (ctx) => {
+      await db.insertGroups({ groups: [response] }, ctx);
+      await db.updateGroup({ id, syncedAt: Date.now() }, ctx);
+    });
+  } catch (e) {
+    logger.trackError('group sync failed', { errorMessage: e.message });
+    throw e;
+  } finally {
+    groupSyncsInProgress.delete(id);
+  }
 }
 
 export const syncStorageSettings = (ctx?: SyncCtx) => {
@@ -435,6 +475,7 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
   logger.log('received group update', update.type);
 
   let channelNavSection: db.GroupNavSectionChannel | null | undefined;
+  let group: db.Group | null | undefined;
 
   switch (update.type) {
     case 'addGroup':
@@ -508,17 +549,25 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
         },
       ]);
       break;
-    case 'setGroupAsPublic':
+    case 'setGroupAsOpen':
       await db.updateGroup({ id: update.groupId, privacy: 'public' });
       break;
-    case 'setGroupAsPrivate':
-      await db.updateGroup({ id: update.groupId, privacy: 'private' });
+    case 'setGroupAsShut':
+      group = await db.getGroup({ id: update.groupId });
+
+      if (group?.privacy !== 'secret') {
+        await db.updateGroup({ id: update.groupId, privacy: 'private' });
+      }
       break;
     case 'setGroupAsSecret':
       await db.updateGroup({ id: update.groupId, privacy: 'secret' });
       break;
     case 'setGroupAsNotSecret':
-      await db.updateGroup({ id: update.groupId, privacy: 'private' });
+      group = await db.getGroup({ id: update.groupId });
+      await db.updateGroup({
+        id: update.groupId,
+        privacy: group?.privacy === 'public' ? 'public' : 'private',
+      });
       break;
     case 'addGroupMembers':
       await db.addChatMembers({
@@ -698,6 +747,13 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
           refetchType: 'active',
         });
       }
+      // check for any newly joined groups and channels
+      // WARNING -- removing this will break loading of initial channnels on
+      // group join. Shouldn't be the case, but here we are.
+      checkForNewlyJoined({
+        groupUnreads: activitySnapshot.groupUnreads,
+        channelUnreads: activitySnapshot.channelUnreads,
+      });
     },
     queueDebounce,
     { leading: true, trailing: true }
@@ -804,6 +860,18 @@ export const handleStorageUpdate = async (update: api.StorageUpdate) => {
       });
       break;
     }
+  }
+};
+
+export const handleSettingsUpdate = async (update: api.SettingsUpdate) => {
+  const userId = api.getCurrentUserId();
+  switch (update.type) {
+    case 'updateSetting':
+      await db.insertSettings({
+        userId,
+        ...update.setting,
+      });
+      break;
   }
 };
 
@@ -1110,7 +1178,7 @@ export const clearSyncQueue = () => {
 */
 export const handleDiscontinuity = async () => {
   logger.trackEvent(AnalyticsEvent.SyncDiscontinuity);
-  if (getSyncing()) {
+  if (isSyncing) {
     // we probably don't want to do this while we're already syncing
     return;
   }
@@ -1130,17 +1198,19 @@ export const handleChannelStatusChange = async (status: ChannelStatus) => {
   updateSession({ channelStatus: status });
 };
 
+let isSyncing = false;
+
 export const syncStart = async (alreadySubscribed?: boolean) => {
-  if (getSyncing()) {
+  if (isSyncing) {
     // we probably don't want multiple sync starts
     return;
   }
-  const startTime = Date.now();
+  isSyncing = true;
 
-  updateIsSyncing(true);
+  const startTime = Date.now();
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
 
-  batchEffects('sync start (high)', async (ctx) => {
+  await batchEffects('sync start (high)', async (ctx) => {
     // this allows us to run the api calls first in parallel but handle
     // writing the data in a specific order
     const yieldWriter = true;
@@ -1235,10 +1305,11 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       logger.trackError(e);
     });
 
-  updateIsSyncing(false);
-
   // post sync initialization work
-  verifyUserInviteLink();
+  await verifyUserInviteLink();
+
+  isSyncing = false;
+  db.userHasCompletedFirstSync.setValue(true);
 };
 
 export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {
@@ -1257,6 +1328,7 @@ export const setupLowPrioritySubscriptions = async (ctx?: SyncCtx) => {
       api.subscribeGroups(handleGroupUpdate),
       api.subscribeToContactUpdates(handleContactUpdate),
       api.subscribeToStorageUpdates(handleStorageUpdate),
+      api.subscribeToSettings(handleSettingsUpdate),
     ]);
   });
 };

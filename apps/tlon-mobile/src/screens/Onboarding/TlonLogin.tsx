@@ -11,16 +11,17 @@ import {
   Field,
   KeyboardAvoidingView,
   OnboardingTextBlock,
+  Pressable,
   PrimaryButton,
   ScreenHeader,
   TextInput,
   TlonText,
   View,
   YStack,
-} from '@tloncorp/ui';
+} from '@tloncorp/app/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Platform } from 'react-native';
+import { Platform, TouchableOpacity } from 'react-native';
 
 import { PhoneNumberInput } from '../../components/OnboardingInputs';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
@@ -103,7 +104,9 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                 // Rate limited, must have received one recently so proceed
               }
               if (err.details.status === 404) {
-                setRemoteError('This phone number is ineligible for login.');
+                setRemoteError(
+                  `There's no phone number associated with this account.`
+                );
                 return;
               }
             }
@@ -132,7 +135,9 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                 // Rate limited, must have received one recently so proceed
               }
               if (err.details.status === 404) {
-                setRemoteError('This email number is ineligible for login.');
+                setRemoteError(
+                  'There is no account associated with this email.'
+                );
                 return;
               }
             }
@@ -271,16 +276,22 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                 >
                   We&apos;ll email you a 6-digit code to log in. Otherwise, you
                   can{' '}
-                  <TlonText.RawText
+                  <Pressable
+                    testID="Legacy login"
                     pressStyle={{
                       opacity: 0.5,
                     }}
-                    textDecorationLine="underline"
-                    textDecorationDistance={10}
                     onPress={() => navigation.navigate('TlonLoginLegacy')}
+                    style={{ marginBottom: -3 }}
                   >
-                    log in with a password
-                  </TlonText.RawText>
+                    <TlonText.Text
+                      color="$secondaryText"
+                      textDecorationLine="underline"
+                      textDecorationDistance={10}
+                    >
+                      log in with a password
+                    </TlonText.Text>
+                  </Pressable>
                 </TlonText.Text>
                 <TlonText.Text
                   color="$secondaryText"

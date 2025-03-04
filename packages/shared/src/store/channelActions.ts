@@ -2,6 +2,8 @@ import * as api from '../api';
 import { ChannelContentConfiguration } from '../api/channelContentConfig';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { AnalyticsEvent } from '../domain';
+import * as logic from '../logic';
 import { getRandomId } from '../logic';
 import {
   ChannelMetadata,
@@ -26,6 +28,15 @@ export async function createChannel({
   const currentUserId = api.getCurrentUserId();
   const channelSlug = getRandomId();
   const channelId = `${getChannelKindFromType(channelType)}/${currentUserId}/${channelSlug}`;
+
+  logger.trackEvent(
+    AnalyticsEvent.ActionCreateChannel,
+    logic.getModelAnalytics({
+      channel: { id: channelId, type: channelType as db.ChannelType },
+      group: { id: groupId },
+    })
+  );
+
   // optimistic update
   const newChannel: db.Channel = {
     id: channelId,
@@ -104,6 +115,14 @@ export async function deleteChannel({
   channelId: string;
   groupId: string;
 }) {
+  logger.trackEvent(
+    AnalyticsEvent.ActionDeleteChannel,
+    logic.getModelAnalytics({
+      channel: { id: channelId },
+      group: { id: groupId },
+    })
+  );
+
   // optimistic update
   await db.deleteChannel(channelId);
 
@@ -134,6 +153,22 @@ export async function updateChannel({
   join: boolean;
   channel: db.Channel;
 }) {
+  logger.log('updating channel', channel.id, { readers, writers });
+  const currentChannel = await db.getChannel({
+    id: channel.id,
+    includeWriters: true,
+  });
+  const currentChannelWriterIds = currentChannel?.writerRoles?.map(
+    (role) => role.roleId
+  );
+  logger.log('currentChannelWriterIds', currentChannelWriterIds);
+  const writersToAdd = writers.filter(
+    (roleId) => !currentChannelWriterIds?.includes(roleId)
+  );
+  const writersToRemove =
+    currentChannelWriterIds?.filter((roleId) => !writers.includes(roleId)) ??
+    [];
+
   const updatedChannel: db.Channel = {
     ...channel,
     readerRoles: readers.map((roleId) => ({
@@ -145,6 +180,16 @@ export async function updateChannel({
       roleId,
     })),
   };
+
+  logger.log('updated channel', updatedChannel);
+  logger.trackEvent(AnalyticsEvent.ActionUpdatedChannel, {
+    ...logic.getModelAnalytics({
+      channel: updatedChannel,
+      group: { id: groupId },
+    }),
+    hasTitle: !!updatedChannel.title,
+    hasDescription: !!updatedChannel.description,
+  });
 
   await db.updateChannel(updatedChannel);
 
@@ -162,6 +207,8 @@ export async function updateChannel({
     },
   };
 
+  logger.log('group channel', groupChannel);
+
   try {
     await api.updateChannel({
       groupId,
@@ -177,6 +224,25 @@ export async function updateChannel({
       channel.id,
       meta == null ? null : JSON.stringify(meta)
     );
+
+    if (writersToAdd.length > 0) {
+      logger.log('adding writers', writersToAdd);
+      await api.addChannelWriters({
+        channelId: channel.id,
+        writers: writersToAdd,
+      });
+      logger.log('added writers');
+    }
+
+    if (writersToRemove.length > 0) {
+      logger.log('removing writers', writersToRemove);
+      await api.removeChannelWriters({
+        channelId: channel.id,
+        writers: writersToRemove,
+      });
+      logger.log('removed writers');
+    }
+    logger.log('updated channel on server');
   } catch (e) {
     console.error('Failed to update channel', e);
     await db.updateChannel(channel);
@@ -184,16 +250,19 @@ export async function updateChannel({
 }
 
 export async function pinChat(chat: db.Chat) {
+  logger.trackEvent(AnalyticsEvent.ActionPinChat);
   return chat.type === 'group'
     ? pinGroup(chat.group)
     : pinChannel(chat.channel);
 }
 
 export async function pinGroup(group: db.Group) {
+  logger.trackEvent(AnalyticsEvent.ActionPinChat);
   return savePin({ type: 'group', itemId: group.id });
 }
 
 export async function pinChannel(channel: db.Channel) {
+  logger.trackEvent(AnalyticsEvent.ActionPinChat);
   const type =
     channel.type === 'dm' || channel.type === 'groupDm'
       ? channel.type
@@ -202,6 +271,7 @@ export async function pinChannel(channel: db.Channel) {
 }
 
 async function savePin(pin: { type: db.PinType; itemId: string }) {
+  logger.trackEvent(AnalyticsEvent.ActionPinChat);
   db.insertPinnedItem(pin);
   try {
     await api.pinItem(pin.itemId);
@@ -213,6 +283,7 @@ async function savePin(pin: { type: db.PinType; itemId: string }) {
 }
 
 export async function unpinItem(pin: db.Pin) {
+  logger.trackEvent(AnalyticsEvent.ActionUnpinChat);
   // optimistic update
   db.deletePinnedItem(pin);
 
@@ -226,6 +297,13 @@ export async function unpinItem(pin: db.Pin) {
 }
 
 export async function markChannelVisited(channelId: string) {
+  const channel = await db.getChannel({ id: channelId });
+  if (channel) {
+    logger.trackEvent(
+      AnalyticsEvent.ActionVisitedChannel,
+      logic.getModelAnalytics({ channel })
+    );
+  }
   await db.updateChannel({ id: channelId, lastViewedAt: Date.now() });
 }
 
@@ -265,7 +343,7 @@ export async function markChannelRead({
   try {
     await api.readChannel(existingChannel);
   } catch (e) {
-    console.error('Failed to read channel', {id, groupId}, e);
+    logger.error('Failed to read channel', { id, groupId }, e);
     // rollback optimistic update
     if (existingUnread) {
       await db.insertChannelUnreads([existingUnread]);
@@ -407,6 +485,13 @@ export async function joinGroupChannel({
   channelId: string;
   groupId: string;
 }) {
+  logger.trackEvent(
+    AnalyticsEvent.ActionJoinChannel,
+    logic.getModelAnalytics({
+      channel: { id: channelId },
+      group: { id: groupId },
+    })
+  );
   // optimistic update
   await db.updateChannel({
     id: channelId,
@@ -422,5 +507,95 @@ export async function joinGroupChannel({
       id: channelId,
       currentUserIsMember: false,
     });
+  }
+}
+
+export async function addChannelWriters({
+  channelId,
+  writers,
+}: {
+  channelId: string;
+  writers: string[];
+}) {
+  logger.log('adding writers', writers);
+  logger.trackEvent(AnalyticsEvent.ActionUpdateChannelWriters, {
+    ...logic.getModelAnalytics({ channel: { id: channelId } }),
+    updateType: 'add',
+    writerCount: writers.length,
+  });
+  const channel = await db.getChannel({ id: channelId, includeWriters: true });
+  if (!channel) {
+    throw new Error('Channel not found');
+  }
+  const currentWriters = channel.writerRoles.map((role) => role.roleId);
+  const newWriters = writers.filter(
+    (roleId) => !currentWriters.includes(roleId)
+  );
+  const writerRoles = [
+    ...channel.writerRoles,
+    ...newWriters.map((roleId) => ({
+      channelId: channel.id,
+      roleId,
+    })),
+  ];
+
+  logger.log('new writer roles', writerRoles);
+
+  // optimistic update
+  const updatedChannel = {
+    ...channel,
+    writerRoles,
+  };
+  await db.updateChannel(updatedChannel);
+  logger.log('updated channel', updatedChannel);
+
+  try {
+    await api.addChannelWriters({ channelId, writers });
+    logger.log('added writers');
+  } catch (e) {
+    logger.error('Failed to add channel writers', e);
+    // rollback optimistic update
+    await db.updateChannel(channel);
+  }
+}
+
+export async function removeChannelWriters({
+  channelId,
+  writers,
+}: {
+  channelId: string;
+  writers: string[];
+}) {
+  logger.log('removing writers', writers);
+  logger.trackEvent(AnalyticsEvent.ActionUpdateChannelWriters, {
+    ...logic.getModelAnalytics({ channel: { id: channelId } }),
+    updateType: 'remove',
+    writerCount: writers.length,
+  });
+  const channel = await db.getChannel({ id: channelId, includeWriters: true });
+  if (!channel) {
+    throw new Error('Channel not found');
+  }
+  const writerRoles = channel.writerRoles.filter(
+    (role) => !writers.includes(role.roleId)
+  );
+
+  logger.log('new writer roles', writerRoles);
+
+  // optimistic update
+  const updatedChannel = {
+    ...channel,
+    writerRoles,
+  };
+  await db.updateChannel(updatedChannel);
+  logger.log('updated channel', updatedChannel);
+
+  try {
+    await api.removeChannelWriters({ channelId, writers });
+    logger.log('removed writers');
+  } catch (e) {
+    logger.error('Failed to remove channel writers', e);
+    // rollback optimistic update
+    await db.updateChannel(channel);
   }
 }

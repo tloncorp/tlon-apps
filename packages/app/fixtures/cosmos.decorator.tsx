@@ -1,6 +1,7 @@
-import { StoreProvider, TamaguiProvider, config } from '@tloncorp/ui';
 import React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+import { StoreProvider, TamaguiProvider, config } from '../ui';
 
 // eslint-disable-next-line
 export default ({ children }: { children: React.ReactNode }) => (

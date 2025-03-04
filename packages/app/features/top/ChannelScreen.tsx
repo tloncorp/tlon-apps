@@ -11,6 +11,13 @@ import {
   usePostWithRelations,
 } from '@tloncorp/shared/store';
 import { Story } from '@tloncorp/shared/urbit';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+
+import { useChannelNavigation } from '../../hooks/useChannelNavigation';
+import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import { useGroupActions } from '../../hooks/useGroupActions';
+import { useFeatureFlag } from '../../lib/featureFlags';
+import type { RootStackParamList } from '../../navigation/types';
 import {
   AttachmentProvider,
   Channel,
@@ -19,21 +26,18 @@ import {
   INITIAL_POSTS_PER_PAGE,
   InviteUsersSheet,
   useCurrentUserId,
-} from '@tloncorp/ui';
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-
-import { useChannelNavigation } from '../../hooks/useChannelNavigation';
-import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
-import { useGroupActions } from '../../hooks/useGroupActions';
-import { useFeatureFlag } from '../../lib/featureFlags';
-import type { RootStackParamList } from '../../navigation/types';
+} from '../../ui';
 
 const logger = createDevLogger('ChannelScreen', false);
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
 
 export default function ChannelScreen(props: Props) {
-  const { channelId, selectedPostId, startDraft } = props.route.params;
+  const { channelId, selectedPostId, startDraft } = props.route.params ?? {
+    channelId: '',
+    selectedPostId: '',
+    startDraft: false,
+  };
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
 
   useEffect(() => {
@@ -105,8 +109,9 @@ export default function ChannelScreen(props: Props) {
   }, [channelIsPending, channelId]);
 
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);
-  const [inviteSheetGroup, setInviteSheetGroup] =
-    React.useState<string | null>();
+  const [inviteSheetGroup, setInviteSheetGroup] = React.useState<
+    string | null
+  >();
 
   // for the unread channel divider, we care about the unread state when you enter but don't want it to update over
   // time
@@ -319,6 +324,15 @@ export default function ChannelScreen(props: Props) {
     setChannelNavOpen(true);
   }, []);
 
+  const handleChatDetailsPressed = useCallback(() => {
+    if (group) {
+      props.navigation.navigate('ChatDetails', {
+        chatType: 'group',
+        chatId: group.id,
+      });
+    }
+  }, [group, props.navigation]);
+
   const handleChannelSelected = useCallback((channel: db.Channel) => {
     setCurrentChannelId(channel.id);
     setChannelNavOpen(false);
@@ -399,6 +413,7 @@ export default function ChannelScreen(props: Props) {
           goToPost={navigateToPost}
           goToImageViewer={navigateToImage}
           goToChannels={handleChannelNavButtonPressed}
+          goToChatDetails={handleChatDetailsPressed}
           goToSearch={navigateToSearch}
           goToDm={handleGoToDm}
           goToUserProfile={handleGoToUserProfile}

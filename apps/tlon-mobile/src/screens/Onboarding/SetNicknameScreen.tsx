@@ -12,7 +12,7 @@ import {
   XStack,
   YStack,
   useTheme,
-} from '@tloncorp/ui';
+} from '@tloncorp/app/ui';
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 

@@ -173,6 +173,10 @@ public class TalkApi {
         fetchObject("/~/scry/contacts/all", callback);
     }
 
+    public void fetchActivityEvent(String uid, TalkObjectCallback callback) {
+        fetchObject("/apps/groups/~/notify/note/" + uid + "/activity-event", callback);
+    }
+
     public void fetchContact(String id, TalkObjectCallback callback) {
         fetchContacts(new TalkObjectCallback() {
             @Override

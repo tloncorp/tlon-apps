@@ -1,5 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useSignupParams } from '@tloncorp/app/contexts/branch';
+import {
+  useLureMetadata,
+  useSignupParams,
+} from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { getShipUrl } from '@tloncorp/app/utils/ship';
@@ -12,7 +15,7 @@ import { HostingError } from '@tloncorp/shared/api';
 import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
 import { storage } from '@tloncorp/shared/db';
 import * as db from '@tloncorp/shared/db';
-import { ScreenHeader, TlonText, View, YStack, useStore } from '@tloncorp/ui';
+import { ScreenHeader, TlonText, View, YStack, useStore } from '@tloncorp/app/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
@@ -44,6 +47,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
   const recaptcha = useRecaptcha();
   const codeLength =
     otpMethod === 'email' ? EMAIL_CODE_LENGTH : PHONE_CODE_LENGTH;
+  const inviteMetadata = useLureMetadata();
 
   const accountCreds = useMemo(
     () => ({
@@ -96,6 +100,12 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
         trackOnboardingAction({
           actionName: 'Account Created',
           lure: signupParams.lureId,
+          inviteId: inviteMetadata?.id,
+          inviteType: inviteMetadata?.inviteType,
+          invitedGroupId: inviteMetadata?.invitedGroupId,
+          invitedGroupTitle: inviteMetadata?.invitedGroupTitle,
+          inviterNickname: inviteMetadata?.inviterNickname,
+          inviterUserId: inviteMetadata?.inviterUserId,
           ...accountCreds,
         });
 
@@ -111,6 +121,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
     },
     [
       accountCreds,
+      inviteMetadata,
       recaptcha,
       signupParams.lureId,
       signupParams.priorityToken,

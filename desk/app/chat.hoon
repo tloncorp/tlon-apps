@@ -1,8 +1,8 @@
 /-  c=chat, d=channels, g=groups, u=ui, e=epic, activity, meta
 /-  old-3=chat-3, old-2=chat-2
 /-  ha=hark
-/-  contacts, contacts-0
-/+  default-agent, verb-lib=verb, dbug, neg=negotiate, em=emojimart
+/-  contacts-0
+/+  default-agent, verb-lib=verb, dbug, neg=negotiate, em=emojimart, logs
 /+  pac=dm
 /+  utils=channel-utils
 /+  volume
@@ -53,6 +53,7 @@
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
+      log   ~(. logs [our.bowl /logs])
       cor   ~(. +> [bowl ~])
   ++  on-init
     ^-  (quip card _this)
@@ -84,7 +85,11 @@
   ++  on-peek   peek:cor
   ::
   ++  on-leave   on-leave:def
-  ++  on-fail    on-fail:def
+  ++  on-fail
+    |=  [=term =tang]
+    ^-  (quip card _this)
+    :_  this
+    [(fail:log term tang ~)]~
   ::
   ++  on-agent
     |=  [=wire =sign:agent:gall]
@@ -749,8 +754,10 @@
   ?+    pole  ~|(bad-agent-wire/pole !!)
       ~  cor
   ::
+      [%logs *]  cor
       [%epic ~]  cor
       [%hook *]  cor
+      [%logs ~]  cor
   ::
       [%migrate ~]
     ?>  ?=(%poke-ack -.sign)

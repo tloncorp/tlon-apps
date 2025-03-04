@@ -1,0 +1,240 @@
+appId: io.tlon.groups
+---
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/tlon-login.yaml
+- assertVisible: 'Home'
+# Tap on the "+" button
+- tapOn:
+    id: 'CreateGroupButton'
+# Assert that the sheet pops
+- assertVisible: 'Create customizable group chat'
+- tapOn: 'New group'
+# Assert that the contacts sheet pops
+- assertVisible: 'Select contacts to invite'
+# Create the group
+- tapOn: 'Create group'
+- runFlow:
+    when:
+      visible: 'General'
+    commands:
+      - assertVisible: 'Welcome to your group!'
+# Navigate back to Home and assert that the group is created
+- tapOn:
+    id: 'HeaderBackButton'
+- runFlow:
+    when:
+      visible: 'Home'
+    commands:
+      - assertVisible: 'Untitled group'
+      - tapOn: 'Untitled group'
+      - assertVisible: 'General'
+# Open the overflow menu from the channel header
+- tapOn:
+    id: 'ChannelHeaderOverflowMenuButton'
+- assertVisible: 'Secret group with 1 member'
+- tapOn: 'Group info & settings'
+- assertVisible: 'Group info'
+# Pin and unpin the group, checking on the Home screen for position
+- tapOn: 'Pin'
+- assertVisible: 'Unpin'
+- tapOn:
+    id: 'HeaderBackButton'
+- assertVisible: 'General'
+- tapOn:
+    id: 'HeaderBackButton'
+- runFlow:
+    when:
+      visible: 'Home'
+    commands:
+      - assertVisible:
+          text: 'Untitled group'
+          below: 'Pinned'
+- tapOn: 'Untitled group'
+- tapOn:
+    id: 'ChannelHeaderOverflowMenuButton'
+- assertVisible: 'Secret group with 1 member'
+- tapOn: 'Group info & settings'
+- tapOn: 'Unpin'
+- assertVisible: 'Pin'
+- tapOn:
+    id: 'HeaderBackButton'
+- assertVisible: 'General'
+- tapOn:
+    id: 'HeaderBackButton'
+- runFlow:
+    when:
+      visible: 'Home'
+    commands:
+      - assertVisible:
+          text: 'Untitled group'
+          below: 'All'
+- tapOn: 'Untitled group'
+- tapOn:
+    id: 'ChannelHeaderOverflowMenuButton'
+- tapOn: 'Group info & settings'
+# Copy group reference. Sometimes the cloud runner fails to catch the confirmation in time
+- tapOn: 'Reference'
+- assertVisible:
+    text: 'Copied'
+    optional: true
+# Set the group privacy and check that the secondary label updates
+- tapOn: 'Privacy'
+- tapOn: 'Private'
+- tapOn:
+    id: 'HeaderBackButton'
+- assertVisible: 'Private group with 1 member'
+- assertVisible:
+    text: 'Private'
+    rightOf: 'Privacy'
+# Edit a role and check that the sheet pops with content
+- tapOn: 'Roles'
+- assertVisible: 'Group Roles'
+- assertVisible: 'Admin'
+- tapOn: 'Admin'
+- assertVisible: '.*Admins can add and remove channels.*'
+- assertNotVisible: 'Delete role'
+- tapOn: 'Save'
+- waitForAnimationToEnd:
+    timeout: 5000
+# Create a role and check that the count label updates
+- tapOn: 'Add Role'
+- assertVisible: 'Add role'
+- tapOn: 'Role title'
+- inputText: 'Testing role'
+- tapOn: 'Role description'
+- tapOn: 'Role description'
+- inputText: 'Description for test role'
+- tapOn: 'Save'
+- assertVisible: 'Testing role'
+- tapOn:
+    id: 'HeaderBackButton'
+- assertVisible:
+    text: '2'
+    rightOf: 'Roles'
+# Create a channel and check that the count label updates
+- tapOn: 'Channels'
+- assertVisible: 'Manage channels'
+- assertVisible:
+    text: 'General'
+    below: 'Sectionless'
+- tapOn: 'New Channel'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'Create a new channel'
+- tapOn: 'Channel title'
+- inputText: 'Second chat channel'
+- tapOn: 'Title*'
+- tapOn: 'Create channel'
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    id: 'HeaderBackButton'
+- assertVisible:
+    text: '2'
+    rightOf: 'Channels'
+# Move channel up and down
+- tapOn: 'Channels'
+- tapOn:
+    id: 'MoveChannelDownButton'
+    index: 0
+- assertVisible:
+    text: 'Second chat channel'
+    above: 'General'
+- tapOn:
+    id: 'MoveChannelUpButton'
+    index: 1
+- assertVisible:
+    text: 'General'
+    above: 'Second chat channel'
+# Edit a channel
+- tapOn:
+    id: 'EditChannelButton'
+    index: 1
+- assertVisible:
+    text: 'Edit channel'
+- tapOn: 'Second chat channel'
+- eraseText
+- inputText: 'Testing channel renaming'
+- tapOn: 'Channel description'
+- inputText: 'Testing channel description'
+- tapOn: 'Save'
+- assertVisible: 'Testing channel renaming'
+# Create a channel section
+- tapOn: 'New Section'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'Add section'
+- tapOn: 'e.g. Important channels'
+- inputText: 'Testing section'
+- tapOn: 'Save'
+- extendedWaitUntil:
+    visible: 'Testing section'
+    timeout: 10000
+    # Currently a bug, skipping if fails
+    optional: true
+- tapOn:
+    id: 'HeaderBackButton'
+# Set notification volume for the group, check that secondary label updates
+- tapOn: 'Notifications'
+- assertVisible: 'Posts, mentions, and replies'
+- tapOn: 'All activity'
+- tapOn:
+    id: 'HeaderBackButton'
+- assertVisible:
+    text: 'All activity'
+    rightOf: 'Notifications'
+# Navigate back out to the Home screen and verify that, in a multi-channel group, the user is navigated into a list of channels
+- tapOn:
+    id: 'HeaderBackButton'
+- assertVisible: 'General'
+- tapOn:
+    id: 'HeaderBackButton'
+- assertVisible: 'Home'
+- tapOn: 'Untitled group'
+- assertVisible: 'Untitled group'
+- assertVisible: 'General'
+- assertVisible: 'Testing channel renaming'
+- tapOn: 'General'
+- tapOn:
+    id: 'ChannelHeaderOverflowMenuButton'
+- tapOn: 'Group info & settings'
+# Delete a channel and check that the count label updates
+- tapOn: 'Channels'
+- tapOn:
+    id: 'EditChannelButton'
+    index: 1
+- assertVisible: 'Edit channel'
+- tapOn: 'Delete channel for everyone'
+- assertVisible: 'This action cannot be undone.'
+- tapOn: 'Delete channel'
+- assertVisible: 'Manage channels'
+- assertNotVisible: 'Testing channel renaming'
+- tapOn:
+    id: 'HeaderBackButton'
+- assertVisible:
+    text: '1'
+    rightOf: 'Channels'
+# # Delete group and clean up
+- scrollUntilVisible:
+    direction: DOWN
+    element:
+      text: 'Delete group'
+- tapOn: 'Delete group'
+- runFlow:
+    when:
+      visible: 'This action cannot be undone.'
+    commands:
+      - tapOn: 'Delete group'
+- runFlow:
+    when:
+      visible: 'Home'
+    commands:
+      - assertVisible: 'Home'
+      - assertNotVisible: 'Untitled group'
+# Log out
+- tapOn:
+    id: 'AvatarNavIcon'
+- tapOn:
+    id: 'ContactsSettingsButton'
+- tapOn: 'Log out'
+- tapOn: 'Log out now'

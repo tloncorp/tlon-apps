@@ -1,10 +1,8 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { daToUnix } from '@urbit/aura';
-import bigInt from 'big-integer';
 import { useEffect, useMemo } from 'react';
 
 import { searchChannel } from '../api/channelsApi';
-import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { useAttachAuthorToPosts } from './useAttachAuthorToPosts';
 
@@ -80,7 +78,7 @@ export function useInfiniteChannelSearch(channelId: string, query: string) {
     const lastValidCursor = params.findLast(
       (page) => page.cursor !== null
     )?.cursor;
-    return lastValidCursor ? new Date(daToUnix(bigInt(lastValidCursor))) : null;
+    return lastValidCursor ? new Date(daToUnix(BigInt(lastValidCursor))) : null;
   }, [data]);
 
   return {

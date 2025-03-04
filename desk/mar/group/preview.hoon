@@ -1,14 +1,14 @@
 /-  g=groups
 /+  j=groups-json
-|_  =preview:g
+|_  =preview:v2:g
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  preview
-  ++  json  (preview:enjs:j preview)
+  ++  json  (preview:v2:enjs:j preview)
   --
 ++  grab
   |%
-  ++  noun  preview:g
+  ++  noun  preview:v2:g
   --
 --

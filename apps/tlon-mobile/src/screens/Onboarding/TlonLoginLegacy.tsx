@@ -16,7 +16,7 @@ import {
   TlonText,
   View,
   YStack,
-} from '@tloncorp/ui';
+} from '@tloncorp/app/ui';
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
@@ -132,6 +132,7 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
                   paddingTop="$m"
                 >
                   <TextInput
+                    testID="email-input"
                     placeholder="Email Address"
                     onBlur={() => {
                       onBlur();
@@ -158,6 +159,7 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
               render={({ field: { onChange, onBlur, value } }) => (
                 <Field label="Password" error={errors.password?.message}>
                   <TextInput
+                    testID="password-input"
                     placeholder="Password"
                     onBlur={() => {
                       onBlur();
