@@ -340,10 +340,7 @@ const App = React.memo(function AppComponent() {
                   <DesktopLoginScreen
                     onLoginSuccess={({ ship, shipUrl, authCookie }) => {
                       window.ship = ship;
-                      configureClient({
-                        shipName: ship,
-                        shipUrl,
-                      });
+                      configureClient();
                       setIsAuthenticated(true);
                     }}
                   />
