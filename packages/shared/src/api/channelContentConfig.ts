@@ -1,4 +1,5 @@
 import type { JSONValue } from '../types/JSONValue';
+import { ChannelMetadata } from '../urbit';
 import { ValuesOf } from '../utils';
 
 interface BaseParameterSpec {
@@ -284,72 +285,47 @@ export namespace ChannelContentConfiguration {
   ): ParameterizedId<CollectionRendererId> {
     return ParameterizedId.coerce(configuration.defaultPostCollectionRenderer);
   }
-}
 
-/**
- * We use a channel's `description` field to store structured data. This
- * module provides helpers for managing that data.
- */
-// eslint-disable-next-line @typescript-eslint/no-namespace
-export namespace StructuredChannelDescriptionPayload {
-  type Encoded = string | null | undefined;
-  interface Decoded {
-    channelContentConfiguration?: ChannelContentConfiguration;
-    description?: string;
+  export function toApiMeta(cfg: ChannelContentConfiguration): ChannelMetadata {
+    return {
+      version: 1,
+
+      postInput: ((x) => ({
+        postType: x.id,
+
+        type: x.id,
+        configuration: x.configuration,
+      }))(ChannelContentConfiguration.draftInput(cfg)),
+
+      postCollectionRenderer: ((x) => ({
+        id: x.id,
+        configuration: x.configuration,
+      }))(ChannelContentConfiguration.defaultPostCollectionRenderer(cfg)),
+
+      defaultContentRenderer: ((x) => ({
+        rendererId: x.id,
+        configuration: x.configuration,
+      }))(ChannelContentConfiguration.defaultPostContentRenderer(cfg)),
+    };
   }
 
-  export function encode(payload: Decoded): Encoded {
-    return JSON.stringify(payload);
-  }
-
-  /**
-   * Attempts to decode a `description` string into a structured payload.
-   *
-   * - If `description` is null/undefined, returns a payload with no
-   *   description nor configuration.
-   * - If `description` is not valid JSON, returns a payload with the
-   *   description as the input string.
-   * - If `description` validates as the expected
-   *   `StructuredChannelDescriptionPayload` JSON, returns the decoded payload.
-   */
-  export function decode(encoded: Encoded): Decoded {
-    // TODO: This should be validated - we'll be deserializing untrusted data
-    if (encoded == null) {
-      return {};
-    }
-    try {
-      const out = JSON.parse(encoded);
-      if ('channelContentConfiguration' in out) {
-        if (typeof out.channelContentConfiguration !== 'object') {
-          throw new Error('Invalid configuration');
-        }
-        // add a little robustness - if the configuration is missing a field,
-        // just add a default in to avoid crashing
-        out.channelContentConfiguration = ((raw) => {
-          const cfg = {
-            draftInput: DraftInputId.chat,
-            defaultPostContentRenderer: PostContentRendererId.chat,
-            defaultPostCollectionRenderer: CollectionRendererId.chat,
-            ...raw,
-          } as ChannelContentConfiguration;
-
-          // add defaults to some standard params
-          const collCfgWithDefaults = ParameterizedId.coerce(
-            cfg.defaultPostCollectionRenderer
-          );
-          collCfgWithDefaults.configuration = {
-            showAuthors: true,
-            showReplies: true,
-            ...collCfgWithDefaults.configuration,
-          };
-
-          return cfg;
-        })(out.channelContentConfiguration);
-      }
-      return out;
-    } catch (_err) {
-      return { description: encoded.length === 0 ? undefined : encoded };
-    }
+  export function fromApiMeta(
+    meta: ChannelMetadata
+  ): ChannelContentConfiguration {
+    return {
+      draftInput: {
+        id: meta.postInput.type as DraftInputId,
+        configuration: meta.postInput.configuration,
+      },
+      defaultPostContentRenderer: {
+        id: meta.defaultContentRenderer.rendererId as PostContentRendererId,
+        configuration: meta.defaultContentRenderer.configuration,
+      },
+      defaultPostCollectionRenderer: {
+        id: meta.postCollectionRenderer.id as CollectionRendererId,
+        configuration: meta.postCollectionRenderer.configuration,
+      },
+    };
   }
 }
 

@@ -91,7 +91,8 @@ export type MarkChannelReadUpdate = {
 
 export type MetaUpdate = {
   type: 'channelMetaUpdate';
-  meta: Stringified<ub.ChannelMetadataSchemaV1> | null;
+  meta: Stringified<ub.ChannelMetadata> | null;
+  channelId: string;
 };
 
 export type ChannelsUpdate =
@@ -129,30 +130,6 @@ export const createChannel = async ({
   );
 };
 
-export async function updateChannelMeta(
-  channelId: string,
-  metaPayload: Stringified<ub.ChannelMetadataSchemaV1> | null
-) {
-  return trackedPoke<ub.ChannelsResponse>(
-    {
-      app: 'channels',
-      mark: 'channel-action',
-      json: {
-        channel: {
-          nest: channelId,
-          action: {
-            meta: metaPayload,
-          },
-        },
-      },
-    },
-    { app: 'channels', path: '/v2' },
-    (event) => {
-      return 'meta' in event.response;
-    }
-  );
-}
-
 export const setupChannelFromTemplate = async (
   exampleChannelId: string,
   targetChannelId: string
@@ -168,6 +145,30 @@ export const setupChannelFromTemplate = async (
     },
   });
 };
+
+export async function updateChannelMeta(
+  channelId: string,
+  metaPayload: Stringified<ub.ChannelMetadata> | null
+) {
+  return trackedPoke<ub.ChannelsResponse>(
+    {
+      app: 'channels',
+      mark: 'channel-action-1',
+      json: {
+        channel: {
+          nest: channelId,
+          action: {
+            meta: metaPayload,
+          },
+        },
+      },
+    },
+    { app: 'channels', path: '/v2' },
+    (event) => {
+      return 'meta' in event.response;
+    }
+  );
+}
 
 export const subscribeToChannelsUpdates = async (
   eventHandler: (update: ChannelsUpdate) => void
@@ -193,6 +194,7 @@ export type ChannelInit = {
   channelId: string;
   writers: string[];
   readers: string[];
+  meta: ub.ChannelMetadata | null;
 };
 
 export function toClientChannelInit(
@@ -200,7 +202,12 @@ export function toClientChannelInit(
   channel: ub.Channel,
   readers: string[]
 ): ChannelInit {
-  return { channelId: id, writers: channel.perms.writers ?? [], readers };
+  return {
+    channelId: id,
+    writers: channel.perms.writers ?? [],
+    readers,
+    meta: channel.meta,
+  };
 }
 
 export const toChannelsUpdate = (
@@ -240,6 +247,7 @@ export const toChannelsUpdate = (
       return {
         type: 'channelMetaUpdate',
         meta: channelEvent.response.meta,
+        channelId,
       };
     }
 
