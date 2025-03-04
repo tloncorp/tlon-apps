@@ -4,6 +4,7 @@ import {
   DefaultTheme,
   NavigationContainer,
 } from '@react-navigation/native';
+import { ShipProvider, useShip } from '@tloncorp/app/contexts/ship';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
@@ -35,6 +36,9 @@ import { useIsDark, useIsMobile } from '@/logic/useMedia';
 import { preSig } from '@/logic/utils';
 import { toggleDevTools, useLocalState, useShowDevTools } from '@/state/local';
 import { useAnalyticsId, useLogActivity, useTheme } from '@/state/settings';
+
+import { DesktopLoginScreen } from './components/DesktopLoginScreen';
+import { isElectron } from './electron-bridge';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/production').then((d) => ({
@@ -220,7 +224,7 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
                   if (groupData?.title) {
                     return `${channelData.title} - ${groupData.title}`;
                   } else {
-                    return `${channelData.title}`;  
+                    return `${channelData.title}`;
                   }
                 }
                 if (channelData) {
@@ -264,21 +268,26 @@ const App = React.memo(function AppComponent() {
   const isDarkMode = useIsDark();
   const currentUserId = useCurrentUserId();
   const [dbIsLoaded, setDbIsLoaded] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const configureClient = useConfigureUrbitClient();
   useFindSuggestedContacts();
   const hasSyncedRef = React.useRef(false);
 
   useEffect(() => {
-    handleError(() => {
-      checkIfLoggedIn();
-    })();
+    if (!isElectron()) {
+      handleError(() => {
+        checkIfLoggedIn();
+      })();
+    }
   }, [handleError]);
 
   useEffect(() => {
-    configureClient({
-      shipName: currentUserId,
-      shipUrl: '',
-    });
+    if (!isElectron()) {
+      configureClient({
+        shipName: currentUserId,
+        shipUrl: '',
+      });
+    }
     const syncStart = async () => {
       // Only call sync.syncStart once during the app's lifecycle
       if (!hasSyncedRef.current) {
@@ -312,8 +321,13 @@ const App = React.memo(function AppComponent() {
       }
     };
 
-    syncStart();
-  }, [dbIsLoaded, currentUserId]);
+    if (!isElectron()) {
+      syncStart();
+    }
+    if (isElectron() && isAuthenticated) {
+      sync.syncStart(false);
+    }
+  }, [dbIsLoaded, currentUserId, configureClient, isAuthenticated]);
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -321,33 +335,46 @@ const App = React.memo(function AppComponent() {
         <SafeAreaProvider>
           <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
             <StoreProvider>
-              {dbIsLoaded ? (
-                <AppRoutes isLoaded={dbIsLoaded} />
-              ) : (
-                <View
-                  height="100%"
-                  width="100%"
-                  justifyContent="center"
-                  alignItems="center"
-                  backgroundColor="$secondaryBackground"
-                >
+              <ShipProvider>
+                {isElectron() && !isAuthenticated ? (
+                  <DesktopLoginScreen
+                    onLoginSuccess={({ ship, shipUrl, authCookie }) => {
+                      window.ship = ship;
+                      configureClient({
+                        shipName: ship,
+                        shipUrl,
+                      });
+                      setIsAuthenticated(true);
+                    }}
+                  />
+                ) : dbIsLoaded ? (
+                  <AppRoutes isLoaded={dbIsLoaded} />
+                ) : (
                   <View
-                    backgroundColor="$background"
-                    padding="$xl"
-                    borderRadius="$l"
-                    aspectRatio={1}
-                    alignItems="center"
+                    height="100%"
+                    width="100%"
                     justifyContent="center"
-                    borderWidth={1}
-                    borderColor="$border"
+                    alignItems="center"
+                    backgroundColor="$secondaryBackground"
                   >
-                    <LoadingSpinner color="$primaryText" />
-                    <Text color="$primaryText" marginTop="$xl" fontSize="$s">
-                      Starting up&hellip;
-                    </Text>
+                    <View
+                      backgroundColor="$background"
+                      padding="$xl"
+                      borderRadius="$l"
+                      aspectRatio={1}
+                      alignItems="center"
+                      justifyContent="center"
+                      borderWidth={1}
+                      borderColor="$border"
+                    >
+                      <LoadingSpinner color="$primaryText" />
+                      <Text color="$primaryText" marginTop="$xl" fontSize="$s">
+                        Starting up&hellip;
+                      </Text>
+                    </View>
                   </View>
-                </View>
-              )}
+                )}
+              </ShipProvider>
             </StoreProvider>
           </TamaguiProvider>
         </SafeAreaProvider>

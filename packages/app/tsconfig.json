@@ -3,6 +3,7 @@
   "include": ["**/*.ts", "**/*.tsx", "window.ts", "tamagui.d.ts"],
   "compilerOptions": {
     "composite": true,
+    "noEmit": true,
     "jsx": "react-jsx",
     "paths": {
       "sqlocal/drizzle": ["node_modules/sqlocal/dist/drizzle"]

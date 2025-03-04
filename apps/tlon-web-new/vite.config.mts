@@ -51,6 +51,10 @@ export default ({ mode }: { mode: string }) => {
       return '/apps/tm-alpha/';
     }
 
+    if (mode === 'electron') {
+      return './';
+    }
+
     return '/apps/groups/';
   };
 
@@ -62,6 +66,29 @@ export default ({ mode }: { mode: string }) => {
         react({
           jsxImportSource: '@welldone-software/why-did-you-render',
         }) as PluginOption[],
+      ];
+    }
+
+    if (mode === 'electron') {
+      return [
+        exportingRawText(/\.sql$/),
+        react({
+          babel: {
+            plugins: [
+              '@babel/plugin-proposal-export-namespace-from',
+              'react-native-reanimated/plugin',
+            ],
+          },
+          jsxImportSource: '@welldone-software/why-did-you-render',
+        }) as PluginOption[],
+        svgr({
+          include: '**/*.svg',
+        }) as Plugin,
+        reactNativeWeb(),
+        tamaguiPlugin({
+          config: './tamagui.config.ts',
+          platform: 'web',
+        }) as Plugin,
       ];
     }
 
@@ -117,7 +144,7 @@ export default ({ mode }: { mode: string }) => {
 
   const rollupOptions = {
     external:
-      mode === 'mock' || mode === 'staging'
+      mode === 'mock' || mode === 'staging' || mode === 'electron'
         ? ['virtual:pwa-register/react']
         : ['@urbit/sigil-js/dist/core', 'react-native-device-info'],
     output: {
@@ -195,15 +222,15 @@ export default ({ mode }: { mode: string }) => {
     plugins: plugins(mode),
     resolve: {
       dedupe: ['@tanstack/react-query'],
-      alias: [
-        {
-          find: '@',
-          replacement: fileURLToPath(new URL('./src', import.meta.url)),
-        },
-      ],
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
+        ...(mode === 'electron' ? {
+          'virtual:pwa-register/react': fileURLToPath(new URL('./src/logic/useAppUpdatesStub.ts', import.meta.url))
+        } : {})
+      },
     },
     optimizeDeps: {
-      exclude: ['sqlocal'],
+      exclude: ['sqlocal', ...(mode === 'electron' ? ['virtual:pwa-register/react'] : [])],
     },
     test: {
       globals: true,

@@ -1,0 +1,53 @@
+{
+  "name": "tlon-desktop",
+  "version": "1.0.0",
+  "description": "Tlon Desktop App",
+  "main": "build/main/index.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "pnpm run build:ts && concurrently \"pnpm run watch:ts\" \"pnpm run dev:web\" \"pnpm run dev:electron\"",
+    "dev:electron": "wait-on tcp:3000 && electron .",
+    "dev:web": "pnpm --filter 'tlon-web-new' dev:electron",
+    "watch:ts": "tsc -b tsconfig.json --watch",
+    "build:ts": "tsc -b tsconfig.json",
+    "build": "pnpm run build:ts && electron-builder",
+    "build:web": "pnpm --filter 'tlon-web-new' build:electron"
+  },
+  "dependencies": {
+    "cross-fetch": "^4.0.0",
+    "electron-is-dev": "^3.0.1",
+    "electron-store": "^10.0.1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "electron": "34.3.0",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.8.2",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.tlon.desktop",
+    "productName": "Tlon",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "build/**/*",
+      "node_modules/**/*",
+      "electron-store-wrapper.cjs",
+      "is-dev-wrapper.cjs",
+      "fetch-wrapper.cjs",
+      "src/preload/preload.js"
+    ],
+    "mac": {
+      "category": "public.app-category.social-networking"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}

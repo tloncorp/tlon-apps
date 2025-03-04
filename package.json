@@ -9,7 +9,8 @@
     "build:web": "pnpm --filter 'tlon-web' build",
     "build:new-web": "pnpm --filter 'tlon-web-new' build",
     "build:mobile": "pnpm --filter 'tlon-mobile' build",
-    "build:apps": "pnpm run build:mobile && pnpm run build:web && pnpm run build:new-web",
+    "build:desktop": "pnpm run build:packages && pnpm --filter 'tlon-web-new' build:electron && pnpm --filter 'tlon-desktop' build",
+    "build:apps": "pnpm run build:mobile && pnpm run build:web && pnpm run build:new-web && pnpm run build:desktop",
     "build:packages": "pnpm run build:shared && pnpm run build:ui && pnpm run build:editor",
     "build:mobile-release": "pnpm run build:packages && pnpm run build:mobile",
     "build:all": "pnpm run build:packages && pnpm run build:apps",
@@ -21,6 +22,7 @@
     "dev:ios": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' ios\" \"pnpm --filter '@tloncorp/ui' watch\"",
     "dev:ios:preview": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' ios:preview\" \"pnpm --filter '@tloncorp/ui' watch\"",
     "dev:web": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-web' dev-no-ssl\"",
+    "dev:desktop": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-desktop' dev\"",
     "test": "pnpm run -r test run -u",
     "lint:all": "pnpm -r lint"
   },
