@@ -131,17 +131,27 @@ export async function getInviteLinkMeta({
   return null;
 }
 
-export function createInviteLinkRegex() {
+// new style invite links
+export function createTokenInviteLinkRegex() {
   const env = getConstants();
   return new RegExp(
     `^(https?://)?(${env.BRANCH_DOMAIN}/|tlon\\.network/lure/)0v[^/]+$`
   );
 }
 
+// old style invite links
 export function createLegacyInviteLinkRegex() {
   const env = getConstants();
   return new RegExp(
     `^(https?://)?(${env.BRANCH_DOMAIN}/|tlon\\.network/lure/)~[a-zA-Z0-9-]+/[a-zA-Z0-9-]+$`
+  );
+}
+
+// either new or old style invite links
+export function createInviteLinkRegex() {
+  const env = getConstants();
+  return new RegExp(
+    `^(https?://)?(${env.BRANCH_DOMAIN}/|tlon\\.network/lure/)(0v[^/]+|~[a-zA-Z0-9-]+/[a-zA-Z0-9-]+)$`
   );
 }
 
