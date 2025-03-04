@@ -8,10 +8,16 @@ import { POST_HOG_API_KEY } from '../constants';
 export type OnboardingProperties = {
   actionName: string;
   lure?: string;
+  inviteId?: string;
+  inviterUserId?: string;
+  inviterNickname?: string;
+  invitedGroupId?: string;
+  invitedGroupTitle?: string;
   email?: string;
   phoneNumber?: string;
   ship?: string;
   telemetryEnabled?: boolean;
+  inviteType?: 'user' | 'group';
 };
 
 export let posthog: PostHog | undefined;
@@ -62,7 +68,7 @@ export const trackError = (
 ) => capture(event, { message, properties });
 
 export const identifyTlonEmployee = () => {
-  db.setIsTlonEmployee(true);
+  db.isTlonEmployee.setValue(true);
   if (!posthog) {
     console.debug('Identifying as Tlon employee before PostHog is initialized');
     return;

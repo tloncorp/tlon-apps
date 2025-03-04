@@ -2,12 +2,6 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
-import {
-  AttachmentProvider,
-  Button,
-  DeleteSheet,
-  MetaEditorScreenView,
-} from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 
 import {
@@ -16,6 +10,14 @@ import {
 } from '../../constants';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
+import {
+  AttachmentProvider,
+  Button,
+  DeleteSheet,
+  MetaEditorScreenView,
+  YStack,
+  useGroupTitle,
+} from '../../ui';
 
 type Props = NativeStackScreenProps<
   GroupSettingsStackParamList,
@@ -31,21 +33,14 @@ export function GroupMetaScreen(props: Props) {
   });
   const canUpload = useCanUpload();
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
-  const { enabled, describe } = store.useLure({
-    flag: groupId,
-    inviteServiceEndpoint: INVITE_SERVICE_ENDPOINT,
-    inviteServiceIsDev: INVITE_SERVICE_IS_DEV,
-  });
 
   const handleSubmit = useCallback(
     (data: db.ClientMeta) => {
       setGroupMetadata(data);
       props.navigation.goBack();
-      if (enabled) {
-        describe();
-      }
+      store.createGroupInviteLink(groupId);
     },
-    [setGroupMetadata, props.navigation, enabled, describe]
+    [setGroupMetadata, props.navigation, groupId]
   );
 
   const handlePressDelete = useCallback(() => {
@@ -57,6 +52,8 @@ export function GroupMetaScreen(props: Props) {
     props.navigateToHome();
   }, [deleteGroup, props]);
 
+  const title = useGroupTitle(group);
+
   return (
     <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
       <MetaEditorScreenView
@@ -65,16 +62,15 @@ export function GroupMetaScreen(props: Props) {
         goBack={props.navigation.goBack}
         onSubmit={handleSubmit}
       >
-        <Button heroDestructive onPress={handlePressDelete}>
-          <Button.Text>Delete group for everyone</Button.Text>
-        </Button>
-        <DeleteSheet
-          title={group?.title ?? 'This Group'}
-          itemTypeDescription="group"
-          open={showDeleteSheet}
-          onOpenChange={setShowDeleteSheet}
-          deleteAction={handleDeleteGroup}
-        />
+        <YStack flex={1} justifyContent="flex-end">
+          <DeleteSheet
+            title={title ?? 'This group'}
+            itemTypeDescription="group"
+            open={showDeleteSheet}
+            onOpenChange={setShowDeleteSheet}
+            deleteAction={handleDeleteGroup}
+          />
+        </YStack>
       </MetaEditorScreenView>
     </AttachmentProvider>
   );

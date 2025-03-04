@@ -12,12 +12,12 @@ import {
   XStack,
   YStack,
   useTheme,
-} from '@tloncorp/ui';
+} from '@tloncorp/app/ui';
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
+import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
-import { useSignupContext } from '.././../lib/signupContext';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SetNickname'>;
 
@@ -26,12 +26,7 @@ type FormData = {
   notificationToken?: string | undefined;
 };
 
-export const SetNicknameScreen = ({
-  navigation,
-  route: {
-    params: { user },
-  },
-}: Props) => {
+export const SetNicknameScreen = ({ navigation }: Props) => {
   const theme = useTheme();
 
   const facesImage = theme.dark
@@ -59,9 +54,7 @@ export const SetNicknameScreen = ({
       userWasReadyAt: Date.now(),
     });
 
-    navigation.push('ReserveShip', {
-      user,
-    });
+    navigation.push('ReserveShip');
   });
 
   // Disable back button

@@ -1,3 +1,4 @@
+import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { differenceInDays, endOfToday, format } from 'date-fns';
 import emojiRegex from 'emoji-regex';
@@ -506,10 +507,66 @@ export interface RetryConfig {
   numOfAttempts?: number;
 }
 
-export const withRetry = (fn: () => Promise<any>, config?: RetryConfig) => {
+export const withRetry = <T>(fn: () => Promise<T>, config?: RetryConfig) => {
   return backOff(fn, {
     delayFirstAttempt: false,
     startingDelay: config?.startingDelay ?? 1000,
     numOfAttempts: config?.numOfAttempts ?? 4,
   });
 };
+
+/**
+ * Random id value for group or channel, 4 bits of entropy, eg 0v2a.lmibb
+ */
+export function getRandomId() {
+  return formatUv(Math.floor(Math.random() * 0xffffffff).toString()).replace(
+    /[^a-z]*([a-z][-\w\d]+)/gi,
+    '$1'
+  );
+}
+
+/**
+ * Simple one way transform for identifying distinct values while
+ * obscuring sensitive information, eg ~latter-bolden/garden -> rfn4hj
+ */
+export function simpleHash(input: string) {
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    const char = input.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+export function getModelAnalytics({
+  post,
+  group,
+  channel,
+}: {
+  post?: Partial<db.Post>;
+  group?: Partial<db.Group>;
+  channel?: Partial<db.Channel>;
+}) {
+  const details: Record<string, string | null> = {};
+
+  if (post) {
+    details.postId = post.sentAt ? simpleHash(post.sentAt.toString()) : null;
+    details.channelId = post.channelId ? simpleHash(post.channelId) : null;
+  }
+
+  if (channel) {
+    details.channelId = channel.id ? simpleHash(channel.id) : null;
+    details.channelType = channel.type ?? null;
+    details.groupId = channel.groupId ? simpleHash(channel.groupId) : null;
+  }
+
+  if (group) {
+    details.groupId = group.id ? simpleHash(group.id) : null;
+    details.groupType =
+      (group.channels?.length ?? 1) > 1 ? 'multi-topic' : 'groupchat';
+    details.groupPrivacy = group.privacy ?? null;
+  }
+
+  return details;
+}

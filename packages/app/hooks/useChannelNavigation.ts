@@ -5,10 +5,10 @@ import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { RootStackParamList } from '../navigation/types';
+import { useRootNavigation } from '../navigation/utils';
 
 export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
-  // Model context
-  const channelQuery = store.useChannelWithRelations({
+  const channelQuery = store.useChannel({
     id: channelId,
   });
 
@@ -17,32 +17,24 @@ export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
       NativeStackNavigationProp<RootStackParamList, 'Channel' | 'Post'>
     >();
 
-  const navigateToPost = useCallback(
-    (post: db.Post) => {
-      navigation.push('Post', {
-        postId: post.id,
-        channelId,
-        authorId: post.authorId,
-      });
-    },
-    [channelId, navigation]
-  );
+  const { navigateToPost, navigateToChannel } = useRootNavigation();
 
   const navigateToRef = useCallback(
     (channel: db.Channel, post: db.Post) => {
-      if (channel.id === channelId) {
-        navigation.navigate('Channel', {
-          channelId: channel.id,
-          selectedPostId: post.id,
-        });
+      if (channel.type === 'chat') {
+        if (channel.id === channelId) {
+          navigation.navigate('Channel', {
+            channelId: channel.id,
+            selectedPostId: post.id,
+          });
+        } else {
+          navigateToChannel(channel, post.id);
+        }
       } else {
-        navigation.replace('Channel', {
-          channelId: channel.id,
-          selectedPostId: post.id,
-        });
+        navigateToPost(post);
       }
     },
-    [navigation, channelId]
+    [navigation, channelId, navigateToChannel, navigateToPost]
   );
 
   const navigateToImage = useCallback(

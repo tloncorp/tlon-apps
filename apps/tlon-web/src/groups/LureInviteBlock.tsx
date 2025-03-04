@@ -1,31 +1,23 @@
 import { Group } from '@tloncorp/shared/urbit/groups';
+import { isHost } from '@urbit/api';
 import cn from 'classnames';
 import { useEffect } from 'react';
 
 import QRWidget, { QRWidgetPlaceholder } from '@/components/QRWidget';
-import CheckIcon from '@/components/icons/CheckIcon';
 import { isGroupHost } from '@/logic/utils';
-import { useLureLinkStatus } from '@/state/lure/lure';
+import { useLure } from '@/state/lure/lure';
 
 interface LureInviteBlock {
   flag: string;
   group?: Group;
   className?: string;
 }
-
-const emptyMeta = {
-  title: '',
-  description: '',
-  image: '',
-  cover: '',
-};
-
 export default function LureInviteBlock({
   flag,
   group,
   className,
 }: LureInviteBlock) {
-  const { status, shareUrl, toggle } = useLureLinkStatus(flag);
+  const { status, shareUrl } = useLure(flag);
   useEffect(() => {
     console.log(`Invite block for ${flag}`);
     console.log(`status: ${status}`);
@@ -72,26 +64,10 @@ export default function LureInviteBlock({
         />
       )}
 
-      {status === 'loading' && <QRWidgetPlaceholder />}
-
-      {isGroupHost(flag) ? (
-        <button
-          className="flex w-full items-center justify-between gap-2 rounded-xl border border-gray-100 px-6 py-4 text-lg"
-          onClick={toggle(group?.meta || emptyMeta)}
-        >
-          Enable Links
-          <span
-            className={cn(
-              'flex h-5 w-5 shrink-0 items-center justify-center rounded-full',
-              status === 'disabled' || status === 'loading'
-                ? 'border border-gray-100'
-                : 'bg-blue-500'
-            )}
-          >
-            <CheckIcon className="h-4 w-4 text-white" />
-          </span>
-        </button>
-      ) : null}
+      {(status === 'loading' ||
+        (status === 'disabled' && isGroupHost(flag))) && (
+        <QRWidgetPlaceholder />
+      )}
     </div>
   );
 }

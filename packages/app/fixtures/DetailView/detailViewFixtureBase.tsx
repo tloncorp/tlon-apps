@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/db';
-import { AppDataContextProvider, RequestsProvider } from '@tloncorp/ui';
-import { PostScreenView } from '@tloncorp/ui/src';
 
+import { AppDataContextProvider, RequestsProvider } from '../../ui';
+import { PostScreenView } from '../../ui';
 import { FixtureWrapper } from '../FixtureWrapper';
 import * as content from '../contentHelpers';
 import { createFakePosts, tlonLocalGettingStarted } from '../fakeData';
@@ -42,18 +42,16 @@ export const DetailViewFixture = ({
             isLoadingPosts={false}
             channel={channel}
             sendReply={async () => {}}
-            onPressRetry={() => {}}
+            onPressRetry={async () => {}}
             onPressDelete={() => {}}
             groupMembers={[]}
             negotiationMatch={true}
             editPost={async () => {}}
-            uploadAsset={async () => {}}
-            storeDraft={() => {}}
-            clearDraft={() => {}}
+            storeDraft={async () => {}}
+            clearDraft={async () => {}}
             getDraft={async () => ({})}
             goBack={() => {}}
             markRead={() => {}}
-            canUpload={true}
             handleGoToUserProfile={() => {}}
             headerMode="default"
             onPressRef={() => {}}

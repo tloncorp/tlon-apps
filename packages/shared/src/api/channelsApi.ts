@@ -1,10 +1,11 @@
 import { formatUd, unixToDa } from '@urbit/aura';
+import { Poke } from '@urbit/http-api';
 import bigInt from 'big-integer';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
-import { Posts } from '../urbit';
+import { Action, ChannelsAction, Posts } from '../urbit';
 import { stringToTa } from '../urbit/utils';
 import {
   getCanonicalPostId,
@@ -12,9 +13,32 @@ import {
   isGroupChannelId,
 } from './apiUtils';
 import { toPostData, toPostReplyData, toReactionsData } from './postsApi';
-import { scry, subscribe, trackedPoke } from './urbit';
+import {
+  client,
+  poke,
+  scry,
+  subscribe,
+  subscribeOnce,
+  trackedPoke,
+} from './urbit';
 
 const logger = createDevLogger('channelsSub', false);
+
+export function channelAction(
+  channelId: string,
+  action: Action
+): Poke<ChannelsAction> {
+  return {
+    app: 'channels',
+    mark: 'channel-action',
+    json: {
+      channel: {
+        nest: channelId,
+        action,
+      },
+    },
+  };
+}
 
 export type AddPostUpdate = { type: 'addPost'; post: db.Post };
 export type PostReactionsUpdate = {
@@ -86,7 +110,10 @@ export type ChannelsUpdate =
   // | MarkChannelReadUpdate
   | WritersUpdate;
 
-export const createChannel = async (channelPayload: ub.Create) => {
+export const createChannel = async ({
+  id,
+  ...channelPayload
+}: ub.Create & { id: string }) => {
   return trackedPoke<ub.ChannelsResponse>(
     {
       app: 'channels',
@@ -97,11 +124,7 @@ export const createChannel = async (channelPayload: ub.Create) => {
     },
     { app: 'channels', path: '/v2' },
     (event) => {
-      return (
-        'create' in event.response &&
-        event.nest ===
-          `${channelPayload.kind}/${channelPayload.group}/${channelPayload.name}`
-      );
+      return 'create' in event.response && event.nest === id;
     }
   );
 };
@@ -129,6 +152,22 @@ export async function updateChannelMeta(
     }
   );
 }
+
+export const setupChannelFromTemplate = async (
+  exampleChannelId: string,
+  targetChannelId: string
+) => {
+  return client.thread<string>({
+    desk: 'groups',
+    inputMark: 'hook-setup-template-args',
+    outputMark: 'json',
+    threadName: 'channel-setup-from-template',
+    body: {
+      example: exampleChannelId,
+      target: targetChannelId,
+    },
+  });
+};
 
 export const subscribeToChannelsUpdates = async (
   eventHandler: (update: ChannelsUpdate) => void
@@ -371,7 +410,7 @@ export const searchChannel = async (params: {
     response = await scry<ub.ChannelScam>({
       app: 'channels',
       path: `/${params.channelId}/search/bounded/text/${
-        params.cursor ? formatUd(bigInt(params.cursor ?? 0)) : ''
+        params.cursor ? formatUd(BigInt(params.cursor ?? 0)) : ''
       }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
     });
   } else {
@@ -380,7 +419,7 @@ export const searchChannel = async (params: {
     response = await scry<ub.ChatScam>({
       app: 'chat',
       path: `/${type}/${params.channelId}/search/bounded/text/${
-        params.cursor ? formatUd(bigInt(params.cursor ?? 0)) : ''
+        params.cursor ? formatUd(BigInt(params.cursor ?? 0)) : ''
       }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
     });
   }
@@ -455,3 +494,33 @@ export const joinChannel = async (channelId: string, groupId: string) => {
     }
   );
 };
+
+export async function getChannelHooksPreview(channelId: string) {
+  return subscribeOnce<ub.ChannelHooksPreview>(
+    {
+      app: 'channels',
+      path: `/v1/hooks/preview/${channelId}`,
+    },
+    10_000
+  );
+}
+
+export async function addChannelWriters({
+  channelId,
+  writers,
+}: {
+  channelId: string;
+  writers: string[];
+}) {
+  return poke(channelAction(channelId, { 'add-writers': writers }));
+}
+
+export async function removeChannelWriters({
+  channelId,
+  writers,
+}: {
+  channelId: string;
+  writers: string[];
+}) {
+  return poke(channelAction(channelId, { 'del-writers': writers }));
+}

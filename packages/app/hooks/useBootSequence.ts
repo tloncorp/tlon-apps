@@ -1,4 +1,5 @@
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { preSig } from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -34,11 +35,7 @@ interface BootSequenceReport {
   seconds if we're stuck processing invites, but the node is otherwise ready. Exposes the current boot 
   phase to the caller.
 */
-export function useBootSequence({
-  hostingUser,
-}: {
-  hostingUser: { id: string } | null;
-}) {
+export function useBootSequence() {
   const telemetry = usePosthog();
   const { setShip } = useShip();
   const connectionStatus = store.useConnectionStatus();
@@ -61,7 +58,8 @@ export function useBootSequence({
   }, [bootPhase]);
 
   const runBootPhase = useCallback(async (): Promise<NodeBootPhase> => {
-    if (!hostingUser) {
+    const hostingUserId = await db.hostingUserId.getValue();
+    if (!hostingUserId) {
       logger.crumb('no hosting user found, skipping');
       return bootPhase;
     }
@@ -70,9 +68,10 @@ export function useBootSequence({
     // RESERVING: reserve a node for the hosting account, or get one if it already exists
     //
     if (bootPhase === NodeBootPhase.RESERVING) {
-      const reservedNodeId = await BootHelpers.reserveNode(hostingUser.id);
+      const reservedNodeId = await BootHelpers.reserveNode(hostingUserId);
       setReservedNodeId(reservedNodeId);
       logger.crumb(`reserved node`, reservedNodeId);
+      db.hostedAccountIsInitialized.setValue(true);
       return NodeBootPhase.BOOTING;
     }
 
@@ -87,7 +86,7 @@ export function useBootSequence({
     // BOOTING: confirm the node has finished booting on hosting
     //
     if (bootPhase === NodeBootPhase.BOOTING) {
-      const isReady = await BootHelpers.checkNodeBooted(reservedNodeId);
+      const isReady = await BootHelpers.checkNodeBooted();
       if (isReady) {
         logger.crumb('checked hosting, node is ready');
         return NodeBootPhase.AUTHENTICATING;
@@ -101,24 +100,28 @@ export function useBootSequence({
     // AUTHENTICATING: authenticate with the node itself
     //
     if (bootPhase === NodeBootPhase.AUTHENTICATING) {
-      const auth = await BootHelpers.authenticateNode(reservedNodeId);
-      const ship = getShipFromCookie(auth.authCookie);
+      try {
+        const shipInfo = await store.authenticateWithReadyNode();
+        if (!shipInfo) {
+          throw new Error('Could not authenticate with node');
+        }
+        setShip(shipInfo);
+        telemetry?.identify(preSig(shipInfo.ship!), { isHostedUser: true });
 
-      setShip({
-        ship,
-        shipUrl: auth.nodeUrl,
-        authCookie: auth.authCookie,
-        authType: 'hosted',
-      });
-      telemetry?.identify(preSig(auth.nodeId), { isHostedUser: true });
+        await wait(2000);
 
-      await wait(2000);
+        configureUrbitClient({
+          shipName: shipInfo.ship,
+          shipUrl: shipInfo.shipUrl,
+        });
+        store.syncStart();
 
-      configureUrbitClient({ shipName: auth.nodeId, shipUrl: auth.nodeUrl });
-      store.syncStart();
-
-      logger.crumb(`authenticated with node`);
-      return NodeBootPhase.CONNECTING;
+        logger.crumb(`authenticated with node`);
+        return NodeBootPhase.CONNECTING;
+      } catch (err) {
+        logger.crumb('failed to authenticate with node', err);
+        return NodeBootPhase.AUTHENTICATING;
+      }
     }
 
     //
@@ -147,15 +150,28 @@ export function useBootSequence({
         store.addContact(lureMeta?.inviterUserId);
       }
 
-      const { invitedDm, invitedGroup } =
+      const { invitedDm, invitedGroup, tlonTeamDM } =
         await BootHelpers.getInvitedGroupAndDm(lureMeta);
+      logger.trackEvent(AnalyticsEvent.InviteDebug, {
+        context: 'invites to look for',
+        invitedDm,
+        invitedGroup,
+        tlonTeamDM,
+      });
 
-      if (invitedDm && invitedGroup) {
-        logger.crumb('confirmed node has the invites');
+      const requiredInvites =
+        lureMeta?.inviteType === 'user' ? invitedDm : invitedGroup && invitedDm;
+
+      if (requiredInvites) {
+        logger.trackEvent(AnalyticsEvent.InviteDebug, {
+          context: 'confirmed node has the invites',
+        });
         return NodeBootPhase.ACCEPTING_INVITES;
       }
 
-      logger.crumb('checked node for invites, not yet found');
+      logger.trackEvent(AnalyticsEvent.InviteDebug, {
+        context: 'checked node for invites, not yet found',
+      });
       return NodeBootPhase.CHECKING_FOR_INVITE;
     }
 
@@ -168,12 +184,16 @@ export function useBootSequence({
 
       // if we have invites, accept them
       if (tlonTeamDM && tlonTeamDM.isDmInvite) {
-        logger.crumb(`accepting dm invitation`);
+        logger.trackEvent(AnalyticsEvent.InviteDebug, {
+          context: `have tlon team dm invite, accepting`,
+        });
         await store.respondToDMInvite({ channel: tlonTeamDM, accept: true });
       }
 
       if (invitedDm && invitedDm.isDmInvite) {
-        logger.crumb(`accepting dm invitation`);
+        logger.trackEvent(AnalyticsEvent.InviteDebug, {
+          context: `have dm invite from inviter, accepting`,
+        });
         await store.respondToDMInvite({ channel: invitedDm, accept: true });
       }
 
@@ -182,7 +202,9 @@ export function useBootSequence({
         !invitedGroup.currentUserIsMember &&
         invitedGroup.haveInvite
       ) {
-        logger.crumb('accepting group invitation');
+        logger.trackEvent(AnalyticsEvent.InviteDebug, {
+          context: `have group invite, joining`,
+        });
         await store.joinGroup(invitedGroup);
       }
 
@@ -218,7 +240,10 @@ export function useBootSequence({
         updatedGroup.channels &&
         updatedGroup.channels.length > 0;
 
-      if (dmIsGood && groupIsGood) {
+      const hadSuccess =
+        lureMeta?.inviteType === 'user' ? dmIsGood : groupIsGood && dmIsGood;
+
+      if (hadSuccess) {
         logger.crumb('successfully accepted invites');
         if (updatedTlonTeamDm) {
           store.pinChannel(updatedTlonTeamDm);
@@ -226,12 +251,12 @@ export function useBootSequence({
         return NodeBootPhase.READY;
       }
 
-      logger.crumb(
-        'still waiting on invites to be accepted',
-        `dm is ready: ${dmIsGood}`,
-        `group is ready: ${groupIsGood}`,
-        `tlonTeam is ready: ${tlonTeamIsGood}`
-      );
+      logger.trackEvent(AnalyticsEvent.InviteDebug, {
+        context: `not all invites are confirmed accepted`,
+        dmReady: dmIsGood,
+        groupReady: groupIsGood,
+        tlonTeamReady: tlonTeamIsGood,
+      });
       return NodeBootPhase.ACCEPTING_INVITES;
     }
 
@@ -240,10 +265,10 @@ export function useBootSequence({
     bootPhase,
     configureUrbitClient,
     connectionStatus,
-    hostingUser,
     lureMeta,
     reservedNodeId,
     setShip,
+    telemetry,
   ]);
 
   // we increment a counter to ensure the effect executes after every run, even if
@@ -307,6 +332,17 @@ export function useBootSequence({
     }
   }, [runBootPhase, setBootPhase, bootPhase, bootStepCounter, lureMeta?.id]);
 
+  const resetBootSequence = useCallback(() => {
+    setBootPhase(NodeBootPhase.IDLE);
+    setReport(null);
+    setReservedNodeId(null);
+    isRunningRef.current = false;
+    lastRunPhaseRef.current = NodeBootPhase.IDLE;
+    lastRunErrored.current = false;
+
+    sequenceStartTimeRef.current = 0;
+  }, []);
+
   // once finished, set the report
   useEffect(() => {
     if (bootPhase === NodeBootPhase.READY && report === null) {
@@ -320,6 +356,7 @@ export function useBootSequence({
   return {
     bootPhase,
     kickOffBootSequence,
+    resetBootSequence,
     bootReport: report,
   };
 }

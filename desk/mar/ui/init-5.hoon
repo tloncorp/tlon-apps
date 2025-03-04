@@ -9,8 +9,8 @@
     =,  enjs:format
     ^-  ^json
     %-  pairs
-    :~  groups/(groups-ui:enjs:gj groups.init)
-        gangs/(gangs:enjs:gj gangs.init)
+    :~  groups/(groups-ui:v5:enjs:gj groups.init)
+        gangs/(gangs:v5:enjs:gj gangs.init)
         activity/(activity:enjs:aj activity.init |)
         pins/a/(turn pins.init whom:enjs:gj)
         profile/b/profile.init
@@ -37,4 +37,3 @@
   ++  noun  init-5:u
   --
 --
-

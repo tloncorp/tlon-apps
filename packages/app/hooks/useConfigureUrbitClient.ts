@@ -1,11 +1,13 @@
-import { createDevLogger, sync } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, sync } from '@tloncorp/shared';
 import { ClientParams } from '@tloncorp/shared/api';
+import { getShipAccessCode } from '@tloncorp/shared/api';
+import * as api from '@tloncorp/shared/api';
+import * as db from '@tloncorp/shared/db';
 import { configureClient } from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { ENABLED_LOGGERS } from '../constants';
 import { useShip } from '../contexts/ship';
-import { getShipAccessCode } from '../lib/hostingApi';
 // We need to import resetDb this way because we have both a resetDb.ts and a
 // resetDb.native.ts file. We need to import the right one based on the
 // platform.
@@ -28,14 +30,14 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
     };
   }
 
-  const headers = new Headers(init.headers);
+  const headers: any = { ...init.headers };
   // The urbit client is inconsistent about sending cookies, sometimes causing
   // the server to send back a new, anonymous, cookie, which is sent on all
   // subsequent requests and screws everything up. This ensures that explicit
   // cookie headers are never set, delegating all cookie handling to the
   // native http client.
-  headers.delete('Cookie');
-  headers.delete('cookie');
+  delete headers['Cookie'];
+  delete headers['cookie'];
   const newInit: RequestInit = {
     ...init,
     headers,
@@ -43,55 +45,112 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
     credentials: undefined,
     signal: abortController.signal,
   };
-  return platformFetch(input, newInit);
+  const containsEventStream = headers['accept'] === 'text/event-stream';
+  return containsEventStream
+    ? platformFetch(input, newInit)
+    : fetch(input, newInit);
 };
+
+export function configureUrbitClient({
+  ship,
+  shipUrl,
+  authType,
+  onAuthFailure,
+}: {
+  ship: string;
+  shipUrl: string;
+  authType: 'self' | 'hosted';
+  onAuthFailure?: () => void;
+}) {
+  configureClient({
+    shipName: ship,
+    shipUrl: shipUrl,
+    verbose: ENABLED_LOGGERS.includes('urbit'),
+    fetchFn: apiFetch,
+    onQuitOrReset: sync.handleDiscontinuity,
+    onChannelStatusChange: sync.handleChannelStatusChange,
+    getCode: async () => {
+      clientLogger.log('Cliet getting access code');
+      // use stored access code to reauth if we have it
+      const accessCode = await db.nodeAccessCode.getValue();
+      if (accessCode) {
+        clientLogger.trackEvent('Recovered Auth Code from Storage');
+        return accessCode;
+      }
+
+      // if missing and they're hosted, try to fetch it
+      if (authType === 'self') {
+        const message = 'Self hosted user has no stored access code';
+        clientLogger.trackEvent(AnalyticsEvent.AuthFailedToGetCode, {
+          authType,
+          context: message,
+        });
+        throw new Error(message);
+      }
+
+      if (!ship) {
+        const message = 'Cannot get access code, no ship set';
+        clientLogger.trackEvent(AnalyticsEvent.AuthFailedToGetCode, {
+          authType,
+          context: message,
+        });
+        throw new Error(message);
+      }
+      const { code } = await getShipAccessCode(ship);
+      if (!code) {
+        const message = 'Failed to fetch access code';
+        clientLogger.trackEvent(AnalyticsEvent.AuthFailedToGetCode, {
+          authType,
+          context: message,
+        });
+        throw new Error(message);
+      } else {
+        clientLogger.trackEvent('Recovered Auth Code from Hosting');
+      }
+      return code;
+    },
+    handleAuthFailure: onAuthFailure,
+  });
+}
 
 export function useConfigureUrbitClient() {
   const shipInfo = useShip();
   const { ship, shipUrl, authType } = shipInfo;
+  const runResetDb = useCallback(() => {
+    clientLogger.log('Resetting db on logout');
+    resetDb();
+  }, []);
   const logout = useHandleLogout({
-    resetDb: () => {
-      clientLogger.log('Resetting db on logout');
-      resetDb();
-    },
+    resetDb: runResetDb,
   });
 
   return useCallback(
     (params?: Partial<ClientParams>) => {
-      configureClient({
-        shipName: params?.shipName ?? ship ?? '',
+      configureUrbitClient({
+        ship: params?.shipName ?? ship ?? '',
         shipUrl: params?.shipUrl ?? shipUrl ?? '',
-        verbose: ENABLED_LOGGERS.includes('urbit'),
-        fetchFn: apiFetch,
-        onQuitOrReset: sync.handleDiscontinuity,
-        onChannelStatusChange: sync.handleChannelStatusChange,
-        getCode:
-          authType === 'self'
-            ? undefined
-            : async () => {
-                clientLogger.log('Getting ship access code', {
-                  ship,
-                  authType,
-                });
-                clientLogger.trackError(
-                  'Hosted ship logged out of urbit, getting ship access code'
-                );
-                if (!ship) {
-                  throw new Error('Trying to retrieve +code, no ship set');
-                }
-
-                const { code } = await getShipAccessCode(ship);
-                return code;
-              },
-        handleAuthFailure: async () => {
-          clientLogger.error(
-            'Failed to authenticate with ship, redirecting to login'
-          );
-          clientLogger.trackError(
-            'Failed to authenticate with ship, redirecting to login'
-          );
-          await logout();
-          // TODO: route them to hosted sign in vs log in?
+        authType,
+        onAuthFailure: async () => {
+          clientLogger.log('Cliet handling auth failure');
+          if (authType === 'self') {
+            // there's nothing we can do to recover, must log out
+            clientLogger.trackEvent(AnalyticsEvent.AuthForcedLogout, {
+              authType,
+            });
+            await logout();
+          } else {
+            // we can recover if hosting auth is still valid, only logout if we
+            // know for sure it's expired. Notably, this will never trigger if you're
+            // offline.
+            const hostingAuthStatus = await api.getHostingHeartBeat();
+            if (hostingAuthStatus === 'expired') {
+              clientLogger.trackEvent(AnalyticsEvent.AuthForcedLogout, {
+                authType,
+                context: 'Hosting auth was expired',
+              });
+              await logout();
+            }
+          }
         },
       });
     },

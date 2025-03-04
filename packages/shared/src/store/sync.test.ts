@@ -296,11 +296,22 @@ test('syncs last posts', async () => {
   await syncLatestPosts();
   const chats = await db.getChats();
   const NUM_EMPTY_TEST_GROUPS = 6;
-  const chatsWithLatestPosts = chats.unpinned.filter((c) =>
-    c.type === 'channel' ? c.channel.lastPost : c.group.lastPost
+  // now that channels are included by default, we need to account for them
+  const NUM_EMPTY_TEST_CHANNELS = 8;
+  console.log(chats.unpinned.length);
+  console.log(
+    chats.unpinned.map((c) => [
+      c.type,
+      'channel' in c ? c.channel?.type : undefined,
+    ])
   );
+  const chatsWithLatestPosts = chats.unpinned.filter((c) => {
+    const should = c.type === 'channel' ? c.channel.lastPost : c.group.lastPost;
+    console.log(Boolean(should), c.id);
+    return should;
+  });
   expect(chatsWithLatestPosts.length).toEqual(
-    chats.unpinned.length - NUM_EMPTY_TEST_GROUPS
+    chats.unpinned.length - (NUM_EMPTY_TEST_GROUPS + NUM_EMPTY_TEST_CHANNELS)
   );
 });
 
@@ -324,9 +335,9 @@ test('syncs groups, decoding structured description payloads', async () => {
   const channel = groupWithScdp['~fabled-faster/new-york'].channels[channelId];
   const descriptionText = 'cheers';
   const channelContentConfiguration = {
-    draftInput: DraftInputId.chat,
-    defaultPostContentRenderer: PostContentRendererId.notebook,
-    defaultPostCollectionRenderer: CollectionRendererId.gallery,
+    draftInput: { id: DraftInputId.chat },
+    defaultPostContentRenderer: { id: PostContentRendererId.notebook },
+    defaultPostCollectionRenderer: { id: CollectionRendererId.gallery },
   };
   channel.meta.description = StructuredChannelDescriptionPayload.encode({
     description: descriptionText,

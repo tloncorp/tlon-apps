@@ -3,13 +3,20 @@ import { useChannelContext } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as urbit from '@tloncorp/shared/urbit';
-import { PostScreenView, useCurrentUserId } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
+import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
+import { useRootNavigation } from '../../navigation/utils';
+import {
+  AttachmentProvider,
+  ChatOptionsProvider,
+  PostScreenView,
+  useCurrentUserId,
+} from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Post'>;
 
@@ -134,34 +141,52 @@ export default function PostScreen(props: Props) {
     [props.navigation]
   );
 
+  const { navigateBackFromPost } = useRootNavigation();
+  const handleGoBack = useCallback(() => {
+    if (!channel) {
+      props.navigation.goBack();
+      return;
+    }
+    // This allows us to navigate to the channel and highlight the message in the scroller
+    // OR navigate back to Activity if we came from there
+    navigateBackFromPost(channel!, postId);
+  }, [channel, postId, props.navigation, navigateBackFromPost]);
+
+  const chatOptionsNavProps = useChatSettingsNavigation();
+
   return currentUserId && channel && post ? (
-    <PostScreenView
-      handleGoToUserProfile={handleGoToUserProfile}
-      canUpload={canUpload}
-      parentPost={post}
-      posts={posts}
-      isLoadingPosts={isLoadingPosts}
-      channel={channel}
-      initialThreadUnread={initialThreadUnread}
-      goBack={props.navigation.goBack}
-      sendReply={sendReply}
-      groupMembers={group?.members ?? []}
-      uploadAsset={store.uploadAsset}
-      handleGoToImage={navigateToImage}
-      getDraft={getDraft}
-      storeDraft={storeDraft}
-      clearDraft={clearDraft}
-      markRead={markRead}
-      editingPost={editingPost}
-      onPressDelete={handleDeletePost}
-      onPressRetry={handleRetrySend}
-      onPressRef={navigateToRef}
-      onGroupAction={performGroupAction}
-      goToDm={handleGoToDm}
-      setEditingPost={setEditingPost}
-      editPost={editPost}
-      negotiationMatch={negotiationStatus.matchedOrPending}
-      headerMode={headerMode}
-    />
+    <ChatOptionsProvider
+      initialChat={{ type: 'channel', id: channelId }}
+      {...chatOptionsNavProps}
+    >
+      <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
+        <PostScreenView
+          handleGoToUserProfile={handleGoToUserProfile}
+          parentPost={post}
+          posts={posts}
+          isLoadingPosts={isLoadingPosts}
+          channel={channel}
+          initialThreadUnread={initialThreadUnread}
+          goBack={handleGoBack}
+          sendReply={sendReply}
+          groupMembers={group?.members ?? []}
+          handleGoToImage={navigateToImage}
+          getDraft={getDraft}
+          storeDraft={storeDraft}
+          clearDraft={clearDraft}
+          markRead={markRead}
+          editingPost={editingPost}
+          onPressDelete={handleDeletePost}
+          onPressRetry={handleRetrySend}
+          onPressRef={navigateToRef}
+          onGroupAction={performGroupAction}
+          goToDm={handleGoToDm}
+          setEditingPost={setEditingPost}
+          editPost={editPost}
+          negotiationMatch={negotiationStatus.matchedOrPending}
+          headerMode={headerMode}
+        />
+      </AttachmentProvider>
+    </ChatOptionsProvider>
   ) : null;
 }

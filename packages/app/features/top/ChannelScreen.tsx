@@ -1,4 +1,4 @@
-import { useFocusEffect, useIsFocused } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createDevLogger, useChannelContext } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -11,28 +11,33 @@ import {
   usePostWithRelations,
 } from '@tloncorp/shared/store';
 import { Story } from '@tloncorp/shared/urbit';
-import {
-  Channel,
-  ChannelSwitcherSheet,
-  ChatOptionsProvider,
-  INITIAL_POSTS_PER_PAGE,
-  InviteUsersSheet,
-  useCurrentUserId,
-} from '@tloncorp/ui';
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
+import {
+  AttachmentProvider,
+  Channel,
+  ChannelSwitcherSheet,
+  ChatOptionsProvider,
+  INITIAL_POSTS_PER_PAGE,
+  InviteUsersSheet,
+  useCurrentUserId,
+} from '../../ui';
 
 const logger = createDevLogger('ChannelScreen', false);
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
 
 export default function ChannelScreen(props: Props) {
-  const { channelId, selectedPostId, startDraft } = props.route.params;
+  const { channelId, selectedPostId, startDraft } = props.route.params ?? {
+    channelId: '',
+    selectedPostId: '',
+    startDraft: false,
+  };
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
 
   useEffect(() => {
@@ -57,33 +62,56 @@ export default function ChannelScreen(props: Props) {
     isChannelSwitcherEnabled,
   });
 
+  const groupId = channel?.groupId ?? group?.id;
   const currentUserId = useCurrentUserId();
+
+  const channelIsPending = !channel || channel.isPendingChannel;
   useFocusEffect(
     useCallback(() => {
-      if (group?.isNew) {
-        store.markGroupVisited(group);
-      }
-    }, [group])
-  );
-  useFocusEffect(
-    useCallback(() => {
-      if (channel && !channel.isPendingChannel) {
-        store.syncChannelThreadUnreads(channel.id, {
-          priority: store.SyncPriority.High,
-        });
-      }
       // Mark the channel as visited when we unfocus/leave this screen
       () => {
-        if (channel) {
-          store.markChannelVisited(channel);
+        if (!channelIsPending) {
+          store.markChannelVisited(channelId);
         }
       };
-    }, [channel])
+    }, [channelId, channelIsPending])
   );
 
+  const groupIsNew = group?.isNew;
+  useFocusEffect(
+    useCallback(() => {
+      // Mark group visited on enter if new
+      if (groupId && groupIsNew) {
+        store.markGroupVisited(groupId);
+      }
+    }, [groupId, groupIsNew])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (groupId) {
+        // Update the last visited channel in the group so we can return to it
+        // when we come back to the group
+        db.updateGroup({
+          id: groupId,
+          lastVisitedChannelId: channelId,
+        });
+      }
+    }, [groupId, channelId])
+  );
+
+  useEffect(() => {
+    if (!channelIsPending) {
+      store.syncChannelThreadUnreads(channelId, {
+        priority: store.SyncPriority.High,
+      });
+    }
+  }, [channelIsPending, channelId]);
+
   const [channelNavOpen, setChannelNavOpen] = React.useState(false);
-  const [inviteSheetGroup, setInviteSheetGroup] =
-    React.useState<db.Group | null>();
+  const [inviteSheetGroup, setInviteSheetGroup] = React.useState<
+    string | null
+  >();
 
   // for the unread channel divider, we care about the unread state when you enter but don't want it to update over
   // time
@@ -296,6 +324,15 @@ export default function ChannelScreen(props: Props) {
     setChannelNavOpen(true);
   }, []);
 
+  const handleChatDetailsPressed = useCallback(() => {
+    if (group) {
+      props.navigation.navigate('ChatDetails', {
+        chatType: 'group',
+        chatId: group.id,
+      });
+    }
+  }, [group, props.navigation]);
+
   const handleChannelSelected = useCallback((channel: db.Channel) => {
     setCurrentChannelId(channel.id);
     setChannelNavOpen(false);
@@ -313,21 +350,14 @@ export default function ChannelScreen(props: Props) {
 
   const handleMarkRead = useCallback(async () => {
     if (channel && !channel.isPendingChannel) {
-      store.markChannelRead(channel);
+      store.markChannelRead({
+        id: channel.id,
+        groupId: channel.groupId ?? undefined,
+      });
     }
-  }, [channel]);
+  }, [channel?.type, channel?.id, channel?.groupId]);
 
   const canUpload = useCanUpload();
-
-  const isFocused = useIsFocused();
-
-  const { data: pins } = store.usePins({
-    enabled: isFocused,
-  });
-
-  const pinnedItems = useMemo(() => {
-    return pins ?? [];
-  }, [pins]);
 
   const chatOptionsNavProps = useChatSettingsNavigation();
 
@@ -344,62 +374,71 @@ export default function ChannelScreen(props: Props) {
     }
   }, []);
 
+  const channelRef = useRef<React.ElementRef<typeof Channel>>(null);
+
   if (!channel) {
     return null;
   }
 
   return (
     <ChatOptionsProvider
-      groupId={group?.id}
-      pinned={pinnedItems}
+      initialChat={{
+        type: 'channel',
+        id: currentChannelId,
+      }}
       useGroup={store.useGroup}
       onPressInvite={(group) => {
         setInviteSheetGroup(group);
       }}
+      onPressConfigureChannel={channelRef.current?.openChannelConfigurationBar}
       {...chatOptionsNavProps}
     >
-      <Channel
-        key={currentChannelId}
-        headerMode={headerMode}
-        channel={channel}
-        initialChannelUnread={clearedCursor ? undefined : initialChannelUnread}
-        isLoadingPosts={isLoadingPosts}
-        hasNewerPosts={postsQuery.hasPreviousPage}
-        hasOlderPosts={postsQuery.hasNextPage}
-        group={group}
-        posts={filteredPosts ?? null}
-        selectedPostId={selectedPostId}
-        goBack={props.navigation.goBack}
-        messageSender={sendPost}
-        goToPost={navigateToPost}
-        goToImageViewer={navigateToImage}
-        goToChannels={handleChannelNavButtonPressed}
-        goToSearch={navigateToSearch}
-        goToDm={handleGoToDm}
-        goToUserProfile={handleGoToUserProfile}
-        uploadAsset={store.uploadAsset}
-        onScrollEndReached={loadOlder}
-        onScrollStartReached={loadNewer}
-        onPressRef={navigateToRef}
-        markRead={handleMarkRead}
-        usePost={usePostWithRelations}
-        usePostReference={usePostReference}
-        useGroup={useGroupPreview}
-        onGroupAction={performGroupAction}
-        useChannel={useChannelPreview}
-        storeDraft={storeDraft}
-        clearDraft={clearDraft}
-        getDraft={getDraft}
-        editingPost={editingPost}
-        onPressDelete={handleDeletePost}
-        onPressRetry={handleRetrySend}
-        setEditingPost={setEditingPost}
-        editPost={editPost}
-        negotiationMatch={negotiationStatus.matchedOrPending}
-        canUpload={canUpload}
-        startDraft={startDraft}
-        onPressScrollToBottom={handleScrollToBottom}
-      />
+      <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
+        <Channel
+          key={currentChannelId}
+          ref={channelRef}
+          headerMode={headerMode}
+          channel={channel}
+          initialChannelUnread={
+            clearedCursor ? undefined : initialChannelUnread
+          }
+          isLoadingPosts={isLoadingPosts}
+          hasNewerPosts={postsQuery.hasPreviousPage}
+          hasOlderPosts={postsQuery.hasNextPage}
+          group={group}
+          posts={filteredPosts ?? null}
+          selectedPostId={selectedPostId}
+          goBack={props.navigation.goBack}
+          messageSender={sendPost}
+          goToPost={navigateToPost}
+          goToImageViewer={navigateToImage}
+          goToChannels={handleChannelNavButtonPressed}
+          goToChatDetails={handleChatDetailsPressed}
+          goToSearch={navigateToSearch}
+          goToDm={handleGoToDm}
+          goToUserProfile={handleGoToUserProfile}
+          onScrollEndReached={loadOlder}
+          onScrollStartReached={loadNewer}
+          onPressRef={navigateToRef}
+          markRead={handleMarkRead}
+          usePost={usePostWithRelations}
+          usePostReference={usePostReference}
+          useGroup={useGroupPreview}
+          onGroupAction={performGroupAction}
+          useChannel={useChannelPreview}
+          storeDraft={storeDraft}
+          clearDraft={clearDraft}
+          getDraft={getDraft}
+          editingPost={editingPost}
+          onPressDelete={handleDeletePost}
+          onPressRetry={handleRetrySend}
+          setEditingPost={setEditingPost}
+          editPost={editPost}
+          negotiationMatch={negotiationStatus.matchedOrPending}
+          startDraft={startDraft}
+          onPressScrollToBottom={handleScrollToBottom}
+        />
+      </AttachmentProvider>
       {group && (
         <>
           <ChannelSwitcherSheet
@@ -413,7 +452,7 @@ export default function ChannelScreen(props: Props) {
             open={inviteSheetGroup !== null}
             onOpenChange={handleInviteSheetOpenChange}
             onInviteComplete={() => setInviteSheetGroup(null)}
-            group={inviteSheetGroup ?? undefined}
+            groupId={inviteSheetGroup ?? undefined}
           />
         </>
       )}

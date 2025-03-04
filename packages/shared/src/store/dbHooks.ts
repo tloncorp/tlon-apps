@@ -6,6 +6,7 @@ import {
 import { useMemo } from 'react';
 
 import * as api from '../api';
+import { getMessagesFilter } from '../api';
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
 import * as ub from '../urbit';
@@ -83,39 +84,15 @@ export const useCalmSettings = (options: { userId: string }) => {
   });
 };
 
-export const useAppInfo = () => {
+export const useMessagesFilter = (options: { userId: string }) => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
   return useQuery({
-    queryKey: db.APP_INFO_QUERY_KEY,
-    queryFn: db.getAppInfoSettings,
+    queryKey: ['messagesFilter', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings(options.userId);
+      return getMessagesFilter(settings?.messagesFilter);
+    },
   });
-};
-
-export const useDidShowBenefitsSheet = () => {
-  return useQuery({
-    queryKey: db.SHOW_BENEFITS_SHEET_QUERY_KEY,
-    queryFn: db.getDidShowBenefitsSheet,
-  });
-};
-
-export const useActivitySeenMarker = () => {
-  return useQuery({
-    queryKey: db.ACTIVITY_SEEN_MARKER_QUERY_KEY,
-    queryFn: () => db.getActivitySeenMarker(),
-  });
-};
-
-export const usePushNotificationsSetting = () => {
-  return useQuery({
-    queryKey: db.PUSH_NOTIFICATIONS_SETTING_QUERY_KEY,
-    queryFn: db.getPushNotificationsSetting,
-  });
-};
-
-export const useIsTlonEmployee = () => {
-  return useQuery({
-    queryKey: db.IS_TLON_EMPLOYEE_QUERY_KEY,
-    queryFn: db.getIsTlonEmployee,
-  }).data;
 };
 
 export const useCanUpload = () => {
@@ -124,8 +101,8 @@ export const useCanUpload = () => {
       queryKey: db.STORAGE_SETTINGS_QUERY_KEY,
       queryFn: async () => {
         const [config, credentials] = await Promise.all([
-          db.getStorageConfiguration(),
-          db.getStorageCredentials(),
+          db.storageConfiguration.getValue(),
+          db.storageCredentials.getValue(),
         ]);
         return (
           !config ||
@@ -212,7 +189,7 @@ export const useBaseVolumeLevel = (): ub.NotificationLevel => {
 
 export const useHaveUnreadUnseenActivity = () => {
   const depsKey = useKeyFromQueryDeps(db.getUnreadUnseenActivityEvents);
-  const { data: seenMarker } = useActivitySeenMarker();
+  const seenMarker = db.activitySeenMarker.useValue();
   const { data: meaningfulUnseenActivity } = useQuery({
     queryKey: ['unseenUnreadActivity', depsKey, seenMarker],
     queryFn: () =>
@@ -312,19 +289,34 @@ export const useGroups = (options: db.GetGroupsOptions) => {
   });
 };
 
-export const useGroup = (options: { id?: string }) => {
+export const useGroup = ({ id }: { id?: string }) => {
   return useQuery({
-    enabled: !!options.id,
-    queryKey: [['group', options], useKeyFromQueryDeps(db.getGroup, options)],
+    enabled: !!id,
+    queryKey: [['group', { id }], useKeyFromQueryDeps(db.getGroup, { id })],
     queryFn: () => {
-      if (!options.id) {
-        // This should never actually get thrown as the query is disabled if id
-        // is missing
-        throw new Error('missing id');
+      if (!id) {
+        throw new Error('missing group id');
       }
-      const enabledOptions = options as { id: string };
-      return db.getGroup(enabledOptions);
+      return db.getGroup({ id });
     },
+  });
+};
+
+export const useGroupUnread = ({ groupId }: { groupId: string }) => {
+  return useQuery({
+    queryKey: [
+      ['groupUnread', { groupId: groupId }],
+      useKeyFromQueryDeps(db.getGroupUnread, { groupId: groupId }),
+    ],
+    queryFn: async () => db.getGroupUnread({ groupId: groupId }),
+  });
+};
+
+export const useJoinedGroupsCount = () => {
+  const deps = useKeyFromQueryDeps(db.getJoinedGroupsCount);
+  return useQuery({
+    queryKey: ['joinedGroupsCount', deps],
+    queryFn: () => db.getJoinedGroupsCount(),
   });
 };
 
@@ -444,23 +436,21 @@ export const useChannelSearchResults = (
   });
 };
 
-export const useChannelWithRelations = (
-  options: db.GetChannelWithRelations
-) => {
-  const tableDeps = useKeyFromQueryDeps(db.getChannelWithRelations);
+export const useChannel = (options: { id?: string }) => {
+  const { id } = options;
   return useQuery({
-    queryKey: ['channelWithRelations', tableDeps, options],
-    queryFn: async () => {
-      const channel = await db.getChannelWithRelations(options);
-      return channel ?? null;
+    enabled: !!id,
+    queryKey: [
+      'channelWithRelations',
+      useKeyFromQueryDeps(db.getChannelWithRelations),
+      options,
+    ],
+    queryFn: () => {
+      if (!id) {
+        throw new Error('missing channel id');
+      }
+      return db.getChannelWithRelations({ id });
     },
-  });
-};
-
-export const useChannel = (options: { id: string }) => {
-  return useQuery({
-    queryKey: [['channel', options]],
-    queryFn: () => db.getChannelWithRelations(options),
   });
 };
 
@@ -482,5 +472,13 @@ export const usePostWithRelations = (
     staleTime: Infinity,
     ...(initialData ? { initialData } : {}),
     queryFn: () => db.getPostWithRelations(options),
+  });
+};
+
+export const useVerifications = () => {
+  const deps = useKeyFromQueryDeps(db.getVerifications);
+  return useQuery({
+    queryKey: ['verifications', deps],
+    queryFn: () => db.getVerifications(),
   });
 };

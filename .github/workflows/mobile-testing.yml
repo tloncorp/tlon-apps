@@ -1,0 +1,135 @@
+name: Test Tlon Mobile E2E
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build apps
+    strategy:
+      matrix:
+        platform: [ios, android]
+      fail-fast: false
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up JDK 17
+        if: matrix.platform == 'android'
+        uses: actions/setup-java@v3
+        with:
+          java-version: "17"
+          distribution: "temurin"
+      - name: Setup Android SDK
+        if: matrix.platform == 'android'
+        uses: android-actions/setup-android@v3
+      - name: Set Android Home
+        if: matrix.platform == 'android'
+        run: export ANDROID_HOME=$RUNNER_WORKSPACE/.android/sdk
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Set up Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+      - name: "Setup jq"
+        uses: dcarbone/install-jq-action@v3
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build for ${{ matrix.platform }}
+        id: build
+        working-directory: ./apps/tlon-mobile
+        run: |
+          eas build --profile local-testing --platform ${{ matrix.platform }} --non-interactive
+          URL=$(eas build:list --json --limit=1 --platform=${{ matrix.platform }} --non-interactive | jq '.[0].artifacts.buildUrl')
+          echo "url=$URL"
+          echo "url=$URL" >> $GITHUB_OUTPUT
+        env:
+          EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
+          EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
+          NOTIFY_PROVIDER: binnec-dozzod-marnus
+          NOTIFY_SERVICE: tlon-preview-release
+      - name: Download iOS build
+        if: matrix.platform == 'ios'
+        run: |
+          echo "Downloading build from ${{ steps.build.outputs.url }}"
+          curl -L ${{ steps.build.outputs.url }} -o ios-build.tar.gz
+          mkdir -p ios-build
+          tar -xzf ios-build.tar.gz -C ios-build
+          rm ios-build.tar.gz
+          ls -la ios-build
+      - name: Download Android build
+        if: matrix.platform == 'android'
+        run: |
+          echo "Downloading build from ${{ steps.build.outputs.url }}"
+          curl -L ${{ steps.build.outputs.url }} -o android-build.apk
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}-build
+          path: |
+            ${{ matrix.platform == 'ios' && 'ios-build' || 'android-build.apk' }}
+          retention-days: 1
+
+  test-ios:
+    needs: build
+    runs-on: ubuntu-latest
+    name: Test iOS build
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Download iOS build
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-build
+          path: ./ios-build
+      - name: Debug directory contents
+        run: |
+          echo "Current directory:"
+          ls -la
+          echo "iOS build directory:"
+          ls -la ./ios-build
+      - name: Run iOS tests
+        uses: mobile-dev-inc/action-maestro-cloud@v1
+        with:
+          api-key: ${{ secrets.MAESTRO_CLOUD_API_KEY }}
+          project-id: ${{ secrets.ROBIN_PROJECT_ID }}
+          app-file: ./ios-build/Landscape.app
+          env: |
+            URL=${{ secrets.MAESTRO_URL }}
+            CODE=${{ secrets.MAESTRO_CODE }}
+            EMAIL=${{ secrets.MAESTRO_EMAIL }}
+            PASSWORD=${{ secrets.MAESTRO_PASSWORD }}
+
+  test-android:
+    needs: test-ios
+    runs-on: ubuntu-latest
+    name: Test Android build
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Download Android build
+        uses: actions/download-artifact@v4
+        with:
+          name: android-build
+          path: ./
+      - name: Debug directory contents
+        run: |
+          echo "Current directory:"
+          ls -la
+      - name: Run Android tests
+        uses: mobile-dev-inc/action-maestro-cloud@v1
+        with:
+          api-key: ${{ secrets.MAESTRO_CLOUD_API_KEY }}
+          project-id: ${{ secrets.ROBIN_PROJECT_ID }}
+          app-file: ./android-build.apk
+          env: |
+            URL=${{ secrets.MAESTRO_URL }}
+            CODE=${{ secrets.MAESTRO_CODE }}
+            EMAIL=${{ secrets.MAESTRO_EMAIL }}
+            PASSWORD=${{ secrets.MAESTRO_PASSWORD }}

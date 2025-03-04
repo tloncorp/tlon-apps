@@ -7,7 +7,7 @@ import { setupDb } from '@tloncorp/app/lib/nativeDb';
 import { addCustomEnabledLoggers } from '@tloncorp/shared';
 import { useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { setStorage } from '@tloncorp/ui';
+import { setStorage } from '@tloncorp/app/ui';
 import { registerRootComponent } from 'expo';
 import 'expo-dev-client';
 import { useEffect } from 'react';
@@ -26,7 +26,7 @@ setStorage(AsyncStorage);
 function Main(props) {
   useEffect(() => {
     async function init() {
-      const appInfo = await db.getAppInfoSettings();
+      const appInfo = await db.appInfo.getValue();
       useDebugStore.getState().initializeDebugInfo(PlatformState, appInfo);
     }
 

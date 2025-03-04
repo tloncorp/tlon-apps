@@ -79,6 +79,9 @@ export const contacts = sqliteTable('contacts', {
   isBlocked: boolean('blocked'),
   isContact: boolean('isContact'),
   isContactSuggestion: boolean('isContactSuggestion'),
+  hasVerifiedPhone: boolean('hasVerifiedPhone'),
+  verifiedPhoneSignature: text('verifiedPhoneSignature'),
+  verifiedPhoneAt: timestamp('verifiedPhoneAt'),
 });
 
 export const contactsRelations = relations(contacts, ({ many }) => ({
@@ -311,6 +314,8 @@ export const groups = sqliteTable('groups', {
   joinStatus: text('join_status').$type<GroupJoinStatus>(),
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
+  lastVisitedChannelId: text('last_visited_channel_id'),
+  syncedAt: timestamp('synced_at'),
 });
 
 export const groupsRelations = relations(groups, ({ one, many }) => ({
@@ -399,6 +404,26 @@ export const groupFlaggedPosts = sqliteTable(
       pk: primaryKey({
         columns: [table.groupId, table.postId],
       }),
+    };
+  }
+);
+
+export type VerificationType = 'phone' | 'node';
+export type VerificationVisibility = 'public' | 'discoverable' | 'hidden';
+export type VerificationStatus = 'waiting' | 'pending' | 'verified';
+export const verifications = sqliteTable(
+  'verifications',
+  {
+    provider: text('provider').notNull(),
+    type: text('type').$type<VerificationType>().notNull(),
+    value: text('value').notNull(),
+    initiatedAt: timestamp('initiated_at'),
+    visibility: text('visibility').$type<VerificationVisibility>().notNull(),
+    status: text('status').$type<VerificationStatus>().notNull(),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({ columns: [table.provider, table.type, table.value] }),
     };
   }
 );
@@ -727,6 +752,7 @@ export const channels = sqliteTable(
     contactId: text('contact_id'),
     addedToGroupAt: timestamp('added_to_group_at'),
     currentUserIsMember: boolean('current_user_is_member'),
+    currentUserIsHost: boolean('current_user_is_host'),
     postCount: integer('post_count'),
     unreadCount: integer('unread_count'),
     firstUnreadPostId: text('first_unread_post_id'),
@@ -750,11 +776,6 @@ export const channels = sqliteTable(
      * null if never viewed (or after a database reset)
      */
     lastViewedAt: timestamp('last_viewed_at'),
-
-    /**
-     * True if this channel was autocreated during new group creation (on this client)
-     */
-    isDefaultWelcomeChannel: boolean('is_default_welcome_channel'),
 
     contentConfiguration: text('content_configuration', {
       mode: 'json',
@@ -834,7 +855,10 @@ export const posts = sqliteTable(
     lastEditContent: text('last_edit_content', { mode: 'json' }),
     lastEditTitle: text('last_edit_title'),
     lastEditImage: text('last_edit_image'),
-    syncedAt: timestamp('synced_at').notNull(),
+    /**
+     * If `syncedAt` is null, it indicates that the post is unconfirmed by sync.
+     */
+    syncedAt: timestamp('synced_at'),
     // backendTime translates to an unfortunate alternative timestamp that is used
     // in some places by the backend agents as part of a composite key for identifying a post.
     // You should not be accessing this field except in very particular contexts.

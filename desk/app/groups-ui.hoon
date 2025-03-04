@@ -7,8 +7,9 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %2
+    $:  %3
         hidden-contact-suggestions=(set ship)
+        manual-contact-suggestions=(set ship)
         pins=(list whom:u)
         first-load=?
     ==
@@ -90,18 +91,27 @@
       =?  old  ?=(~ old)     *current-state
       =?  old  ?=(%0 -.old)  (state-0-to-1 old)
       =?  old  ?=(%1 -.old)  (state-1-to-2 old)
-      ?>  ?=(%2 -.old)
+      =?  old  ?=(%2 -.old)  (state-2-to-3 old)
+      ?>  ?=(%3 -.old)
       =.  state  old
       init
   ::
-  +$  versioned-state  $@(~ $%(state-2 state-1 state-0))
-  +$  state-2  current-state
+  +$  versioned-state  $@(~ $%(state-3 state-2 state-1 state-0))
+  +$  state-3  current-state
+  +$  state-2
+    $:  %2
+        hidden-contact-suggestions=(set ship)
+        pins=(list whom:u)
+        first-load=?
+    ==
   +$  state-1
     $:  %1
         pins=(list whom:u)
         first-load=?
     ==
   ::
+  ++  state-2-to-3
+    |=(state-2 [%3 hidden-contact-suggestions ~ pins first-load])
   ++  state-1-to-2
     |=(state-1 [%2 ~ pins first-load])
   +$  state-0  [%0 first-load=?]
@@ -122,7 +132,7 @@
     ``ships+!>(get-suggested-contacts)
   ::
       [%x %init ~]
-    =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v1/noun))
+    =+  .^([=groups-ui:v2:g =gangs:v2:g] (scry %gx %groups /init/v1/noun))
     =+  .^([=unreads:d channels=channels-0:d] (scry %gx %channels /v1/init/noun))
     =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
@@ -137,7 +147,7 @@
       ==
     ``ui-init+!>(`init-0:u`init)
       [%x %v1 %init ~]
-    =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v1/noun))
+    =+  .^([=groups-ui:v2:g =gangs:v2:g] (scry %gx %groups /init/v1/noun))
     =+  .^([=unreads:d =channels:v7:old:d] (scry %gx %channels /v2/init/noun))
     =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
@@ -158,7 +168,7 @@
     ``ui-heads+!>(`mixed-heads:u`[chan chat])
   ::
       [%x %v2 %init ~]
-    =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v1/noun))
+    =+  .^([=groups-ui:v2:g =gangs:v2:g] (scry %gx %groups /init/v1/noun))
     =+  .^([* =channels:v7:old:d] (scry %gx %channels /v2/init/noun))
     =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
     =+  .^(=activity:v2:old:a (scry %gx %activity /activity/noun))
@@ -175,7 +185,7 @@
     ``ui-init-2+!>(`init-2:u`init)
   ::
       [%x %v3 %init ~]
-    =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v1/noun))
+    =+  .^([=groups-ui:v2:g =gangs:v2:g] (scry %gx %groups /init/v1/noun))
     =+  .^([* =channels:v7:old:d] (scry %gx %channels /v2/init/noun))
     =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
     =+  .^(=activity:v3:old:a (scry %gx %activity /v1/activity/noun))
@@ -192,7 +202,7 @@
     ``ui-init-3+!>(`init-3:u`init)
   ::
       [%x %v4 %init ~]
-    =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v1/noun))
+    =+  .^([=groups-ui:v2:g =gangs:v2:g] (scry %gx %groups /init/v1/noun))
     =+  .^(=channel-0:u (scry %gx %channels /v3/init/noun))
     =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
     =+  .^(=activity:a (scry %gx %activity /v4/activity/noun))
@@ -208,7 +218,7 @@
       ==
     ``ui-init-4+!>(init)
       [%x %v5 %init ~]
-    =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v1/noun))
+    =+  .^([=groups-ui:v5:g =gangs:v5:g] (scry %gx %groups /v2/init/noun))
     =+  .^(=channel-8:u (scry %gx %channels /v4/init/noun))
     =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
     =+  .^(=activity:a (scry %gx %activity /v4/activity/noun))
@@ -242,6 +252,12 @@
     =+  !<(=ship vase)
     =.  hidden-contact-suggestions
       (~(put in hidden-contact-suggestions) ship)
+    cor
+  ::
+      %ui-add-contact-suggestions
+    =+  ship-list=!<((list @p) vase)
+    =.  manual-contact-suggestions
+      (~(gas in manual-contact-suggestions) ship-list)
     cor
   ::
       %ui-vita-toggle
@@ -285,7 +301,7 @@
   ==
 ++  get-suggested-contacts
   =+  .^(chat-running=? (scry %gu %chat /$))
-  =|  suggestions=(set ship)
+  =/  suggestions=(set ship)  manual-contact-suggestions
   =?  suggestions  chat-running
     =+  .^  [dms=(map ship dm:c) *]
       (scry %gx %chat /full/noun)

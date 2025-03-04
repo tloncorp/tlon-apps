@@ -51,6 +51,7 @@
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
+      log   ~(. logs [our.bowl /logs])
       cor   ~(. +> [bowl ~])
   ++  on-init
     ^-  (quip card _this)
@@ -86,7 +87,7 @@
     |=  [=term =tang]
     ^-  (quip card _this)
     :_  this
-    [(log-fail:logs /logs our.bowl (fail-event:logs term tang))]~
+    [(fail:log term tang ~)]~
   ::
   ++  on-agent
     |=  [=wire =sign:agent:gall]
@@ -421,9 +422,6 @@
     (~(unsubscribe s [subs bowl]) wire dock)
   (emil caz)
 ++  inflate-io
-  ::  initiate version negotiation with our own channels-server
-  ::
-  =.  cor  (emit (initiate:neg our.bowl server))
   ::  leave all subscriptions we don't recognize
   ::
   =.  cor
@@ -685,10 +683,16 @@
   ^+  cor
   =?  pole  !?=([?(%v0 %v1 %v2) *] pole)
     [%v0 pole]
-  ?+    pole  ~|(bad-watch-path+`path`pole !!)
-      [?(%v0 %v1 %v2) ~]                    ?>(from-self cor)
-      [?(%v0 %v1) %unreads ~]               ?>(from-self cor)
-      [?(%v0 %v1 %v2) =kind:c ship=@ name=@ ~]  ?>(from-self cor)
+  ?+  pole  ~|(bad-watch-path+`path`pole !!)
+    [?(%v0 %v1 %v2) ~]                    ?>(from-self cor)
+    [?(%v0 %v1) %unreads ~]               ?>(from-self cor)
+    [?(%v0 %v1 %v2) =kind:c ship=@ name=@ ~]  ?>(from-self cor)
+  ::
+      [%v1 %hooks %preview =kind:c host=@ name=@ ~]
+    =/  host=ship   (slav %p host.pole)
+    =/  =path  /v0/hooks/preview/[kind.pole]/[name.pole]
+    ((safe-watch pole [host %channels-server] path) |)
+  ::
       [?(%v0 %v1 %v2) %said =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
     =/  =nest:c     [kind.pole host name.pole]
@@ -797,8 +801,8 @@
       ((slog tank u.p.sign) cor)
     ::
         %fact
-      ?.  =(act:mar:g p.cage.sign)  cor
-      (take-groups !<(=action:g q.cage.sign))
+      ?.  ?=(%group-action-4 p.cage.sign)  cor
+      (take-groups !<(=action:v5:g q.cage.sign))
     ==
   ::
       [%migrate ~]
@@ -808,12 +812,24 @@
       %-  (slog 'channels: migration poke failure' >wire< u.p.sign)
       cor
     ==
+  ::
+      [%v1 %hooks %preview =kind:c host=@ name=@ ~]
+    ?+  -.sign  !!
+        %kick  cor
+        %fact
+      =.  cor  (give %fact ~[pole] cage.sign)
+      (emit %pass pole %agent [host.pole %channels] %leave ~)
+    ::
+        %watch-ack
+      ?~  p.sign  cor
+      ((slog leaf+"Preview failed" u.p.sign) cor)
+    ==
   ==
 ::
 ++  watch-groups  (safe-watch /groups [our.bowl %groups] /groups)
 ::
 ++  take-groups
-  |=  =action:g
+  |=  =action:v5:g
   =/  affected=(list nest:c)
     %+  murn  ~(tap by v-channels)
     |=  [=nest:c channel=v-channel:c]
@@ -2642,8 +2658,8 @@
     ?.  exists  ca-core
     =/  =path
       %+  scry-path  %groups
-      /groups/(scot %p p.flag)/[q.flag]/v1/group-ui
-    =+  .^(group=group-ui:g %gx path)
+      /groups/(scot %p p.flag)/[q.flag]/v2/group-ui-1
+    =+  .^(group=group-ui:v5:g %gx path)
     ?.  (~(has by channels.group) nest)  ca-core
     ::  toggle the volume based on permissions
     =/  =source:activity  [%channel nest flag]

@@ -23,7 +23,7 @@ const StackComponent = ({
 
   return (
     <Stack
-      pressStyle={{ backgroundColor: '$secondaryBackground' }}
+      pressStyle={{ opacity: 0.5 }}
       {...stackProps}
       // eslint-disable-next-line no-restricted-syntax
       onPress={onPress}
@@ -79,6 +79,7 @@ export default function Pressable({
         group
         onPress={onPressLink ?? onPress}
         onLongPress={longPressHandler}
+        cursor="pointer"
         // Pressable always blocks touches from bubbling to ancestors, even if
         // no handlers are attached.
         // To allow bubbling, disable the Pressable (mixin) when no handlers
@@ -96,6 +97,7 @@ export default function Pressable({
       onPress={onPress}
       onLongPress={longPressHandler}
       disabled={!hasInteractionHandler}
+      cursor="pointer"
     >
       {children}
     </StackComponent>

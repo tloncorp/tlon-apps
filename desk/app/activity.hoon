@@ -74,6 +74,7 @@
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
+      log   ~(. logs [our.bowl /logs])
       cor   ~(. +> [bowl ~])
   ::
   ++  on-init
@@ -112,7 +113,7 @@
     |=  [=term =tang]
     ^-  (quip card _this)
     :_  this
-    [(log-fail:logs /logs our.bowl (fail-event:logs term tang))]~
+    [(fail:log term tang ~)]~
   --
 |_  [=bowl:gall cards=(list card)]
 ++  abet  [(flop cards) state]
@@ -154,7 +155,7 @@
     (~(gut by volume-settings.state) [%base ~] *volume-map:a)
   =.  volume-settings.state
     %+  ~(put by volume-settings.state)  [%base ~]
-    (~(uni by base-volume) *volume-map:a)
+    (~(uni by *volume-map:a) base-volume)
   =.  allowed  %all
   (emit %pass /fix-init-unreads %agent [our.bowl dap.bowl] %poke noun+!>(%fix-init-unreads))
   +$  versioned-state
@@ -590,7 +591,7 @@
   ::  we only care about posts/replies events that are notified, and we
   ::  don't want to include events from sources whose latest event is
   ::  after the start so we always get "new" sources when paging
-  ?.  ?&  notified.event
+  ?.  ?&  ?|(notified.event ?=(%contact -<.event))
           (lth latest.src-info start)
           ?=  $?  %post  %reply  %dm-post  %dm-reply
                   %flag-post  %flag-reply  %group-ask
@@ -613,6 +614,13 @@
   ?^  mention
     :-  sources.acc
     [(sub limit.acc 1) (snoc happenings.acc u.mention) collapsed.acc]
+  =/  contact-bundle=(unit activity-bundle:a)
+    ?.  ?=(%all type)  ~
+    ?.  ?=(%contact -<.event)  ~
+    `[source time ~[[time event]]]
+  ?^  contact-bundle
+    :-  sources.acc
+    [(sub limit.acc 1) (snoc happenings.acc u.contact-bundle) collapsed.acc]
   =/  care
     ?|  ?=(%all type)
         &(?=(%replies type) ?=(?(%reply %dm-reply) -<.event))
@@ -1187,7 +1195,7 @@
   =/  soft  (~(got by old-volumes:a) %soft)
   ::  bail early if we've set something other than the old default
   ?.  =(soft base-volume)  cor
-  =+  .^(=groups-ui:g %gx (scry-path %groups /groups/light/v1/noun))
+  =+  .^(=groups-ui:v2:g %gx (scry-path %groups /groups/light/v1/noun))
   =/  groups  ~(tap by groups-ui)
   ::  iterate through all groups and set volume to old default
   |-
@@ -1197,7 +1205,7 @@
       (~(put by volume-settings) [%base ~] default-volumes:a)
     cor
   =*  next  $(groups t.groups)
-  =/  [=flag:g group=group-ui:g]  i.groups
+  =/  [=flag:g group=group-ui:v2:g]  i.groups
   ?:  (~(has by volume-settings) [%group flag])  next
   =.  volume-settings  (~(put by volume-settings) [%group flag] soft)
   next

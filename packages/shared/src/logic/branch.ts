@@ -2,8 +2,9 @@ import { isValidPatp } from '@urbit/aura';
 
 import { getPostInfoFromWer } from '../api/harkApi';
 import { createDevLogger } from '../debug';
+import { getConstants } from '../domain';
 
-const logger = createDevLogger('branch', true);
+const logger = createDevLogger('branch', false);
 
 const fetchBranchApi = async (path: string, init?: RequestInit) =>
   fetch(`https://api2.branch.io${path}`, init);
@@ -71,11 +72,16 @@ export interface DeepLinkMetadata {
   inviterUserId?: string;
   inviterNickname?: string;
   inviterAvatarImage?: string;
+  inviterColor?: string;
   invitedGroupId?: string;
   invitedGroupTitle?: string;
   invitedGroupDescription?: string;
   invitedGroupIconImageUrl?: string;
   invitedGroupiconImageColor?: string;
+  inviteType?: 'user' | 'group';
+  group?: string; // legacy identifier for invitedGroupId
+  inviter?: string; // legacy identifier for inviterUserId
+  image?: string; // legacy identifier for invitedGroupIconImageUrl
 }
 
 export interface AppInvite extends DeepLinkMetadata {
@@ -100,16 +106,39 @@ export function extractLureMetadata(branchParams: any) {
     return {};
   }
 
-  return {
-    inviterUserId: branchParams.inviterUserId,
+  const extracted = {
+    inviterUserId: branchParams.inviterUserId || branchParams.inviter,
     inviterNickname: branchParams.inviterNickname,
     inviterAvatarImage: branchParams.inviterAvatarImage,
-    invitedGroupId: branchParams.invitedGroupId,
-    invitedGroupTitle: branchParams.invitedGroupTitle,
+    inviterColor: branchParams.inviterColor,
+    invitedGroupId: branchParams.invitedGroupId ?? branchParams.group, // only fallback to key if invitedGroupId missing, not empty
+    invitedGroupTitle: branchParams.invitedGroupTitle || branchParams.title,
     invitedGroupDescription: branchParams.invitedGroupDescription,
-    invitedGroupIconImageUrl: branchParams.invitedGroupIconImageUrl,
+    invitedGroupIconImageUrl:
+      branchParams.invitedGroupIconImageUrl || branchParams.image,
     invitedGroupiconImageColor: branchParams.invitedGroupiconImageColor,
+    inviteType: branchParams.inviteType,
   };
+
+  if (
+    !extracted.inviterUserId &&
+    !extracted.invitedGroupId &&
+    branchParams.lure &&
+    branchParams.lure.includes('/')
+  ) {
+    // fall back to v1 style lures where the id is a flag
+    const [ship, _] = branchParams.lure.split('/');
+    if (isValidPatp(ship)) {
+      extracted.inviterUserId = ship;
+      extracted.invitedGroupId = branchParams.lure;
+    }
+  }
+
+  if (!extracted.inviterUserId && !extracted.invitedGroupId) {
+    throw new Error('Failed to extract valid lure metadata');
+  }
+
+  return extracted;
 }
 
 export function isLureMeta(input: unknown): input is DeepLinkMetadata {
@@ -133,17 +162,15 @@ export const createDeepLink = async ({
   fallbackUrl,
   type,
   path,
-  inviteServiceEndpoint,
-  inviteServiceIsDev,
   metadata,
 }: {
   fallbackUrl: string | undefined;
   type: DeepLinkType;
   path: string;
-  inviteServiceEndpoint: string;
-  inviteServiceIsDev: boolean;
   metadata?: DeepLinkMetadata;
 }) => {
+  const env = getConstants();
+
   if (!fallbackUrl || !path) {
     return undefined;
   }
@@ -174,10 +201,8 @@ export const createDeepLink = async ({
 
   try {
     const inviteLink = await getLinkFromInviteService({
-      alias,
+      inviteId: alias,
       data,
-      inviteServiceEndpoint,
-      inviteServiceIsDev,
     });
     return inviteLink;
   } catch (e) {
@@ -189,30 +214,27 @@ export const createDeepLink = async ({
 };
 
 async function getLinkFromInviteService({
-  alias,
+  inviteId,
   data,
-  inviteServiceEndpoint,
-  inviteServiceIsDev,
 }: {
-  alias: string;
+  inviteId: string;
   data: DeepLinkData;
-  inviteServiceEndpoint: string;
-  inviteServiceIsDev: boolean;
 }): Promise<string> {
-  const response = await fetch(inviteServiceEndpoint, {
+  const env = getConstants();
+  const response = await fetch(env.INVITE_SERVICE_ENDPOINT, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      inviteId: alias,
+      inviteId,
       data: data,
-      testEnv: inviteServiceIsDev,
+      testEnv: env.INVITE_SERVICE_IS_DEV,
     }),
   });
   if (!response.ok) {
     throw new Error(
-      `Failed to get invite link from service [${response.status}]: ${alias}`
+      `Failed to get invite link from service [${response.status}]: ${inviteId}`
     );
   }
 
@@ -222,4 +244,22 @@ async function getLinkFromInviteService({
   }
 
   return inviteLink;
+}
+
+export async function checkInviteServiceLinkExists(inviteId: string) {
+  const env = getConstants();
+  // hack to avoid shuffling env vars around
+  const serverlessInfraUrl = env.INVITE_SERVICE_ENDPOINT.substring(
+    0,
+    env.INVITE_SERVICE_ENDPOINT.lastIndexOf('/')
+  );
+  const response = await fetch(`${serverlessInfraUrl}/checkLink`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ inviteId }),
+  });
+
+  return response.status === 200;
 }

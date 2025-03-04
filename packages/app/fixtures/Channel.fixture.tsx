@@ -4,18 +4,25 @@ import {
   useGroupPreview,
   usePostWithRelations,
 } from '@tloncorp/shared';
-import type { Upload } from '@tloncorp/shared/api';
+import {
+  ChannelContentConfiguration,
+  CollectionRendererId,
+  Upload,
+} from '@tloncorp/shared/api';
 import type * as db from '@tloncorp/shared/db';
+import { range } from 'lodash';
+import type { ComponentProps, PropsWithChildren, SetStateAction } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Button, SafeAreaView, View } from 'react-native';
+
 import {
   AppDataContextProvider,
   Channel,
   ChannelSwitcherSheet,
-} from '@tloncorp/ui';
-import { range } from 'lodash';
-import type { ComponentProps, PropsWithChildren } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, SafeAreaView, View } from 'react-native';
-
+  ChatOptionsProvider,
+  Sheet,
+} from '../ui';
+import { UnconnectedChannelConfigurationBar as ChannelConfigurationBar } from '../ui/components/ManageChannels/CreateChannelSheet';
 import { FixtureWrapper } from './FixtureWrapper';
 import {
   createFakePost,
@@ -69,13 +76,19 @@ const fakeLoadingMostRecentFile: Upload = {
   size: [100, 100],
 };
 
+function noopProps<T extends object>() {
+  return new Proxy<T>({} as unknown as T, {
+    get: (_target, prop) => () => console.log(`${String(prop)} called`),
+  });
+}
+
 const ChannelFixtureWrapper = ({
   children,
 }: PropsWithChildren<{ theme?: 'light' | 'dark' }>) => {
   return (
     <AppDataContextProvider contacts={initialContacts}>
       <FixtureWrapper fillWidth fillHeight>
-        {children}
+        <ChatOptionsProvider {...noopProps()}>{children}</ChatOptionsProvider>
       </FixtureWrapper>
     </AppDataContextProvider>
   );
@@ -98,7 +111,6 @@ const baseProps: ComponentProps<typeof Channel> = {
   messageSender: async () => {},
   markRead: () => {},
   editPost: async () => {},
-  uploadAsset: async () => {},
   onPressRef: () => {},
   usePost: usePostWithRelations,
   usePostReference: usePostReference,
@@ -106,10 +118,9 @@ const baseProps: ComponentProps<typeof Channel> = {
   useGroup: useGroupPreview,
   onGroupAction: () => {},
   getDraft: async () => ({}),
-  storeDraft: () => {},
-  clearDraft: () => {},
-  canUpload: true,
-  onPressRetry: () => {},
+  storeDraft: async () => {},
+  clearDraft: async () => {},
+  onPressRetry: async () => {},
   onPressDelete: () => {},
 } as const;
 
@@ -120,6 +131,10 @@ export const ChannelFixture = (props: {
   passedProps?: (
     baseProps: ComponentProps<typeof Channel>
   ) => Partial<ComponentProps<typeof Channel>>;
+  children?: (opts: {
+    channel: db.Channel;
+    setChannel: (update: SetStateAction<db.Channel>) => void;
+  }) => React.ReactNode;
 }) => {
   const switcher = useChannelSwitcher(tlonLocalIntros);
 
@@ -138,6 +153,10 @@ export const ChannelFixture = (props: {
     <ChannelFixtureWrapper theme={props.theme}>
       <Channel {...channelProps} {...props.passedProps?.(channelProps)} />
       <SwitcherFixture switcher={switcher} />
+      {props.children?.({
+        channel: switcher.activeChannel,
+        setChannel: switcher.setActiveChannel,
+      })}
     </ChannelFixtureWrapper>
   );
 };
@@ -205,18 +224,6 @@ const ChannelFixtureWithImage = () => {
         {...baseProps}
         channel={switcher.activeChannel}
         goToChannels={switcher.open}
-        initialAttachments={[
-          {
-            type: 'reference',
-            path: '/1/chan/~nibset-napwyn/intros/msg/~solfer-magfed-3mct56',
-            reference: {
-              type: 'reference',
-              referenceType: 'channel',
-              channelId: posts[0].channelId,
-              postId: posts[0].id,
-            },
-          },
-        ]}
       />
       <SwitcherFixture switcher={switcher} />
     </ChannelFixtureWrapper>
@@ -460,6 +467,71 @@ function ChannelWithControlledPostLoading() {
   );
 }
 
+function ConfigurableChannelFixture({
+  initialContentConfiguration,
+}: {
+  initialContentConfiguration?: ChannelContentConfiguration;
+}) {
+  return (
+    <ChannelFixture>
+      {({ channel, setChannel }) => (
+        <DebugChannelConfigurator
+          {...{ channel, setChannel, initialContentConfiguration }}
+        />
+      )}
+    </ChannelFixture>
+  );
+}
+
+function DebugChannelConfigurator({
+  channel,
+  setChannel,
+  initialContentConfiguration,
+}: {
+  channel: db.Channel;
+  setChannel: (update: SetStateAction<db.Channel>) => void;
+  initialContentConfiguration?: ChannelContentConfiguration;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const hasAppliedInitialConfig = useRef(false);
+  useEffect(() => {
+    if (!hasAppliedInitialConfig.current) {
+      setChannel((prev) => ({
+        ...prev,
+        contentConfiguration:
+          initialContentConfiguration ?? prev.contentConfiguration,
+      }));
+    }
+    hasAppliedInitialConfig.current = true;
+  }, [channel, initialContentConfiguration, setChannel]);
+
+  return (
+    <>
+      <Sheet open={open} animation={'simple'} snapPointsMode="fit">
+        <ChannelConfigurationBar
+          channel={channel}
+          onPressDone={() => setOpen(false)}
+          updateChannelConfiguration={(update) => {
+            setChannel((prev) => ({
+              ...prev,
+              contentConfiguration: update(
+                prev.contentConfiguration ?? undefined
+              ),
+            }));
+          }}
+        />
+      </Sheet>
+      <View style={{ position: 'absolute', top: 50, right: 10 }}>
+        <Button
+          title="Toggle configurator"
+          onPress={() => setOpen((x) => !x)}
+        />
+      </View>
+    </>
+  );
+}
+
 function createTestChannelUnread({
   channel,
   post,
@@ -514,4 +586,17 @@ export default {
   notebook: <NotebookChannelFixture />,
   chatWithImage: <ChannelFixtureWithImage />,
   negotiationMismatch: <ChannelFixture negotiationMatch={false} />,
+  customChannel: (
+    <ConfigurableChannelFixture
+      initialContentConfiguration={{
+        ...ChannelContentConfiguration.defaultConfiguration(),
+        defaultPostCollectionRenderer: {
+          id: CollectionRendererId.boardroom,
+          configuration: {
+            showAuthors: true,
+          },
+        },
+      }}
+    />
+  ),
 };

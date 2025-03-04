@@ -1,4 +1,6 @@
 import crashlytics from '@react-native-firebase/crashlytics';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { ShipInfo, storage } from '@tloncorp/shared/db';
 import { preSig } from '@urbit/aura';
 import type { ReactNode } from 'react';
 import {
@@ -10,17 +12,12 @@ import {
 } from 'react';
 import { NativeModules } from 'react-native';
 
-import storage from '../lib/storage';
+import { cancelNodeResumeNudge } from '../lib/notifications';
 import { transformShipURL } from '../utils/string';
 
-const { UrbitModule } = NativeModules;
+const logger = createDevLogger('useShip', false);
 
-export type ShipInfo = {
-  authType: 'self' | 'hosted';
-  ship: string | undefined;
-  shipUrl: string | undefined;
-  authCookie: string | undefined;
-};
+const { UrbitModule } = NativeModules;
 
 type State = ShipInfo & {
   contactId: string | undefined;
@@ -61,7 +58,7 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
       // Clear all saved ship info if either required field is empty
       if (!ship || !shipUrl) {
         // Remove from React Native storage
-        clearShipInfo();
+        storage.shipInfo.resetValue();
 
         // Clear context state
         setShipInfo(emptyShip);
@@ -81,7 +78,7 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
       };
 
       // Save to React Native stoage
-      saveShipInfo(nextShipInfo);
+      storage.shipInfo.setValue(nextShipInfo);
 
       // Save context state
       setShipInfo(nextShipInfo);
@@ -108,13 +105,17 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
           const fetchedAuthCookie = response.headers.get('set-cookie');
           if (fetchedAuthCookie) {
             setShipInfo({ ...nextShipInfo, authCookie: fetchedAuthCookie });
-            saveShipInfo({ ...nextShipInfo, authCookie: fetchedAuthCookie });
+            storage.shipInfo.setValue({
+              ...nextShipInfo,
+              authCookie: fetchedAuthCookie,
+            });
             // Save to native storage
             UrbitModule.setUrbit(ship, normalizedShipUrl, fetchedAuthCookie);
           }
         })();
       }
 
+      logger.trackEvent(AnalyticsEvent.NodeAuthSaved);
       setIsLoading(false);
     },
     []
@@ -123,7 +124,7 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const loadConnection = async () => {
       try {
-        const storedShipInfo = await loadShipInfo();
+        const storedShipInfo = await storage.shipInfo.getValue();
         if (storedShipInfo) {
           setShip(storedShipInfo);
         } else {
@@ -142,7 +143,16 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
 
   const clearShip = useCallback(() => {
     setShipInfo(emptyShip);
+    storage.shipInfo.resetValue();
   }, []);
+
+  useEffect(() => {
+    if (shipInfo.ship) {
+      cancelNodeResumeNudge().catch((err) => {
+        logger.error('Failed cancelling node resume nudge', err);
+      });
+    }
+  }, [shipInfo]);
 
   return (
     <Context.Provider
@@ -158,18 +168,4 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
       {children}
     </Context.Provider>
   );
-};
-
-const shipInfoKey = 'store';
-
-export const saveShipInfo = (shipInfo: ShipInfo) => {
-  return storage.save({ key: shipInfoKey, data: shipInfo });
-};
-
-export const loadShipInfo = () => {
-  return storage.load<ShipInfo | undefined>({ key: shipInfoKey });
-};
-
-export const clearShipInfo = () => {
-  return storage.remove({ key: shipInfoKey });
 };

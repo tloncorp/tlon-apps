@@ -1,11 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import {
-  LoadingSpinner,
-  ScreenHeader,
-  View,
-  YStack,
-  isWeb,
-} from '@tloncorp/ui';
+import { checkIfAccountDeleted } from '@tloncorp/shared/api';
+import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { WebView } from 'react-native-webview';
@@ -13,10 +8,8 @@ import { WebView } from 'react-native-webview';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
 import { useWebView } from '../../hooks/useWebview';
-import { checkIfAccountDeleted } from '../../lib/hostingApi';
 import { RootStackParamList } from '../../navigation/types';
-import { getHostingToken, getHostingUserId } from '../../utils/hosting';
-import { getHostingAuthExpired } from '../../utils/hosting';
+import { LoadingSpinner, ScreenHeader, View, YStack, isWeb } from '../../ui';
 
 const MANAGE_ACCOUNT_URL = 'https://tlon.network/account';
 
@@ -53,9 +46,9 @@ export function ManageAccountScreen(props: Props) {
   useEffect(() => {
     async function initialize() {
       const [cookie, userId, isExpired] = await Promise.all([
-        getHostingToken(),
-        getHostingUserId(),
-        getHostingAuthExpired(),
+        db.hostingAuthToken.getValue(),
+        db.hostingUserId.getValue(),
+        db.hostingAuthExpired.getValue(),
       ]);
       if (cookie && userId) {
         // we need to strip HttpOnly from the cookie or it won't get sent along with the request

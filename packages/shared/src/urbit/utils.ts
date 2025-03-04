@@ -1,8 +1,8 @@
 import { formatUd, formatUv, isValidPatp, unixToDa } from '@urbit/aura';
-import bigInt from 'big-integer';
 import { useMemo } from 'react';
 
 import { ContentReference, PostContent } from '../api';
+import { ChannelType } from '../db';
 import { GroupJoinStatus, GroupPrivacy } from '../db/schema';
 import * as ub from './channel';
 import * as ubc from './content';
@@ -196,7 +196,9 @@ export function getChannelType(channelId: string) {
   }
 }
 
-export function getChannelKindFromType(type: 'chat' | 'gallery' | 'notebook') {
+export function getChannelKindFromType(
+  type: Omit<ChannelType, 'dm' | 'groupDm'>
+) {
   if (type === 'chat') {
     return 'chat';
   } else if (type === 'gallery') {
@@ -421,7 +423,7 @@ export function extractGroupPrivacy(
 }
 
 export function createSectionId() {
-  const idParts = formatUv(bigInt(Date.now())).split('.');
+  const idParts = formatUv(BigInt(Date.now())).split('.');
   const newSectionId = `z${idParts[idParts.length - 1]}`;
 
   return newSectionId;

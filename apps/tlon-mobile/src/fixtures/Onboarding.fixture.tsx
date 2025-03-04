@@ -1,9 +1,9 @@
 import { NavigationContainer } from '@react-navigation/native';
+import { Context as BranchContext } from '@tloncorp/app/contexts/branch';
 import { exampleContacts } from '@tloncorp/app/fixtures/contentHelpers';
 import { group } from '@tloncorp/app/fixtures/fakeData';
-import { Context as BranchContext } from '@tloncorp/app/contexts/branch';
 import { AppInvite, QueryClientProvider, queryClient } from '@tloncorp/shared';
-import { Theme } from '@tloncorp/ui';
+import { Theme } from '@tloncorp/app/ui';
 import { PropsWithChildren, useState } from 'react';
 import { useFixtureSelect } from 'react-cosmos/client';
 
@@ -12,6 +12,7 @@ import { OnboardingProvider } from '../lib/OnboardingContext';
 import { CheckOTPScreen } from '../screens/Onboarding/CheckOTPScreen';
 import { CheckVerifyScreen } from '../screens/Onboarding/CheckVerifyScreen';
 import { EULAScreen } from '../screens/Onboarding/EULAScreen';
+import { GettingNodeReadyScreen } from '../screens/Onboarding/GettingNodeReadyScreen';
 import { InventoryCheckScreen } from '../screens/Onboarding/InventoryCheckScreen';
 import { JoinWaitListScreen } from '../screens/Onboarding/JoinWaitListScreen';
 import { PasteInviteLinkScreen } from '../screens/Onboarding/PasteInviteLinkScreen';
@@ -81,11 +82,6 @@ function OnboardingFixture({
                 ]),
               getShipAccessCode: async () => Promise.resolve({ code: 'xyz' }),
               allocateReservedShip: async () => Promise.resolve({}),
-              getShipsWithStatus: async () =>
-                Promise.resolve({
-                  shipId: '~solfer-magfed',
-                  status: 'Ready',
-                }),
               reserveShip: async () =>
                 Promise.resolve({
                   id: '~solfer-magfed',
@@ -156,7 +152,6 @@ export default {
   Nickname: (
     <SingleScreenFixture
       routeName="SetNickname"
-      params={{ user: sampleUser }}
       Component={SetNicknameScreen}
     />
   ),
@@ -171,28 +166,24 @@ export default {
     <SingleScreenFixture
       routeName="RequestPhoneVerify"
       Component={RequestPhoneVerifyScreen}
-      params={{ user: sampleUser }}
     />
   ),
   CheckVerify: (
     <SingleScreenFixture
       routeName="CheckVerify"
       Component={CheckVerifyScreen}
-      params={{ user: sampleUser }}
     />
   ),
   ReserveShip: (
     <SingleScreenFixture
       routeName="ReserveShip"
       Component={ReserveShipScreen}
-      params={{ user: sampleUser }}
     />
   ),
   SetNickname: (
     <SingleScreenFixture
       routeName="SetNickname"
       Component={SetNicknameScreen}
-      params={{ user: sampleUser }}
     />
   ),
   SetTelemetry: (
@@ -238,5 +229,12 @@ export default {
   ),
   ShipLogin: (
     <SingleScreenFixture routeName={'ShipLogin'} Component={ShipLoginScreen} />
+  ),
+  GettingNodeReady: (
+    <SingleScreenFixture
+      routeName={'GettingNodeReadyScreen'}
+      Component={GettingNodeReadyScreen}
+      params={{ waitType: 'Paused', wasLoggedIn: true }}
+    />
   ),
 };

@@ -1,5 +1,6 @@
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
-import { Field, TextInput, XStack, useTheme } from '@tloncorp/ui';
+import { Field, TextInput, XStack, useTheme } from '@tloncorp/app/ui';
+import { isValidPhoneNumber } from 'libphonenumber-js';
 import {
   createRef,
   useCallback,
@@ -90,9 +91,11 @@ export function OTPInput({
             onChangeText={(text) => handleChangeText(i, text)}
             value={value.length > i ? value[i] : ''}
             keyboardType="numeric"
-            paddingHorizontal="$xl"
-            paddingVertical="$xl"
-            width="$4xl"
+            frameStyle={{
+              width: '$4xl',
+              paddingLeft: 0,
+              paddingRight: 0,
+            }}
             textContentType="oneTimeCode"
             autoComplete="one-time-code"
           />
@@ -129,6 +132,7 @@ export function PhoneNumberInput({
         control={form.control}
         rules={{
           required: 'Please enter a valid phone number.',
+          validate: (value) => isValidPhoneNumber(value),
         }}
         render={({ field: { onChange } }) => (
           <Field

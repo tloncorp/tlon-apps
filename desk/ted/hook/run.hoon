@@ -12,7 +12,7 @@
 ?.  ?=(%& -.compiled)
   %-  (slog 'compilation error:' p.compiled)
   (pure:m !>(~))
-;<  ctx=context:h  bind:m  (get-context context-option)
+;<  ctx=bowl:h  bind:m  (get-bowl context-option)
 =/  gate  [p.p.compiled .*(q:subject:utils q.p.compiled)]
 =+  !<(=outcome:h (slam gate !>([event ctx])))
 ?:  ?=(%.y -.outcome)
@@ -26,11 +26,11 @@
   ==
 +$  context-option
   $%  [%origin =origin:h state=(unit vase) config=(unit config:h)]
-      [%context =context:h]
+      [%context =bowl:h]
   ==
 ++  get-context
   |=  =context-option
-  =/  m  (strand ,context:h)
+  =/  m  (strand ,bowl:h)
   ^-  form:m
   ?:  ?=(%context -.context-option)  (pure:m context.context-option)
   =/  [=origin:h state=(unit vase) config=(unit config:h)]  +.context-option
@@ -39,17 +39,17 @@
   =/  channel=(unit [=nest:c v-channel:c])
     ?~  origin  ~
     `[origin (~(gut by v-channels) origin *v-channel:c)]
-  ;<  group=(unit group-ui:g)  bind:m
-    =/  n  (strand (unit group-ui:g))
+  ;<  group=(unit group-ui:v2:g)  bind:m
+    =/  n  (strand (unit group-ui:v2:g))
     ?~  channel  (pure:n ~)
     =*  flag  group.perm.perm.u.channel
     ;<  live=?  bind:n  (scry:s ? /gu/groups/$)
-    ?.  live  (pure:n `*group-ui:g)
+    ?.  live  (pure:n `*group-ui:v2:g)
     ;<  exists=?  bind:n
       (scry:s ? /gx/groups/exists/(scot %p p.flag)/[q.flag]/noun)
-    ?.  exists  (pure:n `*group-ui:g)
-    ;<  =group-ui:g  bind:n
-      (scry:s group-ui:g /gx/groups/groups/(scot %p p.flag)/[q.flag]/v1/noun)
+    ?.  exists  (pure:n `*group-ui:v2:g)
+    ;<  =group-ui:v2:g  bind:n
+      (scry:s group-ui:v2:g /gx/groups/groups/(scot %p p.flag)/[q.flag]/v1/noun)
     (pure:n (some group-ui))
   =/  cfg=config:h
     ?~  config  ~

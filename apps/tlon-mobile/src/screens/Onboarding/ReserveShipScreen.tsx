@@ -1,6 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLureMetadata } from '@tloncorp/app/contexts/branch';
-import { useSignupContext } from '.././../lib/signupContext';
 import { NodeBootPhase } from '@tloncorp/app/lib/bootHelpers';
 import {
   ArvosDiscussing,
@@ -11,9 +10,10 @@ import {
   ScreenHeader,
   View,
   YStack,
-} from '@tloncorp/ui';
+} from '@tloncorp/app/ui';
 import { useEffect, useMemo } from 'react';
 
+import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ReserveShip'>;
@@ -36,7 +36,7 @@ export const ReserveShipScreen = ({ navigation }: Props) => {
       signupContext.setOnboardingValues({ didCompleteOnboarding: true });
     }
     signupContext.kickOffBootSequence();
-  }, []);
+  }, [signupContext]);
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
@@ -105,7 +105,7 @@ function BootStepDisplay(props: {
           props.bootPhase <= step.endInclusive;
         const hasCompleted = props.bootPhase > step.endInclusive;
         return (
-          <ListItem backgroundColor="unset" key={index} paddingVertical={0}>
+          <ListItem backgroundColor="unset" key={index}>
             <ListItem.SystemIcon color="$primaryText" icon={step.icon} />
             <ListItem.MainContent>
               <ListItem.Title>{step.description}</ListItem.Title>

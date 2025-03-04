@@ -1,5 +1,13 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { themeSettings } from '@tloncorp/shared/db';
+import { useContext, useEffect, useState } from 'react';
+import { ScrollView, YStack } from 'tamagui';
+import type { ThemeName } from 'tamagui';
+import { useTheme } from 'tamagui';
+
+import { useIsDarkMode } from '../../hooks/useIsDarkMode';
+import { RootStackParamList } from '../../navigation/types';
+import { ThemeContext, clearTheme, setTheme } from '../../provider';
 import {
   ListItem,
   ListItemInputOption,
@@ -8,18 +16,12 @@ import {
   RadioControl,
   ScreenHeader,
   View,
-} from '@tloncorp/ui';
-import { useContext, useEffect, useState } from 'react';
-import { ScrollView, YStack } from 'tamagui';
-import type { ThemeName } from 'tamagui';
-
-import { useIsDarkMode } from '../../hooks/useIsDarkMode';
-import { RootStackParamList } from '../../navigation/types';
-import { ThemeContext, clearTheme, setTheme } from '../../provider';
+} from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Theme'>;
 
 export function ThemeScreen(props: Props) {
+  const theme = useTheme();
   const { setActiveTheme } = useContext(ThemeContext);
   const isDarkMode = useIsDarkMode();
   const [selectedTheme, setSelectedTheme] = useState<ThemeName | 'auto'>(
@@ -71,12 +73,12 @@ export function ThemeScreen(props: Props) {
   }, []);
 
   return (
-    <View backgroundColor="$background" flex={1}>
+    <View backgroundColor={theme?.background?.val} flex={1}>
       <ScreenHeader
         title="Theme"
         backAction={() => props.navigation.goBack()}
       />
-      <ScrollView>
+      <ScrollView flex={1} width="100%" maxWidth={600} marginHorizontal="auto">
         <YStack flex={1} padding="$l">
           {themes.map((theme) => (
             <Pressable

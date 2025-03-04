@@ -1,22 +1,20 @@
-import {
-  NavigationProp,
-  useIsFocused,
-  useNavigation,
-} from '@react-navigation/native';
+import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
+import { useCallback, useState } from 'react';
+
+import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import { useGroupContext } from '../../hooks/useGroupContext';
+import type { RootStackParamList } from '../../navigation/types';
+import { useRootNavigation } from '../../navigation/utils';
 import {
   ChatOptionsProvider,
   GroupChannelsScreenView,
   InviteUsersSheet,
-} from '@tloncorp/ui';
-import { useCallback, useMemo, useState } from 'react';
-
-import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
-import { useGroupContext } from '../../hooks/useGroupContext';
-import { useFeatureFlag } from '../../lib/featureFlags';
-import type { RootStackParamList } from '../../navigation/types';
+  NavigationProvider,
+  useIsWindowNarrow,
+} from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GroupChannels'>;
 
@@ -26,42 +24,38 @@ export function GroupChannelsScreen({ route }: Props) {
 
 export function GroupChannelsScreenContent({
   groupId: id,
+  focusedChannelId,
 }: {
   groupId: string;
+  focusedChannelId?: string;
 }) {
-  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-
   const isFocused = useIsFocused();
-  const { data: pins } = store.usePins({
-    enabled: isFocused,
-  });
-  const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>(
-    null
-  );
+  const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
   const { group } = useGroupContext({ groupId: id, isFocused });
   const { data: unjoinedChannels } = store.useUnjoinedGroupChannels(
     group?.id ?? ''
   );
-
-  const pinnedItems = useMemo(() => {
-    return pins ?? [];
-  }, [pins]);
+  const { navigateToChannel, navigation } = useRootNavigation();
+  const isWindowNarrow = useIsWindowNarrow();
 
   const handleChannelSelected = useCallback(
     (channel: db.Channel) => {
-      navigation.navigate('Channel', {
-        channelId: channel.id,
-        groupId: channel.groupId ?? undefined,
-      });
+      navigateToChannel(channel);
     },
-    [navigation]
+    [navigateToChannel]
   );
 
   const handleGoBackPressed = useCallback(() => {
-    navigation.navigate('ChatList');
-  }, [navigation]);
-
-  const [enableCustomChannels] = useFeatureFlag('customChannelCreation');
+    if (isWindowNarrow) {
+      navigation.navigate('ChatList');
+    } else {
+      // Reset is necessary on desktop to ensure that the ChannelStack is cleared
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Home' }],
+      });
+    }
+  }, [navigation, isWindowNarrow]);
 
   const handleJoinChannel = useCallback(
     async (channel: db.Channel) => {
@@ -79,22 +73,20 @@ export function GroupChannelsScreenContent({
 
   return (
     <ChatOptionsProvider
-      groupId={id}
-      pinned={pinnedItems}
-      useGroup={store.useGroup}
-      onPressInvite={(group) => {
-        setInviteSheetGroup(group);
+      onPressInvite={(groupId) => {
+        setInviteSheetGroup(groupId);
       }}
       {...useChatSettingsNavigation()}
     >
-      <GroupChannelsScreenView
-        onChannelPressed={handleChannelSelected}
-        onBackPressed={handleGoBackPressed}
-        onJoinChannel={handleJoinChannel}
-        group={group}
-        unjoinedChannels={unjoinedChannels}
-        enableCustomChannels={enableCustomChannels}
-      />
+      <NavigationProvider focusedChannelId={focusedChannelId}>
+        <GroupChannelsScreenView
+          onChannelPressed={handleChannelSelected}
+          onBackPressed={handleGoBackPressed}
+          onJoinChannel={handleJoinChannel}
+          group={group}
+          unjoinedChannels={unjoinedChannels}
+        />
+      </NavigationProvider>
       <InviteUsersSheet
         open={inviteSheetGroup !== null}
         onOpenChange={(open) => {
@@ -102,7 +94,7 @@ export function GroupChannelsScreenContent({
             setInviteSheetGroup(null);
           }
         }}
-        group={inviteSheetGroup ?? undefined}
+        groupId={inviteSheetGroup ?? undefined}
         onInviteComplete={() => setInviteSheetGroup(null)}
       />
     </ChatOptionsProvider>

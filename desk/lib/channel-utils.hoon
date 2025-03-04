@@ -1426,8 +1426,8 @@
   |=  [=args:h =hook:h]
   ^-  (unit return:h)
   %-  (slog (crip "running hook: {<name.hook>} {<id.hook>}") ~)
-  %-  ?~  channel.context.args  same
-      (slog (crip "on channel: {<nest.u.channel.context.args>}") ~)
+  %-  ?~  channel.bowl.args  same
+      (slog (crip "on channel: {<nest.u.channel.bowl.args>}") ~)
   ?~  compiled.hook  ~
   =/  gate  [p.u.compiled.hook .*(q:subject q.u.compiled.hook)]
   =+  !<(=outcome:h (slam gate !>(args)))

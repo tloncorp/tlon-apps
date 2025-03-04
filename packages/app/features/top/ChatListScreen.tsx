@@ -4,36 +4,43 @@ import {
   useNavigation,
 } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import {
-  AddGroupSheet,
-  ChatList,
-  ChatOptionsProvider,
-  ChatOptionsSheet,
-  ChatOptionsSheetMethods,
-  GroupPreviewAction,
-  GroupPreviewSheet,
-  InviteUsersSheet,
-  NavBarView,
-  RequestsProvider,
-  ScreenHeader,
-  View,
-  WelcomeSheet,
-} from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Keyboard } from 'react-native';
+import { ColorTokens, Text, YStack, useTheme } from 'tamagui';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { useFilteredChats } from '../../hooks/useFilteredChats';
+import { TabName } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
-import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
-import { screenNameFromChannelId } from '../../navigation/utils';
+import { useRootNavigation } from '../../navigation/utils';
+import {
+  ChatOptionsProvider,
+  GroupPreviewAction,
+  GroupPreviewSheet,
+  InviteUsersSheet,
+  NavBarView,
+  NavigationProvider,
+  PersonalInviteSheet,
+  Pressable,
+  RequestsProvider,
+  ScreenHeader,
+  View,
+  WelcomeSheet,
+  useGlobalSearch,
+  useIsWindowNarrow,
+} from '../../ui';
 import { identifyTlonEmployee } from '../../utils/posthog';
-import { isSplashDismissed, setSplashDismissed } from '../../utils/splash';
+import { ChatList } from '../chat-list/ChatList';
+import { ChatListSearch } from '../chat-list/ChatListSearch';
+import { ChatListTabs } from '../chat-list/ChatListTabs';
+import { CreateChatSheet, CreateChatSheetMethods } from './CreateChatSheet';
 
 const logger = createDevLogger('ChatListScreen', false);
 
@@ -46,30 +53,32 @@ export default function ChatListScreen(props: Props) {
 
 export function ChatListScreenView({
   previewGroupId,
+  focusedChannelId,
 }: {
   previewGroupId?: string;
+  focusedChannelId?: string;
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-  const [addGroupOpen, setAddGroupOpen] = useState(false);
+  const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
   const [screenTitle, setScreenTitle] = useState('Home');
-  const [inviteSheetGroup, setInviteSheetGroup] = useState<db.Group | null>();
-  const chatOptionsSheetRef = useRef<ChatOptionsSheetMethods>(null);
-  const [longPressedChat, setLongPressedChat] = useState<db.Chat | null>(null);
-  const chatOptionsGroupId = useMemo(() => {
-    return longPressedChat?.type === 'group'
-      ? longPressedChat.group.id
-      : undefined;
-  }, [longPressedChat]);
-
-  const chatOptionsChannelId = useMemo(() => {
-    return longPressedChat?.type === 'channel'
-      ? longPressedChat.channel.id
-      : undefined;
-  }, [longPressedChat]);
-
-  const [activeTab, setActiveTab] = useState<'all' | 'groups' | 'messages'>(
-    'all'
+  const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>();
+  const personalInvite = db.personalInviteLink.useValue();
+  const viewedPersonalInvite = db.hasViewedPersonalInvite.useValue();
+  const { isOpen, setIsOpen } = useGlobalSearch();
+  const theme = useTheme();
+  const inviteButtonColor = useMemo(
+    () =>
+      (viewedPersonalInvite
+        ? theme?.primaryText?.val
+        : theme?.positiveActionText?.val) as ColorTokens,
+    [
+      theme?.positiveActionText?.val,
+      theme?.primaryText?.val,
+      viewedPersonalInvite,
+    ]
   );
+
+  const [activeTab, setActiveTab] = useState<TabName>('home');
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
     previewGroupId ?? null
   );
@@ -77,10 +86,6 @@ export function ChatListScreenView({
 
   const [showSearchInput, setShowSearchInput] = useState(false);
   const isFocused = useIsFocused();
-  const { data: pins } = store.usePins({
-    enabled: isFocused,
-  });
-  const pinned = useMemo(() => pins ?? [], [pins]);
 
   const { data: chats } = store.useCurrentChats({
     enabled: isFocused,
@@ -145,69 +150,26 @@ export function ChatListScreenView({
     };
   }, [chats]);
 
-  const handleNavigateToFindGroups = useCallback(() => {
-    setAddGroupOpen(false);
-    navigation.navigate('FindGroups');
-  }, [navigation]);
+  const { navigateToGroup, navigateToChannel } = useRootNavigation();
 
-  const handleNavigateToCreateGroup = useCallback(() => {
-    setAddGroupOpen(false);
-    navigation.navigate('CreateGroup');
-  }, [navigation]);
-
-  const goToDm = useCallback(
-    async (userId: string) => {
-      const dmChannel = await store.upsertDmChannel({
-        participants: [userId],
-      });
-      setAddGroupOpen(false);
-      navigation.navigate('DM', { channelId: dmChannel.id });
-    },
-    [navigation, setAddGroupOpen]
-  );
-
-  const handleAddGroupOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      setAddGroupOpen(false);
-    }
-  }, []);
-
-  const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
-
+  const createChatSheetRef = useRef<CreateChatSheetMethods | null>(null);
   const onPressChat = useCallback(
-    (item: db.Chat) => {
-      if (item.type === 'group' && item.isPending) {
-        setSelectedGroupId(item.id);
-      } else if (item.type === 'group' && !isChannelSwitcherEnabled) {
-        navigation.navigate('GroupChannels', { groupId: item.group.id });
-      } else if (item.type === 'group') {
-        if (!item.group.channels?.length) {
-          throw new Error('cant open group with no channels');
+    async (item: db.Chat) => {
+      if (item.type === 'group') {
+        if (item.isPending) {
+          setSelectedGroupId(item.id);
+        } else {
+          navigateToGroup(item.group.id);
         }
-        navigation.navigate('Channel', {
-          channelId: item.group.channels[0].id,
-          groupId: item.group.id,
-        });
       } else {
-        const screenName = screenNameFromChannelId(item.id);
-        navigation.navigate(screenName, {
-          channelId: item.id,
-        });
+        navigateToChannel(item.channel);
       }
     },
-    [isChannelSwitcherEnabled, navigation]
+    [navigateToGroup, navigateToChannel]
   );
 
-  const onLongPressChat = useCallback((item: db.Chat) => {
-    if (item.isPending) {
-      return;
-    }
-    setLongPressedChat(item);
-    chatOptionsSheetRef.current?.open(
-      item.id,
-      item.type === 'channel' ? item.channel.type : 'group',
-      item.unreadCount
-    );
+  const handlePressAddChat = useCallback(() => {
+    createChatSheetRef.current?.open();
   }, []);
 
   const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
@@ -237,7 +199,7 @@ export function ChatListScreenView({
 
   const handleSectionChange = useCallback(
     (title: string) => {
-      if (activeTab === 'all') {
+      if (activeTab === 'home') {
         setScreenTitle(title);
       }
     },
@@ -245,7 +207,7 @@ export function ChatListScreenView({
   );
 
   useEffect(() => {
-    if (activeTab === 'all') {
+    if (activeTab === 'home') {
       setScreenTitle('Home');
     } else if (activeTab === 'groups') {
       setScreenTitle('Groups');
@@ -258,7 +220,7 @@ export function ChatListScreenView({
 
   useEffect(() => {
     const checkSplashDismissed = async () => {
-      const dismissed = await isSplashDismissed();
+      const dismissed = await db.storage.splashDismissed.getValue();
       setSplashVisible(!dismissed);
     };
 
@@ -268,18 +230,25 @@ export function ChatListScreenView({
   const handleWelcomeOpenChange = useCallback((open: boolean) => {
     if (!open) {
       setSplashVisible(false);
-      setSplashDismissed();
+      db.storage.splashDismissed.setValue(true);
     }
   }, []);
 
   const [searchQuery, setSearchQuery] = useState('');
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   const handleSearchInputToggled = useCallback(() => {
-    if (showSearchInput) {
-      setSearchQuery('');
+    if (isWindowNarrow) {
+      if (showSearchInput) {
+        setSearchQuery('');
+        Keyboard.dismiss();
+      }
+      setShowSearchInput(!showSearchInput);
+    } else {
+      setIsOpen(!isOpen);
     }
-    setShowSearchInput(!showSearchInput);
-  }, [showSearchInput]);
+  }, [showSearchInput, isWindowNarrow, isOpen, setIsOpen]);
 
   const handleGroupAction = useCallback(
     (action: GroupPreviewAction, group: db.Group) => {
@@ -289,74 +258,118 @@ export function ChatListScreenView({
     [performGroupAction]
   );
 
+  const handlePersonalInvitePress = useCallback(() => {
+    logger.trackEvent(AnalyticsEvent.PersonalInvitePressed);
+    db.hasViewedPersonalInvite.setValue(true);
+    setPersonalInviteOpen(true);
+  }, []);
+
+  const handlePressTryAll = useCallback(() => {
+    setActiveTab('home');
+  }, [setActiveTab]);
+
+  const handlePressClear = useCallback(() => {
+    setSearchQuery('');
+  }, [setSearchQuery]);
+
+  const handlePressClose = useCallback(() => {
+    handleSearchInputToggled();
+  }, [handleSearchInputToggled]);
+
+  const displayData = useFilteredChats({
+    ...resolvedChats,
+    searchQuery,
+    activeTab,
+  });
+
   return (
     <RequestsProvider
       usePostReference={store.usePostReference}
       useChannel={store.useChannelPreview}
       usePost={store.usePostWithRelations}
-      useApp={store.useAppInfo}
+      useApp={db.appInfo.useValue}
       useGroup={store.useGroupPreview}
     >
       <ChatOptionsProvider
-        channelId={chatOptionsChannelId}
-        groupId={chatOptionsGroupId}
-        pinned={pinned}
         {...useChatSettingsNavigation()}
         onPressInvite={(group) => {
           setInviteSheetGroup(group);
         }}
       >
-        <View flex={1}>
-          <ScreenHeader
-            title={notReadyMessage ?? screenTitle}
-            rightControls={
-              <>
-                <ScreenHeader.IconButton
-                  type="Search"
-                  onPress={handleSearchInputToggled}
-                />
-                <ScreenHeader.IconButton
-                  type="Add"
-                  onPress={() => setAddGroupOpen(true)}
-                />
-              </>
-            }
-          />
-          {chats && chats.unpinned.length ? (
-            <ChatList
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              pinned={resolvedChats.pinned}
-              unpinned={resolvedChats.unpinned}
-              pending={resolvedChats.pending}
-              onLongPressItem={onLongPressChat}
-              onPressItem={onPressChat}
-              onSectionChange={handleSectionChange}
-              showSearchInput={showSearchInput}
-              onSearchToggle={handleSearchInputToggled}
-              searchQuery={searchQuery}
-              onSearchQueryChange={setSearchQuery}
+        <NavigationProvider focusedChannelId={focusedChannelId}>
+          <View userSelect="none" flex={1}>
+            <ScreenHeader
+              title={notReadyMessage ?? screenTitle}
+              leftControls={
+                personalInvite ? (
+                  <ScreenHeader.IconButton
+                    type="Send"
+                    color={inviteButtonColor}
+                    onPress={handlePersonalInvitePress}
+                  />
+                ) : undefined
+              }
+              rightControls={
+                <>
+                  <ScreenHeader.IconButton
+                    type="Search"
+                    onPress={handleSearchInputToggled}
+                  />
+                  {isWindowNarrow ? (
+                    <ScreenHeader.IconButton
+                      type="Add"
+                      onPress={handlePressAddChat}
+                      testID="CreateGroupButton"
+                    />
+                  ) : (
+                    <CreateChatSheet
+                      ref={createChatSheetRef}
+                      trigger={<ScreenHeader.IconButton type="Add" />}
+                    />
+                  )}
+                </>
+              }
             />
-          ) : null}
+            {chats && chats.unpinned.length ? (
+              <>
+                <ChatListTabs onPressTab={setActiveTab} activeTab={activeTab} />
+                <ChatListSearch
+                  query={searchQuery}
+                  onQueryChange={setSearchQuery}
+                  isOpen={showSearchInput}
+                  onPressClear={handlePressClear}
+                  onPressClose={handlePressClose}
+                />
+                {searchQuery !== '' && !displayData[0]?.data.length ? (
+                  <SearchResultsEmpty
+                    activeTab={activeTab}
+                    onPressClear={handlePressClear}
+                    onPressTryAll={handlePressTryAll}
+                  />
+                ) : (
+                  <ChatList data={displayData} onPressItem={onPressChat} />
+                )}
+              </>
+            ) : null}
 
-          <WelcomeSheet
-            open={splashVisible}
-            onOpenChange={handleWelcomeOpenChange}
-          />
-          <ChatOptionsSheet ref={chatOptionsSheetRef} />
-          <GroupPreviewSheet
-            open={!!selectedGroup}
-            onOpenChange={handleGroupPreviewSheetOpenChange}
-            group={selectedGroup ?? undefined}
-            onActionComplete={handleGroupAction}
-          />
-          <InviteUsersSheet
-            open={inviteSheetGroup !== null}
-            onOpenChange={handleInviteSheetOpenChange}
-            onInviteComplete={() => setInviteSheetGroup(null)}
-            group={inviteSheetGroup ?? undefined}
-          />
-        </View>
+            <WelcomeSheet
+              open={splashVisible}
+              onOpenChange={handleWelcomeOpenChange}
+            />
+            <GroupPreviewSheet
+              open={!!selectedGroup}
+              onOpenChange={handleGroupPreviewSheetOpenChange}
+              group={selectedGroup ?? undefined}
+              onActionComplete={handleGroupAction}
+            />
+            <InviteUsersSheet
+              open={inviteSheetGroup !== null}
+              onOpenChange={handleInviteSheetOpenChange}
+              onInviteComplete={() => setInviteSheetGroup(null)}
+              groupId={inviteSheetGroup ?? undefined}
+            />
+          </View>
+        </NavigationProvider>
         <NavBarView
           navigateToContacts={() => {
             navigation.navigate('Contacts');
@@ -372,13 +385,41 @@ export function ChatListScreenView({
         />
       </ChatOptionsProvider>
 
-      <AddGroupSheet
-        open={addGroupOpen}
-        onGoToDm={goToDm}
-        onOpenChange={handleAddGroupOpenChange}
-        navigateToFindGroups={handleNavigateToFindGroups}
-        navigateToCreateGroup={handleNavigateToCreateGroup}
+      {isWindowNarrow && <CreateChatSheet ref={createChatSheetRef} />}
+      <PersonalInviteSheet
+        open={personalInviteOpen}
+        onOpenChange={() => setPersonalInviteOpen(false)}
       />
     </RequestsProvider>
+  );
+}
+
+function SearchResultsEmpty({
+  activeTab,
+  onPressClear,
+  onPressTryAll,
+}: {
+  activeTab: TabName;
+  onPressTryAll: () => void;
+  onPressClear: () => void;
+}) {
+  return (
+    <YStack
+      gap="$l"
+      alignItems="center"
+      justifyContent="center"
+      paddingHorizontal="$l"
+      paddingVertical="$m"
+    >
+      <Text>No results found.</Text>
+      {activeTab !== 'home' && (
+        <Pressable onPress={onPressTryAll}>
+          <Text textDecorationLine="underline">Try in All?</Text>
+        </Pressable>
+      )}
+      <Pressable onPress={onPressClear}>
+        <Text color="$positiveActionText">Clear search</Text>
+      </Pressable>
+    </YStack>
   );
 }

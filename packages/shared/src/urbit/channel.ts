@@ -1,9 +1,10 @@
 import { parseUd } from '@urbit/aura';
-import { BigInteger } from 'big-integer';
+import bigInt, { BigInteger } from 'big-integer';
 import _ from 'lodash';
 import BTree from 'sorted-btree';
 
 import { Inline } from './content';
+import { GroupMeta } from './groups';
 import { Flag } from './hark';
 
 export interface CacheId {
@@ -705,7 +706,7 @@ export function newPostTupleArray(
     data.pages
       .map((page) => {
         const pagePosts = Object.entries(page.posts).map(
-          ([k, v]) => [parseUd(k), v] as PostTuple
+          ([k, v]) => [bigInt(parseUd(k)), v] as PostTuple
         );
 
         return pagePosts;
@@ -768,3 +769,5 @@ export type ChannelHead = {
 };
 
 export type ChannelHeadsResponse = ChannelHead[];
+
+export type ChannelHooksPreview = { name: string; meta: GroupMeta }[];

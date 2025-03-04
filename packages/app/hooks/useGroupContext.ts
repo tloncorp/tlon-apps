@@ -1,4 +1,4 @@
-import { sync, useCreateChannel } from '@tloncorp/shared';
+import { sync, useUpdateChannel } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo } from 'react';
@@ -56,9 +56,20 @@ export const useGroupContext = ({
   const groupNavSectionsWithChannels = useMemo(() => {
     return groupNavSections.map((section) => ({
       ...section,
-      channels: groupChannels.filter((channel) =>
-        section.channels.map((c) => c.channelId).includes(channel.id)
-      ),
+      channels: groupChannels
+        .filter((channel) =>
+          section.channels.map((c) => c.channelId).includes(channel.id)
+        )
+        .sort((a, b) => {
+          const aIndex =
+            section.channels.find((c) => c.channelId === a.id)?.channelIndex ??
+            0;
+          const bIndex =
+            section.channels.find((c) => c.channelId === b.id)?.channelIndex ??
+            0;
+
+          return aIndex - bIndex;
+        }),
     }));
   }, [groupNavSections, groupChannels]);
 
@@ -108,26 +119,15 @@ export const useGroupContext = ({
     [group]
   );
 
+  const _updateChannel = useUpdateChannel();
   const updateChannel = useCallback(
-    async (channel: db.Channel) => {
-      const navSection = groupNavSections.find((section) =>
-        section.channels.map((c) => c.channelId).includes(channel.id)
-      );
-
-      if (!navSection || !group) {
-        return;
+    async (channel: db.Channel, readers?: string[], writers?: string[]) => {
+      if (group == null) {
+        throw new Error('Group is null');
       }
-
-      await store.updateChannel({
-        groupId: group.id,
-        channel,
-        sectionId: navSection.sectionId,
-        readers: channel.readerRoles?.map((r) => r.roleId) ?? [],
-        writers: channel.writerRoles?.map((r) => r.roleId) ?? [],
-        join: true,
-      });
+      return _updateChannel({ channel, group, readers, writers });
     },
-    [group, groupNavSections]
+    [group, _updateChannel]
   );
 
   const createNavSection = useCallback(
@@ -164,7 +164,7 @@ export const useGroupContext = ({
     async (channelId: string, navSectionId: string, index: number) => {
       if (group) {
         await store.moveChannel({
-          group,
+          groupId: group.id,
           channelId,
           navSectionId,
           index,
@@ -176,13 +176,25 @@ export const useGroupContext = ({
 
   const moveChannelToNavSection = useCallback(
     async (channelId: string, navSectionId: string) => {
-      if (group) {
-        await store.addChannelToNavSection({
-          group,
-          channelId,
-          navSectionId,
-        });
+      if (!group) return;
+
+      // Find current section for the channel
+      const currentSection = group.navSections?.find((section) =>
+        section.channels?.some((channel) => channel.channelId === channelId)
+      );
+
+      if (!currentSection) {
+        console.error('Channel not found in any section');
+        return;
       }
+
+      // Use addChannelToNavSection which handles both adding to new section
+      // and removing from the previous section
+      await store.addChannelToNavSection({
+        groupId: group.id,
+        channelId,
+        navSectionId,
+      });
     },
     [group]
   );
@@ -205,7 +217,18 @@ export const useGroupContext = ({
   const createGroupRole = useCallback(
     async (role: db.GroupRole) => {
       if (group) {
-        // await store.createRole(group.id, role);
+        if (!role.id) {
+          console.error('Role ID is required');
+          return;
+        }
+        store.addGroupRole({
+          groupId: group.id,
+          roleId: role.id,
+          meta: {
+            title: role.title,
+            description: role.description,
+          },
+        });
       }
     },
     [group]
@@ -214,7 +237,18 @@ export const useGroupContext = ({
   const updateGroupRole = useCallback(
     async (role: db.GroupRole) => {
       if (group) {
-        // await store.updateRole(group.id, role);
+        if (!role.id) {
+          console.error('Role ID is required');
+          return;
+        }
+        store.updateGroupRole({
+          groupId: group.id,
+          roleId: role.id,
+          meta: {
+            title: role.title,
+            description: role.description,
+          },
+        });
       }
     },
     [group]
@@ -223,7 +257,36 @@ export const useGroupContext = ({
   const deleteGroupRole = useCallback(
     async (roleId: string) => {
       if (group) {
-        // await store.deleteRole(group.id, roleId);
+        store.deleteGroupRole({
+          groupId: group.id,
+          roleId,
+        });
+      }
+    },
+    [group]
+  );
+
+  const addUserToRole = useCallback(
+    async (contactId: string, roleId: string) => {
+      if (group) {
+        await store.addMembersToRole({
+          groupId: group.id,
+          roleId,
+          contactIds: [contactId],
+        });
+      }
+    },
+    [group]
+  );
+
+  const removeUserFromRole = useCallback(
+    async (contactId: string, roleId: string) => {
+      if (group) {
+        await store.removeMembersFromRole({
+          groupId: group.id,
+          roleId,
+          contactIds: [contactId],
+        });
       }
     },
     [group]
@@ -358,5 +421,7 @@ export const useGroupContext = ({
     joinRequests,
     leaveGroup,
     groupPrivacyType,
+    addUserToRole,
+    removeUserFromRole,
   };
 };
