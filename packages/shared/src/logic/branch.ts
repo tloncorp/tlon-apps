@@ -34,13 +34,11 @@ export const getDeepLink = async (
   return url;
 };
 
-export const getBranchLinkMeta = async (
-  branchUrl: string,
-  branchKey: string
-) => {
+export const getBranchLinkMeta = async (branchUrl: string) => {
+  const env = getConstants();
   const params = new URLSearchParams();
   params.set('url', branchUrl);
-  params.set('branch_key', branchKey);
+  params.set('branch_key', env.BRANCH_KEY);
   const response = await fetchBranchApi(`/v1/url?${params}`);
   if (!response.ok) {
     const badRequestInfo = await response.json();
@@ -86,7 +84,7 @@ export interface DeepLinkMetadata {
 
 export interface AppInvite extends DeepLinkMetadata {
   id: string;
-  shouldAutoJoin: boolean;
+  isLegacy?: boolean;
 }
 
 export type Lure = {
@@ -101,12 +99,13 @@ export interface DeepLinkData extends DeepLinkMetadata {
   lure?: string;
 }
 
-export function extractLureMetadata(branchParams: any) {
+export function extractLureMetadata(branchParams: any): AppInvite | null {
   if (!branchParams || typeof branchParams !== 'object') {
-    return {};
+    return null;
   }
 
-  const extracted = {
+  const extracted: AppInvite = {
+    id: branchParams.lure,
     inviterUserId: branchParams.inviterUserId || branchParams.inviter,
     inviterNickname: branchParams.inviterNickname,
     inviterAvatarImage: branchParams.inviterAvatarImage,
@@ -131,6 +130,7 @@ export function extractLureMetadata(branchParams: any) {
     if (isValidPatp(ship)) {
       extracted.inviterUserId = ship;
       extracted.invitedGroupId = branchParams.lure;
+      extracted.isLegacy = true;
     }
   }
 

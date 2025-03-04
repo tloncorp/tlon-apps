@@ -27,7 +27,7 @@ export const useDeepLinkListener = () => {
           lure: lure.id,
         });
         try {
-          if (lure.shouldAutoJoin || !ship) {
+          if (!ship) {
             // if the lure was clicked prior to authenticating, no-op for now.
             // Hosting will handle once the user signs up.
           } else {
