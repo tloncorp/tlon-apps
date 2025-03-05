@@ -50,6 +50,9 @@ export async function verifyUserInviteLink() {
 
     if (finalInviteLink) {
       await db.personalInviteLink.setValue(finalInviteLink);
+      logger.trackEvent(AnalyticsEvent.PersonalInviteLinkReady);
+    } else {
+      throw new Error('finalInviteLink is falsy');
     }
   } catch (e) {
     logger.trackError('Failed to verify personal invite link', {

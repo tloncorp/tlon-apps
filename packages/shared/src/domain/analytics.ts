@@ -95,12 +95,16 @@ export enum AnalyticsEvent {
   ActionsNotifPermsChecked = 'Checked Notification Permissions',
   ActionTappedPushNotif = 'Tapped Push Notification',
   GroupJoinComplete = 'Group Join Complete',
+  PersonalInviteLinkReady = 'Personal Invite Link Ready',
   ErrorSendPost = 'Error Sending Post',
   ErrorSendReply = 'Error Sending Thread Reply',
   ErrorReact = 'Error Reacting to Post',
   ErrorUnreact = 'Error Removing Reaction from Post',
   ErrorPushNotifNavigate = 'Error Navigating to Push Channel',
   ErrorDigestFailed = 'Error Preparing Usage Digest',
+  ErrorSyncStartHighPriority = 'Error Start Sync: High Priority',
+  ErrorSyncStartLowPriority = 'Error Start Sync: Low Priority',
+  ErrorVerifyingPersonalInvite = 'Error Verifying DM Invite Link',
 }
 
 export interface AnalyticsDigest {
