@@ -4,7 +4,6 @@ import { useCallback, useMemo, useState } from 'react';
 import { useValue } from 'react-cosmos/client';
 import { SafeAreaView } from 'react-native';
 
-import { PresentationalCarouselPostScreenContent } from '../features/top/PostScreen';
 import {
   AppDataContextProvider,
   Button,
@@ -13,6 +12,7 @@ import {
   Text,
   View,
 } from '../ui';
+import { PresentationalCarouselPostScreenContent } from '../ui/components/PostScreenView';
 import { FixtureWrapper } from './FixtureWrapper';
 import {
   createFakePosts,
