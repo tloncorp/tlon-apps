@@ -104,16 +104,6 @@ function PostScreenContent({
     return post ? [...(threadPosts ?? []), post] : null;
   }, [post, threadPosts]);
 
-  const markRead = useCallback(() => {
-    if (channel && post && threadPosts && threadPosts.length > 0) {
-      store.markThreadRead({
-        channel,
-        parentPost: post,
-        post: threadPosts[0],
-      });
-    }
-  }, [channel, post, threadPosts]);
-
   const sendReply = useCallback(
     async (content: urbit.Story) => {
       store.sendReply({
@@ -196,7 +186,6 @@ function PostScreenContent({
       getDraft={getDraft}
       storeDraft={storeDraft}
       clearDraft={clearDraft}
-      markRead={markRead}
       editingPost={editingPost}
       onPressDelete={handleDeletePost}
       onPressRetry={handleRetrySend}

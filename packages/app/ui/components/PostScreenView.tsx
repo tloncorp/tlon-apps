@@ -26,6 +26,7 @@ import {
   NavigationProvider,
   useAttachmentContext,
   useCurrentUserId,
+  useStore,
 } from '../contexts';
 import * as utils from '../utils';
 import BareChatInput from './BareChatInput';
@@ -78,7 +79,6 @@ export function PostScreenView({
   parentPost,
   posts,
   sendReply,
-  markRead,
   goBack,
   groupMembers,
   handleGoToImage,
@@ -101,7 +101,6 @@ export function PostScreenView({
   initialThreadUnread?: db.ThreadUnreadState | null;
   parentPost: db.Post | null;
   posts: db.Post[] | null;
-  markRead: () => void;
   goBack?: () => void;
   handleGoToImage?: (post: db.Post, uri?: string) => void;
   handleGoToUserProfile: (userId: string) => void;
@@ -136,15 +135,6 @@ export function PostScreenView({
   }, [parentPost, setEditingPost]);
 
   const { bottom } = useSafeAreaInsets();
-
-  const hasLoaded = !!(posts && channel && parentPost);
-  useEffect(() => {
-    if (hasLoaded) {
-      markRead();
-    }
-    // Only want to trigger once per set of params
-    // eslint-disable-next-line
-  }, [hasLoaded]);
 
   const isEditingParent = useMemo(() => {
     return editingPost && editingPost.id === parentPost?.id;
@@ -344,6 +334,41 @@ function ConnectedHeader({
   );
 }
 
+function useMarkThreadAsReadEffect(
+  opts: {
+    shouldMarkRead: boolean;
+    channel: db.Channel;
+    parent: db.Post;
+    mostRecentlyReceivedReply: db.Post;
+  } | null
+) {
+  const store = useStore();
+  const markRead = useCallback(() => {
+    if (opts == null) {
+      return;
+    }
+
+    const { channel, parent, mostRecentlyReceivedReply } = opts;
+    if (channel && parent && mostRecentlyReceivedReply) {
+      store.markThreadRead({
+        channel,
+        parentPost: parent,
+        post: mostRecentlyReceivedReply,
+      });
+    }
+  }, [opts, store]);
+
+  const shouldMarkRead = opts?.shouldMarkRead ?? false;
+  useEffect(() => {
+    console.log('shouldMarkRead', shouldMarkRead, opts?.parent.content);
+    if (shouldMarkRead) {
+      markRead();
+    }
+    // Only want to trigger once per set of params
+    // eslint-disable-next-line
+  }, [shouldMarkRead]);
+}
+
 function SinglePostView({
   channel,
   clearDraft,
@@ -389,6 +414,9 @@ function SinglePostView({
   setEditingPost?: (post: db.Post | undefined) => void;
   storeDraft: (draft: urbit.JSONContent) => Promise<void>;
 }) {
+  const { focusedPost } = useContext(FocusedPostContext);
+  const isFocusedPost = focusedPost?.id === parentPost.id;
+
   const { data: threadPosts, isLoading } = store.useThreadPosts({
     postId: parentPost.id,
     authorId: parentPost.id,
@@ -440,6 +468,18 @@ function SinglePostView({
       clearDraft,
     };
   }, [channel.type, getDraft, storeDraft, clearDraft]);
+
+  const hasLoadedReplies = !!(posts && channel && parentPost);
+  useMarkThreadAsReadEffect(
+    channel == null || parentPost == null || threadPosts?.[0] == null
+      ? null
+      : {
+          channel,
+          mostRecentlyReceivedReply: threadPosts[0],
+          parent: parentPost,
+          shouldMarkRead: isFocusedPost && hasLoadedReplies,
+        }
+  );
 
   return (
     <YStack flex={1}>

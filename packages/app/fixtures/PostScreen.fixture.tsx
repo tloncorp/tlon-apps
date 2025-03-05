@@ -76,7 +76,6 @@ export default {
           channel={tlonLocalBulletinBoard}
           posts={posts}
           sendReply={async () => {}}
-          markRead={() => {}}
           groupMembers={group.members ?? []}
           getDraft={async () => ({})}
           storeDraft={async () => {}}

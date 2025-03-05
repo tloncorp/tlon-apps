@@ -50,7 +50,6 @@ export const DetailViewFixture = ({
             clearDraft={async () => {}}
             getDraft={async () => ({})}
             goBack={() => {}}
-            markRead={() => {}}
             handleGoToUserProfile={() => {}}
             headerMode="default"
             onPressRef={() => {}}
