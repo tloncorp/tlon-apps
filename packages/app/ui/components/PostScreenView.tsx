@@ -416,7 +416,7 @@ function SinglePostView({
   const { focusedPost } = useContext(FocusedPostContext);
   const isFocusedPost = focusedPost?.id === parentPost.id;
 
-  const { data: threadPosts, isLoading } = store.useThreadPosts({
+  const { data: threadPosts } = store.useThreadPosts({
     postId: parentPost.id,
     authorId: parentPost.id,
     channelId: channel.id,
@@ -689,6 +689,9 @@ export function PresentationalCarouselPostScreenContent({
         flatListProps={{
           onEndReached: fetchNewerPage,
           onStartReached: fetchOlderPage,
+          initialNumToRender: 3,
+          maxToRenderPerBatch: 3,
+          windowSize: 3,
         }}
       >
         {carouselChildren}
