@@ -203,7 +203,7 @@
     ++  groups
       .^  groups:v2:g
         %gx
-        /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+        /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/groups
       ==
     --
   --
