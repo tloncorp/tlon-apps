@@ -2,7 +2,12 @@ interface EmbedProviderConfig {
   name: string;
   defaultHeight: number;
   defaultWidth?: number;
-  generateHtml: (url: string, embedHtml?: string, isDark?: boolean) => string;
+  generateHtml: (
+    url: string,
+    embedHtml?: string,
+    isDark?: boolean,
+    constrainHeight?: boolean
+  ) => string;
   extractId?: (url: string) => string;
   getCustomStyles?: () => string;
 }
@@ -104,12 +109,17 @@ const twitterConfig: EmbedProviderConfig = {
   name: 'Twitter',
   defaultHeight: 300,
   defaultWidth: 300,
-  generateHtml: (url: string, embedHtml?: string, isDark?: boolean) => {
+  generateHtml: (
+    url: string,
+    embedHtml?: string,
+    isDark?: boolean,
+    constrainHeight?: boolean
+  ) => {
     if (!embedHtml) return '';
-    // Add theme attribute to the blockquote element
+    // Add theme attribute to the blockquote element with theme adjustment
     const themedHtml = embedHtml.replace(
       '<blockquote class="twitter-tweet"',
-      `<blockquote class="twitter-tweet" data-theme="${isDark ? 'dark' : 'light'}"`
+      `<blockquote class="twitter-tweet" data-theme="${isDark ? 'dark' : 'light'}" ${constrainHeight ? "data-cards='hidden'" : ''}`
     );
     return `
       <!DOCTYPE html>
@@ -131,6 +141,9 @@ const twitterConfig: EmbedProviderConfig = {
             }
           </style>
           <script>
+            let lastReportedHeight = 0;
+            let heightStabilityCounter = 0;
+            
             function checkForTwitterWidget() {
               const tweetFrame = document.querySelector('iframe[id^="twitter-widget"]');
               if (tweetFrame) {
@@ -138,24 +151,32 @@ const twitterConfig: EmbedProviderConfig = {
                 
                 const resizeObserver = new ResizeObserver((entries) => {
                   for (const entry of entries) {
-                    const height = entry.contentRect.height;
-                    // Always report height changes
-                    window.ReactNativeWebView.postMessage(JSON.stringify({ height }));
+                    const height = Math.round(entry.contentRect.height);
                     
-                    // Only report loaded once we have a valid height
+                    // Report height when stable or on significant changes
+                    if (Math.abs(height - lastReportedHeight) > 20 || height === lastReportedHeight) {
+                      heightStabilityCounter++;
+                      
+                      if (heightStabilityCounter > 2 || Math.abs(height - lastReportedHeight) > 50) {
+                        window.ReactNativeWebView.postMessage(JSON.stringify({ height }));
+                        lastReportedHeight = height;
+                        heightStabilityCounter = 0;
+                      }
+                    }
+                    
                     if (!hasReportedLoaded && height > 0) {
                       window.ReactNativeWebView.postMessage(JSON.stringify({ 
                         height,
                         loaded: true
                       }));
                       hasReportedLoaded = true;
+                      lastReportedHeight = height;
                     }
                   }
                 });
                 
                 resizeObserver.observe(tweetFrame);
                 
-                // Check initial height
                 const initialHeight = tweetFrame.offsetHeight;
                 if (initialHeight > 0) {
                   window.ReactNativeWebView.postMessage(JSON.stringify({ 
@@ -163,6 +184,7 @@ const twitterConfig: EmbedProviderConfig = {
                     loaded: true
                   }));
                   hasReportedLoaded = true;
+                  lastReportedHeight = initialHeight;
                 }
               } else {
                 setTimeout(checkForTwitterWidget, 100);

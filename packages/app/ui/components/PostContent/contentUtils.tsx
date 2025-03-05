@@ -5,6 +5,8 @@ import * as ub from '@tloncorp/shared/urbit';
 import { useContext, useMemo } from 'react';
 import { createStyledContext } from 'tamagui';
 
+import { trustedProviders } from '../Embed/EmbedContent';
+
 export interface ContentContextProps {
   isNotice?: boolean;
   onPressImage?: (src: string) => void;
@@ -96,6 +98,8 @@ export type VideoBlockData = {
 
 export type EmbedBlockData = {
   type: 'embed';
+  url: string;
+  content?: string;
 };
 
 export type ReferenceBlockData = api.ContentReference;
@@ -223,19 +227,16 @@ export function usePostLastEditContent(post: Post): BlockData[] {
  * be split if it contains block-like inlines (again, blockquote, code block,
  * etc.)
  */
+
 function convertTopLevelInline(verse: ub.VerseInline): BlockData[] {
   const blocks: BlockData[] = [];
   let currentInlines: ub.Inline[] = [];
 
   function flushCurrentBlock() {
     if (currentInlines.length) {
-      const convertedInlines = convertInlineContent(currentInlines);
-      if (convertedInlines.length) {
-        blocks.push({
-          type: 'paragraph',
-          content: convertedInlines,
-        });
-      }
+      // Process the inlines to extract trusted embeds and split paragraphs
+      const processedBlocks = extractEmbedsFromInlines(currentInlines);
+      blocks.push(...processedBlocks);
       currentInlines = [];
     }
   }
@@ -274,6 +275,95 @@ function convertTopLevelInline(verse: ub.VerseInline): BlockData[] {
     }
   });
   flushCurrentBlock();
+  return blocks;
+}
+
+// Process inlines to extract embeds as separate blocks
+function extractEmbedsFromInlines(inlines: ub.Inline[]): BlockData[] {
+  const blocks: BlockData[] = [];
+  let currentSegment: ub.Inline[] = [];
+
+  function flushSegment() {
+    if (currentSegment.length > 0) {
+      // Check if segment only contains whitespace
+      const isOnlyWhitespace = currentSegment.every(
+        item => typeof item === 'string' && item.trim() === ''
+      );
+      
+      // Only create a paragraph if there's actual content
+      if (!isOnlyWhitespace) {
+        const convertedInlines = convertInlineContent(currentSegment);
+        
+        // Filter out empty text nodes or text nodes with only whitespace
+        const filteredInlines = convertedInlines.filter(
+          inline => !(inline.type === 'text' && inline.text.trim() === '')
+        );
+        
+        if (filteredInlines.length) {
+          blocks.push({
+            type: 'paragraph',
+            content: filteredInlines,
+          });
+        }
+      }
+      currentSegment = [];
+    }
+  }
+
+  for (const inline of inlines) {
+    // Check if this is a link that matches any of our trusted providers
+    if (ub.isLink(inline)) {
+      const isTrustedEmbed = trustedProviders.some(provider => 
+        provider.regex.test(inline.link.href)
+      );
+      
+      if (isTrustedEmbed) {
+        // Flush the current segment before adding the embed
+        flushSegment();
+
+        // Add the link as a dedicated embed block
+        blocks.push({
+          type: 'embed',
+          url: inline.link.href,
+          content: inline.link.content || inline.link.href,
+        });
+      } else {
+        // Not a trusted embed provider, add to normal paragraph
+        currentSegment.push(inline);
+      }
+    } else {
+      // Not a link, add to normal paragraph
+      currentSegment.push(inline);
+    }
+  }
+
+  // Flush any remaining inlines as a paragraph
+  flushSegment();
+
+  // If no blocks were created (only had non-link inlines), create a single paragraph if needed
+  if (blocks.length === 0 && inlines.length > 0) {
+    // Check if inlines only contain whitespace
+    const isOnlyWhitespace = inlines.every(
+      item => typeof item === 'string' && item.trim() === ''
+    );
+    
+    if (!isOnlyWhitespace) {
+      const convertedInlines = convertInlineContent(inlines);
+      
+      // Filter out empty text nodes
+      const filteredInlines = convertedInlines.filter(
+        inline => !(inline.type === 'text' && inline.text.trim() === '')
+      );
+      
+      if (filteredInlines.length) {
+        blocks.push({
+          type: 'paragraph',
+          content: filteredInlines,
+        });
+      }
+    }
+  }
+
   return blocks;
 }
 
