@@ -2,7 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as urbit from '@tloncorp/shared/urbit';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
@@ -81,18 +81,6 @@ function PostScreenContent({
 
   const currentUserId = useCurrentUserId();
 
-  // for the unread thread divider, we care about the unread state when you enter but don't want it to update over
-  // time
-  const [initialThreadUnread, setInitialThreadUnread] =
-    useState<db.ThreadUnreadState | null>(null);
-  useEffect(() => {
-    async function initializeChannelUnread() {
-      const unread = await db.getThreadUnreadState({ parentId: postId });
-      setInitialThreadUnread(unread ?? null);
-    }
-    initializeChannelUnread();
-  }, [postId]);
-
   const sendReply = useCallback(
     async (content: urbit.Story) => {
       store.sendReply({
@@ -166,7 +154,6 @@ function PostScreenContent({
       handleGoToUserProfile={handleGoToUserProfile}
       parentPost={post}
       channel={channel}
-      initialThreadUnread={initialThreadUnread}
       goBack={handleGoBack}
       sendReply={sendReply}
       groupMembers={group?.members ?? []}

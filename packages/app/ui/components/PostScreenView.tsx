@@ -2,7 +2,7 @@ import {
   isChatChannel as getIsChatChannel,
   useDebouncedValue,
 } from '@tloncorp/shared';
-import type * as db from '@tloncorp/shared/db';
+import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as urbit from '@tloncorp/shared/urbit';
 import { Story } from '@tloncorp/shared/urbit';
@@ -75,7 +75,6 @@ interface ChannelContext {
 
 export function PostScreenView({
   channel,
-  initialThreadUnread,
   parentPost,
   sendReply,
   goBack,
@@ -97,7 +96,6 @@ export function PostScreenView({
   headerMode,
 }: {
   channel: db.Channel;
-  initialThreadUnread?: db.ThreadUnreadState | null;
   parentPost: db.Post | null;
   goBack?: () => void;
   handleGoToImage?: (post: db.Post, uri?: string) => void;
@@ -253,7 +251,6 @@ export function PostScreenView({
                         groupMembers,
                         handleGoToImage,
                         headerMode,
-                        initialThreadUnread,
                         negotiationMatch,
                         onPressDelete,
                         onPressRetry,
@@ -379,7 +376,6 @@ function SinglePostView({
   groupMembers,
   handleGoToImage,
   headerMode,
-  initialThreadUnread,
   negotiationMatch,
   onPressDelete,
   onPressRetry,
@@ -404,7 +400,6 @@ function SinglePostView({
   groupMembers: db.ChatMember[];
   handleGoToImage?: (post: db.Post, uri?: string) => void;
   headerMode: 'default' | 'next';
-  initialThreadUnread?: db.ThreadUnreadState | null;
   negotiationMatch: boolean;
   onPressDelete: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => Promise<void>;
@@ -415,6 +410,18 @@ function SinglePostView({
 }) {
   const { focusedPost } = useContext(FocusedPostContext);
   const isFocusedPost = focusedPost?.id === parentPost.id;
+
+  // for the unread thread divider, we care about the unread state when you enter but don't want it to update over
+  // time
+  const [initialThreadUnread, setInitialThreadUnread] =
+    useState<db.ThreadUnreadState | null>(null);
+  useEffect(() => {
+    async function initializeChannelUnread() {
+      const unread = await db.getThreadUnreadState({ parentId: parentPost.id });
+      setInitialThreadUnread(unread ?? null);
+    }
+    initializeChannelUnread();
+  }, [parentPost.id]);
 
   const { data: threadPosts } = store.useThreadPosts({
     postId: parentPost.id,
