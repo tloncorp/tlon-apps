@@ -2,7 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as urbit from '@tloncorp/shared/urbit';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
@@ -49,7 +49,6 @@ export default function PostScreen(props: Props) {
 
 function PostScreenContent({
   post,
-  authorId,
   channelId,
 }: {
   post: db.Post;
@@ -93,16 +92,6 @@ function PostScreenContent({
     }
     initializeChannelUnread();
   }, [postId]);
-
-  const { data: threadPosts } = store.useThreadPosts({
-    postId: postId,
-    authorId,
-    channelId: channelId,
-  });
-
-  const posts = useMemo(() => {
-    return post ? [...(threadPosts ?? []), post] : null;
-  }, [post, threadPosts]);
 
   const sendReply = useCallback(
     async (content: urbit.Story) => {
@@ -176,7 +165,6 @@ function PostScreenContent({
     <PostScreenView
       handleGoToUserProfile={handleGoToUserProfile}
       parentPost={post}
-      posts={posts}
       channel={channel}
       initialThreadUnread={initialThreadUnread}
       goBack={handleGoBack}

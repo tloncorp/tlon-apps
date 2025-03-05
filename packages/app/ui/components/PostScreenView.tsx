@@ -77,7 +77,6 @@ export function PostScreenView({
   channel,
   initialThreadUnread,
   parentPost,
-  posts,
   sendReply,
   goBack,
   groupMembers,
@@ -100,7 +99,6 @@ export function PostScreenView({
   channel: db.Channel;
   initialThreadUnread?: db.ThreadUnreadState | null;
   parentPost: db.Post | null;
-  posts: db.Post[] | null;
   goBack?: () => void;
   handleGoToImage?: (post: db.Post, uri?: string) => void;
   handleGoToUserProfile: (userId: string) => void;
@@ -152,28 +150,31 @@ export function PostScreenView({
     [onGroupAction]
   );
 
-  const handleRefPress = useCallback(
-    (refChannel: db.Channel, post: db.Post) => {
-      const anchorIndex = posts?.findIndex((p) => p.id === post.id) ?? -1;
+  // TODO: lost in changes - but this is not working for me in latest
+  // release anyways (tried by following a ref to a post in the same
+  // thread, which has been loaded & is offscreen)
+  // const handleRefPress = useCallback(
+  //   (refChannel: db.Channel, post: db.Post) => {
+  //     const anchorIndex = posts?.findIndex((p) => p.id === post.id) ?? -1;
 
-      if (
-        refChannel.id === channel.id &&
-        anchorIndex !== -1 &&
-        flatListRef.current
-      ) {
-        // If the post is already loaded, scroll to it
-        flatListRef.current?.scrollToIndex({
-          index: anchorIndex,
-          animated: false,
-          viewPosition: 0.5,
-        });
-        return;
-      }
+  //     if (
+  //       refChannel.id === channel.id &&
+  //       anchorIndex !== -1 &&
+  //       flatListRef.current
+  //     ) {
+  //       // If the post is already loaded, scroll to it
+  //       flatListRef.current?.scrollToIndex({
+  //         index: anchorIndex,
+  //         animated: false,
+  //         viewPosition: 0.5,
+  //       });
+  //       return;
+  //     }
 
-      onPressRef(refChannel, post);
-    },
-    [onPressRef, posts, channel]
-  );
+  //     onPressRef(refChannel, post);
+  //   },
+  //   [onPressRef, channel]
+  // );
 
   const handleGoBack = useCallback(() => {
     if (isEditingParent) {
@@ -203,7 +204,7 @@ export function PostScreenView({
   return (
     <NavigationProvider
       onGoToUserProfile={handleGoToUserProfile}
-      onPressRef={handleRefPress}
+      onPressRef={onPressRef}
       onPressGroupRef={onPressGroupRef}
       onPressGoToDm={goToDm}
     >
@@ -257,7 +258,6 @@ export function PostScreenView({
                         onPressDelete,
                         onPressRetry,
                         parentPost,
-                        posts,
                         sendReply,
                         setEditingPost,
                         storeDraft,

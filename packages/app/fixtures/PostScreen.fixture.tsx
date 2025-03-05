@@ -38,8 +38,6 @@ function spyOn<T extends object, MethodName extends keyof T>(
   });
 }
 
-const posts = createFakePosts(10);
-
 let seed = 0;
 function createImagePosts(count: number) {
   return range(count).map(
@@ -74,7 +72,6 @@ export default {
           setEditingPost={() => {}}
           parentPost={null}
           channel={tlonLocalBulletinBoard}
-          posts={posts}
           sendReply={async () => {}}
           groupMembers={group.members ?? []}
           getDraft={async () => ({})}
