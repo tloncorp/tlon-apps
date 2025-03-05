@@ -1,6 +1,5 @@
-import { Tabs } from '@tloncorp/ui';
-
 import { TabName } from '../../hooks/useFilteredChats';
+import { Tabs } from '../../ui';
 
 export function ChatListTabs({
   activeTab,
@@ -11,8 +10,8 @@ export function ChatListTabs({
 }) {
   return (
     <Tabs>
-      <Tabs.Tab name="all" activeTab={activeTab} onTabPress={onPressTab}>
-        <Tabs.Title cursor="pointer" active={activeTab === 'all'}>
+      <Tabs.Tab name="home" activeTab={activeTab} onTabPress={onPressTab}>
+        <Tabs.Title cursor="pointer" active={activeTab === 'home'}>
           All
         </Tabs.Title>
       </Tabs.Tab>

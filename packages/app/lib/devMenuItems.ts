@@ -17,7 +17,7 @@ const simulatorOnlyMenuItems: ExpoDevMenuItem[] = [
   {
     name: 'Drizzle studio',
     callback: async () => {
-      const path = getDbPath() ?? '';
+      const path = (await getDbPath()) ?? '';
       sendBundlerRequest('open-sqlite', { path });
     },
   },
@@ -25,7 +25,7 @@ const simulatorOnlyMenuItems: ExpoDevMenuItem[] = [
     name: 'Dump SQLite',
     callback: async () => {
       const outputPath = process.env.SQLITE_DUMP_PATH ?? 'dump.sqlite3';
-      const databaseSourcePath = getDbPath() ?? '';
+      const databaseSourcePath = (await getDbPath()) ?? '';
 
       sendBundlerRequest('dump-sqlite', { databaseSourcePath, outputPath });
     },
@@ -34,7 +34,7 @@ const simulatorOnlyMenuItems: ExpoDevMenuItem[] = [
     name: 'Restore SQLite',
     callback: async () => {
       const sourcePath = process.env.SQLITE_RESTORE_PATH ?? 'restore.sqlite3';
-      const localDatabasePath = getDbPath();
+      const localDatabasePath = await getDbPath();
       if (localDatabasePath == null) {
         Alert.alert('Could not find database path');
         return;

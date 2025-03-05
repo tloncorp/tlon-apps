@@ -4,7 +4,7 @@ import { getPostInfoFromWer } from '../api/harkApi';
 import { createDevLogger } from '../debug';
 import { getConstants } from '../domain';
 
-const logger = createDevLogger('branch', true);
+const logger = createDevLogger('branch', false);
 
 const fetchBranchApi = async (path: string, init?: RequestInit) =>
   fetch(`https://api2.branch.io${path}`, init);

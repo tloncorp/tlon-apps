@@ -1,6 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useTheme } from '@tloncorp/ui';
 import { Platform, StatusBar } from 'react-native';
 
 import { ChannelMembersScreen } from '../features/channels/ChannelMembersScreen';
@@ -31,6 +30,7 @@ import { PostUsingContentConfigurationScreen } from '../features/top/PostUsingCo
 import { UserProfileScreen } from '../features/top/UserProfileScreen';
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import { useFeatureFlag } from '../lib/featureFlags';
+import { useTheme } from '../ui';
 import { GroupSettingsStack } from './GroupSettingsStack';
 import type { RootStackParamList } from './types';
 

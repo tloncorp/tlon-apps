@@ -146,7 +146,7 @@ export const getSettings = createReadQuery(
   async (userId: string, ctx: QueryCtx) => {
     return ctx.db.query.settings.findFirst({
       where(fields) {
-        return eq(fields.userId, desig(userId));
+        return eq(fields.userId, userId);
       },
     });
   },
@@ -489,8 +489,8 @@ export const getChats = createReadQuery(
     });
 
     const channels = await ctx.db.query.channels.findMany({
-      where: isNull($channels.groupId),
       with: {
+        group: true,
         volumeSettings: true,
         unread: true,
         members: {
@@ -593,7 +593,8 @@ export const insertGroups = createWriteQuery(
                 $groups.privacy,
                 $groups.joinStatus,
                 $groups.currentUserIsMember,
-                $groups.haveInvite
+                $groups.haveInvite,
+                $groups.haveRequestedInvite
               ),
             });
         } else {

@@ -11,7 +11,6 @@ export type RootStackParamList = {
   ChatList: { previewGroupId: string } | undefined;
   Activity: undefined;
   Settings: undefined;
-  Messages: undefined;
   DM: {
     channelId: string;
     selectedPostId?: string | null;
@@ -99,7 +98,8 @@ export type RootStackNavigationProp = NavigationProp<RootStackParamList>;
 
 export type RootDrawerParamList = {
   Home: NavigatorScreenParams<HomeDrawerParamList>;
-} & Pick<RootStackParamList, 'Activity' | 'Contacts' | 'Messages' | 'Settings'>;
+  Messages: NavigatorScreenParams<HomeDrawerParamList>;
+} & Pick<RootStackParamList, 'Activity' | 'Contacts' | 'Settings'>;
 
 export type CombinedParamList = RootStackParamList & RootDrawerParamList;
 

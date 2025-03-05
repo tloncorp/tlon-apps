@@ -8,8 +8,19 @@ import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Keyboard } from 'react-native';
+import { ColorTokens, Text, YStack, useTheme } from 'tamagui';
+
+import { TLON_EMPLOYEE_GROUP } from '../../constants';
+import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { useFilteredChats } from '../../hooks/useFilteredChats';
+import { TabName } from '../../hooks/useFilteredChats';
+import { useGroupActions } from '../../hooks/useGroupActions';
+import type { RootStackParamList } from '../../navigation/types';
+import { useRootNavigation } from '../../navigation/utils';
 import {
-  ChatList,
   ChatOptionsProvider,
   GroupPreviewAction,
   GroupPreviewSheet,
@@ -22,22 +33,11 @@ import {
   ScreenHeader,
   View,
   WelcomeSheet,
-  useFilteredChats,
   useGlobalSearch,
   useIsWindowNarrow,
-} from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Keyboard } from 'react-native';
-import { ColorTokens, Text, YStack, useTheme } from 'tamagui';
-
-import { TLON_EMPLOYEE_GROUP } from '../../constants';
-import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
-import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { TabName } from '../../hooks/useFilteredChats';
-import { useGroupActions } from '../../hooks/useGroupActions';
-import type { RootStackParamList } from '../../navigation/types';
-import { useRootNavigation } from '../../navigation/utils';
+} from '../../ui';
 import { identifyTlonEmployee } from '../../utils/posthog';
+import { ChatList } from '../chat-list/ChatList';
 import { ChatListSearch } from '../chat-list/ChatListSearch';
 import { ChatListTabs } from '../chat-list/ChatListTabs';
 import { CreateChatSheet, CreateChatSheetMethods } from './CreateChatSheet';
@@ -78,9 +78,7 @@ export function ChatListScreenView({
     ]
   );
 
-  const [activeTab, setActiveTab] = useState<'all' | 'groups' | 'messages'>(
-    'all'
-  );
+  const [activeTab, setActiveTab] = useState<TabName>('home');
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
     previewGroupId ?? null
   );
@@ -201,7 +199,7 @@ export function ChatListScreenView({
 
   const handleSectionChange = useCallback(
     (title: string) => {
-      if (activeTab === 'all') {
+      if (activeTab === 'home') {
         setScreenTitle(title);
       }
     },
@@ -209,7 +207,7 @@ export function ChatListScreenView({
   );
 
   useEffect(() => {
-    if (activeTab === 'all') {
+    if (activeTab === 'home') {
       setScreenTitle('Home');
     } else if (activeTab === 'groups') {
       setScreenTitle('Groups');
@@ -267,7 +265,7 @@ export function ChatListScreenView({
   }, []);
 
   const handlePressTryAll = useCallback(() => {
-    setActiveTab('all');
+    setActiveTab('home');
   }, [setActiveTab]);
 
   const handlePressClear = useCallback(() => {
@@ -321,6 +319,7 @@ export function ChatListScreenView({
                     <ScreenHeader.IconButton
                       type="Add"
                       onPress={handlePressAddChat}
+                      testID="CreateGroupButton"
                     />
                   ) : (
                     <CreateChatSheet
@@ -413,7 +412,7 @@ function SearchResultsEmpty({
       paddingVertical="$m"
     >
       <Text>No results found.</Text>
-      {activeTab !== 'all' && (
+      {activeTab !== 'home' && (
         <Pressable onPress={onPressTryAll}>
           <Text textDecorationLine="underline">Try in All?</Text>
         </Pressable>

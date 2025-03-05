@@ -202,11 +202,11 @@
     (toggle-post toggle)
   ::
       %leave-old-channels
-    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
-    =/  groups  .^(groups:g %gx groups-path)
+    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/groups
+    =/  groups  .^(groups:v2:g %gx groups-path)
     =/  diary-flags-from-groups
       %+  turn  ~(tap by groups)
-      |=  [group-flag=flag:g group=group:g]
+      |=  [group-flag=flag:g group=group:v2:g]
       %+  turn
         %+  skim  ~(tap by channels.group)
         |=  [=nest:g *]
@@ -296,9 +296,9 @@
     ::  group.
     ::
     ++  groups
-      .^  groups:g
+      .^  groups:v2:g
         %gx
-        /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+        /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/groups
       ==
     --
   --
@@ -412,12 +412,12 @@
       ((slog tank u.p.sign) cor)
     ::
         %fact
-      ?.  =(act:mar:g p.cage.sign)  cor
-      (take-groups !<(=action:g q.cage.sign))
+      ?.  ?=(%group-action-3 p.cage.sign)  cor
+      (take-groups !<(=action:v2:g q.cage.sign))
     ==
   ==
 ++  take-groups
-  |=  =action:g
+  |=  =action:v2:g
   =/  affected=(list flag:d)
     %+  murn  ~(tap by shelf)
     |=  [=flag:d =diary:d]
@@ -855,7 +855,7 @@
       =/  =dock      [our.bowl %groups] :: [p.p.action %groups] XX: check?
       =/  =wire      (snoc di-area term)
       =.  cor
-        (emit %pass wire %agent dock %poke act:mar:g !>(action))
+        (emit %pass wire %agent dock %poke group-action-3+!>(action))
       di-core
     ::
     ++  create-channel

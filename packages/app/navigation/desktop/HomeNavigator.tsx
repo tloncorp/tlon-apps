@@ -5,6 +5,7 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationState } from '@react-navigation/routers';
+import { useEffect } from 'react';
 import { View, getVariableValue, useTheme } from 'tamagui';
 
 import { ChannelMembersScreen } from '../../features/channels/ChannelMembersScreen';
@@ -13,21 +14,27 @@ import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import ChannelScreen from '../../features/top/ChannelScreen';
 import ChannelSearchScreen from '../../features/top/ChannelSearchScreen';
 import { ChatDetailsScreen } from '../../features/top/ChatDetailsScreen';
-import { ChatListScreenView } from '../../features/top/ChatListScreen';
 import { ChatVolumeScreen } from '../../features/top/ChatVolumeScreen';
 import { GroupChannelsScreenContent } from '../../features/top/GroupChannelsScreen';
 import ImageViewerScreen from '../../features/top/ImageViewerScreen';
 import PostScreen from '../../features/top/PostScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
+import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
 import { HomeDrawerParamList } from '../types';
+import { HomeSidebar } from './HomeSidebar';
 
 const HomeDrawer = createDrawerNavigator();
 
 export const HomeNavigator = () => {
   const theme = useTheme();
+  const { setLastOpenTab } = useGlobalSearch();
   const backgroundColor = getVariableValue(theme.background);
   const borderColor = getVariableValue(theme.border);
+
+  useEffect(() => {
+    setLastOpenTab('Home');
+  }, []);
 
   return (
     <HomeDrawer.Navigator
@@ -43,7 +50,7 @@ export const HomeNavigator = () => {
           drawerType: 'permanent',
           headerShown: false,
           drawerStyle: {
-            width: isImageViewer ? 0 : 400,
+            width: isImageViewer ? 0 : DESKTOP_SIDEBAR_WIDTH,
             backgroundColor,
             borderRightColor: borderColor,
           },
@@ -98,11 +105,9 @@ function DrawerContent(props: DrawerContentComponentProps) {
       <GroupChannelsScreenContent groupId={nestedFocusedRouteParams.groupId} />
     );
   } else if (focusedRoute.params && 'channelId' in focusedRoute.params) {
-    return (
-      <ChatListScreenView focusedChannelId={focusedRoute.params.channelId} />
-    );
+    return <HomeSidebar focusedChannelId={focusedRoute.params.channelId} />;
   } else {
-    return <ChatListScreenView />;
+    return <HomeSidebar />;
   }
 }
 

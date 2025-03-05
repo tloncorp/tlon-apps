@@ -1,16 +1,16 @@
 import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
-import {
-  ChatListItem,
-  InteractableChatListItem,
-  SectionListHeader,
-  useChatOptions,
-} from '@tloncorp/ui';
 import React, { useCallback, useMemo, useRef } from 'react';
 import { LayoutChangeEvent } from 'react-native';
 import { getTokenValue } from 'tamagui';
 
 import { SectionedChatData } from '../../hooks/useFilteredChats';
+import {
+  ChatListItem,
+  InteractableChatListItem,
+  SectionListHeader,
+  useChatOptions,
+} from '../../ui';
 
 type SectionHeaderData = { type: 'sectionHeader'; title: string };
 export type ChatListItemData = db.Chat | SectionHeaderData;

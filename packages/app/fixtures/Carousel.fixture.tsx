@@ -1,10 +1,11 @@
-import { Button, Carousel } from '@tloncorp/ui';
 import { useCallback, useRef, useState } from 'react';
 import { useSelect, useValue } from 'react-cosmos/client';
 import { Alert } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, View } from 'tamagui';
+
+import { Button, Carousel } from '../ui';
 
 const colors = ['red', 'blue', 'green', 'yellow', 'purple'];
 

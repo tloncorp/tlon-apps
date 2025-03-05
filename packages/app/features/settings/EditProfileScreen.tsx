@@ -1,14 +1,14 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as store from '@tloncorp/shared/store';
-import {
-  AttachmentProvider,
-  EditProfileScreenView,
-  GroupsProvider,
-} from '@tloncorp/ui';
 import { useCallback } from 'react';
 
 import { useFeatureFlag } from '../../lib/featureFlags';
 import { RootStackParamList } from '../../navigation/types';
+import {
+  AttachmentProvider,
+  EditProfileScreenView,
+  GroupsProvider,
+} from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditProfile'>;
 

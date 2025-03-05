@@ -1,18 +1,8 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as store from '@tloncorp/shared/store';
-import {
-  AttachmentProvider,
-  AttestationScreenView,
-  ControlledTextField,
-  EditProfileScreenView,
-  GroupsProvider,
-  ScreenHeader,
-  View,
-} from '@tloncorp/ui';
-import { useForm } from 'react-hook-form';
 
-import { useFeatureFlag } from '../../lib/featureFlags';
 import { RootStackParamList } from '../../navigation/types';
+import { AttestationScreenView, ScreenHeader, View } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Attestation'>;
 

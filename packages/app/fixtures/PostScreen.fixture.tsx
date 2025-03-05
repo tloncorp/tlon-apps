@@ -1,5 +1,4 @@
-import { AppDataContextProvider, PostScreenView } from '@tloncorp/ui';
-
+import { AppDataContextProvider, PostScreenView } from '../ui';
 import {
   createFakePosts,
   group,
@@ -28,16 +27,14 @@ export default (
       negotiationMatch={true}
       setEditingPost={() => {}}
       parentPost={null}
-      uploadAsset={async () => {}}
       channel={tlonLocalBulletinBoard}
       posts={posts}
       sendReply={async () => {}}
       markRead={() => {}}
       groupMembers={group.members ?? []}
       getDraft={async () => ({})}
-      storeDraft={() => {}}
-      clearDraft={() => {}}
-      canUpload={true}
+      storeDraft={async () => {}}
+      clearDraft={async () => {}}
       headerMode="default"
       onPressRef={() => {}}
       onGroupAction={() => {}}

@@ -5,6 +5,7 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationState } from '@react-navigation/routers';
+import { useEffect } from 'react';
 import { View, getVariableValue, useTheme } from 'tamagui';
 
 import { ChannelMembersScreen } from '../../features/channels/ChannelMembersScreen';
@@ -13,66 +14,66 @@ import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import ChannelScreen from '../../features/top/ChannelScreen';
 import ChannelSearchScreen from '../../features/top/ChannelSearchScreen';
 import { ChatDetailsScreen } from '../../features/top/ChatDetailsScreen';
-import { ChatListScreenView } from '../../features/top/ChatListScreen';
 import { ChatVolumeScreen } from '../../features/top/ChatVolumeScreen';
-import { GroupChannelsScreenContent } from '../../features/top/GroupChannelsScreen';
 import ImageViewerScreen from '../../features/top/ImageViewerScreen';
 import PostScreen from '../../features/top/PostScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
+import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
 import { GroupSettingsStack } from '../GroupSettingsStack';
 import { HomeDrawerParamList } from '../types';
+import { MessagesSidebar } from './MessagesSidebar';
 
-const HomeDrawer = createDrawerNavigator();
+const MessagesDrawer = createDrawerNavigator();
 
-export const HomeNavigator = () => {
+export const MessagesNavigator = () => {
+  const theme = useTheme();
+  const { setLastOpenTab } = useGlobalSearch();
+  const backgroundColor = getVariableValue(theme.background);
+  const borderColor = getVariableValue(theme.border);
+
+  useEffect(() => {
+    setLastOpenTab('Messages');
+  }, []);
+
   return (
-    <HomeDrawer.Navigator
+    <MessagesDrawer.Navigator
       drawerContent={DrawerContent}
       initialRouteName="ChatList"
-      screenOptions={{
-        drawerType: 'permanent',
-        headerShown: false,
-        drawerStyle: {
-          width: 400,
-          backgroundColor: getVariableValue(useTheme().background),
-          borderRightColor: getVariableValue(useTheme().border),
-        },
+      screenOptions={({ navigation }) => {
+        const state = navigation.getState();
+        const routes = state.routes[state.index].state?.routes;
+        const currentScreen = routes?.[routes.length - 1];
+        const isImageViewer = currentScreen?.name === 'ImageViewer';
+
+        return {
+          drawerType: 'permanent',
+          headerShown: false,
+          drawerStyle: {
+            width: isImageViewer ? 0 : DESKTOP_SIDEBAR_WIDTH,
+            backgroundColor,
+            borderRightColor: borderColor,
+          },
+        };
       }}
     >
-      <HomeDrawer.Screen name="ChatList" component={MainStack} />
-      <HomeDrawer.Screen name="GroupChannels" component={Empty} />
-      <HomeDrawer.Screen name="Channel" component={ChannelStack} />
-      <HomeDrawer.Screen name="DM" component={ChannelStack} />
-      <HomeDrawer.Screen name="GroupDM" component={ChannelStack} />
-      <HomeDrawer.Screen name="ChatVolume" component={ChatVolumeScreen} />
-      <HomeDrawer.Screen name="ChatDetails" component={ChatDetailsScreen} />
-    </HomeDrawer.Navigator>
+      <MessagesDrawer.Screen name="ChatList" component={MainStack} />
+      <MessagesDrawer.Screen name="GroupChannels" component={Empty} />
+      <MessagesDrawer.Screen name="Channel" component={ChannelStack} />
+      <MessagesDrawer.Screen name="DM" component={ChannelStack} />
+      <MessagesDrawer.Screen name="GroupDM" component={ChannelStack} />
+      <MessagesDrawer.Screen name="ChatVolume" component={ChatVolumeScreen} />
+      <MessagesDrawer.Screen name="ChatDetails" component={ChatDetailsScreen} />
+    </MessagesDrawer.Navigator>
   );
 };
 
 function DrawerContent(props: DrawerContentComponentProps) {
   const state = props.state as NavigationState<HomeDrawerParamList>;
   const focusedRoute = state.routes[props.state.index];
-  if (
-    focusedRoute.params &&
-    'groupId' in focusedRoute.params &&
-    focusedRoute.params.groupId
-  ) {
-    if ('channelId' in focusedRoute.params) {
-      return (
-        <GroupChannelsScreenContent
-          groupId={focusedRoute.params.groupId}
-          focusedChannelId={focusedRoute.params.channelId}
-        />
-      );
-    }
-    return <GroupChannelsScreenContent groupId={focusedRoute.params.groupId} />;
-  } else if (focusedRoute.params && 'channelId' in focusedRoute.params) {
-    return (
-      <ChatListScreenView focusedChannelId={focusedRoute.params.channelId} />
-    );
+  if (focusedRoute.params && 'channelId' in focusedRoute.params) {
+    return <MessagesSidebar focusedChannelId={focusedRoute.params.channelId} />;
   } else {
-    return <ChatListScreenView />;
+    return <MessagesSidebar />;
   }
 }
 
@@ -84,9 +85,9 @@ function MainStack() {
       screenOptions={{
         headerShown: false,
       }}
-      initialRouteName="Home"
+      initialRouteName="Messages"
     >
-      <MainStackNavigator.Screen name="Home" component={Empty} />
+      <MainStackNavigator.Screen name="Messages" component={Empty} />
     </MainStackNavigator.Navigator>
   );
 }

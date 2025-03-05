@@ -1,14 +1,14 @@
 /-  g=groups
 /+  j=groups-json
-|_  =group:g
+|_  =group:v2:g
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  group
-  ++  json  (group:enjs:j group)
+  ++  json  (group:v2:enjs:j group)
   --
 ++  grab
   |%
-  ++  noun  group:g
+  ++  noun  group:v2:g
   --
 --

@@ -4,22 +4,25 @@ import {
 } from '@react-navigation/drawer';
 import { DrawerNavigationState } from '@react-navigation/native';
 import * as store from '@tloncorp/shared/store';
-import {
-  AvatarNavIcon,
-  GlobalSearch,
-  GlobalSearchProvider,
-  NavIcon,
-  YStack,
-  useWebAppUpdate,
-} from '@tloncorp/ui';
 import { useCallback, useRef } from 'react';
 import { View, getVariableValue, useTheme } from 'tamagui';
 
+import { GlobalSearch } from '../../features/chat-list/GlobalSearch';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import {
+  AvatarNavIcon,
+  DESKTOP_TOPLEVEL_SIDEBAR_WIDTH,
+  GlobalSearchProvider,
+  NavIcon,
+  YStack,
+  useGlobalSearch,
+  useWebAppUpdate,
+} from '../../ui';
 import { RootDrawerParamList } from '../types';
 import { useRootNavigation } from '../utils';
 import { ActivityNavigator } from './ActivityNavigator';
 import { HomeNavigator } from './HomeNavigator';
+import { MessagesNavigator } from './MessagesNavigator';
 import { ProfileNavigator } from './ProfileNavigator';
 import { SettingsNavigator } from './SettingsNavigator';
 
@@ -31,6 +34,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
   const { webAppNeedsUpdate, triggerWebAppUpdate } = useWebAppUpdate();
   const lastHomeStateRef =
     useRef<DrawerNavigationState<RootDrawerParamList> | null>(null);
+  const { isOpen, setIsOpen } = useGlobalSearch();
 
   const isRouteActive = useCallback(
     (routeName: keyof RootDrawerParamList) => {
@@ -76,7 +80,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           shouldShowUnreads={false}
           onPress={restoreHomeState}
         />
-        {/* <NavIcon
+        <NavIcon
           type="Messages"
           activeType="MessagesFilled"
           isActive={isRouteActive('Messages')}
@@ -88,7 +92,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
               routes: [{ name: 'Messages' }],
             });
           }}
-        /> */}
+        />
         <NavIcon
           type="Notifications"
           activeType="NotificationsFilled"
@@ -136,16 +140,22 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
             });
           }}
         />
+        <NavIcon
+          type="Command"
+          isActive={isOpen}
+          shouldShowUnreads={false}
+          onPress={() => setIsOpen(!isOpen)}
+        />
       </YStack>
     </YStack>
   );
 };
 
-export const TopLevelDrawer = () => {
+const TopLevelDrawerInner = () => {
   const { navigateToGroup, navigateToChannel } = useRootNavigation();
 
   return (
-    <GlobalSearchProvider>
+    <>
       <GlobalSearch
         navigateToGroup={navigateToGroup}
         navigateToChannel={navigateToChannel}
@@ -159,17 +169,26 @@ export const TopLevelDrawer = () => {
           drawerType: 'permanent',
           headerShown: false,
           drawerStyle: {
-            width: 56,
+            width: DESKTOP_TOPLEVEL_SIDEBAR_WIDTH,
             backgroundColor: getVariableValue(useTheme().background),
             borderRightColor: getVariableValue(useTheme().border),
           },
         }}
       >
         <Drawer.Screen name="Home" component={HomeNavigator} />
+        <Drawer.Screen name="Messages" component={MessagesNavigator} />
         <Drawer.Screen name="Activity" component={ActivityNavigator} />
         <Drawer.Screen name="Contacts" component={ProfileNavigator} />
         <Drawer.Screen name="Settings" component={SettingsNavigator} />
       </Drawer.Navigator>
+    </>
+  );
+};
+
+export const TopLevelDrawer = () => {
+  return (
+    <GlobalSearchProvider>
+      <TopLevelDrawerInner />
     </GlobalSearchProvider>
   );
 };

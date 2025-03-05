@@ -520,8 +520,8 @@
       ((slog tank u.p.sign) cor)
     ::
         %fact
-      ?.  =(act:mar:g p.cage.sign)  cor
-      (take-groups !<(=action:g q.cage.sign))
+      ?.  ?=(%group-action-4 p.cage.sign)  cor
+      (take-groups !<(action:v5:g q.cage.sign))
     ==
   ::
       [%migrate ~]
@@ -566,7 +566,7 @@
 ::
 ++  watch-groups  (safe-watch /groups [our.bowl %groups] /groups)
 ++  take-groups
-  |=  =action:g
+  |=  =action:v5:g
   =/  affected=(list nest:c)
     %+  murn  ~(tap by v-channels)
     |=  [=nest:c channel=v-channel:c]
@@ -681,20 +681,20 @@
     =/  =channel:g
       :-  [title description '' '']:new
       [now.bowl %default | readers.new]
-    =/  =action:g
+    =/  =action:v5:g
       [group.new now.bowl %channel nest %add channel]
     =/  =dock    [p.group.new %groups]
     =/  =wire    (snoc ca-area %create)
-    (emit %pass wire %agent dock %poke act:mar:g !>(action))
+    (emit %pass wire %agent dock %poke group-action-4+!>(action))
     ::
     ::  +can-nest: does group exist, are we allowed
     ::
     ++  can-nest
       ^-  ?
       =/  groups
-        .^  groups:g
+        .^  groups:v5:g
           %gx
-          /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+          /(scot %p our.bowl)/groups/(scot %da now.bowl)/v1/groups/groups-1
         ==
       =/  gop  (~(got by groups) group.new)
       %-  ~(any in bloc.gop)
@@ -1023,14 +1023,14 @@
 ++  get-hook-bowl
   |=  [channel=(unit [nest:c v-channel:c]) =config:h]
   ^-  bowl:h
-  =/  group
+  =/  group=(unit group-ui:v2:g)
     ?~  channel  ~
     =*  flag  group.perm.perm.+.u.channel
     %-  some
-    ?.  .^(? %gu (scry-path %groups /$))  *group-ui:g
+    ?.  .^(? %gu (scry-path %groups /$))  *group-ui:v2:g
     ?.  .^(? %gx (scry-path %groups /exists/(scot %p p.flag)/[q.flag]/noun))
-      *group-ui:g
-    .^(group-ui:g %gx (scry-path %groups /groups/(scot %p p.flag)/[q.flag]/v1/noun))
+      *group-ui:v2:g
+    .^(group-ui:v2:g %gx (scry-path %groups /groups/(scot %p p.flag)/[q.flag]/v1/group-ui))
   :*  channel
       group
       v-channels

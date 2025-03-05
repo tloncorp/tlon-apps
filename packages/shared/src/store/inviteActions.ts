@@ -17,7 +17,7 @@ import {
   withRetry,
 } from '../logic';
 
-const logger = createDevLogger('inviteActions', true);
+const logger = createDevLogger('inviteActions', false);
 
 export async function verifyUserInviteLink() {
   try {
