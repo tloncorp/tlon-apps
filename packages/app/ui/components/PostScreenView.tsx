@@ -191,8 +191,7 @@ export function PostScreenView({
   const { attachAssets } = useAttachmentContext();
 
   const mode: 'single' | 'carousel' = useMemo(
-    () =>
-      ['gallery', 'notebook'].includes(channel?.type) ? 'carousel' : 'single',
+    () => (['gallery'].includes(channel?.type) ? 'carousel' : 'single'),
     [channel]
   );
 
