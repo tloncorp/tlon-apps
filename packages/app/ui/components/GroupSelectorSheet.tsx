@@ -1,11 +1,10 @@
 import * as db from '@tloncorp/shared/db';
-import { Sheet, SheetHeader, Text } from '@tloncorp/ui';
+import { SheetHeader, View } from '@tloncorp/ui';
 import React, { useEffect, useState } from 'react';
-import { Modal } from 'react-native';
-import { YStack } from 'tamagui';
 
 import { AlphaSegmentedGroups } from '../hooks/groupsSorters';
 import { triggerHaptic } from '../utils';
+import { ActionSheet } from './ActionSheet';
 import { GroupSelector } from './GroupSelector';
 
 interface SheetProps {
@@ -28,43 +27,37 @@ export function GroupSelectorSheet(props: SheetProps) {
   }, [props.open]);
 
   return (
-    <Modal
-      visible={props.open}
-      animationType="none"
-      transparent
-      onRequestClose={() => props.onOpenChange(false)}
+    <ActionSheet
+      open={props.open}
+      onOpenChange={props.onOpenChange}
+      snapPoints={['85%']}
+      disableDrag={contentScrolling}
+      dismissOnSnapToBottom
     >
-      <Sheet
-        open={props.open}
-        onOpenChange={props.onOpenChange}
-        snapPoints={[85]}
-        disableDrag={contentScrolling}
-        dismissOnSnapToBottom
-        animation="quick"
+      <ActionSheet.ScrollableContent
+        id="GroupSelectorScrollableContent"
+        padding="$xl"
       >
-        <Sheet.Overlay />
-        <Sheet.LazyFrame paddingTop="$s" paddingHorizontal="$2xl">
-          <Sheet.Handle marginBottom="$l" />
-          <SheetHeader marginBottom="$2xl">
-            <SheetHeader.Title>{props.TopContent}</SheetHeader.Title>
-            <SheetHeader.RightControls>
-              <SheetHeader.ButtonText
-                onPress={props.onClose}
-                testID="CloseFavoriteGroupSelectorSheet"
-              >
-                Close
-              </SheetHeader.ButtonText>
-            </SheetHeader.RightControls>
-          </SheetHeader>
-
+        <SheetHeader marginBottom="$2xl">
+          <SheetHeader.Title>{props.TopContent}</SheetHeader.Title>
+          <SheetHeader.RightControls>
+            <SheetHeader.ButtonText
+              onPress={props.onClose}
+              testID="CloseFavoriteGroupSelectorSheet"
+            >
+              Close
+            </SheetHeader.ButtonText>
+          </SheetHeader.RightControls>
+        </SheetHeader>
+        <View flex={1} height="100%">
           <GroupSelector
             selected={props.selected}
             onSelect={props.onSelect}
             onScrollChange={setContentScrolling}
             alphaSegmentedGroups={props.alphaSegmentedGroups}
           />
-        </Sheet.LazyFrame>
-      </Sheet>
-    </Modal>
+        </View>
+      </ActionSheet.ScrollableContent>
+    </ActionSheet>
   );
 }
