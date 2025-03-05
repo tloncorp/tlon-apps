@@ -202,11 +202,11 @@
     (toggle-post toggle)
   ::
       %leave-old-channels
-    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
-    =/  groups  .^(groups:g %gx groups-path)
+    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/groups
+    =/  groups  .^(groups:v2:g %gx groups-path)
     =/  diary-flags-from-groups
       %+  turn  ~(tap by groups)
-      |=  [group-flag=flag:g group=group:g]
+      |=  [group-flag=flag:g group=group:v2:g]
       %+  turn
         %+  skim  ~(tap by channels.group)
         |=  [=nest:g *]
@@ -296,9 +296,9 @@
     ::  group.
     ::
     ++  groups
-      .^  groups:g
+      .^  groups:v2:g
         %gx
-        /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+        /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/groups
       ==
     --
   --

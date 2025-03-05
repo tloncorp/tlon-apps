@@ -197,7 +197,7 @@
       :_  ~
       %^  lure-log  %warn  group-event
       ~[leaf+"group {<p.flag>}/{(trip q.flag)} missing"]
-    =+  .^(=group:groups %gx :(weld prefix /groups gnat))
+    =+  .^(=group:v2:groups %gx :(weld prefix /groups gnat))
     ?+  -.cordon.group  ~
         %open
       :-  %^  lure-log  %info  'Group Invite Sent'

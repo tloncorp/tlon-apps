@@ -692,7 +692,7 @@
     ++  can-nest
       ^-  ?
       =/  groups
-        .^  groups:g
+        .^  groups:v5:g
           %gx
           /(scot %p our.bowl)/groups/(scot %da now.bowl)/v1/groups/groups-1
         ==
