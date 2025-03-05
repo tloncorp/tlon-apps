@@ -709,7 +709,7 @@
     ``groups+!>(groups-2)
   ::
       [%x %v1 %groups ~]
-    ``groups-1+!>((~(run by groups) tail))
+    ``groups-1+!>(`groups:v5:g`(~(run by groups) tail))
   ::
       [%x %groups %v0 ~]
     ``groups-ui-v0+!>(`groups-ui:zero`(~(urn by groups) to-group-ui-v0))
