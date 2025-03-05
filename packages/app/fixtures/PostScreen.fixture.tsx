@@ -66,7 +66,6 @@ export default {
       <FixtureWrapper fillWidth fillHeight>
         <PostScreenView
           handleGoToUserProfile={() => {}}
-          isLoadingPosts={false}
           editPost={async () => {}}
           onPressRetry={async () => {}}
           onPressDelete={() => {}}

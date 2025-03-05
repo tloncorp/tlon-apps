@@ -77,7 +77,6 @@ export function PostScreenView({
   initialThreadUnread,
   parentPost,
   posts,
-  isLoadingPosts,
   sendReply,
   markRead,
   goBack,
@@ -102,7 +101,6 @@ export function PostScreenView({
   initialThreadUnread?: db.ThreadUnreadState | null;
   parentPost: db.Post | null;
   posts: db.Post[] | null;
-  isLoadingPosts: boolean;
   markRead: () => void;
   goBack?: () => void;
   handleGoToImage?: (post: db.Post, uri?: string) => void;
@@ -241,10 +239,15 @@ export function PostScreenView({
                 <ConnectedHeader
                   channel={channel}
                   goBack={handleGoBack}
-                  showSpinner={isLoadingPosts}
                   mode={headerMode}
                   showEditButton={showEdit}
                   goToEdit={handleEditPress}
+
+                  // When adding the ability to swipe through posts, we lost
+                  // the ability to show a spinner based on loading posts. I
+                  // don't think we were ever really showing this though, as we
+                  // only spun while waiting for DB load, not network load.
+                  // showSpinner={isLoadingPosts}
                 />
                 {parentPost &&
                   (mode === 'single' ? (

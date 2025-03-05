@@ -39,7 +39,6 @@ export const DetailViewFixture = ({
               channel,
             }}
             posts={replies}
-            isLoadingPosts={false}
             channel={channel}
             sendReply={async () => {}}
             onPressRetry={async () => {}}

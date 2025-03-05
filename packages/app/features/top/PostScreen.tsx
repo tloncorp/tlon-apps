@@ -94,13 +94,11 @@ function PostScreenContent({
     initializeChannelUnread();
   }, [postId]);
 
-  const { data: threadPosts, isLoading: isLoadingPosts } = store.useThreadPosts(
-    {
-      postId: postId,
-      authorId,
-      channelId: channelId,
-    }
-  );
+  const { data: threadPosts } = store.useThreadPosts({
+    postId: postId,
+    authorId,
+    channelId: channelId,
+  });
 
   const posts = useMemo(() => {
     return post ? [...(threadPosts ?? []), post] : null;
@@ -189,7 +187,6 @@ function PostScreenContent({
       handleGoToUserProfile={handleGoToUserProfile}
       parentPost={post}
       posts={posts}
-      isLoadingPosts={isLoadingPosts}
       channel={channel}
       initialThreadUnread={initialThreadUnread}
       goBack={handleGoBack}
