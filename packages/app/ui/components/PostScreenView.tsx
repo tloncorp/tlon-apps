@@ -273,6 +273,8 @@ export function PostScreenView({
                     />
                   ) : (
                     <CarouselPostScreenContent
+                      flex={1}
+                      width="100%"
                       channelId={channel.id}
                       initialPostId={parentPost.id}
                       channelContext={{
@@ -534,12 +536,15 @@ function SinglePostView({
 function CarouselPostScreenContent({
   channelId,
   initialPostId,
-  channelContext,
-}: {
-  channelId: string;
-  initialPostId: string;
-  channelContext: ChannelContext;
-}) {
+  ...passedProps
+}: ForwardingProps<
+  typeof PresentationalCarouselPostScreenContent,
+  {
+    channelId: string;
+    initialPostId: string;
+  },
+  'posts' | 'channel' | 'initialPostIndex' | 'fetchNewerPage' | 'fetchOlderPage'
+>) {
   const {
     posts,
     query: { fetchNextPage, fetchPreviousPage },
@@ -565,9 +570,7 @@ function CarouselPostScreenContent({
         initialPostIndex,
         fetchNewerPage: fetchNextPage,
         fetchOlderPage: fetchPreviousPage,
-        flex: 1,
-        width: '100%',
-        channelContext,
+        ...passedProps,
       }}
     />
   );
