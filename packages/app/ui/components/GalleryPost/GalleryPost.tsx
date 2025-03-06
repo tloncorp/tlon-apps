@@ -116,7 +116,7 @@ export function GalleryPost({
 
   return (
     <Pressable
-      onPress={overFlowIsHovered ? undefined : handlePress}
+      onPress={overFlowIsHovered || isPopoverOpen ? undefined : handlePress}
       onLongPress={handleLongPress}
       onHoverIn={onHoverIn}
       onHoverOut={onHoverOut}
