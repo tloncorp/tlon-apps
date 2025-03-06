@@ -75,7 +75,7 @@ function PostScreenContent({
     isChannelSwitcherEnabled,
   });
 
-  const { navigateToImage, navigateToRef } = useChannelNavigation({
+  const { navigateToImage } = useChannelNavigation({
     channelId: channelId,
   });
 
@@ -164,7 +164,6 @@ function PostScreenContent({
       editingPost={editingPost}
       onPressDelete={handleDeletePost}
       onPressRetry={handleRetrySend}
-      onPressRef={navigateToRef}
       onGroupAction={performGroupAction}
       goToDm={handleGoToDm}
       setEditingPost={setEditingPost}

@@ -20,6 +20,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, YStack } from 'tamagui';
 
+import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import {
   ChannelProvider,
   NavigationProvider,
@@ -88,7 +89,6 @@ export function PostScreenView({
   editPost,
   onPressRetry,
   onPressDelete,
-  onPressRef,
   onGroupAction,
   goToDm,
   negotiationMatch,
@@ -99,7 +99,6 @@ export function PostScreenView({
   goBack?: () => void;
   handleGoToImage?: (post: db.Post, uri?: string) => void;
   handleGoToUserProfile: (userId: string) => void;
-  onPressRef: (channel: db.Channel, post: db.Post) => void;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   goToDm: (participants: string[]) => void;
 } & ChannelContext) {
@@ -206,10 +205,14 @@ export function PostScreenView({
 
   const { attachAssets } = useAttachmentContext();
 
+  const { navigateToRef } = useChannelNavigation({
+    channelId: channel.id,
+  });
+
   return (
     <NavigationProvider
       onGoToUserProfile={handleGoToUserProfile}
-      onPressRef={onPressRef}
+      onPressRef={navigateToRef}
       onPressGroupRef={onPressGroupRef}
       onPressGoToDm={goToDm}
     >

@@ -81,7 +81,6 @@ export default {
           storeDraft={async () => {}}
           clearDraft={async () => {}}
           headerMode="default"
-          onPressRef={() => {}}
           onGroupAction={() => {}}
           goToDm={() => {}}
         />
