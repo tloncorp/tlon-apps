@@ -101,6 +101,7 @@ export const DetailView = ({
       </View>
     );
   }, [
+    containingProperties,
     activeMessage,
     editingPost,
     initialPostUnread,
