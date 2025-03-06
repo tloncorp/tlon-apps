@@ -340,6 +340,9 @@ function useBlockLink(
   content: BlockData[]
 ): { text: string; href: string } | null {
   return useMemo(() => {
+    if (content[0].type === 'embed') {
+      return { text: content[0].url, href: content[0].url };
+    }
     if (content[0]?.type !== 'paragraph') {
       return null;
     }
