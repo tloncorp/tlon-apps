@@ -1,6 +1,8 @@
-import { Cell, Noun, dwim, enjs } from '@urbit/nockjs';
+import { daToUnix, parseUw } from '@urbit/aura';
+import { Atom, Cell, Noun, cue, dwim, enjs } from '@urbit/nockjs';
 
 import * as db from '../db';
+import { VerificationType } from '../db/schema';
 import { createDevLogger } from '../debug';
 import { getFrondValue, getPatp } from '../logic';
 import { stringToTa } from '../urbit';
@@ -16,6 +18,69 @@ export function subscribeToLanyardUpdates(
     logger.log('raw lanyard sub event', event);
     eventHandler({ type: 'Default' });
   });
+}
+
+interface HalfSign {
+  signType: 'half';
+  when: number;
+  kind: string;
+}
+
+interface FullSign {
+  signType: 'full';
+  when: number;
+  kind: string;
+
+  provider: string;
+  value: string;
+  type: VerificationType;
+}
+
+type Sign = HalfSign | FullSign;
+
+// send to /valid-jam/${sign} -> noun (bool, good/no good)
+
+function getSign(sign: string): Sign | null {
+  const uw = parseUw(sign);
+  const at = new Atom(uw);
+  const noun = cue(at);
+  const signTypeNoun = noun.at(Atom.fromInt(14)) as Noun | null; //   [%half when=@da for=@p kind=id-kind]
+  if (!signTypeNoun) {
+    throw 'Bad sign';
+  }
+
+  const signType = enjs.cord(signTypeNoun);
+  if (!['half', 'full'].includes(signType)) {
+    throw 'Bad sign';
+  }
+
+  // [when=@da for=@p kind=id-kind]
+  function parseHalfSign(noun: Noun): HalfSign {
+    if (!(noun instanceof Cell)) {
+      throw 'Bad half sign';
+    }
+
+    const whenDa = enjs.cord(noun.head);
+    const when = new Date(daToUnix(BigInt(whenDa))).getTime();
+    if (!(noun.tail instanceof Cell)) {
+      throw 'Bad half sign';
+    }
+
+    const b = noun.tail;
+
+    const correspondingUser = b.head; // TODO: should check matches contactId
+    const kind = enjs.cord(b.tail) as VerificationType;
+
+    return { signType: 'half', when, kind };
+  }
+
+  const signValue = getFrondValue([
+    // @ts-expect-error it's valid JSON, i swear
+    { tag: 'half', get: parseHalfSign },
+    { tag: 'full', get: () => 'todo' },
+  ])(signTypeNoun);
+
+  return null;
 }
 
 function getRecords(noun: Noun): db.Verification[] {
@@ -129,6 +194,11 @@ export async function confirmTwitterAttestation(
   const payload = [null, ['work', identifier, proof]];
   logger.log('confirmTwitterAttestation', payload);
   const noun = dwim(payload);
+  console.log(`bl: poking for twitter confirm`, {
+    noun,
+    twitterHandle,
+    postId,
+  });
   await pokeNoun({ app: 'lanyard', mark: 'lanyard-command', noun });
   logger.log('confirmTwitterAttestation poke success');
   return;

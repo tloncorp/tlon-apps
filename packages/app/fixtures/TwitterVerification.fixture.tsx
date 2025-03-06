@@ -1,17 +1,8 @@
 import * as db from '@tloncorp/shared/db';
 
-import {
-  AppDataContextProvider,
-  AttestationScreenView,
-  PostScreenView,
-} from '../ui';
+import { AppDataContextProvider, TwitterAttestationPane } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
-import {
-  createFakePosts,
-  group,
-  initialContacts,
-  tlonLocalBulletinBoard,
-} from './fakeData';
+import { createFakePosts, initialContacts } from './fakeData';
 
 const posts = createFakePosts(10);
 
@@ -36,8 +27,7 @@ export default {
       }}
     >
       <FixtureWrapper safeArea>
-        <AttestationScreenView
-          attestationType="twitter"
+        <TwitterAttestationPane
           attestation={INITIAL}
           isLoading={false}
           currentUserId="~latter-bolden"
@@ -55,8 +45,7 @@ export default {
       }}
     >
       <FixtureWrapper safeArea>
-        <AttestationScreenView
-          attestationType="twitter"
+        <TwitterAttestationPane
           attestation={CONFIRM}
           isLoading={false}
           currentUserId="~fabled-faster"

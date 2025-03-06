@@ -1,18 +1,19 @@
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { View, YStack } from 'tamagui';
+import { View, XStack, YStack } from 'tamagui';
 
 import { Button } from '../../../ui/src/components/Button';
 import { LoadingSpinner } from '../../../ui/src/components/LoadingSpinner';
 import { Text } from '../../../ui/src/components/TextV2';
 import { useStore } from '../contexts';
+import { Icon, useCopy } from '../utils';
+import { CopyableTextBlock } from './CopyableTextBlock';
 import { ControlledTextField } from './Form';
 import { WidgetPane } from './WidgetPane';
 
 interface Props {
-  attestationType: 'twitter' | 'phone';
   attestation: db.Verification | null;
   isLoading: boolean;
   currentUserId: string;
@@ -20,7 +21,7 @@ interface Props {
 
 type Pane = 'init' | 'confirm' | 'verified';
 
-export function AttestationScreenView({
+export function TwitterAttestationPane({
   isLoading,
   attestation,
   currentUserId,
@@ -55,13 +56,24 @@ export function AttestationScreenView({
 
       {pane === 'init' && <InitiateTwitterPane />}
       {pane === 'confirm' && attestation && (
-        <ConfirmTwitterPane attestation={attestation} />
+        <ConfirmTwitterPane
+          attestation={attestation}
+          currentUserId={currentUserId}
+        />
+      )}
+      {pane === 'verified' && attestation && (
+        <VerifiedTwitterPane attestation={attestation} />
       )}
     </View>
   );
 }
 
-function ConfirmTwitterPane(props: { attestation: db.Verification }) {
+function ConfirmTwitterPane(props: {
+  attestation: db.Verification;
+  currentUserId: string;
+}) {
+  const store = useStore();
+  const [proof, setProof] = useState<string | null>(null);
   useEffect(() => {
     async function runEffect() {
       console.log(`bl: confirming twitter`);
@@ -69,11 +81,10 @@ function ConfirmTwitterPane(props: { attestation: db.Verification }) {
         props.attestation.value
       );
       console.log('got result', result);
+      setProof(result.payload);
     }
     runEffect();
   }, [props.attestation]);
-
-  const store = useStore();
   const {
     control,
     handleSubmit,
@@ -86,30 +97,35 @@ function ConfirmTwitterPane(props: { attestation: db.Verification }) {
   });
 
   const onSubmit = handleSubmit(async (data) => {
-    console.log(`bl: submitting handle`, data.twitterPostId);
-    await api.confirmTwitterAttestation(
+    await store.confirmTwitterAttestation(
       props.attestation.value,
       data.twitterPostId
     );
   });
 
+  const tweetContent = useMemo(() => {
+    return `Verifying myself as ${props.currentUserId} on Tlon
+
+${proof}`;
+  }, [proof, props.currentUserId]);
+
+  const normalizedHandle = useMemo(
+    () => props.attestation.value.replace('@', ''),
+    [props.attestation.value]
+  );
+
   return (
-    <View>
+    <YStack gap="$2xl">
       <Text size="$label/m">
         To complete verification, send this post from your 𝕏 account.
       </Text>
-      <WidgetPane backgroundColor="$secondaryBackground">
-        <Text size="$label/m" color="$secondaryText">
-          {`Verifying myself as ~latter-bolden on Tlon
-          68Ae4jVYjf7CWUJXTwQ6ClPWFtlNAKW4TP9mKRkPm6Bez80l5epf0ewsigXn80UMsj26cnHOcjvBuiUbuEaNv~A0eXZvvY41QsSlQrCZItfM3f9Bt7hFtTiY0KcIduxs~xv5D0g1`}
-        </Text>
-      </WidgetPane>
+      <CopyableTextBlock text={tweetContent} />
       <ControlledTextField
         name="twitterPostId"
-        label="𝕏 Post URL"
+        label="Attesting Post"
         control={control}
         inputProps={{
-          placeholder: '@RyuichiSakamoto',
+          placeholder: `https://x.com/${normalizedHandle}/status/1889766709566844930`,
         }}
         rules={{
           maxLength: {
@@ -121,7 +137,7 @@ function ConfirmTwitterPane(props: { attestation: db.Verification }) {
       <Button hero onPress={onSubmit} disabled={!isDirty || !isValid}>
         <Button.Text>Submit</Button.Text>
       </Button>
-    </View>
+    </YStack>
   );
 }
 
@@ -139,7 +155,6 @@ function InitiateTwitterPane() {
   });
 
   const onSubmit = handleSubmit(async (data) => {
-    console.log(`bl: submitting handle`, data.twitterHandle);
     await store.initiateTwitterAttestation(data.twitterHandle);
   });
 
@@ -155,6 +170,9 @@ function InitiateTwitterPane() {
         control={control}
         inputProps={{
           placeholder: '@TlonCorporation',
+          spellCheck: false,
+          autoComplete: 'off',
+          autoCorrect: false,
         }}
         rules={{
           maxLength: {

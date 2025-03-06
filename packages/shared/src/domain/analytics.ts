@@ -93,6 +93,8 @@ export enum AnalyticsEvent {
   ActionViewProfileGroup = 'Viewed Pinned Profile Group',
   ActionSelectActivityEvent = 'Tapped Activity Event',
   ActionsNotifPermsChecked = 'Checked Notification Permissions',
+  ActionInitiateTwitterAttest = 'Initiated Twitter Attestation',
+  ActionConfirmTwitterAttest = 'Confirmed Twitter Attestation',
   ActionTappedPushNotif = 'Tapped Push Notification',
   GroupJoinComplete = 'Group Join Complete',
   PersonalInviteLinkReady = 'Personal Invite Link Ready',

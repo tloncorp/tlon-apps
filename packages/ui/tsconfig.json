@@ -1,6 +1,6 @@
 {
   "extends": "../../tsconfig",
-  "include": ["./src", "../app/ui/components/AttestationScreenView.tsx"],
+  "include": ["./src"],
   "compilerOptions": {
     "composite": true
   }

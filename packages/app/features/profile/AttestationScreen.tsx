@@ -1,13 +1,15 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as store from '@tloncorp/shared/store';
 
+import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { RootStackParamList } from '../../navigation/types';
-import { AttestationScreenView, ScreenHeader, View } from '../../ui';
+import { ScreenHeader, TwitterAttestationPane, View } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Attestation'>;
 
 export function AttestationScreen({ route, navigation }: Props) {
   const { data: verifications, isLoading } = store.useVerifications();
+  const currentUserId = useCurrentUserId();
   const twitterAttestation =
     verifications?.find((v) => v.type === 'twitter') ?? null;
 
@@ -23,14 +25,14 @@ export function AttestationScreen({ route, navigation }: Props) {
         title={
           route.params.attestationType === 'twitter'
             ? 'Verify 𝕏 Account'
-            : 'Link Phone Number'
+            : 'Verify Phone Number'
         }
         backAction={navigation.goBack}
       />
-      <AttestationScreenView
-        attestationType={route.params.attestationType}
+      <TwitterAttestationPane
         attestation={twitterAttestation}
         isLoading={isLoading}
+        currentUserId={currentUserId}
       />
     </View>
   );
