@@ -10,6 +10,7 @@ import { Carousel, ForwardingProps } from '@tloncorp/ui';
 import { KeyboardAvoidingView } from '@tloncorp/ui';
 import {
   createContext,
+  memo,
   useCallback,
   useContext,
   useEffect,
@@ -679,16 +680,14 @@ export function PresentationalCarouselPostScreenContent({
     () =>
       channel != null &&
       posts?.map((post) => (
-        <Carousel.Item key={post.id} flex={1}>
-          <SinglePostView
-            {...{
-              channel,
-              ...channelContext,
-              parentPost: post,
-              posts,
-            }}
-          />
-        </Carousel.Item>
+        <CarouselPost
+          key={post.id}
+          {...{
+            ...channelContext,
+            channel,
+            parentPost: post,
+          }}
+        />
       )),
     [posts, channel, channelContext]
   );
@@ -714,3 +713,22 @@ export function PresentationalCarouselPostScreenContent({
     </YStack>
   ) : null;
 }
+
+function _CarouselPost({
+  channel,
+  parentPost,
+  ...channelContext
+}: { channel: db.Channel; parentPost: db.Post } & ChannelContext) {
+  return (
+    <Carousel.Item flex={1}>
+      <SinglePostView
+        {...{
+          channel,
+          ...channelContext,
+          parentPost,
+        }}
+      />
+    </Carousel.Item>
+  );
+}
+const CarouselPost = memo(_CarouselPost);
