@@ -610,7 +610,7 @@
     ::  /v0/groups
     ::
   ::
-    [%init ~]             (give %kick ~ ~)
+    [%init ~]             ~&  %watch-init  (give %kick ~ ~)
     [%groups ~]           cor
     [%groups %ui ~]       cor
   ::
@@ -1004,7 +1004,7 @@
   ^+  cor
   ?^  dud=(~(get by shoal) gra)
     =.  cor   (give %fact ~ dude+!>(u.dud))
-    (give %kick ~ ~)
+    ~&  %cast  (give %kick ~ ~)
   =/  grp-path=path   /(scot %p p.grp)/[q.grp]
   =/  gra-path=path   /(scot %p p.gra)/[q.gra]
   =/  =wire          [%cast gra-path]
@@ -1025,6 +1025,7 @@
     ?.  =((scag 3 path) [%bait (scot %p p.gra) q.gra ~])
       ~
     `path
+     ~&  [%take-cast ?=(~ matching)]
   ?+    -.sign  cor
       %kick  (give %kick matching ~)
   ::
@@ -1154,7 +1155,7 @@
         flag  meta  cordon  now.bowl  secret.group
     ==
   =.  cor  (emit %give %fact ~ channel-preview+!>(preview))
-  (emit %give %kick ~ ~)
+  ~&  %watch-chan  (emit %give %kick ~ ~)
 ::
 ++  take-chan
   |=  [=nest:g =sign:agent:gall]
@@ -1444,7 +1445,7 @@
       =/  =flag:g  [(slav %p host.pole) name.pole]
       =;  =nest:g
         =.  cor  (give %fact ~ dude+!>(p.nest))
-        =.  cor  (give %kick ~ ~)
+        =.  cor  ~&  %go-watch  (give %kick ~ ~)
         go-core
       %-  need
       %+  roll  ~(tap in imported.group)
@@ -1475,7 +1476,7 @@
         (emit %give %fact ~ group-preview+!>((to-preview-2 preview)))
       (emit %give %fact ~ group-preview-1+!>(preview))
     =.  cor
-      (emit %give %kick ~ ~)
+      ~&  %go-preview  (emit %give %kick ~ ~)
     go-core
   ::
   ++  go-peek
@@ -2249,7 +2250,7 @@
   ^+  cor
   =;  =cage
     =.  cor  (emit %give %fact ~ cage)
-    (emit %give %kick ~ ~)
+    ~&  %res-gang-index-2  (emit %give %kick ~ ~)
   :-  %group-previews
   !>  ^-  previews:v2:g
   %-  ~(gas by *previews:v2:g)
@@ -2264,7 +2265,7 @@
   ^+  cor
   =;  =cage
     =.  cor  (emit %give %fact ~ cage)
-    (emit %give %kick ~ ~)
+    ~&  %res-gang-index-5  (emit %give %kick ~ ~)
   :-  %group-previews-1
   !>  ^-  previews:v5:g
   %-  ~(gas by *previews:v5:g)
