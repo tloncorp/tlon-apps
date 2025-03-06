@@ -609,7 +609,14 @@ function CarouselPostScreenContent({
   const { data: channel } = store.useChannel({ id: channelId });
 
   const initialPostIndex = useMemo(() => {
-    return posts?.findIndex((p) => p.id === initialPostId) ?? -1;
+    let index: number | undefined = undefined;
+    if (posts != null) {
+      index = posts.findIndex((p) => p.id === initialPostId);
+    }
+    if (index === -1) {
+      index = undefined;
+    }
+    return index;
   }, [posts, initialPostId]);
 
   return (
@@ -639,13 +646,13 @@ export function PresentationalCarouselPostScreenContent({
   {
     posts: db.Post[] | null;
     channel: db.Channel | null;
-    initialPostIndex: number;
+    initialPostIndex?: number;
     fetchNewerPage: () => void;
     fetchOlderPage: () => void;
     channelContext: ChannelContext;
   }
 >) {
-  const [visibleIndex, setVisibleIndex] = useState<number | null>(null);
+  const [visibleIndex, setVisibleIndex] = useState(initialPostIndex ?? 0);
 
   /*
    * Without this `useDebounceValue`, the header will flicker when adding
@@ -655,7 +662,7 @@ export function PresentationalCarouselPostScreenContent({
    * receiving the corresponding `onScroll`).
    */
   const headerPost = useDebouncedValue(
-    posts?.[visibleIndex ?? initialPostIndex],
+    posts?.[visibleIndex],
     10 // found through experimentation
   );
 
@@ -686,7 +693,7 @@ export function PresentationalCarouselPostScreenContent({
     [posts, channel, channelContext]
   );
 
-  return channel && posts?.length && initialPostIndex !== -1 ? (
+  return channel && posts?.length ? (
     <YStack {...passedProps}>
       <Carousel
         flex={1}
