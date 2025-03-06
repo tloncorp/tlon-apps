@@ -340,30 +340,6 @@ function extractEmbedsFromInlines(inlines: ub.Inline[]): BlockData[] {
   // Flush any remaining inlines as a paragraph
   flushSegment();
 
-  // If no blocks were created (only had non-link inlines), create a single paragraph if needed
-  if (blocks.length === 0 && inlines.length > 0) {
-    // Check if inlines only contain whitespace
-    const isOnlyWhitespace = inlines.every(
-      item => typeof item === 'string' && item.trim() === ''
-    );
-    
-    if (!isOnlyWhitespace) {
-      const convertedInlines = convertInlineContent(inlines);
-      
-      // Filter out empty text nodes
-      const filteredInlines = convertedInlines.filter(
-        inline => !(inline.type === 'text' && inline.text.trim() === '')
-      );
-      
-      if (filteredInlines.length) {
-        blocks.push({
-          type: 'paragraph',
-          content: filteredInlines,
-        });
-      }
-    }
-  }
-
   return blocks;
 }
 
