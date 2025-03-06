@@ -8,7 +8,7 @@ import { Tooltip, XStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { triggerHaptic } from '../../utils';
-import { useReactionDetails } from '../../utils/postUtils';
+import { ReactionListItem, useReactionDetails } from '../../utils/postUtils';
 
 export function ReactionsDisplay({
   post,
@@ -39,6 +39,20 @@ export function ReactionsDisplay({
         : store.addPostReaction(post, value, currentUserId);
     },
     [currentUserId, post, reactionDetails.self.didReact]
+  );
+
+  const firstThreeReactionUsers = useCallback(
+    (reaction: ReactionListItem) =>
+      reaction.users
+        ? reaction.users
+            .slice(0, 3)
+            .map((user) => user.name)
+            .join(', ') +
+          (reaction.users.length > 3
+            ? ` +${reaction.users.length - 3} more`
+            : '')
+        : '',
+    []
   );
 
   if (reactionDetails.list.length === 0) {
@@ -104,14 +118,7 @@ export function ReactionsDisplay({
                 backgroundColor="$secondaryBackground"
                 borderRadius="$s"
               >
-                <Text size="$label/m">
-                  {reaction.users
-                    ? reaction.users.slice(0, 3).join(', ') +
-                      (reaction.users.length > 3
-                        ? ` +${reaction.users.length - 3} more`
-                        : '')
-                    : ''}
-                </Text>
+                <Text size="$label/m">{firstThreeReactionUsers(reaction)}</Text>
               </Tooltip.Content>
             </Tooltip>
           </Pressable>
