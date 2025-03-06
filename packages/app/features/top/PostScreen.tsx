@@ -146,15 +146,17 @@ function PostScreenContent({
       getDraft={getDraft}
       storeDraft={storeDraft}
       clearDraft={clearDraft}
-      editingPost={editingPost}
       onPressDelete={handleDeletePost}
       onPressRetry={handleRetrySend}
       onGroupAction={performGroupAction}
       goToDm={handleGoToDm}
-      setEditingPost={setEditingPost}
-      editPost={editPost}
       negotiationMatch={negotiationStatus.matchedOrPending}
       headerMode={headerMode}
+      // NB: If we're showing posts in a carousel, all carousel items share the
+      // same editingPost.
+      editingPost={editingPost}
+      setEditingPost={setEditingPost}
+      editPost={editPost}
     />
   ) : null;
 }
