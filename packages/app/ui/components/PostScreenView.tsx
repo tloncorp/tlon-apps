@@ -14,10 +14,8 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react';
-import { FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, YStack } from 'tamagui';
 
@@ -110,7 +108,6 @@ export function PostScreenView({
     currentUserId
   );
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
-  const flatListRef = useRef<FlatList>(null);
 
   const mode: 'single' | 'carousel' = useMemo(
     () => (['gallery'].includes(channel?.type) ? 'carousel' : 'single'),
@@ -254,7 +251,6 @@ export function PostScreenView({
                         clearDraft,
                         editPost,
                         editingPost,
-                        flatListRef,
                         getDraft,
                         goBack,
                         groupMembers,
@@ -379,7 +375,6 @@ function SinglePostView({
   clearDraft,
   editPost,
   editingPost,
-  flatListRef,
   getDraft,
   goBack,
   groupMembers,
@@ -402,7 +397,6 @@ function SinglePostView({
     metadata?: db.PostMetadata
   ) => Promise<void>;
   editingPost?: db.Post;
-  flatListRef?: React.RefObject<React.ElementRef<typeof FlatList>>;
   getDraft: () => Promise<urbit.JSONContent | null>;
   goBack?: () => void;
   group?: db.Group | null;
@@ -514,7 +508,6 @@ function SinglePostView({
           setActiveMessage={setActiveMessage}
           headerMode={headerMode}
           editorIsFocused={false}
-          flatListRef={flatListRef}
         />
       ) : null}
 
