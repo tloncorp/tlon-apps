@@ -3,6 +3,7 @@ import { range } from 'lodash';
 import { useCallback, useMemo, useState } from 'react';
 import { useValue } from 'react-cosmos/client';
 import { SafeAreaView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   AppDataContextProvider,
@@ -22,6 +23,8 @@ import {
   tlonLocalBulletinBoard,
   tlonLocalCommunityCatalog,
 } from './fakeData';
+
+const noop = async (): Promise<void> => {};
 
 function spyOn<T extends object, MethodName extends keyof T>(
   base: T,
@@ -131,8 +134,6 @@ export default {
       });
     }, [hasOlderPosts, pendingAction]);
 
-    console.log('fixture using channel', data.channel);
-
     const store = useMemo(() => {
       const fail = () => {
         throw new Error();
@@ -155,9 +156,19 @@ export default {
       }));
     }, [data.channel]);
 
+    const safeAreaInsets = useSafeAreaInsets();
+
     return (
       <StoreProvider stub={store}>
         <FixtureWrapper fillWidth fillHeight>
+          <View
+            height={100}
+            paddingTop={safeAreaInsets.top}
+            alignItems="center"
+            justifyContent="center"
+          >
+            <Text>Header</Text>
+          </View>
           <PresentationalCarouselPostScreenContent
             {...{
               flex: 1,
@@ -167,6 +178,21 @@ export default {
               posts: data.posts,
               fetchNewerPage,
               fetchOlderPage,
+              channelContext: {
+                group: data.channel.group,
+                sendReply: noop,
+                groupMembers: data.channel.group?.members ?? [],
+                storeDraft: noop,
+                clearDraft: noop,
+                getDraft: async () => null,
+                editingPost: undefined,
+                setEditingPost: undefined,
+                editPost: noop,
+                negotiationMatch: true,
+                headerMode: 'default',
+                onPressRetry: undefined,
+                onPressDelete: noop,
+              },
             }}
           />
           {pendingAction.mountControl()}
