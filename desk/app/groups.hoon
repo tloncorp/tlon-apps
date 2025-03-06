@@ -1027,10 +1027,13 @@
     `path
      ~&  [%take-cast ?=(~ matching)]
   ?+    -.sign  cor
-      %kick  (give %kick matching ~)
+      %kick
+    ?~  matching  cor
+    (give %kick matching ~)
   ::
       %watch-ack
     ?~  p.sign  cor
+    ?~  matching  cor
     (give %kick matching ~)
   ::
       %fact
@@ -1039,6 +1042,7 @@
       cor
     =+  !<(=dude:gall q.cage.sign)
     =.  shoal  (~(put by shoal) gra dude)
+    ?~  matching  cor
     =.  cor  (give %fact matching cage.sign)
     (give %kick matching ~)
   ==
