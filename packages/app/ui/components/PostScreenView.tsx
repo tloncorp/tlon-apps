@@ -109,6 +109,11 @@ export function PostScreenView({
   );
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
 
+  // If this screen is showing a single post, this is equivalent to `parentPost`.
+  // If this screen is a carousel, this is the currently-focused post
+  // (`parentPost` does not change when swiping).
+  const [focusedPost, setFocusedPost] = useState<db.Post | null>(parentPost);
+
   const mode: 'single' | 'carousel' = useMemo(
     () => (['gallery'].includes(channel?.type) ? 'carousel' : 'single'),
     [channel]
@@ -199,11 +204,6 @@ export function PostScreenView({
   }, [channel.type, clearDraft, goBack, isEditingParent, setEditingPost]);
 
   const { attachAssets } = useAttachmentContext();
-
-  const [focusedPost, setFocusedPost] = useState<db.Post | null>(null);
-  useEffect(() => {
-    setFocusedPost(parentPost);
-  }, [parentPost]);
 
   return (
     <NavigationProvider
