@@ -112,10 +112,15 @@ export function PostScreenView({
   // (`parentPost` does not change when swiping).
   const [focusedPost, setFocusedPost] = useState<db.Post | null>(parentPost);
 
-  const mode: 'single' | 'carousel' = useMemo(
-    () => (['gallery'].includes(channel?.type) ? 'carousel' : 'single'),
-    [channel]
-  );
+  const mode: 'single' | 'carousel' = useMemo(() => {
+    // If someone taps a ref to a reply, they drill into the specific reply as
+    // a full-screen post. In this case, we always want to show the reply as a
+    // `single` post.
+    if (parentPost?.parentId != null) {
+      return 'single';
+    }
+    return ['gallery'].includes(channel?.type) ? 'carousel' : 'single';
+  }, [channel, parentPost]);
 
   const showEdit = useMemo(() => {
     // This logic assumes this screen only shows a single post - if we're
