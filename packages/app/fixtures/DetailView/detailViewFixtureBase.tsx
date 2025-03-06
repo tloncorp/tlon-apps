@@ -38,9 +38,7 @@ export const DetailViewFixture = ({
               channelId: channel.id,
               channel,
             }}
-            posts={replies}
             channel={channel}
-            sendReply={async () => {}}
             onPressRetry={async () => {}}
             onPressDelete={() => {}}
             groupMembers={[]}
@@ -52,7 +50,6 @@ export const DetailViewFixture = ({
             goBack={() => {}}
             handleGoToUserProfile={() => {}}
             headerMode="default"
-            onPressRef={() => {}}
             onGroupAction={() => {}}
             goToDm={() => {}}
           />
