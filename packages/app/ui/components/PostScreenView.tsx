@@ -361,7 +361,6 @@ function useMarkThreadAsReadEffect(
 
   const shouldMarkRead = opts?.shouldMarkRead ?? false;
   useEffect(() => {
-    console.log('shouldMarkRead', shouldMarkRead, opts?.parent.content);
     if (shouldMarkRead) {
       markRead();
     }
