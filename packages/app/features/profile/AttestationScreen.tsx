@@ -19,7 +19,14 @@ export function AttestationScreen({ route, navigation }: Props) {
 
   return (
     <View flex={1}>
-      <ScreenHeader title="Attestation" backAction={navigation.goBack} />
+      <ScreenHeader
+        title={
+          route.params.attestationType === 'twitter'
+            ? 'Verify 𝕏 Account'
+            : 'Link Phone Number'
+        }
+        backAction={navigation.goBack}
+      />
       <AttestationScreenView
         attestationType={route.params.attestationType}
         attestation={twitterAttestation}
