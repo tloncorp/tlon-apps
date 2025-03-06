@@ -75,7 +75,6 @@ export default {
           setEditingPost={() => {}}
           parentPost={null}
           channel={tlonLocalBulletinBoard}
-          sendReply={async () => {}}
           groupMembers={group.members ?? []}
           getDraft={async () => ({})}
           storeDraft={async () => {}}
@@ -179,7 +178,6 @@ export default {
               fetchOlderPage,
               channelContext: {
                 group: data.channel.group,
-                sendReply: noop,
                 groupMembers: data.channel.group?.members ?? [],
                 storeDraft: noop,
                 clearDraft: noop,

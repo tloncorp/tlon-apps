@@ -54,7 +54,6 @@ const FocusedPostContext = createContext<{
 
 interface ChannelContext {
   group?: db.Group | null;
-  sendReply: (content: urbit.Story, channelId: string) => Promise<void>;
   groupMembers: db.ChatMember[];
   storeDraft: (draft: urbit.JSONContent) => Promise<void>;
   clearDraft: () => Promise<void>;
@@ -76,7 +75,6 @@ interface ChannelContext {
 export function PostScreenView({
   channel,
   parentPost,
-  sendReply,
   goBack,
   groupMembers,
   handleGoToImage,
@@ -264,7 +262,6 @@ export function PostScreenView({
                         onPressDelete,
                         onPressRetry,
                         parentPost,
-                        sendReply,
                         setEditingPost,
                         storeDraft,
                       }}
@@ -285,7 +282,6 @@ export function PostScreenView({
                         negotiationMatch,
                         onPressDelete,
                         onPressRetry,
-                        sendReply,
                         setEditingPost,
                         storeDraft,
                       }}
@@ -387,7 +383,6 @@ function SinglePostView({
   onPressDelete,
   onPressRetry,
   parentPost,
-  sendReply,
   setEditingPost,
   storeDraft,
 }: {
@@ -410,10 +405,10 @@ function SinglePostView({
   onPressDelete: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => Promise<void>;
   parentPost: db.Post;
-  sendReply: (content: urbit.Story, channelId: string) => Promise<void>;
   setEditingPost?: (post: db.Post | undefined) => void;
   storeDraft: (draft: urbit.JSONContent) => Promise<void>;
 }) {
+  const store = useStore();
   const { focusedPost } = useContext(FocusedPostContext);
   const isFocusedPost = focusedPost?.id === parentPost.id;
 
@@ -491,6 +486,19 @@ function SinglePostView({
           parent: parentPost,
           shouldMarkRead: isFocusedPost && hasLoadedReplies,
         }
+  );
+
+  const sendReply = useCallback(
+    async (content: urbit.Story) => {
+      await store.sendReply({
+        authorId: currentUserId,
+        content,
+        channel: channel,
+        parentId: parentPost.id,
+        parentAuthor: parentPost.authorId,
+      });
+    },
+    [currentUserId, channel, parentPost, store]
   );
 
   return (

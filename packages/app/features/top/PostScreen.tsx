@@ -1,7 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import * as urbit from '@tloncorp/shared/urbit';
 import { useCallback } from 'react';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
@@ -81,19 +80,6 @@ function PostScreenContent({
 
   const currentUserId = useCurrentUserId();
 
-  const sendReply = useCallback(
-    async (content: urbit.Story) => {
-      store.sendReply({
-        authorId: currentUserId!,
-        content,
-        channel: channel!,
-        parentId: post!.id,
-        parentAuthor: post!.authorId,
-      });
-    },
-    [channel, currentUserId, post]
-  );
-
   const handleDeletePost = useCallback(
     async (post: db.Post) => {
       if (!channel) {
@@ -155,7 +141,6 @@ function PostScreenContent({
       parentPost={post}
       channel={channel}
       goBack={handleGoBack}
-      sendReply={sendReply}
       groupMembers={group?.members ?? []}
       handleGoToImage={navigateToImage}
       getDraft={getDraft}
