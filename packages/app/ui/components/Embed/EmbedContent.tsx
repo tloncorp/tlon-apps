@@ -9,7 +9,7 @@ import { Embed } from './Embed';
 import { EmbedWebView } from './EmbedWebView';
 import { getProviderConfig } from './providers';
 
-const trustedProviders = [
+export const trustedProviders = [
   {
     name: 'YouTube',
     regex: /^https:\/\/(?:www\.)?youtube\.com\/watch\?v=|youtu\.be\//,

@@ -104,6 +104,17 @@ function DrawerContent(props: DrawerContentComponentProps) {
     return (
       <GroupChannelsScreenContent groupId={nestedFocusedRouteParams.groupId} />
     );
+  } else if (
+    focusedRouteParams &&
+    focusedRoute.name === 'ChatDetails' &&
+    'chatId' in focusedRouteParams &&
+    'chatType' in focusedRouteParams
+  ) {
+    if (focusedRouteParams.chatType === 'channel') {
+      return <HomeSidebar focusedChannelId={focusedRouteParams.chatId} />;
+    } else if (focusedRouteParams.chatType === 'group') {
+      return <GroupChannelsScreenContent groupId={focusedRouteParams.chatId} />;
+    }
   } else if (focusedRoute.params && 'channelId' in focusedRoute.params) {
     return <HomeSidebar focusedChannelId={focusedRoute.params.channelId} />;
   } else {
