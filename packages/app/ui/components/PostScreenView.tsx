@@ -112,13 +112,27 @@ export function PostScreenView({
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
+  const mode: 'single' | 'carousel' = useMemo(
+    () => (['gallery'].includes(channel?.type) ? 'carousel' : 'single'),
+    [channel]
+  );
+
   const showEdit = useMemo(() => {
+    // This logic assumes this screen only shows a single post - if we're
+    // swapping out different posts (e.g. in a carousel), we'll need to rewrite
+    // this to look at the currently-focused post.
+    // No need to at the moment because we only allow edit in notebooks.
+    if (mode !== 'single') {
+      return false;
+    }
+
     return (
       !editingPost &&
       channel.type === 'notebook' &&
       (parentPost?.authorId === currentUserId || currentUserIsAdmin)
     );
   }, [
+    mode,
     editingPost,
     channel.type,
     parentPost?.authorId,
@@ -188,11 +202,6 @@ export function PostScreenView({
   }, [channel.type, clearDraft, goBack, isEditingParent, setEditingPost]);
 
   const { attachAssets } = useAttachmentContext();
-
-  const mode: 'single' | 'carousel' = useMemo(
-    () => (['gallery'].includes(channel?.type) ? 'carousel' : 'single'),
-    [channel]
-  );
 
   const [focusedPost, setFocusedPost] = useState<db.Post | null>(null);
   useEffect(() => {
