@@ -1,8 +1,8 @@
-import { IconType } from '@tloncorp/ui';
-import { Pressable } from '@tloncorp/ui';
-import { ReactElement } from 'react';
+import { isElectronEnv } from '@tloncorp/shared';
+import { Button, IconType, Pressable, Text } from '@tloncorp/ui';
+import { PropsWithChildren, ReactElement } from 'react';
 import { Alert } from 'react-native';
-import { ScrollView, View, YStack } from 'tamagui';
+import { AlertDialog, ScrollView, View, XStack, YStack } from 'tamagui';
 
 import { ListItem } from './ListItem';
 import { ScreenHeader } from './ScreenHeader';
@@ -25,19 +25,22 @@ interface Props {
 }
 
 export function SettingsScreenView(props: Props) {
-  // TODO: Add logout back in when we figure out TLON-2098.
   const handleLogoutPressed = () => {
-    Alert.alert('Log out from Tlon', 'Are you sure you want to log out?', [
-      {
-        text: 'Cancel',
-        style: 'cancel',
-      },
-      {
-        text: 'Log out now',
-        style: 'destructive',
-        onPress: props.onLogoutPressed,
-      },
-    ]);
+    if (isElectronEnv()) {
+      return;
+    } else {
+      Alert.alert('Log out from Tlon', 'Are you sure you want to log out?', [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Log out now',
+          style: 'destructive',
+          onPress: props.onLogoutPressed,
+        },
+      ]);
+    }
   };
 
   return (
@@ -108,11 +111,16 @@ export function SettingsScreenView(props: Props) {
             onPress={props.onExperimentalFeaturesPressed}
             isFocused={props.focusedRouteName === 'FeatureFlags'}
           />
-          <SettingsAction
-            title="Log out"
-            leftIcon="LogOut"
-            onPress={handleLogoutPressed}
-          />
+          <LogoutDialog
+            onConfirm={props.onLogoutPressed ?? (() => {})}
+            // onCancel={() => setIsLogoutDialogVisible(false)}
+          >
+            <SettingsAction
+              title="Log out"
+              leftIcon="LogOut"
+              onPress={handleLogoutPressed}
+            />
+          </LogoutDialog>
         </YStack>
       </ScrollView>
     </>
@@ -162,5 +170,68 @@ function SettingsAction({
         ) : null}
       </ListItem>
     </Pressable>
+  );
+}
+
+function LogoutDialog({
+  onConfirm,
+  children,
+}: PropsWithChildren<{ onConfirm: () => void }>) {
+  return (
+    <AlertDialog>
+      <AlertDialog.Trigger asChild>{children}</AlertDialog.Trigger>
+      <AlertDialog.Portal>
+        <AlertDialog.Overlay
+          key="overlay"
+          animation="quick"
+          opacity={0.5}
+          enterStyle={{ opacity: 0 }}
+          exitStyle={{ opacity: 0 }}
+        />
+        <AlertDialog.Content
+          bordered
+          elevate
+          key="content"
+          animation={[
+            'quick',
+            {
+              opacity: {
+                overshootClamping: true,
+              },
+            },
+          ]}
+          enterStyle={{ x: 0, y: -20, opacity: 0, scale: 0.9 }}
+          exitStyle={{ x: 0, y: 10, opacity: 0, scale: 0.95 }}
+          x={0}
+          scale={1}
+          opacity={1}
+          y={0}
+          borderColor="$border"
+        >
+          <YStack padding="$l" gap="$l">
+            <AlertDialog.Title>
+              <Text size="$label/l">Log out from Tlon</Text>
+            </AlertDialog.Title>
+            <AlertDialog.Description>
+              <Text size="$label/m">Are you sure you want to log out?</Text>
+            </AlertDialog.Description>
+            <XStack gap="$l">
+              <AlertDialog.Action>
+                <Button minimal>
+                  <Button.Text>Cancel</Button.Text>
+                </Button>
+              </AlertDialog.Action>
+              <AlertDialog.Action onPress={onConfirm}>
+                <Button minimal>
+                  <Button.Text color="$negativeActionText">
+                    Log out now
+                  </Button.Text>
+                </Button>
+              </AlertDialog.Action>
+            </XStack>
+          </YStack>
+        </AlertDialog.Content>
+      </AlertDialog.Portal>
+    </AlertDialog>
   );
 }

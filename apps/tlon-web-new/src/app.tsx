@@ -18,6 +18,7 @@ import {
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { LoadingSpinner, StoreProvider, Text, View } from '@tloncorp/app/ui';
+import { getAuthInfo } from '@tloncorp/shared';
 import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
@@ -283,7 +284,6 @@ function ConnectedDesktopApp({
       configureClient({
         shipName: ship,
         shipUrl,
-        authCookie,
       });
 
       try {
@@ -429,6 +429,7 @@ const App = React.memo(function AppComponent() {
   const handleError = useErrorHandler();
   const isDarkMode = useIsDark();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [authParams, setAuthParams] = useState<{
     ship: string;
     shipUrl: string;
@@ -441,8 +442,33 @@ const App = React.memo(function AppComponent() {
       handleError(() => {
         checkIfLoggedIn();
       })();
+      setIsLoading(false);
     }
   }, [handleError]);
+
+  useEffect(() => {
+    if (isElectron()) {
+      const checkStoredAuth = async () => {
+        try {
+          const storedAuth = await getAuthInfo();
+          if (storedAuth) {
+            console.log(
+              'Found stored auth credentials for ship:',
+              storedAuth.ship
+            );
+            setAuthParams(storedAuth);
+            setIsAuthenticated(true);
+          }
+        } catch (error) {
+          console.error('Error loading stored auth:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      checkStoredAuth();
+    }
+  }, []);
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -452,7 +478,35 @@ const App = React.memo(function AppComponent() {
             <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
               <StoreProvider>
                 {isElectron() ? (
-                  isAuthenticated && authParams ? (
+                  isLoading ? (
+                    <View
+                      height="100%"
+                      width="100%"
+                      justifyContent="center"
+                      alignItems="center"
+                      backgroundColor="$secondaryBackground"
+                    >
+                      <View
+                        backgroundColor="$background"
+                        padding="$xl"
+                        borderRadius="$l"
+                        aspectRatio={1}
+                        alignItems="center"
+                        justifyContent="center"
+                        borderWidth={1}
+                        borderColor="$border"
+                      >
+                        <LoadingSpinner color="$primaryText" />
+                        <Text
+                          color="$primaryText"
+                          marginTop="$xl"
+                          fontSize="$s"
+                        >
+                          Loading saved credentials&hellip;
+                        </Text>
+                      </View>
+                    </View>
+                  ) : isAuthenticated && authParams ? (
                     <ConnectedDesktopApp
                       ship={authParams.ship}
                       shipUrl={authParams.shipUrl}

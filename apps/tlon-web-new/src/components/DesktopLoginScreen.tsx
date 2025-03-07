@@ -3,6 +3,7 @@ import { useShip } from '@tloncorp/app/contexts/ship';
 import { Button, Field, Text, TextInput, View, YStack } from '@tloncorp/app/ui';
 import { getShipFromCookie } from '@tloncorp/app/utils/ship';
 import { transformShipURL } from '@tloncorp/app/utils/string';
+import { storeAuthInfo } from '@tloncorp/shared';
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
@@ -66,13 +67,32 @@ export const DesktopLoginScreen = ({
 
       if (authCookie) {
         const shipId = getShipFromCookie(authCookie);
-        setUrbitShip(shipUrl);
+        
+        // Store authentication info in Electron
+        await setUrbitShip(shipUrl);
+        try {
+          const stored = await storeAuthInfo({
+            ship: shipId,
+            shipUrl,
+            authCookie,
+          });
+          if (stored) {
+            console.log('Successfully stored auth credentials');
+          } else {
+            console.warn('Failed to store auth credentials');
+          }
+        } catch (error) {
+          console.error('Error storing auth credentials:', error);
+        }
+        
+        // Set ship context
         setShip({
           ship: shipId,
           shipUrl,
           authCookie,
           authType: 'self',
         });
+        
         onLoginSuccess({
           ship: shipId,
           shipUrl,

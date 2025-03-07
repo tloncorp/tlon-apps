@@ -15,6 +15,7 @@
     "build:web": "pnpm --filter 'tlon-web-new' build:electron"
   },
   "dependencies": {
+    "@tloncorp/shared": "workspace:*",
     "cross-fetch": "^3.1.5",
     "electron-is-dev": "^3.0.1",
     "electron-store": "^10.0.1"

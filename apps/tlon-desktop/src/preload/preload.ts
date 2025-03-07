@@ -9,5 +9,9 @@ contextBridge.exposeInMainWorld(
     getVersion: () => ipcRenderer.invoke('get-version'),
     loginToShip: (shipUrl, accessCode) => 
       ipcRenderer.invoke('login-to-ship', { shipUrl, accessCode }),
+    
+    storeAuthInfo: (authInfo) => ipcRenderer.invoke('store-auth-info', authInfo),
+    getAuthInfo: () => ipcRenderer.invoke('get-auth-info'),
+    clearAuthInfo: () => ipcRenderer.invoke('clear-auth-info'),
   }
 );

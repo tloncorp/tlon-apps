@@ -1,7 +1,59 @@
-import { BrowserWindow, app, ipcMain, session } from 'electron';
+import { BrowserWindow, app, ipcMain } from 'electron';
+import crypto from 'crypto';
 import path from 'path';
 
 import store from './store';
+
+// Encryption utilities for secure storage of auth cookie
+const IV_LENGTH = 16; // For AES, this is always 16 bytes
+
+// Function to get or create the encryption key - must be called after app is ready
+async function getEncryptionKey(): Promise<Buffer> {
+  try {
+    // Try to get existing key
+    const storedKey = await store.get('encryptionKey');
+    if (storedKey) {
+      return Buffer.from(storedKey, 'hex');
+    }
+    
+    // Generate a new key if none exists
+    const newKey = crypto.randomBytes(32);
+    await store.set('encryptionKey', newKey.toString('hex'));
+    return newKey;
+  } catch (error) {
+    console.error('Error managing encryption key:', error);
+    // Fallback to a new random key if there's an error
+    return crypto.randomBytes(32);
+  }
+}
+
+// We'll initialize this once the app is ready
+let ENCRYPTION_KEY: Buffer;
+
+function encrypt(text: string): string {
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv('aes-256-cbc', ENCRYPTION_KEY, iv);
+  let encrypted = cipher.update(text, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  return iv.toString('hex') + ':' + encrypted;
+}
+
+function decrypt(text: string): string {
+  const parts = text.split(':');
+  const iv = Buffer.from(parts[0], 'hex');
+  const encrypted = parts[1];
+  const decipher = crypto.createDecipheriv('aes-256-cbc', ENCRYPTION_KEY, iv);
+  let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+  decrypted += decipher.final('utf8');
+  return decrypted;
+}
+
+// Auth info interface
+interface AuthInfo {
+  ship: string;
+  shipUrl: string;
+  authCookie: string;
+}
 
 // Import CommonJS wrappers
 const checkIsDev = require('../../is-dev-wrapper.cjs');
@@ -98,7 +150,13 @@ async function createWindow() {
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
-app.whenReady().then(createWindow);
+app.whenReady().then(async () => {
+  // Initialize encryption key before handling any auth operations
+  ENCRYPTION_KEY = await getEncryptionKey();
+  console.log('Encryption key initialized');
+  
+  createWindow();
+});
 
 // Quit when all windows are closed.
 app.on('window-all-closed', () => {
@@ -161,3 +219,53 @@ ipcMain.handle(
     }
   }
 );
+
+// Handle auth persistence
+ipcMain.handle(
+  'store-auth-info',
+  async (_event, { ship, shipUrl, authCookie }: AuthInfo) => {
+    console.log('Storing auth info for ship:', ship);
+    try {
+      await store.set('shipUrl', shipUrl);
+      await store.set('ship', ship);
+      // Encrypt the auth cookie before storing
+      const encryptedAuthCookie = encrypt(authCookie);
+      await store.set('encryptedAuthCookie', encryptedAuthCookie);
+      return true;
+    } catch (error) {
+      console.error('Error storing auth info:', error);
+      return false;
+    }
+  }
+);
+
+ipcMain.handle('get-auth-info', async () => {
+  try {
+    const shipUrl = await store.get('shipUrl');
+    const ship = await store.get('ship');
+    const encryptedAuthCookie = await store.get('encryptedAuthCookie');
+    
+    if (!shipUrl || !ship || !encryptedAuthCookie) {
+      return null;
+    }
+    
+    // Decrypt the auth cookie
+    const authCookie = decrypt(encryptedAuthCookie);
+    return { ship, shipUrl, authCookie };
+  } catch (error) {
+    console.error('Error retrieving auth info:', error);
+    return null;
+  }
+});
+
+ipcMain.handle('clear-auth-info', async () => {
+  try {
+    await store.delete('shipUrl');
+    await store.delete('ship');
+    await store.delete('encryptedAuthCookie');
+    return true;
+  } catch (error) {
+    console.error('Error clearing auth info:', error);
+    return false;
+  }
+});

@@ -102,6 +102,9 @@ importers:
 
   apps/tlon-desktop:
     dependencies:
+      '@tloncorp/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       cross-fetch:
         specifier: ^3.1.5
         version: 3.1.5(encoding@0.1.13)
