@@ -55,9 +55,6 @@ const FocusedPostContext = createContext<{
 interface ChannelContext {
   group?: db.Group | null;
   groupMembers: db.ChatMember[];
-  storeDraft: (draft: urbit.JSONContent) => Promise<void>;
-  clearDraft: () => Promise<void>;
-  getDraft: () => Promise<urbit.JSONContent | null>;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost: (
@@ -79,9 +76,6 @@ export function PostScreenView({
   groupMembers,
   handleGoToImage,
   handleGoToUserProfile,
-  storeDraft,
-  clearDraft,
-  getDraft,
   editingPost,
   setEditingPost,
   editPost,
@@ -193,18 +187,23 @@ export function PostScreenView({
   //   [onPressRef, channel]
   // );
 
+  const draftCallbacks = store.usePostDraftCallbacks(
+    focusedPost == null
+      ? null
+      : { draftKey: store.draftKeyFor.thread({ parentPostId: focusedPost.id }) }
+  );
   const handleGoBack = useCallback(() => {
     if (isEditingParent) {
       setEditingPost?.(undefined);
       if (channel.type !== 'notebook') {
         goBack?.();
       } else {
-        clearDraft();
+        draftCallbacks?.clearDraft();
       }
     } else {
       goBack?.();
     }
-  }, [channel.type, clearDraft, goBack, isEditingParent, setEditingPost]);
+  }, [channel.type, goBack, isEditingParent, setEditingPost, draftCallbacks]);
 
   const { attachAssets } = useAttachmentContext();
 
@@ -255,10 +254,8 @@ export function PostScreenView({
                     <SinglePostView
                       {...{
                         channel,
-                        clearDraft,
                         editPost,
                         editingPost,
-                        getDraft,
                         goBack,
                         groupMembers,
                         handleGoToImage,
@@ -268,7 +265,6 @@ export function PostScreenView({
                         onPressRetry,
                         parentPost,
                         setEditingPost,
-                        storeDraft,
                       }}
                     />
                   ) : (
@@ -278,17 +274,14 @@ export function PostScreenView({
                       channelId={channel.id}
                       initialPostId={parentPost.id}
                       channelContext={{
-                        clearDraft,
                         editPost,
                         editingPost,
-                        getDraft,
                         groupMembers,
                         headerMode,
                         negotiationMatch,
                         onPressDelete,
                         onPressRetry,
                         setEditingPost,
-                        storeDraft,
                       }}
                     />
                   ))}
@@ -375,10 +368,8 @@ function useMarkThreadAsReadEffect(
 
 function SinglePostView({
   channel,
-  clearDraft,
   editPost,
   editingPost,
-  getDraft,
   goBack,
   groupMembers,
   handleGoToImage,
@@ -388,10 +379,8 @@ function SinglePostView({
   onPressRetry,
   parentPost,
   setEditingPost,
-  storeDraft,
 }: {
   channel: db.Channel;
-  clearDraft: () => Promise<void>;
   editPost: (
     post: db.Post,
     content: Story,
@@ -399,7 +388,6 @@ function SinglePostView({
     metadata?: db.PostMetadata
   ) => Promise<void>;
   editingPost?: db.Post;
-  getDraft: () => Promise<urbit.JSONContent | null>;
   goBack?: () => void;
   group?: db.Group | null;
   groupMembers: db.ChatMember[];
@@ -410,11 +398,13 @@ function SinglePostView({
   onPressRetry?: (post: db.Post) => Promise<void>;
   parentPost: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
-  storeDraft: (draft: urbit.JSONContent) => Promise<void>;
 }) {
   const store = useStore();
   const { focusedPost } = useContext(FocusedPostContext);
   const isFocusedPost = focusedPost?.id === parentPost.id;
+  const { getDraft, storeDraft, clearDraft } = store.usePostDraftCallbacks({
+    draftKey: store.draftKeyFor.thread({ parentPostId: parentPost.id }),
+  });
 
   // for the unread thread divider, we care about the unread state when you enter but don't want it to update over
   // time

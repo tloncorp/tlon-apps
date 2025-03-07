@@ -61,9 +61,6 @@ function PostScreenContent({
     group,
     channel,
     negotiationStatus,
-    getDraft,
-    storeDraft,
-    clearDraft,
     editingPost,
     setEditingPost,
     editPost,
@@ -145,9 +142,6 @@ function PostScreenContent({
       goBack={handleGoBack}
       groupMembers={group?.members ?? []}
       handleGoToImage={navigateToImage}
-      getDraft={getDraft}
-      storeDraft={storeDraft}
-      clearDraft={clearDraft}
       onPressDelete={handleDeletePost}
       onPressRetry={handleRetrySend}
       onGroupAction={performGroupAction}
