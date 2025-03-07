@@ -70,7 +70,9 @@ function PostScreenContent({
     headerMode,
   } = useStore().useChannelContext({
     channelId: channelId,
-    draftKey: postId,
+    draftKey: store.draftKeyFor.thread({
+      parentPostId: postId,
+    }),
     isChannelSwitcherEnabled,
   });
 
