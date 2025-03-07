@@ -95,23 +95,7 @@
     ::
       %2
     =.  state  old
-    =.  cor  restore-missing-subs
-    =.  cor  (emit %pass / %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
-    =.  cor  (emit %pass / %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
-    =.  cor
-      (emil (drop load:epos))
-    =/  diaries  ~(tap in ~(key by shelf))
-    =.  cor
-      %+  roll
-        ~(tap in (~(gas in *(set ship)) (turn diaries head)))
-      |=  [=ship cr=_cor]
-      ?:  =(ship our.bowl)  cr
-      (watch-epic:cr ship &)
-    |-
-    ?~  diaries
-      cor
-    =.  cor  di-abet:di-upgrade:(di-abed:di-core i.diaries)
-    $(diaries t.diaries)
+    cor
   ==
   ::
   +$  versioned-state  $%(current-state state-1)
