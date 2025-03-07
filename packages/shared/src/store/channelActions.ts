@@ -307,10 +307,14 @@ export async function unpinItem(pin: db.Pin) {
 
 export async function markChannelVisited(channelId: string) {
   const channel = await db.getChannel({ id: channelId });
+  let group = null;
+  if (channel && channel.groupId) {
+    group = await db.getGroup({ id: channel.groupId });
+  }
   if (channel) {
     logger.trackEvent(
       AnalyticsEvent.ActionVisitedChannel,
-      logic.getModelAnalytics({ channel })
+      logic.getModelAnalytics({ channel, group })
     );
   }
   await db.updateChannel({ id: channelId, lastViewedAt: Date.now() });
