@@ -855,7 +855,7 @@
       ?^  tim=(slaw %da i.t.t.path)  `u.tim
       `(slav %ud i.t.t.path)
     :^  ~  ~  %chat-heads
-    !>((old-heads-3 (heads since)))
+    !>(`chat-heads:old-3`(old-heads-3 (heads since)))
   ::
       [%x %v1 %heads ?(~ [@ ~])]
     =/  since=(unit time)
@@ -863,7 +863,7 @@
       ?^  tim=(slaw %da i.t.t.t.path)  `u.tim
       `(slav %ud i.t.t.t.path)
     :^  ~  ~  %chat-heads-1
-    !>((heads since))
+    !>(`chat-heads:c`(heads since))
   ::
       [%x %dm ~]
     ``ships+!>(~(key by accepted-dms))

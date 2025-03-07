@@ -1,4 +1,4 @@
-/-  g=groups, d=channels, c=chat, a=activity
+/-  g=groups, d=channels, c=chat, a=activity, oc=chat-3
 |%
 +$  init-5
   $:  groups=groups-ui:v5:g
@@ -57,7 +57,8 @@
       profile=?
   ==
 ::
-+$  mixed-heads  [chan=channel-heads:v7:old:d chat=chat-heads:c]
++$  mixed-heads  [chan=channel-heads:v7:old:d chat=chat-heads:oc]
++$  mixed-heads-2  [chan=channel-heads:d chat=chat-heads:c]
 ::
 +$  channel-8
   $:  =channels:d
