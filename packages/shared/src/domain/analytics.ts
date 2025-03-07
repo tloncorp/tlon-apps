@@ -95,6 +95,8 @@ export enum AnalyticsEvent {
   ActionsNotifPermsChecked = 'Checked Notification Permissions',
   ActionInitiateTwitterAttest = 'Initiated Twitter Attestation',
   ActionConfirmTwitterAttest = 'Confirmed Twitter Attestation',
+  ActionInitiatePhoneAttest = 'Initiated Phone Attestation',
+  ActionConfirmPhoneAttest = 'Confirmed Phone Attestation',
   ActionTappedPushNotif = 'Tapped Push Notification',
   GroupJoinComplete = 'Group Join Complete',
   PersonalInviteLinkReady = 'Personal Invite Link Ready',

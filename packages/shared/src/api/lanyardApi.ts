@@ -190,14 +190,42 @@ export async function confirmTwitterAttestation(
   postId: string
 ) {
   const identifier = ['twitter', twitterHandle];
-  const proof = ['twitter', 'post', postId];
-  const payload = [null, ['work', identifier, proof]];
+  const work = ['twitter', 'post', postId];
+  const payload = [null, ['work', identifier, work]];
   logger.log('confirmTwitterAttestation', payload);
   const noun = dwim(payload);
   console.log(`bl: poking for twitter confirm`, {
     noun,
     twitterHandle,
     postId,
+  });
+  await pokeNoun({ app: 'lanyard', mark: 'lanyard-command', noun });
+  logger.log('confirmTwitterAttestation poke success');
+  return;
+}
+
+export async function initiatePhoneAttestation(phoneNumber: string) {
+  const payload = [null, ['start', ['phone', phoneNumber]]];
+  logger.log('initiatePhoneAttestation', payload);
+  const noun = dwim(payload);
+  await pokeNoun({ app: 'lanyard', mark: 'lanyard-command', noun });
+  logger.log('initiatePhoneAttestation poke success');
+  return;
+}
+
+export async function confirmPhoneAttestation(
+  phoneNumber: string,
+  otp: string
+) {
+  const identifier = ['phone', phoneNumber];
+  const work = ['phone', otp];
+  const payload = [null, ['work', identifier, work]];
+  logger.log('confirmPhoneAttestation', payload);
+  const noun = dwim(payload);
+  console.log(`bl: poking for phone confirm`, {
+    noun,
+    phoneNumber,
+    otp,
   });
   await pokeNoun({ app: 'lanyard', mark: 'lanyard-command', noun });
   logger.log('confirmTwitterAttestation poke success');

@@ -17,9 +17,12 @@ export function EditProfileScreen({ route, navigation }: Props) {
   const showAttestations = useFeatureFlag('attestations')[0];
   const { data: groups } = store.useGroups({ includeUnjoined: true });
 
-  const handleGoToAttestation = useCallback(() => {
-    navigation.navigate('Attestation', { attestationType: 'twitter' });
-  }, [navigation]);
+  const handleGoToAttestation = useCallback(
+    (attestationType: 'twitter' | 'phone') => {
+      navigation.navigate('Attestation', { attestationType });
+    },
+    [navigation]
+  );
 
   return (
     <GroupsProvider groups={groups ?? []}>

@@ -285,7 +285,7 @@ export function EditProfileScreenView(props: Props) {
                       >
                         <ListItem>
                           <ListItem.MainContent>
-                            <ListItem.Title>X Account</ListItem.Title>
+                            <ListItem.Title>𝕏 Account</ListItem.Title>
                           </ListItem.MainContent>
                           <ListItem.EndContent>
                             <ListItem.SystemIcon
@@ -295,17 +295,21 @@ export function EditProfileScreenView(props: Props) {
                           </ListItem.EndContent>
                         </ListItem>
                       </Pressable>
-                      <ListItem>
-                        <ListItem.MainContent>
-                          <ListItem.Title>Phone</ListItem.Title>
-                        </ListItem.MainContent>
-                        <ListItem.EndContent>
-                          <ListItem.SystemIcon
-                            backgroundColor="unset"
-                            icon="ChevronRight"
-                          />
-                        </ListItem.EndContent>
-                      </ListItem>
+                      <Pressable
+                        onPress={() => props.onGoToAttestation?.('phone')}
+                      >
+                        <ListItem>
+                          <ListItem.MainContent>
+                            <ListItem.Title>Phone</ListItem.Title>
+                          </ListItem.MainContent>
+                          <ListItem.EndContent>
+                            <ListItem.SystemIcon
+                              backgroundColor="unset"
+                              icon="ChevronRight"
+                            />
+                          </ListItem.EndContent>
+                        </ListItem>
+                      </Pressable>
                     </WidgetPane>
                   </Field>
                 )}

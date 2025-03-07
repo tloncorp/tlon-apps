@@ -2,16 +2,14 @@ import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { View, XStack, YStack } from 'tamagui';
+import { View, YStack } from 'tamagui';
 
 import { Button } from '../../../ui/src/components/Button';
 import { LoadingSpinner } from '../../../ui/src/components/LoadingSpinner';
 import { Text } from '../../../ui/src/components/TextV2';
 import { useStore } from '../contexts';
-import { Icon, useCopy } from '../utils';
 import { CopyableTextBlock } from './CopyableTextBlock';
 import { ControlledTextField } from './Form';
-import { WidgetPane } from './WidgetPane';
 
 interface Props {
   attestation: db.Verification | null;
@@ -26,7 +24,6 @@ export function TwitterAttestationPane({
   attestation,
   currentUserId,
 }: Props) {
-  const store = useStore();
   const [pane, setPane] = useState<Pane>('init');
 
   useEffect(() => {
@@ -45,9 +42,6 @@ export function TwitterAttestationPane({
 
   return (
     <View flex={1} marginHorizontal="$2xl" marginTop="$l">
-      {/* <Button onPress={() => store.syncVerifications()}>
-        <Button.Text>Sync Verifications</Button.Text>
-      </Button> */}
       {isLoading && (
         <YStack flex={1} justifyContent="center" alignItems="center">
           <LoadingSpinner />

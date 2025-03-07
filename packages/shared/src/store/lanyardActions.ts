@@ -17,3 +17,16 @@ export function confirmTwitterAttestation(handle: string, postId: string) {
   });
   return api.confirmTwitterAttestation(handle, postId);
 }
+
+export function initiatePhoneAttestation(phoneNumber: string) {
+  logger.trackEvent(AnalyticsEvent.ActionInitiatePhoneAttest, { phoneNumber });
+  return api.initiatePhoneAttestation(phoneNumber);
+}
+
+export function confirmPhoneAttestation(phoneNumber: string, otp: string) {
+  logger.trackEvent(AnalyticsEvent.ActionConfirmPhoneAttest, {
+    phoneNumber,
+    otp,
+  });
+  return api.confirmPhoneAttestation(phoneNumber, otp);
+}
