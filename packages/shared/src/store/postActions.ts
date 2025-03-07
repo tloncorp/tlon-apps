@@ -371,9 +371,15 @@ export async function addPostReaction(
   shortCode: string,
   currentUserId: string
 ) {
+  const channel = await db.getChannel({ id: post.channelId });
+  let group = null;
+  if (channel && channel.groupId) {
+    group = await db.getGroup({ id: channel.groupId });
+  }
+
   logger.trackEvent(
     AnalyticsEvent.ActionReact,
-    logic.getModelAnalytics({ post })
+    logic.getModelAnalytics({ post, channel, group })
   );
   const formattedShortcode = shortCode.replace(/^(?!:)(.*)$(?<!:)/, ':$1:');
 

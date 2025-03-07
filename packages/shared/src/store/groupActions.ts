@@ -231,11 +231,6 @@ export async function markGroupNew(group: db.Group) {
 }
 
 export async function markGroupVisited(groupId: string) {
-  logger.log('marking new group as visited', groupId);
-  logger.trackEvent(
-    AnalyticsEvent.ActionVisitedGroup,
-    logic.getModelAnalytics({ group: { id: groupId } })
-  );
   await db.updateGroup({ id: groupId, isNew: false });
 }
 

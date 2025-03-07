@@ -88,6 +88,7 @@ export enum AnalyticsEvent {
   ActionPinChat = 'Pinned Chat',
   ActionUnpinChat = 'Unpinned Chat',
   ActionVisitedChannel = 'Viewed Channel',
+  ActionTappedChat = 'Tapped Chatlist Item',
   ActionJoinChannel = 'Joined Channel',
   ActionUpdateChannelWriters = 'Updated Channel Writers',
   ActionViewProfileGroup = 'Viewed Pinned Profile Group',
