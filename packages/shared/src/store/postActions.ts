@@ -56,9 +56,13 @@ export async function sendPost({
     metadata,
   });
 
+  let group: null | db.Group = null;
+  if (channel.groupId) {
+    group = await db.getGroup({ id: channel.groupId });
+  }
   logger.trackEvent(
     AnalyticsEvent.ActionSendPost,
-    logic.getModelAnalytics({ post: cachePost, channel })
+    logic.getModelAnalytics({ post: cachePost, channel, group })
   );
 
   logger.crumb('insert channel posts');
@@ -239,9 +243,14 @@ export async function sendReply({
     replyTime: cachePost.sentAt,
   });
 
+  let group = null;
+  if (channel.groupId) {
+    group = await db.getGroup({ id: channel.groupId });
+  }
+
   logger.trackEvent(
     AnalyticsEvent.ActionSendReply,
-    logic.getModelAnalytics({ post: cachePost, channel })
+    logic.getModelAnalytics({ post: cachePost, channel, group })
   );
 
   try {
