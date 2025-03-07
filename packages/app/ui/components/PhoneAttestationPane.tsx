@@ -1,8 +1,7 @@
-import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { View, XStack, YStack } from 'tamagui';
+import { View, YStack } from 'tamagui';
 
 import { LoadingSpinner } from '../../../ui/src/components/LoadingSpinner';
 import { Text } from '../../../ui/src/components/TextV2';
@@ -44,7 +43,7 @@ export function PhoneAttestationPane({ isLoading, attestation }: Props) {
         </YStack>
       )}
 
-      {pane === 'init' && <SubmitPhoneNumPane />}
+      {pane === 'init' && <SubmitPhoneNumPane attestation={attestation} />}
       {pane === 'confirm' && attestation && (
         <ConfirmPhoneNumPane attestation={attestation} />
       )}
@@ -59,7 +58,7 @@ type PhoneFormData = {
   phoneNumber: string;
 };
 
-function SubmitPhoneNumPane() {
+function SubmitPhoneNumPane(props: { attestation: db.Verification | null }) {
   const store = useStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [remoteError, setRemoteError] = useState<string | undefined>();
@@ -81,13 +80,17 @@ function SubmitPhoneNumPane() {
     }
   }, [phoneForm, store]);
 
+  const isLoading = useMemo(() => {
+    return props.attestation?.status === 'pending' || isSubmitting;
+  }, [isSubmitting, props.attestation?.status]);
+
   return (
     <YStack>
       <Text>Enter your phone number</Text>
       <PhoneNumberInput form={phoneForm} />
       <PrimaryButton
         onPress={onSubmit}
-        loading={isSubmitting}
+        loading={isLoading}
         disabled={
           isSubmitting ||
           remoteError !== undefined ||
