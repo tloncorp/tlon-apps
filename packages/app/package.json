@@ -26,6 +26,7 @@
     "@types/react-native": "0.73.0"
   },
   "peerDependencies": {
+    "tamagui": "~1.112.12",
     "@react-native-firebase/perf": "19.2.2",
     "expo-notifications": "~0.27.6",
     "lodash": "^4.17.21",
