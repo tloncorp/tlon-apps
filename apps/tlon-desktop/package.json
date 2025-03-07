@@ -15,7 +15,7 @@
     "build:web": "pnpm --filter 'tlon-web-new' build:electron"
   },
   "dependencies": {
-    "cross-fetch": "^4.0.0",
+    "cross-fetch": "^3.1.5",
     "electron-is-dev": "^3.0.1",
     "electron-store": "^10.0.1"
   },
@@ -37,8 +37,7 @@
       "node_modules/**/*",
       "electron-store-wrapper.cjs",
       "is-dev-wrapper.cjs",
-      "fetch-wrapper.cjs",
-      "src/preload/preload.js"
+      "fetch-wrapper.cjs"
     ],
     "mac": {
       "category": "public.app-category.social-networking"

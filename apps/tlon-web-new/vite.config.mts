@@ -224,15 +224,26 @@ export default ({ mode }: { mode: string }) => {
       dedupe: ['@tanstack/react-query'],
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
-        ...(mode === 'electron' ? {
-          'virtual:pwa-register/react': fileURLToPath(new URL('./src/logic/useAppUpdatesStub.ts', import.meta.url)),
-          '@react-native-firebase/crashlytics': fileURLToPath(new URL('./src/crashlytics-stub.ts', import.meta.url)),
-          'expo-notifications': fileURLToPath(new URL('./src/notifications-stub.ts', import.meta.url))
-        } : {})
+        ...(mode === 'electron'
+          ? {
+              'virtual:pwa-register/react': fileURLToPath(
+                new URL('./src/logic/useAppUpdatesStub.ts', import.meta.url)
+              ),
+              '@react-native-firebase/crashlytics': fileURLToPath(
+                new URL('./src/crashlytics-stub.ts', import.meta.url)
+              ),
+              'expo-notifications': fileURLToPath(
+                new URL('./src/notifications-stub.ts', import.meta.url)
+              ),
+            }
+          : {}),
       },
     },
     optimizeDeps: {
-      exclude: ['sqlocal', ...(mode === 'electron' ? ['virtual:pwa-register/react'] : [])],
+      exclude: [
+        'sqlocal',
+        ...(mode === 'electron' ? ['virtual:pwa-register/react'] : []),
+      ],
     },
     test: {
       globals: true,

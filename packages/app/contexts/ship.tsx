@@ -1,7 +1,6 @@
 import crashlytics from '@react-native-firebase/crashlytics';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { ShipInfo, storage } from '@tloncorp/shared/db';
-import { Platform } from 'react-native';
 import { preSig } from '@urbit/aura';
 import type { ReactNode } from 'react';
 import {
@@ -11,6 +10,7 @@ import {
   useEffect,
   useState,
 } from 'react';
+import { Platform } from 'react-native';
 import { NativeModules } from 'react-native';
 
 import { cancelNodeResumeNudge } from '../lib/notifications';

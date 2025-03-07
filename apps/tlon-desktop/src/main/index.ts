@@ -18,7 +18,7 @@ async function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.resolve(__dirname, '../../src/preload/preload.js'),
+      preload: path.resolve(__dirname, '../../build/main/preload.js'),
       webSecurity: false,
     },
   });
