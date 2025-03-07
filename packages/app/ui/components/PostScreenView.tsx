@@ -321,7 +321,6 @@ function ConnectedHeader({
 
   const { focusedPost: parentPost } = useContext(FocusedPostContext);
 
-  // TODO: Swap title (and other header properties) based on currently-focused post in carousel
   const headerTitle = isChatChannel
     ? `Thread: ${channel?.title ?? null}`
     : parentPost?.title && parentPost.title !== ''
