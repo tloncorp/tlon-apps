@@ -660,7 +660,7 @@
     =/  ship=@p  (slav %p ship.pole)
     ?.  (~(has by groups) ship name.pole)
       =/  =preview-response:v6:g  |+%missing
-      =.  cor  (emit %give %fact ~ group-preview-2+!>(preview-response))
+      =.  cor  (emit %give %fact ~ group-r-preview-0+!>(preview-response))
       (emit %give %kick ~ ~)
     go-abet:(go-watch:(go-abed:group-core ship name.pole) %v2 /preview)
   ::
@@ -1472,7 +1472,7 @@
         =/  =preview-response:v6:g
           ?.  access  |+%forbidden
           &+preview
-        (emit %give %fact ~ group-preview-2+!>(preview-response))
+        (emit %give %fact ~ group-r-preview-0+!>(preview-response))
       ==
     =.  cor
       (emit %give %kick ~ ~)
