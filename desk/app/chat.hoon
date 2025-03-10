@@ -855,7 +855,7 @@
       ?^  tim=(slaw %da i.t.t.path)  `u.tim
       `(slav %ud i.t.t.path)
     :^  ~  ~  %chat-heads
-    !>(`chat-heads:old-3`(old-heads-3 (heads since)))
+    !>((old-heads-3 (heads since)))
   ::
       [%x %v1 %heads ?(~ [@ ~])]
     =/  since=(unit time)
