@@ -61,6 +61,13 @@ jobs:
         with:
           name: "ui-dist-new"
           path: apps/tlon-web-new/dist
+    env:
+      VITE_BRANCH_DOMAIN_PROD: ${{ secrets.VITE_BRANCH_DOMAIN_PROD}}
+      VITE_BRANCH_DOMAIN_TEST: ${{ secrets.VITE_BRANCH_DOMAIN_TEST}}
+      VITE_BRANCH_KEY_PROD: ${{ secrets.VITE_BRANCH_KEY_PROD}}
+      VITE_BRANCH_KEY_TEST: ${{ secrets.VITE_BRANCH_KEY_TEST}}
+      VITE_INVITE_SERVICE_ENDPOINT: ${{ secrets.VITE_INVITE_SERVICE_ENDPOINT}}
+      VITE_POST_HOG_API_KEY: ${{ secrets.VITE_POST_HOG_API_KEY}}
   glob:
     runs-on: ubuntu-latest
     name: "Make a glob"

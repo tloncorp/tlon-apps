@@ -215,7 +215,6 @@ export const EmbedWebView = memo<EmbedWebViewProps>(
           </View>
         )}
         <View
-          key={`webview-${webViewHeight}`}
           width={provider.defaultWidth}
           height={webViewHeight}
           backgroundColor={primaryBackground}
