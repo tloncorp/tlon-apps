@@ -1764,18 +1764,11 @@ export const deleteChannels = createWriteQuery(
   'deleteChannels',
   async (channels: string[], ctx: QueryCtx) => {
     logger.log(`deleteChannels`, channels);
-    for (const channelId of channels) {
-      withTransactionCtx(ctx, async (txCtx) => {
-        await txCtx.db.delete($posts).where(eq($posts.channelId, channelId));
-        await txCtx.db
-          .delete($chatMembers)
-          .where(eq($chatMembers.chatId, channelId));
-        await txCtx.db.delete($channels).where(eq($channels.id, channelId));
-      });
-    }
+    // will cascade delete to post and chat members
+    await ctx.db.delete($channels).where(inArray($channels.id, channels));
     return;
   },
-  ['channels']
+  ['channels', 'posts', 'chatMembers']
 );
 
 export const addNavSectionToGroup = createWriteQuery(
