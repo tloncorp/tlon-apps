@@ -161,32 +161,6 @@ export function PostScreenView({
     [onGroupAction]
   );
 
-  // TODO: lost in changes - but this is not working for me in latest
-  // release anyways (tried by following a ref to a post in the same
-  // thread, which has been loaded & is offscreen)
-  // const handleRefPress = useCallback(
-  //   (refChannel: db.Channel, post: db.Post) => {
-  //     const anchorIndex = posts?.findIndex((p) => p.id === post.id) ?? -1;
-
-  //     if (
-  //       refChannel.id === channel.id &&
-  //       anchorIndex !== -1 &&
-  //       flatListRef.current
-  //     ) {
-  //       // If the post is already loaded, scroll to it
-  //       flatListRef.current?.scrollToIndex({
-  //         index: anchorIndex,
-  //         animated: false,
-  //         viewPosition: 0.5,
-  //       });
-  //       return;
-  //     }
-
-  //     onPressRef(refChannel, post);
-  //   },
-  //   [onPressRef, channel]
-  // );
-
   const draftCallbacks = store.usePostDraftCallbacks(
     focusedPost == null
       ? null
@@ -242,12 +216,6 @@ export function PostScreenView({
                   mode={headerMode}
                   showEditButton={showEdit}
                   goToEdit={handleEditPress}
-
-                  // When adding the ability to swipe through posts, we lost
-                  // the ability to show a spinner based on loading posts. I
-                  // don't think we were ever really showing this though, as we
-                  // only spun while waiting for DB load, not network load.
-                  // showSpinner={isLoadingPosts}
                 />
                 {parentPost &&
                   (mode === 'single' ? (
