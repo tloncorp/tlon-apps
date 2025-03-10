@@ -6,16 +6,8 @@ import {
   DEFAULT_INVITE_LINK_URL,
 } from '@tloncorp/app/constants';
 import { useBranch, useLureMetadata } from '@tloncorp/app/contexts/branch';
-import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
-  createInviteLinkRegex,
-  extractNormalizedInviteLink,
-  getInviteLinkMeta,
-} from '@tloncorp/shared';
-import {
-  Button,
   Field,
-  OnboardingButton,
   Pressable,
   ScreenHeader,
   TextInput,
@@ -23,13 +15,19 @@ import {
   View,
   YStack,
 } from '@tloncorp/app/ui';
+import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import {
+  createInviteLinkRegex,
+  extractNormalizedInviteLink,
+  getInviteLinkMeta,
+} from '@tloncorp/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
 
 import type { OnboardingStackParamList } from '../../types';
 
-const INVITE_LINK_REGEX = createInviteLinkRegex(BRANCH_DOMAIN);
+const INVITE_LINK_REGEX = createInviteLinkRegex();
 
 type Props = NativeStackScreenProps<
   OnboardingStackParamList,
@@ -68,8 +66,6 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
         try {
           const appInvite = await getInviteLinkMeta({
             inviteLink: extractedLink,
-            branchDomain: BRANCH_DOMAIN,
-            branchKey: BRANCH_KEY,
           });
           if (appInvite) {
             setLure(appInvite);

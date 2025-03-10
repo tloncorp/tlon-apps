@@ -11,8 +11,8 @@ import { AnalyticsEvent } from '../domain';
 import {
   checkInviteServiceLinkExists,
   createDeepLink,
+  extractInviteIdFromInviteLink,
   extractNormalizedInviteLink,
-  extractTokenFromInviteLink,
   getFlagParts,
   withRetry,
 } from '../logic';
@@ -36,7 +36,7 @@ export async function verifyUserInviteLink() {
       logger.trackEvent('Created personal invite link');
     } else {
       // otherwise, make sure we have the corresponding link on the invite service
-      const inviteId = extractTokenFromInviteLink(inviteLink);
+      const inviteId = extractInviteIdFromInviteLink(inviteLink);
       if (!inviteId) {
         throw new Error(`Provider returned invalid link ${inviteLink}`);
       }

@@ -2,8 +2,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import { Context as BranchContext } from '@tloncorp/app/contexts/branch';
 import { exampleContacts } from '@tloncorp/app/fixtures/contentHelpers';
 import { group } from '@tloncorp/app/fixtures/fakeData';
-import { AppInvite, QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { Theme } from '@tloncorp/app/ui';
+import { AppInvite, QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { PropsWithChildren, useState } from 'react';
 import { useFixtureSelect } from 'react-cosmos/client';
 
@@ -45,7 +45,6 @@ function OnboardingFixture({
     hasGroupInvite
       ? {
           id: group.id,
-          shouldAutoJoin: true,
           inviterUserId: exampleContacts.ed.id,
           inviterNickname: exampleContacts.ed.nickname,
           invitedGroupId: group.id,

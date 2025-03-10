@@ -1,4 +1,4 @@
-import { DeepLinkMetadata } from '@tloncorp/shared';
+import { AppInvite } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import React, { ComponentProps } from 'react';
 
@@ -16,7 +16,7 @@ interface GroupShim {
 export const OnboardingInviteBlock = React.memo(function OnboardingInviteBlock({
   metadata,
   ...rest
-}: { metadata: DeepLinkMetadata } & ComponentProps<typeof ListItem>) {
+}: { metadata: AppInvite } & ComponentProps<typeof ListItem>) {
   const {
     inviterUserId,
     invitedGroupId,

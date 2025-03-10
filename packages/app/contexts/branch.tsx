@@ -1,6 +1,11 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
-import { AppInvite, Lure, extractLureMetadata } from '@tloncorp/shared/logic';
+import {
+  AppInvite,
+  Lure,
+  extractLureMetadata,
+  getInviteLinkMeta,
+} from '@tloncorp/shared/logic';
 import {
   type ReactNode,
   createContext,
@@ -106,6 +111,36 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
               }
             }
           }
+
+          if (
+            asUrl.hostname === 'join.tlon.io' ||
+            asUrl.hostname === 'tlon.network'
+          ) {
+            // potential invite link that's not branch wrapped
+            console.log(`got join url with missing branch link`, asUrl);
+            getInviteLinkMeta({ inviteLink: nonBranchLink })
+              .then((inviteMeta) => {
+                if (inviteMeta) {
+                  const nextLure: Lure = {
+                    lure: inviteMeta,
+                    priorityToken: undefined,
+                  };
+
+                  setState({
+                    ...nextLure,
+                    deepLinkPath: undefined,
+                  });
+                  storage.invitation.setValue(nextLure);
+                }
+              })
+              .catch((e) => {
+                logger.trackError(AnalyticsEvent.InviteError, {
+                  context: 'Failed to extract lure metadata',
+                  url: nonBranchLink,
+                  errorMessage: e?.message,
+                });
+              });
+          }
           return;
         }
 
@@ -120,12 +155,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
             logger.log('detected lure link:', params.lure);
             try {
               const nextLure: Lure = {
-                lure: {
-                  ...extractLureMetadata(params),
-                  id: params.lure as string,
-                  // if not already authenticated, we should run Lure's invite auto-join capability after signing in
-                  shouldAutoJoin: !isAuthenticated,
-                },
+                lure: extractLureMetadata(params) ?? undefined,
                 priorityToken: params.token as string | undefined,
               };
               console.log(`setting deeplink lure`, nextLure);
@@ -173,24 +203,19 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [goToChannel, isAuthenticated]);
 
-  const setLure = useCallback(
-    (invite: AppInvite) => {
-      const nextLure: Lure = {
-        lure: {
-          ...invite,
-          // if not already authenticated, we should run Lure's invite auto-join capability after signing in
-          shouldAutoJoin: !isAuthenticated,
-        },
-        priorityToken: undefined,
-      };
-      setState({
-        ...nextLure,
-        deepLinkPath: undefined,
-      });
-      storage.invitation.setValue(nextLure);
-    },
-    [isAuthenticated]
-  );
+  const setLure = useCallback((invite: AppInvite) => {
+    const nextLure: Lure = {
+      lure: {
+        ...invite,
+      },
+      priorityToken: undefined,
+    };
+    setState({
+      ...nextLure,
+      deepLinkPath: undefined,
+    });
+    storage.invitation.setValue(nextLure);
+  }, []);
 
   const clearLure = useCallback(() => {
     console.debug('[branch] Clearing lure state');

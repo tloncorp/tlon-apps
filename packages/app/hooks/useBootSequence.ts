@@ -8,7 +8,6 @@ import { useLureMetadata } from '../contexts/branch';
 import { useShip } from '../contexts/ship';
 import { BootPhaseNames, NodeBootPhase } from '../lib/bootHelpers';
 import BootHelpers from '../lib/bootHelpers';
-import { getShipFromCookie } from '../utils/ship';
 import { useConfigureUrbitClient } from './useConfigureUrbitClient';
 import { usePosthog } from './usePosthog';
 
@@ -160,7 +159,9 @@ export function useBootSequence() {
       });
 
       const requiredInvites =
-        lureMeta?.inviteType === 'user' ? invitedDm : invitedGroup && invitedDm;
+        lureMeta?.inviteType === 'user'
+          ? invitedDm
+          : invitedGroup && (lureMeta?.isLegacy ? true : invitedDm); // old style lures will not receive a DM invite
 
       if (requiredInvites) {
         logger.trackEvent(AnalyticsEvent.InviteDebug, {
@@ -241,7 +242,9 @@ export function useBootSequence() {
         updatedGroup.channels.length > 0;
 
       const hadSuccess =
-        lureMeta?.inviteType === 'user' ? dmIsGood : groupIsGood && dmIsGood;
+        lureMeta?.inviteType === 'user'
+          ? dmIsGood
+          : groupIsGood && (lureMeta?.isLegacy ? true : dmIsGood); // old style lures will not receive a DM invite
 
       if (hadSuccess) {
         logger.crumb('successfully accepted invites');
