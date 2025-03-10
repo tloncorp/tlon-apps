@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import path from 'path';
 
 import store from './store';
+import { setupSQLiteIPC } from './sqlite-service';
 
 // Encryption utilities for secure storage of auth cookie
 const IV_LENGTH = 16; // For AES, this is always 16 bytes
@@ -154,6 +155,10 @@ app.whenReady().then(async () => {
   // Initialize encryption key before handling any auth operations
   ENCRYPTION_KEY = await getEncryptionKey();
   console.log('Encryption key initialized');
+  
+  // Set up SQLite IPC handlers
+  setupSQLiteIPC();
+  console.log('SQLite IPC handlers initialized');
   
   createWindow();
 });

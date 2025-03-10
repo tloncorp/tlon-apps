@@ -4,12 +4,23 @@ declare global {
       setUrbitShip: (shipUrl: string) => Promise<boolean>;
       getVersion: () => Promise<string>;
       loginToShip: (shipUrl: string, accessCode: string) => Promise<string>;
+      storeAuthInfo: (authInfo: any) => Promise<boolean>;
+      getAuthInfo: () => Promise<any>;
+      clearAuthInfo: () => Promise<boolean>;
+    };
+    sqliteBridge?: {
+      init: () => Promise<boolean>;
+      execute: (sql: string, params?: any[]) => Promise<any>;
+      runMigrations: (migrations: any[]) => Promise<boolean>;
+      purgeDb: () => Promise<boolean>;
+      getDbPath: () => Promise<string>;
+      onDbChange: (callback: (data: any) => void) => () => void;
     };
   }
 }
 
 export const isElectron = () => {
-  return window.electronAPI !== undefined;
+  return window.electronAPI !== undefined || window.sqliteBridge !== undefined;
 };
 
 export const setUrbitShip = async (shipUrl: string): Promise<boolean> => {

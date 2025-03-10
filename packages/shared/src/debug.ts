@@ -214,8 +214,11 @@ async function getDebugInfo() {
 }
 
 export function createDevLogger(tag: string, enabled: boolean) {
-  const isElectron = typeof window !== 'undefined' && 
-  window.navigator.userAgent.indexOf('Electron') >= 0;
+  const isElectron =
+    typeof window !== 'undefined' &&
+    window.navigator &&
+    window.navigator.userAgent &&
+    window.navigator.userAgent.indexOf('Electron') >= 0;
   const proxy = new Proxy(console, {
     get(target: Console, prop: string | symbol, receiver) {
       return (...args: unknown[]) => {

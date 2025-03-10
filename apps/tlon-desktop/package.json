@@ -1,29 +1,34 @@
 {
   "name": "tlon-desktop",
+  "author": "Tlon Corporation",
   "version": "1.0.0",
-  "description": "Tlon Desktop App",
+  "description": "Tlon Messenger",
   "main": "build/main/index.js",
   "private": true,
   "scripts": {
     "start": "electron .",
-    "dev": "pnpm run build:ts && concurrently \"pnpm run watch:ts\" \"pnpm run dev:web\" \"pnpm run dev:electron\"",
+    "dev": "pnpm run rebuild && pnpm run build:ts && concurrently \"pnpm run watch:ts\" \"pnpm run dev:web\" \"pnpm run dev:electron\"",
     "dev:electron": "wait-on tcp:3000 && electron .",
     "dev:web": "pnpm --filter 'tlon-web-new' dev:electron",
     "watch:ts": "tsc -b tsconfig.json --watch",
     "build:ts": "tsc -b tsconfig.json",
     "build": "pnpm run build:ts && electron-builder",
-    "build:web": "pnpm --filter 'tlon-web-new' build:electron"
+    "build:web": "pnpm --filter 'tlon-web-new' build:electron",
+    "rebuild": "electron-rebuild -f -w better-sqlite3"
   },
   "dependencies": {
+    "@tloncorp/app": "workspace:*",
     "@tloncorp/shared": "workspace:*",
+    "better-sqlite3": "~11.8.1",
     "cross-fetch": "^3.1.5",
     "electron-is-dev": "^3.0.1",
     "electron-store": "^10.0.1"
   },
   "devDependencies": {
+    "@electron/rebuild": "^3.7.1",
     "concurrently": "^9.1.2",
     "electron": "34.3.0",
-    "electron-builder": "^25.1.8",
+    "electron-builder": "^26.0.10",
     "typescript": "^5.8.2",
     "wait-on": "^7.2.0"
   },

@@ -9,7 +9,6 @@ import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitCl
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
-import { checkDb, useMigrations } from '@tloncorp/app/lib/webDb';
 import { BasePathNavigator } from '@tloncorp/app/navigation/BasePathNavigator';
 import {
   getDesktopLinkingConfig,
@@ -40,6 +39,11 @@ import { useAnalyticsId, useLogActivity, useTheme } from '@/state/settings';
 
 import { DesktopLoginScreen } from './components/DesktopLoginScreen';
 import { isElectron } from './electron-bridge';
+
+// Conditionally import the appropriate database functions
+const { checkDb, useMigrations } = isElectron()
+  ? await import('@tloncorp/app/lib/electronDb')
+  : await import('@tloncorp/app/lib/webDb');
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/production').then((d) => ({
@@ -74,7 +78,6 @@ function checkIfLoggedIn() {
 function AppRoutes() {
   const contactsQuery = store.useContacts();
   const currentUserId = useCurrentUserId();
-  const calmSettingsQuery = store.useCalmSettings({ userId: currentUserId });
   const { needsUpdate, triggerUpdate } = useAppUpdates();
   const [currentRoute, setCurrentRoute] = useState<any>(null);
 
@@ -92,14 +95,6 @@ function AppRoutes() {
       refetch();
     }
   }, [contactsQuery]);
-
-  useEffect(() => {
-    const { data, refetch, isRefetching, isFetching } = calmSettingsQuery;
-
-    if (!data && !isRefetching && !isFetching) {
-      refetch();
-    }
-  }, [calmSettingsQuery]);
 
   const isMobile = useIsMobile();
   const isDarkMode = useIsDarkMode();
@@ -270,8 +265,8 @@ function ConnectedDesktopApp({
   authCookie: string;
 }) {
   const [clientReady, setClientReady] = useState(false);
-  const [dbIsLoaded, setDbIsLoaded] = useState(false);
   const configureClient = useConfigureUrbitClient();
+  const hasSyncedRef = React.useRef(false);
   useFindSuggestedContacts();
 
   useEffect(() => {
@@ -286,36 +281,22 @@ function ConnectedDesktopApp({
         shipUrl,
       });
 
-      try {
-        await db.headsSyncedAt.resetValue();
-
-        await sync.syncStart(false);
-        setClientReady(true);
-      } catch (e) {
-        console.error('Error starting sync:', e);
-        setClientReady(false);
-      }
-
-      // Check database size to confirm loading
-      for (let i = 0; i < 10; i++) {
-        const { databaseSizeBytes } = (await checkDb()) || {
-          databaseSizeBytes: 0,
-        };
-
-        if (databaseSizeBytes && databaseSizeBytes > 0) {
-          console.log('Database loaded');
-          setDbIsLoaded(true);
-          break;
+      if (!hasSyncedRef.current) {
+        try {
+          await sync.syncStart(false);
+          setClientReady(true);
+          hasSyncedRef.current = true;
+        } catch (e) {
+          console.error('Error starting sync:', e);
+          setClientReady(false);
         }
-
-        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     };
 
     initializeClient();
   }, [configureClient, ship, shipUrl, authCookie]);
 
-  if (!clientReady || !dbIsLoaded) {
+  if (!clientReady) {
     return (
       <View
         height="100%"
