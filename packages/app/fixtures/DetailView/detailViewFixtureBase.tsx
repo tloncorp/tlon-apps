@@ -44,9 +44,6 @@ export const DetailViewFixture = ({
             groupMembers={[]}
             negotiationMatch={true}
             editPost={async () => {}}
-            storeDraft={async () => {}}
-            clearDraft={async () => {}}
-            getDraft={async () => ({})}
             goBack={() => {}}
             handleGoToUserProfile={() => {}}
             headerMode="default"

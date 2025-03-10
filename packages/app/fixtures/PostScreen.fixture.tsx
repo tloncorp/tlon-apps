@@ -76,9 +76,6 @@ export default {
           parentPost={null}
           channel={tlonLocalBulletinBoard}
           groupMembers={group.members ?? []}
-          getDraft={async () => ({})}
-          storeDraft={async () => {}}
-          clearDraft={async () => {}}
           headerMode="default"
           onGroupAction={() => {}}
           goToDm={() => {}}
@@ -179,9 +176,6 @@ export default {
               channelContext: {
                 group: data.channel.group,
                 groupMembers: data.channel.group?.members ?? [],
-                storeDraft: noop,
-                clearDraft: noop,
-                getDraft: async () => null,
                 editingPost: undefined,
                 setEditingPost: undefined,
                 editPost: noop,
