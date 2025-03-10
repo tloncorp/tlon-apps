@@ -115,11 +115,11 @@
     (toggle-curio toggle)
   ::
       %leave-old-channels
-    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
-    =/  groups  .^(groups:g %gx groups-path)
+    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/groups
+    =/  groups  .^(groups:v2:g %gx groups-path)
     =/  heap-flags-from-groups
       %+  turn  ~(tap by groups)
-      |=  [group-flag=flag:g group=group:g]
+      |=  [group-flag=flag:g group=group:v2:g]
       %+  turn
         %+  skim  ~(tap by channels.group)
         |=  [=nest:g *]
@@ -201,9 +201,9 @@
       ~(has in sects:(~(got by fleet.gop) our.bowl))
     ::
     ++  groups
-      .^  groups:g
+      .^  groups:v2:g
         %gx
-        /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+        /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/groups
       ==
     --
   --
@@ -217,24 +217,7 @@
     ::
       %1
     =.  state  old
-    =.  cor  restore-missing-subs
-    =.  cor  (emit %pass / %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
-    =.  cor  (emit %pass / %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
-    =.  cor
-      %+  roll  ~(tap in `(set @p)`(~(run in ~(key by stash)) head))
-      |=  [=ship cr=_cor]
-      ?:  =(ship our.bowl)  cr
-      (watch-epic:cr ship &)
-    ?:  =(okay:h cool)  cor
-    ::  speak the good news
-    =.  cor  (emil (drop load:epos))
-    =/  heaps  ~(tap in ~(key by stash))
-    |-
-    ?~  heaps
-      cor
-    =.  cor
-      he-abet:he-upgrade:(he-abed:he-core i.heaps)
-    $(heaps t.heaps)
+    cor
   ==
   ::
   +$  versioned-state  $%(current-state state-0)

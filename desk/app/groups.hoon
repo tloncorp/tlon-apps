@@ -709,7 +709,7 @@
     ``groups+!>(groups-2)
   ::
       [%x %v1 %groups ~]
-    ``groups-1+!>((~(run by groups) tail))
+    ``groups-1+!>(`groups:v5:g`(~(run by groups) tail))
   ::
       [%x %groups %v0 ~]
     ``groups-ui-v0+!>(`groups-ui:zero`(~(urn by groups) to-group-ui-v0))
@@ -916,6 +916,7 @@
   ~|  `wire`pole
   ?+    pole  ~|(bad-agent-take/pole !!)
       ~   cor
+      [%epic ~]  cor
       [%logs ~]  cor
       [%helm *]  cor
       [%activity %submit *]  cor
@@ -1025,10 +1026,13 @@
       ~
     `path
   ?+    -.sign  cor
-      %kick  (give %kick matching ~)
+      %kick
+    ?~  matching  cor
+    (give %kick matching ~)
   ::
       %watch-ack
     ?~  p.sign  cor
+    ?~  matching  cor
     (give %kick matching ~)
   ::
       %fact
@@ -1037,6 +1041,7 @@
       cor
     =+  !<(=dude:gall q.cage.sign)
     =.  shoal  (~(put by shoal) gra dude)
+    ?~  matching  cor
     =.  cor  (give %fact matching cage.sign)
     (give %kick matching ~)
   ==

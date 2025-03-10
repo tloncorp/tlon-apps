@@ -116,7 +116,11 @@ const GROUP_META_COLUMNS = {
 
 const POST_RELATIONS_DEFAULT = {
   author: true,
-  reactions: true,
+  reactions: {
+    with: {
+      contact: true,
+    }
+  },
   threadUnread: true,
   volumeSettings: true,
 } as const;

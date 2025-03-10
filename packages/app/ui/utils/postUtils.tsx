@@ -1,13 +1,22 @@
 import * as db from '@tloncorp/shared/db';
 import { useMemo } from 'react';
 
+interface ReactionListItemUser {
+  id: string;
+  name: string;
+}
+export interface ReactionListItem {
+  value: string;
+  count: number;
+  users: ReactionListItemUser[];
+}
 export interface ReactionDetails {
   self: {
     didReact: boolean;
     value: string;
   };
-  aggregate: Record<string, { value: string; count: number; users: string[] }>;
-  list: { value: string; count: number; users: string[] }[];
+  aggregate: Record<string, ReactionListItem>;
+  list: ReactionListItem[];
 }
 export function useReactionDetails(
   reactions: db.Reaction[],
@@ -26,12 +35,30 @@ export function useReactionDetails(
     reactions.forEach((reaction) => {
       if (details.aggregate[reaction.value]) {
         details.aggregate[reaction.value].count++;
-        details.aggregate[reaction.value].users.push(reaction.contactId);
+        details.aggregate[reaction.value].users.push({
+          id: reaction.contactId,
+          name:
+            reaction.contact?.customNickname ??
+            reaction.contact?.peerNickname ??
+            reaction.contactId,
+        });
       } else {
         details.aggregate[reaction.value] = {
           value: reaction.value,
           count: 1,
-          users: [reaction.contactId],
+          users: [
+            {
+              id: reaction.contactId,
+              name:
+                reaction.contact?.customNickname &&
+                reaction.contact.customNickname !== ''
+                  ? reaction.contact.customNickname
+                  : reaction.contact?.peerNickname &&
+                      reaction.contact.peerNickname !== ''
+                    ? reaction.contact.peerNickname
+                    : reaction.contactId,
+            },
+          ],
         };
       }
       if (reaction.contactId === ourId) {
