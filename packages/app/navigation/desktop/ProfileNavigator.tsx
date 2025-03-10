@@ -64,7 +64,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
   }, []);
 
   return (
-    <View>
+    <View height="100%">
       <ScreenHeader
         title="Contacts"
         rightControls={
