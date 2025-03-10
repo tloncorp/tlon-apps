@@ -45,6 +45,12 @@
         count+(numb count.p)
     ==
   ::
+  ++  preview-response
+    |=  pr=preview-response:g
+    ?:  ?=(%| -.pr)
+      (frond error+(access-error p.pr))
+    (frond preview+(preview p.pr))
+  ::
   ++  update
     |=  =update:g
     %-  pairs
@@ -196,7 +202,13 @@
     :~  claim/?~(cam.ga ~ (claim u.cam.ga))
         preview/?~(pev.ga ~ (preview u.pev.ga))
         invite/?~(vit.ga ~ (invite u.vit.ga))
+        error/?~(err.ga ~ (access-error u.err.ga))
     ==
+  ::
+  ++  access-error
+    |=  =access-error:g
+    ^-  json
+    s+access-error
   ::
   ++  claim
     |=  c=claim:g
@@ -423,7 +435,23 @@
     |=  =@da
     s+`@t`(rsh 4 (scot %ui da))
   ::
-  ++  v5  .
+  ++  v5
+    |%
+    ++  gangs
+      |=  gs=(map flag:g gang:v5:g)
+      %-  pairs
+      %+  turn  ~(tap by gs)
+      |=  [f=flag:g gr=gang:v5:g]
+      [(flag f) (gang gr)]
+    ::
+    ++  gang
+      |=  ga=gang:v5:g
+      %-  pairs
+      :~  claim/?~(cam.ga ~ (claim u.cam.ga))
+          preview/?~(pev.ga ~ (preview u.pev.ga))
+          invite/?~(vit.ga ~ (invite u.vit.ga))
+      ==
+    --
   ++  v2
     |%
     ::
