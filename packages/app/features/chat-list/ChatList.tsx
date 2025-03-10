@@ -90,6 +90,15 @@ export const ChatList = React.memo(function ChatListComponent({
             onLayout={handleItemLayout}
           />
         );
+      } else if (item.type === 'group' && !item.isPending) {
+        return (
+          <InteractableChatListItem
+            model={item}
+            onPress={onPressItem}
+            onLongPress={handleLongPress}
+            onLayout={handleItemLayout}
+          />
+        );
       } else {
         return (
           <ChatListItem
