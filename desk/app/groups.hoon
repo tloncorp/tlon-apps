@@ -1470,7 +1470,9 @@
       ::
           %v2
         =/  =preview-response:v6:g
-          ?.  access  |+%forbidden
+          ?.  access
+            ?:  secret.group  &+%missing
+            |+%forbidden
           &+preview
         (emit %give %fact ~ group-r-preview-0+!>(preview-response))
       ==
