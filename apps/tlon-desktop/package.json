@@ -9,7 +9,7 @@
     "start": "electron .",
     "dev": "pnpm run rebuild && pnpm run build:ts && concurrently \"pnpm run watch:ts\" \"pnpm run dev:web\" \"pnpm run dev:electron\"",
     "dev:electron": "wait-on tcp:3000 && electron .",
-    "dev:web": "pnpm --filter 'tlon-web-new' dev:electron",
+    "dev:web": "pnpm --filter 'tlon-web-new' dev:electron --force",
     "watch:ts": "tsc -b tsconfig.json --watch",
     "build:ts": "tsc -b tsconfig.json",
     "build": "pnpm run build:ts && electron-builder",

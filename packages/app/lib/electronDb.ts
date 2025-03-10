@@ -166,13 +166,27 @@ export class ElectronDb extends BaseDb {
       logger.log('Running migrations in Electron SQLite');
       await window.sqliteBridge.runMigrations(formattedMigrations);
       logger.log('Migrations completed successfully');
-      // await this.client.execute(TRIGGER_SETUP);
       return;
     } catch (e) {
-      logger.error('Migration failed, purging db and retrying', e);
-      await this.purgeDb();
-      await window.sqliteBridge.runMigrations(formattedMigrations);
-      logger.log('Migrations succeeded after purge');
+      // Check if this is a "table already exists" error, which isn't fatal
+      if (e.message && e.message.includes('already exists')) {
+        logger.log('Migration contains tables that already exist, continuing', e);
+        return;
+      } 
+      
+      // For other errors, log but don't purge database
+      logger.error('Migration failed:', e);
+      
+      // Only purge the database for critical errors that prevent app from working
+      if (e.message && (
+          e.message.includes('database is corrupted') || 
+          e.message.includes('database disk image is malformed')
+      )) {
+        logger.error('Database appears corrupted, purging and retrying');
+        await this.purgeDb();
+        await window.sqliteBridge.runMigrations(formattedMigrations);
+        logger.log('Migrations succeeded after purge');
+      }
     }
   }
 

@@ -1,9 +1,9 @@
-import { BrowserWindow, app, ipcMain } from 'electron';
 import crypto from 'crypto';
+import { BrowserWindow, app, ipcMain } from 'electron';
 import path from 'path';
 
-import store from './store';
 import { setupSQLiteIPC } from './sqlite-service';
+import store from './store';
 
 // Encryption utilities for secure storage of auth cookie
 const IV_LENGTH = 16; // For AES, this is always 16 bytes
@@ -16,7 +16,7 @@ async function getEncryptionKey(): Promise<Buffer> {
     if (storedKey) {
       return Buffer.from(storedKey, 'hex');
     }
-    
+
     // Generate a new key if none exists
     const newKey = crypto.randomBytes(32);
     await store.set('encryptionKey', newKey.toString('hex'));
@@ -76,9 +76,32 @@ async function createWindow() {
     },
   });
 
-  // Configure session for CORS handling
-  // const webSession = mainWindow.webContents.session;
+  const webSession = mainWindow.webContents.session;
 
+  // Add auth cookie to requests
+  webSession.webRequest.onBeforeSendHeaders((details, callback) => {
+    if (currentShipUrl && details.url.startsWith(currentShipUrl)) {
+      const headers = details.requestHeaders;
+      if (headers) {
+        // Get the auth cookie from storage
+        store.get('encryptedAuthCookie').then((encryptedAuthCookie) => {
+          if (encryptedAuthCookie) {
+            const authCookie = decrypt(encryptedAuthCookie);
+            headers.Cookie = authCookie;
+          }
+          callback({ requestHeaders: headers });
+        });
+      } else {
+        callback({ requestHeaders: details.requestHeaders });
+      }
+    } else {
+      callback({ requestHeaders: details.requestHeaders });
+    }
+  });
+
+  // Configure session for CORS handling
+  // We've disabled web security for now, so we don't need to worry about this.
+  // We should probably revisit this and re-enable web security.
   // webSession.webRequest.onBeforeSendHeaders((details, callback) => {
   //   // Only modify headers for requests to the configured ship
   //   if (currentShipUrl && details.url.startsWith(currentShipUrl)) {
@@ -155,11 +178,11 @@ app.whenReady().then(async () => {
   // Initialize encryption key before handling any auth operations
   ENCRYPTION_KEY = await getEncryptionKey();
   console.log('Encryption key initialized');
-  
+
   // Set up SQLite IPC handlers
   setupSQLiteIPC();
   console.log('SQLite IPC handlers initialized');
-  
+
   createWindow();
 });
 
@@ -249,11 +272,11 @@ ipcMain.handle('get-auth-info', async () => {
     const shipUrl = await store.get('shipUrl');
     const ship = await store.get('ship');
     const encryptedAuthCookie = await store.get('encryptedAuthCookie');
-    
+
     if (!shipUrl || !ship || !encryptedAuthCookie) {
       return null;
     }
-    
+
     // Decrypt the auth cookie
     const authCookie = decrypt(encryptedAuthCookie);
     return { ship, shipUrl, authCookie };

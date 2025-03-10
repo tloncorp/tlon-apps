@@ -75,7 +75,7 @@ class SQLiteService {
   async executeQuery(sql: string, params: any[], method: string = 'all') {
     if (!this.db) await this.init();
 
-    console.log(`Executing ${method} query:`, sql, params);
+    // console.log(`Executing ${method} query:`, sql, params);
 
     try {
       if (method === 'run') {
@@ -115,14 +115,61 @@ class SQLiteService {
 
     console.log('Starting migrations');
     try {
-      // Run each migration in a transaction
+      // Create migrations table if it doesn't exist
+      this.db!.exec(`
+        CREATE TABLE IF NOT EXISTS __migrations (
+          id TEXT PRIMARY KEY,
+          applied_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )
+      `);
+
+      // Run each migration in a transaction, but only if not already applied
+      let migrationsApplied = 0;
       for (const migration of migrations) {
+        // Skip if no SQL statements
+        if (!migration.sql || migration.sql.length === 0) continue;
+
+        // Generate a hash for this migration based on its content
+        const migrationId = `migration_${migration.sql.join('').length}_${migration.sql[0].substring(0, 50).replace(/[^a-zA-Z0-9]/g, '')}`;
+
+        // Check if this migration has already been applied
+        const alreadyApplied = this.db!.prepare(
+          'SELECT id FROM __migrations WHERE id = ?'
+        ).get(migrationId);
+
+        if (alreadyApplied) {
+          console.log(`Skipping already applied migration: ${migrationId}`);
+          continue;
+        }
+
+        console.log(`Applying migration: ${migrationId}`);
         this.db!.exec('BEGIN TRANSACTION');
         try {
           for (const statement of migration.sql) {
-            this.db!.exec(statement);
+            try {
+              this.db!.exec(statement);
+            } catch (statementError) {
+              // If table already exists, just continue
+              if (
+                statementError.message &&
+                statementError.message.includes('already exists')
+              ) {
+                console.log(
+                  `Table already exists, continuing with migration: ${statementError.message}`
+                );
+              } else {
+                // For other errors, rollback and throw
+                throw statementError;
+              }
+            }
           }
+
+          // Record this migration as applied
+          this.db!.prepare('INSERT INTO __migrations (id) VALUES (?)').run(
+            migrationId
+          );
           this.db!.exec('COMMIT');
+          migrationsApplied++;
         } catch (error) {
           console.error('Migration error:', error);
           this.db!.exec('ROLLBACK');
@@ -130,23 +177,24 @@ class SQLiteService {
         }
       }
 
+      console.log(
+        `Migrations completed successfully. Applied ${migrationsApplied} new migrations.`
+      );
+
       // Set up triggers for database operations
       this.db!.exec(TRIGGER_SETUP);
-
       // Set up change notification trigger
       this.db!.exec(`
-        CREATE TRIGGER IF NOT EXISTS after_changes_insert
-        AFTER INSERT ON __change_log
-        BEGIN
-          SELECT notifyChanges(json_object(
-            'table', NEW.table_name, 
-            'operation', NEW.operation, 
-            'data', NEW.row_data
-          ));
-        END;
-      `);
-
-      console.log('Migrations completed successfully');
+            CREATE TRIGGER IF NOT EXISTS after_changes_insert
+            AFTER INSERT ON __change_log
+            BEGIN
+              SELECT notifyChanges(json_object(
+                'table', NEW.table_name, 
+                'operation', NEW.operation, 
+                'data', NEW.row_data
+              ));
+            END;
+          `);
     } catch (error) {
       console.error('Failed to run migrations:', error);
       throw error;

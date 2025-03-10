@@ -1,5 +1,13 @@
-import { resetDb } from '../lib/webDb';
+import * as electronDb from '../lib/electronDb';
+import * as webDb from '../lib/webDb';
+import { useIsElectron } from './useIsElectron';
 
 export const useResetDb = () => {
-  return resetDb;
+  const isElectron = useIsElectron();
+
+  if (isElectron) {
+    return electronDb.resetDb;
+  }
+
+  return webDb.resetDb;
 };
