@@ -636,7 +636,7 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
         });
       }
 
-      await db.deleteChannels([update.channelId]);
+      await db.deleteChannel(update.channelId);
       break;
     case 'joinChannel':
       await db.addJoinedGroupChannel({ channelId: update.channelId });

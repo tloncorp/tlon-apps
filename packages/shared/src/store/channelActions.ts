@@ -81,7 +81,7 @@ export async function createChannel({
   } catch (e) {
     console.error('Failed to create channel', e);
     // rollback optimistic update
-    await db.deleteChannels([channelId]);
+    await db.deleteChannel(channelId);
   }
 
   return newChannel;
@@ -136,7 +136,7 @@ export async function deleteChannel({
   );
 
   // optimistic update
-  await db.deleteChannels([channelId]);
+  await db.deleteChannel(channelId);
 
   try {
     await api.deleteChannel({ channelId, groupId });
