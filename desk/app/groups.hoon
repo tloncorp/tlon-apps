@@ -943,6 +943,10 @@
   ::
       [%groups ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
+    ?:  ?&  ?=(%kick -.sign)
+            !(~(has by groups) ship name.pole)
+        ==
+      cor
     go-abet:(go-agent:(go-abed:group-core ship name.pole) rest.pole sign)
   ::
       [%gangs %index ship=@ ~]
