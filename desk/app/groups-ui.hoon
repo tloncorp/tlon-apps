@@ -1,4 +1,4 @@
-/-  u=ui, g=groups, c=chat, d=channels, a=activity
+/-  u=ui, g=groups, c=chat, d=channels, a=activity, oc=chat-3
 /+  default-agent, dbug, verb, vita-client
 ::  performance, keep warm
 /+  mark-warmer
@@ -164,8 +164,13 @@
   ::
       [%x %v1 %heads since=?(~ [u=@ ~])]
     =+  .^(chan=channel-heads:v7:old:d (scry %gx %channels %v2 %heads (snoc since.pole %channel-heads)))
-    =+  .^(chat=chat-heads:c (scry %gx %chat %heads (snoc since.pole %chat-heads)))
+    =+  .^(chat=chat-heads:oc (scry %gx %chat %heads (snoc since.pole %chat-heads)))
     ``ui-heads+!>(`mixed-heads:u`[chan chat])
+  ::
+      [%x %v2 %heads since=?(~ [u=@ ~])]
+    =+  .^(chan=channel-heads:d (scry %gx %channels %v3 %heads (snoc since.pole %channel-heads-2)))
+    =+  .^(chat=chat-heads:c (scry %gx %chat %v1 %heads (snoc since.pole %chat-heads-1)))
+    ``ui-heads-2+!>(`mixed-heads-2:u`[chan chat])
   ::
       [%x %v2 %init ~]
     =+  .^([=groups-ui:v2:g =gangs:v2:g] (scry %gx %groups /init/v1/noun))
