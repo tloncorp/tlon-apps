@@ -116,7 +116,7 @@ export function GalleryPost({
 
   return (
     <Pressable
-      onPress={overFlowIsHovered ? undefined : handlePress}
+      onPress={overFlowIsHovered || isPopoverOpen ? undefined : handlePress}
       onLongPress={handleLongPress}
       onHoverIn={onHoverIn}
       onHoverOut={onHoverOut}
@@ -340,6 +340,9 @@ function useBlockLink(
   content: BlockData[]
 ): { text: string; href: string } | null {
   return useMemo(() => {
+    if (content[0].type === 'embed') {
+      return { text: content[0].url, href: content[0].url };
+    }
     if (content[0]?.type !== 'paragraph') {
       return null;
     }

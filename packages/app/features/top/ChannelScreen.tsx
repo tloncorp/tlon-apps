@@ -69,11 +69,9 @@ export default function ChannelScreen(props: Props) {
   useFocusEffect(
     useCallback(() => {
       // Mark the channel as visited when we unfocus/leave this screen
-      () => {
-        if (!channelIsPending) {
-          store.markChannelVisited(channelId);
-        }
-      };
+      if (!channelIsPending) {
+        store.markChannelVisited(channelId);
+      }
     }, [channelId, channelIsPending])
   );
 
