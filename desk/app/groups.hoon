@@ -1432,7 +1432,7 @@
       ?>  ?=(?(%v0 %v1) ver)
       (go-pub ver rest.pole)
     ::
-        [%ui ~]       go-core
+        [%ui ~]       ?>(?=(?(%v0 %v1) ver) go-core)
         [%preview ~]  (go-preview ver)
     ==
   ::
