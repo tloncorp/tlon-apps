@@ -27,7 +27,7 @@ export async function respondToDMInvite({
     });
   } else {
     logger.log(`deleting channel`, channel.id);
-    await db.deleteChannel(channel.id);
+    await db.deleteChannels([channel.id]);
   }
 
   try {
