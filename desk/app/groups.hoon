@@ -1178,7 +1178,7 @@
       %fact
     ?.  =(%channel-preview p.cage.sign)
       cor
-    =+  !<(=preview:channel:g q.cage.sign) :: XX: really necessary?
+    =+  !<(=preview:channel:v2:g q.cage.sign) :: XX: really necessary?
     =.  cor  (emit %give %fact ~[wire] cage.sign)
     (emit %give %kick ~[wire] ~)
   ::

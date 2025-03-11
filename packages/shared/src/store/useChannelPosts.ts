@@ -38,6 +38,7 @@ type UseChannelPostsParams = UseChannelPostsPageParams & {
   enabled: boolean;
   firstPageCount?: number;
   hasCachedNewest?: boolean;
+  disableUnconfirmedPosts?: boolean;
 };
 
 export const clearChannelPostsQueries = () => {
@@ -171,11 +172,14 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     null
   );
   useEffect(() => {
+    if (options.disableUnconfirmedPosts) {
+      return;
+    }
     db.getUnconfirmedPosts({ channelId: options.channelId }).then(
       setUnconfirmedPosts
     );
     setNewPosts([]);
-  }, [options.channelId]);
+  }, [options.channelId, options.disableUnconfirmedPosts]);
   const rawPosts = useMemo<db.Post[] | null>(() => {
     const rawPostsWithoutUnconfirmeds = (() => {
       const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? null;
