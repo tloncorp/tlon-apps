@@ -954,6 +954,7 @@
   ?+    pole  ~|(bad-agent-take/pole !!)
       ~   cor
       [%epic ~]  cor
+      [%cast ship=@ name=@ ~]  cor
       [%logs ~]  cor
       [%helm *]  cor
       [%activity %submit *]  cor
