@@ -5,6 +5,8 @@ import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import { normalizeUrbitColor } from '../logic';
 import * as ub from '../urbit';
+import { parseAttestationId } from './lanyardApi';
+import * as NounParsers from './nounParsers';
 import { getCurrentUserId, poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('contactsApi', true);
@@ -276,24 +278,64 @@ export const v0PeerToClientProfile = (
         contactId: id,
       })) ?? [],
 
+    attestations: parseContactAttestations(id, contact),
     isContact: false,
     isContactSuggestion: config?.isContactSuggestion && id !== currentUserId,
   };
 };
 
-function contactVerifyToClientForm(
+function parseContactAttestations(
+  contactId: string,
   contact?: ub.Contact | ub.ContactBookProfile | null
-): Partial<db.Contact> {
+): db.ContactAttestation[] | null {
+  console.log(`bl: checking ${contactId} for attests`, contact);
   if (!contact) {
-    return {};
+    return null;
   }
-  return {
-    hasVerifiedPhone: contact['lanyard-tmp-phone-sign']?.value ? true : false,
-    verifiedPhoneSignature: contact['lanyard-tmp-phone-sign']?.value ?? null,
-    verifiedPhoneAt: contact['lanyard-tmp-phone-since']?.value
-      ? daToUnix(parseDa(contact['lanyard-tmp-phone-since'].value))
-      : null,
-  };
+
+  const attestations: db.Verification[] = [];
+
+  if (
+    contact['lanyard-twitter-0-sign'] &&
+    contact['lanyard-twitter-0-sign'].value
+  ) {
+    console.log(`found twitter sign`);
+    try {
+      const sign = NounParsers.parseSign(
+        contact['lanyard-twitter-0-sign'].value,
+        contactId
+      );
+      console.log(`parsed sign`, sign);
+
+      if (!sign) {
+        return null;
+      }
+
+      const provider = '~zod'; // TODO: can we get this info?
+      const type = sign.type;
+      const value = sign.signType === 'full' ? sign.value : '';
+      const id = parseAttestationId({ provider, type, value, contactId });
+
+      attestations.push({
+        id,
+        provider,
+        type,
+        value,
+        contactId,
+        initiatedAt: sign.when,
+        visibility: sign.signType === 'full' ? 'public' : 'discoverable',
+        status: 'verified',
+      });
+    } catch (e) {
+      console.error(`failed to parse sign`, e);
+    }
+  }
+
+  return attestations.map((a) => ({
+    contactId,
+    attestationId: a.id,
+    attestation: a,
+  }));
 }
 
 export const v1PeersToClientProfiles = (
@@ -331,6 +373,7 @@ export const v1PeerToClientProfile = (
         groupId: group.value,
         contactId: id,
       })) ?? [],
+    attestations: parseContactAttestations(id, contact),
     isContact: config?.isContact,
     isContactSuggestion:
       config?.isContactSuggestion && !config?.isContact && id !== currentUserId,
@@ -378,6 +421,7 @@ export const contactToClientProfile = (
         groupId: group.value,
         contactId: userId,
       })) ?? [],
+    attestations: parseContactAttestations(userId, base),
     isContact: true,
     isContactSuggestion: false,
   };

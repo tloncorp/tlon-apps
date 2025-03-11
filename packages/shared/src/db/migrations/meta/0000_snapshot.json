@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "6dc0c522-044d-4399-9e6d-6c46177eeac3",
+  "id": "ae1a0126-4d52-4dbd-b59a-9f16da95c7c0",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -639,7 +639,21 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "group_members_chat_id_channels_id_fk": {
+          "name": "group_members_chat_id_channels_id_fk",
+          "tableFrom": "group_members",
+          "tableTo": "channels",
+          "columnsFrom": [
+            "chat_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {
         "group_members_chat_id_contact_id_pk": {
           "columns": [
@@ -647,6 +661,65 @@
             "contact_id"
           ],
           "name": "group_members_chat_id_contact_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "contact_attestations": {
+      "name": "contact_attestations",
+      "columns": {
+        "contact_id": {
+          "name": "contact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "attestation_id": {
+          "name": "attestation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "contact_attestations_contact_id_contacts_id_fk": {
+          "name": "contact_attestations_contact_id_contacts_id_fk",
+          "tableFrom": "contact_attestations",
+          "tableTo": "contacts",
+          "columnsFrom": [
+            "contact_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "contact_attestations_attestation_id_verifications_id_fk": {
+          "name": "contact_attestations_attestation_id_verifications_id_fk",
+          "tableFrom": "contact_attestations",
+          "tableTo": "verifications",
+          "columnsFrom": [
+            "attestation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "contact_attestations_contact_id_attestation_id_pk": {
+          "columns": [
+            "contact_id",
+            "attestation_id"
+          ],
+          "name": "contact_attestations_contact_id_attestation_id_pk"
         }
       },
       "uniqueConstraints": {},
@@ -2033,7 +2106,21 @@
           "isUnique": false
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "posts_channel_id_channels_id_fk": {
+          "name": "posts_channel_id_channels_id_fk",
+          "tableFrom": "posts",
+          "tableTo": "channels",
+          "columnsFrom": [
+            "channel_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -2258,6 +2345,13 @@
     "verifications": {
       "name": "verifications",
       "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
         "provider": {
           "name": "provider",
           "type": "text",
@@ -2276,7 +2370,7 @@
           "name": "value",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "initiated_at": {
@@ -2299,20 +2393,18 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "contact_id": {
+          "name": "contact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
         }
       },
       "indexes": {},
       "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "verifications_provider_type_value_pk": {
-          "columns": [
-            "provider",
-            "type",
-            "value"
-          ],
-          "name": "verifications_provider_type_value_pk"
-        }
-      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
     },

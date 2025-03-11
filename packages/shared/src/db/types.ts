@@ -98,6 +98,8 @@ export type VolumeSettings = BaseModel<'volumeSettings'>;
 export type Verification = BaseModel<'verifications'>;
 export type VerificationStatus = schema.VerificationStatus;
 export type VerificationVisibility = schema.VerificationVisibility;
+export type VerificationType = schema.VerificationType;
+export type ContactAttestation = BaseModel<'contactAttestations'>;
 
 export type Chat = {
   id: string;

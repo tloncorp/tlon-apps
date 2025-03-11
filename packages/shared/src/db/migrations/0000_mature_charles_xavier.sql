@@ -95,7 +95,16 @@ CREATE TABLE `group_members` (
 	`contact_id` text NOT NULL,
 	`joined_at` integer,
 	`status` text,
-	PRIMARY KEY(`chat_id`, `contact_id`)
+	PRIMARY KEY(`chat_id`, `contact_id`),
+	FOREIGN KEY (`chat_id`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `contact_attestations` (
+	`contact_id` text NOT NULL,
+	`attestation_id` text NOT NULL,
+	PRIMARY KEY(`contact_id`, `attestation_id`),
+	FOREIGN KEY (`contact_id`) REFERENCES `contacts`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`attestation_id`) REFERENCES `verifications`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE TABLE `contact_group_pins` (
@@ -299,7 +308,8 @@ CREATE TABLE `posts` (
 	`last_edit_title` text,
 	`last_edit_image` text,
 	`synced_at` integer,
-	`backend_time` text
+	`backend_time` text,
+	FOREIGN KEY (`channel_id`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `posts_sent_at_unique` ON `posts` (`sent_at`);--> statement-breakpoint
@@ -341,13 +351,14 @@ CREATE TABLE `thread_unreads` (
 );
 --> statement-breakpoint
 CREATE TABLE `verifications` (
+	`id` text PRIMARY KEY NOT NULL,
 	`provider` text NOT NULL,
 	`type` text NOT NULL,
-	`value` text NOT NULL,
+	`value` text,
 	`initiated_at` integer,
 	`visibility` text NOT NULL,
 	`status` text NOT NULL,
-	PRIMARY KEY(`provider`, `type`, `value`)
+	`contact_id` text NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE `volume_settings` (

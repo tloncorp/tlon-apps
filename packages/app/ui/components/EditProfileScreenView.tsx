@@ -8,6 +8,7 @@ import { ScrollView, View, XStack, useTheme } from 'tamagui';
 
 import { useContact, useCurrentUserId, useStore } from '../contexts';
 import { SigilAvatar } from './Avatar';
+import { EditAttestationsDisplay } from './EditProfile/EditAttestationsDisplay';
 import { FavoriteGroupsDisplay } from './FavoriteGroupsDisplay';
 import {
   ControlledImageField,
@@ -39,6 +40,11 @@ export function EditProfileScreenView(props: Props) {
       ?.map((pin) => pin.group)
       .filter(Boolean) as db.Group[]) ?? []
   );
+
+  const attestations = useMemo(() => {
+    return (userContact?.attestations?.map((a) => a.attestation) ??
+      []) as db.Verification[];
+  }, [userContact]);
 
   const isCurrUser = useMemo(
     () => props.userId === currentUserId,
@@ -278,6 +284,13 @@ export function EditProfileScreenView(props: Props) {
                 </Field>
 
                 {props.showAttestations && (
+                  <EditAttestationsDisplay
+                    attestations={attestations}
+                    onPressAttestation={props.onGoToAttestation}
+                  />
+                )}
+
+                {/* {props.showAttestations && (
                   <Field label="Attestations">
                     <WidgetPane editor>
                       <Pressable
@@ -312,7 +325,7 @@ export function EditProfileScreenView(props: Props) {
                       </Pressable>
                     </WidgetPane>
                   </Field>
-                )}
+                )} */}
               </>
             ) : (
               <>

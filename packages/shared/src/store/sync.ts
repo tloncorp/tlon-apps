@@ -221,7 +221,7 @@ export const syncContacts = async (ctx?: SyncCtx) => {
   }
 };
 
-export const syncVerifications = async (ctx?: SyncCtx) => {
+export const syncAttestations = async (ctx?: SyncCtx) => {
   logger.log('syncing verifications');
   const verifications = await syncQueue.add('verifications', ctx, () =>
     api.fetchVerifications()
@@ -468,7 +468,7 @@ async function handleLanyardUpdate(update: api.LanyardUpdate) {
     // for right now, we'll handle any subscription event as a signal to resync
     default:
       logger.log('resyncing verifications');
-      await syncVerifications();
+      await syncAttestations();
   }
 }
 

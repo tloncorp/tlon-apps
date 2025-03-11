@@ -55,6 +55,7 @@ import {
   channels as $channels,
   chatMemberGroupRoles as $chatMemberGroupRoles,
   chatMembers as $chatMembers,
+  contactAttestations as $contactAttestations,
   contactGroups as $contactGroups,
   contacts as $contacts,
   groupFlaggedPosts as $groupFlaggedPosts,
@@ -371,23 +372,35 @@ export const insertVerifications = createWriteQuery(
         .where(isNotNull($verifications.value));
       return;
     } else {
-      const values = verifications.map((v) => v.value);
-      await ctx.db
-        .delete($verifications)
-        .where(not(inArray($verifications.value, values)));
+      await ctx.db.delete($verifications).where(
+        not(
+          inArray(
+            $verifications.id,
+            verifications.map((v) => v.id)
+          )
+        )
+      );
     }
 
-    return ctx.db
-      .insert($verifications)
-      .values(verifications)
-      .onConflictDoUpdate({
-        target: [
-          $verifications.type,
-          $verifications.value,
-          $verifications.provider,
-        ],
-        set: conflictUpdateSetAll($verifications),
-      });
+    const contactAttestations = verifications.map((v) => ({
+      contactId: v.contactId,
+      attestationId: v.id,
+    }));
+
+    await withTransactionCtx(ctx, async (txCtx) => {
+      await ctx.db
+        .insert($verifications)
+        .values(verifications)
+        .onConflictDoUpdate({
+          target: [$verifications.id],
+          set: conflictUpdateSetAll($verifications),
+        });
+
+      await ctx.db
+        .insert($contactAttestations)
+        .values(contactAttestations)
+        .onConflictDoNothing();
+    });
   },
   ['verifications']
 );
@@ -3073,6 +3086,11 @@ export const getContacts = createReadQuery(
         pinnedGroups: {
           with: {
             group: true,
+          },
+        },
+        attestations: {
+          with: {
+            attestation: true,
           },
         },
       },

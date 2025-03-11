@@ -4,9 +4,9 @@ import { Atom, Cell, Noun, cue, dwim, enjs } from '@urbit/nockjs';
 import * as db from '../db';
 import { VerificationType } from '../db/schema';
 import { createDevLogger } from '../debug';
-import { getFrondValue, getPatp } from '../logic';
+import { getFrondValue, getPatp, simpleHash } from '../logic';
 import { stringToTa } from '../urbit';
-import { pokeNoun, scryNoun, subscribe } from './urbit';
+import { getCurrentUserId, pokeNoun, scryNoun, subscribe } from './urbit';
 
 const logger = createDevLogger('lanyardApi', true);
 
@@ -83,7 +83,7 @@ function getSign(sign: string): Sign | null {
   return null;
 }
 
-function getRecords(noun: Noun): db.Verification[] {
+function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {
   return enjs.tree((n: Noun) => {
     if (!(n instanceof Cell)) {
       throw new Error('malformed map');
@@ -99,7 +99,7 @@ function getRecords(noun: Noun): db.Verification[] {
       throw new Error('malformed record key identifier');
     }
 
-    const type = enjs.cord(n.head.tail.head);
+    const type = enjs.cord(n.head.tail.head) as db.VerificationType;
     const value = getFrondValue([
       { tag: 'dummy', get: enjs.cord },
       { tag: 'phone', get: enjs.cord },
@@ -118,7 +118,11 @@ function getRecords(noun: Noun): db.Verification[] {
       { tag: 'done', get: () => 'verified' },
     ])(n.tail.tail) as db.VerificationStatus;
 
-    return {
+    const id = parseAttestationId({ provider, type, value, contactId });
+
+    const verif: db.Verification = {
+      id,
+      contactId,
       provider,
       type,
       value,
@@ -126,7 +130,19 @@ function getRecords(noun: Noun): db.Verification[] {
       visibility: config,
       status,
     };
+
+    return verif;
   })(noun) as unknown as db.Verification[];
+}
+
+export function parseAttestationId(attest: {
+  provider: string;
+  type: string;
+  value: string;
+  contactId: string;
+}) {
+  const attestKey = `${attest.contactId}:${attest.type}:${attest.value}:${attest.provider}`;
+  return simpleHash(attestKey);
 }
 
 function getProof(noun: Noun) {
@@ -156,12 +172,12 @@ export async function fetchTwitterConfirmPayload(handle: string) {
 }
 
 export async function fetchVerifications(): Promise<db.Verification[]> {
+  const currentUserId = getCurrentUserId();
   const result = await scryNoun({
     app: 'lanyard',
     path: '/v1/records',
   });
-  const records = getRecords(result);
-
+  const records = nounToClientRecords(result, currentUserId);
   return records;
 }
 

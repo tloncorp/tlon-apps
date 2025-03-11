@@ -56,6 +56,21 @@ export function UserProfileScreenView(props: Props) {
     );
   }, [userContact?.pinnedGroups]);
 
+  const attestations = useMemo(() => {
+    return (userContact?.attestations?.map((a) => a.attestation) ??
+      []) as db.Verification[];
+  }, [userContact]);
+
+  const twitterAttestation = useMemo(() => {
+    return attestations.find((a) => a.type === 'twitter');
+  }, [attestations]);
+
+  const phoneAttestation = useMemo(() => {
+    return attestations.find((a) => a.type === 'phone');
+  }, [attestations]);
+
+  console.log(`profile attestations`, { phoneAttestation, twitterAttestation });
+
   const nodeStatus = !props.connectionStatus?.complete
     ? 'pending'
     : props.connectionStatus.status === 'yes'
@@ -123,6 +138,11 @@ export function UserProfileScreenView(props: Props) {
           <BioDisplay bio={userContact?.bio ?? ''} />
 
           <XStack gap="$l" width="100%">
+            <TwitterAttestBlock attestation={twitterAttestation} />
+            <PhoneAttestBlock attestation={phoneAttestation} />
+          </XStack>
+
+          <XStack gap="$l" width="100%">
             <StatusBlock status={nodeStatus} label="Node" />
             <StatusBlock status={sponsorStatus} label="Sponsor" />
           </XStack>
@@ -161,6 +181,72 @@ function StatusBlock({
         <Text size="$body">{statusText(status)}</Text>
       </XStack>
       <StatusIndicator status={status} label={label} />
+    </PaddedBlock>
+  );
+}
+
+function TwitterAttestBlock({
+  attestation,
+}: {
+  attestation?: db.Verification;
+}) {
+  const windowDimensions = useWindowDimensions();
+  const isWindowNarrow = useIsWindowNarrow();
+
+  if (
+    !attestation ||
+    attestation.type !== 'twitter' ||
+    attestation.status !== 'verified'
+    // ||  attestation.visibility === 'hidden'
+  ) {
+    return null;
+  }
+
+  return (
+    <PaddedBlock
+      flex={1}
+      padding="$2xl"
+      width={isWindowNarrow ? (windowDimensions.width - 36) / 2 : '100%'}
+      gap="$2xl"
+    >
+      <XStack width="100%" justifyContent="space-between">
+        <Text size="$label/2xl">𝕏</Text>
+        <Text size="$label/l" color="$positiveActionText">
+          Verified
+        </Text>
+      </XStack>
+      <Text size="$label/xl">@{attestation.value}</Text>
+    </PaddedBlock>
+  );
+}
+
+function PhoneAttestBlock({ attestation }: { attestation?: db.Verification }) {
+  const windowDimensions = useWindowDimensions();
+  const isWindowNarrow = useIsWindowNarrow();
+
+  if (
+    !attestation ||
+    attestation.type !== 'phone' ||
+    attestation.status !== 'verified'
+    // ||  attestation.visibility === 'hidden'
+  ) {
+    return null;
+  }
+
+  return (
+    <PaddedBlock
+      flex={1}
+      padding="$2xl"
+      width={isWindowNarrow ? (windowDimensions.width - 36) / 2 : '100%'}
+      gap="$2xl"
+    >
+      <XStack width="100%" justifyContent="space-between">
+        <Text size="$label/l">Phone</Text>
+        <Text size="$label/l" color="$positiveActionText">
+          Verified
+        </Text>
+      </XStack>
+      <Icon type="ChannelNotebooks" />
     </PaddedBlock>
   );
 }
