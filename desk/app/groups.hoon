@@ -660,7 +660,7 @@
     =/  ship=@p  (slav %p ship.pole)
     ?.  (~(has by groups) ship name.pole)
       =/  =preview-response:v6:g  |+%missing
-      =.  cor  (emit %give %fact ~ group-r-preview-0+!>(preview-response))
+      =.  cor  (emit %give %fact ~ group-preview-2+!>(preview-response))
       (emit %give %kick ~ ~)
     go-abet:(go-watch:(go-abed:group-core ship name.pole) %v2 /preview)
   ::
@@ -1477,10 +1477,14 @@
         ?.  allow
           ?:  secret.group
             ::  conceal secret private group
-            (emit %give %fact ~ group-r-preview-0+!>(|+%missing))
-          (emit %give %fact ~ group-r-preview-0+!>(|+%forbidden))
+            ::
+            =/  pev  `preview-response:v6:g`|+%missing
+            (emit %give %fact ~ group-preview-2+!>(pev))
+          =/  pev  `preview-response:v6:g`|+%forbidden
+          (emit %give %fact ~ group-preview-2+!>(pev))
         ::
-        (emit %give %fact ~ group-r-preview-0+!>(&+preview))
+        =/  pev  `preview-response:v6:g`&+preview
+        (emit %give %fact ~ group-preview-2+!>(pev))
       ==
     =.  cor
       (emit %give %kick ~ ~)
@@ -2488,34 +2492,34 @@
           ga-core
         ::
             %fact
-          ?>  ?=(%group-r-preview-0 p.cage.sign)
-          =+  !<(response=preview-response:v6:g q.cage.sign)
+          ?>  ?=(%group-preview-2 p.cage.sign)
+          =+  !<(preview=preview-response:v6:g q.cage.sign)
           =.  err.gang
-            ?:  ?=(%& -.response)  ~
+            ?:  ?=(%& -.preview)  ~
             ::  preview error
-            `p.response
+            `p.preview
           =.  pev.gang
-            ?:  ?=(%& -.response)
+            ?:  ?=(%& -.preview)
               ::  preview
-              `p.response
+              `p.preview
             ~
           =.  cor  ga-give-update
           =/  =path  (snoc ga-area %preview)
-          =?  cor  ?=(%& -.response)
-            =*  preview  p.response
+          =?  cor  ?=(%& -.preview)
+            =*  pev  p.preview
             %-  emil
             :~  :: v0
                 ::
-                [%give %fact ~[path] group-preview+!>((to-preview-2 preview))]
+                [%give %fact ~[path] group-preview+!>((to-preview-2 pev))]
                 [%give %kick ~[path] ~]
                 ::  v1
                 ::
-                [%give %fact ~[[%v1 path]] group-preview-1+!>(`preview:v5:g`preview)]
+                [%give %fact ~[[%v1 path]] group-preview-1+!>(`preview:v5:g`pev)]
                 [%give %kick ~[[%v1 path]] ~]
             ==
           =.  cor
-            =/  response=preview-response:v6:g  response
-            (emit %give %fact ~[[%v2 path]] group-r-preview-0+!>(response))
+            =/  pev=preview-response:v6:g  preview
+            (emit %give %fact ~[[%v2 path]] group-preview-2+!>(pev))
           =.  cor
             (emit %give %kick ~[[%v2 path]] ~)
           ?:  from-self  ga-core
