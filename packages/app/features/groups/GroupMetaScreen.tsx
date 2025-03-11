@@ -23,7 +23,7 @@ type Props = NativeStackScreenProps<
 };
 
 export function GroupMetaScreen(props: Props) {
-  const { groupId } = props.route.params;
+  const { groupId, fromBlankChannel } = props.route.params;
   const { group, setGroupMetadata, deleteGroup } = useGroupContext({
     groupId,
   });
@@ -34,10 +34,18 @@ export function GroupMetaScreen(props: Props) {
   const handleSubmit = useCallback(
     (data: db.ClientMeta) => {
       setGroupMetadata(data);
-      onPressChatDetails({ type: 'group', id: groupId });
+      
+      // If coming from a blank channel, go back instead of navigating to chat details
+      if (fromBlankChannel) {
+        props.navigation.goBack();
+      } else {
+        // Default behavior - navigate to chat details
+        onPressChatDetails({ type: 'group', id: groupId });
+      }
+      
       store.createGroupInviteLink(groupId);
     },
-    [setGroupMetadata, groupId, onPressChatDetails]
+    [setGroupMetadata, groupId, onPressChatDetails, fromBlankChannel, props.navigation]
   );
 
   const handlePressDelete = useCallback(() => {
