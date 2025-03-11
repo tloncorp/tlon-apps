@@ -1,10 +1,12 @@
 import { useEmbed, utils, validOembedCheck } from '@tloncorp/shared';
+import { Text } from '@tloncorp/ui';
 import { memo, useCallback, useMemo } from 'react';
 import { Linking, Platform } from 'react-native';
-import { Text } from 'tamagui';
 
 import { useCalm } from '../../contexts';
 import { AudioEmbed } from '../Embed';
+import { createContentRenderer } from '../PostContent';
+import { InlineLink } from '../PostContent/InlineRenderer';
 import { Embed } from './Embed';
 import { EmbedWebView } from './EmbedWebView';
 import { getProviderConfig } from './providers';
@@ -27,6 +29,12 @@ export const trustedProviders = [
     regex: /^https:\/\/www\.tiktok\.com\//,
   },
 ];
+
+const ContentRenderer = createContentRenderer({
+  inlineRenderers: {
+    link: InlineLink,
+  },
+});
 
 interface GenericEmbedProps {
   provider: string;
@@ -157,21 +165,29 @@ const EmbedContent = memo(function EmbedContent({
       }
 
       return (
-        <Text
-          onPress={openLink}
-          textDecorationLine="underline"
-          cursor="pointer"
-        >
-          {content || url}
-        </Text>
+        <ContentRenderer
+          padding={0}
+          margin="$-l"
+          content={[
+            {
+              type: 'paragraph',
+              content: [{ type: 'link', text: content ?? '', href: url }],
+            },
+          ]}
+        />
       );
     }
   }
 
   return (
-    <Text textDecorationLine="underline" cursor="pointer" onPress={openLink}>
-      {content || url}
-    </Text>
+    <ContentRenderer
+      content={[
+        {
+          type: 'paragraph',
+          content: [{ type: 'link', text: content ?? '', href: url }],
+        },
+      ]}
+    />
   );
 });
 
