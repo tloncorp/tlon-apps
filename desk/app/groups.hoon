@@ -979,6 +979,10 @@
   ::
       [%groups ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
+    ?:  ?&  ?=(%kick -.sign)
+            !(~(has by groups) ship name.pole)
+        ==
+      cor
     go-abet:(go-agent:(go-abed:group-core ship name.pole) rest.pole sign)
   ::
       [%gangs %index ship=@ ~]
@@ -1438,7 +1442,7 @@
   ::
   ++  go-preview
     |=  ver=?(%v0 %v1 %v2)
-    =/  access=?
+    =/  allow=?
       ?-  -.cordon.group
           %afar  &
           %open  !secret.group  :: should never be secret
@@ -1453,9 +1457,9 @@
           ==
         ==
     ::  access control: crash if we are on v0, v1
-    ::  and we don't have access.
+    ::  and we disallow the preview
     ::
-    ?<  &(?=(%v0 %v1) !access)
+    ?<  &(?=(%v0 %v1) !allow)
     =/  =preview:g
       =,  group
       [flag meta cordon now.bowl secret.group ~(wyt by fleet)]
@@ -1469,12 +1473,13 @@
         (emit %give %fact ~ group-preview-1+!>(preview))
       ::
           %v2
-        =/  =preview-response:v6:g
-          ?.  access
-            ?:  secret.group  &+%missing
-            |+%forbidden
-          &+preview
-        (emit %give %fact ~ group-r-preview-0+!>(preview-response))
+        ?.  allow
+          ?:  secret.group
+            ::  conceal secret private group
+            (emit %give %fact ~ group-r-preview-0+!>(|+%missing))
+          (emit %give %fact ~ group-r-preview-0+!>(|+%forbidden))
+        ::
+        (emit %give %fact ~ group-r-preview-0+!>(&+preview))
       ==
     =.  cor
       (emit %give %kick ~ ~)
@@ -2458,6 +2463,7 @@
       =+  (~(put by xeno) flag gang)
       (give %fact ~[/gangs/updates] gangs+!>((~(run by -) to-gang-2)))
     (give %fact ~[/v1/gangs/updates] gangs+!>((~(put by xeno) flag gang)))
+  ::
   ++  ga-agent
     |=  [=(pole knot) =sign:agent:gall]
     ^+  ga-core
@@ -2475,7 +2481,8 @@
           %kick  ga-core  ::  kick for single response sub, just take it
         ::
             %watch-ack
-          ?~  p.sign  ga-core :: TODO: report retreival failure
+          ?~  p.sign  ga-core
+          ::TODO  report retrieval failure
           %-  (slog u.p.sign)
           ga-core
         ::
@@ -2484,9 +2491,12 @@
           =+  !<(response=preview-response:v6:g q.cage.sign)
           =.  err.gang
             ?:  ?=(%& -.response)  ~
+            ::  preview error
             `p.response
           =.  pev.gang
-            ?:  ?=(%& -.response)  `p.response
+            ?:  ?=(%& -.response)
+              ::  preview
+              `p.response
             ~
           =.  cor  ga-give-update
           =/  =path  (snoc ga-area %preview)
