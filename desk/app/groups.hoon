@@ -1478,12 +1478,12 @@
           ?:  secret.group
             ::  conceal secret private group
             ::
-            =/  pev  `preview-response:v6:g`|+%missing
+            =/  pev=preview-response:v6:g  |+%missing
             (emit %give %fact ~ group-preview-2+!>(pev))
-          =/  pev  `preview-response:v6:g`|+%forbidden
+          =/  pev=preview-response:v6:g  |+%forbidden
           (emit %give %fact ~ group-preview-2+!>(pev))
         ::
-        =/  pev  `preview-response:v6:g`&+preview
+        =/  pev=preview-response:v6:g  &+preview
         (emit %give %fact ~ group-preview-2+!>(pev))
       ==
     =.  cor
