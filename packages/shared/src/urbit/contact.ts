@@ -10,6 +10,8 @@ export interface Contact {
   groups: string[];
   ['lanyard-twitter-0-sign']?: AttestationSignature;
   ['lanyard-phone-0-sign']?: AttestationSignature;
+  ['lanyard-twitter-0-url']?: AttestationProviderUrl;
+  ['lanyard-phone-0-url']?: AttestationProviderUrl;
 }
 
 export interface ContactAddGroup {
@@ -76,6 +78,11 @@ export interface AttestationSignature {
   value: string;
 }
 
+export interface AttestationProviderUrl {
+  type: 'text';
+  value: string;
+}
+
 export interface ContactBookProfile {
   nickname?: ContactFieldText;
   bio?: ContactFieldText;
@@ -86,6 +93,8 @@ export interface ContactBookProfile {
   status?: ContactFieldText;
   ['lanyard-twitter-0-sign']?: AttestationSignature;
   ['lanyard-phone-0-sign']?: AttestationSignature;
+  ['lanyard-twitter-0-url']?: AttestationProviderUrl;
+  ['lanyard-phone-0-url']?: AttestationProviderUrl;
 }
 
 export interface ContactBookProfileEdit {

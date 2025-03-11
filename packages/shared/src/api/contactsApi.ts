@@ -299,9 +299,8 @@ function parseContactAttestations(
     contact['lanyard-twitter-0-sign'] &&
     contact['lanyard-twitter-0-sign'].value
   ) {
-    console.log(`found twitter sign`);
     try {
-      const sign = NounParsers.parseSign(
+      const sign = NounParsers.parseSigned(
         contact['lanyard-twitter-0-sign'].value,
         contactId
       );
@@ -311,6 +310,8 @@ function parseContactAttestations(
         return null;
       }
 
+      const providerVerificationUrl =
+        contact['lanyard-twitter-0-url']?.value ?? null;
       const provider = '~zod'; // TODO: can we get this info?
       const type = sign.type;
       const value = sign.signType === 'full' ? sign.value : '';
@@ -325,6 +326,7 @@ function parseContactAttestations(
         initiatedAt: sign.when,
         visibility: sign.signType === 'full' ? 'public' : 'discoverable',
         status: 'verified',
+        providerVerificationUrl,
       });
     } catch (e) {
       console.error(`failed to parse sign`, e);

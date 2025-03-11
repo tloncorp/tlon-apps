@@ -3281,6 +3281,12 @@ export const insertContacts = createWriteQuery(
       (contact) => contact.pinnedGroups || []
     );
 
+    const contactAttestations = contactsData.flatMap(
+      (contact) => contact.attestations?.filter((a) => a.attestation) || []
+    );
+
+    console.log(`contact attestations`, contactAttestations);
+
     const targetGroups = contactGroups.map((g): Group => {
       const { host: hostUserId } = parseGroupId(g.groupId);
       return {
@@ -3313,6 +3319,23 @@ export const insertContacts = createWriteQuery(
           .insert($contactGroups)
           .values(contactGroups)
           .onConflictDoNothing();
+      }
+
+      if (contactAttestations.length) {
+        await txCtx.db
+          .insert($verifications)
+          .values(contactAttestations.map((a) => a.attestation as Verification))
+          .onConflictDoNothing();
+        console.log(
+          `insert contacts: inserted verifications`,
+          contactAttestations.map((a) => a.attestation)
+        );
+
+        await txCtx.db
+          .insert($contactAttestations)
+          .values(contactAttestations)
+          .onConflictDoNothing();
+        console.log(`insert contacts: inserted contact attestations`);
       }
     });
   },

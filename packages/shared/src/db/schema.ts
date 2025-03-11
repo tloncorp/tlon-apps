@@ -162,6 +162,7 @@ export const verifications = sqliteTable('verifications', {
   visibility: text('visibility').$type<VerificationVisibility>().notNull(),
   status: text('status').$type<VerificationStatus>().notNull(),
   contactId: text('contact_id').notNull(),
+  providerVerificationUrl: text('provider_verification_url'),
 });
 
 export const verificationRelations = relations(verifications, ({ one }) => ({

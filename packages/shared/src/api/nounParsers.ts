@@ -1,4 +1,4 @@
-import { daToUnix, parseUw } from '@urbit/aura';
+import { daToUnix, parseUw, patp } from '@urbit/aura';
 import { Atom, Cell, Noun, cue, dwim, enjs } from '@urbit/nockjs';
 import _ from 'lodash';
 
@@ -8,45 +8,62 @@ import { getFrondValue } from '../logic';
 interface HalfSign {
   signType: 'half';
   when: number;
+  provider?: string;
   type: db.VerificationType;
 }
 
 interface FullSign {
   signType: 'full';
   when: number;
+  provider?: string;
   type: db.VerificationType;
 
   value: string;
   proofTweetId?: string;
-  proofPhoneUrl?: string;
 }
 
 type Sign = HalfSign | FullSign;
 
-export function parseSign(sign: string, userId: string): Sign | null {
+export function parseSigned(sign: string, userId: string): Sign | null {
   // the noun is encoded as a sign, first we have to unwrap it
   const uw = parseUw(sign);
   const at = new Atom(uw);
+  // (signed ?(half-sign-data full-sign-data))
   const noun = cue(at);
 
-  const signTypeNoun = noun.at(Atom.fromInt(14)) as Noun | null; //   [%half when=@da for=@p kind=id-kind]
+  if (!(noun instanceof Cell)) {
+    throw new Error('Bad Sign: not a cell');
+  }
+
+  const providerAtom = noun.head;
+  if (!(providerAtom instanceof Atom)) {
+    throw new Error('Bad Sign: provider not an atom');
+  }
+  const provider = patp(providerAtom.number);
+
+  const TARGET = 59; // signed -> dat -> drop "0% %verified"
+  const signTypeNoun = noun.at(Atom.fromInt(TARGET)) as Noun | null; // half-sign-data or full-sign-data
   if (!signTypeNoun) {
-    throw 'Bad sign';
+    throw new Error('Bad Sign: could not find dat');
   }
 
-  const signType = enjs.cord(signTypeNoun);
-  if (!['half', 'full'].includes(signType)) {
-    throw 'Bad sign';
-  }
+  // const signType = enjs.cord(signTypeNoun);
+  // if (!['half', 'full'].includes(signType)) {
+  //   throw 'Bad sign';
+  // }
 
-  const signValue = getFrondValue([
+  const signValue = getFrondValue<Sign>([
     // @ts-expect-error it's valid JSON, i swear
     { tag: 'half', get: _.partial(parseHalfSign, userId) },
     // @ts-expect-error it's valid JSON, i swear
     { tag: 'full', get: _.partial(parseFullSign, userId) },
   ])(signTypeNoun);
 
-  return signValue as Sign | null;
+  if (signValue) {
+    signValue.provider = provider;
+  }
+
+  return signValue;
 }
 
 /*
@@ -97,10 +114,6 @@ function parseProof(input: Noun): {
     return { proofTweetId: proofValue };
   }
 
-  if (proofType === 'phone') {
-    return { proofPhoneUrl: proofValue };
-  }
-
   throw new Error(`Bad proof: invalid type ${proofType}`);
 }
 
@@ -134,15 +147,21 @@ function parseFullSign(contactId: string, noun: Noun): FullSign {
     throw 'Bad full sign';
   }
 
-  const whenDa = enjs.cord(noun.head);
-  const when = new Date(daToUnix(BigInt(whenDa))).getTime();
+  const when = new Date(daToUnix(BigInt(noun.head.toString()))).getTime();
   if (!(noun.tail instanceof Cell)) {
     throw 'Bad half sign';
   }
 
   const b = noun.tail;
 
-  const correspondingUser = enjs.cord(b.head);
+  if (!(b.head instanceof Atom)) {
+    throw new Error('Bad Full Sign');
+  }
+  const correspondingUser = patp(b.head.number);
+  console.log('check users match', {
+    want: contactId,
+    have: correspondingUser,
+  });
   if (correspondingUser !== contactId) {
     throw new Error(`Signature user ID does not match contact`);
   }
@@ -153,7 +172,12 @@ function parseFullSign(contactId: string, noun: Noun): FullSign {
   }
 
   const identifier = parseIdentifier(c.head);
-  const proof = parseProof(c.tail);
+  let proof = {} as Partial<FullSign>;
+
+  const maybeProof = c.tail;
+  if (maybeProof instanceof Cell) {
+    proof = parseProof(maybeProof.tail);
+  }
 
   return {
     signType: 'full',
