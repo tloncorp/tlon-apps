@@ -73,22 +73,26 @@ const AvatarFrame = styled(View, {
 
 export type AvatarProps = ComponentProps<typeof AvatarFrame> & {
   ignoreCalm?: boolean;
+  isGroupIcon?: boolean;
 };
 
-export const ContactAvatar = React.memo(function ContactAvatComponent({
+export const ContactAvatar = React.memo(function ContactAvatarComponent({
   contactId,
   contactOverride,
   overrideUrl,
   innerSigilSize,
+  ignoreCalm = false,
   ...props
 }: {
   contactId: string;
   contactOverride?: db.Contact;
   overrideUrl?: string;
   innerSigilSize?: number;
-} & AvatarProps) {
+  ignoreCalm?: boolean;
+} & Omit<AvatarProps, 'ignoreCalm'>) {
   const dbContact = useContact(contactId);
   const contact = contactOverride ?? dbContact;
+
   return (
     <ImageAvatar
       imageUrl={overrideUrl ?? contact?.avatarImage ?? undefined}
@@ -100,6 +104,7 @@ export const ContactAvatar = React.memo(function ContactAvatComponent({
           {...props}
         />
       }
+      ignoreCalm={ignoreCalm}
       {...props}
     />
   );
@@ -132,6 +137,7 @@ export const GroupAvatar = React.memo(function GroupAvatarComponent({
     <ImageAvatar
       imageUrl={model.iconImage ?? undefined}
       fallback={fallback}
+      isGroupIcon={true}
       {...props}
     />
   );
@@ -178,6 +184,7 @@ export const ChannelAvatar = React.memo(function ChannelAvatarComponent({
       <ImageAvatar
         imageUrl={model.iconImage ?? model.group?.iconImage ?? undefined}
         fallback={fallback}
+        isGroupIcon={true}
         {...props}
       />
     );
@@ -230,11 +237,15 @@ export const SystemIconAvatar = React.memo(function SystemIconAvatarComponent({
 export const ImageAvatar = function ImageAvatarComponent({
   imageUrl,
   fallback,
+  isGroupIcon = false,
+  ignoreCalm = false,
   ...props
 }: {
   imageUrl?: string;
   fallback?: React.ReactNode;
-} & AvatarProps) {
+  isGroupIcon?: boolean;
+  ignoreCalm?: boolean;
+} & Omit<AvatarProps, 'ignoreCalm'>) {
   const calmSettings = useCalm();
   const [loadFailed, setLoadFailed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -245,10 +256,13 @@ export const ImageAvatar = function ImageAvatarComponent({
   // TODO: figure out how to sanitize svgs so we can support svg avatars
   const isSVG = imageUrl?.endsWith('.svg');
 
+  const shouldShowImage =
+    isGroupIcon || ignoreCalm || !calmSettings.disableAvatars;
+
   return imageUrl &&
     imageUrl !== '' &&
     !isSVG &&
-    (props.ignoreCalm || !calmSettings.disableAvatars) &&
+    shouldShowImage &&
     !loadFailed ? (
     <AvatarFrame
       key={imageUrl}
