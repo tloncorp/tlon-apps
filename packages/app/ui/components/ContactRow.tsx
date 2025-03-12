@@ -42,6 +42,7 @@ function ContactRowItemRaw({
       pressStyle={pressStyle}
       borderRadius="$xl"
       onPress={handlePress(contact.id)}
+      testID="ContactRow"
     >
       <ListItem {...rest}>
         <ListItem.ContactIcon contactId={contact.id} />
