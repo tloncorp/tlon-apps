@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { BrowserWindow, app, ipcMain } from 'electron';
+import fs from 'fs';
 import path from 'path';
 
 import { setupSQLiteIPC } from './sqlite-service';
@@ -161,9 +162,50 @@ async function createWindow() {
     mainWindow.webContents.openDevTools();
   } else {
     // In production, load the built app
-    mainWindow.loadFile(
-      path.join(__dirname, '../../tlon-web-new/dist/index.html')
-    );
+    // Properly resolve path to the web app dist directory
+    const webAppPath = path.join(app.getAppPath(), 'tlon-web-new', 'dist', 'index.html');
+    const resourcesPath = path.join(path.dirname(app.getAppPath()), 'tlon-web-new', 'dist', 'index.html');
+    
+    console.log('Trying to load web app from path:', webAppPath);
+    console.log('App path:', app.getAppPath());
+    
+    if (fs.existsSync(webAppPath)) {
+      console.log('Loading web app from app path');
+      mainWindow.loadFile(webAppPath);
+    } else if (fs.existsSync(resourcesPath)) {
+      console.log('Loading web app from resources path');
+      mainWindow.loadFile(resourcesPath);
+    } else {
+      console.error('Web app files not found at expected paths!');
+      console.log('Checking for alternate paths...');
+      
+      // Try additional common locations for resources
+      const possiblePaths = [
+        path.join(__dirname, '../../tlon-web-new/dist/index.html'),
+        path.join(__dirname, '../../../tlon-web-new/dist/index.html'),
+        path.join(__dirname, '../../../../tlon-web-new/dist/index.html'),
+        path.join(app.getPath('exe'), '../Resources/tlon-web-new/dist/index.html'),
+        path.join(app.getPath('exe'), '../../Resources/tlon-web-new/dist/index.html')
+      ];
+      
+      let found = false;
+      for (const testPath of possiblePaths) {
+        console.log('Checking path:', testPath);
+        if (fs.existsSync(testPath)) {
+          console.log('Found web app at:', testPath);
+          mainWindow.loadFile(testPath);
+          found = true;
+          break;
+        }
+      }
+      
+      if (!found) {
+        console.error('Web app not found in any expected location!');
+        mainWindow.loadFile(
+          path.join(__dirname, '../../tlon-web-new/dist/index.html')
+        );
+      }
+    }
   }
 
   // Emitted when the window is closed.

@@ -145,7 +145,7 @@ export default ({ mode }: { mode: string }) => {
   const rollupOptions = {
     external:
       mode === 'mock' || mode === 'staging' || mode === 'electron'
-        ? ['virtual:pwa-register/react']
+        ? ['react-native-device-info']
         : ['@urbit/sigil-js/dist/core', 'react-native-device-info'],
     output: {
       hashCharacters: 'base36' as any,
@@ -200,6 +200,7 @@ export default ({ mode }: { mode: string }) => {
         ? {
             sourcemap: false,
             rollupOptions,
+            target: 'esnext',
           }
         : ({
             rollupOptions: {

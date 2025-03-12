@@ -10,7 +10,11 @@ declare global {
     };
     sqliteBridge?: {
       init: () => Promise<boolean>;
-      execute: (sql: string, params?: any[]) => Promise<any>;
+      execute: (
+        sql: string,
+        params: any[],
+        method: 'all' | 'run' | 'values' | 'get'
+      ) => Promise<any>;
       runMigrations: (migrations: any[]) => Promise<boolean>;
       purgeDb: () => Promise<boolean>;
       getDbPath: () => Promise<string>;
@@ -37,7 +41,10 @@ export const getElectronVersion = async (): Promise<string> => {
   return '';
 };
 
-export const loginToShip = async (shipUrl: string, accessCode: string): Promise<string> => {
+export const loginToShip = async (
+  shipUrl: string,
+  accessCode: string
+): Promise<string> => {
   if (isElectron()) {
     return window.electronAPI?.loginToShip(shipUrl, accessCode) ?? '';
   }

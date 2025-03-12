@@ -12,9 +12,13 @@
     "dev:web": "pnpm --filter 'tlon-web-new' dev:electron --force",
     "watch:ts": "tsc -b tsconfig.json --watch",
     "build:ts": "tsc -b tsconfig.json",
-    "build": "pnpm run build:ts && electron-builder",
+    "prepare-native-deps": "node ./prepare-native-deps.js",
+    "flatten-deps": "node ./flatten-dependencies.js",
+    "debug-prod": "node ./debug-prod-build.js",
+    "build": "pnpm run build:ts && pnpm run build:web && pnpm run flatten-deps && electron-builder",
     "build:web": "pnpm --filter 'tlon-web-new' build:electron",
-    "rebuild": "electron-rebuild -f -w better-sqlite3"
+    "rebuild": "electron-rebuild -f -w better-sqlite3",
+    "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
     "@tloncorp/app": "workspace:*",
@@ -33,17 +37,41 @@
     "wait-on": "^7.2.0"
   },
   "build": {
-    "appId": "com.tlon.desktop",
-    "productName": "Tlon",
+    "appId": "io.tlon.desktop",
+    "productName": "Tlon Messenger",
     "directories": {
       "output": "dist"
     },
     "files": [
       "build/**/*",
-      "node_modules/**/*",
+      "node_modules/better-sqlite3/**/*",
+      "node_modules/bindings/**/*",
+      "node_modules/file-uri-to-path/**/*",
+      "node_modules/cross-fetch/**/*",
+      "node_modules/electron-is-dev/**/*",
+      "node_modules/electron-store/**/*",
+      "node_modules/@tloncorp/**/*",
+      "node_modules/once/**/*",
+      "node_modules/pump/**/*",
+      "node_modules/end-of-stream/**/*",
+      "node_modules/wrappy/**/*",
       "electron-store-wrapper.cjs",
       "is-dev-wrapper.cjs",
-      "fetch-wrapper.cjs"
+      "fetch-wrapper.cjs",
+      "../tlon-web-new/dist/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../tlon-web-new/dist",
+        "to": "tlon-web-new/dist",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**/*",
+      "node_modules/bindings/**/*"
     ],
     "mac": {
       "category": "public.app-category.social-networking"
@@ -53,6 +81,7 @@
     },
     "linux": {
       "target": "AppImage"
-    }
+    },
+    "buildDependenciesFromSource": true
   }
 }
