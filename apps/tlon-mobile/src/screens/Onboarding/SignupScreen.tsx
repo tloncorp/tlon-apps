@@ -22,7 +22,7 @@ import {
   TlonText,
   View,
   YStack,
-} from '@tloncorp/ui';
+} from '@tloncorp/app/ui';
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Platform } from 'react-native';
@@ -146,7 +146,7 @@ export const SignupScreen = ({ navigation }: Props) => {
       if (err instanceof HostingError) {
         if (err.details.status === 409) {
           setRemoteError(
-            `This ${otpMethod === 'email' ? 'email' : 'phone number'} is ineligible for signup.`
+            `An account with this ${otpMethod === 'email' ? 'email' : 'phone number'} already exists.`
           );
         }
 
@@ -230,9 +230,9 @@ export const SignupScreen = ({ navigation }: Props) => {
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoCorrect={false}
-                      returnKeyType="next"
-                      enablesReturnKeyAutomatically
-                      onSubmitEditing={onSubmit}
+                      returnKeyType={emailForm.formState.isValid ? "next" : "default"}
+                      enablesReturnKeyAutomatically={emailForm.formState.isValid}
+                      onSubmitEditing={emailForm.formState.isValid ? onSubmit : undefined}
                       autoFocus
                     />
                   </Field>

@@ -146,18 +146,21 @@
   =?  cor  ?=(%6 -.old)
     (emit %pass /adjust-old-default %agent [our.bowl dap.bowl] %poke noun+!>(%adjust-old-default))
   =?  old  ?=(%6 -.old)  [%7 +.old]
-  =?  old  ?=(%7 -.old)  [%8 +.old]
+  =?  cor  ?=(%7 -.old)
+    (emit %pass /fix-init-unreads %agent [our.bowl dap.bowl] %poke noun+!>(%fix-init-unreads))
+  =?  old  ?=(%7 -.old)
+    ::  insert missing volume defaults to %base
+    ::
+    =/  base-volume
+      (~(gut by volume-settings.state) [%base ~] *volume-map:a)
+    =.  volume-settings.old
+      %+  ~(put by volume-settings.state)  [%base ~]
+      (~(uni by *volume-map:a) base-volume)
+    =.  allowed.old  %all
+    [%8 +.old]
   ?>  ?=(%8 -.old)
   =.  state  old
-  ::  insert missing volume defaults to %base
-  ::
-  =/  base-volume
-    (~(gut by volume-settings.state) [%base ~] *volume-map:a)
-  =.  volume-settings.state
-    %+  ~(put by volume-settings.state)  [%base ~]
-    (~(uni by *volume-map:a) base-volume)
-  =.  allowed  %all
-  (emit %pass /fix-init-unreads %agent [our.bowl dap.bowl] %poke noun+!>(%fix-init-unreads))
+  cor
   +$  versioned-state
     $%  state-8
         state-7
@@ -1195,7 +1198,7 @@
   =/  soft  (~(got by old-volumes:a) %soft)
   ::  bail early if we've set something other than the old default
   ?.  =(soft base-volume)  cor
-  =+  .^(=groups-ui:g %gx (scry-path %groups /groups/light/v1/noun))
+  =+  .^(=groups-ui:v2:g %gx (scry-path %groups /groups/light/v1/noun))
   =/  groups  ~(tap by groups-ui)
   ::  iterate through all groups and set volume to old default
   |-
@@ -1205,7 +1208,7 @@
       (~(put by volume-settings) [%base ~] default-volumes:a)
     cor
   =*  next  $(groups t.groups)
-  =/  [=flag:g group=group-ui:g]  i.groups
+  =/  [=flag:g group=group-ui:v2:g]  i.groups
   ?:  (~(has by volume-settings) [%group flag])  next
   =.  volume-settings  (~(put by volume-settings) [%group flag] soft)
   next

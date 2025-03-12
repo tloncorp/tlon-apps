@@ -1,5 +1,4 @@
 import { formatUd, formatUv, isValidPatp, unixToDa } from '@urbit/aura';
-import bigInt from 'big-integer';
 import { useMemo } from 'react';
 
 import { ContentReference, PostContent } from '../api';
@@ -424,7 +423,7 @@ export function extractGroupPrivacy(
 }
 
 export function createSectionId() {
-  const idParts = formatUv(bigInt(Date.now())).split('.');
+  const idParts = formatUv(BigInt(Date.now())).split('.');
   const newSectionId = `z${idParts[idParts.length - 1]}`;
 
   return newSectionId;

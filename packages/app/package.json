@@ -7,12 +7,16 @@
     "lint": "eslint ./",
     "lint:fix": "eslint ./ --fix --quiet",
     "lint:format": "prettier ./ --write",
-    "test": "vitest --watch false"
+    "test": "vitest --watch false",
+    "tsc": "tsc --noEmit"
   },
   "dependencies": {
+    "@emoji-mart/data": "^1.1.2",
+    "@tloncorp/editor": "workspace:*",
     "@tloncorp/shared": "workspace:*",
     "@tloncorp/ui": "workspace:*",
     "react-native-email-link": "^1.16.1",
+    "expo-blur": "^12.9.2",
     "react-native-fetch-api": "^3.0.0",
     "react-native-polyfill-globals": "^3.1.0",
     "sqlocal": "^0.11.1"
@@ -22,6 +26,7 @@
     "@types/react-native": "0.73.0"
   },
   "peerDependencies": {
+    "tamagui": "~1.112.12",
     "@react-native-firebase/perf": "19.2.2",
     "expo-notifications": "~0.27.6",
     "lodash": "^4.17.21",

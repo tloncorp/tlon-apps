@@ -3,6 +3,8 @@ import { toPostContent } from '../api';
 import { PostContent, toUrbitStory } from '../api/postsApi';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { AnalyticsEvent } from '../domain';
+import * as logic from '../logic';
 import * as urbit from '../urbit';
 import * as sync from './sync';
 
@@ -21,6 +23,10 @@ export async function sendPost({
 }) {
   logger.crumb('sending post', `channel type: ${channel.type}`);
   if (channel.isPendingChannel) {
+    logger.trackEvent(
+      AnalyticsEvent.ActionStartedDM,
+      logic.getModelAnalytics({ channel })
+    );
     // if first message of a pending group dm, we need to first create
     // it on the backend
     if (channel.type === 'groupDm') {
@@ -49,6 +55,16 @@ export async function sendPost({
     content,
     metadata,
   });
+
+  let group: null | db.Group = null;
+  if (channel.groupId) {
+    group = await db.getGroup({ id: channel.groupId });
+  }
+  logger.trackEvent(
+    AnalyticsEvent.ActionSendPost,
+    logic.getModelAnalytics({ post: cachePost, channel, group })
+  );
+
   logger.crumb('insert channel posts');
   sync.handleAddPost(cachePost);
   logger.crumb('done optimistic update');
@@ -65,6 +81,9 @@ export async function sendPost({
     sync.syncChannelMessageDelivery({ channelId: channel.id });
     logger.crumb('done sending post');
   } catch (e) {
+    logger.trackEvent(AnalyticsEvent.ErrorSendPost, {
+      errorMessage: e.message,
+    });
     logger.crumb('failed to send post');
     console.error('Failed to send post', e);
     await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
@@ -79,6 +98,10 @@ export async function retrySendPost({
   post: db.Post;
 }) {
   logger.log('retrySendPost', { post });
+  logger.trackEvent(
+    AnalyticsEvent.ActionSendPostRetry,
+    logic.getModelAnalytics({ post, channel })
+  );
   if (post.deliveryStatus !== 'failed') {
     console.error('Tried to retry send on non-failed post', post);
     return;
@@ -138,6 +161,10 @@ export async function editPost({
   metadata?: db.PostMetadata;
 }) {
   logger.log('editPost', { post, content, parentId, metadata });
+  logger.trackEvent(
+    AnalyticsEvent.ActionStartedDM,
+    logic.getModelAnalytics({ post })
+  );
   // optimistic update
   const [contentForDb, flags] = toPostContent(content);
   logger.log('editPost optimistic update', { contentForDb, flags });
@@ -216,6 +243,16 @@ export async function sendReply({
     replyTime: cachePost.sentAt,
   });
 
+  let group = null;
+  if (channel.groupId) {
+    group = await db.getGroup({ id: channel.groupId });
+  }
+
+  logger.trackEvent(
+    AnalyticsEvent.ActionSendReply,
+    logic.getModelAnalytics({ post: cachePost, channel, group })
+  );
+
   try {
     logger.crumb('sending reply to backend');
     api.sendReply({
@@ -229,12 +266,19 @@ export async function sendReply({
     sync.syncChannelMessageDelivery({ channelId: channel.id });
   } catch (e) {
     logger.crumb('failed to send reply');
+    logger.trackEvent(AnalyticsEvent.ErrorSendReply, {
+      errorMessage: e.message,
+    });
     console.error('Failed to send reply', e);
     await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
   }
 }
 
 export async function hidePost({ post }: { post: db.Post }) {
+  logger.trackEvent(
+    AnalyticsEvent.ActionHidePost,
+    logic.getModelAnalytics({ post })
+  );
   // optimistic update
   await db.updatePost({ id: post.id, hidden: true });
 
@@ -264,6 +308,10 @@ export async function showPost({ post }: { post: db.Post }) {
 
 export async function deletePost({ post }: { post: db.Post }) {
   logger.crumb('deleting post');
+  logger.trackEvent(
+    AnalyticsEvent.ActionDeletePost,
+    logic.getModelAnalytics({ post })
+  );
   const existingPost = await db.getPost({ postId: post.id });
 
   // optimistic update
@@ -323,6 +371,16 @@ export async function addPostReaction(
   shortCode: string,
   currentUserId: string
 ) {
+  const channel = await db.getChannel({ id: post.channelId });
+  let group = null;
+  if (channel && channel.groupId) {
+    group = await db.getGroup({ id: channel.groupId });
+  }
+
+  logger.trackEvent(
+    AnalyticsEvent.ActionReact,
+    logic.getModelAnalytics({ post, channel, group })
+  );
   const formattedShortcode = shortCode.replace(/^(?!:)(.*)$(?<!:)/, ':$1:');
 
   // optimistic update
@@ -342,13 +400,19 @@ export async function addPostReaction(
     });
   } catch (e) {
     console.error('Failed to add post reaction', e);
-
+    logger.trackEvent(AnalyticsEvent.ErrorReact, {
+      errorMessage: e.message,
+    });
     // rollback optimistic update
     await db.deletePostReaction({ postId: post.id, contactId: currentUserId });
   }
 }
 
 export async function removePostReaction(post: db.Post, currentUserId: string) {
+  logger.trackEvent(
+    AnalyticsEvent.ActionUnreact,
+    logic.getModelAnalytics({ post })
+  );
   const existingReaction = await db.getPostReaction({
     postId: post.id,
     contactId: currentUserId,
@@ -365,6 +429,9 @@ export async function removePostReaction(post: db.Post, currentUserId: string) {
       postAuthor: post.authorId,
     });
   } catch (e) {
+    logger.trackEvent(AnalyticsEvent.ErrorUnreact, {
+      errorMessage: e.message,
+    });
     console.error('Failed to remove post reaction', e);
 
     // rollback optimistic update

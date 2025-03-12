@@ -1,4 +1,4 @@
-// Copyright 2024, Tlon Corporation
+// Copyright 2025, Tlon Corporation
 import {
   DarkTheme,
   DefaultTheme,
@@ -8,7 +8,6 @@ import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitCl
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
-import { loadConstants } from '@tloncorp/app/lib/constants';
 import { checkDb, useMigrations } from '@tloncorp/app/lib/webDb';
 import { BasePathNavigator } from '@tloncorp/app/navigation/BasePathNavigator';
 import {
@@ -17,9 +16,10 @@ import {
 } from '@tloncorp/app/navigation/linking';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
+import { LoadingSpinner, StoreProvider, Text, View } from '@tloncorp/app/ui';
 import { sync } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { LoadingSpinner, StoreProvider, View } from '@tloncorp/ui';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, { PropsWithChildren, useEffect, useState } from 'react';
@@ -35,8 +35,6 @@ import { useIsDark, useIsMobile } from '@/logic/useMedia';
 import { preSig } from '@/logic/utils';
 import { toggleDevTools, useLocalState, useShowDevTools } from '@/state/local';
 import { useAnalyticsId, useLogActivity, useTheme } from '@/state/settings';
-
-loadConstants();
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/production').then((d) => ({
@@ -73,6 +71,14 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
   const currentUserId = useCurrentUserId();
   const calmSettingsQuery = store.useCalmSettings({ userId: currentUserId });
   const { needsUpdate, triggerUpdate } = useAppUpdates();
+  const [currentRoute, setCurrentRoute] = useState<any>(null);
+
+  const { data: channelData } = store.useChannel({
+    id: currentRoute?.params?.channelId,
+  });
+  const { data: groupData } = store.useGroup({
+    id: currentRoute?.params?.groupId,
+  });
 
   useEffect(() => {
     const { data, refetch, isRefetching, isFetching } = contactsQuery;
@@ -97,6 +103,25 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
     return null;
   }
 
+  const getFriendlyName = (routeName: string) => {
+    const friendlyNames: Record<string, string> = {
+      ChatList: 'Home',
+      GroupSettings: 'Group Settings',
+      ChannelSearch: 'Search',
+      ChatDetails: 'Chat Details',
+      UserProfile: 'Profile',
+      AppSettings: 'Settings',
+      ManageAccount: 'Account',
+      BlockedUsers: 'Blocked Users',
+      FeatureFlags: 'Features',
+      PushNotificationSettings: 'Notifications',
+    };
+
+    return (
+      friendlyNames[routeName] || routeName.replace(/([A-Z])/g, ' $1').trim()
+    );
+  };
+
   return (
     <AppDataProvider
       webAppNeedsUpdate={needsUpdate}
@@ -106,6 +131,61 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
         <NavigationContainer
           linking={getMobileLinkingConfig(import.meta.env.MODE)}
           theme={isDarkMode ? DarkTheme : DefaultTheme}
+          onStateChange={(state) => {
+            if (state) {
+              const route = state.routes[state.index];
+              const nestedRoute = route.state?.routes[route.state?.index || 0];
+              if (nestedRoute) {
+                setCurrentRoute(nestedRoute);
+              }
+            }
+          }}
+          documentTitle={{
+            enabled: true,
+            formatter: (options, route) => {
+              if (!route?.name) return 'Tlon';
+
+              if (route.name === 'GroupChannels') {
+                if (groupData) {
+                  return `${groupData.title}`;
+                }
+                return 'Group Channels';
+              }
+
+              // For channel routes
+              if (route.name === 'Channel' || route.name === 'ChannelRoot') {
+                if (channelData && groupData) {
+                  return `${channelData.title} - ${groupData.title}`;
+                }
+              }
+
+              // For DM routes
+              if (route.name === 'DM') {
+                if (channelData) {
+                  const title =
+                    channelData.title ||
+                    channelData.contact?.peerNickname ||
+                    channelData.contact?.customNickname ||
+                    channelData.contactId ||
+                    'Chat';
+                  return `${title}`;
+                }
+                return 'Chat';
+              }
+
+              // For Group DM routes
+              if (route.name === 'GroupDM') {
+                if (channelData) {
+                  return `${channelData.title !== '' ? channelData.title : 'Group DM'}`;
+                }
+                return 'Group DM';
+              }
+
+              // For other routes
+              const screenName = getFriendlyName(route.name);
+              return `${screenName}`;
+            },
+          }}
         >
           <BasePathNavigator isMobile={isMobile} />
         </NavigationContainer>
@@ -113,6 +193,53 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
         <NavigationContainer
           linking={getDesktopLinkingConfig(import.meta.env.MODE)}
           theme={isDarkMode ? DarkTheme : DefaultTheme}
+          onStateChange={(state) => {
+            if (state) {
+              const route = state.routes[state.index];
+              const nestedRoute = route.state?.routes[route.state?.index || 0];
+              if (
+                nestedRoute &&
+                (nestedRoute.name === 'Home' || nestedRoute.name === 'Messages')
+              ) {
+                const nestedHomeRoute =
+                  nestedRoute.state?.routes[nestedRoute.state?.index || 0];
+                if (nestedHomeRoute) {
+                  setCurrentRoute(nestedHomeRoute);
+                }
+              }
+            }
+          }}
+          documentTitle={{
+            enabled: true,
+            formatter: (options, route) => {
+              if (!route?.name) return 'Tlon';
+
+              // For channel routes
+              if (route.name === 'Channel' || route.name === 'ChannelRoot') {
+                if (channelData && groupData) {
+                  if (groupData?.title) {
+                    return `${channelData.title} - ${groupData.title}`;
+                  } else {
+                    return `${channelData.title}`;  
+                  }
+                }
+                if (channelData) {
+                  const title =
+                    channelData.title ||
+                    channelData.contact?.peerNickname ||
+                    channelData.contact?.customNickname ||
+                    channelData.contactId ||
+                    'Chat';
+                  return `${title}`;
+                }
+                return 'Chat';
+              }
+
+              // For other routes
+              const screenName = getFriendlyName(route.name);
+              return `${screenName}`;
+            },
+          }}
         >
           <BasePathNavigator isMobile={isMobile} />
         </NavigationContainer>
@@ -137,9 +264,9 @@ const App = React.memo(function AppComponent() {
   const isDarkMode = useIsDark();
   const currentUserId = useCurrentUserId();
   const [dbIsLoaded, setDbIsLoaded] = useState(false);
-  const [startedSync, setStartedSync] = useState(false);
   const configureClient = useConfigureUrbitClient();
   useFindSuggestedContacts();
+  const hasSyncedRef = React.useRef(false);
 
   useEffect(() => {
     handleError(() => {
@@ -153,8 +280,14 @@ const App = React.memo(function AppComponent() {
       shipUrl: '',
     });
     const syncStart = async () => {
-      await sync.syncStart(startedSync);
-      setStartedSync(true);
+      // Only call sync.syncStart once during the app's lifecycle
+      if (!hasSyncedRef.current) {
+        // Web doesn't persist database, so headsSyncedAt is misleading
+        await db.headsSyncedAt.resetValue();
+
+        await sync.syncStart(false);
+        hasSyncedRef.current = true;
+      }
 
       // we need to check the size of the database here to see if it's not zero
       // if it's not zero, set the dbIsLoaded to true
@@ -180,7 +313,7 @@ const App = React.memo(function AppComponent() {
     };
 
     syncStart();
-  }, [dbIsLoaded, currentUserId, startedSync]);
+  }, [dbIsLoaded, currentUserId]);
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -196,8 +329,23 @@ const App = React.memo(function AppComponent() {
                   width="100%"
                   justifyContent="center"
                   alignItems="center"
+                  backgroundColor="$secondaryBackground"
                 >
-                  <LoadingSpinner />
+                  <View
+                    backgroundColor="$background"
+                    padding="$xl"
+                    borderRadius="$l"
+                    aspectRatio={1}
+                    alignItems="center"
+                    justifyContent="center"
+                    borderWidth={1}
+                    borderColor="$border"
+                  >
+                    <LoadingSpinner color="$primaryText" />
+                    <Text color="$primaryText" marginTop="$xl" fontSize="$s">
+                      Starting up&hellip;
+                    </Text>
+                  </View>
                 </View>
               )}
             </StoreProvider>

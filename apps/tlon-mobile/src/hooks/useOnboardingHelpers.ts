@@ -8,7 +8,7 @@ import {
 import * as api from '@tloncorp/shared/api';
 import { storage } from '@tloncorp/shared/db';
 import * as db from '@tloncorp/shared/db';
-import { useStore } from '@tloncorp/ui';
+import { useStore } from '@tloncorp/app/ui';
 import { useCallback } from 'react';
 
 import { clearHostingNativeCookie } from '../lib/hostingAuth';

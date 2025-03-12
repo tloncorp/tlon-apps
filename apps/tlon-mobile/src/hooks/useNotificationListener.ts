@@ -11,13 +11,19 @@ import {
   screenNameFromChannelId,
 } from '@tloncorp/app/navigation/utils';
 import * as posthog from '@tloncorp/app/utils/posthog';
-import { createDevLogger, syncDms, syncGroups } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  createDevLogger,
+  syncDms,
+  syncGroups,
+} from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import { markChatRead } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import * as ub from '@tloncorp/shared/urbit';
 import { whomIsDm, whomIsMultiDm } from '@tloncorp/shared/urbit';
-import { useIsWindowNarrow } from '@tloncorp/ui';
+import { useIsWindowNarrow } from '@tloncorp/app/ui';
 import {
   Notification,
   addNotificationResponseReceivedListener,
@@ -57,7 +63,9 @@ function payloadFromNotification(
   // `trigger`.
   // Detect and use whatever payload is available.
   const payload =
-    notification.request.trigger.type === 'push'
+    // `NotificationRequest.trigger` is marked as non-null in
+    // expo-notifications' types, but is null on Android - so we need the `?`
+    notification.request.trigger?.type === 'push'
       ? notification.request.trigger.payload
       : notification.request.content.data;
 
@@ -81,6 +89,17 @@ function payloadFromNotification(
       if (post != null) {
         return db.postFromPostActivityEvent(post);
       }
+
+      // Android can't seem to send a dictionary in notification data, so we send a string.
+      const dmPostJson = payload.dmPostJsonString as string | undefined;
+      if (dmPostJson != null) {
+        return db.postFromDmPostActivityEvent(JSON.parse(dmPostJson));
+      }
+      const postJson = payload.postJsonString as string | undefined;
+      if (postJson != null) {
+        return db.postFromDmPostActivityEvent(JSON.parse(postJson));
+      }
+
       return undefined;
     })();
     return {
@@ -179,6 +198,11 @@ export default function useNotificationListener() {
           return false;
         }
 
+        logger.trackEvent(
+          AnalyticsEvent.ActionTappedPushNotif,
+          logic.getModelAnalytics({ channel })
+        );
+
         const routeStack: RouteStack = [{ name: 'ChatList' }];
         if (channel.groupId) {
           const mainGroupRoute = await getMainGroupRoute(
@@ -249,6 +273,10 @@ export default function useNotificationListener() {
             if (isTlonEmployee) {
               crashlytics().log(`failed channel ID: ${channelId}`);
               crashlytics().log(`failed post ID: ${postInfo?.id}`);
+              logger.trackEvent(
+                AnalyticsEvent.ErrorPushNotifNavigate,
+                logic.getModelAnalytics({ channel: { id: channelId } })
+              );
             }
             crashlytics().recordError(
               new Error(
@@ -260,7 +288,13 @@ export default function useNotificationListener() {
         }
       })();
     }
-  }, [notifToProcess, navigation, isTlonEmployee, channelSwitcherEnabled]);
+  }, [
+    notifToProcess,
+    navigation,
+    isTlonEmployee,
+    channelSwitcherEnabled,
+    isDesktop,
+  ]);
 }
 
 function useHandoffNotificationData() {

@@ -1214,10 +1214,3 @@ export function cacheIdFromString(str: string): CacheId {
     sent: parseInt(udToDec(sentStr), 10),
   };
 }
-
-export function getMessageKey(post: Post): MessageKey {
-  return {
-    id: `${post.essay.author}/${formatUd(unixToDa(post.essay.sent))}`,
-    time: formatUd(bigInt(post.seal.id)),
-  };
-}

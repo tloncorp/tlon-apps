@@ -1,4 +1,4 @@
-import { Button, Carousel } from '@tloncorp/ui';
+import { range } from 'lodash';
 import { useCallback, useRef, useState } from 'react';
 import { useSelect, useValue } from 'react-cosmos/client';
 import { Alert } from 'react-native';
@@ -6,14 +6,13 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, View } from 'tamagui';
 
+import { Button, Carousel } from '../ui';
+
 const colors = ['red', 'blue', 'green', 'yellow', 'purple'];
 
 export default function CarouselFixture() {
   const [fullscreen] = useValue('Fullscreen', {
     defaultValue: true,
-  });
-  const [pageCount] = useValue('Number of pages', {
-    defaultValue: 3,
   });
   const [direction] = useSelect('Direction', {
     defaultValue: 'vertical',
@@ -21,12 +20,12 @@ export default function CarouselFixture() {
   });
 
   const uriForPage = useCallback(
-    (i: number) => `https://picsum.photos/seed/${i}/400/400`,
+    (i: number) => `https://picsum.photos/seed/s${i}/400/400`,
     []
   );
 
+  const [pageSeeds, setPageSeeds] = useState(() => range(5));
   const [visibleIndex, setVisibleIndex] = useState<number | null>(null);
-
   const carouselRef = useRef<React.ElementRef<typeof Carousel>>(null);
 
   return (
@@ -38,12 +37,11 @@ export default function CarouselFixture() {
           scrollDirection={direction}
           onVisibleIndexChange={setVisibleIndex}
         >
-          {Array(pageCount)
-            .fill(undefined)
-            .map((_, i) => uriForPage(i))
-            .map((uri, i) => (
+          {pageSeeds
+            .map((seed) => [seed, uriForPage(seed)] as const)
+            .map(([seed, uri]) => (
               <Carousel.Item
-                key={i}
+                key={uri}
                 overlay={
                   <Carousel.Overlay
                     header={
@@ -51,10 +49,10 @@ export default function CarouselFixture() {
                         edges={['top', 'right', 'left']}
                         style={{
                           padding: 40,
-                          backgroundColor: colors[i % colors.length],
+                          backgroundColor: colors[seed % colors.length],
                         }}
                       >
-                        <Text>Header {i}</Text>
+                        <Text>{seed}</Text>
                       </SafeAreaView>
                     }
                     footer={
@@ -84,7 +82,7 @@ export default function CarouselFixture() {
               Alert.prompt('Go to index', undefined, (input: string) => {
                 try {
                   const n = parseInt(input);
-                  if (n >= 0 && n < pageCount) {
+                  if (n >= 0 && n < pageSeeds.length) {
                     carouselRef.current?.scrollToIndex(n);
                   } else {
                     throw null;
@@ -96,6 +94,26 @@ export default function CarouselFixture() {
             }}
           >
             <Text>Showing index: {visibleIndex}</Text>
+          </Button>
+          <Button
+            onPress={() => {
+              setPageSeeds((prev) => {
+                const min = prev.length > 0 ? Math.min(...prev) : 0;
+                return [...range(min - 1, min - 5, -1).reverse(), ...prev];
+              });
+            }}
+          >
+            <Text>Load more at start</Text>
+          </Button>
+          <Button
+            onPress={() => {
+              setPageSeeds((prev) => {
+                const max = prev.length > 0 ? Math.max(...prev) : 0;
+                return [...prev, ...range(max + 1, max + 5)];
+              });
+            }}
+          >
+            <Text>Load more at end</Text>
           </Button>
         </View>
       </View>

@@ -2,22 +2,18 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
+import { useCallback, useState } from 'react';
+
+import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import { useGroupContext } from '../../hooks/useGroupContext';
+import { GroupSettingsStackParamList } from '../../navigation/types';
 import {
   AttachmentProvider,
-  Button,
   DeleteSheet,
   MetaEditorScreenView,
   YStack,
   useGroupTitle,
-} from '@tloncorp/ui';
-import { useCallback, useState } from 'react';
-
-import {
-  INVITE_SERVICE_ENDPOINT,
-  INVITE_SERVICE_IS_DEV,
-} from '../../constants';
-import { useGroupContext } from '../../hooks/useGroupContext';
-import { GroupSettingsStackParamList } from '../../navigation/types';
+} from '../../ui';
 
 type Props = NativeStackScreenProps<
   GroupSettingsStackParamList,
@@ -31,16 +27,17 @@ export function GroupMetaScreen(props: Props) {
   const { group, setGroupMetadata, deleteGroup } = useGroupContext({
     groupId,
   });
+  const { onPressChatDetails } = useChatSettingsNavigation();
   const canUpload = useCanUpload();
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
 
   const handleSubmit = useCallback(
     (data: db.ClientMeta) => {
       setGroupMetadata(data);
-      props.navigation.goBack();
+      onPressChatDetails({ type: 'group', id: groupId });
       store.createGroupInviteLink(groupId);
     },
-    [setGroupMetadata, props.navigation, groupId]
+    [setGroupMetadata, groupId, onPressChatDetails]
   );
 
   const handlePressDelete = useCallback(() => {

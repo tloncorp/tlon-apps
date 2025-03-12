@@ -128,8 +128,8 @@ export function fetchEventSource(
         ])) as Response;
 
         if (response.status === 404) {
-          onerror?.(new ReapError('Channel reaped'));
           dispose();
+          onerror?.(new ReapError('Channel reaped'));
           resolve();
           return;
         }
@@ -175,9 +175,9 @@ export function fetchEventSource(
           try {
             isReconnect = true;
             // check if we need to retry:
+            curRequestController.abort();
             const interval: any = onerror?.(err) ?? retryInterval;
             clearTimeout(retryTimer);
-            curRequestController.abort();
             retryTimer = setTimeout(create, interval);
           } catch (innerErr) {
             // we should not retry anymore:

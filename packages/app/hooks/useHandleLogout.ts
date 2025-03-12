@@ -9,6 +9,7 @@ import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { useShip } from '../contexts/ship';
+import { cancelNodeResumeNudge } from '../lib/notifications';
 
 // Can't signup via the webapp, so this is commented out.
 // We might allow this in a desktop app in the future.
@@ -25,6 +26,7 @@ export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
     store.removeClient();
     clearShip();
     clearSessionStorageItems();
+    cancelNodeResumeNudge();
     if (!resetDb) {
       logger.trackError('could not reset db on logout');
       return;

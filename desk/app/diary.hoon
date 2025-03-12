@@ -95,23 +95,7 @@
     ::
       %2
     =.  state  old
-    =.  cor  restore-missing-subs
-    =.  cor  (emit %pass / %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
-    =.  cor  (emit %pass / %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
-    =.  cor
-      (emil (drop load:epos))
-    =/  diaries  ~(tap in ~(key by shelf))
-    =.  cor
-      %+  roll
-        ~(tap in (~(gas in *(set ship)) (turn diaries head)))
-      |=  [=ship cr=_cor]
-      ?:  =(ship our.bowl)  cr
-      (watch-epic:cr ship &)
-    |-
-    ?~  diaries
-      cor
-    =.  cor  di-abet:di-upgrade:(di-abed:di-core i.diaries)
-    $(diaries t.diaries)
+    cor
   ==
   ::
   +$  versioned-state  $%(current-state state-1)
@@ -202,11 +186,11 @@
     (toggle-post toggle)
   ::
       %leave-old-channels
-    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
-    =/  groups  .^(groups:g %gx groups-path)
+    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/groups
+    =/  groups  .^(groups:v2:g %gx groups-path)
     =/  diary-flags-from-groups
       %+  turn  ~(tap by groups)
-      |=  [group-flag=flag:g group=group:g]
+      |=  [group-flag=flag:g group=group:v2:g]
       %+  turn
         %+  skim  ~(tap by channels.group)
         |=  [=nest:g *]
@@ -296,9 +280,9 @@
     ::  group.
     ::
     ++  groups
-      .^  groups:g
+      .^  groups:v2:g
         %gx
-        /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+        /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/groups
       ==
     --
   --
@@ -412,12 +396,12 @@
       ((slog tank u.p.sign) cor)
     ::
         %fact
-      ?.  =(act:mar:g p.cage.sign)  cor
-      (take-groups !<(=action:g q.cage.sign))
+      ?.  ?=(%group-action-3 p.cage.sign)  cor
+      (take-groups !<(=action:v2:g q.cage.sign))
     ==
   ==
 ++  take-groups
-  |=  =action:g
+  |=  =action:v2:g
   =/  affected=(list flag:d)
     %+  murn  ~(tap by shelf)
     |=  [=flag:d =diary:d]
@@ -855,7 +839,7 @@
       =/  =dock      [our.bowl %groups] :: [p.p.action %groups] XX: check?
       =/  =wire      (snoc di-area term)
       =.  cor
-        (emit %pass wire %agent dock %poke act:mar:g !>(action))
+        (emit %pass wire %agent dock %poke group-action-3+!>(action))
       di-core
     ::
     ++  create-channel

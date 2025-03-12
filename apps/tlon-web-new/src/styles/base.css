@@ -1,7 +1,26 @@
 * {
-  /* Scrollbar resizing for Firefox */
   scrollbar-width: thin;
-  scrollbar-color: rgb(var(--colors-gray-200)) transparent;
+  scrollbar-color: var(--primaryText) transparent;
+  color-scheme: light dark;
+}
+
+@supports selector(::-webkit-scrollbar) {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--primaryText);
+    border-radius: 4px;
+  }
+}
+
+* {
   /* Hide gray box when tapping a link on iOS */
   -webkit-tap-highlight-color: transparent;
   /* Disable double-tap to zoom, removes click delay */
@@ -12,23 +31,6 @@
   -webkit-font-smoothing: subpixel-antialiased;
 }
 
-/* Scrollbar resizing for Chrome, Edge, and Safari */
-*::-webkit-scrollbar {
-  width: 10px;
-}
-
-*::-webkit-scrollbar-track {
-  background: transparent;
-  border: solid 2px transparent;
-}
-
-*::-webkit-scrollbar-thumb {
-  background: rgb(var(--colors-gray-200));
-  border: solid 2px transparent;
-  border-radius: 20px;
-  background-clip: content-box;
-}
-
 html,
 body,
 #app {
@@ -36,7 +38,6 @@ body,
   @apply h-full min-h-screen w-full;
   min-height: -webkit-fill-available;
   font-variant-ligatures: contextual;
-  /* Prevents undesirable scroll capture / locking on iOS */
   overflow: clip;
 }
 

@@ -12,6 +12,7 @@ import {
 } from 'react';
 import { NativeModules } from 'react-native';
 
+import { cancelNodeResumeNudge } from '../lib/notifications';
 import { transformShipURL } from '../utils/string';
 
 const logger = createDevLogger('useShip', false);
@@ -144,6 +145,14 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
     setShipInfo(emptyShip);
     storage.shipInfo.resetValue();
   }, []);
+
+  useEffect(() => {
+    if (shipInfo.ship) {
+      cancelNodeResumeNudge().catch((err) => {
+        logger.error('Failed cancelling node resume nudge', err);
+      });
+    }
+  }, [shipInfo]);
 
   return (
     <Context.Provider

@@ -2,6 +2,14 @@ import { useRoute } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getGroupReferencePath } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { capitalize } from 'lodash';
+import { useCallback, useMemo, useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import { useGroupContext } from '../../hooks/useGroupContext';
+import { RootStackParamList, RootStackRouteProp } from '../../navigation/types';
+import { useRootNavigation } from '../../navigation/utils';
 import {
   ActionSheet,
   ChatOptionsProvider,
@@ -28,15 +36,8 @@ import {
   useCurrentUserId,
   useGroupTitle,
   useIsAdmin,
-} from '@tloncorp/ui';
-import { capitalize } from 'lodash';
-import { useCallback, useMemo, useState } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
-import { useGroupContext } from '../../hooks/useGroupContext';
-import { RootStackParamList, RootStackRouteProp } from '../../navigation/types';
-import { useRootNavigation } from '../../navigation/utils';
+  useIsWindowNarrow,
+} from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatDetails'>;
 
@@ -84,7 +85,8 @@ export function ChatDetailsScreenView() {
     onPressGroupMeta: navigateToGroupMeta,
     onPressChannelMeta: navigateToChannelMeta,
   } = useChatSettingsNavigation();
-  const { navigateBack } = useRootNavigation();
+  const { navigateToGroup, navigateBack } = useRootNavigation();
+  const isWindowNarrow = useIsWindowNarrow();
 
   const currentUser = useCurrentUserId();
   const currentUserIsAdmin = useIsAdmin(group?.id ?? '', currentUser);
@@ -97,10 +99,18 @@ export function ChatDetailsScreenView() {
     }
   }, [channel, chatType, group, navigateToChannelMeta, navigateToGroupMeta]);
 
+  const handlePressBack = useCallback(() => {
+    if (chatType === 'group' && group && !isWindowNarrow) {
+      navigateToGroup(group.id);
+    } else {
+      navigateBack();
+    }
+  }, [chatType, group, navigateToGroup, navigateBack, isWindowNarrow]);
+
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
-        backAction={navigateBack}
+        backAction={handlePressBack}
         title={chatType === 'group' ? 'Group info' : 'Channel info'}
         rightControls={
           currentUserIsAdmin ? (
@@ -215,7 +225,7 @@ function ChatDetailsScreenContent({
 }
 
 function GroupLeaveActions({ group }: { group: db.Group }) {
-  const { navigateOnLeave } = useChatSettingsNavigation();
+  const { onLeaveGroup } = useChatSettingsNavigation();
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
   const canLeave = !group.currentUserIsHost;
   const canDelete = group.currentUserIsHost;
@@ -241,8 +251,8 @@ function GroupLeaveActions({ group }: { group: db.Group }) {
 
   const handleDeleteGroup = useCallback(() => {
     deleteGroup();
-    navigateOnLeave();
-  }, [deleteGroup, navigateOnLeave]);
+    onLeaveGroup();
+  }, [deleteGroup, onLeaveGroup]);
 
   return (
     <>
@@ -272,8 +282,16 @@ function GroupSettings({ group }: { group: db.Group }) {
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = useIsAdmin(group.id, currentUserId);
 
-  const { onPressGroupPrivacy, onPressManageChannels, onPressChatVolume } =
-    useChatSettingsNavigation();
+  const { groupRoles } = useGroupContext({
+    groupId: group.id,
+  });
+
+  const {
+    onPressGroupPrivacy,
+    onPressManageChannels,
+    onPressChatVolume,
+    onPressRoles,
+  } = useChatSettingsNavigation();
 
   const handlePressGroupPrivacy = useCallback(() => {
     onPressGroupPrivacy?.(group.id);
@@ -286,6 +304,10 @@ function GroupSettings({ group }: { group: db.Group }) {
   const handlePressNotificationSettings = useCallback(() => {
     onPressChatVolume({ type: 'group', id: group.id });
   }, [group.id, onPressChatVolume]);
+
+  const handlePressRoles = useCallback(() => {
+    onPressRoles?.(group.id);
+  }, [group.id, onPressRoles]);
 
   return (
     <ActionSheet.ActionGroup
@@ -313,6 +335,32 @@ function GroupSettings({ group }: { group: db.Group }) {
             >
               <ListItem.Title color="$tertiaryText">
                 {capitalize(group?.privacy ?? '')}
+              </ListItem.Title>
+              <ActionSheet.ActionIcon
+                type="ChevronRight"
+                color="$tertiaryText"
+              />
+            </ListItem.EndContent>
+          </ListItem>
+        </Pressable>
+      ) : null}
+      {currentUserIsAdmin ? (
+        <Pressable onPress={handlePressRoles}>
+          <ListItem
+            paddingHorizontal="$2xl"
+            backgroundColor={'$background'}
+            borderRadius="$2xl"
+          >
+            <ActionSheet.MainContent>
+              <ActionSheet.ActionTitle>Roles</ActionSheet.ActionTitle>
+            </ActionSheet.MainContent>
+            <ListItem.EndContent
+              flexDirection="row"
+              gap="$xl"
+              alignItems="center"
+            >
+              <ListItem.Title color="$tertiaryText">
+                {groupRoles?.length ?? 0}
               </ListItem.Title>
               <ActionSheet.ActionIcon
                 type="ChevronRight"
@@ -415,14 +463,20 @@ function ChatMembersList({
               <View
                 width="$3xl"
                 height="$3xl"
-                backgroundColor={'$secondaryBackground'}
+                backgroundColor={'$blueSoft'}
                 borderRadius="$xs"
                 alignItems="center"
                 justifyContent="center"
               >
-                <Icon type="Add" customSize={[20, 20]} />
+                <Icon
+                  type="Add"
+                  color="$positiveActionText"
+                  customSize={[20, 20]}
+                />
               </View>
-              <TlonText.Text size="$label/l">Add members</TlonText.Text>
+              <TlonText.Text size="$label/l" color="$positiveActionText">
+                Invite People
+              </TlonText.Text>
             </XStack>
           </Pressable>
         ) : null}
@@ -483,7 +537,7 @@ function GroupQuickActions({ group }: { group: db.Group }) {
           action: togglePinned,
         },
         {
-          title: didCopyLink ? 'Copied' : 'Copy link',
+          title: didCopyLink ? 'Copied' : 'Reference',
           action: didCopyLink ? undefined : copyLink,
         }
       ),
