@@ -30,6 +30,7 @@ import {
 
 import { useContact, useCurrentUserId, useNavigation } from '../contexts';
 import { useGroupTitle } from '../utils';
+import { AttestationSheet } from './AttestationSheet';
 import { ContactAvatar, GroupAvatar } from './Avatar';
 import { ContactName } from './ContactNameV2';
 import { useBoundHandler } from './ListItem/listItemUtils';
@@ -190,6 +191,7 @@ function TwitterAttestBlock({
 }: {
   attestation?: db.Verification;
 }) {
+  const [open, setOpen] = useState(false);
   const windowDimensions = useWindowDimensions();
   const isWindowNarrow = useIsWindowNarrow();
 
@@ -208,6 +210,7 @@ function TwitterAttestBlock({
       padding="$2xl"
       width={isWindowNarrow ? (windowDimensions.width - 36) / 2 : '100%'}
       gap="$2xl"
+      onLongPress={() => setOpen(true)}
     >
       <XStack width="100%" justifyContent="space-between">
         <Text size="$label/2xl">𝕏</Text>
@@ -216,6 +219,11 @@ function TwitterAttestBlock({
         </Text>
       </XStack>
       <Text size="$label/xl">@{attestation.value}</Text>
+      <AttestationSheet
+        open={open}
+        onOpenChange={() => setOpen(false)}
+        attestation={attestation}
+      />
     </PaddedBlock>
   );
 }

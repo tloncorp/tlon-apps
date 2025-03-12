@@ -22,14 +22,13 @@ interface FullSign {
   proofTweetId?: string;
 }
 
-type Sign = HalfSign | FullSign;
+export type Sign = HalfSign | FullSign;
 
 export function parseSigned(sign: string, userId: string): Sign | null {
-  // the noun is encoded as a sign, first we have to unwrap it
+  // the noun is @uw encoded, first we have to unwrap it
   const uw = parseUw(sign);
   const at = new Atom(uw);
-  // (signed ?(half-sign-data full-sign-data))
-  const noun = cue(at);
+  const noun = cue(at); // (signed ?(half-sign-data full-sign-data))
 
   if (!(noun instanceof Cell)) {
     throw new Error('Bad Sign: not a cell');
@@ -41,29 +40,74 @@ export function parseSigned(sign: string, userId: string): Sign | null {
   }
   const provider = patp(providerAtom.number);
 
-  const TARGET = 59; // signed -> dat -> drop "0% %verified"
-  const signTypeNoun = noun.at(Atom.fromInt(TARGET)) as Noun | null; // half-sign-data or full-sign-data
-  if (!signTypeNoun) {
+  const TARGET = 14;
+  const signedData = noun.at(Atom.fromInt(TARGET)) as Noun | null; // dat (signed-data)
+  if (!signedData) {
     throw new Error('Bad Sign: could not find dat');
   }
 
-  // const signType = enjs.cord(signTypeNoun);
-  // if (!['half', 'full'].includes(signType)) {
-  //   throw 'Bad sign';
-  // }
-
-  const signValue = getFrondValue<Sign>([
-    // @ts-expect-error it's valid JSON, i swear
-    { tag: 'half', get: _.partial(parseHalfSign, userId) },
-    // @ts-expect-error it's valid JSON, i swear
-    { tag: 'full', get: _.partial(parseFullSign, userId) },
-  ])(signTypeNoun);
-
-  if (signValue) {
-    signValue.provider = provider;
+  const signed = parseSignedData(signedData, userId);
+  if (signed) {
+    signed.provider = provider;
   }
 
-  return signValue;
+  return signed;
+}
+
+/*
+ +$  half-sign-data
+  [%0 %verified %half when=@da for=@p kind=id-kind]
+ +$  full-sign-data
+  [%0 %verified %full when=@da for=@p id=identifier proof=(unit proof)]
+
+  We want to drop the leading %0 and %verified
+*/
+export function getHeadTaggedAttestation(noun: Noun): Noun {
+  if (!(noun instanceof Cell)) {
+    throw new Error('getHeadTaggedAttestation: not a cell');
+  }
+
+  const tail = noun.tail;
+  if (!(tail instanceof Cell)) {
+    throw new Error('getHeadTaggedAttestation: tail is not a cell');
+  }
+
+  return tail.tail;
+}
+
+/*
++$  attestation
+  $:  half=(signed half-sign-data)
+      full=(signed full-sign-data)
+  ==
+*/
+export function parseAttestation(noun: Noun, userId: string) {
+  // console.log(`parse attestation`, noun.toString());
+  // const fullSigned =
+  // const headTagged = getHeadTaggedAttestation(noun);
+  // const attestation = getFrondValue<Sign>([
+  //   { tag: 'half', get: _.partial(parseHalfSign, userId) },
+  //   { tag: 'full', get: _.partial(parseFullSign, userId) },
+  // ])(headTagged);
+
+  const fullSignedData = noun.at(Atom.fromInt(30)) as Noun | null;
+  if (!fullSignedData) {
+    throw new Error('Bad attestation: could not find full signed data');
+  }
+
+  // console.log(`bl: parsing full sign`, fullSignedData.toString());
+
+  return parseSignedData(fullSignedData, userId);
+}
+
+export function parseSignedData(noun: Noun, userId: string) {
+  const headTagged = getHeadTaggedAttestation(noun);
+  const attestation = getFrondValue<Sign>([
+    { tag: 'half', get: _.partial(parseHalfSign, userId) },
+    { tag: 'full', get: _.partial(parseFullSign, userId) },
+  ])(headTagged);
+
+  return attestation;
 }
 
 /*

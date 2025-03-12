@@ -33,8 +33,8 @@ export function AttestationScreen({ route, navigation }: Props) {
       <ScreenHeader
         title={
           route.params.attestationType === 'twitter'
-            ? 'Verify 𝕏 Account'
-            : 'Verify Phone Number'
+            ? '𝕏 Attestation'
+            : 'Phone Attestation'
         }
         backAction={navigation.goBack}
       />

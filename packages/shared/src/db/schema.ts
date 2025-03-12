@@ -163,6 +163,7 @@ export const verifications = sqliteTable('verifications', {
   status: text('status').$type<VerificationStatus>().notNull(),
   contactId: text('contact_id').notNull(),
   providerVerificationUrl: text('provider_verification_url'),
+  provingTweetId: text('proving_tweet_id'),
 });
 
 export const verificationRelations = relations(verifications, ({ one }) => ({

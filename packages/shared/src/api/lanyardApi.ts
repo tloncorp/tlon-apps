@@ -6,6 +6,7 @@ import { VerificationType } from '../db/schema';
 import { createDevLogger } from '../debug';
 import { getFrondValue, getPatp, simpleHash } from '../logic';
 import { stringToTa } from '../urbit';
+import * as NounParsers from './nounParsers';
 import { getCurrentUserId, pokeNoun, scryNoun, subscribe } from './urbit';
 
 const logger = createDevLogger('lanyardApi', true);
@@ -40,50 +41,8 @@ type Sign = HalfSign | FullSign;
 
 // send to /valid-jam/${sign} -> noun (bool, good/no good)
 
-function getSign(sign: string): Sign | null {
-  const uw = parseUw(sign);
-  const at = new Atom(uw);
-  const noun = cue(at);
-  const signTypeNoun = noun.at(Atom.fromInt(14)) as Noun | null; //   [%half when=@da for=@p kind=id-kind]
-  if (!signTypeNoun) {
-    throw 'Bad sign';
-  }
-
-  const signType = enjs.cord(signTypeNoun);
-  if (!['half', 'full'].includes(signType)) {
-    throw 'Bad sign';
-  }
-
-  // [when=@da for=@p kind=id-kind]
-  function parseHalfSign(noun: Noun): HalfSign {
-    if (!(noun instanceof Cell)) {
-      throw 'Bad half sign';
-    }
-
-    const whenDa = enjs.cord(noun.head);
-    const when = new Date(daToUnix(BigInt(whenDa))).getTime();
-    if (!(noun.tail instanceof Cell)) {
-      throw 'Bad half sign';
-    }
-
-    const b = noun.tail;
-
-    const correspondingUser = b.head; // TODO: should check matches contactId
-    const kind = enjs.cord(b.tail) as VerificationType;
-
-    return { signType: 'half', when, kind };
-  }
-
-  const signValue = getFrondValue([
-    // @ts-expect-error it's valid JSON, i swear
-    { tag: 'half', get: parseHalfSign },
-    { tag: 'full', get: () => 'todo' },
-  ])(signTypeNoun);
-
-  return null;
-}
-
 function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {
+  console.log(`noun to client records`);
   return enjs.tree((n: Noun) => {
     if (!(n instanceof Cell)) {
       throw new Error('malformed map');
@@ -112,13 +71,27 @@ function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {
     }
 
     const config = enjs.cord(n.tail.head) as db.VerificationVisibility;
-    const status = getFrondValue([
-      { tag: 'want', get: () => 'pending' },
-      { tag: 'wait', get: () => 'waiting' },
-      { tag: 'done', get: () => 'verified' },
-    ])(n.tail.tail) as db.VerificationStatus;
+    const currentUserId = getCurrentUserId();
+    console.log(`check: 1`);
+    const { status, sign } = getFrondValue<{
+      status: db.VerificationStatus;
+      sign: NounParsers.Sign | null;
+    }>([
+      { tag: 'want', get: () => ({ status: 'pending', sign: null }) },
+      { tag: 'wait', get: () => ({ status: 'waiting', sign: null }) },
+      {
+        tag: 'done',
+        get: (noun: Noun) => ({
+          status: 'verified',
+          sign: NounParsers.parseAttestation(noun, currentUserId),
+        }),
+      },
+    ])(n.tail.tail);
+    console.log(`check: 2`, { status, sign });
 
     const id = parseAttestationId({ provider, type, value, contactId });
+    const provingTweetId =
+      sign?.signType === 'full' ? sign.proofTweetId ?? null : null;
 
     const verif: db.Verification = {
       id,
@@ -129,6 +102,7 @@ function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {
       initiatedAt: null,
       visibility: config,
       status,
+      provingTweetId,
     };
 
     return verif;
@@ -172,6 +146,7 @@ export async function fetchTwitterConfirmPayload(handle: string) {
 }
 
 export async function fetchVerifications(): Promise<db.Verification[]> {
+  console.log(`bl: fetching verifications`);
   const currentUserId = getCurrentUserId();
   const result = await scryNoun({
     app: 'lanyard',

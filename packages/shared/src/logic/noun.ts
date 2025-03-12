@@ -64,12 +64,12 @@ interface frondOpt {
   get: EnjsFunction;
 }
 
-interface frondValueOpt {
+interface frondValueOpt<T> {
   tag: string;
-  get: <T>(noun: Noun) => T;
+  get: (noun: Noun) => T;
 }
 
-export function getFrondValue<T>(opts: frondValueOpt[]): (n: Noun) => T {
+export function getFrondValue<T>(opts: frondValueOpt<T>[]): (n: Noun) => T {
   return (noun: Noun) => {
     if (!(noun instanceof Cell)) {
       throw new Error('malformed frond');

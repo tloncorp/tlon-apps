@@ -304,7 +304,6 @@ function parseContactAttestations(
         contact['lanyard-twitter-0-sign'].value,
         contactId
       );
-      console.log(`parsed sign`, sign);
 
       if (!sign) {
         return null;
@@ -316,6 +315,8 @@ function parseContactAttestations(
       const type = sign.type;
       const value = sign.signType === 'full' ? sign.value : '';
       const id = parseAttestationId({ provider, type, value, contactId });
+      const provingTweetId =
+        sign.signType === 'full' ? sign.proofTweetId ?? null : null;
 
       attestations.push({
         id,
@@ -327,6 +328,7 @@ function parseContactAttestations(
         visibility: sign.signType === 'full' ? 'public' : 'discoverable',
         status: 'verified',
         providerVerificationUrl,
+        provingTweetId,
       });
     } catch (e) {
       console.error(`failed to parse sign`, e);

@@ -358,7 +358,9 @@ CREATE TABLE `verifications` (
 	`initiated_at` integer,
 	`visibility` text NOT NULL,
 	`status` text NOT NULL,
-	`contact_id` text NOT NULL
+	`contact_id` text NOT NULL,
+	`provider_verification_url` text,
+	`proving_tweet_id` text
 );
 --> statement-breakpoint
 CREATE TABLE `volume_settings` (

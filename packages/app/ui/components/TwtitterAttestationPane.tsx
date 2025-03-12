@@ -8,6 +8,7 @@ import { Button } from '../../../ui/src/components/Button';
 import { LoadingSpinner } from '../../../ui/src/components/LoadingSpinner';
 import { Text } from '../../../ui/src/components/TextV2';
 import { useStore } from '../contexts';
+import { AttestationPane } from './AttestationPane';
 import { CopyableTextBlock } from './CopyableTextBlock';
 import { ControlledTextField } from './Form';
 
@@ -56,7 +57,10 @@ export function TwitterAttestationPane({
         />
       )}
       {pane === 'verified' && attestation && (
-        <VerifiedTwitterPane attestation={attestation} />
+        <VerifiedTwitterPane
+          attestation={attestation}
+          currentUserId={currentUserId}
+        />
       )}
     </View>
   );
@@ -72,7 +76,7 @@ function ConfirmTwitterPane(props: {
     async function runEffect() {
       console.log(`bl: confirming twitter`);
       const result = await api.fetchTwitterConfirmPayload(
-        props.attestation.value
+        props.attestation.value!
       );
       console.log('got result', result);
       setProof(result.payload);
@@ -92,7 +96,7 @@ function ConfirmTwitterPane(props: {
 
   const onSubmit = handleSubmit(async (data) => {
     await store.confirmTwitterAttestation(
-      props.attestation.value,
+      props.attestation.value!,
       data.twitterPostId
     );
   });
@@ -104,7 +108,7 @@ ${proof}`;
   }, [proof, props.currentUserId]);
 
   const normalizedHandle = useMemo(
-    () => props.attestation.value.replace('@', ''),
+    () => props.attestation.value!.replace('@', ''),
     [props.attestation.value]
   );
 
@@ -182,10 +186,16 @@ function InitiateTwitterPane() {
   );
 }
 
-function VerifiedTwitterPane(props: { attestation: db.Verification }) {
+function VerifiedTwitterPane(props: {
+  attestation: db.Verification;
+  currentUserId: string;
+}) {
   return (
     <YStack gap="$2xl">
-      <Text size="$label/m">Your 𝕏 account has been verified.</Text>
+      <AttestationPane
+        attestation={props.attestation}
+        currentUserId={props.currentUserId}
+      />
     </YStack>
   );
 }

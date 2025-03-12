@@ -54,7 +54,7 @@ export function EditAttestationsDisplay(props: {
             </ListItem.EndContent>
           </ListItem>
         </Pressable>
-        <Pressable onPress={() => props.onPressAttestation?.('twitter')}>
+        <Pressable onPress={() => props.onPressAttestation?.('phone')}>
           <ListItem>
             <ListItem.MainContent>
               <ListItem.Title>Phone</ListItem.Title>
