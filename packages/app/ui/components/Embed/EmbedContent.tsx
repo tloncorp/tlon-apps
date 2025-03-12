@@ -30,12 +30,6 @@ export const trustedProviders = [
   },
 ];
 
-const ContentRenderer = createContentRenderer({
-  inlineRenderers: {
-    link: InlineLink,
-  },
-});
-
 interface GenericEmbedProps {
   provider: string;
   title: string;
@@ -107,6 +101,12 @@ const EmbedContent = memo(function EmbedContent({
     () => trustedProviders.some((provider) => provider.regex.test(url)),
     [url]
   );
+
+  const ContentRenderer = createContentRenderer({
+    inlineRenderers: {
+      link: InlineLink,
+    },
+  });
 
   const openLink = useCallback(async () => {
     if (Platform.OS === 'web') {
