@@ -171,7 +171,7 @@
     |=  $:  [handle=@t nonce=@ux]
             [hed=response-header:http bod=(unit mime-data:iris)]
         ==
-    ^-  ?([%good sig=@ux] %rate-limited %unauthorized %not-found %protected %bad-tweet %bad-nonce %bad-sign %bad)
+    ^-  ?([%good sig=@ux] %rate-limited %unauthorized %not-found %protected %bad-handle %bad-tweet %bad-nonce %bad-sign %bad)
     ?+  status-code.hed  %bad
       %400  %bad
       %401  %unauthorized
@@ -195,7 +195,7 @@
         =;  nauth  ?:(nauth %protected %bad)
         ::TODO  do better
         ?=(^ (find "not-authorized-for-resource" (trip q.data.u.bod)))
-      ?:  !=(u.nom handle)  %bad
+      ?:  !=(u.nom handle)  %bad-handle
       =/  pull
         ::NOTE  the twitter api returns newlines as backslash-n, so newlines
         ::      directly preceding the blob will be included in its result.
@@ -967,6 +967,7 @@
       %unauthorized  abort
       %not-found     hold
       %protected     hold
+      %bad-handle    hold
       %bad-tweet     hold
       %bad-nonce     hold
       %bad-sign      hold

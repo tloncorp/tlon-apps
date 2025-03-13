@@ -560,6 +560,7 @@
           'tweet not found'^tweet-not-found
           'tweet protected'^tweet-protected
           'bad response'^bad-response
+          'bad handle'^bad-handle
           'bad tweet'^bad-tweet
           ::TODO  good sig but incorrect author
           'good'^good
@@ -604,14 +605,14 @@
     (held caz)
   ::
   ++  bad-response
-    %+  (merge (list card))
-      :~  :-  'malformed response body'
-          (do-twitter-api-res 200 'whatever')
-        ::
-          :-  'author mismatch'
-          (do-twitter-api-res 200 (make-tweet-json(handle 'miss') good-blob))
-      ==
-    errored
+    ;<  caz=(list card)  bind:m
+      (do-twitter-api-res 200 'whatever')
+    (errored caz)
+  ::
+  ++  bad-handle
+    ;<  caz=(list card)  bind:m
+      (do-twitter-api-res 200 (make-tweet-json(handle 'miss') good-blob))
+    (held caz)
   ::
   ++  bad-tweet
     %+  (merge (list card))
