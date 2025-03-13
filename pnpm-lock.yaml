@@ -16,7 +16,6 @@ overrides:
   prosemirror-view: 1.33.4
   prosemirror-state: 1.4.3
   '@tiptap/pm': 2.6.6
-  better-sqlite3: 11.8.1
   node-abi: '3.74'
 
 patchedDependencies:
@@ -111,14 +110,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       better-sqlite3:
-        specifier: 11.8.1
+        specifier: ~11.8.1
         version: 11.8.1
       cross-fetch:
         specifier: ^3.1.5
         version: 3.1.5(encoding@0.1.13)
-      electron-is-dev:
-        specifier: ^3.0.1
-        version: 3.0.1
       electron-store:
         specifier: ^10.0.1
         version: 10.0.1
@@ -8712,7 +8708,7 @@ packages:
       '@types/sql.js': '*'
       '@vercel/postgres': '>=0.8.0'
       '@xata.io/client': '*'
-      better-sqlite3: 11.8.1
+      better-sqlite3: '>=7'
       bun-types: '*'
       expo-sqlite: '>=13.2.0'
       knex: '*'
@@ -8805,10 +8801,6 @@ packages:
     resolution: {integrity: sha512-skrpii/V3WLwEWrm8aiEQ4r0eFvKN/oVHdQonVg7xsP0dyqnpCLu9YEZ7nCjGtEJZYTKmfcU/6FIugsrQsbsAA==}
     engines: {node: '>=14.0.0'}
     hasBin: true
-
-  electron-is-dev@3.0.1:
-    resolution: {integrity: sha512-8TjjAh8Ec51hUi3o4TaU0mD3GMTOESi866oRNavj9A3IQJ7pmv+MJVmdZBFGw4GFT36X7bkqnuDNYvkQgvyI8Q==}
-    engines: {node: '>=18'}
 
   electron-publish@25.1.7:
     resolution: {integrity: sha512-+jbTkR9m39eDBMP4gfbqglDd6UvBC7RLh5Y0MhFSsc6UkGHj9Vj9TWobxevHYMMqmoujL11ZLjfPpMX+Pt6YEg==}
@@ -25914,8 +25906,6 @@ snapshots:
       - bluebird
       - electron-builder-squirrel-windows
       - supports-color
-
-  electron-is-dev@3.0.1: {}
 
   electron-publish@25.1.7:
     dependencies:
