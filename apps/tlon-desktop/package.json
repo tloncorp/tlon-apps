@@ -12,7 +12,6 @@
     "dev:web": "pnpm --filter 'tlon-web-new' dev:electron --force",
     "watch:ts": "tsc -b tsconfig.json --watch",
     "build:ts": "tsc -b tsconfig.json",
-    "prepare-native-deps": "node ./prepare-native-deps.js",
     "flatten-deps": "node ./flatten-dependencies.js",
     "debug-prod": "node ./debug-prod-build.js",
     "build": "pnpm run build:ts && pnpm run build:web && pnpm run flatten-deps && electron-builder",
@@ -44,21 +43,9 @@
     },
     "files": [
       "build/**/*",
-      "node_modules/better-sqlite3/**/*",
-      "node_modules/bindings/**/*",
-      "node_modules/file-uri-to-path/**/*",
-      "node_modules/cross-fetch/**/*",
-      "node_modules/electron-is-dev/**/*",
-      "node_modules/electron-store/**/*",
-      "node_modules/@tloncorp/**/*",
-      "node_modules/once/**/*",
-      "node_modules/pump/**/*",
-      "node_modules/end-of-stream/**/*",
-      "node_modules/wrappy/**/*",
       "electron-store-wrapper.cjs",
       "is-dev-wrapper.cjs",
-      "fetch-wrapper.cjs",
-      "../tlon-web-new/dist/**/*"
+      "fetch-wrapper.cjs"
     ],
     "extraResources": [
       {
@@ -69,10 +56,6 @@
         ]
       }
     ],
-    "asarUnpack": [
-      "node_modules/better-sqlite3/**/*",
-      "node_modules/bindings/**/*"
-    ],
     "mac": {
       "category": "public.app-category.social-networking"
     },
@@ -81,7 +64,6 @@
     },
     "linux": {
       "target": "AppImage"
-    },
-    "buildDependenciesFromSource": true
+    }
   }
 }
