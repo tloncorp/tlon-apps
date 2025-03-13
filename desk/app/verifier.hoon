@@ -486,7 +486,11 @@
       ::      their keys ahead of time...
       ::REVIEW  or is that not a problem, considering the moon will need to
       ::        talk to us before we try verifying?
-      ?<  (~(has by records) id.cmd)
+      ?:  (~(has by records) id.cmd)
+        ::  can't register something for which a record already exists,
+        ::  but we do want to notify the user of this.
+        ::
+        [[(give-status src.bowl id.cmd %gone 'already registered')]~ this]
       =/  =status
         ?-  -.id.cmd
           %dummy    [%wait ~]

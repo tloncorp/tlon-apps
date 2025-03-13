@@ -771,11 +771,13 @@
   =/  m  (mare ,~)
   =/  id=identifier:v  [%dummy 'test']
   ;<  *  bind:m  (do-setup-with-id id)
-  ::  attempting to register an already-registered id should nack
+  ::  attempting to register an already-registered id should immediately
+  ::  send a %gone status
   ::
+  ;<  caz=(list card)  bind:m  (user-does ~fed %start id)
   ;<  ~  bind:m
-    %-  ex-fail
-    (user-does ~fed %start id)
+    %+  ex-cards  caz
+    [(ex-verifier-update ~fed %status id %gone 'already registered')]~
   (pure:m ~)
 ::
 ++  test-config
