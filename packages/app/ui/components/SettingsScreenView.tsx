@@ -1,8 +1,7 @@
-import { isElectronEnv } from '@tloncorp/shared';
 import { Button, IconType, Pressable, Text } from '@tloncorp/ui';
 import { PropsWithChildren, ReactElement } from 'react';
 import { Alert } from 'react-native';
-import { AlertDialog, ScrollView, View, XStack, YStack } from 'tamagui';
+import { AlertDialog, ScrollView, View, XStack, YStack, isWeb } from 'tamagui';
 
 import { ListItem } from './ListItem';
 import { ScreenHeader } from './ScreenHeader';
@@ -26,7 +25,7 @@ interface Props {
 
 export function SettingsScreenView(props: Props) {
   const handleLogoutPressed = () => {
-    if (isElectronEnv()) {
+    if (isWeb) {
       return;
     } else {
       Alert.alert('Log out from Tlon', 'Are you sure you want to log out?', [
@@ -111,16 +110,21 @@ export function SettingsScreenView(props: Props) {
             onPress={props.onExperimentalFeaturesPressed}
             isFocused={props.focusedRouteName === 'FeatureFlags'}
           />
-          <LogoutDialog
-            onConfirm={props.onLogoutPressed ?? (() => {})}
-            // onCancel={() => setIsLogoutDialogVisible(false)}
-          >
+          {isWeb ? (
+            <LogoutDialog onConfirm={props.onLogoutPressed ?? (() => {})}>
+              <SettingsAction
+                title="Log out"
+                leftIcon="LogOut"
+                onPress={handleLogoutPressed}
+              />
+            </LogoutDialog>
+          ) : (
             <SettingsAction
               title="Log out"
               leftIcon="LogOut"
               onPress={handleLogoutPressed}
             />
-          </LogoutDialog>
+          )}
         </YStack>
       </ScrollView>
     </>
