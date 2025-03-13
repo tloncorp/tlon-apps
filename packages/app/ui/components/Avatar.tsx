@@ -88,8 +88,7 @@ export const ContactAvatar = React.memo(function ContactAvatarComponent({
   contactOverride?: db.Contact;
   overrideUrl?: string;
   innerSigilSize?: number;
-  ignoreCalm?: boolean;
-} & Omit<AvatarProps, 'ignoreCalm'>) {
+} & AvatarProps) {
   const dbContact = useContact(contactId);
   const contact = contactOverride ?? dbContact;
 
@@ -243,9 +242,7 @@ export const ImageAvatar = function ImageAvatarComponent({
 }: {
   imageUrl?: string;
   fallback?: React.ReactNode;
-  isGroupIcon?: boolean;
-  ignoreCalm?: boolean;
-} & Omit<AvatarProps, 'ignoreCalm'>) {
+} & AvatarProps) {
   const calmSettings = useCalm();
   const [loadFailed, setLoadFailed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
