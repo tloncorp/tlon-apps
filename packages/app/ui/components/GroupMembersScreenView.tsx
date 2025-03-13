@@ -51,6 +51,7 @@ export function GroupMembersScreenView({
 }) {
   const { bottom } = useSafeAreaInsets();
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
+  const currentUserIsAdmin = useIsAdmin(groupId, currentUserId);
   const contacts = useMemo(
     () =>
       members
@@ -141,7 +142,13 @@ export function GroupMembersScreenView({
               ]
             : []
         ),
-    [membersByRole, joinRequestData, bannedUserData, membersWithoutRoles]
+    [
+      membersByRole,
+      joinRequestData,
+      bannedUserData,
+      membersWithoutRoles,
+      currentUserIsAdmin,
+    ]
   );
 
   const keyExtractor = useCallback((item: db.ChatMember) => item.contactId, []);
@@ -169,8 +176,6 @@ export function GroupMembersScreenView({
     ),
     [roles]
   );
-
-  const currentUserIsAdmin = useIsAdmin(groupId, currentUserId);
 
   const selectedUserRoles = useMemo(
     () =>
