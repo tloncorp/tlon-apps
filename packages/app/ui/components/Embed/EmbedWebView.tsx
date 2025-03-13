@@ -1,6 +1,19 @@
 import { LoadingSpinner } from '@tloncorp/ui';
-import { memo, useCallback, useMemo, useRef, useState } from 'react';
-import { LayoutChangeEvent, Linking, Platform, ViewStyle } from 'react-native';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+} from 'react';
+import {
+  Dimensions,
+  LayoutChangeEvent,
+  Linking,
+  Platform,
+  ViewStyle,
+} from 'react-native';
 import WebView from 'react-native-webview';
 import { View, getTokenValue, useTheme } from 'tamagui';
 
@@ -11,6 +24,7 @@ const IS_ANDROID = Platform.OS === 'android';
 const ANDROID_LAYER_TYPE = IS_ANDROID ? 'hardware' : undefined;
 const ANDROID_OVERSCROLL_MODE = IS_ANDROID ? 'never' : undefined;
 const SCROLL_ENABLED = IS_ANDROID;
+const MAX_HEIGHT_PERCENT = 0.6;
 
 interface EmbedWebViewProps {
   url: string;
@@ -25,28 +39,87 @@ interface WebViewMessageData {
   loaded?: boolean;
 }
 
+type WebViewState = {
+  isLoading: boolean;
+  hideTweetMedia: boolean;
+  webViewHeight: number;
+};
+
+type WebViewAction =
+  | { type: 'HIDE_MEDIA' }
+  | { type: 'SET_HEIGHT'; height: number }
+  | { type: 'LOADING_COMPLETE' }
+  | { type: 'HIDE_MEDIA_AND_UPDATE_HEIGHT'; height: number }
+  | { type: 'UPDATE_HEIGHT_AND_COMPLETE'; height: number };
+
+function webViewReducer(
+  state: WebViewState,
+  action: WebViewAction
+): WebViewState {
+  switch (action.type) {
+    case 'HIDE_MEDIA':
+      return { ...state, hideTweetMedia: true };
+    case 'SET_HEIGHT':
+      return { ...state, webViewHeight: action.height };
+    case 'LOADING_COMPLETE':
+      return { ...state, isLoading: false };
+    case 'HIDE_MEDIA_AND_UPDATE_HEIGHT':
+      return {
+        ...state,
+        hideTweetMedia: true,
+        webViewHeight: action.height,
+      };
+    case 'UPDATE_HEIGHT_AND_COMPLETE':
+      return {
+        ...state,
+        isLoading: false,
+        webViewHeight: action.height,
+      };
+    default:
+      return state;
+  }
+}
+
 export const EmbedWebView = memo<EmbedWebViewProps>(
   ({ url, provider, embedHtml, onError }) => {
-    const primaryBackground = useTheme().background.val;
-    const [isLoading, setIsLoading] = useState(true);
-    const [webViewHeight, setWebViewHeight] = useState(provider.defaultHeight);
+    const theme = useTheme();
+    const primaryBackground = useMemo(() => theme.background.val, [theme]);
+
+    const initialState: WebViewState = {
+      isLoading: true,
+      hideTweetMedia: false,
+      webViewHeight: provider.defaultHeight,
+    };
+
+    const [state, dispatch] = useReducer(webViewReducer, initialState);
+    const { isLoading, hideTweetMedia, webViewHeight } = state;
+
     const webViewRef = useRef<WebView>(null);
     const lastHeightRef = useRef(provider.defaultHeight);
     const isDark = useIsDarkTheme();
     const borderRadiusVal = getTokenValue('$s');
 
+    const maxAllowedHeight = useMemo(() => {
+      const { height: screenHeight } = Dimensions.get('window');
+      const maxHeight = screenHeight * MAX_HEIGHT_PERCENT;
+
+      return Math.max(maxHeight, provider.defaultHeight);
+    }, [provider.defaultHeight]);
+
+    const baseHtml = useMemo(() => {
+      if (!embedHtml || !url) return '';
+      return provider.generateHtml(url, embedHtml, isDark, hideTweetMedia);
+    }, [url, embedHtml, isDark, provider, hideTweetMedia]);
+
     const html = useMemo(() => {
-      if (!embedHtml || !url) {
-        return '';
-      }
-      const baseHtml = provider.generateHtml(url, embedHtml, isDark);
+      if (!baseHtml) return '';
       return baseHtml.replace(
         '<style>',
         `<style>
         :root { background-color: ${primaryBackground} !important; }
         html, body { background-color: ${primaryBackground} !important; }`
       );
-    }, [url, embedHtml, isDark, primaryBackground, provider]);
+    }, [baseHtml, primaryBackground]);
 
     const containerStyle = useMemo(
       () => (IS_ANDROID ? [{ minHeight: provider.defaultHeight }] : []),
@@ -63,56 +136,80 @@ export const EmbedWebView = memo<EmbedWebViewProps>(
       }),
       [isLoading, primaryBackground, borderRadiusVal]
     );
-
-    const onLayoutHandler = useCallback(
-      (event: LayoutChangeEvent) => {
-        if (!IS_ANDROID) return;
-        const { height } = event.nativeEvent.layout;
-        if (height !== webViewHeight) {
-          requestAnimationFrame(() => {
-            setWebViewHeight(height);
-          });
-        }
-      },
-      [webViewHeight]
+    const webViewProps = useMemo(
+      () => ({
+        style: webViewStyle,
+        source: { html },
+        automaticallyAdjustContentInsets: false,
+        scrollEnabled: SCROLL_ENABLED,
+        javaScriptEnabled: true,
+        domStorageEnabled: true,
+      }),
+      [webViewStyle, html]
     );
+
+    const currentHeightRef = useRef(webViewHeight);
+
+    useEffect(() => {
+      currentHeightRef.current = webViewHeight;
+    }, [webViewHeight]);
+
+    const onLayoutHandler = useCallback((event: LayoutChangeEvent) => {
+      if (!IS_ANDROID) return;
+      const { height } = event.nativeEvent.layout;
+      if (height !== currentHeightRef.current) {
+        requestAnimationFrame(() => {
+          dispatch({ type: 'SET_HEIGHT', height });
+        });
+      }
+    }, []);
 
     const onMessageHandler = useCallback(
       (event: any) => {
         try {
           const data = JSON.parse(event.nativeEvent.data) as WebViewMessageData;
-          if (data.height) {
-            const heightDiff = Math.abs(data.height - lastHeightRef.current);
-            if (provider.name === 'Twitter') {
-              // Always process the loaded flag regardless of height
-              if (data.loaded) {
-                // Only mark as loaded if we have a valid height
-                if (data.height > 0) {
-                  lastHeightRef.current = data.height;
-                  setWebViewHeight(data.height);
-                  setIsLoading(false);
-                }
-              }
-              // Update height only if it's a significant change and non-zero
-              else if (heightDiff > 5 && data.height > 0) {
+          if (data.height && data.height > 0) {
+            // For Twitter's initial load
+            if (provider.name === 'Twitter' && data.loaded) {
+              // For tall tweets that need media hiding
+              if (data.height > maxAllowedHeight) {
+                // Just set the flag, don't update height yet
+                dispatch({ type: 'HIDE_MEDIA' });
+              } else {
+                // For normal sized tweets, update height and complete loading in one action
                 lastHeightRef.current = data.height;
-                setWebViewHeight(data.height);
+                dispatch({
+                  type: 'UPDATE_HEIGHT_AND_COMPLETE',
+                  height: data.height,
+                });
               }
-            } else {
-              setWebViewHeight(data.height);
-              setIsLoading(false);
+            }
+            // For height updates from Twitter after media hiding
+            else if (provider.name === 'Twitter' && !data.loaded) {
+              const heightDiff = Math.abs(data.height - lastHeightRef.current);
+              if (heightDiff > 25 && data.height !== lastHeightRef.current) {
+                lastHeightRef.current = data.height;
+                dispatch({ type: 'SET_HEIGHT', height: data.height });
+              }
+            }
+            // For other providers
+            else {
+              dispatch({
+                type: 'UPDATE_HEIGHT_AND_COMPLETE',
+                height: data.height,
+              });
             }
           }
         } catch (e) {
           console.warn('Failed to parse WebView message:', e);
         }
       },
-      [provider.name]
+      [provider.name, maxAllowedHeight]
     );
 
     const onErrorHandler = useCallback(
       (event: any) => {
-        setIsLoading(false);
+        dispatch({ type: 'LOADING_COMPLETE' });
         const { nativeEvent } = event;
         console.warn('WebView error: ', nativeEvent);
         onError?.(nativeEvent);
@@ -166,16 +263,10 @@ export const EmbedWebView = memo<EmbedWebViewProps>(
           onLayout={onLayoutHandler}
         >
           <WebView
-            key={`webview-${webViewHeight}`}
-            style={webViewStyle}
-            source={{ html }}
+            {...webViewProps}
             androidLayerType={ANDROID_LAYER_TYPE}
             overScrollMode={ANDROID_OVERSCROLL_MODE}
             onMessage={onMessageHandler}
-            automaticallyAdjustContentInsets={false}
-            scrollEnabled={SCROLL_ENABLED}
-            javaScriptEnabled={true}
-            domStorageEnabled={true}
             mixedContentMode="always"
             onError={onErrorHandler}
             onHttpError={onHttpErrorHandler}

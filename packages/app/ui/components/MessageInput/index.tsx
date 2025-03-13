@@ -157,9 +157,6 @@ export function MessageInput({
     [placeholder]
   );
 
-  // eslint-disable-next-line
-  const json = editor?.getJSON() ?? {};
-
   useEffect(() => {
     if (!hasSetInitialContent && editor) {
       try {
@@ -255,34 +252,15 @@ export function MessageInput({
     if (!editor) {
       return;
     }
-    const inlines = tiptap
-      .JSONToInlines(json)
-      .filter(
-        (c) => typeof c === 'string' || (typeof c === 'object' && isInline(c))
-      ) as Inline[];
-    const blocks =
-      tiptap
-        .JSONToInlines(json)
-        .filter((c) => typeof c !== 'string' && 'block' in c) || [];
-
-    const inlineIsJustBreak = !!(
-      inlines.length === 1 &&
-      inlines[0] &&
-      typeof inlines[0] === 'object' &&
-      'break' in inlines[0]
-    );
-
-    const isEmpty =
-      (inlines.length === 0 || inlineIsJustBreak) &&
-      blocks.length === 0 &&
-      attachments.length === 0;
+    const isEmpty = editor.isEmpty && attachments.length === 0;
 
     if (isEmpty !== editorIsEmpty) {
       setEditorIsEmpty(isEmpty);
     }
-  }, [json, editor, attachments, editorIsEmpty]);
+  }, [editor, editor?.isEmpty, attachments, editorIsEmpty]);
 
   editor?.on('update', () => {
+    const json = editor.getJSON();
     const inlines = (
       tiptap
         .JSONToInlines(json)
@@ -316,6 +294,7 @@ export function MessageInput({
       if (!editor) {
         return;
       }
+      const json = editor.getJSON();
       if (pastedText) {
         const isRef = pastedText.match(REF_REGEX);
 
@@ -381,7 +360,7 @@ export function MessageInput({
         }
       }
     },
-    [json, editor, addAttachment]
+    [editor, addAttachment]
   );
 
   const onSelectMention = useCallback(
@@ -389,6 +368,7 @@ export function MessageInput({
       if (!editor) {
         return;
       }
+      const json = editor.getJSON();
       const inlines = tiptap.JSONToInlines(json);
 
       let textBeforeSig = '';
@@ -447,7 +427,7 @@ export function MessageInput({
       setMentionText('');
       setShowMentionPopup(false);
     },
-    [json, editor, storeDraft]
+    [editor, storeDraft]
   );
 
   const sendMessage = useCallback(
@@ -455,7 +435,7 @@ export function MessageInput({
       if (!editor) {
         return;
       }
-
+      const json = editor.getJSON();
       const inlines = tiptap.JSONToInlines(json);
       const story = constructStory(inlines);
 
@@ -543,7 +523,6 @@ export function MessageInput({
       setShowBigInput?.(false);
     },
     [
-      json,
       onSend,
       editor,
       waitForAttachmentUploads,

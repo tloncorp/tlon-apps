@@ -36,6 +36,7 @@ import {
   useCurrentUserId,
   useGroupTitle,
   useIsAdmin,
+  useIsWindowNarrow,
 } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatDetails'>;
@@ -84,7 +85,8 @@ export function ChatDetailsScreenView() {
     onPressGroupMeta: navigateToGroupMeta,
     onPressChannelMeta: navigateToChannelMeta,
   } = useChatSettingsNavigation();
-  const { navigateBack } = useRootNavigation();
+  const { navigateToGroup, navigateBack } = useRootNavigation();
+  const isWindowNarrow = useIsWindowNarrow();
 
   const currentUser = useCurrentUserId();
   const currentUserIsAdmin = useIsAdmin(group?.id ?? '', currentUser);
@@ -97,10 +99,18 @@ export function ChatDetailsScreenView() {
     }
   }, [channel, chatType, group, navigateToChannelMeta, navigateToGroupMeta]);
 
+  const handlePressBack = useCallback(() => {
+    if (chatType === 'group' && group && !isWindowNarrow) {
+      navigateToGroup(group.id);
+    } else {
+      navigateBack();
+    }
+  }, [chatType, group, navigateToGroup, navigateBack, isWindowNarrow]);
+
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
-        backAction={navigateBack}
+        backAction={handlePressBack}
         title={chatType === 'group' ? 'Group info' : 'Channel info'}
         rightControls={
           currentUserIsAdmin ? (

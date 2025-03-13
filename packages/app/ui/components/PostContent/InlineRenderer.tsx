@@ -1,10 +1,10 @@
 import { RawText, Text } from '@tloncorp/ui';
 import React, { PropsWithChildren, useCallback, useContext } from 'react';
+import { Linking, Platform } from 'react-native';
 import { ColorTokens, styled } from 'tamagui';
 
 import { useNavigation } from '../../contexts';
 import { useContactName } from '../ContactNameV2';
-import { EmbedContent } from '../Embed';
 import {
   InlineData,
   InlineFromType,
@@ -99,17 +99,19 @@ export function InlineText({
 }
 
 export function InlineLink({ inline: node }: { inline: LinkInlineData }) {
-  return <EmbedContent url={node.href} content={node.text || node.href} />;
-  // For now, we pass all links to the EmbedContent component.
-  // In the future, we'll create a new block type for embed content and we'll render links directly again.
-  // const handlePress = useCallback(() => {
-  //   Linking.openURL(node.href);
-  // }, [node.href]);
-  // return (
-  //   <Text cursor="pointer" textDecorationLine="underline" onPress={handlePress}>
-  //     {node.text || node.href}
-  //   </Text>
-  // );
+  const handlePress = useCallback(() => {
+    if (Platform.OS === 'web') {
+      window.open(node.href, '_blank', 'noopener,noreferrer');
+    } else {
+      Linking.openURL(node.href);
+    }
+  }, [node.href]);
+
+  return (
+    <Text cursor="pointer" textDecorationLine="underline" onPress={handlePress}>
+      {node.text || node.href}
+    </Text>
+  );
 }
 
 export type InlineRenderer<T extends InlineData> = React.ComponentType<{

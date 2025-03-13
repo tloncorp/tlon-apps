@@ -165,6 +165,7 @@ export type GroupSettingsStackParamList = {
   };
   GroupMeta: {
     groupId: string;
+    fromBlankChannel?: boolean;
   };
   GroupMembers: {
     groupId: string;

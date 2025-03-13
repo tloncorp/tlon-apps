@@ -146,18 +146,21 @@
   =?  cor  ?=(%6 -.old)
     (emit %pass /adjust-old-default %agent [our.bowl dap.bowl] %poke noun+!>(%adjust-old-default))
   =?  old  ?=(%6 -.old)  [%7 +.old]
-  =?  old  ?=(%7 -.old)  [%8 +.old]
+  =?  cor  ?=(%7 -.old)
+    (emit %pass /fix-init-unreads %agent [our.bowl dap.bowl] %poke noun+!>(%fix-init-unreads))
+  =?  old  ?=(%7 -.old)
+    ::  insert missing volume defaults to %base
+    ::
+    =/  base-volume
+      (~(gut by volume-settings.state) [%base ~] *volume-map:a)
+    =.  volume-settings.old
+      %+  ~(put by volume-settings.state)  [%base ~]
+      (~(uni by *volume-map:a) base-volume)
+    =.  allowed.old  %all
+    [%8 +.old]
   ?>  ?=(%8 -.old)
   =.  state  old
-  ::  insert missing volume defaults to %base
-  ::
-  =/  base-volume
-    (~(gut by volume-settings.state) [%base ~] *volume-map:a)
-  =.  volume-settings.state
-    %+  ~(put by volume-settings.state)  [%base ~]
-    (~(uni by *volume-map:a) base-volume)
-  =.  allowed  %all
-  (emit %pass /fix-init-unreads %agent [our.bowl dap.bowl] %poke noun+!>(%fix-init-unreads))
+  cor
   +$  versioned-state
     $%  state-8
         state-7

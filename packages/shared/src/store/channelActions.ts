@@ -81,7 +81,7 @@ export async function createChannel({
   } catch (e) {
     console.error('Failed to create channel', e);
     // rollback optimistic update
-    await db.deleteChannel(channelId);
+    await db.deleteChannels([channelId]);
   }
 
   return newChannel;
@@ -136,7 +136,7 @@ export async function deleteChannel({
   );
 
   // optimistic update
-  await db.deleteChannel(channelId);
+  await db.deleteChannels([channelId]);
 
   try {
     await api.deleteChannel({ channelId, groupId });
@@ -307,10 +307,14 @@ export async function unpinItem(pin: db.Pin) {
 
 export async function markChannelVisited(channelId: string) {
   const channel = await db.getChannel({ id: channelId });
+  let group = null;
+  if (channel && channel.groupId) {
+    group = await db.getGroup({ id: channel.groupId });
+  }
   if (channel) {
     logger.trackEvent(
       AnalyticsEvent.ActionVisitedChannel,
-      logic.getModelAnalytics({ channel })
+      logic.getModelAnalytics({ channel, group })
     );
   }
   await db.updateChannel({ id: channelId, lastViewedAt: Date.now() });

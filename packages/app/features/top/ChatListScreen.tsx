@@ -7,6 +7,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard } from 'react-native';
@@ -159,9 +160,17 @@ export function ChatListScreenView({
         if (item.isPending) {
           setSelectedGroupId(item.id);
         } else {
+          logger.trackEvent(
+            AnalyticsEvent.ActionTappedChat,
+            logic.getModelAnalytics({ group: item.group })
+          );
           navigateToGroup(item.group.id);
         }
       } else {
+        logger.trackEvent(
+          AnalyticsEvent.ActionTappedChat,
+          logic.getModelAnalytics({ channel: item.channel })
+        );
         navigateToChannel(item.channel);
       }
     },

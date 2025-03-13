@@ -374,7 +374,9 @@ export const chatMembers = sqliteTable(
     membershipType: text('membership_type')
       .$type<'group' | 'channel'>()
       .notNull(),
-    chatId: text('chat_id'),
+    chatId: text('chat_id').references(() => channels.id, {
+      onDelete: 'cascade',
+    }),
     contactId: text('contact_id').notNull(),
     joinedAt: timestamp('joined_at'),
     status: text('status').$type<'invited' | 'joined'>(),
@@ -823,7 +825,9 @@ export const posts = sqliteTable(
   {
     id: text('id').primaryKey().notNull(),
     authorId: text('author_id').notNull(),
-    channelId: text('channel_id').notNull(),
+    channelId: text('channel_id')
+      .references(() => channels.id, { onDelete: 'cascade' })
+      .notNull(),
     groupId: text('group_id'),
     parentId: text('parent_id'),
     type: text('type')
