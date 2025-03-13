@@ -707,6 +707,16 @@
     =/  ship=@p  (slav %p ship.pole)
     ga-abet:(ga-watch:(ga-abed:gang-core ship name.pole) %v1 rest.pole)
   ::
+    ::
+    ::  /v2/gangs
+    ::
+  ::
+    [%v2 %gangs %updates ~]   cor
+  ::
+      [%v2 %gangs ship=@ name=@ rest=*]
+    =/  ship=@p  (slav %p ship.pole)
+    ga-abet:(ga-watch:(ga-abed:gang-core ship name.pole) %v2 rest.pole)
+  ::
       [%hi ship=@ ~]
     =/  =ship  (slav %p ship.pole)
     (hi-ship ship)
@@ -724,15 +734,24 @@
   =*  xeno-2
     ^-  gangs:v2:g
     (~(run by xeno) to-gang-2)
+  =*  xeno-5
+    ^-  gangs:v5:g
+    (~(run by xeno) to-gang-5)
+  =*  xeno-6
+    ^-  gangs:v6:g
+    xeno
+  ::
   ?+    pole  [~ ~]
   ::
     [%x %gangs ~]  ``gangs+!>(xeno-2)
-    [%x %v1 %gangs ~]  ``gangs-1+!>(xeno)
+    [%x %v1 %gangs ~]  ``gangs-1+!>(xeno-5)
+    [%x %v2 %gangs ~]  ``gangs-2+!>(xeno-6)
   ::
     [%x %init ~]  ``noun+!>([groups-light-2 xeno-2])
     [%x %init %v0 ~]  ``noun+!>([groups-light-ui-v0 xeno-2])
     [%x %init %v1 ~]  ``noun+!>([groups-light-ui-2 xeno-2])
-    [%x %v2 %init ~]    ``noun+!>([groups-light-ui-5 xeno])
+    [%x %v2 %init ~]  ``noun+!>([groups-light-ui-5 xeno-5])
+    [%x %v3 %init ~]  ``noun+!>([groups-light-ui-5 xeno-6])
   ::
     [%x %groups %light ~]  ``groups+!>(groups-light-2)
     [%x %groups %light %v0 ~]  ``groups-ui-v0+!>(groups-light-ui-v0)
@@ -837,6 +856,10 @@
       (bind pev to-preview-2)
       vit
   ==
+++  to-gang-5
+  |=  gang:g
+  ^-  gang:v5:g
+  [cam pev vit]
 ::
 ++  to-group-2
   |=  group:g
@@ -1168,7 +1191,7 @@
       %fact
     ?.  =(%channel-preview p.cage.sign)
       cor
-    =+  !<(=preview:channel:g q.cage.sign) :: XX: really necessary?
+    =+  !<(=preview:channel:v2:g q.cage.sign) :: XX: really necessary?
     =.  cor  (emit %give %fact ~[wire] cage.sign)
     (emit %give %kick ~[wire] ~)
   ::
@@ -2458,16 +2481,18 @@
     ga-core
   ::
   ++  ga-watch
-    |=  [ver=?(%v0 %v1) =(pole knot)]
+    |=  [ver=?(%v0 %v1 %v2) =(pole knot)]
     ^+  ga-core
     =.  cor  (get-preview:ga-pass |)
     ga-core
   ::
   ++  ga-give-update
+    =+  gangs=(~(put by xeno) flag gang)
     =.  cor
-      =+  (~(put by xeno) flag gang)
-      (give %fact ~[/gangs/updates] gangs+!>((~(run by -) to-gang-2)))
-    (give %fact ~[/v1/gangs/updates] gangs+!>((~(put by xeno) flag gang)))
+      (give %fact ~[/gangs/updates] gangs+!>((~(run by gangs) to-gang-2)))
+    =.  cor
+      (give %fact ~[/v1/gangs/updates] gangs-1+!>((~(run by gangs) to-gang-5)))
+    (give %fact ~[/v2/gangs/updates] gangs-2+!>(`gangs:v6:g`gangs))
   ::
   ++  ga-agent
     |=  [=(pole knot) =sign:agent:gall]

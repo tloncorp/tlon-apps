@@ -435,6 +435,8 @@
     |=  =@da
     s+`@t`(rsh 4 (scot %ui da))
   ::
+  ++  v6  .
+  ::
   ++  v5
     |%
     ++  gangs
