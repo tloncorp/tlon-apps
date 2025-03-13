@@ -129,6 +129,10 @@ appId: io.tlon.groups
       - tapOn: 'Delete message'
 - assertNotVisible: 'Delete this message '
 # Leave the DM from the Home screen
+# For some reason, this is not working with the first tap;
+# it works with the second tap.
+- tapOn:
+    id: 'HeaderBackButton'
 - tapOn:
     id: 'HeaderBackButton'
 - longPressOn: '~zod'
@@ -138,8 +142,9 @@ appId: io.tlon.groups
 - tapOn: 'Leave chat'
 - tapOn: 'Leave'
 - assertNotVisible: '~zod'
-# # Leave the DM from within the DM
-# # TODO: This is supposed to navigate you back to the Home screen
+# Leave the DM from within the DM
+# TODO: This is supposed to navigate you back to the Home screen,
+# but we have a bug that causes navigation to fail.
 # - tapOn:
 #     id: 'ChannelHeaderOverflowMenuButton'
 # - assertVisible: 'Leave chat'
