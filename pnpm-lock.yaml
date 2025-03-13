@@ -119,9 +119,6 @@ importers:
         specifier: ^10.0.1
         version: 10.0.1
     devDependencies:
-      '@electron/rebuild':
-        specifier: ^3.7.1
-        version: 3.7.1
       concurrently:
         specifier: ^9.1.2
         version: 9.1.2
@@ -3518,11 +3515,6 @@ packages:
 
   '@electron/rebuild@3.7.0':
     resolution: {integrity: sha512-VW++CNSlZwMYP7MyXEbrKjpzEwhB5kDNbzGtiPEjwYysqyTCF+YbNJ210Dj3AjWsGSV4iEEwNkmJN9yGZmVvmw==}
-    engines: {node: '>=12.13.0'}
-    hasBin: true
-
-  '@electron/rebuild@3.7.1':
-    resolution: {integrity: sha512-sKGD+xav4Gh25+LcLY0rjIwcCFTw+f/HU1pB48UVbwxXXRGaXEqIH0AaYKN46dgd/7+6kuiDXzoyAEvx1zCsdw==}
     engines: {node: '>=12.13.0'}
     hasBin: true
 
@@ -18416,26 +18408,6 @@ snapshots:
       - supports-color
 
   '@electron/rebuild@3.7.0':
-    dependencies:
-      '@electron/node-gyp': https://codeload.github.com/electron/node-gyp/tar.gz/06b29aafb7708acef8b3669835c8a7857ebc92d2
-      '@malept/cross-spawn-promise': 2.0.0
-      chalk: 4.1.2
-      debug: 4.3.7
-      detect-libc: 2.0.2
-      fs-extra: 10.1.0
-      got: 11.8.6
-      node-abi: 3.74.0
-      node-api-version: 0.2.0
-      ora: 5.4.1
-      read-binary-file-arch: 1.0.6
-      semver: 7.6.3
-      tar: 6.2.0
-      yargs: 17.7.2
-    transitivePeerDependencies:
-      - bluebird
-      - supports-color
-
-  '@electron/rebuild@3.7.1':
     dependencies:
       '@electron/node-gyp': https://codeload.github.com/electron/node-gyp/tar.gz/06b29aafb7708acef8b3669835c8a7857ebc92d2
       '@malept/cross-spawn-promise': 2.0.0

@@ -26,7 +26,6 @@
     "electron-store": "^10.0.1"
   },
   "devDependencies": {
-    "@electron/rebuild": "^3.7.1",
     "concurrently": "^9.1.2",
     "electron": "34.3.0",
     "electron-builder": "^26.0.10",
