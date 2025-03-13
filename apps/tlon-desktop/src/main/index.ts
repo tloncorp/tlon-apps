@@ -1,3 +1,4 @@
+import { fetch } from 'cross-fetch';
 import crypto from 'crypto';
 import { BrowserWindow, app, ipcMain } from 'electron';
 import fs from 'fs';
@@ -56,10 +57,6 @@ interface AuthInfo {
   shipUrl: string;
   authCookie: string;
 }
-
-// Import CommonJS wrappers
-const checkIsDev = require('../../is-dev-wrapper.cjs');
-const getFetch = require('../../fetch-wrapper.cjs');
 
 let mainWindow: BrowserWindow | null = null;
 let currentShipUrl: string | null = null;
@@ -155,7 +152,7 @@ async function createWindow() {
   // });
 
   // Load the app
-  if (await checkIsDev()) {
+  if (!app.isPackaged) {
     // In development, load from the dev server
     mainWindow.loadURL('http://localhost:3000');
     // Open DevTools
@@ -163,12 +160,22 @@ async function createWindow() {
   } else {
     // In production, load the built app
     // Properly resolve path to the web app dist directory
-    const webAppPath = path.join(app.getAppPath(), 'tlon-web-new', 'dist', 'index.html');
-    const resourcesPath = path.join(path.dirname(app.getAppPath()), 'tlon-web-new', 'dist', 'index.html');
-    
+    const webAppPath = path.join(
+      app.getAppPath(),
+      'tlon-web-new',
+      'dist',
+      'index.html'
+    );
+    const resourcesPath = path.join(
+      path.dirname(app.getAppPath()),
+      'tlon-web-new',
+      'dist',
+      'index.html'
+    );
+
     console.log('Trying to load web app from path:', webAppPath);
     console.log('App path:', app.getAppPath());
-    
+
     if (fs.existsSync(webAppPath)) {
       console.log('Loading web app from app path');
       mainWindow.loadFile(webAppPath);
@@ -177,34 +184,9 @@ async function createWindow() {
       mainWindow.loadFile(resourcesPath);
     } else {
       console.error('Web app files not found at expected paths!');
-      console.log('Checking for alternate paths...');
-      
-      // Try additional common locations for resources
-      const possiblePaths = [
-        path.join(__dirname, '../../tlon-web-new/dist/index.html'),
-        path.join(__dirname, '../../../tlon-web-new/dist/index.html'),
-        path.join(__dirname, '../../../../tlon-web-new/dist/index.html'),
-        path.join(app.getPath('exe'), '../Resources/tlon-web-new/dist/index.html'),
-        path.join(app.getPath('exe'), '../../Resources/tlon-web-new/dist/index.html')
-      ];
-      
-      let found = false;
-      for (const testPath of possiblePaths) {
-        console.log('Checking path:', testPath);
-        if (fs.existsSync(testPath)) {
-          console.log('Found web app at:', testPath);
-          mainWindow.loadFile(testPath);
-          found = true;
-          break;
-        }
-      }
-      
-      if (!found) {
-        console.error('Web app not found in any expected location!');
-        mainWindow.loadFile(
-          path.join(__dirname, '../../tlon-web-new/dist/index.html')
-        );
-      }
+      console.error('App path:', app.getAppPath());
+      console.error('Web app path:', webAppPath);
+      console.error('Resources path:', resourcesPath);
     }
   }
 
@@ -262,7 +244,6 @@ ipcMain.handle(
   ) => {
     console.log('Logging in to ship:', shipUrl);
     try {
-      const fetch = await getFetch();
       const response = await fetch(`${shipUrl}/~/login`, {
         method: 'POST',
         headers: {

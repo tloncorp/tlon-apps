@@ -1,5 +1,4 @@
 // This is a CommonJS wrapper around electron-store
-const { app } = require('electron');
 
 let storeInstance = null;
 
