@@ -319,8 +319,7 @@
       =/  risk=?
         ?=(?(%pawn %earl) (clan:title for))
       =/  base=allowance
-        ?.  risk  *allowance
-        %*(. *allowance phone 1, tweet 1, fetch 1, queries 10, batch 50)
+        *allowance
       =/  max  base
       :-  ?~  lim=(~(get by solo) for)
             base(since now)
