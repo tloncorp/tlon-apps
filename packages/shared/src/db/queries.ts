@@ -116,7 +116,11 @@ const GROUP_META_COLUMNS = {
 
 const POST_RELATIONS_DEFAULT = {
   author: true,
-  reactions: true,
+  reactions: {
+    with: {
+      contact: true,
+    },
+  },
   threadUnread: true,
   volumeSettings: true,
 } as const;
@@ -627,6 +631,18 @@ export const insertGroups = createWriteQuery(
                 $channels.contentConfiguration
               ),
             });
+
+          const channels = await txCtx.db.query.channels.findMany({
+            where: eq($channels.groupId, group.id),
+          });
+          const toDelete = channels
+            .map((c) => c.id)
+            .filter(
+              (id) => group.channels?.find((c) => c.id === id) === undefined
+            );
+          await txCtx.db
+            .delete($channels)
+            .where(inArray($channels.id, toDelete));
 
           // Then handle reader roles separately
           for (const channel of group.channels) {
@@ -1744,16 +1760,15 @@ export const updateChannel = createWriteQuery(
   ['channels', 'channelWriters', 'channelReaders']
 );
 
-export const deleteChannel = createWriteQuery(
-  'deleteChannel',
-  async (channelId: string, ctx: QueryCtx) => {
-    logger.log(`deleteChannel`, channelId);
-    await ctx.db.delete($posts).where(eq($posts.channelId, channelId));
-    await ctx.db.delete($chatMembers).where(eq($chatMembers.chatId, channelId));
-    await ctx.db.delete($channels).where(eq($channels.id, channelId));
+export const deleteChannels = createWriteQuery(
+  'deleteChannels',
+  async (channels: string[], ctx: QueryCtx) => {
+    logger.log(`deleteChannels`, channels);
+    // will cascade delete to post and chat members
+    await ctx.db.delete($channels).where(inArray($channels.id, channels));
     return;
   },
-  ['channels']
+  ['channels', 'posts', 'chatMembers']
 );
 
 export const addNavSectionToGroup = createWriteQuery(

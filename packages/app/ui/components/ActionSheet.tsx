@@ -129,6 +129,10 @@ const ActionSheetComponent = ({
 }: PropsWithChildren<ActionSheetProps & SheetProps>) => {
   const mode = useAdaptiveMode(forcedMode);
   const hasOpened = useRef(open);
+  const { bottom } = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  const maxHeight = height - bottom - getTokenValue('$2xl');
+
   if (!hasOpened.current && open) {
     hasOpened.current = true;
   }
@@ -174,10 +178,11 @@ const ActionSheetComponent = ({
             maxWidth={800}
             minWidth={400}
             key="content"
-            maxHeight="100%"
+            // prevent the modal from going off screen
+            maxHeight={maxHeight}
             marginVertical="$2xl"
           >
-            <ScrollView>{children}</ScrollView>
+            <ScrollView id="ActionSheetDialogScrollView">{children}</ScrollView>
           </Dialog.Content>
         </Dialog.Portal>
 
@@ -256,18 +261,7 @@ const ActionSheetHeader = ActionSheetHeaderFrame.styleable(
 
 const ActionSheetContent = YStack.styleable((props, ref) => {
   const contentStyle = useContentStyle();
-  const { bottom } = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
-  const maxHeight = height - bottom - getTokenValue('$2xl');
-  return (
-    <YStack
-      // prevent the modal from going off screen
-      maxHeight={maxHeight}
-      {...contentStyle}
-      {...props}
-      ref={ref}
-    />
-  );
+  return <YStack {...contentStyle} {...props} ref={ref} />;
 });
 
 const ActionSheetScrollableContent = ({
@@ -277,7 +271,6 @@ const ActionSheetScrollableContent = ({
   return (
     <Sheet.ScrollView
       flex={1}
-      overflow="hidden"
       alwaysBounceVertical={false}
       automaticallyAdjustsScrollIndicatorInsets={false}
       contentContainerStyle={contentStyle}

@@ -36,7 +36,7 @@ export function EmptyChannelNotice({
         aspectRatio={911 / 755}
       />
       <YStack gap="$m" width={'100%'}>
-        <Button secondary onPress={onPressGroupMeta}>
+        <Button secondary onPress={() => onPressGroupMeta(true)}>
           <Icon type="Settings" size="$m" color="$secondaryText" />
           <Button.Text>Customize</Button.Text>
         </Button>

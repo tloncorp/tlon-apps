@@ -1,6 +1,6 @@
 import { RawText, Text } from '@tloncorp/ui';
 import React, { PropsWithChildren, useCallback, useContext } from 'react';
-import { Linking } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import { ColorTokens, styled } from 'tamagui';
 
 import { useNavigation } from '../../contexts';
@@ -100,8 +100,13 @@ export function InlineText({
 
 export function InlineLink({ inline: node }: { inline: LinkInlineData }) {
   const handlePress = useCallback(() => {
-    Linking.openURL(node.href);
+    if (Platform.OS === 'web') {
+      window.open(node.href, '_blank', 'noopener,noreferrer');
+    } else {
+      Linking.openURL(node.href);
+    }
   }, [node.href]);
+
   return (
     <Text cursor="pointer" textDecorationLine="underline" onPress={handlePress}>
       {node.text || node.href}

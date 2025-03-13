@@ -37,6 +37,12 @@ const _Carousel = React.forwardRef<
     {
       onVisibleIndexChange?: (index: number) => void;
       scrollDirection?: 'horizontal' | 'vertical';
+      hideOverlayOnTap?: boolean;
+      initialVisibleIndex?: number;
+      disableCarouselInteraction?: boolean;
+      flatListProps?: Partial<
+        React.ComponentPropsWithoutRef<typeof FlatList<React.ReactElement>>
+      >;
     }
   >
 >(function Carousel(
@@ -44,17 +50,25 @@ const _Carousel = React.forwardRef<
     children,
     onVisibleIndexChange,
     scrollDirection = 'horizontal',
+    hideOverlayOnTap = true,
+    disableCarouselInteraction = false,
+    flatListProps,
+    initialVisibleIndex,
     ...passedProps
   },
   forwardedRef
 ) {
   const scrollRef = React.useRef<FlatList>(null);
-  const [visibleIndex, setVisibleIndex] = React.useState(0);
+  const [visibleIndex, setVisibleIndex] = React.useState(
+    initialVisibleIndex ?? 0
+  );
   const [isOverlayShown, setIsOverlayShown] = React.useState(false);
   const [overlay, setOverlay] = React.useState<JSX.Element | null>(null);
-  const tap = Gesture.Tap().onEnd((_event, success) => {
-    success && runOnJS(setIsOverlayShown)(!isOverlayShown);
-  });
+  const tap = Gesture.Tap()
+    .onEnd((_event, success) => {
+      success && runOnJS(setIsOverlayShown)(!isOverlayShown);
+    })
+    .enabled(hideOverlayOnTap);
   const [rect, setRect] = React.useState<{
     width: number;
     height: number;
@@ -113,14 +127,42 @@ const _Carousel = React.forwardRef<
     [children]
   );
 
+  const getItemLayout = React.useMemo<
+    React.ComponentPropsWithoutRef<typeof FlatList>['getItemLayout']
+  >(
+    () =>
+      rect == null
+        ? undefined
+        : (_data, index) => {
+            const length =
+              scrollDirection === 'horizontal' ? rect.width : rect.height;
+            return {
+              length,
+              offset: length * index,
+              index,
+            };
+          },
+    [rect, scrollDirection]
+  );
+
   return (
     <GestureDetector gesture={tap}>
-      <View backgroundColor="black" {...passedProps}>
+      <View {...passedProps}>
         <CarouselContext.Provider value={ctxValue}>
           <FlatList
-            data={childrenArray}
+            data={
+              // Carousel's items will likely be sized to the viewport - if
+              // they are shown before the viewport is measured, there's a good
+              // chance that there will be a flash of 0-length items. If this
+              // happens, the initial scroll position will be incorrect (once
+              // the viewport length is resolved).
+              // To avoid, only render once the viewport length is known.
+              rect == null ? undefined : childrenArray
+            }
             decelerationRate="fast"
             disableIntervalMomentum
+            scrollEnabled={!disableCarouselInteraction}
+            initialScrollIndex={initialVisibleIndex}
             style={[
               {
                 flexDirection:
@@ -141,10 +183,13 @@ const _Carousel = React.forwardRef<
                 {item}
               </CarouselItemContext.Provider>
             )}
+            getItemLayout={getItemLayout}
+            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+            {...flatListProps}
           />
         </CarouselContext.Provider>
         <AnimatePresence>
-          {isOverlayShown && (
+          {(!hideOverlayOnTap || isOverlayShown) && (
             <View
               key="overlay"
               animation="simple"

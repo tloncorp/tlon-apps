@@ -4,15 +4,11 @@ import * as store from '@tloncorp/shared/store';
 import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
 import { useCallback, useState } from 'react';
 
-import {
-  INVITE_SERVICE_ENDPOINT,
-  INVITE_SERVICE_IS_DEV,
-} from '../../constants';
+import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
 import {
   AttachmentProvider,
-  Button,
   DeleteSheet,
   MetaEditorScreenView,
   YStack,
@@ -27,20 +23,29 @@ type Props = NativeStackScreenProps<
 };
 
 export function GroupMetaScreen(props: Props) {
-  const { groupId } = props.route.params;
+  const { groupId, fromBlankChannel } = props.route.params;
   const { group, setGroupMetadata, deleteGroup } = useGroupContext({
     groupId,
   });
+  const { onPressChatDetails } = useChatSettingsNavigation();
   const canUpload = useCanUpload();
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
 
   const handleSubmit = useCallback(
     (data: db.ClientMeta) => {
       setGroupMetadata(data);
-      props.navigation.goBack();
+      
+      // If coming from a blank channel, go back instead of navigating to chat details
+      if (fromBlankChannel) {
+        props.navigation.goBack();
+      } else {
+        // Default behavior - navigate to chat details
+        onPressChatDetails({ type: 'group', id: groupId });
+      }
+      
       store.createGroupInviteLink(groupId);
     },
-    [setGroupMetadata, props.navigation, groupId]
+    [setGroupMetadata, groupId, onPressChatDetails, fromBlankChannel, props.navigation]
   );
 
   const handlePressDelete = useCallback(() => {

@@ -1,6 +1,9 @@
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   ChannelAction,
   JSONValue,
+  createDevLogger,
   makePrettyShortDate,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -9,10 +12,16 @@ import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { truncate } from 'lodash';
-import { ComponentProps, useCallback, useMemo, useState } from 'react';
-import { PropsWithChildren } from 'react';
+import {
+  ComponentProps,
+  PropsWithChildren,
+  useCallback,
+  useMemo,
+  useState,
+} from 'react';
 import { View, XStack, styled } from 'tamagui';
 
+import { RootStackParamList } from '../../../navigation/types';
 import { useChannelContext } from '../../contexts';
 import { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { DetailViewAuthorRow } from '../AuthorRow';
@@ -116,7 +125,7 @@ export function GalleryPost({
 
   return (
     <Pressable
-      onPress={overFlowIsHovered ? undefined : handlePress}
+      onPress={overFlowIsHovered || isPopoverOpen ? undefined : handlePress}
       onLongPress={handleLongPress}
       onHoverIn={onHoverIn}
       onHoverOut={onHoverOut}
@@ -193,17 +202,62 @@ export function GalleryPost({
   );
 }
 
-export function GalleryPostDetailView({ post }: { post: db.Post }) {
+export function GalleryPostDetailView({
+  post,
+  onPressImage,
+}: {
+  post: db.Post;
+  onPressImage?: (post: db.Post, uri?: string) => void;
+}) {
+  const logger = createDevLogger('GalleryPostDetailView', true);
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const formattedDate = useMemo(() => {
     return makePrettyShortDate(new Date(post.receivedAt));
   }, [post.receivedAt]);
   const content = usePostContent(post);
-  const isImagePost = content.some((block) => block.type === 'image');
+
+  const firstImage = useMemo(() => {
+    const img = content.find((block) => block.type === 'image');
+    logger.log('First image found in GalleryPostDetailView:', img);
+    return img;
+  }, [content, logger]);
+
+  const isImagePost = useMemo(() => !!firstImage, [firstImage]);
+
+  const handlePressImage = useCallback(
+    (src: string) => {
+      logger.log('Detail view: Image pressed, navigating to', src);
+      try {
+        navigation.navigate('ImageViewer', { uri: src });
+      } catch (error) {
+        logger.log('Navigation error:', error);
+        // Try the fallback if direct navigation fails
+        if (onPressImage && firstImage && firstImage.type === 'image') {
+          onPressImage(post, firstImage.src);
+        }
+      }
+    },
+    [navigation, logger, onPressImage, post, firstImage]
+  );
 
   return (
     <View paddingBottom="$xs" borderBottomWidth={1} borderColor="$border">
-      <View borderTopWidth={1} borderBottomWidth={1} borderColor="$border">
-        <GalleryContentRenderer embedded post={post} size="$l" />
+      <View
+        // For some reason minHeight ternary isn't working unless we disable optimization here
+        disableOptimization
+        borderTopWidth={1}
+        borderBottomWidth={1}
+        borderColor="$border"
+        backgroundColor="$secondaryBackground"
+        minHeight={isImagePost ? 100 : 300}
+      >
+        <GalleryContentRenderer
+          embedded
+          post={post}
+          size="$l"
+          onPressImage={handlePressImage}
+        />
       </View>
 
       <View gap="$2xl" padding="$xl">
@@ -226,6 +280,7 @@ export function GalleryContentRenderer({
   ...props
 }: {
   post: db.Post;
+  onPressImage?: (src: string) => void;
   size?: '$s' | '$l';
 } & Omit<ComponentProps<typeof PreviewFrame>, 'content'>) {
   const content = usePostContent(post);
@@ -248,14 +303,18 @@ export function GalleryContentRenderer({
 
 function LargePreview({
   content,
+  onPressImage,
   ...props
-}: { content: PostContent } & Omit<
+}: { content: PostContent; onPressImage?: (src: string) => void } & Omit<
   ComponentProps<typeof PreviewFrame>,
   'content'
 >) {
   return (
     <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
-      <LargeContentRenderer content={content.slice(0, 1)} />
+      <LargeContentRenderer
+        content={content.slice(0, 1)}
+        onPressImage={onPressImage}
+      />
     </PreviewFrame>
   );
 }
@@ -340,6 +399,9 @@ function useBlockLink(
   content: BlockData[]
 ): { text: string; href: string } | null {
   return useMemo(() => {
+    if (content[0]?.type === 'embed') {
+      return { text: content[0].url, href: content[0].url };
+    }
     if (content[0]?.type !== 'paragraph') {
       return null;
     }
@@ -376,8 +438,8 @@ const LargeContentRenderer = createContentRenderer({
       padding: '$2xl',
     },
     image: {
-      borderRadius: 0,
       ...noWrapperPadding,
+      imageProps: { borderRadius: 0 },
     },
     video: {
       borderRadius: 0,
@@ -408,9 +470,13 @@ const SmallContentRenderer = createContentRenderer({
       size: '$label/s',
     },
     image: {
-      borderRadius: 0,
       height: '100%',
-      imageProps: { aspectRatio: 'unset', height: '100%', contentFit: 'cover' },
+      imageProps: {
+        aspectRatio: 'unset',
+        height: '100%',
+        contentFit: 'cover',
+        borderRadius: 0,
+      },
       ...noWrapperPadding,
     },
     video: {

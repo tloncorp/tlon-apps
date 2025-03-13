@@ -81,7 +81,16 @@ export const ChatList = React.memo(function ChatListComponent({
             <SectionListHeader.Text>{item.title}</SectionListHeader.Text>
           </SectionListHeader>
         );
-      } else if (item.type === 'channel' || !item.isPending) {
+      } else if (item.type === 'channel' && !item.isPending) {
+        return (
+          <InteractableChatListItem
+            model={item}
+            onPress={onPressItem}
+            onLongPress={handleLongPress}
+            onLayout={handleItemLayout}
+          />
+        );
+      } else if (item.type === 'group' && !item.isPending) {
         return (
           <InteractableChatListItem
             model={item}
@@ -97,6 +106,7 @@ export const ChatList = React.memo(function ChatListComponent({
             onPress={onPressItem}
             onLongPress={handleLongPress}
             onLayout={handleItemLayout}
+            disableOptions={item.isPending}
           />
         );
       }

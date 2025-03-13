@@ -709,7 +709,7 @@
     ``groups+!>(groups-2)
   ::
       [%x %v1 %groups ~]
-    ``groups-1+!>((~(run by groups) tail))
+    ``groups-1+!>(`groups:v5:g`(~(run by groups) tail))
   ::
       [%x %groups %v0 ~]
     ``groups-ui-v0+!>(`groups-ui:zero`(~(urn by groups) to-group-ui-v0))
@@ -916,6 +916,7 @@
   ~|  `wire`pole
   ?+    pole  ~|(bad-agent-take/pole !!)
       ~   cor
+      [%epic ~]  cor
       [%logs ~]  cor
       [%helm *]  cor
       [%activity %submit *]  cor
@@ -942,6 +943,10 @@
   ::
       [%groups ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
+    ?:  ?&  ?=(%kick -.sign)
+            !(~(has by groups) ship name.pole)
+        ==
+      cor
     go-abet:(go-agent:(go-abed:group-core ship name.pole) rest.pole sign)
   ::
       [%gangs %index ship=@ ~]
@@ -1025,10 +1030,13 @@
       ~
     `path
   ?+    -.sign  cor
-      %kick  (give %kick matching ~)
+      %kick
+    ?~  matching  cor
+    (give %kick matching ~)
   ::
       %watch-ack
     ?~  p.sign  cor
+    ?~  matching  cor
     (give %kick matching ~)
   ::
       %fact
@@ -1037,6 +1045,7 @@
       cor
     =+  !<(=dude:gall q.cage.sign)
     =.  shoal  (~(put by shoal) gra dude)
+    ?~  matching  cor
     =.  cor  (give %fact matching cage.sign)
     (give %kick matching ~)
   ==
@@ -1169,7 +1178,7 @@
       %fact
     ?.  =(%channel-preview p.cage.sign)
       cor
-    =+  !<(=preview:channel:g q.cage.sign) :: XX: really necessary?
+    =+  !<(=preview:channel:v2:g q.cage.sign) :: XX: really necessary?
     =.  cor  (emit %give %fact ~[wire] cage.sign)
     (emit %give %kick ~[wire] ~)
   ::
@@ -1456,14 +1465,16 @@
   ::
   ++  go-preview
     |=  ver=?(%v0 %v1)
-    :: TODO: either use ?> to enforce request permissions; or return a preview
-    ::   with limited info? for rendering a secret group reference
-    :: ?>  (~(has by fleet.group) src.bowl)
-    :: TODO: if user is in the allowed to join list, they should see a preview;
-    ::   reusing some of the below logic
-    :: ?>  ?|  =(p.flag our.bowl) :: self
-    ::     =(p.flag src.bowl) :: subscription
-    ::     &((~(has in ships) src.bowl) =(1 ~(wyt in ships)))  :: user join
+    ?>  ?-  -.cordon.group
+          %afar  &
+          %open  !secret.group  :: should never be secret
+        ::
+            %shut
+          ::  if a private group yes
+          ::  if secret, only invites should get previews
+          ?.  secret.group  &
+          (~(has in pend.cordon.group) src.bowl)
+        ==
     =/  =preview:g
       =,  group
       [flag meta cordon now.bowl secret.group ~(wyt by fleet)]

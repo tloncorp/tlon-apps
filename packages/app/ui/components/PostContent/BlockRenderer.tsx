@@ -25,6 +25,7 @@ import {
 
 import { ContentReferenceLoader, Reference } from '../ContentReference';
 import { VideoEmbed } from '../Embed';
+import EmbedContent from '../Embed/EmbedContent';
 import { HighlightedCode } from '../HighlightedCode';
 import { InlineRenderer } from './InlineRenderer';
 import * as cn from './contentUtils';
@@ -360,8 +361,19 @@ export const HeaderText = styled(Text, {
   } as const,
 });
 
-export function EmbedBlock() {
-  return null;
+export function EmbedBlock({
+  block,
+  ...props
+}: { block: cn.EmbedBlockData } & ComponentProps<typeof View>) {
+  if (!block.url) {
+    return null;
+  }
+
+  return (
+    <View width="100%" {...props}>
+      <EmbedContent url={block.url} content={block.content} />
+    </View>
+  );
 }
 
 export type BlockRenderer<T extends cn.BlockData> = (props: {

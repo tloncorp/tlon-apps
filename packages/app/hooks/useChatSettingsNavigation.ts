@@ -43,8 +43,8 @@ export const useChatSettingsNavigation = () => {
   );
 
   const onPressGroupMeta = useCallback(
-    (groupId: string) => {
-      navigateToGroupSettings('GroupMeta', { groupId });
+    (groupId: string, fromBlankChannel?: boolean) => {
+      navigateToGroupSettings('GroupMeta', { groupId, fromBlankChannel });
     },
     [navigateToGroupSettings]
   );

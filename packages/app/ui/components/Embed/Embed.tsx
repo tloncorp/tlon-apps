@@ -1,56 +1,79 @@
-import { Icon } from '@tloncorp/ui';
-import { Modal } from '@tloncorp/ui';
-import { Pressable } from '@tloncorp/ui';
+import { Icon, Modal, Pressable, Text } from '@tloncorp/ui';
+import { Image } from 'expo-image';
 import { MotiView } from 'moti';
-import { PropsWithChildren, useState } from 'react';
+import {
+  ComponentProps,
+  PropsWithChildren,
+  memo,
+  useCallback,
+  useMemo,
+  useState,
+} from 'react';
 import { DimensionValue, Dimensions, LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { YStackProps, styled, withStaticProperties } from 'tamagui';
-import { Text, View, XStack, YStack } from 'tamagui';
+import { View, XStack, YStack, styled, withStaticProperties } from 'tamagui';
 
-const EmbedTitle = styled(Text, {
-  fontSize: '$s',
-  color: '$secondaryText',
+const EmbedFrame = styled(YStack, {
+  name: 'EmbedFrame',
+  borderRadius: '$s',
+  padding: 0,
+  borderColor: '$border',
+  borderWidth: 1,
+  justifyContent: 'center',
+  backgroundColor: '$secondaryBackground',
 });
 
-function EmbedPopOutIcon() {
-  return <Icon type="ArrowRef" color="$tertiaryText" size="$m" />;
-}
+const EmbedHeader = styled(XStack, {
+  name: 'EmbedHeader',
+  gap: '$s',
+  alignItems: 'center',
+  paddingLeft: '$l',
+  paddingRight: '$l',
+  paddingVertical: '$s',
+  justifyContent: 'space-between',
+  borderBottomColor: '$border',
+  borderBottomWidth: 1,
+});
 
-function EmbedHeader({
-  children,
-  onPress,
-}: PropsWithChildren<{ onPress: () => void }>) {
-  return (
-    <Pressable onPress={onPress}>
-      <XStack
-        gap="$s"
-        alignItems="center"
-        padding="$l"
-        justifyContent="space-between"
-        borderBottomColor="$border"
-        borderBottomWidth={1}
-      >
-        {children}
-      </XStack>
-    </Pressable>
-  );
-}
+const EmbedPreview = styled(YStack, {
+  name: 'EmbedPreview',
+  gap: '$s',
+  padding: '$l',
+  width: '100%',
+});
 
-function EmbedPreview({
-  children,
-  onPress,
-}: PropsWithChildren<{ onPress: () => void }>) {
-  return (
-    <Pressable onPress={onPress}>
-      <XStack gap="$s" alignItems="center" padding="$l">
-        {children}
-      </XStack>
-    </Pressable>
-  );
-}
+const EmbedTitle = styled(Text, {
+  name: 'EmbedTitle',
+  fontSize: '$s',
+  color: '$tertiaryText',
+});
 
-function EmbedModal({
+const EmbedPopOutIcon = styled(Icon, {
+  name: 'EmbedPopOutIcon',
+  color: '$tertiaryText',
+  size: '$s',
+}).styleable(() => {
+  return <Icon type="ArrowRef" color="$tertiaryText" size="$s" />;
+});
+
+const EmbedModalContent = styled(XStack, {
+  name: 'EmbedModalContent',
+  backgroundColor: '$background',
+  gap: '$s',
+  alignItems: 'center',
+  padding: '$l',
+  borderRadius: '$s',
+});
+
+const EmbedModalWrapper = styled(View, {
+  name: 'EmbedModalWrapper',
+  position: 'absolute',
+  paddingHorizontal: '$xl',
+});
+
+const PADDING_THRESHOLD = 40;
+
+const EmbedModal = memo(function EmbedModal({
   visible,
   onDismiss,
   onPress,
@@ -67,101 +90,107 @@ function EmbedModal({
   const insets = useSafeAreaInsets();
   const [topOffset, setTopOffset] = useState(0);
   const [leftOffset, setLeftOffset] = useState(0);
-  const PADDING_THRESHOLD = 40;
 
-  function handleLayout(event: LayoutChangeEvent) {
-    const { height, width } = event.nativeEvent.layout;
-    const verticalPosition = calcVerticalPosition(height);
-    const horizontalPosition = calcHorizontalPosition(width);
-    setTopOffset(verticalPosition);
-    setLeftOffset(horizontalPosition);
-  }
+  const calcHorizontalPosition = useCallback(
+    (width: number): number => {
+      const screenWidth = Dimensions.get('window').width;
+      const safeLeft = insets.left + PADDING_THRESHOLD;
+      const safeRight = screenWidth - insets.right - PADDING_THRESHOLD;
+      const availableWidth = safeRight - safeLeft;
 
-  function calcHorizontalPosition(width: number): number {
-    const screenWidth = Dimensions.get('window').width;
-    const safeLeft = insets.left + PADDING_THRESHOLD;
-    const safeRight = screenWidth - insets.right - PADDING_THRESHOLD;
-    const availableWidth = safeRight - safeLeft;
+      return Math.min(
+        Math.max((availableWidth - width) / 2 + safeLeft, safeLeft),
+        safeRight - width
+      );
+    },
+    [insets]
+  );
 
-    return Math.min(
-      Math.max((availableWidth - width) / 2 + safeLeft, safeLeft),
-      safeRight - width
-    );
-  }
+  const calcVerticalPosition = useCallback(
+    (height: number): number => {
+      const screenHeight = Dimensions.get('window').height;
+      const safeTop = insets.top + PADDING_THRESHOLD;
+      const safeBottom = screenHeight - insets.bottom - PADDING_THRESHOLD;
+      const availableHeight = safeBottom - safeTop;
 
-  function calcVerticalPosition(height: number): number {
-    const screenHeight = Dimensions.get('window').height;
-    const safeTop = insets.top + PADDING_THRESHOLD;
-    const safeBottom = screenHeight - insets.bottom - PADDING_THRESHOLD;
-    const availableHeight = safeBottom - safeTop;
+      const centeredPosition = (availableHeight - height) / 2 + safeTop;
 
-    const centeredPosition = (availableHeight - height) / 2 + safeTop;
+      return Math.min(Math.max(centeredPosition, safeTop), safeBottom - height);
+    },
+    [insets]
+  );
 
-    return Math.min(Math.max(centeredPosition, safeTop), safeBottom - height);
-  }
+  const handleLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      const { height, width } = event.nativeEvent.layout;
+      const verticalPosition = calcVerticalPosition(height);
+      const horizontalPosition = calcHorizontalPosition(width);
+      setTopOffset(verticalPosition);
+      setLeftOffset(horizontalPosition);
+    },
+    [calcVerticalPosition, calcHorizontalPosition]
+  );
+
+  const animationProps = useMemo(
+    () => ({
+      from: { opacity: 0 },
+      animate: { opacity: 1 },
+      delay: 150,
+      transition: { duration: 300 },
+    }),
+    []
+  );
 
   return (
     <Modal visible={visible} onDismiss={onDismiss}>
-      <MotiView
-        from={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        delay={150}
-        transition={{ duration: 300 }}
-      >
-        <View
-          position="absolute"
+      <MotiView {...animationProps}>
+        <EmbedModalWrapper
           top={topOffset}
           left={leftOffset}
           onLayout={handleLayout}
-          // if we need to set a height and width we need
-          // to pass it here so onLayout can calculate the position
           height={height}
           width={width}
-          paddingHorizontal="$xl"
         >
           <Pressable onPress={onPress}>
-            <XStack
-              backgroundColor="$background"
-              gap="$s"
-              alignItems="center"
-              padding="$l"
-              borderRadius="$s"
-              // we need to set height and width here as well
-              // because the parent view for our webviews requires it
-              height={height}
-              width={width}
-            >
+            <EmbedModalContent height={height} width={width}>
               {children}
-            </XStack>
+            </EmbedModalContent>
           </Pressable>
-        </View>
+        </EmbedModalWrapper>
       </MotiView>
     </Modal>
   );
-}
+});
 
-function EmbedFrame({ children, ...props }: PropsWithChildren<YStackProps>) {
-  return (
-    <YStack
-      gap="$s"
-      borderRadius="$s"
-      padding={0}
-      borderColor="$border"
-      borderWidth={1}
-      justifyContent="center"
-      width={200}
-      height={120}
-      {...props}
-    >
-      {children}
-    </YStack>
-  );
-}
+const EmbedComponent = EmbedFrame.styleable<ComponentProps<typeof EmbedFrame>>(
+  ({ children, ...props }, ref) => {
+    return (
+      <EmbedFrame {...props} ref={ref}>
+        {children}
+      </EmbedFrame>
+    );
+  },
+  {
+    staticConfig: {
+      componentName: 'Embed',
+    },
+  }
+);
 
-export const Embed = withStaticProperties(EmbedFrame, {
+const EmbedThumbnail = styled(Image, {
+  name: 'EmbedThumbnail',
+  width: '$xl',
+  height: '$xl',
+  borderRadius: '$s',
+  overflow: 'hidden',
+  backgroundColor: '$tertiaryBackground',
+});
+
+export const Embed = withStaticProperties(EmbedComponent, {
   Header: EmbedHeader,
   Preview: EmbedPreview,
   Modal: EmbedModal,
   Title: EmbedTitle,
   PopOutIcon: EmbedPopOutIcon,
+  Thumbnail: EmbedThumbnail,
 });
