@@ -1,5 +1,5 @@
 /-  g=groups
-|_  =log:g
+|_  =log:v2:g
 ++  grad  %noun
 ++  grow
   |%
@@ -7,6 +7,6 @@
   --
 ++  grab
   |%
-  ++  noun  log:g
+  ++  noun  log:v2:g
   --
 --

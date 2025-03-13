@@ -544,9 +544,9 @@ export function getModelAnalytics({
   group,
   channel,
 }: {
-  post?: Partial<db.Post>;
-  group?: Partial<db.Group>;
-  channel?: Partial<db.Channel>;
+  post?: Partial<db.Post> | null;
+  group?: Partial<db.Group> | null;
+  channel?: Partial<db.Channel> | null;
 }) {
   const details: Record<string, string | null> = {};
 

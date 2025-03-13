@@ -73,6 +73,7 @@
     "expo-application": "~5.8.4",
     "expo-asset": "~9.0.2",
     "expo-av": "~13.10.5",
+    "expo-background-fetch": "~11.8.1",
     "expo-battery": "^7.7.2",
     "expo-clipboard": "~5.0.1",
     "expo-constants": "~15.4.6",

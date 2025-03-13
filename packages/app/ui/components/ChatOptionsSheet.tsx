@@ -251,6 +251,7 @@ function GroupOptionsSheetContent({
   const canSortChannels = (group.channels?.length ?? 0) > 1;
   const canInvite = currentUserIsAdmin || group.privacy === 'public';
   const isPinned = group?.pin;
+  const isErrored = group?.joinStatus === 'errored';
 
   const wrappedAction = useCallback(
     (action: () => void) => {
@@ -263,6 +264,11 @@ function GroupOptionsSheetContent({
   const handlePressChatDetails = useCallback(() => {
     onPressChatDetails({ type: 'group', id: group.id });
   }, [group.id, onPressChatDetails]);
+
+  const handleCancel = useCallback(async () => {
+    await store.cancelGroupJoin(group);
+    store.leaveGroup(group.id);
+  }, [group]);
 
   const actionGroups = useMemo(
     () =>
@@ -306,6 +312,15 @@ function GroupOptionsSheetContent({
             title: 'Group info & settings',
             action: wrappedAction.bind(null, handlePressChatDetails),
             endIcon: 'ChevronRight',
+          },
+        ],
+        // this is CYA in case the group somehow looks joined but isn't
+        isErrored && [
+          'negative',
+          {
+            title: 'Cancel join',
+            description: 'Group joining failed or timed out',
+            action: wrappedAction.bind(null, handleCancel),
           },
         ]
       ),

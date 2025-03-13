@@ -636,7 +636,7 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
         });
       }
 
-      await db.deleteChannel(update.channelId);
+      await db.deleteChannels([update.channelId]);
       break;
     case 'joinChannel':
       await db.addJoinedGroupChannel({ channelId: update.channelId });
@@ -1190,63 +1190,69 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
   const startTime = Date.now();
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
 
-  await batchEffects('sync start (high)', async (ctx) => {
-    // this allows us to run the api calls first in parallel but handle
-    // writing the data in a specific order
-    const yieldWriter = true;
+  try {
+    await batchEffects('sync start (high)', async (ctx) => {
+      // this allows us to run the api calls first in parallel but handle
+      // writing the data in a specific order
+      const yieldWriter = true;
 
-    // first kickoff the fetching
-    const syncInitPromise = syncInitData(
-      { priority: SyncPriority.High, retry: true },
-      ctx,
-      yieldWriter
-    );
-    const syncLatestPostsPromise = syncLatestPosts(
-      {
-        priority: SyncPriority.High,
-        retry: true,
-      },
-      ctx,
-      yieldWriter
-    );
-    const subsPromise = alreadySubscribed
-      ? Promise.resolve()
-      : setupHighPrioritySubscriptions({
-          priority: SyncPriority.High - 1,
-        }).then(() => logger.crumb('subscribed high priority'));
+      // first kickoff the fetching
+      const syncInitPromise = syncInitData(
+        { priority: SyncPriority.High, retry: true },
+        ctx,
+        yieldWriter
+      );
+      const syncLatestPostsPromise = syncLatestPosts(
+        {
+          priority: SyncPriority.High,
+          retry: true,
+        },
+        ctx,
+        yieldWriter
+      );
+      const subsPromise = alreadySubscribed
+        ? Promise.resolve()
+        : setupHighPrioritySubscriptions({
+            priority: SyncPriority.High - 1,
+          }).then(() => logger.crumb('subscribed high priority'));
 
-    const trackStep = (function () {
-      let last = Date.now();
-      return (event: AnalyticsEvent) => {
-        const now = Date.now();
-        logger.trackEvent(event, { duration: now - last });
-        last = now;
-      };
-    })();
+      const trackStep = (function () {
+        let last = Date.now();
+        return (event: AnalyticsEvent) => {
+          const now = Date.now();
+          logger.trackEvent(event, { duration: now - last });
+          last = now;
+        };
+      })();
 
-    // then enforce the ordering of writes to avoid race conditions
-    const initWriter = await syncInitPromise;
-    trackStep(AnalyticsEvent.InitDataFetched);
-    await initWriter();
-    trackStep(AnalyticsEvent.InitDataWritten);
-    logger.crumb('finished writing init data');
+      // then enforce the ordering of writes to avoid race conditions
+      const initWriter = await syncInitPromise;
+      trackStep(AnalyticsEvent.InitDataFetched);
+      await initWriter();
+      trackStep(AnalyticsEvent.InitDataWritten);
+      logger.crumb('finished writing init data');
 
-    const latestPostsWriter = await syncLatestPostsPromise;
-    trackStep(AnalyticsEvent.LatestPostsFetched);
-    await latestPostsWriter();
-    trackStep(AnalyticsEvent.LatestPostsWritten);
-    logger.crumb('finished writing latest posts');
+      const latestPostsWriter = await syncLatestPostsPromise;
+      trackStep(AnalyticsEvent.LatestPostsFetched);
+      await latestPostsWriter();
+      trackStep(AnalyticsEvent.LatestPostsWritten);
+      logger.crumb('finished writing latest posts');
 
-    await subsPromise;
-    trackStep(AnalyticsEvent.SubscriptionsEstablished);
-    logger.crumb('finished initializing high priority subs');
+      await subsPromise;
+      trackStep(AnalyticsEvent.SubscriptionsEstablished);
+      logger.crumb('finished initializing high priority subs');
 
-    logger.crumb(`finished high priority init sync`);
-    logger.trackEvent(AnalyticsEvent.SessionInitialized, {
-      duration: Date.now() - startTime,
+      logger.crumb(`finished high priority init sync`);
+      logger.trackEvent(AnalyticsEvent.SessionInitialized, {
+        duration: Date.now() - startTime,
+      });
+      updateSession({ startTime: Date.now() });
     });
-    updateSession({ startTime: Date.now() });
-  });
+  } catch (err) {
+    logger.trackError(AnalyticsEvent.ErrorSyncStartHighPriority, {
+      errorMessage: err.message,
+    });
+  }
 
   const lowPriorityPromises = [
     alreadySubscribed
@@ -1282,7 +1288,9 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       logger.crumb(`finished low priority sync`);
     })
     .catch((e) => {
-      logger.trackError(e);
+      logger.trackError(AnalyticsEvent.ErrorSyncStartLowPriority, {
+        errorMessage: e.message,
+      });
     });
 
   // post sync initialization work

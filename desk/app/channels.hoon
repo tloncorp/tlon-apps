@@ -691,8 +691,8 @@
       ((slog tank u.p.sign) cor)
     ::
         %fact
-      ?.  =(act:mar:g p.cage.sign)  cor
-      (take-groups !<(=action:g q.cage.sign))
+      ?.  ?=(%group-action-4 p.cage.sign)  cor
+      (take-groups !<(=action:v5:g q.cage.sign))
     ==
   ::
       [%migrate ~]
@@ -719,7 +719,7 @@
 ++  watch-groups  (safe-watch /groups [our.bowl %groups] /groups)
 ::
 ++  take-groups
-  |=  =action:g
+  |=  =action:v5:g
   =/  affected=(list nest:c)
     %+  murn  ~(tap by v-channels)
     |=  [=nest:c channel=v-channel:c]
@@ -781,7 +781,7 @@
     =/  =ship  (slav %p ship.pole)
     (ca-peek:(ca-abed:ca-core kind.pole ship name.pole) rest.pole v.pole)
   ::
-      [%u ?(%v0 %v1 %v2) =kind:c ship=@ name=@ ~]
+      [%u ?(%v0 %v1) =kind:c ship=@ name=@ ~]
     =/  =ship  (slav %p ship.pole)
     ``loob+!>((~(has by v-channels) kind.pole ship name.pole))
   ::
@@ -2407,8 +2407,8 @@
     ?.  exists  ca-core
     =/  =path
       %+  scry-path  %groups
-      /groups/(scot %p p.flag)/[q.flag]/v1/group-ui
-    =+  .^(group=group-ui:g %gx path)
+      /groups/(scot %p p.flag)/[q.flag]/v2/group-ui-1
+    =+  .^(group=group-ui:v5:g %gx path)
     ?.  (~(has by channels.group) nest)  ca-core
     ::  toggle the volume based on permissions
     =/  =source:activity  [%channel nest flag]

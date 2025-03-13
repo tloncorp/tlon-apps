@@ -14,6 +14,7 @@ import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import {
   ContactsScreenView,
+  DESKTOP_SIDEBAR_WIDTH,
   ScreenHeader,
   getDisplayName,
   isWeb,
@@ -63,7 +64,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
   }, []);
 
   return (
-    <View>
+    <View height="100%">
       <ScreenHeader
         title="Contacts"
         rightControls={
@@ -93,7 +94,7 @@ export const ProfileNavigator = () => {
         headerShown: false,
         drawerType: 'permanent',
         drawerStyle: {
-          width: 450,
+          width: DESKTOP_SIDEBAR_WIDTH,
           backgroundColor: getVariableValue(useTheme().background),
           borderRightColor: getVariableValue(useTheme().border),
         },

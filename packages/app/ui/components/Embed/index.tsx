@@ -1,8 +1,8 @@
 import AudioEmbed from './AudioEmbed';
 import { Embed } from './Embed';
-import OutsideEmbed from './OutsideEmbed';
+import EmbedContent from './EmbedContent';
 import VideoEmbed from './VideoEmbed';
 
-export { AudioEmbed, VideoEmbed, OutsideEmbed };
+export { AudioEmbed, VideoEmbed, EmbedContent };
 
 export default Embed;

@@ -210,6 +210,9 @@ importers:
       expo-av:
         specifier: ~13.10.5
         version: 13.10.6(expo@50.0.21(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13))
+      expo-background-fetch:
+        specifier: ~11.8.1
+        version: 11.8.1(expo@50.0.21(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13))
       expo-battery:
         specifier: ^7.7.2
         version: 7.7.2(expo@50.0.21(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13))
@@ -1422,6 +1425,9 @@ importers:
       sqlocal:
         specifier: ^0.11.1
         version: 0.11.1(drizzle-orm@0.36.1(patch_hash=xsaqr5xw2o32aqzxbhk66ypryy)(@op-engineering/op-sqlite@11.2.4(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.9)(@types/react@18.2.55)(better-sqlite3@9.4.5)(react@18.2.0))
+      tamagui:
+        specifier: ~1.112.12
+        version: 1.112.12(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react-native@0.73.9(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       zustand:
         specifier: ^3.7.2
         version: 3.7.2(react@18.2.0)
@@ -4209,9 +4215,6 @@ packages:
     peerDependencies:
       react: '>=16.8.0'
       react-dom: '>=16.8.0'
-
-  '@floating-ui/utils@0.2.3':
-    resolution: {integrity: sha512-XGndio0l5/Gvd6CLIABvsav9HHezgDFFhDfHk1bvLfr9ni8dojqLSvBbotJEjmIwNHL7vK4QzBJTdBRoB+c1ww==}
 
   '@floating-ui/utils@0.2.8':
     resolution: {integrity: sha512-kym7SodPp8/wloecOpcmSnWJsK7M0E5Wg8UcFA+uO4B9s5d0ywXOEro/8HM9x0rW+TljRzul/14UYz3TleT3ig==}
@@ -8783,6 +8786,11 @@ packages:
 
   expo-av@13.10.6:
     resolution: {integrity: sha512-h3c1fg5yhWnP0RIGO+fhgPx6cmh4B4lnKdXR2i69aC3vs5D5Cu+JlzBon1gLIu6eUo2IVfC0RjSLpfQbcJ4doQ==}
+    peerDependencies:
+      expo: '*'
+
+  expo-background-fetch@11.8.1:
+    resolution: {integrity: sha512-WkWgj1RZsBjIt/J2HvYhfNi+8WEM6vEptuUj6r/vW9w+kXzDo5z/+pkr7YnPgQIhc4P7Z/j7TlM43azUpIEFZA==}
     peerDependencies:
       expo: '*'
 
@@ -13392,8 +13400,8 @@ packages:
     resolution: {integrity: sha512-6t3foTQI9qne+OZoVQB/8x8rk2k1eVy1gRXhV3oFQ5T6R1dqQ1xtin3XqSlx3+ATBkliTaR/hHyJBm+LVPNM8w==}
     engines: {node: '>=4'}
 
-  unimodules-app-loader@4.5.0:
-    resolution: {integrity: sha512-q/Xug4K6/20876Xac+tjOLOOAeHEu2zF66LNN/5c8EV4WPEe/+RYZEljN/woQt17KPIB2eyel9dc+d6qUMjUOg==}
+  unimodules-app-loader@4.5.1:
+    resolution: {integrity: sha512-yQAsoL0jsCjld1C/iWS4tB5a6LZTb8+enZ9mpt9t9zHYw7YZgeInmW7yz5QZAgVE93ZMPN3SudZHWiXGuD4Wfg==}
 
   unique-filename@1.1.1:
     resolution: {integrity: sha512-Vmp0jIp2ln35UTXuryvjzkjGdRyf9b2lTXuSYUiPmzRcl3FDtYqAwOnTJkAngD9SWhnoJzDbTKwaOrZ+STtxNQ==}
@@ -18451,7 +18459,7 @@ snapshots:
 
   '@floating-ui/core@1.6.0':
     dependencies:
-      '@floating-ui/utils': 0.2.3
+      '@floating-ui/utils': 0.2.8
 
   '@floating-ui/dom@0.5.4':
     dependencies:
@@ -18460,7 +18468,7 @@ snapshots:
   '@floating-ui/dom@1.6.3':
     dependencies:
       '@floating-ui/core': 1.6.0
-      '@floating-ui/utils': 0.2.3
+      '@floating-ui/utils': 0.2.8
 
   '@floating-ui/react-dom@0.7.2(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)':
     dependencies:
@@ -18496,8 +18504,6 @@ snapshots:
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       tabbable: 6.2.0
-
-  '@floating-ui/utils@0.2.3': {}
 
   '@floating-ui/utils@0.2.8': {}
 
@@ -25204,6 +25210,11 @@ snapshots:
     dependencies:
       expo: 50.0.21(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2)))(encoding@0.1.13)
 
+  expo-background-fetch@11.8.1(expo@50.0.21(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13)):
+    dependencies:
+      expo: 50.0.21(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13)
+      expo-task-manager: 11.7.3(expo@50.0.21(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13))
+
   expo-battery@7.7.2(expo@50.0.21(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13)):
     dependencies:
       expo: 50.0.21(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13)
@@ -25428,7 +25439,7 @@ snapshots:
   expo-task-manager@11.7.3(expo@50.0.21(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13)):
     dependencies:
       expo: 50.0.21(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13)
-      unimodules-app-loader: 4.5.0
+      unimodules-app-loader: 4.5.1
 
   expo-updates-interface@0.15.3(expo@50.0.21(@babel/core@7.25.2)(@react-native/babel-preset@0.73.21(@babel/core@7.25.2)(@babel/preset-env@7.23.7(@babel/core@7.25.2)))(encoding@0.1.13)):
     dependencies:
@@ -31223,7 +31234,7 @@ snapshots:
 
   unicode-property-aliases-ecmascript@2.1.0: {}
 
-  unimodules-app-loader@4.5.0: {}
+  unimodules-app-loader@4.5.1: {}
 
   unique-filename@1.1.1:
     dependencies:
