@@ -234,6 +234,23 @@
           profile
       ==
     ``ui-init-5+!>(init)
+  ::
+      [%x %v6 %init ~]
+    =+  .^([=groups-ui:v5:g =gangs:v6:g] (scry %gx %groups /v3/init/noun))
+    =+  .^(=channel-0:u (scry %gx %channels /v3/init/noun))
+    =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
+    =+  .^(=activity:a (scry %gx %activity /v4/activity/noun))
+    =+  .^(profile=? (scry %gx %profile /bound/loob))
+    =/  init=init-6:u
+      :*  groups-ui
+          gangs
+          channel-0
+          activity
+          pins
+          chat
+          profile
+      ==
+    ``ui-init-6+!>(init)
   ==
 ::
 ++  poke
