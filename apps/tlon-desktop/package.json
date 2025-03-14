@@ -46,6 +46,7 @@
     },
     "files": [
       "build/**/*",
+      "resources/**/*",
       "electron-store-wrapper.cjs"
     ],
     "extraResources": [
@@ -61,6 +62,9 @@
       "category": "public.app-category.social-networking",
       "darkModeSupport": true,
       "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "resources/entitlements.mac.plist",
+      "entitlementsInherit": "resources/entitlements.mac.plist",
       "target": [
         {
           "target": "dmg",
