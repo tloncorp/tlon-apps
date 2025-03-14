@@ -133,7 +133,13 @@ jobs:
         working-directory: apps/tlon-desktop
         run: pnpm run flatten-deps
       
-      # Run platform-specific electron-builder
+      # Install electron-notarize package
+      - name: Install @electron/notarize
+        if: matrix.os == 'macos-latest'
+        working-directory: apps/tlon-desktop
+        run: pnpm add @electron/notarize -D
+      
+      # Run platform-specific electron-builder with built-in notarization
       - name: Build Platform Package
         working-directory: apps/tlon-desktop
         env:
@@ -144,18 +150,6 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ matrix.os == 'macos-latest' && secrets.APPLE_ID_PASSWORD || '' }}
           APPLE_TEAM_ID: ${{ matrix.os == 'macos-latest' && secrets.APPLE_TEAM_ID || '' }}
         run: npx electron-builder ${{ matrix.build_flag }}
-        
-      # Notarize macOS app
-      - name: Notarize macOS App
-        if: matrix.os == 'macos-latest'
-        working-directory: apps/tlon-desktop
-        env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_APP_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-        run: |
-          echo "Notarizing macOS application..."
-          xcrun notarytool submit dist/*.dmg --apple-id "$APPLE_ID" --password "$APPLE_APP_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
 
       # Prepare artifacts with proper names
       - name: Prepare Artifacts
