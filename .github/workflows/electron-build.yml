@@ -50,13 +50,6 @@ jobs:
             echo "ERROR: Main process file is missing! Build may have failed."
             exit 1
           fi
-      
-      - name: Verify Build Files
-        run: |
-          echo "Checking for main process file..."
-          ls -la apps/tlon-desktop/build/main/ || echo "Main process files missing!"
-          echo "Checking for web app files..."
-          ls -la apps/tlon-web-new/dist/ || echo "Web app files missing!"
         
       # Upload common build artifacts with explicit paths
       - name: Upload Common Build Artifacts
@@ -120,14 +113,6 @@ jobs:
           name: common-build-artifacts
           path: apps
           
-      # Debug file structure to help troubleshoot
-      - name: Debug File Structure
-        run: |
-          echo "Checking download structure:"
-          ls -la apps/tlon-desktop/build/main/ || echo "Main process files missing after download!"
-          ls -la apps/tlon-web-new/dist/ || echo "Web app files missing after download!"
-          find apps -type f | grep -E 'index.js|\.html' | head -20
-
       # Extract version from tag 
       - name: Extract Version
         id: extract_version
@@ -146,16 +131,8 @@ jobs:
       # Ensure correct file structure before building
       - name: Ensure Correct Directory Structure
         run: |
-          # Make sure electron-builder can find all needed files
-          echo "Ensuring correct file structure..."
           mkdir -p apps/tlon-desktop/build/main
           mkdir -p apps/tlon-web-new/dist
-          
-          # List what we have to debug
-          echo "Current build directory contents:"
-          find apps/tlon-desktop/build -type f | sort
-          echo "Current web directory contents:"
-          find apps/tlon-web-new/dist -type f | sort || echo "No web app files found"
           
       # Flatten dependencies before platform-specific build
       - name: Flatten Dependencies
