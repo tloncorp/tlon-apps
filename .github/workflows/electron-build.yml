@@ -72,7 +72,7 @@ jobs:
         os: [macos-latest, windows-latest, ubuntu-latest]
         include:
           - os: macos-latest
-            build_flag: --mac --universal --config.mac.identity=null
+            build_flag: --mac --universal
             artifact_name: tlon-messenger-mac-universal
           - os: windows-latest
             build_flag: --win
@@ -146,10 +146,11 @@ jobs:
         env:
           # Explicitly disable code signing and notarization
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          CSC_IDENTITY: ""
           NOTARIZE: "false"
           ELECTRON_BUILDER_SIGN: "false"
           USE_HARD_LINKS: "false"
-        run: npx electron-builder ${{ matrix.build_flag }} --config.mac.identity=null
+        run: npx electron-builder ${{ matrix.build_flag }}
 
       # Prepare artifacts with proper names
       - name: Prepare Artifacts
