@@ -88,15 +88,15 @@
   ++  well-known  '/.well-known/urbit/tlon/verify'
   --
 ::
-+$  allowance         ::  remaining "request token" balance
-  $:  since=@da       ::  time of last request
-      phone=_5        ::  remaining text msgs
-      photp=_5        ::  remaining otp submission attempts
-      tweet=_3        ::  remaining tweet verification attempts
-      fetch=_5        ::  remaining website challenge fetches
-      queries=_100    ::  remaining queries
-      batch=_1.000    ::  remaining new %whose-bulk entries
-      last-batch=@ux  ::  previous batch set salted hash
++$  allowance              ::  remaining "request token" balance
+  $:  since=@da            ::  time of last request
+      phone=$~(5 @ud)      ::  remaining text msgs
+      photp=$~(5 @ud)      ::  remaining otp submission attempts
+      tweet=$~(3 @ud)      ::  remaining tweet verification attempts
+      fetch=$~(5 @ud)      ::  remaining website challenge fetches
+      queries=$~(100 @ud)  ::  remaining queries
+      batch=$~(1.000 @ud)  ::  remaining new %whose-bulk entries
+      last-batch=@ux       ::  previous batch set salted hash
   ==
 ++  rates  ::REVIEW
   |%
