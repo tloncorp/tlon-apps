@@ -15,17 +15,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: false 
+
       - name: Setup Node.js environment
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-
-      - name: Setup PNPM
-        uses: pnpm/action-setup@v3
-        with:
-          run_install: |
-            - recursive: true
-              args: [--frozen-lockfile]
+          cache: 'pnpm'
+      
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
 
       # Extract version from tag 
       - name: Extract Version
@@ -50,7 +52,11 @@ jobs:
             echo "ERROR: Main process file is missing! Build may have failed."
             exit 1
           fi
-        
+
+      - name: Flatten Dependencies
+        working-directory: apps/tlon-desktop
+        run: pnpm run flatten-deps
+
       # Upload common build artifacts with explicit paths
       - name: Upload Common Build Artifacts
         uses: actions/upload-artifact@v4
@@ -59,6 +65,7 @@ jobs:
           path: |
             apps/tlon-desktop/build/
             apps/tlon-desktop/resources/
+            apps/tlon-desktop/node_modules/
             apps/tlon-web-new/dist/
           retention-days: 1
 
@@ -87,17 +94,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: false
+
       - name: Setup Node.js environment
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
+          cache: 'pnpm'
 
-      - name: Setup PNPM
-        uses: pnpm/action-setup@v3
-        with:
-          run_install: |
-            - recursive: true
-              args: [--frozen-lockfile]
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
 
       # Linux dependencies for Electron
       - name: Install Linux dependencies
@@ -128,11 +137,6 @@ jobs:
       #     p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
       #     keychain-password: ${{ github.run_id }}
           
-      # Flatten dependencies before platform-specific build
-      - name: Flatten Dependencies
-        working-directory: apps/tlon-desktop
-        run: pnpm run flatten-deps
-      
       # Install electron-notarize package - re-enable when we have a Developer ID Application certificate
       # we'll also need to add the `afterSign` hook to electron-builder config in package.json
       # - name: Install @electron/notarize
