@@ -33,16 +33,40 @@ jobs:
         shell: bash
         run: echo "VERSION=${GITHUB_REF#refs/tags/desktop-v}" >> $GITHUB_OUTPUT
 
-      # Build dependent packages first, then desktop-specific steps
-      - name: Build Packages and Desktop
-        run: pnpm run build:desktop
+      # Build steps explicitly broken down for better visibility
+      - name: Build Dependent Packages
+        run: pnpm run build:packages
         
-      # Upload common build artifacts
+      - name: Build Web App for Electron
+        run: pnpm --filter 'tlon-web-new' build:electron
+        
+      - name: Build Electron TypeScript
+        run: pnpm --filter 'tlon-desktop' build:ts
+        
+      # Ensure the main process file exists - this is critical
+      - name: Verify Main Process File
+        run: |
+          if [ ! -f "apps/tlon-desktop/build/main/index.js" ]; then
+            echo "ERROR: Main process file is missing! Build may have failed."
+            exit 1
+          fi
+      
+      - name: Verify Build Files
+        run: |
+          echo "Checking for main process file..."
+          ls -la apps/tlon-desktop/build/main/ || echo "Main process files missing!"
+          echo "Checking for web app files..."
+          ls -la apps/tlon-web-new/dist/ || echo "Web app files missing!"
+        
+      # Upload common build artifacts with explicit paths
       - name: Upload Common Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: common-build-artifacts
-          path: apps/
+          path: |
+            apps/tlon-desktop/build/
+            apps/tlon-desktop/resources/
+            apps/tlon-web-new/dist/
           retention-days: 1
 
   build:
@@ -89,12 +113,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libxtst-dev libpng++-dev
 
-      # Download common build artifacts
+      # Download common build artifacts to correct paths
       - name: Download Common Build Artifacts
         uses: actions/download-artifact@v4
         with:
           name: common-build-artifacts
-          path: .
+          path: apps
+          
+      # Debug file structure to help troubleshoot
+      - name: Debug File Structure
+        run: |
+          echo "Checking download structure:"
+          ls -la apps/tlon-desktop/build/main/ || echo "Main process files missing after download!"
+          ls -la apps/tlon-web-new/dist/ || echo "Web app files missing after download!"
+          find apps -type f | grep -E 'index.js|\.html' | head -20
 
       # Extract version from tag 
       - name: Extract Version
@@ -110,6 +142,20 @@ jobs:
           p12-file-base64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
           p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           keychain-password: ${{ github.run_id }}
+          
+      # Ensure correct file structure before building
+      - name: Ensure Correct Directory Structure
+        run: |
+          # Make sure electron-builder can find all needed files
+          echo "Ensuring correct file structure..."
+          mkdir -p apps/tlon-desktop/build/main
+          mkdir -p apps/tlon-web-new/dist
+          
+          # List what we have to debug
+          echo "Current build directory contents:"
+          find apps/tlon-desktop/build -type f | sort
+          echo "Current web directory contents:"
+          find apps/tlon-web-new/dist -type f | sort || echo "No web app files found"
           
       # Flatten dependencies before platform-specific build
       - name: Flatten Dependencies
