@@ -209,7 +209,7 @@ jobs:
           draft: false  # Set to true if you want to review before publishing
           prerelease: false  # Set to true for pre-releases
           files: |
-            ./artifacts/**/*.dmg
-            ./artifacts/**/*.exe
-            ./artifacts/**/*.AppImage
+            ./artifacts/**/tlon-messenger-*.dmg
+            ./artifacts/**/tlon-messenger-*.exe
+            ./artifacts/**/tlon-messenger-*.AppImage
           generate_release_notes: true  # Automatically generate release notes from PRs
