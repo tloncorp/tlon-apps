@@ -22,7 +22,7 @@
 ++  default  ~mapryl-bolnub-palfun-foslup  ::TODO
 +$  state-0
   $:  %0
-      records=(map key id-state)                   ::  ours
+      records=(map key [=config why=@t =status])   ::  ours
       display=(map key ?(%full %half))             ::  on contacts profile
       ledgers=(map @p (unit @t))                   ::  services w/ base urls
       queries=(map @uv (each [q=question:l a=result:l] question:l))  ::  asked
@@ -69,7 +69,7 @@
 ::
 ++  inflate-contacts-profile
   |=  $:  [our=@p now=@da]
-          records=(map key id-state)
+          records=(map key [=config @t =status])
           display=(map key ?(%half %full))
           ledgers=(map @p (unit @t))
       ==
@@ -264,7 +264,7 @@
     ::  the revocation anyway.
     ::
     :_  =?  records  ?=(%start +<.cmd)
-          (~(put by records) key *config %wait ~)
+          (~(put by records) key *config 'starting' %wait ~)
         this
     ::NOTE  important to do setup before we poke, and important that the
     ::      /records subscription has the same wire as the below poke,
@@ -275,7 +275,7 @@
           [%verifier-user-command !>(`user-command`+.cmd)]
         [%pass /verifier %agent [host %verifier] %poke cage]
     ?.  ?=(%start +<.cmd)  ~
-    =/  upd=update:l  [%status key %wait ~]
+    =/  upd=update:l  [%status key 'starting' %wait ~]
     [%give %fact ~[/ /records] %lanyard-update !>(upd)]~
   ::
       %lanyard-query
@@ -413,7 +413,10 @@
           (my (skip ~(tap by records) |*(* =(+<-< host))))
         =/  new=_records
           %-  malt  ::NOTE  +my doesn't work lol
-          (turn ~(tap by all.upd) |*(* +<(- [host +<-])))
+          %+  turn  ~(tap by all.upd)
+          |=  [id=identifier id-state]
+          :-  [host id]
+          [config '' status]  ::NOTE  only scenario where .why is empty string
         =.  records  (~(uni by records) new)
         :_  this
         :_  (drop (inflate-contacts-profile [our now]:bowl records display ledgers))
@@ -432,7 +435,7 @@
           %status
         =*  key  [host id.upd]
         =.  records
-          =+  rec=(~(gut by records) key *id-state)
+          =+  rec=(~(gut by records) key *[=config why=@t =status])
           ?:  ?=(%gone -.status.upd)  (~(del by records) key)
           (~(put by records) key rec(status status.upd))
         =?  display  ?=(%gone -.status.upd)
@@ -542,7 +545,7 @@
     =,  enjs:format
     :-  %a
     %+  turn  ~(tap by records)
-    |=  [[h=@p id=identifier] id-state]
+    |=  [[h=@p id=identifier] =config why=@t =status]
     ^-  json
     %-  pairs
     :~  :-  'identifier'
@@ -559,6 +562,7 @@
         %-  pairs
         :~  'config'^[%o 'discoverable'^s+discoverable.config ~ ~]
             'status'^[%s -.status]
+            'why'^[%s why]
         ==
     ==
   ::

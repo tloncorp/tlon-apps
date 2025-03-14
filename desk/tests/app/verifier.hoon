@@ -197,7 +197,7 @@
     (user-does ~nec %start id)
   ;<  ~  bind:m
     %+  ex-cards  cas
-    :~  (ex-verifier-update ~nec %status id %wait ~)
+    :~  (ex-verifier-update ~nec %status id 'awaiting manual approval' %wait ~)
       ::
         %+  ex-arvo  /expire/dummy/(scot %t 'test')/(scot %da ~2000.1.2)
         [%b %wait (add ~2000.1.2 attempt-timeout)]
@@ -217,7 +217,7 @@
       (host-does %dummy +.id %grant)
     ;<  ~  bind:m
       ::TODO  don't test signature value, test whether it matches pubkey
-      (ex-cards cas (ex-verifier-update ~nec %status id %done at) ~)
+      (ex-cards cas (ex-verifier-update ~nec %status id 'registration completed' %done at) ~)
     ::TODO  check scry (not state, that's too direct for tests. should test api)
     ::      (right??)
     ;<  ~  bind:m
@@ -229,7 +229,7 @@
     ;<  cas=(list card)  bind:m
       (host-does %dummy +.id %reject)
     ;<  ~  bind:m
-      (ex-cards cas (ex-verifier-update ~nec %status id %gone 'revoked') ~)
+      (ex-cards cas (ex-verifier-update ~nec %status id 'revoked' %gone ~) ~)
     ::TODO  check that you can make another attempt?
     (pure:m ~)
   --
@@ -250,7 +250,7 @@
     (user-does ~nec %start id)
   ;<  ~  bind:m
     %+  ex-cards  cas
-    :~  (ex-verifier-update ~nec %status id %want %urbit 620.187)
+    :~  (ex-verifier-update ~nec %status id 'prove ownership' %want %urbit 620.187)
       ::
         %+  ex-arvo  /expire/urbit/(scot %p ~bud)/(scot %da ~2000.1.2)
         [%b %wait (add ~2000.1.2 attempt-timeout)]
@@ -270,7 +270,7 @@
     ;<  ~  bind:m
       ::TODO  don't test signature value, test whether it matches pubkey
       %+  ex-cards  cas
-      [(ex-verifier-update ~nec %status id %done at)]~
+      [(ex-verifier-update ~nec %status id 'registration completed' %done at)]~
     ;<  ~  bind:m  (ex-scry-result /u/attestations/(scot %ux sig.full.at) !>(&))
     ;<  ~  bind:m
       ::TODO  test via scries instead?
@@ -316,7 +316,7 @@
     (user-does ~nec %start id)
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-verifier-update ~nec %status id %wait ~)
+    :~  (ex-verifier-update ~nec %status id 'checking number' %wait ~)
       ::
         %+  ex-arvo  /expire/phone/(scot %t nr)/(scot %da ~2000.1.2)
         [%b %wait (add ~2000.1.2 attempt-timeout)]
@@ -420,14 +420,14 @@
       ;<  caz=(list card)  bind:m
         (do-phone-api-res (snoc wir %verify) [200 ~])
       ;<  ~  bind:m
-        (ex-cards caz (ex-verifier-update ~nec %status id %want %phone %otp) ~)
+        (ex-cards caz (ex-verifier-update ~nec %status id 'submit otp' %want %phone %otp) ~)
       ::  user submits the otp code they received
       ::
       ;<  caz=(list card)  bind:m
         (user-does ~nec %work id %phone '333777')
       ;<  ~  bind:m
         %+  ex-cards  caz
-        :~  (ex-verifier-update ~nec %status id %wait ~)
+        :~  (ex-verifier-update ~nec %status id 'checking otp' %wait ~)
           ::
             %+  ex-phone-api-req  (snoc wir %submit)
             [%'PATCH' '/verify' `'{"otp":"333777","phoneNumber":"+123456789"}']
@@ -442,7 +442,7 @@
         ;<  caz=(list card)  bind:m
           (do-arvo (snoc wir %submit) %iris %http-response %cancel ~)
         %+  ex-cards  caz  :_  ~
-        (ex-verifier-update ~nec %status id %want %phone %otp)
+        (ex-verifier-update ~nec %status id 'service error, try again' %want %phone %otp)
       ::
       ++  otp-bad
         ::  if the otp code is wrong, should update status to ask for a retry
@@ -450,7 +450,7 @@
         ;<  caz=(list card)  bind:m
           %+  do-phone-api-res  (snoc wir %submit)
           [400 `'{"message":"Invalid or expired OTP."}']
-        (ex-cards caz (ex-verifier-update ~nec %status id %want %phone %otp) ~)
+        (ex-cards caz (ex-verifier-update ~nec %status id 'invalid otp, try again' %want %phone %otp) ~)
         ::TODO  limit failed attempts? time registration attempt out after a while?
       ::
       ++  otp-good
@@ -465,7 +465,7 @@
     |=  caz=(list card)
     ;<  ~  bind:m
       %+  ex-cards  caz
-      [(ex-verifier-update ~nec %status id %gone 'service error')]~
+      [(ex-verifier-update ~nec %status id 'service error' %gone ~)]~
     ::TODO  test via scries instead?
     ;<  =state:v  bind:m  get-state
     %-  branch
@@ -479,7 +479,7 @@
     ;<  ~  bind:m
       ::TODO  don't test signature value, test whether it matches pubkey
       %+  ex-cards  caz
-      [(ex-verifier-update ~nec %status id %done at)]~
+      [(ex-verifier-update ~nec %status id 'registration completed' %done at)]~
     ::TODO  test via scries instead?
     ;<  =state:v  bind:m  get-state
     %-  branch
@@ -521,7 +521,7 @@
     (user-does ~nec %start id)
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-verifier-update ~nec %status id want-status)
+    :~  (ex-verifier-update ~nec %status id 'prove ownership' want-status)
       ::
         %+  ex-arvo  /expire/twitter/(scot %t handle)/(scot %da ~2000.1.2)
         [%b %wait (add ~2000.1.2 attempt-timeout)]
@@ -533,7 +533,7 @@
     (user-does ~nec %work id %twitter %post pid)
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-verifier-update ~nec %status id %wait ~ want-status)
+    :~  (ex-verifier-update ~nec %status id 'checking tweet' %wait ~ want-status)
       ::
         %+  ex-http-request  req-wire
         :+  %'GET'
@@ -562,6 +562,8 @@
           'bad response'^bad-response
           'bad handle'^bad-handle
           'bad tweet'^bad-tweet
+          'bad nonce'^bad-nonce
+          'bad sign'^bad-sign
           ::TODO  good sig but incorrect author
           'good'^good
       ==
@@ -580,12 +582,12 @@
   ++  api-rate-limited
     ;<  caz=(list card)  bind:m
       (do-twitter-api-res 429 'whatever')
-    (held caz)
+    ((held %rate-limited) caz)
   ::
   ++  tweet-not-found
     ;<  caz=(list card)  bind:m
       (do-twitter-api-res 404 'whatever')
-    (held caz)
+    ((held %not-found) caz)
   ::
   ++  tweet-protected
     ;<  caz=(list card)  bind:m
@@ -602,7 +604,7 @@
         "type": "https://api.twitter.com/2/problems/not-authorized-for-resource"
       } ] }
       '''
-    (held caz)
+    ((held %protected) caz)
   ::
   ++  bad-response
     ;<  caz=(list card)  bind:m
@@ -612,7 +614,7 @@
   ++  bad-handle
     ;<  caz=(list card)  bind:m
       (do-twitter-api-res 200 (make-tweet-json(handle 'miss') good-blob))
-    (held caz)
+    ((held %bad-handle) caz)
   ::
   ++  bad-tweet
     %+  (merge (list card))
@@ -625,19 +627,29 @@
           :-  'jam of malformed noun'
           'Some tweet with a strange jam inside of it: T90NUtJXZPn4LOOCSLFc4LZCt~f5rg6Qb68ENinuw~E0w1D-7yR6CANHrdc3H0113-c0sjYJVJ-6s~DKGxS1u1DpfDe2RHWIy4K7DPigDTe8MoY~TpCPrqSnaX-A6wdUP-f0201VcHIOKz2Qe~U1'
         ::
-          :-  'jam containing invalid signature'
-          'Some tweet with a poorly-signed jam inside of it: 1V~uNyQNNIYok850~oo77-S177wZJ5eL~y~FyxzmAUrd0S~rL6thrzjpOHJudFxLOKlYSQg0INhflFfGwDic3h~U0j-LZU083sTJbEMKjuUejuNJPuSeCY0pVcHEWdbKWnw5NN'
-        ::
           :-  'jam packed too tight with other text'
           (cat 3 good-blob 'conjoining')
-        ::
-          :-  'jam signed with the wrong nonce'
-          %-  crip  %-  (w-co:co 1)  %-  jam
-          ^-  payload:twitter:v
-          %+  faux-sign  ~nec
-          [%twitter %0 handle 0xdead.dead]
       ==
-    held
+    (held %bad-tweet)
+  ::
+  ++  bad-sign
+    ;<  caz=(list card)  bind:m
+      ::  'jam containing invalid signature'
+      %+  do-twitter-api-res  200
+      %-  make-tweet-json
+      'Some tweet with a poorly-signed jam inside of it: 1V~uNyQNNIYok850~oo77-S177wZJ5eL~y~FyxzmAUrd0S~rL6thrzjpOHJudFxLOKlYSQg0INhflFfGwDic3h~U0j-LZU083sTJbEMKjuUejuNJPuSeCY0pVcHEWdbKWnw5NN'
+    ((held %bad-sign) caz)
+  ::
+  ++  bad-nonce
+    ;<  caz=(list card)  bind:m
+      ::  'jam signed with the wrong nonce'
+      %+  do-twitter-api-res  200
+      %-  make-tweet-json
+      %-  crip  %-  (w-co:co 1)  %-  jam
+      ^-  payload:twitter:v
+      %+  faux-sign  ~nec
+      [%twitter %0 handle 0xdead.dead]
+    ((held %bad-nonce) caz)
   ::
   ++  good
     %+  (merge (list card))
@@ -697,10 +709,11 @@
     ==
   ::
   ++  held
+    |=  why=@t
     |=  caz=(list card)
     ;<  ~  bind:m
       %+  ex-cards  caz
-      [(ex-verifier-update ~nec %status id want-status)]~
+      [(ex-verifier-update ~nec %status id (cat 3 'tweet rejected, try again: ' why) want-status)]~
     ;<  =state:v  bind:m  get-state
     (ex-equal !>((~(has by records.state) id)) !>(&))
   ::
@@ -708,7 +721,7 @@
     |=  caz=(list card)
     ;<  ~  bind:m
       %+  ex-cards  caz
-      [(ex-verifier-update ~nec %status id %gone 'service error')]~
+      [(ex-verifier-update ~nec %status id 'service error' %gone ~)]~
     ::TODO  test via scries instead?
     ;<  =state:v  bind:m  get-state
     %-  branch
@@ -722,7 +735,7 @@
     ;<  ~  bind:m
       ::TODO  don't test signature value, test whether it matches pubkey
       %+  ex-cards  caz
-      [(ex-verifier-update ~nec %status id %done at)]~
+      [(ex-verifier-update ~nec %status id 'registration completed' %done at)]~
     ::TODO  test via scries instead?
     ;<  =state:v  bind:m  get-state
     ;<  ~  bind:m
@@ -777,7 +790,7 @@
   ;<  caz=(list card)  bind:m  (user-does ~fed %start id)
   ;<  ~  bind:m
     %+  ex-cards  caz
-    [(ex-verifier-update ~fed %status id %gone 'already registered')]~
+    [(ex-verifier-update ~fed %status id 'already registered' %gone ~)]~
   (pure:m ~)
 ::
 ++  test-config
@@ -810,7 +823,7 @@
   ;<  cas=(list card)  bind:m  (user-does ~nec %revoke id)
   ;<  ~  bind:m
     %+  ex-cards  cas
-    [(ex-verifier-update ~nec %status id %gone 'revoked')]~
+    [(ex-verifier-update ~nec %status id 'revoked' %gone ~)]~
   ;<  ~  bind:m
     ::TODO  test via scries instead?
     ;<  =state:v  bind:m  get-state
@@ -832,7 +845,7 @@
     (do-arvo /expire/[-.id]/(scot %t +.id)/(scot %da ~2000.1.2) %behn %wake ~)
   ;<  ~  bind:m
     %+  ex-cards  caz
-    [(ex-verifier-update ~nec %status id %gone 'registration timed out')]~
+    [(ex-verifier-update ~nec %status id 'registration timed out' %gone ~)]~
   ;<  ~  bind:m
     ::TODO  test via scries instead?
     ;<  =state:v  bind:m  get-state

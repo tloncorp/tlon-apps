@@ -70,9 +70,9 @@
   [%give %fact ~[/records/(scot %p for)] %verifier-update !>(upd)]
 ::
 ++  give-status
-  |=  [for=@p id=identifier status=$%([%gone why=@t] status)]
+  |=  [for=@p id=identifier why=@t status=$%([%gone ~] status)]
   ^-  card
-  (give-update for %status id status)
+  (give-update for %status id why status)
 ::
 ++  give-config
   |=  [for=@p id=identifier =config]
@@ -268,7 +268,7 @@
   =.  rec  ?^(rec rec (~(get by records) id))
   ?~  rec  [~ state]
   %-  (~(tell l our.bowl `for.u.rec `-.id) %info ['registration revoked']~)
-  :-  [(give-status for.u.rec id %gone why)]~
+  :-  [(give-status for.u.rec id why %gone ~)]~
   =?  attested  ?=(%done -.status.u.rec)
     %.  sig.full.status.u.rec
     %~  del  by
@@ -292,7 +292,7 @@
     (attest [our now]:bowl for.rec id proof)
   =.  status.rec  [%done tat]
   %-  (~(tell l our.bowl `for.rec `-.id) %info ['registration completed']~)
-  :-  [(give-status for.rec id status.rec)]~
+  :-  [(give-status for.rec id 'registration completed' status.rec)]~
   %_  state
     records   (~(put by records) id rec)
     attested  (~(gas by attested) sig.half.tat^id sig.full.tat^id ~)
@@ -489,17 +489,21 @@
         ::  can't register something for which a record already exists,
         ::  but we do want to notify the user of this.
         ::
-        [[(give-status src.bowl id.cmd %gone 'already registered')]~ this]
-      =/  =status
+        [[(give-status src.bowl id.cmd 'already registered' %gone ~)]~ this]
+      =/  [why=@t =status]
         ?-  -.id.cmd
-          %dummy    [%wait ~]
-          %urbit    [%want %urbit (~(rad og eny.bowl) 1.000.000)]
-          %phone    ?<  =(['' '' ~] phone-api)
+          %dummy    :-  'awaiting manual approval'
                     [%wait ~]
+          %urbit    :-  'prove ownership'
+                    [%want %urbit (~(rad og eny.bowl) 1.000.000)]
+          %phone    ?<  =(['' '' ~] phone-api)
+                    ['checking number' %wait ~]
           %twitter  ?<  =('' twitter-api)
                     ?>  =(+.id.cmd (crip (cass (trip +.id.cmd))))
+                    :-  'prove ownership'
                     [%want %twitter %post (end 5 (shas %twitter eny.bowl))]
           %website  ?>  ?=([@ @ *] +.id.cmd)  ::NOTE  at least second-level
+                    :-  'prove ownership'
                     [%want %website %sign (end 5 (shas %website eny.bowl))]
         ==
       =.  records
@@ -514,7 +518,7 @@
         lim(phone (dec phone.lim))
       %-  (tell:l %info 'started registration' ~)
       :_  this
-      :+  (give-status src.bowl id.cmd status)
+      :+  (give-status src.bowl id.cmd why status)
         :+  %pass  [%expire (snoc (id-wire id.cmd) (scot %da now.bowl))]
         [%arvo %b %wait (add now.bowl attempt-timeout)]
       ?.  ?=(%phone -.id.cmd)  ~
@@ -566,7 +570,7 @@
           lim(photp (dec photp.lim))
         =.  status.rec  [%wait ~]
         :_  this(records (~(put by records) id rec))
-        :~  (give-status src.bowl id status.rec)
+        :~  (give-status src.bowl id 'checking otp' status.rec)
             (req-api:phone +.id %submit otp.work.cmd)
         ==
       ::
@@ -582,7 +586,7 @@
           lim(tweet (dec tweet.lim))
         =.  status.rec  [%wait `status.rec]
         :_  this(records (~(put by records) id rec))
-        :~  (give-status src.bowl id status.rec)
+        :~  (give-status src.bowl id 'checking tweet' status.rec)
             (req-post:twitter +.id id.work.cmd)
         ==
       ::
@@ -598,7 +602,7 @@
           lim(fetch (dec fetch.lim))
         =.  status.rec  [%wait `status.rec]
         :_  this(records (~(put by records) id rec))
-        :~  (give-status src.bowl id status.rec)
+        :~  (give-status src.bowl id 'checking proof' status.rec)
             (req-challenge:website +.id)
         ==
       ==
@@ -824,11 +828,12 @@
           err-msg
       ==
     =/  failed-otp=?  |
+    =/  why=@t  'submit otp'
     =*  want-otp
       =.  status.u.rec  [%want %phone %otp]
       %-  ?.  failed-otp  same
           (tell:l %info 'phone otp rejected' ~)
-      :-  [(give-status for.u.rec id status.u.rec)]~
+      :-  [(give-status for.u.rec id why status.u.rec)]~
       this(records (~(put by records) id u.rec))
     ::  %progress responses are unexpected, the runtime doesn't support them
     ::  right now. if they occur, just treat them as cancels and retry.
@@ -854,6 +859,7 @@
         ::  we don't store the otp from the user command, so can't retry.
         ::  treat this as failure, make the user re-submit.
         ::
+        =.  why  'service error, try again'
         want-otp
       ==
     ?>  ?=(%finished -.res)
@@ -901,6 +907,7 @@
         abort
       ::  otp text got sent, ask the user to submit the code
       ::
+      =.  why  'submit otp'
       want-otp
     ::
         %submit
@@ -911,6 +918,7 @@
       ::TODO  limit attempts?
       ::
       =.  failed-otp  &
+      =.  why  'invalid otp, try again'
       want-otp
     ==
   ::
@@ -959,7 +967,8 @@
       %-  (tell:l %info (cat 3 'twitter verification rejected with result %' result) ~)
       ::TODO  include msg in the status?
       =.  status.u.rec  u.pre.status
-      :-  [(give-status for.u.rec id status.u.rec)]~
+      =/  why=@t  (cat 3 'tweet rejected, try again: ' result)
+      :-  [(give-status for.u.rec id why status.u.rec)]~
       this(records (~(put by records) id u.rec))
     ::TODO  auto-retry when rate-limited? response contains x-rate-limit-reset
     ::      header which has a unix timestamp, so we could get tight here.
@@ -1034,7 +1043,8 @@
     ?.  ?=(%good result)
       %-  (tell:l %info (cat 3 'website verification rejected with result %' result) ~)
       =.  status.u.rec  u.pre.status
-      :-  [(give-status for.u.rec id status.u.rec)]~
+      =/  why=@t  (cat 3 'well-known rejected, try again: ' result)
+      :-  [(give-status for.u.rec id why status.u.rec)]~
       this(records (~(put by records) id u.rec))
     ::
     =/  link=@t  (make-link:website turf)

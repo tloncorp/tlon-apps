@@ -27,6 +27,7 @@
           'type'^s+-.id.upd
           'value'^s+(value id.upd)
           'status'^s+(status status.upd)
+          'why'^s+why.upd
         ::
           ?.  ?=(%gone -.status.upd)  ~
           ['gone' s+why.status.upd]~
