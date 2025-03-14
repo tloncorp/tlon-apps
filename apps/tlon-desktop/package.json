@@ -62,7 +62,7 @@
     "mac": {
       "category": "public.app-category.social-networking",
       "darkModeSupport": true,
-      "hardenedRuntime": true,
+      "hardenedRuntime": false,
       "gatekeeperAssess": false,
       "entitlements": "resources/entitlements.mac.plist",
       "entitlementsInherit": "resources/entitlements.mac.plist",
