@@ -64,8 +64,9 @@
       "darkModeSupport": true,
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
-      "entitlements": "resources/entitlements.mac.plist",
-      "entitlementsInherit": "resources/entitlements.mac.plist",
+      "entitlements": null,
+      "entitlementsInherit": null,
+      "identity": null,
       "target": [
         {
           "target": "dmg",

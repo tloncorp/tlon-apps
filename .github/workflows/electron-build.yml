@@ -72,7 +72,7 @@ jobs:
         os: [macos-latest, windows-latest, ubuntu-latest]
         include:
           - os: macos-latest
-            build_flag: --mac --universal
+            build_flag: --mac --universal --config.mac.identity=null
             artifact_name: tlon-messenger-mac-universal
           - os: windows-latest
             build_flag: --win
@@ -119,14 +119,14 @@ jobs:
         shell: bash
         run: echo "VERSION=${GITHUB_REF#refs/tags/desktop-v}" >> $GITHUB_OUTPUT
 
-      # Import code signing certificates for macOS
-      - name: Import Code-Signing Certificates (macOS)
-        if: matrix.os == 'macos-latest'
-        uses: apple-actions/import-codesign-certs@v2
-        with:
-          p12-file-base64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
-          p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          keychain-password: ${{ github.run_id }}
+      # Code signing is disabled for now
+      # - name: Import Code-Signing Certificates (macOS)
+      #   if: matrix.os == 'macos-latest'
+      #   uses: apple-actions/import-codesign-certs@v2
+      #   with:
+      #     p12-file-base64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+      #     p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      #     keychain-password: ${{ github.run_id }}
           
       # Flatten dependencies before platform-specific build
       - name: Flatten Dependencies
@@ -140,18 +140,16 @@ jobs:
       #   working-directory: apps/tlon-desktop
       #   run: pnpm add @electron/notarize -D
       
-      # Run platform-specific electron-builder with built-in notarization
+      # Run platform-specific electron-builder with code signing & notarization disabled
       - name: Build Platform Package
         working-directory: apps/tlon-desktop
         env:
-          # Include Apple credentials when building on macOS
-          CSC_LINK: ${{ matrix.os == 'macos-latest' && secrets.APPLE_CERTIFICATE_BASE64 || '' }}
-          CSC_KEY_PASSWORD: ${{ matrix.os == 'macos-latest' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
-          APPLE_ID: ${{ matrix.os == 'macos-latest' && secrets.APPLE_ID || '' }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ matrix.os == 'macos-latest' && secrets.APPLE_ID_PASSWORD || '' }}
-          APPLE_TEAM_ID: ${{ matrix.os == 'macos-latest' && secrets.APPLE_TEAM_ID || '' }}
-          NOTARIZE: "false" # Set to true to enable notarization later when we get a Developer ID Application certificate
-        run: npx electron-builder ${{ matrix.build_flag }}
+          # Explicitly disable code signing and notarization
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          NOTARIZE: "false"
+          ELECTRON_BUILDER_SIGN: "false"
+          USE_HARD_LINKS: "false"
+        run: npx electron-builder ${{ matrix.build_flag }} --config.mac.identity=null
 
       # Prepare artifacts with proper names
       - name: Prepare Artifacts
