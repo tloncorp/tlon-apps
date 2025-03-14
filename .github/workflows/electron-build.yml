@@ -128,12 +128,6 @@ jobs:
           p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           keychain-password: ${{ github.run_id }}
           
-      # Ensure correct file structure before building
-      - name: Ensure Correct Directory Structure
-        run: |
-          mkdir -p apps/tlon-desktop/build/main
-          mkdir -p apps/tlon-web-new/dist
-          
       # Flatten dependencies before platform-specific build
       - name: Flatten Dependencies
         working-directory: apps/tlon-desktop
