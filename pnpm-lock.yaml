@@ -16,7 +16,6 @@ overrides:
   prosemirror-view: 1.33.4
   prosemirror-state: 1.4.3
   '@tiptap/pm': 2.6.6
-  node-abi: '3.74'
 
 patchedDependencies:
   '@10play/tentap-editor@0.4.55':

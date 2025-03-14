@@ -1,0 +1,168 @@
+name: Build and Release Electron App
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  prepare:
+    name: Prepare Common Build Artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: latest
+          run_install: false
+
+      # Install dependencies
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Extract version from tag
+      - name: Extract Version
+        id: extract_version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      # Run common build steps only once
+      - name: Run Common Build Steps
+        run: |
+          pnpm run build:ts
+          pnpm run build:web
+          pnpm run flatten-deps
+
+      # Upload common build artifacts
+      - name: Upload Common Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: common-build-artifacts
+          path: |
+            apps/tlon-desktop/build
+            apps/tlon-web-new/dist
+          retention-days: 1
+
+  build:
+    name: Build (${{ matrix.os }})
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+        include:
+          - os: macos-latest
+            build_flag: --mac --universal
+            artifact_name: tlon-messenger-mac-universal
+          - os: windows-latest
+            build_flag: --win
+            artifact_name: tlon-messenger-win-x64
+          - os: ubuntu-latest
+            build_flag: --linux
+            artifact_name: tlon-messenger-linux
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: latest
+          run_install: false
+
+      # Linux dependencies for Electron
+      - name: Install Linux dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxtst-dev libpng++-dev
+
+      # Install dependencies
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Download common build artifacts
+      - name: Download Common Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: common-build-artifacts
+          path: .
+
+      # Extract version from tag
+      - name: Extract Version
+        id: extract_version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      # Run platform-specific electron-builder only
+      - name: Build Platform Package
+        run: npx electron-builder ${{ matrix.build_flag }}
+
+      # Prepare artifacts with proper names
+      - name: Prepare Artifacts
+        shell: bash
+        run: |
+          mkdir -p ./artifacts
+          if [ "${{ matrix.os }}" == "macos-latest" ]; then
+            cp apps/tlon-desktop/dist/*.dmg ./artifacts/${{ matrix.artifact_name }}-${{ steps.extract_version.outputs.VERSION }}.dmg
+          elif [ "${{ matrix.os }}" == "windows-latest" ]; then
+            cp apps/tlon-desktop/dist/*.exe ./artifacts/${{ matrix.artifact_name }}-${{ steps.extract_version.outputs.VERSION }}.exe
+          elif [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+            cp apps/tlon-desktop/dist/*.AppImage ./artifacts/${{ matrix.artifact_name }}-${{ steps.extract_version.outputs.VERSION }}.AppImage
+          fi
+
+      # Upload artifacts to use in the release
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ./artifacts/*
+          retention-days: 5  # Short retention since we'll add to GitHub release
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Needed for creating releases
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Download all artifacts
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+          merge-multiple: true
+
+      # Create GitHub Release and upload assets
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Tlon Messenger v${{ github.ref_name }}
+          draft: false  # Set to true if you want to review before publishing
+          prerelease: false  # Set to true for pre-releases
+          files: ./artifacts/**/*
+          generate_release_notes: true  # Automatically generate release notes from PRs
