@@ -33,14 +33,10 @@ jobs:
         shell: bash
         run: echo "VERSION=${GITHUB_REF#refs/tags/desktop-v}" >> $GITHUB_OUTPUT
 
-      # Run common build steps only once
-      - name: Run Common Build Steps
-        working-directory: apps/tlon-desktop
-        run: |
-          pnpm run build:ts
-          pnpm run build:web
-          pnpm run flatten-deps
-
+      # Build dependent packages first, then desktop-specific steps
+      - name: Build Packages and Desktop
+        run: pnpm run build:desktop
+        
       # Upload common build artifacts
       - name: Upload Common Build Artifacts
         uses: actions/upload-artifact@v4

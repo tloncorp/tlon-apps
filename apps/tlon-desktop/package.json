@@ -13,6 +13,7 @@
     "watch:ts": "tsc -b tsconfig.json --watch",
     "build:ts": "tsc -b tsconfig.json",
     "flatten-deps": "node ./flatten-dependencies.js",
+    "build:prepare": "pnpm run build:ts && pnpm run build:web && pnpm run flatten-deps",
     "build": "pnpm run build:ts && pnpm run build:web && pnpm run flatten-deps && electron-builder",
     "build:mac": "pnpm run build:ts && pnpm run build:web && pnpm run flatten-deps && electron-builder --mac",
     "build:mac-universal": "pnpm run build:ts && pnpm run build:web && pnpm run flatten-deps && electron-builder --mac --universal",
