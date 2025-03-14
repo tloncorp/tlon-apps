@@ -15,21 +15,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
+      - name: Setup Node.js environment
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: .nvmrc
           cache: 'pnpm'
 
-      - name: Install pnpm
+      - name: Setup PNPM
         uses: pnpm/action-setup@v3
         with:
-          version: latest
-          run_install: false
-
-      # Install dependencies
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
 
       # Extract version from tag 
       - name: Extract Version
@@ -80,17 +77,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
+      - name: Setup Node.js environment
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: .nvmrc
           cache: 'pnpm'
 
-      - name: Install pnpm
+      - name: Setup PNPM
         uses: pnpm/action-setup@v3
         with:
-          version: latest
-          run_install: false
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
 
       # Linux dependencies for Electron
       - name: Install Linux dependencies
@@ -98,10 +96,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libxtst-dev libpng++-dev
-
-      # Install dependencies
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
 
       # Download common build artifacts
       - name: Download Common Build Artifacts
