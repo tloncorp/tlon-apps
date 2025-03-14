@@ -133,11 +133,12 @@ jobs:
         working-directory: apps/tlon-desktop
         run: pnpm run flatten-deps
       
-      # Install electron-notarize package
-      - name: Install @electron/notarize
-        if: matrix.os == 'macos-latest'
-        working-directory: apps/tlon-desktop
-        run: pnpm add @electron/notarize -D
+      # Install electron-notarize package - re-enable when we have a Developer ID Application certificate
+      # we'll also need to add the `afterSign` hook to electron-builder config in package.json
+      # - name: Install @electron/notarize
+      #   if: matrix.os == 'macos-latest'
+      #   working-directory: apps/tlon-desktop
+      #   run: pnpm add @electron/notarize -D
       
       # Run platform-specific electron-builder with built-in notarization
       - name: Build Platform Package
@@ -149,6 +150,7 @@ jobs:
           APPLE_ID: ${{ matrix.os == 'macos-latest' && secrets.APPLE_ID || '' }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ matrix.os == 'macos-latest' && secrets.APPLE_ID_PASSWORD || '' }}
           APPLE_TEAM_ID: ${{ matrix.os == 'macos-latest' && secrets.APPLE_TEAM_ID || '' }}
+          NOTARIZE: "false" # Set to true to enable notarization later when we get a Developer ID Application certificate
         run: npx electron-builder ${{ matrix.build_flag }}
 
       # Prepare artifacts with proper names

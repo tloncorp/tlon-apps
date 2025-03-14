@@ -87,7 +87,6 @@
     },
     "linux": {
       "target": "AppImage"
-    },
-    "afterSign": ".notarize.js"
+    }
   }
 }
