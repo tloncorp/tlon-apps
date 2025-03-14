@@ -113,7 +113,12 @@ jobs:
           p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           keychain-password: ${{ github.run_id }}
           
-      # Run platform-specific electron-builder only
+      # Flatten dependencies before platform-specific build
+      - name: Flatten Dependencies
+        working-directory: apps/tlon-desktop
+        run: pnpm run flatten-deps
+      
+      # Run platform-specific electron-builder
       - name: Build Platform Package
         working-directory: apps/tlon-desktop
         env:
