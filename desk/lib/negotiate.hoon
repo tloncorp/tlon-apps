@@ -334,6 +334,7 @@
       |=  for=[gill:gall protocol]
       ^-  (quip card _state)
       ?<  (~(has by heed) for)
+      ~&  [%negotiating for]
       :-  [(watch-version for)]~
       state(heed (~(put by heed) for ~))
     ::
@@ -523,7 +524,7 @@
         ::      during +on-load or %kick handling" for the inner agent!
         ::
         =/  suz=(list [[=wire =gill:gall] [ack=? =path]])
-          ~(tap by wex.bowl)
+          (sort ~(tap by wex.bowl) aor)
         |-
         ?~  suz         [cards this]
         =*  sub         i.suz
@@ -699,7 +700,7 @@
         ?:  ?=(?(~ [~ ~]) dat)  ~
         (fall ((soft (list mass)) q.q.u.u.dat) ~)
       ?:  =(/x/dbug/state path)
-        ``noun+!>((slop on-save:og !>(negotiate=state)))
+        ``noun+(slop on-save:og !>(negotiate=state))
       ?.  ?=([@ %~.~ %negotiate *] path)
         (on-peek:og path)
       !:
@@ -797,6 +798,10 @@
           ?&  ?=(%live +<.egg-any)
               ?=([[%negotiate *] *] q.old-state.egg-any)
           ==  ==
+        !:
+        ?:  ?=([%neg %heed who=@ dap=@ pro=@ ver=*] q.vase)
+          =,  q.vase
+          (on-agent /~/negotiate/heed/[who]/[dap]/[pro] %fact %noun !>(ver))
         =^  cards  inner  (on-poke:og mark vase)  !:
         =^  cards  state  (play-cards:up cards)
         [cards this]

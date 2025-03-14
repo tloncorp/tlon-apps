@@ -14,6 +14,8 @@
 /+  groups-json
 /*  desk-bill  %bill  /desk/bill
 =/  verbose  |
+%+  verb  &
+%-  agent:dbug
 %-  %-  agent:neg
     :+  notify=|
       [~.groups^%0 ~ ~]
@@ -21,8 +23,7 @@
     :~  %channels^[~.channels^%1 ~ ~]
         %contacts^[~.contacts^%1 ~ ~]
     ==
-%-  agent:dbug
-%+  verb  |
+%+  verb  &
 ::
 ^-  agent:gall
 =>
@@ -1117,6 +1118,8 @@
     (watch-contact &)
   ::
       %watch-ack
+    ?~  p.sign  cor
+    %-  (slog '/contacts nack' u.p.sign)
     cor
   ::
       %fact
