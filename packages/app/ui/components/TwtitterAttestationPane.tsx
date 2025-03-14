@@ -7,6 +7,7 @@ import { View, YStack } from 'tamagui';
 import { Button } from '../../../ui/src/components/Button';
 import { LoadingSpinner } from '../../../ui/src/components/LoadingSpinner';
 import { Text } from '../../../ui/src/components/TextV2';
+import { useTrackAttestConfirmation } from '../../hooks/useTrackAttestConfirmation';
 import { useStore } from '../contexts';
 import { AttestationPane } from './AttestationPane';
 import { CopyableTextBlock } from './CopyableTextBlock';
@@ -72,6 +73,7 @@ function ConfirmTwitterPane(props: {
 }) {
   const store = useStore();
   const [proof, setProof] = useState<string | null>(null);
+  const reqTracker = useTrackAttestConfirmation(props.attestation);
   useEffect(() => {
     async function runEffect() {
       console.log(`bl: confirming twitter`);
@@ -95,6 +97,7 @@ function ConfirmTwitterPane(props: {
   });
 
   const onSubmit = handleSubmit(async (data) => {
+    reqTracker.startRequest();
     await store.confirmTwitterAttestation(
       props.attestation.value!,
       data.twitterPostId
@@ -135,6 +138,11 @@ ${proof}`;
       <Button hero onPress={onSubmit} disabled={!isDirty || !isValid}>
         <Button.Text>Submit</Button.Text>
       </Button>
+      {reqTracker.didError && (
+        <Text color="$negativeActionText">
+          Could not verify the submitted post.
+        </Text>
+      )}
     </YStack>
   );
 }

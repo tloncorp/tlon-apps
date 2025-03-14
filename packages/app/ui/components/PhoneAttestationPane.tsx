@@ -5,6 +5,7 @@ import { View, YStack } from 'tamagui';
 
 import { LoadingSpinner } from '../../../ui/src/components/LoadingSpinner';
 import { Text } from '../../../ui/src/components/TextV2';
+import { useTrackAttestConfirmation } from '../../hooks/useTrackAttestConfirmation';
 import { useStore } from '../contexts';
 import { PrimaryButton } from './Buttons';
 import { OTPInput } from './Form/OTPInput';
@@ -110,19 +111,21 @@ function ConfirmPhoneNumPane(props: { attestation: db.Verification }) {
   const store = useStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [otp, setOtp] = useState<string[]>([]);
+  const requestTracker = useTrackAttestConfirmation(props.attestation);
 
   const handleSubmit = useCallback(
     async (submittedOtp: string) => {
       try {
+        requestTracker.startRequest();
         await store.confirmPhoneAttestation(
-          props.attestation.value,
+          props.attestation.value!,
           submittedOtp
         );
       } finally {
         setIsSubmitting(false);
       }
     },
-    [props.attestation.value, store]
+    [props.attestation.value, requestTracker, store]
   );
 
   const handleCodeChanged = useCallback(
@@ -147,6 +150,9 @@ function ConfirmPhoneNumPane(props: { attestation: db.Verification }) {
         onChange={handleCodeChanged}
         mode="phone"
       />
+      {requestTracker.didError && (
+        <Text color="$negativeActionText">Confirmation code is incorrect.</Text>
+      )}
     </YStack>
   );
 }

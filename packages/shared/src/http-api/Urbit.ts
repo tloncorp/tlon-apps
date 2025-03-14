@@ -563,6 +563,7 @@ export class Urbit {
       method: 'PUT',
       body,
     });
+    console.log(`poke response`, response);
     if (!response.ok) {
       console.log(response.status, response.statusText, await response.text());
       throw new Error('Failed to PUT channel command(s)');

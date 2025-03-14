@@ -58,8 +58,9 @@ export function UserProfileScreenView(props: Props) {
   }, [userContact?.pinnedGroups]);
 
   const attestations = useMemo(() => {
-    return (userContact?.attestations?.map((a) => a.attestation) ??
-      []) as db.Verification[];
+    return (userContact?.attestations
+      ?.map((a) => a.attestation)
+      .filter(Boolean) ?? []) as db.Verification[];
   }, [userContact]);
 
   const twitterAttestation = useMemo(() => {

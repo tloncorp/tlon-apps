@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import { Button, Icon, Text } from '@tloncorp/ui';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Linking } from 'react-native';
 import { Circle, XStack, YStack } from 'tamagui';
 
@@ -13,6 +13,7 @@ export function AttestationPane({
   attestation: db.Verification;
   currentUserId: string;
 }) {
+  const [revoking, setRevoking] = useState(false);
   const store = useStore();
 
   const formattedValue = useMemo(() => {
@@ -33,9 +34,14 @@ export function AttestationPane({
     // TODO
   }, []);
 
-  const handleRevoke = useCallback(() => {
-    // TODO
-  }, []);
+  const handleRevoke = useCallback(async () => {
+    setRevoking(true);
+    try {
+      await store.revokeAttestation(attestation);
+    } finally {
+      setRevoking(false);
+    }
+  }, [attestation, store]);
 
   return (
     <YStack paddingHorizontal="$2xl">

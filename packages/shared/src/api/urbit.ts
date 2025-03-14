@@ -325,7 +325,7 @@ export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
     if (config.pendingAuth) {
       await config.pendingAuth;
     }
-    logger.log('noun poke', { app, mark });
+    console.log('noun poke', { app, mark });
     return config.client.pokeNoun({
       ...params,
       app,
@@ -419,6 +419,30 @@ export async function trackedPoke<T, R = T>(
   try {
     const tracking = track(endpoint, predicate);
     const poking = poke(params);
+    await Promise.all([tracking, poking]);
+    trackDuration('success');
+  } catch (e) {
+    logger.error(`tracked poke failed`, e);
+    trackDuration('error');
+    throw e;
+  }
+}
+
+export async function trackedPokeNoun<T, R = T>(
+  params: NounPokeParams,
+  endpoint: UrbitEndpoint,
+  predicate: (event: R) => boolean
+) {
+  if (config.pendingAuth) {
+    await config.pendingAuth;
+  }
+  const trackDuration = createDurationTracker(AnalyticsEvent.TrackedPoke, {
+    app: params.app,
+    mark: params.mark,
+  });
+  try {
+    const tracking = track(endpoint, predicate);
+    const poking = pokeNoun(params);
     await Promise.all([tracking, poking]);
     trackDuration('success');
   } catch (e) {

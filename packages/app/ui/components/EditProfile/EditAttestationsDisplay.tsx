@@ -16,13 +16,14 @@ export function EditAttestationsDisplay(props: {
   attestations: db.Verification[];
   onPressAttestation?: (attestation: 'phone' | 'twitter') => void;
 }) {
+  console.log(`attestations editor`, props.attestations);
   const twitterAttestation = props.attestations.find(
     (a) => a.type === 'twitter'
   );
   const phoneAttestation = props.attestations.find((a) => a.type === 'phone');
 
   return (
-    <Field label="Attestations">
+    <Field label="Connected Accounts">
       <WidgetPane editor>
         <Pressable onPress={() => props.onPressAttestation?.('twitter')}>
           <ListItem>

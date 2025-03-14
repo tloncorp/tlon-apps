@@ -17,10 +17,8 @@ import {
   Field,
   FormFrame,
 } from './Form';
-import { ListItem } from './ListItem';
 import { ScreenHeader } from './ScreenHeader';
 import { BioDisplay, PinnedGroupsDisplay } from './UserProfileScreenView';
-import { WidgetPane } from './WidgetPane';
 
 interface Props {
   userId: string;
@@ -42,8 +40,9 @@ export function EditProfileScreenView(props: Props) {
   );
 
   const attestations = useMemo(() => {
-    return (userContact?.attestations?.map((a) => a.attestation) ??
-      []) as db.Verification[];
+    return (userContact?.attestations
+      ?.map((a) => a.attestation)
+      .filter(Boolean) ?? []) as db.Verification[];
   }, [userContact]);
 
   const isCurrUser = useMemo(

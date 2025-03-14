@@ -97,6 +97,7 @@ export enum AnalyticsEvent {
   ActionInitiateTwitterAttest = 'Initiated Twitter Attestation',
   ActionConfirmTwitterAttest = 'Confirmed Twitter Attestation',
   ActionInitiatePhoneAttest = 'Initiated Phone Attestation',
+  ActionRevokeAttestation = 'Revoked Attestation',
   ActionConfirmPhoneAttest = 'Confirmed Phone Attestation',
   ActionGroupChannelSelected = 'Tapped group channel',
   ActionTappedPushNotif = 'Tapped Push Notification',
@@ -111,6 +112,7 @@ export enum AnalyticsEvent {
   ErrorSyncStartHighPriority = 'Error Start Sync: High Priority',
   ErrorSyncStartLowPriority = 'Error Start Sync: Low Priority',
   ErrorVerifyingPersonalInvite = 'Error Verifying DM Invite Link',
+  ErrorAttestation = 'Attestation Error',
 }
 
 export interface AnalyticsDigest {

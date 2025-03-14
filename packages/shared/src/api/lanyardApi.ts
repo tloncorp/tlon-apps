@@ -7,7 +7,13 @@ import { createDevLogger } from '../debug';
 import { getFrondValue, getPatp, simpleHash } from '../logic';
 import { stringToTa } from '../urbit';
 import * as NounParsers from './nounParsers';
-import { getCurrentUserId, pokeNoun, scryNoun, subscribe } from './urbit';
+import {
+  getCurrentUserId,
+  pokeNoun,
+  scryNoun,
+  subscribe,
+  trackedPokeNoun,
+} from './urbit';
 
 const logger = createDevLogger('lanyardApi', true);
 
@@ -40,6 +46,20 @@ interface FullSign {
 type Sign = HalfSign | FullSign;
 
 // send to /valid-jam/${sign} -> noun (bool, good/no good)
+
+export async function checkAttestedSignature(signData: string) {
+  console.log(`bl: checking sig`);
+  const query = [null, null, ['valid-jam', signData]];
+  const noun = dwim(query);
+  await trackedPokeNoun(
+    { app: 'lanyard', mark: 'lanyard-query', noun },
+    { app: 'lanyard', path: '/query' },
+    (event) => {
+      console.log(`bl: got valid jam sub event`, event);
+      return false;
+    }
+  );
+}
 
 function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {
   console.log(`noun to client records`);
@@ -220,5 +240,17 @@ export async function confirmPhoneAttestation(
   });
   await pokeNoun({ app: 'lanyard', mark: 'lanyard-command', noun });
   logger.log('confirmTwitterAttestation poke success');
+  return;
+}
+
+export async function revokeAttestation(params: {
+  type: db.VerificationType;
+  value: string;
+}) {
+  const identifier = [params.type, params.value];
+  const command = [null, ['revoke', identifier]];
+  const noun = dwim(command);
+  await pokeNoun({ app: 'lanyard', mark: 'lanyard-command', noun });
+  logger.log('revokeAttestation poke success');
   return;
 }
