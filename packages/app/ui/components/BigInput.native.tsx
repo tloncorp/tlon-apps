@@ -1,186 +1,144 @@
+import { extractContentTypesFromPost } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Icon } from '@tloncorp/ui';
-import { Image } from '@tloncorp/ui';
-import { useMemo, useRef, useState } from 'react';
-import { Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
-import { TouchableOpacity } from 'react-native-gesture-handler';
+import {
+  Inline,
+  Story,
+  constructStory,
+  getFirstInline,
+  getInlineContent,
+  getTextContent,
+} from '@tloncorp/shared/urbit';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Platform, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-// TODO: replace input with our own input component
-import { Input, View, YStack, getTokenValue } from 'tamagui';
+import { View, YStack, getVariableValue, useTheme } from 'tamagui';
 
-import { ImageAttachment, useAttachmentContext } from '../contexts/attachment';
-import AttachmentSheet from './AttachmentSheet';
-import { MessageInput } from './MessageInput';
-import { InputToolbar } from './MessageInput/InputToolbar.native';
+import { useRegisterChannelHeaderItem } from './Channel/ChannelHeader';
 import { MessageInputProps } from './MessageInput/MessageInputBase';
-import { TlonEditorBridge } from './MessageInput/toolbarActions.native';
+import { ScreenHeader } from './ScreenHeader';
 
-export function BigInput({
-  channelType,
-  channelId,
-  groupMembers,
-  shouldBlur,
-  setShouldBlur,
-  send,
-  storeDraft,
-  clearDraft,
-  getDraft,
-  editingPost,
-  setEditingPost,
-  editPost,
-  setShowBigInput,
-  placeholder,
-}: {
-  channelType: db.ChannelType;
-} & MessageInputProps) {
-  const [title, setTitle] = useState(editingPost?.title ?? '');
-  const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
-  const editorRef = useRef<{
-    editor: TlonEditorBridge | null;
-  }>(null);
-  const { top } = useSafeAreaInsets();
-  const { width } = Dimensions.get('screen');
-  const titleInputHeight = getTokenValue('$4xl', 'size');
-  const imageButtonHeight = getTokenValue('$4xl', 'size');
-  const keyboardVerticalOffset =
-    Platform.OS === 'ios' ? top + titleInputHeight : top;
+// Helper function to extract text from post content
+const getTextFromPost = (post: db.Post | undefined): string => {
+  if (!post?.content) return '';
 
-  const { attachments, attachAssets } = useAttachmentContext();
-  const imageAttachment = useMemo(() => {
-    if (attachments.length > 0) {
-      return attachments.find(
-        (attachment): attachment is ImageAttachment =>
-          attachment.type === 'image'
-      );
+  try {
+    const { story } = extractContentTypesFromPost(post);
+    return getTextContent(story) || '';
+  } catch (e) {
+    console.error('Error parsing post content:', e);
+    return '';
+  }
+};
+
+export function BigInput(
+  props: MessageInputProps & {
+    channelType: db.ChannelType;
+  }
+) {
+  const {
+    channelType,
+    channelId,
+    send,
+    setShowBigInput,
+    editingPost,
+    editPost,
+  } = props;
+
+  // Type guard to ensure send is defined
+  if (!send) {
+    throw new Error('send function is required for BigInput');
+  }
+
+  const [isPosting, setIsPosting] = useState(false);
+  // Initialize text state with the editing post content if available
+  const [text, setText] = useState(() => getTextFromPost(editingPost));
+  const inputRef = useRef<TextInput>(null);
+  const { bottom } = useSafeAreaInsets();
+
+  // Update text when editing post changes
+  useEffect(() => {
+    setText(getTextFromPost(editingPost));
+  }, [editingPost?.id]); // Only update when the post ID changes
+
+  const handlePost = useCallback(async () => {
+    if (isPosting || !text.trim()) return;
+    setIsPosting(true);
+    try {
+      const story = constructStory([text]);
+
+      if (editingPost && editPost) {
+        // If we're editing, use editPost with the correct parameters
+        if (editingPost.parentId) {
+          await editPost(editingPost, story, editingPost.parentId, {});
+        } else {
+          await editPost(editingPost, story, undefined, {});
+        }
+      } else {
+        // If it's a new post, use send
+        await send(story, channelId);
+      }
+
+      setText('');
+      setShowBigInput?.(false);
+    } catch (error) {
+      console.error('Error posting:', error);
+    } finally {
+      setIsPosting(false);
     }
+  }, [
+    isPosting,
+    send,
+    editPost,
+    channelId,
+    text,
+    setShowBigInput,
+    editingPost,
+  ]);
 
-    if (editingPost?.image) {
-      return {
-        type: 'image',
-        file: {
-          uri: editingPost.image,
-          width: 0,
-          height: 0,
-        },
-      };
-    }
-
-    return null;
-  }, [attachments, editingPost]);
+  // Register the post button in the header
+  useRegisterChannelHeaderItem(
+    useMemo(
+      () => (
+        <ScreenHeader.TextButton
+          key="post-button"
+          onPress={handlePost}
+          disabled={isPosting || !text.trim()}
+          testID="PostButton"
+        >
+          {isPosting ? 'Posting...' : editingPost ? 'Save' : 'Post'}
+        </ScreenHeader.TextButton>
+      ),
+      [isPosting, handlePost, text, editingPost]
+    )
+  );
 
   return (
     <YStack height="100%" width="100%">
-      {channelType === 'notebook' && (
-        <View
-          position="absolute"
-          top={0}
-          left={0}
-          width="100%"
-          height={imageButtonHeight}
-          zIndex={10}
-        >
-          <TouchableOpacity
-            onPress={() => {
-              setShowAttachmentSheet(true);
-              editorRef.current?.editor?.blur();
-            }}
-          >
-            {imageAttachment ? (
-              <Image
-                source={{ uri: imageAttachment.file.uri }}
-                contentFit="cover"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  borderBottomLeftRadius: 16,
-                  borderBottomRightRadius: 16,
-                }}
-              />
-            ) : (
-              <View
-                backgroundColor="$primaryText"
-                width="100%"
-                height="100%"
-                borderBottomLeftRadius="$xl"
-                borderBottomRightRadius="$xl"
-                padding="$2xl"
-                alignItems="center"
-                justifyContent="center"
-                gap="$l"
-              >
-                <Icon type="Camera" color="$background" />
-              </View>
-            )}
-          </TouchableOpacity>
-          <View backgroundColor="$background" width="100%">
-            <Input
-              size="$xl"
-              height={titleInputHeight}
-              backgroundColor="$background"
-              borderColor="transparent"
-              placeholder="New Title"
-              onChangeText={setTitle}
-              value={title}
-            />
-          </View>
-        </View>
-      )}
       <View
-        paddingTop={
-          channelType === 'notebook' ? titleInputHeight + imageButtonHeight : 0
-        }
+        flex={1}
+        backgroundColor="$background"
+        paddingHorizontal="$2xl"
+        paddingTop="$m"
+        paddingBottom={bottom}
       >
-        <MessageInput
-          shouldBlur={shouldBlur}
-          setShouldBlur={setShouldBlur}
-          send={send}
-          title={title}
-          image={imageAttachment?.file ?? undefined}
-          channelId={channelId}
-          groupMembers={groupMembers}
-          storeDraft={storeDraft}
-          clearDraft={clearDraft}
-          getDraft={getDraft}
-          editingPost={editingPost}
-          setEditingPost={setEditingPost}
-          editPost={editPost}
-          setShowBigInput={setShowBigInput}
-          floatingActionButton
-          showAttachmentButton={false}
-          showInlineAttachments={false}
-          backgroundColor="$background"
-          paddingHorizontal="$m"
-          placeholder={placeholder}
-          bigInput
-          channelType={channelType}
-          shouldAutoFocus
-          draftType={channelType === 'gallery' ? 'text' : undefined}
-          ref={editorRef}
+        <TextInput
+          ref={inputRef}
+          multiline
+          value={text}
+          onChangeText={setText}
+          style={{
+            flex: 1,
+            fontFamily: Platform.select({
+              android: 'monospace',
+              ios: 'System-Monospaced',
+              default: 'monospace',
+            }),
+            fontSize: 14,
+            lineHeight: 19,
+          }}
+          placeholder="Share your thoughts..."
         />
       </View>
-      {channelType === 'notebook' &&
-        editorRef.current &&
-        editorRef.current.editor && (
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'position'}
-            keyboardVerticalOffset={keyboardVerticalOffset}
-            style={{
-              width,
-              position: 'absolute',
-              bottom: Platform.OS === 'ios' ? 0 : keyboardVerticalOffset,
-              flex: 1,
-            }}
-          >
-            <InputToolbar editor={editorRef.current.editor} />
-          </KeyboardAvoidingView>
-        )}
-      {channelType === 'notebook' && showAttachmentSheet && (
-        <AttachmentSheet
-          isOpen={showAttachmentSheet}
-          onOpenChange={setShowAttachmentSheet}
-          onAttachmentsSet={attachAssets}
-        />
-      )}
     </YStack>
   );
 }
