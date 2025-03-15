@@ -1,6 +1,6 @@
 import { fetch } from 'cross-fetch';
 import crypto from 'crypto';
-import { BrowserWindow, app, ipcMain } from 'electron';
+import { BrowserWindow, app, ipcMain, shell } from 'electron';
 import fs from 'fs';
 import path from 'path';
 
@@ -189,6 +189,32 @@ async function createWindow() {
       console.error('Resources path:', resourcesPath);
     }
   }
+
+  // Handle external links - open them in the default browser instead of a new electron window
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    // Check if the URL is external (not the currentShipUrl)
+    if (currentShipUrl && !url.startsWith(currentShipUrl)) {
+      // Open the URL in the user's default browser
+      shell.openExternal(url);
+      return { action: 'deny' };
+    }
+    // Allow creating new windows for internal URLs, including links to apps running on the current ship (if we provide app launching from our app later)
+    return { action: 'allow' };
+  });
+
+  // Handle direct navigation to external URLs
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    // Only handle external URLs (not the app URL or currentShipUrl)
+    if (
+      currentShipUrl && 
+      !url.startsWith(currentShipUrl) && 
+      !url.startsWith('http://localhost:3000') && 
+      !url.startsWith('file://')
+    ) {
+      event.preventDefault();
+      shell.openExternal(url);
+    }
+  });
 
   // Emitted when the window is closed.
   mainWindow.on('closed', () => {
