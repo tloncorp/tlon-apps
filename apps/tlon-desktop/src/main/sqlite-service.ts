@@ -12,7 +12,11 @@ class SQLiteService {
 
   constructor() {
     const userDataPath = app.getPath('userData');
-    this.dbPath = path.join(userDataPath, 'tlon.sqlite');
+    const dbName = app.isPackaged ? 'tlon.sqlite' : 'tlon-dev.sqlite';
+    this.dbPath = path.join(userDataPath, dbName);
+    console.log(
+      `Using ${app.isPackaged ? 'production' : 'development'} database at: ${this.dbPath}`
+    );
   }
 
   async init() {
