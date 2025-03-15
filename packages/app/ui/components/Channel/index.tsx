@@ -320,12 +320,17 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                               ? handleGoBack
                               : undefined
                           }
-                          showSearchButton={isChatChannel}
+                          showSearchButton={
+                            isChatChannel &&
+                            draftInputPresentationMode !== 'fullscreen'
+                          }
                           goToSearch={goToSearch}
                           goToChannels={goToChannels}
                           goToChatDetails={goToChatDetails}
                           showSpinner={isLoadingPosts}
-                          showMenuButton={true}
+                          showMenuButton={
+                            draftInputPresentationMode !== 'fullscreen'
+                          }
                         />
                         <YStack alignItems="stretch" flex={1}>
                           <AnimatePresence>
