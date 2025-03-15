@@ -27,9 +27,6 @@ function GalleryImagePreview() {
             opacity:
               imageAttachment?.uploadState?.status === 'uploading' ? 0.5 : 1,
           }}
-          imageStyle={{
-            borderRadius: 16,
-          }}
           resizeMode="contain"
         >
           {imageAttachment?.uploadState?.status === 'uploading' && (
