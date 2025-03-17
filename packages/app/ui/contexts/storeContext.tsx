@@ -28,13 +28,15 @@ const StoreContext = createContext<StoreContextType | null>(null);
 
 interface StoreProviderProps {
   children: React.ReactNode;
-  stub?: boolean;
+  stub?: boolean | StoreContextType;
 }
 
 export function StoreProvider({ children, stub = false }: StoreProviderProps) {
   const storeValue = React.useMemo(() => {
-    if (stub) {
+    if (stub === true) {
       return createNoOpStore();
+    } else if (typeof stub !== 'boolean' && stub != null) {
+      return stub;
     }
     return store;
   }, [stub]);

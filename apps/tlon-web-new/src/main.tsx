@@ -11,7 +11,12 @@ import regeneratorRuntime from '@babel/runtime/regenerator';
 import { EditorView } from '@tiptap/pm/view';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
 import { loadConstants } from '@tloncorp/app/lib/constants';
-import { setupDb } from '@tloncorp/app/lib/webDb';
+import { isElectron } from './electron-bridge';
+
+// Conditionally import the appropriate database implementation
+const { setupDb } = isElectron()
+  ? await import('@tloncorp/app/lib/electronDb')
+  : await import('@tloncorp/app/lib/webDb');
 import { addCustomEnabledLoggers } from '@tloncorp/shared';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/api';
 import { PostHogProvider } from 'posthog-js/react';

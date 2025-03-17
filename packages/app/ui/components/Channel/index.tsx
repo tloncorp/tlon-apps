@@ -1,3 +1,4 @@
+import { useIsFocused } from '@react-navigation/native';
 import {
   DraftInputId,
   isChatChannel as getIsChatChannel,
@@ -177,12 +178,13 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     );
     const { attachAssets } = useAttachmentContext();
 
+    const inView = useIsFocused();
     const hasLoaded = !!(posts && channel);
     useEffect(() => {
-      if (hasLoaded) {
+      if (hasLoaded && inView) {
         markRead();
       }
-    }, [hasLoaded, markRead]);
+    }, [hasLoaded, inView, markRead]);
 
     const handleRefPress = useCallback(
       (refChannel: db.Channel, post: db.Post) => {
