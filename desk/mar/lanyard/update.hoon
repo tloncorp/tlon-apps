@@ -20,7 +20,6 @@
       :~  'nonce'^s+(scot %uv nonce.upd)
         ::
           :-  'result'
-          %+  frond  +>-.upd
           ?-  +>-.upd
             %fail     s+why.upd
             %has-any  b+has.upd
