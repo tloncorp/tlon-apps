@@ -4,7 +4,7 @@
 ++  grad  %noun
 ++  grow
   |%
-  ++  noun  preview
+  ++  noun  preview-response
   ++  json  (preview-response:v6:enjs:j preview-response)
   --
 ++  grab

@@ -14,12 +14,13 @@
 /+  groups-json
 /*  desk-bill  %bill  /desk/bill
 =/  verbose  |
+::
 %-  %-  agent:neg
     :+  notify=|
       [~.groups^%0 ~ ~]
     %-  my
-    :~  %channels^[~.channels^%1 ~ ~]
-        %contacts^[~.contacts^%1 ~ ~]
+    :~  %groups^[~.groups^%0 ~ ~]
+        %channels-server^[~.channels^%1 ~ ~]
     ==
 %-  agent:dbug
 %+  verb  |
@@ -531,7 +532,7 @@
     ^-  net:v5:g
     ?:  ?=(%sub -.net)
       [%sub p.net load.net]
-    net(p (run:log-on:v2:g p.net diff-2-to-5))
+    [%pub (run:log-on:v2:g p.net diff-2-to-5)]
   ::
   ++  diff-2-to-5
     |=  =diff:v2:g
@@ -1121,7 +1122,7 @@
   ==
 ::
 ++  watch-contact
-  (subscribe /contact [our.bowl %contacts] /contact)
+  (subscribe /contact [our.bowl %contacts] /news)
 ::
 ++  take-contact
   |=  =sign:agent:gall
@@ -1423,6 +1424,10 @@
       ?.  (~(has in admins) ship)
         vessel
       vessel(sects (~(put in sects.vessel) %admin))
+    ::XX  should not we crash here? +go-init is called
+    ::    on a %group-create poke, that sets the flag
+    ::    to [our.bowl name.create]
+    ::
     ?.  =(our.bowl p.flag)
       (go-safe-sub &)
     =/  our=vessel:fleet:g  (~(gut by fleet.group) our.bowl *vessel:fleet:g)
@@ -1450,6 +1455,7 @@
     =/  =path      (snoc `path`[%v1 base] ?:(init %init (scot %da time)))
     =.  cor  ((subscribe base [p.flag dap.bowl] path) delay)
     go-core
+  ::
   ::
   ++  go-watch
     |=  [ver=?(%v0 %v1 %v2) =(pole knot)]
@@ -1748,7 +1754,7 @@
       (go-tell-update time diff)
     =.  net
       ?:    ?=(%pub -.net)
-        pub/(put:log-on:g p.net time diff)
+        [%pub (put:log-on:g p.net time diff)]
       [%sub time load.net]
     ?-  -.diff
       %channel  (go-channel-update [p q]:diff)
