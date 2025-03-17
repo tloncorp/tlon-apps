@@ -4,6 +4,7 @@ import { BrowserWindow, app, ipcMain, shell } from 'electron';
 import fs from 'fs';
 import path from 'path';
 
+import { setupNotificationService } from './notification-service';
 import { setupSQLiteIPC } from './sqlite-service';
 import store from './store';
 
@@ -93,7 +94,6 @@ interface AuthInfo {
 let mainWindow: BrowserWindow | null = null;
 
 async function createWindow() {
-  // Create the browser window.
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -101,9 +101,15 @@ async function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.resolve(__dirname, '../../build/main/preload.js'),
+      // SECURITY NOTE: webSecurity is disabled to allow communication with local Urbit ships
+      // This is necessary because Urbit doesn't properly handle CORS/OPTIONS preflight requests
+      // for SSE connections (it just prints `eyre: session not a put` and doesn't respond).
+      // Long-term, we should implement a more secure solution.
       webSecurity: false,
     },
   });
+
+  setupNotificationService(mainWindow);
 
   const webSession = mainWindow.webContents.session;
 
@@ -129,26 +135,17 @@ async function createWindow() {
   });
 
   // Configure session for CORS handling
-  // We've disabled web security for now, so we don't need to worry about this.
-  // We should probably revisit this and re-enable web security.
-  // webSession.webRequest.onBeforeSendHeaders((details, callback) => {
-  //   // Only modify headers for requests to the configured ship
-  //   if (cachedShipUrl && details.url.startsWith(cachedShipUrl)) {
-  //     callback({
-  //       requestHeaders: details.requestHeaders,
-  //     });
-  //   } else {
-  //     callback({ requestHeaders: details.requestHeaders });
-  //   }
-  // });
-
+  // Disabled for now, see above note about disabling webSecurity
   // webSession.webRequest.onHeadersReceived((details, callback) => {
   //   // Only modify headers for responses from the configured ship
   //   if (cachedShipUrl && details.url.startsWith(cachedShipUrl)) {
   //     console.log('Setting CORS headers for response from', cachedShipUrl);
 
   //     if (details.method === 'OPTIONS') {
-  //       console.log('Setting CORS headers for OPTIONS request');
+  //       console.log(
+  //         'Setting CORS headers for OPTIONS request',
+  //         JSON.stringify(details)
+  //       );
   //       callback({
   //         responseHeaders: {
   //           ...details.responseHeaders,
@@ -162,13 +159,14 @@ async function createWindow() {
   //           status: ['200'],
   //           statusText: ['OK'],
   //         },
+  //         statusLine: 'HTTP/1.1 200 OK',
   //       });
   //     } else {
   //       console.log('Setting CORS headers for non-OPTIONS request');
   //       callback({
   //         responseHeaders: {
   //           ...details.responseHeaders,
-  //           'Access-Control-Allow-Origin': ['http://localhost:3000'],
+  //           'Access-Control-Allow-Origin': ['*'],
   //           'Access-Control-Allow-Methods': ['GET, POST, PUT, DELETE, OPTIONS'],
   //           'Access-Control-Allow-Headers': [
   //             'Content-Type, Authorization, Cookie',

@@ -17,6 +17,7 @@ const inputContact: [string, any] = [
       '~nibset-napwyn/tlon',
       '~ravmel-ropdyl/crate',
     ],
+    attestations: [],
   },
 ];
 
@@ -34,6 +35,7 @@ const outputContact = {
     { groupId: '~nibset-napwyn/tlon', contactId: 'test' },
     { groupId: '~ravmel-ropdyl/crate', contactId: 'test' },
   ],
+  attestations: [],
   isContact: false,
   isContactSuggestion: undefined,
 };

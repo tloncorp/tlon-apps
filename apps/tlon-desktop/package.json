@@ -66,6 +66,7 @@
       "gatekeeperAssess": false,
       "entitlements": null,
       "entitlementsInherit": null,
+      "icon": "resources/icons/mac/icon.icns",
       "target": [
         {
           "target": "dmg",
@@ -76,6 +77,7 @@
       ]
     },
     "win": {
+      "icon": "resources/icons/win/icon.ico",
       "target": [
         {
           "target": "nsis",
@@ -86,6 +88,7 @@
       ]
     },
     "linux": {
+      "icon": "resources/icons/png",
       "target": "AppImage"
     }
   }

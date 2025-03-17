@@ -288,7 +288,6 @@ function parseContactAttestations(
   contactId: string,
   contact?: ub.Contact | ub.ContactBookProfile | null
 ): db.ContactAttestation[] | null {
-  console.log(`bl: checking ${contactId} for attests`, contact);
   if (!contact) {
     return null;
   }

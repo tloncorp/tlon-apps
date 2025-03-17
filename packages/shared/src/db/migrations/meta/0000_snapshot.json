@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "9bf37a64-2c61-4d17-b502-0425ddf48b5d",
+  "id": "37f79ce5-4b9b-4821-b739-4ed374f64d35",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2264,6 +2264,13 @@
         "notebook_settings": {
           "name": "notebook_settings",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "activity_seen_timestamp": {
+          "name": "activity_seen_timestamp",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
