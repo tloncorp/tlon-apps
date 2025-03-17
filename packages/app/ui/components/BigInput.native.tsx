@@ -104,7 +104,9 @@ export function BigInput(
 
       if (editingPost && editPost) {
         // If we're editing, use editPost with the correct parameters
-        await editPost(editingPost, story);
+        // We don't actually need the parentId, but it's required
+        // to correctly call the editPost function
+        await editPost(editingPost, story, undefined, metadata);
       } else {
         // If it's a new post, use send
         await send(story, channelId, metadata);
