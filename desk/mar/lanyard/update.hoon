@@ -18,7 +18,32 @@
         %query
       %-  pairs
       :~  'nonce'^s+(scot %uv nonce.upd)
-          'result'^s+'stub'  ::TODO
+        ::
+          :-  'result'
+          %+  frond  +>-.upd
+          ?-  +>-.upd
+            %fail     s+why.upd
+            %has-any  b+has.upd
+            %valid    b+valid.upd
+            %whose    ?~(who.upd ~ s+(scot %p u.who.upd))
+          ::
+              %valid-jam
+            %-  pairs
+            ?^  valid.upd
+              ~['valid'^b+sig 'live'^b+liv]:valid.upd
+            =/  liv=^json  ?:(valid.upd ~ b+|)
+            ~['valid'^b+valid.upd 'live'^~]
+          ::
+              %whose-bulk
+            %-  pairs
+            =;  results
+              :~  'next-salt'^s+(scot %ux next-salt.upd)
+                  'results'^(pairs results)
+              ==
+            %+  turn  ~(tap by who.upd)
+            |=  [id=identifier who=(unit @p)]
+            [(value id) ?~(who ~ s+(scot %p u.who))]
+          ==
       ==
     ::
         %status
