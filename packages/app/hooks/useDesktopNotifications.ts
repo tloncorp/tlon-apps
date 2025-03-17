@@ -68,13 +68,9 @@ export default function useDesktopNotifications(isClientReady: boolean) {
 
         let title = channel.title
           ? channel.title
-          : contact?.peerNickname
-            ? contact.peerNickname
-            : contact?.customNickname
-              ? contact.customNickname
-              : contactId
-                ? contactId
-                : 'New Message';
+          : contact?.nickname
+            ? contact.nickname
+            : contactId || 'New message';
 
         const contactName = contact?.peerNickname
           ? contact.peerNickname
@@ -135,7 +131,7 @@ export default function useDesktopNotifications(isClientReady: boolean) {
     if (!isElectron || !window.electronAPI || !isClientReady) return;
 
     const handleActivityEvent = (event: api.ActivityEvent) => {
-      console.log('Activity event:', event);
+      logger.log('Activity event:', event);
       if (event.type === 'addActivityEvent' && event.events[0].shouldNotify) {
         processActivityEvent(event.events[0]);
       }
