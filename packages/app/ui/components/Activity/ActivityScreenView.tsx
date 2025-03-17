@@ -7,7 +7,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleProp, ViewStyle } from 'react-native';
 import { View, useStyle } from 'tamagui';
 
-import { NavigationProvider } from '../../contexts';
+import { NavigationProvider, useStore } from '../../contexts';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { ActivityHeader } from './ActivityHeader';
 import { ActivityListItem } from './ActivityListItem';
@@ -33,7 +33,9 @@ export function ActivityScreenView({
   bucketFetchers: store.BucketFetchers;
   refresh: () => Promise<void>;
 }) {
-  const activitySeenMarker = db.activitySeenMarker.useValue();
+  const store = useStore();
+  // const activitySeenMarker = db.activitySeenMarker.useValue();
+  const { data: activitySeenMarker } = store.useActivitySeenMarker();
   const [activeTab, setActiveTab] = useState<db.ActivityBucket>('all');
   const currentFetcher = bucketFetchers[activeTab];
 
@@ -49,7 +51,7 @@ export function ActivityScreenView({
     setTimeout(() => {
       store.advanceActivitySeenMarker(newestTimestamp);
     }, 1000);
-  }, [newestTimestamp]);
+  }, [newestTimestamp, store]);
 
   useEffect(() => {
     if (
