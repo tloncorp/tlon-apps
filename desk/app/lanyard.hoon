@@ -321,7 +321,7 @@
     ?~  sig      [give]~  ::  can't ask, give our result
     ?~  valid    [ask]~   ::  don't know, defer to service
     ?.  u.valid  [give]~  ::  invalid, no need to ask further
-    ~[ask give]           ::  valid, give intermediate result and ask service
+    [ask]~                ::  seems valid, ask service
   ::
       %verifier-result
     =+  !<(res=query-result vase)
