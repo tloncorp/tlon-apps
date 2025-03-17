@@ -3,6 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import { constructStory, getTextContent } from '@tloncorp/shared/urbit';
 import { Icon } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
+import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Platform, TextInput, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -51,41 +52,45 @@ export function BigInput(
   const [text, setText] = useState(() => getTextFromPost(editingPost));
   // For notebook posts, add title and image states
   const [title, setTitle] = useState(editingPost?.title || '');
+  const [imageUri, setImageUri] = useState<string | null>(
+    editingPost?.image || null
+  );
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
 
   const inputRef = useRef<TextInput>(null);
   const titleInputRef = useRef<TextInput>(null);
   const { bottom } = useSafeAreaInsets();
 
-  // For handling cover image attachments in Notebook posts
-  const { attachments, attachAssets } = useAttachmentContext();
-  const imageAttachment = useMemo(() => {
-    if (attachments.length > 0) {
-      return attachments.find((attachment) => attachment.type === 'image');
+  // Handle clearing the attached header image
+  const handleClearImage = useCallback(() => {
+    setImageUri(null);
+    setShowAttachmentSheet(false);
+  }, []);
+
+  // Handle selecting a new header image
+  const handleImageSelected = useCallback((assets: ImagePickerAsset[]) => {
+    if (assets.length > 0) {
+      setImageUri(assets[0].uri);
     }
+    setShowAttachmentSheet(false);
+  }, []);
 
-    if (editingPost?.image) {
-      return {
-        type: 'image',
-        file: {
-          uri: editingPost.image,
-          width: 0,
-          height: 0,
-        },
-      };
-    }
-
-    return null;
-  }, [attachments, editingPost]);
-
-  // Update text when editing post changes
+  // Update text and title when editing post changes
   useEffect(() => {
     setText(getTextFromPost(editingPost));
     setTitle(editingPost?.title || '');
-  }, [editingPost?.id]); // Only update when the post ID changes
+    setImageUri(editingPost?.image || null);
+  }, [editingPost?.id, editingPost?.image]);
 
   const handlePost = useCallback(async () => {
-    if (isPosting || !text.trim()) return;
+    if (isPosting) return;
+
+    // For notebook posts, require a title
+    if (channelType === 'notebook' && !title.trim()) {
+      console.error('Notebook posts must have a title');
+      return;
+    }
+
     setIsPosting(true);
     try {
       const story = constructStory([text]);
@@ -97,9 +102,9 @@ export function BigInput(
           metadata.title = title;
         }
 
-        if (imageAttachment?.file?.uri) {
-          metadata.image = imageAttachment.file.uri;
-        }
+        // Always include image field for notebooks, even if null
+        // This ensures we can clear an image by setting it to null
+        metadata.image = imageUri;
       }
 
       if (editingPost && editPost) {
@@ -127,7 +132,7 @@ export function BigInput(
     channelId,
     text,
     title,
-    imageAttachment,
+    imageUri,
     channelType,
     setShowBigInput,
     editingPost,
@@ -140,13 +145,14 @@ export function BigInput(
         <ScreenHeader.TextButton
           key="post-button"
           onPress={handlePost}
-          disabled={isPosting || !text.trim()}
+          // Disable the post button if we're posting or if we're in a notebook and don't have a title
+          disabled={isPosting || (channelType === 'notebook' && !title.trim())}
           testID="PostButton"
         >
           {isPosting ? 'Posting...' : editingPost ? 'Save' : 'Post'}
         </ScreenHeader.TextButton>
       ),
-      [isPosting, handlePost, text, editingPost]
+      [isPosting, handlePost, editingPost]
     )
   );
 
@@ -176,7 +182,7 @@ export function BigInput(
 
           {/* Image picker button or preview */}
           <XStack height={48} alignItems="center">
-            {imageAttachment ? (
+            {imageUri ? (
               <XStack
                 height="100%"
                 borderRadius="$m"
@@ -185,14 +191,14 @@ export function BigInput(
                 gap="$s"
               >
                 <Image
-                  source={{ uri: imageAttachment.file.uri }}
+                  source={{ uri: imageUri }}
                   style={{ width: 48, height: 48, borderRadius: 8 }}
                 />
                 <TouchableOpacity onPress={() => setShowAttachmentSheet(true)}>
                   <XStack alignItems="center" gap="$xs">
                     <Icon type="Camera" size="$s" />
                     <View>
-                      <Text>Edit image</Text>
+                      <Text>Edit header image</Text>
                     </View>
                   </XStack>
                 </TouchableOpacity>
@@ -202,7 +208,7 @@ export function BigInput(
                 <XStack alignItems="center" gap="$xs">
                   <Icon type="Camera" size="$s" />
                   <View>
-                    <Text>Add Header Image</Text>
+                    <Text>Add header image</Text>
                   </View>
                 </XStack>
               </TouchableOpacity>
@@ -243,7 +249,9 @@ export function BigInput(
         <AttachmentSheet
           isOpen={showAttachmentSheet}
           onOpenChange={setShowAttachmentSheet}
-          onAttachmentsSet={attachAssets}
+          onAttachmentsSet={handleImageSelected}
+          showClearOption={!!imageUri}
+          onClearAttachments={handleClearImage}
         />
       )}
     </YStack>
