@@ -1187,6 +1187,16 @@ export const handleDiscontinuity = async () => {
 };
 
 export const handleChannelStatusChange = async (status: ChannelStatus) => {
+  // Since Eyre doesn't send a response body when opening an event
+  // source request, the reconnect request won't resolve until we get a new fact
+  // or a heartbeat. We call this method to manually trigger a fact -- anything
+  // that does so would work.
+  //
+  // Eyre issue is fixed in this PR, https://github.com/urbit/urbit/pull/7080,
+  // we should remove this hack once 410 is rolled out.
+  if (status === 'reconnecting') {
+    api.checkExistingUserInviteLink();
+  }
   updateSession({ channelStatus: status });
 };
 

@@ -1,0 +1,215 @@
+name: Build and Release Desktop App
+
+on:
+  push:
+    tags:
+      - 'desktop-v*'
+
+jobs:
+  prepare:
+    name: Prepare Common Build Artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: false 
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: 'pnpm'
+      
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Extract version from tag 
+      - name: Extract Version
+        id: extract_version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF#refs/tags/desktop-v}" >> $GITHUB_OUTPUT
+
+      # Build steps explicitly broken down for better visibility
+      - name: Build Dependent Packages
+        run: pnpm run build:packages
+        
+      - name: Build Web App for Electron
+        run: pnpm --filter 'tlon-web-new' build:electron
+        
+      - name: Build Electron TypeScript
+        run: pnpm --filter 'tlon-desktop' build:ts
+        
+      # Ensure the main process file exists - this is critical
+      - name: Verify Main Process File
+        run: |
+          if [ ! -f "apps/tlon-desktop/build/main/index.js" ]; then
+            echo "ERROR: Main process file is missing! Build may have failed."
+            exit 1
+          fi
+
+      - name: Flatten Dependencies
+        working-directory: apps/tlon-desktop
+        run: pnpm run flatten-deps
+
+      # Upload common build artifacts with explicit paths
+      - name: Upload Common Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: common-build-artifacts
+          path: |
+            apps/tlon-desktop/build/
+            apps/tlon-desktop/resources/
+            apps/tlon-desktop/node_modules/
+            apps/tlon-web-new/dist/
+          retention-days: 1
+
+  build:
+    name: Build (${{ matrix.os }})
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+        include:
+          - os: macos-latest
+            build_flag: --mac --universal
+            artifact_name: tlon-messenger-mac-universal
+          - os: windows-latest
+            build_flag: --win
+            artifact_name: tlon-messenger-win-x64
+          - os: ubuntu-latest
+            build_flag: --linux
+            artifact_name: tlon-messenger-linux
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: false
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Linux dependencies for Electron
+      - name: Install Linux dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxtst-dev libpng++-dev
+
+      # Download common build artifacts to correct paths
+      - name: Download Common Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: common-build-artifacts
+          path: apps
+          
+      # Extract version from tag 
+      - name: Extract Version
+        id: extract_version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF#refs/tags/desktop-v}" >> $GITHUB_OUTPUT
+
+      # Code signing is disabled for now
+      # - name: Import Code-Signing Certificates (macOS)
+      #   if: matrix.os == 'macos-latest'
+      #   uses: apple-actions/import-codesign-certs@v2
+      #   with:
+      #     p12-file-base64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+      #     p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      #     keychain-password: ${{ github.run_id }}
+          
+      # Install electron-notarize package - re-enable when we have a Developer ID Application certificate
+      # we'll also need to add the `afterSign` hook to electron-builder config in package.json
+      # - name: Install @electron/notarize
+      #   if: matrix.os == 'macos-latest'
+      #   working-directory: apps/tlon-desktop
+      #   run: pnpm add @electron/notarize -D
+      
+      # Run platform-specific electron-builder with code signing & notarization disabled
+      - name: Build Platform Package
+        working-directory: apps/tlon-desktop
+        env:
+          # Explicitly disable code signing and notarization
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          CSC_IDENTITY: ""
+          NOTARIZE: "false"
+          ELECTRON_BUILDER_SIGN: "false"
+          USE_HARD_LINKS: "false"
+        run: npx electron-builder ${{ matrix.build_flag }}
+
+      # Prepare artifacts with proper names
+      - name: Prepare Artifacts
+        working-directory: .
+        shell: bash
+        run: |
+          mkdir -p ./artifacts
+          if [ "${{ matrix.os }}" == "macos-latest" ]; then
+            cp apps/tlon-desktop/dist/*.dmg ./artifacts/${{ matrix.artifact_name }}-${{ steps.extract_version.outputs.VERSION }}.dmg
+          elif [ "${{ matrix.os }}" == "windows-latest" ]; then
+            cp apps/tlon-desktop/dist/*.exe ./artifacts/${{ matrix.artifact_name }}-${{ steps.extract_version.outputs.VERSION }}.exe
+          elif [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+            cp apps/tlon-desktop/dist/*.AppImage ./artifacts/${{ matrix.artifact_name }}-${{ steps.extract_version.outputs.VERSION }}.AppImage
+          fi
+
+      # Upload artifacts to use in the release
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ./artifacts/*
+          retention-days: 5  # Short retention since we'll add to GitHub release
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Needed for creating releases
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Download all artifacts
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+          merge-multiple: true
+
+      # Extract version for release name
+      - name: Extract Version
+        id: extract_version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF#refs/tags/desktop-v}" >> $GITHUB_OUTPUT
+
+      # Create GitHub Release and upload assets
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Tlon Desktop v${{ steps.extract_version.outputs.VERSION }}"
+          draft: false  # Set to true if you want to review before publishing
+          prerelease: false  # Set to true for pre-releases
+          files: |
+            ./artifacts/**/tlon-messenger-*.dmg
+            ./artifacts/**/tlon-messenger-*.exe
+            ./artifacts/**/tlon-messenger-*.AppImage
+          generate_release_notes: true  # Automatically generate release notes from PRs

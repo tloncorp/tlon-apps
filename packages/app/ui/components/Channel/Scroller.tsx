@@ -169,8 +169,6 @@ const Scroller = forwardRef(
       return Math.floor((availableSpace - totalGap) / columns);
     }, [availableSpace, columns]);
 
-    console.log({ availableSpace, columns, itemWidth });
-
     const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
     const [viewReactionsPost, setViewReactionsPost] = useState<null | db.Post>(
       null
