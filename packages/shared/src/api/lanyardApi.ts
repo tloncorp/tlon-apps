@@ -1,4 +1,4 @@
-import { daToUnix, parseUw } from '@urbit/aura';
+import { daToUnix, formatUv, formatUw, parseUw } from '@urbit/aura';
 import { Atom, Cell, Noun, cue, dwim, enjs } from '@urbit/nockjs';
 
 import * as db from '../db';
@@ -12,6 +12,7 @@ import {
   pokeNoun,
   scryNoun,
   subscribe,
+  subscribeOnce,
   trackedPokeNoun,
 } from './urbit';
 
@@ -47,18 +48,30 @@ type Sign = HalfSign | FullSign;
 
 // send to /valid-jam/${sign} -> noun (bool, good/no good)
 
+interface QueryResponse {
+  query: { result: boolean };
+}
 export async function checkAttestedSignature(signData: string) {
-  console.log(`bl: checking sig`);
-  const query = [null, null, ['valid-jam', signData]];
+  const nonce = Math.floor(Math.random() * 1000000);
+  const encodedNonce = formatUv(BigInt(nonce));
+
+  const query = [null, [null, nonce], ['valid-jam', signData]];
   const noun = dwim(query);
-  await trackedPokeNoun(
-    { app: 'lanyard', mark: 'lanyard-query', noun },
-    { app: 'lanyard', path: '/query' },
-    (event) => {
-      console.log(`bl: got valid jam sub event`, event);
-      return false;
-    }
-  );
+
+  const queryResponseSub = subscribeOnce<QueryResponse>({
+    app: 'lanyard',
+    path: `/query/${encodedNonce}`,
+  });
+
+  await pokeNoun({ app: 'lanyard', mark: 'lanyard-query', noun });
+  const queryResponse = await queryResponseSub;
+  console.log(`bl: got query response`, queryResponse);
+
+  if (queryResponse) {
+    return queryResponse?.query?.result;
+  }
+
+  return false;
 }
 
 function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {
