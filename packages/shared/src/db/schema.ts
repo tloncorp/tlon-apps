@@ -51,6 +51,7 @@ export const settings = sqliteTable('settings', {
   messagesFilter: text('messages_filter'),
   gallerySettings: text('gallery_settings'),
   notebookSettings: text('notebook_settings', { mode: 'json' }),
+  activitySeenTimestamp: timestamp('activity_seen_timestamp'),
 });
 
 export const contacts = sqliteTable('contacts', {
