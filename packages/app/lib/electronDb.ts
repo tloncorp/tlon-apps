@@ -99,7 +99,7 @@ export class ElectronDb extends BaseDb {
           handleChange({
             table: changeData.table,
             operation: changeData.operation,
-            row: JSON.parse(changeData.data || '{}'),
+            row: changeData.data,
           });
         } catch (e) {
           logger.error('Failed to process change:', e);
