@@ -4,6 +4,7 @@ import { BrowserWindow, app, ipcMain, shell } from 'electron';
 import fs from 'fs';
 import path from 'path';
 
+import { setupNotificationService } from './notification-service';
 import { setupSQLiteIPC } from './sqlite-service';
 import store from './store';
 
@@ -107,6 +108,8 @@ async function createWindow() {
       webSecurity: false,
     },
   });
+
+  setupNotificationService(mainWindow);
 
   const webSession = mainWindow.webContents.session;
 
