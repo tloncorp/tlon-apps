@@ -146,17 +146,6 @@
 +$  group-ui  [group init=? count=@ud]
 ::  $cabal: metadata representing a $sect or role
 ::
-::TODO rename cabal -> role-meta?
-::
-::  ++  role
-::    |^
-::    +$  role  @tas
-::    +$  diff
-::      $%  [%add meta=data:meta]
-::          [%edit meta=data:meta]
-::          [%del ~]
-::      ==
-::
 ++  cabal
   |^  cabal
   ::
@@ -341,7 +330,11 @@
 ::  $progress: the state of a group join
 ::
 +$  progress
-  ?(%knocking %adding %watching %error)
+  $?  %knocking
+      %adding
+      %watching
+      %error
+  ==
 ::
 ::  $claim: a mark for gangs to represent a join in progress
 ::
@@ -349,7 +342,6 @@
   $:  join-all=?
       =progress
   ==
-::
 ::  $preview: the metadata and entry policy for a group
 ::
 +$  preview
@@ -360,6 +352,16 @@
       secret=?
       count=@ud
   ==
+::
++$  preview-response
+  (each preview access-error)
+::  $access-error: group access error
+::
+::  %missing: group does not exist
+::  %forbidden: access denied
+::
++$  access-error  ?(%missing %forbidden)
+::
 ::
 +$  previews  (map flag preview)
 ::
@@ -372,17 +374,29 @@
   $:  cam=(unit claim)
       pev=(unit preview)
       vit=(unit invite)
+      err=(unit access-error)
   ==
 ::
 +$  gangs  (map flag gang)
 ::
+++  v6  v6:ver
 ++  v5  v5:ver
 ++  v2  v2:ver
 ::
 ++  ver
   |%
+  ++  v6  .
   ::
-  ++  v5  .
+  ++  v5
+    |%
+    +$  gang
+      $:  cam=(unit claim)
+          pev=(unit preview)
+          vit=(unit invite)
+      ==
+    ::
+    +$  gangs  (map flag gang)
+    --
   ::
   ++  v2
     |%
