@@ -13,15 +13,7 @@ import React, {
   useContext,
   useState,
 } from 'react';
-import {
-  ColorTokens,
-  ScrollView,
-  View,
-  ViewStyle,
-  XStack,
-  YStack,
-  styled,
-} from 'tamagui';
+import { ColorTokens, ScrollView, View, XStack, YStack, styled } from 'tamagui';
 
 import { ContentReferenceLoader, Reference } from '../ContentReference';
 import { VideoEmbed } from '../Embed';
@@ -43,7 +35,6 @@ export const BlockWrapper = styled(View, {
         alignItems: 'center',
       },
     },
-    type: {} as Record<cn.BlockData['type'], ViewStyle>,
   } as const,
 });
 
@@ -320,46 +311,34 @@ export const BlockquoteSideBorder = styled(View, {
 export function HeaderBlock({
   block,
   ...props
-}: { block: cn.HeaderBlockData } & ComponentProps<typeof HeaderText>) {
+}: { block: cn.HeaderBlockData } & ComponentProps<typeof Text>) {
+  const fontSize = (() => {
+    switch (block.level) {
+      case 'h1':
+        return '$title/l';
+      case 'h2':
+        return '$label/3xl';
+      case 'h3':
+        return '$label/2xl';
+      case 'h4':
+        return '$label/xl';
+      case 'h5':
+        return '$label/l';
+      case 'h6':
+        return '$label/m';
+      default:
+        return '$label/m';
+    }
+  })();
+
   return (
-    <HeaderText tag={block.level} {...props}>
+    <Text size={fontSize} fontWeight="$l" color="$primaryText" {...props}>
       {block.children.map((con, i) => (
         <InlineRenderer key={`${con}-${i}`} inline={con} />
       ))}
-    </HeaderText>
+    </Text>
   );
 }
-
-export const HeaderText = styled(Text, {
-  variants: {
-    tag: {
-      h1: {
-        fontSize: 24,
-        fontWeight: 'bold',
-      },
-      h2: {
-        fontSize: 20,
-        fontWeight: 'bold',
-      },
-      h3: {
-        fontSize: 16,
-        fontWeight: 'bold',
-      },
-      h4: {
-        fontSize: 14,
-        fontWeight: 'bold',
-      },
-      h5: {
-        fontSize: 12,
-        fontWeight: 'bold',
-      },
-      h6: {
-        fontSize: 10,
-        fontWeight: 'bold',
-      },
-    },
-  } as const,
-});
 
 export function EmbedBlock({
   block,
