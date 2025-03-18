@@ -628,7 +628,7 @@
       [caz this]
     ==
   ::
-      %verifier-query
+      %verifier-user-query
     =+  !<(qer=user-query vase)
     =;  [res=result:query-result nu=_state]
       =.  state  nu

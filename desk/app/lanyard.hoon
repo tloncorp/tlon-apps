@@ -290,7 +290,7 @@
       :_  this(queries (~(put by queries) nonce [%| query.qer]))
       ::TODO  time out query responses?
       =/  =cage
-        [%verifier-query !>(`user-query`[[dap.bowl nonce] query.qer])]
+        [%verifier-user-query !>(`user-query`[[dap.bowl nonce] query.qer])]
       [%pass /query/(scot %uv nonce) %agent [host %verifier] %poke cage]~
     ::  handle %valid-jam queries locally first, we should be able to say
     ::  something about the signature without going over the network.
@@ -316,7 +316,7 @@
       [%give %fact ~[/ /query /query/(scot %uv nonce)] %lanyard-update !>(upd)]
     =*  ask
       =/  =cage
-        [%verifier-query !>(`user-query`[[dap.bowl nonce] %valid u.sig])]
+        [%verifier-user-query !>(`user-query`[[dap.bowl nonce] %valid u.sig])]
       [%pass /query/(scot %uv nonce) %agent [host %verifier] %poke cage]
     ?~  sig      [give]~  ::  can't ask, give our result
     ?~  valid    [ask]~   ::  don't know, defer to service
