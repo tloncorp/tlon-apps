@@ -133,9 +133,17 @@ export async function setDefaultNotificationLevel(
 }
 
 export async function advanceActivitySeenMarker(timestamp: number) {
-  const existingMarker = await db.activitySeenMarker.getValue();
+  const currentUserId = api.getCurrentUserId();
+  const settings = await db.getSettings(currentUserId);
+  const existingMarker = settings?.activitySeenTimestamp ?? 1;
   if (timestamp > existingMarker) {
-    db.activitySeenMarker.setValue(timestamp);
+    // optimistic update
+    db.insertSettings({
+      userId: currentUserId,
+      activitySeenTimestamp: timestamp,
+    });
+
+    await api.setSetting('activitySeenTimestamp', timestamp);
   }
 }
 

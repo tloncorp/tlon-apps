@@ -1,0 +1,14 @@
+{
+  "files": [],
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "node16",
+    "outDir": "./build"
+  },
+  "references": [
+    { "path": "./src/main" },
+    { "path": "./src/preload" },
+    { "path": "../../packages/shared" },
+    { "path": "../../packages/app" }
+  ]
+}
