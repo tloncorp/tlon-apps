@@ -337,7 +337,7 @@
       [%valid-jam & valid.res]
     ::TODO  mark result for deletion after time?
     :_  this(queries (~(put by queries) nonce.res [%& qes rez]))
-    =/  upd=update:l  [%query res]  ::TODO  different?
+    =/  upd=update:l  [%query nonce.res rez]
     [%give %fact ~[/ /query /query/(scot %uv nonce.res)] %lanyard-update !>(upd)]~
   ==
 ::
