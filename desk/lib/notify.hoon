@@ -128,7 +128,7 @@
             ==
           ::
               %group-invite
-            =+  .^(=gangs:g:a %gx /(scot %p our)/groups/(scot %da now)/gangs/noun)
+            =+  .^(=gangs:v5:g:a %gx /(scot %p our)/groups/(scot %da now)/v1/gangs/noun)
             :~  [%ship ship.event]
                 ' sent you an invite to '
                 ?~  gang=(~(get by gangs) group.event)  'a group'

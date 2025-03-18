@@ -10,7 +10,7 @@ import {
   View,
   XStack,
   YStack,
-} from '@tloncorp/ui';
+} from '@tloncorp/app/ui';
 import { useState } from 'react';
 import { Image } from 'react-native';
 

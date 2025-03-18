@@ -1,4 +1,4 @@
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { preSig } from '@tloncorp/shared/urbit';
@@ -100,24 +100,28 @@ export function useBootSequence() {
     // AUTHENTICATING: authenticate with the node itself
     //
     if (bootPhase === NodeBootPhase.AUTHENTICATING) {
-      const auth = await BootHelpers.authenticateNode(reservedNodeId);
-      const ship = getShipFromCookie(auth.authCookie);
+      try {
+        const shipInfo = await store.authenticateWithReadyNode();
+        if (!shipInfo) {
+          throw new Error('Could not authenticate with node');
+        }
+        setShip(shipInfo);
+        telemetry?.identify(preSig(shipInfo.ship!), { isHostedUser: true });
 
-      setShip({
-        ship,
-        shipUrl: auth.nodeUrl,
-        authCookie: auth.authCookie,
-        authType: 'hosted',
-      });
-      telemetry?.identify(preSig(auth.nodeId), { isHostedUser: true });
+        await wait(2000);
 
-      await wait(2000);
+        configureUrbitClient({
+          shipName: shipInfo.ship,
+          shipUrl: shipInfo.shipUrl,
+        });
+        store.syncStart();
 
-      configureUrbitClient({ shipName: auth.nodeId, shipUrl: auth.nodeUrl });
-      store.syncStart();
-
-      logger.crumb(`authenticated with node`);
-      return NodeBootPhase.CONNECTING;
+        logger.crumb(`authenticated with node`);
+        return NodeBootPhase.CONNECTING;
+      } catch (err) {
+        logger.crumb('failed to authenticate with node', err);
+        return NodeBootPhase.AUTHENTICATING;
+      }
     }
 
     //
@@ -146,18 +150,28 @@ export function useBootSequence() {
         store.addContact(lureMeta?.inviterUserId);
       }
 
-      const { invitedDm, invitedGroup } =
+      const { invitedDm, invitedGroup, tlonTeamDM } =
         await BootHelpers.getInvitedGroupAndDm(lureMeta);
+      logger.trackEvent(AnalyticsEvent.InviteDebug, {
+        context: 'invites to look for',
+        invitedDm,
+        invitedGroup,
+        tlonTeamDM,
+      });
 
       const requiredInvites =
         lureMeta?.inviteType === 'user' ? invitedDm : invitedGroup && invitedDm;
 
       if (requiredInvites) {
-        logger.crumb('confirmed node has the invites');
+        logger.trackEvent(AnalyticsEvent.InviteDebug, {
+          context: 'confirmed node has the invites',
+        });
         return NodeBootPhase.ACCEPTING_INVITES;
       }
 
-      logger.crumb('checked node for invites, not yet found');
+      logger.trackEvent(AnalyticsEvent.InviteDebug, {
+        context: 'checked node for invites, not yet found',
+      });
       return NodeBootPhase.CHECKING_FOR_INVITE;
     }
 
@@ -170,12 +184,16 @@ export function useBootSequence() {
 
       // if we have invites, accept them
       if (tlonTeamDM && tlonTeamDM.isDmInvite) {
-        logger.crumb(`accepting dm invitation`);
+        logger.trackEvent(AnalyticsEvent.InviteDebug, {
+          context: `have tlon team dm invite, accepting`,
+        });
         await store.respondToDMInvite({ channel: tlonTeamDM, accept: true });
       }
 
       if (invitedDm && invitedDm.isDmInvite) {
-        logger.crumb(`accepting dm invitation`);
+        logger.trackEvent(AnalyticsEvent.InviteDebug, {
+          context: `have dm invite from inviter, accepting`,
+        });
         await store.respondToDMInvite({ channel: invitedDm, accept: true });
       }
 
@@ -184,7 +202,9 @@ export function useBootSequence() {
         !invitedGroup.currentUserIsMember &&
         invitedGroup.haveInvite
       ) {
-        logger.crumb('accepting group invitation');
+        logger.trackEvent(AnalyticsEvent.InviteDebug, {
+          context: `have group invite, joining`,
+        });
         await store.joinGroup(invitedGroup);
       }
 
@@ -231,12 +251,12 @@ export function useBootSequence() {
         return NodeBootPhase.READY;
       }
 
-      logger.crumb(
-        'still waiting on invites to be accepted',
-        `dm is ready: ${dmIsGood}`,
-        `group is ready: ${groupIsGood}`,
-        `tlonTeam is ready: ${tlonTeamIsGood}`
-      );
+      logger.trackEvent(AnalyticsEvent.InviteDebug, {
+        context: `not all invites are confirmed accepted`,
+        dmReady: dmIsGood,
+        groupReady: groupIsGood,
+        tlonTeamReady: tlonTeamIsGood,
+      });
       return NodeBootPhase.ACCEPTING_INVITES;
     }
 

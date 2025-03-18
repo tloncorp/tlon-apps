@@ -4,6 +4,8 @@ import * as api from '../api';
 import * as db from '../db';
 import { GroupPrivacy } from '../db/schema';
 import { createDevLogger } from '../debug';
+import { AnalyticsEvent } from '../domain';
+import * as logic from '../logic';
 import { getRandomId } from '../logic';
 import { createSectionId } from '../urbit';
 import { createChannel } from './channelActions';
@@ -24,7 +26,10 @@ export async function createGroup(
 
   try {
     logger.log('creating group', groupId);
-
+    logger.trackEvent(AnalyticsEvent.ActionCreateGroup, {
+      ...logic.getModelAnalytics({ group: { id: groupId } }),
+      initialMemberCount: params.memberIds?.length ?? 0,
+    });
     await api.createGroup({
       title: params.title ?? '',
       placeholderTitle: await getPlaceholderTitle(params),
@@ -72,6 +77,10 @@ async function getPlaceholderTitle({ memberIds, title }: CreateGroupParams) {
 
 export async function acceptGroupInvitation(group: db.Group) {
   logger.log('accepting group invitation', group.id);
+  logger.trackEvent(
+    AnalyticsEvent.ActionAcceptGroupInvite,
+    logic.getModelAnalytics({ group })
+  );
   await db.updateGroup({ id: group.id, joinStatus: 'joining' });
 
   try {
@@ -84,6 +93,10 @@ export async function acceptGroupInvitation(group: db.Group) {
 
 export async function rejectGroupInvitation(group: db.Group) {
   logger.log('rejecting group invitation', group.id);
+  logger.trackEvent(
+    AnalyticsEvent.ActionRejectGroupInvite,
+    logic.getModelAnalytics({ group })
+  );
   // optimistic update
   await db.deleteGroup(group.id);
 
@@ -98,6 +111,10 @@ export async function rejectGroupInvitation(group: db.Group) {
 
 export async function requestGroupInvitation(group: db.Group) {
   logger.log('requesting group invitation', group.id);
+  logger.trackEvent(
+    AnalyticsEvent.ActionRequestGroupInvite,
+    logic.getModelAnalytics({ group })
+  );
   // optimistic update
   await db.updateGroup({ id: group.id, haveRequestedInvite: true });
   try {
@@ -145,6 +162,11 @@ export async function inviteGroupMembers({
     contactIds,
   });
 
+  logger.trackEvent(AnalyticsEvent.OnNetworkInvite, {
+    ...logic.getModelAnalytics({ group: existingGroup }),
+    numInvitesSent: contactIds.length,
+  });
+
   try {
     if (existingGroup.privacy === 'public') {
       await api.addGroupMembers({ groupId, contactIds });
@@ -163,6 +185,10 @@ export async function inviteGroupMembers({
 
 export async function cancelGroupJoin(group: db.Group) {
   logger.log('canceling group join', group.id);
+  logger.trackEvent(
+    AnalyticsEvent.ActionCancelGroupJoin,
+    logic.getModelAnalytics({ group })
+  );
   // optimistic update
   await db.updateGroup({
     id: group.id,
@@ -183,6 +209,10 @@ export async function cancelGroupJoin(group: db.Group) {
 
 export async function joinGroup(group: db.Group) {
   logger.log('joining group', group.id);
+  logger.trackEvent(
+    AnalyticsEvent.ActionJoinGroup,
+    logic.getModelAnalytics({ group })
+  );
   // optimistic update
   await db.updateGroup({ id: group.id, joinStatus: 'joining' });
 
@@ -201,7 +231,6 @@ export async function markGroupNew(group: db.Group) {
 }
 
 export async function markGroupVisited(groupId: string) {
-  logger.log('marking new group as visited', groupId);
   await db.updateGroup({ id: groupId, isNew: false });
 }
 
@@ -210,6 +239,10 @@ export async function updateGroupPrivacy(
   newPrivacy: GroupPrivacy
 ) {
   logger.log('updating group privacy', group.id, newPrivacy);
+  logger.trackEvent(AnalyticsEvent.ActionUpdatedGroupPrivacy, {
+    ...logic.getModelAnalytics({ group }),
+    newPrivacy,
+  });
 
   const oldPrivacy = group.privacy ?? 'public';
 
@@ -240,6 +273,13 @@ export async function updateGroupPrivacy(
 
 export async function updateGroupMeta(group: db.Group) {
   logger.log('updating group', group.id);
+  logger.trackEvent(AnalyticsEvent.ActionCustomizedGroup, {
+    ...logic.getModelAnalytics({ group }),
+    hasTitle: !!group.title,
+    hasDescription: !!group.description,
+    hasCoverImage: !!group.coverImage,
+    hasIconImage: !!group.iconImage,
+  });
 
   const existingGroup = await db.getGroup({ id: group.id });
 
@@ -267,6 +307,10 @@ export async function updateGroupMeta(group: db.Group) {
 
 export async function deleteGroup(group: db.Group) {
   logger.log('deleting group', group.id);
+  logger.trackEvent(
+    AnalyticsEvent.ActionDeleteGroup,
+    logic.getModelAnalytics({ group })
+  );
 
   // optimistic update
   await db.deleteGroup(group.id);
@@ -783,6 +827,11 @@ export async function kickUserFromGroup({
     return;
   }
 
+  logger.trackEvent(
+    AnalyticsEvent.ActionKickUser,
+    logic.getModelAnalytics({ group: existingGroup })
+  );
+
   if (!existingGroup.members) {
     console.error('Group members not found', groupId);
     return;
@@ -829,6 +878,11 @@ export async function banUserFromGroup({
     console.error('Group not found', groupId);
     return;
   }
+
+  logger.trackEvent(
+    AnalyticsEvent.ActionBanUser,
+    logic.getModelAnalytics({ group: existingGroup })
+  );
 
   if (!existingGroup.members) {
     console.error('Group members not found', groupId);
@@ -894,6 +948,11 @@ export async function unbanUserFromGroup({
     return;
   }
 
+  logger.trackEvent(
+    AnalyticsEvent.ActionUnbanUser,
+    logic.getModelAnalytics({ group: existingGroup })
+  );
+
   if (!existingGroup.members) {
     console.error('Group members not found', groupId);
     return;
@@ -936,6 +995,11 @@ export async function acceptUserJoin({
     console.error('Group not found', groupId);
     return;
   }
+
+  logger.trackEvent(
+    AnalyticsEvent.ActionAcceptJoinRequest,
+    logic.getModelAnalytics({ group: existingGroup })
+  );
 
   if (!existingGroup.members) {
     console.error('Group members not found', groupId);
@@ -1008,6 +1072,11 @@ export async function rejectUserJoin({
     return;
   }
 
+  logger.trackEvent(
+    AnalyticsEvent.ActionRejectJoinRequest,
+    logic.getModelAnalytics({ group: existingGroup })
+  );
+
   if (!existingGroup.joinRequests) {
     console.error('Group join requests not found', groupId);
     return;
@@ -1052,6 +1121,11 @@ export async function leaveGroup(groupId: string) {
     return;
   }
 
+  logger.trackEvent(
+    AnalyticsEvent.ActionLeaveGroup,
+    logic.getModelAnalytics({ group: existingGroup })
+  );
+
   // optimistic update
   await db.deleteGroup(groupId);
 
@@ -1084,5 +1158,173 @@ export async function markGroupRead(groupId: string, deep: boolean = false) {
     if (existingUnread) {
       await db.insertGroupUnreads([existingUnread]);
     }
+  }
+}
+
+export async function addGroupRole({
+  groupId,
+  roleId,
+  meta,
+}: {
+  groupId: string;
+  roleId: string;
+  meta: db.ClientMeta;
+}) {
+  logger.log('adding group role', groupId, roleId);
+  logger.trackEvent(
+    AnalyticsEvent.ActionAddedRole,
+    logic.getModelAnalytics({ group: { id: groupId } })
+  );
+
+  // optimistic update
+  await db.addGroupRole({ groupId, roleId, meta });
+
+  try {
+    await api.addGroupRole({ groupId, roleId, meta });
+  } catch (e) {
+    console.error('Failed to add group role', e);
+    // rollback optimistic update
+    await db.deleteGroupRole({ groupId, roleId: roleId });
+  }
+}
+
+export async function updateGroupRole({
+  groupId,
+  roleId,
+  meta,
+}: {
+  groupId: string;
+  roleId: string;
+  meta: db.ClientMeta;
+}) {
+  logger.log('updating group role', groupId, roleId);
+  logger.trackEvent(
+    AnalyticsEvent.ActionUpdatedRole,
+    logic.getModelAnalytics({ group: { id: groupId } })
+  );
+
+  const existingRole = await db.getGroupRole({ groupId, roleId });
+
+  if (!existingRole) {
+    console.error('Role not found', groupId, roleId);
+    return;
+  }
+
+  // optimistic update
+  await db.updateGroupRole({ groupId, roleId, meta });
+
+  try {
+    await api.updateGroupRole({ groupId, roleId, meta });
+  } catch (e) {
+    console.error('Failed to update group role', e);
+    // rollback optimistic update
+    await db.updateGroupRole({
+      groupId,
+      roleId,
+      meta: {
+        title: existingRole.title,
+        description: existingRole.description,
+      },
+    });
+  }
+}
+
+export async function deleteGroupRole({
+  groupId,
+  roleId,
+}: {
+  groupId: string;
+  roleId: string;
+}) {
+  logger.log('deleting group role', groupId, roleId);
+  logger.trackEvent(
+    AnalyticsEvent.ActionRemovedRole,
+    logic.getModelAnalytics({ group: { id: groupId } })
+  );
+
+  const existingRole = await db.getGroupRole({ groupId, roleId });
+
+  if (!existingRole) {
+    console.error('Role not found', groupId, roleId);
+    return;
+  }
+
+  // optimistic update
+  await db.deleteGroupRole({ groupId, roleId });
+
+  try {
+    await api.deleteGroupRole({ groupId, roleId });
+  } catch (e) {
+    console.error('Failed to delete group role', e);
+    // rollback optimistic update
+    await db.addGroupRole({ groupId, roleId, meta: existingRole });
+  }
+}
+
+export async function addMembersToRole({
+  groupId,
+  roleId,
+  contactIds,
+}: {
+  groupId: string;
+  roleId: string;
+  contactIds: string[];
+}) {
+  logger.log('adding members to role', groupId, roleId, contactIds);
+  logger.trackEvent(AnalyticsEvent.ActionAddMemberRole, {
+    ...logic.getModelAnalytics({ group: { id: groupId } }),
+    numMembersModified: contactIds.length,
+  });
+
+  const existingRole = await db.getGroupRole({ groupId, roleId });
+
+  if (!existingRole) {
+    console.error('Role not found', groupId, roleId);
+    return;
+  }
+
+  // optimistic update
+  await db.addMembersToRole({ groupId, roleId, contactIds });
+
+  try {
+    await api.addMembersToRole({ groupId, roleId, ships: contactIds });
+  } catch (e) {
+    console.error('Failed to add members to role', e);
+    // rollback optimistic update
+    await db.removeMembersFromRole({ groupId, roleId, contactIds });
+  }
+}
+
+export async function removeMembersFromRole({
+  groupId,
+  roleId,
+  contactIds,
+}: {
+  groupId: string;
+  roleId: string;
+  contactIds: string[];
+}) {
+  logger.log('removing members from role', groupId, roleId, contactIds);
+  logger.trackEvent(AnalyticsEvent.ActionRemoveMemberRole, {
+    ...logic.getModelAnalytics({ group: { id: groupId } }),
+    numMembersModified: contactIds.length,
+  });
+
+  const existingRole = await db.getGroupRole({ groupId, roleId });
+
+  if (!existingRole) {
+    console.error('Role not found', groupId, roleId);
+    return;
+  }
+
+  // optimistic update
+  await db.removeMembersFromRole({ groupId, roleId, contactIds });
+
+  try {
+    await api.removeMembersFromRole({ groupId, roleId, ships: contactIds });
+  } catch (e) {
+    console.error('Failed to remove members from role', e);
+    // rollback optimistic update
+    await db.addMembersToRole({ groupId, roleId, contactIds });
   }
 }

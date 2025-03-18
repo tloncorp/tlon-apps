@@ -21,6 +21,7 @@
 =*  log-item  q.u.arg
 =*  log-data  r.u.arg
 ;<  =bowl:strand  bind:m  get-bowl:io
+;<  is-fake=?  bind:m  (scry:io ? %j /fake)
 =/  log-event-json=$>(%o json)  (log-event:enjs:l event.log-item)
 ::  retrieve desk hash
 ::
@@ -33,7 +34,11 @@
   %-  my
   %+  weld  log-data
   ^-  log-data:l
-  :~  'distinct_id'^s+(scot %p our.bowl)
+  =/  id=@t
+    ?.  is-fake
+      (scot %p our.bowl)
+    (cat 3 'fake' (scot %p our.bowl))
+  :~  'distinct_id'^s+id
       'origin'^s+(spat origin)
       'hash'^s+(scot %uv hash)
   ==

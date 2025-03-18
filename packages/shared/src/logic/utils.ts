@@ -524,3 +524,49 @@ export function getRandomId() {
     '$1'
   );
 }
+
+/**
+ * Simple one way transform for identifying distinct values while
+ * obscuring sensitive information, eg ~latter-bolden/garden -> rfn4hj
+ */
+export function simpleHash(input: string) {
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    const char = input.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+export function getModelAnalytics({
+  post,
+  group,
+  channel,
+}: {
+  post?: Partial<db.Post> | null;
+  group?: Partial<db.Group> | null;
+  channel?: Partial<db.Channel> | null;
+}) {
+  const details: Record<string, string | null> = {};
+
+  if (post) {
+    details.postId = post.sentAt ? simpleHash(post.sentAt.toString()) : null;
+    details.channelId = post.channelId ? simpleHash(post.channelId) : null;
+  }
+
+  if (channel) {
+    details.channelId = channel.id ? simpleHash(channel.id) : null;
+    details.channelType = channel.type ?? null;
+    details.groupId = channel.groupId ? simpleHash(channel.groupId) : null;
+  }
+
+  if (group) {
+    details.groupId = group.id ? simpleHash(group.id) : null;
+    details.groupType =
+      (group.channels?.length ?? 1) > 1 ? 'multi-topic' : 'groupchat';
+    details.groupPrivacy = group.privacy ?? null;
+  }
+
+  return details;
+}

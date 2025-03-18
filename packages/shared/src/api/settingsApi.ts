@@ -1,6 +1,49 @@
 import * as db from '../db';
 import * as ub from '../urbit';
-import { getCurrentUserId, scry } from './urbit';
+import { getCurrentUserId, poke, scry, subscribe } from './urbit';
+
+export function getMessagesFilter(
+  value: string | null | undefined
+): ub.TalkSidebarFilter {
+  if (!value) {
+    return 'Direct Messages';
+  }
+
+  switch (value) {
+    case 'Direct Messages':
+    case 'All Messages':
+    case 'Group Channels':
+      return value;
+    default:
+      throw new Error(`Invalid messages filter: ${value}`);
+  }
+}
+
+function getBucket(key: string): string {
+  switch (key) {
+    case 'messagesFilter':
+      return 'talk';
+    case 'activitySeenTimestamp':
+      return 'groups';
+    default:
+      throw new Error(`Invalid setting key: ${key}`);
+  }
+}
+
+export const setSetting = async (key: string, val: any) => {
+  return poke({
+    app: 'settings',
+    mark: 'settings-event',
+    json: {
+      'put-entry': {
+        desk: 'groups',
+        'bucket-key': getBucket(key),
+        'entry-key': key,
+        value: val,
+      },
+    },
+  });
+};
 
 export const getSettings = async () => {
   const results = await scry<ub.GroupsDeskSettings>({
@@ -51,6 +94,7 @@ export const toClientSettings = (
     messagesFilter: settings.desk.talk?.messagesFilter,
     gallerySettings: settings.desk.heaps?.heapSettings,
     notebookSettings: JSON.stringify(settings.desk.diary),
+    activitySeenTimestamp: settings.desk.groups?.activitySeenTimestamp,
   };
 };
 
@@ -136,4 +180,34 @@ export async function getAppInfo(): Promise<db.AppInfo> {
     groupsHash: groupsPike.hash ?? 'n/a',
     groupsSyncNode: groupsPike.sync?.ship ?? 'n/a',
   };
+}
+
+export type SettingsUpdate = {
+  type: 'updateSetting';
+  setting: Partial<db.Settings>;
+};
+
+export function subscribeToSettings(handler: (update: SettingsUpdate) => void) {
+  subscribe<ub.SettingsEvent>(
+    {
+      app: 'settings',
+      path: '/desk/groups',
+    },
+    (update) => {
+      if (!('settings-event' in update)) {
+        return;
+      }
+      const event = update['settings-event'];
+
+      if ('put-entry' in event) {
+        const update = event['put-entry'];
+        handler({
+          type: 'updateSetting',
+          setting: {
+            [update['entry-key']]: update.value,
+          },
+        });
+      }
+    }
+  );
 }

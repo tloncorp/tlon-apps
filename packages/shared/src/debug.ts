@@ -214,6 +214,11 @@ async function getDebugInfo() {
 }
 
 export function createDevLogger(tag: string, enabled: boolean) {
+  const isElectron =
+    typeof window !== 'undefined' &&
+    window.navigator &&
+    window.navigator.userAgent &&
+    window.navigator.userAgent.indexOf('Electron') >= 0;
   const proxy = new Proxy(console, {
     get(target: Console, prop: string | symbol, receiver) {
       return (...args: unknown[]) => {
@@ -275,6 +280,7 @@ export function createDevLogger(tag: string, enabled: boolean) {
             errorLogger?.capture(args[0], {
               ...customProps,
               message: `[${tag}] ${args[0]}`,
+              logger: tag,
             });
           }
           resolvedProp = 'log';
@@ -292,7 +298,7 @@ export function createDevLogger(tag: string, enabled: boolean) {
           });
         }
 
-        if (__DEV__) {
+        if (__DEV__ || isElectron) {
           const val = Reflect.get(target, resolvedProp, receiver);
           val(prefix, ...args);
         }

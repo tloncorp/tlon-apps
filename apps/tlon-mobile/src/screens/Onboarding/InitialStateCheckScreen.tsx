@@ -1,7 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { LoadingSpinner, View } from '@tloncorp/ui';
+import { LoadingSpinner, View } from '@tloncorp/app/ui';
 import { useEffect } from 'react';
 
 import { useOnboardingHelpers } from '../../hooks/useOnboardingHelpers';
@@ -57,6 +57,7 @@ export function InitialStateCheckScreen({ navigation }: Props) {
           }
         }
       } catch (e) {
+        db.clearSessionStorageItems();
         logger.trackEvent('Error reviving onboarding session', {
           errorMessage: e.message,
           errorStack: e.stack,

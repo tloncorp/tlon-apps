@@ -23,12 +23,28 @@ export async function fetchEmbed(inputUrl: string, isMobile?: boolean) {
     url,
   });
   const isSpotify = url.startsWith('https://open.spotify.com');
+  const isTikTok = url.startsWith('https://www.tiktok.com');
+  const isTwitter = url
+    .split('/')
+    .filter(Boolean)
+    .includes.apply(url.split('/'), ['twitter.com']);
+
   if (isSpotify) {
     // noembed doesn't support spotify
     const urlWithoutTracker = url?.split('?')[0];
     return jsonFetch(
       `https://open.spotify.com/oembed?url=${urlWithoutTracker}`
     );
+  }
+
+  if (isTikTok) {
+    // noembed doesn't support tiktok
+    return jsonFetch(`https://www.tiktok.com/oembed?url=${url}`);
+  }
+
+  if (isTwitter) {
+    // noembed doesn't support twitter or x.com
+    return jsonFetch(`https://publish.twitter.com/oembed?url=${url}`);
   }
 
   return jsonFetch(`${OEMBED_PROVIDER}?${search.toString()}`);

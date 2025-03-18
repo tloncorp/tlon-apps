@@ -3,14 +3,21 @@ import {
   NavigationProp,
   useNavigation as useReactNavigation,
 } from '@react-navigation/native';
+import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
 import { useFeatureFlagStore } from '../lib/featureFlags';
-import { CombinedParamList } from './types';
+import { useGlobalSearch, useIsWindowNarrow } from '../ui';
+import {
+  DesktopBasePathStackParamList,
+  MobileBasePathStackParamList,
+} from './BasePathNavigator';
+import { CombinedParamList, RootStackParamList } from './types';
+
+const logger = createDevLogger('nav-utils', false);
 
 export const useNavigation = () => {
   return useReactNavigation<NavigationProp<CombinedParamList>>();
@@ -47,8 +54,10 @@ export function useTypedReset() {
 }
 
 function useResetToChannel() {
+  const navigation = useNavigation();
   const reset = useTypedReset();
   const isWindowNarrow = useIsWindowNarrow();
+  const { lastOpenTab } = useGlobalSearch();
 
   return function resetToChannel(
     channelId: string,
@@ -72,7 +81,10 @@ function useResetToChannel() {
         },
       ]);
     } else {
+      const tab = getTab(navigation, lastOpenTab);
+      logger.log('resetToChannel', { tab, channelId, options });
       const channelRoute = getDesktopChannelRoute(
+        tab,
         channelId,
         options?.groupId,
         options?.selectedPostId ?? undefined
@@ -123,6 +135,7 @@ function useResetToGroup() {
 function useNavigateToChannel() {
   const isWindowNarrow = useIsWindowNarrow();
   const navigation = useNavigation();
+  const { lastOpenTab } = useGlobalSearch();
 
   return useCallback(
     (channel: db.Channel, selectedPostId?: string) => {
@@ -134,7 +147,9 @@ function useNavigateToChannel() {
           ...(channel.groupId ? { groupId: channel.groupId } : {}),
         });
       } else {
+        const tab = getTab(navigation, lastOpenTab);
         const channelRoute = getDesktopChannelRoute(
+          tab,
           channel.id,
           channel.groupId ?? undefined,
           selectedPostId
@@ -142,13 +157,14 @@ function useNavigateToChannel() {
         navigation.navigate(channelRoute);
       }
     },
-    [isWindowNarrow, navigation]
+    [isWindowNarrow, navigation, lastOpenTab]
   );
 }
 
 export function useNavigateToPost() {
   const isWindowNarrow = useIsWindowNarrow();
   const navigation = useNavigation();
+  const { lastOpenTab } = useGlobalSearch();
   const activityIndex = navigation
     .getState()
     ?.routes.findIndex((route) => route.name === 'Activity');
@@ -158,7 +174,7 @@ export function useNavigateToPost() {
   return useCallback(
     (post: db.Post) => {
       if (!isWindowNarrow && currentScreenIsActivity) {
-        navigation.navigate('Home', {
+        navigation.navigate(getTab(navigation, lastOpenTab), {
           screen: 'Channel',
           params: {
             screen: 'Post',
@@ -197,24 +213,65 @@ export function useNavigateBackFromPost() {
         navigation.navigate('Activity');
         return;
       }
+      const isChatShaped = ['chat', 'dm', 'groupDM'].includes(channel.type);
       if (isWindowNarrow) {
         const screenName = screenNameFromChannelId(channel.id);
         navigation.navigate(screenName, {
           channelId: channel.id,
-          selectedPostId: postId,
+          // we don't want to highlight the selected post we're returning from
+          // if we aren't in a chat
+          selectedPostId: isChatShaped ? postId : undefined,
           ...(channel.groupId ? { groupId: channel.groupId } : {}),
         });
       } else {
         // @ts-expect-error - ChannelRoot is fine here.
         navigation.navigate('ChannelRoot', {
           channelId: channel.id,
-          selectedPostId: postId,
+          selectedPostId: isChatShaped ? postId : undefined,
           groupId: channel.groupId ?? undefined,
         });
       }
     },
     [navigation, isWindowNarrow, lastScreenWasActivity]
   );
+}
+
+function getTab(
+  navigation:
+    | NavigationProp<
+        MobileBasePathStackParamList & DesktopBasePathStackParamList
+      >
+    | NavigationProp<RootStackParamList>
+    | NavigationProp<CombinedParamList>,
+  lastOpenTab: 'Home' | 'Messages'
+): 'Home' | 'Messages' {
+  const parent = navigation.getParent()?.getState();
+  const state =
+    parent?.type.toLocaleLowerCase() === 'drawer'
+      ? parent
+      : navigation.getState();
+
+  logger.log(parent, navigation.getState());
+  if (state.type !== 'drawer' || state.routes[state.index]?.name === 'Root') {
+    console.warn(
+      'Top-level navigator is not a drawer navigator, using lastOpenTab'
+    );
+    return lastOpenTab;
+  }
+
+  const last = state.routes[state.index];
+  logger.log('last route name', last.name);
+  const drawers = ['Home', 'Messages', 'Activity', 'Profile', 'Settings'];
+  if (!drawers.includes(last.name)) {
+    logger.log('not top level drawer, getting tab from parent');
+    return getTab(navigation.getParent(), lastOpenTab);
+  }
+
+  if (last.name === 'Home' || last.name === 'Messages') {
+    return last.name;
+  }
+
+  return lastOpenTab;
 }
 
 export function useRootNavigation() {
@@ -232,6 +289,7 @@ export function useRootNavigation() {
 
   const useNavigateToChatDetails = () => {
     const isWindowNarrow = useIsWindowNarrow();
+    const { lastOpenTab } = useGlobalSearch();
 
     return useCallback(
       (chat: { type: 'group' | 'channel'; id: string }) => {
@@ -241,7 +299,8 @@ export function useRootNavigation() {
             chatType: chat.type,
           });
         } else {
-          navigationRef.current.navigate('Home', {
+          const tab = getTab(navigationRef.current, lastOpenTab);
+          navigationRef.current.navigate(tab, {
             screen: 'ChatDetails',
             params: {
               chatId: chat.id,
@@ -256,6 +315,7 @@ export function useRootNavigation() {
 
   const useNavigateToChatVolume = () => {
     const isWindowNarrow = useIsWindowNarrow();
+    const { lastOpenTab } = useGlobalSearch();
 
     return useCallback(
       (chat: { type: 'group' | 'channel'; id: string }) => {
@@ -265,7 +325,8 @@ export function useRootNavigation() {
             chatType: chat.type,
           });
         } else {
-          navigationRef.current.navigate('Home', {
+          const tab = getTab(navigationRef.current, lastOpenTab);
+          navigationRef.current.navigate(tab, {
             screen: 'ChatVolume',
             params: {
               chatId: chat.id,
@@ -322,13 +383,15 @@ export function useRootNavigation() {
 }
 
 export function getDesktopChannelRoute(
+  tab: 'Home' | 'Messages',
   channelId: string,
   groupId?: string,
   selectedPostId?: string
 ) {
   const screenName = screenNameFromChannelId(channelId);
+  logger.log('getDesktopChannelRoute', screenName);
   return {
-    name: 'Home',
+    name: tab,
     params: {
       screen: screenName,
       initial: true,
@@ -354,11 +417,15 @@ export async function getMainGroupRoute(
     (group.channels.length === 1 || channelSwitcherEnabled || !isWindowNarrow)
   ) {
     if (!isWindowNarrow && group.lastVisitedChannelId) {
-      return getDesktopChannelRoute(group.lastVisitedChannelId, groupId);
+      return getDesktopChannelRoute(
+        'Home',
+        group.lastVisitedChannelId,
+        groupId
+      );
     }
 
     if (!isWindowNarrow) {
-      return getDesktopChannelRoute(group.channels[0].id, groupId);
+      return getDesktopChannelRoute('Home', group.channels[0].id, groupId);
     }
 
     return {

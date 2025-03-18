@@ -1,0 +1,88 @@
+appId: io.tlon.groups
+---
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/tlon-login.yaml
+- assertVisible: 'Home'
+# Tap on the "+" button
+- tapOn:
+    id: 'CreateGroupButton'
+# Assert that the sheet pops
+- assertVisible: 'Create customizable group chat'
+- tapOn: 'New group'
+# Assert that the contacts sheet pops
+- assertVisible: 'Select contacts to invite'
+# Create the group
+- tapOn: 'Create group'
+- runFlow:
+    when:
+      visible: 'General'
+    commands:
+      - assertVisible: 'Welcome to your group!'
+# Navigate back to Home and assert that the group is created
+- tapOn:
+    id: 'HeaderBackButton'
+- runFlow:
+    when:
+      visible: 'Home'
+    commands:
+      - assertVisible: 'Untitled group'
+      - tapOn: 'Untitled group'
+      - assertVisible: 'General'
+# Open the Customize group screen from the empty "General" channel
+- tapOn: 'Customize'
+- assertVisible: 'Edit group info'
+# Change the group name and confirm on the Home screen
+- tapOn: 'Group name'
+- inputText: 'My Group'
+- 'hideKeyboard'
+- tapOn: 'Save'
+- tapOn:
+    id: 'HeaderBackButton'
+- runFlow:
+    when:
+      visible: 'Home'
+    commands:
+      - assertVisible: 'My Group'
+      - tapOn: 'My Group'
+# Change the group icon/picture
+- tapOn: 'Customize'
+- tapOn: 'Change icon image'
+- assertVisible: 'Photo Library'
+- swipe:
+    direction: 'DOWN'
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn: 'Save'
+# Change the group description
+- tapOn: 'Customize'
+- tapOn: 'About this group'
+- inputText: 'This is a test group'
+- 'hideKeyboard'
+- tapOn: 'Save'
+# Delete the group and clean up
+- tapOn:
+    id: 'ChannelHeaderOverflowMenuButton'
+- tapOn: 'Group info & settings'
+- scrollUntilVisible:
+    direction: DOWN
+    element:
+      text: 'Delete group'
+- tapOn: 'Delete group'
+- runFlow:
+    when:
+      visible: 'This action cannot be undone.'
+    commands:
+      - tapOn: 'Delete group'
+- runFlow:
+    when:
+      visible: 'Home'
+    commands:
+      - assertVisible: 'Home'
+      - assertNotVisible: 'My Group'
+# Log out
+- tapOn:
+    id: 'AvatarNavIcon'
+- tapOn:
+    id: 'ContactsSettingsButton'
+- tapOn: 'Log out'
+- tapOn: 'Log out now'

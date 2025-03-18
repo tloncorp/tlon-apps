@@ -10,7 +10,7 @@ import {
   YStack,
   useStore,
   useTheme,
-} from '@tloncorp/ui';
+} from '@tloncorp/app/ui';
 import { isValidPhoneNumber } from 'libphonenumber-js';
 import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';

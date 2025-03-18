@@ -23,7 +23,7 @@ interface GroupSideBarSort {
     | typeof DEFAULT_SORT;
 }
 
-type Stringified<T> = string & {
+export type Stringified<T> = string & {
   [P in keyof T]: { '_ value': T[P] };
 };
 
@@ -66,6 +66,7 @@ export type GroupsSettings = {
   newGroupFlags: string[];
   groupsNavState?: string;
   messagesNavState?: string;
+  activitySeenTimestamp?: number;
 };
 
 export type TalkSettings = {
@@ -97,3 +98,42 @@ export type GroupsDeskSettings = {
     display?: DisplaySettings;
   };
 };
+
+export declare type Key = string;
+export declare type Value = string | string[] | boolean | number;
+export declare type Bucket = {
+  [key: string]: Value;
+};
+
+export interface PutBucket {
+  'put-bucket': {
+    desk: string;
+    'bucket-key': Key;
+    bucket: Bucket;
+  };
+}
+export interface DelBucket {
+  'del-bucket': {
+    desk: string;
+    'bucket-key': Key;
+  };
+}
+export interface PutEntry {
+  'put-entry': {
+    'bucket-key': Key;
+    'entry-key': Key;
+    value?: Value;
+    desk: string;
+  };
+}
+export interface DelEntry {
+  'del-entry': {
+    desk: string;
+    'bucket-key': Key;
+    'entry-key': Key;
+  };
+}
+
+export interface SettingsEvent {
+  'settings-event': PutEntry | PutBucket | DelEntry | DelBucket;
+}

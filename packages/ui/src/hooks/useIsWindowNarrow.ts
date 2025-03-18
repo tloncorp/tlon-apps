@@ -1,4 +1,4 @@
-import { useWindowDimensions } from 'tamagui'
+import { useWindowDimensions } from 'tamagui';
 
 export default function useIsWindowNarrow() {
   const { width } = useWindowDimensions();

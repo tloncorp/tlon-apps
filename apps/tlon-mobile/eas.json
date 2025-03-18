@@ -28,6 +28,7 @@
     "production": {
       "extends": "base",
       "channel": "production",
+      "node": "20.11.0",
       "autoIncrement": true,
       "env": {
         "NOTIFY_PROVIDER": "rivfur-livmet",
@@ -59,6 +60,19 @@
       "ios": {
         "scheme": "Landscape-preview",
         "image": "latest"
+      }
+    },
+    "local-testing": {
+      "extends": "base",
+      "channel": "local",
+      "android": {
+        "resourceClass": "large",
+        "gradleCommand": ":app:assembleProductionRelease",
+        "buildType": "apk"
+      },
+      "ios": {
+        "scheme": "Landscape",
+        "simulator": true
       }
     },
     "local": {
