@@ -332,7 +332,7 @@ export function HeaderBlock({
   })();
 
   return (
-    <Text size={fontSize} fontWeight="$l" color="$primaryText" {...props}>
+    <Text size={fontSize} fontWeight="600" color="$primaryText" {...props}>
       {block.children.map((con, i) => (
         <InlineRenderer key={`${con}-${i}`} inline={con} />
       ))}
