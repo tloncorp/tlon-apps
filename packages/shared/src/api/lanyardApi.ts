@@ -49,29 +49,42 @@ type Sign = HalfSign | FullSign;
 // send to /valid-jam/${sign} -> noun (bool, good/no good)
 
 interface QueryResponse {
-  query: { result: boolean };
+  query: { result: { valid: boolean; live: boolean } };
 }
 export async function checkAttestedSignature(signData: string) {
   const nonce = Math.floor(Math.random() * 1000000);
   const encodedNonce = formatUv(BigInt(nonce));
 
-  const query = [null, [null, nonce], ['valid-jam', signData]];
-  const noun = dwim(query);
+  // console.log(`sending thing`, parseUw(signData));
 
-  const queryResponseSub = subscribeOnce<QueryResponse>({
-    app: 'lanyard',
-    path: `/query/${encodedNonce}`,
-  });
+  const query = [
+    null,
+    [null, nonce],
+    ['valid-jam', new Atom(parseUw(signData))],
+  ];
+  try {
+    const noun = dwim(query);
 
-  await pokeNoun({ app: 'lanyard', mark: 'lanyard-query', noun });
-  const queryResponse = await queryResponseSub;
-  console.log(`bl: got query response`, queryResponse);
+    const queryResponseSub = subscribeOnce<QueryResponse>({
+      app: 'lanyard',
+      path: `/query/${encodedNonce}`,
+    });
 
-  if (queryResponse) {
-    return queryResponse?.query?.result;
+    await pokeNoun({ app: 'lanyard', mark: 'lanyard-query', noun });
+    // console.log(`poke completed`);
+    const queryResponse = await queryResponseSub;
+    // console.log(`bl: got query response`, queryResponse);
+
+    if (queryResponse) {
+      const sigValidation = queryResponse?.query?.result;
+      return Boolean(sigValidation.live && sigValidation.valid);
+    }
+
+    return false;
+  } catch (e) {
+    console.log(`error checking signature`, e);
+    return false;
   }
-
-  return false;
 }
 
 function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {

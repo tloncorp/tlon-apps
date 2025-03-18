@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import { Button, Icon, Text } from '@tloncorp/ui';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Linking } from 'react-native';
 import { Circle, XStack, YStack } from 'tamagui';
 
@@ -13,6 +13,9 @@ export function AttestationPane({
   attestation: db.Verification;
   currentUserId: string;
 }) {
+  const [haveCheckedSig, setHaveCheckedSig] = useState(false);
+  const [sigIsLoading, setSigIsLoading] = useState(false);
+  const [sigIsValid, setSigIsValid] = useState(false);
   const [revoking, setRevoking] = useState(false);
   const store = useStore();
 
@@ -23,6 +26,26 @@ export function AttestationPane({
 
     return attestation.value;
   }, [attestation]);
+
+  useEffect(() => {
+    async function run() {
+      try {
+        if (attestation.signature && !haveCheckedSig) {
+          setSigIsLoading(true);
+          setHaveCheckedSig(true);
+          const isValid = await store.checkAttestedSignature(
+            attestation.signature
+          );
+          setSigIsValid(isValid);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setSigIsLoading(false);
+      }
+    }
+    run();
+  }, [attestation.signature, haveCheckedSig, store]);
 
   const handleViewTweet = useCallback(() => {
     Linking.openURL(
@@ -65,11 +88,13 @@ export function AttestationPane({
         marginVertical="$l"
         borderRadius="$m"
       >
-        <Circle backgroundColor="$positiveBackground">
-          <Icon type="Checkmark" color="$positiveActionText" />
-        </Circle>
+        {sigIsLoading ? null : (
+          <Circle backgroundColor="$positiveBackground">
+            <Icon type="Checkmark" color="$positiveActionText" />
+          </Circle>
+        )}
         <Text size="$label/l" color="$positiveActionText">
-          Verified
+          {sigIsLoading ? 'Loading' : 'Verified'}
         </Text>
       </XStack>
       <XStack justifyContent="space-between">

@@ -56,7 +56,11 @@ export async function revokeAttestation(attestation: db.Verification) {
   await db.deleteVerification({ type, value });
 }
 
-export async function checkAttestedSignature() {
-  const stubSig = `0w2U.pJmiv.hxEM9.uPnkC.873~M.QjQ71.VCY33.oJCz8.ys~4P.Wlils.-Cfn7.Fg-ZN.QCwVm.bylMo.2n60a.sTlLK.JHQ0O.ZGiLO.06pEp.D1Mq6.hGqD1.Or6VC.rCVOs.69q0e.zaOKX.Eu0pX.cH8Ue.juNJP.uSeyY.0VcHE.WdbKW.nw5AS.0000d.dCwbc.NBN00.00000.00g0X.6NRpL.wehBq.mpFsC.lS~0c.Kc5L5.HY02o.600g1`;
-  return api.checkAttestedSignature(stubSig);
+export async function checkAttestedSignature(
+  signature: string
+): Promise<boolean> {
+  // const stubSig = `0w2U.pJmiv.hxEM9.uPnkC.873~M.QjQ71.VCY33.oJCz8.ys~4P.Wlils.-Cfn7.Fg-ZN.QCwVm.bylMo.2n60a.sTlLK.JHQ0O.ZGiLO.06pEp.D1Mq6.hGqD1.Or6VC.rCVOs.69q0e.zaOKX.Eu0pX.cH8Ue.juNJP.uSeyY.0VcHE.WdbKW.nw5AS.0000d.dCwbc.NBN00.00000.00g0X.6NRpL.wehBq.mpFsC.lS~0c.Kc5L5.HY02o.600g1`;
+  const isValid = await api.checkAttestedSignature(signature);
+  console.log(`checkAttestedSignature`, { signature, isValid });
+  return isValid;
 }

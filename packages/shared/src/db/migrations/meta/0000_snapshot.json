@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "37f79ce5-4b9b-4821-b739-4ed374f64d35",
+  "id": "0701180d-a4da-4f48-9c44-e71c6340939e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2417,6 +2417,13 @@
         },
         "proving_tweet_id": {
           "name": "proving_tweet_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "signature": {
+          "name": "signature",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

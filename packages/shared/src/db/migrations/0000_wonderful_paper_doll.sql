@@ -1,4 +1,4 @@
-	CREATE TABLE `activity_event_contact_group_pins` (
+CREATE TABLE `activity_event_contact_group_pins` (
 	`activity_event_id` text NOT NULL,
 	`group_id` text NOT NULL,
 	PRIMARY KEY(`activity_event_id`, `group_id`),
@@ -95,7 +95,8 @@ CREATE TABLE `group_members` (
 	`contact_id` text NOT NULL,
 	`joined_at` integer,
 	`status` text,
-	PRIMARY KEY(`chat_id`, `contact_id`)
+	PRIMARY KEY(`chat_id`, `contact_id`),
+	FOREIGN KEY (`chat_id`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `contact_attestations` (
@@ -307,7 +308,8 @@ CREATE TABLE `posts` (
 	`last_edit_title` text,
 	`last_edit_image` text,
 	`synced_at` integer,
-	`backend_time` text
+	`backend_time` text,
+	FOREIGN KEY (`channel_id`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `posts_sent_at_unique` ON `posts` (`sent_at`);--> statement-breakpoint
@@ -359,7 +361,8 @@ CREATE TABLE `verifications` (
 	`status` text NOT NULL,
 	`contact_id` text NOT NULL,
 	`provider_verification_url` text,
-	`proving_tweet_id` text
+	`proving_tweet_id` text,
+	`signature` text
 );
 --> statement-breakpoint
 CREATE TABLE `volume_settings` (
