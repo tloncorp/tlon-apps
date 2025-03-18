@@ -1,15 +1,15 @@
 import { extractContentTypesFromPost } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { constructStory, getTextContent } from '@tloncorp/shared/urbit';
+import { getTextContent } from '@tloncorp/shared/urbit';
 import { Icon } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Platform, TextInput, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, XStack, YStack, getVariableValue, useTheme } from 'tamagui';
+import { View, XStack, YStack } from 'tamagui';
 
-import { useAttachmentContext } from '../contexts/attachment';
+import { processContent } from '../../utils/markdown';
 import AttachmentSheet from './AttachmentSheet';
 import { useRegisterChannelHeaderItem } from './Channel/ChannelHeader';
 import { MessageInputProps } from './MessageInput/MessageInputBase';
@@ -93,7 +93,7 @@ export function BigInput(
 
     setIsPosting(true);
     try {
-      const story = constructStory([text]);
+      const story = processContent(text);
 
       // Create metadata for notebook posts with title and image
       const metadata: Record<string, any> = {};
