@@ -33,6 +33,7 @@
     "electron-store": "^10.0.1"
   },
   "devDependencies": {
+    "@electron/notarize": "2.5.0",
     "concurrently": "^9.1.2",
     "electron": "34.3.0",
     "electron-builder": "^26.0.10",
@@ -62,10 +63,10 @@
     "mac": {
       "category": "public.app-category.social-networking",
       "darkModeSupport": true,
-      "hardenedRuntime": false,
+      "hardenedRuntime": true,
       "gatekeeperAssess": false,
-      "entitlements": null,
-      "entitlementsInherit": null,
+      "entitlements": "resources/entitlements.mac.plist",
+      "entitlementsInherit": "resources/entitlements.mac.plist",
       "icon": "resources/icons/mac/icon.icns",
       "target": [
         {
@@ -90,6 +91,7 @@
     "linux": {
       "icon": "resources/icons/png",
       "target": "AppImage"
-    }
+    },
+    "afterSign": ".notarize.js"
   }
 }

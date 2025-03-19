@@ -128,32 +128,23 @@ jobs:
         shell: bash
         run: echo "VERSION=${GITHUB_REF#refs/tags/desktop-v}" >> $GITHUB_OUTPUT
 
-      # Code signing is disabled for now
-      # - name: Import Code-Signing Certificates (macOS)
-      #   if: matrix.os == 'macos-latest'
-      #   uses: apple-actions/import-codesign-certs@v2
-      #   with:
-      #     p12-file-base64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
-      #     p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-      #     keychain-password: ${{ github.run_id }}
+      - name: Import Code-Signing Certificates (macOS)
+        if: matrix.os == 'macos-latest'
+        uses: apple-actions/import-codesign-certs@v2
+        with:
+          p12-file-base64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          keychain-password: ${{ github.run_id }}
           
-      # Install electron-notarize package - re-enable when we have a Developer ID Application certificate
-      # we'll also need to add the `afterSign` hook to electron-builder config in package.json
-      # - name: Install @electron/notarize
-      #   if: matrix.os == 'macos-latest'
-      #   working-directory: apps/tlon-desktop
-      #   run: pnpm add @electron/notarize -D
-      
-      # Run platform-specific electron-builder with code signing & notarization disabled
+      # Run platform-specific electron-builder with code signing & notarization 
       - name: Build Platform Package
         working-directory: apps/tlon-desktop
         env:
-          # Explicitly disable code signing and notarization
-          CSC_IDENTITY_AUTO_DISCOVERY: "false"
-          CSC_IDENTITY: ""
-          NOTARIZE: "false"
-          ELECTRON_BUILDER_SIGN: "false"
-          USE_HARD_LINKS: "false"
+          CSC_LINK: ${{ matrix.os == 'macos-latest' && secrets.APPLE_CERTIFICATE_BASE64 || '' }}
+          CSC_KEY_PASSWORD: ${{ matrix.os == 'macos-latest' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          APPLE_ID: ${{ matrix.os == 'macos-latest' && secrets.APPLE_ID || '' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ matrix.os == 'macos-latest' && secrets.APPLE_ID_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ matrix.os == 'macos-latest' && secrets.APPLE_TEAM_ID || '' }}
         run: npx electron-builder ${{ matrix.build_flag }}
 
       # Prepare artifacts with proper names
