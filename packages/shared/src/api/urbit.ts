@@ -2,7 +2,8 @@ import { Noun } from '@urbit/nockjs';
 import _ from 'lodash';
 
 import { createDevLogger, escapeLog, runIfDev } from '../debug';
-import { AnalyticsEvent } from '../domain';
+import { AnalyticsEvent, getConstants } from '../domain';
+import * as Hosting from '../domain/hosting';
 import {
   AuthError,
   ChannelStatus,
@@ -106,7 +107,19 @@ export const getCurrentUserIsHosted = () => {
     throw new Error('Client not initialized');
   }
 
-  return client.url.endsWith('tlon.network');
+  // prefer referencing client URL if available
+  if (client.url) {
+    return client.url.endsWith('tlon.network');
+  }
+
+  /*
+    On web, client URL is implicit based on location
+    Note: during development, the true URL is supplied via the environment. Localhost is
+    set up to redirect there
+  */
+  const env = getConstants();
+  const implicitUrl = __DEV__ ? env.DEV_SHIP_URL : window.location.hostname;
+  return Hosting.nodeUrlIsHosted(implicitUrl);
 };
 
 export function internalConfigureClient({
@@ -119,7 +132,7 @@ export function internalConfigureClient({
   onQuitOrReset,
   onChannelStatusChange,
 }: ClientParams) {
-  logger.log('configuring client', shipName, shipUrl);
+  console.log('bl: internally configuring client', { shipName, shipUrl });
   config.client = config.client || new Urbit(shipUrl, '', '', fetchFn);
   config.client.verbose = verbose;
   config.client.nodeId = preSig(shipName);
