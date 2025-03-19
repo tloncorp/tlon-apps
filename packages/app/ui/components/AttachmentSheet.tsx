@@ -1,7 +1,7 @@
 import { createDevLogger } from '@tloncorp/shared';
 import { MessageAttachments } from '@tloncorp/shared/api';
 import * as ImagePicker from 'expo-image-picker';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { isWeb } from 'tamagui';
 
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
@@ -29,6 +29,13 @@ export default function AttachmentSheet({
 
   const takePicture = useCallback(async () => {
     try {
+      if (cameraPermissionStatus?.granted === false) {
+        const permissionResult = await requestCameraPermission();
+        if (!permissionResult.granted) {
+          return;
+        }
+      }
+
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: false,
@@ -45,10 +52,22 @@ export default function AttachmentSheet({
       console.error('Error taking picture', e);
       logger.trackError('Error taking picture', { error: e });
     }
-  }, [onAttachmentsSet, onOpenChange]);
+  }, [
+    onAttachmentsSet,
+    onOpenChange,
+    cameraPermissionStatus,
+    requestCameraPermission,
+  ]);
 
   const pickImage = useCallback(async () => {
     try {
+      if (mediaLibraryPermissionStatus?.granted === false) {
+        const permissionResult = await requestMediaLibraryPermission();
+        if (!permissionResult.granted) {
+          return;
+        }
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: false,
@@ -65,25 +84,11 @@ export default function AttachmentSheet({
       console.error('Error picking image', e);
       logger.trackError('Error picking image', { error: e });
     }
-  }, [onAttachmentsSet, onOpenChange]);
-
-  useEffect(() => {
-    if (
-      showAttachmentSheet &&
-      mediaLibraryPermissionStatus?.granted === false
-    ) {
-      requestMediaLibraryPermission();
-    }
-
-    if (showAttachmentSheet && cameraPermissionStatus?.granted === false) {
-      requestCameraPermission();
-    }
   }, [
+    onAttachmentsSet,
+    onOpenChange,
     mediaLibraryPermissionStatus,
-    showAttachmentSheet,
-    cameraPermissionStatus,
     requestMediaLibraryPermission,
-    requestCameraPermission,
   ]);
 
   const actionGroups: ActionGroup[] = useMemo(
