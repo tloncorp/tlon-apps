@@ -17,10 +17,14 @@ export function AttestationScreen({ route, navigation }: Props) {
   const currentUserId = useCurrentUserId();
 
   const twitterAttestation =
-    verifications?.find((v) => v.type === 'twitter') ?? null;
+    verifications?.find(
+      (v) => v.type === 'twitter' && v.contactId === currentUserId
+    ) ?? null;
 
   const phoneAttestation =
-    verifications?.find((v) => v.type === 'phone') ?? null;
+    verifications?.find(
+      (v) => v.type === 'phone' && v.contactId === currentUserId
+    ) ?? null;
 
   console.log(`have attestation`, {
     twitterAttestation,

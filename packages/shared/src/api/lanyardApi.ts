@@ -5,6 +5,7 @@ import * as db from '../db';
 import { VerificationType } from '../db/schema';
 import { createDevLogger } from '../debug';
 import { getFrondValue, getPatp, simpleHash } from '../logic';
+import * as ub from '../urbit';
 import { stringToTa } from '../urbit';
 import * as NounParsers from './nounParsers';
 import {
@@ -217,8 +218,34 @@ export async function initiateTwitterAttestation(twitterHandle: string) {
   const payload = [null, ['start', ['twitter', twitterHandle]]];
   logger.log('initiateTwitterAttestation', payload);
   const noun = dwim(payload);
-  await pokeNoun({ app: 'lanyard', mark: 'lanyard-command', noun });
-  logger.log('initiateTwitterAttestation poke success');
+  // await pokeNoun({ app: 'lanyard', mark: 'lanyard-command', noun });
+
+  let errorMessage = null;
+  await trackedPokeNoun(
+    { app: 'lanyard', mark: 'lanyard-command', noun },
+    { app: 'lanyard', path: '/records' },
+    (event: ub.RecordStatusEvent) => {
+      console.log('bl: got SUB event', event);
+      if (event.status.value !== twitterHandle.toLowerCase()) {
+        return false;
+      }
+
+      if (event.status.status === 'gone') {
+        errorMessage = event.status.why;
+        return true;
+      }
+
+      if (event.status.status === 'want') {
+        return true;
+      }
+
+      return false;
+    }
+  );
+
+  if (errorMessage) {
+    throw new Error(errorMessage);
+  }
   return;
 }
 
@@ -236,7 +263,15 @@ export async function confirmTwitterAttestation(
     twitterHandle,
     postId,
   });
-  await pokeNoun({ app: 'lanyard', mark: 'lanyard-command', noun });
+  // await pokeNoun({ app: 'lanyard', mark: 'lanyard-command', noun });
+  await trackedPokeNoun(
+    { app: 'lanyard', mark: 'lanyard-command', noun },
+    { app: 'lanyard', path: '/records' },
+    (event: any) => {
+      console.log('bl: got SUB event', event);
+      return true;
+    }
+  );
   logger.log('confirmTwitterAttestation poke success');
   return;
 }

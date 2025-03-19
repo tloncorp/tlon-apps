@@ -148,6 +148,7 @@ ${proof}`;
 }
 
 function InitiateTwitterPane() {
+  const [error, setError] = useState<string | null>(null);
   const store = useStore();
   const {
     control,
@@ -161,7 +162,15 @@ function InitiateTwitterPane() {
   });
 
   const onSubmit = handleSubmit(async (data) => {
-    await store.initiateTwitterAttestation(data.twitterHandle);
+    try {
+      await store.initiateTwitterAttestation(data.twitterHandle);
+    } catch (err) {
+      if (err.message === 'already registered') {
+        setError('This Twitter handle is already registered.');
+      } else {
+        setError('Something went wrong, please try again.');
+      }
+    }
   });
 
   return (
@@ -187,6 +196,7 @@ function InitiateTwitterPane() {
           },
         }}
       />
+      {error && <Text color="$negativeActionText">{error}</Text>}
       <Button hero onPress={onSubmit} disabled={!isDirty || !isValid}>
         <Button.Text>Submit</Button.Text>
       </Button>
