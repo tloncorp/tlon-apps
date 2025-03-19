@@ -109,7 +109,7 @@ export const getCurrentUserIsHosted = () => {
 
   // prefer referencing client URL if available
   if (client.url) {
-    return client.url.endsWith('tlon.network');
+    return Hosting.nodeUrlIsHosted(client.url);
   }
 
   /*
