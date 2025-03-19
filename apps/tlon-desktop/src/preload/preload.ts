@@ -11,6 +11,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   storeAuthInfo: (authInfo) => ipcRenderer.invoke('store-auth-info', authInfo),
   getAuthInfo: () => ipcRenderer.invoke('get-auth-info'),
   clearAuthInfo: () => ipcRenderer.invoke('clear-auth-info'),
+  
+  // Notification functions
+  showNotification: (options) => ipcRenderer.invoke('show-notification', options),
+  onNotificationClicked: (callback) => {
+    const handler = (_event: IpcRendererEvent, data: any) => callback(data);
+    ipcRenderer.on('notification-clicked', handler);
+    return () => {
+      ipcRenderer.removeListener('notification-clicked', handler);
+    };
+  },
 });
 
 // Expose SQLite bridge

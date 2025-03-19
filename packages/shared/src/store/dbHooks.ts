@@ -95,6 +95,18 @@ export const useMessagesFilter = (options: { userId: string }) => {
   });
 };
 
+export const useActivitySeenMarker = () => {
+  const userId = api.getCurrentUserId();
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['activitySeenMarker', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings(userId);
+      return settings?.activitySeenTimestamp ?? 1;
+    },
+  });
+};
+
 export const useCanUpload = () => {
   return (
     useQuery({
@@ -189,7 +201,7 @@ export const useBaseVolumeLevel = (): ub.NotificationLevel => {
 
 export const useHaveUnreadUnseenActivity = () => {
   const depsKey = useKeyFromQueryDeps(db.getUnreadUnseenActivityEvents);
-  const seenMarker = db.activitySeenMarker.useValue();
+  const { data: seenMarker } = useActivitySeenMarker();
   const { data: meaningfulUnseenActivity } = useQuery({
     queryKey: ['unseenUnreadActivity', depsKey, seenMarker],
     queryFn: () =>

@@ -1,4 +1,7 @@
 import { queryClient } from '../api';
+import { createDevLogger } from '../debug';
+
+const logger = createDevLogger('db:changeListener', false);
 
 let postEvents: Record<string, string[]> = {};
 
@@ -29,6 +32,7 @@ export function handleChange({
    * keys (`id`, `channel_id`, 'group_id`, etc.) */
   row?: any;
 }) {
+  logger.log('handleChange, Received change', { table, operation, row });
   // If a post is updated, we need to refetch the post. If it's a new post, we
   // no-op because there's no query to invalidate.
   if (table === 'posts' && row && !row.parent_id && operation !== 'INSERT') {
@@ -44,6 +48,7 @@ export function handleChange({
   // We count updates to a post's reaction as post updates so that they trigger
   // channel refresh.
   if (table === 'post_reactions' && row) {
+    logger.log('handleChange, Received post reaction change:', row);
     queryClient.refetchQueries({
       queryKey: ['post', row.post_id],
     });

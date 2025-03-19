@@ -326,7 +326,8 @@ CREATE TABLE `settings` (
 	`messages_nav_state` text,
 	`messages_filter` text,
 	`gallery_settings` text,
-	`notebook_settings` text
+	`notebook_settings` text,
+	`activity_seen_timestamp` integer
 );
 --> statement-breakpoint
 CREATE TABLE `thread_unreads` (

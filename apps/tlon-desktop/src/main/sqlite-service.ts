@@ -12,7 +12,11 @@ class SQLiteService {
 
   constructor() {
     const userDataPath = app.getPath('userData');
-    this.dbPath = path.join(userDataPath, 'tlon.sqlite');
+    const dbName = app.isPackaged ? 'tlon.sqlite' : 'tlon-dev.sqlite';
+    this.dbPath = path.join(userDataPath, dbName);
+    console.log(
+      `Using ${app.isPackaged ? 'production' : 'development'} database at: ${this.dbPath}`
+    );
   }
 
   async init() {
@@ -30,6 +34,7 @@ class SQLiteService {
       this.db.pragma('synchronous = NORMAL');
       this.db.pragma('temp_store = MEMORY');
       this.db.pragma('mmap_size = 268435456'); // 256MB mmap
+      this.db.pragma('foreign_keys = false'); // this matches the default behavior of SQLite (foreign keys are off in both the web and mobile implementations of SQLite that we're using)
 
       // Set up change notification function
       this.db.function('notifyChanges', (changeData: string) => {
