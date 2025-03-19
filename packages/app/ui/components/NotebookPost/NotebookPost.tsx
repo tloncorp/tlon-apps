@@ -19,6 +19,7 @@ import { useChannelContext } from '../../contexts';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
+import { BlockRendererProvider } from '../PostContent/BlockRenderer';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
   usePostContent,
@@ -153,14 +154,47 @@ export function NotebookPost({
             />
 
             {viewMode !== 'activity' && (
-              <Text
-                size="$body"
-                color="$secondaryText"
-                numberOfLines={3}
-                paddingBottom={showReplies && hasReplies ? 0 : '$m'}
+              <BlockRendererProvider
+                settings={{
+                  blockWrapper: {
+                    padding: 0,
+                  },
+                  header: {
+                    wrapperProps: {
+                      padding: 0,
+                      marginBottom: 8,
+                      marginTop: 16,
+                    },
+                  },
+                  paragraph: {
+                    wrapperProps: {
+                      padding: 0,
+                      marginBottom: 16,
+                    },
+                  },
+                  list: {
+                    wrapperProps: {
+                      padding: 0,
+                      marginBottom: 16,
+                    },
+                  },
+                  code: {
+                    wrapperProps: {
+                      padding: 0,
+                      marginBottom: 16,
+                    },
+                  },
+                }}
               >
-                {post.textContent}
-              </Text>
+                <NotebookContentRenderer
+                  content={
+                    post.editStatus === 'failed' ||
+                    post.editStatus === 'pending'
+                      ? usePostLastEditContent(post)
+                      : usePostContent(post)
+                  }
+                />
+              </BlockRendererProvider>
             )}
 
             {showReplies && hasReplies ? (
@@ -248,12 +282,6 @@ function NotebookPostHeader({
           ? post.lastEditTitle ?? 'Untitled Post'
           : post.title ?? 'Untitled Post'}
       </NotebookPostTitle>
-
-      {showDate && (
-        <Text size="$body" color="$tertiaryText">
-          {formattedDate}
-        </Text>
-      )}
 
       {showAuthor && (
         <DetailViewAuthorRow

@@ -5,6 +5,7 @@ import { ColorTokens, styled } from 'tamagui';
 
 import { useNavigation } from '../../contexts';
 import { useContactName } from '../ContactNameV2';
+import { InlineStyle } from './InlineStyle';
 import {
   InlineData,
   InlineFromType,
@@ -66,28 +67,6 @@ export function InlineLineBreak() {
   return '\n';
 }
 
-export function InlineStyle({
-  inline,
-  ...props
-}: {
-  inline: StyleInlineData;
-  color?: ColorTokens;
-}) {
-  const StyleComponent = {
-    bold: BoldText,
-    italic: ItalicText,
-    strikethrough: StrikethroughText,
-    code: CodeText,
-  }[inline.style];
-  return (
-    <StyleComponent {...props}>
-      {inline.children.map((child, i) => (
-        <InlineRenderer inline={child} key={i} />
-      ))}
-    </StyleComponent>
-  );
-}
-
 export function InlineText({
   inline,
   color,
@@ -98,7 +77,13 @@ export function InlineText({
   return color ? <RawText color={color}>{inline.text}</RawText> : inline.text;
 }
 
-export function InlineLink({ inline: node }: { inline: LinkInlineData }) {
+export function InlineLink({
+  inline: node,
+  color,
+}: {
+  inline: LinkInlineData;
+  color?: ColorTokens;
+}) {
   const handlePress = useCallback(() => {
     if (Platform.OS === 'web') {
       window.open(node.href, '_blank', 'noopener,noreferrer');
@@ -107,9 +92,19 @@ export function InlineLink({ inline: node }: { inline: LinkInlineData }) {
     }
   }, [node.href]);
 
+  // Check if the content includes markdown formatting like bold, italic, etc.
+  // to handle "Link with **formatting** inside"
+  const formattedContent = node.content || node.text || node.href;
+
+  // Display the full link content
   return (
-    <Text cursor="pointer" textDecorationLine="underline" onPress={handlePress}>
-      {node.text || node.href}
+    <Text
+      cursor="pointer"
+      textDecorationLine="underline"
+      onPress={handlePress}
+      color={color || '$actionText'}
+    >
+      {formattedContent}
     </Text>
   );
 }

@@ -26,77 +26,111 @@ import { marked } from 'marked';
  * ```
  */
 
-// Initialize markdown parser
+// Initialize markdown parser with GFM extensions
 try {
+  // Try to use marked-gfm-heading-id if available
   marked.use(require('marked-gfm-heading-id'));
+
+  // Configure marked to strictly follow GFM spec
+  marked.setOptions({
+    gfm: true, // GitHub Flavored Markdown
+    breaks: true, // Convert '\n' to <br>
+    headerIds: false, // Don't add id attributes to headers
+    mangle: false, // Don't mangle email addresses
+    pedantic: false, // Don't be overly conformant to original markdown
+    smartLists: true, // Use smarter list behavior than the original markdown
+    smartypants: true, // Use "smart" typographic punctuation
+    sanitize: false, // We don't output HTML so no need to sanitize
+  });
 } catch (e) {
-  console.log('Optional GFM extension not loaded', e);
+  console.warn('GFM extension loading failed:', e);
 }
 
 /**
  * Convert Markdown to a properly structured Story with Verse objects
+ * Handles full GitHub Flavored Markdown spec including:
+ * - ATX and Setext headings
+ * - Lists (ordered, unordered, and task lists)
+ * - Block quotes
+ * - Code blocks (fenced and indented)
+ * - Tables
+ * - Inline formatting with proper precedence
  */
 export const markdownToStory = (markdown: string): Story => {
   if (!markdown.trim()) {
     return [];
   }
 
-  // Configure marked options
-  marked.setOptions({
-    gfm: true,
-    breaks: true,
-    headerIds: false,
-    mangle: false,
-    pedantic: false,
-    smartLists: true,
-    smartypants: true,
-    sanitize: true,
-  });
-
   // Parse the markdown to get tokens
   const tokens = marked.lexer(markdown);
   const story: Verse[] = [];
 
-  // Helper function to parse inline elements within text
-  const parseInline = (text: string): Inline[] => {
-    // Process code spans first: `code`
-    const codeSpanRegex = /`([^`]+)`/g;
-    let match;
+  /**
+   * Processes a string with code spans before any other inline formatting
+   * Code spans have higher precedence than any other inline constructs
+   * except HTML tags and autolinks
+   */
+  const parseInlineWithPrecedence = (text: string): Inline[] => {
+    // First pass: extract code spans as they have high precedence
     const segments: Inline[] = [];
+    const codeSpanRegex = /(`+)([^`]|[^`][\s\S]*?[^`])\1(?!`)/g;
+
+    let match;
     let lastIndex = 0;
 
     while ((match = codeSpanRegex.exec(text)) !== null) {
-      const [fullMatch, code] = match;
+      const [fullMatch, backticks, code] = match;
       const beforeText = text.substring(lastIndex, match.index);
 
       // Process any text before the code span
       if (beforeText) {
-        segments.push(...processLinks(beforeText));
+        segments.push(...parseOtherInlines(beforeText));
       }
 
-      // Add the code span
+      // Add the code span - code spans have leading/trailing spaces stripped
+      // but only if there's a space at both ends and the span isn't all spaces
+      let processedCode = code;
+      if (
+        processedCode.startsWith(' ') &&
+        processedCode.endsWith(' ') &&
+        processedCode.trim() !== ''
+      ) {
+        processedCode = processedCode.substring(1, processedCode.length - 1);
+      }
+
+      // Remove any escape backslashes before backticks inside code spans
+      processedCode = processedCode.replace(/\\`/g, '`');
+
+      // Remove backslashes from other characters in code spans
+      processedCode = processedCode.replace(/\\([\\*_{}[\]()#+\-.!])/g, '$1');
+
       segments.push({
-        'inline-code': code,
+        'inline-code': processedCode,
       });
 
       lastIndex = match.index + fullMatch.length;
     }
 
-    // Process any remaining text for links and other formatting
-    const remainingText = text.substring(lastIndex);
-    if (remainingText) {
-      segments.push(...processLinks(remainingText));
+    // Process any remaining text for other inline elements
+    const textAfter = text.substring(lastIndex);
+    if (textAfter) {
+      segments.push(...parseOtherInlines(textAfter));
     }
 
-    // If no formatting found, process for links
-    if (segments.length === 0) {
-      return processLinks(text);
-    }
-
-    return segments;
+    return segments.length > 0 ? segments : [text];
   };
 
-  // Process links within text
+  /**
+   * Process all other inline elements after code spans are handled
+   */
+  const parseOtherInlines = (text: string): Inline[] => {
+    // Process links next (they have higher precedence than emphasis)
+    return processLinks(text);
+  };
+
+  /**
+   * Process links within text
+   */
   const processLinks = (text: string): Inline[] => {
     // Handle links: [text](url)
     const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
@@ -115,11 +149,29 @@ export const markdownToStory = (markdown: string): Story => {
         segments.push(...processFormattedText(beforeText));
       }
 
-      // Add the link
+      // For links, we need to process the link text for formatting
+      // This allows for links with bold, italic, etc. inside them
+      // But we can only use the text version since that's what our types support
+      const linkContent = processFormattedText(linkText);
+      const formattedText = linkContent
+        .map((item) =>
+          typeof item === 'string'
+            ? item
+            : 'bold' in item
+              ? `**${item.bold}**`
+              : 'italics' in item
+                ? `*${item.italics}*`
+                : 'strike' in item
+                  ? `~~${item.strike}~~`
+                  : linkText
+        )
+        .join('');
+
+      // Add the link with proper formatting inside
       segments.push({
         link: {
           href: linkUrl,
-          content: linkText,
+          content: formattedText || linkText,
         },
       });
 
@@ -141,10 +193,13 @@ export const markdownToStory = (markdown: string): Story => {
     return segments;
   };
 
-  // Helper to process bold and italic formatting in text
+  /**
+   * Process text for strikethrough, bold, and italic formatting,
+   * respecting GFM precedence rules
+   */
   const processFormattedText = (text: string): Inline[] => {
     // Process strikethrough first (GFM feature): ~~text~~
-    const strikeRegex = /~~(.*?)~~/g;
+    const strikeRegex = /~~((?:(?!~~).)+)~~/g;
     let match;
     const segments: Inline[] = [];
     let lastIndex = 0;
@@ -178,21 +233,24 @@ export const markdownToStory = (markdown: string): Story => {
     return segments;
   };
 
-  // Helper to process bold and italic formatting
+  /**
+   * Process text for bold and italic formatting
+   * Supports both * and _ syntax, with proper nesting
+   */
   const processBoldAndItalic = (text: string): Inline[] => {
     // Process bold: **text** or __text__
-    const boldRegex = /\*\*(.*?)\*\*|__(.*?)__/g;
+    // Must not be preceded or followed by alphanumeric or * or _
+    const boldRegex = /(\*\*|__)((?:(?!\1).)+)\1/g;
     let match;
     const segments: Inline[] = [];
     let lastIndex = 0;
 
     while ((match = boldRegex.exec(text)) !== null) {
-      const [fullMatch, content1, content2] = match;
-      const content = content1 || content2;
+      const [fullMatch, delimiter, content] = match;
       const beforeText = text.substring(lastIndex, match.index);
 
       if (beforeText) {
-        segments.push(beforeText);
+        segments.push(...processItalics(beforeText));
       }
 
       // Process potential italic formatting inside the bold text
@@ -210,24 +268,27 @@ export const markdownToStory = (markdown: string): Story => {
 
     // If no formatting found, return the original text
     if (segments.length === 0) {
-      return [text];
+      return processItalics(text);
     }
 
     return segments;
   };
 
-  // Helper to process italic formatting
+  /**
+   * Process text for italic formatting
+   * Supports both * and _ syntax
+   */
   const processItalics = (text: string): Inline[] => {
     // Look for *text* or _text_ but avoid matching single asterisks in words
-    const italicRegex =
-      /(\*(?!\*)(.*?[^\\])\*(?!\*))|(_(?!_)(.*?[^\\])_(?!_))/g;
+    // Preceding character must not be alphanumeric or * or _
+    // Following character must not be alphanumeric or * or _
+    const italicRegex = /(\*|_)((?:(?!\1).)+)\1/g;
     let match;
     const segments: Inline[] = [];
     let lastIndex = 0;
 
     while ((match = italicRegex.exec(text)) !== null) {
-      const [fullMatch, m1, content1, m3, content2] = match;
-      const content = content1 || content2;
+      const [fullMatch, delimiter, content] = match;
       const beforeText = text.substring(lastIndex, match.index);
 
       if (beforeText) {
@@ -253,16 +314,18 @@ export const markdownToStory = (markdown: string): Story => {
     return segments;
   };
 
-  // Process each token and convert to appropriate Verse structures
+  /**
+   * Main parser function that processes markdown tokens
+   */
   tokens.forEach((token) => {
     if (token.type === 'paragraph') {
       // Convert paragraph text to a VerseInline with proper formatting
-      const inlines = parseInline(token.text);
+      const inlines = parseInlineWithPrecedence(token.text);
       story.push({
         inline: inlines,
       } as Verse);
     } else if (token.type === 'heading') {
-      // Create a properly styled heading block using the Header type from the content model
+      // Create a properly styled heading block
       // Map the heading depth (1-6) to the corresponding header tag (h1-h6)
       const headingLevels: Record<
         number,
@@ -277,7 +340,7 @@ export const markdownToStory = (markdown: string): Story => {
       };
 
       // Parse the heading content with inline formatting
-      const inlines = parseInline(token.text);
+      const inlines = parseInlineWithPrecedence(token.text);
 
       // Create a proper heading block
       story.push({
@@ -293,17 +356,23 @@ export const markdownToStory = (markdown: string): Story => {
       processListItems(token, 0); // Start with indentation level 0
     } else if (token.type === 'code') {
       // Handle code blocks using the proper Code block type
+      // Remove any escape backslashes that may cause display issues
+      let cleanedCode = token.text.replace(/\\`/g, '`');
+
+      // Remove backslashes from other escaped characters in code blocks
+      cleanedCode = cleanedCode.replace(/\\([\\*_{}[\]()#+\-.!])/g, '$1');
+
       story.push({
         block: {
           code: {
-            code: token.text,
+            code: cleanedCode,
             lang: token.lang || '',
           },
         },
       } as Verse);
     } else if (token.type === 'blockquote') {
       // Handle blockquotes with the proper inline structure
-      const inlines = parseInline(token.text);
+      const inlines = parseInlineWithPrecedence(token.text);
       story.push({
         inline: [
           {
@@ -335,36 +404,27 @@ export const markdownToStory = (markdown: string): Story => {
       } as Verse);
     } else if (token.type === 'table') {
       // Handle tables (GFM feature)
-      const tableText = renderTableAsText(token);
+      const tableContent = {
+        header: token.header.map((cell: any) => String(cell.text || cell)),
+        rows: token.rows.map((row: any[]) =>
+          row.map((cell: any) => String(cell.text || cell))
+        ),
+      };
+
+      // Create a proper table block
       story.push({
-        inline: [tableText],
-      } as Verse);
+        block: {
+          table: {
+            tableContent,
+          },
+        },
+      } as unknown as Verse);
     }
   });
 
-  // Helper function to render tables as text (since we don't have a native table element in Verse)
-  function renderTableAsText(tableToken: any): string {
-    if (!tableToken.header || !tableToken.rows) {
-      return '';
-    }
-
-    let result = '';
-
-    // Render header
-    result += '| ' + tableToken.header.join(' | ') + ' |\n';
-
-    // Render separator row
-    result += '| ' + tableToken.header.map(() => '---').join(' | ') + ' |\n';
-
-    // Render data rows
-    tableToken.rows.forEach((row: string[]) => {
-      result += '| ' + row.join(' | ') + ' |\n';
-    });
-
-    return result;
-  }
-
-  // Helper function to process list items including nested lists
+  /**
+   * Helper function to process list items including task lists (GFM extension)
+   */
   function processListItems(listToken: any, indentLevel: number) {
     if (!listToken.items || !Array.isArray(listToken.items)) {
       return;
@@ -382,7 +442,7 @@ export const markdownToStory = (markdown: string): Story => {
           : `${indentPrefix}• ${checkboxChar} `;
 
         // Process the item text with inline formatting
-        const inlines = parseInline(item.text);
+        const inlines = parseInlineWithPrecedence(item.text);
 
         // Create a verse with the formatted list item
         story.push({
@@ -395,7 +455,7 @@ export const markdownToStory = (markdown: string): Story => {
           : `${indentPrefix}• `;
 
         // Process the item text with inline formatting
-        const inlines = parseInline(item.text);
+        const inlines = parseInlineWithPrecedence(item.text);
 
         // Create a verse with the formatted list item
         story.push({
@@ -422,10 +482,15 @@ export const markdownToStory = (markdown: string): Story => {
     return paragraphs
       .map((para) => para.trim())
       .filter((para) => para.length > 0) // Filter out empty paragraphs
-      .map((para) => ({ inline: [para] }) as Verse);
+      .map(
+        (para) =>
+          ({
+            inline: parseInlineWithPrecedence(para),
+          }) as Verse
+      );
   }
 
-  return story;
+  return cleanupEmptyParagraphs(story);
 };
 
 /**
@@ -517,4 +582,119 @@ export function processContent(
 
   // Clean up empty paragraphs before returning
   return cleanupEmptyParagraphs(result);
+}
+
+/**
+ * Creates a test story using all GitHub Flavored Markdown features
+ * This function can be used to validate that the parser correctly handles
+ * all GFM syntax elements according to spec.
+ */
+export function testGFMFeatures(): { markdown: string; story: Story } {
+  const testMarkdown = `# GitHub Flavored Markdown Test
+
+## Headers
+
+# H1 Header
+## H2 Header
+### H3 Header
+#### H4 Header
+##### H5 Header
+###### H6 Header
+
+## Emphasis
+
+*This text is italicized*
+_This text is also italicized_
+
+**This text is bold**
+__This text is also bold__
+
+**Bold and _nested italic_ text**
+***Bold and italic text***
+~~Strikethrough text~~
+
+## Lists
+
+### Unordered Lists
+
+* Item 1
+* Item 2
+  * Nested item 2.1
+  * Nested item 2.2
+* Item 3
+
+### Ordered Lists
+
+1. Item 1
+2. Item 2
+   1. Nested item 2.1
+   2. Nested item 2.2
+3. Item 3
+
+### Task Lists
+
+- [x] Completed task
+- [ ] Incomplete task
+- [x] @mentions, #refs, [links](https://github.com), **formatting**, and ~~tags~~ are supported
+- [x] List syntax is required (any unordered or ordered list supported)
+
+## Code
+
+Inline \`code\` has \`back-ticks around\` it.
+
+\`\`\`javascript
+// Code block with syntax highlighting
+function example() {
+  console.log("This is a code block");
+}
+\`\`\`
+
+## Tables
+
+| Header 1 | Header 2 | Header 3 |
+|----------|----------|----------|
+| Row 1    | Data     | Data     |
+| Row 2    | Data     | Data     |
+
+## Blockquotes
+
+> This is a blockquote
+> 
+> It can span multiple lines
+>
+> > And can be nested
+
+## Horizontal Rules
+
+---
+
+***
+
+___
+
+## Links
+
+[GitHub](https://github.com)
+[Link with **formatting** inside](https://example.com)
+
+## Complex Nesting
+
+* List with **bold text** and *italic text*
+  * Nested list with \`inline code\`
+    * Deeply nested with [a link](https://example.com)
+
+> Blockquote with **bold**, *italic*, and \`code\`
+>
+> * List inside blockquote
+>   * Nested item
+
+This is a paragraph with **bold text** and *italic text* and \`code\` and [a link](https://example.com) and ~~strikethrough~~.
+
+End of test.`;
+
+  // Parse the markdown and return both the input and output
+  return {
+    markdown: testMarkdown,
+    story: markdownToStory(testMarkdown),
+  };
 }

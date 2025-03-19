@@ -45,23 +45,30 @@ export function ListBlock({
   ComponentProps<typeof ListNode>,
   'node'
 >) {
-  return <ListNode node={block.list} {...props} />;
+  return <ListNode node={block.list} level={0} {...props} />;
 }
 
 function ListNode({
   node,
+  level = 0,
 }: {
   node: cn.ListData;
+  level?: number;
 } & ComponentProps<typeof View>) {
+  // Increasing indentation for nested lists
+  const indentAmount = 16; // pixels
+
   return (
     <View flex={1}>
       {node.content.length ? (
         <LineRenderer trimmed={false} inlines={node.content} />
       ) : null}
       {node.children?.map((childNode, i) => (
-        <XStack key={i} gap="$m">
+        <XStack key={i} gap="$m" marginLeft={level * indentAmount}>
           <ListItemMarker index={i} type={node.type ?? 'unordered'} />
-          <ListNode key={i} node={childNode} />
+          <View flex={1}>
+            <ListNode key={i} node={childNode} level={level + 1} />
+          </View>
         </XStack>
       ))}
     </View>
@@ -140,12 +147,15 @@ export function CodeBlock({
   }) {
   const { doCopy, didCopy } = useCopy(block.content);
   const handleStartShouldSetResponder = useCallback(() => true, []);
+  const language = block.lang && block.lang.trim() ? block.lang : 'plaintext';
 
   return (
     <Reference.Frame {...props}>
       <Reference.Header paddingVertical="$l">
         <Reference.Title>
-          <Reference.TitleText>{'Code'}</Reference.TitleText>
+          <Reference.TitleText>
+            {language !== 'plaintext' ? `Code (${language})` : 'Code'}
+          </Reference.TitleText>
         </Reference.Title>
         <Reference.TitleText onPress={doCopy}>
           {didCopy ? 'Copied' : 'Copy'}
@@ -159,7 +169,7 @@ export function CodeBlock({
           onStartShouldSetResponder={handleStartShouldSetResponder}
         >
           <Text size={'$mono/m'} padding="$l" {...textProps}>
-            <HighlightedCode code={block.content} lang={block.lang} />
+            <HighlightedCode code={block.content} lang={language} />
           </Text>
         </Reference.Body>
       </ScrollView>
@@ -308,35 +318,57 @@ export const BlockquoteSideBorder = styled(View, {
   backgroundColor: '$border',
 });
 
+// Helper function to get font size based on header level
+function getFontSize(level: cn.HeaderBlockData['level']) {
+  switch (level) {
+    case 'h1':
+      return '$title/l';
+    case 'h2':
+      return '$label/3xl';
+    case 'h3':
+      return '$label/2xl';
+    case 'h4':
+      return '$label/xl';
+    case 'h5':
+      return '$label/l';
+    case 'h6':
+      return '$label/m';
+    default:
+      return '$label/m';
+  }
+}
+
+// Helper function to get font weight based on header level
+function getFontWeight(level: cn.HeaderBlockData['level']) {
+  switch (level) {
+    case 'h1':
+    case 'h2':
+      return '800';
+    case 'h3':
+    case 'h4':
+      return '700';
+    default:
+      return '600';
+  }
+}
+
 export function HeaderBlock({
   block,
   ...props
 }: { block: cn.HeaderBlockData } & ComponentProps<typeof Text>) {
-  const fontSize = (() => {
-    switch (block.level) {
-      case 'h1':
-        return '$title/l';
-      case 'h2':
-        return '$label/3xl';
-      case 'h3':
-        return '$label/2xl';
-      case 'h4':
-        return '$label/xl';
-      case 'h5':
-        return '$label/l';
-      case 'h6':
-        return '$label/m';
-      default:
-        return '$label/m';
-    }
-  })();
-
   return (
-    <Text size={fontSize} fontWeight="600" color="$primaryText" {...props}>
-      {block.children.map((con, i) => (
-        <InlineRenderer key={`${con}-${i}`} inline={con} />
-      ))}
-    </Text>
+    <View marginBottom="$l" marginTop="$l">
+      <Text
+        size={getFontSize(block.level)}
+        fontWeight={getFontWeight(block.level)}
+        color="$primaryText"
+        {...props}
+      >
+        {block.children.map((con, i) => (
+          <InlineRenderer key={`${i}`} inline={con} />
+        ))}
+      </Text>
+    </View>
   );
 }
 
@@ -352,6 +384,28 @@ export function EmbedBlock({
     <View width="100%" {...props}>
       <EmbedContent url={block.url} content={block.content} />
     </View>
+  );
+}
+
+export function TableBlock({
+  block,
+  ...props
+}: { block: cn.TableBlockData } & ComponentProps<typeof View>) {
+  if (!block.tableContent) {
+    return null;
+  }
+
+  return (
+    <YStack gap="$s" {...props}>
+      <Text
+        fontFamily="$mono"
+        whiteSpace="pre"
+        size="$mono/s"
+        userSelect="text"
+      >
+        {renderTableAsText(block.tableContent)}
+      </Text>
+    </YStack>
   );
 }
 
@@ -384,6 +438,7 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   list: ListBlock,
   bigEmoji: BigEmojiBlock,
   embed: EmbedBlock,
+  table: TableBlock,
 };
 
 type BlockSettings<T extends ComponentType> = Partial<ComponentProps<T>> & {
@@ -404,6 +459,7 @@ export type DefaultRendererProps = {
   list: BlockSettings<typeof ListBlock>;
   bigEmoji: BlockSettings<typeof BigEmojiBlock>;
   embed: BlockSettings<typeof EmbedBlock>;
+  table: BlockSettings<typeof TableBlock>;
 };
 
 interface BlockRendererContextValue {
@@ -438,4 +494,62 @@ export function BlockRenderer({ block }: { block: cn.BlockData }) {
       <Renderer {...defaultPropsForBlock} block={block} />
     </Wrapper>
   );
+}
+
+/**
+ * Helper function to render tables as text
+ */
+function renderTableAsText(tableToken: any): string {
+  if (!tableToken.header || !tableToken.rows) {
+    return '';
+  }
+
+  // Create a formatted string representation of the table
+  const lines: string[] = [];
+
+  // Calculate column widths for formatting
+  const columnWidths = tableToken.header.map(
+    (header: string, index: number) => {
+      let maxWidth = String(header).length;
+      tableToken.rows.forEach((row: string[]) => {
+        const cellLength = String(row[index] || '').length;
+        maxWidth = Math.max(maxWidth, cellLength);
+      });
+      return maxWidth + 2; // Add padding
+    }
+  );
+
+  // Format header row
+  const headerRow = tableToken.header
+    .map((header: string, i: number) => {
+      // Ensure proper string representation (fixes [object Object] issues)
+      const headerStr =
+        typeof header === 'object'
+          ? JSON.stringify(header)
+          : String(header || '');
+      return headerStr.padEnd(columnWidths[i]);
+    })
+    .join(' | ');
+  lines.push(headerRow);
+
+  // Format separator row
+  const separatorRow = columnWidths
+    .map((width: number) => '-'.repeat(width))
+    .join('-|-');
+  lines.push(separatorRow);
+
+  // Format data rows
+  tableToken.rows.forEach((row: string[]) => {
+    const formattedRow = row
+      .map((cell: string, i: number) => {
+        // Ensure proper string representation (fixes [object Object] issues)
+        const cellStr =
+          typeof cell === 'object' ? JSON.stringify(cell) : String(cell || '');
+        return cellStr.padEnd(columnWidths[i]);
+      })
+      .join(' | ');
+    lines.push(formattedRow);
+  });
+
+  return lines.join('\n');
 }

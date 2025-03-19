@@ -14,8 +14,19 @@ export function HighlightedCode({
   lang?: string;
 }) {
   return useMemo(() => {
-    const tree = refractor.highlight(code, lang ?? 'plaintext') as TreeNode;
-    return hastToReactNative(tree);
+    // Use 'plaintext' when language is empty, undefined, or ''
+    const language = lang && lang.trim() ? lang : 'plaintext';
+    try {
+      const tree = refractor.highlight(code, language) as TreeNode;
+      return hastToReactNative(tree);
+    } catch (error) {
+      // Fallback to plaintext if language isn't supported
+      console.warn(
+        `Language '${language}' not supported, falling back to plaintext`
+      );
+      const tree = refractor.highlight(code, 'plaintext') as TreeNode;
+      return hastToReactNative(tree);
+    }
   }, [code, lang]);
 }
 
