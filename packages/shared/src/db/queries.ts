@@ -134,13 +134,10 @@ export interface GetGroupsOptions {
 export const insertSettings = createWriteQuery(
   'insertSettings',
   async (settings: Settings, ctx: QueryCtx) => {
-    return ctx.db
-      .insert($settings)
-      .values(settings)
-      .onConflictDoUpdate({
-        target: $settings.userId,
-        set: conflictUpdateSetAll($settings),
-      });
+    return ctx.db.insert($settings).values(settings).onConflictDoUpdate({
+      target: $settings.userId,
+      set: settings,
+    });
   },
   ['settings']
 );
