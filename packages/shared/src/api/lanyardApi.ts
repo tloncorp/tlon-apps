@@ -119,7 +119,12 @@ function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {
 
     const config = enjs.cord(n.tail.head) as db.VerificationVisibility;
     const currentUserId = getCurrentUserId();
-    console.log(`check: 1`);
+    const a = n.tail.tail;
+    if (!(a instanceof Cell)) {
+      throw new Error('malformed record why');
+    }
+    const statusMessage = enjs.cord(a.head); // TODO: should we store?
+
     const { status, sign } = getFrondValue<{
       status: db.VerificationStatus;
       sign: NounParsers.Sign | null;
@@ -133,8 +138,7 @@ function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {
           sign: NounParsers.parseAttestation(noun, currentUserId),
         }),
       },
-    ])(n.tail.tail);
-    console.log(`check: 2`, { status, sign });
+    ])(a.tail);
 
     const id = parseAttestationId({ provider, type, value, contactId });
     const provingTweetId =
@@ -149,6 +153,7 @@ function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {
       initiatedAt: null,
       visibility: config,
       status,
+      statusMessage,
       provingTweetId,
     };
 
@@ -246,6 +251,8 @@ export async function initiateTwitterAttestation(twitterHandle: string) {
   if (errorMessage) {
     throw new Error(errorMessage);
   }
+
+  console.log(`tracked poke completed without error`);
   return;
 }
 

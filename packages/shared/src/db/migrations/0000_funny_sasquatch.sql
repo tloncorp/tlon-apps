@@ -359,6 +359,7 @@ CREATE TABLE `verifications` (
 	`initiated_at` integer,
 	`visibility` text NOT NULL,
 	`status` text NOT NULL,
+	`status_message` text,
 	`contact_id` text NOT NULL,
 	`provider_verification_url` text,
 	`proving_tweet_id` text,

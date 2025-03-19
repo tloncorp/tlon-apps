@@ -162,6 +162,7 @@ export const verifications = sqliteTable('verifications', {
   initiatedAt: timestamp('initiated_at'),
   visibility: text('visibility').$type<VerificationVisibility>().notNull(),
   status: text('status').$type<VerificationStatus>().notNull(),
+  statusMessage: text('status_message'),
   contactId: text('contact_id').notNull(),
   providerVerificationUrl: text('provider_verification_url'),
   provingTweetId: text('proving_tweet_id'),

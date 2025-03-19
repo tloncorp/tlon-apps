@@ -1,5 +1,6 @@
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import * as domain from '@tloncorp/shared/domain';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { View, YStack } from 'tamagui';
@@ -92,16 +93,17 @@ function ConfirmTwitterPane(props: {
   } = useForm({
     mode: 'onChange',
     defaultValues: {
-      twitterPostId: '',
+      twitterPostInput: '',
     },
   });
 
   const onSubmit = handleSubmit(async (data) => {
-    reqTracker.startRequest();
-    await store.confirmTwitterAttestation(
-      props.attestation.value!,
-      data.twitterPostId
-    );
+    const postId = domain.parseForTwitterPostId(data.twitterPostInput);
+    if (!postId) {
+      console.log(`bad post id!`);
+      return;
+    }
+    await store.confirmTwitterAttestation(props.attestation.value!, postId);
   });
 
   const tweetContent = useMemo(() => {
@@ -122,7 +124,7 @@ ${proof}`;
       </Text>
       <CopyableTextBlock text={tweetContent} />
       <ControlledTextField
-        name="twitterPostId"
+        name="twitterPostInput"
         label="Attesting Post"
         control={control}
         inputProps={{
@@ -130,8 +132,8 @@ ${proof}`;
         }}
         rules={{
           maxLength: {
-            value: 50,
-            message: 'Your status is limited to 50 characters',
+            value: 200,
+            message: 'Your status is limited to 200 characters',
           },
         }}
       />
