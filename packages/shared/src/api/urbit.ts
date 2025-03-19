@@ -132,7 +132,6 @@ export function internalConfigureClient({
   onQuitOrReset,
   onChannelStatusChange,
 }: ClientParams) {
-  console.log('bl: internally configuring client', { shipName, shipUrl });
   config.client = config.client || new Urbit(shipUrl, '', '', fetchFn);
   config.client.verbose = verbose;
   config.client.nodeId = preSig(shipName);
