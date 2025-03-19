@@ -1,5 +1,6 @@
 import {
   Block,
+  ListItem,
   Story,
   Verse,
   constructStory,
@@ -46,6 +47,310 @@ try {
   console.warn('GFM extension loading failed:', e);
 }
 
+// Process tokens from the marked lexer and convert to our Story structure
+const processTokens = (
+  tokens: marked.TokensList | marked.Token[],
+  depth: number = 0
+): Verse[] => {
+  const verses: Verse[] = [];
+  const MAX_PROCESSING_DEPTH = 10; // Prevent deep recursion
+
+  // Safety check for maximum recursion depth
+  if (depth >= MAX_PROCESSING_DEPTH) {
+    console.warn('Maximum token processing depth reached');
+    return [
+      {
+        inline: ['[Content too deeply nested to display]'],
+      } as Verse,
+    ];
+  }
+
+  for (const token of tokens) {
+    if (token.type === 'paragraph') {
+      // Process paragraph by converting its tokens to inline content
+      verses.push({
+        inline: processInlineTokens(token.tokens || [], depth + 1),
+      } as Verse);
+    } else if (token.type === 'heading') {
+      // Create a heading block
+      const headingLevels: Record<
+        number,
+        'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
+      > = {
+        1: 'h1',
+        2: 'h2',
+        3: 'h3',
+        4: 'h4',
+        5: 'h5',
+        6: 'h6',
+      };
+
+      verses.push({
+        block: {
+          header: {
+            tag: headingLevels[token.depth] || 'h1',
+            content: processInlineTokens(token.tokens || [], depth + 1),
+          },
+        },
+      } as Verse);
+    } else if (token.type === 'code') {
+      // Handle code blocks
+      verses.push({
+        block: {
+          code: {
+            code: token.text,
+            lang: token.lang || '',
+          },
+        },
+      } as Verse);
+    } else if (token.type === 'blockquote') {
+      // Handle blockquotes
+      // When there's a blockquote token, process all its tokens recursively
+      // This ensures we capture nested blockquotes and other content
+      verses.push({
+        inline: [
+          {
+            blockquote: processInlineTokens(
+              'tokens' in token && Array.isArray(token.tokens)
+                ? processNestedBlockquoteTokens(token.tokens, depth + 1)
+                : [],
+              depth + 1
+            ),
+          },
+        ],
+      } as Verse);
+    } else if (token.type === 'hr') {
+      // Handle horizontal rules
+      verses.push({
+        block: {
+          rule: null,
+        },
+      } as Verse);
+    } else if (token.type === 'list') {
+      // Process lists
+      verses.push(...processListItems(token, depth + 1));
+    } else if (token.type === 'table') {
+      // Handle tables
+      const tableContent = {
+        header: token.header.map((cell: any) => String(cell.text || cell)),
+        rows: token.rows.map((row: any[]) =>
+          row.map((cell: any) => String(cell.text || cell))
+        ),
+      };
+
+      verses.push({
+        block: {
+          table: {
+            tableContent,
+          },
+        },
+      } as unknown as Verse);
+    }
+    // Skip space tokens and other non-content tokens
+  }
+
+  return verses;
+};
+
+// Process inline tokens (for paragraphs, list items, etc)
+const processInlineTokens = (
+  tokens: marked.Token[],
+  depth: number = 0
+): Inline[] => {
+  if (!tokens || tokens.length === 0) {
+    return [];
+  }
+
+  // Safety check for maximum recursion depth
+  const MAX_INLINE_DEPTH = 10;
+  if (depth >= MAX_INLINE_DEPTH) {
+    console.warn('Maximum inline token processing depth reached');
+    return ['[Formatting too complex to display]'];
+  }
+
+  const inlines: Inline[] = [];
+  let currentText = '';
+
+  // Helper to flush accumulated text
+  const flushText = () => {
+    if (currentText) {
+      inlines.push(currentText);
+      currentText = '';
+    }
+  };
+
+  for (const token of tokens) {
+    if (token.type === 'text') {
+      currentText += 'text' in token ? token.text : '';
+    } else if (token.type === 'strong') {
+      flushText();
+      inlines.push({
+        bold: processInlineTokens(token.tokens || [], depth + 1),
+      });
+    } else if (token.type === 'em') {
+      flushText();
+      inlines.push({
+        italics: processInlineTokens(token.tokens || [], depth + 1),
+      });
+    } else if (token.type === 'codespan') {
+      flushText();
+      inlines.push({
+        'inline-code': token.text,
+      });
+    } else if (token.type === 'del') {
+      flushText();
+      inlines.push({
+        strike: processInlineTokens(token.tokens || [], depth + 1),
+      });
+    } else if (token.type === 'link') {
+      flushText();
+      inlines.push({
+        link: {
+          href: token.href,
+          content: token.text,
+        },
+      });
+    } else if (token.type === 'br') {
+      flushText();
+      inlines.push({ break: null });
+    } else {
+      // For any other token types, just use their text representation
+      if ('text' in token && token.text) {
+        currentText += token.text;
+      }
+    }
+  }
+
+  // Don't forget to add any remaining text
+  flushText();
+
+  return inlines.length ? inlines : [''];
+};
+
+// Process list items (including task lists)
+const processListItems = (
+  listToken: marked.Tokens.List,
+  depth: number = 0
+): Verse[] => {
+  const verses: Verse[] = [];
+  const MAX_NESTING_DEPTH = 8; // Support deeper nesting (at least 5 levels guaranteed)
+
+  if (!listToken.items || !Array.isArray(listToken.items)) {
+    return verses;
+  }
+
+  // Processes a list item and all of its nested content recursively
+  const processItem = (
+    item: marked.Tokens.ListItem,
+    level: number,
+    ordered: boolean,
+    index: number
+  ): void => {
+    // Safety check for maximum depth
+    if (level >= MAX_NESTING_DEPTH || depth + level >= MAX_NESTING_DEPTH) {
+      verses.push({
+        inline: [`${'  '.repeat(level)}• [Max nesting depth reached]`],
+      } as Verse);
+      return;
+    }
+
+    // Create list marker
+    const indentPrefix = '  '.repeat(level);
+    const listPrefix = ordered
+      ? `${indentPrefix}${index + 1}. `
+      : `${indentPrefix}• `;
+
+    // Handle task items
+    const prefix = item.task
+      ? `${listPrefix}${item.checked ? '☑' : '☐'} `
+      : listPrefix;
+
+    // Process the current item content (excluding nested lists)
+    const nonListContent = [];
+    let nestedLists: marked.Tokens.List[] = [];
+
+    // Separate list tokens from other content
+    if (item.tokens) {
+      for (const token of item.tokens) {
+        if (token.type === 'list') {
+          nestedLists.push(token as marked.Tokens.List);
+        } else {
+          nonListContent.push(token);
+        }
+      }
+    }
+
+    // Add the current item with its content
+    verses.push({
+      inline: [
+        prefix,
+        ...processInlineTokens(nonListContent, depth + level + 1),
+      ],
+    } as Verse);
+
+    // Process any nested lists found in this item
+    nestedLists.forEach((nestedList) => {
+      if (nestedList.items && nestedList.items.length > 0) {
+        nestedList.items.forEach((nestedItem, nestedIndex) => {
+          processItem(nestedItem, level + 1, nestedList.ordered, nestedIndex);
+        });
+      }
+    });
+  };
+
+  // Process all list items at the root level
+  listToken.items.forEach((item, index) => {
+    processItem(item, 0, listToken.ordered, index);
+  });
+
+  return verses;
+};
+
+// Helper function to process nested blockquote tokens
+const processNestedBlockquoteTokens = (
+  tokens: marked.Token[],
+  depth: number = 0
+): marked.Token[] => {
+  if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
+    return [];
+  }
+
+  // Extract all text from nested tokens
+  const result: marked.Token[] = [];
+
+  for (const token of tokens) {
+    if (token.type === 'paragraph' && token.tokens) {
+      // Add paragraph tokens directly
+      result.push(...token.tokens);
+    } else if (
+      token.type === 'blockquote' &&
+      'tokens' in token &&
+      token.tokens
+    ) {
+      // For nested blockquotes, we need to add a prefix to indicate nesting
+      const nestedTokens = processNestedBlockquoteTokens(
+        token.tokens,
+        depth + 1
+      );
+
+      // Add a '>' prefix token to indicate nesting
+      const prefixToken: marked.Tokens.Text = {
+        type: 'text',
+        text: '> ',
+        raw: '> ',
+      };
+
+      result.push(prefixToken);
+      result.push(...nestedTokens);
+    } else if ('text' in token) {
+      // Add text tokens directly
+      result.push(token);
+    }
+  }
+
+  return result;
+};
+
 /**
  * Convert Markdown to a properly structured Story with Verse objects
  * Handles full GitHub Flavored Markdown spec including:
@@ -61,436 +366,41 @@ export const markdownToStory = (markdown: string): Story => {
     return [];
   }
 
-  // Parse the markdown to get tokens
-  const tokens = marked.lexer(markdown);
-  const story: Verse[] = [];
+  try {
+    // Parse the markdown to get tokens
+    const tokens = marked.lexer(markdown);
+    const story: Verse[] = [];
 
-  /**
-   * Processes a string with code spans before any other inline formatting
-   * Code spans have higher precedence than any other inline constructs
-   * except HTML tags and autolinks
-   */
-  const parseInlineWithPrecedence = (text: string): Inline[] => {
-    // First pass: extract code spans as they have high precedence
-    const segments: Inline[] = [];
-    const codeSpanRegex = /(`+)([^`]|[^`][\s\S]*?[^`])\1(?!`)/g;
+    // Process the top-level tokens with initial depth of 0
+    story.push(...processTokens(tokens, 0));
 
-    let match;
-    let lastIndex = 0;
-
-    while ((match = codeSpanRegex.exec(text)) !== null) {
-      const [fullMatch, backticks, code] = match;
-      const beforeText = text.substring(lastIndex, match.index);
-
-      // Process any text before the code span
-      if (beforeText) {
-        segments.push(...parseOtherInlines(beforeText));
-      }
-
-      // Add the code span - code spans have leading/trailing spaces stripped
-      // but only if there's a space at both ends and the span isn't all spaces
-      let processedCode = code;
-      if (
-        processedCode.startsWith(' ') &&
-        processedCode.endsWith(' ') &&
-        processedCode.trim() !== ''
-      ) {
-        processedCode = processedCode.substring(1, processedCode.length - 1);
-      }
-
-      // Remove any escape backslashes before backticks inside code spans
-      processedCode = processedCode.replace(/\\`/g, '`');
-
-      // Remove backslashes from other characters in code spans
-      processedCode = processedCode.replace(/\\([\\*_{}[\]()#+\-.!])/g, '$1');
-
-      segments.push({
-        'inline-code': processedCode,
-      });
-
-      lastIndex = match.index + fullMatch.length;
+    // If we couldn't parse anything properly, fallback to simple paragraph conversion
+    if (story.length === 0) {
+      const paragraphs = markdown.split(/\n\n+/);
+      return paragraphs
+        .map((para) => para.trim())
+        .filter((para) => para.length > 0)
+        .map(
+          (para) =>
+            ({
+              inline: [para],
+            }) as Verse
+        );
     }
 
-    // Process any remaining text for other inline elements
-    const textAfter = text.substring(lastIndex);
-    if (textAfter) {
-      segments.push(...parseOtherInlines(textAfter));
-    }
-
-    return segments.length > 0 ? segments : [text];
-  };
-
-  /**
-   * Process all other inline elements after code spans are handled
-   */
-  const parseOtherInlines = (text: string): Inline[] => {
-    // Process links next (they have higher precedence than emphasis)
-    return processLinks(text);
-  };
-
-  /**
-   * Process links within text
-   */
-  const processLinks = (text: string): Inline[] => {
-    // Handle links: [text](url)
-    const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-    let match;
-    const segments: Inline[] = [];
-    let lastIndex = 0;
-
-    // Process links
-    while ((match = linkRegex.exec(text)) !== null) {
-      const [fullMatch, linkText, linkUrl] = match;
-      const beforeText = text.substring(lastIndex, match.index);
-
-      // Add any text before the link
-      if (beforeText) {
-        // Process any formatting in the text before the link
-        segments.push(...processFormattedText(beforeText));
-      }
-
-      // For links, we need to process the link text for formatting
-      // This allows for links with bold, italic, etc. inside them
-      // But we can only use the text version since that's what our types support
-      const linkContent = processFormattedText(linkText);
-      const formattedText = linkContent
-        .map((item) =>
-          typeof item === 'string'
-            ? item
-            : 'bold' in item
-              ? `**${item.bold}**`
-              : 'italics' in item
-                ? `*${item.italics}*`
-                : 'strike' in item
-                  ? `~~${item.strike}~~`
-                  : linkText
-        )
-        .join('');
-
-      // Add the link with proper formatting inside
-      segments.push({
-        link: {
-          href: linkUrl,
-          content: formattedText || linkText,
-        },
-      });
-
-      lastIndex = match.index + fullMatch.length;
-    }
-
-    // Add any remaining text after the last link
-    const remainingText = text.substring(lastIndex);
-    if (remainingText) {
-      // Process any formatting in the remaining text
-      segments.push(...processFormattedText(remainingText));
-    }
-
-    // If no segments were created, just process the original text for formatting
-    if (segments.length === 0) {
-      return processFormattedText(text);
-    }
-
-    return segments;
-  };
-
-  /**
-   * Process text for strikethrough, bold, and italic formatting,
-   * respecting GFM precedence rules
-   */
-  const processFormattedText = (text: string): Inline[] => {
-    // Process strikethrough first (GFM feature): ~~text~~
-    const strikeRegex = /~~((?:(?!~~).)+)~~/g;
-    let match;
-    const segments: Inline[] = [];
-    let lastIndex = 0;
-
-    while ((match = strikeRegex.exec(text)) !== null) {
-      const [fullMatch, content] = match;
-      const beforeText = text.substring(lastIndex, match.index);
-
-      if (beforeText) {
-        segments.push(...processBoldAndItalic(beforeText));
-      }
-
-      // Process potential formatting inside the strikethrough text
-      const innerContent = processBoldAndItalic(content);
-      segments.push({ strike: innerContent });
-
-      lastIndex = match.index + fullMatch.length;
-    }
-
-    // Process any remaining text for bold and italic
-    const remainingText = text.substring(lastIndex);
-    if (remainingText) {
-      segments.push(...processBoldAndItalic(remainingText));
-    }
-
-    // If no formatting found, process for bold and italic
-    if (segments.length === 0) {
-      return processBoldAndItalic(text);
-    }
-
-    return segments;
-  };
-
-  /**
-   * Process text for bold and italic formatting
-   * Supports both * and _ syntax, with proper nesting
-   */
-  const processBoldAndItalic = (text: string): Inline[] => {
-    // Process bold: **text** or __text__
-    // Must not be preceded or followed by alphanumeric or * or _
-    const boldRegex = /(\*\*|__)((?:(?!\1).)+)\1/g;
-    let match;
-    const segments: Inline[] = [];
-    let lastIndex = 0;
-
-    while ((match = boldRegex.exec(text)) !== null) {
-      const [fullMatch, delimiter, content] = match;
-      const beforeText = text.substring(lastIndex, match.index);
-
-      if (beforeText) {
-        segments.push(...processItalics(beforeText));
-      }
-
-      // Process potential italic formatting inside the bold text
-      const innerContent = processItalics(content);
-      segments.push({ bold: innerContent });
-
-      lastIndex = match.index + fullMatch.length;
-    }
-
-    // Process any remaining text for italics
-    const remainingText = text.substring(lastIndex);
-    if (remainingText) {
-      segments.push(...processItalics(remainingText));
-    }
-
-    // If no formatting found, return the original text
-    if (segments.length === 0) {
-      return processItalics(text);
-    }
-
-    return segments;
-  };
-
-  /**
-   * Process text for italic formatting
-   * Supports both * and _ syntax
-   */
-  const processItalics = (text: string): Inline[] => {
-    // Look for *text* or _text_ but avoid matching single asterisks in words
-    // Preceding character must not be alphanumeric or * or _
-    // Following character must not be alphanumeric or * or _
-    const italicRegex = /(\*|_)((?:(?!\1).)+)\1/g;
-    let match;
-    const segments: Inline[] = [];
-    let lastIndex = 0;
-
-    while ((match = italicRegex.exec(text)) !== null) {
-      const [fullMatch, delimiter, content] = match;
-      const beforeText = text.substring(lastIndex, match.index);
-
-      if (beforeText) {
-        segments.push(beforeText);
-      }
-
-      segments.push({ italics: [content] });
-
-      lastIndex = match.index + fullMatch.length;
-    }
-
-    // Add any remaining text
-    const remainingText = text.substring(lastIndex);
-    if (remainingText) {
-      segments.push(remainingText);
-    }
-
-    // If no formatting found, return the original text
-    if (segments.length === 0) {
-      return [text];
-    }
-
-    return segments;
-  };
-
-  /**
-   * Main parser function that processes markdown tokens
-   */
-  tokens.forEach((token) => {
-    if (token.type === 'paragraph') {
-      // Convert paragraph text to a VerseInline with proper formatting
-      const inlines = parseInlineWithPrecedence(token.text);
-      story.push({
-        inline: inlines,
-      } as Verse);
-    } else if (token.type === 'heading') {
-      // Create a properly styled heading block
-      // Map the heading depth (1-6) to the corresponding header tag (h1-h6)
-      const headingLevels: Record<
-        number,
-        'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
-      > = {
-        1: 'h1',
-        2: 'h2',
-        3: 'h3',
-        4: 'h4',
-        5: 'h5',
-        6: 'h6',
-      };
-
-      // Parse the heading content with inline formatting
-      const inlines = parseInlineWithPrecedence(token.text);
-
-      // Create a proper heading block
-      story.push({
-        block: {
-          header: {
-            tag: headingLevels[token.depth] || 'h1', // Default to h1 if invalid depth
-            content: inlines,
-          },
-        },
-      } as Verse);
-    } else if (token.type === 'list') {
-      // Handle lists - convert each item to its own Verse
-      processListItems(token, 0); // Start with indentation level 0
-    } else if (token.type === 'code') {
-      // Handle code blocks using the proper Code block type
-      // Remove any escape backslashes that may cause display issues
-      let cleanedCode = token.text.replace(/\\`/g, '`');
-
-      // Remove backslashes from other escaped characters in code blocks
-      cleanedCode = cleanedCode.replace(/\\([\\*_{}[\]()#+\-.!])/g, '$1');
-
-      story.push({
-        block: {
-          code: {
-            code: cleanedCode,
-            lang: token.lang || '',
-          },
-        },
-      } as Verse);
-    } else if (token.type === 'blockquote') {
-      // Handle blockquotes with the proper inline structure
-      const inlines = parseInlineWithPrecedence(token.text);
-      story.push({
+    return cleanupEmptyParagraphs(story);
+  } catch (error) {
+    // Fallback in case of exceptions during parsing
+    console.error('Error parsing markdown:', error);
+    return [
+      {
         inline: [
-          {
-            blockquote: inlines,
-          },
+          'Error parsing markdown: ' +
+            (error instanceof Error ? error.message : String(error)),
         ],
-      } as Verse);
-    } else if (token.type === 'hr') {
-      // Handle horizontal rules with a simple separator
-      story.push({
-        block: {
-          rule: null,
-        },
-      } as Verse);
-    } else if (token.type === 'space') {
-      // Skip empty space tokens - they're just the whitespace between paragraphs
-      return;
-    } else if (token.type === 'link') {
-      // Handle standalone links (not within paragraphs)
-      story.push({
-        inline: [
-          {
-            link: {
-              href: token.href,
-              content: token.text,
-            },
-          },
-        ],
-      } as Verse);
-    } else if (token.type === 'table') {
-      // Handle tables (GFM feature)
-      const tableContent = {
-        header: token.header.map((cell: any) => String(cell.text || cell)),
-        rows: token.rows.map((row: any[]) =>
-          row.map((cell: any) => String(cell.text || cell))
-        ),
-      };
-
-      // Create a proper table block
-      story.push({
-        block: {
-          table: {
-            tableContent,
-          },
-        },
-      } as unknown as Verse);
-    }
-  });
-
-  /**
-   * Helper function to process list items including task lists (GFM extension)
-   */
-  function processListItems(listToken: any, indentLevel: number) {
-    if (!listToken.items || !Array.isArray(listToken.items)) {
-      return;
-    }
-
-    listToken.items.forEach((item: any, index: number) => {
-      // Calculate the proper indentation prefix based on nesting level
-      const indentPrefix = '  '.repeat(indentLevel);
-
-      // Handle task lists (GFM feature)
-      if (item.task) {
-        const checkboxChar = item.checked ? '☑' : '☐';
-        const taskPrefix = listToken.ordered
-          ? `${indentPrefix}${index + 1}. ${checkboxChar} `
-          : `${indentPrefix}• ${checkboxChar} `;
-
-        // Process the item text with inline formatting
-        const inlines = parseInlineWithPrecedence(item.text);
-
-        // Create a verse with the formatted list item
-        story.push({
-          inline: [taskPrefix, ...inlines],
-        } as Verse);
-      } else {
-        // Regular list item (ordered or unordered)
-        const prefix = listToken.ordered
-          ? `${indentPrefix}${index + 1}. `
-          : `${indentPrefix}• `;
-
-        // Process the item text with inline formatting
-        const inlines = parseInlineWithPrecedence(item.text);
-
-        // Create a verse with the formatted list item
-        story.push({
-          inline: [prefix, ...inlines],
-        } as Verse);
-      }
-
-      // Process nested lists if present
-      if (item.items && Array.isArray(item.items) && item.items.length > 0) {
-        const nestedList = {
-          ordered: !!item.ordered,
-          items: item.items,
-        };
-
-        // Process nested list with increased indentation
-        processListItems(nestedList, indentLevel + 1);
-      }
-    });
+      } as Verse,
+    ];
   }
-
-  // If we couldn't parse anything properly, fallback to simple paragraph conversion
-  if (story.length === 0) {
-    const paragraphs = markdown.split(/\n\n+/);
-    return paragraphs
-      .map((para) => para.trim())
-      .filter((para) => para.length > 0) // Filter out empty paragraphs
-      .map(
-        (para) =>
-          ({
-            inline: parseInlineWithPrecedence(para),
-          }) as Verse
-      );
-  }
-
-  return cleanupEmptyParagraphs(story);
 };
 
 /**

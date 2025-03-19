@@ -1,19 +1,81 @@
 // import { EditorBridge } from '@10play/tentap-editor';
 import * as db from '@tloncorp/shared/db';
+import { Story, Verse, constructStory } from '@tloncorp/shared/urbit';
 import { Icon } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
-import { useMemo, useState } from 'react';
+import {
+  ChangeEvent,
+  forwardRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { TextareaHTMLAttributes } from 'react';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 // TODO: replace input with our own input component
 import { Input, View, YStack, getTokenValue } from 'tamagui';
 
+import { markdownToStory } from '../../utils/markdown';
 import { ImageAttachment, useAttachmentContext } from '../contexts/attachment';
 import AttachmentSheet from './AttachmentSheet';
-import { MessageInput } from './MessageInput';
-// import { InputToolbar } from './MessageInput/InputToolbar';
+import { useRegisterChannelHeaderItem } from './Channel/ChannelHeader';
 import { MessageInputProps } from './MessageInput/MessageInputBase';
+import { ScreenHeader } from './ScreenHeader';
 
-// import { TlonEditorBridge } from './MessageInput/toolbarActions';
+const Textarea = forwardRef<
+  HTMLTextAreaElement,
+  TextareaHTMLAttributes<HTMLTextAreaElement>
+>((props, ref) => {
+  return (
+    <textarea
+      {...props}
+      ref={ref}
+      style={{
+        width: '100%',
+        height: '100%',
+        padding: '12px',
+        border: 'none',
+        outline: 'none',
+        fontSize: '14px',
+        fontFamily: 'monospace',
+        resize: 'none',
+        backgroundColor: 'transparent',
+        ...props.style,
+      }}
+    />
+  );
+});
+
+// Extract text from a post content
+function getTextFromPost(post?: db.Post): string {
+  if (!post || !post.content) return '';
+
+  try {
+    // Ensure content is actually an array before mapping
+    if (Array.isArray(post.content)) {
+      return post.content
+        .map((verse: Verse) => {
+          if ('inline' in verse) {
+            return verse.inline
+              .map((item) => {
+                if (typeof item === 'string') return item;
+                // Handle other inline types like bold, etc. as needed
+                return '';
+              })
+              .join('');
+          }
+          return '';
+        })
+        .join('\n\n');
+    }
+    return '';
+  } catch (error) {
+    console.error('Error parsing post content:', error);
+    return '';
+  }
+}
 
 export function BigInput({
   channelType,
@@ -29,14 +91,17 @@ export function BigInput({
   setEditingPost,
   editPost,
   setShowBigInput,
-  placeholder,
+  placeholder = "What's on your mind?",
 }: {
   channelType: db.ChannelType;
 } & MessageInputProps) {
   const [title, setTitle] = useState(editingPost?.title ?? '');
+  const [text, setText] = useState('');
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const titleInputHeight = getTokenValue('$4xl', 'size');
   const imageButtonHeight = getTokenValue('$4xl', 'size');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const { attachments, attachAssets } = useAttachmentContext();
   const imageAttachment = useMemo(() => {
@@ -61,6 +126,157 @@ export function BigInput({
     return null;
   }, [attachments, editingPost]);
 
+  // Load draft content or editing post content
+  useMemo(() => {
+    const loadContent = async () => {
+      if (editingPost) {
+        // Extract plain text from the post content
+        setText(getTextFromPost(editingPost));
+      } else {
+        // Try to load draft
+        const draft = await getDraft();
+        if (draft && typeof draft === 'string') {
+          setText(draft);
+        } else if (draft && typeof draft === 'object') {
+          // Try to extract text from structured draft
+          try {
+            let extractedText = '';
+            if ('content' in draft && Array.isArray(draft.content)) {
+              extractedText = draft.content
+                .filter(
+                  (node) =>
+                    node.type === 'paragraph' &&
+                    'content' in node &&
+                    Array.isArray(node.content)
+                )
+                .flatMap((node) =>
+                  'content' in node && Array.isArray(node.content)
+                    ? node.content.filter(
+                        (content) =>
+                          content &&
+                          typeof content === 'object' &&
+                          'type' in content &&
+                          content.type === 'text'
+                      )
+                    : []
+                )
+                .map((textNode) =>
+                  textNode && typeof textNode === 'object' && 'text' in textNode
+                    ? String(textNode.text)
+                    : ''
+                )
+                .filter((text) => text)
+                .join('\n\n');
+            }
+
+            if (extractedText) {
+              setText(extractedText);
+            }
+          } catch (error) {
+            console.error('Error parsing draft content:', error);
+          }
+        }
+      }
+    };
+
+    loadContent();
+  }, [editingPost, getDraft]);
+
+  // Handle sending the post
+  const handleSend = useCallback(async () => {
+    if (isSending || !text.trim()) return;
+
+    try {
+      setIsSending(true);
+
+      // Convert markdown text to Story structure
+      const story = markdownToStory(text);
+
+      let metadata: db.PostMetadata | undefined;
+
+      // Add title and image for notebook posts
+      if (channelType === 'notebook') {
+        metadata = {
+          title: title,
+          image: imageAttachment?.file.uri,
+        };
+      }
+
+      if (editingPost && editPost) {
+        // Edit existing post
+        await editPost(editingPost, story, undefined, metadata);
+      } else {
+        // Send new post
+        await send(story, channelId, metadata);
+      }
+
+      // Clear the input and close
+      setText('');
+      setTitle('');
+      setShowBigInput?.(false);
+      await clearDraft();
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    } finally {
+      setIsSending(false);
+    }
+  }, [
+    isSending,
+    text,
+    title,
+    channelType,
+    imageAttachment,
+    editingPost,
+    editPost,
+    send,
+    channelId,
+    setShowBigInput,
+    clearDraft,
+  ]);
+
+  // Save draft when text changes
+  const handleTextChange = useCallback(
+    (e: ChangeEvent<HTMLTextAreaElement>) => {
+      setText(e.target.value);
+    },
+    []
+  );
+
+  // Save draft when editor loses focus
+  const handleBlur = useCallback(() => {
+    if (text.trim()) {
+      // Use JSONContent object pattern expected by storeDraft
+      storeDraft({
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
+      });
+    }
+  }, [text, storeDraft]);
+
+  // Determine if post button should be enabled
+  const canPost = useMemo(() => {
+    if (!text.trim()) return false;
+    if (channelType === 'notebook' && !title.trim()) return false;
+    return true;
+  }, [text, channelType, title]);
+
+  // Register the Post button in the header
+  useRegisterChannelHeaderItem(
+    useMemo(
+      () => (
+        <ScreenHeader.TextButton
+          key="post-button"
+          onPress={handleSend}
+          disabled={!canPost || isSending}
+          testID="PostButton"
+        >
+          {isSending ? 'Posting...' : editingPost ? 'Save' : 'Post'}
+        </ScreenHeader.TextButton>
+      ),
+      [canPost, isSending, handleSend, editingPost]
+    )
+  );
+
   return (
     <YStack height="100%" width="100%">
       {channelType === 'notebook' && (
@@ -75,7 +291,7 @@ export function BigInput({
           <TouchableOpacity
             onPress={() => {
               setShowAttachmentSheet(true);
-              // editorRef.current?.editor?.blur();
+              textareaRef.current?.blur();
             }}
           >
             {imageAttachment ? (
@@ -124,50 +340,24 @@ export function BigInput({
         paddingTop={
           channelType === 'notebook' ? titleInputHeight + imageButtonHeight : 0
         }
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          position: 'relative',
+        }}
       >
-        <MessageInput
-          shouldBlur={shouldBlur}
-          setShouldBlur={setShouldBlur}
-          send={send}
-          title={title}
-          image={imageAttachment?.file ?? undefined}
-          channelId={channelId}
-          groupMembers={groupMembers}
-          storeDraft={storeDraft}
-          clearDraft={clearDraft}
-          getDraft={getDraft}
-          editingPost={editingPost}
-          setEditingPost={setEditingPost}
-          editPost={editPost}
-          setShowBigInput={setShowBigInput}
-          floatingActionButton
-          showAttachmentButton={false}
-          showInlineAttachments={false}
-          backgroundColor="$background"
-          paddingHorizontal="$m"
-          placeholder={placeholder}
-          bigInput
-          channelType={channelType}
-          shouldAutoFocus
-          draftType={channelType === 'gallery' ? 'text' : undefined}
-        />
+        <View style={{ flex: 1, paddingHorizontal: 16 }}>
+          <Textarea
+            ref={textareaRef}
+            placeholder={placeholder}
+            value={text}
+            onChange={handleTextChange}
+            onBlur={handleBlur}
+          />
+        </View>
       </View>
-      {/* channelType === 'notebook' &&
-        editorRef.current &&
-        editorRef.current.editor && (
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'position'}
-            keyboardVerticalOffset={keyboardVerticalOffset}
-            style={{
-              width,
-              position: 'absolute',
-              bottom: Platform.OS === 'ios' ? 0 : keyboardVerticalOffset,
-              flex: 1,
-            }}
-          >
-            <InputToolbar editor={editorRef.current.editor} />
-          </KeyboardAvoidingView>
-        ) */}
+
       {channelType === 'notebook' && showAttachmentSheet && (
         <AttachmentSheet
           isOpen={showAttachmentSheet}

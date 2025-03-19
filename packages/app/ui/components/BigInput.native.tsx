@@ -1,32 +1,52 @@
-import { extractContentTypesFromPost } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { getTextContent } from '@tloncorp/shared/urbit';
+import { Verse } from '@tloncorp/shared/urbit';
 import { Icon } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
+import { Image } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Platform, TextInput, TouchableOpacity } from 'react-native';
+import {
+  Platform,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, XStack, YStack } from 'tamagui';
+import { Text, View, XStack, YStack, getTokenValue } from 'tamagui';
 
-import { processContent } from '../../utils/markdown';
+import { markdownToStory } from '../../utils/markdown';
 import AttachmentSheet from './AttachmentSheet';
 import { useRegisterChannelHeaderItem } from './Channel/ChannelHeader';
 import { MessageInputProps } from './MessageInput/MessageInputBase';
 import { ScreenHeader } from './ScreenHeader';
 
-// Helper function to extract text from post content
-const getTextFromPost = (post: db.Post | undefined): string => {
-  if (!post?.content) return '';
+// Helper function to extract text content from a post
+function getTextFromPost(post?: db.Post): string {
+  if (!post || !post.content) return '';
 
   try {
-    const { story } = extractContentTypesFromPost(post);
-    return getTextContent(story) || '';
-  } catch (e) {
-    console.error('Error parsing post content:', e);
+    // Ensure content is actually an array before mapping
+    if (Array.isArray(post.content)) {
+      return post.content
+        .map((verse: Verse) => {
+          if ('inline' in verse) {
+            return verse.inline
+              .map((item) => {
+                if (typeof item === 'string') return item;
+                // Handle other inline types if needed
+                return '';
+              })
+              .join('');
+          }
+          return '';
+        })
+        .join('\n\n');
+    }
+    return '';
+  } catch (error) {
+    console.error('Error parsing post content:', error);
     return '';
   }
-};
+}
 
 export function BigInput(
   props: MessageInputProps & {
@@ -37,9 +57,13 @@ export function BigInput(
     channelType,
     channelId,
     send,
+    storeDraft,
+    clearDraft,
+    getDraft,
     setShowBigInput,
     editingPost,
     editPost,
+    placeholder = "What's on your mind?",
   } = props;
 
   // Type guard to ensure send is defined
@@ -60,6 +84,12 @@ export function BigInput(
   const inputRef = useRef<TextInput>(null);
   const titleInputRef = useRef<TextInput>(null);
   const { bottom } = useSafeAreaInsets();
+
+  // Check if we should show the notebook-specific UI
+  const showNotebookUI = channelType === 'notebook';
+
+  // Calculate content padding based on whether notebook UI is shown
+  const contentPaddingTop = showNotebookUI ? 24 : 16;
 
   // Handle clearing the attached header image
   const handleClearImage = useCallback(() => {
@@ -82,85 +112,149 @@ export function BigInput(
     setImageUri(editingPost?.image || null);
   }, [editingPost?.id, editingPost?.image]);
 
-  const handlePost = useCallback(async () => {
-    if (isPosting) return;
+  // Handle sending the post
+  const handleSend = useCallback(async () => {
+    if (isPosting || !text.trim()) return;
 
-    // For notebook posts, require a title
-    if (channelType === 'notebook' && !title.trim()) {
-      console.error('Notebook posts must have a title');
-      return;
-    }
-
-    setIsPosting(true);
     try {
-      const story = processContent(text);
+      setIsPosting(true);
 
-      // Create metadata for notebook posts with title and image
-      const metadata: Record<string, any> = {};
-      if (channelType === 'notebook') {
-        if (title) {
-          metadata.title = title;
-        }
+      // Convert markdown text to story format
+      const story = markdownToStory(text);
 
-        // Always include image field for notebooks, even if null
-        // This ensures we can clear an image by setting it to null
-        metadata.image = imageUri;
+      // Prepare metadata for notebook posts
+      let metadata: db.PostMetadata | undefined;
+      if (showNotebookUI) {
+        metadata = {
+          title: title,
+          image: imageUri,
+        };
       }
 
+      // Edit or create post
       if (editingPost && editPost) {
-        // If we're editing, use editPost with the correct parameters
-        // We don't actually need the parentId, but it's required
-        // to correctly call the editPost function
         await editPost(editingPost, story, undefined, metadata);
       } else {
-        // If it's a new post, use send
         await send(story, channelId, metadata);
       }
 
+      // Clear the input and close
       setText('');
       setTitle('');
+      setImageUri(null);
       setShowBigInput?.(false);
+      await clearDraft();
     } catch (error) {
-      console.error('Error posting:', error);
+      console.error('Failed to send post:', error);
     } finally {
       setIsPosting(false);
     }
   }, [
     isPosting,
-    send,
-    editPost,
-    channelId,
     text,
     title,
     imageUri,
-    channelType,
-    setShowBigInput,
+    showNotebookUI,
     editingPost,
+    editPost,
+    send,
+    channelId,
+    setShowBigInput,
+    clearDraft,
   ]);
 
-  // Register the post button in the header
+  // Save draft when component unmounts or text changes
+  useEffect(() => {
+    const saveDraft = async () => {
+      if (text.trim()) {
+        // Create a JSON document structure for the draft
+        await storeDraft({
+          type: 'doc',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
+        });
+      }
+    };
+
+    // Save draft when component is unmounted
+    return () => {
+      saveDraft();
+    };
+  }, [text, storeDraft]);
+
+  // Load draft on mount
+  useEffect(() => {
+    const loadDraft = async () => {
+      if (!editingPost) {
+        try {
+          const draft = await getDraft();
+          if (draft) {
+            // Try to extract text from JSON draft structure
+            if (typeof draft === 'string') {
+              setText(draft);
+            } else if (draft.content && Array.isArray(draft.content)) {
+              // Extract text from JSON structure if available
+              const extractedText = draft.content
+                .filter(
+                  (node) =>
+                    node.type === 'paragraph' &&
+                    node.content &&
+                    Array.isArray(node.content)
+                )
+                .flatMap(
+                  (node) =>
+                    node.content?.filter(
+                      (content) =>
+                        content &&
+                        typeof content === 'object' &&
+                        'type' in content &&
+                        content.type === 'text'
+                    ) || []
+                )
+                .map((textNode) =>
+                  textNode && typeof textNode === 'object' && 'text' in textNode
+                    ? textNode.text
+                    : ''
+                )
+                .filter((text) => text)
+                .join('\n\n');
+
+              if (extractedText) {
+                setText(extractedText);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error loading draft:', error);
+        }
+      }
+    };
+
+    loadDraft();
+  }, [editingPost, getDraft]);
+
+  // Determine if post button should be enabled
+  const canPost = useMemo(() => {
+    if (!text.trim()) return false;
+    if (showNotebookUI && !title.trim()) return false;
+    return true;
+  }, [text, showNotebookUI, title]);
+
+  // Register the Post button in the header
   useRegisterChannelHeaderItem(
     useMemo(
       () => (
         <ScreenHeader.TextButton
           key="post-button"
-          onPress={handlePost}
-          // Disable the post button if we're posting or if we're in a notebook and don't have a title
-          disabled={isPosting || (channelType === 'notebook' && !title.trim())}
+          onPress={handleSend}
+          disabled={!canPost || isPosting}
           testID="PostButton"
         >
           {isPosting ? 'Posting...' : editingPost ? 'Save' : 'Post'}
         </ScreenHeader.TextButton>
       ),
-      [isPosting, handlePost, editingPost]
+      [canPost, isPosting, handleSend, editingPost]
     )
   );
-
-  // Calculate if we should show notebook-specific UI
-  const showNotebookUI = channelType === 'notebook';
-
-  // Calculate padding for the main content based on whether we have notebook UI
-  const contentPaddingTop = showNotebookUI ? '$xl' : '$m';
 
   return (
     <YStack height="100%" width="100%">
@@ -173,11 +267,7 @@ export function BigInput(
             value={title}
             onChangeText={setTitle}
             placeholder="Title"
-            style={{
-              fontSize: 24,
-              fontWeight: 'bold',
-              padding: 0,
-            }}
+            style={styles.titleInput}
           />
 
           {/* Image picker button or preview */}
@@ -230,17 +320,8 @@ export function BigInput(
           multiline
           value={text}
           onChangeText={setText}
-          style={{
-            flex: 1,
-            fontFamily: Platform.select({
-              android: 'monospace',
-              ios: 'System-Monospaced',
-              default: 'monospace',
-            }),
-            fontSize: 14,
-            lineHeight: 19,
-          }}
-          placeholder="Share your thoughts..."
+          style={styles.markdownInput}
+          placeholder={placeholder}
         />
       </View>
 
@@ -257,3 +338,21 @@ export function BigInput(
     </YStack>
   );
 }
+
+const styles = StyleSheet.create({
+  titleInput: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    padding: 0,
+  },
+  markdownInput: {
+    flex: 1,
+    fontFamily: Platform.select({
+      android: 'monospace',
+      ios: 'Menlo',
+      default: 'monospace',
+    }),
+    fontSize: 14,
+    lineHeight: 19,
+  },
+});
