@@ -1,8 +1,9 @@
+import { makePrettyDay } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Button, Icon, Text } from '@tloncorp/ui';
+import { Button, Icon, LoadingSpinner, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Linking } from 'react-native';
-import { Circle, XStack, YStack } from 'tamagui';
+import { Circle, XStack, XStackProps, YStack, styled } from 'tamagui';
 
 import { useStore } from '../contexts';
 
@@ -14,9 +15,10 @@ export function AttestationPane({
   currentUserId: string;
 }) {
   const [haveCheckedSig, setHaveCheckedSig] = useState(false);
-  const [sigIsLoading, setSigIsLoading] = useState(false);
+  const [sigIsLoading, setSigIsLoading] = useState(true);
   const [sigIsValid, setSigIsValid] = useState(false);
   const [revoking, setRevoking] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
   const store = useStore();
 
   const formattedValue = useMemo(() => {
@@ -29,23 +31,38 @@ export function AttestationPane({
 
   useEffect(() => {
     async function run() {
+      if (
+        attestation.contactId === currentUserId &&
+        attestation.status === 'verified'
+      ) {
+        // trust our own attestations
+        return;
+      }
       try {
         if (attestation.signature && !haveCheckedSig) {
           setSigIsLoading(true);
           setHaveCheckedSig(true);
+          setError(null);
           const isValid = await store.checkAttestedSignature(
             attestation.signature
           );
           setSigIsValid(isValid);
         }
       } catch (e) {
-        console.error(e);
+        setError(e);
       } finally {
         setSigIsLoading(false);
       }
     }
     run();
-  }, [attestation.signature, haveCheckedSig, store]);
+  }, [
+    attestation.contactId,
+    attestation.signature,
+    attestation.status,
+    currentUserId,
+    haveCheckedSig,
+    store,
+  ]);
 
   const handleViewTweet = useCallback(() => {
     Linking.openURL(
@@ -66,50 +83,72 @@ export function AttestationPane({
     }
   }, [attestation, store]);
 
-  return (
-    <YStack paddingHorizontal="$2xl">
-      <XStack justifyContent="center" alignItems="center" gap="$m">
-        <YStack>
-          {/* <Text size="$label/m" color="$positiveActionText">
-            Verified
-          </Text> */}
-          <Text size="$label/xl" fontWeight="600">
-            {formattedValue}
-          </Text>
-        </YStack>
-      </XStack>
-      <XStack
-        justifyContent="center"
-        alignItems="center"
-        gap="$m"
-        width="100%"
-        backgroundColor="$positiveBackground"
-        padding="$m"
-        marginVertical="$l"
-        borderRadius="$m"
-      >
-        {sigIsLoading ? null : (
-          <Circle backgroundColor="$positiveBackground">
-            <Icon type="Checkmark" color="$positiveActionText" />
-          </Circle>
-        )}
-        <Text size="$label/l" color="$positiveActionText">
-          {sigIsLoading ? 'Loading' : 'Verified'}
-        </Text>
-      </XStack>
-      <XStack justifyContent="space-between">
-        <Text>Verified by</Text>
-        <Text>Tlon Corp</Text>
-      </XStack>
-      <XStack justifyContent="space-between">
-        <Text>Verified at</Text>
-        <Text>March 12, 2025</Text>
-      </XStack>
+  const status: 'loading' | 'verified' | 'invalid' | 'errored' = useMemo(() => {
+    if (
+      attestation.contactId === currentUserId &&
+      attestation.status === 'verified'
+    ) {
+      return 'verified';
+    }
 
-      <YStack marginTop="$6xl" gap="$m">
+    if (sigIsLoading) return 'loading';
+    if (error) return 'errored';
+    if (sigIsValid) return 'verified';
+    if (!sigIsLoading && haveCheckedSig && !sigIsValid) return 'invalid';
+
+    return 'loading';
+  }, [
+    attestation.contactId,
+    attestation.status,
+    currentUserId,
+    error,
+    haveCheckedSig,
+    sigIsLoading,
+    sigIsValid,
+  ]);
+
+  const handleRetry = useCallback(() => {
+    if (status === 'errored') {
+      setHaveCheckedSig(false);
+    }
+  }, [status]);
+
+  return (
+    <YStack paddingHorizontal="$2xl" gap="$xl">
+      <ItemContainer height={108}>
+        <Text size="$label/xl" fontWeight="600">
+          {formattedValue}
+        </Text>
+      </ItemContainer>
+
+      <AttestationStatusWidget state={status} handleRetry={handleRetry} />
+
+      <ItemContainer>
+        <YStack gap="$xl" width="100%" alignItems="flex-start">
+          <Text size="$label/m" color="$secondaryText">
+            Verified by
+          </Text>
+          <Text size="$label/l">Tlon Corp</Text>
+        </YStack>
+      </ItemContainer>
+
+      {attestation.initiatedAt && (
+        <ItemContainer>
+          <YStack gap="$xl" width="100%" alignItems="flex-start">
+            <Text size="$label/m" color="$secondaryText">
+              Verified on
+            </Text>
+            <Text size="$label/l">
+              {makePrettyDay(new Date(attestation.initiatedAt))}
+            </Text>
+          </YStack>
+        </ItemContainer>
+      )}
+
+      <YStack marginTop="$xl" gap="$m">
         {attestation.type === 'twitter' && attestation.provingTweetId && (
           <Button hero onPress={handleViewTweet}>
-            <Button.Text>View Tweet</Button.Text>
+            <Button.Text fontWeight="500">View 𝕏 Post</Button.Text>
           </Button>
         )}
 
@@ -123,10 +162,98 @@ export function AttestationPane({
             backgroundColor="$negativeBackground"
             onPress={handleRevoke}
           >
-            <Button.Text color="$negativeActionText">Revoke</Button.Text>
+            <Button.Text color="$negativeActionText" fontWeight="500">
+              Revoke
+            </Button.Text>
           </Button>
         )}
       </YStack>
     </YStack>
+  );
+}
+
+const ItemContainer = styled(XStack, {
+  name: 'AttestationStatusContainer',
+  padding: '$2xl',
+  borderRadius: '$l',
+  borderWidth: 1,
+  borderColor: '$border',
+  justifyContent: 'center',
+  alignItems: 'center',
+});
+
+function AttestationStatusWidget({
+  state,
+  handleRetry,
+  ...rest
+}: {
+  state: 'loading' | 'verified' | 'invalid' | 'errored';
+  handleRetry?: () => void;
+} & XStackProps) {
+  const height = 90;
+
+  if (state === 'verified') {
+    return (
+      <ItemContainer height={height} backgroundColor="$positiveBackground">
+        <Icon
+          type="VerifiedBadge"
+          color="$positiveActionText"
+          customSize={[40, 40]}
+        />
+        <Text size="$label/l" color="$positiveActionText">
+          Verified
+        </Text>
+      </ItemContainer>
+    );
+  }
+
+  if (state === 'errored') {
+    return (
+      <ItemContainer
+        height={height}
+        onPress={handleRetry}
+        backgroundColor="$negativeBackground"
+      >
+        <YStack alignItems="center" gap="$m">
+          <Text size="$label/l" color="$negativeActionText">
+            Could not Verify
+          </Text>
+          <Text size="$label/m" color="$secondaryText">
+            Tap to retry
+          </Text>
+        </YStack>
+      </ItemContainer>
+    );
+  }
+
+  if (state === 'invalid') {
+    return (
+      <ItemContainer
+        height={height}
+        onPress={handleRetry}
+        backgroundColor="$negativeBackground"
+      >
+        <YStack alignItems="center" gap="$l">
+          <Text size="$label/l" color="$negativeActionText">
+            Invalid
+          </Text>
+          <Text size="$label/m" color="$secondaryText">
+            Signature is incorrect or revoked
+          </Text>
+        </YStack>
+      </ItemContainer>
+    );
+  }
+
+  return (
+    <ItemContainer
+      height={height}
+      {...rest}
+      backgroundColor="$secondaryBackground"
+      gap="$m"
+    >
+      <LoadingSpinner />
+      <Text size="$label/l">Loading</Text>
+    </ItemContainer>
   );
 }

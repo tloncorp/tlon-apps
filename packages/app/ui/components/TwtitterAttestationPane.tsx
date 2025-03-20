@@ -1,9 +1,11 @@
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
+import { KeyboardAvoidingView, Pressable } from '@tloncorp/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { View, YStack } from 'tamagui';
+import { Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { ScrollView, View, YStack } from 'tamagui';
 
 import { Button } from '../../../ui/src/components/Button';
 import { LoadingSpinner } from '../../../ui/src/components/LoadingSpinner';
@@ -72,6 +74,7 @@ function ConfirmTwitterPane(props: {
   attestation: db.Verification;
   currentUserId: string;
 }) {
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const store = useStore();
   const [proof, setProof] = useState<string | null>(null);
   const reqTracker = useTrackAttestConfirmation(props.attestation);
@@ -117,35 +120,57 @@ ${proof}`;
     [props.attestation.value]
   );
 
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardWillShow',
+      () => setKeyboardVisible(true)
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardWillHide',
+      () => setKeyboardVisible(false)
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
+
   return (
-    <YStack gap="$2xl">
-      <Text size="$label/m">
-        To complete verification, send this post from your 𝕏 account.
-      </Text>
-      <CopyableTextBlock text={tweetContent} />
-      <ControlledTextField
-        name="twitterPostInput"
-        label="Attesting Post"
-        control={control}
-        inputProps={{
-          placeholder: `https://x.com/${normalizedHandle}/status/1889766709566844930`,
-        }}
-        rules={{
-          maxLength: {
-            value: 200,
-            message: 'Your status is limited to 200 characters',
-          },
-        }}
-      />
-      <Button hero onPress={onSubmit} disabled={!isDirty || !isValid}>
-        <Button.Text>Submit</Button.Text>
-      </Button>
-      {reqTracker.didError && (
-        <Text color="$negativeActionText">
-          Could not verify the submitted post.
+    <TouchableWithoutFeedback style={{ flex: 1 }} onPress={Keyboard.dismiss}>
+      <YStack gap="$2xl">
+        <Text size="$label/m">
+          To complete verification, send this post from your 𝕏 account.
         </Text>
-      )}
-    </YStack>
+        <CopyableTextBlock
+          text={tweetContent}
+          height={keyboardVisible ? 100 : 'unset'}
+          overflow="hidden"
+        />
+        <ControlledTextField
+          name="twitterPostInput"
+          label="Attesting Post"
+          control={control}
+          inputProps={{
+            placeholder: `https://x.com/${normalizedHandle}/status/1889766709566844930`,
+          }}
+          rules={{
+            maxLength: {
+              value: 200,
+              message: 'Your status is limited to 200 characters',
+            },
+          }}
+        />
+        <Button hero onPress={onSubmit} disabled={!isDirty || !isValid}>
+          <Button.Text>Submit</Button.Text>
+        </Button>
+        {reqTracker.didError && (
+          <Text color="$negativeActionText">
+            Could not verify the submitted post.
+          </Text>
+        )}
+      </YStack>
+    </TouchableWithoutFeedback>
   );
 }
 

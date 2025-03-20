@@ -316,9 +316,6 @@ function parseContactAttestations(
       const id = parseAttestationId({ provider, type, value, contactId });
       const provingTweetId =
         sign.signType === 'full' ? sign.proofTweetId ?? null : null;
-      const signature = contact['lanyard-twitter-0-sign'].value;
-
-      console.log(`contact sig`, { signature });
 
       attestations.push({
         id,
@@ -331,7 +328,7 @@ function parseContactAttestations(
         status: 'verified',
         providerVerificationUrl,
         provingTweetId,
-        signature,
+        signature: sign.signature,
       });
     } catch (e) {
       console.error(`failed to parse sign`, e);

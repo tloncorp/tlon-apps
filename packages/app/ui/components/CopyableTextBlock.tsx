@@ -1,12 +1,13 @@
 import { Text, triggerHaptic } from '@tloncorp/ui';
 import { useCallback } from 'react';
-import { View, XStack, YStack } from 'tamagui';
+import { View, XStack, XStackProps, YStack } from 'tamagui';
 
 import { Icon, useCopy } from '../utils';
 import { WidgetPane } from './WidgetPane';
 
-export function CopyableTextBlock(props: { text: string }) {
-  const { doCopy, didCopy } = useCopy(props.text);
+export function CopyableTextBlock(props: { text: string } & XStackProps) {
+  const { text, ...rest } = props;
+  const { doCopy, didCopy } = useCopy(text);
 
   const handleCopy = useCallback(() => {
     doCopy();
@@ -14,7 +15,11 @@ export function CopyableTextBlock(props: { text: string }) {
   }, [doCopy]);
 
   return (
-    <WidgetPane backgroundColor="$secondaryBackground" onPress={handleCopy}>
+    <WidgetPane
+      backgroundColor="$secondaryBackground"
+      onPress={handleCopy}
+      {...rest}
+    >
       <YStack gap="$l">
         <XStack
           justifyContent="flex-end"

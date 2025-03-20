@@ -53,10 +53,9 @@ interface QueryResponse {
   query: { result: { valid: boolean; live: boolean } };
 }
 export async function checkAttestedSignature(signData: string) {
+  console.log(`checking signature`, signData);
   const nonce = Math.floor(Math.random() * 1000000);
   const encodedNonce = formatUv(BigInt(nonce));
-
-  // console.log(`sending thing`, parseUw(signData));
 
   const query = [
     null,
@@ -140,6 +139,8 @@ function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {
       },
     ])(a.tail);
 
+    console.log(`bl: parsed sign`, sign);
+
     const id = parseAttestationId({ provider, type, value, contactId });
     const provingTweetId =
       sign?.signType === 'full' ? sign.proofTweetId ?? null : null;
@@ -150,11 +151,12 @@ function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {
       provider,
       type,
       value,
-      initiatedAt: null,
+      initiatedAt: sign?.when ?? null,
       visibility: config,
       status,
       statusMessage,
       provingTweetId,
+      signature: sign?.signature,
     };
 
     return verif;

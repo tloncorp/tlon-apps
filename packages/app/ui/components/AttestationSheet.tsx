@@ -7,16 +7,20 @@ import { AttestationPane } from './AttestationPane';
 export function AttestationSheet(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  attestation: db.Verification;
+  attestation?: db.Verification | null;
 }) {
   const currentUserId = useCurrentUserId();
+
+  if (!props.attestation) {
+    return null;
+  }
 
   return (
     <ActionSheet
       open={props.open}
       onOpenChange={props.onOpenChange}
       snapPointsMode="percent"
-      snapPoints={[60]}
+      snapPoints={[70]}
     >
       <ActionSheet.MainContent marginTop="$xl" justifyContent="flex-start">
         <AttestationPane

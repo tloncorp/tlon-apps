@@ -14,7 +14,7 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { LayoutChangeEvent } from 'react-native';
+import { LayoutChangeEvent, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Circle,
@@ -139,10 +139,15 @@ export function UserProfileScreenView(props: Props) {
           )}
           <BioDisplay bio={userContact?.bio ?? ''} />
 
-          <XStack gap="$l" width="100%">
+          <ConnectedAccountsWidget
+            twitterAttest={twitterAttestation}
+            phoneAttest={phoneAttestation}
+          />
+
+          {/* <XStack gap="$l" width="100%">
             <TwitterAttestBlock attestation={twitterAttestation} />
             <PhoneAttestBlock attestation={phoneAttestation} />
-          </XStack>
+          </XStack> */}
 
           <XStack gap="$l" width="100%">
             <StatusBlock status={nodeStatus} label="Node" />
@@ -184,6 +189,77 @@ function StatusBlock({
       </XStack>
       <StatusIndicator status={status} label={label} />
     </PaddedBlock>
+  );
+}
+
+function ConnectedAccountsWidget(props: {
+  twitterAttest?: db.Verification;
+  phoneAttest?: db.Verification;
+}) {
+  const [selectedAttest, setSelectedAttest] = useState<db.Verification | null>(
+    null
+  );
+
+  const handleViewTweet = useCallback(() => {
+    if (props.twitterAttest && props.twitterAttest.value) {
+      Linking.openURL(`https://x.com/${props.twitterAttest.value}`);
+    }
+  }, [props.twitterAttest]);
+
+  if (!props.twitterAttest && !props.phoneAttest) {
+    return null;
+  }
+
+  return (
+    <WidgetPane width="100%">
+      <WidgetPane.Title>Connected Accounts</WidgetPane.Title>
+      <YStack gap="$l">
+        {props.twitterAttest && props.twitterAttest.value && (
+          <Pressable
+            onPress={handleViewTweet}
+            onLongPress={() => setSelectedAttest(props.twitterAttest!)}
+          >
+            <YStack
+              alignItems="flex-start"
+              gap="$m"
+              padding="$2xl"
+              borderRadius="$l"
+              backgroundColor="$secondaryBackground"
+            >
+              <XStack justifyContent="space-between">
+                <XStack alignItems="center" gap="$m">
+                  <Icon type="VerifiedBadge" customSize={[28, 28]} />
+                  <Text size="$label/l" color="$secondaryText" fontWeight="500">
+                    @{props.twitterAttest.value}
+                  </Text>
+                </XStack>
+              </XStack>
+            </YStack>
+          </Pressable>
+        )}
+        {props.phoneAttest && (
+          <Pressable onLongPress={() => setSelectedAttest(props.phoneAttest!)}>
+            <XStack
+              alignItems="center"
+              gap="$l"
+              padding="$2xl"
+              borderRadius="$l"
+              backgroundColor="$secondaryBackground"
+            >
+              <Icon type="VerifiedBadge" customSize={[28, 28]} />
+              <Text size="$label/l" color="$secondaryText" fontWeight="500">
+                Phone number
+              </Text>
+            </XStack>
+          </Pressable>
+        )}
+      </YStack>
+      <AttestationSheet
+        open={selectedAttest !== null}
+        onOpenChange={() => setSelectedAttest(null)}
+        attestation={selectedAttest}
+      />
+    </WidgetPane>
   );
 }
 

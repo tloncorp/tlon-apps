@@ -7,6 +7,7 @@ import { LoadingSpinner } from '../../../ui/src/components/LoadingSpinner';
 import { Text } from '../../../ui/src/components/TextV2';
 import { useTrackAttestConfirmation } from '../../hooks/useTrackAttestConfirmation';
 import { useStore } from '../contexts';
+import { AttestationPane } from './AttestationPane';
 import { PrimaryButton } from './Buttons';
 import { OTPInput } from './Form/OTPInput';
 import { PhoneNumberInput } from './Form/PhoneNumberInput';
@@ -19,7 +20,11 @@ interface Props {
 
 type Pane = 'init' | 'confirm' | 'verified';
 
-export function PhoneAttestationPane({ isLoading, attestation }: Props) {
+export function PhoneAttestationPane({
+  isLoading,
+  attestation,
+  currentUserId,
+}: Props) {
   const [pane, setPane] = useState<Pane>('init');
 
   useEffect(() => {
@@ -49,7 +54,10 @@ export function PhoneAttestationPane({ isLoading, attestation }: Props) {
         <ConfirmPhoneNumPane attestation={attestation} />
       )}
       {pane === 'verified' && attestation && (
-        <VerifiedPhonePane attestation={attestation} />
+        <VerifiedPhonePane
+          attestation={attestation}
+          currentUserId={currentUserId}
+        />
       )}
     </View>
   );
@@ -86,8 +94,25 @@ function SubmitPhoneNumPane(props: { attestation: db.Verification | null }) {
   }, [isSubmitting, props.attestation?.status]);
 
   return (
-    <YStack>
-      <Text>Enter your phone number</Text>
+    <YStack gap="$2xl">
+      <YStack gap="$l">
+        <Text color="$secondaryText" size="$label/m">
+          Who can discover my phone number?
+        </Text>
+        <Text size="$label/m">
+          Only friends who already have your phone number will be able to find
+          you on Tlon.
+        </Text>
+      </YStack>
+      <YStack gap="$l" marginBottom="$xl">
+        <Text color="$secondaryText" size="$label/m">
+          What will be displayed on my profile?
+        </Text>
+        <Text size="$label/m">
+          Your Tlon profile will show a verified badge, but your phone number
+          itself will not be revealed.
+        </Text>
+      </YStack>
       <PhoneNumberInput form={phoneForm} />
       <PrimaryButton
         onPress={onSubmit}
@@ -97,9 +122,10 @@ function SubmitPhoneNumPane(props: { attestation: db.Verification | null }) {
           remoteError !== undefined ||
           !phoneForm.formState.isValid
         }
+        marginTop="$2xl"
       >
         <Text color="$background" size="$label/l">
-          Sign up
+          Connect Phone Number
         </Text>
       </PrimaryButton>
     </YStack>
@@ -140,9 +166,13 @@ function ConfirmPhoneNumPane(props: { attestation: db.Verification }) {
 
   return (
     <YStack>
-      <Text>
-        We have sent a confirmation code to your phone number. Please enter it
-        below.
+      <Text
+        size="$label/l"
+        fontWeight="600"
+        marginBottom="$2xl"
+        textAlign="center"
+      >
+        {props.attestation.value}
       </Text>
       <OTPInput
         value={otp}
@@ -157,10 +187,16 @@ function ConfirmPhoneNumPane(props: { attestation: db.Verification }) {
   );
 }
 
-function VerifiedPhonePane(props: { attestation: db.Verification }) {
+function VerifiedPhonePane(props: {
+  attestation: db.Verification;
+  currentUserId: string;
+}) {
   return (
-    <YStack>
-      <Text>Phone number verified!</Text>
+    <YStack gap="$2xl">
+      <AttestationPane
+        attestation={props.attestation}
+        currentUserId={props.currentUserId}
+      />
     </YStack>
   );
 }

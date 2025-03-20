@@ -7,6 +7,7 @@ import { getFrondValue } from '../logic';
 
 interface HalfSign {
   signType: 'half';
+  signature?: string;
   when: number;
   provider?: string;
   type: db.VerificationType;
@@ -14,6 +15,7 @@ interface HalfSign {
 
 interface FullSign {
   signType: 'full';
+  signature?: string;
   when: number;
   provider?: string;
   type: db.VerificationType;
@@ -49,6 +51,7 @@ export function parseSigned(sign: string, userId: string): Sign | null {
   const signed = parseSignedData(signedData, userId);
   if (signed) {
     signed.provider = provider;
+    signed.signature = sign;
   }
 
   return signed;
