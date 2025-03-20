@@ -39,6 +39,7 @@ import {
   UploadedImageAttachment,
   useAttachmentContext,
 } from '../../contexts';
+import { MentionController } from '../MentionPopup';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
 import { AttachmentPreviewList } from '../MessageInput/AttachmentPreviewList';
 import {
@@ -268,6 +269,7 @@ export default function BareChatInput({
   );
 
   const lastProcessedRef = useRef('');
+  const mentionRef = useRef<MentionController>(null);
 
   const handleTextChange = useCallback(
     (newText: string) => {
@@ -670,16 +672,26 @@ export default function BareChatInput({
         return;
       }
 
+      if (
+        keyEvent.key === 'ArrowUp' ||
+        (keyEvent.key === 'ArrowDown' && showMentionPopup)
+      ) {
+        e.preventDefault();
+        mentionRef.current?.handleMentionKey(keyEvent.key);
+      }
+
       if (keyEvent.key === 'Enter' && !keyEvent.shiftKey) {
         e.preventDefault();
-        if (editingPost) {
+        if (showMentionPopup) {
+          mentionRef.current?.handleMentionKey('Enter');
+        } else if (editingPost) {
           handleEdit();
         } else {
           handleSend();
         }
       }
     },
-    [setIsOpen, handleSend, handleEdit, editingPost]
+    [showMentionPopup, setIsOpen, editingPost, handleEdit, handleSend]
   );
 
   return (
@@ -691,6 +703,7 @@ export default function BareChatInput({
       sendError={sendError}
       showMentionPopup={showMentionPopup}
       mentionText={mentionSearchText}
+      mentionRef={mentionRef}
       showAttachmentButton={showAttachmentButton}
       groupMembers={groupMembers}
       onSelectMention={onMentionSelect}
@@ -737,6 +750,8 @@ export default function BareChatInput({
             ...(isWeb ? placeholderTextColor : {}),
             ...(isWeb ? { outlineStyle: 'none' } : {}),
           }}
+          // Hack to prevent @p's getting squiggled on web
+          spellCheck={!mentions.length}
         >
           {isWeb ? undefined : (
             <TextWithMentions
