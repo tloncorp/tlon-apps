@@ -674,8 +674,8 @@ export default function BareChatInput({
       }
 
       if (
-        keyEvent.key === 'ArrowUp' ||
-        (keyEvent.key === 'ArrowDown' && showMentionPopup)
+        (keyEvent.key === 'ArrowUp' || keyEvent.key === 'ArrowDown') &&
+        showMentionPopup
       ) {
         e.preventDefault();
         mentionRef.current?.handleMentionKey(keyEvent.key);
