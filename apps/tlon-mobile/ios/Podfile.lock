@@ -234,7 +234,7 @@ PODS:
     - ExpoModulesCore
   - ExpoBattery (8.0.1):
     - ExpoModulesCore
-  - ExpoBlur (12.9.2):
+  - ExpoBlur (13.0.3):
     - ExpoModulesCore
   - ExpoClipboard (6.0.3):
     - ExpoModulesCore
@@ -2185,7 +2185,7 @@ SPEC CHECKSUMS:
   ExpoAsset: 323700f291684f110fb55f0d4022a3362ea9f875
   ExpoBackgroundFetch: a06c553ecaf0bade0acd691042d996b9ce926327
   ExpoBattery: 4b21f628f2b70af3af66e83c566949ba9cc65eb1
-  ExpoBlur: e832d874bd94afc0645daddbd3162ec1ce172080
+  ExpoBlur: 4d32f9e33bab18ae2ee079c7b0422e4210d49c97
   ExpoClipboard: 23d203f5d4843699fbc45be1cc4fe1fbd811a6fa
   ExpoDevice: fc94f0e42ecdfd897e7590f2874fc64dfa7e9b1c
   ExpoFileSystem: 80bfe850b1f9922c16905822ecbf97acd711dc51
