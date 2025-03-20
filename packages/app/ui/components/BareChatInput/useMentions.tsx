@@ -32,6 +32,7 @@ export const useMentions = () => {
       }
     }
 
+    // Clear escape state when starting a new word
     if (
       oldText.length < newText.length &&
       newText[cursorPosition - 1] === ' '
@@ -39,8 +40,8 @@ export const useMentions = () => {
       setWasDismissedByEscape(false);
     }
 
+    // Clear escape state when deleting past the escaped trigger
     if (wasDismissedByEscape && lastDismissedTriggerIndex !== null) {
-      // If we've deleted past the trigger character
       if (
         oldText.length > newText.length &&
         cursorPosition <= lastDismissedTriggerIndex
@@ -146,7 +147,6 @@ export const useMentions = () => {
   const handleMentionEscape = () => {
     setShowMentionPopup(false);
     setWasDismissedByEscape(true);
-    // Save the trigger index that was dismissed
     setLastDismissedTriggerIndex(mentionStartIndex);
   };
 
