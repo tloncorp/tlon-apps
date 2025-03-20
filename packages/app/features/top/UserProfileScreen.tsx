@@ -33,9 +33,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
   const userId = params?.userId || currentUserId;
   const { data: contacts } = store.useContacts();
   const connectionStatus = useConnectionStatus(userId);
-  const { data: calmSettings } = store.useCalmSettings({
-    userId: currentUserId,
-  });
+  const { data: calmSettings } = store.useCalmSettings();
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const { resetToDm } = useRootNavigation();
 

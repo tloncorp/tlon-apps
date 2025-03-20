@@ -75,6 +75,7 @@ import {
   threadUnreads as $threadUnreads,
   verifications as $verifications,
   volumeSettings as $volumeSettings,
+  SETTINGS_SINGLETON_KEY,
   channels,
 } from './schema';
 import {
@@ -133,21 +134,24 @@ export interface GetGroupsOptions {
 
 export const insertSettings = createWriteQuery(
   'insertSettings',
-  async (settings: Settings, ctx: QueryCtx) => {
-    return ctx.db.insert($settings).values(settings).onConflictDoUpdate({
-      target: $settings.userId,
-      set: settings,
-    });
+  async (settings: Partial<Settings>, ctx: QueryCtx) => {
+    return ctx.db
+      .insert($settings)
+      .values({ ...settings, id: SETTINGS_SINGLETON_KEY })
+      .onConflictDoUpdate({
+        target: $settings.id,
+        set: settings,
+      });
   },
   ['settings']
 );
 
 export const getSettings = createReadQuery(
   'getSettings',
-  async (userId: string, ctx: QueryCtx) => {
+  async (ctx: QueryCtx) => {
     return ctx.db.query.settings.findFirst({
       where(fields) {
-        return eq(fields.userId, userId);
+        return eq(fields.id, SETTINGS_SINGLETON_KEY);
       },
     });
   },
