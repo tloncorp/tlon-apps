@@ -6,6 +6,7 @@ import * as api from '../api';
 import { GetChangedPostsOptions } from '../api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
+import { SETTINGS_SINGLETON_KEY } from '../db/schema';
 import { createDevLogger, runIfDev } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import { extractClientVolumes } from '../logic/activity';
@@ -853,11 +854,10 @@ export const handleStorageUpdate = async (update: api.StorageUpdate) => {
 };
 
 export const handleSettingsUpdate = async (update: api.SettingsUpdate) => {
-  const userId = api.getCurrentUserId();
   switch (update.type) {
     case 'updateSetting':
       await db.insertSettings({
-        userId,
+        id: SETTINGS_SINGLETON_KEY,
         ...update.setting,
       });
       break;
