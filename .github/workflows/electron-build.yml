@@ -73,6 +73,8 @@ jobs:
     name: Build (${{ matrix.os }})
     needs: prepare
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write 
     strategy:
       fail-fast: false
       matrix:
@@ -145,7 +147,8 @@ jobs:
           APPLE_ID: ${{ matrix.os == 'macos-latest' && secrets.APPLE_ID || '' }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ matrix.os == 'macos-latest' && secrets.APPLE_ID_PASSWORD || '' }}
           APPLE_TEAM_ID: ${{ matrix.os == 'macos-latest' && secrets.APPLE_TEAM_ID || '' }}
-        run: npx electron-builder ${{ matrix.build_flag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+        run: npx electron-builder ${{ matrix.build_flag }} --publish always
 
       # Prepare artifacts with proper names
       - name: Prepare Artifacts
