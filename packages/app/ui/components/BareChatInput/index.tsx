@@ -230,6 +230,7 @@ export default function BareChatInput({
     mentions,
     setMentions,
     showMentionPopup,
+    handleMentionEscape,
   } = useMentions();
   const maxInputHeight = useKeyboardHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
@@ -678,6 +679,13 @@ export default function BareChatInput({
       ) {
         e.preventDefault();
         mentionRef.current?.handleMentionKey(keyEvent.key);
+      }
+
+      if (keyEvent.key === 'Escape') {
+        if (showMentionPopup) {
+          e.preventDefault();
+          handleMentionEscape();
+        }
       }
 
       if (keyEvent.key === 'Enter' && !keyEvent.shiftKey) {
