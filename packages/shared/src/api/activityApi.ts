@@ -13,7 +13,7 @@ import {
   parseGroupId,
   udToDate,
 } from './apiUtils';
-import { poke, scry, subscribe } from './urbit';
+import { getCurrentUserId, poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('activityApi', false);
 
@@ -378,6 +378,7 @@ function getInfoFromMessageKey(
 }
 
 export type ActivityEvent =
+  | { type: 'updateBaseUnread'; unread: db.BaseUnread }
   | {
       type: 'updateChannelUnread';
       activity: db.ChannelUnread;
@@ -414,6 +415,18 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
           const source = sourceIdToSource(sourceId);
 
           switch (source.type) {
+            case 'base':
+              handler({
+                type: 'updateBaseUnread',
+                unread: {
+                  userId: getCurrentUserId(),
+                  count: summary.count,
+                  notify: summary.notify,
+                  notifyCount: summary['notify-count'],
+                  updatedAt: summary.recency,
+                },
+              });
+              break;
             case 'group':
               handler({
                 type: 'updateGroupUnread',
@@ -724,6 +737,10 @@ export function getMessageKey(
   Sources can be represented as a string or an object (see urbit/activity.ts for details).
 */
 
+interface ClientBaseSource {
+  type: 'base';
+}
+
 interface ClientGroupSource {
   type: 'group';
   groupId: string;
@@ -751,6 +768,7 @@ interface ClientContactSource {
 }
 
 export type ClientSource =
+  | ClientBaseSource
   | ClientGroupSource
   | ClientChannelSource
   | ClientThreadSource
@@ -758,6 +776,10 @@ export type ClientSource =
   | ClientContactSource;
 
 export function sourceIdToSource(sourceId: string): ClientSource {
+  if (sourceId === 'base') {
+    return { type: 'base' };
+  }
+
   const parts = sourceId.split('/');
   const sourceType = parts[0];
 
@@ -934,6 +956,7 @@ export async function getPushNotificationsSetting(): Promise<ub.PushNotification
 }
 
 export type ActivityUpdateQueue = {
+  baseUnread?: db.BaseUnread;
   groupUnreads: db.GroupUnread[];
   channelUnreads: db.ChannelUnread[];
   threadUnreads: db.ThreadUnreadState[];
@@ -942,17 +965,29 @@ export type ActivityUpdateQueue = {
 };
 
 export type ActivityInit = {
+  baseUnread?: db.BaseUnread;
   groupUnreads: db.GroupUnread[];
   channelUnreads: db.ChannelUnread[];
   threadActivity: db.ThreadUnreadState[];
 };
 
 export const toClientUnreads = (activity: ub.Activity): ActivityInit => {
+  const userId = getCurrentUserId();
   const groupUnreads: db.GroupUnread[] = [];
   const channelUnreads: db.ChannelUnread[] = [];
   const threadActivity: db.ThreadUnreadState[] = [];
+  let baseUnread: db.BaseUnread | undefined = undefined;
 
   Object.entries(activity).forEach(([sourceId, summary]) => {
+    if (sourceId === 'base') {
+      baseUnread = {
+        userId,
+        count: summary.count,
+        notify: summary.notify,
+        notifyCount: summary['notify-count'],
+        updatedAt: summary.recency,
+      };
+    }
     const [activityId, ...rest] = sourceId.split('/');
     if (activityId === 'ship' || activityId === 'club') {
       const channelId = rest.join('/');
@@ -984,7 +1019,7 @@ export const toClientUnreads = (activity: ub.Activity): ActivityInit => {
     }
   });
 
-  return { channelUnreads, threadActivity, groupUnreads };
+  return { baseUnread, channelUnreads, threadActivity, groupUnreads };
 };
 
 export const toGroupUnread = (

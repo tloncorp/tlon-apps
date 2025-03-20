@@ -49,6 +49,7 @@ import {
 import {
   activityEventContactGroups as $activityEventContactGroups,
   activityEvents as $activityEvents,
+  baseUnreads as $baseUnreads,
   channelReaders as $channelReaders,
   channelUnreads as $channelUnreads,
   channelWriters as $channelWriters,
@@ -80,6 +81,7 @@ import {
 import {
   ActivityBucket,
   ActivityEvent,
+  BaseUnread,
   Channel,
   ChannelUnread,
   Chat,
@@ -1553,6 +1555,16 @@ export const getGroupUnread = createReadQuery(
     });
   },
   ['groupUnreads']
+);
+
+export const getBaseUnread = createReadQuery(
+  'getBaseUnread',
+  async (userId: string, ctx: QueryCtx) => {
+    return ctx.db.query.baseUnreads.findFirst({
+      where: eq($baseUnreads.userId, userId),
+    });
+  },
+  ['baseUnreads']
 );
 
 export const getThreadActivity = createReadQuery(
@@ -3322,6 +3334,21 @@ export const insertGroupUnreads = createWriteQuery(
       });
   },
   ['groupUnreads']
+);
+
+export const insertBaseUnread = createWriteQuery(
+  'insertBaseUnread',
+  async (unread: BaseUnread, ctx: QueryCtx) => {
+    logger.log('insertBaseUnread', unread);
+    return ctx.db
+      .insert($baseUnreads)
+      .values([unread])
+      .onConflictDoUpdate({
+        target: [$baseUnreads.userId],
+        set: conflictUpdateSetAll($baseUnreads),
+      });
+  },
+  ['baseUnreads']
 );
 
 export const updateGroupUnreadCount = createWriteQuery(

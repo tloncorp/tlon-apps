@@ -277,6 +277,17 @@ export const useLiveGroupUnread = (unread: db.GroupUnread | null) => {
   });
 };
 
+export const useBaseUnread = () => {
+  const depsKey = useKeyFromQueryDeps(db.getBaseUnread);
+  const userId = api.getCurrentUserId();
+  return useQuery({
+    queryKey: ['baseUnreads', depsKey, userId],
+    queryFn: async () => {
+      return db.getBaseUnread(userId);
+    },
+  });
+};
+
 export const useLiveUnread = (
   unread: db.ChannelUnread | db.ThreadUnreadState | db.GroupUnread | null
 ) => {

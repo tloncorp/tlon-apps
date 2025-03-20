@@ -136,6 +136,15 @@ export async function advanceActivitySeenMarker(timestamp: number) {
   const currentUserId = api.getCurrentUserId();
   const settings = await db.getSettings(currentUserId);
   const existingMarker = settings?.activitySeenTimestamp ?? 1;
+  const base = await db.getBaseUnread(currentUserId);
+  if (base) {
+    await db.insertBaseUnread({
+      ...base,
+      userId: currentUserId,
+      notify: false,
+      notifyCount: 0,
+    });
+  }
   if (timestamp > existingMarker) {
     // optimistic update
     db.insertSettings({

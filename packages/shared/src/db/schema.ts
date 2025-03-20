@@ -180,6 +180,14 @@ export const groupUnreadsRelations = relations(groupUnreads, ({ one }) => ({
   }),
 }));
 
+export const baseUnreads = sqliteTable('base_unreads', {
+  userId: text('user_id').primaryKey(),
+  notify: boolean('notify'),
+  count: integer('count'),
+  notifyCount: integer('notify_count'),
+  updatedAt: timestamp('updated_at').notNull(),
+});
+
 export type ActivityBucket = 'all' | 'mentions' | 'replies';
 export const activityEvents = sqliteTable(
   'activity_events',
