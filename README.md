@@ -33,7 +33,7 @@ allow you to program custom behaviours triggered by various channel
 events.
 
 ### %chat
-%chat is a direct-message agent, which, unlinke %channels, establishes peer-to-peer connection
+%chat is a direct-message agent, which, unlike %channels, establishes peer-to-peer connection
 between two parties.
 
 ### %contacts
@@ -42,13 +42,13 @@ users, constructing the user's social graph as he interacts with others
 on the TM network.
 
 ### %activity
-%activity is TM's activity tracker. Activity aggregates events sent
+%activity is TM's activity tracker. It aggregates events sent
 by other agents and alerts the user based on his notification settings.
 
 ### %profile
 %profile allows the user to expose a personal webpage accessible through
-his node's URL. The webpage can feature preview of user's groups, or a
-widget published by any other agent.
+his node's URL. The webpage can feature a preview of user's groups, or a
+widget registered by any other agent.
 
 ### %expose
 %expose allows the user to publish the content available in one of the
