@@ -30,7 +30,7 @@ export default function ContactsScreen(props: Props) {
   const { data: userContacts } = store.useUserContacts();
   const { data: contacts } = store.useContacts();
   const { data: suggestions } = store.useSuggestedContacts();
-  const { data: calmSettings } = store.useCalmSettings({ userId: currentUser });
+  const { data: calmSettings } = store.useCalmSettings();
 
   const onContactPress = useCallback(
     (contact: db.Contact) => {
