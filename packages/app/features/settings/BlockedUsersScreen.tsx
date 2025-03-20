@@ -11,8 +11,7 @@ import { BlockedContactsWidget, ScreenHeader, View } from '../../ui';
 type Props = NativeStackScreenProps<RootStackParamList, 'BlockedUsers'>;
 
 export function BlockedUsersScreen(props: Props) {
-  const currentUserId = useCurrentUserId();
-  const { data: calm } = store.useCalmSettings({ userId: currentUserId });
+  const { data: calm } = store.useCalmSettings();
   const { data: blockedContacts } = store.useBlockedContacts();
 
   const onBlockedContactPress = useCallback(
