@@ -2,6 +2,7 @@
 // @ts-ignore – only valid on web
 const env = import.meta.env;
 const envVars = {
+  devShipUrl: env.VITE_SHIP_URL,
   notifyProvider: env.VITE_NOTIFY_PROVIDER,
   notifyService: env.VITE_NOTIFY_SERVICE,
   postHogApiKey: env.VITE_POST_HOG_API_KEY,
@@ -30,6 +31,7 @@ const envVars = {
   inviteServiceIsDev: env.VITE_INVITE_SERVICE_IS_DEV,
 } as Record<string, string | undefined>;
 
+export const DEV_SHIP_URL = envVars.devShipUrl ?? '';
 export const NOTIFY_PROVIDER = envVars.notifyProvider ?? 'rivfur-livmet';
 export const NOTIFY_SERVICE = envVars.notifyService ?? 'groups-native';
 export const POST_HOG_API_KEY = envVars.postHogApiKey ?? '';
@@ -67,6 +69,7 @@ export const INVITE_SERVICE_IS_DEV =
   envVars.inviteServiceIsDev === 'true' ? true : undefined;
 
 export const ENV_VARS = {
+  DEV_SHIP_URL,
   NOTIFY_PROVIDER,
   NOTIFY_SERVICE,
   POST_HOG_API_KEY,

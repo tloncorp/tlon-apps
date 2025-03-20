@@ -28,8 +28,9 @@ const metaFields = {
   description: text('description'),
 };
 
+export const SETTINGS_SINGLETON_KEY = 'settings';
 export const settings = sqliteTable('settings', {
-  userId: text('user_id').primaryKey(),
+  id: text('id').primaryKey().default(SETTINGS_SINGLETON_KEY),
   theme: text('theme'),
   disableAppTileUnreads: boolean('disable_app_tile_unreads'),
   disableAvatars: boolean('disable_avatars'),

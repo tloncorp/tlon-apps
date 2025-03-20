@@ -50,3 +50,7 @@ export enum HostedNodeStatus {
   UnderMaintenance = 'UnderMaintenance',
   Unknown = 'Unknown',
 }
+
+export function nodeUrlIsHosted(url: string) {
+  return url.endsWith('tlon.network') || url.endsWith('.test.tlon.systems');
+}

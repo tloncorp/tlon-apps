@@ -21,7 +21,7 @@ export function AppDataProvider({
   const currentUserId = useCurrentUserId();
   const session = store.useCurrentSession();
   const contactsQuery = store.useContacts();
-  const calmSettingsQuery = store.useCalmSettings({ userId: currentUserId });
+  const calmSettingsQuery = store.useCalmSettings();
   return (
     <AppDataContextProvider
       currentUserId={currentUserId}
