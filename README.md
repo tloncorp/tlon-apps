@@ -1,61 +1,60 @@
-# Landscape apps
+# TM Tlon Messenger
 
-## Groups
+Tlon Messenger is a new kind of messenger which you can fully control.
+User ID is your cryptographic property, while all your data is stored in a single
+file, yours to keep and yours to take. With TM, you own a distinct node on the
+network, which you can use to host a community, a blog, or run any other computation.
 
-Start, host, and cultivate communities. Own your communications, organize your
-resources, and share documents. Groups is a decentralized platform that
-integrates with Talk, Notebook, and Gallery for a full, communal suite of tools.
+This repository contains the source code of the two main components of TM:
+- TM app, which is available on iOS, Android and Desktop.
+- TM backend, which is deployed on the Urbit platform
 
-## Talk
+## TM App
 
-Send encrypted direct messages to one or many friends. Talk is a simple chat
-tool for catching up, getting work done, and everything in between.
+TM App is written in React Native. The mobile version is available on iOS and Android,
+while desktop app is available on Linux, Mac and Windows.
 
-## Notebook
+## TM Backend
 
-Notebook is a standard short and long form text editor. Within Groups, you can
-use Notebook to write, edit, and publish text.
+TM backend consists of a number of independent components, called
+_agents_.
 
-## Gallery
+### %groups
+%groups allow creation of communities that aggregate distinct
+communication channels. Each group sets its own rules by defining user
+roles and the entry policy, and defines a set of channels available for
+groups members to subscribe to.
 
-Gallery is a versatile repository for collective knowledge and references you
-want to share or remember. Within Groups, you can use Gallery to collect links,
-images, media, and even random musings.
+### %channels
+%channels facilitate communication between any number of parties by
+designating one node as the host. A channel can function as a group chat,
+a gallery or a notebook. Channels can be further customized with TM Hooks, which
+allow you to program custom behaviours triggered by various channel
+events.
+
+### %chat
+%chat is a direct-message agent, which, unlike %channels, establishes peer-to-peer connection
+between two parties.
+
+### %contacts
+%contacts manage the user profile, and track connections to other
+users, constructing the user's social graph as he interacts with others
+on the TM network.
+
+### %activity
+%activity is TM's activity tracker. It aggregates events sent
+by other agents and alerts the user based on his notification settings.
+
+### %profile
+%profile allows the user to expose a personal webpage accessible through
+his node's URL. The webpage can feature a preview of user's groups, or a
+widget registered by any other agent.
+
+### %expose
+%expose allows the user to publish the content available in one of the
+channels to the clearweb.
 
 ---
 
-## Developer documentation
 
-This project uses the [formal comment spec](https://developers.urbit.org/reference/hoon/style#comments-and-unparsed-bytes)
-for all Hoon code to ensure compatibility with
-[doccords](https://github.com/urbit/urbit/pull/5873).
 
-Additionally, detailed documentation is available in the [Docs Landscape
-app](https://urbit.org/applications/~pocwet/docs) if you have both Docs and
-Groups installed on a running Urbit ship.
-
-Visit this repository's wiki for [an overview of how to use Landscape and
-its apps](https://github.com/tloncorp/tlon-apps/wiki).
-
-## Integrating with Groups agents
-
-The `%groups` desk provides several simple agents with discrete concerns. This list may expand over time.
-
-- `%groups` - The organizational substrate for constructing, joining, finding,
-  and managing groups (different than the in-group activity of chatting,
-  writing, or collecting)
-- `%groups-ui` - Optimized scries for the Groups UI
-- `%chat` - 1:1 and multi-DM capabilities for Talk and Chat channels in Groups
-- `%diary` - Notebook channels in Groups
-- `%heap` - Gallery channels in Groups
-- `%notify` - Hooks for iOS push notifications
-- `%grouper` - Handler for Lure invitiations
-
-All actions are performed with
-[pokes](https://developers.urbit.org/reference/glossary/poke).
-See the on-ship developer documentation for more details.
-
-## Use of Landscape agents
-
-At the moment, Groups and Talk make use of `%settings`, `%storage`, `%hark`,
-and `%contacts` agents in the `%landscape` desk.
