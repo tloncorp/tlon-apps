@@ -204,16 +204,31 @@ export function useNavigateBackFromPost() {
   const isWindowNarrow = useIsWindowNarrow();
   const navigation = useNavigation();
   const length = navigation.getState()?.routes.length;
-  const lastScreenWasActivity =
-    navigation.getState()?.routes[length - 2]?.name === 'Activity';
+  const lastScreen = navigation.getState()?.routes[length - 2];
+  const lastScreenWasActivity = lastScreen?.name === 'Activity';
+  // @ts-expect-error - ChannelRoot is fine here.
+  const lastScreenWasChannel = lastScreen?.name === 'ChannelRoot';
+  const lastChannelWasChat =
+    // @ts-expect-error - we know we'll have a channelId here if lastScreenWasChannel
+    lastScreenWasChannel && lastScreen?.params?.channelId
+      ? // @ts-expect-error - we know we'll have a channelId here if lastScreenWasChannel
+        lastScreen.params.channelId.startsWith('chat')
+      : false;
 
   return useCallback(
     (channel: db.Channel, postId: string) => {
+      const isChatShaped = ['chat', 'dm', 'groupDM'].includes(channel.type);
+      if (lastChannelWasChat && !isChatShaped) {
+        // if we're returning from viewing a notebook/gallery post and the last
+        // channel was a chat, we should navigate to the chat instead of the
+        // notebook/gallery channel
+        navigation.goBack();
+        return;
+      }
       if (lastScreenWasActivity) {
         navigation.navigate('Activity');
         return;
       }
-      const isChatShaped = ['chat', 'dm', 'groupDM'].includes(channel.type);
       if (isWindowNarrow) {
         const screenName = screenNameFromChannelId(channel.id);
         navigation.navigate(screenName, {
