@@ -317,7 +317,7 @@ CREATE UNIQUE INDEX `cache_id` ON `posts` (`author_id`,`sent_at`);--> statement-
 CREATE INDEX `posts_channel_id` ON `posts` (`channel_id`,`id`);--> statement-breakpoint
 CREATE INDEX `posts_group_id` ON `posts` (`group_id`,`id`);--> statement-breakpoint
 CREATE TABLE `settings` (
-	`user_id` text PRIMARY KEY NOT NULL,
+	`id` text PRIMARY KEY DEFAULT 'settings' NOT NULL,
 	`theme` text,
 	`disable_app_tile_unreads` integer,
 	`disable_avatars` integer,

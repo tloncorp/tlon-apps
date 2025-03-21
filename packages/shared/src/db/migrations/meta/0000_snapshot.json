@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "2382e17a-2a61-410f-a131-80c411b4f4fb",
+  "id": "7ed8a350-4ce5-4e32-a6d4-6a6a841f5dc1",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2114,12 +2114,13 @@
     "settings": {
       "name": "settings",
       "columns": {
-        "user_id": {
-          "name": "user_id",
+        "id": {
+          "name": "id",
           "type": "text",
           "primaryKey": true,
           "notNull": true,
-          "autoincrement": false
+          "autoincrement": false,
+          "default": "'settings'"
         },
         "theme": {
           "name": "theme",
