@@ -66,6 +66,7 @@ export interface MessageInputProps {
   setHeight?: (height: number) => void;
   goBack?: () => void;
   shouldAutoFocus?: boolean;
+  frameless?: boolean;
   ref?: React.RefObject<{
     editor: EditorBridge | null;
   }>;
@@ -91,6 +92,7 @@ export const MessageInputContainer = memo(
     onPressEdit,
     goBack,
     mentionRef,
+    frameless = false,
   }: PropsWithChildren<{
     setShouldBlur: (shouldBlur: boolean) => void;
     onPressSend: () => void;
@@ -109,6 +111,7 @@ export const MessageInputContainer = memo(
     onPressEdit?: () => void;
     goBack?: () => void;
     mentionRef?: MentionPopupRef;
+    frameless?: boolean;
   }>) => {
     const { canUpload } = useAttachmentContext();
 
@@ -132,78 +135,84 @@ export const MessageInputContainer = memo(
           onSelectMention={onSelectMention}
           ref={mentionRef}
         />
-        <XStack
-          paddingVertical="$s"
-          paddingHorizontal="$xl"
-          gap="$l"
-          alignItems="flex-end"
-          justifyContent="space-between"
-          backgroundColor="$background"
-        >
-          {goBack ? (
-            <View paddingBottom="$xs">
-              <Button
-                backgroundColor="unset"
-                borderColor="transparent"
-                onPress={goBack}
-              >
-                <Icon type="ChevronLeft" />
-              </Button>
-            </View>
-          ) : null}
+        {!frameless ? (
+          <XStack
+            paddingVertical="$s"
+            paddingHorizontal="$xl"
+            gap="$l"
+            alignItems="flex-end"
+            justifyContent="space-between"
+            backgroundColor="$background"
+          >
+            {goBack ? (
+              <View paddingBottom="$xs">
+                <Button
+                  backgroundColor="unset"
+                  borderColor="transparent"
+                  onPress={goBack}
+                >
+                  <Icon type="ChevronLeft" />
+                </Button>
+              </View>
+            ) : null}
 
-          {isEditing ? (
-            // using $2xs instead of $xs to match the padding of the attachment button
-            // might need to update the close icon?
-            <View marginBottom="$2xs">
-              <Button
-                backgroundColor="unset"
-                borderColor="transparent"
-                onPress={cancelEditing}
-              >
-                <Icon size="$m" type="Close" />
-              </Button>
-            </View>
-          ) : null}
-          {canUpload && showAttachmentButton ? (
-            <View marginBottom="$xs">
-              <AttachmentButton setShouldBlur={setShouldBlur} />
-            </View>
-          ) : null}
-          {children}
-          {floatingActionButton ? (
-            <View position="absolute" bottom="$l" right="$l">
-              {disableSend ? null : (
-                <FloatingActionButton
-                  onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
-                  icon={
-                    <Icon
-                      color={sendError ? 'red' : undefined}
-                      type={sendError ? 'Refresh' : 'ArrowUp'}
-                    />
-                  }
-                />
-              )}
-            </View>
-          ) : (
-            <View marginBottom="$xs">
-              <Button
-                disabled={disableSend || isSending}
-                onPress={isEditing ? onPressEdit : onPressSend}
-                backgroundColor="unset"
-                borderColor="transparent"
-                opacity={disableSend ? 0.5 : 1}
-                testID="MessageInputSendButton"
-              >
-                {isEditing ? (
-                  <Icon size="$m" type="Checkmark" />
-                ) : (
-                  <Icon size="$m" type="ArrowUp" />
+            {isEditing ? (
+              // using $2xs instead of $xs to match the padding of the attachment button
+              // might need to update the close icon?
+              <View marginBottom="$2xs">
+                <Button
+                  backgroundColor="unset"
+                  borderColor="transparent"
+                  onPress={cancelEditing}
+                >
+                  <Icon size="$m" type="Close" />
+                </Button>
+              </View>
+            ) : null}
+            {canUpload && showAttachmentButton ? (
+              <View marginBottom="$xs">
+                <AttachmentButton setShouldBlur={setShouldBlur} />
+              </View>
+            ) : null}
+            {children}
+            {floatingActionButton ? (
+              <View position="absolute" bottom="$l" right="$l">
+                {disableSend ? null : (
+                  <FloatingActionButton
+                    onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
+                    icon={
+                      <Icon
+                        color={sendError ? 'red' : undefined}
+                        type={sendError ? 'Refresh' : 'ArrowUp'}
+                      />
+                    }
+                  />
                 )}
-              </Button>
-            </View>
-          )}
-        </XStack>
+              </View>
+            ) : (
+              <View marginBottom="$xs">
+                <Button
+                  disabled={disableSend || isSending}
+                  onPress={isEditing ? onPressEdit : onPressSend}
+                  backgroundColor="unset"
+                  borderColor="transparent"
+                  opacity={disableSend ? 0.5 : 1}
+                  testID="MessageInputSendButton"
+                >
+                  {isEditing ? (
+                    <Icon size="$m" type="Checkmark" />
+                  ) : (
+                    <Icon size="$m" type="ArrowUp" />
+                  )}
+                </Button>
+              </View>
+            )}
+          </XStack>
+        ) : (
+          <YStack width="100%" backgroundColor="$background">
+            {children}
+          </YStack>
+        )}
       </YStack>
     );
   }

@@ -247,6 +247,7 @@ export function BigInput({
           editingPost={editingPost}
           {...props}
           clearDraft={props.clearDraft}
+          frameless={true}
         />
       </View>
 
