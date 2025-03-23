@@ -119,8 +119,15 @@ export function BigInput({
         await props.clearDraft(channelType === 'gallery' ? 'text' : undefined);
       }
 
+      // Clear the editor content
+      if (editorRef.current?.editor) {
+        editorRef.current.editor.setContent('');
+      }
+      
+      // Reset form state
       setTitle('');
       setImageUri(null);
+      setShowFormatMenu(false);
       setShowBigInput?.(false);
     } catch (error) {
       console.error('Failed to save post:', error);
@@ -136,6 +143,7 @@ export function BigInput({
     setShowBigInput,
     editingPost,
     props.clearDraft,
+    setShowFormatMenu,
   ]);
 
   // Register the "Post" button in the header
