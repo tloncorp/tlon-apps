@@ -141,6 +141,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       shouldAutoFocus,
       goBack,
       onSend,
+      frameless = false,
     },
     ref
   ) => {
@@ -955,14 +956,15 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           editorIsEmpty || (channelType === 'notebook' && titleIsEmpty)
         }
         goBack={goBack}
+        frameless={frameless}
       >
         <YStack
           flex={1}
           backgroundColor={backgroundColor}
           paddingHorizontal={paddingHorizontal}
           borderColor="$border"
-          borderWidth={1}
-          borderRadius="$xl"
+          borderWidth={frameless ? 0 : 1}
+          borderRadius={frameless ? 0 : "$xl"}
           maxHeight={maxInputHeight}
         >
           {showInlineAttachments && <AttachmentPreviewList />}
