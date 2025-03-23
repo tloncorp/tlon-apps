@@ -31,6 +31,7 @@ const rawMeasures = {
   '5xl': 64,
   '6xl': 72,
   '9xl': 96,
+  '10xl': 104,
 };
 
 function addNegativeTokens<T extends { [k: string]: number }>(

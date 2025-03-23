@@ -892,7 +892,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           
           // Calculate extra space needed based on channel type
           const extraHeaderSpace = channelType === 'notebook' ? 
-            titleInputHeight + imageInputButtonHeight + 16 : 0;
+            titleInputHeight + imageInputButtonHeight + getTokenValue('$l', 'space') : 0;
           
           // Calculate available height for editor - more precise with keyboard
           const availableHeight = height - keyboardHeight - top - headerHeight - extraHeaderSpace;

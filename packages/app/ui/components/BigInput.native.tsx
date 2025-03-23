@@ -43,8 +43,6 @@ export function BigInput({
   const [hasImageChanges, setHasImageChanges] = useState(false);
   const editorRef = useRef<{ editor: TlonEditorBridge | null }>(null);
   const insets = useSafeAreaInsets();
-  const titleInputHeight = getTokenValue('$4xl', 'size');
-  const { attachments, addAttachment, removeAttachment } = useAttachmentContext();
 
   // Track changes to the editor content
   useEffect(() => {
@@ -192,13 +190,13 @@ export function BigInput({
         {channelType === 'notebook' && (
           <View>
             <View style={{
-              paddingHorizontal: 16,
-              paddingTop: 12,
-              paddingBottom: 8,
+              paddingHorizontal: getTokenValue('$m', 'space'),
+              paddingTop: getTokenValue('$m', 'space'),
+              paddingBottom: getTokenValue('$s', 'space'),
             }}>
               <Input
                 size="$xl"
-                height={titleInputHeight}
+                height={getTokenValue('$4xl', 'size')}
                 backgroundColor="$background"
                 width="100%"
                 borderColor="transparent"
@@ -207,24 +205,22 @@ export function BigInput({
                 value={title}
               />
 
-              <XStack height={48} alignItems="center" paddingHorizontal="$l">
+              <XStack height={getTokenValue('$4xl', 'size')} alignItems="center" paddingHorizontal="$l">
                 {imageUri ? (
                   <XStack
                     height="100%"
-                    overflow="hidden"
                     alignItems="center"
                     gap="$s"
                   >
                     <Image
                       source={{ uri: imageUri }}
-                      width="$xl"
-                      height="$xl"
+                      width="$3xl"
+                      height="$3xl"
                       borderRadius="$m"
-                      style={{ width: 48, height: 48, borderRadius: 8 }}
                     />
                     <TouchableOpacity onPress={() => setShowAttachmentSheet(true)}>
                       <XStack alignItems="center" gap="$xs">
-                        <Icon type="Camera" size="$s" />
+                        <Icon type="Attachment" size="$m" />
                         <View>
                           <Text>Edit header image</Text>
                         </View>
@@ -234,7 +230,7 @@ export function BigInput({
                 ) : (
                   <TouchableOpacity onPress={() => setShowAttachmentSheet(true)}>
                     <XStack alignItems="center" gap="$xs">
-                      <Icon type="Camera" size="$s" />
+                      <Icon type="Attachment" size="$m" />
                       <View>
                         <Text>Add header image</Text>
                       </View>
@@ -247,7 +243,7 @@ export function BigInput({
         )}
           <View style={{
             flex: 1,
-            marginTop: 104,
+            marginTop: getTokenValue('$10xl', 'size'),
           }}>
             <MessageInput
               ref={editorRef}
