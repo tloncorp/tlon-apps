@@ -4,21 +4,21 @@ import { Image } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
+import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Input, View, YStack, XStack, getTokenValue, Button } from 'tamagui';
+import { Input, XStack, getTokenValue } from 'tamagui';
 
 import { useAttachmentContext } from '../contexts/attachment';
-import { constructStory, Block } from '@tloncorp/shared/urbit/channel';
+import { constructStory } from '@tloncorp/shared/urbit/channel';
 import { tiptap } from '@tloncorp/shared';
 import { useRegisterChannelHeaderItem } from './Channel/ChannelHeader';
 import { ScreenHeader } from './ScreenHeader';
 import AttachmentSheet from './AttachmentSheet';
 import { MessageInput } from './MessageInput';
-import { InputToolbar } from './MessageInput/InputToolbar.native';
 import { MessageInputProps } from './MessageInput/MessageInputBase';
 import { TlonEditorBridge } from './MessageInput/toolbarActions.native';
+import { InputToolbar } from './MessageInput/InputToolbar.native';
 
 export function BigInput({
   send,
@@ -43,9 +43,7 @@ export function BigInput({
   const [hasImageChanges, setHasImageChanges] = useState(false);
   const editorRef = useRef<{ editor: TlonEditorBridge | null }>(null);
   const insets = useSafeAreaInsets();
-  const { width } = Dimensions.get('screen');
   const titleInputHeight = getTokenValue('$4xl', 'size');
-  const keyboardVerticalOffset = Platform.OS === 'ios' ? insets.top + titleInputHeight : insets.top;
   const { attachments, addAttachment, removeAttachment } = useAttachmentContext();
 
   // Track changes to the editor content
@@ -177,94 +175,101 @@ export function BigInput({
     setImageUri(editingPost?.image || null);
   }, [editingPost?.id, editingPost?.image]);
 
-  // Update Save button disabled state
-  const isSaveDisabled = !hasContentChanges && !hasTitleChanges && !hasImageChanges;
-
   return (
-    <YStack height="100%" width="100%">
-      {channelType === 'notebook' && (
-        <YStack paddingHorizontal="$2xl" paddingTop="$l" gap="$m">
-          <XStack alignItems="center" justifyContent="space-between">
-            <Input
-              size="$xl"
-              height={titleInputHeight}
-              backgroundColor="$background"
-              borderColor="transparent"
-              placeholder="New Title"
-              onChangeText={setTitle}
-              value={title}
-              flex={1}
-            />
-          </XStack>
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={{
+        flex: 1,
+        width: '100%',
+      }}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
+    >
+      <View style={{
+        flex: 1,
+        flexDirection: 'column',
+        position: 'relative',
+      }}>
+        {channelType === 'notebook' && (
+          <View>
+            <View style={{
+              paddingHorizontal: 16,
+              paddingTop: 12,
+              paddingBottom: 8,
+            }}>
+              <Input
+                size="$xl"
+                height={titleInputHeight}
+                backgroundColor="$background"
+                width="100%"
+                borderColor="transparent"
+                placeholder="New Title"
+                onChangeText={setTitle}
+                value={title}
+              />
 
-          <XStack height={48} alignItems="center">
-            {imageUri ? (
-              <XStack
-                height="100%"
-                borderRadius="$m"
-                overflow="hidden"
-                alignItems="center"
-                gap="$s"
-              >
-                <Image
-                  source={{ uri: imageUri }}
-                  style={{ width: 48, height: 48, borderRadius: 8 }}
-                />
-                <TouchableOpacity onPress={() => setShowAttachmentSheet(true)}>
-                  <XStack alignItems="center" gap="$xs">
-                    <Icon type="Camera" size="$s" />
-                    <View>
-                      <Text>Edit header image</Text>
-                    </View>
+              <XStack height={48} alignItems="center" paddingHorizontal="$l">
+                {imageUri ? (
+                  <XStack
+                    height="100%"
+                    overflow="hidden"
+                    alignItems="center"
+                    gap="$s"
+                  >
+                    <Image
+                      source={{ uri: imageUri }}
+                      width="$xl"
+                      height="$xl"
+                      borderRadius="$m"
+                      style={{ width: 48, height: 48, borderRadius: 8 }}
+                    />
+                    <TouchableOpacity onPress={() => setShowAttachmentSheet(true)}>
+                      <XStack alignItems="center" gap="$xs">
+                        <Icon type="Camera" size="$s" />
+                        <View>
+                          <Text>Edit header image</Text>
+                        </View>
+                      </XStack>
+                    </TouchableOpacity>
                   </XStack>
-                </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity onPress={() => setShowAttachmentSheet(true)}>
+                    <XStack alignItems="center" gap="$xs">
+                      <Icon type="Camera" size="$s" />
+                      <View>
+                        <Text>Add header image</Text>
+                      </View>
+                    </XStack>
+                  </TouchableOpacity>
+                )}
               </XStack>
-            ) : (
-              <TouchableOpacity onPress={() => setShowAttachmentSheet(true)}>
-                <XStack alignItems="center" gap="$xs">
-                  <Icon type="Camera" size="$s" />
-                  <View>
-                    <Text>Add header image</Text>
-                  </View>
-                </XStack>
-              </TouchableOpacity>
-            )}
-          </XStack>
-        </YStack>
-      )}
-
-      <View
-        flex={1}
-        backgroundColor="$background"
-        paddingHorizontal="$2xl"
-        paddingTop="$m"
-      >
-        <MessageInput
-          ref={editorRef}
-          send={handleSend}
-          channelId={channelId}
-          channelType={channelType}
-          editingPost={editingPost}
-          {...props}
-          clearDraft={props.clearDraft}
-          frameless={true}
-        />
+            </View>
+          </View>
+        )}
+          <View style={{
+            flex: 1,
+            marginTop: 104,
+          }}>
+            <MessageInput
+              ref={editorRef}
+              send={handleSend}
+              channelId={channelId}
+              channelType={channelType}
+              editingPost={editingPost}
+              {...props}
+              clearDraft={props.clearDraft}
+              frameless={true}
+              bigInput={true}
+              shouldAutoFocus={true}
+              title={title}
+              image={imageUri ? { uri: imageUri, height: 0, width: 0 } : undefined}
+              paddingHorizontal="$l"
+            />
+          </View>
       </View>
 
-      {channelType === 'notebook' && editorRef.current?.editor && (
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'position'}
-          keyboardVerticalOffset={keyboardVerticalOffset}
-          style={{
-            width,
-            position: 'absolute',
-            bottom: Platform.OS === 'ios' ? 0 : keyboardVerticalOffset,
-            flex: 1,
-          }}
-        >
-          <InputToolbar editor={editorRef.current.editor} />
-        </KeyboardAvoidingView>
-      )}
+      {/* {channelType === 'notebook' && editorRef.current?.editor && (
+        <InputToolbar editor={editorRef.current?.editor} />
+      )} */}
 
       {channelType === 'notebook' && showAttachmentSheet && (
         <AttachmentSheet
@@ -275,6 +280,6 @@ export function BigInput({
           onClearAttachments={handleClearImage}
         />
       )}
-    </YStack>
+    </KeyboardAvoidingView>
   );
 }
