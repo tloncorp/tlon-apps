@@ -58,12 +58,31 @@ export function BigInput({
       if (!json) return true;
       
       const jsonAny = json as any;
-      return !jsonAny.content || 
-        jsonAny.content.length === 0 || 
-        (jsonAny.content.length === 1 && 
-         jsonAny.content[0].type === 'paragraph' && 
-         (!jsonAny.content[0].content || 
-          jsonAny.content[0].content.length === 0));
+      
+      // More careful content check that handles edge cases better
+      if (!jsonAny.content) return true;
+      if (jsonAny.content.length === 0) return true;
+      
+      // Special case for a single empty paragraph
+      if (jsonAny.content.length === 1 && 
+          jsonAny.content[0].type === 'paragraph') {
+        
+        // Consider it empty if the paragraph has no content array
+        if (!jsonAny.content[0].content) return true;
+        
+        // Consider it empty if the content array is empty
+        if (jsonAny.content[0].content.length === 0) return true;
+        
+        // Check if there's only a single text node with whitespace or empty text
+        if (jsonAny.content[0].content.length === 1 &&
+            jsonAny.content[0].content[0].type === 'text') {
+          const text = jsonAny.content[0].content[0].text || '';
+          return text.trim() === '';
+        }
+      }
+      
+      // If we get here, there's actual content
+      return false;
     } catch (e) {
       console.log('Error checking editor content:', e);
       return true;
@@ -121,6 +140,18 @@ export function BigInput({
     return () => clearTimeout(timer);
   }, [editorRef.current?.editor, checkContentChanges]);
 
+  // Run more frequent content checks when focused
+  useEffect(() => {
+    if (!isEditorFocused || !editorRef.current?.editor) return;
+    
+    // Check content more frequently when the editor is focused
+    const checkInterval = setInterval(() => {
+      checkContentChanges();
+    }, 100);
+    
+    return () => clearInterval(checkInterval);
+  }, [isEditorFocused, checkContentChanges]);
+
   // Track changes to the editor content
   useEffect(() => {
     const editor = editorRef.current?.editor;
@@ -130,9 +161,17 @@ export function BigInput({
     }
 
     console.log('Setting up editor content tracking');
+    
+    // Immediately update on any content change
     editor._onContentUpdate = async () => {
+      console.log('Content updated, checking content state');
       await checkContentChanges();
     };
+    
+    // Force an immediate check when the editor is set up
+    setTimeout(() => {
+      checkContentChanges();
+    }, 50);
 
     return () => {
       if (editor) {
@@ -140,6 +179,16 @@ export function BigInput({
       }
     };
   }, [checkContentChanges]);
+
+  // Force content check with minimal delay when editor gets focus
+  useEffect(() => {
+    if (isEditorFocused && editorRef.current?.editor) {
+      console.log('Editor focused, checking content');
+      setTimeout(() => {
+        checkContentChanges();
+      }, 50);
+    }
+  }, [isEditorFocused, checkContentChanges]);
 
   useEffect(() => {
     const editor = editorRef.current?.editor;
@@ -249,6 +298,10 @@ export function BigInput({
     }
 
     try {
+      // Store the channel type for later use after async operations
+      const currentChannelType = channelType;
+      const isGalleryText = currentChannelType === 'gallery';
+      
       if (editingPost && editPost) {
         // If we're editing, use editPost with the correct parameters
         await editPost(editingPost, story, undefined, metadata);
@@ -257,21 +310,78 @@ export function BigInput({
         await send(story, channelId, metadata);
       }
 
-      // Clear the draft after successful save
-      if (!editingPost && props.clearDraft) {
-        await props.clearDraft(channelType === 'gallery' ? 'text' : undefined);
-      }
-
-      // Clear the editor content
-      if (editorRef.current?.editor) {
-        editorRef.current.editor.setContent('');
-      }
+      console.log(`Post/save successful for channel type: ${currentChannelType}`);
       
-      // Reset form state
+      // Clear all state first
       setTitle('');
       setImageUri(null);
+      setContentEmpty(true);
+      setHasContentChanges(false);
+      setHasTitleChanges(false);
+      setHasImageChanges(false);
       setShowFormatMenu(false);
-      setShowBigInput?.(false);
+
+      // Clear the editor content before clearing drafts to prevent race conditions
+      if (editorRef.current?.editor) {
+        console.log('Clearing editor content after save');
+        await editorRef.current.editor.setContent('');
+      }
+      
+      // Clear the draft after successful save for all channel types
+      if (!editingPost && props.clearDraft) {
+        try {
+          console.log(`Clearing draft for ${isGalleryText ? 'gallery text' : currentChannelType}`);
+          
+          if (isGalleryText) {
+            // For Gallery text posts, explicitly clear 'text' drafts
+            await props.clearDraft('text');
+            
+            // If the gallery text draft persists, try calling with undefined as well
+            setTimeout(async () => {
+              if (props.clearDraft) {
+                console.log('Additional gallery draft clearing attempt');
+                await props.clearDraft(undefined);
+              }
+            }, 100);
+          } else {
+            // For other channel types, don't specify to clear all drafts
+            await props.clearDraft(undefined);
+          }
+          console.log('Draft cleared successfully');
+        } catch (e) {
+          console.error('Error clearing draft:', e);
+        }
+      }
+      
+      // Force a re-check of content after everything is cleared
+      setTimeout(async () => {
+        // Double check that content is still empty after all operations
+        if (editorRef.current?.editor) {
+          const isEmpty = await checkEditorContentEmpty();
+          console.log('Final content empty check:', isEmpty);
+          
+          // If somehow content got restored, try clearing again
+          if (!isEmpty) {
+            console.log('Content was restored after clearing, clearing again');
+            editorRef.current.editor.setContent('');
+            await checkContentChanges();
+            
+            // For gallery text posts, make an additional attempt to clear drafts
+            if (isGalleryText && props.clearDraft) {
+              console.log('Making final attempt to clear gallery text draft');
+              try {
+                await props.clearDraft('text');
+                await props.clearDraft(undefined);
+              } catch (e) {
+                console.error('Error in final draft clearing:', e);
+              }
+            }
+          }
+        }
+
+        // Close the big input last
+        setShowBigInput?.(false);
+      }, 500); // Increased timeout to ensure all operations complete
     } catch (error) {
       console.error('Failed to save post:', error);
       // Don't clear draft if save failed
@@ -287,6 +397,8 @@ export function BigInput({
     editingPost,
     props.clearDraft,
     setShowFormatMenu,
+    checkContentChanges,
+    checkEditorContentEmpty,
   ]);
 
   // Register the "Post" button in the header
@@ -324,6 +436,19 @@ export function BigInput({
   useEffect(() => {
     setImageUri(editingPost?.image || null);
   }, [editingPost?.id, editingPost?.image]);
+
+  // A separate effect to check content shortly after component mount
+  // This catches cases where content might be loaded from drafts
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (editorRef.current?.editor) {
+        console.log('Delayed content check for drafts');
+        checkContentChanges();
+      }
+    }, 800);
+    
+    return () => clearTimeout(timer);
+  }, [checkContentChanges]);
 
   return (
     <KeyboardAvoidingView
