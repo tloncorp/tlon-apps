@@ -42,8 +42,33 @@ export function BigInput({
   const [hasTitleChanges, setHasTitleChanges] = useState(false);
   const [hasImageChanges, setHasImageChanges] = useState(false);
   const [showFormatMenu, setShowFormatMenu] = useState(false);
+  const [isEditorFocused, setIsEditorFocused] = useState(false);
   const editorRef = useRef<{ editor: TlonEditorBridge | null }>(null);
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    const editor = editorRef.current?.editor;
+    if (!editor) return;
+
+    const checkFocusInterval = setInterval(async () => {
+      try {
+        const editorState = await editor.getEditorState();
+        if (editorState?.isFocused !== undefined) {
+          const newFocusState = editorState.isFocused;
+          setIsEditorFocused(newFocusState);
+          if (!newFocusState && showFormatMenu) {
+            setShowFormatMenu(false);
+          }
+        }
+      } catch (e) {
+        console.log('Error checking editor focus state', e);
+      }
+    }, 500);
+
+    return () => {
+      clearInterval(checkFocusInterval);
+    };
+  }, [showFormatMenu]);
 
   // Track changes to the editor content
   useEffect(() => {
@@ -272,7 +297,7 @@ export function BigInput({
         </View>
       </View>
 
-      {channelType === 'notebook' && editorRef.current?.editor && (
+      {channelType === 'notebook' && editorRef.current?.editor && isEditorFocused && (
         <>
           {showFormatMenu && (
             <View style={{
