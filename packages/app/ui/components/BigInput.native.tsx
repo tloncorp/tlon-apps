@@ -11,7 +11,7 @@ import { Input, XStack, getTokenValue } from 'tamagui';
 import { Button } from '@tloncorp/ui';
 
 import { constructStory } from '@tloncorp/shared/urbit/channel';
-import { tiptap } from '@tloncorp/shared';
+import { createDevLogger, tiptap } from '@tloncorp/shared';
 import { useRegisterChannelHeaderItem } from './Channel/ChannelHeader';
 import { ScreenHeader } from './ScreenHeader';
 import AttachmentSheet from './AttachmentSheet';
@@ -19,6 +19,8 @@ import { MessageInput } from './MessageInput';
 import { MessageInputProps } from './MessageInput/MessageInputBase';
 import { TlonEditorBridge } from './MessageInput/toolbarActions.native';
 import { InputToolbar } from './MessageInput/InputToolbar.native';
+
+const logger = createDevLogger('BigInput', false);
 
 export function BigInput({
   send,
@@ -84,7 +86,7 @@ export function BigInput({
       // If we get here, there's actual content
       return false;
     } catch (e) {
-      console.log('Error checking editor content:', e);
+      logger.log('Error checking editor content:', e);
       return true;
     }
   }, []);
@@ -93,19 +95,19 @@ export function BigInput({
   const checkContentChanges = useCallback(async () => {
     const editor = editorRef.current?.editor;
     if (!editor) {
-      console.log('No editor available for content check');
+      logger.log('No editor available for content check');
       return;
     }
     
     try {
       const json = await editor.getJSON();
       if (!json) {
-        console.log('Editor returned no JSON');
+        logger.log('Editor returned no JSON');
         return;
       }
       
       const isEmpty = await checkEditorContentEmpty();
-      console.log('Content empty check:', isEmpty);
+      logger.log('Content empty check:', isEmpty);
       setContentEmpty(isEmpty);
       
       const inlines = tiptap.JSONToInlines(json);
@@ -114,25 +116,25 @@ export function BigInput({
       if (editingPost?.content) {
         const originalContent = editingPost.content as { story: any };
         const hasChanges = JSON.stringify(story) !== JSON.stringify(originalContent.story);
-        console.log('Content changes:', hasChanges);
+        logger.log('Content changes:', hasChanges);
         setHasContentChanges(hasChanges);
       } else {
-        console.log('New content, not empty:', !isEmpty);
+        logger.log('New content, not empty:', !isEmpty);
         setHasContentChanges(!isEmpty);
       }
     } catch (e) {
-      console.log('Error in checkContentChanges:', e);
+      logger.log('Error in checkContentChanges:', e);
     }
   }, [checkEditorContentEmpty, editingPost?.content]);
 
   // Run initial content check when the editor is ready
   useEffect(() => {
     if (!editorRef.current?.editor) {
-      console.log('Editor not ready for initial check');
+      logger.log('Editor not ready for initial check');
       return;
     }
     
-    console.log('Running initial content check');
+    logger.log('Running initial content check');
     const timer = setTimeout(() => {
       checkContentChanges();
     }, 300);
@@ -156,15 +158,15 @@ export function BigInput({
   useEffect(() => {
     const editor = editorRef.current?.editor;
     if (!editor) {
-      console.log('No editor available for setting up content tracking');
+      logger.log('No editor available for setting up content tracking');
       return;
     }
 
-    console.log('Setting up editor content tracking');
+    logger.log('Setting up editor content tracking');
     
     // Immediately update on any content change
     editor._onContentUpdate = async () => {
-      console.log('Content updated, checking content state');
+      logger.log('Content updated, checking content state');
       await checkContentChanges();
     };
     
@@ -183,7 +185,7 @@ export function BigInput({
   // Force content check with minimal delay when editor gets focus
   useEffect(() => {
     if (isEditorFocused && editorRef.current?.editor) {
-      console.log('Editor focused, checking content');
+      logger.log('Editor focused, checking content');
       setTimeout(() => {
         checkContentChanges();
       }, 50);
@@ -205,7 +207,7 @@ export function BigInput({
           }
         }
       } catch (e) {
-        console.log('Error checking editor focus state', e);
+        logger.log('Error checking editor focus state', e);
       }
     }, 500);
 
@@ -219,7 +221,7 @@ export function BigInput({
     if (!editingPost) {
       const hasTitleChanged = !!title;
       const hasImageChanged = !!imageUri;
-      console.log('New post - title:', hasTitleChanged, 'image:', hasImageChanged);
+      logger.log('New post - title:', hasTitleChanged, 'image:', hasImageChanged);
       setHasTitleChanges(hasTitleChanged);
       setHasImageChanges(hasImageChanged);
       return;
@@ -227,7 +229,7 @@ export function BigInput({
 
     const hasTitleChanged = title !== editingPost.title;
     const hasImageChanged = imageUri !== editingPost.image;
-    console.log('Editing post - title changed:', hasTitleChanged, 'image changed:', hasImageChanged);
+    logger.log('Editing post - title changed:', hasTitleChanged, 'image changed:', hasImageChanged);
     setHasTitleChanges(hasTitleChanged);
     setHasImageChanges(hasImageChanged);
   }, [title, imageUri, editingPost]);
@@ -242,7 +244,7 @@ export function BigInput({
       if (editingPost) {
         // For editing: enable if anything has changed
         enabled = hasContentChanges || hasTitleChanges || hasImageChanges;
-        console.log('Button enabled (editing):', enabled, 
+        logger.log('Button enabled (editing):', enabled, 
           '- content:', hasContentChanges, 
           'title:', hasTitleChanges, 
           'image:', hasImageChanges);
@@ -251,13 +253,13 @@ export function BigInput({
         if (channelType === 'notebook') {
           // For notebooks: need both title and content
           enabled = !isEmpty && !!title;
-          console.log('Button enabled (new notebook):', enabled, 
+          logger.log('Button enabled (new notebook):', enabled, 
             '- content:', !isEmpty, 
             'title:', !!title);
         } else {
           // For other types: just need content
           enabled = !isEmpty;
-          console.log('Button enabled (new post):', enabled, 
+          logger.log('Button enabled (new post):', enabled, 
             '- content:', !isEmpty);
         }
       }
@@ -310,7 +312,7 @@ export function BigInput({
         await send(story, channelId, metadata);
       }
 
-      console.log(`Post/save successful for channel type: ${currentChannelType}`);
+      logger.log(`Post/save successful for channel type: ${currentChannelType}`);
       
       // Clear all state first
       setTitle('');
@@ -323,14 +325,14 @@ export function BigInput({
 
       // Clear the editor content before clearing drafts to prevent race conditions
       if (editorRef.current?.editor) {
-        console.log('Clearing editor content after save');
+        logger.log('Clearing editor content after save');
         await editorRef.current.editor.setContent('');
       }
       
       // Clear the draft after successful save for all channel types
       if (!editingPost && props.clearDraft) {
         try {
-          console.log(`Clearing draft for ${isGalleryText ? 'gallery text' : currentChannelType}`);
+          logger.log(`Clearing draft for ${isGalleryText ? 'gallery text' : currentChannelType}`);
           
           if (isGalleryText) {
             // For Gallery text posts, explicitly clear 'text' drafts
@@ -339,7 +341,7 @@ export function BigInput({
             // If the gallery text draft persists, try calling with undefined as well
             setTimeout(async () => {
               if (props.clearDraft) {
-                console.log('Additional gallery draft clearing attempt');
+                logger.log('Additional gallery draft clearing attempt');
                 await props.clearDraft(undefined);
               }
             }, 100);
@@ -347,9 +349,9 @@ export function BigInput({
             // For other channel types, don't specify to clear all drafts
             await props.clearDraft(undefined);
           }
-          console.log('Draft cleared successfully');
+          logger.log('Draft cleared successfully');
         } catch (e) {
-          console.error('Error clearing draft:', e);
+          logger.error('Error clearing draft:', e);
         }
       }
       
@@ -358,22 +360,22 @@ export function BigInput({
         // Double check that content is still empty after all operations
         if (editorRef.current?.editor) {
           const isEmpty = await checkEditorContentEmpty();
-          console.log('Final content empty check:', isEmpty);
+          logger.log('Final content empty check:', isEmpty);
           
           // If somehow content got restored, try clearing again
           if (!isEmpty) {
-            console.log('Content was restored after clearing, clearing again');
+            logger.log('Content was restored after clearing, clearing again');
             editorRef.current.editor.setContent('');
             await checkContentChanges();
             
             // For gallery text posts, make an additional attempt to clear drafts
             if (isGalleryText && props.clearDraft) {
-              console.log('Making final attempt to clear gallery text draft');
+              logger.log('Making final attempt to clear gallery text draft');
               try {
                 await props.clearDraft('text');
                 await props.clearDraft(undefined);
               } catch (e) {
-                console.error('Error in final draft clearing:', e);
+                logger.error('Error in final draft clearing:', e);
               }
             }
           }
@@ -383,7 +385,7 @@ export function BigInput({
         setShowBigInput?.(false);
       }, 500); // Increased timeout to ensure all operations complete
     } catch (error) {
-      console.error('Failed to save post:', error);
+      logger.error('Failed to save post:', error);
       // Don't clear draft if save failed
     }
   }, [
@@ -442,7 +444,7 @@ export function BigInput({
   useEffect(() => {
     const timer = setTimeout(() => {
       if (editorRef.current?.editor) {
-        console.log('Delayed content check for drafts');
+        logger.log('Delayed content check for drafts');
         checkContentChanges();
       }
     }, 800);
