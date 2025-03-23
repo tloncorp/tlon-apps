@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Input, XStack, getTokenValue } from 'tamagui';
+import { Input, XStack, getTokenValue, useTheme } from 'tamagui';
 import { Button } from '@tloncorp/ui';
 
 import { constructStory } from '@tloncorp/shared/urbit/channel';
@@ -49,6 +49,7 @@ export function BigInput({
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
   const editorRef = useRef<{ editor: TlonEditorBridge | null }>(null);
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
 
   // Helper function to check if editor content is empty
   const checkEditorContentEmpty = useCallback(async () => {
@@ -552,7 +553,7 @@ export function BigInput({
               zIndex: 1000,
               borderRadius: 100,
               overflow: 'hidden',
-              borderColor: getTokenValue('$gray100', 'color'),
+              borderColor: theme.border.val,
               borderWidth: 1,
               width: 310,
             }}>
@@ -565,12 +566,11 @@ export function BigInput({
             right={16}
             borderRadius="$4xl"
             onPress={() => setShowFormatMenu(!showFormatMenu)}
-            zIndex={200}
           >
             {showFormatMenu ? (
-              <Icon type="Close" size="$l" />
+              <Icon type="Close" size="$l" color="$primaryText" />
             ) : (
-              <Icon type="Italic" size="$l" />
+              <Icon type="Italic" size="$l" color="$primaryText" />
             )}
           </Button>
         </>
