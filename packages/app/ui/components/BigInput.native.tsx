@@ -43,8 +43,103 @@ export function BigInput({
   const [hasImageChanges, setHasImageChanges] = useState(false);
   const [showFormatMenu, setShowFormatMenu] = useState(false);
   const [isEditorFocused, setIsEditorFocused] = useState(false);
+  const [contentEmpty, setContentEmpty] = useState(true);
+  const [isButtonEnabled, setIsButtonEnabled] = useState(false);
   const editorRef = useRef<{ editor: TlonEditorBridge | null }>(null);
   const insets = useSafeAreaInsets();
+
+  // Helper function to check if editor content is empty
+  const checkEditorContentEmpty = useCallback(async () => {
+    const editor = editorRef.current?.editor;
+    if (!editor) return true;
+    
+    try {
+      const json = await editor.getJSON();
+      if (!json) return true;
+      
+      const jsonAny = json as any;
+      return !jsonAny.content || 
+        jsonAny.content.length === 0 || 
+        (jsonAny.content.length === 1 && 
+         jsonAny.content[0].type === 'paragraph' && 
+         (!jsonAny.content[0].content || 
+          jsonAny.content[0].content.length === 0));
+    } catch (e) {
+      console.log('Error checking editor content:', e);
+      return true;
+    }
+  }, []);
+
+  // Helper function for checking content changes
+  const checkContentChanges = useCallback(async () => {
+    const editor = editorRef.current?.editor;
+    if (!editor) {
+      console.log('No editor available for content check');
+      return;
+    }
+    
+    try {
+      const json = await editor.getJSON();
+      if (!json) {
+        console.log('Editor returned no JSON');
+        return;
+      }
+      
+      const isEmpty = await checkEditorContentEmpty();
+      console.log('Content empty check:', isEmpty);
+      setContentEmpty(isEmpty);
+      
+      const inlines = tiptap.JSONToInlines(json);
+      const story = constructStory(inlines);
+      
+      if (editingPost?.content) {
+        const originalContent = editingPost.content as { story: any };
+        const hasChanges = JSON.stringify(story) !== JSON.stringify(originalContent.story);
+        console.log('Content changes:', hasChanges);
+        setHasContentChanges(hasChanges);
+      } else {
+        console.log('New content, not empty:', !isEmpty);
+        setHasContentChanges(!isEmpty);
+      }
+    } catch (e) {
+      console.log('Error in checkContentChanges:', e);
+    }
+  }, [checkEditorContentEmpty, editingPost?.content]);
+
+  // Run initial content check when the editor is ready
+  useEffect(() => {
+    if (!editorRef.current?.editor) {
+      console.log('Editor not ready for initial check');
+      return;
+    }
+    
+    console.log('Running initial content check');
+    const timer = setTimeout(() => {
+      checkContentChanges();
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [editorRef.current?.editor, checkContentChanges]);
+
+  // Track changes to the editor content
+  useEffect(() => {
+    const editor = editorRef.current?.editor;
+    if (!editor) {
+      console.log('No editor available for setting up content tracking');
+      return;
+    }
+
+    console.log('Setting up editor content tracking');
+    editor._onContentUpdate = async () => {
+      await checkContentChanges();
+    };
+
+    return () => {
+      if (editor) {
+        editor._onContentUpdate = () => { };
+      }
+    };
+  }, [checkContentChanges]);
 
   useEffect(() => {
     const editor = editorRef.current?.editor;
@@ -70,45 +165,68 @@ export function BigInput({
     };
   }, [showFormatMenu]);
 
-  // Track changes to the editor content
-  useEffect(() => {
-    const editor = editorRef.current?.editor;
-    if (!editor) return;
-
-    editor._onContentUpdate = async () => {
-      const json = await editor.getJSON();
-      if (!json) return;
-
-      const inlines = tiptap.JSONToInlines(json);
-      const story = constructStory(inlines);
-
-      // Compare with original content if editing
-      if (editingPost?.content) {
-        const originalContent = editingPost.content as { story: any };
-        setHasContentChanges(JSON.stringify(story) !== JSON.stringify(originalContent.story));
-      } else {
-        setHasContentChanges(true);
-      }
-    };
-
-    return () => {
-      if (editor) {
-        editor._onContentUpdate = () => { };
-      }
-    };
-  }, [editingPost?.content]);
-
   // Track changes to title and image
   useEffect(() => {
     if (!editingPost) {
-      setHasTitleChanges(false);
-      setHasImageChanges(false);
+      const hasTitleChanged = !!title;
+      const hasImageChanged = !!imageUri;
+      console.log('New post - title:', hasTitleChanged, 'image:', hasImageChanged);
+      setHasTitleChanges(hasTitleChanged);
+      setHasImageChanges(hasImageChanged);
       return;
     }
 
-    setHasTitleChanges(title !== editingPost.title);
-    setHasImageChanges(imageUri !== editingPost.image);
+    const hasTitleChanged = title !== editingPost.title;
+    const hasImageChanged = imageUri !== editingPost.image;
+    console.log('Editing post - title changed:', hasTitleChanged, 'image changed:', hasImageChanged);
+    setHasTitleChanges(hasTitleChanged);
+    setHasImageChanges(hasImageChanged);
   }, [title, imageUri, editingPost]);
+
+  // Determine if the post/save button should be enabled - with direct content check
+  useEffect(() => {
+    const updateButtonState = async () => {
+      const isEmpty = await checkEditorContentEmpty();
+      
+      let enabled = false;
+      
+      if (editingPost) {
+        // For editing: enable if anything has changed
+        enabled = hasContentChanges || hasTitleChanges || hasImageChanges;
+        console.log('Button enabled (editing):', enabled, 
+          '- content:', hasContentChanges, 
+          'title:', hasTitleChanges, 
+          'image:', hasImageChanges);
+      } else {
+        // For new posts
+        if (channelType === 'notebook') {
+          // For notebooks: need both title and content
+          enabled = !isEmpty && !!title;
+          console.log('Button enabled (new notebook):', enabled, 
+            '- content:', !isEmpty, 
+            'title:', !!title);
+        } else {
+          // For other types: just need content
+          enabled = !isEmpty;
+          console.log('Button enabled (new post):', enabled, 
+            '- content:', !isEmpty);
+        }
+      }
+      
+      setIsButtonEnabled(enabled);
+    };
+    
+    // Ensure we update the button state whenever any relevant state changes
+    updateButtonState();
+  }, [
+    editingPost, 
+    hasContentChanges, 
+    hasTitleChanges, 
+    hasImageChanges, 
+    title, 
+    channelType,
+    checkEditorContentEmpty
+  ]);
 
   // Handle sending/editing the post
   const handleSend = useCallback(async () => {
@@ -178,13 +296,13 @@ export function BigInput({
         <ScreenHeader.TextButton
           key="big-input-post"
           onPress={handleSend}
-          disabled={!editorRef.current?.editor || (editingPost && !hasContentChanges && !hasTitleChanges && !hasImageChanges)}
           testID="BigInputPostButton"
+          disabled={!isButtonEnabled}
         >
           {editingPost ? 'Save' : 'Post'}
         </ScreenHeader.TextButton>
       ),
-      [handleSend, editingPost, hasContentChanges, hasTitleChanges, hasImageChanges]
+      [handleSend, editingPost, isButtonEnabled]
     )
   );
 
