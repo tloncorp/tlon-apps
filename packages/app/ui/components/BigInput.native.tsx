@@ -8,8 +8,8 @@ import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Input, XStack, getTokenValue } from 'tamagui';
+import { Button } from '@tloncorp/ui';
 
-import { useAttachmentContext } from '../contexts/attachment';
 import { constructStory } from '@tloncorp/shared/urbit/channel';
 import { tiptap } from '@tloncorp/shared';
 import { useRegisterChannelHeaderItem } from './Channel/ChannelHeader';
@@ -41,6 +41,7 @@ export function BigInput({
   const [hasContentChanges, setHasContentChanges] = useState(false);
   const [hasTitleChanges, setHasTitleChanges] = useState(false);
   const [hasImageChanges, setHasImageChanges] = useState(false);
+  const [showFormatMenu, setShowFormatMenu] = useState(false);
   const editorRef = useRef<{ editor: TlonEditorBridge | null }>(null);
   const insets = useSafeAreaInsets();
 
@@ -55,7 +56,7 @@ export function BigInput({
 
       const inlines = tiptap.JSONToInlines(json);
       const story = constructStory(inlines);
-      
+
       // Compare with original content if editing
       if (editingPost?.content) {
         const originalContent = editingPost.content as { story: any };
@@ -67,7 +68,7 @@ export function BigInput({
 
     return () => {
       if (editor) {
-        editor._onContentUpdate = () => {};
+        editor._onContentUpdate = () => { };
       }
     };
   }, [editingPost?.content]);
@@ -174,7 +175,7 @@ export function BigInput({
   }, [editingPost?.id, editingPost?.image]);
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={{
         flex: 1,
@@ -241,31 +242,61 @@ export function BigInput({
             </View>
           </View>
         )}
-          <View style={{
-            flex: 1,
-            marginTop: getTokenValue('$10xl', 'size'),
-          }}>
-            <MessageInput
-              ref={editorRef}
-              send={handleSend}
-              channelId={channelId}
-              channelType={channelType}
-              editingPost={editingPost}
-              {...props}
-              clearDraft={props.clearDraft}
-              frameless={true}
-              bigInput={true}
-              shouldAutoFocus={true}
-              title={title}
-              image={imageUri ? { uri: imageUri, height: 0, width: 0 } : undefined}
-              paddingHorizontal="$l"
-            />
-          </View>
+        <View style={{
+          flex: 1,
+          marginTop: channelType === 'notebook' ? getTokenValue('$10xl', 'size') : 0,
+        }}>
+          <MessageInput
+            ref={editorRef}
+            send={handleSend}
+            channelId={channelId}
+            channelType={channelType}
+            editingPost={editingPost}
+            {...props}
+            clearDraft={props.clearDraft}
+            frameless={true}
+            bigInput={true}
+            shouldAutoFocus={true}
+            title={title}
+            image={imageUri ? { uri: imageUri, height: 0, width: 0 } : undefined}
+            paddingHorizontal="$l"
+          />
+        </View>
       </View>
 
-      {/* {channelType === 'notebook' && editorRef.current?.editor && (
-        <InputToolbar editor={editorRef.current?.editor} />
-      )} */}
+      {channelType === 'notebook' && editorRef.current?.editor && (
+        <>
+          {showFormatMenu && (
+            <View style={{
+              position: 'absolute',
+              top: 300,
+              right: 64,
+              zIndex: 1000,
+              borderRadius: 100,
+              overflow: 'hidden',
+              borderColor: getTokenValue('$gray100', 'color'),
+              borderWidth: 1,
+              width: 310,
+            }}>
+              <InputToolbar editor={editorRef.current?.editor} hidden={false} />
+            </View>
+          )}
+          <Button
+            position="absolute"
+            top={300}
+            right={16}
+            borderRadius="$4xl"
+            onPress={() => setShowFormatMenu(!showFormatMenu)}
+            zIndex={200}
+          >
+            {showFormatMenu ? (
+              <Icon type="Close" size="$l" />
+            ) : (
+              <Icon type="Italic" size="$l" />
+            )}
+          </Button>
+        </>
+      )}
 
       {channelType === 'notebook' && showAttachmentSheet && (
         <AttachmentSheet
