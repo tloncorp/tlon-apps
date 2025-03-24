@@ -2,6 +2,7 @@ import { unixToDa } from '@urbit/aura';
 import { backOff } from 'exponential-backoff';
 
 import * as db from '../db';
+import { BASE_UNREADS_SINGLETON_KEY } from '../db/schema';
 import { createDevLogger, runIfDev } from '../debug';
 import { normalizeUrbitColor } from '../logic';
 import * as ub from '../urbit';
@@ -419,7 +420,7 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
               handler({
                 type: 'updateBaseUnread',
                 unread: {
-                  userId: getCurrentUserId(),
+                  id: BASE_UNREADS_SINGLETON_KEY,
                   count: summary.count,
                   notify: summary.notify,
                   notifyCount: summary['notify-count'],
@@ -972,7 +973,6 @@ export type ActivityInit = {
 };
 
 export const toClientUnreads = (activity: ub.Activity): ActivityInit => {
-  const userId = getCurrentUserId();
   const groupUnreads: db.GroupUnread[] = [];
   const channelUnreads: db.ChannelUnread[] = [];
   const threadActivity: db.ThreadUnreadState[] = [];
@@ -981,7 +981,7 @@ export const toClientUnreads = (activity: ub.Activity): ActivityInit => {
   Object.entries(activity).forEach(([sourceId, summary]) => {
     if (sourceId === 'base') {
       baseUnread = {
-        userId,
+        id: BASE_UNREADS_SINGLETON_KEY,
         count: summary.count,
         notify: summary.notify,
         notifyCount: summary['notify-count'],
