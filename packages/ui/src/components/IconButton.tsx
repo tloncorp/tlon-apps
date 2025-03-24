@@ -9,6 +9,18 @@ import {
 
 import { Button, ButtonProps } from './Button';
 
+type IconButtonProps = PropsWithChildren<
+  {
+    onPress?: () => void;
+    size?: SizeTokens;
+    color?: ThemeTokens | ColorTokens;
+    backgroundColor?: ThemeTokens | ColorTokens | 'unset';
+    backgroundColorOnPress?: ThemeTokens | ColorTokens;
+    radius?: RadiusTokens;
+    disabled?: boolean;
+  } & Partial<ButtonProps>
+>;
+
 export function IconButton({
   children,
   onPress,
@@ -19,17 +31,7 @@ export function IconButton({
   disabled = false,
   radius = '$l',
   ...rest
-}: PropsWithChildren<
-  {
-    onPress?: () => void;
-    size?: SizeTokens;
-    color?: ThemeTokens | ColorTokens;
-    backgroundColor?: ThemeTokens | ColorTokens | 'unset';
-    backgroundColorOnPress?: ThemeTokens | ColorTokens;
-    radius?: RadiusTokens;
-    disabled?: boolean;
-  } & ButtonProps
->) {
+}: IconButtonProps) {
   const theme = useTheme();
   return (
     <Button
