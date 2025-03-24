@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "7ed8a350-4ce5-4e32-a6d4-6a6a841f5dc1",
+  "id": "05c115b9-7747-4c40-8ebf-c8e7baecb098",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -47,7 +47,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -210,12 +210,13 @@
     "base_unreads": {
       "name": "base_unreads",
       "columns": {
-        "user_id": {
-          "name": "user_id",
+        "id": {
+          "name": "id",
           "type": "text",
           "primaryKey": true,
           "notNull": true,
-          "autoincrement": false
+          "autoincrement": false,
+          "default": "'base_unreads'"
         },
         "notify": {
           "name": "notify",
@@ -684,21 +685,7 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "group_members_chat_id_channels_id_fk": {
-          "name": "group_members_chat_id_channels_id_fk",
-          "tableFrom": "group_members",
-          "tableTo": "channels",
-          "columnsFrom": [
-            "chat_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {
         "group_members_chat_id_contact_id_pk": {
           "columns": [
@@ -754,7 +741,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -1170,7 +1157,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "group_nav_section_channels_channel_id_channels_id_fk": {
@@ -1183,7 +1170,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -1704,7 +1691,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -1757,7 +1744,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },

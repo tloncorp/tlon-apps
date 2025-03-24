@@ -97,7 +97,7 @@ export const contactGroups = sqliteTable(
       .references(() => contacts.id, { onDelete: 'cascade' })
       .notNull(),
     groupId: text('group_id')
-      .references(() => groups.id)
+      .references(() => groups.id, { onDelete: 'cascade' })
       .notNull(),
   },
   (table) => {
@@ -181,8 +181,9 @@ export const groupUnreadsRelations = relations(groupUnreads, ({ one }) => ({
   }),
 }));
 
+export const BASE_UNREADS_SINGLETON_KEY = 'base_unreads';
 export const baseUnreads = sqliteTable('base_unreads', {
-  userId: text('user_id').primaryKey(),
+  id: text('id').primaryKey().default(BASE_UNREADS_SINGLETON_KEY),
   notify: boolean('notify'),
   count: integer('count'),
   notifyCount: integer('notify_count'),
@@ -226,7 +227,7 @@ export const activityEventContactGroups = sqliteTable(
       .references(() => activityEvents.id, { onDelete: 'cascade' })
       .notNull(),
     groupId: text('group_id')
-      .references(() => groups.id)
+      .references(() => groups.id, { onDelete: 'cascade' })
       .notNull(),
   },
   (table) => {
@@ -384,9 +385,7 @@ export const chatMembers = sqliteTable(
     membershipType: text('membership_type')
       .$type<'group' | 'channel'>()
       .notNull(),
-    chatId: text('chat_id').references(() => channels.id, {
-      onDelete: 'cascade',
-    }),
+    chatId: text('chat_id'),
     contactId: text('contact_id').notNull(),
     joinedAt: timestamp('joined_at'),
     status: text('status').$type<'invited' | 'joined'>(),
@@ -718,9 +717,14 @@ export const groupNavSectionChannels = sqliteTable(
   'group_nav_section_channels',
   {
     groupNavSectionId: text('group_nav_section_id').references(
-      () => groupNavSections.id
+      () => groupNavSections.id,
+      {
+        onDelete: 'cascade',
+      }
     ),
-    channelId: text('channel_id').references(() => channels.id),
+    channelId: text('channel_id').references(() => channels.id, {
+      onDelete: 'cascade',
+    }),
     channelIndex: integer('channel_index'),
   },
   (table) => ({
@@ -919,7 +923,7 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
 export const postImages = sqliteTable(
   'post_images',
   {
-    postId: text('post_id').references(() => posts.id),
+    postId: text('post_id').references(() => posts.id, { onDelete: 'cascade' }),
     src: text('src'),
     alt: text('alt'),
     width: integer('width'),
@@ -942,7 +946,7 @@ export const postReactions = sqliteTable(
   {
     contactId: text('contact_id').notNull(),
     postId: text('post_id')
-      .references(() => posts.id)
+      .references(() => posts.id, { onDelete: 'cascade' })
       .notNull(),
     value: text('value').notNull(),
   },

@@ -47,7 +47,9 @@ test('uses init data to get chat list', async () => {
     '0v4.00000.qd6oi.a3f6t.5sd9v.fjmp2',
   ]);
 
-  expect(result.unpinned.map((r) => r.id).slice(0, 7)).toEqual([
+  const ids = result.unpinned.map((r) => r.id).slice(0, 7);
+  console.log(ids);
+  expect(ids).toEqual([
     'chat/~nibset-napwyn/commons',
     '~nibset-napwyn/tlon',
     '~nocsyx-lassul',
@@ -311,6 +313,7 @@ const filterTestCases = [
 
 test.each(filterTestCases)('filter posts: $label', async (testCase) => {
   const channelId = 'tst';
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
   const firstRange = getRangedPosts(channelId, 10, 20);
   const secondRange = getRangedPosts(channelId, 25, 35);
   await queries.insertChannelPosts({
