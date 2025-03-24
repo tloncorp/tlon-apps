@@ -21,6 +21,7 @@ export type IconButtonProps = {
   style?: any;
   pressStyle?: any;
   borderWidth?: any;
+  width?: SizeTokens | string;
 };
 
 export function IconButton({
@@ -35,6 +36,7 @@ export function IconButton({
   style,
   pressStyle,
   borderWidth = 'unset',
+  width,
 }: IconButtonProps) {
   const theme = useTheme();
   return (
@@ -44,6 +46,7 @@ export function IconButton({
       disabled={disabled}
       borderRadius={radius}
       style={style}
+      width={width}
       pressStyle={{
         backgroundColor: theme[backgroundColorOnPress]?.get(),
         ...pressStyle,
