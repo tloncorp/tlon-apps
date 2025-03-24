@@ -15,3 +15,12 @@ export function parseForTwitterPostId(text: string): string | null {
 
   return null;
 }
+
+export function parseTwitterHandle(text: string): string {
+  let handle = text;
+  if (text.startsWith('@')) {
+    handle = text.slice(1);
+  }
+
+  return handle.toLowerCase();
+}

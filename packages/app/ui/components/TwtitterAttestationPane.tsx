@@ -1,11 +1,10 @@
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
-import { KeyboardAvoidingView, Pressable } from '@tloncorp/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Keyboard, TouchableWithoutFeedback } from 'react-native';
-import { ScrollView, View, YStack } from 'tamagui';
+import { View, YStack } from 'tamagui';
 
 import { Button } from '../../../ui/src/components/Button';
 import { LoadingSpinner } from '../../../ui/src/components/LoadingSpinner';
@@ -13,6 +12,7 @@ import { Text } from '../../../ui/src/components/TextV2';
 import { useTrackAttestConfirmation } from '../../hooks/useTrackAttestConfirmation';
 import { useStore } from '../contexts';
 import { AttestationPane } from './AttestationPane';
+import { PrimaryButton } from './Buttons';
 import { CopyableTextBlock } from './CopyableTextBlock';
 import { ControlledTextField } from './Form';
 
@@ -74,6 +74,7 @@ function ConfirmTwitterPane(props: {
   attestation: db.Verification;
   currentUserId: string;
 }) {
+  const [isLoading, setIsLoading] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const store = useStore();
   const [proof, setProof] = useState<string | null>(null);
@@ -105,7 +106,13 @@ function ConfirmTwitterPane(props: {
       console.log(`bad post id!`);
       return;
     }
-    await store.confirmTwitterAttestation(props.attestation.value!, postId);
+
+    try {
+      setIsLoading(true);
+      await store.confirmTwitterAttestation(props.attestation.value!, postId);
+    } finally {
+      setIsLoading(false);
+    }
   });
 
   const tweetContent = useMemo(() => {
@@ -163,6 +170,15 @@ ${proof}`;
         <Button hero onPress={onSubmit} disabled={!isDirty || !isValid}>
           <Button.Text>Submit</Button.Text>
         </Button>
+
+        <PrimaryButton
+          onPress={onSubmit}
+          loading={isLoading}
+          disabled={isLoading || !isDirty || !isValid}
+        >
+          Submit
+        </PrimaryButton>
+
         {reqTracker.didError && (
           <Text color="$negativeActionText">
             Could not verify the submitted post.
@@ -174,6 +190,7 @@ ${proof}`;
 }
 
 function InitiateTwitterPane() {
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const store = useStore();
   const {
@@ -189,6 +206,7 @@ function InitiateTwitterPane() {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
+      setIsLoading(true);
       await store.initiateTwitterAttestation(data.twitterHandle);
     } catch (err) {
       if (err.message === 'already registered') {
@@ -196,6 +214,8 @@ function InitiateTwitterPane() {
       } else {
         setError('Something went wrong, please try again.');
       }
+    } finally {
+      setIsLoading(false);
     }
   });
 
@@ -223,9 +243,13 @@ function InitiateTwitterPane() {
         }}
       />
       {error && <Text color="$negativeActionText">{error}</Text>}
-      <Button hero onPress={onSubmit} disabled={!isDirty || !isValid}>
-        <Button.Text>Submit</Button.Text>
-      </Button>
+      <PrimaryButton
+        onPress={onSubmit}
+        loading={isLoading}
+        disabled={isLoading || !isDirty || !isValid}
+      >
+        Submit
+      </PrimaryButton>
     </YStack>
   );
 }
