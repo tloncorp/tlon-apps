@@ -7,19 +7,21 @@ import {
   useTheme,
 } from 'tamagui';
 
-import { Button, ButtonProps } from './Button';
+import { Button } from './Button';
 
-type IconButtonProps = PropsWithChildren<
-  {
-    onPress?: () => void;
-    size?: SizeTokens;
-    color?: ThemeTokens | ColorTokens;
-    backgroundColor?: ThemeTokens | ColorTokens | 'unset';
-    backgroundColorOnPress?: ThemeTokens | ColorTokens;
-    radius?: RadiusTokens;
-    disabled?: boolean;
-  } & Partial<ButtonProps>
->;
+export type IconButtonProps = {
+  children: React.ReactNode;
+  onPress?: () => void;
+  size?: SizeTokens;
+  color?: ThemeTokens | ColorTokens;
+  backgroundColor?: ThemeTokens | ColorTokens | 'unset';
+  backgroundColorOnPress?: ThemeTokens | ColorTokens;
+  radius?: RadiusTokens;
+  disabled?: boolean;
+  style?: any;
+  pressStyle?: any;
+  borderWidth?: any;
+};
 
 export function IconButton({
   children,
@@ -30,7 +32,9 @@ export function IconButton({
   backgroundColorOnPress = '$secondaryBackground',
   disabled = false,
   radius = '$l',
-  ...rest
+  style,
+  pressStyle,
+  borderWidth = 'unset',
 }: IconButtonProps) {
   const theme = useTheme();
   return (
@@ -39,14 +43,15 @@ export function IconButton({
       onPress={onPress}
       disabled={disabled}
       borderRadius={radius}
+      style={style}
       pressStyle={{
         backgroundColor: theme[backgroundColorOnPress]?.get(),
+        ...pressStyle,
       }}
       backgroundColor={theme[backgroundColor]?.get()}
       // borderWidth="unset" because otherwise it would be set to 1px
       // and we don't want that for an icon button
-      borderWidth="unset"
-      {...rest}
+      borderWidth={borderWidth}
     >
       <Button.Icon color={theme[color]?.get()}>{children}</Button.Icon>
     </Button>
