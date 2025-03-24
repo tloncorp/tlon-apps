@@ -5,9 +5,12 @@ import {
   FlatList,
   ListRenderItem,
   Platform,
+  StyleProp,
   TouchableOpacity,
+  ViewStyle,
+  StyleSheet,
 } from 'react-native';
-import { View } from 'tamagui';
+import { View, useTheme } from 'tamagui';
 
 import { EditLinkBar } from './EditLinkBar';
 import {
@@ -23,19 +26,38 @@ interface ToolbarProps {
   editor: TlonEditorBridge;
   hidden?: boolean;
   items?: ToolbarItem[];
+  backgroundColor?: string;
+  style?: StyleProp<ViewStyle>;
 }
+
+const createStaticStyles = (backgroundColor: string) => StyleSheet.create({
+  flatList: {
+    backgroundColor,
+    borderTopWidth: 0,
+    borderBottomWidth: 0,
+  },
+  touchable: {
+    backgroundColor: 'transparent',
+  }
+});
 
 const InputToolbar = memo(
   ({
     editor,
     hidden = undefined,
     items = DEFAULT_TOOLBAR_ITEMS,
+    backgroundColor,
+    style,
   }: ToolbarProps) => {
     const editorState = useBridgeState(editor) as TlonBridgeState;
     const { isKeyboardUp } = useKeyboard();
     const [toolbarContext, setToolbarContext] = React.useState<ToolbarContext>(
       ToolbarContext.Main
     );
+    const tamagui = useTheme();
+    
+    const bgColor = backgroundColor || tamagui.background.val;
+    const staticStyles = useMemo(() => createStaticStyles(bgColor), [bgColor]);
 
     const hideToolbar =
       hidden === undefined ? !isKeyboardUp || !editorState.isFocused : hidden;
@@ -80,8 +102,8 @@ const InputToolbar = memo(
     );
 
     const touchableStyle = useMemo(
-      () => editor.theme.toolbar.toolbarButton,
-      [editor.theme.toolbar.toolbarButton]
+      () => [editor.theme.toolbar.toolbarButton, staticStyles.touchable],
+      [editor.theme.toolbar.toolbarButton, staticStyles.touchable]
     );
 
     const renderItem: ListRenderItem<ToolbarItem> = useCallback(
@@ -103,7 +125,7 @@ const InputToolbar = memo(
             key={icon}
           >
             <View style={style}>
-              <Icon type={icon} />
+              <Icon type={icon} color="$primaryText" />
             </View>
           </TouchableOpacity>
         );
@@ -118,6 +140,16 @@ const InputToolbar = memo(
       ]
     );
 
+    const toolbarStyles = useMemo(() => {
+      return [
+        editor.theme.toolbar.toolbarBody,
+        hideToolbar ? editor.theme.toolbar.hidden : undefined,
+        staticStyles.flatList,
+        { borderTopWidth: 0, borderBottomWidth: 0 },
+        style,
+      ];
+    }, [editor.theme.toolbar, hideToolbar, staticStyles.flatList, style]);
+
     switch (toolbarContext) {
       case ToolbarContext.Main:
       case ToolbarContext.Heading:
@@ -126,10 +158,7 @@ const InputToolbar = memo(
             data={
               toolbarContext === ToolbarContext.Main ? items : HEADING_ITEMS
             }
-            style={[
-              editor.theme.toolbar.toolbarBody,
-              hideToolbar ? editor.theme.toolbar.hidden : undefined,
-            ]}
+            style={toolbarStyles}
             renderItem={renderItem}
             horizontal
             removeClippedSubviews
@@ -143,31 +172,33 @@ const InputToolbar = memo(
           />
         );
       case ToolbarContext.Link:
-        return (
-          <EditLinkBar
-            theme={editor.theme}
-            initialLink={editorState.activeLink}
-            onBlur={() => setToolbarContext(ToolbarContext.Main)}
-            onLinkIconClick={() => {
-              setToolbarContext(ToolbarContext.Main);
-              editor.focus();
-            }}
-            onEditLink={(link) => {
-              editor.setLink(link);
-              editor.focus();
+        // TypeScript workaround - cast props to any to avoid type error from mismatched definition
+        const linkBarProps: any = {
+          theme: editor.theme,
+          initialLink: editorState.activeLink,
+          onBlur: () => setToolbarContext(ToolbarContext.Main),
+          onLinkIconClick: () => {
+            setToolbarContext(ToolbarContext.Main);
+            editor.focus();
+          },
+          onEditLink: (link: string) => {
+            editor.setLink(link);
+            editor.focus();
 
-              if (Platform.OS === 'android') {
-                // On android we dont want to hide the link input before we finished focus on editor
-                // Add here 100ms and we can try to find better solution later
-                setTimeout(() => {
-                  setToolbarContext(ToolbarContext.Main);
-                }, 100);
-              } else {
+            if (Platform.OS === 'android') {
+              // On android we dont want to hide the link input before we finished focus on editor
+              // Add here 100ms and we can try to find better solution later
+              setTimeout(() => {
                 setToolbarContext(ToolbarContext.Main);
-              }
-            }}
-          />
-        );
+              }, 100);
+            } else {
+              setToolbarContext(ToolbarContext.Main);
+            }
+          },
+          backgroundColor: bgColor
+        };
+        
+        return <EditLinkBar {...linkBarProps} />;
     }
   }
 );
