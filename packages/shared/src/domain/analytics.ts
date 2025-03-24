@@ -97,6 +97,7 @@ export enum AnalyticsEvent {
   ActionInitiateTwitterAttest = 'Initiated Twitter Attestation',
   ActionConfirmTwitterAttest = 'Confirmed Twitter Attestation',
   ActionInitiatePhoneAttest = 'Initiated Phone Attestation',
+  ActionCheckAttestSig = 'Checked Attestation Signature',
   ActionRevokeAttestation = 'Revoked Attestation',
   ActionConfirmPhoneAttest = 'Confirmed Phone Attestation',
   ActionGroupChannelSelected = 'Tapped group channel',

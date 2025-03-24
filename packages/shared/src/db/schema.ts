@@ -126,7 +126,7 @@ export const contactAttestations = sqliteTable(
       .references(() => contacts.id, { onDelete: 'cascade' })
       .notNull(),
     attestationId: text('attestation_id')
-      .references(() => verifications.id)
+      .references(() => verifications.id, { onDelete: 'cascade' })
       .notNull(),
   },
   (table) => {

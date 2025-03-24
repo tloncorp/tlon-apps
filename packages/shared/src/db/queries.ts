@@ -361,23 +361,33 @@ export const getAnalyticsDigest = createReadQuery(
   []
 );
 
-export const insertVerifications = createWriteQuery(
-  'insertVerifications',
+export const insertCurrentUserVerifications = createWriteQuery(
+  'insertCurrentUserVerifications',
   async (
     { verifications }: { verifications: Verification[] },
     ctx: QueryCtx
   ) => {
+    const currentUserId = getCurrentUserId();
+
     if (verifications.length === 0) {
       await ctx.db
         .delete($verifications)
-        .where(isNotNull($verifications.value));
+        .where(
+          and(
+            isNotNull($verifications.value),
+            eq($verifications.contactId, currentUserId)
+          )
+        );
       return;
     } else {
       await ctx.db.delete($verifications).where(
-        not(
-          inArray(
-            $verifications.id,
-            verifications.map((v) => v.id)
+        and(
+          eq($verifications.contactId, currentUserId),
+          not(
+            inArray(
+              $verifications.id,
+              verifications.map((v) => v.id)
+            )
           )
         )
       );
@@ -403,7 +413,7 @@ export const insertVerifications = createWriteQuery(
         .onConflictDoNothing();
     });
   },
-  ['verifications']
+  ['verifications', 'contacts']
 );
 
 export const updateVerification = createWriteQuery(
@@ -3097,7 +3107,7 @@ export const getContacts = createReadQuery(
       },
     });
   },
-  ['contacts']
+  ['contacts', 'contactAttestations']
 );
 
 export const getContactsBatch = createReadQuery(
@@ -3132,11 +3142,16 @@ export const getContact = createReadQuery(
               group: true,
             },
           },
+          attestations: {
+            with: {
+              attestation: true,
+            },
+          },
         },
       })
       .then(returnNullIfUndefined);
   },
-  ['contacts', 'groups']
+  ['contacts', 'groups', 'contactAttestations']
 );
 
 export const updateContact = createWriteQuery(
@@ -3340,7 +3355,7 @@ export const insertContacts = createWriteQuery(
       }
     });
   },
-  ['contacts', 'groups', 'contactGroups']
+  ['contacts', 'groups', 'contactGroups', 'contactAttestations']
 );
 
 export const deleteContact = createWriteQuery(

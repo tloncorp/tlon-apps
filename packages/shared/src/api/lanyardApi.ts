@@ -1,5 +1,5 @@
-import { daToUnix, formatUv, formatUw, parseUw } from '@urbit/aura';
-import { Atom, Cell, Noun, cue, dwim, enjs } from '@urbit/nockjs';
+import { formatUv, parseUw } from '@urbit/aura';
+import { Atom, Cell, Noun, dwim, enjs } from '@urbit/nockjs';
 
 import * as db from '../db';
 import { VerificationType } from '../db/schema';
@@ -62,29 +62,21 @@ export async function checkAttestedSignature(signData: string) {
     [null, nonce],
     ['valid-jam', new Atom(parseUw(signData))],
   ];
-  try {
-    const noun = dwim(query);
+  const noun = dwim(query);
 
-    const queryResponseSub = subscribeOnce<QueryResponse>({
-      app: 'lanyard',
-      path: `/query/${encodedNonce}`,
-    });
+  const queryResponseSub = subscribeOnce<QueryResponse>({
+    app: 'lanyard',
+    path: `/query/${encodedNonce}`,
+  });
 
-    await pokeNoun({ app: 'lanyard', mark: 'lanyard-query', noun });
-    // console.log(`poke completed`);
-    const queryResponse = await queryResponseSub;
-    // console.log(`bl: got query response`, queryResponse);
+  await pokeNoun({ app: 'lanyard', mark: 'lanyard-query', noun });
+  const queryResponse = await queryResponseSub;
 
-    if (queryResponse) {
-      const sigValidation = queryResponse?.query?.result;
-      return Boolean(sigValidation.live && sigValidation.valid);
-    }
-
-    return false;
-  } catch (e) {
-    console.log(`error checking signature`, e);
-    return false;
+  if (queryResponse) {
+    const sigValidation = queryResponse?.query?.result;
+    return Boolean(sigValidation.live && sigValidation.valid);
   }
+  return false;
 }
 
 function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {
@@ -200,7 +192,6 @@ export async function fetchTwitterConfirmPayload(handle: string) {
 }
 
 export async function fetchVerifications(): Promise<db.Verification[]> {
-  console.log(`bl: fetching verifications`);
   const currentUserId = getCurrentUserId();
   const result = await scryNoun({
     app: 'lanyard',
@@ -217,22 +208,16 @@ export async function initiatePhoneVerify(phoneNumber: string) {
   return;
 }
 
-export function confirmPhoneVerify(phoneNumber: string, otp: string) {
-  // TODO
-}
-
 export async function initiateTwitterAttestation(twitterHandle: string) {
   const payload = [null, ['start', ['twitter', twitterHandle]]];
   logger.log('initiateTwitterAttestation', payload);
   const noun = dwim(payload);
-  // await pokeNoun({ app: 'lanyard', mark: 'lanyard-command', noun });
 
   let errorMessage = null;
   await trackedPokeNoun(
     { app: 'lanyard', mark: 'lanyard-command', noun },
     { app: 'lanyard', path: '/records' },
     (event: ub.RecordStatusEvent) => {
-      console.log('bl: got SUB event', event);
       if (event.status.value !== twitterHandle.toLowerCase()) {
         return false;
       }
@@ -242,7 +227,7 @@ export async function initiateTwitterAttestation(twitterHandle: string) {
         return true;
       }
 
-      if (event.status.status === 'want') {
+      if (event.status.status === 'pending') {
         return true;
       }
 
@@ -256,6 +241,51 @@ export async function initiateTwitterAttestation(twitterHandle: string) {
 
   console.log(`tracked poke completed without error`);
   return;
+}
+
+export async function updateAttestationVisibility({
+  visibility,
+  value,
+  type,
+}: {
+  value: string;
+  type: db.VerificationType;
+  visibility: db.VerificationVisibility;
+}) {
+  let backendVisibility = 'hidden';
+  switch (visibility) {
+    case 'discoverable':
+      backendVisibility = 'verified';
+      break;
+    case 'public':
+      backendVisibility = 'public';
+      break;
+    case 'hidden':
+    default:
+      backendVisibility = 'hidden';
+      break;
+  }
+
+  const identifier = [type, value.toLowerCase()];
+  const config = [backendVisibility];
+  const command = [null, ['config', identifier, config]];
+
+  const noun = dwim(command);
+  await trackedPokeNoun(
+    { app: 'lanyard', mark: 'lanyard-command', noun },
+    { app: 'lanyard', path: '/records' },
+    (event: ub.RecordConfigEvent) => {
+      if (event.config?.value !== value.toLowerCase()) {
+        return false;
+      }
+
+      if (event.config.config.discoverable === backendVisibility) {
+        return true;
+      }
+
+      return false;
+    }
+  );
 }
 
 export async function confirmTwitterAttestation(
@@ -320,7 +350,22 @@ export async function revokeAttestation(params: {
   const identifier = [params.type, params.value];
   const command = [null, ['revoke', identifier]];
   const noun = dwim(command);
-  await pokeNoun({ app: 'lanyard', mark: 'lanyard-command', noun });
-  logger.log('revokeAttestation poke success');
-  return;
+  // await pokeNoun({ app: 'lanyard', mark: 'lanyard-command', noun });
+
+  await trackedPokeNoun(
+    { app: 'lanyard', mark: 'lanyard-command', noun },
+    { app: 'lanyard', path: '/records' },
+    (event: ub.RecordStatusEvent) => {
+      console.log('bl: got REVOKE SUB event', event);
+      if (event.status.value !== params.value.toLowerCase()) {
+        return false;
+      }
+
+      if (event.status.status === 'gone') {
+        return true;
+      }
+
+      return false;
+    }
+  );
 }

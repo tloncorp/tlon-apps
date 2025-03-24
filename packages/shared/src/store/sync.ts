@@ -227,10 +227,8 @@ export const syncAttestations = async (ctx?: SyncCtx) => {
   const verifications = await syncQueue.add('verifications', ctx, () =>
     api.fetchVerifications()
   );
-  console.log(`bl: got verifications`, verifications);
   try {
-    await db.insertVerifications({ verifications });
-    console.log(`bl: wrote verifications`);
+    await db.insertCurrentUserVerifications({ verifications });
   } catch (e) {
     logger.error('error inserting verifications', e);
   }
