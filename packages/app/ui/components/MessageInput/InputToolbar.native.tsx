@@ -6,9 +6,9 @@ import {
   ListRenderItem,
   Platform,
   StyleProp,
+  StyleSheet,
   TouchableOpacity,
   ViewStyle,
-  StyleSheet,
 } from 'react-native';
 import { View, useTheme } from 'tamagui';
 
@@ -30,16 +30,17 @@ interface ToolbarProps {
   style?: StyleProp<ViewStyle>;
 }
 
-const createStaticStyles = (backgroundColor: string) => StyleSheet.create({
-  flatList: {
-    backgroundColor,
-    borderTopWidth: 0,
-    borderBottomWidth: 0,
-  },
-  touchable: {
-    backgroundColor: 'transparent',
-  }
-});
+const createStaticStyles = (backgroundColor: string) =>
+  StyleSheet.create({
+    flatList: {
+      backgroundColor,
+      borderTopWidth: 0,
+      borderBottomWidth: 0,
+    },
+    touchable: {
+      backgroundColor: 'transparent',
+    },
+  });
 
 const InputToolbar = memo(
   ({
@@ -55,7 +56,7 @@ const InputToolbar = memo(
       ToolbarContext.Main
     );
     const tamagui = useTheme();
-    
+
     const bgColor = backgroundColor || tamagui.background.val;
     const staticStyles = useMemo(() => createStaticStyles(bgColor), [bgColor]);
 
@@ -171,7 +172,7 @@ const InputToolbar = memo(
             })}
           />
         );
-      case ToolbarContext.Link:
+      case ToolbarContext.Link: {
         // TypeScript workaround - cast props to any to avoid type error from mismatched definition
         const linkBarProps: any = {
           theme: editor.theme,
@@ -195,10 +196,11 @@ const InputToolbar = memo(
               setToolbarContext(ToolbarContext.Main);
             }
           },
-          backgroundColor: bgColor
+          backgroundColor: bgColor,
         };
-        
+
         return <EditLinkBar {...linkBarProps} />;
+      }
     }
   }
 );
