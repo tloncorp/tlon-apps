@@ -1,6 +1,8 @@
 import {
   Block,
+  List,
   ListItem,
+  Listing,
   Story,
   Verse,
   constructStory,
@@ -232,79 +234,100 @@ const processListItems = (
   listToken: marked.Tokens.List,
   depth: number = 0
 ): Verse[] => {
-  const verses: Verse[] = [];
-  const MAX_NESTING_DEPTH = 8; // Support deeper nesting (at least 5 levels guaranteed)
-
   if (!listToken.items || !Array.isArray(listToken.items)) {
-    return verses;
+    return [];
   }
 
-  // Processes a list item and all of its nested content recursively
-  const processItem = (
-    item: marked.Tokens.ListItem,
-    level: number,
-    ordered: boolean,
-    index: number
-  ): void => {
-    // Safety check for maximum depth
-    if (level >= MAX_NESTING_DEPTH || depth + level >= MAX_NESTING_DEPTH) {
-      verses.push({
-        inline: [`${'  '.repeat(level)}• [Max nesting depth reached]`],
-      } as Verse);
-      return;
-    }
-
-    // Create list marker
-    const indentPrefix = '  '.repeat(level);
-    const listPrefix = ordered
-      ? `${indentPrefix}${index + 1}. `
-      : `${indentPrefix}• `;
-
-    // Handle task items
-    const prefix = item.task
-      ? `${listPrefix}${item.checked ? '☑' : '☐'} `
-      : listPrefix;
-
-    // Process the current item content (excluding nested lists)
-    const nonListContent = [];
-    let nestedLists: marked.Tokens.List[] = [];
-
-    // Separate list tokens from other content
-    if (item.tokens) {
-      for (const token of item.tokens) {
-        if (token.type === 'list') {
-          nestedLists.push(token as marked.Tokens.List);
-        } else {
-          nonListContent.push(token);
-        }
-      }
-    }
-
-    // Add the current item with its content
-    verses.push({
-      inline: [
-        prefix,
-        ...processInlineTokens(nonListContent, depth + level + 1),
-      ],
-    } as Verse);
-
-    // Process any nested lists found in this item
-    nestedLists.forEach((nestedList) => {
-      if (nestedList.items && nestedList.items.length > 0) {
-        nestedList.items.forEach((nestedItem, nestedIndex) => {
-          processItem(nestedItem, level + 1, nestedList.ordered, nestedIndex);
-        });
-      }
-    });
+  // Create a top-level ListingBlock with proper nesting
+  const listingBlock: Verse = {
+    block: {
+      listing: createListFromToken(listToken, depth),
+    },
   };
 
-  // Process all list items at the root level
-  listToken.items.forEach((item, index) => {
-    processItem(item, 0, listToken.ordered, index);
-  });
-
-  return verses;
+  return [listingBlock];
 };
+
+// Create a List from a marked List token
+function createListFromToken(
+  listToken: marked.Tokens.List,
+  depth: number = 0
+): List {
+  const type = listToken.ordered
+    ? 'ordered'
+    : listToken.items.some((item) => item.task)
+      ? 'tasklist'
+      : 'unordered';
+
+  // Convert each list item
+  const items = listToken.items.map((item) =>
+    createListingFromItem(item, depth + 1, type)
+  );
+
+  return {
+    list: {
+      type,
+      items,
+      contents: [], // Usually empty for markdown-generated lists
+    },
+  };
+}
+
+// Create a Listing (ListItem or nested List) from a marked ListItem token
+function createListingFromItem(
+  item: marked.Tokens.ListItem,
+  depth: number,
+  parentType: 'ordered' | 'unordered' | 'tasklist'
+): Listing {
+  // Find any nested lists and separate them from regular content
+  const nonListContent: marked.Token[] = [];
+  const nestedLists: marked.Tokens.List[] = [];
+
+  if (item.tokens) {
+    for (const token of item.tokens) {
+      if (token.type === 'list') {
+        nestedLists.push(token as marked.Tokens.List);
+      } else {
+        nonListContent.push(token);
+      }
+    }
+  }
+
+  // Process the main content of this item
+  let inlineContent = processInlineTokens(nonListContent, depth);
+
+  // For task items, prepend a task marker
+  if (item.task) {
+    const taskMarker = item.checked ? '☑ ' : '☐ ';
+    if (inlineContent.length > 0 && typeof inlineContent[0] === 'string') {
+      inlineContent[0] = taskMarker + inlineContent[0];
+    } else {
+      inlineContent.unshift(taskMarker);
+    }
+  }
+
+  // If there are nested lists, create a structure with current item and nested lists
+  if (nestedLists.length > 0) {
+    // Create nested list structures
+    const nestedListItems = nestedLists.flatMap((nestedList) => {
+      return createListFromToken(nestedList, depth + 1).list.items;
+    });
+
+    // Create a parent list that contains both the current item and any nested lists
+    return {
+      list: {
+        type: parentType,
+        items: [{ item: inlineContent }, ...nestedListItems],
+        contents: [],
+      },
+    };
+  }
+
+  // Simple list item with no nesting
+  return {
+    item: inlineContent,
+  };
+}
 
 // Helper function to process nested blockquote tokens
 const processNestedBlockquoteTokens = (
@@ -372,7 +395,15 @@ export const markdownToStory = (markdown: string): Story => {
     const story: Verse[] = [];
 
     // Process the top-level tokens with initial depth of 0
-    story.push(...processTokens(tokens, 0));
+    for (const token of tokens) {
+      if (token.type === 'list') {
+        // Use our improved list processing for properly nested lists
+        story.push(...processListItems(token, 0));
+      } else {
+        // Use standard processing for other tokens
+        story.push(...processTokens([token], 0));
+      }
+    }
 
     // If we couldn't parse anything properly, fallback to simple paragraph conversion
     if (story.length === 0) {

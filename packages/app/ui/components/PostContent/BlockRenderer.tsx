@@ -58,19 +58,36 @@ function ListNode({
   // Increasing indentation for nested lists
   const indentAmount = 16; // pixels
 
+  // For checking if list is ordered
+  const isOrdered = node.type === 'ordered';
+  const isTaskList = node.type === 'tasklist';
+
   return (
     <View flex={1}>
-      {node.content.length ? (
+      {/* Render any content directly on the list node itself (rare in Markdown) */}
+      {node.content.length > 0 && (
         <LineRenderer trimmed={false} inlines={node.content} />
-      ) : null}
-      {node.children?.map((childNode, i) => (
-        <XStack key={i} gap="$m" marginLeft={level * indentAmount}>
-          <ListItemMarker index={i} type={node.type ?? 'unordered'} />
-          <View flex={1}>
-            <ListNode key={i} node={childNode} level={level + 1} />
-          </View>
-        </XStack>
-      ))}
+      )}
+
+      {/* Now render the list itself with proper nesting */}
+      <View flex={1} paddingLeft={level * indentAmount}>
+        {node.children?.map((childNode, i) => (
+          <XStack key={i} gap="$m">
+            <ListItemMarker index={i} type={node.type ?? 'unordered'} />
+            <View flex={1}>
+              {/* If this is a leaf node (simple item), render its content */}
+              {childNode.content?.length > 0 && (
+                <LineRenderer trimmed={false} inlines={childNode.content} />
+              )}
+
+              {/* If this node has children, recursively render them */}
+              {childNode.children && childNode.children.length > 0 && (
+                <ListNode node={childNode} level={level + 1} />
+              )}
+            </View>
+          </XStack>
+        ))}
+      </View>
     </View>
   );
 }

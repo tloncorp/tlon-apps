@@ -5,6 +5,7 @@ import * as ub from '@tloncorp/shared/urbit';
 import { useContext, useMemo } from 'react';
 import { createStyledContext } from 'tamagui';
 
+import { ensureLatestMarkdownFormat } from '../../../utils/markdown-migration';
 import { trustedProviders } from '../Embed/EmbedContent';
 
 export interface ContentContextProps {
@@ -170,6 +171,7 @@ export type PostContent = BlockData[];
  *   code blocks, etc.)
  * - Simplifying data structure so that we can easily switch on type while
  *   rendering.
+ * - Migrating content from older formats if necessary
  *
  * I don't love that this happens each time a post is rendered -- I'd like to
  * move to something like this for all local content representation, only
@@ -191,13 +193,20 @@ export function convertContent(input: unknown): PostContent {
     return blocks;
   }
 
-  for (const verse of story) {
+  // Check if the story is made of verses that need migration
+  const verses =
+    Array.isArray(story) &&
+    story.every((item) => 'inline' in item || 'block' in item)
+      ? ensureLatestMarkdownFormat(story as ub.Story)
+      : story;
+
+  for (const verse of verses) {
     if ('type' in verse && verse.type === 'reference') {
-      blocks.push(verse);
+      blocks.push(verse as api.ContentReference);
     } else if ('block' in verse) {
       blocks.push(convertBlock(verse.block));
     } else if ('inline' in verse) {
-      blocks.push(...convertTopLevelInline(verse));
+      blocks.push(...convertTopLevelInline(verse as ub.VerseInline));
     } else {
       console.warn('Unhandled verse type:', { verse });
       blocks.push({
@@ -213,7 +222,14 @@ export function convertContent(input: unknown): PostContent {
 export function usePostContent(post: Post): BlockData[] {
   return useMemo(() => {
     try {
-      return convertContent(post.content);
+      // First convert the content to blocks
+      const blocks = convertContent(post.content);
+
+      // Then check if we need to apply any migrations to the blocks
+      // For now, we don't need to migrate at the block level, but if needed
+      // we could add block migration logic here
+
+      return blocks;
     } catch (e) {
       console.error('Failed to convert post content:', e);
       return [];
@@ -224,7 +240,14 @@ export function usePostContent(post: Post): BlockData[] {
 export function usePostLastEditContent(post: Post): BlockData[] {
   return useMemo(() => {
     try {
-      return convertContent(post.lastEditContent);
+      // First convert the content to blocks
+      const blocks = convertContent(post.lastEditContent);
+
+      // Then check if we need to apply any migrations to the blocks
+      // For now, we don't need to migrate at the block level, but if needed
+      // we could add block migration logic here
+
+      return blocks;
     } catch (e) {
       console.error('Failed to convert post content:', e);
       return [];
@@ -398,14 +421,17 @@ function convertBlock(block: ub.Block): BlockData {
 
 function convertListing(listing: ub.Listing): ListData {
   if (ub.isList(listing)) {
+    // This is a List (with sub-items)
     return {
       type: listing.list.type,
       content: convertInlineContent(listing.list.contents),
       children: listing.list.items.map(convertListing),
     };
   } else {
+    // This is a ListItem (leaf node)
     return {
       content: convertInlineContent(listing.item),
+      children: [], // Explicitly set empty children for leaf nodes
     };
   }
 }
