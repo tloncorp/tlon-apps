@@ -1,14 +1,12 @@
 import * as db from '@tloncorp/shared/db';
-import { Icon } from '@tloncorp/ui';
+import { Button, Icon, Text } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Input, XStack, getTokenValue, useTheme } from 'tamagui';
-import { Button } from '@tloncorp/ui';
 
 import { constructStory } from '@tloncorp/shared/urbit/channel';
 import { createDevLogger, tiptap } from '@tloncorp/shared';
@@ -546,25 +544,51 @@ export function BigInput({
       {channelType === 'notebook' && editorRef.current?.editor && isEditorFocused && (
         <>
           {showFormatMenu && (
-            <View style={{
-              position: 'absolute',
-              top: 300,
-              right: 64,
-              zIndex: 1000,
-              borderRadius: 100,
-              overflow: 'hidden',
-              borderColor: theme.border.val,
-              borderWidth: 1,
-              width: 310,
-            }}>
-              <InputToolbar editor={editorRef.current?.editor} hidden={false} />
+            <View 
+              style={{
+                position: 'absolute',
+                top: 300,
+                right: 64,
+                zIndex: 1000,
+                width: 310,
+                elevation: 5,
+                shadowColor: theme.primaryText.val,
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                backgroundColor: theme.background.val,
+                borderColor: theme.border.val,
+                borderWidth: 1,
+                borderRadius: getTokenValue('$l', 'radius')
+              }}
+              
+            >
+              <InputToolbar 
+                editor={editorRef.current?.editor} 
+                hidden={false} 
+                style={{
+                  borderWidth: 0,
+                  borderTopWidth: 0,
+                  borderBottomWidth: 0,
+                  borderRadius: getTokenValue('$l', 'radius'),
+                  backgroundColor: theme.background.val,
+                }}
+              />
             </View>
           )}
           <Button
-            position="absolute"
-            top={300}
-            right={16}
-            borderRadius="$4xl"
+            style={{
+              position: 'absolute',
+              top: 300,
+              right: 16,
+              zIndex: 200,
+              backgroundColor: theme.background.val,
+              elevation: 5,
+              shadowColor: theme.primaryText.val,
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+            }}
             onPress={() => setShowFormatMenu(!showFormatMenu)}
           >
             {showFormatMenu ? (
