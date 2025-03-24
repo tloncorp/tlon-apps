@@ -6,7 +6,8 @@
   },
   "build": {
     "base": {
-      "pnpm": "9.0.5"
+      "pnpm": "9.0.5",
+      "node": "20.11.0"
     },
     "preview": {
       "extends": "base",
@@ -28,7 +29,6 @@
     "production": {
       "extends": "base",
       "channel": "production",
-      "node": "20.11.0",
       "autoIncrement": true,
       "env": {
         "NOTIFY_PROVIDER": "rivfur-livmet",

@@ -1,7 +1,7 @@
 {
   "name": "tlon-desktop",
   "author": "Tlon Corporation",
-  "version": "0.1.9.6",
+  "version": "0.1.11",
   "description": "Tlon Messenger",
   "main": "build/main/index.js",
   "private": true,
