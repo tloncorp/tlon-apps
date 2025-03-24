@@ -1,6 +1,7 @@
 import { PropsWithChildren } from 'react';
 import {
   ColorTokens,
+  GetThemeValueForKey,
   RadiusTokens,
   SizeTokens,
   ThemeTokens,
@@ -9,8 +10,7 @@ import {
 
 import { Button } from './Button';
 
-export type IconButtonProps = {
-  children: React.ReactNode;
+export type IconButtonProps = PropsWithChildren<{
   onPress?: () => void;
   size?: SizeTokens;
   color?: ThemeTokens | ColorTokens;
@@ -21,8 +21,9 @@ export type IconButtonProps = {
   style?: any;
   pressStyle?: any;
   borderWidth?: any;
-  width?: SizeTokens | string;
-};
+  width?: SizeTokens | string | number;
+  [key: string]: any;
+}>;
 
 export function IconButton({
   children,
@@ -37,8 +38,16 @@ export function IconButton({
   pressStyle,
   borderWidth = 'unset',
   width,
+  ...rest
 }: IconButtonProps) {
   const theme = useTheme();
+
+  // Process special props
+  const resolvedWidth =
+    typeof width === 'string' && width.startsWith('$')
+      ? theme[width]?.val
+      : width;
+
   return (
     <Button
       size={size}
@@ -46,15 +55,14 @@ export function IconButton({
       disabled={disabled}
       borderRadius={radius}
       style={style}
-      width={width}
+      width={resolvedWidth}
       pressStyle={{
         backgroundColor: theme[backgroundColorOnPress]?.get(),
         ...pressStyle,
       }}
       backgroundColor={theme[backgroundColor]?.get()}
-      // borderWidth="unset" because otherwise it would be set to 1px
-      // and we don't want that for an icon button
       borderWidth={borderWidth}
+      {...rest}
     >
       <Button.Icon color={theme[color]?.get()}>{children}</Button.Icon>
     </Button>
