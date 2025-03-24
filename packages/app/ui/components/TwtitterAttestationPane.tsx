@@ -80,7 +80,6 @@ function ConfirmTwitterPane(props: {
   const reqTracker = useTrackAttestConfirmation(props.attestation);
   useEffect(() => {
     async function runEffect() {
-      console.log(`bl: confirming twitter`);
       const result = await api.fetchTwitterConfirmPayload(
         props.attestation.value!
       );

@@ -53,7 +53,6 @@ interface QueryResponse {
   query: { result: { valid: boolean; live: boolean } };
 }
 export async function checkAttestedSignature(signData: string) {
-  console.log(`checking signature`, signData);
   const nonce = Math.floor(Math.random() * 1000000);
   const encodedNonce = formatUv(BigInt(nonce));
 
@@ -131,8 +130,6 @@ function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {
       },
     ])(a.tail);
 
-    console.log(`bl: parsed sign`, sign);
-
     const id = parseAttestationId({ provider, type, value, contactId });
     const provingTweetId =
       sign?.signType === 'full' ? sign.proofTweetId ?? null : null;
@@ -167,7 +164,6 @@ export function parseAttestationId(attest: {
 
 function getProof(noun: Noun) {
   if (!(noun instanceof Cell)) {
-    console.log('no good!', noun);
     throw new Error('malformed proof bundle, not a cell');
   }
 
@@ -187,7 +183,6 @@ export async function fetchTwitterConfirmPayload(handle: string) {
   });
 
   const parsed = getProof(result);
-  console.log(`bl: we parsed the thing`, parsed);
   return parsed;
 }
 
@@ -295,19 +290,13 @@ export async function confirmTwitterAttestation(
   const identifier = ['twitter', twitterHandle];
   const work = ['twitter', 'post', postId];
   const payload = [null, ['work', identifier, work]];
-  logger.log('confirmTwitterAttestation', payload);
+
   const noun = dwim(payload);
-  console.log(`bl: poking for twitter confirm`, {
-    noun,
-    twitterHandle,
-    postId,
-  });
-  // await pokeNoun({ app: 'lanyard', mark: 'lanyard-command', noun });
   await trackedPokeNoun(
     { app: 'lanyard', mark: 'lanyard-command', noun },
     { app: 'lanyard', path: '/records' },
     (event: any) => {
-      console.log('bl: got SUB event', event);
+      // TODO
       return true;
     }
   );
@@ -332,14 +321,11 @@ export async function confirmPhoneAttestation(
   const work = ['phone', otp];
   const payload = [null, ['work', identifier, work]];
   logger.log('confirmPhoneAttestation', payload);
+
   const noun = dwim(payload);
-  console.log(`bl: poking for phone confirm`, {
-    noun,
-    phoneNumber,
-    otp,
-  });
+  // TODO: track the poke
   await pokeNoun({ app: 'lanyard', mark: 'lanyard-command', noun });
-  logger.log('confirmTwitterAttestation poke success');
+
   return;
 }
 
@@ -356,7 +342,6 @@ export async function revokeAttestation(params: {
     { app: 'lanyard', mark: 'lanyard-command', noun },
     { app: 'lanyard', path: '/records' },
     (event: ub.RecordStatusEvent) => {
-      console.log('bl: got REVOKE SUB event', event);
       if (event.status.value !== params.value.toLowerCase()) {
         return false;
       }

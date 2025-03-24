@@ -85,20 +85,10 @@ export function getHeadTaggedAttestation(noun: Noun): Noun {
   ==
 */
 export function parseAttestation(noun: Noun, userId: string) {
-  // console.log(`parse attestation`, noun.toString());
-  // const fullSigned =
-  // const headTagged = getHeadTaggedAttestation(noun);
-  // const attestation = getFrondValue<Sign>([
-  //   { tag: 'half', get: _.partial(parseHalfSign, userId) },
-  //   { tag: 'full', get: _.partial(parseFullSign, userId) },
-  // ])(headTagged);
-
   const fullSignedData = noun.at(Atom.fromInt(30)) as Noun | null;
   if (!fullSignedData) {
     throw new Error('Bad attestation: could not find full signed data');
   }
-
-  // console.log(`bl: parsing full sign`, fullSignedData.toString());
 
   return parseSignedData(fullSignedData, userId);
 }
