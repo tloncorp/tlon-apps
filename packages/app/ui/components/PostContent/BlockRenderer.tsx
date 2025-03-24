@@ -102,7 +102,7 @@ export const LineRenderer = memo(function LineRendererComponent({
   ...props
 }: {
   inlines: cn.InlineData[];
-  color?: ColorTokens;
+  color?: string;
   trimmed?: boolean;
 } & ComponentProps<typeof TextContent>) {
   return (
@@ -301,7 +301,7 @@ export function BlockquoteBlock({
   return (
     <YStack paddingLeft="$l" {...props}>
       <BlockquoteSideBorder />
-      <LineRenderer inlines={block.content} color="$tertiaryText" />
+      <LineRenderer inlines={block.content} color={'$tertiaryText' as any} />
     </YStack>
   );
 }
