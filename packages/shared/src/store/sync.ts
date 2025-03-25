@@ -367,6 +367,7 @@ export async function syncThreadPosts(
       channelId,
     })
   );
+  logger.log('got thread posts from api', response);
   await db.insertChannelPosts({
     channelId,
     posts: [response, ...(response.replies ?? [])],
