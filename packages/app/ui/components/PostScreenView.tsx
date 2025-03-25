@@ -585,6 +585,7 @@ function CarouselPostScreenContent({
     cursor: initialPostId,
     firstPageCount: 50,
     disableUnconfirmedPosts: true,
+    filterDeleted: true,
   });
   const { data: channel } = store.useChannel({ id: channelId });
 
