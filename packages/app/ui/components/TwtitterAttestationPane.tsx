@@ -1,13 +1,12 @@
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
+import { LoadingSpinner, Text } from '@tloncorp/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Keyboard, Platform, TouchableWithoutFeedback } from 'react-native';
 import { View, YStack } from 'tamagui';
 
-import { LoadingSpinner } from '../../../ui/src/components/LoadingSpinner';
-import { Text } from '../../../ui/src/components/TextV2';
 import { useStore } from '../contexts';
 import { AttestationPane } from './AttestationPane';
 import { PrimaryButton } from './Buttons';
