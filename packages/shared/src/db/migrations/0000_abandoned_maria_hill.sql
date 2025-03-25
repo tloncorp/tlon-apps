@@ -3,7 +3,7 @@ CREATE TABLE `activity_event_contact_group_pins` (
 	`group_id` text NOT NULL,
 	PRIMARY KEY(`activity_event_id`, `group_id`),
 	FOREIGN KEY (`activity_event_id`) REFERENCES `activity_events`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `activity_events` (
@@ -26,6 +26,14 @@ CREATE TABLE `activity_events` (
 	`contact_update_type` text,
 	`contact_update_value` text,
 	PRIMARY KEY(`id`, `bucket_id`)
+);
+--> statement-breakpoint
+CREATE TABLE `base_unreads` (
+	`id` text PRIMARY KEY DEFAULT 'base_unreads' NOT NULL,
+	`notify` integer,
+	`count` integer,
+	`notify_count` integer,
+	`updated_at` integer NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE `channel_readers` (
@@ -95,8 +103,7 @@ CREATE TABLE `group_members` (
 	`contact_id` text NOT NULL,
 	`joined_at` integer,
 	`status` text,
-	PRIMARY KEY(`chat_id`, `contact_id`),
-	FOREIGN KEY (`chat_id`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE cascade
+	PRIMARY KEY(`chat_id`, `contact_id`)
 );
 --> statement-breakpoint
 CREATE TABLE `contact_attestations` (
@@ -104,7 +111,7 @@ CREATE TABLE `contact_attestations` (
 	`attestation_id` text NOT NULL,
 	PRIMARY KEY(`contact_id`, `attestation_id`),
 	FOREIGN KEY (`contact_id`) REFERENCES `contacts`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`attestation_id`) REFERENCES `verifications`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`attestation_id`) REFERENCES `verifications`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `contact_group_pins` (
@@ -112,7 +119,7 @@ CREATE TABLE `contact_group_pins` (
 	`group_id` text NOT NULL,
 	PRIMARY KEY(`contact_id`, `group_id`),
 	FOREIGN KEY (`contact_id`) REFERENCES `contacts`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `contacts` (
@@ -174,8 +181,8 @@ CREATE TABLE `group_nav_section_channels` (
 	`channel_id` text,
 	`channel_index` integer,
 	PRIMARY KEY(`group_nav_section_id`, `channel_id`),
-	FOREIGN KEY (`group_nav_section_id`) REFERENCES `group_nav_sections`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`channel_id`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`group_nav_section_id`) REFERENCES `group_nav_sections`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`channel_id`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `group_nav_sections` (
@@ -256,7 +263,7 @@ CREATE TABLE `post_images` (
 	`width` integer,
 	`height` integer,
 	PRIMARY KEY(`post_id`, `src`),
-	FOREIGN KEY (`post_id`) REFERENCES `posts`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`post_id`) REFERENCES `posts`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `post_reactions` (
@@ -264,7 +271,7 @@ CREATE TABLE `post_reactions` (
 	`post_id` text NOT NULL,
 	`value` text NOT NULL,
 	PRIMARY KEY(`contact_id`, `post_id`),
-	FOREIGN KEY (`post_id`) REFERENCES `posts`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`post_id`) REFERENCES `posts`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `post_windows` (
@@ -317,7 +324,7 @@ CREATE UNIQUE INDEX `cache_id` ON `posts` (`author_id`,`sent_at`);--> statement-
 CREATE INDEX `posts_channel_id` ON `posts` (`channel_id`,`id`);--> statement-breakpoint
 CREATE INDEX `posts_group_id` ON `posts` (`group_id`,`id`);--> statement-breakpoint
 CREATE TABLE `settings` (
-	`user_id` text PRIMARY KEY NOT NULL,
+	`id` text PRIMARY KEY DEFAULT 'settings' NOT NULL,
 	`theme` text,
 	`disable_app_tile_unreads` integer,
 	`disable_avatars` integer,

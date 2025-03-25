@@ -49,12 +49,19 @@ export type LinkInlineData = {
   text: string;
 };
 
+export type TaskInlineData = {
+  type: 'task';
+  checked: boolean;
+  children: InlineData[];
+};
+
 export type InlineData =
   | StyleInlineData
   | TextInlineData
   | MentionInlineData
   | LineBreakInlineData
-  | LinkInlineData;
+  | LinkInlineData
+  | TaskInlineData;
 
 export type InlineType = InlineData['type'];
 
@@ -287,18 +294,18 @@ function extractEmbedsFromInlines(inlines: ub.Inline[]): BlockData[] {
     if (currentSegment.length > 0) {
       // Check if segment only contains whitespace
       const isOnlyWhitespace = currentSegment.every(
-        item => typeof item === 'string' && item.trim() === ''
+        (item) => typeof item === 'string' && item.trim() === ''
       );
-      
+
       // Only create a paragraph if there's actual content
       if (!isOnlyWhitespace) {
         const convertedInlines = convertInlineContent(currentSegment);
-        
+
         // Filter out empty text nodes or text nodes with only whitespace
         const filteredInlines = convertedInlines.filter(
-          inline => !(inline.type === 'text' && inline.text.trim() === '')
+          (inline) => !(inline.type === 'text' && inline.text.trim() === '')
         );
-        
+
         if (filteredInlines.length) {
           blocks.push({
             type: 'paragraph',
@@ -313,10 +320,10 @@ function extractEmbedsFromInlines(inlines: ub.Inline[]): BlockData[] {
   for (const inline of inlines) {
     // Check if this is a link that matches any of our trusted providers
     if (ub.isLink(inline)) {
-      const isTrustedEmbed = trustedProviders.some(provider => 
+      const isTrustedEmbed = trustedProviders.some((provider) =>
         provider.regex.test(inline.link.href)
       );
-      
+
       if (isTrustedEmbed) {
         // Flush the current segment before adding the embed
         flushSegment();
@@ -449,6 +456,12 @@ function convertInlineContent(inlines: ub.Inline[]): InlineData[] {
       nodes.push({
         type: 'mention',
         contactId: inline.ship,
+      });
+    } else if (ub.isTask(inline)) {
+      nodes.push({
+        type: 'task',
+        checked: inline.task.checked,
+        children: convertInlineContent(inline.task.content),
       });
     } else {
       console.warn('Unhandled inline type:', { inline });
