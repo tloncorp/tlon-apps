@@ -234,7 +234,6 @@ const testGroupData: db.Group = {
 test('sync posts', async () => {
   const channelId = 'chat/~solfer-magfed/test-channel';
   setScryOutputs([rawNewestPostData, rawAfterNewestPostData]);
-  await db.insertChannels([{ id: channelId, type: 'chat' }]);
   await syncPosts({
     channelId,
     count: 1,
@@ -299,9 +298,8 @@ test('syncs last posts', async () => {
   const NUM_EMPTY_TEST_GROUPS = 6;
   // now that channels are included by default, we need to account for them
   const NUM_EMPTY_TEST_CHANNELS = 8;
-  console.log('unpinned chats', chats.unpinned.length);
+  console.log(chats.unpinned.length);
   console.log(
-    'unpinned chats types',
     chats.unpinned.map((c) => [
       c.type,
       'channel' in c ? c.channel?.type : undefined,
@@ -319,7 +317,6 @@ test('syncs last posts', async () => {
 
 test('syncs thread posts', async () => {
   setScryOutput(channelPostWithRepliesData);
-  await db.insertChannels([{ id: channelId, type: 'chat' }]);
   await syncThreadPosts({
     postId: channelPostWithRepliesData.seal.id,
     authorId: channelPostWithRepliesData.essay.author,

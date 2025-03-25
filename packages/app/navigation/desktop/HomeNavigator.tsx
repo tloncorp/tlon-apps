@@ -44,12 +44,13 @@ export const HomeNavigator = () => {
         const state = navigation.getState();
         const routes = state.routes[state.index].state?.routes;
         const currentScreen = routes?.[routes.length - 1];
+        const isImageViewer = currentScreen?.name === 'ImageViewer';
 
         return {
           drawerType: 'permanent',
           headerShown: false,
           drawerStyle: {
-            width: DESKTOP_SIDEBAR_WIDTH,
+            width: isImageViewer ? 0 : DESKTOP_SIDEBAR_WIDTH,
             backgroundColor,
             borderRightColor: borderColor,
           },

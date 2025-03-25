@@ -30,7 +30,6 @@ const Drawer = createDrawerNavigator<RootDrawerParamList>();
 
 const DrawerContent = (props: DrawerContentComponentProps) => {
   const userId = useCurrentUserId();
-  // const { data: baseUnread } = store.useBaseUnread();
   const haveUnreadUnseenActivity = store.useHaveUnreadUnseenActivity();
   const { webAppNeedsUpdate, triggerWebAppUpdate } = useWebAppUpdate();
   const lastHomeStateRef =

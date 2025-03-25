@@ -73,7 +73,6 @@ export function ChannelListItem({
         onPress={handlePress}
         onLongPress={isWeb ? undefined : handleLongPress}
         backgroundColor={isFocused ? '$secondaryBackground' : undefined}
-        hoverStyle={{ backgroundColor: '$border' }}
       >
         <ListItem {...props}>
           <ListItem.ChannelIcon

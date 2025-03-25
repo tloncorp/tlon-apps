@@ -49,7 +49,6 @@ import {
 import {
   activityEventContactGroups as $activityEventContactGroups,
   activityEvents as $activityEvents,
-  baseUnreads as $baseUnreads,
   channelReaders as $channelReaders,
   channelUnreads as $channelUnreads,
   channelWriters as $channelWriters,
@@ -77,14 +76,12 @@ import {
   threadUnreads as $threadUnreads,
   verifications as $verifications,
   volumeSettings as $volumeSettings,
-  BASE_UNREADS_SINGLETON_KEY,
   SETTINGS_SINGLETON_KEY,
   channels,
 } from './schema';
 import {
   ActivityBucket,
   ActivityEvent,
-  BaseUnread,
   Channel,
   ChannelUnread,
   Chat,
@@ -609,17 +606,7 @@ export const insertGroups = createWriteQuery(
   ) => {
     return withTransactionCtx(ctx, async (txCtx) => {
       if (groups.length === 0) return;
-      logger.log(
-        'insertGroups: attempting to insert',
-        groups.map((g) => g.id)
-      );
-      const currentGroups = await txCtx.db.query.groups.findMany();
-      logger.log(
-        'insertGroups: existing groups',
-        currentGroups.map((g) => g.id)
-      );
       for (const group of groups) {
-        logger.log('insertGroups: inserting group', group.id);
         if (overWrite) {
           await txCtx.db
             .insert($groups)
@@ -648,7 +635,6 @@ export const insertGroups = createWriteQuery(
             group.channels.map((c) => ({
               id: c.id,
               readerRoles: c.readerRoles,
-              group: c.groupId,
             }))
           );
 
@@ -678,7 +664,6 @@ export const insertGroups = createWriteQuery(
             .filter(
               (id) => group.channels?.find((c) => c.id === id) === undefined
             );
-          logger.log('insertGroups: deleting channels', toDelete);
           await txCtx.db
             .delete($channels)
             .where(inArray($channels.id, toDelete));
@@ -703,17 +688,12 @@ export const insertGroups = createWriteQuery(
           logger.log('insertGroups: finished inserting channels');
         }
         if (group.flaggedPosts?.length) {
-          logger.log(
-            'insertGroups: inserting flagged posts',
-            group.flaggedPosts
-          );
           await txCtx.db
             .insert($groupFlaggedPosts)
             .values(group.flaggedPosts)
             .onConflictDoNothing();
         }
         if (group.navSections?.length) {
-          logger.log('insertGroups: inserting nav sections', group.navSections);
           await txCtx.db
             .insert($groupNavSections)
             .values(
@@ -753,7 +733,6 @@ export const insertGroups = createWriteQuery(
           }
         }
         if (group.roles?.length) {
-          logger.log('insertGroups: inserting roles', group.roles);
           await txCtx.db
             .insert($groupRoles)
             .values(group.roles)
@@ -769,7 +748,6 @@ export const insertGroups = createWriteQuery(
             });
         }
         if (group.members?.length) {
-          logger.log('insertGroups: inserting members', group.members);
           await txCtx.db
             .insert($chatMembers)
             .values(group.members)
@@ -792,7 +770,6 @@ export const insertGroups = createWriteQuery(
             });
           });
           if (memberRoles.length) {
-            logger.log('insertGroups: inserting member roles', memberRoles);
             await txCtx.db
               .insert($chatMemberGroupRoles)
               .values(memberRoles)
@@ -801,7 +778,6 @@ export const insertGroups = createWriteQuery(
         }
 
         if (group.bannedMembers?.length) {
-          logger.log('insertGroups: inserting bans', group.bannedMembers);
           await txCtx.db
             .insert($groupMemberBans)
             .values(
@@ -814,10 +790,6 @@ export const insertGroups = createWriteQuery(
         }
 
         if (group.joinRequests?.length) {
-          logger.log(
-            'insertGroups: inserting join requests',
-            group.joinRequests
-          );
           await txCtx.db
             .insert($groupJoinRequests)
             .values(
@@ -1607,16 +1579,6 @@ export const getGroupUnread = createReadQuery(
   ['groupUnreads']
 );
 
-export const getBaseUnread = createReadQuery(
-  'getBaseUnread',
-  async (ctx: QueryCtx) => {
-    return ctx.db.query.baseUnreads.findFirst({
-      where: eq($baseUnreads.id, BASE_UNREADS_SINGLETON_KEY),
-    });
-  },
-  ['baseUnreads']
-);
-
 export const getThreadActivity = createReadQuery(
   'getThreadActivity',
   async (
@@ -1752,7 +1714,6 @@ export const insertChannels = createWriteQuery(
         });
 
       for (const channel of channels) {
-        logger.log('insertChannels: members', channel.id, channel.members);
         if (channel.members && channel.members.length > 0) {
           await txCtx.db
             .delete($chatMembers)
@@ -2439,16 +2400,11 @@ export const insertChannelPosts = createWriteQuery(
       return;
     }
     return withTransactionCtx(ctx, async (txCtx) => {
-      logger.log(
-        'inserting posts',
-        posts.map((p) => p.id)
-      );
       await insertPosts(posts, txCtx);
       logger.log('inserted posts');
       // If these are non-reply posts, update group + channel last post as well as post windows.
       const topLevelPosts = posts.filter((p) => p.type !== 'reply');
       if (topLevelPosts.length) {
-        logger.log('updating post windows');
         await updatePostWindows(
           {
             channelId,
@@ -2472,10 +2428,6 @@ export const insertLatestPosts = createWriteQuery(
       return;
     }
     return withTransactionCtx(ctx, async (txCtx) => {
-      logger.log(
-        'inserting latest posts to',
-        posts.map((p) => p.channelId)
-      );
       await insertPosts(posts, txCtx);
       const postUpdates = posts.map((post) => ({
         channelId: post.channelId,
@@ -2523,10 +2475,6 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
         posts.map((p) => p.id)
       ),
     });
-    logger.log(
-      'checking for existing posts',
-      existing.map((p) => p.id)
-    );
     if (existing.length === 0) {
       return;
     }
@@ -2555,10 +2503,6 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
     );
   })();
 
-  logger.log(
-    'inserting post batch',
-    posts.map((p) => [p.id, p.channelId])
-  );
   await ctx.db
     .insert($posts)
     .values(
@@ -2579,7 +2523,6 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
   const reactions = posts
     .filter((p) => p.reactions && p.reactions.length > 0)
     .flatMap((p) => p.reactions) as Reaction[];
-  logger.log('inserting post reactions', reactions);
   if (reactions.length) {
     await ctx.db
       .insert($postReactions)
@@ -2772,12 +2715,6 @@ async function updatePostWindows(
       .where(overlapsWindow(referenceWindow))
   )[0];
 
-  logger.log(
-    'deleting intersecting windows',
-    referenceWindow,
-    oldestId,
-    newestId
-  );
   // Delete intersecting windows.
   await ctx.db.delete($postWindows).where(overlapsWindow(referenceWindow));
 
@@ -2794,7 +2731,6 @@ async function updatePostWindows(
     newestPostId: resolvedEnd,
   };
 
-  logger.log('inserting final window', finalWindow);
   // Insert final window.
   await ctx.db.insert($postWindows).values(finalWindow);
 }
@@ -3445,18 +3381,6 @@ export const insertGroupUnreads = createWriteQuery(
   ['groupUnreads']
 );
 
-export const insertBaseUnread = createWriteQuery(
-  'insertBaseUnread',
-  async (unread: BaseUnread, ctx: QueryCtx) => {
-    logger.log('insertBaseUnread', unread);
-    return ctx.db.insert($baseUnreads).values([unread]).onConflictDoUpdate({
-      target: $baseUnreads.id,
-      set: unread,
-    });
-  },
-  ['baseUnreads']
-);
-
 export const updateGroupUnreadCount = createWriteQuery(
   'updateGroupUnreadCount',
   async (
@@ -3496,7 +3420,7 @@ export const insertChannelUnreads = createWriteQuery(
   async (unreads: ChannelUnread[], ctx: QueryCtx) => {
     if (!unreads.length) return;
 
-    logger.log('insertChannelUnreads', unreads.length);
+    logger.log('insertChannelUnreads', unreads.length, unreads);
     return withTransactionCtx(ctx, async (txCtx) => {
       await txCtx.db
         .insert($channelUnreads)

@@ -11,7 +11,6 @@ import {
   LinkInlineData,
   MentionInlineData,
   StyleInlineData,
-  TaskInlineData,
   TextInlineData,
 } from './contentUtils';
 
@@ -115,17 +114,6 @@ export function InlineLink({ inline: node }: { inline: LinkInlineData }) {
   );
 }
 
-export function InlineTask({ inline: node }: { inline: TaskInlineData }) {
-  return (
-    <Text>
-      {node.checked ? '☑' : '☐'}{' '}
-      {node.children.map((child, i) => (
-        <InlineRenderer inline={child} key={i} />
-      ))}
-    </Text>
-  );
-}
-
 export type InlineRenderer<T extends InlineData> = React.ComponentType<{
   inline: T;
   color?: ColorTokens;
@@ -141,7 +129,6 @@ export const defaultInlineRenderers: InlineRendererConfig = {
   mention: InlineMention,
   lineBreak: InlineLineBreak,
   link: InlineLink,
-  task: InlineTask,
 };
 
 const InlineRendererContext = React.createContext<

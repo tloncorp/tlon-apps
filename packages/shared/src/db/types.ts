@@ -40,7 +40,6 @@ export type Contact = BaseModel<'contacts'> & {
 export type ContactPinnedGroups = Contact['pinnedGroups'];
 export type ChannelUnread = BaseModel<'channelUnreads'>;
 export type GroupUnread = BaseModel<'groupUnreads'>;
-export type BaseUnread = BaseModel<'baseUnreads'>;
 export type ActivityEvent = BaseModel<'activityEvents'>;
 export type ActivityEventContactUpdateGroups =
   ActivityEvent['contactUpdateGroups'];
