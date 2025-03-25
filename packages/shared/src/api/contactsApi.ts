@@ -305,35 +305,75 @@ function parseContactAttestations(
 
       // TODO: check contactId matches signed data
 
-      if (!sign) {
-        return null;
+      if (sign) {
+        const providerVerificationUrl =
+          contact['lanyard-twitter-0-url']?.value ?? null;
+        const provider = '~zod'; // TODO: can we get this info?
+        const type = sign.type;
+        const value = sign.signType === 'full' ? sign.value : '';
+        const id = parseAttestationId({ provider, type, value, contactId });
+        const provingTweetId =
+          sign.signType === 'full' ? sign.proofTweetId ?? null : null;
+
+        attestations.push({
+          id,
+          provider,
+          type,
+          value,
+          contactId,
+          initiatedAt: sign.when,
+          visibility: sign.signType === 'full' ? 'public' : 'discoverable',
+          status: 'verified',
+          providerVerificationUrl,
+          provingTweetId,
+          signature: sign.signature,
+        });
       }
-
-      const providerVerificationUrl =
-        contact['lanyard-twitter-0-url']?.value ?? null;
-      const provider = '~zod'; // TODO: can we get this info?
-      const type = sign.type;
-      const value = sign.signType === 'full' ? sign.value : '';
-      const id = parseAttestationId({ provider, type, value, contactId });
-      const provingTweetId =
-        sign.signType === 'full' ? sign.proofTweetId ?? null : null;
-
-      attestations.push({
-        id,
-        provider,
-        type,
-        value,
-        contactId,
-        initiatedAt: sign.when,
-        visibility: sign.signType === 'full' ? 'public' : 'discoverable',
-        status: 'verified',
-        providerVerificationUrl,
-        provingTweetId,
-        signature: sign.signature,
-      });
     } catch (e) {
-      console.error(`failed to parse sign`, e);
+      console.error(`failed to contact twitter attestation`, e);
     }
+  }
+
+  if (
+    contact['lanyard-phone-0-sign'] &&
+    contact['lanyard-phone-0-sign'].value
+  ) {
+    try {
+      const sign = NounParsers.parseSigned(
+        contact['lanyard-phone-0-sign'].value
+      );
+
+      if (sign) {
+        const providerVerificationUrl =
+          contact['lanyard-twitter-0-url']?.value ?? null;
+        const provider = '~zod'; // TODO: can we get this info?
+        const type = sign.type;
+        const value = sign.signType === 'full' ? sign.value : '';
+        const id = parseAttestationId({ provider, type, value, contactId });
+        const provingTweetId =
+          sign.signType === 'full' ? sign.proofTweetId ?? null : null;
+
+        attestations.push({
+          id,
+          provider,
+          type,
+          value,
+          contactId,
+          initiatedAt: sign.when,
+          visibility: sign.signType === 'full' ? 'public' : 'discoverable',
+          status: 'verified',
+          providerVerificationUrl,
+          provingTweetId,
+          signature: sign.signature,
+        });
+      }
+    } catch (e) {
+      console.error(`failed to parse contact phone attestation`, e);
+    }
+  }
+
+  if (attestations.length === 0) {
+    return null;
   }
 
   return attestations.map((a) => ({

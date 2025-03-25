@@ -1,14 +1,5 @@
 import { daToUnix, parseUw, patp } from '@urbit/aura';
-import {
-  Atom,
-  Cell,
-  Noun,
-  cue,
-  dwim,
-  enjs,
-  experimental as ex,
-  jam,
-} from '@urbit/nockjs';
+import { Atom, Cell, Noun, cue, dwim, enjs, jam } from '@urbit/nockjs';
 import _ from 'lodash';
 
 import * as db from '../db';
