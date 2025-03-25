@@ -162,7 +162,7 @@ export function parseAttestationId(attest: {
   return simpleHash(attestKey);
 }
 
-function getProof(noun: Noun) {
+function parseTwitterBundle(noun: Noun) {
   if (!(noun instanceof Cell)) {
     throw new Error('malformed proof bundle, not a cell');
   }
@@ -182,7 +182,7 @@ export async function fetchTwitterConfirmPayload(handle: string) {
     path: `/v1/proof/twitter/bundle/${stringToTa(handle)}`,
   });
 
-  const parsed = getProof(result);
+  const parsed = parseTwitterBundle(result);
   return parsed;
 }
 
@@ -208,17 +208,21 @@ export async function initiateTwitterAttestation(twitterHandle: string) {
   logger.log('initiateTwitterAttestation', payload);
   const noun = dwim(payload);
 
-  let errorMessage = null;
+  let errorCode: LanyardErrorCode | null = null;
   await trackedPokeNoun(
     { app: 'lanyard', mark: 'lanyard-command', noun },
     { app: 'lanyard', path: '/records' },
     (event: ub.RecordStatusEvent) => {
-      if (event.status.value !== twitterHandle.toLowerCase()) {
+      if (event.status?.value !== twitterHandle.toLowerCase()) {
         return false;
       }
 
       if (event.status.status === 'gone') {
-        errorMessage = event.status.why;
+        if (event.status.why.includes('already registered')) {
+          errorCode = LanyardErrorCode.ALREADY_REGISTERED;
+        } else {
+          errorCode = LanyardErrorCode.UNKNOWN;
+        }
         return true;
       }
 
@@ -230,12 +234,9 @@ export async function initiateTwitterAttestation(twitterHandle: string) {
     }
   );
 
-  if (errorMessage) {
-    throw new Error(errorMessage);
+  if (errorCode) {
+    throw new LanyardError({ errorCode });
   }
-
-  console.log(`tracked poke completed without error`);
-  return;
 }
 
 export async function updateAttestationVisibility({
@@ -283,6 +284,28 @@ export async function updateAttestationVisibility({
   );
 }
 
+export enum LanyardErrorCode {
+  ALREADY_REGISTERED = 'VALUE_ALREADY_REGISTERED',
+
+  TWITTER_TWEET_NOT_FOUND = 'TWITTER_TWEET_NOT_FOUND',
+  TWITTER_TWEET_PROTECTED = 'TWITTER_TWEET_PROTECTED',
+  TWITTER_BAD_TWEET = 'TWITTER_BAD_TWEET',
+
+  PHONE_BAD_OTP = 'PHONE_BAD_OTP',
+
+  UNKNOWN = 'UNKNOWN',
+}
+export class LanyardError extends Error {
+  public errorCode: LanyardErrorCode;
+
+  constructor({ errorCode }: { errorCode: LanyardErrorCode }) {
+    super(errorCode);
+    this.name = 'LanyardError';
+    this.errorCode = errorCode;
+  }
+}
+
+const BAD_CONFIRM_ERROR = 'tweet rejected';
 export async function confirmTwitterAttestation(
   twitterHandle: string,
   postId: string
@@ -292,25 +315,78 @@ export async function confirmTwitterAttestation(
   const payload = [null, ['work', identifier, work]];
 
   const noun = dwim(payload);
+  let errorCode: LanyardErrorCode | null = null;
   await trackedPokeNoun(
     { app: 'lanyard', mark: 'lanyard-command', noun },
     { app: 'lanyard', path: '/records' },
-    (event: any) => {
-      // TODO
-      return true;
+    (event: ub.RecordStatusEvent) => {
+      console.log(`bl: got event!`, event);
+
+      if (event.status?.value !== twitterHandle.toLowerCase()) {
+        return false;
+      }
+
+      const why = event.status.why ?? '';
+      if (why.includes(BAD_CONFIRM_ERROR)) {
+        if (why.includes('protected')) {
+          errorCode = LanyardErrorCode.TWITTER_TWEET_PROTECTED;
+        } else if (why.includes('not-found')) {
+          errorCode = LanyardErrorCode.TWITTER_TWEET_NOT_FOUND;
+        } else if (why.includes('bad-tweet') || why.includes('bad-handle')) {
+          errorCode = LanyardErrorCode.TWITTER_BAD_TWEET;
+        } else {
+          errorCode = LanyardErrorCode.UNKNOWN;
+        }
+        return true;
+      }
+
+      if (event.status.status === 'verified') {
+        return true;
+      }
+
+      return false;
     }
   );
-  logger.log('confirmTwitterAttestation poke success');
-  return;
+
+  if (errorCode) {
+    throw new LanyardError({ errorCode });
+  }
 }
 
 export async function initiatePhoneAttestation(phoneNumber: string) {
   const payload = [null, ['start', ['phone', phoneNumber]]];
-  logger.log('initiatePhoneAttestation', payload);
   const noun = dwim(payload);
-  await pokeNoun({ app: 'lanyard', mark: 'lanyard-command', noun });
-  logger.log('initiatePhoneAttestation poke success');
-  return;
+
+  let errorCode: LanyardErrorCode | null = null;
+  trackedPokeNoun(
+    { app: 'lanyard', mark: 'lanyard-command', noun },
+    { app: 'lanyard', path: '/records' },
+    (event: ub.RecordStatusEvent) => {
+      console.log(`got phone start event`, event);
+      if (event.status?.value !== phoneNumber) {
+        return false;
+      }
+
+      if (event.status.status === 'gone') {
+        if (event.status.why.includes('already registered')) {
+          errorCode = LanyardErrorCode.ALREADY_REGISTERED;
+        } else {
+          errorCode = LanyardErrorCode.UNKNOWN;
+        }
+        return true;
+      }
+
+      if (event.status.status === 'pending') {
+        return true;
+      }
+
+      return false;
+    }
+  );
+
+  if (errorCode) {
+    throw new LanyardError({ errorCode });
+  }
 }
 
 export async function confirmPhoneAttestation(
@@ -320,13 +396,36 @@ export async function confirmPhoneAttestation(
   const identifier = ['phone', phoneNumber];
   const work = ['phone', otp];
   const payload = [null, ['work', identifier, work]];
-  logger.log('confirmPhoneAttestation', payload);
 
   const noun = dwim(payload);
-  // TODO: track the poke
-  await pokeNoun({ app: 'lanyard', mark: 'lanyard-command', noun });
+  let errorCode: LanyardErrorCode | null = null;
+  await trackedPokeNoun(
+    { app: 'lanyard', mark: 'lanyard-command', noun },
+    { app: 'lanyard', path: '/records' },
+    (event: ub.RecordStatusEvent) => {
+      console.log(`got phone confirm event`, event, phoneNumber);
+      if (!event.status || event.status.value !== phoneNumber) {
+        return false;
+      }
 
-  return;
+      const { status, why } = event.status;
+
+      if (status === 'pending' && why.includes('invalid otp')) {
+        errorCode = LanyardErrorCode.PHONE_BAD_OTP;
+        return true;
+      }
+
+      if (event.status.status === 'verified') {
+        return true;
+      }
+
+      return false;
+    }
+  );
+
+  if (errorCode) {
+    throw new LanyardError({ errorCode });
+  }
 }
 
 export async function revokeAttestation(params: {
@@ -342,7 +441,7 @@ export async function revokeAttestation(params: {
     { app: 'lanyard', mark: 'lanyard-command', noun },
     { app: 'lanyard', path: '/records' },
     (event: ub.RecordStatusEvent) => {
-      if (event.status.value !== params.value.toLowerCase()) {
+      if (event.status?.value !== params.value.toLowerCase()) {
         return false;
       }
 

@@ -1,11 +1,11 @@
+import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { View, YStack } from 'tamagui';
 
 import { LoadingSpinner } from '../../../ui/src/components/LoadingSpinner';
 import { Text } from '../../../ui/src/components/TextV2';
-import { useTrackAttestConfirmation } from '../../hooks/useTrackAttestConfirmation';
 import { useStore } from '../contexts';
 import { AttestationPane } from './AttestationPane';
 import { PrimaryButton } from './Buttons';
@@ -79,19 +79,23 @@ function SubmitPhoneNumPane(props: { attestation: db.Verification | null }) {
   });
 
   const onSubmit = useCallback(async () => {
-    setIsSubmitting(true);
     try {
+      setIsSubmitting(true);
       await phoneForm.handleSubmit(async ({ phoneNumber }) => {
         store.initiatePhoneAttestation(phoneNumber);
       })();
+    } catch (e) {
+      if (e instanceof api.LanyardError) {
+        if (e.errorCode === api.LanyardErrorCode.ALREADY_REGISTERED) {
+          setRemoteError('This phone number has already been registered.');
+          return;
+        }
+      }
+      setRemoteError('Something went wrong, please try again.');
     } finally {
       setIsSubmitting(false);
     }
   }, [phoneForm, store]);
-
-  const isLoading = useMemo(() => {
-    return props.attestation?.status === 'pending' || isSubmitting;
-  }, [isSubmitting, props.attestation?.status]);
 
   return (
     <YStack gap="$2xl">
@@ -116,7 +120,7 @@ function SubmitPhoneNumPane(props: { attestation: db.Verification | null }) {
       <PhoneNumberInput form={phoneForm} />
       <PrimaryButton
         onPress={onSubmit}
-        loading={isLoading}
+        loading={isSubmitting}
         disabled={
           isSubmitting ||
           remoteError !== undefined ||
@@ -135,23 +139,32 @@ function SubmitPhoneNumPane(props: { attestation: db.Verification | null }) {
 const PHONE_CODE_LENGTH = 6;
 function ConfirmPhoneNumPane(props: { attestation: db.Verification }) {
   const store = useStore();
+  const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [otp, setOtp] = useState<string[]>([]);
-  const requestTracker = useTrackAttestConfirmation(props.attestation);
 
   const handleSubmit = useCallback(
     async (submittedOtp: string) => {
       try {
-        requestTracker.startRequest();
+        setIsSubmitting(true);
+        setError(null);
         await store.confirmPhoneAttestation(
           props.attestation.value!,
           submittedOtp
         );
+      } catch (e) {
+        if (e instanceof api.LanyardError) {
+          if (e.errorCode === api.LanyardErrorCode.PHONE_BAD_OTP) {
+            setError('Incorrect code, please try again.');
+            return;
+          }
+        }
+        setError('Something went wrong, please try again.');
       } finally {
         setIsSubmitting(false);
       }
     },
-    [props.attestation.value, requestTracker, store]
+    [props.attestation.value, store]
   );
 
   const handleCodeChanged = useCallback(
@@ -180,9 +193,15 @@ function ConfirmPhoneNumPane(props: { attestation: db.Verification }) {
         onChange={handleCodeChanged}
         mode="phone"
       />
-      {requestTracker.didError && (
-        <Text color="$negativeActionText">Confirmation code is incorrect.</Text>
-      )}
+
+      <YStack marginTop="$2xl" justifyContent="center" alignItems="center">
+        {isSubmitting && <LoadingSpinner />}
+        {error && (
+          <Text size="$label/s" color="$negativeActionText">
+            {error}
+          </Text>
+        )}
+      </YStack>
     </YStack>
   );
 }

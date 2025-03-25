@@ -1,5 +1,5 @@
 export interface RecordStatusEvent {
-  status: {
+  status?: {
     type: 'twitter' | 'phone';
     value: string;
 

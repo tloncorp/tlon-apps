@@ -6,10 +6,8 @@ import { useForm } from 'react-hook-form';
 import { Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { View, YStack } from 'tamagui';
 
-import { Button } from '../../../ui/src/components/Button';
 import { LoadingSpinner } from '../../../ui/src/components/LoadingSpinner';
 import { Text } from '../../../ui/src/components/TextV2';
-import { useTrackAttestConfirmation } from '../../hooks/useTrackAttestConfirmation';
 import { useStore } from '../contexts';
 import { AttestationPane } from './AttestationPane';
 import { PrimaryButton } from './Buttons';
@@ -75,20 +73,21 @@ function ConfirmTwitterPane(props: {
   currentUserId: string;
 }) {
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const store = useStore();
   const [proof, setProof] = useState<string | null>(null);
-  const reqTracker = useTrackAttestConfirmation(props.attestation);
+
   useEffect(() => {
     async function runEffect() {
       const result = await api.fetchTwitterConfirmPayload(
         props.attestation.value!
       );
-      console.log('got result', result);
       setProof(result.payload);
     }
     runEffect();
   }, [props.attestation]);
+
   const {
     control,
     handleSubmit,
@@ -103,13 +102,35 @@ function ConfirmTwitterPane(props: {
   const onSubmit = handleSubmit(async (data) => {
     const postId = domain.parseForTwitterPostId(data.twitterPostInput);
     if (!postId) {
-      console.log(`bad post id!`);
+      setError('Invalid, Please enter the URL to your 𝕏 post.');
       return;
     }
 
     try {
       setIsLoading(true);
-      await store.confirmTwitterAttestation(props.attestation.value!, postId);
+      try {
+        await store.confirmTwitterAttestation(props.attestation.value!, postId);
+      } catch (err) {
+        if (err instanceof api.LanyardError) {
+          if (err.errorCode === api.LanyardErrorCode.TWITTER_BAD_TWEET) {
+            setError('Could not verify your account from the provided post.');
+            return;
+          }
+
+          if (err.errorCode === api.LanyardErrorCode.TWITTER_TWEET_NOT_FOUND) {
+            setError('Could not find the provided post.');
+            return;
+          }
+
+          if (err.errorCode === api.LanyardErrorCode.TWITTER_TWEET_PROTECTED) {
+            setError(
+              'The provided post is protected. Private accounts are not supported.'
+            );
+            return;
+          }
+        }
+        setError('Something went wrong, please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -148,11 +169,15 @@ ${proof}`;
         <Text size="$label/m">
           To complete verification, send this post from your 𝕏 account.
         </Text>
-        <CopyableTextBlock
-          text={tweetContent}
-          height={keyboardVisible ? 100 : 'unset'}
-          overflow="hidden"
-        />
+        {proof ? (
+          <CopyableTextBlock
+            text={tweetContent}
+            height={keyboardVisible ? 100 : 'unset'}
+            overflow="hidden"
+          />
+        ) : (
+          <LoadingSpinner />
+        )}
         <ControlledTextField
           name="twitterPostInput"
           label="Attesting Post"
@@ -167,9 +192,12 @@ ${proof}`;
             },
           }}
         />
-        <Button hero onPress={onSubmit} disabled={!isDirty || !isValid}>
-          <Button.Text>Submit</Button.Text>
-        </Button>
+
+        {error && (
+          <Text size="$label/s" color="$negativeActionText">
+            {error}
+          </Text>
+        )}
 
         <PrimaryButton
           onPress={onSubmit}
@@ -178,12 +206,6 @@ ${proof}`;
         >
           Submit
         </PrimaryButton>
-
-        {reqTracker.didError && (
-          <Text color="$negativeActionText">
-            Could not verify the submitted post.
-          </Text>
-        )}
       </YStack>
     </TouchableWithoutFeedback>
   );
@@ -207,13 +229,16 @@ function InitiateTwitterPane() {
   const onSubmit = handleSubmit(async (data) => {
     try {
       setIsLoading(true);
-      await store.initiateTwitterAttestation(data.twitterHandle);
+      const normalizedHandle = domain.parseTwitterHandle(data.twitterHandle);
+      await store.initiateTwitterAttestation(normalizedHandle);
     } catch (err) {
-      if (err.message === 'already registered') {
-        setError('This Twitter handle is already registered.');
-      } else {
-        setError('Something went wrong, please try again.');
+      if (err instanceof api.LanyardError) {
+        if (err.errorCode === api.LanyardErrorCode.ALREADY_REGISTERED) {
+          setError('This Twitter handle is already registered.');
+          return;
+        }
       }
+      setError('Something went wrong, please try again.');
     } finally {
       setIsLoading(false);
     }

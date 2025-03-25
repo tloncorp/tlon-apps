@@ -114,6 +114,7 @@ export enum AnalyticsEvent {
   ErrorSyncStartLowPriority = 'Error Start Sync: Low Priority',
   ErrorVerifyingPersonalInvite = 'Error Verifying DM Invite Link',
   ErrorAttestation = 'Attestation Error',
+  ErrorNounParse = 'Error Parsing Noun',
 }
 
 export interface AnalyticsDigest {

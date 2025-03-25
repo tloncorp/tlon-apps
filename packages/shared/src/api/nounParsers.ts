@@ -3,7 +3,7 @@ import { Atom, Cell, Noun, cue, dwim, enjs } from '@urbit/nockjs';
 import _ from 'lodash';
 
 import * as db from '../db';
-import { getFrondValue } from '../logic';
+import { getFrondValue, getPatp, simpleHash } from '../logic';
 
 interface HalfSign {
   signType: 'half';
@@ -224,3 +224,101 @@ function parseFullSign(contactId: string, noun: Noun): FullSign {
     ...proof,
   };
 }
+
+// function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {
+//   console.log(`noun to client records`);
+//   return enjs.tree((n: Noun) => {
+//     if (!(n instanceof Cell)) {
+//       throw new Error('malformed map');
+//     }
+
+//     if (!(n.head instanceof Cell)) {
+//       throw new Error('malformed record key');
+//     }
+
+//     const provider = getPatp(n.head.head) as string;
+
+//     if (!(n.head.tail instanceof Cell)) {
+//       throw new Error('malformed record key identifier');
+//     }
+
+//     const type = enjs.cord(n.head.tail.head) as db.VerificationType;
+//     const value = getFrondValue([
+//       { tag: 'dummy', get: enjs.cord },
+//       { tag: 'phone', get: enjs.cord },
+//       { tag: 'urbit', get: getPatp },
+//       { tag: 'twitter', get: enjs.cord },
+//     ])(n.head.tail) as string;
+
+//     if (!(n.tail instanceof Cell)) {
+//       throw new Error('malformed record value');
+//     }
+
+//     const config = enjs.cord(n.tail.head) as db.VerificationVisibility;
+//     const currentUserId = getCurrentUserId();
+//     const a = n.tail.tail;
+//     if (!(a instanceof Cell)) {
+//       throw new Error('malformed record why');
+//     }
+//     const statusMessage = enjs.cord(a.head); // TODO: should we store?
+
+//     const { status, sign } = getFrondValue<{
+//       status: db.VerificationStatus;
+//       sign: NounParsers.Sign | null;
+//     }>([
+//       { tag: 'want', get: () => ({ status: 'pending', sign: null }) },
+//       { tag: 'wait', get: () => ({ status: 'waiting', sign: null }) },
+//       {
+//         tag: 'done',
+//         get: (noun: Noun) => ({
+//           status: 'verified',
+//           sign: parseAttestation(noun, currentUserId),
+//         }),
+//       },
+//     ])(a.tail);
+
+//     const id = parseAttestationId({ provider, type, value, contactId });
+//     const provingTweetId =
+//       sign?.signType === 'full' ? sign.proofTweetId ?? null : null;
+
+//     const verif: db.Verification = {
+//       id,
+//       contactId,
+//       provider,
+//       type,
+//       value,
+//       initiatedAt: sign?.when ?? null,
+//       visibility: config,
+//       status,
+//       statusMessage,
+//       provingTweetId,
+//       signature: sign?.signature,
+//     };
+
+//     return verif;
+//   })(noun) as unknown as db.Verification[];
+// }
+
+// export function parseAttestationId(attest: {
+//   provider: string;
+//   type: string;
+//   value: string;
+//   contactId: string;
+// }) {
+//   const attestKey = `${attest.contactId}:${attest.type}:${attest.value}:${attest.provider}`;
+//   return simpleHash(attestKey);
+// }
+
+// export function parseProof(noun: Noun) {
+//   if (!(noun instanceof Cell)) {
+//     throw new Error('malformed proof bundle, not a cell');
+//   }
+
+//   const head = noun.head;
+//   const tail = noun.tail;
+
+//   const payload = enjs.cord(head);
+//   const url = enjs.cord(tail);
+
+//   return { payload, url };
+// }

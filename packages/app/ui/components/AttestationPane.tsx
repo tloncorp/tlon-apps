@@ -163,7 +163,7 @@ export function AttestationPane({
             onPress={handleRevoke}
           >
             <Button.Text color="$negativeActionText" fontWeight="500">
-              Revoke
+              Revoke {revoking ? <LoadingSpinner size="small" /> : null}
             </Button.Text>
           </Button>
         )}

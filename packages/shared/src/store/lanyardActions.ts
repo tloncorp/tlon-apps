@@ -53,20 +53,45 @@ export async function initiatePhoneAttestation(phoneNumber: string) {
   }
 }
 
-export function confirmTwitterAttestation(handle: string, postId: string) {
-  logger.trackEvent(AnalyticsEvent.ActionConfirmTwitterAttest, {
-    handle,
-    postId,
-  });
-  return api.confirmTwitterAttestation(handle, postId);
+export async function confirmTwitterAttestation(
+  handle: string,
+  postId: string
+) {
+  try {
+    await api.confirmTwitterAttestation(handle, postId);
+    logger.trackEvent(AnalyticsEvent.ActionConfirmTwitterAttest, {
+      handle,
+      postId,
+    });
+  } catch (e) {
+    logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
+      context: 'failed to confirm twitter attestation',
+      error: e,
+      errorMessage: e.message,
+    });
+    throw e;
+  }
 }
 
-export function confirmPhoneAttestation(phoneNumber: string, otp: string) {
-  logger.trackEvent(AnalyticsEvent.ActionConfirmPhoneAttest, {
-    phoneNumber,
-    otp,
-  });
-  return api.confirmPhoneAttestation(phoneNumber, otp);
+export async function confirmPhoneAttestation(
+  phoneNumber: string,
+  otp: string
+) {
+  try {
+    await api.confirmPhoneAttestation(phoneNumber, otp);
+    console.log(`bl: thing 2`);
+    logger.trackEvent(AnalyticsEvent.ActionConfirmPhoneAttest, {
+      phoneNumber,
+      otp,
+    });
+  } catch (e) {
+    logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
+      context: 'failed to confirm phone attestation',
+      error: e,
+      errorMessage: e.message,
+    });
+    throw e;
+  }
 }
 
 export async function revokeAttestation(attestation: db.Verification) {

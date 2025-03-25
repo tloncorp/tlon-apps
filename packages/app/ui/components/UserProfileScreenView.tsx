@@ -14,7 +14,7 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { LayoutChangeEvent, Linking } from 'react-native';
+import { LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ScrollView,
@@ -29,10 +29,10 @@ import {
 
 import { useContact, useCurrentUserId, useNavigation } from '../contexts';
 import { useGroupTitle } from '../utils';
-import { AttestationSheet } from './AttestationSheet';
 import { ContactAvatar, GroupAvatar } from './Avatar';
 import { ContactName } from './ContactNameV2';
 import { useBoundHandler } from './ListItem/listItemUtils';
+import { ConnectedAccountsWidget } from './Profile/ConnectedAccountsWidget';
 import { ScreenHeader } from './ScreenHeader';
 import { WidgetPane } from './WidgetPane';
 
@@ -143,11 +143,6 @@ export function UserProfileScreenView(props: Props) {
             phoneAttest={phoneAttestation}
           />
 
-          {/* <XStack gap="$l" width="100%">
-            <TwitterAttestBlock attestation={twitterAttestation} />
-            <PhoneAttestBlock attestation={phoneAttestation} />
-          </XStack> */}
-
           <XStack gap="$l" width="100%">
             <StatusBlock status={nodeStatus} label="Node" />
             <StatusBlock status={sponsorStatus} label="Sponsor" />
@@ -187,150 +182,6 @@ function StatusBlock({
         <Text size="$body">{statusText(status)}</Text>
       </XStack>
       <StatusIndicator status={status} label={label} />
-    </PaddedBlock>
-  );
-}
-
-function ConnectedAccountsWidget(props: {
-  twitterAttest?: db.Verification;
-  phoneAttest?: db.Verification;
-}) {
-  const [selectedAttest, setSelectedAttest] = useState<db.Verification | null>(
-    null
-  );
-
-  const handleViewTweet = useCallback(() => {
-    if (props.twitterAttest && props.twitterAttest.value) {
-      Linking.openURL(`https://x.com/${props.twitterAttest.value}`);
-    }
-  }, [props.twitterAttest]);
-
-  if (!props.twitterAttest && !props.phoneAttest) {
-    return null;
-  }
-
-  return (
-    <WidgetPane width="100%">
-      <WidgetPane.Title>Connected Accounts</WidgetPane.Title>
-      <YStack gap="$l">
-        {props.twitterAttest && props.twitterAttest.value && (
-          <Pressable
-            onPress={handleViewTweet}
-            onLongPress={() => setSelectedAttest(props.twitterAttest!)}
-          >
-            <YStack
-              alignItems="flex-start"
-              gap="$m"
-              padding="$2xl"
-              borderRadius="$l"
-              backgroundColor="$secondaryBackground"
-            >
-              <XStack justifyContent="space-between">
-                <XStack alignItems="center" gap="$m">
-                  <Icon type="VerifiedBadge" customSize={[28, 28]} />
-                  <Text size="$label/l" color="$secondaryText" fontWeight="500">
-                    @{props.twitterAttest.value}
-                  </Text>
-                </XStack>
-              </XStack>
-            </YStack>
-          </Pressable>
-        )}
-        {props.phoneAttest && (
-          <Pressable onLongPress={() => setSelectedAttest(props.phoneAttest!)}>
-            <XStack
-              alignItems="center"
-              gap="$l"
-              padding="$2xl"
-              borderRadius="$l"
-              backgroundColor="$secondaryBackground"
-            >
-              <Icon type="VerifiedBadge" customSize={[28, 28]} />
-              <Text size="$label/l" color="$secondaryText" fontWeight="500">
-                Phone number
-              </Text>
-            </XStack>
-          </Pressable>
-        )}
-      </YStack>
-      <AttestationSheet
-        open={selectedAttest !== null}
-        onOpenChange={() => setSelectedAttest(null)}
-        attestation={selectedAttest}
-      />
-    </WidgetPane>
-  );
-}
-
-function TwitterAttestBlock({
-  attestation,
-}: {
-  attestation?: db.Verification;
-}) {
-  const [open, setOpen] = useState(false);
-  const windowDimensions = useWindowDimensions();
-  const isWindowNarrow = useIsWindowNarrow();
-
-  if (
-    !attestation ||
-    attestation.type !== 'twitter' ||
-    attestation.status !== 'verified'
-    // ||  attestation.visibility === 'hidden'
-  ) {
-    return null;
-  }
-
-  return (
-    <PaddedBlock
-      flex={1}
-      padding="$2xl"
-      width={isWindowNarrow ? (windowDimensions.width - 36) / 2 : '100%'}
-      gap="$2xl"
-      onLongPress={() => setOpen(true)}
-    >
-      <XStack width="100%" justifyContent="space-between">
-        <Text size="$label/2xl">𝕏</Text>
-        <Text size="$label/l" color="$positiveActionText">
-          Verified
-        </Text>
-      </XStack>
-      <Text size="$label/xl">@{attestation.value}</Text>
-      <AttestationSheet
-        open={open}
-        onOpenChange={() => setOpen(false)}
-        attestation={attestation}
-      />
-    </PaddedBlock>
-  );
-}
-
-function PhoneAttestBlock({ attestation }: { attestation?: db.Verification }) {
-  const windowDimensions = useWindowDimensions();
-  const isWindowNarrow = useIsWindowNarrow();
-
-  if (
-    !attestation ||
-    attestation.type !== 'phone' ||
-    attestation.status !== 'verified'
-    // ||  attestation.visibility === 'hidden'
-  ) {
-    return null;
-  }
-
-  return (
-    <PaddedBlock
-      flex={1}
-      padding="$2xl"
-      width={isWindowNarrow ? (windowDimensions.width - 36) / 2 : '100%'}
-      gap="$2xl"
-    >
-      <XStack width="100%" justifyContent="space-between">
-        <Text size="$label/l">Phone</Text>
-        <Text size="$label/l" color="$positiveActionText">
-          Verified
-        </Text>
-      </XStack>
-      <Icon type="ChannelNotebooks" />
     </PaddedBlock>
   );
 }
