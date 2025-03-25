@@ -168,6 +168,7 @@ export function GroupOptionsSheetLoader({
           borderColor="$border"
           borderWidth={1}
           padding={1}
+          backgroundColor="$background"
         >
           {pane === 'notifications' ? (
             <NotificationsSheetContent
