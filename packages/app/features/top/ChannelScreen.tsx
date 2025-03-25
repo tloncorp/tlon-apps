@@ -1,6 +1,10 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { createDevLogger, useChannelContext } from '@tloncorp/shared';
+import {
+  configurationFromChannel,
+  createDevLogger,
+  useChannelContext,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import {
@@ -215,6 +219,13 @@ export default function ChannelScreen(props: Props) {
     setClearedCursor(true);
   }, []);
 
+  const channelConfiguration = useMemo(
+    () => configurationFromChannel(channel),
+    [channel]
+  );
+
+  console.log('chanel config', channelConfiguration);
+
   const {
     posts,
     query: postsQuery,
@@ -226,6 +237,7 @@ export default function ChannelScreen(props: Props) {
     channelId: currentChannelId,
     count: 15,
     hasCachedNewest,
+    filterDeleted: !channelConfiguration?.includeDeletedPosts,
     ...(cursor && !clearedCursor
       ? {
           mode: 'around',
