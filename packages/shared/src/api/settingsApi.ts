@@ -1,4 +1,5 @@
 import * as db from '../db';
+import { SETTINGS_SINGLETON_KEY } from '../db/schema';
 import * as ub from '../urbit';
 import { getCurrentUserId, poke, scry, subscribe } from './urbit';
 
@@ -74,7 +75,6 @@ export const toClientSettings = (
   settings: ub.GroupsDeskSettings
 ): db.Settings => {
   return {
-    userId: getCurrentUserId(),
     theme: settings.desk.display?.theme,
     disableAppTileUnreads: settings.desk.calmEngine?.disableAppTileUnreads,
     disableAvatars: settings.desk.calmEngine?.disableAvatars,

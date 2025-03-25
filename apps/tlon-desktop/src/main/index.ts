@@ -1,6 +1,7 @@
 import { fetch } from 'cross-fetch';
 import crypto from 'crypto';
-import { BrowserWindow, app, ipcMain, shell } from 'electron';
+import { BrowserWindow, app, dialog, ipcMain, shell } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import fs from 'fs';
 import path from 'path';
 
@@ -251,6 +252,51 @@ async function createWindow() {
   });
 }
 
+autoUpdater.logger = console;
+autoUpdater.autoDownload = true;
+autoUpdater.autoInstallOnAppQuit = true;
+
+autoUpdater.on('checking-for-update', () => {
+  console.log('Checking for update...');
+});
+
+autoUpdater.on('update-available', (info) => {
+  console.log('Update available:', info);
+});
+
+autoUpdater.on('update-not-available', (info) => {
+  console.log('Update not available:', info);
+});
+
+autoUpdater.on('error', (err) => {
+  console.error('Error in auto-updater:', err);
+});
+
+autoUpdater.on('download-progress', (progressObj) => {
+  let logMessage = `Download speed: ${progressObj.bytesPerSecond}`;
+  logMessage += ` - Downloaded ${progressObj.percent}%`;
+  logMessage += ` (${progressObj.transferred}/${progressObj.total})`;
+  console.log(logMessage);
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+  console.log('Update downloaded:', info);
+
+  dialog
+    .showMessageBox({
+      type: 'info',
+      title: 'Update Ready',
+      message:
+        'A new version has been downloaded. Restart the app to apply the update.',
+      buttons: ['Restart', 'Later'],
+    })
+    .then((result) => {
+      if (result.response === 0) {
+        autoUpdater.quitAndInstall();
+      }
+    });
+});
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 app.whenReady().then(async () => {
@@ -275,6 +321,11 @@ app.whenReady().then(async () => {
   }
 
   createWindow();
+
+  // Check for updates after a short delay to ensure the app is fully initialized
+  setTimeout(() => {
+    autoUpdater.checkForUpdatesAndNotify();
+  }, 3000);
 });
 
 app.on('will-quit', async (event) => {
@@ -310,6 +361,16 @@ ipcMain.handle('set-urbit-ship', async (_event, shipUrl: string) => {
 
 ipcMain.handle('get-version', () => {
   return app.getVersion();
+});
+
+// Add IPC handler for manual update checks
+ipcMain.handle('check-for-updates', async () => {
+  try {
+    return await autoUpdater.checkForUpdatesAndNotify();
+  } catch (error) {
+    console.error('Error checking for updates:', error);
+    return null;
+  }
 });
 
 // Handle login request

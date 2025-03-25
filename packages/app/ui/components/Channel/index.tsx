@@ -180,11 +180,12 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
 
     const inView = useIsFocused();
     const hasLoaded = !!(posts && channel);
+    const hasUnreads = (channel?.unread?.count ?? 0) > 0;
     useEffect(() => {
-      if (hasLoaded && inView) {
+      if (hasUnreads && hasLoaded && inView) {
         markRead();
       }
-    }, [hasLoaded, inView, markRead]);
+    }, [hasUnreads, hasLoaded, inView, markRead]);
 
     const handleRefPress = useCallback(
       (refChannel: db.Channel, post: db.Post) => {
@@ -320,12 +321,17 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                               ? handleGoBack
                               : undefined
                           }
-                          showSearchButton={isChatChannel}
+                          showSearchButton={
+                            isChatChannel &&
+                            draftInputPresentationMode !== 'fullscreen'
+                          }
                           goToSearch={goToSearch}
                           goToChannels={goToChannels}
                           goToChatDetails={goToChatDetails}
                           showSpinner={isLoadingPosts}
-                          showMenuButton={true}
+                          showMenuButton={
+                            draftInputPresentationMode !== 'fullscreen'
+                          }
                         />
                         <YStack alignItems="stretch" flex={1}>
                           <AnimatePresence>

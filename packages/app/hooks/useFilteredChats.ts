@@ -7,7 +7,6 @@ import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 
 import { useCalm } from '../ui';
 import { getChannelTitle, getGroupTitle } from '../ui';
-import { useCurrentUserId } from './useCurrentUser';
 
 export type TabName = 'all' | 'home' | 'groups' | 'messages' | 'talk';
 
@@ -29,7 +28,6 @@ export function useFilteredChats({
   searchQuery: string;
   activeTab: TabName;
 }): SectionedChatData {
-  const userId = useCurrentUserId();
   const performSearch = useChatSearch({ pinned, unpinned, pending });
   const debouncedQuery = useDebouncedValue(searchQuery, 200);
   const searchResults = useMemo(
@@ -37,7 +35,7 @@ export function useFilteredChats({
     [debouncedQuery, performSearch]
   );
 
-  const { data } = useMessagesFilter({ userId });
+  const { data } = useMessagesFilter();
   const talkFilter =
     activeTab === 'talk' ? data ?? 'Direct Messages' : 'Direct Messages';
 

@@ -6,6 +6,7 @@ const envVars = (Constants.expoConfig?.extra ?? {}) as Record<
   string | undefined
 >;
 
+export const DEV_SHIP_URL = '';
 export const NOTIFY_PROVIDER = envVars.notifyProvider ?? 'rivfur-livmet';
 export const NOTIFY_SERVICE = envVars.notifyService ?? 'groups-native';
 export const POST_HOG_API_KEY = envVars.postHogApiKey ?? '';
@@ -46,6 +47,7 @@ export const INVITE_SERVICE_IS_DEV =
   envVars.inviteServiceIsDev === 'true' ? true : undefined;
 
 export const ENV_VARS = {
+  DEV_SHIP_URL,
   NOTIFY_PROVIDER,
   NOTIFY_SERVICE,
   POST_HOG_API_KEY,

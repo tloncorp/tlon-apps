@@ -1,5 +1,6 @@
 import { open } from '@op-engineering/op-sqlite';
 import { escapeLog } from '@tloncorp/shared';
+import * as kv from '@tloncorp/shared/db';
 import { schema, setClient } from '@tloncorp/shared/db';
 
 import {
@@ -73,6 +74,10 @@ export class NativeDb extends BaseDb {
     this.connection.delete();
     this.connection = null;
     this.client = null;
+
+    // reset values related to tracking db sync state
+    await kv.headsSyncedAt.resetValue();
+
     logger.log('purged sqlite database, recreating');
     await this.setupDb();
   }

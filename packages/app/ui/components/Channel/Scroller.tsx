@@ -261,6 +261,7 @@ const Scroller = forwardRef(
         );
         const isLastPostOfBlock =
           post.type !== 'notice' &&
+          (post.type === 'chat' || post.type === 'reply') &&
           ((nextItem && nextItem.authorId !== post.authorId) || !isSameDay);
         const showAuthor =
           post.type === 'note' ||
