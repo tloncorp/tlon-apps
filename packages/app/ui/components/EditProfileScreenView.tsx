@@ -288,43 +288,6 @@ export function EditProfileScreenView(props: Props) {
                     onPressAttestation={props.onGoToAttestation}
                   />
                 )}
-
-                {/* {props.showAttestations && (
-                  <Field label="Attestations">
-                    <WidgetPane editor>
-                      <Pressable
-                        onPress={() => props.onGoToAttestation?.('twitter')}
-                      >
-                        <ListItem>
-                          <ListItem.MainContent>
-                            <ListItem.Title>𝕏 Account</ListItem.Title>
-                          </ListItem.MainContent>
-                          <ListItem.EndContent>
-                            <ListItem.SystemIcon
-                              backgroundColor="unset"
-                              icon="ChevronRight"
-                            />
-                          </ListItem.EndContent>
-                        </ListItem>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => props.onGoToAttestation?.('phone')}
-                      >
-                        <ListItem>
-                          <ListItem.MainContent>
-                            <ListItem.Title>Phone</ListItem.Title>
-                          </ListItem.MainContent>
-                          <ListItem.EndContent>
-                            <ListItem.SystemIcon
-                              backgroundColor="unset"
-                              icon="ChevronRight"
-                            />
-                          </ListItem.EndContent>
-                        </ListItem>
-                      </Pressable>
-                    </WidgetPane>
-                  </Field>
-                )} */}
               </>
             ) : (
               <>

@@ -33,7 +33,7 @@ export function AttestationScreen({ route, navigation }: Props) {
   });
 
   return (
-    <View flex={1}>
+    <View flex={1} backgroundColor="$background">
       <ScreenHeader
         title={
           route.params.attestationType === 'twitter'

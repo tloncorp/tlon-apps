@@ -319,8 +319,6 @@ export async function confirmTwitterAttestation(
     { app: 'lanyard', mark: 'lanyard-command', noun },
     { app: 'lanyard', path: '/records' },
     (event: ub.RecordStatusEvent) => {
-      console.log(`bl: got event!`, event);
-
       if (event.status?.value !== twitterHandle.toLowerCase()) {
         return false;
       }

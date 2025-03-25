@@ -3,7 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { Keyboard, Platform, TouchableWithoutFeedback } from 'react-native';
 import { View, YStack } from 'tamagui';
 
 import { LoadingSpinner } from '../../../ui/src/components/LoadingSpinner';
@@ -164,7 +164,10 @@ ${proof}`;
   }, []);
 
   return (
-    <TouchableWithoutFeedback style={{ flex: 1 }} onPress={Keyboard.dismiss}>
+    <TouchableWithoutFeedback
+      style={{ flex: 1 }}
+      onPress={Platform.OS !== 'web' ? Keyboard.dismiss : undefined}
+    >
       <YStack gap="$2xl">
         <Text size="$label/m">
           To complete verification, send this post from your 𝕏 account.

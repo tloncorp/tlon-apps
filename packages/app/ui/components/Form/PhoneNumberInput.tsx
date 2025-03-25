@@ -66,6 +66,8 @@ export function PhoneNumberInput({
               }}
               textStyle={{
                 color: theme.primaryText.val,
+                // @ts-expect-error removes browser outline on web
+                outlineStyle: 'none',
               }}
               initialCountry="us"
               autoFormat={true}

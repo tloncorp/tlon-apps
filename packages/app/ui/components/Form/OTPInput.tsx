@@ -1,5 +1,6 @@
 import { createRef, useCallback, useEffect, useMemo } from 'react';
 import {
+  Platform,
   TextInput as RNTextInput,
   TextInputKeyPressEventData,
 } from 'react-native';
@@ -26,6 +27,7 @@ export function OTPInput({
 
   const handleChangeText = useCallback(
     (index: number, text: string) => {
+      console.log(`change text`, index, text);
       const nextCode = [...value];
       if (text.length === 0) {
         nextCode[index] = '';
@@ -58,6 +60,12 @@ export function OTPInput({
 
   useEffect(() => {
     setTimeout(() => {
+      // hack to get the placeholders to show up on initial render
+      if (Platform.OS === 'web') {
+        for (let i = 0; i < inputRefs.length; i += 1) {
+          inputRefs[i].current?.focus();
+        }
+      }
       inputRefs[0].current?.focus();
     });
   }, []);

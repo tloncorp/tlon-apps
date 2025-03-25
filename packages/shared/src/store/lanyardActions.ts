@@ -79,7 +79,6 @@ export async function confirmPhoneAttestation(
 ) {
   try {
     await api.confirmPhoneAttestation(phoneNumber, otp);
-    console.log(`bl: thing 2`);
     logger.trackEvent(AnalyticsEvent.ActionConfirmPhoneAttest, {
       phoneNumber,
       otp,
