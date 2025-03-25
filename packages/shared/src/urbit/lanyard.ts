@@ -18,3 +18,9 @@ export interface RecordConfigEvent {
     value: string;
   };
 }
+
+export interface RecordId {
+  provider: string;
+  type: 'urbit' | 'phone' | 'twitter' | 'dummy';
+  value: string;
+}

@@ -1,7 +1,17 @@
 import { daToUnix, formatUv, patp } from '@urbit/aura';
-import { Atom, Cell, EnjsFunction, Noun, enjs } from '@urbit/nockjs';
+import { Atom, Cell, Noun, enjs } from '@urbit/nockjs';
 
-type Json = ReturnType<EnjsFunction>;
+// TODO: nockjs should export these
+type Json =
+  | null
+  | boolean
+  | number
+  | string
+  | Json[]
+  | {
+      [key: string]: Json;
+    };
+export type EnjsFunction = (n: Noun) => Json;
 
 export const giveNull: EnjsFunction = () => null;
 export const maybe =

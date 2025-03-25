@@ -1,9 +1,19 @@
 import { daToUnix, parseUw, patp } from '@urbit/aura';
-import { Atom, Cell, Noun, cue, dwim, enjs } from '@urbit/nockjs';
+import {
+  Atom,
+  Cell,
+  Noun,
+  cue,
+  dwim,
+  enjs,
+  experimental as ex,
+  jam,
+} from '@urbit/nockjs';
 import _ from 'lodash';
 
 import * as db from '../db';
 import { getFrondValue, getPatp, simpleHash } from '../logic';
+import * as ub from '../urbit';
 
 interface HalfSign {
   signType: 'half';
@@ -26,7 +36,7 @@ interface FullSign {
 
 export type Sign = HalfSign | FullSign;
 
-export function parseSigned(sign: string, userId: string): Sign | null {
+export function parseSigned(sign: string): Sign | null {
   // the noun is @uw encoded, first we have to unwrap it
   const uw = parseUw(sign);
   const at = new Atom(uw);
@@ -42,13 +52,13 @@ export function parseSigned(sign: string, userId: string): Sign | null {
   }
   const provider = patp(providerAtom.number);
 
-  const TARGET = 14;
+  const TARGET = 14; // TODO: mask instead of magic #
   const signedData = noun.at(Atom.fromInt(TARGET)) as Noun | null; // dat (signed-data)
   if (!signedData) {
     throw new Error('Bad Sign: could not find dat');
   }
 
-  const signed = parseSignedData(signedData, userId);
+  const signed = parseSignedData(signedData);
   if (signed) {
     signed.provider = provider;
     signed.signature = sign;
@@ -84,20 +94,22 @@ export function getHeadTaggedAttestation(noun: Noun): Noun {
       full=(signed full-sign-data)
   ==
 */
-export function parseAttestation(noun: Noun, userId: string) {
+export function parseAttestation(noun: Noun) {
+  // const mask = ex.mask(['_tag', '', '', ['attestation', '']]); TODO: mask instea of magic #
+
   const fullSignedData = noun.at(Atom.fromInt(30)) as Noun | null;
   if (!fullSignedData) {
     throw new Error('Bad attestation: could not find full signed data');
   }
 
-  return parseSignedData(fullSignedData, userId);
+  return parseSignedData(fullSignedData);
 }
 
-export function parseSignedData(noun: Noun, userId: string) {
+export function parseSignedData(noun: Noun) {
   const headTagged = getHeadTaggedAttestation(noun);
   const attestation = getFrondValue<Sign>([
-    { tag: 'half', get: _.partial(parseHalfSign, userId) },
-    { tag: 'full', get: _.partial(parseFullSign, userId) },
+    { tag: 'half', get: parseHalfSign },
+    { tag: 'full', get: parseFullSign },
   ])(headTagged);
 
   return attestation;
@@ -155,7 +167,7 @@ function parseProof(input: Noun): {
 }
 
 // [when=@da for=@p kind=id-kind]
-function parseHalfSign(contactId: string, noun: Noun): HalfSign {
+function parseHalfSign(noun: Noun): HalfSign {
   if (!(noun instanceof Cell)) {
     throw 'Bad half sign';
   }
@@ -169,9 +181,9 @@ function parseHalfSign(contactId: string, noun: Noun): HalfSign {
   const b = noun.tail;
 
   const correspondingUser = enjs.cord(b.head);
-  if (correspondingUser !== contactId) {
-    throw new Error(`Signature user ID does not match contact`);
-  }
+  // if (correspondingUser !== contactId) {
+  //   throw new Error(`Signature user ID does not match contact`);
+  // }
 
   const type = enjs.cord(b.tail) as db.VerificationType;
 
@@ -179,7 +191,7 @@ function parseHalfSign(contactId: string, noun: Noun): HalfSign {
 }
 
 // [when=@da for=@p id=identifier proof=(unit proof)]
-function parseFullSign(contactId: string, noun: Noun): FullSign {
+function parseFullSign(noun: Noun): FullSign {
   if (!(noun instanceof Cell)) {
     throw 'Bad full sign';
   }
@@ -195,13 +207,14 @@ function parseFullSign(contactId: string, noun: Noun): FullSign {
     throw new Error('Bad Full Sign');
   }
   const correspondingUser = patp(b.head.number);
-  console.log('check users match', {
-    want: contactId,
-    have: correspondingUser,
-  });
-  if (correspondingUser !== contactId) {
-    throw new Error(`Signature user ID does not match contact`);
-  }
+
+  // console.log('check users match', {
+  //   want: contactId,
+  //   have: correspondingUser,
+  // });
+  // if (correspondingUser !== contactId) {
+  //   throw new Error(`Signature user ID does not match contact`);
+  // }
 
   const c = b.tail;
   if (!(c instanceof Cell)) {
@@ -225,8 +238,108 @@ function parseFullSign(contactId: string, noun: Noun): FullSign {
   };
 }
 
+// [=config why=@t =status]
+// function parseRecordEntry(
+//   noun: Noun,
+//   params: { currentUserId: string }
+// ): db.Verification {
+//   // const axes = ex.mask(['id', 'config', 'why', 'status']);
+
+//   // const id = ex.grab(axes, noun, 'id');
+//   // const config = ex.grab(axes, noun, 'config');
+//   // const why = ex.grab(axes, noun, 'why');
+//   // const status = ex.grab(axes, noun, 'status');
+
+//   const parser = enjs.pairs([
+//     { nom: 'id', get: parseId },
+//     { nom: 'config', get: parseConfig },
+//     { nom: 'why', get: parseWhy },
+//     { nom: 'status', get: parseStatus },
+//   ]);
+
+//   const result = parser(noun) as unknown as {
+//     id: ub.RecordId;
+//     config: db.VerificationVisibility;
+//     why: string;
+//     status: Partial<db.Verification>;
+//   };
+
+//   return {
+//     id: generateAttestationId({
+//       ...result.id,
+//       contactId: params.currentUserId,
+//     }),
+//     ...result.id,
+//     ...result.status,
+//     visibility: result.config,
+//   };
+// }
+
+// function parseId(noun: Noun): ub.RecordId {
+//   const parser = enjs.pairs([
+//     { nom: 'provider', get: getPatp },
+//     { nom: 'type', get: enjs.cord },
+//     { nom: 'value', get: (n: Noun) => n },
+//   ]);
+
+//   const result = parser(noun) as unknown as {
+//     provider: string;
+//     type: string;
+//     value: Noun;
+//   };
+
+//   return {
+//     provider: result.provider,
+//     type: result.type,
+//     value:
+//       result.type === 'urbit' ? getPatp(result.value) : enjs.cord(result.value),
+//   } as ub.RecordId;
+// }
+
+// export function generateAttestationId(attest: {
+//   provider: string;
+//   type: string;
+//   value: string;
+//   contactId: string;
+// }) {
+//   const attestKey = `${attest.contactId}:${attest.type}:${attest.value}:${attest.provider}`;
+//   return simpleHash(attestKey);
+// }
+
+// function parseConfig(noun: Noun): db.VerificationVisibility {
+//   return enjs.cord(noun) as db.VerificationVisibility;
+// }
+
+// function parseWhy(noun: Noun): string {
+//   return enjs.cord(noun);
+// }
+
+// function parseStatus(noun: Noun) {
+//   const { status, sign } = getFrondValue<{
+//     status: db.VerificationStatus;
+//     sign: Sign | null;
+//   }>([
+//     { tag: 'want', get: () => ({ status: 'pending', sign: null }) },
+//     { tag: 'wait', get: () => ({ status: 'waiting', sign: null }) },
+//     {
+//       tag: 'done',
+//       get: (noun: Noun) => ({
+//         status: 'verified',
+//         sign: parseAttestation(noun),
+//       }),
+//     },
+//   ])(noun);
+
+//   return {
+//     status,
+//     signature: sign?.signature,
+//     initiatedAt: sign?.when,
+//     provingTweetId: sign?.signType === 'full' ? sign.proofTweetId : null,
+//   };
+// }
+
 // function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {
-//   console.log(`noun to client records`);
+//   console.log(`noun to client records`, noun);
 //   return enjs.tree((n: Noun) => {
 //     if (!(n instanceof Cell)) {
 //       throw new Error('malformed map');
@@ -255,7 +368,7 @@ function parseFullSign(contactId: string, noun: Noun): FullSign {
 //     }
 
 //     const config = enjs.cord(n.tail.head) as db.VerificationVisibility;
-//     const currentUserId = getCurrentUserId();
+//     const currentUserId = '~latter-bolden'; // TODO: real curr user id
 //     const a = n.tail.tail;
 //     if (!(a instanceof Cell)) {
 //       throw new Error('malformed record why');

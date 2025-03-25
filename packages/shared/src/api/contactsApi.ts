@@ -300,9 +300,10 @@ function parseContactAttestations(
   ) {
     try {
       const sign = NounParsers.parseSigned(
-        contact['lanyard-twitter-0-sign'].value,
-        contactId
+        contact['lanyard-twitter-0-sign'].value
       );
+
+      // TODO: check contactId matches signed data
 
       if (!sign) {
         return null;

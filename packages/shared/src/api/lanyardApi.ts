@@ -108,7 +108,6 @@ function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {
     }
 
     const config = enjs.cord(n.tail.head) as db.VerificationVisibility;
-    const currentUserId = getCurrentUserId();
     const a = n.tail.tail;
     if (!(a instanceof Cell)) {
       throw new Error('malformed record why');
@@ -125,7 +124,7 @@ function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {
         tag: 'done',
         get: (noun: Noun) => ({
           status: 'verified',
-          sign: NounParsers.parseAttestation(noun, currentUserId),
+          sign: NounParsers.parseAttestation(noun),
         }),
       },
     ])(a.tail);
