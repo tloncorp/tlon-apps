@@ -1,11 +1,10 @@
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
-import { Text } from '@tloncorp/ui';
+import { LoadingSpinner, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { View, YStack } from 'tamagui';
 
-import { LoadingSpinner } from '../../../ui/src/components/LoadingSpinner';
 import { useStore } from '../contexts';
 import { AttestationPane } from './AttestationPane';
 import { PrimaryButton } from './Buttons';

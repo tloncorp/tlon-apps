@@ -9,11 +9,14 @@ const posts = createFakePosts(10);
 const INITIAL: db.Verification | null = null;
 
 const CONFIRM: db.Verification = {
+  id: '23jskj3',
   type: 'twitter',
   status: 'pending',
   provider: '~zod',
   value: '@gardener',
   visibility: 'public',
+  initiatedAt: Date.now(),
+  contactId: '~latter-bolden',
 };
 
 export default {
