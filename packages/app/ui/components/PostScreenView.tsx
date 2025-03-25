@@ -393,7 +393,7 @@ function SinglePostView({
 
   const { data: threadPosts } = store.useThreadPosts({
     postId: parentPost.id,
-    authorId: parentPost.id,
+    authorId: parentPost.authorId,
     channelId: channel.id,
   });
 
