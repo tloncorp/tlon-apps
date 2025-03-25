@@ -421,7 +421,10 @@ export const persistUnreads = async ({
   ctx?: QueryCtx;
   includesAllUnreads?: boolean;
 }) => {
-  const { groupUnreads, channelUnreads, threadActivity } = unreads;
+  const { baseUnread, groupUnreads, channelUnreads, threadActivity } = unreads;
+  if (baseUnread) {
+    await db.insertBaseUnread(baseUnread, ctx);
+  }
   await db.insertGroupUnreads(groupUnreads, ctx);
   await db.insertChannelUnreads(channelUnreads, ctx);
   await db.insertThreadUnreads(threadActivity, ctx);
@@ -708,6 +711,7 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
 
 const createActivityUpdateHandler = (queueDebounce: number = 100) => {
   const queue: api.ActivityUpdateQueue = {
+    baseUnread: undefined,
     groupUnreads: [],
     channelUnreads: [],
     threadUnreads: [],
@@ -717,6 +721,7 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
   const processQueue = _.debounce(
     async () => {
       const activitySnapshot = _.cloneDeep(queue);
+      queue.baseUnread = undefined;
       queue.groupUnreads = [];
       queue.channelUnreads = [];
       queue.threadUnreads = [];
@@ -725,6 +730,7 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
 
       logger.log(
         `processing activity queue`,
+        activitySnapshot.baseUnread,
         activitySnapshot.groupUnreads.length,
         activitySnapshot.channelUnreads.length,
         activitySnapshot.threadUnreads.length,
@@ -732,6 +738,9 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
         activitySnapshot.activityEvents.length
       );
       await batchEffects('activityUpdate', async (ctx) => {
+        if (activitySnapshot.baseUnread) {
+          await db.insertBaseUnread(activitySnapshot.baseUnread, ctx);
+        }
         await db.insertGroupUnreads(activitySnapshot.groupUnreads, ctx);
         await db.insertChannelUnreads(activitySnapshot.channelUnreads, ctx);
         await db.insertThreadUnreads(activitySnapshot.threadUnreads, ctx);
@@ -761,6 +770,9 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
 
   return (event: api.ActivityEvent) => {
     switch (event.type) {
+      case 'updateBaseUnread':
+        queue.baseUnread = event.unread;
+        break;
       case 'updateGroupUnread':
         queue.groupUnreads.push(event.unread);
         break;
