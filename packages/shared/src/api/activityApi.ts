@@ -416,18 +416,18 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
           const source = sourceIdToSource(sourceId);
 
           switch (source.type) {
-            case 'base':
-              handler({
-                type: 'updateBaseUnread',
-                unread: {
-                  id: BASE_UNREADS_SINGLETON_KEY,
-                  count: summary.count,
-                  notify: summary.notify,
-                  notifyCount: summary['notify-count'],
-                  updatedAt: summary.recency,
-                },
-              });
-              break;
+            // case 'base':
+            //   handler({
+            //     type: 'updateBaseUnread',
+            //     unread: {
+            //       id: BASE_UNREADS_SINGLETON_KEY,
+            //       count: summary.count,
+            //       notify: summary.notify,
+            //       notifyCount: summary['notify-count'],
+            //       updatedAt: summary.recency,
+            //     },
+            //   });
+            //   break;
             case 'group':
               handler({
                 type: 'updateGroupUnread',

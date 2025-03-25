@@ -618,11 +618,6 @@ export const insertGroups = createWriteQuery(
         } else {
           await txCtx.db.insert($groups).values(group).onConflictDoNothing();
         }
-        const currentChannels = await txCtx.db.query.channels.findMany();
-        logger.log(
-          'insertGroups: existing channels',
-          currentChannels.map((c) => c.id)
-        );
         if (group.channels?.length) {
           logger.log(
             'insertGroups: inserting channels for group',
@@ -811,7 +806,7 @@ export const insertGroups = createWriteQuery(
             .onConflictDoNothing();
         }
       }
-      //await setLastPosts(null, txCtx);
+      await setLastPosts(null, txCtx);
     });
   },
   [
@@ -2540,11 +2535,6 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
   logger.log(
     'inserting post batch',
     posts.map((p) => [p.id, p.channelId])
-  );
-  const channels = await ctx.db.query.channels.findMany();
-  logger.log(
-    'existing channels',
-    channels.map((c) => c.id)
   );
   await ctx.db
     .insert($posts)

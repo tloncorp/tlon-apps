@@ -30,7 +30,8 @@ const Drawer = createDrawerNavigator<RootDrawerParamList>();
 
 const DrawerContent = (props: DrawerContentComponentProps) => {
   const userId = useCurrentUserId();
-  const { data: baseUnread } = store.useBaseUnread();
+  // const { data: baseUnread } = store.useBaseUnread();
+  const haveUnreadUnseenActivity = store.useHaveUnreadUnseenActivity();
   const { webAppNeedsUpdate, triggerWebAppUpdate } = useWebAppUpdate();
   const lastHomeStateRef =
     useRef<DrawerNavigationState<RootDrawerParamList> | null>(null);
@@ -96,7 +97,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
         <NavIcon
           type="Notifications"
           activeType="NotificationsFilled"
-          hasUnreads={baseUnread?.notify || false}
+          hasUnreads={haveUnreadUnseenActivity}
           isActive={isRouteActive('Activity')}
           onPress={() => {
             saveHomeState();

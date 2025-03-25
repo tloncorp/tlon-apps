@@ -48,7 +48,6 @@ test('uses init data to get chat list', async () => {
   ]);
 
   const ids = result.unpinned.map((r) => r.id).slice(0, 7);
-  console.log(ids);
   expect(ids).toEqual([
     'chat/~nibset-napwyn/commons',
     '~nibset-napwyn/tlon',

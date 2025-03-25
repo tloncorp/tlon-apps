@@ -168,14 +168,6 @@ export const syncLatestPosts = async (
   );
   logger.crumb('got latest posts from api');
   const allPosts = result.map((p) => p.latestPost);
-  const chats = await db.getChats();
-  const chatIds = [...chats.pinned, ...chats.unpinned, ...chats.pending].map(
-    (c) => c.id
-  );
-  logger.log(
-    'missing chat ids',
-    allPosts.map((p) => p.channelId).filter((id) => !chatIds.includes(id))
-  );
   const writer = async (): Promise<void> => {
     allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
     await db.insertLatestPosts(allPosts, queryCtx);
