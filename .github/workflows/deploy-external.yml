@@ -9,7 +9,7 @@ on:
       kernel:
         type: boolean
         required: false
-        default: true
+        default: false
         description: Also deploy to kernel integration moon
 jobs:
   deploy:
@@ -17,16 +17,18 @@ jobs:
     name: "Release to ~doznec-dozzod-marnus (external)"
     steps:
       - uses: actions/checkout@v3
-      - id: 'auth'
-        uses: 'google-github-actions/auth@v1'
+      - id: "auth"
+        uses: "google-github-actions/auth@v1"
         with:
-          credentials_json: '${{ secrets.GCP_SERVICE_KEY }}'
-      - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v1'
+          credentials_json: "${{ secrets.GCP_SERVICE_KEY }}"
+      - name: "Set up Cloud SDK"
+        uses: "google-github-actions/setup-gcloud@v1"
       - id: deploy
         name: Deploy
         run:
-          ./.github/helpers/deploy.sh tloncorp/tlon-apps groups doznec-dozzod-marnus us-central1-a mainnet-tlon-other-2d ${{ github.event.inputs.tag }}
+          ./.github/helpers/deploy.sh tloncorp/tlon-apps groups
+          doznec-dozzod-marnus us-central1-a mainnet-tlon-other-2d ${{
+          github.event.inputs.tag }}
         env:
           SSH_SEC_KEY: ${{ secrets.GCP_SSH_SEC_KEY }}
           SSH_PUB_KEY: ${{ secrets.GCP_SSH_PUB_KEY }}
@@ -35,7 +37,9 @@ jobs:
         name: Deploy Kernel Moon
         if: ${{ github.event.inputs.kernel == 'true' }}
         run:
-          ./.github/helpers/deploy.sh tloncorp/tlon-apps groups bosdev-dozzod-marnus us-central1-b mainnet-tlon-other-2d ${{ github.event.inputs.tag }}
+          ./.github/helpers/deploy.sh tloncorp/tlon-apps groups
+          bosdev-dozzod-marnus us-central1-b mainnet-tlon-other-2d ${{
+          github.event.inputs.tag }}
         env:
           SSH_SEC_KEY: ${{ secrets.GCP_SSH_SEC_KEY }}
           SSH_PUB_KEY: ${{ secrets.GCP_SSH_PUB_KEY }}
@@ -45,16 +49,18 @@ jobs:
     name: "Release new frontend to ~doznec-dozzod-marnus (internal)"
     steps:
       - uses: actions/checkout@v3
-      - id: 'auth'
-        uses: 'google-github-actions/auth@v1'
+      - id: "auth"
+        uses: "google-github-actions/auth@v1"
         with:
-          credentials_json: '${{ secrets.GCP_SERVICE_KEY }}'
-      - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v1'
+          credentials_json: "${{ secrets.GCP_SERVICE_KEY }}"
+      - name: "Set up Cloud SDK"
+        uses: "google-github-actions/setup-gcloud@v1"
       - id: deploy
         name: Deploy
         run:
-          ./.github/helpers/deploy.sh tloncorp/tlon-apps tm-alpha doznec-dozzod-marnus us-central1-a mainnet-tlon-other-2d ${{ github.event.inputs.tag }}
+          ./.github/helpers/deploy.sh tloncorp/tlon-apps tm-alpha
+          doznec-dozzod-marnus us-central1-a mainnet-tlon-other-2d ${{
+          github.event.inputs.tag }}
         env:
           SSH_SEC_KEY: ${{ secrets.GCP_SSH_SEC_KEY }}
           SSH_PUB_KEY: ${{ secrets.GCP_SSH_PUB_KEY }}
