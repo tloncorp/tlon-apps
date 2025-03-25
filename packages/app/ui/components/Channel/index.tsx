@@ -180,12 +180,11 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
 
     const inView = useIsFocused();
     const hasLoaded = !!(posts && channel);
-    const hasUnreads = (channel?.unread?.count ?? 0) > 0;
     useEffect(() => {
-      if (hasUnreads && hasLoaded && inView) {
+      if (hasLoaded && inView) {
         markRead();
       }
-    }, [hasUnreads, hasLoaded, inView, markRead]);
+    }, [hasLoaded, inView, markRead]);
 
     const handleRefPress = useCallback(
       (refChannel: db.Channel, post: db.Post) => {

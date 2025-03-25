@@ -210,6 +210,66 @@
       }
     },
     {
+      "whom": "~sicdev-pilnup",
+      "recency": 1721700906107,
+      "latest": {
+        "seal": {
+          "id": "~sicdev-pilnup/170.141.184.506.911.943.938.878.328.683.341.836.976",
+          "replies": {},
+          "time": "170141184506911943943938548454857375744",
+          "reacts": {
+            "~latter-bolden": ":heart:"
+          },
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~sicdev-pilnup",
+          "kind-data": {
+            "chat": null
+          },
+          "sent": 1721700905833,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "whom": "~mopsub-winter",
+      "recency": 1721526871995,
+      "latest": {
+        "seal": {
+          "id": "~mopsub-winter/170.141.184.506.908.733.577.519.228.440.434.935.070",
+          "replies": {},
+          "time": "170141184506908733581209331608114429952",
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~mopsub-winter",
+          "kind-data": {
+            "chat": null
+          },
+          "sent": 1721526871795,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        }
+      }
+    },
+    {
       "whom": "~fiprud-digrun-havsef-hallyr--nocdet-roppel-tolluc-litzod",
       "recency": 1716159722466,
       "latest": {
@@ -829,6 +889,37 @@
       }
     },
     {
+      "whom": "0v4.00000.qd9l2.sk6iu.6kvnp.rchd1",
+      "recency": 1721174443309,
+      "latest": {
+        "seal": {
+          "id": "~latter-bolden/170.141.184.506.902.246.557.909.221.147.645.313.024",
+          "replies": {},
+          "time": "170141184506902246557909221147645313024",
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~latter-bolden",
+          "kind-data": {
+            "chat": {
+              "notice": null
+            }
+          },
+          "sent": 1721175209757,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        }
+      }
+    },
+    {
       "whom": "0v4.00000.qd92b.4bfdi.5k75c.10oid",
       "recency": 1719946251417,
       "latest": {
@@ -851,6 +942,190 @@
             }
           },
           "sent": 1719947545177,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "whom": "0v4.00000.qd8g4.j496c.pj6cp.j6cpj",
+      "recency": 1718753100536,
+      "latest": {
+        "seal": {
+          "id": "~latter-bolden/170.141.184.506.857.568.131.945.102.437.571.887.104",
+          "replies": {},
+          "time": "170141184506857568131945102437571887104",
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~latter-bolden",
+          "kind-data": {
+            "chat": {
+              "notice": null
+            }
+          },
+          "sent": 1718753187433,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "whom": "0v4.00000.qd8s0.plmc9.6t5sd.9vfjm",
+      "recency": 1721917629576,
+      "latest": {
+        "seal": {
+          "id": "~latter-bolden/170.141.184.506.915.941.777.888.430.787.651.352.657",
+          "replies": {},
+          "time": "170141184506915941786300501869633470464",
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~latter-bolden",
+          "kind-data": {
+            "chat": null
+          },
+          "sent": 1721917629120,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "whom": "0v4.00000.qd75s.q6n4r.knhl7.tuer4",
+      "recency": 1715984659161,
+      "latest": {
+        "seal": {
+          "id": "~latter-bolden/170.141.184.506.806.498.151.175.006.043.406.073.856",
+          "replies": {},
+          "time": "170141184506806498151175006043406073856",
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~latter-bolden",
+          "kind-data": {
+            "chat": {
+              "notice": null
+            }
+          },
+          "sent": 1715984678228,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "whom": "0v4.00000.qd7dg.c71e2.hte2h.te2ht",
+      "recency": 1716483484385,
+      "latest": {
+        "seal": {
+          "id": "~latter-bolden/170.141.184.506.815.727.395.674.402.479.484.698.624",
+          "replies": {},
+          "time": "170141184506815727395674402479484698624",
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~latter-bolden",
+          "kind-data": {
+            "chat": {
+              "notice": null
+            }
+          },
+          "sent": 1716484996574,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "whom": "0v4.00000.qd7sp.la7c1.0oidq.boqju",
+      "recency": 1717485541899,
+      "latest": {
+        "seal": {
+          "id": "~latter-bolden/170.141.184.506.834.350.551.655.083.269.469.241.344",
+          "replies": {},
+          "time": "170141184506834350551655083269469241344",
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~latter-bolden",
+          "kind-data": {
+            "chat": {
+              "notice": null
+            }
+          },
+          "sent": 1717494559883,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "whom": "0v4.00000.qd9l2.tccq3.im0gc.96t5s",
+      "recency": 1721174528846,
+      "latest": {
+        "seal": {
+          "id": "~latter-bolden/170.141.184.506.902.246.486.126.628.161.963.687.936",
+          "replies": {},
+          "time": "170141184506902246486126628161963687936",
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~latter-bolden",
+          "kind-data": {
+            "chat": {
+              "notice": null
+            }
+          },
+          "sent": 1721175205866,
           "content": [
             {
               "inline": ["redacted"]
@@ -889,6 +1164,37 @@
       }
     },
     {
+      "whom": "0v4.00000.qd7ei.2gq96.t5sd9.vfjmp",
+      "recency": 1716552490373,
+      "latest": {
+        "seal": {
+          "id": "~latter-bolden/170.141.184.506.816.976.898.320.644.091.970.322.432",
+          "replies": {},
+          "time": "170141184506816976898320644091970322432",
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~latter-bolden",
+          "kind-data": {
+            "chat": {
+              "notice": null
+            }
+          },
+          "sent": 1716552732249,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        }
+      }
+    },
+    {
       "whom": "0v4.00000.qd819.b3ubo.qjuv7.di5k7",
       "recency": 1718728862529,
       "latest": {
@@ -909,6 +1215,159 @@
             "chat": null
           },
           "sent": 1718728862351,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "whom": "0v4.00000.qd78g.49cbo.qjuv7.di5k7",
+      "recency": 1716155834721,
+      "latest": {
+        "seal": {
+          "id": "~latter-bolden/170.141.184.506.809.658.983.490.879.979.924.750.336",
+          "replies": {},
+          "time": "170141184506809658983490879979924750336",
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~latter-bolden",
+          "kind-data": {
+            "chat": {
+              "notice": null
+            }
+          },
+          "sent": 1716156027291,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "whom": "0v4.00000.qd78i.8vovn.prchd.1pb08",
+      "recency": 1716159682338,
+      "latest": {
+        "seal": {
+          "id": "~pondus-watbel/170.141.184.506.809.876.893.501.647.124.789.460.992",
+          "replies": {},
+          "time": "170141184506809876893501647124789460992",
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~latter-bolden",
+          "kind-data": {
+            "chat": {
+              "notice": null
+            }
+          },
+          "sent": 1716167840216,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "whom": "0v4.00000.qd8s9.51eht.e2hte.2hte2",
+      "recency": 1719548870487,
+      "latest": {
+        "seal": {
+          "id": "~latter-bolden/170.141.184.506.872.246.253.019.752.729.285.754.880",
+          "replies": {},
+          "time": "170141184506872246253019752729285754880",
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~latter-bolden",
+          "kind-data": {
+            "chat": {
+              "notice": null
+            }
+          },
+          "sent": 1719548889970,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "whom": "0v4.00000.qd75d.vkj7d.i5k75.c10oi",
+      "recency": 1715954286923,
+      "latest": {
+        "seal": {
+          "id": "~pondus-watbel/170.141.184.506.809.657.334.081.011.977.709.158.400",
+          "replies": {},
+          "time": "170141184506809657334081011977709158400",
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~latter-bolden",
+          "kind-data": {
+            "chat": {
+              "notice": null
+            }
+          },
+          "sent": 1716155937876,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "whom": "0v4.00000.qda20.j3hi5.k75c1.0oidq",
+      "recency": 1722023376322,
+      "latest": {
+        "seal": {
+          "id": "~rilfun-lidlen/170.141.184.506.917.892.462.524.259.882.780.627.828",
+          "replies": {},
+          "time": "170141184506917892469460350496285917184",
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~rilfun-lidlen",
+          "kind-data": {
+            "chat": null
+          },
+          "sent": 1722023375946,
           "content": [
             {
               "inline": ["redacted"]
@@ -1010,6 +1469,36 @@
       }
     },
     {
+      "recency": 1715144529623,
+      "nest": "heap/~dabben-larbet/interface-1720",
+      "latest": {
+        "revision": "0",
+        "seal": {
+          "id": "170141184506791000144887995083339595776",
+          "replies": {},
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~ravmel-ropdyl",
+          "kind-data": {
+            "heap": ""
+          },
+          "sent": 1715144529290,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        },
+        "type": "post"
+      }
+    },
+    {
       "recency": 946684800000,
       "nest": "diary/~nocsyx-lassul/feedback-and-questions-2368",
       "latest": {
@@ -1073,6 +1562,99 @@
       }
     },
     {
+      "recency": 1692887885871,
+      "nest": "chat/~dabben-larbet/native-apps",
+      "latest": {
+        "revision": "0",
+        "seal": {
+          "id": "170141184506404431672618457020472754176",
+          "replies": {},
+          "reacts": {
+            "~dovsem-bornyl": ":+1:",
+            "~finned-palmer": ":+1:"
+          },
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~rilfun-lidlen",
+          "kind-data": {
+            "chat": null
+          },
+          "sent": 1694188610607,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        },
+        "type": "post"
+      }
+    },
+    {
+      "recency": 1719324243058,
+      "nest": "chat/~ravmel-ropdyl/chaat",
+      "latest": {
+        "revision": "0",
+        "seal": {
+          "id": "170141184506868102248921744265776726016",
+          "replies": {},
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~ravmel-ropdyl",
+          "kind-data": {
+            "chat": null
+          },
+          "sent": 1719324242937,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        },
+        "type": "post"
+      }
+    },
+    {
+      "recency": 1718935930404,
+      "nest": "chat/~latter-bolden/welcome-6239",
+      "latest": {
+        "revision": "0",
+        "seal": {
+          "id": "170141184506860939144770161710783791104",
+          "replies": {},
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~latter-bolden",
+          "kind-data": {
+            "chat": null
+          },
+          "sent": 1718935930335,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        },
+        "type": "post"
+      }
+    },
+    {
       "recency": 946684800000,
       "nest": "heap/~pondus-watbel/stuffs",
       "latest": {
@@ -1093,6 +1675,36 @@
             "heap": ""
           },
           "sent": 1703009456011,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        },
+        "type": "post"
+      }
+    },
+    {
+      "recency": 1722018841185,
+      "nest": "heap/~bolbex-fogdys/coffee-table",
+      "latest": {
+        "revision": "0",
+        "seal": {
+          "id": "170141184506917803749861053538846638080",
+          "replies": {},
+          "reacts": {},
+          "meta": {
+            "replyCount": 7,
+            "lastReply": 1722018841185,
+            "lastRepliers": ["~ravmel-ropdyl", "~dalwes-migdec"]
+          }
+        },
+        "essay": {
+          "author": "~ravmel-ropdyl",
+          "kind-data": {
+            "heap": ""
+          },
+          "sent": 1722018566240,
           "content": [
             {
               "inline": ["redacted"]
@@ -1163,6 +1775,66 @@
       }
     },
     {
+      "recency": 1722262577787,
+      "nest": "chat/~nocsyx-lassul/bongtable",
+      "latest": {
+        "revision": "0",
+        "seal": {
+          "id": "170141184506917842448238809220714070016",
+          "replies": {},
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~fabled-faster",
+          "kind-data": {
+            "chat": null
+          },
+          "sent": 1722020664435,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        },
+        "type": "post"
+      }
+    },
+    {
+      "recency": 1715807322505,
+      "nest": "chat/~latter-bolden/welcome-1327",
+      "latest": {
+        "revision": "0",
+        "seal": {
+          "id": "170141184506803226515552536088583077888",
+          "replies": {},
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~latter-bolden",
+          "kind-data": {
+            "chat": null
+          },
+          "sent": 1715807322441,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        },
+        "type": "post"
+      }
+    },
+    {
       "recency": 1715187514334,
       "nest": "chat/~pondus-watbel/looooong-chats",
       "latest": {
@@ -1183,6 +1855,36 @@
             "chat": null
           },
           "sent": 1715186072774,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        },
+        "type": "post"
+      }
+    },
+    {
+      "recency": 946684800000,
+      "nest": "heap/~bitpyx-dildus/music-34",
+      "latest": {
+        "revision": "0",
+        "seal": {
+          "id": "170141184506754962014141914891383996416",
+          "replies": {},
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~rilfun-lidlen",
+          "kind-data": {
+            "heap": ""
+          },
+          "sent": 1713190898459,
           "content": [
             {
               "inline": ["redacted"]
@@ -1223,6 +1925,36 @@
       }
     },
     {
+      "recency": 1722369814726,
+      "nest": "chat/~bolbex-fogdys/watercooler-4926",
+      "latest": {
+        "revision": "0",
+        "seal": {
+          "id": "170141184506924283130027364045041958912",
+          "replies": {},
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~roslet-tanner",
+          "kind-data": {
+            "chat": null
+          },
+          "sent": 1722369814428,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        },
+        "type": "post"
+      }
+    },
+    {
       "recency": 946684800000,
       "nest": "chat/~pondus-watbel/welcome-4526",
       "latest": {
@@ -1253,6 +1985,36 @@
       }
     },
     {
+      "recency": 1715841839704,
+      "nest": "chat/~latter-bolden/welcome-5696",
+      "latest": {
+        "revision": "0",
+        "seal": {
+          "id": "170141184506803863245476903018414735360",
+          "replies": {},
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~tirpec-fosdul-ragber-habpet--witnec-todtev-donbyt-binzod",
+          "kind-data": {
+            "chat": null
+          },
+          "sent": 1715841839533,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        },
+        "type": "post"
+      }
+    },
+    {
       "recency": 1722375075806,
       "nest": "chat/~nibset-napwyn/developers",
       "latest": {
@@ -1273,6 +2035,36 @@
             "chat": null
           },
           "sent": 1722375075345,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        },
+        "type": "post"
+      }
+    },
+    {
+      "recency": 1722361614253,
+      "nest": "chat/~dabben-larbet/hosting-6173",
+      "latest": {
+        "revision": "0",
+        "seal": {
+          "id": "170141184506924131858013183197617061888",
+          "replies": {},
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~bitter-bitduc",
+          "kind-data": {
+            "chat": null
+          },
+          "sent": 1722361613985,
           "content": [
             {
               "inline": ["redacted"]
@@ -1333,6 +2125,132 @@
             "chat": null
           },
           "sent": 1717789502697,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        },
+        "type": "post"
+      }
+    },
+    {
+      "recency": 1721433965616,
+      "nest": "heap/~bolbex-fogdys/design-1761",
+      "latest": {
+        "revision": "0",
+        "seal": {
+          "id": "170141184506906885975924625354830905344",
+          "replies": {},
+          "reacts": {},
+          "meta": {
+            "replyCount": 1,
+            "lastReply": 1721433965616,
+            "lastRepliers": ["~fabled-faster"]
+          }
+        },
+        "essay": {
+          "author": "~rilfun-lidlen",
+          "kind-data": {
+            "heap": ""
+          },
+          "sent": 1721426712432,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        },
+        "type": "post"
+      }
+    },
+    {
+      "recency": 1722321554656,
+      "nest": "chat/~bolbex-fogdys/ops",
+      "latest": {
+        "revision": "0",
+        "seal": {
+          "id": "170141184506922538466348445590104309760",
+          "replies": {},
+          "reacts": {
+            "~latter-bolden": ":exclamation:",
+            "~bitter-bitduc": ":exclamation:"
+          },
+          "meta": {
+            "replyCount": 2,
+            "lastReply": 1722275390640,
+            "lastRepliers": ["~rilfun-lidlen", "~latter-bolden"]
+          }
+        },
+        "essay": {
+          "author": "~ravseg-nosduc",
+          "kind-data": {
+            "chat": null
+          },
+          "sent": 1722275236069,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        },
+        "type": "post"
+      }
+    },
+    {
+      "recency": 1722369640300,
+      "nest": "diary/~bolbex-fogdys/bulletins",
+      "latest": {
+        "revision": "0",
+        "seal": {
+          "id": "170141184506924279912437647144608858112",
+          "replies": {},
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~dalwes-migdec",
+          "kind-data": {
+            "diary": {
+              "image": "https://sfo2.digitaloceanspaces.com/dalwes-migdec/dalwes-migdec/2024.7.30..19.57.23..d78d.4fdf.3b64.5a1c-orb.jpeg",
+              "title": "~07.30.2024 Feedback Update"
+            }
+          },
+          "sent": 1722369631865,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        },
+        "type": "post"
+      }
+    },
+    {
+      "recency": 1722372219059,
+      "nest": "chat/~bitpyx-dildus/interface",
+      "latest": {
+        "revision": "0",
+        "seal": {
+          "id": "170141184506924327482150345483931877376",
+          "replies": {},
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~rilfun-lidlen",
+          "kind-data": {
+            "chat": null
+          },
+          "sent": 1722372218642,
           "content": [
             {
               "inline": ["redacted"]
@@ -1406,6 +2324,36 @@
       }
     },
     {
+      "recency": 946684800000,
+      "nest": "chat/~dozped-mogtec/welcome-4440",
+      "latest": {
+        "revision": "0",
+        "seal": {
+          "id": "170141184506817190203694089176235376640",
+          "replies": {},
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~dozped-mogtec",
+          "kind-data": {
+            "chat": null
+          },
+          "sent": 1716564295465,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        },
+        "type": "post"
+      }
+    },
+    {
       "recency": 1722023170670,
       "nest": "diary/~pondus-watbel/books",
       "latest": {
@@ -1439,6 +2387,38 @@
       }
     },
     {
+      "recency": 1721781695565,
+      "nest": "chat/~bolbex-fogdys/marcom",
+      "latest": {
+        "revision": "0",
+        "seal": {
+          "id": "170141184506913305500700035968275578880",
+          "replies": {},
+          "reacts": {
+            "~dalwes-migdec": ":+1:"
+          },
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~nocsyx-lassul",
+          "kind-data": {
+            "chat": null
+          },
+          "sent": 1721774715918,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        },
+        "type": "post"
+      }
+    },
+    {
       "recency": 1722103779523,
       "nest": "heap/~nibset-napwyn/local-directory",
       "latest": {
@@ -1459,6 +2439,66 @@
             "heap": ""
           },
           "sent": 1722103779146,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        },
+        "type": "post"
+      }
+    },
+    {
+      "recency": 1722369697710,
+      "nest": "chat/~bolbex-fogdys/tlon-general",
+      "latest": {
+        "revision": "0",
+        "seal": {
+          "id": "170141184506924280971476550969337053184",
+          "replies": {},
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~dalwes-migdec",
+          "kind-data": {
+            "chat": null
+          },
+          "sent": 1722369697496,
+          "content": [
+            {
+              "inline": ["redacted"]
+            }
+          ]
+        },
+        "type": "post"
+      }
+    },
+    {
+      "recency": 1721774773688,
+      "nest": "heap/~dabben-larbet/fanmail-3976",
+      "latest": {
+        "revision": "0",
+        "seal": {
+          "id": "170141184506913306560289223372473106432",
+          "replies": {},
+          "reacts": {},
+          "meta": {
+            "replyCount": 0,
+            "lastReply": null,
+            "lastRepliers": []
+          }
+        },
+        "essay": {
+          "author": "~rilfun-lidlen",
+          "kind-data": {
+            "heap": ""
+          },
+          "sent": 1721774772945,
           "content": [
             {
               "inline": ["redacted"]
