@@ -224,8 +224,6 @@ export default function ChannelScreen(props: Props) {
     [channel]
   );
 
-  console.log('chanel config', channelConfiguration);
-
   const {
     posts,
     query: postsQuery,
