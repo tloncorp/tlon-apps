@@ -506,8 +506,9 @@
       [%contacts %set ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  [~ this]
-    %.  [~ this]
-    (slog (cat 3 dap.bowl ': failed to update contacts') u.p.sign)
+    %-  (tell:lo %crit 'failed to update contacts' u.p.sign)
+    %-  (slog (cat 3 dap.bowl ': failed to update contacts') u.p.sign)
+    [~ this]
   ==
 ::
 ++  on-watch
