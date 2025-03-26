@@ -1,83 +1,93 @@
-import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Linking } from 'react-native';
 import { XStack, YStack } from 'tamagui';
 
 import { AttestationSheet } from '../AttestationSheet';
 import { WidgetPane } from '../WidgetPane';
 
-export function ConnectedAccountsWidget(props: {
-  twitterAttest?: db.Verification;
-  phoneAttest?: db.Verification;
-}) {
-  const [selectedAttest, setSelectedAttest] = useState<db.Verification | null>(
-    null
-  );
+export function TwitterAttestDisplay(props: { attestation: db.Verification }) {
+  const [showDetails, setShowDetails] = useState(false);
+  const formattedHandle = useMemo(() => {
+    if (props.attestation.value?.charAt(0) === '@') {
+      return props.attestation.value;
+    }
+    return `@${props.attestation.value}`;
+  }, [props.attestation.value]);
 
   const handleViewTweet = useCallback(() => {
-    if (props.twitterAttest && props.twitterAttest.value) {
-      Linking.openURL(`https://x.com/${props.twitterAttest.value}`);
+    if (props.attestation && props.attestation.value) {
+      Linking.openURL(`https://x.com/${props.attestation.value}`);
     }
-  }, [props.twitterAttest]);
+  }, [props.attestation]);
 
-  if (!props.twitterAttest && !props.phoneAttest) {
+  if (!props.attestation.value || props.attestation.type !== 'twitter') {
     return null;
   }
 
   return (
-    <WidgetPane width="100%">
-      <WidgetPane.Title>Connected Accounts</WidgetPane.Title>
-      <YStack gap="$l">
-        {props.twitterAttest && props.twitterAttest.value && (
-          <Pressable
-            onPress={handleViewTweet}
-            onLongPress={() => setSelectedAttest(props.twitterAttest!)}
-          >
-            <YStack
-              alignItems="flex-start"
-              gap="$m"
-              padding="$2xl"
-              borderRadius="$l"
-              backgroundColor="$secondaryBackground"
-            >
-              <XStack justifyContent="space-between">
-                <XStack alignItems="center" gap="$m">
-                  <Icon type="VerifiedBadge" customSize={[28, 28]} />
-                  <Text size="$label/l" color="$secondaryText" fontWeight="500">
-                    @{props.twitterAttest.value}
-                  </Text>
-                </XStack>
-              </XStack>
-            </YStack>
-          </Pressable>
-        )}
-        {props.phoneAttest && (
-          <Pressable onLongPress={() => setSelectedAttest(props.phoneAttest!)}>
-            <XStack
-              alignItems="center"
-              gap="$l"
-              padding="$2xl"
-              borderRadius="$l"
-              backgroundColor="$secondaryBackground"
-            >
-              <Icon type="VerifiedBadge" customSize={[28, 28]} />
-              <Text size="$label/l" color="$secondaryText" fontWeight="500">
-                Phone number
-              </Text>
+    <>
+      <Pressable
+        onPress={handleViewTweet}
+        onLongPress={() => setShowDetails(true)}
+        flex={1}
+      >
+        <WidgetPane flex={1}>
+          <WidgetPane.Title>X Account</WidgetPane.Title>
+          <YStack flex={1} justifyContent="center">
+            <XStack alignItems="center" gap="$xs">
+              <Text size="$label/l">{formattedHandle}</Text>
+              <Icon type="VerifiedBadge" customSize={[24, 24]} />
             </XStack>
-          </Pressable>
-        )}
-      </YStack>
+          </YStack>
+        </WidgetPane>
+      </Pressable>
       <AttestationSheet
-        open={selectedAttest !== null}
-        onOpenChange={() => setSelectedAttest(null)}
-        attestation={selectedAttest}
+        open={showDetails}
+        onOpenChange={() => setShowDetails(false)}
+        attestation={props.attestation}
       />
-    </WidgetPane>
+    </>
+  );
+}
+
+export function PhoneAttestDisplay(props: { attestation: db.Verification }) {
+  const [showDetails, setShowDetails] = useState(false);
+
+  if (!props.attestation.value || props.attestation.type !== 'phone') {
+    return null;
+  }
+
+  return (
+    <>
+      <Pressable onLongPress={() => setShowDetails(true)} flex={1}>
+        <WidgetPane flex={1}>
+          <WidgetPane.Title>Phone</WidgetPane.Title>
+          <YStack flex={1} justifyContent="center">
+            <XStack alignItems="center" gap="$xs">
+              <Text size="$label/l" fontWeight="500">
+                (
+                <Text size="$label/xl" fontWeight="600">
+                  ···
+                </Text>
+                ){' '}
+                <Text size="$label/xl" fontWeight="600">
+                  ··· ····
+                </Text>
+              </Text>
+              <Icon type="VerifiedBadge" customSize={[24, 24]} />
+            </XStack>
+          </YStack>
+        </WidgetPane>
+      </Pressable>
+      <AttestationSheet
+        open={showDetails}
+        onOpenChange={() => setShowDetails(false)}
+        attestation={props.attestation}
+      />
+    </>
   );
 }

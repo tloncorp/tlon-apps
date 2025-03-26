@@ -20,7 +20,7 @@ export function AttestationSheet(props: {
       open={props.open}
       onOpenChange={props.onOpenChange}
       snapPointsMode="percent"
-      snapPoints={[70]}
+      snapPoints={[80]}
     >
       <ActionSheet.MainContent marginTop="$xl" justifyContent="flex-start">
         <AttestationPane

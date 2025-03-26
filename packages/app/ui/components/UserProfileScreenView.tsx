@@ -2,7 +2,7 @@ import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCopy } from '@tloncorp/ui';
-import { triggerHaptic, useIsWindowNarrow } from '@tloncorp/ui';
+import { triggerHaptic } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
@@ -32,7 +32,10 @@ import { useGroupTitle } from '../utils';
 import { ContactAvatar, GroupAvatar } from './Avatar';
 import { ContactName } from './ContactNameV2';
 import { useBoundHandler } from './ListItem/listItemUtils';
-import { ConnectedAccountsWidget } from './Profile/ConnectedAccountsWidget';
+import {
+  PhoneAttestDisplay,
+  TwitterAttestDisplay,
+} from './Profile/ConnectedAccountsWidget';
 import { ScreenHeader } from './ScreenHeader';
 import { WidgetPane } from './WidgetPane';
 
@@ -138,16 +141,27 @@ export function UserProfileScreenView(props: Props) {
           )}
           <BioDisplay bio={userContact?.bio ?? ''} />
 
-          <ConnectedAccountsWidget
-            twitterAttest={twitterAttestation}
-            phoneAttest={phoneAttestation}
-          />
+          <XStack gap="$l" width="100%" flexWrap="wrap">
+            {twitterAttestation && (
+              <View width="48%" height={120}>
+                <TwitterAttestDisplay attestation={twitterAttestation} />
+              </View>
+            )}
 
-          <XStack gap="$l" width="100%">
-            <StatusBlock status={nodeStatus} label="Node" />
-            <StatusBlock status={sponsorStatus} label="Sponsor" />
+            {phoneAttestation && (
+              <View width="48%" height={120}>
+                <PhoneAttestDisplay attestation={phoneAttestation} />
+              </View>
+            )}
+
+            <View width="48%" height={120}>
+              <StatusBlock status={nodeStatus} label="Node" />
+            </View>
+
+            <View width="48%" height={120}>
+              <StatusBlock status={sponsorStatus} label="Sponsor" />
+            </View>
           </XStack>
-
           <PinnedGroupsDisplay
             groups={pinnedGroups}
             onPressGroup={onPressGroup}
@@ -165,16 +179,8 @@ function StatusBlock({
   status: 'online' | 'offline' | 'pending';
   label: string;
 }) {
-  const windowDimensions = useWindowDimensions();
-  const isWindowNarrow = useIsWindowNarrow();
-
   return (
-    <PaddedBlock
-      flex={1}
-      padding="$2xl"
-      width={isWindowNarrow ? (windowDimensions.width - 36) / 2 : '100%'}
-      gap="$2xl"
-    >
+    <PaddedBlock flex={1} padding="$2xl" gap="$2xl">
       <XStack width="100%" justifyContent="space-between">
         <Text size="$body" color="$tertiaryText">
           {label}

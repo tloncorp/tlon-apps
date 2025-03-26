@@ -1,9 +1,11 @@
 import { Text } from '@tloncorp/ui';
+import { ComponentProps, PropsWithChildren } from 'react';
+import { View } from 'tamagui';
 import { YStack, styled, withStaticProperties } from 'tamagui';
 
 const WidgetPaneFrame = styled(YStack, {
   backgroundColor: '$background',
-  borderRadius: '$l',
+  borderRadius: '$2xl',
   padding: '$2xl',
 
   variants: {
