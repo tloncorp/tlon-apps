@@ -334,8 +334,10 @@
       ?.  ?=(%valid-jam -.qes)  +.res
       ?>  ?=(%valid +<.res)
       [%valid-jam & valid.res]
-    ::TODO  mark result for deletion after time?
-    :_  this(queries (~(put by queries) nonce.res [%& qes rez]))
+    ::  we don't keep query results around in state right now,
+    ::  instead relying purely on subscription updates to get the result out.
+    ::
+    :_  this(queries (~(del by queries) nonce.res))
     =/  upd=update:l  [%query nonce.res rez]
     [%give %fact ~[/ /query /query/(scot %uv nonce.res)] %lanyard-update !>(upd)]~
   ==
@@ -494,18 +496,11 @@
     ::  query failed
     ::
     =/  nonce=@  (slav %uv i.t.wire)
-    ?~  qer=(~(get by queries) nonce)
-      %-  (tell:lo %warn 'strange disappeared query' ~)
-      ~&  [dap.bowl %strange-disappeared-query nonce]
-      [~ this]
-    =/  qes
-      ?-  -.u.qer
-        %|  p.u.qer
-        %&  q.p.u.qer
-      ==
-    ::TODO  mark result for deletion after time?
-    :_  this(queries (~(put by queries) nonce &+[qes %fail 'poke nacked']))
-    =/  upd=update:l  [%query nonce %fail 'poke nacked']  ::TODO  different?
+    ::  we don't keep query results around in state right now,
+    ::  instead relying purely on subscription updates to get the result out.
+    ::
+    :_  this(queries (~(del by queries) nonce))
+    =/  upd=update:l  [%query nonce %fail 'poke nacked']
     [%give %fact ~[/ /query /query/[i.t.wire]] %lanyard-update !>(upd)]~
   ::
       [%contacts %set ~]
