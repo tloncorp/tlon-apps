@@ -94,6 +94,11 @@
           ledgers=(map @p (unit @t))
       ==
   ^-  (unit card)
+  ::  if the contacts agent isn't running, that's slightly unexpected
+  ::  (but not impossible). we choose to no-op for now.
+  ::
+  ?.  .^(? %gu /(scot %p our)/contacts/(scot %da now)/$)
+    ~
   =+  =>  [our=our now=now c=c ..lull]  ~+
       .^(orig=contact:c %gx /(scot %p our)/contacts/(scot %da now)/v1/self/contact-1)
   ::  build a new contact to submit
