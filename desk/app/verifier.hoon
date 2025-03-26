@@ -195,6 +195,9 @@
         =;  nauth  ?:(nauth %protected %bad)
         ::TODO  do better
         ?=(^ (find "not-authorized-for-resource" (trip q.data.u.bod)))
+      ::  we only ever operate on lowercased handles
+      ::
+      =.  u.nom  (crip (cass (trip u.nom)))
       ?:  !=(u.nom handle)  %bad-handle
       =/  pull
         ::NOTE  the twitter api returns newlines as backslash-n, so newlines
