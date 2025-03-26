@@ -16,6 +16,7 @@ import {
 } from 'tamagui';
 
 import { useChannelContext } from '../../contexts';
+import { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
@@ -31,6 +32,7 @@ const IMAGE_HEIGHT = 268;
 export function NotebookPost({
   post,
   onPress,
+  onPressEdit,
   onLongPress,
   onPressRetry,
   onPressDelete,
@@ -40,19 +42,10 @@ export function NotebookPost({
   viewMode,
   size = '$l',
   hideOverflowMenu,
-}: {
-  post: db.Post;
-  onPress?: (post: db.Post) => void;
-  onLongPress?: (post: db.Post) => void;
-  onPressImage?: (post: db.Post, imageUri?: string) => void;
-  onPressRetry?: (post: db.Post) => Promise<void>;
-  onPressDelete?: (post: db.Post) => void;
+}: MinimalRenderItemProps & {
   detailView?: boolean;
-  showReplies?: boolean;
-  showAuthor?: boolean;
   showDate?: boolean;
   viewMode?: 'activity';
-  isHighlighted?: boolean;
   size?: '$l' | '$s' | '$xs';
   hideOverflowMenu?: boolean;
 }) {
@@ -121,7 +114,7 @@ export function NotebookPost({
   const hasReplies = post.replyCount && post.replyTime && post.replyContactIds;
   return (
     <Pressable
-      onPress={overFlowIsHovered ? undefined : handlePress}
+      onPress={overFlowIsHovered || isPopoverOpen ? undefined : handlePress}
       onHoverIn={onHoverIn}
       onHoverOut={onHoverOut}
       onLongPress={handleLongPress}
@@ -187,6 +180,7 @@ export function NotebookPost({
               postActionIds={postActionIds}
               onDismiss={() => setIsPopoverOpen(false)}
               onOpenChange={setIsPopoverOpen}
+              onEdit={onPressEdit}
               onReply={handlePress}
               trigger={
                 <Button
