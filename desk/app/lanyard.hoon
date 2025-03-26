@@ -1,11 +1,31 @@
 ::  lanyard: verification service client
 ::
-::    xx overview
-::    remembers state concerning ourselves and
+::    tracks information related to registration and queries made by the local
+::    user. this includes status on in-progress registrations, attestations for
+::    completes ones, and outstanding queries.
 ::
-::    xx intended usage
+::    in response to status and configuration changes, it injects information
+::    about the user's registrations into the contacts profile.
 ::
-::    xx api
+::    latest api version is v1.
+::    poke marks:
+::    - %lanyard-command-1: $command:l:verifier
+::    - %lanyard-query-1: $query:l:verifier
+::    all subscription paths give facts with following mark:
+::    - %lanyard-update-1: $update:l:verifier
+::    subscription paths:
+::    - /v1
+::      %lanyard-update-1
+::      firehose, everything below
+::    - /v1/query
+::      %lanyard-update-1 (only %query $updates)
+::      all query results
+::    - /v1/query/[uv-nonce]
+::      %lanyard-update-1 (only %query $updates)
+::      results for that nonce
+::    - /v1/records
+::      %lanyard-update-1 (%full $update as initial response)
+::      all registration updates
 ::
 /-  verifier, c=contacts
 /+  logs,
@@ -13,7 +33,7 @@
 =,  (verifier)
 ::
 %-  %-  agent:negotiate
-    [notify=| expose=[~.lanyard^%0 ~ ~] expect=[%verifier^[~.verifier^%0 ~ ~] ~ ~]]
+    [notify=| expose=[~.lanyard^%1 ~ ~] expect=[%verifier^[~.verifier^%0 ~ ~] ~ ~]]
 %-  agent:dbug
 %+  verb  |
 ::
@@ -174,6 +194,11 @@
     |*  [caz=(list card) etc=*]
     [[cad caz] etc]
   --
+::
+++  vp
+  |=  [v=?(%v1) p=(list path)]
+  ^+  p
+  (turn p (lead v))
 --
 ::
 =|  state-0
@@ -216,7 +241,7 @@
   ::
       %json  ::TMP
     =;  cmd=command:l
-      $(mark %lanyard-command, vase !>(-))
+      $(mark %lanyard-command-1, vase !>(-))
     %.  !<(jon=json vase)
     =,  dejs:format
     =/  pid   'id'^(of %dummy^so %urbit^(se %p) %phone^so %twitter^so ~)
@@ -226,7 +251,7 @@
         'command'^(of %start^(ot pid ~) %work^(ot pid pork ~) ~)
     ==
   ::
-      %lanyard-command
+      %lanyard-command-1
     =+  !<(cmd=command:l vase)
     =/  host=@p
       ?~(host.cmd default u.host.cmd)
@@ -277,9 +302,9 @@
         [%pass /verifier %agent [host %verifier] %poke cage]
     ?.  ?=(%start +<.cmd)  ~
     =/  upd=update:l  [%status key 'starting' %wait ~]
-    [%give %fact ~[/ /records] %lanyard-update !>(upd)]~
+    [%give %fact (vp %v1 ~[/ /records]) %lanyard-update-1 !>(upd)]~
   ::
-      %lanyard-query
+      %lanyard-query-1
     =+  !<(qer=query:l vase)
     =/  [host=@p nonce=@]
       :-  ?~(host.qer default u.host.qer)
@@ -312,7 +337,7 @@
     :_  this
     =*  give
       =/  upd=update:l  [%query nonce %valid-jam (need valid)]
-      [%give %fact ~[/ /query /query/(scot %uv nonce)] %lanyard-update !>(upd)]
+      [%give %fact (vp %v1 ~[/ /query /query/(scot %uv nonce)]) %lanyard-update-1 !>(upd)]
     =*  ask
       =/  =cage
         [%verifier-user-query !>(`user-query`[[dap.bowl nonce] %valid u.sig])]
@@ -339,7 +364,7 @@
     ::
     :_  this(queries (~(del by queries) nonce.res))
     =/  upd=update:l  [%query nonce.res rez]
-    [%give %fact ~[/ /query /query/(scot %uv nonce.res)] %lanyard-update !>(upd)]~
+    [%give %fact (vp %v1 ~[/ /query /query/(scot %uv nonce.res)]) %lanyard-update-1 !>(upd)]~
   ==
 ::
 ++  on-agent
@@ -422,7 +447,7 @@
         :_  this
         :_  (drop (inflate-contacts-profile [our now]:bowl records display ledgers))
         =/  upd=update:l  [%full new]
-        [%give %fact ~[/ /records] %lanyard-update !>(upd)]
+        [%give %fact (vp %v1 ~[/ /records]) %lanyard-update-1 !>(upd)]
       ::
           %config
         =*  key  [host id.upd]
@@ -431,7 +456,7 @@
           (~(put by records) key rec(config config.upd))
         :_  this
         =/  upd=update:l  upd(id key)
-        [%give %fact ~[/ /records] %lanyard-update !>(upd)]~
+        [%give %fact (vp %v1 ~[/ /records]) %lanyard-update-1 !>(upd)]~
       ::
           %status
         =*  key  [host id.upd]
@@ -443,7 +468,7 @@
           (~(del by display) key)
         :_  this
         :-  =/  upd=update:l  upd(id key)
-            [%give %fact ~[/ /records] %lanyard-update !>(upd)]
+            [%give %fact (vp %v1 ~[/ /records]) %lanyard-update-1 !>(upd)]
         %-  zing
         ^-  (list (list card))
         :~  ::  update the contacts profile if needed
@@ -501,7 +526,7 @@
     ::
     :_  this(queries (~(del by queries) nonce))
     =/  upd=update:l  [%query nonce %fail 'poke nacked']
-    [%give %fact ~[/ /query /query/[i.t.wire]] %lanyard-update !>(upd)]~
+    [%give %fact (vp %v1 ~[/ /query /query/[i.t.wire]]) %lanyard-update-1 !>(upd)]~
   ::
       [%contacts %set ~]
     ?>  ?=(%poke-ack -.sign)
@@ -515,11 +540,13 @@
   |=  =path
   ^-  (quip card _this)
   :_  this
+  ?>  ?=([%v1 *] path)
+  =/  path  t.path
   ?+  path  !!
     ~             ~  ::TODO  include initial response?
     [%query ~]    ~
     [%query @ ~]  =<(~ (slav %uv i.t.path))
-    [%records ~]  [%give %fact ~ %lanyard-update !>(`update:l`[%full records])]~
+    [%records ~]  [%give %fact ~ %lanyard-update-1 !>(`update:l`[%full records])]~
   ==
 ::
 ++  on-peek
@@ -639,5 +666,4 @@
   %-  (fail:lo term tang)
   %-  (slog (rap 3 dap.bowl ' +on-fail: %' term ~) tang)
   [~ this]
-
 --

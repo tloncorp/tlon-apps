@@ -15,6 +15,10 @@
 ::    so that we can easily rate-limit queries. if we don't, brute-forcing
 ::    discovery of someone's identifiers becomes possible.
 ::
+::    note that the marks and subscription paths are not versioned.
+::    intended, supported usage is through the lanyard agent, which does
+::    version negotiation with this based on /lib/negotiate.
+::
 /-  verifier
 /+  hu=http-utils, logs,
     dbug, verb, negotiate
