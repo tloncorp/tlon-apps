@@ -53,6 +53,19 @@
       [%want user-task]          ::  waiting on user action
   ==
 ::
++$  user-task
+  $%  [%urbit pin=@]              ::  awaiting confirmation from other side
+      [%phone %otp]               ::  awaiting otp code from user
+      [%twitter %post nonce=@ux]  ::  post tweet containing $payload:twitter
+      [%website %sign nonce=@ux]  ::  serve a /.well-known/urbit/tlon/verify
+  ==
++$  user-work
+  $%  [%urbit pin=@]
+      [%phone otp=@t]
+      [%twitter %post id=@t]
+      [%website %sign]
+  ==
+::
 +$  attestation
   $:  half=(signed half-sign-data)
       full=(signed full-sign-data)
@@ -98,7 +111,7 @@
       batch=$~(1.000 @ud)  ::  remaining new %whose-bulk entries
       last-batch=@ux       ::  previous batch set salted hash
   ==
-++  rates  ::REVIEW
+++  rates
   |%
   ++  phone    [n=1 p=~d1]   ::NOTE  hosting allows 1/min, up to 5/hour
   ++  photp    [n=1 p=~m1]   ::NOTE  code rotates every 10 minutes
@@ -133,22 +146,8 @@
   --
 ::
 ::
-+$  user-task
-  $%  [%urbit pin=@]              ::  awaiting confirmation from other side
-      [%phone %otp]               ::  awaiting otp code from user
-      [%twitter %post nonce=@ux]  ::  post tweet containing $payload:twitter
-      [%website %sign nonce=@ux]  ::  serve a /.well-known/urbit/tlon/verify
-  ==
-+$  user-work
-  $%  [%urbit pin=@]
-      [%phone otp=@t]
-      [%twitter %post id=@t]
-      [%website %sign]
-  ==
-::
-::
 +$  user-command
-  $%  [%start id=identifier]  ::  nonce for subscription updates
+  $%  [%start id=identifier]
       [%config id=identifier =config]
       [%revoke id=identifier]
       [%work id=identifier work=user-work]
@@ -193,7 +192,7 @@
 ::REVIEW  i don't think we need the client to bring their own nonces, right?
 ::        just let these be for internal comms only, hold the client's hand
 ::        through that and just deliver them the status updates as they happen..
-++  l  ::  lanyard  ::TODO  separate file
+++  l  ::  lanyard
   |%
   +$  command
     $:  host=(unit @p)

@@ -102,7 +102,7 @@
           ==
       =+  n=(~(gut by counts) -.id.key 0)
       :-  (~(put by counts) -.id.key +(n))
-      ?~  rec=(~(get by records) key)  ~&  [%aaaa key]  out
+      ?~  rec=(~(get by records) key)  out
       (weld out (make-details key n ?=(%full lev)))
   ::
   ++  make-details
@@ -261,7 +261,8 @@
     ?>  !=(?=(%start +<.cmd) (~(has by records) key))
     ::  we apply creation eagerly, but don't apply revocation eagerly:
     ::  we can't re-start the identifier until the host has acknowledged
-    ::  the revocation anyway.
+    ::  the revocation anyway, lest we become unable to disambiguate the
+    ::  %gone update for the one we revoked vs the new one we started.
     ::
     :_  =?  records  ?=(%start +<.cmd)
           (~(put by records) key *config 'starting' %wait ~)
@@ -295,11 +296,9 @@
     ::  handle %valid-jam queries locally first, we should be able to say
     ::  something about the signature without going over the network.
     ::
-    ::TODO  should this check for expected kind/id too?
-    ::      otherwise you could inject any valid signature and it'd
-    ::      show up as "yes legit", despite not matching what it was
-    ::      displayed as...
-    ::      but that (like the cue & soft) is something the client could check..
+    ::NOTE  this only validates the jam on its own merits (as a $signed),
+    ::      the client is responsible for making sure it's not validating
+    ::      e.g. a %website signature when it's presented as an %urbit one.
     ::
     ::  valid: if we know, validity of the signature
     ::  sig:   the signature being validated. if ~, valid is always |.

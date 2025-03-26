@@ -666,7 +666,8 @@
     ::
         %whose-bulk
       ::  first, rate-limiting logic
-      ::REVIEW  sha-256 fine, or do we want sha-512 (or other) for some reason?
+      ::NOTE  this is "differential contact discovery", from Hagen et al. (2022)
+      ::      https://eprint.iacr.org/2022/875.pdf
       ::
       ::  bulk: full set to query on
       ::  cost: .batch.lims allowance cost of resolving .bulk
@@ -772,7 +773,7 @@
     [~ this]
   ~&  [dap.bowl %on-agent-strange-wire wire]
   ~|  wire
-  !!
+  !!  ::NOTE  logged in +on-fail
 ::
 ++  on-arvo
   |=  [=wire sign=sign-arvo]
@@ -918,7 +919,6 @@
         =^  caz  +.state  (register [+.state bowl] [id u.rec] ~)
         [caz this]
       ::  otp code wasn't correct, but user may retry
-      ::TODO  limit attempts?
       ::
       =.  failed-otp  &
       =.  why  'invalid otp, try again'
@@ -1107,6 +1107,7 @@
         [%urbit @uw]
         [%phone @uw]
         [%twitter @uw]
+        [%website (list @uw)]
     ==
   ==
 ::
