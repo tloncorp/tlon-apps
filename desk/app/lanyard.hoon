@@ -260,6 +260,21 @@
     =+  !<(cmd=command:l vase)
     =/  host=@p
       ?~(host.cmd default u.host.cmd)
+    ::  sometimes we may do work "for others"
+    ::
+    ?:  ?=(%work-for +<.cmd)
+      :_  this
+      =/  cmd=user-command
+        :+  %work  [%urbit our.bowl]
+        ::  sign to prove we are the same person as for.cmd
+        ::
+        :-  %urbit
+        %+  sign  [our now]:bowl
+        ^-  sign-data:urbit
+        [%urbit %0 for.cmd nonce.cmd]
+      =/  =cage
+        [%verifier-user-command !>(`user-command`cmd)]
+      [%pass /verifier/work-for %agent [host %verifier] %poke cage]~
     ::  normalize the identifier and construct the global key
     ::
     =.  cmd
@@ -379,7 +394,7 @@
   ?+  wire  !!
     [%logs ~]  [~ this]
   ::
-      [%verifier ?(~ [%endpoint ~])]
+      [%verifier ?(~ [?(%endpoint %work-for) ~])]
     =*  host  src.bowl
     =.  host.log  `host
     ?.  (~(has by ledgers) host)
@@ -393,11 +408,12 @@
       [%pass wire %agent [host %verifier] %leave ~]~
     ?-  -.sign
         %poke-ack
-      ?>  ?=(~ t.wire)  ::NOTE  no pokes on /endpoint
+      ?<  ?=([%endpoint ~] t.wire)  ::NOTE  no pokes on /endpoint
       ?~  p.sign
         ::  the command is being processed, we'll get updates as facts
         ::  on our subscription
         ::
+        ::TODO  for /work-for, tell client the operation succeeded?
         [~ this]
       ::  the command failed to process, which is generally unexpected.
       ::  (we should have checked for sanity based on local state beforehand.)

@@ -204,6 +204,7 @@
   +$  command
     $:  host=(unit @p)
     $%  user-command
+        [%work-for %urbit for=@p nonce=@ux]
         [%profile id=identifier show=?(%full %half %none)]
     ==  ==
   +$  query    [host=(unit @p) nonce=(unit @) query=question]
