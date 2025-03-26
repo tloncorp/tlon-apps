@@ -2,14 +2,14 @@ import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import { LoadingSpinner, Text } from '@tloncorp/ui';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Keyboard, Platform, TouchableWithoutFeedback } from 'react-native';
 import { View, YStack } from 'tamagui';
 
 import { useStore } from '../contexts';
 import { AttestationPane } from './AttestationPane';
-import { PrimaryButton } from './Buttons';
+import { PrimaryButton, TextButton } from './Buttons';
 import { CopyableTextBlock } from './CopyableTextBlock';
 import { ControlledTextField } from './Form';
 
@@ -162,6 +162,17 @@ ${proof}`;
     };
   }, []);
 
+  const formattedHandle = useMemo(() => {
+    if (props.attestation.value?.charAt(0) === '@') {
+      return props.attestation.value;
+    }
+    return `@${props.attestation.value}`;
+  }, [props.attestation.value]);
+
+  const handleRevoke = useCallback(() => {
+    store.revokeAttestation(props.attestation);
+  }, [props.attestation, store]);
+
   return (
     <TouchableWithoutFeedback
       style={{ flex: 1 }}
@@ -169,13 +180,15 @@ ${proof}`;
     >
       <YStack gap="$2xl">
         <Text size="$label/m">
-          To complete verification, send this post from your 𝕏 account.
+          To complete verification, send this post and send it from your
+          account: <Text fontWeight="500">{formattedHandle}</Text>
         </Text>
         {proof ? (
           <CopyableTextBlock
             text={tweetContent}
             height={keyboardVisible ? 100 : 'unset'}
             overflow="hidden"
+            onCopy={Keyboard.dismiss}
           />
         ) : (
           <LoadingSpinner />
@@ -208,6 +221,19 @@ ${proof}`;
         >
           Submit
         </PrimaryButton>
+        {!keyboardVisible && (
+          <TextButton
+            textProps={{
+              size: '$label/s',
+              color: '$tertiaryText',
+              textDecorationLine: 'underline',
+              textDecorationColor: '$tertiaryText',
+            }}
+            onPress={handleRevoke}
+          >
+            Wrong account?
+          </TextButton>
+        )}
       </YStack>
     </TouchableWithoutFeedback>
   );
@@ -257,7 +283,7 @@ function InitiateTwitterPane() {
         label="Handle"
         control={control}
         inputProps={{
-          placeholder: '@TlonCorporation',
+          placeholder: '@YoursTruly',
           spellCheck: false,
           autoComplete: 'off',
           autoCorrect: false,

@@ -7,7 +7,7 @@ import { View, YStack } from 'tamagui';
 
 import { useStore } from '../contexts';
 import { AttestationPane } from './AttestationPane';
-import { PrimaryButton } from './Buttons';
+import { PrimaryButton, TextButton } from './Buttons';
 import { OTPInput } from './Form/OTPInput';
 import { PhoneNumberInput } from './Form/PhoneNumberInput';
 
@@ -81,7 +81,7 @@ function SubmitPhoneNumPane(props: { attestation: db.Verification | null }) {
     try {
       setIsSubmitting(true);
       await phoneForm.handleSubmit(async ({ phoneNumber }) => {
-        store.initiatePhoneAttestation(phoneNumber);
+        await store.initiatePhoneAttestation(phoneNumber);
       })();
     } catch (e) {
       if (e instanceof api.LanyardError) {
@@ -176,6 +176,10 @@ function ConfirmPhoneNumPane(props: { attestation: db.Verification }) {
     [handleSubmit]
   );
 
+  const handleRevoke = useCallback(() => {
+    store.revokeAttestation(props.attestation);
+  }, [props.attestation, store]);
+
   return (
     <YStack>
       <Text
@@ -200,6 +204,17 @@ function ConfirmPhoneNumPane(props: { attestation: db.Verification }) {
             {error}
           </Text>
         )}
+        <TextButton
+          textProps={{
+            size: '$label/s',
+            color: '$tertiaryText',
+            textDecorationLine: 'underline',
+            textDecorationColor: '$tertiaryText',
+          }}
+          onPress={handleRevoke}
+        >
+          Wrong phone number?
+        </TextButton>
       </YStack>
     </YStack>
   );

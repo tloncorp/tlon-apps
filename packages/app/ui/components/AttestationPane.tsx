@@ -3,9 +3,10 @@ import * as db from '@tloncorp/shared/db';
 import { Button, Icon, LoadingSpinner, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Linking } from 'react-native';
-import { Circle, XStack, XStackProps, YStack, styled } from 'tamagui';
+import { XStack, XStackProps, YStack, styled } from 'tamagui';
 
 import { useStore } from '../contexts';
+import { PrimaryButton } from './Buttons';
 
 export function AttestationPane({
   attestation,
@@ -69,10 +70,6 @@ export function AttestationPane({
       `https://x.com/${attestation.value!}/status/${attestation.provingTweetId}`
     );
   }, [attestation.provingTweetId, attestation.value]);
-
-  const handleViewOnProvider = useCallback(() => {
-    // TODO
-  }, []);
 
   const handleRevoke = useCallback(async () => {
     setRevoking(true);
@@ -152,20 +149,18 @@ export function AttestationPane({
           </Button>
         )}
 
-        {/* <Button secondary backgroundColor="$secondaryBackground">
-          <Button.Text>View on Tlon Verifier</Button.Text>
-        </Button> */}
-
         {attestation.contactId === currentUserId && (
-          <Button
-            secondary
-            backgroundColor="$negativeBackground"
+          <PrimaryButton
             onPress={handleRevoke}
+            loading={revoking}
+            disabled={revoking}
+            backgroundColor="$negativeBackground"
+            textColor="$negativeActionText"
+            borderColor="$negativeBorder"
+            disabledStyle={{ backgroundColor: '$negativeBackground' }}
           >
-            <Button.Text color="$negativeActionText" fontWeight="500">
-              Revoke {revoking ? <LoadingSpinner size="small" /> : null}
-            </Button.Text>
-          </Button>
+            Revoke
+          </PrimaryButton>
         )}
       </YStack>
     </YStack>
