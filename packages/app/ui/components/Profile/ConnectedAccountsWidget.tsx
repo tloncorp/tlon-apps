@@ -36,7 +36,7 @@ export function TwitterAttestDisplay(props: { attestation: db.Verification }) {
         flex={1}
       >
         <WidgetPane flex={1}>
-          <WidgetPane.Title>X Account</WidgetPane.Title>
+          <WidgetPane.Title>𝕏 Account</WidgetPane.Title>
           <YStack flex={1} justifyContent="center">
             <XStack alignItems="center" gap="$xs">
               <Text size="$label/l">{formattedHandle}</Text>
