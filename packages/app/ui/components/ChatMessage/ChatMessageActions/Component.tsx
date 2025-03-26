@@ -154,7 +154,7 @@ export function ChatMessageActions({
           padding={1}
         >
           <YStack gap="$xs">
-            {post.type === 'chat' && (
+            {(post.type === 'chat' || post.type === 'reply') && (
               <XStack justifyContent="center">
                 <EmojiToolbar
                   post={post}
