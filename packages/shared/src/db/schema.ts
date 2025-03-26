@@ -839,9 +839,7 @@ export const posts = sqliteTable(
   {
     id: text('id').primaryKey().notNull(),
     authorId: text('author_id').notNull(),
-    channelId: text('channel_id')
-      .references(() => channels.id, { onDelete: 'cascade' })
-      .notNull(),
+    channelId: text('channel_id').notNull(),
     groupId: text('group_id'),
     parentId: text('parent_id'),
     type: text('type')
