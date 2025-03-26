@@ -283,6 +283,21 @@ export async function updateAttestationVisibility({
   );
 }
 
+export async function updateAttestationProfileDisplay({
+  value,
+  type,
+  displaySetting,
+}: {
+  value: string;
+  type: db.VerificationType;
+  displaySetting: 'full' | 'half' | 'none';
+}) {
+  const identifier = [type, value.toLowerCase()];
+  const command = [null, ['profile', identifier, displaySetting]];
+  const noun = dwim(command);
+  await pokeNoun({ app: 'lanyard', mark: 'lanyard-command', noun });
+}
+
 export enum LanyardErrorCode {
   ALREADY_REGISTERED = 'VALUE_ALREADY_REGISTERED',
 

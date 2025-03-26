@@ -6,15 +6,26 @@ import { AnalyticsEvent } from '../domain';
 const logger = createDevLogger('lanyardActions', true);
 
 export async function initiateTwitterAttestation(handle: string) {
+  let step = 'initial';
   try {
     // create the attestation
+    step = 'creating';
     await api.initiateTwitterAttestation(handle);
 
     // for twitter, set visibility to public
+    step = 'setting discoverability';
     await api.updateAttestationVisibility({
       type: 'twitter',
       value: handle,
       visibility: 'public',
+    });
+
+    // set it to display on your profile
+    step = 'setting profile display';
+    await api.updateAttestationProfileDisplay({
+      type: 'twitter',
+      value: handle,
+      displaySetting: 'full', // will show with handle
     });
 
     logger.trackEvent(AnalyticsEvent.ActionInitiateTwitterAttest, { handle });
@@ -23,21 +34,33 @@ export async function initiateTwitterAttestation(handle: string) {
       context: 'failed to initiate twitter attestation',
       error: e,
       errorMessage: e.message,
+      erroredAtStep: step,
     });
     throw e;
   }
 }
 
 export async function initiatePhoneAttestation(phoneNumber: string) {
+  let step = 'initial';
   try {
     // create the attestation
+    step = 'creating';
     await api.initiatePhoneAttestation(phoneNumber);
 
     // for phone, set visibility to discoverable
+    step = 'setting discoverability';
     await api.updateAttestationVisibility({
       type: 'phone',
       value: phoneNumber,
       visibility: 'discoverable',
+    });
+
+    // set it to display on your profile
+    step = 'setting profile display';
+    await api.updateAttestationProfileDisplay({
+      type: 'phone',
+      value: phoneNumber,
+      displaySetting: 'half', // will show it exists, but not reveal number
     });
 
     logger.trackEvent(AnalyticsEvent.ActionInitiatePhoneAttest, {
@@ -48,6 +71,7 @@ export async function initiatePhoneAttestation(phoneNumber: string) {
       context: 'failed to initiate phone attestation',
       error: e,
       errorMessage: e.message,
+      erroredAtStep: step,
     });
     throw e;
   }
