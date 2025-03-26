@@ -250,7 +250,7 @@
     %.  !<(jon=json vase)
     =,  dejs:format
     =/  pid   'id'^(of %dummy^so %urbit^(se %p) %phone^so %twitter^so ~)
-    =/  pork  'work'^(of %urbit^(ot 'pin'^ni ~) %phone^(ot 'otp'^so ~) ~)
+    =/  pork  'work'^(of %phone^(ot 'otp'^so ~) ~)
     %-  ot
     :~  'host'^(mu (se %p))
         'command'^(of %start^(ot pid ~) %work^(ot pid pork ~) ~)

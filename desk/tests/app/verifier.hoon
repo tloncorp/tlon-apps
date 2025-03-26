@@ -167,7 +167,7 @@
 ++  user-asks
   |=  [who=@p qer=user-query:v]
   %-  (do-as who)
-  (do-poke %verifier-query !>(qer))
+  (do-poke %verifier-user-query !>(qer))
 ::
 ++  host-does
   |=  cmd=host-command:v
@@ -240,33 +240,37 @@
   ;<  ~  bind:m  do-setup
   ;<  ~  bind:m  (wait ~d1)
   =/  id  [%urbit ~bud]
+  =/  nonce=@ux              0x5266.a39d
+  =/  dat=sign-data:urbit:v  [%urbit %0 ~nec nonce]
+  =/  sig=payload:urbit:v    (faux-sign ~bud dat)
   ::  registration hasn't started yet, so trying to confirm should crash
   ::
   ;<  ~  bind:m
-    (ex-fail (user-does ~bud %work id %urbit 620.187))
+    (ex-fail (user-does ~bud %work id %urbit sig))
   ::  user requests an urbit id, is told to confirm from the other urbit
   ::
   ;<  cas=(list card)  bind:m
     (user-does ~nec %start id)
   ;<  ~  bind:m
     %+  ex-cards  cas
-    :~  (ex-verifier-update ~nec %status id 'prove ownership' %want %urbit 620.187)
+    :~  (ex-verifier-update ~nec %status id 'prove ownership' %want %urbit nonce)
       ::
         %+  ex-arvo  /expire/urbit/(scot %p ~bud)/(scot %da ~2000.1.2)
         [%b %wait (add ~2000.1.2 attempt-timeout)]
     ==
   ::
   %-  branch
-  |^  :~  'confirm correct'^confirm-correct
-          'confirm incorrect'^confirm-incorrect
-          'confirm unrelated'^confirm-unrelated
+  |^  :~  'submit correct'^submit-correct
+          'submit bad signature'^submit-bad-signature
+          'submit bad target'^submit-bad-target
+          'submit by unrelated'^submit-by-unrelated
       ==
-  ::  user confirms by giving the pin from the other ship
+  ::  user submits a signature from the other ship
   ::
-  ++  confirm-correct
+  ++  submit-correct
     ;<  cas=(list card)  bind:m
-      (user-does ~bud %work id %urbit 620.187)
-    ;<  at=attestation:v  bind:m  (make-attestation ~nec id ~)
+      (user-does ~bud %work id %urbit sig)
+    ;<  at=attestation:v  bind:m  (make-attestation ~nec id `[%urbit sig])
     ;<  ~  bind:m
       ::TODO  don't test signature value, test whether it matches pubkey
       %+  ex-cards  cas
@@ -283,13 +287,17 @@
       ==
     (pure:m ~)
   ::
-  ++  confirm-incorrect
-    %-  ex-fail  ::TODO  should cancel, or re-set the pin
-    (user-does ~bud %work id %urbit 111.111)
-  ::
-  ++  confirm-unrelated
+  ++  submit-bad-signature
     %-  ex-fail
-    (user-does ~fed %work id %urbit 620.187)
+    (user-does ~bud %work id %urbit sig(sig +(sig.sig)))
+  ::
+  ++  submit-bad-target
+    %-  ex-fail
+    (user-does ~bud %work id %urbit (faux-sign ~bud dat(other ~fun)))
+  ::
+  ++  submit-by-unrelated
+    %-  ex-fail
+    (user-does ~fed %work id %urbit (faux-sign ~fed dat))
   --
 ::
 ++  test-phone-request

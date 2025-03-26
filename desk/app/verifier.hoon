@@ -502,7 +502,7 @@
           %dummy    :-  'awaiting manual approval'
                     [%wait ~]
           %urbit    :-  'prove ownership'
-                    [%want %urbit (~(rad og eny.bowl) 1.000.000)]
+                    [%want %urbit (end 5 (shas %urbit eny.bowl))]
           %phone    ?<  =(['' '' ~] phone-api)
                     ['checking number' %wait ~]
           %twitter  ?<  =('' twitter-api)
@@ -551,18 +551,18 @@
         ::  to complete verification of an urbit,
         ::  the urbit being verified must submit,
         ::  for a pending verification,
-        ::  the matching pin.
+        ::  the corresponding signature.
         ::
         ?>  =(src.bowl +.id)
         =/  rec  (~(got by records) id)
         ?>  ?=([%want %urbit *] status.rec)
-        ::TODO  mismatching pin should cancel, or change the pin,
-        ::      to prevent brute-forcing
-        ?>  =(pin.work.cmd pin.status.rec)
-        ::
-        ::TODO  should the urbit provide a proof saying "x controls me"?
-        ::      wouldn't that be better than a pin anyway?
-        =^  caz  +.state  (register [+.state bowl] [id rec] ~)
+        =*  sig  sig.work.cmd
+        ?>  ?&  =(other.dat.sig for.rec)
+                =(nonce.dat.sig nonce.status.rec)
+                (validate-signature bowl sig)
+            ==
+        =^  caz  +.state
+          (register [+.state bowl] [id rec] `[%urbit sig.work.cmd])
         [caz this]
       ::
           %phone

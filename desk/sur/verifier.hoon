@@ -54,13 +54,13 @@
   ==
 ::
 +$  user-task
-  $%  [%urbit pin=@]              ::  awaiting confirmation from other side
+  $%  [%urbit nonce=@ux]          ::  awaiting signature from other side
       [%phone %otp]               ::  awaiting otp code from user
       [%twitter %post nonce=@ux]  ::  post tweet containing $payload:twitter
       [%website %sign nonce=@ux]  ::  serve a /.well-known/urbit/tlon/verify
   ==
 +$  user-work
-  $%  [%urbit pin=@]
+  $%  [%urbit sig=payload:urbit]
       [%phone otp=@t]
       [%twitter %post id=@t]
       [%website %sign]
@@ -74,6 +74,7 @@
 +$  proof
   $%  [%link @t]
       [%tweet id=@t]
+      [%urbit sig=payload:urbit]
   ==
 ::
 ++  signed
@@ -87,6 +88,12 @@
   [%0 %verified %half when=@da for=@p kind=id-kind]
 +$  full-sign-data
   [%0 %verified %full when=@da for=@p id=identifier proof=(unit proof)]  ::TODO  (set proof)?
+::
+++  urbit  ^?
+  |%
+  +$  payload    (signed sign-data)
+  +$  sign-data  [%urbit %0 other=@p nonce=@ux]
+  --
 ::
 ++  twitter  ^?
   |%
