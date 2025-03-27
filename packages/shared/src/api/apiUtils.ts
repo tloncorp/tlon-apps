@@ -1,6 +1,7 @@
 import {
   formatUd as baseFormatUd,
   daToUnix,
+  isValidPatp,
   parseUd,
   unixToDa,
 } from '@urbit/aura';
@@ -80,6 +81,14 @@ export function isGroupChannelId(channelId: string) {
     channelId.startsWith('diary') ||
     channelId.startsWith('heap')
   );
+}
+
+export function isGroupId(groupId: string) {
+  const parts = groupId.split('/');
+  const host = parts[0];
+  const length = parts.length;
+  const hostIsPatp = isValidPatp(host);
+  return hostIsPatp && length === 2;
 }
 
 export function parseGroupChannelId(channelId: string) {

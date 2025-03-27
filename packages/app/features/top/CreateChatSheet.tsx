@@ -11,20 +11,23 @@ import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Popover, View, YStack } from 'tamagui';
 
+import useGroupSearch from '../../hooks/useGroupSearch';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   Action,
   ActionSheet,
   Button,
   ContactBook,
+  GroupPreviewPane,
   LoadingSpinner,
   SimpleActionSheet,
+  TextInput,
   capitalize,
   useIsWindowNarrow,
 } from '../../ui';
 import { trackError } from '../../utils/posthog';
 
-type ChatType = 'dm' | 'group';
+type ChatType = 'dm' | 'group' | 'joinGroup';
 type Step = 'initial' | 'selectType' | `create${Capitalize<ChatType>}`;
 
 export type CreateChatParams =
@@ -48,6 +51,11 @@ function createTypeActions(onSelectType: (type: ChatType) => void): Action[] {
       description: CHAT_TYPE_CONFIG.group.actionDescription,
       action: () => onSelectType('group'),
     },
+    {
+      title: CHAT_TYPE_CONFIG.joinGroup.actionTitle,
+      description: CHAT_TYPE_CONFIG.joinGroup.actionDescription,
+      action: () => onSelectType('joinGroup'),
+    },
   ];
 }
 
@@ -63,6 +71,12 @@ const CHAT_TYPE_CONFIG = {
     subtitle: 'Select contacts to invite',
     actionTitle: 'New group',
     actionDescription: 'Create customizable group chat',
+  },
+  joinGroup: {
+    title: 'Join a group',
+    subtitle: 'Join a group chat with a code (reference)',
+    actionTitle: 'Join a group',
+    actionDescription: 'Join with a code (reference)',
   },
 } as const;
 
@@ -101,6 +115,83 @@ const ActionButtons = ({ actions, paddingBottom }: ActionButtonsProps) => (
     ))}
   </YStack>
 );
+
+interface JoinGroupByIdPaneProps {
+  close: () => void;
+}
+
+const JoinGroupByIdPane = ({ close }: JoinGroupByIdPaneProps) => {
+  const [groupCode, setGroupCode] = useState('');
+  const { isCodeValid, state, actions } = useGroupSearch(groupCode);
+
+  return (
+    <YStack gap="$m">
+      {state.isSearching && isCodeValid ? (
+        <View
+          flex={1}
+          justifyContent="center"
+          borderColor="$border"
+          borderWidth={1}
+          borderRadius="$l"
+        >
+          {state.group && !state.isLoading && !state.isError ? (
+            <GroupPreviewPane
+              group={state.group}
+              onActionComplete={actions.handleGroupAction}
+            />
+          ) : (
+            <View
+              flex={1}
+              justifyContent="center"
+              alignItems="center"
+              padding="$l"
+            >
+              <LoadingSpinner />
+            </View>
+          )}
+        </View>
+      ) : (
+        <TextInput
+          accent={
+            groupCode ? (isCodeValid ? 'positive' : 'negative') : undefined
+          }
+          placeholder="Enter group code"
+          onChangeText={setGroupCode}
+          value={groupCode}
+          spellCheck={false}
+          autoCorrect={false}
+          autoCapitalize="none"
+          rightControls={
+            <TextInput.InnerButton
+              label={groupCode !== '' ? 'Go' : 'Close'}
+              onPress={groupCode && isCodeValid ? actions.startSearch : close}
+            />
+          }
+        />
+      )}
+    </YStack>
+  );
+};
+
+const JoinGroupFormContent = ({
+  chatType,
+  close,
+}: {
+  chatType: ChatType;
+  close: () => void;
+}) => {
+  const { title, subtitle } = CHAT_TYPE_CONFIG[chatType];
+  const isWindowNarrow = useIsWindowNarrow();
+
+  return (
+    <YStack flex={1} width={isWindowNarrow ? '100%' : 400} gap="$l">
+      <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
+      <ActionSheet.ContentBlock>
+        <JoinGroupByIdPane close={close} />
+      </ActionSheet.ContentBlock>
+    </YStack>
+  );
+};
 
 const CreateChatFormContent = ({
   chatType,
@@ -220,7 +311,8 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
 
   const insets = useSafeAreaInsets();
 
-  const chatType = step === 'createDm' ? 'dm' : 'group';
+  const chatType =
+    step === 'createDm' ? 'dm' : step === 'createGroup' ? 'group' : 'joinGroup';
   const actions = useMemo(
     () => createTypeActions(handleTypeSelected),
     [handleTypeSelected]
@@ -246,6 +338,11 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       >
         {step === 'selectType' ? (
           <ActionButtons actions={actions} paddingBottom={insets.bottom} />
+        ) : step === 'createJoinGroup' ? (
+          <JoinGroupFormContent
+            chatType={chatType}
+            close={() => setStep('initial')}
+          />
         ) : (
           <CreateChatFormContent
             chatType={chatType}
@@ -270,6 +367,10 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         onSubmit={handleSubmit}
         chatType={step === 'createDm' ? 'dm' : 'group'}
         isCreating={isCreatingChat}
+      />
+      <JoinGroupSheet
+        open={step === 'createJoinGroup'}
+        onOpenChange={handleOpenChange}
       />
     </>
   );
@@ -342,6 +443,27 @@ export function CreateChatInviteSheet({
           onSelectedChange={setSelectedContactIds}
           onCreateGroup={handlePressCreateGroup}
           onScrollChange={setScreenScrolling}
+        />
+      </YStack>
+    </ActionSheet>
+  );
+}
+
+export function JoinGroupSheet({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { bottom } = useSafeAreaInsets();
+
+  return (
+    <ActionSheet moveOnKeyboardChange open={open} onOpenChange={onOpenChange}>
+      <YStack flex={1} paddingBottom={bottom}>
+        <JoinGroupFormContent
+          chatType="joinGroup"
+          close={() => onOpenChange(false)}
         />
       </YStack>
     </ActionSheet>
