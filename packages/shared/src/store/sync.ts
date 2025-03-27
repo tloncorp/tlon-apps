@@ -14,6 +14,7 @@ import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
 } from '../store/useActivityFetchers';
+import * as LocalCache from './cachedData';
 import { addChannelToNavSection, moveChannel } from './groupActions';
 import { verifyUserInviteLink } from './inviteActions';
 import { useLureState } from './lure';
@@ -23,7 +24,7 @@ import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
 export { SyncPriority, syncQueue } from './syncQueue';
 
-const logger = createDevLogger('sync', false);
+const logger = createDevLogger('sync', true);
 
 // Used to track latest post we've seen for each channel.
 // Updated when:
@@ -203,22 +204,26 @@ export const syncVolumeSettings = async (ctx?: SyncCtx) => {
   await db.setVolumes({ volumes: clientVolumes, deleteOthers: true });
 };
 
-export const syncContacts = async (ctx?: SyncCtx) => {
+export const syncContacts = async (ctx?: SyncCtx, yieldWriter = false) => {
   const contacts = await syncQueue.add('contacts', ctx, () =>
     api.getContacts()
   );
   logger.log('got contacts from api', contacts);
-  try {
-    await db.insertContacts(contacts);
-  } catch (e) {
-    logger.error('error inserting contacts', e);
-  }
 
-  try {
-    const newContacts = await db.getContacts();
-    logger.log('got contacts from db', newContacts);
-  } catch (e) {
-    logger.error('error getting contacts from db', e);
+  const writer = async () => {
+    try {
+      await db.insertContacts(contacts);
+      LocalCache.cacheContacts(contacts);
+    } catch (e) {
+      logger.error('error inserting contacts', e);
+    }
+  };
+
+  if (yieldWriter) {
+    return writer;
+  } else {
+    await writer();
+    return () => Promise.resolve();
   }
 };
 
@@ -1213,6 +1218,8 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
   const startTime = Date.now();
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
 
+  let didLoadCachedContacts = false;
+
   try {
     await batchEffects('sync start (high)', async (ctx) => {
       // this allows us to run the api calls first in parallel but handle
@@ -1239,6 +1246,15 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
             priority: SyncPriority.High - 1,
           }).then(() => logger.crumb('subscribed high priority'));
 
+      didLoadCachedContacts = await LocalCache.loadCachedContacts();
+      // if we don't have cached contacts, we need to load them with high priority
+      const syncContactsPromise = didLoadCachedContacts
+        ? () => Promise.resolve()
+        : syncContacts(
+            { priority: SyncPriority.High, retry: true },
+            yieldWriter
+          );
+
       const trackStep = (function () {
         let last = Date.now();
         return (event: AnalyticsEvent) => {
@@ -1260,6 +1276,9 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       await latestPostsWriter();
       trackStep(AnalyticsEvent.LatestPostsWritten);
       logger.crumb('finished writing latest posts');
+
+      const contactsWriter = await syncContactsPromise;
+      await contactsWriter();
 
       await subsPromise;
       trackStep(AnalyticsEvent.SubscriptionsEstablished);
@@ -1286,9 +1305,12 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     resetActivity({ priority: SyncPriority.Medium + 1, retry: true }).then(() =>
       logger.crumb(`finished resetting activity`)
     ),
-    syncContacts({ priority: SyncPriority.Medium + 1, retry: true }).then(() =>
-      logger.crumb(`finished syncing contacts`)
-    ),
+    // if we had cached contacts, we refresh them here with low priority
+    didLoadCachedContacts
+      ? syncContacts({ priority: SyncPriority.Medium + 1, retry: true }).then(
+          () => logger.crumb(`finished syncing contacts`)
+        )
+      : Promise.resolve(),
     syncSettings({ priority: SyncPriority.Medium }).then(() =>
       logger.crumb(`finished syncing settings`)
     ),
