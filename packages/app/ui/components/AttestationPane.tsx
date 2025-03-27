@@ -8,6 +8,8 @@ import { XStack, XStackProps, YStack, styled } from 'tamagui';
 import { useStore } from '../contexts';
 import { PrimaryButton } from './Buttons';
 
+type SigStatus = 'initial' | 'loading' | 'verified' | 'invalid' | 'errored';
+
 export function AttestationPane({
   attestation,
   currentUserId,
@@ -15,10 +17,8 @@ export function AttestationPane({
   attestation: db.Verification;
   currentUserId: string;
 }) {
-  const [haveCheckedSig, setHaveCheckedSig] = useState(false);
-  const [sigIsLoading, setSigIsLoading] = useState(true);
-  const [sigIsValid, setSigIsValid] = useState(false);
   const [revoking, setRevoking] = useState(false);
+  const [sigStatus, setSigStatus] = useState<SigStatus>('initial');
   const [error, setError] = useState<Error | null>(null);
   const store = useStore();
 
@@ -37,31 +37,44 @@ export function AttestationPane({
         attestation.status === 'verified'
       ) {
         // trust our own attestations
+        setSigStatus('verified');
         return;
       }
+
       try {
-        if (attestation.signature && !haveCheckedSig) {
-          setSigIsLoading(true);
-          setHaveCheckedSig(true);
-          setError(null);
-          const isValid = await store.checkAttestedSignature(
-            attestation.signature
-          );
-          setSigIsValid(isValid);
+        setSigStatus('loading');
+        setError(null);
+        if (!attestation.signature) {
+          setSigStatus('errored');
+          setError(new Error('Attestation signature missing.'));
+          return;
         }
+
+        const isValid = await store.checkAttestedSignature(
+          attestation.signature
+        );
+
+        if (!isValid) {
+          setSigStatus('invalid');
+          return;
+        }
+
+        setSigStatus('verified');
       } catch (e) {
-        setError(e);
-      } finally {
-        setSigIsLoading(false);
+        setSigStatus('errored');
+        setError(new Error('Could not verify signature. Please try again.'));
       }
     }
-    run();
+
+    if (sigStatus === 'initial') {
+      run();
+    }
   }, [
     attestation.contactId,
     attestation.signature,
     attestation.status,
     currentUserId,
-    haveCheckedSig,
+    sigStatus,
     store,
   ]);
 
@@ -80,35 +93,11 @@ export function AttestationPane({
     }
   }, [attestation, store]);
 
-  const status: 'loading' | 'verified' | 'invalid' | 'errored' = useMemo(() => {
-    if (
-      attestation.contactId === currentUserId &&
-      attestation.status === 'verified'
-    ) {
-      return 'verified';
-    }
-
-    if (sigIsLoading) return 'loading';
-    if (error) return 'errored';
-    if (sigIsValid) return 'verified';
-    if (!sigIsLoading && haveCheckedSig && !sigIsValid) return 'invalid';
-
-    return 'loading';
-  }, [
-    attestation.contactId,
-    attestation.status,
-    currentUserId,
-    error,
-    haveCheckedSig,
-    sigIsLoading,
-    sigIsValid,
-  ]);
-
   const handleRetry = useCallback(() => {
-    if (status === 'errored') {
-      setHaveCheckedSig(false);
+    if (sigStatus === 'errored') {
+      setSigStatus('initial');
     }
-  }, [status]);
+  }, [sigStatus]);
 
   return (
     <YStack paddingHorizontal="$2xl" gap="$xl">
@@ -118,7 +107,7 @@ export function AttestationPane({
         </Text>
       </ItemContainer>
 
-      <AttestationStatusWidget state={status} handleRetry={handleRetry} />
+      <AttestationStatusWidget status={sigStatus} handleRetry={handleRetry} />
 
       <ItemContainer>
         <YStack gap="$xl" width="100%" alignItems="flex-start">
@@ -178,16 +167,16 @@ const ItemContainer = styled(XStack, {
 });
 
 function AttestationStatusWidget({
-  state,
+  status,
   handleRetry,
   ...rest
 }: {
-  state: 'loading' | 'verified' | 'invalid' | 'errored';
+  status: SigStatus;
   handleRetry?: () => void;
 } & XStackProps) {
   const height = 90;
 
-  if (state === 'verified') {
+  if (status === 'verified') {
     return (
       <ItemContainer height={height} backgroundColor="$positiveBackground">
         <Icon
@@ -202,7 +191,7 @@ function AttestationStatusWidget({
     );
   }
 
-  if (state === 'errored') {
+  if (status === 'errored') {
     return (
       <ItemContainer
         height={height}
@@ -221,7 +210,7 @@ function AttestationStatusWidget({
     );
   }
 
-  if (state === 'invalid') {
+  if (status === 'invalid') {
     return (
       <ItemContainer
         height={height}

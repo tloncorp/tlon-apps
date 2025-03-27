@@ -343,12 +343,6 @@ export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
       app,
       mark,
       noun,
-      onSuccess: () => {
-        console.log(`poke success`);
-      },
-      onError: (err) => {
-        console.log(`poke error`, err);
-      },
     });
   };
   const retry = async (err: any) => {
