@@ -7,6 +7,10 @@ import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import * as urbit from '../urbit';
 import * as sync from './sync';
+import {
+  deleteFromChannelPosts,
+  rollbackDeletedChannelPost,
+} from './useChannelPosts';
 
 const logger = createDevLogger('postActions', false);
 
@@ -315,6 +319,7 @@ export async function deletePost({ post }: { post: db.Post }) {
   const existingPost = await db.getPost({ postId: post.id });
 
   // optimistic update
+  deleteFromChannelPosts(post);
   await db.markPostAsDeleted(post.id);
   await db.updatePost({ id: post.id, deleteStatus: 'pending' });
   await db.updateChannel({ id: post.channelId, lastPostId: null });
@@ -326,6 +331,7 @@ export async function deletePost({ post }: { post: db.Post }) {
     console.error('Failed to delete post', e);
 
     // rollback optimistic update
+    rollbackDeletedChannelPost(post);
     await db.updatePost({
       id: post.id,
       ...existingPost,

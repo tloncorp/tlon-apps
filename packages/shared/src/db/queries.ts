@@ -1827,7 +1827,8 @@ export const deleteChannels = createWriteQuery(
   'deleteChannels',
   async (channels: string[], ctx: QueryCtx) => {
     logger.log(`deleteChannels`, channels);
-    // will cascade delete to post and chat members
+    await ctx.db.delete($posts).where(inArray($channels.id, channels));
+    await ctx.db.delete($chatMembers).where(inArray($channels.id, channels));
     await ctx.db.delete($channels).where(inArray($channels.id, channels));
     return;
   },

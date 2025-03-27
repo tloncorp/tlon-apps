@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "800ef980-1822-4ded-9bc9-792a919203f3",
+  "id": "dda92c9e-6cd7-46d4-9677-f9f572a7d6df",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2138,21 +2138,7 @@
           "isUnique": false
         }
       },
-      "foreignKeys": {
-        "posts_channel_id_channels_id_fk": {
-          "name": "posts_channel_id_channels_id_fk",
-          "tableFrom": "posts",
-          "tableTo": "channels",
-          "columnsFrom": [
-            "channel_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}

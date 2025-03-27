@@ -39,6 +39,7 @@ type UseChannelPostsParams = UseChannelPostsPageParams & {
   firstPageCount?: number;
   hasCachedNewest?: boolean;
   disableUnconfirmedPosts?: boolean;
+  filterDeleted?: boolean;
 };
 
 export const clearChannelPostsQueries = () => {
@@ -161,7 +162,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     },
     [options.channelId]
   );
-  useSubscriptionPostListener(handleNewPost);
+  useNewPostListener(handleNewPost);
 
   // Why store the unconfirmed posts in a separate state?
   // With a live query, we'd see duplicates between the latest post from
@@ -236,7 +237,15 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     return out;
   }, [query.data, query.hasPreviousPage, newPosts, unconfirmedPosts]);
 
-  const posts = useOptimizedQueryResults(rawPosts);
+  const deletedPosts = useDeletedPosts(options.channelId);
+  const rawPostsWithDeleteFilterApplied = useMemo(() => {
+    if (!options.filterDeleted) {
+      return rawPosts;
+    }
+    return rawPosts?.filter((p) => !p.isDeleted && !deletedPosts[p.id]);
+  }, [options.filterDeleted, rawPosts, deletedPosts]);
+
+  const posts = useOptimizedQueryResults(rawPostsWithDeleteFilterApplied);
 
   useRefreshPosts(options.channelId, posts);
 
@@ -428,23 +437,62 @@ function useLoadActionsWithPendingHandlers(
 
 type SubscriptionPostListener = (...args: SubscriptionPost) => void;
 
-const subscriptionPostListeners: SubscriptionPostListener[] = [];
+const newPostListeners: SubscriptionPostListener[] = [];
 
-const useSubscriptionPostListener = (listener: SubscriptionPostListener) => {
+const useNewPostListener = (listener: SubscriptionPostListener) => {
   useEffect(() => {
-    subscriptionPostListeners.push(listener);
+    newPostListeners.push(listener);
     return () => {
-      const index = subscriptionPostListeners.indexOf(listener);
+      const index = newPostListeners.indexOf(listener);
       if (index !== -1) {
-        subscriptionPostListeners.splice(index, 1);
+        newPostListeners.splice(index, 1);
       }
     };
   }, [listener]);
+};
+
+type DeletedPostListener = (postId: string, isDeleted: boolean) => void;
+
+const deletedPostListeners: DeletedPostListener[] = [];
+
+const useDeletedPostListener = (listener: DeletedPostListener) => {
+  useEffect(() => {
+    deletedPostListeners.push(listener);
+    return () => {
+      const index = deletedPostListeners.indexOf(listener);
+      if (index !== -1) {
+        deletedPostListeners.splice(index, 1);
+      }
+    };
+  }, [listener]);
+};
+
+const useDeletedPosts = (channelId: string) => {
+  const [deletedPosts, setDeletedPosts] = useState<Record<string, boolean>>({});
+  const handleDeletedPost = useCallback(
+    (postId: string, isDeleted: boolean) => {
+      setDeletedPosts((value) => ({ ...value, [postId]: isDeleted }));
+    },
+    []
+  );
+  useDeletedPostListener(handleDeletedPost);
+  useEffect(() => {
+    setDeletedPosts({});
+  }, [channelId]);
+  return deletedPosts;
 };
 
 /**
  * External interface for transmitting new post events to listener
  */
 export const addToChannelPosts = (...args: SubscriptionPost) => {
-  subscriptionPostListeners.forEach((listener) => listener(...args));
+  newPostListeners.forEach((listener) => listener(...args));
+};
+
+export const deleteFromChannelPosts = (post: db.Post) => {
+  deletedPostListeners.forEach((listener) => listener(post.id, true));
+};
+
+export const rollbackDeletedChannelPost = (post: db.Post) => {
+  deletedPostListeners.forEach((listener) => listener(post.id, false));
 };

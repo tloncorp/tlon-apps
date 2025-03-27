@@ -315,8 +315,7 @@ CREATE TABLE `posts` (
 	`last_edit_title` text,
 	`last_edit_image` text,
 	`synced_at` integer,
-	`backend_time` text,
-	FOREIGN KEY (`channel_id`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE cascade
+	`backend_time` text
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `posts_sent_at_unique` ON `posts` (`sent_at`);--> statement-breakpoint

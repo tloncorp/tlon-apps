@@ -705,6 +705,7 @@ export const getPostWithReplies = async ({
   channelId: string;
   authorId: string;
 }) => {
+  logger.log('fetching post with replies', { postId, channelId, authorId });
   if (
     !authorId &&
     (isDmChannelId(channelId) || isGroupDmChannelId(channelId))

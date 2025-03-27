@@ -162,12 +162,12 @@ export function GroupOptionsSheetLoader({
         <Popover.Trigger asChild>{trigger}</Popover.Trigger>
         <Popover.Content
           elevate
-          animation="quick"
           zIndex={1000000}
           position="relative"
           borderColor="$border"
           borderWidth={1}
           padding={1}
+          backgroundColor="$background"
         >
           {pane === 'notifications' ? (
             <NotificationsSheetContent
@@ -521,7 +521,6 @@ export function ChannelOptionsSheetLoader({
         <Popover.Trigger asChild>{trigger}</Popover.Trigger>
         <Popover.Content
           elevate
-          animation="quick"
           zIndex={1000000}
           position="relative"
           borderColor="$border"

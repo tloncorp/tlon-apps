@@ -56,6 +56,7 @@ import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
 import { DmInviteOptions } from './DmInviteOptions';
 import { DraftInputView } from './DraftInputView';
 import { PostView } from './PostView';
+import { ReadOnlyNotice } from './ReadOnlyNotice';
 
 export { INITIAL_POSTS_PER_PAGE } from './Scroller';
 
@@ -417,6 +418,8 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                 }
                               />
                             ))}
+
+                          {!canWrite && <ReadOnlyNotice />}
 
                           {channel.isDmInvite && (
                             <DmInviteOptions
