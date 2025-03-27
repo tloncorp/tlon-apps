@@ -162,18 +162,21 @@ function parseProof(input: Noun): {
 // [when=@da for=@p kind=id-kind]
 function parseHalfSign(noun: Noun): HalfSign {
   if (!(noun instanceof Cell)) {
-    throw 'Bad half sign';
+    throw 'Bad half sign 1';
   }
 
-  const whenDa = enjs.cord(noun.head);
-  const when = new Date(daToUnix(BigInt(whenDa))).getTime();
+  const when = new Date(daToUnix(BigInt(noun.head.toString()))).getTime();
   if (!(noun.tail instanceof Cell)) {
-    throw 'Bad half sign';
+    throw 'Bad half sign 2';
   }
 
   const b = noun.tail;
 
-  const contactId = enjs.cord(b.head);
+  if (!(b.head instanceof Atom)) {
+    throw new Error('Bad half Sign 3');
+  }
+
+  const contactId = patp(b.head.number);
   const type = enjs.cord(b.tail) as db.VerificationType;
 
   return { signType: 'half', when, type, contactId };

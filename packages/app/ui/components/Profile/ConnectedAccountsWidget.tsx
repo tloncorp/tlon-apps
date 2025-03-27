@@ -20,7 +20,10 @@ export function TwitterAttestDisplay(props: { attestation: db.Verification }) {
 
   const handleViewTweet = useCallback(() => {
     if (props.attestation && props.attestation.value) {
-      Linking.openURL(`https://x.com/${props.attestation.value}`);
+      triggerHaptic('baseButtonClick');
+      setTimeout(() => {
+        Linking.openURL(`https://x.com/${props.attestation.value}`);
+      }, 100);
     }
   }, [props.attestation]);
 
@@ -72,7 +75,6 @@ export function PhoneAttestDisplay(props: { attestation: db.Verification }) {
   }, []);
 
   if (
-    !props.attestation.value ||
     props.attestation.type !== 'phone' ||
     props.attestation.status !== 'verified'
   ) {
