@@ -352,7 +352,6 @@ function ConnectedWebApp() {
         hasSyncedRef.current = true;
       }
 
-      console.log(`bl: session`, session);
       if (!session?.startTime) {
         return;
       }
