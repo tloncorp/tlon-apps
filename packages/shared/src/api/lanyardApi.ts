@@ -23,7 +23,7 @@ export type LanyardUpdate = { type: 'Default' };
 export function subscribeToLanyardUpdates(
   eventHandler: (event: LanyardUpdate) => void
 ) {
-  subscribe({ app: 'lanyard', path: '/records' }, (event) => {
+  subscribe({ app: 'lanyard', path: '/v1/records' }, (event) => {
     logger.log('raw lanyard sub event', event);
     eventHandler({ type: 'Default' });
   });
@@ -65,10 +65,10 @@ export async function checkAttestedSignature(signData: string) {
 
   const queryResponseSub = subscribeOnce<QueryResponse>({
     app: 'lanyard',
-    path: `/query/${encodedNonce}`,
+    path: `/v1/query/${encodedNonce}`,
   });
 
-  await pokeNoun({ app: 'lanyard', mark: 'lanyard-query', noun });
+  await pokeNoun({ app: 'lanyard', mark: 'lanyard-query-1', noun });
   const queryResponse = await queryResponseSub;
 
   if (queryResponse) {
@@ -198,7 +198,7 @@ export async function fetchVerifications(): Promise<db.Verification[]> {
 export async function initiatePhoneVerify(phoneNumber: string) {
   const payload = [null, ['start', ['phone', phoneNumber]]];
   const noun = dwim(payload);
-  await pokeNoun({ app: 'lanyard', mark: 'lanyard-command', noun });
+  await pokeNoun({ app: 'lanyard', mark: 'lanyard-command-1', noun });
   return;
 }
 
@@ -209,8 +209,8 @@ export async function initiateTwitterAttestation(twitterHandle: string) {
 
   let errorCode: LanyardErrorCode | null = null;
   await trackedPokeNoun(
-    { app: 'lanyard', mark: 'lanyard-command', noun },
-    { app: 'lanyard', path: '/records' },
+    { app: 'lanyard', mark: 'lanyard-command-1', noun },
+    { app: 'lanyard', path: '/v1/records' },
     (event: ub.RecordStatusEvent) => {
       if (event.status?.value !== twitterHandle.toLowerCase()) {
         return false;
@@ -267,8 +267,8 @@ export async function updateAttestationVisibility({
 
   const noun = dwim(command);
   await trackedPokeNoun(
-    { app: 'lanyard', mark: 'lanyard-command', noun },
-    { app: 'lanyard', path: '/records' },
+    { app: 'lanyard', mark: 'lanyard-command-1', noun },
+    { app: 'lanyard', path: '/v1/records' },
     (event: ub.RecordConfigEvent) => {
       if (event.config?.value !== value.toLowerCase()) {
         return false;
@@ -295,7 +295,7 @@ export async function updateAttestationProfileDisplay({
   const identifier = [type, value.toLowerCase()];
   const command = [null, ['profile', identifier, displaySetting]];
   const noun = dwim(command);
-  await pokeNoun({ app: 'lanyard', mark: 'lanyard-command', noun });
+  await pokeNoun({ app: 'lanyard', mark: 'lanyard-command-1', noun });
 }
 
 export enum LanyardErrorCode {
@@ -331,8 +331,8 @@ export async function confirmTwitterAttestation(
   const noun = dwim(payload);
   let errorCode: LanyardErrorCode | null = null;
   await trackedPokeNoun(
-    { app: 'lanyard', mark: 'lanyard-command', noun },
-    { app: 'lanyard', path: '/records' },
+    { app: 'lanyard', mark: 'lanyard-command-1', noun },
+    { app: 'lanyard', path: '/v1/records' },
     (event: ub.RecordStatusEvent) => {
       if (event.status?.value !== twitterHandle.toLowerCase()) {
         return false;
@@ -370,11 +370,11 @@ export async function initiatePhoneAttestation(phoneNumber: string) {
   const noun = dwim(payload);
 
   let errorCode: LanyardErrorCode | null = null;
-  trackedPokeNoun(
-    { app: 'lanyard', mark: 'lanyard-command', noun },
-    { app: 'lanyard', path: '/records' },
+  await trackedPokeNoun(
+    { app: 'lanyard', mark: 'lanyard-command-1', noun },
+    { app: 'lanyard', path: '/v1/records' },
     (event: ub.RecordStatusEvent) => {
-      console.log(`got phone start event`, event);
+      console.log(`bl: got phone start event`, event);
       if (event.status?.value !== phoneNumber) {
         return false;
       }
@@ -412,8 +412,8 @@ export async function confirmPhoneAttestation(
   const noun = dwim(payload);
   let errorCode: LanyardErrorCode | null = null;
   await trackedPokeNoun(
-    { app: 'lanyard', mark: 'lanyard-command', noun },
-    { app: 'lanyard', path: '/records' },
+    { app: 'lanyard', mark: 'lanyard-command-1', noun },
+    { app: 'lanyard', path: '/v1/records' },
     (event: ub.RecordStatusEvent) => {
       console.log(`got phone confirm event`, event, phoneNumber);
       if (!event.status || event.status.value !== phoneNumber) {
@@ -447,11 +447,11 @@ export async function revokeAttestation(params: {
   const identifier = [params.type, params.value];
   const command = [null, ['revoke', identifier]];
   const noun = dwim(command);
-  // await pokeNoun({ app: 'lanyard', mark: 'lanyard-command', noun });
+  // await pokeNoun({ app: 'lanyard', mark: 'lanyard-command-1', noun });
 
   await trackedPokeNoun(
-    { app: 'lanyard', mark: 'lanyard-command', noun },
-    { app: 'lanyard', path: '/records' },
+    { app: 'lanyard', mark: 'lanyard-command-1', noun },
+    { app: 'lanyard', path: '/v1/records' },
     (event: ub.RecordStatusEvent) => {
       if (event.status?.value !== params.value.toLowerCase()) {
         return false;

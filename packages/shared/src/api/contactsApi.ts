@@ -2,6 +2,7 @@ import { daToUnix, parseDa } from '@urbit/aura';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import * as domain from '../domain';
 import { AnalyticsEvent } from '../domain';
 import { normalizeUrbitColor } from '../logic';
 import * as ub from '../urbit';
@@ -330,7 +331,7 @@ function parseContactAttestations(
         });
       }
     } catch (e) {
-      console.error(`failed to contact twitter attestation`, e);
+      console.error(`bl: failed to contact twitter attestation`, e);
     }
   }
 
@@ -366,6 +367,8 @@ function parseContactAttestations(
           provingTweetId,
           signature: sign.signature,
         });
+      } else {
+        console.log(`no sign found`);
       }
     } catch (e) {
       console.error(`failed to parse contact phone attestation`, e);
@@ -376,11 +379,14 @@ function parseContactAttestations(
     return null;
   }
 
-  return attestations.map((a) => ({
+  const finalAttests = attestations.map((a) => ({
     contactId,
     attestationId: a.id,
     attestation: a,
   }));
+
+  console.log(`parsed attests`, finalAttests);
+  return finalAttests;
 }
 
 export const v1PeersToClientProfiles = (

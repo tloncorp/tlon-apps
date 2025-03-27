@@ -24,3 +24,6 @@ export interface RecordId {
   type: 'urbit' | 'phone' | 'twitter' | 'dummy';
   value: string;
 }
+
+export const CONTACT_TWITTER_ATTEST_KEY: string = 'lanyard-twitter-0-sign';
+export const CONTACT_PHONE_ATTEST_KEY: string = 'lanyard-phone-0-sign';

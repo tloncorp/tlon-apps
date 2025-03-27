@@ -80,10 +80,12 @@ function SubmitPhoneNumPane(props: { attestation: db.Verification | null }) {
   const onSubmit = useCallback(async () => {
     try {
       setIsSubmitting(true);
+      setRemoteError(undefined);
       await phoneForm.handleSubmit(async ({ phoneNumber }) => {
         await store.initiatePhoneAttestation(phoneNumber);
       })();
     } catch (e) {
+      console.log(`bl: got err`, e);
       if (e instanceof api.LanyardError) {
         if (e.errorCode === api.LanyardErrorCode.ALREADY_REGISTERED) {
           setRemoteError('This phone number has already been registered.');
@@ -117,14 +119,13 @@ function SubmitPhoneNumPane(props: { attestation: db.Verification | null }) {
         </Text>
       </YStack>
       <PhoneNumberInput form={phoneForm} />
+      <Text size="$label/s" color="$negativeActionText">
+        {remoteError}
+      </Text>
       <PrimaryButton
         onPress={onSubmit}
         loading={isSubmitting}
-        disabled={
-          isSubmitting ||
-          remoteError !== undefined ||
-          !phoneForm.formState.isValid
-        }
+        disabled={isSubmitting || !phoneForm.formState.isValid}
         marginTop="$2xl"
       >
         <Text color="$background" size="$label/l">
