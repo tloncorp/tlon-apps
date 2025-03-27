@@ -1,3 +1,4 @@
+import { useConnectionStatus } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
@@ -106,6 +107,7 @@ export function ChannelHeader({
 }) {
   const chatOptions = useChatOptions();
   const [openChatOptions, setOpenChatOptions] = useState(false);
+  const connectionStatus = useConnectionStatus();
 
   const handlePressOverflowMenu = useCallback(() => {
     chatOptions.open(channel.id, 'channel');
@@ -114,8 +116,33 @@ export function ChannelHeader({
   const contextItems = useContext(ChannelHeaderItemsContext)?.items ?? [];
   const isWindowNarrow = useIsWindowNarrow();
 
+  const displayTitle = useMemo(() => {
+    if (connectionStatus === 'Connected') {
+      return title;
+    }
+
+    const statusText =
+      connectionStatus === 'Connecting' || connectionStatus === 'Reconnecting'
+        ? 'Connecting...'
+        : connectionStatus === 'Idle'
+          ? 'Initializing...'
+          : 'Disconnected';
+
+    return statusText;
+  }, [title, connectionStatus]);
+
   if (mode === 'next') {
-    return <BaubleHeader channel={channel} group={group} />;
+    return (
+      <BaubleHeader
+        channel={channel}
+        group={group}
+        showSpinner={
+          showSpinner ||
+          connectionStatus === 'Connecting' ||
+          connectionStatus === 'Reconnecting'
+        }
+      />
+    );
   }
 
   const titleWidth = () => {
@@ -135,7 +162,7 @@ export function ChannelHeader({
       <ScreenHeader
         title={
           <Pressable onPress={goToChatDetails}>
-            <ScreenHeader.Title>{title}</ScreenHeader.Title>
+            <ScreenHeader.Title>{displayTitle}</ScreenHeader.Title>
           </Pressable>
         }
         titleWidth={titleWidth()}
