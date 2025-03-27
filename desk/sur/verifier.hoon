@@ -189,7 +189,8 @@
 ++  query-result
   |^  ,[nonce=@ result]
   +$  result
-    $%  [%has-any has=?]
+    $%  [%rate-limit ~]
+        [%has-any has=?]
         [%valid valid=?]
         [%whose who=(unit @p)]
         [%whose-bulk next-salt=@ux who=(map identifier (unit @p))]  ::REVIEW  or just absence?

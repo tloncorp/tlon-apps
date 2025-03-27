@@ -975,7 +975,11 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  caz=(list card)  bind:m  (user-asks who qer)
-  =-  (ex-cards caz - ~)
+  ::NOTE  if you don't put a face on the +ex-poke product,
+  ::      the +ex-cards in the product gate's context
+  ::      will shadow the local +ex-cards!!
+  =;  ex
+    (ex-cards caz ex ~)
   (ex-poke /query/result [who dude.qer] %verifier-result !>([nonce.qer res]))
 ::
 ++  test-query-has-any
@@ -1082,29 +1086,30 @@
   =/  m  (mare ,~)
   ;<  ~  bind:m  (do-query-setup)
   =/  id=identifier:v  [%dummy 'test-id']
-  =*  request
+  =/  request
+    |=  res=result:query-result:v
     %^  expect-query-response  ~fed
       [[%some-dude %my-nonce] %whose id]
-    [%whose ~]
+    res
   ::  exhaust our allotted requests
   ::
   =/  n=@ud  queries:*allowance:v
   |-  =*  loop  $
   ?.  =(0 n)
-    ;<  ~  bind:m  request
+    ;<  ~  bind:m  (request %whose ~)
     loop(n (dec n))
   ::  next request should go over the limit
   ::
-  ;<  ~  bind:m  (ex-fail request)
+  ;<  ~  bind:m  (request %rate-limit ~)
   ::  waiting for a little bit should let us make some requests again
   ::
   ;<  ~  bind:m  (wait ~m16)
   =.  n  3
   |-  =*  loop  $
   ?.  =(0 n)
-    ;<  ~  bind:m  request
+    ;<  ~  bind:m  (request %whose ~)
     loop(n (dec n))
-  (ex-fail request)
+  (request %rate-limit ~)
 ::
 ++  test-query-bulk-rate-limits
   %-  eval-mare
@@ -1147,17 +1152,27 @@
     (turn (gulf +(base) (add base 5)) |=(a=@ [%dummy (scot %ud a)]))
   %-  branch
   :~  :-  'eager'
-      (ex-fail (user-asks ~fed [%some-dude %my-nonce] query))
+      %^  expect-query-response  ~fed
+        [[%some-dude %my-nonce] query]
+      [%rate-limit ~]
     ::
       :-  'continuous'
       ;<  ~  bind:m  (wait ~h12)
-      ;<  *  bind:m  (user-asks ~fed [%some-dude %my-nonce] query)
-      (pure:m ~)
+      %^  expect-query-response  ~fed
+        [[%some-dude %my-nonce] query]
+      :+  %whose-bulk
+        last-salt.query  ::NOTE  we didn't update the eny.bowl
+      %-  ~(gas by *(map identifier:v (unit @p)))
+      %+  turn
+        ~(tap in (~(uni in last.query) add.query))
+      (late ~)
     ::
       :-  'discontinuous'
       ;<  ~  bind:m  (wait ~h12)
       =.  last-salt.query  0xdead
-      (ex-fail (user-asks ~fed [%some-dude %my-nonce] query))
+      %^  expect-query-response  ~fed
+        [[%some-dude %my-nonce] query]
+      [%rate-limit ~]
   ==
 ::
 ++  test-query-bulk-max-size
@@ -1201,7 +1216,7 @@
   =.  add.query   (sy [%dummy (scot %ud base)] ~)
   (ex-fail (user-asks ~fed [%some-dude %my-nonce] query))
 ::
-++  test-phone-otp-rate-limits
+++  test-phone-text-rate-limits
   %-  eval-mare
   =/  m  (mare ,~)
   ;<  ~  bind:m  do-setup
@@ -1213,7 +1228,12 @@
     ;<  *  bind:m  (user-does ~nec %start %phone (scot %ud n))
     ;<  *  bind:m  (user-does ~nec %revoke %phone (scot %ud n))
     loop(n (dec n))
-  ;<  ~  bind:m  (ex-fail (user-does ~nec %start %phone '+123456789'))
+  =/  id=identifier:v  [%phone '+123456789']
+  ;<  caz=(list card)  bind:m
+    (user-does ~nec %start id)
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    [(ex-verifier-update ~nec %status id 'rate limited' %gone ~)]~
   ::  if we wait, we may continue new attempts
   ::
   ;<  ~  bind:m  (wait p:phone:rates:v)
@@ -1227,19 +1247,24 @@
   ;<  ~  bind:m  do-setup
   ::  check the submitted tweet until we hit the expected limit
   ::
+  =/  id=identifier:v  [%twitter 'blah']
   =/  n=@ud  tweet:*allowance:v
   |-  =*  loop  $
   ?.  =(0 n)
-    ;<  *  bind:m  (user-does ~nec %start %twitter 'blah')
-    ;<  *  bind:m  (user-does ~nec %work [%twitter 'blah'] %twitter %post '112233445566778899')
-    ;<  *  bind:m  (user-does ~nec %revoke %twitter 'blah')
+    ;<  *  bind:m  (user-does ~nec %start id)
+    ;<  *  bind:m  (user-does ~nec %work id %twitter %post '112233445566778899')
+    ;<  *  bind:m  (user-does ~nec %revoke id)
     loop(n (dec n))
-  ;<  *  bind:m  (user-does ~nec %start %twitter 'blah')
-  ;<  ~  bind:m  (ex-fail (user-does ~nec %work [%twitter 'blah'] %twitter %post '112233445566778899'))
+  ;<  *  bind:m  (user-does ~nec %start id)
+  ;<  caz=(list card)  bind:m
+    (user-does ~nec %work id %twitter %post '112233445566778899')
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    [(ex-verifier-update ~nec %status id 'rate limited' %want %twitter %post 0x9fd7.fbc0)]~
   ::  if we wait, we may continue new attempts
   ::
   ;<  ~  bind:m  (wait p:tweet:rates:v)
-  ;<  *  bind:m  (user-does ~nec %work [%twitter 'blah'] %twitter %post '112233445566778899')
+  ;<  *  bind:m  (user-does ~nec %work id %twitter %post '112233445566778899')
   ::
   (pure:m ~)
 ::

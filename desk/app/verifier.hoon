@@ -358,14 +358,18 @@
     (abs:si (need (toi:rd (mul:rd (sun:rd n) (div:rd (sun:rd `@`d) (sun:rd `@`p))))))
   --
 ::
-++  jab-allowance
+++  stab-allowance
   |=  [limits=[solo=(map @p allowance) pool=allowance] for=@p now=@da]
-  |=  f=$-(allowance allowance)
-  ^+  limits
+  |=  f=$-(allowance (unit allowance))
+  ^-  [pass=? =_limits]
   =+  (get-allowance limits for now)
-  :-  (~(put by solo.limits) for (f solo))
-  ?^  pool  (f u.pool)
-  pool.limits
+  =+  s=(f solo)
+  ?~  s  [| limits]
+  ?~  pool
+    [& limits(solo (~(put by solo.limits) for u.s))]
+  =+  p=(f u.pool)
+  ?~  p  [| limits]
+  [& limits(pool u.p, solo (~(put by solo.limits) for u.s))]
 ::
 ++  find-whose
   |=  [id=identifier sat=(unit record) src=(set identifier)]
@@ -509,16 +513,21 @@
                     :-  'prove ownership'
                     [%want %website %sign (end 5 (shas %website eny.bowl))]
         ==
+      =^  pass=?  limits
+        ?.  ?=(%phone -.id.cmd)  [& limits]
+        %-  (stab-allowance limits src.bowl now.bowl)
+        |=  lim=allowance
+        ?:  =(0 phone.lim)  ~
+        `lim(phone (dec phone.lim))
+      ?.  pass
+        %-  (tell:l %info 'rate limited (phone text)' ~)
+        :_  this
+        [(give-status src.bowl id.cmd 'rate limited' %gone ~)]~
       =.  records
         %+  ~(put by records)  id.cmd
         [src.bowl now.bowl *config status]
       =.  owners
         (~(put ju owners) src.bowl id.cmd)
-      =?  limits  ?=(%phone -.id.cmd)
-        %-  (jab-allowance limits src.bowl now.bowl)
-        |=  lim=allowance
-        ~|  %would-exceed-rate-limit
-        lim(phone (dec phone.lim))
       %-  (tell:l %info 'started registration' ~)
       :_  this
       :+  (give-status src.bowl id.cmd why status)
@@ -566,11 +575,15 @@
         =/  rec  (~(got by records) id)
         ?>  =(src.bowl for.rec)
         ?>  =([%want %phone %otp] status.rec)  ::NOTE  tmi
-        =.  limits
-          %-  (jab-allowance limits [src now]:bowl)
+        =^  pass  limits
+          %-  (stab-allowance limits [src now]:bowl)
           |=  lim=allowance
-          ~|  %would-exceed-rate-limit
-          lim(photp (dec photp.lim))
+          ?:  =(0 photp.lim)  ~
+          `lim(photp (dec photp.lim))
+        ?.  pass
+          %-  (tell:l %info 'rate limited (phone otp check)' ~)
+          :_  this
+          [(give-status src.bowl id 'rate limited' status.rec)]~
         =.  status.rec  [%wait ~]
         :_  this(records (~(put by records) id rec))
         :~  (give-status src.bowl id 'checking otp' status.rec)
@@ -582,11 +595,15 @@
         =/  rec  (~(got by records) id)
         ?>  =(src.bowl for.rec)
         ?>  |(?=([%want %twitter %post *] status.rec))  ::NOTE  tmi hack
-        =.  limits
-          %-  (jab-allowance limits [src now]:bowl)
+        =^  pass  limits
+          %-  (stab-allowance limits [src now]:bowl)
           |=  lim=allowance
-          ~|  %would-exceed-rate-limit
-          lim(tweet (dec tweet.lim))
+          ?:  =(0 tweet.lim)  ~
+          `lim(tweet (dec tweet.lim))
+        ?.  pass
+          %-  (tell:l %info 'rate limited (tweet fetch)' ~)
+          :_  this
+          [(give-status src.bowl id 'rate limited' status.rec)]~
         =.  status.rec  [%wait `status.rec]
         :_  this(records (~(put by records) id rec))
         :~  (give-status src.bowl id 'checking tweet' status.rec)
@@ -598,11 +615,15 @@
         =/  rec  (~(got by records) id)
         ?>  =(src.bowl for.rec)
         ?>  |(?=([%want %website %sign *] status.rec))  ::NOTE  tmi hack
-        =.  limits
-          %-  (jab-allowance limits [src now]:bowl)
+        =^  pass  limits
+          %-  (stab-allowance limits [src now]:bowl)
           |=  lim=allowance
-          ~|  %would-exceed-rate-limit
-          lim(fetch (dec fetch.lim))
+          ?:  =(0 fetch.lim)  ~
+          `lim(fetch (dec fetch.lim))
+        ?.  pass
+          %-  (tell:l %info 'rate limited (website fetch)' ~)
+          :_  this
+          [(give-status src.bowl id 'rate limited' status.rec)]~
         =.  status.rec  [%wait `status.rec]
         :_  this(records (~(put by records) id rec))
         :~  (give-status src.bowl id 'checking proof' status.rec)
@@ -635,17 +656,24 @@
     =+  !<(qer=user-query vase)
     =;  [res=result:query-result nu=_state]
       =.  state  nu
+      %-  ?.  ?=(%rate-limit -.res)  same
+          =/  kind=@t
+            ?.  ?=(%whose-bulk +<.qer)  '(query)'
+            '(whose bulk query)'
+          (tell:l %info (cat 3 'rate limited ' kind) ~)
       :_  this
       =/  =cage  [%verifier-result !>([nonce.qer res])]
       [%pass /query/result %agent [src.bowl dude.qer] %poke cage]~
     ?-  +<.qer
         ?(%has-any %valid %whose)
-      =.  limits
-        %-  (jab-allowance limits src.bowl now.bowl)
+      =^  pass  limits
+        %-  (stab-allowance limits src.bowl now.bowl)
         |=  lim=allowance
-        ~|  %would-exceed-rate-limit
-        lim(queries (dec queries.lim))
+        ?:  =(0 queries.lim)  ~
+        `lim(queries (dec queries.lim))
       :_  state
+      ?.  pass
+        [%rate-limit ~]
       ?-  +<.qer
           %has-any
         :-  %has-any
@@ -699,10 +727,11 @@
         ::
         ~(wyt in bulk)
       =/  salt  (shas %whose-salt eny.bowl)
-      =.  limits
-        %-  (jab-allowance limits src.bowl now.bowl)
+      =^  pass  limits
+        %-  (stab-allowance limits src.bowl now.bowl)
         |=  lim=allowance
-        ~|  %would-exceed-rate-limit
+        ?:  (gth cost batch.lim)  ~
+        :-  ~
         ::NOTE  this also writes the last-batch hash to the shared pool,
         ::      but we don't really care. the value there is never checked.
         %_  lim
@@ -710,6 +739,8 @@
           last-batch  (shas salt (jam bulk))
         ==
       :_  state
+      ?.  pass
+        [%rate-limit ~]
       ::  assuming the prior didn't crash, we can proceed with the query
       ::
       :+  %whose-bulk  salt
