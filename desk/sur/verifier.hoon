@@ -214,9 +214,10 @@
         query:user-query
     ==
   +$  result
+    $~  [%fail 'bunt']
     $%  [%fail why=@t]
         [%valid-jam valid=$@(sig=? [sig=? liv=?])]
-        result:query-result
+        $<(%rate-limit result:query-result)
     ==
   +$  update
     $%  [%query nonce=@ result]  ::TODO  different?

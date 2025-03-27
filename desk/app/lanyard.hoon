@@ -375,8 +375,9 @@
         %&  q.p.qer
       ==
     =/  rez=result:l
+      ?:  ?=(%rate-limit +<.res)
+        [%fail 'rate limited']
       ?.  ?=(%valid-jam -.qes)    +.res
-      ?:  ?=(%rate-limit +<.res)  +.res
       ?>  ?=(%valid +<.res)
       [%valid-jam & valid.res]
     ::  we don't keep query results around in state right now,
