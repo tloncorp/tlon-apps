@@ -19,6 +19,10 @@ export interface RecordConfigEvent {
   };
 }
 
+export interface QueryResponseEvent {
+  query: { result: { valid: boolean; live: boolean } };
+}
+
 export interface RecordId {
   provider: string;
   type: 'urbit' | 'phone' | 'twitter' | 'dummy';

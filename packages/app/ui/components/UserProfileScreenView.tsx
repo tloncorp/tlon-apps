@@ -73,8 +73,6 @@ export function UserProfileScreenView(props: Props) {
     return attestations.find((a) => a.type === 'phone');
   }, [attestations]);
 
-  console.log(`profile attestations`, { phoneAttestation, twitterAttestation });
-
   const nodeStatus = !props.connectionStatus?.complete
     ? 'pending'
     : props.connectionStatus.status === 'yes'

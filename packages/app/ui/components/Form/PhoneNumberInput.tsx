@@ -1,22 +1,10 @@
 import { isValidPhoneNumber } from 'libphonenumber-js';
-import {
-  createRef,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Controller, UseFormReturn } from 'react-hook-form';
-import {
-  TextInput as RNTextInput,
-  TextInputKeyPressEventData,
-} from 'react-native';
 import { CountryPicker } from 'react-native-country-codes-picker';
 import PhoneInput from 'react-native-phone-input';
 
 import { Field, useTheme } from '../../';
-import { useIsDarkMode } from '../../../hooks/useIsDarkMode';
 
 export function PhoneNumberInput({
   form,
@@ -27,8 +15,6 @@ export function PhoneNumberInput({
 }) {
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const phoneInputRef = useRef<PhoneInput>(null);
-
-  const isDarkMode = useIsDarkMode();
   const theme = useTheme();
 
   useEffect(() => {
@@ -85,14 +71,10 @@ export function PhoneNumberInput({
         style={{
           modal: {
             flex: 0.8,
-            backgroundColor: isDarkMode
-              ? theme.background.val
-              : theme.background.val,
+            backgroundColor: theme.background.val,
           },
           countryButtonStyles: {
-            backgroundColor: isDarkMode
-              ? theme.background.val
-              : theme.background.val,
+            backgroundColor: theme.background.val,
           },
           dialCode: {
             color: theme.primaryText.val,
@@ -101,18 +83,14 @@ export function PhoneNumberInput({
             color: theme.primaryText.val,
           },
           textInput: {
-            backgroundColor: isDarkMode
-              ? theme.background.val
-              : theme.background.val,
+            backgroundColor: theme.background.val,
             color: theme.primaryText.val,
             borderWidth: 1,
             borderColor: theme.border.val,
             padding: 16,
           },
           line: {
-            backgroundColor: isDarkMode
-              ? theme.background.val
-              : theme.background.val,
+            backgroundColor: theme.background.val,
           },
         }}
         onBackdropPress={() => setShowCountryPicker(false)}

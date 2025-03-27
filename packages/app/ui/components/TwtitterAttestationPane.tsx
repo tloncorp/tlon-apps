@@ -180,8 +180,8 @@ ${proof}`;
     >
       <YStack gap="$2xl">
         <Text size="$label/m">
-          To complete verification, send this post and send it from your
-          account: <Text fontWeight="500">{formattedHandle}</Text>
+          To complete verification, send this post from your account:{' '}
+          <Text fontWeight="500">{formattedHandle}</Text>
         </Text>
         {proof ? (
           <CopyableTextBlock

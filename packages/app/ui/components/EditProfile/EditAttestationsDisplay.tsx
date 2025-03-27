@@ -9,7 +9,6 @@ export function EditAttestationsDisplay(props: {
   attestations: db.Verification[];
   onPressAttestation?: (attestation: 'phone' | 'twitter') => void;
 }) {
-  console.log(`attestations editor`, props.attestations);
   const twitterAttestation = props.attestations.find(
     (a) => a.type === 'twitter'
   );

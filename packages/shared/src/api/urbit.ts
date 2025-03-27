@@ -337,7 +337,7 @@ export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
     if (config.pendingAuth) {
       await config.pendingAuth;
     }
-    console.log('noun poke', { app, mark });
+    logger.log('noun poke', { app, mark });
     return config.client.pokeNoun({
       ...params,
       app,

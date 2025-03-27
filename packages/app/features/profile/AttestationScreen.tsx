@@ -26,12 +26,6 @@ export function AttestationScreen({ route, navigation }: Props) {
       (v) => v.type === 'phone' && v.contactId === currentUserId
     ) ?? null;
 
-  console.log(`have attestation`, {
-    twitterAttestation,
-    verifications,
-    isLoading,
-  });
-
   return (
     <View flex={1} backgroundColor="$background">
       <ScreenHeader

@@ -2,7 +2,6 @@ import { formatUv, parseUw } from '@urbit/aura';
 import { Atom, Cell, Noun, dwim, enjs } from '@urbit/nockjs';
 
 import * as db from '../db';
-import { VerificationType } from '../db/schema';
 import { createDevLogger } from '../debug';
 import { getFrondValue, getPatp, simpleHash } from '../logic';
 import * as ub from '../urbit';
@@ -29,29 +28,6 @@ export function subscribeToLanyardUpdates(
   });
 }
 
-interface HalfSign {
-  signType: 'half';
-  when: number;
-  kind: string;
-}
-
-interface FullSign {
-  signType: 'full';
-  when: number;
-  kind: string;
-
-  provider: string;
-  value: string;
-  type: VerificationType;
-}
-
-type Sign = HalfSign | FullSign;
-
-// send to /valid-jam/${sign} -> noun (bool, good/no good)
-
-interface QueryResponse {
-  query: { result: { valid: boolean; live: boolean } };
-}
 export async function checkAttestedSignature(signData: string) {
   const nonce = Math.floor(Math.random() * 1000000);
   const encodedNonce = formatUv(BigInt(nonce));
@@ -63,7 +39,7 @@ export async function checkAttestedSignature(signData: string) {
   ];
   const noun = dwim(query);
 
-  const queryResponseSub = subscribeOnce<QueryResponse>({
+  const queryResponseSub = subscribeOnce<ub.QueryResponseEvent>({
     app: 'lanyard',
     path: `/v1/query/${encodedNonce}`,
   });
@@ -72,14 +48,13 @@ export async function checkAttestedSignature(signData: string) {
   const queryResponse = await queryResponseSub;
 
   if (queryResponse) {
-    const sigValidation = queryResponse?.query?.result;
+    const sigValidation = queryResponse.query?.result;
     return Boolean(sigValidation.live && sigValidation.valid);
   }
   return false;
 }
 
 function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {
-  console.log(`noun to client records`);
   return enjs.tree((n: Noun) => {
     if (!(n instanceof Cell)) {
       throw new Error('malformed map');
@@ -112,7 +87,7 @@ function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {
     if (!(a instanceof Cell)) {
       throw new Error('malformed record why');
     }
-    const statusMessage = enjs.cord(a.head); // TODO: should we store?
+    const statusMessage = enjs.cord(a.head);
 
     const { status, sign } = getFrondValue<{
       status: db.VerificationStatus;
@@ -374,7 +349,6 @@ export async function initiatePhoneAttestation(phoneNumber: string) {
     { app: 'lanyard', mark: 'lanyard-command-1', noun },
     { app: 'lanyard', path: '/v1/records' },
     (event: ub.RecordStatusEvent) => {
-      console.log(`bl: got phone start event`, event);
       if (event.status?.value !== phoneNumber) {
         return false;
       }
@@ -415,7 +389,6 @@ export async function confirmPhoneAttestation(
     { app: 'lanyard', mark: 'lanyard-command-1', noun },
     { app: 'lanyard', path: '/v1/records' },
     (event: ub.RecordStatusEvent) => {
-      console.log(`got phone confirm event`, event, phoneNumber);
       if (!event.status || event.status.value !== phoneNumber) {
         return false;
       }
@@ -447,7 +420,6 @@ export async function revokeAttestation(params: {
   const identifier = [params.type, params.value];
   const command = [null, ['revoke', identifier]];
   const noun = dwim(command);
-  // await pokeNoun({ app: 'lanyard', mark: 'lanyard-command-1', noun });
 
   await trackedPokeNoun(
     { app: 'lanyard', mark: 'lanyard-command-1', noun },

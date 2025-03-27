@@ -12,6 +12,7 @@ interface HalfSign {
   when: number;
   provider?: string;
   type: db.VerificationType;
+  contactId?: string;
 }
 
 interface FullSign {
@@ -23,6 +24,7 @@ interface FullSign {
 
   value: string;
   proofTweetId?: string;
+  contactId?: string;
 }
 
 export type Sign = HalfSign | FullSign;
@@ -171,45 +173,33 @@ function parseHalfSign(noun: Noun): HalfSign {
 
   const b = noun.tail;
 
-  const correspondingUser = enjs.cord(b.head);
-  // if (correspondingUser !== contactId) {
-  //   throw new Error(`Signature user ID does not match contact`);
-  // }
-
+  const contactId = enjs.cord(b.head);
   const type = enjs.cord(b.tail) as db.VerificationType;
 
-  return { signType: 'half', when, type };
+  return { signType: 'half', when, type, contactId };
 }
 
 // [when=@da for=@p id=identifier proof=(unit proof)]
 function parseFullSign(noun: Noun): FullSign {
   if (!(noun instanceof Cell)) {
-    throw 'Bad full sign';
+    throw 'Bad full sign 1';
   }
 
   const when = new Date(daToUnix(BigInt(noun.head.toString()))).getTime();
   if (!(noun.tail instanceof Cell)) {
-    throw 'Bad half sign';
+    throw 'Bad full sign 2';
   }
 
   const b = noun.tail;
 
   if (!(b.head instanceof Atom)) {
-    throw new Error('Bad Full Sign');
+    throw new Error('Bad full Sign 3');
   }
-  const correspondingUser = patp(b.head.number);
-
-  // console.log('check users match', {
-  //   want: contactId,
-  //   have: correspondingUser,
-  // });
-  // if (correspondingUser !== contactId) {
-  //   throw new Error(`Signature user ID does not match contact`);
-  // }
+  const contactId = patp(b.head.number);
 
   const c = b.tail;
   if (!(c instanceof Cell)) {
-    throw new Error('Bad Half Sign');
+    throw new Error('Bad full Sign 4');
   }
 
   const identifier = parseIdentifier(c.head);
@@ -223,6 +213,7 @@ function parseFullSign(noun: Noun): FullSign {
   return {
     signType: 'full',
     when,
+    contactId,
     type: identifier.type,
     value: identifier.value,
     ...proof,

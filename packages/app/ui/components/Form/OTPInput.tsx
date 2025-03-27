@@ -27,7 +27,6 @@ export function OTPInput({
 
   const handleChangeText = useCallback(
     (index: number, text: string) => {
-      console.log(`change text`, index, text);
       const nextCode = [...value];
       if (text.length === 0) {
         nextCode[index] = '';
