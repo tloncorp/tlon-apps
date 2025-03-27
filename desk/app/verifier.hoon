@@ -488,10 +488,6 @@
         %start
       =.  for.log   `src.bowl
       =.  kind.log  `-.id.cmd
-      ::TODO  careful with moons for ids that require signing, we can't know
-      ::      their keys ahead of time...
-      ::REVIEW  or is that not a problem, considering the moon will need to
-      ::        talk to us before we try verifying?
       ?:  (~(has by records) id.cmd)
         ::  can't register something for which a record already exists,
         ::  but we do want to notify the user of this.

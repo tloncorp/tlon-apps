@@ -296,7 +296,6 @@
     ::  if the target service is unknown, do setup for it
     ::
     =^  caz  this
-      ::REVIEW  is this check a mistake? should we check for subs in the bowl?
       ?:  (~(has by ledgers) host)  [~ this]
       :-  (join-service our.bowl host)
       this(ledgers (~(put by ledgers) host ~))
