@@ -24,7 +24,11 @@ export function TwitterAttestDisplay(props: { attestation: db.Verification }) {
     }
   }, [props.attestation]);
 
-  if (!props.attestation.value || props.attestation.type !== 'twitter') {
+  if (
+    !props.attestation.value ||
+    props.attestation.type !== 'twitter' ||
+    props.attestation.status !== 'verified'
+  ) {
     return null;
   }
 
@@ -57,7 +61,11 @@ export function TwitterAttestDisplay(props: { attestation: db.Verification }) {
 export function PhoneAttestDisplay(props: { attestation: db.Verification }) {
   const [showDetails, setShowDetails] = useState(false);
 
-  if (!props.attestation.value || props.attestation.type !== 'phone') {
+  if (
+    !props.attestation.value ||
+    props.attestation.type !== 'phone' ||
+    props.attestation.status !== 'verified'
+  ) {
     return null;
   }
 

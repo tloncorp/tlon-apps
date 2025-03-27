@@ -362,7 +362,10 @@ export async function initiatePhoneAttestation(phoneNumber: string) {
         return true;
       }
 
-      if (event.status.status === 'pending') {
+      if (
+        event.status.status === 'pending' ||
+        event.status.status === 'verified'
+      ) {
         return true;
       }
 
