@@ -495,11 +495,3 @@ export const usePostWithRelations = (
     queryFn: () => db.getPostWithRelations(options),
   });
 };
-
-export const useVerifications = () => {
-  const deps = useKeyFromQueryDeps(db.getVerifications);
-  return useQuery({
-    queryKey: ['verifications', deps],
-    queryFn: () => db.getVerifications(),
-  });
-};
