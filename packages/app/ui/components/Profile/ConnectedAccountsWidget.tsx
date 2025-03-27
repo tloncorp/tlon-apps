@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import { Icon } from '@tloncorp/ui';
+import { Icon, triggerHaptic } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
@@ -24,6 +24,11 @@ export function TwitterAttestDisplay(props: { attestation: db.Verification }) {
     }
   }, [props.attestation]);
 
+  const handleShowDetails = useCallback(() => {
+    triggerHaptic('sheetOpen');
+    setShowDetails(true);
+  }, []);
+
   if (
     !props.attestation.value ||
     props.attestation.type !== 'twitter' ||
@@ -36,7 +41,7 @@ export function TwitterAttestDisplay(props: { attestation: db.Verification }) {
     <>
       <Pressable
         onPress={handleViewTweet}
-        onLongPress={() => setShowDetails(true)}
+        onLongPress={handleShowDetails}
         flex={1}
       >
         <WidgetPane flex={1}>
@@ -61,6 +66,11 @@ export function TwitterAttestDisplay(props: { attestation: db.Verification }) {
 export function PhoneAttestDisplay(props: { attestation: db.Verification }) {
   const [showDetails, setShowDetails] = useState(false);
 
+  const handleShowDetails = useCallback(() => {
+    triggerHaptic('sheetOpen');
+    setShowDetails(true);
+  }, []);
+
   if (
     !props.attestation.value ||
     props.attestation.type !== 'phone' ||
@@ -71,7 +81,7 @@ export function PhoneAttestDisplay(props: { attestation: db.Verification }) {
 
   return (
     <>
-      <Pressable onLongPress={() => setShowDetails(true)} flex={1}>
+      <Pressable onLongPress={handleShowDetails} flex={1}>
         <WidgetPane flex={1}>
           <WidgetPane.Title>Phone</WidgetPane.Title>
           <YStack flex={1} justifyContent="center">

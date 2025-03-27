@@ -1,6 +1,6 @@
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
-import { LoadingSpinner, Text } from '@tloncorp/ui';
+import { LoadingSpinner, Text, triggerHaptic } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { View, YStack } from 'tamagui';
@@ -29,10 +29,12 @@ export function PhoneAttestationPane({
   useEffect(() => {
     if (attestation) {
       if (attestation.status === 'pending' && pane !== 'confirm') {
+        triggerHaptic('baseButtonClick');
         setPane('confirm');
       }
 
       if (attestation.status === 'verified' && pane !== 'verified') {
+        triggerHaptic('success');
         setPane('verified');
       }
     } else {

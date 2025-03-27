@@ -1,7 +1,7 @@
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
-import { LoadingSpinner, Text } from '@tloncorp/ui';
+import { LoadingSpinner, Text, triggerHaptic } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Keyboard, Platform, TouchableWithoutFeedback } from 'react-native';
@@ -31,10 +31,12 @@ export function TwitterAttestationPane({
   useEffect(() => {
     if (attestation) {
       if (attestation.status === 'pending' && pane !== 'confirm') {
+        triggerHaptic('baseButtonClick');
         setPane('confirm');
       }
 
       if (attestation.status === 'verified' && pane !== 'verified') {
+        triggerHaptic('success');
         setPane('verified');
       }
     } else {
