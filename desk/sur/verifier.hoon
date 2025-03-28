@@ -23,7 +23,7 @@
       ::NOTE  basic auth only needed for staging api key
       phone-api=[base=@t key=@t basic=(unit [user=@t pass=@t])]
       twitter-api=[bearer=@t]
-      domain=(unit @t)  ::  as 'https://example.org:123'
+      domain=(unit @t)  ::  as 'https://example.org:123/verifier'
   ==
 ::
 +$  id-kind  ?(%dummy %urbit %phone %twitter %website)

@@ -64,8 +64,7 @@
   |=  base=(unit @t)
   ^-  card
   =/  upd=update
-    :-  %endpoint
-    ?~(base ~ `(cat 3 u.base (spat binding)))
+    [%endpoint base]
   [%give %fact ~[/endpoint] %verifier-update !>(upd)]
 ::
 ++  give-update
@@ -1160,8 +1159,7 @@
     ~
   ?:  ?=([%endpoint ~] path)
     =/  upd=update
-      :-  %endpoint
-      ?~(domain ~ `(cat 3 u.domain (spat binding)))
+      [%endpoint domain]
     [%give %fact ~ %verifier-update !>(upd)]~
   ?>  ?=([%records @ ~] path)
   =+  who=(slav %p i.t.path)
