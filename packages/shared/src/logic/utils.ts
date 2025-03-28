@@ -10,12 +10,11 @@ import {
   isDmChannelId,
   isGroupChannelId,
   isGroupDmChannelId,
-  isGroupId,
 } from '../api/apiUtils';
 import * as db from '../db';
 import * as ub from '../urbit';
 
-export { isDmChannelId, isGroupChannelId, isGroupDmChannelId, isGroupId };
+export { isDmChannelId, isGroupChannelId, isGroupDmChannelId };
 
 export const IMAGE_REGEX =
   /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.svg)(?:\?.*)?$/i;

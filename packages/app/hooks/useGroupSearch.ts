@@ -1,5 +1,6 @@
-import * as store from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
+import { whomIsFlag } from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { GroupPreviewAction } from '../ui';
@@ -12,12 +13,12 @@ export default function useGroupSearch(groupCode: string) {
 
   useEffect(() => {
     if (groupCode !== '') {
-      const isValidGroupId = store.isGroupId(groupCode);
+      const isValidGroupId = whomIsFlag(groupCode);
       if (!isValidGroupId) {
         // Check if it's a group reference format
         const parts = groupCode.split('/');
         const potentialGroupCode = [parts[3], parts[4]].join('/');
-        const isValidRef = store.isGroupId(potentialGroupCode);
+        const isValidRef = whomIsFlag(potentialGroupCode);
         setIsCodeValid(isValidRef);
       } else {
         setIsCodeValid(true);
@@ -30,7 +31,7 @@ export default function useGroupSearch(groupCode: string) {
   const normalizedCode = useMemo(() => {
     if (!groupCode) return '';
 
-    if (store.isGroupId(groupCode)) {
+    if (whomIsFlag(groupCode)) {
       return groupCode;
     }
 
@@ -38,7 +39,7 @@ export default function useGroupSearch(groupCode: string) {
     const parts = groupCode.split('/');
     if (parts.length >= 5) {
       const potentialCode = [parts[3], parts[4]].join('/');
-      if (store.isGroupId(potentialCode)) {
+      if (whomIsFlag(potentialCode)) {
         return potentialCode;
       }
     }
