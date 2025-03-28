@@ -77,6 +77,13 @@
       [%urbit sig=payload:urbit]
   ==
 ::
+::TMP  410 jael vile scry type for cross-compat
++$  feed
+  $^  $%  [[%1 ~] who=ship kyz=(list [lyf=life key=ring])]
+          [[%2 ~] who=ship ryf=rift kyz=(list [lyf=life key=ring])]
+      ==
+  seed:jael
+::
 ++  signed
   |$  dat
   $:  who=@p
