@@ -784,7 +784,9 @@
       ::  if we make it into this branch our bookkeeping is bad
       ::
       ~&  [dap.bowl %no-such-sig sig=`@uw`u.sig in=u.aid]
-      fof
+      %.  fof
+      %+  tell:l  %crit
+      ~['bad bookkeeping' 'failed to look up signature' (scot %uw u.sig)]
     ::
         [%lookup @ ~]
       ::TODO  any atom format?
