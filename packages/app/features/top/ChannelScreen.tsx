@@ -15,7 +15,9 @@ import {
   usePostWithRelations,
 } from '@tloncorp/shared/store';
 import { Story } from '@tloncorp/shared/urbit';
+import { ImagePickerAsset } from 'expo-image-picker';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { isWeb } from 'tamagui';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
@@ -384,6 +386,52 @@ export default function ChannelScreen(props: Props) {
 
   const channelRef = useRef<React.ElementRef<typeof Channel>>(null);
 
+  const handleImageDrop = useCallback(
+    async (assets: ImagePickerAsset[]) => {
+      if (!channel || !assets.length) return;
+
+      try {
+        const uploadPromises = assets.map(async (asset) => {
+          // Start upload directly to avoid race conditions we would have
+          // if we were using the `AttachmentProvider`
+          await store.uploadAsset(asset, isWeb);
+          return asset.uri;
+        });
+
+        const assetUris = await Promise.all(uploadPromises);
+
+        const uploadStates = await store.waitForUploads(assetUris);
+
+        for (const uri of assetUris) {
+          const uploadState = uploadStates[uri];
+
+          if (uploadState?.status !== 'success') continue;
+
+          const asset = assets.find((a) => a.uri === uri);
+          if (!asset) continue;
+
+          const story: Story = [
+            {
+              block: {
+                image: {
+                  src: uploadState.remoteUri,
+                  height: asset.height || 0,
+                  width: asset.width || 0,
+                  alt: 'image',
+                },
+              },
+            },
+          ];
+
+          await sendPost(story, channel.id);
+        }
+      } catch (error) {
+        console.error('Error handling image drop:', error);
+      }
+    },
+    [channel, sendPost]
+  );
+
   if (!channel) {
     return null;
   }
@@ -445,6 +493,7 @@ export default function ChannelScreen(props: Props) {
           negotiationMatch={negotiationStatus.matchedOrPending}
           startDraft={startDraft}
           onPressScrollToBottom={handleScrollToBottom}
+          onImageDrop={channel.type === 'gallery' ? handleImageDrop : undefined}
         />
       </AttachmentProvider>
       {group && (

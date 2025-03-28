@@ -11,6 +11,7 @@ import { ChannelContentConfiguration } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
+import { ImagePickerAsset } from 'expo-image-picker';
 import {
   forwardRef,
   useCallback,
@@ -105,6 +106,7 @@ interface ChannelProps {
   hasOlderPosts?: boolean;
   startDraft?: boolean;
   onPressScrollToBottom?: () => void;
+  onImageDrop?: (assets: ImagePickerAsset[]) => Promise<void>;
 }
 
 interface ChannelMethods {
@@ -152,6 +154,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       hasOlderPosts,
       startDraft,
       onPressScrollToBottom,
+      onImageDrop,
     },
     ref
   ) {
@@ -307,7 +310,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                     justifyContent="space-between"
                     width="100%"
                     height="100%"
-                    onAssetsDropped={attachAssets}
+                    onAssetsDropped={onImageDrop || attachAssets}
                   >
                     <ChannelHeaderItemsProvider>
                       <>
