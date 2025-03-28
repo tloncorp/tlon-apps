@@ -307,28 +307,38 @@ function parseContactAttestations(
       // TODO: check contactId matches signed data
 
       if (sign) {
-        const providerVerificationUrl =
-          contact['lanyard-twitter-0-url']?.value ?? null;
-        const provider = '~zod'; // TODO: can we get this info?
-        const type = sign.type;
-        const value = sign.signType === 'full' ? sign.value : '';
-        const id = parseAttestationId({ provider, type, value, contactId });
-        const provingTweetId =
-          sign.signType === 'full' ? sign.proofTweetId ?? null : null;
+        const signIsGenuine = sign.contactId === contactId;
+        if (signIsGenuine) {
+          const providerVerificationUrl =
+            contact['lanyard-twitter-0-url']?.value ?? null;
+          const provider = '~zod'; // TODO: can we get this info?
+          const type = sign.type;
+          const value = sign.signType === 'full' ? sign.value : '';
+          const id = parseAttestationId({ provider, type, value, contactId });
+          const provingTweetId =
+            sign.signType === 'full' ? sign.proofTweetId ?? null : null;
 
-        attestations.push({
-          id,
-          provider,
-          type,
-          value,
-          contactId,
-          initiatedAt: sign.when,
-          visibility: sign.signType === 'full' ? 'public' : 'discoverable',
-          status: 'verified',
-          providerVerificationUrl,
-          provingTweetId,
-          signature: sign.signature,
-        });
+          attestations.push({
+            id,
+            provider,
+            type,
+            value,
+            contactId,
+            initiatedAt: sign.when,
+            visibility: sign.signType === 'full' ? 'public' : 'discoverable',
+            status: 'verified',
+            providerVerificationUrl,
+            provingTweetId,
+            signature: sign.signature,
+          });
+        } else {
+          logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
+            context: 'forged attestation',
+            type: 'twitter',
+            contactId,
+            sign: contact['lanyard-twitter-0-sign']?.value,
+          });
+        }
       }
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorNounParse, {
@@ -350,30 +360,46 @@ function parseContactAttestations(
       );
 
       if (sign) {
-        const providerVerificationUrl =
-          contact['lanyard-twitter-0-url']?.value ?? null;
-        const provider = '~zod'; // TODO: can we get this info?
-        const type = sign.type;
-        const value = sign.signType === 'full' ? sign.value : '';
-        const id = parseAttestationId({ provider, type, value, contactId });
-        const provingTweetId =
-          sign.signType === 'full' ? sign.proofTweetId ?? null : null;
+        const signIsGenuine = sign.contactId === contactId;
+        if (signIsGenuine) {
+          const providerVerificationUrl =
+            contact['lanyard-phone-0-url']?.value ?? null;
+          const provider = '~zod'; // TODO: can we get this info?
+          const type = sign.type;
+          const value = sign.signType === 'full' ? sign.value : '';
+          const id = parseAttestationId({ provider, type, value, contactId });
+          const provingTweetId =
+            sign.signType === 'full' ? sign.proofTweetId ?? null : null;
 
-        attestations.push({
-          id,
-          provider,
-          type,
-          value,
-          contactId,
-          initiatedAt: sign.when,
-          visibility: sign.signType === 'full' ? 'public' : 'discoverable',
-          status: 'verified',
-          providerVerificationUrl,
-          provingTweetId,
-          signature: sign.signature,
-        });
-      } else {
-        console.log(`no sign found`);
+          if (sign.contactId !== contactId) {
+            logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
+              context: 'forged attestation',
+              contactId,
+              sign: contact['lanyard-phone-0-sign']?.value,
+            });
+          }
+
+          attestations.push({
+            id,
+            provider,
+            type,
+            value,
+            contactId,
+            initiatedAt: sign.when,
+            visibility: sign.signType === 'full' ? 'public' : 'discoverable',
+            status: 'verified',
+            providerVerificationUrl,
+            provingTweetId,
+            signature: sign.signature,
+          });
+        } else {
+          logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
+            context: 'forged attestation',
+            type: 'phone',
+            contactId,
+            sign: contact['lanyard-phone-0-sign']?.value,
+          });
+        }
       }
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorNounParse, {

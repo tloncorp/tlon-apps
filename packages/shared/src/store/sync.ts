@@ -207,10 +207,10 @@ export const syncContacts = async (ctx?: SyncCtx) => {
   const contacts = await syncQueue.add('contacts', ctx, () =>
     api.getContacts()
   );
-  console.log('got contacts from api', contacts);
+  logger.log('got contacts from api', contacts);
   try {
     await db.insertContacts(contacts);
-    console.log('inserted contacts');
+    logger.log('inserted contacts');
   } catch (e) {
     logger.error('error inserting contacts', e);
   }

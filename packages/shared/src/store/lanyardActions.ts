@@ -46,7 +46,6 @@ export async function initiatePhoneAttestation(phoneNumber: string) {
     // create the attestation
     step = 'creating';
     await api.initiatePhoneAttestation(phoneNumber);
-    console.log(step);
 
     // for phone, set visibility to discoverable
     step = 'setting discoverability';
@@ -55,7 +54,6 @@ export async function initiatePhoneAttestation(phoneNumber: string) {
       value: phoneNumber,
       visibility: 'discoverable',
     });
-    console.log(step);
 
     // set it to display on your profile
     step = 'setting profile display';
@@ -64,7 +62,6 @@ export async function initiatePhoneAttestation(phoneNumber: string) {
       value: phoneNumber,
       displaySetting: 'half', // will show it exists, but not reveal number
     });
-    console.log(step);
 
     logger.trackEvent(AnalyticsEvent.ActionInitiatePhoneAttest, {
       phoneNumber,
