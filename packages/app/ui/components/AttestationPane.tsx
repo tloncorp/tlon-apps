@@ -1,12 +1,14 @@
 import { makePrettyDay } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as domain from '@tloncorp/shared/domain';
 import { Button, Icon, LoadingSpinner, Text } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Linking } from 'react-native';
 import { XStack, XStackProps, YStack, styled } from 'tamagui';
 
 import { useStore } from '../contexts';
 import { PrimaryButton } from './Buttons';
+import { HiddenPhoneDisplay } from './Profile/ConnectedAccountsWidget';
 
 type SigStatus = 'initial' | 'loading' | 'verified' | 'invalid' | 'errored';
 
@@ -21,14 +23,6 @@ export function AttestationPane({
   const [sigStatus, setSigStatus] = useState<SigStatus>('initial');
   const [error, setError] = useState<Error | null>(null);
   const store = useStore();
-
-  const formattedValue = useMemo(() => {
-    if (attestation.type === 'twitter') {
-      return `@${attestation.value}`;
-    }
-
-    return attestation.value;
-  }, [attestation]);
 
   useEffect(() => {
     async function run() {
@@ -102,9 +96,10 @@ export function AttestationPane({
   return (
     <YStack paddingHorizontal="$2xl" gap="$xl">
       <ItemContainer height={108}>
-        <Text size="$label/xl" fontWeight="600">
-          {formattedValue}
-        </Text>
+        <AttestationValueDisplay
+          attestation={attestation}
+          currentUserId={currentUserId}
+        />
       </ItemContainer>
 
       <AttestationStatusWidget status={sigStatus} handleRetry={handleRetry} />
@@ -240,4 +235,36 @@ function AttestationStatusWidget({
       <Text size="$label/l">Loading</Text>
     </ItemContainer>
   );
+}
+
+function AttestationValueDisplay({
+  attestation,
+  currentUserId,
+}: {
+  attestation: db.Verification;
+  currentUserId: string;
+}) {
+  if (attestation.type === 'twitter') {
+    return (
+      <Text size="$label/xl" fontWeight="600">
+        {attestation.value
+          ? domain.twitterHandleDisplay(attestation.value)
+          : 'X Account'}
+      </Text>
+    );
+  }
+
+  if (attestation.type === 'phone') {
+    if (attestation.contactId === currentUserId) {
+      return (
+        <Text size="$label/xl" fontWeight="600">
+          {attestation.value ? attestation.value : 'X Account'}
+        </Text>
+      );
+    } else {
+      return <HiddenPhoneDisplay />;
+    }
+  }
+
+  return null;
 }

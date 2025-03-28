@@ -24,3 +24,11 @@ export function parseTwitterHandle(text: string): string {
 
   return handle.toLowerCase();
 }
+
+export function twitterHandleDisplay(text: string): string {
+  if (text.startsWith('@')) {
+    return text;
+  }
+
+  return `@${text}`;
+}

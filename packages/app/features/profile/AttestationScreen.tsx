@@ -1,4 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
@@ -15,6 +16,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Attestation'>;
 export function AttestationScreen({ route, navigation }: Props) {
   const { data: verifications, isLoading } = store.useVerifications();
   const currentUserId = useCurrentUserId();
+  const personalInviteLink = db.personalInviteLink.useValue();
 
   const twitterAttestation =
     verifications?.find(
@@ -41,6 +43,7 @@ export function AttestationScreen({ route, navigation }: Props) {
           attestation={twitterAttestation}
           isLoading={isLoading}
           currentUserId={currentUserId}
+          personalInviteLink={personalInviteLink}
         />
       ) : (
         <PhoneAttestationPane

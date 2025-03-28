@@ -87,7 +87,6 @@ function SubmitPhoneNumPane(props: { attestation: db.Verification | null }) {
         await store.initiatePhoneAttestation(phoneNumber);
       })();
     } catch (e) {
-      console.log(`bl: got err`, e);
       if (e instanceof api.LanyardError) {
         if (e.errorCode === api.LanyardErrorCode.ALREADY_REGISTERED) {
           setRemoteError('This phone number has already been registered.');

@@ -66,11 +66,15 @@ export function UserProfileScreenView(props: Props) {
   }, [userContact]);
 
   const twitterAttestation = useMemo(() => {
-    return attestations.find((a) => a.type === 'twitter');
+    return attestations.find(
+      (a) => a.type === 'twitter' && a.status === 'verified'
+    );
   }, [attestations]);
 
   const phoneAttestation = useMemo(() => {
-    return attestations.find((a) => a.type === 'phone');
+    return attestations.find(
+      (a) => a.type === 'phone' && a.status === 'verified'
+    );
   }, [attestations]);
 
   const nodeStatus = !props.connectionStatus?.complete

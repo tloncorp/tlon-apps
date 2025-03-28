@@ -88,16 +88,7 @@ export function PhoneAttestDisplay(props: { attestation: db.Verification }) {
           <WidgetPane.Title>Phone</WidgetPane.Title>
           <YStack flex={1} justifyContent="center">
             <XStack alignItems="center" gap="$xs">
-              <Text size="$label/l" fontWeight="500">
-                (
-                <Text size="$label/xl" fontWeight="600">
-                  ···
-                </Text>
-                ){' '}
-                <Text size="$label/xl" fontWeight="600">
-                  ··· ····
-                </Text>
-              </Text>
+              <HiddenPhoneDisplay />
               <Icon type="VerifiedBadge" customSize={[24, 24]} />
             </XStack>
           </YStack>
@@ -109,5 +100,20 @@ export function PhoneAttestDisplay(props: { attestation: db.Verification }) {
         attestation={props.attestation}
       />
     </>
+  );
+}
+
+export function HiddenPhoneDisplay() {
+  return (
+    <Text size="$label/l" fontWeight="500">
+      (
+      <Text size="$label/xl" fontWeight="600">
+        ···
+      </Text>
+      ){' '}
+      <Text size="$label/xl" fontWeight="600">
+        ··· ····
+      </Text>
+    </Text>
   );
 }

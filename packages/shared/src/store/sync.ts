@@ -210,15 +210,9 @@ export const syncContacts = async (ctx?: SyncCtx) => {
   console.log('got contacts from api', contacts);
   try {
     await db.insertContacts(contacts);
+    console.log('inserted contacts');
   } catch (e) {
     logger.error('error inserting contacts', e);
-  }
-
-  try {
-    const newContacts = await db.getContacts();
-    logger.log('got contacts from db', newContacts);
-  } catch (e) {
-    logger.error('error getting contacts from db', e);
   }
 };
 
@@ -227,6 +221,7 @@ export const syncAttestations = async (ctx?: SyncCtx) => {
   const verifications = await syncQueue.add('verifications', ctx, () =>
     api.fetchVerifications()
   );
+  console.log(`bl: syncAttestations fetched`, verifications);
   try {
     await db.insertCurrentUserVerifications({ verifications });
   } catch (e) {
@@ -798,6 +793,7 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
 };
 
 export const handleContactUpdate = async (update: api.ContactsUpdate) => {
+  console.log(`bl: got contact update sub`, update);
   switch (update.type) {
     case 'upsertContact':
       await db.upsertContact(update.contact);

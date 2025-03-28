@@ -17,6 +17,7 @@ interface Props {
   attestation: db.Verification | null;
   isLoading: boolean;
   currentUserId: string;
+  personalInviteLink?: string | null;
 }
 
 type Pane = 'init' | 'confirm' | 'verified';
@@ -25,6 +26,7 @@ export function TwitterAttestationPane({
   isLoading,
   attestation,
   currentUserId,
+  personalInviteLink,
 }: Props) {
   const [pane, setPane] = useState<Pane>('init');
 
@@ -57,6 +59,7 @@ export function TwitterAttestationPane({
         <ConfirmTwitterPane
           attestation={attestation}
           currentUserId={currentUserId}
+          personalInviteLink={personalInviteLink}
         />
       )}
       {pane === 'verified' && attestation && (
@@ -72,6 +75,7 @@ export function TwitterAttestationPane({
 function ConfirmTwitterPane(props: {
   attestation: db.Verification;
   currentUserId: string;
+  personalInviteLink?: string | null;
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -138,10 +142,17 @@ function ConfirmTwitterPane(props: {
   });
 
   const tweetContent = useMemo(() => {
-    return `Verifying myself as ${props.currentUserId} on Tlon
+    return `Verifying myself as ${props.currentUserId}${
+      props.personalInviteLink
+        ? `
+      
+Not on Tlon Messenger yet? You're invited!
+${props.personalInviteLink}`
+        : ''
+    }
 
 ${proof}`;
-  }, [proof, props.currentUserId]);
+  }, [proof, props.currentUserId, props.personalInviteLink]);
 
   const normalizedHandle = useMemo(
     () => props.attestation.value!.replace('@', ''),
