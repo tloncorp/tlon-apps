@@ -620,14 +620,17 @@
       [%record ?([@ @ ~] [@ @ @ ~])]
     =;  key=[@p identifier]
       ``noun+!>((~(got by records) key))
-    :-  ?:(?=([@ @ ~] t.path) default (slav %p i.t.path))
-    =/  dip  ?:(?=([@ @ ~] t.path) t.path t.t.path)
-    ?+  dip  !!
-      [%dummy @ ~]    [-.dip (slav %t +<.dip)]
-      [%urbit @ ~]    [-.dip (slav %p +<.dip)]
-      [%phone @ ~]    [-.dip (slav %t +<.dip)]
-      [%twitter @ ~]  [-.dip (slav %t +<.dip)]
-      [%website @ ~]  [-.dip (need (de-turf:html (slav %t +<.dip)))]
+    =/  [host=@p dip=(pole @ta)]
+      ?:  ?=([@ @ ~] t.path)
+        [default t.path]
+      [(slav %p i.t.path) t.t.path]
+    :-  host
+    ?+  dip  ~|(dip=dip !!)
+      [k=%dummy t=@ ~]    [k.dip (slav %t t.dip)]
+      [k=%urbit p=@ ~]    [k.dip (slav %p p.dip)]
+      [k=%phone t=@ ~]    [k.dip (slav %t t.dip)]
+      [k=%twitter t=@ ~]  [k.dip (slav %t t.dip)]
+      [k=%website t=@ ~]  [k.dip (need (de-turf:html (slav %t t.dip)))]
     ==
   ::
     [%display ~]    ``noun+!>(display)
