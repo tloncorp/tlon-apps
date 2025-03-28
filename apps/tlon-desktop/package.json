@@ -1,0 +1,105 @@
+{
+  "name": "tlon-desktop",
+  "author": "Tlon Corporation",
+  "version": "0.1.11",
+  "description": "Tlon Messenger",
+  "main": "build/main/index.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "pnpm run rebuild && pnpm run build:ts && concurrently \"pnpm run watch:ts\" \"pnpm run dev:web\" \"pnpm run dev:electron\"",
+    "dev:electron": "wait-on tcp:3000 && electron .",
+    "dev:web": "pnpm --filter 'tlon-web-new' dev:electron --force",
+    "watch:ts": "tsc -b tsconfig.json --watch",
+    "build:ts": "tsc -b tsconfig.json",
+    "flatten-deps": "node ./flatten-dependencies.js",
+    "build:prepare": "pnpm run build:ts && pnpm run build:web && pnpm run flatten-deps",
+    "build": "pnpm run build:ts && pnpm run build:web && pnpm run flatten-deps && electron-builder",
+    "build:mac": "pnpm run build:ts && pnpm run build:web && pnpm run flatten-deps && electron-builder --mac",
+    "build:mac-universal": "pnpm run build:ts && pnpm run build:web && pnpm run flatten-deps && electron-builder --mac --universal",
+    "build:mac-intel": "pnpm run build:ts && pnpm run build:web && pnpm run flatten-deps && electron-builder --mac --x64",
+    "build:win": "pnpm run build:ts && pnpm run build:web && pnpm run flatten-deps && electron-builder --win",
+    "build:linux": "pnpm run build:ts && pnpm run build:web && pnpm run flatten-deps && electron-builder --linux",
+    "build:all": "pnpm run build:ts && pnpm run build:web && pnpm run flatten-deps && electron-builder -mwl",
+    "build:web": "pnpm --filter 'tlon-web-new' build:electron",
+    "rebuild": "electron-rebuild -f -w better-sqlite3",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "@tloncorp/app": "workspace:*",
+    "@tloncorp/shared": "workspace:*",
+    "better-sqlite3": "~11.8.1",
+    "cross-fetch": "^3.1.5",
+    "electron-store": "^10.0.1",
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "@electron/notarize": "2.5.0",
+    "concurrently": "^9.1.2",
+    "electron": "34.3.0",
+    "electron-builder": "^26.0.10",
+    "typescript": "^5.8.2",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "io.tlon.desktop",
+    "productName": "Tlon Messenger",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "tloncorp",
+        "repo": "tlon-apps"
+      }
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "build/**/*",
+      "resources/**/*",
+      "electron-store-wrapper.cjs"
+    ],
+    "extraResources": [
+      {
+        "from": "../tlon-web-new/dist",
+        "to": "tlon-web-new/dist",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.social-networking",
+      "darkModeSupport": true,
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "resources/entitlements.mac.plist",
+      "entitlementsInherit": "resources/entitlements.mac.plist",
+      "icon": "resources/icons/mac/icon.icns",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ]
+    },
+    "win": {
+      "icon": "resources/icons/win/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "icon": "resources/icons/png",
+      "target": "AppImage"
+    },
+    "afterSign": ".notarize.js"
+  }
+}

@@ -6,6 +6,7 @@ import * as api from '../api';
 import { GetChangedPostsOptions } from '../api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
+import { SETTINGS_SINGLETON_KEY } from '../db/schema';
 import { createDevLogger, runIfDev } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import { extractClientVolumes } from '../logic/activity';
@@ -366,6 +367,7 @@ export async function syncThreadPosts(
       channelId,
     })
   );
+  logger.log('got thread posts from api', response);
   await db.insertChannelPosts({
     channelId,
     posts: [response, ...(response.replies ?? [])],
@@ -420,7 +422,10 @@ export const persistUnreads = async ({
   ctx?: QueryCtx;
   includesAllUnreads?: boolean;
 }) => {
-  const { groupUnreads, channelUnreads, threadActivity } = unreads;
+  const { baseUnread, groupUnreads, channelUnreads, threadActivity } = unreads;
+  if (baseUnread) {
+    await db.insertBaseUnread(baseUnread, ctx);
+  }
   await db.insertGroupUnreads(groupUnreads, ctx);
   await db.insertChannelUnreads(channelUnreads, ctx);
   await db.insertThreadUnreads(threadActivity, ctx);
@@ -697,6 +702,7 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
 
 const createActivityUpdateHandler = (queueDebounce: number = 100) => {
   const queue: api.ActivityUpdateQueue = {
+    baseUnread: undefined,
     groupUnreads: [],
     channelUnreads: [],
     threadUnreads: [],
@@ -706,6 +712,7 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
   const processQueue = _.debounce(
     async () => {
       const activitySnapshot = _.cloneDeep(queue);
+      queue.baseUnread = undefined;
       queue.groupUnreads = [];
       queue.channelUnreads = [];
       queue.threadUnreads = [];
@@ -714,6 +721,7 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
 
       logger.log(
         `processing activity queue`,
+        activitySnapshot.baseUnread,
         activitySnapshot.groupUnreads.length,
         activitySnapshot.channelUnreads.length,
         activitySnapshot.threadUnreads.length,
@@ -721,6 +729,9 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
         activitySnapshot.activityEvents.length
       );
       await batchEffects('activityUpdate', async (ctx) => {
+        if (activitySnapshot.baseUnread) {
+          await db.insertBaseUnread(activitySnapshot.baseUnread, ctx);
+        }
         await db.insertGroupUnreads(activitySnapshot.groupUnreads, ctx);
         await db.insertChannelUnreads(activitySnapshot.channelUnreads, ctx);
         await db.insertThreadUnreads(activitySnapshot.threadUnreads, ctx);
@@ -750,6 +761,9 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
 
   return (event: api.ActivityEvent) => {
     switch (event.type) {
+      case 'updateBaseUnread':
+        queue.baseUnread = event.unread;
+        break;
       case 'updateGroupUnread':
         queue.groupUnreads.push(event.unread);
         break;
@@ -853,11 +867,10 @@ export const handleStorageUpdate = async (update: api.StorageUpdate) => {
 };
 
 export const handleSettingsUpdate = async (update: api.SettingsUpdate) => {
-  const userId = api.getCurrentUserId();
   switch (update.type) {
     case 'updateSetting':
       await db.insertSettings({
-        userId,
+        id: SETTINGS_SINGLETON_KEY,
         ...update.setting,
       });
       break;
@@ -1175,6 +1188,16 @@ export const handleDiscontinuity = async () => {
 };
 
 export const handleChannelStatusChange = async (status: ChannelStatus) => {
+  // Since Eyre doesn't send a response body when opening an event
+  // source request, the reconnect request won't resolve until we get a new fact
+  // or a heartbeat. We call this method to manually trigger a fact -- anything
+  // that does so would work.
+  //
+  // Eyre issue is fixed in this PR, https://github.com/urbit/urbit/pull/7080,
+  // we should remove this hack once 410 is rolled out.
+  if (status === 'reconnecting') {
+    api.checkExistingUserInviteLink();
+  }
   updateSession({ channelStatus: status });
 };
 

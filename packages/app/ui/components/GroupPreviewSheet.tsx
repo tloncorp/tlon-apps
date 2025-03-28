@@ -4,6 +4,7 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { LoadingSpinner } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { YStack } from 'tamagui';
 
 import { triggerHaptic, useGroupTitle } from '../utils';
 import {
@@ -62,7 +63,9 @@ function GroupPreviewSheetComponent({
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>
       {group ? (
-        <GroupPreviewPane group={group} onActionComplete={actionHandler} />
+        <ActionSheet.Content>
+          <GroupPreviewPane group={group} onActionComplete={actionHandler} />
+        </ActionSheet.Content>
       ) : (
         <LoadingSpinner />
       )}
@@ -170,7 +173,7 @@ export function GroupPreviewPane({
         subtitle={group.description ?? undefined}
         icon={<ListItem.GroupIcon model={group} />}
       />
-      <ActionSheet.Content>
+      <YStack>
         <ActionSheet.SimpleActionGroupList
           actionGroups={getActionGroups(status, {
             respondToInvite,
@@ -181,7 +184,7 @@ export function GroupPreviewPane({
             cancelJoin,
           })}
         />
-      </ActionSheet.Content>
+      </YStack>
     </>
   );
 }

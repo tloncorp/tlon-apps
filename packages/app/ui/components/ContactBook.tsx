@@ -116,7 +116,6 @@ export function ContactBook({
           selected={isSelected}
           onPress={handleSelect}
           pressStyle={{ backgroundColor: '$shadow' }}
-          testID="ContactRow"
         />
       );
     },

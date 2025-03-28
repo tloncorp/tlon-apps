@@ -23,7 +23,7 @@ export type ChatOptionsContextValue = {
   channel?: db.Channel | null;
   markGroupRead: () => void;
   markChannelRead: () => void;
-  onPressGroupMeta: () => void;
+  onPressGroupMeta: (fromBlankChannel?: boolean) => void;
   onPressGroupMembers: () => void;
   onPressManageChannels: () => void;
   onPressInvite?: () => void;
@@ -56,7 +56,7 @@ type ChatOptionsProviderProps = {
   children: ReactNode;
   useChannel?: typeof store.useChannel;
   useGroup?: typeof store.useGroup;
-  onPressGroupMeta: (groupId: string) => void;
+  onPressGroupMeta: (groupId: string, fromBlankChannel?: boolean) => void;
   onPressGroupMembers: (groupId: string) => void;
   onPressManageChannels: (groupId: string) => void;
   onPressInvite?: (groupId: string) => void;
@@ -187,11 +187,12 @@ export const ChatOptionsProvider = ({
         channel,
         accept: false,
       });
+      navigateOnLeave?.();
     } else {
       store.leaveGroupChannel(channel.id);
     }
     closeSheet();
-  }, [channel, closeSheet]);
+  }, [channel, closeSheet, navigateOnLeave]);
 
   const leaveChannel = useCallback(() => {
     if (isWeb) {
@@ -250,12 +251,15 @@ export const ChatOptionsProvider = ({
     }
   }, [channelId, closeSheet, onPressChannelMeta]);
 
-  const handlePressGroupMeta = useCallback(() => {
-    if (groupId) {
-      onPressGroupMeta?.(groupId);
-      closeSheet();
-    }
-  }, [closeSheet, groupId, onPressGroupMeta]);
+  const handlePressGroupMeta = useCallback(
+    (fromBlankChannel?: boolean) => {
+      if (groupId) {
+        onPressGroupMeta?.(groupId, fromBlankChannel);
+        closeSheet();
+      }
+    },
+    [closeSheet, groupId, onPressGroupMeta]
+  );
 
   const handlePressManageChannels = useCallback(() => {
     if (groupId) {

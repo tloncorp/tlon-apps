@@ -1,4 +1,5 @@
 import * as db from '../db';
+import { SETTINGS_SINGLETON_KEY } from '../db/schema';
 import * as ub from '../urbit';
 import { getCurrentUserId, poke, scry, subscribe } from './urbit';
 
@@ -23,6 +24,8 @@ function getBucket(key: string): string {
   switch (key) {
     case 'messagesFilter':
       return 'talk';
+    case 'activitySeenTimestamp':
+      return 'groups';
     default:
       throw new Error(`Invalid setting key: ${key}`);
   }
@@ -72,7 +75,6 @@ export const toClientSettings = (
   settings: ub.GroupsDeskSettings
 ): db.Settings => {
   return {
-    userId: getCurrentUserId(),
     theme: settings.desk.display?.theme,
     disableAppTileUnreads: settings.desk.calmEngine?.disableAppTileUnreads,
     disableAvatars: settings.desk.calmEngine?.disableAvatars,
@@ -92,6 +94,7 @@ export const toClientSettings = (
     messagesFilter: settings.desk.talk?.messagesFilter,
     gallerySettings: settings.desk.heaps?.heapSettings,
     notebookSettings: JSON.stringify(settings.desk.diary),
+    activitySeenTimestamp: settings.desk.groups?.activitySeenTimestamp,
   };
 };
 

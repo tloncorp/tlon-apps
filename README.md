@@ -1,61 +1,41 @@
-# Landscape apps
+# Tlon Messenger (TM)
 
-## Groups
+Tlon Messenger is a new kind of messenger which you can fully control. The user ID is your cryptographic property, while all your data is stored in a single file, yours to keep and yours to take. With TM, you own a distinct node on the network, which you can use to host a community, a blog, or run any other computation. This repository contains the source code of the two main components of TM:
 
-Start, host, and cultivate communities. Own your communications, organize your
-resources, and share documents. Groups is a decentralized platform that
-integrates with Talk, Notebook, and Gallery for a full, communal suite of tools.
+- TM client, which is available on iOS, Android and Desktop
+- TM backend, which is deployed on the Urbit platform
 
-## Talk
+## Client
 
-Send encrypted direct messages to one or many friends. Talk is a simple chat
-tool for catching up, getting work done, and everything in between.
+The client is written in React Native. The mobile version is available on iOS and Android, while the desktop version is available via browser (with a desktop app planned soon for macOS, Linux, and Windows).
 
-## Notebook
+## Backend
 
-Notebook is a standard short and long form text editor. Within Groups, you can
-use Notebook to write, edit, and publish text.
+The TM backend consists of a number of independent components, called agents.
 
-## Gallery
+### %groups
 
-Gallery is a versatile repository for collective knowledge and references you
-want to share or remember. Within Groups, you can use Gallery to collect links,
-images, media, and even random musings.
+%groups allows creation of communities that aggregate distinct communication channels. Each group sets its own rules by defining user roles and the entry policy, and defines a set of channels available for group members to subscribe to.
 
----
+### %channels
 
-## Developer documentation
+%channels facilitates communication between any number of parties by designating one node as the host. A channel can function as a group chat, a gallery or a notebook. Channels can be further customized with hooks, which allow you to program custom behaviours triggered by various channel events.
 
-This project uses the [formal comment spec](https://developers.urbit.org/reference/hoon/style#comments-and-unparsed-bytes)
-for all Hoon code to ensure compatibility with
-[doccords](https://github.com/urbit/urbit/pull/5873).
+### %chat
 
-Additionally, detailed documentation is available in the [Docs Landscape
-app](https://urbit.org/applications/~pocwet/docs) if you have both Docs and
-Groups installed on a running Urbit ship.
+%chat is a direct-message agent, which, unlike %channels, establishes peer-to-peer connection between two parties.
 
-Visit this repository's wiki for [an overview of how to use Landscape and
-its apps](https://github.com/tloncorp/tlon-apps/wiki).
+### %contacts
+%contacts manages the user profile ands track connections to other users, constructing the user's social graph as they interact with others on the network.
 
-## Integrating with Groups agents
+### %activity
 
-The `%groups` desk provides several simple agents with discrete concerns. This list may expand over time.
+%activity is TM's activity tracker. It aggregates events sent by other agents and alerts the user based on his notification settings.
 
-- `%groups` - The organizational substrate for constructing, joining, finding,
-  and managing groups (different than the in-group activity of chatting,
-  writing, or collecting)
-- `%groups-ui` - Optimized scries for the Groups UI
-- `%chat` - 1:1 and multi-DM capabilities for Talk and Chat channels in Groups
-- `%diary` - Notebook channels in Groups
-- `%heap` - Gallery channels in Groups
-- `%notify` - Hooks for iOS push notifications
-- `%grouper` - Handler for Lure invitiations
+### %profile
 
-All actions are performed with
-[pokes](https://developers.urbit.org/reference/glossary/poke).
-See the on-ship developer documentation for more details.
+%profile allows the user to expose a personal webpage accessible through their node's URL. The webpage can feature a preview of user's favorite groups or widgets registered by any other agents.
 
-## Use of Landscape agents
+### %expose
 
-At the moment, Groups and Talk make use of `%settings`, `%storage`, `%hark`,
-and `%contacts` agents in the `%landscape` desk.
+%expose allows the user to publish the content available in one of the channels to the clearweb.

@@ -30,6 +30,7 @@ export default function ContactsScreen(props: Props) {
   const { data: userContacts } = store.useUserContacts();
   const { data: contacts } = store.useContacts();
   const { data: suggestions } = store.useSuggestedContacts();
+  const { data: calmSettings } = store.useCalmSettings();
 
   const onContactPress = useCallback(
     (contact: db.Contact) => {
@@ -64,7 +65,11 @@ export default function ContactsScreen(props: Props) {
   }, []);
 
   return (
-    <AppDataContextProvider contacts={contacts} currentUserId={currentUser}>
+    <AppDataContextProvider
+      contacts={contacts}
+      currentUserId={currentUser}
+      calmSettings={calmSettings}
+    >
       <View backgroundColor={theme?.background?.val} flex={1} height="100%">
         <View flex={1} width="100%" maxWidth={600} marginHorizontal="auto">
           <ScreenHeader

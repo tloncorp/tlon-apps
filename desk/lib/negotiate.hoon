@@ -53,6 +53,11 @@
 ::    /~/negotiate/notify       %negotiate-notifcation; [match=? =gill:gall]
 ::    /~/negotiate/notify/json  %json; {'gill': '~ship/dude', 'match': true}
 ::
+::    BEWARE that the library may simulate %kick events during +on-load.
+::    this means that the usual rule of "don't scry during +on-load" is
+::    expanded to "don't scry during +on-load or %kick handling" for the
+::    inner agent!
+::
 ::    if an agent was previously using epic, it can trivially upgrade into
 ::    this library by making the following changes:
 ::    - change its own epic version number
@@ -514,6 +519,8 @@
         ::  will do for all its subs going forward.
         ::  this way, after this +on-load call finishes, we should never again
         ::  see %watch-ack, %kick or %fact signs with non-wrapped wires.
+        ::NOTE  that this expands "don't scry during +on-load" to "don't scry
+        ::      during +on-load or %kick handling" for the inner agent!
         ::
         =/  suz=(list [[=wire =gill:gall] [ack=? =path]])
           ~(tap by wex.bowl)
@@ -571,6 +578,8 @@
           =^  caz2   inner  (on-load:og ile)  !:
           =^  caz2   state  (play-cards:up caz2)
           =^  [caz3=(list card) nin=_inner]  state
+            ::NOTE  that this expands "don't scry during +on-load" to "don't
+            ::      scry during +on-load or %kick handling" for the inner agent!
             (simulate-kicks:up kik.a inner)
           =.  inner  nin
           [:(weld caz1 caz.a caz2 caz3) this]
