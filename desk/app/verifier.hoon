@@ -326,25 +326,39 @@
       =/  risk=?
         ?=(?(%pawn %earl) (clan:title for))
       =/  base=allowance
-        *allowance
+        ?.  risk  *allowance
+        allowance:pool:rates
       =/  max  base
       :-  ?~  lim=(~(get by solo) for)
             base(since now)
-          (step-allowance u.lim max now (sub now since.u.lim))
+          (step-allowance u.lim max | now (sub now since.u.lim))
       ?.  risk  ~
-      `(step-allowance pool allowance:pool:rates now (sub now since.pool))
+      `(step-allowance pool allowance:pool:rates & now (sub now since.pool))
   ::
   ++  step-allowance
-    |=  [a=allowance m=allowance now=@da d=@dr]
+    |=  [a=allowance m=allowance pool=? now=@da d=@dr]
     ^+  a
     :*  now
-        (calc-new phone.a phone.m d phone:rates)
-        (calc-new photp.a photp.m d photp:rates)
-        (calc-new tweet.a tweet.m d tweet:rates)
-        (calc-new fetch.a fetch.m d fetch:rates)
-        (calc-new queries.a queries.m d queries:rates)
-        (calc-new batch.a batch.m d batch:rates)
+        (calc-new phone.a phone.m d (get-rate pool %phone))
+        (calc-new photp.a photp.m d (get-rate pool %photp))
+        (calc-new tweet.a tweet.m d (get-rate pool %tweet))
+        (calc-new fetch.a fetch.m d (get-rate pool %fetch))
+        (calc-new queries.a queries.m d (get-rate pool %queries))
+        (calc-new batch.a batch.m d (get-rate pool %batch))
         last-batch.a
+    ==
+  ::
+  ++  get-rate
+    |=  $:  pool=?
+            what=?(%phone %photp %tweet %fetch %queries %batch)
+        ==
+    ?-  what
+      %phone    ?.(pool phone:rates phone:pool:rates)
+      %photp    ?.(pool photp:rates photp:pool:rates)
+      %tweet    ?.(pool tweet:rates tweet:pool:rates)
+      %fetch    ?.(pool fetch:rates fetch:pool:rates)
+      %queries  ?.(pool queries:rates queries:pool:rates)
+      %batch    ?.(pool batch:rates batch:pool:rates)
     ==
   ::
   ++  calc-new

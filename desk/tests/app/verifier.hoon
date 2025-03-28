@@ -1111,6 +1111,44 @@
     loop(n (dec n))
   (request %rate-limit ~)
 ::
+++  test-query-rate-limits-pool
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  (do-query-setup)
+  =/  id=identifier:v  [%dummy 'test-id']
+  =/  m1=@p  ~sampel-sampel-sampel-sampel
+  =/  m2=@p  ~simpel-sampel-sampel-sampel
+  =/  m3=@p  ~simpel-simpel-sampel-sampel
+  =/  request
+    |=  [as=@p res=result:query-result:v]
+    %^  expect-query-response  as
+      [[%some-dude %my-nonce] %whose id]
+    res
+  ::  exhaust our allotted requests
+  ::
+  =/  n=@ud  queries:allowance:pool:rates:v
+  |-  =*  loop  $
+  ?.  =(0 n)
+    ;<  ~  bind:m  (request m1 %whose ~)
+    ;<  ~  bind:m  (request m2 %whose ~)
+    loop(n (sub n 2))
+  ::  next request should go over the limit,
+  ::  even though nobody has hit their _individual_ limit yet
+  ::
+  ;<  ~  bind:m  (request m1 %rate-limit ~)
+  ;<  ~  bind:m  (request m2 %rate-limit ~)
+  ;<  ~  bind:m  (request m3 %rate-limit ~)
+  ::  waiting for a little bit should let them make some requests again
+  ::
+  ;<  ~  bind:m  (wait ~m1.s31)
+  ;<  ~  bind:m  (request m1 %whose ~)
+  ;<  ~  bind:m  (request m2 %whose ~)
+  ;<  ~  bind:m  (request m3 %whose ~)
+  ::  until the limit gets hit again
+  ::
+  ;<  ~  bind:m  (request m3 %rate-limit ~)
+  (pure:m ~)
+::
 ++  test-query-bulk-rate-limits
   %-  eval-mare
   =/  m  (mare ,~)
