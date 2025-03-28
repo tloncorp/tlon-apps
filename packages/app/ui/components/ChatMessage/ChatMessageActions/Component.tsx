@@ -146,7 +146,6 @@ export function ChatMessageActions({
         <Popover.Trigger asChild>{trigger}</Popover.Trigger>
         <Popover.Content
           elevate
-          animation="quick"
           zIndex={1000000}
           position="relative"
           borderColor="$border"
