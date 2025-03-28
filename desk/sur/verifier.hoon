@@ -88,6 +88,8 @@
   [%0 %verified %half when=@da for=@p kind=id-kind]
 +$  full-sign-data
   [%0 %verified %full when=@da for=@p id=identifier proof=(unit proof)]  ::TODO  (set proof)?
++$  any-sign-data
+  ?(half-sign-data full-sign-data)
 ::
 ++  urbit  ^?
   |%

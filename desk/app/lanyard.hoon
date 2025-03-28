@@ -72,7 +72,7 @@
   =/  sign=(unit (signed))
     %+  biff
       (mole |.((cue dat)))
-    (soft (signed ?(half-sign-data full-sign-data)))
+    (soft (signed any-sign-data))
   ?~  sign  [`| ~]
   :_  `sig.u.sign
   ::  if we don't know the current life of the signer,
@@ -136,7 +136,7 @@
     ?~  rec=(~(get by records) key)  ~
     ?.  ?=(%done -.status.u.rec)  ~
     =/  nom  (cury (cury make-name -.id.key) num)
-    =/  dat=(signed ?(half-sign-data full-sign-data))
+    =/  dat=(signed any-sign-data)
       ?:  ful  full.status.u.rec
       half.status.u.rec
     =;  dats=(list (unit [term value:c]))
