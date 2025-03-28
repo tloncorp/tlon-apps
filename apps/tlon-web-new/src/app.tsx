@@ -7,6 +7,7 @@ import {
 import { ShipProvider } from '@tloncorp/app/contexts/ship';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
+import useDesktopNotifications from '@tloncorp/app/hooks/useDesktopNotifications';
 import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { BasePathNavigator } from '@tloncorp/app/navigation/BasePathNavigator';
@@ -36,7 +37,6 @@ import { useIsDark, useIsMobile } from '@/logic/useMedia';
 import { preSig } from '@/logic/utils';
 import { toggleDevTools, useLocalState, useShowDevTools } from '@/state/local';
 import { useAnalyticsId, useLogActivity, useTheme } from '@/state/settings';
-import useDesktopNotifications from '@tloncorp/app/hooks/useDesktopNotifications';
 
 import { DesktopLoginScreen } from './components/DesktopLoginScreen';
 import { isElectron } from './electron-bridge';
@@ -270,7 +270,7 @@ function ConnectedDesktopApp({
   const hasSyncedRef = React.useRef(false);
   useFindSuggestedContacts();
   useDesktopNotifications(clientReady);
-  
+
   useEffect(() => {
     window.ship = ship;
     window.our = ship;
@@ -333,6 +333,7 @@ function ConnectedWebApp() {
   const currentUserId = useCurrentUserId();
   const [dbIsLoaded, setDbIsLoaded] = useState(false);
   const configureClient = useConfigureUrbitClient();
+  const session = store.useCurrentSession();
   const hasSyncedRef = React.useRef(false);
   useFindSuggestedContacts();
 
@@ -347,8 +348,12 @@ function ConnectedWebApp() {
       if (!hasSyncedRef.current) {
         // Web doesn't persist database, so headsSyncedAt is misleading
         await db.headsSyncedAt.resetValue();
-        await sync.syncStart(false);
+        sync.syncStart(false);
         hasSyncedRef.current = true;
+      }
+
+      if (!session?.startTime) {
+        return;
       }
 
       // we need to check the size of the database here to see if it's not zero
@@ -375,7 +380,7 @@ function ConnectedWebApp() {
     };
 
     syncStart();
-  }, [dbIsLoaded, currentUserId, configureClient]);
+  }, [dbIsLoaded, currentUserId, configureClient, session]);
 
   if (!dbIsLoaded) {
     return (
