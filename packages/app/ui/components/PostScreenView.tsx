@@ -1,5 +1,7 @@
 import {
   isChatChannel as getIsChatChannel,
+  makePrettyDayAndTime,
+  makePrettyTime,
   useDebouncedValue,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -94,6 +96,7 @@ export function PostScreenView({
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   goToDm: (participants: string[]) => void;
 } & ChannelContext) {
+  const isWindowNarrow = utils.useIsWindowNarrow();
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = utils.useIsAdmin(
     channel.groupId ?? '',
@@ -107,6 +110,10 @@ export function PostScreenView({
   const [focusedPost, setFocusedPost] = useState<db.Post | null>(parentPost);
 
   const mode: 'single' | 'carousel' = useMemo(() => {
+    if (!isWindowNarrow) {
+      return 'single';
+    }
+
     // If someone taps a ref to a reply, they drill into the specific reply as
     // a full-screen post. In this case, we always want to show the reply as a
     // `single` post.
@@ -114,7 +121,7 @@ export function PostScreenView({
       return 'single';
     }
     return ['gallery'].includes(channel?.type) ? 'carousel' : 'single';
-  }, [channel, parentPost]);
+  }, [channel, parentPost, isWindowNarrow]);
 
   const showEdit = useMemo(() => {
     // This logic assumes this screen only shows a single post - if we're
@@ -282,8 +289,11 @@ function ConnectedHeader({
 
   const { focusedPost: parentPost } = useContext(FocusedPostContext);
 
+  const prettyTime = parentPost
+    ? makePrettyDayAndTime(new Date(parentPost.receivedAt)).asString
+    : '';
   const headerTitle = isChatChannel
-    ? `Thread: ${channel?.title ?? null}`
+    ? `Thread: ${channel?.title || prettyTime}`
     : parentPost?.title && parentPost.title !== ''
       ? parentPost.title
       : 'Post';
@@ -388,7 +398,7 @@ function SinglePostView({
 
   const { data: threadPosts } = store.useThreadPosts({
     postId: parentPost.id,
-    authorId: parentPost.id,
+    authorId: parentPost.authorId,
     channelId: channel.id,
   });
 
@@ -580,6 +590,7 @@ function CarouselPostScreenContent({
     cursor: initialPostId,
     firstPageCount: 50,
     disableUnconfirmedPosts: true,
+    filterDeleted: true,
   });
   const { data: channel } = store.useChannel({ id: channelId });
 

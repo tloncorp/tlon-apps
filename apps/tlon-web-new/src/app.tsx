@@ -4,11 +4,11 @@ import {
   DefaultTheme,
   NavigationContainer,
 } from '@react-navigation/native';
+import { ShipProvider } from '@tloncorp/app/contexts/ship';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
-import { checkDb, useMigrations } from '@tloncorp/app/lib/webDb';
 import { BasePathNavigator } from '@tloncorp/app/navigation/BasePathNavigator';
 import {
   getDesktopLinkingConfig,
@@ -17,6 +17,7 @@ import {
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { LoadingSpinner, StoreProvider, Text, View } from '@tloncorp/app/ui';
+import { getAuthInfo } from '@tloncorp/shared';
 import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
@@ -35,6 +36,15 @@ import { useIsDark, useIsMobile } from '@/logic/useMedia';
 import { preSig } from '@/logic/utils';
 import { toggleDevTools, useLocalState, useShowDevTools } from '@/state/local';
 import { useAnalyticsId, useLogActivity, useTheme } from '@/state/settings';
+import useDesktopNotifications from '@tloncorp/app/hooks/useDesktopNotifications';
+
+import { DesktopLoginScreen } from './components/DesktopLoginScreen';
+import { isElectron } from './electron-bridge';
+
+// Conditionally import the appropriate database functions
+const { checkDb, useMigrations } = isElectron()
+  ? await import('@tloncorp/app/lib/electronDb')
+  : await import('@tloncorp/app/lib/webDb');
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/production').then((d) => ({
@@ -66,10 +76,9 @@ function checkIfLoggedIn() {
   }
 }
 
-function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
+function AppRoutes() {
   const contactsQuery = store.useContacts();
   const currentUserId = useCurrentUserId();
-  const calmSettingsQuery = store.useCalmSettings({ userId: currentUserId });
   const { needsUpdate, triggerUpdate } = useAppUpdates();
   const [currentRoute, setCurrentRoute] = useState<any>(null);
 
@@ -83,25 +92,13 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
   useEffect(() => {
     const { data, refetch, isRefetching, isFetching } = contactsQuery;
 
-    if (isLoaded && data?.length === 0 && !isRefetching && !isFetching) {
+    if (data?.length === 0 && !isRefetching && !isFetching) {
       refetch();
     }
-  }, [contactsQuery, isLoaded]);
-
-  useEffect(() => {
-    const { data, refetch, isRefetching, isFetching } = calmSettingsQuery;
-
-    if (isLoaded && !data && !isRefetching && !isFetching) {
-      refetch();
-    }
-  }, [calmSettingsQuery, isLoaded]);
+  }, [contactsQuery]);
 
   const isMobile = useIsMobile();
   const isDarkMode = useIsDarkMode();
-
-  if (!isLoaded) {
-    return null;
-  }
 
   const getFriendlyName = (routeName: string) => {
     const friendlyNames: Record<string, string> = {
@@ -220,7 +217,7 @@ function AppRoutes({ isLoaded }: { isLoaded: boolean }) {
                   if (groupData?.title) {
                     return `${channelData.title} - ${groupData.title}`;
                   } else {
-                    return `${channelData.title}`;  
+                    return `${channelData.title}`;
                   }
                 }
                 if (channelData) {
@@ -259,32 +256,97 @@ function MigrationCheck({ children }: PropsWithChildren) {
   return <>{children}</>;
 }
 
-const App = React.memo(function AppComponent() {
-  const handleError = useErrorHandler();
-  const isDarkMode = useIsDark();
+function ConnectedDesktopApp({
+  ship,
+  shipUrl,
+  authCookie,
+}: {
+  ship: string;
+  shipUrl: string;
+  authCookie: string;
+}) {
+  const [clientReady, setClientReady] = useState(false);
+  const configureClient = useConfigureUrbitClient();
+  const hasSyncedRef = React.useRef(false);
+  useFindSuggestedContacts();
+  useDesktopNotifications(clientReady);
+  
+  useEffect(() => {
+    window.ship = ship;
+    window.our = ship;
+
+    const initializeClient = async () => {
+      store.removeClient();
+
+      configureClient({
+        shipName: ship,
+        shipUrl,
+      });
+
+      if (!hasSyncedRef.current) {
+        try {
+          await sync.syncStart(false);
+          setClientReady(true);
+          hasSyncedRef.current = true;
+        } catch (e) {
+          console.error('Error starting sync:', e);
+          setClientReady(false);
+        }
+      }
+    };
+
+    initializeClient();
+  }, [configureClient, ship, shipUrl, authCookie]);
+
+  if (!clientReady) {
+    return (
+      <View
+        height="100%"
+        width="100%"
+        justifyContent="center"
+        alignItems="center"
+        backgroundColor="$secondaryBackground"
+      >
+        <View
+          backgroundColor="$background"
+          padding="$xl"
+          borderRadius="$l"
+          aspectRatio={1}
+          alignItems="center"
+          justifyContent="center"
+          borderWidth={1}
+          borderColor="$border"
+        >
+          <LoadingSpinner color="$primaryText" />
+          <Text color="$primaryText" marginTop="$xl" fontSize="$s">
+            Starting up&hellip;
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  return <AppRoutes />;
+}
+
+function ConnectedWebApp() {
   const currentUserId = useCurrentUserId();
   const [dbIsLoaded, setDbIsLoaded] = useState(false);
   const configureClient = useConfigureUrbitClient();
-  useFindSuggestedContacts();
   const hasSyncedRef = React.useRef(false);
-
-  useEffect(() => {
-    handleError(() => {
-      checkIfLoggedIn();
-    })();
-  }, [handleError]);
+  useFindSuggestedContacts();
 
   useEffect(() => {
     configureClient({
       shipName: currentUserId,
       shipUrl: '',
     });
+
     const syncStart = async () => {
       // Only call sync.syncStart once during the app's lifecycle
       if (!hasSyncedRef.current) {
         // Web doesn't persist database, so headsSyncedAt is misleading
         await db.headsSyncedAt.resetValue();
-
         await sync.syncStart(false);
         hasSyncedRef.current = true;
       }
@@ -313,45 +375,142 @@ const App = React.memo(function AppComponent() {
     };
 
     syncStart();
-  }, [dbIsLoaded, currentUserId]);
+  }, [dbIsLoaded, currentUserId, configureClient]);
+
+  if (!dbIsLoaded) {
+    return (
+      <View
+        height="100%"
+        width="100%"
+        justifyContent="center"
+        alignItems="center"
+        backgroundColor="$secondaryBackground"
+      >
+        <View
+          backgroundColor="$background"
+          padding="$xl"
+          borderRadius="$l"
+          aspectRatio={1}
+          alignItems="center"
+          justifyContent="center"
+          borderWidth={1}
+          borderColor="$border"
+        >
+          <LoadingSpinner color="$primaryText" />
+          <Text color="$primaryText" marginTop="$xl" fontSize="$s">
+            Starting up&hellip;
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  return <AppRoutes />;
+}
+
+const App = React.memo(function AppComponent() {
+  const handleError = useErrorHandler();
+  const isDarkMode = useIsDark();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [authParams, setAuthParams] = useState<{
+    ship: string;
+    shipUrl: string;
+    authCookie: string;
+  } | null>(null);
+
+  // Check login for web
+  useEffect(() => {
+    if (!isElectron()) {
+      handleError(() => {
+        checkIfLoggedIn();
+      })();
+      setIsLoading(false);
+    }
+  }, [handleError]);
+
+  useEffect(() => {
+    if (isElectron()) {
+      const checkStoredAuth = async () => {
+        try {
+          const storedAuth = await getAuthInfo();
+          if (storedAuth) {
+            console.log(
+              'Found stored auth credentials for ship:',
+              storedAuth.ship
+            );
+            setAuthParams(storedAuth);
+            setIsAuthenticated(true);
+          }
+        } catch (error) {
+          console.error('Error loading stored auth:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      checkStoredAuth();
+    }
+  }, []);
 
   return (
     <div className="flex h-full w-full flex-col">
-      <MigrationCheck>
-        <SafeAreaProvider>
-          <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
-            <StoreProvider>
-              {dbIsLoaded ? (
-                <AppRoutes isLoaded={dbIsLoaded} />
-              ) : (
-                <View
-                  height="100%"
-                  width="100%"
-                  justifyContent="center"
-                  alignItems="center"
-                  backgroundColor="$secondaryBackground"
-                >
-                  <View
-                    backgroundColor="$background"
-                    padding="$xl"
-                    borderRadius="$l"
-                    aspectRatio={1}
-                    alignItems="center"
-                    justifyContent="center"
-                    borderWidth={1}
-                    borderColor="$border"
-                  >
-                    <LoadingSpinner color="$primaryText" />
-                    <Text color="$primaryText" marginTop="$xl" fontSize="$s">
-                      Starting up&hellip;
-                    </Text>
-                  </View>
-                </View>
-              )}
-            </StoreProvider>
-          </TamaguiProvider>
-        </SafeAreaProvider>
-      </MigrationCheck>
+      <ShipProvider>
+        <MigrationCheck>
+          <SafeAreaProvider>
+            <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
+              <StoreProvider>
+                {isElectron() ? (
+                  isLoading ? (
+                    <View
+                      height="100%"
+                      width="100%"
+                      justifyContent="center"
+                      alignItems="center"
+                      backgroundColor="$secondaryBackground"
+                    >
+                      <View
+                        backgroundColor="$background"
+                        padding="$xl"
+                        borderRadius="$l"
+                        aspectRatio={1}
+                        alignItems="center"
+                        justifyContent="center"
+                        borderWidth={1}
+                        borderColor="$border"
+                      >
+                        <LoadingSpinner color="$primaryText" />
+                        <Text
+                          color="$primaryText"
+                          marginTop="$xl"
+                          fontSize="$s"
+                        >
+                          Loading saved credentials&hellip;
+                        </Text>
+                      </View>
+                    </View>
+                  ) : isAuthenticated && authParams ? (
+                    <ConnectedDesktopApp
+                      ship={authParams.ship}
+                      shipUrl={authParams.shipUrl}
+                      authCookie={authParams.authCookie}
+                    />
+                  ) : (
+                    <DesktopLoginScreen
+                      onLoginSuccess={(params) => {
+                        setAuthParams(params);
+                        setIsAuthenticated(true);
+                      }}
+                    />
+                  )
+                ) : (
+                  <ConnectedWebApp />
+                )}
+              </StoreProvider>
+            </TamaguiProvider>
+          </SafeAreaProvider>
+        </MigrationCheck>
+      </ShipProvider>
     </div>
   );
 });
