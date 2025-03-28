@@ -231,50 +231,47 @@ export const ListItemPostPreview = ({
   post: Pick<db.Post, 'authorId' | 'textContent' | 'hidden' | 'content'>;
   showAuthor?: boolean;
 }) => {
-  const content = useMemo(() => {
-    if (post.hidden) {
-      return '(This post has been hidden)';
+  let displayText = '';
+
+  if (post.hidden) {
+    displayText = '(This post has been hidden)';
+  } else if (post.content) {
+    try {
+      const blocks = convertContent(post.content);
+      const processedText = blocks
+        .map((block) => {
+          if (block.type === 'paragraph') {
+            return block.content
+              .map((inline) => {
+                if (inline.type === 'text') return inline.text || '';
+                if (inline.type === 'mention') return inline.contactId || '';
+                if (inline.type === 'link') return inline.text || '';
+                if (inline.type === 'style' && Array.isArray(inline.children)) {
+                  return inline.children
+                    .map((child) =>
+                      child.type === 'text' ? child.text || '' : ''
+                    )
+                    .join('');
+                }
+                return '';
+              })
+              .join('');
+          }
+          return '';
+        })
+        .join('')
+        .trim();
+
+      displayText = processedText || post.textContent || '';
+    } catch (error) {
+      displayText = post.textContent || '';
     }
-    if (!post.content) {
-      return post.textContent ?? '';
-    }
-    const blocks = convertContent(post.content);
-    return blocks
-      .map((block) => {
-        if (block.type === 'paragraph') {
-          return block.content
-            .map((inline) => {
-              if (inline.type === 'text') {
-                return inline.text;
-              }
-              if (inline.type === 'mention') {
-                return inline.contactId;
-              }
-              if (inline.type === 'link') {
-                return inline.text;
-              }
-              if (inline.type === 'style') {
-                return inline.children
-                  .map((child) => {
-                    if (child.type === 'text') {
-                      return child.text;
-                    }
-                    return '';
-                  })
-                  .join('');
-              }
-              return '';
-            })
-            .join('');
-        }
-        return '';
-      })
-      .join('')
-      .trim();
-  }, [post.content, post.textContent, post.hidden]);
+  } else {
+    displayText = post.textContent || '';
+  }
 
   return (
-    <ListItemSubtitle>
+    <Text numberOfLines={1} size="$label/m" color="$tertiaryText">
       {showAuthor ? (
         <>
           <ContactName
@@ -286,8 +283,8 @@ export const ListItemPostPreview = ({
           {': '}
         </>
       ) : null}
-      {content}
-    </ListItemSubtitle>
+      {displayText}
+    </Text>
   );
 };
 
