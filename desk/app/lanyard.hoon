@@ -260,7 +260,8 @@
     =+  !<(cmd=command:l vase)
     =/  host=@p
       ?~(host.cmd default u.host.cmd)
-    ::  sometimes we may do work "for others"
+    ::  %work-for doesn't affect any of our own records/state,
+    ::  so branch off and handle it specially
     ::
     ?:  ?=(%work-for +<.cmd)
       :_  this
@@ -375,8 +376,14 @@
         %&  q.p.qer
       ==
     =/  rez=result:l
+      ::  normalize %rate-limit responses into failure responses
+      ::
       ?:  ?=(%rate-limit +<.res)
         [%fail 'rate limited']
+      ::  if the client asked for %valid-jam, and we asked the verifier,
+      ::  that means the jam/signature was legitimate, and we are now learning
+      ::  whether it's also live (as in, not revoked)
+      ::
       ?.  ?=(%valid-jam -.qes)    +.res
       ?>  ?=(%valid +<.res)
       [%valid-jam & valid.res]

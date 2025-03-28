@@ -20,7 +20,7 @@
     ::
       limits=[solo=(map @p allowance) pool=_allowance:pool:rates]
     ::
-      ::NOTE  basic auth only for staging
+      ::NOTE  basic auth only needed for staging api key
       phone-api=[base=@t key=@t basic=(unit [user=@t pass=@t])]
       twitter-api=[bearer=@t]
       domain=(unit @t)  ::  as 'https://example.org:123'
@@ -118,7 +118,7 @@
       batch=$~(1.000 @ud)  ::  remaining new %whose-bulk entries
       last-batch=@ux       ::  previous batch set salted hash
   ==
-++  rates
+++  rates  ::  re-fill allowance by n per p
   |%
   ++  phone    [n=1 p=~d1]   ::NOTE  hosting allows 1/min, up to 5/hour
   ++  photp    [n=1 p=~m1]   ::NOTE  code rotates every 10 minutes

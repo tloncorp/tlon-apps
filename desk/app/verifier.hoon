@@ -514,6 +514,10 @@
                     [%want %website %sign (end 5 (shas %website eny.bowl))]
         ==
       =^  pass=?  limits
+        ::  only %phone registrations make an api request right at the start,
+        ::  (the +req-api:phone call at the end of this hoon)
+        ::  so check those for rate-limits here
+        ::
         ?.  ?=(%phone -.id.cmd)  [& limits]
         %-  (stab-allowance limits src.bowl now.bowl)
         |=  lim=allowance
