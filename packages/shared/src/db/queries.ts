@@ -397,11 +397,6 @@ export const insertCurrentUserVerifications = createWriteQuery(
         attestationId: v.id,
       }));
 
-      console.log('bl: insertCurrentUserVerifications', {
-        verifications,
-        contactAttestations,
-      });
-
       await txCtx.db
         .insert($verifications)
         .values(verifications)
@@ -3240,7 +3235,6 @@ export const resetContactAttestations = createWriteQuery(
     ctx: QueryCtx
   ) => {
     if (attestations?.length) {
-      console.log(`bl: modifying attestations for contact ${contactId}`);
       await ctx.db.delete($verifications).where(
         and(
           notInArray(
@@ -3259,7 +3253,6 @@ export const resetContactAttestations = createWriteQuery(
         .values(attestations)
         .onConflictDoNothing();
     } else {
-      console.log(`bl: deleting attestations for contact ${contactId}`);
       await ctx.db
         .delete($contactAttestations)
         .where(eq($contactAttestations.contactId, contactId));
@@ -3399,8 +3392,6 @@ export const insertContact = createWriteQuery(
           set: conflictUpdateSetAll($contacts),
         });
 
-      console.log('bl: inserted contact', contact);
-
       await resetContactAttestations(
         { contactId: contact.id, attestations: contact.attestations },
         txCtx
@@ -3468,7 +3459,6 @@ export const insertContacts = createWriteQuery(
       await txCtx.db
         .delete($verifications)
         .where(not(eq($verifications.contactId, currentUserId)));
-      console.log(`bl: insertContacts cleared existing verifications`);
 
       if (contactAttestations.length) {
         // reset to current
@@ -3479,18 +3469,11 @@ export const insertContacts = createWriteQuery(
             target: $verifications.id,
             set: conflictUpdateSetAll($verifications),
           });
-        console.log(
-          `bl: insertContacts inserted non-user verifications`,
-          contactAttestations.map((a) => a.attestation)
-        );
 
         await txCtx.db
           .insert($contactAttestations)
           .values(contactAttestations)
           .onConflictDoNothing();
-        console.log(
-          `bl: insertContacts inserted non-user contact attestations`
-        );
       }
     });
   },

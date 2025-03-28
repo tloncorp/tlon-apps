@@ -222,7 +222,6 @@ export const syncAttestations = async (ctx?: SyncCtx) => {
     const verifications = await syncQueue.add('verifications', ctx, () =>
       api.fetchVerifications()
     );
-    console.log(`bl: syncAttestations fetched`, verifications);
 
     try {
       await db.insertCurrentUserVerifications({ verifications });
@@ -796,7 +795,6 @@ const createActivityUpdateHandler = (queueDebounce: number = 100) => {
 };
 
 export const handleContactUpdate = async (update: api.ContactsUpdate) => {
-  console.log(`bl: got contact update sub`, update);
   switch (update.type) {
     case 'upsertContact':
       await db.upsertContact(update.contact);
