@@ -82,6 +82,7 @@
   |=  [for=@p id=identifier =config]
   ^-  card
   (give-update for %config id config)
+::  +l: specialized wrapper for logging library
 ::
 ++  l
   |_  [our=@p for=(unit @p) kind=(unit @t)]
@@ -96,7 +97,7 @@
     %-  link
     (~(tell logs our /logs) volume echo deez)
   ::
-  ++  deez
+  ++  deez  ::  details, log metadata
     ^-  (list [@t json])
     :-  %flow^s+'verifier'
     =;  l=(list (unit [@t json]))
@@ -105,14 +106,21 @@
         ?~(kind ~ `[%id-kind s+u.kind])
     ==
   ::
-  ++  link
+  ++  link  ::  construct accumulator
     |=  cad=card
     |*  [caz=(list card) etc=*]
     [[cad caz] etc]
   --
+::  +phone: %phone id helpers, initialized with api key details
 ::
 ++  phone
   |_  [base=@t key=@t basic=(unit [user=@t pass=@t])]
+  ::  +req-api:  make a request to the api
+  ::
+  ::    %status: request registration status for the .nr of .who
+  ::    %verify: send an otp text to the .nr
+  ::    %submit: check correctness of the .otp submitted by the user
+  ::
   ++  req-api
     |=  $:  nr=@t
             $=  req
@@ -164,10 +172,13 @@
     ?.  &(?=(^ k) ?=(^ v))  ~
     `[u.k u.v m]
   --
+::  +twitter: %twitter id helpers, initialized with api key details
 ::
 ++  twitter
   =>  [^twitter .]
   |_  [=bowl:gall bearer=@t]
+  ::  +req-post: request a tweet (body + metadata) by tweet id
+  ::
   ++  req-post
     |=  [handle=@t tweet=@t]
     ^-  card
@@ -186,6 +197,11 @@
         '&tweet.fields=author_id,entities'
         '&expansions=author_id'
     ==
+  ::  +parse-post: parse a response to the +req-post request
+  ::
+  ::    extracts the tweet body and metadata from the response,
+  ::    extracts the signed payload from the tweet body,
+  ::    and validates the signature on that.
   ::
   ++  parse-post
     |=  $:  [handle=@t nonce=@ux]
@@ -243,10 +259,13 @@
       ?:((validate-signature bowl u.pay) [%good sig.u.pay] %bad-sign)
     ==
   --
+::  +website: %website id helpers
 ::
 ++  website
   =>  [^website .]
   |%
+  ::  +make-link: the well-known link for a given .turf
+  ::
   ++  make-link
     |=  =turf
     %+  rap  3
@@ -254,6 +273,7 @@
         (en-turf:html turf)
         well-known:website
     ==
+  ::  +req-challenge: request the well-known link for a given .turf
   ::
   ++  req-challenge
     |=  =turf
@@ -264,6 +284,7 @@
         /id/website/(scot %t (en-turf:html turf))/challenge
       [%arvo %i %request request *outbound-config:iris]
     [%'GET' (make-link turf) ~ ~]
+  ::  +parse-challenge: parse the body of the response to +req-challenge
   ::
   ++  parse-challenge
     |=  [=bowl:gall nonce=@ux fil=(unit mime-data:iris)]
@@ -285,6 +306,7 @@
     ?.  =(nonce.dat.u.pay nonce)  %bad-nonce
     ?:((validate-signature bowl u.pay) %good %bad-sign)
   --
+::  +validate-signature: check any $signed signature
 ::
 ++  validate-signature
   |=  [=bowl:gall sign=(signed)]
@@ -300,6 +322,7 @@
   ::
   =+  .^([life =pass *] %j /(scot %p our.bowl)/deed/(scot %da now.bowl)/(scot %p who.sign)/(scot %ud lyf.sign))
   (safe:as:(com:nu:crub:crypto pass) sig.sign (jam dat.sign))
+::  +revoke: remove the .id registration from state
 ::
 ++  revoke
   |=  $:  [state =bowl:gall]
@@ -323,6 +346,7 @@
              |=([l=@ =_lookups] (~(del by lookups) l))
     reverse  (~(del by reverse) id)
   ==
+::  +register: complete the registration of .id, generating attestations
 ::
 ++  register
   |=  $:  [state =bowl:gall]
@@ -340,6 +364,7 @@
     records   (~(put by records) id rec)
     attested  (~(gas by attested) sig.half.tat^id sig.full.tat^id ~)
   ==
+::  +sign: turn any data into a $signed noun
 ::
 ++  sign
   |*  [[our=@p now=@da] dat=*]
@@ -349,12 +374,14 @@
   ?>  =(who.seed our)
   =/  sig=@ux  (sigh:as:(nol:nu:crub:crypto key.seed) (jam dat))
   [our lyf.seed dat sig]
+::  +attest: sign both "full" and "half" attestations
 ::
 ++  attest
   |=  [[our=@p now=@da] for=@p id=identifier proof=(unit proof)]
   ^-  attestation
   :-  (sign [our now] `half-sign-data`[%0 %verified %half now for -.id])
   (sign [our now] `full-sign-data`[%0 %verified %full now for id proof])
+::  +get-allowance: get the rate-limiting balance .for needs to use
 ::
 ++  get-allowance
   |=  [[solo=(map @p allowance) pool=allowance] for=@p now=@da]
@@ -367,7 +394,7 @@
       ?.  risk  ~
       `(step-allowance pool max=allowance:pool:rates & now (sub now since.pool))
   ::
-  ++  step-allowance
+  ++  step-allowance  ::  increment all allowance
     |=  [a=allowance m=allowance pool=? now=@da d=@dr]
     ^+  a
     :*  now
@@ -380,10 +407,11 @@
         last-batch.a
     ==
   ::
-  ++  get-rate
+  ++  get-rate  ::  refill rate for individual or for pool
     |=  $:  pool=?
             what=?(%phone %photp %tweet %fetch %queries %batch)
         ==
+    ^-  [n=@ud p=@dr]
     ?-  what
       %phone    ?.(pool phone:rates phone:pool:rates)
       %photp    ?.(pool photp:rates photp:pool:rates)
@@ -393,16 +421,17 @@
       %batch    ?.(pool batch:rates batch:pool:rates)
     ==
   ::
-  ++  calc-new
+  ++  calc-new  ::  increment i up to m, given that d amount of time passed
     |=  [i=@ud m=@ud d=@dr [n=@ud p=@dr]]
     ^-  @ud
     (min (add i (calc-gain d n p)) m)
   ::
-  ++  calc-gain
+  ++  calc-gain  ::  n per p, over d amount of time
     |=  [d=@dr [n=@ud p=@dr]]
     ^-  @ud
     (abs:si (need (toi:rd (mul:rd (sun:rd n) (div:rd (sun:rd `@`d) (sun:rd `@`p))))))
   --
+::  +stab-allowance: apply payment function .f, indicating success or limit
 ::
 ++  stab-allowance
   |=  [limits=[solo=(map @p allowance) pool=allowance] for=@p now=@da]
@@ -416,6 +445,7 @@
   =+  p=(f u.pool)
   ?~  p  [| limits]
   [& limits(pool u.p, solo (~(put by solo.limits) for u.s))]
+::  +find-whose: resolve a single %whose query
 ::
 ++  find-whose
   |=  [id=identifier sat=(unit record) src=(set identifier)]
@@ -889,6 +919,7 @@
     [caz this]
   ::
       [%id %phone @ ?(%status %verify %submit) ~]
+    =*  step  i.t.t.t.wire
     =.  kind.log  `%phone
     ~|  [- +<]:sign
     ?>  ?=([%iris %http-response *] sign)
@@ -911,7 +942,7 @@
       =;  =echo:logs
         (tell:l %warn echo)
       :~  'internal phone api error:'
-          (cat 3 'during %' i.t.t.t.wire)
+          (cat 3 'during %' step)
           err-msg
       ==
     =/  failed-otp=?  |
@@ -932,8 +963,8 @@
     ::  request. try to pick up where we left off.
     ::
     ?:  ?=(%cancel -.res)
-      %-  (tell:l %info (cat 3 'retrying cancelled phone api request %' i.t.t.t.wire) ~)
-      ?-  i.t.t.t.wire
+      %-  (tell:l %info (cat 3 'retrying cancelled phone api request %' step) ~)
+      ?-  step
           %status
         :_  this
         [(req-api:phone nr %status for.u.rec)]~
@@ -954,7 +985,7 @@
     =/  jon=json
       ?~  full-file.res  ~
       (fall (de:json:html q.data.u.full-file.res) ~)
-    ?-  i.t.t.t.wire
+    ?-  step
         %status
       ::  for not-ok status codes, abort the registration flow
       ::
@@ -1039,8 +1070,10 @@
       %-  (tell:l %info 'retrying cancelled twitter api request' ~)
       [[(req-post:twitter handle tweet)]~ this]
     ?>  ?=(%finished -.res)
+    ::
     =/  result
       (parse-post:twitter [handle nonce.u.pre.status] +.res)
+    ::
     =*  abort
       %-  (tell:l %warn (cat 3 'twitter verification aborted with result %' result) ~)
       =^  caz  +.state  (revoke [+.state bowl] [id rec] 'service error')

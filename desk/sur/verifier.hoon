@@ -199,9 +199,6 @@
     ==
   --
 ::
-::REVIEW  i don't think we need the client to bring their own nonces, right?
-::        just let these be for internal comms only, hold the client's hand
-::        through that and just deliver them the status updates as they happen..
 ++  l  ::  lanyard
   |%
   +$  command
@@ -210,9 +207,14 @@
         [%work-for %urbit for=@p nonce=@ux]
         [%profile id=identifier show=?(%full %half %none)]
     ==  ==
-  +$  query    [host=(unit @p) nonce=(unit @) query=question]
+  ::
+  +$  query
+    $:  host=(unit @p)
+        nonce=(unit @)
+        query=question
+    ==
   +$  question
-    $%  [%valid-jam @uw]  ::  jammed $signed
+    $%  [%valid-jam jam=@uw]  ::  jammed $signed
         query:user-query
     ==
   +$  result
@@ -221,8 +223,9 @@
         [%valid-jam valid=$@(sig=? [sig=? liv=?])]
         $<(%rate-limit result:query-result)
     ==
+  ::
   +$  update
-    $%  [%query nonce=@ result]  ::TODO  different?
+    $%  [%query nonce=@ result]
         [%status [host=@p id=identifier] why=@t status=$%([%gone ~] status)]
         [%config [host=@p id=identifier] =config]
         [%full all=(map [host=@p id=identifier] [=config why=@t =status])]
