@@ -37,6 +37,11 @@
 ++  attempt-timeout  ~h1
 ++  binding  /verifier
 ::
+++  make-wire
+  |=  [id=identifier rest=wire]
+  ^-  wire
+  [%id (weld (id-wire id) rest)]
+::
 ++  id-wire
   |=  id=identifier
   ^-  wire
@@ -128,7 +133,7 @@
                 [%submit otp=@t]
         ==  ==
     ^-  card
-    :+  %pass  /id/phone/(scot %t nr)/[-.req]
+    :+  %pass  (make-wire [%phone nr] /[-.req])
     :+  %arvo  %i
     =;  =request:http
       [%request request %*(. *outbound-config:iris retries 0)]
@@ -182,7 +187,7 @@
     |=  [handle=@t tweet=@t]
     ^-  card
     =;  =request:http
-      :+  %pass  /id/twitter/(scot %t handle)/post/(scot %t tweet)
+      :+  %pass  (make-wire [%twitter handle] /post/(scot %t tweet))
       [%arvo %i %request request %*(. *outbound-config:iris retries 0)]
     =/  heads=header-list:http
       ['authorization' (cat 3 'Bearer ' bearer)]~
@@ -279,8 +284,7 @@
     ^-  card
     =;  =request:http
       :+  %pass
-        ::TODO  use +id-wire xx
-        /id/website/(scot %t (en-turf:html turf))/challenge
+        (make-wire [%website turf] /challenge)
       [%arvo %i %request request *outbound-config:iris]
     [%'GET' (make-link turf) ~ ~]
   ::  +parse-challenge: parse the body of the response to +req-challenge
