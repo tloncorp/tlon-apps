@@ -525,6 +525,12 @@ export async function scryNoun({ app, path }: { app: string; path: string }) {
       return config.client.scryNoun({ app, path });
     }
     const body = await res.text();
+    logger.trackEvent('Bad Noun Scry Response', {
+      status: res.status,
+      app,
+      path,
+      body,
+    });
     throw new BadResponseError(res.status, body);
   }
 }

@@ -165,7 +165,7 @@ export async function fetchTwitterConfirmPayload(handle: string) {
       parser: 'twitterBundle',
       error: e,
       errorMessage: e.message,
-      noun: result,
+      noun: result.toString(),
     });
     throw e;
   }
@@ -188,7 +188,7 @@ export async function fetchVerifications(): Promise<db.Verification[]> {
         parser: 'records',
         error: e,
         errorMessage: e.message,
-        noun: result,
+        noun: nounToClientRecords.toString(),
       });
       throw e;
     }
