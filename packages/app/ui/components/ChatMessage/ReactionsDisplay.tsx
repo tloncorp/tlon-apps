@@ -61,13 +61,7 @@ export function ReactionsDisplay({
 
   return (
     <Pressable borderRadius="$m" onLongPress={() => handleOpenReactions(post)}>
-      <XStack
-        paddingBottom="$l"
-        paddingLeft="$4xl"
-        borderRadius="$m"
-        gap="$xs"
-        flexWrap="wrap"
-      >
+      <XStack borderRadius="$m" gap="$xs" flexWrap="wrap">
         {reactionDetails.list.map((reaction) => (
           <Pressable
             key={reaction.value}
