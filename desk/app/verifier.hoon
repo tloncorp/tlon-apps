@@ -147,6 +147,22 @@
       :^  %'PATCH'  (cat 3 base '/verify')  heads
       (make-body 'phoneNumber'^s+nr 'otp'^s+otp.req ~)
     ==
+  ::  +parse-status: parse response to /status request
+  ::
+  ::    the request json has the following shape, where the matchingShip
+  ::    key is optional.
+  ::    { "known": true, "verified": true, "matchingShip": true }
+  ::
+  ++  parse-status
+    |=  jon=json
+    ^-  (unit [known=? verified=? matching=(unit ?)])
+    ?.  ?=([%o *] jon)  ~
+    =*  bo  bo:dejs-soft:format
+    =/  k  (biff (~(get by p.jon) 'known') bo)
+    =/  v  (biff (~(get by p.jon) 'verified') bo)
+    =/  m  (biff (~(get by p.jon) 'matchingShip') bo)
+    ?.  &(?=(^ k) ?=(^ v))  ~
+    `[u.k u.v m]
   --
 ::
 ++  twitter
@@ -244,10 +260,30 @@
     ^-  card
     =;  =request:http
       :+  %pass
-        ::TODO  use +id-wire
+        ::TODO  use +id-wire xx
         /id/website/(scot %t (en-turf:html turf))/challenge
       [%arvo %i %request request *outbound-config:iris]
     [%'GET' (make-link turf) ~ ~]
+  ::
+  ++  parse-challenge
+    |=  [=bowl:gall nonce=@ux fil=(unit mime-data:iris)]
+    ^-  ?(%good %bad-res %bad-nonce %bad-sign)
+    ?~  fil  %bad-res
+    =/  =coin
+      %+  fall
+        (rush q.data.u.fil ;~(sfix nuck:so gay))
+      [%$ %$ q.data.u.fil]
+    =/  pay=(unit payload:website)
+      =-  (biff (mole -) (soft payload:website))
+      |.
+      ?-  -.coin
+        %$     (cue q.p.coin)
+        %blob  p.coin
+        %many  ~
+      ==
+    ?~  pay  %bad-res
+    ?.  =(nonce.dat.u.pay nonce)  %bad-nonce
+    ?:((validate-signature bowl u.pay) %good %bad-sign)
   --
 ::
 ++  validate-signature
@@ -926,14 +962,10 @@
         ~&  [dap.bowl %bad-status cod]
         =.  err-msg  (cat 3 'bad status code ' (scot %ud cod))
         abort
+      ::
       =/  sat=(unit [known=? verified=? matching=(unit ?)])
-        ?.  ?=([%o *] jon)  ~
-        =*  bo  bo:dejs-soft:format
-        =/  k  (biff (~(get by p.jon) 'known') bo)
-        =/  v  (biff (~(get by p.jon) 'verified') bo)
-        =/  m  (biff (~(get by p.jon) 'matchingShip') bo)
-        ?.  &(?=(^ k) ?=(^ v))  ~
-        `[u.k u.v m]
+        (parse-status:phone jon)
+      ::
       ?~  sat
         ~&  [dap.bowl %bad-status-json jon]
         =.  err-msg
@@ -1073,22 +1105,7 @@
     ?>  ?=(%finished -.res)
     ::
     =/  result=?(%good %bad-res %bad-nonce %bad-sign)
-      ?~  full-file.res  %bad-res
-      =/  =coin
-        %+  fall
-          (rush q.data.u.full-file.res ;~(sfix nuck:so gay))
-        [%$ %$ q.data.u.full-file.res]
-      =/  pay=(unit payload:website)
-        =-  (biff (mole -) (soft payload:website))
-        |.
-        ?-  -.coin
-          %$     (cue q.p.coin)
-          %blob  p.coin
-          %many  ~
-        ==
-      ?~  pay  %bad-res
-      ?.  =(nonce.dat.u.pay nonce.u.pre.status)  %bad-nonce
-      ?:((validate-signature bowl u.pay) %good %bad-sign)
+      (parse-challenge:website bowl nonce.u.pre.status full-file.res)
     ::
     ?.  ?=(%good result)
       %-  (tell:l %info (cat 3 'website verification rejected with result %' result) ~)
