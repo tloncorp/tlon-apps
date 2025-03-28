@@ -907,6 +907,16 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
         postId: update.postId,
         reactions: update.reactions,
       });
+      await db.updatePost({
+        id: update.postId,
+        syncedAt: Date.now(),
+      });
+
+      logger.log(
+        'Updated reactions for post',
+        update.postId,
+        update.reactions.length
+      );
       break;
     case 'markPostSent':
       await db.updatePost({ id: update.cacheId, deliveryStatus: 'sent' });
@@ -948,7 +958,8 @@ export const handleChatUpdate = async (update: api.ChatEvent) => {
       await db.deletePosts({ ids: [update.postId] });
       break;
     case 'addReaction':
-      db.insertPostReactions({
+      // First insert the reaction
+      await db.insertPostReactions({
         reactions: [
           {
             postId: update.postId,
@@ -957,12 +968,29 @@ export const handleChatUpdate = async (update: api.ChatEvent) => {
           },
         ],
       });
+
+      // Then update the post's syncedAt to force UI updates
+      await db.updatePost({
+        id: update.postId,
+        syncedAt: Date.now(),
+      });
+
+      logger.log('Added reaction to post', update.postId, update.react);
       break;
     case 'deleteReaction':
-      db.deletePostReaction({
+      // Delete the reaction
+      await db.deletePostReaction({
         postId: update.postId,
         contactId: update.userId,
       });
+
+      // Then update the post's syncedAt to force UI updates
+      await db.updatePost({
+        id: update.postId,
+        syncedAt: Date.now(),
+      });
+
+      logger.log('Removed reaction from post', update.postId, update.userId);
       break;
     case 'addDmInvites':
       db.insertChannels(update.channels);

@@ -267,10 +267,17 @@ export const toChannelsUpdate = (
 
           logger.log('delete post event');
           return { type: 'deletePost', postId, channelId };
-        } else if ('reacts' in postResponse && postResponse.reacts !== null) {
-          const updatedReacts = toReactionsData(postResponse.reacts, postId);
-          logger.log('update reactions event');
-          return { type: 'updateReactions', postId, reactions: updatedReacts };
+        } else if ('reacts' in postResponse) {
+          logger.log('update reactions event', postResponse);
+          if (postResponse.reacts !== null) {
+            const updatedReacts = toReactionsData(postResponse.reacts, postId);
+            logger.log('reaction data processed:', updatedReacts);
+            return {
+              type: 'updateReactions',
+              postId,
+              reactions: updatedReacts,
+            };
+          }
         }
       }
 
