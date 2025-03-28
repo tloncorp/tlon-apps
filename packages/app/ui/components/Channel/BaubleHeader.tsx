@@ -1,10 +1,11 @@
 import { LinearGradient } from '@tamagui/linear-gradient';
+import { useConnectionStatus } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Icon } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { BlurView } from 'expo-blur';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { OpaqueColorValue } from 'react-native';
 import Animated, {
   Easing,
@@ -42,6 +43,7 @@ export function BaubleHeader({
   const insets = useSafeAreaInsets();
   const frame = useSafeAreaFrame();
   const groupTitle = useGroupTitle(group);
+  const connectionStatus = useConnectionStatus();
 
   const easedValue = useDerivedValue(
     () => Easing.ease(scrollValue.value),
@@ -73,6 +75,11 @@ export function BaubleHeader({
     }
   }, [channel.id, group, chatOptions]);
 
+  const connectionOpacity = useMemo(
+    () => (connectionStatus === 'Connected' ? 1 : 0.5),
+    [connectionStatus]
+  );
+
   return (
     <View
       height={insets.top}
@@ -88,7 +95,7 @@ export function BaubleHeader({
         <Animated.View
           style={[
             {
-              opacity: 1,
+              opacity: connectionOpacity,
               position: 'absolute',
               top: insets.top,
               left: frame.width / 2 - 24,
@@ -102,6 +109,7 @@ export function BaubleHeader({
             borderRadius="$l"
             overflow="hidden"
             onPress={handlePress}
+            opacity={connectionOpacity}
           >
             <BlurView intensity={32}>
               {showSpinner ? (
