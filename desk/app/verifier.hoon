@@ -325,15 +325,11 @@
   |^  ^-  [solo=allowance pool=(unit allowance)]
       =/  risk=?
         ?=(?(%pawn %earl) (clan:title for))
-      =/  base=allowance
-        ?.  risk  *allowance
-        allowance:pool:rates
-      =/  max  base
       :-  ?~  lim=(~(get by solo) for)
-            base(since now)
-          (step-allowance u.lim max | now (sub now since.u.lim))
+            %*(. *allowance since now)
+          (step-allowance u.lim max=*allowance | now (sub now since.u.lim))
       ?.  risk  ~
-      `(step-allowance pool allowance:pool:rates & now (sub now since.pool))
+      `(step-allowance pool max=allowance:pool:rates & now (sub now since.pool))
   ::
   ++  step-allowance
     |=  [a=allowance m=allowance pool=? now=@da d=@dr]
