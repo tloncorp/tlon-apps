@@ -331,7 +331,12 @@ function parseContactAttestations(
         });
       }
     } catch (e) {
-      console.error(`bl: failed to contact twitter attestation`, e);
+      logger.trackEvent(AnalyticsEvent.ErrorNounParse, {
+        parser: 'twitter signed',
+        error: e,
+        errorMessage: e.message,
+        noun: contact['lanyard-twitter-0-sign'].value,
+      });
     }
   }
 
@@ -371,7 +376,12 @@ function parseContactAttestations(
         console.log(`no sign found`);
       }
     } catch (e) {
-      console.error(`failed to parse contact phone attestation`, e);
+      logger.trackEvent(AnalyticsEvent.ErrorNounParse, {
+        parser: 'phone signed',
+        error: e,
+        errorMessage: e.message,
+        noun: contact['lanyard-phone-0-sign'].value,
+      });
     }
   }
 
@@ -385,7 +395,6 @@ function parseContactAttestations(
     attestation: a,
   }));
 
-  console.log(`parsed attests`, finalAttests);
   return finalAttests;
 }
 

@@ -3,6 +3,7 @@ import { Atom, Cell, Noun, dwim, enjs } from '@urbit/nockjs';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { AnalyticsEvent } from '../domain';
 import { getFrondValue, getPatp, simpleHash } from '../logic';
 import * as ub from '../urbit';
 import { stringToTa } from '../urbit';
@@ -156,8 +157,18 @@ export async function fetchTwitterConfirmPayload(handle: string) {
     path: `/v1/proof/twitter/bundle/${stringToTa(handle)}`,
   });
 
-  const parsed = parseTwitterBundle(result);
-  return parsed;
+  try {
+    const parsed = parseTwitterBundle(result);
+    return parsed;
+  } catch (e) {
+    logger.trackEvent(AnalyticsEvent.ErrorNounParse, {
+      parser: 'twitterBundle',
+      error: e,
+      errorMessage: e.message,
+      noun: result,
+    });
+    throw e;
+  }
 }
 
 export async function fetchVerifications(): Promise<db.Verification[]> {
@@ -166,15 +177,53 @@ export async function fetchVerifications(): Promise<db.Verification[]> {
     app: 'lanyard',
     path: '/v1/records',
   });
-  const records = nounToClientRecords(result, currentUserId);
-  return records;
+  try {
+    const records = nounToClientRecords(result, currentUserId);
+    return records;
+  } catch (e) {
+    logger.trackEvent(AnalyticsEvent.ErrorNounParse, {
+      parser: 'records',
+      error: e,
+      errorMessage: e.message,
+      noun: result,
+    });
+    throw e;
+  }
 }
 
 export async function initiatePhoneVerify(phoneNumber: string) {
   const payload = [null, ['start', ['phone', phoneNumber]]];
   const noun = dwim(payload);
-  await pokeNoun({ app: 'lanyard', mark: 'lanyard-command-1', noun });
-  return;
+
+  let errorCode: LanyardErrorCode | null = null;
+  await trackedPokeNoun(
+    { app: 'lanyard', mark: 'lanyard-command-1', noun },
+    { app: 'lanyard', path: '/v1/records' },
+    (event: ub.RecordStatusEvent) => {
+      if (event.status?.value !== phoneNumber.toLowerCase()) {
+        return false;
+      }
+
+      if (event.status.status === 'gone') {
+        if (event.status.why.includes('already registered')) {
+          errorCode = LanyardErrorCode.ALREADY_REGISTERED;
+        } else {
+          errorCode = LanyardErrorCode.UNKNOWN;
+        }
+        return true;
+      }
+
+      if (event.status.status === 'pending') {
+        return true;
+      }
+
+      return false;
+    }
+  );
+
+  if (errorCode) {
+    throw new LanyardError({ errorCode });
+  }
 }
 
 export async function initiateTwitterAttestation(twitterHandle: string) {
