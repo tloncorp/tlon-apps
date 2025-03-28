@@ -173,19 +173,29 @@ export async function fetchTwitterConfirmPayload(handle: string) {
 
 export async function fetchVerifications(): Promise<db.Verification[]> {
   const currentUserId = getCurrentUserId();
-  const result = await scryNoun({
-    app: 'lanyard',
-    path: '/v1/records',
-  });
+
   try {
-    const records = nounToClientRecords(result, currentUserId);
-    return records;
+    const result = await scryNoun({
+      app: 'lanyard',
+      path: '/v1/records',
+    });
+
+    try {
+      const records = nounToClientRecords(result, currentUserId);
+      return records;
+    } catch (e) {
+      logger.trackEvent(AnalyticsEvent.ErrorNounParse, {
+        parser: 'records',
+        error: e,
+        errorMessage: e.message,
+        noun: result,
+      });
+      throw e;
+    }
   } catch (e) {
-    logger.trackEvent(AnalyticsEvent.ErrorNounParse, {
-      parser: 'records',
+    logger.trackEvent('Error Scrying Lanyard State', {
       error: e,
       errorMessage: e.message,
-      noun: result,
     });
     throw e;
   }

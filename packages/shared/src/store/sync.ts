@@ -218,17 +218,20 @@ export const syncContacts = async (ctx?: SyncCtx) => {
 
 export const syncAttestations = async (ctx?: SyncCtx) => {
   logger.log('syncing verifications');
-  const verifications = await syncQueue.add('verifications', ctx, () =>
-    api.fetchVerifications()
-  );
-  console.log(`bl: syncAttestations fetched`, verifications);
   try {
-    await db.insertCurrentUserVerifications({ verifications });
-  } catch (e) {
-    logger.error('error inserting verifications', e);
-  }
+    const verifications = await syncQueue.add('verifications', ctx, () =>
+      api.fetchVerifications()
+    );
+    console.log(`bl: syncAttestations fetched`, verifications);
 
-  logger.log('inserted verifications from api', verifications);
+    try {
+      await db.insertCurrentUserVerifications({ verifications });
+    } catch (e) {
+      logger.trackEvent('Error Inserting Lanyard Verifications', e);
+    }
+  } catch (e) {
+    logger.trackError('Error Fetching Lanyard Verifications', e);
+  }
 };
 
 export const syncPinnedItems = async (ctx?: SyncCtx) => {
