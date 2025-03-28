@@ -542,6 +542,7 @@
       this(domain base.q.vase)
     ::
         [%stats ~]
+      ?>  =(our src):bowl
       =;  =tang
         %-  (tell:l %info tang)
         %-  (slog tang)
