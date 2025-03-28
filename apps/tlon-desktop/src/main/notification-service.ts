@@ -1,4 +1,19 @@
-import { BrowserWindow, Notification, ipcMain } from 'electron';
+import { BrowserWindow, Notification, ipcMain, app } from 'electron';
+
+let unreadNotificationCount = 0;
+
+function updateDockBadge() {
+  if (unreadNotificationCount > 0) {
+    app.setBadgeCount(unreadNotificationCount);
+  } else {
+    app.setBadgeCount(0);
+  }
+}
+
+export function clearNotifications() {
+  unreadNotificationCount = 0;
+  updateDockBadge();
+}
 
 export function setupNotificationService(mainWindow: BrowserWindow) {
   ipcMain.handle('show-notification', (event, { title, body, data }) => {
@@ -23,6 +38,14 @@ export function setupNotificationService(mainWindow: BrowserWindow) {
     });
     
     notification.show();
+    
+    unreadNotificationCount++;
+    updateDockBadge();
+    
     return true;
+  });
+  
+  mainWindow.on('focus', () => {
+    clearNotifications();
   });
 }

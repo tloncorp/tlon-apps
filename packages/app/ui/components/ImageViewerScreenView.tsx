@@ -4,7 +4,7 @@ import { Image } from '@tloncorp/ui';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import { ElementRef, useRef, useState } from 'react';
-import { Alert, Dimensions, TouchableOpacity } from 'react-native';
+import { Alert, Dimensions, Modal, TouchableOpacity } from 'react-native';
 import {
   Directions,
   Gesture,
@@ -96,96 +96,106 @@ export function ImageViewerScreenView(props: {
   };
 
   return (
-    <GestureDetector gesture={dismissGesture}>
-      <ZStack
-        flex={1}
-        backgroundColor="$black"
-        paddingTop={top}
-        data-testid="image-viewer"
-      >
-        <View flex={isWeb ? 0 : 1}>
-          {isWeb ? (
-            <Zoomable
-              ref={zoomableRef}
-              data-testid="zoomable-image"
-              style={{
-                height: '100%',
-                alignItems: 'center',
-              }}
-              isDoubleTapEnabled
-              isSingleTapEnabled
-              isPanEnabled
-              minScale={0.1}
-              onPinchEnd={handlePinchEnd}
-              onDoubleTap={onDoubleTap}
-              onSingleTap={onSingleTap}
-              maxPanPointers={maxPanPointers}
-            >
-              <Image
-                source={{
-                  uri: props.uri,
-                }}
-                data-testid="image"
+    <Modal animationType="none">
+      <GestureDetector gesture={dismissGesture}>
+        <ZStack
+          flex={1}
+          backgroundColor="$black"
+          paddingTop={top}
+          data-testid="image-viewer"
+        >
+          <View flex={1}>
+            {isWeb ? (
+              <Zoomable
+                ref={zoomableRef}
+                data-testid="zoomable-image"
                 style={{
-                  maxWidth: Dimensions.get('window').width,
-                  maxHeight: Dimensions.get('window').height - top,
+                  flex: 1,
+                  height: '100%',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
+                isDoubleTapEnabled
+                isSingleTapEnabled
+                isPanEnabled
+                minScale={0.1}
+                onPinchEnd={handlePinchEnd}
+                onDoubleTap={onDoubleTap}
+                onSingleTap={onSingleTap}
+                maxPanPointers={maxPanPointers}
+              >
+                <Image
+                  source={{
+                    uri: props.uri,
+                  }}
+                  data-testid="image"
+                  style={{
+                    height: 'auto',
+                    maxWidth: Dimensions.get('window').width,
+                    maxHeight: Dimensions.get('window').height - top,
+                  }}
+                />
+              </Zoomable>
+            ) : (
+              <ImageZoom
+                ref={zoomableRef}
+                uri={props.uri}
+                style={{ flex: 1 }}
+                isDoubleTapEnabled
+                isSingleTapEnabled
+                isPanEnabled
+                width={Dimensions.get('window').width - 20}
+                maxPanPointers={maxPanPointers}
+                minScale={0.1}
+                onPinchEnd={handlePinchEnd}
+                onDoubleTap={onDoubleTap}
+                onSingleTap={onSingleTap}
               />
-            </Zoomable>
-          ) : (
-            <ImageZoom
-              ref={zoomableRef}
-              uri={props.uri}
-              style={{ flex: 1 }}
-              isDoubleTapEnabled
-              isSingleTapEnabled
-              isPanEnabled
-              width={Dimensions.get('window').width - 20}
-              maxPanPointers={maxPanPointers}
-              minScale={0.1}
-              onPinchEnd={handlePinchEnd}
-              onDoubleTap={onDoubleTap}
-              onSingleTap={onSingleTap}
-            />
-          )}
-        </View>
+            )}
+          </View>
 
-        {/* overlay */}
-        {showOverlay ? (
-          <YStack padding="$xl" paddingTop={isWeb ? 16 : top}>
-            <XStack
-              justifyContent={isWeb ? 'flex-end' : 'space-between'}
-              gap="$m"
+          {/* overlay */}
+          {showOverlay ? (
+            <YStack
+              position="absolute"
+              width="100%"
+              padding="$xl"
+              paddingTop={isWeb ? 16 : top}
             >
-              <TouchableOpacity
-                onPress={handleDownloadImage}
-                activeOpacity={0.8}
+              <XStack
+                justifyContent={isWeb ? 'flex-end' : 'space-between'}
+                gap="$m"
               >
-                <Stack
-                  padding="$m"
-                  backgroundColor="$darkOverlay"
-                  borderRadius="$l"
+                <TouchableOpacity
+                  onPress={handleDownloadImage}
+                  activeOpacity={0.8}
                 >
-                  <Icon type="ArrowDown" size="$l" color="$white" />
-                </Stack>
-              </TouchableOpacity>
+                  <Stack
+                    padding="$m"
+                    backgroundColor="$darkOverlay"
+                    borderRadius="$l"
+                  >
+                    <Icon type="ArrowDown" size="$l" color="$white" />
+                  </Stack>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                onPress={() => props.goBack()}
-                activeOpacity={0.8}
-              >
-                <Stack
-                  padding="$m"
-                  backgroundColor="$darkOverlay"
-                  borderRadius="$l"
+                <TouchableOpacity
+                  onPress={() => props.goBack()}
+                  activeOpacity={0.8}
                 >
-                  <Icon type="Close" size="$l" color="$white" />
-                </Stack>
-              </TouchableOpacity>
-            </XStack>
-          </YStack>
-        ) : null}
-      </ZStack>
-    </GestureDetector>
+                  <Stack
+                    padding="$m"
+                    backgroundColor="$darkOverlay"
+                    borderRadius="$l"
+                  >
+                    <Icon type="Close" size="$l" color="$white" />
+                  </Stack>
+                </TouchableOpacity>
+              </XStack>
+            </YStack>
+          ) : null}
+        </ZStack>
+      </GestureDetector>
+    </Modal>
   );
 }

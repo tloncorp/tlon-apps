@@ -72,11 +72,11 @@ export const usePins = (
   });
 };
 
-export const useCalmSettings = (options: { userId: string }) => {
+export const useCalmSettings = () => {
   return useQuery({
     queryKey: ['calmSettings'],
     queryFn: () =>
-      db.getSettings(options.userId).then((r) => ({
+      db.getSettings().then((r) => ({
         disableAvatars: r?.disableAvatars ?? false,
         disableNicknames: r?.disableNicknames ?? false,
         disableRemoteContent: r?.disableRemoteContent ?? false,
@@ -84,24 +84,23 @@ export const useCalmSettings = (options: { userId: string }) => {
   });
 };
 
-export const useMessagesFilter = (options: { userId: string }) => {
+export const useMessagesFilter = () => {
   const deps = useKeyFromQueryDeps(db.getSettings);
   return useQuery({
     queryKey: ['messagesFilter', deps],
     queryFn: async () => {
-      const settings = await db.getSettings(options.userId);
+      const settings = await db.getSettings();
       return getMessagesFilter(settings?.messagesFilter);
     },
   });
 };
 
 export const useActivitySeenMarker = () => {
-  const userId = api.getCurrentUserId();
   const deps = useKeyFromQueryDeps(db.getSettings);
   return useQuery({
     queryKey: ['activitySeenMarker', deps],
     queryFn: async () => {
-      const settings = await db.getSettings(userId);
+      const settings = await db.getSettings();
       return settings?.activitySeenTimestamp ?? 1;
     },
   });
@@ -277,6 +276,16 @@ export const useLiveGroupUnread = (unread: db.GroupUnread | null) => {
   });
 };
 
+export const useBaseUnread = () => {
+  const depsKey = useKeyFromQueryDeps(db.getBaseUnread);
+  return useQuery({
+    queryKey: ['baseUnreads', depsKey],
+    queryFn: async () => {
+      return db.getBaseUnread();
+    },
+  });
+};
+
 export const useLiveUnread = (
   unread: db.ChannelUnread | db.ThreadUnreadState | db.GroupUnread | null
 ) => {
@@ -419,7 +428,7 @@ export const usePostReference = ({
   return postQuery;
 };
 
-export const useGroupsHostedBy = (userId: string) => {
+export const useGroupsHostedBy = (userId: string, disabled?: boolean) => {
   return useQuery({
     queryKey: ['groupsHostedBy', userId],
     queryFn: async () => {
@@ -435,6 +444,7 @@ export const useGroupsHostedBy = (userId: string) => {
     // this query's data rarely changes and is never invalidated elsewhere,
     // so we set stale time manually
     staleTime: 1000 * 60 * 30,
+    enabled: !disabled,
   });
 };
 

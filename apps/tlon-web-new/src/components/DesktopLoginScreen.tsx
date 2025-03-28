@@ -152,9 +152,10 @@ export const DesktopLoginScreen = ({
                   if (urlValidation === false) {
                     return 'Please enter a valid URL.';
                   }
-                  if (urlValidation === 'hosted') {
-                    return 'Please log in to your hosted Tlon ship using email and password.';
-                  }
+                  // disabled until we add hosted login
+                  // if (urlValidation === 'hosted') {
+                  //   return 'Please log in to your hosted Tlon ship using email and password.';
+                  // }
                   return true;
                 },
               }}

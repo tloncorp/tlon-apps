@@ -1,5 +1,6 @@
 import { schema, setClient } from '@tloncorp/shared/db';
 import { handleChange } from '@tloncorp/shared/db';
+import * as kv from '@tloncorp/shared/db';
 import { migrations } from '@tloncorp/shared/db/migrations';
 import { drizzle } from 'drizzle-orm/sqlite-proxy';
 
@@ -128,6 +129,9 @@ export class ElectronDb extends BaseDb {
     await window.sqliteBridge.purgeDb();
     this.client = null;
 
+    // reset values related to tracking db sync state
+    await kv.headsSyncedAt.resetValue();
+
     logger.log('Purged Electron SQLite database, reconnecting');
     await this.setupDb();
   }
@@ -170,18 +174,22 @@ export class ElectronDb extends BaseDb {
     } catch (e) {
       // Check if this is a "table already exists" error, which isn't fatal
       if (e.message && e.message.includes('already exists')) {
-        logger.log('Migration contains tables that already exist, continuing', e);
+        logger.log(
+          'Migration contains tables that already exist, continuing',
+          e
+        );
         return;
-      } 
-      
+      }
+
       // For other errors, log but don't purge database
       logger.error('Migration failed:', e);
-      
+
       // Only purge the database for critical errors that prevent app from working
-      if (e.message && (
-          e.message.includes('database is corrupted') || 
-          e.message.includes('database disk image is malformed')
-      )) {
+      if (
+        e.message &&
+        (e.message.includes('database is corrupted') ||
+          e.message.includes('database disk image is malformed'))
+      ) {
         logger.error('Database appears corrupted, purging and retrying');
         await this.purgeDb();
         await window.sqliteBridge.runMigrations(formattedMigrations);

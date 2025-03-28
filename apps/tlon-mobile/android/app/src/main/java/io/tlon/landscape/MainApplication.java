@@ -6,7 +6,6 @@ import android.content.res.Configuration;
 import androidx.annotation.NonNull;
 import androidx.lifecycle.ProcessLifecycleOwner;
 
-import com.facebook.react.flipper.ReactNativeFlipper;
 import com.facebook.react.PackageList;
 import com.facebook.react.ReactApplication;
 import com.facebook.react.ReactNativeHost;
@@ -71,9 +70,6 @@ public class MainApplication extends Application implements ReactApplication {
     if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
       // If you opted-in for the New Architecture, we load the native entry point for this app.
       DefaultNewArchitectureEntryPoint.load();
-    }
-    if (BuildConfig.DEBUG) {
-      ReactNativeFlipper.initializeFlipper(this, getReactNativeHost().getReactInstanceManager());
     }
     ApplicationLifecycleDispatcher.onApplicationCreate(this);
     ProcessLifecycleOwner.get().getLifecycle().addObserver(new AppLifecycleManager());

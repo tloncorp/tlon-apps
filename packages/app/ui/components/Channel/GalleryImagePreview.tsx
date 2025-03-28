@@ -1,6 +1,3 @@
-import { Button } from '@tloncorp/ui';
-import { Close } from '@tloncorp/ui/assets/icons';
-import { useCallback } from 'react';
 import { ImageBackground } from 'react-native';
 import { Spinner, View, XStack } from 'tamagui';
 
@@ -9,28 +6,14 @@ import {
   useAttachmentContext,
 } from '../../contexts/attachment';
 
-export default function GalleryImagePreview({
-  onReset,
-}: {
-  onReset: () => void;
-}) {
-  const { attachments, resetAttachments } = useAttachmentContext();
+function GalleryImagePreview() {
+  const { attachments } = useAttachmentContext();
   const imageAttachment = attachments.filter(
     (a): a is ImageAttachment => a.type === 'image'
   )[0];
 
-  const handleClosePressed = useCallback(() => {
-    resetAttachments([]);
-    onReset();
-  }, [resetAttachments, onReset]);
-
   return (
-    <XStack
-      padding="$l"
-      borderRadius="$xl"
-      backgroundColor="$background"
-      flex={1}
-    >
+    <XStack backgroundColor="$background" flex={1}>
       <View flex={1} position="relative">
         <ImageBackground
           source={{
@@ -39,41 +22,29 @@ export default function GalleryImagePreview({
           style={{
             width: '100%',
             height: '100%',
-            alignItems: 'flex-end',
+            justifyContent: 'center',
+            alignItems: 'center',
+            opacity:
+              imageAttachment?.uploadState?.status === 'uploading' ? 0.5 : 1,
           }}
-          imageStyle={{
-            borderRadius: 16,
-          }}
+          resizeMode="contain"
         >
-          <XStack paddingTop="$xl" paddingHorizontal="$l" alignItems="flex-end">
-            <View>
-              <Button
-                onPress={handleClosePressed}
-                borderRadius="$radius.4xl"
-                backgroundColor="$background"
-              >
-                <Button.Icon>
-                  <Close />
-                </Button.Icon>
-              </Button>
+          {imageAttachment?.uploadState?.status === 'uploading' && (
+            <View
+              top={0}
+              justifyContent="center"
+              padding="$xl"
+              alignItems="center"
+              backgroundColor="$translucentBlack"
+              borderRadius="$m"
+            >
+              <Spinner size="large" color="$primaryText" />
             </View>
-          </XStack>
+          )}
         </ImageBackground>
-        {imageAttachment?.uploadState?.status === 'uploading' && (
-          <View
-            position="absolute"
-            top={0}
-            justifyContent="center"
-            width="100%"
-            height="100%"
-            alignItems="center"
-            backgroundColor="$translucentBlack"
-            borderRadius="$l"
-          >
-            <Spinner size="large" color="$primaryText" />
-          </View>
-        )}
       </View>
     </XStack>
   );
 }
+
+export default GalleryImagePreview;

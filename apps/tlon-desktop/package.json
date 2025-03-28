@@ -1,7 +1,7 @@
 {
   "name": "tlon-desktop",
   "author": "Tlon Corporation",
-  "version": "1.0.0",
+  "version": "0.1.11",
   "description": "Tlon Messenger",
   "main": "build/main/index.js",
   "private": true,
@@ -30,9 +30,11 @@
     "@tloncorp/shared": "workspace:*",
     "better-sqlite3": "~11.8.1",
     "cross-fetch": "^3.1.5",
-    "electron-store": "^10.0.1"
+    "electron-store": "^10.0.1",
+    "electron-updater": "^6.3.9"
   },
   "devDependencies": {
+    "@electron/notarize": "2.5.0",
     "concurrently": "^9.1.2",
     "electron": "34.3.0",
     "electron-builder": "^26.0.10",
@@ -42,6 +44,13 @@
   "build": {
     "appId": "io.tlon.desktop",
     "productName": "Tlon Messenger",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "tloncorp",
+        "repo": "tlon-apps"
+      }
+    ],
     "directories": {
       "output": "dist"
     },
@@ -62,10 +71,10 @@
     "mac": {
       "category": "public.app-category.social-networking",
       "darkModeSupport": true,
-      "hardenedRuntime": false,
+      "hardenedRuntime": true,
       "gatekeeperAssess": false,
-      "entitlements": null,
-      "entitlementsInherit": null,
+      "entitlements": "resources/entitlements.mac.plist",
+      "entitlementsInherit": "resources/entitlements.mac.plist",
       "icon": "resources/icons/mac/icon.icns",
       "target": [
         {
@@ -90,6 +99,7 @@
     "linux": {
       "icon": "resources/icons/png",
       "target": "AppImage"
-    }
+    },
+    "afterSign": ".notarize.js"
   }
 }

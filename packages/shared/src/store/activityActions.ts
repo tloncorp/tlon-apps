@@ -1,5 +1,6 @@
 import * as api from '../api';
 import * as db from '../db';
+import { BASE_UNREADS_SINGLETON_KEY } from '../db/schema';
 import { createDevLogger } from '../debug';
 import { isGroupChannelId } from '../logic';
 import * as ub from '../urbit';
@@ -133,13 +134,20 @@ export async function setDefaultNotificationLevel(
 }
 
 export async function advanceActivitySeenMarker(timestamp: number) {
-  const currentUserId = api.getCurrentUserId();
-  const settings = await db.getSettings(currentUserId);
+  const settings = await db.getSettings();
   const existingMarker = settings?.activitySeenTimestamp ?? 1;
+  const base = await db.getBaseUnread();
+  if (base) {
+    await db.insertBaseUnread({
+      ...base,
+      id: BASE_UNREADS_SINGLETON_KEY,
+      notify: false,
+      notifyCount: 0,
+    });
+  }
   if (timestamp > existingMarker) {
     // optimistic update
     db.insertSettings({
-      userId: currentUserId,
       activitySeenTimestamp: timestamp,
     });
 

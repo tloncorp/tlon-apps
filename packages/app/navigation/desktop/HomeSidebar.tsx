@@ -2,6 +2,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
+import { Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
@@ -59,12 +60,20 @@ export function HomeSidebar({ previewGroupId, focusedChannelId }: Props) {
     }
 
     // if still loading the screen data, show loading
-    if (!chats || (!chats.unpinned.length && !chats.pinned.length)) {
+    if (!chats) {
       return 'Loading...';
     }
 
     return null;
   }, [connStatus, chats]);
+
+  const noChats = useMemo(
+    () =>
+      chats?.pinned.length === 0 &&
+      chats?.unpinned.length === 0 &&
+      chats?.pending.length === 0,
+    [chats]
+  );
 
   /* Log an error if this screen takes more than 30 seconds to resolve to "Connected" */
   const connectionTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -202,9 +211,30 @@ export function HomeSidebar({ previewGroupId, focusedChannelId }: Props) {
                 </>
               }
             />
-            {chats && chats.unpinned.length ? (
+            {chats && noChats ? (
+              <View
+                padding="$xl"
+                margin="$xl"
+                borderRadius="$m"
+                backgroundColor="$positiveBackground"
+                justifyContent="center"
+              >
+                <Text fontSize="$l">Welcome to Tlon</Text>
+                <Text fontSize="$s" marginTop="$m">
+                  This is Tlon, an app for messaging friends and constructing
+                  communities.
+                </Text>
+                <Text fontSize="$s" marginTop="$m">
+                  To get started, click the &quot;
+                  <Text fontWeight="$xl" fontSize="$l">
+                    +
+                  </Text>
+                  &quot; button above to create a new chat.
+                </Text>
+              </View>
+            ) : (
               <ChatList data={displayData} onPressItem={onPressChat} />
-            ) : null}
+            )}
             <GroupPreviewSheet
               open={!!selectedGroup}
               onOpenChange={handleGroupPreviewSheetOpenChange}

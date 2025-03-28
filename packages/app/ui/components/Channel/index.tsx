@@ -56,6 +56,7 @@ import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
 import { DmInviteOptions } from './DmInviteOptions';
 import { DraftInputView } from './DraftInputView';
 import { PostView } from './PostView';
+import { ReadOnlyNotice } from './ReadOnlyNotice';
 
 export { INITIAL_POSTS_PER_PAGE } from './Scroller';
 
@@ -180,11 +181,12 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
 
     const inView = useIsFocused();
     const hasLoaded = !!(posts && channel);
+    const hasUnreads = (channel?.unread?.count ?? 0) > 0;
     useEffect(() => {
-      if (hasLoaded && inView) {
+      if (hasUnreads && hasLoaded && inView) {
         markRead();
       }
-    }, [hasLoaded, inView, markRead]);
+    }, [hasUnreads, hasLoaded, inView, markRead]);
 
     const handleRefPress = useCallback(
       (refChannel: db.Channel, post: db.Post) => {
@@ -320,12 +322,17 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                               ? handleGoBack
                               : undefined
                           }
-                          showSearchButton={isChatChannel}
+                          showSearchButton={
+                            isChatChannel &&
+                            draftInputPresentationMode !== 'fullscreen'
+                          }
                           goToSearch={goToSearch}
                           goToChannels={goToChannels}
                           goToChatDetails={goToChatDetails}
                           showSpinner={isLoadingPosts}
-                          showMenuButton={true}
+                          showMenuButton={
+                            draftInputPresentationMode !== 'fullscreen'
+                          }
                         />
                         <YStack alignItems="stretch" flex={1}>
                           <AnimatePresence>
@@ -411,6 +418,8 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                 }
                               />
                             ))}
+
+                          {!canWrite && <ReadOnlyNotice />}
 
                           {channel.isDmInvite && (
                             <DmInviteOptions
