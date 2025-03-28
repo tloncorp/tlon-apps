@@ -48,6 +48,7 @@ const GalleryPostFrame = styled(View, {
 export function GalleryPost({
   post,
   onPress,
+  onPressEdit,
   onLongPress,
   onPressRetry,
   onPressDelete,
@@ -183,6 +184,7 @@ export function GalleryPost({
               onDismiss={() => setIsPopoverOpen(false)}
               onOpenChange={setIsPopoverOpen}
               onReply={handlePress}
+              onEdit={onPressEdit}
               trigger={
                 <Button
                   backgroundColor="transparent"
