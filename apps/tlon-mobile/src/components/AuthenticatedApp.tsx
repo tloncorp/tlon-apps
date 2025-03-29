@@ -42,8 +42,9 @@ function AuthenticatedApp() {
 
       // app opened
       if (status === 'opened') {
-        db.headsSyncedAt.resetValue();
-        sync.syncLatestPosts({ priority: sync.SyncPriority.High });
+        db.headsSyncedAt.resetValue().then(() => {
+          sync.syncLatestPosts({ priority: sync.SyncPriority.High });
+        });
       }
 
       // app opened or returned from background
