@@ -10,9 +10,9 @@ import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
 import { useUpdatePresentedNotifications } from '@tloncorp/app/lib/notifications';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
+import { PortalProvider, ZStack } from '@tloncorp/app/ui';
 import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { PortalProvider, ZStack } from '@tloncorp/app/ui';
 import { useCallback, useEffect, useState } from 'react';
 
 import { checkAnalyticsDigest, useCheckAppUpdated } from '../hooks/analytics';
@@ -38,6 +38,12 @@ function AuthenticatedApp() {
       if (status === 'active') {
         sync.syncUnreads({ priority: sync.SyncPriority.High });
         sync.syncPinnedItems({ priority: sync.SyncPriority.High });
+      }
+
+      // app opened
+      if (status === 'opened') {
+        db.headsSyncedAt.resetValue();
+        sync.syncLatestPosts({ priority: sync.SyncPriority.High });
       }
 
       // app opened or returned from background
