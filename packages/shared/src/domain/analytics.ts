@@ -94,6 +94,12 @@ export enum AnalyticsEvent {
   ActionViewProfileGroup = 'Viewed Pinned Profile Group',
   ActionSelectActivityEvent = 'Tapped Activity Event',
   ActionsNotifPermsChecked = 'Checked Notification Permissions',
+  ActionInitiateTwitterAttest = 'Initiated Twitter Attestation',
+  ActionConfirmTwitterAttest = 'Confirmed Twitter Attestation',
+  ActionInitiatePhoneAttest = 'Initiated Phone Attestation',
+  ActionCheckAttestSig = 'Checked Attestation Signature',
+  ActionRevokeAttestation = 'Revoked Attestation',
+  ActionConfirmPhoneAttest = 'Confirmed Phone Attestation',
   ActionGroupChannelSelected = 'Tapped group channel',
   ActionTappedPushNotif = 'Tapped Push Notification',
   GroupJoinComplete = 'Group Join Complete',
@@ -107,6 +113,8 @@ export enum AnalyticsEvent {
   ErrorSyncStartHighPriority = 'Error Start Sync: High Priority',
   ErrorSyncStartLowPriority = 'Error Start Sync: Low Priority',
   ErrorVerifyingPersonalInvite = 'Error Verifying DM Invite Link',
+  ErrorAttestation = 'Attestation Error',
+  ErrorNounParse = 'Error Parsing Noun',
 }
 
 export interface AnalyticsDigest {

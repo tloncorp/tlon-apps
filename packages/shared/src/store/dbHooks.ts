@@ -497,10 +497,10 @@ export const usePostWithRelations = (
   });
 };
 
-export const useVerifications = () => {
-  const deps = useKeyFromQueryDeps(db.getVerifications);
+export const useAttestations = () => {
+  const deps = useKeyFromQueryDeps(db.getAttestations);
   return useQuery({
-    queryKey: ['verifications', deps],
-    queryFn: () => db.getVerifications(),
+    queryKey: ['attestations', deps],
+    queryFn: () => db.getAttestations(),
   });
 };

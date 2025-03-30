@@ -81,13 +81,11 @@ export const contacts = sqliteTable('contacts', {
   isBlocked: boolean('blocked'),
   isContact: boolean('isContact'),
   isContactSuggestion: boolean('isContactSuggestion'),
-  hasVerifiedPhone: boolean('hasVerifiedPhone'),
-  verifiedPhoneSignature: text('verifiedPhoneSignature'),
-  verifiedPhoneAt: timestamp('verifiedPhoneAt'),
 });
 
 export const contactsRelations = relations(contacts, ({ many }) => ({
   pinnedGroups: many(contactGroups),
+  attestations: many(contactAttestations),
 }));
 
 export const contactGroups = sqliteTable(
@@ -115,6 +113,66 @@ export const contactGroupRelations = relations(contactGroups, ({ one }) => ({
   group: one(groups, {
     fields: [contactGroups.groupId],
     references: [groups.id],
+  }),
+}));
+
+export const contactAttestations = sqliteTable(
+  'contact_attestations',
+  {
+    contactId: text('contact_id')
+      .references(() => contacts.id, { onDelete: 'cascade' })
+      .notNull(),
+    attestationId: text('attestation_id')
+      .references(() => attestations.id, { onDelete: 'cascade' })
+      .notNull(),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({
+        columns: [table.contactId, table.attestationId],
+      }),
+    };
+  }
+);
+
+export const contactAttestationRelations = relations(
+  contactAttestations,
+  ({ one }) => ({
+    contact: one(contacts, {
+      fields: [contactAttestations.contactId],
+      references: [contacts.id],
+    }),
+    attestation: one(attestations, {
+      fields: [contactAttestations.attestationId],
+      references: [attestations.id],
+    }),
+  })
+);
+
+export type AttestationType = 'phone' | 'node' | 'twitter' | 'dummy';
+export type AttestationDiscoverability = 'public' | 'discoverable' | 'hidden';
+export type AttestationStatus = 'waiting' | 'pending' | 'verified';
+export const attestations = sqliteTable('attestations', {
+  id: text('id').primaryKey(),
+  provider: text('provider').notNull(),
+  type: text('type').$type<AttestationType>().notNull(),
+  value: text('value'),
+  initiatedAt: timestamp('initiated_at'),
+  discoverability: text('visibility')
+    .$type<AttestationDiscoverability>()
+    .notNull(),
+  status: text('status').$type<AttestationStatus>().notNull(),
+  statusMessage: text('status_message'),
+  contactId: text('contact_id').notNull(),
+  providerUrl: text('provider__url'),
+  provingTweetId: text('proving_tweet_id'),
+  signature: text('signature'),
+});
+
+export const attestationRelations = relations(attestations, ({ one }) => ({
+  contact: one(contacts, {
+    fields: [attestations.contactId],
+    references: [contacts.id],
   }),
 }));
 
@@ -415,26 +473,6 @@ export const groupFlaggedPosts = sqliteTable(
       pk: primaryKey({
         columns: [table.groupId, table.postId],
       }),
-    };
-  }
-);
-
-export type VerificationType = 'phone' | 'node';
-export type VerificationVisibility = 'public' | 'discoverable' | 'hidden';
-export type VerificationStatus = 'waiting' | 'pending' | 'verified';
-export const verifications = sqliteTable(
-  'verifications',
-  {
-    provider: text('provider').notNull(),
-    type: text('type').$type<VerificationType>().notNull(),
-    value: text('value').notNull(),
-    initiatedAt: timestamp('initiated_at'),
-    visibility: text('visibility').$type<VerificationVisibility>().notNull(),
-    status: text('status').$type<VerificationStatus>().notNull(),
-  },
-  (table) => {
-    return {
-      pk: primaryKey({ columns: [table.provider, table.type, table.value] }),
     };
   }
 );
