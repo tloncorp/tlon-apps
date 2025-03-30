@@ -66,6 +66,8 @@ export function DetailViewAuthorRow({
   deliveryStatus,
   deleteStatus,
   editStatus,
+  showSentAt,
+  sent,
   ...props
 }: {
   authorId: string;
@@ -74,6 +76,8 @@ export function DetailViewAuthorRow({
   editStatus?: db.PostDeliveryStatus | null;
   deleteStatus?: db.PostDeliveryStatus | null;
   color?: ColorTokens;
+  showSentAt?: boolean;
+  sent?: number;
 } & ComponentProps<typeof XStack>) {
   const openProfile = useNavigateToProfile(authorId);
   const deliveryFailed =
@@ -81,6 +85,14 @@ export function DetailViewAuthorRow({
     editStatus === 'failed' ||
     deleteStatus === 'failed';
   const shouldTruncate = showEditedIndicator || deliveryFailed;
+
+  const timeDisplay = useMemo(() => {
+    if (!showSentAt) {
+      return null;
+    }
+    const date = new Date(sent ?? 0);
+    return utils.makePrettyTime(date);
+  }, [showSentAt, sent]);
 
   return (
     <XStack
@@ -111,6 +123,11 @@ export function DetailViewAuthorRow({
           Tap to retry
         </Text>
       ) : null}
+      {showSentAt && (
+        <Text color="$secondaryText" size="$label/m">
+          {timeDisplay}
+        </Text>
+      )}
     </XStack>
   );
 }
