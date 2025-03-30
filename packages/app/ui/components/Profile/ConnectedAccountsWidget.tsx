@@ -9,7 +9,7 @@ import { XStack, YStack } from 'tamagui';
 import { AttestationSheet } from '../AttestationSheet';
 import { WidgetPane } from '../WidgetPane';
 
-export function TwitterAttestDisplay(props: { attestation: db.Verification }) {
+export function TwitterAttestDisplay(props: { attestation: db.Attestation }) {
   const [showDetails, setShowDetails] = useState(false);
   const formattedHandle = useMemo(() => {
     if (props.attestation.value?.charAt(0) === '@') {
@@ -66,7 +66,7 @@ export function TwitterAttestDisplay(props: { attestation: db.Verification }) {
   );
 }
 
-export function PhoneAttestDisplay(props: { attestation: db.Verification }) {
+export function PhoneAttestDisplay(props: { attestation: db.Attestation }) {
   const [showDetails, setShowDetails] = useState(false);
 
   const handleShowDetails = useCallback(() => {

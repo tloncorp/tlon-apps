@@ -7,7 +7,7 @@ import { AttestationPane } from './AttestationPane';
 export function AttestationSheet(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  attestation?: db.Verification | null;
+  attestation?: db.Attestation | null;
 }) {
   const currentUserId = useCurrentUserId();
 

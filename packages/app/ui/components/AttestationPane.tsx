@@ -16,7 +16,7 @@ export function AttestationPane({
   attestation,
   currentUserId,
 }: {
-  attestation: db.Verification;
+  attestation: db.Attestation;
   currentUserId: string;
 }) {
   const [revoking, setRevoking] = useState(false);
@@ -241,7 +241,7 @@ function AttestationValueDisplay({
   attestation,
   currentUserId,
 }: {
-  attestation: db.Verification;
+  attestation: db.Attestation;
   currentUserId: string;
 }) {
   if (attestation.type === 'twitter') {

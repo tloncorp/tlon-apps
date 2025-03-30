@@ -42,7 +42,7 @@ export function EditProfileScreenView(props: Props) {
   const attestations = useMemo(() => {
     return (userContact?.attestations
       ?.map((a) => a.attestation)
-      .filter(Boolean) ?? []) as db.Verification[];
+      .filter(Boolean) ?? []) as db.Attestation[];
   }, [userContact]);
 
   const isCurrUser = useMemo(

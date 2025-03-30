@@ -28,6 +28,21 @@ CREATE TABLE `activity_events` (
 	PRIMARY KEY(`id`, `bucket_id`)
 );
 --> statement-breakpoint
+CREATE TABLE `attestations` (
+	`id` text PRIMARY KEY NOT NULL,
+	`provider` text NOT NULL,
+	`type` text NOT NULL,
+	`value` text,
+	`initiated_at` integer,
+	`visibility` text NOT NULL,
+	`status` text NOT NULL,
+	`status_message` text,
+	`contact_id` text NOT NULL,
+	`provider__url` text,
+	`proving_tweet_id` text,
+	`signature` text
+);
+--> statement-breakpoint
 CREATE TABLE `base_unreads` (
 	`id` text PRIMARY KEY DEFAULT 'base_unreads' NOT NULL,
 	`notify` integer,
@@ -111,7 +126,7 @@ CREATE TABLE `contact_attestations` (
 	`attestation_id` text NOT NULL,
 	PRIMARY KEY(`contact_id`, `attestation_id`),
 	FOREIGN KEY (`contact_id`) REFERENCES `contacts`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`attestation_id`) REFERENCES `verifications`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`attestation_id`) REFERENCES `attestations`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `contact_group_pins` (
@@ -136,10 +151,7 @@ CREATE TABLE `contacts` (
 	`coverImage` text,
 	`blocked` integer,
 	`isContact` integer,
-	`isContactSuggestion` integer,
-	`hasVerifiedPhone` integer,
-	`verifiedPhoneSignature` text,
-	`verifiedPhoneAt` integer
+	`isContactSuggestion` integer
 );
 --> statement-breakpoint
 CREATE TABLE `group_flagged_posts` (
@@ -355,21 +367,6 @@ CREATE TABLE `thread_unreads` (
 	`first_unread_post_id` text,
 	`first_unread_post_received_at` integer,
 	PRIMARY KEY(`channel_id`, `thread_id`)
-);
---> statement-breakpoint
-CREATE TABLE `verifications` (
-	`id` text PRIMARY KEY NOT NULL,
-	`provider` text NOT NULL,
-	`type` text NOT NULL,
-	`value` text,
-	`initiated_at` integer,
-	`visibility` text NOT NULL,
-	`status` text NOT NULL,
-	`status_message` text,
-	`contact_id` text NOT NULL,
-	`provider_verification_url` text,
-	`proving_tweet_id` text,
-	`signature` text
 );
 --> statement-breakpoint
 CREATE TABLE `volume_settings` (

@@ -4,7 +4,7 @@ import { Atom, Cell, Noun, dwim, enjs } from '@urbit/nockjs';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
-import { getFrondValue, getPatp, simpleHash } from '../logic';
+import { Json, getFrondValue, getPatp, simpleHash } from '../logic';
 import * as ub from '../urbit';
 import { stringToTa } from '../urbit';
 import * as NounParsers from './nounParsers';
@@ -55,7 +55,7 @@ export async function checkAttestedSignature(signData: string) {
   return false;
 }
 
-function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {
+function nounToClientRecords(noun: Noun, contactId: string): db.Attestation[] {
   return enjs.tree((n: Noun) => {
     if (!(n instanceof Cell)) {
       throw new Error('malformed map');
@@ -71,7 +71,7 @@ function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {
       throw new Error('malformed record key identifier');
     }
 
-    const type = enjs.cord(n.head.tail.head) as db.VerificationType;
+    const type = enjs.cord(n.head.tail.head) as db.AttestationType;
     const value = getFrondValue([
       { tag: 'dummy', get: enjs.cord },
       { tag: 'phone', get: enjs.cord },
@@ -83,7 +83,7 @@ function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {
       throw new Error('malformed record value');
     }
 
-    const config = enjs.cord(n.tail.head) as db.VerificationVisibility;
+    const config = enjs.cord(n.tail.head) as db.AttestationDiscoverability;
     const a = n.tail.tail;
     if (!(a instanceof Cell)) {
       throw new Error('malformed record why');
@@ -91,7 +91,7 @@ function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {
     const statusMessage = enjs.cord(a.head);
 
     const { status, sign } = getFrondValue<{
-      status: db.VerificationStatus;
+      status: db.AttestationStatus;
       sign: NounParsers.Sign | null;
     }>([
       { tag: 'want', get: () => ({ status: 'pending', sign: null }) },
@@ -109,22 +109,22 @@ function nounToClientRecords(noun: Noun, contactId: string): db.Verification[] {
     const provingTweetId =
       sign?.signType === 'full' ? sign.proofTweetId ?? null : null;
 
-    const verif: db.Verification = {
+    const verif: db.Attestation = {
       id,
       contactId,
       provider,
       type,
       value,
       initiatedAt: sign?.when ?? null,
-      visibility: config,
+      discoverability: config,
       status,
       statusMessage,
       provingTweetId,
       signature: sign?.signature,
     };
 
-    return verif;
-  })(noun) as unknown as db.Verification[];
+    return verif as Json;
+  })(noun) as unknown as db.Attestation[];
 }
 
 export function parseAttestationId(attest: {
@@ -171,7 +171,7 @@ export async function fetchTwitterConfirmPayload(handle: string) {
   }
 }
 
-export async function fetchVerifications(): Promise<db.Verification[]> {
+export async function fetchUserAttestations(): Promise<db.Attestation[]> {
   const currentUserId = getCurrentUserId();
 
   try {
@@ -278,8 +278,8 @@ export async function updateAttestationVisibility({
   type,
 }: {
   value: string;
-  type: db.VerificationType;
-  visibility: db.VerificationVisibility;
+  type: db.AttestationType;
+  visibility: db.AttestationDiscoverability;
 }) {
   let backendVisibility = 'hidden';
   switch (visibility) {
@@ -323,7 +323,7 @@ export async function updateAttestationProfileDisplay({
   displaySetting,
 }: {
   value: string;
-  type: db.VerificationType;
+  type: db.AttestationType;
   displaySetting: 'full' | 'half' | 'none';
 }) {
   const identifier = [type, value.toLowerCase()];
@@ -476,7 +476,7 @@ export async function confirmPhoneAttestation(
 }
 
 export async function revokeAttestation(params: {
-  type: db.VerificationType;
+  type: db.AttestationType;
   value: string;
 }) {
   const identifier = [params.type, params.value];

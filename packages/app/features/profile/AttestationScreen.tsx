@@ -14,17 +14,17 @@ import {
 type Props = NativeStackScreenProps<RootStackParamList, 'Attestation'>;
 
 export function AttestationScreen({ route, navigation }: Props) {
-  const { data: verifications, isLoading } = store.useVerifications();
+  const { data: attestations, isLoading } = store.useAttestations();
   const currentUserId = useCurrentUserId();
   const personalInviteLink = db.personalInviteLink.useValue();
 
   const twitterAttestation =
-    verifications?.find(
+    attestations?.find(
       (v) => v.type === 'twitter' && v.contactId === currentUserId
     ) ?? null;
 
   const phoneAttestation =
-    verifications?.find(
+    attestations?.find(
       (v) => v.type === 'phone' && v.contactId === currentUserId
     ) ?? null;
 

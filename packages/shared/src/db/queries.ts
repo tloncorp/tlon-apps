@@ -39,7 +39,7 @@ import {
   interleaveActivityEvents,
   toSourceActivityEvents,
 } from '../logic/activity';
-import { Rank, desig } from '../urbit';
+import { Rank } from '../urbit';
 import {
   QueryCtx,
   createReadQuery,
@@ -49,6 +49,7 @@ import {
 import {
   activityEventContactGroups as $activityEventContactGroups,
   activityEvents as $activityEvents,
+  attestations as $attestations,
   baseUnreads as $baseUnreads,
   channelReaders as $channelReaders,
   channelUnreads as $channelUnreads,
@@ -75,15 +76,14 @@ import {
   posts as $posts,
   settings as $settings,
   threadUnreads as $threadUnreads,
-  verifications as $verifications,
   volumeSettings as $volumeSettings,
   BASE_UNREADS_SINGLETON_KEY,
   SETTINGS_SINGLETON_KEY,
-  channels,
 } from './schema';
 import {
   ActivityBucket,
   ActivityEvent,
+  Attestation,
   BaseUnread,
   Channel,
   ChannelUnread,
@@ -104,7 +104,6 @@ import {
   Settings,
   TableName,
   ThreadUnreadState,
-  Verification,
   VolumeSettings,
 } from './types';
 
@@ -365,44 +364,41 @@ export const getAnalyticsDigest = createReadQuery(
   []
 );
 
-export const insertCurrentUserVerifications = createWriteQuery(
-  'insertCurrentUserVerifications',
-  async (
-    { verifications }: { verifications: Verification[] },
-    ctx: QueryCtx
-  ) => {
+export const insertCurrentUserAttestations = createWriteQuery(
+  'insertCurrentUserAttestations',
+  async ({ attestations }: { attestations: Attestation[] }, ctx: QueryCtx) => {
     const currentUserId = getCurrentUserId();
 
     await withTransactionCtx(ctx, async (txCtx) => {
-      if (verifications.length === 0) {
+      if (attestations.length === 0) {
         await txCtx.db
-          .delete($verifications)
-          .where(and(eq($verifications.contactId, currentUserId)));
+          .delete($attestations)
+          .where(and(eq($attestations.contactId, currentUserId)));
       } else {
-        await txCtx.db.delete($verifications).where(
+        await txCtx.db.delete($attestations).where(
           and(
-            eq($verifications.contactId, currentUserId),
+            eq($attestations.contactId, currentUserId),
             not(
               inArray(
-                $verifications.id,
-                verifications.map((v) => v.id)
+                $attestations.id,
+                attestations.map((v) => v.id)
               )
             )
           )
         );
       }
 
-      const contactAttestations = verifications.map((v) => ({
+      const contactAttestations = attestations.map((v) => ({
         contactId: v.contactId,
         attestationId: v.id,
       }));
 
       await txCtx.db
-        .insert($verifications)
-        .values(verifications)
+        .insert($attestations)
+        .values(attestations)
         .onConflictDoUpdate({
-          target: [$verifications.id],
-          set: conflictUpdateSetAll($verifications),
+          target: [$attestations.id],
+          set: conflictUpdateSetAll($attestations),
         });
 
       await txCtx.db
@@ -411,56 +407,28 @@ export const insertCurrentUserVerifications = createWriteQuery(
         .onConflictDoNothing();
     });
   },
-  ['verifications', 'contacts']
+  ['attestations', 'contacts']
 );
 
-export const updateVerification = createWriteQuery(
-  'updateVerification',
+export const deleteAttestation = createWriteQuery(
+  'deleteAttestation',
   async (
-    {
-      verification,
-    }: {
-      verification: Partial<Verification> & {
-        type: Verification['type'];
-        value: string;
-      };
-    },
+    { type, value }: { type: Attestation['type']; value: string },
     ctx: QueryCtx
   ) => {
     return ctx.db
-      .update($verifications)
-      .set(verification)
-      .where(
-        and(
-          eq($verifications.type, verification.type),
-          eq($verifications.value, verification.value)
-        )
-      );
+      .delete($attestations)
+      .where(and(eq($attestations.type, type), eq($attestations.value, value)));
   },
-  ['verifications', 'contacts']
+  ['attestations', 'contacts']
 );
 
-export const deleteVerification = createWriteQuery(
-  'deleteVerifications',
-  async (
-    { type, value }: { type: Verification['type']; value: string },
-    ctx: QueryCtx
-  ) => {
-    return ctx.db
-      .delete($verifications)
-      .where(
-        and(eq($verifications.type, type), eq($verifications.value, value))
-      );
-  },
-  ['verifications', 'contacts']
-);
-
-export const getVerifications = createReadQuery(
-  'getVerifications',
+export const getAttestations = createReadQuery(
+  'getAttestations',
   async (ctx: QueryCtx) => {
-    return ctx.db.query.verifications.findMany();
+    return ctx.db.query.attestations.findMany();
   },
-  ['verifications']
+  ['attestations']
 );
 
 export const getPins = createReadQuery(
@@ -3235,18 +3203,18 @@ export const resetContactAttestations = createWriteQuery(
     ctx: QueryCtx
   ) => {
     if (attestations?.length) {
-      await ctx.db.delete($verifications).where(
+      await ctx.db.delete($attestations).where(
         and(
           notInArray(
-            $verifications.id,
+            $attestations.id,
             attestations.map((a) => a.attestationId)
           ),
-          eq($verifications.contactId, contactId)
+          eq($attestations.contactId, contactId)
         )
       );
       await ctx.db
-        .insert($verifications)
-        .values(attestations.map((a) => a.attestation as Verification))
+        .insert($attestations)
+        .values(attestations.map((a) => a.attestation as Attestation))
         .onConflictDoNothing();
       await ctx.db
         .insert($contactAttestations)
@@ -3457,17 +3425,17 @@ export const insertContacts = createWriteQuery(
       console.log(`check 1`);
       // clear existing
       await txCtx.db
-        .delete($verifications)
-        .where(not(eq($verifications.contactId, currentUserId)));
+        .delete($attestations)
+        .where(not(eq($attestations.contactId, currentUserId)));
 
       if (contactAttestations.length) {
         // reset to current
         await txCtx.db
-          .insert($verifications)
-          .values(contactAttestations.map((a) => a.attestation as Verification))
+          .insert($attestations)
+          .values(contactAttestations.map((a) => a.attestation as Attestation))
           .onConflictDoUpdate({
-            target: $verifications.id,
-            set: conflictUpdateSetAll($verifications),
+            target: $attestations.id,
+            set: conflictUpdateSetAll($attestations),
           });
 
         await txCtx.db

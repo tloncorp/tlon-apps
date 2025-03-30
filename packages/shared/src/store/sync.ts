@@ -227,15 +227,15 @@ export const syncContacts = async (ctx?: SyncCtx, yieldWriter = false) => {
   }
 };
 
-export const syncAttestations = async (ctx?: SyncCtx) => {
+export const syncUserAttestations = async (ctx?: SyncCtx) => {
   logger.log('syncing verifications');
   try {
-    const verifications = await syncQueue.add('verifications', ctx, () =>
-      api.fetchVerifications()
+    const attestations = await syncQueue.add('attestations', ctx, () =>
+      api.fetchUserAttestations()
     );
 
     try {
-      await db.insertCurrentUserVerifications({ verifications });
+      await db.insertCurrentUserAttestations({ attestations });
     } catch (e) {
       logger.trackEvent('Error Inserting Lanyard Verifications', e);
     }
@@ -478,8 +478,8 @@ async function handleLanyardUpdate(update: api.LanyardUpdate) {
   switch (update.type) {
     // for right now, we'll handle any subscription event as a signal to resync
     default:
-      logger.log('resyncing verifications');
-      await syncAttestations();
+      logger.log('resyncing attestations');
+      await syncUserAttestations();
   }
 }
 

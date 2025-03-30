@@ -117,7 +117,7 @@ export async function confirmPhoneAttestation(
   }
 }
 
-export async function revokeAttestation(attestation: db.Verification) {
+export async function revokeAttestation(attestation: db.Attestation) {
   const currentUserId = api.getCurrentUserId();
 
   if (attestation.contactId !== currentUserId) {
@@ -139,7 +139,7 @@ export async function revokeAttestation(attestation: db.Verification) {
 
   try {
     await api.revokeAttestation({ type, value });
-    await db.deleteVerification({ type, value });
+    await db.deleteAttestation({ type, value });
     logger.trackEvent(AnalyticsEvent.ActionRevokeAttestation, { attestation });
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.ErrorAttestation, {

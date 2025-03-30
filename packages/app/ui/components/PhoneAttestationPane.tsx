@@ -12,7 +12,7 @@ import { OTPInput } from './Form/OTPInput';
 import { PhoneNumberInput } from './Form/PhoneNumberInput';
 
 interface Props {
-  attestation: db.Verification | null;
+  attestation: db.Attestation | null;
   isLoading: boolean;
   currentUserId: string;
 }
@@ -68,7 +68,7 @@ type PhoneFormData = {
   phoneNumber: string;
 };
 
-function SubmitPhoneNumPane(props: { attestation: db.Verification | null }) {
+function SubmitPhoneNumPane(props: { attestation: db.Attestation | null }) {
   const store = useStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [remoteError, setRemoteError] = useState<string | undefined>();
@@ -138,7 +138,7 @@ function SubmitPhoneNumPane(props: { attestation: db.Verification | null }) {
 }
 
 const PHONE_CODE_LENGTH = 6;
-function ConfirmPhoneNumPane(props: { attestation: db.Verification }) {
+function ConfirmPhoneNumPane(props: { attestation: db.Attestation }) {
   const store = useStore();
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -223,7 +223,7 @@ function ConfirmPhoneNumPane(props: { attestation: db.Verification }) {
 }
 
 function VerifiedPhonePane(props: {
-  attestation: db.Verification;
+  attestation: db.Attestation;
   currentUserId: string;
 }) {
   return (

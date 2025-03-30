@@ -2,7 +2,7 @@ import { daToUnix, formatUv, patp } from '@urbit/aura';
 import { Atom, Cell, Noun, enjs } from '@urbit/nockjs';
 
 // TODO: nockjs should export these
-type Json =
+export type Json =
   | null
   | boolean
   | number

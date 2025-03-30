@@ -6,15 +6,15 @@ import { createFakePosts, initialContacts } from './fakeData';
 
 const posts = createFakePosts(10);
 
-const INITIAL: db.Verification | null = null;
+const INITIAL: db.Attestation | null = null;
 
-const CONFIRM: db.Verification = {
+const CONFIRM: db.Attestation = {
   id: '23jskj3',
   type: 'twitter',
   status: 'pending',
   provider: '~zod',
   value: '@gardener',
-  visibility: 'public',
+  discoverability: 'public',
   initiatedAt: Date.now(),
   contactId: '~latter-bolden',
 };

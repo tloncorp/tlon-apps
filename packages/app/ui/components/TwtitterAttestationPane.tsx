@@ -14,7 +14,7 @@ import { CopyableTextBlock } from './CopyableTextBlock';
 import { ControlledTextField } from './Form';
 
 interface Props {
-  attestation: db.Verification | null;
+  attestation: db.Attestation | null;
   isLoading: boolean;
   currentUserId: string;
   personalInviteLink?: string | null;
@@ -73,7 +73,7 @@ export function TwitterAttestationPane({
 }
 
 function ConfirmTwitterPane(props: {
-  attestation: db.Verification;
+  attestation: db.Attestation;
   currentUserId: string;
   personalInviteLink?: string | null;
 }) {
@@ -321,7 +321,7 @@ function InitiateTwitterPane() {
 }
 
 function VerifiedTwitterPane(props: {
-  attestation: db.Verification;
+  attestation: db.Attestation;
   currentUserId: string;
 }) {
   return (

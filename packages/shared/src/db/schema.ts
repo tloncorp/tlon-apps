@@ -81,9 +81,6 @@ export const contacts = sqliteTable('contacts', {
   isBlocked: boolean('blocked'),
   isContact: boolean('isContact'),
   isContactSuggestion: boolean('isContactSuggestion'),
-  hasVerifiedPhone: boolean('hasVerifiedPhone'),
-  verifiedPhoneSignature: text('verifiedPhoneSignature'),
-  verifiedPhoneAt: timestamp('verifiedPhoneAt'),
 });
 
 export const contactsRelations = relations(contacts, ({ many }) => ({
@@ -126,7 +123,7 @@ export const contactAttestations = sqliteTable(
       .references(() => contacts.id, { onDelete: 'cascade' })
       .notNull(),
     attestationId: text('attestation_id')
-      .references(() => verifications.id, { onDelete: 'cascade' })
+      .references(() => attestations.id, { onDelete: 'cascade' })
       .notNull(),
   },
   (table) => {
@@ -145,34 +142,36 @@ export const contactAttestationRelations = relations(
       fields: [contactAttestations.contactId],
       references: [contacts.id],
     }),
-    attestation: one(verifications, {
+    attestation: one(attestations, {
       fields: [contactAttestations.attestationId],
-      references: [verifications.id],
+      references: [attestations.id],
     }),
   })
 );
 
-export type VerificationType = 'phone' | 'node' | 'twitter' | 'dummy';
-export type VerificationVisibility = 'public' | 'discoverable' | 'hidden';
-export type VerificationStatus = 'waiting' | 'pending' | 'verified';
-export const verifications = sqliteTable('verifications', {
+export type AttestationType = 'phone' | 'node' | 'twitter' | 'dummy';
+export type AttestationDiscoverability = 'public' | 'discoverable' | 'hidden';
+export type AttestationStatus = 'waiting' | 'pending' | 'verified';
+export const attestations = sqliteTable('attestations', {
   id: text('id').primaryKey(),
   provider: text('provider').notNull(),
-  type: text('type').$type<VerificationType>().notNull(),
+  type: text('type').$type<AttestationType>().notNull(),
   value: text('value'),
   initiatedAt: timestamp('initiated_at'),
-  visibility: text('visibility').$type<VerificationVisibility>().notNull(),
-  status: text('status').$type<VerificationStatus>().notNull(),
+  discoverability: text('visibility')
+    .$type<AttestationDiscoverability>()
+    .notNull(),
+  status: text('status').$type<AttestationStatus>().notNull(),
   statusMessage: text('status_message'),
   contactId: text('contact_id').notNull(),
-  providerVerificationUrl: text('provider_verification_url'),
+  providerUrl: text('provider__url'),
   provingTweetId: text('proving_tweet_id'),
   signature: text('signature'),
 });
 
-export const verificationRelations = relations(verifications, ({ one }) => ({
+export const attestationRelations = relations(attestations, ({ one }) => ({
   contact: one(contacts, {
-    fields: [verifications.contactId],
+    fields: [attestations.contactId],
     references: [contacts.id],
   }),
 }));

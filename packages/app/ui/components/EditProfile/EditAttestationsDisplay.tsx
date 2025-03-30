@@ -6,7 +6,7 @@ import { ListItem } from '../ListItem';
 import { WidgetPane } from '../WidgetPane';
 
 export function EditAttestationsDisplay(props: {
-  attestations: db.Verification[];
+  attestations: db.Attestation[];
   onPressAttestation?: (attestation: 'phone' | 'twitter') => void;
 }) {
   const twitterAttestation = props.attestations.find(

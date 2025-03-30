@@ -293,7 +293,7 @@ function parseContactAttestations(
     return null;
   }
 
-  const attestations: db.Verification[] = [];
+  const attestations: db.Attestation[] = [];
 
   if (
     contact['lanyard-twitter-0-sign'] &&
@@ -309,8 +309,7 @@ function parseContactAttestations(
       if (sign) {
         const signIsGenuine = sign.contactId === contactId;
         if (signIsGenuine) {
-          const providerVerificationUrl =
-            contact['lanyard-twitter-0-url']?.value ?? null;
+          const providerUrl = contact['lanyard-twitter-0-url']?.value ?? null;
           const provider = '~zod'; // TODO: can we get this info?
           const type = sign.type;
           const value = sign.signType === 'full' ? sign.value : '';
@@ -325,9 +324,10 @@ function parseContactAttestations(
             value,
             contactId,
             initiatedAt: sign.when,
-            visibility: sign.signType === 'full' ? 'public' : 'discoverable',
+            discoverability:
+              sign.signType === 'full' ? 'public' : 'discoverable',
             status: 'verified',
-            providerVerificationUrl,
+            providerUrl,
             provingTweetId,
             signature: sign.signature,
           });
@@ -362,8 +362,7 @@ function parseContactAttestations(
       if (sign) {
         const signIsGenuine = sign.contactId === contactId;
         if (signIsGenuine) {
-          const providerVerificationUrl =
-            contact['lanyard-phone-0-url']?.value ?? null;
+          const providerUrl = contact['lanyard-phone-0-url']?.value ?? null;
           const provider = '~zod'; // TODO: can we get this info?
           const type = sign.type;
           const value = sign.signType === 'full' ? sign.value : '';
@@ -386,9 +385,10 @@ function parseContactAttestations(
             value,
             contactId,
             initiatedAt: sign.when,
-            visibility: sign.signType === 'full' ? 'public' : 'discoverable',
+            discoverability:
+              sign.signType === 'full' ? 'public' : 'discoverable',
             status: 'verified',
-            providerVerificationUrl,
+            providerUrl,
             provingTweetId,
             signature: sign.signature,
           });
