@@ -368,8 +368,14 @@
 ++  sign
   |*  [[our=@p now=@da] dat=*]
   ^-  (signed _dat)
-  =+  =>  [our=our now=now ..lull]  ~+
-      ;;(=seed:jael (cue .^(@ %j /(scot %p our)/vile/(scot %da now))))
+  =+  =>  [our=our now=now feed=feed ..lull]  ~+
+      ;;(=feed (cue .^(@ %j /(scot %p our)/vile/(scot %da now))))
+  =/  seed=[who=@p lyf=life key=ring]
+    ?-  feed
+      [@ *]       [who.feed lyf.feed key.feed]
+      [[%1 *] *]  [who.feed (rear kyz.feed)]
+      [[%2 *] *]  [who.feed (rear kyz.feed)]
+    ==
   ?>  =(who.seed our)
   =/  sig=@ux  (sigh:as:(nol:nu:crub:crypto key.seed) (jam dat))
   [our lyf.seed dat sig]
