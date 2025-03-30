@@ -3,7 +3,7 @@ import { Icon } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
-import { ElementRef, useRef, useState } from 'react';
+import { ElementRef, PropsWithChildren, useRef, useState } from 'react';
 import { Alert, Dimensions, Modal, TouchableOpacity } from 'react-native';
 import {
   Directions,
@@ -96,7 +96,7 @@ export function ImageViewerScreenView(props: {
   };
 
   return (
-    <Modal animationType="none">
+    <ImageViewerContainer>
       <GestureDetector gesture={dismissGesture}>
         <ZStack
           flex={1}
@@ -144,7 +144,7 @@ export function ImageViewerScreenView(props: {
                 isDoubleTapEnabled
                 isSingleTapEnabled
                 isPanEnabled
-                width={Dimensions.get('window').width - 20}
+                width={Dimensions.get('window').width}
                 maxPanPointers={maxPanPointers}
                 minScale={0.1}
                 onPinchEnd={handlePinchEnd}
@@ -196,6 +196,15 @@ export function ImageViewerScreenView(props: {
           ) : null}
         </ZStack>
       </GestureDetector>
-    </Modal>
+    </ImageViewerContainer>
   );
+}
+
+function ImageViewerContainer(props: PropsWithChildren) {
+  // on web, we wrap in a mobile to escape the drawer navigators
+  if (isWeb) {
+    return <Modal animationType="none">{props.children}</Modal>;
+  }
+
+  return props.children;
 }
