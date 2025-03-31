@@ -263,8 +263,8 @@ function Action({
   color,
   iconType,
 }: ComponentProps<typeof Stack> & {
-  backgroundColor: string;
-  color: string;
+  backgroundColor: ColorTokens;
+  color: ColorTokens;
   iconType: IconType;
   handleAction?: () => void;
 }) {
@@ -273,11 +273,11 @@ function Action({
       <Icon
         minWidth={80}
         type={iconType}
-        color={color as any}
+        color={color}
         flex={1}
         alignItems="center"
         justifyContent="center"
-        backgroundColor={backgroundColor as any}
+        backgroundColor={backgroundColor}
         onPress={handleAction}
         pressStyle={{
           opacity: 0.8,
