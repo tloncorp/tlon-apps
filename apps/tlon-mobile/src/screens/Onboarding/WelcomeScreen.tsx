@@ -1,9 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
-import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
-import * as db from '@tloncorp/shared/db';
-import { finishingSelfHostedLogin as selfHostedLoginStatus } from '@tloncorp/shared/db';
 import {
   ActionSheet,
   Button,
@@ -18,6 +15,9 @@ import {
   YStack,
 } from '@tloncorp/app/ui';
 import { OnboardingBenefitsSheet } from '@tloncorp/app/ui';
+import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import * as db from '@tloncorp/shared/db';
+import { finishingSelfHostedLogin as selfHostedLoginStatus } from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -114,7 +114,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
               <>
                 <OnboardingButton
                   onPress={() => {
-                    navigation.navigate('PasteInviteLink');
+                    navigation.navigate('ShareContacts');
                   }}
                 >
                   <Button.Text>Sign up</Button.Text>
@@ -182,7 +182,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
         until after checking for onboarding revive (which may auto navigate) 
       */}
       <OnboardingBenefitsSheet
-        open={!didShowBenefitsSheet}
+        open={false}
         onOpenChange={handleBenefitsSheetOpenChange}
       />
     </View>

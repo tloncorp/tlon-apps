@@ -14,6 +14,7 @@ import { ReserveShipScreen } from './screens/Onboarding/ReserveShipScreen';
 import { ResetPasswordScreen } from './screens/Onboarding/ResetPasswordScreen';
 import { SetNicknameScreen } from './screens/Onboarding/SetNicknameScreen';
 import { SetTelemetryScreen } from './screens/Onboarding/SetTelemetryScreen';
+import { ShareContactsScreen } from './screens/Onboarding/ShareContactsScreen';
 import { ShipLoginScreen } from './screens/Onboarding/ShipLoginScreen';
 import { SignupScreen } from './screens/Onboarding/SignupScreen';
 import { TlonLoginScreen } from './screens/Onboarding/TlonLogin';
@@ -85,6 +86,10 @@ export function OnboardingStack() {
       <OnboardingStackNavigator.Screen
         name="SetTelemetry"
         component={SetTelemetryScreen}
+      />
+      <OnboardingStackNavigator.Screen
+        name="ShareContacts"
+        component={ShareContactsScreen}
       />
       <OnboardingStackNavigator.Screen
         name="TlonLogin"

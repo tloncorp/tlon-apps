@@ -238,6 +238,8 @@ PODS:
     - ExpoModulesCore
   - ExpoClipboard (6.0.3):
     - ExpoModulesCore
+  - ExpoContacts (13.0.5):
+    - ExpoModulesCore
   - ExpoDevice (6.0.2):
     - ExpoModulesCore
   - ExpoFileSystem (17.0.1):
@@ -1810,6 +1812,7 @@ DEPENDENCIES:
   - ExpoBattery (from `../../../node_modules/expo-battery/ios`)
   - ExpoBlur (from `../../../node_modules/expo-blur/ios`)
   - ExpoClipboard (from `../../../node_modules/expo-clipboard/ios`)
+  - ExpoContacts (from `../../../node_modules/expo-contacts/ios`)
   - ExpoDevice (from `../../../node_modules/expo-device/ios`)
   - ExpoFileSystem (from `../../../node_modules/expo-file-system/ios`)
   - ExpoFont (from `../../../node_modules/expo-font/ios`)
@@ -1979,6 +1982,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-blur/ios"
   ExpoClipboard:
     :path: "../../../node_modules/expo-clipboard/ios"
+  ExpoContacts:
+    :path: "../../../node_modules/expo-contacts/ios"
   ExpoDevice:
     :path: "../../../node_modules/expo-device/ios"
   ExpoFileSystem:
@@ -2187,6 +2192,7 @@ SPEC CHECKSUMS:
   ExpoBattery: 9575fe12e063206275013cf0dfc1583e8e7fd00c
   ExpoBlur: 99901a4531f5d3ac4a19b362907b8f75da4ed9c8
   ExpoClipboard: 243e22ff4161bbffcd3d2db469ae860ddc1156be
+  ExpoContacts: 7ff826023ae74e6f29876a0942e00722c9b7bdf4
   ExpoDevice: 84b3ed79df1234c17edfbf335f6ecf3c636f74de
   ExpoFileSystem: 2988caaf68b7cb706e36d382829d99811d9d76a5
   ExpoFont: 38dddf823e32740c2a9f37c926a33aeca736b5c4

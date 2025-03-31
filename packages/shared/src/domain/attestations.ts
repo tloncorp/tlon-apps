@@ -32,3 +32,9 @@ export function twitterHandleDisplay(text: string): string {
 
   return `@${text}`;
 }
+
+export interface NativeContact {
+  id: string;
+  name: string;
+  phoneNumbers: string[];
+}
