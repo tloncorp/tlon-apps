@@ -1,6 +1,8 @@
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import * as domain from '@tloncorp/shared/domain';
 import { LoadingSpinner, Text, triggerHaptic } from '@tloncorp/ui';
+import * as LibPhone from 'libphonenumber-js';
 import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { View, YStack } from 'tamagui';
@@ -84,7 +86,13 @@ function SubmitPhoneNumPane(props: { attestation: db.Attestation | null }) {
       setIsSubmitting(true);
       setRemoteError(undefined);
       await phoneForm.handleSubmit(async ({ phoneNumber }) => {
-        await store.initiatePhoneAttestation(phoneNumber);
+        const parsedPhone = LibPhone.parsePhoneNumberFromString(phoneNumber);
+        if (!parsedPhone) {
+          setRemoteError('Please enter a valid phone number.');
+          return;
+        }
+        const normalizedPhone = parsedPhone.format('E.164');
+        await store.initiatePhoneAttestation(normalizedPhone);
       })();
     } catch (e) {
       if (e instanceof api.LanyardError) {
@@ -190,7 +198,7 @@ function ConfirmPhoneNumPane(props: { attestation: db.Attestation }) {
         marginBottom="$2xl"
         textAlign="center"
       >
-        {props.attestation.value}
+        {domain.displayablePhoneNumber(props.attestation.value!)}
       </Text>
       <OTPInput
         value={otp}
