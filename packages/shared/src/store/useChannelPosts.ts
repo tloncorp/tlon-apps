@@ -38,7 +38,6 @@ type UseChannelPostsParams = UseChannelPostsPageParams & {
   enabled: boolean;
   firstPageCount?: number;
   hasCachedNewest?: boolean;
-  disableUnconfirmedPosts?: boolean;
   filterDeleted?: boolean;
 };
 
@@ -164,78 +163,32 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   );
   useNewPostListener(handleNewPost);
 
-  // Why store the unconfirmed posts in a separate state?
-  // With a live query, we'd see duplicates between the latest post from
-  // getUnconfirmedPosts and latest post from the main useChannelPosts query.
-  // (This *shouldn't* be the case - we should be deduplicating - but I think
-  // there's a timing issue here that is taking too long to debug.)
-  const [unconfirmedPosts, setUnconfirmedPosts] = useState<db.Post[] | null>(
-    null
-  );
   useEffect(() => {
-    if (options.disableUnconfirmedPosts) {
-      return;
-    }
-    db.getUnconfirmedPosts({ channelId: options.channelId }).then(
-      setUnconfirmedPosts
-    );
     setNewPosts([]);
-  }, [options.channelId, options.disableUnconfirmedPosts]);
+  }, [options.channelId]);
+
   const rawPosts = useMemo<db.Post[] | null>(() => {
-    const rawPostsWithoutUnconfirmeds = (() => {
-      const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? null;
-      if (!newPosts.length || query.hasPreviousPage) {
-        return queryPosts;
-      }
-      const newestQueryPostId = queryPosts?.[0]?.id;
-      const newerPosts = newPosts.filter(
-        (p) => !newestQueryPostId || p.id > newestQueryPostId
-      );
-      // Deduping is necessary because the query data may not have been updated
-      // at this point and we may have already added the post.
-      // This is most likely to happen in bad network conditions or when the
-      // ship is under heavy load.
-      // This seems to be caused by an async issue where clearMatchedPendingPosts
-      // is called before the new post is added to the query data.
-      // TODO: Figure out why this is happening.
-      const dedupedQueryPosts =
-        queryPosts?.filter(
-          (p) => !newerPosts.some((newer) => newer.sentAt === p.sentAt)
-        ) ?? [];
-      return newestQueryPostId
-        ? [...newerPosts, ...dedupedQueryPosts]
-        : newPosts;
-    })();
-
-    if (unconfirmedPosts == null) {
-      return rawPostsWithoutUnconfirmeds;
+    const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? null;
+    if (!newPosts.length || query.hasPreviousPage) {
+      return queryPosts;
     }
-
-    // Then, add "unconfirmed" posts (which we have received through e.g. push
-    // notifications but haven't confirmed via sync). Skip if we already have a
-    // confirmed version of the post.
-    //
-    // Why not dedupe these alongside `newPosts`? We hold off on showing
-    // `newPosts` until we've fully backfilled the channel
-    // (`!query.hasPreviousPage`) - but we want to show unconfirmeds ASAP.
-    const out = rawPostsWithoutUnconfirmeds ?? [];
-    // bubble-insert unconfirmed posts
-    for (const p of unconfirmedPosts ?? []) {
-      // skip if we already have this post
-      if (out.some((qp) => qp.id === p.id)) {
-        continue;
-      }
-
-      const insertIdx = out.findIndex((x) => x.sentAt <= p.sentAt);
-      if (insertIdx === -1) {
-        out.push(p);
-      } else {
-        out.splice(insertIdx, 0, p);
-      }
-    }
-
-    return out;
-  }, [query.data, query.hasPreviousPage, newPosts, unconfirmedPosts]);
+    const newestQueryPostId = queryPosts?.[0]?.id;
+    const newerPosts = newPosts.filter(
+      (p) => !newestQueryPostId || p.id > newestQueryPostId
+    );
+    // Deduping is necessary because the query data may not have been updated
+    // at this point and we may have already added the post.
+    // This is most likely to happen in bad network conditions or when the
+    // ship is under heavy load.
+    // This seems to be caused by an async issue where clearMatchedPendingPosts
+    // is called before the new post is added to the query data.
+    // TODO: Figure out why this is happening.
+    const dedupedQueryPosts =
+      queryPosts?.filter(
+        (p) => !newerPosts.some((newer) => newer.sentAt === p.sentAt)
+      ) ?? [];
+    return newestQueryPostId ? [...newerPosts, ...dedupedQueryPosts] : newPosts;
+  }, [query.data, query.hasPreviousPage, newPosts]);
 
   const deletedPosts = useDeletedPosts(options.channelId);
   const rawPostsWithDeleteFilterApplied = useMemo(() => {
@@ -349,9 +302,9 @@ function useRefreshPosts(channelId: string, posts: db.Post[] | null) {
     const toSync =
       posts?.filter(
         (post) =>
-          // consider unconfirmed posts as stale
+          session &&
           (post.syncedAt == null ||
-            (session && post.syncedAt < (session?.startTime ?? 0))) &&
+            post.syncedAt < (session?.startTime ?? 0)) &&
           !pendingStalePosts.current.has(post.id)
       ) || [];
 
