@@ -31,12 +31,10 @@ type ContentRendererProps = ContentContextProps &
 
 type PostContentRendererProps = ContentRendererProps & {
   post: Post;
-  renderReferences?: boolean;
 };
 
 export function PostContentRenderer({
   post,
-  renderReferences = true,
   ...props
 }: PostContentRendererProps) {
   const content = useMemo(() => {
@@ -45,11 +43,8 @@ export function PostContentRenderer({
       return [];
     }
     const content = convertContent(post.content);
-    // We don't want to render nested references
-    return !renderReferences
-      ? content.filter((b) => b.type !== 'reference')
-      : content;
-  }, [post.content, renderReferences]);
+    return content;
+  }, [post.content]);
 
   return (
     <BlockRendererProvider>
