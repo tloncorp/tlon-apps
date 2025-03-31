@@ -314,10 +314,15 @@ export const pinItem = async (itemId: string) => {
 export const getChannelPreview = async (
   channelId: string
 ): Promise<db.Channel | null> => {
-  const channelPreview = await subscribeOnce<ub.ChannelPreview>({
-    app: 'groups',
-    path: `/chan/${channelId}`,
-  });
+  const channelPreview = await subscribeOnce<ub.ChannelPreview>(
+    {
+      app: 'groups',
+      path: `/chan/${channelId}`,
+    },
+    undefined,
+    undefined,
+    { tag: 'getChannelPreview' }
+  );
 
   if (!channelPreview) {
     return null;
@@ -331,10 +336,15 @@ export const getChannelPreview = async (
 };
 
 export const getGroupPreview = async (groupId: string) => {
-  const result = await subscribeOnce<ub.GroupPreview>({
-    app: 'groups',
-    path: `/gangs/${groupId}/preview`,
-  });
+  const result = await subscribeOnce<ub.GroupPreview>(
+    {
+      app: 'groups',
+      path: `/gangs/${groupId}/preview`,
+    },
+    undefined,
+    undefined,
+    { tag: 'getGroupPreview' }
+  );
 
   return toClientGroupFromPreview(groupId, result);
 };
@@ -345,7 +355,9 @@ export const findGroupsHostedBy = async (userId: string) => {
       app: 'groups',
       path: `/gangs/index/${userId}`,
     },
-    30_000
+    30_000,
+    undefined,
+    { tag: 'findGroupsHostedBy' }
   );
 
   logger.log('findGroupsHostedBy result', result);

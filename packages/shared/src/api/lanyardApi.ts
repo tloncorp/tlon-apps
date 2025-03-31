@@ -40,10 +40,15 @@ export async function checkAttestedSignature(signData: string) {
   ];
   const noun = dwim(query);
 
-  const queryResponseSub = subscribeOnce<ub.QueryResponseEvent>({
-    app: 'lanyard',
-    path: `/v1/query/${encodedNonce}`,
-  });
+  const queryResponseSub = subscribeOnce<ub.QueryResponseEvent>(
+    {
+      app: 'lanyard',
+      path: `/v1/query/${encodedNonce}`,
+    },
+    undefined,
+    undefined,
+    { tag: 'checkAttestedSignature' }
+  );
 
   await pokeNoun({ app: 'lanyard', mark: 'lanyard-query-1', noun });
   const queryResponse = await queryResponseSub;
