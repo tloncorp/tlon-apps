@@ -20,7 +20,6 @@ import {
   SystemIconAvatar,
 } from '../Avatar';
 import ContactName from '../ContactName';
-import { convertContent } from '../PostContent/contentUtils';
 
 export interface BaseListItemProps<T> {
   model: T;
@@ -228,50 +227,11 @@ export const ListItemPostPreview = ({
   post,
   showAuthor = true,
 }: {
-  post: Pick<db.Post, 'authorId' | 'textContent' | 'hidden' | 'content'>;
+  post: Pick<db.Post, 'authorId' | 'textContent' | 'hidden'>;
   showAuthor?: boolean;
 }) => {
-  let displayText = '';
-
-  if (post.hidden) {
-    displayText = '(This post has been hidden)';
-  } else if (post.content) {
-    try {
-      const blocks = convertContent(post.content);
-      const processedText = blocks
-        .map((block) => {
-          if (block.type === 'paragraph') {
-            return block.content
-              .map((inline) => {
-                if (inline.type === 'text') return inline.text || '';
-                if (inline.type === 'mention') return inline.contactId || '';
-                if (inline.type === 'link') return inline.text || '';
-                if (inline.type === 'style' && Array.isArray(inline.children)) {
-                  return inline.children
-                    .map((child) =>
-                      child.type === 'text' ? child.text || '' : ''
-                    )
-                    .join('');
-                }
-                return '';
-              })
-              .join('');
-          }
-          return '';
-        })
-        .join('')
-        .trim();
-
-      displayText = processedText || post.textContent || '';
-    } catch (error) {
-      displayText = post.textContent || '';
-    }
-  } else {
-    displayText = post.textContent || '';
-  }
-
   return (
-    <Text numberOfLines={1} size="$label/m" color="$tertiaryText">
+    <ListItemSubtitle>
       {showAuthor ? (
         <>
           <ContactName
@@ -283,8 +243,8 @@ export const ListItemPostPreview = ({
           {': '}
         </>
       ) : null}
-      {displayText}
-    </Text>
+      {post.hidden ? '(This post has been hidden)' : post.textContent ?? ''}
+    </ListItemSubtitle>
   );
 };
 
