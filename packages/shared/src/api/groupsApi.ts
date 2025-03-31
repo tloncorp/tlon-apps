@@ -409,7 +409,8 @@ export const createGroup = async ({
         'create' in update.diff &&
         createGroupPayload.title === update.diff.create.meta.title
       );
-    }
+    },
+    { tag: 'createGroup' }
   );
 };
 
@@ -453,7 +454,8 @@ export const updateGroupMeta = async ({
 
       const { update } = event;
       return 'meta' in update.diff && event.flag === groupId;
-    }
+    },
+    { tag: 'updateGroupMeta' }
   );
 };
 
@@ -470,7 +472,8 @@ export const deleteGroup = async (groupId: string) => {
 
       const { update } = event;
       return 'del' in update.diff && event.flag === groupId;
-    }
+    },
+    { tag: 'deleteGroup' }
   );
 };
 
@@ -503,7 +506,8 @@ export const addNavSection = async ({
 
       const { update } = event;
       return 'zone' in update.diff && event.flag === groupId;
-    }
+    },
+    { tag: 'addNavSection' }
   );
 };
 
@@ -598,7 +602,8 @@ export const addChannelToNavSection = async ({
 
       const { update } = event;
       return 'channel' in update.diff && update.diff.channel.nest === channelId;
-    }
+    },
+    { tag: 'addChannelToNavSection' }
   );
 };
 
@@ -628,7 +633,8 @@ export const addChannelToGroup = async ({
 
       const { update } = event;
       return 'channel' in update.diff && update.diff.channel.nest === channelId;
-    }
+    },
+    { tag: 'addChannelToGroup' }
   );
 };
 
