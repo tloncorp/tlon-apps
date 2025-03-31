@@ -9,7 +9,7 @@ const logger = createDevLogger('ContactActions', false);
 export async function addContact(contactId: string) {
   logger.trackEvent(AnalyticsEvent.ActionContactAdded, { count: 1 });
   // Optimistic update
-  await db.updateContact({
+  await db.upsertContact({
     id: contactId,
     isContact: true,
     isContactSuggestion: false,

@@ -13,11 +13,14 @@ import { ReactionListItem, useReactionDetails } from '../../utils/postUtils';
 export function ReactionsDisplay({
   post,
   onViewPostReactions,
+  minimal = false,
 }: {
   post: db.Post;
   onViewPostReactions?: (post: db.Post) => void;
+  minimal?: boolean;
 }) {
   const currentUserId = useCurrentUserId();
+
   const reactionDetails = useReactionDetails(
     post.reactions ?? [],
     currentUserId
@@ -59,15 +62,58 @@ export function ReactionsDisplay({
     return null;
   }
 
+  if (minimal) {
+    const displayedReactions = reactionDetails.list.slice(0, 2);
+    const remainingCount = reactionDetails.list.length - 2;
+
+    return (
+      <Pressable onPress={() => handleOpenReactions(post)}>
+        <XStack gap="$2xs" alignItems="center">
+          {displayedReactions.map((reaction) => (
+            <Pressable
+              key={reaction.value}
+              onPress={() => handleModifyYourReaction(reaction.value)}
+              testID={`ReactionDisplay-minimal`}
+            >
+              <Tooltip placement="top" delay={0} restMs={25}>
+                <Tooltip.Trigger>
+                  <XStack
+                    key={reaction.value}
+                    justifyContent="center"
+                    alignItems="center"
+                  >
+                    <SizableEmoji
+                      key={reaction.value}
+                      shortCode={reaction.value}
+                      fontSize="$s"
+                    />
+                  </XStack>
+                </Tooltip.Trigger>
+                <Tooltip.Content
+                  padding="$s"
+                  backgroundColor="$secondaryBackground"
+                  borderRadius="$s"
+                >
+                  <Text size="$label/m">
+                    {firstThreeReactionUsers(reaction)}
+                  </Text>
+                </Tooltip.Content>
+              </Tooltip>
+            </Pressable>
+          ))}
+          {remainingCount > 0 && (
+            <Text size="$label/s" color="$primaryText">
+              +{remainingCount}
+            </Text>
+          )}
+        </XStack>
+      </Pressable>
+    );
+  }
+
   return (
     <Pressable borderRadius="$m" onLongPress={() => handleOpenReactions(post)}>
-      <XStack
-        paddingBottom="$l"
-        paddingLeft="$4xl"
-        borderRadius="$m"
-        gap="$xs"
-        flexWrap="wrap"
-      >
+      <XStack borderRadius="$m" gap="$xs" flexWrap="wrap">
         {reactionDetails.list.map((reaction) => (
           <Pressable
             key={reaction.value}
