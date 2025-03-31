@@ -12,7 +12,7 @@ import {
 } from 'react';
 
 import { useChatOptions } from '../../contexts';
-import { useGroupTitle } from '../../utils';
+import { useChatTitle } from '../../utils';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import { ScreenHeader } from '../ScreenHeader';
 import { BaubleHeader } from './BaubleHeader';
@@ -108,6 +108,7 @@ export function ChannelHeader({
   const chatOptions = useChatOptions();
   const [openChatOptions, setOpenChatOptions] = useState(false);
   const connectionStatus = useConnectionStatus();
+  const chatTitle = useChatTitle(channel, group);
 
   const handlePressOverflowMenu = useCallback(() => {
     chatOptions.open(channel.id, 'channel');
@@ -118,7 +119,7 @@ export function ChannelHeader({
 
   const displayTitle = useMemo(() => {
     if (connectionStatus === 'Connected') {
-      return title;
+      return chatTitle ?? title;
     }
 
     const statusText =
@@ -129,7 +130,7 @@ export function ChannelHeader({
           : 'Disconnected';
 
     return statusText;
-  }, [title, connectionStatus]);
+  }, [chatTitle, title, connectionStatus]);
 
   if (mode === 'next') {
     return (
