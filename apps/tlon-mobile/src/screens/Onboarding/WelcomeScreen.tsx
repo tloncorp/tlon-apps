@@ -1,9 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
-import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
-import * as db from '@tloncorp/shared/db';
-import { finishingSelfHostedLogin as selfHostedLoginStatus } from '@tloncorp/shared/db';
 import {
   ActionSheet,
   Button,
@@ -18,6 +15,9 @@ import {
   YStack,
 } from '@tloncorp/app/ui';
 import { OnboardingBenefitsSheet } from '@tloncorp/app/ui';
+import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import * as db from '@tloncorp/shared/db';
+import { finishingSelfHostedLogin as selfHostedLoginStatus } from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -32,19 +32,28 @@ export const WelcomeScreen = ({ navigation }: Props) => {
   const lureMeta = useLureMetadata();
   const { bottom, top } = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
-  const didShowBenefitsSheet = db.benefitsSheetDismissed.useValue();
+  const [showBenefitsSheet, setShowBenefitsSheet] = useState(false);
   const { isAuthenticated } = useShip();
   const finishingSelfHostedLogin = selfHostedLoginStatus.useValue();
 
   useCheckAppInstalled();
 
+  // handle benefits sheet
+  useEffect(() => {
+    async function checkBenefitsSheet() {
+      const haveShown = await db.benefitsSheetDismissed.getValue();
+      if (!haveShown) {
+        setShowBenefitsSheet(true);
+      }
+    }
+    checkBenefitsSheet();
+  }, []);
+
   const handleBenefitsSheetOpenChange = useCallback((open: boolean) => {
     if (!open) {
-      setTimeout(() => {
-        db.benefitsSheetDismissed.setValue(true);
-      }, 1000);
+      db.benefitsSheetDismissed.setValue(true);
     }
-    setOpen(open);
+    setShowBenefitsSheet(open);
   }, []);
 
   const handlePressInvite = useCallback(() => {
@@ -182,7 +191,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
         until after checking for onboarding revive (which may auto navigate) 
       */}
       <OnboardingBenefitsSheet
-        open={!didShowBenefitsSheet}
+        open={showBenefitsSheet}
         onOpenChange={handleBenefitsSheetOpenChange}
       />
     </View>
