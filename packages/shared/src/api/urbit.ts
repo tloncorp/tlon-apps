@@ -455,7 +455,7 @@ export async function trackedPoke<T, R = T>(
     const tracking = track(
       endpoint,
       predicate,
-      requestConfig?.timeout ?? 15000
+      requestConfig?.timeout ?? 20000
     );
     const poking = poke(params).then(() => (pokeCompleted = true));
     await Promise.all([tracking, poking]);
@@ -495,7 +495,7 @@ export async function trackedPokeNoun<T, R = T>(
     const tracking = track(
       endpoint,
       predicate,
-      requestConfig?.timeout ?? 15000
+      requestConfig?.timeout ?? 20000
     );
     const poking = pokeNoun(params).then(() => (pokeCompleted = true));
     await Promise.all([tracking, poking]);
