@@ -859,6 +859,11 @@ export class Urbit {
         `${this.url}/~/scry/${app}${path}.noun`,
         this.fetchOptionsNoun('GET', 'noun')
       );
+
+      if (!response.ok) {
+        return Promise.reject(response);
+      }
+
       const responseBlob = await response.blob();
       const buffer: ArrayBuffer = await new Promise((resolve, reject) => {
         const reader = new FileReader();

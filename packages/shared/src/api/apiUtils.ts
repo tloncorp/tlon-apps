@@ -1,6 +1,7 @@
 import {
   formatUd as baseFormatUd,
   daToUnix,
+  isValidPatp,
   parseUd,
   unixToDa,
 } from '@urbit/aura';

@@ -39,7 +39,7 @@ import {
   interleaveActivityEvents,
   toSourceActivityEvents,
 } from '../logic/activity';
-import { Rank, desig } from '../urbit';
+import { Rank } from '../urbit';
 import {
   QueryCtx,
   createReadQuery,
@@ -49,6 +49,7 @@ import {
 import {
   activityEventContactGroups as $activityEventContactGroups,
   activityEvents as $activityEvents,
+  attestations as $attestations,
   baseUnreads as $baseUnreads,
   channelReaders as $channelReaders,
   channelUnreads as $channelUnreads,
@@ -56,6 +57,7 @@ import {
   channels as $channels,
   chatMemberGroupRoles as $chatMemberGroupRoles,
   chatMembers as $chatMembers,
+  contactAttestations as $contactAttestations,
   contactGroups as $contactGroups,
   contacts as $contacts,
   groupFlaggedPosts as $groupFlaggedPosts,
@@ -74,21 +76,21 @@ import {
   posts as $posts,
   settings as $settings,
   threadUnreads as $threadUnreads,
-  verifications as $verifications,
   volumeSettings as $volumeSettings,
   BASE_UNREADS_SINGLETON_KEY,
   SETTINGS_SINGLETON_KEY,
-  channels,
 } from './schema';
 import {
   ActivityBucket,
   ActivityEvent,
+  Attestation,
   BaseUnread,
   Channel,
   ChannelUnread,
   Chat,
   ClientMeta,
   Contact,
+  ContactAttestation,
   Group,
   GroupNavSection,
   GroupRole,
@@ -102,7 +104,6 @@ import {
   Settings,
   TableName,
   ThreadUnreadState,
-  Verification,
   VolumeSettings,
 } from './types';
 
@@ -352,86 +353,71 @@ export const getAnalyticsDigest = createReadQuery(
   []
 );
 
-export const insertVerifications = createWriteQuery(
-  'insertVerifications',
-  async (
-    { verifications }: { verifications: Verification[] },
-    ctx: QueryCtx
-  ) => {
-    if (verifications.length === 0) {
-      await ctx.db
-        .delete($verifications)
-        .where(isNotNull($verifications.value));
-      return;
-    } else {
-      const values = verifications.map((v) => v.value);
-      await ctx.db
-        .delete($verifications)
-        .where(not(inArray($verifications.value, values)));
-    }
+export const insertCurrentUserAttestations = createWriteQuery(
+  'insertCurrentUserAttestations',
+  async ({ attestations }: { attestations: Attestation[] }, ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
 
-    return ctx.db
-      .insert($verifications)
-      .values(verifications)
-      .onConflictDoUpdate({
-        target: [
-          $verifications.type,
-          $verifications.value,
-          $verifications.provider,
-        ],
-        set: conflictUpdateSetAll($verifications),
-      });
+    await withTransactionCtx(ctx, async (txCtx) => {
+      if (attestations.length === 0) {
+        await txCtx.db
+          .delete($attestations)
+          .where(and(eq($attestations.contactId, currentUserId)));
+      } else {
+        await txCtx.db.delete($attestations).where(
+          and(
+            eq($attestations.contactId, currentUserId),
+            not(
+              inArray(
+                $attestations.id,
+                attestations.map((v) => v.id)
+              )
+            )
+          )
+        );
+      }
+
+      const contactAttestations = attestations.map((v) => ({
+        contactId: v.contactId,
+        attestationId: v.id,
+      }));
+
+      await txCtx.db
+        .insert($attestations)
+        .values(attestations)
+        .onConflictDoUpdate({
+          target: [$attestations.id],
+          set: conflictUpdateSetAll($attestations),
+        });
+
+      await txCtx.db
+        .insert($contactAttestations)
+        .values(contactAttestations)
+        .onConflictDoNothing();
+    });
   },
-  ['verifications']
+  ['attestations', 'contacts']
 );
 
-export const updateVerification = createWriteQuery(
-  'updateVerification',
+export const deleteAttestation = createWriteQuery(
+  'deleteAttestation',
   async (
-    {
-      verification,
-    }: {
-      verification: Partial<Verification> & {
-        type: Verification['type'];
-        value: string;
-      };
-    },
-    ctx: QueryCtx
-  ) => {
-    return ctx.db
-      .update($verifications)
-      .set(verification)
-      .where(
-        and(
-          eq($verifications.type, verification.type),
-          eq($verifications.value, verification.value)
-        )
-      );
-  },
-  ['verifications']
-);
-
-export const deleteVerification = createWriteQuery(
-  'deleteVerifications',
-  async (
-    { type, value }: { type: Verification['type']; value: string },
+    { type, value }: { type: Attestation['type']; value: string },
     ctx: QueryCtx
   ) => {
     return ctx.db
-      .delete($verifications)
-      .where(
-        and(eq($verifications.type, type), eq($verifications.value, value))
-      );
+      .delete($attestations)
+      .where(and(eq($attestations.type, type), eq($attestations.value, value)));
   },
-  ['verifications']
+  ['attestations', 'contacts']
 );
 
-export const getVerifications = createReadQuery(
-  'getVerifications',
+export const getAttestations = createReadQuery(
+  'getAttestations',
   async (ctx: QueryCtx) => {
-    return ctx.db.query.verifications.findMany();
+    return ctx.db.query.attestations.findMany();
   },
-  ['verifications']
+  ['attestations']
 );
 
 export const getPins = createReadQuery(
@@ -3025,10 +3011,15 @@ export const getContacts = createReadQuery(
             group: true,
           },
         },
+        attestations: {
+          with: {
+            attestation: true,
+          },
+        },
       },
     });
   },
-  ['contacts']
+  ['contacts', 'contactAttestations']
 );
 
 export const getContactsBatch = createReadQuery(
@@ -3063,11 +3054,16 @@ export const getContact = createReadQuery(
               group: true,
             },
           },
+          attestations: {
+            with: {
+              attestation: true,
+            },
+          },
         },
       })
       .then(returnNullIfUndefined);
   },
-  ['contacts', 'groups']
+  ['contacts', 'groups', 'contactAttestations']
 );
 
 export const updateContact = createWriteQuery(
@@ -3081,28 +3077,72 @@ export const updateContact = createWriteQuery(
   ['contacts']
 );
 
+export const resetContactAttestations = createWriteQuery(
+  'resetContactAttestations',
+  async (
+    {
+      contactId,
+      attestations,
+    }: { contactId: string; attestations?: ContactAttestation[] | null },
+    ctx: QueryCtx
+  ) => {
+    if (attestations?.length) {
+      await ctx.db.delete($attestations).where(
+        and(
+          notInArray(
+            $attestations.id,
+            attestations.map((a) => a.attestationId)
+          ),
+          eq($attestations.contactId, contactId)
+        )
+      );
+      await ctx.db
+        .insert($attestations)
+        .values(attestations.map((a) => a.attestation as Attestation))
+        .onConflictDoNothing();
+      await ctx.db
+        .insert($contactAttestations)
+        .values(attestations)
+        .onConflictDoNothing();
+    } else {
+      await ctx.db
+        .delete($contactAttestations)
+        .where(eq($contactAttestations.contactId, contactId));
+    }
+  },
+  ['contactAttestations']
+);
+
 export const upsertContact = createWriteQuery(
   'upsertContact',
   async (contact: Contact, ctx: QueryCtx) => {
-    const existingContact = await ctx.db.query.contacts.findFirst({
-      where: (contacts, { eq }) => eq(contacts.id, contact.id),
+    await withTransactionCtx(ctx, async (txCtx) => {
+      const existingContact = await ctx.db.query.contacts.findFirst({
+        where: (contacts, { eq }) => eq(contacts.id, contact.id),
+      });
+
+      if (existingContact) {
+        await ctx.db
+          .update($contacts)
+          .set(contact)
+          .where(eq($contacts.id, contact.id));
+      } else {
+        // for new inserts, default to non contact if unspecified
+        const newContact: Contact = {
+          ...contact,
+          isContact:
+            contact.isContact !== undefined ? contact.isContact : false,
+        };
+        await ctx.db.insert($contacts).values(newContact);
+      }
+
+      await resetContactAttestations(
+        { contactId: contact.id, attestations: contact.attestations },
+        txCtx
+      );
     });
-
-    if (existingContact) {
-      return ctx.db
-        .update($contacts)
-        .set(contact)
-        .where(eq($contacts.id, contact.id));
-    }
-
-    // for new inserts, default to non contact if unspecified
-    const newContact: Contact = {
-      ...contact,
-      isContact: contact.isContact !== undefined ? contact.isContact : false,
-    };
-    return ctx.db.insert($contacts).values(newContact);
   },
-  ['contacts']
+  ['contacts', 'contactAttestations']
 );
 
 export const getUserContacts = createReadQuery(
@@ -3114,6 +3154,11 @@ export const getUserContacts = createReadQuery(
         pinnedGroups: {
           with: {
             group: true,
+          },
+        },
+        attestations: {
+          with: {
+            attestation: true,
           },
         },
       },
@@ -3190,13 +3235,20 @@ export const setPinnedGroups = createWriteQuery(
 export const insertContact = createWriteQuery(
   'insertContact',
   async (contact: Contact, ctx: QueryCtx) => {
-    return ctx.db
-      .insert($contacts)
-      .values(contact)
-      .onConflictDoUpdate({
-        target: $contacts.id,
-        set: conflictUpdateSetAll($contacts),
-      });
+    await withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .insert($contacts)
+        .values(contact)
+        .onConflictDoUpdate({
+          target: $contacts.id,
+          set: conflictUpdateSetAll($contacts),
+        });
+
+      await resetContactAttestations(
+        { contactId: contact.id, attestations: contact.attestations },
+        txCtx
+      );
+    });
   },
   ['contacts']
 );
@@ -3211,6 +3263,13 @@ export const insertContacts = createWriteQuery(
 
     const contactGroups = contactsData.flatMap(
       (contact) => contact.pinnedGroups || []
+    );
+
+    const contactAttestations = contactsData.flatMap(
+      (contact) =>
+        contact.attestations?.filter(
+          (a) => a.attestation && a.contactId !== currentUserId
+        ) || []
     );
 
     const targetGroups = contactGroups.map((g): Group => {
@@ -3246,9 +3305,31 @@ export const insertContacts = createWriteQuery(
           .values(contactGroups)
           .onConflictDoNothing();
       }
+
+      console.log(`check 1`);
+      // clear existing
+      await txCtx.db
+        .delete($attestations)
+        .where(not(eq($attestations.contactId, currentUserId)));
+
+      if (contactAttestations.length) {
+        // reset to current
+        await txCtx.db
+          .insert($attestations)
+          .values(contactAttestations.map((a) => a.attestation as Attestation))
+          .onConflictDoUpdate({
+            target: $attestations.id,
+            set: conflictUpdateSetAll($attestations),
+          });
+
+        await txCtx.db
+          .insert($contactAttestations)
+          .values(contactAttestations)
+          .onConflictDoNothing();
+      }
     });
   },
-  ['contacts', 'groups', 'contactGroups']
+  ['contacts', 'groups', 'contactGroups', 'contactAttestations']
 );
 
 export const deleteContact = createWriteQuery(

@@ -428,7 +428,7 @@ export const usePostReference = ({
   return postQuery;
 };
 
-export const useGroupsHostedBy = (userId: string) => {
+export const useGroupsHostedBy = (userId: string, disabled?: boolean) => {
   return useQuery({
     queryKey: ['groupsHostedBy', userId],
     queryFn: async () => {
@@ -444,6 +444,7 @@ export const useGroupsHostedBy = (userId: string) => {
     // this query's data rarely changes and is never invalidated elsewhere,
     // so we set stale time manually
     staleTime: 1000 * 60 * 30,
+    enabled: !disabled,
   });
 };
 
@@ -493,5 +494,13 @@ export const usePostWithRelations = (
     staleTime: Infinity,
     ...(initialData ? { initialData } : {}),
     queryFn: () => db.getPostWithRelations(options),
+  });
+};
+
+export const useAttestations = () => {
+  const deps = useKeyFromQueryDeps(db.getAttestations);
+  return useQuery({
+    queryKey: ['attestations', deps],
+    queryFn: () => db.getAttestations(),
   });
 };
