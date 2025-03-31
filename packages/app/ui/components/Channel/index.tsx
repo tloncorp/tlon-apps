@@ -106,7 +106,6 @@ interface ChannelProps {
   hasOlderPosts?: boolean;
   startDraft?: boolean;
   onPressScrollToBottom?: () => void;
-  onImageDrop?: (assets: ImagePickerAsset[]) => Promise<void>;
 }
 
 interface ChannelMethods {
@@ -154,7 +153,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       hasOlderPosts,
       startDraft,
       onPressScrollToBottom,
-      onImageDrop,
     },
     ref
   ) {
@@ -208,6 +206,44 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         onPressRef(refChannel, post);
       },
       [onPressRef, posts, channel]
+    );
+
+    const { uploadAssets, clearAttachments } = useAttachmentContext();
+
+    const handleImageDrop = useCallback(
+      async (assets: ImagePickerAsset[]) => {
+        if (channel.type !== 'gallery') {
+          attachAssets(assets);
+          return;
+        }
+
+        try {
+          const uploadedAttachments = await uploadAssets(assets);
+
+          for (const attachment of uploadedAttachments) {
+            const story: Story = [
+              {
+                block: {
+                  image: {
+                    src: attachment.uploadState.remoteUri,
+                    height: attachment.file.height || 0,
+                    width: attachment.file.width || 0,
+                    alt: 'image',
+                  },
+                },
+              },
+            ];
+
+            // Send the post with just this image
+            await messageSender(story, channel.id);
+          }
+        } catch (error) {
+          console.error('Error handling image drop:', error);
+        } finally {
+          clearAttachments();
+        }
+      },
+      [channel, messageSender, uploadAssets, attachAssets, clearAttachments]
     );
 
     /** when `null`, input is not shown or presentation is unknown */
@@ -310,7 +346,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                     justifyContent="space-between"
                     width="100%"
                     height="100%"
-                    onAssetsDropped={onImageDrop || attachAssets}
+                    onAssetsDropped={handleImageDrop}
                   >
                     <ChannelHeaderItemsProvider>
                       <>
