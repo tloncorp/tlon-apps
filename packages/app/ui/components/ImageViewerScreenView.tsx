@@ -201,7 +201,7 @@ export function ImageViewerScreenView(props: {
 }
 
 function ImageViewerContainer(props: PropsWithChildren) {
-  // on web, we wrap in a mobile to escape the drawer navigators
+  // on web, we wrap in a modal to escape the drawer navigators
   if (isWeb) {
     return <Modal animationType="none">{props.children}</Modal>;
   }
