@@ -30,7 +30,6 @@ import { Helmet } from 'react-helmet';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import EyrieMenu from '@/eyrie/EyrieMenu';
-// import { ANALYTICS_DEFAULT_PROPERTIES } from '@/logic/analytics';
 import useAppUpdates from '@/logic/useAppUpdates';
 import useErrorHandler from '@/logic/useErrorHandler';
 import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
