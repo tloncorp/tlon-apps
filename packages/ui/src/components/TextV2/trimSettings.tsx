@@ -107,51 +107,51 @@ export const trimAndroid = {
 
 export const trimWeb = {
   '$mono/s': {
-    marginTop: -4.7,
-    marginBottom: -6,
+    marginTop: -4,
+    marginBottom: -5,
   },
   '$mono/m': {
-    marginTop: -6,
-    marginBottom: -7,
-  },
-  '$emoji/m': {
-    marginTop: -4.4,
-    marginBottom: -4,
-  },
-  '$emoji/l': {
-    marginTop: -8,
+    marginTop: -4.5,
     marginBottom: -6,
   },
-  '$label/s': {
-    marginTop: -3.4,
-    marginBottom: -3.4,
+  '$emoji/m': {
+    marginTop: -3.2,
+    marginBottom: -2.6,
   },
-  '$label/m': {
-    marginTop: -4.6,
-    marginBottom: -4.65,
-  },
-  '$label/l': {
-    marginTop: -6.1,
-    marginBottom: -5.8,
-  },
-  '$label/xl': {
-    marginTop: -5.5,
+  '$emoji/l': {
+    marginTop: -6.2,
     marginBottom: -5.6,
   },
-  '$label/2xl': {
-    marginTop: -5.4,
-    marginBottom: -5.5,
+  '$label/s': {
+    marginTop: -2.6,
+    marginBottom: -2.2,
   },
-  '$label/3xl': {
-    marginTop: -3.6,
+  '$label/m': {
+    marginTop: -3.5,
     marginBottom: -3.2,
   },
+  '$label/l': {
+    marginTop: -5,
+    marginBottom: -4.8,
+  },
+  '$label/xl': {
+    marginTop: -4,
+    marginBottom: -4.8,
+  },
+  '$label/2xl': {
+    marginTop: -4,
+    marginBottom: -4.8,
+  },
+  '$label/3xl': {
+    marginTop: -3,
+    marginBottom: -2.8,
+  },
   $body: {
-    marginTop: -6.1,
-    marginBottom: -5.8,
+    marginTop: -5,
+    marginBottom: -4.8,
   },
   '$title/l': {
-    marginTop: -5.4,
-    marginBottom: -3.8,
+    marginTop: -4.4,
+    marginBottom: -3.6,
   },
 };
