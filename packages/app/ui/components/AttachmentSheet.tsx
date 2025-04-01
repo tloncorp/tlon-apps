@@ -1,9 +1,9 @@
 import { createDevLogger } from '@tloncorp/shared';
-import { MessageAttachments } from '@tloncorp/shared/api';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useMemo } from 'react';
 import { isWeb } from 'tamagui';
 
+import { useAttachmentContext } from '../contexts';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { ListItem } from './ListItem';
 
@@ -14,81 +14,140 @@ export default function AttachmentSheet({
   onOpenChange: onOpenChange,
   showClearOption,
   onClearAttachments,
-  onAttachmentsSet: onAttachmentsSet,
+  onAttach,
 }: {
   isOpen: boolean;
   showClearOption?: boolean;
   onClearAttachments?: () => void;
   onOpenChange: (open: boolean) => void;
-  onAttachmentsSet: (attachments: MessageAttachments) => void;
+  onAttach?: (assets: ImagePicker.ImagePickerAsset[]) => void;
 }) {
   const [mediaLibraryPermissionStatus, requestMediaLibraryPermission] =
     ImagePicker.useMediaLibraryPermissions();
   const [cameraPermissionStatus, requestCameraPermission] =
     ImagePicker.useCameraPermissions();
 
-  const takePicture = useCallback(async () => {
-    try {
-      if (cameraPermissionStatus?.granted === false) {
-        const permissionResult = await requestCameraPermission();
-        if (!permissionResult.granted) {
-          return;
+  const { attachAssets, clearAttachments } = useAttachmentContext();
+
+  const placeholderAsset: ImagePicker.ImagePickerAsset = useMemo(
+    () => ({
+      assetId: 'placeholder-asset-id',
+      uri: 'placeholder-image-uri',
+      width: 300,
+      height: 300,
+      fileName: 'camera-image.jpg',
+      fileSize: 0,
+      type: 'image',
+      duration: undefined,
+      exif: undefined,
+      base64: undefined,
+    }),
+    []
+  );
+
+  const takePicture = useCallback(() => {
+    // Close the sheet immediately
+    onOpenChange(false);
+
+    // Then initiate the camera after a small delay to ensure sheet is closed
+    setTimeout(async () => {
+      try {
+        if (cameraPermissionStatus?.granted === false) {
+          const permissionResult = await requestCameraPermission();
+          if (!permissionResult.granted) {
+            return;
+          }
         }
+
+        // Immediately set the placeholder attachment to show in the UI
+        attachAssets([placeholderAsset]);
+
+        const result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: false,
+          quality: 0.5,
+          exif: false,
+        });
+
+        if (!result.canceled) {
+          // Replace the placeholder with the real image data
+          const realAsset = result.assets[0];
+
+          clearAttachments();
+          attachAssets([realAsset]);
+          onAttach?.(result.assets);
+        } else {
+          // If user canceled, remove the placeholder
+          clearAttachments();
+        }
+      } catch (e) {
+        console.error('Error taking picture', e);
+        logger.trackError('Error taking picture', { error: e });
+        // In case of error, remove the placeholder
+        clearAttachments();
       }
-
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false,
-        quality: 0.5,
-        exif: false,
-      });
-
-      onOpenChange(false);
-
-      if (!result.canceled) {
-        onAttachmentsSet(result.assets);
-      }
-    } catch (e) {
-      console.error('Error taking picture', e);
-      logger.trackError('Error taking picture', { error: e });
-    }
+    }, 50); // Small delay to ensure the sheet closes first
   }, [
-    onAttachmentsSet,
+    attachAssets,
+    clearAttachments,
+    onAttach,
     onOpenChange,
     cameraPermissionStatus,
     requestCameraPermission,
+    placeholderAsset,
   ]);
 
-  const pickImage = useCallback(async () => {
-    try {
-      if (mediaLibraryPermissionStatus?.granted === false) {
-        const permissionResult = await requestMediaLibraryPermission();
-        if (!permissionResult.granted) {
-          return;
+  const pickImage = useCallback(() => {
+    // Close the sheet immediately
+    onOpenChange(false);
+
+    // Then initiate the actual image picking process after a small delay to ensure sheet is closed
+    setTimeout(async () => {
+      try {
+        if (mediaLibraryPermissionStatus?.granted === false) {
+          const permissionResult = await requestMediaLibraryPermission();
+          if (!permissionResult.granted) {
+            return;
+          }
         }
+
+        // Immediately set the placeholder attachment to show in the UI
+        attachAssets([placeholderAsset]);
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: false,
+          quality: 0.5,
+          exif: false,
+        });
+
+        if (!result.canceled) {
+          // Replace the placeholder with the real image data
+          const realAsset = result.assets[0];
+
+          clearAttachments();
+          attachAssets([realAsset]);
+          onAttach?.(result.assets);
+        } else {
+          // If user canceled, remove the placeholder
+          clearAttachments();
+        }
+      } catch (e) {
+        console.error('Error picking image', e);
+        logger.trackError('Error picking image', { error: e });
+
+        // In case of error, remove the placeholder
+        clearAttachments();
       }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false,
-        quality: 0.5,
-        exif: false,
-      });
-
-      onOpenChange(false);
-
-      if (!result.canceled) {
-        onAttachmentsSet(result.assets);
-      }
-    } catch (e) {
-      console.error('Error picking image', e);
-      logger.trackError('Error picking image', { error: e });
-    }
+    }, 50); // Small delay to ensure the sheet closes first
   }, [
-    onAttachmentsSet,
+    attachAssets,
+    clearAttachments,
+    onAttach,
     onOpenChange,
     mediaLibraryPermissionStatus,
     requestMediaLibraryPermission,
+    placeholderAsset,
   ]);
 
   const actionGroups: ActionGroup[] = useMemo(

@@ -57,7 +57,7 @@ export function EditablePofileImages({
       props.channel?.coverImage ??
       ''
   );
-  const { attachAssets, canUpload } = useAttachmentContext();
+  const { canUpload } = useAttachmentContext();
   const { coverAttachment, iconAttachment } = useMappedImageAttachments({
     coverAttachment: localCoverUrl,
     iconAttachment: localIconUrl,
@@ -104,14 +104,12 @@ export function EditablePofileImages({
   const handleAssetsSelected = useCallback(
     (assets: ImagePickerAsset[]) => {
       if (attachingTo === 'cover') {
-        attachAssets([assets[0]]);
         setLocalCoverUrl(assets[0].uri);
       } else if (attachingTo === 'icon') {
-        attachAssets([assets[0]]);
         setLocalIconUrl(assets[0].uri);
       }
     },
-    [attachingTo, attachAssets]
+    [attachingTo]
   );
 
   const handleAttachmentCleared = useCallback(() => {
@@ -218,7 +216,7 @@ export function EditablePofileImages({
       <AttachmentSheet
         isOpen={showAttachmentSheet}
         onOpenChange={setShowAttachmentSheet}
-        onAttachmentsSet={handleAssetsSelected}
+        onAttach={handleAssetsSelected}
         showClearOption={
           (attachingTo === 'cover' && localCoverUrl !== '') ||
           (attachingTo === 'icon' && localIconUrl !== '')
