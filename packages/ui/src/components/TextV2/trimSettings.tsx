@@ -104,3 +104,54 @@ export const trimAndroid = {
     marginBottom: -8.380952835083008,
   },
 };
+
+export const trimWeb = {
+  '$mono/s': {
+    marginTop: -4.7,
+    marginBottom: -6,
+  },
+  '$mono/m': {
+    marginTop: -6,
+    marginBottom: -7,
+  },
+  '$emoji/m': {
+    marginTop: -4.4,
+    marginBottom: -4,
+  },
+  '$emoji/l': {
+    marginTop: -8,
+    marginBottom: -6,
+  },
+  '$label/s': {
+    marginTop: -3.4,
+    marginBottom: -3.4,
+  },
+  '$label/m': {
+    marginTop: -4.6,
+    marginBottom: -4.65,
+  },
+  '$label/l': {
+    marginTop: -6.1,
+    marginBottom: -5.8,
+  },
+  '$label/xl': {
+    marginTop: -5.5,
+    marginBottom: -5.6,
+  },
+  '$label/2xl': {
+    marginTop: -5.4,
+    marginBottom: -5.5,
+  },
+  '$label/3xl': {
+    marginTop: -3.6,
+    marginBottom: -3.2,
+  },
+  $body: {
+    marginTop: -6.1,
+    marginBottom: -5.8,
+  },
+  '$title/l': {
+    marginTop: -5.4,
+    marginBottom: -3.8,
+  },
+};
