@@ -427,12 +427,12 @@ const desktopRawMeasures = {
   xl: 14,
   true: 14,
   '2xl': 22,
-  '3xl': 30,
-  '3.5xl': 34,
-  '4xl': 46,
-  '5xl': 62,
-  '6xl': 70,
-  '9xl': 94,
+  '3xl': 28,
+  '3.5xl': 32,
+  '4xl': 44,
+  '5xl': 60,
+  '6xl': 68,
+  '9xl': 92,
 };
 
 const desktopMeasures = addNegativeTokens(desktopRawMeasures);

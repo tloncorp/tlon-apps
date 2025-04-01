@@ -33,7 +33,7 @@ import {
   pathToCite,
 } from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Keyboard } from 'react-native';
+import { Keyboard, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -51,7 +51,7 @@ import {
 import { AttachmentPreviewList } from './AttachmentPreviewList';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
 
-export const DEFAULT_MESSAGE_INPUT_HEIGHT = 44;
+export const DEFAULT_MESSAGE_INPUT_HEIGHT = Platform.OS === 'web' ? 38 : 44;
 
 const messageInputLogger = createDevLogger('MessageInput', false);
 
