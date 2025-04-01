@@ -1450,6 +1450,9 @@ importers:
       lodash:
         specifier: ^4.17.21
         version: 4.17.21
+      posthog-js:
+        specifier: ^1.234.4
+        version: 1.234.4
       react-native-device-info:
         specifier: ^10.8.0
         version: 10.12.0(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))
