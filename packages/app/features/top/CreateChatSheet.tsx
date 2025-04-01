@@ -1,4 +1,5 @@
 import * as store from '@tloncorp/shared';
+import { createDevLogger } from '@tloncorp/shared';
 import {
   forwardRef,
   useCallback,
@@ -25,7 +26,6 @@ import {
   capitalize,
   useIsWindowNarrow,
 } from '../../ui';
-import { trackError } from '../../utils/posthog';
 
 type ChatType = 'dm' | 'group' | 'joinGroup';
 type Step = 'initial' | 'selectType' | `create${Capitalize<ChatType>}`;
@@ -38,6 +38,8 @@ export type CreateChatSheetMethods = {
   open: () => void;
   close: () => void;
 };
+
+const logger = createDevLogger('CreateChatSheet', true);
 
 function createTypeActions(onSelectType: (type: ChatType) => void): Action[] {
   return [
@@ -248,9 +250,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
   useEffect(() => {
     if (createChatError) {
       Alert.alert('Error creating chat', createChatError);
-      trackError({
-        message: 'Error creating chat: ' + createChatError,
-      });
+      logger.trackError('Error creating chat', new Error(createChatError));
     }
   }, [createChatError]);
 
@@ -490,7 +490,7 @@ function useCreateChat() {
         }
         return true;
       } catch (e) {
-        trackError(e);
+        logger.trackError('createChat Failed', e);
         setCreateChatError(e.message);
         return false;
       } finally {

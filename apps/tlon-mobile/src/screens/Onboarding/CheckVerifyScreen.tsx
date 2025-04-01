@@ -1,5 +1,4 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   Field,
   ScreenHeader,
@@ -10,6 +9,8 @@ import {
   YStack,
   useStore,
 } from '@tloncorp/app/ui';
+import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import { createDevLogger } from '@tloncorp/shared';
 import { createRef, useCallback, useMemo, useState } from 'react';
 import type { TextInputKeyPressEventData } from 'react-native';
 import { TextInput as RNTextInput } from 'react-native';
@@ -21,6 +22,8 @@ import { useSignupContext } from '.././../lib/signupContext';
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'CheckVerify'>;
 
 const PHONE_CODE_LENGTH = 6;
+
+const logger = createDevLogger('CheckVerifyScreen', true);
 
 export const CheckVerifyScreen = ({ navigation, route: { params } }: Props) => {
   const store = useStore();
@@ -51,7 +54,7 @@ export const CheckVerifyScreen = ({ navigation, route: { params } }: Props) => {
         console.error('Error submitting verification:', err);
         if (err instanceof Error) {
           setError(err.message);
-          trackError(err);
+          logger.trackError('Error submitting verifications', err);
         }
       }
 
@@ -83,7 +86,7 @@ export const CheckVerifyScreen = ({ navigation, route: { params } }: Props) => {
       console.error('Error resending verification code:', err);
       if (err instanceof Error) {
         setError(err.message);
-        trackError(err);
+        logger.trackError('Error resending verification code', err);
       }
     }
   };

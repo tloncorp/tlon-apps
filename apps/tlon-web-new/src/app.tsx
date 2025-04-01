@@ -10,6 +10,7 @@ import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import useDesktopNotifications from '@tloncorp/app/hooks/useDesktopNotifications';
 import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
+import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
 import { BasePathNavigator } from '@tloncorp/app/navigation/BasePathNavigator';
 import {
   getDesktopLinkingConfig,
@@ -29,7 +30,7 @@ import { Helmet } from 'react-helmet';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import EyrieMenu from '@/eyrie/EyrieMenu';
-import { ANALYTICS_DEFAULT_PROPERTIES } from '@/logic/analytics';
+// import { ANALYTICS_DEFAULT_PROPERTIES } from '@/logic/analytics';
 import useAppUpdates from '@/logic/useAppUpdates';
 import useErrorHandler from '@/logic/useErrorHandler';
 import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
@@ -335,6 +336,7 @@ function ConnectedWebApp() {
   const configureClient = useConfigureUrbitClient();
   const session = store.useCurrentSession();
   const hasSyncedRef = React.useRef(false);
+  const telemetry = useTelemetry();
   useFindSuggestedContacts();
 
   useEffect(() => {
@@ -350,6 +352,7 @@ function ConnectedWebApp() {
         await db.headsSyncedAt.resetValue();
         sync.syncStart(false);
         hasSyncedRef.current = true;
+        telemetry.captureAppActive('web');
       }
 
       if (!session?.startTime) {
@@ -578,11 +581,11 @@ function RoutedApp() {
     }
   }, [isStandAlone, body]);
 
-  useEffect(() => {
-    if (posthog && analyticsId !== '' && logActivity) {
-      posthog.identify(analyticsId, ANALYTICS_DEFAULT_PROPERTIES);
-    }
-  }, [posthog, analyticsId, logActivity]);
+  // useEffect(() => {
+  //   if (posthog && analyticsId !== '' && logActivity) {
+  //     posthog.identify(analyticsId, ANALYTICS_DEFAULT_PROPERTIES);
+  //   }
+  // }, [posthog, analyticsId, logActivity]);
 
   useEffect(() => {
     if (posthog) {

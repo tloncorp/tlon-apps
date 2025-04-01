@@ -44,6 +44,8 @@ export enum AnalyticsEvent {
   NodeAuthSaved = 'Node Auth Saved',
   ErrorNodeResumePush = 'Node Resume Push Error',
   AnalyticsDigest = 'Usage Digest Report',
+  WebAppOpened = 'Web App Opened',
+  WebConsoleError = 'Web Console Error',
   ActionContactAdded = 'Contact Added',
   ActionContactRemoved = 'Contact Removed',
   ActionRemoveContactSuggestion = 'Removed Contact Suggestion',
@@ -115,6 +117,7 @@ export enum AnalyticsEvent {
   ErrorVerifyingPersonalInvite = 'Error Verifying DM Invite Link',
   ErrorAttestation = 'Attestation Error',
   ErrorNounParse = 'Error Parsing Noun',
+  ErrorNotificationService = 'Notification Service Error',
 }
 
 export interface AnalyticsDigest {

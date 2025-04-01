@@ -11,5 +11,5 @@ export interface TelemetryClient {
     eventId: string;
     properties?: Record<string, any>;
   }) => void;
-  captureAppActive: () => void;
+  captureAppActive: (platform?: 'web' | 'mobile' | 'electron') => void;
 }

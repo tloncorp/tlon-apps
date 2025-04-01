@@ -266,6 +266,11 @@ export function createDevLogger(tag: string, enabled: boolean) {
                   ? `[${tag}] ${args[0]}`
                   : 'no message',
               breadcrumbs: useDebugStore.getState().getBreadcrumbs(),
+              errorMessage:
+                customProps instanceof Error ? customProps.message : undefined,
+              errorStack:
+                customProps instanceof Error ? customProps.stack : undefined,
+              logLevel: 'error',
             });
           getDebugInfo()
             .then(report)

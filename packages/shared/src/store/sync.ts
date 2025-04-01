@@ -237,7 +237,10 @@ export const syncUserAttestations = async (ctx?: SyncCtx) => {
     try {
       await db.insertCurrentUserAttestations({ attestations });
     } catch (e) {
-      logger.trackEvent('Error Inserting Lanyard Verifications', e);
+      console.log(`bl: error inserting lanyard verifications`, e);
+      logger.trackEvent('Error Inserting Lanyard Verifications', {
+        message: e.message,
+      });
     }
   } catch (e) {
     logger.trackError('Error Fetching Lanyard Verifications', e);
