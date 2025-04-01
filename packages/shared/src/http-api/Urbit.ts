@@ -713,15 +713,20 @@ export class Urbit {
       mark,
       json,
     };
-    this.outstandingPokes.set(message.id, {
-      onSuccess: () => {
-        onSuccess();
-      },
-      onError: (err) => {
-        onError(err);
-      },
+
+    return new Promise((resolve, reject) => {
+      this.outstandingPokes.set(message.id, {
+        onSuccess: () => {
+          onSuccess();
+          resolve(message.id);
+        },
+        onError: (err) => {
+          onError(err);
+          reject(err);
+        },
+      });
+      this.sendJSONtoChannel(message).catch(reject);
     });
-    await this.sendJSONtoChannel(message);
     return message.id;
   }
 
