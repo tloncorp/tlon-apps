@@ -40,10 +40,15 @@ export async function checkAttestedSignature(signData: string) {
   ];
   const noun = dwim(query);
 
-  const queryResponseSub = subscribeOnce<ub.QueryResponseEvent>({
-    app: 'lanyard',
-    path: `/v1/query/${encodedNonce}`,
-  });
+  const queryResponseSub = subscribeOnce<ub.QueryResponseEvent>(
+    {
+      app: 'lanyard',
+      path: `/v1/query/${encodedNonce}`,
+    },
+    undefined,
+    undefined,
+    { tag: 'checkAttestedSignature' }
+  );
 
   await pokeNoun({ app: 'lanyard', mark: 'lanyard-query-1', noun });
   const queryResponse = await queryResponseSub;
@@ -228,7 +233,8 @@ export async function initiatePhoneVerify(phoneNumber: string) {
       }
 
       return false;
-    }
+    },
+    { tag: 'initiatePhoneVerify' }
   );
 
   if (errorCode) {
@@ -264,7 +270,8 @@ export async function initiateTwitterAttestation(twitterHandle: string) {
       }
 
       return false;
-    }
+    },
+    { tag: 'initiateTwitterAttestation' }
   );
 
   if (errorCode) {
@@ -313,7 +320,8 @@ export async function updateAttestationVisibility({
       }
 
       return false;
-    }
+    },
+    { tag: 'updateAttestationVisibility' }
   );
 }
 
@@ -391,7 +399,8 @@ export async function confirmTwitterAttestation(
       }
 
       return false;
-    }
+    },
+    { tag: 'confirmTwitterAttestation' }
   );
 
   if (errorCode) {
@@ -429,7 +438,8 @@ export async function initiatePhoneAttestation(phoneNumber: string) {
       }
 
       return false;
-    }
+    },
+    { tag: 'initiatePhoneAttestation' }
   );
 
   if (errorCode) {
@@ -467,7 +477,8 @@ export async function confirmPhoneAttestation(
       }
 
       return false;
-    }
+    },
+    { tag: 'confirmPhoneAttestation' }
   );
 
   if (errorCode) {
@@ -496,6 +507,7 @@ export async function revokeAttestation(params: {
       }
 
       return false;
-    }
+    },
+    { tag: 'revokeAttestation' }
   );
 }

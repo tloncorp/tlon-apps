@@ -382,18 +382,20 @@ export const insertCurrentUserAttestations = createWriteQuery(
         attestationId: v.id,
       }));
 
-      await txCtx.db
-        .insert($attestations)
-        .values(attestations)
-        .onConflictDoUpdate({
-          target: [$attestations.id],
-          set: conflictUpdateSetAll($attestations),
-        });
+      if (contactAttestations.length > 0) {
+        await txCtx.db
+          .insert($attestations)
+          .values(attestations)
+          .onConflictDoUpdate({
+            target: [$attestations.id],
+            set: conflictUpdateSetAll($attestations),
+          });
 
-      await txCtx.db
-        .insert($contactAttestations)
-        .values(contactAttestations)
-        .onConflictDoNothing();
+        await txCtx.db
+          .insert($contactAttestations)
+          .values(contactAttestations)
+          .onConflictDoNothing();
+      }
     });
   },
   ['attestations', 'contacts']
