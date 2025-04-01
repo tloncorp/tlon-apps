@@ -14,7 +14,7 @@ import {
 import { desig, preSig } from '../urbit';
 import { getLandscapeAuthCookie } from './landscapeApi';
 
-const logger = createDevLogger('urbit', true);
+const logger = createDevLogger('urbit', false);
 
 interface Config
   extends Pick<
