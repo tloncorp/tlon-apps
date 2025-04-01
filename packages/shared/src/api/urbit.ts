@@ -427,7 +427,7 @@ export async function poke({ app, mark, json }: PokeParams) {
   };
 
   try {
-    const result = await doPoke({ onError: retry });
+    const result = await doPoke();
     trackDuration('success');
     return result;
   } catch (err) {

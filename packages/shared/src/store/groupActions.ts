@@ -28,6 +28,16 @@ export async function createGroup(
     logger.trackEvent(AnalyticsEvent.DebugGroupCreate, {
       context: 'creating group',
     });
+    await db.insertGroups({
+      groups: [
+        {
+          id: groupId,
+          currentUserIsMember: true,
+          currentUserIsHost: true,
+          hostUserId: currentUserId,
+        },
+      ],
+    });
     await api.createGroup({
       title: params.title ?? '',
       placeholderTitle: await getPlaceholderTitle(params),
@@ -66,6 +76,7 @@ export async function createGroup(
 
     return group;
   } catch (e) {
+    await db.deleteGroup(groupId);
     console.error(`${groupSlug}: failed to create group`, e);
     logger.trackEvent(AnalyticsEvent.ErrorCreateGroup, {
       errorMessage: e.message,
