@@ -118,6 +118,7 @@ export enum AnalyticsEvent {
   ErrorVerifyingPersonalInvite = 'Error Verifying DM Invite Link',
   ErrorAttestation = 'Attestation Error',
   ErrorNounParse = 'Error Parsing Noun',
+  ErrorCreateGroup = 'Error Creating Group',
 }
 
 export interface AnalyticsDigest {

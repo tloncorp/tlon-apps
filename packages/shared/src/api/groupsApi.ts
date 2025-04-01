@@ -412,6 +412,7 @@ export const createGroup = async ({
     },
     { app: 'groups', path: '/groups/ui' },
     (event) => {
+      logger.trackEvent('createGroup tracked predicate', { event });
       if (!('update' in event)) {
         return false;
       }

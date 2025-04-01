@@ -67,6 +67,10 @@ export async function createGroup(
     return group;
   } catch (e) {
     console.error(`${groupSlug}: failed to create group`, e);
+    logger.trackEvent(AnalyticsEvent.ErrorCreateGroup, {
+      errorMessage: e.message,
+      stack: e.stack,
+    });
     throw new Error('Something went wrong');
   }
 }
