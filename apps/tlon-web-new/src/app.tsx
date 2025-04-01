@@ -581,12 +581,6 @@ function RoutedApp() {
     }
   }, [isStandAlone, body]);
 
-  // useEffect(() => {
-  //   if (posthog && analyticsId !== '' && logActivity) {
-  //     posthog.identify(analyticsId, ANALYTICS_DEFAULT_PROPERTIES);
-  //   }
-  // }, [posthog, analyticsId, logActivity]);
-
   useEffect(() => {
     if (posthog) {
       if (showDevTools) {
