@@ -332,7 +332,7 @@
   ^-  (quip card _state)
   =.  rec  ?^(rec rec (~(get by records) id))
   ?~  rec  [~ state]
-  %-  (~(tell l our.bowl `for.u.rec `-.id) %info ['registration revoked']~)
+  %-  (~(tell l our.bowl `for.u.rec `-.id) %info ~['registration revoked' why])
   :-  [(give-status for.u.rec id why %gone ~)]~
   =?  attested  ?=(%done -.status.u.rec)
     %.  sig.full.status.u.rec
