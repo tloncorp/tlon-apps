@@ -1,5 +1,7 @@
 import {
   isChatChannel as getIsChatChannel,
+  makePrettyDayAndTime,
+  makePrettyTime,
   useDebouncedValue,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -287,8 +289,11 @@ function ConnectedHeader({
 
   const { focusedPost: parentPost } = useContext(FocusedPostContext);
 
+  const prettyTime = parentPost
+    ? makePrettyDayAndTime(new Date(parentPost.receivedAt)).asString
+    : '';
   const headerTitle = isChatChannel
-    ? `Thread: ${channel?.title ?? null}`
+    ? `Thread: ${channel?.title || prettyTime}`
     : parentPost?.title && parentPost.title !== ''
       ? parentPost.title
       : 'Post';
@@ -393,7 +398,7 @@ function SinglePostView({
 
   const { data: threadPosts } = store.useThreadPosts({
     postId: parentPost.id,
-    authorId: parentPost.id,
+    authorId: parentPost.authorId,
     channelId: channel.id,
   });
 
@@ -584,7 +589,7 @@ function CarouselPostScreenContent({
     mode: 'around',
     cursor: initialPostId,
     firstPageCount: 50,
-    disableUnconfirmedPosts: true,
+    filterDeleted: true,
   });
   const { data: channel } = store.useChannel({ id: channelId });
 

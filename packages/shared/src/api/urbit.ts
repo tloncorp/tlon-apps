@@ -343,12 +343,6 @@ export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
       app,
       mark,
       noun,
-      onSuccess: () => {
-        console.log(`poke success`);
-      },
-      onError: (err) => {
-        console.log(`poke error`, err);
-      },
     });
   };
   const retry = async (err: any) => {
@@ -440,6 +434,30 @@ export async function trackedPoke<T, R = T>(
   }
 }
 
+export async function trackedPokeNoun<T, R = T>(
+  params: NounPokeParams,
+  endpoint: UrbitEndpoint,
+  predicate: (event: R) => boolean
+) {
+  if (config.pendingAuth) {
+    await config.pendingAuth;
+  }
+  const trackDuration = createDurationTracker(AnalyticsEvent.TrackedPoke, {
+    app: params.app,
+    mark: params.mark,
+  });
+  try {
+    const tracking = track(endpoint, predicate);
+    const poking = pokeNoun(params);
+    await Promise.all([tracking, poking]);
+    trackDuration('success');
+  } catch (e) {
+    logger.error(`tracked poke failed`, e);
+    trackDuration('error');
+    throw e;
+  }
+}
+
 async function track<R>(
   endpoint: UrbitEndpoint,
   predicate: (event: R) => boolean
@@ -507,6 +525,12 @@ export async function scryNoun({ app, path }: { app: string; path: string }) {
       return config.client.scryNoun({ app, path });
     }
     const body = await res.text();
+    logger.trackEvent('Bad Noun Scry Response', {
+      status: res.status,
+      app,
+      path,
+      body,
+    });
     throw new BadResponseError(res.status, body);
   }
 }

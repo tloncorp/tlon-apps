@@ -276,6 +276,16 @@ export const useLiveGroupUnread = (unread: db.GroupUnread | null) => {
   });
 };
 
+export const useBaseUnread = () => {
+  const depsKey = useKeyFromQueryDeps(db.getBaseUnread);
+  return useQuery({
+    queryKey: ['baseUnreads', depsKey],
+    queryFn: async () => {
+      return db.getBaseUnread();
+    },
+  });
+};
+
 export const useLiveUnread = (
   unread: db.ChannelUnread | db.ThreadUnreadState | db.GroupUnread | null
 ) => {
@@ -418,7 +428,7 @@ export const usePostReference = ({
   return postQuery;
 };
 
-export const useGroupsHostedBy = (userId: string) => {
+export const useGroupsHostedBy = (userId: string, disabled?: boolean) => {
   return useQuery({
     queryKey: ['groupsHostedBy', userId],
     queryFn: async () => {
@@ -434,6 +444,7 @@ export const useGroupsHostedBy = (userId: string) => {
     // this query's data rarely changes and is never invalidated elsewhere,
     // so we set stale time manually
     staleTime: 1000 * 60 * 30,
+    enabled: !disabled,
   });
 };
 
@@ -486,10 +497,10 @@ export const usePostWithRelations = (
   });
 };
 
-export const useVerifications = () => {
-  const deps = useKeyFromQueryDeps(db.getVerifications);
+export const useAttestations = () => {
+  const deps = useKeyFromQueryDeps(db.getAttestations);
   return useQuery({
-    queryKey: ['verifications', deps],
-    queryFn: () => db.getVerifications(),
+    queryKey: ['attestations', deps],
+    queryFn: () => db.getAttestations(),
   });
 };

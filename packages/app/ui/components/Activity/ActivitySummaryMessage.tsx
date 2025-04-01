@@ -69,7 +69,7 @@ function SummaryMessageRaw({
   }
 
   if (relevancy === 'replyToChatPost') {
-    const message = `replied to your message`;
+    const message = `replied to you`;
     return (
       <SummaryText>
         <ActivitySummaryAuthorList contactIds={authors} />
@@ -79,7 +79,7 @@ function SummaryMessageRaw({
   }
 
   if (relevancy === 'involvedThread') {
-    const message = `replied in a thread you're involved in`;
+    const message = `replied to a thread you're involved in`;
     return (
       <SummaryText>
         <ActivitySummaryAuthorList contactIds={authors} />
@@ -122,7 +122,7 @@ function SummaryMessageRaw({
     return (
       <SummaryText>
         <ActivitySummaryAuthorList contactIds={authors} />
-        {` ${plural ? 'have' : 'has'} requested to join the group`}
+        {` ${plural ? 'are' : 'is'} requesting to join the group`}
       </SummaryText>
     );
   }

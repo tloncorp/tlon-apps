@@ -187,11 +187,12 @@ export const ChatOptionsProvider = ({
         channel,
         accept: false,
       });
+      navigateOnLeave?.();
     } else {
       store.leaveGroupChannel(channel.id);
     }
     closeSheet();
-  }, [channel, closeSheet]);
+  }, [channel, closeSheet, navigateOnLeave]);
 
   const leaveChannel = useCallback(() => {
     if (isWeb) {
@@ -250,12 +251,15 @@ export const ChatOptionsProvider = ({
     }
   }, [channelId, closeSheet, onPressChannelMeta]);
 
-  const handlePressGroupMeta = useCallback((fromBlankChannel?: boolean) => {
-    if (groupId) {
-      onPressGroupMeta?.(groupId, fromBlankChannel);
-      closeSheet();
-    }
-  }, [closeSheet, groupId, onPressGroupMeta]);
+  const handlePressGroupMeta = useCallback(
+    (fromBlankChannel?: boolean) => {
+      if (groupId) {
+        onPressGroupMeta?.(groupId, fromBlankChannel);
+        closeSheet();
+      }
+    },
+    [closeSheet, groupId, onPressGroupMeta]
+  );
 
   const handlePressManageChannels = useCallback(() => {
     if (groupId) {

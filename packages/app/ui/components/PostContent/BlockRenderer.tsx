@@ -90,7 +90,9 @@ function ListItemMarker({
     case 'unordered':
       return <TextContent trimmed={false}>•︎</TextContent>;
     case 'tasklist':
-      return <TextContent trimmed={false}>{'\u2610'}</TextContent>;
+      // We return null here because the tasklist marker is rendered in the
+      // InlineTask component in the InlineRenderer
+      return null;
   }
 }
 

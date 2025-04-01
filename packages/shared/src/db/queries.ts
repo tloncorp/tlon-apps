@@ -39,7 +39,7 @@ import {
   interleaveActivityEvents,
   toSourceActivityEvents,
 } from '../logic/activity';
-import { Rank, desig } from '../urbit';
+import { Rank } from '../urbit';
 import {
   QueryCtx,
   createReadQuery,
@@ -49,12 +49,15 @@ import {
 import {
   activityEventContactGroups as $activityEventContactGroups,
   activityEvents as $activityEvents,
+  attestations as $attestations,
+  baseUnreads as $baseUnreads,
   channelReaders as $channelReaders,
   channelUnreads as $channelUnreads,
   channelWriters as $channelWriters,
   channels as $channels,
   chatMemberGroupRoles as $chatMemberGroupRoles,
   chatMembers as $chatMembers,
+  contactAttestations as $contactAttestations,
   contactGroups as $contactGroups,
   contacts as $contacts,
   groupFlaggedPosts as $groupFlaggedPosts,
@@ -73,19 +76,21 @@ import {
   posts as $posts,
   settings as $settings,
   threadUnreads as $threadUnreads,
-  verifications as $verifications,
   volumeSettings as $volumeSettings,
+  BASE_UNREADS_SINGLETON_KEY,
   SETTINGS_SINGLETON_KEY,
-  channels,
 } from './schema';
 import {
   ActivityBucket,
   ActivityEvent,
+  Attestation,
+  BaseUnread,
   Channel,
   ChannelUnread,
   Chat,
   ClientMeta,
   Contact,
+  ContactAttestation,
   Group,
   GroupNavSection,
   GroupRole,
@@ -99,7 +104,6 @@ import {
   Settings,
   TableName,
   ThreadUnreadState,
-  Verification,
   VolumeSettings,
 } from './types';
 
@@ -114,17 +118,6 @@ const GROUP_META_COLUMNS = {
   coverImage: true,
   coverImageColor: true,
 };
-
-const POST_RELATIONS_DEFAULT = {
-  author: true,
-  reactions: {
-    with: {
-      contact: true,
-    },
-  },
-  threadUnread: true,
-  volumeSettings: true,
-} as const;
 
 export interface GetGroupsOptions {
   includeUnjoined?: boolean;
@@ -360,86 +353,71 @@ export const getAnalyticsDigest = createReadQuery(
   []
 );
 
-export const insertVerifications = createWriteQuery(
-  'insertVerifications',
-  async (
-    { verifications }: { verifications: Verification[] },
-    ctx: QueryCtx
-  ) => {
-    if (verifications.length === 0) {
-      await ctx.db
-        .delete($verifications)
-        .where(isNotNull($verifications.value));
-      return;
-    } else {
-      const values = verifications.map((v) => v.value);
-      await ctx.db
-        .delete($verifications)
-        .where(not(inArray($verifications.value, values)));
-    }
+export const insertCurrentUserAttestations = createWriteQuery(
+  'insertCurrentUserAttestations',
+  async ({ attestations }: { attestations: Attestation[] }, ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
 
-    return ctx.db
-      .insert($verifications)
-      .values(verifications)
-      .onConflictDoUpdate({
-        target: [
-          $verifications.type,
-          $verifications.value,
-          $verifications.provider,
-        ],
-        set: conflictUpdateSetAll($verifications),
-      });
+    await withTransactionCtx(ctx, async (txCtx) => {
+      if (attestations.length === 0) {
+        await txCtx.db
+          .delete($attestations)
+          .where(and(eq($attestations.contactId, currentUserId)));
+      } else {
+        await txCtx.db.delete($attestations).where(
+          and(
+            eq($attestations.contactId, currentUserId),
+            not(
+              inArray(
+                $attestations.id,
+                attestations.map((v) => v.id)
+              )
+            )
+          )
+        );
+      }
+
+      const contactAttestations = attestations.map((v) => ({
+        contactId: v.contactId,
+        attestationId: v.id,
+      }));
+
+      await txCtx.db
+        .insert($attestations)
+        .values(attestations)
+        .onConflictDoUpdate({
+          target: [$attestations.id],
+          set: conflictUpdateSetAll($attestations),
+        });
+
+      await txCtx.db
+        .insert($contactAttestations)
+        .values(contactAttestations)
+        .onConflictDoNothing();
+    });
   },
-  ['verifications']
+  ['attestations', 'contacts']
 );
 
-export const updateVerification = createWriteQuery(
-  'updateVerification',
+export const deleteAttestation = createWriteQuery(
+  'deleteAttestation',
   async (
-    {
-      verification,
-    }: {
-      verification: Partial<Verification> & {
-        type: Verification['type'];
-        value: string;
-      };
-    },
-    ctx: QueryCtx
-  ) => {
-    return ctx.db
-      .update($verifications)
-      .set(verification)
-      .where(
-        and(
-          eq($verifications.type, verification.type),
-          eq($verifications.value, verification.value)
-        )
-      );
-  },
-  ['verifications']
-);
-
-export const deleteVerification = createWriteQuery(
-  'deleteVerifications',
-  async (
-    { type, value }: { type: Verification['type']; value: string },
+    { type, value }: { type: Attestation['type']; value: string },
     ctx: QueryCtx
   ) => {
     return ctx.db
-      .delete($verifications)
-      .where(
-        and(eq($verifications.type, type), eq($verifications.value, value))
-      );
+      .delete($attestations)
+      .where(and(eq($attestations.type, type), eq($attestations.value, value)));
   },
-  ['verifications']
+  ['attestations', 'contacts']
 );
 
-export const getVerifications = createReadQuery(
-  'getVerifications',
+export const getAttestations = createReadQuery(
+  'getAttestations',
   async (ctx: QueryCtx) => {
-    return ctx.db.query.verifications.findMany();
+    return ctx.db.query.attestations.findMany();
   },
-  ['verifications']
+  ['attestations']
 );
 
 export const getPins = createReadQuery(
@@ -583,7 +561,17 @@ export const insertGroups = createWriteQuery(
   ) => {
     return withTransactionCtx(ctx, async (txCtx) => {
       if (groups.length === 0) return;
+      logger.log(
+        'insertGroups: attempting to insert',
+        groups.map((g) => g.id)
+      );
+      const currentGroups = await txCtx.db.query.groups.findMany();
+      logger.log(
+        'insertGroups: existing groups',
+        currentGroups.map((g) => g.id)
+      );
       for (const group of groups) {
+        logger.log('insertGroups: inserting group', group.id);
         if (overWrite) {
           await txCtx.db
             .insert($groups)
@@ -612,6 +600,7 @@ export const insertGroups = createWriteQuery(
             group.channels.map((c) => ({
               id: c.id,
               readerRoles: c.readerRoles,
+              group: c.groupId,
             }))
           );
 
@@ -641,6 +630,7 @@ export const insertGroups = createWriteQuery(
             .filter(
               (id) => group.channels?.find((c) => c.id === id) === undefined
             );
+          logger.log('insertGroups: deleting channels', toDelete);
           await txCtx.db
             .delete($channels)
             .where(inArray($channels.id, toDelete));
@@ -665,12 +655,17 @@ export const insertGroups = createWriteQuery(
           logger.log('insertGroups: finished inserting channels');
         }
         if (group.flaggedPosts?.length) {
+          logger.log(
+            'insertGroups: inserting flagged posts',
+            group.flaggedPosts
+          );
           await txCtx.db
             .insert($groupFlaggedPosts)
             .values(group.flaggedPosts)
             .onConflictDoNothing();
         }
         if (group.navSections?.length) {
+          logger.log('insertGroups: inserting nav sections', group.navSections);
           await txCtx.db
             .insert($groupNavSections)
             .values(
@@ -710,6 +705,7 @@ export const insertGroups = createWriteQuery(
           }
         }
         if (group.roles?.length) {
+          logger.log('insertGroups: inserting roles', group.roles);
           await txCtx.db
             .insert($groupRoles)
             .values(group.roles)
@@ -725,6 +721,7 @@ export const insertGroups = createWriteQuery(
             });
         }
         if (group.members?.length) {
+          logger.log('insertGroups: inserting members', group.members);
           await txCtx.db
             .insert($chatMembers)
             .values(group.members)
@@ -747,6 +744,7 @@ export const insertGroups = createWriteQuery(
             });
           });
           if (memberRoles.length) {
+            logger.log('insertGroups: inserting member roles', memberRoles);
             await txCtx.db
               .insert($chatMemberGroupRoles)
               .values(memberRoles)
@@ -755,6 +753,7 @@ export const insertGroups = createWriteQuery(
         }
 
         if (group.bannedMembers?.length) {
+          logger.log('insertGroups: inserting bans', group.bannedMembers);
           await txCtx.db
             .insert($groupMemberBans)
             .values(
@@ -767,6 +766,10 @@ export const insertGroups = createWriteQuery(
         }
 
         if (group.joinRequests?.length) {
+          logger.log(
+            'insertGroups: inserting join requests',
+            group.joinRequests
+          );
           await txCtx.db
             .insert($groupJoinRequests)
             .values(
@@ -1556,6 +1559,16 @@ export const getGroupUnread = createReadQuery(
   ['groupUnreads']
 );
 
+export const getBaseUnread = createReadQuery(
+  'getBaseUnread',
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.baseUnreads.findFirst({
+      where: eq($baseUnreads.id, BASE_UNREADS_SINGLETON_KEY),
+    });
+  },
+  ['baseUnreads']
+);
+
 export const getThreadActivity = createReadQuery(
   'getThreadActivity',
   async (
@@ -1691,6 +1704,7 @@ export const insertChannels = createWriteQuery(
         });
 
       for (const channel of channels) {
+        logger.log('insertChannels: members', channel.id, channel.members);
         if (channel.members && channel.members.length > 0) {
           await txCtx.db
             .delete($chatMembers)
@@ -1765,7 +1779,8 @@ export const deleteChannels = createWriteQuery(
   'deleteChannels',
   async (channels: string[], ctx: QueryCtx) => {
     logger.log(`deleteChannels`, channels);
-    // will cascade delete to post and chat members
+    await ctx.db.delete($posts).where(inArray($channels.id, channels));
+    await ctx.db.delete($chatMembers).where(inArray($channels.id, channels));
     await ctx.db.delete($channels).where(inArray($channels.id, channels));
     return;
   },
@@ -2080,32 +2095,6 @@ export const setLeftGroups = createWriteQuery(
   ['groups', 'channels']
 );
 
-// Includes latest post as well as unconfirmed posts
-export const getUnconfirmedPosts = createReadQuery(
-  'getUnconfirmedPosts',
-  async ({ channelId }: { channelId: string }, ctx) => {
-    const lastPostResults = await ctx.db
-      .select({ lastPostId: $channels.lastPostId })
-      .from($channels)
-      .where(eq($channels.id, channelId));
-    const lastPostId =
-      lastPostResults.length === 0 ? null : lastPostResults[0].lastPostId;
-    return ctx.db.query.posts.findMany({
-      where: or(
-        and(
-          eq($posts.channelId, channelId),
-          isNull($posts.syncedAt),
-          not(eq($posts.type, 'reply'))
-        ),
-        lastPostId == null ? undefined : eq($posts.id, lastPostId)
-      ),
-      orderBy: asc($posts.id),
-      with: POST_RELATIONS_DEFAULT,
-    });
-  },
-  ['posts', 'channels']
-);
-
 export type GetChannelPostsOptions = {
   channelId: string;
   count?: number;
@@ -2119,34 +2108,6 @@ export const getChannelPosts = createReadQuery(
     { channelId, cursor, mode, count = 50 }: GetChannelPostsOptions,
     ctx: QueryCtx
   ): Promise<Post[]> => {
-    /** We'll only fetch posts in the window containing this post.
-     *
-     * Why not just use `cursor`? Because `cursor` may be an unconfirmed post,
-     * which will not be in an explicit window, and thus we'd only show the
-     * single post until more posts loaded.
-     * In that case, we want to move to the closest confirmed window. */
-    const windowPost = await (async () => {
-      if (cursor == null) {
-        return null;
-      }
-      const cursorPost = await ctx.db.query.posts.findFirst({
-        where: eq($posts.id, cursor),
-      });
-      if (cursorPost == null || cursorPost.syncedAt != null) {
-        return { id: cursor };
-      }
-
-      // `cursorPost` is unconfirmed; its window won't have many (any) more posts.
-      // Use the next less-recent confirmed post instead.
-      return await ctx.db.query.posts.findFirst({
-        where: and(
-          eq($posts.channelId, channelId),
-          lte($posts.id, cursor),
-          isNotNull($posts.syncedAt) // i.e. post is confirmed
-        ),
-      });
-    })();
-
     // Find the window (set of contiguous posts) that this cursor belongs to.
     // These are the posts that we can return safely without gaps and without hitting the api.
     const window = await ctx.db.query.postWindows.findFirst({
@@ -2155,8 +2116,8 @@ export const getChannelPosts = createReadQuery(
         eq($postWindows.channelId, channelId),
         // Depending on mode, either older or newer than cursor. If mode is
         // `newest`, we don't need to filter by cursor.
-        windowPost ? gte($postWindows.newestPostId, windowPost.id) : undefined,
-        windowPost ? lte($postWindows.oldestPostId, windowPost.id) : undefined
+        cursor ? gte($postWindows.newestPostId, cursor) : undefined,
+        cursor ? lte($postWindows.oldestPostId, cursor) : undefined
       ),
       orderBy: [desc($postWindows.newestPostId)],
       columns: {
@@ -2169,7 +2130,16 @@ export const getChannelPosts = createReadQuery(
       return [];
     }
 
-    const isPostConfirmed = isNotNull($posts.syncedAt);
+    const relationConfig = {
+      author: true,
+      reactions: {
+        with: {
+          contact: true,
+        },
+      },
+      threadUnread: true,
+      volumeSettings: true,
+    } as const;
 
     if (mode === 'newer' || mode === 'newest' || mode === 'older') {
       // Simple case: just grab a set of posts from either side of the cursor.
@@ -2185,10 +2155,9 @@ export const getChannelPosts = createReadQuery(
           // Depending on mode, either older or newer than cursor. If mode is
           // `newest`, we don't need to filter by cursor.
           cursor && mode === 'older' ? lt($posts.id, cursor) : undefined,
-          cursor && mode === 'newer' ? gt($posts.id, cursor) : undefined,
-          isPostConfirmed
+          cursor && mode === 'newer' ? gt($posts.id, cursor) : undefined
         ),
-        with: POST_RELATIONS_DEFAULT,
+        with: relationConfig,
         // If newer, we have to ensure that these are the newer posts directly following the cursor
         orderBy: [mode === 'newer' ? asc($posts.id) : desc($posts.id)],
         limit: count,
@@ -2225,8 +2194,7 @@ export const getChannelPosts = createReadQuery(
             eq($posts.channelId, channelId),
             not(eq($posts.type, 'reply')),
             gte($posts.id, window.oldestPostId),
-            lte($posts.id, window.newestPostId),
-            isPostConfirmed
+            lte($posts.id, window.newestPostId)
           )
         )
         .as('posts');
@@ -2266,12 +2234,11 @@ export const getChannelPosts = createReadQuery(
             .where(
               and(
                 gte($windowQuery.rowNumber, startRow),
-                lte($windowQuery.rowNumber, endRow),
-                isPostConfirmed
+                lte($windowQuery.rowNumber, endRow)
               )
             )
         ),
-        with: POST_RELATIONS_DEFAULT,
+        with: relationConfig,
         orderBy: [desc($posts.id)],
         limit: count,
       });
@@ -2377,11 +2344,16 @@ export const insertChannelPosts = createWriteQuery(
       return;
     }
     return withTransactionCtx(ctx, async (txCtx) => {
+      logger.log(
+        'inserting posts',
+        posts.map((p) => p.id)
+      );
       await insertPosts(posts, txCtx);
       logger.log('inserted posts');
       // If these are non-reply posts, update group + channel last post as well as post windows.
       const topLevelPosts = posts.filter((p) => p.type !== 'reply');
       if (topLevelPosts.length) {
+        logger.log('updating post windows');
         await updatePostWindows(
           {
             channelId,
@@ -2405,29 +2377,16 @@ export const insertLatestPosts = createWriteQuery(
       return;
     }
     return withTransactionCtx(ctx, async (txCtx) => {
+      logger.log(
+        'inserting latest posts to',
+        posts.map((p) => p.channelId)
+      );
       await insertPosts(posts, txCtx);
       const postUpdates = posts.map((post) => ({
         channelId: post.channelId,
         newPosts: [post],
       }));
       await Promise.all(postUpdates.map((p) => updatePostWindows(p, txCtx)));
-    });
-  },
-  ['posts']
-);
-
-export const insertUnconfirmedPosts = createWriteQuery(
-  'insertUnconfirmedPosts',
-  async ({ posts }: { posts: Post[] }, ctx: QueryCtx) => {
-    if (!posts.length) {
-      return;
-    }
-    if (posts.some((p) => p.syncedAt != null)) {
-      throw new Error('insertUnconfirmedPosts: posts should not have syncedAt');
-    }
-    return withTransactionCtx(ctx, async (txCtx) => {
-      // insertPosts does multiple queries internally, so we need to wrap it in a transaction
-      await insertPosts(posts, txCtx);
     });
   },
   ['posts']
@@ -2443,42 +2402,10 @@ async function insertPosts(posts: Post[], ctx: QueryCtx) {
 }
 
 async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
-  // HACK: I can't get onConflictDoUpdate to work - manually manage conflicts.
-  // Likely https://github.com/drizzle-team/drizzle-orm/issues/2276
-  await (async () => {
-    const existing = await ctx.db.query.posts.findMany({
-      where: inArray(
-        $posts.id,
-        posts.map((p) => p.id)
-      ),
-    });
-    if (existing.length === 0) {
-      return;
-    }
-    const replace: typeof posts = [];
-    for (const x of existing) {
-      // Skip insert if we already have a confirmed post and the insert is unconfirmed
-      // (iow: we want to update unconfirmed posts with confirmed or
-      // unconfirmed updates; we want to update confirmed posts only with
-      // confirmed updates)
-      if (x.syncedAt != null) {
-        const toInsertIdx = posts.findIndex((p) => p.id === x.id);
-        if (toInsertIdx !== -1 && posts[toInsertIdx].syncedAt == null) {
-          posts.splice(toInsertIdx, 1);
-        }
-      } else {
-        replace.push(x);
-      }
-    }
-
-    // Manually delete existing posts that we'll replace.
-    await ctx.db.delete($posts).where(
-      inArray(
-        $posts.id,
-        replace.map((p) => p.id)
-      )
-    );
-  })();
+  logger.log(
+    'inserting post batch',
+    posts.map((p) => [p.id, p.channelId])
+  );
 
   await ctx.db
     .insert($posts)
@@ -2500,6 +2427,7 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
   const reactions = posts
     .filter((p) => p.reactions && p.reactions.length > 0)
     .flatMap((p) => p.reactions) as Reaction[];
+  logger.log('inserting post reactions', reactions);
   if (reactions.length) {
     await ctx.db
       .insert($postReactions)
@@ -2692,6 +2620,12 @@ async function updatePostWindows(
       .where(overlapsWindow(referenceWindow))
   )[0];
 
+  logger.log(
+    'deleting intersecting windows',
+    referenceWindow,
+    oldestId,
+    newestId
+  );
   // Delete intersecting windows.
   await ctx.db.delete($postWindows).where(overlapsWindow(referenceWindow));
 
@@ -2708,6 +2642,7 @@ async function updatePostWindows(
     newestPostId: resolvedEnd,
   };
 
+  logger.log('inserting final window', finalWindow);
   // Insert final window.
   await ctx.db.insert($postWindows).values(finalWindow);
 }
@@ -3076,10 +3011,15 @@ export const getContacts = createReadQuery(
             group: true,
           },
         },
+        attestations: {
+          with: {
+            attestation: true,
+          },
+        },
       },
     });
   },
-  ['contacts']
+  ['contacts', 'contactAttestations']
 );
 
 export const getContactsBatch = createReadQuery(
@@ -3114,11 +3054,16 @@ export const getContact = createReadQuery(
               group: true,
             },
           },
+          attestations: {
+            with: {
+              attestation: true,
+            },
+          },
         },
       })
       .then(returnNullIfUndefined);
   },
-  ['contacts', 'groups']
+  ['contacts', 'groups', 'contactAttestations']
 );
 
 export const updateContact = createWriteQuery(
@@ -3132,28 +3077,72 @@ export const updateContact = createWriteQuery(
   ['contacts']
 );
 
+export const resetContactAttestations = createWriteQuery(
+  'resetContactAttestations',
+  async (
+    {
+      contactId,
+      attestations,
+    }: { contactId: string; attestations?: ContactAttestation[] | null },
+    ctx: QueryCtx
+  ) => {
+    if (attestations?.length) {
+      await ctx.db.delete($attestations).where(
+        and(
+          notInArray(
+            $attestations.id,
+            attestations.map((a) => a.attestationId)
+          ),
+          eq($attestations.contactId, contactId)
+        )
+      );
+      await ctx.db
+        .insert($attestations)
+        .values(attestations.map((a) => a.attestation as Attestation))
+        .onConflictDoNothing();
+      await ctx.db
+        .insert($contactAttestations)
+        .values(attestations)
+        .onConflictDoNothing();
+    } else {
+      await ctx.db
+        .delete($contactAttestations)
+        .where(eq($contactAttestations.contactId, contactId));
+    }
+  },
+  ['contactAttestations']
+);
+
 export const upsertContact = createWriteQuery(
   'upsertContact',
   async (contact: Contact, ctx: QueryCtx) => {
-    const existingContact = await ctx.db.query.contacts.findFirst({
-      where: (contacts, { eq }) => eq(contacts.id, contact.id),
+    await withTransactionCtx(ctx, async (txCtx) => {
+      const existingContact = await ctx.db.query.contacts.findFirst({
+        where: (contacts, { eq }) => eq(contacts.id, contact.id),
+      });
+
+      if (existingContact) {
+        await ctx.db
+          .update($contacts)
+          .set(contact)
+          .where(eq($contacts.id, contact.id));
+      } else {
+        // for new inserts, default to non contact if unspecified
+        const newContact: Contact = {
+          ...contact,
+          isContact:
+            contact.isContact !== undefined ? contact.isContact : false,
+        };
+        await ctx.db.insert($contacts).values(newContact);
+      }
+
+      await resetContactAttestations(
+        { contactId: contact.id, attestations: contact.attestations },
+        txCtx
+      );
     });
-
-    if (existingContact) {
-      return ctx.db
-        .update($contacts)
-        .set(contact)
-        .where(eq($contacts.id, contact.id));
-    }
-
-    // for new inserts, default to non contact if unspecified
-    const newContact: Contact = {
-      ...contact,
-      isContact: contact.isContact !== undefined ? contact.isContact : false,
-    };
-    return ctx.db.insert($contacts).values(newContact);
   },
-  ['contacts']
+  ['contacts', 'contactAttestations']
 );
 
 export const getUserContacts = createReadQuery(
@@ -3165,6 +3154,11 @@ export const getUserContacts = createReadQuery(
         pinnedGroups: {
           with: {
             group: true,
+          },
+        },
+        attestations: {
+          with: {
+            attestation: true,
           },
         },
       },
@@ -3241,13 +3235,20 @@ export const setPinnedGroups = createWriteQuery(
 export const insertContact = createWriteQuery(
   'insertContact',
   async (contact: Contact, ctx: QueryCtx) => {
-    return ctx.db
-      .insert($contacts)
-      .values(contact)
-      .onConflictDoUpdate({
-        target: $contacts.id,
-        set: conflictUpdateSetAll($contacts),
-      });
+    await withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .insert($contacts)
+        .values(contact)
+        .onConflictDoUpdate({
+          target: $contacts.id,
+          set: conflictUpdateSetAll($contacts),
+        });
+
+      await resetContactAttestations(
+        { contactId: contact.id, attestations: contact.attestations },
+        txCtx
+      );
+    });
   },
   ['contacts']
 );
@@ -3262,6 +3263,13 @@ export const insertContacts = createWriteQuery(
 
     const contactGroups = contactsData.flatMap(
       (contact) => contact.pinnedGroups || []
+    );
+
+    const contactAttestations = contactsData.flatMap(
+      (contact) =>
+        contact.attestations?.filter(
+          (a) => a.attestation && a.contactId !== currentUserId
+        ) || []
     );
 
     const targetGroups = contactGroups.map((g): Group => {
@@ -3297,9 +3305,31 @@ export const insertContacts = createWriteQuery(
           .values(contactGroups)
           .onConflictDoNothing();
       }
+
+      console.log(`check 1`);
+      // clear existing
+      await txCtx.db
+        .delete($attestations)
+        .where(not(eq($attestations.contactId, currentUserId)));
+
+      if (contactAttestations.length) {
+        // reset to current
+        await txCtx.db
+          .insert($attestations)
+          .values(contactAttestations.map((a) => a.attestation as Attestation))
+          .onConflictDoUpdate({
+            target: $attestations.id,
+            set: conflictUpdateSetAll($attestations),
+          });
+
+        await txCtx.db
+          .insert($contactAttestations)
+          .values(contactAttestations)
+          .onConflictDoNothing();
+      }
     });
   },
-  ['contacts', 'groups', 'contactGroups']
+  ['contacts', 'groups', 'contactGroups', 'contactAttestations']
 );
 
 export const deleteContact = createWriteQuery(
@@ -3323,6 +3353,18 @@ export const insertGroupUnreads = createWriteQuery(
       });
   },
   ['groupUnreads']
+);
+
+export const insertBaseUnread = createWriteQuery(
+  'insertBaseUnread',
+  async (unread: BaseUnread, ctx: QueryCtx) => {
+    logger.log('insertBaseUnread', unread);
+    return ctx.db.insert($baseUnreads).values([unread]).onConflictDoUpdate({
+      target: $baseUnreads.id,
+      set: unread,
+    });
+  },
+  ['baseUnreads']
 );
 
 export const updateGroupUnreadCount = createWriteQuery(
@@ -3364,7 +3406,7 @@ export const insertChannelUnreads = createWriteQuery(
   async (unreads: ChannelUnread[], ctx: QueryCtx) => {
     if (!unreads.length) return;
 
-    logger.log('insertChannelUnreads', unreads.length, unreads);
+    logger.log('insertChannelUnreads', unreads.length);
     return withTransactionCtx(ctx, async (txCtx) => {
       await txCtx.db
         .insert($channelUnreads)

@@ -86,9 +86,9 @@ export function ContactsScreenView(props: Props) {
           subtitle={item.status ? item.status : undefined}
           onPress={() => props.onContactPress(item)}
           onLongPress={() => props.onContactLongPress(item)}
-          backgroundColor={isFocused ? '$secondaryBackground' : 'unset'}
+          backgroundColor={isFocused ? '$shadow' : 'unset'}
           borderColor="$border"
-          hoverStyle={{ backgroundColor: '$border' }}
+          hoverStyle={{ backgroundColor: '$secondaryBackground' }}
         />
       );
     },

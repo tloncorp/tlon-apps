@@ -81,13 +81,11 @@ export const contacts = sqliteTable('contacts', {
   isBlocked: boolean('blocked'),
   isContact: boolean('isContact'),
   isContactSuggestion: boolean('isContactSuggestion'),
-  hasVerifiedPhone: boolean('hasVerifiedPhone'),
-  verifiedPhoneSignature: text('verifiedPhoneSignature'),
-  verifiedPhoneAt: timestamp('verifiedPhoneAt'),
 });
 
 export const contactsRelations = relations(contacts, ({ many }) => ({
   pinnedGroups: many(contactGroups),
+  attestations: many(contactAttestations),
 }));
 
 export const contactGroups = sqliteTable(
@@ -97,7 +95,7 @@ export const contactGroups = sqliteTable(
       .references(() => contacts.id, { onDelete: 'cascade' })
       .notNull(),
     groupId: text('group_id')
-      .references(() => groups.id)
+      .references(() => groups.id, { onDelete: 'cascade' })
       .notNull(),
   },
   (table) => {
@@ -115,6 +113,66 @@ export const contactGroupRelations = relations(contactGroups, ({ one }) => ({
   group: one(groups, {
     fields: [contactGroups.groupId],
     references: [groups.id],
+  }),
+}));
+
+export const contactAttestations = sqliteTable(
+  'contact_attestations',
+  {
+    contactId: text('contact_id')
+      .references(() => contacts.id, { onDelete: 'cascade' })
+      .notNull(),
+    attestationId: text('attestation_id')
+      .references(() => attestations.id, { onDelete: 'cascade' })
+      .notNull(),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({
+        columns: [table.contactId, table.attestationId],
+      }),
+    };
+  }
+);
+
+export const contactAttestationRelations = relations(
+  contactAttestations,
+  ({ one }) => ({
+    contact: one(contacts, {
+      fields: [contactAttestations.contactId],
+      references: [contacts.id],
+    }),
+    attestation: one(attestations, {
+      fields: [contactAttestations.attestationId],
+      references: [attestations.id],
+    }),
+  })
+);
+
+export type AttestationType = 'phone' | 'node' | 'twitter' | 'dummy';
+export type AttestationDiscoverability = 'public' | 'discoverable' | 'hidden';
+export type AttestationStatus = 'waiting' | 'pending' | 'verified';
+export const attestations = sqliteTable('attestations', {
+  id: text('id').primaryKey(),
+  provider: text('provider').notNull(),
+  type: text('type').$type<AttestationType>().notNull(),
+  value: text('value'),
+  initiatedAt: timestamp('initiated_at'),
+  discoverability: text('visibility')
+    .$type<AttestationDiscoverability>()
+    .notNull(),
+  status: text('status').$type<AttestationStatus>().notNull(),
+  statusMessage: text('status_message'),
+  contactId: text('contact_id').notNull(),
+  providerUrl: text('provider__url'),
+  provingTweetId: text('proving_tweet_id'),
+  signature: text('signature'),
+});
+
+export const attestationRelations = relations(attestations, ({ one }) => ({
+  contact: one(contacts, {
+    fields: [attestations.contactId],
+    references: [contacts.id],
   }),
 }));
 
@@ -181,6 +239,15 @@ export const groupUnreadsRelations = relations(groupUnreads, ({ one }) => ({
   }),
 }));
 
+export const BASE_UNREADS_SINGLETON_KEY = 'base_unreads';
+export const baseUnreads = sqliteTable('base_unreads', {
+  id: text('id').primaryKey().default(BASE_UNREADS_SINGLETON_KEY),
+  notify: boolean('notify'),
+  count: integer('count'),
+  notifyCount: integer('notify_count'),
+  updatedAt: timestamp('updated_at').notNull(),
+});
+
 export type ActivityBucket = 'all' | 'mentions' | 'replies';
 export const activityEvents = sqliteTable(
   'activity_events',
@@ -218,7 +285,7 @@ export const activityEventContactGroups = sqliteTable(
       .references(() => activityEvents.id, { onDelete: 'cascade' })
       .notNull(),
     groupId: text('group_id')
-      .references(() => groups.id)
+      .references(() => groups.id, { onDelete: 'cascade' })
       .notNull(),
   },
   (table) => {
@@ -376,9 +443,7 @@ export const chatMembers = sqliteTable(
     membershipType: text('membership_type')
       .$type<'group' | 'channel'>()
       .notNull(),
-    chatId: text('chat_id').references(() => channels.id, {
-      onDelete: 'cascade',
-    }),
+    chatId: text('chat_id'),
     contactId: text('contact_id').notNull(),
     joinedAt: timestamp('joined_at'),
     status: text('status').$type<'invited' | 'joined'>(),
@@ -408,26 +473,6 @@ export const groupFlaggedPosts = sqliteTable(
       pk: primaryKey({
         columns: [table.groupId, table.postId],
       }),
-    };
-  }
-);
-
-export type VerificationType = 'phone' | 'node';
-export type VerificationVisibility = 'public' | 'discoverable' | 'hidden';
-export type VerificationStatus = 'waiting' | 'pending' | 'verified';
-export const verifications = sqliteTable(
-  'verifications',
-  {
-    provider: text('provider').notNull(),
-    type: text('type').$type<VerificationType>().notNull(),
-    value: text('value').notNull(),
-    initiatedAt: timestamp('initiated_at'),
-    visibility: text('visibility').$type<VerificationVisibility>().notNull(),
-    status: text('status').$type<VerificationStatus>().notNull(),
-  },
-  (table) => {
-    return {
-      pk: primaryKey({ columns: [table.provider, table.type, table.value] }),
     };
   }
 );
@@ -710,9 +755,14 @@ export const groupNavSectionChannels = sqliteTable(
   'group_nav_section_channels',
   {
     groupNavSectionId: text('group_nav_section_id').references(
-      () => groupNavSections.id
+      () => groupNavSections.id,
+      {
+        onDelete: 'cascade',
+      }
     ),
-    channelId: text('channel_id').references(() => channels.id),
+    channelId: text('channel_id').references(() => channels.id, {
+      onDelete: 'cascade',
+    }),
     channelIndex: integer('channel_index'),
   },
   (table) => ({
@@ -827,9 +877,7 @@ export const posts = sqliteTable(
   {
     id: text('id').primaryKey().notNull(),
     authorId: text('author_id').notNull(),
-    channelId: text('channel_id')
-      .references(() => channels.id, { onDelete: 'cascade' })
-      .notNull(),
+    channelId: text('channel_id').notNull(),
     groupId: text('group_id'),
     parentId: text('parent_id'),
     type: text('type')
@@ -911,7 +959,7 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
 export const postImages = sqliteTable(
   'post_images',
   {
-    postId: text('post_id').references(() => posts.id),
+    postId: text('post_id').references(() => posts.id, { onDelete: 'cascade' }),
     src: text('src'),
     alt: text('alt'),
     width: integer('width'),
@@ -934,7 +982,7 @@ export const postReactions = sqliteTable(
   {
     contactId: text('contact_id').notNull(),
     postId: text('post_id')
-      .references(() => posts.id)
+      .references(() => posts.id, { onDelete: 'cascade' })
       .notNull(),
     value: text('value').notNull(),
   },
