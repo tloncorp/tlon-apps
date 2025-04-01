@@ -5,6 +5,7 @@
 ::
 /+  rh=re-html
 ::
+=|  base-url=(unit @t)
 |%
 +$  tope
   $:  ns=@t     ::  property namespace, if any
@@ -18,6 +19,66 @@
       met=(map @t veal)  ::  w/ metadata
   ==
 ::
+++  expand-url
+  |=  [base=@t url=@t]
+  ^-  @t
+  ::TODO  or split url by / ? but that might break on query params...
+  =+  b=(need (de-purl:html base))
+  =+  u=(trip url)
+  =.  p.q.b  ~  ::  never preserve file extension
+  =.    r.b  ~  ::  never preserve query params
+  ::  arbitrary protocol
+  ::
+  ?:  =+  p=(find "://" u)
+      &(?=(^ p) (gth u.p 0))
+    url
+  =/  rel=?  |
+  |-
+  ?-  u
+    ::  protocol-relative
+    ::
+      [%'/' %'/' *]
+    (cat 3 ?:(p.p.b 'https:' 'http:') (crip u))
+  ::
+    ::  host-relative
+    ::
+      [%'/' *]
+    (cat 3 (crip (head:en-purl:html p.b)) (crip u))
+  ::
+    ::  parent directory
+    ::
+      [%'.' %'.' %'/' *]
+    =?  q.q.b  &(!rel !=(~ q.q.b))
+      (snip q.q.b)
+    =.  rel  &
+    ::  no need to drop trailing %$ element, semantically equivalent
+    ::
+    ?:  =(~ q.q.b)  $(u t.t.t.u)
+    $(u t.t.t.u, q.q.b (snip q.q.b))
+  ::
+    ::  current directory
+    ::
+      [%'.' %'/' *]
+    =?  q.q.b  &(!rel !=(~ q.q.b))
+      (snip q.q.b)
+    =.  rel  &
+    $(u t.t.u)
+  ::
+    ::  query params
+    ::
+      [%'?' *]
+    (cat 3 (crip (en-purl:html b)) (crip u))
+  ::
+    ::  generic relative
+    ::
+      *
+    =?  q.q.b  &(!rel !=(~ q.q.b) !=(%$ (rear q.q.b)))
+      (snip q.q.b)  ::  snip for plain relative path
+    =?  q.q.b  |(rel =(~ q.q.b) !=(%$ (rear q.q.b)))
+      (snoc q.q.b %$)  ::  ensure trailing / on base url
+    (cat 3 (crip (en-purl:html b)) (crip u))
+  ==
+::
 ++  search-head
   |=  nod=manx
   ^-  (unit (list tope))
@@ -28,6 +89,10 @@
 ++  search-marl
   |=  nos=marl
   ^-  (list tope)
+  =/  patch-href
+    ?~  base-url  same
+    |=  href=@t
+    (expand-url u.base-url href)
   %-  flop
   =<  ?~(cur out [u.cur out])
   %+  roll  nos
@@ -43,9 +108,10 @@
     ?~  rel=(~(get by rat) %rel)  skip
     ?~  ref=(~(get by rat) %href)  skip
     ::TODO  be more selective: image_src, icon (w/ opt attrs), apple-touch-icon etc
-    [cur ['_link' (crip u.rel) (crip u.ref)] out]  ::REVIEW  save cur?
+    [cur ['_link' (crip u.rel) (patch-href (crip u.ref))] out]  ::REVIEW  save cur?
   ::
       %meta
+    ::TODO  patch-href known properties?
     ?~  con=(~(get by rat) %content)
       skip
     =+  val=(crip u.con)

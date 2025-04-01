@@ -156,7 +156,7 @@
             =/  res=(unit (list tope:mg))
               ~>  %bout.[0 '- reparsing']
               ?~  hex  ~
-              (search-head:mg u.hex)
+              (search-head:mg(base-url `url) u.hex)
               :: (biff hex search-head:mg)
             ~?  >>>  ?=(~ hex)  [%miss url]
             =?  res  ?=(~ res)
