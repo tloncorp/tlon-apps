@@ -727,7 +727,6 @@ export class Urbit {
       });
       this.sendJSONtoChannel(message).catch(reject);
     });
-    return message.id;
   }
 
   /**
