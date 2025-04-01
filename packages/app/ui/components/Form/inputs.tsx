@@ -186,7 +186,7 @@ export const ImageInput = XStack.styleable<{
   const [assetUri, setAssetUri] = useState<string | undefined>(
     value ?? undefined
   );
-  const { attachAssets, canUpload } = useAttachmentContext();
+  const { canUpload } = useAttachmentContext();
   const isWindowNarrow = useIsWindowNarrow();
 
   useEffect(() => {
@@ -197,13 +197,9 @@ export const ImageInput = XStack.styleable<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assetUri]);
 
-  const handleImageSelected = useCallback(
-    (assets: ImagePickerAsset[]) => {
-      attachAssets([assets[0]]);
-      setAssetUri(assets[0].uri);
-    },
-    [attachAssets]
-  );
+  const handleImageSelected = useCallback((assets: ImagePickerAsset[]) => {
+    setAssetUri(assets[0].uri);
+  }, []);
 
   const handleSheetToggled = useCallback(() => {
     if (!canUpload) {
@@ -253,7 +249,7 @@ export const ImageInput = XStack.styleable<{
       <AttachmentSheet
         isOpen={sheetOpen}
         onOpenChange={setSheetOpen}
-        onAttachmentsSet={handleImageSelected}
+        onAttach={handleImageSelected}
         showClearOption={showClear && !!value}
         onClearAttachments={handleImageRemoved}
       />
