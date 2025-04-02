@@ -7,14 +7,177 @@ import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
-import { createSectionId } from '../urbit';
+import { createSectionId, getChannelKindFromType } from '../urbit';
 import { createChannel } from './channelActions';
+import * as sync from './sync';
 
-const logger = createDevLogger('groupActions', false);
+const logger = createDevLogger('groupActions', true);
 
 interface CreateGroupParams {
   title?: string;
   memberIds?: string[];
+}
+
+export const PERSONAL_GROUP_NAMES = {
+  slug: 'garden-placeholder',
+  chatSlug: 'garden-placeholder-chat',
+  collectionSlug: 'garden-placeholder-collection',
+  notebookSlug: 'garden-placeholder-notebook',
+};
+
+export function getPersonalGroupDetails(currentUserId: string) {
+  return {
+    slug: PERSONAL_GROUP_NAMES.slug,
+    chatSlug: PERSONAL_GROUP_NAMES.chatSlug,
+    collectionSlug: PERSONAL_GROUP_NAMES.collectionSlug,
+    notebookSlug: PERSONAL_GROUP_NAMES.notebookSlug,
+    groupId: `${currentUserId}/${PERSONAL_GROUP_NAMES.slug}`,
+    chatChannelId: `${getChannelKindFromType('chat')}/${currentUserId}/${PERSONAL_GROUP_NAMES.chatSlug}`,
+    collectionChannelId: `${getChannelKindFromType('gallery')}/${currentUserId}/${PERSONAL_GROUP_NAMES.collectionSlug}`,
+    notebookChannelId: `${getChannelKindFromType('notebook')}/${currentUserId}/${PERSONAL_GROUP_NAMES.notebookSlug}`,
+  };
+}
+
+export async function scaffoldPersonalGroup() {
+  const currentUserId = api.getCurrentUserId();
+  const PERSONAL_GROUP = getPersonalGroupDetails(currentUserId);
+
+  try {
+    logger.trackEvent(`Personal Group Scaffold`, {
+      context: 'starting personal group scaffold',
+    });
+
+    let existingGroup = await db.getGroup({ id: PERSONAL_GROUP.groupId });
+    if (!existingGroup) {
+      await db.insertGroups({
+        groups: [
+          {
+            id: PERSONAL_GROUP.groupId,
+            currentUserIsMember: true,
+            currentUserIsHost: true,
+            hostUserId: currentUserId,
+          },
+        ],
+      });
+      await api.createGroup({
+        title: 'Personal Garden',
+        slug: PERSONAL_GROUP.slug,
+        privacy: 'secret',
+      });
+      logger.trackEvent('Personal Group Scaffold', {
+        note: 'Created backend group, proceeding to channels',
+      });
+    } else {
+      logger.trackEvent('Personal Group Scaffold', {
+        note: 'Already exists, proceeding to channels',
+      });
+    }
+
+    existingGroup = await db.getGroup({ id: PERSONAL_GROUP.groupId });
+    if (!existingGroup) {
+      throw new Error('Invariant violated: no existing group');
+    }
+    console.log(`bl: k we have the group`, existingGroup);
+
+    const chatChan = existingGroup.channels.find(
+      (chan) => chan.type === 'chat' && chan.id === PERSONAL_GROUP.chatChannelId
+    );
+    if (!chatChan) {
+      await createChannel({
+        groupId: PERSONAL_GROUP.groupId,
+        customSlug: PERSONAL_GROUP.chatSlug,
+        title: 'Thoughts',
+        channelType: 'chat',
+      });
+      logger.trackEvent('Personal Group Scaffold', {
+        note: 'Created general chat channel',
+      });
+    } else {
+      logger.trackEvent('Personal Group Scaffold', {
+        note: 'General chat channel already exists, skipping',
+      });
+    }
+
+    const collectionChan = existingGroup.channels.find(
+      (chan) =>
+        chan.type === 'gallery' &&
+        chan.id === PERSONAL_GROUP.collectionChannelId
+    );
+    if (!collectionChan) {
+      await createChannel({
+        groupId: PERSONAL_GROUP.groupId,
+        customSlug: PERSONAL_GROUP.collectionSlug,
+        title: 'Collectables',
+        channelType: 'gallery',
+      });
+      logger.trackEvent('Personal Group Scaffold', {
+        note: 'Created collection channel',
+      });
+    } else {
+      logger.trackEvent('Personal Group Scaffold', {
+        note: 'Collection channel already exists, skipping',
+      });
+    }
+
+    const notesChan = existingGroup.channels.find(
+      (chan) =>
+        chan.type === 'notebook' && chan.id === PERSONAL_GROUP.notebookChannelId
+    );
+    if (!notesChan) {
+      await createChannel({
+        groupId: PERSONAL_GROUP.groupId,
+        customSlug: PERSONAL_GROUP.notebookSlug,
+        title: 'Diary',
+        channelType: 'notebook',
+      });
+      logger.trackEvent('Personal Group Scaffold', {
+        note: 'Created notes channel',
+      });
+    } else {
+      logger.trackEvent('Personal Group Scaffold', {
+        note: 'Notes channel already exists, skipping',
+      });
+    }
+
+    // Sanity check
+    const group = await db.getGroup({ id: PERSONAL_GROUP.groupId });
+    const chatChannel = group?.channels.find(
+      (chan) => chan.id === PERSONAL_GROUP.chatChannelId
+    );
+    const collectionChannel = group?.channels.find(
+      (chan) => chan.id === PERSONAL_GROUP.collectionChannelId
+    );
+    const notesChannel = group?.channels.find(
+      (chan) => chan.id === PERSONAL_GROUP.notebookChannelId
+    );
+    if (!group || !chatChannel || !collectionChannel || !notesChannel) {
+      logger.trackEvent('Personal Group Scaffold', {
+        notes: 'Completed scaffold, but not all items are present',
+        hasGroup: !!group,
+        hasChatChannel: !!chatChannel,
+        hasCollectionChannel: !!collectionChannel,
+        hasNotesChannel: !!notesChannel,
+      });
+      throw new Error('Something went wrong');
+    } else {
+      logger.trackEvent('Personal Group Scaffold', {
+        note: 'Passed final sanity check',
+      });
+    }
+
+    logger.trackEvent('Completed Personal Group Scaffold', {
+      ...logic.getModelAnalytics({ group: { id: PERSONAL_GROUP.groupId } }),
+    });
+
+    return group;
+  } catch (e) {
+    // await db.deleteGroup(PERSONAL_GROUP.groupId);
+    logger.trackEvent('Error Personal Group Scaffold', {
+      errorMessage: e.message,
+      stack: e.stack,
+    });
+    throw new Error('Something went wrong');
+  }
 }
 
 export async function createGroup(

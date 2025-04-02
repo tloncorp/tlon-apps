@@ -404,6 +404,7 @@ export async function syncGroup(id: string, ctx?: SyncCtx) {
     });
   } catch (e) {
     logger.trackError('group sync failed', { errorMessage: e.message });
+    console.error(e);
     throw e;
   } finally {
     groupSyncsInProgress.delete(id);

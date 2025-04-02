@@ -20,16 +20,18 @@ export async function createChannel({
   description: rawDescription,
   channelType: rawChannelType,
   contentConfiguration,
+  customSlug,
 }: {
   groupId: string;
   title: string;
   description?: string;
   channelType: Omit<db.ChannelType, 'dm' | 'groupDm'> | 'custom';
   contentConfiguration?: ChannelContentConfiguration;
+  customSlug?: string;
 }) {
   const currentUserId = api.getCurrentUserId();
   const channelType = rawChannelType === 'custom' ? 'chat' : rawChannelType;
-  const channelSlug = getRandomId();
+  const channelSlug = customSlug || getRandomId();
   const channelId = `${getChannelKindFromType(channelType)}/${currentUserId}/${channelSlug}`;
 
   logger.trackEvent(
@@ -53,7 +55,10 @@ export async function createChannel({
       contentConfiguration ??
       channelContentConfigurationForChannelType(channelType),
   };
+
+  console.log(`bl: inserting channel`, newChannel);
   await db.insertChannels([newChannel]);
+  console.log('bl: inserted it', channelId);
 
   // If we have a `contentConfiguration`, we need to merge these fields to make
   // a `StructuredChannelDescriptionPayload`, and use that as the `description`
@@ -65,8 +70,19 @@ export async function createChannel({
           description: rawDescription,
           channelContentConfiguration: contentConfiguration,
         });
+  console.log(`bl: made it here?`);
 
   try {
+    console.log(`bl: trying to create channel`, channelId, {
+      id: channelId,
+      kind: getChannelKindFromType(channelType),
+      group: groupId,
+      name: channelSlug,
+      title,
+      description: encodedDescription ?? '',
+      readers: [],
+      writers: [],
+    });
     await api.createChannel({
       id: channelId,
       kind: getChannelKindFromType(channelType),
@@ -77,11 +93,14 @@ export async function createChannel({
       readers: [],
       writers: [],
     });
+    console.log(`bl: created it`, channelId);
     return newChannel;
   } catch (e) {
     console.error('Failed to create channel', e);
     // rollback optimistic update
+    console.log('bl: no luck, deleting channel', channelId);
     await db.deleteChannels([channelId]);
+    console.log('bl: deleted it', channelId);
   }
 
   return newChannel;

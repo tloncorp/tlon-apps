@@ -286,3 +286,8 @@ export const userHasCompletedFirstSync = createStorageItem<boolean>({
   key: 'userHasCompletedFirstSync',
   defaultValue: false,
 });
+
+export const userHasPersonalGroup = createStorageItem<boolean>({
+  key: 'userHasPersonalGroup',
+  defaultValue: false,
+});

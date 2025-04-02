@@ -108,6 +108,7 @@ export const createChannel = async ({
   id,
   ...channelPayload
 }: ub.Create & { id: string }) => {
+  console.log(`bl: api creating channel`, id);
   return trackedPoke<ub.ChannelsResponse>(
     {
       app: 'channels',
@@ -118,6 +119,7 @@ export const createChannel = async ({
     },
     { app: 'channels', path: '/v1' },
     (event) => {
+      console.log(`bl: create chan event`, event);
       return 'create' in event.response && event.nest === id;
     },
     { tag: 'createChannel' }
