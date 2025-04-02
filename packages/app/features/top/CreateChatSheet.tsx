@@ -1,5 +1,6 @@
 import * as store from '@tloncorp/shared';
 import { createDevLogger } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import {
   forwardRef,
   useCallback,
@@ -19,9 +20,11 @@ import {
   ActionSheet,
   Button,
   ContactBook,
+  GroupPreviewAction,
   GroupPreviewPane,
   LoadingSpinner,
   SimpleActionSheet,
+  Text,
   TextInput,
   capitalize,
   useIsWindowNarrow,
@@ -126,6 +129,15 @@ const JoinGroupByIdPane = ({ close }: JoinGroupByIdPaneProps) => {
   const [groupCode, setGroupCode] = useState('');
   const { isCodeValid, state, actions } = useGroupSearch(groupCode);
 
+  const handleActionComplete = useCallback(
+    (action: GroupPreviewAction, group: db.Group) => {
+      actions.handleGroupAction(action, group);
+      setGroupCode('');
+      close();
+    },
+    [close, actions]
+  );
+
   return (
     <YStack gap="$m">
       {state.isSearching && isCodeValid ? (
@@ -139,9 +151,9 @@ const JoinGroupByIdPane = ({ close }: JoinGroupByIdPaneProps) => {
           {state.group && !state.isLoading && !state.isError ? (
             <GroupPreviewPane
               group={state.group}
-              onActionComplete={actions.handleGroupAction}
+              onActionComplete={handleActionComplete}
             />
-          ) : (
+          ) : state.isLoading ? (
             <View
               flex={1}
               justifyContent="center"
@@ -149,6 +161,24 @@ const JoinGroupByIdPane = ({ close }: JoinGroupByIdPaneProps) => {
               padding="$l"
             >
               <LoadingSpinner />
+            </View>
+          ) : state.isError ? (
+            <View
+              flex={1}
+              justifyContent="center"
+              alignItems="center"
+              padding="$l"
+            >
+              <Text>Group not found</Text>
+            </View>
+          ) : (
+            <View
+              flex={1}
+              justifyContent="center"
+              alignItems="center"
+              padding="$l"
+            >
+              <Text>Group not found</Text>
             </View>
           )}
         </View>
