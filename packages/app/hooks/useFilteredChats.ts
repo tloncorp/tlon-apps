@@ -96,6 +96,15 @@ function useChatSearch({
               : normalizeString(title);
           },
         },
+        {
+          name: 'id',
+          getFn: (chat: db.Chat) => {
+            if (chat.type === 'channel') {
+              return normalizeString(chat.channel.id);
+            }
+            return normalizeString(chat.group.id);
+          },
+        },
       ],
     });
   }, [pinned, unpinned, pending, disableNicknames]);
