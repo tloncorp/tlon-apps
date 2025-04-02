@@ -60,7 +60,6 @@ export * from './components/SearchBar';
 export * from './components/UserProfileScreenView';
 export * from './components/TwtitterAttestationPane';
 export * from './components/PhoneAttestationPane';
-export * from './components/WelcomeSheet';
 export * from './components/ArvosDiscussing';
 export * from './components/PersonalInviteSheet';
 export * from './components/StoppedNodePushSheet';

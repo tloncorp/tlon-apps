@@ -1781,8 +1781,10 @@ export const deleteChannels = createWriteQuery(
   'deleteChannels',
   async (channels: string[], ctx: QueryCtx) => {
     logger.log(`deleteChannels`, channels);
-    await ctx.db.delete($posts).where(inArray($channels.id, channels));
-    await ctx.db.delete($chatMembers).where(inArray($channels.id, channels));
+    await ctx.db.delete($posts).where(inArray($posts.channelId, channels));
+    await ctx.db
+      .delete($chatMembers)
+      .where(inArray($chatMembers.chatId, channels));
     await ctx.db.delete($channels).where(inArray($channels.id, channels));
     return;
   },
@@ -2889,6 +2891,26 @@ export const getPostWithRelations = createReadQuery(
       .then(returnNullIfUndefined);
   },
   ['posts', 'threadUnreads', 'volumeSettings']
+);
+
+export const getPersonalGroup = createReadQuery(
+  'getPersonalGroup',
+  async (ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
+    const groupId = `${currentUserId}/${domain.PersonalGroupSlugs.slug}`;
+    const group = await getGroup({ id: groupId }, ctx);
+    return group;
+  },
+  [
+    'groups',
+    'channelUnreads',
+    'volumeSettings',
+    'channels',
+    'groupJoinRequests',
+    'groupMemberBans',
+    'groupNavSectionChannels',
+    'groupRoles',
+  ]
 );
 
 export const getGroup = createReadQuery(

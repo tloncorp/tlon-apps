@@ -1,8 +1,9 @@
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { LoadingSpinner } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, YStack, getVariableValue, useTheme } from 'tamagui';
 
@@ -14,6 +15,7 @@ import { ChatOptionsSheet } from './ChatOptionsSheet';
 import { ChannelListItem } from './ListItem/ChannelListItem';
 import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
 import { ScreenHeader } from './ScreenHeader';
+import WayfindingNotice from './Wayfinding/Notices';
 
 type GroupChannelsScreenViewProps = {
   group: db.Group | null;
@@ -66,6 +68,10 @@ export function GroupChannelsScreenView({
   const listSectionTitleColor = getVariableValue(useTheme().secondaryText);
   const isWindowNarrow = useIsWindowNarrow();
 
+  const isPersonalGroup = useMemo(() => {
+    return logic.isPersonalGroup(group, userId);
+  }, [group, userId]);
+
   return (
     <View flex={1}>
       <ScreenHeader
@@ -102,6 +108,7 @@ export function GroupChannelsScreenView({
           </>
         }
       />
+
       {group && group.channels && group.channels.length ? (
         <ScrollView
           contentContainerStyle={{
@@ -111,6 +118,11 @@ export function GroupChannelsScreenView({
             paddingBottom: insets.bottom,
           }}
         >
+          {isPersonalGroup && (
+            <WayfindingNotice.GroupChannels
+              onPressCta={chatOptions.onPressGroupMeta}
+            />
+          )}
           <ChannelNavSections
             group={group}
             channels={group.channels}

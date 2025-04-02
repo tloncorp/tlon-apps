@@ -6,6 +6,7 @@ import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitCl
 import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
+import { usePersonalGroup } from '@tloncorp/app/hooks/usePersonalGroup';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
 import { useUpdatePresentedNotifications } from '@tloncorp/app/lib/notifications';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
@@ -31,6 +32,7 @@ function AuthenticatedApp() {
   useNetworkLogger();
   useCheckAppUpdated();
   useFindSuggestedContacts();
+  usePersonalGroup();
 
   const handleAppStatusChange = useCallback(
     (status: AppStatus) => {

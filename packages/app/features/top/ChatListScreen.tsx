@@ -33,10 +33,10 @@ import {
   RequestsProvider,
   ScreenHeader,
   View,
-  WelcomeSheet,
   useGlobalSearch,
   useIsWindowNarrow,
 } from '../../ui';
+import { SplashSheet } from '../../ui/components/Wayfinding/SplashSheet';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { ChatList } from '../chat-list/ChatList';
 import { ChatListSearch } from '../chat-list/ChatListSearch';
@@ -230,7 +230,8 @@ export function ChatListScreenView({
   useEffect(() => {
     const checkSplashDismissed = async () => {
       const dismissed = await db.storage.splashDismissed.getValue();
-      setSplashVisible(!dismissed);
+      // setSplashVisible(!dismissed);
+      setSplashVisible(true);
     };
 
     checkSplashDismissed();
@@ -361,7 +362,7 @@ export function ChatListScreenView({
               </>
             ) : null}
 
-            <WelcomeSheet
+            <SplashSheet
               open={splashVisible}
               onOpenChange={handleWelcomeOpenChange}
             />

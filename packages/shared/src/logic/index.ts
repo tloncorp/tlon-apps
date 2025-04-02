@@ -10,3 +10,4 @@ export * as featureFlags from './featureFlags';
 export * from './tiptap';
 export * from './hosting';
 export * from './noun';
+export * from './wayfinding';

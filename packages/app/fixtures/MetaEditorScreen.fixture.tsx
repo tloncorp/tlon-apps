@@ -10,6 +10,7 @@ const GroupMetaScreenFixture = () => {
         onSubmit={() => {}}
         chat={group}
         goBack={() => console.log('goBack')}
+        currentUserId="~mister-dister"
       />
     </FixtureWrapper>
   );

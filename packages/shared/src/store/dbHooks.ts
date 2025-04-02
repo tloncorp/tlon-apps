@@ -9,6 +9,7 @@ import * as api from '../api';
 import { getMessagesFilter } from '../api';
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
+import * as logic from '../logic';
 import * as ub from '../urbit';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
 import {
@@ -502,5 +503,17 @@ export const useAttestations = () => {
   return useQuery({
     queryKey: ['attestations', deps],
     queryFn: () => db.getAttestations(),
+  });
+};
+
+export const usePersonalGroup = () => {
+  const deps = useKeyFromQueryDeps(db.getPersonalGroup);
+  return useQuery({
+    queryKey: ['personalGroup', deps],
+    queryFn: async () => {
+      const currentUserId = api.getCurrentUserId();
+      const group = await db.getPersonalGroup();
+      logic.personalGroupIsValid({ group, currentUserId }) ? group : null;
+    },
   });
 };
