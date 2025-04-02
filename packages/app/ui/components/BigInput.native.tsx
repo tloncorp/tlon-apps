@@ -45,7 +45,7 @@ export function BigInput({
   const keyboardVerticalOffset =
     Platform.OS === 'ios' ? top + titleInputHeight : top;
 
-  const { attachments, attachAssets } = useAttachmentContext();
+  const { attachments } = useAttachmentContext();
   const imageAttachment = useMemo(() => {
     if (attachments.length > 0) {
       return attachments.find(
@@ -178,7 +178,6 @@ export function BigInput({
         <AttachmentSheet
           isOpen={showAttachmentSheet}
           onOpenChange={setShowAttachmentSheet}
-          onAttachmentsSet={attachAssets}
         />
       )}
     </YStack>

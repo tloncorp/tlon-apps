@@ -1,5 +1,5 @@
-export const DESKTOP_TOPLEVEL_SIDEBAR_WIDTH = 56;
-export const DESKTOP_SIDEBAR_WIDTH = 450;
+export const DESKTOP_TOPLEVEL_SIDEBAR_WIDTH = 48;
+export const DESKTOP_SIDEBAR_WIDTH = 410;
 
 export * from './types';
 export * from './components/Button';
@@ -24,7 +24,7 @@ export * from './components/TamaguiProvider';
 export * as TlonText from './components/TextV2';
 export { Text, RawText } from './components/TextV2';
 export type { FontStyle } from './components/TextV2';
-export { typeStyles } from './components/TextV2/Text';
+export { mobileTypeStyles, desktopTypeStyles } from './components/TextV2/Text';
 export { default as UrbitSigil } from './components/UrbitSigil';
 export * from './components/View';
 export * from './contexts/globalSearch';

@@ -25,10 +25,18 @@ export async function createGroup(
   const groupId = `${currentUserId}/${groupSlug}`;
 
   try {
-    logger.log('creating group', groupId);
-    logger.trackEvent(AnalyticsEvent.ActionCreateGroup, {
-      ...logic.getModelAnalytics({ group: { id: groupId } }),
-      initialMemberCount: params.memberIds?.length ?? 0,
+    logger.trackEvent(AnalyticsEvent.DebugGroupCreate, {
+      context: 'creating group',
+    });
+    await db.insertGroups({
+      groups: [
+        {
+          id: groupId,
+          currentUserIsMember: true,
+          currentUserIsHost: true,
+          hostUserId: currentUserId,
+        },
+      ],
     });
     await api.createGroup({
       title: params.title ?? '',
@@ -38,24 +46,42 @@ export async function createGroup(
       memberIds: params.memberIds,
     });
 
-    logger.log(`created group ${groupId}, adding default channel`);
-
+    logger.trackEvent(AnalyticsEvent.DebugGroupCreate, {
+      context: 'group created on backend',
+      nextStep: 'adding default channel',
+    });
     await createChannel({
       groupId: groupId,
       title: 'General',
       channelType: 'chat',
     });
 
-    logger.log(`created default channel for ${groupId}, syncing now`);
-
+    logger.trackEvent(AnalyticsEvent.DebugGroupCreate, {
+      context: 'default channel created on backend',
+      nextStep: 'getting group from DB',
+    });
     const group = await db.getGroup({ id: groupId });
     if (!group || !group.channels.length) {
       throw new Error('Something went wrong');
+    } else {
+      logger.trackEvent(AnalyticsEvent.DebugGroupCreate, {
+        context: 'found new group in DB',
+      });
     }
+
+    logger.trackEvent(AnalyticsEvent.ActionCreateGroup, {
+      ...logic.getModelAnalytics({ group: { id: groupId } }),
+      initialMemberCount: params.memberIds?.length ?? 0,
+    });
 
     return group;
   } catch (e) {
+    await db.deleteGroup(groupId);
     console.error(`${groupSlug}: failed to create group`, e);
+    logger.trackEvent(AnalyticsEvent.ErrorCreateGroup, {
+      errorMessage: e.message,
+      stack: e.stack,
+    });
     throw new Error('Something went wrong');
   }
 }

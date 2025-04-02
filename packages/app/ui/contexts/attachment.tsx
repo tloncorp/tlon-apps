@@ -32,7 +32,7 @@ export type UploadedImageAttachment = {
   type: 'image';
   file: ImagePickerAsset;
   uploadState: {
-    status: 'complete';
+    status: 'success';
     remoteUri: string;
   };
 };
@@ -56,6 +56,9 @@ export type AttachmentState = {
   resetAttachments: (attachments: Attachment[]) => void;
   waitForAttachmentUploads: () => Promise<FinalizedAttachment[]>;
   attachAssets: (assets: ImagePickerAsset[]) => void;
+  uploadAssets: (
+    assets: ImagePickerAsset[]
+  ) => Promise<UploadedImageAttachment[]>;
   canUpload: boolean;
 };
 
@@ -65,6 +68,7 @@ const defaultState: AttachmentState = {
   removeAttachment: () => {},
   clearAttachments: () => {},
   resetAttachments: () => {},
+  uploadAssets: async () => [],
   attachAssets: () => {},
   waitForAttachmentUploads: async () => [],
   canUpload: true,
@@ -181,6 +185,42 @@ export const AttachmentProvider = ({
     return finalAttachments;
   }, [attachments, state]);
 
+  const handleUploadAssets = useCallback(
+    async (assets: ImagePickerAsset[]): Promise<UploadedImageAttachment[]> => {
+      const assetUris: string[] = [];
+
+      const uploadPromises = assets.map(async (asset) => {
+        await uploadAsset(asset, isWeb);
+        assetUris.push(asset.uri);
+        return asset;
+      });
+
+      const uploadedAssets = await Promise.all(uploadPromises);
+
+      setState((prev) => [
+        ...prev,
+        ...uploadedAssets.map((asset) => ({
+          type: 'image' as const,
+          file: asset,
+        })),
+      ]);
+
+      const uploadStates = await waitForUploads(assetUris);
+
+      return uploadedAssets
+        .map((asset) => ({
+          type: 'image' as const,
+          file: asset,
+          uploadState: uploadStates[asset.uri],
+        }))
+        .filter(
+          (attachment): attachment is UploadedImageAttachment =>
+            attachment.uploadState?.status === 'success'
+        );
+    },
+    [uploadAsset]
+  );
+
   return (
     <Context.Provider
       value={{
@@ -191,6 +231,7 @@ export const AttachmentProvider = ({
         clearAttachments: handleClearAttachments,
         resetAttachments: handleResetAttachments,
         waitForAttachmentUploads: handleWaitForUploads,
+        uploadAssets: handleUploadAssets,
         canUpload,
       }}
     >

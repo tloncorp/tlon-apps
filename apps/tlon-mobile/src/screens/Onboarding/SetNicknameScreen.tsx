@@ -1,7 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DEFAULT_ONBOARDING_NICKNAME } from '@tloncorp/app/constants';
 import { requestNotificationToken } from '@tloncorp/app/lib/notifications';
-import { trackError } from '@tloncorp/app/utils/posthog';
 import {
   Field,
   Image,
@@ -13,6 +12,7 @@ import {
   YStack,
   useTheme,
 } from '@tloncorp/app/ui';
+import { createDevLogger } from '@tloncorp/shared';
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
@@ -25,6 +25,8 @@ type FormData = {
   nickname?: string;
   notificationToken?: string | undefined;
 };
+
+const logger = createDevLogger('SetNicknameScreen', true);
 
 export const SetNicknameScreen = ({ navigation }: Props) => {
   const theme = useTheme();
@@ -75,7 +77,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
       } catch (err) {
         console.error('Error enabling notifications:', err);
         if (err instanceof Error) {
-          trackError(err);
+          logger.trackError('Error enabling notifications', err);
         }
       }
     }

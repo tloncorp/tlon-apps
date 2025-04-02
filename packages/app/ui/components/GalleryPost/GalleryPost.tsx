@@ -27,6 +27,8 @@ import { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ContactAvatar } from '../Avatar';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
+import { ReactionsDisplay } from '../ChatMessage/ReactionsDisplay';
+import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import { useBoundHandler } from '../ListItem/listItemUtils';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
@@ -148,8 +150,17 @@ export function GalleryPost({
             width="100%"
             pointerEvents="none"
           >
-            <XStack alignItems="center" gap="$xl" padding="$m" {...props}>
+            <XStack
+              alignItems="flex-end"
+              justifyContent="space-between"
+              gap="$xl"
+              padding="$m"
+              {...props}
+            >
               <ContactAvatar size="$2xl" contactId={post.authorId} />
+              <View pointerEvents="auto">
+                <ReactionsDisplay post={post} minimal={true} />
+              </View>
               {deliveryFailed && (
                 <Text
                   // applying some shadow here because we could be rendering it
@@ -218,6 +229,7 @@ export function GalleryPostDetailView({
     return makePrettyShortDate(new Date(post.receivedAt));
   }, [post.receivedAt]);
   const content = usePostContent(post);
+  const [viewReactionsOpen, setViewReactionsOpen] = useState(false);
 
   const firstImage = useMemo(() => {
     const img = content.find((block) => block.type === 'image');
@@ -243,6 +255,10 @@ export function GalleryPostDetailView({
     [navigation, logger, onPressImage, post, firstImage]
   );
 
+  const handleViewPostReactions = useCallback(() => {
+    setViewReactionsOpen(true);
+  }, []);
+
   return (
     <View paddingBottom="$xs" borderBottomWidth={1} borderColor="$border">
       <View
@@ -263,16 +279,28 @@ export function GalleryPostDetailView({
       </View>
 
       <View gap="$2xl" padding="$xl">
-        <DetailViewAuthorRow authorId={post.authorId} color="$primaryText" />
+        <DetailViewAuthorRow
+          authorId={post.authorId}
+          color="$primaryText"
+          showSentAt={true}
+        />
 
         {post.title && <Text size="$body">{post.title}</Text>}
 
-        <Text size="$body" color="$tertiaryText">
-          Added {formattedDate}
-        </Text>
+        <ReactionsDisplay
+          post={post}
+          minimal={false}
+          onViewPostReactions={handleViewPostReactions}
+        />
 
         {isImagePost && <CaptionContentRenderer content={content} />}
       </View>
+
+      <ViewReactionsSheet
+        post={post}
+        open={viewReactionsOpen}
+        onOpenChange={setViewReactionsOpen}
+      />
     </View>
   );
 }

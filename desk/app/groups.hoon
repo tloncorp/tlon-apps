@@ -393,11 +393,11 @@
     %+  roll  ~(tap by wex.bowl)
     |=  [[[=wire =dock] *] =_cor]
     ?.  ?=([%epic ~] wire)  cor
-    =^  caz=(list card)  subs
+    =^  caz=(list card)  subs.cor
       (~(unsubscribe s [subs bowl]) wire dock)
-    =.  cor  (emil caz)
+    =.  cor  (emil:cor caz)
     ::  force leave
-    (emit [%pass wire %agent dock %leave ~])
+    (emit:cor [%pass wire %agent dock %leave ~])
   =?  cor  ?=(%4 -.old)
     (emit [%pass /load/active-channels %arvo %b %wait now.bowl])
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)

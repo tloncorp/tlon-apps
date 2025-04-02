@@ -235,10 +235,14 @@ const ChatMessage = ({
           />
         </View>
 
-        <ReactionsDisplay
-          post={post}
-          onViewPostReactions={setViewReactionsPost}
-        />
+        {post.reactions && post.reactions.length > 0 && (
+          <View paddingBottom="$l" paddingLeft="$4xl">
+            <ReactionsDisplay
+              post={post}
+              onViewPostReactions={setViewReactionsPost}
+            />
+          </View>
+        )}
 
         {shouldRenderReplies ? (
           <XStack paddingLeft={'$4xl'} paddingRight="$l" paddingBottom="$l">

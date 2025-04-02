@@ -2,7 +2,6 @@ import { Button } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { useEffect, useState } from 'react';
 
-import { useAttachmentContext } from '../../contexts/attachment';
 import AttachmentSheet from '../AttachmentSheet';
 
 export default function AttachmentButton({
@@ -18,8 +17,6 @@ export default function AttachmentButton({
     }
   }, [showInputSelector, setShouldBlur]);
 
-  const { attachAssets } = useAttachmentContext();
-
   return (
     <>
       <Button
@@ -32,7 +29,6 @@ export default function AttachmentButton({
       <AttachmentSheet
         isOpen={showInputSelector}
         onOpenChange={setShowInputSelector}
-        onAttachmentsSet={attachAssets}
       />
     </>
   );

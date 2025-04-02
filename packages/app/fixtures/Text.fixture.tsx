@@ -5,6 +5,7 @@ import { PropsWithChildren, useCallback, useEffect, useState } from 'react';
 import React from 'react';
 import {
   NativeSyntheticEvent,
+  Platform,
   StyleSheet,
   TextLayoutEventData,
   TextLayoutLine,
@@ -149,9 +150,9 @@ const TextSpecimen = React.memo(function TextSpecimenInner({
   return (
     <YStack gap="$l">
       <Text fontSize="$xs" color="$tertiaryText">{`${size}`}</Text>
-      <View backgroundColor={'$secondaryBackground'}>
+      <View backgroundColor={'$blue'}>
         <Text
-          trimmed={false}
+          trimmed={Platform.OS === 'web'}
           numberOfLines={1}
           onTextLayout={handleLayout}
           size={size}
@@ -162,40 +163,42 @@ const TextSpecimen = React.memo(function TextSpecimenInner({
           {message}
         </Text>
       </View>
-      <View backgroundColor={'$secondaryBackground'}>
-        <Text
-          numberOfLines={1}
-          trimmed={false}
-          onTextLayout={handleLayout}
-          size={size}
-        >
-          {message}
-        </Text>
-        {info && (
-          <>
-            <Metric
-              top={info.measures.baseline + info.offset}
-              color="red"
-              label="Baseline"
-            />
-            <Metric
-              top={info.measures.descender + info.offset}
-              color="blue"
-              label="Descender"
-            />
-            <Metric
-              top={info.measures.capHeight + info.offset}
-              color="green"
-              label="Capheight"
-            />
-            <Metric
-              top={info.measures.xHeight + info.offset}
-              color="purple"
-              label="X-height"
-            />
-          </>
-        )}
-      </View>
+      {Platform.OS !== 'web' && (
+        <View backgroundColor={'$secondaryBackground'}>
+          <Text
+            numberOfLines={1}
+            trimmed={false}
+            onTextLayout={handleLayout}
+            size={size}
+          >
+            {message}
+          </Text>
+          {info && (
+            <>
+              <Metric
+                top={info.measures.baseline + info.offset}
+                color="red"
+                label="Baseline"
+              />
+              <Metric
+                top={info.measures.descender + info.offset}
+                color="blue"
+                label="Descender"
+              />
+              <Metric
+                top={info.measures.capHeight + info.offset}
+                color="green"
+                label="Capheight"
+              />
+              <Metric
+                top={info.measures.xHeight + info.offset}
+                color="purple"
+                label="X-height"
+              />
+            </>
+          )}
+        </View>
+      )}
       {info && (
         <XStack gap={10}>
           <View>
