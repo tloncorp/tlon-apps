@@ -13,13 +13,11 @@ import {
   useMemo,
   useRef,
 } from 'react';
-import { Modal, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { Modal, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  Circle,
   Dialog,
   Popover,
-  ScrollView,
   SheetProps,
   View,
   VisuallyHidden,
