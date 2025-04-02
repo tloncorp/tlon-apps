@@ -502,15 +502,6 @@ export const desktopFonts = {
   // ===
 };
 
-// const config = {
-//   ...baseConfig,
-//   tokens: {
-//     ...baseConfig.tokens,
-//     size: measures,
-//     space: measures,
-//     radius: measures,
-//   },
-// };
 
 export const config =
   Platform.OS === 'web'
