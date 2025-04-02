@@ -1,4 +1,6 @@
 import * as store from '@tloncorp/shared';
+import { createDevLogger } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import {
   forwardRef,
   useCallback,
@@ -18,14 +20,15 @@ import {
   ActionSheet,
   Button,
   ContactBook,
+  GroupPreviewAction,
   GroupPreviewPane,
   LoadingSpinner,
   SimpleActionSheet,
+  Text,
   TextInput,
   capitalize,
   useIsWindowNarrow,
 } from '../../ui';
-import { trackError } from '../../utils/posthog';
 
 type ChatType = 'dm' | 'group' | 'joinGroup';
 type Step = 'initial' | 'selectType' | `create${Capitalize<ChatType>}`;
@@ -38,6 +41,8 @@ export type CreateChatSheetMethods = {
   open: () => void;
   close: () => void;
 };
+
+const logger = createDevLogger('CreateChatSheet', true);
 
 function createTypeActions(onSelectType: (type: ChatType) => void): Action[] {
   return [
@@ -124,6 +129,15 @@ const JoinGroupByIdPane = ({ close }: JoinGroupByIdPaneProps) => {
   const [groupCode, setGroupCode] = useState('');
   const { isCodeValid, state, actions } = useGroupSearch(groupCode);
 
+  const handleActionComplete = useCallback(
+    (action: GroupPreviewAction, group: db.Group) => {
+      actions.handleGroupAction(action, group);
+      setGroupCode('');
+      close();
+    },
+    [close, actions]
+  );
+
   return (
     <YStack gap="$m">
       {state.isSearching && isCodeValid ? (
@@ -137,9 +151,9 @@ const JoinGroupByIdPane = ({ close }: JoinGroupByIdPaneProps) => {
           {state.group && !state.isLoading && !state.isError ? (
             <GroupPreviewPane
               group={state.group}
-              onActionComplete={actions.handleGroupAction}
+              onActionComplete={handleActionComplete}
             />
-          ) : (
+          ) : state.isLoading ? (
             <View
               flex={1}
               justifyContent="center"
@@ -147,6 +161,24 @@ const JoinGroupByIdPane = ({ close }: JoinGroupByIdPaneProps) => {
               padding="$l"
             >
               <LoadingSpinner />
+            </View>
+          ) : state.isError ? (
+            <View
+              flex={1}
+              justifyContent="center"
+              alignItems="center"
+              padding="$l"
+            >
+              <Text>Group not found</Text>
+            </View>
+          ) : (
+            <View
+              flex={1}
+              justifyContent="center"
+              alignItems="center"
+              padding="$l"
+            >
+              <Text>Group not found</Text>
             </View>
           )}
         </View>
@@ -248,9 +280,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
   useEffect(() => {
     if (createChatError) {
       Alert.alert('Error creating chat', createChatError);
-      trackError({
-        message: 'Error creating chat: ' + createChatError,
-      });
+      logger.trackError('Error creating chat', new Error(createChatError));
     }
   }, [createChatError]);
 
@@ -490,7 +520,7 @@ function useCreateChat() {
         }
         return true;
       } catch (e) {
-        trackError(e);
+        logger.trackError('createChat Failed', e);
         setCreateChatError(e.message);
         return false;
       } finally {

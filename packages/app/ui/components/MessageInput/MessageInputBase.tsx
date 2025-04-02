@@ -7,7 +7,7 @@ import { Icon } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { memo } from 'react';
 import { PropsWithChildren } from 'react';
-import { SpaceTokens } from 'tamagui';
+import { SpaceTokens, styled } from 'tamagui';
 import {
   ThemeTokens,
   View,
@@ -70,6 +70,12 @@ export interface MessageInputProps {
     editor: EditorBridge | null;
   }>;
 }
+
+const AttachmentButtonContainer = styled(View, {
+  $sm: {
+    marginBottom: '$xs',
+  },
+});
 
 export const MessageInputContainer = memo(
   ({
@@ -166,9 +172,9 @@ export const MessageInputContainer = memo(
             </View>
           ) : null}
           {canUpload && showAttachmentButton ? (
-            <View marginBottom="$xs">
+            <AttachmentButtonContainer>
               <AttachmentButton setShouldBlur={setShouldBlur} />
-            </View>
+            </AttachmentButtonContainer>
           ) : null}
           {children}
           {floatingActionButton ? (

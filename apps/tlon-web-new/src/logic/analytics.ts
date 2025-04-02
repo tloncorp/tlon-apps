@@ -1,36 +1,8 @@
-import { POST_HOG_API_KEY } from '@tloncorp/app/constants';
-import { PrivacyType } from '@tloncorp/shared/urbit/groups';
+import { POST_HOG_API_KEY, POST_HOG_IN_DEV } from '@tloncorp/app/constants';
+import { useDebugStore } from '@tloncorp/shared';
 import posthog, { Properties } from 'posthog-js';
 
 import { log } from './utils';
-
-export type AnalyticsEventName =
-  | 'app_open'
-  | 'app_close'
-  | 'profile_edit'
-  | 'profile_view'
-  | 'group_join'
-  | 'group_exit'
-  | 'open_group'
-  | 'leave_group'
-  | 'open_channel'
-  | 'leave_channel'
-  | 'react_item'
-  | 'comment_item'
-  | 'post_item'
-  | 'view_item'
-  | 'error';
-
-export type AnalyticsChannelType = 'chat' | 'diary' | 'heap';
-
-export type GroupsAnalyticsEvent = {
-  name: AnalyticsEventName;
-  leaveName?: AnalyticsEventName;
-  groupFlag: string;
-  chFlag?: string;
-  channelType?: AnalyticsChannelType;
-  privacy?: PrivacyType;
-};
 
 // Configure PostHog with all auto-capturing settings disabled,
 // as we will only be tracking specific interactions.
@@ -42,16 +14,20 @@ posthog.init(POST_HOG_API_KEY, {
   disable_session_recording: true,
   mask_all_text: true,
   mask_all_element_attributes: true,
-  // this stops all capturing from happening until we manually opt-in.
-  // this is to prevent accidentally capturing data. all opting is managed
-  // in the activity checker in ActivityModal.
-  opt_out_capturing_by_default: true,
-  advanced_disable_decide: true,
 });
 
 export const analyticsClient = posthog;
 
-export const ANALYTICS_DEFAULT_PROPERTIES: Properties = {
+const wrappedErrorLogger = {
+  capture: (event: string, data: Record<string, unknown>) => {
+    analyticsClient.capture(event, { ...data, ...EVENT_PRIVACY_MASK });
+  },
+};
+
+// hand off the instance to our dev loggers
+useDebugStore.getState().initializeErrorLogger(wrappedErrorLogger);
+
+export const EVENT_PRIVACY_MASK: Properties = {
   // The following default properties stop PostHog from auto-logging the URL,
   // which can inadvertently reveal private info on Urbit
   $current_url: null,
@@ -78,13 +54,13 @@ export const ANALYTICS_DEFAULT_PROPERTIES: Properties = {
 // Once someone is opted in this will fire no matter what so we need
 // additional guarding here to prevent accidentally capturing data.
 export const captureAnalyticsEvent = (
-  name: AnalyticsEventName,
+  name: string,
   properties?: Properties
 ) => {
   log('Attempting to capture analytics event', name);
   const captureProperties: Properties = {
     ...(properties || {}),
-    ...ANALYTICS_DEFAULT_PROPERTIES,
+    ...EVENT_PRIVACY_MASK,
   };
 
   posthog.capture(name, captureProperties, {
@@ -99,33 +75,6 @@ export const captureAnalyticsEvent = (
       $initial_referring_domain: null,
     },
   });
-};
-
-export const captureGroupsAnalyticsEvent = ({
-  name,
-  groupFlag,
-  chFlag,
-  channelType,
-  privacy,
-}: GroupsAnalyticsEvent) => {
-  if (!privacy || privacy === 'secret') {
-    return;
-  }
-
-  const properties: Properties = {};
-
-  if (channelType) {
-    properties.channel_type = channelType;
-  }
-
-  if (privacy === 'public') {
-    properties.group_flag = groupFlag;
-    if (chFlag) {
-      properties.channel_flag = chFlag;
-    }
-  }
-
-  captureAnalyticsEvent(name, properties);
 };
 
 export function captureError(source: string, error: unknown) {

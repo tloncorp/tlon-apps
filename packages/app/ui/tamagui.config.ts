@@ -1,7 +1,7 @@
 import { createAnimations } from '@tamagui/animations-moti';
 import { createMedia } from '@tamagui/react-native-media-driver';
 import { Platform } from 'react-native';
-import { createFont, createTamagui, createTokens } from 'tamagui';
+import { createFont, createTamagui, createTokens, isWeb } from 'tamagui';
 
 export const animations = createAnimations({
   simple: {
@@ -33,7 +33,7 @@ const rawMeasures = {
   '9xl': 96,
 };
 
-function addNegativeTokens<T extends { [k: string]: number }>(
+export function addNegativeTokens<T extends { [k: string]: number }>(
   tokens: T
 ): T & { [K in keyof T as K extends string ? `-${K}` : never]: number } {
   return {
@@ -46,47 +46,51 @@ function addNegativeTokens<T extends { [k: string]: number }>(
 
 const measures = addNegativeTokens(rawMeasures);
 
+const color = {
+  translucentBlack: 'rgba(0, 0, 0, 0.2)',
+  black: '#000000',
+  gray900: '#1A1A1A',
+  gray800: '#333333',
+  gray700: '#4C4C4C',
+  gray600: '#666666',
+  gray500: '#808080',
+  gray400: '#999999',
+  gray300: '#B3B3B3',
+  gray200: '#CCCCCC',
+  gray100: '#E5E5E5',
+  gray50: '#F5F5F5',
+  white: '#FFFFFF',
+  red: '#FF6240',
+  orange: '#FF9040',
+  yellow: '#FADE7A',
+  green: '#2AD546',
+  blue: '#008EFF',
+  indigo: '#615FD3',
+  redSoft: '#FFEFEC',
+  orangeSoft: '#FFF4EC',
+  yellowSoft: '#FAF5D9',
+  greenSoft: '#EAFBEC',
+  blueSoft: '#E5F4FF',
+  indigoSoft: '#EFEFFB',
+  darkOverlay: 'rgba(0,0,0,.8)',
+  mediaScrim: 'rgba(0, 0, 0, 0.5)',
+};
+
+const zIndex = {
+  s: 0,
+  true: 0,
+  m: 1,
+  l: 10,
+  xl: 9999,
+  modalSheet: 99999,
+};
+
 export const tokens = createTokens({
-  color: {
-    translucentBlack: 'rgba(0, 0, 0, 0.2)',
-    black: '#000000',
-    gray900: '#1A1A1A',
-    gray800: '#333333',
-    gray700: '#4C4C4C',
-    gray600: '#666666',
-    gray500: '#808080',
-    gray400: '#999999',
-    gray300: '#B3B3B3',
-    gray200: '#CCCCCC',
-    gray100: '#E5E5E5',
-    gray50: '#F5F5F5',
-    white: '#FFFFFF',
-    red: '#FF6240',
-    orange: '#FF9040',
-    yellow: '#FADE7A',
-    green: '#2AD546',
-    blue: '#008EFF',
-    indigo: '#615FD3',
-    redSoft: '#FFEFEC',
-    orangeSoft: '#FFF4EC',
-    yellowSoft: '#FAF5D9',
-    greenSoft: '#EAFBEC',
-    blueSoft: '#E5F4FF',
-    indigoSoft: '#EFEFFB',
-    darkOverlay: 'rgba(0,0,0,.8)',
-    mediaScrim: 'rgba(0, 0, 0, 0.5)',
-  },
+  color,
   space: measures,
   size: measures,
   radius: measures,
-  zIndex: {
-    s: 0,
-    true: 0,
-    m: 1,
-    l: 10,
-    xl: 9999,
-    modalSheet: 99999,
-  },
+  zIndex,
 });
 
 export const themes = {
@@ -321,8 +325,11 @@ export const systemFont = createFont({
     // TODO: resolve this with Ochre later, sorry for the inconsistency
     l2: 32,
     // xl is used for emoji-only messages
-    '2xl': 36,
-    '3xl': 44,
+    '2xl': 17,
+    '3xl': 20,
+    'emoji/m': 21,
+    'emoji/l': 36,
+    'title/l': 34,
   },
   lineHeight: {
     xs: 16,
@@ -411,18 +418,126 @@ export const media = createMedia({
   gtSm: { minWidth: 768 + 1 },
 });
 
-export const config = createTamagui({
-  tokens,
-  fonts,
-  themes,
-  media,
-  settings: {
-    allowedStyleValues: {
-      space: 'somewhat-strict',
-      size: 'somewhat-strict',
-      radius: 'somewhat-strict',
-      zIndex: 'somewhat-strict',
-    },
+const desktopRawMeasures = {
+  '2xs': 2,
+  xs: 4,
+  s: 6,
+  m: 8,
+  l: 10,
+  xl: 14,
+  true: 14,
+  '2xl': 22,
+  '3xl': 28,
+  '3.5xl': 32,
+  '4xl': 44,
+  '5xl': 60,
+  '6xl': 68,
+  '9xl': 92,
+};
+
+const desktopMeasures = addNegativeTokens(desktopRawMeasures);
+
+const desktopSystemFont = {
+  ...systemFont,
+  size: {
+    xs: 10,
+    s: 12,
+    m: 14,
+    true: 14,
+    l: 16,
+    xl: 20,
+    l2: 24,
+    '2xl': 28,
+    '3xl': 36,
   },
-  animations: animations,
-});
+  lineHeight: {
+    xs: 14,
+    s: 20,
+    m: 22,
+    true: 22,
+    l: 22,
+  },
+};
+
+const desktopSerifFont = {
+  ...serifFont,
+  size: {
+    xs: 10,
+    s: 12,
+    m: 14,
+    true: 14,
+    l: 16,
+    xl: 28,
+    '2xl': 36,
+  },
+  lineHeight: {
+    s: 20,
+    m: 22,
+    true: 22,
+    xl: 36,
+  },
+};
+
+const desktopMonoFont = {
+  ...monoFont,
+  size: {
+    s: 12,
+    m: 12,
+    true: 14,
+    l: 14,
+    xl: 14,
+    '2xl': 14,
+  },
+  lineHeight: {
+    l: 18,
+  },
+};
+
+export const desktopFonts = {
+  // === Tamagui components require fonts for these properties
+  heading: desktopSystemFont,
+  body: desktopSystemFont,
+  mono: desktopMonoFont,
+  serif: desktopSerifFont,
+  // ===
+};
+
+
+export const config =
+  Platform.OS === 'web'
+    ? createTamagui({
+        tokens: createTokens({
+          color,
+          space: desktopMeasures,
+          size: desktopMeasures,
+          radius: desktopMeasures,
+          zIndex,
+        }),
+        fonts: desktopFonts,
+        themes,
+        media,
+        settings: {
+          allowedStyleValues: {
+            space: 'somewhat-strict',
+            size: 'somewhat-strict',
+            radius: 'somewhat-strict',
+            zIndex: 'somewhat-strict',
+          },
+        },
+        animations,
+      })
+    : createTamagui({
+        tokens,
+        fonts,
+        themes,
+        media,
+        settings: {
+          allowedStyleValues: {
+            space: 'somewhat-strict',
+            size: 'somewhat-strict',
+            radius: 'somewhat-strict',
+            zIndex: 'somewhat-strict',
+          },
+        },
+        animations,
+      });

@@ -8,7 +8,6 @@ import { useLureMetadata } from '../contexts/branch';
 import { useShip } from '../contexts/ship';
 import { BootPhaseNames, NodeBootPhase } from '../lib/bootHelpers';
 import BootHelpers from '../lib/bootHelpers';
-import { getShipFromCookie } from '../utils/ship';
 import { useConfigureUrbitClient } from './useConfigureUrbitClient';
 import { usePosthog } from './usePosthog';
 

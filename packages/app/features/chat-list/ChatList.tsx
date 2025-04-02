@@ -88,7 +88,7 @@ export const ChatList = React.memo(function ChatListComponent({
             onPress={onPressItem}
             onLongPress={handleLongPress}
             onLayout={handleItemLayout}
-            hoverStyle={{ backgroundColor: '$border' }}
+            hoverStyle={{ backgroundColor: '$secondaryBackground' }}
           />
         );
       } else if (item.type === 'group' && !item.isPending) {
@@ -98,7 +98,7 @@ export const ChatList = React.memo(function ChatListComponent({
             onPress={onPressItem}
             onLongPress={handleLongPress}
             onLayout={handleItemLayout}
-            hoverStyle={{ backgroundColor: '$border' }}
+            hoverStyle={{ backgroundColor: '$secondaryBackground' }}
           />
         );
       } else {
@@ -109,7 +109,7 @@ export const ChatList = React.memo(function ChatListComponent({
             onLongPress={handleLongPress}
             onLayout={handleItemLayout}
             disableOptions={item.isPending}
-            hoverStyle={{ backgroundColor: '$border' }}
+            hoverStyle={{ backgroundColor: '$secondaryBackground' }}
           />
         );
       }

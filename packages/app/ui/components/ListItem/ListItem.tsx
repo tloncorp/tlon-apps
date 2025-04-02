@@ -47,7 +47,6 @@ export const ListItemFrame = styled(XStack, {
   alignItems: 'stretch',
   backgroundColor: '$transparent',
   userSelect: 'none',
-  height: '$6xl',
 });
 
 const ListItemIconContainer = styled(View, {
@@ -237,8 +236,8 @@ export const ListItemPostPreview = ({
           <ContactName
             userId={post.authorId}
             showNickname
-            color={'$tertiaryText'}
-            size={'$s'}
+            color="$tertiaryText"
+            size="$label/m"
           />
           {': '}
         </>

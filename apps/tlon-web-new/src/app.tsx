@@ -7,8 +7,10 @@ import {
 import { ShipProvider } from '@tloncorp/app/contexts/ship';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
+import useDesktopNotifications from '@tloncorp/app/hooks/useDesktopNotifications';
 import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
+import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
 import { BasePathNavigator } from '@tloncorp/app/navigation/BasePathNavigator';
 import {
   getDesktopLinkingConfig,
@@ -28,7 +30,6 @@ import { Helmet } from 'react-helmet';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import EyrieMenu from '@/eyrie/EyrieMenu';
-import { ANALYTICS_DEFAULT_PROPERTIES } from '@/logic/analytics';
 import useAppUpdates from '@/logic/useAppUpdates';
 import useErrorHandler from '@/logic/useErrorHandler';
 import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
@@ -36,7 +37,6 @@ import { useIsDark, useIsMobile } from '@/logic/useMedia';
 import { preSig } from '@/logic/utils';
 import { toggleDevTools, useLocalState, useShowDevTools } from '@/state/local';
 import { useAnalyticsId, useLogActivity, useTheme } from '@/state/settings';
-import useDesktopNotifications from '@tloncorp/app/hooks/useDesktopNotifications';
 
 import { DesktopLoginScreen } from './components/DesktopLoginScreen';
 import { isElectron } from './electron-bridge';
@@ -270,7 +270,7 @@ function ConnectedDesktopApp({
   const hasSyncedRef = React.useRef(false);
   useFindSuggestedContacts();
   useDesktopNotifications(clientReady);
-  
+
   useEffect(() => {
     window.ship = ship;
     window.our = ship;
@@ -333,7 +333,9 @@ function ConnectedWebApp() {
   const currentUserId = useCurrentUserId();
   const [dbIsLoaded, setDbIsLoaded] = useState(false);
   const configureClient = useConfigureUrbitClient();
+  const session = store.useCurrentSession();
   const hasSyncedRef = React.useRef(false);
+  const telemetry = useTelemetry();
   useFindSuggestedContacts();
 
   useEffect(() => {
@@ -347,8 +349,13 @@ function ConnectedWebApp() {
       if (!hasSyncedRef.current) {
         // Web doesn't persist database, so headsSyncedAt is misleading
         await db.headsSyncedAt.resetValue();
-        await sync.syncStart(false);
+        sync.syncStart(false);
         hasSyncedRef.current = true;
+        telemetry.captureAppActive('web');
+      }
+
+      if (!session?.startTime) {
+        return;
       }
 
       // we need to check the size of the database here to see if it's not zero
@@ -375,7 +382,7 @@ function ConnectedWebApp() {
     };
 
     syncStart();
-  }, [dbIsLoaded, currentUserId, configureClient]);
+  }, [dbIsLoaded, currentUserId, configureClient, session]);
 
   if (!dbIsLoaded) {
     return (
@@ -572,12 +579,6 @@ function RoutedApp() {
       body?.style.setProperty('padding-bottom', '0px');
     }
   }, [isStandAlone, body]);
-
-  useEffect(() => {
-    if (posthog && analyticsId !== '' && logActivity) {
-      posthog.identify(analyticsId, ANALYTICS_DEFAULT_PROPERTIES);
-    }
-  }, [posthog, analyticsId, logActivity]);
 
   useEffect(() => {
     if (posthog) {

@@ -223,8 +223,7 @@ export function GalleryInput({
           attachment.type === 'image' &&
           'uploadState' in attachment &&
           attachment.uploadState &&
-          (attachment.uploadState.status === 'complete' ||
-            attachment.uploadState.status === 'success') &&
+          attachment.uploadState.status === 'success' &&
           'remoteUri' in attachment.uploadState &&
           attachment.uploadState.remoteUri
       );

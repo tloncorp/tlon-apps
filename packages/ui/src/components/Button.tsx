@@ -90,6 +90,9 @@ export const ButtonFrame = styled(Stack, {
         disabledStyle: {
           backgroundColor: '$tertiaryText',
         },
+        $gtSm: {
+          height: 48,
+        },
       },
     } as const,
     heroDestructive: {
@@ -104,6 +107,9 @@ export const ButtonFrame = styled(Stack, {
         },
         disabledStyle: {
           backgroundColor: '$secondaryText',
+        },
+        $gtSm: {
+          height: 48,
         },
       },
     } as const,
@@ -122,6 +128,9 @@ export const ButtonFrame = styled(Stack, {
         borderColor: '$shadow',
         pressStyle: {
           backgroundColor: '$secondaryBackground',
+        },
+        $gtSm: {
+          height: 48,
         },
       },
     } as const,

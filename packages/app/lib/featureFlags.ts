@@ -21,6 +21,10 @@ export const featureMeta = {
     default: false,
     label: 'Enable contacts tab',
   },
+  attestations: {
+    default: true,
+    label: 'Enable Attestations',
+  },
 } satisfies Record<string, { default: boolean; label: string }>;
 
 export type FeatureName = keyof typeof featureMeta;

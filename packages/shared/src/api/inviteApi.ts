@@ -43,7 +43,9 @@ export async function checkExistingUserInviteLink(): Promise<string | null> {
   try {
     const tlonNetworkUrl = await subscribeOnce<string>(
       { app: 'reel', path: `/v1/id-link/${SELF_INVITE_KEY}` },
-      ID_LINK_TIMEOUT
+      ID_LINK_TIMEOUT,
+      undefined,
+      { tag: 'checkExistingUserInviteLink' }
     );
 
     if (!tlonNetworkUrl) {

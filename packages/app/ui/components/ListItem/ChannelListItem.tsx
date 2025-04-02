@@ -72,8 +72,8 @@ export function ChannelListItem({
         borderRadius="$xl"
         onPress={handlePress}
         onLongPress={isWeb ? undefined : handleLongPress}
-        backgroundColor={isFocused ? '$secondaryBackground' : undefined}
-        hoverStyle={{ backgroundColor: '$border' }}
+        backgroundColor={isFocused ? '$shadow' : undefined}
+        hoverStyle={{ backgroundColor: '$secondaryBackground' }}
       >
         <ListItem {...props}>
           <ListItem.ChannelIcon
