@@ -91,7 +91,12 @@ export async function getPostReference({
   const path = `/said/${channelId}/post/${postId}${
     replyId ? '/' + replyId : ''
   }`;
-  const data = await subscribeOnce<ub.Said>({ app: 'channels', path }, 3000);
+  const data = await subscribeOnce<ub.Said>(
+    { app: 'channels', path },
+    3000,
+    undefined,
+    { tag: 'getPostReference' }
+  );
   const post = toPostReference(data);
   // The returned post id can be different than the postId we requested?? But the
   // post is going to be requested by the original id, so set manually :/
@@ -705,6 +710,7 @@ export const getPostWithReplies = async ({
   channelId: string;
   authorId: string;
 }) => {
+  logger.log('fetching post with replies', { postId, channelId, authorId });
   if (
     !authorId &&
     (isDmChannelId(channelId) || isGroupDmChannelId(channelId))

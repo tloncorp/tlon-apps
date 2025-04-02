@@ -7,7 +7,7 @@ import { Icon } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { memo } from 'react';
 import { PropsWithChildren } from 'react';
-import { SpaceTokens } from 'tamagui';
+import { SpaceTokens, styled } from 'tamagui';
 import {
   ThemeTokens,
   View,
@@ -18,6 +18,7 @@ import {
 } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
+import { MentionPopupRef } from '../MentionPopup';
 import { GalleryDraftType } from '../draftInputs/shared';
 import AttachmentButton from './AttachmentButton';
 import InputMentionPopup from './InputMentionPopup';
@@ -70,6 +71,12 @@ export interface MessageInputProps {
   }>;
 }
 
+const AttachmentButtonContainer = styled(View, {
+  $sm: {
+    marginBottom: '$xs',
+  },
+});
+
 export const MessageInputContainer = memo(
   ({
     children,
@@ -89,6 +96,7 @@ export const MessageInputContainer = memo(
     cancelEditing,
     onPressEdit,
     goBack,
+    mentionRef,
   }: PropsWithChildren<{
     setShouldBlur: (shouldBlur: boolean) => void;
     onPressSend: () => void;
@@ -106,6 +114,7 @@ export const MessageInputContainer = memo(
     cancelEditing?: () => void;
     onPressEdit?: () => void;
     goBack?: () => void;
+    mentionRef?: MentionPopupRef;
   }>) => {
     const { canUpload } = useAttachmentContext();
 
@@ -127,6 +136,7 @@ export const MessageInputContainer = memo(
           mentionText={mentionText}
           groupMembers={groupMembers}
           onSelectMention={onSelectMention}
+          ref={mentionRef}
         />
         <XStack
           paddingVertical="$s"
@@ -162,9 +172,9 @@ export const MessageInputContainer = memo(
             </View>
           ) : null}
           {canUpload && showAttachmentButton ? (
-            <View marginBottom="$xs">
+            <AttachmentButtonContainer>
               <AttachmentButton setShouldBlur={setShouldBlur} />
-            </View>
+            </AttachmentButtonContainer>
           ) : null}
           {children}
           {floatingActionButton ? (

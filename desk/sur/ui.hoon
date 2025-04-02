@@ -1,5 +1,14 @@
 /-  g=groups, d=channels, c=chat, a=activity, oc=chat-3
 |%
++$  init-6
+  $:  groups=groups-ui:v5:g
+      =gangs:v6:g
+      channel=channel-0
+      =activity:a
+      pins=(list whom)
+      chat=chat-2
+      profile=?
+  ==
 +$  init-5
   $:  groups=groups-ui:v5:g
       =gangs:v5:g

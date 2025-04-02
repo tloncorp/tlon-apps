@@ -101,7 +101,9 @@ export const useLureState = create<LureState>((set, get) => ({
         lureLogger.crumb(performance.now(), 'fetching url with sub', flag);
         return subscribeOnce<string>(
           { app: 'reel', path: `/v1/id-link/${flag}` },
-          LURE_REQUEST_TIMEOUT
+          LURE_REQUEST_TIMEOUT,
+          undefined,
+          { tag: 'lureFetcher' }
         )
           .then((u) => {
             lureLogger.crumb(performance.now(), 'url fetched', u, flag);

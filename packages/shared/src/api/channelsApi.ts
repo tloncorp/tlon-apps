@@ -125,7 +125,8 @@ export const createChannel = async ({
     { app: 'channels', path: '/v2' },
     (event) => {
       return 'create' in event.response && event.nest === id;
-    }
+    },
+    { tag: 'createChannel' }
   );
 };
 
@@ -391,7 +392,8 @@ export const createNewGroupDefaultChannel = async ({
         nest ===
           `${channelPayload.kind}/${currentUserId}/${channelPayload.name}`
       );
-    }
+    },
+    { tag: 'createNewGroupDefaultChannel' }
   );
 };
 
@@ -470,7 +472,8 @@ export const leaveChannel = async (channelId: string) => {
     { app: 'channels', path: '/v2' },
     (event) => {
       return 'leave' in event.response && event.response.leave === channelId;
-    }
+    },
+    { tag: 'leaveChannel' }
   );
 };
 
@@ -491,7 +494,8 @@ export const joinChannel = async (channelId: string, groupId: string) => {
     { app: 'channels', path: '/v2' },
     (event) => {
       return 'join' in event.response && event.nest === channelId;
-    }
+    },
+    { tag: 'joinChannel' }
   );
 };
 

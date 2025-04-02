@@ -15,6 +15,10 @@ export const useMentions = () => {
   );
   const [mentionSearchText, setMentionSearchText] = useState<string>('');
   const [mentions, setMentions] = useState<Mention[]>([]);
+  const [wasDismissedByEscape, setWasDismissedByEscape] = useState(false);
+  const [lastDismissedTriggerIndex, setLastDismissedTriggerIndex] = useState<
+    number | null
+  >(null);
 
   const handleMention = (oldText: string, newText: string) => {
     // Find cursor position by comparing old and new text
@@ -25,6 +29,25 @@ export const useMentions = () => {
           cursorPosition = i + (newText.length > oldText.length ? 1 : 0);
           break;
         }
+      }
+    }
+
+    // Clear escape state when starting a new word
+    if (
+      oldText.length < newText.length &&
+      newText[cursorPosition - 1] === ' '
+    ) {
+      setWasDismissedByEscape(false);
+    }
+
+    // Clear escape state when deleting past the escaped trigger
+    if (wasDismissedByEscape && lastDismissedTriggerIndex !== null) {
+      if (
+        oldText.length > newText.length &&
+        cursorPosition <= lastDismissedTriggerIndex
+      ) {
+        setWasDismissedByEscape(false);
+        setLastDismissedTriggerIndex(null);
       }
     }
 
@@ -55,9 +78,15 @@ export const useMentions = () => {
       );
       const hasSpace = textBetweenTriggerAndCursor.includes(' ');
 
-      // Only show popup if we're right after the trigger or actively searching
+      // Only show popup if:
+      // 1. We're right after the trigger or actively searching
+      // 2. AND it wasn't dismissed by escape for this trigger index
+      // 3. OR it's a new trigger position different from the dismissed one
+      const isDismissedTrigger =
+        wasDismissedByEscape && lastTriggerIndex === lastDismissedTriggerIndex;
       if (
         !hasSpace &&
+        !isDismissedTrigger &&
         (cursorPosition === lastTriggerIndex + 1 ||
           (cursorPosition > lastTriggerIndex && !afterCursor.includes(' ')))
       ) {
@@ -109,8 +138,16 @@ export const useMentions = () => {
     setShowMentionPopup(false);
     setMentionStartIndex(null);
     setMentionSearchText('');
+    setWasDismissedByEscape(false);
+    setLastDismissedTriggerIndex(null);
 
     return newText;
+  };
+
+  const handleMentionEscape = () => {
+    setShowMentionPopup(false);
+    setWasDismissedByEscape(true);
+    setLastDismissedTriggerIndex(mentionStartIndex);
   };
 
   return {
@@ -122,5 +159,6 @@ export const useMentions = () => {
     handleSelectMention,
     showMentionPopup,
     setShowMentionPopup,
+    handleMentionEscape,
   };
 };

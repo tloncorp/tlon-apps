@@ -10,6 +10,7 @@ import { useCallback } from 'react';
 import { Alert } from 'react-native';
 
 import { AddContactsScreen } from '../../features/contacts/AddContactsScreen';
+import { AttestationScreen } from '../../features/profile/AttestationScreen';
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import {
@@ -99,18 +100,12 @@ export const ProfileNavigator = () => {
           borderRightColor: getVariableValue(useTheme().border),
         },
       }}
+      backBehavior="history"
     >
-      <ProfileDrawer.Screen
-        name="ContactsEmpty"
-        component={EmptyContactsScreen}
-      />
       <ProfileDrawer.Screen name="AddContacts" component={AddContactsScreen} />
       <ProfileDrawer.Screen name="UserProfile" component={UserProfileScreen} />
       <ProfileDrawer.Screen name="EditProfile" component={EditProfileScreen} />
+      <ProfileDrawer.Screen name="Attestation" component={AttestationScreen} />
     </ProfileDrawer.Navigator>
   );
 };
-
-function EmptyContactsScreen() {
-  return <View />;
-}

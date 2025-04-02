@@ -8,9 +8,10 @@ export interface Contact {
   avatar: string | null;
   cover: string | null;
   groups: string[];
-  ['lanyard-tmp-urbits']?: VerifiedShipsField;
-  ['lanyard-tmp-phone-since']?: PhoneVerifySign;
-  ['lanyard-tmp-phone-sign']?: PhoneVerifiedAt;
+  ['lanyard-twitter-0-sign']?: AttestationSignature;
+  ['lanyard-phone-0-sign']?: AttestationSignature;
+  ['lanyard-twitter-0-url']?: AttestationProviderUrl;
+  ['lanyard-phone-0-url']?: AttestationProviderUrl;
 }
 
 export interface ContactAddGroup {
@@ -72,18 +73,13 @@ export interface ContactFieldGroups {
   value: { type: 'flag'; value: string }[];
 }
 
-export interface VerifiedShipsField {
-  type: 'set';
-  value: { type: 'ship'; value: string }[];
-}
-
-export interface PhoneVerifySign {
+export interface AttestationSignature {
   type: 'text';
   value: string;
 }
 
-export interface PhoneVerifiedAt {
-  type: 'date';
+export interface AttestationProviderUrl {
+  type: 'text';
   value: string;
 }
 
@@ -95,9 +91,10 @@ export interface ContactBookProfile {
   color?: ContactFieldColor;
   groups?: ContactFieldGroups;
   status?: ContactFieldText;
-  ['lanyard-tmp-urbits']?: VerifiedShipsField;
-  ['lanyard-tmp-phone-since']?: PhoneVerifySign;
-  ['lanyard-tmp-phone-sign']?: PhoneVerifiedAt;
+  ['lanyard-twitter-0-sign']?: AttestationSignature;
+  ['lanyard-phone-0-sign']?: AttestationSignature;
+  ['lanyard-twitter-0-url']?: AttestationProviderUrl;
+  ['lanyard-phone-0-url']?: AttestationProviderUrl;
 }
 
 export interface ContactBookProfileEdit {

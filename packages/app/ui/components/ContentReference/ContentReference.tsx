@@ -4,8 +4,8 @@ import * as db from '@tloncorp/shared/db';
 import { getChannelType } from '@tloncorp/shared/urbit';
 import { IconType } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
-import React from 'react';
-import { ComponentProps, useCallback } from 'react';
+import React, { createContext } from 'react';
+import { ComponentProps, useCallback, useContext } from 'react';
 import { View, XStack, styled } from 'tamagui';
 
 import { useNavigation } from '../../contexts';
@@ -24,6 +24,9 @@ import {
   ReferenceSkeleton,
   useReferenceContext,
 } from './Reference';
+
+export const IsInsideReferenceContext = createContext(false);
+export const useIsInsideReference = () => useContext(IsInsideReferenceContext);
 
 // Any reference
 
@@ -117,13 +120,15 @@ export const PostReference = ({
   return (
     <Reference {...props} hasData={!!post}>
       <ContentReferenceHeader type={channelType} />
-      {post?.type === 'block' ? (
-        <BlockReferenceContent post={post} />
-      ) : post?.type === 'note' ? (
-        <NoteReferenceContent post={post} />
-      ) : post ? (
-        <ChatReferenceContent post={post} />
-      ) : null}
+      <IsInsideReferenceContext.Provider value={true}>
+        {post?.type === 'block' ? (
+          <BlockReferenceContent post={post} />
+        ) : post?.type === 'note' ? (
+          <NoteReferenceContent post={post} />
+        ) : post ? (
+          <ChatReferenceContent post={post} />
+        ) : null}
+      </IsInsideReferenceContext.Provider>
     </Reference>
   );
 };
@@ -203,7 +208,7 @@ function ChatReferenceContent({ post }: { post: db.Post }) {
           {post.textContent}
         </Text>
       ) : (
-        <PostContentRenderer renderReferences={false} post={post} />
+        <PostContentRenderer post={post} />
       )}
     </Reference.Body>
   );

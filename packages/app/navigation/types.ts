@@ -58,6 +58,9 @@ export type RootStackParamList = {
   EditProfile: {
     userId: string;
   };
+  Attestation: {
+    attestationType: 'twitter' | 'phone';
+  };
   WompWomp: undefined;
   ChannelMembers: {
     channelId: string;

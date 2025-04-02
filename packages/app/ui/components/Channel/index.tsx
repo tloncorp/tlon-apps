@@ -1,3 +1,4 @@
+import { useIsFocused } from '@react-navigation/native';
 import {
   DraftInputId,
   isChatChannel as getIsChatChannel,
@@ -10,6 +11,7 @@ import { ChannelContentConfiguration } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
+import { ImagePickerAsset } from 'expo-image-picker';
 import {
   forwardRef,
   useCallback,
@@ -55,6 +57,7 @@ import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
 import { DmInviteOptions } from './DmInviteOptions';
 import { DraftInputView } from './DraftInputView';
 import { PostView } from './PostView';
+import { ReadOnlyNotice } from './ReadOnlyNotice';
 
 export { INITIAL_POSTS_PER_PAGE } from './Scroller';
 
@@ -177,12 +180,14 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     );
     const { attachAssets } = useAttachmentContext();
 
+    const inView = useIsFocused();
     const hasLoaded = !!(posts && channel);
+    const hasUnreads = (channel?.unread?.count ?? 0) > 0;
     useEffect(() => {
-      if (hasLoaded) {
+      if (hasUnreads && hasLoaded && inView) {
         markRead();
       }
-    }, [hasLoaded, markRead]);
+    }, [hasUnreads, hasLoaded, inView, markRead]);
 
     const handleRefPress = useCallback(
       (refChannel: db.Channel, post: db.Post) => {
@@ -201,6 +206,44 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         onPressRef(refChannel, post);
       },
       [onPressRef, posts, channel]
+    );
+
+    const { uploadAssets, clearAttachments } = useAttachmentContext();
+
+    const handleImageDrop = useCallback(
+      async (assets: ImagePickerAsset[]) => {
+        if (channel.type !== 'gallery') {
+          attachAssets(assets);
+          return;
+        }
+
+        try {
+          const uploadedAttachments = await uploadAssets(assets);
+
+          for (const attachment of uploadedAttachments) {
+            const story: Story = [
+              {
+                block: {
+                  image: {
+                    src: attachment.uploadState.remoteUri,
+                    height: attachment.file.height || 0,
+                    width: attachment.file.width || 0,
+                    alt: 'image',
+                  },
+                },
+              },
+            ];
+
+            // Send the post with just this image
+            await messageSender(story, channel.id);
+          }
+        } catch (error) {
+          console.error('Error handling image drop:', error);
+        } finally {
+          clearAttachments();
+        }
+      },
+      [channel, messageSender, uploadAssets, attachAssets, clearAttachments]
     );
 
     /** when `null`, input is not shown or presentation is unknown */
@@ -303,7 +346,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                     justifyContent="space-between"
                     width="100%"
                     height="100%"
-                    onAssetsDropped={attachAssets}
+                    onAssetsDropped={handleImageDrop}
                   >
                     <ChannelHeaderItemsProvider>
                       <>
@@ -318,12 +361,17 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                               ? handleGoBack
                               : undefined
                           }
-                          showSearchButton={isChatChannel}
+                          showSearchButton={
+                            isChatChannel &&
+                            draftInputPresentationMode !== 'fullscreen'
+                          }
                           goToSearch={goToSearch}
                           goToChannels={goToChannels}
                           goToChatDetails={goToChatDetails}
                           showSpinner={isLoadingPosts}
-                          showMenuButton={true}
+                          showMenuButton={
+                            draftInputPresentationMode !== 'fullscreen'
+                          }
                         />
                         <YStack alignItems="stretch" flex={1}>
                           <AnimatePresence>
@@ -409,6 +457,8 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                 }
                               />
                             ))}
+
+                          {!canWrite && <ReadOnlyNotice />}
 
                           {channel.isDmInvite && (
                             <DmInviteOptions

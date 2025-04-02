@@ -1,7 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { EMAIL_REGEX } from '@tloncorp/app/constants';
-import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
-import { addUserToWaitlist } from '@tloncorp/shared/api';
 import {
   Field,
   ScreenHeader,
@@ -10,6 +8,9 @@ import {
   View,
   YStack,
 } from '@tloncorp/app/ui';
+import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import { createDevLogger } from '@tloncorp/shared';
+import { addUserToWaitlist } from '@tloncorp/shared/api';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Alert } from 'react-native';
@@ -21,6 +22,8 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'JoinWaitList'>;
 type FormData = {
   email: string;
 };
+
+const logger = createDevLogger('JoinWaitListScreen', true);
 
 export const JoinWaitListScreen = ({ navigation }: Props) => {
   const [remoteError, setRemoteError] = useState<string | undefined>();
@@ -47,7 +50,7 @@ export const JoinWaitListScreen = ({ navigation }: Props) => {
       Alert.alert('Failed', 'Unable to add you to the waitlist.');
       if (err instanceof Error) {
         setRemoteError(err.message);
-        trackError(err);
+        logger.trackError('Error joining waitlist', err);
       }
     }
   };

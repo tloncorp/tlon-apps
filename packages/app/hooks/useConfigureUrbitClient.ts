@@ -70,7 +70,7 @@ export function configureUrbitClient({
     onQuitOrReset: sync.handleDiscontinuity,
     onChannelStatusChange: sync.handleChannelStatusChange,
     getCode: async () => {
-      clientLogger.log('Cliet getting access code');
+      clientLogger.log('Client getting access code');
       // use stored access code to reauth if we have it
       const accessCode = await db.nodeAccessCode.getValue();
       if (accessCode) {
@@ -117,7 +117,6 @@ export function useConfigureUrbitClient() {
   const shipInfo = useShip();
   const { ship, shipUrl, authType } = shipInfo;
   const runResetDb = useCallback(() => {
-    clientLogger.log('Resetting db on logout');
     resetDb();
   }, []);
   const logout = useHandleLogout({
@@ -131,7 +130,7 @@ export function useConfigureUrbitClient() {
         shipUrl: params?.shipUrl ?? shipUrl ?? '',
         authType,
         onAuthFailure: async () => {
-          clientLogger.log('Cliet handling auth failure');
+          clientLogger.log('Client handling auth failure');
           if (authType === 'self') {
             // there's nothing we can do to recover, must log out
             clientLogger.trackEvent(AnalyticsEvent.AuthForcedLogout, {

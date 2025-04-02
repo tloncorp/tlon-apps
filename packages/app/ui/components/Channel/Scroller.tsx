@@ -169,8 +169,6 @@ const Scroller = forwardRef(
       return Math.floor((availableSpace - totalGap) / columns);
     }, [availableSpace, columns]);
 
-    console.log({ availableSpace, columns, itemWidth });
-
     const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
     const [viewReactionsPost, setViewReactionsPost] = useState<null | db.Post>(
       null
@@ -263,6 +261,7 @@ const Scroller = forwardRef(
         );
         const isLastPostOfBlock =
           post.type !== 'notice' &&
+          (post.type === 'chat' || post.type === 'reply') &&
           ((nextItem && nextItem.authorId !== post.authorId) || !isSameDay);
         const showAuthor =
           post.type === 'note' ||

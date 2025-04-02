@@ -1,7 +1,17 @@
 import { daToUnix, formatUv, patp } from '@urbit/aura';
-import { Atom, Cell, EnjsFunction, Noun, enjs } from '@urbit/nockjs';
+import { Atom, Cell, Noun, enjs } from '@urbit/nockjs';
 
-type Json = ReturnType<EnjsFunction>;
+// TODO: nockjs should export these
+export type Json =
+  | null
+  | boolean
+  | number
+  | string
+  | Json[]
+  | {
+      [key: string]: Json;
+    };
+export type EnjsFunction = (n: Noun) => Json;
 
 export const giveNull: EnjsFunction = () => null;
 export const maybe =
@@ -64,7 +74,12 @@ interface frondOpt {
   get: EnjsFunction;
 }
 
-export function getFrondValue(opts: frondOpt[]): EnjsFunction {
+interface frondValueOpt<T> {
+  tag: string;
+  get: (noun: Noun) => T;
+}
+
+export function getFrondValue<T>(opts: frondValueOpt<T>[]): (n: Noun) => T {
   return (noun: Noun) => {
     if (!(noun instanceof Cell)) {
       throw new Error('malformed frond');

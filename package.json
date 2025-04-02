@@ -9,6 +9,7 @@
     "build:web": "pnpm --filter 'tlon-web' build",
     "build:new-web": "pnpm --filter 'tlon-web-new' build",
     "build:mobile": "pnpm --filter 'tlon-mobile' build",
+    "build:desktop": "pnpm run build:packages && pnpm --filter 'tlon-desktop' build:prepare",
     "build:apps": "pnpm run build:mobile && pnpm run build:web && pnpm run build:new-web",
     "build:packages": "pnpm run build:shared && pnpm run build:ui && pnpm run build:editor",
     "build:mobile-release": "pnpm run build:packages && pnpm run build:mobile",
@@ -21,7 +22,9 @@
     "dev:ios": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' ios\" \"pnpm --filter '@tloncorp/ui' watch\"",
     "dev:ios:preview": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' ios:preview\" \"pnpm --filter '@tloncorp/ui' watch\"",
     "dev:web": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-web' dev-no-ssl\"",
-    "test": "pnpm run -r test run -u",
+    "dev:desktop": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-desktop' dev\"",
+    "test": "npm rebuild && pnpm run -r test run -u",
+    "test:ci": "npm rebuild && pnpm run -r test run",
     "lint:all": "pnpm -r lint"
   },
   "dependencies": {
@@ -41,7 +44,7 @@
     "vitest": "^1.2.2"
   },
   "engines": {
-    "node": ">=18.18.0"
+    "node": ">=20.11.0"
   },
   "packageManager": "pnpm@9.0.5+sha256.61bd66913b52012107ec25a6ee4d6a161021ab99e04f6acee3aa50d0e34b4af9",
   "pnpm": {
