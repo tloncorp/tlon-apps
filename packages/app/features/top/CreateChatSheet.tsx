@@ -2,6 +2,7 @@ import * as store from '@tloncorp/shared';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
+  ComponentProps,
   forwardRef,
   useCallback,
   useEffect,
@@ -9,7 +10,7 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Popover, View, YStack } from 'tamagui';
 
@@ -87,7 +88,8 @@ const CHAT_TYPE_CONFIG = {
 
 interface ActionButtonsProps {
   actions: Action[];
-  paddingBottom?: number;
+  buttonProps?: ComponentProps<typeof Button>;
+  containerProps?: ComponentProps<typeof YStack>;
 }
 
 interface CreateChatFormContentProps {
@@ -99,14 +101,19 @@ interface CreateChatFormContentProps {
   onScrollChange?: (scrolling: boolean) => void;
 }
 
-const ActionButtons = ({ actions, paddingBottom }: ActionButtonsProps) => (
-  <YStack gap="$s" paddingBottom={paddingBottom}>
+const ActionButtons = ({
+  actions,
+  containerProps,
+  buttonProps,
+}: ActionButtonsProps) => (
+  <YStack gap="$s" {...containerProps}>
     {actions.map((action, i) => (
       <Button
         key={i}
         onPress={action.action}
         width="100%"
         justifyContent="flex-start"
+        {...buttonProps}
       >
         <YStack>
           <Button.Text size="$s">{action.title}</Button.Text>
@@ -366,20 +373,39 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         padding="$m"
       >
         {step === 'selectType' ? (
-          <ActionButtons actions={actions} paddingBottom={insets.bottom} />
+          <ActionButtons
+            actions={actions}
+            buttonProps={{ paddingBottom: insets.bottom }}
+          />
         ) : step === 'createJoinGroup' ? (
           <JoinGroupFormContent
             chatType={chatType}
             close={() => setStep('initial')}
           />
         ) : (
-          <CreateChatFormContent
-            chatType={chatType}
-            isCreating={isCreatingChat}
-            onSelectDmContact={handleSelectDmContact}
-            onSelectedChange={setSelectedContactIds}
-            onCreateGroup={handlePressCreateGroup}
-          />
+          <ActionSheet
+            open={step === 'createDm' || step === 'createGroup'}
+            onOpenChange={() => setStep('initial')}
+            mode="dialog"
+            closeButton
+            dialogContentProps={{ height: '80%', maxHeight: 1200, width: 600 }}
+          >
+            <ActionSheet.MainContent
+              paddingHorizontal="$3xl"
+              paddingBottom="$3xl"
+              flex={1}
+            >
+              <View flex={1}>
+                <CreateChatFormContent
+                  chatType={chatType}
+                  isCreating={isCreatingChat}
+                  onSelectDmContact={handleSelectDmContact}
+                  onSelectedChange={setSelectedContactIds}
+                  onCreateGroup={handlePressCreateGroup}
+                />
+              </View>
+            </ActionSheet.MainContent>
+          </ActionSheet>
         )}
       </Popover.Content>
     </Popover>
