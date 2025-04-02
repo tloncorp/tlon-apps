@@ -157,7 +157,7 @@
               ~>  %bout.[0 '- reparsing']
               ?~  hex  ~
               (search-head:mg(base-url `url) u.hex)
-              :: (biff hex search-head:mg)
+            =.  res  (bind res (cury expand-urls:mg url))
             ~?  >>>  ?=(~ hex)  [%miss url]
             =?  res  ?=(~ res)
               ~&  [%grabbing-title-anyway url]
