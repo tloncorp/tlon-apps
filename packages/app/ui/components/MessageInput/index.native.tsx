@@ -157,20 +157,25 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const { height } = useWindowDimensions();
     const headerHeight = 48;
     const titleInputHeight = 48;
-    const inputBasePadding = getTokenValue('$s', 'space');
     const imageInputButtonHeight = 50;
     const maxInputHeightBasic = useMemo(
       () => height - headerHeight - bottom - top,
       [height, bottom, top, headerHeight]
     );
-    const bigInputHeightBasic = useMemo(
-      () => {
-        const extraHeaderSpace = channelType === 'notebook' ? 
-          titleInputHeight + imageInputButtonHeight : 0;
-        return height - top - headerHeight - extraHeaderSpace ;
-      },
-      [height, top, headerHeight, titleInputHeight, imageInputButtonHeight, channelType]
-    );
+    const bigInputHeightBasic = useMemo(() => {
+      const extraHeaderSpace =
+        channelType === 'notebook'
+          ? titleInputHeight + imageInputButtonHeight
+          : 0;
+      return height - top - headerHeight - extraHeaderSpace;
+    }, [
+      height,
+      top,
+      headerHeight,
+      titleInputHeight,
+      imageInputButtonHeight,
+      channelType,
+    ]);
     const [bigInputHeight, setBigInputHeight] = useState(bigInputHeightBasic);
     const [maxInputHeight, setMaxInputHeight] = useState(maxInputHeightBasic);
     const [mentionText, setMentionText] = useState<string>();
@@ -886,23 +891,34 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       messageInputLogger.log('Setting up keyboard listeners');
       if (bigInput) {
         messageInputLogger.log('Setting up keyboard listeners for big input');
-        const keyboardShowListener = Keyboard.addListener('keyboardDidShow', (event) => {
-          // Use the keyboard height from the event
-          const keyboardHeight = event.endCoordinates.height;
-          
-          // Calculate extra space needed based on channel type
-          const extraHeaderSpace = channelType === 'notebook' ? 
-            titleInputHeight + imageInputButtonHeight + getTokenValue('$l', 'space') : 0;
-          
-          // Calculate available height for editor - more precise with keyboard
-          const availableHeight = height - keyboardHeight - top - headerHeight - extraHeaderSpace;
-          
-          setBigInputHeight(availableHeight);
-        });
+        const keyboardShowListener = Keyboard.addListener(
+          'keyboardDidShow',
+          (event) => {
+            // Use the keyboard height from the event
+            const keyboardHeight = event.endCoordinates.height;
 
-        const keyboardHideListener = Keyboard.addListener('keyboardDidHide', () => {
-          setBigInputHeight(bigInputHeightBasic);
-        });
+            // Calculate extra space needed based on channel type
+            const extraHeaderSpace =
+              channelType === 'notebook'
+                ? titleInputHeight +
+                  imageInputButtonHeight +
+                  getTokenValue('$l', 'space')
+                : 0;
+
+            // Calculate available height for editor - more precise with keyboard
+            const availableHeight =
+              height - keyboardHeight - top - headerHeight - extraHeaderSpace;
+
+            setBigInputHeight(availableHeight);
+          }
+        );
+
+        const keyboardHideListener = Keyboard.addListener(
+          'keyboardDidHide',
+          () => {
+            setBigInputHeight(bigInputHeightBasic);
+          }
+        );
 
         return () => {
           keyboardShowListener.remove();
@@ -912,21 +928,35 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
       if (!bigInput) {
         messageInputLogger.log('Setting up keyboard listeners for basic input');
-        const keyboardShowListener = Keyboard.addListener('keyboardDidShow', (event) => {
-          const keyboardHeight = event.endCoordinates.height;
-          setMaxInputHeight(maxInputHeightBasic - keyboardHeight);
-        });
+        const keyboardShowListener = Keyboard.addListener(
+          'keyboardDidShow',
+          (event) => {
+            const keyboardHeight = event.endCoordinates.height;
+            setMaxInputHeight(maxInputHeightBasic - keyboardHeight);
+          }
+        );
 
-        const keyboardHideListener = Keyboard.addListener('keyboardDidHide', () => {
-          setMaxInputHeight(maxInputHeightBasic);
-        });
+        const keyboardHideListener = Keyboard.addListener(
+          'keyboardDidHide',
+          () => {
+            setMaxInputHeight(maxInputHeightBasic);
+          }
+        );
 
         return () => {
           keyboardShowListener.remove();
           keyboardHideListener.remove();
         };
       }
-    }, [bigInput, bigInputHeightBasic, maxInputHeightBasic, height, top, bottom, channelType]);
+    }, [
+      bigInput,
+      bigInputHeightBasic,
+      maxInputHeightBasic,
+      height,
+      top,
+      bottom,
+      channelType,
+    ]);
 
     // we need to check if the app within the webview actually loaded
     useEffect(() => {
@@ -982,12 +1012,15 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           paddingHorizontal={paddingHorizontal}
           borderColor={frameless ? 'transparent' : '$border'}
           borderWidth={frameless ? 0 : 1}
-          borderRadius={frameless ? 0 : "$xl"}
+          borderRadius={frameless ? 0 : '$xl'}
           maxHeight={bigInput ? undefined : maxInputHeight}
-          paddingTop={bigInput && frameless ? "$s" : undefined}
+          paddingTop={bigInput && frameless ? '$s' : undefined}
         >
           {showInlineAttachments && <AttachmentPreviewList />}
-          <XStack height={bigInput ? bigInputHeight : containerHeight} style={{ width: '100%' }}>
+          <XStack
+            height={bigInput ? bigInputHeight : containerHeight}
+            style={{ width: '100%' }}
+          >
             <RichText
               style={{
                 backgroundColor: 'transparent',
