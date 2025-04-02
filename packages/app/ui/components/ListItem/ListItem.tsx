@@ -47,7 +47,6 @@ export const ListItemFrame = styled(XStack, {
   alignItems: 'stretch',
   backgroundColor: '$transparent',
   userSelect: 'none',
-  // height: '$6xl',
 });
 
 const ListItemIconContainer = styled(View, {
