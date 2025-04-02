@@ -1,6 +1,7 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useMemo } from 'react';
+import { Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useAttachmentContext } from '../contexts';
@@ -60,7 +61,10 @@ export default function AttachmentSheet({
         }
 
         // Immediately set the placeholder attachment to show in the UI
-        attachAssets([placeholderAsset]);
+        // skip on web, the browser doesn't like trying to load a file that doesn't exist
+        if (Platform.OS !== 'web') {
+          attachAssets([placeholderAsset]);
+        }
 
         const result = await ImagePicker.launchCameraAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -112,7 +116,10 @@ export default function AttachmentSheet({
         }
 
         // Immediately set the placeholder attachment to show in the UI
-        attachAssets([placeholderAsset]);
+        // skip on web, the browser doesn't like trying to load a file that doesn't exist
+        if (Platform.OS !== 'web') {
+          attachAssets([placeholderAsset]);
+        }
 
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
