@@ -8,10 +8,6 @@ import {
   getCanonicalPostId,
   toClientMeta,
 } from './apiUtils';
-import {
-  ChannelContentConfiguration,
-  StructuredChannelDescriptionPayload,
-} from './channelContentConfig';
 import { toPostData, toPostReplyData, toReplyMeta } from './postsApi';
 import { getCurrentUserId, poke, scry, subscribe, trackedPoke } from './urbit';
 
@@ -340,21 +336,13 @@ export const toClientGroupDms = (groupDms: ub.Clubs): GetDmsResponse => {
 
       const metaFields = toClientMeta(club.meta);
 
-      // Channel meta is different from other metas, since we can overload the
-      // `description` to fit other channel-specific data.
-      // Attempt to decode that extra info here.
-      const decodedDesc = StructuredChannelDescriptionPayload.decode(
-        metaFields.description
-      );
-
       return {
         id,
         type: 'groupDm',
         ...metaFields,
         isDmInvite: !isJoined && isInvited,
         members: [...joinedMembers, ...invitedMembers],
-        contentConfiguration: decodedDesc.channelContentConfiguration,
-        description: decodedDesc.description,
+        description: metaFields.description,
       };
     })
     .filter(Boolean) as db.Channel[];
