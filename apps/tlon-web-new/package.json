@@ -83,7 +83,7 @@
     "idb-keyval": "^6.2.0",
     "immer": "^9.0.12",
     "lodash": "^4.17.21",
-    "posthog-js": "^1.68.2",
+    "posthog-js": "^1.234.4",
     "prosemirror-commands": "~1.2.2",
     "prosemirror-history": "~1.2.0",
     "prosemirror-keymap": "~1.1.5",

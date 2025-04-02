@@ -8,9 +8,15 @@ export function usePosthog() {
   return useMemo((): PosthogClient => {
     return {
       optedOut: posthog?.has_opted_out_capturing() ?? false,
-      optIn: () => posthog?.opt_in_capturing(),
-      optOut: () => posthog?.opt_out_capturing(),
-      identify: (userId, properties) => posthog?.identify(userId, properties),
+      optIn: () => {
+        posthog?.opt_in_capturing();
+      },
+      optOut: () => {
+        posthog?.opt_out_capturing();
+      },
+      identify: (userId, properties) => {
+        posthog?.identify(userId, properties);
+      },
       capture: (eventName, properties) =>
         posthog?.capture(eventName, properties),
       flush: async () => {

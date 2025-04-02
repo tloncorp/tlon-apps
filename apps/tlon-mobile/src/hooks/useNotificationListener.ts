@@ -118,8 +118,8 @@ export default function useNotificationListener() {
         // notification multiple times.
         const errorsFromExtension = data?.meta.errorsFromExtension;
         if (errorsFromExtension != null) {
-          posthog.trackError({
-            message: 'Notification service extension forwarded an error:',
+          logger.trackError(AnalyticsEvent.ErrorNotificationService, {
+            context: 'Notification service extension forwarded an error:',
             properties: { errors: errorsFromExtension },
           });
         }
@@ -128,8 +128,8 @@ export default function useNotificationListener() {
           // https://linear.app/tlon/issue/TLON-2551/multiple-notifications-that-lead-to-nowhere-crash-app
           // We're seeing cases where `data` is null here - not sure why this is happening.
           // Log the notification and don't try to navigate.
-          posthog.trackError({
-            message: 'Failed to get notification payload',
+          logger.trackError(AnalyticsEvent.ErrorNotificationService, {
+            context: 'Failed to get notification payload',
             properties: isTlonEmployee
               ? response.notification.request
               : undefined,

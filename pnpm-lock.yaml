@@ -1174,8 +1174,8 @@ importers:
         specifier: ^4.17.21
         version: 4.17.21
       posthog-js:
-        specifier: ^1.68.2
-        version: 1.68.2
+        specifier: ^1.234.4
+        version: 1.234.4
       prosemirror-commands:
         specifier: ~1.2.2
         version: 1.2.2
@@ -1450,6 +1450,9 @@ importers:
       lodash:
         specifier: ^4.17.21
         version: 4.17.21
+      posthog-js:
+        specifier: ^1.234.4
+        version: 1.234.4
       react-native-device-info:
         specifier: ^10.8.0
         version: 10.12.0(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))
@@ -7939,6 +7942,9 @@ packages:
   core-js@3.24.1:
     resolution: {integrity: sha512-0QTBSYSUZ6Gq21utGzkfITDylE8jWC9Ne1D2MrhvlsZBI1x39OdDIVbzSqtgMndIy6BlHxBXpMGqzZmnztg2rg==}
 
+  core-js@3.41.0:
+    resolution: {integrity: sha512-SJ4/EHwS36QMJd6h/Rg+GyR4A5xE0FSI3eZ+iBVpfqf1x0eTSg1smWLHrA+2jQThZSh97fmSgFSU8B61nxosxA==}
+
   core-util-is@1.0.2:
     resolution: {integrity: sha512-3lqz5YjWTYnW6dlDa5TLaTCcShfar1e40rmcJVwCBJC6mWlFuj0eCHIElmG1g5kyuJ/GD+8Wn4FFCcz4gJPfaQ==}
 
@@ -11769,6 +11775,17 @@ packages:
     resolution: {integrity: sha512-u5U8qYpBCpN13BsiEB0CbR1Hhh4Gc0zLFuedrHJKMctHCHAGrMdG0PRM/KErzAL3CU6/eckEtmHNB3x6e3c0vA==}
     engines: {node: ^10 || ^12 || >=14}
 
+  posthog-js@1.234.4:
+    resolution: {integrity: sha512-IH7ISmm7SP+GYeCJ+RjlBnA9AtmbT6W/mZUW/ca/erHNb1EE1K3//IzDGyGYs7dT26b/HH9Z9kdO51h7PVSi6w==}
+    peerDependencies:
+      '@rrweb/types': 2.0.0-alpha.17
+      rrweb-snapshot: 2.0.0-alpha.17
+    peerDependenciesMeta:
+      '@rrweb/types':
+        optional: true
+      rrweb-snapshot:
+        optional: true
+
   posthog-js@1.68.2:
     resolution: {integrity: sha512-oh3MQonhbgVbBYNJ/cAx1L6fginAF5Msz3shexnXPhDNKj1DQGosepQC6TQpdeeUWp0H7R2cQG9eHJwmrEM1Lw==}
     deprecated: This version of posthog-js is deprecated, please update posthog-js, and do not use this version! Check out our JS docs at https://posthog.com/docs/libraries/js
@@ -11801,6 +11818,9 @@ packages:
         optional: true
       react-native-navigation:
         optional: true
+
+  preact@10.26.4:
+    resolution: {integrity: sha512-KJhO7LBFTjP71d83trW+Ilnjbo+ySsaAgCfXOXUlmGzJ4ygYPWmysm77yg4emwfmoz3b22yvH5IsVFHbhUaH5w==}
 
   prebuild-install@7.1.1:
     resolution: {integrity: sha512-jAXscXWMcCK8GgCoHOfIr0ODh5ai8mj63L2nWrjuAgXE6tDyYGnx4/8o/rCgU+B4JSyZBKbeZqzhtwtC3ovxjw==}
@@ -14285,6 +14305,9 @@ packages:
   web-streams-polyfill@3.3.3:
     resolution: {integrity: sha512-d2JWLCivmZYTSIoge9MsgFCZrt571BikcWGYkjC1khllbTeDlGqZ2D8vD8E/lJa8WGWbb7Plm8/XJYV7IJHZZw==}
     engines: {node: '>= 8'}
+
+  web-vitals@4.2.4:
+    resolution: {integrity: sha512-r4DIlprAGwJ7YM11VZp4R884m0Vmgr6EAKe3P+kO0PPj3Unqyvv59rczf6UiGcb9Z8QxZVcqKNwv/g0WNdWwsw==}
 
   webidl-conversions@3.0.1:
     resolution: {integrity: sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==}
@@ -24276,6 +24299,8 @@ snapshots:
 
   core-js@3.24.1: {}
 
+  core-js@3.41.0: {}
+
   core-util-is@1.0.2:
     optional: true
 
@@ -29055,6 +29080,13 @@ snapshots:
       picocolors: 1.0.0
       source-map-js: 1.0.2
 
+  posthog-js@1.234.4:
+    dependencies:
+      core-js: 3.41.0
+      fflate: 0.4.8
+      preact: 10.26.4
+      web-vitals: 4.2.4
+
   posthog-js@1.68.2:
     dependencies:
       fflate: 0.4.8
@@ -29068,6 +29100,8 @@ snapshots:
       expo-file-system: 17.0.1(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13))
       expo-localization: 15.0.3(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13))
       react-native-device-info: 10.12.0(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))
+
+  preact@10.26.4: {}
 
   prebuild-install@7.1.1:
     dependencies:
@@ -32151,6 +32185,8 @@ snapshots:
   web-namespaces@2.0.1: {}
 
   web-streams-polyfill@3.3.3: {}
+
+  web-vitals@4.2.4: {}
 
   webidl-conversions@3.0.1: {}
 
