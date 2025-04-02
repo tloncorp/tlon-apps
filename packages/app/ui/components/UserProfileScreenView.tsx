@@ -117,59 +117,60 @@ export function UserProfileScreenView(props: Props) {
           ) : null
         }
       />
-      <View flex={1} width="100%" maxWidth={600} marginHorizontal="auto">
-        <ScrollView
-          flex={1}
-          contentContainerStyle={{
-            padding: '$l',
-            gap: '$l',
-            paddingBottom: insets.bottom + 20,
-            flexWrap: 'wrap',
-            flexDirection: 'row',
-          }}
-        >
-          <UserInfoRow
-            userId={props.userId}
-            hasNickname={!!userContact?.nickname?.length}
-          />
-          {userContact?.status && <View width="100%"></View>}
+      <ScrollView
+        flex={1}
+        contentContainerStyle={{
+          width: '100%',
+          maxWidth: 600,
+          marginHorizontal: 'auto',
+          padding: '$l',
+          gap: '$l',
+          paddingBottom: insets.bottom + 20,
+          flexWrap: 'wrap',
+          flexDirection: 'row',
+        }}
+      >
+        <UserInfoRow
+          userId={props.userId}
+          hasNickname={!!userContact?.nickname?.length}
+        />
+        {userContact?.status && <View width="100%"></View>}
 
-          {currentUserId !== props.userId ? (
-            <ProfileButtons userId={props.userId} contact={userContact} />
-          ) : null}
+        {currentUserId !== props.userId ? (
+          <ProfileButtons userId={props.userId} contact={userContact} />
+        ) : null}
 
-          {userContact?.status && (
-            <StatusDisplay status={userContact?.status ?? ''} />
+        {userContact?.status && (
+          <StatusDisplay status={userContact?.status ?? ''} />
+        )}
+        <BioDisplay bio={userContact?.bio ?? ''} />
+
+        <XStack gap="$l" width="100%" flexWrap="wrap">
+          {twitterAttestation && (
+            <View width="48%" height={120}>
+              <TwitterAttestDisplay attestation={twitterAttestation} />
+            </View>
           )}
-          <BioDisplay bio={userContact?.bio ?? ''} />
 
-          <XStack gap="$l" width="100%" flexWrap="wrap">
-            {twitterAttestation && (
-              <View width="48%" height={120}>
-                <TwitterAttestDisplay attestation={twitterAttestation} />
-              </View>
-            )}
-
-            {phoneAttestation && (
-              <View width="48%" height={120}>
-                <PhoneAttestDisplay attestation={phoneAttestation} />
-              </View>
-            )}
-
+          {phoneAttestation && (
             <View width="48%" height={120}>
-              <StatusBlock status={nodeStatus} label="Node" />
+              <PhoneAttestDisplay attestation={phoneAttestation} />
             </View>
+          )}
 
-            <View width="48%" height={120}>
-              <StatusBlock status={sponsorStatus} label="Sponsor" />
-            </View>
-          </XStack>
-          <PinnedGroupsDisplay
-            groups={pinnedGroups}
-            onPressGroup={onPressGroup}
-          />
-        </ScrollView>
-      </View>
+          <View width="48%" height={120}>
+            <StatusBlock status={nodeStatus} label="Node" />
+          </View>
+
+          <View width="48%" height={120}>
+            <StatusBlock status={sponsorStatus} label="Sponsor" />
+          </View>
+        </XStack>
+        <PinnedGroupsDisplay
+          groups={pinnedGroups}
+          onPressGroup={onPressGroup}
+        />
+      </ScrollView>
     </View>
   );
 }
