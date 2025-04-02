@@ -1,6 +1,7 @@
 import { createDevLogger, withRetry } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useEffect, useRef } from 'react';
 
@@ -17,7 +18,6 @@ export function usePersonalGroup() {
 
   useEffect(() => {
     async function runScaffold() {
-      console.log('bl: running scaffoldPersonalGroup');
       if (lockRef.current) {
         logger.trackEvent('Locked, skipping');
         return;
@@ -27,21 +27,12 @@ export function usePersonalGroup() {
         lockRef.current = true;
 
         const currentUserId = api.getCurrentUserId();
-        const PERSONAL_GROUP = store.getPersonalGroupDetails(currentUserId);
-        const personalGroupId = `${currentUserId}/${PERSONAL_GROUP.slug}`;
-        const group = await db.getGroup({ id: personalGroupId });
-        const chatChannel = group?.channels.find(
-          (chan) => chan.id === PERSONAL_GROUP.chatChannelId
-        );
-        const collectionChannel = group?.channels.find(
-          (chan) => chan.id === PERSONAL_GROUP.collectionChannelId
-        );
-        const notesChannel = group?.channels.find(
-          (chan) => chan.id === PERSONAL_GROUP.notebookChannelId
-        );
+        const group = await db.getPersonalGroup();
+        const alreadyHasPersonalGroup = logic.personalGroupIsValid({
+          group,
+          currentUserId,
+        });
 
-        const alreadyHasPersonalGroup =
-          group && chatChannel && collectionChannel && notesChannel;
         const userShouldHavePersonalGroup = stubPredicate();
 
         if (!alreadyHasPersonalGroup && userShouldHavePersonalGroup) {

@@ -9,8 +9,8 @@ import * as api from '../api';
 import { getMessagesFilter } from '../api';
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
+import * as logic from '../logic';
 import * as ub from '../urbit';
-import { getPersonalGroupDetails } from './groupActions';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
 import {
   syncChannelPreivews,
@@ -507,29 +507,13 @@ export const useAttestations = () => {
 };
 
 export const usePersonalGroup = () => {
-  const deps = useKeyFromQueryDeps(db.getGroup);
+  const deps = useKeyFromQueryDeps(db.getPersonalGroup);
   return useQuery({
     queryKey: ['personalGroup', deps],
     queryFn: async () => {
       const currentUserId = api.getCurrentUserId();
-      const PERSONAL_GROUP = getPersonalGroupDetails(currentUserId);
-      const personalGroupId = `${currentUserId}/${PERSONAL_GROUP.slug}`;
-      const group = await db.getGroup({ id: personalGroupId });
-      const chatChannel = group?.channels.find(
-        (chan) => chan.id === PERSONAL_GROUP.chatChannelId
-      );
-      const collectionChannel = group?.channels.find(
-        (chan) => chan.id === PERSONAL_GROUP.collectionChannelId
-      );
-      const notesChannel = group?.channels.find(
-        (chan) => chan.id === PERSONAL_GROUP.notebookChannelId
-      );
-
-      if (group && chatChannel && collectionChannel && notesChannel) {
-        return group;
-      } else {
-        return null;
-      }
+      const group = await db.getPersonalGroup();
+      logic.personalGroupIsValid({ group, currentUserId }) ? group : null;
     },
   });
 };

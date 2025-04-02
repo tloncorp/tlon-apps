@@ -56,9 +56,7 @@ export async function createChannel({
       channelContentConfigurationForChannelType(channelType),
   };
 
-  console.log(`bl: inserting channel`, newChannel);
   await db.insertChannels([newChannel]);
-  console.log('bl: inserted it', channelId);
 
   // If we have a `contentConfiguration`, we need to merge these fields to make
   // a `StructuredChannelDescriptionPayload`, and use that as the `description`
@@ -70,19 +68,8 @@ export async function createChannel({
           description: rawDescription,
           channelContentConfiguration: contentConfiguration,
         });
-  console.log(`bl: made it here?`);
 
   try {
-    console.log(`bl: trying to create channel`, channelId, {
-      id: channelId,
-      kind: getChannelKindFromType(channelType),
-      group: groupId,
-      name: channelSlug,
-      title,
-      description: encodedDescription ?? '',
-      readers: [],
-      writers: [],
-    });
     await api.createChannel({
       id: channelId,
       kind: getChannelKindFromType(channelType),
@@ -93,14 +80,11 @@ export async function createChannel({
       readers: [],
       writers: [],
     });
-    console.log(`bl: created it`, channelId);
     return newChannel;
   } catch (e) {
-    console.error('Failed to create channel', e);
     // rollback optimistic update
-    console.log('bl: no luck, deleting channel', channelId);
     await db.deleteChannels([channelId]);
-    console.log('bl: deleted it', channelId);
+    throw new Error(`Failed to create channel ${channelId}`);
   }
 
   return newChannel;
