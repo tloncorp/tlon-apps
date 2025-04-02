@@ -507,8 +507,7 @@ export function ProfileButton({
 
   return (
     <Button
-      flexGrow={1}
-      flexBasis={1}
+      flex={1}
       borderWidth={0}
       paddingVertical="$xl"
       paddingHorizontal="$2xl"
@@ -521,8 +520,9 @@ export function ProfileButton({
       <Text
         size="$label/xl"
         color={hero ? '$background' : '$primaryText'}
-        paddingHorizontal={isWeb ? '$m' : undefined}
         textWrap="nowrap"
+        wordWrap="unset"
+        whiteSpace="nowrap"
       >
         {title}
       </Text>

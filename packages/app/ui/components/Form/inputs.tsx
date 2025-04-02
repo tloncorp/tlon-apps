@@ -4,7 +4,7 @@ import { Icon, IconType } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
-import { typeStyles } from '@tloncorp/ui';
+import { desktopTypeStyles, mobileTypeStyles } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import {
   ComponentProps,
@@ -45,7 +45,7 @@ export const RawTextInput = styled(
   RNTextInput,
   {
     name: 'RawTextInput',
-    ...typeStyles['$label/xl'],
+    ...mobileTypeStyles['$label/xl'],
     lineHeight: 'unset',
     context: FieldContext,
     color: '$primaryText',
@@ -55,6 +55,7 @@ export const RawTextInput = styled(
     paddingVertical: '$l',
     numberOfLines: 1,
     '$platform-web': { outlineStyle: 'none' },
+    $gtSm: desktopTypeStyles['$label/xl'],
     variants: {
       accent: {
         negative: {
