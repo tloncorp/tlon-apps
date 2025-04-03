@@ -12,7 +12,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, XStack, useStyle } from 'tamagui';
+import { View, XStack, getTokenValue, useStyle } from 'tamagui';
 
 import { useContactIndex, useContacts } from '../contexts';
 import {
@@ -158,6 +158,7 @@ export function ContactBook({
     if (!isWindowNarrow) {
       return {
         flex: 1,
+        paddingTop: getTokenValue('$l'),
         overflow: 'scroll' as const,
       };
     }
@@ -189,6 +190,7 @@ export function ContactBook({
               spellCheck: false,
               autoCapitalize: 'none',
               autoComplete: 'off',
+              flex: 1,
             }}
           />
         </XStack>

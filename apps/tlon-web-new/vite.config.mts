@@ -122,7 +122,7 @@ export default ({ mode }: { mode: string }) => {
         registerType: 'prompt',
         strategies: 'injectManifest',
         srcDir: 'src',
-        filename: 'sw.ts',
+        filename: 'sw-1.ts',
         useCredentials: true,
         devOptions: {
           enabled: mode === 'sw',
