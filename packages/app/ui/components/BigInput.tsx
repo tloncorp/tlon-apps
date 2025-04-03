@@ -402,7 +402,7 @@ export function BigInput({
         <AttachmentSheet
           isOpen={showAttachmentSheet}
           onOpenChange={setShowAttachmentSheet}
-          onAttachmentsSet={handleImageSelect}
+          onAttach={handleImageSelect}
           showClearOption={!!imageUri}
           onClearAttachments={handleClearImage}
         />

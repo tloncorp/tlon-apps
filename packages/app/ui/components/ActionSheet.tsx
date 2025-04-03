@@ -1,4 +1,4 @@
-import { useCopy } from '@tloncorp/ui';
+import { IconButton, useCopy } from '@tloncorp/ui';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { Icon, IconType } from '@tloncorp/ui';
 import { Sheet } from '@tloncorp/ui';
@@ -18,10 +18,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Dialog,
   Popover,
-  ScrollView,
   SheetProps,
   View,
   VisuallyHidden,
+  XStack,
   YStack,
   createStyledContext,
   getTokenValue,
@@ -102,6 +102,8 @@ type ActionSheetProps = {
   title?: string;
   trigger?: ReactNode;
   mode?: AdaptiveMode;
+  dialogContentProps?: ComponentProps<typeof Dialog.Content>;
+  closeButton?: boolean;
 };
 
 const useAdaptiveMode = (mode?: AdaptiveMode) => {
@@ -125,6 +127,8 @@ const ActionSheetComponent = ({
   trigger,
   mode: forcedMode,
   children,
+  dialogContentProps,
+  closeButton,
   ...props
 }: PropsWithChildren<ActionSheetProps & SheetProps>) => {
   const mode = useAdaptiveMode(forcedMode);
@@ -181,8 +185,32 @@ const ActionSheetComponent = ({
             // prevent the modal from going off screen
             maxHeight={maxHeight}
             marginVertical="$2xl"
+            {...dialogContentProps}
           >
-            <ScrollView id="ActionSheetDialogScrollView">{children}</ScrollView>
+            {closeButton && (
+              <XStack
+                width="100%"
+                justifyContent="flex-end"
+                paddingTop="$l"
+                paddingRight="$l"
+              >
+                <Dialog.Close>
+                  <IconButton
+                    backgroundColor="$border"
+                    height={24}
+                    width={24}
+                    borderRadius="$m"
+                  >
+                    <Icon
+                      type="Close"
+                      customSize={[14, 14]}
+                      color="$secondaryText"
+                    />
+                  </IconButton>
+                </Dialog.Close>
+              </XStack>
+            )}
+            {children}
           </Dialog.Content>
         </Dialog.Portal>
 

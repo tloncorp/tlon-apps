@@ -516,13 +516,11 @@ export const withRetry = <T>(fn: () => Promise<T>, config?: RetryConfig) => {
 };
 
 /**
- * Random id value for group or channel, 4 bits of entropy, eg 0v2a.lmibb
+ * Random id value for group or channel, 4 bits of entropy, eg 0v2a.lmibb -> v2almibb
  */
 export function getRandomId() {
-  return formatUv(Math.floor(Math.random() * 0xffffffff).toString()).replace(
-    /[^a-z]*([a-z][-\w\d]+)/gi,
-    '$1'
-  );
+  const id = formatUv(Math.floor(Math.random() * 0xffffffff).toString());
+  return id.replace(/\./g, '').slice(1);
 }
 
 /**

@@ -126,100 +126,100 @@ export function AppInfoScreen(props: Props) {
         title="App info"
         backAction={() => props.navigation.goBack()}
       />
-      <View flex={1} width="100%" maxWidth={600} marginHorizontal="auto">
-        <ScrollView>
-          <YStack
-            marginTop="$xl"
-            marginHorizontal="$2xl"
-            gap="$s"
-            paddingBottom="$3xl"
-          >
-            <AppSetting title="Build version" value={BUILD_VERSION} copyable />
-            <AppSetting title="OTA Update" value={easUpdateDisplay} copyable />
-            <AppSetting
-              title="Notify provider"
-              value={preSig(NOTIFY_PROVIDER)}
-              copyable
-            />
-            <AppSetting
-              title="Notify service"
-              value={NOTIFY_SERVICE}
-              copyable
-            />
-            {appInfo ? (
-              <>
-                <AppSetting
-                  title="Desk version"
-                  value={appInfo.groupsVersion}
-                  copyable
-                />
-                <AppSetting
-                  title="Desk source"
-                  value={appInfo.groupsSyncNode}
-                  copyable
-                />
-                <AppSetting
-                  title="Desk hash"
-                  value={appInfo.groupsHash.split('.').pop() ?? 'n/a'}
-                  copyable
-                />
-              </>
-            ) : (
-              <View>
-                <SizableText color="$negativeActionText">
-                  Cannot load app info settings
-                </SizableText>
-              </View>
-            )}
+      <ScrollView
+        contentContainerStyle={{
+          width: '100%',
+          maxWidth: 600,
+          marginHorizontal: 'auto',
+        }}
+      >
+        <YStack
+          marginTop="$xl"
+          marginHorizontal="$2xl"
+          gap="$s"
+          paddingBottom="$3xl"
+        >
+          <AppSetting title="Build version" value={BUILD_VERSION} copyable />
+          <AppSetting title="OTA Update" value={easUpdateDisplay} copyable />
+          <AppSetting
+            title="Notify provider"
+            value={preSig(NOTIFY_PROVIDER)}
+            copyable
+          />
+          <AppSetting title="Notify service" value={NOTIFY_SERVICE} copyable />
+          {appInfo ? (
+            <>
+              <AppSetting
+                title="Desk version"
+                value={appInfo.groupsVersion}
+                copyable
+              />
+              <AppSetting
+                title="Desk source"
+                value={appInfo.groupsSyncNode}
+                copyable
+              />
+              <AppSetting
+                title="Desk hash"
+                value={appInfo.groupsHash.split('.').pop() ?? 'n/a'}
+                copyable
+              />
+            </>
+          ) : (
+            <View>
+              <SizableText color="$negativeActionText">
+                Cannot load app info settings
+              </SizableText>
+            </View>
+          )}
 
+          <XStack
+            key="debug-toggle"
+            justifyContent="space-between"
+            alignItems="center"
+            padding="$l"
+          >
+            <SizableText flexShrink={1}>Enable Developer Logs</SizableText>
+            <Switch
+              style={{ flexShrink: 0 }}
+              value={enabled}
+              onValueChange={toggleDebugFlag}
+            ></Switch>
+          </XStack>
+
+          {enabled && logs.length > 0 && (
+            <Stack>
+              <Button onPress={onUploadLogs}>
+                <Text>Upload logs ({logs.length})</Text>
+              </Button>
+            </Stack>
+          )}
+          {enabled && logId && !hasClients && (
+            <YStack padding="$l">
+              <Text>Please email support@tlon.io with this log ID:</Text>
+              <Text>{logId}</Text>
+            </YStack>
+          )}
+
+          <YStack>
             <XStack
-              key="debug-toggle"
               justifyContent="space-between"
               alignItems="center"
               padding="$l"
             >
-              <SizableText flexShrink={1}>Enable Developer Logs</SizableText>
+              <SizableText flexShrink={1}>Share Usage Statistics</SizableText>
               <Switch
                 style={{ flexShrink: 0 }}
-                value={enabled}
-                onValueChange={toggleDebugFlag}
+                value={!telemetryDisabled}
+                onValueChange={toggleSetTelemetry}
               ></Switch>
             </XStack>
-
-            {enabled && logs.length > 0 && (
-              <Stack>
-                <Button onPress={onUploadLogs}>
-                  <Text>Upload logs ({logs.length})</Text>
-                </Button>
-              </Stack>
-            )}
-            {enabled && logId && !hasClients && (
-              <YStack padding="$l">
-                <Text>Please email support@tlon.io with this log ID:</Text>
-                <Text>{logId}</Text>
-              </YStack>
-            )}
-
-            <YStack>
-              <XStack
-                justifyContent="space-between"
-                alignItems="center"
-                padding="$l"
-              >
-                <SizableText flexShrink={1}>Share Usage Statistics</SizableText>
-                <Switch
-                  style={{ flexShrink: 0 }}
-                  value={!telemetryDisabled}
-                  onValueChange={toggleSetTelemetry}
-                ></Switch>
-              </XStack>
-              <SizableText size="$s" marginLeft="$l">
-                By sharing, you help us improve the app for everyone.
-              </SizableText>
-            </YStack>
+            <SizableText size="$s" marginLeft="$l">
+              By sharing, you help us improve the app for everyone.
+            </SizableText>
           </YStack>
-        </ScrollView>
-      </View>
+        </YStack>
+      </ScrollView>
     </View>
   );
 }

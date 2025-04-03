@@ -47,7 +47,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Keyboard } from 'react-native';
+import { Keyboard, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { WebViewMessageEvent } from 'react-native-webview';
 import {
@@ -67,6 +67,8 @@ import {
 import { AttachmentPreviewList } from './AttachmentPreviewList';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
 import { processReferenceAndUpdateEditor } from './helpers';
+
+export const DEFAULT_MESSAGE_INPUT_HEIGHT = Platform.OS === 'web' ? 38 : 44;
 
 const messageInputLogger = createDevLogger('MessageInput', false);
 
@@ -107,10 +109,6 @@ const getInjectedJS = (bridgeExtensions: BridgeExtension[]) => {
   injectJS += styleSheets.join(' ');
   return injectJS;
 };
-
-// 44 accounts for the 12px padding around the text within the input
-// and the 20px line height of the text. 12 + 20 + 12 = 52
-export const DEFAULT_MESSAGE_INPUT_HEIGHT = 44;
 
 export interface MessageInputHandle {
   editor: EditorBridge | null;
