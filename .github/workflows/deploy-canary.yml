@@ -152,10 +152,13 @@ jobs:
         uses: "google-github-actions/setup-gcloud@v1"
       - id: deploy
         name: Deploy
-        run:
-          ./.github/helpers/deploy.sh tloncorp/tlon-apps groups
-          binnec-dozzod-marnus us-central1-a mainnet-tlon-other-2d ${{ env.tag
-          }}
+        run: |
+          ./.github/helpers/deploy.sh tloncorp/tlon-apps groups binnec-dozzod-marnus us-central1-a mainnet-tlon-other-2d ${{ env.tag }}
+          DEPLOY_EXIT_CODE=$?
+          if [ $DEPLOY_EXIT_CODE -ne 0 ]; then
+            echo "::error::Deployment failed with exit code $DEPLOY_EXIT_CODE"
+            exit $DEPLOY_EXIT_CODE
+          fi
         env:
           SSH_SEC_KEY: ${{ secrets.GCP_SSH_SEC_KEY }}
           SSH_PUB_KEY: ${{ secrets.GCP_SSH_PUB_KEY }}
@@ -176,10 +179,13 @@ jobs:
         uses: "google-github-actions/setup-gcloud@v1"
       - id: deploy
         name: Deploy
-        run:
-          ./.github/helpers/deploy.sh tloncorp/tlon-apps tm-alpha
-          binnec-dozzod-marnus us-central1-a mainnet-tlon-other-2d ${{ env.tag
-          }}
+        run: |
+          ./.github/helpers/deploy.sh tloncorp/tlon-apps tm-alpha binnec-dozzod-marnus us-central1-a mainnet-tlon-other-2d ${{ env.tag }}
+          DEPLOY_EXIT_CODE=$?
+          if [ $DEPLOY_EXIT_CODE -ne 0 ]; then
+            echo "::error::Deployment failed with exit code $DEPLOY_EXIT_CODE"
+            exit $DEPLOY_EXIT_CODE
+          fi
         env:
           SSH_SEC_KEY: ${{ secrets.GCP_SSH_SEC_KEY }}
           SSH_PUB_KEY: ${{ secrets.GCP_SSH_PUB_KEY }}

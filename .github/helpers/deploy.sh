@@ -18,23 +18,29 @@ set -o pipefail
 cmdfile=$(mktemp "${TMPDIR:-/tmp/}janeway.XXXXXXXXX")
 # mktemp only used for generating a random folder name below
 cmds='
+set -e
+set -o pipefail
 source_repo=$(mktemp --dry-run /tmp/repo.janeway.XXXXXXXXX)
-git clone --depth 1 --branch '$ref' https://github.com/'$repo'.git $source_repo
+git clone --depth 1 --branch '$ref' https://github.com/'$repo'.git $source_repo || { echo "Failed to clone '$repo' repository"; exit 1; }
 urbit_repo=$(mktemp --dry-run /tmp/repo.urbit.XXXXXXXXX)
-git clone --depth 1 https://github.com/urbit/urbit.git $urbit_repo -b '$URBIT_REPO_TAG' --single-branch
+git clone --depth 1 https://github.com/urbit/urbit.git $urbit_repo -b '$URBIT_REPO_TAG' --single-branch || { echo "Failed to clone urbit repository"; exit 1; }
+
 landscape_repo=$(mktemp --dry-run /tmp/repo.landscape.XXXXXXXXX)
-git clone --depth 1 --branch master https://github.com/tloncorp/landscape.git $landscape_repo
-cd $source_repo
+git clone --depth 1 --branch master https://github.com/tloncorp/landscape.git $landscape_repo || { echo "Failed to clone landscape repository"; exit 1; }
+cd $source_repo || { echo "Failed to change directory to $source_repo"; exit 1; }
 cd /urbit || return
+echo "Committing changes to %'$desk'..."
 curl -s --data '\''{"source":{"dojo":"+hood/mount %'$desk'"},"sink":{"app":"hood"}}'\'' http://localhost:12321
-rsync -avL --delete $source_repo/'$from'/ '$folder'
-rsync -avL $source_repo/landscape-dev/ '$folder'
-rsync -avL $urbit_repo/pkg/base-dev/ '$folder'
-rsync -avL $landscape_repo/desk-dev/ '$folder'
+rsync -avL --delete $source_repo/'$from'/ '$folder' || { echo "Failed to rsync '$from' directory"; exit 1; }
+rsync -avL $source_repo/landscape-dev/ '$folder' || { echo "Failed to rsync landscape-dev directory"; exit 1; }
+rsync -avL $urbit_repo/pkg/base-dev/ '$folder' || { echo "Failed to rsync base-dev directory"; exit 1; }
+rsync -avL $landscape_repo/desk-dev/ '$folder' || { echo "Failed to rsync desk-dev directory"; exit 1; }
 curl -s --data '\''{"source":{"dojo":"+hood/commit %'$desk'"},"sink":{"app":"hood"}}'\'' http://localhost:12321
-rm -rf $source_repo
-rm -rf $urbit_repo
-rm -rf $landscape_repo
+rm -rf $source_repo || { echo "Failed to remove $source_repo"; exit 1; }
+rm -rf $urbit_repo || { echo "Failed to remove $urbit_repo"; exit 1; }
+rm -rf $landscape_repo || { echo "Failed to remove $landscape_repo"; exit 1; }
+echo "Deployment completed successfully"
+exit 0
 '
 echo "$cmds"
 echo "$cmds" >> "$cmdfile"
@@ -54,4 +60,12 @@ gcloud compute \
   --zone "$zone" --verbosity info \
   urb@"$ship" < "$cmdfile"
 
-echo "OTA performed for $desk on $ship"
+DEPLOY_EXIT_CODE=$?
+
+if [ $DEPLOY_EXIT_CODE -ne 0 ]; then
+  echo "Remote commands failed with exit code $DEPLOY_EXIT_CODE"
+  exit $DEPLOY_EXIT_CODE
+else
+  echo "OTA performed for $desk on $ship"
+  exit 0
+fi
