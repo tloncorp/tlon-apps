@@ -541,20 +541,29 @@ function SinglePostView({
       {parentPost &&
       isEditingParent &&
       (channel.type === 'notebook' || channel.type === 'gallery') ? (
-        <BigInput
-          channelType={urbit.getChannelType(parentPost.channelId)}
-          channelId={parentPost?.channelId}
-          editingPost={editingPost}
-          setEditingPost={setEditingPost}
-          editPost={editPost}
-          shouldBlur={inputShouldBlur}
-          setShouldBlur={setInputShouldBlur}
-          send={async () => {}}
-          getDraft={getDraft}
-          storeDraft={storeDraft}
-          clearDraft={clearDraft}
-          groupMembers={groupMembers}
-        />
+        <View
+          position="absolute"
+          top={0}
+          left={0}
+          right={0}
+          bottom={0}
+          backgroundColor="$background"
+        >
+          <BigInput
+            channelType={urbit.getChannelType(parentPost.channelId)}
+            channelId={parentPost?.channelId}
+            editingPost={editingPost}
+            setEditingPost={setEditingPost}
+            editPost={editPost}
+            shouldBlur={inputShouldBlur}
+            setShouldBlur={setInputShouldBlur}
+            send={async () => {}}
+            getDraft={getDraft}
+            storeDraft={storeDraft}
+            clearDraft={clearDraft}
+            groupMembers={groupMembers}
+          />
+        </View>
       ) : null}
       {headerMode === 'next' && (
         <ChannelFooter

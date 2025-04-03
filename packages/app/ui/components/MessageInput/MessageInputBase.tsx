@@ -1,4 +1,4 @@
-import type { EditorBridge } from '@10play/tentap-editor';
+import type { BridgeState, EditorBridge } from '@10play/tentap-editor';
 import * as db from '@tloncorp/shared/db';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { Button } from '@tloncorp/ui';
@@ -62,6 +62,9 @@ export interface MessageInputProps {
   channelType: db.ChannelType;
   initialHeight?: number;
   onSend?: () => void;
+  onEditorStateChange?: (state: BridgeState) => void;
+  onEditorContentChange?: (content?: object) => void;
+  onInitialContentSet?: () => void;
   // for external access to height
   setHeight?: (height: number) => void;
   goBack?: () => void;
@@ -179,7 +182,9 @@ export const MessageInputContainer = memo(
               <View position="absolute" bottom="$l" right="$l">
                 {disableSend ? null : (
                   <FloatingActionButton
-                    onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
+                    onPress={
+                      isEditing && onPressEdit ? onPressEdit : onPressSend
+                    }
                     icon={
                       <Icon
                         color={sendError ? 'red' : undefined}

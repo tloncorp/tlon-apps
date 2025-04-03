@@ -7,6 +7,7 @@ import {
   TenTapStartKit,
   useBridgeState,
   useEditorBridge,
+  useEditorContent,
 } from '@10play/tentap-editor';
 //ts-expect-error not typed
 import { editorHtml } from '@tloncorp/editor/dist/editorHtml';
@@ -46,11 +47,16 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Keyboard, Platform } from 'react-native';
+import { Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { WebViewMessageEvent } from 'react-native-webview';
-import { YStack, getTokenValue, useTheme, useWindowDimensions } from 'tamagui';
-import { XStack } from 'tamagui';
+import {
+  XStack,
+  YStack,
+  getTokenValue,
+  useTheme,
+  useWindowDimensions,
+} from 'tamagui';
 
 import { useBranchDomain, useBranchKey } from '../../contexts';
 import {
@@ -141,6 +147,9 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       shouldAutoFocus,
       goBack,
       onSend,
+      onEditorStateChange,
+      onEditorContentChange,
+      onInitialContentSet,
       frameless = false,
     },
     ref
@@ -150,6 +159,11 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const [isSending, setIsSending] = useState(false);
     const [sendError, setSendError] = useState(false);
     const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
+    useEffect(() => {
+      hasSetInitialContent && onInitialContentSet?.();
+      // Only want to trigger initially and on actual changes
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hasSetInitialContent]);
     const [hasAutoFocused, setHasAutoFocused] = useState(false);
     const [editorCrashed, setEditorCrashed] = useState<string | undefined>();
     const [containerHeight, setContainerHeight] = useState(initialHeight);
@@ -165,7 +179,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const bigInputHeightBasic = useMemo(() => {
       const extraHeaderSpace =
         channelType === 'notebook'
-          ? titleInputHeight + imageInputButtonHeight
+          ? titleInputHeight + imageInputButtonHeight + 150
           : 0;
       return height - top - headerHeight - extraHeaderSpace;
     }, [
@@ -207,18 +221,31 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         })
       );
     }
-
     const editor = useEditorBridge({
       customSource: editorHtml,
       autofocus: shouldAutoFocus || false,
       bridgeExtensions,
     });
-    const editorState = useBridgeState(editor);
-    const webviewRef = editor.webviewRef;
 
     useImperativeHandle(ref, () => ({
       editor,
     }));
+
+    const editorState = useBridgeState(editor);
+    useEffect(() => {
+      onEditorStateChange?.(editorState);
+      // Only want to trigger initially and on actual changes
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [editorState]);
+
+    const editorContent = useEditorContent(editor, { type: 'json' });
+    useEffect(() => {
+      onEditorContentChange?.(editorContent);
+      // Only want to trigger initially and on actual changes
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [editorContent]);
+
+    const webviewRef = editor.webviewRef;
 
     const reloadWebview = useCallback(
       (reason: string) => {
@@ -1008,7 +1035,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       >
         <YStack
           flex={1}
-          backgroundColor={backgroundColor}
           paddingHorizontal={paddingHorizontal}
           borderColor={frameless ? 'transparent' : '$border'}
           borderWidth={frameless ? 0 : 1}
@@ -1023,7 +1049,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           >
             <RichText
               style={{
-                backgroundColor: 'transparent',
                 maxHeight: bigInput ? bigInputHeight : maxInputHeight,
                 width: '100%',
                 flex: 1,

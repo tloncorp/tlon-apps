@@ -1,11 +1,17 @@
 import { createDevLogger, tiptap } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { constructStory } from '@tloncorp/shared/urbit/channel';
-import { Button, Icon, Text } from '@tloncorp/ui';
-import { Image } from '@tloncorp/ui';
+import {
+  Button,
+  Icon,
+  Image,
+  Text,
+  View,
+  useIsWindowNarrow,
+} from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, View } from 'react-native';
+import { KeyboardAvoidingView, Platform } from 'react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Input, XStack, getTokenValue, useTheme } from 'tamagui';
@@ -40,6 +46,7 @@ export function BigInput({
   editingPost?: db.Post;
   setShowBigInput?: (show: boolean) => void;
 }) {
+  const isWindowNarrow = useIsWindowNarrow();
   const [title, setTitle] = useState(editingPost?.title || '');
   const [imageUri, setImageUri] = useState<string | null>(
     editingPost?.image || null
@@ -48,262 +55,52 @@ export function BigInput({
   const [hasContentChanges, setHasContentChanges] = useState(false);
   const [hasTitleChanges, setHasTitleChanges] = useState(false);
   const [hasImageChanges, setHasImageChanges] = useState(false);
-  const [showFormatMenu, setShowFormatMenu] = useState(false);
-  const [isEditorFocused, setIsEditorFocused] = useState(false);
-  const [contentEmpty, setContentEmpty] = useState(true);
+  const [showFormatMenu, setShowFormatMenu] = useState(!isWindowNarrow);
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
   const editorRef = useRef<{ editor: TlonEditorBridge | null }>(null);
   const insets = useSafeAreaInsets();
   const theme = useTheme();
+  const [isEmpty, setIsEmpty] = useState(true);
 
-  // Helper function to check if editor content is empty
-  const checkEditorContentEmpty = useCallback(async () => {
-    const editor = editorRef.current?.editor;
-    if (!editor) return true;
-
-    try {
-      const json = await editor.getJSON();
-      if (!json) return true;
-
-      const jsonAny = json as any;
-
-      // More careful content check that handles edge cases better
-      if (!jsonAny.content) return true;
-      if (jsonAny.content.length === 0) return true;
-
-      // Special case for a single empty paragraph
-      if (
-        jsonAny.content.length === 1 &&
-        jsonAny.content[0].type === 'paragraph'
-      ) {
-        // Consider it empty if the paragraph has no content array
-        if (!jsonAny.content[0].content) return true;
-
-        // Consider it empty if the content array is empty
-        if (jsonAny.content[0].content.length === 0) return true;
-
-        // Check if there's only a single text node with whitespace or empty text
-        if (
-          jsonAny.content[0].content.length === 1 &&
-          jsonAny.content[0].content[0].type === 'text'
-        ) {
-          const text = jsonAny.content[0].content[0].text || '';
-          return text.trim() === '';
-        }
-      }
-
-      // If we get here, there's actual content
-      return false;
-    } catch (e) {
-      logger.log('Error checking editor content:', e);
-      return true;
-    }
-  }, []);
-
-  // Helper function for checking content changes
-  const checkContentChanges = useCallback(async () => {
-    const editor = editorRef.current?.editor;
-    if (!editor) {
-      logger.log('No editor available for content check');
-      return;
-    }
-
-    try {
-      const json = await editor.getJSON();
-      if (!json) {
-        logger.log('Editor returned no JSON');
-        return;
-      }
-
-      const isEmpty = await checkEditorContentEmpty();
-      logger.log('Content empty check:', isEmpty);
-      setContentEmpty(isEmpty);
-
-      const inlines = tiptap.JSONToInlines(json);
-      const story = constructStory(inlines);
-
-      if (editingPost?.content) {
+  const handleEditorContentChanged = useCallback(
+    (content?: object) => {
+      const nextIsEmpty = contentIsEmpty(content);
+      logger.log('Content empty check:', nextIsEmpty);
+      if (content && editingPost?.content) {
         const originalContent = editingPost.content as { story: any };
+        const inlines = tiptap.JSONToInlines(content);
+        const story = constructStory(inlines);
         const hasChanges =
           JSON.stringify(story) !== JSON.stringify(originalContent.story);
         logger.log('Content changes:', hasChanges);
         setHasContentChanges(hasChanges);
       } else {
-        logger.log('New content, not empty:', !isEmpty);
-        setHasContentChanges(!isEmpty);
+        logger.log('New content, not empty:', !nextIsEmpty);
+        setHasContentChanges(!nextIsEmpty);
       }
-    } catch (e) {
-      logger.log('Error in checkContentChanges:', e);
-    }
-  }, [checkEditorContentEmpty, editingPost?.content]);
-
-  // Run initial content check when the editor is ready
-  useEffect(() => {
-    if (!editorRef.current?.editor) {
-      logger.log('Editor not ready for initial check');
-      return;
-    }
-
-    logger.log('Running initial content check');
-    const timer = setTimeout(() => {
-      checkContentChanges();
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [editorRef.current?.editor, checkContentChanges]);
-
-  // Run more frequent content checks when focused
-  useEffect(() => {
-    if (!isEditorFocused || !editorRef.current?.editor) return;
-
-    // Check content more frequently when the editor is focused
-    const checkInterval = setInterval(() => {
-      checkContentChanges();
-    }, 100);
-
-    return () => clearInterval(checkInterval);
-  }, [isEditorFocused, checkContentChanges]);
-
-  // Track changes to the editor content
-  useEffect(() => {
-    const editor = editorRef.current?.editor;
-    if (!editor) {
-      logger.log('No editor available for setting up content tracking');
-      return;
-    }
-
-    logger.log('Setting up editor content tracking');
-
-    // Immediately update on any content change
-    editor._onContentUpdate = async () => {
-      logger.log('Content updated, checking content state');
-      await checkContentChanges();
-    };
-
-    // Force an immediate check when the editor is set up
-    setTimeout(() => {
-      checkContentChanges();
-    }, 50);
-
-    return () => {
-      if (editor) {
-        editor._onContentUpdate = () => {};
-      }
-    };
-  }, [checkContentChanges]);
-
-  // Force content check with minimal delay when editor gets focus
-  useEffect(() => {
-    if (isEditorFocused && editorRef.current?.editor) {
-      logger.log('Editor focused, checking content');
-      setTimeout(() => {
-        checkContentChanges();
-      }, 50);
-    }
-  }, [isEditorFocused, checkContentChanges]);
+      setIsEmpty(nextIsEmpty);
+    },
+    [editingPost?.content]
+  );
 
   useEffect(() => {
-    const editor = editorRef.current?.editor;
-    if (!editor) return;
-
-    const checkFocusInterval = setInterval(async () => {
-      try {
-        const editorState = await editor.getEditorState();
-        if (editorState?.isFocused !== undefined) {
-          const newFocusState = editorState.isFocused;
-          setIsEditorFocused(newFocusState);
-          if (!newFocusState && showFormatMenu) {
-            setShowFormatMenu(false);
-          }
-        }
-      } catch (e) {
-        logger.log('Error checking editor focus state', e);
-      }
-    }, 500);
-
-    return () => {
-      clearInterval(checkFocusInterval);
-    };
-  }, [showFormatMenu]);
-
-  // Track changes to title and image
-  useEffect(() => {
-    if (!editingPost) {
-      const hasTitleChanged = !!title;
-      const hasImageChanged = !!imageUri;
-      logger.log(
-        'New post - title:',
-        hasTitleChanged,
-        'image:',
-        hasImageChanged
-      );
-      setHasTitleChanges(hasTitleChanged);
-      setHasImageChanges(hasImageChanged);
-      return;
-    }
-
-    const hasTitleChanged = title !== editingPost.title;
-    const hasImageChanged = imageUri !== editingPost.image;
-    logger.log(
-      'Editing post - title changed:',
-      hasTitleChanged,
-      'image changed:',
-      hasImageChanged
-    );
-    setHasTitleChanges(hasTitleChanged);
-    setHasImageChanges(hasImageChanged);
+    setHasTitleChanges(title !== editingPost?.title);
+    setHasImageChanges(imageUri !== editingPost?.image);
   }, [title, imageUri, editingPost]);
 
   // Determine if the post/save button should be enabled - with direct content check
   useEffect(() => {
-    const updateButtonState = async () => {
-      const isEmpty = await checkEditorContentEmpty();
-
-      let enabled = false;
-
-      if (editingPost) {
-        // For editing: enable if anything has changed
-        enabled = hasContentChanges || hasTitleChanges || hasImageChanges;
-        logger.log(
-          'Button enabled (editing):',
-          enabled,
-          '- content:',
-          hasContentChanges,
-          'title:',
-          hasTitleChanges,
-          'image:',
-          hasImageChanges
-        );
+    let enabled = false;
+    if (editingPost) {
+      enabled = hasContentChanges || hasTitleChanges || hasImageChanges;
+    } else {
+      if (channelType === 'notebook') {
+        enabled = !isEmpty && !!title;
       } else {
-        // For new posts
-        if (channelType === 'notebook') {
-          // For notebooks: need both title and content
-          enabled = !isEmpty && !!title;
-          logger.log(
-            'Button enabled (new notebook):',
-            enabled,
-            '- content:',
-            !isEmpty,
-            'title:',
-            !!title
-          );
-        } else {
-          // For other types: just need content
-          enabled = !isEmpty;
-          logger.log(
-            'Button enabled (new post):',
-            enabled,
-            '- content:',
-            !isEmpty
-          );
-        }
+        enabled = !isEmpty;
       }
-
-      setIsButtonEnabled(enabled);
-    };
-
-    // Ensure we update the button state whenever any relevant state changes
-    updateButtonState();
+    }
+    setIsButtonEnabled(enabled);
   }, [
     editingPost,
     hasContentChanges,
@@ -311,7 +108,7 @@ export function BigInput({
     hasImageChanges,
     title,
     channelType,
-    checkEditorContentEmpty,
+    isEmpty,
   ]);
 
   // Handle sending/editing the post
@@ -354,16 +151,16 @@ export function BigInput({
       // Clear all state first
       setTitle('');
       setImageUri(null);
-      setContentEmpty(true);
       setHasContentChanges(false);
       setHasTitleChanges(false);
       setHasImageChanges(false);
       setShowFormatMenu(false);
+      setShowBigInput?.(false);
 
       // Clear the editor content before clearing drafts to prevent race conditions
       if (editorRef.current?.editor) {
         logger.log('Clearing editor content after save');
-        await editorRef.current.editor.setContent('');
+        editorRef.current.editor.setContent('');
       }
 
       // Clear the draft after successful save for all channel types
@@ -393,36 +190,6 @@ export function BigInput({
           logger.error('Error clearing draft:', e);
         }
       }
-
-      // Force a re-check of content after everything is cleared
-      setTimeout(async () => {
-        // Double check that content is still empty after all operations
-        if (editorRef.current?.editor) {
-          const isEmpty = await checkEditorContentEmpty();
-          logger.log('Final content empty check:', isEmpty);
-
-          // If somehow content got restored, try clearing again
-          if (!isEmpty) {
-            logger.log('Content was restored after clearing, clearing again');
-            editorRef.current.editor.setContent('');
-            await checkContentChanges();
-
-            // For gallery text posts, make an additional attempt to clear drafts
-            if (isGalleryText && props.clearDraft) {
-              logger.log('Making final attempt to clear gallery text draft');
-              try {
-                await props.clearDraft('text');
-                await props.clearDraft(undefined);
-              } catch (e) {
-                logger.error('Error in final draft clearing:', e);
-              }
-            }
-          }
-        }
-
-        // Close the big input last
-        setShowBigInput?.(false);
-      }, 500); // Increased timeout to ensure all operations complete
     } catch (error) {
       logger.error('Failed to save post:', error);
       // Don't clear draft if save failed
@@ -438,8 +205,6 @@ export function BigInput({
     editingPost,
     props.clearDraft,
     setShowFormatMenu,
-    checkContentChanges,
-    checkEditorContentEmpty,
   ]);
 
   // Register the "Post" button in the header
@@ -478,19 +243,6 @@ export function BigInput({
     setImageUri(editingPost?.image || null);
   }, [editingPost?.id, editingPost?.image]);
 
-  // A separate effect to check content shortly after component mount
-  // This catches cases where content might be loaded from drafts
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (editorRef.current?.editor) {
-        logger.log('Delayed content check for drafts');
-        checkContentChanges();
-      }
-    }, 800);
-
-    return () => clearTimeout(timer);
-  }, [checkContentChanges]);
-
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -500,35 +252,21 @@ export function BigInput({
       }}
       keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
     >
-      <View
-        style={{
-          flex: 1,
-          flexDirection: 'column',
-          position: 'relative',
-        }}
-      >
+      <View flex={1} flexDirection="column">
         {channelType === 'notebook' && (
-          <View>
-            <View
-              style={{
-                paddingHorizontal: getTokenValue('$m', 'space'),
-                paddingTop: getTokenValue('$m', 'space'),
-                paddingBottom: getTokenValue('$s', 'space'),
-              }}
-            >
+          <>
+            <View padding="$m" paddingBottom="$s">
               <Input
                 size="$xl"
-                height={getTokenValue('$4xl', 'size')}
-                backgroundColor="$background"
+                height={'$4xl'}
                 width="100%"
                 borderColor="transparent"
                 placeholder="New Title"
                 onChangeText={setTitle}
                 value={title}
               />
-
               <XStack
-                height={getTokenValue('$4xl', 'size')}
+                height={'$4xl'}
                 alignItems="center"
                 paddingHorizontal="$l"
               >
@@ -565,15 +303,23 @@ export function BigInput({
                 )}
               </XStack>
             </View>
-          </View>
+          </>
         )}
-        <View
-          style={{
-            flex: 1,
-            marginTop:
-              channelType === 'notebook' ? getTokenValue('$10xl', 'size') : 0,
-          }}
-        >
+
+        <View>
+          {!isWindowNarrow && editorRef.current?.editor && (
+            <InputToolbar
+              editor={editorRef.current?.editor}
+              hidden={false}
+              style={{
+                borderWidth: 0,
+                borderTopWidth: 0,
+                borderBottomWidth: 1,
+                borderRadius: 0,
+                backgroundColor: theme.background.val,
+              }}
+            />
+          )}
           <MessageInput
             ref={editorRef}
             send={handleSend}
@@ -585,6 +331,7 @@ export function BigInput({
             frameless={true}
             bigInput={true}
             shouldAutoFocus={true}
+            onEditorContentChange={handleEditorContentChanged}
             title={title}
             image={
               imageUri ? { uri: imageUri, height: 0, width: 0 } : undefined
@@ -594,55 +341,48 @@ export function BigInput({
         </View>
       </View>
 
-      {channelType === 'notebook' &&
-        editorRef.current?.editor &&
-        isEditorFocused && (
-          <>
-            {showFormatMenu && (
-              <View
+      {channelType === 'notebook' && editorRef.current?.editor && (
+        <>
+          {isWindowNarrow && showFormatMenu && (
+            <View
+              position="absolute"
+              bottom={insets.bottom + 16}
+              right={64}
+              zIndex={1000}
+              width={310}
+              shadowColor={theme.primaryText.val}
+              shadowOffset={{ width: 0, height: 2 }}
+              shadowOpacity={0.1}
+              shadowRadius={4}
+              backgroundColor={theme.background.val}
+              borderColor={theme.border.val}
+              borderWidth={1}
+              borderRadius={getTokenValue('$l', 'radius')}
+            >
+              <InputToolbar
+                editor={editorRef.current?.editor}
+                hidden={false}
                 style={{
-                  position: 'absolute',
-                  top: 300,
-                  right: 64,
-                  zIndex: 1000,
-                  width: 310,
-                  elevation: 5,
-                  shadowColor: theme.primaryText.val,
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 4,
-                  backgroundColor: theme.background.val,
-                  borderColor: theme.border.val,
-                  borderWidth: 1,
+                  borderWidth: 0,
+                  borderTopWidth: 0,
+                  borderBottomWidth: 0,
                   borderRadius: getTokenValue('$l', 'radius'),
+                  backgroundColor: theme.background.val,
                 }}
-              >
-                <InputToolbar
-                  editor={editorRef.current?.editor}
-                  hidden={false}
-                  style={{
-                    borderWidth: 0,
-                    borderTopWidth: 0,
-                    borderBottomWidth: 0,
-                    borderRadius: getTokenValue('$l', 'radius'),
-                    backgroundColor: theme.background.val,
-                  }}
-                />
-              </View>
-            )}
+              />
+            </View>
+          )}
+          {isWindowNarrow && (
             <Button
-              style={{
-                position: 'absolute',
-                top: 300,
-                right: 16,
-                zIndex: 200,
-                backgroundColor: theme.background.val,
-                elevation: 5,
-                shadowColor: theme.primaryText.val,
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 4,
-              }}
+              position="absolute"
+              bottom={insets.bottom + 16}
+              right={16}
+              zIndex={200}
+              backgroundColor={'$background'}
+              shadowColor={'$primaryText'}
+              shadowOffset={{ width: 0, height: 2 }}
+              shadowOpacity={0.1}
+              shadowRadius={4}
               onPress={() => setShowFormatMenu(!showFormatMenu)}
             >
               {showFormatMenu ? (
@@ -651,8 +391,9 @@ export function BigInput({
                 <Icon type="Italic" size="$l" color="$primaryText" />
               )}
             </Button>
-          </>
-        )}
+          )}
+        </>
+      )}
 
       {channelType === 'notebook' && showAttachmentSheet && (
         <AttachmentSheet
@@ -665,4 +406,41 @@ export function BigInput({
       )}
     </KeyboardAvoidingView>
   );
+}
+
+function contentIsEmpty(content?: object): boolean {
+  try {
+    const jsonAny = content as any;
+
+    // More careful content check that handles edge cases better
+    if (!jsonAny.content) return true;
+    if (jsonAny.content.length === 0) return true;
+
+    // Special case for a single empty paragraph
+    if (
+      jsonAny.content.length === 1 &&
+      jsonAny.content[0].type === 'paragraph'
+    ) {
+      // Consider it empty if the paragraph has no content array
+      if (!jsonAny.content[0].content) return true;
+
+      // Consider it empty if the content array is empty
+      if (jsonAny.content[0].content.length === 0) return true;
+
+      // Check if there's only a single text node with whitespace or empty text
+      if (
+        jsonAny.content[0].content.length === 1 &&
+        jsonAny.content[0].content[0].type === 'text'
+      ) {
+        const text = jsonAny.content[0].content[0].text || '';
+        return text.trim() === '';
+      }
+    }
+
+    // If we get here, there's actual content
+    return false;
+  } catch (e) {
+    logger.log('Error checking editor content:', e);
+    return true;
+  }
 }
