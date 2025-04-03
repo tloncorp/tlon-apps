@@ -119,10 +119,12 @@ export default function ChannelScreen(props: Props) {
   // time
   const [initialChannelUnread, setInitialChannelUnread] =
     React.useState<db.ChannelUnread | null>(null);
+  const [unreadDidInitialize, setUnreadDidInitialize] = React.useState(false);
   useEffect(() => {
     async function initializeChannelUnread() {
       const unread = await db.getChannelUnread({ channelId: currentChannelId });
       setInitialChannelUnread(unread ?? null);
+      setUnreadDidInitialize(true);
     }
     initializeChannelUnread();
   }, [currentChannelId]);
@@ -251,14 +253,16 @@ export default function ChannelScreen(props: Props) {
   useEffect(() => {
     // make sure we always load enough posts to fill the screen or
     // onScrollEndReached might not fire properly
+    const ENOUGH_POSTS_TO_FILL_SCREEN = 20;
     if (
       !postsQuery.isFetching &&
       postsQuery.hasNextPage &&
-      (!posts || posts.length < 15)
+      unreadDidInitialize &&
+      (!posts || posts.length < ENOUGH_POSTS_TO_FILL_SCREEN)
     ) {
       loadOlder();
     }
-  }, [postsQuery, posts, loadOlder]);
+  }, [postsQuery, posts, loadOlder, unreadDidInitialize]);
 
   const filteredPosts = useMemo(
     () =>
