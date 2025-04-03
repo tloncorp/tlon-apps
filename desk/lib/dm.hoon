@@ -205,6 +205,109 @@
     ^-  replies:old-3
     (run:on:replies:c replies.writ old-reply-3)
   ==
+++  old-action-club-3
+  |=  =action:club:c
+  ^-  action:club:old-3
+  =*  delta  q.q.action
+  ?:  ?=(%writ -.delta)
+    action(diff.q.q (old-diff-writs-3 diff.delta))
+  action
+++  old-diff-writs-3
+  |=  =diff:writs:c
+  ^-  diff:writs:old-3
+  =*  delta  q.diff
+  %=  diff  q
+    ?-  -.delta
+    ::
+        %add
+      :*  %add
+          (memo-1:cu -.essay.delta)
+          ?:(=(/chat-notice kind.essay.delta) [%notice ~] ~)
+          time.delta
+      ==
+    ::
+      %del  delta
+    ::
+        %reply
+      %=  delta
+        meta  (bind meta.delta reply-meta-1:cu)
+        delta  (old-delta-replies-3 delta.delta)
+      ==
+    ::
+        %add-react
+      %=  delta
+        author  (get-author-ship:cu author.delta)
+        react   (need (react-1:cu react.delta))
+      ==
+    ::
+        %del-react
+      delta(author (get-author-ship:cu author.delta))
+    ==
+  ==
+::
+++  old-response-delta-replies-3
+  |=  =response-delta:replies:c
+  ^-  response-delta:replies:old-3
+  ?-    -.response-delta
+    %add  response-delta(memo (memo-1:cu memo.response-delta))
+  ::
+    %del  [%del ~]
+  ::
+      %add-react
+    %=  response-delta
+      author  (get-author-ship:cu author.response-delta)
+      react  (need (react-1:cu react.response-delta))
+    ==
+  ::
+      %del-react
+    response-delta(author (get-author-ship:cu author.response-delta))
+  ==
+::
+++  old-delta-replies-3
+  |=  =delta:replies:c
+  ^-  delta:replies:old-3
+  ?-    -.delta
+    %add  delta(memo (memo-1:cu memo.delta))
+  ::
+    %del  [%del ~]
+  ::
+      %add-react
+    %=  delta
+      author  (get-author-ship:cu author.delta)
+      react  (need (react-1:cu react.delta))
+    ==
+  ::
+    %del-react  delta(author (get-author-ship:cu author.delta))
+  ==
+++  old-response-writs-3
+  |=  =response:writs:c
+  ^-  response:writs:old-3
+  =*  r-delta  response.response
+  %=  response  response
+    ?-    -.r-delta
+        %add
+      :*  %add
+          (memo-1:cu -.essay.r-delta)
+          time.r-delta
+      ==
+    ::
+      %del  [%del ~]
+    ::
+        %reply
+      %=  r-delta
+        meta  (bind meta.r-delta reply-meta-1:cu)
+        delta  (old-response-delta-replies-3 delta.r-delta)
+      ==
+    ::
+        %add-react
+      %=  r-delta
+        author  (get-author-ship:cu author.r-delta)
+        react  (need (react-1:cu react.r-delta))
+      ==
+        %del-react
+      r-delta(author (get-author-ship:cu author.r-delta))
+    ==
+  ==
 ++  old-paged-writs-3
   |=  =paged-writs:c
   ^-  paged-writs:old-3

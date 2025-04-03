@@ -732,18 +732,33 @@
   |=  =(pole knot)
   ^+  cor
   ?+    pole  ~|(bad-watch-path+`path`pole !!)
-      [%clubs ~]  ?>(from-self cor)
-      [%unreads ~]  ?>(from-self cor)
+  ::  catch-all
+  ::
       ~  ?>(from-self cor)
+      [%v1 ~]  ?>(from-self cor)
+  ::
+      [%clubs ~]  ?>(from-self cor)
+      [%v1 %clubs ~]  ?>(from-self cor)
+
+      [%unreads ~]  ?>(from-self cor)
       [%dm %invited ~]  ?>(from-self cor)
   ::
       [%dm ship=@ rest=*]
     =/  =ship  (slav %p ship.pole)
-    di-abet:(di-watch:(di-abed:di-core ship) rest.pole)
+    di-abet:(di-watch:(di-abed:di-core ship) %v0 rest.pole)
+  ::
+      [%v1 %dm ship=@ rest=*]
+    =/  =ship  (slav %p ship.pole)
+    di-abet:(di-watch:(di-abed:di-core ship) %v1 rest.pole)
   ::
       [%club id=@ rest=*]
     =/  =id:club:c  (slav %uv id.pole)
-    cu-abet:(cu-watch:(cu-abed id) rest.pole)
+    cu-abet:(cu-watch:(cu-abed id) %v0 rest.pole)
+  ::
+      [%v1 %club id=@ rest=*]
+    =/  =id:club:c  (slav %uv id.pole)
+    cu-abet:(cu-watch:(cu-abed id) %v1 rest.pole)
+  ::
       [%epic ~]
     (give %fact ~ epic+!>(okay))
   ==
@@ -793,11 +808,11 @@
     %-  (slog leaf/"Failed to heed contact {(trip ship.pole)}" u.p.sign)
     cor
   ::
-      [%dm ship=@ rest=*]
+      [%v1 %dm ship=@ rest=*]
     =/  =ship  (slav %p ship.pole)
     di-abet:(di-agent:(di-abed:di-core ship) rest.pole sign)
   ::
-      [%club id=@ rest=*]
+      [%v1 %club id=@ rest=*]
     =/  =id:club:c  (slav %uv id.pole)
     cu-abet:(cu-agent:(cu-abed id) rest.pole sign)
   ==
@@ -1439,8 +1454,11 @@
   ++  cu-circle
     (~(uni in team.crew.club) hive.crew.club)
   ::
-  ++  cu-area  `wire`/club/(scot %uv id)
-  ++  cu-area-writs  `wire`/club/(scot %uv id)/writs
+  ++  cu-area  `wire`/v1/club/(scot %uv id)
+  ++  cu-area-writs  `wire`/v1/club/(scot %uv id)/writs
+  ::
+  ++  cu-area-old  `wire`/club/(scot %uv id)
+  ++  cu-area-writs-old  `wire`/club/(scot %uv id)/writs
   ::
   ++  cu-uid
     =/  uid  `@uv`(shax (jam ['clubs' (add counter eny.bowl)]))
@@ -1528,9 +1546,12 @@
   ::
   ++  cu-give-action
     |=  =action:club:c
-    =/  =cage  chat-club-action+!>(action)
     =.  cor
+      =/  =cage  chat-club-action+!>((old-action-club-3:pac action))
       (emit %give %fact ~[/ /clubs] cage)
+    =.  cor
+      =/  cage  chat-club-action-1+!>(action)
+      (emit %give %fact ~[/v1 /v1/clubs] cage)
     cu-core
   ::
   ++  cu-give-writs-diff
@@ -1538,11 +1559,19 @@
     =/  response=(unit response:writs:c)  (diff-to-response diff pact.club)
     ?~  response  cu-core
     =.  cor
-      =/  =cage  writ-response+!>([[%club id] u.response])
-      (emit %give %fact ~[/ cu-area] cage)
+      =/  old-response-3  [[%club id] (old-response-writs-3:pac u.response)]
+      =/  cage  writ-response+!>(old-response-3)
+      (emit %give %fact ~[/ cu-area-old] cage)
     =.  cor
-      =/  =cage  writ-response+!>([[%club id] u.response])
-      (emit %give %fact ~[/ cu-area-writs] cage)
+      =/  =cage  writ-response-1+!>(response)
+      (emit %give %fact ~[/v1 cu-area] cage)
+    =.  cor
+      =/  old-response-3  [[%club id] (old-response-writs-3:pac u.response)]
+      =/  =cage  writ-response+!>(old-response-3)
+      (emit %give %fact ~[/ cu-area-writs-old] cage)
+    =.  cor
+      =/  =cage  writ-response-1+!>(response)
+      (emit %give %fact ~[/v1 cu-area-writs] cage)
     cu-core
   ::
   ++  cu-diff
@@ -1756,7 +1785,7 @@
     ==
   ::
   ++  cu-watch
-    |=  =path
+    |=  [ver=?(%v0 %v1) =path]
     ^+  cu-core
     ?>  =(src our):bowl
     ?+  path  !!
@@ -1837,8 +1866,9 @@
 ++  give-invites
   |=  =ship
   =/  invites
-  ?:  (~(has by dms) ship)   ~(key by pending-dms)
-  (~(put in ~(key by pending-dms)) ship)
+    ?:  (~(has by dms) ship)
+      ~(key by pending-dms)
+    (~(put in ~(key by pending-dms)) ship)
   (give %fact ~[/ /dm/invited] ships+!>(invites))
 ::
 ++  verses-to-inlines  ::  for backcompat
@@ -1894,8 +1924,11 @@
     ?:  &(!=(s our.bowl) =(src our):bowl)  di-core
     (di-activity [%invite ~] *story:d &)
   ::
-  ++  di-area  `path`/dm/(scot %p ship)
-  ++  di-area-writs  `path`/dm/(scot %p ship)/writs
+  ++  di-area  `path`/v1/dm/(scot %p ship)
+  ++  di-area-writs  `path`/v1/dm/(scot %p ship)/writs
+  ::
+  ++  di-area-old  `path`/dm/(scot %p ship)
+  ++  di-area-writs-old  `path`/dm/(scot %p ship)/writs
   ::
   ++  di-activity
     |=  $:  $=  concern
@@ -1946,11 +1979,19 @@
     =/  response=(unit response:writs:c)  (diff-to-response diff pact.dm)
     ?~  response  di-core
     =.  cor
-      =/  =cage  writ-response+!>([[%ship ship] u.response])
-      (emit %give %fact ~[/ di-area] cage)
+      =/  old-response-3  [[%ship ship] (old-response-writs-3:pac u.response)]
+      =/  =cage  writ-response+!>(old-response-3)
+      (emit %give %fact ~[/ di-area-old] cage)
     =.  cor
-      =/  =cage  writ-response+!>([[%ship ship] u.response])
-      (emit %give %fact ~[/ di-area-writs] cage)
+      =/  =cage  writ-response-1+!>(response)
+      (emit %give %fact ~[/v1 di-area] cage)
+    =.  cor
+      =/  old-response-3  [[%ship ship] (old-response-writs-3:pac u.response)]
+      =/  =cage  writ-response+!>(old-response-3)
+      (emit %give %fact ~[/ di-area-writs-old] cage)
+    =.  cor
+      =/  =cage  writ-response+!>(response)
+      (emit %give %fact ~[/v1 di-area-writs] cage)
     di-core
   ::
   ++  di-ingest-diff
@@ -2054,7 +2095,7 @@
     (di-post-notice ' joined the chat')
   ::
   ++  di-watch
-    |=  =path
+    |=  [ver=?(%v0 %v1) =path]
     ^+  di-core
     ?>  =(src.bowl our.bowl)
     ?+  path  !!
