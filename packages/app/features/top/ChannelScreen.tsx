@@ -248,6 +248,18 @@ export default function ChannelScreen(props: Props) {
         }),
   });
 
+  useEffect(() => {
+    // make sure we always load enough posts to fill the screen or
+    // onScrollEndReached might not fire properly
+    if (
+      !postsQuery.isFetching &&
+      postsQuery.hasNextPage &&
+      (!posts || posts.length < 15)
+    ) {
+      loadOlder();
+    }
+  }, [postsQuery, posts, loadOlder]);
+
   const filteredPosts = useMemo(
     () =>
       channel?.type !== 'chat' ? posts?.filter((p) => !p.isDeleted) : posts,
