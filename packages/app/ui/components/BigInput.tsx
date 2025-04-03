@@ -262,6 +262,7 @@ export function BigInput({
                 width="100%"
                 borderColor="transparent"
                 placeholder="New Title"
+                placeholderTextColor={'$tertiaryText'}
                 onChangeText={setTitle}
                 value={title}
               />
@@ -307,19 +308,21 @@ export function BigInput({
         )}
 
         <View>
-          {!isWindowNarrow && editorRef.current?.editor && (
-            <InputToolbar
-              editor={editorRef.current?.editor}
-              hidden={false}
-              style={{
-                borderWidth: 0,
-                borderTopWidth: 0,
-                borderBottomWidth: 1,
-                borderRadius: 0,
-                backgroundColor: theme.background.val,
-              }}
-            />
-          )}
+          {!isWindowNarrow &&
+            editorRef.current?.editor &&
+            channelType === 'notebook' && (
+              <InputToolbar
+                editor={editorRef.current?.editor}
+                hidden={false}
+                style={{
+                  borderWidth: 0,
+                  borderTopWidth: 0,
+                  borderBottomWidth: 1,
+                  borderRadius: 0,
+                  backgroundColor: theme.background.val,
+                }}
+              />
+            )}
           <MessageInput
             ref={editorRef}
             send={handleSend}
