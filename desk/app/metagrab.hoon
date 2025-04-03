@@ -174,36 +174,41 @@
                 =.  u.hin  (add u.hin ^~((lent "<title>")))
                 (crip (swag [u.hin (sub u.tin u.hin)] hat))
               `['_title' 'title' title]~
+            =/  buckets=(jar @t tope:mg)
+              ?~  res  ~
+              %.  u.res
+              %-  bucketize:mg
+              %-  ~(gas ju *(jug @t path))
+              :~  :-  'title'        /'_title'/title
+                  :-  'title'        /og/title
+                  :-  'title'        /twitter/title
+                ::
+                  :-  'description'  //description
+                  :-  'description'  /og/description
+                  :-  'description'  /twitter/description
+                ::
+                  :-  'site_name'    //application-name
+                  :-  'site_name'    /og/'site_name'
+                ::
+                  :-  'image'        /og/image
+                  :-  'image'        /twitter/image
+                  :-  'image'        /'_link'/'image_src'
+                ::
+                  :-  'site_icon'    /'_link'/apple-touch-icon
+                  :-  'site_icon'    /'_link'/apple-touch-icon-precomposed
+                  :-  'site_icon'    /'_link'/icon
+              ==
             =/  titles=(list @t)
-              %+  murn  (fall res ~)
-              |=  tope:mg  ^-  (unit @t)
-              ?.  &(=('title' key) ?=(@ val))  ~
-              `val
+              (turn (~(get ja buckets) 'title') value:mg)
             =/  descrs=(list @t)
-              %+  murn  (fall res ~)
-              |=  tope:mg  ^-  (unit @t)
-              ?.  &(=('description' key) ?=(@ val))  ~
-              `val
+              (turn (~(get ja buckets) 'description') value:mg)
             =/  images=(list @t)
-              %+  murn  (fall res ~)
-              |=  tope:mg  ^-  (unit @t)
-              ?.  |(=('image' key) =('image_src' key))  ~
-              `?@(val val top.val)
+              (turn (~(get ja buckets) 'image') value:mg)
             =/  sinams=(list @t)
-              %+  murn  (fall res ~)
-              |=  tope:mg  ^-  (unit @t)
-              ?.  &(?=(@ val) |(=('site_name' key) =('application-name' key)))  ~
-              `val
+              ::TODO  domain name fallback
+              (turn (~(get ja buckets) 'site_name') value:mg)
             =/  sicons=(list @t)
-              %+  murn  (fall res ~)
-              |=  tope:mg  ^-  (unit @t)
-              ?.  ?&  ?=(@ val)
-                  ?|  =('apple-touch-icon' key)
-                      =('apple-touch-icon-precomposed' key)
-                      =('icon' key)
-                  ==  ==
-                ~
-              `val
+              (turn (~(get ja buckets) 'site_icon') value:mg)
             ~>  %bout.[0 '- rendering']
             ;tr(valign "top")
               ;td:"{(trip url)}"
@@ -240,7 +245,15 @@
                 ;+  ?~  res  ;span:"failed"
                 ;details
                   ;summary:"{(a-co:co (lent u.res))} properties"
-                  ;*  %+  turn  u.res
+                  ;*  %+  turn
+                    ~(tap by buckets)
+                  |=  [buc=@t toz=(list tope:mg)]
+                  =;  xx=marl
+                    ;details
+                      ;summary:"<< {(trip buc)} >>"
+                      ;*  xx
+                    ==
+                  %+  turn  toz
                   |=  tope:mg
                   ^-  manx
                   ;p

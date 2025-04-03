@@ -147,8 +147,30 @@
 ::
 ::  post-processing metadata
 ::
+++  value
+  |=  tope
+  ?@  val  val
+  top.val
+::
+++  bucketize
+  |=  buckets=(jug @t path)
+  =/  lookup=(map path @t)
+    %-  ~(rep by buckets)
+    |=  [[buc=@t paz=(set path)] lok=(map path @t)]
+    %-  ~(rep in paz)
+    |=  [pax=path =_lok]
+    (~(put by lok) pax buc)
+  |=  topes=(list tope)
+  %+  roll  topes
+  |=  [=tope out=(jar @t tope)]
+  =/  kay=path  ~[ns key]:tope
+  |-  ^+  out
+  ?:  (~(has by lookup) kay)
+    (~(add ja out) (~(got by lookup) kay) tope)
+  (~(add ja out) '' tope)  ::TODO  traverse?
+::
 ++  transform
-  |=  fun=$-([kay=(list @t) val=@t] @t)
+  |=  fun=$-([kay=path val=@t] @t)
   |=  tope
   =/  kay=path  ~[ns key]
   :+  ns  key
