@@ -1047,8 +1047,11 @@ export async function syncPosts(
     'syncing posts',
     `${options.channelId}/${options.cursor}/${options.mode}`
   );
-  const response = await syncQueue.add('channelPosts', ctx, () =>
-    api.getChannelPosts(options)
+  const response = await syncQueue.add(
+    'channelPosts',
+    ctx,
+    () => api.getChannelPosts(options),
+    options.channelId
   );
   if (response.posts.length) {
     await db.insertChannelPosts({

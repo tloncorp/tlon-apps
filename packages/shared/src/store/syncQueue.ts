@@ -1,5 +1,6 @@
 import { createDevLogger, runIfDev } from '../debug';
 import { RetryConfig, withRetry } from '../logic';
+import { useActiveChannel } from './activeChannel';
 
 const logger = createDevLogger('syncQueue', false);
 
@@ -10,6 +11,7 @@ interface SyncOperation {
   resolve: (result: any) => void;
   reject: (err: unknown) => void;
   addedAt: number;
+  channelId?: string;
 }
 
 // Default sync priority levels
@@ -53,12 +55,37 @@ class SyncQueue {
   add<T>(
     label: string,
     ctx: SyncCtx | undefined | null,
-    action: () => Promise<T>
+    action: () => Promise<T>,
+    channelId?: string
   ) {
     const defaults = { priority: SyncPriority.Medium };
-    const ctxWithDefaults = ctx ? { ...defaults, ...ctx } : defaults;
+    let ctxWithDefaults = ctx ? { ...defaults, ...ctx } : defaults;
     const startTime = Date.now();
-    logger.log('pending:' + label, 'priority', ctxWithDefaults.priority);
+
+    // Adjust priority based on active channel
+    if (channelId) {
+      const isActive = useActiveChannel.getState().isActiveChannel(channelId);
+      
+      // If channel is active, boost its priority slightly to ensure it's processed before 
+      // other operations of the same nominal priority
+      // If inactive, cap at Low priority to prevent it from blocking active channel operations
+      const adjustedPriority = isActive
+        ? ctxWithDefaults.priority + 2 // Small boost for active channel 
+        : Math.min(ctxWithDefaults.priority, SyncPriority.Low); // Lower priority if inactive
+      
+      ctxWithDefaults = { ...ctxWithDefaults, priority: adjustedPriority };
+      logger.log(
+        'pending:' + label,
+        'channel:',
+        channelId,
+        'active:',
+        isActive,
+        'adjusted priority:',
+        adjustedPriority
+      );
+    } else {
+      logger.log('pending:' + label, 'priority', ctxWithDefaults.priority);
+    }
 
     return new Promise<T>((resolve, reject) => {
       const operation = {
@@ -68,6 +95,7 @@ class SyncQueue {
         resolve,
         reject,
         addedAt: startTime,
+        channelId,
       };
       this.pendingOperations.unshift(operation);
       if (this.pendingOperations.length === 1) {
@@ -114,15 +142,17 @@ class SyncQueue {
       const loadStartTime = Date.now();
       const nextOperation = this.queue.shift()!;
       const { ctx, label, action, resolve, reject, addedAt } = nextOperation;
+
       const retryOptions = getRetryConfig(ctx.retry);
-      const execAction = retryOptions
+      const finalAction = retryOptions
         ? () => withRetry(action, retryOptions)
         : action;
+
       try {
         logger.log('loading:' + label, 'on thread', threadId);
-        const result = await execAction();
+        const result = await finalAction();
         resolve(result);
-      } catch (e) {
+      } catch (e: any) {
         logger.log('failed:' + label, threadId, e);
         reject(e);
       }

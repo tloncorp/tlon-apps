@@ -7,6 +7,7 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
+import { useActiveChannel } from '@tloncorp/shared/store';
 import {
   useCanUpload,
   useChannelPreview,
@@ -43,10 +44,18 @@ export default function ChannelScreen(props: Props) {
     startDraft: false,
   };
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
+  const { setActiveChannel } = useActiveChannel();
 
   useEffect(() => {
     setCurrentChannelId(channelId);
-  }, [channelId]);
+    setActiveChannel(channelId);
+
+    return () => {
+      if (useActiveChannel.getState().activeChannelId === channelId) {
+        setActiveChannel(null);
+      }
+    };
+  }, [channelId, setActiveChannel]);
 
   const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
   const {

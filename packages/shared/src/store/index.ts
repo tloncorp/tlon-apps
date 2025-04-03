@@ -23,4 +23,5 @@ export * from './inviteActions';
 export * from './hostingActions';
 export * from './lanyardActions';
 export * from './settingsActions';
+export * from './activeChannel';
 export { useChannelContext } from './useChannelContext';
