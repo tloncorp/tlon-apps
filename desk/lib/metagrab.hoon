@@ -53,8 +53,18 @@
       %link
     ?~  rel=(~(get by rat) %rel)  skip
     ?~  ref=(~(get by rat) %href)  skip
-    ::TODO  be more selective: image_src, icon (w/ opt attrs), apple-touch-icon etc
-    [cur ['_link' (crip u.rel) (crip u.ref)] out]  ::REVIEW  save cur?
+    =;  val=veal
+      [cur ['_link' (crip u.rel) val] out]  ::REVIEW  save cur?
+    =.  rat  (~(del by rat) %rel)
+    =.  rat  (~(del by rat) %href)
+    ?:  =(~ rat)  (crip u.ref)
+    :-  (crip u.ref)
+    %-  ~(gas by *(map @t veal))
+    %+  turn  ~(tap by rat)
+    |=  [m=mane t=tape]
+    ^-  [@t veal]
+    ?@  m  [m (crip t)]
+    [-.m '' [+.m (crip t)] ~ ~]
   ::
       %meta
     ?~  con=(~(get by rat) %content)
@@ -182,9 +192,9 @@
   ^$(kay (snoc kay k), val v)
 ::
 ++  expand-urls
-  =/  spaces=(list @t)
+  =/  spaces=(list @t)  ::  namespaces with urls at top level
     ~['_link']
-  =/  keys=(list @t)
+  =/  keys=(list @t)  ::  keys at any level with urls
     ~['image' 'url' 'secure_url']
   |=  [base=@t toz=(list tope)]
   %+  turn  toz
@@ -195,7 +205,7 @@
   =;  is-href=?
     ?.  is-href  val
     (expand-url base val)
-  ?|  (lien spaces (cury test nas))
+  ?|  &((lien spaces (cury test nas)) ?=([@ @ ~] kay))
       (lien keys (cury test key))
   ==
 ::
