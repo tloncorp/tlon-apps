@@ -192,7 +192,7 @@ export const syncLatestPosts = async (
  * This function internally enqueues work on the sync queue; do not
  * explicitly enqueue this function, or else sync threads will get clogged up.
  */
-export const syncRelevantChannelsPostGaps = async (
+const syncRelevantChannelPosts = async (
   ctx?: SyncCtx,
   queryCtx?: QueryCtx
 ): Promise<void> => {
@@ -1381,8 +1381,8 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     syncAppInfo({ priority: SyncPriority.Low }).then(() => {
       logger.crumb(`finished syncing app info`);
     }),
-    syncRelevantChannelsPostGaps({ priority: SyncPriority.Low }).then(() => {
-      logger.crumb(`finished syncing relevant channel post gaps`);
+    syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
+      logger.crumb(`finished channel predictive sync`);
     }),
   ];
 
