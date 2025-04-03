@@ -23,7 +23,11 @@ import {
   styled,
 } from 'tamagui';
 
-import { ContentReferenceLoader, Reference } from '../ContentReference';
+import {
+  ContentReferenceLoader,
+  IsInsideReferenceContext,
+  Reference,
+} from '../ContentReference';
 import { VideoEmbed } from '../Embed';
 import EmbedContent from '../Embed/EmbedContent';
 import { HighlightedCode } from '../HighlightedCode';
@@ -90,7 +94,9 @@ function ListItemMarker({
     case 'unordered':
       return <TextContent trimmed={false}>•︎</TextContent>;
     case 'tasklist':
-      return <TextContent trimmed={false}>{'\u2610'}</TextContent>;
+      // We return null here because the tasklist marker is rendered in the
+      // InlineTask component in the InlineRenderer
+      return null;
   }
 }
 
@@ -193,6 +199,12 @@ export function ReferenceBlock({
   ComponentProps<typeof ContentReferenceLoader>,
   'reference'
 >) {
+  const isInsideReference = useContext(IsInsideReferenceContext);
+
+  if (isInsideReference) {
+    return null;
+  }
+
   return <ContentReferenceLoader reference={block} {...props} />;
 }
 
@@ -234,6 +246,8 @@ export function ImageBlock({
     aspect: block.width && block.height ? block.width / block.height : null,
   });
 
+  const isInsideReference = useContext(IsInsideReferenceContext);
+
   const handlePress = useCallback(() => {
     onPressImage?.(block.src);
   }, [block.src, onPressImage]);
@@ -248,6 +262,34 @@ export function ImageBlock({
   }, []);
 
   const shouldUseAspectRatio = imageProps?.aspectRatio !== 'unset';
+
+  if (isInsideReference) {
+    return (
+      <Pressable
+        overflow="hidden"
+        onPress={handlePress}
+        onLongPress={onLongPress}
+        {...props}
+      >
+        <ContentImage
+          source={{ uri: block.src }}
+          style={{
+            width: '100%',
+            maxHeight: 250,
+            resizeMode: 'contain',
+            ...(shouldUseAspectRatio
+              ? { aspectRatio: dimensions.aspect || 1 }
+              : {}),
+          }}
+          contentFit="contain"
+          borderRadius="$s"
+          alt={block.alt}
+          onLoad={handleImageLoaded}
+          {...imageProps}
+        />
+      </Pressable>
+    );
+  }
 
   return (
     <Pressable

@@ -29,7 +29,6 @@ export {
   allDraftInputs,
   allContentRenderers,
 } from './api/channelContentConfig';
-export { parseActiveTab, trimFullPath } from './logic/navigation';
 export * from './logic';
 export * from './store';
 export * from './domain';
@@ -39,3 +38,4 @@ export * as tiptap from './logic/tiptap';
 export * as utilHooks from './logic/utilHooks';
 export * from './debug';
 export * from './perf';
+export * from './electrtonAuth';

@@ -1,3 +1,4 @@
+import { useConnectionStatus } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
@@ -11,7 +12,7 @@ import {
 } from 'react';
 
 import { useChatOptions } from '../../contexts';
-import { useGroupTitle } from '../../utils';
+import { useChatTitle } from '../../utils';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import { ScreenHeader } from '../ScreenHeader';
 import { BaubleHeader } from './BaubleHeader';
@@ -106,6 +107,8 @@ export function ChannelHeader({
 }) {
   const chatOptions = useChatOptions();
   const [openChatOptions, setOpenChatOptions] = useState(false);
+  const connectionStatus = useConnectionStatus();
+  const chatTitle = useChatTitle(channel, group);
 
   const handlePressOverflowMenu = useCallback(() => {
     chatOptions.open(channel.id, 'channel');
@@ -114,8 +117,33 @@ export function ChannelHeader({
   const contextItems = useContext(ChannelHeaderItemsContext)?.items ?? [];
   const isWindowNarrow = useIsWindowNarrow();
 
+  const displayTitle = useMemo(() => {
+    if (connectionStatus === 'Connected') {
+      return chatTitle ?? title;
+    }
+
+    const statusText =
+      connectionStatus === 'Connecting' || connectionStatus === 'Reconnecting'
+        ? 'Connecting...'
+        : connectionStatus === 'Idle'
+          ? 'Initializing...'
+          : 'Disconnected';
+
+    return statusText;
+  }, [chatTitle, title, connectionStatus]);
+
   if (mode === 'next') {
-    return <BaubleHeader channel={channel} group={group} />;
+    return (
+      <BaubleHeader
+        channel={channel}
+        group={group}
+        showSpinner={
+          showSpinner ||
+          connectionStatus === 'Connecting' ||
+          connectionStatus === 'Reconnecting'
+        }
+      />
+    );
   }
 
   const titleWidth = () => {
@@ -134,8 +162,8 @@ export function ChannelHeader({
     <>
       <ScreenHeader
         title={
-          <Pressable onPress={goToChatDetails}>
-            <ScreenHeader.Title>{title}</ScreenHeader.Title>
+          <Pressable flex={1} onPress={goToChatDetails}>
+            <ScreenHeader.Title>{displayTitle}</ScreenHeader.Title>
           </Pressable>
         }
         titleWidth={titleWidth()}

@@ -2,9 +2,11 @@
 // @ts-ignore – only valid on web
 const env = import.meta.env;
 const envVars = {
+  devShipUrl: env.VITE_SHIP_URL,
   notifyProvider: env.VITE_NOTIFY_PROVIDER,
   notifyService: env.VITE_NOTIFY_SERVICE,
   postHogApiKey: env.VITE_POST_HOG_API_KEY,
+  postHogInDev: env.VITE_POST_HOG_IN_DEV,
   apiUrl: env.VITE_API_URL,
   apiAuthUsername: env.VITE_API_AUTH_USERNAME,
   apiAuthPassword: env.VITE_API_AUTH_PASSWORD,
@@ -30,9 +32,11 @@ const envVars = {
   inviteServiceIsDev: env.VITE_INVITE_SERVICE_IS_DEV,
 } as Record<string, string | undefined>;
 
+export const DEV_SHIP_URL = envVars.devShipUrl ?? '';
 export const NOTIFY_PROVIDER = envVars.notifyProvider ?? 'rivfur-livmet';
 export const NOTIFY_SERVICE = envVars.notifyService ?? 'groups-native';
 export const POST_HOG_API_KEY = envVars.postHogApiKey ?? '';
+export const POST_HOG_IN_DEV = Boolean(envVars.postHogInDev);
 export const API_URL = envVars.apiUrl ?? 'https://tlon.network';
 export const API_AUTH_USERNAME = envVars.apiAuthUsername;
 export const API_AUTH_PASSWORD = envVars.apiAuthPassword;
@@ -67,9 +71,11 @@ export const INVITE_SERVICE_IS_DEV =
   envVars.inviteServiceIsDev === 'true' ? true : undefined;
 
 export const ENV_VARS = {
+  DEV_SHIP_URL,
   NOTIFY_PROVIDER,
   NOTIFY_SERVICE,
   POST_HOG_API_KEY,
+  POST_HOG_IN_DEV,
   API_URL,
   API_AUTH_USERNAME,
   API_AUTH_PASSWORD,

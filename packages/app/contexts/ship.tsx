@@ -10,6 +10,7 @@ import {
   useEffect,
   useState,
 } from 'react';
+import { Platform } from 'react-native';
 import { NativeModules } from 'react-native';
 
 import { cancelNodeResumeNudge } from '../lib/notifications';
@@ -17,7 +18,8 @@ import { transformShipURL } from '../utils/string';
 
 const logger = createDevLogger('useShip', false);
 
-const { UrbitModule } = NativeModules;
+// Get UrbitModule from NativeModules (only available in native platforms)
+const UrbitModule = Platform.OS !== 'web' ? NativeModules.UrbitModule : null;
 
 type State = ShipInfo & {
   contactId: string | undefined;
@@ -63,8 +65,10 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
         // Clear context state
         setShipInfo(emptyShip);
 
-        // Clear native storage
-        UrbitModule.clearUrbit();
+        // Clear native storage (only in native platforms)
+        if (UrbitModule) {
+          UrbitModule.clearUrbit();
+        }
         return;
       }
 
@@ -83,18 +87,27 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
       // Save context state
       setShipInfo(nextShipInfo);
 
-      // Configure analytics
-      crashlytics().setAttribute(
-        'isHosted',
-        normalizedShipUrl.includes('.tlon.network') ? 'true' : 'false'
-      );
+      // Configure analytics (only on native platforms)
+      // Skip for web/electron to avoid 'crashlytics is not a function' error
+      if (Platform.OS !== 'web') {
+        try {
+          crashlytics().setAttribute(
+            'isHosted',
+            normalizedShipUrl.includes('.tlon.network') ? 'true' : 'false'
+          );
+        } catch (e) {
+          console.log('Crashlytics not available:', e);
+        }
+      }
 
       // If cookie was passed in, use it, otherwise fetch from ship
       // TODO: This may not be necessary, as I *believe* auth cookie will always
       // be stored on successful login.
       if (authCookie) {
-        // Save to native storage
-        UrbitModule.setUrbit(ship, normalizedShipUrl, authCookie);
+        // Save to native storage (only in native platforms)
+        if (UrbitModule) {
+          UrbitModule.setUrbit(ship, normalizedShipUrl, authCookie);
+        }
       } else {
         // Run this in the background
         (async () => {
@@ -109,8 +122,10 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
               ...nextShipInfo,
               authCookie: fetchedAuthCookie,
             });
-            // Save to native storage
-            UrbitModule.setUrbit(ship, normalizedShipUrl, fetchedAuthCookie);
+            // Save to native storage (only in native platforms)
+            if (UrbitModule) {
+              UrbitModule.setUrbit(ship, normalizedShipUrl, fetchedAuthCookie);
+            }
           }
         })();
       }
@@ -147,10 +162,16 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    if (shipInfo.ship) {
-      cancelNodeResumeNudge().catch((err) => {
-        logger.error('Failed cancelling node resume nudge', err);
-      });
+    if (shipInfo.ship && Platform.OS !== 'web') {
+      // Only try to cancel nudges on native platforms
+      // This avoids the error in desktop environment where cancelNodeResumeNudge isn't available
+      try {
+        cancelNodeResumeNudge().catch((err) => {
+          logger.error('Failed cancelling node resume nudge', err);
+        });
+      } catch (err) {
+        logger.error('Error accessing node resume nudge functionality', err);
+      }
     }
   }, [shipInfo]);
 

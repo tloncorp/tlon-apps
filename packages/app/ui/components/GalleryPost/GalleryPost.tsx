@@ -1,6 +1,9 @@
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   ChannelAction,
   JSONValue,
+  createDevLogger,
   makePrettyShortDate,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -18,11 +21,14 @@ import {
 } from 'react';
 import { View, XStack, styled } from 'tamagui';
 
+import { RootStackParamList } from '../../../navigation/types';
 import { useChannelContext } from '../../contexts';
 import { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ContactAvatar } from '../Avatar';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
+import { ReactionsDisplay } from '../ChatMessage/ReactionsDisplay';
+import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import { useBoundHandler } from '../ListItem/listItemUtils';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
@@ -44,6 +50,7 @@ const GalleryPostFrame = styled(View, {
 export function GalleryPost({
   post,
   onPress,
+  onPressEdit,
   onLongPress,
   onPressRetry,
   onPressDelete,
@@ -143,8 +150,17 @@ export function GalleryPost({
             width="100%"
             pointerEvents="none"
           >
-            <XStack alignItems="center" gap="$xl" padding="$m" {...props}>
+            <XStack
+              alignItems="flex-end"
+              justifyContent="space-between"
+              gap="$xl"
+              padding="$m"
+              {...props}
+            >
               <ContactAvatar size="$2xl" contactId={post.authorId} />
+              <View pointerEvents="auto">
+                <ReactionsDisplay post={post} minimal={true} />
+              </View>
               {deliveryFailed && (
                 <Text
                   // applying some shadow here because we could be rendering it
@@ -179,6 +195,7 @@ export function GalleryPost({
               onDismiss={() => setIsPopoverOpen(false)}
               onOpenChange={setIsPopoverOpen}
               onReply={handlePress}
+              onEdit={onPressEdit}
               trigger={
                 <Button
                   backgroundColor="transparent"
@@ -205,20 +222,42 @@ export function GalleryPostDetailView({
   post: db.Post;
   onPressImage?: (post: db.Post, uri?: string) => void;
 }) {
+  const logger = createDevLogger('GalleryPostDetailView', true);
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const formattedDate = useMemo(() => {
     return makePrettyShortDate(new Date(post.receivedAt));
   }, [post.receivedAt]);
   const content = usePostContent(post);
-  const isImagePost = useMemo(
-    () => content.some((block) => block.type === 'image'),
-    [content]
-  );
+  const [viewReactionsOpen, setViewReactionsOpen] = useState(false);
+
+  const firstImage = useMemo(() => {
+    const img = content.find((block) => block.type === 'image');
+    logger.log('First image found in GalleryPostDetailView:', img);
+    return img;
+  }, [content, logger]);
+
+  const isImagePost = useMemo(() => !!firstImage, [firstImage]);
+
   const handlePressImage = useCallback(
     (src: string) => {
-      onPressImage?.(post, src);
+      logger.log('Detail view: Image pressed, navigating to', src);
+      try {
+        navigation.navigate('ImageViewer', { uri: src });
+      } catch (error) {
+        logger.log('Navigation error:', error);
+        // Try the fallback if direct navigation fails
+        if (onPressImage && firstImage && firstImage.type === 'image') {
+          onPressImage(post, firstImage.src);
+        }
+      }
     },
-    [onPressImage, post]
+    [navigation, logger, onPressImage, post, firstImage]
   );
+
+  const handleViewPostReactions = useCallback(() => {
+    setViewReactionsOpen(true);
+  }, []);
 
   return (
     <View paddingBottom="$xs" borderBottomWidth={1} borderColor="$border">
@@ -240,16 +279,28 @@ export function GalleryPostDetailView({
       </View>
 
       <View gap="$2xl" padding="$xl">
-        <DetailViewAuthorRow authorId={post.authorId} color="$primaryText" />
+        <DetailViewAuthorRow
+          authorId={post.authorId}
+          color="$primaryText"
+          showSentAt={true}
+        />
 
         {post.title && <Text size="$body">{post.title}</Text>}
 
-        <Text size="$body" color="$tertiaryText">
-          Added {formattedDate}
-        </Text>
+        <ReactionsDisplay
+          post={post}
+          minimal={false}
+          onViewPostReactions={handleViewPostReactions}
+        />
 
         {isImagePost && <CaptionContentRenderer content={content} />}
       </View>
+
+      <ViewReactionsSheet
+        post={post}
+        open={viewReactionsOpen}
+        onOpenChange={setViewReactionsOpen}
+      />
     </View>
   );
 }
@@ -378,7 +429,7 @@ function useBlockLink(
   content: BlockData[]
 ): { text: string; href: string } | null {
   return useMemo(() => {
-    if (content[0].type === 'embed') {
+    if (content[0]?.type === 'embed') {
       return { text: content[0].url, href: content[0].url };
     }
     if (content[0]?.type !== 'paragraph') {

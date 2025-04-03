@@ -1,6 +1,10 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { createDevLogger, useChannelContext } from '@tloncorp/shared';
+import {
+  configurationFromChannel,
+  createDevLogger,
+  useChannelContext,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import {
@@ -115,10 +119,12 @@ export default function ChannelScreen(props: Props) {
   // time
   const [initialChannelUnread, setInitialChannelUnread] =
     React.useState<db.ChannelUnread | null>(null);
+  const [unreadDidInitialize, setUnreadDidInitialize] = React.useState(false);
   useEffect(() => {
     async function initializeChannelUnread() {
       const unread = await db.getChannelUnread({ channelId: currentChannelId });
       setInitialChannelUnread(unread ?? null);
+      setUnreadDidInitialize(true);
     }
     initializeChannelUnread();
   }, [currentChannelId]);
@@ -215,6 +221,11 @@ export default function ChannelScreen(props: Props) {
     setClearedCursor(true);
   }, []);
 
+  const channelConfiguration = useMemo(
+    () => configurationFromChannel(channel),
+    [channel]
+  );
+
   const {
     posts,
     query: postsQuery,
@@ -226,6 +237,7 @@ export default function ChannelScreen(props: Props) {
     channelId: currentChannelId,
     count: 15,
     hasCachedNewest,
+    filterDeleted: !channelConfiguration?.includeDeletedPosts,
     ...(cursor && !clearedCursor
       ? {
           mode: 'around',
@@ -237,6 +249,20 @@ export default function ChannelScreen(props: Props) {
           firstPageCount: 50,
         }),
   });
+
+  useEffect(() => {
+    // make sure we always load enough posts to fill the screen or
+    // onScrollEndReached might not fire properly
+    const ENOUGH_POSTS_TO_FILL_SCREEN = 20;
+    if (
+      !postsQuery.isFetching &&
+      postsQuery.hasNextPage &&
+      unreadDidInitialize &&
+      (!posts || posts.length < ENOUGH_POSTS_TO_FILL_SCREEN)
+    ) {
+      loadOlder();
+    }
+  }, [postsQuery, posts, loadOlder, unreadDidInitialize]);
 
   const filteredPosts = useMemo(
     () =>

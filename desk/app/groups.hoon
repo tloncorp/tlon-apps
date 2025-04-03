@@ -14,12 +14,13 @@
 /+  groups-json
 /*  desk-bill  %bill  /desk/bill
 =/  verbose  |
+::
 %-  %-  agent:neg
     :+  notify=|
       [~.groups^%0 ~ ~]
     %-  my
-    :~  %channels^[~.channels^%1 ~ ~]
-        %contacts^[~.contacts^%1 ~ ~]
+    :~  %groups^[~.groups^%0 ~ ~]
+        %channels-server^[~.channels^%1 ~ ~]
     ==
 %-  agent:dbug
 %+  verb  |
@@ -30,12 +31,10 @@
   +$  card  card:agent:gall
   ++  import-epoch  ~2022.10.11
   +$  current-state
-    $:  %5
+    $:  %6
         groups=net-groups:g
         =volume:v
         xeno=gangs:g
-        ::  graph -> agent
-        shoal=(map flag:g dude:gall)
         =^subs:s
         =pimp:imp
     ==
@@ -293,9 +292,10 @@
       ?.  (~(has by xeno) flag)
         gang(cam ~)
       =/  hav  (~(got by xeno) flag)
-      :+  cam.hav
-        ?~(pev.hav pev.gang pev.hav)
-      ?~(vit.hav vit.gang vit.hav)
+      :^    cam.hav
+          ?~(pev.hav pev.gang pev.hav)
+        ?~(vit.hav vit.gang vit.hav)
+      ~
     ::  restore the groups we were in, taking care to re-establish
     ::  subscriptions to the group, and to tell %channels to re-establish
     ::  its subscriptions to the groups' channels as well.
@@ -379,22 +379,25 @@
     %+  roll  ~(tap by wex.bowl)
     |=  [[[=wire =dock] *] =_cor]
     ?.  ?=([%epic ~] wire)  cor
-    =^  caz=(list card)  subs
+    =^  caz=(list card)  subs.cor
       (~(unsubscribe s [subs bowl]) wire dock)
-    =.  cor  (emil caz)
+    =.  cor  (emil:cor caz)
     ::  force leave
-    (emit [%pass wire %agent dock %leave ~])
+    (emit:cor [%pass wire %agent dock %leave ~])
   =?  cor  ?=(%4 -.old)
     (emit [%pass /load/active-channels %arvo %b %wait now.bowl])
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
   ::
-  ?>  ?=(%5 -.old)
+  =?  old  ?=(%5 -.old)  (state-5-to-6 old)
+  ::
+  ?>  ?=(%6 -.old)
   =.  state  old
   inflate-io
   ::
   ::
   +$  versioned-state
-    $%  state-5
+    $%  state-6
+        state-5
         state-4
         state-3
         state-2
@@ -459,7 +462,18 @@
         =pimp:imp
     ==
   ::
-  +$  state-5  current-state
+  +$  state-5
+    $:  %5
+        groups=net-groups:v5:g
+        =volume:v
+        xeno=gangs:v5:g
+        ::  graph -> agent
+        shoal=(map flag:g dude:gall)
+        =^subs:s
+        =pimp:imp
+    ==
+  ::
+  +$  state-6  current-state
   ::
   ++  state-0-to-1
     |=  state-0
@@ -493,6 +507,22 @@
         ~
     ==
   ::
+  ++  state-5-to-6
+    |=  state-5
+    ^-  state-6
+    :*  %6
+        groups
+        volume
+        (~(run by xeno) gang-5-to-6)
+        subs
+        ~
+    ==
+  ::
+  ++  gang-5-to-6
+    |=  gang:v5:g
+    ^-  gang:v6:g
+    [cam pev vit ~]
+  ::
   ++  net-group-2-to-5
     |=  [old-net=net:v2:g old-group=group:v2:g]
     [(net-2-to-5 old-net) (group-2-to-5 old-group)]
@@ -502,7 +532,7 @@
     ^-  net:v5:g
     ?:  ?=(%sub -.net)
       [%sub p.net load.net]
-    net(p (run:log-on:v2:g p.net diff-2-to-5))
+    [%pub (run:log-on:v2:g p.net diff-2-to-5)]
   ::
   ++  diff-2-to-5
     |=  =diff:v2:g
@@ -625,9 +655,22 @@
     [%v1 %groups ~]  cor
     [%v1 %groups %ui ~]  cor
   ::
-      [%v1 %groups ship=@ name=@ rest=*]
+    ::  /v2/groups/[ship]/[name]/preview
+    ::
+      [%v2 %groups ship=@ name=@ %preview ~]
     =/  ship=@p  (slav %p ship.pole)
-    go-abet:(go-watch:(go-abed:group-core ship name.pole) %v1 rest.pole)
+    ?.  (~(has by groups) ship name.pole)
+      =/  =preview-response:v6:g  |+%missing
+      =.  cor  (emit %give %fact ~ group-preview-2+!>(preview-response))
+      (emit %give %kick ~ ~)
+    go-abet:(go-watch:(go-abed:group-core ship name.pole) %v2 /preview)
+  ::
+    ::
+    ::  /v/groups/*
+    ::
+      [ver=?(%v1 %v2) %groups ship=@ name=@ rest=*]
+    =/  ship=@p  (slav %p ship.pole)
+    go-abet:(go-watch:(go-abed:group-core ship name.pole) ver.pole rest.pole)
   ::
     ::
     ::  /v0/gangs
@@ -665,12 +708,15 @@
     =/  ship=@p  (slav %p ship.pole)
     ga-abet:(ga-watch:(ga-abed:gang-core ship name.pole) %v1 rest.pole)
   ::
-    [%epic ~]  (give %fact ~ epic+!>(okay:g))
+    ::
+    ::  /v2/gangs
+    ::
   ::
-      ::XX  seems defunct, should remove /bait functionality
-      ::    from this agent
-      [%bait s=@ n=@ gs=@ gn=@ ~]
-    =,(pole (cast [(slav %p gs) gn] [(slav %p s) n]))
+    [%v2 %gangs %updates ~]   cor
+  ::
+      [%v2 %gangs ship=@ name=@ rest=*]
+    =/  ship=@p  (slav %p ship.pole)
+    ga-abet:(ga-watch:(ga-abed:gang-core ship name.pole) %v2 rest.pole)
   ::
       [%hi ship=@ ~]
     =/  =ship  (slav %p ship.pole)
@@ -680,6 +726,8 @@
     =/  ship=@p  (slav %p ship.pole)
     =/  =nest:g  [app.pole ship name.pole]
     (watch-chan nest)
+  ::
+    [%epic ~]  (give %fact ~ epic+!>(okay:g))
   ==
 ++  peek
   |=  =(pole knot)
@@ -687,15 +735,24 @@
   =*  xeno-2
     ^-  gangs:v2:g
     (~(run by xeno) to-gang-2)
+  =*  xeno-5
+    ^-  gangs:v5:g
+    (~(run by xeno) to-gang-5)
+  =*  xeno-6
+    ^-  gangs:v6:g
+    xeno
+  ::
   ?+    pole  [~ ~]
   ::
     [%x %gangs ~]  ``gangs+!>(xeno-2)
-    [%x %v1 %gangs ~]  ``gangs-1+!>(xeno)
+    [%x %v1 %gangs ~]  ``gangs-1+!>(xeno-5)
+    [%x %v2 %gangs ~]  ``gangs-2+!>(xeno-6)
   ::
     [%x %init ~]  ``noun+!>([groups-light-2 xeno-2])
     [%x %init %v0 ~]  ``noun+!>([groups-light-ui-v0 xeno-2])
     [%x %init %v1 ~]  ``noun+!>([groups-light-ui-2 xeno-2])
-    [%x %v2 %init ~]    ``noun+!>([groups-light-ui-5 xeno])
+    [%x %v2 %init ~]  ``noun+!>([groups-light-ui-5 xeno-5])
+    [%x %v3 %init ~]  ``noun+!>([groups-light-ui-5 xeno-6])
   ::
     [%x %groups %light ~]  ``groups+!>(groups-light-2)
     [%x %groups %light %v0 ~]  ``groups-ui-v0+!>(groups-light-ui-v0)
@@ -794,12 +851,16 @@
   [flag meta cordon time secret]
 ::
 ++  to-gang-2
-  |=  gang:v5:g
+  |=  gang:g
   ^-  gang:v2:g
   :*  (bind cam to-claim-2)
       (bind pev to-preview-2)
       vit
   ==
+++  to-gang-5
+  |=  gang:g
+  ^-  gang:v5:g
+  [cam pev vit]
 ::
 ++  to-group-2
   |=  group:g
@@ -917,12 +978,12 @@
   ?+    pole  ~|(bad-agent-take/pole !!)
       ~   cor
       [%epic ~]  cor
+      [%cast ship=@ name=@ ~]  cor
       [%logs ~]  cor
       [%helm *]  cor
       [%activity %submit *]  cor
       [%groups %role ~]  cor
       [?(%hark %groups %chat %heap %diary) ~]  cor
-      [%cast ship=@ name=@ ~]  (take-cast [(slav %p ship.pole) name.pole] sign)
   ::
       [%hi ship=@ ~]
     =/  =ship  (slav %p ship.pole)
@@ -1003,53 +1064,6 @@
     (~(subscribe s [subs bowl]) wire dock path delay)
   (emil caz)
 ::
-++  cast
-  |=  [grp=flag:g gra=flag:g]
-  ^+  cor
-  ?^  dud=(~(get by shoal) gra)
-    =.  cor   (give %fact ~ dude+!>(u.dud))
-    (give %kick ~ ~)
-  =/  grp-path=path   /(scot %p p.grp)/[q.grp]
-  =/  gra-path=path   /(scot %p p.gra)/[q.gra]
-  =/  =wire          [%cast gra-path]
-  =/  =path          :(welp /groups grp-path /bait gra-path)
-  ?:  (~(has by wex.bowl) wire p.grp dap.bowl)
-    cor
-  (emit %pass wire %agent [p.grp dap.bowl] %watch path)
-::
-++  take-cast
-  |=  [gra=flag:g =sign:agent:gall]
-  ^+  cor
-  =/  matching=(list path)
-    =-  ~(tap in -)
-    %-  ~(gas in *(set path))
-    %+  murn  ~(val by sup.bowl)
-    |=  [=ship =path]
-    ^-  (unit ^path)
-    ?.  =((scag 3 path) [%bait (scot %p p.gra) q.gra ~])
-      ~
-    `path
-  ?+    -.sign  cor
-      %kick
-    ?~  matching  cor
-    (give %kick matching ~)
-  ::
-      %watch-ack
-    ?~  p.sign  cor
-    ?~  matching  cor
-    (give %kick matching ~)
-  ::
-      %fact
-    ?.  =(p.cage.sign %dude)
-      ~&  trash-fish/p.cage.sign
-      cor
-    =+  !<(=dude:gall q.cage.sign)
-    =.  shoal  (~(put by shoal) gra dude)
-    ?~  matching  cor
-    =.  cor  (give %fact matching cage.sign)
-    (give %kick matching ~)
-  ==
-::
 ++  watch-channels
   (subscribe /channels [our.bowl %channels] /v1)
 ::
@@ -1108,7 +1122,7 @@
   ==
 ::
 ++  watch-contact
-  (subscribe /contact [our.bowl %contacts] /contact)
+  (subscribe /contact [our.bowl %contacts] /news)
 ::
 ++  take-contact
   |=  =sign:agent:gall
@@ -1410,6 +1424,10 @@
       ?.  (~(has in admins) ship)
         vessel
       vessel(sects (~(put in sects.vessel) %admin))
+    ::XX  should not we crash here? +go-init is called
+    ::    on a %group-create poke, that sets the flag
+    ::    to [our.bowl name.create]
+    ::
     ?.  =(our.bowl p.flag)
       (go-safe-sub &)
     =/  our=vessel:fleet:g  (~(gut by fleet.group) our.bowl *vessel:fleet:g)
@@ -1438,50 +1456,65 @@
     =.  cor  ((subscribe base [p.flag dap.bowl] path) delay)
     go-core
   ::
+  ::
   ++  go-watch
-    |=  [ver=?(%v0 %v1) =(pole knot)]
+    |=  [ver=?(%v0 %v1 %v2) =(pole knot)]
     ^+  go-core
     ?+    pole  !!
-        [%updates rest=*]  (go-pub ver rest.pole)
-        [%ui ~]            go-core
-        [%preview ~]       (go-preview ver)
+      ::
+        [%updates rest=*]
+      ?>  ?=(?(%v0 %v1) ver)
+      (go-pub ver rest.pole)
     ::
-        ::XX seems defunct, remove
-        [%bait host=@ name=@ ~]
-      ?>  ?=(%open -.cordon.group)
-      =/  =flag:g  [(slav %p host.pole) name.pole]
-      =;  =nest:g
-        =.  cor  (give %fact ~ dude+!>(p.nest))
-        =.  cor  (give %kick ~ ~)
-        go-core
-      %-  need
-      %+  roll  ~(tap in imported.group)
-      |=  [=nest:g out=(unit nest:g)]
-      ^-  (unit nest:g)
-      ?.  =(~ out)  out
-      ?.  =(q.nest flag)  ~
-      `nest
+        [%ui ~]       ?>(?=(?(%v0 %v1) ver) go-core)
+        [%preview ~]  (go-preview ver)
     ==
   ::
   ++  go-preview
-    |=  ver=?(%v0 %v1)
-    ?>  ?-  -.cordon.group
+    |=  ver=?(%v0 %v1 %v2)
+    =/  allow=?
+      ?-  -.cordon.group
           %afar  &
           %open  !secret.group  :: should never be secret
         ::
             %shut
-          ::  if a private group yes
-          ::  if secret, only invites should get previews
-          ?.  secret.group  &
-          (~(has in pend.cordon.group) src.bowl)
+          ::  allow previews of a private group:
+          ::  (1) if it is *not* secret, or
+          ::  (2) the viewer is on the invitation list
+          ::
+          ?|  !secret.group
+              (~(has in pend.cordon.group) src.bowl)
+          ==
         ==
+    ::  access control: crash if we are on v0, v1
+    ::  and we disallow the preview
+    ::
+    ?<  &(?=(%v0 %v1) !allow)
     =/  =preview:g
       =,  group
       [flag meta cordon now.bowl secret.group ~(wyt by fleet)]
     =.  cor
-      ?:  ?=(%v0 ver)
+      ?-    ver
+          %v0
         (emit %give %fact ~ group-preview+!>((to-preview-2 preview)))
-      (emit %give %fact ~ group-preview-1+!>(preview))
+      ::
+          %v1
+        =/  =preview:v5:g  preview
+        (emit %give %fact ~ group-preview-1+!>(preview))
+      ::
+          %v2
+        ?.  allow
+          ?:  secret.group
+            ::  conceal secret private group
+            ::
+            =/  pev=preview-response:v6:g  |+%missing
+            (emit %give %fact ~ group-preview-2+!>(pev))
+          =/  pev=preview-response:v6:g  |+%forbidden
+          (emit %give %fact ~ group-preview-2+!>(pev))
+        ::
+        =/  pev=preview-response:v6:g  &+preview
+        (emit %give %fact ~ group-preview-2+!>(pev))
+      ==
     =.  cor
       (emit %give %kick ~ ~)
     go-core
@@ -1721,7 +1754,7 @@
       (go-tell-update time diff)
     =.  net
       ?:    ?=(%pub -.net)
-        pub/(put:log-on:g p.net time diff)
+        [%pub (put:log-on:g p.net time diff)]
       [%sub time load.net]
     ?-  -.diff
       %channel  (go-channel-update [p q]:diff)
@@ -2372,7 +2405,7 @@
   ::
   ++  ga-abed
     |=  f=flag:g
-    =/  ga=gang:g  (~(gut by xeno) f [~ ~ ~])
+    =/  ga=gang:g  (~(gut by xeno) f [~ ~ ~ ~])
     ga-core(flag f, gang ga)
   ::
   ++  ga-activity
@@ -2410,7 +2443,7 @@
       =/  =wire
         (welp ga-area ?:(invite /preview/invite /preview))
       =/  =dock  [p.flag dap.bowl]
-      =/  =path  /v1/groups/(scot %p p.flag)/[q.flag]/preview
+      =/  =path  /v2/groups/(scot %p p.flag)/[q.flag]/preview
       =/  watch  [%pass wire %agent dock %watch path]
       ^+  cor
       %-  emil
@@ -2454,16 +2487,19 @@
     ga-core
   ::
   ++  ga-watch
-    |=  [ver=?(%v0 %v1) =(pole knot)]
+    |=  [ver=?(%v0 %v1 %v2) =(pole knot)]
     ^+  ga-core
     =.  cor  (get-preview:ga-pass |)
     ga-core
   ::
   ++  ga-give-update
+    =+  gangs=(~(put by xeno) flag gang)
     =.  cor
-      =+  (~(put by xeno) flag gang)
-      (give %fact ~[/gangs/updates] gangs+!>((~(run by -) to-gang-2)))
-    (give %fact ~[/v1/gangs/updates] gangs+!>((~(put by xeno) flag gang)))
+      (give %fact ~[/gangs/updates] gangs+!>((~(run by gangs) to-gang-2)))
+    =.  cor
+      (give %fact ~[/v1/gangs/updates] gangs-1+!>((~(run by gangs) to-gang-5)))
+    (give %fact ~[/v2/gangs/updates] gangs-2+!>(`gangs:v6:g`gangs))
+  ::
   ++  ga-agent
     |=  [=(pole knot) =sign:agent:gall]
     ^+  ga-core
@@ -2481,25 +2517,42 @@
           %kick  ga-core  ::  kick for single response sub, just take it
         ::
             %watch-ack
-          ?~  p.sign  ga-core :: TODO: report retreival failure
+          ?~  p.sign  ga-core
+          ::TODO  report retrieval failure
           %-  (slog u.p.sign)
           ga-core
         ::
             %fact
-          ?.  ?=(%group-preview-1 p.cage.sign)
-            ga-core
-          =+  !<(=preview:v5:g q.cage.sign)
-          =.  pev.gang  `preview
+          ?>  ?=(%group-preview-2 p.cage.sign)
+          =+  !<(preview=preview-response:v6:g q.cage.sign)
+          =.  err.gang
+            ?:  ?=(%& -.preview)  ~
+            ::  preview error
+            `p.preview
+          =.  pev.gang
+            ?:  ?=(%& -.preview)
+              ::  preview
+              `p.preview
+            ~
           =.  cor  ga-give-update
           =/  =path  (snoc ga-area %preview)
+          =?  cor  ?=(%& -.preview)
+            =*  pev  p.preview
+            %-  emil
+            :~  :: v0
+                ::
+                [%give %fact ~[path] group-preview+!>((to-preview-2 pev))]
+                [%give %kick ~[path] ~]
+                ::  v1
+                ::
+                [%give %fact ~[[%v1 path]] group-preview-1+!>(`preview:v5:g`pev)]
+                [%give %kick ~[[%v1 path]] ~]
+            ==
           =.  cor
-            (emit %give %fact ~[path] group-preview+!>((to-preview-2 preview)))
+            =/  pev=preview-response:v6:g  preview
+            (emit %give %fact ~[[%v2 path]] group-preview-2+!>(pev))
           =.  cor
-            (emit %give %kick ~[path] ~)
-          =.  cor
-            (emit %give %fact ~[[%v1 path]] cage.sign)
-          =.  cor
-            (emit %give %kick ~[[%v1 path]] ~)
+            (emit %give %kick ~[[%v2 path]] ~)
           ?:  from-self  ga-core
           ?~  pev.gang   ga-core
           ?~  vit.gang   ga-core

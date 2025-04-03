@@ -1,7 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { EMAIL_REGEX } from '@tloncorp/app/constants';
-import { trackError } from '@tloncorp/app/utils/posthog';
-import { requestPasswordReset } from '@tloncorp/shared/api';
 import {
   Field,
   KeyboardAvoidingView,
@@ -11,6 +9,8 @@ import {
   View,
   YStack,
 } from '@tloncorp/app/ui';
+import { createDevLogger } from '@tloncorp/shared';
+import { requestPasswordReset } from '@tloncorp/shared/api';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
@@ -21,6 +21,8 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'ResetPassword'>;
 type FormData = {
   email: string;
 };
+
+const logger = createDevLogger('ResetPasswordScreen', true);
 
 export const ResetPasswordScreen = ({
   navigation,
@@ -55,7 +57,7 @@ export const ResetPasswordScreen = ({
           type: 'custom',
           message: err.message,
         });
-        trackError(err);
+        logger.trackError('Error resetting password', err);
       }
     }
 

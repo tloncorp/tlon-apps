@@ -45,8 +45,11 @@ export function AttachmentPreview({
   uploading?: boolean;
 }) {
   const [aspect, setAspect] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+
   const handleLoad = useCallback((e: ImageLoadEventData) => {
     setAspect(e.source.width / e.source.height);
+    setIsLoading(false);
   }, []);
 
   return (
@@ -60,6 +63,7 @@ export function AttachmentPreview({
           left={0}
           bottom={0}
           onLoad={handleLoad}
+          onLoadStart={() => setIsLoading(true)}
           source={{
             uri: attachment.file.uri,
           }}
@@ -79,7 +83,7 @@ export function AttachmentPreview({
 
       <RemoveAttachmentButton attachment={attachment} />
 
-      {uploading && (
+      {(uploading || (attachment.type === 'image' && isLoading)) && (
         <View
           position="absolute"
           top={0}

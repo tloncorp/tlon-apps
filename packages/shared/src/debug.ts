@@ -214,6 +214,11 @@ async function getDebugInfo() {
 }
 
 export function createDevLogger(tag: string, enabled: boolean) {
+  const isElectron =
+    typeof window !== 'undefined' &&
+    window.navigator &&
+    window.navigator.userAgent &&
+    window.navigator.userAgent.indexOf('Electron') >= 0;
   const proxy = new Proxy(console, {
     get(target: Console, prop: string | symbol, receiver) {
       return (...args: unknown[]) => {
@@ -261,6 +266,11 @@ export function createDevLogger(tag: string, enabled: boolean) {
                   ? `[${tag}] ${args[0]}`
                   : 'no message',
               breadcrumbs: useDebugStore.getState().getBreadcrumbs(),
+              errorMessage:
+                customProps instanceof Error ? customProps.message : undefined,
+              errorStack:
+                customProps instanceof Error ? customProps.stack : undefined,
+              logLevel: 'error',
             });
           getDebugInfo()
             .then(report)
@@ -293,7 +303,7 @@ export function createDevLogger(tag: string, enabled: boolean) {
           });
         }
 
-        if (__DEV__) {
+        if (__DEV__ || isElectron) {
           const val = Reflect.get(target, resolvedProp, receiver);
           val(prefix, ...args);
         }

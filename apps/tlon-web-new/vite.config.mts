@@ -20,7 +20,6 @@ import svgr from 'vite-plugin-svgr';
 import packageJson from './package.json';
 import reactNativeWeb from './reactNativeWebPlugin';
 import manifest from './src/manifest';
-import manifestAlpha from './src/manifest-alpha';
 
 // https://vitejs.dev/config/
 export default ({ mode }: { mode: string }) => {
@@ -47,8 +46,8 @@ export default ({ mode }: { mode: string }) => {
       return '';
     }
 
-    if (mode === 'alpha') {
-      return '/apps/tm-alpha/';
+    if (mode === 'electron') {
+      return './';
     }
 
     return '/apps/groups/';
@@ -65,11 +64,34 @@ export default ({ mode }: { mode: string }) => {
       ];
     }
 
+    if (mode === 'electron') {
+      return [
+        exportingRawText(/\.sql$/),
+        react({
+          babel: {
+            plugins: [
+              '@babel/plugin-proposal-export-namespace-from',
+              'react-native-reanimated/plugin',
+            ],
+          },
+          jsxImportSource: '@welldone-software/why-did-you-render',
+        }) as PluginOption[],
+        svgr({
+          include: '**/*.svg',
+        }) as Plugin,
+        reactNativeWeb(),
+        tamaguiPlugin({
+          config: './tamagui.config.ts',
+          platform: 'web',
+        }) as Plugin,
+      ];
+    }
+
     return [
       process.env.SSL === 'true' ? (basicSsl() as PluginOption) : null,
       exportingRawText(/\.sql$/),
       urbitPlugin({
-        base: mode === 'alpha' ? 'tm-alpha' : 'groups',
+        base: 'groups',
         target: mode === 'dev2' ? SHIP_URL2 : SHIP_URL,
         changeOrigin: true,
         secure: false,
@@ -94,13 +116,13 @@ export default ({ mode }: { mode: string }) => {
         platform: 'web',
       }) as Plugin,
       VitePWA({
-        base: mode === 'alpha' ? '/apps/tm-alpha/' : '/apps/groups/',
-        manifest: mode === 'alpha' ? manifestAlpha : manifest,
+        base: '/apps/groups/',
+        manifest,
         injectRegister: 'inline',
         registerType: 'prompt',
         strategies: 'injectManifest',
         srcDir: 'src',
-        filename: 'sw.ts',
+        filename: 'sw-1.ts',
         useCredentials: true,
         devOptions: {
           enabled: mode === 'sw',
@@ -117,8 +139,8 @@ export default ({ mode }: { mode: string }) => {
 
   const rollupOptions = {
     external:
-      mode === 'mock' || mode === 'staging'
-        ? ['virtual:pwa-register/react']
+      mode === 'mock' || mode === 'staging' || mode === 'electron'
+        ? ['react-native-device-info']
         : ['@urbit/sigil-js/dist/core', 'react-native-device-info'],
     output: {
       hashCharacters: 'base36' as any,
@@ -173,6 +195,7 @@ export default ({ mode }: { mode: string }) => {
         ? {
             sourcemap: false,
             rollupOptions,
+            target: 'esnext',
           }
         : ({
             rollupOptions: {
@@ -195,15 +218,28 @@ export default ({ mode }: { mode: string }) => {
     plugins: plugins(mode),
     resolve: {
       dedupe: ['@tanstack/react-query'],
-      alias: [
-        {
-          find: '@',
-          replacement: fileURLToPath(new URL('./src', import.meta.url)),
-        },
-      ],
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
+        ...(mode === 'electron'
+          ? {
+              'virtual:pwa-register/react': fileURLToPath(
+                new URL('./src/logic/useAppUpdatesStub.ts', import.meta.url)
+              ),
+              '@react-native-firebase/crashlytics': fileURLToPath(
+                new URL('./src/crashlytics-stub.ts', import.meta.url)
+              ),
+              'expo-notifications': fileURLToPath(
+                new URL('./src/notifications-stub.ts', import.meta.url)
+              ),
+            }
+          : {}),
+      },
     },
     optimizeDeps: {
-      exclude: ['sqlocal'],
+      exclude: [
+        'sqlocal',
+        ...(mode === 'electron' ? ['virtual:pwa-register/react'] : []),
+      ],
     },
     test: {
       globals: true,

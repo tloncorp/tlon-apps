@@ -2,8 +2,9 @@ import cn from 'classnames';
 import { Link } from 'react-router-dom';
 
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
+import { useChatTitle } from '@/logic/channelUtils';
 import { useIsMobile } from '@/logic/useMedia';
-import { useGroupChannel } from '@/state/groups';
+import { useGroup, useGroupChannel } from '@/state/groups';
 
 import ChannelHostConnection from './ChannelHostConnection';
 import ChannelIcon from './ChannelIcon';
@@ -19,6 +20,8 @@ export default function ChannelTitleButton({
 }: ChannelTitleButtonProps) {
   const isMobile = useIsMobile();
   const channel = useGroupChannel(flag, nest);
+  const group = useGroup(flag);
+  const chatTitle = useChatTitle(channel, group);
   const BackButton = isMobile ? Link : 'div';
 
   function backTo() {
@@ -46,7 +49,9 @@ export default function ChannelTitleButton({
             channel?.meta.description ? 'text-sm' : 'text-lg sm:text-sm'
           )}
         >
-          <span className="line-clamp-1">{channel?.meta.title}</span>
+          <span className="line-clamp-1">
+            {chatTitle ?? channel?.meta.title}
+          </span>
           <ChannelHostConnection nest={nest} />
         </div>
         <span className="line-clamp-1 w-full break-all text-sm text-gray-400">

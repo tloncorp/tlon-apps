@@ -12,7 +12,7 @@ export function getChannelMemberName(
   disableNicknames: boolean
 ) {
   if (disableNicknames) {
-    return formatUserId(member.contactId);
+    return formatUserId(member.contactId)?.display;
   }
   return member.contact?.nickname
     ? member.contact.nickname

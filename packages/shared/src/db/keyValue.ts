@@ -10,11 +10,6 @@ import * as ub from '../urbit';
 import { NodeBootPhase, SignupParams } from './domainTypes';
 import { createStorageItem } from './storageItem';
 
-export const activitySeenMarker = createStorageItem<number>({
-  key: 'activitySeenMarker',
-  defaultValue: 1,
-});
-
 export const pushNotificationSettings =
   createStorageItem<ub.PushNotificationsSetting>({
     key: 'settings:pushNotifications',

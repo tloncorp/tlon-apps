@@ -58,6 +58,9 @@ export type RootStackParamList = {
   EditProfile: {
     userId: string;
   };
+  Attestation: {
+    attestationType: 'twitter' | 'phone';
+  };
   WompWomp: undefined;
   ChannelMembers: {
     channelId: string;
@@ -165,6 +168,7 @@ export type GroupSettingsStackParamList = {
   };
   GroupMeta: {
     groupId: string;
+    fromBlankChannel?: boolean;
   };
   GroupMembers: {
     groupId: string;
