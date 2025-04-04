@@ -1,7 +1,4 @@
-import { useCopy } from '@tloncorp/ui';
-import { Image } from '@tloncorp/ui';
-import { Pressable } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
+import { Image, Pressable, Text, useCopy } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
 import React, {
   ComponentProps,
@@ -13,15 +10,7 @@ import React, {
   useContext,
   useState,
 } from 'react';
-import {
-  ColorTokens,
-  ScrollView,
-  View,
-  ViewStyle,
-  XStack,
-  YStack,
-  styled,
-} from 'tamagui';
+import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 
 import {
   ContentReferenceLoader,
@@ -343,7 +332,7 @@ export function BlockquoteBlock({
   return (
     <YStack paddingLeft="$l" {...props}>
       <BlockquoteSideBorder />
-      <LineRenderer inlines={block.content} color={'$tertiaryText' as any} />
+      <LineRenderer inlines={block.content} color={'$tertiaryText'} />
     </YStack>
   );
 }
