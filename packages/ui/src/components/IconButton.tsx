@@ -1,12 +1,5 @@
 import { PropsWithChildren } from 'react';
-import {
-  ColorTokens,
-  GetThemeValueForKey,
-  RadiusTokens,
-  SizeTokens,
-  ThemeTokens,
-  useTheme,
-} from 'tamagui';
+import { ColorTokens, RadiusTokens, SizeTokens, ThemeTokens } from 'tamagui';
 
 import { Button } from './Button';
 
@@ -40,14 +33,6 @@ export function IconButton({
   width,
   ...rest
 }: IconButtonProps) {
-  const theme = useTheme();
-
-  // Process special props
-  const resolvedWidth =
-    typeof width === 'string' && width.startsWith('$')
-      ? theme[width]?.val
-      : width;
-
   return (
     <Button
       size={size}
@@ -55,16 +40,16 @@ export function IconButton({
       disabled={disabled}
       borderRadius={radius}
       style={style}
-      width={resolvedWidth}
+      width={width}
       pressStyle={{
-        backgroundColor: theme[backgroundColorOnPress]?.get(),
+        backgroundColor: backgroundColorOnPress,
         ...pressStyle,
       }}
-      backgroundColor={theme[backgroundColor]?.get()}
+      backgroundColor={backgroundColor}
       borderWidth={borderWidth}
       {...rest}
     >
-      <Button.Icon color={theme[color]?.get()}>{children}</Button.Icon>
+      <Button.Icon color={color}>{children}</Button.Icon>
     </Button>
   );
 }
