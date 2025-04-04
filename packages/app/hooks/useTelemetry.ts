@@ -2,9 +2,11 @@ import { AnalyticsEvent, useCurrentSession } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import {
   didInitializeTelemetry,
+  hasClearedLegacyWebTelemetry,
   lastAnonymousAppOpenAt,
 } from '@tloncorp/shared/db';
 import { useCallback, useEffect } from 'react';
+import { isWeb } from 'tamagui';
 
 import { TelemetryClient } from '../types/telemetry';
 import { useCurrentUserId } from './useCurrentUser';
@@ -16,8 +18,8 @@ export function useClearTelemetryConfig() {
   const clearConfig = useCallback(async () => {
     await posthog.flush();
     posthog?.reset();
-    didInitializeTelemetry.resetValue();
-    lastAnonymousAppOpenAt.resetValue();
+    await didInitializeTelemetry.resetValue();
+    await lastAnonymousAppOpenAt.resetValue();
   }, [posthog]);
 
   return clearConfig;
@@ -28,6 +30,7 @@ export function useTelemetry(): TelemetryClient {
   const session = useCurrentSession();
   const currentUserId = useCurrentUserId();
   const telemetryInitialized = didInitializeTelemetry.useStorageItem();
+  const clearConfig = useClearTelemetryConfig();
 
   const setDisabled = useCallback(
     async (shouldDisable: boolean) => {
@@ -63,7 +66,7 @@ export function useTelemetry(): TelemetryClient {
       eventId: string;
       properties?: Record<string, any>;
     }) => {
-      if (posthog?.optedOut) {
+      if (posthog?.getIsOptedOut()) {
         posthog?.optIn();
         posthog?.capture(eventId, properties);
         await posthog?.flush();
@@ -81,7 +84,7 @@ export function useTelemetry(): TelemetryClient {
         platform && platform === 'web'
           ? AnalyticsEvent.WebAppOpened
           : AnalyticsEvent.AppActive;
-      if (!posthog.optedOut) {
+      if (!posthog.getIsOptedOut()) {
         posthog.capture(eventId, { isHostedUser });
       } else {
         const lastAnonymousOpen = await lastAnonymousAppOpenAt.getValue();
@@ -101,9 +104,27 @@ export function useTelemetry(): TelemetryClient {
   useEffect(() => {
     async function initializeTelemetry() {
       const isHosted = api.getCurrentUserIsHosted();
+
+      // Reset bad telemetry config for web users who
+      // were on pre-release TM-alpha
+      if (isWeb) {
+        const hasClearedLegacyConfig =
+          await hasClearedLegacyWebTelemetry.getValue();
+        if (!hasClearedLegacyConfig) {
+          await clearConfig();
+          posthog?.capture('Reset web telemetry config', {
+            isHosted,
+            userId: isHosted ? currentUserId : 'redacted',
+          });
+          await hasClearedLegacyWebTelemetry.setValue(true);
+        }
+      }
+
       const isInitialized = await didInitializeTelemetry.getValue();
       if (isInitialized) {
         return;
+      } else {
+        posthog?.capture('Initializing telemetry');
       }
 
       if (isHosted) {
@@ -114,7 +135,7 @@ export function useTelemetry(): TelemetryClient {
           properties: { $set: { isHostedUser: false } },
         });
       }
-      setDisabled(posthog.optedOut);
+      setDisabled(posthog.getIsOptedOut());
       telemetryInitialized.setValue(true);
     }
 
@@ -123,6 +144,7 @@ export function useTelemetry(): TelemetryClient {
     }
   }, [
     captureMandatoryEvent,
+    clearConfig,
     currentUserId,
     posthog,
     session?.startTime,
@@ -131,7 +153,7 @@ export function useTelemetry(): TelemetryClient {
   ]);
 
   return {
-    optedOut: posthog.optedOut,
+    getIsOptedOut: posthog.getIsOptedOut,
     optIn: posthog.optIn,
     optOut: posthog.optOut,
     identify: posthog.identify,

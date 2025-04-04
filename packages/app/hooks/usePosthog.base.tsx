@@ -1,5 +1,5 @@
 export interface PosthogClient {
-  optedOut: boolean;
+  getIsOptedOut: () => boolean;
   optIn: () => void;
   optOut: () => void;
   identify: (userId: string, properties: Record<string, any>) => void;
