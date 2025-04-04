@@ -61,7 +61,8 @@
       "@react-navigation/drawer@6.7.2": "patches/@react-navigation__drawer@6.7.2.patch",
       "@likashefqet/react-native-image-zoom@4.2.0": "patches/@likashefqet__react-native-image-zoom@4.2.0.patch",
       "react-cosmos@6.1.1": "patches/react-cosmos@6.1.1.patch",
-      "drizzle-orm@0.36.1": "patches/drizzle-orm@0.36.1.patch"
+      "drizzle-orm@0.36.1": "patches/drizzle-orm@0.36.1.patch",
+      "@10play/tentap-editor@0.5.21": "patches/@10play__tentap-editor@0.5.21.patch"
     },
     "allowNonAppliedPatches": true,
     "overrides": {
