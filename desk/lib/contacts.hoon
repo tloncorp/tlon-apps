@@ -8,8 +8,8 @@
   |=  val=value
   ^-  ?
   ?+  -.val  |
-    %text  =(0 (met 3 p.val))
-    %look  =(0 (met 3 p.val))
+    %text  =('' p.val)
+    %look  =('' p.val)
     %set   ?=(~ p.val)
   ==
 ::  +cy: contact map engine
@@ -244,7 +244,7 @@
   =?  don  !=(~ del)
     %+  roll  del
     |=  [key=@tas acc=_don]
-    (~(del by don) key)
+    (~(del by acc) key)
   don
 ::  +from-0: legacy to new type
 ::
