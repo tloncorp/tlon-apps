@@ -1496,7 +1496,7 @@
         =,  p.diff.q.diff
         /(scot %uv p.diff)/(scot %p p)/(scot %ud q)
       =/  =dock  [ship dap.bowl]
-      =/  =cage  chat-club-action+!>(`action:club:c`[id diff])
+      =/  =cage  chat-club-action-1+!>(`action:club:c`[id diff])
       [%pass wire %agent dock %poke cage]
     ::
     ++  gossip
