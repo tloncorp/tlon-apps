@@ -24,6 +24,7 @@ interface Config
   client: Urbit | null;
   subWatchers: Watchers;
   pendingAuth: Promise<string | void> | null;
+  lastStatus: string;
 }
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -57,6 +58,23 @@ export class BadResponseError extends Error {
   }
 }
 
+export class TimeoutError extends Error {
+  connectionStatus: string;
+  timeoutDuration: number | null;
+
+  constructor({
+    connectionStatus,
+    timeoutDuration,
+  }: {
+    connectionStatus?: string;
+    timeoutDuration?: number;
+  }) {
+    super(`TimeoutError: ${connectionStatus}`);
+    this.connectionStatus = connectionStatus || 'unknown';
+    this.timeoutDuration = timeoutDuration ?? null;
+  }
+}
+
 interface UrbitEndpoint {
   app: string;
   path: string;
@@ -75,6 +93,7 @@ export interface ClientParams {
 
 const config: Config = {
   client: null,
+  lastStatus: '',
   shipUrl: '',
   subWatchers: {},
   pendingAuth: null,
@@ -147,6 +166,7 @@ export function internalConfigureClient({
       context: 'status update',
       connectionStatus: event.status,
     });
+    config.lastStatus = event.status;
     onChannelStatusChange?.(event.status);
   });
 
@@ -270,7 +290,8 @@ export async function subscribe<T>(
 export async function subscribeOnce<T>(
   endpoint: UrbitEndpoint,
   timeout?: number,
-  ship?: string
+  ship?: string,
+  requestConfig?: { tag?: string }
 ) {
   if (!config.client) {
     throw new Error('Client not initialized');
@@ -293,6 +314,12 @@ export async function subscribeOnce<T>(
       });
     } else if (err === 'timeout') {
       logger.error('subscribeOnce timed out', printEndpoint(endpoint));
+      logger.trackEvent(AnalyticsEvent.ErrorSubscribeOnceTimeout, {
+        requestTag: requestConfig?.tag,
+        subEndpoint: printEndpoint(endpoint),
+        connectionStatus: config.lastStatus,
+        timeoutDuration: timeout,
+      });
     } else {
       logger.error('subscribeOnce quit', printEndpoint(endpoint));
     }
@@ -400,7 +427,7 @@ export async function poke({ app, mark, json }: PokeParams) {
   };
 
   try {
-    const result = await doPoke({ onError: retry });
+    const result = await doPoke();
     trackDuration('success');
     return result;
   } catch (err) {
@@ -413,7 +440,8 @@ export async function poke({ app, mark, json }: PokeParams) {
 export async function trackedPoke<T, R = T>(
   params: PokeParams,
   endpoint: UrbitEndpoint,
-  predicate: (event: R) => boolean
+  predicate: (event: R) => boolean,
+  requestConfig?: { tag?: string; timeout?: number }
 ) {
   if (config.pendingAuth) {
     await config.pendingAuth;
@@ -422,14 +450,29 @@ export async function trackedPoke<T, R = T>(
     app: params.app,
     mark: params.mark,
   });
+  let pokeCompleted = false;
   try {
-    const tracking = track(endpoint, predicate);
-    const poking = poke(params);
+    const tracking = track(
+      endpoint,
+      predicate,
+      requestConfig?.timeout ?? 20000
+    );
+    const poking = poke(params).then(() => (pokeCompleted = true));
     await Promise.all([tracking, poking]);
     trackDuration('success');
   } catch (e) {
     logger.error(`tracked poke failed`, e);
     trackDuration('error');
+    if (e instanceof TimeoutError) {
+      logger.trackEvent(AnalyticsEvent.ErrorTrackedPokeTimeout, {
+        requestTag: requestConfig?.tag,
+        pokeParams: params,
+        subEndpoint: printEndpoint(endpoint),
+        connectionStatus: config.lastStatus,
+        timeoutDuration: e.timeoutDuration,
+        pokeCompleted,
+      });
+    }
     throw e;
   }
 }
@@ -437,7 +480,8 @@ export async function trackedPoke<T, R = T>(
 export async function trackedPokeNoun<T, R = T>(
   params: NounPokeParams,
   endpoint: UrbitEndpoint,
-  predicate: (event: R) => boolean
+  predicate: (event: R) => boolean,
+  requestConfig?: { tag: string; timeout?: number }
 ) {
   if (config.pendingAuth) {
     await config.pendingAuth;
@@ -446,21 +490,37 @@ export async function trackedPokeNoun<T, R = T>(
     app: params.app,
     mark: params.mark,
   });
+  let pokeCompleted = false;
   try {
-    const tracking = track(endpoint, predicate);
-    const poking = pokeNoun(params);
+    const tracking = track(
+      endpoint,
+      predicate,
+      requestConfig?.timeout ?? 20000
+    );
+    const poking = pokeNoun(params).then(() => (pokeCompleted = true));
     await Promise.all([tracking, poking]);
     trackDuration('success');
   } catch (e) {
     logger.error(`tracked poke failed`, e);
     trackDuration('error');
+    if (e instanceof TimeoutError) {
+      logger.trackEvent(AnalyticsEvent.ErrorTrackedPokeTimeout, {
+        requestTag: requestConfig?.tag,
+        pokeParams: params,
+        subEndpoint: printEndpoint(endpoint),
+        connectionStatus: config.lastStatus,
+        timeoutDuration: e.timeoutDuration,
+        pokeCompleted,
+      });
+    }
     throw e;
   }
 }
 
 async function track<R>(
   endpoint: UrbitEndpoint,
-  predicate: (event: R) => boolean
+  predicate: (event: R) => boolean,
+  timeout = 15000
 ) {
   const endpointKey = printEndpoint(endpoint);
   return new Promise((resolve, reject) => {
@@ -473,6 +533,20 @@ async function track<R>(
       resolve,
       reject,
     });
+
+    if (timeout) {
+      setTimeout(() => {
+        if (watchers.has(id)) {
+          watchers.delete(id);
+          reject(
+            new TimeoutError({
+              connectionStatus: config.lastStatus,
+              timeoutDuration: timeout,
+            })
+          );
+        }
+      }, timeout);
+    }
   });
 }
 

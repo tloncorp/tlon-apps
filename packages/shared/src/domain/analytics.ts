@@ -24,11 +24,14 @@ export enum AnalyticsEvent {
   InviteButtonShown = 'Invite Button Shown',
   InitializedNewInvite = 'Initialized New Invite',
   DebugLogs = 'Debug Logs',
+  DebugGroupCreate = 'Create Group Debug',
   AppError = 'App Error',
   AuthenticatedNodeStopped = 'Node Stopped While Logged In',
   Scry = 'Scry',
   Poke = 'Poke',
   TrackedPoke = 'TrackedPoke',
+  ErrorTrackedPokeTimeout = 'Error Tracked Poke Timeout',
+  ErrorSubscribeOnceTimeout = 'Error Subscribe Once Timeout',
   InitDataFetched = 'Init Data Fetched',
   InitDataWritten = 'Init Data Written',
   LatestPostsFetched = 'Latest Posts Fetched',
@@ -44,6 +47,8 @@ export enum AnalyticsEvent {
   NodeAuthSaved = 'Node Auth Saved',
   ErrorNodeResumePush = 'Node Resume Push Error',
   AnalyticsDigest = 'Usage Digest Report',
+  WebAppOpened = 'Web App Opened',
+  WebConsoleError = 'Web Console Error',
   ActionContactAdded = 'Contact Added',
   ActionContactRemoved = 'Contact Removed',
   ActionRemoveContactSuggestion = 'Removed Contact Suggestion',
@@ -115,6 +120,8 @@ export enum AnalyticsEvent {
   ErrorVerifyingPersonalInvite = 'Error Verifying DM Invite Link',
   ErrorAttestation = 'Attestation Error',
   ErrorNounParse = 'Error Parsing Noun',
+  ErrorNotificationService = 'Notification Service Error',
+  ErrorCreateGroup = 'Error Creating Group',
 }
 
 export interface AnalyticsDigest {

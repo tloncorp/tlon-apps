@@ -72,8 +72,7 @@ export default function useAppUpdates() {
 
   const triggerUpdate = useCallback(
     async (returnToRoot: boolean) => {
-      const mode = import.meta.env.MODE;
-      const basePath = mode === 'alpha' ? '/apps/tm-alpha/' : '/apps/groups/';
+      const basePath = '/apps/groups/';
       const path = returnToRoot
         ? `${window.location.origin}${basePath}?updatedAt=${Date.now()}`
         : `${window.location.href}?updatedAt=${Date.now()}`;
