@@ -1781,8 +1781,10 @@ export const deleteChannels = createWriteQuery(
   'deleteChannels',
   async (channels: string[], ctx: QueryCtx) => {
     logger.log(`deleteChannels`, channels);
-    await ctx.db.delete($posts).where(inArray($channels.id, channels));
-    await ctx.db.delete($chatMembers).where(inArray($channels.id, channels));
+    await ctx.db.delete($posts).where(inArray($posts.channelId, channels));
+    await ctx.db
+      .delete($chatMembers)
+      .where(inArray($chatMembers.chatId, channels));
     await ctx.db.delete($channels).where(inArray($channels.id, channels));
     return;
   },
