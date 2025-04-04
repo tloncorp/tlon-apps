@@ -89,15 +89,6 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     onPress:
       ({ editor }) =>
       () =>
-        editor.blur(),
-    active: ({ editorState }) => !editorState.isFocused,
-    disabled: ({ editorState }) => false,
-    icon: 'Keyboard',
-  },
-  {
-    onPress:
-      ({ editor }) =>
-      () =>
         editor.toggleTaskList(),
     active: ({ editorState }) => editorState.isTaskListActive,
     disabled: ({ editorState }) => !editorState.canToggleTaskList,
