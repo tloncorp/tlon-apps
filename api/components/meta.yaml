@@ -1,0 +1,14 @@
+
+data:
+  type: object
+  description: generic metadata
+  properties:
+    title:
+      type: string
+    description:
+      type: string
+    image:
+      type: string
+    cover:
+      type: string
+

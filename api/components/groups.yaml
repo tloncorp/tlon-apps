@@ -1,0 +1,314 @@
+#
+# headers
+#
+common:
+  $ref: "common.yaml"
+meta:
+  $ref: "meta.yaml"
+# %groups structures
+#
+# $flag:g
+flag:
+  type: string
+  description: group ID
+  pattern: '~[\D-]+\/\w+'
+  example: '~sampel-palnet/gardening'
+# $nest:g
+nest:
+  type: string
+  description: channel ID, {app}/{ship}/{name}
+# $sect:g
+sect:
+  type: string
+  description: group role
+#
+# groups v6
+#
+gang-v6:
+  type: object
+  properties:
+    claim:
+      nullable: true
+      $ref: "#/claim-v5"
+    preview:
+      nullable: true
+      $ref: "#/preview-v5"
+    invite:
+      nullable: true
+      $ref: "#/invite"
+    error:
+      nullable: true
+      $ref: "#/access-error"
+#
+# $access-error:g
+access-error:
+  type: string
+  enum:
+    - missing
+    - forbidden
+#
+#
+# groups v5
+#
+# $gang:v5:g
+gang-v5:
+  type: object
+  properties:
+    claim:
+      nullable: true
+      $ref: "#/claim-v5"
+    preview:
+      nullable: true
+      $ref: "#/preview-v5"
+    invite:
+      nullable: true
+      $ref: "#/invite"
+#
+# $claim:v5:g
+claim-v5:
+  type: object
+  properties:
+    join-all:
+      type: boolean
+    progress:
+      $ref: "#/progress-v5"
+#
+# $progress:v5:g
+progress-v5:
+  type: string
+  enum:
+    - knocking
+    - adding
+    - watching
+    - error
+#
+# $preview:v5:g
+preview-v5:
+  type: object
+  properties:
+    flag:
+      $ref: "#/flag"
+    meta:
+      $ref: "meta.yaml#/data"
+    cordon:
+      $ref: "#/cordon"
+    time:
+      type: number
+    secret:
+      type: boolean
+    count:
+      type: number
+#
+# groups v2
+#
+# $gang:v2:g
+gang-v2:
+  type: object
+  properties:
+    claim:
+      nullable: true
+      $ref: "#/claim-v2"
+    preview:
+      nullable: true
+      $ref: "#/preview-v2"
+    invite:
+      nullable: true
+      $ref: "#/invite"
+
+# $claim:v2:g
+claim-v2:
+  type: object
+  properties:
+    join-all:
+      type: boolean
+    progress:
+      $ref: "#/progress-v2"
+# $progress:v2:g
+progress-v2:
+  type: string
+  enum:
+    - knocking
+    - adding
+    - watching
+    - error
+# $invite:g
+invite:
+  type: object
+  properties:
+    flag:
+      $ref: "#/flag"
+    ship:
+      $ref: "#/common/ship"
+# $preview:v2:g
+preview-v2:
+  type: object
+  properties:
+    flag:
+      $ref: "#/flag"
+    meta:
+      $ref: "meta.yaml#/data"
+    time:
+      type: number
+    secret:
+      type: boolean
+#
+# $cordon:g
+cordon:
+  oneOf:
+    - $ref: "#/cordon-open"
+    - $ref: "#/cordon-shut"
+cordon-open:
+  type: object
+  properties:
+    open:
+      type: object
+      description: open cordon
+      properties:
+        ships:
+          type: array
+          items:
+            $ref: "#/common/ship"
+        ranks:
+          type: array
+          items:
+            $ref: "#/common/rank"
+cordon-shut:
+  type: object
+  properties:
+    shut:
+      type: object
+      description: shut cordon
+      properties:
+        pending:
+          type: array
+          items:
+            $ref: "#/common/ship"
+        ask:
+          type: array
+          items:
+            $ref: "#/common/ship"
+# $group:v2:g
+group-v2:
+  type: object
+  description: collection of people and communication channels
+  properties:
+    fleet:
+      $ref: "#/fleet"
+    cabals:
+      type: object
+      description: group cabals
+      additionalProperties:
+        $ref: "#/cabal"
+    zones:
+      type: object
+      description: group zones
+      additionalProperties:
+        $ref: "#/realm"
+    zone-ord:
+      type: array
+      items:
+        type: string
+        description: zone index
+    bloc:
+      type: array
+      description: set of superuser sects
+      items:
+        $ref: "#/sect"
+    channels:
+      type: object
+      propertyNames:
+        description: channel nest
+        example: "chat/~sampel-palnet/web"
+      additionalProperties:
+        $ref: "#/channel"
+    active-channels:
+      type: array
+      items:
+        $ref: "#/nest"
+    cordon:
+      $ref: "#/cordon"
+    secret:
+      type: boolean
+    meta:
+      $ref: "meta.yaml#/data"
+    flagged-content:
+      $ref: "#/flagged-content"
+# $fleet:g
+fleet:
+  type: object
+  additionalProperties:
+    $ref: "#/vessel"
+# $vessel:g
+vessel:
+  type: object
+  properties:
+    sects:
+      type: array
+      description: set of sects
+      items:
+        $ref: "#/sect"
+    joined:
+      $ref: "#/common/time"
+# $cabal:g
+cabal:
+  type: object
+  properties:
+    meta:
+      $ref: "#/meta/data"
+# $realm:g
+realm:
+  type: object
+  properties:
+    meta:
+      $ref: "#/meta/data"
+    idx:
+      type: array
+      description: realm index
+      items:
+        type: string
+# $channel:g
+channel:
+  type: object
+  properties:
+    meta:
+      $ref: "#/meta/data"
+    added:
+      $ref: "#/common/time"
+    readers:
+      type: array
+      items:
+        $ref: "#/common/ship"
+    zone:
+      type: string
+    join:
+      type: boolean
+# $flagged-content:g
+flagged-content:
+  type: object
+  propertyNames:
+    description: channel nest
+  additionalProperties:
+    type: object
+    propertyNames:
+      description: post timestamp
+    additionalProperties:
+      $ref: "#/flagged-data"
+# flagged-data
+flagged-data:
+  type: object
+  properties:
+    flagged:
+      type: boolean
+    flaggers:
+      type: array
+      items:
+        $ref: "#/common/ship"
+    replies:
+      type: object
+      propertyNames:
+        description: post reply timestamp
+      additionalProperties:
+        type: array
+        items:
+          $ref: "#/common/ship"
+
