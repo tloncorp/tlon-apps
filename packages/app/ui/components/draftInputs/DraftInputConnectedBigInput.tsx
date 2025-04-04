@@ -54,6 +54,7 @@ export function DraftInputConnectedBigInput({
           y={0}
           opacity={1}
           width="100%"
+          height={'100%'}
         >
           <BigInput
             channelType={

@@ -1,7 +1,7 @@
 import { Image as BaseImage, ImageErrorEventData } from 'expo-image';
 import { ReactElement, useCallback, useState } from 'react';
 import { Platform, StyleSheet } from 'react-native';
-import { SizableText, View, styled } from 'tamagui';
+import { SizableText, View, styled, usePropsAndStyle } from 'tamagui';
 
 import { Icon } from './Icon';
 
@@ -19,7 +19,7 @@ const WebImage = ({
   onLoad,
   onError,
   fallback,
-  ...props
+  ...otherProps
 }: any) => {
   const [hasError, setHasError] = useState(false);
 
@@ -45,6 +45,7 @@ const WebImage = ({
     }
   };
 
+  const [props, propStyles] = usePropsAndStyle(otherProps);
   const { contentFit } = props;
 
   if (hasError && fallback) {
@@ -64,6 +65,7 @@ const WebImage = ({
         height: props.height ? props.height : '100%',
         objectFit: contentFit ? contentFit : undefined,
         ...StyleSheet.flatten(style),
+        ...propStyles,
       }}
       onLoad={handleLoad}
       onError={handleError}
