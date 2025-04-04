@@ -1,22 +1,14 @@
-import { PropsWithChildren } from 'react';
-import { ColorTokens, RadiusTokens, SizeTokens, ThemeTokens } from 'tamagui';
+import { ComponentProps, PropsWithChildren } from 'react';
+import { ColorTokens, RadiusTokens, ThemeTokens } from 'tamagui';
 
 import { Button } from './Button';
 
 export type IconButtonProps = PropsWithChildren<{
-  onPress?: () => void;
-  size?: SizeTokens;
   color?: ThemeTokens | ColorTokens;
-  backgroundColor?: ThemeTokens | ColorTokens | 'unset';
   backgroundColorOnPress?: ThemeTokens | ColorTokens;
   radius?: RadiusTokens;
-  disabled?: boolean;
-  style?: any;
-  pressStyle?: any;
-  borderWidth?: any;
-  width?: SizeTokens | string | number;
-  [key: string]: any;
-}>;
+}> &
+  ComponentProps<typeof Button>;
 
 export function IconButton({
   children,
