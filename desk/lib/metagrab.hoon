@@ -5,7 +5,6 @@
 ::
 /+  rh=re-html
 ::
-=|  base-url=(unit @t)
 |%
 ::  searching for metadata
 ::
@@ -159,6 +158,7 @@
 ::
 ++  value
   |=  tope
+  ^-  @t
   ?@  val  val
   top.val
 ::
@@ -205,7 +205,7 @@
   =;  is-href=?
     ?.  is-href  val
     (expand-url base val)
-  ?|  &((lien spaces (cury test nas)) ?=([@ @ ~] kay))
+  ?|  &(?=([@ @ ~] kay) (lien spaces (cury test nas)))
       (lien keys (cury test key))
   ==
 ::

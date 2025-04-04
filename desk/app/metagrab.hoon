@@ -23,27 +23,80 @@
 ::
 +$  result
   $%  [%200 dat=data]
-      [%300 nex=@t]
+      [%300 nex=(unit @t)]
       [%400 bod=(unit @t)]
       [%500 bod=(unit @t)]
+      [%bad err=@t]  ::  internal error on our end
   ==
 ::
-+$  data  (list tope:mg)
++$  data
+  $%  [%page meta=(jar @t tope:mg)]
+      [%file mime=@t]
+  ==
 ::
 +$  response
   $:  wen=@da
-      wat=$<(%300 result)
+      wat=result
   ==
 ::
 ++  cache-time  ~m5
 ::
 ++  give-response
-  |=  [id=@ta response]
+  |=  [ids=(set @ta) response]
   ^-  (list card)
-  ~&  %todo-give-response  ::TODO
-  ~
-  :: %+  spout  id
-  :: :-  [200 ['content-type' 'application/json']~]
+  %-  zing
+  %+  turn  ~(tap in ids)
+  |=  id=@ta
+  %+  spout:hutils  id
+  :-  [?:(?=(%bad -.wat) 500 200) ['content-type' 'application/json']~]
+  %-  some
+  %-  as-octs:mimes:html
+  %-  en:json:html
+  =,  enjs:format
+  ?:  ?=(%bad -.wat)
+    (pairs 'error'^s+err.wat ~)
+  %-  pairs
+  ^-  (list [@t json])
+  :~  'since'^(time wen)
+      'status'^(numb -.wat)
+    ::
+      :-  'result'
+      ?-  -.wat
+        %300  ?>(?=(~ nex.wat) ~)
+        %400  ?~(bod.wat ~ s+u.bod.wat)
+        %500  ?~(bod.wat ~ s+u.bod.wat)
+      ::
+          %200
+        %-  pairs
+        ?-  -.dat.wat
+            %file
+          :~  'type'^s+'file'
+              'mime'^s+mime.dat.wat
+          ==
+        ::
+            %page
+          :-  'type'^s+'page'
+          %+  turn  ~(tap by meta.dat.wat)
+          |=  [buc=@t tos=(list tope:mg)]
+          ^-  [@t json]
+          :-  buc
+          :-  %a
+          %+  turn  tos
+          |=  tope:mg
+          %-  pairs
+          :*  'namespace'^s+ns
+              'key'^s+key
+              'value'^s+?@(val val top.val)
+            ::
+              |-
+              ?@  val  ~
+              :_  ~
+              :-  'meta'
+              *json  ::TODO
+          ==
+        ==
+      ==
+  ==
 ::
 ++  fetch
   |=  url=@t
@@ -53,6 +106,116 @@
   ::NOTE  outbound-config is actually meaningless,
   ::      iris doesn't do anything with it at present...
   [%pass /fetch/(scot %t url) %arvo %i %request request *outbound-config:iris]
+::
+++  extract-data
+  |=  $:  url=@t
+          [response-header:http dat=(unit mime-data:iris)]
+      ==
+  ^-  [report=? result]
+  =*  cod  status-code
+  ::  redirects
+  ::
+  ?:  &((gte cod 300) (lth cod 400))
+    [| %300 (get-header:http 'location' headers)]
+  ::  error responses
+  ::
+  ?:  &((gte cod 400) (lth cod 600))
+    :-  |
+    ::TODO  extract message from response body somehow?
+    ?:  (gte cod 500)
+      [%500 `(scot %ud cod)]
+    [%400 `(scot %ud cod)]
+  ::  miscellaneous
+  ::
+  ?:  |((lth cod 200) (gte cod 600))
+    [& %bad (cat 3 'strange status code ' (scot %ud cod))]
+  ?~  dat
+    [| %bad 'no response body']
+  ::  non-html
+  ::
+  ?.  =('text/html' (end 3^9 type.u.dat))
+    [| %200 %file type.u.dat]
+  ::  extract the head section
+  ::
+  =/  head=(unit @t)
+    =/  hat=tape  (trip q.data.u.dat)
+    ::NOTE  we must account for <head prefix="etc"> cases
+    =/  hin=(unit @ud)   (find "<head" hat)
+    =/  tin=(unit @ud)   (find "</head>" hat)
+    =?  tin  ?=(~ tin)   (find "</ head>" hat)
+    ?.  &(?=(^ hin) ?=(^ tin))  ~
+    ?:  (gte u.hin u.tin)       ~
+    `(cat 3 (crip (swag [u.hin (sub u.tin u.hin)] hat)) '</head>')
+  ::  try parsing it into an ast
+  ::
+  =/  heax=(unit manx)
+    (biff head de-html)
+  ::  report this url if it failed to parse
+  ::
+  :-  ?=(~ heax)
+  ^-  result
+  ::  turn whatever we got into page metadata
+  ::
+  =/  meta=(jar @t tope:mg)
+    =-  (fall - ~)
+    %+  bind
+      %+  bind
+        (biff heax search-head:mg)
+      (cury expand-urls:mg url)
+    %-  bucketize:mg
+    %-  ~(gas ju *(jug @t path))
+    ::  the properties that we care about and the buckets that they go into
+    ::
+    :~  :-  'title'        /'_title'/title
+        :-  'title'        /og/title
+        :-  'title'        /twitter/title
+      ::
+        :-  'description'  //description
+        :-  'description'  /og/description
+        :-  'description'  /twitter/description
+      ::
+        :-  'site_name'    //application-name
+        :-  'site_name'    /og/'site_name'
+      ::
+        :-  'image'        /og/image
+        :-  'image'        /twitter/image
+        :-  'image'        /'_link'/'image_src'
+      ::
+        :-  'site_icon'    /'_link'/apple-touch-icon
+        :-  'site_icon'    /'_link'/apple-touch-icon-precomposed
+        :-  'site_icon'    /'_link'/icon
+    ==
+  ::  drop the "misc" bucket
+  ::
+  =.  meta  (~(del by meta) %$)
+  ::  if we're lacking title or site_name,
+  ::  best-effort get them from the raw response,
+  ::  or the url if we really must
+  ::
+  =?  meta  ?=(~ (~(get ja meta) 'title'))
+    %+  ~(add ja meta)  'title'
+    =;  title=(unit @t)
+      ?~  title  ['_' 'title' url]
+      ['_title' 'title' u.title]
+    =/  hay=tape        (trip ?^(head u.head q.data.u.dat))
+    =/  hit=(unit @ud)  (find "<title>" hay)
+    =/  tit=(unit @ud)  (find "</title>" hay)
+    =?  tit  ?=(~ tit)  (find "</ title>" hay)
+    ?.  &(?=(^ hit) ?=(^ tit))  ~
+    ?:  (gte u.hit u.tit)       ~
+    =.  u.hit  (add u.hit ^~((lent "<title>")))
+    `(crip (swag [u.hit (sub u.tit u.hit)] hay))
+  =?  meta  ?=(~ (~(get ja meta) 'site_name'))
+    %+  ~(add ja meta)  'site_name'
+    =;  site-name=@t
+      ['_' 'site_name' site-name]
+    =+  pur=(need (de-purl:html url))
+    ?-  -.r.p.pur
+      %&  (en-turf:html p.r.p.pur)
+      %|  (rsh 3^1 (scot %if p.r.p.pur))
+    ==
+  ::
+  [%200 %page meta]
 --
 ::
 =|  state-0
@@ -92,15 +255,17 @@
       [~ this]
     ::  we aren't currently fetching it, but maybe we have a cache entry
     ::
-    =/  entry  (~(get by cache) url)
-    |-
-    ?:  ?&  ?=(^ entry)
-            (gth cache-time (sub now.bowl wen.u.entry))
-        ==
-      ?.  ?=(%300 -.wat.u.entry)
-        ~&  >  response=u.entry
-        [~ this]
-      $(entry (~(get by cache) nex.wat.u.entry))
+    :: =/  entry  (~(get by cache) url)
+    :: |-
+    :: ?:  ?&  ?=(^ entry)
+    ::         (gth cache-time (sub now.bowl wen.u.entry))
+    ::     ==
+    ::   ?.  ?=(%300 -.wat.u.entry)
+    ::     ~&  >  response=u.entry
+    ::     [~ this]
+    ::   ?~  nex.wat.u.entry
+    ::     (give-response  u.entry)
+    ::   $(entry (~(get by cache) nex.wat.u.entry))
     [[(fetch url) ~] this]
   ::
       %handle-http-request
@@ -156,7 +321,7 @@
             =/  res=(unit (list tope:mg))
               ~>  %bout.[0 '- reparsing']
               ?~  hex  ~
-              (search-head:mg(base-url `url) u.hex)
+              (search-head:mg u.hex)
             =.  res  (bind res (cury expand-urls:mg url))
             ~?  >>>  ?=(~ hex)  [%miss url]
             =?  res  ?=(~ res)
@@ -301,9 +466,9 @@
       ?:  ?&  ?=(^ entry)
               (gth cache-time (sub now.bowl wen.u.entry))
           ==
-        ?.  ?=(%300 -.wat.u.entry)
-          [(give-response id u.entry) this]
-        $(entry (~(get by cache) nex.wat.u.entry))
+        ?.  ?=([%300 ~ @] wat.u.entry)
+          [(give-response [id ~ ~] u.entry) this]
+        $(entry (~(get by cache) u.nex.wat.u.entry))
       =.  await  (~(put ju await) u.target id)
       [[(fetch u.target) ~] this]
     ==
@@ -341,38 +506,47 @@
     =*  cod  status-code.response-header.res
     ~&  cod=cod
     ?:  &((gte cod 300) (lth cod 400))
-      ?~  nex=(get-header:http 'location' headers.response-header.res)
-        ~&  >>>  %redirect-no-target
-        [~ this]
-      ~&  [%want-redirect u.nex]
-      =.  cache  (~(put by cache) url now.bowl %300 u.nex)
-      (on-poke %noun !>(u.nex))  ::TODO  tidier
+      =/  nex=(unit @t)
+        (get-header:http 'location' headers.response-header.res)
+      ~&  [%want-redirect nex]
+      =.  cache  (~(put by cache) url now.bowl %300 nex)
+      ?~  nex
+        :-  (give-response (~(get ju await) url) now.bowl %300 ~)
+        this(await (~(del by await) url))
+      ::TODO  get u.nex from cache if we have it
+      ::TODO  detect redirect loops
+      [[(fetch u.nex)]~ this]
     ::TODO  put cache, give eyre responses etc
-    ?~  full-file.res
-      ~&  %no-body
-      [~ this]
-    =,  u.full-file.res
-    ~&  mime=type
-    ?.  =('text/html' (end 3^9 type))
-      ::TODO  handle other mime types, like application/pdf, images etc
-      ~&  %not-html-nop
-      [~ this]
-    =/  hat=tape  (trip q.data)
-    ::NOTE  we must account for <head prefix="etc"> cases
-    =/  hin=(unit @ud)   (find "<head" hat)
-    ::TODO  search only past u.hin
-    =/  tin=(unit @ud)   (find "</head>" hat)  ::TODO  less strict?
-    ?.  &(?=(^ hin) ?=(^ tin))
-      ~&  [%no-head-nop would-have-spaced=?=(^ (find "</ head>" hat))]
-      [~ this]
-    ?:  (gte u.hin u.tin)
-      ~&  [%strange-head-nop hin=u.hin tin=u.tin]
-      [~ this]
-    =/  head=@t
-      (crip (weld (swag [u.hin (sub u.tin u.hin)] hat) "</head>"))
-    =.  tmpca  (~(put by tmpca) url head)
-    ~&  [%saving url]
-    [~ this]
+    :: ?~  full-file.res
+    ::   ~&  %no-body
+    ::   [~ this]
+    :: =,  u.full-file.res
+    :: ~&  mime=type
+    :: ?.  =('text/html' (end 3^9 type))
+    ::   ::TODO  handle other mime types, like application/pdf, images etc
+    ::   ~&  %not-html-nop
+    ::   [~ this]
+    :: =/  hat=tape  (trip q.data)
+    :: ::NOTE  we must account for <head prefix="etc"> cases
+    :: =/  hin=(unit @ud)   (find "<head" hat)
+    :: ::TODO  search only past u.hin
+    :: =/  tin=(unit @ud)   (find "</head>" hat)  ::TODO  less strict?
+    :: ?.  &(?=(^ hin) ?=(^ tin))
+    ::   ~&  [%no-head-nop would-have-spaced=?=(^ (find "</ head>" hat))]
+    ::   [~ this]
+    :: ?:  (gte u.hin u.tin)
+    ::   ~&  [%strange-head-nop hin=u.hin tin=u.tin]
+    ::   [~ this]
+    :: =/  head=@t
+    ::   (crip (weld (swag [u.hin (sub u.tin u.hin)] hat) "</head>"))
+    :: =.  tmpca  (~(put by tmpca) url head)
+    :: ~&  [%saving url]
+    =/  [report=? =result]
+      (extract-data url [response-header full-file]:res)
+    ::TODO  log if .report is true
+    =.  cache  (~(put by cache) url now.bowl result)
+    :-  (give-response (~(get ju await) url) now.bowl result)
+    this(await (~(del by await) url))
   ==
 ::
 ++  on-watch
