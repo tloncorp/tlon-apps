@@ -57,7 +57,7 @@
     (pairs 'error'^s+err.wat ~)
   %-  pairs
   ^-  (list [@t json])
-  :~  'since'^(time wen)
+  :~  'fetched_at'^(time wen)
       'status'^(numb -.wat)
     ::
       :-  'result'
@@ -91,7 +91,7 @@
               ?@  val  ~
               |-  ^-  (list [@t json])
               :_  ~
-              :-  'meta'
+              :-  'attributes'
               %-  pairs
               %+  turn  ~(tap by met.val)
               |=  [key=@t val=veal:mg]
