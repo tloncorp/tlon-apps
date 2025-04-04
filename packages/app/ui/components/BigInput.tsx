@@ -334,6 +334,7 @@ export function BigInput({
             frameless={true}
             bigInput={true}
             shouldAutoFocus={true}
+            showInlineAttachments={false}
             onEditorContentChange={handleEditorContentChanged}
             title={title}
             image={
