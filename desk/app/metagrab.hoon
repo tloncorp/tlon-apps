@@ -88,11 +88,16 @@
               'key'^s+key
               'value'^s+?@(val val top.val)
             ::
-              |-
               ?@  val  ~
+              |-  ^-  (list [@t json])
               :_  ~
               :-  'meta'
-              *json  ::TODO
+              %-  pairs
+              %+  turn  ~(tap by met.val)
+              |=  [key=@t val=veal:mg]
+              :-  key
+              ?@  val  s+val
+              (pairs 'value'^s+top.val ^$(val val))
           ==
         ==
       ==
