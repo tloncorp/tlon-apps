@@ -198,7 +198,7 @@ const syncRelevantChannelPosts = async (
 ): Promise<void> => {
   const session = getSession();
   if (session == null) {
-    throw new Error('Missing session'); // todo: grace
+    throw new Error('Missing session');
   }
   const channelsToSync = await db.getChannelsForPredictiveSync(
     { session, limit: 20 },
