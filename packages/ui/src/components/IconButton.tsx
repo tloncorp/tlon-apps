@@ -1,13 +1,14 @@
-import { PropsWithChildren } from 'react';
-import {
-  ColorTokens,
-  RadiusTokens,
-  SizeTokens,
-  ThemeTokens,
-  useTheme,
-} from 'tamagui';
+import { ComponentProps, PropsWithChildren } from 'react';
+import { ColorTokens, RadiusTokens, ThemeTokens } from 'tamagui';
 
-import { Button, ButtonProps } from './Button';
+import { Button } from './Button';
+
+export type IconButtonProps = PropsWithChildren<{
+  color?: ThemeTokens | ColorTokens;
+  backgroundColorOnPress?: ThemeTokens | ColorTokens;
+  radius?: RadiusTokens;
+}> &
+  ComponentProps<typeof Button>;
 
 export function IconButton({
   children,
@@ -18,35 +19,29 @@ export function IconButton({
   backgroundColorOnPress = '$secondaryBackground',
   disabled = false,
   radius = '$l',
+  style,
+  pressStyle,
+  borderWidth = 'unset',
+  width,
   ...rest
-}: PropsWithChildren<
-  {
-    onPress?: () => void;
-    size?: SizeTokens;
-    color?: ThemeTokens | ColorTokens;
-    backgroundColor?: ThemeTokens | ColorTokens | 'unset';
-    backgroundColorOnPress?: ThemeTokens | ColorTokens;
-    radius?: RadiusTokens;
-    disabled?: boolean;
-  } & ButtonProps
->) {
-  const theme = useTheme();
+}: IconButtonProps) {
   return (
     <Button
       size={size}
       onPress={onPress}
       disabled={disabled}
       borderRadius={radius}
+      style={style}
+      width={width}
       pressStyle={{
-        backgroundColor: theme[backgroundColorOnPress]?.get(),
+        backgroundColor: backgroundColorOnPress,
+        ...pressStyle,
       }}
-      backgroundColor={theme[backgroundColor]?.get()}
-      // borderWidth="unset" because otherwise it would be set to 1px
-      // and we don't want that for an icon button
-      borderWidth="unset"
+      backgroundColor={backgroundColor}
+      borderWidth={borderWidth}
       {...rest}
     >
-      <Button.Icon color={theme[color]?.get()}>{children}</Button.Icon>
+      <Button.Icon color={color}>{children}</Button.Icon>
     </Button>
   );
 }
