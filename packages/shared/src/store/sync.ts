@@ -18,7 +18,7 @@ import * as LocalCache from './cachedData';
 import { addChannelToNavSection, moveChannel } from './groupActions';
 import { verifyUserInviteLink } from './inviteActions';
 import { useLureState } from './lure';
-import { getSession, updateSession } from './session';
+import { Session, getSession, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
@@ -180,6 +180,46 @@ export const syncLatestPosts = async (
   } else {
     await writer();
     return () => Promise.resolve();
+  }
+};
+
+/**
+ * Syncs a subset of channels' latest posts; attempts to match the behavior of `useChannelPosts`.
+ *
+ * This is a best-effort attempt at preloading channels, and should only be
+ * executed with a low priority `SyncCtx` to ensure that syncing a channel that
+ * the user is looking at can interrupt this.
+ * This function internally enqueues work on the sync queue; do not
+ * explicitly enqueue this function, or else sync threads will get clogged up.
+ */
+const syncRelevantChannelPosts = async (
+  ctx?: SyncCtx,
+  queryCtx?: QueryCtx
+): Promise<void> => {
+  const session = getSession();
+  if (session == null) {
+    throw new Error('Missing session');
+  }
+  const channelsToSync = await db.getChannelsForPredictiveSync(
+    { session, limit: 20 },
+    queryCtx
+  );
+
+  const errors: { [channelId: string]: unknown } = {};
+  for (const channel of channelsToSync) {
+    try {
+      await fillChannelGap({
+        channelId: channel.id,
+        getSession,
+        syncCtx: ctx,
+      });
+    } catch (err) {
+      logger.error('error syncing channel', channel.id, err);
+      errors[channel.id] = err;
+    }
+  }
+  if (Object.keys(errors).length === channelsToSync.length) {
+    throw new Error('Failed predictive sync', errors);
   }
 };
 
@@ -1341,6 +1381,9 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     syncAppInfo({ priority: SyncPriority.Low }).then(() => {
       logger.crumb(`finished syncing app info`);
     }),
+    syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
+      logger.crumb(`finished channel predictive sync`);
+    }),
   ];
 
   await Promise.all(lowPriorityPromises)
@@ -1381,3 +1424,171 @@ export const setupLowPrioritySubscriptions = async (ctx?: SyncCtx) => {
     ]);
   });
 };
+
+/**
+ * Requires `channel` to be up-to-date from DB.
+ */
+export function hasChannelCachedNewestPosts({
+  session,
+  channel,
+}: {
+  session: Session | null;
+  channel: db.Channel;
+}) {
+  if (session == null) {
+    return false;
+  }
+  const { syncedAt, lastPostAt } = channel;
+
+  if (syncedAt == null) {
+    return false;
+  }
+
+  // `syncedAt` is only set when sync endpoint reports that there are no newer posts.
+  // https://github.com/tloncorp/tlon-apps/blob/adde000f4330af7e0a2e19bdfcb295f5eb9fe3da/packages/shared/src/store/sync.ts#L905-L910
+  // We are guaranteed to have the most recent post before `syncedAt`; and
+  // we are guaranteed to have the most recent post after `session.startTime`.
+
+  // This case checks that we have overlap between sync backfill and session subscription.
+  //
+  //   ------------------------| syncedAt
+  //     session.startTime |---------------
+  if (syncedAt >= (session.startTime ?? 0)) {
+    return true;
+  }
+
+  // `lastPostAt` is set with the channel's latest post during session init:
+  // https://github.com/tloncorp/tlon-apps/blob/adde000f4330af7e0a2e19bdfcb295f5eb9fe3da/packages/shared/src/store/sync.ts#L1052
+  //
+  // Since we already checked that a session is active, this case checks
+  // that we've hit `syncedAt`'s "no newer posts" at some point _after_ the
+  // channel's most recent post's timestamp.
+  //
+  //          lastPostAt
+  //              v
+  //   ------------------------| syncedAt
+  //
+  // This check would fail if we first caught up via sync, and then later
+  // started a session: in that case, there could be missing posts between
+  // `syncedAt`'s "no newer posts" and the start of the session:
+  //
+  //                lastPostAt (post not received)
+  //                    v
+  //   ----| syncedAt
+  //         session.startTime |---------
+  //
+  // NB: In that case, we *do* have the single latest post for the channel,
+  // but we'd likely be missing all other posts in the gap. Wait until we
+  // filled in the gap to show posts.
+  if (lastPostAt && syncedAt > lastPostAt) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * In the specified channel, fetch posts until we have cached all messages
+ * between the channel's unread marker and "now". If we have no unread marker,
+ * do nothing. This function does not fetch anything older than unread marker
+ * (i.e. this should not fetch posts spanning to the start of the channel
+ * timeline).
+ */
+async function fillChannelGap(opts: {
+  channelId: db.Channel['id'];
+  getSession: () => Session | null;
+  syncCtx: SyncCtx | undefined;
+}) {
+  // How many syncs do we want to do before moving on to the next channel?
+  // This will be hit on any channel for which the user has an unread marker,
+  // and which has many unfetched newer posts in the corresponding post window
+  // for the unread.
+  // (example: If someone has visited a bunch of active channels in the past,
+  // left the network for a while, then installs this app fresh, they'll
+  // probably hit this max for every channel in the predictive sync set, since
+  // there are a lot of posts to fetch between their unread marker and the most
+  // recent post in each channel.)
+  let maxLoops = 2;
+
+  while (maxLoops > 0) {
+    const fillResult = await stepFillChannelGap(opts);
+    if (fillResult == null || fillResult.fetchedPosts.length === 0) {
+      break;
+    }
+    maxLoops--;
+  }
+  if (maxLoops <= 0) {
+    logger.info('Max fetches reached', opts.channelId);
+  }
+}
+
+/**
+ * Performs one "step" of channel backfill. Run repeatedly to fully backfill.
+ * Returns `true` if there may be more to fetch.
+ */
+async function stepFillChannelGap({
+  channelId,
+  getSession,
+  syncCtx,
+}: {
+  channelId: db.Channel['id'];
+  getSession: () => Session | null;
+  syncCtx: SyncCtx | undefined;
+}): Promise<{
+  /** ordered by sent-at, desc */
+  fetchedPosts: db.Post[];
+} | null> {
+  const latestChannel = await db.getChannel({ id: channelId });
+  if (latestChannel == null) {
+    throw new Error('Missing channel');
+  }
+  const hasCachedNewestPosts = hasChannelCachedNewestPosts({
+    session: getSession(),
+    channel: latestChannel,
+  });
+  if (hasCachedNewestPosts) {
+    // nothing left to fetch
+    return null;
+  }
+
+  const baseSyncParams = {
+    channelId,
+    includeReplies: false,
+    count: 30,
+  } as const;
+
+  const syncParams: api.GetChannelPostsOptions = await (async () => {
+    const unread = await db.getChannelUnread({ channelId });
+    const unreadPostId = unread?.firstUnreadPostId;
+    if (unreadPostId == null) {
+      // no unread - we want to bring user to newest posts
+      return {
+        ...baseSyncParams,
+        mode: 'newest',
+      };
+    }
+
+    const mainWindow = await db.getPostWindow({
+      channelId,
+      postId: unreadPostId,
+    });
+    if (mainWindow == null) {
+      // unread is outside a window - we want to show the unread to the user,
+      // so start fetching around the unread.
+      return {
+        ...baseSyncParams,
+        mode: 'around',
+        cursor: unreadPostId,
+      };
+    }
+
+    // we know what window we want to grow - fetch newer posts
+    return {
+      ...baseSyncParams,
+      mode: 'newer' as const,
+      cursor: mainWindow.newestPostId,
+    };
+  })();
+
+  const resp = await syncPosts(syncParams, syncCtx);
+  return { fetchedPosts: resp.posts };
+}
