@@ -22,6 +22,7 @@
 /-  verifier
 /+  hu=http-utils, logs,
     dbug, verb, negotiate
+/=  display  /app/verifier/display
 =,  (verifier)
 ::
 %-  %-  agent:negotiate
@@ -466,37 +467,6 @@
       %verified
     %+  lien  ~(tap in src)
     |=(i=identifier =(-.i -.id))
-  ==
-::
-++  display
-  |=  [full=? tat=attestation]
-  ^-  octs
-  %-  as-octs:mimes:html
-  %+  rap  3
-  :~  'verified that '
-      (scot %p for.dat.half.tat)
-      ' has '
-    ::
-      ?.  full
-        ?-  kind.dat.half.tat
-          %dummy    'a dummy identifier'
-          %urbit    'another urbit'
-          %phone    'a phone number'
-          %twitter  'an x.com account'
-          %website  'a website'
-        ==
-      =*  id  id.dat.full.tat
-      ?-  -.id.dat.full.tat
-        %dummy    (cat 3 'dummy id ' +.id)
-        %urbit    (cat 3 'control over ' (scot %p +.id))
-        %phone    (cat 3 'phone nr ' +.id)
-        %twitter  (cat 3 'x.com account @' +.id)
-        %website  (cat 3 'control over ' (en-turf:html +.id))
-      ==
-    ::
-      ' on '
-      =*  when  when.dat.half.tat
-      (scot %da (sub when (mod when ~d1)))
   ==
 --
 ::
