@@ -58,6 +58,7 @@ const InputToolbar = memo(
     const tamagui = useTheme();
 
     const bgColor = backgroundColor || tamagui.background.val;
+    console.log('bgColor', bgColor, 'toolbar', editor.theme.toolbar);
     const staticStyles = useMemo(() => createStaticStyles(bgColor), [bgColor]);
 
     const hideToolbar =

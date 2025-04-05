@@ -1,10 +1,13 @@
 import {
   BridgeExtension,
+  CoreBridge,
   EditorBridge,
   EditorMessage,
   PlaceholderBridge,
   RichText,
   TenTapStartKit,
+  darkEditorCss,
+  darkEditorTheme,
   useBridgeState,
   useEditorBridge,
   useEditorContent,
@@ -58,6 +61,7 @@ import {
   useWindowDimensions,
 } from 'tamagui';
 
+import { useIsDarkMode } from '../../../hooks/useIsDarkMode';
 import { useBranchDomain, useBranchKey } from '../../contexts';
 import {
   Attachment,
@@ -219,10 +223,16 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         })
       );
     }
+    const isDarkMode = useIsDarkMode();
+    if (isDarkMode) {
+      bridgeExtensions.push(CoreBridge.configureCSS(darkEditorCss));
+    }
+
     const editor = useEditorBridge({
       customSource: editorHtml,
       autofocus: shouldAutoFocus || false,
       bridgeExtensions,
+      theme: isDarkMode ? darkEditorTheme : undefined,
     });
 
     useImperativeHandle(ref, () => ({
