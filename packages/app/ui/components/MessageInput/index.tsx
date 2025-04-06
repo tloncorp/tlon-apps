@@ -826,7 +826,10 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
           return;
         }
 
-        const { type, payload } = JSON.parse(data) as MessageEditorMessage;
+        const { type, payload } =
+          typeof data === 'object'
+            ? data
+            : (JSON.parse(data) as MessageEditorMessage);
 
         if (type === 'editor-ready') {
           webviewRef.current?.injectJavaScript(
