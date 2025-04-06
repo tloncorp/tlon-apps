@@ -350,9 +350,10 @@ export interface PostCollectionRenderer {
 
 export interface ContentRenderer {
   rendererId: string;
+  configuration?: Record<string, JSONValue>;
 }
 
-export interface ChannelMetadataSchemaV1 {
+interface ChannelMetadataSchemaV1 {
   version: 1;
   postInput: PostInput;
   postCollectionRenderer: PostCollectionRenderer;
@@ -367,7 +368,7 @@ export interface Channel {
   order: string[];
   sort: SortMode;
   pending: PendingMessages;
-  meta: ChannelMetadata;
+  meta: ChannelMetadata | null;
 }
 
 export interface ChannelFromServer {

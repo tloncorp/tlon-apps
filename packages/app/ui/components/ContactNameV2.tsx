@@ -50,12 +50,20 @@ export const useContactNameProps = ({
   ]);
 };
 
-export const useContactName = (options: string | ContactNameOptions) => {
+export function useContactName(options: string | ContactNameOptions): string;
+export function useContactName(
+  options: string | ContactNameOptions | null
+): string | null;
+export function useContactName(
+  options: string | ContactNameOptions | null
+): string | null {
   const resolvedOptions = useMemo(() => {
-    return typeof options === 'string' ? { contactId: options } : options;
+    return typeof options === 'string' || options == null
+      ? { contactId: options ?? '' }
+      : options;
   }, [options]);
   return useContactNameProps(resolvedOptions).children;
-};
+}
 
 const BaseContactName = RawText.styleable<{
   contactId: string;

@@ -13,7 +13,6 @@ import {
   getJoinStatusFromGang,
 } from '../urbit';
 import { parseGroupChannelId, parseGroupId, toClientMeta } from './apiUtils';
-import { StructuredChannelDescriptionPayload } from './channelContentConfig';
 import {
   getCurrentUserId,
   poke,
@@ -1659,9 +1658,6 @@ function toClientChannel({
   channel: ub.GroupChannel;
   groupId: string;
 }): db.Channel {
-  const { description, channelContentConfiguration } =
-    StructuredChannelDescriptionPayload.decode(channel.meta.description);
-
   const readerRoles = (channel.readers ?? []).map((roleId) => ({
     channelId: id,
     roleId,
@@ -1682,8 +1678,7 @@ function toClientChannel({
     iconImage: omitEmpty(channel.meta.image),
     title: omitEmpty(channel.meta.title),
     coverImage: omitEmpty(channel.meta.cover),
-    description,
-    contentConfiguration: channelContentConfiguration,
+    description: omitEmpty(channel.meta.description),
     currentUserIsHost: hostUserId === currentUserId,
     readerRoles,
     writerRoles,
@@ -1699,9 +1694,6 @@ function toClientChannelFromPreview({
   channel: ub.ChannelPreview;
   groupId: string;
 }): db.Channel {
-  const { description, channelContentConfiguration } =
-    StructuredChannelDescriptionPayload.decode(channel.meta.description);
-
   return {
     id,
     groupId,
@@ -1709,8 +1701,7 @@ function toClientChannelFromPreview({
     iconImage: omitEmpty(channel.meta.image),
     title: omitEmpty(channel.meta.title),
     coverImage: omitEmpty(channel.meta.cover),
-    description,
-    contentConfiguration: channelContentConfiguration,
+    description: omitEmpty(channel.meta.description),
   };
 }
 
