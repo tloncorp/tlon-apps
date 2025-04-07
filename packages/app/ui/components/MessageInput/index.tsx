@@ -154,7 +154,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
   ) => {
     const branchDomain = useBranchDomain();
     const branchKey = useBranchKey();
-    const [isSending, setIsSending] = useState(false);
     const [sendError, setSendError] = useState(false);
     const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
     useEffect(() => {
@@ -767,14 +766,12 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     const runSendMessage = useCallback(
       async (isEdit: boolean) => {
-        setIsSending(true);
         try {
           await sendMessage(isEdit);
         } catch (e) {
           console.error('failed to send', e);
           setSendError(true);
         }
-        setIsSending(false);
         setSendError(false);
       },
       [sendMessage]
@@ -1024,7 +1021,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         onSelectMention={onSelectMention}
         showMentionPopup={showMentionPopup && !bigInput}
         isEditing={!!editingPost}
-        isSending={isSending}
         cancelEditing={handleCancelEditing}
         showAttachmentButton={showAttachmentButton}
         floatingActionButton={floatingActionButton}
