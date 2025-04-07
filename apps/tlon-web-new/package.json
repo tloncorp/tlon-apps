@@ -39,7 +39,7 @@
     "@babel/runtime": "^7.25.9",
     "@react-navigation/drawer": "^6.7.2",
     "@react-navigation/native": "^6.1.7",
-    "@tamagui/vite-plugin": "~1.112.12",
+    "@tamagui/vite-plugin": "~1.125.33",
     "@tanstack/react-query": "^5.32.1",
     "@tanstack/react-query-devtools": "^5.32.1",
     "@tiptap/core": "^2.6.6",
