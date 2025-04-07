@@ -244,6 +244,7 @@
   ^-  (quip card _this)
   =+  old=!<(state-0 ole)
   =.  state  old
+  =.  cache  ~
   [~ this]
 ::
 ++  on-poke
@@ -473,6 +474,8 @@
           ==
         ?.  ?=([%300 ~ @] wat.u.entry)
           [(give-response [id ~ ~] u.entry) this]
+        ::TODO  change u.target to be u.nex.wat.u.entry?
+        ::      that catches cases where backend is still fetching the redirect
         $(entry (~(get by cache) u.nex.wat.u.entry))
       =.  await  (~(put ju await) u.target id)
       [[(fetch u.target) ~] this]
@@ -518,6 +521,8 @@
       ?~  nex
         :-  (give-response (~(get ju await) url) now.bowl %300 ~)
         this(await (~(del by await) url))
+      =.  await  (~(put by await) u.nex (~(get ja await) url))
+      =.  await  (~(del by await) url)
       ::TODO  get u.nex from cache if we have it
       ::TODO  detect redirect loops
       [[(fetch u.nex)]~ this]
