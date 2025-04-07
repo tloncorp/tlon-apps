@@ -79,7 +79,7 @@ export function ChannelFooter({
           flex={1}
         >
           <IconButton onPress={goBack} color={'$secondaryText'}>
-            <ChevronLeft />
+            <Icon type="ChevronLeft" />
           </IconButton>
           {showSpinner && <Spinner />}
           {showPickerButton && (
@@ -109,7 +109,7 @@ export function ChannelFooter({
           )}
           {showSearchButton && (
             <IconButton onPress={goToSearch} color={'$secondaryText'}>
-              <Search />
+              <Icon type="Search" />
             </IconButton>
           )}
         </XStack>
