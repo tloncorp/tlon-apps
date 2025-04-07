@@ -58,14 +58,6 @@ setupDb().then(() => {
 
   window.our = `~${window.ship}`;
 
-  window.addEventListener('error', (e) => {
-    logger.trackEvent(AnalyticsEvent.WebConsoleError, {
-      e: e.error,
-      stack: e.error?.stack,
-      errorMessage: e.error?.message,
-    });
-  });
-
   const container = document.getElementById('app') as HTMLElement;
   const root = createRoot(container);
   root.render(

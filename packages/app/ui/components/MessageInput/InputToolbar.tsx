@@ -1,4 +1,8 @@
-import { useBridgeState, useKeyboard } from '@10play/tentap-editor';
+import {
+  darkEditorTheme,
+  useBridgeState,
+  useKeyboard,
+} from '@10play/tentap-editor';
 import { Icon } from '@tloncorp/ui';
 import React, { memo, useCallback, useMemo } from 'react';
 import {
@@ -12,6 +16,7 @@ import {
 } from 'react-native';
 import { View, useTheme } from 'tamagui';
 
+import { useIsDarkTheme } from '../../utils';
 import { EditLinkBar } from './EditLinkBar';
 import {
   DEFAULT_TOOLBAR_ITEMS,
@@ -56,6 +61,7 @@ const InputToolbar = memo(
       ToolbarContext.Main
     );
     const tamagui = useTheme();
+    const isDark = useIsDarkTheme();
 
     const bgColor = backgroundColor || tamagui.background.val;
     const staticStyles = useMemo(() => createStaticStyles(bgColor), [bgColor]);
@@ -93,13 +99,22 @@ const InputToolbar = memo(
 
     const createItemViewStyle = useCallback(
       (item: ToolbarItem) => [
-        editor.theme.toolbar.toolbarButton,
-        itemIsActive(item) ? editor.theme.toolbar.iconWrapperActive : undefined,
+        itemIsActive(item)
+          ? isDark
+            ? darkEditorTheme.toolbar.iconWrapperActive
+            : editor.theme.toolbar.iconWrapperActive
+          : undefined,
         itemIsDisabled(item)
           ? editor.theme.toolbar.iconWrapperDisabled
           : undefined,
       ],
-      [editor, itemIsActive, itemIsDisabled]
+      [
+        editor.theme.toolbar.iconWrapperActive,
+        editor.theme.toolbar.iconWrapperDisabled,
+        isDark,
+        itemIsActive,
+        itemIsDisabled,
+      ]
     );
 
     const touchableStyle = useMemo(

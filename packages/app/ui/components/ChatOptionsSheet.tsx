@@ -2,9 +2,8 @@ import { featureFlags } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/shared/urbit';
-import { useIsWindowNarrow } from '@tloncorp/ui';
+import { Icon, useIsWindowNarrow } from '@tloncorp/ui';
 import { IconButton } from '@tloncorp/ui';
-import { ChevronLeft } from '@tloncorp/ui/assets/icons';
 import { isEqual } from 'lodash';
 import React, {
   ReactElement,
@@ -854,7 +853,7 @@ function NotificationsSheetContent({
 function SheetBackButton({ onPress }: { onPress: () => void }) {
   return (
     <IconButton width="$4xl" onPress={onPress}>
-      <ChevronLeft />
+      <Icon type="ChevronLeft" />
     </IconButton>
   );
 }
