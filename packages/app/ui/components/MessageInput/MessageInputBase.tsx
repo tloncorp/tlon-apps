@@ -7,7 +7,7 @@ import { Icon } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { memo } from 'react';
 import { PropsWithChildren } from 'react';
-import { SpaceTokens, getTokenValue, styled, useThemeName } from 'tamagui';
+import { SpaceTokens, styled } from 'tamagui';
 import {
   ThemeTokens,
   View,
