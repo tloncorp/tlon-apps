@@ -1,6 +1,6 @@
 import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { LayoutChangeEvent } from 'react-native';
 import { getTokenValue } from 'tamagui';
 
@@ -10,6 +10,7 @@ import {
   InteractableChatListItem,
   SectionListHeader,
   useChatOptions,
+  useIsWindowNarrow,
 } from '../../ui';
 
 type SectionHeaderData = { type: 'sectionHeader'; title: string };
@@ -51,10 +52,17 @@ export const ChatList = React.memo(function ChatListComponent({
     paddingBottom: 100, // bottom nav height + some cushion
   };
 
+  const isNarrow = useIsWindowNarrow();
   const sizeRefs = useRef({
-    sectionHeader: 28,
-    chatListItem: 72,
+    sectionHeader: isNarrow ? 24.55 : 28,
+    chatListItem: isNarrow ? 64 : 72,
   });
+
+  // update the sizeRefs when the window size changes
+  useEffect(() => {
+    sizeRefs.current.sectionHeader = isNarrow ? 24.55 : 28;
+    sizeRefs.current.chatListItem = isNarrow ? 64 : 72;
+  }, [isNarrow]);
 
   const handleHeaderLayout = useCallback((e: LayoutChangeEvent) => {
     sizeRefs.current.sectionHeader = e.nativeEvent.layout.height;
