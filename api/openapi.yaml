@@ -1,0 +1,43 @@
+openapi: 3.1.0
+info:
+  version: 6.10.0
+  title: "Tlon Messenger API"
+  description: >
+    # Tlon Messenger
+
+    TM is a unique messenger that is under your control down to the very last bit.
+    Your personal TM node, apart from serving as a locus of communication,
+    is also a general-purpose computer, capable of running any computation.
+    TM API allows access to any TM component running on your node.
+
+
+    TM platform consists of the following distinct services, each with their
+    own API.
+
+
+    1. groups: channel aggregation, group entry and member permissions
+
+    2. channels: content posting
+
+    3. chat: direct messaging
+
+    4. contacts: social graph
+
+    5. activity: notifications
+
+    6. profile: personal webpage
+
+    7. expose: content publishing
+
+paths:
+  # %groups
+  #
+  /groups/gangs.json:
+    $ref: "paths/groups.yaml#/gangs"
+  /groups/v1/gangs.json:
+    $ref: "paths/groups.yaml#/v1-gangs"
+  /groups/v2/gangs.json:
+    $ref: "paths/groups.yaml#/v2-gangs"
+  #
+  /groups/groups/light.json:
+    $ref: "paths/groups.yaml#/groups-light"
