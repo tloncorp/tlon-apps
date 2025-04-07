@@ -1,7 +1,6 @@
 import { Button } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { IconButton } from '@tloncorp/ui';
-import { ChevronLeft, Search } from '@tloncorp/ui/assets/icons';
 import Animated, {
   Easing,
   interpolate,
