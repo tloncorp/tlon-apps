@@ -196,7 +196,7 @@ export function useNavigateToPost() {
         groupId: post.groupId ?? undefined,
       });
     },
-    [navigation, isWindowNarrow, currentScreenIsActivity]
+    [isWindowNarrow, currentScreenIsActivity, navigation, lastOpenTab]
   );
 }
 

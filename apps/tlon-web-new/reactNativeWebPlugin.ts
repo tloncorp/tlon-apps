@@ -77,22 +77,12 @@ const reactNativeWeb =
             ),
           },
           {
-            find: '@tloncorp/editor/dist/editorHtml',
-            replacement: fileURLToPath(
-              new URL('./src/mocks/tloncorp-editor-html.js', import.meta.url)
-            ),
+            find: 'react-native-webview',
+            replacement: '@10play/react-native-web-webview',
           },
           {
-            find: '@tloncorp/editor/src/bridges',
-            replacement: fileURLToPath(
-              new URL('./src/mocks/tloncorp-editor-bridges.js', import.meta.url)
-            ),
-          },
-          {
-            find: '@10play/tentap-editor',
-            replacement: fileURLToPath(
-              new URL('./src/mocks/tentap-editor.js', import.meta.url)
-            ),
+            find: 'react-native/Libraries/Utilities/codegenNativeComponent',
+            replacement: '@10play/react-native-web-webview/shim',
           },
           {
             find: 'react-native-gesture-handler/ReanimatedSwipeable',

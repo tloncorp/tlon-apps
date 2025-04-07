@@ -7,7 +7,7 @@ export function usePosthog() {
   const posthog = useWebPosthog();
   return useMemo((): PosthogClient => {
     return {
-      optedOut: posthog?.has_opted_out_capturing() ?? false,
+      getIsOptedOut: () => posthog?.has_opted_out_capturing() ?? false,
       optIn: () => {
         posthog?.opt_in_capturing();
       },
