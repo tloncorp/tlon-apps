@@ -21,7 +21,7 @@ export const useThreadPosts = ({
       authorId,
       channelId,
     });
-  }, []);
+  }, [authorId, channelId, postId]);
 
   return useQuery({
     queryKey: [

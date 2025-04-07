@@ -100,6 +100,7 @@ export const ProfileNavigator = () => {
           borderRightColor: getVariableValue(useTheme().border),
         },
       }}
+      id="ProfileDrawer"
       backBehavior="history"
     >
       <ProfileDrawer.Screen name="AddContacts" component={AddContactsScreen} />

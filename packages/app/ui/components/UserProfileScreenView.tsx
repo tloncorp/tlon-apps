@@ -21,7 +21,6 @@ import {
   View,
   XStack,
   YStack,
-  isWeb,
   styled,
   useTheme,
   useWindowDimensions,
@@ -36,15 +35,12 @@ import {
   PhoneAttestDisplay,
   TwitterAttestDisplay,
 } from './Profile/ConnectedAccountsWidget';
-import { ScreenHeader } from './ScreenHeader';
 import { WidgetPane } from './WidgetPane';
 
 interface Props {
   userId: string;
-  onBack: () => void;
   connectionStatus: api.ConnectionStatus | null;
   onPressGroup: (group: db.Group) => void;
-  onPressEdit: () => void;
 }
 
 export function UserProfileScreenView(props: Props) {
@@ -106,17 +102,6 @@ export function UserProfileScreenView(props: Props) {
 
   return (
     <View flex={1} backgroundColor={theme.secondaryBackground.val}>
-      <ScreenHeader
-        title="Profile"
-        leftControls={<ScreenHeader.BackButton onPress={props.onBack} />}
-        rightControls={
-          canEdit ? (
-            <ScreenHeader.TextButton onPress={() => props.onPressEdit()}>
-              Edit
-            </ScreenHeader.TextButton>
-          ) : null
-        }
-      />
       <ScrollView
         flex={1}
         contentContainerStyle={{

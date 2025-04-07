@@ -308,8 +308,8 @@ function InitiateTwitterPane() {
         }}
         rules={{
           maxLength: {
-            value: 15,
-            message: '𝕏 usernames are 15 characters at most',
+            value: 25,
+            message: 'Please enter a valid 𝕏 username',
           },
         }}
       />
