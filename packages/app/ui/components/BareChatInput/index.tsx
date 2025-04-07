@@ -218,7 +218,6 @@ export default function BareChatInput({
   } = useAttachmentContext();
   const [controlledText, setControlledText] = useState('');
   const [inputHeight, setInputHeight] = useState(initialHeight);
-  const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState(false);
   const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
   const [editorIsEmpty, setEditorIsEmpty] = useState(attachments.length === 0);
@@ -475,14 +474,12 @@ export default function BareChatInput({
 
   const runSendMessage = useCallback(
     async (isEdit: boolean) => {
-      setIsSending(true);
       try {
         await sendMessage(isEdit);
       } catch (e) {
         bareChatInputLogger.trackError('failed to send', e);
         setSendError(true);
       }
-      setIsSending(false);
       setSendError(false);
     },
     [sendMessage]
@@ -715,7 +712,6 @@ export default function BareChatInput({
       showAttachmentButton={showAttachmentButton}
       groupMembers={groupMembers}
       onSelectMention={onMentionSelect}
-      isSending={isSending}
       isEditing={!!editingPost}
       cancelEditing={handleCancelEditing}
       onPressEdit={handleEdit}

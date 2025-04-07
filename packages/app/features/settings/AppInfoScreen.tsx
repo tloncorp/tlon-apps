@@ -65,7 +65,7 @@ export function AppInfoScreen(props: Props) {
   const telemetry = useTelemetry();
   const currentUserId = useCurrentUserId();
   const [telemetryDisabled, setTelemetryDisabled] = useState(
-    telemetry.optedOut
+    telemetry.getIsOptedOut()
   );
 
   const toggleSetTelemetry = useCallback(() => {
