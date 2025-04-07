@@ -173,7 +173,7 @@
   ;~(plug ;~(plug name attr) (cold ~ (star whit)))
 ::                                                  ::  ++head
 ++  head                                            ::  opening tag
-  (ifix [gal gar] ;~(plug name attr))
+  (ifix [gal gart] ;~(plug name attr))
 ::                                                  ::  ++many
 ++  many                                            ::  contents
   ;~(pfix (star comt) (star ;~(sfix ;~(pose apex chrd cdat) (star comt))))
@@ -188,7 +188,10 @@
   ;~(pose ;~(plug ;~(sfix chx col) chx) chx)
 ::                                                  ::  ++tail
 ++  tail                                            ::  closing tag
-  (ifix [(jest '</') gar] name)
+  (ifix [(jest '</') gart] name)
+::                                                  ::  ++gart
+++  gart                                            ::  closing gar
+  ;~(pfix (star whit) gar)
 ::                                                  ::  ++whit
 ++  whit                                            ::  whitespace
   :: (mask ~[' ' `@`0x9 `@`0xa])
