@@ -18,11 +18,12 @@ import {
 } from '@tloncorp/app/navigation/linking';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
-import { LoadingSpinner, StoreProvider, Text, View } from '@tloncorp/app/ui';
+import { LoadingSpinner, StoreProvider, View } from '@tloncorp/app/ui';
 import { getAuthInfo } from '@tloncorp/shared';
 import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
+import { Text } from '@tloncorp/ui';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, { PropsWithChildren, useEffect, useState } from 'react';
@@ -404,7 +405,7 @@ function ConnectedWebApp() {
           borderColor="$border"
         >
           <LoadingSpinner color="$primaryText" />
-          <Text color="$primaryText" marginTop="$xl" fontSize="$s">
+          <Text marginTop="$xl" size="$label/s">
             Starting up&hellip;
           </Text>
         </View>
