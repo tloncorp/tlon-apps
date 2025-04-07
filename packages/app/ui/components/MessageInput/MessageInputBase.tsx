@@ -95,7 +95,6 @@ export const MessageInputContainer = memo(
     mentionText,
     groupMembers,
     onSelectMention,
-    isSending,
     isEditing = false,
     cancelEditing,
     onPressEdit,
@@ -115,7 +114,6 @@ export const MessageInputContainer = memo(
     groupMembers: db.ChatMember[];
     onSelectMention: (contact: db.Contact) => void;
     isEditing?: boolean;
-    isSending?: boolean;
     cancelEditing?: () => void;
     onPressEdit?: () => void;
     goBack?: () => void;
@@ -203,7 +201,7 @@ export const MessageInputContainer = memo(
             ) : (
               <View marginBottom="$xs">
                 <Button
-                  disabled={disableSend || isSending}
+                  disabled={disableSend}
                   onPress={isEditing ? onPressEdit : onPressSend}
                   backgroundColor="unset"
                   borderColor="transparent"
