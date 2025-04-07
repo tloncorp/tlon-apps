@@ -399,6 +399,15 @@ export default function ChannelScreen(props: Props) {
   }, []);
 
   const channelRef = useRef<React.ElementRef<typeof Channel>>(null);
+  const handlePressInvite = useCallback((groupId: string) => {
+    setInviteSheetGroup(groupId);
+  }, []);
+
+  const handleConfigureChannel = useCallback(() => {
+    if (channelRef.current) {
+      channelRef.current.openChannelConfigurationBar();
+    }
+  }, [channelRef]);
 
   if (!channel) {
     return null;
@@ -411,10 +420,8 @@ export default function ChannelScreen(props: Props) {
         id: currentChannelId,
       }}
       useGroup={store.useGroup}
-      onPressInvite={(group) => {
-        setInviteSheetGroup(group);
-      }}
-      onPressConfigureChannel={channelRef.current?.openChannelConfigurationBar}
+      onPressInvite={handlePressInvite}
+      onPressConfigureChannel={handleConfigureChannel}
       {...chatOptionsNavProps}
     >
       <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
@@ -463,7 +470,7 @@ export default function ChannelScreen(props: Props) {
           onPressScrollToBottom={handleScrollToBottom}
         />
       </AttachmentProvider>
-      {group && (
+      {group && isChannelSwitcherEnabled && (
         <>
           <ChannelSwitcherSheet
             open={channelNavOpen}
