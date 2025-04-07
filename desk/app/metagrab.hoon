@@ -9,7 +9,7 @@
 ::    see /lib/metagrab.
 ::
 /+  de-html, mg=metagrab, hutils=http-utils,
-    dbug, verb
+    logs, dbug, verb
 ::
 |%
 +$  card  card:agent:gall
@@ -221,10 +221,39 @@
     ==
   ::
   [%200 %page meta]
+::
+++  l
+  |_  [our=@p url=(unit @t)]
+  ++  fail
+    ::TODO  maybe always slog the trace?
+    |=  [desc=term trace=tang]
+    %-  link
+    (~(fail logs our /logs) desc trace deez)
+  ::
+  ++  tell
+    |=  [=volume:logs =echo:logs]
+    %-  link
+    (~(tell logs our /logs) volume echo deez)
+  ::
+  ++  deez
+    ^-  (list [@t json])
+    :-  %flow^s+'link preview'
+    =;  l=(list (unit [@t json]))
+      (murn l same)
+    :~  ?~(url ~ `[%url s+u.url])
+    ==
+  ::
+  ++  link
+    |=  cad=card
+    |*  [caz=(list card) etc=*]
+    [[cad caz] etc]
+  --
 --
 ::
 =|  state-0
 =*  state  -
+::
+=+  log=l
 ::
 %+  verb  |
 %-  agent:dbug
@@ -232,6 +261,8 @@
 ^-  agent:gall
 |_  =bowl:gall
 +*  this  .
+    l     log(our our.bowl)
+::
 ++  on-save  !>(state)
 ::
 ++  on-init
@@ -450,6 +481,7 @@
         [@ ~]
       =|  msg=@t
       =*  bad-req
+        %-  (tell:l %warn msg url.request ~)
         [(spout:hutils id [400 ~] `(as-octs:mimes:html msg)) this]
       ?~  target=(slaw %uw i.site)
         =.  msg  'target not @uw'
@@ -490,19 +522,23 @@
       [%eyre %bind ~]
     ?>  ?=(%bound +<.sign)
     ?:  accepted.sign  [~ this]
+    %-  (tell:l %crit 'failed to eyre-bind' ~)
     %-  (slog dap.bowl 'failed to eyre-bind' ~)
     [~ this]
   ::
       [%fetch @ ~]
     =/  url=@t  (slav %t i.t.wire)
+    =.  url.log  `url
     ?>  ?=([%iris %http-response *] sign)
     =*  res  client-response.sign
     ~&  [-.res url]
     ::  %progress responses are unexpected, the runtime doesn't support them
     ::  right now. if they occur, just treat them as cancels and retry.
     ::
+    %-  ?.  ?=(%progress -.res)  same
+        (tell:l %warn 'strange iris %progress response' ~)
     =?  res  ?=(%progress -.res)
-      ~&  [dap.bowl %strange-iris-progress-response]  ::TODO  log properly
+      ~&  [dap.bowl %strange-iris-progress-response]
       [%cancel ~]
     ::  we might get a %cancel if the runtime was restarted during our
     ::  request. simply retry.
@@ -553,7 +589,8 @@
     :: ~&  [%saving url]
     =/  [report=? =result]
       (extract-data url [response-header full-file]:res)
-    ::TODO  log if .report is true
+    %-  ?.  report  same
+        (tell:l %warn 'failed to parse' url ~)
     =.  cache  (~(put by cache) url now.bowl result)
     :-  (give-response (~(get ju await) url) now.bowl result)
     this(await (~(del by await) url))
@@ -572,6 +609,7 @@
 ::
 ++  on-agent
   |=  [=wire =sign:agent:gall]
+  %-  (tell:l %crit 'unexpected on-agent' (spat wire) -.sign ~)
   ~&  [dap.bowl %unexpected-on-agent wire=wire]
   [~ this]
 ::
@@ -585,6 +623,7 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
+  %-  (fail:l term tang)
   %-  (slog dap.bowl '+on-fail' term tang)
   [~ this]
 --
