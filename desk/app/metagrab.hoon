@@ -490,8 +490,9 @@
         ::TODO  if parser fails, just dumb find <title> and extract
         =.  msg  'target not parseable'
         bad-req
-      ::TODO  should go into same pipeway that recurrent 300 processing does
       ::TODO  special-case x.com/twitter.com links
+      ::TODO  deduplicate with +on-arvo somehow?
+      |-
       ::  if we already started a fetch, simply await the result
       ::
       ?:  (~(has by await) u.target)
@@ -500,17 +501,25 @@
       ::  we aren't currently fetching it, but maybe we have a cache entry
       ::
       =/  entry  (~(get by cache) u.target)
-      |-
-      ?:  ?&  ?=(^ entry)
-              (gth cache-time (sub now.bowl wen.u.entry))
+      ?:  ?|  ?=(~ entry)
+              (gth (sub now.bowl wen.u.entry) cache-time)
           ==
-        ?.  ?=([%300 ~ @] wat.u.entry)
-          [(give-response [id ~ ~] u.entry) this]
-        ::TODO  change u.target to be u.nex.wat.u.entry?
-        ::      that catches cases where backend is still fetching the redirect
-        $(entry (~(get by cache) u.nex.wat.u.entry))
-      =.  await  (~(put ju await) u.target id)
-      [[(fetch u.target) ~] this]
+        ::  no valid cache entry for this target, start a new fetch
+        ::
+        =.  await  (~(put ju await) u.target id)
+        [[(fetch u.target) ~] this]
+      ::  we have a valid cache entry.
+      ::  if it's a redirect where we know the next target,
+      ::  and can make a request to that,
+      ::  retry with that url as the target.
+      ::
+      ?:  ?&  ?=([%300 ~ @] wat.u.entry)
+              ?=(^ (de-purl:html u.nex.wat.u.entry))
+          ==
+        $(u.target u.nex.wat.u.entry)
+      ::  otherwise, simply serve the response from cache
+      ::
+      [(give-response [id ~ ~] u.entry) this]
     ==
   ==
 ::
@@ -557,11 +566,39 @@
       ?~  nex
         :-  (give-response (~(get ju await) url) now.bowl %300 ~)
         this(await (~(del by await) url))
-      =.  await  (~(put by await) u.nex (~(get ja await) url))
+      ?~  (de-purl:html u.nex)
+        %-  (tell:l %warn 'unparsable redirect' u.nex ~)
+        :-  (give-response (~(get ju await) url) now.bowl %300 nex)
+        this(await (~(del by await) url))
+      ::TODO  deduplicate with %handle-http-request somehow?
+      |-  ^-  (quip card _this)
+      ::  move awaiters over to the next target
+      ::
+      =.  await
+        %-  ~(gas ju await)
+        (turn ~(tap in (~(get ju await) url)) (lead u.nex))
       =.  await  (~(del by await) url)
-      ::TODO  get u.nex from cache if we have it
+      ::  check the cache for the target
+      ::
+      =/  entry  (~(get by cache) u.nex)
+      ?:  ?|  ?=(~ entry)
+              (gth (sub now.bowl wen.u.entry) cache-time)
+          ==
+        ::  no valid cache entry, start a new fetch
+        ::
+        [[(fetch u.nex)]~ this]
       ::TODO  detect redirect loops
-      [[(fetch u.nex)]~ this]
+      ::  we have a valid cache entry.
+      ::  if it's a redirect where we know the next target,
+      ::  and can make a request to that,
+      ::  retry with that url as the target.
+      ?:  ?&  ?=([%300 ~ @] wat.u.entry)
+              ?=(^ (de-purl:html u.nex.wat.u.entry))
+          ==
+        $(u.nex u.nex.wat.u.entry)
+      ::  otherwise, serve the response from cache
+      ::
+      [(give-response (~(get ju await) u.nex) u.entry) this]
     ::TODO  put cache, give eyre responses etc
     :: ?~  full-file.res
     ::   ~&  %no-body
