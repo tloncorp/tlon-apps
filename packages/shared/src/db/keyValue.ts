@@ -127,6 +127,11 @@ export const didInitializeTelemetry = createStorageItem<boolean>({
   defaultValue: false,
 });
 
+export const hasClearedLegacyWebTelemetry = createStorageItem<boolean>({
+  key: 'hasClearedLegacyWebTelemetry',
+  defaultValue: false,
+});
+
 export const lastAnonymousAppOpenAt = createStorageItem<number | null>({
   key: 'lastAnonymousAppOpenAt',
   defaultValue: null,

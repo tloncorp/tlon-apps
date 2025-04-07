@@ -1,6 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSignupParams } from '@tloncorp/app/contexts/branch';
-import { trackError } from '@tloncorp/app/utils/posthog';
 import {
   Icon,
   PrimaryButton,
@@ -11,6 +10,7 @@ import {
   XStack,
   YStack,
 } from '@tloncorp/app/ui';
+import { createDevLogger } from '@tloncorp/shared';
 import { useState } from 'react';
 import { Image } from 'react-native';
 
@@ -18,6 +18,8 @@ import { useOnboardingContext } from '../../lib/OnboardingContext';
 import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'InventoryCheck'>;
+
+const logger = createDevLogger('InventoryCheckScreen', true);
 
 export const InventoryCheckScreen = ({ navigation }: Props) => {
   const signupParams = useSignupParams();
@@ -40,7 +42,7 @@ export const InventoryCheckScreen = ({ navigation }: Props) => {
     } catch (err) {
       console.error('Error checking hosting availability:', err);
       if (err instanceof Error) {
-        trackError(err);
+        logger.trackError('Error checking hosting availability', err);
       }
     }
 

@@ -6,7 +6,9 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "paths": {
-      "sqlocal/drizzle": ["node_modules/sqlocal/dist/drizzle"]
+      "sqlocal/drizzle": ["node_modules/sqlocal/dist/drizzle"],
+      // needed to prevent TS mistakenly finding the old-web posthog-js version in root node_modules
+      "posthog-js": ["node_modules/posthog-js"]
     }
   }
 }

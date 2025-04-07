@@ -186,9 +186,6 @@ export function internalConfigureClient({
   });
 
   config.client.on('error', (error) => {
-    logger.trackError(AnalyticsEvent.NodeConnectionError, {
-      errorMessage: error.msg,
-    });
     logger.log('client error', error);
   });
 

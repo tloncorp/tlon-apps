@@ -52,9 +52,7 @@ function ProfileScreenFixture({ contactId }: { contactId: string }) {
       >
         <UserProfileScreenView
           userId={contactId}
-          onBack={() => {}}
           connectionStatus={{ complete: true, status: 'yes' }}
-          onPressEdit={() => {}}
           onPressGroup={() => {
             console.log('group pressed');
           }}

@@ -11,6 +11,7 @@ import { ChannelContentConfiguration } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
+import { ImagePickerAsset } from 'expo-image-picker';
 import {
   forwardRef,
   useCallback,
@@ -207,6 +208,44 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       [onPressRef, posts, channel]
     );
 
+    const { uploadAssets, clearAttachments } = useAttachmentContext();
+
+    const handleImageDrop = useCallback(
+      async (assets: ImagePickerAsset[]) => {
+        if (channel.type !== 'gallery') {
+          attachAssets(assets);
+          return;
+        }
+
+        try {
+          const uploadedAttachments = await uploadAssets(assets);
+
+          for (const attachment of uploadedAttachments) {
+            const story: Story = [
+              {
+                block: {
+                  image: {
+                    src: attachment.uploadState.remoteUri,
+                    height: attachment.file.height || 0,
+                    width: attachment.file.width || 0,
+                    alt: 'image',
+                  },
+                },
+              },
+            ];
+
+            // Send the post with just this image
+            await messageSender(story, channel.id);
+          }
+        } catch (error) {
+          console.error('Error handling image drop:', error);
+        } finally {
+          clearAttachments();
+        }
+      },
+      [channel, messageSender, uploadAssets, attachAssets, clearAttachments]
+    );
+
     /** when `null`, input is not shown or presentation is unknown */
     const [draftInputPresentationMode, setDraftInputPresentationMode] =
       useState<null | 'fullscreen' | 'inline'>(null);
@@ -307,7 +346,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                     justifyContent="space-between"
                     width="100%"
                     height="100%"
-                    onAssetsDropped={attachAssets}
+                    onAssetsDropped={handleImageDrop}
                   >
                     <ChannelHeaderItemsProvider>
                       <>

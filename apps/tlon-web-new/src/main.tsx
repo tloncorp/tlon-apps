@@ -9,22 +9,28 @@
 // This was most likely caused by a recent dependency change.
 import regeneratorRuntime from '@babel/runtime/regenerator';
 import { EditorView } from '@tiptap/pm/view';
-import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
+import { ENABLED_LOGGERS, POST_HOG_IN_DEV } from '@tloncorp/app/constants';
 import { loadConstants } from '@tloncorp/app/lib/constants';
-import { isElectron } from './electron-bridge';
-
-// Conditionally import the appropriate database implementation
-const { setupDb } = isElectron()
-  ? await import('@tloncorp/app/lib/electronDb')
-  : await import('@tloncorp/app/lib/webDb');
-import { addCustomEnabledLoggers } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  addCustomEnabledLoggers,
+  createDevLogger,
+} from '@tloncorp/shared';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/api';
 import { PostHogProvider } from 'posthog-js/react';
 import { createRoot } from 'react-dom/client';
 
 import App from './app';
+import { isElectron } from './electron-bridge';
 import { analyticsClient, captureError } from './logic/analytics';
 import './styles/index.css';
+
+const logger = createDevLogger('main.tsx', false);
+
+// Conditionally import the appropriate database implementation
+const { setupDb } = isElectron()
+  ? await import('@tloncorp/app/lib/electronDb')
+  : await import('@tloncorp/app/lib/webDb');
 
 loadConstants();
 addCustomEnabledLoggers(ENABLED_LOGGERS);
@@ -51,10 +57,6 @@ setupDb().then(() => {
   }
 
   window.our = `~${window.ship}`;
-
-  window.addEventListener('error', (e) => {
-    captureError('window', e.error);
-  });
 
   const container = document.getElementById('app') as HTMLElement;
   const root = createRoot(container);
