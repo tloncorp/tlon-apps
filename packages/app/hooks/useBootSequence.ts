@@ -142,7 +142,15 @@ export function useBootSequence() {
     if (bootPhase === NodeBootPhase.SCAFFOLDING_WAYFINDING) {
       try {
         await store.scaffoldPersonalGroup();
-        // await db.userRequiresWayfinding.setValue(true);
+
+        // since we know they're using the app for the first time, enable coach marks
+        db.wayfindingProgress.setValue((prev) => ({
+          ...prev,
+          tappedChatInput: false,
+          tappedAddCollection: false,
+          tappedAddNote: false,
+        }));
+
         const signedUpWithInvite = Boolean(lureMeta?.id);
         return signedUpWithInvite
           ? NodeBootPhase.CHECKING_FOR_INVITE

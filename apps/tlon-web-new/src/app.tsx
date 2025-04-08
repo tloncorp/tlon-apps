@@ -378,7 +378,13 @@ function ConnectedWebApp() {
                 numOfAttempts: 3,
               });
             }
-            // await db.userRequiresWayfinding.setValue(true);
+            // since we know they're using the app for the first time, enable coach marks
+            db.wayfindingProgress.setValue((prev) => ({
+              ...prev,
+              tappedChatInput: false,
+              tappedAddCollection: false,
+              tappedAddNote: false,
+            }));
           } catch (e) {
             telemetry.capture(AnalyticsEvent.ErrorWayfindingAbort, {
               context: 'failed to create personal group after 3 attempts',
