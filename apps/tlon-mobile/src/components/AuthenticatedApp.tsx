@@ -72,7 +72,7 @@ function AuthenticatedApp() {
 
   return (
     <ZStack flex={1}>
-      {showSplash ? <SplashSequence onCompleted={() => {}} /> : <RootStack />}
+      {true ? <SplashSequence onCompleted={() => {}} /> : <RootStack />}
     </ZStack>
   );
 }

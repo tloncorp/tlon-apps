@@ -1,10 +1,24 @@
 import * as db from '@tloncorp/shared/db';
 import { Button, Icon, Text } from '@tloncorp/ui';
-import React, { ComponentProps, PropsWithChildren, useCallback } from 'react';
+import React, {
+  ComponentProps,
+  PropsWithChildren,
+  useCallback,
+  useMemo,
+} from 'react';
 import { Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, XStack, YStack, ZStack, isWeb, styled } from 'tamagui';
+import {
+  ColorTokens,
+  View,
+  XStack,
+  YStack,
+  ZStack,
+  isWeb,
+  styled,
+} from 'tamagui';
 
+import { useActiveTheme } from '../../../provider';
 import { ListItem } from '../ListItem';
 import { Squiggle } from '../Squiggle';
 
@@ -91,13 +105,19 @@ const SplashButton = ({
         >
           {children}
         </Button.Text>
-        <Icon type="ChevronRight" color="$white" />
+        <Icon
+          type="ChevronRight"
+          color={(textProps.color as ColorTokens) ?? '$background'}
+        />
       </XStack>
     </Button>
   );
 };
 
 export function WelcomePane(props: { onActionPress: () => void }) {
+  const activeTheme = useActiveTheme();
+  const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+
   return (
     <YStack flex={1} justifyContent="space-between">
       <YStack>
@@ -107,8 +127,12 @@ export function WelcomePane(props: { onActionPress: () => void }) {
             resizeMode="contain"
             source={
               isWeb
-                ? './sourdough-starter.png'
-                : require('../../assets/raster/sourdough-starter.png')
+                ? isDark
+                  ? `./sourdough-starter-dark.png`
+                  : `./sourdough-starter.png`
+                : isDark
+                  ? require(`../../assets/raster/sourdough-starter-dark.png`)
+                  : require(`../../assets/raster/sourdough-starter.png`)
             }
           />
         </View>
@@ -130,6 +154,9 @@ export function WelcomePane(props: { onActionPress: () => void }) {
 }
 
 export function GroupsPane(props: { onActionPress: () => void }) {
+  const activeTheme = useActiveTheme();
+  const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+
   return (
     <YStack flex={1} justifyContent="space-between">
       <YStack>
@@ -139,8 +166,12 @@ export function GroupsPane(props: { onActionPress: () => void }) {
             resizeMode="cover"
             source={
               isWeb
-                ? './garden-party-invite.png'
-                : require('../../assets/raster/garden-party-invite.png')
+                ? isDark
+                  ? `./garden-party-invite-dark.png`
+                  : `./garden-party-invite.png`
+                : isDark
+                  ? require(`../../assets/raster/garden-party-invite-dark.png`)
+                  : require(`../../assets/raster/garden-party-invite.png`)
             }
           />
         </View>
@@ -176,8 +207,8 @@ export function ChannelsPane(props: { onActionPress: () => void }) {
             resizeMode="contain"
             source={
               isWeb
-                ? './app-screens.png'
-                : require('../../assets/raster/app-screens.png')
+                ? `./app-screens.png`
+                : require(`../../assets/raster/app-screens.png`)
             }
           />
         </View>
@@ -236,6 +267,8 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
 }
 
 export function InvitePane(props: { onActionPress: () => void }) {
+  const activeTheme = useActiveTheme();
+  const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
   return (
     <YStack flex={1} justifyContent="space-between">
       <YStack>
@@ -245,8 +278,12 @@ export function InvitePane(props: { onActionPress: () => void }) {
             resizeMode="contain"
             source={
               isWeb
-                ? './app-screens.png'
-                : require('../../assets/raster/app-screens.png')
+                ? isDark
+                  ? `./tlon-ids-dark.png`
+                  : `./tlon-ids.png`
+                : isDark
+                  ? require(`../../assets/raster/tlon-ids-dark.png`)
+                  : require(`../../assets/raster/tlon-ids.png`)
             }
           />
         </View>
