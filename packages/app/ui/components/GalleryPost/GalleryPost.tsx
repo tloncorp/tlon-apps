@@ -22,7 +22,7 @@ import {
 import { View, XStack, styled } from 'tamagui';
 
 import { RootStackParamList } from '../../../navigation/types';
-import { useChannelContext } from '../../contexts';
+import { useChannelContext, useRequests } from '../../contexts';
 import { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ContactAvatar } from '../Avatar';
@@ -222,6 +222,10 @@ export function GalleryPostDetailView({
   post: db.Post;
   onPressImage?: (post: db.Post, uri?: string) => void;
 }) {
+  const { usePost } = useRequests();
+  // we use usePost so we can get updated reactions
+  // and reply count
+  const { data: livePost } = usePost({ id: post.id });
   const logger = createDevLogger('GalleryPostDetailView', true);
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -233,9 +237,8 @@ export function GalleryPostDetailView({
 
   const firstImage = useMemo(() => {
     const img = content.find((block) => block.type === 'image');
-    logger.log('First image found in GalleryPostDetailView:', img);
     return img;
-  }, [content, logger]);
+  }, [content]);
 
   const isImagePost = useMemo(() => !!firstImage, [firstImage]);
 
@@ -258,6 +261,13 @@ export function GalleryPostDetailView({
   const handleViewPostReactions = useCallback(() => {
     setViewReactionsOpen(true);
   }, []);
+
+  // we need to remove the image from the content for the caption
+  // if we don't, it gets filtered out in the renderer
+  // and we end up with a blank space
+  const contentWithoutImage = useMemo(() => {
+    return content.filter((block) => block.type !== 'image');
+  }, [content]);
 
   return (
     <View paddingBottom="$xs" borderBottomWidth={1} borderColor="$border">
@@ -287,13 +297,24 @@ export function GalleryPostDetailView({
 
         {post.title && <Text size="$body">{post.title}</Text>}
 
-        <ReactionsDisplay
-          post={post}
-          minimal={false}
-          onViewPostReactions={handleViewPostReactions}
-        />
+        {isImagePost && (
+          <CaptionContentRenderer content={contentWithoutImage} />
+        )}
 
-        {isImagePost && <CaptionContentRenderer content={content} />}
+        <XStack justifyContent="space-between" alignItems="center">
+          <ReactionsDisplay
+            post={livePost ?? post}
+            minimal={false}
+            onViewPostReactions={handleViewPostReactions}
+          />
+          <Text size="$label/m" color="$secondaryText">
+            {livePost && livePost.replyCount && livePost.replyCount > 0
+              ? livePost.replyCount === 1
+                ? `${livePost.replyCount} comment`
+                : `${livePost.replyCount} comments`
+              : 'No comments'}
+          </Text>
+        </XStack>
       </View>
 
       <ViewReactionsSheet
