@@ -71,3 +71,24 @@ export function isPersonalGroup(
 
   return group.id === PersonalGroupKeys.groupId;
 }
+
+export function isPersonalChatChannel(channelId: string): boolean {
+  return channelId.includes(PersonalGroupSlugs.chatSlug);
+}
+
+export function isPersonalCollectionChannel(channelId: string): boolean {
+  return channelId.includes(PersonalGroupSlugs.collectionSlug);
+}
+
+export function isPersonalNotebookChannel(channelId: string): boolean {
+  return channelId.includes(PersonalGroupSlugs.notebookSlug);
+}
+
+export function detectWebSignup() {
+  // Hosting sets this query param when redirectin to the web app
+  // after desktop signup
+  const url = new URL(window.location.href);
+  const didSignup = url.searchParams.get('did-signup');
+  console.log(`bl: did signup?`, didSignup);
+  return didSignup === 'true';
+}

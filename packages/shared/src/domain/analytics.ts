@@ -49,6 +49,7 @@ export enum AnalyticsEvent {
   AnalyticsDigest = 'Usage Digest Report',
   WebAppOpened = 'Web App Opened',
   WebConsoleError = 'Web Console Error',
+  WayfindingDebug = 'Wayfinding Debug',
   ActionContactAdded = 'Contact Added',
   ActionContactRemoved = 'Contact Removed',
   ActionRemoveContactSuggestion = 'Removed Contact Suggestion',

@@ -1,12 +1,12 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { BootPhaseNames, NodeBootPhase } from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import { preSig } from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useLureMetadata } from '../contexts/branch';
 import { useShip } from '../contexts/ship';
-import { BootPhaseNames, NodeBootPhase } from '../lib/bootHelpers';
 import BootHelpers from '../lib/bootHelpers';
 import { useConfigureUrbitClient } from './useConfigureUrbitClient';
 import { usePosthog } from './usePosthog';
@@ -104,7 +104,7 @@ export function useBootSequence() {
         if (!shipInfo) {
           throw new Error('Could not authenticate with node');
         }
-        setShip(shipInfo);
+        setShip({ ...shipInfo, needsSplashSequence: true });
         telemetry?.identify(preSig(shipInfo.ship!), { isHostedUser: true });
 
         await wait(2000);
@@ -142,7 +142,7 @@ export function useBootSequence() {
     if (bootPhase === NodeBootPhase.SCAFFOLDING_WAYFINDING) {
       try {
         await store.scaffoldPersonalGroup();
-        await db.showWayfindingSplash.setValue(true);
+        // await db.userRequiresWayfinding.setValue(true);
         const signedUpWithInvite = Boolean(lureMeta?.id);
         return signedUpWithInvite
           ? NodeBootPhase.CHECKING_FOR_INVITE

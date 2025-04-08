@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import { Button, Icon, Text } from '@tloncorp/ui';
+import { Button, Icon, Text, triggerHaptic } from '@tloncorp/ui';
 import React, {
   ComponentProps,
   PropsWithChildren,
@@ -19,6 +19,7 @@ import {
 } from 'tamagui';
 
 import { useActiveTheme } from '../../../provider';
+import { useStore } from '../../contexts';
 import { ListItem } from '../ListItem';
 import { Squiggle } from '../Squiggle';
 
@@ -32,15 +33,15 @@ enum SplashPane {
 
 function SplashSequenceComponent(props: { onCompleted: () => void }) {
   const insets = useSafeAreaInsets();
+  const store = useStore();
   const [currentPane, setCurrentPane] = React.useState<SplashPane>(
     SplashPane.Welcome
   );
 
   const handleSplashCompleted = useCallback(() => {
-    // mark the db that it's been completed
-    db.showWayfindingSplash.setValue(false);
+    store.completeWayfindingSplash();
     props.onCompleted();
-  }, [props]);
+  }, [props, store]);
 
   return (
     <View
@@ -94,8 +95,13 @@ const SplashButton = ({
     textProps?: ComponentProps<typeof Button.Text>;
   } & ComponentProps<typeof Button>
 >) => {
+  const handlePress = useCallback(() => {
+    triggerHaptic('baseButtonClick');
+    rest.onPress();
+  }, [rest]);
+
   return (
-    <Button hero height={72} {...rest}>
+    <Button hero height={72} {...rest} onPress={handlePress}>
       <XStack justifyContent="space-between" alignItems="center">
         <Button.Text
           flexShrink={1}

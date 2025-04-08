@@ -1,6 +1,7 @@
 // sort-imports-ignore
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
+import * as domain from '@tloncorp/shared/domain';
 import { View, isWeb } from 'tamagui';
 
 import { useGroupTitle } from '../../utils';
@@ -78,7 +79,11 @@ export const GroupListItem = ({
             {model.lastPost ? (
               <ListItem.PostPreview post={model.lastPost} />
             ) : !isPending ? (
-              <ListItem.Subtitle>No posts yet</ListItem.Subtitle>
+              model.id.includes(domain.PersonalGroupSlugs.slug) ? (
+                <ListItem.Subtitle>Your personal group</ListItem.Subtitle>
+              ) : (
+                <ListItem.Subtitle>No posts yet</ListItem.Subtitle>
+              )
             ) : null}
           </ListItem.MainContent>
 

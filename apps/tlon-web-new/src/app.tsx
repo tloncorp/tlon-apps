@@ -19,9 +19,10 @@ import {
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { LoadingSpinner, StoreProvider, Text, View } from '@tloncorp/app/ui';
-import { getAuthInfo } from '@tloncorp/shared';
+import { AnalyticsEvent, getAuthInfo } from '@tloncorp/shared';
 import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
@@ -335,20 +336,19 @@ function ConnectedWebApp() {
   const configureClient = useConfigureUrbitClient();
   const session = store.useCurrentSession();
   const hasSyncedRef = React.useRef(false);
+  const hasHandledWayfindingRef = React.useRef(false);
   const telemetry = useTelemetry();
   useFindSuggestedContacts();
-  const { data: personalGroup } = store.usePersonalGroup();
-  const wayfindingReady = useMemo(() => {
-    return !!personalGroup;
-  }, [personalGroup]);
+
+  const isNewSignup = useMemo(() => {
+    return logic.detectWebSignup();
+  }, []);
 
   useEffect(() => {
     configureClient({
       shipName: currentUserId,
       shipUrl: '',
     });
-
-    const shouldShowWayfinding = true; // TODO: check query params
 
     const syncStart = async () => {
       // Only call sync.syncStart once during the app's lifecycle
@@ -364,12 +364,30 @@ function ConnectedWebApp() {
         return;
       }
 
-      if (shouldShowWayfinding && !wayfindingReady) {
-        try {
-          await store.scaffoldPersonalGroup();
-          await db.showWayfindingSplash.setValue(true);
-        } catch (e) {
-          console.error('Scaffolding failed', e);
+      // for new users, make sure the wayfinding tutorial is ready before
+      // showing the app
+      if (!hasHandledWayfindingRef.current) {
+        const personalGroup = await db.getPersonalGroup();
+        const personalGroupReady = !!personalGroup;
+        const allGroups = await db.getGroups({ includeUnjoined: false });
+        const hasFewGroups = allGroups.length < 4; // arbitrary "new user" threshold
+        if (isNewSignup || hasFewGroups) {
+          try {
+            if (!personalGroupReady) {
+              await logic.withRetry(() => store.scaffoldPersonalGroup(), {
+                numOfAttempts: 3,
+              });
+            }
+            // await db.userRequiresWayfinding.setValue(true);
+          } catch (e) {
+            telemetry.capture(AnalyticsEvent.ErrorWayfindingAbort, {
+              context: 'failed to create personal group after 3 attempts',
+              errorMessage: e.message,
+              errorStack: e.stack,
+            });
+          } finally {
+            hasHandledWayfindingRef.current = true;
+          }
         }
       }
 
@@ -397,7 +415,14 @@ function ConnectedWebApp() {
     };
 
     syncStart();
-  }, [dbIsLoaded, currentUserId, configureClient, session, telemetry]);
+  }, [
+    dbIsLoaded,
+    currentUserId,
+    configureClient,
+    session,
+    telemetry,
+    isNewSignup,
+  ]);
 
   if (!dbIsLoaded) {
     return (

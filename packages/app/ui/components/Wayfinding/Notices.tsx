@@ -1,6 +1,9 @@
 import * as db from '@tloncorp/shared/db';
-import { Button, Icon, Text } from '@tloncorp/ui';
-import { View, XStack, YStack, isWeb, styled } from 'tamagui';
+import { Text } from '@tloncorp/ui';
+import { useMemo } from 'react';
+import { Circle, View, XStack, YStack, isWeb, styled } from 'tamagui';
+
+import { useStore } from '../../contexts';
 
 const NoticeContainer = styled(YStack, {
   backgroundColor: '$positiveBackground',
@@ -17,6 +20,9 @@ const WayfindingNotice = {
   EmptyChannel,
   GroupChannels,
   CustomizeGroup,
+  ChatInputTooltip,
+  CollectionInputTooltip,
+  NotebookInputTooltip,
 };
 export default WayfindingNotice;
 
@@ -51,7 +57,7 @@ function EmptyChannel({ channel }: { channel: db.Channel }) {
     <View
       flex={1}
       justifyContent="flex-end"
-      alignItems="flex-start"
+      alignItems="center"
       marginHorizontal="$2xl"
     >
       <EmptyPersonalChat />
@@ -60,8 +66,13 @@ function EmptyChannel({ channel }: { channel: db.Channel }) {
 }
 
 function EmptyPersonalChat() {
+  const wayfindingProgress = db.wayfindingProgress.useValue();
+  const tooltipVisible = useMemo(() => {
+    return !wayfindingProgress.tappedChatInput;
+  }, [wayfindingProgress]);
+
   return (
-    <NoticeContainer>
+    <NoticeContainer marginBottom={tooltipVisible ? 80 : '$xl'}>
       <NoticeText>
         This is a Chat channel, best for real-time messaging. You can send text,
         images, and links. You can also react to messages, quote them, and reply
@@ -72,8 +83,13 @@ function EmptyPersonalChat() {
 }
 
 function EmptyPersonalGallery() {
+  const wayfindingProgress = db.wayfindingProgress.useValue();
+  const tooltipVisible = useMemo(() => {
+    return !wayfindingProgress.tappedAddCollection;
+  }, [wayfindingProgress]);
+
   return (
-    <NoticeContainer>
+    <NoticeContainer marginTop={tooltipVisible ? 90 : '$xl'}>
       <NoticeText>
         This is a Gallery channel, best for storing images and links. You can
         react to and comment on posts.
@@ -83,8 +99,13 @@ function EmptyPersonalGallery() {
 }
 
 function EmptyPersonalNotebook() {
+  const wayfindingProgress = db.wayfindingProgress.useValue();
+  const tooltipVisible = useMemo(() => {
+    return !wayfindingProgress.tappedAddNote;
+  }, [wayfindingProgress]);
+
   return (
-    <NoticeContainer>
+    <NoticeContainer marginTop={tooltipVisible ? 90 : '$xl'}>
       <NoticeText>
         This is a Notebook channel, best for posting long-form thoughts and
         writing. You can edit and comment on posts.
@@ -93,7 +114,14 @@ function EmptyPersonalNotebook() {
   );
 }
 
-function GroupChannels(props: { onPressCta?: () => void }) {
+function GroupChannels() {
+  const store = useStore();
+  const { data: wayfindingStatus } = store.useWayfindingCompletion();
+
+  if (wayfindingStatus?.completedPersonalGroupTutorial) {
+    return null;
+  }
+
   return (
     <View
       paddingHorizontal={isWeb ? 'unset' : '$xl'}
@@ -104,22 +132,6 @@ function GroupChannels(props: { onPressCta?: () => void }) {
           Welcome to your group! We’ve created three basic channels to get you
           started. Tap into each to explore how Tlon Messenger works.
         </NoticeText>
-        {/* <Button
-          backgroundColor="$positiveActionText"
-          justifyContent="space-between"
-          padding="$xl"
-          onPress={props.onPressCta}
-        >
-          <XStack alignItems="center" gap="$m">
-            <Button.Icon color="$white">
-              <Icon type="Link" color="white" />
-            </Button.Icon>
-            <Button.Text color="$white">Invite Friends</Button.Text>
-          </XStack>
-          <Button.Icon color="$white">
-            <Icon type="ChevronRight" color="white" />
-          </Button.Icon>
-        </Button> */}
       </NoticeContainer>
     </View>
   );
@@ -134,6 +146,86 @@ function CustomizeGroup() {
           your friends.
         </NoticeText>
       </NoticeContainer>
+    </View>
+  );
+}
+
+export function ChatInputTooltip() {
+  return (
+    <View position="absolute" bottom={20} right={50}>
+      <YStack gap="$l">
+        <View
+          padding={20}
+          width={200}
+          backgroundColor="$positiveActionText"
+          borderRadius="$l"
+        >
+          <Text size="$label/l" color="$white">
+            Send a message here.
+          </Text>
+        </View>
+        <XStack width="100%" justifyContent="flex-end">
+          <Circle backgroundColor="$positiveActionText" size="$2xl" />
+        </XStack>
+      </YStack>
+    </View>
+  );
+}
+
+export function CollectionInputTooltip(props: { channelId: string }) {
+  const store = useStore();
+  const shouldShow = store.useShowCollectionAddTooltip(props.channelId);
+
+  if (!shouldShow) {
+    return null;
+  }
+
+  return (
+    <View position="absolute" top={30} right={60}>
+      <YStack gap="$l">
+        <XStack width="100%" justifyContent="flex-end">
+          <Circle backgroundColor="$positiveActionText" size="$2xl" />
+        </XStack>
+        <View
+          padding={20}
+          width={200}
+          backgroundColor="$positiveActionText"
+          borderRadius="$l"
+        >
+          <Text size="$label/l" color="$white">
+            Add a block here.
+          </Text>
+        </View>
+      </YStack>
+    </View>
+  );
+}
+
+export function NotebookInputTooltip(props: { channelId: string }) {
+  const store = useStore();
+  const shouldShow = store.useShowNotebookAddTooltip(props.channelId);
+
+  if (!shouldShow) {
+    return null;
+  }
+
+  return (
+    <View position="absolute" top={30} right={60}>
+      <YStack gap="$l">
+        <XStack width="100%" justifyContent="flex-end">
+          <Circle backgroundColor="$positiveActionText" size="$2xl" />
+        </XStack>
+        <View
+          padding={20}
+          width={160}
+          backgroundColor="$positiveActionText"
+          borderRadius="$l"
+        >
+          <Text size="$label/l" color="$white">
+            Add a note here.
+          </Text>
+        </View>
+      </YStack>
     </View>
   );
 }

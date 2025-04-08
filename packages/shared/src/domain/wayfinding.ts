@@ -11,3 +11,13 @@ export const PersonalGroupNames = {
   collectionTitle: 'Scrapbook',
   notebookTitle: 'Diary',
 };
+
+export interface WayfindingProgress {
+  viewedPersonalGroup: boolean;
+  viewedChatChannel: boolean;
+  viewedCollectionChannel: boolean;
+  viewedNotebookChannel: boolean;
+  tappedAddNote: boolean;
+  tappedAddCollection: boolean;
+  tappedChatInput: boolean;
+}

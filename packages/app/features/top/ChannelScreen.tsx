@@ -6,6 +6,7 @@ import {
   useChannelContext,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import {
   useCanUpload,
@@ -76,6 +77,9 @@ export default function ChannelScreen(props: Props) {
       if (!channelIsPending) {
         store.markChannelVisited(channelId);
       }
+
+      // Mark wayfinding channels as visited if needed
+      store.checkWayfindingChannelVisited(channelId);
     }, [channelId, channelIsPending])
   );
 

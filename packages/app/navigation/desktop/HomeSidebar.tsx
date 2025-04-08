@@ -45,7 +45,7 @@ export function HomeSidebar({ previewGroupId, focusedChannelId }: Props) {
   );
   const { data: selectedGroup } = store.useGroup({ id: selectedGroupId ?? '' });
   const { setIsOpen } = useGlobalSearch();
-  const showWayfinding = db.showWayfindingSplash.useValue();
+  const showSplash = store.useShowWebSplashModal();
 
   const isFocused = useIsFocused();
 
@@ -249,7 +249,7 @@ export function HomeSidebar({ previewGroupId, focusedChannelId }: Props) {
               onInviteComplete={() => setInviteSheetGroup(null)}
               groupId={inviteSheetGroup ?? undefined}
             />
-            <SplashModal open={showWayfinding} setOpen={() => {}} />
+            <SplashModal open={showSplash} setOpen={() => {}} />
           </View>
         </NavigationProvider>
       </ChatOptionsProvider>

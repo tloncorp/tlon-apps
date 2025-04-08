@@ -5,9 +5,9 @@ import {
   StorageCredentials,
   StorageService,
 } from '../api';
+import { NodeBootPhase, SignupParams, WayfindingProgress } from '../domain';
 import { Lure } from '../logic';
 import * as ub from '../urbit';
-import { NodeBootPhase, SignupParams } from './domainTypes';
 import { createStorageItem } from './storageItem';
 
 export const pushNotificationSettings =
@@ -202,6 +202,7 @@ export type ShipInfo = {
   ship: string | undefined;
   shipUrl: string | undefined;
   authCookie: string | undefined;
+  needsSplashSequence?: boolean;
 };
 
 export const shipInfo = createStorageItem<ShipInfo | null>({
@@ -297,7 +298,15 @@ export const userHasPersonalGroup = createStorageItem<boolean>({
   defaultValue: false,
 });
 
-export const showWayfindingSplash = createStorageItem<boolean>({
-  key: 'showWayfindingSplash',
-  defaultValue: false,
+export const wayfindingProgress = createStorageItem<WayfindingProgress>({
+  key: 'wayfindingProgress',
+  defaultValue: {
+    viewedPersonalGroup: false,
+    viewedChatChannel: false,
+    viewedCollectionChannel: false,
+    viewedNotebookChannel: false,
+    tappedAddNote: false,
+    tappedAddCollection: false,
+    tappedChatInput: false,
+  },
 });

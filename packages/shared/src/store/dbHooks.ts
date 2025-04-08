@@ -517,3 +517,51 @@ export const usePersonalGroup = () => {
     },
   });
 };
+
+export const useWayfindingCompletion = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['wayfindingCompletion', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings();
+      return {
+        completedSplash: settings?.completedWayfindingSplash,
+        completedPersonalGroupTutorial: settings?.completedWayfindingTutorial,
+      };
+    },
+  });
+};
+
+export const useShowWebSplashModal = () => {
+  const { data: wayfinding, isLoading } = useWayfindingCompletion();
+  const personalGroup = usePersonalGroup();
+
+  return Boolean(
+    personalGroup && !isLoading && !(wayfinding?.completedSplash ?? true)
+  );
+};
+
+export const useShowChatInputWayfinding = (channelId: string) => {
+  const wayfindingProgress = db.wayfindingProgress.useValue();
+  const isCorrectChan = useMemo(() => {
+    return logic.isPersonalChatChannel(channelId);
+  }, [channelId]);
+
+  return isCorrectChan && !wayfindingProgress.tappedChatInput;
+};
+
+export const useShowCollectionAddTooltip = (channelId: string) => {
+  const wayfindingProgress = db.wayfindingProgress.useValue();
+  const isCorrectChan = useMemo(() => {
+    return logic.isPersonalCollectionChannel(channelId);
+  }, [channelId]);
+  return isCorrectChan && !wayfindingProgress.tappedAddCollection;
+};
+
+export const useShowNotebookAddTooltip = (channelId: string) => {
+  const wayfindingProgress = db.wayfindingProgress.useValue();
+  const isCorrectChan = useMemo(() => {
+    return logic.isPersonalNotebookChannel(channelId);
+  }, [channelId]);
+  return isCorrectChan && !wayfindingProgress.tappedAddNote;
+};

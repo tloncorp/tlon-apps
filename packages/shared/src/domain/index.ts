@@ -5,3 +5,4 @@ export * from './hosting';
 export * from './system';
 export * from './attestations';
 export * from './wayfinding';
+export * from './onboarding';

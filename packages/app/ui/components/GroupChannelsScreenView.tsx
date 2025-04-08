@@ -118,11 +118,7 @@ export function GroupChannelsScreenView({
             paddingBottom: insets.bottom,
           }}
         >
-          {isPersonalGroup && (
-            <WayfindingNotice.GroupChannels
-              onPressCta={chatOptions.onPressGroupMeta}
-            />
-          )}
+          {isPersonalGroup && <WayfindingNotice.GroupChannels />}
           <ChannelNavSections
             group={group}
             channels={group.channels}
