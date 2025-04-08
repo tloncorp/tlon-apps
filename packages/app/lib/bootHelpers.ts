@@ -10,12 +10,13 @@ const logger = createDevLogger('bootHelpers', true);
 
 export enum NodeBootPhase {
   IDLE = 1,
-  RESERVING = 2,
-  BOOTING = 3,
-  AUTHENTICATING = 4,
-  CONNECTING = 5,
-  CHECKING_FOR_INVITE = 6,
-  ACCEPTING_INVITES = 7,
+  RESERVING = 10,
+  BOOTING = 20,
+  AUTHENTICATING = 30,
+  CONNECTING = 40,
+  SCAFFOLDING_WAYFINDING = 50,
+  CHECKING_FOR_INVITE = 60,
+  ACCEPTING_INVITES = 70,
   READY = 200,
   ERROR = 400,
 }
@@ -26,6 +27,7 @@ export const BootPhaseExplanations: Record<NodeBootPhase, string> = {
   [NodeBootPhase.BOOTING]: 'Booting your p2p node',
   [NodeBootPhase.AUTHENTICATING]: 'Authenticating with your node',
   [NodeBootPhase.CONNECTING]: 'Establishing a connection to your node',
+  [NodeBootPhase.SCAFFOLDING_WAYFINDING]: 'Setting up your beginner wayfinding',
   [NodeBootPhase.CHECKING_FOR_INVITE]: 'Confirming your invites were received',
   [NodeBootPhase.ACCEPTING_INVITES]:
     'Initializing the conversations you were invited to',
@@ -39,6 +41,7 @@ export const BootPhaseNames: Record<NodeBootPhase, string> = {
   [NodeBootPhase.BOOTING]: 'Booting',
   [NodeBootPhase.AUTHENTICATING]: 'Authenticating',
   [NodeBootPhase.CONNECTING]: 'Connecting',
+  [NodeBootPhase.SCAFFOLDING_WAYFINDING]: 'Scaffolding Wayfinding',
   [NodeBootPhase.CHECKING_FOR_INVITE]: 'Checking for Invites',
   [NodeBootPhase.ACCEPTING_INVITES]: 'Accepting Invites',
   [NodeBootPhase.READY]: 'Ready',
@@ -103,6 +106,7 @@ async function getInvitedGroupAndDm(lureMeta: AppInvite | null): Promise<{
   invitedDm: db.Channel | null;
   tlonTeamDM: db.Channel | null;
   invitedGroup: db.Group | null;
+  personalGroup: db.Group | null;
 }> {
   if (!lureMeta) {
     throw new Error('no stored invite found, cannot check');
@@ -122,9 +126,10 @@ async function getInvitedGroupAndDm(lureMeta: AppInvite | null): Promise<{
   // use api client to see if you have pending DM and group invite
   const invitedDm = await db.getChannel({ id: inviterUserId });
   const tlonTeamDM = await db.getChannel({ id: tlonTeam });
+  const personalGroup = await db.getPersonalGroup();
   const invitedGroup = isPersonalInvite
     ? null
     : await db.getGroup({ id: invitedGroupId! });
 
-  return { invitedDm, invitedGroup, tlonTeamDM };
+  return { invitedDm, invitedGroup, tlonTeamDM, personalGroup };
 }

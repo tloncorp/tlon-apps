@@ -122,6 +122,7 @@ export enum AnalyticsEvent {
   ErrorNounParse = 'Error Parsing Noun',
   ErrorNotificationService = 'Notification Service Error',
   ErrorCreateGroup = 'Error Creating Group',
+  ErrorWayfindingAbort = 'Signup Wayfinding Aborted',
 }
 
 export interface AnalyticsDigest {

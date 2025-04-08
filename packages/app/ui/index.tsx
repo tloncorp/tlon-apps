@@ -63,6 +63,7 @@ export * from './components/PhoneAttestationPane';
 export * from './components/ArvosDiscussing';
 export * from './components/PersonalInviteSheet';
 export * from './components/StoppedNodePushSheet';
+export * from './components/Wayfinding/SplashSequence';
 export * from './components/Tabs';
 export * as Form from './components/Form';
 export * from './contexts';

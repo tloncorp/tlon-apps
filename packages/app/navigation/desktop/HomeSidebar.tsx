@@ -25,6 +25,7 @@ import {
   View,
   useGlobalSearch,
 } from '../../ui';
+import { SplashModal } from '../../ui/components/Wayfinding/SplashModal';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { useRootNavigation } from '../utils';
 
@@ -44,6 +45,7 @@ export function HomeSidebar({ previewGroupId, focusedChannelId }: Props) {
   );
   const { data: selectedGroup } = store.useGroup({ id: selectedGroupId ?? '' });
   const { setIsOpen } = useGlobalSearch();
+  const showWayfinding = db.showWayfindingSplash.useValue();
 
   const isFocused = useIsFocused();
 
@@ -247,6 +249,7 @@ export function HomeSidebar({ previewGroupId, focusedChannelId }: Props) {
               onInviteComplete={() => setInviteSheetGroup(null)}
               groupId={inviteSheetGroup ?? undefined}
             />
+            <SplashModal open={showWayfinding} setOpen={() => {}} />
           </View>
         </NavigationProvider>
       </ChatOptionsProvider>

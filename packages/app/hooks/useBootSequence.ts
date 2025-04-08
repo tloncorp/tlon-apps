@@ -130,14 +130,26 @@ export function useBootSequence() {
       await wait(1000);
       if (connectionStatus === 'Connected') {
         logger.crumb(`connection to node established`);
-        const signedUpWithInvite = Boolean(lureMeta?.id);
-        return signedUpWithInvite
-          ? NodeBootPhase.CHECKING_FOR_INVITE
-          : NodeBootPhase.READY;
+        return NodeBootPhase.SCAFFOLDING_WAYFINDING;
       }
 
       logger.crumb(`still connecting to node`, connectionStatus);
       return NodeBootPhase.CONNECTING;
+    }
+
+    //
+    // SCAFFOLDING WAYFINDING: make sure the starter group is created
+    if (bootPhase === NodeBootPhase.SCAFFOLDING_WAYFINDING) {
+      try {
+        await store.scaffoldPersonalGroup();
+        await db.showWayfindingSplash.setValue(true);
+        const signedUpWithInvite = Boolean(lureMeta?.id);
+        return signedUpWithInvite
+          ? NodeBootPhase.CHECKING_FOR_INVITE
+          : NodeBootPhase.READY;
+      } catch (e) {
+        return NodeBootPhase.SCAFFOLDING_WAYFINDING;
+      }
     }
 
     //
@@ -229,6 +241,7 @@ export function useBootSequence() {
         invitedDm: updatedDm,
         invitedGroup: updatedGroup,
         tlonTeamDM: updatedTlonTeamDm,
+        personalGroup,
       } = await BootHelpers.getInvitedGroupAndDm(lureMeta);
 
       const dmIsGood = updatedDm && !updatedDm.isDmInvite;
@@ -246,6 +259,9 @@ export function useBootSequence() {
         logger.crumb('successfully accepted invites');
         if (updatedTlonTeamDm) {
           store.pinChannel(updatedTlonTeamDm);
+        }
+        if (personalGroup) {
+          store.pinGroup(personalGroup);
         }
         return NodeBootPhase.READY;
       }
@@ -273,6 +289,8 @@ export function useBootSequence() {
   // we increment a counter to ensure the effect executes after every run, even if
   // the step didn't advance
   const [bootStepCounter, setBootCounter] = useState(0);
+  const tryingWayfindingSince = useRef<number | null>(null);
+  const MAX_WAYFINDING_ATTEMPTS = 10;
   useEffect(() => {
     const runBootSequence = async () => {
       // prevent simultaneous runs
@@ -312,6 +330,26 @@ export function useBootSequence() {
         setBootCounter((c) => c + 1);
       }
     };
+
+    // if we're stuck trying to scaffold wayfinding, bail
+    if (bootPhase === NodeBootPhase.SCAFFOLDING_WAYFINDING) {
+      if (!tryingWayfindingSince.current) {
+        tryingWayfindingSince.current = bootStepCounter;
+      } else if (
+        bootStepCounter - tryingWayfindingSince.current >
+        MAX_WAYFINDING_ATTEMPTS
+      ) {
+        logger.trackEvent(AnalyticsEvent.ErrorWayfindingAbort, {
+          context: 'exceeded max attempts',
+        });
+        const signedUpWithInvite = Boolean(lureMeta?.id);
+        const nextBootPhase = signedUpWithInvite
+          ? NodeBootPhase.CHECKING_FOR_INVITE
+          : NodeBootPhase.READY;
+        setBootPhase(nextBootPhase);
+        return;
+      }
+    }
 
     // if we're stuck trying to handle invites afte user finishes signing up, bail
     const beenRunningTooLong =

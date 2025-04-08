@@ -12,6 +12,7 @@ import { useUpdatePresentedNotifications } from '@tloncorp/app/lib/notifications
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { PortalProvider, ZStack } from '@tloncorp/app/ui';
+import { SplashSequence } from '@tloncorp/app/ui/components/Wayfinding/SplashSequence';
 import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
@@ -67,9 +68,11 @@ function AuthenticatedApp() {
     db.nodeStoppedWhileLoggedIn.setValue(false);
   }, []);
 
+  const showSplash = db.showWayfindingSplash.useValue();
+
   return (
     <ZStack flex={1}>
-      <RootStack />
+      {showSplash ? <SplashSequence onCompleted={() => {}} /> : <RootStack />}
     </ZStack>
   );
 }

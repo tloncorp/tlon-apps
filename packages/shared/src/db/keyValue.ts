@@ -296,3 +296,8 @@ export const userHasPersonalGroup = createStorageItem<boolean>({
   key: 'userHasPersonalGroup',
   defaultValue: false,
 });
+
+export const showWayfindingSplash = createStorageItem<boolean>({
+  key: 'showWayfindingSplash',
+  defaultValue: false,
+});

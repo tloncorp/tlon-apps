@@ -274,6 +274,7 @@ export const logInHostingUser = async (params: {
   });
 
   const result = (await response.json()) as HostingError | User;
+  console.log(`bl: /v1/login/`, result);
   if (!response.ok) {
     throw new HostingError(
       'message' in result ? result.message : 'An unknown error has occurred.',
@@ -294,8 +295,11 @@ export const logInHostingUser = async (params: {
   return result as User;
 };
 
-export const getHostingUser = async (userId: string) =>
-  hostingFetch<User>(`/v1/users/${userId}`);
+export const getHostingUser = async (userId: string) => {
+  const hostingUser = await hostingFetch<User>(`/v1/users/${userId}`);
+  console.log(`bl: /v1/users/${userId}`, hostingUser);
+  return hostingUser;
+};
 
 export const requestPhoneVerify = async (userId: string, phoneNumber: string) =>
   hostingFetch<object>(`/v1/users/${userId}/request-phone-verify`, {
@@ -448,8 +452,10 @@ export const requestPasswordReset = async (email: string) =>
     },
   });
 
-export const getShip = async (shipId: string) =>
-  hostingFetch<HostedShipResponse>(`/v1/ships/${shipId}`);
+export const getShip = async (shipId: string) => {
+  const ship = await hostingFetch<HostedShipResponse>(`/v1/ships/${shipId}`);
+  return ship;
+};
 
 export const getShipAccessCode = async (shipId: string) =>
   hostingFetch<{ code: string }>(`/v1/ships/${shipId}/network`);

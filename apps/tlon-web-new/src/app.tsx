@@ -25,7 +25,7 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
-import React, { PropsWithChildren, useEffect, useState } from 'react';
+import React, { PropsWithChildren, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -337,12 +337,18 @@ function ConnectedWebApp() {
   const hasSyncedRef = React.useRef(false);
   const telemetry = useTelemetry();
   useFindSuggestedContacts();
+  const { data: personalGroup } = store.usePersonalGroup();
+  const wayfindingReady = useMemo(() => {
+    return !!personalGroup;
+  }, [personalGroup]);
 
   useEffect(() => {
     configureClient({
       shipName: currentUserId,
       shipUrl: '',
     });
+
+    const shouldShowWayfinding = true; // TODO: check query params
 
     const syncStart = async () => {
       // Only call sync.syncStart once during the app's lifecycle
@@ -356,6 +362,15 @@ function ConnectedWebApp() {
 
       if (!session?.startTime) {
         return;
+      }
+
+      if (shouldShowWayfinding && !wayfindingReady) {
+        try {
+          await store.scaffoldPersonalGroup();
+          await db.showWayfindingSplash.setValue(true);
+        } catch (e) {
+          console.error('Scaffolding failed', e);
+        }
       }
 
       // we need to check the size of the database here to see if it's not zero
@@ -382,7 +397,7 @@ function ConnectedWebApp() {
     };
 
     syncStart();
-  }, [dbIsLoaded, currentUserId, configureClient, session]);
+  }, [dbIsLoaded, currentUserId, configureClient, session, telemetry]);
 
   if (!dbIsLoaded) {
     return (
