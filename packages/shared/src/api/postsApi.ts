@@ -35,6 +35,7 @@ import {
   with404Handler,
 } from './apiUtils';
 import { channelAction } from './channelsApi';
+import { multiDmAction } from './chatApi';
 import { poke, scry, subscribeOnce } from './urbit';
 
 const logger = createDevLogger('postsApi', false);
@@ -698,11 +699,20 @@ export async function deletePost(
     ? chatAction(channelId, `${authorId}/${postId}`, {
         del: null,
       })
-    : channelAction(channelId, {
-        post: {
-          del: postId,
-        },
-      });
+    : isGroupDmChannelId(channelId)
+      ? multiDmAction(channelId, {
+          writ: {
+            id: `${authorId}/${postId}`,
+            delta: {
+              del: null,
+            },
+          },
+        })
+      : channelAction(channelId, {
+          post: {
+            del: postId,
+          },
+        });
 
   // todo: we need to use a tracked poke here (or settle on a different pattern
   // for expressing request response semantics)
