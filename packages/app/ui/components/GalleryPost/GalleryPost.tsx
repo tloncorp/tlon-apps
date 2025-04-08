@@ -4,6 +4,7 @@ import {
   ChannelAction,
   JSONValue,
   createDevLogger,
+  makePrettyDaysSince,
   makePrettyShortDate,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -25,10 +26,10 @@ import { RootStackParamList } from '../../../navigation/types';
 import { useChannelContext, useRequests } from '../../contexts';
 import { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { DetailViewAuthorRow } from '../AuthorRow';
-import { ContactAvatar } from '../Avatar';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ReactionsDisplay } from '../ChatMessage/ReactionsDisplay';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
+import ContactName from '../ContactName';
 import { useBoundHandler } from '../ListItem/listItemUtils';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
@@ -45,6 +46,9 @@ const GalleryPostFrame = styled(View, {
   maxHeight: '100%',
   overflow: 'hidden',
   flex: 1,
+  borderWidth: 1,
+  borderColor: '$border',
+  borderRadius: '$m',
 });
 
 export function GalleryPost({
@@ -142,43 +146,72 @@ export function GalleryPost({
           embedded={embedded}
         />
         {showAuthor && !post.hidden && !post.isDeleted && (
-          <View
-            position="absolute"
-            bottom={0}
-            left={0}
-            right={0}
-            width="100%"
-            pointerEvents="none"
-          >
-            <XStack
-              alignItems="flex-end"
-              justifyContent="space-between"
-              gap="$xl"
-              padding="$m"
-              {...props}
+          <>
+            <View
+              position="absolute"
+              top={0}
+              left={0}
+              right={0}
+              width="100%"
+              pointerEvents="none"
             >
-              <ContactAvatar size="$2xl" contactId={post.authorId} />
-              <View pointerEvents="auto">
-                <ReactionsDisplay post={post} minimal={true} />
-              </View>
-              {deliveryFailed && (
-                <Text
-                  // applying some shadow here because we could be rendering it
-                  // on top of an image
-                  shadowOffset={{
-                    width: 0,
-                    height: 1,
-                  }}
-                  shadowOpacity={0.8}
-                  shadowColor="$redSoft"
-                  color="$negativeActionText"
-                  size="$label/s"
-                >
-                  Tap to retry
+              <XStack
+                alignItems="center"
+                justifyContent="space-between"
+                backgroundColor="$background"
+                borderBottomWidth={1}
+                borderColor="$border"
+                borderTopWidth={0}
+                padding="$l"
+                gap="$m"
+              >
+                <ContactName
+                  userId={post.authorId}
+                  showNickname
+                  size="$label/m"
+                  color="$tertiaryText"
+                />
+                <Text size="$label/m" color="$tertiaryText">
+                  {makePrettyDaysSince(new Date(post.receivedAt))}
                 </Text>
-              )}
-            </XStack>
-          </View>
+              </XStack>
+            </View>
+            <View
+              position="absolute"
+              bottom={0}
+              left={0}
+              right={0}
+              width="100%"
+              pointerEvents="none"
+            >
+              <XStack
+                alignItems="center"
+                justifyContent="space-between"
+                backgroundColor="$background"
+                borderTopWidth={1}
+                borderColor="$border"
+                gap="$xl"
+                padding="$m"
+                {...props}
+              >
+                <View pointerEvents="auto">
+                  <ReactionsDisplay post={post} minimal={true} />
+                </View>
+                {deliveryFailed ? (
+                  <Text color="$negativeActionText" size="$label/s">
+                    Tap to retry
+                  </Text>
+                ) : (
+                  // reply count
+                  <Text size="$label/m" color="$tertiaryText">
+                    {post.replyCount === 1
+                      ? `${post.replyCount} comment`
+                      : `${post.replyCount} comments`}
+                  </Text>
+                )}
+              </XStack>
+            </View>
+          </>
         )}
         <SendPostRetrySheet
           open={showRetrySheet}
@@ -188,7 +221,7 @@ export function GalleryPost({
           onPressRetry={handleRetryPressed}
         />
         {!hideOverflowMenu && (isPopoverOpen || isHovered) && (
-          <View position="absolute" top={0} right={12}>
+          <View position="absolute" top={36} right={4}>
             <ChatMessageActions
               post={post}
               postActionIds={postActionIds}
@@ -198,9 +231,8 @@ export function GalleryPost({
               onEdit={onPressEdit}
               trigger={
                 <Button
-                  backgroundColor="transparent"
                   borderWidth="unset"
-                  size="$l"
+                  size="$xs"
                   onHoverIn={onOverflowHoverIn}
                   onHoverOut={onOverflowHoverOut}
                 >
@@ -414,11 +446,14 @@ const PreviewFrame = styled(View, {
       }
       switch (type) {
         case 'reference':
-          return { backgroundColor: '$secondaryBackground' };
+          return {
+            backgroundColor: '$secondaryBackground',
+            paddingTop: '$3xl',
+          };
         case 'paragraph':
         case 'list':
         case 'blockquote':
-          return { borderWidth: 1 };
+          return { paddingTop: '$3xl' };
       }
     },
   } as const,
