@@ -14,6 +14,26 @@ function transformUrl(inputUrl: string): string {
   return url.href;
 }
 
+export const trustedProviders = [
+  {
+    name: 'YouTube',
+    regex:
+      /^https:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)/,
+  },
+  {
+    name: 'Twitter',
+    regex: /^https:\/\/(?:twitter\.com|x\.com)\/\w+\/status\//,
+  },
+  {
+    name: 'Spotify',
+    regex: /^https:\/\/open\.spotify\.com\//,
+  },
+  {
+    name: 'TikTok',
+    regex: /^https:\/\/www\.tiktok\.com\//,
+  },
+];
+
 export async function fetchEmbed(inputUrl: string, isMobile?: boolean) {
   if (!inputUrl || !isValidUrl(inputUrl)) return null;
   const url = transformUrl(inputUrl);
@@ -22,15 +42,20 @@ export async function fetchEmbed(inputUrl: string, isMobile?: boolean) {
     maxwidth: isMobile ? '320' : '600',
     url,
   });
-  const isSpotify = url.startsWith('https://open.spotify.com');
-  const isTikTok = url.startsWith('https://www.tiktok.com');
-  const isTwitter = url
-    .split('/')
-    .filter(Boolean)
-    .includes.apply(url.split('/'), ['twitter.com']);
+  const isSpotify = trustedProviders
+    .filter((provider) => provider.name === 'Spotify')
+    .some((provider) => provider.regex.test(url));
+  const isTikTok = trustedProviders
+    .filter((provider) => provider.name === 'TikTok')
+    .some((provider) => provider.regex.test(url));
+  const isTwitter = trustedProviders
+    .filter((provider) => provider.name === 'Twitter')
+    .some((provider) => provider.regex.test(url));
+  const isYouTube = trustedProviders
+    .filter((provider) => provider.name === 'YouTube')
+    .some((provider) => provider.regex.test(url));
 
   if (isSpotify) {
-    // noembed doesn't support spotify
     const urlWithoutTracker = url?.split('?')[0];
     return jsonFetch(
       `https://open.spotify.com/oembed?url=${urlWithoutTracker}`
@@ -38,15 +63,18 @@ export async function fetchEmbed(inputUrl: string, isMobile?: boolean) {
   }
 
   if (isTikTok) {
-    // noembed doesn't support tiktok
     return jsonFetch(`https://www.tiktok.com/oembed?url=${url}`);
   }
 
   if (isTwitter) {
-    // noembed doesn't support twitter or x.com
     return jsonFetch(`https://publish.twitter.com/oembed?url=${url}`);
   }
 
+  if (isYouTube) {
+    return jsonFetch(`https://www.youtube.com/oembed?url=${url}`);
+  }
+
+  // For other providers (none at the moment), we fall back to noembed
   return jsonFetch(`${OEMBED_PROVIDER}?${search.toString()}`);
 }
 
