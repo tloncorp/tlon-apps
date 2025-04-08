@@ -689,12 +689,20 @@ export const getHiddenDMPosts = async () => {
   return hiddenDMPosts.map((postId) => getCanonicalPostId(postId));
 };
 
-export async function deletePost(channelId: string, postId: string) {
-  const action = channelAction(channelId, {
-    post: {
-      del: postId,
-    },
-  });
+export async function deletePost(
+  channelId: string,
+  postId: string,
+  authorId: string
+) {
+  const action = isDmChannelId(channelId)
+    ? chatAction(channelId, `${authorId}/${postId}`, {
+        del: null,
+      })
+    : channelAction(channelId, {
+        post: {
+          del: postId,
+        },
+      });
 
   // todo: we need to use a tracked poke here (or settle on a different pattern
   // for expressing request response semantics)
