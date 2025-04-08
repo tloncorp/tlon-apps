@@ -183,9 +183,11 @@ export function EditProfileScreenView(props: Props) {
         <ScrollView
           keyboardDismissMode="on-drag"
           flex={1}
-          width="100%"
-          maxWidth={600}
-          marginHorizontal="auto"
+          contentContainerStyle={{
+            width: '100%',
+            maxWidth: 600,
+            marginHorizontal: 'auto',
+          }}
         >
           <FormFrame paddingBottom={insets.bottom + 20}>
             <XStack alignItems="flex-end" gap="$m">

@@ -1,3 +1,5 @@
+import * as LibPhone from 'libphonenumber-js';
+
 export function parseForTwitterPostId(text: string): string | null {
   // If input is already just a numeric ID
   if (/^\d+$/.test(text)) {
@@ -31,6 +33,19 @@ export function twitterHandleDisplay(text: string): string {
   }
 
   return `@${text}`;
+}
+
+export function displayablePhoneNumber(phoneNumber: string): string {
+  if (!phoneNumber) {
+    console.error('Cannot make displayable phone number, none passed in');
+  }
+
+  const parsed = LibPhone.parsePhoneNumberFromString(phoneNumber, 'US');
+  if (!parsed) {
+    return phoneNumber;
+  }
+
+  return parsed.format('INTERNATIONAL');
 }
 
 export interface NativeContact {

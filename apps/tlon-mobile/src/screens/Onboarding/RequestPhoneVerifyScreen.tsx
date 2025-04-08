@@ -1,6 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
-import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   Field,
   OnboardingTextBlock,
@@ -11,6 +10,8 @@ import {
   useStore,
   useTheme,
 } from '@tloncorp/app/ui';
+import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import { createDevLogger } from '@tloncorp/shared';
 import { isValidPhoneNumber } from 'libphonenumber-js';
 import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -27,6 +28,8 @@ type Props = NativeStackScreenProps<
 type FormData = {
   phoneNumber: string;
 };
+
+const logger = createDevLogger('RequestPhoneVerifyScreen', true);
 
 export const RequestPhoneVerifyScreen = ({
   navigation,
@@ -60,10 +63,10 @@ export const RequestPhoneVerifyScreen = ({
       console.error('Error verifiying phone number:', err);
       if (err instanceof SyntaxError) {
         setRemoteError('Invalid phone number, please contact support@tlon.io');
-        trackError({ message: 'Invalid phone number' });
+        logger.trackError('Invalid Phone Number', err);
       } else if (err instanceof Error) {
         setRemoteError(err.message);
-        trackError(err);
+        logger.trackError('Error Submitting Phone Verification', err);
       }
     }
 

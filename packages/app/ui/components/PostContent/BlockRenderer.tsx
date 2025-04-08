@@ -1,7 +1,4 @@
-import { useCopy } from '@tloncorp/ui';
-import { Image } from '@tloncorp/ui';
-import { Pressable } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
+import { Image, Pressable, Text, useCopy } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
 import React, {
   ComponentProps,
@@ -13,17 +10,13 @@ import React, {
   useContext,
   useState,
 } from 'react';
-import {
-  ColorTokens,
-  ScrollView,
-  View,
-  ViewStyle,
-  XStack,
-  YStack,
-  styled,
-} from 'tamagui';
+import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 
-import { ContentReferenceLoader, Reference } from '../ContentReference';
+import {
+  ContentReferenceLoader,
+  IsInsideReferenceContext,
+  Reference,
+} from '../ContentReference';
 import { VideoEmbed } from '../Embed';
 import EmbedContent from '../Embed/EmbedContent';
 import { HighlightedCode } from '../HighlightedCode';
@@ -104,7 +97,7 @@ export const LineRenderer = memo(function LineRendererComponent({
   ...props
 }: {
   inlines: cn.InlineData[];
-  color?: ColorTokens;
+  color?: string;
   trimmed?: boolean;
 } & ComponentProps<typeof TextContent>) {
   return (
@@ -195,6 +188,12 @@ export function ReferenceBlock({
   ComponentProps<typeof ContentReferenceLoader>,
   'reference'
 >) {
+  const isInsideReference = useContext(IsInsideReferenceContext);
+
+  if (isInsideReference) {
+    return null;
+  }
+
   return <ContentReferenceLoader reference={block} {...props} />;
 }
 
@@ -236,6 +235,8 @@ export function ImageBlock({
     aspect: block.width && block.height ? block.width / block.height : null,
   });
 
+  const isInsideReference = useContext(IsInsideReferenceContext);
+
   const handlePress = useCallback(() => {
     onPressImage?.(block.src);
   }, [block.src, onPressImage]);
@@ -250,6 +251,34 @@ export function ImageBlock({
   }, []);
 
   const shouldUseAspectRatio = imageProps?.aspectRatio !== 'unset';
+
+  if (isInsideReference) {
+    return (
+      <Pressable
+        overflow="hidden"
+        onPress={handlePress}
+        onLongPress={onLongPress}
+        {...props}
+      >
+        <ContentImage
+          source={{ uri: block.src }}
+          style={{
+            width: '100%',
+            maxHeight: 250,
+            resizeMode: 'contain',
+            ...(shouldUseAspectRatio
+              ? { aspectRatio: dimensions.aspect || 1 }
+              : {}),
+          }}
+          contentFit="contain"
+          borderRadius="$s"
+          alt={block.alt}
+          onLoad={handleImageLoaded}
+          {...imageProps}
+        />
+      </Pressable>
+    );
+  }
 
   return (
     <Pressable
@@ -303,7 +332,7 @@ export function BlockquoteBlock({
   return (
     <YStack paddingLeft="$l" {...props}>
       <BlockquoteSideBorder />
-      <LineRenderer inlines={block.content} color="$tertiaryText" />
+      <LineRenderer inlines={block.content} color={'$tertiaryText'} />
     </YStack>
   );
 }

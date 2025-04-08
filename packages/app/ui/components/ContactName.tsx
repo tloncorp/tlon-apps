@@ -1,3 +1,4 @@
+import { Text } from '@tloncorp/ui';
 import { ComponentProps, useMemo } from 'react';
 import { SizableText } from 'tamagui';
 
@@ -48,13 +49,13 @@ const UserIdWithMatch = ({
   return matchedId && matchedId.index !== undefined ? (
     <>
       {userId.slice(0, matchedId.index)}
-      <SizableText fontWeight="bold">
+      <Text fontWeight="bold">
         {userId.slice(matchedId.index, matchedId.index + matchedId[0].length)}
-      </SizableText>
+      </Text>
       {userId.slice(matchedId.index + matchedId[0].length)}
     </>
   ) : (
-    <SizableText>{userId}</SizableText>
+    <Text>{userId}</Text>
   );
 };
 
@@ -66,7 +67,7 @@ export default function ContactName({
   matchText,
   maxWidth,
   ...rest
-}: ComponentProps<typeof SizableText> & {
+}: ComponentProps<typeof Text> & {
   userId: string;
   full?: boolean;
   matchText?: string;
@@ -90,7 +91,7 @@ export default function ContactName({
 
   if (showBoth) {
     return (
-      <SizableText
+      <Text
         ellipsizeMode="tail"
         numberOfLines={1}
         aria-label={formattedId.ariaLabel}
@@ -103,25 +104,25 @@ export default function ContactName({
         )}
         {!calm.disableNicknames && contact?.nickname ? (
           matchText ? (
-            <SizableText color="$secondaryText">
+            <Text color="$secondaryText">
               {' '}
               <NickNameWithMatch
                 nickname={contact?.nickname ?? ''}
                 matchText={matchText}
                 secondary
               />
-            </SizableText>
+            </Text>
           ) : (
-            <SizableText color="$secondaryText">{` ${contact.nickname}`}</SizableText>
+            <Text color="$secondaryText">{` ${contact.nickname}`}</Text>
           )
         ) : null}
-      </SizableText>
+      </Text>
     );
   }
 
   if (matchText) {
     return (
-      <SizableText
+      <Text
         ellipsizeMode="tail"
         numberOfLines={1}
         aria-label={formattedId.ariaLabel}
@@ -135,12 +136,12 @@ export default function ContactName({
         ) : (
           <UserIdWithMatch userId={formattedId.display} matchText={matchText} />
         )}
-      </SizableText>
+      </Text>
     );
   }
 
   return (
-    <SizableText
+    <Text
       ellipsizeMode="tail"
       numberOfLines={1}
       maxWidth={maxWidth ?? '75%'}
@@ -148,6 +149,6 @@ export default function ContactName({
       {...rest}
     >
       {shouldShowNickname ? contact!.nickname : formattedId.display}
-    </SizableText>
+    </Text>
   );
 }

@@ -9,7 +9,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { Linking, Platform } from 'react-native';
 
 import { AppStatus, useAppStatusChange } from '../hooks/useAppStatusChange';
-import { trackError } from '../utils/posthog';
 import { connectNotifyProvider } from './notificationsApi';
 
 const logger = createDevLogger('notifications', true);
@@ -146,7 +145,11 @@ export const connectNotifications = async () => {
   } catch (err) {
     console.error('Error requesting push notifications token:', err);
     if (err instanceof Error) {
-      trackError(err, 'notifications_request_error');
+      logger.trackError('Notifications Debug', {
+        contxt: 'Error requesting push notifications token',
+        errorMessage: err.message,
+        stack: err.stack,
+      });
     }
   }
 
@@ -160,7 +163,12 @@ export const connectNotifications = async () => {
   } catch (err) {
     console.error('Error connecting push notifications provider:', err);
     if (err instanceof Error) {
-      trackError(err, 'notifications_register_error');
+      logger.trackError('Notifications Debug', {
+        contxt: 'Error connecting push notifications provider',
+        errorMessage: err.message,
+        stack: err.stack,
+      });
+      logger;
     }
     return false;
   }

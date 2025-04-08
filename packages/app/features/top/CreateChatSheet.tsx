@@ -1,5 +1,8 @@
 import * as store from '@tloncorp/shared';
+import { createDevLogger } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import {
+  ComponentProps,
   forwardRef,
   useCallback,
   useEffect,
@@ -7,7 +10,7 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Popover, View, YStack } from 'tamagui';
 
@@ -18,14 +21,15 @@ import {
   ActionSheet,
   Button,
   ContactBook,
+  GroupPreviewAction,
   GroupPreviewPane,
   LoadingSpinner,
   SimpleActionSheet,
+  Text,
   TextInput,
   capitalize,
   useIsWindowNarrow,
 } from '../../ui';
-import { trackError } from '../../utils/posthog';
 
 type ChatType = 'dm' | 'group' | 'joinGroup';
 type Step = 'initial' | 'selectType' | `create${Capitalize<ChatType>}`;
@@ -38,6 +42,8 @@ export type CreateChatSheetMethods = {
   open: () => void;
   close: () => void;
 };
+
+const logger = createDevLogger('CreateChatSheet', true);
 
 function createTypeActions(onSelectType: (type: ChatType) => void): Action[] {
   return [
@@ -82,7 +88,8 @@ const CHAT_TYPE_CONFIG = {
 
 interface ActionButtonsProps {
   actions: Action[];
-  paddingBottom?: number;
+  buttonProps?: ComponentProps<typeof Button>;
+  containerProps?: ComponentProps<typeof YStack>;
 }
 
 interface CreateChatFormContentProps {
@@ -94,14 +101,19 @@ interface CreateChatFormContentProps {
   onScrollChange?: (scrolling: boolean) => void;
 }
 
-const ActionButtons = ({ actions, paddingBottom }: ActionButtonsProps) => (
-  <YStack gap="$s" paddingBottom={paddingBottom}>
+const ActionButtons = ({
+  actions,
+  containerProps,
+  buttonProps,
+}: ActionButtonsProps) => (
+  <YStack gap="$s" {...containerProps}>
     {actions.map((action, i) => (
       <Button
         key={i}
         onPress={action.action}
         width="100%"
         justifyContent="flex-start"
+        {...buttonProps}
       >
         <YStack>
           <Button.Text size="$s">{action.title}</Button.Text>
@@ -124,6 +136,15 @@ const JoinGroupByIdPane = ({ close }: JoinGroupByIdPaneProps) => {
   const [groupCode, setGroupCode] = useState('');
   const { isCodeValid, state, actions } = useGroupSearch(groupCode);
 
+  const handleActionComplete = useCallback(
+    (action: GroupPreviewAction, group: db.Group) => {
+      actions.handleGroupAction(action, group);
+      setGroupCode('');
+      close();
+    },
+    [close, actions]
+  );
+
   return (
     <YStack gap="$m">
       {state.isSearching && isCodeValid ? (
@@ -137,9 +158,9 @@ const JoinGroupByIdPane = ({ close }: JoinGroupByIdPaneProps) => {
           {state.group && !state.isLoading && !state.isError ? (
             <GroupPreviewPane
               group={state.group}
-              onActionComplete={actions.handleGroupAction}
+              onActionComplete={handleActionComplete}
             />
-          ) : (
+          ) : state.isLoading ? (
             <View
               flex={1}
               justifyContent="center"
@@ -147,6 +168,24 @@ const JoinGroupByIdPane = ({ close }: JoinGroupByIdPaneProps) => {
               padding="$l"
             >
               <LoadingSpinner />
+            </View>
+          ) : state.isError ? (
+            <View
+              flex={1}
+              justifyContent="center"
+              alignItems="center"
+              padding="$l"
+            >
+              <Text>Group not found</Text>
+            </View>
+          ) : (
+            <View
+              flex={1}
+              justifyContent="center"
+              alignItems="center"
+              padding="$l"
+            >
+              <Text>Group not found</Text>
             </View>
           )}
         </View>
@@ -248,9 +287,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
   useEffect(() => {
     if (createChatError) {
       Alert.alert('Error creating chat', createChatError);
-      trackError({
-        message: 'Error creating chat: ' + createChatError,
-      });
+      logger.trackError('Error creating chat', new Error(createChatError));
     }
   }, [createChatError]);
 
@@ -336,20 +373,39 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         padding="$m"
       >
         {step === 'selectType' ? (
-          <ActionButtons actions={actions} paddingBottom={insets.bottom} />
+          <ActionButtons
+            actions={actions}
+            buttonProps={{ paddingBottom: insets.bottom }}
+          />
         ) : step === 'createJoinGroup' ? (
           <JoinGroupFormContent
             chatType={chatType}
             close={() => setStep('initial')}
           />
         ) : (
-          <CreateChatFormContent
-            chatType={chatType}
-            isCreating={isCreatingChat}
-            onSelectDmContact={handleSelectDmContact}
-            onSelectedChange={setSelectedContactIds}
-            onCreateGroup={handlePressCreateGroup}
-          />
+          <ActionSheet
+            open={step === 'createDm' || step === 'createGroup'}
+            onOpenChange={() => setStep('initial')}
+            mode="dialog"
+            closeButton
+            dialogContentProps={{ height: '80%', maxHeight: 1200, width: 600 }}
+          >
+            <ActionSheet.MainContent
+              paddingHorizontal="$3xl"
+              paddingBottom="$3xl"
+              flex={1}
+            >
+              <View flex={1}>
+                <CreateChatFormContent
+                  chatType={chatType}
+                  isCreating={isCreatingChat}
+                  onSelectDmContact={handleSelectDmContact}
+                  onSelectedChange={setSelectedContactIds}
+                  onCreateGroup={handlePressCreateGroup}
+                />
+              </View>
+            </ActionSheet.MainContent>
+          </ActionSheet>
         )}
       </Popover.Content>
     </Popover>
@@ -490,7 +546,7 @@ function useCreateChat() {
         }
         return true;
       } catch (e) {
-        trackError(e);
+        logger.trackError('createChat Failed', e);
         setCreateChatError(e.message);
         return false;
       } finally {

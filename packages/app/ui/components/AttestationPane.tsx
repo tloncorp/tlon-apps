@@ -255,10 +255,10 @@ function AttestationValueDisplay({
   }
 
   if (attestation.type === 'phone') {
-    if (attestation.contactId === currentUserId) {
+    if (attestation.contactId === currentUserId && attestation.value) {
       return (
         <Text size="$label/xl" fontWeight="600">
-          {attestation.value ? attestation.value : 'X Account'}
+          {domain.displayablePhoneNumber(attestation.value)}
         </Text>
       );
     } else {

@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/db';
+import * as domain from '@tloncorp/shared/domain';
 import { Pressable } from '@tloncorp/ui';
 
 import { Field } from '../Form';
@@ -53,7 +54,8 @@ export function EditAttestationsDisplay(props: {
               <ListItem.Title>Phone</ListItem.Title>
               {phoneAttestation && (
                 <ListItem.Subtitle>
-                  {phoneAttestation.value}
+                  {phoneAttestation.value &&
+                    domain.displayablePhoneNumber(phoneAttestation.value)}
                   {'    '}
                   <ListItem.Subtitle
                     color={
