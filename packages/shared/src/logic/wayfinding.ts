@@ -89,6 +89,5 @@ export function detectWebSignup() {
   // after desktop signup
   const url = new URL(window.location.href);
   const didSignup = url.searchParams.get('did-signup');
-  console.log(`bl: did signup?`, didSignup);
   return didSignup === 'true';
 }
