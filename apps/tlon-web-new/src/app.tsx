@@ -21,6 +21,7 @@ import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { LoadingSpinner, StoreProvider, Text, View } from '@tloncorp/app/ui';
 import { getAuthInfo } from '@tloncorp/shared';
 import { sync } from '@tloncorp/shared';
+import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import cookies from 'browser-cookies';
@@ -349,7 +350,12 @@ function ConnectedWebApp() {
       if (!hasSyncedRef.current) {
         // Web doesn't persist database, so headsSyncedAt is misleading
         await db.headsSyncedAt.resetValue();
-        sync.syncStart(false);
+        await sync.syncStart(false);
+        setTimeout(() => {
+          console.log('bl: here we go');
+          api.discoverContacts([]);
+        }, 5000);
+
         hasSyncedRef.current = true;
         telemetry.captureAppActive('web');
       }

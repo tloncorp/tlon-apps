@@ -1,5 +1,5 @@
-import { formatUv, parseUw } from '@urbit/aura';
-import { Atom, Cell, Noun, dwim, enjs } from '@urbit/nockjs';
+import { formatUv, formatUw, parseUw } from '@urbit/aura';
+import { Atom, Cell, Noun, dejs, dwim, enjs } from '@urbit/nockjs';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
@@ -58,6 +58,70 @@ export async function checkAttestedSignature(signData: string) {
     return Boolean(sigValidation.live && sigValidation.valid);
   }
   return false;
+}
+
+export async function discoverContacts(phoneNums: string[]) {
+  console.log(`bl: discovering contacts`, phoneNums);
+  try {
+    const nums = diffContactBook(phoneNums);
+    // const lastSalt = formatUw('0');
+    const payload = ['whose-bulk', 0, nums.last, nums.add, nums.del];
+    const noun = dwim(payload);
+
+    const nonce = Math.floor(Math.random() * 1000000);
+    const encodedNonce = formatUv(BigInt(nonce));
+    const queryResponseSub = subscribeOnce<ub.WhoseBulkResponseEvent>(
+      {
+        app: 'lanyard',
+        path: `/v1/query/${encodedNonce}`,
+      },
+      undefined,
+      undefined,
+      { tag: 'discoverContacts' }
+    );
+
+    console.log(`bl: we are poking?`);
+    try {
+      await pokeNoun({ app: 'lanyard', mark: 'lanyard-query-1', noun });
+      console.log(`bl: poke success`);
+    } catch (e) {
+      console.error('bl: poke error', e);
+    }
+    const queryResponse = await queryResponseSub;
+    console.log(`bl: got whose bulk result`, queryResponse);
+
+    if (queryResponse) {
+      // return matches
+      const nextSalt = queryResponse.result?.['next-salt'];
+      const matches = queryResponse.result?.result
+        ? Object.entries(queryResponse.result.result).filter(([_key, value]) =>
+            Boolean(value)
+          )
+        : [];
+
+      console.log(`bl: got matches`, matches);
+      return matches;
+    }
+
+    console.log('bl: no results found');
+    return [];
+  } catch (e) {
+    console.error('bl: error discovering contacts', e);
+    throw e;
+  }
+}
+
+function diffContactBook(phoneNums: string[]) {
+  // TODO: diff last request
+  return {
+    last: toPhoneIdentifierSet([]),
+    add: toPhoneIdentifierSet(phoneNums),
+    del: toPhoneIdentifierSet([]),
+  };
+}
+
+function toPhoneIdentifierSet(phoneNumbers: string[]) {
+  return dejs.set(phoneNumbers.map((num) => ['phone', num]));
 }
 
 function nounToClientRecords(noun: Noun, contactId: string): db.Attestation[] {
