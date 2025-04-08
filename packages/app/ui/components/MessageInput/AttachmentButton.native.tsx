@@ -1,5 +1,4 @@
-import { IconButton } from '@tloncorp/ui';
-import { Add } from '@tloncorp/ui/assets/icons';
+import { Icon, IconButton } from '@tloncorp/ui';
 import { useEffect, useState } from 'react';
 
 import AttachmentSheet from '../AttachmentSheet';
@@ -23,7 +22,7 @@ export default function AttachmentButton({
         backgroundColor="unset"
         onPress={() => setShowInputSelector(true)}
       >
-        <Add />
+        <Icon type="Add" color="$primaryText" />
       </IconButton>
       <AttachmentSheet
         isOpen={showInputSelector}

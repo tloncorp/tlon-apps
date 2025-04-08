@@ -142,7 +142,7 @@ function ConfirmTwitterPane(props: {
   });
 
   const tweetContent = useMemo(() => {
-    return `Verifying myself as ${props.currentUserId}${
+    return `Verifying @${props.attestation.value} as ${props.currentUserId} on @TlonCorporation${
       props.personalInviteLink
         ? `
       
@@ -152,7 +152,12 @@ ${props.personalInviteLink}`
     }
 
 ${proof}`;
-  }, [proof, props.currentUserId, props.personalInviteLink]);
+  }, [
+    proof,
+    props.attestation.value,
+    props.currentUserId,
+    props.personalInviteLink,
+  ]);
 
   const normalizedHandle = useMemo(
     () => props.attestation.value!.replace('@', ''),
@@ -303,8 +308,8 @@ function InitiateTwitterPane() {
         }}
         rules={{
           maxLength: {
-            value: 15,
-            message: '𝕏 usernames are 15 characters at most',
+            value: 25,
+            message: 'Please enter a valid 𝕏 username',
           },
         }}
       />

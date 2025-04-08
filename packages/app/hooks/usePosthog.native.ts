@@ -8,7 +8,7 @@ export function usePosthog() {
 
   return useMemo((): PosthogClient => {
     return {
-      optedOut: posthog?.optedOut ?? false,
+      getIsOptedOut: () => posthog?.optedOut ?? false,
       optIn: () => posthog?.optIn(),
       optOut: () => posthog?.optOut(),
       identify: (userId, properties) => posthog?.identify(userId, properties),
