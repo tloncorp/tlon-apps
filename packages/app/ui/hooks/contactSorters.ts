@@ -106,7 +106,11 @@ export function useSortedContacts({
       const exactMatchCheck = preSig(query.trim().toLocaleLowerCase());
       if (isValidPatp(exactMatchCheck)) {
         const exactMatch = db.getFallbackContact(exactMatchCheck);
-        filtered.filter((c) => c.id !== exactMatchCheck).push(exactMatch);
+        if (filtered.find((c) => c.id === exactMatchCheck)) {
+          return filtered;
+        }
+
+        filtered.push(exactMatch);
       }
       return filtered;
     }
