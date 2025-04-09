@@ -1,4 +1,4 @@
-/-  c=channels, t=contacts, ch=chat, g=groups
+/-  c=channels, t=contacts, ch=chat, g=groups, s=story
 /+  mp=mop-extensions
 |%
 +|  %collections
@@ -116,7 +116,7 @@
   $:  key=message-key
       channel=nest:c
       group=flag:g
-      content=story:c
+      content=story:s
       mention=?
   ==
 ::
@@ -125,14 +125,14 @@
       parent=message-key
       channel=nest:c
       group=flag:g
-      content=story:c
+      content=story:s
       mention=?
   ==
 ::
 +$  dm-post-event
   $:  key=message-key
       =whom
-      content=story:c
+      content=story:s
       mention=?
   ==
 ::
@@ -140,7 +140,7 @@
   $:  key=message-key
       parent=message-key
       =whom
-      content=story:c
+      content=story:s
       mention=?
   ==
 +$  contact-event

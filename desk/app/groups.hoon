@@ -17,9 +17,9 @@
 ::
 %-  %-  agent:neg
     :+  notify=|
-      [~.groups^%0 ~ ~]
+      [~.groups^%1 ~ ~]
     %-  my
-    :~  %groups^[~.groups^%0 ~ ~]
+    :~  %groups^[~.groups^%1 ~ ~]
         %channels-server^[~.channels^%1 ~ ~]
     ==
 %-  agent:dbug
@@ -31,10 +31,10 @@
   +$  card  card:agent:gall
   ++  import-epoch  ~2022.10.11
   +$  current-state
-    $:  %6
+    $:  %7
         groups=net-groups:g
+        previews=(map flag preview:g)
         =volume:v
-        xeno=gangs:g
         =^subs:s
         =pimp:imp
     ==
@@ -187,15 +187,14 @@
     =.  cor  (give-invites flag ~(key by members.create))
     go-abet:(go-init:(go-abed:group-core flag) ~)
     ::
-      ::TODO  the $action type is unfortunately interwined
-      ::      with the $diff type, causing it to change without a real need.
-      ::      it should be disentangled with dedicated action
-      ::      and response types.
-      ::
-      ?(%group-action-3 %group-action-2 %group-action-1 %group-action-0)
-    =+  !<(action-3=action:v2:g vase)
+      $?  %group-action-3
+          %group-action-2
+          %group-action-1
+          %group-action-0
+      ==
+    =+  !<(action-2=action:v2:g vase)
     =/  =action:g
-      ?.  ?=(%create -.q.q.action-3)  action-3
+      ?.  ?=(%create -.q.q.action-2)  action-2
       ~|("group action %create poke unsupported, use %group-create" !!)
     $(mark %group-action-4, vase !>(`action:v5:g`action))
     ::
@@ -473,7 +472,14 @@
         =pimp:imp
     ==
   ::
-  +$  state-6  current-state
+  +$  state-6
+    $:  %6
+        groups=net-groups:v6:g
+        =volume:v
+        xeno=gangs:v6:g
+        =^subs:s
+        =pimp:imp
+    ==
   ::
   ++  state-0-to-1
     |=  state-0
@@ -822,6 +828,7 @@
     ::NOTE  searching through all groups like this is... inefficient,
     ::      but the alternative is depending on the dude knowing what
     ::      group the nest belongs to and scrying that out of it...
+    ::
     =/  groups=(list [=flag:g net:g group:g])
       ~(tap by groups)
     |-
@@ -1505,7 +1512,7 @@
           %v2
         ?.  allow
           ?:  secret.group
-            ::  conceal secret private group
+            ::  conceal secret group
             ::
             =/  pev=preview-response:v6:g  |+%missing
             (emit %give %fact ~ group-preview-2+!>(pev))

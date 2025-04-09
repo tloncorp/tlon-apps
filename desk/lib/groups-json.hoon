@@ -12,364 +12,9 @@
     |=  her=@p
     s/(scot %p her)
   ::
-  ++  action
-    |=  a=action:g
-    %-  pairs
-    :~  flag/s/(flag p.a)
-        update/(update q.a)
-    ==
-  ::
-  ++  previews
-    |=  ps=previews:g
-    %-  pairs
-    %+  turn  ~(tap by ps)
-    |=  [f=flag:g p=preview:g]
-    [(flag f) (preview p)]
-  ::
-  ++  channel-preview
-    |=  p=preview:channel:g
-    %-  pairs
-    :~  nest+s+(nest nest.p)
-        meta+(meta meta.p)
-        group+(preview group.p)
-    ==
-  ::
-  ++  preview
-    |=  p=preview:g
-    %-  pairs
-    :~  flag+s+(flag flag.p)
-        time+(time time.p)
-        meta+(meta meta.p)
-        cordon+(cordon cordon.p)
-        secret+b+secret.p
-        count+(numb count.p)
-    ==
-  ::
-  ++  preview-response
-    |=  pr=preview-response:g
-    ?:  ?=(%| -.pr)
-      (frond error+(access-error p.pr))
-    (frond preview+(preview p.pr))
-  ::
-  ++  update
-    |=  =update:g
-    %-  pairs
-    :~  time+s+(scot %ud p.update)
-        diff+(diff q.update)
-    ==
-  ::
-  ++  diff
-    |=  d=diff:g
-    %+  frond  -.d
-    ?-    -.d
-      %fleet    (pairs ships/a/(turn ~(tap in p.d) ship) diff/(fleet-diff q.d) ~)
-      %channel  (pairs nest/s/(nest p.d) diff/(channel-diff q.d) ~)
-      %cabal    (pairs sect/s/p.d diff/(cabal-diff q.d) ~)
-      %bloc     (bloc-diff p.d)
-      %cordon   (cordon-diff p.d)
-      %create   (group p.d)
-      %zone     (zone-diff p.d)
-      %meta     (meta p.d)
-      %secret   b/p.d
-      %del      ~
-      %flag-content  (flag-content +:d)
-    ==
-  ::
-  ++  zone-diff
-    |=  d=diff:zone:g
-    %-  pairs
-    :~  zone/s/p.d
-        delta/(zone-delta q.d)
-    ==
-  ::
-  ++  zone-delta
-    |=  d=delta:zone:g
-    %+  frond  -.d
-    ?-  -.d
-        %del           ~
-        %mov           (numb idx.d)
-        ?(%add %edit)  (meta meta.d)
-        %mov-nest
-      %-  pairs
-      :~  nest/s/(nest nest.d)
-          idx/(numb idx.d)
-      ==
-    ==
-  ::
-  ++  bloc-diff
-    |=  d=diff:bloc:g
-    %+  frond  -.d
-    a/(turn ~(tap in p.d) (lead %s))
-  ::
-  ++  cordon-diff
-    |=  d=diff:cordon:g
-    %+  frond  -.d
-    ?-  -.d
-      %open  (open-cordon-diff p.d)
-      %shut  (shut-cordon-diff p.d)
-      %swap  (cordon p.d)
-    ==
-  ::
-  ++  open-cordon-diff
-    |=  d=diff:open:cordon:g
-    %+  frond  -.d
-    ?-  -.d
-      ?(%add-ships %del-ships)  a/(turn ~(tap in p.d) ship)
-      ?(%add-ranks %del-ranks)  a/(turn ~(tap in p.d) (lead %s))
-    ==
-  ::
-  ++  shut-cordon-diff
-    |=  d=diff:shut:cordon:g
-    %+  frond  -.d
-    %-  pairs
-    :~  kind/s/p.d
-        ships/a/(turn ~(tap in q.d) ship)
-    ==
-  ::
-  ++  channel-diff
-    |=  d=diff:channel:g
-    %+  frond  -.d
-    ?-  -.d
-      ?(%add %edit)             (channel channel.d)
-      %del                      ~
-      ?(%add-sects %del-sects)  a/(turn ~(tap in sects.d) (lead %s))
-      %zone                     s/zone.d
-      %join                     b/join.d
-    ==
-  ::
-  ++  cabal-diff
-    |=  d=diff:cabal:g
-    %+  frond  -.d
-    ?-  -.d
-      %add  (meta meta.d)
-      %edit  (meta meta.d)
-      %del  ~
-    ==
-  ::
-  ++  fleet-diff
-    |=  d=diff:fleet:g
-    %+  frond  -.d
-    ?-  -.d
-      %add  ~
-      %del  ~
-      %add-sects  a/(turn ~(tap in sects.d) (lead %s))
-      %del-sects  a/(turn ~(tap in sects.d) (lead %s))
-    ==
-  ::
-  ++  flag-content
-    |=  [n=nest:g =post-key:g src=@p]
-    %-  pairs
-    :~  nest/s/(nest n)
-        src/(ship src)
-        :-  %post-key
-        %-  pairs
-        :~  post/(time-id post.post-key)
-            reply/?~(reply.post-key ~ (time-id u.reply.post-key))
-        ==
-    ==
-  ::
-  ++  groups
-    |=  gs=groups:g
-    %-  pairs
-    %+  turn  ~(tap by gs)
-    |=  [f=flag:g gr=group:g]
-    [(flag f) (group gr)]
-  ::
-  ++  groups-ui
-    |=  gs=groups-ui:g
-    %-  pairs
-    %+  turn  ~(tap by gs)
-    |=  [f=flag:g gr=group-ui:g]
-    [(flag f) (group-ui gr)]
-  ::
-  ++  groups-ui-v0
-    |=  gs=groups-ui:zer
-    %-  pairs
-    %+  turn  ~(tap by gs)
-    |=  [f=flag:g gr=group-ui:zer]
-    [(flag f) (group-ui-v0 gr)]
-  ::
-  ++  gangs
-    |=  gs=(map flag:g gang:g)
-    %-  pairs
-    %+  turn  ~(tap by gs)
-    |=  [f=flag:g gr=gang:g]
-    [(flag f) (gang gr)]
-  ::
-  ++  gang
-    |=  ga=gang:g
-    %-  pairs
-    :~  claim/?~(cam.ga ~ (claim u.cam.ga))
-        preview/?~(pev.ga ~ (preview u.pev.ga))
-        invite/?~(vit.ga ~ (invite u.vit.ga))
-        error/?~(err.ga ~ (access-error u.err.ga))
-    ==
-  ::
-  ++  access-error
-    |=  =access-error:g
-    ^-  json
-    s+access-error
-  ::
-  ++  claim
-    |=  c=claim:g
-    %-  pairs
-    :~  join-all/b/join-all.c
-        progress/s/`@t`progress.c
-    ==
-  ::
-  ++  invite
-    |=  i=invite:g
-    %-  pairs
-    :~  flag/s/(flag p.i)
-        ship/(ship q.i)
-    ==
-  ::
-  ++  zones
-    |=  zons=(map zone:g realm:zone:g)
-    %-  pairs
-    %+  turn  ~(tap by zons)
-    |=  [=zone:g r=realm:zone:g]
-    ^-  [@t json]
-    :-  zone
-    %-  pairs
-    :~  meta/(meta met.r)
-        idx/a/(turn ord.r (cork nest (lead %s)))
-    ==
-  ::
-  ++  group
-    |=  gr=group:g
-    =/  active-channels
-      (turn ~(tap in active-channels.gr) (cork nest (lead %s)))
-    %-  pairs
-    :~  fleet/(fleet fleet.gr)
-        cabals/(cabals cabals.gr)
-        zones/(zones zones.gr)
-        zone-ord/a/(turn zone-ord.gr (lead %s))
-        channels/(channels channels.gr)
-        active-channels/a/active-channels
-        bloc/a/(turn ~(tap in bloc.gr) (lead %s))
-        cordon/(cordon cordon.gr)
-        meta/(meta meta.gr)
-        secret/b/secret.gr
-        flagged-content/(flagged-content flagged-content.gr)
-    ==
-  ::
-  ++  group-ui
-    |=  gr=group-ui:g
-    =/  active-channels
-      (turn ~(tap in active-channels.gr) (cork nest (lead %s)))
-    %-  pairs
-    :~  fleet/(fleet fleet.gr)
-        cabals/(cabals cabals.gr)
-        zones/(zones zones.gr)
-        zone-ord/a/(turn zone-ord.gr (lead %s))
-        channels/(channels channels.gr)
-        active-channels/a/active-channels
-        bloc/a/(turn ~(tap in bloc.gr) (lead %s))
-        cordon/(cordon cordon.gr)
-        meta/(meta meta.gr)
-        secret/b/secret.gr
-        flagged-content/(flagged-content flagged-content.gr)
-        ::
-        init+b/init.gr
-        count+(numb count.gr)
-    ==
-  ::
-  ++  group-ui-v0
-    |=  gr=group-ui:zer
-    %-  pairs
-    :~  fleet/(fleet fleet.gr)
-        cabals/(cabals cabals.gr)
-        zones/(zones zones.gr)
-        zone-ord/a/(turn zone-ord.gr (lead %s))
-        channels/(channels channels.gr)
-        bloc/a/(turn ~(tap in bloc.gr) (lead %s))
-        cordon/(cordon cordon.gr)
-        meta/(meta meta.gr)
-        secret/b/secret.gr
-        saga/?~(saga.gr ~ (saga u.saga.gr))
-    ==
-  ::
-  ++  fleet
-    |=  fl=fleet:g
-    %-  pairs
-    %+  turn  ~(tap by fl)
-    |=  [her=@p v=vessel:fleet:g]
-    ^-  [cord json]
-    [(scot %p her) (vessel v)]
-  ::
-  ++  vessel
-    |=  v=vessel:fleet:g
-    %-  pairs
-    :~  sects/a/(turn ~(tap in sects.v) (lead %s))
-        joined/(time joined.v)
-    ==
-  ++  cabals
-    |=  cs=(map sect:g cabal:g)
-    %-  pairs
-    %+  turn  ~(tap by cs)
-    |=  [=term c=cabal:g]
-    ^-  [cord json]
-    [term (cabal c)]
-  ::
-  ++  cabal
-    |=  c=cabal:g
-    %-  pairs
-    :~  meta/(meta meta.c)
-    ==
   ++  flag
     |=  f=flag:g
     (rap 3 (scot %p p.f) '/' q.f ~)
-  ::
-  ++  channels
-    |=  chs=(map nest:g channel:g)
-    %-  pairs
-    %+  turn  ~(tap by chs)
-    |=  [n=nest:g c=channel:g]
-    ^-  [cord json]
-    [(nest n) (channel c)]
-  ::
-  ++  channel
-    |=  ch=channel:g
-    %-  pairs
-    :~  meta/(meta meta.ch)
-        added/(time added.ch)
-        readers/a/(turn ~(tap in readers.ch) (lead %s))
-        zone/s/zone.ch
-        join/b/join.ch
-    ==
-  ::
-  ++  cordon
-    |=  c=cordon:g
-    %+  frond  -.c
-    ?-  -.c
-      %open  (ban-cordon ban.c)
-      %shut  (shut-cordon +.c)
-      %afar  (afar-cordon +.c)
-    ==
-  ::
-  ++  shut-cordon
-    |=  [pend=(set @p) ask=(set @p)]
-    %-  pairs
-    :~  pending/a/(turn ~(tap in pend) ship)
-        ask/a/(turn ~(tap in ask) ship)
-    ==
-
-  ::
-  ++  afar-cordon
-    |=  [app=flag:g pax=^path desc=@t]
-    %-  pairs
-    :~  app/s/(flag app)
-        path/s/(spat pax)
-        desc/s/desc
-    ==
-  ::
-  ++  ban-cordon
-    |=  b=ban:open:cordon:g
-    %-  pairs
-    :~  ships/a/(turn ~(tap in ships.b) ship)
-        ranks/a/(turn ~(tap in ranks.b) (lead %s))
-    ==
   ::
   ++  meta
     |=  m=data:^meta
@@ -435,10 +80,170 @@
     |=  =@da
     s+`@t`(rsh 4 (scot %ui da))
   ::
-  ++  v6  .
+  ++  flag-content
+    |=  [n=nest:g =post-key:g src=@p]
+    %-  pairs
+    :~  nest/s/(nest n)
+        src/(ship src)
+        :-  %post-key
+        %-  pairs
+        :~  post/(time-id post.post-key)
+            reply/?~(reply.post-key ~ (time-id u.reply.post-key))
+        ==
+    ==
+  ::
+  ++  v6
+    =,  v5
+    |%
+    ::
+    ++  group
+      |=  gr=group:v6:g
+      =/  active-channels
+        (turn ~(tap in active-channels.gr) (cork nest (lead %s)))
+      %-  pairs
+      :~  fleet/(fleet fleet.gr)
+          cabals/(cabals cabals.gr)
+          zones/(zones zones.gr)
+          zone-ord/a/(turn zone-ord.gr (lead %s))
+          channels/(channels channels.gr)
+          active-channels/a/active-channels
+          bloc/a/(turn ~(tap in bloc.gr) (lead %s))
+          cordon/(cordon cordon.gr)
+          meta/(meta meta.gr)
+          secret/b/secret.gr
+          flagged-content/(flagged-content flagged-content.gr)
+      ==
+    ::
+    ++  group-ui
+      |=  gr=group-ui:v6:g
+      =/  active-channels
+        (turn ~(tap in active-channels.gr) (cork nest (lead %s)))
+      %-  pairs
+      :~  fleet/(fleet fleet.gr)
+          cabals/(cabals cabals.gr)
+          zones/(zones zones.gr)
+          zone-ord/a/(turn zone-ord.gr (lead %s))
+          channels/(channels channels.gr)
+          active-channels/a/active-channels
+          bloc/a/(turn ~(tap in bloc.gr) (lead %s))
+          cordon/(cordon cordon.gr)
+          meta/(meta meta.gr)
+          secret/b/secret.gr
+          flagged-content/(flagged-content flagged-content.gr)
+          ::
+          init+b/init.gr
+          count+(numb count.gr)
+      ==
+    ::
+    ++  groups
+      |=  gs=groups:v6:g
+      %-  pairs
+      %+  turn  ~(tap by gs)
+      |=  [f=flag:g gr=group:v6:g]
+      [(flag f) (group gr)]
+    ::
+    ++  groups-ui
+      |=  gs=groups-ui:v6:g
+      %-  pairs
+      %+  turn  ~(tap by gs)
+      |=  [f=flag:g gr=group-ui:v6:g]
+      [(flag f) (group-ui gr)]
+    ::
+    ++  gangs
+      |=  gs=(map flag:g gang:v6:g)
+      %-  pairs
+      %+  turn  ~(tap by gs)
+      |=  [f=flag:g gr=gang:v6:g]
+      [(flag f) (gang gr)]
+    ::
+    ++  gang
+      |=  ga=gang:v6:g
+      %-  pairs
+      :~  claim/?~(cam.ga ~ (claim u.cam.ga))
+          preview/?~(pev.ga ~ (preview u.pev.ga))
+          invite/?~(vit.ga ~ (invite u.vit.ga))
+          error/?~(err.ga ~ (access-error u.err.ga))
+      ==
+    ::
+    ++  access-error
+      |=  =access-error:v6:g
+      ^-  json
+      s+access-error
+    ::
+    ++  claim
+      |=  c=claim:v6:g
+      %-  pairs
+      :~  join-all/b/join-all.c
+          progress/s/`@t`progress.c
+      ==
+    ::
+    ++  action
+      |=  a=action:v6:g
+      %-  pairs
+      :~  flag/s/(flag p.a)
+          update/(update q.a)
+      ==
+    ::
+    ::
+    ++  preview-response
+      |=  pr=preview-response:v6:g
+      ?:  ?=(%| -.pr)
+        (frond error+(access-error p.pr))
+      (frond preview+(preview p.pr))
+    ::
+    ++  update
+      |=  =update:v6:g
+      %-  pairs
+      :~  time+s+(scot %ud p.update)
+          diff+(diff q.update)
+      ==
+    ::
+    ++  diff
+      |=  d=diff:v6:g
+      %+  frond  -.d
+      ?-    -.d
+        %fleet    (pairs ships/a/(turn ~(tap in p.d) ship) diff/(fleet-diff q.d) ~)
+        %channel  (pairs nest/s/(nest p.d) diff/(channel-diff q.d) ~)
+        %cabal    (pairs sect/s/p.d diff/(cabal-diff q.d) ~)
+        %bloc     (bloc-diff p.d)
+        %cordon   (cordon-diff p.d)
+        %create   (group p.d)
+        %zone     (zone-diff p.d)
+        %meta     (meta p.d)
+        %secret   b/p.d
+        %del      ~
+        %flag-content  (flag-content +:d)
+      ==
+    --
   ::
   ++  v5
+    =,  v2
     |%
+    ++  previews
+      |=  ps=previews:v5:g
+      %-  pairs
+      %+  turn  ~(tap by ps)
+      |=  [f=flag:g p=preview:v5:g]
+      [(flag f) (preview p)]
+    ::
+    ++  channel-preview
+      |=  p=preview:channel:v5:g
+      %-  pairs
+      :~  nest+s+(nest nest.p)
+          meta+(meta meta.p)
+          group+(preview group.p)
+      ==
+    ::
+    ++  preview
+      |=  p=preview:v5:g
+      %-  pairs
+      :~  flag+s+(flag flag.p)
+          time+(time time.p)
+          meta+(meta meta.p)
+          cordon+(cordon cordon.p)
+          secret+b+secret.p
+          count+(numb count.p)
+      ==
     ++  gangs
       |=  gs=(map flag:g gang:v5:g)
       %-  pairs
@@ -457,6 +262,181 @@
   ++  v2
     |%
     ::
+    ++  zones
+      |=  zons=(map zone:v2:g realm:zone:v2:g)
+      %-  pairs
+      %+  turn  ~(tap by zons)
+      |=  [=zone:v2:g r=realm:zone:v2:g]
+      ^-  [@t json]
+      :-  zone
+      %-  pairs
+      :~  meta/(meta met.r)
+          idx/a/(turn ord.r (cork nest (lead %s)))
+      ==
+    ::
+    ++  invite
+      |=  i=invite:v2:g
+      %-  pairs
+      :~  flag/s/(flag p.i)
+          ship/(ship q.i)
+      ==
+    ::
+    ++  fleet
+      |=  fl=fleet:v2:g
+      %-  pairs
+      %+  turn  ~(tap by fl)
+      |=  [her=@p v=vessel:fleet:v2:g]
+      ^-  [cord json]
+      [(scot %p her) (vessel v)]
+    ::
+    ++  vessel
+      |=  v=vessel:fleet:v2:g
+      %-  pairs
+      :~  sects/a/(turn ~(tap in sects.v) (lead %s))
+          joined/(time joined.v)
+      ==
+    ++  cabals
+      |=  cs=(map sect:v2:g cabal:v2:g)
+      %-  pairs
+      %+  turn  ~(tap by cs)
+      |=  [=term c=cabal:v2:g]
+      ^-  [cord json]
+      [term (cabal c)]
+    ::
+    ++  cabal
+      |=  c=cabal:v2:g
+      %-  pairs
+      :~  meta/(meta meta.c)
+      ==
+    ::
+    ++  zone-diff
+      |=  d=diff:zone:v2:g
+      %-  pairs
+      :~  zone/s/p.d
+          delta/(zone-delta q.d)
+      ==
+    ::
+    ++  zone-delta
+      |=  d=delta:zone:v2:g
+      %+  frond  -.d
+      ?-  -.d
+          %del           ~
+          %mov           (numb idx.d)
+          ?(%add %edit)  (meta meta.d)
+          %mov-nest
+        %-  pairs
+        :~  nest/s/(nest nest.d)
+            idx/(numb idx.d)
+        ==
+      ==
+    ++  channels
+      |=  chs=(map nest:g channel:v2:g)
+      %-  pairs
+      %+  turn  ~(tap by chs)
+      |=  [n=nest:g c=channel:v2:g]
+      ^-  [cord json]
+      [(nest n) (channel c)]
+    ::
+    ++  channel
+      |=  ch=channel:v2:g
+      %-  pairs
+      :~  meta/(meta meta.ch)
+          added/(time added.ch)
+          readers/a/(turn ~(tap in readers.ch) (lead %s))
+          zone/s/zone.ch
+          join/b/join.ch
+      ==
+    ::
+    ++  cordon
+      |=  c=cordon:v2:g
+      %+  frond  -.c
+      ?-  -.c
+        %open  (ban-cordon ban.c)
+        %shut  (shut-cordon +.c)
+        %afar  (afar-cordon +.c)
+      ==
+    ::
+    ++  shut-cordon
+      |=  [pend=(set @p) ask=(set @p)]
+      %-  pairs
+      :~  pending/a/(turn ~(tap in pend) ship)
+          ask/a/(turn ~(tap in ask) ship)
+      ==
+    ::
+    ++  afar-cordon
+      |=  [app=flag:g pax=^path desc=@t]
+      %-  pairs
+      :~  app/s/(flag app)
+          path/s/(spat pax)
+          desc/s/desc
+      ==
+    ::
+    ++  ban-cordon
+      |=  b=ban:open:cordon:v2:g
+      %-  pairs
+      :~  ships/a/(turn ~(tap in ships.b) ship)
+          ranks/a/(turn ~(tap in ranks.b) (lead %s))
+      ==
+    ::
+    ++  bloc-diff
+      |=  d=diff:bloc:v2:g
+      %+  frond  -.d
+      a/(turn ~(tap in p.d) (lead %s))
+    ::
+    ++  cordon-diff
+      |=  d=diff:cordon:v2:g
+      %+  frond  -.d
+      ?-  -.d
+        %open  (open-cordon-diff p.d)
+        %shut  (shut-cordon-diff p.d)
+        %swap  (cordon p.d)
+      ==
+    ::
+    ++  open-cordon-diff
+      |=  d=diff:open:cordon:v2:g
+      %+  frond  -.d
+      ?-  -.d
+        ?(%add-ships %del-ships)  a/(turn ~(tap in p.d) ship)
+        ?(%add-ranks %del-ranks)  a/(turn ~(tap in p.d) (lead %s))
+      ==
+    ::
+    ++  shut-cordon-diff
+      |=  d=diff:shut:cordon:v2:g
+      %+  frond  -.d
+      %-  pairs
+      :~  kind/s/p.d
+          ships/a/(turn ~(tap in q.d) ship)
+      ==
+    ::
+    ++  channel-diff
+      |=  d=diff:channel:v2:g
+      %+  frond  -.d
+      ?-  -.d
+        ?(%add %edit)             (channel channel.d)
+        %del                      ~
+        ?(%add-sects %del-sects)  a/(turn ~(tap in sects.d) (lead %s))
+        %zone                     s/zone.d
+        %join                     b/join.d
+      ==
+    ::
+    ++  cabal-diff
+      |=  d=diff:cabal:v2:g
+      %+  frond  -.d
+      ?-  -.d
+        %add  (meta meta.d)
+        %edit  (meta meta.d)
+        %del  ~
+      ==
+    ::
+    ++  fleet-diff
+      |=  d=diff:fleet:v2:g
+      %+  frond  -.d
+      ?-  -.d
+        %add  ~
+        %del  ~
+        %add-sects  a/(turn ~(tap in sects.d) (lead %s))
+        %del-sects  a/(turn ~(tap in sects.d) (lead %s))
+      ==
     ++  previews
       |=  ps=previews:v2:g
       %-  pairs
@@ -543,6 +523,21 @@
           flagged-content/(flagged-content flagged-content.gr)
       ==
     ::
+    ++  group-ui-v0
+      |=  gr=group-ui:zer
+      %-  pairs
+      :~  fleet/(fleet fleet.gr)
+          cabals/(cabals cabals.gr)
+          zones/(zones zones.gr)
+          zone-ord/a/(turn zone-ord.gr (lead %s))
+          channels/(channels channels.gr)
+          bloc/a/(turn ~(tap in bloc.gr) (lead %s))
+          cordon/(cordon cordon.gr)
+          meta/(meta meta.gr)
+          secret/b/secret.gr
+          saga/?~(saga.gr ~ (saga u.saga.gr))
+      ==
+    ::
     ++  groups
       |=  gs=groups:v2:g
       %-  pairs
@@ -556,6 +551,13 @@
       %+  turn  ~(tap by gs)
       |=  [f=flag:g gr=group-ui:v2:g]
       [(flag f) (group-ui gr)]
+    ::
+    ++  groups-ui-v0
+      |=  gs=groups-ui:zer
+      %-  pairs
+      %+  turn  ~(tap by gs)
+      |=  [f=flag:g gr=group-ui:zer]
+      [(flag f) (group-ui-v0 gr)]
     ::
     ++  gangs
       |=  gs=(map flag:g gang:v2:g)
@@ -606,156 +608,6 @@
       (stag %chat (stag %ship ship:p))
       (stag %chat (stag %club (cook |=(@ `@uv`+<) ;~(pfix (jest '0v') viz:ag))))
     ==
-  ++  create
-    ^-  $-(json create:g)
-    %-  ot
-    :~  name+sym
-        title+so
-        description+so
-        image+so
-        cover+so
-        cordon+cordon
-        members+(op ;~(pfix sig fed:ag) (as sym))
-        secret+bo
-    ==
-  ::
-  ++  join
-    ^-  $-(json join:g)
-    %-  ot
-    :~  flag/flag
-        join-all/bo
-    ==
-  ++  invite
-    ^-  $-(json invite:g)
-    %-  ot
-    :~  flag/flag
-        ship/ship
-    ==
-  ++  action
-    ^-  $-(json action:g)
-    %-  ot
-    :~  flag+flag
-        update+update
-    ==
-  ++  update
-    |=  j=json
-    ^-  update:g
-    ?>  ?=(%o -.j)
-    [*time (diff (~(got by p.j) %diff))]
-  ::
-  ++  diff
-    %-  of
-    :~  cabal/(ot sect/sym diff/cabal-diff ~)
-        fleet/(ot ships/(as ship) diff/fleet-diff ~)
-        zone/zone-diff
-        cordon/cordon-diff
-        channel/(ot nest/nest diff/channel-diff ~)
-        zone/zone-diff
-        meta/meta
-        secret/bo
-        del/ul
-        flag-content/flag-content
-    ==
-  ::
-  ++  zone-delta
-    %-  of
-    :~  add/meta
-        edit/meta
-        del/ul
-        mov/ni
-        :-  %mov-nest
-        %-  ot
-        :~  nest/nest
-            idx/ni
-        ==
-    ==
-
-  ::
-  ++  channel-diff
-    %-  of
-    :~  add/channel
-        edit/channel
-        del/ul
-        add-sects/(as sym)
-        del-sects/(as so)
-        zone/sym
-        join/bo
-    ==
-  ::
-  ++  channel
-    %-  ot
-    :~  meta/meta
-        added/di
-        zone/(se %tas)
-        join/bo
-        readers/(as so)
-    ==
-  ++  cordon
-    %-  of
-    :~  open/open-cordon
-        shut/shut-cordon
-    ==
-  ++  shut-cordon
-    %-  ot
-    :~  pending/(as ship)
-        ask/(as ship)
-    ==
-  ::
-  ++  open-cordon
-    %-  ot
-    :~  ships/(as ship)
-        ranks/(as rank)
-    ==
-  ::
-  ++  cordon-diff
-    %-  of
-    :~  open/open-cordon-diff
-        shut/shut-cordon-diff
-        swap/cordon
-    ==
-  ::
-  ++  open-cordon-diff
-    %-  of
-    :~  add-ships/(as ship)
-        del-ships/(as ship)
-        add-ranks/(as rank)
-        del-ranks/(as rank)
-    ==
-  ::
-  ++  shut-cordon-diff
-    |^
-    %-  of
-    :~  add-ships/body
-        del-ships/body
-    ==
-    ++  body
-      %-  ot
-      :~  kind/(su (perk %ask %pending ~))
-          ships/(as ship)
-      ==
-    --
-  ::
-  ++  fleet-diff
-    %-  of
-    :~  [%add ul]
-        [%del ul]
-        [%add-sects (as sym)]
-        [%del-sects (as sym)]
-    ==
-  ::
-  ++  cabal-diff
-    %-  of
-    :~  add/meta
-        edit/meta
-        del/ul
-    ==
-  ::
-  ++  zone-diff
-    %-  ot
-    :~  zone/(se %tas)
-        delta/zone-delta
-    ==
-  ::
   ++  flag-content
     %-  ot
     :~  nest/nest
@@ -782,14 +634,167 @@
         del+whom
     ==
   ::
+  ++  v6  v6:ver
   ++  v5  v5:ver
   ++  v2  v2:ver
   ::
   ++  ver
     |%
-    ++  v5  .
+    ++  v6  v5
+    ++  v5  v2
     ++  v2
       |%
+      ::
+      ++  zone-delta
+        ^-  $-(json delta:zone:v2:g)
+        %-  of
+        :~  add/meta
+            edit/meta
+            del/ul
+            mov/ni
+            :-  %mov-nest
+            %-  ot
+            :~  nest/nest
+                idx/ni
+            ==
+        ==
+      ::
+      ++  channel-diff
+        ^-  $-(json diff:channel:v2:g)
+        %-  of
+        :~  add/channel
+            edit/channel
+            del/ul
+            add-sects/(as sym)
+            del-sects/(as so)
+            zone/sym
+            join/bo
+        ==
+      ::
+      ++  channel
+        ^-  $-(json channel:v2:g)
+        %-  ot
+        :~  meta/meta
+            added/di
+            zone/(se %tas)
+            join/bo
+            readers/(as so)
+        ==
+      ++  cordon
+        ^-  $-(json cordon:v2:g)
+        %-  of
+        :~  open/open-cordon
+            shut/shut-cordon
+        ==
+      ++  shut-cordon
+        ^-  $-(json state:shut:cordon:v2:g)
+        %-  ot
+        :~  pending/(as ship)
+            ask/(as ship)
+        ==
+      ::
+      ++  open-cordon
+        ^-  $-(json ban:open:cordon:v2:g)
+        %-  ot
+        :~  ships/(as ship)
+            ranks/(as rank)
+        ==
+      ::
+      ++  cordon-diff
+        ^-  $-(json diff:cordon:v2:g)
+        %-  of
+        :~  open/open-cordon-diff
+            shut/shut-cordon-diff
+            swap/cordon
+        ==
+      ::
+      ++  open-cordon-diff
+        ^-  $-(json diff:open:cordon:v2:g)
+        %-  of
+        :~  add-ships/(as ship)
+            del-ships/(as ship)
+            add-ranks/(as rank)
+            del-ranks/(as rank)
+        ==
+      ::
+      ++  shut-cordon-diff
+        ^-  $-(json diff:shut:cordon:v2:g)
+        |^
+        %-  of
+        :~  add-ships/body
+            del-ships/body
+        ==
+        ++  body
+          %-  ot
+          :~  kind/(su (perk %ask %pending ~))
+              ships/(as ship)
+          ==
+        --
+      ::
+      ++  fleet-diff
+        ^-  $-(json diff:fleet:v2:g)
+        %-  of
+        :~  [%add ul]
+            [%del ul]
+            [%add-sects (as sym)]
+            [%del-sects (as sym)]
+        ==
+      ::
+      ++  cabal-diff
+        ^-  $-(json diff:cabal:v2:g)
+        %-  of
+        :~  add/meta
+            edit/meta
+            del/ul
+        ==
+      ::
+      ++  zone-diff
+        ^-  $-(json diff:zone:v2:g)
+        %-  ot
+        :~  zone/(se %tas)
+            delta/zone-delta
+        ==
+      ::
+      ++  create
+        ^-  $-(json create:v2:g)
+        %-  ot
+        :~  name+sym
+            title+so
+            description+so
+            image+so
+            cover+so
+            cordon+cordon
+            members+(op ;~(pfix sig fed:ag) (as sym))
+            secret+bo
+        ==
+      ++  join
+        ^-  $-(json join:v2:g)
+        %-  ot
+        :~  flag/flag
+            join-all/bo
+        ==
+      ++  invite
+        ^-  $-(json invite:v2:g)
+        %-  ot
+        :~  flag/flag
+            ship/ship
+        ==
+      ::
+      ++  diff
+        ^-  $-(json diff:v2:g)
+        %-  of
+        :~  cabal/(ot sect/sym diff/cabal-diff ~)
+            fleet/(ot ships/(as ship) diff/fleet-diff ~)
+            zone/zone-diff
+            cordon/cordon-diff
+            channel/(ot nest/nest diff/channel-diff ~)
+            zone/zone-diff
+            meta/meta
+            secret/bo
+            del/ul
+            flag-content/flag-content
+        ==
+      ::
       ++  action
         ^-  $-(json action:v2:g)
         %-  ot

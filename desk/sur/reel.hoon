@@ -10,7 +10,7 @@
       [%bite-2 =token joiner=@p =metadata]
   ==
 ::
-+$  token  cord
++$  token  @ta
 +$  nonce  @ta
 +$  metadata  [tag=term fields=(map cord cord)]
 +$  confirmation  [=nonce =token]
