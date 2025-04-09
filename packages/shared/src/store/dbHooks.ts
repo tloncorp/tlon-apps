@@ -314,7 +314,7 @@ export const useGroups = (options: db.GetGroupsOptions) => {
 export const useGroup = ({ id }: { id?: string }) => {
   return useQuery({
     enabled: !!id,
-    queryKey: [['group', { id }], useKeyFromQueryDeps(db.getGroup, { id })],
+    queryKey: [['group', id], useKeyFromQueryDeps(db.getGroup, id)],
     queryFn: () => {
       if (!id) {
         throw new Error('missing group id');
@@ -466,7 +466,7 @@ export const useChannel = (options: { id?: string }) => {
     queryKey: [
       'channelWithRelations',
       useKeyFromQueryDeps(db.getChannelWithRelations),
-      options,
+      options.id,
     ],
     queryFn: () => {
       if (!id) {
@@ -480,7 +480,7 @@ export const useChannel = (options: { id?: string }) => {
 export const usePostWithThreadUnreads = (options: { id: string }) => {
   const tableDeps = useKeyFromQueryDeps(db.getPostWithRelations);
   return useQuery({
-    queryKey: [['post', options], tableDeps],
+    queryKey: [['post', options.id], tableDeps],
     staleTime: Infinity,
     queryFn: () => db.getPostWithRelations(options),
   });

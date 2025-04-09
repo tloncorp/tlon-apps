@@ -1,4 +1,9 @@
-import { useEmbed, utils, validOembedCheck } from '@tloncorp/shared';
+import {
+  trustedProviders,
+  useEmbed,
+  utils,
+  validOembedCheck,
+} from '@tloncorp/shared';
 import { Text } from '@tloncorp/ui';
 import { memo, useCallback, useMemo } from 'react';
 import { Linking, Platform } from 'react-native';
@@ -10,25 +15,6 @@ import { InlineLink } from '../PostContent/InlineRenderer';
 import { Embed } from './Embed';
 import { EmbedWebView } from './EmbedWebView';
 import { getProviderConfig } from './providers';
-
-export const trustedProviders = [
-  {
-    name: 'YouTube',
-    regex: /^https:\/\/(?:www\.)?youtube\.com\/watch\?v=|youtu\.be\//,
-  },
-  {
-    name: 'Twitter',
-    regex: /^https:\/\/(?:twitter\.com|x\.com)\/\w+\/status\//,
-  },
-  {
-    name: 'Spotify',
-    regex: /^https:\/\/open\.spotify\.com\//,
-  },
-  {
-    name: 'TikTok',
-    regex: /^https:\/\/www\.tiktok\.com\//,
-  },
-];
 
 interface GenericEmbedProps {
   provider: string;

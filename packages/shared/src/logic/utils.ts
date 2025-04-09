@@ -120,6 +120,18 @@ export function makePrettyDay(date: Date) {
   }
 }
 
+export function makePrettyDaysSince(date: Date) {
+  const diff = differenceInDays(endOfToday(), date);
+  switch (diff) {
+    case 0:
+      return 'Today';
+    case 1:
+      return 'Yesterday';
+    default:
+      return `${diff}d`;
+  }
+}
+
 export function makePrettyShortDate(date: Date) {
   return format(date, `MMMM do, yyyy`);
 }

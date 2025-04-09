@@ -13,7 +13,7 @@ import { Pressable } from '@tloncorp/ui';
 import { ListItem, ListItemProps } from './ListItem';
 import { getGroupStatus, getPostTypeIcon } from './listItemUtils';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 
 export const GroupListItem = ({
@@ -30,6 +30,19 @@ export const GroupListItem = ({
   const title = useGroupTitle(model);
   const { isPending, label: statusLabel, isErrored } = getGroupStatus(model);
   const isWindowNarrow = useIsWindowNarrow();
+  
+  // Memoize the trigger button to prevent re-renders
+  const triggerButton = useMemo(() => (
+    <Button
+      backgroundColor="transparent"
+      borderWidth="unset"
+      paddingHorizontal={0}
+      marginHorizontal="$-m"
+      minimal
+    >
+      <Icon type="Overflow" />
+    </Button>
+  ), []);
 
   const handlePress = logic.useMutableCallback(() => {
     onPress?.(model);
@@ -126,17 +139,7 @@ export const GroupListItem = ({
               open={open}
               onOpenChange={setOpen}
               chat={{ type: 'group', id: model.id }}
-              trigger={
-                <Button
-                  backgroundColor="transparent"
-                  borderWidth="unset"
-                  paddingHorizontal={0}
-                  marginHorizontal="$-m"
-                  minimal
-                >
-                  <Icon type="Overflow" />
-                </Button>
-              }
+              trigger={triggerButton}
             />
           )}
         </View>

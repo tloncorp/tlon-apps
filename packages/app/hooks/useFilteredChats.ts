@@ -36,8 +36,11 @@ export function useFilteredChats({
   );
 
   const { data } = useMessagesFilter();
-  const talkFilter =
-    activeTab === 'talk' ? data ?? 'Direct Messages' : 'Direct Messages';
+  const talkFilter = useMemo(
+    () =>
+      activeTab === 'talk' ? data ?? 'Direct Messages' : 'Direct Messages',
+    [data, activeTab]
+  );
 
   return useMemo(() => {
     const isSearching = searchQuery && searchQuery.trim() !== '';

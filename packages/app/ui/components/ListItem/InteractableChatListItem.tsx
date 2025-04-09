@@ -29,8 +29,9 @@ function BaseInteractableChatRow({
   model,
   onPress,
   onLongPress,
+  onLayout,
   ...props
-}: ListItemProps<db.Chat>) {
+}: ListItemProps<db.Chat> & { onLayout?: (e: any) => void }) {
   const swipeableRef = useRef<SwipeableMethods>(null);
   const [currentSwipeDirection, setCurrentSwipeDirection] = useState<
     'left' | 'right' | null
@@ -140,6 +141,7 @@ function BaseInteractableChatRow({
           model={model}
           onPress={onPress}
           onLongPress={onLongPress}
+          onLayout={onLayout}
           {...props}
         />
       </Swipeable>
@@ -150,6 +152,7 @@ function BaseInteractableChatRow({
         model={model}
         onPress={onPress}
         onLongPress={onLongPress}
+        onLayout={onLayout}
         {...props}
       />
     );

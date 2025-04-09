@@ -325,7 +325,7 @@ export async function deletePost({ post }: { post: db.Post }) {
   await db.updateChannel({ id: post.channelId, lastPostId: null });
 
   try {
-    await api.deletePost(post.channelId, post.id);
+    await api.deletePost(post.channelId, post.id, post.authorId);
     await db.updatePost({ id: post.id, deleteStatus: 'sent' });
   } catch (e) {
     console.error('Failed to delete post', e);

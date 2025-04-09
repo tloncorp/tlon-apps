@@ -3,6 +3,7 @@ import {
   DarkTheme,
   DefaultTheme,
   NavigationContainer,
+  Route,
 } from '@react-navigation/native';
 import { ShipProvider } from '@tloncorp/app/contexts/ship';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
@@ -10,6 +11,7 @@ import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import useDesktopNotifications from '@tloncorp/app/hooks/useDesktopNotifications';
 import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
+import { useRenderCount } from '@tloncorp/app/hooks/useRenderCount';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
 import { BasePathNavigator } from '@tloncorp/app/navigation/BasePathNavigator';
 import {
@@ -26,7 +28,14 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
-import React, { PropsWithChildren, useEffect, useMemo, useState } from 'react';
+import React, {
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Helmet } from 'react-helmet';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -77,48 +86,203 @@ function checkIfLoggedIn() {
   }
 }
 
+function getFriendlyName(routeName: string) {
+  const friendlyNames: Record<string, string> = {
+    ChatList: 'Home',
+    GroupSettings: 'Group Settings',
+    ChannelSearch: 'Search',
+    ChatDetails: 'Chat Details',
+    UserProfile: 'Profile',
+    AppSettings: 'Settings',
+    ManageAccount: 'Account',
+    BlockedUsers: 'Blocked Users',
+    FeatureFlags: 'Features',
+    PushNotificationSettings: 'Notifications',
+  };
+
+  return (
+    friendlyNames[routeName] || routeName.replace(/([A-Z])/g, ' $1').trim()
+  );
+}
+
+const extractNestedRouteMobile = (state: any) => {
+  if (!state) return null;
+  const route = state.routes[state.index];
+  return route.state?.routes[route.state?.index || 0] || null;
+};
+
+const extractNestedRouteDesktop = (state: any) => {
+  if (!state) return null;
+  const route = state.routes[state.index];
+  const nestedRoute = route.state?.routes[route.state?.index || 0];
+
+  if (
+    nestedRoute &&
+    (nestedRoute.name === 'Home' || nestedRoute.name === 'Messages')
+  ) {
+    return nestedRoute.state?.routes[nestedRoute.state?.index || 0] || null;
+  }
+  return null;
+};
+
 function AppRoutes() {
   const contactsQuery = store.useContacts();
-  const currentUserId = useCurrentUserId();
   const { needsUpdate, triggerUpdate } = useAppUpdates();
-  const [currentRoute, setCurrentRoute] = useState<any>(null);
+  const [currentRouteParams, setCurrentRouteParams] = useState<any>(null);
+  const currentRouteRef = useRef<any>(null);
+
+  const channelId = useMemo(
+    () => currentRouteParams?.channelId,
+    [currentRouteParams?.channelId]
+  );
+  const groupId = useMemo(
+    () => currentRouteParams?.groupId,
+    [currentRouteParams?.groupId]
+  );
 
   const { data: channelData } = store.useChannel({
-    id: currentRoute?.params?.channelId,
+    id: channelId,
   });
   const { data: groupData } = store.useGroup({
-    id: currentRoute?.params?.groupId,
+    id: groupId,
   });
+  const { data, refetch, isRefetching, isFetching } = contactsQuery;
 
   useEffect(() => {
-    const { data, refetch, isRefetching, isFetching } = contactsQuery;
-
     if (data?.length === 0 && !isRefetching && !isFetching) {
       refetch();
     }
-  }, [contactsQuery]);
+  }, [data?.length, isRefetching, isFetching, refetch]);
 
   const isMobile = useIsMobile();
   const isDarkMode = useIsDarkMode();
+  const theme = useMemo(() => {
+    if (isDarkMode) {
+      return DarkTheme;
+    }
+    return DefaultTheme;
+  }, [isDarkMode]);
 
-  const getFriendlyName = (routeName: string) => {
-    const friendlyNames: Record<string, string> = {
-      ChatList: 'Home',
-      GroupSettings: 'Group Settings',
-      ChannelSearch: 'Search',
-      ChatDetails: 'Chat Details',
-      UserProfile: 'Profile',
-      AppSettings: 'Settings',
-      ManageAccount: 'Account',
-      BlockedUsers: 'Blocked Users',
-      FeatureFlags: 'Features',
-      PushNotificationSettings: 'Notifications',
-    };
+  useRenderCount('AppRoutes');
 
-    return (
-      friendlyNames[routeName] || routeName.replace(/([A-Z])/g, ' $1').trim()
-    );
-  };
+  const handleStateChangeMobile = useCallback((state: any) => {
+    const nestedRoute = extractNestedRouteMobile(state);
+    if (nestedRoute) {
+      currentRouteRef.current = nestedRoute;
+      // Only update state if needed for specific param changes
+      if (
+        nestedRoute.params?.channelId !==
+          currentRouteRef.current?.params?.channelId ||
+        nestedRoute.params?.groupId !== currentRouteRef.current?.params?.groupId
+      ) {
+        setCurrentRouteParams(nestedRoute.params);
+      }
+    }
+  }, []);
+
+  const handleStateChangeDesktop = useCallback((state: any) => {
+    const nestedRoute = extractNestedRouteDesktop(state);
+    if (nestedRoute) {
+      currentRouteRef.current = nestedRoute;
+      // Only update state if needed for specific param changes
+      if (
+        nestedRoute.params?.channelId !==
+          currentRouteRef.current?.params?.channelId ||
+        nestedRoute.params?.groupId !== currentRouteRef.current?.params?.groupId
+      ) {
+        setCurrentRouteParams(nestedRoute.params);
+      }
+    }
+  }, []);
+
+  const documentTitleFormatterMobile = useCallback(
+    (_options: any, route: Route<string>) => {
+      if (!route?.name) return 'Tlon';
+
+      if (route.name === 'GroupChannels') {
+        if (groupData?.title) {
+          return `${groupData.title}`;
+        }
+        return 'Group Channels';
+      }
+
+      // For channel routes
+      if (route.name === 'Channel' || route.name === 'ChannelRoot') {
+        if (channelData?.title && groupData?.title) {
+          return `${channelData.title} - ${groupData.title}`;
+        }
+      }
+
+      // For DM routes
+      if (route.name === 'DM') {
+        const title =
+          channelData?.title ||
+          channelData?.contact?.peerNickname ||
+          channelData?.contact?.customNickname ||
+          channelData?.contactId ||
+          'Chat';
+        return `${title}`;
+      }
+
+      // For Group DM routes
+      if (route.name === 'GroupDM') {
+        return `${channelData?.title ?? 'Group DM'}`;
+      }
+
+      // For other routes
+      const screenName = getFriendlyName(route.name);
+      return `${screenName}`;
+    },
+    [
+      groupData?.title,
+      channelData?.title,
+      channelData?.contact?.peerNickname,
+      channelData?.contact?.customNickname,
+      channelData?.contactId,
+    ]
+  );
+
+  const documentTitleFormatterDesktop = useCallback(
+    (_options: any, route: Route<string>) => {
+      if (!route?.name) return 'Tlon';
+
+      // For channel routes
+      if (route.name === 'Channel' || route.name === 'ChannelRoot') {
+        if (groupData?.title && channelData?.title) {
+          return `${channelData.title} - ${groupData.title}`;
+        }
+
+        const title =
+          channelData?.title ||
+          channelData?.contact?.peerNickname ||
+          channelData?.contact?.customNickname ||
+          channelData?.contactId ||
+          'Chat';
+        return `${title}`;
+      }
+
+      // For other routes
+      const screenName = getFriendlyName(route.name);
+      return `${screenName}`;
+    },
+    [
+      groupData?.title,
+      channelData?.title,
+      channelData?.contact?.peerNickname,
+      channelData?.contact?.customNickname,
+      channelData?.contactId,
+    ]
+  );
+
+  const mobileLinkingConfig = useMemo(
+    () => getMobileLinkingConfig(import.meta.env.MODE),
+    []
+  );
+
+  const desktopLinkingConfig = useMemo(
+    () => getDesktopLinkingConfig(import.meta.env.MODE),
+    []
+  );
 
   return (
     <AppDataProvider
@@ -127,119 +291,27 @@ function AppRoutes() {
     >
       {isMobile ? (
         <NavigationContainer
-          linking={getMobileLinkingConfig(import.meta.env.MODE)}
-          theme={isDarkMode ? DarkTheme : DefaultTheme}
-          onStateChange={(state) => {
-            if (state) {
-              const route = state.routes[state.index];
-              const nestedRoute = route.state?.routes[route.state?.index || 0];
-              if (nestedRoute) {
-                setCurrentRoute(nestedRoute);
-              }
-            }
-          }}
+          linking={mobileLinkingConfig}
+          theme={theme}
+          onStateChange={handleStateChangeMobile}
           documentTitle={{
             enabled: true,
-            formatter: (options, route) => {
-              if (!route?.name) return 'Tlon';
-
-              if (route.name === 'GroupChannels') {
-                if (groupData) {
-                  return `${groupData.title}`;
-                }
-                return 'Group Channels';
-              }
-
-              // For channel routes
-              if (route.name === 'Channel' || route.name === 'ChannelRoot') {
-                if (channelData && groupData) {
-                  return `${channelData.title} - ${groupData.title}`;
-                }
-              }
-
-              // For DM routes
-              if (route.name === 'DM') {
-                if (channelData) {
-                  const title =
-                    channelData.title ||
-                    channelData.contact?.peerNickname ||
-                    channelData.contact?.customNickname ||
-                    channelData.contactId ||
-                    'Chat';
-                  return `${title}`;
-                }
-                return 'Chat';
-              }
-
-              // For Group DM routes
-              if (route.name === 'GroupDM') {
-                if (channelData) {
-                  return `${channelData.title !== '' ? channelData.title : 'Group DM'}`;
-                }
-                return 'Group DM';
-              }
-
-              // For other routes
-              const screenName = getFriendlyName(route.name);
-              return `${screenName}`;
-            },
+            formatter: documentTitleFormatterMobile,
           }}
         >
-          <BasePathNavigator isMobile={isMobile} />
+          <BasePathNavigator isMobile={true} />
         </NavigationContainer>
       ) : (
         <NavigationContainer
-          linking={getDesktopLinkingConfig(import.meta.env.MODE)}
-          theme={isDarkMode ? DarkTheme : DefaultTheme}
-          onStateChange={(state) => {
-            if (state) {
-              const route = state.routes[state.index];
-              const nestedRoute = route.state?.routes[route.state?.index || 0];
-              if (
-                nestedRoute &&
-                (nestedRoute.name === 'Home' || nestedRoute.name === 'Messages')
-              ) {
-                const nestedHomeRoute =
-                  nestedRoute.state?.routes[nestedRoute.state?.index || 0];
-                if (nestedHomeRoute) {
-                  setCurrentRoute(nestedHomeRoute);
-                }
-              }
-            }
-          }}
+          linking={desktopLinkingConfig}
+          theme={theme}
+          onStateChange={handleStateChangeDesktop}
           documentTitle={{
             enabled: true,
-            formatter: (options, route) => {
-              if (!route?.name) return 'Tlon';
-
-              // For channel routes
-              if (route.name === 'Channel' || route.name === 'ChannelRoot') {
-                if (channelData && groupData) {
-                  if (groupData?.title) {
-                    return `${channelData.title} - ${groupData.title}`;
-                  } else {
-                    return `${channelData.title}`;
-                  }
-                }
-                if (channelData) {
-                  const title =
-                    channelData.title ||
-                    channelData.contact?.peerNickname ||
-                    channelData.contact?.customNickname ||
-                    channelData.contactId ||
-                    'Chat';
-                  return `${title}`;
-                }
-                return 'Chat';
-              }
-
-              // For other routes
-              const screenName = getFriendlyName(route.name);
-              return `${screenName}`;
-            },
+            formatter: documentTitleFormatterDesktop,
           }}
         >
-          <BasePathNavigator isMobile={isMobile} />
+          <BasePathNavigator isMobile={false} />
         </NavigationContainer>
       )}
     </AppDataProvider>
@@ -427,10 +499,12 @@ function ConnectedWebApp() {
     dbIsLoaded,
     currentUserId,
     configureClient,
-    session,
+    session?.startTime,
     telemetry,
     isNewSignup,
   ]);
+
+  useRenderCount('ConnectedWebApp');
 
   if (!dbIsLoaded) {
     return (
