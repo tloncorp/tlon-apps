@@ -191,6 +191,7 @@ export function GalleryPost({
                 borderTopWidth={1}
                 borderColor="$border"
                 gap="$xl"
+                height="$3.5xl"
                 padding="$m"
                 {...props}
               >
@@ -202,12 +203,12 @@ export function GalleryPost({
                     Tap to retry
                   </Text>
                 ) : (
-                  // reply count
-                  <Text size="$label/m" color="$tertiaryText">
-                    {post.replyCount === 1
-                      ? `${post.replyCount} comment`
-                      : `${post.replyCount} comments`}
-                  </Text>
+                  <XStack alignItems="center" gap="$xs" justifyContent="center">
+                    <Text size="$label/m" color="$tertiaryText">
+                      {post.replyCount}
+                    </Text>
+                    <Icon color="$tertiaryText" size="$s" type="Messages" />
+                  </XStack>
                 )}
               </XStack>
             </View>
