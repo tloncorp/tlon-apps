@@ -900,12 +900,12 @@
     =/  base=path
       %+  weld
         /(scot %p our.bowl)/channels/(scot %da now.bowl)
-      /v2/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
+      /v3/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
     ?.  .^(? %gu base)  ~
     :+  ~  nest
     .^  post:c  %gx
       %+  weld  base
-      /posts/post/(scot %ud (rash i.t.wer dum:ag))/channel-post-2
+      /posts/post/(scot %ud (rash i.t.wer dum:ag))/channel-post-3
     ==
   ::
   ++  from-post
