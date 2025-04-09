@@ -121,10 +121,10 @@ export const MessageInputContainer = memo(
     frameless?: boolean;
   }>) => {
     const { canUpload } = useAttachmentContext();
-
-    const defaultBackgroundColor = getVariableValue(useTheme().background);
+    const theme = useTheme();
+    const defaultBackgroundColor = getVariableValue(theme.background);
     const secondaryBackgroundColor = getVariableValue(
-      useTheme().secondaryBackground
+      theme.secondaryBackground
     );
 
     return (
@@ -150,6 +150,7 @@ export const MessageInputContainer = memo(
             alignItems="flex-end"
             justifyContent="space-between"
             backgroundColor="$background"
+            disableOptimization
           >
             {goBack ? (
               <View paddingBottom="$xs">
