@@ -223,7 +223,7 @@ function insertPostsForWindow(
         channelId: window.channelId,
         authorId: 'test',
         receivedAt: 0,
-        sentAt: 0,
+        sentAt: 1,
         syncedAt: 0,
       },
     ],
