@@ -108,7 +108,8 @@ const App = () => {
           <View flex={1} alignItems="center" justifyContent="center">
             <LoadingSpinner />
           </View>
-        ) : showSplashSequence ? (
+        ) : // ) : showSplashSequence ? (
+        showAuthenticatedApp ? (
           <SplashSequence onCompleted={clearNeedsSplashSequence} />
         ) : showAuthenticatedApp ? (
           <AuthenticatedApp />

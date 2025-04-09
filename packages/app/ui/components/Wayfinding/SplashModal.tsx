@@ -14,7 +14,7 @@ export function SplashModal(props: {
       onOpenChange={props.setOpen}
       dialogContentProps={{ width: 600, height: 700 }}
     >
-      <ActionSheet.Content flex={1}>
+      <ActionSheet.Content flex={1} overflow="hidden">
         <SplashSequence onCompleted={() => {}} />
       </ActionSheet.Content>
     </ActionSheet>

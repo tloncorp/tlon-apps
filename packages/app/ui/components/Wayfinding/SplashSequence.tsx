@@ -1,4 +1,3 @@
-import * as db from '@tloncorp/shared/db';
 import { Button, Icon, Text, triggerHaptic } from '@tloncorp/ui';
 import React, {
   ComponentProps,
@@ -6,7 +5,7 @@ import React, {
   useCallback,
   useMemo,
 } from 'react';
-import { Image, View as RNView } from 'react-native';
+import { Dimensions, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ColorTokens,
@@ -22,6 +21,7 @@ import { useActiveTheme } from '../../../provider';
 import { useStore } from '../../contexts';
 import { ListItem } from '../ListItem';
 import { Squiggle } from '../Squiggle';
+import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
 
 enum SplashPane {
   Welcome = 'welcome',
@@ -101,8 +101,15 @@ const SplashButton = ({
   }, [rest]);
 
   return (
-    <Button hero height={72} {...rest} onPress={handlePress}>
-      <XStack justifyContent="space-between" alignItems="center">
+    <Button
+      hero
+      height={72}
+      width={isWeb ? 300 : 'unset'}
+      padding={isWeb ? 30 : 'unset'}
+      {...rest}
+      onPress={handlePress}
+    >
+      <XStack width="100%" justifyContent="space-between" alignItems="center">
         <Button.Text
           flexShrink={1}
           textAlign="left"
@@ -127,8 +134,9 @@ export function WelcomePane(props: { onActionPress: () => void }) {
 
   return (
     <YStack
-      marginTop={insets.top}
-      marginBottom={insets.bottom}
+      marginTop={isWeb ? '$4xl' : insets.top}
+      marginBottom={isWeb ? '$4xl' : insets.bottom}
+      marginHorizontal={isWeb ? '$4xl' : 'unset'}
       flex={1}
       justifyContent="space-between"
     >
@@ -158,9 +166,11 @@ export function WelcomePane(props: { onActionPress: () => void }) {
           </SplashParagraph>
         </View>
       </YStack>
-      <SplashButton onPress={props.onActionPress} marginHorizontal="$2xl">
-        Let's get started
-      </SplashButton>
+      <XStack width="100%" justifyContent="center">
+        <SplashButton onPress={props.onActionPress} marginHorizontal="$2xl">
+          Let's get started
+        </SplashButton>
+      </XStack>
     </YStack>
   );
 }
@@ -173,7 +183,9 @@ export function GroupsPane(props: { onActionPress: () => void }) {
   return (
     <YStack
       marginTop={insets.top}
-      marginBottom={insets.bottom}
+      // marginBottom={insets.bottom}
+      // marginTop={isWeb ? '$4xl' : insets.top}
+      marginBottom={isWeb ? '$4xl' : insets.bottom}
       flex={1}
       justifyContent="space-between"
     >
@@ -193,7 +205,7 @@ export function GroupsPane(props: { onActionPress: () => void }) {
             }
           />
         </View>
-        <YStack marginHorizontal="$2xl">
+        <YStack marginHorizontal={isWeb ? '$4xl' : '$2xl'}>
           <SplashTitle marginTop="$4xl">
             This is a <Text color="$positiveActionText">group.</Text>
           </SplashTitle>
@@ -204,13 +216,15 @@ export function GroupsPane(props: { onActionPress: () => void }) {
           </SplashParagraph>
         </YStack>
       </YStack>
-      <SplashButton
-        marginTop="$l"
-        onPress={props.onActionPress}
-        marginHorizontal="$2xl"
-      >
-        Got it
-      </SplashButton>
+      <XStack width="100%" justifyContent="center">
+        <SplashButton
+          marginTop="$l"
+          onPress={props.onActionPress}
+          marginHorizontal={isWeb ? '$4xl' : '$2xl'}
+        >
+          Got it
+        </SplashButton>
+      </XStack>
     </YStack>
   );
 }
@@ -220,8 +234,9 @@ export function ChannelsPane(props: { onActionPress: () => void }) {
 
   return (
     <YStack
-      marginTop={insets.top}
-      marginBottom={insets.bottom}
+      marginTop={isWeb ? '$2xl' : insets.top}
+      marginBottom={isWeb ? '$4xl' : insets.bottom}
+      marginHorizontal={isWeb ? '$4xl' : 'unset'}
       flex={1}
       justifyContent="space-between"
     >
@@ -252,13 +267,15 @@ export function ChannelsPane(props: { onActionPress: () => void }) {
           </SplashParagraph>
         </YStack>
       </YStack>
-      <SplashButton
-        marginTop="$l"
-        onPress={props.onActionPress}
-        marginHorizontal="$2xl"
-      >
-        One quick thing
-      </SplashButton>
+      <XStack width="100%" justifyContent="center">
+        <SplashButton
+          marginTop="$l"
+          onPress={props.onActionPress}
+          marginHorizontal="$2xl"
+        >
+          One quick thing
+        </SplashButton>
+      </XStack>
     </YStack>
   );
 }
@@ -267,20 +284,21 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
   const insets = useSafeAreaInsets();
   return (
     <ZStack flex={1}>
-      <ThumbprintLines />
+      <PrivacyThumbprint />
       <YStack
         zIndex={1000}
         flex={1}
         justifyContent="space-between"
-        marginTop={insets.top}
-        marginBottom={insets.bottom}
+        marginTop={isWeb ? '$4xl' : insets.top}
+        marginBottom={isWeb ? '$4xl' : insets.bottom}
+        marginHorizontal={isWeb ? '$4xl' : 'unset'}
       >
         <YStack>
-          <View marginTop="$6xl">
+          <View marginTop="$4xl">
             <PrivacyLevelsDisplay />
           </View>
           <YStack marginHorizontal="$2xl">
-            <SplashTitle marginTop="$4xl">
+            <SplashTitle marginTop={86}>
               By default, groups are{' '}
               <Text color="$positiveActionText">secret.</Text>
             </SplashTitle>
@@ -291,41 +309,28 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
             </SplashParagraph>
           </YStack>
         </YStack>
-        <SplashButton
-          marginTop="$l"
-          onPress={props.onActionPress}
-          marginHorizontal="$2xl"
-        >
-          Got it
-        </SplashButton>
+        <XStack width="100%" justifyContent="center">
+          <SplashButton
+            marginTop="$l"
+            onPress={props.onActionPress}
+            marginHorizontal="$2xl"
+          >
+            Invite friends
+          </SplashButton>
+        </XStack>
       </YStack>
     </ZStack>
   );
 }
 
 export function InvitePane(props: { onActionPress: () => void }) {
-  const activeTheme = useActiveTheme();
-  const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+  const insets = useSafeAreaInsets();
   return (
     <YStack flex={1} justifyContent="space-between">
-      <YStack>
-        <View marginBottom="$2xl" overflow="hidden">
-          <Image
-            style={{ width: '100%', height: 360 }}
-            resizeMode="contain"
-            source={
-              isWeb
-                ? isDark
-                  ? `./tlon-ids-dark.png`
-                  : `./tlon-ids.png`
-                : isDark
-                  ? require(`../../assets/raster/tlon-ids-dark.png`)
-                  : require(`../../assets/raster/tlon-ids.png`)
-            }
-          />
-        </View>
-        <YStack marginHorizontal="$2xl">
-          <SplashTitle marginTop="$2xl">
+      <YStack flex={1}>
+        <InviteFriendsDisplay />
+        <YStack marginHorizontal={isWeb ? '$4xl' : '$2xl'}>
+          <SplashTitle marginTop={isWeb ? '$4xl' : '$2xl'}>
             Invite your <Text color="$positiveActionText">friends.</Text>
           </SplashTitle>
           <SplashParagraph marginTop="$2xl">
@@ -336,52 +341,36 @@ export function InvitePane(props: { onActionPress: () => void }) {
           </SplashParagraph>
         </YStack>
       </YStack>
-      <SplashButton
-        marginTop="$l"
-        marginHorizontal="$2xl"
-        onPress={props.onActionPress}
-        backgroundColor="$positiveActionText"
-        textProps={{ color: '$white' }}
-      >
-        Take me to my group
-      </SplashButton>
+      <XStack width="100%" justifyContent="center">
+        <SplashButton
+          marginTop="$l"
+          marginBottom={isWeb ? '$4xl' : insets.bottom}
+          marginHorizontal={isWeb ? '$4xl' : '$2xl'}
+          onPress={props.onActionPress}
+          backgroundColor="$positiveActionText"
+          textProps={{ color: '$white' }}
+        >
+          Take me to my group
+        </SplashButton>
+      </XStack>
     </YStack>
-  );
-}
-
-const squiggles = new Array(90).fill(true);
-function ThumbprintLines() {
-  return (
-    <View flex={1}>
-      <View width="200%" height={500} opacity={0.2}>
-        <View flex={1}>
-          {squiggles.map((_item, index) => {
-            return (
-              <Squiggle
-                key={index}
-                height={600}
-                width={600}
-                position="absolute"
-                top={-(300 - index * 4.5)}
-                left={-(350 - index * 4.5)}
-              />
-            );
-          })}
-        </View>
-      </View>
-    </View>
   );
 }
 
 function PrivacyLevelsDisplay() {
   return (
-    <RNView
-      style={{
-        shadowOffset: { width: 0, height: 12 },
-        shadowColor: '#CCCCCC',
-        shadowRadius: 32,
-        shadowOpacity: 0.33,
-      }}
+    <View
+      style={
+        isWeb
+          ? {}
+          : {
+              shadowColor: '$shadow',
+              shadowOffset: { width: 0, height: 12 },
+              shadowRadius: 32,
+            }
+      }
+      elevationAndroid={4}
+      marginHorizontal="$l"
     >
       <YStack paddingHorizontal="$3xl" justifyContent="center" gap="$xl">
         <ListItem
@@ -437,6 +426,69 @@ function PrivacyLevelsDisplay() {
           </ListItem.MainContent>
         </ListItem>
       </YStack>
-    </RNView>
+    </View>
   );
 }
+
+const InviteFriendsDisplay = () => {
+  const activeTheme = useActiveTheme();
+  const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+
+  return (
+    <View height={isWeb ? 300 : 460} marginBottom="$2xl" overflow="hidden">
+      <ZStack flex={1}>
+        <View position="relative" top={-80} right={isWeb ? 120 : 50}>
+          <Image
+            style={{ width: '100%', height: 360 }}
+            resizeMode="contain"
+            source={
+              isWeb
+                ? isDark
+                  ? `./tlon-ids-dark.png`
+                  : `./tlon-ids.png`
+                : isDark
+                  ? require(`../../assets/raster/tlon-ids-dark.png`)
+                  : require(`../../assets/raster/tlon-ids.png`)
+            }
+          />
+        </View>
+        <InviteCard position="absolute" bottom={0} right={30} />
+      </ZStack>
+    </View>
+  );
+};
+
+const InviteCard = (props: ComponentProps<typeof View>) => {
+  return (
+    <View
+      width={300}
+      height={200}
+      borderRadius="$xl"
+      overflow="hidden"
+      {...props}
+    >
+      <ZStack flex={1}>
+        <Image
+          style={{ width: 300, height: 200 }}
+          resizeMode="cover"
+          source={
+            isWeb
+              ? `./plant-light.png`
+              : require(`../../assets/raster/plant-light.png`)
+          }
+        />
+        <ZStack width="100%" height={40} position="absolute" bottom={0}>
+          <View flex={1} backgroundColor="$black" opacity={0.4} />
+          <YStack flex={1} justifyContent="center" marginLeft="$l" gap="$xs">
+            <Text size="$label/s" color="$white" fontWeight="500">
+              Tlon Messenger: kylie invited you to The Garden
+            </Text>
+            <Text size="$label/s" color="$white" opacity={0.8}>
+              join.tlon.io
+            </Text>
+          </YStack>
+        </ZStack>
+      </ZStack>
+    </View>
+  );
+};

@@ -1,6 +1,6 @@
 import { styled } from 'tamagui';
 
-import SquiggleSvg from '../assets/lol_at_this_graphic.svg';
+import SquiggleSvg from '../assets/squiggle.svg';
 
 export const Squiggle = styled(
   SquiggleSvg,

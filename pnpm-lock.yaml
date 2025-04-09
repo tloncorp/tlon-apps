@@ -208,6 +208,9 @@ importers:
       '@shopify/flash-list':
         specifier: 1.6.4
         version: 1.6.4(@babel/runtime@7.26.0)(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+      '@shopify/react-native-skia':
+        specifier: 1.2.3
+        version: 1.2.3(react-native-reanimated@3.10.1(@babel/core@7.25.2)(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@tamagui/react-native-media-driver':
         specifier: ^1.116.12
         version: 1.116.12(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))
@@ -5343,6 +5346,19 @@ packages:
       react: '*'
       react-native: '*'
 
+  '@shopify/react-native-skia@1.2.3':
+    resolution: {integrity: sha512-gyUD/HGsMyZ+YAoWxVh24HYN5juwC/dZWINL/0sKP7Ttee/0igCRxWPneH1BbVH28dhyf+tvksQNUwpMM3VWbg==}
+    hasBin: true
+    peerDependencies:
+      react: '>=18.0'
+      react-native: '>=0.64'
+      react-native-reanimated: '>=2.0.0'
+    peerDependenciesMeta:
+      react-native:
+        optional: true
+      react-native-reanimated:
+        optional: true
+
   '@sideway/address@4.1.5':
     resolution: {integrity: sha512-IqO/DUQHUkPeixNQ8n0JA6102hT9CmaljNTPmQ1u8MEhBo/R4Q8eKLN/vGZxuebwOroDB4cbpjheD4+/sKFK4Q==}
 
@@ -6927,6 +6943,9 @@ packages:
   '@vitest/utils@1.5.0':
     resolution: {integrity: sha512-BDU0GNL8MWkRkSRdNFvCUCAVOeHaUlVJ9Tx0TYBZyXaaOTmGtUFObzchCivIBrIwKzvZA7A9sCejVhXM2aY98A==}
 
+  '@webgpu/types@0.1.21':
+    resolution: {integrity: sha512-pUrWq3V5PiSGFLeLxoGqReTZmiiXwY3jRkIG5sLLKjyqNxrwm/04b4nw7LSmGWJcKk59XOM/YRTUwOzo4MMlow==}
+
   '@welldone-software/why-did-you-render@7.0.1':
     resolution: {integrity: sha512-Qe/8Xxa2G+LMdI6VoazescPzjjkHYduCDa8aHOJR50e9Bgs8ihkfMBY+ev7B4oc3N59Zm547Sgjf8h5y0FOyoA==}
     peerDependencies:
@@ -7621,6 +7640,9 @@ packages:
 
   caniuse-lite@1.0.30001678:
     resolution: {integrity: sha512-RR+4U/05gNtps58PEBDZcPWTgEO2MBeoPZ96aQcjmfkBWRIDfN451fW2qyDA9/+HohLLIL5GqiMwA+IB1pWarw==}
+
+  canvaskit-wasm@0.39.1:
+    resolution: {integrity: sha512-Gy3lCmhUdKq+8bvDrs9t8+qf7RvcjuQn+we7vTVVyqgOVO1UVfHpsnBxkTZw+R4ApEJ3D5fKySl9TU11hmjl/A==}
 
   chai@4.4.1:
     resolution: {integrity: sha512-13sOfMv2+DWduEU+/xbun3LScLoqN17nBeTLUsmDfKdoiC1fr0n9PU4guu4AhRcOVFk/sW8LyZWHuhWtQZiF+g==}
@@ -12481,6 +12503,12 @@ packages:
       react-native-svg:
         optional: true
 
+  react-reconciler@0.27.0:
+    resolution: {integrity: sha512-HmMDKciQjYmBRGuuhIaKA1ba/7a+UsM5FzOZsMO2JYHt9Jh8reCb7j1eDC95NOyUlKM9KRyvdx0flBuDvYSBoA==}
+    engines: {node: '>=0.10.0'}
+    peerDependencies:
+      react: ^18.0.0
+
   react-redux@7.2.8:
     resolution: {integrity: sha512-6+uDjhs3PSIclqoCk0kd6iX74gzrGc3W5zcAjbrFgEdIjRSQObdIwfx80unTkVUYvbQ95Y8Av3OvFHq1w5EOUw==}
     peerDependencies:
@@ -12909,6 +12937,9 @@ packages:
   saxes@6.0.0:
     resolution: {integrity: sha512-xAg7SOnEhrm5zI3puOOKyy1OMcMlIJZYNJY7xLBwSze0UjhPLnWfj2GF2EpT0jmzaJKIWKHLsaSSajf35bcYnA==}
     engines: {node: '>=v12.22.7'}
+
+  scheduler@0.21.0:
+    resolution: {integrity: sha512-1r87x5fz9MXqswA2ERLo0EbOAU74DpIUO090gIasYTqlVoJeMcl+Z1Rg7WHz+qtPujhS/hGIt9kxZOYBV3faRQ==}
 
   scheduler@0.23.0:
     resolution: {integrity: sha512-CtuThmgHNg7zIZWAXi3AsyIzA3n4xx7aNyjwC2VJldO2LMVDhFK+63xGqq6CsJH4rTAt6/M+N4GhZiDYPx9eUw==}
@@ -20606,6 +20637,15 @@ snapshots:
       recyclerlistview: 4.2.0(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       tslib: 2.4.0
 
+  '@shopify/react-native-skia@1.2.3(react-native-reanimated@3.10.1(@babel/core@7.25.2)(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
+    dependencies:
+      canvaskit-wasm: 0.39.1
+      react: 18.2.0
+      react-reconciler: 0.27.0(react@18.2.0)
+    optionalDependencies:
+      react-native: 0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0)
+      react-native-reanimated: 3.10.1(@babel/core@7.25.2)(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+
   '@sideway/address@4.1.5':
     dependencies:
       '@hapi/hoek': 9.3.0
@@ -22942,6 +22982,8 @@ snapshots:
       loupe: 2.3.7
       pretty-format: 29.7.0
 
+  '@webgpu/types@0.1.21': {}
+
   '@welldone-software/why-did-you-render@7.0.1(react@18.2.0)':
     dependencies:
       lodash: 4.17.21
@@ -23942,6 +23984,10 @@ snapshots:
   caniuse-lite@1.0.30001650: {}
 
   caniuse-lite@1.0.30001678: {}
+
+  canvaskit-wasm@0.39.1:
+    dependencies:
+      '@webgpu/types': 0.1.21
 
   chai@4.4.1:
     dependencies:
@@ -30069,6 +30115,12 @@ snapshots:
     optionalDependencies:
       react-native-svg: 15.2.0(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
 
+  react-reconciler@0.27.0(react@18.2.0):
+    dependencies:
+      loose-envify: 1.4.0
+      react: 18.2.0
+      scheduler: 0.21.0
+
   react-redux@7.2.8(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0):
     dependencies:
       '@babel/runtime': 7.26.0
@@ -30560,6 +30612,10 @@ snapshots:
   saxes@6.0.0:
     dependencies:
       xmlchars: 2.2.0
+
+  scheduler@0.21.0:
+    dependencies:
+      loose-envify: 1.4.0
 
   scheduler@0.23.0:
     dependencies:
