@@ -6,7 +6,7 @@ import React, {
   useCallback,
   useMemo,
 } from 'react';
-import { Image } from 'react-native';
+import { Image, View as RNView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ColorTokens,
@@ -46,10 +46,10 @@ function SplashSequenceComponent(props: { onCompleted: () => void }) {
   return (
     <View
       flex={1}
-      marginTop={insets.top}
-      marginBottom={insets.bottom}
-      paddingTop="$2xl"
-      paddingBottom="$xl"
+      // marginTop={insets.top}
+      // marginBottom={insets.bottom}
+      // paddingTop="$2xl"
+      // paddingBottom="$xl"
     >
       {currentPane === 'welcome' && (
         <WelcomePane onActionPress={() => setCurrentPane(SplashPane.Group)} />
@@ -121,11 +121,17 @@ const SplashButton = ({
 };
 
 export function WelcomePane(props: { onActionPress: () => void }) {
+  const insets = useSafeAreaInsets();
   const activeTheme = useActiveTheme();
   const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
 
   return (
-    <YStack flex={1} justifyContent="space-between">
+    <YStack
+      marginTop={insets.top}
+      marginBottom={insets.bottom}
+      flex={1}
+      justifyContent="space-between"
+    >
       <YStack>
         <View marginBottom="$2xl" overflow="hidden">
           <Image
@@ -160,15 +166,21 @@ export function WelcomePane(props: { onActionPress: () => void }) {
 }
 
 export function GroupsPane(props: { onActionPress: () => void }) {
+  const insets = useSafeAreaInsets();
   const activeTheme = useActiveTheme();
   const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
 
   return (
-    <YStack flex={1} justifyContent="space-between">
+    <YStack
+      marginTop={insets.top}
+      marginBottom={insets.bottom}
+      flex={1}
+      justifyContent="space-between"
+    >
       <YStack>
         <View marginBottom="$2xl" overflow="hidden">
           <Image
-            style={{ width: '100%', height: 300 }}
+            style={{ width: '100%', height: 360 }}
             resizeMode="cover"
             source={
               isWeb
@@ -204,8 +216,15 @@ export function GroupsPane(props: { onActionPress: () => void }) {
 }
 
 export function ChannelsPane(props: { onActionPress: () => void }) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <YStack flex={1} justifyContent="space-between">
+    <YStack
+      marginTop={insets.top}
+      marginBottom={insets.bottom}
+      flex={1}
+      justifyContent="space-between"
+    >
       <YStack>
         <View marginBottom="$2xl" overflow="hidden">
           <Image
@@ -245,30 +264,42 @@ export function ChannelsPane(props: { onActionPress: () => void }) {
 }
 
 export function PrivacyPane(props: { onActionPress: () => void }) {
+  const insets = useSafeAreaInsets();
   return (
-    <YStack flex={1} justifyContent="space-between">
-      <YStack>
-        <PrivacyGraphic />
-        <YStack marginHorizontal="$2xl">
-          <SplashTitle marginTop="$4xl">
-            By default, groups are{' '}
-            <Text color="$positiveActionText">secret.</Text>
-          </SplashTitle>
-          <SplashParagraph marginTop="$2xl">
-            Only the people you invite can see your group. If you want to open
-            it up to other people on the network, edit your privacy selection in
-            your group settings.
-          </SplashParagraph>
-        </YStack>
-      </YStack>
-      <SplashButton
-        marginTop="$l"
-        onPress={props.onActionPress}
-        marginHorizontal="$2xl"
+    <ZStack flex={1}>
+      <ThumbprintLines />
+      <YStack
+        zIndex={1000}
+        flex={1}
+        justifyContent="space-between"
+        marginTop={insets.top}
+        marginBottom={insets.bottom}
       >
-        Got it
-      </SplashButton>
-    </YStack>
+        <YStack>
+          <View marginTop="$6xl">
+            <PrivacyLevelsDisplay />
+          </View>
+          <YStack marginHorizontal="$2xl">
+            <SplashTitle marginTop="$4xl">
+              By default, groups are{' '}
+              <Text color="$positiveActionText">secret.</Text>
+            </SplashTitle>
+            <SplashParagraph marginTop="$2xl">
+              Only the people you invite can see your group. If you want to open
+              it up to other people on the network, edit your privacy selection
+              in your group settings.
+            </SplashParagraph>
+          </YStack>
+        </YStack>
+        <SplashButton
+          marginTop="$l"
+          onPress={props.onActionPress}
+          marginHorizontal="$2xl"
+        >
+          Got it
+        </SplashButton>
+      </YStack>
+    </ZStack>
   );
 }
 
@@ -318,91 +349,94 @@ export function InvitePane(props: { onActionPress: () => void }) {
   );
 }
 
-const squiggles = new Array(120).fill(true);
-function PrivacyGraphic() {
+const squiggles = new Array(90).fill(true);
+function ThumbprintLines() {
   return (
-    <View marginBottom="$2xl" overflow="hidden" width="100%" height={360}>
-      <ZStack flex={1}>
-        <View flex={1} opacity={0.2}>
+    <View flex={1}>
+      <View width="200%" height={500} opacity={0.2}>
+        <View flex={1}>
           {squiggles.map((_item, index) => {
             return (
               <Squiggle
                 key={index}
-                // zIndex={index}
                 height={600}
                 width={600}
-                top={-(400 - index * 4)}
-                left={-(300 - index * 4)}
                 position="absolute"
+                top={-(300 - index * 4.5)}
+                left={-(350 - index * 4.5)}
               />
             );
           })}
         </View>
-        <YStack
-          flex={1}
-          zIndex={1000}
-          paddingHorizontal="$3xl"
-          justifyContent="center"
-          gap="$xl"
-        >
-          <ListItem
-            backgroundColor="$positiveBackground"
-            borderWidth={1}
-            padding="$xl"
-            borderColor="$positiveBorder"
-          >
-            <ListItem.SystemIcon
-              icon="Lock"
-              backgroundColor="unset"
-              color="$positiveActionText"
-            />
-            <ListItem.MainContent>
-              <ListItem.Title color="$positiveActionText">
-                Secret
-              </ListItem.Title>
-              <ListItem.Subtitle color="$positiveActionText">
-                Invite-only
-              </ListItem.Subtitle>
-            </ListItem.MainContent>
-          </ListItem>
-
-          <ListItem
-            backgroundColor="$background"
-            borderWidth={1}
-            padding="$xl"
-            borderColor="$border"
-          >
-            <ListItem.SystemIcon
-              icon="EyeClosed"
-              backgroundColor="unset"
-              color="$primaryText"
-            />
-            <ListItem.MainContent>
-              <ListItem.Title>Private</ListItem.Title>
-              <ListItem.Subtitle>
-                New members require approval
-              </ListItem.Subtitle>
-            </ListItem.MainContent>
-          </ListItem>
-
-          <ListItem
-            backgroundColor="$background"
-            borderWidth={1}
-            padding="$xl"
-            borderColor="$border"
-          >
-            <ListItem.SystemIcon
-              icon="EyeOpen"
-              backgroundColor="unset"
-              color="$primaryText"
-            />
-            <ListItem.MainContent>
-              <ListItem.Title>Public</ListItem.Title>
-              <ListItem.Subtitle>Everyone can find and join</ListItem.Subtitle>
-            </ListItem.MainContent>
-          </ListItem>
-        </YStack>
-      </ZStack>
+      </View>
     </View>
+  );
+}
+
+function PrivacyLevelsDisplay() {
+  return (
+    <RNView
+      style={{
+        shadowOffset: { width: 0, height: 12 },
+        shadowColor: '#CCCCCC',
+        shadowRadius: 32,
+        shadowOpacity: 0.33,
+      }}
+    >
+      <YStack paddingHorizontal="$3xl" justifyContent="center" gap="$xl">
+        <ListItem
+          backgroundColor="$positiveBackground"
+          borderWidth={1}
+          padding="$l"
+          borderColor="$positiveBorder"
+        >
+          <ListItem.SystemIcon
+            icon="Lock"
+            backgroundColor="unset"
+            color="$positiveActionText"
+          />
+          <ListItem.MainContent>
+            <ListItem.Title color="$positiveActionText">Secret</ListItem.Title>
+            <ListItem.Subtitle color="$positiveActionText">
+              Invite-only
+            </ListItem.Subtitle>
+          </ListItem.MainContent>
+        </ListItem>
+
+        <ListItem
+          backgroundColor="$background"
+          borderWidth={1}
+          padding="$l"
+          borderColor="$border"
+        >
+          <ListItem.SystemIcon
+            icon="EyeClosed"
+            backgroundColor="unset"
+            color="$primaryText"
+          />
+          <ListItem.MainContent>
+            <ListItem.Title>Private</ListItem.Title>
+            <ListItem.Subtitle>New members require approval</ListItem.Subtitle>
+          </ListItem.MainContent>
+        </ListItem>
+
+        <ListItem
+          backgroundColor="$background"
+          borderWidth={1}
+          padding="$l"
+          borderColor="$border"
+        >
+          <ListItem.SystemIcon
+            icon="EyeOpen"
+            backgroundColor="unset"
+            color="$primaryText"
+          />
+          <ListItem.MainContent>
+            <ListItem.Title>Public</ListItem.Title>
+            <ListItem.Subtitle>Everyone can find and join</ListItem.Subtitle>
+          </ListItem.MainContent>
+        </ListItem>
+      </YStack>
+    </RNView>
   );
 }
