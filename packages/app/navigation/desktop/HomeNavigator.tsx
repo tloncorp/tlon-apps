@@ -5,7 +5,8 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationState } from '@react-navigation/routers';
-import { useEffect } from 'react';
+import { isEqual } from 'lodash';
+import { memo, useEffect } from 'react';
 import { View, getVariableValue, useTheme } from 'tamagui';
 
 import { ChannelMembersScreen } from '../../features/channels/ChannelMembersScreen';
@@ -38,13 +39,9 @@ export const HomeNavigator = () => {
 
   return (
     <HomeDrawer.Navigator
-      drawerContent={DrawerContent}
+      drawerContent={(props) => <DrawerContent {...props} />}
       initialRouteName="ChatList"
-      screenOptions={({ navigation }) => {
-        const state = navigation.getState();
-        const routes = state.routes[state.index].state?.routes;
-        const currentScreen = routes?.[routes.length - 1];
-
+      screenOptions={() => {
         return {
           drawerType: 'permanent',
           headerShown: false,
@@ -67,7 +64,7 @@ export const HomeNavigator = () => {
   );
 };
 
-function DrawerContent(props: DrawerContentComponentProps) {
+const DrawerContent = memo((props: DrawerContentComponentProps) => {
   const state = props.state as NavigationState<HomeDrawerParamList>;
   const focusedRoute = state.routes[props.state.index];
   const focusedRouteParams = focusedRoute.params;
@@ -119,7 +116,9 @@ function DrawerContent(props: DrawerContentComponentProps) {
   } else {
     return <HomeSidebar />;
   }
-}
+}, isEqual);
+
+DrawerContent.displayName = 'HomeSidebarDrawerContent';
 
 const MainStackNavigator = createNativeStackNavigator();
 
