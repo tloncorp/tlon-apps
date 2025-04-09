@@ -1052,6 +1052,7 @@ export async function handleAddPost(
   // it, we need to add it to the parent post
   if (post.parentId) {
     const cachedReply = await db.getPostByCacheId({
+      channelId: post.channelId,
       sentAt: post.sentAt,
       authorId: post.authorId,
     });
