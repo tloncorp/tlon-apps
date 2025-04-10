@@ -28,18 +28,13 @@ import {
   YStack,
   useStore,
 } from '@tloncorp/app/ui';
-import {
-  AnalyticsEvent,
-  AnalyticsSeverity,
-  createDevLogger,
-  scaffoldPersonalGroup,
-  withRetry,
-} from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useOnboardingHelpers } from '../../hooks/useOnboardingHelpers';
 import { OnboardingStackParamList } from '../../types';
 
 const BOTTOM_WIDGET_TITLES = [
@@ -75,6 +70,7 @@ export function GettingNodeReadyScreen({
   const handleLogout = useHandleLogout({ resetDb });
   const [loggingOut, setLoggingOut] = useState(false);
   const hostedNodeId = db.hostedUserNodeId.useValue();
+  const onboardingHelpers = useOnboardingHelpers();
 
   // Handle state for the progress indicaors
   const { progress, updateProgress, resetProgress } = useStagedProgress(
@@ -133,28 +129,24 @@ export function GettingNodeReadyScreen({
         setPermSheetOpen(false);
         setTimeout(() => {
           setShip(shipInfo);
-          withRetry(() => store.scaffoldPersonalGroup())
-            .then(() => {
-              db.wayfindingProgress.setValue((prev) => ({
-                ...prev,
-                tappedChatInput: false,
-                tappedAddCollection: false,
-                tappedAddNote: false,
-              }));
-            })
-            .catch((e) => {
-              logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
-                context: 'failed to scaffold personal group',
-                during: 'mobile revival login (useOnboardingHelpers)',
-                errorMessage: e.message,
-                errorStack: e.stack,
-                severity: AnalyticsSeverity.Critical,
-              });
+          if (shipInfo.needsSplashSequence) {
+            logger.trackEvent(AnalyticsEvent.WayfindingDebug, {
+              context: 'stopped revival ship is now ready, handling',
             });
+            onboardingHelpers.handleRevivalLogin(shipInfo);
+          }
         }, 2000);
       }
     }
-  }, [navigation, phase, setShip, shipInfo, store, updateProgress]);
+  }, [
+    navigation,
+    onboardingHelpers,
+    phase,
+    setShip,
+    shipInfo,
+    store,
+    updateProgress,
+  ]);
 
   // If we came back to this screen, make sure we reset
   useEffect(() => {

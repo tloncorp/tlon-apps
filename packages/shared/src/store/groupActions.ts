@@ -8,7 +8,7 @@ import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
 import { createSectionId } from '../urbit';
-import { createChannel } from './channelActions';
+import { createChannel, pinGroup } from './channelActions';
 
 const logger = createDevLogger('groupActions', true);
 
@@ -167,6 +167,9 @@ export async function scaffoldPersonalGroup() {
         note: 'Passed final consistency check',
       });
     }
+
+    // attempt to pin it
+    pinGroup(group);
 
     logger.trackEvent('Completed Personal Group Scaffold', {
       ...logic.getModelAnalytics({ group: { id: PersonalGroupKeys.groupId } }),

@@ -171,15 +171,15 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const clearNeedsSplashSequence = useCallback(() => {
-    setShipInfo((prev) => ({
-      ...prev,
+    setShipInfo({
+      ...shipInfo,
       needsSplashSequence: false,
-    }));
+    });
     storage.shipInfo.setValue({
       ...shipInfo,
       needsSplashSequence: false,
     });
-  }, []);
+  }, [shipInfo]);
 
   useEffect(() => {
     if (shipInfo.ship && Platform.OS !== 'web') {
