@@ -224,6 +224,12 @@
   |=  [=wire =sign:agent:gall]
   ^-  (quip card _this)
   ?+  wire  ~&([dap.bowl strange-wire=wire] [~ this])
+      [%profile %widget *]
+    ?>  ?=(%poke-ack -.sign)
+    ~?  ?=(^ p.sign)
+      [dap.bowl %nacked-by-profile]
+    [~ this]
+  ::
       [%channels ~]
     ?-  -.sign
       %poke-ack  !!
@@ -235,8 +241,8 @@
       [~ this]
     ::
         %fact
-      ?.  =(%channel-response-1 p.cage.sign)  [~ this]
-      =+  !<(r-channels:d q.cage.sign)
+      ?.  =(%channel-response-2 p.cage.sign)  [~ this]
+      =+  !<(r-channels:v7:old:d q.cage.sign)
       ::REVIEW  should this handle %posts also?
       ?+  -.r-channel  [~ this]
           %post
