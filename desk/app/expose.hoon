@@ -235,7 +235,7 @@
       [~ this]
     ::
         %fact
-      ?.  =(%channel-response-1 p.cage.sign)  [~ this]
+      ?.  =(%channel-response-2 p.cage.sign)  [~ this]
       =+  !<(r-channels:v7:old:d q.cage.sign)
       ::REVIEW  should this handle %posts also?
       ?+  -.r-channel  [~ this]
