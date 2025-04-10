@@ -1,5 +1,4 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useShip } from '@tloncorp/app/contexts/ship';
 import { LoadingSpinner, View } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -19,7 +18,6 @@ const logger = createDevLogger('InitialStateCheckScreen', true);
 export function InitialStateCheckScreen({ navigation }: Props) {
   const reviveSignupSession = useReviveSavedOnboarding();
   const { reviveLoggedInSession } = useOnboardingHelpers();
-  const { needsSplashSequence } = useShip();
 
   useEffect(() => {
     async function checkInitialState() {
