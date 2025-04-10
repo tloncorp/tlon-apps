@@ -181,27 +181,31 @@ export function ReactionsDisplay({
         </XStack>
       </Pressable>
 
-      <Pressable onPress={() => setSheetOpen(true)}>
-        <View
-          justifyContent="center"
-          alignItems="center"
-          backgroundColor="$secondaryBackground"
-          padding="$xs"
-          paddingHorizontal="$s"
-          marginLeft={reactionDetails.list.length > 0 ? '$s' : 0}
-          height="$3xl"
-          borderRadius="$m"
-          borderColor="$border"
-          disableOptimization // height is wrong if optimized
-        >
-          <Icon type="React" />
-        </View>
-      </Pressable>
-      <EmojiPickerSheet
-        open={sheetOpen}
-        onOpenChange={() => setSheetOpen(false)}
-        onEmojiSelect={handleSelectEmoji}
-      />
+      {post.type !== 'chat' && post.type !== 'reply' ? (
+        <>
+          <Pressable onPress={() => setSheetOpen(true)}>
+            <View
+              justifyContent="center"
+              alignItems="center"
+              backgroundColor="$secondaryBackground"
+              padding="$xs"
+              paddingHorizontal="$s"
+              marginLeft={reactionDetails.list.length > 0 ? '$s' : 0}
+              height="$3xl"
+              borderRadius="$m"
+              borderColor="$border"
+              disableOptimization // height is wrong if optimized
+            >
+              <Icon type="React" />
+            </View>
+          </Pressable>
+          <EmojiPickerSheet
+            open={sheetOpen}
+            onOpenChange={() => setSheetOpen(false)}
+            onEmojiSelect={handleSelectEmoji}
+          />
+        </>
+      ) : null}
     </XStack>
   );
 }
