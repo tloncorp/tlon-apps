@@ -500,6 +500,11 @@
       :~  code+s+code.b
           lang+s+lang.b
       ==
+        %link
+      %-  pairs
+      :~  url+s+url.b
+          meta+o+(~(run by meta.b) (lead %s))
+      ==
     ==
   ::
   ++  listing
@@ -1202,10 +1207,46 @@
           sent/di
       ==
     ::
+    ++  story  (ar verse)
+    ++  verse
+      ^-  $-(json verse:v7:old:c)
+      %-  of
+      :~  block+block
+          inline+(ar inline)
+      ==
+    ::
+    ++  block
+      ^-  $-(json block:v7:old:c)
+      %-  of
+      :~  rule/ul
+          cite/dejs:cite
+          listing/listing
+      ::
+        :-  %code
+        %-  ot
+        :~  code/so
+            lang/(se %tas)
+        ==
+      ::
+        :-  %header
+        %-  ot
+        :~  tag/(su (perk %h1 %h2 %h3 %h4 %h5 %h6 ~))
+            content/(ar inline)
+        ==
+      ::
+        :-  %image
+        %-  ot
+        :~  src/so
+            height/ni
+            width/ni
+            alt/so
+        ==
+      ==
+    ::
     ++  essay
       ^-  $-(json essay:v7:old:c)
       %+  cu
-        |=  [=story:c =ship:z =time:z =kind-data:c]
+        |=  [=story:v7:old:c =ship:z =time:z =kind-data:c]
         `essay:v7:old:c`[[story ship time] kind-data]
       %-  ot
       :~  content/story
@@ -1313,6 +1354,12 @@
           height/ni
           width/ni
           alt/so
+      ==
+    ::
+      :-  %link
+      %-  ot
+      :~  url+so
+          meta+(om so)
       ==
     ==
   ::

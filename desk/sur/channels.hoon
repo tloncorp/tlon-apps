@@ -167,6 +167,7 @@
 ::    %header: a traditional HTML heading, h1-h6
 ::    %listing: a traditional HTML list, ul and ol
 ::    %code: a block of code
+::    %link: a link, with metadata for rendering a preview card
 ::
 +$  block  $+  channel-block
   $%  [%image src=cord height=@ud width=@ud alt=cord]
@@ -175,7 +176,12 @@
       [%listing p=listing]
       [%rule ~]
       [%code code=cord lang=cord]
+      [%link url=@t meta=(map ?(link-meta-key @t) @t)]
   ==
+::  $link-meta-key: known-good %link $block meta keys
+::
++$  link-meta-key
+  ?(%title %description %image %site-name %site-icon)
 ::  $inline: post content that flows within a paragraph
 ::
 ::    @t: plain text
@@ -622,6 +628,14 @@
           sent=time
       ==
     +$  essay  [memo =kind-data]
+    +$  story  (list verse)
+    +$  verse
+      $%  [%block p=block]
+          [%inline p=(list inline)]
+      ==
+    +$  block
+      $~  [%rule ~]
+      $<(%link ^block)
     +$  v-replies     ((mop id-reply (unit v-reply)) lte)
     +$  channels  (map nest channel)
     ++  channel
