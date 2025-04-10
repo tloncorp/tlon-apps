@@ -10,7 +10,7 @@ import { getRandomId } from '../logic';
 import { createSectionId } from '../urbit';
 import { createChannel, pinGroup } from './channelActions';
 
-const logger = createDevLogger('groupActions', true);
+const logger = createDevLogger('groupActions', false);
 
 interface CreateGroupParams {
   title?: string;

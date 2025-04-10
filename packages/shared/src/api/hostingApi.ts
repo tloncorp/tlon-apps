@@ -274,7 +274,6 @@ export const logInHostingUser = async (params: {
   });
 
   const result = (await response.json()) as HostingError | User;
-  console.log(`bl: /v1/login/`, result);
   if (!response.ok) {
     throw new HostingError(
       'message' in result ? result.message : 'An unknown error has occurred.',
@@ -297,7 +296,6 @@ export const logInHostingUser = async (params: {
 
 export const getHostingUser = async (userId: string) => {
   const hostingUser = await hostingFetch<User>(`/v1/users/${userId}`);
-  console.log(`bl: /v1/users/${userId}`, hostingUser);
   return hostingUser;
 };
 

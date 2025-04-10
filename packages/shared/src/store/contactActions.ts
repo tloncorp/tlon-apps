@@ -6,7 +6,7 @@ import * as logic from '../logic';
 import * as GroupActions from './groupActions';
 import { syncContacts, syncGroup } from './sync';
 
-const logger = createDevLogger('ContactActions', true);
+const logger = createDevLogger('ContactActions', false);
 
 export async function addContact(contactId: string) {
   logger.trackEvent(AnalyticsEvent.ActionContactAdded, { count: 1 });
