@@ -6,7 +6,7 @@ export const PersonalGroupSlugs = {
 };
 
 export const PersonalGroupNames = {
-  groupTitle: 'Personal Garden',
+  groupTitle: 'Your Home',
   groupIconUrl:
     'https://d2w9rnfcy7mm78.cloudfront.net/6750548/original_ccd5538227dc610628554c9e3d118271.jpg?1586214554?bc=0',
   chatTitle: 'Passing Thoughts',

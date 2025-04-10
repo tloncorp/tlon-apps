@@ -92,3 +92,19 @@ export function detectWebSignup() {
   const didSignup = url.searchParams.get('did-signup');
   return didSignup === 'true';
 }
+
+export function personalGroupHasDefaultTitle(group?: db.Group | null) {
+  if (!group) {
+    return false;
+  }
+
+  return group.title?.toLowerCase().includes('home');
+}
+
+export function generatePersonalGroupTitle(contact: {
+  id: string;
+  nickname?: string | null;
+}) {
+  const displayName = contact.nickname || contact.id;
+  return `${displayName}'s Home`;
+}
