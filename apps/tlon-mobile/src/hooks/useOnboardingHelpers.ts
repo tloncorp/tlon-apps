@@ -1,14 +1,16 @@
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { useShip } from '@tloncorp/app/contexts/ship';
+import { useStore } from '@tloncorp/app/ui';
 import {
   AnalyticsEvent,
   HostedNodeStatus,
   createDevLogger,
+  scaffoldPersonalGroup,
+  withRetry,
 } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import { storage } from '@tloncorp/shared/db';
 import * as db from '@tloncorp/shared/db';
-import { useStore } from '@tloncorp/app/ui';
 import { useCallback } from 'react';
 
 import { clearHostingNativeCookie } from '../lib/hostingAuth';
@@ -112,7 +114,8 @@ export function useOnboardingHelpers() {
       // Step 2: Verify node status
       const nodeId = await db.hostedUserNodeId.getValue();
       console.log('checking node status', nodeId);
-      const nodeStatus = await store.checkHostingNodeStatus();
+      const { status: nodeStatus, isBeingRevived } =
+        await store.checkHostingNodeStatus();
       if (nodeStatus !== HostedNodeStatus.Running) {
         if (nodeStatus === HostedNodeStatus.UnderMaintenance) {
           logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
@@ -142,7 +145,27 @@ export function useOnboardingHelpers() {
         return;
       }
       logger.log('authenticated with node', shipInfo);
-      setShip(shipInfo);
+
+      // make sure we show them the wayfinding splash if they're being revived
+      setShip({ ...shipInfo, needsSplashSequence: isBeingRevived });
+
+      // Step 4: if they're being revived, attempt to scaffold the personal group
+      try {
+        await withRetry(() => scaffoldPersonalGroup());
+        db.wayfindingProgress.setValue((prev) => ({
+          ...prev,
+          tappedChatInput: false,
+          tappedAddCollection: false,
+          tappedAddNote: false,
+        }));
+      } catch (e) {
+        logger.trackEvent(AnalyticsEvent.ErrorWayfindingAbort, {
+          context: 'failed to scaffold personal group',
+          during: 'mobile revival login (useOnboardingHelpers)',
+          errorMessage: e.message,
+          errorStack: e.stack,
+        });
+      }
     },
     [navigation, setShip, signupContext, store]
   );

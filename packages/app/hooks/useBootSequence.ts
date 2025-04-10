@@ -348,7 +348,8 @@ export function useBootSequence() {
         MAX_WAYFINDING_ATTEMPTS
       ) {
         logger.trackEvent(AnalyticsEvent.ErrorWayfindingAbort, {
-          context: 'exceeded max attempts',
+          context: 'failed to scaffold personal group',
+          during: 'mobile signup (useBootSequence)',
         });
         const signedUpWithInvite = Boolean(lureMeta?.id);
         const nextBootPhase = signedUpWithInvite

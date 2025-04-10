@@ -164,7 +164,7 @@ export async function logInHostedUser({
 
 export async function checkHostingNodeStatus(
   supressStatusLog?: boolean
-): Promise<domain.HostedNodeStatus> {
+): Promise<{ status: domain.HostedNodeStatus; isBeingRevived: boolean }> {
   const nodeId = await db.hostedUserNodeId.getValue();
   if (!nodeId) {
     logger.trackError(AnalyticsEvent.LoginAnomaly, {
@@ -174,7 +174,8 @@ export async function checkHostingNodeStatus(
   }
 
   try {
-    const nodeStatus = await api.getNodeStatus(nodeId);
+    const { status: nodeStatus, isBeingRevived } =
+      await api.getNodeStatus(nodeId);
     if (nodeStatus === domain.HostedNodeStatus.Running) {
       await db.hostedNodeIsRunning.setValue(true);
     }
@@ -200,14 +201,14 @@ export async function checkHostingNodeStatus(
       }
     }
 
-    return nodeStatus;
+    return { status: nodeStatus, isBeingRevived };
   } catch (e) {
     logger.trackError(AnalyticsEvent.LoginDebug, {
       context: 'Failed to get node status',
       errorMessage: e.message,
       errorStack: e.stack,
     });
-    return domain.HostedNodeStatus.Unknown;
+    return { status: domain.HostedNodeStatus.Unknown, isBeingRevived: false };
   }
 }
 

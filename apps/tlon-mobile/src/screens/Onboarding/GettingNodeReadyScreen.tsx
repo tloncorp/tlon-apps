@@ -13,8 +13,6 @@ import {
   scheduleNodeResumeNudge,
   useNotificationPermissions,
 } from '@tloncorp/app/lib/notifications';
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/db';
 import {
   AppDataContextProvider,
   ArvosDiscussing,
@@ -28,7 +26,16 @@ import {
   View,
   XStack,
   YStack,
+  useStore,
 } from '@tloncorp/app/ui';
+import {
+  AnalyticsEvent,
+  createDevLogger,
+  scaffoldPersonalGroup,
+  withRetry,
+} from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -59,6 +66,7 @@ export function GettingNodeReadyScreen({
   navigation,
   route: { params },
 }: Props) {
+  const store = useStore();
   const isFocused = useIsFocused();
   const lastWasFocused = useRef(true);
   const { setShip } = useShip();
@@ -124,10 +132,27 @@ export function GettingNodeReadyScreen({
         setPermSheetOpen(false);
         setTimeout(() => {
           setShip(shipInfo);
+          withRetry(() => store.scaffoldPersonalGroup())
+            .then(() => {
+              db.wayfindingProgress.setValue((prev) => ({
+                ...prev,
+                tappedChatInput: false,
+                tappedAddCollection: false,
+                tappedAddNote: false,
+              }));
+            })
+            .catch((e) => {
+              logger.trackEvent(AnalyticsEvent.ErrorWayfindingAbort, {
+                context: 'failed to scaffold personal group',
+                during: 'mobile revival login (useOnboardingHelpers)',
+                errorMessage: e.message,
+                errorStack: e.stack,
+              });
+            });
         }, 2000);
       }
     }
-  }, [navigation, phase, setShip, shipInfo, updateProgress]);
+  }, [navigation, phase, setShip, shipInfo, store, updateProgress]);
 
   // If we came back to this screen, make sure we reset
   useEffect(() => {

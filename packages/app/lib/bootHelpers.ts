@@ -54,7 +54,7 @@ export async function reserveNode(
 
 export async function checkNodeBooted(): Promise<boolean> {
   try {
-    const nodeStatus = await store.checkHostingNodeStatus();
+    const { status: nodeStatus } = await store.checkHostingNodeStatus();
     return nodeStatus === HostedNodeStatus.Running;
   } catch (e) {
     return false;

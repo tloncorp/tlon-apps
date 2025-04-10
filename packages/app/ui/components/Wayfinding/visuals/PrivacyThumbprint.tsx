@@ -14,7 +14,6 @@ export const PrivacyThumbprint = () => {
   return (
     <Canvas
       style={{
-        // flex: 1,
         height: size,
         width: size,
         backgroundColor: 'transparent',
@@ -23,8 +22,6 @@ export const PrivacyThumbprint = () => {
       <Mask mask={<RadialOpacityGradient />}>
         <SkiaSquiggles />
       </Mask>
-
-      {/* <SkiaSquiggles /> */}
     </Canvas>
   );
 };
