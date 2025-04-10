@@ -2480,10 +2480,6 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
     .onConflictDoUpdate({
       target: $posts.id,
       set: conflictUpdateSetAll($posts, ['hidden']),
-    })
-    .onConflictDoUpdate({
-      target: [$posts.authorId, $posts.sentAt],
-      set: conflictUpdateSetAll($posts, ['hidden']),
     });
 
   const reactions = posts
@@ -2706,7 +2702,7 @@ async function updatePostWindows(
 
   logger.log('inserting final window', finalWindow);
   // Insert final window.
-  await ctx.db.insert($postWindows).values(finalWindow);
+  await ctx.db.insert($postWindows).values(finalWindow).onConflictDoNothing();
 }
 
 function overlapsWindow(window: PostWindow) {
@@ -2865,13 +2861,23 @@ export const getPostByBackendTime = createReadQuery(
 export const getPostByCacheId = createReadQuery(
   'getPostByCacheId',
   async (
-    { sentAt, authorId }: { sentAt: number; authorId: string },
+    {
+      channelId,
+      sentAt,
+      authorId,
+    }: { channelId: string; sentAt: number; authorId: string },
     ctx: QueryCtx
   ) => {
     const postData = await ctx.db
       .select()
       .from($posts)
-      .where(and(eq($posts.sentAt, sentAt), eq($posts.authorId, authorId)));
+      .where(
+        and(
+          eq($posts.sentAt, sentAt),
+          eq($posts.authorId, authorId),
+          eq($posts.channelId, channelId)
+        )
+      );
     if (!postData.length) return null;
     return postData[0];
   },
