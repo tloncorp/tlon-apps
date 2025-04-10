@@ -14,6 +14,7 @@ const logger = createDevLogger('groupActions', true);
 
 interface CreateGroupParams {
   title?: string;
+  image?: string;
   memberIds?: string[];
 }
 
@@ -35,11 +36,13 @@ export async function scaffoldPersonalGroup() {
               currentUserIsMember: true,
               currentUserIsHost: true,
               hostUserId: currentUserId,
+              iconImage: PersonalGroupKeys.groupIconUrl,
             },
           ],
         });
         await api.createGroup({
           title: PersonalGroupKeys.groupName,
+          image: PersonalGroupKeys.groupIconUrl,
           slug: PersonalGroupKeys.slug,
           privacy: 'secret',
         });

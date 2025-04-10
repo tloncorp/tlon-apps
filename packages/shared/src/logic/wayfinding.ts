@@ -6,6 +6,7 @@ export function getPersonalGroupKeys(currentUserId: string) {
   return {
     slug: PersonalGroupSlugs.slug,
     groupName: PersonalGroupNames.groupTitle,
+    groupIconUrl: PersonalGroupNames.groupIconUrl,
     groupId: `${currentUserId}/${PersonalGroupSlugs.slug}`,
 
     chatSlug: PersonalGroupSlugs.chatSlug,
