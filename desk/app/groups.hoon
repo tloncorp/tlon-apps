@@ -3,11 +3,11 @@
 ::    note: all subscriptions are handled by the subscriber library so
 ::    we can have resubscribe loop protection.
 ::
-/-  g=groups, zero=groups-0, ha=hark, h=heap, d=channels, c=chat,
+/-  g=groups, ha=hark, h=heap, d=channels, c=chat,
     tac=contacts-0, activity
 /-  meta
 /+  default-agent, verb, dbug
-/+  v=volume, s=subscriber, imp=import-aid, logs
+/+  gv=groups-ver, v=volume, s=subscriber, imp=import-aid, logs
 /+  of
 /+  neg=negotiate
 ::  performance, keep warm
@@ -29,6 +29,7 @@
 =>
   |%
   +$  card  card:agent:gall
+  ::XX what is this?
   ++  import-epoch  ~2022.10.11
   +$  current-state
     $:  %7
@@ -380,6 +381,9 @@
     ?.  ?=([%epic ~] wire)  cor
     =^  caz=(list card)  subs
       (~(unsubscribe s [subs bowl]) wire dock)
+    ::XX bug: emil does not refer to cor
+    ::we should repeat this migration with the next upgrade
+    ::
     =.  cor  (emil caz)
     ::  force leave
     (emit [%pass wire %agent dock %leave ~])
@@ -405,24 +409,24 @@
     ==
   +$  state-0
     $:  %0
-        groups=net-groups:zero
-        xeno=gangs:zero
-        shoal=(map flag:zero dude:gall)
+        groups=net-groups:v0:g
+        xeno=gangs:v0:g
+        shoal=(map flag:g dude:gall)
     ==
   ::
   +$  state-1
     $:  %1
-      groups=net-groups:zero
+      groups=net-groups:v0:g
       ::
         $=  volume
         $:  base=level:v
-            area=(map flag:zero level:v)  ::  override per group
-            chan=(map nest:zero level:v)  ::  override per channel
+            area=(map flag:g level:v)  ::  override per group
+            chan=(map nest:g level:v)  ::  override per channel
         ==
       ::
-        xeno=gangs:zero
+        xeno=gangs:v0:g
         ::  graph -> agent
-        shoal=(map flag:zero dude:gall)
+        shoal=(map flag:g dude:gall)
     ==
   ::
   +$  state-2
@@ -489,7 +493,7 @@
   ++  state-1-to-2
     |=  state-1
     ^-  state-2
-    [%2 (groups-1-to-2 groups) volume xeno shoal]
+    [%2 (v2:groups:v0 groups) volume xeno shoal]
   ::
   ++  state-2-to-3
     |=  state-2
@@ -505,9 +509,9 @@
     |=  state-4
     ^-  state-5
     :*  %5
-        (~(run by groups) net-group-2-to-5)
+        (~(run by groups) v5:net-group:v2:gv)
         volume
-        (~(run by xeno) gang-2-to-5)
+        (~(run by xeno) v5:gang:v2:gv)
         shoal
         subs
         ~
@@ -519,107 +523,9 @@
     :*  %6
         groups
         volume
-        (~(run by xeno) gang-5-to-6)
+        (~(run by xeno) v6:gang:v5:gv)
         subs
         ~
-    ==
-  ::
-  ++  gang-5-to-6
-    |=  gang:v5:g
-    ^-  gang:v6:g
-    [cam pev vit ~]
-  ::
-  ++  net-group-2-to-5
-    |=  [old-net=net:v2:g old-group=group:v2:g]
-    [(net-2-to-5 old-net) (group-2-to-5 old-group)]
-  ::
-  ++  net-2-to-5
-    |=  =net:v2:g
-    ^-  net:v5:g
-    ?:  ?=(%sub -.net)
-      [%sub p.net load.net]
-    [%pub (run:log-on:v2:g p.net diff-2-to-5)]
-  ::
-  ++  diff-2-to-5
-    |=  =diff:v2:g
-    ^-  diff:v5:g
-    ?.  ?=(%create -.diff)  diff
-    diff(p (group-2-to-5 p.diff))
-  ::
-  ++  group-2-to-5
-    |=  group:v2:g
-    ^-  group:v5:g
-    :*  fleet
-        cabals
-        zones
-        zone-ord
-        bloc
-        channels
-        ~  ::  active-channels
-        imported
-        cordon
-        secret
-        meta
-        flagged-content
-    ==
-  ::
-  ++  claim-2-to-5
-    |=  claim:v2:g
-    ^-  claim:v5:g
-    ::  there is no trace of %done ever being used
-    ::  since the earliest recorded version of %groups.
-    ::  thus we are free to treat such claims as an %error.
-    ::
-    :-  join-all
-    ?:(?=(%done progress) %error progress)
-  ::
-  ++  preview-2-to-5
-    |=  preview:v2:g
-    ^-  preview:v5:g
-    [flag meta cordon time secret 0]
-  ::
-  ++  gang-2-to-5
-    |=  gang:v2:g
-    ^-  gang:v5:g
-    [(bind cam claim-2-to-5) (bind pev preview-2-to-5) vit]
-  ::
-  ++  groups-1-to-2
-    =*  v2  v2:g
-    |=  groups=net-groups:zero
-    ^-  net-groups:v2
-    %-  ~(run by groups)
-    |=  [=net:zero gr=group:zero]
-    ^-  [net:v2 group:v2]
-    :_  (group-1-to-2 gr)
-    ?-  -.net
-        %sub  net
-        %pub
-      :-  %pub
-      %+  gas:log-on:v2  *log:v2
-      %+  turn
-        (tap:log-on:zero p.net)
-      |=  [t=time =diff:zero]
-      ^-  [time diff:v2]
-      :-  t
-      ?+  -.diff  diff
-        %create  [%create (group-1-to-2 p.diff)]
-      ==
-    ==
-  ++  group-1-to-2
-    |=  gr=group:zero
-    ^-  group:v2:g
-    %*  .  *group:v2:g
-      fleet            fleet.gr
-      cabals           cabals.gr
-      zones            zones.gr
-      zone-ord         zone-ord.gr
-      bloc             bloc.gr
-      channels         channels.gr
-      imported         imported.gr
-      cordon           cordon.gr
-      secret           secret.gr
-      meta             meta.gr
-      flagged-content  ~
     ==
   --
 ::
@@ -672,7 +578,7 @@
     go-abet:(go-watch:(go-abed:group-core ship name.pole) %v2 /preview)
   ::
     ::
-    ::  /v/groups/*
+    ::  /ver/groups/*
     ::
       [ver=?(%v1 %v2) %groups ship=@ name=@ rest=*]
     =/  ship=@p  (slav %p ship.pole)
@@ -738,15 +644,48 @@
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
-  =*  xeno-2
-    ^-  gangs:v2:g
-    (~(run by xeno) to-gang-2)
-  =*  xeno-5
-    ^-  gangs:v5:g
-    (~(run by xeno) to-gang-5)
-  =*  xeno-6
-    ^-  gangs:v6:g
-    xeno
+  ::  compatibility
+  ::
+  =>
+    |%
+    ++  xeno-2
+      ^-  gangs:v2:g
+      (~(run by xeno) v2:gang:v6:gv)
+    ::
+    ++  xeno-5
+      ^-  gangs:v5:g
+      (~(run by xeno) v5:gang:v6:gv)
+    ::
+    ++  xeno-6
+      ^-  gangs:v6:g
+      xeno
+    ::
+    ++  groups-light-2
+      ^-  groups:v2:g
+      %-  ~(run by groups)
+      |=  [=net:v6:g =group:v6:g]
+      (v2:group:v6:gv (drop-fleet:v6 group bowl))
+    ::
+    ++  groups-light-ui-0
+      ^-  groups-ui:v2:g
+      %-  ~(urn by groups)
+      |=  [=flag:g [=net:v6:g =group:v6:g]]
+      =*  status  (read-status:neg bowl [p.flag %groups])
+      (v0:group-ui:v6:g flag net (drop-fleet:v6 group bowl) status)
+    ::
+    ++  groups-light-ui-2
+      ^-  groups-ui:v2:g
+      %-  ~(urn by groups)
+      |=  [=flag:g [=net:v6:g =group:v6:g]]
+      =*  status  (read-status:neg bowl [p.flag %groups])
+      (v2:group-ui:v6:g flag net (drop-fleet:v6 group bowl) status)
+    ::
+    ++  groups-light-ui-5
+      ^-  groups-ui:v5:g
+      %-  ~(run by groups)
+      |=  [=net:v6:g =group:v6:g]
+      (v5:group-ui:v6 net (drop-fleet:v6 group))
+    --
   ::
   ?+    pole  [~ ~]
   ::
@@ -755,30 +694,30 @@
     [%x %v2 %gangs ~]  ``gangs-2+!>(xeno-6)
   ::
     [%x %init ~]  ``noun+!>([groups-light-2 xeno-2])
-    [%x %init %v0 ~]  ``noun+!>([groups-light-ui-v0 xeno-2])
+    [%x %init %v0 ~]  ``noun+!>([groups-light-ui-0 xeno-2])
     [%x %init %v1 ~]  ``noun+!>([groups-light-ui-2 xeno-2])
     [%x %v2 %init ~]  ``noun+!>([groups-light-ui-5 xeno-5])
     [%x %v3 %init ~]  ``noun+!>([groups-light-ui-5 xeno-6])
   ::
     [%x %groups %light ~]  ``groups+!>(groups-light-2)
-    [%x %groups %light %v0 ~]  ``groups-ui-v0+!>(groups-light-ui-v0)
+    [%x %groups %light %v0 ~]  ``groups-ui-v0+!>(groups-light-ui-0)
     [%x %groups %light %v1 ~]  ``groups-ui+!>(groups-light-ui-2)
   ::
       [%x %groups ~]
-    =/  groups-2=groups:v2:g
+    =*  groups-2
       %-  ~(run by groups)
       |=  [net:g =group:g]
       (to-group-2 group)
-    ``groups+!>(groups-2)
+    ``groups+!>(`groups:v2:g`groups-2)
   ::
       [%x %v1 %groups ~]
     ``groups-1+!>(`groups:v5:g`(~(run by groups) tail))
   ::
       [%x %groups %v0 ~]
-    ``groups-ui-v0+!>(`groups-ui:zero`(~(urn by groups) to-group-ui-v0))
+    ``groups-ui-v0+!>((~(urn by groups) v0:group-ui:v6:gv))
   ::
       [%x %groups %v1 ~]
-    ``groups-ui+!>(`groups-ui:v2:g`(~(urn by groups) to-group-ui-2))
+    ``groups-ui+!>((~(urn by groups) v2:group-ui:v6:gv))
   ::
       [%x %groups ship=@ name=@ rest=*]
     =/  ship  (slav %p ship.pole)
@@ -786,19 +725,19 @@
     =/  group  (~(get by groups) flag)
     ?~  group  [~ ~]
     ?~  rest.pole
-      ``group+!>((to-group-2 +.u.group))
+      ``group+!>((v2:group:v6:gv +.u.group))
     ?+    rest.pole
         (go-peek:(go-abed:group-core ship name.pole) rest.pole)
       ::
     ::
         [%v0 ~]
-      ``group-ui-v0+!>(`group-ui:zero`(to-group-ui-v0 flag u.group))
+      ``group-ui-v0+!>((v0:group-ui:v6:gv flag u.group))
     ::
         [%v1 ~]
-      ``group-ui+!>((to-group-ui-2 flag u.group))
+      ``group-ui+!>((v2:group-ui:v6:gv flag u.group))
     ::
         [%v2 ~]
-      ``group-ui-1+!>((to-group-ui-5 u.group))
+      ``group-ui-1+!>((v5:group-ui:v6:gv u.group))
     ==
   ::
       [%x %exists ship=@ name=@ rest=*]
@@ -837,146 +776,6 @@
       $(groups t.groups)
     (~(gut by area.volume) flag.i.groups ~)
   ==
-::
-++  drop-fleet
-  |=  =group:g
-  ^-  group:g
-  =.  fleet.group
-    %+  ~(put by *fleet:g)
-      our.bowl
-    (~(gut by fleet.group) our.bowl *vessel:fleet:g)
-  group
-::
-++  to-claim-2
-  |=  =claim:g
-  ^-  claim:v2:g
-  claim
-::
-++  to-preview-2
-  |=  preview:g
-  ^-  preview:v2:g
-  [flag meta cordon time secret]
-::
-++  to-gang-2
-  |=  gang:g
-  ^-  gang:v2:g
-  :*  (bind cam to-claim-2)
-      (bind pev to-preview-2)
-      vit
-  ==
-++  to-gang-5
-  |=  gang:g
-  ^-  gang:v5:g
-  [cam pev vit]
-::
-++  to-group-2
-  |=  group:g
-  ^-  group:v2:g
-  :*  fleet
-      cabals
-      zones
-      zone-ord
-      bloc
-      channels
-      imported
-      cordon
-      secret
-      meta
-      flagged-content
-  ==
-::
-++  groups-light-2
-  ^-  groups:v2:g
-  %-  ~(run by groups)
-  |=  [=net:g =group:g]
-  (to-group-2 (drop-fleet group))
-::
-++  groups-light-ui-2
-  ^-  groups-ui:v2:g
-  %-  ~(urn by groups)
-  |=  [=flag:g [=net:g =group:g]]
-  (to-group-ui-2 flag net (drop-fleet group))
-::
-++  groups-light-ui-5
-  ^-  groups-ui:v5:g
-  %-  ~(run by groups)
-  |=  [=net:g =group:g]
-  :*  (drop-fleet group)
-      ::  init
-      ?:(?=(%pub -.net) & load.net)
-      ::  member count
-      ~(wyt by fleet.group)
-  ==
-::
-++  to-groups-ui-5
-  |=  [=net:g =group:g]
-  ^-  group-ui:v5:g
-  :*  (drop-fleet group)
-      ::  init
-      ?:(?=(%pub -.net) & load.net)
-      ::  member count
-      ~(wyt by fleet.group)
-  ==
-::
-++  groups-light-ui-v0
-  ^-  groups-ui:zero
-  %-  ~(urn by groups)
-  |=  [=flag:g [=net:g =group:g]]
-  (to-group-ui-v0 flag net (drop-fleet group))
-::
-++  to-group-ui-5
-  |=  [=net:g =group:g]
-  ^-  group-ui:v5:g
-  :*  group
-      ::  init
-      ?:(?=(%pub -.net) & load.net)
-      ::  member count
-      ~(wyt by fleet.group)
-  ==
-::
-++  to-group-ui-2
-  |=  [=flag:g =net:g =group:g]
-  ^-  group-ui:v2:g
-  :-  (to-group-2 group)
-  ?.  ?=(%sub -.net)  ~
-  =/  =status:neg
-    (read-status:neg bowl [p.flag %groups])
-  ?+  status  ~
-    %match  `[%chi ~]
-    %clash  `[%lev ~]
-  ==
-++  to-group-ui-v0
-  |=  [=flag:g =net:g =group:g]
-  ^-  group-ui:zero
-  :_  ?.  ?=(%sub -.net)  ~
-      =/  =status:neg
-        (read-status:neg bowl [p.flag %groups])
-      ?+  status  ~
-        %match  `[%chi ~]
-        %clash  `[%lev ~]
-      ==
-  :*  fleet.group
-      cabals.group
-      zones.group
-      zone-ord.group
-      bloc.group
-      channels.group
-      imported.group
-      cordon.group
-      secret.group
-      meta.group
-  ==
-::
-++  to-log-2
-  |=  =log:g
-  ^-  log:v2:g
-  (run:log-on:g log to-diff-2)
-::
-++  to-diff-2
-  |=  =diff:g
-  ^-  diff:v2:g
-  ?.  ?=(%create -.diff)  diff
-  diff(p (to-group-2 p.diff))
 ::
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]
