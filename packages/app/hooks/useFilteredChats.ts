@@ -15,6 +15,21 @@ export type SectionedChatData = {
   data: db.Chat[];
 }[];
 
+function getAllSectionHeader(
+  activeTab: TabName,
+  msgsFilter?: TalkSidebarFilter
+): string {
+  if (activeTab === 'talk') {
+    if (msgsFilter === 'Group Channels') {
+      return 'Chat Channels';
+    }
+
+    return msgsFilter ?? 'Direct Messages';
+  }
+
+  return 'All';
+}
+
 export function useFilteredChats({
   pinned,
   unpinned,
@@ -50,7 +65,7 @@ export function useFilteredChats({
         data: filterChats(pinned, activeTab, talkFilter),
       };
       const allSection = {
-        title: 'All',
+        title: getAllSectionHeader(activeTab, talkFilter),
         data: filterChats([...pending, ...unpinned], activeTab, talkFilter),
       };
       return pinnedSection.data.length
