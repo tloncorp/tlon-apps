@@ -50,7 +50,6 @@ export function searchEmojis(query: string): EmojiObject[] {
 }
 
 function processEmojiData() {
-  console.log('building emoji index');
   const emojiMap = Object.entries((EmojiData as EmojiMartData).emojis).reduce(
     (acc, [key, value]) => {
       acc[key] = {

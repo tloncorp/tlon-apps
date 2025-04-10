@@ -260,7 +260,7 @@ export function unblockUser(userId: string) {
   });
 }
 
-function multiDmAction(id: string, delta: ub.ClubDelta) {
+export function multiDmAction(id: string, delta: ub.ClubDelta) {
   return {
     app: 'chat',
     mark: 'chat-club-action-0',

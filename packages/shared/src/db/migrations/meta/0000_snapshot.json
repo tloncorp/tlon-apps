@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "2b508d13-46c8-4794-a6ea-aef69c58a417",
+  "id": "609dcd27-71cb-4bb7-a343-8a18cc1249dc",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2179,16 +2179,10 @@
         }
       },
       "indexes": {
-        "posts_sent_at_unique": {
-          "name": "posts_sent_at_unique",
-          "columns": [
-            "sent_at"
-          ],
-          "isUnique": true
-        },
         "cache_id": {
           "name": "cache_id",
           "columns": [
+            "channel_id",
             "author_id",
             "sent_at"
           ],
