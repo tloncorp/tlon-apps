@@ -44,7 +44,7 @@ import emojiRegex from 'emoji-regex';
 import _ from 'lodash';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import ob from 'urbit-ob';
-import { useCopyToClipboard } from 'usehooks-ts';
+// import { useCopyToClipboard } from 'usehooks-ts';
 import isURL from 'validator/es/lib/isURL';
 
 export const isStagingHosted =
@@ -666,50 +666,50 @@ export function pathToCite(path: string): Cite | undefined {
   return undefined;
 }
 
-export function useCopy(copied: string) {
-  const [didCopy, setDidCopy] = useState(false);
-  const [, copy] = useCopyToClipboard();
+// export function useCopy(copied: string) {
+//   const [didCopy, setDidCopy] = useState(false);
+//   const [, copy] = useCopyToClipboard();
 
-  const copyFallback = async (text: string) => {
-    try {
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-      return true;
-    } catch (error) {
-      console.warn('Fallback copy failed', error);
-      return false;
-    }
-  };
+//   const copyFallback = async (text: string) => {
+//     try {
+//       const textarea = document.createElement('textarea');
+//       textarea.value = text;
+//       document.body.appendChild(textarea);
+//       textarea.select();
+//       document.execCommand('copy');
+//       document.body.removeChild(textarea);
+//       return true;
+//     } catch (error) {
+//       console.warn('Fallback copy failed', error);
+//       return false;
+//     }
+//   };
 
-  const doCopy = useCallback(async () => {
-    let success = false;
-    if (!navigator.clipboard) {
-      success = await copyFallback(copied);
-    } else {
-      success = await copy(copied);
-    }
+//   const doCopy = useCallback(async () => {
+//     let success = false;
+//     if (!navigator.clipboard) {
+//       success = await copyFallback(copied);
+//     } else {
+//       success = await copy(copied);
+//     }
 
-    setDidCopy(success);
+//     setDidCopy(success);
 
-    let timeout: NodeJS.Timeout;
-    if (success) {
-      timeout = setTimeout(() => {
-        setDidCopy(false);
-      }, 2000);
-    }
+//     let timeout: NodeJS.Timeout;
+//     if (success) {
+//       timeout = setTimeout(() => {
+//         setDidCopy(false);
+//       }, 2000);
+//     }
 
-    return () => {
-      setDidCopy(false);
-      clearTimeout(timeout);
-    };
-  }, [copied, copy]);
+//     return () => {
+//       setDidCopy(false);
+//       clearTimeout(timeout);
+//     };
+//   }, [copied, copy]);
 
-  return { doCopy, didCopy };
-}
+//   return { doCopy, didCopy };
+// }
 
 export function getNestShip(nest: string) {
   const [, flag] = nestToFlag(nest);
