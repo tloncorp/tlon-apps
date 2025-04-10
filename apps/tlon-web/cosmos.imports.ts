@@ -3,7 +3,7 @@
 
 import { RendererConfig, UserModuleWrappers } from 'react-cosmos-core';
 
-import './apps/tlon-web-new/cosmos/setup';
+import './apps/tlon-web/cosmos/setup';
 
 import * as fixture0 from './src/fixtures/Button.fixture';
 

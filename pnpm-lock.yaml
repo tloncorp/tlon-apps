@@ -492,7 +492,7 @@ importers:
         specifier: ^1.0.4
         version: 1.2.2(@types/node@20.17.6)(jsdom@23.2.0)(lightningcss@1.19.0)(terser@5.36.0)
 
-  apps/tlon-web-new:
+  apps/tlon-web:
     dependencies:
       '@10play/react-native-web-webview':
         specifier: ^0.0.3
