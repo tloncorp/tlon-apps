@@ -56,14 +56,14 @@ export const ChatList = React.memo(function ChatListComponent({
 
   const isNarrow = useIsWindowNarrow();
   const sizeRefs = useRef({
-    sectionHeader: isNarrow ? 24.55 : 28,
-    chatListItem: isNarrow ? 64 : 72,
+    sectionHeader: isNarrow ? 28 : 24.55,
+    chatListItem: isNarrow ? 72 : 64,
   });
 
   // update the sizeRefs when the window size changes
   useEffect(() => {
-    sizeRefs.current.sectionHeader = isNarrow ? 24.55 : 28;
-    sizeRefs.current.chatListItem = isNarrow ? 64 : 72;
+    sizeRefs.current.sectionHeader = isNarrow ? 28 : 24.55;
+    sizeRefs.current.chatListItem = isNarrow ? 72 : 64;
   }, [isNarrow]);
 
   const handleHeaderLayout = useCallback((e: LayoutChangeEvent) => {
