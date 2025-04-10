@@ -86,6 +86,17 @@ export function useStoppedNodeSequence(params: {
       });
 
       setShipInfo({ ...shipInfo, needsSplashSequence: isBeingRevived });
+
+      // if being revived, clear the ships revival status in Hosting
+      if (isBeingRevived) {
+        store.clearShipRevivalStatus().catch((e) => {
+          logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
+            context: 'failed to clear revival status',
+            errorMessage: e.message,
+            errorStack: e.stack,
+          });
+        });
+      }
       return NodeResumeState.Ready;
     } catch (e) {
       logger.crumb('getting auth threw', e);

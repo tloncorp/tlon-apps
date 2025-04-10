@@ -158,8 +158,15 @@ export function useOnboardingHelpers() {
           tappedAddCollection: false,
           tappedAddNote: false,
         }));
+        store.clearShipRevivalStatus().catch((e) => {
+          logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
+            context: 'failed to clear revival status',
+            errorMessage: e.message,
+            errorStack: e.stack,
+          });
+        });
       } catch (e) {
-        logger.trackEvent(AnalyticsEvent.ErrorWayfindingAbort, {
+        logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
           context: 'failed to scaffold personal group',
           during: 'mobile revival login (useOnboardingHelpers)',
           errorMessage: e.message,

@@ -460,8 +460,9 @@ function ConnectedWebApp() {
               }));
             }
           } catch (e) {
-            telemetry.capture(AnalyticsEvent.ErrorWayfindingAbort, {
-              context: 'failed to create personal group after 3 attempts',
+            telemetry.capture(AnalyticsEvent.ErrorWayfinding, {
+              context: 'failed to scaffold personal group',
+              during: 'web start sequence',
               errorMessage: e.message,
               errorStack: e.stack,
             });

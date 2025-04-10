@@ -142,7 +142,7 @@ export function GettingNodeReadyScreen({
               }));
             })
             .catch((e) => {
-              logger.trackEvent(AnalyticsEvent.ErrorWayfindingAbort, {
+              logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
                 context: 'failed to scaffold personal group',
                 during: 'mobile revival login (useOnboardingHelpers)',
                 errorMessage: e.message,

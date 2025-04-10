@@ -347,7 +347,7 @@ export function useBootSequence() {
         bootStepCounter - tryingWayfindingSince.current >
         MAX_WAYFINDING_ATTEMPTS
       ) {
-        logger.trackEvent(AnalyticsEvent.ErrorWayfindingAbort, {
+        logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
           context: 'failed to scaffold personal group',
           during: 'mobile signup (useBootSequence)',
         });

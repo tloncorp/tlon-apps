@@ -322,3 +322,17 @@ export async function redeemInviteIfNeeded(invite: logic.AppInvite) {
     });
   }
 }
+
+export async function clearShipRevivalStatus() {
+  const nodeId = await db.hostedUserNodeId.getValue();
+  if (!nodeId) {
+    logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
+      context: 'Tried to clear revival status without node ID',
+    });
+    throw new Error('Cannot clear revival status, no node ID found');
+  }
+
+  // note: the Hosting api only lets us blindly toggle the revival status,
+  // not explicitly clear it
+  await api.clearShipRevivalStatus(nodeId);
+}
