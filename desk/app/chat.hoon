@@ -401,7 +401,7 @@
   ::
   ++  story-4-to-5
     |=  [=ship old=content:two]
-    ^-  story:d
+    ^-  story:v7:old:d
     ?-    -.old
         %notice  ~[%inline pfix.p.old ship+ship sfix.p.old]~
         %story
@@ -677,7 +677,7 @@
   ::
   ++  new-story
     |=  [=ship old=content:old-2]
-    ^-  story:d
+    ^-  story:v7:old:d
     ?-    -.old
         %notice  ~[%inline pfix.p.old ship+ship sfix.p.old]~
         %story
