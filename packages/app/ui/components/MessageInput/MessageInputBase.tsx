@@ -212,7 +212,11 @@ export const MessageInputContainer = memo(
                   {isEditing ? (
                     <Icon size="$m" type="Checkmark" />
                   ) : (
-                    <Icon size="$m" type="ArrowUp" />
+                    <Icon
+                      color={sendError ? '$negativeActionText' : undefined}
+                      size="$m"
+                      type="ArrowUp"
+                    />
                   )}
                 </Button>
               </View>
