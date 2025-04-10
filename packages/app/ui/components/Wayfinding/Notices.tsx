@@ -118,7 +118,7 @@ function GroupChannels() {
   const store = useStore();
   const { data: wayfindingStatus } = store.useWayfindingCompletion();
 
-  if (wayfindingStatus?.completedPersonalGroupTutorial) {
+  if (wayfindingStatus?.completedPersonalGroupTutorial ?? true) {
     return null;
   }
 
