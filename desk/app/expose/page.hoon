@@ -11,8 +11,7 @@
   |=  [=bowl:gall =nest:g:c msg=post:d]
   ^-  (unit manx)
   =/  author=@p
-    ?@  author.msg  author.msg
-    ship.author.msg
+    (get-author-ship:u author.msg)
   =/  aco=(unit contact-0:co)
     (get-author-contact:r bowl author.msg)
   ::

@@ -1,7 +1,7 @@
 ::  expose render: rendering utilities for pages & the widget
 ::
 /-  c=channels, co=contacts-0
-/+  sigil
+/+  u=channel-utils, sigil
 ::
 |%
 ::  +author-contact: turn a post author into a contact profile
@@ -13,7 +13,7 @@
   |=  [=bowl:gall =author:c]
   ^-  (unit contact-0:co)
   =/  aco=(unit contact-0:co)
-    (get-contact:co bowl ?@(author author ship.author))
+    (get-contact:co bowl (get-author-ship:u author))
   ?@  author  aco
   %-  some
   ?~  aco
@@ -31,8 +31,7 @@
   |=  [=bowl:gall post-author=author:c]
   ^-  manx
   =/  author=@p
-    ?@  post-author  post-author
-    ship.post-author
+    (get-author-ship:u post-author)
   =/  aco=(unit contact-0:co)
     (get-author-contact bowl post-author)
   |^  ::TODO  we should just have a bunch of manx construction helpers
