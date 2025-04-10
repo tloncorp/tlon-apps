@@ -1,10 +1,12 @@
 import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
+import { isEqual } from 'lodash';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { LayoutChangeEvent } from 'react-native';
 import { getTokenValue } from 'tamagui';
 
 import { SectionedChatData } from '../../hooks/useFilteredChats';
+import { useRenderCount } from '../../hooks/useRenderCount';
 import {
   ChatListItem,
   InteractableChatListItem,
@@ -34,14 +36,14 @@ export const ChatList = React.memo(function ChatListComponent({
     [data]
   );
 
-  const chatOptions = useChatOptions();
+  const { open } = useChatOptions();
   const handleLongPress = useCallback(
     (item: db.Chat) => {
       if (!item.isPending) {
-        chatOptions.open(item.id, item.type);
+        open(item.id, item.type);
       }
     },
-    [chatOptions]
+    [open]
   );
 
   // removed the use of useStyle here because it was causing FlashList to
@@ -125,6 +127,8 @@ export const ChatList = React.memo(function ChatListComponent({
     [handleHeaderLayout, onPressItem, handleLongPress, handleItemLayout]
   );
 
+  useRenderCount('ChatList');
+
   return (
     <FlashList
       data={listItems}
@@ -136,7 +140,7 @@ export const ChatList = React.memo(function ChatListComponent({
       overrideItemLayout={handleOverrideLayout}
     />
   );
-});
+}, isEqual);
 
 export function getItemType(item: ChatListItemData) {
   return isSectionHeader(item) ? 'sectionHeader' : item.type;
