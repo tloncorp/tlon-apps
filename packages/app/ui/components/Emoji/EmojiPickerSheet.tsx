@@ -155,6 +155,7 @@ export function EmojiPickerSheet(
               numColumns={6}
               removeClippedSubviews
               renderItem={renderItem}
+              estimatedItemSize={48}
             />
           </Dialog.Content>
         </Dialog.Portal>
