@@ -3368,7 +3368,6 @@ export const insertContacts = createWriteQuery(
           .onConflictDoNothing();
       }
 
-      console.log(`check 1`);
       // clear existing
       await txCtx.db
         .delete($attestations)
