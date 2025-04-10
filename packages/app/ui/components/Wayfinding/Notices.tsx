@@ -72,7 +72,7 @@ function EmptyPersonalChat() {
   }, [wayfindingProgress]);
 
   return (
-    <NoticeContainer marginBottom={tooltipVisible ? 80 : '$xl'}>
+    <NoticeContainer marginBottom={tooltipVisible ? 95 : '$xl'}>
       <NoticeText>
         This is a Chat channel, best for real-time messaging. You can send text,
         images, and links. You can also react to messages, quote them, and reply
@@ -152,7 +152,7 @@ function CustomizeGroup() {
 
 export function ChatInputTooltip() {
   return (
-    <View position="absolute" bottom={20} right={50}>
+    <View position="absolute" bottom={35} right={50}>
       <YStack gap="$l">
         <View
           padding={20}
