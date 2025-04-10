@@ -227,7 +227,7 @@ export const syncSettings = async (ctx?: SyncCtx) => {
   const settings = await syncQueue.add('settings', ctx, () =>
     api.getSettings()
   );
-  console.log('got settings from api', settings);
+  logger.log('got settings from api', settings);
   return db.insertSettings(settings);
 };
 
@@ -1053,6 +1053,7 @@ export async function handleAddPost(
   // it, we need to add it to the parent post
   if (post.parentId) {
     const cachedReply = await db.getPostByCacheId({
+      channelId: post.channelId,
       sentAt: post.sentAt,
       authorId: post.authorId,
     });

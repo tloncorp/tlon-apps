@@ -43,17 +43,9 @@ import { differenceInDays, endOfToday, format } from 'date-fns';
 import emojiRegex from 'emoji-regex';
 import _ from 'lodash';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router';
 import ob from 'urbit-ob';
-import { useCopyToClipboard } from 'usehooks-ts';
+// import { useCopyToClipboard } from 'usehooks-ts';
 import isURL from 'validator/es/lib/isURL';
-
-import type {
-  ConnectionCompleteStatus,
-  ConnectionPendingStatus,
-  ConnectionStatus,
-} from '../state/vitals';
-import { isNativeApp, postActionToNativeApp } from './native';
 
 export const isStagingHosted =
   import.meta.env.DEV ||
@@ -674,53 +666,50 @@ export function pathToCite(path: string): Cite | undefined {
   return undefined;
 }
 
-export function useCopy(copied: string) {
-  const [didCopy, setDidCopy] = useState(false);
-  const [, copy] = useCopyToClipboard();
+// export function useCopy(copied: string) {
+//   const [didCopy, setDidCopy] = useState(false);
+//   const [, copy] = useCopyToClipboard();
 
-  const copyFallback = async (text: string) => {
-    try {
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-      return true;
-    } catch (error) {
-      console.warn('Fallback copy failed', error);
-      return false;
-    }
-  };
+//   const copyFallback = async (text: string) => {
+//     try {
+//       const textarea = document.createElement('textarea');
+//       textarea.value = text;
+//       document.body.appendChild(textarea);
+//       textarea.select();
+//       document.execCommand('copy');
+//       document.body.removeChild(textarea);
+//       return true;
+//     } catch (error) {
+//       console.warn('Fallback copy failed', error);
+//       return false;
+//     }
+//   };
 
-  const doCopy = useCallback(async () => {
-    let success = false;
-    if (isNativeApp()) {
-      postActionToNativeApp('copy', copied);
-      success = true;
-    } else if (!navigator.clipboard) {
-      success = await copyFallback(copied);
-    } else {
-      success = await copy(copied);
-    }
+//   const doCopy = useCallback(async () => {
+//     let success = false;
+//     if (!navigator.clipboard) {
+//       success = await copyFallback(copied);
+//     } else {
+//       success = await copy(copied);
+//     }
 
-    setDidCopy(success);
+//     setDidCopy(success);
 
-    let timeout: NodeJS.Timeout;
-    if (success) {
-      timeout = setTimeout(() => {
-        setDidCopy(false);
-      }, 2000);
-    }
+//     let timeout: NodeJS.Timeout;
+//     if (success) {
+//       timeout = setTimeout(() => {
+//         setDidCopy(false);
+//       }, 2000);
+//     }
 
-    return () => {
-      setDidCopy(false);
-      clearTimeout(timeout);
-    };
-  }, [copied, copy]);
+//     return () => {
+//       setDidCopy(false);
+//       clearTimeout(timeout);
+//     };
+//   }, [copied, copy]);
 
-  return { doCopy, didCopy };
-}
+//   return { doCopy, didCopy };
+// }
 
 export function getNestShip(nest: string) {
   const [, flag] = nestToFlag(nest);
@@ -1165,47 +1154,6 @@ export function truncateProse(content: Story, maxCharacters: number): Story {
   return truncatedContent;
 }
 
-export function getCompletedText(
-  status: ConnectionCompleteStatus,
-  ship: string
-) {
-  switch (status.complete) {
-    case 'no-data':
-      return 'No connection data';
-    case 'yes':
-      return 'Connected';
-    case 'no-dns':
-      return 'Unable to connect to DNS';
-    case 'no-our-planet':
-      return 'Unable to reach our planet';
-    case 'no-our-galaxy':
-      return 'Unable to reach our galaxy';
-    case 'no-their-galaxy':
-      return `Unable to reach ${ship}'s galaxy`;
-    case 'no-sponsor-miss':
-      return `${ship}'s sponsor can't reach them`;
-    case 'no-sponsor-hit':
-      return `${ship}'s sponsor can reach them, but we can't`;
-    default:
-      return `Unable to connect to ${ship}`;
-  }
-}
-
-export function getPendingText(status: ConnectionPendingStatus, ship: string) {
-  switch (status.pending) {
-    case 'trying-dns':
-      return 'Checking DNS';
-    case 'trying-local':
-      return 'Checking our galaxy';
-    case 'trying-target':
-      return `Checking ${ship}`;
-    case 'trying-sponsor':
-      return `Checking ${ship}'s sponsors (~${(status as any).ship})`;
-    default:
-      return 'Checking connection...';
-  }
-}
-
 export const greenConnection = {
   name: 'green',
   dot: 'text-green-400',
@@ -1230,18 +1178,6 @@ export const grayConnection = {
   bar: 'border-gray-400 bg-gray-50 text-gray-500',
 };
 
-export function getConnectionColor(status?: ConnectionStatus) {
-  if (!status) {
-    return grayConnection;
-  }
-
-  if ('pending' in status) {
-    return yellowConnection;
-  }
-
-  return status.complete === 'yes' ? greenConnection : redConnection;
-}
-
 export function getCompatibilityText(saga: Saga | null) {
   if (saga && 'behind' in saga) {
     return 'Host requires an update to communicate';
@@ -1263,31 +1199,8 @@ export function useIsHttps() {
   return window.location.protocol === 'https:';
 }
 
-export function useIsInThread() {
-  const { idTime } = useParams<{
-    idTime: string;
-  }>();
-
-  return !!idTime;
-}
-
 export function useIsDmOrMultiDm(whom: string) {
   return useMemo(() => whomIsDm(whom) || whomIsMultiDm(whom), [whom]);
-}
-
-export function useThreadParentId(whom: string) {
-  const isDMorMultiDM = useIsDmOrMultiDm(whom);
-
-  const { idShip, idTime } = useParams<{
-    idShip: string;
-    idTime: string;
-  }>();
-
-  if (isDMorMultiDM) {
-    return `${idShip}/${idTime}`;
-  }
-
-  return idTime;
 }
 
 export function cacheIdToString(id: CacheId) {
@@ -1299,12 +1212,5 @@ export function cacheIdFromString(str: string): CacheId {
   return {
     author,
     sent: parseInt(udToDec(sentStr), 10),
-  };
-}
-
-export function getMessageKey(post: Post): MessageKey {
-  return {
-    id: `${post.essay.author}/${formatUd(unixToDa(post.essay.sent))}`,
-    time: formatUd(bigInt(post.seal.id)),
   };
 }
