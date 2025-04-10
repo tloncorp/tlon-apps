@@ -17,7 +17,7 @@
   ::
   ::TODO  if we render replies then we can "unroll" whole chat threads too (:
   |^  ?+  kind.msg  ~
-          [%chat ~]
+          [%chat *]
         =/  title=tape
           (trip (rap 3 (turn (first-inline:u content.msg) flatten-inline:u)))
         %-  some
@@ -27,7 +27,7 @@
           (story:en-manx:u content.msg)
         ==
       ::
-          [%diary ~]
+          [%diary *]
         =/  [title=@t image=@t]
           ?~  meta.msg  ['' '']
           [title image]:u.meta.msg
@@ -43,7 +43,7 @@
           (story:en-manx:u content.msg)
         ==
       ::
-          [%heap ~]
+          [%heap *]
         =/  title=tape
           ?^  meta.msg
             (trip title.u.meta.msg)

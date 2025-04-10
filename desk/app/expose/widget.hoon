@@ -39,7 +39,7 @@
     (spud (print:c ref))
   =,  post.u.pon
   ?+  kind.post.u.pon  ;div.exposed.fail:"kind lost: {(spud kind.post.u.pon)}"
-      [%chat ~]
+      [%chat *]
     ;div.exposed
       ;div.content
         ;a.chat/"/expose{link}"
@@ -53,7 +53,7 @@
       ==
     ==
   ::
-      [%diary ~]
+      [%diary *]
     =/  [title=@t image=@t]
       ?~  meta.post.u.pon  ['' '']
       [title image]:u.meta.post.u.pon
@@ -72,7 +72,7 @@
       ==
     ==
   ::
-      [%heap ~]
+      [%heap *]
     ::TODO  for the kinds of children the div.content gets for heap posts,
     ::      having an %a (grand)parent breaks the html rendering,
     ::      putting the inner divs outside/after the a.exposed
