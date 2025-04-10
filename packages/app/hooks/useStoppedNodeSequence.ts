@@ -1,4 +1,8 @@
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  AnalyticsSeverity,
+  createDevLogger,
+} from '@tloncorp/shared';
 import { HostedNodeStatus } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -94,6 +98,7 @@ export function useStoppedNodeSequence(params: {
             context: 'failed to clear revival status',
             errorMessage: e.message,
             errorStack: e.stack,
+            severity: AnalyticsSeverity.High,
           });
         });
       }

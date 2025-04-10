@@ -1,5 +1,5 @@
 // sort-imports-ignore
-import type * as db from '@tloncorp/shared/db';
+import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as domain from '@tloncorp/shared/domain';
 import { View, isWeb } from 'tamagui';
@@ -30,19 +30,23 @@ export const GroupListItem = ({
   const title = useGroupTitle(model);
   const { isPending, label: statusLabel, isErrored } = getGroupStatus(model);
   const isWindowNarrow = useIsWindowNarrow();
-  
+  const { viewedPersonalGroup } = db.wayfindingProgress.useValue();
+
   // Memoize the trigger button to prevent re-renders
-  const triggerButton = useMemo(() => (
-    <Button
-      backgroundColor="transparent"
-      borderWidth="unset"
-      paddingHorizontal={0}
-      marginHorizontal="$-m"
-      minimal
-    >
-      <Icon type="Overflow" />
-    </Button>
-  ), []);
+  const triggerButton = useMemo(
+    () => (
+      <Button
+        backgroundColor="transparent"
+        borderWidth="unset"
+        paddingHorizontal={0}
+        marginHorizontal="$-m"
+        minimal
+      >
+        <Icon type="Overflow" />
+      </Button>
+    ),
+    []
+  );
 
   const handlePress = logic.useMutableCallback(() => {
     onPress?.(model);
@@ -54,6 +58,16 @@ export const GroupListItem = ({
 
   const isSingleChannel = model.channels?.length === 1;
 
+  const shouldHighlight = useMemo(() => {
+    if (
+      model.id.includes(domain.PersonalGroupSlugs.slug) &&
+      !viewedPersonalGroup
+    ) {
+      return true;
+    }
+    return false;
+  }, [model.id, viewedPersonalGroup]);
+
   return (
     <View>
       <Pressable
@@ -61,7 +75,11 @@ export const GroupListItem = ({
         onPress={handlePress}
         onLongPress={handleLongPress}
       >
-        <ListItem {...props} alignItems={isPending ? 'center' : 'stretch'}>
+        <ListItem
+          {...props}
+          alignItems={isPending ? 'center' : 'stretch'}
+          backgroundColor={shouldHighlight ? '$positiveBackground' : 'unset'}
+        >
           <ListItem.GroupIcon model={model} />
           <ListItem.MainContent>
             <ListItem.Title>{title}</ListItem.Title>

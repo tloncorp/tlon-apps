@@ -1,7 +1,7 @@
 import { setSetting } from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import { AnalyticsEvent } from '../domain';
+import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
 import * as logic from '../logic';
 import { withRetry } from '../logic';
 import { TalkSidebarFilter } from '../urbit';
@@ -30,6 +30,7 @@ export async function completeWayfindingSplash() {
     logger.trackEvent(AnalyticsEvent.WayfindingDebug, {
       context: 'failed to mark remote setting completed',
       settingName: 'completedWayfindingSplash',
+      severity: AnalyticsSeverity.High,
     });
 
     // don't rollback the optimistic update, we want to avoid showing
@@ -46,6 +47,7 @@ export async function completeWayfindingTutorial() {
     logger.trackEvent(AnalyticsEvent.WayfindingDebug, {
       context: 'failed to mark remote setting completed',
       settingName: 'completedWayfindingTutorial',
+      severity: AnalyticsSeverity.High,
     });
 
     // don't rollback the optimistic update, we want to avoid showing
@@ -58,16 +60,19 @@ export async function checkWayfindingChannelVisited(channelId: string) {
     await db.wayfindingProgress.setValue((prev) => ({
       ...prev,
       viewedChatChannel: true,
+      viewedPersonalGroup: true,
     }));
   } else if (logic.isPersonalCollectionChannel(channelId)) {
     await db.wayfindingProgress.setValue((prev) => ({
       ...prev,
       viewedCollectionChannel: true,
+      viewedPersonalGroup: true,
     }));
   } else if (logic.isPersonalNotebookChannel(channelId)) {
     await db.wayfindingProgress.setValue((prev) => ({
       ...prev,
       viewedNotebookChannel: true,
+      viewedPersonalGroup: true,
     }));
   }
 

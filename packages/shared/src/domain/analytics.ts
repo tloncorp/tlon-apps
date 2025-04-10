@@ -137,3 +137,10 @@ export interface AnalyticsDigest {
   numGalleries?: number | null;
   numNotebooks?: number | null;
 }
+
+export enum AnalyticsSeverity {
+  Critical = 'Critical',
+  High = 'High',
+  Medium = 'Medium',
+  Low = 'Low',
+}

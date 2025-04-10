@@ -1,6 +1,10 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { BootPhaseNames, NodeBootPhase } from '@tloncorp/shared/domain';
+import {
+  AnalyticsSeverity,
+  BootPhaseNames,
+  NodeBootPhase,
+} from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import { preSig } from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -350,6 +354,7 @@ export function useBootSequence() {
         logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
           context: 'failed to scaffold personal group',
           during: 'mobile signup (useBootSequence)',
+          AnalyticsSeverity: AnalyticsSeverity.Critical,
         });
         const signedUpWithInvite = Boolean(lureMeta?.id);
         const nextBootPhase = signedUpWithInvite

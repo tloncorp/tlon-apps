@@ -3,6 +3,7 @@ import { useShip } from '@tloncorp/app/contexts/ship';
 import { useStore } from '@tloncorp/app/ui';
 import {
   AnalyticsEvent,
+  AnalyticsSeverity,
   HostedNodeStatus,
   createDevLogger,
   scaffoldPersonalGroup,
@@ -163,6 +164,7 @@ export function useOnboardingHelpers() {
             context: 'failed to clear revival status',
             errorMessage: e.message,
             errorStack: e.stack,
+            severity: AnalyticsSeverity.High,
           });
         });
       } catch (e) {
@@ -171,6 +173,7 @@ export function useOnboardingHelpers() {
           during: 'mobile revival login (useOnboardingHelpers)',
           errorMessage: e.message,
           errorStack: e.stack,
+          severity: AnalyticsSeverity.Critical,
         });
       }
     },

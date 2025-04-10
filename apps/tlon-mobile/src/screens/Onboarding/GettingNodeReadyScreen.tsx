@@ -30,6 +30,7 @@ import {
 } from '@tloncorp/app/ui';
 import {
   AnalyticsEvent,
+  AnalyticsSeverity,
   createDevLogger,
   scaffoldPersonalGroup,
   withRetry,
@@ -147,6 +148,7 @@ export function GettingNodeReadyScreen({
                 during: 'mobile revival login (useOnboardingHelpers)',
                 errorMessage: e.message,
                 errorStack: e.stack,
+                severity: AnalyticsSeverity.Critical,
               });
             });
         }, 2000);

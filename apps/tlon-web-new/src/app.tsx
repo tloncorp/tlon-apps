@@ -21,7 +21,11 @@ import {
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { LoadingSpinner, StoreProvider, Text, View } from '@tloncorp/app/ui';
-import { AnalyticsEvent, getAuthInfo } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  AnalyticsSeverity,
+  getAuthInfo,
+} from '@tloncorp/shared';
 import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
@@ -465,6 +469,7 @@ function ConnectedWebApp() {
               during: 'web start sequence',
               errorMessage: e.message,
               errorStack: e.stack,
+              severity: AnalyticsSeverity.Critical,
             });
           } finally {
             hasHandledWayfindingRef.current = true;
