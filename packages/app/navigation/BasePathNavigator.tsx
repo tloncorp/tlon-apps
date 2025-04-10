@@ -52,7 +52,6 @@ export const BasePathNavigator = memo(({ isMobile }: { isMobile: boolean }) => {
   const lastWasMobile = useRef(isMobile);
 
   const currentScreenAndParams = useMemo(() => {
-    console.log('BasePathNavigator, calculating current screen');
     if (!rootStateIndex || !rootStateRoutes) {
       return undefined;
     }

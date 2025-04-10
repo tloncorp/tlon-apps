@@ -2,7 +2,7 @@ import * as api from '../api';
 import { createDevLogger } from '../debug';
 import { getInitializedClient, updateInitializedClient } from './session';
 
-const logger = createDevLogger('ClientActions', true);
+const logger = createDevLogger('ClientActions', false);
 
 export function configureClient(params: api.ClientParams) {
   const clientInitialized = getInitializedClient();
