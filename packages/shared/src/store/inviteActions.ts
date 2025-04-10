@@ -23,7 +23,7 @@ export async function verifyUserInviteLink() {
   try {
     const cachedInviteLink = await db.personalInviteLink.getValue();
     if (cachedInviteLink) {
-      console.log('have cached invite link', cachedInviteLink);
+      logger.log('have cached invite link', cachedInviteLink);
       return;
     }
 

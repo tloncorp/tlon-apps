@@ -1,7 +1,6 @@
 import { Button } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { IconButton } from '@tloncorp/ui';
-import { ChevronLeft, Search } from '@tloncorp/ui/assets/icons';
 import Animated, {
   Easing,
   interpolate,
@@ -79,7 +78,7 @@ export function ChannelFooter({
           flex={1}
         >
           <IconButton onPress={goBack} color={'$secondaryText'}>
-            <ChevronLeft />
+            <Icon type="ChevronLeft" />
           </IconButton>
           {showSpinner && <Spinner />}
           {showPickerButton && (
@@ -109,7 +108,7 @@ export function ChannelFooter({
           )}
           {showSearchButton && (
             <IconButton onPress={goToSearch} color={'$secondaryText'}>
-              <Search />
+              <Icon type="Search" />
             </IconButton>
           )}
         </XStack>
