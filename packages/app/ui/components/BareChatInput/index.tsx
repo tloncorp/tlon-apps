@@ -226,6 +226,8 @@ export default function BareChatInput({
   const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
   const [editorIsEmpty, setEditorIsEmpty] = useState(attachments.length === 0);
   const [hasAutoFocused, setHasAutoFocused] = useState(false);
+  const [needsHeightAdjustmentAfterLoad, setNeedsHeightAdjustmentAfterLoad] =
+    useState(false);
   const {
     handleMention,
     handleSelectMention,
@@ -522,6 +524,39 @@ export default function BareChatInput({
     setEditorIsEmpty(controlledText === '' && attachments.length === 0);
   }, [controlledText, attachments]);
 
+  const adjustInputHeightProgrammatically = useCallback(() => {
+    if (!isWeb || !inputRef.current) {
+      return;
+    }
+
+    const el = inputRef.current;
+    const htmlEl = el as unknown as HTMLElement;
+    if (
+      htmlEl &&
+      'style' in htmlEl &&
+      'offsetHeight' in htmlEl &&
+      'clientHeight' in htmlEl &&
+      'scrollHeight' in htmlEl
+    ) {
+      // We need to use requestAnimationFrame to ensure DOM is fully updated
+      // after setting the text state before calculating the scrollHeight.
+      requestAnimationFrame(() => {
+        htmlEl.style.height = '0'; // Temporarily shrink to calculate scrollHeight correctly
+        const newHeight =
+          htmlEl.offsetHeight - htmlEl.clientHeight + htmlEl.scrollHeight;
+        // Only resize if new height is greater than initial height to avoid shrinking unnecessarily
+        if (newHeight > initialHeight) {
+          htmlEl.style.height = `${newHeight}px`;
+          setInputHeight(newHeight);
+        } else {
+          // Ensure it resets to initial height if content is smaller
+          htmlEl.style.height = `${initialHeight}px`;
+          setInputHeight(initialHeight);
+        }
+      });
+    }
+  }, [initialHeight]);
+
   // Set initial content from draft or post that is being edited
   useEffect(() => {
     if (!hasSetInitialContent) {
@@ -546,6 +581,7 @@ export default function BareChatInput({
             );
             setControlledText(text);
             setMentions(mentions);
+            setNeedsHeightAdjustmentAfterLoad(true);
           }
 
           if (editingPost && editingPost.content) {
@@ -598,6 +634,7 @@ export default function BareChatInput({
             setMentions(mentions);
             setEditorIsEmpty(false);
             setHasSetInitialContent(true);
+            setNeedsHeightAdjustmentAfterLoad(true);
           }
 
           if (editingPost?.image) {
@@ -623,6 +660,13 @@ export default function BareChatInput({
     addAttachment,
     setMentions,
   ]);
+
+  useEffect(() => {
+    if (needsHeightAdjustmentAfterLoad) {
+      adjustInputHeightProgrammatically();
+      setNeedsHeightAdjustmentAfterLoad(false); // Reset the flag
+    }
+  }, [needsHeightAdjustmentAfterLoad, adjustInputHeightProgrammatically]);
 
   const handleCancelEditing = useCallback(() => {
     setEditingPost?.(undefined);
@@ -710,7 +754,14 @@ export default function BareChatInput({
         }
       }
     },
-    [showMentionPopup, setIsOpen, editingPost, handleEdit, handleSend]
+    [
+      showMentionPopup,
+      setIsOpen,
+      editingPost,
+      handleEdit,
+      handleSend,
+      handleMentionEscape,
+    ]
   );
 
   return (
