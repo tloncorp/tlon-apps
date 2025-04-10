@@ -1,3 +1,4 @@
+import { FlashList } from '@shopify/flash-list';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
 import { KeyboardAvoidingView } from '@tloncorp/ui';
@@ -130,7 +131,8 @@ export function EmojiPickerSheet(
             borderWidth={1}
             borderColor="$border"
             padding="$m"
-            minWidth={300}
+            height={600}
+            width={350}
             key="content"
           >
             <VisuallyHidden>
@@ -144,10 +146,7 @@ export function EmojiPickerSheet(
                 inputProps={{ spellCheck: false, autoComplete: 'off' }}
               />
             </View>
-            <FlatList
-              style={{ width: '100%', height: 400 }}
-              horizontal={false}
-              // contentContainerStyle={{ flexGrow: 1 }}
+            <FlashList
               onScroll={handleScroll}
               onTouchStart={onTouchStart}
               onTouchEnd={onTouchEnd}
