@@ -5,6 +5,7 @@ import {
   NavigationContainer,
   Route,
 } from '@react-navigation/native';
+import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
 import { ShipProvider } from '@tloncorp/app/contexts/ship';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
@@ -125,6 +126,7 @@ const extractNestedRouteDesktop = (state: any) => {
 };
 
 function AppRoutes() {
+  useFindSuggestedContacts();
   const contactsQuery = store.useContacts();
   const { needsUpdate, triggerUpdate } = useAppUpdates();
   const [currentRouteParams, setCurrentRouteParams] = useState<any>(null);
@@ -340,7 +342,6 @@ function ConnectedDesktopApp({
   const [clientReady, setClientReady] = useState(false);
   const configureClient = useConfigureUrbitClient();
   const hasSyncedRef = React.useRef(false);
-  useFindSuggestedContacts();
   useDesktopNotifications(clientReady);
 
   useEffect(() => {
@@ -656,10 +657,8 @@ function RoutedApp() {
 
   useEffect(() => {
     if (posthog) {
-      if (showDevTools) {
+      if (ENABLED_LOGGERS.includes('posthog')) {
         posthog.debug();
-      } else {
-        posthog.debug(false);
       }
     }
   }, [posthog, showDevTools]);

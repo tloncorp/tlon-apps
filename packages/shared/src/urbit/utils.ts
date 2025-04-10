@@ -4,10 +4,13 @@ import { useMemo } from 'react';
 import { ContentReference, PostContent } from '../api';
 import { ChannelType } from '../db';
 import { GroupJoinStatus, GroupPrivacy } from '../db/schema';
+import { createDevLogger } from '../debug';
 import * as ub from './channel';
 import * as ubc from './content';
 import * as ubd from './dms';
 import * as ubg from './groups';
+
+const logger = createDevLogger('urbitUtils', false);
 
 type App = 'chat' | 'heap' | 'diary';
 const APP_PREFIXES = ['chat', 'heap', 'diary'];
@@ -15,12 +18,12 @@ const APP_PREFIXES = ['chat', 'heap', 'diary'];
 export function checkNest(nest: string): boolean {
   const parts = nest.split('/');
   if (parts.length !== 3) {
-    console.error('Invalid nest:', nest);
+    logger.error('Invalid nest:', nest);
     return false;
   }
 
   if (!APP_PREFIXES.includes(parts[0])) {
-    console.log(
+    logger.log(
       `Custom channel type detected (${parts[0]}), pretending its chat.`,
       nest
     );
