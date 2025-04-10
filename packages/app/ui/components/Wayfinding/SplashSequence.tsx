@@ -183,8 +183,6 @@ export function GroupsPane(props: { onActionPress: () => void }) {
   return (
     <YStack
       marginTop={insets.top}
-      // marginBottom={insets.bottom}
-      // marginTop={isWeb ? '$4xl' : insets.top}
       marginBottom={isWeb ? '$4xl' : insets.bottom}
       flex={1}
       justifyContent="space-between"
@@ -350,7 +348,7 @@ export function InvitePane(props: { onActionPress: () => void }) {
           backgroundColor="$positiveActionText"
           textProps={{ color: '$white' }}
         >
-          Take me to my group
+          Finish
         </SplashButton>
       </XStack>
     </YStack>
