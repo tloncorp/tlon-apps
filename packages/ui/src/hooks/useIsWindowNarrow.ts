@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { useWindowDimensions } from 'tamagui';
 
 export default function useIsWindowNarrow() {
   const { width } = useWindowDimensions();
-  return width < 768;
+  const isNarrow = useMemo(() => width < 768, [width]);
+  return isNarrow;
 }

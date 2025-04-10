@@ -200,9 +200,12 @@ const testCases: {
   },
 ];
 
+let sentTime = Date.now();
+
 function insertPostsForWindow(
   window: PostWindow & { older?: string; newer?: string }
 ) {
+  console.log(`Inserting posts for window: ${JSON.stringify(window)}`);
   return queries.insertChannelPosts({
     channelId: window.channelId,
     older: window.older,
@@ -214,7 +217,7 @@ function insertPostsForWindow(
         channelId: window.channelId,
         authorId: 'test',
         receivedAt: 0,
-        sentAt: 0,
+        sentAt: sentTime++,
         syncedAt: 0,
       },
       {
@@ -223,7 +226,7 @@ function insertPostsForWindow(
         channelId: window.channelId,
         authorId: 'test',
         receivedAt: 0,
-        sentAt: 0,
+        sentAt: sentTime++,
         syncedAt: 0,
       },
     ],

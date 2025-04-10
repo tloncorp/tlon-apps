@@ -879,6 +879,17 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
         if (type === 'content-error') {
           messageInputLogger.log('[webview] Content error', payload);
+          if (
+            payload &&
+            typeof payload === 'string' &&
+            // @ts-expect-error - this is a string
+            payload.includes("(reading 'nodeSize')")
+          ) {
+            // We know this error is related to handlePaste within the editor in the webview,
+            // it's incidental to the way we're using the editor, and it doesn't affect the
+            // functionality of the editor. We can safely ignore it.
+            return;
+          }
           if (!editorCrashed) {
             setEditorCrashed(payload);
           }
