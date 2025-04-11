@@ -1,10 +1,7 @@
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { useIsWindowNarrow } from '@tloncorp/ui';
-import { Button } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, isWeb } from 'tamagui';
 
 import { useNavigation } from '../../contexts';
@@ -32,25 +29,39 @@ export function ChannelListItem({
   onLayout?: (e: any) => void;
 } & ListItemProps<db.Channel>) {
   const [open, setOpen] = useState(false);
+  const [contextMenuPosition, setContextMenuPosition] = useState<number | null>(
+    null
+  );
+  const containerRef = useRef<HTMLDivElement>(null);
   const unreadCount = model.unread?.count ?? 0;
   const notified = model.unread?.notify ?? false;
   const title = utils.useChannelTitle(model);
   const firstMemberId = model.members?.[0]?.contactId ?? '';
   const memberCount = model.members?.length ?? 0;
-  const isWindowNarrow = useIsWindowNarrow();
-  
-  // Memoize the trigger button to prevent re-renders
-  const triggerButton = useMemo(() => (
-    <Button
-      backgroundColor="transparent"
-      borderWidth="unset"
-      paddingHorizontal={0}
-      marginHorizontal="$-m"
-      minimal
-    >
-      <Icon type="Overflow" />
-    </Button>
-  ), []);
+
+  useEffect(() => {
+    if (isWeb && !disableOptions && containerRef.current) {
+      const handleContextMenu = (e: MouseEvent) => {
+        e.preventDefault();
+        setContextMenuPosition(e.clientX);
+        setOpen(true);
+      };
+
+      const element = containerRef.current;
+      element.addEventListener('contextmenu', handleContextMenu);
+
+      return () => {
+        element.removeEventListener('contextmenu', handleContextMenu);
+      };
+    }
+  }, [disableOptions]);
+
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (!isOpen) {
+      setContextMenuPosition(null);
+    }
+  };
 
   const handlePress = logic.useMutableCallback(() => {
     onPress?.(model);
@@ -82,7 +93,7 @@ export function ChannelListItem({
   const isFocused = useNavigation().focusedChannelId === model.id;
 
   return (
-    <View>
+    <View ref={containerRef}>
       <Pressable
         borderRadius="$xl"
         onPress={handlePress}
@@ -127,7 +138,6 @@ export function ChannelListItem({
                   notified={notified}
                   count={unreadCount}
                   muted={logic.isMuted(model.volumeSettings?.level, 'channel')}
-                  marginRight={isWeb ? '$xl' : 'unset'}
                   marginTop={isWeb ? 3 : 'unset'}
                 />
               )}
@@ -136,25 +146,23 @@ export function ChannelListItem({
         </ListItem>
       </Pressable>
       {isWeb && !disableOptions && (
-        <View position="absolute" right={10} top="$2xl" zIndex={1}>
-          {isWindowNarrow ? (
-            <Button
-              onPress={handleLongPress}
-              borderWidth="unset"
-              paddingHorizontal={0}
-              minimal
-            >
-              <Icon type="Overflow" />
-            </Button>
-          ) : (
-            <ChatOptionsSheet
-              open={open}
-              onOpenChange={setOpen}
-              chat={{ type: 'channel', id: model.id }}
-              trigger={triggerButton}
-            />
-          )}
-        </View>
+        <ChatOptionsSheet
+          open={open}
+          onOpenChange={handleOpenChange}
+          chat={{ type: 'channel', id: model.id }}
+          trigger={
+            contextMenuPosition && (
+              <View
+                position="absolute"
+                left={contextMenuPosition}
+                width={1}
+                height={1}
+                opacity={0}
+                pointerEvents="none"
+              />
+            )
+          }
+        />
       )}
     </View>
   );

@@ -84,8 +84,8 @@ export const GroupChannelsScreenView = React.memo(
     const isWindowNarrow = useIsWindowNarrow();
 
     const sizeRefs = useRef({
-      sectionHeader: 40,
-      channelItem: 70,
+      sectionHeader: 44,
+      channelItem: 64,
     });
 
     const handleHeaderLayout = useCallback((e: LayoutChangeEvent) => {
