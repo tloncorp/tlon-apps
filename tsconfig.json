@@ -41,6 +41,9 @@
     },
     {
       "path": "./packages/app/tsconfig.json"
+    },
+    {
+      "path": "./packages/scripts/tsconfig.json"
     }
   ]
 }

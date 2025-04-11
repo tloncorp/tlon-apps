@@ -1,0 +1,20 @@
+{
+  "name": "scripts",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --format=iife --global-name=tlon --outfile=build/bundle.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@tloncorp/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.8",
+    "esbuild": "^0.25.2"
+  }
+}

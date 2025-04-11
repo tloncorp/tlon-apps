@@ -6,6 +6,40 @@ apply plugin: "com.google.firebase.crashlytics"
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 
+// monorepo root; contains `packages/`, `apps/`, etc
+def workspaceRoot = "$projectRoot/../.."
+
+// Add tasks to bundle and copy `packages/scripts/` so that it can be accessed by
+// `TalkMessagingService` at runtime.
+afterEvaluate {
+    def buildTask = tasks.create(
+            name: "buildNotificationServiceJsBundle",
+            type: Exec
+    ) {
+        description = "Bundle JS for TalkMessagingService"
+        workingDir workspaceRoot
+        commandLine "pnpm", "run", "--filter", "scripts", "build"
+    }
+    def copyTask = tasks.create(
+            name: "copyNotificationServiceJsBundle",
+            type: Copy
+    ) {
+        description = "Copy JS assets for TalkMessagingService into app bundle"
+        into "$projectDir/src/main/assets"
+        from("$workspaceRoot/packages/scripts/build") {
+            include("*.js")
+            rename '(.*).js', '$1.jsbundle'
+        }
+    }
+
+    copyTask.dependsOn(buildTask)
+    android.applicationVariants.all { def variant ->
+        def targetName = variant.name.capitalize()
+        def generateAssetsTask = tasks.findByName("generate${targetName}Assets")
+        generateAssetsTask.dependsOn(copyTask)
+    }
+}
+
 /**
  * This is the configuration block to customize your React Native Android app.
  * By default you don't need to apply any configuration, just uncomment the lines you need.

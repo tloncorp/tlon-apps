@@ -1,9 +1,34 @@
 import Intents
 import UserNotifications
+import JavaScriptCore
 
 class NotificationService: UNNotificationServiceExtension {
     var contentHandler: ((UNNotificationContent) -> Void)?
     var bestAttemptContent: UNMutableNotificationContent?
+  
+  private func applyNotif(_ rawActivityEvent: Any, notification: UNMutableNotificationContent) {
+    let context = JSContext()!
+    context.exceptionHandler = { context, exception in
+        NSLog(exception?.toString() ?? "No exception found")
+    }
+    
+    guard let scriptURL = Bundle.main.url(forResource: "bundle", withExtension: "js") else { return }
+    guard let script = try? String(contentsOf: scriptURL) else { return }
+    context.evaluateScript(script)
+    
+    let preview = context.objectForKeyedSubscript("tlon")
+      .invokeMethod("renderActivityEventPreview", withArguments: [
+        rawActivityEvent,
+      ])
+    
+    if let title = preview?.forProperty("title")?.toString() {
+      notification.title = title
+    }
+    if let body = preview?.forProperty("body")?.toString() {
+      notification.body = body
+    }
+    // TODO: userInfo
+  }
 
     override func didReceive(_ request: UNNotificationRequest, withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void) {
         self.contentHandler = contentHandler
@@ -12,8 +37,16 @@ class NotificationService: UNNotificationServiceExtension {
       Task { [weak bestAttemptContent] in
         let parsedNotification = await PushNotificationManager.parseNotificationUserInfo(request.content.userInfo)
         switch parsedNotification {
-        case let .yarn(yarn, activityEvent):
+        case let .yarn(yarn, activityEvent, activityEventRaw):
           var notifContent = await handle(yarn)
+          
+          // HACK: Proof-of-concept that we can use JS to populate notification content
+          if let activityEventRaw {
+            let m = notifContent.mutableCopy() as! UNMutableNotificationContent
+            applyNotif(activityEventRaw, notification: m)
+            notifContent = m
+          }
+          
           if let activityEvent {
             if let dm = activityEvent.dmPost {
               let mutableNotifContent = notifContent.mutableCopy() as! UNMutableNotificationContent
@@ -27,6 +60,7 @@ class NotificationService: UNNotificationServiceExtension {
               notifContent = mutableNotifContent
             }
           }
+          
           contentHandler(notifContent)
           return
           
