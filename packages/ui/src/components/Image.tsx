@@ -17,6 +17,7 @@ const WebImage = ({
   style,
   alt,
   onLoad,
+  onLoadEnd,
   onError,
   fallback,
   ...otherProps
@@ -34,19 +35,18 @@ const WebImage = ({
   };
 
   const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    if (onLoad) {
-      // Mimic expo-image's onLoad event structure
-      onLoad({
-        source: {
-          width: e.currentTarget.naturalWidth,
-          height: e.currentTarget.naturalHeight,
-        },
-      });
-    }
+    // Mimic expo-image's onLoad event structure
+    const loadEvent = {
+      source: {
+        width: e.currentTarget.naturalWidth,
+        height: e.currentTarget.naturalHeight,
+      },
+    };
+    onLoad?.(loadEvent);
+    onLoadEnd?.(loadEvent);
   };
 
-  const [props, propStyles] = usePropsAndStyle(otherProps);
-  const { contentFit } = props;
+  const [{ contentFit, ...props }, propStyles] = usePropsAndStyle(otherProps);
 
   if (hasError && fallback) {
     return fallback;

@@ -5,8 +5,9 @@ import {
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { storage } from '@tloncorp/shared/db';
-import { useEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 
+import { useRenderCount } from '../hooks/useRenderCount';
 import { RootStack } from './RootStack';
 import { TopLevelDrawer } from './desktop/TopLevelDrawer';
 import {
@@ -33,27 +34,36 @@ const DesktopBasePathStackNavigator =
  * On web, this is necessary for navigation to work properly when the base URL
  * is something other than `/`, eg `/apps/groups/`
  */
-export function BasePathNavigator({ isMobile }: { isMobile: boolean }) {
+export const BasePathNavigator = memo(({ isMobile }: { isMobile: boolean }) => {
   const Navigator = isMobile
     ? MobileBasePathStackNavigator
     : DesktopBasePathStackNavigator;
 
-  const navState = useNavigationState((state) => state);
-  const currentRoute = navState?.routes[navState.index];
-  const rootState = currentRoute?.state;
+  const navStateIndex = useNavigationState((state) => state?.index);
+  const navStateRoutes = useNavigationState((state) => state?.routes);
+  const currentRoute = useMemo(
+    () =>
+      navStateIndex && navStateRoutes ? navStateRoutes[navStateIndex] : null,
+    [navStateIndex, navStateRoutes]
+  );
+  const rootState = useMemo(() => currentRoute?.state, [currentRoute]);
+  const rootStateIndex = useMemo(() => rootState?.index, [rootState]);
+  const rootStateRoutes = useMemo(() => rootState?.routes, [rootState]);
   const lastWasMobile = useRef(isMobile);
 
   const currentScreenAndParams = useMemo(() => {
+    if (!rootStateIndex || !rootStateRoutes) {
+      return undefined;
+    }
     if (isMobile !== lastWasMobile.current) {
       return undefined;
     }
 
-    const isHome =
-      rootState?.index === 0 && rootState?.routes[0].name === 'Home';
+    const isHome = rootStateIndex === 0 && rootStateRoutes[0].name === 'Home';
     const isContacts =
-      rootState?.index === 2 && rootState?.routes[2].name === 'Contacts';
+      rootStateIndex === 2 && rootStateRoutes[2].name === 'Contacts';
     if (isHome) {
-      const homeState = rootState.routes[0].state;
+      const homeState = rootStateRoutes[0].state;
       if (!homeState || homeState.index === undefined) {
         return {
           name: 'Home',
@@ -69,7 +79,7 @@ export function BasePathNavigator({ isMobile }: { isMobile: boolean }) {
 
     if (isContacts) {
       // contacts tab is the third tab
-      const contactsState = rootState.routes[2].state;
+      const contactsState = rootStateRoutes[2].state;
       if (!contactsState || contactsState.index === undefined) {
         return {
           name: 'Contacts',
@@ -82,16 +92,12 @@ export function BasePathNavigator({ isMobile }: { isMobile: boolean }) {
       };
     }
 
-    if (rootState && rootState.routes && rootState.index !== undefined) {
-      const screen = rootState.routes[rootState.index];
-      return {
-        name: screen.name,
-        params: screen.params,
-      };
-    }
-
-    return undefined;
-  }, [isMobile, rootState]);
+    const screen = rootStateRoutes[rootStateIndex];
+    return {
+      name: screen.name,
+      params: screen.params,
+    };
+  }, [isMobile, rootStateIndex, rootStateRoutes]);
 
   const { resetToChannel } = useRootNavigation();
   const reset = useTypedReset();
@@ -129,23 +135,39 @@ export function BasePathNavigator({ isMobile }: { isMobile: boolean }) {
         });
       }, 1); // tiny delay to let navigator mount. otherwise it doesn't work.
     }
-  }, [isMobile, resetToChannel, rootState, reset]);
+  }, [isMobile, resetToChannel, reset]);
+
+  const prevScreenAndParamsRef = useRef<typeof currentScreenAndParams>();
 
   useEffect(() => {
     if (currentScreenAndParams && isMobile === lastWasMobile.current) {
-      storage.lastScreen.setValue(currentScreenAndParams);
+      if (
+        JSON.stringify(prevScreenAndParamsRef.current) !==
+        JSON.stringify(currentScreenAndParams)
+      ) {
+        prevScreenAndParamsRef.current = currentScreenAndParams;
+        storage.lastScreen.setValue(currentScreenAndParams);
+      }
     }
   }, [currentScreenAndParams, isMobile]);
 
+  const component = useMemo(() => {
+    if (isMobile) {
+      return RootStack;
+    }
+    return TopLevelDrawer;
+  }, [isMobile]);
+
+  useRenderCount('BasePathNavigator');
+
   return (
     <Navigator.Navigator screenOptions={{ headerShown: false }}>
-      <Navigator.Screen
-        name="Root"
-        component={isMobile ? RootStack : TopLevelDrawer}
-      />
+      <Navigator.Screen name="Root" component={component} />
     </Navigator.Navigator>
   );
-}
+});
+
+BasePathNavigator.displayName = 'BasePathNavigator';
 
 export const getLastScreen = storage.lastScreen
   .getValue as () => Promise<null | RouteProp<CombinedParamList, any>>;

@@ -65,6 +65,7 @@ export { default as Pin } from './Pin.svg';
 export { default as Placeholder } from './Placeholder.svg';
 export { default as Play } from './Play.svg';
 export { default as Profile } from './Profile.svg';
+export { default as React } from './React.svg';
 export { default as Record } from './Record.svg';
 export { default as Redo } from './Redo.svg';
 export { default as Refresh } from './Refresh.svg';
