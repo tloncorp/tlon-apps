@@ -79,3 +79,6 @@ export { default as TBlock } from './TBlock.svg';
 export { default as Underline } from './Underline.svg';
 export { default as Undo } from './Undo.svg';
 export { default as VerifiedBadge } from './VerifiedBadge.svg';
+export { default as Lock } from './Lock.svg';
+export { default as EyeOpen } from './EyeOpen.svg';
+export { default as EyeClosed } from './EyeClosed.svg';

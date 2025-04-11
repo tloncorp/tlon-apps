@@ -53,6 +53,8 @@ export const settings = sqliteTable('settings', {
   gallerySettings: text('gallery_settings'),
   notebookSettings: text('notebook_settings', { mode: 'json' }),
   activitySeenTimestamp: timestamp('activity_seen_timestamp'),
+  completedWayfindingSplash: boolean('completed_wayfinding_splash'),
+  completedWayfindingTutorial: boolean('completed_wayfinding_tutorial'),
 });
 
 export const contacts = sqliteTable('contacts', {

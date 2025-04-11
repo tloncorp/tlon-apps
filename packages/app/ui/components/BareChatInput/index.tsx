@@ -10,6 +10,7 @@ import {
   toContentReference,
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import {
   Block,
   Story,
@@ -38,6 +39,7 @@ import {
   TextAttachment,
   UploadedImageAttachment,
   useAttachmentContext,
+  useStore,
 } from '../../contexts';
 import { MentionController } from '../MentionPopup';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
@@ -200,9 +202,11 @@ export default function BareChatInput({
   onSend,
   goBack,
   shouldAutoFocus,
+  showWayfindingTooltip,
 }: MessageInputProps) {
   const { bottom, top } = useSafeAreaInsets();
   const { height } = useWindowDimensions();
+  const store = useStore();
   const headerHeight = 48;
   const maxInputHeightBasic = useMemo(
     () => height - headerHeight - bottom - top,
@@ -708,6 +712,16 @@ export default function BareChatInput({
     setShouldBlur(true);
   }, [setShouldBlur]);
 
+  const handleFocus = useCallback(() => {
+    // dismiss wayfinding tooltip if needed
+    if (logic.isPersonalChatChannel(channelId)) {
+      db.wayfindingProgress.setValue((prev) => ({
+        ...prev,
+        tappedChatInput: true,
+      }));
+    }
+  }, [channelId]);
+
   const handleKeyPress = useCallback(
     (e: any) => {
       const keyEvent = e.nativeEvent as unknown as KeyboardEvent;
@@ -767,6 +781,7 @@ export default function BareChatInput({
       disableSend={editorIsEmpty}
       sendError={sendError}
       showMentionPopup={showMentionPopup}
+      showWayfindingTooltip={showWayfindingTooltip}
       mentionText={mentionSearchText}
       mentionRef={mentionRef}
       showAttachmentButton={showAttachmentButton}
@@ -795,6 +810,7 @@ export default function BareChatInput({
           onChange={isWeb ? adjustTextInputSize : undefined}
           onLayout={isWeb ? adjustTextInputSize : undefined}
           onBlur={handleBlur}
+          onFocus={handleFocus}
           onKeyPress={handleKeyPress}
           multiline
           placeholder={placeholder}

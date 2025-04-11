@@ -446,6 +446,7 @@ export async function syncGroup(id: string, ctx?: SyncCtx) {
     });
   } catch (e) {
     logger.trackError('group sync failed', { errorMessage: e.message });
+    console.error(e);
     throw e;
   } finally {
     groupSyncsInProgress.delete(id);
@@ -1399,6 +1400,14 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
 
   // post sync initialization work
   await verifyUserInviteLink();
+
+  const hostingUser = await db.hostingUserId.getValue();
+  await api.getHostingUser(hostingUser);
+
+  const ship = await db.hostedUserNodeId.getValue();
+  if (ship) {
+    await api.getShip(ship);
+  }
 
   isSyncing = false;
   db.userHasCompletedFirstSync.setValue(true);

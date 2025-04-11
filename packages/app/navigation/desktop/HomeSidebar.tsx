@@ -26,6 +26,7 @@ import {
   View,
   useGlobalSearch,
 } from '../../ui';
+import { SplashModal } from '../../ui/components/Wayfinding/SplashModal';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { useRootNavigation } from '../utils';
 
@@ -48,6 +49,7 @@ export const HomeSidebar = memo(
       id: selectedGroupId ?? '',
     });
     const { setIsOpen } = useGlobalSearch();
+    const showSplash = store.useShowWebSplashModal();
 
     // const isFocused = useIsFocused();
 
@@ -247,6 +249,7 @@ export const HomeSidebar = memo(
                 onInviteComplete={() => setInviteSheetGroup(null)}
                 groupId={inviteSheetGroup ?? undefined}
               />
+              <SplashModal open={showSplash} setOpen={() => {}} />
             </View>
           </NavigationProvider>
         </ChatOptionsProvider>

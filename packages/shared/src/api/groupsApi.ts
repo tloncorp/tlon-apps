@@ -369,12 +369,14 @@ const GENERATED_GROUP_TITLE_END_CHAR = '\u2060';
 
 export const createGroup = async ({
   title,
+  image,
   placeholderTitle,
   slug,
   privacy = 'secret',
   memberIds,
 }: {
   title?: string;
+  image?: string;
   placeholderTitle?: string;
   slug: string;
   privacy: GroupPrivacy;
@@ -383,7 +385,7 @@ export const createGroup = async ({
   const createGroupPayload: ub.GroupCreate = {
     title: title ? title : placeholderTitle + GENERATED_GROUP_TITLE_END_CHAR,
     description: '',
-    image: '',
+    image: image ?? '',
     cover: '',
     name: slug,
     members: Object.fromEntries((memberIds ?? []).map((id) => [id, []])),

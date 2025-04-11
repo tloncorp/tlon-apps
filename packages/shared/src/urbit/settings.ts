@@ -67,6 +67,8 @@ export type GroupsSettings = {
   groupsNavState?: string;
   messagesNavState?: string;
   activitySeenTimestamp?: number;
+  completedWayfindingSplash?: boolean;
+  completedWayfindingTutorial?: boolean;
 };
 
 export type TalkSettings = {

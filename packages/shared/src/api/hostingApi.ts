@@ -294,8 +294,10 @@ export const logInHostingUser = async (params: {
   return result as User;
 };
 
-export const getHostingUser = async (userId: string) =>
-  hostingFetch<User>(`/v1/users/${userId}`);
+export const getHostingUser = async (userId: string) => {
+  const hostingUser = await hostingFetch<User>(`/v1/users/${userId}`);
+  return hostingUser;
+};
 
 export const requestPhoneVerify = async (userId: string, phoneNumber: string) =>
   hostingFetch<object>(`/v1/users/${userId}/request-phone-verify`, {
@@ -448,8 +450,16 @@ export const requestPasswordReset = async (email: string) =>
     },
   });
 
-export const getShip = async (shipId: string) =>
-  hostingFetch<HostedShipResponse>(`/v1/ships/${shipId}`);
+export const getShip = async (shipId: string) => {
+  const ship = await hostingFetch<HostedShipResponse>(`/v1/ships/${shipId}`);
+  return ship;
+};
+
+export const clearShipRevivalStatus = async (shipId: string) => {
+  return hostingFetch(`/v1/ships/${shipId}/wayfinding`, {
+    method: 'PATCH',
+  });
+};
 
 export const getShipAccessCode = async (shipId: string) =>
   hostingFetch<{ code: string }>(`/v1/ships/${shipId}/network`);
@@ -470,7 +480,7 @@ export const bootShip = async (shipId: string) =>
 
 export const getNodeStatus = async (
   nodeId: string
-): Promise<domain.HostedNodeStatus> => {
+): Promise<{ status: domain.HostedNodeStatus; isBeingRevived: boolean }> => {
   let result = null;
   try {
     result = await getShip(nodeId);
@@ -481,10 +491,11 @@ export const getNodeStatus = async (
   const nodeStatus = result.status ? result.status.phase ?? 'Unknown' : null;
   const isBooting = result.ship?.booting;
   const manualUpdateNeeded = result.ship?.manualUpdateNeeded;
+  const isBeingRevived = result.ship?.showWayfinding ?? false;
 
   // If user has a ready ship, let's use it
   if (nodeStatus === 'Ready') {
-    return domain.HostedNodeStatus.Running;
+    return { status: domain.HostedNodeStatus.Running, isBeingRevived };
   }
 
   // If user has a paused ship, resume it
@@ -492,11 +503,11 @@ export const getNodeStatus = async (
     if (!isBooting) {
       await resumeShip(nodeId);
     }
-    return domain.HostedNodeStatus.Paused;
+    return { status: domain.HostedNodeStatus.Paused, isBeingRevived };
   }
 
   if (nodeStatus === 'UnderMaintenance' || manualUpdateNeeded) {
-    return domain.HostedNodeStatus.UnderMaintenance;
+    return { status: domain.HostedNodeStatus.UnderMaintenance, isBeingRevived };
   }
 
   // If user has a suspended ship, boot it
@@ -511,15 +522,18 @@ export const getNodeStatus = async (
           err.message &&
           err.message.includes(MANUAL_UPDATE_REQUIRED_MESSAGE)
         ) {
-          return domain.HostedNodeStatus.UnderMaintenance;
+          return {
+            status: domain.HostedNodeStatus.UnderMaintenance,
+            isBeingRevived,
+          };
         }
         throw err;
       }
     }
-    return domain.HostedNodeStatus.Suspended;
+    return { status: domain.HostedNodeStatus.Suspended, isBeingRevived };
   }
 
-  return domain.HostedNodeStatus.Unknown;
+  return { status: domain.HostedNodeStatus.Unknown, isBeingRevived };
 };
 
 export const inviteShipWithLure = async (params: {

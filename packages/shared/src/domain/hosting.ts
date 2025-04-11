@@ -31,6 +31,7 @@ export type BootPhase =
 export type HostedShipInfo = {
   booting: boolean;
   manualUpdateNeeded?: boolean;
+  showWayfinding?: boolean;
   id: string;
 };
 

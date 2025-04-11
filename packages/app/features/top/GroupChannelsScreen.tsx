@@ -84,6 +84,7 @@ export function GroupChannelsScreenContent({
       onPressInvite={(groupId) => {
         setInviteSheetGroup(groupId);
       }}
+      initialChat={{ type: 'group', id }}
       {...useChatSettingsNavigation()}
     >
       <NavigationProvider focusedChannelId={focusedChannelId}>

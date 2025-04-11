@@ -30,6 +30,7 @@ type State = ShipInfo & {
 type ContextValue = State & {
   setShip: (shipInfo: ShipInfo) => void;
   clearShip: () => void;
+  clearNeedsSplashSequence: () => void;
 };
 
 const Context = createContext({} as ContextValue);
@@ -49,6 +50,7 @@ const emptyShip: ShipInfo = {
   ship: undefined,
   shipUrl: undefined,
   authCookie: undefined,
+  needsSplashSequence: false,
 };
 
 export const ShipProvider = ({ children }: { children: ReactNode }) => {
@@ -56,7 +58,13 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
   const [shipInfo, setShipInfo] = useState(emptyShip);
 
   const setShip = useCallback(
-    ({ ship, shipUrl, authCookie, authType }: ShipInfo) => {
+    ({
+      ship,
+      shipUrl,
+      authCookie,
+      authType,
+      needsSplashSequence,
+    }: ShipInfo) => {
       // Clear all saved ship info if either required field is empty
       if (!ship || !shipUrl) {
         // Remove from React Native storage
@@ -79,6 +87,7 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
         shipUrl: normalizedShipUrl,
         authCookie,
         authType,
+        needsSplashSequence,
       };
 
       // Save to React Native stoage
@@ -161,6 +170,17 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
     storage.shipInfo.resetValue();
   }, []);
 
+  const clearNeedsSplashSequence = useCallback(() => {
+    setShipInfo({
+      ...shipInfo,
+      needsSplashSequence: false,
+    });
+    storage.shipInfo.setValue({
+      ...shipInfo,
+      needsSplashSequence: false,
+    });
+  }, [shipInfo]);
+
   useEffect(() => {
     if (shipInfo.ship && Platform.OS !== 'web') {
       // Only try to cancel nudges on native platforms
@@ -183,6 +203,7 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
         contactId: shipInfo.ship ? preSig(shipInfo.ship) : undefined,
         setShip,
         clearShip,
+        clearNeedsSplashSequence,
         ...shipInfo,
       }}
     >

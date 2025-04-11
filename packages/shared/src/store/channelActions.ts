@@ -20,16 +20,18 @@ export async function createChannel({
   description: rawDescription,
   channelType: rawChannelType,
   contentConfiguration,
+  customSlug,
 }: {
   groupId: string;
   title: string;
   description?: string;
   channelType: Omit<db.ChannelType, 'dm' | 'groupDm'> | 'custom';
   contentConfiguration?: ChannelContentConfiguration;
+  customSlug?: string;
 }) {
   const currentUserId = api.getCurrentUserId();
   const channelType = rawChannelType === 'custom' ? 'chat' : rawChannelType;
-  const channelSlug = getRandomId();
+  const channelSlug = customSlug || getRandomId();
   const channelId = `${getChannelKindFromType(channelType)}/${currentUserId}/${channelSlug}`;
 
   logger.trackEvent(
@@ -53,6 +55,7 @@ export async function createChannel({
       contentConfiguration ??
       channelContentConfigurationForChannelType(channelType),
   };
+
   await db.insertChannels([newChannel]);
 
   // If we have a `contentConfiguration`, we need to merge these fields to make
@@ -79,9 +82,9 @@ export async function createChannel({
     });
     return newChannel;
   } catch (e) {
-    console.error('Failed to create channel', e);
     // rollback optimistic update
     await db.deleteChannels([channelId]);
+    throw new Error(`Failed to create channel ${channelId}`);
   }
 
   return newChannel;

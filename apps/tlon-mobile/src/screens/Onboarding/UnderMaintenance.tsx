@@ -1,10 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
-import { createDevLogger } from '@tloncorp/shared';
-import { HostedNodeStatus } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
 import {
   Button,
   OnboardingTextBlock,
@@ -14,6 +10,10 @@ import {
   useStore,
 } from '@tloncorp/app/ui';
 import { TlonText } from '@tloncorp/app/ui';
+import { createDevLogger } from '@tloncorp/shared';
+import { HostedNodeStatus } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import { useCallback, useState } from 'react';
 
 import { OnboardingStackParamList } from '../../types';
@@ -36,7 +36,7 @@ export function UnderMaintenanceScreen({ navigation }: Props) {
   const handleRecheckStatus = useCallback(async () => {
     setRechecking(true);
     try {
-      const nodeStatus = await store.checkHostingNodeStatus();
+      const { status: nodeStatus } = await store.checkHostingNodeStatus();
       logger.trackEvent('User Rechecked Node Status', { nodeStatus });
       if (nodeStatus !== HostedNodeStatus.UnderMaintenance) {
         navigation.navigate('GettingNodeReadyScreen', { waitType: 'Unknown' });

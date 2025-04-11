@@ -1,13 +1,17 @@
+import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import { Button } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
+import { useMemo } from 'react';
 import { YStack, styled } from 'tamagui';
 
 import { useChatOptions, useGroup } from '../../contexts';
 import { useIsAdmin } from '../../utils';
 import { ArvosDiscussing } from '../ArvosDiscussing';
 import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
+import WayfindingNotice from '../Wayfinding/Notices';
 
 export function EmptyChannelNotice({
   channel,
@@ -20,6 +24,13 @@ export function EmptyChannelNotice({
   const group = useGroup(channel.groupId ?? '');
   const isGroupAdmin = useIsAdmin(channel.groupId ?? '', userId);
   const isWelcomeNotice = isGroupAdmin && group?.channels?.length === 1;
+  const isDefaultPersonalChannel = useMemo(() => {
+    return logic.isDefaultPersonalChannel(channel, userId);
+  }, [channel, userId]);
+
+  if (isDefaultPersonalChannel) {
+    return <WayfindingNotice.EmptyChannel channel={channel} />;
+  }
 
   return isWelcomeNotice ? (
     <YStack

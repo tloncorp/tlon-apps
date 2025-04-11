@@ -2,6 +2,8 @@ import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
+import * as logic from '../logic';
+import * as GroupActions from './groupActions';
 import { syncContacts, syncGroup } from './sync';
 
 const logger = createDevLogger('ContactActions', false);
@@ -296,6 +298,25 @@ export async function updateCurrentUserProfile(update: api.ProfileUpdate) {
 
   try {
     await api.updateCurrentUserProfile(update);
+
+    // handle updating the personal group title if user sets their nickname
+    const personalGroup = await db.getPersonalGroup();
+    if (personalGroup) {
+      const hasDefaultTitle = logic.personalGroupHasDefaultTitle(personalGroup);
+      const changedNickname =
+        currentUserContact?.peerNickname !== update.nickname;
+
+      if (hasDefaultTitle && changedNickname) {
+        const newTitle = logic.generatePersonalGroupTitle({
+          id: currentUserId,
+          nickname: update.nickname,
+        });
+        await GroupActions.updateGroupMeta({
+          ...personalGroup,
+          title: newTitle,
+        });
+      }
+    }
   } catch (e) {
     console.error('Error updating profile', e);
     // Rollback the update
