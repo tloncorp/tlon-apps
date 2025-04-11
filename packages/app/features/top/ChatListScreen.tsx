@@ -313,7 +313,7 @@ export function ChatListScreenView({
               leftControls={
                 personalInvite ? (
                   <ScreenHeader.IconButton
-                    type="Send"
+                    type="AddPerson"
                     color={inviteButtonColor}
                     onPress={handlePersonalInvitePress}
                   />

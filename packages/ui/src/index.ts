@@ -1,5 +1,5 @@
 export const DESKTOP_TOPLEVEL_SIDEBAR_WIDTH = 48;
-export const DESKTOP_SIDEBAR_WIDTH = 410;
+export const DESKTOP_SIDEBAR_WIDTH = 325;
 
 export * from './types';
 export * from './components/Button';
