@@ -105,7 +105,7 @@ export function InviteFriendsToTlonButton({
       {...props}
     >
       {linkIsReady ? (
-        <Icon type="Link" color="$secondaryText" size="$m" />
+        <Icon type="AddPerson" color="$secondaryText" size="$m" />
       ) : linkIsLoading ? (
         <LoadingSpinner size="small" />
       ) : linkFailed ? (
@@ -115,9 +115,9 @@ export function InviteFriendsToTlonButton({
         {didCopy
           ? 'Copied'
           : linkIsReady
-            ? 'Share Invite Link'
+            ? 'Invite Friends'
             : linkIsDisabled
-              ? 'Public invite links are disabled'
+              ? 'Invite links are disabled'
               : linkFailed
                 ? 'Error generating invite link'
                 : linkIsLoading
