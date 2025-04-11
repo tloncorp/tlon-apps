@@ -15,7 +15,7 @@ import { Share } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useCurrentUserId, useInviteService } from '../contexts';
-import { useGroupTitle, useIsAdmin } from '../utils';
+import { useIsAdmin } from '../utils';
 
 const logger = createDevLogger('InviteButton', true);
 
@@ -31,8 +31,7 @@ export function InviteFriendsToTlonButton({
     inviteServiceEndpoint: inviteService.endpoint,
     inviteServiceIsDev: inviteService.isDev,
   });
-  const title = useGroupTitle(group);
-  const { doCopy } = useCopy(shareUrl || '');
+  const { doCopy, didCopy } = useCopy(shareUrl || '');
 
   useEffect(() => {
     logger.trackEvent('Invite Button Shown', { group: group?.id });
@@ -45,13 +44,6 @@ export function InviteFriendsToTlonButton({
           inviteId: shareUrl.split('/').pop() ?? null,
           inviteType: 'group',
         });
-        if (navigator.share !== undefined) {
-          await navigator.share({
-            title: `Join ${title} on Tlon`,
-            url: shareUrl,
-          });
-          return;
-        }
 
         doCopy();
         return;
@@ -73,7 +65,7 @@ export function InviteFriendsToTlonButton({
       }
       return;
     }
-  }, [shareUrl, status, group, doCopy, title]);
+  }, [shareUrl, status, group, doCopy]);
 
   useEffect(() => {
     const enableLinks = async () => {
@@ -113,22 +105,24 @@ export function InviteFriendsToTlonButton({
       {...props}
     >
       {linkIsReady ? (
-        <Icon type="Link" color="$secondaryText" size="$m" />
+        <Icon type="AddPerson" color="$secondaryText" size="$m" />
       ) : linkIsLoading ? (
         <LoadingSpinner size="small" />
       ) : linkFailed ? (
         <Icon type="Placeholder" color="$secondaryText" size="$m" />
       ) : null}
       <Button.Text>
-        {linkIsReady
-          ? 'Share Invite Link'
-          : linkIsDisabled
-            ? 'Public invite links are disabled'
-            : linkFailed
-              ? 'Error generating invite link'
-              : linkIsLoading
-                ? 'Generating invite link...'
-                : null}
+        {didCopy
+          ? 'Copied'
+          : linkIsReady
+            ? 'Invite Friends'
+            : linkIsDisabled
+              ? 'Invite links are disabled'
+              : linkFailed
+                ? 'Error generating invite link'
+                : linkIsLoading
+                  ? 'Generating invite link...'
+                  : null}
       </Button.Text>
     </Button>
   );

@@ -1,11 +1,10 @@
 import { utils } from '@tloncorp/shared';
+import { trustedProviders } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import { Post } from '@tloncorp/shared/db';
 import * as ub from '@tloncorp/shared/urbit';
 import { useContext, useMemo } from 'react';
 import { createStyledContext } from 'tamagui';
-
-import { trustedProviders } from '../Embed/EmbedContent';
 
 export interface ContentContextProps {
   isNotice?: boolean;

@@ -1,7 +1,6 @@
 import {
   isChatChannel as getIsChatChannel,
   makePrettyDayAndTime,
-  makePrettyTime,
   useDebouncedValue,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -478,6 +477,14 @@ function SinglePostView({
     [currentUserId, channel, parentPost, store]
   );
 
+  const isChatLike = useMemo(
+    () =>
+      channel.type === 'chat' ||
+      channel.type === 'dm' ||
+      channel.type === 'groupDm',
+    [channel.type]
+  );
+
   return (
     <YStack flex={1}>
       {parentPost ? (
@@ -516,11 +523,10 @@ function SinglePostView({
               setEditingPost={setEditingPost}
               editPost={editPost}
               channelType="chat"
-              showAttachmentButton={channel.type === 'chat'}
-              showInlineAttachments={channel.type === 'chat'}
+              showAttachmentButton={isChatLike}
+              showInlineAttachments
               shouldAutoFocus={
-                (channel.type === 'chat' && parentPost?.replyCount === 0) ||
-                !!editingPost
+                (isChatLike && parentPost?.replyCount === 0) || !!editingPost
               }
             />
           </View>

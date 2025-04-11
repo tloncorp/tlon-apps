@@ -1,575 +1,72 @@
-// Copyright 2022, Tlon Corporation
-import * as Toast from '@radix-ui/react-toast';
-import { TooltipProvider } from '@radix-ui/react-tooltip';
+// Copyright 2025, Tlon Corporation
+import {
+  DarkTheme,
+  DefaultTheme,
+  NavigationContainer,
+  Route,
+} from '@react-navigation/native';
+import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
+import { ShipProvider } from '@tloncorp/app/contexts/ship';
+import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
+import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
+import useDesktopNotifications from '@tloncorp/app/hooks/useDesktopNotifications';
+import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
+import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
+import { useRenderCount } from '@tloncorp/app/hooks/useRenderCount';
+import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
+import { BasePathNavigator } from '@tloncorp/app/navigation/BasePathNavigator';
+import {
+  getDesktopLinkingConfig,
+  getMobileLinkingConfig,
+} from '@tloncorp/app/navigation/linking';
+import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
+import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
+import { LoadingSpinner, StoreProvider, Text, View } from '@tloncorp/app/ui';
+import { getAuthInfo } from '@tloncorp/shared';
+import { sync } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
-import React, { Suspense, useEffect, useMemo, useState } from 'react';
-import { ErrorBoundary } from 'react-error-boundary';
+import React, {
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Helmet } from 'react-helmet';
-import {
-  Location,
-  Navigate,
-  NavigateFunction,
-  Route,
-  BrowserRouter as Router,
-  Routes,
-  useLocation,
-  useNavigate,
-} from 'react-router-dom';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { IS_MOCK } from '@/api';
-import NewChannelModal from '@/channels/NewChannel/NewChannelModal';
-import ChatChannel from '@/chat/ChatChannel';
-import ChatThread from '@/chat/ChatThread/ChatThread';
-import AboutDialog from '@/components/About/AboutDialog';
-import AboutView from '@/components/About/AboutView';
-import ActivityModal, { ActivityChecker } from '@/components/ActivityModal';
-import Dialog from '@/components/Dialog';
-import DisconnectNotice from '@/components/DisconnectNotice';
-import EmojiPicker from '@/components/EmojiPicker';
-import ErrorAlert from '@/components/ErrorAlert';
-import Leap from '@/components/Leap/Leap';
-import { LeapProvider } from '@/components/Leap/useLeap';
-import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import SettingsDialog from '@/components/Settings/SettingsDialog';
-import SettingsView from '@/components/Settings/SettingsView';
-import AppNav from '@/components/Sidebar/AppNav';
-import DiaryChannel from '@/diary/DiaryChannel';
-import DiaryNote from '@/diary/DiaryNote';
-import DMHome from '@/dms/DMHome';
-import Dms from '@/dms/Dms';
-import Message from '@/dms/Message';
-import MobileMessagesSidebar from '@/dms/MobileMessagesSidebar';
-import MultiDMEditModal from '@/dms/MultiDMEditModal';
-import NewDM from '@/dms/NewDm';
-import GroupChannelManager from '@/groups/ChannelsList/GroupChannelManager';
-import GroupAdmin from '@/groups/GroupAdmin/GroupAdmin';
-import GroupDelete from '@/groups/GroupAdmin/GroupDelete';
-import GroupInfo from '@/groups/GroupAdmin/GroupInfo';
-import GroupInfoEditor from '@/groups/GroupAdmin/GroupInfoEditor';
-import GroupInvitesPrivacy from '@/groups/GroupAdmin/GroupInvitesPrivacy';
-import GroupMembers from '@/groups/GroupAdmin/GroupMembers';
-import GroupRoles from '@/groups/GroupAdmin/GroupRoles';
-import GroupChannel from '@/groups/GroupChannel';
-import GroupInviteDialog from '@/groups/GroupInviteDialog';
-import GroupLeaveDialog from '@/groups/GroupLeaveDialog';
-import Groups from '@/groups/Groups';
-import GroupPreviewModal from '@/groups/Join/GroupPreview';
-import RejectConfirmModal from '@/groups/Join/RejectConfirmModal';
-import LureAutojoiner from '@/groups/LureAutojoiner';
-import Members from '@/groups/Members';
-import MobileGroupChannelList from '@/groups/MobileGroupChannelList';
-import PrivacyNotice from '@/groups/PrivacyNotice';
-import EditCurioModal from '@/heap/EditCurioModal';
-import HeapChannel from '@/heap/HeapChannel';
-import HeapDetail from '@/heap/HeapDetail';
-import { DragAndDropProvider } from '@/logic/DragAndDropContext';
-import {
-  ANALYTICS_DEFAULT_PROPERTIES,
-  captureAnalyticsEvent,
-  captureError,
-} from '@/logic/analytics';
-import {
-  isNativeApp,
-  postActionToNativeApp,
-  useNativeBridge,
-} from '@/logic/native';
+import EyrieMenu from '@/eyrie/EyrieMenu';
+import useAppUpdates from '@/logic/useAppUpdates';
 import useErrorHandler from '@/logic/useErrorHandler';
 import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
-import useMedia, { useIsDark, useIsMobile } from '@/logic/useMedia';
+import { useIsDark, useIsMobile } from '@/logic/useMedia';
 import { preSig } from '@/logic/utils';
-import GroupsNav from '@/nav/GroupsNav';
-import MobileGroupsNavHome from '@/nav/MobileRoot';
-import Notifications from '@/notifications/Notifications';
-import EditProfile from '@/profiles/EditProfile/EditProfile';
-import Profile from '@/profiles/Profile';
-import ProfileModal from '@/profiles/ProfileModal';
-import bootstrap from '@/state/bootstrap';
 import { toggleDevTools, useLocalState, useShowDevTools } from '@/state/local';
-import { useScheduler } from '@/state/scheduler';
-import {
-  useAnalyticsId,
-  useLogActivity,
-  useSettingsLoaded,
-  useTheme,
-} from '@/state/settings';
+import { useAnalyticsId, useLogActivity, useTheme } from '@/state/settings';
 
-import ChannelVolumeDialog from './channels/ChannelVolumeDialog';
-import ThreadVolumeDialog from './channels/ThreadVolumeDialog';
-import MobileChatSearch from './chat/ChatSearch/MobileChatSearch';
-import DevLog from './components/DevLog/DevLog';
-import DevLogsView from './components/DevLog/DevLogView';
-import MobileAppToast from './components/MobileAppToast';
-import ReportContent from './components/ReportContent';
-import BlockedUsersDialog from './components/Settings/BlockedUsersDialog';
-import BlockedUsersView from './components/Settings/BlockedUsersView';
-import UpdateNoticeSheet from './components/UpdateNotices';
-import BroadcastDm from './dms/BroadcastDm';
-import DMThread from './dms/DMThread';
-import MobileDmSearch from './dms/MobileDmSearch';
-import EyrieMenu from './eyrie/EyrieMenu';
-import { CreateGroupDialog } from './groups/AddGroup/CreateGroup';
-import { JoinGroupDialog } from './groups/AddGroup/JoinGroup';
-import GroupVolumeDialog from './groups/GroupVolumeDialog';
-import NewGroupDialog from './groups/NewGroup/NewGroupDialog';
-import NewGroupView from './groups/NewGroup/NewGroupView';
-import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
-import useAppUpdates, { AppUpdateContext } from './logic/useAppUpdates';
-import Notification from './notifications/Notification';
-import ShareDMLure from './profiles/ShareDMLure';
-import { useActivityFirehose } from './state/activity';
-import { useChannelsFirehose } from './state/channel/channel';
+import { DesktopLoginScreen } from './components/DesktopLoginScreen';
+import { isElectron } from './electron-bridge';
+
+// Conditionally import the appropriate database functions
+const { checkDb, useMigrations } = isElectron()
+  ? await import('@tloncorp/app/lib/electronDb')
+  : await import('@tloncorp/app/lib/webDb');
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
-  import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
-    (d) => ({
-      default: d.ReactQueryDevtools,
-    })
-  )
+  import('@tanstack/react-query-devtools/production').then((d) => ({
+    default: d.ReactQueryDevtools,
+  }))
 );
-
-const Grid = React.lazy(() => import('./components/Grid/grid'));
-const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
-const AppModal = React.lazy(() => import('./components/Grid/appmodal'));
-
-function SuspendedModal({ children }: { children: React.ReactNode }) {
-  return (
-    <Suspense
-      fallback={
-        <Dialog defaultOpen modal className="bg-transparent" close="none">
-          <LoadingSpinner />
-        </Dialog>
-      }
-    >
-      {children}
-    </Suspense>
-  );
-}
-
-const DiaryAddNote = React.lazy(() => import('./diary/diary-add-note'));
-const SuspendedDiaryAddNote = (
-  <Suspense
-    fallback={
-      <div className="h-screen w-full flex-1">
-        <div className="align-center flex h-full w-full justify-center">
-          <LoadingSpinner />
-        </div>
-      </div>
-    }
-  >
-    <DiaryAddNote />
-  </Suspense>
-);
-
-interface RoutesProps {
-  isMobile: boolean;
-  isSmall: boolean;
-}
-
-const GroupsRoutes = React.memo(function GroupsRoutesComponent({
-  isMobile,
-  isSmall,
-}: RoutesProps) {
-  const groupsTitle = 'Tlon';
-  const loaded = useSettingsLoaded();
-  const location = useLocation();
-
-  const state = location.state as { backgroundLocation?: Location } | null;
-
-  useEffect(() => {
-    if (loaded) {
-      captureAnalyticsEvent('app_open');
-    }
-
-    return () => {
-      if (loaded) {
-        captureAnalyticsEvent('app_close');
-      }
-    };
-  }, [loaded]);
-
-  return (
-    <>
-      <ActivityChecker />
-      <Routes location={state?.backgroundLocation || location}>
-        <Route element={<AppNav />}>
-          <Route element={<GroupsNav />}>
-            <Route path="/find/:ship/:name" element={<GroupPreviewModal />} />
-            <Route path="/groups" element={<GroupsNav />} />
-            <Route index element={isMobile ? <MobileGroupsNavHome /> : null} />
-            <Route
-              path="/messages"
-              element={isMobile ? <MobileMessagesSidebar /> : null}
-            />
-            <Route path="/dm/" element={<Dms />}>
-              <Route index element={<DMHome />} />
-              <Route path="broadcasts/:cohort" element={<BroadcastDm />} />
-              <Route path="new">
-                <Route index element={<NewDM />} />
-                <Route path=":ship" element={<Message />} />
-              </Route>
-
-              <Route path=":ship">
-                <Route index element={<Message />} />
-                <Route path="*" element={<Message />}>
-                  {isSmall ? null : (
-                    <Route
-                      path="message/:idShip/:idTime"
-                      element={<DMThread />}
-                    />
-                  )}
-                </Route>
-              </Route>
-
-              <Route path="groups/:ship/:name/*" element={<Groups />}>
-                <Route
-                  path="channels/chat/:chShip/:chName"
-                  element={<GroupChannel type="chat" />}
-                >
-                  <Route
-                    path="*"
-                    element={<ChatChannel title={` • ${groupsTitle}`} />}
-                  />
-                  {isSmall ? (
-                    <Route path="message/:idTime" element={<ChatThread />} />
-                  ) : null}
-                  {isMobile && (
-                    <Route
-                      path="search/:query?"
-                      element={<MobileChatSearch />}
-                    />
-                  )}
-                </Route>
-              </Route>
-              {isSmall && (
-                <Route
-                  path=":ship/search/:query?"
-                  element={<MobileDmSearch />}
-                />
-              )}
-              {isSmall && (
-                <Route
-                  path=":ship/message/:idShip/:idTime"
-                  element={<DMThread />}
-                />
-              )}
-            </Route>
-            <Route path="/groups/new-mobile" element={<NewGroupView />} />
-            <Route path="/leap" element={<Leap openDefault />} />
-            <Route path="/groups/:ship/:name" element={<Groups />}>
-              <Route
-                index
-                element={isMobile ? <MobileGroupChannelList /> : null}
-              />
-              <Route
-                path="channels"
-                element={<GroupChannelManager title={` • ${groupsTitle}`} />}
-              />
-              <Route path="activity" element={<Navigate to="../channels" />} />
-              <Route path="members" element={<Members />} />
-              <Route path="/groups/:ship/:name/edit" element={<GroupAdmin />}>
-                {!isMobile && (
-                  <>
-                    <Route
-                      path="info"
-                      element={<GroupInfoEditor title={`• ${groupsTitle}`} />}
-                    />
-                    <Route
-                      path="invites-privacy"
-                      element={
-                        <GroupInvitesPrivacy title={`• ${groupsTitle}`} />
-                      }
-                    />
-                    <Route
-                      path="members"
-                      element={<GroupMembers title={`• ${groupsTitle}`} />}
-                    />
-
-                    <Route
-                      path="roles"
-                      element={<GroupRoles title={`• ${groupsTitle}`} />}
-                    />
-                    <Route path="delete" element={<GroupDelete />} />
-                  </>
-                )}
-              </Route>
-              {isMobile && (
-                <>
-                  <Route
-                    path="/groups/:ship/:name/edit/info"
-                    element={<GroupInfoEditor title={`• ${groupsTitle}`} />}
-                  />
-                  <Route
-                    path="/groups/:ship/:name/edit/invites-privacy"
-                    element={<GroupInvitesPrivacy title={`• ${groupsTitle}`} />}
-                  />
-                  <Route
-                    path="/groups/:ship/:name/edit/members"
-                    element={<GroupMembers title={`• ${groupsTitle}`} />}
-                  />
-                  <Route
-                    path="/groups/:ship/:name/edit/roles"
-                    element={<GroupRoles title={`• ${groupsTitle}`} />}
-                  />
-                  <Route
-                    path="/groups/:ship/:name/edit/delete"
-                    element={<GroupDelete />}
-                  />
-                </>
-              )}
-              <Route
-                path="channels/chat/:chShip/:chName"
-                element={<GroupChannel type="chat" />}
-              >
-                <Route
-                  index
-                  element={<ChatChannel title={` • ${groupsTitle}`} />}
-                />
-                <Route
-                  path="*"
-                  element={<ChatChannel title={` • ${groupsTitle}`} />}
-                >
-                  {isSmall ? null : (
-                    <Route path="message/:idTime/" element={<ChatThread />} />
-                  )}
-                </Route>
-                {isSmall ? (
-                  <Route path="message/:idTime" element={<ChatThread />} />
-                ) : null}
-                {isMobile && (
-                  <Route path="search/:query?" element={<MobileChatSearch />} />
-                )}
-              </Route>
-              <Route
-                path="channels/heap/:chShip/:chName"
-                element={<GroupChannel type="heap" />}
-              >
-                <Route
-                  index
-                  element={<HeapChannel title={` • ${groupsTitle}`} />}
-                />
-                <Route
-                  path="curio/:idTime"
-                  element={<HeapDetail title={` • ${groupsTitle}`} />}
-                />
-              </Route>
-              <Route
-                path="channels/diary/:chShip/:chName"
-                element={<GroupChannel type="diary" />}
-              >
-                <Route
-                  index
-                  element={<DiaryChannel title={` • ${groupsTitle}`} />}
-                />
-                <Route
-                  path="note/:noteId"
-                  element={<DiaryNote title={` • ${groupsTitle}`} />}
-                />
-                <Route path="edit">
-                  <Route index element={SuspendedDiaryAddNote} />
-                  <Route path=":id" element={SuspendedDiaryAddNote} />
-                </Route>
-              </Route>
-            </Route>
-          </Route>
-          <Route
-            path="/notifications"
-            element={<Notifications title={`Activity • ${groupsTitle}`} />}
-          />
-          {!isMobile ? (
-            <Route
-              path="/profile"
-              element={<Profile title={`Profile • ${groupsTitle}`} />}
-            >
-              <Route
-                path="edit"
-                element={
-                  <EditProfile title={`Edit Profile • ${groupsTitle}`} />
-                }
-              />
-              <Route
-                path="share"
-                element={
-                  <ShareDMLure title={`Share with Friends • ${groupsTitle}`} />
-                }
-              />
-              <Route
-                path="settings"
-                element={<SettingsView title={`Settings • ${groupsTitle}`} />}
-              />
-              <Route path="settings/blocked" element={<BlockedUsersView />} />
-              <Route
-                path="about"
-                element={<AboutView title={`About • ${groupsTitle}`} />}
-              />
-              <Route
-                path="logs"
-                element={
-                  <DevLogsView title={`Developer Logs • ${groupsTitle}`} />
-                }
-              />
-            </Route>
-          ) : (
-            <>
-              <Route
-                path="/profile"
-                element={<Profile title={`Profile • ${groupsTitle}`} />}
-              />
-              <Route
-                path="/profile/edit"
-                element={
-                  <EditProfile title={`Edit Profile • ${groupsTitle}`} />
-                }
-              />
-              <Route
-                path="/profile/share"
-                element={
-                  <ShareDMLure title={`Share with Friends • ${groupsTitle}`} />
-                }
-              />
-              <Route
-                path="/profile/settings"
-                element={<SettingsView title={`Settings • ${groupsTitle}`} />}
-              />
-              <Route
-                path="/profile/settings/blocked"
-                element={<BlockedUsersView />}
-              />
-              <Route
-                path="/profile/about"
-                element={<AboutView title={`About • ${groupsTitle}`} />}
-              />
-              <Route
-                path="/profile/logs"
-                element={
-                  <DevLogsView title={`Developer Logs • ${groupsTitle}`} />
-                }
-              />
-            </>
-          )}
-        </Route>
-      </Routes>
-      {state?.backgroundLocation ? (
-        <Routes>
-          <Route path="/about" element={<AboutDialog />} />
-          <Route path="/privacy" element={<PrivacyNotice />} />
-          <Route path="/settings" element={<SettingsDialog />} />
-          <Route path="/blocked" element={<BlockedUsersDialog />} />
-          <Route path="/activity-collection" element={<ActivityModal />} />
-          <Route path="/add-group/create" element={<CreateGroupDialog />} />
-          <Route path="/add-group/join" element={<JoinGroupDialog />} />
-          <Route
-            path="/grid"
-            element={
-              <SuspendedModal>
-                <Grid />
-              </SuspendedModal>
-            }
-          />
-          <Route
-            path="/app/:desk"
-            element={
-              <SuspendedModal>
-                <AppModal />
-              </SuspendedModal>
-            }
-          />
-          <Route
-            path="/app/:desk/info"
-            element={
-              <SuspendedModal>
-                <TileInfo />
-              </SuspendedModal>
-            }
-          />
-          <Route path="/groups/new" element={<NewGroupDialog />} />
-          <Route path="/groups/:ship/:name">
-            <Route path="invite" element={<GroupInviteDialog />} />
-          </Route>
-          <Route
-            path="/groups/:ship/:name/info"
-            element={<GroupInfo title={`• ${groupsTitle}`} />}
-          />
-          <Route
-            path="/dm?/groups/:ship/:name/volume"
-            element={<GroupVolumeDialog title={`• ${groupsTitle}`} />}
-          />
-          <Route
-            path="/dm?/groups/:ship/:name/channels/:chType/:chShip/:chName/volume"
-            element={<ChannelVolumeDialog title={`• ${groupsTitle}`} />}
-          />
-          <Route
-            path="/dm?/groups/:ship/:name/channels/:chType/:chShip/:chName/message/:idTime/volume"
-            element={<ThreadVolumeDialog title={`• ${groupsTitle}`} />}
-          />
-          <Route
-            path="/groups/:ship/:name/leave"
-            element={<GroupLeaveDialog />}
-          />
-          <Route path="/gangs/:ship/:name" element={<GroupPreviewModal />} />
-          <Route
-            path="/gangs/:ship/:name/reject"
-            element={<RejectConfirmModal />}
-          />
-          <Route
-            path="/groups/:ship/:name/channels/heap/:chShip/:chName/curio/:idTime/edit"
-            element={<EditCurioModal />}
-          />
-          <Route
-            path="/groups/:ship/:name/channels/new"
-            element={<NewChannelModal />}
-          />
-          <Route
-            path="/groups/:ship/:name/channels/new/:section"
-            element={<NewChannelModal />}
-          />
-          <Route path="/profile/:ship" element={<ProfileModal />} />
-          <Route path="dm/:id/edit-info" element={<MultiDMEditModal />} />
-          <Route path="/report-content" element={<ReportContent />} />
-          {isMobile ? (
-            <>
-              <Route
-                path="/groups/:ship/:name/channels/chat/:chShip/:chName/picker/:writTime"
-                element={<EmojiPicker />}
-              />
-              <Route
-                path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idTime/picker/:writTime"
-                element={<EmojiPicker />}
-              />
-              <Route
-                path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idTime/picker/:writTime"
-                element={<EmojiPicker />}
-              />
-              <Route
-                path="/dm/:ship/picker/:writShip/:writTime"
-                element={<EmojiPicker />}
-              />
-              <Route
-                path="/dm/:ship/message/:idShip/:idTime/picker/:writShip/:writTime"
-                element={<EmojiPicker />}
-              />
-              <Route path="/update-needed" element={<UpdateNoticeSheet />} />
-            </>
-          ) : null}
-        </Routes>
-      ) : null}
-    </>
-  );
-});
 
 function authRedirect() {
   document.location = `${document.location.protocol}//${document.location.host}`;
 }
 
 function checkIfLoggedIn() {
-  if (isNativeApp()) {
-    return;
-  }
-
-  if (IS_MOCK) {
-    return;
-  }
-
   if (!('ship' in window)) {
     authRedirect();
   }
@@ -589,97 +86,527 @@ function checkIfLoggedIn() {
   }
 }
 
-function handleGridRedirect(navigate: NavigateFunction) {
-  const query = new URLSearchParams(window.location.search);
+function getFriendlyName(routeName: string) {
+  const friendlyNames: Record<string, string> = {
+    ChatList: 'Home',
+    GroupSettings: 'Group Settings',
+    ChannelSearch: 'Search',
+    ChatDetails: 'Chat Details',
+    UserProfile: 'Profile',
+    AppSettings: 'Settings',
+    ManageAccount: 'Account',
+    BlockedUsers: 'Blocked Users',
+    FeatureFlags: 'Features',
+    PushNotificationSettings: 'Notifications',
+  };
 
-  if (query.has('landscape-note')) {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    navigate(decodeURIComponent(query.get('landscape-note')!));
-  } else if (query.has('grid-link')) {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    navigate(decodeURIComponent(query.get('landscape-link')!));
+  return (
+    friendlyNames[routeName] || routeName.replace(/([A-Z])/g, ' $1').trim()
+  );
+}
+
+const extractNestedRouteMobile = (state: any) => {
+  if (!state) return null;
+  const route = state.routes[state.index];
+  return route.state?.routes[route.state?.index || 0] || null;
+};
+
+const extractNestedRouteDesktop = (state: any) => {
+  if (!state) return null;
+  const route = state.routes[state.index];
+  const nestedRoute = route.state?.routes[route.state?.index || 0];
+
+  if (
+    nestedRoute &&
+    (nestedRoute.name === 'Home' || nestedRoute.name === 'Messages')
+  ) {
+    return nestedRoute.state?.routes[nestedRoute.state?.index || 0] || null;
   }
-}
-
-function Scheduler() {
-  useScheduler();
   return null;
-}
+};
 
-function Firehose() {
-  useActivityFirehose();
-  useChannelsFirehose();
-  return null;
-}
+function AppRoutes() {
+  useFindSuggestedContacts();
+  const contactsQuery = store.useContacts();
+  const { needsUpdate, triggerUpdate } = useAppUpdates();
+  const [currentRouteParams, setCurrentRouteParams] = useState<any>(null);
+  const currentRouteRef = useRef<any>(null);
 
-const App = React.memo(function AppComponent() {
-  useNativeBridge();
-  const navigate = useNavigate();
-  const handleError = useErrorHandler();
-  const isMobile = useIsMobile();
-  const isSmall = useMedia('(max-width: 1023px)');
+  const channelId = useMemo(
+    () => currentRouteParams?.channelId,
+    [currentRouteParams?.channelId]
+  );
+  const groupId = useMemo(
+    () => currentRouteParams?.groupId,
+    [currentRouteParams?.groupId]
+  );
+
+  const { data: channelData } = store.useChannel({
+    id: channelId,
+  });
+  const { data: groupData } = store.useGroup({
+    id: groupId,
+  });
+  const { data, refetch, isRefetching, isFetching } = contactsQuery;
 
   useEffect(() => {
-    if (isNativeApp()) {
-      postActionToNativeApp('appLoaded');
+    if (data?.length === 0 && !isRefetching && !isFetching) {
+      refetch();
+    }
+  }, [data?.length, isRefetching, isFetching, refetch]);
+
+  const isMobile = useIsMobile();
+  const isDarkMode = useIsDarkMode();
+  const theme = useMemo(() => {
+    if (isDarkMode) {
+      return DarkTheme;
+    }
+    return DefaultTheme;
+  }, [isDarkMode]);
+
+  useRenderCount('AppRoutes');
+
+  const handleStateChangeMobile = useCallback((state: any) => {
+    const nestedRoute = extractNestedRouteMobile(state);
+    if (nestedRoute) {
+      currentRouteRef.current = nestedRoute;
+      // Only update state if needed for specific param changes
+      if (
+        nestedRoute.params?.channelId !==
+          currentRouteRef.current?.params?.channelId ||
+        nestedRoute.params?.groupId !== currentRouteRef.current?.params?.groupId
+      ) {
+        setCurrentRouteParams(nestedRoute.params);
+      }
     }
   }, []);
 
-  useEffect(() => {
-    handleError(() => {
-      checkIfLoggedIn();
-      handleGridRedirect(navigate);
-    })();
-  }, [handleError, navigate]);
+  const handleStateChangeDesktop = useCallback((state: any) => {
+    const nestedRoute = extractNestedRouteDesktop(state);
+    if (nestedRoute) {
+      currentRouteRef.current = nestedRoute;
+      // Only update state if needed for specific param changes
+      if (
+        nestedRoute.params?.channelId !==
+          currentRouteRef.current?.params?.channelId ||
+        nestedRoute.params?.groupId !== currentRouteRef.current?.params?.groupId
+      ) {
+        setCurrentRouteParams(nestedRoute.params);
+      }
+    }
+  }, []);
+
+  const documentTitleFormatterMobile = useCallback(
+    (_options: any, route: Route<string>) => {
+      if (!route?.name) return 'Tlon';
+
+      if (route.name === 'GroupChannels') {
+        if (groupData?.title) {
+          return `${groupData.title}`;
+        }
+        return 'Group Channels';
+      }
+
+      // For channel routes
+      if (route.name === 'Channel' || route.name === 'ChannelRoot') {
+        if (channelData?.title && groupData?.title) {
+          return `${channelData.title} - ${groupData.title}`;
+        }
+      }
+
+      // For DM routes
+      if (route.name === 'DM') {
+        const title =
+          channelData?.title ||
+          channelData?.contact?.peerNickname ||
+          channelData?.contact?.customNickname ||
+          channelData?.contactId ||
+          'Chat';
+        return `${title}`;
+      }
+
+      // For Group DM routes
+      if (route.name === 'GroupDM') {
+        return `${channelData?.title ?? 'Group DM'}`;
+      }
+
+      // For other routes
+      const screenName = getFriendlyName(route.name);
+      return `${screenName}`;
+    },
+    [
+      groupData?.title,
+      channelData?.title,
+      channelData?.contact?.peerNickname,
+      channelData?.contact?.customNickname,
+      channelData?.contactId,
+    ]
+  );
+
+  const documentTitleFormatterDesktop = useCallback(
+    (_options: any, route: Route<string>) => {
+      if (!route?.name) return 'Tlon';
+
+      // For channel routes
+      if (route.name === 'Channel' || route.name === 'ChannelRoot') {
+        if (groupData?.title && channelData?.title) {
+          return `${channelData.title} - ${groupData.title}`;
+        }
+
+        const title =
+          channelData?.title ||
+          channelData?.contact?.peerNickname ||
+          channelData?.contact?.customNickname ||
+          channelData?.contactId ||
+          'Chat';
+        return `${title}`;
+      }
+
+      // For other routes
+      const screenName = getFriendlyName(route.name);
+      return `${screenName}`;
+    },
+    [
+      groupData?.title,
+      channelData?.title,
+      channelData?.contact?.peerNickname,
+      channelData?.contact?.customNickname,
+      channelData?.contactId,
+    ]
+  );
+
+  const mobileLinkingConfig = useMemo(
+    () => getMobileLinkingConfig(import.meta.env.MODE),
+    []
+  );
+
+  const desktopLinkingConfig = useMemo(
+    () => getDesktopLinkingConfig(import.meta.env.MODE),
+    []
+  );
+
+  return (
+    <AppDataProvider
+      webAppNeedsUpdate={needsUpdate}
+      triggerWebAppUpdate={triggerUpdate}
+    >
+      {isMobile ? (
+        <NavigationContainer
+          linking={mobileLinkingConfig}
+          theme={theme}
+          onStateChange={handleStateChangeMobile}
+          documentTitle={{
+            enabled: true,
+            formatter: documentTitleFormatterMobile,
+          }}
+        >
+          <BasePathNavigator isMobile={true} />
+        </NavigationContainer>
+      ) : (
+        <NavigationContainer
+          linking={desktopLinkingConfig}
+          theme={theme}
+          onStateChange={handleStateChangeDesktop}
+          documentTitle={{
+            enabled: true,
+            formatter: documentTitleFormatterDesktop,
+          }}
+        >
+          <BasePathNavigator isMobile={false} />
+        </NavigationContainer>
+      )}
+    </AppDataProvider>
+  );
+}
+
+function MigrationCheck({ children }: PropsWithChildren) {
+  const { success, error } = useMigrations();
+  if (!success && !error) {
+    return null;
+  }
+  if (error) {
+    throw error;
+  }
+  return <>{children}</>;
+}
+
+function ConnectedDesktopApp({
+  ship,
+  shipUrl,
+  authCookie,
+}: {
+  ship: string;
+  shipUrl: string;
+  authCookie: string;
+}) {
+  const [clientReady, setClientReady] = useState(false);
+  const configureClient = useConfigureUrbitClient();
+  const hasSyncedRef = React.useRef(false);
+  useDesktopNotifications(clientReady);
 
   useEffect(() => {
-    handleError(() => {
-      bootstrap();
-    })();
+    window.ship = ship;
+    window.our = ship;
+
+    const initializeClient = async () => {
+      store.removeClient();
+
+      configureClient({
+        shipName: ship,
+        shipUrl,
+      });
+
+      if (!hasSyncedRef.current) {
+        try {
+          await sync.syncStart(false);
+          setClientReady(true);
+          hasSyncedRef.current = true;
+        } catch (e) {
+          console.error('Error starting sync:', e);
+          setClientReady(false);
+        }
+      }
+    };
+
+    initializeClient();
+  }, [configureClient, ship, shipUrl, authCookie]);
+
+  if (!clientReady) {
+    return (
+      <View
+        height="100%"
+        width="100%"
+        justifyContent="center"
+        alignItems="center"
+        backgroundColor="$secondaryBackground"
+      >
+        <View
+          backgroundColor="$background"
+          padding="$xl"
+          borderRadius="$l"
+          aspectRatio={1}
+          alignItems="center"
+          justifyContent="center"
+          borderWidth={1}
+          borderColor="$border"
+        >
+          <LoadingSpinner color="$primaryText" />
+          <Text color="$primaryText" marginTop="$xl" fontSize="$s">
+            Starting up&hellip;
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  return <AppRoutes />;
+}
+
+function ConnectedWebApp() {
+  const currentUserId = useCurrentUserId();
+  const [dbIsLoaded, setDbIsLoaded] = useState(false);
+  const configureClient = useConfigureUrbitClient();
+  const session = store.useCurrentSession();
+  const hasSyncedRef = React.useRef(false);
+  const telemetry = useTelemetry();
+  useFindSuggestedContacts();
+
+  useEffect(() => {
+    configureClient({
+      shipName: currentUserId,
+      shipUrl: '',
+    });
+
+    const syncStart = async () => {
+      // Only call sync.syncStart once during the app's lifecycle
+      if (!hasSyncedRef.current) {
+        // Web doesn't persist database, so headsSyncedAt is misleading
+        await db.headsSyncedAt.resetValue();
+        sync.syncStart(false);
+        hasSyncedRef.current = true;
+        telemetry.captureAppActive('web');
+      }
+
+      if (!session?.startTime) {
+        return;
+      }
+
+      // we need to check the size of the database here to see if it's not zero
+      // if it's not zero, set the dbIsLoaded to true
+      // this is necessary because we load a fresh db on every load and we
+      // can't be sure of when data has been loaded
+
+      for (let i = 0; i < 10; i++) {
+        if (dbIsLoaded) {
+          break;
+        }
+
+        const { databaseSizeBytes } = (await checkDb()) || {
+          databaseSizeBytes: 0,
+        };
+
+        if (databaseSizeBytes && databaseSizeBytes > 0) {
+          setDbIsLoaded(true);
+          break;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    };
+
+    syncStart();
+  }, [dbIsLoaded, currentUserId, configureClient, session?.startTime]);
+
+  useRenderCount('ConnectedWebApp');
+
+  if (!dbIsLoaded) {
+    return (
+      <View
+        height="100%"
+        width="100%"
+        justifyContent="center"
+        alignItems="center"
+        backgroundColor="$secondaryBackground"
+      >
+        <View
+          backgroundColor="$background"
+          padding="$xl"
+          borderRadius="$l"
+          aspectRatio={1}
+          alignItems="center"
+          justifyContent="center"
+          borderWidth={1}
+          borderColor="$border"
+        >
+          <LoadingSpinner color="$primaryText" />
+          <Text color="$primaryText" marginTop="$xl" fontSize="$s">
+            Starting up&hellip;
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  return <AppRoutes />;
+}
+
+const App = React.memo(function AppComponent() {
+  const handleError = useErrorHandler();
+  const isDarkMode = useIsDark();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [authParams, setAuthParams] = useState<{
+    ship: string;
+    shipUrl: string;
+    authCookie: string;
+  } | null>(null);
+
+  // Check login for web
+  useEffect(() => {
+    if (!isElectron()) {
+      handleError(() => {
+        checkIfLoggedIn();
+      })();
+      setIsLoading(false);
+    }
   }, [handleError]);
+
+  useEffect(() => {
+    if (isElectron()) {
+      const checkStoredAuth = async () => {
+        try {
+          const storedAuth = await getAuthInfo();
+          if (storedAuth) {
+            console.log(
+              'Found stored auth credentials for ship:',
+              storedAuth.ship
+            );
+            setAuthParams(storedAuth);
+            setIsAuthenticated(true);
+          }
+        } catch (error) {
+          console.error('Error loading stored auth:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      checkStoredAuth();
+    }
+  }, []);
 
   return (
     <div className="flex h-full w-full flex-col">
-      <DisconnectNotice />
-      <MobileAppToast />
-      <Firehose />
-      <LeapProvider>
-        <ChatInputFocusProvider>
-          <DragAndDropProvider>
-            <GroupsRoutes isMobile={isMobile} isSmall={isSmall} />
-          </DragAndDropProvider>
-        </ChatInputFocusProvider>
-        <Leap />
-      </LeapProvider>
+      <ShipProvider>
+        <MigrationCheck>
+          <SafeAreaProvider>
+            <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
+              <StoreProvider>
+                {isElectron() ? (
+                  isLoading ? (
+                    <View
+                      height="100%"
+                      width="100%"
+                      justifyContent="center"
+                      alignItems="center"
+                      backgroundColor="$secondaryBackground"
+                    >
+                      <View
+                        backgroundColor="$background"
+                        padding="$xl"
+                        borderRadius="$l"
+                        aspectRatio={1}
+                        alignItems="center"
+                        justifyContent="center"
+                        borderWidth={1}
+                        borderColor="$border"
+                      >
+                        <LoadingSpinner color="$primaryText" />
+                        <Text
+                          color="$primaryText"
+                          marginTop="$xl"
+                          fontSize="$s"
+                        >
+                          Loading saved credentials&hellip;
+                        </Text>
+                      </View>
+                    </View>
+                  ) : isAuthenticated && authParams ? (
+                    <ConnectedDesktopApp
+                      ship={authParams.ship}
+                      shipUrl={authParams.shipUrl}
+                      authCookie={authParams.authCookie}
+                    />
+                  ) : (
+                    <DesktopLoginScreen
+                      onLoginSuccess={(params) => {
+                        setAuthParams(params);
+                        setIsAuthenticated(true);
+                      }}
+                    />
+                  )
+                ) : (
+                  <ConnectedWebApp />
+                )}
+              </StoreProvider>
+            </TamaguiProvider>
+          </SafeAreaProvider>
+        </MigrationCheck>
+      </ShipProvider>
     </div>
   );
 });
 
 function RoutedApp() {
-  const mode = import.meta.env.MODE;
   const [userThemeColor, setUserThemeColor] = useState('#ffffff');
   const showDevTools = useShowDevTools();
   const isStandAlone = useIsStandaloneMode();
   const logActivity = useLogActivity();
   const posthog = usePostHog();
   const analyticsId = useAnalyticsId();
-  const { needsUpdate, triggerUpdate } = useAppUpdates();
   const body = document.querySelector('body');
   const colorSchemeFromNative =
     window.nativeOptions?.colorScheme ?? window.colorscheme;
-
-  const appUpdateContextValue = useMemo(
-    () => ({ needsUpdate, triggerUpdate }),
-    [needsUpdate, triggerUpdate]
-  );
-
-  const basename = () => {
-    if (mode === 'mock' || mode === 'staging') {
-      return '/';
-    }
-
-    return '/apps/groups';
-  };
 
   const theme = useTheme();
   const isDarkMode = useIsDark();
@@ -729,51 +656,31 @@ function RoutedApp() {
   }, [isStandAlone, body]);
 
   useEffect(() => {
-    if (posthog && analyticsId !== '' && logActivity) {
-      posthog.identify(analyticsId, ANALYTICS_DEFAULT_PROPERTIES);
-    }
-  }, [posthog, analyticsId, logActivity]);
-
-  useEffect(() => {
     if (posthog) {
-      if (showDevTools) {
+      if (ENABLED_LOGGERS.includes('posthog')) {
         posthog.debug();
-      } else {
-        posthog.debug(false);
       }
     }
   }, [posthog, showDevTools]);
 
   return (
-    <ErrorBoundary
-      FallbackComponent={ErrorAlert}
-      onError={(e) => captureError('app error boundary', e)}
-      onReset={() => window.location.reload()}
-    >
-      <Router basename={basename()}>
-        <Helmet>
-          <title>Tlon</title>
-          <meta name="theme-color" content={userThemeColor} />
-        </Helmet>
-        <AppUpdateContext.Provider value={appUpdateContextValue}>
-          <TooltipProvider delayDuration={0} skipDelayDuration={400}>
-            <App />
-            <Scheduler />
-          </TooltipProvider>
-        </AppUpdateContext.Provider>
-        <LureAutojoiner />
-        {showDevTools && (
-          <>
-            <React.Suspense fallback={null}>
-              <ReactQueryDevtoolsProduction />
-            </React.Suspense>
-            <div className="fixed bottom-4 right-4">
-              <EyrieMenu />
-            </div>
-          </>
-        )}
-      </Router>
-    </ErrorBoundary>
+    <>
+      <Helmet>
+        <title>Tlon</title>
+        <meta name="theme-color" content={userThemeColor} />
+      </Helmet>
+      <App />
+      {showDevTools && (
+        <>
+          <React.Suspense fallback={null}>
+            <ReactQueryDevtoolsProduction />
+          </React.Suspense>
+          <div className="fixed bottom-4 right-4">
+            <EyrieMenu />
+          </div>
+        </>
+      )}
+    </>
   );
 }
 
