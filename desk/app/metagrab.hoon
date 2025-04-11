@@ -345,6 +345,7 @@
 ::
 ++  on-arvo
   |=  [=wire sign=sign-arvo]
+  =-  -(log ^l)  ::  reset any .log deets we might've set
   ^-  (quip card _this)
   ~|  [%on-arvo wire=wire sign=+<.sign]
   ?+  wire  ~|(%strange-sign-arvo !!)
