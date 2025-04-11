@@ -2480,6 +2480,10 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
     .onConflictDoUpdate({
       target: $posts.id,
       set: conflictUpdateSetAll($posts, ['hidden']),
+    })
+    .onConflictDoUpdate({
+      target: [$posts.authorId, $posts.channelId, $posts.sentAt],
+      set: conflictUpdateSetAll($posts, ['hidden']),
     });
 
   const reactions = posts

@@ -356,73 +356,78 @@ export default function BareChatInput({
       const jsonContent = textAndMentionsToContent(controlledText, mentions);
       const inlines = JSONToInlines(jsonContent);
       const story = constructStory(inlines);
-
-      const finalAttachments = await waitForAttachmentUploads();
-
-      const blocks = finalAttachments
-        .filter((attachment) => attachment.type !== 'text')
-        .flatMap((attachment): Block[] => {
-          if (attachment.type === 'reference') {
-            const cite = pathToCite(attachment.path);
-            return cite ? [{ cite }] : [];
-          }
-          if (
-            attachment.type === 'image' &&
-            (!image || attachment.file.uri !== image?.uri)
-          ) {
-            return [
-              {
-                image: {
-                  src: attachment.uploadState.remoteUri,
-                  height: attachment.file.height,
-                  width: attachment.file.width,
-                  alt: 'image',
-                },
-              },
-            ];
-          }
-
-          if (
-            image &&
-            attachment.type === 'image' &&
-            attachment.file.uri === image?.uri &&
-            isEdit &&
-            channelType === 'gallery'
-          ) {
-            return [
-              {
-                image: {
-                  src: image.uri,
-                  height: image.height,
-                  width: image.width,
-                  alt: 'image',
-                },
-              },
-            ];
-          }
-
-          return [];
-        });
-
-      if (blocks && blocks.length > 0) {
-        if (channelType === 'chat') {
-          story.unshift(...blocks.map((block) => ({ block })));
-        } else {
-          story.push(...blocks.map((block) => ({ block })));
-        }
-      }
-
       const metadata: db.PostMetadata = {};
 
-      if (image) {
-        const attachment = finalAttachments.find(
-          (a): a is UploadedImageAttachment =>
-            a.type === 'image' && a.file.uri === image.uri
-        );
-        if (!attachment) {
-          throw new Error('unable to attach image');
+      try {
+        const finalAttachments = await waitForAttachmentUploads();
+
+        const blocks = finalAttachments
+          .filter((attachment) => attachment.type !== 'text')
+          .flatMap((attachment): Block[] => {
+            if (attachment.type === 'reference') {
+              const cite = pathToCite(attachment.path);
+              return cite ? [{ cite }] : [];
+            }
+            if (
+              attachment.type === 'image' &&
+              (!image || attachment.file.uri !== image?.uri)
+            ) {
+              return [
+                {
+                  image: {
+                    src: attachment.uploadState.remoteUri,
+                    height: attachment.file.height,
+                    width: attachment.file.width,
+                    alt: 'image',
+                  },
+                },
+              ];
+            }
+
+            if (
+              image &&
+              attachment.type === 'image' &&
+              attachment.file.uri === image?.uri &&
+              isEdit &&
+              channelType === 'gallery'
+            ) {
+              return [
+                {
+                  image: {
+                    src: image.uri,
+                    height: image.height,
+                    width: image.width,
+                    alt: 'image',
+                  },
+                },
+              ];
+            }
+
+            return [];
+          });
+
+        if (blocks && blocks.length > 0) {
+          if (channelType === 'chat') {
+            story.unshift(...blocks.map((block) => ({ block })));
+          } else {
+            story.push(...blocks.map((block) => ({ block })));
+          }
         }
-        metadata['image'] = attachment.uploadState.remoteUri;
+
+        if (image) {
+          const attachment = finalAttachments.find(
+            (a): a is UploadedImageAttachment =>
+              a.type === 'image' && a.file.uri === image.uri
+          );
+          if (!attachment) {
+            throw new Error('unable to attach image');
+          }
+          metadata['image'] = attachment.uploadState.remoteUri;
+        }
+      } catch (e) {
+        bareChatInputLogger.error('Error processing attachments', e);
+        setSendError(true);
+        return;
       }
 
       try {
@@ -486,7 +491,11 @@ export default function BareChatInput({
         bareChatInputLogger.trackError('failed to send', e);
         setSendError(true);
       }
-      setSendError(false);
+      setTimeout(() => {
+        // allow some time for send errors to be displayed
+        // before clearing the error state
+        setSendError(false);
+      }, 2000);
     },
     [sendMessage]
   );
