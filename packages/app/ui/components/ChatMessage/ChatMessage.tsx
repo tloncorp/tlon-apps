@@ -175,7 +175,7 @@ const ChatMessage = ({
         backgroundColor={isHighlighted ? '$secondaryBackground' : undefined}
         key={post.id}
       >
-        {showAuthor ? (
+        {showAuthor || post.isEdited ? (
           <AuthorRow
             padding="$l"
             paddingBottom="$2xs"
