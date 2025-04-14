@@ -232,6 +232,8 @@ export default function BareChatInput({
     setMentions,
     showMentionPopup,
     handleMentionEscape,
+    hasMentionCandidates,
+    setHasMentionCandidates,
   } = useMentions();
   const maxInputHeight = useKeyboardHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
@@ -740,7 +742,7 @@ export default function BareChatInput({
 
       if (keyEvent.key === 'Enter' && !keyEvent.shiftKey) {
         e.preventDefault();
-        if (showMentionPopup) {
+        if (showMentionPopup && hasMentionCandidates) {
           mentionRef.current?.handleMentionKey('Enter');
         } else if (editingPost) {
           handleEdit();
@@ -756,6 +758,7 @@ export default function BareChatInput({
       handleEdit,
       handleSend,
       handleMentionEscape,
+      hasMentionCandidates,
     ]
   );
 
@@ -769,6 +772,7 @@ export default function BareChatInput({
       showMentionPopup={showMentionPopup}
       mentionText={mentionSearchText}
       mentionRef={mentionRef}
+      setHasMentionCandidates={setHasMentionCandidates}
       showAttachmentButton={showAttachmentButton}
       groupMembers={groupMembers}
       onSelectMention={onMentionSelect}

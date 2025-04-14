@@ -10,6 +10,7 @@ export interface Mention {
 
 export const useMentions = () => {
   const [showMentionPopup, setShowMentionPopup] = useState(false);
+  const [hasMentionCandidates, setHasMentionCandidates] = useState(false);
   const [mentionStartIndex, setMentionStartIndex] = useState<number | null>(
     null
   );
@@ -160,5 +161,7 @@ export const useMentions = () => {
     showMentionPopup,
     setShowMentionPopup,
     handleMentionEscape,
+    hasMentionCandidates,
+    setHasMentionCandidates,
   };
 };

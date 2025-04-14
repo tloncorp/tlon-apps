@@ -101,6 +101,7 @@ export const MessageInputContainer = memo(
     goBack,
     mentionRef,
     frameless = false,
+    setHasMentionCandidates,
   }: PropsWithChildren<{
     setShouldBlur: (shouldBlur: boolean) => void;
     onPressSend: () => void;
@@ -119,6 +120,7 @@ export const MessageInputContainer = memo(
     goBack?: () => void;
     mentionRef?: MentionPopupRef;
     frameless?: boolean;
+    setHasMentionCandidates?: (has: boolean) => void;
   }>) => {
     const { canUpload } = useAttachmentContext();
     const theme = useTheme();
@@ -141,6 +143,7 @@ export const MessageInputContainer = memo(
           groupMembers={groupMembers}
           onSelectMention={onSelectMention}
           ref={mentionRef}
+          setHasMentionCandidates={setHasMentionCandidates}
         />
         {!frameless ? (
           <XStack
