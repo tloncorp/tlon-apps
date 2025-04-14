@@ -1,6 +1,6 @@
 import { createDevLogger, tiptap } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { constructStory } from '@tloncorp/shared/urbit/channel';
+import { Block, constructStory, pathToCite } from '@tloncorp/shared/urbit';
 import {
   Button,
   Icon,
@@ -16,6 +16,7 @@ import { TouchableOpacity } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Input, XStack, getTokenValue, useTheme } from 'tamagui';
 
+import { useAttachmentContext } from '../contexts';
 import AttachmentSheet from './AttachmentSheet';
 import { useRegisterChannelHeaderItem } from './Channel/ChannelHeader';
 import { MessageInput } from './MessageInput';
@@ -61,10 +62,14 @@ export function BigInput({
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const [isEmpty, setIsEmpty] = useState(true);
+  const { attachments } = useAttachmentContext();
 
   const handleEditorContentChanged = useCallback(
     (content?: object) => {
-      const nextIsEmpty = contentIsEmpty(content);
+      const hasAttachmentsAndIsGallery =
+        attachments.length > 0 && channelType === 'gallery';
+      const nextIsEmpty =
+        contentIsEmpty(content) && !hasAttachmentsAndIsGallery;
       logger.log('Content empty check:', nextIsEmpty);
       if (content && editingPost?.content) {
         const originalContent = editingPost.content as { story: any };
@@ -80,7 +85,7 @@ export function BigInput({
       }
       setIsEmpty(nextIsEmpty);
     },
-    [editingPost?.content]
+    [editingPost?.content, attachments, channelType]
   );
 
   useEffect(() => {
@@ -118,6 +123,25 @@ export function BigInput({
     const json = await editorRef.current.editor.getJSON();
     const inlines = tiptap.JSONToInlines(json);
     const story = constructStory(inlines);
+
+    const blocks = attachments.flatMap((attachment): Block[] => {
+      if (channelType === 'notebook') {
+        return [];
+      }
+      if (attachment.type === 'reference') {
+        const cite = pathToCite(attachment.path);
+        return cite ? [{ cite }] : [];
+      }
+      return [];
+    });
+
+    if (blocks && blocks.length > 0) {
+      if (channelType === 'chat') {
+        story.unshift(...blocks.map((block) => ({ block })));
+      } else {
+        story.push(...blocks.map((block) => ({ block })));
+      }
+    }
 
     // Create metadata for notebook posts with title and image
     const metadata: Record<string, any> = {};
@@ -205,6 +229,7 @@ export function BigInput({
     editingPost,
     props.clearDraft,
     setShowFormatMenu,
+    attachments,
   ]);
 
   // Register the "Post" button in the header
@@ -334,7 +359,7 @@ export function BigInput({
             frameless={true}
             bigInput={true}
             shouldAutoFocus={true}
-            showInlineAttachments={false}
+            showInlineAttachments={channelType === 'gallery'}
             onEditorContentChange={handleEditorContentChanged}
             title={title}
             image={
