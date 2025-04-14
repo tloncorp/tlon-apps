@@ -287,7 +287,9 @@ export const GroupChannelsScreenView = React.memo(
             </>
           }
         />
-        {isPersonalGroup && <WayfindingNotice.GroupChannels />}
+        {isPersonalGroup && group && (
+          <WayfindingNotice.GroupChannels group={group} />
+        )}
         {group && group.channels && group.channels.length ? (
           <FlashList
             data={listItems}

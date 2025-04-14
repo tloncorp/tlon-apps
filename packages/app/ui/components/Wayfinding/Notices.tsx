@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { Circle, View, XStack, YStack, isWeb, styled } from 'tamagui';
 
 import { useStore } from '../../contexts';
+import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
 
 const NoticeContainer = styled(YStack, {
   backgroundColor: '$positiveBackground',
@@ -114,7 +115,7 @@ function EmptyPersonalNotebook() {
   );
 }
 
-function GroupChannels() {
+function GroupChannels(props: { group: db.Group }) {
   const store = useStore();
   const { data: wayfindingStatus } = store.useWayfindingCompletion();
 
@@ -132,6 +133,11 @@ function GroupChannels() {
           Welcome to your group! We’ve created three basic channels to get you
           started. Tap into each to explore how Tlon Messenger works.
         </NoticeText>
+        <InviteFriendsToTlonButton
+          group={props.group}
+          backgroundColor="$positiveActionText"
+          textColor="$white"
+        />
       </NoticeContainer>
     </View>
   );
