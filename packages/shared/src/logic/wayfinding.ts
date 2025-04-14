@@ -98,7 +98,7 @@ export function personalGroupHasDefaultTitle(group?: db.Group | null) {
     return false;
   }
 
-  return group.title?.toLowerCase().includes('home');
+  return group.title?.toLowerCase().includes('group');
 }
 
 export function generatePersonalGroupTitle(contact: {
@@ -106,5 +106,5 @@ export function generatePersonalGroupTitle(contact: {
   nickname?: string | null;
 }) {
   const displayName = contact.nickname || contact.id;
-  return `${displayName}'s Home`;
+  return `${displayName}'s Group`;
 }

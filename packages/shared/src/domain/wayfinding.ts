@@ -6,12 +6,12 @@ export const PersonalGroupSlugs = {
 };
 
 export const PersonalGroupNames = {
-  groupTitle: 'Your Home',
+  groupTitle: 'Your Group',
   groupIconUrl:
     'https://d2w9rnfcy7mm78.cloudfront.net/6750548/original_ccd5538227dc610628554c9e3d118271.jpg?1586214554?bc=0',
-  chatTitle: 'Passing Thoughts',
-  collectionTitle: 'Scrapbook',
-  notebookTitle: 'Diary',
+  chatTitle: 'Chat',
+  collectionTitle: 'Pictures',
+  notebookTitle: 'Notes',
 };
 
 export interface WayfindingProgress {
