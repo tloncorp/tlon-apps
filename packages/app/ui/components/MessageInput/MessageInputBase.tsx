@@ -88,7 +88,7 @@ export const MessageInputContainer = memo(
     setShouldBlur,
     containerHeight,
     sendError,
-    showMentionPopup = false,
+    isMentionModeActive = false,
     showAttachmentButton = true,
     floatingActionButton = false,
     disableSend = false,
@@ -107,7 +107,7 @@ export const MessageInputContainer = memo(
     onPressSend: () => void;
     containerHeight: number;
     sendError: boolean;
-    showMentionPopup?: boolean;
+    isMentionModeActive?: boolean;
     showAttachmentButton?: boolean;
     floatingActionButton?: boolean;
     disableSend?: boolean;
@@ -138,7 +138,7 @@ export const MessageInputContainer = memo(
       >
         <InputMentionPopup
           containerHeight={containerHeight}
-          showMentionPopup={showMentionPopup}
+          isMentionModeActive={isMentionModeActive}
           mentionText={mentionText}
           groupMembers={groupMembers}
           onSelectMention={onSelectMention}

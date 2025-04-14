@@ -9,14 +9,14 @@ import MentionPopup, { MentionPopupRef } from '../MentionPopup';
 function InputMentionPopupInternal(
   {
     containerHeight,
-    showMentionPopup,
+    isMentionModeActive,
     mentionText,
     groupMembers,
     onSelectMention,
     setHasMentionCandidates,
   }: PropsWithRef<{
     containerHeight: number;
-    showMentionPopup: boolean;
+    isMentionModeActive: boolean;
     mentionText?: string;
     groupMembers: db.ChatMember[];
     onSelectMention: (contact: db.Contact) => void;
@@ -34,7 +34,7 @@ function InputMentionPopupInternal(
   }, [mentionText, groupMembers, setHasMentionCandidates]);
 
   const isNarrow = useIsWindowNarrow();
-  return showMentionPopup ? (
+  return isMentionModeActive ? (
     <YStack
       position="absolute"
       bottom={containerHeight + 24}
