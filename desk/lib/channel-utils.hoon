@@ -443,7 +443,17 @@
 ++  memo-1
   |=  =memo:c
   ^-  memo:v7:old:c
-  memo(author (author-1 author.memo))
+  %=  memo
+    author   (author-1 author.memo)
+    content  (turn content.memo verse-1)
+  ==
+::
+++  verse-1
+  |=  =verse:c
+  ^-  verse:v7:old:c
+  ?.  ?=([%block %link *] verse)
+    verse
+  [%inline [%link [. .]:url.p.verse] ~]  ::REVIEW
 ::
 ++  essay-1
   |=  =essay:c
@@ -1073,6 +1083,13 @@
       ;+
       ;pre
         ;code:"{(trip code.block)}"
+      ==
+    ::
+        %link
+      ::TODO  render w/ preview data
+      ;*  :~
+        (inline %link url.block url.block)
+        ;br;
       ==
     ==
   ::
