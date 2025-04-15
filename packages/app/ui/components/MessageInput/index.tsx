@@ -70,7 +70,7 @@ import { processReferenceAndUpdateEditor } from './helpers';
 
 export const DEFAULT_MESSAGE_INPUT_HEIGHT = Platform.OS === 'web' ? 38 : 44;
 
-const messageInputLogger = createDevLogger('MessageInput', true);
+const messageInputLogger = createDevLogger('MessageInput', false);
 
 type MessageEditorMessage = {
   type: 'contentHeight';
@@ -275,7 +275,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             }
 
             if (editingPost && editingPost.content) {
-              messageInputLogger.log('Editing post', editingPost);
+              messageInputLogger.log('Editing post', editingPost.content);
               const {
                 story,
                 references: postReferences,
