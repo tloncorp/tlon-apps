@@ -424,6 +424,9 @@ export async function getMainGroupRoute(
   isWindowNarrow: boolean
 ) {
   const group = await db.getGroup({ id: groupId });
+  const lastVisitedChannelId = await db
+    .lastVisitedChannelId(groupId)
+    .getValue();
   const channelSwitcherEnabled =
     useFeatureFlagStore.getState().flags.channelSwitcher;
   if (
@@ -431,12 +434,8 @@ export async function getMainGroupRoute(
     group.channels &&
     (group.channels.length === 1 || channelSwitcherEnabled || !isWindowNarrow)
   ) {
-    if (!isWindowNarrow && group.lastVisitedChannelId) {
-      return getDesktopChannelRoute(
-        'Home',
-        group.lastVisitedChannelId,
-        groupId
-      );
+    if (!isWindowNarrow && lastVisitedChannelId) {
+      return getDesktopChannelRoute('Home', lastVisitedChannelId, groupId);
     }
 
     if (!isWindowNarrow) {
