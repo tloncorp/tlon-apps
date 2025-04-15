@@ -102,10 +102,19 @@ export default function ChannelScreen(props: Props) {
     }, [groupId, channelId])
   );
 
+  const channelThreadAbortController = useRef<AbortController | null>(
+    new AbortController()
+  );
+
   useEffect(() => {
     if (!channelIsPending) {
+      if (channelThreadAbortController.current) {
+        channelThreadAbortController.current.abort();
+      }
+      channelThreadAbortController.current = new AbortController();
       store.syncChannelThreadUnreads(channelId, {
         priority: store.SyncPriority.High,
+        abortSignal: channelThreadAbortController.current?.signal,
       });
     }
   }, [channelIsPending, channelId]);
