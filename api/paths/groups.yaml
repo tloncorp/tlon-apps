@@ -21,7 +21,7 @@ v1-gangs:
     summary: "(v1) Get group gangs"
     description: >
       Retrieves a collection of gangs, keyed by
-      the group `$flag`. A `$gang` is an invitation to a group.
+      the group `$flag`. A `$gang` is a preview or invitation to a group.
     operationId: getGroupsGangs-v1
     tags:
       - "Groups"
