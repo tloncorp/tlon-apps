@@ -22,6 +22,7 @@ export const SyncPriority = {
 export type SyncCtx = {
   priority: number;
   retry?: boolean | RetryConfig;
+  abortSignal?: AbortSignal | null;
 };
 
 export class QueueClearedError extends Error {}
@@ -36,18 +37,6 @@ class SyncQueue {
   constructor() {
     this.queue = [];
     this.isSyncing = false;
-  }
-
-  highPriority<T>(label: string, action: () => Promise<T>) {
-    return this.add(label, { priority: SyncPriority.High }, action);
-  }
-
-  mediumPriority<T>(label: string, action: () => Promise<T>) {
-    return this.add(label, { priority: SyncPriority.Medium }, action);
-  }
-
-  lowPriority<T>(label: string, action: () => Promise<T>) {
-    return this.add(label, { priority: SyncPriority.Low }, action);
   }
 
   add<T>(
@@ -70,6 +59,16 @@ class SyncQueue {
         addedAt: startTime,
       };
       this.pendingOperations.unshift(operation);
+      if (ctx?.abortSignal) {
+        ctx.abortSignal.addEventListener('abort', () => {
+          logger.log('aborted:' + label);
+          this.pendingOperations = this.pendingOperations.filter(
+            (op) => op !== operation
+          );
+          this.queue = this.queue.filter((op) => op !== operation);
+          reject(new Error('Operation aborted'));
+        });
+      }
       if (this.pendingOperations.length === 1) {
         queueMicrotask(() => this.flushPending());
       }

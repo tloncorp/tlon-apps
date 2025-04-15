@@ -57,6 +57,17 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     [options.channelId, options.cursor, mountTime]
   );
 
+  const abortControllerRef = useRef<AbortController | null>(
+    new AbortController()
+  );
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = new AbortController();
+    };
+  }, [queryKey]);
+
   const query = useInfiniteQuery({
     enabled,
     initialPageParam: {
@@ -73,7 +84,10 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
         queryOptions.mode === 'newest' &&
         !options.hasCachedNewest
       ) {
-        await sync.syncPosts(queryOptions, { priority: SyncPriority.High });
+        await sync.syncPosts(queryOptions, {
+          priority: SyncPriority.High,
+          abortSignal: abortControllerRef.current?.signal,
+        });
       }
       const cached = await db.getChannelPosts(queryOptions);
       if (cached?.length) {
@@ -87,7 +101,10 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
           ...queryOptions,
           count: options.count ?? 50,
         },
-        { priority: SyncPriority.High }
+        {
+          priority: SyncPriority.High,
+          abortSignal: abortControllerRef.current?.signal,
+        }
       );
       postsLogger.log('loaded', res.posts?.length, 'posts from api', { res });
       const secondResult = await db.getChannelPosts(queryOptions);
