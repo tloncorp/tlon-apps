@@ -22,7 +22,7 @@ import {
   trackedPoke,
 } from './urbit';
 
-const logger = createDevLogger('channelsSub', false);
+const logger = createDevLogger('channelsApi', false);
 
 export function channelAction(
   channelId: string,
@@ -103,7 +103,7 @@ export type ChannelsUpdate =
   | HidePostUpdate
   | ShowPostUpdate
   | MetaUpdate
-  // | CreateChannelUpdate
+  | CreateChannelUpdate
   | JoinChannelSuccessUpdate
   | LeaveChannelSuccessUpdate
   | InitialPostsOnChannelJoin
@@ -117,7 +117,7 @@ export const createChannel = async ({
   return trackedPoke<ub.ChannelsResponse>(
     {
       app: 'channels',
-      mark: 'channel-action',
+      mark: 'channel-action-1',
       json: {
         create: channelPayload,
       },
@@ -176,6 +176,7 @@ export const subscribeToChannelsUpdates = async (
   subscribe(
     { app: 'channels', path: '/v2' },
     (rawEvent: ub.ChannelsSubscribeResponse) => {
+      logger.log('channels received event', rawEvent);
       eventHandler(toChannelsUpdate(rawEvent));
     }
   );
@@ -245,14 +246,14 @@ export const toChannelsUpdate = (
     }
 
     // not clear that this is necessary
-    // if ('create' in channelEvent.response) {
-    // return {
-    // type: 'createChannel',
-    // channelId,
-    // writers: channelEvent.response.create.writers,
-    // groupId: channelEvent.response.create.group,
-    // };
-    // }
+    if ('create' in channelEvent.response) {
+      return {
+        type: 'createChannel',
+        channelId,
+        writers: channelEvent.response.create.writers,
+        groupId: channelEvent.response.create.group,
+      };
+    }
 
     if ('join' in channelEvent.response) {
       return {

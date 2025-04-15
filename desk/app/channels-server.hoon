@@ -647,8 +647,10 @@
   ++  ca-area  `path`/[kind.nest]/[name.nest]
   ++  ca-sub-path  `path`(weld ca-area /updates)
   ++  ca-watch-create
-    =/  =cage  [%channel-update !>([now.bowl %create perm.perm.channel])]
-    (give %fact ~[/[kind.nest]/[name.nest]/create] cage)
+    =/  =update:c  [now.bowl %create perm.perm.channel meta.meta.channel]
+    =/  =path  /[kind.nest]/[name.nest]/create
+    =/  =cage  [%channel-update !>(update)]
+    (give %fact ~[path] cage)
   ::
   ++  ca-watch-updates
     |=  =@da
@@ -696,7 +698,8 @@
         perm  [1 writers.new group.new]
       ==
     =.  ca-core
-      =/  =cage  [%channel-update !>([now.bowl %create perm.perm.channel])]
+      =/  =update:c  [now.bowl %create perm.perm.channel meta.meta.channel]
+      =/  =cage  [%channel-update !>(update)]
       =/  =path  /[kind.nest]/[name.nest]/create
       =.  ca-core  (give %fact ~[path] cage)
       (give %kick ~[path] ~)
