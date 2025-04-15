@@ -55,7 +55,7 @@ export async function completeWayfindingTutorial() {
   }
 }
 
-export async function checkWayfindingChannelVisited(channelId: string) {
+export async function markPotentialWayfindingChannelVisit(channelId: string) {
   if (logic.isPersonalChatChannel(channelId)) {
     await db.wayfindingProgress.setValue((prev) => ({
       ...prev,

@@ -5,7 +5,7 @@ import React, {
   useCallback,
   useMemo,
 } from 'react';
-import { Dimensions, Image } from 'react-native';
+import { Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ColorTokens,
@@ -20,11 +20,10 @@ import {
 import { useActiveTheme } from '../../../provider';
 import { useStore } from '../../contexts';
 import { ListItem } from '../ListItem';
-import { Squiggle } from '../Squiggle';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
 
 enum SplashPane {
-  Welcome = 'welcome',
+  Welcome = 'Welcome',
   Group = 'Group',
   Channels = 'Channels',
   Privacy = 'Privacy',
@@ -32,7 +31,6 @@ enum SplashPane {
 }
 
 function SplashSequenceComponent(props: { onCompleted: () => void }) {
-  const insets = useSafeAreaInsets();
   const store = useStore();
   const [currentPane, setCurrentPane] = React.useState<SplashPane>(
     SplashPane.Welcome
@@ -44,14 +42,8 @@ function SplashSequenceComponent(props: { onCompleted: () => void }) {
   }, [props, store]);
 
   return (
-    <View
-      flex={1}
-      // marginTop={insets.top}
-      // marginBottom={insets.bottom}
-      // paddingTop="$2xl"
-      // paddingBottom="$xl"
-    >
-      {currentPane === 'welcome' && (
+    <View flex={1}>
+      {currentPane === 'Welcome' && (
         <WelcomePane onActionPress={() => setCurrentPane(SplashPane.Group)} />
       )}
       {currentPane === 'Group' && (

@@ -253,7 +253,6 @@ export const ChatOptionsProvider = ({
 
   const handlePressGroupMeta = useCallback(
     (fromBlankChannel?: boolean) => {
-      console.log(`called with groupId: ${groupId}`);
       if (groupId) {
         onPressGroupMeta?.(groupId, fromBlankChannel);
         closeSheet();

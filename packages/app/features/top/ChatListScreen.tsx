@@ -223,25 +223,6 @@ export function ChatListScreenView({
     }
   }, [activeTab]);
 
-  // const [splashVisible, setSplashVisible] = useState(true);
-
-  // useEffect(() => {
-  //   const checkSplashDismissed = async () => {
-  //     const dismissed = await db.storage.splashDismissed.getValue();
-  //     // setSplashVisible(!dismissed);
-  //     setSplashVisible(true);
-  //   };
-
-  //   checkSplashDismissed();
-  // }, []);
-
-  // const handleWelcomeOpenChange = useCallback((open: boolean) => {
-  //   if (!open) {
-  //     setSplashVisible(false);
-  //     db.storage.splashDismissed.setValue(true);
-  //   }
-  // }, []);
-
   const [searchQuery, setSearchQuery] = useState('');
 
   const isWindowNarrow = useIsWindowNarrow();

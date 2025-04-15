@@ -34,7 +34,6 @@ function AuthenticatedApp() {
   useNetworkLogger();
   useCheckAppUpdated();
   useFindSuggestedContacts();
-  // usePersonalGroup();
 
   const handleAppStatusChange = useCallback(
     (status: AppStatus) => {
@@ -68,8 +67,6 @@ function AuthenticatedApp() {
     // reset this anytime we get back into the authenticated app
     db.nodeStoppedWhileLoggedIn.setValue(false);
   }, []);
-
-  // const showSplash = store.useShouldShowSplash();
 
   return (
     <ZStack flex={1}>

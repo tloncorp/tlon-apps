@@ -79,7 +79,7 @@ export default function ChannelScreen(props: Props) {
       }
 
       // Mark wayfinding channels as visited if needed
-      store.checkWayfindingChannelVisited(channelId);
+      store.markPotentialWayfindingChannelVisit(channelId);
     }, [channelId, channelIsPending])
   );
 
