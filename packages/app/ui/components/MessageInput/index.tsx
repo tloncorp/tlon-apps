@@ -70,7 +70,7 @@ import { processReferenceAndUpdateEditor } from './helpers';
 
 export const DEFAULT_MESSAGE_INPUT_HEIGHT = Platform.OS === 'web' ? 38 : 44;
 
-const messageInputLogger = createDevLogger('MessageInput', false);
+const messageInputLogger = createDevLogger('MessageInput', true);
 
 type MessageEditorMessage = {
   type: 'contentHeight';
@@ -265,26 +265,26 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 'Not editing and we have draft content',
                 draft
               );
-              const inlines = tiptap.JSONToInlines(draft);
-              const newInlines = inlines
-                .map((inline) => {
-                  if (typeof inline === 'string') {
-                    if (inline.match(REF_REGEX)) {
-                      return null;
-                    }
-                    return inline;
-                  }
-                  return inline;
-                })
-                .filter((inline) => inline !== null) as Inline[];
-              const newStory = constructStory(newInlines);
-              const tiptapContent = tiptap.diaryMixedToJSON(newStory);
-              messageInputLogger.log(
-                'Setting content with draft',
-                tiptapContent
-              );
+              // const inlines = tiptap.JSONToInlines(draft);
+              // const newInlines = inlines
+              //   .map((inline) => {
+              //     if (typeof inline === 'string') {
+              //       if (inline.match(REF_REGEX)) {
+              //         return null;
+              //       }
+              //       return inline;
+              //     }
+              //     return inline;
+              //   })
+              //   .filter((inline) => inline !== null) as Inline[];
+              // const newStory = constructStory(newInlines);
+              // const tiptapContent = tiptap.diaryMixedToJSON(newStory);
+              // messageInputLogger.log(
+              //   'Setting content with draft',
+              //   tiptapContent
+              // );
               // @ts-expect-error setContent does accept JSONContent
-              editor.setContent(tiptapContent);
+              editor.setContent(draft);
               setEditorIsEmpty(false);
               messageInputLogger.log(
                 'set has set initial content, not editing'
@@ -480,6 +480,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         clearDraft(draftType);
       }
 
+      messageInputLogger.log('Storing draft', json);
       storeDraft(json, draftType);
     };
 
