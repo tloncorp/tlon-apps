@@ -265,24 +265,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 'Not editing and we have draft content',
                 draft
               );
-              // const inlines = tiptap.JSONToInlines(draft);
-              // const newInlines = inlines
-              //   .map((inline) => {
-              //     if (typeof inline === 'string') {
-              //       if (inline.match(REF_REGEX)) {
-              //         return null;
-              //       }
-              //       return inline;
-              //     }
-              //     return inline;
-              //   })
-              //   .filter((inline) => inline !== null) as Inline[];
-              // const newStory = constructStory(newInlines);
-              // const tiptapContent = tiptap.diaryMixedToJSON(newStory);
-              // messageInputLogger.log(
-              //   'Setting content with draft',
-              //   tiptapContent
-              // );
               // @ts-expect-error setContent does accept JSONContent
               editor.setContent(draft);
               setEditorIsEmpty(false);
@@ -791,38 +773,10 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       runSendMessage(true);
     }, [runSendMessage, editingPost]);
 
-    const handleAddNewLine = useCallback(() => {
-      if (editorState.isCodeBlockActive) {
-        editor.newLineInCode();
-        return;
-      }
-
-      if (editorState.isBulletListActive || editorState.isOrderedListActive) {
-        editor.splitListItem('listItem');
-        return;
-      }
-
-      if (editorState.isTaskListActive) {
-        editor.splitListItem('taskItem');
-        return;
-      }
-
-      editor.splitBlock();
-    }, [editor, editorState]);
-
     const handleMessage = useCallback(
       async (event: WebViewMessageEvent) => {
         const { data } = event.nativeEvent;
         messageInputLogger.log('[webview] Message from editor', data);
-        if (data === 'enter') {
-          handleAddNewLine();
-          return;
-        }
-
-        if (data === 'shift-enter') {
-          handleAddNewLine();
-          return;
-        }
 
         const { type, payload } =
           typeof data === 'object'
@@ -908,7 +862,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       },
       [
         editor,
-        handleAddNewLine,
         handlePaste,
         setHeight,
         webviewRef,
