@@ -59,7 +59,7 @@ groups-light:
     description: >
       Returns a collection of groups, keyed by the group $flag.
       The fleet, which is a collection of group members and can be
-      quite big, is removed from each group, with only the host
+      quite big, is removed from each group, with only your self
       remaining.
     operationId: getGroupsLight
     tags:
