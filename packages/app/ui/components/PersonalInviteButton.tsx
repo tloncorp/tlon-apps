@@ -41,10 +41,10 @@ export function PersonalInviteButton() {
   return (
     <Button hero onPress={handleInviteButtonPress}>
       <Button.Icon>
-        <Icon type="Link" />
+        <Icon type="AddPerson" />
       </Button.Icon>
       <Text color="$background" size="$label/l">
-        {didCopy ? 'Copied' : 'Share Invite Link'}
+        {didCopy ? 'Copied' : 'Invite Friends'}
       </Text>
     </Button>
   );

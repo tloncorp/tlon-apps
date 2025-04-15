@@ -172,6 +172,13 @@ export const postDraft = (opts: {
   });
 };
 
+export const lastVisitedChannelId = (groupId: string) => {
+  return createStorageItem<string | null>({
+    key: `lastVisitedChannelId-${groupId}`,
+    defaultValue: null,
+  });
+};
+
 export const themeSettings = createStorageItem<ThemeName | null>({
   key: '@user_theme',
   defaultValue: null,

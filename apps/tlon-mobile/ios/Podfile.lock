@@ -459,7 +459,7 @@ PODS:
     - nanopb/encode (= 2.30910.0)
   - nanopb/decode (2.30910.0)
   - nanopb/encode (2.30910.0)
-  - op-sqlite (11.2.4):
+  - op-sqlite (11.4.2):
     - React
     - React-callinvoker
     - React-Core
@@ -2253,7 +2253,7 @@ SPEC CHECKSUMS:
   libdav1d: 23581a4d8ec811ff171ed5e2e05cd27bad64c39f
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
   nanopb: 438bc412db1928dac798aa6fd75726007be04262
-  op-sqlite: 556313532c972dd2e5452f44efabffd9641b0e26
+  op-sqlite: f800d2eeb9ca5c8931c612d4673f559fa23a5889
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   PromisesSwift: 9d77319bbe72ebf6d872900551f7eeba9bce2851
   RCT-Folly: 5dc73daec3476616d19e8a53f0156176f7b55461

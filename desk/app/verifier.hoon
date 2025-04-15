@@ -525,6 +525,7 @@
 ::
 ++  on-poke
   |=  [=mark =vase]
+  =-  -(log ^^l)  ::  reset any .log deets we might've set
   ^-  (quip card _this)
   ~|  [%on-poke mark=mark]
   ?+  mark  !!
@@ -896,6 +897,7 @@
 ::
 ++  on-arvo
   |=  [=wire sign=sign-arvo]
+  =-  -(log ^^l)  ::  reset any .log deets we might've set
   ^-  (quip card _this)
   ::NOTE  including this ~| means that, when logging traces, we might send
   ::      full identifiers over the wire...

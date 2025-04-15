@@ -98,18 +98,24 @@ export default function ChannelScreen(props: Props) {
       if (groupId) {
         // Update the last visited channel in the group so we can return to it
         // when we come back to the group
-        db.updateGroup({
-          id: groupId,
-          lastVisitedChannelId: channelId,
-        });
+        db.lastVisitedChannelId(groupId).setValue(channelId);
       }
     }, [groupId, channelId])
   );
 
+  const channelThreadAbortController = useRef<AbortController | null>(
+    new AbortController()
+  );
+
   useEffect(() => {
     if (!channelIsPending) {
+      if (channelThreadAbortController.current) {
+        channelThreadAbortController.current.abort();
+      }
+      channelThreadAbortController.current = new AbortController();
       store.syncChannelThreadUnreads(channelId, {
         priority: store.SyncPriority.High,
+        abortSignal: channelThreadAbortController.current?.signal,
       });
     }
   }, [channelIsPending, channelId]);

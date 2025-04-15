@@ -23,7 +23,7 @@ export function InviteFriendsToTlonButton({
   group,
   textColor,
   ...props
-}: { group?: db.Group; textColor: ColorTokens } & Omit<
+}: { group?: db.Group; textColor?: ColorTokens } & Omit<
   ComponentProps<typeof Button>,
   'group'
 >) {
@@ -109,7 +109,11 @@ export function InviteFriendsToTlonButton({
       {...props}
     >
       {linkIsReady ? (
-        <Icon type="Link" color={textColor ?? '$secondaryText'} size="$m" />
+        <Icon
+          type="AddPerson"
+          color={textColor ?? '$secondaryText'}
+          size="$m"
+        />
       ) : linkIsLoading ? (
         <LoadingSpinner size="small" color={textColor ?? undefined} />
       ) : linkFailed ? (
@@ -123,9 +127,9 @@ export function InviteFriendsToTlonButton({
         {didCopy
           ? 'Copied'
           : linkIsReady
-            ? 'Share Invite Link'
+            ? 'Invite Friends'
             : linkIsDisabled
-              ? 'Public invite links are disabled'
+              ? 'Invite links are disabled'
               : linkFailed
                 ? 'Error generating invite link'
                 : linkIsLoading
