@@ -403,6 +403,7 @@ export function useBootSequence() {
     isRunningRef.current = false;
     lastRunPhaseRef.current = NodeBootPhase.IDLE;
     lastRunErrored.current = false;
+    tryingWayfindingSince.current = null;
 
     sequenceStartTimeRef.current = 0;
   }, []);
