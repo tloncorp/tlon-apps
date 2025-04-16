@@ -4,7 +4,10 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import * as api from '../api';
 import { queryClient } from '../api';
+import { createDevLogger } from '../debug';
 import { MatchingEvent, MatchingResponse } from '../urbit/negotiation';
+
+const logger = createDevLogger('useNegotiation', true);
 
 function negotiationUpdater(
   event: MatchingEvent | null,
@@ -85,14 +88,22 @@ export function useNegotiate(ship: string, app: string, agent: string) {
   }
 
   const isInData = `${ship}/${agent}` in data;
+  const status = data[`${ship}/${agent}`];
+  const matchedOrPending =
+    data[`${ship}/${agent}`] === 'match' ||
+    data[`${ship}/${agent}`] === 'await';
 
+  logger.log(
+    'Negotiation data:',
+    status,
+    matchedOrPending,
+    JSON.stringify(data)
+  );
   if (isInData) {
     return {
       ...rest,
-      status: data[`${ship}/${agent}`],
-      matchedOrPending:
-        data[`${ship}/${agent}`] === 'match' ||
-        data[`${ship}/${agent}`] === 'await',
+      status,
+      matchedOrPending,
     };
   }
 
