@@ -24,7 +24,7 @@ export function getPersonalGroupKeys(currentUserId: string) {
 
 export function getRandomDefaultPersonalGroupIcon() {
   const randomInteger = Math.floor(Math.random() * 5) + 1; // 1-5 inclusive
-  return `https://storage.cloud.google.com/tlon-messenger-public-assets/wayfindingGroupIcons/default${randomInteger}.png`;
+  return `https://storage.googleapis.com/tlon-messenger-public-assets/wayfindingGroupIcons/default${randomInteger}.png`;
 }
 
 export function personalGroupIsValid({
