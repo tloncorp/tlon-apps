@@ -1,5 +1,3 @@
-import { Dialog } from 'tamagui';
-
 import { ActionSheet } from '../ActionSheet';
 import { SplashSequence } from './SplashSequence';
 

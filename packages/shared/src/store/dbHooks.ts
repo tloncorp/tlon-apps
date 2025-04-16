@@ -534,7 +534,7 @@ export const useWayfindingCompletion = () => {
 
 export const useShowWebSplashModal = () => {
   const { data: wayfinding, isLoading } = useWayfindingCompletion();
-  const personalGroup = usePersonalGroup();
+  const { data: personalGroup } = usePersonalGroup();
 
   return Boolean(
     personalGroup && !isLoading && !(wayfinding?.completedSplash ?? true)

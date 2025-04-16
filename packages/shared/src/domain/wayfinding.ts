@@ -1,8 +1,8 @@
 export const PersonalGroupSlugs = {
-  slug: 'personal-group-placeholder',
-  chatSlug: 'personal-group-placeholder-chat',
-  collectionSlug: 'personal-group-placeholder-collection',
-  notebookSlug: 'personal-group-placeholder-notebook',
+  slug: 'tm-wayfinding-group',
+  chatSlug: 'tm-wayfinding-group-chat',
+  collectionSlug: 'tm-wayfinding-group-collection',
+  notebookSlug: 'tm-wayfinding-group-notebook',
 };
 
 export const PersonalGroupNames = {
