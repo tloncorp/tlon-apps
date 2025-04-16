@@ -4,6 +4,7 @@ import * as store from '@tloncorp/shared/store';
 import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
+import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { RootStackParamList } from '../../navigation/types';
 import { AttachmentProvider, MetaEditorScreenView } from '../../ui';
 
@@ -13,6 +14,7 @@ export function ChannelMetaScreen(props: Props) {
   const { channelId } = props.route.params;
   const channelQuery = store.useChannel({ id: channelId });
   const canUpload = useCanUpload();
+  const currentUserId = useCurrentUserId();
 
   const handleSubmit = useCallback(
     (meta: db.ClientMeta) => {
@@ -29,6 +31,7 @@ export function ChannelMetaScreen(props: Props) {
         onSubmit={handleSubmit}
         goBack={() => props.navigation.goBack()}
         title={'Edit chat info'}
+        currentUserId={currentUserId}
       />
     </AttachmentProvider>
   );

@@ -1,7 +1,8 @@
 // sort-imports-ignore
-import type * as db from '@tloncorp/shared/db';
+import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import { Button, Icon, Pressable } from '@tloncorp/ui';
+import * as domain from '@tloncorp/shared/domain';
 import { View, isWeb } from 'tamagui';
 
 import { useGroupTitle } from '../../utils';
@@ -87,6 +88,7 @@ export const GroupListItem = ({
       setIsHovered(false);
     }
   };
+  const { viewedPersonalGroup } = db.wayfindingProgress.useValue();
 
   const handlePress = logic.useMutableCallback(() => {
     onPress?.(model);
@@ -98,6 +100,16 @@ export const GroupListItem = ({
 
   const isSingleChannel = model.channels?.length === 1;
 
+  const shouldHighlight = useMemo(() => {
+    if (
+      model.id.includes(domain.PersonalGroupSlugs.slug) &&
+      !viewedPersonalGroup
+    ) {
+      return true;
+    }
+    return false;
+  }, [model.id, viewedPersonalGroup]);
+
   return (
     <View ref={containerRef}>
       <Pressable
@@ -108,7 +120,11 @@ export const GroupListItem = ({
         onHoverIn={handleHoverIn}
         onHoverOut={handleHoverOut}
       >
-        <ListItem {...props} alignItems={isPending ? 'center' : 'stretch'}>
+        <ListItem
+          {...props}
+          alignItems={isPending ? 'center' : 'stretch'}
+          backgroundColor={shouldHighlight ? '$positiveBackground' : 'unset'}
+        >
           <ListItem.GroupIcon model={model} />
           <ListItem.MainContent>
             <ListItem.Title>{title}</ListItem.Title>
@@ -139,7 +155,11 @@ export const GroupListItem = ({
             {model.lastPost ? (
               <ListItem.PostPreview post={model.lastPost} />
             ) : !isPending ? (
-              <ListItem.Subtitle>No posts yet</ListItem.Subtitle>
+              model.id.includes(domain.PersonalGroupSlugs.slug) ? (
+                <ListItem.Subtitle>Your personal group</ListItem.Subtitle>
+              ) : (
+                <ListItem.Subtitle>No posts yet</ListItem.Subtitle>
+              )
             ) : null}
           </ListItem.MainContent>
 

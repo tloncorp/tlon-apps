@@ -1,4 +1,8 @@
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  AnalyticsSeverity,
+  createDevLogger,
+} from '@tloncorp/shared';
 import { HostedNodeStatus } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -27,6 +31,7 @@ export function useStoppedNodeSequence(params: {
 
   const [phase, setPhase] = useState(NodeResumeState.WaitingForRunning);
   const [shipInfo, setShipInfo] = useState<db.ShipInfo | null>(null);
+  const [isBeingRevived, setIsBeingRevived] = useState(false);
 
   const isRunningRef = useRef(false);
   const lastRunPhaseRef = useRef(NodeResumeState.WaitingForRunning);
@@ -38,13 +43,15 @@ export function useStoppedNodeSequence(params: {
       // don't be too noisy with logging
       const supressStatusLog = bootStepCounter % 5 !== 0;
 
-      const status = await store.checkHostingNodeStatus(supressStatusLog);
+      const { status, isBeingRevived } =
+        await store.checkHostingNodeStatus(supressStatusLog);
       if (status === HostedNodeStatus.UnderMaintenance) {
         return NodeResumeState.UnderMaintenance;
       }
       if (status === HostedNodeStatus.Running) {
         logger.crumb('confirmed node is running');
         setBootedAt(Date.now());
+        setIsBeingRevived(isBeingRevived);
         return NodeResumeState.Authenticating;
       }
 
@@ -82,13 +89,13 @@ export function useStoppedNodeSequence(params: {
         unit: 'seconds',
       });
 
-      setShipInfo(shipInfo);
+      setShipInfo({ ...shipInfo, needsSplashSequence: isBeingRevived });
       return NodeResumeState.Ready;
     } catch (e) {
       logger.crumb('getting auth threw', e);
       return NodeResumeState.Authenticating;
     }
-  }, [bootedAt, params.waitType, store]);
+  }, [bootedAt, isBeingRevived, params.waitType, store]);
 
   const runPhase = useCallback(
     async (currPhase: NodeResumeState) => {

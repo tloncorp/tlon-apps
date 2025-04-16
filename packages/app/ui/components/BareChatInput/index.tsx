@@ -10,6 +10,7 @@ import {
   toContentReference,
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import {
   Block,
   Story,
@@ -38,6 +39,7 @@ import {
   TextAttachment,
   UploadedImageAttachment,
   useAttachmentContext,
+  useStore,
 } from '../../contexts';
 import { MentionController } from '../MentionPopup';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
@@ -200,9 +202,11 @@ export default function BareChatInput({
   onSend,
   goBack,
   shouldAutoFocus,
+  showWayfindingTooltip,
 }: MessageInputProps) {
   const { bottom, top } = useSafeAreaInsets();
   const { height } = useWindowDimensions();
+  const store = useStore();
   const headerHeight = 48;
   const maxInputHeightBasic = useMemo(
     () => height - headerHeight - bottom - top,
@@ -230,8 +234,10 @@ export default function BareChatInput({
     mentionSearchText,
     mentions,
     setMentions,
-    showMentionPopup,
+    isMentionModeActive,
     handleMentionEscape,
+    hasMentionCandidates,
+    setHasMentionCandidates,
   } = useMentions();
   const maxInputHeight = useKeyboardHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
@@ -708,6 +714,16 @@ export default function BareChatInput({
     setShouldBlur(true);
   }, [setShouldBlur]);
 
+  const handleFocus = useCallback(() => {
+    // dismiss wayfinding tooltip if needed
+    if (logic.isPersonalChatChannel(channelId)) {
+      db.wayfindingProgress.setValue((prev) => ({
+        ...prev,
+        tappedChatInput: true,
+      }));
+    }
+  }, [channelId]);
+
   const handleKeyPress = useCallback(
     (e: any) => {
       const keyEvent = e.nativeEvent as unknown as KeyboardEvent;
@@ -725,14 +741,14 @@ export default function BareChatInput({
 
       if (
         (keyEvent.key === 'ArrowUp' || keyEvent.key === 'ArrowDown') &&
-        showMentionPopup
+        isMentionModeActive
       ) {
         e.preventDefault();
         mentionRef.current?.handleMentionKey(keyEvent.key);
       }
 
       if (keyEvent.key === 'Escape') {
-        if (showMentionPopup) {
+        if (isMentionModeActive) {
           e.preventDefault();
           handleMentionEscape();
         }
@@ -740,7 +756,7 @@ export default function BareChatInput({
 
       if (keyEvent.key === 'Enter' && !keyEvent.shiftKey) {
         e.preventDefault();
-        if (showMentionPopup) {
+        if (isMentionModeActive && hasMentionCandidates) {
           mentionRef.current?.handleMentionKey('Enter');
         } else if (editingPost) {
           handleEdit();
@@ -750,12 +766,13 @@ export default function BareChatInput({
       }
     },
     [
-      showMentionPopup,
+      isMentionModeActive,
       setIsOpen,
       editingPost,
       handleEdit,
       handleSend,
       handleMentionEscape,
+      hasMentionCandidates,
     ]
   );
 
@@ -766,9 +783,11 @@ export default function BareChatInput({
       containerHeight={48}
       disableSend={editorIsEmpty}
       sendError={sendError}
-      showMentionPopup={showMentionPopup}
+      isMentionModeActive={isMentionModeActive}
+      showWayfindingTooltip={showWayfindingTooltip}
       mentionText={mentionSearchText}
       mentionRef={mentionRef}
+      setHasMentionCandidates={setHasMentionCandidates}
       showAttachmentButton={showAttachmentButton}
       groupMembers={groupMembers}
       onSelectMention={onMentionSelect}
@@ -795,6 +814,7 @@ export default function BareChatInput({
           onChange={isWeb ? adjustTextInputSize : undefined}
           onLayout={isWeb ? adjustTextInputSize : undefined}
           onBlur={handleBlur}
+          onFocus={handleFocus}
           onKeyPress={handleKeyPress}
           multiline
           placeholder={placeholder}

@@ -1,5 +1,6 @@
 import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { LoadingSpinner } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
@@ -22,6 +23,7 @@ import { ChatOptionsSheet } from './ChatOptionsSheet';
 import { ChannelListItem } from './ListItem/ChannelListItem';
 import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
 import { ScreenHeader } from './ScreenHeader';
+import WayfindingNotice from './Wayfinding/Notices';
 
 type SectionHeaderData = { type: 'sectionHeader'; title: string; id: string };
 type ChannelListData = db.Channel | SectionHeaderData;
@@ -60,6 +62,10 @@ export const GroupChannelsScreenView = React.memo(
         chatOptions.open(group.id, 'group');
       }
     }, [group, chatOptions]);
+
+    const isPersonalGroup = useMemo(() => {
+      return logic.isPersonalGroup(group, userId);
+    }, [group, userId]);
 
     const handleOpenChannelOptions = useCallback(
       (channel: db.Channel) => {
@@ -281,6 +287,9 @@ export const GroupChannelsScreenView = React.memo(
             </>
           }
         />
+        {isPersonalGroup && group && (
+          <WayfindingNotice.GroupChannels group={group} />
+        )}
         {group && group.channels && group.channels.length ? (
           <FlashList
             data={listItems}

@@ -1,4 +1,6 @@
 import { extractContentTypesFromPost } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import { constructStory } from '@tloncorp/shared/urbit';
 import { Block } from '@tloncorp/shared/urbit';
 import { FloatingActionButton } from '@tloncorp/ui';
@@ -22,6 +24,7 @@ import AddGalleryPost from '../AddGalleryPost';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import GalleryImagePreview from '../Channel/GalleryImagePreview';
 import { ScreenHeader } from '../ScreenHeader';
+import Notices from '../Wayfinding/Notices';
 import { DraftInputConnectedBigInput } from './DraftInputConnectedBigInput';
 import { DraftInputContext } from './shared';
 
@@ -309,6 +312,17 @@ export function GalleryInput({
     onPresentationModeChange,
   ]);
 
+  const handleAdd = useCallback(() => {
+    setShowAddGalleryPost(true);
+
+    if (logic.isPersonalCollectionChannel(channel.id)) {
+      db.wayfindingProgress.setValue((prev) => ({
+        ...prev,
+        tappedAddCollection: true,
+      }));
+    }
+  }, [channel.id]);
+
   // Register the "Add" button in the header
   useRegisterChannelHeaderItem(
     useMemo(
@@ -316,13 +330,23 @@ export function GalleryInput({
         showBigInput ||
         isShowingImagePreview ||
         (isEditingPost && isImageGalleryPost) ? null : (
-          <ScreenHeader.IconButton
-            key="gallery"
-            type="Add"
-            onPress={() => setShowAddGalleryPost(true)}
-          />
+          <>
+            <ScreenHeader.IconButton
+              key="gallery"
+              type="Add"
+              onPress={handleAdd}
+            />
+            <Notices.CollectionInputTooltip channelId={channel.id} />
+          </>
         ),
-      [showBigInput, isShowingImagePreview, isEditingPost, isImageGalleryPost]
+      [
+        showBigInput,
+        isShowingImagePreview,
+        isEditingPost,
+        isImageGalleryPost,
+        handleAdd,
+        channel.id,
+      ]
     )
   );
 
