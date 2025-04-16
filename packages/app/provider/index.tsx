@@ -9,7 +9,8 @@ import { config } from '../ui';
 
 export const ThemeContext = React.createContext<{
   setActiveTheme: (theme: ThemeName) => void;
-}>({ setActiveTheme: () => {} });
+  activeTheme: ThemeName;
+}>({ setActiveTheme: () => {}, activeTheme: 'light' });
 
 export function Provider({
   children,
@@ -54,7 +55,7 @@ export function Provider({
   }, [isDarkMode]);
 
   return (
-    <ThemeContext.Provider value={{ setActiveTheme }}>
+    <ThemeContext.Provider value={{ setActiveTheme, activeTheme }}>
       <TamaguiProvider {...rest} config={config} defaultTheme={activeTheme}>
         {children}
       </TamaguiProvider>
@@ -84,4 +85,9 @@ export const clearTheme = async (
   } catch (error) {
     console.warn('Failed to clear theme preference:', error);
   }
+};
+
+export const useActiveTheme = () => {
+  const { activeTheme } = React.useContext(ThemeContext);
+  return activeTheme;
 };

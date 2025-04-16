@@ -5,6 +5,7 @@ import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
 import { useCallback, useState } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
 import {
@@ -30,11 +31,12 @@ export function GroupMetaScreen(props: Props) {
   const { onPressChatDetails } = useChatSettingsNavigation();
   const canUpload = useCanUpload();
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
+  const currentUserId = useCurrentUserId();
 
   const handleSubmit = useCallback(
     (data: db.ClientMeta) => {
       setGroupMetadata(data);
-      
+
       // If coming from a blank channel, go back instead of navigating to chat details
       if (fromBlankChannel) {
         props.navigation.goBack();
@@ -42,10 +44,16 @@ export function GroupMetaScreen(props: Props) {
         // Default behavior - navigate to chat details
         onPressChatDetails({ type: 'group', id: groupId });
       }
-      
+
       store.createGroupInviteLink(groupId);
     },
-    [setGroupMetadata, groupId, onPressChatDetails, fromBlankChannel, props.navigation]
+    [
+      setGroupMetadata,
+      groupId,
+      onPressChatDetails,
+      fromBlankChannel,
+      props.navigation,
+    ]
   );
 
   const handlePressDelete = useCallback(() => {
@@ -66,6 +74,7 @@ export function GroupMetaScreen(props: Props) {
         title={'Edit group info'}
         goBack={props.navigation.goBack}
         onSubmit={handleSubmit}
+        currentUserId={currentUserId}
       >
         <YStack flex={1} justifyContent="flex-end">
           <DeleteSheet

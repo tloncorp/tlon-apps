@@ -25,6 +25,8 @@ function getBucket(key: string): string {
     case 'messagesFilter':
       return 'talk';
     case 'activitySeenTimestamp':
+    case 'completedWayfindingSplash':
+    case 'completedWayfindingTutorial':
       return 'groups';
     default:
       throw new Error(`Invalid setting key: ${key}`);
@@ -95,6 +97,10 @@ export const toClientSettings = (
     gallerySettings: settings.desk.heaps?.heapSettings,
     notebookSettings: JSON.stringify(settings.desk.diary),
     activitySeenTimestamp: settings.desk.groups?.activitySeenTimestamp,
+    completedWayfindingSplash:
+      settings.desk.groups?.completedWayfindingSplash ?? false,
+    completedWayfindingTutorial:
+      settings.desk.groups?.completedWayfindingTutorial ?? false,
   };
 };
 
