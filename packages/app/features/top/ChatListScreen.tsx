@@ -5,7 +5,6 @@ import {
 } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -291,6 +290,10 @@ export function ChatListScreenView({
     activeTab,
   });
 
+  const handleInvitePress = useCallback(() => {
+    setInviteSheetGroup(selectedGroupId);
+  }, [selectedGroupId]);
+
   return (
     <RequestsProvider
       usePostReference={store.usePostReference}
@@ -301,9 +304,7 @@ export function ChatListScreenView({
     >
       <ChatOptionsProvider
         {...useChatSettingsNavigation()}
-        onPressInvite={(group) => {
-          setInviteSheetGroup(group);
-        }}
+        onPressInvite={handleInvitePress}
       >
         <NavigationProvider focusedChannelId={focusedChannelId}>
           <View userSelect="none" flex={1}>
@@ -312,7 +313,7 @@ export function ChatListScreenView({
               leftControls={
                 personalInvite ? (
                   <ScreenHeader.IconButton
-                    type="Send"
+                    type="AddPerson"
                     color={inviteButtonColor}
                     onPress={handlePersonalInvitePress}
                   />

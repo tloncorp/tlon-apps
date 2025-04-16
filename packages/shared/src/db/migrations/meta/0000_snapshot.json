@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "2b508d13-46c8-4794-a6ea-aef69c58a417",
+  "id": "2d0cb632-02eb-4190-8b44-0e7765f3a701",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -1720,13 +1720,6 @@
           "notNull": false,
           "autoincrement": false
         },
-        "last_visited_channel_id": {
-          "name": "last_visited_channel_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "synced_at": {
           "name": "synced_at",
           "type": "integer",
@@ -2179,16 +2172,10 @@
         }
       },
       "indexes": {
-        "posts_sent_at_unique": {
-          "name": "posts_sent_at_unique",
-          "columns": [
-            "sent_at"
-          ],
-          "isUnique": true
-        },
         "cache_id": {
           "name": "cache_id",
           "columns": [
+            "channel_id",
             "author_id",
             "sent_at"
           ],

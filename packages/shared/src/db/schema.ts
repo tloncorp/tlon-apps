@@ -383,7 +383,6 @@ export const groups = sqliteTable('groups', {
   joinStatus: text('join_status').$type<GroupJoinStatus>(),
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
-  lastVisitedChannelId: text('last_visited_channel_id'),
   syncedAt: timestamp('synced_at'),
 });
 
@@ -887,7 +886,7 @@ export const posts = sqliteTable(
     image: text('image'),
     content: text('content', { mode: 'json' }),
     receivedAt: timestamp('received_at').notNull(),
-    sentAt: timestamp('sent_at').unique().notNull(),
+    sentAt: timestamp('sent_at').notNull(),
     // client-side time
     replyCount: integer('reply_count'),
     replyTime: timestamp('reply_time'),
@@ -919,7 +918,11 @@ export const posts = sqliteTable(
     backendTime: text('backend_time'),
   },
   (table) => ({
-    cacheId: uniqueIndex('cache_id').on(table.authorId, table.sentAt),
+    cacheId: uniqueIndex('cache_id').on(
+      table.channelId,
+      table.authorId,
+      table.sentAt
+    ),
     channelId: index('posts_channel_id').on(table.channelId, table.id),
     groupId: index('posts_group_id').on(table.groupId, table.id),
   })

@@ -4,7 +4,7 @@ import { useIsWindowNarrow } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
-import { useMemo, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { View, isWeb } from 'tamagui';
 
 import { useNavigation } from '../../contexts';
@@ -23,11 +23,13 @@ export function ChannelListItem({
   EndContent,
   dimmed,
   disableOptions = false,
+  onLayout,
   ...props
 }: {
   useTypeIcon?: boolean;
   customSubtitle?: string;
   dimmed?: boolean;
+  onLayout?: (e: any) => void;
 } & ListItemProps<db.Channel>) {
   const [open, setOpen] = useState(false);
   const unreadCount = model.unread?.count ?? 0;
@@ -36,6 +38,19 @@ export function ChannelListItem({
   const firstMemberId = model.members?.[0]?.contactId ?? '';
   const memberCount = model.members?.length ?? 0;
   const isWindowNarrow = useIsWindowNarrow();
+  
+  // Memoize the trigger button to prevent re-renders
+  const triggerButton = useMemo(() => (
+    <Button
+      backgroundColor="transparent"
+      borderWidth="unset"
+      paddingHorizontal={0}
+      marginHorizontal="$-m"
+      minimal
+    >
+      <Icon type="Overflow" />
+    </Button>
+  ), []);
 
   const handlePress = logic.useMutableCallback(() => {
     onPress?.(model);
@@ -75,7 +90,7 @@ export function ChannelListItem({
         backgroundColor={isFocused ? '$shadow' : undefined}
         hoverStyle={{ backgroundColor: '$secondaryBackground' }}
       >
-        <ListItem {...props}>
+        <ListItem onLayout={onLayout} {...props}>
           <ListItem.ChannelIcon
             model={model}
             useTypeIcon={useTypeIcon}
@@ -136,17 +151,7 @@ export function ChannelListItem({
               open={open}
               onOpenChange={setOpen}
               chat={{ type: 'channel', id: model.id }}
-              trigger={
-                <Button
-                  backgroundColor="transparent"
-                  borderWidth="unset"
-                  paddingHorizontal={0}
-                  marginHorizontal="$-m"
-                  minimal
-                >
-                  <Icon type="Overflow" />
-                </Button>
-              }
+              trigger={triggerButton}
             />
           )}
         </View>

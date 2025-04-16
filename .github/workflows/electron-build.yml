@@ -40,7 +40,7 @@ jobs:
         run: pnpm run build:packages
         
       - name: Build Web App for Electron
-        run: pnpm --filter 'tlon-web-new' build:electron
+        run: pnpm --filter 'tlon-web' build:electron
         
       - name: Build Electron TypeScript
         run: pnpm --filter 'tlon-desktop' build:ts
@@ -66,7 +66,7 @@ jobs:
             apps/tlon-desktop/build/
             apps/tlon-desktop/resources/
             apps/tlon-desktop/node_modules/
-            apps/tlon-web-new/dist/
+            apps/tlon-web/dist/
           retention-days: 1
 
   build:
