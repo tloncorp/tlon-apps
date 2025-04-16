@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "2d0cb632-02eb-4190-8b44-0e7765f3a701",
+  "id": "3303be3f-f219-4db0-b80f-dc73fc170656",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2349,6 +2349,20 @@
         },
         "activity_seen_timestamp": {
           "name": "activity_seen_timestamp",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "completed_wayfinding_splash": {
+          "name": "completed_wayfinding_splash",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "completed_wayfinding_tutorial": {
+          "name": "completed_wayfinding_tutorial",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,

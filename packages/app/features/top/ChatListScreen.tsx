@@ -34,7 +34,6 @@ import {
   RequestsProvider,
   ScreenHeader,
   View,
-  WelcomeSheet,
   useGlobalSearch,
   useIsWindowNarrow,
 } from '../../ui';
@@ -243,24 +242,6 @@ export function ChatListScreenView({
     }
   }, [activeTab]);
 
-  const [splashVisible, setSplashVisible] = useState(true);
-
-  useEffect(() => {
-    const checkSplashDismissed = async () => {
-      const dismissed = await db.storage.splashDismissed.getValue();
-      setSplashVisible(!dismissed);
-    };
-
-    checkSplashDismissed();
-  }, []);
-
-  const handleWelcomeOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      setSplashVisible(false);
-      db.storage.splashDismissed.setValue(true);
-    }
-  }, []);
-
   const [searchQuery, setSearchQuery] = useState('');
 
   const isWindowNarrow = useIsWindowNarrow();
@@ -380,11 +361,6 @@ export function ChatListScreenView({
                 )}
               </>
             ) : null}
-
-            <WelcomeSheet
-              open={splashVisible}
-              onOpenChange={handleWelcomeOpenChange}
-            />
             <GroupPreviewSheet
               open={!!selectedGroup}
               onOpenChange={handleGroupPreviewSheetOpenChange}
