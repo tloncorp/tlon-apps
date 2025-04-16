@@ -24,15 +24,6 @@ function InputMentionPopupInternal(
   }>,
   ref: MentionPopupRef
 ) {
-  useEffect(() => {
-    if (mentionText) {
-      const filteredMembers = groupMembers.filter((member) =>
-        member.contact?.id.toLowerCase().includes(mentionText.toLowerCase())
-      );
-      setHasMentionCandidates?.(filteredMembers.length > 0);
-    }
-  }, [mentionText, groupMembers, setHasMentionCandidates]);
-
   const isNarrow = useIsWindowNarrow();
   return isMentionModeActive ? (
     <YStack
@@ -49,6 +40,7 @@ function InputMentionPopupInternal(
           onPress={onSelectMention}
           matchText={mentionText}
           groupMembers={groupMembers}
+          setHasMentionCandidates={setHasMentionCandidates}
           ref={ref}
         />
       </View>
