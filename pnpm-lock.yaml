@@ -298,6 +298,9 @@ importers:
       expo-localization:
         specifier: ~15.0.3
         version: 15.0.3(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13))
+      expo-mail-composer:
+        specifier: ~13.0.1
+        version: 13.0.1(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13))
       expo-media-library:
         specifier: ~16.0.5
         version: 16.0.5(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13))
@@ -307,6 +310,9 @@ importers:
       expo-secure-store:
         specifier: ~13.0.2
         version: 13.0.2(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13))
+      expo-sms:
+        specifier: ~12.0.1
+        version: 12.0.1(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13))
       expo-splash-screen:
         specifier: ~0.27.7
         version: 0.27.7(encoding@0.1.13)(expo-modules-autolinking@1.11.3)(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13))
@@ -376,6 +382,9 @@ importers:
       react-native-screens:
         specifier: ~3.31.1
         version: 3.31.1(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+      react-native-share:
+        specifier: ^12.0.9
+        version: 12.0.9
       react-native-sse:
         specifier: ^1.2.1
         version: 1.2.1
@@ -7791,6 +7800,11 @@ packages:
     peerDependencies:
       expo: '*'
 
+  expo-mail-composer@13.0.1:
+    resolution: {integrity: sha512-JmlQLS7Bk7vBf+xpdNIcG80/GzwLoFgk7ZmL4qD78CxRuolvb4jwH97nS54l6W/pKBa2TH1eUV1V8ZjKzQLf0A==}
+    peerDependencies:
+      expo: '*'
+
   expo-manifests@0.14.3:
     resolution: {integrity: sha512-L3b5/qocBPiQjbW0cpOHfnqdKZbTJS7sA3mgeDJT+mWga/xYsdpma1EfNmsuvrOzjLGjStr1k1fceM9Bl49aqQ==}
     peerDependencies:
@@ -7825,6 +7839,11 @@ packages:
 
   expo-secure-store@13.0.2:
     resolution: {integrity: sha512-3QYgoneo8p8yeeBPBiAfokNNc2xq6+n8+Ob4fAlErEcf4H7Y72LH+K/dx0nQyWau2ZKZUXBxyyfuHFyVKrEVLg==}
+    peerDependencies:
+      expo: '*'
+
+  expo-sms@12.0.1:
+    resolution: {integrity: sha512-LuKymmqWQFVBjypFpo+Ed/M+rywWwcM4TfB7y5m0tmF7p9n+KAlyhOOQBUWwyXBYEXho9hK9s/H5cpW97gseNg==}
     peerDependencies:
       expo: '*'
 
@@ -11070,6 +11089,10 @@ packages:
     peerDependencies:
       react: '*'
       react-native: '*'
+
+  react-native-share@12.0.9:
+    resolution: {integrity: sha512-vSuz/9aF+/AZS3I5NC19MrB56h1Yivk2Yz8lf2d8Szv3KuRw2BnDI/AfCTjMWByJLVYr6xgzfkTkAfvbDGzxLQ==}
+    engines: {node: '>=16'}
 
   react-native-sse@1.2.1:
     resolution: {integrity: sha512-zejanlScF+IB9tYnbdry0MT34qjBXbiV/E72qGz33W/tX1bx8MXsbB4lxiuPETc9v/008vYZ60yjIstW22VlVg==}
@@ -23339,6 +23362,10 @@ snapshots:
       expo: 51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)
       rtl-detect: 1.1.2
 
+  expo-mail-composer@13.0.1(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)):
+    dependencies:
+      expo: 51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)
+
   expo-manifests@0.14.3(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)):
     dependencies:
       '@expo/config': 9.0.4
@@ -23400,6 +23427,10 @@ snapshots:
       - supports-color
 
   expo-secure-store@13.0.2(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)):
+    dependencies:
+      expo: 51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)
+
+  expo-sms@12.0.1(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)):
     dependencies:
       expo: 51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)
 
@@ -27348,6 +27379,8 @@ snapshots:
       react-freeze: 1.0.3(react@18.2.0)
       react-native: 0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0)
       warn-once: 0.1.1
+
+  react-native-share@12.0.9: {}
 
   react-native-sse@1.2.1: {}
 
