@@ -21,7 +21,7 @@ import { EditorView } from '@tiptap/pm/view';
 import { EditorContent } from '@tiptap/react';
 import { useCallback } from 'react';
 
-import { CodeBlockBridge, MentionsBridge, ShortcutsBridge } from './bridges';
+import { CodeBlockBridge, MentionsBridge } from './bridges';
 
 export const MessageInputEditor = () => {
   const handlePaste = useCallback(
@@ -47,7 +47,6 @@ export const MessageInputEditor = () => {
       TaskListBridge,
       ImageBridge,
       StrikeBridge,
-      ShortcutsBridge,
       BlockquoteBridge,
       HistoryBridge.configureExtension({
         newGroupDelay: 100,

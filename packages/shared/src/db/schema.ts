@@ -53,6 +53,8 @@ export const settings = sqliteTable('settings', {
   gallerySettings: text('gallery_settings'),
   notebookSettings: text('notebook_settings', { mode: 'json' }),
   activitySeenTimestamp: timestamp('activity_seen_timestamp'),
+  completedWayfindingSplash: boolean('completed_wayfinding_splash'),
+  completedWayfindingTutorial: boolean('completed_wayfinding_tutorial'),
 });
 
 export const contacts = sqliteTable('contacts', {
@@ -383,7 +385,6 @@ export const groups = sqliteTable('groups', {
   joinStatus: text('join_status').$type<GroupJoinStatus>(),
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
-  lastVisitedChannelId: text('last_visited_channel_id'),
   syncedAt: timestamp('synced_at'),
 });
 

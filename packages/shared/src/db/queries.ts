@@ -2961,6 +2961,26 @@ export const getPostWithRelations = createReadQuery(
   ['posts', 'threadUnreads', 'volumeSettings']
 );
 
+export const getPersonalGroup = createReadQuery(
+  'getPersonalGroup',
+  async (ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
+    const groupId = `${currentUserId}/${domain.PersonalGroupSlugs.slug}`;
+    const group = await getGroup({ id: groupId }, ctx);
+    return group;
+  },
+  [
+    'groups',
+    'channelUnreads',
+    'volumeSettings',
+    'channels',
+    'groupJoinRequests',
+    'groupMemberBans',
+    'groupNavSectionChannels',
+    'groupRoles',
+  ]
+);
+
 export const getGroup = createReadQuery(
   'getGroup',
   async (

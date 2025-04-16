@@ -258,7 +258,6 @@ CREATE TABLE `groups` (
 	`join_status` text,
 	`last_post_id` text,
 	`last_post_at` integer,
-	`last_visited_channel_id` text,
 	`synced_at` integer
 );
 --> statement-breakpoint
@@ -354,7 +353,9 @@ CREATE TABLE `settings` (
 	`messages_filter` text,
 	`gallery_settings` text,
 	`notebook_settings` text,
-	`activity_seen_timestamp` integer
+	`activity_seen_timestamp` integer,
+	`completed_wayfinding_splash` integer,
+	`completed_wayfinding_tutorial` integer
 );
 --> statement-breakpoint
 CREATE TABLE `thread_unreads` (
