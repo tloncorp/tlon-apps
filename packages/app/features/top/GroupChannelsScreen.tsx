@@ -79,11 +79,16 @@ export function GroupChannelsScreenContent({
     [id]
   );
 
+  const handlePressInvite = useCallback(
+    (groupId: string) => {
+      setInviteSheetGroup(groupId);
+    },
+    [setInviteSheetGroup]
+  );
+
   return (
     <ChatOptionsProvider
-      onPressInvite={(groupId) => {
-        setInviteSheetGroup(groupId);
-      }}
+      onPressInvite={handlePressInvite}
       {...useChatSettingsNavigation()}
     >
       <NavigationProvider focusedChannelId={focusedChannelId}>
