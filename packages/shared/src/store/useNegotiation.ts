@@ -7,7 +7,7 @@ import { queryClient } from '../api';
 import { createDevLogger } from '../debug';
 import { MatchingEvent, MatchingResponse } from '../urbit/negotiation';
 
-const logger = createDevLogger('useNegotiation', true);
+const logger = createDevLogger('useNegotiation', false);
 
 function negotiationUpdater(
   event: MatchingEvent | null,
