@@ -107,6 +107,7 @@ export enum AnalyticsEvent {
   ActionConfirmPhoneAttest = 'Confirmed Phone Attestation',
   ActionGroupChannelSelected = 'Tapped group channel',
   ActionTappedPushNotif = 'Tapped Push Notification',
+  ActionDeferredDeepLink = 'Installed with Deferred Deeplink Invite',
   GroupJoinComplete = 'Group Join Complete',
   PersonalInviteLinkReady = 'Personal Invite Link Ready',
   ErrorSendPost = 'Error Sending Post',
