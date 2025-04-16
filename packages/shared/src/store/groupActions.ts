@@ -29,6 +29,7 @@ export async function scaffoldPersonalGroup() {
     let existingGroup = await db.getGroup({ id: PersonalGroupKeys.groupId });
     if (!existingGroup) {
       try {
+        const groupIconUrl = logic.getRandomDefaultPersonalGroupIcon();
         await db.insertGroups({
           groups: [
             {
@@ -36,13 +37,13 @@ export async function scaffoldPersonalGroup() {
               currentUserIsMember: true,
               currentUserIsHost: true,
               hostUserId: currentUserId,
-              iconImage: PersonalGroupKeys.groupIconUrl,
+              iconImage: groupIconUrl,
             },
           ],
         });
         await api.createGroup({
           title: PersonalGroupKeys.groupName,
-          image: PersonalGroupKeys.groupIconUrl,
+          image: groupIconUrl,
           slug: PersonalGroupKeys.slug,
           privacy: 'secret',
         });

@@ -44,6 +44,7 @@ export function useBootSequence() {
   const connectionStatus = store.useConnectionStatus();
   const lureMeta = useLureMetadata();
   const configureUrbitClient = useConfigureUrbitClient();
+  const session = store.useCurrentSession();
 
   const [bootPhase, setBootPhase] = useState(NodeBootPhase.IDLE);
   const [reservedNodeId, setReservedNodeId] = useState<string | null>(null);
@@ -144,6 +145,17 @@ export function useBootSequence() {
     //
     // SCAFFOLDING WAYFINDING: make sure the starter group is created
     if (bootPhase === NodeBootPhase.SCAFFOLDING_WAYFINDING) {
+      // provide some wiggle room for sync start to run
+      await wait(3000);
+
+      // only once high priority sync has completed will we try to scaffold
+      if (!session?.startTime) {
+        logger.trackEvent(AnalyticsEvent.WayfindingDebug, {
+          context: 'Cannot scaffold yet, connection not established',
+        });
+        return NodeBootPhase.SCAFFOLDING_WAYFINDING;
+      }
+
       try {
         await store.scaffoldPersonalGroup();
 
@@ -294,6 +306,7 @@ export function useBootSequence() {
     connectionStatus,
     lureMeta,
     reservedNodeId,
+    session?.startTime,
     setShip,
     telemetry,
   ]);
@@ -302,7 +315,7 @@ export function useBootSequence() {
   // the step didn't advance
   const [bootStepCounter, setBootCounter] = useState(0);
   const tryingWayfindingSince = useRef<number | null>(null);
-  const MAX_WAYFINDING_ATTEMPTS = 10;
+  const MAX_WAYFINDING_ATTEMPTS = 5;
   useEffect(() => {
     const runBootSequence = async () => {
       // prevent simultaneous runs
@@ -354,7 +367,7 @@ export function useBootSequence() {
         logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
           context: 'failed to scaffold personal group',
           during: 'mobile signup (useBootSequence)',
-          AnalyticsSeverity: AnalyticsSeverity.Critical,
+          severity: AnalyticsSeverity.Critical,
         });
         const signedUpWithInvite = Boolean(lureMeta?.id);
         const nextBootPhase = signedUpWithInvite

@@ -6,7 +6,6 @@ export function getPersonalGroupKeys(currentUserId: string) {
   return {
     slug: PersonalGroupSlugs.slug,
     groupName: PersonalGroupNames.groupTitle,
-    groupIconUrl: PersonalGroupNames.groupIconUrl,
     groupId: `${currentUserId}/${PersonalGroupSlugs.slug}`,
 
     chatSlug: PersonalGroupSlugs.chatSlug,
@@ -21,6 +20,11 @@ export function getPersonalGroupKeys(currentUserId: string) {
     notebookChannelName: PersonalGroupNames.notebookTitle,
     notebookChannelId: `${getChannelKindFromType('notebook')}/${currentUserId}/${PersonalGroupSlugs.notebookSlug}`,
   };
+}
+
+export function getRandomDefaultPersonalGroupIcon() {
+  const randomInteger = Math.floor(Math.random() * 5) + 1; // 1-5 inclusive
+  return `https://storage.cloud.google.com/tlon-messenger-public-assets/wayfindingGroupIcons/default${randomInteger}.png`;
 }
 
 export function personalGroupIsValid({

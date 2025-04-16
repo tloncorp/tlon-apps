@@ -1418,6 +1418,7 @@ export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {
     return Promise.all([
       api.subscribeToChannelsUpdates(handleChannelsUpdate),
       api.subscribeToChatUpdates(handleChatUpdate),
+      api.subscribeGroups(handleGroupUpdate),
     ]);
   });
 };
@@ -1426,7 +1427,6 @@ export const setupLowPrioritySubscriptions = async (ctx?: SyncCtx) => {
   return syncQueue.add('setupLowPrioritySubscription', ctx, () => {
     return Promise.all([
       api.subscribeToActivity(createActivityUpdateHandler()),
-      api.subscribeGroups(handleGroupUpdate),
       api.subscribeToContactUpdates(handleContactUpdate),
       api.subscribeToStorageUpdates(handleStorageUpdate),
       api.subscribeToLanyardUpdates(handleLanyardUpdate),
