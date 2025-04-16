@@ -252,7 +252,7 @@
         ;div(id "full-details")
           ;h3:"Full Attestation Details"
           ;dl
-            ;dt(title "The type of identifier being verified (phone, twitter, website, etc.)"):"Kind"
+            ;dt(title "The type of identifier being verified (phone, X account, website, etc.)"):"Kind"
             ;dd:"{registration-kind}"
           ==
           ;dl
@@ -264,12 +264,12 @@
             ;dd:"{text-description}"
           ==
           ;dl
-            ;dt(title "The Urbit ship that owns/controls this identifier"):"Owner"
+            ;dt(title "The ship that owns/controls this identifier"):"Owner"
             ;dd:"{owner}"
           ==
           ;dl
-            ;dt(title "The Urbit ship that performed this verification"):"Verified by"
-            ;dd:"{(scow %p who.dat.half.tat)}"
+            ;dt(title "The ship that performed this verification"):"Verified by"
+            ;dd:"{(scow %p who.half.tat)}"
           ==
           ;dl
             ;dt(title "When the verification was completed"):"Timestamp"
