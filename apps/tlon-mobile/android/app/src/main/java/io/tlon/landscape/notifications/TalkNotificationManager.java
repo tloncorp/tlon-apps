@@ -137,7 +137,7 @@ public class TalkNotificationManager {
                 Log.d("TalkNotificationManager", "activity event recv" + response.toString());
 
                 ActivityEventKt.renderPreviewAsync(context, response.toString(), contentPreview -> {
-                    Bundle data = contentPreview.getUserInfo();
+                    Bundle data = new Bundle();
                     data.putString("wer", yarn.wer);
                     final String channelId = yarn.channelId.orElse("");
                     data.putString("channelId", channelId);
@@ -266,7 +266,7 @@ public class TalkNotificationManager {
         callback.onComplete(contact.displayName);
     }
 
-    private static void sendNotification(Context context, int id, Person person, String title, String text, Boolean isGroupConversation, Bundle data) {
+    static void sendNotification(Context context, int id, Person person, String title, String text, Boolean isGroupConversation, Bundle data) {
         Log.d("TalkNotificationManager", "sendNotification: " + id + " " + title + " " + text + " " + isGroupConversation);
         Intent tapIntent = new Intent(context, MainActivity.class);
         tapIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
@@ -286,14 +286,21 @@ public class TalkNotificationManager {
                 .setContentTitle(title)
                 .setContentText(text)
                 .addExtras(data)
-                .setStyle(new NotificationCompat.MessagingStyle(user)
-                        .setGroupConversation(isGroupConversation)
-                        .setConversationTitle(isGroupConversation ? title : null)
-                        .addMessage(text, new Date().getTime(), person))
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setContentIntent(tapPendingIntent)
                 .addAction(R.drawable.ic_mark_as_read, context.getString(R.string.landscape_notification_mark_as_read), markAsReadPendingIntent)
                 .setAutoCancel(true);
+
+        if (person != null) {
+            builder
+                    .setStyle(
+                            new NotificationCompat.MessagingStyle(user)
+                                    .setGroupConversation(isGroupConversation)
+                                    .setConversationTitle(isGroupConversation ? title : null)
+                                    .addMessage(text, new Date().getTime(), person)
+                    );
+        }
+
         NotificationManagerCompat.from(context).notify(id, builder.build());
     }
 

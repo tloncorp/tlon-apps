@@ -6,29 +6,29 @@ class NotificationService: UNNotificationServiceExtension {
     var contentHandler: ((UNNotificationContent) -> Void)?
     var bestAttemptContent: UNMutableNotificationContent?
   
-  private func applyNotif(_ rawActivityEvent: Any, notification: UNMutableNotificationContent) {
-    let context = JSContext()!
-    context.exceptionHandler = { context, exception in
-        NSLog(exception?.toString() ?? "No exception found")
+    private func applyNotif(_ rawActivityEvent: Any, notification: UNMutableNotificationContent) {
+        let context = JSContext()!
+        context.exceptionHandler = { context, exception in
+            NSLog(exception?.toString() ?? "No exception found")
+        }
+        
+        guard let scriptURL = Bundle.main.url(forResource: "bundle", withExtension: "js") else { return }
+        guard let script = try? String(contentsOf: scriptURL) else { return }
+        context.evaluateScript(script)
+        
+        let preview = context.objectForKeyedSubscript("tlon")
+            .invokeMethod("renderActivityEventPreview", withArguments: [
+                rawActivityEvent,
+            ])
+        
+        if let title = preview?.forProperty("title")?.toString() {
+            notification.title = title
+        }
+        if let body = preview?.forProperty("body")?.toString() {
+            notification.body = body
+        }
+        // TODO: userInfo
     }
-    
-    guard let scriptURL = Bundle.main.url(forResource: "bundle", withExtension: "js") else { return }
-    guard let script = try? String(contentsOf: scriptURL) else { return }
-    context.evaluateScript(script)
-    
-    let preview = context.objectForKeyedSubscript("tlon")
-      .invokeMethod("renderActivityEventPreview", withArguments: [
-        rawActivityEvent,
-      ])
-    
-    if let title = preview?.forProperty("title")?.toString() {
-      notification.title = title
-    }
-    if let body = preview?.forProperty("body")?.toString() {
-      notification.body = body
-    }
-    // TODO: userInfo
-  }
 
     override func didReceive(_ request: UNNotificationRequest, withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void) {
         self.contentHandler = contentHandler
@@ -127,4 +127,12 @@ extension Encodable {
     let data = try JSONEncoder().encode(self)
     return try JSONSerialization.jsonObject(with: data, options: [])
   }
+}
+
+private struct RenderNotificationPreviewResult: Codable {
+    let title: String?
+    let body: String?
+    
+    // TODO
+//    let userInfo: [String: Any]?
 }
