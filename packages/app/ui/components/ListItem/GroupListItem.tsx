@@ -1,16 +1,17 @@
 // sort-imports-ignore
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
+import { Button, Icon, Pressable } from '@tloncorp/ui';
 import { View, isWeb } from 'tamagui';
 
 import { useGroupTitle } from '../../utils';
 import { Badge } from '../Badge';
 import { ContactName } from '../ContactNameV2';
-import { Pressable } from '@tloncorp/ui';
 import { ListItem, ListItemProps } from './ListItem';
 import { getGroupStatus, getPostTypeIcon } from './listItemUtils';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useChatOptions } from '../../contexts';
 
 export const GroupListItem = ({
   model,
@@ -21,21 +22,53 @@ export const GroupListItem = ({
   ...props
 }: { customSubtitle?: string } & ListItemProps<db.Group>) => {
   const [open, setOpen] = useState(false);
-  const [contextMenuPosition, setContextMenuPosition] = useState<number | null>(
-    null
-  );
+  const { setChat } = useChatOptions();
+  const [isHovered, setIsHovered] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const unreadCount = model.unread?.count ?? 0;
   const notified = model.unread?.notify ?? false;
   const title = useGroupTitle(model);
   const { isPending, label: statusLabel, isErrored } = getGroupStatus(model);
 
+  const handleHoverIn = useCallback(() => {
+    if (isWeb) {
+      setIsHovered(true);
+    }
+  }, []);
+
+  const handleHoverOut = useCallback(() => {
+    if (isWeb) {
+      setIsHovered(false);
+    }
+  }, []);
+
+  const triggerButton = useMemo(
+    () => (
+      <Button
+        backgroundColor="transparent"
+        borderWidth="unset"
+        paddingHorizontal={0}
+        marginHorizontal="$-m"
+        minimal
+        onPress={(e) => {
+          e.stopPropagation();
+        }}
+      >
+        <Icon type="Overflow" />
+      </Button>
+    ),
+    []
+  );
+
   useEffect(() => {
     if (isWeb && !isPending && !disableOptions && containerRef.current) {
       const handleContextMenu = (e: MouseEvent) => {
         e.preventDefault();
-        setContextMenuPosition(e.clientX);
         setOpen(true);
+        setChat({
+          type: 'group',
+          id: model.id,
+        });
       };
 
       const element = containerRef.current;
@@ -45,12 +78,13 @@ export const GroupListItem = ({
         element.removeEventListener('contextmenu', handleContextMenu);
       };
     }
-  }, [disableOptions, isPending]);
+  }, [disableOptions, isPending, model.id, setChat]);
 
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen);
     if (!isOpen) {
-      setContextMenuPosition(null);
+      setChat(null);
+      setIsHovered(false);
     }
   };
 
@@ -68,8 +102,11 @@ export const GroupListItem = ({
     <View ref={containerRef}>
       <Pressable
         borderRadius="$xl"
-        onPress={handlePress}
-        onLongPress={handleLongPress}
+        onPress={open ? undefined : handlePress}
+        onLongPress={isWeb ? undefined : handleLongPress}
+        hoverStyle={{ backgroundColor: '$secondaryBackground' }}
+        onHoverIn={handleHoverIn}
+        onHoverOut={handleHoverOut}
       >
         <ListItem {...props} alignItems={isPending ? 'center' : 'stretch'}>
           <ListItem.GroupIcon model={model} />
@@ -127,26 +164,17 @@ export const GroupListItem = ({
             </ListItem.EndContent>
           )}
         </ListItem>
+        {isWeb && !isPending && !disableOptions && (isHovered || open) && (
+          <View position="absolute" right={10} top="$2xl">
+            <ChatOptionsSheet
+              open={open}
+              onOpenChange={handleOpenChange}
+              chat={{ type: 'group', id: model.id }}
+              trigger={triggerButton}
+            />
+          </View>
+        )}
       </Pressable>
-      {isWeb && !isPending && !disableOptions && (
-        <ChatOptionsSheet
-          open={open}
-          onOpenChange={handleOpenChange}
-          chat={{ type: 'group', id: model.id }}
-          trigger={
-            contextMenuPosition && (
-              <View
-                position="absolute"
-                left={contextMenuPosition}
-                width={1}
-                height={1}
-                opacity={0}
-                pointerEvents="none"
-              />
-            )
-          }
-        />
-      )}
     </View>
   );
 };

@@ -1,10 +1,10 @@
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { Pressable } from '@tloncorp/ui';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Button, Icon, Pressable } from '@tloncorp/ui';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, isWeb } from 'tamagui';
 
-import { useNavigation } from '../../contexts';
+import { useChatOptions, useNavigation } from '../../contexts';
 import * as utils from '../../utils';
 import { capitalize } from '../../utils';
 import { Badge } from '../Badge';
@@ -29,9 +29,8 @@ export function ChannelListItem({
   onLayout?: (e: any) => void;
 } & ListItemProps<db.Channel>) {
   const [open, setOpen] = useState(false);
-  const [contextMenuPosition, setContextMenuPosition] = useState<number | null>(
-    null
-  );
+  const { setChat } = useChatOptions();
+  const [isHovered, setIsHovered] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const unreadCount = model.unread?.count ?? 0;
   const notified = model.unread?.notify ?? false;
@@ -39,12 +38,45 @@ export function ChannelListItem({
   const firstMemberId = model.members?.[0]?.contactId ?? '';
   const memberCount = model.members?.length ?? 0;
 
+  const handleHoverIn = useCallback(() => {
+    if (isWeb) {
+      setIsHovered(true);
+    }
+  }, []);
+
+  const handleHoverOut = useCallback(() => {
+    if (isWeb) {
+      setIsHovered(false);
+    }
+  }, []);
+
+  const triggerButton = useMemo(
+    () => (
+      <Button
+        backgroundColor="transparent"
+        borderWidth="unset"
+        paddingHorizontal={0}
+        marginHorizontal="$-m"
+        minimal
+        onPress={(e) => {
+          e.stopPropagation();
+        }}
+      >
+        <Icon type="Overflow" />
+      </Button>
+    ),
+    []
+  );
+
   useEffect(() => {
     if (isWeb && !disableOptions && containerRef.current) {
       const handleContextMenu = (e: MouseEvent) => {
         e.preventDefault();
-        setContextMenuPosition(e.clientX);
         setOpen(true);
+        setChat({
+          type: 'channel',
+          id: model.id,
+        });
       };
 
       const element = containerRef.current;
@@ -54,12 +86,13 @@ export function ChannelListItem({
         element.removeEventListener('contextmenu', handleContextMenu);
       };
     }
-  }, [disableOptions]);
+  }, [disableOptions, setChat, model.id]);
 
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen);
     if (!isOpen) {
-      setContextMenuPosition(null);
+      setChat(null);
+      setIsHovered(false);
     }
   };
 
@@ -96,10 +129,12 @@ export function ChannelListItem({
     <View ref={containerRef}>
       <Pressable
         borderRadius="$xl"
-        onPress={handlePress}
+        onPress={open ? undefined : handlePress}
         onLongPress={isWeb ? undefined : handleLongPress}
         backgroundColor={isFocused ? '$shadow' : undefined}
         hoverStyle={{ backgroundColor: '$secondaryBackground' }}
+        onHoverIn={handleHoverIn}
+        onHoverOut={handleHoverOut}
       >
         <ListItem onLayout={onLayout} {...props}>
           <ListItem.ChannelIcon
@@ -144,26 +179,17 @@ export function ChannelListItem({
             </ListItem.EndContent>
           )}
         </ListItem>
+        {isWeb && !disableOptions && (isHovered || open) && (
+          <View position="absolute" right={10} top="$2xl">
+            <ChatOptionsSheet
+              open={open}
+              onOpenChange={handleOpenChange}
+              chat={{ type: 'channel', id: model.id }}
+              trigger={triggerButton}
+            />
+          </View>
+        )}
       </Pressable>
-      {isWeb && !disableOptions && (
-        <ChatOptionsSheet
-          open={open}
-          onOpenChange={handleOpenChange}
-          chat={{ type: 'channel', id: model.id }}
-          trigger={
-            contextMenuPosition && (
-              <View
-                position="absolute"
-                left={contextMenuPosition}
-                width={1}
-                height={1}
-                opacity={0}
-                pointerEvents="none"
-              />
-            )
-          }
-        />
-      )}
     </View>
   );
 }
