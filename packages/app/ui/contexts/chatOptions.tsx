@@ -22,7 +22,7 @@ export type ChatOptionsContextValue = {
   group?: db.Group | null;
   channel?: db.Channel | null;
   markGroupRead: () => void;
-  markChannelRead: () => void;
+  markChannelRead: (options?: { includeThreads?: boolean }) => void;
   onPressGroupMeta: (fromBlankChannel?: boolean) => void;
   onPressGroupMembers: () => void;
   onPressManageChannels: () => void;
@@ -223,11 +223,18 @@ export const ChatOptionsProvider = ({
     closeSheet();
   }, [closeSheet, groupId]);
 
-  const markChannelRead = useCallback(() => {
-    if (channelId) {
-      store.markChannelRead({ id: channelId, groupId: groupId });
-    }
-  }, [channelId, groupId]);
+  const markChannelRead = useCallback(
+    ({ includeThreads }: { includeThreads?: boolean } = {}) => {
+      if (channelId) {
+        store.markChannelRead({
+          id: channelId,
+          groupId: groupId,
+          includeThreads,
+        });
+      }
+    },
+    [channelId, groupId]
+  );
 
   const setChannelSortPreference = useCallback(
     (sortBy: 'recency' | 'arranged') => {

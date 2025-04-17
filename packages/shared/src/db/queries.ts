@@ -3574,9 +3574,15 @@ export const insertThreadUnreads = createWriteQuery(
 
 export const getThreadUnreadsByChannel = createReadQuery(
   'getThreadUnreadsByChannel',
-  async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
+  async (
+    { channelId, excludeRead }: { channelId: string; excludeRead?: boolean },
+    ctx: QueryCtx
+  ): Promise<ThreadUnreadState[]> => {
     return ctx.db.query.threadUnreads.findMany({
-      where: eq($threadUnreads.channelId, channelId),
+      where: and(
+        eq($threadUnreads.channelId, channelId),
+        excludeRead ? not(eq($threadUnreads.count, 0)) : undefined
+      ),
     });
   },
   ['threadUnreads']
@@ -3597,6 +3603,17 @@ export const clearThreadUnread = createWriteQuery(
           eq($threadUnreads.threadId, threadId)
         )
       );
+  },
+  ['threadUnreads']
+);
+
+export const clearChannelThreadUnreads = createWriteQuery(
+  'clearChannelThreadUnreads',
+  async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
+    return ctx.db
+      .update($threadUnreads)
+      .set({ count: 0, firstUnreadPostId: null })
+      .where(eq($threadUnreads.channelId, channelId));
   },
   ['threadUnreads']
 );
