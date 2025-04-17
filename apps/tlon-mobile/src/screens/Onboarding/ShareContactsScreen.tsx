@@ -10,6 +10,7 @@ import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
 import * as Contacts from 'expo-contacts';
 import { useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useContactPermissions } from '../../hooks/useContactPermissions';
 import { processNativeContacts } from '../../lib/contactsHelpers';
@@ -20,6 +21,7 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'ShareContacts'>;
 const logger = createDevLogger('ShareContactsScreen', true);
 
 export const ShareContactsScreen = ({ navigation }: Props) => {
+  const insets = useSafeAreaInsets();
   const store = useStore();
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -64,17 +66,19 @@ export const ShareContactsScreen = ({ navigation }: Props) => {
   };
 
   return (
-    <View flex={1} backgroundColor={'$secondaryBackground'}>
-      <ScreenHeader title="Share Contacts" showSessionStatus={false} />
+    <View
+      flex={1}
+      paddingBottom={insets.bottom}
+      backgroundColor={'$secondaryBackground'}
+    >
+      <ScreenHeader
+        title="Find your friends on Tlon"
+        showSessionStatus={false}
+      />
       <View flex={1} paddingHorizontal="$2xl">
-        <YStack marginTop="$xl" gap="$xl">
-          <Text size="$label/l">
-            Tlon Messenger can use your contact book to find your friends who
-            are already on the app and help you invite the ones who aren't.
-          </Text>
-          <Text size="$label/l">
-            We&apos;ll never share your contacts with anyone or store them on
-            our servers.
+        <YStack marginTop="$xl" marginHorizontal="$2xl" gap="$xl">
+          <Text size="$label/l" textAlign="center" color="$secondaryText">
+            Sync your contact book to easily find people you know on Tlon.
           </Text>
         </YStack>
         {error && (
@@ -82,7 +86,7 @@ export const ShareContactsScreen = ({ navigation }: Props) => {
             {error}
           </Text>
         )}
-        <YStack marginTop="$3xl" gap="$l" flex={1} paddingBottom="$xl">
+        <YStack flex={1} justifyContent="flex-end" gap="$l" paddingBottom="$xl">
           {isProcessing && <LoadingSpinner />}
           {(perms.hasPermission || perms.canAskPermission) && (
             <>
@@ -90,10 +94,14 @@ export const ShareContactsScreen = ({ navigation }: Props) => {
                 loading={perms.isLoading || isProcessing}
                 onPress={handleShareContacts}
               >
-                Sync Contacts
+                Continue
               </PrimaryButton>
-              <Button secondary onPress={handleSkip}>
-                <Button.Text>Skip</Button.Text>
+              <Button
+                secondary
+                backgroundColor="$secondaryBackground"
+                onPress={handleSkip}
+              >
+                <Button.Text fontWeight="500">Skip</Button.Text>
               </Button>
             </>
           )}
