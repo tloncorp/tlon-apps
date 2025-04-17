@@ -6,28 +6,57 @@ class NotificationService: UNNotificationServiceExtension {
     var contentHandler: ((UNNotificationContent) -> Void)?
     var bestAttemptContent: UNMutableNotificationContent?
   
-    private func applyNotif(_ rawActivityEvent: Any, notification: UNMutableNotificationContent) {
+    private func applyNotif(_ rawActivityEvent: Any, notification: UNMutableNotificationContent) async -> UNNotificationContent {
         let context = JSContext()!
         context.exceptionHandler = { context, exception in
             NSLog(exception?.toString() ?? "No exception found")
         }
         
-        guard let scriptURL = Bundle.main.url(forResource: "bundle", withExtension: "js") else { return }
-        guard let script = try? String(contentsOf: scriptURL) else { return }
+        guard
+            let scriptURL = Bundle.main.url(forResource: "bundle", withExtension: "js"),
+            let script = try? String(contentsOf: scriptURL)
+        else {
+            return notification
+        }
         context.evaluateScript(script)
         
-        let preview = context.objectForKeyedSubscript("tlon")
+        let previewRaw = context.objectForKeyedSubscript("tlon")
             .invokeMethod("renderActivityEventPreview", withArguments: [
                 rawActivityEvent,
             ])
         
-        if let title = preview?.forProperty("title")?.toString() {
-            notification.title = title
+        guard let preview = try? previewRaw?.decode(as: NotificationPreviewPayload.self) else {
+            return notification
         }
-        if let body = preview?.forProperty("body")?.toString() {
-            notification.body = body
+        
+        let renderer = NotificationPreviewContentNodeRenderer()
+        notification.title = renderer.render(preview.notification.title)
+        notification.body = renderer.render(preview.notification.body)
+        notification.interruptionLevel = .active
+        notification.threadIdentifier = renderer.render(preview.notification.groupingKey)
+        notification.sound = UNNotificationSound.default
+        
+        guard let message = preview.message else {
+            return notification
         }
-        // TODO: userInfo
+        
+        let sender = await INPerson.from(shipName: message.senderId, withImage: true)
+        let intent = INSendMessageIntent(
+            // Create empty recipient for groups because we don't need the OS creating the participant list
+            recipients: [INPerson.empty],
+            outgoingMessageType: .outgoingMessageText,
+            content: notification.body,
+            speakableGroupName: INSpeakableString(spokenPhrase: notification.title),
+            conversationIdentifier: renderer.render(preview.notification.groupingKey),
+            serviceName: nil,
+            sender: sender,
+            attachments: nil
+        )
+        let interaction = INInteraction(intent: intent, response: nil)
+        interaction.direction = .incoming
+        try? await interaction.donate() // any error here is discarded
+        
+        return (try? notification.updating(from: intent)) ?? notification
     }
 
     override func didReceive(_ request: UNNotificationRequest, withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void) {
@@ -38,13 +67,14 @@ class NotificationService: UNNotificationServiceExtension {
         let parsedNotification = await PushNotificationManager.parseNotificationUserInfo(request.content.userInfo)
         switch parsedNotification {
         case let .yarn(yarn, activityEvent, activityEventRaw):
-          var notifContent = await handle(yarn)
-          
+            var notifContent = bestAttemptContent ?? UNNotificationContent()
+
           // HACK: Proof-of-concept that we can use JS to populate notification content
           if let activityEventRaw {
-            let m = notifContent.mutableCopy() as! UNMutableNotificationContent
-            applyNotif(activityEventRaw, notification: m)
-            notifContent = m
+            notifContent = await applyNotif(
+                activityEventRaw,
+                notification: notifContent.mutableCopy() as! UNMutableNotificationContent
+            )
           }
           
           if let activityEvent {
@@ -135,4 +165,20 @@ private struct RenderNotificationPreviewResult: Codable {
     
     // TODO
 //    let userInfo: [String: Any]?
+}
+
+extension JSValue {
+    func decode<T: Decodable>(as type: T.Type) throws -> T {
+        // Convert JSValue to a Foundation object (e.g. [String: Any])
+        guard let object = self.toObject(),
+              JSONSerialization.isValidJSONObject(object) else {
+            throw NSError(domain: "JSValueError", code: 1, userInfo: [NSLocalizedDescriptionKey: "JSValue is not a valid JSON object"])
+        }
+        
+        // Serialize to JSON Data
+        let jsonData = try JSONSerialization.data(withJSONObject: object, options: [])
+        
+        // Decode using JSONDecoder
+        return try JSONDecoder().decode(T.self, from: jsonData)
+    }
 }
