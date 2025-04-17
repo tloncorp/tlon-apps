@@ -33,6 +33,12 @@ export function useContactPermissions() {
 
   const requestPermissions = async () => {
     try {
+      const { status: startStatus } = await Contacts.getPermissionsAsync();
+      if (startStatus !== 'undetermined') {
+        setStatus(startStatus);
+        return startStatus;
+      }
+
       setStatus('loading');
       console.log('initiating perms request');
       const { status } = await Contacts.requestPermissionsAsync();
