@@ -81,6 +81,8 @@ function DrawerContent(props: DrawerContentComponentProps) {
         focusedContactId={focusedRoute.params?.userId}
         onContactPress={onContactPress}
         onContactLongPress={onContactLongPress}
+        systemContacts={[]}
+        onInviteSystemContact={() => {}}
       />
     </View>
   );

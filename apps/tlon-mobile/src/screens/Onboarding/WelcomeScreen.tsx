@@ -123,7 +123,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
               <>
                 <OnboardingButton
                   onPress={() => {
-                    navigation.navigate('ShareContacts');
+                    navigation.navigate('PasteInviteLink');
                   }}
                 >
                   <Button.Text>Sign up</Button.Text>

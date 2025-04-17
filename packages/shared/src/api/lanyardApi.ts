@@ -80,10 +80,8 @@ export async function discoverContacts(phoneNums: string[]) {
       { tag: 'discoverContacts' }
     );
 
-    console.log(`bl: we are poking?`);
     try {
       await pokeNoun({ app: 'lanyard', mark: 'lanyard-query-1', noun });
-      console.log(`bl: poke success`);
     } catch (e) {
       console.error('bl: poke error', e);
     }

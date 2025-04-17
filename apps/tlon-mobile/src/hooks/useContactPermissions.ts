@@ -7,49 +7,60 @@ export type ContactPermissionStatus =
   | 'granted' // User granted permission
   | 'loading'; // Currently checking status
 
+export type ContactPermissionAccessPrivileges =
+  | 'all'
+  | 'limited'
+  | 'none'
+  | 'undetermined';
+
 export function useContactPermissions() {
   const [status, setStatus] = useState<ContactPermissionStatus>('loading');
+  const [accessPrivileges, setAccessPrivileges] =
+    useState<ContactPermissionAccessPrivileges>('undetermined');
 
-  // Check initial permission status on mount
   useEffect(() => {
     checkPermissions();
   }, []);
 
-  // Function to check current permission status
   const checkPermissions = async () => {
     try {
       setStatus('loading');
-      const { status } = await Contacts.getPermissionsAsync();
+      const { status, accessPrivileges } = await Contacts.getPermissionsAsync();
       setStatus(status);
+      setAccessPrivileges(accessPrivileges ?? 'undetermined');
     } catch (error) {
       console.error('Error checking contact permissions:', error);
       setStatus('undetermined');
     }
   };
 
-  // Function to request permissions
   const requestPermissions = async () => {
     try {
       setStatus('loading');
       console.log('initiating perms request');
-      const { status } = await Contacts.requestPermissionsAsync();
+      const { status, accessPrivileges } =
+        await Contacts.requestPermissionsAsync();
       setStatus(status);
+      setAccessPrivileges(accessPrivileges ?? 'undetermined');
       return status;
     } catch (error) {
       console.error('Error requesting contact permissions:', error);
       setStatus('undetermined');
+      setAccessPrivileges('undetermined');
       return 'undetermined';
     }
   };
 
-  // Helper properties for permission states
   const hasPermission = status === 'granted';
+  const hasLimitedAccess = accessPrivileges === 'limited';
   const canAskPermission = status === 'undetermined';
   const permissionDenied = status === 'denied';
   const isLoading = status === 'loading';
 
   return {
     status,
+    hasLimitedAccess,
+    accessPrivileges,
     hasPermission,
     canAskPermission,
     permissionDenied,

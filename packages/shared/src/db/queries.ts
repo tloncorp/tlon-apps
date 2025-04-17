@@ -76,6 +76,8 @@ import {
   postWindows as $postWindows,
   posts as $posts,
   settings as $settings,
+  systemContactSentInvites as $systemContactSentInvites,
+  systemContacts as $systemContacts,
   threadUnreads as $threadUnreads,
   volumeSettings as $volumeSettings,
   BASE_UNREADS_SINGLETON_KEY,
@@ -103,6 +105,8 @@ import {
   Reaction,
   ReplyMeta,
   Settings,
+  SystemContact,
+  SystemContactSentInvite,
   TableName,
   ThreadUnreadState,
   VolumeSettings,
@@ -352,6 +356,83 @@ export const getAnalyticsDigest = createReadQuery(
     };
   },
   []
+);
+
+export const insertSystemContacts = createWriteQuery(
+  'insertSystemContacts',
+  async (params: { systemContacts: SystemContact[] }, ctx: QueryCtx) => {
+    const { systemContacts } = params;
+    if (!systemContacts.length) return;
+    await ctx.db
+      .insert($systemContacts)
+      .values(systemContacts)
+      .onConflictDoUpdate({
+        target: [$systemContacts.id],
+        set: conflictUpdateSetAll($systemContacts),
+      });
+  },
+  ['systemContacts', 'systemContactSentInvites', 'contacts']
+);
+
+export const linkSystemContact = createWriteQuery(
+  'insertSystemContactSentInvites',
+  async (params: { sentInvites: SystemContactSentInvite[] }, ctx: QueryCtx) => {
+    // TODO
+  },
+  ['systemContacts', 'systemContactSentInvites', 'contacts']
+);
+
+export const insertSystemContactSentInvites = createWriteQuery(
+  'insertSystemContactSentInvites',
+  async (params: { sentInvites: SystemContactSentInvite[] }, ctx: QueryCtx) => {
+    const { sentInvites } = params;
+    if (!sentInvites.length) return;
+    await ctx.db
+      .insert($systemContactSentInvites)
+      .values(sentInvites)
+      .onConflictDoUpdate({
+        target: [$systemContacts.id],
+        set: conflictUpdateSetAll($systemContacts),
+      });
+  },
+  ['systemContacts', 'systemContactSentInvites', 'contacts']
+);
+
+export const getSystemContacts = createReadQuery(
+  'getSystemContacts',
+  async (ctx: QueryCtx): Promise<SystemContact[]> => {
+    try {
+      const result = await ctx.db.query.systemContacts.findMany({
+        with: { sentInvites: true },
+      });
+      return result;
+    } catch (e) {
+      console.log(`Error getting system contacts`, e);
+      throw e;
+    }
+  },
+  ['systemContacts', 'systemContactSentInvites']
+);
+
+export const getUninvitedSystemContactsShortlist = createReadQuery(
+  'getUninvitedSystemContactsShortlist',
+  async (ctx: QueryCtx): Promise<SystemContact[]> => {
+    try {
+      const result = await ctx.db.query.systemContacts.findMany({
+        with: { sentInvites: true },
+      });
+
+      const uninvitedContacts = result.filter(
+        (contact) => contact.sentInvites?.length === 0
+      );
+
+      return uninvitedContacts.slice(0, 10);
+    } catch (e) {
+      console.log(`Error getting uninvited system contacts`, e);
+      throw e;
+    }
+  },
+  ['systemContacts', 'systemContactSentInvites']
 );
 
 export const insertCurrentUserAttestations = createWriteQuery(

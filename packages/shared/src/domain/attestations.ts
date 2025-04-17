@@ -47,9 +47,3 @@ export function displayablePhoneNumber(phoneNumber: string): string {
 
   return parsed.format('INTERNATIONAL');
 }
-
-export interface NativeContact {
-  id: string;
-  name: string;
-  phoneNumbers: string[];
-}

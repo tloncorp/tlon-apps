@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/db';
+import * as domain from '@tloncorp/shared/domain';
 import { Session } from '@tloncorp/shared/store';
 import { PropsWithChildren, createContext, useContext, useMemo } from 'react';
 
@@ -20,6 +21,9 @@ export type CurrentAppDataState = {
   calmSettings: CalmState;
   webAppNeedsUpdate?: boolean;
   triggerWebAppUpdate?: (returnToRoot?: boolean) => Promise<void>;
+  inviteSystemContacts?: (
+    params: domain.SystemContactInviteParams
+  ) => Promise<boolean>;
 };
 
 type ContextValue = CurrentAppDataState;
@@ -38,6 +42,7 @@ export const AppDataContextProvider = ({
   session,
   webAppNeedsUpdate,
   triggerWebAppUpdate,
+  inviteSystemContacts,
 }: PropsWithChildren<Partial<CurrentAppDataState>>) => {
   const value = useMemo(
     () => ({
@@ -56,6 +61,7 @@ export const AppDataContextProvider = ({
       session: session ?? null,
       webAppNeedsUpdate,
       triggerWebAppUpdate,
+      inviteSystemContacts,
     }),
     [
       currentUserId,
@@ -68,6 +74,7 @@ export const AppDataContextProvider = ({
       session,
       webAppNeedsUpdate,
       triggerWebAppUpdate,
+      inviteSystemContacts,
     ]
   );
   return <Context.Provider value={value}>{children}</Context.Provider>;
@@ -123,6 +130,13 @@ export const useWebAppUpdate = () => {
     webAppNeedsUpdate: context.webAppNeedsUpdate,
     triggerWebAppUpdate: context.triggerWebAppUpdate,
   };
+};
+
+export const useInviteSystemContacts = () => {
+  const context = useAppDataContext();
+  console.log(`bl: app data context`, context);
+
+  return context.inviteSystemContacts;
 };
 
 const useAppDataContext = (): CurrentAppDataState => {

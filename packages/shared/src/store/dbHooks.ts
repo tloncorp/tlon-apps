@@ -378,6 +378,22 @@ export const useGroupPreview = (groupId: string) => {
   });
 };
 
+export const useSystemContacts = () => {
+  const deps = useKeyFromQueryDeps(db.getSystemContacts);
+  return useQuery({
+    queryKey: ['systemContacts', deps],
+    queryFn: () => db.getSystemContacts(),
+  });
+};
+
+export const useSystemContactShortlist = () => {
+  const deps = useKeyFromQueryDeps(db.getUninvitedSystemContactsShortlist);
+  return useQuery({
+    queryKey: ['systemContacts', deps],
+    queryFn: () => db.getUninvitedSystemContactsShortlist(),
+  });
+};
+
 export const useUserContacts = () => {
   const deps = useKeyFromQueryDeps(db.getUserContacts);
   return useQuery({

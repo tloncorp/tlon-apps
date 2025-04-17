@@ -112,6 +112,13 @@ export function ChatListScreenView({
 
   const currentUser = useCurrentUserId();
 
+  const handleInviteFriends = useCallback(() => {
+    setPersonalInviteOpen(false);
+    setTimeout(() => {
+      navigation.navigate('InviteSystemContacts');
+    }, 200);
+  }, [navigation]);
+
   const connStatus = store.useConnectionStatus();
   const notReadyMessage: string | null = useMemo(() => {
     // if not fully connected yet, show status
@@ -394,6 +401,7 @@ export function ChatListScreenView({
       <PersonalInviteSheet
         open={personalInviteOpen}
         onOpenChange={() => setPersonalInviteOpen(false)}
+        onPressInviteFriends={handleInviteFriends}
       />
     </RequestsProvider>
   );

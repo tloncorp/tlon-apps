@@ -8,6 +8,8 @@ import { useCallback } from 'react';
 import { Share } from 'react-native';
 import { isWeb } from 'tamagui';
 
+import { ListItem } from './ListItem';
+
 const logger = createDevLogger('PersonalInviteButton', true);
 
 export function PersonalInviteButton() {
@@ -39,13 +41,32 @@ export function PersonalInviteButton() {
   }, [doCopy, inviteLink]);
 
   return (
-    <Button hero onPress={handleInviteButtonPress}>
-      <Button.Icon>
-        <Icon type="AddPerson" />
-      </Button.Icon>
-      <Text color="$background" size="$label/l">
-        {didCopy ? 'Copied' : 'Invite Friends'}
-      </Text>
-    </Button>
+    // <Button hero onPress={handleInviteButtonPress} height={72}>
+    //   <Button.Icon>
+    //     <Icon type="Send" />
+    //   </Button.Icon>
+    //   <Text color="$background" size="$label/l">
+    //     {didCopy ? 'Copied' : 'Share Invite Link'}
+    //   </Text>
+    // </Button>
+    <ListItem backgroundColor="$primaryText">
+      <ListItem.SystemIcon
+        icon="Send"
+        color="$background"
+        backgroundColor="unset"
+      />
+      <ListItem.MainContent>
+        <ListItem.Title color="$background">
+          {didCopy ? 'Copied' : 'Share Invite Link'}
+        </ListItem.Title>
+      </ListItem.MainContent>
+      <ListItem.EndContent>
+        <ListItem.SystemIcon
+          icon="ChevronRight"
+          color="$background"
+          backgroundColor="unset"
+        />
+      </ListItem.EndContent>
+    </ListItem>
   );
 }

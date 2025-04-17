@@ -109,6 +109,13 @@ export enum AnalyticsEvent {
   ActionGroupChannelSelected = 'Tapped group channel',
   ActionTappedPushNotif = 'Tapped Push Notification',
   ActionDeferredDeepLink = 'Installed with Deferred Deeplink Invite',
+  ActionContactBookSkipped = 'Skipped Syncing Contact Book',
+  ActionContactBookPermRequested = 'Contact Book Requesting Permission',
+  ActionContactBookPermGranted = 'Contact Book Permission Granted',
+  ActionContactBookPermDenied = 'Contact Book Permission Denied',
+  ActionContactBookInviteShown = 'Contact Book Invite Shown',
+  ActionContactBookInviteSent = 'Contact Book Invite Sent',
+  DebugSystemContacts = 'System Contacts Debug',
   GroupJoinComplete = 'Group Join Complete',
   PersonalInviteLinkReady = 'Personal Invite Link Ready',
   ErrorSendPost = 'Error Sending Post',
@@ -125,6 +132,7 @@ export enum AnalyticsEvent {
   ErrorNotificationService = 'Notification Service Error',
   ErrorCreateGroup = 'Error Creating Group',
   ErrorWayfinding = 'Wayfinding Error',
+  ErrorSystemContacts = 'System Contacts Error',
 }
 
 export interface AnalyticsDigest {

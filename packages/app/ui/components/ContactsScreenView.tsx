@@ -8,14 +8,16 @@ import { useContact, useCurrentUserId } from '../contexts';
 import { useSortedContacts } from '../hooks/contactSorters';
 import { SystemIconAvatar } from './Avatar';
 import { Badge } from './Badge';
-import { ContactListItem } from './ListItem';
+import { ContactListItem, SystemContactListItem } from './ListItem';
 
 interface Props {
   contacts: db.Contact[];
+  systemContacts: db.SystemContact[];
   suggestions: db.Contact[];
   focusedContactId?: string;
   onContactPress: (contact: db.Contact) => void;
   onContactLongPress: (contact: db.Contact) => void;
+  onInviteSystemContact: (contact: db.SystemContact) => void;
 }
 
 interface Section {
@@ -52,11 +54,34 @@ export function ContactsScreenView(props: Props) {
       });
     }
 
+    if (props.systemContacts.length > 0) {
+      result.push({
+        title: 'From your address book',
+        data: props.systemContacts,
+      });
+    }
+
     return result;
-  }, [userContact, currentUserId, sortedContacts, props.suggestions]);
+  }, [
+    userContact,
+    currentUserId,
+    sortedContacts,
+    props.suggestions,
+    props.systemContacts,
+  ]);
 
   const renderItem = useCallback(
-    ({ item }: { item: db.Contact }) => {
+    ({ item }: { item: db.Contact | db.SystemContact }) => {
+      if (db.isSystemContact(item)) {
+        return (
+          <SystemContactListItem
+            systemContact={item}
+            showInvitedStatus
+            onPress={props.onInviteSystemContact}
+          />
+        );
+      }
+
       const isSelf = item.id === currentUserId;
       const isFocused =
         props.focusedContactId === item.id ||
@@ -92,7 +117,7 @@ export function ContactsScreenView(props: Props) {
         />
       );
     },
-    [props, userContact?.id]
+    [currentUserId, props]
   );
 
   const renderSectionHeader = useCallback(

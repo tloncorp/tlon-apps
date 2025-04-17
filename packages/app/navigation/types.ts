@@ -52,6 +52,7 @@ export type RootStackParamList = {
   AppInfo: undefined;
   PushNotificationSettings: undefined;
   AddContacts: undefined;
+  InviteSystemContacts: undefined;
   UserProfile: {
     userId: string;
   };
