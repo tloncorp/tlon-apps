@@ -4,7 +4,7 @@ on:
     branches: [develop]
   workflow_dispatch:
 concurrency:
-  group: ${{ github.ref }}
+  group: ${{ format('{0}-{1}', github.ref, 'testing') }}
   cancel-in-progress: true
 jobs:
   build:
