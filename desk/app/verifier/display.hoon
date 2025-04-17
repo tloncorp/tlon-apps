@@ -196,21 +196,19 @@
       color: #1A1818;
     }
 
-    #full-details dl#signature {
-      flex-direction: column;
-      gap: 0.5rem;
-      margin-top: 1rem;
-      padding-top: 1rem;
-      border-top: 1px solid #E5E5E5;
+    .signature-hex {
+      font-family: Menlo, Consolas, Monaco, Liberation Mono, Lucida Console, monospace;
+      white-space: pre-wrap;
+      word-break: break-all;
+      width: 25ch;
+      text-indent: -2ch;
     }
 
-    #full-details dl#signature dt {
-      font-size: 0.75rem;
-    }
 
-    #full-details dl#signature dd {
-      max-width: 100%;
-      overflow-wrap: break-word;
+    .signature-hex::after {
+      content: '';
+      display: block;
+      width: 25ch;
     }
 
     #tlon-button {
@@ -226,7 +224,6 @@
       margin-top: 2rem;
       font-size: 0.9rem;
     }
-
     '''
   --
 ::
@@ -260,7 +257,7 @@
           ==
           ;dl(id "signature")
             ;dt(title "The cryptographic signature proving this verification"):"Signature Hex"
-            ;dd:"{(scow %ux current-sig)}"
+            ;dd(class "signature-hex"):"{(scow %ux current-sig)}"
           ==
         ==
         ;a(href "https://tlon.io", id "tlon-button"):"Not on Tlon Messenger? Join now"
