@@ -1,20 +1,18 @@
 // sort-imports-ignore
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
+import { Button, Icon, Pressable } from '@tloncorp/ui';
 import * as domain from '@tloncorp/shared/domain';
 import { View, isWeb } from 'tamagui';
 
 import { useGroupTitle } from '../../utils';
 import { Badge } from '../Badge';
-import { Button } from '@tloncorp/ui';
 import { ContactName } from '../ContactNameV2';
-import { Icon } from '@tloncorp/ui';
-import { Pressable } from '@tloncorp/ui';
 import { ListItem, ListItemProps } from './ListItem';
 import { getGroupStatus, getPostTypeIcon } from './listItemUtils';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
-import { useState, useMemo } from 'react';
-import { useIsWindowNarrow } from '@tloncorp/ui';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useChatOptions } from '../../contexts';
 
 export const GroupListItem = ({
   model,
@@ -25,14 +23,26 @@ export const GroupListItem = ({
   ...props
 }: { customSubtitle?: string } & ListItemProps<db.Group>) => {
   const [open, setOpen] = useState(false);
+  const { setChat } = useChatOptions();
+  const [isHovered, setIsHovered] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const unreadCount = model.unread?.count ?? 0;
   const notified = model.unread?.notify ?? false;
   const title = useGroupTitle(model);
   const { isPending, label: statusLabel, isErrored } = getGroupStatus(model);
-  const isWindowNarrow = useIsWindowNarrow();
-  const { viewedPersonalGroup } = db.wayfindingProgress.useValue();
 
-  // Memoize the trigger button to prevent re-renders
+  const handleHoverIn = useCallback(() => {
+    if (isWeb) {
+      setIsHovered(true);
+    }
+  }, []);
+
+  const handleHoverOut = useCallback(() => {
+    if (isWeb) {
+      setIsHovered(false);
+    }
+  }, []);
+
   const triggerButton = useMemo(
     () => (
       <Button
@@ -41,12 +51,44 @@ export const GroupListItem = ({
         paddingHorizontal={0}
         marginHorizontal="$-m"
         minimal
+        onPress={(e) => {
+          e.stopPropagation();
+        }}
       >
         <Icon type="Overflow" />
       </Button>
     ),
     []
   );
+
+  useEffect(() => {
+    if (isWeb && !isPending && !disableOptions && containerRef.current) {
+      const handleContextMenu = (e: MouseEvent) => {
+        e.preventDefault();
+        setOpen(true);
+        setChat({
+          type: 'group',
+          id: model.id,
+        });
+      };
+
+      const element = containerRef.current;
+      element.addEventListener('contextmenu', handleContextMenu);
+
+      return () => {
+        element.removeEventListener('contextmenu', handleContextMenu);
+      };
+    }
+  }, [disableOptions, isPending, model.id, setChat]);
+
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (!isOpen) {
+      setChat(null);
+      setIsHovered(false);
+    }
+  };
+  const { viewedPersonalGroup } = db.wayfindingProgress.useValue();
 
   const handlePress = logic.useMutableCallback(() => {
     onPress?.(model);
@@ -69,11 +111,14 @@ export const GroupListItem = ({
   }, [model.id, viewedPersonalGroup]);
 
   return (
-    <View>
+    <View ref={containerRef}>
       <Pressable
         borderRadius="$xl"
-        onPress={handlePress}
-        onLongPress={handleLongPress}
+        onPress={open ? undefined : handlePress}
+        onLongPress={isWeb ? undefined : handleLongPress}
+        hoverStyle={{ backgroundColor: '$secondaryBackground' }}
+        onHoverIn={handleHoverIn}
+        onHoverOut={handleHoverOut}
       >
         <ListItem
           {...props}
@@ -132,7 +177,6 @@ export const GroupListItem = ({
                     notified={notified}
                     count={unreadCount}
                     muted={logic.isMuted(model.volumeSettings?.level, 'group')}
-                    marginRight={isWeb ? '$xl' : 'unset'}
                     marginTop={isWeb ? 3 : 'unset'}
                   />
                 </>
@@ -140,28 +184,17 @@ export const GroupListItem = ({
             </ListItem.EndContent>
           )}
         </ListItem>
-      </Pressable>
-      {isWeb && !isPending && !disableOptions && (
-        <View position="absolute" right={10} top="$2xl" zIndex={1}>
-          {isWindowNarrow ? (
-            <Button
-              onPress={handleLongPress}
-              borderWidth="unset"
-              paddingHorizontal={0}
-              minimal
-            >
-              <Icon type="Overflow" />
-            </Button>
-          ) : (
+        {isWeb && !isPending && !disableOptions && (isHovered || open) && (
+          <View position="absolute" right={10} top="$2xl">
             <ChatOptionsSheet
               open={open}
-              onOpenChange={setOpen}
+              onOpenChange={handleOpenChange}
               chat={{ type: 'group', id: model.id }}
               trigger={triggerButton}
             />
-          )}
-        </View>
-      )}
+          </View>
+        )}
+      </Pressable>
     </View>
   );
 };
