@@ -646,7 +646,9 @@ function ChannelOptionsSheetContent({
           },
           canMarkRead && {
             title: 'Mark as read',
-            action: wrappedAction.bind(null, markChannelRead),
+            action: wrappedAction.bind(null, () =>
+              markChannelRead({ includeThreads: true })
+            ),
           },
         ],
         channel.type === 'groupDm' && [
