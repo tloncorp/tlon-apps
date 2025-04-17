@@ -192,7 +192,16 @@ const InputToolbar = memo(
         const linkBarProps: any = {
           theme: editor.theme,
           initialLink: editorState.activeLink,
-          onBlur: () => setToolbarContext(ToolbarContext.Main),
+          onBlur: () => {
+            if (Platform.OS === 'web') {
+              // Delay blur handling slightly to allow button press to register
+              setTimeout(() => {
+                setToolbarContext(ToolbarContext.Main);
+              }, 150); // 150 seems to be a good delay. 100 was too short.
+            } else {
+              setToolbarContext(ToolbarContext.Main);
+            }
+          },
           onLinkIconClick: () => {
             setToolbarContext(ToolbarContext.Main);
             editor.focus();

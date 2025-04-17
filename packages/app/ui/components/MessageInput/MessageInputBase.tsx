@@ -91,7 +91,7 @@ export const MessageInputContainer = memo(
     setShouldBlur,
     containerHeight,
     sendError,
-    showMentionPopup = false,
+    isMentionModeActive = false,
     showAttachmentButton = true,
     floatingActionButton = false,
     showWayfindingTooltip = false,
@@ -105,12 +105,13 @@ export const MessageInputContainer = memo(
     goBack,
     mentionRef,
     frameless = false,
+    setHasMentionCandidates,
   }: PropsWithChildren<{
     setShouldBlur: (shouldBlur: boolean) => void;
     onPressSend: () => void;
     containerHeight: number;
     sendError: boolean;
-    showMentionPopup?: boolean;
+    isMentionModeActive?: boolean;
     showAttachmentButton?: boolean;
     floatingActionButton?: boolean;
     showWayfindingTooltip?: boolean;
@@ -124,6 +125,7 @@ export const MessageInputContainer = memo(
     goBack?: () => void;
     mentionRef?: MentionPopupRef;
     frameless?: boolean;
+    setHasMentionCandidates?: (has: boolean) => void;
   }>) => {
     const { canUpload } = useAttachmentContext();
     const theme = useTheme();
@@ -141,11 +143,12 @@ export const MessageInputContainer = memo(
       >
         <InputMentionPopup
           containerHeight={containerHeight}
-          showMentionPopup={showMentionPopup}
+          isMentionModeActive={isMentionModeActive}
           mentionText={mentionText}
           groupMembers={groupMembers}
           onSelectMention={onSelectMention}
           ref={mentionRef}
+          setHasMentionCandidates={setHasMentionCandidates}
         />
         {!frameless ? (
           <XStack

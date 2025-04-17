@@ -51,8 +51,6 @@ export const HomeSidebar = memo(
     const { setIsOpen } = useGlobalSearch();
     const showSplash = store.useShowWebSplashModal();
 
-    // const isFocused = useIsFocused();
-
     const { data: chats } = store.useCurrentChats();
     const { performGroupAction } = useGroupActions();
 

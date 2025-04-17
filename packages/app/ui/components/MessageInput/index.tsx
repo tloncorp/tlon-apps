@@ -984,7 +984,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         mentionText={mentionText}
         groupMembers={groupMembers}
         onSelectMention={onSelectMention}
-        showMentionPopup={showMentionPopup && !bigInput}
         isEditing={!!editingPost}
         cancelEditing={handleCancelEditing}
         showAttachmentButton={showAttachmentButton}

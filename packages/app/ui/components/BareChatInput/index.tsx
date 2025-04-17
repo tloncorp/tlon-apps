@@ -234,8 +234,10 @@ export default function BareChatInput({
     mentionSearchText,
     mentions,
     setMentions,
-    showMentionPopup,
+    isMentionModeActive,
     handleMentionEscape,
+    hasMentionCandidates,
+    setHasMentionCandidates,
   } = useMentions();
   const maxInputHeight = useKeyboardHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
@@ -739,14 +741,14 @@ export default function BareChatInput({
 
       if (
         (keyEvent.key === 'ArrowUp' || keyEvent.key === 'ArrowDown') &&
-        showMentionPopup
+        isMentionModeActive
       ) {
         e.preventDefault();
         mentionRef.current?.handleMentionKey(keyEvent.key);
       }
 
       if (keyEvent.key === 'Escape') {
-        if (showMentionPopup) {
+        if (isMentionModeActive) {
           e.preventDefault();
           handleMentionEscape();
         }
@@ -754,7 +756,7 @@ export default function BareChatInput({
 
       if (keyEvent.key === 'Enter' && !keyEvent.shiftKey) {
         e.preventDefault();
-        if (showMentionPopup) {
+        if (isMentionModeActive && hasMentionCandidates) {
           mentionRef.current?.handleMentionKey('Enter');
         } else if (editingPost) {
           handleEdit();
@@ -764,12 +766,13 @@ export default function BareChatInput({
       }
     },
     [
-      showMentionPopup,
+      isMentionModeActive,
       setIsOpen,
       editingPost,
       handleEdit,
       handleSend,
       handleMentionEscape,
+      hasMentionCandidates,
     ]
   );
 
@@ -780,10 +783,11 @@ export default function BareChatInput({
       containerHeight={48}
       disableSend={editorIsEmpty}
       sendError={sendError}
-      showMentionPopup={showMentionPopup}
+      isMentionModeActive={isMentionModeActive}
       showWayfindingTooltip={showWayfindingTooltip}
       mentionText={mentionSearchText}
       mentionRef={mentionRef}
+      setHasMentionCandidates={setHasMentionCandidates}
       showAttachmentButton={showAttachmentButton}
       groupMembers={groupMembers}
       onSelectMention={onMentionSelect}
