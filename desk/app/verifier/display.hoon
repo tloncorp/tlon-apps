@@ -23,20 +23,7 @@
   =*  when  when.dat.half.tat
   =,  chrono:userlib
   =/  =date  (yore when)
-  =|  mon=tape
-  =?  mon  =(1 m.date)  "January"
-  =?  mon  =(2 m.date)  "February"
-  =?  mon  =(3 m.date)  "March"
-  =?  mon  =(4 m.date)  "April"
-  =?  mon  =(5 m.date)  "May"
-  =?  mon  =(6 m.date)  "June"
-  =?  mon  =(7 m.date)  "July"
-  =?  mon  =(8 m.date)  "August"
-  =?  mon  =(9 m.date)  "September"
-  =?  mon  =(10 m.date)  "October"
-  =?  mon  =(11 m.date)  "November"
-  =?  mon  =(12 m.date)  "December"
-  "{mon} {(a-co:co d.t.date)}, {(a-co:co y.date)}"
+  "{(snag (dec m.date) mon:yu)} {(a-co:co d.t.date)}, {(a-co:co y.date)}"
 ::
 ++  owner
   (scow %p for.dat.half.tat)
