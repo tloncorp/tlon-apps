@@ -1,6 +1,7 @@
 import { inlineSummary } from '@tloncorp/shared/logic';
 import type * as ub from '@tloncorp/shared/urbit';
 import {
+  ActivityIncomingEvent,
   getContent,
   getIdParts,
   getSourceForEvent,
@@ -75,6 +76,7 @@ export function renderActivityEventPreview({
       groupingKey: lit(sourceToString(source, true)),
     },
     message: (() => {
+      const is = ActivityIncomingEvent.is;
       switch (true) {
         case is(ev, 'post'):
         // fallthrough
@@ -120,18 +122,4 @@ export function renderActivityEventPreview({
       }
     })(),
   };
-}
-
-type UnionToIntersection<T> = {
-  [E in T as keyof E]: E[keyof E];
-};
-function is<
-  P extends ub.ActivityIncomingEvent,
-  K extends keyof UnionToIntersection<ub.ActivityIncomingEvent>,
->(
-  poly: P,
-  type: K
-): // @ts-expect-error - hey, I'm asserting here!
-poly is Pick<UnionToIntersection<ub.ActivityIncomingEvent>, K> {
-  return type in poly;
 }

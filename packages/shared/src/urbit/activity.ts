@@ -877,3 +877,33 @@ export function getRelevancy(
   );
   return 'involvedThread';
 }
+
+type UnionToIntersection<T> = {
+  [E in T as keyof E]: E[keyof E];
+};
+
+// eslint-disable-next-line @typescript-eslint/no-namespace
+export namespace ActivityIncomingEvent {
+  /**
+   * Helper for building exhaustive checks:
+   * ```ts
+   * declare const event: ActivityIncomingEvent;
+   * switch (true) {
+   * case is(event, "dm-post"):
+   *   // `event` is typed as `DmPostEvent`
+   *   return event['dm-post'].content;
+   *
+   * // TS should complain about missing cases until you add all of them
+   * }
+   * ```
+   */
+  export function is<
+    K extends keyof UnionToIntersection<ActivityIncomingEvent>,
+  >(
+    poly: ActivityIncomingEvent,
+    type: K
+  ): // @ts-expect-error - hey, I'm asserting here!
+  poly is Pick<UnionToIntersection<ActivityIncomingEvent>, K> {
+    return type in poly;
+  }
+}
