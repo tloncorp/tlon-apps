@@ -237,11 +237,7 @@
         ;div(id "owner"):"{owner}"
         ;div(id "timestamp"):"Proof of attestation on {nice-date}"
         ;div(id "full-details")
-          ;h3:"Full Attestation Details"
-          ;dl
-            ;dt(title "The type of identifier being verified (phone, X account, website, etc.)"):"Kind"
-            ;dd:"{registration-kind}"
-          ==
+          ;h3:"Details"
           ;dl
             ;dt(title "The actual identifier value (phone number, X account, etc.)"):"Value"
             ;dd:"{text-id}"
