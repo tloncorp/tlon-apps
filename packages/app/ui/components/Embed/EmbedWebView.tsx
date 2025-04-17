@@ -157,6 +157,17 @@ export const EmbedWebView = memo<EmbedWebViewProps>(
       currentHeightRef.current = webViewHeight;
     }, [webViewHeight]);
 
+    useEffect(() => {
+      const webView = webViewRef.current;
+      return () => {
+        if (webView) {
+          webView.stopLoading();
+          webView.clearHistory?.();
+          webView.clearCache?.(true);
+        }
+      };
+    }, []);
+
     const onLayoutHandler = useCallback((event: LayoutChangeEvent) => {
       if (!IS_ANDROID) return;
       const { height } = event.nativeEvent.layout;
@@ -246,7 +257,11 @@ export const EmbedWebView = memo<EmbedWebViewProps>(
       (navState: { url: string }) => {
         if (navState.url !== 'about:blank') {
           webViewRef.current?.stopLoading();
-          Linking.openURL(navState.url);
+          setTimeout(() => {
+            Linking.openURL(navState.url).catch((err) =>
+              logger.crumb('Failed to open URL:', err)
+            );
+          }, 50);
           return false;
         }
         return true;

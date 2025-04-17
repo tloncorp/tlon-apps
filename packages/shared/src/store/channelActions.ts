@@ -20,16 +20,18 @@ export async function createChannel({
   description: rawDescription,
   channelType: rawChannelType,
   contentConfiguration,
+  customSlug,
 }: {
   groupId: string;
   title: string;
   description?: string;
   channelType: Omit<db.ChannelType, 'dm' | 'groupDm'> | 'custom';
   contentConfiguration?: ChannelContentConfiguration;
+  customSlug?: string;
 }) {
   const currentUserId = api.getCurrentUserId();
   const channelType = rawChannelType === 'custom' ? 'chat' : rawChannelType;
-  const channelSlug = getRandomId();
+  const channelSlug = customSlug || getRandomId();
   const channelId = `${getChannelKindFromType(channelType)}/${currentUserId}/${channelSlug}`;
 
   logger.trackEvent(
@@ -53,6 +55,7 @@ export async function createChannel({
       contentConfiguration ??
       channelContentConfigurationForChannelType(channelType),
   };
+
   await db.insertChannels([newChannel]);
 
   // If we have a `contentConfiguration`, we need to merge these fields to make
@@ -80,9 +83,9 @@ export async function createChannel({
     });
     return newChannel;
   } catch (e) {
-    console.error('Failed to create channel', e);
     // rollback optimistic update
     await db.deleteChannels([channelId]);
+    throw new Error(`Failed to create channel ${channelId}`);
   }
 
   return newChannel;
@@ -324,15 +327,26 @@ export async function markChannelVisited(channelId: string) {
 export async function markChannelRead({
   id,
   groupId,
+  includeThreads,
 }: {
   id: string;
   groupId?: string;
+  includeThreads?: boolean;
 }) {
-  logger.log(`marking channel as read`, id);
+  logger.log(`marking channel as read`, id, 'includeThreads', includeThreads);
   // optimistic update
   const existingUnread = await db.getChannelUnread({ channelId: id });
   if (existingUnread) {
     await db.clearChannelUnread(id);
+  }
+
+  let existingThreadUnreads: db.ThreadUnreadState[] = [];
+  if (includeThreads) {
+    existingThreadUnreads = await db.getThreadUnreadsByChannel({
+      channelId: id,
+      excludeRead: true,
+    });
+    await db.clearChannelThreadUnreads({ channelId: id });
   }
 
   const existingCount = existingUnread?.count ?? 0;
@@ -355,12 +369,20 @@ export async function markChannelRead({
   }
 
   try {
-    await api.readChannel(existingChannel);
+    await api.readChannel({
+      channelId: existingChannel.id,
+      channelType: existingChannel.type,
+      groupId: existingChannel.groupId,
+      deep: !!includeThreads,
+    });
   } catch (e) {
     logger.error('Failed to read channel', { id, groupId }, e);
     // rollback optimistic update
     if (existingUnread) {
       await db.insertChannelUnreads([existingUnread]);
+    }
+    if (existingThreadUnreads.length > 0) {
+      await db.insertThreadUnreads(existingThreadUnreads);
     }
   }
 }

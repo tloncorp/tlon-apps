@@ -8,13 +8,182 @@ import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
 import { createSectionId } from '../urbit';
-import { createChannel } from './channelActions';
+import { createChannel, pinGroup } from './channelActions';
 
 const logger = createDevLogger('groupActions', false);
 
 interface CreateGroupParams {
   title?: string;
+  image?: string;
   memberIds?: string[];
+}
+
+export async function scaffoldPersonalGroup() {
+  const currentUserId = api.getCurrentUserId();
+  const PersonalGroupKeys = logic.getPersonalGroupKeys(currentUserId);
+  try {
+    logger.trackEvent(`Personal Group Scaffold`, {
+      context: 'starting personal group scaffold',
+    });
+
+    let existingGroup = await db.getGroup({ id: PersonalGroupKeys.groupId });
+    if (!existingGroup) {
+      try {
+        const groupIconUrl = logic.getRandomDefaultPersonalGroupIcon();
+        await db.insertGroups({
+          groups: [
+            {
+              id: PersonalGroupKeys.groupId,
+              currentUserIsMember: true,
+              currentUserIsHost: true,
+              hostUserId: currentUserId,
+              iconImage: groupIconUrl,
+            },
+          ],
+        });
+        await api.createGroup({
+          title: PersonalGroupKeys.groupName,
+          image: groupIconUrl,
+          slug: PersonalGroupKeys.slug,
+          privacy: 'secret',
+        });
+        logger.trackEvent('Personal Group Scaffold', {
+          note: 'Created backend group, proceeding to channels',
+        });
+      } catch (e) {
+        await db.deleteGroup(PersonalGroupKeys.groupId);
+        logger.trackEvent('Error Personal Group Scaffold', {
+          note: 'failed to create group',
+          errorMessage: e.message,
+          stack: e.stack,
+        });
+      }
+    } else {
+      logger.trackEvent('Personal Group Scaffold', {
+        note: 'Already exists, proceeding to channels',
+      });
+    }
+
+    existingGroup = await db.getGroup({ id: PersonalGroupKeys.groupId });
+    if (!existingGroup) {
+      throw new Error('Invariant violated: no existing group');
+    }
+
+    const scaffoldChatChannel = async () => {
+      const chatChan = existingGroup.channels.find(
+        (chan) =>
+          chan.type === 'chat' && chan.id === PersonalGroupKeys.chatChannelId
+      );
+      if (!chatChan) {
+        await createChannel({
+          groupId: PersonalGroupKeys.groupId,
+          customSlug: PersonalGroupKeys.chatSlug,
+          title: PersonalGroupKeys.chatChannelName,
+          channelType: 'chat',
+        });
+        logger.trackEvent('Personal Group Scaffold', {
+          note: 'Created general chat channel',
+        });
+      } else {
+        logger.trackEvent('Personal Group Scaffold', {
+          note: 'General chat channel already exists, skipping',
+        });
+      }
+    };
+
+    const scaffoldCollectionChannel = async () => {
+      const collectionChan = existingGroup.channels.find(
+        (chan) =>
+          chan.type === 'gallery' &&
+          chan.id === PersonalGroupKeys.collectionChannelId
+      );
+      if (!collectionChan) {
+        await createChannel({
+          groupId: PersonalGroupKeys.groupId,
+          customSlug: PersonalGroupKeys.collectionSlug,
+          title: PersonalGroupKeys.collectionChannelName,
+          channelType: 'gallery',
+        });
+        logger.trackEvent('Personal Group Scaffold', {
+          note: 'Created collection channel',
+        });
+      } else {
+        logger.trackEvent('Personal Group Scaffold', {
+          note: 'Collection channel already exists, skipping',
+        });
+      }
+    };
+
+    const scaffoldNotesChannel = async () => {
+      const notesChan = existingGroup.channels.find(
+        (chan) =>
+          chan.type === 'notebook' &&
+          chan.id === PersonalGroupKeys.notebookChannelId
+      );
+      if (!notesChan) {
+        await createChannel({
+          groupId: PersonalGroupKeys.groupId,
+          customSlug: PersonalGroupKeys.notebookSlug,
+          title: PersonalGroupKeys.notebookChannelName,
+          channelType: 'notebook',
+        });
+        logger.trackEvent('Personal Group Scaffold', {
+          note: 'Created notes channel',
+        });
+      } else {
+        logger.trackEvent('Personal Group Scaffold', {
+          note: 'Notes channel already exists, skipping',
+        });
+      }
+    };
+
+    await Promise.all([
+      scaffoldChatChannel(),
+      scaffoldCollectionChannel(),
+      scaffoldNotesChannel(),
+    ]);
+
+    // Final consistency check
+    const group = await db.getGroup({ id: PersonalGroupKeys.groupId });
+    const chatChannel = group?.channels.find(
+      (chan) => chan.id === PersonalGroupKeys.chatChannelId
+    );
+    const collectionChannel = group?.channels.find(
+      (chan) => chan.id === PersonalGroupKeys.collectionChannelId
+    );
+    const notesChannel = group?.channels.find(
+      (chan) => chan.id === PersonalGroupKeys.notebookChannelId
+    );
+    if (!group || !chatChannel || !collectionChannel || !notesChannel) {
+      logger.trackEvent('Personal Group Scaffold', {
+        notes: 'Completed scaffold, but not all items are present',
+        hasGroup: !!group,
+        hasChatChannel: !!chatChannel,
+        hasCollectionChannel: !!collectionChannel,
+        hasNotesChannel: !!notesChannel,
+      });
+      throw new Error('Something went wrong');
+    } else {
+      logger.trackEvent('Personal Group Scaffold', {
+        note: 'Passed final consistency check',
+      });
+    }
+
+    // attempt to pin it
+    pinGroup(group);
+
+    logger.trackEvent('Completed Personal Group Scaffold', {
+      ...logic.getModelAnalytics({ group: { id: PersonalGroupKeys.groupId } }),
+    });
+
+    return group;
+  } catch (e) {
+    logger.trackEvent('Error Personal Group Scaffold', {
+      errorMessage: e.message,
+      stack: e.stack,
+    });
+    throw new Error('Something went wrong');
+  }
 }
 
 export async function createGroup(

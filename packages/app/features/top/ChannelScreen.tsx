@@ -6,6 +6,7 @@ import {
   useChannelContext,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import {
   useCanUpload,
@@ -76,6 +77,9 @@ export default function ChannelScreen(props: Props) {
       if (!channelIsPending) {
         store.markChannelVisited(channelId);
       }
+
+      // Mark wayfinding channels as visited if needed
+      store.markPotentialWayfindingChannelVisit(channelId);
     }, [channelId, channelIsPending])
   );
 
@@ -94,18 +98,24 @@ export default function ChannelScreen(props: Props) {
       if (groupId) {
         // Update the last visited channel in the group so we can return to it
         // when we come back to the group
-        db.updateGroup({
-          id: groupId,
-          lastVisitedChannelId: channelId,
-        });
+        db.lastVisitedChannelId(groupId).setValue(channelId);
       }
     }, [groupId, channelId])
   );
 
+  const channelThreadAbortController = useRef<AbortController | null>(
+    new AbortController()
+  );
+
   useEffect(() => {
     if (!channelIsPending) {
+      if (channelThreadAbortController.current) {
+        channelThreadAbortController.current.abort();
+      }
+      channelThreadAbortController.current = new AbortController();
       store.syncChannelThreadUnreads(channelId, {
         priority: store.SyncPriority.High,
+        abortSignal: channelThreadAbortController.current?.signal,
       });
     }
   }, [channelIsPending, channelId]);

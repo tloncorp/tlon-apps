@@ -8,45 +8,7 @@ import { trackOnboardingAction } from '../utils/posthog';
 
 const logger = createDevLogger('bootHelpers', true);
 
-export enum NodeBootPhase {
-  IDLE = 1,
-  RESERVING = 2,
-  BOOTING = 3,
-  AUTHENTICATING = 4,
-  CONNECTING = 5,
-  CHECKING_FOR_INVITE = 6,
-  ACCEPTING_INVITES = 7,
-  READY = 200,
-  ERROR = 400,
-}
-
-export const BootPhaseExplanations: Record<NodeBootPhase, string> = {
-  [NodeBootPhase.IDLE]: 'Waiting to start',
-  [NodeBootPhase.RESERVING]: 'Reserving your p2p node',
-  [NodeBootPhase.BOOTING]: 'Booting your p2p node',
-  [NodeBootPhase.AUTHENTICATING]: 'Authenticating with your node',
-  [NodeBootPhase.CONNECTING]: 'Establishing a connection to your node',
-  [NodeBootPhase.CHECKING_FOR_INVITE]: 'Confirming your invites were received',
-  [NodeBootPhase.ACCEPTING_INVITES]:
-    'Initializing the conversations you were invited to',
-  [NodeBootPhase.READY]: 'Your node is ready',
-  [NodeBootPhase.ERROR]: 'Your node errored while initializing',
-};
-
-export const BootPhaseNames: Record<NodeBootPhase, string> = {
-  [NodeBootPhase.IDLE]: 'Idle',
-  [NodeBootPhase.RESERVING]: 'Reserving',
-  [NodeBootPhase.BOOTING]: 'Booting',
-  [NodeBootPhase.AUTHENTICATING]: 'Authenticating',
-  [NodeBootPhase.CONNECTING]: 'Connecting',
-  [NodeBootPhase.CHECKING_FOR_INVITE]: 'Checking for Invites',
-  [NodeBootPhase.ACCEPTING_INVITES]: 'Accepting Invites',
-  [NodeBootPhase.READY]: 'Ready',
-  [NodeBootPhase.ERROR]: 'Error',
-};
-
 export default {
-  NodeBootPhase,
   reserveNode,
   checkNodeBooted,
   getInvitedGroupAndDm,
@@ -92,7 +54,7 @@ export async function reserveNode(
 
 export async function checkNodeBooted(): Promise<boolean> {
   try {
-    const nodeStatus = await store.checkHostingNodeStatus();
+    const { status: nodeStatus } = await store.checkHostingNodeStatus();
     return nodeStatus === HostedNodeStatus.Running;
   } catch (e) {
     return false;
@@ -103,6 +65,7 @@ async function getInvitedGroupAndDm(lureMeta: AppInvite | null): Promise<{
   invitedDm: db.Channel | null;
   tlonTeamDM: db.Channel | null;
   invitedGroup: db.Group | null;
+  personalGroup: db.Group | null;
 }> {
   if (!lureMeta) {
     throw new Error('no stored invite found, cannot check');
@@ -122,9 +85,10 @@ async function getInvitedGroupAndDm(lureMeta: AppInvite | null): Promise<{
   // use api client to see if you have pending DM and group invite
   const invitedDm = await db.getChannel({ id: inviterUserId });
   const tlonTeamDM = await db.getChannel({ id: tlonTeam });
+  const personalGroup = await db.getPersonalGroup();
   const invitedGroup = isPersonalInvite
     ? null
     : await db.getGroup({ id: invitedGroupId! });
 
-  return { invitedDm, invitedGroup, tlonTeamDM };
+  return { invitedDm, invitedGroup, tlonTeamDM, personalGroup };
 }

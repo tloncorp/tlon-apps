@@ -636,6 +636,20 @@ export const inlineToContent = (
     const inlineValue = inline[key as keyof Inline];
     const newContext: JSONContent = ctx ? Object.assign(ctx) : {};
     newContext.marks = [makeMarks(key), ...(newContext?.marks ?? [])];
+    if (key === 'code') {
+      // this is a special case for inline code. `code` is always actually a code block,
+      // meanwhile `inline-code` is a span of text.
+      return {
+        type: 'codeBlock',
+        content: [
+          {
+            type: 'text',
+            text: inline[key as keyof Inline] as string,
+          },
+        ],
+      };
+    }
+
     // if Array, it's a nestable tag (bold, italics, strike); otherwise it's
     // an un-nestable tag such as inline-code or code
     return inlineToContent(

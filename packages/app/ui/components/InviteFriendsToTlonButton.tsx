@@ -12,7 +12,7 @@ import { LoadingSpinner } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { ComponentProps, useCallback, useEffect } from 'react';
 import { Share } from 'react-native';
-import { isWeb } from 'tamagui';
+import { ColorTokens, isWeb } from 'tamagui';
 
 import { useCurrentUserId, useInviteService } from '../contexts';
 import { useIsAdmin } from '../utils';
@@ -21,8 +21,12 @@ const logger = createDevLogger('InviteButton', true);
 
 export function InviteFriendsToTlonButton({
   group,
+  textColor,
   ...props
-}: { group?: db.Group } & Omit<ComponentProps<typeof Button>, 'group'>) {
+}: { group?: db.Group; textColor?: ColorTokens } & Omit<
+  ComponentProps<typeof Button>,
+  'group'
+>) {
   const userId = useCurrentUserId();
   const isGroupAdmin = useIsAdmin(group?.id ?? '', userId);
   const inviteService = useInviteService();
@@ -105,13 +109,21 @@ export function InviteFriendsToTlonButton({
       {...props}
     >
       {linkIsReady ? (
-        <Icon type="AddPerson" color="$secondaryText" size="$m" />
+        <Icon
+          type="AddPerson"
+          color={textColor ?? '$secondaryText'}
+          size="$m"
+        />
       ) : linkIsLoading ? (
-        <LoadingSpinner size="small" />
+        <LoadingSpinner size="small" color={textColor ?? undefined} />
       ) : linkFailed ? (
-        <Icon type="Placeholder" color="$secondaryText" size="$m" />
+        <Icon
+          type="Placeholder"
+          color={textColor ?? '$secondaryText'}
+          size="$m"
+        />
       ) : null}
-      <Button.Text>
+      <Button.Text color={textColor ?? 'unset'}>
         {didCopy
           ? 'Copied'
           : linkIsReady
