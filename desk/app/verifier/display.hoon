@@ -280,7 +280,7 @@
             ;dd:"{(scow %ux current-sig)}"
           ==
         ==
-        ;a(href "https://join.tlon.io/FOO", id "tlon-button"):"Not on Tlon Messenger? Join now"
+        ;a(href "https://tlon.io", id "tlon-button"):"Not on Tlon Messenger? Join now"
       ==
   ::
   ++  text
