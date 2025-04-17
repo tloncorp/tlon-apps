@@ -15,8 +15,6 @@ export type ContactPermissionAccessPrivileges =
 
 export function useContactPermissions() {
   const [status, setStatus] = useState<ContactPermissionStatus>('loading');
-  const [accessPrivileges, setAccessPrivileges] =
-    useState<ContactPermissionAccessPrivileges>('undetermined');
 
   useEffect(() => {
     checkPermissions();
@@ -25,9 +23,8 @@ export function useContactPermissions() {
   const checkPermissions = async () => {
     try {
       setStatus('loading');
-      const { status, accessPrivileges } = await Contacts.getPermissionsAsync();
+      const { status } = await Contacts.getPermissionsAsync();
       setStatus(status);
-      setAccessPrivileges(accessPrivileges ?? 'undetermined');
     } catch (error) {
       console.error('Error checking contact permissions:', error);
       setStatus('undetermined');
@@ -38,29 +35,23 @@ export function useContactPermissions() {
     try {
       setStatus('loading');
       console.log('initiating perms request');
-      const { status, accessPrivileges } =
-        await Contacts.requestPermissionsAsync();
+      const { status } = await Contacts.requestPermissionsAsync();
       setStatus(status);
-      setAccessPrivileges(accessPrivileges ?? 'undetermined');
       return status;
     } catch (error) {
       console.error('Error requesting contact permissions:', error);
       setStatus('undetermined');
-      setAccessPrivileges('undetermined');
       return 'undetermined';
     }
   };
 
   const hasPermission = status === 'granted';
-  const hasLimitedAccess = accessPrivileges === 'limited';
   const canAskPermission = status === 'undetermined';
   const permissionDenied = status === 'denied';
   const isLoading = status === 'loading';
 
   return {
     status,
-    hasLimitedAccess,
-    accessPrivileges,
     hasPermission,
     canAskPermission,
     permissionDenied,

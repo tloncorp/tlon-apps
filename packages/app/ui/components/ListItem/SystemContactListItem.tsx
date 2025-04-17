@@ -21,7 +21,7 @@ export const SystemContactListItem = ({
   ...props
 }: {
   systemContact: db.SystemContact;
-  iconProps: Partial<ComponentProps<typeof ListItem.SystemIcon>>;
+  iconProps?: Partial<ComponentProps<typeof ListItem.SystemIcon>>;
   invitedToContext?: string;
   showInvitedStatus?: boolean;
   onPress?: (systemContact: db.SystemContact) => void;
