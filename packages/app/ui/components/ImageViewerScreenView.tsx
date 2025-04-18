@@ -24,7 +24,7 @@ import { Stack, View, XStack, YStack, ZStack, isWeb } from 'tamagui';
 
 import { triggerHaptic } from '../utils';
 
-const logger = createDevLogger('imageViewer', true);
+const logger = createDevLogger('imageViewer', false);
 
 export function ImageViewerScreenView(props: {
   uri?: string;
