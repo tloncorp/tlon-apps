@@ -54,10 +54,6 @@ export function InviteSystemContactsScreen(props: Props) {
     [searchResults, systemContacts]
   );
 
-  useEffect(() => {
-    console.log(`bl: recipient change`, selectedRecipients);
-  }, [selectedRecipients]);
-
   const handleItemPress = useCallback(
     (item: db.SystemContact) => {
       if (selectedRecipients.some((contact) => contact.id === item.id)) {
@@ -176,6 +172,8 @@ export function InviteSystemContactsScreen(props: Props) {
             marginHorizontal: 14,
             paddingBottom: insets.bottom,
           }}
+          stickySectionHeadersEnabled={false}
+          stickyHeaderHiddenOnScroll={false}
         ></BlockSectionList>
       </View>
     </View>
