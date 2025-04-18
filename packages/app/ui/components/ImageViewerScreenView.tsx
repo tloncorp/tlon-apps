@@ -79,6 +79,7 @@ export function ImageViewerScreenView(props: {
     try {
       const { status, canAskAgain } =
         await MediaLibrary.requestPermissionsAsync();
+      let permissionStatus;
 
       switch (status) {
         case MediaLibrary.PermissionStatus.GRANTED:
@@ -99,9 +100,9 @@ export function ImageViewerScreenView(props: {
                 {
                   text: 'Grant Permission',
                   onPress: async () => {
-                    const { status: newStatus } =
+                    const { status: retryStatus } =
                       await MediaLibrary.requestPermissionsAsync();
-                    if (newStatus !== MediaLibrary.PermissionStatus.GRANTED) {
+                    if (retryStatus !== MediaLibrary.PermissionStatus.GRANTED) {
                       logger.trackError(
                         'Photo library permission denied after retry',
                         { canAskAgain: true }
@@ -143,9 +144,9 @@ export function ImageViewerScreenView(props: {
             return;
           }
         case MediaLibrary.PermissionStatus.UNDETERMINED:
-          const { status: newStatus } =
-            await MediaLibrary.requestPermissionsAsync();
-          if (newStatus !== MediaLibrary.PermissionStatus.GRANTED) {
+          const result = await MediaLibrary.requestPermissionsAsync();
+          permissionStatus = result.status;
+          if (permissionStatus !== MediaLibrary.PermissionStatus.GRANTED) {
             logger.trackError(
               'Photo library permission denied on first request',
               { canAskAgain: true }
