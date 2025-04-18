@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useActiveTheme } from '@tloncorp/app/provider';
 import {
   Image,
   PrimaryButton,
@@ -7,11 +8,9 @@ import {
   XStack,
   YStack,
   useStore,
-  useTheme,
 } from '@tloncorp/app/ui';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
-import { useActiveTheme } from 'packages/app/provider';
 import { useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
