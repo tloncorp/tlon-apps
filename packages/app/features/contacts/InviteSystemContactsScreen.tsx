@@ -4,9 +4,9 @@ import * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import Fuse from 'fuse.js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Insets, Keyboard } from 'react-native';
+import { Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Stack, View, useStyle } from 'tamagui';
+import { Stack, View } from 'tamagui';
 
 import type { RootStackParamList } from '../../navigation/types';
 import {
@@ -30,11 +30,6 @@ export function InviteSystemContactsScreen(props: Props) {
   >([]);
   const [searchResults, setSearchResults] = useState<db.SystemContact[]>([]);
   const insets = useSafeAreaInsets();
-
-  const scrollIndicatorInsets = useStyle({
-    bottom: insets.bottom,
-    top: '$xl',
-  }) as Insets;
 
   const searchService = useMemo(() => {
     return new ContactSearchService(systemContacts ?? []);

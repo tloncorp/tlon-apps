@@ -1,8 +1,10 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
+import { Text } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 import { Alert, Switch } from 'react-native';
+import { YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { RootStackParamList } from '../../navigation/types';
@@ -63,20 +65,31 @@ export function PrivacySettingsScreen(props: Props) {
         marginHorizontal="auto"
         paddingHorizontal="$xl"
       >
-        {phoneAttest && (
-          <XStack
-            justifyContent="space-between"
-            alignItems="center"
-            padding="$l"
-          >
-            <SizableText flexShrink={1}>Discoverability</SizableText>
-            <Switch
-              style={{ flexShrink: 0 }}
-              value={state.phoneDiscoverable}
-              onValueChange={togglePhoneDiscoverable}
-            ></Switch>
-          </XStack>
-        )}
+        <YStack paddingHorizontal="$l" paddingTop="$2xl" gap="$xl">
+          <Text size="$label/l" color="$secondaryText">
+            Phone Number
+          </Text>
+          {phoneAttest ? (
+            <YStack gap="$l">
+              <XStack justifyContent="space-between" alignItems="center">
+                <SizableText flexShrink={1}>Allow phone discovery</SizableText>
+                <Switch
+                  style={{ flexShrink: 0 }}
+                  value={state.phoneDiscoverable}
+                  onValueChange={togglePhoneDiscoverable}
+                ></Switch>
+              </XStack>
+              <Text size="$label/s" color="$secondaryText">
+                If enabled, others who already have your phone number will be
+                able to find you on Tlon.
+              </Text>
+            </YStack>
+          ) : (
+            <Text textAlign="center">
+              No phone number associated with your account.
+            </Text>
+          )}
+        </YStack>
       </View>
     </View>
   );

@@ -1,19 +1,21 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
+  Image,
   PrimaryButton,
   ScreenHeader,
   View,
+  XStack,
   YStack,
   useStore,
+  useTheme,
 } from '@tloncorp/app/ui';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
-import * as Contacts from 'expo-contacts';
+import { useActiveTheme } from 'packages/app/provider';
 import { useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useContactPermissions } from '../../hooks/useContactPermissions';
-import { processNativeContacts } from '../../lib/contactsHelpers';
 import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ShareContacts'>;
@@ -21,21 +23,22 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'ShareContacts'>;
 const logger = createDevLogger('ShareContactsScreen', true);
 
 export const ShareContactsScreen = ({ navigation }: Props) => {
+  const activeTheme = useActiveTheme();
   const insets = useSafeAreaInsets();
   const store = useStore();
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const perms = useContactPermissions();
 
+  const facesImage =
+    activeTheme === 'dark'
+      ? require('../../../assets/images/faces-dark.png')
+      : require('../../../assets/images/faces.png');
+
   const processContacts = async () => {
     try {
       setIsProcessing(true);
-      const { data: nativeContactBook } = await Contacts.getContactsAsync({
-        fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Emails],
-      });
-      const processedContacts = processNativeContacts(nativeContactBook);
-      await store.importSystemContactBook(processedContacts);
-
+      await store.syncSystemContacts();
       // if successful, continue onboarding
       navigation.navigate('ReserveShip');
     } catch (error) {
@@ -86,7 +89,15 @@ export const ShareContactsScreen = ({ navigation }: Props) => {
             {error}
           </Text>
         )}
-        <YStack flex={1} justifyContent="flex-end" gap="$l" paddingBottom="$xl">
+        <XStack
+          flex={1}
+          justifyContent="center"
+          alignItems="center"
+          marginTop="$xl"
+        >
+          <Image height={155} aspectRatio={862 / 609} source={facesImage} />
+        </XStack>
+        <YStack justifyContent="flex-end" gap="$l" paddingBottom="$xl">
           {isProcessing && <LoadingSpinner />}
           {(perms.hasPermission || perms.canAskPermission) && (
             <>

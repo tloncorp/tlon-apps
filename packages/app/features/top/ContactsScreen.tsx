@@ -6,6 +6,7 @@ import { useCallback } from 'react';
 import { Alert } from 'react-native';
 import { useTheme } from 'tamagui';
 
+import SystemNotices from '../..//ui/components/SystemNotices';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import type { RootStackParamList } from '../../navigation/types';
 import {
@@ -151,6 +152,12 @@ export default function ContactsScreen(props: Props) {
                 }}
               />
             }
+          />
+          <SystemNotices.ContactBookPrompt
+            status="undetermined"
+            onDismiss={() => {}}
+            onRequestAccess={() => {}}
+            onOpenSettings={() => {}}
           />
           <ContactsScreenView
             contacts={userContacts ?? []}

@@ -1,10 +1,8 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as domain from '@tloncorp/shared/domain';
 import { AnalyticsEvent } from '@tloncorp/shared/domain';
-import * as Contacts from 'expo-contacts';
 import * as MailComposer from 'expo-mail-composer';
 import * as SMS from 'expo-sms';
-import * as LibPhone from 'libphonenumber-js';
 import { Alert } from 'react-native';
 
 const logger = createDevLogger('ContactsHelpers', true);
@@ -100,86 +98,86 @@ ${params.invite.link}`,
   return false;
 }
 
-export async function getSystemContactBook(): Promise<domain.SystemContact[]> {
-  const { data: nativeContactBook } = await Contacts.getContactsAsync({
-    fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Emails],
-  });
-  const processedContacts = processNativeContacts(nativeContactBook);
-  return processedContacts;
-}
+// export async function getSystemContactBook(): Promise<domain.SystemContact[]> {
+//   const { data: nativeContactBook } = await Contacts.getContactsAsync({
+//     fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Emails],
+//   });
+//   const processedContacts = processNativeContacts(nativeContactBook);
+//   return processedContacts;
+// }
 
-export function processNativeContacts(
-  nativeContacts: Contacts.Contact[]
-): domain.SystemContact[] {
-  const parsed = nativeContacts
-    .filter((contact) => {
-      const hasPhoneNumbers =
-        contact.phoneNumbers && contact.phoneNumbers.length > 0;
-      const hasEmails = contact.emails && contact.emails.length > 0;
-      return hasPhoneNumbers || hasEmails;
-    })
-    .map((contact) => {
-      // Extract and format phone numbers
-      const phoneNumbers = (contact.phoneNumbers || [])
-        .map((phoneRecord) => {
-          // Skip if no number
-          if (!phoneRecord.number) return null;
+// export function processNativeContacts(
+//   nativeContacts: Contacts.Contact[]
+// ): domain.SystemContact[] {
+//   const parsed = nativeContacts
+//     .filter((contact) => {
+//       const hasPhoneNumbers =
+//         contact.phoneNumbers && contact.phoneNumbers.length > 0;
+//       const hasEmails = contact.emails && contact.emails.length > 0;
+//       return hasPhoneNumbers || hasEmails;
+//     })
+//     .map((contact) => {
+//       // Extract and format phone numbers
+//       const phoneNumbers = (contact.phoneNumbers || [])
+//         .map((phoneRecord) => {
+//           // Skip if no number
+//           if (!phoneRecord.number) return null;
 
-          // Get country code from the record or fallback to 'US'
-          const countryCode = (phoneRecord.countryCode || 'us').toUpperCase();
+//           // Get country code from the record or fallback to 'US'
+//           const countryCode = (phoneRecord.countryCode || 'us').toUpperCase();
 
-          try {
-            // Try to parse using the provided country code
-            if (LibPhone.isValidPhoneNumber(phoneRecord.number)) {
-              const parsedNumber = LibPhone.parsePhoneNumberFromString(
-                phoneRecord.number,
-                countryCode as LibPhone.CountryCode
-              );
-              return parsedNumber?.format('E.164'); // Format as +12623881275
-            }
+//           try {
+//             // Try to parse using the provided country code
+//             if (LibPhone.isValidPhoneNumber(phoneRecord.number)) {
+//               const parsedNumber = LibPhone.parsePhoneNumberFromString(
+//                 phoneRecord.number,
+//                 countryCode as LibPhone.CountryCode
+//               );
+//               return parsedNumber?.format('E.164'); // Format as +12623881275
+//             }
 
-            // If we have digits, we can try to use those directly with the country code
-            if (phoneRecord.digits) {
-              // For US numbers (10 digits)
-              if (countryCode === 'US' && phoneRecord.digits.length === 10) {
-                return `+1${phoneRecord.digits}`;
-              }
+//             // If we have digits, we can try to use those directly with the country code
+//             if (phoneRecord.digits) {
+//               // For US numbers (10 digits)
+//               if (countryCode === 'US' && phoneRecord.digits.length === 10) {
+//                 return `+1${phoneRecord.digits}`;
+//               }
 
-              // For non-US numbers, try to parse the digits with country code
-              try {
-                const digitNumber = `+${phoneRecord.digits}`;
-                if (LibPhone.isValidPhoneNumber(digitNumber)) {
-                  return digitNumber;
-                }
-              } catch (_) {
-                // Continue to fallback if this fails
-              }
-            }
+//               // For non-US numbers, try to parse the digits with country code
+//               try {
+//                 const digitNumber = `+${phoneRecord.digits}`;
+//                 if (LibPhone.isValidPhoneNumber(digitNumber)) {
+//                   return digitNumber;
+//                 }
+//               } catch (_) {
+//                 // Continue to fallback if this fails
+//               }
+//             }
 
-            // Fallback: basic normalization
-            const normalizedNumber = phoneRecord.number.replace(/\D/g, '');
-            return normalizedNumber.length > 0 ? `+${normalizedNumber}` : null;
-          } catch (error) {
-            // Final fallback
-            return phoneRecord.digits ? `+${phoneRecord.digits}` : null;
-          }
-        })
-        .filter((num): num is string => num !== null);
+//             // Fallback: basic normalization
+//             const normalizedNumber = phoneRecord.number.replace(/\D/g, '');
+//             return normalizedNumber.length > 0 ? `+${normalizedNumber}` : null;
+//           } catch (error) {
+//             // Final fallback
+//             return phoneRecord.digits ? `+${phoneRecord.digits}` : null;
+//           }
+//         })
+//         .filter((num): num is string => num !== null);
 
-      const sysContact: domain.SystemContact = {
-        id: contact.id!,
-        firstName: contact.firstName,
-        lastName: contact.lastName,
-        phoneNumber: phoneNumbers.length > 0 ? phoneNumbers[0] : undefined,
-        email: contact.emails?.[0]?.email,
-      };
+//       const sysContact: domain.SystemContact = {
+//         id: contact.id!,
+//         firstName: contact.firstName,
+//         lastName: contact.lastName,
+//         phoneNumber: phoneNumbers.length > 0 ? phoneNumbers[0] : undefined,
+//         email: contact.emails?.[0]?.email,
+//       };
 
-      return sysContact;
-    })
-    .filter((contact) => {
-      return contact.phoneNumber || contact.email;
-    });
+//       return sysContact;
+//     })
+//     .filter((contact) => {
+//       return contact.phoneNumber || contact.email;
+//     });
 
-  console.log(`bl: parsed system contacts`, parsed);
-  return parsed;
-}
+//   console.log(`bl: parsed system contacts`, parsed);
+//   return parsed;
+// }

@@ -4,29 +4,31 @@ import { useCallback, useEffect, useState } from 'react';
 import * as ContactHelpers from '../lib/contactsHelpers';
 import { useContactPermissions } from './useContactPermissions';
 
-export function useCheckSystemContacts() {
-  const perms = useContactPermissions();
-  const [didLoadInitial, setDidLoadInitial] = useState(false);
-  const store = useStore();
+// TODO: Delete
 
-  const loadSystemContacts = useCallback(async () => {
-    const systemContacts = await ContactHelpers.getSystemContactBook();
-    await store.importSystemContactBook(systemContacts);
-  }, [store]);
+// export function useCheckSystemContacts() {
+//   const perms = useContactPermissions();
+//   const [didLoadInitial, setDidLoadInitial] = useState(false);
+//   const store = useStore();
 
-  // If we can ask, do
-  useEffect(() => {
-    if (!perms.isLoading && perms.canAskPermission) {
-      perms.requestPermissions();
-    }
-  }, [perms]);
+//   const loadSystemContacts = useCallback(async () => {
+//     const systemContacts = await ContactHelpers.getSystemContactBook();
+//     await store.importSystemContactBook(systemContacts);
+//   }, [store]);
 
-  useEffect(() => {
-    if (perms.status === 'granted' && !didLoadInitial) {
-      loadSystemContacts();
-      setDidLoadInitial(true);
-    }
-  }, [didLoadInitial, loadSystemContacts, perms.status]);
+//   // If we can ask, do
+//   useEffect(() => {
+//     if (!perms.isLoading && perms.canAskPermission) {
+//       perms.requestPermissions();
+//     }
+//   }, [perms]);
 
-  return { didLoadInitial };
-}
+//   useEffect(() => {
+//     if (perms.status === 'granted' && !didLoadInitial) {
+//       loadSystemContacts();
+//       setDidLoadInitial(true);
+//     }
+//   }, [didLoadInitial, loadSystemContacts, perms.status]);
+
+//   return { didLoadInitial };
+// }

@@ -17,7 +17,6 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { checkAnalyticsDigest, useCheckAppUpdated } from '../hooks/analytics';
 import { useCheckNodeStopped } from '../hooks/useCheckNodeStopped';
-import { useCheckSystemContacts } from '../hooks/useCheckSystemContacts';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
 import { inviteSystemContacts } from '../lib/contactsHelpers';
@@ -34,7 +33,6 @@ function AuthenticatedApp() {
   useNetworkLogger();
   useCheckAppUpdated();
   useFindSuggestedContacts();
-  useCheckSystemContacts();
 
   const handleAppStatusChange = useCallback(
     (status: AppStatus) => {
