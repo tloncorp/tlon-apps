@@ -87,10 +87,36 @@ export async function sendPost({
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.ErrorSendPost, {
       errorMessage: e.message,
+      errorType: e.constructor?.name,
+      errorStack: e.stack,
+      errorDetails: JSON.stringify(e, Object.getOwnPropertyNames(e)),
     });
     logger.crumb('failed to send post');
-    console.error('Failed to send post', e);
-    await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
+    console.error('Failed to send post', {
+      message: e.message,
+      type: e.constructor?.name,
+      stack: e.stack,
+      fullError: e,
+    });
+
+    // Check if error is connection-related like "Aborted" or "Channel was reaped"
+    // In these cases, the server might have received the message even though
+    // the client didn't get the confirmation
+    const errorMsg = e.message?.toLowerCase() || '';
+    const isConnectionRelated =
+      errorMsg === 'aborted' ||
+      errorMsg.includes('channel was reaped') ||
+      errorMsg.includes('fetch timed out');
+
+    if (isConnectionRelated) {
+      logger.crumb('connection issue detected, marking for verification');
+      await db.updatePost({
+        id: cachePost.id,
+        deliveryStatus: 'needs_verification',
+      });
+    } else {
+      await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
+    }
   }
 }
 
@@ -411,6 +437,54 @@ export async function addPostReaction(
     });
     // rollback optimistic update
     await db.deletePostReaction({ postId: post.id, contactId: currentUserId });
+  }
+}
+
+/**
+ * Verifies whether a post was actually delivered to the server.
+ * This is used for posts that are marked as 'needs_verification' due to connection issues.
+ */
+export async function verifyPostDelivery(post: db.Post): Promise<boolean> {
+  logger.crumb('verifying post delivery', {
+    postId: post.id,
+    channelId: post.channelId,
+  });
+
+  if (post.deliveryStatus !== 'needs_verification') {
+    logger.crumb('post does not need verification', {
+      status: post.deliveryStatus,
+    });
+    return false;
+  }
+
+  try {
+    // Attempt to fetch the post from the server
+    await api.getPostWithReplies({
+      postId: post.id,
+      channelId: post.channelId,
+      authorId: post.authorId,
+    });
+
+    // Post was found on the server, update status to 'sent'
+    logger.crumb('post verified as delivered', { postId: post.id });
+    await db.updatePost({ id: post.id, deliveryStatus: 'sent' });
+    return true;
+  } catch (e) {
+    const errorStatus = e.status;
+
+    // If error indicates post not found (404), mark as failed
+    if (errorStatus === 404) {
+      logger.crumb('post verified as not delivered', { postId: post.id });
+      await db.updatePost({ id: post.id, deliveryStatus: 'failed' });
+      return false;
+    }
+
+    // For other errors (network issues, etc.), keep status as is for now
+    logger.crumb('post verification inconclusive', {
+      postId: post.id,
+      error: e.message,
+    });
+    return false;
   }
 }
 
