@@ -1,4 +1,4 @@
-import { Text } from '@tloncorp/ui';
+import { Text, Button } from '@tloncorp/ui';
 
 import { ActionSheet, Icon, Image, View, XStack, YStack } from '../..';
 
@@ -12,8 +12,8 @@ export function OnboardingBenefitsSheet({
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>
       <ActionSheet.Content>
-        <YStack gap="$3.5xl" paddingHorizontal="$2xl">
-          <View borderRadius="$2xl" overflow="hidden">
+        <YStack gap="$2xl" paddingHorizontal="$2xl">
+          <View borderRadius="$xl" overflow="hidden">
             <Image
               style={{ width: '100%', height: 188 }}
               resizeMode={'cover'}
@@ -22,15 +22,15 @@ export function OnboardingBenefitsSheet({
           </View>
 
           <YStack gap="$l">
-            <Text fontSize={32} fontWeight={'400'} size="$title/l">
-              Welcome to TM
+            <Text fontSize={24} fontWeight={'600'}>
+              Welcome to Tlon Messenger
             </Text>
             <Text size="$body" color="$tertiaryText">
               A messenger you can actually trust.
             </Text>
           </YStack>
 
-          <XStack gap="$l">
+          <XStack gap="$l" alignItems="center">
             <View>
               <View
                 backgroundColor={'$secondaryBackground'}
@@ -41,17 +41,16 @@ export function OnboardingBenefitsSheet({
               </View>
             </View>
             <YStack gap="$xs" flex={1}>
-              <Text fontWeight="$xl">
-                Tlon operates on a peer-to-peer network.
+              <Text fontSize={'$l'} fontWeight="$xl">
+                Tlon is a peer-to-peer network.
               </Text>
               <Text color="$tertiaryText" fontSize={'$xs'} lineHeight={'$xs'}>
-                Practically, this means your free account is a cloud computer.
-                You can run it yourself, or we can run it for you.
+                Each account is a personal cloud computer—run it yourself or let us host it. Either way, it's truly yours.
               </Text>
             </YStack>
           </XStack>
 
-          <XStack gap="$l">
+          <XStack gap="$l" alignItems="center">
             <View>
               <View
                 backgroundColor={'$secondaryBackground'}
@@ -62,15 +61,14 @@ export function OnboardingBenefitsSheet({
               </View>
             </View>
             <YStack gap="$xs" flex={1}>
-              <Text fontWeight="$xl">Hassle-free messaging you can trust.</Text>
+              <Text fontSize={'$l'} fontWeight="$xl">Hassle-free messaging you can trust.</Text>
               <Text color="$tertiaryText" fontSize={'$xs'} lineHeight={'$xs'}>
-                We&rsquo;ll make sure your computer is online and up-to-date.
-                Interested in self-hosting? You can always change your mind.
+                We handle uptime, security, and updates—your node is always up to date.
               </Text>
             </YStack>
           </XStack>
 
-          <XStack gap="$l">
+          <XStack gap="$l" alignItems="center">
             <View>
               <View
                 backgroundColor={'$secondaryBackground'}
@@ -81,12 +79,18 @@ export function OnboardingBenefitsSheet({
               </View>
             </View>
             <YStack gap="$xs" flex={1}>
-              <Text fontWeight="$xl">Sign up with your email address.</Text>
+              <Text fontSize={'$l'} fontWeight="$xl">Sign via email or phone.</Text>
               <Text color="$tertiaryText" fontSize={'$xs'} lineHeight={'$xs'}>
-                We&rsquo;ll ask you a few questions to get you set up.
+                Claim your node in seconds and start connecting right away.
               </Text>
             </YStack>
           </XStack>
+          <Button
+            onPress={() => onOpenChange(false)}
+            hero
+          >
+            <Text fontSize={'$l'} color="$background">Continue</Text>
+          </Button>
         </YStack>
       </ActionSheet.Content>
     </ActionSheet>
