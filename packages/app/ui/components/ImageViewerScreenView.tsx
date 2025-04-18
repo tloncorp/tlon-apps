@@ -143,7 +143,7 @@ export function ImageViewerScreenView(props: {
             );
             return;
           }
-        case MediaLibrary.PermissionStatus.UNDETERMINED:
+        case MediaLibrary.PermissionStatus.UNDETERMINED: {
           const result = await MediaLibrary.requestPermissionsAsync();
           permissionStatus = result.status;
           if (permissionStatus !== MediaLibrary.PermissionStatus.GRANTED) {
@@ -158,6 +158,7 @@ export function ImageViewerScreenView(props: {
             return;
           }
           break;
+        }
       }
 
       if (!props.uri) {
