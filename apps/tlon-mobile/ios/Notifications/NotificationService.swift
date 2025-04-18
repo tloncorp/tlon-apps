@@ -35,7 +35,15 @@ class NotificationService: UNNotificationServiceExtension {
         notification.interruptionLevel = .active
         notification.threadIdentifier = renderer.render(preview.notification.groupingKey)
         notification.sound = UNNotificationSound.default
+        if let activityEventJsonString = try? JSONSerialization.jsonString(withJSONObject: rawActivityEvent) {
+            notification.userInfo = ["activityEventJsonString": activityEventJsonString]
+        }
         
+        // NB: We previously set `categoryIdentifier` to one of "message" or "invite". I think this
+        // only enables inline actions on the alert, which we no longer support.
+        //
+        // notification.categoryIdentifier = self.category.rawValue
+
         guard let message = preview.message else {
             return notification
         }
@@ -162,23 +170,28 @@ extension Encodable {
 private struct RenderNotificationPreviewResult: Codable {
     let title: String?
     let body: String?
-    
-    // TODO
-//    let userInfo: [String: Any]?
 }
 
 extension JSValue {
     func decode<T: Decodable>(as type: T.Type) throws -> T {
-        // Convert JSValue to a Foundation object (e.g. [String: Any])
-        guard let object = self.toObject(),
-              JSONSerialization.isValidJSONObject(object) else {
-            throw NSError(domain: "JSValueError", code: 1, userInfo: [NSLocalizedDescriptionKey: "JSValue is not a valid JSON object"])
+        guard
+            let object = self.toObject(),
+            JSONSerialization.isValidJSONObject(object)
+        else {
+            throw NSError(
+                domain: "JSValueError",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "JSValue is not a valid JSON object"]
+            )
         }
-        
-        // Serialize to JSON Data
         let jsonData = try JSONSerialization.data(withJSONObject: object, options: [])
-        
-        // Decode using JSONDecoder
         return try JSONDecoder().decode(T.self, from: jsonData)
+    }
+}
+
+extension JSONSerialization {
+    static func jsonString(withJSONObject data: Any, options: JSONSerialization.WritingOptions = []) throws -> String {
+        let data = try self.data(withJSONObject: data, options: options)
+        return String(data: data, encoding: .utf8)!
     }
 }
