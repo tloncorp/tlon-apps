@@ -522,6 +522,24 @@ export const useAttestations = () => {
   });
 };
 
+export const useCurrentUserAttestations = () => {
+  const currentUserId = api.getCurrentUserId();
+  const deps = useKeyFromQueryDeps(db.getUserAttestations);
+  return useQuery({
+    queryKey: ['attestations', deps],
+    queryFn: () => db.getUserAttestations({ userId: currentUserId }),
+  });
+};
+
+export const useCurrentUserPhoneAttestation = () => {
+  const { data: attests } = useCurrentUserAttestations();
+  const phoneAttest = useMemo(() => {
+    return attests?.find((a) => a.type === 'phone' && a.status === 'verified');
+  }, [attests]);
+
+  return phoneAttest ?? null;
+};
+
 export const usePersonalGroup = () => {
   const deps = useKeyFromQueryDeps(db.getPersonalGroup);
   return useQuery({

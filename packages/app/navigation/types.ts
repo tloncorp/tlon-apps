@@ -49,6 +49,7 @@ export type RootStackParamList = {
   FeatureFlags: undefined;
   ManageAccount: undefined;
   BlockedUsers: undefined;
+  PrivacySettings: undefined;
   AppInfo: undefined;
   PushNotificationSettings: undefined;
   AddContacts: undefined;

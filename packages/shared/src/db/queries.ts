@@ -504,6 +504,37 @@ export const getAttestations = createReadQuery(
   ['attestations']
 );
 
+export const getAttestation = createReadQuery(
+  'getAttestation',
+  async ({ attestation }: { attestation: Attestation }, ctx: QueryCtx) => {
+    return ctx.db.query.attestations.findFirst({
+      where: eq($attestations.id, attestation.id),
+    });
+  },
+  ['attestations']
+);
+
+export const updateAttestation = createWriteQuery(
+  'updateAttestations',
+  async ({ attestation }: { attestation: Attestation }, ctx: QueryCtx) => {
+    return ctx.db
+      .update($attestations)
+      .set(attestation)
+      .where(eq($attestations.id, attestation.id));
+  },
+  ['attestations']
+);
+
+export const getUserAttestations = createReadQuery(
+  'getUserAttestations',
+  async ({ userId }: { userId: string }, ctx: QueryCtx) => {
+    return ctx.db.query.attestations.findMany({
+      where: eq($attestations.contactId, userId),
+    });
+  },
+  ['attestations']
+);
+
 export const getPins = createReadQuery(
   'getPins',
   async (ctx: QueryCtx): Promise<Pin[]> => {

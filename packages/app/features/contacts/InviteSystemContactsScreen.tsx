@@ -2,14 +2,18 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
+import Fuse from 'fuse.js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Stack, View } from 'tamagui';
+import { Insets, Keyboard } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Stack, View, useStyle } from 'tamagui';
 
 import type { RootStackParamList } from '../../navigation/types';
 import {
   BlockSectionList,
   Icon,
   ScreenHeader,
+  SearchBar,
   SystemContactListItem,
   triggerHaptic,
   useInviteSystemContacts,
@@ -24,13 +28,35 @@ export function InviteSystemContactsScreen(props: Props) {
   const [selectedRecipients, setSelectedRecipients] = useState<
     db.SystemContact[]
   >([]);
+  const [searchResults, setSearchResults] = useState<db.SystemContact[]>([]);
+  const insets = useSafeAreaInsets();
+
+  const scrollIndicatorInsets = useStyle({
+    bottom: insets.bottom,
+    top: '$xl',
+  }) as Insets;
+
+  const searchService = useMemo(() => {
+    return new ContactSearchService(systemContacts ?? []);
+  }, [systemContacts]);
+
+  const handleSearch = useCallback(
+    (query: string) => {
+      const results = searchService.search(query);
+      setSearchResults(results);
+    },
+    [searchService]
+  );
+
   const alphabeticalContactSections = useMemo(
     () =>
-      sortContactsIntoSections(systemContacts ?? []) as {
+      sortContactsIntoSections(
+        searchResults.length ? searchResults : systemContacts ?? []
+      ) as {
         label: string;
         data: db.SystemContact[];
       }[],
-    [systemContacts]
+    [searchResults, systemContacts]
   );
 
   useEffect(() => {
@@ -128,10 +154,35 @@ export function InviteSystemContactsScreen(props: Props) {
           ) : null
         }
       />
-      <BlockSectionList
-        sections={alphabeticalContactSections}
-        renderItem={renderItem}
-      ></BlockSectionList>
+      <View flex={1} onTouchStart={Keyboard.dismiss} marginTop="$l">
+        <SearchBar
+          onChangeQuery={handleSearch}
+          paddingHorizontal="$xl"
+          height="$4xl"
+          marginBottom="$s"
+          flexGrow={0}
+          debounceTime={100}
+          placeholder="Search contacts"
+          inputProps={{
+            spellCheck: false,
+            autoCapitalize: 'none',
+            autoComplete: 'off',
+            flex: 1,
+          }}
+        />
+        <BlockSectionList
+          sections={alphabeticalContactSections}
+          renderItem={renderItem}
+          style={{
+            flex: 1,
+            paddingTop: 8,
+          }}
+          contentContainerStyle={{
+            marginHorizontal: 14,
+            paddingBottom: insets.bottom,
+          }}
+        ></BlockSectionList>
+      </View>
     </View>
   );
 }
@@ -277,4 +328,29 @@ export function sortContactsIntoSections(contacts: db.SystemContact[]) {
   }
 
   return sectionArray;
+}
+
+export class ContactSearchService {
+  private fuse: Fuse<db.SystemContact>;
+
+  constructor(contacts: db.SystemContact[]) {
+    // Configure Fuse with appropriate options
+    const options = {
+      keys: ['firstName', 'lastName', 'phoneNumber', 'email'],
+      threshold: 0.4, // Lower threshold means more strict matching
+      ignoreLocation: true,
+      shouldSort: true,
+    };
+
+    this.fuse = new Fuse(contacts, options);
+  }
+
+  // Search contacts with a query string
+  search(query: string): db.SystemContact[] {
+    if (!query.trim()) {
+      return [];
+    }
+
+    return this.fuse.search(query).map((result) => result.item);
+  }
 }
