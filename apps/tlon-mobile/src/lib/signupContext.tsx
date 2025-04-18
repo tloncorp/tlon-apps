@@ -14,7 +14,13 @@ import {
 import * as store from '@tloncorp/shared/store';
 import * as LibPhone from 'libphonenumber-js';
 import PostHog, { usePostHog } from 'posthog-react-native';
-import { createContext, useCallback, useContext, useEffect } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+} from 'react';
 import branch from 'react-native-branch';
 
 const logger = createDevLogger('signup', true);
@@ -53,6 +59,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
   const { bootPhase, bootReport, kickOffBootSequence, resetBootSequence } =
     useBootSequence();
   const postHog = usePostHog();
+  const handlingPostSignup = useRef(false);
 
   const setOnboardingValues = useCallback(
     (newValues: Partial<SignupValues>) => {
@@ -67,6 +74,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
   const clear = useCallback(() => {
     logger.log('clearing signup context');
     resetValues();
+    handlingPostSignup.current = false;
   }, [resetValues]);
 
   const handlePostSignup = useCallback(() => {
@@ -119,7 +127,12 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
   ]);
 
   useEffect(() => {
-    if (values.didCompleteOnboarding && bootPhase === NodeBootPhase.READY) {
+    if (
+      values.didCompleteOnboarding &&
+      bootPhase === NodeBootPhase.READY &&
+      !handlingPostSignup.current
+    ) {
+      handlingPostSignup.current = true;
       handlePostSignup();
     }
   }, [values, bootPhase, clear, bootReport, handlePostSignup]);

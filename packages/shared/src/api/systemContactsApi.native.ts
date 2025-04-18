@@ -31,57 +31,109 @@ export async function getSystemContacts(): Promise<db.SystemContact[]> {
 export function parseNativeContacts(
   nativeContacts: Contacts.Contact[]
 ): domain.SystemContact[] {
+  // Add debugging to see what's getting filtered out initially
+  logger.log(`Initial contacts count: ${nativeContacts.length}`);
+
   const parsed = nativeContacts
     .filter((contact) => {
       const hasPhoneNumbers =
         contact.phoneNumbers && contact.phoneNumbers.length > 0;
       const hasEmails = contact.emails && contact.emails.length > 0;
+
+      // Debug which contacts are being filtered out here
+      if (!hasPhoneNumbers && !hasEmails) {
+        logger.log(
+          `Filtered out contact with no phone/email: ${contact.firstName} ${contact.lastName}`
+        );
+      }
+
       return hasPhoneNumbers || hasEmails;
     })
     .map((contact) => {
       // Extract and format phone numbers
       const phoneNumbers = (contact.phoneNumbers || [])
-        .map((phoneRecord) => {
+        .map((phoneRecord, index) => {
           // Skip if no number
-          if (!phoneRecord.number) return null;
+          if (!phoneRecord.number) {
+            logger.log(
+              `Contact ${contact.firstName} ${contact.lastName}: phone record ${index} has no number`
+            );
+            return null;
+          }
 
           // Get country code from the record or fallback to 'US'
           const countryCode = (phoneRecord.countryCode || 'us').toUpperCase();
+          const originalNumber = phoneRecord.number;
+          let formattedNumber = null;
 
           try {
             // Try to parse using the provided country code
             if (LibPhone.isValidPhoneNumber(phoneRecord.number)) {
-              const parsedNumber = LibPhone.parsePhoneNumberFromString(
-                phoneRecord.number,
-                countryCode as LibPhone.CountryCode
-              );
-              return parsedNumber?.format('E.164'); // Format as +12623881275
+              try {
+                const parsedNumber = LibPhone.parsePhoneNumberFromString(
+                  phoneRecord.number,
+                  countryCode as LibPhone.CountryCode
+                );
+                formattedNumber = parsedNumber?.format('E.164');
+              } catch (e) {
+                logger.log(
+                  `Failed to format number ${phoneRecord.number} with country ${countryCode}: ${e}`
+                );
+              }
             }
 
-            // If we have digits, we can try to use those directly with the country code
-            if (phoneRecord.digits) {
+            // If we haven't got a valid number yet and we have digits, try those
+            if (!formattedNumber && phoneRecord.digits) {
               // For US numbers (10 digits)
               if (countryCode === 'US' && phoneRecord.digits.length === 10) {
-                return `+1${phoneRecord.digits}`;
-              }
-
-              // For non-US numbers, try to parse the digits with country code
-              try {
-                const digitNumber = `+${phoneRecord.digits}`;
-                if (LibPhone.isValidPhoneNumber(digitNumber)) {
-                  return digitNumber;
+                formattedNumber = `+1${phoneRecord.digits}`;
+              } else {
+                // For non-US numbers, try to parse the digits with country code
+                try {
+                  const digitNumber = phoneRecord.digits.startsWith('+')
+                    ? phoneRecord.digits
+                    : `+${phoneRecord.digits}`;
+                  if (LibPhone.isValidPhoneNumber(digitNumber)) {
+                    formattedNumber = digitNumber;
+                  }
+                } catch (e) {
+                  logger.log(
+                    `Failed to format digits ${phoneRecord.digits}: ${e}`
+                  );
                 }
-              } catch (_) {
-                // Continue to fallback if this fails
               }
             }
 
-            // Fallback: basic normalization
-            const normalizedNumber = phoneRecord.number.replace(/\D/g, '');
-            return normalizedNumber.length > 0 ? `+${normalizedNumber}` : null;
+            // If we still don't have a formatted number, use basic normalization
+            if (!formattedNumber) {
+              const normalizedNumber = phoneRecord.number.replace(/\D/g, '');
+              if (normalizedNumber.length > 0) {
+                formattedNumber = normalizedNumber.startsWith('+')
+                  ? normalizedNumber
+                  : `+${normalizedNumber}`;
+              }
+            }
+
+            // Debug the outcome
+            if (!formattedNumber) {
+              logger.log(
+                `Contact ${contact.firstName} ${contact.lastName}: Failed to format number ${originalNumber}`
+              );
+            }
+
+            return formattedNumber;
           } catch (error) {
-            // Final fallback
-            return phoneRecord.digits ? `+${phoneRecord.digits}` : null;
+            logger.log(
+              `Error processing number for ${contact.firstName} ${contact.lastName}: ${error}`
+            );
+            // Final fallback with more careful checking
+            if (phoneRecord.digits) {
+              return phoneRecord.digits.startsWith('+')
+                ? phoneRecord.digits
+                : `+${phoneRecord.digits}`;
+            }
+            // Just return the original number as last resort
+            return phoneRecord.number;
           }
         })
         .filter((num): num is string => num !== null);
@@ -94,12 +146,31 @@ export function parseNativeContacts(
         email: contact.emails?.[0]?.email,
       };
 
+      // Debug contacts that don't have phone numbers after processing
+      if ((contact.phoneNumbers?.length ?? 0) > 0 && !sysContact.phoneNumber) {
+        logger.log(
+          `Contact ${contact.firstName} ${contact.lastName} lost phone number during formatting`
+        );
+        logger.log(
+          'Original phone data:',
+          JSON.stringify(contact.phoneNumbers)
+        );
+      }
+
       return sysContact;
     })
     .filter((contact) => {
-      return contact.phoneNumber || contact.email;
+      const isValid = contact.phoneNumber || contact.email;
+      if (!isValid) {
+        logger.log(
+          `Final filter removed contact: ${contact.firstName} ${contact.lastName}`
+        );
+      }
+      return isValid;
     });
 
-  console.log(`bl: parsed system contacts`, parsed);
+  logger.log(
+    `Input contacts: ${nativeContacts.length}, Output contacts: ${parsed.length}`
+  );
   return parsed;
 }
