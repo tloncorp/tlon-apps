@@ -1,0 +1,22 @@
+# JSON schemas for common Hoon types
+#
+# $ship
+ship:
+  type: string
+  description: network ID
+  pattern: '~[\D-]+'
+  example: ~sampel-palnet
+# $rank
+rank:
+  type: string
+  description: network ID rank
+  enum:
+    - "czar"
+    - "king"
+    - "duke"
+    - "earl"
+    - "pawn"
+# $time
+time:
+  type: number
+  description: time of event
