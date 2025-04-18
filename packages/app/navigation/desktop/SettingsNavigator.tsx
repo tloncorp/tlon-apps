@@ -59,6 +59,10 @@ function DrawerContent(props: DrawerContentComponentProps) {
     navigate('Theme');
   }, [navigate]);
 
+  const onPrivacyPressed = useCallback(() => {
+    navigate('PrivacySettings');
+  }, [navigate]);
+
   return (
     <SettingsScreenView
       hasHostedAuth={hasHostedAuth}
@@ -71,6 +75,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
       onManageAccountPressed={onManageAccountPressed}
       onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
       onThemePressed={onThemePressed}
+      onPrivacyPressed={onPrivacyPressed}
       dmLink={dmLink}
       focusedRouteName={focusedRoute.name}
     />
