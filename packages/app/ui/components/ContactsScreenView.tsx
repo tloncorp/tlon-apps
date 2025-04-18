@@ -34,6 +34,10 @@ export function ContactsScreenView(props: Props) {
     query: '',
   });
 
+  const sortedSystemContacts = useMemo(() => {
+    return sortSystemContacts(props.systemContacts);
+  }, [props.systemContacts]);
+
   const sections = useMemo(() => {
     const result: Section[] = [];
 
@@ -54,10 +58,10 @@ export function ContactsScreenView(props: Props) {
       });
     }
 
-    if (props.systemContacts.length > 0) {
+    if (sortedSystemContacts.length > 0) {
       result.push({
         title: 'From your address book',
-        data: props.systemContacts,
+        data: sortedSystemContacts,
       });
     }
 
@@ -67,7 +71,7 @@ export function ContactsScreenView(props: Props) {
     currentUserId,
     sortedContacts,
     props.suggestions,
-    props.systemContacts,
+    sortedSystemContacts,
   ]);
 
   const renderItem = useCallback(
@@ -152,4 +156,31 @@ export function ContactsScreenView(props: Props) {
       />
     </View>
   );
+}
+
+export function sortSystemContacts(
+  contacts: db.SystemContact[]
+): db.SystemContact[] {
+  return [...contacts].sort((a, b) => {
+    const aName = getDisplayName(a);
+    const bName = getDisplayName(b);
+
+    return aName.localeCompare(bName);
+  });
+}
+
+function getDisplayName(contact: db.SystemContact): string {
+  if (contact.firstName && contact.lastName) {
+    return `${contact.firstName} ${contact.lastName}`.trim().toLowerCase();
+  } else if (contact.firstName) {
+    return contact.firstName.trim().toLowerCase();
+  } else if (contact.lastName) {
+    return contact.lastName.trim().toLowerCase();
+  } else if (contact.email) {
+    return contact.email.trim().toLowerCase();
+  } else if (contact.phoneNumber) {
+    return contact.phoneNumber.trim().toLowerCase();
+  }
+
+  return contact.id.toLowerCase();
 }
