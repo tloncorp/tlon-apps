@@ -62,7 +62,11 @@ class NotificationService: UNNotificationServiceExtension {
             speakableGroupName = INSpeakableString(spokenPhrase: await renderer.render(conversationTitle))
         }
         let intent = INSendMessageIntent(
-            recipients: [],
+            // With an empty `recipients` list, iOS omits the notification title.
+            // We don't have a proper recipients list, so use a minimal one.
+            recipients: message.type == .group
+                ? [sender]
+                : [],
             outgoingMessageType: .outgoingMessageText,
             content: notification.body,
             speakableGroupName: speakableGroupName,
