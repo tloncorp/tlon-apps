@@ -1,9 +1,6 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { useCopy } from '@tloncorp/ui';
-import { Button } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
+import { Pressable, useCopy } from '@tloncorp/ui';
 import { useCallback } from 'react';
 import { Share } from 'react-native';
 import { isWeb } from 'tamagui';
@@ -49,24 +46,26 @@ export function PersonalInviteButton() {
     //     {didCopy ? 'Copied' : 'Share Invite Link'}
     //   </Text>
     // </Button>
-    <ListItem backgroundColor="$primaryText">
-      <ListItem.SystemIcon
-        icon="Send"
-        color="$background"
-        backgroundColor="unset"
-      />
-      <ListItem.MainContent>
-        <ListItem.Title color="$background">
-          {didCopy ? 'Copied' : 'Share Invite Link'}
-        </ListItem.Title>
-      </ListItem.MainContent>
-      <ListItem.EndContent>
+    <Pressable onPress={handleInviteButtonPress}>
+      <ListItem backgroundColor="$primaryText">
         <ListItem.SystemIcon
-          icon="ChevronRight"
+          icon="Send"
           color="$background"
           backgroundColor="unset"
         />
-      </ListItem.EndContent>
-    </ListItem>
+        <ListItem.MainContent>
+          <ListItem.Title color="$background">
+            {didCopy ? 'Copied' : 'Share Invite Link'}
+          </ListItem.Title>
+        </ListItem.MainContent>
+        <ListItem.EndContent>
+          <ListItem.SystemIcon
+            icon="ChevronRight"
+            color="$background"
+            backgroundColor="unset"
+          />
+        </ListItem.EndContent>
+      </ListItem>
+    </Pressable>
   );
 }

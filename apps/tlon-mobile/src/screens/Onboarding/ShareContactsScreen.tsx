@@ -98,23 +98,20 @@ export const ShareContactsScreen = ({ navigation }: Props) => {
         </XStack>
         <YStack justifyContent="flex-end" gap="$l" paddingBottom="$xl">
           {isProcessing && <LoadingSpinner />}
-          {(perms.hasPermission || perms.canAskPermission) && (
-            <>
-              <PrimaryButton
-                loading={perms.isLoading || isProcessing}
-                onPress={handleShareContacts}
-              >
-                Continue
-              </PrimaryButton>
-              <Button
-                secondary
-                backgroundColor="$secondaryBackground"
-                onPress={handleSkip}
-              >
-                <Button.Text fontWeight="500">Skip</Button.Text>
-              </Button>
-            </>
-          )}
+          <PrimaryButton
+            loading={perms.isLoading || isProcessing}
+            onPress={handleShareContacts}
+          >
+            Continue
+          </PrimaryButton>
+          <Button
+            secondary
+            backgroundColor="$secondaryBackground"
+            disabled={isProcessing}
+            onPress={handleSkip}
+          >
+            <Button.Text fontWeight="500">Skip</Button.Text>
+          </Button>
         </YStack>
       </View>
     </View>
