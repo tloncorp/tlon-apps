@@ -64,7 +64,7 @@ suspend fun renderPreview(context: Context, activityEventJson: String): Activity
                         }
                     }
                     val preview = ActivityEventPreview(
-                        title = renderer.render(parsed.notification.title),
+                        title = parsed.notification.title?.let { x -> renderer.render(x) },
                         body = renderer.render(parsed.notification.body),
                         messagingMetadata = parsed.message?.let { m ->
                             ActivityEventPreviewMessage(
@@ -94,9 +94,9 @@ data class PreviewContentPayload(
     val message: MessagePayload?
 ) {
     data class NotificationPayload(
-        val title: PreviewContentNode,
+        val title: PreviewContentNode?,
         val body: PreviewContentNode,
-        val groupingKey: PreviewContentNode,
+        val groupingKey: PreviewContentNode?,
     )
     data class MessagePayload(
         val isGroupConversation: Boolean,
@@ -108,13 +108,15 @@ data class PreviewContentPayload(
     companion object {
         private fun parseNodeAtKey(source: JSONObject, key: String): PreviewContentNode =
             PreviewContentNode.parseFromJson(source.getJSONObject(key))
+        private fun maybeParseNodeAtKey(source: JSONObject, key: String): PreviewContentNode? =
+            if (source.has(key)) parseNodeAtKey(source, key) else null
 
         fun parseFromJson(source: JSONObject): PreviewContentPayload = PreviewContentPayload(
             notification = source.getJSONObject("notification").let { source ->
                 NotificationPayload(
-                    title = parseNodeAtKey(source, "title"),
+                    title = maybeParseNodeAtKey(source, "title"),
                     body = parseNodeAtKey(source, "body"),
-                    groupingKey = parseNodeAtKey(source, "groupingKey"),
+                    groupingKey = maybeParseNodeAtKey(source, "groupingKey"),
                 )
             },
             message = source.getJSONObject("message").let { source ->
