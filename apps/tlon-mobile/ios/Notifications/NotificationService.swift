@@ -136,24 +136,6 @@ class NotificationService: UNNotificationServiceExtension {
             contentHandler(bestAttemptContent)
         }
     }
-  
-  private func handle(_ renderable: UNNotificationRenderable) async -> UNNotificationContent {
-    let (mutatedContent, messageIntent) = await renderable.render(
-      to: bestAttemptContent ?? UNMutableNotificationContent()
-    )
-
-    if let messageIntent {
-        do {
-            let interaction = INInteraction(intent: messageIntent, response: nil)
-            interaction.direction = .incoming
-            try await interaction.donate()
-        } catch {
-            print("Error donating interaction for notification sender details: \(error)")
-        }
-    }
-    
-    return mutatedContent
-  }
 }
 
 extension Error {
