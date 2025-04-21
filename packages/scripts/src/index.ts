@@ -35,9 +35,9 @@ namespace PreviewContentNode {
 
 interface PreviewContentPayload {
   notification: {
-    title: PreviewContentNode;
+    title?: PreviewContentNode;
     body: PreviewContentNode;
-    groupingKey: PreviewContentNode;
+    groupingKey?: PreviewContentNode;
   };
   message?: {
     type: 'group' | 'dm';
@@ -64,62 +64,63 @@ export function renderActivityEventPreview({
   const source = getSourceForEvent(ev);
   const contentSummary = inlineSummary(content);
 
-  return {
-    notification: {
-      title: (() => {
-        if ('channel' in source) {
-          return channelTitle(source.channel.nest);
-        }
-        return lit(sourceToString(source, true));
-      })(),
-      body: lit(contentSummary),
-      groupingKey: lit(sourceToString(source, true)),
-    },
-    message: (() => {
-      const is = ActivityIncomingEvent.is;
-      switch (true) {
-        case is(ev, 'post'):
-        // fallthrough
-        case is(ev, 'reply'):
-        // fallthrough
-        case is(ev, 'dm-invite'):
-        // fallthrough
-        case is(ev, 'dm-reply'):
-        // fallthrough
-        case is(ev, 'group-ask'):
-        // fallthrough
-        case is(ev, 'group-join'):
-        // fallthrough
-        case is(ev, 'group-kick'):
-        // fallthrough
-        case is(ev, 'group-invite'):
-        // fallthrough
-        case is(ev, 'group-role'):
-        // fallthrough
-        case is(ev, 'flag-post'):
-        // fallthrough
-        case is(ev, 'contact'):
-        // fallthrough
-        case is(ev, 'flag-reply'):
-          return undefined;
+  const is = ActivityIncomingEvent.is;
+  switch (true) {
+    case is(ev, 'post'):
+    // fallthrough
+    case is(ev, 'reply'):
+    // fallthrough
+    case is(ev, 'dm-invite'):
+    // fallthrough
+    case is(ev, 'dm-reply'):
+    // fallthrough
+    case is(ev, 'group-ask'):
+    // fallthrough
+    case is(ev, 'group-join'):
+    // fallthrough
+    case is(ev, 'group-kick'):
+    // fallthrough
+    case is(ev, 'group-invite'):
+    // fallthrough
+    case is(ev, 'group-role'):
+    // fallthrough
+    case is(ev, 'flag-post'):
+    // fallthrough
+    case is(ev, 'contact'):
+    // fallthrough
+    case is(ev, 'flag-reply'):
+      return {
+        notification: {
+          body: lit(contentSummary),
+          groupingKey: lit(sourceToString(source, true)),
+        },
+      };
 
-        case is(ev, 'dm-post'): {
-          const { sent, author } = getIdParts(ev['dm-post'].key.id);
-          return {
-            type: 'dm',
-            timestamp: sent,
-            senderId: author,
-            conversationTitle: lit('TODO: Channel name'),
-            messageText: lit(contentSummary),
-          };
-        }
+    case is(ev, 'dm-post'): {
+      const { sent, author } = getIdParts(ev['dm-post'].key.id);
+      return {
+        notification: {
+          title:
+            'channel' in source
+              ? channelTitle(source.channel.nest)
+              : lit(sourceToString(source, true)),
+          body: lit(contentSummary),
+          groupingKey: lit(sourceToString(source, true)),
+        },
+        message: {
+          type: 'dm',
+          timestamp: sent,
+          senderId: author,
+          conversationTitle: lit('TODO: Channel name'),
+          messageText: lit(contentSummary),
+        },
+      };
+    }
 
-        default: {
-          ((_x: never) => {
-            throw new Error(`Unrecognized activity event type: ${ev}`);
-          })(ev);
-        }
-      }
-    })(),
-  };
+    default: {
+      ((_x: never) => {
+        throw new Error(`Unrecognized activity event type: ${ev}`);
+      })(ev);
+    }
+  }
 }

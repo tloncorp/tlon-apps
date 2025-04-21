@@ -30,10 +30,14 @@ class NotificationService: UNNotificationServiceExtension {
         }
         
         let renderer = NotificationPreviewContentNodeRenderer()
-        notification.title = renderer.render(preview.notification.title)
+        if let title = preview.notification.title {
+            notification.title = renderer.render(title)
+        }
         notification.body = renderer.render(preview.notification.body)
         notification.interruptionLevel = .active
-        notification.threadIdentifier = renderer.render(preview.notification.groupingKey)
+        if let groupingKey = preview.notification.groupingKey {
+            notification.threadIdentifier = renderer.render(groupingKey)
+        }
         notification.sound = UNNotificationSound.default
         if let activityEventJsonString = try? JSONSerialization.jsonString(withJSONObject: rawActivityEvent) {
             notification.userInfo = ["activityEventJsonString": activityEventJsonString]
@@ -54,8 +58,8 @@ class NotificationService: UNNotificationServiceExtension {
             recipients: [INPerson.empty],
             outgoingMessageType: .outgoingMessageText,
             content: notification.body,
-            speakableGroupName: INSpeakableString(spokenPhrase: notification.title),
-            conversationIdentifier: renderer.render(preview.notification.groupingKey),
+            speakableGroupName: INSpeakableString(spokenPhrase: renderer.render(message.conversationTitle)),
+            conversationIdentifier: notification.threadIdentifier,
             serviceName: nil,
             sender: sender,
             attachments: nil
