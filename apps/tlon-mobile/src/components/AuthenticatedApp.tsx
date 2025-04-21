@@ -30,7 +30,6 @@ function AuthenticatedApp() {
   useNotificationListener();
   useUpdatePresentedNotifications();
   useDeepLinkListener();
-  useNavigationLogging();
   useNetworkLogger();
   useCheckAppUpdated();
   useFindSuggestedContacts();
@@ -87,8 +86,8 @@ export default function ConnectedAuthenticatedApp() {
 
   return (
     <AppDataProvider>
-      {/* 
-        This portal provider overrides the root portal provider 
+      {/*
+        This portal provider overrides the root portal provider
         to ensure that sheets have access to `AppDataContext`
       */}
       <PortalProvider>{clientReady && <AuthenticatedApp />}</PortalProvider>

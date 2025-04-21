@@ -25,6 +25,11 @@ export function useNavigationLogging() {
       ) {
         logger.crumb(`to: ${currentRouteName}, from: ${previousRouteName}`);
       }
+      logger.log(
+        `to: ${currentRouteName}, from: ${previousRouteName}`,
+        'current state:',
+        state
+      );
 
       // Update the route name ref
       routeNameRef.current = currentRouteName;
