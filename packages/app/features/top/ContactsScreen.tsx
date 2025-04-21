@@ -34,7 +34,11 @@ export default function ContactsScreen(props: Props) {
 
   const onContactPress = useCallback(
     (contact: db.Contact) => {
-      navigate('UserProfile', { userId: contact.id });
+      if (contact.isContactSuggestion) {
+        store.addContact(contact.id);
+      } else {
+        navigate('UserProfile', { userId: contact.id });
+      }
     },
     [navigate]
   );
