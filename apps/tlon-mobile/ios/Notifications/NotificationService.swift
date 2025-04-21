@@ -68,6 +68,10 @@ class NotificationService: UNNotificationServiceExtension {
             sender: sender,
             attachments: nil
         )
+        if intent.speakableGroupName != nil, let image = sender.image {
+            intent.setImage(image, forParameterNamed: \.speakableGroupName)
+        }
+        
         let interaction = INInteraction(intent: intent, response: nil)
         interaction.direction = .incoming
         try? await interaction.donate() // any error here is discarded
