@@ -112,15 +112,17 @@ data class PreviewContentPayload(
                     groupingKey = maybeParseNodeAtKey(source, "groupingKey"),
                 )
             },
-            message = source.getJSONObject("message").let { source ->
-                MessagePayload(
-                    isGroupConversation = source.getString("type") == "group",
-                    timestamp = source.getDouble("timestamp"),
-                    senderId = source.getString("senderId"),
-                    conversationTitle = maybeParseNodeAtKey(source, "conversationTitle"),
-                    messageText = parseNodeAtKey(source, "messageText"),
-                )
-            }
+            message = if (source.has("message"))
+                source.getJSONObject("message").let { source ->
+                    MessagePayload(
+                        isGroupConversation = source.getString("type") == "group",
+                        timestamp = source.getDouble("timestamp"),
+                        senderId = source.getString("senderId"),
+                        conversationTitle = maybeParseNodeAtKey(source, "conversationTitle"),
+                        messageText = parseNodeAtKey(source, "messageText"),
+                    )
+                }
+            else null
         )
     }
 }
