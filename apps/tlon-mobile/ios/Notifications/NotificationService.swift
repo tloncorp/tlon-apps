@@ -92,7 +92,7 @@ class NotificationService: UNNotificationServiceExtension {
       Task { [weak bestAttemptContent] in
         let parsedNotification = await PushNotificationManager.parseNotificationUserInfo(request.content.userInfo)
         switch parsedNotification {
-        case let .yarn(yarn, activityEvent, activityEventRaw):
+        case let .yarn(_, _, activityEventRaw):
             var notifContent = bestAttemptContent ?? UNNotificationContent()
 
           // HACK: Proof-of-concept that we can use JS to populate notification content
@@ -101,20 +101,6 @@ class NotificationService: UNNotificationServiceExtension {
                 activityEventRaw,
                 notification: notifContent.mutableCopy() as! UNMutableNotificationContent
             )
-          }
-          
-          if let activityEvent {
-            if let dm = activityEvent.dmPost {
-              let mutableNotifContent = notifContent.mutableCopy() as! UNMutableNotificationContent
-              // convert to JSON because `userInfo` needs NSSecureCoding
-              mutableNotifContent.userInfo["dmPost"] = try! dm.asJson() 
-              notifContent = mutableNotifContent
-            } else if let post = activityEvent.post {
-              let mutableNotifContent = notifContent.mutableCopy() as! UNMutableNotificationContent
-              // convert to JSON because `userInfo` needs NSSecureCoding
-              mutableNotifContent.userInfo["post"] = try! post.asJson()
-              notifContent = mutableNotifContent
-            }
           }
           
           contentHandler(notifContent)
