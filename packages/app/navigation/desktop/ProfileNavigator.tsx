@@ -34,14 +34,14 @@ function DrawerContent(props: DrawerContentComponentProps) {
 
   const onContactPress = useCallback(
     (contact: db.Contact) => {
-      if (contact.isContactSuggestion) {
-        store.addContact(contact.id);
-      } else {
-        navigate('UserProfile', { userId: contact.id });
-      }
+      navigate('UserProfile', { userId: contact.id });
     },
     [navigate]
   );
+
+  const onAddContact = useCallback((contact: db.Contact) => {
+    store.addContact(contact.id);
+  }, []);
 
   const onContactLongPress = useCallback((contact: db.Contact) => {
     if (!isWeb && contact.isContactSuggestion) {
@@ -84,6 +84,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
         suggestions={suggestions ?? []}
         focusedContactId={focusedRoute.params?.userId}
         onContactPress={onContactPress}
+        onAddContact={onAddContact}
         onContactLongPress={onContactLongPress}
       />
     </View>

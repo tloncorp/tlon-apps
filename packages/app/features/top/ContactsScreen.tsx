@@ -34,14 +34,14 @@ export default function ContactsScreen(props: Props) {
 
   const onContactPress = useCallback(
     (contact: db.Contact) => {
-      if (contact.isContactSuggestion) {
-        store.addContact(contact.id);
-      } else {
-        navigate('UserProfile', { userId: contact.id });
-      }
+      navigate('UserProfile', { userId: contact.id });
     },
     [navigate]
   );
+
+  const onAddContact = useCallback((contact: db.Contact) => {
+    store.addContact(contact.id);
+  }, []);
 
   const onContactLongPress = useCallback((contact: db.Contact) => {
     if (!isWeb && contact.isContactSuggestion) {
@@ -99,6 +99,7 @@ export default function ContactsScreen(props: Props) {
             contacts={userContacts ?? []}
             suggestions={suggestions ?? []}
             onContactPress={onContactPress}
+            onAddContact={onAddContact}
             onContactLongPress={onContactLongPress}
           />
           <NavBarView

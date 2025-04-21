@@ -15,6 +15,7 @@ interface Props {
   suggestions: db.Contact[];
   focusedContactId?: string;
   onContactPress: (contact: db.Contact) => void;
+  onAddContact: (contact: db.Contact) => void;
   onContactLongPress: (contact: db.Contact) => void;
 }
 
@@ -69,7 +70,14 @@ export function ContactsScreenView(props: Props) {
           showEndContent
           endContent={
             item.isContactSuggestion && !isSelf ? (
-              <Badge text="Add" type="positive" />
+              <Badge
+                text="Add"
+                type="positive"
+                onPress={(e) => {
+                  e.stopPropagation();
+                  props.onAddContact(item);
+                }}
+              />
             ) : isSelf ? (
               <XStack gap="$xs" alignItems="center">
                 <Badge
