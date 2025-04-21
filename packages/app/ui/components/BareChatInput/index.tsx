@@ -225,7 +225,6 @@ export default function BareChatInput({
   const [sendError, setSendError] = useState(false);
   const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
   const [editorIsEmpty, setEditorIsEmpty] = useState(attachments.length === 0);
-  const [hasAutoFocused, setHasAutoFocused] = useState(false);
   const [needsHeightAdjustmentAfterLoad, setNeedsHeightAdjustmentAfterLoad] =
     useState(false);
   const {
@@ -516,11 +515,12 @@ export default function BareChatInput({
 
   // Handle autofocus
   useEffect(() => {
-    if (!shouldBlur && shouldAutoFocus && !hasAutoFocused) {
-      inputRef.current?.focus();
-      setHasAutoFocused(true);
+    if (!shouldBlur && shouldAutoFocus && inputRef.current) {
+      if (!inputRef.current.isFocused()) {
+        inputRef.current.focus();
+      }
     }
-  }, [shouldBlur, shouldAutoFocus, hasAutoFocused]);
+  }, [shouldBlur, shouldAutoFocus]);
 
   // Blur input when needed
   useEffect(() => {
