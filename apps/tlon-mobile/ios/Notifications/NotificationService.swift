@@ -92,7 +92,7 @@ class NotificationService: UNNotificationServiceExtension {
       Task { [weak bestAttemptContent] in
         let parsedNotification = await PushNotificationManager.parseNotificationUserInfo(request.content.userInfo)
         switch parsedNotification {
-        case let .yarn(_, _, activityEventRaw):
+        case let .activityEventJson(activityEventRaw):
             var notifContent = bestAttemptContent ?? UNNotificationContent()
 
           // HACK: Proof-of-concept that we can use JS to populate notification content

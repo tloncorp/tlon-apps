@@ -26,7 +26,7 @@ enum NotificationCategory: String {
     }
   
     enum ParseNotificationResult {
-      case yarn(Yarn, ActivityEvent.ActivityEvent?, Any?)
+        case activityEventJson(Any?)
         case dismiss(uid: String)
         case invalid
         case failedFetchContents(Error)
@@ -42,17 +42,8 @@ enum NotificationCategory: String {
         switch action {
         case "notify":
             do {
-              let yarn: Yarn = try await PocketAPI.shared.fetchPushNotificationContents(uid)
-
-              // HACK: Fetch the activity event in addition to the yarn. This
-              // is largely redundant, but activity event has the full post
-              // content, which we want to hand off. In the future, activity
-              // event should be able to fully replace yarn, but it requires
-              // more work.
-              let aer: ActivityEvent.ActivityEventResponse = try await PocketAPI.shared.fetchPushNotificationContents(uid)
-              let aerData = try await PocketAPI.shared.fetchRawPushNotificationContents(uid)
-
-              return .yarn(yarn, aer.event, try? JSONSerialization.jsonObject(with: aerData))
+                let aerData = try await PocketAPI.shared.fetchRawPushNotificationContents(uid)
+                return .activityEventJson(try JSONSerialization.jsonObject(with: aerData))
             } catch {
                 return .failedFetchContents(error)
             }
