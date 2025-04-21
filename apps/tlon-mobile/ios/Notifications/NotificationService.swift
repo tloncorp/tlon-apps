@@ -29,6 +29,10 @@ class NotificationService: UNNotificationServiceExtension {
             return notification
         }
         
+        // If we have a preview, make sure to fully replace server-provided title / body.
+        notification.title = ""
+        notification.body = ""
+
         let renderer = NotificationPreviewContentNodeRenderer()
         if let title = preview.notification.title {
             notification.title = await renderer.render(title)
