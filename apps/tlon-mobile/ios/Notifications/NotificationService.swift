@@ -46,11 +46,6 @@ class NotificationService: UNNotificationServiceExtension {
         if let activityEventJsonString = try? JSONSerialization.jsonString(withJSONObject: rawActivityEvent) {
             notification.userInfo = ["activityEventJsonString": activityEventJsonString]
         }
-        
-        // NB: We previously set `categoryIdentifier` to one of "message" or "invite". I think this
-        // only enables inline actions on the alert, which we no longer support.
-        //
-        // notification.categoryIdentifier = self.category.rawValue
 
         guard let message = preview.message else {
             return notification
