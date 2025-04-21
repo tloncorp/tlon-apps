@@ -31,12 +31,12 @@ class NotificationService: UNNotificationServiceExtension {
         
         let renderer = NotificationPreviewContentNodeRenderer()
         if let title = preview.notification.title {
-            notification.title = renderer.render(title)
+            notification.title = await renderer.render(title)
         }
-        notification.body = renderer.render(preview.notification.body)
+        notification.body = await renderer.render(preview.notification.body)
         notification.interruptionLevel = .active
         if let groupingKey = preview.notification.groupingKey {
-            notification.threadIdentifier = renderer.render(groupingKey)
+            notification.threadIdentifier = await renderer.render(groupingKey)
         }
         notification.sound = UNNotificationSound.default
         if let activityEventJsonString = try? JSONSerialization.jsonString(withJSONObject: rawActivityEvent) {

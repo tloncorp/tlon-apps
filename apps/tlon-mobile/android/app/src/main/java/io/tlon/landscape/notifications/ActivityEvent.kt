@@ -53,24 +53,17 @@ suspend fun renderPreview(context: Context, activityEventJson: String): Activity
                 else -> launch {
                     val renderer = PreviewContentNodeRenderer(TalkApi(context))
                     val parsed = PreviewContentPayload.parseFromJson(JSONObject(result))
-                    val contact = suspendCoroutine { cnt ->
-                        parsed.message?.let { m ->
-                            TalkApi(context).fetchContact(m.senderId, object: TalkObjectCallback {
-                                override fun onComplete(response: JSONObject?) =
-                                    cnt.resume(Contact(m.senderId, response))
-                                override fun onError(error: VolleyError?) =
-                                    cnt.resumeWithException(error ?: Error("Unknown error"))
-                            })
-                        }
-                    }
+                    val contact = parsed.message?.let { m -> TalkApi(context).fetchContact(m.senderId) }
                     val preview = ActivityEventPreview(
                         title = parsed.notification.title?.let { x -> renderer.render(x) },
                         body = renderer.render(parsed.notification.body),
                         messagingMetadata = parsed.message?.let { m ->
-                            ActivityEventPreviewMessage(
-                                sender = contact,
-                                isGroupConversation = m.isGroupConversation
-                            )
+                            contact?.let { contact ->
+                                ActivityEventPreviewMessage(
+                                    sender = contact,
+                                    isGroupConversation = m.isGroupConversation
+                                )
+                            }
                         }
                     )
                     cnt.resume(preview)
@@ -136,6 +129,7 @@ sealed class PreviewContentNode {
     data class StringLiteral(val content: String) : PreviewContentNode()
     data class ConcatenateStrings(val first: PreviewContentNode, val second: PreviewContentNode) : PreviewContentNode()
     data class ChannelTitle(val channelId: String) : PreviewContentNode()
+    data class UserNickname(val ship: String) : PreviewContentNode()
 
     companion object {
         fun parseFromJson(source: JSONObject): PreviewContentNode =
@@ -146,6 +140,7 @@ sealed class PreviewContentNode {
                     parseFromJson(source.getJSONObject("second"))
                 )
                 "channelTitle" -> ChannelTitle(source.getString("channelId"))
+                "userNickname" -> UserNickname(source.getString("ship"))
                 else -> throw Error("Unrecognized PreviewContentNode from JS")
             }
     }
@@ -156,6 +151,7 @@ class PreviewContentNodeRenderer(private val api: TalkApi) {
         when (node) {
             is StringLiteral -> node.content
             is ConcatenateStrings -> render(node.first) + render(node.second)
+            is PreviewContentNode.UserNickname -> api.fetchContact(node.ship).let { x -> x.nickname ?: x.displayName ?: x.id }
             is ChannelTitle -> api.fetchChannelTitle(node.channelId) ?: node.channelId
         }
 }
@@ -163,6 +159,10 @@ class PreviewContentNodeRenderer(private val api: TalkApi) {
 private suspend fun TalkApi.fetchChannelTitle(channelId: String): String? {
     val response = suspendTalkObjectCallback { cb -> fetchGroupChannel(channelId, cb) }
     return response?.getJSONObject("meta")?.getString("title")
+}
+private suspend fun TalkApi.fetchContact(contactId: String): Contact {
+    val response = suspendTalkObjectCallback { cb -> fetchContact(contactId, cb) }
+    return Contact(contactId, response)
 }
 
 suspend fun suspendTalkObjectCallback(perform: (callback: TalkObjectCallback) -> Unit) =

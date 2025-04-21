@@ -3,6 +3,7 @@ import Foundation
 struct NotificationPreviewPayload: Decodable {
     indirect enum ContentNode: Decodable {
         case channelTitle(channelId: String)
+        case userNickname(ship: String)
         case stringLiteral(content: String)
         case concatenateStrings(first: ContentNode, second: ContentNode)
         
@@ -12,12 +13,14 @@ struct NotificationPreviewPayload: Decodable {
             case content
             case first
             case second
+            case ship
         }
         
         enum NodeType: String, Decodable {
             case channelTitle
             case stringLiteral
             case concatenateStrings
+            case userNickname
         }
         
         init(from decoder: Decoder) throws {
@@ -37,6 +40,10 @@ struct NotificationPreviewPayload: Decodable {
                 let first = try container.decode(ContentNode.self, forKey: .first)
                 let second = try container.decode(ContentNode.self, forKey: .second)
                 self = .concatenateStrings(first: first, second: second)
+                
+            case .userNickname:
+                let ship = try container.decode(String.self, forKey: .ship)
+                self = .userNickname(ship: ship)
             }
         }
     }
@@ -64,14 +71,16 @@ struct NotificationPreviewPayload: Decodable {
 }
 
 struct NotificationPreviewContentNodeRenderer {
-    func render(_ node: NotificationPreviewPayload.ContentNode) -> String {
+    func render(_ node: NotificationPreviewPayload.ContentNode) async -> String {
         switch node {
         case let .stringLiteral(content):
             return content
         case let .channelTitle(channelId):
-            return GroupChannelStore.sharedInstance.getItem(channelId)?.meta.title ?? channelId
+            return (try? await GroupChannelStore.sharedInstance.getOrFetchItem(channelId)?.meta.title) ?? channelId
         case let .concatenateStrings(first, second):
-            return [render(first), render(second)].joined()
+            return [await render(first), await render(second)].joined()
+        case let .userNickname(ship):
+            return (try? await ContactStore.sharedInstance.getOrFetchItem(ship)?.displayName) ?? ship
         }
     }
 }

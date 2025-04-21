@@ -10,6 +10,7 @@ import {
 
 type PreviewContentNode =
   | { type: 'channelTitle'; channelId: string }
+  | { type: 'userNickname'; ship: string }
   | { type: 'stringLiteral'; content: string }
   | {
       type: 'concatenateStrings';
@@ -30,6 +31,9 @@ namespace PreviewContentNode {
   }
   export function channelTitle(channelId: string): PreviewContentNode {
     return { type: 'channelTitle', channelId };
+  }
+  export function userNickname(ship: string): PreviewContentNode {
+    return { type: 'userNickname', ship };
   }
 }
 
@@ -59,7 +63,7 @@ export function renderActivityEventPreview({
     return null;
   }
 
-  const { stringLiteral: lit, channelTitle } = PreviewContentNode;
+  const { stringLiteral: lit, channelTitle, userNickname } = PreviewContentNode;
 
   const source = getSourceForEvent(ev);
   const contentSummary = inlineSummary(content);
@@ -107,7 +111,7 @@ export function renderActivityEventPreview({
           type: 'dm',
           timestamp: sent,
           senderId: author,
-          conversationTitle: lit('TODO: Channel name'),
+          conversationTitle: userNickname(author),
           messageText: lit(contentSummary),
         },
       };
