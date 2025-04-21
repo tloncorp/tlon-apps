@@ -89,33 +89,49 @@ function payloadFromNotification(
       authorId: ub.getIdParts(id).author,
     });
 
+    const dmTarget = (
+      info: Pick<ub.DmPostEvent['dm-post'], 'whom'>,
+      { parent }: { parent?: ub.DmReplyEvent['dm-reply']['parent'] } = {}
+    ) => ({
+      ...baseNotificationData,
+      channelId: 'ship' in info.whom ? info.whom.ship : 'unknown',
+      postInfo:
+        parent == null
+          ? null
+          : {
+              ...authorAndId(parent.id),
+              isDm: false,
+            },
+    });
+    const channelPostTarget = (
+      info: Pick<ub.PostEvent['post'], 'channel'>,
+      { parent }: { parent?: ub.ReplyEvent['reply']['parent'] } = {}
+    ) => ({
+      ...baseNotificationData,
+      channelId: info.channel,
+      postInfo:
+        parent == null
+          ? null
+          : {
+              ...authorAndId(parent.id),
+              isDm: false,
+            },
+    });
+
     switch (true) {
       case is(ev, 'dm-post'):
-        return {
-          ...baseNotificationData,
-          channelId:
-            'ship' in ev['dm-post'].whom ? ev['dm-post'].whom.ship : 'unknown',
-          postInfo: {
-            ...authorAndId(ev['dm-post'].key.id),
-            isDm: true,
-          },
-        };
+        return dmTarget(ev['dm-post']);
+
+      case is(ev, 'dm-reply'):
+        return dmTarget(ev['dm-reply']);
 
       case is(ev, 'post'):
-        return {
-          ...baseNotificationData,
-          channelId: ev.post.channel,
-          postInfo: {
-            ...authorAndId(ev.post.key.id),
-            isDm: false,
-          },
-        };
+        return channelPostTarget(ev.post);
 
       case is(ev, 'reply'):
-      // fallthrough
+        return channelPostTarget(ev.reply, { parent: ev.reply.parent });
+
       case is(ev, 'dm-invite'):
-      // fallthrough
-      case is(ev, 'dm-reply'):
       // fallthrough
       case is(ev, 'group-ask'):
       // fallthrough
