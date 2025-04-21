@@ -95,7 +95,6 @@ class NotificationService: UNNotificationServiceExtension {
         case let .activityEventJson(activityEventRaw):
             var notifContent = bestAttemptContent ?? UNNotificationContent()
 
-          // HACK: Proof-of-concept that we can use JS to populate notification content
           if let activityEventRaw {
             notifContent = await applyNotif(
                 activityEventRaw,
