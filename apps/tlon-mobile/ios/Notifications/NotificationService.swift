@@ -73,9 +73,13 @@ class NotificationService: UNNotificationServiceExtension {
         
         let interaction = INInteraction(intent: intent, response: nil)
         interaction.direction = .incoming
-        try? await interaction.donate() // any error here is discarded
-        
-        return (try? notification.updating(from: intent)) ?? notification
+        do {
+            try await interaction.donate()
+            return try notification.updating(from: intent)
+        } catch {
+            NSLog("Error: \(error)")
+            return notification
+        }
     }
 
     override func didReceive(_ request: UNNotificationRequest, withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void) {
