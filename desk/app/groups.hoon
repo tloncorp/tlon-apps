@@ -835,9 +835,22 @@
   |=  =group:g
   ^-  group:g
   =.  fleet.group
-    %+  ~(put by *fleet:g)
-      our.bowl
-    (~(gut by fleet.group) our.bowl *vessel:fleet:g)
+    =/  our-vessel=vessel:fleet:g  (~(gut by fleet.group) our.bowl *vessel:fleet:g)
+    =/  fleet-size=@ud  ~(wyt by fleet.group)
+    ?:  (lte fleet-size 3)
+      fleet.group  :: keep all members if 3 or fewer
+    =/  other-ships=(list [ship vessel:fleet:g])
+      %+  sort
+        %+  skip
+          ~(tap by fleet.group)
+        |=([=ship *] =(ship our.bowl))
+      |=  [[a=ship *] [b=ship *]]
+      (aor a b)  :: alphabetical order by ship name
+    =/  keep-ships=(list [ship vessel:fleet:g])
+      %+  weld
+        ~[[our.bowl our-vessel]]
+      (scag 2 other-ships)  :: take first 2 other ships
+    (~(gas by *fleet:g) keep-ships)
   group
 ::
 ++  to-claim-2
