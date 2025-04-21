@@ -129,6 +129,7 @@ sealed class PreviewContentNode {
     data class StringLiteral(val content: String) : PreviewContentNode()
     data class ConcatenateStrings(val first: PreviewContentNode, val second: PreviewContentNode) : PreviewContentNode()
     data class ChannelTitle(val channelId: String) : PreviewContentNode()
+    data class GroupTitle(val groupId: String) : PreviewContentNode()
     data class UserNickname(val ship: String) : PreviewContentNode()
 
     companion object {
@@ -140,6 +141,7 @@ sealed class PreviewContentNode {
                     parseFromJson(source.getJSONObject("second"))
                 )
                 "channelTitle" -> ChannelTitle(source.getString("channelId"))
+                "groupTitle" -> GroupTitle(source.getString("groupId"))
                 "userNickname" -> UserNickname(source.getString("ship"))
                 else -> throw Error("Unrecognized PreviewContentNode from JS")
             }
@@ -152,6 +154,7 @@ class PreviewContentNodeRenderer(private val api: TalkApi) {
             is StringLiteral -> node.content
             is ConcatenateStrings -> render(node.first) + render(node.second)
             is PreviewContentNode.UserNickname -> api.fetchContact(node.ship).let { x -> x.nickname ?: x.displayName ?: x.id }
+            is PreviewContentNode.GroupTitle -> api.fetchGroupTitle(node.groupId) ?: node.groupId
             is ChannelTitle -> api.fetchChannelTitle(node.channelId) ?: node.channelId
         }
 }
@@ -163,6 +166,14 @@ private suspend fun TalkApi.fetchChannelTitle(channelId: String): String? {
 private suspend fun TalkApi.fetchContact(contactId: String): Contact {
     val response = suspendTalkObjectCallback { cb -> fetchContact(contactId, cb) }
     return Contact(contactId, response)
+}
+private suspend fun TalkApi.fetchGroupTitle(groupId: String): String? {
+    val response = suspendTalkObjectCallback { cb -> fetchGangs(cb) }
+    return response
+        ?.getJSONObject(groupId)
+        ?.getJSONObject("preview")
+        ?.getJSONObject("meta")
+        ?.getString("title")
 }
 
 suspend fun suspendTalkObjectCallback(perform: (callback: TalkObjectCallback) -> Unit) =

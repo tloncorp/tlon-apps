@@ -10,6 +10,7 @@ import {
 
 type PreviewContentNode =
   | { type: 'channelTitle'; channelId: string }
+  | { type: 'groupTitle'; groupId: string }
   | { type: 'userNickname'; ship: string }
   | { type: 'stringLiteral'; content: string }
   | {
@@ -34,6 +35,9 @@ namespace PreviewContentNode {
   }
   export function userNickname(ship: string): PreviewContentNode {
     return { type: 'userNickname', ship };
+  }
+  export function groupTitle(groupId: string): PreviewContentNode {
+    return { type: 'groupTitle', groupId };
   }
 }
 

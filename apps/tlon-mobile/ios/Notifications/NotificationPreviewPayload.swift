@@ -3,6 +3,7 @@ import Foundation
 struct NotificationPreviewPayload: Decodable {
     indirect enum ContentNode: Decodable {
         case channelTitle(channelId: String)
+        case groupTitle(groupId: String)
         case userNickname(ship: String)
         case stringLiteral(content: String)
         case concatenateStrings(first: ContentNode, second: ContentNode)
@@ -10,6 +11,7 @@ struct NotificationPreviewPayload: Decodable {
         enum CodingKeys: String, CodingKey {
             case type
             case channelId
+            case groupId
             case content
             case first
             case second
@@ -18,6 +20,7 @@ struct NotificationPreviewPayload: Decodable {
         
         enum NodeType: String, Decodable {
             case channelTitle
+            case groupTitle
             case stringLiteral
             case concatenateStrings
             case userNickname
@@ -32,6 +35,10 @@ struct NotificationPreviewPayload: Decodable {
                 let channelId = try container.decode(String.self, forKey: .channelId)
                 self = .channelTitle(channelId: channelId)
                 
+            case .groupTitle:
+                let groupId = try container.decode(String.self, forKey: .groupId)
+                self = .groupTitle(groupId: groupId)
+
             case .stringLiteral:
                 let content = try container.decode(String.self, forKey: .content)
                 self = .stringLiteral(content: content)
@@ -77,6 +84,8 @@ struct NotificationPreviewContentNodeRenderer {
             return content
         case let .channelTitle(channelId):
             return (try? await GroupChannelStore.sharedInstance.getOrFetchItem(channelId)?.meta.title) ?? channelId
+        case let .groupTitle(groupId):
+            return (try? await GroupStore.sharedInstance.getOrFetchItem(groupId)?.preview?.meta.title) ?? groupId
         case let .concatenateStrings(first, second):
             return [await render(first), await render(second)].joined()
         case let .userNickname(ship):
