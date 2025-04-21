@@ -23,7 +23,7 @@ export const GroupListItem = ({
   ...props
 }: { customSubtitle?: string } & ListItemProps<db.Group>) => {
   const [open, setOpen] = useState(false);
-  const { setChat } = useChatOptions();
+  const { setChat } = useChatOptions(disableOptions);
   const [isHovered, setIsHovered] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const unreadCount = model.unread?.count ?? 0;
