@@ -5,7 +5,6 @@ import {
 } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -33,7 +32,6 @@ import {
   RequestsProvider,
   ScreenHeader,
   View,
-  WelcomeSheet,
   useGlobalSearch,
   useIsWindowNarrow,
 } from '../../ui';
@@ -225,24 +223,6 @@ export function ChatListScreenView({
     }
   }, [activeTab]);
 
-  const [splashVisible, setSplashVisible] = useState(true);
-
-  useEffect(() => {
-    const checkSplashDismissed = async () => {
-      const dismissed = await db.storage.splashDismissed.getValue();
-      setSplashVisible(!dismissed);
-    };
-
-    checkSplashDismissed();
-  }, []);
-
-  const handleWelcomeOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      setSplashVisible(false);
-      db.storage.splashDismissed.setValue(true);
-    }
-  }, []);
-
   const [searchQuery, setSearchQuery] = useState('');
 
   const isWindowNarrow = useIsWindowNarrow();
@@ -291,6 +271,10 @@ export function ChatListScreenView({
     activeTab,
   });
 
+  const handleInvitePress = useCallback(() => {
+    setInviteSheetGroup(selectedGroupId);
+  }, [selectedGroupId]);
+
   return (
     <RequestsProvider
       usePostReference={store.usePostReference}
@@ -301,9 +285,7 @@ export function ChatListScreenView({
     >
       <ChatOptionsProvider
         {...useChatSettingsNavigation()}
-        onPressInvite={(group) => {
-          setInviteSheetGroup(group);
-        }}
+        onPressInvite={handleInvitePress}
       >
         <NavigationProvider focusedChannelId={focusedChannelId}>
           <View userSelect="none" flex={1}>
@@ -312,7 +294,7 @@ export function ChatListScreenView({
               leftControls={
                 personalInvite ? (
                   <ScreenHeader.IconButton
-                    type="Send"
+                    type="AddPerson"
                     color={inviteButtonColor}
                     onPress={handlePersonalInvitePress}
                   />
@@ -360,11 +342,6 @@ export function ChatListScreenView({
                 )}
               </>
             ) : null}
-
-            <WelcomeSheet
-              open={splashVisible}
-              onOpenChange={handleWelcomeOpenChange}
-            />
             <GroupPreviewSheet
               open={!!selectedGroup}
               onOpenChange={handleGroupPreviewSheetOpenChange}

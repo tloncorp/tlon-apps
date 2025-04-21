@@ -49,6 +49,7 @@ export enum AnalyticsEvent {
   AnalyticsDigest = 'Usage Digest Report',
   WebAppOpened = 'Web App Opened',
   WebConsoleError = 'Web Console Error',
+  WayfindingDebug = 'Wayfinding Debug',
   ActionContactAdded = 'Contact Added',
   ActionContactRemoved = 'Contact Removed',
   ActionRemoveContactSuggestion = 'Removed Contact Suggestion',
@@ -107,6 +108,7 @@ export enum AnalyticsEvent {
   ActionConfirmPhoneAttest = 'Confirmed Phone Attestation',
   ActionGroupChannelSelected = 'Tapped group channel',
   ActionTappedPushNotif = 'Tapped Push Notification',
+  ActionDeferredDeepLink = 'Installed with Deferred Deeplink Invite',
   GroupJoinComplete = 'Group Join Complete',
   PersonalInviteLinkReady = 'Personal Invite Link Ready',
   ErrorSendPost = 'Error Sending Post',
@@ -122,6 +124,7 @@ export enum AnalyticsEvent {
   ErrorNounParse = 'Error Parsing Noun',
   ErrorNotificationService = 'Notification Service Error',
   ErrorCreateGroup = 'Error Creating Group',
+  ErrorWayfinding = 'Wayfinding Error',
 }
 
 export interface AnalyticsDigest {
@@ -134,4 +137,11 @@ export interface AnalyticsDigest {
   numLegacyGroupDms?: number | null;
   numGalleries?: number | null;
   numNotebooks?: number | null;
+}
+
+export enum AnalyticsSeverity {
+  Critical = 'Critical',
+  High = 'High',
+  Medium = 'Medium',
+  Low = 'Low',
 }

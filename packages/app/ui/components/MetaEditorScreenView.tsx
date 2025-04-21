@@ -20,6 +20,7 @@ import {
   FormFrame,
 } from './Form';
 import { ScreenHeader } from './ScreenHeader';
+import WayfindingNotice from './Wayfinding/Notices';
 
 export function MetaEditorScreenView({
   title,
@@ -27,16 +28,24 @@ export function MetaEditorScreenView({
   children,
   onSubmit,
   chat,
+  currentUserId,
 }: PropsWithChildren<{
   title: string;
   onSubmit: (meta: db.ClientMeta) => void;
   goBack: () => void;
   chat?: db.Group | db.Channel | null;
+  currentUserId: string;
 }>) {
   const [modelLoaded, setModelLoaded] = useState(!!chat);
   const defaultValues = useMemo(() => getMetaWithDefaults(chat), [chat]);
 
   const label = chat && logic.isGroup(chat) ? 'group' : 'channel';
+
+  const isPersonalGroup = useMemo(() => {
+    if (chat && logic.isGroup(chat)) {
+      return logic.isPersonalGroup(chat, currentUserId);
+    }
+  }, [chat, currentUserId]);
 
   const {
     control,
@@ -88,6 +97,7 @@ export function MetaEditorScreenView({
             paddingBottom: insets.bottom,
           }}
         >
+          {isPersonalGroup && <WayfindingNotice.CustomizeGroup />}
           <FormFrame paddingBottom={'$2xl'} flex={1} backgroundType="secondary">
             <ControlledTextField
               name="title"

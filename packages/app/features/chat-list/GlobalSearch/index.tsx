@@ -10,6 +10,7 @@ import {
 import { getTokenValue } from 'tamagui';
 
 import { TabName, useFilteredChats } from '../../../hooks/useFilteredChats';
+import { useResolvedChats } from '../../../hooks/useResolvedChats';
 import {
   ChatListItem,
   LoadingSpinner,
@@ -53,17 +54,11 @@ export function GlobalSearch({
     enabled: isOpen,
   });
 
-  const resolvedChats = useMemo(() => {
-    return {
-      pinned: chats?.pinned ?? [],
-      unpinned: chats?.unpinned ?? [],
-    };
-  }, [chats]);
+  const resolvedChats = useResolvedChats(chats);
 
   const filteredChatsConfig = useMemo(
     () => ({
-      pinned: resolvedChats.pinned,
-      unpinned: resolvedChats.unpinned,
+      ...resolvedChats, // Use the resolved chats from the hook
       pending: [],
       searchQuery,
       activeTab: 'all' as TabName,

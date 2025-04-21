@@ -3,9 +3,7 @@
   "compilerOptions": {
     "lib": ["DOM", "DOM.Iterable", "ESNext", "WebWorker"],
     "experimentalDecorators": true,
-    "strict": true,
     "module": "ESNext",
-    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
@@ -17,7 +15,10 @@
     ],
     "composite": true,
     "paths": {
-      "@/*": ["./apps/tlon-web/src/*"]
+      "@/*": ["./apps/tlon-web/src/*"],
+      "sqlocal/drizzle": ["node_modules/sqlocal/dist/drizzle"],
+      // needed to prevent TS mistakenly finding the old-web posthog-js version in root node_modules
+      "posthog-js": ["node_modules/posthog-js"]
     }
   },
   "include": [
@@ -29,7 +30,6 @@
     "./rube",
     "cosmos/setup.ts",
     "vite.config.mts",
-    "externalResourceScript.ts",
-    "injectCrossOriginScript.ts"
+    "reactNativeWebPlugin.ts"
   ]
 }

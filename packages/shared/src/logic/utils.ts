@@ -12,6 +12,7 @@ import {
   isGroupDmChannelId,
 } from '../api/apiUtils';
 import * as db from '../db';
+import * as domain from '../domain';
 import * as ub from '../urbit';
 
 export { isDmChannelId, isGroupChannelId, isGroupDmChannelId };
@@ -117,6 +118,18 @@ export function makePrettyDay(date: Date) {
       return 'Yesterday';
     default:
       return `${format(date, 'LLLL')} ${format(date, 'do')}`;
+  }
+}
+
+export function makePrettyDaysSince(date: Date) {
+  const diff = differenceInDays(endOfToday(), date);
+  switch (diff) {
+    case 0:
+      return 'Today';
+    case 1:
+      return 'Yesterday';
+    default:
+      return `${diff}d`;
   }
 }
 
@@ -546,21 +559,54 @@ export function getModelAnalytics({
   group?: Partial<db.Group> | null;
   channel?: Partial<db.Channel> | null;
 }) {
-  const details: Record<string, string | null> = {};
+  const wayfindingGroup = domain.PersonalGroupSlugs;
+  const details: Record<string, string | boolean | null> = {};
+
+  const isWayfindingGroup = group?.id;
+  const isWayfindingChannel = [
+    wayfindingGroup.chatSlug,
+    wayfindingGroup.collectionSlug,
+    wayfindingGroup.notebookSlug,
+  ].includes(channel?.id ?? '');
+
+  if (isWayfindingGroup || isWayfindingChannel) {
+    details.isPersonalGroup = true;
+  }
+
+  const isTlonTeamDM = channel?.id === '~wittyr-witbes'; // Tlon Team node
+  if (isTlonTeamDM) {
+    details.isTlonTeamDM = true;
+  }
+
+  // we want to mask all group/channel IDs unless:
+  // 1. it's the default wayfinding group
+  // 2. it's the Tlon Team DM
+  const getMaskedId = (id: string | null | undefined) => {
+    if (!id) return null;
+    if (isWayfindingGroup || isWayfindingChannel) {
+      return id;
+    }
+
+    if (isTlonTeamDM) {
+      return id;
+    }
+
+    return id ? simpleHash(id) : null;
+  };
 
   if (post) {
     details.postId = post.sentAt ? simpleHash(post.sentAt.toString()) : null;
-    details.channelId = post.channelId ? simpleHash(post.channelId) : null;
+    details.channelId = getMaskedId(post.channelId);
   }
 
   if (channel) {
-    details.channelId = channel.id ? simpleHash(channel.id) : null;
+    details.channelId = getMaskedId(channel.id);
     details.channelType = channel.type ?? null;
-    details.groupId = channel.groupId ? simpleHash(channel.groupId) : null;
+    details.groupId = getMaskedId(channel.groupId);
   }
 
   if (group) {
-    details.groupId = group.id ? simpleHash(group.id) : null;
+    details.groupId = getMaskedId(group.id);
     details.groupType =
       (group.channels?.length ?? 1) > 1 ? 'multi-topic' : 'groupchat';
     details.groupPrivacy = group.privacy ?? null;

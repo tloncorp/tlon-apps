@@ -1,6 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLureMetadata } from '@tloncorp/app/contexts/branch';
-import { NodeBootPhase } from '@tloncorp/app/lib/bootHelpers';
 import {
   ArvosDiscussing,
   IconType,
@@ -11,6 +10,7 @@ import {
   View,
   YStack,
 } from '@tloncorp/app/ui';
+import { NodeBootPhase } from '@tloncorp/shared/domain';
 import { useEffect, useMemo } from 'react';
 
 import { useSignupContext } from '../../lib/signupContext';

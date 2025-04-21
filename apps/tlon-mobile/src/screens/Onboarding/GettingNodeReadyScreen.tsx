@@ -13,8 +13,6 @@ import {
   scheduleNodeResumeNudge,
   useNotificationPermissions,
 } from '@tloncorp/app/lib/notifications';
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/db';
 import {
   AppDataContextProvider,
   ArvosDiscussing,
@@ -28,10 +26,15 @@ import {
   View,
   XStack,
   YStack,
+  useStore,
 } from '@tloncorp/app/ui';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useOnboardingHelpers } from '../../hooks/useOnboardingHelpers';
 import { OnboardingStackParamList } from '../../types';
 
 const BOTTOM_WIDGET_TITLES = [
@@ -59,6 +62,7 @@ export function GettingNodeReadyScreen({
   navigation,
   route: { params },
 }: Props) {
+  const store = useStore();
   const isFocused = useIsFocused();
   const lastWasFocused = useRef(true);
   const { setShip } = useShip();
@@ -66,6 +70,7 @@ export function GettingNodeReadyScreen({
   const handleLogout = useHandleLogout({ resetDb });
   const [loggingOut, setLoggingOut] = useState(false);
   const hostedNodeId = db.hostedUserNodeId.useValue();
+  const onboardingHelpers = useOnboardingHelpers();
 
   // Handle state for the progress indicaors
   const { progress, updateProgress, resetProgress } = useStagedProgress(
@@ -124,10 +129,24 @@ export function GettingNodeReadyScreen({
         setPermSheetOpen(false);
         setTimeout(() => {
           setShip(shipInfo);
+          if (shipInfo.needsSplashSequence) {
+            logger.trackEvent(AnalyticsEvent.WayfindingDebug, {
+              context: 'stopped revival ship is now ready, handling',
+            });
+            onboardingHelpers.handleRevivalLogin(shipInfo);
+          }
         }, 2000);
       }
     }
-  }, [navigation, phase, setShip, shipInfo, updateProgress]);
+  }, [
+    navigation,
+    onboardingHelpers,
+    phase,
+    setShip,
+    shipInfo,
+    store,
+    updateProgress,
+  ]);
 
   // If we came back to this screen, make sure we reset
   useEffect(() => {

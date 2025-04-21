@@ -192,13 +192,13 @@ async function createWindow() {
     // Properly resolve path to the web app dist directory
     const webAppPath = path.join(
       app.getAppPath(),
-      'tlon-web-new',
+      'tlon-web',
       'dist',
       'index.html'
     );
     const resourcesPath = path.join(
       path.dirname(app.getAppPath()),
-      'tlon-web-new',
+      'tlon-web',
       'dist',
       'index.html'
     );

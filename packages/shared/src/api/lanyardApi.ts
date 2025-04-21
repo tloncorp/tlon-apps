@@ -17,7 +17,7 @@ import {
   trackedPokeNoun,
 } from './urbit';
 
-const logger = createDevLogger('lanyardApi', true);
+const logger = createDevLogger('lanyardApi', false);
 
 export type LanyardUpdate = { type: 'Default' };
 export function subscribeToLanyardUpdates(

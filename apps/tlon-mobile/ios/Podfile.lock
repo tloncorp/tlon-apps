@@ -459,7 +459,7 @@ PODS:
     - nanopb/encode (= 2.30910.0)
   - nanopb/decode (2.30910.0)
   - nanopb/encode (2.30910.0)
-  - op-sqlite (11.2.4):
+  - op-sqlite (11.4.2):
     - React
     - React-callinvoker
     - React-Core
@@ -1408,6 +1408,29 @@ PODS:
     - React-Core
   - react-native-safe-area-context (4.10.5):
     - React-Core
+  - react-native-skia (1.2.3):
+    - DoubleConversion
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.01.01.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React
+    - React-callinvoker
+    - React-Codegen
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-rendererdebug
+    - React-utils
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - Yoga
   - react-native-webview (13.8.6):
     - DoubleConversion
     - glog
@@ -1865,6 +1888,7 @@ DEPENDENCIES:
   - react-native-get-random-values (from `../../../node_modules/react-native-get-random-values`)
   - "react-native-netinfo (from `../../../node_modules/@react-native-community/netinfo`)"
   - react-native-safe-area-context (from `../../../node_modules/react-native-safe-area-context`)
+  - "react-native-skia (from `../../../node_modules/@shopify/react-native-skia`)"
   - react-native-webview (from `../../../node_modules/react-native-webview`)
   - React-nativeconfig (from `../../../node_modules/react-native/ReactCommon`)
   - React-NativeModulesApple (from `../../../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
@@ -2086,6 +2110,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/@react-native-community/netinfo"
   react-native-safe-area-context:
     :path: "../../../node_modules/react-native-safe-area-context"
+  react-native-skia:
+    :path: "../../../node_modules/@shopify/react-native-skia"
   react-native-webview:
     :path: "../../../node_modules/react-native-webview"
   React-nativeconfig:
@@ -2227,7 +2253,7 @@ SPEC CHECKSUMS:
   libdav1d: 23581a4d8ec811ff171ed5e2e05cd27bad64c39f
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
   nanopb: 438bc412db1928dac798aa6fd75726007be04262
-  op-sqlite: 1aa4e1b456cff23410a28be65820d0c8bc74fb04
+  op-sqlite: 7649195ea49d43aef63cc06dd72318cd45dd9a97
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   PromisesSwift: 9d77319bbe72ebf6d872900551f7eeba9bce2851
   RCT-Folly: 02617c592a293bd6d418e0a88ff4ee1f88329b47
@@ -2261,6 +2287,7 @@ SPEC CHECKSUMS:
   react-native-get-random-values: 21325b2244dfa6b58878f51f9aa42821e7ba3d06
   react-native-netinfo: bdb108d340cdb41875c9ced535977cac6d2ff321
   react-native-safe-area-context: a240ad4b683349e48b1d51fed1611138d1bdad97
+  react-native-skia: b12c8f714ac911fa9437fa6c8f81b74c5c90a59e
   react-native-webview: 5951c8e0d457322e39c580778dd8505daf3f0327
   React-nativeconfig: f326487bc61eba3f0e328da6efb2711533dcac46
   React-NativeModulesApple: d89733f5baed8b9249ca5a8e497d63c550097312

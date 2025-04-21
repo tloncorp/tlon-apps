@@ -11,6 +11,7 @@ declare global {
     toggleDevTools: () => void;
     unread: any;
     markRead: Rope;
+    regeneratorRuntime: any;
     recents: any;
     ReactNativeWebView?: {
       postMessage: (message: string) => void;
