@@ -53,12 +53,16 @@ class NotificationService: UNNotificationServiceExtension {
         }
         
         let sender = await INPerson.from(shipName: message.senderId, withImage: true)
+        var speakableGroupName: INSpeakableString? = nil
+        if let conversationTitle = message.conversationTitle {
+            speakableGroupName = INSpeakableString(spokenPhrase: await renderer.render(conversationTitle))
+        }
         let intent = INSendMessageIntent(
             // Create empty recipient for groups because we don't need the OS creating the participant list
             recipients: [INPerson.empty],
             outgoingMessageType: .outgoingMessageText,
             content: notification.body,
-            speakableGroupName: INSpeakableString(spokenPhrase: renderer.render(message.conversationTitle)),
+            speakableGroupName: speakableGroupName,
             conversationIdentifier: notification.threadIdentifier,
             serviceName: nil,
             sender: sender,

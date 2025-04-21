@@ -56,7 +56,7 @@ struct NotificationPreviewPayload: Decodable {
         let type: MessageType
         let timestamp: Int
         let senderId: String
-        let conversationTitle: NotificationPreviewPayload.ContentNode
+        let conversationTitle: NotificationPreviewPayload.ContentNode?
     }
     
     let notification: Notification

@@ -43,7 +43,7 @@ interface PreviewContentPayload {
     type: 'group' | 'dm';
     timestamp: number;
     senderId: string;
-    conversationTitle: PreviewContentNode;
+    conversationTitle?: PreviewContentNode;
     messageText: PreviewContentNode;
   };
 }
@@ -100,10 +100,6 @@ export function renderActivityEventPreview({
       const { sent, author } = getIdParts(ev['dm-post'].key.id);
       return {
         notification: {
-          title:
-            'channel' in source
-              ? channelTitle(source.channel.nest)
-              : lit(sourceToString(source, true)),
           body: lit(contentSummary),
           groupingKey: lit(sourceToString(source, true)),
         },

@@ -102,7 +102,7 @@ data class PreviewContentPayload(
         val isGroupConversation: Boolean,
         val timestamp: Number,
         val senderId: String,
-        val conversationTitle: PreviewContentNode,
+        val conversationTitle: PreviewContentNode?,
         val messageText: PreviewContentNode,
     )
     companion object {
@@ -124,7 +124,7 @@ data class PreviewContentPayload(
                     isGroupConversation = source.getString("type") == "group",
                     timestamp = source.getDouble("timestamp"),
                     senderId = source.getString("senderId"),
-                    conversationTitle = parseNodeAtKey(source, "conversationTitle"),
+                    conversationTitle = maybeParseNodeAtKey(source, "conversationTitle"),
                     messageText = parseNodeAtKey(source, "messageText"),
                 )
             }
