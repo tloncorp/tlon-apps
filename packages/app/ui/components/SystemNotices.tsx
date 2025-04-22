@@ -18,7 +18,7 @@ const NoticeFrame = styled(YStack, {
 });
 
 const NoticeText = styled(Text, {
-  color: '$black',
+  color: '$primaryText',
   size: '$label/l',
 });
 
@@ -76,12 +76,12 @@ export function ContactBookPrompt(props: {
               <Button.Text color="$secondaryText">Not Now</Button.Text>
             </Button>
             <Button
-              backgroundColor="$black"
+              backgroundColor="$primaryText"
               padding="$xl"
               paddingHorizontal="$2xl"
               onPress={handlePrimaryAction}
             >
-              <Button.Text color="$white">Continue</Button.Text>
+              <Button.Text color="$background">Continue</Button.Text>
             </Button>
           </XStack>
         )}
