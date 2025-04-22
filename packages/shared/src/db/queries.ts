@@ -2961,6 +2961,26 @@ export const getPostWithRelations = createReadQuery(
   ['posts', 'threadUnreads', 'volumeSettings']
 );
 
+export const getPersonalGroup = createReadQuery(
+  'getPersonalGroup',
+  async (ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
+    const groupId = `${currentUserId}/${domain.PersonalGroupSlugs.slug}`;
+    const group = await getGroup({ id: groupId }, ctx);
+    return group;
+  },
+  [
+    'groups',
+    'channelUnreads',
+    'volumeSettings',
+    'channels',
+    'groupJoinRequests',
+    'groupMemberBans',
+    'groupNavSectionChannels',
+    'groupRoles',
+  ]
+);
+
 export const getGroup = createReadQuery(
   'getGroup',
   async (
@@ -3554,9 +3574,15 @@ export const insertThreadUnreads = createWriteQuery(
 
 export const getThreadUnreadsByChannel = createReadQuery(
   'getThreadUnreadsByChannel',
-  async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
+  async (
+    { channelId, excludeRead }: { channelId: string; excludeRead?: boolean },
+    ctx: QueryCtx
+  ): Promise<ThreadUnreadState[]> => {
     return ctx.db.query.threadUnreads.findMany({
-      where: eq($threadUnreads.channelId, channelId),
+      where: and(
+        eq($threadUnreads.channelId, channelId),
+        excludeRead ? not(eq($threadUnreads.count, 0)) : undefined
+      ),
     });
   },
   ['threadUnreads']
@@ -3577,6 +3603,17 @@ export const clearThreadUnread = createWriteQuery(
           eq($threadUnreads.threadId, threadId)
         )
       );
+  },
+  ['threadUnreads']
+);
+
+export const clearChannelThreadUnreads = createWriteQuery(
+  'clearChannelThreadUnreads',
+  async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
+    return ctx.db
+      .update($threadUnreads)
+      .set({ count: 0, firstUnreadPostId: null })
+      .where(eq($threadUnreads.channelId, channelId));
   },
   ['threadUnreads']
 );

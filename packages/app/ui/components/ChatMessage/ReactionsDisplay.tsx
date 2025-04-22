@@ -54,7 +54,7 @@ export function ReactionsDisplay({
       reaction.users
         ? reaction.users
             .slice(0, 3)
-            .map((user) => user.name)
+            .map((user) => user.name || user.id)
             .join(', ') +
           (reaction.users.length > 3
             ? ` +${reaction.users.length - 3} more`

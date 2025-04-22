@@ -1,13 +1,14 @@
 import type { BridgeState, EditorBridge } from '@10play/tentap-editor';
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { Button } from '@tloncorp/ui';
-import { FloatingActionButton } from '@tloncorp/ui';
+import { FloatingActionButton, Text } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { memo } from 'react';
 import { PropsWithChildren } from 'react';
-import { SpaceTokens, styled } from 'tamagui';
+import { Circle, SpaceTokens, styled } from 'tamagui';
 import {
   ThemeTokens,
   View,
@@ -19,6 +20,7 @@ import {
 
 import { useAttachmentContext } from '../../contexts/attachment';
 import { MentionPopupRef } from '../MentionPopup';
+import Notices from '../Wayfinding/Notices';
 import { GalleryDraftType } from '../draftInputs/shared';
 import AttachmentButton from './AttachmentButton';
 import InputMentionPopup from './InputMentionPopup';
@@ -49,6 +51,7 @@ export interface MessageInputProps {
   ) => Promise<void>;
   setShowBigInput?: (showBigInput: boolean) => void;
   showAttachmentButton?: boolean;
+  showWayfindingTooltip?: boolean;
   floatingActionButton?: boolean;
   paddingHorizontal?: SpaceTokens;
   backgroundColor?: ThemeTokens;
@@ -88,9 +91,10 @@ export const MessageInputContainer = memo(
     setShouldBlur,
     containerHeight,
     sendError,
-    showMentionPopup = false,
+    isMentionModeActive = false,
     showAttachmentButton = true,
     floatingActionButton = false,
+    showWayfindingTooltip = false,
     disableSend = false,
     mentionText,
     groupMembers,
@@ -101,14 +105,16 @@ export const MessageInputContainer = memo(
     goBack,
     mentionRef,
     frameless = false,
+    setHasMentionCandidates,
   }: PropsWithChildren<{
     setShouldBlur: (shouldBlur: boolean) => void;
     onPressSend: () => void;
     containerHeight: number;
     sendError: boolean;
-    showMentionPopup?: boolean;
+    isMentionModeActive?: boolean;
     showAttachmentButton?: boolean;
     floatingActionButton?: boolean;
+    showWayfindingTooltip?: boolean;
     disableSend?: boolean;
     mentionText?: string;
     groupMembers: db.ChatMember[];
@@ -119,6 +125,7 @@ export const MessageInputContainer = memo(
     goBack?: () => void;
     mentionRef?: MentionPopupRef;
     frameless?: boolean;
+    setHasMentionCandidates?: (has: boolean) => void;
   }>) => {
     const { canUpload } = useAttachmentContext();
     const theme = useTheme();
@@ -136,11 +143,12 @@ export const MessageInputContainer = memo(
       >
         <InputMentionPopup
           containerHeight={containerHeight}
-          showMentionPopup={showMentionPopup}
+          isMentionModeActive={isMentionModeActive}
           mentionText={mentionText}
           groupMembers={groupMembers}
           onSelectMention={onSelectMention}
           ref={mentionRef}
+          setHasMentionCandidates={setHasMentionCandidates}
         />
         {!frameless ? (
           <XStack
@@ -201,6 +209,7 @@ export const MessageInputContainer = memo(
               </View>
             ) : (
               <View marginBottom="$xs">
+                {showWayfindingTooltip && <Notices.ChatInputTooltip />}
                 <Button
                   disabled={disableSend}
                   onPress={isEditing ? onPressEdit : onPressSend}

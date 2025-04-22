@@ -42,6 +42,7 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
   let updateLock = Promise.resolve();
 
   const getValue = async (): Promise<T> => {
+    await updateLock;
     const value = await storage.getItem(key);
 
     if (!value) {
