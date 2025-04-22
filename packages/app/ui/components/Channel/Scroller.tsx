@@ -254,27 +254,6 @@ const Scroller = forwardRef(
       [posts]
     );
 
-    // Keep track of deleted posts to properly show author rows after deletion
-    // This is only needed during the transition period before database updates are processed
-    const [deletedPostIds, setDeletedPostIds] = useState<
-      Record<string, boolean>
-    >({});
-
-    // Handler for post deletion that updates tracking state and calls original handler
-    const handlePostDelete = useCallback(
-      (post: db.Post) => {
-        // Add to tracking state to ensure UI updates immediately
-        setDeletedPostIds((prev) => ({
-          ...prev,
-          [post.id]: true,
-        }));
-
-        // Call the original delete handler
-        onPressDelete(post);
-      },
-      [onPressDelete]
-    );
-
     const listRenderItem: ListRenderItem<PostWithNeighbors> = useCallback(
       ({ item: { post, newer: nextItem, older: previousItem }, index }) => {
         const isFirstPostOfDay = !isSameDay(
@@ -286,17 +265,9 @@ const Scroller = forwardRef(
           (post.type === 'chat' || post.type === 'reply') &&
           ((nextItem && nextItem.authorId !== post.authorId) || !isSameDay);
 
-        // Check if previous message is deleted using both standard flag
-        // and tracking state for transition period
-        const isPrevDeleted =
-          previousItem &&
-          (previousItem.isDeleted || deletedPostIds[previousItem.id]);
-
-        // Show author based on standard rules and deleted state
         const showAuthor =
           post.type === 'note' ||
           post.type === 'block' ||
-          isPrevDeleted ||
           !previousItem ||
           previousItem?.authorId !== post.authorId ||
           previousItem?.type === 'notice' ||
@@ -320,7 +291,7 @@ const Scroller = forwardRef(
             unreadCount={unreadCount}
             setViewReactionsPost={setViewReactionsPost}
             onPressRetry={onPressRetry}
-            onPressDelete={handlePostDelete}
+            onPressDelete={onPressDelete}
             showReplies={showReplies}
             onPressImage={onPressImage}
             onPressReplies={onPressReplies}
@@ -357,7 +328,7 @@ const Scroller = forwardRef(
         onPressImage,
         onPressReplies,
         onPressPost,
-        handlePostDelete,
+        onPressDelete,
         onPressRetry,
         handlePostLongPressed,
         activeMessage,
@@ -368,7 +339,6 @@ const Scroller = forwardRef(
         itemWidth,
         setActiveMessage,
         setEditingPost,
-        deletedPostIds,
       ]
     );
 
