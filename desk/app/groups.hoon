@@ -837,8 +837,8 @@
   =.  fleet.group
     =/  our-vessel=vessel:fleet:g  (~(gut by fleet.group) our.bowl *vessel:fleet:g)
     =/  fleet-size=@ud  ~(wyt by fleet.group)
-    ?:  (lte fleet-size 3)
-      fleet.group  :: keep all members if 3 or fewer
+    ?:  (lte fleet-size 15)
+      fleet.group  :: keep all members if 15 or fewer
     =/  other-ships=(list [ship vessel:fleet:g])
       %+  sort
         ~(tap by (~(del by fleet.group) our.bowl))
@@ -846,7 +846,7 @@
       (aor (scot %p a) (scot %p b)) :: alphabetical order by ship name
     =/  keep-ships=(list [ship vessel:fleet:g])
       :-  [our.bowl our-vessel]
-      (scag 2 other-ships)  :: take first 2 other ships
+      (scag 14 other-ships)  :: take first 14 other ships
     (~(gas by *fleet:g) keep-ships)
   group
 ::
