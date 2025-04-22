@@ -756,17 +756,14 @@ export const insertGroups = createWriteQuery(
         }
         if (group.members?.length) {
           logger.log('insertGroups: inserting members', group.members);
-          // Delete existing members for this group before inserting the new ones
-          // This ensures all member data including membershipType is properly updated
-          await txCtx.db
-            .delete($chatMembers)
-            .where(eq($chatMembers.chatId, group.id));
-          
-          // Insert the new members
           await txCtx.db
             .insert($chatMembers)
-            .values(group.members);
-            
+            .values(group.members)
+            .onConflictDoUpdate({
+              target: [$chatMembers.chatId, $chatMembers.contactId],
+              set: conflictUpdateSetAll($chatMembers),
+            });
+
           const validRoleNames = group.roles?.map((r) => r.id);
           const memberRoles = group.members.flatMap((m) => {
             return (m.roles ?? []).flatMap((r) => {
