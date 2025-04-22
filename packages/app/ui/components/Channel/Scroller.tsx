@@ -266,6 +266,7 @@ const Scroller = forwardRef(
         const showAuthor =
           post.type === 'note' ||
           post.type === 'block' ||
+          !previousItem ||
           previousItem?.authorId !== post.authorId ||
           previousItem?.type === 'notice' ||
           isFirstPostOfDay;
@@ -308,6 +309,7 @@ const Scroller = forwardRef(
             itemAspectRatio={collectionLayout.itemAspectRatio ?? undefined}
             itemWidth={itemWidth}
             columnCount={columns}
+            previousPost={previousItem}
             {...anchorScrollLockScrollerItemProps}
           />
         );
@@ -612,6 +614,7 @@ const BaseScrollerItem = ({
   itemAspectRatio,
   itemWidth,
   columnCount,
+  previousPost,
 }: {
   showUnreadDivider: boolean;
   showAuthor: boolean;
@@ -639,8 +642,18 @@ const BaseScrollerItem = ({
   itemAspectRatio?: number;
   itemWidth?: number;
   columnCount: number;
+  previousPost?: db.Post | null;
 }) => {
   const post = useLivePost(item);
+  const previousPostLive = previousPost ? useLivePost(previousPost) : null;
+  const isPrevDeleted = previousPostLive?.isDeleted === true;
+
+  const showAuthorLive = useMemo(() => {
+    if (isPrevDeleted) {
+      return true;
+    }
+    return showAuthor;
+  }, [isPrevDeleted, showAuthor]);
 
   const handleLayout = useCallback(
     (e: LayoutChangeEvent) => {
@@ -712,7 +725,7 @@ const BaseScrollerItem = ({
           isHighlighted={isSelected}
           post={post}
           setViewReactionsPost={setViewReactionsPost}
-          showAuthor={showAuthor}
+          showAuthor={showAuthorLive}
           showReplies={showReplies}
           onPressReplies={post.isDeleted ? undefined : onPressReplies}
           onPressImage={post.isDeleted ? undefined : onPressImage}
