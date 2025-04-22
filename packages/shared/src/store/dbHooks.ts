@@ -389,7 +389,7 @@ export const useSystemContacts = () => {
 export const useSystemContactShortlist = () => {
   const deps = useKeyFromQueryDeps(db.getUninvitedSystemContactsShortlist);
   return useQuery({
-    queryKey: ['systemContacts', deps],
+    queryKey: ['systemContactsShortlist', deps],
     queryFn: () => db.getUninvitedSystemContactsShortlist(),
   });
 };
