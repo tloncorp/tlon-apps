@@ -841,14 +841,11 @@
       fleet.group  :: keep all members if 3 or fewer
     =/  other-ships=(list [ship vessel:fleet:g])
       %+  sort
-        %+  skip
-          ~(tap by fleet.group)
-        |=([=ship *] =(ship our.bowl))
+        ~(tap by (~(del by fleet.group) our.bowl))
       |=  [[a=ship *] [b=ship *]]
-      (aor a b)  :: alphabetical order by ship name
+      (aor (scot %p a) (scot %p b)) :: alphabetical order by ship name
     =/  keep-ships=(list [ship vessel:fleet:g])
-      %+  weld
-        ~[[our.bowl our-vessel]]
+      :-  [our.bowl our-vessel]
       (scag 2 other-ships)  :: take first 2 other ships
     (~(gas by *fleet:g) keep-ships)
   group
