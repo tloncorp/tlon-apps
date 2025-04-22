@@ -22,7 +22,7 @@
 ::  $seat: group membership (formerly $vessel)
 ::
 +$  seat
-  $:  roles=(set role)
+  $:  roles=(set role-id)
       joined=time
   ==
 ::  $role-id: group member role
@@ -36,7 +36,7 @@
 ::    roles in this set are allowed to make modifications to the group
 ::    and its various metadata and permissions
 ::
-+$  admins  (set role)
++$  admins  (set role-id)
 ::  $channel-preview: channel preview
 ::
 +$  channel-preview  [=nest meta=data:meta]
@@ -44,6 +44,7 @@
 ::
 ::  .meta: channel description
 ::  .added: time channel was added
+::  .section: channel section
 ::  .join: should the channel be joined by new members
 ::  .readers: roles with read permissions. empty set
 ::            means the channel is accessible by everyone.
@@ -51,24 +52,26 @@
 +$  channel
   $:  meta=data:meta
       added=time
-      =section
+      =section-id
       join=?
-      readers=(set role)
+      readers=(set role-id)
   ==
 ::  $admissions: group entry policy
 ::
 ::  .privacy: determines group visibility
 ::  .banned: ships and ranks blacklist
-::  .requests: entry requests
+::  .requests: entry requests 
 ::  .tokens: access tokens
+::  .referrals: token attribution
 ::  .invited: invited guest list
-::  .public-token: public token
+::  .public-token: public access token
 ::
 +$  admissions
   $:  =privacy
       =banned
       requests=(map ship (unit story:s))
       tokens=(map token token-meta)
+      referrals=(map ship token)
       invited=(map ship [at=@da =token])
       public-token=(unit token)
   ==
@@ -126,6 +129,17 @@
 ::    group holds all data around members, permissions, channel
 ::    organization, and its own metadata to represent the group
 ::
+::  .meta: group metadata
+::  .admissions: entry policy
+::  .seats: members
+::  .roles: member roles
+::  .admins: administrators
+::  .channels: group channels
+::  .active-channels: joined channels
+::  .sections: channel sections
+::  .section-order: sections order
+::  .flagged-content: flagged content
+::
 +$  group
   $:  meta=data:meta
     ::
@@ -149,8 +163,8 @@
 ::
 +$  net
   $~  [%pub ~]
-  $%  [%pub p=log]
-      [%sub p=time load=_|]
+  $%  [%pub =log]
+      [%sub =time load=_|]
   ==
 ::
 +$  groups-ui
@@ -163,7 +177,7 @@
 ::
 ::  .flag: group flag
 ::  .meta: group metadata
-::  .time: preview data
+::  .time: preview timestamp
 ::  .member-count: group member count
 ::  .public-token: public access token
 ::
@@ -177,15 +191,21 @@
 ::  $previews: collection of group previews
 ::
 +$  previews  (map flag preview)
-::  $create: a request to make a group
+::  $create-group: a request to create a group
 ::
-+$  create
-  $:  meta=data:meta
-      =admissions
-      members=(jug ship sect)
+::  .name: group name
+::  .meta: group meteadata
+::  .privacy: admission privacy
+::  .banned: admission restrictions
+::  .guests: list of ships to invite
+::
++$  create-group
+  $:  name=term
+      meta=data:meta
+      =privacy
+      =banned
+      guests=(set ship)
   ==
-::XX where is this used?
-+$  init  [=time =group]
 ::
 +$  post-key  [post=time reply=(unit time)]
 ::
@@ -219,14 +239,19 @@
 ::    to subscribers. most updates also trigger
 ::    a response.
 ::
+::XX  consider whether it is better 
+::    to have separate %group-join, %group-invite pokes
+::
 +$  a-groups
   $%  [%join =flag pass=token]
+      :: [%invite =a-invite]
+      [%leave =flag]
       [%group =flag =a-group]
   ==
 +$  a-group
   $%  [%entry =a-entry]
       [%seat =ship =a-seat]
-      [%role =role =a-role]
+      [%role =role-id =a-role]
       [%section =section =a-section]
       [%flag-content =nest =post-key src=ship]
   ==
@@ -236,18 +261,18 @@
 +$  a-section  c-section
 ::
 +$  c-groups
-  $%  [%create =create]
+  $%  [%create =create-group]
       [%group =flag =c-group]
   ==
 +$  c-group
-  $%  [%meta =data:meta]
+  $%  [%meta meta=data:meta]
       [%entry =c-entry]
-      [%seat =ship =c-seat]
-      [%role =role =c-role]
+      [%seat ships=(set ship) =c-seat]
+      [%role =role-id =c-role]
       [%channel =nest =c-channel]
-      [%section =section =c-section]
+      [%section =section-id =c-section]
       [%flag-content =nest =post-key src=ship]
-      [%del ~]
+      [%delete ~]
   ==
 +$  c-entry
   $%  [%privacy =privacy]
@@ -261,7 +286,7 @@
       [%del-ranks ranks=(set rank:title)]
   ==
 +$  c-token
-  $%  [%add scheme=claim-scheme expiry=(unit @dr) label=(unit @t)]
+  $%  [%add scheme=claim-scheme expiry=(unit @dr) referral=?]
       [%del =token]
   ==
 ::  $c-role: role command
@@ -284,13 +309,13 @@
 ::  %add: add a group member
 ::  %del: remove the group member
 ::  %add-roles: add the member to roles
-::  %del-roles: rescind the member roles
+::  %del-roles: remove the member from roles
 ::
 +$  c-seat
   $%  [%add ~]
       [%del ~]
-      [%add-roles roles=(set role)]
-      [%del-roles roles=(set role)]
+      [%add-roles roles=(set role-id)]
+      [%del-roles roles=(set role-id)]
   ==
 ::  $c-channel: channel command
 ::
@@ -309,7 +334,7 @@
       [%add-roles roles=(set role-id)]
       [%del-roles roles=(set role-id)]
     ::
-      [%section =section]
+      [%section =section-id]
   ==
 ::  $c-section: section command
 ::
@@ -326,15 +351,30 @@
       [%move idx=@ud]
       [%move-nest =nest idx=@ud]
   ==
-+$  u-groups
++$  r-groups
   $%  [%preview =preview]
-      [%create =create]
+      [%leave =flag]
+      [%group =flag =r-group]
+  ==
++$  r-group
+  $%  [%meta =data:meta]
+      :: XX type aliases below
+      [%entry r-entry=u-entry]
+      [%seat =ship r-seat=u-seat]
+      [%role =role r-role=u-role]
+      [%channel =nest r-channel=u-channel]
+      [%section =section r-section=u-section]
+      [%flag-content =nest =post-key src=ship]
+      [%del ~]
+  ==
++$  u-groups
+  $%  [%create =create]
       [%group =flag =u-group]
   ==
 +$  u-group
   $%  [%meta =data:meta]
       [%entry =u-entry]
-      [%seat =ship =u-seat]
+      [%seat ships=(set-ship) =u-seat]
       [%role =role =u-role]
       [%channel =nest =u-channel]
       [%section =section =u-section]
@@ -382,22 +422,15 @@
       [%move idx=@ud]
       [%move-nest =nest idx=@ud]
   ==
-+$  r-groups
-  $%  [%preview =preview]
-      [%group =flag =r-group]
-  ==
-+$  r-group
-  $%  [%meta =data:meta]
-      :: XX type aliases below
-      [%entry r-entry=u-entry]
-      [%seat =ship r-seat=u-seat]
-      [%role =role r-role=u-role]
-      [%channel =nest r-channel=u-channel]
-      [%section =section r-section=u-section]
-      [%flag-content =nest =post-key src=ship]
-      [%del ~]
-  ==
-::  $log: a time ordered map of all modifications to a group
+::  $group-update: a group update with timestamp
+::
++$  group-update  [=time =u-group]
+::  $preview-update: group preview update
+::
++$  preview-update  (unit preview)
+::  $init: initial group update
+::
++$  init  [=time =group]
 ::
 +$  log
   ((mop time u-groups) lte)

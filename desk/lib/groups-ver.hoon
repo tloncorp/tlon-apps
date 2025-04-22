@@ -1,10 +1,52 @@
 ::  groups-ver: groups type conversions
 ::
+::TODO seems like a door interface would be nicer.
+::     however, that would need an adapter for generating
+::     a conversion function, as opposed to conversion call,
+::     since conversions are frequently invoked over a container.
+::
 /-  g=groups
 /+  neg=negotiate
-::  helpers
 ::
 |%
+++  v7
+  |%
+  ++  group
+    |%
+    ++  v2
+      |=  =group:v7:g
+      ~|(%not-implemented !!)
+    ++  v5
+      |=  =group:v7:g
+      ~|(%not-implemented !!)
+    --
+  ::
+  ++  log
+    |%
+    ++  v2
+      |=  =log:v7:g
+      ~|(%not-implemented !!)
+    ++  v5
+      |=  =log:v7:g
+      ~|(%not-implemented !!)
+    --
+  ::
+  ++  r-groups
+    |%
+    ++  action
+      |%
+      ++  v5
+        |=  =r-groups:v7:g
+        ^-  action:v5:g
+        !!
+      ++  v2
+        |=  =r-groups:v7:g
+        ^-  action:v2:g
+        !!
+      --
+    --
+
+  --
 ++  v6
   =>
     |%

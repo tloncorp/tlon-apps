@@ -1367,7 +1367,7 @@
   ::    often this will modify the state and emit a "response" to our
   ::    own subscribers.  it may also emit unreads and/or trigger hark
   ::    events.
-  ::
+  ::XX rename to ca-u-channel
   ++  ca-u-channels
     |=  [=time =u-channel:c]
     ?>  ca-from-host

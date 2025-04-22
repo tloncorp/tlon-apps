@@ -24,7 +24,7 @@
         image/s/image.m
         cover/s/cover.m
     ==
-  ::
+  ::XX deprecated?
   ++  saga
     |=  s=saga:e
     %-  frond
@@ -91,7 +91,12 @@
             reply/?~(reply.post-key ~ (time-id u.reply.post-key))
         ==
     ==
+  ++  r-groups
+    |=  =r-groups:v7:g
+    ^-  json
+    !!
   ::
+  ++  v7  .
   ++  v6
     =,  v5
     |%
@@ -633,6 +638,9 @@
     :~  add+whom
         del+whom
     ==
+  ++  a-groups
+    ^-  $-(json a-groups:v7:g)
+    !!
   ::
   ++  v6  v6:ver
   ++  v5  v5:ver
@@ -640,6 +648,7 @@
   ::
   ++  ver
     |%
+    ::XX do not use spurious aliases
     ++  v6  v5
     ++  v5  v2
     ++  v2
