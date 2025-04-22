@@ -255,14 +255,15 @@ const Scroller = forwardRef(
     );
 
     // Keep track of deleted posts to properly show author rows after deletion
+    // This is only needed during the transition period before database updates are processed
     const [deletedPostIds, setDeletedPostIds] = useState<
       Record<string, boolean>
     >({});
 
-    // Enhanced handler for post deletion that updates our tracking state
+    // Handler for post deletion that updates tracking state and calls original handler
     const handlePostDelete = useCallback(
       (post: db.Post) => {
-        // Add to our deletion tracking
+        // Add to tracking state to ensure UI updates immediately
         setDeletedPostIds((prev) => ({
           ...prev,
           [post.id]: true,
@@ -285,17 +286,17 @@ const Scroller = forwardRef(
           (post.type === 'chat' || post.type === 'reply') &&
           ((nextItem && nextItem.authorId !== post.authorId) || !isSameDay);
 
-        // Check if the previous post was deleted using our tracking
-        const prevDeleted =
+        // Check if previous message is deleted using both standard flag
+        // and tracking state for transition period
+        const isPrevDeleted =
           previousItem &&
           (previousItem.isDeleted || deletedPostIds[previousItem.id]);
 
-        // Force showing author for messages that follow deleted messages
-        // or meet other standard conditions
+        // Show author based on standard rules and deleted state
         const showAuthor =
           post.type === 'note' ||
           post.type === 'block' ||
-          prevDeleted || // Show author when previous message was deleted
+          isPrevDeleted ||
           !previousItem ||
           previousItem?.authorId !== post.authorId ||
           previousItem?.type === 'notice' ||
@@ -340,6 +341,7 @@ const Scroller = forwardRef(
             itemAspectRatio={collectionLayout.itemAspectRatio ?? undefined}
             itemWidth={itemWidth}
             columnCount={columns}
+            previousPost={previousItem}
             {...anchorScrollLockScrollerItemProps}
           />
         );
@@ -366,7 +368,7 @@ const Scroller = forwardRef(
         itemWidth,
         setActiveMessage,
         setEditingPost,
-        deletedPostIds, // Add to dependencies so we rerender when a post is deleted
+        deletedPostIds,
       ]
     );
 
@@ -645,6 +647,7 @@ const BaseScrollerItem = ({
   itemAspectRatio,
   itemWidth,
   columnCount,
+  previousPost,
 }: {
   showUnreadDivider: boolean;
   showAuthor: boolean;
@@ -672,8 +675,22 @@ const BaseScrollerItem = ({
   itemAspectRatio?: number;
   itemWidth?: number;
   columnCount: number;
+  previousPost?: db.Post | null;
 }) => {
+  // Get live versions of both posts
   const post = useLivePost(item);
+  const livePreviousPost = previousPost ? useLivePost(previousPost) : null;
+
+  // Check if the previous post was deleted (using the live version)
+  const isPrevDeleted = livePreviousPost?.isDeleted === true;
+
+  // Recalculate showAuthor based on the live state of the previous post
+  const actualShowAuthor = useMemo(() => {
+    if (isPrevDeleted) {
+      return true; // Always show author after a deleted post
+    }
+    return showAuthor; // Otherwise use the passed prop
+  }, [isPrevDeleted, showAuthor]);
 
   const handleLayout = useCallback(
     (e: LayoutChangeEvent) => {
@@ -745,7 +762,7 @@ const BaseScrollerItem = ({
           isHighlighted={isSelected}
           post={post}
           setViewReactionsPost={setViewReactionsPost}
-          showAuthor={showAuthor}
+          showAuthor={actualShowAuthor}
           showReplies={showReplies}
           onPressReplies={post.isDeleted ? undefined : onPressReplies}
           onPressImage={post.isDeleted ? undefined : onPressImage}
