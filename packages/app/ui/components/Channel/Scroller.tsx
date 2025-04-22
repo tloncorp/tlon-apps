@@ -645,9 +645,7 @@ const BaseScrollerItem = ({
   previousPost?: db.Post | null;
 }) => {
   const post = useLivePost(item);
-  const previousPostLive = previousPost ? useLivePost(previousPost) : null;
-  const isPrevDeleted = previousPostLive?.isDeleted === true;
-
+  const isPrevDeleted = previousPost?.isDeleted === true;
   const showAuthorLive = useMemo(() => {
     if (isPrevDeleted) {
       return true;
