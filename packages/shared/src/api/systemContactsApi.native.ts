@@ -32,7 +32,7 @@ export function parseNativeContacts(
   nativeContacts: Contacts.Contact[]
 ): domain.SystemContact[] {
   // Add debugging to see what's getting filtered out initially
-  logger.log(`Initial contacts count: ${nativeContacts.length}`);
+  logger.trackEvent(`Initial system contacts count: ${nativeContacts.length}`);
 
   const parsed = nativeContacts
     .filter((contact) => {
@@ -42,8 +42,8 @@ export function parseNativeContacts(
 
       // Debug which contacts are being filtered out here
       if (!hasPhoneNumbers && !hasEmails) {
-        logger.log(
-          `Filtered out contact with no phone/email: ${contact.firstName} ${contact.lastName}`
+        logger.trackEvent(
+          `Filtered out system contact with no phone/email: ${contact.firstName} ${contact.lastName}`
         );
       }
 
@@ -55,8 +55,9 @@ export function parseNativeContacts(
         .map((phoneRecord, index) => {
           // Skip if no number
           if (!phoneRecord.number) {
-            logger.log(
-              `Contact ${contact.firstName} ${contact.lastName}: phone record ${index} has no number`
+            logger.trackEvent(
+              `Contact ${contact.firstName} ${contact.lastName}: phone record ${index} has no number`,
+              { phoneRecord }
             );
             return null;
           }
@@ -76,8 +77,9 @@ export function parseNativeContacts(
                 );
                 formattedNumber = parsedNumber?.format('E.164');
               } catch (e) {
-                logger.log(
-                  `Failed to format number ${phoneRecord.number} with country ${countryCode}: ${e}`
+                logger.trackEvent(
+                  `Failed to format number ${phoneRecord.number} with country ${countryCode}: ${e}`,
+                  { error: e, contact: JSON.stringify(contact) }
                 );
               }
             }
@@ -149,11 +151,11 @@ export function parseNativeContacts(
       // Debug contacts that don't have phone numbers after processing
       if ((contact.phoneNumbers?.length ?? 0) > 0 && !sysContact.phoneNumber) {
         logger.log(
-          `Contact ${contact.firstName} ${contact.lastName} lost phone number during formatting`
-        );
-        logger.log(
-          'Original phone data:',
-          JSON.stringify(contact.phoneNumbers)
+          `Contact ${contact.firstName} ${contact.lastName} lost phone number during formatting`,
+          {
+            systemPhoneData: JSON.stringify(contact.phoneNumbers),
+            contact: JSON.stringify(contact),
+          }
         );
       }
 
@@ -162,15 +164,20 @@ export function parseNativeContacts(
     .filter((contact) => {
       const isValid = contact.phoneNumber || contact.email;
       if (!isValid) {
-        logger.log(
+        logger.trackEvent(
           `Final filter removed contact: ${contact.firstName} ${contact.lastName}`
         );
       }
       return isValid;
     });
 
-  logger.log(
+  logger.trackEvent(
     `Input contacts: ${nativeContacts.length}, Output contacts: ${parsed.length}`
+  );
+  const numWithPhone = parsed.filter((c) => c.phoneNumber).length;
+  const numWithEmail = parsed.filter((c) => c.email).length;
+  logger.trackEvent(
+    `Num contacts with phone: ${numWithPhone}, with email: ${numWithEmail}`
   );
   return parsed;
 }

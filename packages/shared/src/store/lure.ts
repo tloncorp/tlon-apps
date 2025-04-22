@@ -230,7 +230,7 @@ export function useLure({
     }
 
     return 'ready';
-  }, [bait, fetched, url, deepLinkUrl, flag]);
+  }, [bait, fetched, url, deepLinkUrl]);
 
   // prevent over zealous logging
   const statusKey = useMemo(() => {

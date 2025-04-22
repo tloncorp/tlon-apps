@@ -363,13 +363,33 @@ export const insertSystemContacts = createWriteQuery(
   async (params: { systemContacts: SystemContact[] }, ctx: QueryCtx) => {
     const { systemContacts } = params;
     if (!systemContacts.length) return;
-    await ctx.db
-      .insert($systemContacts)
-      .values(systemContacts)
-      .onConflictDoUpdate({
-        target: [$systemContacts.id],
-        set: conflictUpdateSetAll($systemContacts),
-      });
+
+    // Process in batches of 200
+    const batchSize = 200;
+    for (let i = 0; i < systemContacts.length; i += batchSize) {
+      const batch = systemContacts.slice(i, i + batchSize);
+      if (!batch.length) continue;
+      try {
+        await ctx.db
+          .insert($systemContacts)
+          .values(batch)
+          .onConflictDoUpdate({
+            target: [$systemContacts.id],
+            set: conflictUpdateSetAll($systemContacts),
+          });
+        logger.trackEvent(domain.AnalyticsEvent.DebugSystemContacts, {
+          context: 'inserted system contacts batch',
+          count: batch.length,
+          startIndex: i,
+        });
+      } catch (e) {
+        logger.trackEvent(domain.AnalyticsEvent.ErrorSystemContacts, {
+          context: 'failed to insert system contacts',
+          count: batch.length,
+          totalNumContacts: systemContacts.length,
+        });
+      }
+    }
   },
   ['systemContacts', 'systemContactSentInvites', 'contacts']
 );
