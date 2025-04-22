@@ -31,6 +31,8 @@ export async function getSystemContacts(): Promise<db.SystemContact[]> {
 export function parseNativeContacts(
   nativeContacts: Contacts.Contact[]
 ): domain.SystemContact[] {
+  const parseCounts = { digitFinds: 0, numberFinds: 0, fallbacks: 0 };
+
   // Add debugging to see what's getting filtered out initially
   logger.trackEvent(`Initial system contacts count: ${nativeContacts.length}`);
 
@@ -67,44 +69,112 @@ export function parseNativeContacts(
           const originalNumber = phoneRecord.number;
           let formattedNumber = null;
 
+          // try first with digits + country code
           try {
-            // Try to parse using the provided country code
-            if (LibPhone.isValidPhoneNumber(phoneRecord.number)) {
+            if (!phoneRecord.digits) {
+              logger.trackEvent(
+                `Contact ${contact.firstName} ${contact.lastName}: phone record has no digits`,
+                { phoneRecord }
+              );
+            } else {
               try {
-                const parsedNumber = LibPhone.parsePhoneNumberFromString(
-                  phoneRecord.number,
+                const phoneDetails = LibPhone.parsePhoneNumberFromString(
+                  phoneRecord.digits,
                   countryCode as LibPhone.CountryCode
                 );
-                formattedNumber = parsedNumber?.format('E.164');
+                if (!phoneDetails) {
+                  logger.trackEvent(
+                    `Contact ${contact.firstName} ${contact.lastName}: phone record ${index} could not parse digits + country code`,
+                    { phoneRecord }
+                  );
+                } else {
+                  const normalized = phoneDetails.format('E.164');
+                  if (!normalized) {
+                    logger.trackEvent(
+                      `Contact ${contact.firstName} ${contact.lastName}: phone record ${index} could not format digits + country code`,
+                      { phoneRecord }
+                    );
+                  } else {
+                    formattedNumber = normalized;
+                    parseCounts.digitFinds++;
+                  }
+                }
               } catch (e) {
                 logger.trackEvent(
-                  `Failed to format number ${phoneRecord.number} with country ${countryCode}: ${e}`,
-                  { error: e, contact: JSON.stringify(contact) }
+                  `Contact ${contact.firstName} ${contact.lastName}: threw while parsing for digits + country code`,
+                  { phoneRecord, error: e }
                 );
               }
             }
 
-            // If we haven't got a valid number yet and we have digits, try those
-            if (!formattedNumber && phoneRecord.digits) {
-              // For US numbers (10 digits)
-              if (countryCode === 'US' && phoneRecord.digits.length === 10) {
-                formattedNumber = `+1${phoneRecord.digits}`;
-              } else {
-                // For non-US numbers, try to parse the digits with country code
-                try {
-                  const digitNumber = phoneRecord.digits.startsWith('+')
-                    ? phoneRecord.digits
-                    : `+${phoneRecord.digits}`;
-                  if (LibPhone.isValidPhoneNumber(digitNumber)) {
-                    formattedNumber = digitNumber;
-                  }
-                } catch (e) {
-                  logger.log(
-                    `Failed to format digits ${phoneRecord.digits}: ${e}`
+            // if that fails, try normalizing the pretty number
+            if (!formattedNumber && phoneRecord.number) {
+              try {
+                const phoneDetails = LibPhone.parsePhoneNumberFromString(
+                  phoneRecord.number
+                );
+                if (!phoneDetails) {
+                  logger.trackEvent(
+                    `Contact ${contact.firstName} ${contact.lastName}: phone record ${index} could not parse number`,
+                    { phoneRecord }
                   );
+                } else {
+                  const normalized = phoneDetails.format('E.164');
+                  if (!normalized) {
+                    logger.trackEvent(
+                      `Contact ${contact.firstName} ${contact.lastName}: phone record ${index} could not format number`,
+                      { phoneRecord }
+                    );
+                  } else {
+                    formattedNumber = normalized;
+                    parseCounts.numberFinds++;
+                  }
                 }
+              } catch (e) {
+                logger.trackEvent(
+                  `Contact ${contact.firstName} ${contact.lastName}: threw while parsing for number`,
+                  { phoneRecord, error: e }
+                );
               }
             }
+
+            // // Try to parse using the provided country code
+            // if (LibPhone.isValidPhoneNumber(phoneRecord.number)) {
+            //   try {
+            //     const parsedNumber = LibPhone.parsePhoneNumberFromString(
+            //       phoneRecord.number,
+            //       countryCode as LibPhone.CountryCode
+            //     );
+            //     formattedNumber = parsedNumber?.format('E.164');
+            //   } catch (e) {
+            //     logger.trackEvent(
+            //       `Failed to format number ${phoneRecord.number} with country ${countryCode}: ${e}`,
+            //       { error: e, contact: JSON.stringify(contact) }
+            //     );
+            //   }
+            // }
+
+            // // If we haven't got a valid number yet and we have digits, try those
+            // if (!formattedNumber && phoneRecord.digits) {
+            //   // For US numbers (10 digits)
+            //   if (countryCode === 'US' && phoneRecord.digits.length === 10) {
+            //     formattedNumber = `+1${phoneRecord.digits}`;
+            //   } else {
+            //     // For non-US numbers, try to parse the digits with country code
+            //     try {
+            //       const digitNumber = phoneRecord.digits.startsWith('+')
+            //         ? phoneRecord.digits
+            //         : `+${phoneRecord.digits}`;
+            //       if (LibPhone.isValidPhoneNumber(digitNumber)) {
+            //         formattedNumber = digitNumber;
+            //       }
+            //     } catch (e) {
+            //       logger.trackEvent(
+            //         `Failed to format digits ${phoneRecord.digits}: ${e}`
+            //       );
+            //     }
+            //   }
+            // }
 
             // If we still don't have a formatted number, use basic normalization
             if (!formattedNumber) {
@@ -113,6 +183,7 @@ export function parseNativeContacts(
                 formattedNumber = normalizedNumber.startsWith('+')
                   ? normalizedNumber
                   : `+${normalizedNumber}`;
+                parseCounts.fallbacks++;
               }
             }
 
@@ -125,8 +196,9 @@ export function parseNativeContacts(
 
             return formattedNumber;
           } catch (error) {
-            logger.log(
-              `Error processing number for ${contact.firstName} ${contact.lastName}: ${error}`
+            logger.trackEvent(
+              `Error processing number for ${contact.firstName} ${contact.lastName}: ${error}`,
+              { contact: JSON.stringify(contact), error }
             );
             // Final fallback with more careful checking
             if (phoneRecord.digits) {
@@ -150,7 +222,7 @@ export function parseNativeContacts(
 
       // Debug contacts that don't have phone numbers after processing
       if ((contact.phoneNumbers?.length ?? 0) > 0 && !sysContact.phoneNumber) {
-        logger.log(
+        logger.trackEvent(
           `Contact ${contact.firstName} ${contact.lastName} lost phone number during formatting`,
           {
             systemPhoneData: JSON.stringify(contact.phoneNumbers),
@@ -176,8 +248,10 @@ export function parseNativeContacts(
   );
   const numWithPhone = parsed.filter((c) => c.phoneNumber).length;
   const numWithEmail = parsed.filter((c) => c.email).length;
-  logger.trackEvent(
-    `Num contacts with phone: ${numWithPhone}, with email: ${numWithEmail}`
-  );
+  logger.trackEvent('System contact parser stats', {
+    ...parseCounts,
+    numWithEmail,
+    numWithPhone,
+  });
   return parsed;
 }
