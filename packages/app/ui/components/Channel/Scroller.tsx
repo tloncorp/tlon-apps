@@ -253,7 +253,6 @@ const Scroller = forwardRef(
         }),
       [posts]
     );
-
     const listRenderItem: ListRenderItem<PostWithNeighbors> = useCallback(
       ({ item: { post, newer: nextItem, older: previousItem }, index }) => {
         const isFirstPostOfDay = !isSameDay(
