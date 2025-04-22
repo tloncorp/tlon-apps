@@ -322,8 +322,9 @@ function extractEmbedsFromInlines(inlines: ub.Inline[]): BlockData[] {
       const isTrustedEmbed = trustedProviders.some((provider) =>
         provider.regex.test(inline.link.href)
       );
+      const isNotFormattedText = inline.link.href === inline.link.content;
 
-      if (isTrustedEmbed) {
+      if (isTrustedEmbed && isNotFormattedText) {
         // Flush the current segment before adding the embed
         flushSegment();
 

@@ -36,6 +36,36 @@ export function useResolvedChats(chats: UseCurrentChatsResult): {
         (acc, chat) => acc + (chat.unreadCount ?? 0),
         0
       ),
+      pinnedLastPostAt: chats.pinned.reduce(
+        (latest, chat) =>
+          Math.max(
+            latest,
+            chat.type === 'group'
+              ? chat.group.lastPostAt ?? 0
+              : chat.channel.lastPostAt ?? 0
+          ),
+        0
+      ),
+      unpinnedLastPostAt: chats.unpinned.reduce(
+        (latest, chat) =>
+          Math.max(
+            latest,
+            chat.type === 'group'
+              ? chat.group.lastPostAt ?? 0
+              : chat.channel.lastPostAt ?? 0
+          ),
+        0
+      ),
+      pendingLastPostAt: chats.pending.reduce(
+        (latest, chat) =>
+          Math.max(
+            latest,
+            chat.type === 'group'
+              ? chat.group.lastPostAt ?? 0
+              : chat.channel.lastPostAt ?? 0
+          ),
+        0
+      ),
     });
 
     if (newSignature !== chatSignature) {

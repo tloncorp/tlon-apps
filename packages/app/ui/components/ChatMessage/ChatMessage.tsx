@@ -209,6 +209,19 @@ const ChatMessage = ({
           </View>
         ) : null}
 
+        {!showAuthor && post.isEdited ? (
+          <View
+            position="absolute"
+            right={12}
+            top={8}
+            zIndex={199}
+          >
+            <Text size="$label/s" color="$tertiaryText">
+              Edited
+            </Text>
+          </View>
+        ) : null}
+
         {!showAuthor && deliveryFailed ? (
           <Pressable
             onPress={() => setShowRetrySheet(true)}

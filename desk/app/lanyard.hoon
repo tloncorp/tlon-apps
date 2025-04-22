@@ -243,6 +243,7 @@
 ::
 ++  on-poke
   |=  [=mark =vase]
+  =-  -(log ^lo)  ::  reset any .log deets we might've set
   ^-  (quip card _this)
   ~|  [%on-poke mark=mark]
   ?+  mark  !!
@@ -403,6 +404,7 @@
 ::
 ++  on-agent
   |=  [=wire =sign:agent:gall]
+  =-  -(log ^lo)  ::  reset any .log deets we might've set
   ^-  (quip card _this)
   ~|  wire=wire
   ?+  wire  !!

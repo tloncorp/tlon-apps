@@ -22,9 +22,14 @@ import {
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { LoadingSpinner, StoreProvider, Text, View } from '@tloncorp/app/ui';
-import { getAuthInfo } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  AnalyticsSeverity,
+  getAuthInfo,
+} from '@tloncorp/shared';
 import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
@@ -169,7 +174,6 @@ function AppRoutes() {
   const handleStateChangeMobile = useCallback((state: any) => {
     const nestedRoute = extractNestedRouteMobile(state);
     if (nestedRoute) {
-      currentRouteRef.current = nestedRoute;
       // Only update state if needed for specific param changes
       if (
         nestedRoute.params?.channelId !==
@@ -178,13 +182,13 @@ function AppRoutes() {
       ) {
         setCurrentRouteParams(nestedRoute.params);
       }
+      currentRouteRef.current = nestedRoute;
     }
   }, []);
 
   const handleStateChangeDesktop = useCallback((state: any) => {
     const nestedRoute = extractNestedRouteDesktop(state);
     if (nestedRoute) {
-      currentRouteRef.current = nestedRoute;
       // Only update state if needed for specific param changes
       if (
         nestedRoute.params?.channelId !==
@@ -193,6 +197,7 @@ function AppRoutes() {
       ) {
         setCurrentRouteParams(nestedRoute.params);
       }
+      currentRouteRef.current = nestedRoute;
     }
   }, []);
 
@@ -248,7 +253,11 @@ function AppRoutes() {
       if (!route?.name) return 'Tlon';
 
       // For channel routes
-      if (route.name === 'Channel' || route.name === 'ChannelRoot') {
+      if (
+        route.name === 'Channel' ||
+        route.name === 'ChannelRoot' ||
+        route.name === 'DM' // we are briefly routed to DM before going to ChannelRoot
+      ) {
         if (groupData?.title && channelData?.title) {
           return `${channelData.title} - ${groupData.title}`;
         }
@@ -259,12 +268,12 @@ function AppRoutes() {
           channelData?.contact?.customNickname ||
           channelData?.contactId ||
           'Chat';
-        return `${title}`;
+        return title;
       }
 
       // For other routes
       const screenName = getFriendlyName(route.name);
-      return `${screenName}`;
+      return screenName;
     },
     [
       groupData?.title,
@@ -408,8 +417,13 @@ function ConnectedWebApp() {
   const configureClient = useConfigureUrbitClient();
   const session = store.useCurrentSession();
   const hasSyncedRef = React.useRef(false);
+  const hasHandledWayfindingRef = React.useRef(false);
   const telemetry = useTelemetry();
   useFindSuggestedContacts();
+
+  const isNewSignup = useMemo(() => {
+    return logic.detectWebSignup();
+  }, []);
 
   useEffect(() => {
     configureClient({
@@ -429,6 +443,43 @@ function ConnectedWebApp() {
 
       if (!session?.startTime) {
         return;
+      }
+
+      // for new users, make sure the wayfinding tutorial is ready before
+      // showing the app
+      if (!hasHandledWayfindingRef.current) {
+        const personalGroup = await db.getPersonalGroup();
+        const personalGroupReady = !!personalGroup;
+        const allGroups = await db.getGroups({ includeUnjoined: false });
+        const hasFewGroups = allGroups.length < 4; // arbitrary "new user" threshold
+        if (isNewSignup || hasFewGroups) {
+          try {
+            if (!personalGroupReady) {
+              await logic.withRetry(() => store.scaffoldPersonalGroup(), {
+                numOfAttempts: 3,
+              });
+            }
+            // only show coach marks if we're confident they're a new user
+            if (isNewSignup) {
+              db.wayfindingProgress.setValue((prev) => ({
+                ...prev,
+                tappedChatInput: false,
+                tappedAddCollection: false,
+                tappedAddNote: false,
+              }));
+            }
+          } catch (e) {
+            telemetry.capture(AnalyticsEvent.ErrorWayfinding, {
+              context: 'failed to scaffold personal group',
+              during: 'web start sequence',
+              errorMessage: e.message,
+              errorStack: e.stack,
+              severity: AnalyticsSeverity.Critical,
+            });
+          } finally {
+            hasHandledWayfindingRef.current = true;
+          }
+        }
       }
 
       // we need to check the size of the database here to see if it's not zero
@@ -455,7 +506,14 @@ function ConnectedWebApp() {
     };
 
     syncStart();
-  }, [dbIsLoaded, currentUserId, configureClient, session?.startTime]);
+  }, [
+    dbIsLoaded,
+    currentUserId,
+    configureClient,
+    session?.startTime,
+    isNewSignup,
+    telemetry,
+  ]);
 
   useRenderCount('ConnectedWebApp');
 
