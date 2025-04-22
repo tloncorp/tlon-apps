@@ -1,11 +1,11 @@
 // This signup context lives here in the mobile app because this path can only
 // be reached by the mobile app and it's only used by the mobile app.
 import { useBootSequence } from '@tloncorp/app/hooks/useBootSequence';
-import { NodeBootPhase } from '@tloncorp/app/lib/bootHelpers';
 import { connectNotifyProvider } from '@tloncorp/app/lib/notificationsApi';
 import { createDevLogger } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
-import { SignupParams, didSignUp, signupData } from '@tloncorp/shared/db';
+import { didSignUp, signupData } from '@tloncorp/shared/db';
+import { NodeBootPhase, SignupParams } from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import PostHog, { usePostHog } from 'posthog-react-native';
 import { createContext, useCallback, useContext, useEffect } from 'react';

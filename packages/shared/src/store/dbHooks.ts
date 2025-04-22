@@ -9,6 +9,7 @@ import * as api from '../api';
 import { getMessagesFilter } from '../api';
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
+import * as logic from '../logic';
 import * as ub from '../urbit';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
 import {
@@ -503,4 +504,64 @@ export const useAttestations = () => {
     queryKey: ['attestations', deps],
     queryFn: () => db.getAttestations(),
   });
+};
+
+export const usePersonalGroup = () => {
+  const deps = useKeyFromQueryDeps(db.getPersonalGroup);
+  return useQuery({
+    queryKey: ['personalGroup', deps],
+    queryFn: async () => {
+      const currentUserId = api.getCurrentUserId();
+      const group = await db.getPersonalGroup();
+      logic.personalGroupIsValid({ group, currentUserId }) ? group : null;
+    },
+  });
+};
+
+export const useWayfindingCompletion = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['wayfindingCompletion', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings();
+      return {
+        completedSplash: settings?.completedWayfindingSplash,
+        completedPersonalGroupTutorial: settings?.completedWayfindingTutorial,
+      };
+    },
+  });
+};
+
+export const useShowWebSplashModal = () => {
+  const { data: wayfinding, isLoading } = useWayfindingCompletion();
+  const { data: personalGroup } = usePersonalGroup();
+
+  return Boolean(
+    personalGroup && !isLoading && !(wayfinding?.completedSplash ?? true)
+  );
+};
+
+export const useShowChatInputWayfinding = (channelId: string) => {
+  const wayfindingProgress = db.wayfindingProgress.useValue();
+  const isCorrectChan = useMemo(() => {
+    return logic.isPersonalChatChannel(channelId);
+  }, [channelId]);
+
+  return isCorrectChan && !wayfindingProgress.tappedChatInput;
+};
+
+export const useShowCollectionAddTooltip = (channelId: string) => {
+  const wayfindingProgress = db.wayfindingProgress.useValue();
+  const isCorrectChan = useMemo(() => {
+    return logic.isPersonalCollectionChannel(channelId);
+  }, [channelId]);
+  return isCorrectChan && !wayfindingProgress.tappedAddCollection;
+};
+
+export const useShowNotebookAddTooltip = (channelId: string) => {
+  const wayfindingProgress = db.wayfindingProgress.useValue();
+  const isCorrectChan = useMemo(() => {
+    return logic.isPersonalNotebookChannel(channelId);
+  }, [channelId]);
+  return isCorrectChan && !wayfindingProgress.tappedAddNote;
 };

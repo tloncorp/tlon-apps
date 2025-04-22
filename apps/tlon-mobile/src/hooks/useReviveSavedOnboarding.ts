@@ -3,8 +3,9 @@ import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
-import { SignupParams, signupData } from '@tloncorp/shared/db';
+import { signupData } from '@tloncorp/shared/db';
 import * as db from '@tloncorp/shared/db';
+import { SignupParams } from '@tloncorp/shared/domain';
 import { useCallback } from 'react';
 
 import { useSignupContext } from '../lib/signupContext';

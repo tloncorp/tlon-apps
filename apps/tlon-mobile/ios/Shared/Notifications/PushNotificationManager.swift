@@ -88,7 +88,7 @@ protocol UNNotificationRenderable {
 extension Yarn: UNNotificationRenderable {
   func render(to content: UNMutableNotificationContent) async -> (UNNotificationContent, INSendMessageIntent?) {
     content.interruptionLevel = .active
-    content.threadIdentifier = self.rope.thread
+    content.threadIdentifier = self.channelID ?? self.rope.thread
     content.title = await self.getTitle()
     content.body = self.body
     // content.badge = await withUnsafeContinuation { cnt in

@@ -1,7 +1,6 @@
 import * as db from '@tloncorp/shared/db';
-import { PropsWithRef } from 'react';
+import { PropsWithRef, useEffect } from 'react';
 import React from 'react';
-import { Dimensions } from 'react-native';
 import { View, YStack } from 'tamagui';
 
 import { useIsWindowNarrow } from '../Emoji';
@@ -10,21 +9,23 @@ import MentionPopup, { MentionPopupRef } from '../MentionPopup';
 function InputMentionPopupInternal(
   {
     containerHeight,
-    showMentionPopup,
+    isMentionModeActive,
     mentionText,
     groupMembers,
     onSelectMention,
+    setHasMentionCandidates,
   }: PropsWithRef<{
     containerHeight: number;
-    showMentionPopup: boolean;
+    isMentionModeActive: boolean;
     mentionText?: string;
     groupMembers: db.ChatMember[];
     onSelectMention: (contact: db.Contact) => void;
+    setHasMentionCandidates?: (has: boolean) => void;
   }>,
   ref: MentionPopupRef
 ) {
   const isNarrow = useIsWindowNarrow();
-  return showMentionPopup ? (
+  return isMentionModeActive ? (
     <YStack
       position="absolute"
       bottom={containerHeight + 24}
@@ -39,6 +40,7 @@ function InputMentionPopupInternal(
           onPress={onSelectMention}
           matchText={mentionText}
           groupMembers={groupMembers}
+          setHasMentionCandidates={setHasMentionCandidates}
           ref={ref}
         />
       </View>

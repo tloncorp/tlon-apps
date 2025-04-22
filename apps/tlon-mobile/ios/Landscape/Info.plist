@@ -92,6 +92,7 @@
 	<key>branch_universal_link_domains</key>
 	<array>
 		<string>join.tlon.io</string>
+		<string>sa96e.app.link</string>
 		<string>sa96e-alternate.app.link</string>
 	</array>
 </dict>
