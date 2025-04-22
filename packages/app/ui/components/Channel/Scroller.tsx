@@ -264,7 +264,6 @@ const Scroller = forwardRef(
           post.type !== 'notice' &&
           (post.type === 'chat' || post.type === 'reply') &&
           ((nextItem && nextItem.authorId !== post.authorId) || !isSameDay);
-
         const showAuthor =
           post.type === 'note' ||
           post.type === 'block' ||
@@ -272,7 +271,6 @@ const Scroller = forwardRef(
           previousItem?.authorId !== post.authorId ||
           previousItem?.type === 'notice' ||
           isFirstPostOfDay;
-
         const isSelected =
           anchor?.type === 'selected' && anchor.postId === post.id;
 
@@ -647,19 +645,15 @@ const BaseScrollerItem = ({
   columnCount: number;
   previousPost?: db.Post | null;
 }) => {
-  // Get live versions of both posts
   const post = useLivePost(item);
-  const livePreviousPost = previousPost ? useLivePost(previousPost) : null;
+  const previousPostLive = previousPost ? useLivePost(previousPost) : null;
+  const isPrevDeleted = previousPostLive?.isDeleted === true;
 
-  // Check if the previous post was deleted (using the live version)
-  const isPrevDeleted = livePreviousPost?.isDeleted === true;
-
-  // Recalculate showAuthor based on the live state of the previous post
-  const actualShowAuthor = useMemo(() => {
+  const showAuthorLive = useMemo(() => {
     if (isPrevDeleted) {
-      return true; // Always show author after a deleted post
+      return true;
     }
-    return showAuthor; // Otherwise use the passed prop
+    return showAuthor;
   }, [isPrevDeleted, showAuthor]);
 
   const handleLayout = useCallback(
@@ -732,7 +726,7 @@ const BaseScrollerItem = ({
           isHighlighted={isSelected}
           post={post}
           setViewReactionsPost={setViewReactionsPost}
-          showAuthor={actualShowAuthor}
+          showAuthor={showAuthorLive}
           showReplies={showReplies}
           onPressReplies={post.isDeleted ? undefined : onPressReplies}
           onPressImage={post.isDeleted ? undefined : onPressImage}
