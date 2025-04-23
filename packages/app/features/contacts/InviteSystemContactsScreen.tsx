@@ -3,7 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import Fuse from 'fuse.js';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, View } from 'tamagui';
@@ -57,6 +57,7 @@ export function InviteSystemContactsScreen(props: Props) {
   const handleItemPress = useCallback(
     (item: db.SystemContact) => {
       if (selectedRecipients.some((contact) => contact.id === item.id)) {
+        triggerHaptic('baseButtonClick');
         setSelectedRecipients((prev) =>
           prev.filter((contact) => contact.id !== item.id)
         );
@@ -66,6 +67,7 @@ export function InviteSystemContactsScreen(props: Props) {
           triggerHaptic('error');
           return;
         }
+        triggerHaptic('baseButtonClick');
         setSelectedRecipients((prev) => [...prev, item]);
       }
     },
@@ -213,10 +215,10 @@ export function SystemIconRow({
     return item.sentInvites?.some(
       (invite) =>
         invite.invitedAt &&
-        invite.invitedAt - LAST_INVITE_THRESHOLD > Date.now() &&
+        invite.invitedAt > Date.now() - LAST_INVITE_THRESHOLD &&
         invite.invitedTo === domain.InvitedToPersonalKey
     );
-  }, [item.sentInvites]);
+  }, [item]);
 
   const handlePress = useCallback(() => {
     if (previouslyInvited || wrongTypeGivenRecipients) {
@@ -235,14 +237,14 @@ export function SystemIconRow({
         iconProps={{ backgroundColor: '$border' }}
         showEndContent
         endContent={
-          <Stack
-            justifyContent="center"
-            alignItems="center"
-            height="$4xl"
-            width="$4xl"
-          >
+          <Stack justifyContent="center" alignItems="center" height="$4xl">
             {previouslyInvited ? (
-              <Badge text="Invited" type="neutral" />
+              <Badge
+                text="Invited"
+                type="tertiary"
+                position="relative"
+                left={16} // manually adjust to align with checkmarks
+              />
             ) : selected ? (
               <Icon type="Checkmark" size="$xl" />
             ) : !wrongTypeGivenRecipients ? (

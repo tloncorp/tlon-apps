@@ -416,8 +416,11 @@ export const insertSystemContactSentInvites = createWriteQuery(
       .insert($systemContactSentInvites)
       .values(sentInvites)
       .onConflictDoUpdate({
-        target: [$systemContacts.id],
-        set: conflictUpdateSetAll($systemContacts),
+        target: [
+          $systemContactSentInvites.systemContactId,
+          $systemContactSentInvites.invitedTo,
+        ],
+        set: conflictUpdateSetAll($systemContactSentInvites),
       });
   },
   ['systemContacts', 'systemContactSentInvites', 'contacts']

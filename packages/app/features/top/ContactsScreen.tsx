@@ -73,7 +73,6 @@ export default function ContactsScreen(props: Props) {
   const handleInviteSystemContact = useCallback(
     async (systemContact: db.SystemContact) => {
       if (!inviteSystemContacts) {
-        console.log(`bl: no inviteSystemContacts function`);
         triggerHaptic('error');
         return;
       }
@@ -82,7 +81,6 @@ export default function ContactsScreen(props: Props) {
         (invite) => invite.invitedTo === domain.InvitedToPersonalKey
       );
       if (alreadyInvited) {
-        console.log('bl: already invited');
         triggerHaptic('error');
         return;
       }
@@ -92,15 +90,7 @@ export default function ContactsScreen(props: Props) {
         inviteType === 'sms' ? systemContact.phoneNumber : systemContact.email;
       const personalInviteLink = await db.personalInviteLink.getValue();
 
-      console.log(`bl: debug`, {
-        inviteType,
-        recipient,
-        personalInviteLink,
-        systemContact,
-      });
-
       if (!recipient || !personalInviteLink) {
-        console.log(`bl: no recipient or personal invite link`);
         triggerHaptic('error');
         return;
       }
