@@ -61,7 +61,6 @@ export async function checkAttestedSignature(signData: string) {
 }
 
 export async function discoverContacts(phoneNums: string[]) {
-  console.log(`bl: discovering contacts`, phoneNums);
   try {
     const nums = diffContactBook(phoneNums);
     // const lastSalt = formatUw('0');
@@ -83,10 +82,10 @@ export async function discoverContacts(phoneNums: string[]) {
     try {
       await pokeNoun({ app: 'lanyard', mark: 'lanyard-query-1', noun });
     } catch (e) {
-      console.error('bl: poke error', e);
+      console.error('contact discovery poke error', e);
     }
     const queryResponse = await queryResponseSub;
-    console.log(`bl: got whose bulk result`, queryResponse);
+    console.log(`bulk result`, queryResponse);
 
     if (queryResponse) {
       // return matches
@@ -97,14 +96,12 @@ export async function discoverContacts(phoneNums: string[]) {
           )
         : [];
 
-      console.log(`bl: got matches`, matches);
       return matches;
     }
 
-    console.log('bl: no results found');
     return [];
   } catch (e) {
-    console.error('bl: error discovering contacts', e);
+    console.error('error discovering contacts', e);
     throw e;
   }
 }

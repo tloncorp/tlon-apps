@@ -38,8 +38,6 @@ export default function ContactsScreen(props: Props) {
   const { data: calmSettings } = store.useCalmSettings();
   const { data: systemContacts } = store.useSystemContacts();
 
-  console.log(`bl: system contacts`, systemContacts);
-
   const onContactPress = useCallback(
     (contact: db.Contact) => {
       navigate('UserProfile', { userId: contact.id });

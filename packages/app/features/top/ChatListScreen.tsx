@@ -8,8 +8,6 @@ import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import * as MailComposer from 'expo-mail-composer';
-import * as SMS from 'expo-sms';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard } from 'react-native';
 import { ColorTokens, Text, YStack, useTheme } from 'tamagui';
@@ -42,23 +40,6 @@ import { ChatList } from '../chat-list/ChatList';
 import { ChatListSearch } from '../chat-list/ChatListSearch';
 import { ChatListTabs } from '../chat-list/ChatListTabs';
 import { CreateChatSheet, CreateChatSheetMethods } from './CreateChatSheet';
-
-export async function shareSms(numbers: string[]) {
-  const snedResult = await SMS.sendSMSAsync(
-    numbers,
-    'Invite to Tlon Messenger!'
-  );
-  console.log(`bl: send result`, snedResult);
-}
-
-export async function shareMail(emails: string[]) {
-  const sendResult = await MailComposer.composeAsync({
-    recipients: emails,
-    subject: 'Tlon Messenger',
-    body: 'Invite to Tlon Messenger!',
-  });
-  console.log(`bl: send result`, sendResult);
-}
 
 const logger = createDevLogger('ChatListScreen', false);
 
@@ -318,13 +299,13 @@ export function ChatListScreenView({
             <ScreenHeader
               title={notReadyMessage ?? screenTitle}
               leftControls={
-                // personalInvite ? (
-                <ScreenHeader.IconButton
-                  type="AddPerson"
-                  color={inviteButtonColor}
-                  onPress={handlePersonalInvitePress}
-                />
-                // ) : undefined
+                personalInvite ? (
+                  <ScreenHeader.IconButton
+                    type="AddPerson"
+                    color={inviteButtonColor}
+                    onPress={handlePersonalInvitePress}
+                  />
+                ) : undefined
               }
               rightControls={
                 <>

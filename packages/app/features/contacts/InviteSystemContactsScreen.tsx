@@ -210,14 +210,13 @@ export function SystemIconRow({
   // don't allow selecting anyone who was already sent a personal invite in the last 2 weeks
   const previouslyInvited = useMemo(() => {
     const LAST_INVITE_THRESHOLD = 1000 * 60 * 60 * 24 * 14; // 14 days
-    console.log(`bl: sent invites for ${item.firstName}`, item.sentInvites);
     return item.sentInvites?.some(
       (invite) =>
         invite.invitedAt &&
         invite.invitedAt - LAST_INVITE_THRESHOLD > Date.now() &&
         invite.invitedTo === domain.InvitedToPersonalKey
     );
-  }, [item.firstName, item.sentInvites]);
+  }, [item.sentInvites]);
 
   const handlePress = useCallback(() => {
     if (previouslyInvited || wrongTypeGivenRecipients) {
