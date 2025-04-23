@@ -188,8 +188,7 @@ export function useLure({
 
   const canCheckForUpdate = useMemo(() => {
     const uninitialized = Boolean(
-      !lure.fetched &&
-        (!lure.url || !checkLureToken(lure.url) || !lure.deepLinkUrl)
+      !lure.url || !checkLureToken(lure.url) || !lure.deepLinkUrl
     );
     return Boolean(bait && !disableLoading && uninitialized);
   }, [bait, lure, disableLoading]);

@@ -920,7 +920,7 @@ export const channelRelations = relations(channels, ({ one, many }) => ({
   }),
 }));
 
-export type PostDeliveryStatus = 'pending' | 'sent' | 'failed';
+export type PostDeliveryStatus = 'pending' | 'sent' | 'failed' | 'needs_verification';
 
 export const posts = sqliteTable(
   'posts',

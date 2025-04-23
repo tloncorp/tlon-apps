@@ -2455,6 +2455,20 @@ export const getChannelPosts = createReadQuery(
   ['posts']
 );
 
+export const getPostsByStatus = createReadQuery(
+  'getPostsByStatus',
+  async (
+    { deliveryStatus }: { deliveryStatus: Post['deliveryStatus'] },
+    ctx: QueryCtx
+  ) => {
+    if (!deliveryStatus) return [];
+    return ctx.db.query.posts.findMany({
+      where: eq($posts.deliveryStatus, deliveryStatus),
+    });
+  },
+  ['posts']
+);
+
 export interface GetChannelPostsAroundOptions {
   channelId: string;
   postId: string;

@@ -18,6 +18,7 @@ import * as LocalCache from './cachedData';
 import { addChannelToNavSection, moveChannel } from './groupActions';
 import { verifyUserInviteLink } from './inviteActions';
 import { useLureState } from './lure';
+import { verifyPostDelivery } from './postActions';
 import { Session, getSession, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
@@ -1279,6 +1280,34 @@ export const handleChannelStatusChange = async (status: ChannelStatus) => {
     api.checkExistingUserInviteLink();
   }
   updateSession({ channelStatus: status });
+
+  // Trigger verification for posts marked as 'needs_verification' when connection becomes active
+  if (status === 'active') {
+    logger.log('Connection active, verifying pending posts...');
+    db.getPostsByStatus({
+      deliveryStatus: 'needs_verification',
+    })
+      .then((postsToVerify) => {
+        if (postsToVerify.length > 0) {
+          logger.log(
+            `Found ${postsToVerify.length} posts needing verification.`
+          );
+          postsToVerify.forEach((post) => {
+            verifyPostDelivery(post).catch((err) => {
+              logger.error('Error during post verification:', {
+                postId: post.id,
+                error: err,
+              });
+            });
+          });
+        } else {
+          logger.log('No posts need verification.');
+        }
+      })
+      .catch((err) => {
+        logger.error('Error fetching posts needing verification:', err);
+      });
+  }
 };
 
 let isSyncing = false;
