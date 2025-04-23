@@ -45,7 +45,6 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
     if (waitForLock) {
       await updateLock;
     }
-    await updateLock;
     const value = await storage.getItem(key);
 
     if (!value) {
