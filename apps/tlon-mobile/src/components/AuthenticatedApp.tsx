@@ -29,7 +29,6 @@ function AuthenticatedApp() {
   useNotificationListener();
   useUpdatePresentedNotifications();
   useDeepLinkListener();
-  useNavigationLogging();
   useNetworkLogger();
   useCheckAppUpdated();
   useFindSuggestedContacts();

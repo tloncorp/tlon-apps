@@ -462,8 +462,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                             />
                           )}
 
-                          {!canWrite && <ReadOnlyNotice type="read-only" />}
-
                           {channel.isDmInvite && (
                             <DmInviteOptions
                               channel={channel}
