@@ -5,7 +5,7 @@
 ::    then visit in the browser:
 ::    /expose/that/reference/as/copied/123456789
 ::
-/-  c=cite, d=channels, co=contacts-0
+/-  c=cite, d=channels, co=contacts, co-0=contacts-0
 /+  u=channel-utils, hutils=http-utils,
     dbug, verb
 ::
@@ -29,12 +29,12 @@
   |%
   ++  refresh-widget
     |=  [=bowl:gall open=(set cite:c)]
-    ^-  (list card)
+    ^-  (unit card)
     ?.  .^(? %gu /(scot %p our.bowl)/profile/(scot %da now.bowl)/$)
       ~
     =;  widget=[%0 desc=@t %marl marl]
       =/  =cage  noun+!>([%command %update-widget %groups %expose-all widget])
-      [%pass /profile/widget/all %agent [our.bowl %profile] %poke cage]~
+      `[%pass /profile/widget/all %agent [our.bowl %profile] %poke cage]
     :^  %0  'Published content'  %marl
     (render:widget bowl open)
   ::
@@ -72,7 +72,59 @@
     |=  ref=cite:c
     ^-  card
     (store:hutils (cat 3 '/expose' (spat (print:c ref))) ~)
+  ::
+  ++  inflate-contacts-profile
+    |=  $:  [our=@p now=@da]
+            open=(set cite:c)
+        ==
+    ^-  (unit card)
+    ::  if the contacts agent isn't running, that's slightly unexpected
+    ::  (but not impossible). we choose to no-op for now.
+    ::
+    ?.  .^(? %gu /(scot %p our)/contacts/(scot %da now)/$)
+      ~
+    =+  =>  [our=our now=now co=co ..lull]  ~+
+        .^(orig=contact:co %gx /(scot %p our)/contacts/(scot %da now)/v1/self/contact-1)
+    ::  build a new contact to submit
+    ::
+    =;  =contact:co
+      ?:  =(orig contact)  ~
+      =/  =action:co  [%self contact]
+      =/  =cage      [%contact-action-1 !>(action)]
+      `[%pass /contacts/set %agent [our %contacts] %poke cage]
+    %-  ~(gas by *contact:co)
+    ::  start by clearing out all our entries for a fresh start
+    ::
+    %+  weld
+      %+  turn  ~(tap by orig)
+      |=  [=term =value:co]
+      :-  term
+      ?:(=(%expose- (end 3^7 term)) ~ value)
+    ^-  (list [term value:co])
+    ::  then look at our state and inject as appropriate
+    ::
+    =<  out
+    %+  roll
+      (sort ~(tap in open) sort-cite)
+    |=  [=cite:c count=@ud out=(list [term value:co])]
+    =-  [+(count) [- out]]
+    :-  (cat 3 %expose-cite- (crip (a-co:^co count)))
+    [%text (spat (print:c cite))]
   --
+::  +sort-cite: sort by post id, newest first
+::
+++  sort-cite
+  |=  [a=cite:c b=cite:c]
+  ::  this narrowing down matches the +grab-post:cite:u logic.
+  ::  that logic is required to succeed to add a cite into .open,
+  ::  so we can get away with just sorting actual posts here.
+  ::TODO  support replies..?
+  ::
+  ?.  ?=([%chan * ?(%msg %note %curio) @ ~] a)  |
+  ?.  ?=([%chan * ?(%msg %note %curio) @ ~] b)  &
+  %+  gth
+    (rash i.t.wer.a dum:ag)
+  (rash i.t.wer.b dum:ag)
 --
 ::
 %-  agent:dbug
@@ -114,6 +166,9 @@
         [%pass /contacts %agent [our.bowl %conacts] %leave ~]
         [%pass /contacts/news %agent [our.bowl %contacts] %watch /news]
     ==
+  ::  always refresh the contacts profile
+  ::
+  =.  caz  (weld (drop (inflate-contacts-profile:e [our now]:bowl open)) caz)
   [caz this]
   ::
   +$  versioned-state
@@ -146,7 +201,10 @@
         ?>  ?=(^ pag)
         =.  open    (~(put in open) ref)
         :_  this
-        :_  (refresh-widget:e bowl open)
+        :_  =-  (murn - same)
+            :~  (refresh-widget:e bowl open)
+                (inflate-contacts-profile:e [our now]:bowl open)
+            ==
         %+  store:hutils
           (cat 3 '/expose' (spat path.act))
         `[| %payload (paint:hutils %page u.pag)]
@@ -158,7 +216,10 @@
           [~ this]
         =.  open    (~(del in open) ref)
         :_  this
-        :_  (refresh-widget:e bowl open)
+        :_  =-  (murn - same)
+            :~  (refresh-widget:e bowl open)
+                (inflate-contacts-profile:e [our now]:bowl open)
+            ==
         %+  store:hutils
           (cat 3 '/expose' (spat path.act))
         :^  ~  |  %payload
@@ -216,7 +277,10 @@
       [%refresh ~]
     :_  this
     %+  weld
-      (refresh-widget:e bowl open)
+      =-  (murn - same)
+      :~  (refresh-widget:e bowl open)
+          (inflate-contacts-profile:e [our now]:bowl open)
+      ==
     (refresh-pages:e bowl ~(tap in open))
   ==
 ::
@@ -264,7 +328,7 @@
             (from-post:cite:u nest id.r-channel u.new)
           ?.  (~(has in open) ref)  ~
           %+  weld
-            (refresh-widget:e bowl open)
+            (drop (refresh-widget:e bowl open))
           (refresh-pages:e bowl ref ~)
         ::  post was deleted. if we have it, clear it out.
         ::
@@ -281,7 +345,11 @@
         ?.  (~(has in open) ref)  [~ this]
         =.  open  (~(del in open) ref)
         :_  this
-        [(clear-page:e ref) (refresh-widget:e bowl open)]
+        :-  (clear-page:e ref)
+        =-  (murn - same)
+        :~  (refresh-widget:e bowl open)
+            (inflate-contacts-profile:e [our now]:bowl open)
+        ==
       ==
     ==
   ::
@@ -300,16 +368,16 @@
       ::  serving, refresh the cache.
       ::  note that we don't do this kind of reactivity for contact details of
       ::  other ships. at the extreme, reacting to that accurately in a non-
-      ::  wasteful way would require trawling all content for relevane, which
+      ::  wasteful way would require trawling all content for relevance, which
       ::  in turn is slow. if we get to the point of wanting that to be
       ::  fresh(er), we should just set an hourly timer that re-render the
       ::  entire cache.
       ::
-      =+  !<(=news-0:co q.cage.sign)
+      =+  !<(=news-0:co-0 q.cage.sign)
       ?.  =(our.bowl who.news-0)  `this
       :_  this
       %+  weld
-        (refresh-widget:e bowl open)
+        (drop (refresh-widget:e bowl open))
       (refresh-pages:e bowl ~(tap in open))
     ==
   ==
