@@ -66,6 +66,21 @@ export function useResolvedChats(chats: UseCurrentChatsResult): {
           ),
         0
       ),
+      pinnedTitles: chats.pinned
+        .map((chat) =>
+          chat.type === 'group' ? chat.group.title : chat.channel.title
+        )
+        .join('|'),
+      unpinnedTitles: chats.unpinned
+        .map((chat) =>
+          chat.type === 'group' ? chat.group.title : chat.channel.title
+        )
+        .join('|'),
+      pendingTitles: chats.pending
+        .map((chat) =>
+          chat.type === 'group' ? chat.group.title : chat.channel.title
+        )
+        .join('|'),
     });
 
     if (newSignature !== chatSignature) {

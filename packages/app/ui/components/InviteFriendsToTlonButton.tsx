@@ -39,7 +39,7 @@ export function InviteFriendsToTlonButton({
 
   useEffect(() => {
     logger.trackEvent('Invite Button Shown', { group: group?.id });
-  }, []);
+  }, [group?.id]);
 
   const handleInviteButtonPress = useCallback(async () => {
     if (shareUrl && status === 'ready' && group) {

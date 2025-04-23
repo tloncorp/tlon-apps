@@ -759,7 +759,11 @@ export const insertGroups = createWriteQuery(
           await txCtx.db
             .insert($chatMembers)
             .values(group.members)
-            .onConflictDoNothing();
+            .onConflictDoUpdate({
+              target: [$chatMembers.chatId, $chatMembers.contactId],
+              set: conflictUpdateSetAll($chatMembers),
+            });
+
           const validRoleNames = group.roles?.map((r) => r.id);
           const memberRoles = group.members.flatMap((m) => {
             return (m.roles ?? []).flatMap((r) => {

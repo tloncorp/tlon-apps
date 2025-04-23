@@ -12,7 +12,7 @@ import { ListItem, ListItemProps } from './ListItem';
 import { getGroupStatus, getPostTypeIcon } from './listItemUtils';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { useChatOptions } from '../../contexts';
+import { useChatOptions, useContact } from '../../contexts';
 
 export const GroupListItem = ({
   model,
@@ -23,13 +23,14 @@ export const GroupListItem = ({
   ...props
 }: { customSubtitle?: string } & ListItemProps<db.Group>) => {
   const [open, setOpen] = useState(false);
-  const { setChat } = useChatOptions();
+  const { setChat } = useChatOptions(disableOptions);
   const [isHovered, setIsHovered] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const unreadCount = model.unread?.count ?? 0;
   const notified = model.unread?.notify ?? false;
-  const title = useGroupTitle(model);
   const { isPending, label: statusLabel, isErrored } = getGroupStatus(model);
+  const hostContact = useContact(model.hostUserId);
+  const title = useGroupTitle(model, hostContact);
 
   const handleHoverIn = useCallback(() => {
     if (isWeb) {
@@ -148,7 +149,8 @@ export const GroupListItem = ({
                   Group invitation
                 </ListItem.SubtitleWithIcon>
                 <ListItem.Subtitle>
-                  Hosted by <ContactName contactId={model.hostUserId} />
+                  Hosted by{' '}
+                  <ContactName contactId={model.hostUserId} numberOfLines={1} />
                 </ListItem.Subtitle>
               </>
             ) : null}

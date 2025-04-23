@@ -174,7 +174,6 @@ function AppRoutes() {
   const handleStateChangeMobile = useCallback((state: any) => {
     const nestedRoute = extractNestedRouteMobile(state);
     if (nestedRoute) {
-      currentRouteRef.current = nestedRoute;
       // Only update state if needed for specific param changes
       if (
         nestedRoute.params?.channelId !==
@@ -183,13 +182,13 @@ function AppRoutes() {
       ) {
         setCurrentRouteParams(nestedRoute.params);
       }
+      currentRouteRef.current = nestedRoute;
     }
   }, []);
 
   const handleStateChangeDesktop = useCallback((state: any) => {
     const nestedRoute = extractNestedRouteDesktop(state);
     if (nestedRoute) {
-      currentRouteRef.current = nestedRoute;
       // Only update state if needed for specific param changes
       if (
         nestedRoute.params?.channelId !==
@@ -198,6 +197,7 @@ function AppRoutes() {
       ) {
         setCurrentRouteParams(nestedRoute.params);
       }
+      currentRouteRef.current = nestedRoute;
     }
   }, []);
 
@@ -253,7 +253,11 @@ function AppRoutes() {
       if (!route?.name) return 'Tlon';
 
       // For channel routes
-      if (route.name === 'Channel' || route.name === 'ChannelRoot') {
+      if (
+        route.name === 'Channel' ||
+        route.name === 'ChannelRoot' ||
+        route.name === 'DM' // we are briefly routed to DM before going to ChannelRoot
+      ) {
         if (groupData?.title && channelData?.title) {
           return `${channelData.title} - ${groupData.title}`;
         }
@@ -264,12 +268,12 @@ function AppRoutes() {
           channelData?.contact?.customNickname ||
           channelData?.contactId ||
           'Chat';
-        return `${title}`;
+        return title;
       }
 
       // For other routes
       const screenName = getFriendlyName(route.name);
-      return `${screenName}`;
+      return screenName;
     },
     [
       groupData?.title,

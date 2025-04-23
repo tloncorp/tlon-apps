@@ -24,6 +24,8 @@ export function useAnchorScrollLock({
   hasNewerPosts,
   shouldMaintainVisibleContentPosition,
   isScrollingToBottom,
+  collectionLayoutType,
+  columnsCount,
 }: {
   flatListRef: RefObject<FlatList<db.Post>>;
   posts: db.Post[] | null;
@@ -31,6 +33,8 @@ export function useAnchorScrollLock({
   hasNewerPosts?: boolean;
   shouldMaintainVisibleContentPosition: boolean;
   isScrollingToBottom: boolean;
+  collectionLayoutType: string;
+  columnsCount: number;
 }) {
   const [userHasScrolled, setUserHasScrolled] = useState(false);
   const [didAnchorSearchTimeout, setDidAnchorSearchTimeout] = useState(false);
@@ -86,11 +90,29 @@ export function useAnchorScrollLock({
         try {
           isScrollAttemptActiveRef.current = true;
           const shouldAnimateScroll = readyToDisplayPosts;
-          flatListRef.current.scrollToIndex({
-            index,
-            viewPosition: anchor.type === 'unread' ? 1 : 0.5,
-            animated: shouldAnimateScroll,
-          });
+
+          if (collectionLayoutType === 'grid') {
+            // Adjust the index for grid layout.
+            // FlatList still conceptually uses a single column layout
+            // with each row in the grid being one logical "item"
+            const gridAdjustedIndex = Math.floor(index / columnsCount);
+            logger.log('Using grid-adjusted index for scrollToIndex:', {
+              originalIndex: index,
+              gridAdjustedIndex,
+              columnsCount,
+            });
+            flatListRef.current.scrollToIndex({
+              index: gridAdjustedIndex,
+              viewPosition: anchor.type === 'unread' ? 1 : 0.5,
+              animated: shouldAnimateScroll,
+            });
+          } else {
+            flatListRef.current.scrollToIndex({
+              index,
+              viewPosition: anchor.type === 'unread' ? 1 : 0.5,
+              animated: shouldAnimateScroll,
+            });
+          }
         } catch (e) {
           logger.error('error scrolling to anchor post', e);
         } finally {
@@ -111,6 +133,8 @@ export function useAnchorScrollLock({
       flatListRef,
       posts,
       readyToDisplayPosts,
+      collectionLayoutType,
+      columnsCount,
     ]
   );
 
