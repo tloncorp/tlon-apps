@@ -903,7 +903,13 @@
       [%u ?(%v0 %v1 %v2 %v3) =kind:c ship=@ name=@ ~]
     =/  =ship  (slav %p ship.pole)
     ``loob+!>((~(has by v-channels) kind.pole ship name.pole))
-    ::
+  ::
+      [%x %v3 %said =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
+    =/  host=ship   (slav %p host.pole)
+    =/  =nest:c     [kind.pole host name.pole]
+    =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
+    ``noun+!>((~(get by voc) nest plan))
+  ::
     ::  /x/v/heads: get the latest post in each channel
     ::
       [%x %v2 %heads since=?(~ [u=@ ~])]
