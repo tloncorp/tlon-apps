@@ -443,6 +443,8 @@ export async function addPostReaction(
 /**
  * Verifies whether a post was actually delivered to the server.
  * This is used for posts that are marked as 'needs_verification' due to connection issues.
+ *
+ * Uses authorId and sentAt to find matching posts on the server.
  */
 export async function verifyPostDelivery(post: db.Post): Promise<boolean> {
   logger.crumb('verifying post delivery', {
@@ -458,28 +460,34 @@ export async function verifyPostDelivery(post: db.Post): Promise<boolean> {
   }
 
   try {
-    // Attempt to fetch the post from the server
-    await api.getPostWithReplies({
-      postId: post.id,
+    const response = await api.getChannelPosts({
       channelId: post.channelId,
-      authorId: post.authorId,
+      mode: 'newest',
+      count: 30,
     });
 
-    // Post was found on the server, update status to 'sent'
-    logger.crumb('post verified as delivered', { postId: post.id });
-    await db.updatePost({ id: post.id, deliveryStatus: 'sent' });
-    return true;
-  } catch (e) {
-    const errorStatus = e.status;
+    const matchingServerPost = response.posts.find((serverPost) => {
+      if (serverPost.authorId !== post.authorId) return false;
 
-    // If error indicates post not found (404), mark as failed
-    if (errorStatus === 404) {
+      if (serverPost.sentAt !== post.sentAt) return false;
+
+      return true;
+    });
+
+    if (matchingServerPost) {
+      logger.crumb('post verified as delivered', {
+        postId: post.id,
+        matchedWithId: matchingServerPost.id,
+      });
+
+      await db.updatePost({ id: post.id, deliveryStatus: 'sent' });
+      return true;
+    } else {
       logger.crumb('post verified as not delivered', { postId: post.id });
       await db.updatePost({ id: post.id, deliveryStatus: 'failed' });
       return false;
     }
-
-    // For other errors (network issues, etc.), keep status as is for now
+  } catch (e) {
     logger.crumb('post verification inconclusive', {
       postId: post.id,
       error: e.message,
