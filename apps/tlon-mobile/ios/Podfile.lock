@@ -1777,27 +1777,6 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - RNShare (12.0.9):
-    - DoubleConversion
-    - glog
-    - hermes-engine
-    - RCT-Folly (= 2024.01.01.00)
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Codegen
-    - React-Core
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-ImageManager
-    - React-NativeModulesApple
-    - React-RCTFabric
-    - React-rendererdebug
-    - React-utils
-    - ReactCommon/turbomodule/bridging
-    - ReactCommon/turbomodule/core
-    - Yoga
   - RNSVG (15.2.0):
     - React-Core
   - SDWebImage (5.19.7):
@@ -1954,7 +1933,6 @@ DEPENDENCIES:
   - RNGestureHandler (from `../../../node_modules/react-native-gesture-handler`)
   - RNReanimated (from `../../../node_modules/react-native-reanimated`)
   - RNScreens (from `../../../node_modules/react-native-screens`)
-  - RNShare (from `../../../node_modules/react-native-share`)
   - RNSVG (from `../../../node_modules/react-native-svg`)
   - "tentap (from `../../../node_modules/@10play/tentap-editor`)"
   - UMAppLoader (from `../../../node_modules/unimodules-app-loader/ios`)
@@ -2219,8 +2197,6 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/react-native-reanimated"
   RNScreens:
     :path: "../../../node_modules/react-native-screens"
-  RNShare:
-    :path: "../../../node_modules/react-native-share"
   RNSVG:
     :path: "../../../node_modules/react-native-svg"
   tentap:
@@ -2367,7 +2343,6 @@ SPEC CHECKSUMS:
   RNGestureHandler: d16bf84ca5c7bec133dfc39abb825f1a03bcdbb5
   RNReanimated: 29533404792c6a5559e7787f847e28afd2987961
   RNScreens: 5b35d863db10f9be81da4e8f4e08096ee7644f8c
-  RNShare: f38ad589ad199db18b6c7535560ee0924cab440e
   RNSVG: 0e7deccab0678200815104223aadd5ca734dd41d
   SDWebImage: 8a6b7b160b4d710e2a22b6900e25301075c34cb3
   SDWebImageAVIFCoder: 00310d246aab3232ce77f1d8f0076f8c4b021d90
