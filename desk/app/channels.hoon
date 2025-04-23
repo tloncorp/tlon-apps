@@ -681,7 +681,7 @@
 ++  watch
   |=  =(pole knot)
   ^+  cor
-  =?  pole  !?=([?(%v0 %v1 %v2) *] pole)
+  =?  pole  !?=([?(%v0 %v1 %v2 %v3) *] pole)
     [%v0 pole]
   ?+  pole  ~|(bad-watch-path+`path`pole !!)
     [?(%v0 %v1 %v2) ~]                    ?>(from-self cor)
@@ -697,18 +697,39 @@
     =/  host=ship   (slav %p host.pole)
     =/  =nest:c     [kind.pole host name.pole]
     =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
-    (watch-said nest plan -.pole)
+    (watch-said host nest plan -.pole)
+  ::
+      [%v3 %said ask=@ =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
+    ::NOTE  should only be used from /ted/contact-pins
+    ::  since we might ask arbitrary ships over the network,
+    ::  we only expose this endpoint to ourselves
+    ::
+    ?>  =(our src):bowl
+    =/  ask=ship    (slav %p ask.pole)
+    =/  host=ship   (slav %p host.pole)
+    =/  =nest:c     [kind.pole host name.pole]
+    =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
+    (watch-said ask nest plan %v3)
   ==
 ::
 ++  watch-said
-  |=  [=nest:c =plan:c ver=?(%v0 %v1 %v2)]
-  ?.  (~(has by v-channels) nest)
-    =/  =path  (said-path nest plan)
-    ((safe-watch path [ship.nest server] path) |)
-  ::TODO  not guaranteed to resolve, we might have partial backlog
-  ?.  ?=(%v2 ver)
-    ca-abet:(ca-said-1:(ca-abed:ca-core nest) plan)
-  ca-abet:(ca-said-2:(ca-abed:ca-core nest) plan)
+  |=  [ask=ship =nest:c =plan:c ver=?(%v0 %v1 %v2 %v3)]
+  ^+  cor
+  ::  if we have the data locally, give it
+  ::
+  ?:  ?&  (~(has by v-channels) nest)
+          (ca-know-said:(ca-abed:ca-core nest) plan)
+      ==
+    ?-  ver
+      ?(%v0 %v1)  ca-abet:(ca-said-1:(ca-abed:ca-core nest) plan)
+      ?(%v2 %v3)  ca-abet:(ca-said-2:(ca-abed:ca-core nest) plan)
+    ==
+  ::  if we don't have the data locally, ask the target for latest.
+  ::  we don't give the response from cache here. if the subscriber wanted
+  ::  an instant response from cache, they could've scried for it.
+  ::
+  =/  =path  (said-path nest plan)
+  ((safe-watch path [ask server] path) |)
 ::
 ++  said-path
   |=  [=nest:c =plan:c]
@@ -733,25 +754,40 @@
     (give %kick ~[path v0+path v1+path v2+path] ~)
   ::
       %fact
-    =.  cor  (give %fact ~[v2+path] cage.sign)
+    ::  we update state only if we learn anything new
+    ::
+    =/  had=(unit said:c)
+      (~(gut by voc) [nest plan] ~)
+    =/  got=(unit said:c)
+      ?+  p.cage.sign  ~|(funny-mark+p.cage.sign !!)
+        %channel-denied  ~
+        %channel-said    `(said-7-to-8:utils !<(=said:v7:old:c q.cage.sign))
+        %channel-said-1  `!<(=said:c q.cage.sign)
+      ==
+    =.  voc
+      %+  ~(put by voc)  [nest plan]
+      %^  clap  had  got
+      |=  [h=said:c g=said:c]
+      g  ::TODO  can we pick the "latest" version? we have no .rev numbers...
+    ::  give the fact exactly as we got it
+    ::TODO  should v3 give what ended up going into state?
+    ::
     =.  cor
       %^  give  %fact
         ~[path v0+path v1+path]
-      ?+  p.cage.sign  ~|(funny-mark+p.cage.sign !!)
-        %channel-denied  cage.sign
-      ::
-          %channel-said-1
-        =+  !<(=said:c q.cage.sign)
-        ::  NB: mark version is not the type version
-        channels-said+!>((to-said-1:utils said))
-      ==
-    =.  cor  (give %kick ~[path v0+path v1+path v2+path] ~)
-    ?+    p.cage.sign  ~|(funny-mark+p.cage.sign !!)
-        %channel-denied  cor(voc (~(put by voc) [nest plan] ~))
-        %channel-said-1
-      =+  !<(=said:c q.cage.sign)
-      cor(voc (~(put by voc) [nest plan] `said))
-    ==
+      ?~  got  cage.sign
+      channels-said+!>((to-said-1:utils u.got))
+    =/  v3-path
+      [%v3 %said (scot %p src.bowl) (tail path)]
+    =.  cor
+      %^  give  %fact
+        ~[v2+path v3-path]
+      ?~  got  cage.sign
+      channels-said-1+!>(u.got)
+    ::  they all got their responses, so kick their subscriptions
+    ::
+    =.  cor  (give %kick ~[path v0+path v1+path v2+path v3-path] ~)
+    cor
   ==
 ::
 ++  agent
@@ -1272,6 +1308,11 @@
     ::  +can-poke:neg.
     ::
     (emit %pass ca-area %agent [ship.nest.command server] %poke cage)
+  ::
+  ++  ca-know-said
+    |=  =plan:c
+    ^-  ?
+    (have-plan:utils nest plan posts.channel)
   ::
   ::  handle a said (previews) request where we have the data to respond
   ::

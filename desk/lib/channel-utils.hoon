@@ -613,6 +613,17 @@
      %reply  q.said(reply (simple-reply-1 reply.q.said))
   ==
 ::
+++  have-plan  ::NOTE  matches +said-*
+  |=  [=nest:c =plan:c posts=v-posts:c]
+  ^-  ?
+  =/  post=(unit (unit v-post:c))
+    (get:on-v-posts:c posts p.plan)
+  ?&  ?=(^ post)    ::  known post, and
+  ?|  ?=(~ q.plan)  ::  no reply requested, or
+      ?=(~ u.post)  ::  no replies available, or
+      ?=(^ (get:on-v-replies:c replies.u.u.post u.q.plan))  ::  depth found
+  ==  ==
+::
 ++  said-1
   |=  [=nest:c =plan:c posts=v-posts:c]
   ^-  cage
@@ -898,15 +909,28 @@
 ::
 ++  cite
   |%
-  ++  grab-post
-    |=  [=bowl:gall ref=cite:ci]
-    ^-  (unit [=nest:g =post:c])
+  ++  ref-to-pointer  ::TODO  formalize "pointer" type?
+    |=  ref=cite:ci
+    ^-  (unit [=nest:g =plan:c])
     ?.  ?=(%chan -.ref)
       ~
     ::TODO  the whole "deconstruct the ref path" situation is horrendous
-    ?.  ?=([?(%msg %note %curio) @ ~] wer.ref)
+    ?.  ?=([?(%msg %note %curio) ?([@ ~] [@ @ ~])] wer.ref)
       ~
     =,  ref
+    ?~  pid=(rush i.t.wer dum:ag)  ~
+    ?@  t.t.wer.ref
+      `[nest u.pid ~]
+    ?~  rid=(rush i.t.t.wer dum:ag)  ~
+    `[nest u.pid `u.rid]
+  ::
+  ++  grab-post
+    |=  [=bowl:gall ref=cite:ci]
+    ^-  (unit [=nest:g =post:c])
+    ?~  point=(ref-to-pointer ref)
+      ~
+    =,  u.point
+    ?^  q.plan  ~  ::TODO  support?
     =/  base=path
       %+  weld
         /(scot %p our.bowl)/channels/(scot %da now.bowl)
@@ -915,7 +939,7 @@
     :+  ~  nest
     .^  post:c  %gx
       %+  weld  base
-      /posts/post/(scot %ud (rash i.t.wer dum:ag))/channel-post-3
+      /posts/post/(scot %ud p.plan)/channel-post-3
     ==
   ::
   ++  from-post
