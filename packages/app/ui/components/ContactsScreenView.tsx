@@ -165,6 +165,19 @@ export function sortSystemContacts(
     const aName = getDisplayName(a);
     const bName = getDisplayName(b);
 
+    // Check if names start with alphabetical characters
+    const aStartsWithLetter = /^[a-z]/i.test(aName);
+    const bStartsWithLetter = /^[a-z]/i.test(bName);
+
+    // If one starts with a letter and the other doesn't, prioritize the one with a letter
+    if (aStartsWithLetter && !bStartsWithLetter) {
+      return -1;
+    }
+    if (!aStartsWithLetter && bStartsWithLetter) {
+      return 1;
+    }
+
+    // If both start with letters or both don't, use normal string comparison
     return aName.localeCompare(bName);
   });
 }

@@ -196,7 +196,9 @@ export function parseNativeContacts(
       return sysContact;
     })
     .filter((contact) => {
-      const isValid = contact.phoneNumber || contact.email;
+      const hasContactInfo = contact.phoneNumber || contact.email;
+      const hasName = contact.firstName || contact.lastName;
+      const isValid = hasContactInfo && hasName;
       if (!isValid) {
         logger.log(
           `Final filter removed contact: ${contact.firstName} ${contact.lastName}`
