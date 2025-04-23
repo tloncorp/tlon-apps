@@ -32,6 +32,7 @@ import {
   RequestsProvider,
   ScreenHeader,
   View,
+  triggerHaptic,
   useGlobalSearch,
   useIsWindowNarrow,
 } from '../../ui';
@@ -95,6 +96,7 @@ export function ChatListScreenView({
 
   const handleInviteFriends = useCallback(() => {
     setPersonalInviteOpen(false);
+    triggerHaptic('baseButtonClick');
     setTimeout(() => {
       navigation.navigate('InviteSystemContacts');
     }, 200);

@@ -1,6 +1,6 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Pressable, useCopy } from '@tloncorp/ui';
+import { Pressable, triggerHaptic, useCopy } from '@tloncorp/ui';
 import { useCallback } from 'react';
 import { Share } from 'react-native';
 import { isWeb } from 'tamagui';
@@ -21,6 +21,7 @@ export function PersonalInviteButton() {
     }
 
     try {
+      triggerHaptic('baseButtonClick');
       const result = await Share.share({
         message: inviteLink,
       });
@@ -38,14 +39,6 @@ export function PersonalInviteButton() {
   }, [doCopy, inviteLink]);
 
   return (
-    // <Button hero onPress={handleInviteButtonPress} height={72}>
-    //   <Button.Icon>
-    //     <Icon type="Send" />
-    //   </Button.Icon>
-    //   <Text color="$background" size="$label/l">
-    //     {didCopy ? 'Copied' : 'Share Invite Link'}
-    //   </Text>
-    // </Button>
     <Pressable onPress={handleInviteButtonPress}>
       <ListItem backgroundColor="$primaryText">
         <ListItem.SystemIcon

@@ -1,12 +1,12 @@
 import * as db from '@tloncorp/shared/db';
 import { Pressable, Text } from '@tloncorp/ui';
+import { useMemo } from 'react';
 import QRCode from 'react-qr-code';
 import { View, YStack, useTheme } from 'tamagui';
 
 import { useStore } from '../contexts';
 import { ActionSheet } from './ActionSheet';
-import { PrimaryButton } from './Buttons';
-import { ListItem, SystemContactListItem } from './ListItem';
+import { ListItem } from './ListItem';
 import { PersonalInviteButton } from './PersonalInviteButton';
 
 export function PersonalInviteSheet({
@@ -22,7 +22,10 @@ export function PersonalInviteSheet({
   const inviteLink = db.personalInviteLink.useValue();
   const theme = useTheme();
 
-  const { data: sysContactShortlist } = store.useSystemContactShortlist();
+  const { data: systemContacts } = store.useSystemContacts();
+  const hasSystemContacts = useMemo(() => {
+    return systemContacts && systemContacts.length > 0;
+  }, [systemContacts]);
 
   return (
     <ActionSheet
@@ -56,40 +59,21 @@ export function PersonalInviteSheet({
             </View>
             <YStack gap="$m">
               <PersonalInviteButton />
-              <Pressable onPress={() => onPressInviteFriends()}>
-                <ListItem backgroundColor="$secondaryBackground">
-                  <ListItem.SystemIcon icon="AddPerson" />
-                  <ListItem.MainContent>
-                    <ListItem.Title>Invite your friends</ListItem.Title>
-                  </ListItem.MainContent>
-                  <ListItem.EndContent>
-                    <ListItem.SystemIcon icon="ChevronRight" />
-                  </ListItem.EndContent>
-                </ListItem>
-              </Pressable>
-              {/* <PrimaryButton>Invite Contacts</PrimaryButton> */}
+              {hasSystemContacts && (
+                <Pressable onPress={() => onPressInviteFriends()}>
+                  <ListItem backgroundColor="$secondaryBackground">
+                    <ListItem.SystemIcon icon="AddPerson" />
+                    <ListItem.MainContent>
+                      <ListItem.Title>Invite your friends</ListItem.Title>
+                    </ListItem.MainContent>
+                    <ListItem.EndContent>
+                      <ListItem.SystemIcon icon="ChevronRight" />
+                    </ListItem.EndContent>
+                  </ListItem>
+                </Pressable>
+              )}
             </YStack>
           </View>
-          {/* {sysContactShortlist && sysContactShortlist.length > 0 && (
-            <YStack
-              marginTop="$3xl"
-              marginHorizontal={20}
-              backgroundColor="$secondaryBackground"
-              borderRadius="$l"
-            >
-              {sysContactShortlist.map((contact) => (
-                <SystemContactListItem
-                  // backgroundColor="$secondaryBackground"
-                  key={contact.id}
-                  systemContact={contact}
-                  showInvitedStatus
-                  onPress={() => {
-                    console.log('pressed!');
-                  }}
-                />
-              ))}
-            </YStack>
-          )} */}
         </ActionSheet.ScrollableContent>
       </ActionSheet.Content>
     </ActionSheet>
