@@ -188,8 +188,7 @@ export function useLure({
 
   const canCheckForUpdate = useMemo(() => {
     const uninitialized = Boolean(
-      !lure.fetched &&
-        (!lure.url || !checkLureToken(lure.url) || !lure.deepLinkUrl)
+      !lure.url || !checkLureToken(lure.url) || !lure.deepLinkUrl
     );
     return Boolean(bait && !disableLoading && uninitialized);
   }, [bait, lure, disableLoading]);
@@ -230,7 +229,7 @@ export function useLure({
     }
 
     return 'ready';
-  }, [bait, fetched, url, deepLinkUrl, flag]);
+  }, [bait, fetched, url, deepLinkUrl]);
 
   // prevent over zealous logging
   const statusKey = useMemo(() => {
