@@ -62,13 +62,13 @@ export function SettingsScreenView(props: Props) {
             onPress={props.onBlockedUsersPressed}
             isFocused={props.focusedRouteName === 'BlockedUsers'}
           />
-          {/* <SettingsAction
+          <SettingsAction
             title="Privacy"
             leftIcon="Lock"
             rightIcon={'ChevronRight'}
             onPress={props.onPrivacyPressed}
             isFocused={props.focusedRouteName === 'BlockedUsers'}
-          /> */}
+          />
           {props.hasHostedAuth && (
             <SettingsAction
               title="Manage Tlon account"

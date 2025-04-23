@@ -14,7 +14,7 @@ export async function initiateTwitterAttestation(handle: string) {
 
     // for twitter, set visibility to public
     step = 'setting discoverability';
-    await api.updateAttestationVisibility({
+    await api.updateAttestationDiscoverability({
       type: 'twitter',
       value: handle,
       visibility: 'public',
@@ -49,10 +49,10 @@ export async function initiatePhoneAttestation(phoneNumber: string) {
 
     // for phone, set visibility to discoverable
     step = 'setting discoverability';
-    await api.updateAttestationVisibility({
+    await api.updateAttestationDiscoverability({
       type: 'phone',
       value: phoneNumber,
-      visibility: 'discoverable',
+      visibility: 'verified',
     });
 
     // set it to display on your profile
@@ -193,7 +193,7 @@ export async function updateAttestationDiscoverability({
   });
 
   try {
-    await api.updateAttestationVisibility({
+    await api.updateAttestationDiscoverability({
       type: attestation.type,
       value: attestation.value!,
       visibility: discoverability,

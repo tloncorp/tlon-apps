@@ -34,7 +34,7 @@ CREATE TABLE `attestations` (
 	`type` text NOT NULL,
 	`value` text,
 	`initiated_at` integer,
-	`visibility` text NOT NULL,
+	`discoverability` text NOT NULL,
 	`status` text NOT NULL,
 	`status_message` text,
 	`contact_id` text NOT NULL,

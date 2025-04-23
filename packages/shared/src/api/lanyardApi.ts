@@ -341,7 +341,7 @@ export async function initiateTwitterAttestation(twitterHandle: string) {
   }
 }
 
-export async function updateAttestationVisibility({
+export async function updateAttestationDiscoverability({
   visibility,
   value,
   type,
@@ -350,22 +350,8 @@ export async function updateAttestationVisibility({
   type: db.AttestationType;
   visibility: db.AttestationDiscoverability;
 }) {
-  let backendVisibility = 'hidden';
-  switch (visibility) {
-    case 'discoverable':
-      backendVisibility = 'verified';
-      break;
-    case 'public':
-      backendVisibility = 'public';
-      break;
-    case 'hidden':
-    default:
-      backendVisibility = 'hidden';
-      break;
-  }
-
   const identifier = [type, value.toLowerCase()];
-  const config = [backendVisibility];
+  const config = [visibility];
   const command = [null, ['config', identifier, config]];
 
   const noun = dwim(command);
@@ -377,7 +363,7 @@ export async function updateAttestationVisibility({
         return false;
       }
 
-      if (event.config.config.discoverable === backendVisibility) {
+      if (event.config.config.discoverable === visibility) {
         return true;
       }
 

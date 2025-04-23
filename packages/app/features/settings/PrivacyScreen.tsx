@@ -1,15 +1,13 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
 import { Text } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
-import { Alert, Switch } from 'react-native';
+import { Switch } from 'react-native';
 import { YStack } from 'tamagui';
 
-import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { useTelemetry } from '../../hooks/useTelemetry';
 import { RootStackParamList } from '../../navigation/types';
 import {
-  BlockedContactsWidget,
   ScreenHeader,
   SizableText,
   View,
@@ -21,15 +19,18 @@ import {
 type Props = NativeStackScreenProps<RootStackParamList, 'PrivacySettings'>;
 
 interface PrivacyState {
+  telemetryDisabled: boolean;
   phoneDiscoverable: boolean;
 }
 
 export function PrivacySettingsScreen(props: Props) {
   const store = useStore();
   const phoneAttest = store.useCurrentUserPhoneAttestation();
+  const telemetry = useTelemetry();
 
   const [state, setState] = useState<PrivacyState>({
     phoneDiscoverable: parsePhoneDiscoverability(phoneAttest),
+    telemetryDisabled: telemetry.getIsOptedOut(),
   });
 
   const togglePhoneDiscoverable = useCallback(async () => {
@@ -38,7 +39,7 @@ export function PrivacySettingsScreen(props: Props) {
     }
     const nextDiscoveryState = !state.phoneDiscoverable;
     const nextDiscoveryValue: db.AttestationDiscoverability = nextDiscoveryState
-      ? 'discoverable'
+      ? 'verified'
       : 'hidden';
     setState((prev) => ({ ...prev, phoneDiscoverable: nextDiscoveryState }));
     try {
@@ -51,6 +52,12 @@ export function PrivacySettingsScreen(props: Props) {
       setState((prev) => ({ ...prev, phoneDiscoverable: !nextDiscoveryState }));
     }
   }, [phoneAttest, state.phoneDiscoverable, store]);
+
+  const toggleSetTelemetry = useCallback(() => {
+    const nextDisabledState = !state.telemetryDisabled;
+    setState((prev) => ({ ...prev, telemetryDisabled: nextDisabledState }));
+    telemetry.setDisabled(nextDisabledState);
+  }, [state.telemetryDisabled, telemetry]);
 
   return (
     <View flex={1} backgroundColor="$background">
@@ -66,30 +73,34 @@ export function PrivacySettingsScreen(props: Props) {
         paddingHorizontal="$xl"
       >
         <YStack paddingHorizontal="$l" paddingTop="$2xl" gap="$xl">
-          <Text size="$label/l" color="$secondaryText">
-            Phone Number
+          <XStack justifyContent="space-between" alignItems="center">
+            <SizableText flexShrink={1}>Share Usage Statistics</SizableText>
+            <Switch
+              style={{ flexShrink: 0 }}
+              value={!state.telemetryDisabled}
+              onValueChange={toggleSetTelemetry}
+            ></Switch>
+          </XStack>
+          <Text size="$label/s" color="$secondaryText">
+            By sharing, you help us improve the app for everyone.
           </Text>
-          {phoneAttest ? (
-            <YStack gap="$l">
-              <XStack justifyContent="space-between" alignItems="center">
-                <SizableText flexShrink={1}>Allow phone discovery</SizableText>
-                <Switch
-                  style={{ flexShrink: 0 }}
-                  value={state.phoneDiscoverable}
-                  onValueChange={togglePhoneDiscoverable}
-                ></Switch>
-              </XStack>
-              <Text size="$label/s" color="$secondaryText">
-                If enabled, others who already have your phone number will be
-                able to find you on Tlon.
-              </Text>
-            </YStack>
-          ) : (
-            <Text textAlign="center">
-              No phone number associated with your account.
-            </Text>
-          )}
         </YStack>
+        {phoneAttest && (
+          <YStack paddingHorizontal="$l" paddingTop="$2xl" gap="$xl">
+            <XStack justifyContent="space-between" alignItems="center">
+              <SizableText flexShrink={1}>Phone number discovery</SizableText>
+              <Switch
+                style={{ flexShrink: 0 }}
+                value={state.phoneDiscoverable}
+                onValueChange={togglePhoneDiscoverable}
+              ></Switch>
+            </XStack>
+            <Text size="$label/s" color="$secondaryText">
+              If enabled, friends who already have your phone number will be
+              able to find you on Tlon.
+            </Text>
+          </YStack>
+        )}
       </View>
     </View>
   );
@@ -101,7 +112,6 @@ function parsePhoneDiscoverability(attest: db.Attestation | null): boolean {
   }
 
   return (
-    attest.discoverability === 'discoverable' ||
-    attest.discoverability === 'public'
+    attest.discoverability === 'verified' || attest.discoverability === 'public'
   );
 }

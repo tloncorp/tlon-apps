@@ -201,7 +201,7 @@ export const contactAttestationRelations = relations(
 );
 
 export type AttestationType = 'phone' | 'node' | 'twitter' | 'dummy';
-export type AttestationDiscoverability = 'public' | 'discoverable' | 'hidden';
+export type AttestationDiscoverability = 'public' | 'verified' | 'hidden';
 export type AttestationStatus = 'waiting' | 'pending' | 'verified';
 export const attestations = sqliteTable('attestations', {
   id: text('id').primaryKey(),
@@ -209,7 +209,7 @@ export const attestations = sqliteTable('attestations', {
   type: text('type').$type<AttestationType>().notNull(),
   value: text('value'),
   initiatedAt: timestamp('initiated_at'),
-  discoverability: text('visibility')
+  discoverability: text('discoverability')
     .$type<AttestationDiscoverability>()
     .notNull(),
   status: text('status').$type<AttestationStatus>().notNull(),

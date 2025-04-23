@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "37e57881-ff44-4618-a3b3-9d06ed8911e4",
+  "id": "97f9a452-c646-4eb9-9b82-84cbda9260f7",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -245,8 +245,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "visibility": {
-          "name": "visibility",
+        "discoverability": {
+          "name": "discoverability",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
