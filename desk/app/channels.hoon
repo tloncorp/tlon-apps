@@ -1331,7 +1331,15 @@
     ^+  ca-core
     =.  ca-core
       %^  give  %fact  ~
-      ?.  (can-read:ca-perms src.bowl)
+      ::  give result if we authored the content,
+      ::  or if it's readably by the requester.
+      ::
+      ?.  ?|  ?~  post=(get:on-v-posts:c posts.channel p.plan)  |
+              ?~  u.post  |
+              =(our.bowl author.u.u.post)
+            ::
+              (can-read:ca-perms src.bowl)
+          ==
         channel-denied+!>(~)
       (said-2:utils nest plan posts.channel)
     (give %kick ~ ~)
