@@ -16,6 +16,9 @@ on:
       - "develop"
 env:
   tag: ${{ github.event.inputs.tag || 'develop' }}
+concurrency:
+  group: ${{ format('{0}-{1}', github.ref, 'deploy') }}
+  cancel-in-progress: true
 jobs:
   build-frontend:
     runs-on: ubuntu-latest

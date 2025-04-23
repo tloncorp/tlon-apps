@@ -225,6 +225,8 @@ const Scroller = forwardRef(
       shouldMaintainVisibleContentPosition:
         collectionLayout.shouldMaintainVisibleContentPosition,
       isScrollingToBottom: hasPressedGoToBottom,
+      collectionLayoutType,
+      columnsCount: columns,
     });
 
     const theme = useTheme();

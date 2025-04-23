@@ -23,6 +23,8 @@
   ++  value
     |=  val=value:c
     ^-  json
+    ?@  val
+      (frond type+s/%null)
     ?-  -.val
       %text  (pairs type+s/%text value+s/p.val ~)
       %numb  (pairs type+s/%numb value+(numb p.val) ~)
