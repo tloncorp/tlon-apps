@@ -139,6 +139,7 @@ export enum AnalyticsEvent {
 
 export interface AnalyticsDigest {
   numContacts?: number | null;
+  numSystemContacts?: number | null;
   numGroups?: number | null;
   numGroupchats?: number | null;
   numGroupsHosted?: number | null;

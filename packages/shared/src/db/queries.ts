@@ -321,6 +321,10 @@ export const getAnalyticsDigest = createReadQuery(
       .from($contacts)
       .where(eq($contacts.isContact, true));
 
+    const numSystemContacts = await ctx.db
+      .select({ count: count() })
+      .from($systemContacts);
+
     const groups = await ctx.db.query.groups.findMany({
       where: eq($groups.currentUserIsMember, true),
       with: {
@@ -345,6 +349,7 @@ export const getAnalyticsDigest = createReadQuery(
 
     return {
       numContacts: numContacts[0]?.count ?? 0,
+      numSystemContacts: numSystemContacts[0]?.count ?? 0,
       numGroups,
       numGroupchats,
       numGroupsHosted,

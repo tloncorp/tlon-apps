@@ -1,3 +1,4 @@
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as Contacts from 'expo-contacts';
 import { useCallback, useEffect, useState } from 'react';
 import { Linking } from 'react-native';
@@ -13,6 +14,8 @@ export type ContactPermissionAccessPrivileges =
   | 'limited'
   | 'none'
   | 'undetermined';
+
+const logger = createDevLogger('useContactPermissions', true);
 
 export function useContactPermissions() {
   const [status, setStatus] = useState<ContactPermissionStatus>('loading');
@@ -41,9 +44,25 @@ export function useContactPermissions() {
       }
 
       setStatus('loading');
-      console.log('initiating perms request');
+      logger.trackEvent(AnalyticsEvent.ActionContactBookPermRequested);
       const { status } = await Contacts.requestPermissionsAsync();
       setStatus(status);
+
+      if (status === 'granted') {
+        logger.trackEvent(AnalyticsEvent.ActionContactBookPermGranted, {
+          $set: {
+            contactBookPermissionGranted: true,
+          },
+        });
+      }
+
+      if (status === 'denied') {
+        logger.trackEvent(AnalyticsEvent.ActionContactBookPermDenied, {
+          $set: {
+            contactBookPermissionGranted: false,
+          },
+        });
+      }
       return status;
     } catch (error) {
       console.error('Error requesting contact permissions:', error);

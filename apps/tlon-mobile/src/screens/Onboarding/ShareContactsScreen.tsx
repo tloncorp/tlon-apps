@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useContactPermissions } from '@tloncorp/app/hooks/useContactPermissions';
 import { useActiveTheme } from '@tloncorp/app/provider';
 import {
   Image,
@@ -14,7 +15,6 @@ import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
 import { useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useContactPermissions } from '../../hooks/useContactPermissions';
 import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ShareContacts'>;
@@ -49,13 +49,9 @@ export const ShareContactsScreen = ({ navigation }: Props) => {
 
   const handleShareContacts = async () => {
     if (perms.canAskPermission) {
-      logger.trackEvent(AnalyticsEvent.ActionContactBookPermRequested);
       const status = await perms.requestPermissions();
       if (status === 'granted') {
-        logger.trackEvent(AnalyticsEvent.ActionContactBookPermGranted);
         processContacts();
-      } else if (status === 'denied') {
-        logger.trackEvent(AnalyticsEvent.ActionContactBookPermDenied);
       }
     } else if (perms.hasPermission) {
       processContacts();

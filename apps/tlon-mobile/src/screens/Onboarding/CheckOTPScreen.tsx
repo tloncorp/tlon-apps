@@ -11,7 +11,7 @@ import {
   useStore,
 } from '@tloncorp/app/ui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsSeverity, createDevLogger } from '@tloncorp/shared';
 import { HostingError } from '@tloncorp/shared/api';
 import { storage } from '@tloncorp/shared/db';
 import { useCallback, useMemo, useState } from 'react';
@@ -112,6 +112,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
         logger.trackError('Error signing up user', {
           errorMessage: err.message,
           errorStack: err.stack,
+          severity: AnalyticsSeverity.Critical,
           ...accountCreds,
         });
         throw err;
