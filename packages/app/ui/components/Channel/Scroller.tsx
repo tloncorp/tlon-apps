@@ -269,6 +269,7 @@ const Scroller = forwardRef(
           !previousItem ||
           previousItem?.authorId !== post.authorId ||
           previousItem?.type === 'notice' ||
+          previousItem?.isDeleted === true ||
           isFirstPostOfDay;
         const isSelected =
           anchor?.type === 'selected' && anchor.postId === post.id;
@@ -587,6 +588,18 @@ function getPostId({ post }: PostWithNeighbors) {
   return post.id;
 }
 
+// Create empty post object to avoid recreating it on every render
+const EMPTY_POST: db.Post = {
+  id: '',
+  authorId: '',
+  channelId: '',
+  type: 'chat',
+  receivedAt: 0,
+  sentAt: 0,
+  isDeleted: false,
+  replyCount: 0,
+};
+
 const BaseScrollerItem = ({
   item,
   index,
@@ -645,7 +658,18 @@ const BaseScrollerItem = ({
   previousPost?: db.Post | null;
 }) => {
   const post = useLivePost(item);
-  const isPrevDeleted = previousPost?.isDeleted === true;
+
+  // Checking if the previous post exists
+  const hasPreviousPost = Boolean(previousPost);
+  // Get the live post for the previous post
+  const livePreviousPost = useLivePost(
+    // If there is a previous post, use it, otherwise use the empty post
+    hasPreviousPost ? previousPost! : EMPTY_POST
+  );
+  // Check if the previous post (A) exists and (B) is deleted
+  const isPrevDeleted = hasPreviousPost && livePreviousPost.isDeleted === true;
+  // If the previous post is deleted, show the author, otherwise fall back to the
+  // display rules calculated in the showAuthor prop
   const showAuthorLive = useMemo(() => {
     if (isPrevDeleted) {
       return true;
