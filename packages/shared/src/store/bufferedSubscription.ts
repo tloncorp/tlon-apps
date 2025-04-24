@@ -17,7 +17,11 @@ export function createHandler<T>(
 ) {
   return createBatchHandler<T>(async (updates, ctx) => {
     for (const update of updates) {
-      await handler(update, ctx);
+      try {
+        await handler(update, ctx);
+      } catch (e) {
+        logger.trackError('failed to process buffered event', e);
+      }
     }
   });
 }
