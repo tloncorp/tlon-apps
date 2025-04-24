@@ -1,6 +1,6 @@
 import { parseContactUpdateEvent } from '@tloncorp/shared/api';
-import { inlineSummary } from '@tloncorp/shared/logic';
 import type * as ub from '@tloncorp/shared/urbit';
+import { getTextContent } from '@tloncorp/shared/urbit';
 import {
   ActivityIncomingEvent,
   getIdParts,
@@ -85,7 +85,7 @@ export function renderActivityEventPreview({
     info: Pick<ub.PostEvent['post'], 'key' | 'content'>
   ) {
     const { sent, author } = getIdParts(info.key.id);
-    const contentSummary = inlineSummary(info.content);
+    const contentSummary = getTextContent(info.content);
     return {
       notification: {
         body: lit(contentSummary),
