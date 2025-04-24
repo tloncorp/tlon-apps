@@ -45,7 +45,11 @@ const triggerPending = _.debounce(
         if (buffered.length > 0) {
           logger.log('processing buffered events', buffered);
           bufferedSubscription.buffered = [];
-          await handler(buffered, ctx);
+          try {
+            await handler(buffered, ctx);
+          } catch (e) {
+            logger.trackError('failed to process buffered event', e);
+          }
         }
       }
     });
