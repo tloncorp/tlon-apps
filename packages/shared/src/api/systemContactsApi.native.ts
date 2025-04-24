@@ -1,4 +1,5 @@
 import * as Contacts from 'expo-contacts';
+import * as Localization from 'expo-localization';
 import * as LibPhone from 'libphonenumber-js';
 
 import * as db from '../db';
@@ -33,6 +34,19 @@ export function parseNativeContacts(
 ): domain.SystemContact[] {
   const parseCounts = { digitFinds: 0, numberFinds: 0, fallbacks: 0 };
 
+  let defaultCountryCode = 'US';
+  try {
+    const locale = Localization.getLocales()[0];
+    if (locale && locale.regionCode) {
+      defaultCountryCode = locale.regionCode.toUpperCase();
+      logger.log(`Inferred system default country code: ${defaultCountryCode}`);
+    }
+  } catch (e) {
+    logger.trackEvent(domain.AnalyticsEvent.DebugSystemContacts, {
+      context: 'Could not infer system default country code',
+    });
+  }
+
   // Add debugging to see what's getting filtered out initially
   logger.log(`Initial system contacts count: ${nativeContacts.length}`);
 
@@ -55,6 +69,9 @@ export function parseNativeContacts(
       // Extract and format phone numbers
       const phoneNumbers = (contact.phoneNumbers || [])
         .map((phoneRecord, index) => {
+          const recordCountryCode =
+            phoneRecord.countryCode || defaultCountryCode;
+
           // Skip if no number
           if (!phoneRecord.number) {
             logger.log(
@@ -65,7 +82,6 @@ export function parseNativeContacts(
           }
 
           // Get country code from the record or fallback to 'US'
-          const countryCode = (phoneRecord.countryCode || 'us').toUpperCase();
           const originalNumber = phoneRecord.number;
           let formattedNumber = null;
 
@@ -80,7 +96,7 @@ export function parseNativeContacts(
               try {
                 const phoneDetails = LibPhone.parsePhoneNumberFromString(
                   phoneRecord.digits,
-                  countryCode as LibPhone.CountryCode
+                  recordCountryCode as LibPhone.CountryCode
                 );
                 if (!phoneDetails) {
                   logger.log(
@@ -111,8 +127,10 @@ export function parseNativeContacts(
             if (!formattedNumber && phoneRecord.number) {
               try {
                 const phoneDetails = LibPhone.parsePhoneNumberFromString(
-                  phoneRecord.number
+                  phoneRecord.number,
+                  recordCountryCode as LibPhone.CountryCode
                 );
+
                 if (!phoneDetails) {
                   logger.log(
                     `Contact ${contact.firstName} ${contact.lastName}: phone record ${index} could not parse number`,
@@ -138,13 +156,14 @@ export function parseNativeContacts(
               }
             }
 
-            // If we still don't have a formatted number, use basic normalization
+            // If we still don't have a formatted number, fall back to basic normalization
             if (!formattedNumber) {
               const normalizedNumber = phoneRecord.number.replace(/\D/g, '');
               if (normalizedNumber.length > 0) {
-                formattedNumber = normalizedNumber.startsWith('+')
-                  ? normalizedNumber
-                  : `+${normalizedNumber}`;
+                formattedNumber =
+                  normalizedNumber.length === 10
+                    ? `+1${normalizedNumber}` // Assume US number if 10 digits
+                    : `+${normalizedNumber}`;
                 parseCounts.fallbacks++;
               }
             }

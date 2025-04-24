@@ -547,7 +547,9 @@ export const usePersonalGroup = () => {
     queryFn: async () => {
       const currentUserId = api.getCurrentUserId();
       const group = await db.getPersonalGroup();
-      logic.personalGroupIsValid({ group, currentUserId }) ? group : null;
+      return logic.personalGroupIsValid({ group, currentUserId })
+        ? group
+        : null;
     },
   });
 };
