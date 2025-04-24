@@ -303,7 +303,7 @@ function toActivityEvent({
   return null;
 }
 
-function parseContactUpdateEvent(
+export function parseContactUpdateEvent(
   eventId: string,
   event: ub.ContactEvent
 ): Partial<db.ActivityEvent> | null {

@@ -1,8 +1,8 @@
+import { parseContactUpdateEvent } from '@tloncorp/shared/api';
 import { inlineSummary } from '@tloncorp/shared/logic';
 import type * as ub from '@tloncorp/shared/urbit';
 import {
   ActivityIncomingEvent,
-  getContent,
   getIdParts,
   getSourceForEvent,
   sourceToString,
@@ -183,8 +183,8 @@ export function renderActivityEventPreview({
       return {
         notification: {
           body: concat([
-            userNickname(ev['group-join'].ship), // TODO: is this correct?
-            lit(' accepted your request to join '),
+            userNickname(ev['group-join'].ship),
+            lit(' joined '),
             groupTitle(ev['group-join'].group),
           ]),
         },
@@ -194,8 +194,8 @@ export function renderActivityEventPreview({
       return {
         notification: {
           body: concat([
-            userNickname(ev['group-kick'].ship), // TODO: is this correct?
-            lit(' kicked you from '),
+            userNickname(ev['group-kick'].ship),
+            lit(' left '),
             groupTitle(ev['group-kick'].group),
           ]),
         },
@@ -205,10 +205,9 @@ export function renderActivityEventPreview({
       return {
         notification: {
           body: concat([
-            userNickname(ev['group-role'].ship), // TODO: is this correct?
-            lit(' changed your role in '),
+            userNickname(ev['group-role'].ship),
+            lit(` has a new role (${ev['group-role'].role}) in `),
             groupTitle(ev['group-role'].group),
-            lit(` to ${ev['group-role'].role}`),
           ]),
         },
       };
@@ -217,7 +216,7 @@ export function renderActivityEventPreview({
       return {
         notification: {
           body: concat([
-            lit('Your post was flagged in'), // TODO: is this correct? (is this your post or someone else's?)
+            lit('Someone flagged a post in '),
             groupTitle(ev['flag-post'].group),
           ]),
         },
@@ -226,7 +225,12 @@ export function renderActivityEventPreview({
     case is(ev, 'contact'):
       return {
         notification: {
-          body: lit('New contact'), // TODO: ???
+          body: concat([
+            userNickname(ev.contact.who),
+            lit(
+              ` updated their ${parseContactUpdateEvent('placeholder-id', ev)?.contactUpdateType || 'profile'}`
+            ),
+          ]),
         },
       };
 
