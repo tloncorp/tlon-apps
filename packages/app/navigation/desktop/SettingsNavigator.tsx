@@ -11,6 +11,7 @@ import { AppInfoScreen } from '../../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../../features/settings/BlockedUsersScreen';
 import { FeatureFlagScreen } from '../../features/settings/FeatureFlagScreen';
 import { ManageAccountScreen } from '../../features/settings/ManageAccountScreen';
+import { PrivacySettingsScreen } from '../../features/settings/PrivacyScreen';
 import { PushNotificationSettingsScreen } from '../../features/settings/PushNotificationSettingsScreen';
 import { ThemeScreen } from '../../features/settings/ThemeScreen';
 import { UserBugReportScreen } from '../../features/settings/UserBugReportScreen';
@@ -118,6 +119,10 @@ export const SettingsNavigator = () => {
       <SettingsDrawer.Screen
         name="FeatureFlags"
         component={FeatureFlagScreen}
+      />
+      <SettingsDrawer.Screen
+        name="PrivacySettings"
+        component={PrivacySettingsScreen}
       />
       <SettingsDrawer.Screen name="WompWomp" component={UserBugReportScreen} />
     </SettingsDrawer.Navigator>
