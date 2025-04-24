@@ -57,6 +57,50 @@ export const settings = sqliteTable('settings', {
   completedWayfindingTutorial: boolean('completed_wayfinding_tutorial'),
 });
 
+export const systemContacts = sqliteTable('system_contacts', {
+  id: text('id').primaryKey(),
+  firstName: text('first_name'),
+  lastName: text('last_name'),
+  phoneNumber: text('phone_number'),
+  email: text('email'),
+  contactId: text('contact_id'),
+});
+
+export const systemContactRelations = relations(
+  systemContacts,
+  ({ one, many }) => ({
+    contact: one(contacts, {
+      fields: [systemContacts.contactId],
+      references: [contacts.id],
+    }),
+    sentInvites: many(systemContactSentInvites),
+  })
+);
+
+export const systemContactSentInvites = sqliteTable(
+  'system_contact_sent_invites',
+  {
+    invitedTo: text('invited_to'),
+    systemContactId: text('system_contact_id'),
+    invitedAt: timestamp('invited_at'),
+  },
+  (table) => ({
+    pk: primaryKey({
+      columns: [table.invitedTo, table.systemContactId],
+    }),
+  })
+);
+
+export const systemContactSentInviteRelations = relations(
+  systemContactSentInvites,
+  ({ one }) => ({
+    systemContact: one(systemContacts, {
+      fields: [systemContactSentInvites.systemContactId],
+      references: [systemContacts.id],
+    }),
+  })
+);
+
 export const contacts = sqliteTable('contacts', {
   id: text('id').primaryKey(),
 
@@ -83,11 +127,16 @@ export const contacts = sqliteTable('contacts', {
   isBlocked: boolean('blocked'),
   isContact: boolean('isContact'),
   isContactSuggestion: boolean('isContactSuggestion'),
+  systemContactId: text('systemContactId'),
 });
 
-export const contactsRelations = relations(contacts, ({ many }) => ({
+export const contactsRelations = relations(contacts, ({ one, many }) => ({
   pinnedGroups: many(contactGroups),
   attestations: many(contactAttestations),
+  systemContact: one(systemContacts, {
+    fields: [contacts.systemContactId],
+    references: [systemContacts.id],
+  }),
 }));
 
 export const contactGroups = sqliteTable(
@@ -152,7 +201,7 @@ export const contactAttestationRelations = relations(
 );
 
 export type AttestationType = 'phone' | 'node' | 'twitter' | 'dummy';
-export type AttestationDiscoverability = 'public' | 'discoverable' | 'hidden';
+export type AttestationDiscoverability = 'public' | 'verified' | 'hidden';
 export type AttestationStatus = 'waiting' | 'pending' | 'verified';
 export const attestations = sqliteTable('attestations', {
   id: text('id').primaryKey(),
@@ -160,7 +209,7 @@ export const attestations = sqliteTable('attestations', {
   type: text('type').$type<AttestationType>().notNull(),
   value: text('value'),
   initiatedAt: timestamp('initiated_at'),
-  discoverability: text('visibility')
+  discoverability: text('discoverability')
     .$type<AttestationDiscoverability>()
     .notNull(),
   status: text('status').$type<AttestationStatus>().notNull(),

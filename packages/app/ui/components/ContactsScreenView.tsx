@@ -8,15 +8,17 @@ import { useContact, useCurrentUserId } from '../contexts';
 import { useSortedContacts } from '../hooks/contactSorters';
 import { SystemIconAvatar } from './Avatar';
 import { Badge } from './Badge';
-import { ContactListItem } from './ListItem';
+import { ContactListItem, SystemContactListItem } from './ListItem';
 
 interface Props {
   contacts: db.Contact[];
+  systemContacts: db.SystemContact[];
   suggestions: db.Contact[];
   focusedContactId?: string;
   onContactPress: (contact: db.Contact) => void;
   onAddContact: (contact: db.Contact) => void;
   onContactLongPress: (contact: db.Contact) => void;
+  onInviteSystemContact: (contact: db.SystemContact) => void;
 }
 
 interface Section {
@@ -32,6 +34,10 @@ export function ContactsScreenView(props: Props) {
     contacts: props.contacts,
     query: '',
   });
+
+  const sortedSystemContacts = useMemo(() => {
+    return sortSystemContacts(props.systemContacts);
+  }, [props.systemContacts]);
 
   const sections = useMemo(() => {
     const result: Section[] = [];
@@ -53,11 +59,34 @@ export function ContactsScreenView(props: Props) {
       });
     }
 
+    if (sortedSystemContacts.length > 0) {
+      result.push({
+        title: 'From your address book',
+        data: sortedSystemContacts,
+      });
+    }
+
     return result;
-  }, [userContact, currentUserId, sortedContacts, props.suggestions]);
+  }, [
+    userContact,
+    currentUserId,
+    sortedContacts,
+    props.suggestions,
+    sortedSystemContacts,
+  ]);
 
   const renderItem = useCallback(
-    ({ item }: { item: db.Contact }) => {
+    ({ item }: { item: db.Contact | db.SystemContact }) => {
+      if (db.isSystemContact(item)) {
+        return (
+          <SystemContactListItem
+            systemContact={item}
+            showInvitedStatus
+            onPress={props.onInviteSystemContact}
+          />
+        );
+      }
+
       const isSelf = item.id === currentUserId;
       const isFocused =
         props.focusedContactId === item.id ||
@@ -100,7 +129,7 @@ export function ContactsScreenView(props: Props) {
         />
       );
     },
-    [props, userContact?.id]
+    [currentUserId, props]
   );
 
   const renderSectionHeader = useCallback(
@@ -135,4 +164,44 @@ export function ContactsScreenView(props: Props) {
       />
     </View>
   );
+}
+
+export function sortSystemContacts(
+  contacts: db.SystemContact[]
+): db.SystemContact[] {
+  return [...contacts].sort((a, b) => {
+    const aName = getDisplayName(a);
+    const bName = getDisplayName(b);
+
+    // Check if names start with alphabetical characters
+    const aStartsWithLetter = /^[a-z]/i.test(aName);
+    const bStartsWithLetter = /^[a-z]/i.test(bName);
+
+    // If one starts with a letter and the other doesn't, prioritize the one with a letter
+    if (aStartsWithLetter && !bStartsWithLetter) {
+      return -1;
+    }
+    if (!aStartsWithLetter && bStartsWithLetter) {
+      return 1;
+    }
+
+    // If both start with letters or both don't, use normal string comparison
+    return aName.localeCompare(bName);
+  });
+}
+
+function getDisplayName(contact: db.SystemContact): string {
+  if (contact.firstName && contact.lastName) {
+    return `${contact.firstName} ${contact.lastName}`.trim().toLowerCase();
+  } else if (contact.firstName) {
+    return contact.firstName.trim().toLowerCase();
+  } else if (contact.lastName) {
+    return contact.lastName.trim().toLowerCase();
+  } else if (contact.email) {
+    return contact.email.trim().toLowerCase();
+  } else if (contact.phoneNumber) {
+    return contact.phoneNumber.trim().toLowerCase();
+  }
+
+  return contact.id.toLowerCase();
 }

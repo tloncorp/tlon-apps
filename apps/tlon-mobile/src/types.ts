@@ -26,6 +26,7 @@ export type OnboardingStackParamList = {
     waitType?: 'Paused' | 'Suspended' | 'Unknown';
     wasLoggedIn?: boolean;
   };
+  ShareContacts: undefined;
 };
 
 export type User = {

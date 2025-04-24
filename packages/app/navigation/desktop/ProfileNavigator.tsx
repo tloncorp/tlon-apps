@@ -86,6 +86,8 @@ function DrawerContent(props: DrawerContentComponentProps) {
         onContactPress={onContactPress}
         onAddContact={onAddContact}
         onContactLongPress={onContactLongPress}
+        systemContacts={[]}
+        onInviteSystemContact={() => {}}
       />
     </View>
   );

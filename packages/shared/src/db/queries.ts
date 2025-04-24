@@ -76,6 +76,8 @@ import {
   postWindows as $postWindows,
   posts as $posts,
   settings as $settings,
+  systemContactSentInvites as $systemContactSentInvites,
+  systemContacts as $systemContacts,
   threadUnreads as $threadUnreads,
   volumeSettings as $volumeSettings,
   BASE_UNREADS_SINGLETON_KEY,
@@ -103,6 +105,8 @@ import {
   Reaction,
   ReplyMeta,
   Settings,
+  SystemContact,
+  SystemContactSentInvite,
   TableName,
   ThreadUnreadState,
   VolumeSettings,
@@ -317,6 +321,10 @@ export const getAnalyticsDigest = createReadQuery(
       .from($contacts)
       .where(eq($contacts.isContact, true));
 
+    const numSystemContacts = await ctx.db
+      .select({ count: count() })
+      .from($systemContacts);
+
     const groups = await ctx.db.query.groups.findMany({
       where: eq($groups.currentUserIsMember, true),
       with: {
@@ -341,6 +349,7 @@ export const getAnalyticsDigest = createReadQuery(
 
     return {
       numContacts: numContacts[0]?.count ?? 0,
+      numSystemContacts: numSystemContacts[0]?.count ?? 0,
       numGroups,
       numGroupchats,
       numGroupsHosted,
@@ -352,6 +361,106 @@ export const getAnalyticsDigest = createReadQuery(
     };
   },
   []
+);
+
+export const insertSystemContacts = createWriteQuery(
+  'insertSystemContacts',
+  async (params: { systemContacts: SystemContact[] }, ctx: QueryCtx) => {
+    const { systemContacts } = params;
+    if (!systemContacts.length) return;
+
+    // Process in batches of 200
+    const batchSize = 200;
+    for (let i = 0; i < systemContacts.length; i += batchSize) {
+      const batch = systemContacts.slice(i, i + batchSize);
+      if (!batch.length) continue;
+      try {
+        await ctx.db
+          .insert($systemContacts)
+          .values(batch)
+          .onConflictDoUpdate({
+            target: [$systemContacts.id],
+            set: conflictUpdateSetAll($systemContacts),
+          });
+        logger.trackEvent(domain.AnalyticsEvent.DebugSystemContacts, {
+          context: 'inserted system contacts batch',
+          count: batch.length,
+          startIndex: i,
+        });
+      } catch (e) {
+        logger.trackEvent(domain.AnalyticsEvent.ErrorSystemContacts, {
+          context: 'failed to insert system contacts',
+          count: batch.length,
+          totalNumContacts: systemContacts.length,
+        });
+      }
+    }
+  },
+  ['systemContacts', 'systemContactSentInvites', 'contacts']
+);
+
+export const linkSystemContact = createWriteQuery(
+  'insertSystemContactSentInvites',
+  async (params: { sentInvites: SystemContactSentInvite[] }, ctx: QueryCtx) => {
+    // TODO
+  },
+  ['systemContacts', 'systemContactSentInvites', 'contacts']
+);
+
+export const insertSystemContactSentInvites = createWriteQuery(
+  'insertSystemContactSentInvites',
+  async (params: { sentInvites: SystemContactSentInvite[] }, ctx: QueryCtx) => {
+    const { sentInvites } = params;
+    if (!sentInvites.length) return;
+    await ctx.db
+      .insert($systemContactSentInvites)
+      .values(sentInvites)
+      .onConflictDoUpdate({
+        target: [
+          $systemContactSentInvites.systemContactId,
+          $systemContactSentInvites.invitedTo,
+        ],
+        set: conflictUpdateSetAll($systemContactSentInvites),
+      });
+  },
+  ['systemContacts', 'systemContactSentInvites', 'contacts']
+);
+
+export const getSystemContacts = createReadQuery(
+  'getSystemContacts',
+  async (ctx: QueryCtx): Promise<SystemContact[]> => {
+    try {
+      const result = await ctx.db.query.systemContacts.findMany({
+        with: { sentInvites: true },
+      });
+      return result;
+    } catch (e) {
+      console.log(`Error getting system contacts`, e);
+      throw e;
+    }
+  },
+  ['systemContacts', 'systemContactSentInvites']
+);
+
+export const getUninvitedSystemContactsShortlist = createReadQuery(
+  'getUninvitedSystemContactsShortlist',
+  async (ctx: QueryCtx): Promise<SystemContact[]> => {
+    try {
+      const result = await ctx.db.query.systemContacts.findMany({
+        with: { sentInvites: true },
+      });
+
+      const uninvitedContacts = result.filter(
+        (contact) => contact.sentInvites?.length === 0
+      );
+
+      return uninvitedContacts.slice(0, 10);
+    } catch (e) {
+      console.log(`Error getting uninvited system contacts`, e);
+      throw e;
+    }
+  },
+  ['systemContacts', 'systemContactSentInvites']
 );
 
 export const insertCurrentUserAttestations = createWriteQuery(
@@ -419,6 +528,37 @@ export const getAttestations = createReadQuery(
   'getAttestations',
   async (ctx: QueryCtx) => {
     return ctx.db.query.attestations.findMany();
+  },
+  ['attestations']
+);
+
+export const getAttestation = createReadQuery(
+  'getAttestation',
+  async ({ attestation }: { attestation: Attestation }, ctx: QueryCtx) => {
+    return ctx.db.query.attestations.findFirst({
+      where: eq($attestations.id, attestation.id),
+    });
+  },
+  ['attestations']
+);
+
+export const updateAttestation = createWriteQuery(
+  'updateAttestations',
+  async ({ attestation }: { attestation: Attestation }, ctx: QueryCtx) => {
+    return ctx.db
+      .update($attestations)
+      .set(attestation)
+      .where(eq($attestations.id, attestation.id));
+  },
+  ['attestations']
+);
+
+export const getUserAttestations = createReadQuery(
+  'getUserAttestations',
+  async ({ userId }: { userId: string }, ctx: QueryCtx) => {
+    return ctx.db.query.attestations.findMany({
+      where: eq($attestations.contactId, userId),
+    });
   },
   ['attestations']
 );

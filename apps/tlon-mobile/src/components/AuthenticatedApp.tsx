@@ -6,13 +6,11 @@ import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitCl
 import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
-import { usePersonalGroup } from '@tloncorp/app/hooks/usePersonalGroup';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
 import { useUpdatePresentedNotifications } from '@tloncorp/app/lib/notifications';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { PortalProvider, ZStack, useStore } from '@tloncorp/app/ui';
-import { SplashSequence } from '@tloncorp/app/ui/components/Wayfinding/SplashSequence';
 import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
@@ -21,6 +19,7 @@ import { checkAnalyticsDigest, useCheckAppUpdated } from '../hooks/analytics';
 import { useCheckNodeStopped } from '../hooks/useCheckNodeStopped';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
+import { inviteSystemContacts } from '../lib/contactsHelpers';
 import { refreshHostingAuth } from '../lib/hostingAuth';
 
 function AuthenticatedApp() {
@@ -85,9 +84,9 @@ export default function ConnectedAuthenticatedApp() {
   }, [configureClient]);
 
   return (
-    <AppDataProvider>
-      {/*
-        This portal provider overrides the root portal provider
+    <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
+      {/* 
+        This portal provider overrides the root portal provider 
         to ensure that sheets have access to `AppDataContext`
       */}
       <PortalProvider>{clientReady && <AuthenticatedApp />}</PortalProvider>

@@ -82,3 +82,4 @@ export { default as VerifiedBadge } from './VerifiedBadge.svg';
 export { default as Lock } from './Lock.svg';
 export { default as EyeOpen } from './EyeOpen.svg';
 export { default as EyeClosed } from './EyeClosed.svg';
+export { default as SmushStar } from './SmushStar.svg';

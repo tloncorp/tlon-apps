@@ -81,6 +81,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           'The app accesses your microphone to allow you to record audio.',
       },
     ],
+    [
+      'expo-contacts',
+      {
+        contactsPermission: 'Allow Tlon Messenger to access your contacts.',
+      },
+    ],
   ],
   updates: {
     url: `https://u.expo.dev/${projectId}`,

@@ -8,7 +8,7 @@ import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { SETTINGS_SINGLETON_KEY } from '../db/schema';
 import { createDevLogger, runIfDev } from '../debug';
-import { AnalyticsEvent } from '../domain';
+import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
 import { extractClientVolumes } from '../logic/activity';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
@@ -244,6 +244,24 @@ export const syncVolumeSettings = async (ctx?: SyncCtx) => {
   );
   const clientVolumes = extractClientVolumes(volumeSettings);
   await db.setVolumes({ volumes: clientVolumes, deleteOthers: true });
+};
+
+export const syncSystemContacts = async (ctx?: SyncCtx) => {
+  const systemContacts = await api.getSystemContacts();
+  try {
+    await db.insertSystemContacts({ systemContacts });
+    logger.trackEvent(AnalyticsEvent.DebugSystemContacts, {
+      context: 'inserted system contacts',
+      numContacts: systemContacts.length,
+    });
+  } catch (error) {
+    logger.trackEvent(AnalyticsEvent.ErrorSystemContacts, {
+      context: 'failed to insert system contacts',
+      severity: AnalyticsSeverity.Critical,
+      numContacts: systemContacts.length,
+      error,
+    });
+  }
 };
 
 export const syncContacts = async (ctx?: SyncCtx, yieldWriter = false) => {
@@ -1517,6 +1535,9 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     }),
     syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
       logger.crumb(`finished channel predictive sync`);
+    }),
+    syncSystemContacts({ priority: SyncPriority.Low }).then(() => {
+      logger.crumb(`finished syncing system contacts`);
     }),
   ];
 
