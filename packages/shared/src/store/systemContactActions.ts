@@ -3,7 +3,7 @@ import { createDevLogger } from '../debug';
 import * as domain from '../domain';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
 
-const logger = createDevLogger('SystemContactActions', true);
+const logger = createDevLogger('SystemContactActions', false);
 
 export async function recordSentInvites(
   invitedTo: string,
