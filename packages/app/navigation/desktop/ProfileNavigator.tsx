@@ -39,6 +39,10 @@ function DrawerContent(props: DrawerContentComponentProps) {
     [navigate]
   );
 
+  const onAddContact = useCallback((contact: db.Contact) => {
+    store.addContact(contact.id);
+  }, []);
+
   const onContactLongPress = useCallback((contact: db.Contact) => {
     if (!isWeb && contact.isContactSuggestion) {
       Alert.alert(`Add ${getDisplayName(contact)}?`, '', [
@@ -80,6 +84,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
         suggestions={suggestions ?? []}
         focusedContactId={focusedRoute.params?.userId}
         onContactPress={onContactPress}
+        onAddContact={onAddContact}
         onContactLongPress={onContactLongPress}
         systemContacts={[]}
         onInviteSystemContact={() => {}}

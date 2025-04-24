@@ -1,3 +1,4 @@
+import { Pressable } from '@tloncorp/ui';
 import { ComponentProps } from 'react';
 import { ColorTokens, SizableText, View } from 'tamagui';
 
@@ -20,12 +21,14 @@ const badgeText: Record<BadgeType, ColorTokens> = {
 export function Badge({
   text,
   type = 'positive',
+  onPress,
   ...props
 }: {
   text: string;
   type?: BadgeType;
+  onPress?: (e: React.MouseEvent | React.TouchEvent) => void;
 } & ComponentProps<typeof View>) {
-  return (
+  const content = (
     <View
       backgroundColor={badgeBackground[type]}
       paddingVertical="$xs"
@@ -43,4 +46,19 @@ export function Badge({
       </SizableText>
     </View>
   );
+
+  if (onPress) {
+    return (
+      <Pressable
+        onPress={(e) => {
+          e.stopPropagation();
+          onPress(e);
+        }}
+      >
+        {content}
+      </Pressable>
+    );
+  }
+
+  return content;
 }
