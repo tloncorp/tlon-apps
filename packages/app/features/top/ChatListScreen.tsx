@@ -32,6 +32,7 @@ import {
   RequestsProvider,
   ScreenHeader,
   View,
+  triggerHaptic,
   useGlobalSearch,
   useIsWindowNarrow,
 } from '../../ui';
@@ -92,6 +93,14 @@ export function ChatListScreenView({
   const { performGroupAction } = useGroupActions();
 
   const currentUser = useCurrentUserId();
+
+  const handleInviteFriends = useCallback(() => {
+    setPersonalInviteOpen(false);
+    triggerHaptic('baseButtonClick');
+    setTimeout(() => {
+      navigation.navigate('InviteSystemContacts');
+    }, 200);
+  }, [navigation]);
 
   const connStatus = store.useConnectionStatus();
   const notReadyMessage: string | null = useMemo(() => {
@@ -375,6 +384,7 @@ export function ChatListScreenView({
       <PersonalInviteSheet
         open={personalInviteOpen}
         onOpenChange={() => setPersonalInviteOpen(false)}
+        onPressInviteFriends={handleInviteFriends}
       />
     </RequestsProvider>
   );

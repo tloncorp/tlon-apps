@@ -1,8 +1,5 @@
-import { daToUnix, parseDa } from '@urbit/aura';
-
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import * as domain from '../domain';
 import { AnalyticsEvent } from '../domain';
 import { normalizeUrbitColor } from '../logic';
 import * as ub from '../urbit';
@@ -324,8 +321,7 @@ function parseContactAttestations(
             value,
             contactId,
             initiatedAt: sign.when,
-            discoverability:
-              sign.signType === 'full' ? 'public' : 'discoverable',
+            discoverability: sign.signType === 'full' ? 'public' : 'verified',
             status: 'verified',
             providerUrl,
             provingTweetId,
@@ -385,8 +381,7 @@ function parseContactAttestations(
             value,
             contactId,
             initiatedAt: sign.when,
-            discoverability:
-              sign.signType === 'full' ? 'public' : 'discoverable',
+            discoverability: sign.signType === 'full' ? 'public' : 'verified',
             status: 'verified',
             providerUrl,
             provingTweetId,

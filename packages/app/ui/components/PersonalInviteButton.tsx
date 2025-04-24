@@ -1,12 +1,11 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { useCopy } from '@tloncorp/ui';
-import { Button } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
+import { Pressable, triggerHaptic, useCopy } from '@tloncorp/ui';
 import { useCallback } from 'react';
 import { Share } from 'react-native';
 import { isWeb } from 'tamagui';
+
+import { ListItem } from './ListItem';
 
 const logger = createDevLogger('PersonalInviteButton', true);
 
@@ -22,6 +21,7 @@ export function PersonalInviteButton() {
     }
 
     try {
+      triggerHaptic('baseButtonClick');
       const result = await Share.share({
         message: inviteLink,
       });
@@ -39,13 +39,26 @@ export function PersonalInviteButton() {
   }, [doCopy, inviteLink]);
 
   return (
-    <Button hero onPress={handleInviteButtonPress}>
-      <Button.Icon>
-        <Icon type="AddPerson" />
-      </Button.Icon>
-      <Text color="$background" size="$label/l">
-        {didCopy ? 'Copied' : 'Invite Friends'}
-      </Text>
-    </Button>
+    <Pressable onPress={handleInviteButtonPress}>
+      <ListItem backgroundColor="$primaryText">
+        <ListItem.SystemIcon
+          icon="Send"
+          color="$background"
+          backgroundColor="unset"
+        />
+        <ListItem.MainContent>
+          <ListItem.Title color="$background">
+            {didCopy ? 'Copied' : 'Share Invite Link'}
+          </ListItem.Title>
+        </ListItem.MainContent>
+        <ListItem.EndContent>
+          <ListItem.SystemIcon
+            icon="ChevronRight"
+            color="$background"
+            backgroundColor="unset"
+          />
+        </ListItem.EndContent>
+      </ListItem>
+    </Pressable>
   );
 }
