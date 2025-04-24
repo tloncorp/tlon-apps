@@ -1,3 +1,4 @@
+// tamagui-ignore
 import { Button, Icon, Text, triggerHaptic } from '@tloncorp/ui';
 import React, {
   ComponentProps,
@@ -5,7 +6,7 @@ import React, {
   useCallback,
   useMemo,
 } from 'react';
-import { Image } from 'react-native';
+import { Dimensions, Image, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ColorTokens,
@@ -127,7 +128,7 @@ export function WelcomePane(props: { onActionPress: () => void }) {
   return (
     <YStack
       marginTop={isWeb ? '$4xl' : insets.top}
-      marginBottom={isWeb ? '$4xl' : insets.bottom}
+      marginBottom={isWeb || Platform.OS === 'android' ? '$4xl' : insets.bottom}
       marginHorizontal={isWeb ? '$4xl' : 'unset'}
       flex={1}
       justifyContent="space-between"
@@ -175,7 +176,7 @@ export function GroupsPane(props: { onActionPress: () => void }) {
   return (
     <YStack
       marginTop={insets.top}
-      marginBottom={isWeb ? '$4xl' : insets.bottom}
+      marginBottom={isWeb || Platform.OS === 'android' ? '$4xl' : insets.bottom}
       flex={1}
       justifyContent="space-between"
     >
@@ -225,7 +226,7 @@ export function ChannelsPane(props: { onActionPress: () => void }) {
   return (
     <YStack
       marginTop={isWeb ? '$2xl' : insets.top}
-      marginBottom={isWeb ? '$4xl' : insets.bottom}
+      marginBottom={isWeb || Platform.OS === 'android' ? '$4xl' : insets.bottom}
       marginHorizontal={isWeb ? '$4xl' : 'unset'}
       flex={1}
       justifyContent="space-between"
@@ -280,7 +281,9 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
         flex={1}
         justifyContent="space-between"
         marginTop={isWeb ? '$4xl' : insets.top}
-        marginBottom={isWeb ? '$4xl' : insets.bottom}
+        marginBottom={
+          isWeb || Platform.OS === 'android' ? '$4xl' : insets.bottom
+        }
         marginHorizontal={isWeb ? '$4xl' : 'unset'}
       >
         <YStack>
@@ -334,7 +337,9 @@ export function InvitePane(props: { onActionPress: () => void }) {
       <XStack width="100%" justifyContent="center">
         <SplashButton
           marginTop="$l"
-          marginBottom={isWeb ? '$4xl' : insets.bottom}
+          marginBottom={
+            isWeb || Platform.OS === 'android' ? '$4xl' : insets.bottom
+          }
           marginHorizontal={isWeb ? '$4xl' : '$2xl'}
           onPress={props.onActionPress}
           backgroundColor="$positiveActionText"
@@ -423,9 +428,25 @@ function PrivacyLevelsDisplay() {
 const InviteFriendsDisplay = () => {
   const activeTheme = useActiveTheme();
   const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+  const deviceIsTinyHeight = useMemo(() => {
+    const { height } = Dimensions.get('window');
+    return height < 800;
+  }, []);
+
+  const displayHeight = useMemo(() => {
+    if (isWeb) {
+      return 300;
+    }
+
+    if (deviceIsTinyHeight) {
+      return 340;
+    }
+
+    return 460;
+  }, [deviceIsTinyHeight]);
 
   return (
-    <View height={isWeb ? 300 : 460} marginBottom="$2xl" overflow="hidden">
+    <View height={displayHeight} marginBottom="$2xl" overflow="hidden">
       <ZStack flex={1}>
         <View position="relative" top={-80} right={isWeb ? 120 : 50}>
           <Image

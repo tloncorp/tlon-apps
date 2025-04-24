@@ -28,14 +28,9 @@ export function PersonalInviteSheet({
   }, [systemContacts]);
 
   return (
-    <ActionSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      snapPointsMode="percent"
-      snapPoints={[75]}
-    >
+    <ActionSheet open={open} onOpenChange={onOpenChange} snapPointsMode="fit">
       <ActionSheet.SimpleHeader title="Invite Friends to TM" />
-      <ActionSheet.Content flex={1}>
+      <ActionSheet.Content flex={1} paddingBottom={0}>
         <ActionSheet.ScrollableContent flex={1}>
           <View flex={1} paddingHorizontal={40}>
             <Text size="$label/m" color="$secondaryText" marginBottom="$2xl">
