@@ -5,6 +5,7 @@ import {
   diaryMixedToJSON,
   extractContentTypesFromPost,
 } from '@tloncorp/shared';
+import * as api from '@tloncorp/shared/api';
 import {
   contentReferenceToCite,
   toContentReference,
@@ -284,6 +285,33 @@ export default function BareChatInput({
       const oldText = controlledText;
 
       bareChatInputLogger.log('text change', newText);
+
+      if (!isWeb && newText.length > oldText.length + 10) {
+        // Arbitrary threshold to detect pastes
+        const addedText = newText.substring(oldText.length);
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        const matches = addedText.match(urlRegex);
+
+        if (matches && matches.length > 0) {
+          // Found a URL in what appears to be pasted text
+          const url = matches[0];
+          console.log(`bl: detected url`, url);
+          api.getLinkMetadata(url).then((attachment) => {
+            if (attachment) {
+              addAttachment(attachment);
+            }
+          });
+          // Add as a text attachment instead of letting it be pasted directly
+          // addAttachment({
+          //   type: 'text',
+          //   text: url,
+          // });
+
+          // Don't update the text with the URL, as the text attachment handler
+          // will take care of adding it in a controlled way
+          return;
+        }
+      }
 
       // Only process references if the text contains a reference and hasn't been processed before.
       // This check prevents infinite loops on native platforms where we manually update

@@ -1,6 +1,7 @@
+import * as domain from '@tloncorp/shared/domain';
 import { Icon, Image, Pressable, Text } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Spinner, View } from 'tamagui';
 
 import { Attachment, useAttachmentContext } from '../../contexts/attachment';
@@ -81,6 +82,10 @@ export function AttachmentPreview({
     );
   }
 
+  if (attachment.type === 'link') {
+    return <LinkPreview attachment={attachment} />;
+  }
+
   return (
     <View height={128} borderRadius="$m" overflow="hidden" aspectRatio={aspect}>
       {attachment.type === 'image' ? (
@@ -150,5 +155,86 @@ const RemoveAttachmentButton = ({ attachment }: { attachment: Attachment }) => {
     >
       <Icon size="$s" type="Close" />
     </Pressable>
+  );
+};
+
+const LinkPreview = ({ attachment }: { attachment: domain.LinkAttachment }) => {
+  const { icon, siteName, description, previewImageUrl } = attachment;
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  useEffect(() => {
+    console.log(`bl: image loaded update`, { imageLoaded, previewImageUrl });
+  }, [imageLoaded, previewImageUrl]);
+
+  return (
+    <View
+      height={128}
+      width={240}
+      borderRadius="$m"
+      overflow="hidden"
+      backgroundColor="$secondaryBackground"
+    >
+      {/* Container for properly positioning elements */}
+      <View style={{ width: '100%', height: '100%' }}>
+        {/* Image section - top half only */}
+        {previewImageUrl ? (
+          <View style={{ height: '50%', width: '100%', overflow: 'hidden' }}>
+            <Image
+              source={previewImageUrl}
+              style={{
+                width: '100%',
+                height: '100%',
+                resizeMode: 'cover',
+              }}
+              onLoad={() => setImageLoaded(true)}
+              onError={(e: Error) => console.error('Image load error:', e)}
+            />
+          </View>
+        ) : null}
+
+        {/* Text section - always on bottom half */}
+        <View
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            width: '100%',
+            backgroundColor: '$secondaryBackground',
+            padding: 8, // Equivalent to $s
+            height: '50%',
+            justifyContent: 'space-between',
+          }}
+        >
+          <View flexDirection="row" alignItems="center" marginBottom="$xs">
+            {icon ? (
+              <Image
+                source={{ uri: icon }}
+                width={16}
+                height={16}
+                marginRight="$xs"
+                onError={(err: Error) =>
+                  console.error('bl: Icon load error:', err)
+                }
+              />
+            ) : (
+              <Icon type="Link" size="$s" marginRight="$xs" />
+            )}
+            <Text fontSize="$xs" color="$secondaryText" numberOfLines={1}>
+              {siteName || 'Link'}
+            </Text>
+          </View>
+
+          {description ? (
+            <Text fontSize="$s" color="$primaryText" numberOfLines={2}>
+              {description}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+
+      {/* Remove button should be on top of everything */}
+      <View style={{ position: 'absolute', top: 8, right: 8, zIndex: 1000 }}>
+        <RemoveAttachmentButton attachment={attachment} />
+      </View>
+    </View>
   );
 };
