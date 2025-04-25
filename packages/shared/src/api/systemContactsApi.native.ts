@@ -215,7 +215,7 @@ export function parseNativeContacts(
       return sysContact;
     })
     .filter((contact) => {
-      const hasContactInfo = contact.phoneNumber || contact.email;
+      const hasContactInfo = contact.phoneNumber; // require phone number for now (no email only contacts)
       const hasName = contact.firstName || contact.lastName;
       const isValid = hasContactInfo && hasName;
       if (!isValid) {
