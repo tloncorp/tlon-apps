@@ -232,9 +232,11 @@ export const MessageInputContainer = memo(
             )}
           </XStack>
         ) : (
-          <YStack width="100%" backgroundColor="$background">
+          // Note: This **must** be an XStack (not a YStack, View, or Stack), otherwise the WebView in MessageInput will not
+          // be interactive on Android.
+          <XStack width="100%" backgroundColor="$background">
             {children}
-          </YStack>
+          </XStack>
         )}
       </YStack>
     );
