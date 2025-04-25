@@ -629,6 +629,10 @@ export async function thread<T, R = any>(params: Thread<T>): Promise<R> {
   return response.json();
 }
 
+export async function request(path: string, options: RequestInit = {}) {
+  return config.client?.request(path, options);
+}
+
 // Remove any identifiable information from path
 // ~solfer-magfed/my-group => [id]/my-group
 // chat/~solfer-magfed/my-channel/ => chat/[id]/
