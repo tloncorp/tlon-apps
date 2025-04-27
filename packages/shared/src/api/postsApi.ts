@@ -31,6 +31,7 @@ import {
   isGroupChannelId,
   isGroupDmChannelId,
   toPostEssay,
+  toPostEssay1,
   udToDate,
   with404Handler,
 } from './apiUtils';
@@ -166,7 +167,7 @@ export const sendPost = async ({
     return;
   }
 
-  const essay = toPostEssay({
+  const essay = toPostEssay1({
     content,
     authorId,
     sentAt,
@@ -174,11 +175,13 @@ export const sendPost = async ({
     metadata,
   });
 
-  await poke(
-    channelPostAction(channelId, {
-      add: essay,
-    })
-  );
+  const action = channelPostAction(channelId, {
+    add: essay,
+  });
+
+  console.log(`bl: posting action`, action);
+
+  await poke(action);
   logger.log('post sent', { channelId, authorId, sentAt, content });
 };
 
