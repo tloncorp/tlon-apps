@@ -1,4 +1,4 @@
-import { Image, Pressable, Text, useCopy } from '@tloncorp/ui';
+import { Icon, Image, Pressable, Text, useCopy } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
 import React, {
   ComponentProps,
@@ -8,6 +8,7 @@ import React, {
   memo,
   useCallback,
   useContext,
+  useMemo,
   useState,
 } from 'react';
 import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
@@ -209,6 +210,50 @@ const BigEmojiText = styled(Text, {
   flexWrap: 'wrap',
   trimmed: true,
 });
+
+export function LinkBlock({
+  block,
+  ...props
+}: { block: cn.LinkBlockData } & ComponentProps<typeof Reference.Frame>) {
+  const domain = useMemo(() => {
+    const url = new URL(block.url);
+    return url.hostname;
+  }, [block.url]);
+
+  return (
+    <Reference.Frame>
+      <Reference.Header>
+        <Reference.Title>
+          <Icon type="Link" color="$tertiaryText" customSize={[12, 12]} />
+          <Reference.TitleText>{domain}</Reference.TitleText>
+        </Reference.Title>
+      </Reference.Header>
+      <Reference.Body>
+        {block.previewImageUrl && (
+          <Image
+            source={block.previewImageUrl}
+            height={200}
+            width="100%"
+            contentFit="cover"
+          />
+        )}
+        <YStack padding="$xl" gap="$xl">
+          <YStack gap="$s">
+            <Text fontWeight="500" color="$secondaryText">
+              {block.siteName}
+            </Text>
+            <Text size="$label/m" numberOfLines={1}>
+              {block.title}
+            </Text>
+          </YStack>
+          <Text size="$label/s" color="$secondaryText">
+            {block.description}
+          </Text>
+        </YStack>
+      </Reference.Body>
+    </Reference.Frame>
+  );
+}
 
 export function VideoBlock({
   block,
@@ -427,6 +472,7 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   lineText: LineText,
   blockquote: BlockquoteBlock,
   paragraph: ParagraphBlock,
+  link: LinkBlock,
   image: ImageBlock,
   video: VideoBlock,
   reference: ReferenceBlock,
@@ -447,6 +493,7 @@ export type DefaultRendererProps = {
   lineText: Partial<ComponentProps<typeof LineText>>;
   blockquote: BlockSettings<typeof BlockquoteBlock>;
   paragraph: BlockSettings<typeof ParagraphBlock>;
+  link: BlockSettings<typeof LinkBlock>;
   image: BlockSettings<typeof ImageBlock>;
   video: BlockSettings<typeof VideoBlock>;
   reference: BlockSettings<typeof ReferenceBlock>;

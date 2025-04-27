@@ -91,6 +91,20 @@ export interface Image {
   };
 }
 
+export interface Link {
+  link: {
+    url: string;
+    meta: {
+      title?: string;
+      description?: string;
+      author?: string;
+      image?: string;
+      ['site-name']?: string;
+      ['site-icon']?: string;
+    };
+  };
+}
+
 export type ListType = 'ordered' | 'unordered' | 'tasklist';
 
 export interface List {
@@ -135,13 +149,18 @@ export function isImage(item: unknown): item is Image {
   return typeof item === 'object' && item !== null && 'image' in item;
 }
 
+export function isBlockLink(item: unknown): item is Link {
+  return typeof item === 'object' && item !== null && 'link' in item;
+}
+
 export type Block =
   | Image
   | { cite: Cite }
   | ListingBlock
   | Header
   | Rule
-  | Code;
+  | Code
+  | Link;
 
 export interface VerseBlock {
   block: Block;
@@ -182,6 +201,15 @@ export interface PostEssay {
   author: Ship;
   sent: number;
   'kind-data': KindData;
+}
+
+export interface PostEssay1 {
+  content: Story;
+  author: Ship;
+  sent: number;
+  kind: string;
+  blob: string | null;
+  meta: any; // ?
 }
 
 export type Post = {
@@ -231,6 +259,10 @@ export interface Replies {
 
 interface PostActionAdd {
   add: PostEssay;
+}
+
+interface PostActionAdd1 {
+  add: PostEssay1;
 }
 
 interface PostActionEdit {
@@ -292,7 +324,8 @@ export type PostAction =
   | PostActionDel
   | PostActionAddReact
   | PostActionDelReact
-  | PostActionReply;
+  | PostActionReply
+  | PostActionAdd1;
 
 export interface DiffView {
   view: DisplayMode;

@@ -1,8 +1,8 @@
 import * as domain from '@tloncorp/shared/domain';
 import { Icon, Image, Pressable, Text } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
-import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, Spinner, View } from 'tamagui';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ScrollView, Spinner, View, XStack, YStack, ZStack } from 'tamagui';
 
 import { Attachment, useAttachmentContext } from '../../contexts/attachment';
 import { ContentReferenceLoader } from '../ContentReference';
@@ -159,82 +159,64 @@ const RemoveAttachmentButton = ({ attachment }: { attachment: Attachment }) => {
 };
 
 const LinkPreview = ({ attachment }: { attachment: domain.LinkAttachment }) => {
-  const { icon, siteName, description, previewImageUrl } = attachment;
+  console.log('LinkPreview', { attachment });
+  const { siteIconUrl, siteName, description, previewImageUrl } = attachment;
   const [imageLoaded, setImageLoaded] = useState(false);
 
   useEffect(() => {
     console.log(`bl: image loaded update`, { imageLoaded, previewImageUrl });
   }, [imageLoaded, previewImageUrl]);
 
+  const domain = useMemo(() => {
+    const url = new URL(attachment.url);
+    return url.hostname;
+  }, [attachment.url]);
+
   return (
     <View
-      height={128}
+      height={200}
       width={240}
       borderRadius="$m"
       overflow="hidden"
       backgroundColor="$secondaryBackground"
     >
       {/* Container for properly positioning elements */}
-      <View style={{ width: '100%', height: '100%' }}>
-        {/* Image section - top half only */}
-        {previewImageUrl ? (
-          <View style={{ height: '50%', width: '100%', overflow: 'hidden' }}>
+      <ZStack flex={1}>
+        <View flex={1}>
+          {previewImageUrl ? (
             <Image
-              source={previewImageUrl}
-              style={{
-                width: '100%',
-                height: '100%',
-                resizeMode: 'cover',
-              }}
+              backgroundColor={'$secondaryBackground'}
               onLoad={() => setImageLoaded(true)}
-              onError={(e: Error) => console.error('Image load error:', e)}
+              source={{ uri: attachment.previewImageUrl }}
+              height={200}
+              width={240}
+              contentFit="cover"
             />
-          </View>
-        ) : null}
-
-        {/* Text section - always on bottom half */}
-        <View
-          style={{
-            position: 'absolute',
-            bottom: 0,
-            width: '100%',
-            backgroundColor: '$secondaryBackground',
-            padding: 8, // Equivalent to $s
-            height: '50%',
-            justifyContent: 'space-between',
-          }}
-        >
-          <View flexDirection="row" alignItems="center" marginBottom="$xs">
-            {icon ? (
-              <Image
-                source={{ uri: icon }}
-                width={16}
-                height={16}
-                marginRight="$xs"
-                onError={(err: Error) =>
-                  console.error('bl: Icon load error:', err)
-                }
-              />
-            ) : (
-              <Icon type="Link" size="$s" marginRight="$xs" />
-            )}
-            <Text fontSize="$xs" color="$secondaryText" numberOfLines={1}>
-              {siteName || 'Link'}
-            </Text>
-          </View>
-
-          {description ? (
-            <Text fontSize="$s" color="$primaryText" numberOfLines={2}>
-              {description}
-            </Text>
           ) : null}
         </View>
-      </View>
+        <YStack flex={1} justifyContent="flex-end">
+          <YStack
+            padding="$xl"
+            backgroundColor="$secondaryBackground"
+            opacity={0.9}
+            gap="$m"
+          >
+            <Text size="$label/m" numberOfLines={1}>
+              {attachment.title}
+            </Text>
+            <XStack alignItems="center" gap="$s">
+              <Icon type="Link" color="$secondaryText" customSize={[14, 14]} />
+              <Text size="$label/m" color="$secondaryText">
+                {domain}
+              </Text>
+            </XStack>
+          </YStack>
+        </YStack>
 
-      {/* Remove button should be on top of everything */}
-      <View style={{ position: 'absolute', top: 8, right: 8, zIndex: 1000 }}>
-        <RemoveAttachmentButton attachment={attachment} />
-      </View>
+        <View style={{ position: 'absolute', top: 8, right: 8, zIndex: 1000 }}>
+          <RemoveAttachmentButton attachment={attachment} />
+        </View>
+      </ZStack>
     </View>
   );
 };

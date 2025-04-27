@@ -108,6 +108,16 @@ export type VideoBlockData = {
   alt: string;
 };
 
+export type LinkBlockData = {
+  type: 'link';
+  url: string;
+  title?: string;
+  description?: string;
+  previewImageUrl?: string;
+  siteName?: string;
+  siteIconUrl?: string;
+};
+
 export type EmbedBlockData = {
   type: 'embed';
   url: string;
@@ -146,6 +156,7 @@ export type ListData = {
 export type BlockData =
   | BlockquoteBlockData
   | ParagraphBlockData
+  | LinkBlockData
   | ImageBlockData
   | VideoBlockData
   | EmbedBlockData
@@ -369,6 +380,16 @@ function convertBlock(block: ub.Block): BlockData {
         ...block.image,
       };
     }
+  } else if (ub.isBlockLink(block)) {
+    return {
+      type: 'link',
+      url: block.link.url,
+      title: block.link.meta?.title,
+      description: block.link.meta?.description,
+      previewImageUrl: block.link.meta?.image,
+      siteName: block.link.meta?.['site-name'],
+      siteIconUrl: block.link.meta?.['site-icon'],
+    };
   } else if (ub.isListing(block)) {
     return {
       type: 'list',

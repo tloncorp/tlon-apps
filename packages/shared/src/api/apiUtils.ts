@@ -200,6 +200,59 @@ export function toPostEssay({
   return essay;
 }
 
+export function toPostEssay1({
+  content,
+  authorId,
+  sentAt,
+  channelType,
+  metadata,
+}: {
+  content: ub.Story;
+  authorId: string;
+  sentAt: number;
+  channelType: db.ChannelType;
+  metadata?: db.PostMetadata;
+}): ub.PostEssay1 {
+  const kindData = (): ub.KindData => {
+    if (!metadata || Object.keys(metadata).length === 0) {
+      switch (channelType) {
+        case 'chat':
+          return { chat: null };
+        case 'notebook':
+          throw new Error('Notebook posts must have a title');
+        case 'gallery':
+          return { heap: '' };
+      }
+    }
+
+    if (channelType === 'chat') {
+      return { chat: { notice: null } };
+    }
+
+    if (channelType === 'notebook') {
+      if (!metadata!.title || metadata!.title === '') {
+        throw new Error('Notebook posts must have a title');
+      }
+      return {
+        diary: { title: metadata!.title, image: metadata!.image ?? '' },
+      };
+    }
+
+    return { heap: metadata!.title ?? '' };
+  };
+
+  const essay: ub.PostEssay1 = {
+    content,
+    sent: sentAt,
+    kind: '/chat',
+    author: authorId,
+    blob: null,
+    meta: null,
+  };
+
+  return essay;
+}
+
 // the chat subscription doesn't include full posts (writs) in its add events,
 // so we need to recreate the implicit msising data before inserting them
 export function deriveFullWrit(

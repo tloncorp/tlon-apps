@@ -296,8 +296,8 @@ export default function BareChatInput({
 
       bareChatInputLogger.log('text change', newText);
 
-      if (!isWeb && newText.length > oldText.length + 10) {
-        // Arbitrary threshold to detect pastes
+      const pastedSomething = newText.length > oldText.length + 10;
+      if (pastedSomething) {
         const addedText = newText.substring(oldText.length);
         const urlRegex = /(https?:\/\/[^\s]+)/g;
         const matches = addedText.match(urlRegex);
@@ -306,16 +306,64 @@ export default function BareChatInput({
           // Found a URL in what appears to be pasted text
           const url = matches[0];
           console.log(`bl: detected url`, url);
-          api.getLinkMetadata(url).then((attachment) => {
-            if (attachment) {
-              addAttachment(attachment);
+          const urlStartIndex = newText.indexOf(url);
+          const urlEndIndex = urlStartIndex + url.length;
+          api.getLinkMetadata(url).then((linkMetadata) => {
+            if (!linkMetadata) {
+              return;
+            }
+
+            // first add the link attachment
+            if (linkMetadata.type === 'page') {
+              addAttachment({
+                type: 'link',
+                url: linkMetadata.url,
+                resourceType: linkMetadata.type,
+                siteIconUrl: linkMetadata.siteIconUrl,
+                siteName: linkMetadata.siteName,
+                title: linkMetadata.title,
+                description: linkMetadata.description,
+                previewImageUrl: linkMetadata.previewImageUrl,
+              });
+            }
+
+            if (linkMetadata.type === 'file') {
+              if (linkMetadata.isImage) {
+                addAttachment({
+                  type: 'image',
+                  file: {
+                    uri: url,
+                    height: 300,
+                    width: 300,
+                    mimeType: linkMetadata.mime,
+                  },
+                });
+              }
+            }
+
+            // then update the text to remove the URL
+            const textBeforeUrl = newText.substring(0, urlStartIndex);
+            const textAfterUrl = newText.substring(urlEndIndex);
+
+            let cleanedText = textBeforeUrl;
+            if (textBeforeUrl.endsWith(' ') && textAfterUrl.startsWith(' ')) {
+              cleanedText += textAfterUrl.slice(1);
+            } else {
+              // Otherwise just concatenate, preserving any spacing
+              cleanedText += textAfterUrl;
+            }
+
+            setControlledText(cleanedText);
+            handleMention(oldText, cleanedText);
+
+            const jsonContent = textAndMentionsToContent(cleanedText, mentions);
+            bareChatInputLogger.log('setting draft', jsonContent);
+            storeDraft(jsonContent);
+
+            if (!isWeb) {
+              inputRef.current?.setNativeProps({ text: '' });
             }
           });
-          // Add as a text attachment instead of letting it be pasted directly
-          // addAttachment({
-          //   type: 'text',
-          //   text: url,
-          // });
 
           // Don't update the text with the URL, as the text attachment handler
           // will take care of adding it in a controlled way
@@ -356,7 +404,14 @@ export default function BareChatInput({
         storeDraft(jsonContent);
       }
     },
-    [controlledText, processReferences, storeDraft, handleMention, mentions]
+    [
+      controlledText,
+      addAttachment,
+      processReferences,
+      handleMention,
+      mentions,
+      storeDraft,
+    ]
   );
 
   const onMentionSelect = useCallback(
@@ -438,6 +493,24 @@ export default function BareChatInput({
                     height: image.height,
                     width: image.width,
                     alt: 'image',
+                  },
+                },
+              ];
+            }
+
+            if (attachment.type === 'link') {
+              return [
+                {
+                  link: {
+                    url: attachment.url,
+                    meta: {
+                      title: attachment.title,
+                      description: attachment.description,
+                      author: attachment.author,
+                      image: attachment.previewImageUrl,
+                      ['site-name']: attachment.siteName,
+                      ['site-icon']: attachment.siteIconUrl,
+                    },
                   },
                 },
               ];

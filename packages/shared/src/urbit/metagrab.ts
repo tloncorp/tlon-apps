@@ -1,17 +1,23 @@
 export interface LinkMetadataResponse {
-  result?: PageMetadata;
+  result?: PageMetadata | FileMetadata;
 }
 
 interface PageMetadata {
-  site_icon?: MetadataItem[];
-  site_name?: MetadataItem[];
-  title?: MetadataItem[];
   type: 'page';
+  site_icon?: LinkMetadataItem[];
+  site_name?: LinkMetadataItem[];
+  title?: LinkMetadataItem[];
+  description?: LinkMetadataItem[];
   status?: number;
-  image?: MetadataItem[];
+  image?: LinkMetadataItem[];
 }
 
-interface MetadataItem {
+interface FileMetadata {
+  type: 'file';
+  mime: string;
+}
+
+export interface LinkMetadataItem {
   key: string;
   namespace: string;
   value: string;

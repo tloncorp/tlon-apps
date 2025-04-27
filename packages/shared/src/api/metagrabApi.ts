@@ -1,4 +1,4 @@
-import { formatUv, formatUw, parseUv, parseUw } from '@urbit/aura';
+import { formatUw } from '@urbit/aura';
 
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
@@ -9,22 +9,75 @@ const logger = createDevLogger('metagrabApi', true);
 
 export async function getLinkMetadata(
   url: string
-): Promise<domain.LinkAttachment | null> {
+): Promise<domain.LinkMetadata | null> {
   const bytes = stringToBigIntForUw(url);
   const encodedUrl = formatUw(bytes);
-  // const encodedUrl = '0w6lOrS.NMu6k.LomUK.pn9xb.DtTtO.YLeDd.Mt7hE';
-  logger.log('bl: getLinkMetadata', url, encodedUrl);
+  logger.log('encoded', { url, encodedUrl });
   const response = await request(`/apps/groups/~/metagrab/${encodedUrl}`, {
     method: 'GET',
+    mode: 'cors',
   });
-  logger.log('bl: getLinkMetadata response', response);
+  logger.log('metagrab response', response);
 
   if (response.status !== 200) {
-    logger.error('bl: getLinkMetadata error', response);
+    logger.error(`bad metagrab response: ${response.status}`, response);
     return null;
   }
 
-  return parseLinkMetadataResponse(response);
+  return parseLinkMetadataResponse(url, response);
+}
+
+function parseLinkMetadataResponse(
+  url: string,
+  response: ub.LinkMetadataResponse
+): domain.LinkMetadata | null {
+  if (!response.result) {
+    return null;
+  }
+
+  const result = response.result;
+  if (result.type === 'page') {
+    const { site_icon, site_name, title, image, description } = result;
+
+    const siteIconUrl = site_icon?.[0]?.value;
+    const siteName = site_name?.[0]?.value;
+    const siteTitle = title?.[0]?.value;
+    const siteDescription = result.description?.[0]?.value;
+    const previewImageUrl = parseImageData(image ?? []) ?? undefined;
+
+    const parsed: domain.LinkMetadata = {
+      type: 'page',
+      url,
+      siteIconUrl,
+      siteName,
+      title: siteTitle,
+      description: siteDescription,
+      previewImageUrl,
+    };
+    logger.log(`parsed page metadata`, parsed);
+    return parsed;
+  }
+
+  if (result.type === 'file') {
+    const parsed: domain.LinkMetadata = {
+      type: 'file',
+      url,
+      mime: result.mime,
+      isImage: result.mime.startsWith('image/'),
+    };
+    return parsed;
+  }
+
+  return null;
+}
+
+function parseImageData(data: ub.LinkMetadataItem[]): string | void {
+  const index: Record<string, string> = data.reduce(
+    (acc, item) => ({ ...acc, [item.namespace]: item.value }),
+    {}
+  );
+
+  return index.twitter || index.og || data[0]?.value;
 }
 
 /**
@@ -46,30 +99,4 @@ function stringToBigIntForUw(input: string) {
   }
 
   return result;
-}
-
-function parseLinkMetadataResponse(
-  response: ub.LinkMetadataResponse
-): domain.LinkAttachment | null {
-  if (!response.result) {
-    return null;
-  }
-
-  const { site_icon, site_name, title } = response.result;
-
-  const icon = site_icon?.[0]?.value;
-  const siteName = site_name?.[0]?.value;
-  const description = title?.[0]?.value;
-  const previewImageUrl = response.result.image?.[0]?.value;
-
-  const parsed: domain.LinkAttachment = {
-    type: 'link',
-    icon,
-    siteName,
-    description,
-    previewImageUrl,
-  };
-
-  logger.log('bl: parseLinkMetadataResponse', parsed);
-  return parsed;
 }
