@@ -16,8 +16,8 @@
 ::
 +$  state-0
   $:  %0
-      cache=(map @t [wen=@da wat=result])  ::  cached results
-      await=(jug @t @ta)                   ::  pending, w/ response targets
+      cache=(map @t response)  ::  cached results
+      await=(jug @t @ta)       ::  pending, w/ response targets
   ==
 ::
 +$  result
