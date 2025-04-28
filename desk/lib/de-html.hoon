@@ -196,4 +196,34 @@
 ++  whit                                            ::  whitespace
   :: (mask ~[' ' `@`0x9 `@`0xa])
   (mask ~[' ' `@`0x9 `@`0xa `@`0xc `@`0xd])  ::  "ascii whitespace"
+::
+::  fallback "parsing"
+::
+++  extract
+  |=  [tag=tape mode=?(%outer %inner)]
+  |=  dat=tape
+  ^-  (unit @t)
+  ::  for %outer, we do a possibly-too-broad search, just so we can catch
+  ::  cases like <tag attr="etc">, at the cost of also finding "<tagged>".
+  ::  for %inner, we need to know what length string we found, so we can
+  ::  skip past it for extractions.
+  ::  this is sufficient for our purposes for now.
+  ::
+  =/  hin=(unit @ud)  (find "<{tag}{?:(?=(%outer mode) "" ">")}" dat)
+  =/  tin=(unit @ud)  (find "</{tag}>" dat)
+  =?  tin  ?=(~ tin)  (find "</ {tag}>" dat)
+  ?.  &(?=(^ hin) ?=(^ tin))  ~
+  ?:  (gte u.hin u.tin)       ~
+  %-  some
+  %-  crip
+  ?-  mode
+      %outer
+    %+  weld
+      (swag [u.hin (sub u.tin u.hin)] dat)
+    "</{tag}>"
+  ::
+      %inner
+    =.  u.hin  :(add u.hin (lent tag) 2)
+    (swag [u.hin (sub u.tin u.hin)] dat)
+  ==
 --

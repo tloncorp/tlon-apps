@@ -142,14 +142,8 @@
   ::  extract the head section
   ::
   =/  head=(unit @t)
-    =/  hat=tape  (trip q.data.u.dat)
-    ::NOTE  we must account for <head prefix="etc"> cases
-    =/  hin=(unit @ud)   (find "<head" hat)
-    =/  tin=(unit @ud)   (find "</head>" hat)
-    =?  tin  ?=(~ tin)   (find "</ head>" hat)
-    ?.  &(?=(^ hin) ?=(^ tin))  ~
-    ?:  (gte u.hin u.tin)       ~
-    `(cat 3 (crip (swag [u.hin (sub u.tin u.hin)] hat)) '</head>')
+    %-  (extract:de-html "head" %outer)
+    (trip q.data.u.dat)
   ::  try parsing it into an ast
   ::
   =/  heax=(unit manx)
@@ -201,14 +195,8 @@
     =;  title=(unit @t)
       ?~  title  ['_' 'title' url]
       ['_title' 'title' u.title]
-    =/  hay=tape        (trip ?^(head u.head q.data.u.dat))
-    =/  hit=(unit @ud)  (find "<title>" hay)
-    =/  tit=(unit @ud)  (find "</title>" hay)
-    =?  tit  ?=(~ tit)  (find "</ title>" hay)
-    ?.  &(?=(^ hit) ?=(^ tit))  ~
-    ?:  (gte u.hit u.tit)       ~
-    =.  u.hit  (add u.hit ^~((lent "<title>")))
-    `(crip (swag [u.hit (sub u.tit u.hit)] hay))
+    %-  (extract:de-html "title" %inner)
+    (trip ?^(head u.head q.data.u.dat))
   =?  meta  ?=(~ (~(get ja meta) 'site_name'))
     %+  ~(add ja meta)  'site_name'
     =;  site-name=@t
