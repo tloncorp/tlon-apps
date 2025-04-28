@@ -173,23 +173,23 @@
   |=  entries=(list entry)
   %+  roll  entries
   |=  [=entry out=(jar @t entry)]
-  =/  kay=path  ~[ns key]:entry
+  =/  =path  ~[ns key]:entry
   |-  ^+  out
-  ?:  (~(has by lookup) kay)
-    (~(add ja out) (~(got by lookup) kay) entry)
+  ?:  (~(has by lookup) path)
+    (~(add ja out) (~(got by lookup) path) entry)
   (~(add ja out) '' entry)  ::TODO  traverse?
 ::
 ++  transform
-  |=  fun=$-([kay=path val=@t] @t)
+  |=  fun=$-([=path val=@t] @t)
   |=  entry
-  =/  kay=path  ~[ns key]
+  =/  =path  ~[ns key]
   :+  ns  key
   |-  ^-  value
-  ?@  val  (fun kay val)
-  :-  (fun kay top.val)
+  ?@  val  (fun path val)
+  :-  (fun path top.val)
   %-  ~(urn by met.val)
   |=  [k=@t v=value]
-  ^$(kay (snoc kay k), val v)
+  ^$(path (snoc path k), val v)
 ::
 ++  expand-urls
   =/  spaces=(list @t)  ::  namespaces with urls at top level
