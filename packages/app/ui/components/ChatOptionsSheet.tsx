@@ -53,7 +53,7 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
 
   // Handle open state changes
   const handleOpenChange = useCallback(
-    (open: boolean) => {
+    (open: boolean, clearChat = true) => {
       if (open && chat) {
         // Set chat state for both popovers and sheets
         contextOpen(chat.id, chat.type);
@@ -63,9 +63,11 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
           propOnOpenChange(false);
         }
         // Clear chat state after a short delay to allow handlers to complete
-        setTimeout(() => {
-          setChat(null);
-        }, 100);
+        if (clearChat) {
+          setTimeout(() => {
+            setChat(null);
+          }, 100);
+        }
       }
 
       // Call provided handler for popovers
@@ -243,7 +245,7 @@ function GroupOptionsSheetContent({
   currentUserIsAdmin: boolean;
   onPressNotifications: () => void;
   onPressSort: () => void;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: (open: boolean, clearChat?: boolean) => void;
 }) {
   const { markGroupRead, onPressChatDetails, togglePinned, onPressInvite } =
     useChatOptions();
@@ -254,9 +256,9 @@ function GroupOptionsSheetContent({
   const isErrored = group?.joinStatus === 'errored';
 
   const wrappedAction = useCallback(
-    (action: () => void) => {
+    (action: () => void, clearChat = true) => {
       action();
-      onOpenChange(false);
+      onOpenChange(false, clearChat);
     },
     [onOpenChange]
   );
@@ -300,7 +302,7 @@ function GroupOptionsSheetContent({
           canInvite
             ? {
                 title: 'Invite people',
-                action: wrappedAction.bind(null, onPressInvite),
+                action: wrappedAction.bind(null, onPressInvite, false),
                 endIcon: 'ChevronRight',
               }
             : {

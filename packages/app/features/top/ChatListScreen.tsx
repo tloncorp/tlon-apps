@@ -24,7 +24,6 @@ import {
   ChatOptionsProvider,
   GroupPreviewAction,
   GroupPreviewSheet,
-  InviteUsersSheet,
   NavBarView,
   NavigationProvider,
   PersonalInviteSheet,
@@ -61,7 +60,6 @@ export function ChatListScreenView({
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
   const [screenTitle, setScreenTitle] = useState('Home');
-  const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>();
   const personalInvite = db.personalInviteLink.useValue();
   const viewedPersonalInvite = db.hasViewedPersonalInvite.useValue();
   const { isOpen, setIsOpen } = useGlobalSearch();
@@ -194,12 +192,6 @@ export function ChatListScreenView({
     }
   }, []);
 
-  const handleInviteSheetOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      setInviteSheetGroup(null);
-    }
-  }, []);
-
   const isTlonEmployee = useMemo(() => {
     const allChats = [...resolvedChats.pinned, ...resolvedChats.unpinned];
     return !!allChats.find(
@@ -212,15 +204,6 @@ export function ChatListScreenView({
       identifyTlonEmployee();
     }
   }, [isTlonEmployee]);
-
-  const handleSectionChange = useCallback(
-    (title: string) => {
-      if (activeTab === 'home') {
-        setScreenTitle(title);
-      }
-    },
-    [activeTab]
-  );
 
   useEffect(() => {
     if (activeTab === 'home') {
@@ -280,10 +263,6 @@ export function ChatListScreenView({
     activeTab,
   });
 
-  const handleInvitePress = useCallback(() => {
-    setInviteSheetGroup(selectedGroupId);
-  }, [selectedGroupId]);
-
   return (
     <RequestsProvider
       usePostReference={store.usePostReference}
@@ -292,10 +271,7 @@ export function ChatListScreenView({
       useApp={db.appInfo.useValue}
       useGroup={store.useGroupPreview}
     >
-      <ChatOptionsProvider
-        {...useChatSettingsNavigation()}
-        onPressInvite={handleInvitePress}
-      >
+      <ChatOptionsProvider {...useChatSettingsNavigation()}>
         <NavigationProvider focusedChannelId={focusedChannelId}>
           <View userSelect="none" flex={1}>
             <ScreenHeader
@@ -356,12 +332,6 @@ export function ChatListScreenView({
               onOpenChange={handleGroupPreviewSheetOpenChange}
               group={selectedGroup ?? undefined}
               onActionComplete={handleGroupAction}
-            />
-            <InviteUsersSheet
-              open={inviteSheetGroup !== null}
-              onOpenChange={handleInviteSheetOpenChange}
-              onInviteComplete={() => setInviteSheetGroup(null)}
-              groupId={inviteSheetGroup ?? undefined}
             />
           </View>
         </NavigationProvider>
