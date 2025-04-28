@@ -11,15 +11,22 @@ const SystemNotices = {
 };
 
 const NoticeFrame = styled(YStack, {
-  backgroundColor: '$secondaryBackground',
+  backgroundColor: '$systemNoticeBackground',
   padding: '$2xl',
   marginHorizontal: '$l',
-  borderRadius: '$2xl',
+  borderRadius: '$l',
 });
 
-const NoticeText = styled(Text, {
-  color: '$primaryText',
+const NoticeBody = styled(Text, {
+  color: '$systemNoticeText',
+  opacity: 0.7,
   size: '$label/l',
+});
+
+const NoticeTitle = styled(Text, {
+  color: '$systemNoticeText',
+  size: '$label/xl',
+  fontWeight: '600',
 });
 
 export default SystemNotices;
@@ -61,33 +68,51 @@ export function ContactBookPrompt(props: {
 
   return (
     <NoticeFrame>
-      <YStack paddingHorizontal="$2xl" gap="$2xl">
-        <NoticeText>
-          Sync your contact book to easily find people you know on Tlon.
-        </NoticeText>
+      <YStack gap="$5xl">
+        <YStack gap="$xl">
+          <NoticeTitle>Find Friends</NoticeTitle>
+          <NoticeBody>
+            Sync your contact book to easily find people you know on Tlon.
+          </NoticeBody>
+        </YStack>
         {props.status === 'undetermined' && (
-          <XStack gap="$m" justifyContent="center">
+          <XStack gap="$m" justifyContent="flex-end">
             <Button
               padding="$xl"
               paddingHorizontal="$2xl"
-              backgroundColor="$secondaryBackground"
+              backgroundColor="$systemNoticeBackground"
+              borderColor="$positiveBorder"
+              borderWidth={1.6}
+              pressStyle={{
+                opacity: 0.7,
+                backgroundColor: '$systemNoticeBackground',
+              }}
               onPress={handleDismiss}
             >
-              <Button.Text color="$secondaryText">Not Now</Button.Text>
+              <Button.Text color="$systemNoticeText" fontWeight="500">
+                Not Now
+              </Button.Text>
             </Button>
             <Button
-              backgroundColor="$primaryText"
+              backgroundColor="$systemNoticeText"
               padding="$xl"
               paddingHorizontal="$2xl"
+              borderWidth={0}
+              pressStyle={{
+                opacity: 0.8,
+                backgroundColor: '$systemNoticeText',
+              }}
               onPress={handlePrimaryAction}
             >
-              <Button.Text color="$background">Continue</Button.Text>
+              <Button.Text color="$systemNoticeBackground" fontWeight="500">
+                Continue
+              </Button.Text>
             </Button>
           </XStack>
         )}
         {props.status === 'denied' && (
           <Button>
-            <Button.Text color="$white">Open Settings</Button.Text>
+            <Button.Text color="$systemNoticeText">Open Settings</Button.Text>
           </Button>
         )}
       </YStack>
