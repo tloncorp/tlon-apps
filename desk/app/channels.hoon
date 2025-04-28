@@ -776,14 +776,14 @@
       %^  give  %fact
         ~[path v0+path v1+path]
       ?~  got  cage.sign
-      channels-said+!>((to-said-1:utils u.got))
+      channel-said+!>((to-said-1:utils u.got))
     =/  v3-path
       [%v3 %said (scot %p src.bowl) (tail path)]
     =.  cor
       %^  give  %fact
         ~[v2+path v3-path]
       ?~  got  cage.sign
-      channels-said-1+!>(u.got)
+      channel-said-1+!>(u.got)
     ::  they all got their responses, so kick their subscriptions
     ::
     =.  cor  (give %kick ~[path v0+path v1+path v2+path v3-path] ~)
