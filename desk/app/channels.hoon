@@ -2603,6 +2603,10 @@
         ?(%bold %italics %strike %blockquote)  ^$(p.verse p.inline)
         ?(%code %inline-code)                  $(inline p.inline)
       ::
+          %sect
+        ?~  p.inline  $(inline '@all@everyone@channel')
+        $(inline p.inline)
+      ::
           %link
         ?|  $(inline p.inline)
         ?&  !=(p.inline q.inline)

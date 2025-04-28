@@ -191,6 +191,8 @@
 ::    %inline-code: code formatting for small snippets
 ::    %blockquote: blockquote surrounded content
 ::    %block: link/reference to blocks
+::    %ship: mention/reference to a ship
+::    %sect: mention/reference to a sect of users, ~ signifies everyone
 ::    %code: code formatting for large snippets
 ::    %tag: tag gets special signifier
 ::    %link: link to a URL with a face
@@ -205,6 +207,7 @@
       [%inline-code p=cord]
       [%code p=cord]
       [%ship p=ship]
+      [%sect p=?(~ sect:g)]
       [%block p=@ud q=cord]
       [%tag p=cord]
       [%link p=cord q=cord]

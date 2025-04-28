@@ -1886,6 +1886,7 @@
     ^-  (unit inline:old-2)
     ?@  i    `i
     ?+  -.i  `i
+      %sect        ~
       %task        ~
       %italics     `[-.i ^$(p.v p.i)]
       %bold        `[-.i ^$(p.v p.i)]
