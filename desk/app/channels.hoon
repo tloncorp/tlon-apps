@@ -1343,17 +1343,24 @@
     ^+  ca-core
     =.  ca-core
       %^  give  %fact  ~
-      ::  give result if we authored the content,
-      ::  or if it's readably by the requester.
+      ::  give result if it's readable by the requester,
+      ::  or if we pinned it intentionally
       ::
-      ?.  ?|  ?~  post=(get:on-v-posts:c posts.channel p.plan)  |
-              ?~  u.post  |
-              =(our.bowl author.u.u.post)
-            ::
-              (can-read:ca-perms src.bowl)
-          ==
-        channel-denied+!>(~)
-      (said-2:utils nest plan posts.channel)
+      =;  share=?
+        ?.  share
+          channel-denied+!>(~)
+        (said-2:utils nest plan posts.channel)
+      ?:  (can-read:ca-perms src.bowl)  &
+      ?^  q.plan  |  ::NOTE  expose/+grab-post doesn't support replies
+      ::  we need to grab the post first before we can check whether it's
+      ::  pinned, because its kind appears in the reference path...
+      ::
+      ?~  post=(get:on-v-posts:c posts.channel p.plan)  |
+      ?~  u.post  |
+      ?.  .^(? %gu (scry-path %expose /$))  |
+      =/  =cite:ci:utils
+        (from-post:cite:utils nest p.plan kind.u.u.post)
+      .^(? %gu (scry-path %expose [%show (print:ci:utils cite)]))
     (give %kick ~ ~)
   ::
   ++  ca-has-sub
