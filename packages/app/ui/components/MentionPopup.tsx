@@ -57,10 +57,8 @@ function MentionPopupInternal(
   const subsetSize = useMemo(() => subSet.length, [subSet]);
 
   useEffect(() => {
-    if (matchText) {
-      setHasMentionCandidates?.(subsetSize > 0);
-    }
-  }, [matchText, subsetSize, setHasMentionCandidates]);
+    setHasMentionCandidates?.(subsetSize > 0);
+  }, [subsetSize, setHasMentionCandidates]);
 
   const [selectedIndex, setSelectedIndex] = useState(0);
 
