@@ -22,6 +22,7 @@ data class ActivityEventPreviewMessage(
 data class ActivityEventPreview(
     val title: String?,
     val body: String?,
+    val groupingKey: String?,
 
     // present when event represents a user-to-user message
     val messagingMetadata: ActivityEventPreviewMessage?,
@@ -57,6 +58,7 @@ suspend fun renderPreview(context: Context, activityEventJson: String): Activity
                     val preview = ActivityEventPreview(
                         title = parsed.notification.title?.let { x -> renderer.render(x) },
                         body = renderer.render(parsed.notification.body),
+                        groupingKey = parsed.notification.groupingKey?.let { x -> renderer.render(x) },
                         messagingMetadata = parsed.message?.let { m ->
                             contact?.let { contact ->
                                 ActivityEventPreviewMessage(

@@ -92,6 +92,7 @@ suspend fun processNotification(context: Context, uid: String) {
                 markAsReadPendingIntent
             )
             .setAutoCancel(true)
+            .setGroup(preview.groupingKey)
 
     if (person != null) {
         builder
