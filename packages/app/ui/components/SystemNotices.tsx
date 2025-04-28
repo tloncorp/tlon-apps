@@ -89,16 +89,19 @@ export function ContactBookPrompt(props: {
               }}
               onPress={handleDismiss}
             >
-              <Button.Text color="$white" fontWeight="500">
+              <Button.Text color="$systemNoticeText" fontWeight="500">
                 Not Now
               </Button.Text>
             </Button>
             <Button
-              backgroundColor="$white"
+              backgroundColor="$systemNoticeText"
               padding="$xl"
               paddingHorizontal="$2xl"
               borderWidth={0}
-              pressStyle={{ opacity: 0.8, backgroundColor: '$white' }}
+              pressStyle={{
+                opacity: 0.8,
+                backgroundColor: '$systemNoticeText',
+              }}
               onPress={handlePrimaryAction}
             >
               <Button.Text color="$systemNoticeBackground" fontWeight="500">
@@ -109,7 +112,7 @@ export function ContactBookPrompt(props: {
         )}
         {props.status === 'denied' && (
           <Button>
-            <Button.Text color="$white">Open Settings</Button.Text>
+            <Button.Text color="$systemNoticeText">Open Settings</Button.Text>
           </Button>
         )}
       </YStack>
