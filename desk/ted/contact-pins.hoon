@@ -98,9 +98,6 @@
 ::  await all retrievals until we have at least _some_ result for each
 ::
 ;<  pins=_pins  bind:m
-  :: =/  ref-set
-  ::   %-  ~(gas in *(set [nest:c plan:c]))
-  ::   all-refs
   =/  m  (strand ,_pins)
   ::  +handle-input will be re-evaluated and passed as the continuation,
   ::  after putting subject changes into the context,
