@@ -943,13 +943,13 @@
     ==
   ::
   ++  from-post
-    |=  [=nest:g =id-post:c =kind-data:c]
+    |=  [=nest:g =id-post:c kind=path]
     ^-  cite:ci
-    =/  kind
-      ?-  -.kind-data
-        %chat   %msg
-        %diary  %note
-        %heap   %curio
+    =/  kind=@ta
+      ?+  kind  ~&([%from-post-strange-kind kind] %msg)
+        [%chat *]   %msg
+        [%diary *]  %note
+        [%heap *]   %curio
       ==
     [%chan nest /[kind]/(crip (a-co:co id-post))]
   --

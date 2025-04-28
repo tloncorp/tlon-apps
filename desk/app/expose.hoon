@@ -310,7 +310,7 @@
       ::REVIEW  should this handle %posts also?
       ?+  -.r-channel  [~ this]
           %post
-        =/  new=(unit $@(%del kind-data:d))
+        =/  new=(unit $?(%del kind-data:d))
           ?+  -.r-post.r-channel  ~
               %set
             ?~  post.r-post.r-channel  `%del
@@ -325,23 +325,23 @@
           ::
           :_  this
           =/  ref=cite:c
-            (from-post:cite:u nest id.r-channel u.new)
+            ::TODO  just get newer type/use newer endpoint
+            (from-post:cite:u nest id.r-channel /[-.u.new])
           ?.  (~(has in open) ref)  ~
           %+  weld
             (drop (refresh-widget:e bowl open))
           (refresh-pages:e bowl ref ~)
         ::  post was deleted. if we have it, clear it out.
         ::
-        ::TODO  this won't hold up in a freeform-channels world...
-        ::      but not sure how else we'd get the msg type info for the cite.
-        =/  =kind-data:d
+        ::TODO  just get kind.u.post from newer type/endpoint
+        =/  kind=path
           ?-  -.nest
-            %chat   [%chat ~]
-            %diary  [%diary '' '']
-            %heap   [%heap ~]
+            %chat   /chat
+            %diary  /diary
+            %heap   /heap
           ==
         =/  ref=cite:c
-          (from-post:cite:u nest id.r-channel kind-data)
+          (from-post:cite:u nest id.r-channel kind)
         ?.  (~(has in open) ref)  [~ this]
         =.  open  (~(del in open) ref)
         :_  this
