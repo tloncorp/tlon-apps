@@ -263,10 +263,6 @@ export function ChatListScreenView({
     activeTab,
   });
 
-  useEffect(() => {
-    console.log(`slected group change`, selectedGroupId);
-  }, [selectedGroupId]);
-
   return (
     <RequestsProvider
       usePostReference={store.usePostReference}
