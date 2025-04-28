@@ -271,7 +271,6 @@
   ~|  wire
   ?+  wire  !!
       [%eyre %connect ~]
-    ~&  >>>  [dap.bowl %failed-to-eyre-connect]
     [~ this]
   ::
       [%refresh ~]
