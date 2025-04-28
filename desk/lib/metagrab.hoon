@@ -43,33 +43,33 @@
   %+  roll  nos
   |=  [nod=manx cur=(unit entry) out=(list entry)]
   =*  skip  [cur out]
-  =+  rat=(~(gas by *(map mane tape)) a.g.nod)
+  =+  ats=(~(gas by *(map mane tape)) a.g.nod)
   ?+  n.g.nod  skip
       %title
     =-  [cur - out]  ::REVIEW  save cur?
     ['_title' 'title' (crip (zing (join " " (tez:rh nod))))]
   ::
       %link
-    ?~  rel=(~(get by rat) %rel)  skip
-    ?~  ref=(~(get by rat) %href)  skip
+    ?~  rel=(~(get by ats) %rel)  skip
+    ?~  ref=(~(get by ats) %href)  skip
     =;  val=value
       [cur ['_link' (crip u.rel) val] out]  ::REVIEW  save cur?
-    =.  rat  (~(del by rat) %rel)
-    =.  rat  (~(del by rat) %href)
-    ?:  =(~ rat)  (crip u.ref)
+    =.  ats  (~(del by ats) %rel)
+    =.  ats  (~(del by ats) %href)
+    ?:  =(~ ats)  (crip u.ref)
     :-  (crip u.ref)
     %-  ~(gas by *(map @t value))
-    %+  turn  ~(tap by rat)
+    %+  turn  ~(tap by ats)
     |=  [m=mane t=tape]
     ^-  [@t value]
     ?@  m  [m (crip t)]
     [-.m '' [+.m (crip t)] ~ ~]
   ::
       %meta
-    ?~  con=(~(get by rat) %content)
+    ?~  con=(~(get by ats) %content)
       skip
     =+  val=(crip u.con)
-    ?~  key=(hunt |=(* &) (~(get by rat) %property) (~(get by rat) %name))
+    ?~  key=(hunt |=(* &) (~(get by ats) %property) (~(get by ats) %name))
       skip
     =/  pax=(list @t)
       (scan u.key (most col (cook crip (star ;~(less col next)))))
@@ -175,8 +175,8 @@
   |=  [=entry out=(jar @t entry)]
   =/  =path  ~[ns key]:entry
   |-  ^+  out
-  ?:  (~(has by lookup) path)
-    (~(add ja out) (~(got by lookup) path) entry)
+  ?^  buck=(~(get by lookup) path)
+    (~(add ja out) u.buck entry)
   (~(add ja out) '' entry)  ::TODO  traverse?
 ::
 ++  transform
