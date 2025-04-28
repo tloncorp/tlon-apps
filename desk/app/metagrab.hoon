@@ -29,7 +29,7 @@
   ==
 ::
 +$  data
-  $%  [%page meta=(jar @t tope:mg)]
+  $%  [%page meta=(jar @t entry:mg)]
       [%file mime=@t]
   ==
 ::
@@ -76,12 +76,12 @@
             %page
           :-  'type'^s+'page'
           %+  turn  ~(tap by meta.dat.wat)
-          |=  [buc=@t tos=(list tope:mg)]
+          |=  [buc=@t tos=(list entry:mg)]
           ^-  [@t json]
           :-  buc
           :-  %a
           %+  turn  tos
-          |=  tope:mg
+          |=  entry:mg
           %-  pairs
           :*  'namespace'^s+ns
               'key'^s+key
@@ -93,7 +93,7 @@
               :-  'attributes'
               %-  pairs
               %+  turn  ~(tap by met.val)
-              |=  [key=@t val=veal:mg]
+              |=  [key=@t val=value:mg]
               :-  key
               ?@  val  s+val
               (pairs 'value'^s+top.val ^$(val val))
@@ -160,7 +160,7 @@
   ^-  result
   ::  turn whatever we got into page metadata
   ::
-  =/  meta=(jar @t tope:mg)
+  =/  meta=(jar @t entry:mg)
     =-  (fall - ~)
     %+  bind
       %+  bind

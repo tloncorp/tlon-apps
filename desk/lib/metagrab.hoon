@@ -8,40 +8,40 @@
 |%
 ::  searching for metadata
 ::
-+$  tope
-  $:  ns=@t     ::  property namespace, if any
-      key=@t    ::  property key
-      val=veal  ::  property value
++$  entry
+  $:  ns=@t      ::  property namespace, if any
+      key=@t     ::  property key
+      val=value  ::  property value
   ==
 ::
-+$  veal
-  $@  @t                 ::  flat property, or:
-  $:  top=@t             ::  property value
-      met=(map @t veal)  ::  w/ metadata
++$  value
+  $@  @t                  ::  flat property, or:
+  $:  top=@t              ::  property value
+      met=(map @t value)  ::  w/ metadata
   ==
 ::
 ++  search-head
   |=  nod=manx
-  ^-  (unit (list tope))
+  ^-  (unit (list entry))
   %+  bind
     ((dig:rh %head) nod)
   search-marl
 ::  +search-marl: extract <meta>, <link> and <title> tag contents
 ::
-::    primary extraction logic, gets $topes from a $marl.
-::    <meta> tags have their name:spacing reflected in the resulting $tope,
+::    primary extraction logic, gets $entries from a $marl.
+::    <meta> tags have their name:spacing reflected in the resulting $entry,
 ::           with '' .ns if the property isn't namespaced.
 ::           (note: for "image:height", 'image' would become the namespace...)
-::    <link> tags gets a '_link' .ns, always a flat $veal.
-::    <title> tags get a '_title' .ns, always a flat $veal.
+::    <link> tags gets a '_link' .ns, always a flat $value.
+::    <title> tags get a '_title' .ns, always a flat $value.
 ::
 ++  search-marl
   |=  nos=marl
-  ^-  (list tope)
+  ^-  (list entry)
   %-  flop
   =<  ?~(cur out [u.cur out])
   %+  roll  nos
-  |=  [nod=manx cur=(unit tope) out=(list tope)]
+  |=  [nod=manx cur=(unit entry) out=(list entry)]
   =*  skip  [cur out]
   =+  rat=(~(gas by *(map mane tape)) a.g.nod)
   ?+  n.g.nod  skip
@@ -52,16 +52,16 @@
       %link
     ?~  rel=(~(get by rat) %rel)  skip
     ?~  ref=(~(get by rat) %href)  skip
-    =;  val=veal
+    =;  val=value
       [cur ['_link' (crip u.rel) val] out]  ::REVIEW  save cur?
     =.  rat  (~(del by rat) %rel)
     =.  rat  (~(del by rat) %href)
     ?:  =(~ rat)  (crip u.ref)
     :-  (crip u.ref)
-    %-  ~(gas by *(map @t veal))
+    %-  ~(gas by *(map @t value))
     %+  turn  ~(tap by rat)
     |=  [m=mane t=tape]
-    ^-  [@t veal]
+    ^-  [@t value]
     ?@  m  [m (crip t)]
     [-.m '' [+.m (crip t)] ~ ~]
   ::
@@ -93,43 +93,43 @@
       [%$ i.pax val]
     ::
         [@ @ *]
-      =/  make-veal
+      =/  make-value
         |=  [pax=(list @t) val=@t]
-        ^-  veal
+        ^-  value
         ?~  pax  val
         [top='' met=[i.pax^$(pax t.pax) ~ ~]]
       ::  namespaced. if it's a child of .cur, we must inject it.
       ::
-      ?.  ?&  ?=(^ cur)             ::  have previous tope
+      ?.  ?&  ?=(^ cur)             ::  have previous entry
               =(i.pax ns.u.cur)     ::  in the same namespace
               =(i.t.pax key.u.cur)  ::  with the same key
               ?=(^ t.t.pax)         ::  and this is a meta property
           ==
-        ::  not a child of .cur, so we start a new tope
+        ::  not a child of .cur, so we start a new entry
         ::
         ::dbg  ~?  ?=(^ cur)  [%saving cur]
         =-  [`- ?~(cur out [u.cur out])]
         ::dbg  =-  ~&         [%parent -]  -
         :+  ns=i.pax
           key=i.t.pax
-        (make-veal t.t.pax val)
+        (make-value t.t.pax val)
       ::  this property belongs inside of .cur
       ::
       ::dbg  ~&  [%enters pax cur]
       :_  out
       =-  `[ns.u.cur key.u.cur -]
-      =/  cal=veal  val.u.cur
+      =/  cal=value  val.u.cur
       =*  koy  i.t.t.pax
       =*  toy  t.t.t.pax
-      |-  ^-  veal
+      |-  ^-  value
       ?@  cal
         ::  was flat, deepen to where we belong and insert
         ::
         ::dbg  ~&  [%deepen koy toy]
         :-  top=cal
-        %+  ~(put by *(map @tas veal))
+        %+  ~(put by *(map @tas value))
           koy
-        (make-veal toy val)
+        (make-value toy val)
       ?~  toy
         ::  we're at the depth of this property,
         ::  insert it into the local value
@@ -150,14 +150,14 @@
       :-  top.cal
       %+  ~(put by met.cal)
         koy
-      (make-veal toy val)
+      (make-value toy val)
     ==
   ==
 ::
 ::  post-processing metadata
 ::
-++  value
-  |=  tope
+++  get-value
+  |=  entry
   ^-  @t
   ?@  val  val
   top.val
@@ -170,25 +170,25 @@
     %-  ~(rep in paz)
     |=  [pax=path =_lok]
     (~(put by lok) pax buc)
-  |=  topes=(list tope)
-  %+  roll  topes
-  |=  [=tope out=(jar @t tope)]
-  =/  kay=path  ~[ns key]:tope
+  |=  entries=(list entry)
+  %+  roll  entries
+  |=  [=entry out=(jar @t entry)]
+  =/  kay=path  ~[ns key]:entry
   |-  ^+  out
   ?:  (~(has by lookup) kay)
-    (~(add ja out) (~(got by lookup) kay) tope)
-  (~(add ja out) '' tope)  ::TODO  traverse?
+    (~(add ja out) (~(got by lookup) kay) entry)
+  (~(add ja out) '' entry)  ::TODO  traverse?
 ::
 ++  transform
   |=  fun=$-([kay=path val=@t] @t)
-  |=  tope
+  |=  entry
   =/  kay=path  ~[ns key]
   :+  ns  key
-  |-  ^-  veal
+  |-  ^-  value
   ?@  val  (fun kay val)
   :-  (fun kay top.val)
   %-  ~(urn by met.val)
-  |=  [k=@t v=veal]
+  |=  [k=@t v=value]
   ^$(kay (snoc kay k), val v)
 ::
 ++  expand-urls
@@ -196,7 +196,7 @@
     ~['_link']
   =/  keys=(list @t)  ::  keys at any level with urls
     ~['image' 'url' 'secure_url']
-  |=  [base=@t toz=(list tope)]
+  |=  [base=@t toz=(list entry)]
   %+  turn  toz
   %-  transform
   |=  [kay=(list @t) val=@t]
