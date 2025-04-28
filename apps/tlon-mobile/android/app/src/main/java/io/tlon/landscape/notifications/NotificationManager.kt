@@ -45,36 +45,20 @@ suspend fun processNotification(context: Context, uid: String) {
     val extras = Bundle()
     extras.putString("activityEventJsonString", activityEvent.toString())
 
-    sendNotification(
-        context,
-        UvParser.getIntCompatibleFromUv(uid),
-        preview.messagingMetadata?.sender?.person,
-        preview.title,
-        preview.body,
-        preview.messagingMetadata?.isGroupConversation ?: false,
-        extras
-    )
-}
+    val id = UvParser.getIntCompatibleFromUv(uid)
+    val person = preview.messagingMetadata?.sender?.person
+    val title = preview.title
+    val text = preview.body
+    val isGroupConversation = preview.messagingMetadata?.isGroupConversation ?: false
 
-fun processNotificationBlocking(context: Context, uid: String) =
-    runBlocking { processNotification(context, uid) }
-
-fun sendNotification(
-    context: Context,
-    id: Int,
-    person: Person?,
-    title: String?,
-    text: String?,
-    isGroupConversation: Boolean,
-    data: Bundle?
-) {
     Log.d(
-        "TalkNotificationManager",
+        "NotificationManager",
         "sendNotification: $id $title $text $isGroupConversation"
     )
+
     val tapIntent = Intent(context, MainActivity::class.java)
     tapIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-    tapIntent.replaceExtras(data)
+    tapIntent.replaceExtras(extras)
     val tapPendingIntent =
         PendingIntent.getActivity(context, id, tapIntent, PendingIntent.FLAG_IMMUTABLE)
 
@@ -83,7 +67,7 @@ fun sendNotification(
         TalkBroadcastReceiver::class.java
     )
     markAsReadIntent.setAction(TalkBroadcastReceiver.MARK_AS_READ_ACTION)
-    markAsReadIntent.replaceExtras(data)
+    markAsReadIntent.replaceExtras(extras)
     val markAsReadPendingIntent =
         PendingIntent.getBroadcast(
             context,
@@ -99,7 +83,7 @@ fun sendNotification(
             .setSmallIcon(R.drawable.notification_icon)
             .setContentTitle(title)
             .setContentText(text)
-            .addExtras(data)
+            .addExtras(extras)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setContentIntent(tapPendingIntent)
             .addAction(
@@ -135,3 +119,6 @@ fun sendNotification(
     }
     NotificationManagerCompat.from(context).notify(id, builder.build())
 }
+
+fun processNotificationBlocking(context: Context, uid: String) =
+    runBlocking { processNotification(context, uid) }
