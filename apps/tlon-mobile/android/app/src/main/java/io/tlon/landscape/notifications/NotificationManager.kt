@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationCompat.MessagingStyle
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
 import com.android.volley.VolleyError
@@ -24,6 +25,8 @@ import java.util.Date
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
+
+val notificationMessagesCache = HashMap<String, Array<NotificationCompat.MessagingStyle.Message>>();
 
 suspend fun processNotification(context: Context, uid: String) {
     val api = TalkApi(context)
@@ -95,13 +98,23 @@ suspend fun processNotification(context: Context, uid: String) {
             .setGroup(preview.groupingKey)
 
     if (person != null) {
-        builder
-            .setStyle(
-                NotificationCompat.MessagingStyle(user)
-                    .setGroupConversation(isGroupConversation)
-                    .setConversationTitle(if (isGroupConversation) title else null)
-                    .addMessage(text, Date().time, person)
-            )
+        val notifStyle =
+            NotificationCompat.MessagingStyle(user)
+                .setGroupConversation(isGroupConversation)
+                .setConversationTitle(if (isGroupConversation) title else null)
+
+        // Add all previous messages to notification conversation;
+        // also add incoming message to cache.
+        val incomingMessage = MessagingStyle.Message(text, Date().time, person)
+        if (preview.groupingKey != null) {
+            val previousMessages = notificationMessagesCache[preview.groupingKey] ?: emptyArray()
+            for (message in previousMessages) {
+                notifStyle.addMessage(message)
+            }
+            notificationMessagesCache[preview.groupingKey] = previousMessages.plus(incomingMessage)
+        }
+        notifStyle.addMessage(incomingMessage)
+        builder.setStyle(notifStyle)
     }
 
     if (ActivityCompat.checkSelfPermission(
@@ -118,7 +131,7 @@ suspend fun processNotification(context: Context, uid: String) {
         // for ActivityCompat#requestPermissions for more details.
         return
     }
-    NotificationManagerCompat.from(context).notify(id, builder.build())
+    NotificationManagerCompat.from(context).notify(preview.groupingKey?.hashCode() ?: id, builder.build())
 }
 
 fun processNotificationBlocking(context: Context, uid: String) =
