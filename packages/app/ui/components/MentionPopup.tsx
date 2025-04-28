@@ -22,12 +22,10 @@ function MentionPopupInternal(
     groupMembers,
     onPress,
     matchText,
-    setHasMentionCandidates,
   }: PropsWithRef<{
     groupMembers: db.ChatMember[];
     onPress: (contact: db.Contact) => void;
     matchText?: string;
-    setHasMentionCandidates?: (has: boolean) => void;
   }>,
   ref: React.Ref<{
     handleMentionKey(key: 'ArrowUp' | 'ArrowDown' | 'Enter'): void;
@@ -55,12 +53,6 @@ function MentionPopupInternal(
   );
 
   const subsetSize = useMemo(() => subSet.length, [subSet]);
-
-  useEffect(() => {
-    if (matchText) {
-      setHasMentionCandidates?.(subsetSize > 0);
-    }
-  }, [matchText, subsetSize, setHasMentionCandidates]);
 
   const [selectedIndex, setSelectedIndex] = useState(0);
 
