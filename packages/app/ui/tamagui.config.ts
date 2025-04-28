@@ -116,6 +116,9 @@ export const themes = {
     overlayBackground: '#FFFFFF',
     overlayBlurTint: 'light',
     neutralUnreadDot: '#808080',
+    systemNoticeBackground: '#143A5E',
+    systemNoticeBorder: '#CCDCF3',
+    systemNoticeText: '#FFFFFF',
     mediaScrim: tokens.color.mediaScrim.val,
   },
   light: {
@@ -140,6 +143,9 @@ export const themes = {
     overlayBackground: '#000000',
     overlayBlurTint: 'dark',
     neutralUnreadDot: '#B3B3B3',
+    systemNoticeBackground: '#3B80E8',
+    systemNoticeBorder: '#CCDCF3',
+    systemNoticeText: '#FFFFFF',
     mediaScrim: tokens.color.mediaScrim.val,
   },
   dracula: {
@@ -164,6 +170,9 @@ export const themes = {
     overlayBackground: '#000000',
     overlayBlurTint: 'dark',
     neutralUnreadDot: '#6272A4',
+    systemNoticeBackground: '#F5FAFF',
+    systemNoticeBorder: '#CCDCF3',
+    systemNoticeText: '#FFFFFF',
     mediaScrim: tokens.color.mediaScrim.val,
   },
   gruvbox: {
@@ -188,6 +197,9 @@ export const themes = {
     overlayBackground: '#000000',
     overlayBlurTint: 'dark',
     neutralUnreadDot: '#928374',
+    systemNoticeBackground: '#F5FAFF',
+    systemNoticeBorder: '#CCDCF3',
+    systemNoticeText: '#FFFFFF',
     mediaScrim: tokens.color.mediaScrim.val,
   },
   monokai: {
@@ -212,6 +224,9 @@ export const themes = {
     overlayBackground: '#000000',
     overlayBlurTint: 'dark',
     neutralUnreadDot: '#75715E',
+    systemNoticeBackground: '#F5FAFF',
+    systemNoticeBorder: '#CCDCF3',
+    systemNoticeText: '#FFFFFF',
     mediaScrim: tokens.color.mediaScrim.val,
   },
   solarized: {
@@ -236,6 +251,9 @@ export const themes = {
     overlayBackground: '#000000',
     overlayBlurTint: 'dark',
     neutralUnreadDot: '#586e75',
+    systemNoticeBackground: '#F5FAFF',
+    systemNoticeBorder: '#CCDCF3',
+    systemNoticeText: '#FFFFFF',
     mediaScrim: tokens.color.mediaScrim.val,
   },
   nord: {
@@ -260,6 +278,9 @@ export const themes = {
     overlayBackground: '#000000',
     overlayBlurTint: 'dark',
     neutralUnreadDot: '#4C566A',
+    systemNoticeBackground: '#F5FAFF',
+    systemNoticeBorder: '#CCDCF3',
+    systemNoticeText: '#FFFFFF',
     mediaScrim: tokens.color.mediaScrim.val,
   },
   greenscreen: {
@@ -284,6 +305,9 @@ export const themes = {
     overlayBackground: '#000000',
     overlayBlurTint: 'dark',
     neutralUnreadDot: '#009900',
+    systemNoticeBackground: '#F5FAFF',
+    systemNoticeBorder: '#CCDCF3',
+    systemNoticeText: '#FFFFFF',
     mediaScrim: tokens.color.mediaScrim.val,
   },
   peony: {
@@ -308,6 +332,9 @@ export const themes = {
     overlayBackground: '#d14790',
     overlayBlurTint: 'light',
     neutralUnreadDot: '#ef68af',
+    systemNoticeBackground: '#F5FAFF',
+    systemNoticeBorder: '#CCDCF3',
+    systemNoticeText: '#FFFFFF',
     mediaScrim: tokens.color.mediaScrim.val,
   },
 };
@@ -501,7 +528,6 @@ export const desktopFonts = {
   serif: desktopSerifFont,
   // ===
 };
-
 
 export const config =
   Platform.OS === 'web'
