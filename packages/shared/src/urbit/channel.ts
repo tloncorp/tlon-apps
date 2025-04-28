@@ -90,7 +90,7 @@ export interface Image {
   };
 }
 
-export interface Link {
+export interface LinkBlock {
   link: {
     url: string;
     meta: {
@@ -148,7 +148,7 @@ export function isImage(item: unknown): item is Image {
   return typeof item === 'object' && item !== null && 'image' in item;
 }
 
-export function isBlockLink(item: unknown): item is Link {
+export function isBlockLink(item: unknown): item is LinkBlock {
   return typeof item === 'object' && item !== null && 'link' in item;
 }
 
@@ -159,7 +159,7 @@ export type Block =
   | Header
   | Rule
   | Code
-  | Link;
+  | LinkBlock;
 
 export interface VerseBlock {
   block: Block;
