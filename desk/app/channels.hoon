@@ -700,11 +700,7 @@
     (watch-said host nest plan -.pole)
   ::
       [%v3 %said ask=@ =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
-    ::NOTE  should only be used from /ted/contact-pins
-    ::  since we might ask arbitrary ships over the network,
-    ::  we only expose this endpoint to ourselves
-    ::
-    ?>  =(our src):bowl
+    ::NOTE  best used through /ted/contact-pins or similar
     =/  ask=ship    (slav %p ask.pole)
     =/  host=ship   (slav %p host.pole)
     =/  =nest:c     [kind.pole host name.pole]
@@ -724,12 +720,26 @@
       ?(%v0 %v1)  ca-abet:(ca-said-1:(ca-abed:ca-core nest) plan)
       ?(%v2 %v3)  ca-abet:(ca-said-2:(ca-abed:ca-core nest) plan)
     ==
-  ::  if we don't have the data locally, ask the target for latest.
+  ::  if we don't have the data locally, ask the target for latest,
+  ::  but don't go over the network on behalf of someone else.
+  ::  if the target is the host, ask channels-server, if not, ask channels.
   ::  we don't give the response from cache here. if the subscriber wanted
   ::  an instant response from cache, they could've scried for it.
   ::
-  =/  =path  (said-path nest plan)
-  ((safe-watch path [ask server] path) |)
+  ?>  |(from-self =(ask our.bowl))
+  =/  [=wire =dude:gall =path]
+    =/  base=path  (said-path nest plan)
+    ::  v3 subscriptions will _always_ ask the client agent,
+    ::  because they want to hit the logic that circumvents channel permissions
+    ::  for pinned posts
+    ::
+    ?:  &(=(ask ship.nest) !?=(%v3 ver))
+      [base server base]
+    ::NOTE  attention! we subscribe to other "client agent" instances here.
+    ::      uncommon pattern, very "soft". expect subscription failure and
+    ::      handle it gracefully.
+    [base dap.bowl [%v2 base]]
+  ((safe-watch wire [ask dude] path) |)
 ::
 ++  said-path
   |=  [=nest:c =plan:c]
@@ -744,9 +754,11 @@
   ^+  cor
   ?+    -.sign  !!
       %watch-ack
-    %.  cor
-    ?~  p.sign  same
-    (slog leaf+"Preview failed" u.p.sign)
+    ?~  p.sign  cor
+    %-  (slog leaf+"Preview failed" u.p.sign)
+    ::  treat subscription failures as if we received a %channel-denied
+    ::
+    $(sign [%fact %channel-denied !>(~)])
   ::
       %kick
     ?:  (~(has by voc) nest plan)
