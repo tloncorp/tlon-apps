@@ -228,6 +228,7 @@ export default function BareChatInput({
   const [hasAutoFocused, setHasAutoFocused] = useState(false);
   const [needsHeightAdjustmentAfterLoad, setNeedsHeightAdjustmentAfterLoad] =
     useState(false);
+  const [isSending, setIsSending] = useState(false);
   const {
     handleMention,
     handleSelectMention,
@@ -488,16 +489,19 @@ export default function BareChatInput({
   const runSendMessage = useCallback(
     async (isEdit: boolean) => {
       try {
+        setIsSending(true);
         await sendMessage(isEdit);
       } catch (e) {
         bareChatInputLogger.trackError('failed to send', e);
         setSendError(true);
+      } finally {
+        setIsSending(false);
+        setTimeout(() => {
+          // allow some time for send errors to be displayed
+          // before clearing the error state
+          setSendError(false);
+        }, 2000);
       }
-      setTimeout(() => {
-        // allow some time for send errors to be displayed
-        // before clearing the error state
-        setSendError(false);
-      }, 2000);
     },
     [sendMessage]
   );
@@ -781,7 +785,8 @@ export default function BareChatInput({
       onPressSend={handleSend}
       setShouldBlur={setShouldBlur}
       containerHeight={48}
-      disableSend={editorIsEmpty}
+      disableSend={editorIsEmpty || isSending}
+      isSending={isSending}
       sendError={sendError}
       isMentionModeActive={isMentionModeActive}
       showWayfindingTooltip={showWayfindingTooltip}
