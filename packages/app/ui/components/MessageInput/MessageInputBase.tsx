@@ -2,7 +2,7 @@ import type { BridgeState, EditorBridge } from '@10play/tentap-editor';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
-import { Button } from '@tloncorp/ui';
+import { Button, LoadingSpinner } from '@tloncorp/ui';
 import { FloatingActionButton, Text } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
@@ -96,6 +96,7 @@ export const MessageInputContainer = memo(
     floatingActionButton = false,
     showWayfindingTooltip = false,
     disableSend = false,
+    isSending = false,
     mentionText,
     groupMembers,
     onSelectMention,
@@ -116,6 +117,7 @@ export const MessageInputContainer = memo(
     floatingActionButton?: boolean;
     showWayfindingTooltip?: boolean;
     disableSend?: boolean;
+    isSending?: boolean;
     mentionText?: string;
     groupMembers: db.ChatMember[];
     onSelectMention: (contact: db.Contact) => void;
@@ -220,6 +222,8 @@ export const MessageInputContainer = memo(
                 >
                   {isEditing ? (
                     <Icon size="$m" type="Checkmark" />
+                  ) : isSending ? (
+                    <LoadingSpinner />
                   ) : (
                     <Icon
                       color={sendError ? '$negativeActionText' : undefined}
