@@ -1434,145 +1434,139 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
   const startTime = Date.now();
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
 
-  let didLoadCachedContacts = false;
-
   try {
-    await batchEffects('sync start (high)', async (ctx) => {
-      // this allows us to run the api calls first in parallel but handle
-      // writing the data in a specific order
-      const yieldWriter = true;
+    let didLoadCachedContacts = false;
 
-      // first kickoff the fetching
-      const syncInitPromise = syncInitData(
-        { priority: SyncPriority.High, retry: true },
-        ctx,
-        yieldWriter
-      );
-      const syncLatestPostsPromise = syncLatestPosts(
-        {
-          priority: SyncPriority.High,
-          retry: true,
-        },
-        ctx,
-        yieldWriter
-      );
-      const subsPromise = alreadySubscribed
+    try {
+      await batchEffects('sync start (high)', async (ctx) => {
+        // this allows us to run the api calls first in parallel but handle
+        // writing the data in a specific order
+        const yieldWriter = true;
+
+        // first kickoff the fetching
+        const syncInitPromise = syncInitData(
+          { priority: SyncPriority.High, retry: true },
+          ctx,
+          yieldWriter
+        );
+        const syncLatestPostsPromise = syncLatestPosts(
+          {
+            priority: SyncPriority.High,
+            retry: true,
+          },
+          ctx,
+          yieldWriter
+        );
+        const subsPromise = alreadySubscribed
+          ? Promise.resolve()
+          : setupHighPrioritySubscriptions({
+              priority: SyncPriority.High - 1,
+            }).then(() => logger.crumb('subscribed high priority'));
+
+        didLoadCachedContacts = await LocalCache.loadCachedContacts();
+        // if we don't have cached contacts, we need to load them with high priority
+        const syncContactsPromise = didLoadCachedContacts
+          ? () => Promise.resolve()
+          : syncContacts(
+              { priority: SyncPriority.High, retry: true },
+              yieldWriter
+            );
+
+        const trackStep = (function () {
+          let last = Date.now();
+          return (event: AnalyticsEvent) => {
+            const now = Date.now();
+            logger.trackEvent(event, { duration: now - last });
+            last = now;
+          };
+        })();
+
+        // then enforce the ordering of writes to avoid race conditions
+        const initWriter = await syncInitPromise;
+        trackStep(AnalyticsEvent.InitDataFetched);
+        await initWriter();
+        trackStep(AnalyticsEvent.InitDataWritten);
+        logger.crumb('finished writing init data');
+
+        const latestPostsWriter = await syncLatestPostsPromise;
+        trackStep(AnalyticsEvent.LatestPostsFetched);
+        await latestPostsWriter();
+        trackStep(AnalyticsEvent.LatestPostsWritten);
+        logger.crumb('finished writing latest posts');
+
+        const contactsWriter = await syncContactsPromise;
+        await contactsWriter();
+
+        await subsPromise;
+        trackStep(AnalyticsEvent.SubscriptionsEstablished);
+        logger.crumb('finished initializing high priority subs');
+
+        logger.crumb(`finished high priority init sync`);
+        logger.trackEvent(AnalyticsEvent.SessionInitialized, {
+          duration: Date.now() - startTime,
+        });
+        updateSession({ startTime: Date.now() });
+      });
+    } catch (err) {
+      logger.trackError(AnalyticsEvent.ErrorSyncStartHighPriority, {
+        errorMessage: err.message,
+      });
+    }
+
+    const lowPriorityPromises = [
+      alreadySubscribed
         ? Promise.resolve()
-        : setupHighPrioritySubscriptions({
-            priority: SyncPriority.High - 1,
-          }).then(() => logger.crumb('subscribed high priority'));
+        : setupLowPrioritySubscriptions({
+            priority: SyncPriority.Medium,
+          }).then(() => logger.crumb('subscribed low priority')),
+      resetActivity({ priority: SyncPriority.Medium + 1, retry: true }).then(
+        () => logger.crumb(`finished resetting activity`)
+      ),
+      // if we had cached contacts, we refresh them here with low priority
+      didLoadCachedContacts
+        ? syncContacts({ priority: SyncPriority.Medium + 1, retry: true }).then(
+            () => logger.crumb(`finished syncing contacts`)
+          )
+        : Promise.resolve(),
+      syncSettings({ priority: SyncPriority.Medium }).then(() =>
+        logger.crumb(`finished syncing settings`)
+      ),
+      syncVolumeSettings({ priority: SyncPriority.Low }).then(() =>
+        logger.crumb(`finished syncing volume settings`)
+      ),
+      syncStorageSettings({ priority: SyncPriority.Low }).then(() =>
+        logger.crumb(`finished initializing storage`)
+      ),
+      syncPushNotificationsSetting({ priority: SyncPriority.Low }).then(() =>
+        logger.crumb(`finished syncing push notifications setting`)
+      ),
+      syncAppInfo({ priority: SyncPriority.Low }).then(() => {
+        logger.crumb(`finished syncing app info`);
+      }),
+      syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
+        logger.crumb(`finished channel predictive sync`);
+      }),
+      syncSystemContacts({ priority: SyncPriority.Low }).then(() => {
+        logger.crumb(`finished syncing system contacts`);
+      }),
+    ];
 
-      didLoadCachedContacts = await LocalCache.loadCachedContacts();
-      // if we don't have cached contacts, we need to load them with high priority
-      const syncContactsPromise = didLoadCachedContacts
-        ? () => Promise.resolve()
-        : syncContacts(
-            { priority: SyncPriority.High, retry: true },
-            yieldWriter
-          );
-
-      const trackStep = (function () {
-        let last = Date.now();
-        return (event: AnalyticsEvent) => {
-          const now = Date.now();
-          logger.trackEvent(event, { duration: now - last });
-          last = now;
-        };
-      })();
-
-      // then enforce the ordering of writes to avoid race conditions
-      const initWriter = await syncInitPromise;
-      trackStep(AnalyticsEvent.InitDataFetched);
-      await initWriter();
-      trackStep(AnalyticsEvent.InitDataWritten);
-      logger.crumb('finished writing init data');
-
-      const latestPostsWriter = await syncLatestPostsPromise;
-      trackStep(AnalyticsEvent.LatestPostsFetched);
-      await latestPostsWriter();
-      trackStep(AnalyticsEvent.LatestPostsWritten);
-      logger.crumb('finished writing latest posts');
-
-      const contactsWriter = await syncContactsPromise;
-      await contactsWriter();
-
-      await subsPromise;
-      trackStep(AnalyticsEvent.SubscriptionsEstablished);
-      logger.crumb('finished initializing high priority subs');
-
-      logger.crumb(`finished high priority init sync`);
-      logger.trackEvent(AnalyticsEvent.SessionInitialized, {
-        duration: Date.now() - startTime,
+    await Promise.all(lowPriorityPromises)
+      .then(() => {
+        logger.crumb(`finished low priority sync`);
+      })
+      .catch((e) => {
+        logger.trackError(AnalyticsEvent.ErrorSyncStartLowPriority, {
+          errorMessage: e.message,
+        });
       });
-      updateSession({ startTime: Date.now() });
-    });
-  } catch (err) {
-    logger.trackError(AnalyticsEvent.ErrorSyncStartHighPriority, {
-      errorMessage: err.message,
-    });
+
+    // post sync initialization work
+    await verifyUserInviteLink();
+    db.userHasCompletedFirstSync.setValue(true);
+  } finally {
+    isSyncing = false;
   }
-
-  const lowPriorityPromises = [
-    alreadySubscribed
-      ? Promise.resolve()
-      : setupLowPrioritySubscriptions({
-          priority: SyncPriority.Medium,
-        }).then(() => logger.crumb('subscribed low priority')),
-    resetActivity({ priority: SyncPriority.Medium + 1, retry: true }).then(() =>
-      logger.crumb(`finished resetting activity`)
-    ),
-    // if we had cached contacts, we refresh them here with low priority
-    didLoadCachedContacts
-      ? syncContacts({ priority: SyncPriority.Medium + 1, retry: true }).then(
-          () => logger.crumb(`finished syncing contacts`)
-        )
-      : Promise.resolve(),
-    syncSettings({ priority: SyncPriority.Medium }).then(() =>
-      logger.crumb(`finished syncing settings`)
-    ),
-    syncVolumeSettings({ priority: SyncPriority.Low }).then(() =>
-      logger.crumb(`finished syncing volume settings`)
-    ),
-    syncStorageSettings({ priority: SyncPriority.Low }).then(() =>
-      logger.crumb(`finished initializing storage`)
-    ),
-    syncPushNotificationsSetting({ priority: SyncPriority.Low }).then(() =>
-      logger.crumb(`finished syncing push notifications setting`)
-    ),
-    syncAppInfo({ priority: SyncPriority.Low }).then(() => {
-      logger.crumb(`finished syncing app info`);
-    }),
-    syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
-      logger.crumb(`finished channel predictive sync`);
-    }),
-    syncSystemContacts({ priority: SyncPriority.Low }).then(() => {
-      logger.crumb(`finished syncing system contacts`);
-    }),
-  ];
-
-  await Promise.all(lowPriorityPromises)
-    .then(() => {
-      logger.crumb(`finished low priority sync`);
-    })
-    .catch((e) => {
-      logger.trackError(AnalyticsEvent.ErrorSyncStartLowPriority, {
-        errorMessage: e.message,
-      });
-    });
-
-  // post sync initialization work
-  await verifyUserInviteLink();
-
-  const hostingUser = await db.hostingUserId.getValue();
-  await api.getHostingUser(hostingUser);
-
-  const ship = await db.hostedUserNodeId.getValue();
-  if (ship) {
-    await api.getShip(ship);
-  }
-
-  isSyncing = false;
-  db.userHasCompletedFirstSync.setValue(true);
 };
 
 export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {
