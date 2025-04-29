@@ -16,7 +16,11 @@ import {
 } from '../store/useActivityFetchers';
 import { createBatchHandler, createHandler } from './bufferedSubscription';
 import * as LocalCache from './cachedData';
-import { addChannelToNavSection, moveChannel } from './groupActions';
+import {
+  addChannelToNavSection,
+  moveChannel,
+  recoverPartiallyCreatedPersonalGroup,
+} from './groupActions';
 import { verifyUserInviteLink } from './inviteActions';
 import { useLureState } from './lure';
 import { verifyPostDelivery } from './postActions';
@@ -1563,6 +1567,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
 
     // post sync initialization work
     await verifyUserInviteLink();
+    recoverPartiallyCreatedPersonalGroup();
     db.userHasCompletedFirstSync.setValue(true);
   } finally {
     isSyncing = false;
