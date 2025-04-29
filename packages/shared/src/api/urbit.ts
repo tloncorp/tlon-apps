@@ -186,9 +186,6 @@ export function internalConfigureClient({
   });
 
   config.client.on('error', (error) => {
-    logger.trackError(AnalyticsEvent.NodeConnectionError, {
-      errorMessage: error.msg,
-    });
     logger.log('client error', error);
   });
 
@@ -235,6 +232,10 @@ export async function subscribe<T>(
         // tracked pokes
         const endpointKey = printEndpoint(endpoint);
         const endpointWatchers = config.subWatchers[endpointKey];
+        logger.debug(
+          `checking for endpoint watchers on ${endpointKey}:`,
+          endpointWatchers
+        );
         if (endpointWatchers) {
           endpointWatchers.forEach((watcher) => {
             if (watcher.predicate(event, mark)) {

@@ -1,6 +1,6 @@
-/-  d=channels
+/-  c=channels
 /+  j=channel-json
-|_  update=[=nest:d =unread:d]
+|_  update=[=nest:c =unread:c]
 ++  grad  %noun
 ++  grow
   |%
@@ -9,6 +9,6 @@
   --
 ++  grab
   |%
-  ++  noun  ,[nest:d unread:d]
+  ++  noun  ,[nest:c unread:c]
   --
 --

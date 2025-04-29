@@ -5,9 +5,9 @@ import {
   StorageCredentials,
   StorageService,
 } from '../api';
+import { NodeBootPhase, SignupParams, WayfindingProgress } from '../domain';
 import { Lure } from '../logic';
 import * as ub from '../urbit';
-import { NodeBootPhase, SignupParams } from './domainTypes';
 import { createStorageItem } from './storageItem';
 
 export const pushNotificationSettings =
@@ -127,6 +127,11 @@ export const didInitializeTelemetry = createStorageItem<boolean>({
   defaultValue: false,
 });
 
+export const hasClearedLegacyWebTelemetry = createStorageItem<boolean>({
+  key: 'hasClearedLegacyWebTelemetry',
+  defaultValue: false,
+});
+
 export const lastAnonymousAppOpenAt = createStorageItem<number | null>({
   key: 'lastAnonymousAppOpenAt',
   defaultValue: null,
@@ -167,6 +172,13 @@ export const postDraft = (opts: {
   });
 };
 
+export const lastVisitedChannelId = (groupId: string) => {
+  return createStorageItem<string | null>({
+    key: `lastVisitedChannelId-${groupId}`,
+    defaultValue: null,
+  });
+};
+
 export const themeSettings = createStorageItem<ThemeName | null>({
   key: '@user_theme',
   defaultValue: null,
@@ -197,6 +209,7 @@ export type ShipInfo = {
   ship: string | undefined;
   shipUrl: string | undefined;
   authCookie: string | undefined;
+  needsSplashSequence?: boolean;
 };
 
 export const shipInfo = createStorageItem<ShipInfo | null>({
@@ -285,4 +298,22 @@ export const anyalticsDigestUpdatedAt = createStorageItem<number | null>({
 export const userHasCompletedFirstSync = createStorageItem<boolean>({
   key: 'userHasCompletedFirstSync',
   defaultValue: false,
+});
+
+export const userHasPersonalGroup = createStorageItem<boolean>({
+  key: 'userHasPersonalGroup',
+  defaultValue: false,
+});
+
+export const wayfindingProgress = createStorageItem<WayfindingProgress>({
+  key: 'wayfindingProgress',
+  defaultValue: {
+    viewedPersonalGroup: false,
+    viewedChatChannel: false,
+    viewedCollectionChannel: false,
+    viewedNotebookChannel: false,
+    tappedAddNote: true,
+    tappedAddCollection: true,
+    tappedChatInput: true,
+  },
 });

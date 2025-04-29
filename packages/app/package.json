@@ -18,6 +18,7 @@
     "react-native-email-link": "^1.16.1",
     "react-native-fetch-api": "^3.0.0",
     "react-native-polyfill-globals": "^3.1.0",
+    "refractor": "^4.8.0",
     "sqlocal": "^0.11.1",
     "posthog-js": "^1.234.4"
   },
@@ -26,12 +27,13 @@
     "@types/react-native": "0.73.0"
   },
   "peerDependencies": {
-    "tamagui": "~1.112.12",
+    "@10play/tentap-editor": "*",
     "@react-native-firebase/perf": "19.2.2",
-    "expo-notifications": "~0.27.6",
     "expo-blur": "*",
+    "expo-notifications": "~0.27.6",
     "lodash": "^4.17.21",
     "react-native-device-info": "^10.8.0",
+    "tamagui": "~1.112.12",
     "zustand": "^3.7.2"
   }
 }

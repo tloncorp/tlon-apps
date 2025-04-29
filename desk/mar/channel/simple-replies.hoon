@@ -1,14 +1,14 @@
-/-  d=channels
+/-  c=channels
 /+  j=channel-json
-|_  =simple-replies:d
+|_  =simple-replies:v7:old:c
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  simple-replies
-  ++  json  (simple-replies:enjs:j simple-replies)
+  ++  json  (simple-replies:v7:enjs:j simple-replies)
   --
 ++  grab
   |%
-  ++  noun  simple-replies
+  ++  noun  simple-replies:v7:old:c
   --
 --

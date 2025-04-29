@@ -1,7 +1,6 @@
 import {
   isChatChannel as getIsChatChannel,
   makePrettyDayAndTime,
-  makePrettyTime,
   useDebouncedValue,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -34,7 +33,10 @@ import * as utils from '../utils';
 import BareChatInput from './BareChatInput';
 import { BigInput } from './BigInput';
 import { ChannelFooter } from './Channel/ChannelFooter';
-import { ChannelHeader } from './Channel/ChannelHeader';
+import {
+  ChannelHeader,
+  ChannelHeaderItemsProvider,
+} from './Channel/ChannelHeader';
 import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
@@ -199,78 +201,80 @@ export function PostScreenView({
       onPressGroupRef={onPressGroupRef}
       onPressGoToDm={goToDm}
     >
-      <ChannelProvider value={{ channel }}>
-        <FocusedPostContext.Provider
-          value={useMemo(
-            () => ({
-              focusedPost,
-              setFocusedPost,
-            }),
-            [focusedPost]
-          )}
-        >
-          <FileDrop
-            paddingBottom={bottom}
-            backgroundColor="$background"
-            flex={1}
-            onAssetsDropped={attachAssets}
+      <ChannelHeaderItemsProvider>
+        <ChannelProvider value={{ channel }}>
+          <FocusedPostContext.Provider
+            value={useMemo(
+              () => ({
+                focusedPost,
+                setFocusedPost,
+              }),
+              [focusedPost]
+            )}
           >
-            <KeyboardAvoidingView>
-              <YStack flex={1} backgroundColor={'$background'}>
-                <ConnectedHeader
-                  channel={channel}
-                  goBack={handleGoBack}
-                  mode={headerMode}
-                  showEditButton={showEdit}
-                  goToEdit={handleEditPress}
-                />
-                {parentPost &&
-                  (mode === 'single' ? (
-                    <SinglePostView
-                      {...{
-                        channel,
-                        editPost,
-                        editingPost,
-                        goBack,
-                        groupMembers,
-                        handleGoToImage,
-                        headerMode,
-                        negotiationMatch,
-                        onPressDelete,
-                        onPressRetry,
-                        parentPost,
-                        setEditingPost,
-                      }}
-                    />
-                  ) : (
-                    <CarouselPostScreenContent
-                      flex={1}
-                      width="100%"
-                      channelId={channel.id}
-                      initialPostId={parentPost.id}
-                      channelContext={{
-                        editPost,
-                        editingPost,
-                        groupMembers,
-                        headerMode,
-                        negotiationMatch,
-                        onPressDelete,
-                        onPressRetry,
-                        setEditingPost,
-                      }}
-                    />
-                  ))}
-                <GroupPreviewSheet
-                  group={groupPreview ?? undefined}
-                  open={!!groupPreview}
-                  onOpenChange={() => setGroupPreview(null)}
-                  onActionComplete={handleGroupAction}
-                />
-              </YStack>
-            </KeyboardAvoidingView>
-          </FileDrop>
-        </FocusedPostContext.Provider>
-      </ChannelProvider>
+            <FileDrop
+              paddingBottom={bottom}
+              backgroundColor="$background"
+              flex={1}
+              onAssetsDropped={attachAssets}
+            >
+              <KeyboardAvoidingView>
+                <YStack flex={1} backgroundColor={'$background'}>
+                  <ConnectedHeader
+                    channel={channel}
+                    goBack={handleGoBack}
+                    mode={headerMode}
+                    showEditButton={showEdit}
+                    goToEdit={handleEditPress}
+                  />
+                  {parentPost &&
+                    (mode === 'single' ? (
+                      <SinglePostView
+                        {...{
+                          channel,
+                          editPost,
+                          editingPost,
+                          goBack,
+                          groupMembers,
+                          handleGoToImage,
+                          headerMode,
+                          negotiationMatch,
+                          onPressDelete,
+                          onPressRetry,
+                          parentPost,
+                          setEditingPost,
+                        }}
+                      />
+                    ) : (
+                      <CarouselPostScreenContent
+                        flex={1}
+                        width="100%"
+                        channelId={channel.id}
+                        initialPostId={parentPost.id}
+                        channelContext={{
+                          editPost,
+                          editingPost,
+                          groupMembers,
+                          headerMode,
+                          negotiationMatch,
+                          onPressDelete,
+                          onPressRetry,
+                          setEditingPost,
+                        }}
+                      />
+                    ))}
+                  <GroupPreviewSheet
+                    group={groupPreview ?? undefined}
+                    open={!!groupPreview}
+                    onOpenChange={() => setGroupPreview(null)}
+                    onActionComplete={handleGroupAction}
+                  />
+                </YStack>
+              </KeyboardAvoidingView>
+            </FileDrop>
+          </FocusedPostContext.Provider>
+        </ChannelProvider>
+      </ChannelHeaderItemsProvider>
     </NavigationProvider>
   );
 }
@@ -473,6 +477,14 @@ function SinglePostView({
     [currentUserId, channel, parentPost, store]
   );
 
+  const isChatLike = useMemo(
+    () =>
+      channel.type === 'chat' ||
+      channel.type === 'dm' ||
+      channel.type === 'groupDm',
+    [channel.type]
+  );
+
   return (
     <YStack flex={1}>
       {parentPost ? (
@@ -511,11 +523,10 @@ function SinglePostView({
               setEditingPost={setEditingPost}
               editPost={editPost}
               channelType="chat"
-              showAttachmentButton={channel.type === 'chat'}
-              showInlineAttachments={channel.type === 'chat'}
+              showAttachmentButton={isChatLike}
+              showInlineAttachments
               shouldAutoFocus={
-                (channel.type === 'chat' && parentPost?.replyCount === 0) ||
-                !!editingPost
+                (isChatLike && parentPost?.replyCount === 0) || !!editingPost
               }
             />
           </View>
@@ -541,20 +552,29 @@ function SinglePostView({
       {parentPost &&
       isEditingParent &&
       (channel.type === 'notebook' || channel.type === 'gallery') ? (
-        <BigInput
-          channelType={urbit.getChannelType(parentPost.channelId)}
-          channelId={parentPost?.channelId}
-          editingPost={editingPost}
-          setEditingPost={setEditingPost}
-          editPost={editPost}
-          shouldBlur={inputShouldBlur}
-          setShouldBlur={setInputShouldBlur}
-          send={async () => {}}
-          getDraft={getDraft}
-          storeDraft={storeDraft}
-          clearDraft={clearDraft}
-          groupMembers={groupMembers}
-        />
+        <View
+          position="absolute"
+          top={0}
+          left={0}
+          right={0}
+          bottom={0}
+          backgroundColor="$background"
+        >
+          <BigInput
+            channelType={urbit.getChannelType(parentPost.channelId)}
+            channelId={parentPost?.channelId}
+            editingPost={editingPost}
+            setEditingPost={setEditingPost}
+            editPost={editPost}
+            shouldBlur={inputShouldBlur}
+            setShouldBlur={setInputShouldBlur}
+            send={async () => {}}
+            getDraft={getDraft}
+            storeDraft={storeDraft}
+            clearDraft={clearDraft}
+            groupMembers={groupMembers}
+          />
+        </View>
       ) : null}
       {headerMode === 'next' && (
         <ChannelFooter

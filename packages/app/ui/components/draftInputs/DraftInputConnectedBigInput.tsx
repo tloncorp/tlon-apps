@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction } from 'react';
-import { AnimatePresence, View } from 'tamagui';
+import { View } from 'tamagui';
 
 import { BigInput } from '../BigInput';
 import { DraftInputContext } from './shared';
@@ -38,43 +38,30 @@ export function DraftInputConnectedBigInput({
     storeDraft,
   } = draftInputContext;
 
+  if (hidden) {
+    return null;
+  }
+
   return (
-    <AnimatePresence>
-      {!hidden && (
-        <View
-          animation="simple"
-          enterStyle={{
-            y: 100,
-            opacity: 0,
-          }}
-          exitStyle={{
-            y: 100,
-            opacity: 0,
-          }}
-          y={0}
-          opacity={1}
-          width="100%"
-        >
-          <BigInput
-            channelType={
-              overrideChannelType == null ? channel.type : overrideChannelType
-            }
-            channelId={channel.id}
-            groupMembers={group?.members ?? []}
-            shouldBlur={shouldBlur}
-            setShouldBlur={setShouldBlur}
-            send={send}
-            storeDraft={storeDraft}
-            clearDraft={clearDraft}
-            getDraft={getDraft}
-            editingPost={editingPost}
-            setEditingPost={setEditingPost}
-            editPost={editPost}
-            setShowBigInput={setShowBigInput}
-            placeholder=""
-          />
-        </View>
-      )}
-    </AnimatePresence>
+    <View opacity={1} width="100%" height={'100%'}>
+      <BigInput
+        channelType={
+          overrideChannelType == null ? channel.type : overrideChannelType
+        }
+        channelId={channel.id}
+        groupMembers={group?.members ?? []}
+        shouldBlur={shouldBlur}
+        setShouldBlur={setShouldBlur}
+        send={send}
+        storeDraft={storeDraft}
+        clearDraft={clearDraft}
+        getDraft={getDraft}
+        editingPost={editingPost}
+        setEditingPost={setEditingPost}
+        editPost={editPost}
+        setShowBigInput={setShowBigInput}
+        placeholder=""
+      />
+    </View>
   );
 }

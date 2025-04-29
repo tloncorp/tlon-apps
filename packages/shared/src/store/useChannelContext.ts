@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { Post, PostMetadata } from '../db';
+import { isDmChannelId } from '../logic';
 import type { Story } from '../urbit';
 import * as dbHooks from './dbHooks';
 import * as postActions from './postActions';
@@ -61,12 +62,16 @@ export const useChannelContext = ({
   );
 
   // Version negotiation
-  const channelHost = useMemo(() => channelId.split('/')[1], [channelId]);
+  const isDM = isDmChannelId(channelId);
+  const channelHost = useMemo(
+    () => (isDM ? channelId : channelId.split('/')[1]),
+    [channelId, isDM]
+  );
 
   const negotiationStatus = useNegotiate(
     channelHost,
-    'channels',
-    'channels-server'
+    isDM ? 'chat' : 'channels',
+    isDM ? 'chat' : 'channels-server'
   );
 
   // Draft

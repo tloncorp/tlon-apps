@@ -154,6 +154,13 @@ function useNavigateToChannel() {
           channel.groupId ?? undefined,
           selectedPostId
         );
+        logger.log('navigateToChannel', {
+          channelRoute,
+          tab,
+          channelId: channel.id,
+          groupId: channel.groupId,
+          selectedPostId,
+        });
         navigation.navigate(channelRoute);
       }
     },
@@ -173,17 +180,22 @@ export function useNavigateToPost() {
 
   return useCallback(
     (post: db.Post) => {
+      const postParams = {
+        postId: post.id,
+        authorId: post.authorId,
+        channelId: post.channelId,
+        groupId: post.groupId ?? undefined,
+      };
+
       if (!isWindowNarrow && currentScreenIsActivity) {
-        navigation.navigate(getTab(navigation, lastOpenTab), {
+        const tab = getTab(navigation, lastOpenTab);
+        logger.log('navigateToPost', tab, postParams);
+
+        navigation.navigate(tab, {
           screen: 'Channel',
           params: {
             screen: 'Post',
-            params: {
-              postId: post.id,
-              authorId: post.authorId,
-              channelId: post.channelId,
-              groupId: post.groupId ?? undefined,
-            },
+            params: postParams,
           },
         });
         return;
@@ -196,7 +208,7 @@ export function useNavigateToPost() {
         groupId: post.groupId ?? undefined,
       });
     },
-    [navigation, isWindowNarrow, currentScreenIsActivity]
+    [isWindowNarrow, currentScreenIsActivity, navigation, lastOpenTab]
   );
 }
 
@@ -266,7 +278,7 @@ function getTab(
       ? parent
       : navigation.getState();
 
-  logger.log(parent, navigation.getState());
+  logger.log('looking for drawer', parent, navigation.getState());
   if (state.type !== 'drawer' || state.routes[state.index]?.name === 'Root') {
     console.warn(
       'Top-level navigator is not a drawer navigator, using lastOpenTab'
@@ -409,11 +421,13 @@ export function getDesktopChannelRoute(
     name: tab,
     params: {
       screen: screenName,
-      initial: true,
       params: {
-        channelId,
-        selectedPostId,
-        ...(groupId ? { groupId } : {}),
+        screen: 'ChannelRoot',
+        params: {
+          channelId,
+          selectedPostId,
+          ...(groupId ? { groupId } : {}),
+        },
       },
     },
   } as const;
@@ -424,6 +438,9 @@ export async function getMainGroupRoute(
   isWindowNarrow: boolean
 ) {
   const group = await db.getGroup({ id: groupId });
+  const lastVisitedChannelId = await db
+    .lastVisitedChannelId(groupId)
+    .getValue();
   const channelSwitcherEnabled =
     useFeatureFlagStore.getState().flags.channelSwitcher;
   if (
@@ -431,12 +448,8 @@ export async function getMainGroupRoute(
     group.channels &&
     (group.channels.length === 1 || channelSwitcherEnabled || !isWindowNarrow)
   ) {
-    if (!isWindowNarrow && group.lastVisitedChannelId) {
-      return getDesktopChannelRoute(
-        'Home',
-        group.lastVisitedChannelId,
-        groupId
-      );
+    if (!isWindowNarrow && lastVisitedChannelId) {
+      return getDesktopChannelRoute('Home', lastVisitedChannelId, groupId);
     }
 
     if (!isWindowNarrow) {

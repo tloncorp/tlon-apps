@@ -126,7 +126,7 @@ export function layoutForType(
         columnCount: 2,
         dividersEnabled: false,
         enableUnreadAnchor: false,
-        itemAspectRatio: 1,
+        itemAspectRatio: 0.8,
         shouldMaintainVisibleContentPosition: false,
         scrollDirection: 'top-to-bottom',
       };

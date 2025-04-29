@@ -3,6 +3,7 @@ import { tamaguiPlugin } from '@tamagui/vite-plugin';
 import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import react from '@vitejs/plugin-react';
+import fs from 'fs';
 import analyze from 'rollup-plugin-analyzer';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { fileURLToPath } from 'url';
@@ -17,6 +18,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 import svgr from 'vite-plugin-svgr';
 
 import packageJson from './package.json';
+import reactNativeWeb from './reactNativeWebPlugin';
 import manifest from './src/manifest';
 
 // https://vitejs.dev/config/
@@ -38,8 +40,14 @@ export default ({ mode }: { mode: string }) => {
 
   // eslint-disable-next-line
   const base = (mode: string) => {
+    console.log('mode', mode);
+
     if (mode === 'mock' || mode === 'staging') {
       return '';
+    }
+
+    if (mode === 'electron') {
+      return './';
     }
 
     return '/apps/groups/';
@@ -56,8 +64,32 @@ export default ({ mode }: { mode: string }) => {
       ];
     }
 
+    if (mode === 'electron') {
+      return [
+        exportingRawText(/\.sql$/),
+        react({
+          babel: {
+            plugins: [
+              '@babel/plugin-proposal-export-namespace-from',
+              'react-native-reanimated/plugin',
+            ],
+          },
+          jsxImportSource: '@welldone-software/why-did-you-render',
+        }) as PluginOption[],
+        svgr({
+          include: '**/*.svg',
+        }) as Plugin,
+        reactNativeWeb(),
+        tamaguiPlugin({
+          config: './tamagui.config.ts',
+          platform: 'web',
+        }) as Plugin,
+      ];
+    }
+
     return [
       process.env.SSL === 'true' ? (basicSsl() as PluginOption) : null,
+      exportingRawText(/\.sql$/),
       urbitPlugin({
         base: 'groups',
         target: mode === 'dev2' ? SHIP_URL2 : SHIP_URL,
@@ -65,11 +97,20 @@ export default ({ mode }: { mode: string }) => {
         secure: false,
       }) as PluginOption[],
       react({
+        babel: {
+          // adding these per instructions here:
+          // https://docs.swmansion.com/react-native-reanimated/docs/guides/web-support/
+          plugins: [
+            '@babel/plugin-proposal-export-namespace-from',
+            'react-native-reanimated/plugin',
+          ],
+        },
         jsxImportSource: '@welldone-software/why-did-you-render',
       }) as PluginOption[],
       svgr({
         include: '**/*.svg',
       }) as Plugin,
+      reactNativeWeb(),
       tamaguiPlugin({
         config: './tamagui.config.ts',
         platform: 'web',
@@ -81,7 +122,7 @@ export default ({ mode }: { mode: string }) => {
         registerType: 'prompt',
         strategies: 'injectManifest',
         srcDir: 'src',
-        filename: 'sw.ts',
+        filename: 'sw-1.ts',
         useCredentials: true,
         devOptions: {
           enabled: mode === 'sw',
@@ -90,6 +131,7 @@ export default ({ mode }: { mode: string }) => {
         injectManifest: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
           maximumFileSizeToCacheInBytes: 100000000,
+          plugins: [reactNativeWeb()],
         },
       }),
     ];
@@ -97,10 +139,9 @@ export default ({ mode }: { mode: string }) => {
 
   const rollupOptions = {
     external:
-      mode === 'mock' || mode === 'staging'
-        ? ['virtual:pwa-register/react']
-        : // TODO: find workaround for issues with @tamagui/react-native-svg
-          ['@urbit/sigil-js/dist/core', 'react-native-svg'],
+      mode === 'mock' || mode === 'staging' || mode === 'electron'
+        ? ['react-native-device-info']
+        : ['@urbit/sigil-js/dist/core', 'react-native-device-info'],
     output: {
       hashCharacters: 'base36' as any,
       manualChunks: {
@@ -110,27 +151,12 @@ export default ({ mode }: { mode: string }) => {
         'urbit/http-api': ['@urbit/http-api'],
         'urbit/sigil-js': ['@urbit/sigil-js'],
         'any-ascii': ['any-ascii'],
-        'react-beautiful-dnd': ['react-beautiful-dnd'],
-        'emoji-mart': ['emoji-mart'],
         'tiptap/core': ['@tiptap/core'],
         'tiptap/extension-placeholder': ['@tiptap/extension-placeholder'],
         'tiptap/extension-link': ['@tiptap/extension-link'],
-        'react-virtuoso': ['react-virtuoso'],
-        'react-select': ['react-select'],
-        'react-hook-form': ['react-hook-form'],
-        'framer-motion': ['framer-motion'],
-        'date-fns': ['date-fns'],
-        'tippy.js': ['tippy.js'],
         'aws-sdk/client-s3': ['@aws-sdk/client-s3'],
         'aws-sdk/s3-request-presigner': ['@aws-sdk/s3-request-presigner'],
-        refractor: ['refractor'],
         'urbit-ob': ['urbit-ob'],
-        'hast-to-hyperscript': ['hast-to-hyperscript'],
-        'radix-ui/react-dialog': ['@radix-ui/react-dialog'],
-        'radix-ui/react-dropdown-menu': ['@radix-ui/react-dropdown-menu'],
-        'radix-ui/react-popover': ['@radix-ui/react-popover'],
-        'radix-ui/react-toast': ['@radix-ui/react-toast'],
-        'radix-ui/react-tooltip': ['@radix-ui/react-tooltip'],
       },
     },
   };
@@ -169,6 +195,7 @@ export default ({ mode }: { mode: string }) => {
         ? {
             sourcemap: false,
             rollupOptions,
+            target: 'esnext',
           }
         : ({
             rollupOptions: {
@@ -181,20 +208,38 @@ export default ({ mode }: { mode: string }) => {
               ],
             },
           } as BuildOptions),
+    worker: {
+      rollupOptions: {
+        output: {
+          hashCharacters: 'base36' as any,
+        },
+      },
+    },
     plugins: plugins(mode),
     resolve: {
       dedupe: ['@tanstack/react-query'],
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
+        ...(mode === 'electron'
+          ? {
+              'virtual:pwa-register/react': fileURLToPath(
+                new URL('./src/logic/useAppUpdatesStub.ts', import.meta.url)
+              ),
+              '@react-native-firebase/crashlytics': fileURLToPath(
+                new URL('./src/crashlytics-stub.ts', import.meta.url)
+              ),
+              'expo-notifications': fileURLToPath(
+                new URL('./src/notifications-stub.ts', import.meta.url)
+              ),
+            }
+          : {}),
       },
     },
     optimizeDeps: {
-      esbuildOptions: {
-        // Fix for polyfill issue with @tamagui/animations-moti
-        define: {
-          global: 'globalThis',
-        },
-      },
+      exclude: [
+        'sqlocal',
+        ...(mode === 'electron' ? ['virtual:pwa-register/react'] : []),
+      ],
     },
     test: {
       globals: true,
@@ -210,3 +255,17 @@ export default ({ mode }: { mode: string }) => {
     },
   });
 };
+
+/** Transforms matching files into ES modules that export the file's content as a string */
+function exportingRawText(matchId: RegExp): Plugin {
+  return {
+    name: 'inline sql',
+    enforce: 'pre',
+    transform(_code, id) {
+      if (matchId.test(id)) {
+        const sql = fs.readFileSync(id, 'utf-8');
+        return `export default ${JSON.stringify(sql)}`;
+      }
+    },
+  };
+}

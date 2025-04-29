@@ -39,6 +39,7 @@ import {
   interleaveActivityEvents,
   toSourceActivityEvents,
 } from '../logic/activity';
+import { Session } from '../store';
 import { Rank } from '../urbit';
 import {
   QueryCtx,
@@ -438,6 +439,37 @@ export const getAllChannels = createReadQuery(
   ['channels']
 );
 
+export const getChannelsForPredictiveSync = createReadQuery(
+  'getChannelsWithUncachedGap',
+  async (
+    opts: { session: Session; limit?: number },
+    ctx: QueryCtx
+  ): Promise<Channel[]> => {
+    const { session } = opts;
+    return await ctx.db.query.channels.findMany({
+      // where channel can fetch newer posts (i.e. has not cached newest posts)
+      where: not(
+        // logic ported from `hasChannelCachedNewestPosts`
+        // https://github.com/tloncorp/tlon-apps/blob/b967030abb33522964b7ca925c4c599bee489ae7/packages/shared/src/store/sync.ts#L1400
+        and(
+          isNotNull($channels.syncedAt),
+          or(
+            gte($channels.syncedAt, session.startTime ?? 0),
+            and(
+              isNotNull($channels.lastPostAt),
+              gt($channels.syncedAt, $channels.lastPostAt)
+            )
+          )
+        )!
+      ),
+
+      orderBy: [desc($channels.lastViewedAt), desc($channels.lastPostAt)],
+      limit: opts.limit,
+    });
+  },
+  ['channels']
+);
+
 export const getChats = createReadQuery(
   'getChats',
   async (
@@ -727,7 +759,11 @@ export const insertGroups = createWriteQuery(
           await txCtx.db
             .insert($chatMembers)
             .values(group.members)
-            .onConflictDoNothing();
+            .onConflictDoUpdate({
+              target: [$chatMembers.chatId, $chatMembers.contactId],
+              set: conflictUpdateSetAll($chatMembers),
+            });
+
           const validRoleNames = group.roles?.map((r) => r.id);
           const memberRoles = group.members.flatMap((m) => {
             return (m.roles ?? []).flatMap((r) => {
@@ -1781,8 +1817,10 @@ export const deleteChannels = createWriteQuery(
   'deleteChannels',
   async (channels: string[], ctx: QueryCtx) => {
     logger.log(`deleteChannels`, channels);
-    await ctx.db.delete($posts).where(inArray($channels.id, channels));
-    await ctx.db.delete($chatMembers).where(inArray($channels.id, channels));
+    await ctx.db.delete($posts).where(inArray($posts.channelId, channels));
+    await ctx.db
+      .delete($chatMembers)
+      .where(inArray($chatMembers.chatId, channels));
     await ctx.db.delete($channels).where(inArray($channels.id, channels));
     return;
   },
@@ -2097,6 +2135,43 @@ export const setLeftGroups = createWriteQuery(
   ['groups', 'channels']
 );
 
+export const getPostWindow = createReadQuery(
+  'getPostWindow',
+  async (
+    {
+      channelId,
+      postId,
+    }: {
+      channelId: string;
+      /**
+       * Find window containing this post ID.
+       * If omitted, returns window with newest post.
+       */
+      postId: string | null;
+    },
+    ctx: QueryCtx
+  ) => {
+    // Find the window (set of contiguous posts) that this cursor belongs to.
+    // These are the posts that we can return safely without gaps and without hitting the api.
+    return await ctx.db.query.postWindows.findFirst({
+      where: and(
+        // For this channel
+        eq($postWindows.channelId, channelId),
+
+        // window.oldest <= postId <= window.newest
+        postId ? gte($postWindows.newestPostId, postId) : undefined,
+        postId ? lte($postWindows.oldestPostId, postId) : undefined
+      ),
+      orderBy: [desc($postWindows.newestPostId)],
+      columns: {
+        oldestPostId: true,
+        newestPostId: true,
+      },
+    });
+  },
+  ['postWindows']
+);
+
 export type GetChannelPostsOptions = {
   channelId: string;
   count?: number;
@@ -2112,21 +2187,10 @@ export const getChannelPosts = createReadQuery(
   ): Promise<Post[]> => {
     // Find the window (set of contiguous posts) that this cursor belongs to.
     // These are the posts that we can return safely without gaps and without hitting the api.
-    const window = await ctx.db.query.postWindows.findFirst({
-      where: and(
-        // For this channel
-        eq($postWindows.channelId, channelId),
-        // Depending on mode, either older or newer than cursor. If mode is
-        // `newest`, we don't need to filter by cursor.
-        cursor ? gte($postWindows.newestPostId, cursor) : undefined,
-        cursor ? lte($postWindows.oldestPostId, cursor) : undefined
-      ),
-      orderBy: [desc($postWindows.newestPostId)],
-      columns: {
-        oldestPostId: true,
-        newestPostId: true,
-      },
-    });
+    const window = await getPostWindow(
+      { channelId, postId: cursor ?? null },
+      ctx
+    );
     // If the cursor isn't part of any window, we return an empty array.
     if (!window) {
       return [];
@@ -2422,7 +2486,7 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
       set: conflictUpdateSetAll($posts, ['hidden']),
     })
     .onConflictDoUpdate({
-      target: [$posts.authorId, $posts.sentAt],
+      target: [$posts.authorId, $posts.channelId, $posts.sentAt],
       set: conflictUpdateSetAll($posts, ['hidden']),
     });
 
@@ -2646,7 +2710,7 @@ async function updatePostWindows(
 
   logger.log('inserting final window', finalWindow);
   // Insert final window.
-  await ctx.db.insert($postWindows).values(finalWindow);
+  await ctx.db.insert($postWindows).values(finalWindow).onConflictDoNothing();
 }
 
 function overlapsWindow(window: PostWindow) {
@@ -2805,13 +2869,23 @@ export const getPostByBackendTime = createReadQuery(
 export const getPostByCacheId = createReadQuery(
   'getPostByCacheId',
   async (
-    { sentAt, authorId }: { sentAt: number; authorId: string },
+    {
+      channelId,
+      sentAt,
+      authorId,
+    }: { channelId: string; sentAt: number; authorId: string },
     ctx: QueryCtx
   ) => {
     const postData = await ctx.db
       .select()
       .from($posts)
-      .where(and(eq($posts.sentAt, sentAt), eq($posts.authorId, authorId)));
+      .where(
+        and(
+          eq($posts.sentAt, sentAt),
+          eq($posts.authorId, authorId),
+          eq($posts.channelId, channelId)
+        )
+      );
     if (!postData.length) return null;
     return postData[0];
   },
@@ -2889,6 +2963,26 @@ export const getPostWithRelations = createReadQuery(
       .then(returnNullIfUndefined);
   },
   ['posts', 'threadUnreads', 'volumeSettings']
+);
+
+export const getPersonalGroup = createReadQuery(
+  'getPersonalGroup',
+  async (ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
+    const groupId = `${currentUserId}/${domain.PersonalGroupSlugs.slug}`;
+    const group = await getGroup({ id: groupId }, ctx);
+    return group;
+  },
+  [
+    'groups',
+    'channelUnreads',
+    'volumeSettings',
+    'channels',
+    'groupJoinRequests',
+    'groupMemberBans',
+    'groupNavSectionChannels',
+    'groupRoles',
+  ]
 );
 
 export const getGroup = createReadQuery(
@@ -3308,7 +3402,6 @@ export const insertContacts = createWriteQuery(
           .onConflictDoNothing();
       }
 
-      console.log(`check 1`);
       // clear existing
       await txCtx.db
         .delete($attestations)
@@ -3485,9 +3578,15 @@ export const insertThreadUnreads = createWriteQuery(
 
 export const getThreadUnreadsByChannel = createReadQuery(
   'getThreadUnreadsByChannel',
-  async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
+  async (
+    { channelId, excludeRead }: { channelId: string; excludeRead?: boolean },
+    ctx: QueryCtx
+  ): Promise<ThreadUnreadState[]> => {
     return ctx.db.query.threadUnreads.findMany({
-      where: eq($threadUnreads.channelId, channelId),
+      where: and(
+        eq($threadUnreads.channelId, channelId),
+        excludeRead ? not(eq($threadUnreads.count, 0)) : undefined
+      ),
     });
   },
   ['threadUnreads']
@@ -3508,6 +3607,17 @@ export const clearThreadUnread = createWriteQuery(
           eq($threadUnreads.threadId, threadId)
         )
       );
+  },
+  ['threadUnreads']
+);
+
+export const clearChannelThreadUnreads = createWriteQuery(
+  'clearChannelThreadUnreads',
+  async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
+    return ctx.db
+      .update($threadUnreads)
+      .set({ count: 0, firstUnreadPostId: null })
+      .where(eq($threadUnreads.channelId, channelId));
   },
   ['threadUnreads']
 );

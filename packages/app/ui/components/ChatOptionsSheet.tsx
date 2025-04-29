@@ -2,11 +2,12 @@ import { featureFlags } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/shared/urbit';
-import { useIsWindowNarrow } from '@tloncorp/ui';
+import { Icon, useIsWindowNarrow } from '@tloncorp/ui';
 import { IconButton } from '@tloncorp/ui';
-import { ChevronLeft } from '@tloncorp/ui/assets/icons';
+import { isEqual } from 'lodash';
 import React, {
   ReactElement,
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -44,8 +45,7 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
   onOpenChange: propOnOpenChange,
   trigger,
 }: ChatOptionsSheetProps) {
-  const context = useChatOptions();
-  const { group } = context;
+  const { open: contextOpen, setChat, group } = useChatOptions();
 
   // Use props for explicit control (popovers)
   // For sheets, this will be false and context.open will handle state
@@ -56,7 +56,7 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
     (open: boolean) => {
       if (open && chat) {
         // Set chat state for both popovers and sheets
-        context.open(chat.id, chat.type);
+        contextOpen(chat.id, chat.type);
       } else if (!open) {
         // Close both popover and sheet states
         if (propOnOpenChange) {
@@ -64,7 +64,7 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
         }
         // Clear chat state after a short delay to allow handlers to complete
         setTimeout(() => {
-          context.setChat(null);
+          setChat(null);
         }, 100);
       }
 
@@ -73,7 +73,7 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
         propOnOpenChange(open);
       }
     },
-    [chat, context, propOnOpenChange]
+    [chat, contextOpen, setChat, propOnOpenChange]
   );
 
   if (!chat || (!isOpen && !trigger)) {
@@ -108,7 +108,7 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
       trigger={trigger}
     />
   );
-});
+}, isEqual);
 
 export function GroupOptionsSheetLoader({
   groupId,
@@ -336,6 +336,8 @@ function GroupOptionsSheetContent({
       onPressSort,
       togglePinned,
       wrappedAction,
+      handleCancel,
+      isErrored,
     ]
   );
 
@@ -463,107 +465,117 @@ function EditGroupSheetContent({
 
 type ChannelPanes = 'initial' | 'notifications';
 
-export function ChannelOptionsSheetLoader({
-  channelId,
-  open,
-  onOpenChange,
-  trigger,
-  onPressConfigureChannel,
-}: {
-  channelId: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  trigger?: React.ReactNode;
-  onPressConfigureChannel?: () => void;
-}) {
-  const [pane, setPane] = useState<ChannelPanes>('initial');
-  const channelQuery = store.useChannel({
-    id: channelId,
-  });
+const ChannelOptionsSheetLoader = memo(
+  ({
+    channelId,
+    open,
+    onOpenChange,
+    trigger,
+    onPressConfigureChannel,
+  }: {
+    channelId: string;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    trigger?: React.ReactNode;
+    onPressConfigureChannel?: () => void;
+  }) => {
+    const [pane, setPane] = useState<ChannelPanes>('initial');
+    const channelQuery = store.useChannel({
+      id: channelId,
+    });
+    const groupId = useMemo(
+      () => channelQuery.data?.groupId ?? undefined,
+      [channelQuery.data?.groupId]
+    );
 
-  const { data: group } = store.useGroup({
-    id: channelQuery.data?.groupId ?? undefined,
-  });
-  const groupTitle = utils.useGroupTitle(group) ?? 'group';
-  const channelTitle =
-    utils.useChannelTitle(channelQuery.data ?? null) ?? 'channel';
-  const isSingleChannelGroup = group?.channels.length === 1;
-  const chatTitle = isSingleChannelGroup ? groupTitle : channelTitle;
-  const isWindowNarrow = useIsWindowNarrow();
+    const { data: group } = store.useGroup({
+      id: groupId,
+    });
+    const groupTitle = utils.useGroupTitle(group) ?? 'group';
+    const channelTitle =
+      utils.useChannelTitle(channelQuery.data ?? null) ?? 'channel';
+    const isSingleChannelGroup = group?.channels.length === 1;
+    const chatTitle = isSingleChannelGroup ? groupTitle : channelTitle;
+    const isWindowNarrow = useIsWindowNarrow();
 
-  const handlePressNotifications = useCallback(() => {
-    setPane('notifications');
-  }, [setPane]);
+    const handlePressNotifications = useCallback(() => {
+      setPane('notifications');
+    }, [setPane]);
 
-  const resetPane = useCallback(() => {
-    setPane('initial');
-  }, [setPane]);
+    const resetPane = useCallback(() => {
+      setPane('initial');
+    }, [setPane]);
 
-  useEffect(() => {
-    if (!open) {
-      resetPane();
+    useEffect(() => {
+      if (!open) {
+        resetPane();
+      }
+    }, [open, resetPane]);
+
+    if (!channelQuery.data) {
+      return null;
     }
-  }, [open, resetPane]);
 
-  if (!channelQuery.data) {
-    return null;
-  }
+    // Define channel variable before it's used in conditionals
+    const channel = channelQuery.data!;
 
-  if (isWeb && !isWindowNarrow) {
-    return (
-      <Popover
-        open={open}
-        onOpenChange={onOpenChange}
-        placement="top-end"
-        allowFlip
-        offset={-12}
-      >
-        <Popover.Trigger asChild>{trigger}</Popover.Trigger>
-        <Popover.Content
-          elevate
-          zIndex={1000000}
-          position="relative"
-          borderColor="$border"
-          borderWidth={1}
-          padding={1}
+    if (isWeb && !isWindowNarrow) {
+      return (
+        <Popover
+          open={open}
+          onOpenChange={onOpenChange}
+          placement="top-end"
+          allowFlip
+          offset={-12}
         >
-          {pane === 'notifications' ? (
-            <NotificationsSheetContent
-              chatTitle={chatTitle}
-              onPressBack={resetPane}
-            />
-          ) : (
-            <ChannelOptionsSheetContent
-              chatTitle={chatTitle}
-              channel={channelQuery.data}
-              onPressNotifications={handlePressNotifications}
-              onOpenChange={onOpenChange}
-            />
-          )}
-        </Popover.Content>
-      </Popover>
+          <Popover.Trigger asChild>{trigger}</Popover.Trigger>
+          <Popover.Content
+            elevate
+            zIndex={1000000}
+            position="relative"
+            borderColor="$border"
+            borderWidth={1}
+            padding={1}
+          >
+            {pane === 'notifications' ? (
+              <NotificationsSheetContent
+                chatTitle={chatTitle}
+                onPressBack={resetPane}
+              />
+            ) : (
+              <ChannelOptionsSheetContent
+                chatTitle={chatTitle}
+                channel={channel}
+                onPressNotifications={handlePressNotifications}
+                onOpenChange={onOpenChange}
+              />
+            )}
+          </Popover.Content>
+        </Popover>
+      );
+    }
+
+    return (
+      <ActionSheet open={open} onOpenChange={onOpenChange}>
+        {pane === 'notifications' ? (
+          <NotificationsSheetContent
+            chatTitle={chatTitle}
+            onPressBack={resetPane}
+          />
+        ) : (
+          <ChannelOptionsSheetContent
+            chatTitle={chatTitle}
+            channel={channel}
+            onPressNotifications={handlePressNotifications}
+            onOpenChange={onOpenChange}
+            onPressConfigureChannel={onPressConfigureChannel}
+          />
+        )}
+      </ActionSheet>
     );
   }
-
-  return (
-    <ActionSheet open={open} onOpenChange={onOpenChange}>
-      {pane === 'notifications' ? (
-        <NotificationsSheetContent
-          chatTitle={chatTitle}
-          onPressBack={resetPane}
-        />
-      ) : (
-        <ChannelOptionsSheetContent
-          chatTitle={chatTitle}
-          channel={channelQuery.data}
-          onPressNotifications={handlePressNotifications}
-          onOpenChange={onOpenChange}
-          onPressConfigureChannel={onPressConfigureChannel}
-        />
-      )}
-    </ActionSheet>
-  );
-}
+);
+ChannelOptionsSheetLoader.displayName = 'ChannelOptionsSheetLoader';
 
 function ChannelOptionsSheetContent({
   chatTitle,
@@ -634,7 +646,9 @@ function ChannelOptionsSheetContent({
           },
           canMarkRead && {
             title: 'Mark as read',
-            action: wrappedAction.bind(null, markChannelRead),
+            action: wrappedAction.bind(null, () =>
+              markChannelRead({ includeThreads: true })
+            ),
           },
         ],
         channel.type === 'groupDm' && [
@@ -841,7 +855,7 @@ function NotificationsSheetContent({
 function SheetBackButton({ onPress }: { onPress: () => void }) {
   return (
     <IconButton width="$4xl" onPress={onPress}>
-      <ChevronLeft />
+      <Icon type="ChevronLeft" />
     </IconButton>
   );
 }

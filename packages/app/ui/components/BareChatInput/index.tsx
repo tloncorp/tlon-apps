@@ -10,6 +10,7 @@ import {
   toContentReference,
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import {
   Block,
   Story,
@@ -38,6 +39,7 @@ import {
   TextAttachment,
   UploadedImageAttachment,
   useAttachmentContext,
+  useStore,
 } from '../../contexts';
 import { MentionController } from '../MentionPopup';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
@@ -200,9 +202,11 @@ export default function BareChatInput({
   onSend,
   goBack,
   shouldAutoFocus,
+  showWayfindingTooltip,
 }: MessageInputProps) {
   const { bottom, top } = useSafeAreaInsets();
   const { height } = useWindowDimensions();
+  const store = useStore();
   const headerHeight = 48;
   const maxInputHeightBasic = useMemo(
     () => height - headerHeight - bottom - top,
@@ -218,19 +222,22 @@ export default function BareChatInput({
   } = useAttachmentContext();
   const [controlledText, setControlledText] = useState('');
   const [inputHeight, setInputHeight] = useState(initialHeight);
-  const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState(false);
   const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
   const [editorIsEmpty, setEditorIsEmpty] = useState(attachments.length === 0);
   const [hasAutoFocused, setHasAutoFocused] = useState(false);
+  const [needsHeightAdjustmentAfterLoad, setNeedsHeightAdjustmentAfterLoad] =
+    useState(false);
   const {
     handleMention,
     handleSelectMention,
     mentionSearchText,
     mentions,
     setMentions,
-    showMentionPopup,
+    isMentionModeActive,
     handleMentionEscape,
+    hasMentionCandidates,
+    setHasMentionCandidates,
   } = useMentions();
   const maxInputHeight = useKeyboardHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
@@ -351,73 +358,78 @@ export default function BareChatInput({
       const jsonContent = textAndMentionsToContent(controlledText, mentions);
       const inlines = JSONToInlines(jsonContent);
       const story = constructStory(inlines);
-
-      const finalAttachments = await waitForAttachmentUploads();
-
-      const blocks = finalAttachments
-        .filter((attachment) => attachment.type !== 'text')
-        .flatMap((attachment): Block[] => {
-          if (attachment.type === 'reference') {
-            const cite = pathToCite(attachment.path);
-            return cite ? [{ cite }] : [];
-          }
-          if (
-            attachment.type === 'image' &&
-            (!image || attachment.file.uri !== image?.uri)
-          ) {
-            return [
-              {
-                image: {
-                  src: attachment.uploadState.remoteUri,
-                  height: attachment.file.height,
-                  width: attachment.file.width,
-                  alt: 'image',
-                },
-              },
-            ];
-          }
-
-          if (
-            image &&
-            attachment.type === 'image' &&
-            attachment.file.uri === image?.uri &&
-            isEdit &&
-            channelType === 'gallery'
-          ) {
-            return [
-              {
-                image: {
-                  src: image.uri,
-                  height: image.height,
-                  width: image.width,
-                  alt: 'image',
-                },
-              },
-            ];
-          }
-
-          return [];
-        });
-
-      if (blocks && blocks.length > 0) {
-        if (channelType === 'chat') {
-          story.unshift(...blocks.map((block) => ({ block })));
-        } else {
-          story.push(...blocks.map((block) => ({ block })));
-        }
-      }
-
       const metadata: db.PostMetadata = {};
 
-      if (image) {
-        const attachment = finalAttachments.find(
-          (a): a is UploadedImageAttachment =>
-            a.type === 'image' && a.file.uri === image.uri
-        );
-        if (!attachment) {
-          throw new Error('unable to attach image');
+      try {
+        const finalAttachments = await waitForAttachmentUploads();
+
+        const blocks = finalAttachments
+          .filter((attachment) => attachment.type !== 'text')
+          .flatMap((attachment): Block[] => {
+            if (attachment.type === 'reference') {
+              const cite = pathToCite(attachment.path);
+              return cite ? [{ cite }] : [];
+            }
+            if (
+              attachment.type === 'image' &&
+              (!image || attachment.file.uri !== image?.uri)
+            ) {
+              return [
+                {
+                  image: {
+                    src: attachment.uploadState.remoteUri,
+                    height: attachment.file.height,
+                    width: attachment.file.width,
+                    alt: 'image',
+                  },
+                },
+              ];
+            }
+
+            if (
+              image &&
+              attachment.type === 'image' &&
+              attachment.file.uri === image?.uri &&
+              isEdit &&
+              channelType === 'gallery'
+            ) {
+              return [
+                {
+                  image: {
+                    src: image.uri,
+                    height: image.height,
+                    width: image.width,
+                    alt: 'image',
+                  },
+                },
+              ];
+            }
+
+            return [];
+          });
+
+        if (blocks && blocks.length > 0) {
+          if (channelType === 'chat') {
+            story.unshift(...blocks.map((block) => ({ block })));
+          } else {
+            story.push(...blocks.map((block) => ({ block })));
+          }
         }
-        metadata['image'] = attachment.uploadState.remoteUri;
+
+        if (image) {
+          const attachment = finalAttachments.find(
+            (a): a is UploadedImageAttachment =>
+              a.type === 'image' && a.file.uri === image.uri
+          );
+          if (!attachment) {
+            throw new Error('unable to attach image');
+          }
+          metadata['image'] = attachment.uploadState.remoteUri;
+        }
+      } catch (e) {
+        bareChatInputLogger.error('Error processing attachments', e);
+        setSendError(true);
+        return;
       }
 
       try {
@@ -475,15 +487,17 @@ export default function BareChatInput({
 
   const runSendMessage = useCallback(
     async (isEdit: boolean) => {
-      setIsSending(true);
       try {
         await sendMessage(isEdit);
       } catch (e) {
         bareChatInputLogger.trackError('failed to send', e);
         setSendError(true);
       }
-      setIsSending(false);
-      setSendError(false);
+      setTimeout(() => {
+        // allow some time for send errors to be displayed
+        // before clearing the error state
+        setSendError(false);
+      }, 2000);
     },
     [sendMessage]
   );
@@ -521,6 +535,39 @@ export default function BareChatInput({
     setEditorIsEmpty(controlledText === '' && attachments.length === 0);
   }, [controlledText, attachments]);
 
+  const adjustInputHeightProgrammatically = useCallback(() => {
+    if (!isWeb || !inputRef.current) {
+      return;
+    }
+
+    const el = inputRef.current;
+    const htmlEl = el as unknown as HTMLElement;
+    if (
+      htmlEl &&
+      'style' in htmlEl &&
+      'offsetHeight' in htmlEl &&
+      'clientHeight' in htmlEl &&
+      'scrollHeight' in htmlEl
+    ) {
+      // We need to use requestAnimationFrame to ensure DOM is fully updated
+      // after setting the text state before calculating the scrollHeight.
+      requestAnimationFrame(() => {
+        htmlEl.style.height = '0'; // Temporarily shrink to calculate scrollHeight correctly
+        const newHeight =
+          htmlEl.offsetHeight - htmlEl.clientHeight + htmlEl.scrollHeight;
+        // Only resize if new height is greater than initial height to avoid shrinking unnecessarily
+        if (newHeight > initialHeight) {
+          htmlEl.style.height = `${newHeight}px`;
+          setInputHeight(newHeight);
+        } else {
+          // Ensure it resets to initial height if content is smaller
+          htmlEl.style.height = `${initialHeight}px`;
+          setInputHeight(initialHeight);
+        }
+      });
+    }
+  }, [initialHeight]);
+
   // Set initial content from draft or post that is being edited
   useEffect(() => {
     if (!hasSetInitialContent) {
@@ -545,6 +592,7 @@ export default function BareChatInput({
             );
             setControlledText(text);
             setMentions(mentions);
+            setNeedsHeightAdjustmentAfterLoad(true);
           }
 
           if (editingPost && editingPost.content) {
@@ -597,6 +645,7 @@ export default function BareChatInput({
             setMentions(mentions);
             setEditorIsEmpty(false);
             setHasSetInitialContent(true);
+            setNeedsHeightAdjustmentAfterLoad(true);
           }
 
           if (editingPost?.image) {
@@ -622,6 +671,13 @@ export default function BareChatInput({
     addAttachment,
     setMentions,
   ]);
+
+  useEffect(() => {
+    if (needsHeightAdjustmentAfterLoad) {
+      adjustInputHeightProgrammatically();
+      setNeedsHeightAdjustmentAfterLoad(false); // Reset the flag
+    }
+  }, [needsHeightAdjustmentAfterLoad, adjustInputHeightProgrammatically]);
 
   const handleCancelEditing = useCallback(() => {
     setEditingPost?.(undefined);
@@ -658,6 +714,16 @@ export default function BareChatInput({
     setShouldBlur(true);
   }, [setShouldBlur]);
 
+  const handleFocus = useCallback(() => {
+    // dismiss wayfinding tooltip if needed
+    if (logic.isPersonalChatChannel(channelId)) {
+      db.wayfindingProgress.setValue((prev) => ({
+        ...prev,
+        tappedChatInput: true,
+      }));
+    }
+  }, [channelId]);
+
   const handleKeyPress = useCallback(
     (e: any) => {
       const keyEvent = e.nativeEvent as unknown as KeyboardEvent;
@@ -675,14 +741,14 @@ export default function BareChatInput({
 
       if (
         (keyEvent.key === 'ArrowUp' || keyEvent.key === 'ArrowDown') &&
-        showMentionPopup
+        isMentionModeActive
       ) {
         e.preventDefault();
         mentionRef.current?.handleMentionKey(keyEvent.key);
       }
 
       if (keyEvent.key === 'Escape') {
-        if (showMentionPopup) {
+        if (isMentionModeActive) {
           e.preventDefault();
           handleMentionEscape();
         }
@@ -690,7 +756,7 @@ export default function BareChatInput({
 
       if (keyEvent.key === 'Enter' && !keyEvent.shiftKey) {
         e.preventDefault();
-        if (showMentionPopup) {
+        if (isMentionModeActive && hasMentionCandidates) {
           mentionRef.current?.handleMentionKey('Enter');
         } else if (editingPost) {
           handleEdit();
@@ -699,7 +765,15 @@ export default function BareChatInput({
         }
       }
     },
-    [showMentionPopup, setIsOpen, editingPost, handleEdit, handleSend]
+    [
+      isMentionModeActive,
+      setIsOpen,
+      editingPost,
+      handleEdit,
+      handleSend,
+      handleMentionEscape,
+      hasMentionCandidates,
+    ]
   );
 
   return (
@@ -709,13 +783,14 @@ export default function BareChatInput({
       containerHeight={48}
       disableSend={editorIsEmpty}
       sendError={sendError}
-      showMentionPopup={showMentionPopup}
+      isMentionModeActive={isMentionModeActive}
+      showWayfindingTooltip={showWayfindingTooltip}
       mentionText={mentionSearchText}
       mentionRef={mentionRef}
+      setHasMentionCandidates={setHasMentionCandidates}
       showAttachmentButton={showAttachmentButton}
       groupMembers={groupMembers}
       onSelectMention={onMentionSelect}
-      isSending={isSending}
       isEditing={!!editingPost}
       cancelEditing={handleCancelEditing}
       onPressEdit={handleEdit}
@@ -739,6 +814,7 @@ export default function BareChatInput({
           onChange={isWeb ? adjustTextInputSize : undefined}
           onLayout={isWeb ? adjustTextInputSize : undefined}
           onBlur={handleBlur}
+          onFocus={handleFocus}
           onKeyPress={handleKeyPress}
           multiline
           placeholder={placeholder}

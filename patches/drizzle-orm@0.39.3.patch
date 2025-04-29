@@ -1,0 +1,2585 @@
+diff --git a/op-sqlite/session.cjs b/op-sqlite/session.cjs
+index f1ce597e8a6e0e325788cac540a8fde32d36bb42..e6e2e6a65efa6f725d07264cc7c3a2a7040449a0 100644
+--- a/op-sqlite/session.cjs
++++ b/op-sqlite/session.cjs
+@@ -49,33 +49,30 @@ class OPSQLiteSession extends import_session.SQLiteSession {
+       customResultMapper
+     );
+   }
+-  transaction(transaction, config = {}) {
+-    const tx = new OPSQLiteTransaction("async", this.dialect, this, this.schema);
+-    this.run(import_sql.sql.raw(`begin${config?.behavior ? " " + config.behavior : ""}`));
+-    try {
+-      const result = transaction(tx);
+-      this.run(import_sql.sql`commit`);
+-      return result;
+-    } catch (err) {
+-      this.run(import_sql.sql`rollback`);
+-      throw err;
+-    }
++  transaction(transaction, _config) {
++    return new Promise((resolve, reject) => {
++      this.client.transaction(async () => {
++        const tx = new OPSQLiteTransaction(
++          "async",
++          this.dialect,
++          this,
++          this.schema
++        );
++        try {
++          resolve(await transaction(tx));
++        } catch (e) {
++          reject(e);
++        }
++      });
++    });
+   }
+ }
+ class OPSQLiteTransaction extends import_sqlite_core.SQLiteTransaction {
+   static [import_entity.entityKind] = "OPSQLiteTransaction";
+-  transaction(transaction) {
+-    const savepointName = `sp${this.nestedIndex}`;
+-    const tx = new OPSQLiteTransaction("async", this.dialect, this.session, this.schema, this.nestedIndex + 1);
+-    this.session.run(import_sql.sql.raw(`savepoint ${savepointName}`));
+-    try {
+-      const result = transaction(tx);
+-      this.session.run(import_sql.sql.raw(`release savepoint ${savepointName}`));
+-      return result;
+-    } catch (err) {
+-      this.session.run(import_sql.sql.raw(`rollback to savepoint ${savepointName}`));
+-      throw err;
+-    }
++  transaction(_transaction) {
++    throw new Error(
++      "nested transactions not implemented for op-sqlite, sorry!"
++    );
+   }
+ }
+ class OPSQLitePreparedQuery extends import_session.SQLitePreparedQuery {
+@@ -94,7 +91,14 @@ class OPSQLitePreparedQuery extends import_session.SQLitePreparedQuery {
+     return this.client.executeAsync(this.query.sql, params);
+   }
+   async all(placeholderValues) {
+-    const { fields, joinsNotNullableMap, query, logger, customResultMapper, client } = this;
++    const {
++      fields,
++      joinsNotNullableMap,
++      query,
++      logger,
++      customResultMapper,
++      client
++    } = this;
+     if (!fields && !customResultMapper) {
+       const params = (0, import_sql.fillPlaceholders)(query.params, placeholderValues ?? {});
+       logger.logQuery(query.sql, params);
+@@ -107,7 +111,14 @@ class OPSQLitePreparedQuery extends import_session.SQLitePreparedQuery {
+     return rows.map((row) => (0, import_utils.mapResultRow)(fields, row, joinsNotNullableMap));
+   }
+   async get(placeholderValues) {
+-    const { fields, joinsNotNullableMap, customResultMapper, query, logger, client } = this;
++    const {
++      fields,
++      joinsNotNullableMap,
++      customResultMapper,
++      query,
++      logger,
++      client
++    } = this;
+     const params = (0, import_sql.fillPlaceholders)(query.params, placeholderValues ?? {});
+     logger.logQuery(query.sql, params);
+     if (!fields && !customResultMapper) {
+diff --git a/op-sqlite/session.cjs.map b/op-sqlite/session.cjs.map
+index 0a873b1dc081a183d3be8f8c0acd65e90067627b..8f94cfe8a95964bfb98f1322069ff5e29f25fcd7 100644
+--- a/op-sqlite/session.cjs.map
++++ b/op-sqlite/session.cjs.map
+@@ -1 +1 @@
+-{"version":3,"sources":["../../src/op-sqlite/session.ts"],"sourcesContent":["import type { OPSQLiteConnection, QueryResult } from '@op-engineering/op-sqlite';\nimport { entityKind } from '~/entity.ts';\nimport type { Logger } from '~/logger.ts';\nimport { NoopLogger } from '~/logger.ts';\nimport type { RelationalSchemaConfig, TablesRelationalConfig } from '~/relations.ts';\nimport { fillPlaceholders, type Query, sql } from '~/sql/sql.ts';\nimport type { SQLiteAsyncDialect } from '~/sqlite-core/dialect.ts';\nimport { SQLiteTransaction } from '~/sqlite-core/index.ts';\nimport type { SelectedFieldsOrdered } from '~/sqlite-core/query-builders/select.types.ts';\nimport {\n\ttype PreparedQueryConfig as PreparedQueryConfigBase,\n\ttype SQLiteExecuteMethod,\n\tSQLitePreparedQuery,\n\tSQLiteSession,\n\ttype SQLiteTransactionConfig,\n} from '~/sqlite-core/session.ts';\nimport { mapResultRow } from '~/utils.ts';\n\nexport interface OPSQLiteSessionOptions {\n\tlogger?: Logger;\n}\n\ntype PreparedQueryConfig = Omit<PreparedQueryConfigBase, 'statement' | 'run'>;\n\nexport class OPSQLiteSession<\n\tTFullSchema extends Record<string, unknown>,\n\tTSchema extends TablesRelationalConfig,\n> extends SQLiteSession<'async', QueryResult, TFullSchema, TSchema> {\n\tstatic override readonly [entityKind]: string = 'OPSQLiteSession';\n\n\tprivate logger: Logger;\n\n\tconstructor(\n\t\tprivate client: OPSQLiteConnection,\n\t\tdialect: SQLiteAsyncDialect,\n\t\tprivate schema: RelationalSchemaConfig<TSchema> | undefined,\n\t\toptions: OPSQLiteSessionOptions = {},\n\t) {\n\t\tsuper(dialect);\n\t\tthis.logger = options.logger ?? new NoopLogger();\n\t}\n\n\tprepareQuery<T extends Omit<PreparedQueryConfig, 'run'>>(\n\t\tquery: Query,\n\t\tfields: SelectedFieldsOrdered | undefined,\n\t\texecuteMethod: SQLiteExecuteMethod,\n\t\tisResponseInArrayMode: boolean,\n\t\tcustomResultMapper?: (rows: unknown[][]) => unknown,\n\t): OPSQLitePreparedQuery<T> {\n\t\treturn new OPSQLitePreparedQuery(\n\t\t\tthis.client,\n\t\t\tquery,\n\t\t\tthis.logger,\n\t\t\tfields,\n\t\t\texecuteMethod,\n\t\t\tisResponseInArrayMode,\n\t\t\tcustomResultMapper,\n\t\t);\n\t}\n\n\toverride transaction<T>(\n\t\ttransaction: (tx: OPSQLiteTransaction<TFullSchema, TSchema>) => T,\n\t\tconfig: SQLiteTransactionConfig = {},\n\t): T {\n\t\tconst tx = new OPSQLiteTransaction('async', this.dialect, this, this.schema);\n\t\tthis.run(sql.raw(`begin${config?.behavior ? ' ' + config.behavior : ''}`));\n\t\ttry {\n\t\t\tconst result = transaction(tx);\n\t\t\tthis.run(sql`commit`);\n\t\t\treturn result;\n\t\t} catch (err) {\n\t\t\tthis.run(sql`rollback`);\n\t\t\tthrow err;\n\t\t}\n\t}\n}\n\nexport class OPSQLiteTransaction<\n\tTFullSchema extends Record<string, unknown>,\n\tTSchema extends TablesRelationalConfig,\n> extends SQLiteTransaction<'async', QueryResult, TFullSchema, TSchema> {\n\tstatic override readonly [entityKind]: string = 'OPSQLiteTransaction';\n\n\toverride transaction<T>(transaction: (tx: OPSQLiteTransaction<TFullSchema, TSchema>) => T): T {\n\t\tconst savepointName = `sp${this.nestedIndex}`;\n\t\tconst tx = new OPSQLiteTransaction('async', this.dialect, this.session, this.schema, this.nestedIndex + 1);\n\t\tthis.session.run(sql.raw(`savepoint ${savepointName}`));\n\t\ttry {\n\t\t\tconst result = transaction(tx);\n\t\t\tthis.session.run(sql.raw(`release savepoint ${savepointName}`));\n\t\t\treturn result;\n\t\t} catch (err) {\n\t\t\tthis.session.run(sql.raw(`rollback to savepoint ${savepointName}`));\n\t\t\tthrow err;\n\t\t}\n\t}\n}\n\nexport class OPSQLitePreparedQuery<T extends PreparedQueryConfig = PreparedQueryConfig> extends SQLitePreparedQuery<\n\t{ type: 'async'; run: QueryResult; all: T['all']; get: T['get']; values: T['values']; execute: T['execute'] }\n> {\n\tstatic override readonly [entityKind]: string = 'OPSQLitePreparedQuery';\n\n\tconstructor(\n\t\tprivate client: OPSQLiteConnection,\n\t\tquery: Query,\n\t\tprivate logger: Logger,\n\t\tprivate fields: SelectedFieldsOrdered | undefined,\n\t\texecuteMethod: SQLiteExecuteMethod,\n\t\tprivate _isResponseInArrayMode: boolean,\n\t\tprivate customResultMapper?: (rows: unknown[][]) => unknown,\n\t) {\n\t\tsuper('sync', executeMethod, query);\n\t}\n\n\trun(placeholderValues?: Record<string, unknown>): Promise<QueryResult> {\n\t\tconst params = fillPlaceholders(this.query.params, placeholderValues ?? {});\n\t\tthis.logger.logQuery(this.query.sql, params);\n\n\t\treturn this.client.executeAsync(this.query.sql, params);\n\t}\n\n\tasync all(placeholderValues?: Record<string, unknown>): Promise<T['all']> {\n\t\tconst { fields, joinsNotNullableMap, query, logger, customResultMapper, client } = this;\n\t\tif (!fields && !customResultMapper) {\n\t\t\tconst params = fillPlaceholders(query.params, placeholderValues ?? {});\n\t\t\tlogger.logQuery(query.sql, params);\n\n\t\t\treturn client.execute(query.sql, params).rows?._array || [];\n\t\t}\n\n\t\tconst rows = await this.values(placeholderValues) as unknown[][];\n\t\tif (customResultMapper) {\n\t\t\treturn customResultMapper(rows) as T['all'];\n\t\t}\n\t\treturn rows.map((row) => mapResultRow(fields!, row, joinsNotNullableMap));\n\t}\n\n\tasync get(placeholderValues?: Record<string, unknown>): Promise<T['get']> {\n\t\tconst { fields, joinsNotNullableMap, customResultMapper, query, logger, client } = this;\n\t\tconst params = fillPlaceholders(query.params, placeholderValues ?? {});\n\t\tlogger.logQuery(query.sql, params);\n\t\tif (!fields && !customResultMapper) {\n\t\t\tconst rows = client.execute(query.sql, params).rows?._array || [];\n\t\t\treturn rows[0];\n\t\t}\n\n\t\tconst rows = await this.values(placeholderValues) as unknown[][];\n\t\tconst row = rows[0];\n\n\t\tif (!row) {\n\t\t\treturn undefined;\n\t\t}\n\n\t\tif (customResultMapper) {\n\t\t\treturn customResultMapper(rows) as T['get'];\n\t\t}\n\n\t\treturn mapResultRow(fields!, row, joinsNotNullableMap);\n\t}\n\n\tvalues(placeholderValues?: Record<string, unknown>): Promise<T['values']> {\n\t\tconst params = fillPlaceholders(this.query.params, placeholderValues ?? {});\n\t\tthis.logger.logQuery(this.query.sql, params);\n\t\treturn this.client.executeRawAsync(this.query.sql, params);\n\t}\n\n\t/** @internal */\n\tisResponseInArrayMode(): boolean {\n\t\treturn this._isResponseInArrayMode;\n\t}\n}\n"],"mappings":"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","names":["rows"]}
+\ No newline at end of file
++{"version":3,"sources":["../../src/op-sqlite/session.ts"],"sourcesContent":["import type {\n  OPSQLiteConnection,\n  QueryResult,\n} from \"@op-engineering/op-sqlite\";\nimport { entityKind } from \"~/entity.ts\";\nimport type { Logger } from \"~/logger.ts\";\nimport { NoopLogger } from \"~/logger.ts\";\nimport type {\n  RelationalSchemaConfig,\n  TablesRelationalConfig,\n} from \"~/relations.ts\";\nimport { fillPlaceholders, type Query } from \"~/sql/sql.ts\";\nimport type { SQLiteAsyncDialect } from \"~/sqlite-core/dialect.ts\";\nimport { SQLiteTransaction } from \"~/sqlite-core/index.ts\";\nimport type { SelectedFieldsOrdered } from \"~/sqlite-core/query-builders/select.types.ts\";\nimport {\n  type PreparedQueryConfig as PreparedQueryConfigBase,\n  type SQLiteExecuteMethod,\n  SQLitePreparedQuery,\n  SQLiteSession,\n  type SQLiteTransactionConfig,\n} from \"~/sqlite-core/session.ts\";\nimport { mapResultRow } from \"~/utils.ts\";\n\nexport interface OPSQLiteSessionOptions {\n  logger?: Logger;\n}\n\ntype PreparedQueryConfig = Omit<PreparedQueryConfigBase, \"statement\" | \"run\">;\n\nexport class OPSQLiteSession<\n  TFullSchema extends Record<string, unknown>,\n  TSchema extends TablesRelationalConfig,\n> extends SQLiteSession<\"async\", QueryResult, TFullSchema, TSchema> {\n  static override readonly [entityKind]: string = \"OPSQLiteSession\";\n\n  private logger: Logger;\n\n  constructor(\n    private client: OPSQLiteConnection,\n    dialect: SQLiteAsyncDialect,\n    private schema: RelationalSchemaConfig<TSchema> | undefined,\n    options: OPSQLiteSessionOptions = {}\n  ) {\n    super(dialect);\n    this.logger = options.logger ?? new NoopLogger();\n  }\n\n  prepareQuery<T extends Omit<PreparedQueryConfig, \"run\">>(\n    query: Query,\n    fields: SelectedFieldsOrdered | undefined,\n    executeMethod: SQLiteExecuteMethod,\n    isResponseInArrayMode: boolean,\n    customResultMapper?: (rows: unknown[][]) => unknown\n  ): OPSQLitePreparedQuery<T> {\n    return new OPSQLitePreparedQuery(\n      this.client,\n      query,\n      this.logger,\n      fields,\n      executeMethod,\n      isResponseInArrayMode,\n      customResultMapper\n    );\n  }\n  override transaction<T>(\n    transaction: (\n      tx: OPSQLiteTransaction<TFullSchema, TSchema>\n    ) => T | Promise<T>,\n    _config?: SQLiteTransactionConfig\n  ): Promise<T> {\n    return new Promise((resolve, reject) => {\n      this.client.transaction(async () => {\n        const tx = new OPSQLiteTransaction(\n          \"async\",\n          this.dialect,\n          this,\n          this.schema\n        );\n        try {\n          resolve(await transaction(tx));\n        } catch (e) {\n          reject(e);\n        }\n      });\n    });\n  }\n}\n\nexport class OPSQLiteTransaction<\n  TFullSchema extends Record<string, unknown>,\n  TSchema extends TablesRelationalConfig,\n> extends SQLiteTransaction<\"async\", QueryResult, TFullSchema, TSchema> {\n  static override readonly [entityKind]: string = \"OPSQLiteTransaction\";\n\n  override transaction<T>(\n    _transaction: (tx: OPSQLiteTransaction<TFullSchema, TSchema>) => T\n  ): T {\n    throw new Error(\n      \"nested transactions not implemented for op-sqlite, sorry!\"\n    );\n  }\n}\n\nexport class OPSQLitePreparedQuery<\n  T extends PreparedQueryConfig = PreparedQueryConfig,\n> extends SQLitePreparedQuery<{\n  type: \"async\";\n  run: QueryResult;\n  all: T[\"all\"];\n  get: T[\"get\"];\n  values: T[\"values\"];\n  execute: T[\"execute\"];\n}> {\n  static override readonly [entityKind]: string = \"OPSQLitePreparedQuery\";\n\n  constructor(\n    private client: OPSQLiteConnection,\n    query: Query,\n    private logger: Logger,\n    private fields: SelectedFieldsOrdered | undefined,\n    executeMethod: SQLiteExecuteMethod,\n    private _isResponseInArrayMode: boolean,\n    private customResultMapper?: (rows: unknown[][]) => unknown\n  ) {\n    super(\"sync\", executeMethod, query);\n  }\n\n  run(placeholderValues?: Record<string, unknown>): Promise<QueryResult> {\n    const params = fillPlaceholders(this.query.params, placeholderValues ?? {});\n    this.logger.logQuery(this.query.sql, params);\n\n    return this.client.executeAsync(this.query.sql, params);\n  }\n\n  async all(placeholderValues?: Record<string, unknown>): Promise<T[\"all\"]> {\n    const {\n      fields,\n      joinsNotNullableMap,\n      query,\n      logger,\n      customResultMapper,\n      client,\n    } = this;\n    if (!fields && !customResultMapper) {\n      const params = fillPlaceholders(query.params, placeholderValues ?? {});\n      logger.logQuery(query.sql, params);\n\n      return client.execute(query.sql, params).rows?._array || [];\n    }\n\n    const rows = (await this.values(placeholderValues)) as unknown[][];\n    if (customResultMapper) {\n      return customResultMapper(rows) as T[\"all\"];\n    }\n    return rows.map((row) => mapResultRow(fields!, row, joinsNotNullableMap));\n  }\n\n  async get(placeholderValues?: Record<string, unknown>): Promise<T[\"get\"]> {\n    const {\n      fields,\n      joinsNotNullableMap,\n      customResultMapper,\n      query,\n      logger,\n      client,\n    } = this;\n    const params = fillPlaceholders(query.params, placeholderValues ?? {});\n    logger.logQuery(query.sql, params);\n    if (!fields && !customResultMapper) {\n      const rows = client.execute(query.sql, params).rows?._array || [];\n      return rows[0];\n    }\n\n    const rows = (await this.values(placeholderValues)) as unknown[][];\n    const row = rows[0];\n\n    if (!row) {\n      return undefined;\n    }\n\n    if (customResultMapper) {\n      return customResultMapper(rows) as T[\"get\"];\n    }\n\n    return mapResultRow(fields!, row, joinsNotNullableMap);\n  }\n\n  values(placeholderValues?: Record<string, unknown>): Promise<T[\"values\"]> {\n    const params = fillPlaceholders(this.query.params, placeholderValues ?? {});\n    this.logger.logQuery(this.query.sql, params);\n    return this.client.executeRawAsync(this.query.sql, params);\n  }\n\n  /** @internal */\n  isResponseInArrayMode(): boolean {\n    return this._isResponseInArrayMode;\n  }\n}\n"],"mappings":"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","names":["rows"]}
+\ No newline at end of file
+diff --git a/op-sqlite/session.d.cts b/op-sqlite/session.d.cts
+index a0429e5e06e85a0f1ab77c2fddf1cb1f8ae9dfd8..ccfed7a3c61cd1457b5baf8134ad1a99b97d75d2 100644
+--- a/op-sqlite/session.d.cts
++++ b/op-sqlite/session.d.cts
+@@ -1,4 +1,4 @@
+-import type { OPSQLiteConnection, QueryResult } from '@op-engineering/op-sqlite';
++import type { OPSQLiteConnection, QueryResult } from "@op-engineering/op-sqlite";
+ import { entityKind } from "../entity.cjs";
+ import type { Logger } from "../logger.cjs";
+ import type { RelationalSchemaConfig, TablesRelationalConfig } from "../relations.cjs";
+@@ -10,27 +10,27 @@ import { type PreparedQueryConfig as PreparedQueryConfigBase, type SQLiteExecute
+ export interface OPSQLiteSessionOptions {
+     logger?: Logger;
+ }
+-type PreparedQueryConfig = Omit<PreparedQueryConfigBase, 'statement' | 'run'>;
+-export declare class OPSQLiteSession<TFullSchema extends Record<string, unknown>, TSchema extends TablesRelationalConfig> extends SQLiteSession<'async', QueryResult, TFullSchema, TSchema> {
++type PreparedQueryConfig = Omit<PreparedQueryConfigBase, "statement" | "run">;
++export declare class OPSQLiteSession<TFullSchema extends Record<string, unknown>, TSchema extends TablesRelationalConfig> extends SQLiteSession<"async", QueryResult, TFullSchema, TSchema> {
+     private client;
+     private schema;
+     static readonly [entityKind]: string;
+     private logger;
+     constructor(client: OPSQLiteConnection, dialect: SQLiteAsyncDialect, schema: RelationalSchemaConfig<TSchema> | undefined, options?: OPSQLiteSessionOptions);
+-    prepareQuery<T extends Omit<PreparedQueryConfig, 'run'>>(query: Query, fields: SelectedFieldsOrdered | undefined, executeMethod: SQLiteExecuteMethod, isResponseInArrayMode: boolean, customResultMapper?: (rows: unknown[][]) => unknown): OPSQLitePreparedQuery<T>;
+-    transaction<T>(transaction: (tx: OPSQLiteTransaction<TFullSchema, TSchema>) => T, config?: SQLiteTransactionConfig): T;
++    prepareQuery<T extends Omit<PreparedQueryConfig, "run">>(query: Query, fields: SelectedFieldsOrdered | undefined, executeMethod: SQLiteExecuteMethod, isResponseInArrayMode: boolean, customResultMapper?: (rows: unknown[][]) => unknown): OPSQLitePreparedQuery<T>;
++    transaction<T>(transaction: (tx: OPSQLiteTransaction<TFullSchema, TSchema>) => T | Promise<T>, _config?: SQLiteTransactionConfig): Promise<T>;
+ }
+-export declare class OPSQLiteTransaction<TFullSchema extends Record<string, unknown>, TSchema extends TablesRelationalConfig> extends SQLiteTransaction<'async', QueryResult, TFullSchema, TSchema> {
++export declare class OPSQLiteTransaction<TFullSchema extends Record<string, unknown>, TSchema extends TablesRelationalConfig> extends SQLiteTransaction<"async", QueryResult, TFullSchema, TSchema> {
+     static readonly [entityKind]: string;
+-    transaction<T>(transaction: (tx: OPSQLiteTransaction<TFullSchema, TSchema>) => T): T;
++    transaction<T>(_transaction: (tx: OPSQLiteTransaction<TFullSchema, TSchema>) => T): T;
+ }
+ export declare class OPSQLitePreparedQuery<T extends PreparedQueryConfig = PreparedQueryConfig> extends SQLitePreparedQuery<{
+-    type: 'async';
++    type: "async";
+     run: QueryResult;
+-    all: T['all'];
+-    get: T['get'];
+-    values: T['values'];
+-    execute: T['execute'];
++    all: T["all"];
++    get: T["get"];
++    values: T["values"];
++    execute: T["execute"];
+ }> {
+     private client;
+     private logger;
+@@ -40,8 +40,8 @@ export declare class OPSQLitePreparedQuery<T extends PreparedQueryConfig = Prepa
+     static readonly [entityKind]: string;
+     constructor(client: OPSQLiteConnection, query: Query, logger: Logger, fields: SelectedFieldsOrdered | undefined, executeMethod: SQLiteExecuteMethod, _isResponseInArrayMode: boolean, customResultMapper?: ((rows: unknown[][]) => unknown) | undefined);
+     run(placeholderValues?: Record<string, unknown>): Promise<QueryResult>;
+-    all(placeholderValues?: Record<string, unknown>): Promise<T['all']>;
+-    get(placeholderValues?: Record<string, unknown>): Promise<T['get']>;
+-    values(placeholderValues?: Record<string, unknown>): Promise<T['values']>;
++    all(placeholderValues?: Record<string, unknown>): Promise<T["all"]>;
++    get(placeholderValues?: Record<string, unknown>): Promise<T["get"]>;
++    values(placeholderValues?: Record<string, unknown>): Promise<T["values"]>;
+ }
+ export {};
+diff --git a/op-sqlite/session.d.ts b/op-sqlite/session.d.ts
+index 07cae6b6cb6c0c1a11d283ae26aad1c1c1d7cd4d..021c904e0b9d22fad58853669c341b51818b4738 100644
+--- a/op-sqlite/session.d.ts
++++ b/op-sqlite/session.d.ts
+@@ -1,4 +1,4 @@
+-import type { OPSQLiteConnection, QueryResult } from '@op-engineering/op-sqlite';
++import type { OPSQLiteConnection, QueryResult } from "@op-engineering/op-sqlite";
+ import { entityKind } from "../entity.js";
+ import type { Logger } from "../logger.js";
+ import type { RelationalSchemaConfig, TablesRelationalConfig } from "../relations.js";
+@@ -10,27 +10,27 @@ import { type PreparedQueryConfig as PreparedQueryConfigBase, type SQLiteExecute
+ export interface OPSQLiteSessionOptions {
+     logger?: Logger;
+ }
+-type PreparedQueryConfig = Omit<PreparedQueryConfigBase, 'statement' | 'run'>;
+-export declare class OPSQLiteSession<TFullSchema extends Record<string, unknown>, TSchema extends TablesRelationalConfig> extends SQLiteSession<'async', QueryResult, TFullSchema, TSchema> {
++type PreparedQueryConfig = Omit<PreparedQueryConfigBase, "statement" | "run">;
++export declare class OPSQLiteSession<TFullSchema extends Record<string, unknown>, TSchema extends TablesRelationalConfig> extends SQLiteSession<"async", QueryResult, TFullSchema, TSchema> {
+     private client;
+     private schema;
+     static readonly [entityKind]: string;
+     private logger;
+     constructor(client: OPSQLiteConnection, dialect: SQLiteAsyncDialect, schema: RelationalSchemaConfig<TSchema> | undefined, options?: OPSQLiteSessionOptions);
+-    prepareQuery<T extends Omit<PreparedQueryConfig, 'run'>>(query: Query, fields: SelectedFieldsOrdered | undefined, executeMethod: SQLiteExecuteMethod, isResponseInArrayMode: boolean, customResultMapper?: (rows: unknown[][]) => unknown): OPSQLitePreparedQuery<T>;
+-    transaction<T>(transaction: (tx: OPSQLiteTransaction<TFullSchema, TSchema>) => T, config?: SQLiteTransactionConfig): T;
++    prepareQuery<T extends Omit<PreparedQueryConfig, "run">>(query: Query, fields: SelectedFieldsOrdered | undefined, executeMethod: SQLiteExecuteMethod, isResponseInArrayMode: boolean, customResultMapper?: (rows: unknown[][]) => unknown): OPSQLitePreparedQuery<T>;
++    transaction<T>(transaction: (tx: OPSQLiteTransaction<TFullSchema, TSchema>) => T | Promise<T>, _config?: SQLiteTransactionConfig): Promise<T>;
+ }
+-export declare class OPSQLiteTransaction<TFullSchema extends Record<string, unknown>, TSchema extends TablesRelationalConfig> extends SQLiteTransaction<'async', QueryResult, TFullSchema, TSchema> {
++export declare class OPSQLiteTransaction<TFullSchema extends Record<string, unknown>, TSchema extends TablesRelationalConfig> extends SQLiteTransaction<"async", QueryResult, TFullSchema, TSchema> {
+     static readonly [entityKind]: string;
+-    transaction<T>(transaction: (tx: OPSQLiteTransaction<TFullSchema, TSchema>) => T): T;
++    transaction<T>(_transaction: (tx: OPSQLiteTransaction<TFullSchema, TSchema>) => T): T;
+ }
+ export declare class OPSQLitePreparedQuery<T extends PreparedQueryConfig = PreparedQueryConfig> extends SQLitePreparedQuery<{
+-    type: 'async';
++    type: "async";
+     run: QueryResult;
+-    all: T['all'];
+-    get: T['get'];
+-    values: T['values'];
+-    execute: T['execute'];
++    all: T["all"];
++    get: T["get"];
++    values: T["values"];
++    execute: T["execute"];
+ }> {
+     private client;
+     private logger;
+@@ -40,8 +40,8 @@ export declare class OPSQLitePreparedQuery<T extends PreparedQueryConfig = Prepa
+     static readonly [entityKind]: string;
+     constructor(client: OPSQLiteConnection, query: Query, logger: Logger, fields: SelectedFieldsOrdered | undefined, executeMethod: SQLiteExecuteMethod, _isResponseInArrayMode: boolean, customResultMapper?: ((rows: unknown[][]) => unknown) | undefined);
+     run(placeholderValues?: Record<string, unknown>): Promise<QueryResult>;
+-    all(placeholderValues?: Record<string, unknown>): Promise<T['all']>;
+-    get(placeholderValues?: Record<string, unknown>): Promise<T['get']>;
+-    values(placeholderValues?: Record<string, unknown>): Promise<T['values']>;
++    all(placeholderValues?: Record<string, unknown>): Promise<T["all"]>;
++    get(placeholderValues?: Record<string, unknown>): Promise<T["get"]>;
++    values(placeholderValues?: Record<string, unknown>): Promise<T["values"]>;
+ }
+ export {};
+diff --git a/op-sqlite/session.js b/op-sqlite/session.js
+index ff84604e7998182ef78fbffc8d20019aaf76755e..454f154677b6761798419b9196b1ba5674cbb5c6 100644
+--- a/op-sqlite/session.js
++++ b/op-sqlite/session.js
+@@ -1,6 +1,6 @@
+ import { entityKind } from "../entity.js";
+ import { NoopLogger } from "../logger.js";
+-import { fillPlaceholders, sql } from "../sql/sql.js";
++import { fillPlaceholders } from "../sql/sql.js";
+ import { SQLiteTransaction } from "../sqlite-core/index.js";
+ import {
+   SQLitePreparedQuery,
+@@ -27,33 +27,30 @@ class OPSQLiteSession extends SQLiteSession {
+       customResultMapper
+     );
+   }
+-  transaction(transaction, config = {}) {
+-    const tx = new OPSQLiteTransaction("async", this.dialect, this, this.schema);
+-    this.run(sql.raw(`begin${config?.behavior ? " " + config.behavior : ""}`));
+-    try {
+-      const result = transaction(tx);
+-      this.run(sql`commit`);
+-      return result;
+-    } catch (err) {
+-      this.run(sql`rollback`);
+-      throw err;
+-    }
++  transaction(transaction, _config) {
++    return new Promise((resolve, reject) => {
++      this.client.transaction(async () => {
++        const tx = new OPSQLiteTransaction(
++          "async",
++          this.dialect,
++          this,
++          this.schema
++        );
++        try {
++          resolve(await transaction(tx));
++        } catch (e) {
++          reject(e);
++        }
++      });
++    });
+   }
+ }
+ class OPSQLiteTransaction extends SQLiteTransaction {
+   static [entityKind] = "OPSQLiteTransaction";
+-  transaction(transaction) {
+-    const savepointName = `sp${this.nestedIndex}`;
+-    const tx = new OPSQLiteTransaction("async", this.dialect, this.session, this.schema, this.nestedIndex + 1);
+-    this.session.run(sql.raw(`savepoint ${savepointName}`));
+-    try {
+-      const result = transaction(tx);
+-      this.session.run(sql.raw(`release savepoint ${savepointName}`));
+-      return result;
+-    } catch (err) {
+-      this.session.run(sql.raw(`rollback to savepoint ${savepointName}`));
+-      throw err;
+-    }
++  transaction(_transaction) {
++    throw new Error(
++      "nested transactions not implemented for op-sqlite, sorry!"
++    );
+   }
+ }
+ class OPSQLitePreparedQuery extends SQLitePreparedQuery {
+@@ -72,7 +69,14 @@ class OPSQLitePreparedQuery extends SQLitePreparedQuery {
+     return this.client.executeAsync(this.query.sql, params);
+   }
+   async all(placeholderValues) {
+-    const { fields, joinsNotNullableMap, query, logger, customResultMapper, client } = this;
++    const {
++      fields,
++      joinsNotNullableMap,
++      query,
++      logger,
++      customResultMapper,
++      client
++    } = this;
+     if (!fields && !customResultMapper) {
+       const params = fillPlaceholders(query.params, placeholderValues ?? {});
+       logger.logQuery(query.sql, params);
+@@ -85,7 +89,14 @@ class OPSQLitePreparedQuery extends SQLitePreparedQuery {
+     return rows.map((row) => mapResultRow(fields, row, joinsNotNullableMap));
+   }
+   async get(placeholderValues) {
+-    const { fields, joinsNotNullableMap, customResultMapper, query, logger, client } = this;
++    const {
++      fields,
++      joinsNotNullableMap,
++      customResultMapper,
++      query,
++      logger,
++      client
++    } = this;
+     const params = fillPlaceholders(query.params, placeholderValues ?? {});
+     logger.logQuery(query.sql, params);
+     if (!fields && !customResultMapper) {
+diff --git a/op-sqlite/session.js.map b/op-sqlite/session.js.map
+index e9d9ca06b6bed8fa265438fc41fe35e20723f61a..ebfae284accc68b35aae9d8dc8e61fdbe07f8f15 100644
+--- a/op-sqlite/session.js.map
++++ b/op-sqlite/session.js.map
+@@ -1 +1 @@
+-{"version":3,"sources":["../../src/op-sqlite/session.ts"],"sourcesContent":["import type { OPSQLiteConnection, QueryResult } from '@op-engineering/op-sqlite';\nimport { entityKind } from '~/entity.ts';\nimport type { Logger } from '~/logger.ts';\nimport { NoopLogger } from '~/logger.ts';\nimport type { RelationalSchemaConfig, TablesRelationalConfig } from '~/relations.ts';\nimport { fillPlaceholders, type Query, sql } from '~/sql/sql.ts';\nimport type { SQLiteAsyncDialect } from '~/sqlite-core/dialect.ts';\nimport { SQLiteTransaction } from '~/sqlite-core/index.ts';\nimport type { SelectedFieldsOrdered } from '~/sqlite-core/query-builders/select.types.ts';\nimport {\n\ttype PreparedQueryConfig as PreparedQueryConfigBase,\n\ttype SQLiteExecuteMethod,\n\tSQLitePreparedQuery,\n\tSQLiteSession,\n\ttype SQLiteTransactionConfig,\n} from '~/sqlite-core/session.ts';\nimport { mapResultRow } from '~/utils.ts';\n\nexport interface OPSQLiteSessionOptions {\n\tlogger?: Logger;\n}\n\ntype PreparedQueryConfig = Omit<PreparedQueryConfigBase, 'statement' | 'run'>;\n\nexport class OPSQLiteSession<\n\tTFullSchema extends Record<string, unknown>,\n\tTSchema extends TablesRelationalConfig,\n> extends SQLiteSession<'async', QueryResult, TFullSchema, TSchema> {\n\tstatic override readonly [entityKind]: string = 'OPSQLiteSession';\n\n\tprivate logger: Logger;\n\n\tconstructor(\n\t\tprivate client: OPSQLiteConnection,\n\t\tdialect: SQLiteAsyncDialect,\n\t\tprivate schema: RelationalSchemaConfig<TSchema> | undefined,\n\t\toptions: OPSQLiteSessionOptions = {},\n\t) {\n\t\tsuper(dialect);\n\t\tthis.logger = options.logger ?? new NoopLogger();\n\t}\n\n\tprepareQuery<T extends Omit<PreparedQueryConfig, 'run'>>(\n\t\tquery: Query,\n\t\tfields: SelectedFieldsOrdered | undefined,\n\t\texecuteMethod: SQLiteExecuteMethod,\n\t\tisResponseInArrayMode: boolean,\n\t\tcustomResultMapper?: (rows: unknown[][]) => unknown,\n\t): OPSQLitePreparedQuery<T> {\n\t\treturn new OPSQLitePreparedQuery(\n\t\t\tthis.client,\n\t\t\tquery,\n\t\t\tthis.logger,\n\t\t\tfields,\n\t\t\texecuteMethod,\n\t\t\tisResponseInArrayMode,\n\t\t\tcustomResultMapper,\n\t\t);\n\t}\n\n\toverride transaction<T>(\n\t\ttransaction: (tx: OPSQLiteTransaction<TFullSchema, TSchema>) => T,\n\t\tconfig: SQLiteTransactionConfig = {},\n\t): T {\n\t\tconst tx = new OPSQLiteTransaction('async', this.dialect, this, this.schema);\n\t\tthis.run(sql.raw(`begin${config?.behavior ? ' ' + config.behavior : ''}`));\n\t\ttry {\n\t\t\tconst result = transaction(tx);\n\t\t\tthis.run(sql`commit`);\n\t\t\treturn result;\n\t\t} catch (err) {\n\t\t\tthis.run(sql`rollback`);\n\t\t\tthrow err;\n\t\t}\n\t}\n}\n\nexport class OPSQLiteTransaction<\n\tTFullSchema extends Record<string, unknown>,\n\tTSchema extends TablesRelationalConfig,\n> extends SQLiteTransaction<'async', QueryResult, TFullSchema, TSchema> {\n\tstatic override readonly [entityKind]: string = 'OPSQLiteTransaction';\n\n\toverride transaction<T>(transaction: (tx: OPSQLiteTransaction<TFullSchema, TSchema>) => T): T {\n\t\tconst savepointName = `sp${this.nestedIndex}`;\n\t\tconst tx = new OPSQLiteTransaction('async', this.dialect, this.session, this.schema, this.nestedIndex + 1);\n\t\tthis.session.run(sql.raw(`savepoint ${savepointName}`));\n\t\ttry {\n\t\t\tconst result = transaction(tx);\n\t\t\tthis.session.run(sql.raw(`release savepoint ${savepointName}`));\n\t\t\treturn result;\n\t\t} catch (err) {\n\t\t\tthis.session.run(sql.raw(`rollback to savepoint ${savepointName}`));\n\t\t\tthrow err;\n\t\t}\n\t}\n}\n\nexport class OPSQLitePreparedQuery<T extends PreparedQueryConfig = PreparedQueryConfig> extends SQLitePreparedQuery<\n\t{ type: 'async'; run: QueryResult; all: T['all']; get: T['get']; values: T['values']; execute: T['execute'] }\n> {\n\tstatic override readonly [entityKind]: string = 'OPSQLitePreparedQuery';\n\n\tconstructor(\n\t\tprivate client: OPSQLiteConnection,\n\t\tquery: Query,\n\t\tprivate logger: Logger,\n\t\tprivate fields: SelectedFieldsOrdered | undefined,\n\t\texecuteMethod: SQLiteExecuteMethod,\n\t\tprivate _isResponseInArrayMode: boolean,\n\t\tprivate customResultMapper?: (rows: unknown[][]) => unknown,\n\t) {\n\t\tsuper('sync', executeMethod, query);\n\t}\n\n\trun(placeholderValues?: Record<string, unknown>): Promise<QueryResult> {\n\t\tconst params = fillPlaceholders(this.query.params, placeholderValues ?? {});\n\t\tthis.logger.logQuery(this.query.sql, params);\n\n\t\treturn this.client.executeAsync(this.query.sql, params);\n\t}\n\n\tasync all(placeholderValues?: Record<string, unknown>): Promise<T['all']> {\n\t\tconst { fields, joinsNotNullableMap, query, logger, customResultMapper, client } = this;\n\t\tif (!fields && !customResultMapper) {\n\t\t\tconst params = fillPlaceholders(query.params, placeholderValues ?? {});\n\t\t\tlogger.logQuery(query.sql, params);\n\n\t\t\treturn client.execute(query.sql, params).rows?._array || [];\n\t\t}\n\n\t\tconst rows = await this.values(placeholderValues) as unknown[][];\n\t\tif (customResultMapper) {\n\t\t\treturn customResultMapper(rows) as T['all'];\n\t\t}\n\t\treturn rows.map((row) => mapResultRow(fields!, row, joinsNotNullableMap));\n\t}\n\n\tasync get(placeholderValues?: Record<string, unknown>): Promise<T['get']> {\n\t\tconst { fields, joinsNotNullableMap, customResultMapper, query, logger, client } = this;\n\t\tconst params = fillPlaceholders(query.params, placeholderValues ?? {});\n\t\tlogger.logQuery(query.sql, params);\n\t\tif (!fields && !customResultMapper) {\n\t\t\tconst rows = client.execute(query.sql, params).rows?._array || [];\n\t\t\treturn rows[0];\n\t\t}\n\n\t\tconst rows = await this.values(placeholderValues) as unknown[][];\n\t\tconst row = rows[0];\n\n\t\tif (!row) {\n\t\t\treturn undefined;\n\t\t}\n\n\t\tif (customResultMapper) {\n\t\t\treturn customResultMapper(rows) as T['get'];\n\t\t}\n\n\t\treturn mapResultRow(fields!, row, joinsNotNullableMap);\n\t}\n\n\tvalues(placeholderValues?: Record<string, unknown>): Promise<T['values']> {\n\t\tconst params = fillPlaceholders(this.query.params, placeholderValues ?? {});\n\t\tthis.logger.logQuery(this.query.sql, params);\n\t\treturn this.client.executeRawAsync(this.query.sql, params);\n\t}\n\n\t/** @internal */\n\tisResponseInArrayMode(): boolean {\n\t\treturn this._isResponseInArrayMode;\n\t}\n}\n"],"mappings":"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","names":["rows"]}
+\ No newline at end of file
++{"version":3,"sources":["../../src/op-sqlite/session.ts"],"sourcesContent":["import type {\n  OPSQLiteConnection,\n  QueryResult,\n} from \"@op-engineering/op-sqlite\";\nimport { entityKind } from \"~/entity.ts\";\nimport type { Logger } from \"~/logger.ts\";\nimport { NoopLogger } from \"~/logger.ts\";\nimport type {\n  RelationalSchemaConfig,\n  TablesRelationalConfig,\n} from \"~/relations.ts\";\nimport { fillPlaceholders, type Query } from \"~/sql/sql.ts\";\nimport type { SQLiteAsyncDialect } from \"~/sqlite-core/dialect.ts\";\nimport { SQLiteTransaction } from \"~/sqlite-core/index.ts\";\nimport type { SelectedFieldsOrdered } from \"~/sqlite-core/query-builders/select.types.ts\";\nimport {\n  type PreparedQueryConfig as PreparedQueryConfigBase,\n  type SQLiteExecuteMethod,\n  SQLitePreparedQuery,\n  SQLiteSession,\n  type SQLiteTransactionConfig,\n} from \"~/sqlite-core/session.ts\";\nimport { mapResultRow } from \"~/utils.ts\";\n\nexport interface OPSQLiteSessionOptions {\n  logger?: Logger;\n}\n\ntype PreparedQueryConfig = Omit<PreparedQueryConfigBase, \"statement\" | \"run\">;\n\nexport class OPSQLiteSession<\n  TFullSchema extends Record<string, unknown>,\n  TSchema extends TablesRelationalConfig,\n> extends SQLiteSession<\"async\", QueryResult, TFullSchema, TSchema> {\n  static override readonly [entityKind]: string = \"OPSQLiteSession\";\n\n  private logger: Logger;\n\n  constructor(\n    private client: OPSQLiteConnection,\n    dialect: SQLiteAsyncDialect,\n    private schema: RelationalSchemaConfig<TSchema> | undefined,\n    options: OPSQLiteSessionOptions = {}\n  ) {\n    super(dialect);\n    this.logger = options.logger ?? new NoopLogger();\n  }\n\n  prepareQuery<T extends Omit<PreparedQueryConfig, \"run\">>(\n    query: Query,\n    fields: SelectedFieldsOrdered | undefined,\n    executeMethod: SQLiteExecuteMethod,\n    isResponseInArrayMode: boolean,\n    customResultMapper?: (rows: unknown[][]) => unknown\n  ): OPSQLitePreparedQuery<T> {\n    return new OPSQLitePreparedQuery(\n      this.client,\n      query,\n      this.logger,\n      fields,\n      executeMethod,\n      isResponseInArrayMode,\n      customResultMapper\n    );\n  }\n  override transaction<T>(\n    transaction: (\n      tx: OPSQLiteTransaction<TFullSchema, TSchema>\n    ) => T | Promise<T>,\n    _config?: SQLiteTransactionConfig\n  ): Promise<T> {\n    return new Promise((resolve, reject) => {\n      this.client.transaction(async () => {\n        const tx = new OPSQLiteTransaction(\n          \"async\",\n          this.dialect,\n          this,\n          this.schema\n        );\n        try {\n          resolve(await transaction(tx));\n        } catch (e) {\n          reject(e);\n        }\n      });\n    });\n  }\n}\n\nexport class OPSQLiteTransaction<\n  TFullSchema extends Record<string, unknown>,\n  TSchema extends TablesRelationalConfig,\n> extends SQLiteTransaction<\"async\", QueryResult, TFullSchema, TSchema> {\n  static override readonly [entityKind]: string = \"OPSQLiteTransaction\";\n\n  override transaction<T>(\n    _transaction: (tx: OPSQLiteTransaction<TFullSchema, TSchema>) => T\n  ): T {\n    throw new Error(\n      \"nested transactions not implemented for op-sqlite, sorry!\"\n    );\n  }\n}\n\nexport class OPSQLitePreparedQuery<\n  T extends PreparedQueryConfig = PreparedQueryConfig,\n> extends SQLitePreparedQuery<{\n  type: \"async\";\n  run: QueryResult;\n  all: T[\"all\"];\n  get: T[\"get\"];\n  values: T[\"values\"];\n  execute: T[\"execute\"];\n}> {\n  static override readonly [entityKind]: string = \"OPSQLitePreparedQuery\";\n\n  constructor(\n    private client: OPSQLiteConnection,\n    query: Query,\n    private logger: Logger,\n    private fields: SelectedFieldsOrdered | undefined,\n    executeMethod: SQLiteExecuteMethod,\n    private _isResponseInArrayMode: boolean,\n    private customResultMapper?: (rows: unknown[][]) => unknown\n  ) {\n    super(\"sync\", executeMethod, query);\n  }\n\n  run(placeholderValues?: Record<string, unknown>): Promise<QueryResult> {\n    const params = fillPlaceholders(this.query.params, placeholderValues ?? {});\n    this.logger.logQuery(this.query.sql, params);\n\n    return this.client.executeAsync(this.query.sql, params);\n  }\n\n  async all(placeholderValues?: Record<string, unknown>): Promise<T[\"all\"]> {\n    const {\n      fields,\n      joinsNotNullableMap,\n      query,\n      logger,\n      customResultMapper,\n      client,\n    } = this;\n    if (!fields && !customResultMapper) {\n      const params = fillPlaceholders(query.params, placeholderValues ?? {});\n      logger.logQuery(query.sql, params);\n\n      return client.execute(query.sql, params).rows?._array || [];\n    }\n\n    const rows = (await this.values(placeholderValues)) as unknown[][];\n    if (customResultMapper) {\n      return customResultMapper(rows) as T[\"all\"];\n    }\n    return rows.map((row) => mapResultRow(fields!, row, joinsNotNullableMap));\n  }\n\n  async get(placeholderValues?: Record<string, unknown>): Promise<T[\"get\"]> {\n    const {\n      fields,\n      joinsNotNullableMap,\n      customResultMapper,\n      query,\n      logger,\n      client,\n    } = this;\n    const params = fillPlaceholders(query.params, placeholderValues ?? {});\n    logger.logQuery(query.sql, params);\n    if (!fields && !customResultMapper) {\n      const rows = client.execute(query.sql, params).rows?._array || [];\n      return rows[0];\n    }\n\n    const rows = (await this.values(placeholderValues)) as unknown[][];\n    const row = rows[0];\n\n    if (!row) {\n      return undefined;\n    }\n\n    if (customResultMapper) {\n      return customResultMapper(rows) as T[\"get\"];\n    }\n\n    return mapResultRow(fields!, row, joinsNotNullableMap);\n  }\n\n  values(placeholderValues?: Record<string, unknown>): Promise<T[\"values\"]> {\n    const params = fillPlaceholders(this.query.params, placeholderValues ?? {});\n    this.logger.logQuery(this.query.sql, params);\n    return this.client.executeRawAsync(this.query.sql, params);\n  }\n\n  /** @internal */\n  isResponseInArrayMode(): boolean {\n    return this._isResponseInArrayMode;\n  }\n}\n"],"mappings":"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","names":["rows"]}
+\ No newline at end of file
+diff --git a/package.json b/package.json
+index b129b27b1f00d6000305fe33fa601f40ddab6d94..1609ea321b226445a4feb41e0c3ffb8e0eb0babe 100644
+--- a/package.json
++++ b/package.json
+@@ -557,54 +557,6 @@
+       "types": "./better-sqlite3/session.d.ts",
+       "default": "./better-sqlite3/session.js"
+     },
+-    "./bun-sql/driver": {
+-      "import": {
+-        "types": "./bun-sql/driver.d.ts",
+-        "default": "./bun-sql/driver.js"
+-      },
+-      "require": {
+-        "types": "./bun-sql/driver.d.cts",
+-        "default": "./bun-sql/driver.cjs"
+-      },
+-      "types": "./bun-sql/driver.d.ts",
+-      "default": "./bun-sql/driver.js"
+-    },
+-    "./bun-sql": {
+-      "import": {
+-        "types": "./bun-sql/index.d.ts",
+-        "default": "./bun-sql/index.js"
+-      },
+-      "require": {
+-        "types": "./bun-sql/index.d.cts",
+-        "default": "./bun-sql/index.cjs"
+-      },
+-      "types": "./bun-sql/index.d.ts",
+-      "default": "./bun-sql/index.js"
+-    },
+-    "./bun-sql/migrator": {
+-      "import": {
+-        "types": "./bun-sql/migrator.d.ts",
+-        "default": "./bun-sql/migrator.js"
+-      },
+-      "require": {
+-        "types": "./bun-sql/migrator.d.cts",
+-        "default": "./bun-sql/migrator.cjs"
+-      },
+-      "types": "./bun-sql/migrator.d.ts",
+-      "default": "./bun-sql/migrator.js"
+-    },
+-    "./bun-sql/session": {
+-      "import": {
+-        "types": "./bun-sql/session.d.ts",
+-        "default": "./bun-sql/session.js"
+-      },
+-      "require": {
+-        "types": "./bun-sql/session.d.cts",
+-        "default": "./bun-sql/session.cjs"
+-      },
+-      "types": "./bun-sql/session.d.ts",
+-      "default": "./bun-sql/session.js"
+-    },
+     "./bun-sqlite/driver": {
+       "import": {
+         "types": "./bun-sqlite/driver.d.ts",
+@@ -701,54 +653,6 @@
+       "types": "./d1/session.d.ts",
+       "default": "./d1/session.js"
+     },
+-    "./durable-sqlite/driver": {
+-      "import": {
+-        "types": "./durable-sqlite/driver.d.ts",
+-        "default": "./durable-sqlite/driver.js"
+-      },
+-      "require": {
+-        "types": "./durable-sqlite/driver.d.cts",
+-        "default": "./durable-sqlite/driver.cjs"
+-      },
+-      "types": "./durable-sqlite/driver.d.ts",
+-      "default": "./durable-sqlite/driver.js"
+-    },
+-    "./durable-sqlite": {
+-      "import": {
+-        "types": "./durable-sqlite/index.d.ts",
+-        "default": "./durable-sqlite/index.js"
+-      },
+-      "require": {
+-        "types": "./durable-sqlite/index.d.cts",
+-        "default": "./durable-sqlite/index.cjs"
+-      },
+-      "types": "./durable-sqlite/index.d.ts",
+-      "default": "./durable-sqlite/index.js"
+-    },
+-    "./durable-sqlite/migrator": {
+-      "import": {
+-        "types": "./durable-sqlite/migrator.d.ts",
+-        "default": "./durable-sqlite/migrator.js"
+-      },
+-      "require": {
+-        "types": "./durable-sqlite/migrator.d.cts",
+-        "default": "./durable-sqlite/migrator.cjs"
+-      },
+-      "types": "./durable-sqlite/migrator.d.ts",
+-      "default": "./durable-sqlite/migrator.js"
+-    },
+-    "./durable-sqlite/session": {
+-      "import": {
+-        "types": "./durable-sqlite/session.d.ts",
+-        "default": "./durable-sqlite/session.js"
+-      },
+-      "require": {
+-        "types": "./durable-sqlite/session.d.cts",
+-        "default": "./durable-sqlite/session.cjs"
+-      },
+-      "types": "./durable-sqlite/session.d.ts",
+-      "default": "./durable-sqlite/session.js"
+-    },
+     "./expo-sqlite/driver": {
+       "import": {
+         "types": "./expo-sqlite/driver.d.ts",
+@@ -809,6 +713,102 @@
+       "types": "./expo-sqlite/session.d.ts",
+       "default": "./expo-sqlite/session.js"
+     },
++    "./bun-sql/driver": {
++      "import": {
++        "types": "./bun-sql/driver.d.ts",
++        "default": "./bun-sql/driver.js"
++      },
++      "require": {
++        "types": "./bun-sql/driver.d.cts",
++        "default": "./bun-sql/driver.cjs"
++      },
++      "types": "./bun-sql/driver.d.ts",
++      "default": "./bun-sql/driver.js"
++    },
++    "./bun-sql": {
++      "import": {
++        "types": "./bun-sql/index.d.ts",
++        "default": "./bun-sql/index.js"
++      },
++      "require": {
++        "types": "./bun-sql/index.d.cts",
++        "default": "./bun-sql/index.cjs"
++      },
++      "types": "./bun-sql/index.d.ts",
++      "default": "./bun-sql/index.js"
++    },
++    "./bun-sql/migrator": {
++      "import": {
++        "types": "./bun-sql/migrator.d.ts",
++        "default": "./bun-sql/migrator.js"
++      },
++      "require": {
++        "types": "./bun-sql/migrator.d.cts",
++        "default": "./bun-sql/migrator.cjs"
++      },
++      "types": "./bun-sql/migrator.d.ts",
++      "default": "./bun-sql/migrator.js"
++    },
++    "./bun-sql/session": {
++      "import": {
++        "types": "./bun-sql/session.d.ts",
++        "default": "./bun-sql/session.js"
++      },
++      "require": {
++        "types": "./bun-sql/session.d.cts",
++        "default": "./bun-sql/session.cjs"
++      },
++      "types": "./bun-sql/session.d.ts",
++      "default": "./bun-sql/session.js"
++    },
++    "./durable-sqlite/driver": {
++      "import": {
++        "types": "./durable-sqlite/driver.d.ts",
++        "default": "./durable-sqlite/driver.js"
++      },
++      "require": {
++        "types": "./durable-sqlite/driver.d.cts",
++        "default": "./durable-sqlite/driver.cjs"
++      },
++      "types": "./durable-sqlite/driver.d.ts",
++      "default": "./durable-sqlite/driver.js"
++    },
++    "./durable-sqlite": {
++      "import": {
++        "types": "./durable-sqlite/index.d.ts",
++        "default": "./durable-sqlite/index.js"
++      },
++      "require": {
++        "types": "./durable-sqlite/index.d.cts",
++        "default": "./durable-sqlite/index.cjs"
++      },
++      "types": "./durable-sqlite/index.d.ts",
++      "default": "./durable-sqlite/index.js"
++    },
++    "./durable-sqlite/migrator": {
++      "import": {
++        "types": "./durable-sqlite/migrator.d.ts",
++        "default": "./durable-sqlite/migrator.js"
++      },
++      "require": {
++        "types": "./durable-sqlite/migrator.d.cts",
++        "default": "./durable-sqlite/migrator.cjs"
++      },
++      "types": "./durable-sqlite/migrator.d.ts",
++      "default": "./durable-sqlite/migrator.js"
++    },
++    "./durable-sqlite/session": {
++      "import": {
++        "types": "./durable-sqlite/session.d.ts",
++        "default": "./durable-sqlite/session.js"
++      },
++      "require": {
++        "types": "./durable-sqlite/session.d.cts",
++        "default": "./durable-sqlite/session.cjs"
++      },
++      "types": "./durable-sqlite/session.d.ts",
++      "default": "./durable-sqlite/session.js"
++    },
+     "./knex": {
+       "import": {
+         "types": "./knex/index.d.ts",
+@@ -2585,54 +2585,6 @@
+       "types": "./tidb-serverless/session.d.ts",
+       "default": "./tidb-serverless/session.js"
+     },
+-    "./vercel-postgres/driver": {
+-      "import": {
+-        "types": "./vercel-postgres/driver.d.ts",
+-        "default": "./vercel-postgres/driver.js"
+-      },
+-      "require": {
+-        "types": "./vercel-postgres/driver.d.cts",
+-        "default": "./vercel-postgres/driver.cjs"
+-      },
+-      "types": "./vercel-postgres/driver.d.ts",
+-      "default": "./vercel-postgres/driver.js"
+-    },
+-    "./vercel-postgres": {
+-      "import": {
+-        "types": "./vercel-postgres/index.d.ts",
+-        "default": "./vercel-postgres/index.js"
+-      },
+-      "require": {
+-        "types": "./vercel-postgres/index.d.cts",
+-        "default": "./vercel-postgres/index.cjs"
+-      },
+-      "types": "./vercel-postgres/index.d.ts",
+-      "default": "./vercel-postgres/index.js"
+-    },
+-    "./vercel-postgres/migrator": {
+-      "import": {
+-        "types": "./vercel-postgres/migrator.d.ts",
+-        "default": "./vercel-postgres/migrator.js"
+-      },
+-      "require": {
+-        "types": "./vercel-postgres/migrator.d.cts",
+-        "default": "./vercel-postgres/migrator.cjs"
+-      },
+-      "types": "./vercel-postgres/migrator.d.ts",
+-      "default": "./vercel-postgres/migrator.js"
+-    },
+-    "./vercel-postgres/session": {
+-      "import": {
+-        "types": "./vercel-postgres/session.d.ts",
+-        "default": "./vercel-postgres/session.js"
+-      },
+-      "require": {
+-        "types": "./vercel-postgres/session.d.cts",
+-        "default": "./vercel-postgres/session.cjs"
+-      },
+-      "types": "./vercel-postgres/session.d.ts",
+-      "default": "./vercel-postgres/session.js"
+-    },
+     "./xata-http/driver": {
+       "import": {
+         "types": "./xata-http/driver.d.ts",
+@@ -2693,19 +2645,67 @@
+       "types": "./aws-data-api/common/index.d.ts",
+       "default": "./aws-data-api/common/index.js"
+     },
+-    "./aws-data-api/pg/driver": {
++    "./vercel-postgres/driver": {
+       "import": {
+-        "types": "./aws-data-api/pg/driver.d.ts",
+-        "default": "./aws-data-api/pg/driver.js"
++        "types": "./vercel-postgres/driver.d.ts",
++        "default": "./vercel-postgres/driver.js"
+       },
+       "require": {
+-        "types": "./aws-data-api/pg/driver.d.cts",
+-        "default": "./aws-data-api/pg/driver.cjs"
++        "types": "./vercel-postgres/driver.d.cts",
++        "default": "./vercel-postgres/driver.cjs"
+       },
+-      "types": "./aws-data-api/pg/driver.d.ts",
+-      "default": "./aws-data-api/pg/driver.js"
++      "types": "./vercel-postgres/driver.d.ts",
++      "default": "./vercel-postgres/driver.js"
+     },
+-    "./aws-data-api/pg": {
++    "./vercel-postgres": {
++      "import": {
++        "types": "./vercel-postgres/index.d.ts",
++        "default": "./vercel-postgres/index.js"
++      },
++      "require": {
++        "types": "./vercel-postgres/index.d.cts",
++        "default": "./vercel-postgres/index.cjs"
++      },
++      "types": "./vercel-postgres/index.d.ts",
++      "default": "./vercel-postgres/index.js"
++    },
++    "./vercel-postgres/migrator": {
++      "import": {
++        "types": "./vercel-postgres/migrator.d.ts",
++        "default": "./vercel-postgres/migrator.js"
++      },
++      "require": {
++        "types": "./vercel-postgres/migrator.d.cts",
++        "default": "./vercel-postgres/migrator.cjs"
++      },
++      "types": "./vercel-postgres/migrator.d.ts",
++      "default": "./vercel-postgres/migrator.js"
++    },
++    "./vercel-postgres/session": {
++      "import": {
++        "types": "./vercel-postgres/session.d.ts",
++        "default": "./vercel-postgres/session.js"
++      },
++      "require": {
++        "types": "./vercel-postgres/session.d.cts",
++        "default": "./vercel-postgres/session.cjs"
++      },
++      "types": "./vercel-postgres/session.d.ts",
++      "default": "./vercel-postgres/session.js"
++    },
++    "./aws-data-api/pg/driver": {
++      "import": {
++        "types": "./aws-data-api/pg/driver.d.ts",
++        "default": "./aws-data-api/pg/driver.js"
++      },
++      "require": {
++        "types": "./aws-data-api/pg/driver.d.cts",
++        "default": "./aws-data-api/pg/driver.cjs"
++      },
++      "types": "./aws-data-api/pg/driver.d.ts",
++      "default": "./aws-data-api/pg/driver.js"
++    },
++    "./aws-data-api/pg": {
+       "import": {
+         "types": "./aws-data-api/pg/index.d.ts",
+         "default": "./aws-data-api/pg/index.js"
+@@ -2753,18 +2753,6 @@
+       "types": "./libsql/http/index.d.ts",
+       "default": "./libsql/http/index.js"
+     },
+-    "./libsql/node": {
+-      "import": {
+-        "types": "./libsql/node/index.d.ts",
+-        "default": "./libsql/node/index.js"
+-      },
+-      "require": {
+-        "types": "./libsql/node/index.d.cts",
+-        "default": "./libsql/node/index.cjs"
+-      },
+-      "types": "./libsql/node/index.d.ts",
+-      "default": "./libsql/node/index.js"
+-    },
+     "./libsql/sqlite3": {
+       "import": {
+         "types": "./libsql/sqlite3/index.d.ts",
+@@ -2777,6 +2765,18 @@
+       "types": "./libsql/sqlite3/index.d.ts",
+       "default": "./libsql/sqlite3/index.js"
+     },
++    "./libsql/node": {
++      "import": {
++        "types": "./libsql/node/index.d.ts",
++        "default": "./libsql/node/index.js"
++      },
++      "require": {
++        "types": "./libsql/node/index.d.cts",
++        "default": "./libsql/node/index.cjs"
++      },
++      "types": "./libsql/node/index.d.ts",
++      "default": "./libsql/node/index.js"
++    },
+     "./libsql/wasm": {
+       "import": {
+         "types": "./libsql/wasm/index.d.ts",
+@@ -2789,18 +2789,6 @@
+       "types": "./libsql/wasm/index.d.ts",
+       "default": "./libsql/wasm/index.js"
+     },
+-    "./libsql/web": {
+-      "import": {
+-        "types": "./libsql/web/index.d.ts",
+-        "default": "./libsql/web/index.js"
+-      },
+-      "require": {
+-        "types": "./libsql/web/index.d.cts",
+-        "default": "./libsql/web/index.cjs"
+-      },
+-      "types": "./libsql/web/index.d.ts",
+-      "default": "./libsql/web/index.js"
+-    },
+     "./libsql/ws": {
+       "import": {
+         "types": "./libsql/ws/index.d.ts",
+@@ -2813,845 +2801,869 @@
+       "types": "./libsql/ws/index.d.ts",
+       "default": "./libsql/ws/index.js"
+     },
+-    "./mysql-core/columns/all": {
++    "./pg-core/columns/all": {
+       "import": {
+-        "types": "./mysql-core/columns/all.d.ts",
+-        "default": "./mysql-core/columns/all.js"
++        "types": "./pg-core/columns/all.d.ts",
++        "default": "./pg-core/columns/all.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/all.d.cts",
+-        "default": "./mysql-core/columns/all.cjs"
++        "types": "./pg-core/columns/all.d.cts",
++        "default": "./pg-core/columns/all.cjs"
+       },
+-      "types": "./mysql-core/columns/all.d.ts",
+-      "default": "./mysql-core/columns/all.js"
++      "types": "./pg-core/columns/all.d.ts",
++      "default": "./pg-core/columns/all.js"
+     },
+-    "./mysql-core/columns/bigint": {
++    "./pg-core/columns/bigint": {
+       "import": {
+-        "types": "./mysql-core/columns/bigint.d.ts",
+-        "default": "./mysql-core/columns/bigint.js"
++        "types": "./pg-core/columns/bigint.d.ts",
++        "default": "./pg-core/columns/bigint.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/bigint.d.cts",
+-        "default": "./mysql-core/columns/bigint.cjs"
++        "types": "./pg-core/columns/bigint.d.cts",
++        "default": "./pg-core/columns/bigint.cjs"
+       },
+-      "types": "./mysql-core/columns/bigint.d.ts",
+-      "default": "./mysql-core/columns/bigint.js"
++      "types": "./pg-core/columns/bigint.d.ts",
++      "default": "./pg-core/columns/bigint.js"
+     },
+-    "./mysql-core/columns/binary": {
++    "./pg-core/columns/bigserial": {
+       "import": {
+-        "types": "./mysql-core/columns/binary.d.ts",
+-        "default": "./mysql-core/columns/binary.js"
++        "types": "./pg-core/columns/bigserial.d.ts",
++        "default": "./pg-core/columns/bigserial.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/binary.d.cts",
+-        "default": "./mysql-core/columns/binary.cjs"
++        "types": "./pg-core/columns/bigserial.d.cts",
++        "default": "./pg-core/columns/bigserial.cjs"
+       },
+-      "types": "./mysql-core/columns/binary.d.ts",
+-      "default": "./mysql-core/columns/binary.js"
++      "types": "./pg-core/columns/bigserial.d.ts",
++      "default": "./pg-core/columns/bigserial.js"
+     },
+-    "./mysql-core/columns/boolean": {
++    "./pg-core/columns/boolean": {
+       "import": {
+-        "types": "./mysql-core/columns/boolean.d.ts",
+-        "default": "./mysql-core/columns/boolean.js"
++        "types": "./pg-core/columns/boolean.d.ts",
++        "default": "./pg-core/columns/boolean.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/boolean.d.cts",
+-        "default": "./mysql-core/columns/boolean.cjs"
++        "types": "./pg-core/columns/boolean.d.cts",
++        "default": "./pg-core/columns/boolean.cjs"
+       },
+-      "types": "./mysql-core/columns/boolean.d.ts",
+-      "default": "./mysql-core/columns/boolean.js"
++      "types": "./pg-core/columns/boolean.d.ts",
++      "default": "./pg-core/columns/boolean.js"
+     },
+-    "./mysql-core/columns/char": {
++    "./pg-core/columns/char": {
+       "import": {
+-        "types": "./mysql-core/columns/char.d.ts",
+-        "default": "./mysql-core/columns/char.js"
++        "types": "./pg-core/columns/char.d.ts",
++        "default": "./pg-core/columns/char.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/char.d.cts",
+-        "default": "./mysql-core/columns/char.cjs"
++        "types": "./pg-core/columns/char.d.cts",
++        "default": "./pg-core/columns/char.cjs"
+       },
+-      "types": "./mysql-core/columns/char.d.ts",
+-      "default": "./mysql-core/columns/char.js"
++      "types": "./pg-core/columns/char.d.ts",
++      "default": "./pg-core/columns/char.js"
+     },
+-    "./mysql-core/columns/common": {
++    "./pg-core/columns/cidr": {
+       "import": {
+-        "types": "./mysql-core/columns/common.d.ts",
+-        "default": "./mysql-core/columns/common.js"
++        "types": "./pg-core/columns/cidr.d.ts",
++        "default": "./pg-core/columns/cidr.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/common.d.cts",
+-        "default": "./mysql-core/columns/common.cjs"
++        "types": "./pg-core/columns/cidr.d.cts",
++        "default": "./pg-core/columns/cidr.cjs"
+       },
+-      "types": "./mysql-core/columns/common.d.ts",
+-      "default": "./mysql-core/columns/common.js"
++      "types": "./pg-core/columns/cidr.d.ts",
++      "default": "./pg-core/columns/cidr.js"
+     },
+-    "./mysql-core/columns/custom": {
++    "./pg-core/columns/common": {
+       "import": {
+-        "types": "./mysql-core/columns/custom.d.ts",
+-        "default": "./mysql-core/columns/custom.js"
++        "types": "./pg-core/columns/common.d.ts",
++        "default": "./pg-core/columns/common.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/custom.d.cts",
+-        "default": "./mysql-core/columns/custom.cjs"
++        "types": "./pg-core/columns/common.d.cts",
++        "default": "./pg-core/columns/common.cjs"
+       },
+-      "types": "./mysql-core/columns/custom.d.ts",
+-      "default": "./mysql-core/columns/custom.js"
++      "types": "./pg-core/columns/common.d.ts",
++      "default": "./pg-core/columns/common.js"
+     },
+-    "./mysql-core/columns/date.common": {
++    "./pg-core/columns/custom": {
+       "import": {
+-        "types": "./mysql-core/columns/date.common.d.ts",
+-        "default": "./mysql-core/columns/date.common.js"
++        "types": "./pg-core/columns/custom.d.ts",
++        "default": "./pg-core/columns/custom.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/date.common.d.cts",
+-        "default": "./mysql-core/columns/date.common.cjs"
++        "types": "./pg-core/columns/custom.d.cts",
++        "default": "./pg-core/columns/custom.cjs"
+       },
+-      "types": "./mysql-core/columns/date.common.d.ts",
+-      "default": "./mysql-core/columns/date.common.js"
++      "types": "./pg-core/columns/custom.d.ts",
++      "default": "./pg-core/columns/custom.js"
+     },
+-    "./mysql-core/columns/date": {
++    "./pg-core/columns/date.common": {
+       "import": {
+-        "types": "./mysql-core/columns/date.d.ts",
+-        "default": "./mysql-core/columns/date.js"
++        "types": "./pg-core/columns/date.common.d.ts",
++        "default": "./pg-core/columns/date.common.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/date.d.cts",
+-        "default": "./mysql-core/columns/date.cjs"
++        "types": "./pg-core/columns/date.common.d.cts",
++        "default": "./pg-core/columns/date.common.cjs"
+       },
+-      "types": "./mysql-core/columns/date.d.ts",
+-      "default": "./mysql-core/columns/date.js"
++      "types": "./pg-core/columns/date.common.d.ts",
++      "default": "./pg-core/columns/date.common.js"
+     },
+-    "./mysql-core/columns/datetime": {
++    "./pg-core/columns/date": {
+       "import": {
+-        "types": "./mysql-core/columns/datetime.d.ts",
+-        "default": "./mysql-core/columns/datetime.js"
++        "types": "./pg-core/columns/date.d.ts",
++        "default": "./pg-core/columns/date.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/datetime.d.cts",
+-        "default": "./mysql-core/columns/datetime.cjs"
++        "types": "./pg-core/columns/date.d.cts",
++        "default": "./pg-core/columns/date.cjs"
+       },
+-      "types": "./mysql-core/columns/datetime.d.ts",
+-      "default": "./mysql-core/columns/datetime.js"
++      "types": "./pg-core/columns/date.d.ts",
++      "default": "./pg-core/columns/date.js"
+     },
+-    "./mysql-core/columns/decimal": {
++    "./pg-core/columns/double-precision": {
+       "import": {
+-        "types": "./mysql-core/columns/decimal.d.ts",
+-        "default": "./mysql-core/columns/decimal.js"
++        "types": "./pg-core/columns/double-precision.d.ts",
++        "default": "./pg-core/columns/double-precision.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/decimal.d.cts",
+-        "default": "./mysql-core/columns/decimal.cjs"
++        "types": "./pg-core/columns/double-precision.d.cts",
++        "default": "./pg-core/columns/double-precision.cjs"
+       },
+-      "types": "./mysql-core/columns/decimal.d.ts",
+-      "default": "./mysql-core/columns/decimal.js"
++      "types": "./pg-core/columns/double-precision.d.ts",
++      "default": "./pg-core/columns/double-precision.js"
+     },
+-    "./mysql-core/columns/double": {
++    "./pg-core/columns/enum": {
+       "import": {
+-        "types": "./mysql-core/columns/double.d.ts",
+-        "default": "./mysql-core/columns/double.js"
++        "types": "./pg-core/columns/enum.d.ts",
++        "default": "./pg-core/columns/enum.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/double.d.cts",
+-        "default": "./mysql-core/columns/double.cjs"
++        "types": "./pg-core/columns/enum.d.cts",
++        "default": "./pg-core/columns/enum.cjs"
+       },
+-      "types": "./mysql-core/columns/double.d.ts",
+-      "default": "./mysql-core/columns/double.js"
++      "types": "./pg-core/columns/enum.d.ts",
++      "default": "./pg-core/columns/enum.js"
+     },
+-    "./mysql-core/columns/enum": {
++    "./pg-core/columns": {
+       "import": {
+-        "types": "./mysql-core/columns/enum.d.ts",
+-        "default": "./mysql-core/columns/enum.js"
++        "types": "./pg-core/columns/index.d.ts",
++        "default": "./pg-core/columns/index.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/enum.d.cts",
+-        "default": "./mysql-core/columns/enum.cjs"
++        "types": "./pg-core/columns/index.d.cts",
++        "default": "./pg-core/columns/index.cjs"
+       },
+-      "types": "./mysql-core/columns/enum.d.ts",
+-      "default": "./mysql-core/columns/enum.js"
++      "types": "./pg-core/columns/index.d.ts",
++      "default": "./pg-core/columns/index.js"
+     },
+-    "./mysql-core/columns/float": {
++    "./pg-core/columns/inet": {
+       "import": {
+-        "types": "./mysql-core/columns/float.d.ts",
+-        "default": "./mysql-core/columns/float.js"
++        "types": "./pg-core/columns/inet.d.ts",
++        "default": "./pg-core/columns/inet.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/float.d.cts",
+-        "default": "./mysql-core/columns/float.cjs"
++        "types": "./pg-core/columns/inet.d.cts",
++        "default": "./pg-core/columns/inet.cjs"
+       },
+-      "types": "./mysql-core/columns/float.d.ts",
+-      "default": "./mysql-core/columns/float.js"
++      "types": "./pg-core/columns/inet.d.ts",
++      "default": "./pg-core/columns/inet.js"
+     },
+-    "./mysql-core/columns": {
++    "./pg-core/columns/int.common": {
+       "import": {
+-        "types": "./mysql-core/columns/index.d.ts",
+-        "default": "./mysql-core/columns/index.js"
++        "types": "./pg-core/columns/int.common.d.ts",
++        "default": "./pg-core/columns/int.common.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/index.d.cts",
+-        "default": "./mysql-core/columns/index.cjs"
++        "types": "./pg-core/columns/int.common.d.cts",
++        "default": "./pg-core/columns/int.common.cjs"
+       },
+-      "types": "./mysql-core/columns/index.d.ts",
+-      "default": "./mysql-core/columns/index.js"
++      "types": "./pg-core/columns/int.common.d.ts",
++      "default": "./pg-core/columns/int.common.js"
+     },
+-    "./mysql-core/columns/int": {
++    "./pg-core/columns/integer": {
+       "import": {
+-        "types": "./mysql-core/columns/int.d.ts",
+-        "default": "./mysql-core/columns/int.js"
++        "types": "./pg-core/columns/integer.d.ts",
++        "default": "./pg-core/columns/integer.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/int.d.cts",
+-        "default": "./mysql-core/columns/int.cjs"
++        "types": "./pg-core/columns/integer.d.cts",
++        "default": "./pg-core/columns/integer.cjs"
+       },
+-      "types": "./mysql-core/columns/int.d.ts",
+-      "default": "./mysql-core/columns/int.js"
++      "types": "./pg-core/columns/integer.d.ts",
++      "default": "./pg-core/columns/integer.js"
+     },
+-    "./mysql-core/columns/json": {
++    "./pg-core/columns/interval": {
+       "import": {
+-        "types": "./mysql-core/columns/json.d.ts",
+-        "default": "./mysql-core/columns/json.js"
++        "types": "./pg-core/columns/interval.d.ts",
++        "default": "./pg-core/columns/interval.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/json.d.cts",
+-        "default": "./mysql-core/columns/json.cjs"
++        "types": "./pg-core/columns/interval.d.cts",
++        "default": "./pg-core/columns/interval.cjs"
+       },
+-      "types": "./mysql-core/columns/json.d.ts",
+-      "default": "./mysql-core/columns/json.js"
++      "types": "./pg-core/columns/interval.d.ts",
++      "default": "./pg-core/columns/interval.js"
+     },
+-    "./mysql-core/columns/mediumint": {
++    "./pg-core/columns/json": {
+       "import": {
+-        "types": "./mysql-core/columns/mediumint.d.ts",
+-        "default": "./mysql-core/columns/mediumint.js"
++        "types": "./pg-core/columns/json.d.ts",
++        "default": "./pg-core/columns/json.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/mediumint.d.cts",
+-        "default": "./mysql-core/columns/mediumint.cjs"
++        "types": "./pg-core/columns/json.d.cts",
++        "default": "./pg-core/columns/json.cjs"
+       },
+-      "types": "./mysql-core/columns/mediumint.d.ts",
+-      "default": "./mysql-core/columns/mediumint.js"
++      "types": "./pg-core/columns/json.d.ts",
++      "default": "./pg-core/columns/json.js"
+     },
+-    "./mysql-core/columns/real": {
++    "./pg-core/columns/jsonb": {
+       "import": {
+-        "types": "./mysql-core/columns/real.d.ts",
+-        "default": "./mysql-core/columns/real.js"
++        "types": "./pg-core/columns/jsonb.d.ts",
++        "default": "./pg-core/columns/jsonb.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/real.d.cts",
+-        "default": "./mysql-core/columns/real.cjs"
++        "types": "./pg-core/columns/jsonb.d.cts",
++        "default": "./pg-core/columns/jsonb.cjs"
+       },
+-      "types": "./mysql-core/columns/real.d.ts",
+-      "default": "./mysql-core/columns/real.js"
++      "types": "./pg-core/columns/jsonb.d.ts",
++      "default": "./pg-core/columns/jsonb.js"
+     },
+-    "./mysql-core/columns/serial": {
++    "./pg-core/columns/line": {
+       "import": {
+-        "types": "./mysql-core/columns/serial.d.ts",
+-        "default": "./mysql-core/columns/serial.js"
++        "types": "./pg-core/columns/line.d.ts",
++        "default": "./pg-core/columns/line.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/serial.d.cts",
+-        "default": "./mysql-core/columns/serial.cjs"
++        "types": "./pg-core/columns/line.d.cts",
++        "default": "./pg-core/columns/line.cjs"
+       },
+-      "types": "./mysql-core/columns/serial.d.ts",
+-      "default": "./mysql-core/columns/serial.js"
++      "types": "./pg-core/columns/line.d.ts",
++      "default": "./pg-core/columns/line.js"
+     },
+-    "./mysql-core/columns/smallint": {
++    "./pg-core/columns/macaddr": {
+       "import": {
+-        "types": "./mysql-core/columns/smallint.d.ts",
+-        "default": "./mysql-core/columns/smallint.js"
++        "types": "./pg-core/columns/macaddr.d.ts",
++        "default": "./pg-core/columns/macaddr.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/smallint.d.cts",
+-        "default": "./mysql-core/columns/smallint.cjs"
++        "types": "./pg-core/columns/macaddr.d.cts",
++        "default": "./pg-core/columns/macaddr.cjs"
+       },
+-      "types": "./mysql-core/columns/smallint.d.ts",
+-      "default": "./mysql-core/columns/smallint.js"
++      "types": "./pg-core/columns/macaddr.d.ts",
++      "default": "./pg-core/columns/macaddr.js"
+     },
+-    "./mysql-core/columns/text": {
++    "./pg-core/columns/macaddr8": {
+       "import": {
+-        "types": "./mysql-core/columns/text.d.ts",
+-        "default": "./mysql-core/columns/text.js"
++        "types": "./pg-core/columns/macaddr8.d.ts",
++        "default": "./pg-core/columns/macaddr8.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/text.d.cts",
+-        "default": "./mysql-core/columns/text.cjs"
++        "types": "./pg-core/columns/macaddr8.d.cts",
++        "default": "./pg-core/columns/macaddr8.cjs"
+       },
+-      "types": "./mysql-core/columns/text.d.ts",
+-      "default": "./mysql-core/columns/text.js"
++      "types": "./pg-core/columns/macaddr8.d.ts",
++      "default": "./pg-core/columns/macaddr8.js"
+     },
+-    "./mysql-core/columns/time": {
++    "./pg-core/columns/numeric": {
+       "import": {
+-        "types": "./mysql-core/columns/time.d.ts",
+-        "default": "./mysql-core/columns/time.js"
++        "types": "./pg-core/columns/numeric.d.ts",
++        "default": "./pg-core/columns/numeric.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/time.d.cts",
+-        "default": "./mysql-core/columns/time.cjs"
++        "types": "./pg-core/columns/numeric.d.cts",
++        "default": "./pg-core/columns/numeric.cjs"
+       },
+-      "types": "./mysql-core/columns/time.d.ts",
+-      "default": "./mysql-core/columns/time.js"
++      "types": "./pg-core/columns/numeric.d.ts",
++      "default": "./pg-core/columns/numeric.js"
+     },
+-    "./mysql-core/columns/timestamp": {
++    "./pg-core/columns/point": {
+       "import": {
+-        "types": "./mysql-core/columns/timestamp.d.ts",
+-        "default": "./mysql-core/columns/timestamp.js"
++        "types": "./pg-core/columns/point.d.ts",
++        "default": "./pg-core/columns/point.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/timestamp.d.cts",
+-        "default": "./mysql-core/columns/timestamp.cjs"
++        "types": "./pg-core/columns/point.d.cts",
++        "default": "./pg-core/columns/point.cjs"
+       },
+-      "types": "./mysql-core/columns/timestamp.d.ts",
+-      "default": "./mysql-core/columns/timestamp.js"
++      "types": "./pg-core/columns/point.d.ts",
++      "default": "./pg-core/columns/point.js"
+     },
+-    "./mysql-core/columns/tinyint": {
++    "./pg-core/columns/real": {
+       "import": {
+-        "types": "./mysql-core/columns/tinyint.d.ts",
+-        "default": "./mysql-core/columns/tinyint.js"
++        "types": "./pg-core/columns/real.d.ts",
++        "default": "./pg-core/columns/real.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/tinyint.d.cts",
+-        "default": "./mysql-core/columns/tinyint.cjs"
++        "types": "./pg-core/columns/real.d.cts",
++        "default": "./pg-core/columns/real.cjs"
+       },
+-      "types": "./mysql-core/columns/tinyint.d.ts",
+-      "default": "./mysql-core/columns/tinyint.js"
++      "types": "./pg-core/columns/real.d.ts",
++      "default": "./pg-core/columns/real.js"
+     },
+-    "./mysql-core/columns/varbinary": {
++    "./pg-core/columns/serial": {
+       "import": {
+-        "types": "./mysql-core/columns/varbinary.d.ts",
+-        "default": "./mysql-core/columns/varbinary.js"
++        "types": "./pg-core/columns/serial.d.ts",
++        "default": "./pg-core/columns/serial.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/varbinary.d.cts",
+-        "default": "./mysql-core/columns/varbinary.cjs"
++        "types": "./pg-core/columns/serial.d.cts",
++        "default": "./pg-core/columns/serial.cjs"
+       },
+-      "types": "./mysql-core/columns/varbinary.d.ts",
+-      "default": "./mysql-core/columns/varbinary.js"
++      "types": "./pg-core/columns/serial.d.ts",
++      "default": "./pg-core/columns/serial.js"
+     },
+-    "./mysql-core/columns/varchar": {
++    "./pg-core/columns/smallint": {
+       "import": {
+-        "types": "./mysql-core/columns/varchar.d.ts",
+-        "default": "./mysql-core/columns/varchar.js"
++        "types": "./pg-core/columns/smallint.d.ts",
++        "default": "./pg-core/columns/smallint.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/varchar.d.cts",
+-        "default": "./mysql-core/columns/varchar.cjs"
++        "types": "./pg-core/columns/smallint.d.cts",
++        "default": "./pg-core/columns/smallint.cjs"
+       },
+-      "types": "./mysql-core/columns/varchar.d.ts",
+-      "default": "./mysql-core/columns/varchar.js"
++      "types": "./pg-core/columns/smallint.d.ts",
++      "default": "./pg-core/columns/smallint.js"
+     },
+-    "./mysql-core/columns/year": {
++    "./pg-core/columns/smallserial": {
+       "import": {
+-        "types": "./mysql-core/columns/year.d.ts",
+-        "default": "./mysql-core/columns/year.js"
++        "types": "./pg-core/columns/smallserial.d.ts",
++        "default": "./pg-core/columns/smallserial.js"
+       },
+       "require": {
+-        "types": "./mysql-core/columns/year.d.cts",
+-        "default": "./mysql-core/columns/year.cjs"
++        "types": "./pg-core/columns/smallserial.d.cts",
++        "default": "./pg-core/columns/smallserial.cjs"
+       },
+-      "types": "./mysql-core/columns/year.d.ts",
+-      "default": "./mysql-core/columns/year.js"
++      "types": "./pg-core/columns/smallserial.d.ts",
++      "default": "./pg-core/columns/smallserial.js"
+     },
+-    "./mysql-core/query-builders/count": {
++    "./pg-core/columns/text": {
+       "import": {
+-        "types": "./mysql-core/query-builders/count.d.ts",
+-        "default": "./mysql-core/query-builders/count.js"
++        "types": "./pg-core/columns/text.d.ts",
++        "default": "./pg-core/columns/text.js"
+       },
+       "require": {
+-        "types": "./mysql-core/query-builders/count.d.cts",
+-        "default": "./mysql-core/query-builders/count.cjs"
++        "types": "./pg-core/columns/text.d.cts",
++        "default": "./pg-core/columns/text.cjs"
+       },
+-      "types": "./mysql-core/query-builders/count.d.ts",
+-      "default": "./mysql-core/query-builders/count.js"
++      "types": "./pg-core/columns/text.d.ts",
++      "default": "./pg-core/columns/text.js"
+     },
+-    "./mysql-core/query-builders/delete": {
++    "./pg-core/columns/time": {
+       "import": {
+-        "types": "./mysql-core/query-builders/delete.d.ts",
+-        "default": "./mysql-core/query-builders/delete.js"
++        "types": "./pg-core/columns/time.d.ts",
++        "default": "./pg-core/columns/time.js"
+       },
+       "require": {
+-        "types": "./mysql-core/query-builders/delete.d.cts",
+-        "default": "./mysql-core/query-builders/delete.cjs"
++        "types": "./pg-core/columns/time.d.cts",
++        "default": "./pg-core/columns/time.cjs"
+       },
+-      "types": "./mysql-core/query-builders/delete.d.ts",
+-      "default": "./mysql-core/query-builders/delete.js"
++      "types": "./pg-core/columns/time.d.ts",
++      "default": "./pg-core/columns/time.js"
+     },
+-    "./mysql-core/query-builders": {
++    "./pg-core/columns/timestamp": {
+       "import": {
+-        "types": "./mysql-core/query-builders/index.d.ts",
+-        "default": "./mysql-core/query-builders/index.js"
++        "types": "./pg-core/columns/timestamp.d.ts",
++        "default": "./pg-core/columns/timestamp.js"
+       },
+       "require": {
+-        "types": "./mysql-core/query-builders/index.d.cts",
+-        "default": "./mysql-core/query-builders/index.cjs"
++        "types": "./pg-core/columns/timestamp.d.cts",
++        "default": "./pg-core/columns/timestamp.cjs"
+       },
+-      "types": "./mysql-core/query-builders/index.d.ts",
+-      "default": "./mysql-core/query-builders/index.js"
++      "types": "./pg-core/columns/timestamp.d.ts",
++      "default": "./pg-core/columns/timestamp.js"
+     },
+-    "./mysql-core/query-builders/insert": {
++    "./pg-core/columns/uuid": {
+       "import": {
+-        "types": "./mysql-core/query-builders/insert.d.ts",
+-        "default": "./mysql-core/query-builders/insert.js"
++        "types": "./pg-core/columns/uuid.d.ts",
++        "default": "./pg-core/columns/uuid.js"
+       },
+       "require": {
+-        "types": "./mysql-core/query-builders/insert.d.cts",
+-        "default": "./mysql-core/query-builders/insert.cjs"
++        "types": "./pg-core/columns/uuid.d.cts",
++        "default": "./pg-core/columns/uuid.cjs"
+       },
+-      "types": "./mysql-core/query-builders/insert.d.ts",
+-      "default": "./mysql-core/query-builders/insert.js"
++      "types": "./pg-core/columns/uuid.d.ts",
++      "default": "./pg-core/columns/uuid.js"
+     },
+-    "./mysql-core/query-builders/query-builder": {
++    "./pg-core/columns/varchar": {
+       "import": {
+-        "types": "./mysql-core/query-builders/query-builder.d.ts",
+-        "default": "./mysql-core/query-builders/query-builder.js"
++        "types": "./pg-core/columns/varchar.d.ts",
++        "default": "./pg-core/columns/varchar.js"
+       },
+       "require": {
+-        "types": "./mysql-core/query-builders/query-builder.d.cts",
+-        "default": "./mysql-core/query-builders/query-builder.cjs"
++        "types": "./pg-core/columns/varchar.d.cts",
++        "default": "./pg-core/columns/varchar.cjs"
+       },
+-      "types": "./mysql-core/query-builders/query-builder.d.ts",
+-      "default": "./mysql-core/query-builders/query-builder.js"
++      "types": "./pg-core/columns/varchar.d.ts",
++      "default": "./pg-core/columns/varchar.js"
+     },
+-    "./mysql-core/query-builders/query": {
++    "./mysql-core/columns/all": {
+       "import": {
+-        "types": "./mysql-core/query-builders/query.d.ts",
+-        "default": "./mysql-core/query-builders/query.js"
++        "types": "./mysql-core/columns/all.d.ts",
++        "default": "./mysql-core/columns/all.js"
+       },
+       "require": {
+-        "types": "./mysql-core/query-builders/query.d.cts",
+-        "default": "./mysql-core/query-builders/query.cjs"
++        "types": "./mysql-core/columns/all.d.cts",
++        "default": "./mysql-core/columns/all.cjs"
+       },
+-      "types": "./mysql-core/query-builders/query.d.ts",
+-      "default": "./mysql-core/query-builders/query.js"
++      "types": "./mysql-core/columns/all.d.ts",
++      "default": "./mysql-core/columns/all.js"
+     },
+-    "./mysql-core/query-builders/select": {
++    "./mysql-core/columns/bigint": {
+       "import": {
+-        "types": "./mysql-core/query-builders/select.d.ts",
+-        "default": "./mysql-core/query-builders/select.js"
++        "types": "./mysql-core/columns/bigint.d.ts",
++        "default": "./mysql-core/columns/bigint.js"
+       },
+       "require": {
+-        "types": "./mysql-core/query-builders/select.d.cts",
+-        "default": "./mysql-core/query-builders/select.cjs"
++        "types": "./mysql-core/columns/bigint.d.cts",
++        "default": "./mysql-core/columns/bigint.cjs"
+       },
+-      "types": "./mysql-core/query-builders/select.d.ts",
+-      "default": "./mysql-core/query-builders/select.js"
++      "types": "./mysql-core/columns/bigint.d.ts",
++      "default": "./mysql-core/columns/bigint.js"
+     },
+-    "./mysql-core/query-builders/select.types": {
++    "./mysql-core/columns/binary": {
+       "import": {
+-        "types": "./mysql-core/query-builders/select.types.d.ts",
+-        "default": "./mysql-core/query-builders/select.types.js"
++        "types": "./mysql-core/columns/binary.d.ts",
++        "default": "./mysql-core/columns/binary.js"
+       },
+       "require": {
+-        "types": "./mysql-core/query-builders/select.types.d.cts",
+-        "default": "./mysql-core/query-builders/select.types.cjs"
++        "types": "./mysql-core/columns/binary.d.cts",
++        "default": "./mysql-core/columns/binary.cjs"
+       },
+-      "types": "./mysql-core/query-builders/select.types.d.ts",
+-      "default": "./mysql-core/query-builders/select.types.js"
++      "types": "./mysql-core/columns/binary.d.ts",
++      "default": "./mysql-core/columns/binary.js"
+     },
+-    "./mysql-core/query-builders/update": {
++    "./mysql-core/columns/boolean": {
+       "import": {
+-        "types": "./mysql-core/query-builders/update.d.ts",
+-        "default": "./mysql-core/query-builders/update.js"
++        "types": "./mysql-core/columns/boolean.d.ts",
++        "default": "./mysql-core/columns/boolean.js"
+       },
+       "require": {
+-        "types": "./mysql-core/query-builders/update.d.cts",
+-        "default": "./mysql-core/query-builders/update.cjs"
++        "types": "./mysql-core/columns/boolean.d.cts",
++        "default": "./mysql-core/columns/boolean.cjs"
+       },
+-      "types": "./mysql-core/query-builders/update.d.ts",
+-      "default": "./mysql-core/query-builders/update.js"
++      "types": "./mysql-core/columns/boolean.d.ts",
++      "default": "./mysql-core/columns/boolean.js"
+     },
+-    "./pg-core/columns/all": {
++    "./mysql-core/columns/char": {
+       "import": {
+-        "types": "./pg-core/columns/all.d.ts",
+-        "default": "./pg-core/columns/all.js"
++        "types": "./mysql-core/columns/char.d.ts",
++        "default": "./mysql-core/columns/char.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/all.d.cts",
+-        "default": "./pg-core/columns/all.cjs"
++        "types": "./mysql-core/columns/char.d.cts",
++        "default": "./mysql-core/columns/char.cjs"
+       },
+-      "types": "./pg-core/columns/all.d.ts",
+-      "default": "./pg-core/columns/all.js"
++      "types": "./mysql-core/columns/char.d.ts",
++      "default": "./mysql-core/columns/char.js"
+     },
+-    "./pg-core/columns/bigint": {
++    "./mysql-core/columns/common": {
+       "import": {
+-        "types": "./pg-core/columns/bigint.d.ts",
+-        "default": "./pg-core/columns/bigint.js"
++        "types": "./mysql-core/columns/common.d.ts",
++        "default": "./mysql-core/columns/common.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/bigint.d.cts",
+-        "default": "./pg-core/columns/bigint.cjs"
++        "types": "./mysql-core/columns/common.d.cts",
++        "default": "./mysql-core/columns/common.cjs"
+       },
+-      "types": "./pg-core/columns/bigint.d.ts",
+-      "default": "./pg-core/columns/bigint.js"
++      "types": "./mysql-core/columns/common.d.ts",
++      "default": "./mysql-core/columns/common.js"
+     },
+-    "./pg-core/columns/bigserial": {
++    "./mysql-core/columns/custom": {
+       "import": {
+-        "types": "./pg-core/columns/bigserial.d.ts",
+-        "default": "./pg-core/columns/bigserial.js"
++        "types": "./mysql-core/columns/custom.d.ts",
++        "default": "./mysql-core/columns/custom.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/bigserial.d.cts",
+-        "default": "./pg-core/columns/bigserial.cjs"
++        "types": "./mysql-core/columns/custom.d.cts",
++        "default": "./mysql-core/columns/custom.cjs"
+       },
+-      "types": "./pg-core/columns/bigserial.d.ts",
+-      "default": "./pg-core/columns/bigserial.js"
++      "types": "./mysql-core/columns/custom.d.ts",
++      "default": "./mysql-core/columns/custom.js"
+     },
+-    "./pg-core/columns/boolean": {
++    "./mysql-core/columns/date.common": {
+       "import": {
+-        "types": "./pg-core/columns/boolean.d.ts",
+-        "default": "./pg-core/columns/boolean.js"
++        "types": "./mysql-core/columns/date.common.d.ts",
++        "default": "./mysql-core/columns/date.common.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/boolean.d.cts",
+-        "default": "./pg-core/columns/boolean.cjs"
++        "types": "./mysql-core/columns/date.common.d.cts",
++        "default": "./mysql-core/columns/date.common.cjs"
+       },
+-      "types": "./pg-core/columns/boolean.d.ts",
+-      "default": "./pg-core/columns/boolean.js"
++      "types": "./mysql-core/columns/date.common.d.ts",
++      "default": "./mysql-core/columns/date.common.js"
+     },
+-    "./pg-core/columns/char": {
++    "./mysql-core/columns/date": {
+       "import": {
+-        "types": "./pg-core/columns/char.d.ts",
+-        "default": "./pg-core/columns/char.js"
++        "types": "./mysql-core/columns/date.d.ts",
++        "default": "./mysql-core/columns/date.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/char.d.cts",
+-        "default": "./pg-core/columns/char.cjs"
++        "types": "./mysql-core/columns/date.d.cts",
++        "default": "./mysql-core/columns/date.cjs"
+       },
+-      "types": "./pg-core/columns/char.d.ts",
+-      "default": "./pg-core/columns/char.js"
++      "types": "./mysql-core/columns/date.d.ts",
++      "default": "./mysql-core/columns/date.js"
+     },
+-    "./pg-core/columns/cidr": {
++    "./mysql-core/columns/datetime": {
+       "import": {
+-        "types": "./pg-core/columns/cidr.d.ts",
+-        "default": "./pg-core/columns/cidr.js"
++        "types": "./mysql-core/columns/datetime.d.ts",
++        "default": "./mysql-core/columns/datetime.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/cidr.d.cts",
+-        "default": "./pg-core/columns/cidr.cjs"
++        "types": "./mysql-core/columns/datetime.d.cts",
++        "default": "./mysql-core/columns/datetime.cjs"
+       },
+-      "types": "./pg-core/columns/cidr.d.ts",
+-      "default": "./pg-core/columns/cidr.js"
++      "types": "./mysql-core/columns/datetime.d.ts",
++      "default": "./mysql-core/columns/datetime.js"
+     },
+-    "./pg-core/columns/common": {
++    "./mysql-core/columns/decimal": {
+       "import": {
+-        "types": "./pg-core/columns/common.d.ts",
+-        "default": "./pg-core/columns/common.js"
++        "types": "./mysql-core/columns/decimal.d.ts",
++        "default": "./mysql-core/columns/decimal.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/common.d.cts",
+-        "default": "./pg-core/columns/common.cjs"
++        "types": "./mysql-core/columns/decimal.d.cts",
++        "default": "./mysql-core/columns/decimal.cjs"
+       },
+-      "types": "./pg-core/columns/common.d.ts",
+-      "default": "./pg-core/columns/common.js"
++      "types": "./mysql-core/columns/decimal.d.ts",
++      "default": "./mysql-core/columns/decimal.js"
+     },
+-    "./pg-core/columns/custom": {
++    "./mysql-core/columns/double": {
+       "import": {
+-        "types": "./pg-core/columns/custom.d.ts",
+-        "default": "./pg-core/columns/custom.js"
++        "types": "./mysql-core/columns/double.d.ts",
++        "default": "./mysql-core/columns/double.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/custom.d.cts",
+-        "default": "./pg-core/columns/custom.cjs"
++        "types": "./mysql-core/columns/double.d.cts",
++        "default": "./mysql-core/columns/double.cjs"
+       },
+-      "types": "./pg-core/columns/custom.d.ts",
+-      "default": "./pg-core/columns/custom.js"
++      "types": "./mysql-core/columns/double.d.ts",
++      "default": "./mysql-core/columns/double.js"
+     },
+-    "./pg-core/columns/date.common": {
++    "./mysql-core/columns/enum": {
+       "import": {
+-        "types": "./pg-core/columns/date.common.d.ts",
+-        "default": "./pg-core/columns/date.common.js"
++        "types": "./mysql-core/columns/enum.d.ts",
++        "default": "./mysql-core/columns/enum.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/date.common.d.cts",
+-        "default": "./pg-core/columns/date.common.cjs"
++        "types": "./mysql-core/columns/enum.d.cts",
++        "default": "./mysql-core/columns/enum.cjs"
+       },
+-      "types": "./pg-core/columns/date.common.d.ts",
+-      "default": "./pg-core/columns/date.common.js"
++      "types": "./mysql-core/columns/enum.d.ts",
++      "default": "./mysql-core/columns/enum.js"
+     },
+-    "./pg-core/columns/date": {
++    "./mysql-core/columns/float": {
+       "import": {
+-        "types": "./pg-core/columns/date.d.ts",
+-        "default": "./pg-core/columns/date.js"
++        "types": "./mysql-core/columns/float.d.ts",
++        "default": "./mysql-core/columns/float.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/date.d.cts",
+-        "default": "./pg-core/columns/date.cjs"
++        "types": "./mysql-core/columns/float.d.cts",
++        "default": "./mysql-core/columns/float.cjs"
+       },
+-      "types": "./pg-core/columns/date.d.ts",
+-      "default": "./pg-core/columns/date.js"
++      "types": "./mysql-core/columns/float.d.ts",
++      "default": "./mysql-core/columns/float.js"
++    },
++    "./mysql-core/columns": {
++      "import": {
++        "types": "./mysql-core/columns/index.d.ts",
++        "default": "./mysql-core/columns/index.js"
++      },
++      "require": {
++        "types": "./mysql-core/columns/index.d.cts",
++        "default": "./mysql-core/columns/index.cjs"
++      },
++      "types": "./mysql-core/columns/index.d.ts",
++      "default": "./mysql-core/columns/index.js"
++    },
++    "./mysql-core/columns/int": {
++      "import": {
++        "types": "./mysql-core/columns/int.d.ts",
++        "default": "./mysql-core/columns/int.js"
++      },
++      "require": {
++        "types": "./mysql-core/columns/int.d.cts",
++        "default": "./mysql-core/columns/int.cjs"
++      },
++      "types": "./mysql-core/columns/int.d.ts",
++      "default": "./mysql-core/columns/int.js"
+     },
+-    "./pg-core/columns/double-precision": {
++    "./mysql-core/columns/json": {
+       "import": {
+-        "types": "./pg-core/columns/double-precision.d.ts",
+-        "default": "./pg-core/columns/double-precision.js"
++        "types": "./mysql-core/columns/json.d.ts",
++        "default": "./mysql-core/columns/json.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/double-precision.d.cts",
+-        "default": "./pg-core/columns/double-precision.cjs"
++        "types": "./mysql-core/columns/json.d.cts",
++        "default": "./mysql-core/columns/json.cjs"
+       },
+-      "types": "./pg-core/columns/double-precision.d.ts",
+-      "default": "./pg-core/columns/double-precision.js"
++      "types": "./mysql-core/columns/json.d.ts",
++      "default": "./mysql-core/columns/json.js"
+     },
+-    "./pg-core/columns/enum": {
++    "./mysql-core/columns/mediumint": {
+       "import": {
+-        "types": "./pg-core/columns/enum.d.ts",
+-        "default": "./pg-core/columns/enum.js"
++        "types": "./mysql-core/columns/mediumint.d.ts",
++        "default": "./mysql-core/columns/mediumint.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/enum.d.cts",
+-        "default": "./pg-core/columns/enum.cjs"
++        "types": "./mysql-core/columns/mediumint.d.cts",
++        "default": "./mysql-core/columns/mediumint.cjs"
+       },
+-      "types": "./pg-core/columns/enum.d.ts",
+-      "default": "./pg-core/columns/enum.js"
++      "types": "./mysql-core/columns/mediumint.d.ts",
++      "default": "./mysql-core/columns/mediumint.js"
+     },
+-    "./pg-core/columns": {
++    "./mysql-core/columns/real": {
+       "import": {
+-        "types": "./pg-core/columns/index.d.ts",
+-        "default": "./pg-core/columns/index.js"
++        "types": "./mysql-core/columns/real.d.ts",
++        "default": "./mysql-core/columns/real.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/index.d.cts",
+-        "default": "./pg-core/columns/index.cjs"
++        "types": "./mysql-core/columns/real.d.cts",
++        "default": "./mysql-core/columns/real.cjs"
+       },
+-      "types": "./pg-core/columns/index.d.ts",
+-      "default": "./pg-core/columns/index.js"
++      "types": "./mysql-core/columns/real.d.ts",
++      "default": "./mysql-core/columns/real.js"
+     },
+-    "./pg-core/columns/inet": {
++    "./mysql-core/columns/serial": {
+       "import": {
+-        "types": "./pg-core/columns/inet.d.ts",
+-        "default": "./pg-core/columns/inet.js"
++        "types": "./mysql-core/columns/serial.d.ts",
++        "default": "./mysql-core/columns/serial.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/inet.d.cts",
+-        "default": "./pg-core/columns/inet.cjs"
++        "types": "./mysql-core/columns/serial.d.cts",
++        "default": "./mysql-core/columns/serial.cjs"
+       },
+-      "types": "./pg-core/columns/inet.d.ts",
+-      "default": "./pg-core/columns/inet.js"
++      "types": "./mysql-core/columns/serial.d.ts",
++      "default": "./mysql-core/columns/serial.js"
+     },
+-    "./pg-core/columns/int.common": {
++    "./mysql-core/columns/smallint": {
+       "import": {
+-        "types": "./pg-core/columns/int.common.d.ts",
+-        "default": "./pg-core/columns/int.common.js"
++        "types": "./mysql-core/columns/smallint.d.ts",
++        "default": "./mysql-core/columns/smallint.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/int.common.d.cts",
+-        "default": "./pg-core/columns/int.common.cjs"
++        "types": "./mysql-core/columns/smallint.d.cts",
++        "default": "./mysql-core/columns/smallint.cjs"
+       },
+-      "types": "./pg-core/columns/int.common.d.ts",
+-      "default": "./pg-core/columns/int.common.js"
++      "types": "./mysql-core/columns/smallint.d.ts",
++      "default": "./mysql-core/columns/smallint.js"
+     },
+-    "./pg-core/columns/integer": {
++    "./mysql-core/columns/text": {
+       "import": {
+-        "types": "./pg-core/columns/integer.d.ts",
+-        "default": "./pg-core/columns/integer.js"
++        "types": "./mysql-core/columns/text.d.ts",
++        "default": "./mysql-core/columns/text.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/integer.d.cts",
+-        "default": "./pg-core/columns/integer.cjs"
++        "types": "./mysql-core/columns/text.d.cts",
++        "default": "./mysql-core/columns/text.cjs"
+       },
+-      "types": "./pg-core/columns/integer.d.ts",
+-      "default": "./pg-core/columns/integer.js"
++      "types": "./mysql-core/columns/text.d.ts",
++      "default": "./mysql-core/columns/text.js"
+     },
+-    "./pg-core/columns/interval": {
++    "./mysql-core/columns/time": {
+       "import": {
+-        "types": "./pg-core/columns/interval.d.ts",
+-        "default": "./pg-core/columns/interval.js"
++        "types": "./mysql-core/columns/time.d.ts",
++        "default": "./mysql-core/columns/time.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/interval.d.cts",
+-        "default": "./pg-core/columns/interval.cjs"
++        "types": "./mysql-core/columns/time.d.cts",
++        "default": "./mysql-core/columns/time.cjs"
+       },
+-      "types": "./pg-core/columns/interval.d.ts",
+-      "default": "./pg-core/columns/interval.js"
++      "types": "./mysql-core/columns/time.d.ts",
++      "default": "./mysql-core/columns/time.js"
+     },
+-    "./pg-core/columns/json": {
++    "./mysql-core/columns/timestamp": {
+       "import": {
+-        "types": "./pg-core/columns/json.d.ts",
+-        "default": "./pg-core/columns/json.js"
++        "types": "./mysql-core/columns/timestamp.d.ts",
++        "default": "./mysql-core/columns/timestamp.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/json.d.cts",
+-        "default": "./pg-core/columns/json.cjs"
++        "types": "./mysql-core/columns/timestamp.d.cts",
++        "default": "./mysql-core/columns/timestamp.cjs"
+       },
+-      "types": "./pg-core/columns/json.d.ts",
+-      "default": "./pg-core/columns/json.js"
++      "types": "./mysql-core/columns/timestamp.d.ts",
++      "default": "./mysql-core/columns/timestamp.js"
+     },
+-    "./pg-core/columns/jsonb": {
++    "./mysql-core/columns/tinyint": {
+       "import": {
+-        "types": "./pg-core/columns/jsonb.d.ts",
+-        "default": "./pg-core/columns/jsonb.js"
++        "types": "./mysql-core/columns/tinyint.d.ts",
++        "default": "./mysql-core/columns/tinyint.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/jsonb.d.cts",
+-        "default": "./pg-core/columns/jsonb.cjs"
++        "types": "./mysql-core/columns/tinyint.d.cts",
++        "default": "./mysql-core/columns/tinyint.cjs"
+       },
+-      "types": "./pg-core/columns/jsonb.d.ts",
+-      "default": "./pg-core/columns/jsonb.js"
++      "types": "./mysql-core/columns/tinyint.d.ts",
++      "default": "./mysql-core/columns/tinyint.js"
+     },
+-    "./pg-core/columns/line": {
++    "./mysql-core/columns/varbinary": {
+       "import": {
+-        "types": "./pg-core/columns/line.d.ts",
+-        "default": "./pg-core/columns/line.js"
++        "types": "./mysql-core/columns/varbinary.d.ts",
++        "default": "./mysql-core/columns/varbinary.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/line.d.cts",
+-        "default": "./pg-core/columns/line.cjs"
++        "types": "./mysql-core/columns/varbinary.d.cts",
++        "default": "./mysql-core/columns/varbinary.cjs"
+       },
+-      "types": "./pg-core/columns/line.d.ts",
+-      "default": "./pg-core/columns/line.js"
++      "types": "./mysql-core/columns/varbinary.d.ts",
++      "default": "./mysql-core/columns/varbinary.js"
+     },
+-    "./pg-core/columns/macaddr": {
++    "./mysql-core/columns/varchar": {
+       "import": {
+-        "types": "./pg-core/columns/macaddr.d.ts",
+-        "default": "./pg-core/columns/macaddr.js"
++        "types": "./mysql-core/columns/varchar.d.ts",
++        "default": "./mysql-core/columns/varchar.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/macaddr.d.cts",
+-        "default": "./pg-core/columns/macaddr.cjs"
++        "types": "./mysql-core/columns/varchar.d.cts",
++        "default": "./mysql-core/columns/varchar.cjs"
+       },
+-      "types": "./pg-core/columns/macaddr.d.ts",
+-      "default": "./pg-core/columns/macaddr.js"
++      "types": "./mysql-core/columns/varchar.d.ts",
++      "default": "./mysql-core/columns/varchar.js"
+     },
+-    "./pg-core/columns/macaddr8": {
++    "./mysql-core/columns/year": {
+       "import": {
+-        "types": "./pg-core/columns/macaddr8.d.ts",
+-        "default": "./pg-core/columns/macaddr8.js"
++        "types": "./mysql-core/columns/year.d.ts",
++        "default": "./mysql-core/columns/year.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/macaddr8.d.cts",
+-        "default": "./pg-core/columns/macaddr8.cjs"
++        "types": "./mysql-core/columns/year.d.cts",
++        "default": "./mysql-core/columns/year.cjs"
+       },
+-      "types": "./pg-core/columns/macaddr8.d.ts",
+-      "default": "./pg-core/columns/macaddr8.js"
++      "types": "./mysql-core/columns/year.d.ts",
++      "default": "./mysql-core/columns/year.js"
+     },
+-    "./pg-core/columns/numeric": {
++    "./mysql-core/query-builders/count": {
+       "import": {
+-        "types": "./pg-core/columns/numeric.d.ts",
+-        "default": "./pg-core/columns/numeric.js"
++        "types": "./mysql-core/query-builders/count.d.ts",
++        "default": "./mysql-core/query-builders/count.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/numeric.d.cts",
+-        "default": "./pg-core/columns/numeric.cjs"
++        "types": "./mysql-core/query-builders/count.d.cts",
++        "default": "./mysql-core/query-builders/count.cjs"
+       },
+-      "types": "./pg-core/columns/numeric.d.ts",
+-      "default": "./pg-core/columns/numeric.js"
++      "types": "./mysql-core/query-builders/count.d.ts",
++      "default": "./mysql-core/query-builders/count.js"
+     },
+-    "./pg-core/columns/point": {
++    "./mysql-core/query-builders/delete": {
+       "import": {
+-        "types": "./pg-core/columns/point.d.ts",
+-        "default": "./pg-core/columns/point.js"
++        "types": "./mysql-core/query-builders/delete.d.ts",
++        "default": "./mysql-core/query-builders/delete.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/point.d.cts",
+-        "default": "./pg-core/columns/point.cjs"
++        "types": "./mysql-core/query-builders/delete.d.cts",
++        "default": "./mysql-core/query-builders/delete.cjs"
+       },
+-      "types": "./pg-core/columns/point.d.ts",
+-      "default": "./pg-core/columns/point.js"
++      "types": "./mysql-core/query-builders/delete.d.ts",
++      "default": "./mysql-core/query-builders/delete.js"
+     },
+-    "./pg-core/columns/real": {
++    "./mysql-core/query-builders": {
+       "import": {
+-        "types": "./pg-core/columns/real.d.ts",
+-        "default": "./pg-core/columns/real.js"
++        "types": "./mysql-core/query-builders/index.d.ts",
++        "default": "./mysql-core/query-builders/index.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/real.d.cts",
+-        "default": "./pg-core/columns/real.cjs"
++        "types": "./mysql-core/query-builders/index.d.cts",
++        "default": "./mysql-core/query-builders/index.cjs"
+       },
+-      "types": "./pg-core/columns/real.d.ts",
+-      "default": "./pg-core/columns/real.js"
++      "types": "./mysql-core/query-builders/index.d.ts",
++      "default": "./mysql-core/query-builders/index.js"
+     },
+-    "./pg-core/columns/serial": {
++    "./mysql-core/query-builders/insert": {
+       "import": {
+-        "types": "./pg-core/columns/serial.d.ts",
+-        "default": "./pg-core/columns/serial.js"
++        "types": "./mysql-core/query-builders/insert.d.ts",
++        "default": "./mysql-core/query-builders/insert.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/serial.d.cts",
+-        "default": "./pg-core/columns/serial.cjs"
++        "types": "./mysql-core/query-builders/insert.d.cts",
++        "default": "./mysql-core/query-builders/insert.cjs"
+       },
+-      "types": "./pg-core/columns/serial.d.ts",
+-      "default": "./pg-core/columns/serial.js"
++      "types": "./mysql-core/query-builders/insert.d.ts",
++      "default": "./mysql-core/query-builders/insert.js"
+     },
+-    "./pg-core/columns/smallint": {
++    "./mysql-core/query-builders/query-builder": {
+       "import": {
+-        "types": "./pg-core/columns/smallint.d.ts",
+-        "default": "./pg-core/columns/smallint.js"
++        "types": "./mysql-core/query-builders/query-builder.d.ts",
++        "default": "./mysql-core/query-builders/query-builder.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/smallint.d.cts",
+-        "default": "./pg-core/columns/smallint.cjs"
++        "types": "./mysql-core/query-builders/query-builder.d.cts",
++        "default": "./mysql-core/query-builders/query-builder.cjs"
+       },
+-      "types": "./pg-core/columns/smallint.d.ts",
+-      "default": "./pg-core/columns/smallint.js"
++      "types": "./mysql-core/query-builders/query-builder.d.ts",
++      "default": "./mysql-core/query-builders/query-builder.js"
+     },
+-    "./pg-core/columns/smallserial": {
++    "./mysql-core/query-builders/query": {
+       "import": {
+-        "types": "./pg-core/columns/smallserial.d.ts",
+-        "default": "./pg-core/columns/smallserial.js"
++        "types": "./mysql-core/query-builders/query.d.ts",
++        "default": "./mysql-core/query-builders/query.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/smallserial.d.cts",
+-        "default": "./pg-core/columns/smallserial.cjs"
++        "types": "./mysql-core/query-builders/query.d.cts",
++        "default": "./mysql-core/query-builders/query.cjs"
+       },
+-      "types": "./pg-core/columns/smallserial.d.ts",
+-      "default": "./pg-core/columns/smallserial.js"
++      "types": "./mysql-core/query-builders/query.d.ts",
++      "default": "./mysql-core/query-builders/query.js"
+     },
+-    "./pg-core/columns/text": {
++    "./mysql-core/query-builders/select": {
+       "import": {
+-        "types": "./pg-core/columns/text.d.ts",
+-        "default": "./pg-core/columns/text.js"
++        "types": "./mysql-core/query-builders/select.d.ts",
++        "default": "./mysql-core/query-builders/select.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/text.d.cts",
+-        "default": "./pg-core/columns/text.cjs"
++        "types": "./mysql-core/query-builders/select.d.cts",
++        "default": "./mysql-core/query-builders/select.cjs"
+       },
+-      "types": "./pg-core/columns/text.d.ts",
+-      "default": "./pg-core/columns/text.js"
++      "types": "./mysql-core/query-builders/select.d.ts",
++      "default": "./mysql-core/query-builders/select.js"
+     },
+-    "./pg-core/columns/time": {
++    "./mysql-core/query-builders/select.types": {
+       "import": {
+-        "types": "./pg-core/columns/time.d.ts",
+-        "default": "./pg-core/columns/time.js"
++        "types": "./mysql-core/query-builders/select.types.d.ts",
++        "default": "./mysql-core/query-builders/select.types.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/time.d.cts",
+-        "default": "./pg-core/columns/time.cjs"
++        "types": "./mysql-core/query-builders/select.types.d.cts",
++        "default": "./mysql-core/query-builders/select.types.cjs"
+       },
+-      "types": "./pg-core/columns/time.d.ts",
+-      "default": "./pg-core/columns/time.js"
++      "types": "./mysql-core/query-builders/select.types.d.ts",
++      "default": "./mysql-core/query-builders/select.types.js"
+     },
+-    "./pg-core/columns/timestamp": {
++    "./mysql-core/query-builders/update": {
+       "import": {
+-        "types": "./pg-core/columns/timestamp.d.ts",
+-        "default": "./pg-core/columns/timestamp.js"
++        "types": "./mysql-core/query-builders/update.d.ts",
++        "default": "./mysql-core/query-builders/update.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/timestamp.d.cts",
+-        "default": "./pg-core/columns/timestamp.cjs"
++        "types": "./mysql-core/query-builders/update.d.cts",
++        "default": "./mysql-core/query-builders/update.cjs"
+       },
+-      "types": "./pg-core/columns/timestamp.d.ts",
+-      "default": "./pg-core/columns/timestamp.js"
++      "types": "./mysql-core/query-builders/update.d.ts",
++      "default": "./mysql-core/query-builders/update.js"
+     },
+-    "./pg-core/columns/uuid": {
++    "./libsql/web": {
+       "import": {
+-        "types": "./pg-core/columns/uuid.d.ts",
+-        "default": "./pg-core/columns/uuid.js"
++        "types": "./libsql/web/index.d.ts",
++        "default": "./libsql/web/index.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/uuid.d.cts",
+-        "default": "./pg-core/columns/uuid.cjs"
++        "types": "./libsql/web/index.d.cts",
++        "default": "./libsql/web/index.cjs"
+       },
+-      "types": "./pg-core/columns/uuid.d.ts",
+-      "default": "./pg-core/columns/uuid.js"
++      "types": "./libsql/web/index.d.ts",
++      "default": "./libsql/web/index.js"
+     },
+-    "./pg-core/columns/varchar": {
++    "./pg-core/utils/array": {
+       "import": {
+-        "types": "./pg-core/columns/varchar.d.ts",
+-        "default": "./pg-core/columns/varchar.js"
++        "types": "./pg-core/utils/array.d.ts",
++        "default": "./pg-core/utils/array.js"
+       },
+       "require": {
+-        "types": "./pg-core/columns/varchar.d.cts",
+-        "default": "./pg-core/columns/varchar.cjs"
++        "types": "./pg-core/utils/array.d.cts",
++        "default": "./pg-core/utils/array.cjs"
+       },
+-      "types": "./pg-core/columns/varchar.d.ts",
+-      "default": "./pg-core/columns/varchar.js"
++      "types": "./pg-core/utils/array.d.ts",
++      "default": "./pg-core/utils/array.js"
+     },
+     "./pg-core/query-builders/count": {
+       "import": {
+@@ -3785,18 +3797,6 @@
+       "types": "./pg-core/query-builders/update.d.ts",
+       "default": "./pg-core/query-builders/update.js"
+     },
+-    "./pg-core/utils/array": {
+-      "import": {
+-        "types": "./pg-core/utils/array.d.ts",
+-        "default": "./pg-core/utils/array.js"
+-      },
+-      "require": {
+-        "types": "./pg-core/utils/array.d.cts",
+-        "default": "./pg-core/utils/array.cjs"
+-      },
+-      "types": "./pg-core/utils/array.d.ts",
+-      "default": "./pg-core/utils/array.js"
+-    },
+     "./prisma/mysql/driver": {
+       "import": {
+         "types": "./prisma/mysql/driver.d.ts",
+@@ -3842,68 +3842,248 @@
+         "types": "./prisma/pg/driver.d.cts",
+         "default": "./prisma/pg/driver.cjs"
+       },
+-      "types": "./prisma/pg/driver.d.ts",
+-      "default": "./prisma/pg/driver.js"
++      "types": "./prisma/pg/driver.d.ts",
++      "default": "./prisma/pg/driver.js"
++    },
++    "./prisma/pg": {
++      "import": {
++        "types": "./prisma/pg/index.d.ts",
++        "default": "./prisma/pg/index.js"
++      },
++      "require": {
++        "types": "./prisma/pg/index.d.cts",
++        "default": "./prisma/pg/index.cjs"
++      },
++      "types": "./prisma/pg/index.d.ts",
++      "default": "./prisma/pg/index.js"
++    },
++    "./prisma/pg/session": {
++      "import": {
++        "types": "./prisma/pg/session.d.ts",
++        "default": "./prisma/pg/session.js"
++      },
++      "require": {
++        "types": "./prisma/pg/session.d.cts",
++        "default": "./prisma/pg/session.cjs"
++      },
++      "types": "./prisma/pg/session.d.ts",
++      "default": "./prisma/pg/session.js"
++    },
++    "./prisma/sqlite/driver": {
++      "import": {
++        "types": "./prisma/sqlite/driver.d.ts",
++        "default": "./prisma/sqlite/driver.js"
++      },
++      "require": {
++        "types": "./prisma/sqlite/driver.d.cts",
++        "default": "./prisma/sqlite/driver.cjs"
++      },
++      "types": "./prisma/sqlite/driver.d.ts",
++      "default": "./prisma/sqlite/driver.js"
++    },
++    "./prisma/sqlite": {
++      "import": {
++        "types": "./prisma/sqlite/index.d.ts",
++        "default": "./prisma/sqlite/index.js"
++      },
++      "require": {
++        "types": "./prisma/sqlite/index.d.cts",
++        "default": "./prisma/sqlite/index.cjs"
++      },
++      "types": "./prisma/sqlite/index.d.ts",
++      "default": "./prisma/sqlite/index.js"
++    },
++    "./prisma/sqlite/session": {
++      "import": {
++        "types": "./prisma/sqlite/session.d.ts",
++        "default": "./prisma/sqlite/session.js"
++      },
++      "require": {
++        "types": "./prisma/sqlite/session.d.cts",
++        "default": "./prisma/sqlite/session.cjs"
++      },
++      "types": "./prisma/sqlite/session.d.ts",
++      "default": "./prisma/sqlite/session.js"
++    },
++    "./singlestore-core/query-builders/count": {
++      "import": {
++        "types": "./singlestore-core/query-builders/count.d.ts",
++        "default": "./singlestore-core/query-builders/count.js"
++      },
++      "require": {
++        "types": "./singlestore-core/query-builders/count.d.cts",
++        "default": "./singlestore-core/query-builders/count.cjs"
++      },
++      "types": "./singlestore-core/query-builders/count.d.ts",
++      "default": "./singlestore-core/query-builders/count.js"
++    },
++    "./singlestore-core/query-builders/delete": {
++      "import": {
++        "types": "./singlestore-core/query-builders/delete.d.ts",
++        "default": "./singlestore-core/query-builders/delete.js"
++      },
++      "require": {
++        "types": "./singlestore-core/query-builders/delete.d.cts",
++        "default": "./singlestore-core/query-builders/delete.cjs"
++      },
++      "types": "./singlestore-core/query-builders/delete.d.ts",
++      "default": "./singlestore-core/query-builders/delete.js"
++    },
++    "./singlestore-core/query-builders": {
++      "import": {
++        "types": "./singlestore-core/query-builders/index.d.ts",
++        "default": "./singlestore-core/query-builders/index.js"
++      },
++      "require": {
++        "types": "./singlestore-core/query-builders/index.d.cts",
++        "default": "./singlestore-core/query-builders/index.cjs"
++      },
++      "types": "./singlestore-core/query-builders/index.d.ts",
++      "default": "./singlestore-core/query-builders/index.js"
++    },
++    "./singlestore-core/query-builders/insert": {
++      "import": {
++        "types": "./singlestore-core/query-builders/insert.d.ts",
++        "default": "./singlestore-core/query-builders/insert.js"
++      },
++      "require": {
++        "types": "./singlestore-core/query-builders/insert.d.cts",
++        "default": "./singlestore-core/query-builders/insert.cjs"
++      },
++      "types": "./singlestore-core/query-builders/insert.d.ts",
++      "default": "./singlestore-core/query-builders/insert.js"
++    },
++    "./singlestore-core/query-builders/query-builder": {
++      "import": {
++        "types": "./singlestore-core/query-builders/query-builder.d.ts",
++        "default": "./singlestore-core/query-builders/query-builder.js"
++      },
++      "require": {
++        "types": "./singlestore-core/query-builders/query-builder.d.cts",
++        "default": "./singlestore-core/query-builders/query-builder.cjs"
++      },
++      "types": "./singlestore-core/query-builders/query-builder.d.ts",
++      "default": "./singlestore-core/query-builders/query-builder.js"
++    },
++    "./singlestore-core/query-builders/query": {
++      "import": {
++        "types": "./singlestore-core/query-builders/query.d.ts",
++        "default": "./singlestore-core/query-builders/query.js"
++      },
++      "require": {
++        "types": "./singlestore-core/query-builders/query.d.cts",
++        "default": "./singlestore-core/query-builders/query.cjs"
++      },
++      "types": "./singlestore-core/query-builders/query.d.ts",
++      "default": "./singlestore-core/query-builders/query.js"
++    },
++    "./singlestore-core/query-builders/select": {
++      "import": {
++        "types": "./singlestore-core/query-builders/select.d.ts",
++        "default": "./singlestore-core/query-builders/select.js"
++      },
++      "require": {
++        "types": "./singlestore-core/query-builders/select.d.cts",
++        "default": "./singlestore-core/query-builders/select.cjs"
++      },
++      "types": "./singlestore-core/query-builders/select.d.ts",
++      "default": "./singlestore-core/query-builders/select.js"
++    },
++    "./singlestore-core/query-builders/select.types": {
++      "import": {
++        "types": "./singlestore-core/query-builders/select.types.d.ts",
++        "default": "./singlestore-core/query-builders/select.types.js"
++      },
++      "require": {
++        "types": "./singlestore-core/query-builders/select.types.d.cts",
++        "default": "./singlestore-core/query-builders/select.types.cjs"
++      },
++      "types": "./singlestore-core/query-builders/select.types.d.ts",
++      "default": "./singlestore-core/query-builders/select.types.js"
++    },
++    "./singlestore-core/query-builders/update": {
++      "import": {
++        "types": "./singlestore-core/query-builders/update.d.ts",
++        "default": "./singlestore-core/query-builders/update.js"
++      },
++      "require": {
++        "types": "./singlestore-core/query-builders/update.d.cts",
++        "default": "./singlestore-core/query-builders/update.cjs"
++      },
++      "types": "./singlestore-core/query-builders/update.d.ts",
++      "default": "./singlestore-core/query-builders/update.js"
++    },
++    "./sql/expressions/conditions": {
++      "import": {
++        "types": "./sql/expressions/conditions.d.ts",
++        "default": "./sql/expressions/conditions.js"
++      },
++      "require": {
++        "types": "./sql/expressions/conditions.d.cts",
++        "default": "./sql/expressions/conditions.cjs"
++      },
++      "types": "./sql/expressions/conditions.d.ts",
++      "default": "./sql/expressions/conditions.js"
+     },
+-    "./prisma/pg": {
++    "./sql/expressions": {
+       "import": {
+-        "types": "./prisma/pg/index.d.ts",
+-        "default": "./prisma/pg/index.js"
++        "types": "./sql/expressions/index.d.ts",
++        "default": "./sql/expressions/index.js"
+       },
+       "require": {
+-        "types": "./prisma/pg/index.d.cts",
+-        "default": "./prisma/pg/index.cjs"
++        "types": "./sql/expressions/index.d.cts",
++        "default": "./sql/expressions/index.cjs"
+       },
+-      "types": "./prisma/pg/index.d.ts",
+-      "default": "./prisma/pg/index.js"
++      "types": "./sql/expressions/index.d.ts",
++      "default": "./sql/expressions/index.js"
+     },
+-    "./prisma/pg/session": {
++    "./sql/expressions/select": {
+       "import": {
+-        "types": "./prisma/pg/session.d.ts",
+-        "default": "./prisma/pg/session.js"
++        "types": "./sql/expressions/select.d.ts",
++        "default": "./sql/expressions/select.js"
+       },
+       "require": {
+-        "types": "./prisma/pg/session.d.cts",
+-        "default": "./prisma/pg/session.cjs"
++        "types": "./sql/expressions/select.d.cts",
++        "default": "./sql/expressions/select.cjs"
+       },
+-      "types": "./prisma/pg/session.d.ts",
+-      "default": "./prisma/pg/session.js"
++      "types": "./sql/expressions/select.d.ts",
++      "default": "./sql/expressions/select.js"
+     },
+-    "./prisma/sqlite/driver": {
++    "./sql/functions/aggregate": {
+       "import": {
+-        "types": "./prisma/sqlite/driver.d.ts",
+-        "default": "./prisma/sqlite/driver.js"
++        "types": "./sql/functions/aggregate.d.ts",
++        "default": "./sql/functions/aggregate.js"
+       },
+       "require": {
+-        "types": "./prisma/sqlite/driver.d.cts",
+-        "default": "./prisma/sqlite/driver.cjs"
++        "types": "./sql/functions/aggregate.d.cts",
++        "default": "./sql/functions/aggregate.cjs"
+       },
+-      "types": "./prisma/sqlite/driver.d.ts",
+-      "default": "./prisma/sqlite/driver.js"
++      "types": "./sql/functions/aggregate.d.ts",
++      "default": "./sql/functions/aggregate.js"
+     },
+-    "./prisma/sqlite": {
++    "./sql/functions": {
+       "import": {
+-        "types": "./prisma/sqlite/index.d.ts",
+-        "default": "./prisma/sqlite/index.js"
++        "types": "./sql/functions/index.d.ts",
++        "default": "./sql/functions/index.js"
+       },
+       "require": {
+-        "types": "./prisma/sqlite/index.d.cts",
+-        "default": "./prisma/sqlite/index.cjs"
++        "types": "./sql/functions/index.d.cts",
++        "default": "./sql/functions/index.cjs"
+       },
+-      "types": "./prisma/sqlite/index.d.ts",
+-      "default": "./prisma/sqlite/index.js"
++      "types": "./sql/functions/index.d.ts",
++      "default": "./sql/functions/index.js"
+     },
+-    "./prisma/sqlite/session": {
++    "./sql/functions/vector": {
+       "import": {
+-        "types": "./prisma/sqlite/session.d.ts",
+-        "default": "./prisma/sqlite/session.js"
++        "types": "./sql/functions/vector.d.ts",
++        "default": "./sql/functions/vector.js"
+       },
+       "require": {
+-        "types": "./prisma/sqlite/session.d.cts",
+-        "default": "./prisma/sqlite/session.cjs"
++        "types": "./sql/functions/vector.d.cts",
++        "default": "./sql/functions/vector.cjs"
+       },
+-      "types": "./prisma/sqlite/session.d.ts",
+-      "default": "./prisma/sqlite/session.js"
++      "types": "./sql/functions/vector.d.ts",
++      "default": "./sql/functions/vector.js"
+     },
+     "./singlestore-core/columns/all": {
+       "import": {
+@@ -4253,186 +4433,6 @@
+       "types": "./singlestore-core/columns/year.d.ts",
+       "default": "./singlestore-core/columns/year.js"
+     },
+-    "./singlestore-core/query-builders/count": {
+-      "import": {
+-        "types": "./singlestore-core/query-builders/count.d.ts",
+-        "default": "./singlestore-core/query-builders/count.js"
+-      },
+-      "require": {
+-        "types": "./singlestore-core/query-builders/count.d.cts",
+-        "default": "./singlestore-core/query-builders/count.cjs"
+-      },
+-      "types": "./singlestore-core/query-builders/count.d.ts",
+-      "default": "./singlestore-core/query-builders/count.js"
+-    },
+-    "./singlestore-core/query-builders/delete": {
+-      "import": {
+-        "types": "./singlestore-core/query-builders/delete.d.ts",
+-        "default": "./singlestore-core/query-builders/delete.js"
+-      },
+-      "require": {
+-        "types": "./singlestore-core/query-builders/delete.d.cts",
+-        "default": "./singlestore-core/query-builders/delete.cjs"
+-      },
+-      "types": "./singlestore-core/query-builders/delete.d.ts",
+-      "default": "./singlestore-core/query-builders/delete.js"
+-    },
+-    "./singlestore-core/query-builders": {
+-      "import": {
+-        "types": "./singlestore-core/query-builders/index.d.ts",
+-        "default": "./singlestore-core/query-builders/index.js"
+-      },
+-      "require": {
+-        "types": "./singlestore-core/query-builders/index.d.cts",
+-        "default": "./singlestore-core/query-builders/index.cjs"
+-      },
+-      "types": "./singlestore-core/query-builders/index.d.ts",
+-      "default": "./singlestore-core/query-builders/index.js"
+-    },
+-    "./singlestore-core/query-builders/insert": {
+-      "import": {
+-        "types": "./singlestore-core/query-builders/insert.d.ts",
+-        "default": "./singlestore-core/query-builders/insert.js"
+-      },
+-      "require": {
+-        "types": "./singlestore-core/query-builders/insert.d.cts",
+-        "default": "./singlestore-core/query-builders/insert.cjs"
+-      },
+-      "types": "./singlestore-core/query-builders/insert.d.ts",
+-      "default": "./singlestore-core/query-builders/insert.js"
+-    },
+-    "./singlestore-core/query-builders/query-builder": {
+-      "import": {
+-        "types": "./singlestore-core/query-builders/query-builder.d.ts",
+-        "default": "./singlestore-core/query-builders/query-builder.js"
+-      },
+-      "require": {
+-        "types": "./singlestore-core/query-builders/query-builder.d.cts",
+-        "default": "./singlestore-core/query-builders/query-builder.cjs"
+-      },
+-      "types": "./singlestore-core/query-builders/query-builder.d.ts",
+-      "default": "./singlestore-core/query-builders/query-builder.js"
+-    },
+-    "./singlestore-core/query-builders/query": {
+-      "import": {
+-        "types": "./singlestore-core/query-builders/query.d.ts",
+-        "default": "./singlestore-core/query-builders/query.js"
+-      },
+-      "require": {
+-        "types": "./singlestore-core/query-builders/query.d.cts",
+-        "default": "./singlestore-core/query-builders/query.cjs"
+-      },
+-      "types": "./singlestore-core/query-builders/query.d.ts",
+-      "default": "./singlestore-core/query-builders/query.js"
+-    },
+-    "./singlestore-core/query-builders/select": {
+-      "import": {
+-        "types": "./singlestore-core/query-builders/select.d.ts",
+-        "default": "./singlestore-core/query-builders/select.js"
+-      },
+-      "require": {
+-        "types": "./singlestore-core/query-builders/select.d.cts",
+-        "default": "./singlestore-core/query-builders/select.cjs"
+-      },
+-      "types": "./singlestore-core/query-builders/select.d.ts",
+-      "default": "./singlestore-core/query-builders/select.js"
+-    },
+-    "./singlestore-core/query-builders/select.types": {
+-      "import": {
+-        "types": "./singlestore-core/query-builders/select.types.d.ts",
+-        "default": "./singlestore-core/query-builders/select.types.js"
+-      },
+-      "require": {
+-        "types": "./singlestore-core/query-builders/select.types.d.cts",
+-        "default": "./singlestore-core/query-builders/select.types.cjs"
+-      },
+-      "types": "./singlestore-core/query-builders/select.types.d.ts",
+-      "default": "./singlestore-core/query-builders/select.types.js"
+-    },
+-    "./singlestore-core/query-builders/update": {
+-      "import": {
+-        "types": "./singlestore-core/query-builders/update.d.ts",
+-        "default": "./singlestore-core/query-builders/update.js"
+-      },
+-      "require": {
+-        "types": "./singlestore-core/query-builders/update.d.cts",
+-        "default": "./singlestore-core/query-builders/update.cjs"
+-      },
+-      "types": "./singlestore-core/query-builders/update.d.ts",
+-      "default": "./singlestore-core/query-builders/update.js"
+-    },
+-    "./sql/expressions/conditions": {
+-      "import": {
+-        "types": "./sql/expressions/conditions.d.ts",
+-        "default": "./sql/expressions/conditions.js"
+-      },
+-      "require": {
+-        "types": "./sql/expressions/conditions.d.cts",
+-        "default": "./sql/expressions/conditions.cjs"
+-      },
+-      "types": "./sql/expressions/conditions.d.ts",
+-      "default": "./sql/expressions/conditions.js"
+-    },
+-    "./sql/expressions": {
+-      "import": {
+-        "types": "./sql/expressions/index.d.ts",
+-        "default": "./sql/expressions/index.js"
+-      },
+-      "require": {
+-        "types": "./sql/expressions/index.d.cts",
+-        "default": "./sql/expressions/index.cjs"
+-      },
+-      "types": "./sql/expressions/index.d.ts",
+-      "default": "./sql/expressions/index.js"
+-    },
+-    "./sql/expressions/select": {
+-      "import": {
+-        "types": "./sql/expressions/select.d.ts",
+-        "default": "./sql/expressions/select.js"
+-      },
+-      "require": {
+-        "types": "./sql/expressions/select.d.cts",
+-        "default": "./sql/expressions/select.cjs"
+-      },
+-      "types": "./sql/expressions/select.d.ts",
+-      "default": "./sql/expressions/select.js"
+-    },
+-    "./sql/functions/aggregate": {
+-      "import": {
+-        "types": "./sql/functions/aggregate.d.ts",
+-        "default": "./sql/functions/aggregate.js"
+-      },
+-      "require": {
+-        "types": "./sql/functions/aggregate.d.cts",
+-        "default": "./sql/functions/aggregate.cjs"
+-      },
+-      "types": "./sql/functions/aggregate.d.ts",
+-      "default": "./sql/functions/aggregate.js"
+-    },
+-    "./sql/functions": {
+-      "import": {
+-        "types": "./sql/functions/index.d.ts",
+-        "default": "./sql/functions/index.js"
+-      },
+-      "require": {
+-        "types": "./sql/functions/index.d.cts",
+-        "default": "./sql/functions/index.cjs"
+-      },
+-      "types": "./sql/functions/index.d.ts",
+-      "default": "./sql/functions/index.js"
+-    },
+-    "./sql/functions/vector": {
+-      "import": {
+-        "types": "./sql/functions/vector.d.ts",
+-        "default": "./sql/functions/vector.js"
+-      },
+-      "require": {
+-        "types": "./sql/functions/vector.d.cts",
+-        "default": "./sql/functions/vector.cjs"
+-      },
+-      "types": "./sql/functions/vector.d.ts",
+-      "default": "./sql/functions/vector.js"
+-    },
+     "./sqlite-core/columns/all": {
+       "import": {
+         "types": "./sqlite-core/columns/all.d.ts",

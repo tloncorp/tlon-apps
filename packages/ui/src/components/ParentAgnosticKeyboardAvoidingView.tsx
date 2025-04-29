@@ -77,9 +77,12 @@ export function ParentAgnosticKeyboardAvoidingView({
   }, [adjustmentPaddingBottom]);
 
   const combinedStyle = React.useMemo(() => {
-    return StyleSheet.compose(contentContainerStyle, {
-      paddingBottom: adjustmentPaddingBottom,
-    });
+    return [
+      contentContainerStyle,
+      {
+        paddingBottom: adjustmentPaddingBottom,
+      },
+    ];
   }, [contentContainerStyle, adjustmentPaddingBottom]);
 
   return (

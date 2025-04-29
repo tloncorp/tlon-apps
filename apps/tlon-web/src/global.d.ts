@@ -4,6 +4,10 @@ type Stringified<T> = string & {
   [P in keyof T]: { '_ value': T[P] };
 };
 
+declare module '@babel/runtime/regenerator' {
+  const regeneratorRuntime: any;
+  export default regeneratorRuntime;
+}
 declare module '@emoji-mart/react';
 declare module 'emoji-mart';
 declare module 'react-oembed-container';

@@ -22,7 +22,7 @@ export type ChatOptionsContextValue = {
   group?: db.Group | null;
   channel?: db.Channel | null;
   markGroupRead: () => void;
-  markChannelRead: () => void;
+  markChannelRead: (options?: { includeThreads?: boolean }) => void;
   onPressGroupMeta: (fromBlankChannel?: boolean) => void;
   onPressGroupMembers: () => void;
   onPressManageChannels: () => void;
@@ -42,10 +42,38 @@ export type ChatOptionsContextValue = {
   setChat: (chat: { id: string; type: 'group' | 'channel' } | null) => void;
 } | null;
 
+const defaultValue: ChatOptionsContextValue = {
+  useGroup: store.useGroup,
+  group: null,
+  channel: null,
+  markGroupRead: () => {},
+  markChannelRead: () => {},
+  onPressGroupMeta: () => {},
+  onPressGroupMembers: () => {},
+  onPressManageChannels: () => {},
+  onPressInvite: () => {},
+  onPressGroupPrivacy: () => {},
+  onPressRoles: () => {},
+  onPressChannelMembers: () => {},
+  onPressChannelMeta: () => {},
+  onPressChannelTemplate: () => {},
+  onPressChatDetails: () => {},
+  togglePinned: () => {},
+  leaveGroup: async () => {}, 
+  leaveChannel: () => {},
+  updateVolume: () => {},
+  setChannelSortPreference: () => {},
+  open: () => {},
+  setChat: () => {},
+};
+
 const ChatOptionsContext = createContext<ChatOptionsContextValue>(null);
 
-export const useChatOptions = () => {
+export const useChatOptions = (disabled = false) => {
   const value = useContext(ChatOptionsContext);
+  if (disabled) {
+    return defaultValue;
+  }
   if (!value) {
     throw new Error('useChatOptions used outside of ChatOptions context');
   }
@@ -223,11 +251,18 @@ export const ChatOptionsProvider = ({
     closeSheet();
   }, [closeSheet, groupId]);
 
-  const markChannelRead = useCallback(() => {
-    if (channelId) {
-      store.markChannelRead({ id: channelId, groupId: groupId });
-    }
-  }, [channelId, groupId]);
+  const markChannelRead = useCallback(
+    ({ includeThreads }: { includeThreads?: boolean } = {}) => {
+      if (channelId) {
+        store.markChannelRead({
+          id: channelId,
+          groupId: groupId,
+          includeThreads,
+        });
+      }
+    },
+    [channelId, groupId]
+  );
 
   const setChannelSortPreference = useCallback(
     (sortBy: 'recency' | 'arranged') => {

@@ -25,7 +25,9 @@ export default function useReactQuerySubscribeOnce<T>({
     enabled: true,
     initialData,
   };
-  return useQuery(queryKey, fetchData, {
+  return useQuery({
+    queryKey,
+    queryFn: fetchData,
     ...defaultOptions,
     ...options,
   });

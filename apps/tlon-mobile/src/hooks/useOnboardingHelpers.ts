@@ -1,14 +1,18 @@
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { useShip } from '@tloncorp/app/contexts/ship';
+import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
+import { useStore } from '@tloncorp/app/ui';
 import {
   AnalyticsEvent,
+  AnalyticsSeverity,
   HostedNodeStatus,
   createDevLogger,
+  scaffoldPersonalGroup,
+  withRetry,
 } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import { storage } from '@tloncorp/shared/db';
 import * as db from '@tloncorp/shared/db';
-import { useStore } from '@tloncorp/app/ui';
 import { useCallback } from 'react';
 
 import { clearHostingNativeCookie } from '../lib/hostingAuth';
@@ -21,6 +25,7 @@ export function useOnboardingHelpers() {
   const store = useStore();
   const navigation = useNavigation<NavigationProp<OnboardingStackParamList>>();
   const signupContext = useSignupContext();
+  const configureUrbitClient = useConfigureUrbitClient();
   const { setShip } = useShip();
 
   const checkAccountStatusAndNavigate = useCallback(async () => {
@@ -65,6 +70,65 @@ export function useOnboardingHelpers() {
     navigation.navigate('GettingNodeReadyScreen', { waitType: 'Unknown' });
     return true;
   }, [navigation, store]);
+
+  const handleRevivalLogin = useCallback(
+    async (shipInfo: db.ShipInfo) => {
+      try {
+        logger.trackEvent(AnalyticsEvent.WayfindingDebug, {
+          context: 'revival login: starting',
+        });
+
+        // we won't have set up the connection yet, so do that first
+        configureUrbitClient({
+          shipName: shipInfo.ship,
+          shipUrl: shipInfo.shipUrl,
+        });
+        await store.syncStart();
+
+        logger.trackEvent(AnalyticsEvent.WayfindingDebug, {
+          context: 'revival login: completed sync start, scaffolding',
+        });
+
+        // once we're connected, scaffold the personal group
+        await withRetry(() => scaffoldPersonalGroup());
+
+        logger.trackEvent(AnalyticsEvent.WayfindingDebug, {
+          context: 'revival login: personal group ready',
+        });
+
+        db.wayfindingProgress.setValue((prev) => ({
+          ...prev,
+          tappedChatInput: false,
+          tappedAddCollection: false,
+          tappedAddNote: false,
+        }));
+
+        // finally, reset the ships revival status in Hosting
+        store
+          .clearShipRevivalStatus()
+          .then(() => {
+            logger.trackEvent('Toggled Hosting Revival Status');
+          })
+          .catch((e) => {
+            logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
+              context: 'failed to clear revival status',
+              errorMessage: e.message,
+              errorStack: e.stack,
+              severity: AnalyticsSeverity.High,
+            });
+          });
+      } catch (e) {
+        logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
+          context: 'failed to scaffold personal group',
+          during: 'mobile revival login (useOnboardingHelpers)',
+          errorMessage: e.message,
+          errorStack: e.stack,
+          severity: AnalyticsSeverity.Critical,
+        });
+      }
+    },
+    [configureUrbitClient, store]
+  );
 
   const handleLogin = useCallback(
     async (params: {
@@ -112,7 +176,8 @@ export function useOnboardingHelpers() {
       // Step 2: Verify node status
       const nodeId = await db.hostedUserNodeId.getValue();
       console.log('checking node status', nodeId);
-      const nodeStatus = await store.checkHostingNodeStatus();
+      const { status: nodeStatus, isBeingRevived } =
+        await store.checkHostingNodeStatus();
       if (nodeStatus !== HostedNodeStatus.Running) {
         if (nodeStatus === HostedNodeStatus.UnderMaintenance) {
           logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
@@ -142,13 +207,21 @@ export function useOnboardingHelpers() {
         return;
       }
       logger.log('authenticated with node', shipInfo);
-      setShip(shipInfo);
+
+      // make sure we show them the wayfinding splash if they're being revived
+      setShip({ ...shipInfo, needsSplashSequence: isBeingRevived });
+
+      // Step 4: if they're being revived, attempt to scaffold the personal group
+      if (isBeingRevived) {
+        handleRevivalLogin(shipInfo);
+      }
     },
-    [navigation, setShip, signupContext, store]
+    [handleRevivalLogin, navigation, setShip, signupContext, store]
   );
 
   return {
     handleLogin,
+    handleRevivalLogin,
     checkAccountStatusAndNavigate,
     reviveLoggedInSession,
   };

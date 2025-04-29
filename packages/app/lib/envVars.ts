@@ -26,8 +26,8 @@ const envVars = {
   enabledLoggers: env.VITE_ENABLED_LOGGERS,
   ignoreCosmos: env.VITE_IGNORE_COSMOS,
   TlonEmployeeGroup: env.VITE_TLON_EMPLOYEE_GROUP,
-  branchKey: env.VITE_BRANCH_KEY,
-  branchDomain: env.VITE_BRANCH_DOMAIN,
+  branchKey: env.VITE_BRANCH_KEY_PROD,
+  branchDomain: env.VITE_BRANCH_DOMAIN_PROD,
   inviteServiceEndpoint: env.VITE_INVITE_SERVICE_ENDPOINT,
   inviteServiceIsDev: env.VITE_INVITE_SERVICE_IS_DEV,
 } as Record<string, string | undefined>;
@@ -65,7 +65,7 @@ export const ENABLED_LOGGERS = envVars.enabledLoggers?.split(',') ?? [];
 export const IGNORE_COSMOS = envVars.ignoreCosmos === 'true';
 export const TLON_EMPLOYEE_GROUP = envVars.TlonEmployeeGroup ?? '';
 export const BRANCH_KEY = envVars.branchKey ?? '';
-export const BRANCH_DOMAIN = envVars.branchDomain ?? '';
+export const BRANCH_DOMAIN = envVars.branchDomain ?? 'join.tlon.io';
 export const INVITE_SERVICE_ENDPOINT = envVars.inviteServiceEndpoint ?? '';
 export const INVITE_SERVICE_IS_DEV =
   envVars.inviteServiceIsDev === 'true' ? true : undefined;
