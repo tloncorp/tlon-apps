@@ -16,6 +16,7 @@ import { useConfigureUrbitClient } from './useConfigureUrbitClient';
 import { usePosthog } from './usePosthog';
 
 const HANDLE_INVITES_TIMEOUT = 1000 * 30;
+const HANDLE_SCAFFOLD_TIMEOUT = 1000 * 60;
 
 const logger = createDevLogger('boot sequence', true);
 
@@ -359,10 +360,10 @@ export function useBootSequence() {
     // if we're stuck trying to scaffold wayfinding, bail
     if (bootPhase === NodeBootPhase.SCAFFOLDING_WAYFINDING) {
       if (!tryingWayfindingSince.current) {
-        tryingWayfindingSince.current = bootStepCounter;
+        tryingWayfindingSince.current = Date.now();
       } else if (
-        bootStepCounter - tryingWayfindingSince.current >
-        MAX_WAYFINDING_ATTEMPTS
+        Date.now() - tryingWayfindingSince.current >
+        HANDLE_SCAFFOLD_TIMEOUT
       ) {
         logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
           context: 'failed to scaffold personal group',

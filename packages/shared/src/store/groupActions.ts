@@ -9,6 +9,7 @@ import * as logic from '../logic';
 import { getRandomId } from '../logic';
 import { createSectionId } from '../urbit';
 import { createChannel, pinGroup } from './channelActions';
+import { SyncPriority, syncGroup } from './sync';
 
 const logger = createDevLogger('groupActions', false);
 
@@ -18,6 +19,31 @@ interface CreateGroupParams {
   memberIds?: string[];
 }
 
+export async function recoverPartiallyCreatedPersonalGroup() {
+  try {
+    const currentUserId = api.getCurrentUserId();
+    const PersonalGroupKeys = logic.getPersonalGroupKeys(currentUserId);
+
+    const pg = await db.getGroup({ id: PersonalGroupKeys.groupId });
+    if (pg) {
+      const isIncomplete = pg.channels.length !== 3;
+      const recentlyAdded = (await db.wayfindingProgress.getValue())
+        .tappedChatInput; // use coachmarks enabled as heuristic
+      if (isIncomplete && recentlyAdded) {
+        logger.trackEvent('Personal Group Recovery', {
+          context: 'detected incomplete personal group, attempting recovery',
+        });
+        await scaffoldPersonalGroup();
+      }
+    }
+  } catch (e) {
+    logger.trackEvent('Error Personal Group Recovery', {
+      context: 'failed to recover personal group',
+      error: e,
+    });
+  }
+}
+
 export async function scaffoldPersonalGroup() {
   const currentUserId = api.getCurrentUserId();
   const PersonalGroupKeys = logic.getPersonalGroupKeys(currentUserId);
@@ -25,6 +51,23 @@ export async function scaffoldPersonalGroup() {
     logger.trackEvent(`Personal Group Scaffold`, {
       context: 'starting personal group scaffold',
     });
+
+    // before we begin, make sure our local copy of the group matches the server
+    try {
+      await syncGroup(
+        PersonalGroupKeys.groupId,
+        { priority: SyncPriority.High },
+        { force: true }
+      );
+      logger.trackEvent('Personal Group Scaffold', {
+        context: 'synced latest group',
+      });
+    } catch (e) {
+      logger.trackEvent('Error Personal Group Scaffold', {
+        context: 'failed to sync latest group',
+        error: e,
+      });
+    }
 
     let existingGroup = await db.getGroup({ id: PersonalGroupKeys.groupId });
     if (!existingGroup) {
