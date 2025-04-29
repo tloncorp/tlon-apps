@@ -26,6 +26,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
+const val MAX_CACHED_CONVERSATION_LENGTH = 15
 val notificationMessagesCache = HashMap<String, Array<NotificationCompat.MessagingStyle.Message>>();
 
 suspend fun processNotification(context: Context, uid: String) {
@@ -111,7 +112,10 @@ suspend fun processNotification(context: Context, uid: String) {
             for (message in previousMessages) {
                 notifStyle.addMessage(message)
             }
-            notificationMessagesCache[preview.groupingKey] = previousMessages.plus(incomingMessage)
+
+            var nextCachedList = previousMessages.plus(incomingMessage)
+            nextCachedList = nextCachedList.takeLast(MAX_CACHED_CONVERSATION_LENGTH - 1).toTypedArray()
+            notificationMessagesCache[preview.groupingKey] = nextCachedList
         }
         notifStyle.addMessage(incomingMessage)
         builder.setStyle(notifStyle)
