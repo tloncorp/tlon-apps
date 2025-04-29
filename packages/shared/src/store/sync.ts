@@ -446,7 +446,11 @@ export async function syncThreadPosts(
 
 const groupSyncsInProgress = new Set<string>();
 
-export async function syncGroup(id: string, ctx?: SyncCtx) {
+export async function syncGroup(
+  id: string,
+  ctx?: SyncCtx,
+  config?: { force?: boolean }
+) {
   if (groupSyncsInProgress.has(id)) {
     return;
   }
@@ -454,7 +458,12 @@ export async function syncGroup(id: string, ctx?: SyncCtx) {
   try {
     const group = await db.getGroup({ id });
     const session = getSession();
-    if (group && session && (session.startTime ?? 0) < (group.syncedAt ?? 0)) {
+    if (
+      group &&
+      session &&
+      (session.startTime ?? 0) < (group.syncedAt ?? 0) &&
+      !config?.force
+    ) {
       return;
     }
     const response = await syncQueue.add('syncGroup', ctx, () =>

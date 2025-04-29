@@ -9,6 +9,7 @@ import * as logic from '../logic';
 import { getRandomId } from '../logic';
 import { createSectionId } from '../urbit';
 import { createChannel, pinGroup } from './channelActions';
+import { SyncPriority, syncGroup } from './sync';
 
 const logger = createDevLogger('groupActions', false);
 
@@ -25,6 +26,23 @@ export async function scaffoldPersonalGroup() {
     logger.trackEvent(`Personal Group Scaffold`, {
       context: 'starting personal group scaffold',
     });
+
+    // before we begin, make sure our local copy of the group matches the server
+    try {
+      await syncGroup(
+        PersonalGroupKeys.groupId,
+        { priority: SyncPriority.High },
+        { force: true }
+      );
+      logger.trackEvent('Personal Group Scaffold', {
+        context: 'synced latest group',
+      });
+    } catch (e) {
+      logger.trackEvent('Error Personal Group Scaffold', {
+        context: 'failed to sync latest group',
+        error: e,
+      });
+    }
 
     let existingGroup = await db.getGroup({ id: PersonalGroupKeys.groupId });
     if (!existingGroup) {
