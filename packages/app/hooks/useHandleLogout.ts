@@ -28,6 +28,7 @@ export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
     store.removeClient();
     clearShip();
     clearSessionStorageItems();
+    store.updateSession(null);
     cancelNodeResumeNudge();
 
     // Clear Electron stored credentials if in Electron environment
