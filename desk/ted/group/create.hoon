@@ -1,7 +1,7 @@
 ::  create and preset a group
 ::
 ::  run via web at
-::  https://ship/spider/group/groups/group-create-thread/group-create/group-create/group-update-4
+::  https://ship/spider/group/groups/group-create-thread/group-create/group-create/group-ui-1
 ::
 /-  spider
 /-  g=groups, gt=groups-thread, c=channels, meta
@@ -105,4 +105,6 @@
     (poke:io [our.bowl %groups] group-invite+!>(invite))
   $(guest-list t.guest-list)
 ::
-(pure:m !>(~))
+;<  =group-ui:v5:g  bind:m
+  (scry:io group-ui:v5:g /gx/groups/groups/(scot %p p.group-id.create)/[q.group-id.create]/v2/noun)
+(pure:m !>(group-ui))

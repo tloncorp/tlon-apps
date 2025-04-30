@@ -8,7 +8,7 @@
     %-  ot
     :~  group-id+flag:dejs:gj
         meta+meta:dejs:gj
-        guests+(as ship:dejs:gj)
+        guest-list+(as ship:dejs:gj)
         channels+(ar create-channel)
     ==
   ++  create-channel
