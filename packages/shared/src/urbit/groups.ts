@@ -326,6 +326,16 @@ export interface GroupCreate extends GroupMeta {
   secret: boolean;
 }
 
+export interface GroupCreateThreadInput {
+  ['group-id']: string;
+  meta: GroupMeta;
+  ['guest-list']: string[];
+  channels: {
+    ['channel-id']: string;
+    meta: GroupMeta;
+  }[];
+}
+
 export interface SagaAhead {
   ahead: string;
 }

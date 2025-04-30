@@ -3,6 +3,7 @@ import { Poke } from '@urbit/http-api';
 import * as db from '../db';
 import { GroupPrivacy } from '../db/schema';
 import { createDevLogger } from '../debug';
+import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
 import type * as ub from '../urbit';
 import {
   FlaggedContent,
@@ -15,11 +16,13 @@ import {
 import { parseGroupChannelId, parseGroupId, toClientMeta } from './apiUtils';
 import { StructuredChannelDescriptionPayload } from './channelContentConfig';
 import {
+  BadResponseError,
   getCurrentUserId,
   poke,
   scry,
   subscribe,
   subscribeOnce,
+  thread,
   trackedPoke,
 } from './urbit';
 
@@ -366,6 +369,81 @@ export const findGroupsHostedBy = async (userId: string) => {
 };
 
 const GENERATED_GROUP_TITLE_END_CHAR = '\u2060';
+
+export const createGroupNew = async ({
+  slug,
+  groupMeta,
+  memberIds,
+  channels,
+}: {
+  slug: string;
+  groupMeta: {
+    title?: string;
+    image?: string;
+    placeholderTitle?: string;
+    privacy?: GroupPrivacy;
+  };
+  memberIds?: string[];
+  channels: (ub.Create & { id: string })[];
+}): Promise<db.Group> => {
+  const currentUserId = getCurrentUserId();
+  const groupId = `${currentUserId}/${slug}`;
+
+  const payload: ub.GroupCreateThreadInput = {
+    ['group-id']: groupId,
+    meta: {
+      title: groupMeta.title
+        ? groupMeta.title
+        : groupMeta.placeholderTitle + GENERATED_GROUP_TITLE_END_CHAR,
+      description: '',
+      image: groupMeta.image ?? '',
+      cover: '',
+    },
+    ['guest-list']: memberIds ?? [],
+    channels: channels.map((channel) => ({
+      ['channel-id']: `${channel.kind}/${channel.name}`,
+      meta: {
+        title: channel.title,
+        description: channel.description,
+        image: '',
+        cover: '',
+      },
+    })),
+  };
+
+  try {
+    const result = await thread<ub.GroupCreateThreadInput, ub.Group>({
+      desk: 'groups',
+      threadName: 'group-create-thread',
+      inputMark: 'group-create',
+      outputMark: 'group-ui-1',
+      body: payload,
+    });
+    logger.trackEvent(AnalyticsEvent.DebugGroupCreate, {
+      context: 'group-create-thread request succeeded',
+    });
+
+    return toClientGroup(groupId, result, true);
+  } catch (err) {
+    if (err instanceof BadResponseError) {
+      logger.trackEvent('Create Group Error', {
+        severity: AnalyticsSeverity.Critical,
+        status: err.status,
+        body: err.body,
+        errorMessage: err.message,
+        context: 'group-create-thread request failed',
+      });
+    } else {
+      logger.trackEvent('Create Group Error', {
+        severity: AnalyticsSeverity.Critical,
+        errorMessage: err.message,
+        errorStack: err.stack,
+        context: 'group-create-thread unexpected error',
+      });
+    }
+    throw err;
+  }
+};
 
 export const createGroup = async ({
   title,

@@ -898,7 +898,7 @@ export class Urbit {
    * @param body        The data to send to the thread
    * @returns  The return value of the thread
    */
-  async thread<R, T = any>(params: Thread<T>): Promise<R> {
+  async thread<T = any>(params: Thread<T>): Promise<Response> {
     const {
       inputMark,
       outputMark,
@@ -918,7 +918,7 @@ export class Urbit {
       }
     );
 
-    return res.json();
+    return res;
   }
 
   /**

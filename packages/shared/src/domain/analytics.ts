@@ -135,6 +135,7 @@ export enum AnalyticsEvent {
   ErrorCreateGroup = 'Error Creating Group',
   ErrorWayfinding = 'Wayfinding Error',
   ErrorSystemContacts = 'System Contacts Error',
+  ErrorApi = 'API Error',
 }
 
 export interface AnalyticsDigest {
