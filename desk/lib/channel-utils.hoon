@@ -708,13 +708,26 @@
   scam(scan (scan-1 scan.scam))
 ::
 ++  was-mentioned
-  |=  [=story:c who=ship]
+  |=  [=story:c who=ship vessel=(unit vessel:fleet:g)]
   ^-  ?
   %+  lien  story
   |=  =verse:c
   ?:  ?=(%block -.verse)  |
+  ~&  ['checking inlines' p.verse]
   %+  lien  p.verse
-  (cury test [%ship who])
+  |=  =inline:c
+  ?@  inline  |
+  ~&  ['checking inline' inline]
+  ?+  -.inline  |
+    %ship  =(who p.inline)
+  ::
+      %sect
+    ~&  ['checking sect' inline]
+    ?~  p.inline  &
+    ?~  vessel  |
+    ~&  ['checking vessel' sects.u.vessel p.inline]
+    (~(has in sects.u.vessel) p.inline)
+  ==
 ::
 ++  flatten
   |=  content=(list verse:c)

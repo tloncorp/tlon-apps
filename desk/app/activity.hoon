@@ -278,6 +278,11 @@
   %+  welp
   /(scot %p our.bowl)/[dude]/(scot %da now.bowl)
   path
+++  get-vessel
+  |=  [=flag:g =ship]
+  =/  =path
+    /groups/(scot %p p.flag)/[q.flag]/fleet/(scot %p ship)/vessel/noun
+  .^(vessel:fleet:g %gx (scry-path %groups path))
 ++  poke
   |=  [=mark =vase]
   ^+  cor
@@ -1255,8 +1260,9 @@
     =/  key=message-key:a
       :_  time
       [(get-author-ship:ch-utils author.u.post) time]
+    =/  =vessel:fleet:g  (get-vessel group our.bowl)
     =/  mention
-      (was-mentioned:ch-utils content.u.post our.bowl)
+      (was-mentioned:ch-utils content.u.post our.bowl `vessel)
     `[time %post key nest group content.u.post mention]
   =/  replies=(list [time incoming-event:a])
     %-  zing
@@ -1280,8 +1286,9 @@
     =/  parent=message-key:a
       :_  id-post
       [(get-author-ship:ch-utils author.u.u.post) id-post]
+    =/  =vessel:fleet:g  (get-vessel group our.bowl)
     =/  mention
-      (was-mentioned:ch-utils content.u.reply our.bowl)
+      (was-mentioned:ch-utils content.u.reply our.bowl `vessel)
     [time %reply key parent nest group content.u.reply mention]
   =/  init-time
     ?:  &(=(posts ~) =(replies ~))  recency.unread
@@ -1320,7 +1327,7 @@
     |=  [=time =writ:ch]
     =/  key=message-key:a  [id.writ time]
     =/  mention
-      (was-mentioned:ch-utils content.writ our.bowl)
+      (was-mentioned:ch-utils content.writ our.bowl ~)
     `[time %dm-post key whom content.writ mention]
   =/  replies=(list [time incoming-event:a])
     %-  zing
@@ -1335,7 +1342,7 @@
       (tab:on:replies:ch replies.u.writ `(sub time.key 1) count)
     |=  [=time =reply:ch]
     =/  mention
-      (was-mentioned:ch-utils content.reply our.bowl)
+      (was-mentioned:ch-utils content.reply our.bowl ~)
     [time %dm-reply key parent whom content.reply mention]
   =/  init-time
     ?:  &(=(writs ~) =(replies ~))  recency.unread
