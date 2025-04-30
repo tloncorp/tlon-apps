@@ -75,7 +75,7 @@ export default {
           setEditingPost={() => {}}
           parentPost={null}
           channel={tlonLocalBulletinBoard}
-          groupMembers={group.members ?? []}
+          group={group}
           headerMode="default"
           onGroupAction={() => {}}
           goToDm={() => {}}
@@ -175,7 +175,6 @@ export default {
               fetchOlderPage,
               channelContext: {
                 group: data.channel.group,
-                groupMembers: data.channel.group?.members ?? [],
                 editingPost: undefined,
                 setEditingPost: undefined,
                 editPost: noop,
