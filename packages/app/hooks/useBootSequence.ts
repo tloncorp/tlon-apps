@@ -183,7 +183,10 @@ export function useBootSequence() {
     if (bootPhase === NodeBootPhase.CHECKING_FOR_INVITE) {
       // always add the inviter as a contact first
       if (lureMeta?.inviterUserId) {
-        store.addContact(lureMeta?.inviterUserId);
+        const contact = await db.getContact({ id: lureMeta.inviterUserId });
+        if (!contact || !contact.isContact) {
+          store.addContact(lureMeta?.inviterUserId);
+        }
       }
 
       const { invitedDm, invitedGroup, tlonTeamDM } =
@@ -248,7 +251,7 @@ export function useBootSequence() {
       await wait(2000);
       if (invitedGroup) {
         try {
-          await store.syncGroup(invitedGroup?.id);
+          await store.syncGroup(invitedGroup?.id, undefined, { force: true });
         } catch (e) {
           logger.error('failed to sync group?', e.body);
         }
