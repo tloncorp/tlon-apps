@@ -963,7 +963,6 @@
   (welp /(scot %p our.bowl)/[agent]/(scot %da now.bowl) path)
 ++  get-vessel
   |=  [=flag:g =ship]
-  ~&  ['scrying for vessel' flag ship]
   =/  =path
     /groups/(scot %p p.flag)/[q.flag]/fleet/(scot %p ship)/vessel/noun
   .^(vessel:fleet:g %gx (scry-path %groups path))
@@ -1008,9 +1007,7 @@
         =/  =source  [%channel nest group.perm.perm.channel]
         (send [%read source [%all `now.bowl |]] ~)
       =/  =vessel:fleet:g  (get-vessel group.perm.perm.channel our.bowl)
-      ~&  ['got vessel' vessel]
       =/  mention=?  (was-mentioned:utils content our.bowl `vessel)
-      ~&  ['was mentioned' mention]
       =/  action
         [%add %post [[author-ship id] id] nest group.perm.perm.channel content mention]
       (send ~[action])
@@ -1371,7 +1368,6 @@
   ++  ca-take-update
     |=  =sign:agent:gall
     ^+  ca-core
-    ~&  ['taking fact' sign]
     ?+    -.sign  ca-core
         %kick       (ca-safe-sub &)
         %watch-ack
@@ -1494,7 +1490,6 @@
   ::
   ++  ca-apply-logs
     |=  =log:c
-    ~&  ['processing' (wyt:log-on:c log) 'logs']
     ^+  ca-core
     %+  roll  (tap:log-on:c log)
     |=  [[=time =u-channel:c] ca=_ca-core]
@@ -1508,7 +1503,6 @@
   ::
   ++  ca-u-channels
     |=  [=time =u-channel:c]
-    ~&  ['processing update' u-channel]
     ?>  ca-from-host
     ^+  ca-core
     =?  last-updated.channel  ?=(%post -.u-channel)
@@ -1562,7 +1556,6 @@
   ++  ca-u-post
     |=  [=id-post:c =u-post:c]
     ^+  ca-core
-    ~&  ['processing post' u-post]
     =/  post  (get:on-v-posts:c posts.channel id-post)
     ?:  ?=([~ ~] post)  ca-core
     ?:  ?=(%set -.u-post)
@@ -1571,16 +1564,13 @@
       =?  ca-core  ?&  ?=(^ post.u-post)
                        ?=(~ post)
                    ==
-        ~&  'activity processing'
         ::  we don't send an activity event for edits or deletes
         (on-post:ca-activity u.post.u-post)
       ?~  post
-        ~&  'new post'
         =/  post=(unit post:c)  (bind post.u-post uv-post-2:utils)
         =?  ca-core  ?=(^ post.u-post)
           (ca-heed ~[author.u.post.u-post])
         =?  ca-core  ?=(^ post.u-post)
-          ~&  'hark processing'
           ::TODO  what about the "mention was added during edit" case?
           (on-post:ca-hark id-post u.post.u-post)
         =.  posts.channel  (put:on-v-posts:c posts.channel id-post post.u-post)

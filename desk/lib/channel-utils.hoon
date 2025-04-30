@@ -713,19 +713,15 @@
   %+  lien  story
   |=  =verse:c
   ?:  ?=(%block -.verse)  |
-  ~&  ['checking inlines' p.verse]
   %+  lien  p.verse
   |=  =inline:c
   ?@  inline  |
-  ~&  ['checking inline' inline]
   ?+  -.inline  |
     %ship  =(who p.inline)
   ::
       %sect
-    ~&  ['checking sect' inline]
     ?~  p.inline  &
     ?~  vessel  |
-    ~&  ['checking vessel' sects.u.vessel p.inline]
     (~(has in sects.u.vessel) p.inline)
   ==
 ::
