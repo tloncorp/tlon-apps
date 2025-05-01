@@ -21,7 +21,13 @@ import {
 } from '@tloncorp/app/navigation/linking';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
-import { LoadingSpinner, StoreProvider, Text, View } from '@tloncorp/app/ui';
+import {
+  ForwardPostSheetProvider,
+  LoadingSpinner,
+  StoreProvider,
+  Text,
+  View,
+} from '@tloncorp/app/ui';
 import {
   AnalyticsEvent,
   AnalyticsSeverity,
@@ -299,31 +305,33 @@ function AppRoutes() {
       webAppNeedsUpdate={needsUpdate}
       triggerWebAppUpdate={triggerUpdate}
     >
-      {isMobile ? (
-        <NavigationContainer
-          linking={mobileLinkingConfig}
-          theme={theme}
-          onStateChange={handleStateChangeMobile}
-          documentTitle={{
-            enabled: true,
-            formatter: documentTitleFormatterMobile,
-          }}
-        >
-          <BasePathNavigator isMobile={true} />
-        </NavigationContainer>
-      ) : (
-        <NavigationContainer
-          linking={desktopLinkingConfig}
-          theme={theme}
-          onStateChange={handleStateChangeDesktop}
-          documentTitle={{
-            enabled: true,
-            formatter: documentTitleFormatterDesktop,
-          }}
-        >
-          <BasePathNavigator isMobile={false} />
-        </NavigationContainer>
-      )}
+      <ForwardPostSheetProvider>
+        {isMobile ? (
+          <NavigationContainer
+            linking={mobileLinkingConfig}
+            theme={theme}
+            onStateChange={handleStateChangeMobile}
+            documentTitle={{
+              enabled: true,
+              formatter: documentTitleFormatterMobile,
+            }}
+          >
+            <BasePathNavigator isMobile={true} />
+          </NavigationContainer>
+        ) : (
+          <NavigationContainer
+            linking={desktopLinkingConfig}
+            theme={theme}
+            onStateChange={handleStateChangeDesktop}
+            documentTitle={{
+              enabled: true,
+              formatter: documentTitleFormatterDesktop,
+            }}
+          >
+            <BasePathNavigator isMobile={false} />
+          </NavigationContainer>
+        )}
+      </ForwardPostSheetProvider>
     </AppDataProvider>
   );
 }

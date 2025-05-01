@@ -12,7 +12,10 @@ export const ChatListItem = React.memo(function ChatListItemComponent({
   onLongPress,
   onLayout,
   ...props
-}: ListItemProps<db.Chat> & { onLayout?: (e: any) => void }) {
+}: ListItemProps<db.Chat> & {
+  onLayout?: (e: any) => void;
+  showGroupTitle?: boolean;
+}) {
   const handlePress = logic.useMutableCallback(() => {
     onPress?.(model);
   });

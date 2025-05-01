@@ -179,6 +179,41 @@ export async function retrySendPost({
   }
 }
 
+export async function forwardPost({
+  postId,
+  channelId,
+}: {
+  postId: string;
+  channelId: string;
+}) {
+  logger.log('forwardPost', { postId, channelId });
+  logger.trackEvent(AnalyticsEvent.ActionForwardPost);
+
+  const post = await db.getPost({ postId });
+  if (!post) {
+    logger.trackError('Failed to forward post, unable to find original');
+    return;
+  }
+
+  const channel = await db.getChannel({ id: channelId });
+  if (!channel) {
+    logger.trackError('Failed to forward post, unable to find channel');
+    return;
+  }
+
+  const urbitReference = urbit.pathToCite(logic.getPostReferencePath(post));
+  if (!urbitReference) {
+    logger.trackError('Failed to forward post, unable to get reference path');
+    return;
+  }
+
+  return sendPost({
+    channel,
+    authorId: api.getCurrentUserId(),
+    content: [{ block: { cite: urbitReference } }],
+  });
+}
+
 export async function editPost({
   post,
   content,
