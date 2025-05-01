@@ -966,7 +966,7 @@
   ^-  (unit vessel:fleet:g)
   =/  base-path
     (scry-path %groups /)
-  =>  [flag=flag ship=ship base-path=base-path ..zuse]  ~+
+  =>  [flag=flag ship=ship base-path=base-path vessel=vessel:fleet:g ..zuse]  ~+
   =/  groups-running
     .^(? %gu (weld base-path /$))
   ?.  groups-running  ~
