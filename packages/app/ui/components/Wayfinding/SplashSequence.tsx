@@ -308,7 +308,7 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
             onPress={props.onActionPress}
             marginHorizontal="$2xl"
           >
-            Invite friends
+            Continue
           </SplashButton>
         </XStack>
       </YStack>
@@ -324,13 +324,14 @@ export function InvitePane(props: { onActionPress: () => void }) {
         <InviteFriendsDisplay />
         <YStack marginHorizontal={isWeb ? '$4xl' : '$2xl'}>
           <SplashTitle marginTop={isWeb ? '$4xl' : '$2xl'}>
-            Invite your <Text color="$positiveActionText">friends.</Text>
+            Tlon is better{' '}
+            <Text color="$positiveActionText">with friends.</Text>
           </SplashTitle>
           <SplashParagraph marginTop="$2xl">
-            Your group is a social space and social spaces are more fun with
-            friends. When your friends join, they get their own cloud computer.
-            So you can all post together, privately, with peace of mind, for as
-            long as your group exists.
+            Your group is a <Text fontWeight={'bold'}>private</Text> social
+            space and social spaces are more fun with friends. When your friends
+            join, they get their own cloud computer. So you can all post
+            together with peace of mind, for as long as your group exists.
           </SplashParagraph>
         </YStack>
       </YStack>
