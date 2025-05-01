@@ -1,6 +1,7 @@
 import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import * as domain from '../domain';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import * as GroupActions from './groupActions';
@@ -370,5 +371,51 @@ export async function updateProfilePinnedGroups(newPinned: db.Group[]) {
   } catch (e) {
     // Rollback the update
     await db.setPinnedGroups({ groupIds: existingPinnedIds });
+  }
+}
+
+export async function pinPostToProfile({ post }: { post: db.Post }) {
+  logger.log(`pinning post`, post);
+  // const currentUserId = api.getCurrentUserId();
+  // const existingContact = await db.getContact({ id: currentUserId });
+
+  // const existingPinnedPosts = (existingContact?.pinnedPostsMeta ??
+  //   []) as domain.ChannelReference[];
+  // if (existingPinnedPosts.some((p) => p.postId === post.id)) {
+  //   return;
+  // }
+
+  // if (existingPinnedPosts.length >= 6) {
+  //   logger.error(`Cannot pin post, already at max of 6`);
+  //   return;
+  // }
+
+  // const newPostRef: domain.ChannelReference = {
+  //   type: 'reference',
+  //   referenceType: 'channel',
+  //   channelId: post.channelId,
+  //   postId: post.parentId ? post.parentId : post.id,
+  //   replyId: post.parentId ? post.id : undefined,
+  // };
+
+  // Optimistic update
+  // await db.updateContact({
+  //   id: currentUserId,
+  //   pinnedPostsMeta: newPinnedPosts,
+  //   pinnedPosts: newPinnedPosts.map((p) => ({
+  //     postId: p.replyId ?? p.postId,
+  //     contactId: currentUserId,
+  //   })),
+  // });
+
+  try {
+    await api.pinPostToProfile(post);
+  } catch (e) {
+    logger.error('Error pinning post', e);
+    // Rollback the update
+    // await db.updateContact({
+    //   id: currentUserId,
+
+    // });
   }
 }

@@ -8,6 +8,7 @@ export type Id =
   | 'copyRef'
   | 'copyText'
   | 'edit'
+  | 'pin'
   | 'report'
   | 'visibility'
   | 'delete';
@@ -35,6 +36,7 @@ export function channelActionIdsFor({
         'muteThread',
         'copyRef',
         'edit',
+        'pin',
         'report',
         'visibility',
         'delete',
@@ -45,6 +47,7 @@ export function channelActionIdsFor({
         'muteThread',
         'copyRef',
         'edit',
+        'pin',
         'report',
         'visibility',
         'delete',
@@ -69,6 +72,7 @@ export function channelActionIdsFor({
         'copyRef',
         'copyText',
         'edit',
+        'pin',
         'visibility',
         'report',
         'delete',
@@ -90,4 +94,5 @@ const STATIC_SPECS = {
   startThread: { isNetworkDependent: true },
   viewReactions: { isNetworkDependent: false },
   visibility: { isNetworkDependent: true },
+  pin: { isNetworkDependent: true },
 } satisfies Record<Id, StaticSpec>;

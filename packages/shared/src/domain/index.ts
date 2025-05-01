@@ -7,3 +7,4 @@ export * from './attestations';
 export * from './wayfinding';
 export * from './onboarding';
 export * from './systemContacts';
+export * from './posts';

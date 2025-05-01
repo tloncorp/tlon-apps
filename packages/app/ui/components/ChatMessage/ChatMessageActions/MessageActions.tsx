@@ -101,6 +101,8 @@ function ConnectedAction({
         return post.authorId === currentUserId || currentUserIsAdmin;
       case 'viewReactions':
         return (post.reactions?.length ?? 0) > 0;
+      case 'pin':
+        return post.authorId === currentUserId && !post.deliveryStatus;
       default:
         return true;
     }
@@ -241,6 +243,13 @@ export async function handleAction({
     case 'visibility':
       post.hidden ? store.showPost({ post }) : store.hidePost({ post });
       break;
+    case 'pin':
+      console.log(`bl: executing pin action`);
+      channel.group?.privacy &&
+      ['private', 'secret'].includes(channel.group.privacy)
+        ? store.pinPostToProfile({ post })
+        : store.pinPostToProfile({ post });
+      break;
   }
 
   triggerHaptic('success');
@@ -320,6 +329,10 @@ export function useDisplaySpecForChannelActionId(
         const hideMsg = postTerm === 'message' ? 'Hide message' : 'Hide post';
         return { label: post.hidden ? showMsg : hideMsg };
       }
+      case 'pin':
+        return {
+          label: 'Pin to profile',
+        };
     }
   }, [channel?.type, isMuted, post.hidden, id, postTerm]);
 }

@@ -1,11 +1,15 @@
+import { dwim } from '@urbit/nockjs';
+
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import * as domain from '../domain';
 import { AnalyticsEvent } from '../domain';
 import { normalizeUrbitColor } from '../logic';
 import * as ub from '../urbit';
 import { parseAttestationId } from './lanyardApi';
 import * as NounParsers from './nounParsers';
-import { getCurrentUserId, poke, scry, subscribe } from './urbit';
+import { contentReferenceToCite } from './postsApi';
+import { getCurrentUserId, poke, pokeNoun, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('contactsApi', true);
 
@@ -189,6 +193,30 @@ export const setPinnedGroups = async (groupIds: string[]) => {
     mark: 'contact-action-1',
     json: { self: contactUpdate },
   });
+};
+
+export const pinPostToProfile = async (post: db.Post) => {
+  const newPostRef: domain.ChannelReference = {
+    type: 'reference',
+    referenceType: 'channel',
+    channelId: post.channelId,
+    postId: post.parentId ? post.parentId : post.id,
+    replyId: post.parentId ? post.id : undefined,
+  };
+
+  const cite = contentReferenceToCite(newPostRef);
+  const citePath = ub.citeToPath(cite);
+
+  const payload = ['show', citePath];
+  const noun = dwim(payload);
+
+  console.log('bl: pinPostToProfile', { post, cite, noun, citePath });
+  await poke({ app: 'expose', mark: 'json', json: { show: citePath } });
+  console.log('bl: poke succeeded');
+};
+
+export const unpinPostFromProfile = async (post: db.Post) => {
+  // TODO:
 };
 
 export type ContactsUpdate =
@@ -507,3 +535,24 @@ export const contactToClientProfile = (
     isContactSuggestion: false,
   };
 };
+
+// export const parsePinnedPosts = (
+//   contact: ub.ContactBookProfile
+// ): domain.ChannelReference[] | null => {
+//   if (!contact || !contact['pinned-posts']) {
+//     return [];
+//   }
+
+//   try {
+//     const pinnedPostCites = contact['pinned-posts'].value.map((pp) =>
+//       ub.pathToCite(pp.value)
+//     ) as ub.ChanCite[];
+
+//     return pinnedPostCites
+//       .map((cite) => toContentReference(cite))
+//       .filter(Boolean) as domain.ChannelReference[];
+//   } catch (e) {
+//     logger.error('Failed to parse pinned posts', e, contact['pinned-posts']);
+//     return null;
+//   }
+// };
