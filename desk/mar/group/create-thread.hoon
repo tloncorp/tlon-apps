@@ -6,7 +6,7 @@
   ++  create-group
     ^-  $-(json create-group:gt)
     %-  ot
-    :~  'groupID'^flag:dejs:gj
+    :~  'groupId'^flag:dejs:gj
         'meta'^meta
         'guestList'^(as ship:dejs:gj)
         'channels'^(ar create-channel)
@@ -14,7 +14,7 @@
   ++  create-channel
     ^-  $-(json create-channel:gt)
     %-  ot
-    :~  'channelID'^nest:dejs:cj
+    :~  'channelId'^nest:dejs:cj
         'meta'^meta
     ==
   ++  meta
