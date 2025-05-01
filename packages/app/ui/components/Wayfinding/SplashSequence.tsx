@@ -511,7 +511,7 @@ const InviteFriendsDisplay = () => {
 
   const displayHeight = useMemo(() => {
     if (isWeb) {
-      return 180;
+      return 300;
     }
 
     if (deviceIsTinyHeight) {
