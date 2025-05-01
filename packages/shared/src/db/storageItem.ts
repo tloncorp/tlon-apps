@@ -2,6 +2,7 @@ import { QueryKey, useQuery } from '@tanstack/react-query';
 
 import { queryClient } from '../api';
 import { createDevLogger } from '../debug';
+import { Stringified } from '../utils';
 import { getStorageMethods } from './getStorageMethods';
 
 const logger = createDevLogger('keyValueStore', false);
@@ -43,7 +44,7 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
 
   const getValue = async (): Promise<T> => {
     await updateLock;
-    const value = await storage.getItem(key);
+    const value = (await storage.getItem(key)) as Stringified<T> | null;
 
     if (!value) {
       return defaultValue;
@@ -59,7 +60,7 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
         typeof deserializedValue === 'object' &&
         'rawData' in deserializedValue
       ) {
-        return deserializedValue.rawData;
+        return deserializedValue.rawData as T;
       }
       return deserializedValue;
     } catch (e) {

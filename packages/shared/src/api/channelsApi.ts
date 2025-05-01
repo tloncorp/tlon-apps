@@ -1,12 +1,12 @@
 import { formatUd, unixToDa } from '@urbit/aura';
 import { Poke } from '@urbit/http-api';
-import bigInt from 'big-integer';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
 import { Action, ChannelsAction, Posts } from '../urbit';
 import { stringToTa } from '../urbit/utils';
+import { Stringified } from '../utils';
 import {
   getCanonicalPostId,
   getChannelIdType,

@@ -1628,14 +1628,14 @@
         =.  recency.remark.club  now.bowl
         =.  cor  (give-unread club/id cu-unread)
         =/  concern  [%post p.diff.delta now.bowl]
-        =/  mention  (was-mentioned:utils content.essay our.bowl)
+        =/  mention  (was-mentioned:utils content.essay our.bowl ~)
         =.  cu-core  (cu-activity concern content.essay mention)
         (cu-give-writs-diff diff.delta)
       ::
           %del
         =?  cu-core  ?=(^ had)
           =*  content  content.writ.u.had
-          =/  mention  (was-mentioned:utils content our.bowl)
+          =/  mention  (was-mentioned:utils content our.bowl ~)
           (cu-activity [%delete-post [id time]:writ.u.had] content mention)
         (cu-give-writs-diff diff.delta)
       ::
@@ -1650,7 +1650,7 @@
             %del
           =?  cu-core  &(?=(^ entry) ?=(^ reply))
             =*  content  content.reply.u.reply
-            =/  mention  (was-mentioned:utils content our.bowl)
+            =/  mention  (was-mentioned:utils content our.bowl ~)
             =/  concern
               [%delete-reply [id time]:reply.u.reply [id time]:writ.u.entry]
             (cu-activity concern content mention)
@@ -1668,7 +1668,7 @@
           =*  op  writ.u.entry
           =/  top-con  [id time]:op
           =/  concern  [%reply [id.q.diff.delta now.bowl] top-con]
-          =/  mention  (was-mentioned:utils content.memo our.bowl)
+          =/  mention  (was-mentioned:utils content.memo our.bowl ~)
           =.  cu-core  (cu-activity concern content.memo mention)
           (cu-give-writs-diff diff.delta)
         ==
@@ -1886,6 +1886,7 @@
     ^-  (unit inline:old-2)
     ?@  i    `i
     ?+  -.i  `i
+      %sect        ~
       %task        ~
       %italics     `[-.i ^$(p.v p.i)]
       %bold        `[-.i ^$(p.v p.i)]
@@ -2023,14 +2024,14 @@
       =?  cor  &(!=(old-unread di-unread) !=(net.dm %invited))
         (give-unread ship/ship di-unread)
       =/  concern  [%post p.diff now.bowl]
-      =/  mention  (was-mentioned:utils content.essay our.bowl)
+      =/  mention  (was-mentioned:utils content.essay our.bowl ~)
       =.  di-core  (di-activity concern content.essay mention)
       (di-give-writs-diff diff)
     ::
         %del
       =?  di-core  ?=(^ had)
         =*  content  content.writ.u.had
-        =/  mention  (was-mentioned:utils content our.bowl)
+        =/  mention  (was-mentioned:utils content our.bowl ~)
         (di-activity [%delete-post [id time]:writ.u.had] content mention)
       (di-give-writs-diff diff)
     ::
@@ -2044,7 +2045,7 @@
           %del
         =?  di-core  &(?=(^ entry) ?=(^ reply))
           =*  content  content.reply.u.reply
-          =/  mention  (was-mentioned:utils content our.bowl)
+          =/  mention  (was-mentioned:utils content our.bowl ~)
           =/  concern
             [%delete-reply [id time]:reply.u.reply [id time]:writ.u.entry]
           (di-activity concern content mention)
@@ -2062,7 +2063,7 @@
         ?~  entry  (di-give-writs-diff diff)
         =/  top-con  [id.writ.u.entry time.writ.u.entry]
         =/  concern  [%reply [id.q.diff now.bowl] top-con]
-        =/  mention  (was-mentioned:utils content.memo our.bowl)
+        =/  mention  (was-mentioned:utils content.memo our.bowl ~)
         =.  di-core  (di-activity concern content.memo mention)
         (di-give-writs-diff diff)
       ==

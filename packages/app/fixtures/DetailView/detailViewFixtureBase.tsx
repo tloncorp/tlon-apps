@@ -4,7 +4,11 @@ import { AppDataContextProvider, RequestsProvider } from '../../ui';
 import { PostScreenView } from '../../ui';
 import { FixtureWrapper } from '../FixtureWrapper';
 import * as content from '../contentHelpers';
-import { createFakePosts, tlonLocalGettingStarted } from '../fakeData';
+import {
+  createFakePosts,
+  group as tlonLocal,
+  tlonLocalGettingStarted,
+} from '../fakeData';
 
 const replies = createFakePosts(10, 'reply');
 
@@ -17,9 +21,11 @@ const replyData = {
 export const DetailViewFixture = ({
   post,
   channel = tlonLocalGettingStarted,
+  group = tlonLocal,
 }: {
   post: db.Post;
   channel?: db.Channel;
+  group?: db.Group;
 }) => {
   return (
     <FixtureWrapper fillWidth fillHeight>
@@ -39,9 +45,9 @@ export const DetailViewFixture = ({
               channel,
             }}
             channel={channel}
+            group={group || null}
             onPressRetry={async () => {}}
             onPressDelete={() => {}}
-            groupMembers={[]}
             negotiationMatch={true}
             editPost={async () => {}}
             goBack={() => {}}

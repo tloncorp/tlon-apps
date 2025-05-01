@@ -49,7 +49,11 @@ import {
   MessageInputProps,
 } from '../MessageInput/MessageInputBase';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
-import { useMentions } from './useMentions';
+import {
+  MentionOption,
+  createMentionOptions,
+  useMentions,
+} from './useMentions';
 
 const bareChatInputLogger = createDevLogger('bareChatInput', false);
 
@@ -185,6 +189,7 @@ export default function BareChatInput({
   send,
   channelId,
   groupMembers,
+  groupRoles,
   storeDraft,
   clearDraft,
   getDraft,
@@ -228,17 +233,21 @@ export default function BareChatInput({
   const [hasAutoFocused, setHasAutoFocused] = useState(false);
   const [needsHeightAdjustmentAfterLoad, setNeedsHeightAdjustmentAfterLoad] =
     useState(false);
+  const options = useMemo(() => {
+    return createMentionOptions(groupMembers, groupRoles);
+  }, [groupMembers, groupRoles]);
+
   const {
+    mentions,
+    validOptions,
+    mentionSearchText,
+    isMentionModeActive,
+    hasMentionCandidates,
+    setMentions,
     handleMention,
     handleSelectMention,
-    mentionSearchText,
-    mentions,
-    setMentions,
-    isMentionModeActive,
     handleMentionEscape,
-    hasMentionCandidates,
-    setHasMentionCandidates,
-  } = useMentions();
+  } = useMentions({ options });
   const maxInputHeight = useKeyboardHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
 
@@ -322,8 +331,8 @@ export default function BareChatInput({
   );
 
   const onMentionSelect = useCallback(
-    (contact: db.Contact) => {
-      const newText = handleSelectMention(contact, controlledText);
+    (option: MentionOption) => {
+      const newText = handleSelectMention(option, controlledText);
 
       if (!newText) {
         return;
@@ -783,14 +792,13 @@ export default function BareChatInput({
       containerHeight={48}
       disableSend={editorIsEmpty}
       sendError={sendError}
-      isMentionModeActive={isMentionModeActive}
       showWayfindingTooltip={showWayfindingTooltip}
+      isMentionModeActive={isMentionModeActive}
       mentionText={mentionSearchText}
+      mentionOptions={validOptions}
       mentionRef={mentionRef}
-      setHasMentionCandidates={setHasMentionCandidates}
-      showAttachmentButton={showAttachmentButton}
-      groupMembers={groupMembers}
       onSelectMention={onMentionSelect}
+      showAttachmentButton={showAttachmentButton}
       isEditing={!!editingPost}
       cancelEditing={handleCancelEditing}
       onPressEdit={handleEdit}

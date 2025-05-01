@@ -3,6 +3,7 @@ import bigInt, { BigInteger } from 'big-integer';
 import _ from 'lodash';
 import BTree from 'sorted-btree';
 
+import { Stringified } from '../utils';
 import { Inline } from './content';
 import { GroupMeta } from './groups';
 import { Flag } from './hark';

@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import { desig } from '@tloncorp/shared/urbit';
+import { Pressable } from '@tloncorp/ui';
 import {
   PropsWithRef,
   useEffect,
@@ -10,63 +11,87 @@ import {
 import React from 'react';
 import { Platform } from 'react-native';
 
+import { MentionOption } from './BareChatInput/useMentions';
 import { ContactList } from './ContactList';
+import ContactName from './ContactName';
+import { ListItem } from './ListItem/ListItem';
+import { useBoundHandler } from './ListItem/listItemUtils';
 
 export interface MentionController {
   handleMentionKey(key: 'ArrowUp' | 'ArrowDown' | 'Enter'): void;
 }
 export type MentionPopupRef = React.RefObject<MentionController>;
 
+function MentionOptionItem({
+  selected,
+  matchText,
+  option,
+  onPress,
+}: {
+  selected: boolean;
+  matchText?: string;
+  option: MentionOption;
+  onPress: (option: MentionOption) => void;
+}) {
+  const handlePress = useBoundHandler(option, onPress);
+  const isContact = option.type === 'contact';
+  const size = '$4xl';
+  return (
+    <Pressable borderRadius="$xl" onPress={handlePress}>
+      <ListItem
+        alignItems="center"
+        justifyContent="flex-start"
+        paddingRight="$3xl"
+        padding="$s"
+        backgroundColor={selected ? '$positiveBackground' : 'unset'}
+      >
+        {isContact ? (
+          <ListItem.ContactIcon size={size} contactId={option.id} />
+        ) : (
+          <ListItem.SystemIcon icon="Face" size={size} />
+        )}
+        <ListItem.MainContent>
+          <ListItem.Title>
+            {isContact ? (
+              <ContactName
+                matchText={matchText}
+                showNickname
+                userId={option.id}
+              />
+            ) : (
+              option.title || option.id
+            )}
+          </ListItem.Title>
+          {option.subtitle ? (
+            <ListItem.Subtitle>{option.subtitle}</ListItem.Subtitle>
+          ) : null}
+        </ListItem.MainContent>
+      </ListItem>
+    </Pressable>
+  );
+}
+
 function MentionPopupInternal(
   {
-    groupMembers,
+    options,
     onPress,
     matchText,
-    setHasMentionCandidates,
   }: PropsWithRef<{
-    groupMembers: db.ChatMember[];
-    onPress: (contact: db.Contact) => void;
+    options: MentionOption[];
+    onPress: (option: MentionOption) => void;
     matchText?: string;
-    setHasMentionCandidates?: (has: boolean) => void;
   }>,
   ref: React.Ref<{
     handleMentionKey(key: 'ArrowUp' | 'ArrowDown' | 'Enter'): void;
   }>
 ) {
-  const subSet = useMemo(
-    () =>
-      groupMembers
-        .map((member) => member.contact)
-        .filter((contact) => {
-          if (contact === null || contact === undefined) {
-            return false;
-          }
-          if (!matchText) {
-            return true;
-          }
-
-          return (
-            contact.id.match(new RegExp(matchText, 'i')) ||
-            contact.nickname?.match(new RegExp(matchText, 'i'))
-          );
-        })
-        .slice(0, 7),
-    [groupMembers, matchText]
-  );
-
-  const subsetSize = useMemo(() => subSet.length, [subSet]);
-
-  useEffect(() => {
-    if (matchText) {
-      setHasMentionCandidates?.(subsetSize > 0);
-    }
-  }, [matchText, subsetSize, setHasMentionCandidates]);
+  const subSet = useMemo(() => options.slice(0, 7), [options]);
 
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   useEffect(() => {
     setSelectedIndex(0);
-  }, [subsetSize]);
+  }, [subSet.length]);
 
   useImperativeHandle(ref, () => ({
     handleMentionKey(key) {
@@ -78,7 +103,7 @@ function MentionPopupInternal(
           break;
         case 'ArrowDown':
           setSelectedIndex((prevIndex) =>
-            prevIndex < subsetSize - 1 ? prevIndex + 1 : prevIndex
+            prevIndex < subSet.length - 1 ? prevIndex + 1 : prevIndex
           );
           break;
         case 'Enter':
@@ -96,31 +121,17 @@ function MentionPopupInternal(
 
   return (
     <ContactList>
-      {subSet.map((contact, index) =>
-        contact ? (
-          <ContactList.Item
-            alignItems="center"
-            justifyContent="flex-start"
-            onPress={() => onPress(contact)}
-            // setting the width to the screen width - 40 so that we can use
-            // ellipsizeMode="tail" to truncate the text
-            // width={Dimensions.get('window').width - 40}
-            // this is a hack to make the text not overflow the container
-            paddingRight="$3xl"
-            padding="$s"
-            key={contact.id}
-            contactId={contact.id}
-            matchText={matchText ? desig(matchText) : undefined}
-            showNickname
-            showUserId
-            backgroundColor={
-              Platform.OS === 'web' && index === selectedIndex
-                ? '$positiveBackground'
-                : 'unset'
-            }
+      {subSet.map((option, index) => {
+        return (
+          <MentionOptionItem
+            key={`${option.id}-${option.type}`}
+            selected={index === selectedIndex && Platform.OS === 'web'}
+            option={option}
+            matchText={matchText}
+            onPress={onPress}
           />
-        ) : null
-      )}
+        );
+      })}
     </ContactList>
   );
 }
