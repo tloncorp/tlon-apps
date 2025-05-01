@@ -379,56 +379,34 @@ export const createGroupNew = async ({
   memberIds?: string[];
   placeHolderTitle?: string;
 }): Promise<db.Group> => {
-  // const payload: ub.GroupCreateThreadInput = {
-  //   ['group-id']: '~roldys-dossur-pondus-watbel/another-test',
-  //   meta: {
-  //     title: group.title
-  //       ? group.title
-  //       : placeHolderTitle + GENERATED_GROUP_TITLE_END_CHAR,
-  //     description: '',
-  //     image: group.iconImage ?? '',
-  //     cover: '',
-  //   },
-  //   ['guest-list']: memberIds ?? [],
-  //   channels: (group.channels ?? []).map((channel) => ({
-  //     ['channel-id']: channel.id,
-  //     meta: {
-  //       title: channel.title ?? '',
-  //       description: channel.description ?? '',
-  //       image: '',
-  //       cover: '',
-  //     },
-  //   })),
-  // };
-
-  const payload = {
-    'group-id': '~roldys-dossur-pondus-watbel/another-test-asdf',
+  const payload: ub.GroupCreateThreadInput = {
+    groupId: group.id,
     meta: {
-      title: 'Test Group',
+      title: group.title
+        ? group.title
+        : placeHolderTitle + GENERATED_GROUP_TITLE_END_CHAR,
       description: '',
-      image: '',
+      image: group.iconImage ?? '',
       cover: '',
     },
-    'guest-list': [],
-    channels: [
-      {
-        'channel-id': 'chat/~roldys-dossur-pondus-watbel/test-3b',
-        meta: {
-          title: 'Test Chan',
-          description: '',
-          image: '',
-          cover: '',
-        },
+    guestList: memberIds ?? [],
+    channels: (group.channels ?? []).map((channel) => ({
+      channelId: channel.id,
+      meta: {
+        title: channel.title ?? '',
+        description: channel.description ?? '',
+        image: '',
+        cover: '',
       },
-    ],
+    })),
   };
 
   try {
     console.log(`bl: trying`, payload);
     const result = await thread<ub.GroupCreateThreadInput, ub.Group>({
       desk: 'groups',
-      threadName: 'group-create-thread',
-      inputMark: 'group-create',
+      inputMark: 'group-create-thread',
+      threadName: 'group-create',
       outputMark: 'group-ui-1',
       body: payload,
     });

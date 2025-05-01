@@ -327,11 +327,11 @@ export interface GroupCreate extends GroupMeta {
 }
 
 export interface GroupCreateThreadInput {
-  ['group-id']: string;
+  groupId: string;
   meta: GroupMeta;
-  ['guest-list']: string[];
+  guestList: string[];
   channels: {
-    ['channel-id']: string;
+    channelId: string;
     meta: GroupMeta;
   }[];
 }

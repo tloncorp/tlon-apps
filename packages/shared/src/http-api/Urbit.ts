@@ -916,7 +916,7 @@ export class Urbit {
       `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
       {
         ...this.fetchOptions,
-        method: 'GET',
+        method: 'POST',
         body: JSON.stringify(body),
       }
     );
