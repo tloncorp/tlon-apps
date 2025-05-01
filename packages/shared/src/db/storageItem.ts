@@ -43,14 +43,14 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
 
   const getValue = async (): Promise<T> => {
     await updateLock;
-    const value = await storage.getItem(key);
+    const value = (await storage.getItem(key)) as Stringified<T> | null;
 
     if (!value) {
       return defaultValue;
     }
 
     try {
-      const deserializedValue = deserialize(value);
+      const deserializedValue = deserialize<T>(value);
 
       // Check to handle migration from a previous storage library
       // that prefixed all keys
@@ -59,7 +59,7 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
         typeof deserializedValue === 'object' &&
         'rawData' in deserializedValue
       ) {
-        return deserializedValue.rawData;
+        return deserializedValue.rawData as T;
       }
       return deserializedValue;
     } catch (e) {
