@@ -1,4 +1,4 @@
-/-  gt=groups-thread
+/-  gt=groups-thread, meta
 /+  gj=groups-json, cj=channel-json
 =>
   =,  dejs:format
@@ -6,16 +6,24 @@
   ++  create-group
     ^-  $-(json create-group:gt)
     %-  ot
-    :~  group-id+flag:dejs:gj
-        meta+meta:dejs:gj
-        guest-list+(as ship:dejs:gj)
-        channels+(ar create-channel)
+    :~  'groupID'^flag:dejs:gj
+        'meta'^meta
+        'guestList'^(as ship:dejs:gj)
+        'channels'^(ar create-channel)
     ==
   ++  create-channel
     ^-  $-(json create-channel:gt)
     %-  ot
-    :~  channel-id+nest:dejs:cj
-        meta+meta:dejs:gj
+    :~  'channelID'^nest:dejs:cj
+        'meta'^meta
+    ==
+  ++  meta
+    ^-  $-(json data:^^meta)
+    %-  ou
+    :~  'title'^(uf '' so)
+        'description'^(uf '' so)
+        'image'^(uf '' so)
+        'cover'^(uf '' so)
     ==
   --
 |_  =create-group:gt
