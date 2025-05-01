@@ -34,10 +34,11 @@
     /v1/self/contact-1
   /v1/contact/(scot %p who)/contact-1
 =/  refs=(list [=nest:c =plan:c])
-  %+  murn  (sort ~(tap by profile) aor)
-  |=  [key=@tas val=value:co]
+  ?~  cis=(~(get by profile) %expose-cites)   ~
+  ?.  ?=(%set -.u.cis)                        ~
+  %+  murn  ~(tap in p.u.cis)
+  |=  val=value:co
   ^-  (unit [nest:c plan:c])
-  ?.  =(%expose-cite- (end 3^12 key))         ~
   ?.  ?=([%text @] val)                       ~
   ?~  pax=(rush p.val stap)                   ~
   ?~  cit=(purse:ci u.pax)                    ~

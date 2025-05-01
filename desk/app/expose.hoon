@@ -103,12 +103,12 @@
     ^-  (list [term value:co])
     ::  then look at our state and inject as appropriate
     ::
-    =<  out
-    %+  roll
-      (sort ~(tap in open) sort-cite)
-    |=  [=cite:c count=@ud out=(list [term value:co])]
-    =-  [+(count) [- out]]
-    :-  (cat 3 %expose-cite- (crip (a-co:^co count)))
+    :_  ~
+    :-  %expose-cites
+    :-  %set
+    %-  ~(gas in *(set value:co))
+    %+  turn  ~(tap in open)
+    |=  =cite:c
     [%text (spat (print:c cite))]
   --
 ::  +sort-cite: sort by post id, newest first
