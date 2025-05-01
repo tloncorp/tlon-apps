@@ -46,6 +46,7 @@ export async function recoverPartiallyCreatedPersonalGroup() {
 export async function scaffoldPersonalGroup() {
   const currentUserId = api.getCurrentUserId();
   const PersonalGroupKeys = logic.getPersonalGroupKeys(currentUserId);
+  const groupIconUrl = logic.getRandomDefaultPersonalGroupIcon();
 
   logger.trackEvent('Personal Group Scaffold', {
     context: 'starting personal group scaffold',
@@ -56,6 +57,7 @@ export async function scaffoldPersonalGroup() {
     const personalGroup: db.Group = {
       id: PersonalGroupKeys.groupId,
       title: PersonalGroupKeys.groupName,
+      iconImage: groupIconUrl,
       currentUserIsMember: true,
       hostUserId: currentUserId,
       currentUserIsHost: true,
