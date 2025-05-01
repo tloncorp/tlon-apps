@@ -910,8 +910,6 @@ export class Urbit {
       throw new Error('Must supply desk to run thread from');
     }
 
-    console.log(`bl: calling thread with params`, params);
-
     const res = await this.fetchFn(
       `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
       {

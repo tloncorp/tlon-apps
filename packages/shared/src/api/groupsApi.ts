@@ -370,7 +370,7 @@ export const findGroupsHostedBy = async (userId: string) => {
 
 const GENERATED_GROUP_TITLE_END_CHAR = '\u2060';
 
-export const createGroupNew = async ({
+export const createGroup = async ({
   group,
   placeHolderTitle,
   memberIds,
@@ -402,7 +402,6 @@ export const createGroupNew = async ({
   };
 
   try {
-    console.log(`bl: trying`, payload);
     const result = await thread<ub.GroupCreateThreadInput, ub.Group>({
       desk: 'groups',
       inputMark: 'group-create-thread',
@@ -434,68 +433,6 @@ export const createGroupNew = async ({
     }
     throw err;
   }
-};
-
-export const createGroup = async ({
-  title,
-  image,
-  placeholderTitle,
-  slug,
-  privacy = 'secret',
-  memberIds,
-}: {
-  title?: string;
-  image?: string;
-  placeholderTitle?: string;
-  slug: string;
-  privacy: GroupPrivacy;
-  memberIds?: string[];
-}) => {
-  const createGroupPayload: ub.GroupCreate = {
-    title: title ? title : placeholderTitle + GENERATED_GROUP_TITLE_END_CHAR,
-    description: '',
-    image: image ?? '',
-    cover: '',
-    name: slug,
-    members: Object.fromEntries((memberIds ?? []).map((id) => [id, []])),
-    cordon:
-      privacy === 'public'
-        ? {
-            open: {
-              ships: [],
-              ranks: [],
-            },
-          }
-        : {
-            shut: {
-              pending: [],
-              ask: [],
-            },
-          },
-    secret: privacy === 'secret',
-  };
-
-  return trackedPoke<ub.GroupAction>(
-    {
-      app: 'groups',
-      mark: 'group-create',
-      json: createGroupPayload,
-    },
-    { app: 'groups', path: '/groups/ui' },
-    (event) => {
-      logger.trackEvent('createGroup tracked predicate', { event });
-      if (!('update' in event)) {
-        return false;
-      }
-
-      const { update } = event;
-      return (
-        'create' in update.diff &&
-        createGroupPayload.title === update.diff.create.meta.title
-      );
-    },
-    { tag: 'createGroup' }
-  );
 };
 
 export const getGroup = async (groupId: string) => {
