@@ -50,7 +50,7 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
     }
 
     try {
-      const deserializedValue = deserialize<T>(value);
+      const deserializedValue = deserialize(value);
 
       // Check to handle migration from a previous storage library
       // that prefixed all keys
