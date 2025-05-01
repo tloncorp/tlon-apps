@@ -280,9 +280,20 @@
   path
 ++  get-vessel
   |=  [=flag:g =ship]
+  ^-  (unit vessel:fleet:g)
+  =/  groups-running
+    =>  [scry-path=scry-path ..zuse]  ~+
+    .^(? %gu (scry-path %groups /$))
+  ?.  groups-running  ~
+  =/  groups-exists
+    =>  [scry-path=scry-path flag=flag:g ..zuse]  ~+
+    .^(? %gx (scry-path %groups /exists/(scot %p p.flag)/[q.flag]/noun))
+  ?.  group-exists  ~
   =/  =path
+    %+  scry-path  %groups
     /groups/(scot %p p.flag)/[q.flag]/fleet/(scot %p ship)/vessel/noun
-  .^(vessel:fleet:g %gx (scry-path %groups path))
+  =>  [=vessel:fleet:g path=path ..zuse]  ~+
+  (some .^(vessel %gx path))
 ++  poke
   |=  [=mark =vase]
   ^+  cor
@@ -1260,9 +1271,9 @@
     =/  key=message-key:a
       :_  time
       [(get-author-ship:ch-utils author.u.post) time]
-    =/  =vessel:fleet:g  (get-vessel group our.bowl)
+    =/  vessel=(unit vessel:fleet:g)  (get-vessel group our.bowl)
     =/  mention
-      (was-mentioned:ch-utils content.u.post our.bowl `vessel)
+      (was-mentioned:ch-utils content.u.post our.bowl vessel)
     `[time %post key nest group content.u.post mention]
   =/  replies=(list [time incoming-event:a])
     %-  zing
@@ -1286,9 +1297,9 @@
     =/  parent=message-key:a
       :_  id-post
       [(get-author-ship:ch-utils author.u.u.post) id-post]
-    =/  =vessel:fleet:g  (get-vessel group our.bowl)
+    =/  vessel=(unit vessel:fleet:g)  (get-vessel group our.bowl)
     =/  mention
-      (was-mentioned:ch-utils content.u.reply our.bowl `vessel)
+      (was-mentioned:ch-utils content.u.reply our.bowl vessel)
     [time %reply key parent nest group content.u.reply mention]
   =/  init-time
     ?:  &(=(posts ~) =(replies ~))  recency.unread

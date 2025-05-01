@@ -963,9 +963,20 @@
   (welp /(scot %p our.bowl)/[agent]/(scot %da now.bowl) path)
 ++  get-vessel
   |=  [=flag:g =ship]
+  ^-  (unit vessel:fleet:g)
+  =/  groups-running
+    =>  [scry-path=scry-path ..zuse]  ~+
+    .^(? %gu (scry-path %groups /$))
+  ?.  groups-running  ~
+  =/  groups-exists
+    =>  [scry-path=scry-path flag=flag:g ..zuse]  ~+
+    .^(? %gx (scry-path %groups /exists/(scot %p p.flag)/[q.flag]/noun))
+  ?.  group-exists  ~
   =/  =path
+    %+  scry-path  %groups
     /groups/(scot %p p.flag)/[q.flag]/fleet/(scot %p ship)/vessel/noun
-  .^(vessel:fleet:g %gx (scry-path %groups path))
+  =>  [=vessel:fleet:g path=path ..zuse]  ~+
+  (some .^(vessel %gx path))
 ++  ca-core
   |_  [=nest:c channel=v-channel:c gone=_|]
   ++  ca-core  .
@@ -1006,8 +1017,8 @@
       ?:  =(author-ship our.bowl)
         =/  =source  [%channel nest group.perm.perm.channel]
         (send [%read source [%all `now.bowl |]] ~)
-      =/  =vessel:fleet:g  (get-vessel group.perm.perm.channel our.bowl)
-      =/  mention=?  (was-mentioned:utils content our.bowl `vessel)
+      =/  vessel=(unit vessel:fleet:g)  (get-vessel group.perm.perm.channel our.bowl)
+      =/  mention=?  (was-mentioned:utils content our.bowl vessel)
       =/  action
         [%add %post [[author-ship id] id] nest group.perm.perm.channel content mention]
       (send ~[action])
@@ -1022,8 +1033,8 @@
       =/  key=message-key
         [[(get-author-ship:utils author) id] id]
       =/  thread=source  [%thread key nest group]
-      =/  =vessel:fleet:g  (get-vessel group.perm.perm.channel our.bowl)
-      =/  mention  (was-mentioned:utils content our.bowl `vessel)
+      =/  vessel=(unit vessel:fleet:g)  (get-vessel group.perm.perm.channel our.bowl)
+      =/  mention  (was-mentioned:utils content our.bowl vessel)
       =/  =incoming-event  [%post key nest group content mention]
       (send [%del thread] [%del-event chan incoming-event] ~)
     ::
@@ -1039,8 +1050,8 @@
       ?:  =(reply-author our.bowl)
         =/  =source  [%thread parent-key nest group.perm.perm.channel]
         (send [%read source [%all `now.bowl |]] ~)
-      =/  =vessel:fleet:g  (get-vessel group.perm.perm.channel our.bowl)
-      =/  mention=?  (was-mentioned:utils content our.bowl `vessel)
+      =/  vessel=(unit vessel:fleet:g)  (get-vessel group.perm.perm.channel our.bowl)
+      =/  mention=?  (was-mentioned:utils content our.bowl vessel)
       =/  in-replies
           %+  lien  (tap:on-v-replies:c replies.parent)
           |=  [=time reply=(unit v-reply:c)]
@@ -1082,8 +1093,8 @@
       =/  top=message-key
         [[parent-author id.parent] id.parent]
       =/  thread=source  [%thread top nest group]
-      =/  =vessel:fleet:g  (get-vessel group.perm.perm.channel our.bowl)
-      =/  mention  (was-mentioned:utils content.reply our.bowl `vessel)
+      =/  vessel=(unit vessel:fleet:g)  (get-vessel group.perm.perm.channel our.bowl)
+      =/  mention  (was-mentioned:utils content.reply our.bowl vessel)
       =/  =incoming-event  [%reply key top nest group content.reply mention]
       (send [%del-event thread incoming-event] ~)
     ::
@@ -1756,8 +1767,8 @@
       ::
       ?.  ?=(kind:c -.kind.post)  ca-core
       =/  =rope:ha  (ca-rope -.kind.post id-post ~)
-      =/  =vessel:fleet:g  (get-vessel group.perm.perm.channel our.bowl)
-      ?:  (was-mentioned:utils content.post our.bowl `vessel)
+      =/  vessel=(unit vessel:fleet:g)  (get-vessel group.perm.perm.channel our.bowl)
+      ?:  (was-mentioned:utils content.post our.bowl vessel)
         ?.  (want-hark %mention)
           ca-core
         =/  cs=(list content:ha)
@@ -1821,8 +1832,8 @@
         ==
       ::  notify because we were mentioned in the reply
       ::
-      =/  =vessel:fleet:g  (get-vessel group.perm.perm.channel our.bowl)
-      ?:  (was-mentioned:utils content.reply our.bowl `vessel)
+      =/  vessel=(unit vessel:fleet:g)  (get-vessel group.perm.perm.channel our.bowl)
+      ?:  (was-mentioned:utils content.reply our.bowl vessel)
         ?.  (want-hark %mention)  ~
         `~[[%ship reply-author] ' mentioned you: ' (flatten:utils content.reply)]
       ::  notify because we ourselves responded to this post previously
