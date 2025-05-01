@@ -371,47 +371,60 @@ export const findGroupsHostedBy = async (userId: string) => {
 const GENERATED_GROUP_TITLE_END_CHAR = '\u2060';
 
 export const createGroupNew = async ({
-  slug,
-  groupMeta,
+  group,
+  placeHolderTitle,
   memberIds,
-  channels,
 }: {
-  slug: string;
-  groupMeta: {
-    title?: string;
-    image?: string;
-    placeholderTitle?: string;
-    privacy?: GroupPrivacy;
-  };
+  group: db.Group;
   memberIds?: string[];
-  channels: (ub.Create & { id: string })[];
+  placeHolderTitle?: string;
 }): Promise<db.Group> => {
-  const currentUserId = getCurrentUserId();
-  const groupId = `${currentUserId}/${slug}`;
+  // const payload: ub.GroupCreateThreadInput = {
+  //   ['group-id']: '~roldys-dossur-pondus-watbel/another-test',
+  //   meta: {
+  //     title: group.title
+  //       ? group.title
+  //       : placeHolderTitle + GENERATED_GROUP_TITLE_END_CHAR,
+  //     description: '',
+  //     image: group.iconImage ?? '',
+  //     cover: '',
+  //   },
+  //   ['guest-list']: memberIds ?? [],
+  //   channels: (group.channels ?? []).map((channel) => ({
+  //     ['channel-id']: channel.id,
+  //     meta: {
+  //       title: channel.title ?? '',
+  //       description: channel.description ?? '',
+  //       image: '',
+  //       cover: '',
+  //     },
+  //   })),
+  // };
 
-  const payload: ub.GroupCreateThreadInput = {
-    ['group-id']: groupId,
+  const payload = {
+    'group-id': '~roldys-dossur-pondus-watbel/another-test-asdf',
     meta: {
-      title: groupMeta.title
-        ? groupMeta.title
-        : groupMeta.placeholderTitle + GENERATED_GROUP_TITLE_END_CHAR,
+      title: 'Test Group',
       description: '',
-      image: groupMeta.image ?? '',
+      image: '',
       cover: '',
     },
-    ['guest-list']: memberIds ?? [],
-    channels: channels.map((channel) => ({
-      ['channel-id']: `${channel.kind}/${channel.name}`,
-      meta: {
-        title: channel.title,
-        description: channel.description,
-        image: '',
-        cover: '',
+    'guest-list': [],
+    channels: [
+      {
+        'channel-id': 'chat/~roldys-dossur-pondus-watbel/test-3b',
+        meta: {
+          title: 'Test Chan',
+          description: '',
+          image: '',
+          cover: '',
+        },
       },
-    })),
+    ],
   };
 
   try {
+    console.log(`bl: trying`, payload);
     const result = await thread<ub.GroupCreateThreadInput, ub.Group>({
       desk: 'groups',
       threadName: 'group-create-thread',
@@ -423,7 +436,7 @@ export const createGroupNew = async ({
       context: 'group-create-thread request succeeded',
     });
 
-    return toClientGroup(groupId, result, true);
+    return toClientGroup(group.id, result, true);
   } catch (err) {
     if (err instanceof BadResponseError) {
       logger.trackEvent('Create Group Error', {

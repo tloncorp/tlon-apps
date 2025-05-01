@@ -8,7 +8,11 @@ import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
 import { createSectionId } from '../urbit';
-import { createChannel, pinGroup } from './channelActions';
+import {
+  channelContentConfigurationForChannelType,
+  createChannel,
+  pinGroup,
+} from './channelActions';
 import { SyncPriority, syncGroup } from './sync';
 
 const logger = createDevLogger('groupActions', false);
@@ -233,62 +237,61 @@ export async function createGroup(
   params: CreateGroupParams
 ): Promise<db.Group> {
   const currentUserId = api.getCurrentUserId();
+  const placeHolderTitle = await getPlaceholderTitle(params);
   const groupSlug = getRandomId();
   const groupId = `${currentUserId}/${groupSlug}`;
 
+  // build the group
+  const newGroup: db.Group = {
+    id: groupId,
+    title: params.title ?? '',
+
+    currentUserIsMember: true,
+    currentUserIsHost: true,
+    hostUserId: currentUserId,
+    privacy: 'secret',
+  };
+
+  // build the default channel channel
+  const channelSlug = getRandomId();
+  const channelId = `chat/${currentUserId}/${channelSlug}`;
+  const defaultChannel: db.Channel = {
+    id: channelId,
+    groupId,
+    type: 'chat',
+    title: 'General',
+    addedToGroupAt: Date.now(),
+    currentUserIsMember: true,
+    contentConfiguration: channelContentConfigurationForChannelType('chat'),
+  };
+
+  newGroup.channels = [defaultChannel];
+
+  // optimistic update
+  await db.insertGroups({
+    groups: [newGroup],
+  });
+
   try {
-    logger.trackEvent(AnalyticsEvent.DebugGroupCreate, {
-      context: 'creating group',
-    });
-    await db.insertGroups({
-      groups: [
-        {
-          id: groupId,
-          currentUserIsMember: true,
-          currentUserIsHost: true,
-          hostUserId: currentUserId,
-        },
-      ],
-    });
-    await api.createGroup({
-      title: params.title ?? '',
-      placeholderTitle: await getPlaceholderTitle(params),
-      slug: groupSlug,
-      privacy: 'secret',
+    const resultGroup = await api.createGroupNew({
+      group: newGroup,
+      placeHolderTitle,
       memberIds: params.memberIds,
     });
 
-    logger.trackEvent(AnalyticsEvent.DebugGroupCreate, {
-      context: 'group created on backend',
-      nextStep: 'adding default channel',
-    });
-    await createChannel({
-      groupId: groupId,
-      title: 'General',
-      channelType: 'chat',
-    });
-
-    logger.trackEvent(AnalyticsEvent.DebugGroupCreate, {
-      context: 'default channel created on backend',
-      nextStep: 'getting group from DB',
-    });
-    const group = await db.getGroup({ id: groupId });
-    if (!group || !group.channels.length) {
-      throw new Error('Something went wrong');
-    } else {
-      logger.trackEvent(AnalyticsEvent.DebugGroupCreate, {
-        context: 'found new group in DB',
-      });
-    }
+    // insert the real one
+    await db.insertGroups({ groups: [resultGroup] });
 
     logger.trackEvent(AnalyticsEvent.ActionCreateGroup, {
       ...logic.getModelAnalytics({ group: { id: groupId } }),
       initialMemberCount: params.memberIds?.length ?? 0,
     });
 
-    return group;
+    return resultGroup;
   } catch (e) {
+    // rollback optimistic update
     await db.deleteGroup(groupId);
+
     console.error(`${groupSlug}: failed to create group`, e);
     logger.trackEvent(AnalyticsEvent.ErrorCreateGroup, {
       errorMessage: e.message,
