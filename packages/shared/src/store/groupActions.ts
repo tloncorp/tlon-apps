@@ -8,10 +8,7 @@ import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
 import { createSectionId } from '../urbit';
-import {
-  channelContentConfigurationForChannelType,
-  pinGroup,
-} from './channelActions';
+import { pinGroup } from './channelActions';
 
 const logger = createDevLogger('groupActions', false);
 
@@ -157,9 +154,7 @@ export async function createDefaultGroup(
     groupId,
     type: 'chat',
     title: 'General',
-    addedToGroupAt: Date.now(),
     currentUserIsMember: true,
-    contentConfiguration: channelContentConfigurationForChannelType('chat'),
   };
   newGroup.channels = [defaultChannel];
 

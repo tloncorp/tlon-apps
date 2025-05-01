@@ -96,7 +96,7 @@ export async function createChannel({
  * as we would any other custom channel, and avoid switching on `channel.type`
  * in client code.
  */
-export function channelContentConfigurationForChannelType(
+function channelContentConfigurationForChannelType(
   channelType: Omit<db.Channel['type'], 'dm' | 'groupDm'>
 ): ChannelContentConfiguration {
   switch (channelType) {
