@@ -855,10 +855,7 @@
     ?:  (lte fleet-size 15)
       fleet.group  :: keep all members if 15 or fewer
     =/  other-ships=(list [ship vessel:fleet:g])
-      %+  sort
-        ~(tap by (~(del by fleet.group) our.bowl))
-      |=  [[a=ship *] [b=ship *]]
-      (aor (scot %p a) (scot %p b)) :: alphabetical order by ship name
+      ~(tap by (~(del by fleet.group) our.bowl))
     =/  keep-ships=(list [ship vessel:fleet:g])
       :-  [our.bowl our-vessel]
       (scag 14 other-ships)  :: take first 14 other ships

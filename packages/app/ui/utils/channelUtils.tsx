@@ -95,6 +95,7 @@ export function getGroupTitle(
     return (
       group.members
         ?.map((member) => getChannelMemberName(member, disableNicknames))
+        .sort((a, b) => (a && b ? a.localeCompare(b) : 0))
         .join(', ') ?? 'No title'
     );
   } else if (isPending) {
