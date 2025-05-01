@@ -41,10 +41,6 @@ function MentionOptionItem({
       <ListItem
         alignItems="center"
         justifyContent="flex-start"
-        // setting the width to the screen width - 40 so that we can use
-        // ellipsizeMode="tail" to truncate the text
-        // width={Dimensions.get('window').width - 40}
-        // this is a hack to make the text not overflow the container
         paddingRight="$3xl"
         padding="$s"
         backgroundColor={selected ? '$positiveBackground' : 'unset'}

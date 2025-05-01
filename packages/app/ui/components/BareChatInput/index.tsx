@@ -236,7 +236,6 @@ export default function BareChatInput({
   const options = useMemo(() => {
     return createMentionOptions(groupMembers, groupRoles);
   }, [groupMembers, groupRoles]);
-  console.log({ groupMembers, groupRoles, options });
 
   const {
     mentions,
@@ -766,12 +765,6 @@ export default function BareChatInput({
 
       if (keyEvent.key === 'Enter' && !keyEvent.shiftKey) {
         e.preventDefault();
-        console.log({
-          isMentionModeActive,
-          hasMentionCandidates,
-          mentions,
-          mentionSearchText,
-        });
         if (isMentionModeActive && hasMentionCandidates) {
           mentionRef.current?.handleMentionKey('Enter');
         } else if (editingPost) {
