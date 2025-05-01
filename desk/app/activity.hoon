@@ -281,19 +281,20 @@
 ++  get-vessel
   |=  [=flag:g =ship]
   ^-  (unit vessel:fleet:g)
+  =/  base-path
+    (scry-path %groups /)
+  =>  [flag=flag ship=ship base-path=base-path ..zuse]  ~+
   =/  groups-running
-    =>  [scry-path=scry-path ..zuse]  ~+
-    .^(? %gu (scry-path %groups /$))
+    .^(? %gu (weld base-path /$))
   ?.  groups-running  ~
   =/  group-exists
-    =>  [scry-path=scry-path flag=flag ..zuse]  ~+
-    .^(? %gx (scry-path %groups /exists/(scot %p p.flag)/[q.flag]/noun))
+    .^(? %gx (weld base-path /exists/(scot %p p.flag)/[q.flag]/noun))
   ?.  group-exists  ~
-  =/  =path
-    %+  scry-path  %groups
+  %-  some
+  .^  vessel  %gx
+    %+  weld  base-path
     /groups/(scot %p p.flag)/[q.flag]/fleet/(scot %p ship)/vessel/noun
-  =>  [vessel=vessel:fleet:g path=path ..zuse]  ~+
-  (some .^(vessel %gx path))
+  ==
 ++  poke
   |=  [=mark =vase]
   ^+  cor
