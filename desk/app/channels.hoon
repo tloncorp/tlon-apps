@@ -2624,6 +2624,7 @@
       ?+  -.inline  |
         ?(%bold %italics %strike %blockquote)  ^$(p.verse p.inline)
         ?(%code %inline-code)                  $(inline p.inline)
+        %ship                                  $(inline (scot %p p.inline))
       ::
           %sect
         ?~  p.inline  $(inline '@all')
