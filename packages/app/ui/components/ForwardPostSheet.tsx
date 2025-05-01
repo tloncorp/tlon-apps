@@ -14,7 +14,7 @@ import {
 } from 'react';
 import { ScrollViewProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { XStack, YStack } from 'tamagui';
+import { XStack, YStack, getTokenValue } from 'tamagui';
 
 import {
   FilteredChatList,
@@ -112,7 +112,10 @@ export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
           />
         )}
         {selectedChannel && (
-          <YStack padding="$xl" paddingBottom={insets.bottom}>
+          <YStack
+            padding="$xl"
+            paddingBottom={insets.bottom + getTokenValue('$xl', 'size')}
+          >
             <Button hero onPress={handleSendItem} disabled={isSending}>
               <Button.Text>
                 {isSending
