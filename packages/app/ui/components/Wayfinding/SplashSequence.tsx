@@ -1,5 +1,16 @@
 // tamagui-ignore
-import { Button, Icon, Text, triggerHaptic, LoadingSpinner } from '@tloncorp/ui';
+import {
+  AnalyticsEvent,
+  AnalyticsSeverity,
+  createDevLogger,
+} from '@tloncorp/shared';
+import {
+  Button,
+  Icon,
+  LoadingSpinner,
+  Text,
+  triggerHaptic,
+} from '@tloncorp/ui';
 import React, {
   ComponentProps,
   PropsWithChildren,
@@ -19,12 +30,11 @@ import {
   styled,
 } from 'tamagui';
 
+import { useContactPermissions } from '../../../hooks/useContactPermissions';
 import { useActiveTheme } from '../../../provider';
 import { useStore } from '../../contexts';
 import { ListItem } from '../ListItem';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
-import { useContactPermissions } from '../../../hooks/useContactPermissions';
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 
 enum SplashPane {
   Welcome = 'Welcome',
@@ -327,7 +337,7 @@ export function InvitePane(props: { onActionPress: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const perms = useContactPermissions();
-  
+
   const processContacts = async () => {
     try {
       setIsProcessing(true);
@@ -342,18 +352,21 @@ export function InvitePane(props: { onActionPress: () => void }) {
   };
 
   const handleShareContacts = async () => {
-    if (perms.canAskPermission) {
-      const status = await perms.requestPermissions();
-      if (status === 'granted') {
-        processContacts();
-      } else {
-        // If permission denied, still continue
-        props.onActionPress();
+    try {
+      if (perms.canAskPermission) {
+        const status = await perms.requestPermissions();
+        if (status === 'granted') {
+          processContacts();
+        }
       }
-    } else if (perms.hasPermission) {
-      processContacts();
-    } else {
-      // If can't ask for permission, just continue
+    } catch (e) {
+      logger.trackEvent(AnalyticsEvent.ErrorSystemContacts, {
+        context: 'handleShareContacts threw',
+        error: e,
+        severity: AnalyticsSeverity.Critical,
+      });
+    } finally {
+      // always advance past splash regardless
       props.onActionPress();
     }
   };
@@ -363,8 +376,12 @@ export function InvitePane(props: { onActionPress: () => void }) {
     props.onActionPress();
   };
 
-  // On desktop or web, just advance without prompting for contacts
-  const handleAction = isWeb ? props.onActionPress : handleShareContacts;
+  const shouldPromptForPermission = useMemo(() => {
+    return !isWeb && !perms.hasPermission;
+  }, [perms]);
+  const handleAction = shouldPromptForPermission
+    ? handleShareContacts
+    : props.onActionPress;
 
   return (
     <YStack flex={1} justifyContent="space-between">
@@ -381,7 +398,7 @@ export function InvitePane(props: { onActionPress: () => void }) {
             join, they get their own cloud computer. So you can all post
             together with peace of mind, for as long as your group exists.
           </SplashParagraph>
-          {!isWeb && (
+          {shouldPromptForPermission && (
             <SplashParagraph marginTop="$l">
               Sync your contact book to easily find people you know on Tlon.
             </SplashParagraph>
@@ -393,13 +410,22 @@ export function InvitePane(props: { onActionPress: () => void }) {
           )}
         </YStack>
       </YStack>
-      <XStack width="100%" justifyContent="center" marginBottom={isWeb || Platform.OS === 'android' ? '$4xl' : insets.bottom}>
+      <XStack
+        width="100%"
+        justifyContent="center"
+        marginBottom={
+          isWeb || Platform.OS === 'android' ? '$4xl' : insets.bottom
+        }
+      >
         {isProcessing && !isWeb && (
           <YStack alignItems="center" marginBottom="$l">
             <LoadingSpinner />
           </YStack>
         )}
-        <YStack width={isWeb ? 'auto' : '100%'} paddingHorizontal={isWeb ? 'unset' : '$2xl'}>
+        <YStack
+          width={isWeb ? 'auto' : '100%'}
+          paddingHorizontal={isWeb ? 'unset' : '$2xl'}
+        >
           <SplashButton
             marginTop="$l"
             onPress={handleAction}
@@ -408,10 +434,10 @@ export function InvitePane(props: { onActionPress: () => void }) {
             textProps={{ color: '$white' }}
             disabled={isProcessing}
           >
-            {isWeb ? 'Finish' : 'Continue'}
+            {shouldPromptForPermission ? 'Continue' : 'Finish'}
           </SplashButton>
-          {!isWeb && (
-            <SplashButton 
+          {shouldPromptForPermission && (
+            <SplashButton
               marginTop="$l"
               secondary
               textProps={{ color: '$secondaryText' }}
@@ -579,4 +605,3 @@ const InviteCard = (props: ComponentProps<typeof View>) => {
     </View>
   );
 };
-
