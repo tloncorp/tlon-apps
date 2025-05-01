@@ -968,14 +968,14 @@
     =>  [scry-path=scry-path ..zuse]  ~+
     .^(? %gu (scry-path %groups /$))
   ?.  groups-running  ~
-  =/  groups-exists
-    =>  [scry-path=scry-path flag=flag:g ..zuse]  ~+
+  =/  group-exists
+    =>  [scry-path=scry-path flag=flag ..zuse]  ~+
     .^(? %gx (scry-path %groups /exists/(scot %p p.flag)/[q.flag]/noun))
   ?.  group-exists  ~
   =/  =path
     %+  scry-path  %groups
     /groups/(scot %p p.flag)/[q.flag]/fleet/(scot %p ship)/vessel/noun
-  =>  [=vessel:fleet:g path=path ..zuse]  ~+
+  =>  [vessel=vessel:fleet:g path=path ..zuse]  ~+
   (some .^(vessel %gx path))
 ++  ca-core
   |_  [=nest:c channel=v-channel:c gone=_|]
