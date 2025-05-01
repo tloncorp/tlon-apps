@@ -14,6 +14,7 @@ import {
 import * as db from '../db';
 import * as domain from '../domain';
 import * as ub from '../urbit';
+import { Stringified } from '../utils';
 
 export { isDmChannelId, isGroupChannelId, isGroupDmChannelId };
 

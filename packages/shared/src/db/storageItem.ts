@@ -2,6 +2,7 @@ import { QueryKey, useQuery } from '@tanstack/react-query';
 
 import { queryClient } from '../api';
 import { createDevLogger } from '../debug';
+import { Stringified } from '../utils';
 import { getStorageMethods } from './getStorageMethods';
 
 const logger = createDevLogger('keyValueStore', false);
