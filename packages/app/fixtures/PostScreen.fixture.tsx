@@ -174,7 +174,7 @@ export default {
               fetchNewerPage,
               fetchOlderPage,
               channelContext: {
-                group: data.channel.group,
+                group: data.channel.group || null,
                 editingPost: undefined,
                 setEditingPost: undefined,
                 editPost: noop,

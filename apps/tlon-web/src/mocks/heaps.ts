@@ -3,6 +3,7 @@ import {
   ScryHandler,
   SubscriptionHandler,
 } from '@tloncorp/mock-http-api';
+import { DraftInputId, PostContentRendererId } from '@tloncorp/shared';
 import { Channels, Perm, Posts } from '@tloncorp/shared/urbit/channel';
 import { subMinutes } from 'date-fns';
 
@@ -19,6 +20,21 @@ const mockStash: Channels = {
     view: 'grid',
     order: [],
     sort: 'time',
+    meta: {
+      version: 1,
+      postInput: {
+        type: DraftInputId.gallery,
+        postType: 'tlon.r0.post.gallery',
+        configuration: {},
+      },
+      postCollectionRenderer: {
+        id: PostContentRendererId.gallery,
+        configuration: {},
+      },
+      defaultContentRenderer: {
+        rendererId: PostContentRendererId.gallery,
+      },
+    },
     pending: {
       posts: {},
       replies: {},
