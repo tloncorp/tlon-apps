@@ -236,7 +236,6 @@ export default function BareChatInput({
   const options = useMemo(() => {
     return createMentionOptions(groupMembers, groupRoles);
   }, [groupMembers, groupRoles]);
-  console.log({ groupMembers, groupRoles, options });
 
   const {
     mentions,
