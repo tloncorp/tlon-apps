@@ -606,6 +606,13 @@ export async function scryNoun({ app, path }: { app: string; path: string }) {
   }
 }
 
+export async function request<T>(path: string, params: RequestInit) {
+  if (!config.client) {
+    throw new Error('Client not initialized');
+  }
+  return config.client.request<T>(path, params);
+}
+
 // Remove any identifiable information from path
 // ~solfer-magfed/my-group => [id]/my-group
 // chat/~solfer-magfed/my-channel/ => chat/[id]/
