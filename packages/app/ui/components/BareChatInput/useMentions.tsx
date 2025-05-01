@@ -1,10 +1,13 @@
 import { escapeRegExp, isValidPatp } from '@tloncorp/shared';
+import { ALL_MENTION_ID as allID } from '@tloncorp/shared';
 import { getCurrentUserId } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { useMemo, useState } from 'react';
 
 import { emptyContact } from '../../../fixtures/fakeData';
 import { formatUserId } from '../../utils';
+
+export const ALL_MENTION_ID = allID;
 
 export interface Mention {
   id: string;
@@ -63,7 +66,7 @@ export function createMentionOptions(
   }));
 
   const all: MentionOption = {
-    id: 'all',
+    id: ALL_MENTION_ID,
     title: 'All',
     subtitle: 'All members in this channel',
     type: 'group',

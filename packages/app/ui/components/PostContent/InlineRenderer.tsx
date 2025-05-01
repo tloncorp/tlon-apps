@@ -9,6 +9,7 @@ import { Linking, Platform } from 'react-native';
 import { ColorTokens, styled } from 'tamagui';
 
 import { useChannelContext, useNavigation, useRequests } from '../../contexts';
+import { ALL_MENTION_ID } from '../BareChatInput/useMentions';
 import { useContactName } from '../ContactNameV2';
 import {
   GroupMentionInlineData,
@@ -84,7 +85,7 @@ export function InlineGroupMention({
 
   const prettyRole = useMemo(() => {
     const roles = group?.roles ?? [];
-    return inline.group === 'all'
+    return inline.group === ALL_MENTION_ID
       ? 'all'
       : roles.find((role) => role.id === inline.group)?.title || inline.group;
   }, [group, inline.group]);

@@ -24,6 +24,8 @@ import {
 } from '../urbit/content';
 import { citeToPath, getFirstInline, pathToCite, preSig } from '../urbit/utils';
 
+export const ALL_MENTION_ID = '-all-';
+
 export interface HandlerParams {
   editor: Editor;
 }
@@ -460,7 +462,7 @@ export function JSONToInlines(
 
       return [
         {
-          sect: id === 'all' ? null : id,
+          sect: id === ALL_MENTION_ID ? null : id,
         },
       ];
     }
