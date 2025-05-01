@@ -26,6 +26,7 @@ import {
 export interface FilteredChatListRef {
   selectNext: () => void;
   selectPrevious: () => void;
+  selectChat: (chat: db.Chat) => void;
   pressSelected: () => void;
 }
 
@@ -119,6 +120,14 @@ export const FilteredChatList = React.memo(
         const selectedItem = listItems[selectedIndex];
         if (selectedItem && !isSectionHeader(selectedItem)) {
           onPressItem(selectedItem);
+        }
+      },
+      selectChat: (chat: db.Chat) => {
+        const index = listItems.findIndex(
+          (item) => item.type === chat.type && item.id === chat.id
+        );
+        if (index >= 0) {
+          updateSelection(index);
         }
       },
     }));
