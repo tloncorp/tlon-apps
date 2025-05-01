@@ -434,7 +434,7 @@ export function InvitePane(props: { onActionPress: () => void }) {
             textProps={{ color: '$white' }}
             disabled={isProcessing}
           >
-            {shouldPromptForPermission ? 'Continue' : 'Finish'}
+            {shouldPromptForPermission ? 'Connect your contacts' : 'Finish'}
           </SplashButton>
           {shouldPromptForPermission && (
             <SplashButton
