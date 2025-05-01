@@ -56,7 +56,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
       userWasReadyAt: Date.now(),
     });
 
-    navigation.push('ShareContacts');
+    navigation.push('ReserveShip');
   });
 
   // Disable back button
