@@ -2626,8 +2626,8 @@
         ?(%code %inline-code)                  $(inline p.inline)
       ::
           %sect
-        ?~  p.inline  $(inline '@all@everyone@channel')
-        $(inline p.inline)
+        ?~  p.inline  $(inline '@all')
+        $(inline (cat 3 '@' p.inline))
       ::
           %link
         ?|  $(inline p.inline)
