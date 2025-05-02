@@ -10,7 +10,6 @@ import {
   screenNameFromChannelId,
 } from '@tloncorp/app/navigation/utils';
 import { useIsWindowNarrow } from '@tloncorp/app/ui';
-import * as posthog from '@tloncorp/app/utils/posthog';
 import {
   AnalyticsEvent,
   createDevLogger,
@@ -21,7 +20,12 @@ import * as api from '@tloncorp/shared/api';
 import { markChatRead } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { whomIsDm, whomIsMultiDm } from '@tloncorp/shared/urbit';
+import {
+  ActivityIncomingEvent,
+  whomIsDm,
+  whomIsMultiDm,
+} from '@tloncorp/shared/urbit';
+import * as ub from '@tloncorp/shared/urbit';
 import {
   Notification,
   addNotificationResponseReceivedListener,
@@ -38,17 +42,16 @@ type RouteStack = {
 interface BaseNotificationData {
   meta: { errorsFromExtension?: unknown };
 }
-interface WerNotificationData extends BaseNotificationData {
-  type: 'wer';
+interface MinimalNotificationData extends BaseNotificationData {
+  type?: undefined;
   channelId: string;
   postInfo: { id: string; authorId: string; isDm: boolean } | null;
-  wer: string;
 }
 interface UnrecognizedNotificationData extends BaseNotificationData {
   type: 'unrecognized';
 }
 
-type NotificationData = WerNotificationData | UnrecognizedNotificationData;
+type NotificationData = MinimalNotificationData | UnrecognizedNotificationData;
 
 function payloadFromNotification(
   notification: Notification
@@ -72,17 +75,89 @@ function payloadFromNotification(
   const baseNotificationData: BaseNotificationData = {
     meta: { errorsFromExtension: payload.notificationServiceExtensionErrors },
   };
-
-  // welcome to my validation library ;)
-  if (payload.wer != null && payload.channelId != null) {
-    return {
-      ...baseNotificationData,
-      type: 'wer',
-      channelId: payload.channelId,
-      postInfo: api.getPostInfoFromWer(payload.wer),
-      wer: payload.wer,
+  if (
+    payload.activityEventJsonString != null &&
+    typeof payload.activityEventJsonString === 'string'
+  ) {
+    const { event: ev } = JSON.parse(payload.activityEventJsonString) as {
+      event: ub.ActivityEvent;
     };
+    const is = ActivityIncomingEvent.is;
+
+    const authorAndId = (id: string) => ({
+      id: api.getCanonicalPostId(id),
+      authorId: ub.getIdParts(id).author,
+    });
+
+    const dmTarget = (
+      info: Pick<ub.DmPostEvent['dm-post'], 'whom'>,
+      { parent }: { parent?: ub.DmReplyEvent['dm-reply']['parent'] } = {}
+    ) => ({
+      ...baseNotificationData,
+      channelId: 'ship' in info.whom ? info.whom.ship : 'unknown',
+      postInfo:
+        parent == null
+          ? null
+          : {
+              ...authorAndId(parent.id),
+              isDm: false,
+            },
+    });
+    const channelPostTarget = (
+      info: Pick<ub.PostEvent['post'], 'channel'>,
+      { parent }: { parent?: ub.ReplyEvent['reply']['parent'] } = {}
+    ) => ({
+      ...baseNotificationData,
+      channelId: info.channel,
+      postInfo:
+        parent == null
+          ? null
+          : {
+              ...authorAndId(parent.id),
+              isDm: false,
+            },
+    });
+
+    switch (true) {
+      case is(ev, 'dm-post'):
+        return dmTarget(ev['dm-post']);
+
+      case is(ev, 'dm-reply'):
+        return dmTarget(ev['dm-reply']);
+
+      case is(ev, 'post'):
+        return channelPostTarget(ev.post);
+
+      case is(ev, 'reply'):
+        return channelPostTarget(ev.reply, { parent: ev.reply.parent });
+
+      case is(ev, 'dm-invite'):
+      // fallthrough
+      case is(ev, 'group-ask'):
+      // fallthrough
+      case is(ev, 'group-join'):
+      // fallthrough
+      case is(ev, 'group-kick'):
+      // fallthrough
+      case is(ev, 'group-invite'):
+      // fallthrough
+      case is(ev, 'group-role'):
+      // fallthrough
+      case is(ev, 'flag-post'):
+      // fallthrough
+      case is(ev, 'contact'):
+      // fallthrough
+      case is(ev, 'flag-reply'):
+        return null;
+
+      default: {
+        return ((_x: never) => {
+          throw new Error(`Unexpected activity event: ${ev}`);
+        })(ev);
+      }
+    }
   }
+
   return {
     ...baseNotificationData,
     type: 'unrecognized',
@@ -95,7 +170,7 @@ export default function useNotificationListener() {
   const [channelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
 
   const [notifToProcess, setNotifToProcess] =
-    useState<WerNotificationData | null>(null);
+    useState<MinimalNotificationData | null>(null);
 
   // Start notifications prompt
   useEffect(() => {
