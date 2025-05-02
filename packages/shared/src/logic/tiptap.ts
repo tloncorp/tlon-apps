@@ -632,7 +632,7 @@ export const inlineToContent = (
   }
 
   if ('sect' in inline) {
-    return makeMention(inline.sect || 'all');
+    return makeMention(inline.sect || ALL_MENTION_ID);
   }
 
   if ('link' in inline) {
