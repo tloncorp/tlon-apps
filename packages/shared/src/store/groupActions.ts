@@ -8,7 +8,7 @@ import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
 import { createSectionId } from '../urbit';
-import { createChannel, pinGroup } from './channelActions';
+import { pinGroup } from './channelActions';
 
 const logger = createDevLogger('groupActions', false);
 
@@ -18,149 +18,95 @@ interface CreateGroupParams {
   memberIds?: string[];
 }
 
+export async function recoverPartiallyCreatedPersonalGroup() {
+  try {
+    const currentUserId = api.getCurrentUserId();
+    const PersonalGroupKeys = logic.getPersonalGroupKeys(currentUserId);
+
+    const pg = await db.getGroup({ id: PersonalGroupKeys.groupId });
+    if (pg) {
+      const isIncomplete = pg.channels.length !== 3;
+      const recentlyAdded = (await db.wayfindingProgress.getValue())
+        .tappedChatInput; // use coachmarks enabled as heuristic
+      if (isIncomplete && recentlyAdded) {
+        logger.trackEvent('Personal Group Recovery', {
+          context: 'detected incomplete personal group, attempting recovery',
+        });
+        await scaffoldPersonalGroup();
+      }
+    }
+  } catch (e) {
+    logger.trackEvent('Error Personal Group Recovery', {
+      context: 'failed to recover personal group',
+      error: e,
+    });
+  }
+}
+
 export async function scaffoldPersonalGroup() {
   const currentUserId = api.getCurrentUserId();
   const PersonalGroupKeys = logic.getPersonalGroupKeys(currentUserId);
+  const groupIconUrl = logic.getRandomDefaultPersonalGroupIcon();
+
+  logger.trackEvent('Personal Group Scaffold', {
+    context: 'starting personal group scaffold',
+    method: 'thread creation',
+  });
+
   try {
-    logger.trackEvent(`Personal Group Scaffold`, {
-      context: 'starting personal group scaffold',
-    });
-
-    let existingGroup = await db.getGroup({ id: PersonalGroupKeys.groupId });
-    if (!existingGroup) {
-      try {
-        const groupIconUrl = logic.getRandomDefaultPersonalGroupIcon();
-        await db.insertGroups({
-          groups: [
-            {
-              id: PersonalGroupKeys.groupId,
-              currentUserIsMember: true,
-              currentUserIsHost: true,
-              hostUserId: currentUserId,
-              iconImage: groupIconUrl,
-            },
-          ],
-        });
-        await api.createGroup({
-          title: PersonalGroupKeys.groupName,
-          image: groupIconUrl,
-          slug: PersonalGroupKeys.slug,
-          privacy: 'secret',
-        });
-        logger.trackEvent('Personal Group Scaffold', {
-          note: 'Created backend group, proceeding to channels',
-        });
-      } catch (e) {
-        await db.deleteGroup(PersonalGroupKeys.groupId);
-        logger.trackEvent('Error Personal Group Scaffold', {
-          note: 'failed to create group',
-          errorMessage: e.message,
-          stack: e.stack,
-        });
-      }
-    } else {
-      logger.trackEvent('Personal Group Scaffold', {
-        note: 'Already exists, proceeding to channels',
-      });
-    }
-
-    existingGroup = await db.getGroup({ id: PersonalGroupKeys.groupId });
-    if (!existingGroup) {
-      throw new Error('Invariant violated: no existing group');
-    }
-
-    const scaffoldChatChannel = async () => {
-      const chatChan = existingGroup.channels.find(
-        (chan) =>
-          chan.type === 'chat' && chan.id === PersonalGroupKeys.chatChannelId
-      );
-      if (!chatChan) {
-        await createChannel({
-          groupId: PersonalGroupKeys.groupId,
-          customSlug: PersonalGroupKeys.chatSlug,
-          title: PersonalGroupKeys.chatChannelName,
-          channelType: 'chat',
-        });
-        logger.trackEvent('Personal Group Scaffold', {
-          note: 'Created general chat channel',
-        });
-      } else {
-        logger.trackEvent('Personal Group Scaffold', {
-          note: 'General chat channel already exists, skipping',
-        });
-      }
+    const personalGroup: db.Group = {
+      id: PersonalGroupKeys.groupId,
+      title: PersonalGroupKeys.groupName,
+      iconImage: groupIconUrl,
+      currentUserIsMember: true,
+      hostUserId: currentUserId,
+      currentUserIsHost: true,
+      privacy: 'secret',
     };
 
-    const scaffoldCollectionChannel = async () => {
-      const collectionChan = existingGroup.channels.find(
-        (chan) =>
-          chan.type === 'gallery' &&
-          chan.id === PersonalGroupKeys.collectionChannelId
-      );
-      if (!collectionChan) {
-        await createChannel({
-          groupId: PersonalGroupKeys.groupId,
-          customSlug: PersonalGroupKeys.collectionSlug,
-          title: PersonalGroupKeys.collectionChannelName,
-          channelType: 'gallery',
-        });
-        logger.trackEvent('Personal Group Scaffold', {
-          note: 'Created collection channel',
-        });
-      } else {
-        logger.trackEvent('Personal Group Scaffold', {
-          note: 'Collection channel already exists, skipping',
-        });
-      }
+    const chatChannel: db.Channel = {
+      id: PersonalGroupKeys.chatChannelId,
+      groupId: PersonalGroupKeys.groupId,
+      type: 'chat',
+      title: PersonalGroupKeys.chatChannelName,
     };
 
-    const scaffoldNotesChannel = async () => {
-      const notesChan = existingGroup.channels.find(
-        (chan) =>
-          chan.type === 'notebook' &&
-          chan.id === PersonalGroupKeys.notebookChannelId
-      );
-      if (!notesChan) {
-        await createChannel({
-          groupId: PersonalGroupKeys.groupId,
-          customSlug: PersonalGroupKeys.notebookSlug,
-          title: PersonalGroupKeys.notebookChannelName,
-          channelType: 'notebook',
-        });
-        logger.trackEvent('Personal Group Scaffold', {
-          note: 'Created notes channel',
-        });
-      } else {
-        logger.trackEvent('Personal Group Scaffold', {
-          note: 'Notes channel already exists, skipping',
-        });
-      }
+    const collectionChannel: db.Channel = {
+      id: PersonalGroupKeys.collectionChannelId,
+      groupId: PersonalGroupKeys.groupId,
+      type: 'gallery',
+      title: PersonalGroupKeys.collectionChannelName,
     };
 
-    await Promise.all([
-      scaffoldChatChannel(),
-      scaffoldCollectionChannel(),
-      scaffoldNotesChannel(),
-    ]);
+    const notebookChannel: db.Channel = {
+      id: PersonalGroupKeys.notebookChannelId,
+      groupId: PersonalGroupKeys.groupId,
+      type: 'notebook',
+      title: PersonalGroupKeys.notebookChannelName,
+    };
+
+    personalGroup.channels = [chatChannel, collectionChannel, notebookChannel];
+
+    await createGroup({ group: personalGroup });
 
     // Final consistency check
     const group = await db.getGroup({ id: PersonalGroupKeys.groupId });
-    const chatChannel = group?.channels.find(
+    const createdChat = group?.channels.find(
       (chan) => chan.id === PersonalGroupKeys.chatChannelId
     );
-    const collectionChannel = group?.channels.find(
+    const createdCollection = group?.channels.find(
       (chan) => chan.id === PersonalGroupKeys.collectionChannelId
     );
-    const notesChannel = group?.channels.find(
+    const createdNotebook = group?.channels.find(
       (chan) => chan.id === PersonalGroupKeys.notebookChannelId
     );
-    if (!group || !chatChannel || !collectionChannel || !notesChannel) {
+    if (!group || !createdChat || !createdCollection || !createdNotebook) {
       logger.trackEvent('Personal Group Scaffold', {
         notes: 'Completed scaffold, but not all items are present',
         hasGroup: !!group,
-        hasChatChannel: !!chatChannel,
-        hasCollectionChannel: !!collectionChannel,
-        hasNotesChannel: !!notesChannel,
+        hasChatChannel: !!createdChat,
+        hasCollectionChannel: !!createdCollection,
+        hasNotesChannel: !!createdNotebook,
       });
       throw new Error('Something went wrong');
     } else {
@@ -175,8 +121,6 @@ export async function scaffoldPersonalGroup() {
     logger.trackEvent('Completed Personal Group Scaffold', {
       ...logic.getModelAnalytics({ group: { id: PersonalGroupKeys.groupId } }),
     });
-
-    return group;
   } catch (e) {
     logger.trackEvent('Error Personal Group Scaffold', {
       errorMessage: e.message,
@@ -186,67 +130,71 @@ export async function scaffoldPersonalGroup() {
   }
 }
 
-export async function createGroup(
+export async function createDefaultGroup(
   params: CreateGroupParams
 ): Promise<db.Group> {
   const currentUserId = api.getCurrentUserId();
   const groupSlug = getRandomId();
   const groupId = `${currentUserId}/${groupSlug}`;
 
+  // build the group
+  const newGroup: db.Group = {
+    id: groupId,
+    title: params.title ?? '',
+
+    currentUserIsMember: true,
+    currentUserIsHost: true,
+    hostUserId: currentUserId,
+    privacy: 'secret',
+  };
+
+  // build the default channel channel
+  const channelSlug = getRandomId();
+  const channelId = `chat/${currentUserId}/${channelSlug}`;
+  const defaultChannel: db.Channel = {
+    id: channelId,
+    groupId,
+    type: 'chat',
+    title: 'General',
+    currentUserIsMember: true,
+  };
+  newGroup.channels = [defaultChannel];
+
+  return createGroup({ group: newGroup, memberIds: params.memberIds ?? [] });
+}
+
+export async function createGroup(params: {
+  group: db.Group;
+  memberIds?: string[];
+}): Promise<db.Group> {
+  const placeHolderTitle = await getPlaceholderTitle(params);
+
+  // optimistic update
+  await db.insertGroups({
+    groups: [params.group],
+  });
+
   try {
-    logger.trackEvent(AnalyticsEvent.DebugGroupCreate, {
-      context: 'creating group',
-    });
-    await db.insertGroups({
-      groups: [
-        {
-          id: groupId,
-          currentUserIsMember: true,
-          currentUserIsHost: true,
-          hostUserId: currentUserId,
-        },
-      ],
-    });
-    await api.createGroup({
-      title: params.title ?? '',
-      placeholderTitle: await getPlaceholderTitle(params),
-      slug: groupSlug,
-      privacy: 'secret',
+    const resultGroup = await api.createGroup({
+      group: params.group,
+      placeHolderTitle,
       memberIds: params.memberIds,
     });
 
-    logger.trackEvent(AnalyticsEvent.DebugGroupCreate, {
-      context: 'group created on backend',
-      nextStep: 'adding default channel',
-    });
-    await createChannel({
-      groupId: groupId,
-      title: 'General',
-      channelType: 'chat',
-    });
-
-    logger.trackEvent(AnalyticsEvent.DebugGroupCreate, {
-      context: 'default channel created on backend',
-      nextStep: 'getting group from DB',
-    });
-    const group = await db.getGroup({ id: groupId });
-    if (!group || !group.channels.length) {
-      throw new Error('Something went wrong');
-    } else {
-      logger.trackEvent(AnalyticsEvent.DebugGroupCreate, {
-        context: 'found new group in DB',
-      });
-    }
+    // insert the real one
+    await db.insertGroups({ groups: [resultGroup] });
 
     logger.trackEvent(AnalyticsEvent.ActionCreateGroup, {
-      ...logic.getModelAnalytics({ group: { id: groupId } }),
+      ...logic.getModelAnalytics({ group: params.group }),
       initialMemberCount: params.memberIds?.length ?? 0,
     });
 
-    return group;
+    return resultGroup;
   } catch (e) {
-    await db.deleteGroup(groupId);
-    console.error(`${groupSlug}: failed to create group`, e);
+    // rollback optimistic update
+    await db.deleteGroup(params.group.id);
+
+    console.error(`${params.group.id}: failed to create group`, e);
     logger.trackEvent(AnalyticsEvent.ErrorCreateGroup, {
       errorMessage: e.message,
       stack: e.stack,

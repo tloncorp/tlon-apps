@@ -1,11 +1,24 @@
-import { Button, Icon, Text, triggerHaptic } from '@tloncorp/ui';
+// tamagui-ignore
+import {
+  AnalyticsEvent,
+  AnalyticsSeverity,
+  createDevLogger,
+} from '@tloncorp/shared';
+import {
+  Button,
+  Icon,
+  LoadingSpinner,
+  Text,
+  triggerHaptic,
+} from '@tloncorp/ui';
 import React, {
   ComponentProps,
   PropsWithChildren,
   useCallback,
   useMemo,
+  useState,
 } from 'react';
-import { Image } from 'react-native';
+import { Dimensions, Image, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ColorTokens,
@@ -17,6 +30,7 @@ import {
   styled,
 } from 'tamagui';
 
+import { useContactPermissions } from '../../../hooks/useContactPermissions';
 import { useActiveTheme } from '../../../provider';
 import { useStore } from '../../contexts';
 import { ListItem } from '../ListItem';
@@ -127,7 +141,7 @@ export function WelcomePane(props: { onActionPress: () => void }) {
   return (
     <YStack
       marginTop={isWeb ? '$4xl' : insets.top}
-      marginBottom={isWeb ? '$4xl' : insets.bottom}
+      marginBottom={isWeb || Platform.OS === 'android' ? '$4xl' : insets.bottom}
       marginHorizontal={isWeb ? '$4xl' : 'unset'}
       flex={1}
       justifyContent="space-between"
@@ -175,7 +189,7 @@ export function GroupsPane(props: { onActionPress: () => void }) {
   return (
     <YStack
       marginTop={insets.top}
-      marginBottom={isWeb ? '$4xl' : insets.bottom}
+      marginBottom={isWeb || Platform.OS === 'android' ? '$4xl' : insets.bottom}
       flex={1}
       justifyContent="space-between"
     >
@@ -225,7 +239,7 @@ export function ChannelsPane(props: { onActionPress: () => void }) {
   return (
     <YStack
       marginTop={isWeb ? '$2xl' : insets.top}
-      marginBottom={isWeb ? '$4xl' : insets.bottom}
+      marginBottom={isWeb || Platform.OS === 'android' ? '$4xl' : insets.bottom}
       marginHorizontal={isWeb ? '$4xl' : 'unset'}
       flex={1}
       justifyContent="space-between"
@@ -280,7 +294,9 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
         flex={1}
         justifyContent="space-between"
         marginTop={isWeb ? '$4xl' : insets.top}
-        marginBottom={isWeb ? '$4xl' : insets.bottom}
+        marginBottom={
+          isWeb || Platform.OS === 'android' ? '$4xl' : insets.bottom
+        }
         marginHorizontal={isWeb ? '$4xl' : 'unset'}
       >
         <YStack>
@@ -313,35 +329,126 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
   );
 }
 
+const logger = createDevLogger('SplashSequence', true);
+
 export function InvitePane(props: { onActionPress: () => void }) {
   const insets = useSafeAreaInsets();
+  const store = useStore();
+  const [error, setError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const perms = useContactPermissions();
+
+  const processContacts = async () => {
+    try {
+      setIsProcessing(true);
+      await store.syncSystemContacts();
+      // if successful, continue
+      props.onActionPress();
+    } catch (error) {
+      setError('Something went wrong, please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleShareContacts = async () => {
+    try {
+      if (perms.canAskPermission) {
+        const status = await perms.requestPermissions();
+        if (status === 'granted') {
+          processContacts();
+        }
+      }
+    } catch (e) {
+      logger.trackEvent(AnalyticsEvent.ErrorSystemContacts, {
+        context: 'handleShareContacts threw',
+        error: e,
+        severity: AnalyticsSeverity.Critical,
+      });
+    } finally {
+      // always advance past splash regardless
+      props.onActionPress();
+    }
+  };
+
+  const handleSkip = () => {
+    logger.trackEvent(AnalyticsEvent.ActionContactBookSkipped);
+    props.onActionPress();
+  };
+
+  const shouldPromptForPermission = useMemo(() => {
+    return !isWeb && !perms.hasPermission;
+  }, [perms]);
+  const handleAction = shouldPromptForPermission
+    ? handleShareContacts
+    : props.onActionPress;
+
   return (
     <YStack flex={1} justifyContent="space-between">
       <YStack flex={1}>
         <InviteFriendsDisplay />
         <YStack marginHorizontal={isWeb ? '$4xl' : '$2xl'}>
           <SplashTitle marginTop={isWeb ? '$4xl' : '$2xl'}>
-            Invite your <Text color="$positiveActionText">friends.</Text>
+            Tlon is better{' '}
+            <Text color="$positiveActionText">with friends.</Text>
           </SplashTitle>
-          <SplashParagraph marginTop="$2xl">
-            Your group is a social space and social spaces are more fun with
-            friends. When your friends join, they get their own cloud computer.
-            So you can all post together, privately, with peace of mind, for as
-            long as your group exists.
+          <SplashParagraph marginTop="$xl">
+            Your group is a <Text fontWeight={'bold'}>private</Text> social
+            space and social spaces are more fun with friends. When your friends
+            join, they get their own cloud computer. So you can all post
+            together with peace of mind, for as long as your group exists.
           </SplashParagraph>
+          {shouldPromptForPermission && (
+            <SplashParagraph marginTop="$l">
+              Sync your contact book to easily find people you know on Tlon.
+            </SplashParagraph>
+          )}
+          {error && !isWeb && (
+            <Text marginTop="$m" size="$label/m" color="$red">
+              {error}
+            </Text>
+          )}
         </YStack>
       </YStack>
-      <XStack width="100%" justifyContent="center">
-        <SplashButton
-          marginTop="$l"
-          marginBottom={isWeb ? '$4xl' : insets.bottom}
-          marginHorizontal={isWeb ? '$4xl' : '$2xl'}
-          onPress={props.onActionPress}
-          backgroundColor="$positiveActionText"
-          textProps={{ color: '$white' }}
+      <XStack
+        width="100%"
+        justifyContent="center"
+        marginBottom={
+          isWeb || Platform.OS === 'android' ? '$4xl' : insets.bottom
+        }
+      >
+        {isProcessing && !isWeb && (
+          <YStack alignItems="center" marginBottom="$l">
+            <LoadingSpinner />
+          </YStack>
+        )}
+        <YStack
+          width={isWeb ? 'auto' : '100%'}
+          paddingHorizontal={isWeb ? 'unset' : '$2xl'}
         >
-          Finish
-        </SplashButton>
+          <SplashButton
+            marginTop="$l"
+            onPress={handleAction}
+            marginHorizontal={isWeb ? '$2xl' : 'unset'}
+            backgroundColor="$positiveActionText"
+            textProps={{ color: '$white' }}
+            disabled={isProcessing}
+          >
+            {shouldPromptForPermission ? 'Connect your contacts' : 'Finish'}
+          </SplashButton>
+          {shouldPromptForPermission && (
+            <SplashButton
+              marginTop="$l"
+              secondary
+              textProps={{ color: '$secondaryText' }}
+              backgroundColor="$background"
+              disabled={isProcessing}
+              onPress={handleSkip}
+            >
+              Skip
+            </SplashButton>
+          )}
+        </YStack>
       </XStack>
     </YStack>
   );
@@ -423,9 +530,25 @@ function PrivacyLevelsDisplay() {
 const InviteFriendsDisplay = () => {
   const activeTheme = useActiveTheme();
   const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+  const deviceIsTinyHeight = useMemo(() => {
+    const { height } = Dimensions.get('window');
+    return height < 800;
+  }, []);
+
+  const displayHeight = useMemo(() => {
+    if (isWeb) {
+      return 300;
+    }
+
+    if (deviceIsTinyHeight) {
+      return 220;
+    }
+
+    return 340;
+  }, [deviceIsTinyHeight]);
 
   return (
-    <View height={isWeb ? 300 : 460} marginBottom="$2xl" overflow="hidden">
+    <View height={displayHeight} marginBottom="$2xl" overflow="hidden">
       <ZStack flex={1}>
         <View position="relative" top={-80} right={isWeb ? 120 : 50}>
           <Image

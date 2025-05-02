@@ -14,9 +14,7 @@ import {
   XStack,
   YStack,
 } from '@tloncorp/app/ui';
-import { OnboardingBenefitsSheet } from '@tloncorp/app/ui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
-import * as db from '@tloncorp/shared/db';
 import { finishingSelfHostedLogin as selfHostedLoginStatus } from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,29 +30,10 @@ export const WelcomeScreen = ({ navigation }: Props) => {
   const lureMeta = useLureMetadata();
   const { bottom, top } = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
-  const [showBenefitsSheet, setShowBenefitsSheet] = useState(false);
   const { isAuthenticated } = useShip();
   const finishingSelfHostedLogin = selfHostedLoginStatus.useValue();
 
   useCheckAppInstalled();
-
-  // handle benefits sheet
-  useEffect(() => {
-    async function checkBenefitsSheet() {
-      const haveShown = await db.benefitsSheetDismissed.getValue();
-      if (!haveShown) {
-        setShowBenefitsSheet(true);
-      }
-    }
-    checkBenefitsSheet();
-  }, []);
-
-  const handleBenefitsSheetOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      db.benefitsSheetDismissed.setValue(true);
-    }
-    setShowBenefitsSheet(open);
-  }, []);
 
   const handlePressInvite = useCallback(() => {
     navigation.navigate('Signup');
@@ -186,14 +165,6 @@ export const WelcomeScreen = ({ navigation }: Props) => {
           </ActionSheet.ContentBlock>
         </ActionSheet.Content>
       </ActionSheet>
-      {/* 
-        Open modals during navigation will cause a crash so we need to be careful not to pop this
-        until after checking for onboarding revive (which may auto navigate) 
-      */}
-      <OnboardingBenefitsSheet
-        open={showBenefitsSheet}
-        onOpenChange={handleBenefitsSheetOpenChange}
-      />
     </View>
   );
 };

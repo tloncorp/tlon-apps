@@ -14,11 +14,11 @@ import {
 } from './apiUtils';
 import { toPostData, toPostReplyData, toReactionsData } from './postsApi';
 import {
-  client,
   poke,
   scry,
   subscribe,
   subscribeOnce,
+  thread,
   trackedPoke,
 } from './urbit';
 
@@ -158,7 +158,7 @@ export const setupChannelFromTemplate = async (
   exampleChannelId: string,
   targetChannelId: string
 ) => {
-  return client.thread<string>({
+  return thread({
     desk: 'groups',
     inputMark: 'hook-setup-template-args',
     outputMark: 'json',

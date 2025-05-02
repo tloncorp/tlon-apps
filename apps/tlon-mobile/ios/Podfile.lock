@@ -238,6 +238,8 @@ PODS:
     - ExpoModulesCore
   - ExpoClipboard (6.0.3):
     - ExpoModulesCore
+  - ExpoContacts (13.0.5):
+    - ExpoModulesCore
   - ExpoDevice (6.0.2):
     - ExpoModulesCore
   - ExpoFileSystem (17.0.1):
@@ -264,6 +266,8 @@ PODS:
   - ExpoLinearGradient (13.0.2):
     - ExpoModulesCore
   - ExpoLocalization (15.0.3):
+    - ExpoModulesCore
+  - ExpoMailComposer (13.0.1):
     - ExpoModulesCore
   - ExpoMediaLibrary (16.0.5):
     - ExpoModulesCore
@@ -292,6 +296,8 @@ PODS:
     - ReactCommon/turbomodule/core
     - Yoga
   - ExpoSecureStore (13.0.2):
+    - ExpoModulesCore
+  - ExpoSMS (12.0.1):
     - ExpoModulesCore
   - EXSplashScreen (0.27.7):
     - DoubleConversion
@@ -1833,6 +1839,7 @@ DEPENDENCIES:
   - ExpoBattery (from `../../../node_modules/expo-battery/ios`)
   - ExpoBlur (from `../../../node_modules/expo-blur/ios`)
   - ExpoClipboard (from `../../../node_modules/expo-clipboard/ios`)
+  - ExpoContacts (from `../../../node_modules/expo-contacts/ios`)
   - ExpoDevice (from `../../../node_modules/expo-device/ios`)
   - ExpoFileSystem (from `../../../node_modules/expo-file-system/ios`)
   - ExpoFont (from `../../../node_modules/expo-font/ios`)
@@ -1843,9 +1850,11 @@ DEPENDENCIES:
   - ExpoKeepAwake (from `../../../node_modules/expo-keep-awake/ios`)
   - ExpoLinearGradient (from `../../../node_modules/expo-linear-gradient/ios`)
   - ExpoLocalization (from `../../../node_modules/expo-localization/ios`)
+  - ExpoMailComposer (from `../../../node_modules/expo-mail-composer/ios`)
   - ExpoMediaLibrary (from `../../../node_modules/expo-media-library/ios`)
   - ExpoModulesCore (from `../../../node_modules/expo-modules-core`)
   - ExpoSecureStore (from `../../../node_modules/expo-secure-store/ios`)
+  - ExpoSMS (from `../../../node_modules/expo-sms/ios`)
   - EXSplashScreen (from `../../../node_modules/expo-splash-screen/ios`)
   - EXStructuredHeaders (from `../../../node_modules/expo-structured-headers/ios`)
   - EXTaskManager (from `../../../node_modules/expo-task-manager/ios`)
@@ -2003,6 +2012,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-blur/ios"
   ExpoClipboard:
     :path: "../../../node_modules/expo-clipboard/ios"
+  ExpoContacts:
+    :path: "../../../node_modules/expo-contacts/ios"
   ExpoDevice:
     :path: "../../../node_modules/expo-device/ios"
   ExpoFileSystem:
@@ -2023,12 +2034,16 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-linear-gradient/ios"
   ExpoLocalization:
     :path: "../../../node_modules/expo-localization/ios"
+  ExpoMailComposer:
+    :path: "../../../node_modules/expo-mail-composer/ios"
   ExpoMediaLibrary:
     :path: "../../../node_modules/expo-media-library/ios"
   ExpoModulesCore:
     :path: "../../../node_modules/expo-modules-core"
   ExpoSecureStore:
     :path: "../../../node_modules/expo-secure-store/ios"
+  ExpoSMS:
+    :path: "../../../node_modules/expo-sms/ios"
   EXSplashScreen:
     :path: "../../../node_modules/expo-splash-screen/ios"
   EXStructuredHeaders:
@@ -2213,6 +2228,7 @@ SPEC CHECKSUMS:
   ExpoBattery: 9575fe12e063206275013cf0dfc1583e8e7fd00c
   ExpoBlur: 99901a4531f5d3ac4a19b362907b8f75da4ed9c8
   ExpoClipboard: 243e22ff4161bbffcd3d2db469ae860ddc1156be
+  ExpoContacts: 7ff826023ae74e6f29876a0942e00722c9b7bdf4
   ExpoDevice: 84b3ed79df1234c17edfbf335f6ecf3c636f74de
   ExpoFileSystem: 2988caaf68b7cb706e36d382829d99811d9d76a5
   ExpoFont: 38dddf823e32740c2a9f37c926a33aeca736b5c4
@@ -2223,9 +2239,11 @@ SPEC CHECKSUMS:
   ExpoKeepAwake: dd02e65d49f1cfd9194640028ae2857e536eb1c9
   ExpoLinearGradient: 4c44b3803b441724874b232e6520b51ca6a50db1
   ExpoLocalization: 1b4195ed48148c7f52ce790d3965cc19483fcbf2
+  ExpoMailComposer: 456b7e4ef0f5580f4353eacae69caf7604c84dce
   ExpoMediaLibrary: b30366bf8f938166b1fe2d019e5b15337349d91e
   ExpoModulesCore: c11bcbf466b123a92eb66ab2ae9e0eaef61b7e97
   ExpoSecureStore: 6506992a9f53c94ea716c54d4a63144965945c2c
+  ExpoSMS: 66d89a3c897602621bb711f3d23814cea80924fb
   EXSplashScreen: 02d4bb2d7a6b05b4434126e01ee2e6872088f4ae
   EXStructuredHeaders: cb8d1f698e144f4c5547b4c4963e1552f5d2b457
   EXTaskManager: b515b853fd97286a25cb643978ff7fa456f3139a

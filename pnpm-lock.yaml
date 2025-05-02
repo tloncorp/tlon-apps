@@ -271,6 +271,9 @@ importers:
       expo-constants:
         specifier: ~16.0.2
         version: 16.0.2(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13))
+      expo-contacts:
+        specifier: ~13.0.5
+        version: 13.0.5(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13))
       expo-dev-client:
         specifier: ~4.0.29
         version: 4.0.29(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13))
@@ -298,6 +301,9 @@ importers:
       expo-localization:
         specifier: ~15.0.3
         version: 15.0.3(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13))
+      expo-mail-composer:
+        specifier: ~13.0.1
+        version: 13.0.1(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13))
       expo-media-library:
         specifier: ~16.0.5
         version: 16.0.5(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13))
@@ -307,6 +313,9 @@ importers:
       expo-secure-store:
         specifier: ~13.0.2
         version: 13.0.2(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13))
+      expo-sms:
+        specifier: ~12.0.1
+        version: 12.0.1(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13))
       expo-splash-screen:
         specifier: ~0.27.7
         version: 0.27.7(encoding@0.1.13)(expo-modules-autolinking@1.11.3)(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13))
@@ -1061,6 +1070,12 @@ importers:
       drizzle-orm:
         specifier: 0.39.3
         version: 0.39.3(patch_hash=fgfowqwijxaynyk2usehnwtmvm)(@op-engineering/op-sqlite@11.4.2(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0))(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.9)(better-sqlite3@11.8.1)
+      expo-contacts:
+        specifier: ~13.0.5
+        version: 13.0.5(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13))
+      expo-localization:
+        specifier: ~15.0.3
+        version: 15.0.3(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13))
       exponential-backoff:
         specifier: ^3.1.1
         version: 3.1.1
@@ -7704,6 +7719,11 @@ packages:
     peerDependencies:
       expo: '*'
 
+  expo-contacts@13.0.5:
+    resolution: {integrity: sha512-jFdmrh0c7iMfaxEmt7bbDTBoz5Onyq3uLhvLxWzhb3dFXsEtQ/6SsdATtXbNQ9cP8gsD3itz3Ev2oxYXGFAMQw==}
+    peerDependencies:
+      expo: '*'
+
   expo-dev-client@4.0.29:
     resolution: {integrity: sha512-aANlw9dC4PJEPaRNpe+X5xwyYI+aCIcbZklAAsFlkv2/05gLrsvAFgmQpRtowAzF+VggHWde1eKUOeUccAYIEg==}
     peerDependencies:
@@ -7805,6 +7825,11 @@ packages:
     peerDependencies:
       expo: '*'
 
+  expo-mail-composer@13.0.1:
+    resolution: {integrity: sha512-JmlQLS7Bk7vBf+xpdNIcG80/GzwLoFgk7ZmL4qD78CxRuolvb4jwH97nS54l6W/pKBa2TH1eUV1V8ZjKzQLf0A==}
+    peerDependencies:
+      expo: '*'
+
   expo-manifests@0.14.3:
     resolution: {integrity: sha512-L3b5/qocBPiQjbW0cpOHfnqdKZbTJS7sA3mgeDJT+mWga/xYsdpma1EfNmsuvrOzjLGjStr1k1fceM9Bl49aqQ==}
     peerDependencies:
@@ -7839,6 +7864,11 @@ packages:
 
   expo-secure-store@13.0.2:
     resolution: {integrity: sha512-3QYgoneo8p8yeeBPBiAfokNNc2xq6+n8+Ob4fAlErEcf4H7Y72LH+K/dx0nQyWau2ZKZUXBxyyfuHFyVKrEVLg==}
+    peerDependencies:
+      expo: '*'
+
+  expo-sms@12.0.1:
+    resolution: {integrity: sha512-LuKymmqWQFVBjypFpo+Ed/M+rywWwcM4TfB7y5m0tmF7p9n+KAlyhOOQBUWwyXBYEXho9hK9s/H5cpW97gseNg==}
     peerDependencies:
       expo: '*'
 
@@ -23270,6 +23300,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  expo-contacts@13.0.5(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)):
+    dependencies:
+      expo: 51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)
+
   expo-dev-client@4.0.29(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)):
     dependencies:
       expo: 51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)
@@ -23373,6 +23407,10 @@ snapshots:
       expo: 51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)
       rtl-detect: 1.1.2
 
+  expo-mail-composer@13.0.1(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)):
+    dependencies:
+      expo: 51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)
+
   expo-manifests@0.14.3(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)):
     dependencies:
       '@expo/config': 9.0.4
@@ -23434,6 +23472,10 @@ snapshots:
       - supports-color
 
   expo-secure-store@13.0.2(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)):
+    dependencies:
+      expo: 51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)
+
+  expo-sms@12.0.1(expo@51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)):
     dependencies:
       expo: 51.0.39(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(encoding@0.1.13)
 

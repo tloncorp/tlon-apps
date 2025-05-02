@@ -898,7 +898,7 @@ export class Urbit {
    * @param body        The data to send to the thread
    * @returns  The return value of the thread
    */
-  async thread<R, T = any>(params: Thread<T>): Promise<R> {
+  async thread<T = any>(params: Thread<T>): Promise<Response> {
     const {
       inputMark,
       outputMark,
@@ -909,6 +909,7 @@ export class Urbit {
     if (!desk) {
       throw new Error('Must supply desk to run thread from');
     }
+
     const res = await this.fetchFn(
       `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
       {
@@ -918,7 +919,7 @@ export class Urbit {
       }
     );
 
-    return res.json();
+    return res;
   }
 
   /**

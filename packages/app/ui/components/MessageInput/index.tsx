@@ -169,6 +169,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const [hasAutoFocused, setHasAutoFocused] = useState(false);
     const [editorCrashed, setEditorCrashed] = useState<string | undefined>();
     const [containerHeight, setContainerHeight] = useState(initialHeight);
+    const [isSending, setIsSending] = useState(false);
     const { bottom, top } = useSafeAreaInsets();
     const { height } = useWindowDimensions();
     const headerHeight = 48;
@@ -647,12 +648,15 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const runSendMessage = useCallback(
       async (isEdit: boolean) => {
         try {
+          setIsSending(true);
           await sendMessage(isEdit);
         } catch (e) {
           console.error('failed to send', e);
           setSendError(true);
+        } finally {
+          setIsSending(false);
+          setSendError(false);
         }
-        setSendError(false);
       },
       [sendMessage]
     );
@@ -885,7 +889,9 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         showAttachmentButton={showAttachmentButton}
         floatingActionButton={floatingActionButton}
         disableSend={
-          editorIsEmpty || (channelType === 'notebook' && titleIsEmpty)
+          editorIsEmpty ||
+          (channelType === 'notebook' && titleIsEmpty) ||
+          isSending
         }
         goBack={goBack}
         frameless={frameless}

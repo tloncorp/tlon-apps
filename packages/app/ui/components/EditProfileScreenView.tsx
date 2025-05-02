@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import { KeyboardAvoidingView, Pressable } from '@tloncorp/ui';
+import { KeyboardAvoidingView } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Alert } from 'react-native';
@@ -22,7 +22,6 @@ import { BioDisplay, PinnedGroupsDisplay } from './UserProfileScreenView';
 
 interface Props {
   userId: string;
-  showAttestations?: boolean;
   onGoBack: () => void;
   onGoToAttestation?: (type: 'twitter' | 'phone') => void;
 }
@@ -284,12 +283,10 @@ export function EditProfileScreenView(props: Props) {
                   />
                 </Field>
 
-                {props.showAttestations && (
-                  <EditAttestationsDisplay
-                    attestations={attestations}
-                    onPressAttestation={props.onGoToAttestation}
-                  />
-                )}
+                <EditAttestationsDisplay
+                  attestations={attestations}
+                  onPressAttestation={props.onGoToAttestation}
+                />
               </>
             ) : (
               <>

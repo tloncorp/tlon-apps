@@ -14,7 +14,7 @@ export const ContactListItem = ({
   onLongPress,
   showNickname = false,
   showUserId = false,
-  full = false,
+  full = true,
   showIcon = true,
   showEndContent = false,
   endContent,
@@ -59,7 +59,7 @@ export const ContactListItem = ({
           </ListItem.Title>
           {showUserId && showNickname ? (
             <ListItem.Subtitle>
-              {formatUserId(contactId)?.display}
+              {formatUserId(contactId, true)?.display}
             </ListItem.Subtitle>
           ) : null}
           {subtitle && <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>}

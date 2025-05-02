@@ -155,7 +155,13 @@ export const useMentions = ({ options }: { options: MentionOption[] }) => {
       const textBetweenTriggerAndCursor = beforeCursor.slice(
         lastTriggerIndex + 1
       );
-      const hasSpace = textBetweenTriggerAndCursor.includes(' ');
+      const textBeforeTrigger = beforeCursor.slice(
+        lastTriggerIndex - 1,
+        lastTriggerIndex
+      );
+      const spaceBeforeOrFirst =
+        lastTriggerIndex === 0 || textBeforeTrigger === ' ';
+      const spaceAfter = textBetweenTriggerAndCursor.includes(' ');
 
       // Only show popup if:
       // 1. We're right after the trigger or actively searching
@@ -164,7 +170,8 @@ export const useMentions = ({ options }: { options: MentionOption[] }) => {
       const isDismissedTrigger =
         wasDismissedByEscape && lastTriggerIndex === lastDismissedTriggerIndex;
       if (
-        !hasSpace &&
+        spaceBeforeOrFirst &&
+        !spaceAfter &&
         !isDismissedTrigger &&
         (cursorPosition === lastTriggerIndex + 1 ||
           (cursorPosition > lastTriggerIndex && !afterCursor.includes(' ')))

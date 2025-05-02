@@ -18,7 +18,7 @@ export type StorageItemConfig<T> = {
 };
 
 export type StorageItem<T> = {
-  getValue: () => Promise<T>;
+  getValue: (waitForLock?: boolean) => Promise<T>;
   setValue: (value: T | ((curr: T) => T)) => Promise<void>;
   resetValue: () => Promise<T>;
   useValue: () => T;
@@ -42,9 +42,11 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
   const storage = getStorageMethods(config.isSecure ?? false);
   let updateLock = Promise.resolve();
 
-  const getValue = async (): Promise<T> => {
-    await updateLock;
-    const value = (await storage.getItem(key)) as Stringified<T> | null;
+  const getValue = async (waitForLock = false): Promise<T> => {
+    if (waitForLock) {
+      await updateLock;
+    }
+    const value = await storage.getItem(key);
 
     if (!value) {
       return defaultValue;
@@ -111,7 +113,10 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
   };
 
   function useValue() {
-    const { data: value } = useQuery({ queryKey: [key], queryFn: getValue });
+    const { data: value } = useQuery({
+      queryKey: [key],
+      queryFn: () => getValue(),
+    });
     return value === undefined ? defaultValue : value;
   }
 

@@ -1,7 +1,7 @@
 import type { BridgeState, EditorBridge } from '@10play/tentap-editor';
 import * as db from '@tloncorp/shared/db';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
-import { Button } from '@tloncorp/ui';
+import { Button, LoadingSpinner } from '@tloncorp/ui';
 import { FloatingActionButton } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
@@ -97,6 +97,7 @@ export const MessageInputContainer = memo(
     floatingActionButton = false,
     showWayfindingTooltip = false,
     disableSend = false,
+    isSending = false,
     mentionText,
     mentionOptions,
     onSelectMention,
@@ -116,6 +117,7 @@ export const MessageInputContainer = memo(
     floatingActionButton?: boolean;
     showWayfindingTooltip?: boolean;
     disableSend?: boolean;
+    isSending?: boolean;
     mentionText?: string;
     mentionOptions: MentionOption[];
     onSelectMention: (option: MentionOption) => void;
@@ -218,6 +220,8 @@ export const MessageInputContainer = memo(
                 >
                   {isEditing ? (
                     <Icon size="$m" type="Checkmark" />
+                  ) : isSending ? (
+                    <LoadingSpinner />
                   ) : (
                     <Icon
                       color={sendError ? '$negativeActionText' : undefined}
@@ -230,9 +234,11 @@ export const MessageInputContainer = memo(
             )}
           </XStack>
         ) : (
-          <YStack width="100%" backgroundColor="$background">
+          // Note: This **must** be an XStack (not a YStack, View, or Stack), otherwise the WebView in MessageInput will not
+          // be interactive on Android.
+          <XStack width="100%" backgroundColor="$background">
             {children}
-          </YStack>
+          </XStack>
         )}
       </YStack>
     );

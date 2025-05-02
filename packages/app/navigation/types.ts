@@ -49,9 +49,11 @@ export type RootStackParamList = {
   FeatureFlags: undefined;
   ManageAccount: undefined;
   BlockedUsers: undefined;
+  PrivacySettings: undefined;
   AppInfo: undefined;
   PushNotificationSettings: undefined;
   AddContacts: undefined;
+  InviteSystemContacts: undefined;
   UserProfile: {
     userId: string;
   };
@@ -134,6 +136,7 @@ export type SettingsDrawerParamList = Pick<
   | 'AppInfo'
   | 'PushNotificationSettings'
   | 'WompWomp'
+  | 'PrivacySettings'
 >;
 
 export type ChannelStackParamList = {
