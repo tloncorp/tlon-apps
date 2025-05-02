@@ -397,7 +397,11 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
               ) : (
                 props.hasNickname && (
                   <Text color="$secondaryText">
-                    <ContactName contactId={props.userId} mode="contactId" />
+                    <ContactName
+                      contactId={props.userId}
+                      mode="contactId"
+                      expandLongIds
+                    />
                   </Text>
                 )
               )}
