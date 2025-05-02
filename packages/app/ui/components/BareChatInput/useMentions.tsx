@@ -128,7 +128,7 @@ export const useMentions = () => {
   const handleSelectMention = (contact: db.Contact, text: string) => {
     if (mentionStartIndex === null) return;
 
-    const mentionDisplay = contact.nickname || contact.id;
+    const mentionDisplay = contact.id;
     const beforeMention = text.slice(0, mentionStartIndex);
     const afterMention = text.slice(
       mentionStartIndex + (mentionSearchText?.length || 0) + 1
