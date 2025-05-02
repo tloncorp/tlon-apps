@@ -304,10 +304,13 @@ export default function BareChatInput({
 
         if (matches && matches.length > 0) {
           // Found a URL in what appears to be pasted text
-          const url = matches[0];
+          const urlMatch = matches[0];
+          const parsedUrl = new URL(urlMatch);
+          parsedUrl.hash = '';
+          const url = parsedUrl.toString();
           console.log(`bl: detected url`, url);
           const urlStartIndex = newText.indexOf(url);
-          const urlEndIndex = urlStartIndex + url.length;
+          const urlEndIndex = urlStartIndex + urlMatch.length;
           api.getLinkMetadata(url).then((linkMetadata) => {
             if (!linkMetadata) {
               return;
