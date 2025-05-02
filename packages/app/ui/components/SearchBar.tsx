@@ -55,14 +55,16 @@ export function SearchBar({
         onChangeText={onTextChange}
         placeholder={placeholder}
         rightControls={
-          <TextInput.InnerButton
-            label={value === '' && !!onPressCancel ? 'Cancel' : 'Clear'}
-            onPress={() =>
-              value === '' && !!onPressCancel
-                ? onPressCancel()
-                : onTextChange('')
-            }
-          />
+          value !== '' || onPressCancel ? (
+            <TextInput.InnerButton
+              label={value === '' && !!onPressCancel ? 'Cancel' : 'Clear'}
+              onPress={() =>
+                value === '' && !!onPressCancel
+                  ? onPressCancel()
+                  : onTextChange('')
+              }
+            />
+          ) : null
         }
         {...inputProps}
       />

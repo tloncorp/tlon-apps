@@ -12,6 +12,7 @@ import { useChannelContext, useCurrentUserId } from '../../../contexts';
 import { Attachment, useAttachmentContext } from '../../../contexts/attachment';
 import { triggerHaptic, useIsAdmin } from '../../../utils';
 import ActionList from '../../ActionList';
+import { useForwardPostSheet } from '../../ForwardPostSheet';
 
 const ENABLE_COPY_JSON = __DEV__;
 
@@ -58,7 +59,6 @@ function ConnectedAction({
   actionId: ChannelAction.Id;
   post: db.Post;
   last: boolean;
-
   dismiss: () => void;
   onReply?: (post: db.Post) => void;
   onEdit?: () => void;
@@ -69,6 +69,7 @@ function ConnectedAction({
   const channel = useChannelContext();
   const { addAttachment } = useAttachmentContext();
   const currentUserIsAdmin = useIsAdmin(post.groupId ?? '', currentUserId);
+  const { open: forwardPost } = useForwardPostSheet();
 
   const { label } = useDisplaySpecForChannelActionId(actionId, {
     post,
@@ -134,6 +135,7 @@ function ConnectedAction({
           dismiss,
           onReply,
           onEdit,
+          onForward: forwardPost,
           onViewReactions,
           addAttachment,
           isConnected: connectionStatus === 'Connected',
@@ -171,6 +173,7 @@ export async function handleAction({
   onReply,
   onEdit,
   onViewReactions,
+  onForward,
   addAttachment,
   isConnected,
   isNetworkDependent,
@@ -183,6 +186,7 @@ export async function handleAction({
   dismiss: () => void;
   onReply?: (post: db.Post) => void;
   onEdit?: () => void;
+  onForward?: (post: db.Post) => void;
   onViewReactions?: (post: db.Post) => void;
   addAttachment: (attachment: Attachment) => void;
   isConnected: boolean;
@@ -240,6 +244,9 @@ export async function handleAction({
       break;
     case 'visibility':
       post.hidden ? store.showPost({ post }) : store.hidePost({ post });
+      break;
+    case 'forward':
+      onForward?.(post);
       break;
   }
 
@@ -311,6 +318,9 @@ export function useDisplaySpecForChannelActionId(
             ? 'Start thread'
             : 'Comment on post',
         };
+
+      case 'forward':
+        return { label: 'Forward' };
 
       case 'viewReactions':
         return { label: 'View reactions' };

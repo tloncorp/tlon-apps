@@ -46,7 +46,7 @@ export const MessagesSidebar = memo(
     const { data: selectedGroup } = store.useGroup({
       id: selectedGroupId ?? '',
     });
-    const { setIsOpen } = useGlobalSearch();
+    const { setIsOpen: setSearchIsOpen } = useGlobalSearch();
 
     const { data: chats } = store.useCurrentChats();
     const { performGroupAction } = useGroupActions();
@@ -156,8 +156,8 @@ export const MessagesSidebar = memo(
     );
 
     const handleSearch = useCallback(() => {
-      setIsOpen(true);
-    }, [setIsOpen]);
+      setSearchIsOpen(true);
+    }, [setSearchIsOpen]);
 
     const displayData = useFilteredChats({
       ...resolvedChats,
