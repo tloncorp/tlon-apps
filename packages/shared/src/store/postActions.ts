@@ -211,6 +211,13 @@ export async function forwardPost({
     channel,
     authorId: api.getCurrentUserId(),
     content: [{ block: { cite: urbitReference } }],
+    metadata:
+      channel.type === 'notebook'
+        ? {
+            title:
+              post.title && post.title !== '' ? post.title : 'Forwarded post',
+          }
+        : undefined,
   });
 }
 
