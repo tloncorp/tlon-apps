@@ -761,6 +761,14 @@
           pending+(pending-msgs pending.channel)
       ==
     ::
+    ++  paged-posts
+      |=  pn=paged-posts:v7:old:c
+      %-  pairs
+      :~  posts+(posts posts.pn)
+          newer+?~(newer.pn ~ (id u.newer.pn))
+          older+?~(older.pn ~ (id u.older.pn))
+          total+(numb total.pn)
+      ==
     ++  posts
       |=  =posts:v7:old:c
       %-  pairs

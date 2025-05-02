@@ -343,7 +343,7 @@ export const getChannelPosts = async ({
     ...[
       type === 'dm' ? 'dm' : null,
       type === 'club' ? 'club' : null,
-      type === 'channel' ? 'v1' : null,
+      type === 'channel' ? 'v3' : null,
     ],
     channelId,
     type === 'channel' ? 'posts' : 'writs',
