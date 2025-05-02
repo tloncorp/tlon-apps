@@ -54,6 +54,7 @@ export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
   );
   const selectedChannelTitle = useChatTitle(selectedChannel);
   const [isSending, setIsSending] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const handleItemSelected = useCallback((item: db.Chat) => {
     if (item.type === 'channel') {
       chatListRef.current?.selectChat(item);
@@ -63,9 +64,13 @@ export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
   const handleSendItem = useCallback(async () => {
     if (post && selectedChannel) {
       setIsSending(true);
+      setErrorMessage(null);
       try {
         await forwardPost({ postId: post.id, channelId: selectedChannel.id });
         setIsOpen(false);
+      } catch (error) {
+        setErrorMessage('Failed to forward post');
+        setTimeout(() => setErrorMessage(null), 1500);
       } finally {
         setIsSending(false);
       }
@@ -116,11 +121,17 @@ export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
             padding="$xl"
             paddingBottom={insets.bottom + getTokenValue('$xl', 'size')}
           >
-            <Button hero onPress={handleSendItem} disabled={isSending}>
+            <Button
+              hero
+              onPress={handleSendItem}
+              disabled={isSending || !!errorMessage}
+            >
               <Button.Text>
                 {isSending
                   ? `Forwarding...`
-                  : `Forward to ${selectedChannelTitle}`}
+                  : errorMessage
+                    ? errorMessage
+                    : `Forward to ${selectedChannelTitle}`}
               </Button.Text>
             </Button>
           </YStack>
