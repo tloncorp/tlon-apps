@@ -291,7 +291,7 @@ function extractEmbedsFromInlines(inlines: ub.Inline[]): BlockData[] {
 
   function flushSegment() {
     if (currentSegment.length > 0) {
-      // Check if segment only contains whitespace
+      // Check if segment only contains whitespace]
       const isOnlyWhitespace = currentSegment.every(
         (item) => typeof item === 'string' && item.trim() === ''
       );
@@ -299,16 +299,10 @@ function extractEmbedsFromInlines(inlines: ub.Inline[]): BlockData[] {
       // Only create a paragraph if there's actual content
       if (!isOnlyWhitespace) {
         const convertedInlines = convertInlineContent(currentSegment);
-
-        // Filter out empty text nodes or text nodes with only whitespace
-        const filteredInlines = convertedInlines.filter(
-          (inline) => !(inline.type === 'text' && inline.text.trim() === '')
-        );
-
-        if (filteredInlines.length) {
+        if (convertedInlines.length) {
           blocks.push({
             type: 'paragraph',
-            content: filteredInlines,
+            content: convertedInlines,
           });
         }
       }
