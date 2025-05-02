@@ -528,20 +528,6 @@ export const withRetry = <T>(fn: () => Promise<T>, config?: RetryConfig) => {
   });
 };
 
-export function buildDefaultChannel(params: {
-  groupId: string;
-  userId: string;
-}): db.Channel {
-  const channelSlug = getRandomId();
-  const channelId = `chat/${params.userId}/${channelSlug}`;
-  return {
-    id: channelId,
-    type: 'chat',
-    title: '',
-    description: '',
-  };
-}
-
 /**
  * Random id value for group or channel, 4 bits of entropy, eg 0v2a.lmibb -> v2almibb
  */
