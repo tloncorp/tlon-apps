@@ -81,8 +81,8 @@ export const useMentions = () => {
         lastTriggerIndex - 1,
         lastTriggerIndex
       );
-      const spaceBeforeOrFirst =
-        lastTriggerIndex === 0 || textBeforeTrigger === ' ';
+      const whitespaceBeforeOrFirst =
+        lastTriggerIndex === 0 || textBeforeTrigger.match(/\s+/);
       const spaceAfter = textBetweenTriggerAndCursor.includes(' ');
 
       // Only show popup if:
@@ -92,7 +92,7 @@ export const useMentions = () => {
       const isDismissedTrigger =
         wasDismissedByEscape && lastTriggerIndex === lastDismissedTriggerIndex;
       if (
-        spaceBeforeOrFirst &&
+        whitespaceBeforeOrFirst &&
         !spaceAfter &&
         !isDismissedTrigger &&
         (cursorPosition === lastTriggerIndex + 1 ||
@@ -128,7 +128,7 @@ export const useMentions = () => {
   const handleSelectMention = (contact: db.Contact, text: string) => {
     if (mentionStartIndex === null) return;
 
-    const mentionDisplay = `${contact.id}`;
+    const mentionDisplay = contact.nickname || contact.id;
     const beforeMention = text.slice(0, mentionStartIndex);
     const afterMention = text.slice(
       mentionStartIndex + (mentionSearchText?.length || 0) + 1
