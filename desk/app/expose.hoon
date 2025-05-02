@@ -5,7 +5,7 @@
 ::    then visit in the browser:
 ::    /expose/that/reference/as/copied/123456789
 ::
-/-  c=cite, d=channels, co=contacts, co-0=contacts-0
+/-  c=cite, d=channels, co=contacts, ci=cite
 /+  u=channel-utils, hutils=http-utils,
     dbug, verb
 ::
@@ -13,8 +13,8 @@
 /=  widget  /app/expose/widget
 ::
 |%
-+$  state-1
-  $:  %1
++$  state-2
+  $:  %2
       open=(set cite:c)
   ==
 ::
@@ -131,7 +131,7 @@
 %+  verb  |
 ^-  agent:gall
 ::
-=|  state-1
+=|  state-2
 =*  state  -
 |_  =bowl:gall
 +*  this  .
@@ -140,22 +140,31 @@
   :_  this
   :~  [%pass /eyre/connect %arvo %e %connect [~ /expose] dap.bowl]
       [%pass /channels %agent [our.bowl %channels] %watch /v1]
-      [%pass /contacts/news %agent [our.bowl %contacts] %watch /news]
+      [%pass /contacts/news %agent [our.bowl %contacts] %watch /v1/news]
   ==
 ::
 ++  on-save  !>(state)
 ++  on-load
   |^  |=  ole=vase
   ^-  (quip card _this)
+  =|  caz=(list card)
   =+  !<(old=versioned-state ole)
   =+  ver=-.old
   =?  old  ?=(%0 -.old)  old(- %1)
-  ?>  ?=(%1 -.old)
+  =?  caz  ?=(%1 -.old)
+    %+  weld  caz
+    ^-  (list card)
+    :~  [%pass /contacts/news %agent [our.bowl %contacts] %leave ~]
+        [%pass /contacts/news %agent [our.bowl %contacts] %watch /v1/news]
+    ==
+  =?  old  ?=(%1 -.old)  old(- %2)
+  ?>  ?=(%2 -.old)
   =.  state  old
-  =/  caz=(list card)
+  =.  caz
+    %+  snoc  caz
     ::  we must defer refreshing the cache because rendering scries
     ::
-    [%pass /refresh %arvo %b %wait now.bowl]~
+    [%pass /refresh %arvo %b %wait now.bowl]
   ::  leave obsolete %contacts endpoint and connect
   ::
   =?  caz  ?=(%0 ver)
@@ -171,14 +180,9 @@
   =.  caz  (weld (drop (inflate-contacts-profile:e [our now]:bowl open)) caz)
   [caz this]
   ::
-  +$  versioned-state
-    $%  state-1
-        state-0
-    ==
-  +$  state-0
-    $:  %0
-        open=(set cite:c)
-    ==
+  +$  versioned-state  $%(state-2 state-1 state-0)
+  +$  state-1  [%1 open=(set cite:c)]
+  +$  state-0  [%0 open=(set cite:c)]
   --
 ::
 ++  on-poke
@@ -352,10 +356,17 @@
       ==
     ==
   ::
+      [%contacts %prime *]
+    ::  we don't actually care what happens after we try to prime the cache,
+    ::  we just no-op and assume channels agent will kick our subscription
+    ::  once we hear back.
+    ::
+    [~ this]
+  ::
       [%contacts %news ~]
     ?-  -.sign
       %poke-ack  !!
-      %kick      [[%pass /contacts/news %agent [our.bowl %contacts] %watch /news]~ this]
+      %kick      [[%pass /contacts/news %agent [our.bowl %contacts] %watch /v1/news]~ this]
     ::
         %watch-ack
       ?~  p.sign  [~ this]
@@ -363,21 +374,61 @@
       [~ this]
     ::
         %fact
-      ::  our own contact details changes. assume this affects all pages we're
-      ::  serving, refresh the cache.
-      ::  note that we don't do this kind of reactivity for contact details of
-      ::  other ships. at the extreme, reacting to that accurately in a non-
-      ::  wasteful way would require trawling all content for relevance, which
-      ::  in turn is slow. if we get to the point of wanting that to be
-      ::  fresh(er), we should just set an hourly timer that re-render the
-      ::  entire cache.
+      =+  !<(=response:co q.cage.sign)
+      ?+  -.response  [~ this]
+          %self
+        ::  our own contact details changed. assume this affects all pages
+        ::  we're serving, refresh the cache.
+        ::  note that we don't do this kind of reactivity for contact details
+        ::  of other ships. at the extreme, reacting to that accurately in a
+        ::  non-wasteful way would require trawling all content for relevance,
+        ::  which in turn is slow. if we get to the point of wanting that to be
+        ::  fresh(er), we should just set an hourly timer that re-render the
+        ::  entire cache.
+        ::
+        :_  this
+        %+  weld
+          (drop (refresh-widget:e bowl open))
+        (refresh-pages:e bowl ~(tap in open))
       ::
-      =+  !<(=news-0:co-0 q.cage.sign)
-      ?.  =(our.bowl who.news-0)  `this
-      :_  this
-      %+  weld
-        (drop (refresh-widget:e bowl open))
-      (refresh-pages:e bowl ~(tap in open))
+          %peer
+        ::  someone else's contact details changed. if they have any pinned
+        ::  posts, pre-fetch those to prime the cache.
+        ::
+        :_  this
+        ?~  piz=(~(get by con.response) %expose-cites)
+          ~
+        ?.  ?=(%set -.u.piz)  ~
+        %+  murn  ~(tap in p.u.piz)
+        |^  |=  val=value:co
+            ^-  (unit card)
+            ?~  plan=(value-to-plan val)  ~
+            ::TODO  want to not do this, or not trigger network activity,
+            ::      if we already have a cache entry?
+            =/  =path  (plan-to-path u.plan)
+            %-  some
+            :+  %pass   [%contacts %prime path]
+            :+  %agent  [our.bowl %channels]
+            [%watch [%v3 %said (scot %p who.response) path]]
+        ::
+        ++  value-to-plan
+          |=  val=value:co
+          ^-  (unit [nest:d plan:d])
+          ?.  ?=([%text @] val)                       ~
+          ?~  pax=(rush p.val stap)                   ~
+          ?~  cit=(purse:ci u.pax)                    ~
+          ?~  pon=(ref-to-pointer:cite:u u.cit)       ~
+          ?.  ?=(?(%chat %diary %heap) p.nest.u.pon)  ~
+          pon
+        ::
+        ++  plan-to-path
+          |=  [=nest:d =plan:d]
+          ^-  path
+          :*  kind.nest  (scot %p ship.nest)  name.nest
+              %post  (scot %ud p.plan)  ?~(q.plan ~ /(scot %ud u.q.plan))
+          ==
+        --
+      ==
     ==
   ==
 ::
