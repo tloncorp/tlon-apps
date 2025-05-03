@@ -1,7 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Switch } from 'react-native';
 import { YStack } from 'tamagui';
 
@@ -15,23 +15,40 @@ import {
   triggerHaptic,
   useStore,
 } from '../../ui';
+import { useCalmSettings } from '../../hooks/useCalmSettings';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PrivacySettings'>;
 
 interface PrivacyState {
   telemetryDisabled: boolean;
   phoneDiscoverable: boolean;
+  disableNicknames: boolean;
+  disableAvatars: boolean;
 }
 
 export function PrivacySettingsScreen(props: Props) {
   const store = useStore();
   const phoneAttest = store.useCurrentUserPhoneAttestation();
   const telemetry = useTelemetry();
+  const { calmSettings, updateCalmSetting, isLoading } = useCalmSettings();
 
   const [state, setState] = useState<PrivacyState>({
     phoneDiscoverable: parsePhoneDiscoverability(phoneAttest),
     telemetryDisabled: telemetry.getIsOptedOut(),
+    disableNicknames: calmSettings?.disableNicknames ?? false,
+    disableAvatars: calmSettings?.disableAvatars ?? false,
   });
+
+  // Update state when calm settings change
+  useEffect(() => {
+    if (calmSettings) {
+      setState(prev => ({
+        ...prev,
+        disableNicknames: calmSettings.disableNicknames ?? false,
+        disableAvatars: calmSettings.disableAvatars ?? false,
+      }));
+    }
+  }, [calmSettings]);
 
   const togglePhoneDiscoverable = useCallback(async () => {
     if (!phoneAttest) {
@@ -58,6 +75,34 @@ export function PrivacySettingsScreen(props: Props) {
     setState((prev) => ({ ...prev, telemetryDisabled: nextDisabledState }));
     telemetry.setDisabled(nextDisabledState);
   }, [state.telemetryDisabled, telemetry]);
+
+  const toggleDisableNicknames = useCallback(async () => {
+    const nextValue = !state.disableNicknames;
+    setState((prev) => ({ ...prev, disableNicknames: nextValue }));
+    try {
+      const success = await updateCalmSetting('disableNicknames', nextValue);
+      if (!success) {
+        throw new Error('Failed to update setting');
+      }
+    } catch (e) {
+      triggerHaptic('error');
+      setState((prev) => ({ ...prev, disableNicknames: !nextValue }));
+    }
+  }, [state.disableNicknames, updateCalmSetting]);
+
+  const toggleDisableAvatars = useCallback(async () => {
+    const nextValue = !state.disableAvatars;
+    setState((prev) => ({ ...prev, disableAvatars: nextValue }));
+    try {
+      const success = await updateCalmSetting('disableAvatars', nextValue);
+      if (!success) {
+        throw new Error('Failed to update setting');
+      }
+    } catch (e) {
+      triggerHaptic('error');
+      setState((prev) => ({ ...prev, disableAvatars: !nextValue }));
+    }
+  }, [state.disableAvatars, updateCalmSetting]);
 
   return (
     <View flex={1} backgroundColor="$background">
@@ -101,6 +146,34 @@ export function PrivacySettingsScreen(props: Props) {
             </Text>
           </YStack>
         )}
+        
+        <YStack paddingHorizontal="$l" paddingTop="$2xl" gap="$xl">
+          <XStack justifyContent="space-between" alignItems="center">
+            <SizableText flexShrink={1}>Hide Nicknames</SizableText>
+            <Switch
+              style={{ flexShrink: 0 }}
+              value={state.disableNicknames}
+              onValueChange={toggleDisableNicknames}
+            ></Switch>
+          </XStack>
+          <Text size="$label/s" color="$secondaryText">
+            If enabled, real ship names will be displayed instead of nicknames.
+          </Text>
+        </YStack>
+
+        <YStack paddingHorizontal="$l" paddingTop="$2xl" gap="$xl">
+          <XStack justifyContent="space-between" alignItems="center">
+            <SizableText flexShrink={1}>Hide Avatars</SizableText>
+            <Switch
+              style={{ flexShrink: 0 }}
+              value={state.disableAvatars}
+              onValueChange={toggleDisableAvatars}
+            ></Switch>
+          </XStack>
+          <Text size="$label/s" color="$secondaryText">
+            If enabled, avatar images will be hidden throughout the app.
+          </Text>
+        </YStack>
       </View>
     </View>
   );
