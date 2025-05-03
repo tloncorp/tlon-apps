@@ -1,6 +1,9 @@
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
+import { useNavigation as useContextNavigation } from '../contexts';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCopy } from '@tloncorp/ui';
 import { triggerHaptic } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
@@ -26,7 +29,8 @@ import {
   useWindowDimensions,
 } from 'tamagui';
 
-import { useContact, useCurrentUserId, useNavigation } from '../contexts';
+import { useContact, useCurrentUserId } from '../contexts';
+import { RootStackParamList } from '../../navigation/types';
 import { useGroupTitle } from '../utils';
 import { ContactAvatar, GroupAvatar } from './Avatar';
 import { ContactName } from './ContactNameV2';
@@ -358,11 +362,21 @@ function GroupBlock({
 
 function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
   const { didCopy, doCopy } = useCopy(props.userId);
+  const navContext = useContextNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const contact = useContact(props.userId);
 
   const handleCopy = useCallback(() => {
     doCopy();
     triggerHaptic('success');
   }, [doCopy]);
+
+  const handleAvatarPress = useCallback(() => {
+    if (contact?.avatarImage) {
+      navigation.navigate('ImageViewer', { uri: contact.avatarImage });
+      triggerHaptic('baseButtonClick');
+    }
+  }, [navigation, contact?.avatarImage]);
 
   const primaryNameProps = props.hasNickname
     ? { mode: 'nickname' as const, color: '$primaryText' }
@@ -371,7 +385,9 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
   return (
     <Pressable width="100%" onPress={handleCopy}>
       <XStack alignItems="center" padding="$l" gap="$xl" width={'100%'}>
-        <ContactAvatar contactId={props.userId} size="$5xl" />
+        <Pressable onPress={handleAvatarPress}>
+          <ContactAvatar contactId={props.userId} size="$5xl" />
+        </Pressable>
         <YStack flex={1} justifyContent="center">
           <ContactName
             contactId={props.userId}
@@ -414,7 +430,7 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
 }
 
 function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
-  const navContext = useNavigation();
+  const navContext = useContextNavigation();
   const handleMessageUser = useCallback(() => {
     if (!navContext.onPressGoToDm) {
       console.warn('Navigation context missing onPressGoToDm handler');
