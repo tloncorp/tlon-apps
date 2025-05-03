@@ -118,6 +118,7 @@ export enum AnalyticsEvent {
   ActionContactBookPermDenied = 'Contact Book Permission Denied',
   ActionContactBookInviteShown = 'Contact Book Invite Shown',
   ActionContactBookInviteSent = 'Contact Book Invite Sent',
+  ActionCalmSettingsUpdate = 'Calm Settings Updated',
   DebugSystemContacts = 'System Contacts Debug',
   GroupJoinComplete = 'Group Join Complete',
   PersonalInviteLinkReady = 'Personal Invite Link Ready',
@@ -136,6 +137,7 @@ export enum AnalyticsEvent {
   ErrorCreateGroup = 'Error Creating Group',
   ErrorWayfinding = 'Wayfinding Error',
   ErrorSystemContacts = 'System Contacts Error',
+  ErrorCalmSettingsUpdate = 'Error Updating Calm Settings',
   ErrorApi = 'API Error',
 }
 

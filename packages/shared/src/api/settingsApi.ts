@@ -36,7 +36,9 @@ function getBucket(key: string): string {
     case 'showUnreadCounts':
       return 'calmEngine';
     default:
-      console.warn(`No explicit bucket defined for setting key: ${key}, defaulting to 'groups'`);
+      console.warn(
+        `No explicit bucket defined for setting key: ${key}, defaulting to 'groups'`
+      );
       return 'groups';
   }
 }

@@ -15,7 +15,6 @@ import {
   triggerHaptic,
   useStore,
 } from '../../ui';
-import { useCalmSettings } from '../../hooks/useCalmSettings';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PrivacySettings'>;
 
@@ -30,7 +29,7 @@ export function PrivacySettingsScreen(props: Props) {
   const store = useStore();
   const phoneAttest = store.useCurrentUserPhoneAttestation();
   const telemetry = useTelemetry();
-  const { calmSettings, updateCalmSetting, isLoading } = useCalmSettings();
+  const { data: calmSettings } = store.useCalmSettings();
 
   const [state, setState] = useState<PrivacyState>({
     phoneDiscoverable: parsePhoneDiscoverability(phoneAttest),
@@ -42,7 +41,7 @@ export function PrivacySettingsScreen(props: Props) {
   // Update state when calm settings change
   useEffect(() => {
     if (calmSettings) {
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         disableNicknames: calmSettings.disableNicknames ?? false,
         disableAvatars: calmSettings.disableAvatars ?? false,
@@ -80,29 +79,23 @@ export function PrivacySettingsScreen(props: Props) {
     const nextValue = !state.disableNicknames;
     setState((prev) => ({ ...prev, disableNicknames: nextValue }));
     try {
-      const success = await updateCalmSetting('disableNicknames', nextValue);
-      if (!success) {
-        throw new Error('Failed to update setting');
-      }
+      await store.updateCalmSetting('disableNicknames', nextValue);
     } catch (e) {
       triggerHaptic('error');
       setState((prev) => ({ ...prev, disableNicknames: !nextValue }));
     }
-  }, [state.disableNicknames, updateCalmSetting]);
+  }, [state.disableNicknames, store]);
 
   const toggleDisableAvatars = useCallback(async () => {
     const nextValue = !state.disableAvatars;
     setState((prev) => ({ ...prev, disableAvatars: nextValue }));
     try {
-      const success = await updateCalmSetting('disableAvatars', nextValue);
-      if (!success) {
-        throw new Error('Failed to update setting');
-      }
+      await store.updateCalmSetting('disableAvatars', nextValue);
     } catch (e) {
       triggerHaptic('error');
       setState((prev) => ({ ...prev, disableAvatars: !nextValue }));
     }
-  }, [state.disableAvatars, updateCalmSetting]);
+  }, [state.disableAvatars, store]);
 
   return (
     <View flex={1} backgroundColor="$background">
@@ -146,7 +139,7 @@ export function PrivacySettingsScreen(props: Props) {
             </Text>
           </YStack>
         )}
-        
+
         <YStack paddingHorizontal="$l" paddingTop="$2xl" gap="$xl">
           <XStack justifyContent="space-between" alignItems="center">
             <SizableText flexShrink={1}>Hide Nicknames</SizableText>
