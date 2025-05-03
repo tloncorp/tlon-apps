@@ -15,8 +15,11 @@ export const useCalmSettings = () => {
       // Then update the server
       await setSetting(key, value);
       
-      // Invalidate the query to force a refresh
-      queryClient.invalidateQueries({ queryKey: ['calmSettings'] });
+      // Mutate the query to update the local state
+      queryClient.setQueryData(['calmSettings'], (oldData: any) => ({
+        ...(oldData || {}),
+        [key]: value
+      }));
       
       return true;
     } catch (error) {
