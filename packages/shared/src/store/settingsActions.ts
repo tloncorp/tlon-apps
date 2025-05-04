@@ -21,6 +21,36 @@ export async function changeMessageFilter(filter: TalkSidebarFilter) {
   }
 }
 
+export async function updateCalmSetting(
+  calmKey: 'disableNicknames' | 'disableAvatars',
+  value: boolean
+) {
+  const existing = await db.getSettings();
+  const oldValue = existing?.[calmKey];
+
+  try {
+    // optimistic update
+    await db.insertSettings({ [calmKey]: value });
+
+    await setSetting(calmKey, value);
+    logger.trackEvent(AnalyticsEvent.ActionCalmSettingsUpdate, {
+      calmKey,
+      value,
+    });
+  } catch (error) {
+    logger.trackEvent(AnalyticsEvent.ErrorCalmSettingsUpdate, {
+      calmKey,
+      value,
+      severity: AnalyticsSeverity.Medium,
+      errorMessage: error.message,
+      errorStack: error.stack,
+    });
+    // rollback optimistic update
+    await db.insertSettings({ [calmKey]: oldValue });
+    throw new Error('Failed to update calm setting');
+  }
+}
+
 export async function completeWayfindingSplash() {
   // optimistic update
   await db.insertSettings({ completedWayfindingSplash: true });
