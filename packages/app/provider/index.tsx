@@ -1,6 +1,7 @@
+import { subscribeToSettings } from '@tloncorp/shared/api';
 import { themeSettings } from '@tloncorp/shared/db';
-import { useEffect, useState } from 'react';
-import React from 'react';
+import { syncSettings, updateTheme } from '@tloncorp/shared/store';
+import React, { useEffect, useState } from 'react';
 import { TamaguiProvider, TamaguiProviderProps } from 'tamagui';
 import type { ThemeName } from 'tamagui';
 
@@ -21,14 +22,24 @@ export function Provider({
     isDarkMode ? 'dark' : 'light'
   );
 
+  // Effect to sync with backend theme settings and subscribe to changes
   useEffect(() => {
-    const loadStoredTheme = async () => {
+    const loadTheme = async () => {
       try {
+        // First try to get from local storage
         const storedTheme = await themeSettings.getValue();
-        if (storedTheme) {
-          setActiveTheme(storedTheme);
+
+        // Then sync with backend to ensure we have the latest
+        await syncSettings();
+
+        // After sync, check if theme value changed
+        const updatedTheme = await themeSettings.getValue();
+
+        if (updatedTheme) {
+          // If we have a specific theme, use it
+          setActiveTheme(updatedTheme);
         } else {
-          // If no stored theme, follow system theme
+          // If we have null/auto, use system theme
           setActiveTheme(isDarkMode ? 'dark' : 'light');
         }
       } catch (error) {
@@ -36,14 +47,46 @@ export function Provider({
       }
     };
 
-    loadStoredTheme();
+    // Load theme immediately
+    loadTheme();
+
+    // Set up subscription to settings changes
+    subscribeToSettings((update) => {
+      if (update.type === 'updateSetting' && 'theme' in update.setting) {
+        const newTheme = update.setting.theme as ThemeName | 'auto' | null;
+        console.log('Theme updated from backend:', newTheme);
+
+        // Update local storage
+        themeSettings
+          .setValue(newTheme as ThemeName | null)
+          .catch((err) =>
+            console.warn('Failed to update local theme setting:', err)
+          );
+
+        // Apply theme change to UI
+        if (newTheme === null || newTheme === 'auto') {
+          // For auto theme, respect system setting
+          setActiveTheme(isDarkMode ? 'dark' : 'light');
+        } else {
+          // Otherwise use the specific theme
+          setActiveTheme(newTheme as ThemeName);
+        }
+      }
+    });
+
+    // No cleanup needed for settings subscription
+    return () => {
+      // Nothing to clean up
+    };
   }, [isDarkMode]);
 
+  // Handle system theme changes when in auto mode
   useEffect(() => {
-    const handleSystemThemeChange = async () => {
+    const applySystemThemeIfAuto = async () => {
       try {
         const storedTheme = await themeSettings.getValue();
         if (!storedTheme) {
+          // If in auto mode (null theme), update to match system
           setActiveTheme(isDarkMode ? 'dark' : 'light');
         }
       } catch (error) {
@@ -51,7 +94,7 @@ export function Provider({
       }
     };
 
-    handleSystemThemeChange();
+    applySystemThemeIfAuto();
   }, [isDarkMode]);
 
   return (
@@ -68,8 +111,14 @@ export const setTheme = async (
   setActiveTheme: (theme: ThemeName) => void
 ) => {
   try {
+    // Save to local storage
     await themeSettings.setValue(theme);
+
+    // Update the active theme in UI
     setActiveTheme(theme);
+
+    // Sync with backend
+    await updateTheme(theme as any);
   } catch (error) {
     console.warn('Failed to save theme preference:', error);
   }
@@ -80,8 +129,14 @@ export const clearTheme = async (
   isDarkMode: boolean
 ) => {
   try {
+    // Clear local storage
     await themeSettings.resetValue();
+
+    // Update UI based on system theme
     setActiveTheme(isDarkMode ? 'dark' : 'light');
+
+    // Update backend to null/auto theme
+    await updateTheme('auto' as any);
   } catch (error) {
     console.warn('Failed to clear theme preference:', error);
   }

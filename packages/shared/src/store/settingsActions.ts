@@ -5,6 +5,7 @@ import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
 import * as logic from '../logic';
 import { withRetry } from '../logic';
 import { TalkSidebarFilter } from '../urbit';
+import { Theme } from '../urbit/settings';
 
 const logger = createDevLogger('SettingsActions', false);
 
@@ -118,5 +119,37 @@ export async function markPotentialWayfindingChannelVisit(channelId: string) {
 
   if (visitedAllChannels && !alreadyCompletedTutorial) {
     await completeWayfindingTutorial();
+  }
+}
+
+export async function updateTheme(theme: Theme | 'auto') {
+  const existing = await db.getSettings();
+  const oldTheme = existing?.theme;
+
+  try {
+    // If theme is 'auto', we'll set null in local DB 
+    // (null in DB = auto/system theme in UI)
+    const dbTheme = theme === 'auto' ? null : theme;
+    
+    // optimistic update for local database
+    await db.insertSettings({ theme: dbTheme });
+    
+    // update backend - send null for 'auto' theme to be consistent
+    // this ensures all clients understand this is "auto" mode
+    await setSetting('theme', dbTheme);
+    
+    logger.trackEvent(AnalyticsEvent.ActionThemeUpdate, {
+      theme: theme === 'auto' ? 'auto' : theme
+    });
+  } catch (error) {
+    logger.trackEvent(AnalyticsEvent.ErrorThemeUpdate, {
+      theme,
+      severity: AnalyticsSeverity.Medium,
+      errorMessage: error.message,
+      errorStack: error.stack,
+    });
+    // rollback optimistic update
+    await db.insertSettings({ theme: oldTheme });
+    throw new Error('Failed to update theme setting');
   }
 }

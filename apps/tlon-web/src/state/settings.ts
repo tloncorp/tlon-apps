@@ -4,7 +4,7 @@ import { DelBucket, DelEntry, PutBucket, Value } from '@urbit/api';
 import cookies from 'browser-cookies';
 import produce from 'immer';
 import _ from 'lodash';
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import api from '@/api';
@@ -17,6 +17,8 @@ import {
 } from '@/constants';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import { isHosted } from '@/logic/utils';
+import { updateTheme } from '@tloncorp/shared/store';
+import { subscribeToSettings, SettingsUpdate } from '@tloncorp/shared/api';
 
 interface ChannelSetting {
   flag: string;
@@ -629,13 +631,29 @@ export function useTiles() {
 }
 
 export function useThemeMutation() {
-  const { mutate, status } = usePutEntryMutation({
+  const { status, mutate: oldMutate } = usePutEntryMutation({
     bucket: 'display',
     key: 'theme',
   });
+  
+  const queryClient = useQueryClient();
+
+  const mutate = async (theme: Theme) => {
+    try {
+      // Update locally and in backend
+      await updateTheme(theme);
+      
+      // Invalidate settings query to refresh UI
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+    } catch (error) {
+      console.error('Failed to update theme:', error);
+      // Fallback to old method if the new one fails
+      oldMutate({ val: theme });
+    }
+  };
 
   return {
-    mutate: (theme: Theme) => mutate({ val: theme }),
+    mutate,
     status,
   };
 }
