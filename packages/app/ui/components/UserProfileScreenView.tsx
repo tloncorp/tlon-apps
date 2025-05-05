@@ -362,7 +362,6 @@ function GroupBlock({
 
 function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
   const { didCopy, doCopy } = useCopy(props.userId);
-  const navContext = useContextNavigation();
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const contact = useContact(props.userId);
