@@ -603,12 +603,20 @@ export const useShowNotebookAddTooltip = (channelId: string) => {
   return isCorrectChan && !wayfindingProgress.tappedAddNote;
 };
 
-export const useSettings = () => {
-  const deps = useKeyFromQueryDeps(db.getSettings);
-  return useQuery({
-    queryKey: ['settings', deps],
-    queryFn: async () => {
-      return db.getSettings();
-    },
-  });
+export const useThemeSettings = () => {
+  try {
+    const deps = useKeyFromQueryDeps(db.getSettings);
+    return useQuery({
+      queryKey: ['themeSettings', deps],
+      queryFn: async () => {
+        const settings = await db.getSettings();
+        return settings?.theme || null;
+      },
+    });
+  } catch (e) {
+    if ((e as Error).message?.includes('No QueryClient set')) {
+      return { data: null, isLoading: false, error: null };
+    }
+    throw e;
+  }
 };

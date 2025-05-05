@@ -1,7 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useThemeSettings } from '@tloncorp/shared';
 import { subscribeToSettings } from '@tloncorp/shared/api';
-import { themeSettings } from '@tloncorp/shared/db';
-import { useSettings } from '@tloncorp/shared/store';
 import { useContext, useEffect, useState } from 'react';
 import { ScrollView, YStack } from 'tamagui';
 import type { ThemeName } from 'tamagui';
@@ -25,6 +24,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Theme'>;
 
 export function ThemeScreen(props: Props) {
   const theme = useTheme();
+  const { data: storedTheme, isLoading } = useThemeSettings();
   const { setActiveTheme } = useContext(ThemeContext);
   const isDarkMode = useIsDarkMode();
   const [selectedTheme, setSelectedTheme] = useState<ThemeName | 'auto'>(
@@ -33,13 +33,6 @@ export function ThemeScreen(props: Props) {
   const [loadingTheme, setLoadingTheme] = useState<ThemeName | 'auto' | null>(
     null
   );
-
-  let settingsQuery;
-  try {
-    settingsQuery = useSettings();
-  } catch (err) {
-    settingsQuery = { data: null, isLoading: true, error: err };
-  }
 
   const themes: ListItemInputOption<ThemeName | 'auto'>[] = [
     {
@@ -76,50 +69,28 @@ export function ThemeScreen(props: Props) {
     }
   };
 
-  // Use React Query when available
   useEffect(() => {
-    if (settingsQuery.data) {
-      setSelectedTheme(normalizeTheme(settingsQuery.data.theme));
+    if (!isLoading && storedTheme !== undefined) {
+      setSelectedTheme(normalizeTheme(storedTheme));
     }
-  }, [settingsQuery.data]);
+  }, [storedTheme, isLoading]);
 
-  // Fallback to direct access when needed
   useEffect(() => {
-    if (settingsQuery.error) {
-      const loadCurrentTheme = async () => {
-        try {
-          const storedTheme = await themeSettings.getValue();
-          setSelectedTheme(normalizeTheme(storedTheme));
-        } catch (error) {
-          console.warn('Failed to load theme setting:', error);
+    subscribeToSettings((update) => {
+      if (update.type === 'updateSetting' && 'theme' in update.setting) {
+        const newTheme = update.setting.theme;
+        const themeValue = normalizeTheme(newTheme as any);
+
+        setSelectedTheme(themeValue);
+
+        if (themeValue === 'auto') {
+          setActiveTheme(isDarkMode ? 'dark' : 'light');
+        } else {
+          setActiveTheme(themeValue);
         }
-      };
-
-      loadCurrentTheme();
-
-      subscribeToSettings((update) => {
-        if (update.type === 'updateSetting' && 'theme' in update.setting) {
-          const newTheme = update.setting.theme;
-          const themeValue = normalizeTheme(newTheme as any);
-
-          setSelectedTheme(themeValue);
-
-          if (themeValue === 'auto') {
-            setActiveTheme(isDarkMode ? 'dark' : 'light');
-          } else {
-            setActiveTheme(themeValue);
-          }
-        }
-      });
-
-      const unsubscribe = props.navigation.addListener(
-        'focus',
-        loadCurrentTheme
-      );
-      return unsubscribe;
-    }
-    return undefined;
-  }, [settingsQuery.error, props.navigation, isDarkMode, setActiveTheme]);
+      }
+    });
+  }, [isDarkMode, setActiveTheme]);
 
   return (
     <View backgroundColor={theme?.background?.val} flex={1}>
