@@ -1,9 +1,8 @@
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useNavigation as useContextNavigation } from '../contexts';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCopy } from '@tloncorp/ui';
 import { triggerHaptic } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
@@ -29,8 +28,9 @@ import {
   useWindowDimensions,
 } from 'tamagui';
 
-import { useContact, useCurrentUserId } from '../contexts';
 import { RootStackParamList } from '../../navigation/types';
+import { useNavigation as useContextNavigation } from '../contexts';
+import { useContact, useCurrentUserId } from '../contexts';
 import { useGroupTitle } from '../utils';
 import { ContactAvatar, GroupAvatar } from './Avatar';
 import { ContactName } from './ContactNameV2';
@@ -363,7 +363,8 @@ function GroupBlock({
 function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
   const { didCopy, doCopy } = useCopy(props.userId);
   const navContext = useContextNavigation();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const contact = useContact(props.userId);
 
   const handleCopy = useCallback(() => {
@@ -383,11 +384,11 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
     : { mode: 'contactId' as const };
 
   return (
-    <Pressable width="100%" onPress={handleCopy}>
-      <XStack alignItems="center" padding="$l" gap="$xl" width={'100%'}>
-        <Pressable onPress={(event) => handleAvatarPress(event)}>
-          <ContactAvatar contactId={props.userId} size="$5xl" />
-        </Pressable>
+    <XStack alignItems="center" padding="$l" gap="$xl" width={'100%'}>
+      <Pressable onPress={handleAvatarPress}>
+        <ContactAvatar contactId={props.userId} size="$5xl" />
+      </Pressable>
+      <Pressable width="100%" onPress={handleCopy}>
         <YStack flex={1} justifyContent="center">
           <ContactName
             contactId={props.userId}
@@ -395,6 +396,7 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
             lineHeight={32}
             maxWidth="100%"
             numberOfLines={1}
+            color="$primaryText"
             {...primaryNameProps}
           />
           {(props.hasNickname || didCopy) && (
@@ -424,8 +426,8 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
             </XStack>
           )}
         </YStack>
-      </XStack>
-    </Pressable>
+      </Pressable>
+    </XStack>
   );
 }
 
