@@ -291,7 +291,7 @@ function extractEmbedsFromInlines(inlines: ub.Inline[]): BlockData[] {
 
   function flushSegment() {
     if (currentSegment.length > 0) {
-      // Check if segment only contains whitespace]
+      // Check if segment only contains whitespace
       const isOnlyWhitespace = currentSegment.every(
         (item) => typeof item === 'string' && item.trim() === ''
       );
