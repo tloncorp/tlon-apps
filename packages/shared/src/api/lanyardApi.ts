@@ -68,8 +68,6 @@ export async function discoverContacts(
     const lastSalt = (await db.lastLanyardSalt.getValue()) ?? formatUw('0');
     const nonce = Math.floor(Math.random() * 1000000);
     const encodedNonce = formatUv(BigInt(nonce));
-    logger.log('encoded nonce', encodedNonce);
-    logger.log('nonce', nonce);
     const payload = [
       null,
       [null, nonce],
@@ -95,19 +93,25 @@ export async function discoverContacts(
       await pokeNoun({ app: 'lanyard', mark: 'lanyard-query-1', noun });
     } catch (e) {
       logger.trackError('contact discovery poke error', e);
+      logger.trackEvent(AnalyticsEvent.DebugContactMatching, {
+        error: e,
+        errorMessage: e.message,
+      });
     }
     try {
       const queryResponse = await queryResponseSub;
-      logger.log('query response', queryResponse);
 
       if (queryResponse && queryResponse.query.nonce === encodedNonce) {
         if (queryResponse.query.result === 'rate limited') {
           logger.log('rate limited');
+          logger.trackEvent(AnalyticsEvent.DebugContactMatching, {
+            error: 'rate limited',
+            errorMessage: 'rate limited',
+          });
           return [];
         }
 
         const nextSalt = queryResponse.query.result?.['next-salt'];
-        logger.log('next salt', nextSalt);
         await db.lastLanyardSalt.setValue(nextSalt);
         const matches = queryResponse.query.result?.results
           ? (Object.entries(queryResponse.query.result.results).filter(
@@ -121,11 +125,10 @@ export async function discoverContacts(
       return [];
     } catch (e) {
       logger.error('error in discoverContacts', e);
-      logger.trackEvent(AnalyticsEvent.ErrorNounParse, {
+      logger.trackEvent(AnalyticsEvent.DebugContactMatching, {
         parser: 'discoverContacts',
         error: e,
         errorMessage: e.message,
-        noun: noun.toString(),
       });
       throw e;
     }

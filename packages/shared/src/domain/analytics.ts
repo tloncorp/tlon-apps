@@ -26,6 +26,7 @@ export enum AnalyticsEvent {
   DebugLogs = 'Debug Logs',
   DebugGroupCreate = 'Create Group Debug',
   DebugAttestation = 'Attestation Debug',
+  DebugContactMatching = 'Contact Matching Debug',
   AppError = 'App Error',
   AuthenticatedNodeStopped = 'Node Stopped While Logged In',
   Scry = 'Scry',
