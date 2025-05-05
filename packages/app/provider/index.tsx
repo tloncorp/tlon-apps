@@ -1,6 +1,6 @@
 import { subscribeToSettings } from '@tloncorp/shared/api';
 import { themeSettings } from '@tloncorp/shared/db';
-import { syncSettings, updateTheme } from '@tloncorp/shared/store';
+import { syncSettings, updateTheme, useSettings } from '@tloncorp/shared/store';
 import React, { useEffect, useState } from 'react';
 import { TamaguiProvider, TamaguiProviderProps } from 'tamagui';
 import type { ThemeName } from 'tamagui';
@@ -13,7 +13,7 @@ export const ThemeContext = React.createContext<{
   activeTheme: ThemeName;
 }>({ setActiveTheme: () => {}, activeTheme: 'light' });
 
-const normalizeTheme = (
+export const normalizeTheme = (
   value: ThemeName | 'auto' | null | undefined | string
 ): 'auto' | ThemeName => {
   if (!value || value === 'auto' || value === '') return 'auto';
@@ -36,36 +36,51 @@ export function Provider({
     isDarkMode ? 'dark' : 'light'
   );
 
+  let settingsQuery;
+  try {
+    settingsQuery = useSettings();
+  } catch (err) {
+    settingsQuery = { data: null, isLoading: true, error: err };
+  }
+
   useEffect(() => {
-    const loadTheme = async () => {
-      try {
-        await syncSettings();
-        const storedTheme = await themeSettings.getValue();
-        const normalizedTheme = normalizeTheme(storedTheme);
-        setActiveTheme(getDisplayTheme(normalizedTheme, isDarkMode));
-      } catch (error) {
-        console.warn('Failed to load theme preference:', error);
-      }
-    };
+    if (settingsQuery.data) {
+      const normalizedTheme = normalizeTheme(settingsQuery.data.theme);
+      setActiveTheme(getDisplayTheme(normalizedTheme, isDarkMode));
+    }
+  }, [settingsQuery.data, isDarkMode]);
 
-    loadTheme();
+  useEffect(() => {
+    if (settingsQuery.error) {
+      const loadTheme = async () => {
+        try {
+          await syncSettings();
+          const storedTheme = await themeSettings.getValue();
+          const normalizedTheme = normalizeTheme(storedTheme);
+          setActiveTheme(getDisplayTheme(normalizedTheme, isDarkMode));
+        } catch (error) {
+          console.warn('Failed to load theme preference:', error);
+        }
+      };
 
-    subscribeToSettings((update) => {
-      if (update.type === 'updateSetting' && 'theme' in update.setting) {
-        const newTheme = update.setting.theme;
-        const normalizedTheme = normalizeTheme(newTheme as any);
+      loadTheme();
 
-        themeSettings
-          .setValue(normalizedTheme === 'auto' ? null : normalizedTheme)
-          .catch((err) =>
-            console.warn('Failed to update local theme setting:', err)
-          );
+      subscribeToSettings((update) => {
+        if (update.type === 'updateSetting' && 'theme' in update.setting) {
+          const newTheme = update.setting.theme;
+          const normalizedTheme = normalizeTheme(newTheme as any);
+          themeSettings
+            .setValue(normalizedTheme === 'auto' ? null : normalizedTheme)
+            .catch((err) =>
+              console.warn('Failed to update local theme setting:', err)
+            );
 
-        // Apply theme to UI
-        setActiveTheme(getDisplayTheme(normalizedTheme, isDarkMode));
-      }
-    });
-  }, [isDarkMode]);
+          // Apply theme to UI
+          setActiveTheme(getDisplayTheme(normalizedTheme, isDarkMode));
+        }
+      });
+    }
+  }, [settingsQuery.error, isDarkMode]);
 
   // Update theme when system preference changes in auto mode
   useEffect(() => {

@@ -602,3 +602,13 @@ export const useShowNotebookAddTooltip = (channelId: string) => {
   }, [channelId]);
   return isCorrectChan && !wayfindingProgress.tappedAddNote;
 };
+
+export const useSettings = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['settings', deps],
+    queryFn: async () => {
+      return db.getSettings();
+    },
+  });
+};

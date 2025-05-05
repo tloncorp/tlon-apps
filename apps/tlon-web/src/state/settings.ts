@@ -4,7 +4,7 @@ import { DelBucket, DelEntry, PutBucket, Value } from '@urbit/api';
 import cookies from 'browser-cookies';
 import produce from 'immer';
 import _ from 'lodash';
-import { useMemo, useEffect } from 'react';
+import { useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import api from '@/api';
@@ -17,8 +17,6 @@ import {
 } from '@/constants';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import { isHosted } from '@/logic/utils';
-import { updateTheme } from '@tloncorp/shared/store';
-import { subscribeToSettings, SettingsUpdate } from '@tloncorp/shared/api';
 
 interface ChannelSetting {
   flag: string;
@@ -628,30 +626,6 @@ export function useTiles() {
     }),
     [data, isLoading]
   );
-}
-
-export function useThemeMutation() {
-  const { status } = usePutEntryMutation({
-    bucket: 'display',
-    key: 'theme',
-  });
-  
-  const queryClient = useQueryClient();
-
-  const mutate = async (theme: Theme) => {
-    try {
-      await updateTheme(theme);
-      // Refresh UI by invalidating settings
-      queryClient.invalidateQueries({ queryKey: ['settings'] });
-    } catch (error) {
-      console.error('Failed to update theme:', error);
-    }
-  };
-
-  return {
-    mutate,
-    status,
-  };
 }
 
 export function createAnalyticsId() {
