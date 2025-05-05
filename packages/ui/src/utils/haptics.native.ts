@@ -25,6 +25,12 @@ export function triggerHaptic(action: HapticAction) {
         10
       );
       break;
+    case 'error':
+      setTimeout(
+        () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error),
+        10
+      );
+      break;
     default:
       break;
   }

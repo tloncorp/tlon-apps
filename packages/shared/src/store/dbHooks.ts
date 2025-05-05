@@ -74,8 +74,9 @@ export const usePins = (
 };
 
 export const useCalmSettings = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
   return useQuery({
-    queryKey: ['calmSettings'],
+    queryKey: ['calmSettings', deps],
     queryFn: () =>
       db.getSettings().then((r) => ({
         disableAvatars: r?.disableAvatars ?? false,
@@ -378,6 +379,22 @@ export const useGroupPreview = (groupId: string) => {
   });
 };
 
+export const useSystemContacts = () => {
+  const deps = useKeyFromQueryDeps(db.getSystemContacts);
+  return useQuery({
+    queryKey: ['systemContacts', deps],
+    queryFn: () => db.getSystemContacts(),
+  });
+};
+
+export const useSystemContactShortlist = () => {
+  const deps = useKeyFromQueryDeps(db.getUninvitedSystemContactsShortlist);
+  return useQuery({
+    queryKey: ['systemContactsShortlist', deps],
+    queryFn: () => db.getUninvitedSystemContactsShortlist(),
+  });
+};
+
 export const useUserContacts = () => {
   const deps = useKeyFromQueryDeps(db.getUserContacts);
   return useQuery({
@@ -506,6 +523,24 @@ export const useAttestations = () => {
   });
 };
 
+export const useCurrentUserAttestations = () => {
+  const currentUserId = api.getCurrentUserId();
+  const deps = useKeyFromQueryDeps(db.getUserAttestations);
+  return useQuery({
+    queryKey: ['attestations', deps],
+    queryFn: () => db.getUserAttestations({ userId: currentUserId }),
+  });
+};
+
+export const useCurrentUserPhoneAttestation = () => {
+  const { data: attests } = useCurrentUserAttestations();
+  const phoneAttest = useMemo(() => {
+    return attests?.find((a) => a.type === 'phone' && a.status === 'verified');
+  }, [attests]);
+
+  return phoneAttest ?? null;
+};
+
 export const usePersonalGroup = () => {
   const deps = useKeyFromQueryDeps(db.getPersonalGroup);
   return useQuery({
@@ -513,7 +548,9 @@ export const usePersonalGroup = () => {
     queryFn: async () => {
       const currentUserId = api.getCurrentUserId();
       const group = await db.getPersonalGroup();
-      logic.personalGroupIsValid({ group, currentUserId }) ? group : null;
+      return logic.personalGroupIsValid({ group, currentUserId })
+        ? group
+        : null;
     },
   });
 };

@@ -18,8 +18,6 @@
   // They will be passed down to the ViewController used by React Native.
   self.initialProps = @{};
 
-  [PushNotificationManager configure];
-
 #if PREVIEW
    [RNBranch useTestInstance];
 #endif

@@ -539,7 +539,7 @@ function useCreateChat() {
           });
           navigateToChannel(channel);
         } else {
-          const group = await store.createGroup({
+          const group = await store.createDefaultGroup({
             memberIds: params.contactIds,
           });
           navigateToGroup(group.id);

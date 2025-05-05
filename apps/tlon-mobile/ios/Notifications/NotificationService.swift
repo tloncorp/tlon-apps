@@ -1,9 +1,89 @@
 import Intents
 import UserNotifications
+import JavaScriptCore
 
 class NotificationService: UNNotificationServiceExtension {
     var contentHandler: ((UNNotificationContent) -> Void)?
     var bestAttemptContent: UNMutableNotificationContent?
+  
+    private func applyNotif(_ rawActivityEvent: Any, notification: UNMutableNotificationContent) async -> UNNotificationContent {
+        let context = JSContext()!
+        context.exceptionHandler = { context, exception in
+            NSLog(exception?.toString() ?? "No exception found")
+        }
+        
+        guard
+            let scriptURL = Bundle.main.url(forResource: "bundle", withExtension: "js"),
+            let script = try? String(contentsOf: scriptURL)
+        else {
+            return notification
+        }
+        context.evaluateScript(script)
+        
+        let previewRaw = context.objectForKeyedSubscript("tlon")
+            .invokeMethod("renderActivityEventPreview", withArguments: [
+                rawActivityEvent,
+            ])
+        
+        guard let preview = try? previewRaw?.decode(as: NotificationPreviewPayload.self) else {
+            return notification
+        }
+        
+        // If we have a preview, make sure to fully replace server-provided title / body.
+        notification.title = ""
+        notification.body = ""
+
+        let renderer = NotificationPreviewContentNodeRenderer()
+        if let title = preview.notification.title {
+            notification.title = await renderer.render(title)
+        }
+        notification.body = await renderer.render(preview.notification.body)
+        notification.interruptionLevel = .active
+        if let groupingKey = preview.notification.groupingKey {
+            notification.threadIdentifier = await renderer.render(groupingKey)
+        }
+        notification.sound = UNNotificationSound.default
+        if let activityEventJsonString = try? JSONSerialization.jsonString(withJSONObject: rawActivityEvent) {
+            notification.userInfo = ["activityEventJsonString": activityEventJsonString]
+        }
+
+        guard let message = preview.message else {
+            return notification
+        }
+        
+        let sender = await INPerson.from(shipName: message.senderId, withImage: true)
+        var speakableGroupName: INSpeakableString? = nil
+        if let conversationTitle = message.conversationTitle {
+            speakableGroupName = INSpeakableString(spokenPhrase: await renderer.render(conversationTitle))
+        }
+        let intent = INSendMessageIntent(
+            // With an empty `recipients` list, iOS omits the notification title.
+            // We don't have a proper recipients list, so use a minimal one.
+            recipients: message.type == .group
+                ? [sender]
+                : [],
+            outgoingMessageType: .outgoingMessageText,
+            content: notification.body,
+            speakableGroupName: speakableGroupName,
+            conversationIdentifier: notification.threadIdentifier,
+            serviceName: nil,
+            sender: sender,
+            attachments: nil
+        )
+        if intent.speakableGroupName != nil, let image = sender.image {
+            intent.setImage(image, forParameterNamed: \.speakableGroupName)
+        }
+        
+        let interaction = INInteraction(intent: intent, response: nil)
+        interaction.direction = .incoming
+        do {
+            try await interaction.donate()
+            return try notification.updating(from: intent)
+        } catch {
+            NSLog("Error: \(error)")
+            return notification
+        }
+    }
 
     override func didReceive(_ request: UNNotificationRequest, withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void) {
         self.contentHandler = contentHandler
@@ -12,21 +92,16 @@ class NotificationService: UNNotificationServiceExtension {
       Task { [weak bestAttemptContent] in
         let parsedNotification = await PushNotificationManager.parseNotificationUserInfo(request.content.userInfo)
         switch parsedNotification {
-        case let .yarn(yarn, activityEvent):
-          var notifContent = await handle(yarn)
-          if let activityEvent {
-            if let dm = activityEvent.dmPost {
-              let mutableNotifContent = notifContent.mutableCopy() as! UNMutableNotificationContent
-              // convert to JSON because `userInfo` needs NSSecureCoding
-              mutableNotifContent.userInfo["dmPost"] = try! dm.asJson() 
-              notifContent = mutableNotifContent
-            } else if let post = activityEvent.post {
-              let mutableNotifContent = notifContent.mutableCopy() as! UNMutableNotificationContent
-              // convert to JSON because `userInfo` needs NSSecureCoding
-              mutableNotifContent.userInfo["post"] = try! post.asJson()
-              notifContent = mutableNotifContent
-            }
+        case let .activityEventJson(activityEventRaw):
+            var notifContent = bestAttemptContent ?? UNNotificationContent()
+
+          if let activityEventRaw {
+            notifContent = await applyNotif(
+                activityEventRaw,
+                notification: notifContent.mutableCopy() as! UNMutableNotificationContent
+            )
           }
+          
           contentHandler(notifContent)
           return
           
@@ -60,24 +135,6 @@ class NotificationService: UNNotificationServiceExtension {
             contentHandler(bestAttemptContent)
         }
     }
-  
-  private func handle(_ renderable: UNNotificationRenderable) async -> UNNotificationContent {
-    let (mutatedContent, messageIntent) = await renderable.render(
-      to: bestAttemptContent ?? UNMutableNotificationContent()
-    )
-
-    if let messageIntent {
-        do {
-            let interaction = INInteraction(intent: messageIntent, response: nil)
-            interaction.direction = .incoming
-            try await interaction.donate()
-        } catch {
-            print("Error donating interaction for notification sender details: \(error)")
-        }
-    }
-    
-    return mutatedContent
-  }
 }
 
 extension Error {
@@ -93,4 +150,33 @@ extension Encodable {
     let data = try JSONEncoder().encode(self)
     return try JSONSerialization.jsonObject(with: data, options: [])
   }
+}
+
+private struct RenderNotificationPreviewResult: Codable {
+    let title: String?
+    let body: String?
+}
+
+extension JSValue {
+    func decode<T: Decodable>(as type: T.Type) throws -> T {
+        guard
+            let object = self.toObject(),
+            JSONSerialization.isValidJSONObject(object)
+        else {
+            throw NSError(
+                domain: "JSValueError",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "JSValue is not a valid JSON object"]
+            )
+        }
+        let jsonData = try JSONSerialization.data(withJSONObject: object, options: [])
+        return try JSONDecoder().decode(T.self, from: jsonData)
+    }
+}
+
+extension JSONSerialization {
+    static func jsonString(withJSONObject data: Any, options: JSONSerialization.WritingOptions = []) throws -> String {
+        let data = try self.data(withJSONObject: data, options: options)
+        return String(data: data, encoding: .utf8)!
+    }
 }

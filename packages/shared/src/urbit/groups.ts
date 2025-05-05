@@ -14,6 +14,13 @@ export interface GroupMeta {
   cover: string;
 }
 
+export interface OptionalGroupMeta {
+  title?: string;
+  description?: string;
+  image?: string;
+  cover?: string;
+}
+
 export interface Cabal {
   meta: GroupMeta;
 }
@@ -324,6 +331,16 @@ export interface GroupCreate extends GroupMeta {
   cordon: Cordon;
   members: Record<string, string[]>;
   secret: boolean;
+}
+
+export interface GroupCreateThreadInput {
+  groupId: string;
+  meta: OptionalGroupMeta;
+  guestList: string[];
+  channels: {
+    channelId: string;
+    meta: OptionalGroupMeta;
+  }[];
 }
 
 export interface SagaAhead {

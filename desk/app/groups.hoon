@@ -850,9 +850,16 @@
   |=  =group:g
   ^-  group:g
   =.  fleet.group
-    %+  ~(put by *fleet:g)
-      our.bowl
-    (~(gut by fleet.group) our.bowl *vessel:fleet:g)
+    =/  our-vessel=vessel:fleet:g  (~(gut by fleet.group) our.bowl *vessel:fleet:g)
+    =/  fleet-size=@ud  ~(wyt by fleet.group)
+    ?:  (lte fleet-size 15)
+      fleet.group  :: keep all members if 15 or fewer
+    =/  other-ships=(list [ship vessel:fleet:g])
+      ~(tap by (~(del by fleet.group) our.bowl))
+    =/  keep-ships=(list [ship vessel:fleet:g])
+      :-  [our.bowl our-vessel]
+      (scag 14 other-ships)  :: take first 14 other ships
+    (~(gas by *fleet:g) keep-ships)
   group
 ::
 ++  to-claim-2

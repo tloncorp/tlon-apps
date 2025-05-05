@@ -33,6 +33,8 @@ type BaseModel<T extends TableName> = InferModelFromColumns<
 > &
   BaseModelRelations<SchemaWithRelations[T]>;
 
+export type SystemContact = BaseModel<'systemContacts'>;
+export type SystemContactSentInvite = BaseModel<'systemContactSentInvites'>;
 export type Contact = BaseModel<'contacts'> & {
   nickname?: string | null;
   avatarImage?: string | null;
@@ -129,4 +131,12 @@ export function isGroupEvent(event: ActivityEvent): event is GroupEvent {
   return Boolean(
     event.type === 'group-ask' && event.groupEventUserId && event.groupId
   );
+}
+
+export function isSystemContact(
+  contact: Contact | SystemContact
+): contact is SystemContact {
+  const hasPhone = 'phoneNumber' in contact;
+  const hasEmail = 'email' in contact;
+  return hasPhone || hasEmail;
 }

@@ -5,10 +5,22 @@ import { connectNotifyProvider } from '@tloncorp/app/lib/notificationsApi';
 import { createDevLogger } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import { didSignUp, signupData } from '@tloncorp/shared/db';
-import { NodeBootPhase, SignupParams } from '@tloncorp/shared/domain';
+import {
+  AnalyticsEvent,
+  AnalyticsSeverity,
+  NodeBootPhase,
+  SignupParams,
+} from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
+import * as LibPhone from 'libphonenumber-js';
 import PostHog, { usePostHog } from 'posthog-react-native';
-import { createContext, useCallback, useContext, useEffect } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+} from 'react';
 import branch from 'react-native-branch';
 
 const logger = createDevLogger('signup', true);
@@ -47,6 +59,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
   const { bootPhase, bootReport, kickOffBootSequence, resetBootSequence } =
     useBootSequence();
   const postHog = usePostHog();
+  const handlingPostSignup = useRef(false);
 
   const setOnboardingValues = useCallback(
     (newValues: Partial<SignupValues>) => {
@@ -61,6 +74,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
   const clear = useCallback(() => {
     logger.log('clearing signup context');
     resetValues();
+    handlingPostSignup.current = false;
   }, [resetValues]);
 
   const handlePostSignup = useCallback(() => {
@@ -71,6 +85,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
         nickname: values.nickname,
         telemetry: values.telemetry,
         notificationToken: values.notificationToken,
+        phoneNumber: values.phoneNumber,
         postHog,
       };
       runPostSignupActions(postSignupParams);
@@ -103,6 +118,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
     values.nickname,
     values.telemetry,
     values.notificationToken,
+    values.phoneNumber,
     values.userWasReadyAt,
     postHog,
     bootReport,
@@ -111,7 +127,12 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
   ]);
 
   useEffect(() => {
-    if (values.didCompleteOnboarding && bootPhase === NodeBootPhase.READY) {
+    if (
+      values.didCompleteOnboarding &&
+      bootPhase === NodeBootPhase.READY &&
+      !handlingPostSignup.current
+    ) {
+      handlingPostSignup.current = true;
       handlePostSignup();
     }
   }, [values, bootPhase, clear, bootReport, handlePostSignup]);
@@ -145,6 +166,7 @@ export function useSignupContext() {
 async function runPostSignupActions(params: {
   nickname?: string;
   telemetry?: boolean;
+  phoneNumber?: string;
   notificationToken?: string;
   postHog?: PostHog;
 }) {
@@ -188,6 +210,33 @@ async function runPostSignupActions(params: {
       logger.trackError('post signup: failed to set notification token', {
         errorMessage: e.message,
         errorStack: e.stack,
+      });
+    }
+  }
+
+  // if a user signed up with a phone number, we need to
+  // send register it on the verifier service
+  if (params.phoneNumber) {
+    try {
+      logger.trackEvent(AnalyticsEvent.DebugAttestation, {
+        context: 'initiating post-signup phone number registration',
+      });
+      const parsedPhone = LibPhone.parsePhoneNumberFromString(
+        params.phoneNumber
+      );
+      if (!parsedPhone) {
+        logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
+          context:
+            'user signed up with phone number, but was unable to parse for verification',
+        });
+        return;
+      }
+      const normalizedPhone = parsedPhone.format('E.164');
+      await store.initiatePhoneAttestation(normalizedPhone);
+    } catch (e) {
+      logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
+        severity: AnalyticsSeverity.Critical,
+        context: 'post-signup phone number verification failed',
       });
     }
   }
