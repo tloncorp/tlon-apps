@@ -200,7 +200,7 @@
       font-family: Menlo, Consolas, Monaco, Liberation Mono, Lucida Console, monospace;
       white-space: pre-wrap;
       word-break: break-all;
-      width: 25ch;
+      width: 30ch;
       text-indent: -2ch;
     }
 
@@ -208,7 +208,7 @@
     .signature-hex::after {
       content: '';
       display: block;
-      width: 25ch;
+      width: 20ch;
     }
 
     #tlon-button {
@@ -257,7 +257,11 @@
           ==
           ;dl(id "signature")
             ;dt(title "The cryptographic signature proving this verification"):"Signature Hex"
-            ;dd(class "signature-hex"):"{(scow %ux current-sig)}"
+            ;dd.signature-hex
+              ;span:"0x"
+              ;span(style "user-select: none;"):"{(reap (sub 4 (mod (met 2 current-sig) 4)) '0')}"
+              ;span:"{((ox-co:co [16 4] |=(a=@ ~(x ne a))) current-sig)}"
+            ==
           ==
         ==
         ;a(href "https://tlon.io", id "tlon-button"):"Not on Tlon Messenger? Join now"
@@ -267,3 +271,4 @@
     "Verified that {owner} has {text-description} on {nice-date}."
   --
 --
+s
