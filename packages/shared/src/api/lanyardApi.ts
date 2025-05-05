@@ -60,15 +60,27 @@ export async function checkAttestedSignature(signData: string) {
   return false;
 }
 
-export async function discoverContacts(phoneNums: string[]) {
+export async function discoverContacts(
+  phoneNums: string[]
+): Promise<[string, string][]> {
   try {
-    const nums = diffContactBook(phoneNums);
-    // const lastSalt = formatUw('0');
-    const payload = ['whose-bulk', 0, nums.last, nums.add, nums.del];
-    const noun = dwim(payload);
-
+    const nums = await diffContactBook(phoneNums);
+    const lastSalt = (await db.lastLanyardSalt.getValue()) ?? formatUw('0');
     const nonce = Math.floor(Math.random() * 1000000);
     const encodedNonce = formatUv(BigInt(nonce));
+    logger.log('encoded nonce', encodedNonce);
+    logger.log('nonce', nonce);
+    const payload = [
+      null,
+      [null, nonce],
+      'whose-bulk',
+      lastSalt,
+      nums.last,
+      nums.add,
+      nums.del,
+    ];
+    const noun = dwim(payload);
+
     const queryResponseSub = subscribeOnce<ub.WhoseBulkResponseEvent>(
       {
         app: 'lanyard',
@@ -82,32 +94,86 @@ export async function discoverContacts(phoneNums: string[]) {
     try {
       await pokeNoun({ app: 'lanyard', mark: 'lanyard-query-1', noun });
     } catch (e) {
-      console.error('contact discovery poke error', e);
+      logger.trackError('contact discovery poke error', e);
     }
-    const queryResponse = await queryResponseSub;
-    console.log(`bulk result`, queryResponse);
+    try {
+      const queryResponse = await queryResponseSub;
+      logger.log('query response', queryResponse);
 
-    if (queryResponse) {
-      // return matches
-      const nextSalt = queryResponse.result?.['next-salt'];
-      const matches = queryResponse.result?.result
-        ? Object.entries(queryResponse.result.result).filter(([_key, value]) =>
-            Boolean(value)
-          )
-        : [];
+      if (queryResponse && queryResponse.query.nonce === encodedNonce) {
+        if (queryResponse.query.result === 'rate limited') {
+          logger.log('rate limited');
+          return [];
+        }
 
-      return matches;
+        const nextSalt = queryResponse.query.result?.['next-salt'];
+        logger.log('next salt', nextSalt);
+        await db.lastLanyardSalt.setValue(nextSalt);
+        const matches = queryResponse.query.result?.results
+          ? (Object.entries(queryResponse.query.result.results).filter(
+              ([_key, value]) => Boolean(value)
+            ) as [string, string][])
+          : [];
+
+        return matches;
+      }
+
+      return [];
+    } catch (e) {
+      logger.error('error in discoverContacts', e);
+      logger.trackEvent(AnalyticsEvent.ErrorNounParse, {
+        parser: 'discoverContacts',
+        error: e,
+        errorMessage: e.message,
+        noun: noun.toString(),
+      });
+      throw e;
     }
-
-    return [];
   } catch (e) {
-    console.error('error discovering contacts', e);
+    logger.error('error discovering contacts', e);
     throw e;
   }
 }
 
-function diffContactBook(phoneNums: string[]) {
-  // TODO: diff last request
+async function diffContactBook(phoneNums: string[]) {
+  const last = await db.lastPhoneContactSetRequest.getValue();
+  logger.log('last phone contact set', last);
+
+  if (last) {
+    const lastSet = JSON.parse(last);
+    logger.log('lastSet', lastSet);
+
+    // find new phone numbers (additions)
+    const diff = phoneNums.filter((num) => !lastSet.includes(num));
+    logger.log('diff', diff);
+
+    // find removed phone numbers (deletions)
+    const delSet = lastSet.filter((num: string) => !phoneNums.includes(num));
+    logger.log('delSet', delSet);
+
+    // always store the CURRENT complete set of phone numbers
+    await db.lastPhoneContactSetRequest.setValue(JSON.stringify(phoneNums));
+
+    if (diff.length === 0 && delSet.length === 0) {
+      logger.log('no changes, returning empty with lastSet');
+      return {
+        last: toPhoneIdentifierSet(lastSet),
+        add: toPhoneIdentifierSet([]),
+        del: toPhoneIdentifierSet([]),
+      };
+    } else {
+      logger.log('returning diff and del', diff, delSet);
+      return {
+        last: toPhoneIdentifierSet(lastSet),
+        add: toPhoneIdentifierSet(diff),
+        del: toPhoneIdentifierSet(delSet),
+      };
+    }
+  }
+
+  // first time case: store the full set and return it as additions
+  await db.lastPhoneContactSetRequest.setValue(JSON.stringify(phoneNums));
+  logger.log('no last set, returning with add');
   return {
     last: toPhoneIdentifierSet([]),
     add: toPhoneIdentifierSet(phoneNums),

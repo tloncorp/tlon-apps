@@ -16,6 +16,7 @@ import {
 } from '../store/useActivityFetchers';
 import { createBatchHandler, createHandler } from './bufferedSubscription';
 import * as LocalCache from './cachedData';
+import { addContacts } from './contactActions';
 import {
   addChannelToNavSection,
   moveChannel,
@@ -263,6 +264,44 @@ export const syncSystemContacts = async (ctx?: SyncCtx) => {
       context: 'failed to insert system contacts',
       severity: AnalyticsSeverity.Critical,
       numContacts: systemContacts.length,
+      error,
+    });
+  }
+};
+
+export const syncContactDiscovery = async (ctx?: SyncCtx) => {
+  const systemContacts = await api.getSystemContacts();
+  const phoneNumbers = systemContacts
+    .map((contact) => contact.phoneNumber)
+    .filter((phoneNumber) => phoneNumber && phoneNumber.length > 0) as string[];
+
+  if (!phoneNumbers.length) {
+    logger.trackEvent(AnalyticsEvent.DebugSystemContacts, {
+      context: 'no phone numbers found, skipping discovery',
+    });
+    // this should also mean we no-op on web since we don't have any
+    // system contacts
+    return;
+  }
+
+  try {
+    const matches = (
+      await syncQueue.add('discoverContacts', ctx, () =>
+        api.discoverContacts(phoneNumbers)
+      )
+    ).filter((match) => match[1] !== api.getCurrentUserId());
+    logger.log('got contact discovery matches', matches);
+
+    await db.linkSystemContacts({ matches });
+    logger.log('inserted contact discovery matches', matches);
+    const contactIds = matches.map((m) => m[1]);
+    await addContacts(contactIds);
+    logger.log('added contacts', contactIds);
+  } catch (error) {
+    logger.error('error discovering contacts', error);
+    logger.trackEvent(AnalyticsEvent.ErrorSystemContacts, {
+      context: 'failed to discover contacts',
+      severity: AnalyticsSeverity.Critical,
       error,
     });
   }
@@ -1552,6 +1591,9 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       }),
       syncSystemContacts({ priority: SyncPriority.Low }).then(() => {
         logger.crumb(`finished syncing system contacts`);
+      }),
+      syncContactDiscovery({ priority: SyncPriority.Low }).then(() => {
+        logger.crumb(`finished syncing contact discovery`);
       }),
     ];
 

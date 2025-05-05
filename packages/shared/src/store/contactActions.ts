@@ -30,6 +30,7 @@ export async function addContacts(contacts: string[]) {
   logger.trackEvent(AnalyticsEvent.ActionContactAdded, {
     count: contacts.length,
   });
+
   const optimisticUpdates = contacts.map((contactId) =>
     db.updateContact({
       id: contactId,
@@ -38,10 +39,26 @@ export async function addContacts(contacts: string[]) {
     })
   );
   await Promise.all(optimisticUpdates);
+  logger.log('Optimistic updates complete', {
+    optimisticUpdates,
+    contacts,
+  });
+
+  // Backend will balk if we try to add the same contact twice, so filter out
+  // any that are already contacts
+  const existingContacts = await db.getContacts();
+  const newContacts = contacts.filter(
+    (contactId) => !existingContacts.some((c) => c.id === contactId)
+  );
+
 
   try {
-    await api.addUserContacts(contacts);
+    await api.addUserContacts(newContacts);
   } catch (e) {
+    logger.trackError('Error adding contacts', {
+      errorMessage: e.message,
+      errorStack: e.stack,
+    });
     // Rollback the update
     const rolbacks = contacts.map((contactId) =>
       db.updateContact({

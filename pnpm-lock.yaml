@@ -236,8 +236,8 @@ importers:
         specifier: 3.2.0-dev
         version: 3.2.0-dev
       '@urbit/nockjs':
-        specifier: ^1.5.0
-        version: 1.5.0
+        specifier: github:Fang-/nockjs#m/modern-mug
+        version: https://codeload.github.com/Fang-/nockjs/tar.gz/17501cf8cb9700e2284940fbc9bf8942c32676ab
       classnames:
         specifier: ^2.3.2
         version: 2.5.1
@@ -1069,8 +1069,8 @@ importers:
         specifier: ^2.0.1
         version: 2.0.1
       '@urbit/nockjs':
-        specifier: ^1.5.0
-        version: 1.5.0
+        specifier: github:Fang-/nockjs#m/modern-mug
+        version: https://codeload.github.com/Fang-/nockjs/tar.gz/17501cf8cb9700e2284940fbc9bf8942c32676ab
       any-ascii:
         specifier: ^0.3.1
         version: 0.3.2(patch_hash=5ofxtlxe6za2xqrbq5pqbz7wb4)
@@ -5857,8 +5857,9 @@ packages:
   '@urbit/http-api@3.2.0-dev':
     resolution: {integrity: sha512-phG35u7Uhlg4ZIRt/7mVum9KuR0j7XrxMnYsRUlRk3XgsXgDDNOgT7tvKeY6+L2PTblUOBqcVqNWNtzAOsy3hQ==}
 
-  '@urbit/nockjs@1.5.0':
-    resolution: {integrity: sha512-UbljehHZtQBlnYraS2uwi7972YHrIrkM3DXqQbo9Czbr5hn/6kAeqJeBs8kkr/hGgBG3Eb/ppMbIcVKf1UrKVQ==}
+  '@urbit/nockjs@https://codeload.github.com/Fang-/nockjs/tar.gz/17501cf8cb9700e2284940fbc9bf8942c32676ab':
+    resolution: {tarball: https://codeload.github.com/Fang-/nockjs/tar.gz/17501cf8cb9700e2284940fbc9bf8942c32676ab}
+    version: 1.5.0
 
   '@urbit/sigil-js@2.2.0':
     resolution: {integrity: sha512-UNtRJ0K4CAXe+IP4wARNRMjuI5GTF2MNj9FL5l4RSMddCPJqSWSpkrYcREBI4AOB+80AEyN1kK/jtzhlm5WW+w==}
@@ -20854,7 +20855,7 @@ snapshots:
       browser-or-node: 1.3.0
       core-js: 3.24.1
 
-  '@urbit/nockjs@1.5.0': {}
+  '@urbit/nockjs@https://codeload.github.com/Fang-/nockjs/tar.gz/17501cf8cb9700e2284940fbc9bf8942c32676ab': {}
 
   '@urbit/sigil-js@2.2.0':
     dependencies:

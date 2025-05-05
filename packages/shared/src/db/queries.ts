@@ -399,10 +399,236 @@ export const insertSystemContacts = createWriteQuery(
   ['systemContacts', 'systemContactSentInvites', 'contacts']
 );
 
-export const linkSystemContact = createWriteQuery(
-  'insertSystemContactSentInvites',
-  async (params: { sentInvites: SystemContactSentInvite[] }, ctx: QueryCtx) => {
-    // TODO
+export const linkSystemContacts = createWriteQuery(
+  'linkSystemContacts',
+  async (params: { matches: [string, string][] }, ctx: QueryCtx) => {
+    if (!params.matches.length) return;
+    const { matches } = params;
+
+    const systemContactPhoneNumbers = matches.map((m) => m[0]);
+
+    const contactIds = matches.map((m) => m[1]);
+    logger.log(
+      'linkSystemContacts: linking system contacts',
+      contactIds,
+      'with phone numbers',
+      systemContactPhoneNumbers
+    );
+
+    try {
+      const systemContacts = await getSystemContacts(ctx);
+
+      logger.log(
+        'linkSystemContacts: got system contacts',
+        systemContacts.map((sc) => ({
+          id: sc.id,
+          phoneNumber: sc.phoneNumber,
+        }))
+      );
+
+      return withTransactionCtx(ctx, async (txCtx) => {
+        const [existingContacts, linkedSystemContacts] = await Promise.all([
+          txCtx.db.query.contacts.findMany({
+            where: and(
+              inArray($contacts.id, contactIds),
+              eq($contacts.isContact, true)
+            ),
+          }),
+          txCtx.db.query.systemContacts.findMany({
+            where: and(
+              inArray($systemContacts.phoneNumber, systemContactPhoneNumbers),
+              isNotNull($systemContacts.contactId)
+            ),
+          }),
+        ]);
+
+        logger.log(
+          'linkSystemContacts: got existing contacts',
+          existingContacts
+        );
+        logger.log(
+          'linkSystemContacts: got linked system contacts',
+          linkedSystemContacts
+        );
+
+        // determine which contacts and phone links are new
+        const existingContactIds = new Set(existingContacts.map((c) => c.id));
+        const alreadyLinkedPhoneNumbers = new Set(
+          linkedSystemContacts.map((sc) => sc.phoneNumber)
+        );
+
+        const newContactMatches = matches.filter(
+          ([phoneNumber, contactId]) =>
+            !existingContactIds.has(contactId) ||
+            !alreadyLinkedPhoneNumbers.has(phoneNumber)
+        );
+
+        logger.log(
+          'linkSystemContacts: new contact matches',
+          newContactMatches
+        );
+
+        const batchSize = 200;
+        const nicknameUpdates = [];
+
+        // now update nicknames separately, using phone number matching
+        for (let i = 0; i < matches.length; i++) {
+          const [phoneNumber, contactId] = matches[i];
+
+          logger.log(
+            'linkSystemContacts: processing nickname update for',
+            phoneNumber,
+            contactId
+          );
+          const matchingSystemContact = systemContacts.find(
+            (sc) => sc.phoneNumber === phoneNumber
+          );
+
+          logger.log(
+            'linkSystemContacts: found matching system contact',
+            matchingSystemContact
+          );
+
+          if (
+            matchingSystemContact &&
+            (matchingSystemContact.firstName || matchingSystemContact.lastName)
+          ) {
+            const nicknamePart =
+              `${matchingSystemContact.firstName || ''} ${matchingSystemContact.lastName || ''}`.trim();
+
+            if (nicknamePart) {
+              logger.log(
+                'linkSystemContacts: updating nickname for',
+                contactId,
+                'to',
+                nicknamePart
+              );
+              nicknameUpdates.push({
+                contactId,
+                nicknamePart,
+              });
+            }
+          }
+        }
+
+        // process nickname updates in batches
+        for (let i = 0; i < nicknameUpdates.length; i += batchSize) {
+          const batch = nicknameUpdates.slice(i, i + batchSize);
+          try {
+            logger.log(
+              'linkSystemContacts: updating contact nicknames',
+              batch.map(({ contactId }) => contactId)
+            );
+            await Promise.all(
+              batch.map(({ contactId, nicknamePart }) =>
+                txCtx.db
+                  .update($contacts)
+                  .set({ customNickname: nicknamePart })
+                  .where(eq($contacts.id, contactId))
+              )
+            );
+            logger.log(
+              'linkSystemContacts: updated contact nicknames',
+              batch.map(({ contactId }) => contactId)
+            );
+          } catch (e) {
+            logger.error(
+              'linkSystemContacts: error updating contact nicknames',
+              e
+            );
+          }
+          logger.log(
+            `linkSystemContacts: updated ${batch.length} contact nicknames (batch ${i / batchSize + 1})`
+          );
+        }
+
+        const contactIdUpdates = matches.map(([phoneNumber, contactId]) => ({
+          phoneNumber,
+          contactId,
+        }));
+
+        // then update the systemContact.contactId field for future reference
+        for (let i = 0; i < contactIdUpdates.length; i += batchSize) {
+          const batch = contactIdUpdates.slice(i, i + batchSize);
+
+          try {
+            logger.log(
+              'linkSystemContacts: updating system contact contactId',
+              batch.map(({ phoneNumber }) => phoneNumber)
+            );
+            await Promise.all(
+              batch.map(({ phoneNumber, contactId }) =>
+                txCtx.db
+                  .update($systemContacts)
+                  .set({
+                    contactId: contactId,
+                  })
+                  .where(eq($systemContacts.phoneNumber, phoneNumber))
+              )
+            );
+            logger.log(
+              'linkSystemContacts: updated system contact contactId',
+              batch.map(({ phoneNumber }) => phoneNumber)
+            );
+          } catch (e) {
+            logger.error(
+              'linkSystemContacts: error updating system contact contactId',
+              e
+            );
+          }
+
+          logger.log(
+            `linkSystemContacts: linked ${batch.length} system contacts (batch ${i / batchSize + 1})`
+          );
+        }
+
+        // finally, create a new DM channel for each new contact
+        const newContacts = newContactMatches.map(
+          ([phoneNumber, contactId]) => ({
+            id: contactId,
+            phoneNumber,
+          })
+        );
+
+        const newChannels = newContacts.map((contact) => ({
+          id: contact.id,
+          contactId: contact.id,
+          type: 'dm' as const,
+          currentUserIsMember: null,
+          currentUserIsHost: null,
+          isDmInvite: false,
+          isPending: false,
+          title: '',
+          isNew: true,
+          members: [
+            {
+              chatId: contact.id,
+              contactId: contact.id,
+              contact: contact,
+              membershipType: 'channel' as const,
+            },
+          ],
+          timestamp: Date.now(),
+        }));
+
+        logger.log(
+          'linkSystemContacts: creating new DM channels',
+          newChannels.map((c) => c.id)
+        );
+        // we use insertChannelsInternal so that we can create the channels within
+        // the transaction
+        await insertChannelsInternal(newChannels, txCtx);
+        logger.log(
+          `linkSystemContacts: created ${newChannels.length} new DM channels`
+        );
+      });
+    } catch (e) {
+      logger.error('linkSystemContacts: error linking', e);
+      logger.trackEvent(domain.AnalyticsEvent.ErrorSystemContacts, {
+        context: 'failed to link system contacts',
+        error: e,
+      });
+    }
   },
   ['systemContacts', 'systemContactSentInvites', 'contacts']
 );
@@ -430,9 +656,11 @@ export const getSystemContacts = createReadQuery(
   'getSystemContacts',
   async (ctx: QueryCtx): Promise<SystemContact[]> => {
     try {
+      logger.log('getSystemContacts: getting system contacts');
       const result = await ctx.db.query.systemContacts.findMany({
         with: { sentInvites: true },
       });
+      logger.log('getSystemContacts: got system contacts', result);
       return result;
     } catch (e) {
       console.log(`Error getting system contacts`, e);
@@ -1855,6 +2083,44 @@ export const getChannelWithRelations = createReadQuery(
   ]
 );
 
+async function insertChannelsInternal(channels: Channel[], ctx: QueryCtx) {
+  if (channels.length === 0) {
+    return;
+  }
+
+  logger.log(
+    'insertChannelsInternal',
+    channels.length,
+    channels.map((c) => c.id)
+  );
+
+  await ctx.db
+    .insert($channels)
+    .values(channels)
+    .onConflictDoUpdate({
+      target: $channels.id,
+      set: conflictUpdateSetAll($channels, [
+        'lastPostId',
+        'lastPostAt',
+        'currentUserIsMember',
+      ]),
+    });
+
+  for (const channel of channels) {
+    logger.log('insertChannels: members', channel.id, channel.members);
+    if (channel.members && channel.members.length > 0) {
+      await ctx.db
+        .delete($chatMembers)
+        .where(eq($chatMembers.chatId, channel.id));
+      await ctx.db
+        .insert($chatMembers)
+        .values(channel.members)
+        .onConflictDoNothing();
+    }
+  }
+  await setLastPosts(null, ctx);
+}
+
 export const insertChannels = createWriteQuery(
   'insertChannels',
   async (channels: Channel[], ctx: QueryCtx) => {
@@ -1865,35 +2131,12 @@ export const insertChannels = createWriteQuery(
     logger.log(
       'insertChannels',
       channels.length,
-      channels.map((c) => c.id)
+      channels.map((c) => c.id),
+      'skipTransaction'
     );
 
     return withTransactionCtx(ctx, async (txCtx) => {
-      await txCtx.db
-        .insert($channels)
-        .values(channels)
-        .onConflictDoUpdate({
-          target: $channels.id,
-          set: conflictUpdateSetAll($channels, [
-            'lastPostId',
-            'lastPostAt',
-            'currentUserIsMember',
-          ]),
-        });
-
-      for (const channel of channels) {
-        logger.log('insertChannels: members', channel.id, channel.members);
-        if (channel.members && channel.members.length > 0) {
-          await txCtx.db
-            .delete($chatMembers)
-            .where(eq($chatMembers.chatId, channel.id));
-          await txCtx.db
-            .insert($chatMembers)
-            .values(channel.members)
-            .onConflictDoNothing();
-        }
-      }
-      await setLastPosts(null, txCtx);
+      await insertChannelsInternal(channels, txCtx);
     });
   },
   ['channels']
