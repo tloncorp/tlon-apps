@@ -73,6 +73,18 @@ function mergeTextNodes(nodes: JSONContent[]): JSONContent[] {
   return merged;
 }
 
+interface TextNode {
+  type: 'text';
+  text: string;
+}
+
+interface MentionNode {
+  type: 'mention';
+  mention: Mention;
+}
+
+type LineNode = TextNode | MentionNode;
+
 const processLine = (line: string, mentions: Mention[]): JSONContent => {
   const parsedContent: JSONContent[] = [];
   let isBolding = false;
@@ -88,15 +100,50 @@ const processLine = (line: string, mentions: Mention[]): JSONContent => {
     };
   }
 
-  line.split(' ').forEach((word) => {
+  let segments: LineNode[] =
+    mentions.length === 0
+      ? line.split(' ').map((word) => ({ type: 'text', text: word }))
+      : [];
+  let index = 0;
+  for (const [i, mention] of mentions.entries()) {
+    const nextSegment = line.slice(index, Math.max(mention.start - 1, 0));
+    const parts: string[] = nextSegment === '' ? [] : nextSegment.split(' ');
+    const partsUptoMention: LineNode[] = parts.map((word) => ({
+      type: 'text',
+      text: word,
+    }));
+
+    segments = [...segments, ...partsUptoMention];
+
+    segments.push({
+      type: 'mention',
+      mention,
+    });
+
+    index = mention.end + 1;
+
+    if (i === mentions.length - 1) {
+      const lastSegment = line.slice(index);
+      if (lastSegment) {
+        const parts: LineNode[] = lastSegment.split(' ').map((word) => ({
+          type: 'text',
+          text: word,
+        }));
+        segments = [...segments, ...parts];
+      }
+    }
+  }
+
+  segments.forEach((node) => {
     const marks = [];
-    const mention = mentions.find((mention) => mention.display === word);
-    if (mention) {
-      parsedContent.push(makeMention(mention.id));
+
+    if (node.type === 'mention') {
+      parsedContent.push(makeMention(node.mention.id));
       parsedContent.push(makeText(' '));
       return;
     }
 
+    let word = node.text;
     if (isUrl(word)) {
       const leadingPunct = word.match(/^[^\w\s]/)?.[0] || '';
       const trailingPunct = word.match(/[,?!.]$/)?.[0] || '';

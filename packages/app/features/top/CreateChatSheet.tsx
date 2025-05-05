@@ -70,13 +70,13 @@ const CHAT_TYPE_CONFIG = {
     title: 'New chat',
     subtitle: 'Select a contact to chat with',
     actionTitle: 'New direct message',
-    actionDescription: 'Create a new chat with one other person.',
+    actionDescription: 'Create a new chat with one other person',
   },
   group: {
     title: 'New group',
     subtitle: 'Select contacts to invite',
     actionTitle: 'New group',
-    actionDescription: 'Create customizable group chat',
+    actionDescription: 'Create a customizable group chat',
   },
   joinGroup: {
     title: 'Join a group',
