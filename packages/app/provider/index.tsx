@@ -53,18 +53,22 @@ export function Provider({
     // Set up subscription to settings changes
     subscribeToSettings((update) => {
       if (update.type === 'updateSetting' && 'theme' in update.setting) {
-        const newTheme = update.setting.theme as ThemeName | 'auto' | null;
+        const newTheme = update.setting.theme as ThemeName | 'auto' | null | '';
         console.log('Theme updated from backend:', newTheme);
 
-        // Update local storage
+        // Update local storage - treat empty string as null (auto theme)
+        const localTheme =
+          !newTheme || newTheme === 'auto' || (newTheme as any) === ''
+            ? null
+            : newTheme;
         themeSettings
-          .setValue(newTheme as ThemeName | null)
+          .setValue(localTheme)
           .catch((err) =>
             console.warn('Failed to update local theme setting:', err)
           );
 
         // Apply theme change to UI
-        if (newTheme === null || newTheme === 'auto') {
+        if (!newTheme || newTheme === 'auto' || (newTheme as any) === '') {
           // For auto theme, respect system setting
           setActiveTheme(isDarkMode ? 'dark' : 'light');
         } else {

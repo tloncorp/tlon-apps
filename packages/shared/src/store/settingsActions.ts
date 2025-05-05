@@ -134,9 +134,8 @@ export async function updateTheme(theme: Theme | 'auto') {
     // optimistic update for local database
     await db.insertSettings({ theme: dbTheme });
     
-    // update backend - send null for 'auto' theme to be consistent
-    // this ensures all clients understand this is "auto" mode
-    await setSetting('theme', dbTheme);
+    // update backend - send empty string for 'auto' theme
+    await setSetting('theme', theme === 'auto' ? '' : theme);
     
     logger.trackEvent(AnalyticsEvent.ActionThemeUpdate, {
       theme: theme === 'auto' ? 'auto' : theme

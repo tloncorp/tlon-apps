@@ -56,13 +56,20 @@ export function ThemeScreen(props: Props) {
 
     setLoadingTheme(value);
     try {
+      // Apply the theme directly to ensure immediate change
       if (value === 'auto') {
+        // First set active theme to match system for immediate feedback
+        setActiveTheme(isDarkMode ? 'dark' : 'light');
+        // Then save the setting
         await clearTheme(setActiveTheme, isDarkMode);
       } else {
+        // First set active theme for immediate feedback
+        setActiveTheme(value);
+        // Then save the setting
         await setTheme(value, setActiveTheme);
       }
 
-      // Immediately update selected theme in UI
+      // Update selected theme in UI
       setSelectedTheme(value);
     } finally {
       setLoadingTheme(null);
@@ -80,13 +87,17 @@ export function ThemeScreen(props: Props) {
         const storedTheme = await themeSettings.getValue();
 
         // Update the selection in the UI to match current theme
-        setSelectedTheme(storedTheme ?? 'auto');
+        setSelectedTheme(
+          !storedTheme || (storedTheme as any) === '' ? 'auto' : storedTheme
+        );
       } catch (error) {
         console.warn('Failed to sync theme settings:', error);
 
         // Fallback to just checking local storage
         const storedTheme = await themeSettings.getValue();
-        setSelectedTheme(storedTheme ?? 'auto');
+        setSelectedTheme(
+          !storedTheme || (storedTheme as any) === '' ? 'auto' : storedTheme
+        );
       }
     };
 
@@ -96,12 +107,14 @@ export function ThemeScreen(props: Props) {
     // Set up subscription to catch theme changes from other clients
     subscribeToSettings((update) => {
       if (update.type === 'updateSetting' && 'theme' in update.setting) {
-        const newTheme = update.setting.theme as ThemeName | 'auto' | null;
+        const newTheme = update.setting.theme as ThemeName | 'auto' | null | '';
         console.log('Theme updated from another client:', newTheme);
 
-        // Handle both null and 'auto' values as 'auto'
+        // Handle both null, empty string, and 'auto' values as 'auto'
         const themeValue =
-          newTheme === null || newTheme === 'auto' ? 'auto' : newTheme;
+          !newTheme || (newTheme as any) === '' || newTheme === 'auto'
+            ? 'auto'
+            : newTheme;
 
         // Update selection in the settings screen
         setSelectedTheme(themeValue);
