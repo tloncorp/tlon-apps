@@ -631,7 +631,7 @@ export function useTiles() {
 }
 
 export function useThemeMutation() {
-  const { status, mutate: oldMutate } = usePutEntryMutation({
+  const { status } = usePutEntryMutation({
     bucket: 'display',
     key: 'theme',
   });
@@ -640,15 +640,11 @@ export function useThemeMutation() {
 
   const mutate = async (theme: Theme) => {
     try {
-      // Update locally and in backend
       await updateTheme(theme);
-      
-      // Invalidate settings query to refresh UI
+      // Refresh UI by invalidating settings
       queryClient.invalidateQueries({ queryKey: ['settings'] });
     } catch (error) {
       console.error('Failed to update theme:', error);
-      // Fallback to old method if the new one fails
-      oldMutate({ val: theme });
     }
   };
 

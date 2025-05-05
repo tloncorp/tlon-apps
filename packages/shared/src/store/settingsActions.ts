@@ -127,27 +127,19 @@ export async function updateTheme(theme: Theme | 'auto') {
   const oldTheme = existing?.theme;
 
   try {
-    // If theme is 'auto', we'll set null in local DB 
-    // (null in DB = auto/system theme in UI)
     const dbTheme = theme === 'auto' ? null : theme;
-    
-    // optimistic update for local database
     await db.insertSettings({ theme: dbTheme });
-    
-    // update backend - send empty string for 'auto' theme
     await setSetting('theme', theme === 'auto' ? '' : theme);
-    
     logger.trackEvent(AnalyticsEvent.ActionThemeUpdate, {
       theme: theme === 'auto' ? 'auto' : theme
     });
   } catch (error) {
-    logger.trackEvent(AnalyticsEvent.ErrorThemeUpdate, {
+    logger.trackError(AnalyticsEvent.ErrorThemeUpdate, {
       theme,
       severity: AnalyticsSeverity.Medium,
       errorMessage: error.message,
       errorStack: error.stack,
     });
-    // rollback optimistic update
     await db.insertSettings({ theme: oldTheme });
     throw new Error('Failed to update theme setting');
   }

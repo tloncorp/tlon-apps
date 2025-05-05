@@ -1,7 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { subscribeToSettings } from '@tloncorp/shared/api';
 import { themeSettings } from '@tloncorp/shared/db';
-import { syncSettings } from '@tloncorp/shared/store';
 import { useContext, useEffect, useState } from 'react';
 import { ScrollView, YStack } from 'tamagui';
 import type { ThemeName } from 'tamagui';
@@ -20,11 +19,18 @@ import {
   View,
 } from '../../ui';
 
+const normalizeTheme = (
+  value: ThemeName | 'auto' | null | undefined | string
+): 'auto' | ThemeName => {
+  if (!value || value === 'auto' || value === '') return 'auto';
+  return value as ThemeName;
+};
+
 type Props = NativeStackScreenProps<RootStackParamList, 'Theme'>;
 
 export function ThemeScreen(props: Props) {
   const theme = useTheme();
-  const { setActiveTheme, activeTheme } = useContext(ThemeContext);
+  const { setActiveTheme } = useContext(ThemeContext);
   const isDarkMode = useIsDarkMode();
   const [selectedTheme, setSelectedTheme] = useState<ThemeName | 'auto'>(
     'auto'
@@ -50,91 +56,52 @@ export function ThemeScreen(props: Props) {
     { title: 'Solarized', value: 'solarized' },
   ];
 
-  // Apply a theme and update all states
   const handleThemeChange = async (value: ThemeName | 'auto') => {
     if (value === selectedTheme || loadingTheme) return;
 
     setLoadingTheme(value);
     try {
-      // Apply the theme directly to ensure immediate change
       if (value === 'auto') {
-        // First set active theme to match system for immediate feedback
         setActiveTheme(isDarkMode ? 'dark' : 'light');
-        // Then save the setting
         await clearTheme(setActiveTheme, isDarkMode);
       } else {
-        // First set active theme for immediate feedback
         setActiveTheme(value);
-        // Then save the setting
         await setTheme(value, setActiveTheme);
       }
-
-      // Update selected theme in UI
       setSelectedTheme(value);
     } finally {
       setLoadingTheme(null);
     }
   };
 
-  // Handle theme syncing and updates
   useEffect(() => {
-    const syncAndUpdateTheme = async () => {
+    const loadCurrentTheme = async () => {
       try {
-        // First sync with backend to get latest settings
-        await syncSettings();
-
-        // Then get the theme from local storage (which should be updated after sync)
         const storedTheme = await themeSettings.getValue();
-
-        // Update the selection in the UI to match current theme
-        setSelectedTheme(
-          !storedTheme || (storedTheme as any) === '' ? 'auto' : storedTheme
-        );
+        setSelectedTheme(normalizeTheme(storedTheme));
       } catch (error) {
-        console.warn('Failed to sync theme settings:', error);
-
-        // Fallback to just checking local storage
-        const storedTheme = await themeSettings.getValue();
-        setSelectedTheme(
-          !storedTheme || (storedTheme as any) === '' ? 'auto' : storedTheme
-        );
+        console.warn('Failed to load theme setting:', error);
       }
     };
 
-    // Initial check
-    syncAndUpdateTheme();
+    loadCurrentTheme();
 
-    // Set up subscription to catch theme changes from other clients
     subscribeToSettings((update) => {
       if (update.type === 'updateSetting' && 'theme' in update.setting) {
-        const newTheme = update.setting.theme as ThemeName | 'auto' | null | '';
-        console.log('Theme updated from another client:', newTheme);
+        const newTheme = update.setting.theme;
+        const themeValue = normalizeTheme(newTheme as any);
 
-        // Handle both null, empty string, and 'auto' values as 'auto'
-        const themeValue =
-          !newTheme || (newTheme as any) === '' || newTheme === 'auto'
-            ? 'auto'
-            : newTheme;
-
-        // Update selection in the settings screen
         setSelectedTheme(themeValue);
 
-        // Also apply the theme directly if needed
         if (themeValue === 'auto') {
-          // If auto selected, apply system theme
           setActiveTheme(isDarkMode ? 'dark' : 'light');
         } else {
-          // Otherwise use specified theme
           setActiveTheme(themeValue);
         }
       }
     });
 
-    // Refresh settings when the screen is focused
-    const unsubscribe = props.navigation.addListener('focus', () => {
-      syncAndUpdateTheme();
-    });
-
+    const unsubscribe = props.navigation.addListener('focus', loadCurrentTheme);
     return unsubscribe;
   }, [props.navigation, isDarkMode, setActiveTheme]);
 
