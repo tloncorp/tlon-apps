@@ -283,9 +283,7 @@ export const pinPostToProfile = async (post: db.Post) => {
   const payload = ['show', citePath];
   const noun = dwim(payload);
 
-  console.log('bl: pinPostToProfile', { post, cite, noun, citePath });
   await poke({ app: 'expose', mark: 'json', json: { show: citePath } });
-  console.log('bl: poke succeeded');
 };
 
 export const unpinPostFromProfile = async (post: db.Post) => {

@@ -133,7 +133,7 @@ export const PostReference = ({
   );
 };
 
-function BlockReferenceContent({ post }: { post: db.Post }) {
+export function BlockReferenceContent({ post }: { post: db.Post }) {
   const { contentSize } = useReferenceContext();
   return (
     <Reference.Body
@@ -145,7 +145,13 @@ function BlockReferenceContent({ post }: { post: db.Post }) {
   );
 }
 
-function NoteReferenceContent({ post }: { post: db.Post }) {
+export function NoteReferenceContent({
+  post,
+  hideAuthor,
+}: {
+  post: db.Post;
+  hideAuthor?: boolean;
+}) {
   const { contentSize } = useReferenceContext();
   return (
     <Reference.Body>
@@ -153,7 +159,7 @@ function NoteReferenceContent({ post }: { post: db.Post }) {
         {post.title && (
           <NoteReferenceTitleText>{post.title}</NoteReferenceTitleText>
         )}
-        <PostReferenceAuthor contactId={post.authorId} />
+        {!hideAuthor && <PostReferenceAuthor contactId={post.authorId} />}
         {contentSize !== '$s' && (
           <Text size="$body" numberOfLines={6}>
             {post.textContent}
@@ -194,15 +200,23 @@ const NoteReferenceTitleText = styled(Text, {
   },
 });
 
-function ChatReferenceContent({ post }: { post: db.Post }) {
+export function ChatReferenceContent({
+  post,
+  hideAuthor,
+}: {
+  post: db.Post;
+  hideAuthor?: boolean;
+}) {
   const { contentSize } = useReferenceContext();
   return (
     <Reference.Body>
-      <PostReferenceAuthor
-        padding="$l"
-        paddingBottom="$2xs"
-        contactId={post.authorId}
-      />
+      {!hideAuthor && (
+        <PostReferenceAuthor
+          padding="$l"
+          paddingBottom="$2xs"
+          contactId={post.authorId}
+        />
+      )}
       {contentSize === '$s' ? (
         <Text padding="$l" size="$label/s">
           {post.textContent}

@@ -615,7 +615,6 @@ export async function request<T>(path: string, params: RequestInit) {
 }
 
 export async function thread<T, R = any>(params: Thread<T>): Promise<R> {
-  console.log(`bl: making request`, params);
   if (!params.desk) {
     throw new Error('Must supply desk to run thread from');
   }
@@ -625,7 +624,6 @@ export async function thread<T, R = any>(params: Thread<T>): Promise<R> {
   }
 
   const response = await config.client.thread<T>(params);
-  console.log(`bl: got a response`);
   if (!response.ok) {
     const errorText = await response.text();
     throw new BadResponseError(response.status, errorText);

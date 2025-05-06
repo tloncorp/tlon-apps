@@ -956,11 +956,6 @@ export class Urbit {
       };
     }
 
-    console.log(`bl: Urbit request`, {
-      path: `${this.url}${path}`,
-      options: requestOptions,
-    });
-
     // Make the request
     const response = await this.fetchFn(`${this.url}${path}`, requestOptions);
 

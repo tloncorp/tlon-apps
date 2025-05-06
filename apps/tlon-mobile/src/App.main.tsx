@@ -17,6 +17,7 @@ import { registerBackgroundSyncTask } from '@tloncorp/app/lib/backgroundSync';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import {
+  ConfirmationProvider,
   LoadingSpinner,
   PortalProvider,
   SplashSequence,
@@ -176,19 +177,21 @@ export default function ConnectedApp() {
                       <SafeAreaProvider>
                         <MigrationCheck>
                           <QueryClientProvider client={queryClient}>
-                            <SignupProvider>
-                              <PortalProvider>
-                                <App />
-                              </PortalProvider>
+                            <ConfirmationProvider>
+                              <SignupProvider>
+                                <PortalProvider>
+                                  <App />
+                                </PortalProvider>
 
-                              {__DEV__ && (
-                                <DevTools
-                                  navigationContainerRef={
-                                    navigationContainerRef
-                                  }
-                                />
-                              )}
-                            </SignupProvider>
+                                {__DEV__ && (
+                                  <DevTools
+                                    navigationContainerRef={
+                                      navigationContainerRef
+                                    }
+                                  />
+                                )}
+                              </SignupProvider>
+                            </ConfirmationProvider>
                           </QueryClientProvider>
                         </MigrationCheck>
                       </SafeAreaProvider>

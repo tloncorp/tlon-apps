@@ -22,6 +22,7 @@ import {
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import {
+  ConfirmationProvider,
   ForwardPostSheetProvider,
   LoadingSpinner,
   StoreProvider,
@@ -306,31 +307,33 @@ function AppRoutes() {
       triggerWebAppUpdate={triggerUpdate}
     >
       <ForwardPostSheetProvider>
-        {isMobile ? (
-          <NavigationContainer
-            linking={mobileLinkingConfig}
-            theme={theme}
-            onStateChange={handleStateChangeMobile}
-            documentTitle={{
-              enabled: true,
-              formatter: documentTitleFormatterMobile,
-            }}
-          >
-            <BasePathNavigator isMobile={true} />
-          </NavigationContainer>
-        ) : (
-          <NavigationContainer
-            linking={desktopLinkingConfig}
-            theme={theme}
-            onStateChange={handleStateChangeDesktop}
-            documentTitle={{
-              enabled: true,
-              formatter: documentTitleFormatterDesktop,
-            }}
-          >
-            <BasePathNavigator isMobile={false} />
-          </NavigationContainer>
-        )}
+        <ConfirmationProvider>
+          {isMobile ? (
+            <NavigationContainer
+              linking={mobileLinkingConfig}
+              theme={theme}
+              onStateChange={handleStateChangeMobile}
+              documentTitle={{
+                enabled: true,
+                formatter: documentTitleFormatterMobile,
+              }}
+            >
+              <BasePathNavigator isMobile={true} />
+            </NavigationContainer>
+          ) : (
+            <NavigationContainer
+              linking={desktopLinkingConfig}
+              theme={theme}
+              onStateChange={handleStateChangeDesktop}
+              documentTitle={{
+                enabled: true,
+                formatter: documentTitleFormatterDesktop,
+              }}
+            >
+              <BasePathNavigator isMobile={false} />
+            </NavigationContainer>
+          )}
+        </ConfirmationProvider>
       </ForwardPostSheetProvider>
     </AppDataProvider>
   );

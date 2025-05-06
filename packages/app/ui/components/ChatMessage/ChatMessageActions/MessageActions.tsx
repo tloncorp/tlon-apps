@@ -12,6 +12,7 @@ import { useChannelContext, useCurrentUserId } from '../../../contexts';
 import { Attachment, useAttachmentContext } from '../../../contexts/attachment';
 import { triggerHaptic, useIsAdmin } from '../../../utils';
 import ActionList from '../../ActionList';
+import { ConfirmationOptions, useConfirmation } from '../../ConfirmationPrompt';
 import { useForwardPostSheet } from '../../ForwardPostSheet';
 
 const ENABLE_COPY_JSON = __DEV__;
@@ -70,6 +71,7 @@ function ConnectedAction({
   const { addAttachment } = useAttachmentContext();
   const currentUserIsAdmin = useIsAdmin(post.groupId ?? '', currentUserId);
   const { open: forwardPost } = useForwardPostSheet();
+  const confirmation = useConfirmation();
 
   const { label } = useDisplaySpecForChannelActionId(actionId, {
     post,
@@ -140,6 +142,7 @@ function ConnectedAction({
           onForward: forwardPost,
           onViewReactions,
           addAttachment,
+          promptConfirmation: confirmation.showConfirmation,
           isConnected: connectionStatus === 'Connected',
           isNetworkDependent: action.isNetworkDependent,
         })
@@ -177,6 +180,7 @@ export async function handleAction({
   onViewReactions,
   onForward,
   addAttachment,
+  promptConfirmation,
   isConnected,
   isNetworkDependent,
 }: {
@@ -191,6 +195,7 @@ export async function handleAction({
   onForward?: (post: db.Post) => void;
   onViewReactions?: (post: db.Post) => void;
   addAttachment: (attachment: Attachment) => void;
+  promptConfirmation?: (options: ConfirmationOptions) => void;
   isConnected: boolean;
   isNetworkDependent: boolean;
 }) {
@@ -248,10 +253,16 @@ export async function handleAction({
       post.hidden ? store.showPost({ post }) : store.hidePost({ post });
       break;
     case 'pin':
-      console.log(`bl: executing pin action`);
       channel.group?.privacy &&
       ['private', 'secret'].includes(channel.group.privacy)
-        ? store.pinPostToProfile({ post })
+        ? promptConfirmation?.({
+            title: `Pin ${channel.group.privacy} post?`,
+            message: `Anyone who views your profile will be able to see this post.`,
+            confirmLabel: 'Pin to Profile',
+            onConfirm: () => {
+              store.pinPostToProfile({ post });
+            },
+          })
         : store.pinPostToProfile({ post });
       break;
     case 'forward':

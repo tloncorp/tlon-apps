@@ -66,6 +66,7 @@ export * from './components/TwtitterAttestationPane';
 export * from './components/UserProfileScreenView';
 export * from './components/Wayfinding/SplashSequence';
 export * from './components/postCollectionViews/SummaryCollectionView';
+export * from './components/ConfirmationPrompt';
 export { ConnectedPostView } from './components/postCollectionViews/shared';
 export * from './contexts';
 export { PostCollectionContext } from './contexts/postCollection';

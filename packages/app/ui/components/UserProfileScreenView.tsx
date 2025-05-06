@@ -1,7 +1,7 @@
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCopy } from '@tloncorp/ui';
+import { LoadingSpinner, useCopy } from '@tloncorp/ui';
 import { triggerHaptic } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
@@ -31,6 +31,7 @@ import { useGroupTitle } from '../utils';
 import { ContactAvatar, GroupAvatar } from './Avatar';
 import { ContactName } from './ContactNameV2';
 import { useBoundHandler } from './ListItem/listItemUtils';
+import { PinnedPostDisplay } from './PinnedPostsWidget';
 import {
   PhoneAttestDisplay,
   TwitterAttestDisplay,
@@ -50,27 +51,22 @@ export function UserProfileScreenView(props: Props) {
   const userContact = useContact(props.userId);
 
   // Fetch their pinned posts
-  const { data, error: pinsError } = store.useProfilePinnedPosts(props.userId);
+  const {
+    data,
+    error: pinsError,
+    isLoading: pinnedPostsLoading,
+  } = store.useProfilePinnedPosts(props.userId);
   useEffect(() => {
     if (pinsError) {
-      console.log('bl: pp query has error', pinsError);
-    }
-    if (data) {
-      console.log('bl: pp query has data', data);
+      console.log('pinned post query has error', pinsError);
     }
   }, [data, pinsError]);
 
-  const pinnedPosts = useMemo(() => {
-    const partialData =
-      pinsError instanceof api.PartialPinnedPostsError
-        ? pinsError.partialResults
-        : [];
-    return data ?? partialData;
+  const { pinnedPosts, hasPartialData } = useMemo(() => {
+    const hasPartialData = pinsError instanceof api.PartialPinnedPostsError;
+    const partialData = hasPartialData ? pinsError.partialResults : [];
+    return { pinnedPosts: data ?? partialData, hasPartialData };
   }, [data, pinsError]);
-
-  useEffect(() => {
-    console.log('bl: resolved posts', pinnedPosts);
-  }, [pinnedPosts]);
 
   // Format contact profile data
   const pinnedGroups = useMemo(() => {
@@ -180,6 +176,14 @@ export function UserProfileScreenView(props: Props) {
           groups={pinnedGroups}
           onPressGroup={onPressGroup}
         />
+
+        {!pinnedPosts.length && pinnedPostsLoading ? <LoadingSpinner /> : null}
+        {pinnedPosts?.length ? (
+          <>
+            <PinnedPostDisplay post={pinnedPosts[0]} width="100%" />
+            {pinnedPostsLoading || hasPartialData ? <LoadingSpinner /> : null}
+          </>
+        ) : null}
       </ScrollView>
     </View>
   );
