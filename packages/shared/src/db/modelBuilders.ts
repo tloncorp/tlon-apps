@@ -275,6 +275,7 @@ export function buildChannel(
     iconImage: null,
     iconImageColor: null,
     isDmInvite: false,
+    isNewMatchedContact: null,
     isPendingChannel: null,
     lastPostAt: null,
     lastPostId: null,
