@@ -1,3 +1,5 @@
+import { ThemeName } from 'tamagui';
+
 import { setSetting } from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
@@ -5,7 +7,8 @@ import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
 import * as logic from '../logic';
 import { withRetry } from '../logic';
 import { TalkSidebarFilter } from '../urbit';
-import { Theme } from '../urbit/settings';
+
+export type AppTheme = ThemeName | 'auto';
 
 const logger = createDevLogger('SettingsActions', false);
 
@@ -122,7 +125,7 @@ export async function markPotentialWayfindingChannelVisit(channelId: string) {
   }
 }
 
-export async function updateTheme(theme: Theme | 'auto') {
+export async function updateTheme(theme: AppTheme) {
   const existing = await db.getSettings();
   const oldTheme = existing?.theme;
 
@@ -131,7 +134,7 @@ export async function updateTheme(theme: Theme | 'auto') {
     await db.insertSettings({ theme: dbTheme });
     await setSetting('theme', theme === 'auto' ? '' : theme);
     logger.trackEvent(AnalyticsEvent.ActionThemeUpdate, {
-      theme: theme === 'auto' ? 'auto' : theme
+      theme: theme === 'auto' ? 'auto' : theme,
     });
   } catch (error) {
     logger.trackError(AnalyticsEvent.ErrorThemeUpdate, {

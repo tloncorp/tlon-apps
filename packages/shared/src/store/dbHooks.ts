@@ -604,19 +604,12 @@ export const useShowNotebookAddTooltip = (channelId: string) => {
 };
 
 export const useThemeSettings = () => {
-  try {
-    const deps = useKeyFromQueryDeps(db.getSettings);
-    return useQuery({
-      queryKey: ['themeSettings', deps],
-      queryFn: async () => {
-        const settings = await db.getSettings();
-        return settings?.theme || null;
-      },
-    });
-  } catch (e) {
-    if ((e as Error).message?.includes('No QueryClient set')) {
-      return { data: null, isLoading: false, error: null };
-    }
-    throw e;
-  }
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['themeSettings', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings();
+      return settings?.theme || null;
+    },
+  });
 };
