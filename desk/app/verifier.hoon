@@ -740,6 +740,7 @@
     ==
   ::
       %verifier-user-query
+    =.  for.log  `src.bowl
     =+  !<(qer=user-query vase)
     =;  [res=result:query-result nu=_state]
       =.  state  nu
