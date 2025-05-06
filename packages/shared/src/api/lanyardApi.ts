@@ -17,7 +17,7 @@ import {
   trackedPokeNoun,
 } from './urbit';
 
-const logger = createDevLogger('lanyardApi', true);
+const logger = createDevLogger('lanyardApi', false);
 
 export type LanyardUpdate = { type: 'Default' };
 export function subscribeToLanyardUpdates(
@@ -73,7 +73,7 @@ export async function discoverContacts(
         delSetLength: 0,
         message: 'No changes, no need to send request',
       });
-      // return [];
+      return [];
     }
     const storedLastSalt = await db.lastLanyardSalt.getValue();
     // because parseUx doesn't actually remove the dots
