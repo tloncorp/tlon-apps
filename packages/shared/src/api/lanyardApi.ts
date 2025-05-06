@@ -65,16 +65,6 @@ export async function discoverContacts(
 ): Promise<[string, string][]> {
   try {
     const nums = await diffContactBook(phoneNums);
-    if (nums.add.toString() === '0' && nums.del.toString() === '0') {
-      logger.log('discoverContacts: no changes, returning empty');
-      logger.trackEvent(AnalyticsEvent.DebugContactMatching, {
-        context: 'discoverContacts',
-        diffSetLength: 0,
-        delSetLength: 0,
-        message: 'No changes, no need to send request',
-      });
-      return [];
-    }
     const storedLastSalt = await db.lastLanyardSalt.getValue();
     // because parseUx doesn't actually remove the dots
     const parsedLastSalt = storedLastSalt?.replaceAll('.', '') ?? '0x0';
