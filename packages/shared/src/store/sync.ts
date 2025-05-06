@@ -17,9 +17,8 @@ import {
 import { createBatchHandler, createHandler } from './bufferedSubscription';
 import * as LocalCache from './cachedData';
 import {
-  addChannelToNavSection,
-  moveChannel,
   recoverPartiallyCreatedPersonalGroup,
+  updateChannelSections,
 } from './groupActions';
 import { verifyUserInviteLink } from './inviteActions';
 import { useLureState } from './lure';
@@ -838,9 +837,15 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
       break;
     case 'moveChannel':
       logger.log('moving channel', update);
-      await moveChannel({
+      // eslint-disable-next-line
+      const existingGroup = await db.getGroup({ id: update.groupId });
+      if (!existingGroup) {
+        logger.error('Group not found');
+        return;
+      }
+      await updateChannelSections({
         channelId: update.channelId,
-        groupId: update.groupId,
+        group: existingGroup,
         navSectionId: update.sectionId,
         index: update.index,
       });
@@ -848,10 +853,10 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
     case 'addChannelToNavSection':
       logger.log('adding channel to nav section', update);
 
-      await addChannelToNavSection({
+      await db.addChannelToNavSection({
         channelId: update.channelId,
-        groupId: update.groupId,
-        navSectionId: update.sectionId,
+        groupNavSectionId: update.sectionId,
+        index: 0,
       });
       break;
     case 'setUnjoinedGroups':
