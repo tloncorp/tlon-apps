@@ -2,6 +2,7 @@ import { utils } from '@tloncorp/shared';
 import { trustedProviders } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import { Post } from '@tloncorp/shared/db';
+import * as domain from '@tloncorp/shared/domain';
 import * as ub from '@tloncorp/shared/urbit';
 import { useContext, useMemo } from 'react';
 import { createStyledContext } from 'tamagui';
@@ -108,7 +109,7 @@ export type EmbedBlockData = {
   content?: string;
 };
 
-export type ReferenceBlockData = api.ContentReference;
+export type ReferenceBlockData = domain.ContentReference;
 
 export type CodeBlockData = {
   type: 'code';

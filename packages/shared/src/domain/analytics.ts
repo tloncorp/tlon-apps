@@ -51,6 +51,7 @@ export enum AnalyticsEvent {
   WebAppOpened = 'Web App Opened',
   WebConsoleError = 'Web Console Error',
   WayfindingDebug = 'Wayfinding Debug',
+  PinnedPostDebug = 'Pinned Post Debug',
   ActionContactAdded = 'Contact Added',
   ActionContactRemoved = 'Contact Removed',
   ActionRemoveContactSuggestion = 'Removed Contact Suggestion',
@@ -139,6 +140,7 @@ export enum AnalyticsEvent {
   ErrorSystemContacts = 'System Contacts Error',
   ErrorCalmSettingsUpdate = 'Error Updating Calm Settings',
   ErrorApi = 'API Error',
+  ErrorPinnedPost = 'Pinned Post Error',
 }
 
 export interface AnalyticsDigest {

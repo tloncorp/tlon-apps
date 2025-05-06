@@ -8,8 +8,16 @@ import { normalizeUrbitColor } from '../logic';
 import * as ub from '../urbit';
 import { parseAttestationId } from './lanyardApi';
 import * as NounParsers from './nounParsers';
-import { contentReferenceToCite } from './postsApi';
-import { getCurrentUserId, poke, pokeNoun, scry, subscribe } from './urbit';
+import { contentReferenceToCite, toPostData } from './postsApi';
+import {
+  BadResponseError,
+  getCurrentUserId,
+  poke,
+  pokeNoun,
+  scry,
+  subscribe,
+  thread,
+} from './urbit';
 
 const logger = createDevLogger('contactsApi', true);
 
@@ -69,6 +77,71 @@ export const syncUserProfiles = async (userIds: string[]) => {
     json: { meet: userIds },
   });
 };
+
+export class PartialPinnedPostsError extends Error {
+  partialResults: db.Post[];
+  constructor(partialResults: db.Post[]) {
+    super('Incomplete Pinned Posts');
+    this.partialResults = partialResults;
+  }
+}
+export const getPeerPinnedPosts = async (contactId: string) => {
+  let results: ub.ProfilePinnedPostResults = [];
+  try {
+    results = await thread<string, ub.ProfilePinnedPostResults>({
+      desk: 'groups',
+      inputMark: 'ship',
+      outputMark: 'json',
+      threadName: 'contact-pins',
+      body: contactId,
+    });
+    logger.trackEvent(AnalyticsEvent.PinnedPostDebug, {
+      context: 'fetched pinned posts',
+      numResults: results.length,
+    });
+  } catch (e) {
+    logger.trackEvent(AnalyticsEvent.ErrorPinnedPost, {
+      severity: domain.AnalyticsSeverity.High,
+      context: 'failed to fetch pinned posts',
+      responseStatus: e instanceof BadResponseError ? e.status : null,
+      responseBody: e instanceof BadResponseError ? e.body : null,
+    });
+    throw new Error('Failed to fetch pinned posts');
+  }
+
+  const isMissingPosts = results.some((result) => result === null);
+  const successfulResults = results.filter(Boolean) as ub.ProfilePinnedPost[];
+  let posts: db.Post[] = [];
+  try {
+    posts = successfulResults.map(toClientPinnedPost);
+    logger.trackEvent(AnalyticsEvent.PinnedPostDebug, {
+      context: 'parsed pinned posts',
+      numPosts: posts.length,
+      isMissingPosts,
+      numMissingPosts: results.length - successfulResults.length,
+    });
+  } catch (e) {
+    logger.trackEvent(AnalyticsEvent.ErrorPinnedPost, {
+      severity: domain.AnalyticsSeverity.High,
+      context: 'failed to parse pinned posts',
+      error: e,
+    });
+    throw new Error('Failed to parse pinned posts');
+  }
+
+  if (isMissingPosts) {
+    const err = new PartialPinnedPostsError(posts);
+    throw err;
+  }
+
+  return posts;
+};
+
+function toClientPinnedPost(ubPinned: ub.ProfilePinnedPost) {
+  const channelId = ubPinned.nest;
+  const post = toPostData(channelId, ubPinned.reference.post);
+  return post;
+}
 
 export const updateContactMetadata = async (
   contactId: string,

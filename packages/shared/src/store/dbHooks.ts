@@ -1,6 +1,7 @@
 import {
   UseQueryOptions,
   UseQueryResult,
+  keepPreviousData,
   useQuery,
 } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -601,4 +602,18 @@ export const useShowNotebookAddTooltip = (channelId: string) => {
     return logic.isPersonalNotebookChannel(channelId);
   }, [channelId]);
   return isCorrectChan && !wayfindingProgress.tappedAddNote;
+};
+
+export const useProfilePinnedPosts = (contactId: string) => {
+  return useQuery({
+    queryKey: ['profilePinnedPosts', contactId],
+    queryFn: async () => {
+      return api.getPeerPinnedPosts(contactId);
+    },
+    retry: (failureCount, error) => {
+      return error?.message === 'Incomplete data' && failureCount < 3;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+    placeholderData: keepPreviousData,
+  });
 };

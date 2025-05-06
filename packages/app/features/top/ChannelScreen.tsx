@@ -44,6 +44,7 @@ export default function ChannelScreen(props: Props) {
     startDraft: false,
   };
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
+  console.log(`on channel: ${channelId}`);
 
   useEffect(() => {
     setCurrentChannelId(channelId);

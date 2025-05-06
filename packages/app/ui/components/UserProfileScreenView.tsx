@@ -48,6 +48,31 @@ export function UserProfileScreenView(props: Props) {
   const insets = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();
   const userContact = useContact(props.userId);
+
+  // Fetch their pinned posts
+  const { data, error: pinsError } = store.useProfilePinnedPosts(props.userId);
+  useEffect(() => {
+    if (pinsError) {
+      console.log('bl: pp query has error', pinsError);
+    }
+    if (data) {
+      console.log('bl: pp query has data', data);
+    }
+  }, [data, pinsError]);
+
+  const pinnedPosts = useMemo(() => {
+    const partialData =
+      pinsError instanceof api.PartialPinnedPostsError
+        ? pinsError.partialResults
+        : [];
+    return data ?? partialData;
+  }, [data, pinsError]);
+
+  useEffect(() => {
+    console.log('bl: resolved posts', pinnedPosts);
+  }, [pinnedPosts]);
+
+  // Format contact profile data
   const pinnedGroups = useMemo(() => {
     return (
       userContact?.pinnedGroups?.flatMap((g) => (g.group ? [g.group] : [])) ??

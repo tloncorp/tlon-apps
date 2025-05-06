@@ -1,3 +1,4 @@
+import { Post } from './channel';
 import { Flag } from './hark';
 
 export interface Contact {
@@ -116,6 +117,16 @@ export type ContactBookScryResult1 = Record<string, ContactBookEntry>;
 export type ContactsSelfResponse1 = {
   self: ContactBookProfile;
 };
+
+export interface ProfilePinnedPost {
+  nest: string;
+  reference: {
+    post: Post;
+  };
+}
+
+export type ProfilePinnedPostResult = ProfilePinnedPost | null;
+export type ProfilePinnedPostResults = ProfilePinnedPostResult[];
 
 // received when someone is marked as a contact or when a contact's profile is updated
 export type ContactsPageResponse1 = {

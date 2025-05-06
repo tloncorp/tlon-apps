@@ -1,4 +1,4 @@
-import { ContentReference } from '@tloncorp/shared/api';
+import { ContentReference } from '@tloncorp/shared/domain';
 import {
   UploadState,
   useUploadStates,

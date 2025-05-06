@@ -419,3 +419,7 @@ export async function pinPostToProfile({ post }: { post: db.Post }) {
     // });
   }
 }
+
+export async function getContactPinnedPosts(contactId: string) {
+  const pinnedPosts = await api.getPeerPinnedPosts(contactId);
+}
