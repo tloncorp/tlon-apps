@@ -67,7 +67,7 @@
     "@tloncorp/ui": "workspace:*",
     "@urbit/aura": "^2.0.1",
     "@urbit/http-api": "3.2.0-dev",
-    "@urbit/nockjs": "github:Fang-/nockjs#m/modern-mug",
+    "@urbit/nockjs": "github:urbit/nockjs#8ed20e5",
     "classnames": "^2.3.2",
     "dotenv-expand": "^11.0.6",
     "expo": "~51.0.39",

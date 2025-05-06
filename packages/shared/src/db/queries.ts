@@ -598,6 +598,7 @@ export const linkSystemContacts = createWriteQuery(
           currentUserIsHost: null,
           isDmInvite: false,
           isPending: false,
+          isNewMatchedContact: true,
           title: '',
           isNew: true,
           members: [

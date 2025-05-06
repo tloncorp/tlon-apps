@@ -1,4 +1,4 @@
-import { formatUv, formatUw, parseUw } from '@urbit/aura';
+import { formatUv, parseUw } from '@urbit/aura';
 import { Atom, Cell, Noun, dejs, dwim, enjs } from '@urbit/nockjs';
 
 import * as db from '../db';
@@ -17,7 +17,7 @@ import {
   trackedPokeNoun,
 } from './urbit';
 
-const logger = createDevLogger('lanyardApi', false);
+const logger = createDevLogger('lanyardApi', true);
 
 export type LanyardUpdate = { type: 'Default' };
 export function subscribeToLanyardUpdates(
@@ -73,9 +73,12 @@ export async function discoverContacts(
         delSetLength: 0,
         message: 'No changes, no need to send request',
       });
-      return [];
+      // return [];
     }
-    const lastSalt = (await db.lastLanyardSalt.getValue()) ?? formatUw('0');
+    const storedLastSalt = await db.lastLanyardSalt.getValue();
+    // because parseUx doesn't actually remove the dots
+    const parsedLastSalt = storedLastSalt?.replaceAll('.', '') ?? '0x0';
+    const lastSalt = BigInt(parsedLastSalt);
     const nonce = Math.floor(Math.random() * 1000000);
     const encodedNonce = formatUv(BigInt(nonce));
     const payload = [
