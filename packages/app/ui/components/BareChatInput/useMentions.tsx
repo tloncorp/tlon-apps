@@ -77,7 +77,13 @@ export const useMentions = () => {
       const textBetweenTriggerAndCursor = beforeCursor.slice(
         lastTriggerIndex + 1
       );
-      const hasSpace = textBetweenTriggerAndCursor.includes(' ');
+      const textBeforeTrigger = beforeCursor.slice(
+        lastTriggerIndex - 1,
+        lastTriggerIndex
+      );
+      const whitespaceBeforeOrFirst =
+        lastTriggerIndex === 0 || textBeforeTrigger.match(/\s+/);
+      const spaceAfter = textBetweenTriggerAndCursor.includes(' ');
 
       // Only show popup if:
       // 1. We're right after the trigger or actively searching
@@ -86,7 +92,8 @@ export const useMentions = () => {
       const isDismissedTrigger =
         wasDismissedByEscape && lastTriggerIndex === lastDismissedTriggerIndex;
       if (
-        !hasSpace &&
+        whitespaceBeforeOrFirst &&
+        !spaceAfter &&
         !isDismissedTrigger &&
         (cursorPosition === lastTriggerIndex + 1 ||
           (cursorPosition > lastTriggerIndex && !afterCursor.includes(' ')))
@@ -121,7 +128,7 @@ export const useMentions = () => {
   const handleSelectMention = (contact: db.Contact, text: string) => {
     if (mentionStartIndex === null) return;
 
-    const mentionDisplay = `${contact.id}`;
+    const mentionDisplay = contact.id;
     const beforeMention = text.slice(0, mentionStartIndex);
     const afterMention = text.slice(
       mentionStartIndex + (mentionSearchText?.length || 0) + 1

@@ -8,7 +8,13 @@ import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { useCalm } from '../ui';
 import { getChannelTitle, getGroupTitle } from '../ui';
 
-export type TabName = 'all' | 'home' | 'groups' | 'messages' | 'talk';
+export type TabName =
+  | 'all'
+  | 'home'
+  | 'groups'
+  | 'messages'
+  | 'talk'
+  | 'channels';
 
 export type SectionedChatData = {
   title: string;
@@ -154,9 +160,17 @@ function filterChats(
       return chat.type === 'group';
     }
 
-    if (activeTab === 'messages' || activeTab === 'talk') {
+    if (
+      activeTab === 'messages' ||
+      activeTab === 'talk' ||
+      activeTab === 'channels'
+    ) {
       if (chat.type !== 'channel') {
         return false;
+      }
+
+      if (activeTab === 'channels') {
+        return true;
       }
 
       if (filter === 'Direct Messages') {

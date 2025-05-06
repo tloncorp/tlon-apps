@@ -142,7 +142,7 @@ export function InviteSystemContactsScreen(props: Props) {
               color="$positiveActionText"
               onPress={handleDone}
             >
-              Done
+              Invite
             </ScreenHeader.TextButton>
           ) : null
         }

@@ -11,7 +11,8 @@ export type Id =
   | 'pin'
   | 'report'
   | 'visibility'
-  | 'delete';
+  | 'delete'
+  | 'forward';
 
 /**
  * Info about a channel action type that should not change based on context.
@@ -35,6 +36,7 @@ export function channelActionIdsFor({
         'startThread',
         'muteThread',
         'copyRef',
+        'forward',
         'edit',
         'pin',
         'report',
@@ -46,6 +48,7 @@ export function channelActionIdsFor({
         'startThread',
         'muteThread',
         'copyRef',
+        'forward',
         'edit',
         'pin',
         'report',
@@ -70,6 +73,7 @@ export function channelActionIdsFor({
         'muteThread',
         'viewReactions',
         'copyRef',
+        'forward',
         'copyText',
         'edit',
         'pin',
@@ -90,6 +94,7 @@ const STATIC_SPECS = {
   edit: { isNetworkDependent: true },
   muteThread: { isNetworkDependent: true },
   quote: { isNetworkDependent: true },
+  forward: { isNetworkDependent: true },
   report: { isNetworkDependent: true },
   startThread: { isNetworkDependent: true },
   viewReactions: { isNetworkDependent: false },
