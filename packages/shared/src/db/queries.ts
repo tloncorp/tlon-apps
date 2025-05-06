@@ -670,6 +670,24 @@ export const getSystemContacts = createReadQuery(
   ['systemContacts', 'systemContactSentInvites']
 );
 
+export const getSystemContactsBatchByContactId = createReadQuery(
+  'getSystemContactsBatchByContactId',
+  async (contactIds: string[], ctx: QueryCtx): Promise<SystemContact[]> => {
+    if (!contactIds.length) return [];
+    try {
+      const result = await ctx.db.query.systemContacts.findMany({
+        where: inArray($systemContacts.contactId, contactIds),
+        with: { sentInvites: true },
+      });
+      return result;
+    } catch (e) {
+      console.log(`Error getting system contacts`, e);
+      throw e;
+    }
+  },
+  ['systemContacts', 'systemContactSentInvites']
+);
+
 export const getUninvitedSystemContactsShortlist = createReadQuery(
   'getUninvitedSystemContactsShortlist',
   async (ctx: QueryCtx): Promise<SystemContact[]> => {

@@ -16,7 +16,7 @@ import {
 } from '../store/useActivityFetchers';
 import { createBatchHandler, createHandler } from './bufferedSubscription';
 import * as LocalCache from './cachedData';
-import { addContacts } from './contactActions';
+import { addContacts, updateContactMetadata } from './contactActions';
 import {
   addChannelToNavSection,
   moveChannel,
@@ -270,12 +270,33 @@ export const syncSystemContacts = async (ctx?: SyncCtx) => {
 };
 
 export const syncContactDiscovery = async (ctx?: SyncCtx) => {
+  logger.log('syncContactDiscovery: starting');
+  const currentUserId = api.getCurrentUserId();
+  const currentUserAttestations = await db.getUserAttestations({
+    userId: currentUserId,
+  });
+  logger.log('got current user attestations', currentUserAttestations);
+  const hasPhoneAttestation = currentUserAttestations.some(
+    (attestation) => attestation.type === 'phone' && attestation.value
+  );
+  if (!hasPhoneAttestation) {
+    logger.log(
+      'syncContactDiscovery: skipping contact discovery since no phone attestation found'
+    );
+    logger.trackEvent(AnalyticsEvent.DebugSystemContacts, {
+      context: 'no phone attestation found, skipping discovery',
+    });
+    return;
+  }
   const systemContacts = await api.getSystemContacts();
   const phoneNumbers = systemContacts
     .map((contact) => contact.phoneNumber)
     .filter((phoneNumber) => phoneNumber && phoneNumber.length > 0) as string[];
 
   if (!phoneNumbers.length) {
+    logger.log(
+      'syncContactDiscovery: skipping contact discovery since no phone numbers found'
+    );
     logger.trackEvent(AnalyticsEvent.DebugSystemContacts, {
       context: 'no phone numbers found, skipping discovery',
     });
@@ -289,17 +310,50 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
       await syncQueue.add('discoverContacts', ctx, () =>
         api.discoverContacts(phoneNumbers)
       )
-    ).filter((match) => match[1] !== api.getCurrentUserId());
-    logger.log('got contact discovery matches', matches);
+    ).filter((match) => match[1] !== currentUserId);
+    logger.log('syncContactDiscovery: got contact discovery matches', matches);
 
-    await db.linkSystemContacts({ matches });
-    logger.log('inserted contact discovery matches', matches);
+    await db.linkSystemContacts({ matches }).catch((e) => {
+      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+        context: 'failed to link system contacts',
+        severity: AnalyticsSeverity.Critical,
+        error: e,
+      });
+    });
+    logger.log(
+      'syncContactDiscovery: inserted contact discovery matches',
+      matches
+    );
     const contactIds = matches.map((m) => m[1]);
-    await addContacts(contactIds);
-    logger.log('added contacts', contactIds);
+    await addContacts(contactIds).catch((e) => {
+      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+        context: 'failed to add contacts',
+        severity: AnalyticsSeverity.Critical,
+        error: e,
+      });
+    });
+    logger.log('syncContactDiscovery: added contacts', contactIds);
+    const newContacts = await db.getSystemContactsBatchByContactId(contactIds);
+
+    await Promise.all(
+      newContacts
+        .filter((c) => !!c.contactId)
+        .map((contact) =>
+          updateContactMetadata(contact.contactId!, {
+            nickname:
+              `${contact.firstName || ''} ${contact.lastName || ''}`.trim(),
+          })
+        )
+    ).catch((e) => {
+      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+        context: 'failed to update contact metadata',
+        severity: AnalyticsSeverity.Critical,
+        error: e,
+      });
+    });
   } catch (error) {
     logger.error('error discovering contacts', error);
-    logger.trackEvent(AnalyticsEvent.ErrorSystemContacts, {
+    logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
       context: 'failed to discover contacts',
       severity: AnalyticsSeverity.Critical,
       error,
