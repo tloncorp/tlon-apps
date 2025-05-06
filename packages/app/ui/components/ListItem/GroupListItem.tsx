@@ -12,7 +12,7 @@ import { ListItem, ListItemProps } from './ListItem';
 import { getGroupStatus, getPostTypeIcon } from './listItemUtils';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { useChatOptions } from '../../contexts';
+import { useChatOptions, useContact } from '../../contexts';
 
 export const GroupListItem = ({
   model,
@@ -28,8 +28,9 @@ export const GroupListItem = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const unreadCount = model.unread?.count ?? 0;
   const notified = model.unread?.notify ?? false;
-  const title = useGroupTitle(model);
   const { isPending, label: statusLabel, isErrored } = getGroupStatus(model);
+  const hostContact = useContact(model.hostUserId);
+  const title = useGroupTitle(model, hostContact);
 
   const handleHoverIn = useCallback(() => {
     if (isWeb) {
@@ -148,7 +149,8 @@ export const GroupListItem = ({
                   Group invitation
                 </ListItem.SubtitleWithIcon>
                 <ListItem.Subtitle>
-                  Hosted by <ContactName contactId={model.hostUserId} />
+                  Hosted by{' '}
+                  <ContactName contactId={model.hostUserId} numberOfLines={1} />
                 </ListItem.Subtitle>
               </>
             ) : null}

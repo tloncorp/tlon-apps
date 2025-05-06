@@ -12,15 +12,10 @@ import { useCallback } from 'react';
 import { useShip } from '../contexts/ship';
 import { cancelNodeResumeNudge } from '../lib/notifications';
 
-// Can't signup via the webapp, so this is commented out.
-// We might allow this in a desktop app in the future.
-// import { useSignupContext } from '../contexts/signup';
-
 const logger = createDevLogger('logout', true);
 
 export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
   const { clearShip } = useShip();
-  // const signupContext = useSignupContext();
 
   const handleLogout = useCallback(async () => {
     logger.info('Logging out');
@@ -28,6 +23,7 @@ export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
     store.removeClient();
     clearShip();
     clearSessionStorageItems();
+    store.updateSession(null);
     cancelNodeResumeNudge();
 
     // Clear Electron stored credentials if in Electron environment

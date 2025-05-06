@@ -1,5 +1,5 @@
-import { formatUv, parseUw } from '@urbit/aura';
-import { Atom, Cell, Noun, dwim, enjs } from '@urbit/nockjs';
+import { formatUv, formatUw, parseUw } from '@urbit/aura';
+import { Atom, Cell, Noun, dejs, dwim, enjs } from '@urbit/nockjs';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
@@ -58,6 +58,65 @@ export async function checkAttestedSignature(signData: string) {
     return Boolean(sigValidation.live && sigValidation.valid);
   }
   return false;
+}
+
+export async function discoverContacts(phoneNums: string[]) {
+  try {
+    const nums = diffContactBook(phoneNums);
+    // const lastSalt = formatUw('0');
+    const payload = ['whose-bulk', 0, nums.last, nums.add, nums.del];
+    const noun = dwim(payload);
+
+    const nonce = Math.floor(Math.random() * 1000000);
+    const encodedNonce = formatUv(BigInt(nonce));
+    const queryResponseSub = subscribeOnce<ub.WhoseBulkResponseEvent>(
+      {
+        app: 'lanyard',
+        path: `/v1/query/${encodedNonce}`,
+      },
+      undefined,
+      undefined,
+      { tag: 'discoverContacts' }
+    );
+
+    try {
+      await pokeNoun({ app: 'lanyard', mark: 'lanyard-query-1', noun });
+    } catch (e) {
+      console.error('contact discovery poke error', e);
+    }
+    const queryResponse = await queryResponseSub;
+    console.log(`bulk result`, queryResponse);
+
+    if (queryResponse) {
+      // return matches
+      const nextSalt = queryResponse.result?.['next-salt'];
+      const matches = queryResponse.result?.result
+        ? Object.entries(queryResponse.result.result).filter(([_key, value]) =>
+            Boolean(value)
+          )
+        : [];
+
+      return matches;
+    }
+
+    return [];
+  } catch (e) {
+    console.error('error discovering contacts', e);
+    throw e;
+  }
+}
+
+function diffContactBook(phoneNums: string[]) {
+  // TODO: diff last request
+  return {
+    last: toPhoneIdentifierSet([]),
+    add: toPhoneIdentifierSet(phoneNums),
+    del: toPhoneIdentifierSet([]),
+  };
+}
+
+function toPhoneIdentifierSet(phoneNumbers: string[]) {
+  return dejs.set(phoneNumbers.map((num) => ['phone', num]));
 }
 
 function nounToClientRecords(noun: Noun, contactId: string): db.Attestation[] {
@@ -279,7 +338,7 @@ export async function initiateTwitterAttestation(twitterHandle: string) {
   }
 }
 
-export async function updateAttestationVisibility({
+export async function updateAttestationDiscoverability({
   visibility,
   value,
   type,
@@ -288,22 +347,8 @@ export async function updateAttestationVisibility({
   type: db.AttestationType;
   visibility: db.AttestationDiscoverability;
 }) {
-  let backendVisibility = 'hidden';
-  switch (visibility) {
-    case 'discoverable':
-      backendVisibility = 'verified';
-      break;
-    case 'public':
-      backendVisibility = 'public';
-      break;
-    case 'hidden':
-    default:
-      backendVisibility = 'hidden';
-      break;
-  }
-
   const identifier = [type, value.toLowerCase()];
-  const config = [backendVisibility];
+  const config = [visibility];
   const command = [null, ['config', identifier, config]];
 
   const noun = dwim(command);
@@ -315,7 +360,7 @@ export async function updateAttestationVisibility({
         return false;
       }
 
-      if (event.config.config.discoverable === backendVisibility) {
+      if (event.config.config.discoverable === visibility) {
         return true;
       }
 

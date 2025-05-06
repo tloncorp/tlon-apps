@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useMemo, useState } from 'react';
 
 interface GlobalSearchContextType {
   isOpen: boolean;
@@ -21,11 +21,13 @@ export function GlobalSearchProvider({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [lastOpenTab, setLastOpenTab] = useState<'Home' | 'Messages'>('Home');
+  const providerValue = useMemo(
+    () => ({ isOpen, setIsOpen, lastOpenTab, setLastOpenTab }),
+    [isOpen, setIsOpen, lastOpenTab, setLastOpenTab]
+  );
 
   return (
-    <GlobalSearchContext.Provider
-      value={{ isOpen, setIsOpen, lastOpenTab, setLastOpenTab }}
-    >
+    <GlobalSearchContext.Provider value={providerValue}>
       {children}
     </GlobalSearchContext.Provider>
   );

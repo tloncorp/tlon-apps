@@ -253,7 +253,7 @@ function convertTopLevelInline(verse: ub.VerseInline): BlockData[] {
     (!verse.inline[1] || ub.isBreak(verse.inline[1])) &&
     typeof verse.inline[0] === 'string' &&
     verse.inline[0].length < 12 &&
-    utils.containsOnlyEmoji(verse.inline[0])
+    utils.containsOnlyEmoji(verse.inline[0].trim())
   ) {
     return [
       {
@@ -299,16 +299,10 @@ function extractEmbedsFromInlines(inlines: ub.Inline[]): BlockData[] {
       // Only create a paragraph if there's actual content
       if (!isOnlyWhitespace) {
         const convertedInlines = convertInlineContent(currentSegment);
-
-        // Filter out empty text nodes or text nodes with only whitespace
-        const filteredInlines = convertedInlines.filter(
-          (inline) => !(inline.type === 'text' && inline.text.trim() === '')
-        );
-
-        if (filteredInlines.length) {
+        if (convertedInlines.length) {
           blocks.push({
             type: 'paragraph',
-            content: filteredInlines,
+            content: convertedInlines,
           });
         }
       }

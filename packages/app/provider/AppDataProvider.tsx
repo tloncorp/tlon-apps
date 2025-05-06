@@ -1,3 +1,4 @@
+import * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import { PropsWithChildren } from 'react';
 
@@ -13,10 +14,14 @@ import { AppDataContextProvider } from '../ui';
 export function AppDataProvider({
   webAppNeedsUpdate,
   triggerWebAppUpdate,
+  inviteSystemContacts,
   children,
 }: PropsWithChildren<{
   webAppNeedsUpdate?: boolean;
   triggerWebAppUpdate?: (returnToRoot?: boolean) => Promise<void>;
+  inviteSystemContacts?: (
+    params: domain.SystemContactInviteParams
+  ) => Promise<boolean>;
 }>) {
   const currentUserId = useCurrentUserId();
   const session = store.useCurrentSession();
@@ -34,6 +39,7 @@ export function AppDataProvider({
       session={session}
       webAppNeedsUpdate={webAppNeedsUpdate}
       triggerWebAppUpdate={triggerWebAppUpdate}
+      inviteSystemContacts={inviteSystemContacts}
     >
       {children}
     </AppDataContextProvider>

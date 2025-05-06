@@ -317,3 +317,8 @@ export const wayfindingProgress = createStorageItem<WayfindingProgress>({
     tappedChatInput: true,
   },
 });
+
+export const didDismissSystemContactsPrompt = createStorageItem<boolean>({
+  key: 'didDismissSystemContactsPrompt',
+  defaultValue: false,
+});

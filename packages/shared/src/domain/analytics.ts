@@ -25,6 +25,7 @@ export enum AnalyticsEvent {
   InitializedNewInvite = 'Initialized New Invite',
   DebugLogs = 'Debug Logs',
   DebugGroupCreate = 'Create Group Debug',
+  DebugAttestation = 'Attestation Debug',
   AppError = 'App Error',
   AuthenticatedNodeStopped = 'Node Stopped While Logged In',
   Scry = 'Scry',
@@ -56,6 +57,7 @@ export enum AnalyticsEvent {
   ActionContactEdited = 'Contact Edited',
   ActionUpdatedProfile = 'Updated Profile',
   ActionSendPost = 'Sent Post',
+  ActionForwardPost = 'Forwarded Post',
   ActionStartedDM = 'Started DM',
   ActionSendPostRetry = 'Retried Post Send',
   ActionHidePost = 'Hid Post',
@@ -96,6 +98,7 @@ export enum AnalyticsEvent {
   ActionVisitedChannel = 'Viewed Channel',
   ActionTappedChat = 'Tapped Chatlist Item',
   ActionJoinChannel = 'Joined Channel',
+  ActionMoveChannel = 'Moved Channel',
   ActionUpdateChannelWriters = 'Updated Channel Writers',
   ActionViewProfileGroup = 'Viewed Pinned Profile Group',
   ActionSelectActivityEvent = 'Tapped Activity Event',
@@ -105,10 +108,19 @@ export enum AnalyticsEvent {
   ActionInitiatePhoneAttest = 'Initiated Phone Attestation',
   ActionCheckAttestSig = 'Checked Attestation Signature',
   ActionRevokeAttestation = 'Revoked Attestation',
+  ActionUpdateAttestDiscoverability = 'Updated Attestation Discoverability',
   ActionConfirmPhoneAttest = 'Confirmed Phone Attestation',
   ActionGroupChannelSelected = 'Tapped group channel',
   ActionTappedPushNotif = 'Tapped Push Notification',
   ActionDeferredDeepLink = 'Installed with Deferred Deeplink Invite',
+  ActionContactBookSkipped = 'Skipped Syncing Contact Book',
+  ActionContactBookPermRequested = 'Contact Book Requesting Permission',
+  ActionContactBookPermGranted = 'Contact Book Permission Granted',
+  ActionContactBookPermDenied = 'Contact Book Permission Denied',
+  ActionContactBookInviteShown = 'Contact Book Invite Shown',
+  ActionContactBookInviteSent = 'Contact Book Invite Sent',
+  ActionCalmSettingsUpdate = 'Calm Settings Updated',
+  DebugSystemContacts = 'System Contacts Debug',
   GroupJoinComplete = 'Group Join Complete',
   PersonalInviteLinkReady = 'Personal Invite Link Ready',
   ErrorSendPost = 'Error Sending Post',
@@ -125,10 +137,14 @@ export enum AnalyticsEvent {
   ErrorNotificationService = 'Notification Service Error',
   ErrorCreateGroup = 'Error Creating Group',
   ErrorWayfinding = 'Wayfinding Error',
+  ErrorSystemContacts = 'System Contacts Error',
+  ErrorCalmSettingsUpdate = 'Error Updating Calm Settings',
+  ErrorApi = 'API Error',
 }
 
 export interface AnalyticsDigest {
   numContacts?: number | null;
+  numSystemContacts?: number | null;
   numGroups?: number | null;
   numGroupchats?: number | null;
   numGroupsHosted?: number | null;

@@ -28,7 +28,8 @@ export default function AttachmentSheet({
   const [cameraPermissionStatus, requestCameraPermission] =
     ImagePicker.useCameraPermissions();
 
-  const { attachAssets, clearAttachments } = useAttachmentContext();
+  const { attachAssets, clearAttachments, removeAttachment } =
+    useAttachmentContext();
 
   const placeholderAsset: ImagePicker.ImagePickerAsset = useMemo(
     () => ({
@@ -45,6 +46,15 @@ export default function AttachmentSheet({
     }),
     []
   );
+
+  const removePlaceholderAttachment = useCallback(() => {
+    const placeholderToRemove = {
+      type: 'image' as const,
+      file: { uri: 'placeholder-image-uri' } as ImagePicker.ImagePickerAsset,
+    };
+
+    removeAttachment(placeholderToRemove);
+  }, [removeAttachment]);
 
   const takePicture = useCallback(() => {
     // Close the sheet immediately
@@ -77,7 +87,7 @@ export default function AttachmentSheet({
           // Replace the placeholder with the real image data
           const realAsset = result.assets[0];
 
-          clearAttachments();
+          removePlaceholderAttachment();
           attachAssets([realAsset]);
           onAttach?.(result.assets);
         } else {
@@ -99,6 +109,7 @@ export default function AttachmentSheet({
     cameraPermissionStatus,
     requestCameraPermission,
     placeholderAsset,
+    removePlaceholderAttachment,
   ]);
 
   const pickImage = useCallback(() => {
@@ -132,7 +143,7 @@ export default function AttachmentSheet({
           // Replace the placeholder with the real image data
           const realAsset = result.assets[0];
 
-          clearAttachments();
+          removePlaceholderAttachment();
           attachAssets([realAsset]);
           onAttach?.(result.assets);
         } else {
@@ -155,6 +166,7 @@ export default function AttachmentSheet({
     mediaLibraryPermissionStatus,
     requestMediaLibraryPermission,
     placeholderAsset,
+    removePlaceholderAttachment,
   ]);
 
   const actionGroups: ActionGroup[] = useMemo(

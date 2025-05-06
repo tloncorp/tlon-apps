@@ -87,10 +87,36 @@ export async function sendPost({
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.ErrorSendPost, {
       errorMessage: e.message,
+      errorType: e.constructor?.name,
+      errorStack: e.stack,
+      errorDetails: JSON.stringify(e, Object.getOwnPropertyNames(e)),
     });
     logger.crumb('failed to send post');
-    console.error('Failed to send post', e);
-    await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
+    console.error('Failed to send post', {
+      message: e.message,
+      type: e.constructor?.name,
+      stack: e.stack,
+      fullError: e,
+    });
+
+    // Check if error is connection-related like "Aborted" or "Channel was reaped"
+    // In these cases, the server might have received the message even though
+    // the client didn't get the confirmation
+    const errorMsg = e.message?.toLowerCase() || '';
+    const isConnectionRelated =
+      errorMsg === 'aborted' ||
+      errorMsg.includes('channel was reaped') ||
+      errorMsg.includes('fetch timed out');
+
+    if (isConnectionRelated) {
+      logger.crumb('connection issue detected, marking for verification');
+      await db.updatePost({
+        id: cachePost.id,
+        deliveryStatus: 'needs_verification',
+      });
+    } else {
+      await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
+    }
   }
 }
 
@@ -151,6 +177,48 @@ export async function retrySendPost({
     console.error('Failed to retry send post', e);
     await db.updatePost({ id: post.id, deliveryStatus: 'failed' });
   }
+}
+
+export async function forwardPost({
+  postId,
+  channelId,
+}: {
+  postId: string;
+  channelId: string;
+}) {
+  logger.log('forwardPost', { postId, channelId });
+  logger.trackEvent(AnalyticsEvent.ActionForwardPost);
+
+  const post = await db.getPost({ postId });
+  if (!post) {
+    logger.trackError('Failed to forward post, unable to find original');
+    return;
+  }
+
+  const channel = await db.getChannel({ id: channelId });
+  if (!channel) {
+    logger.trackError('Failed to forward post, unable to find channel');
+    return;
+  }
+
+  const urbitReference = urbit.pathToCite(logic.getPostReferencePath(post));
+  if (!urbitReference) {
+    logger.trackError('Failed to forward post, unable to get reference path');
+    return;
+  }
+
+  return sendPost({
+    channel,
+    authorId: api.getCurrentUserId(),
+    content: [{ block: { cite: urbitReference } }],
+    metadata:
+      channel.type === 'notebook'
+        ? {
+            title:
+              post.title && post.title !== '' ? post.title : 'Forwarded post',
+          }
+        : undefined,
+  });
 }
 
 export async function editPost({
@@ -411,6 +479,62 @@ export async function addPostReaction(
     });
     // rollback optimistic update
     await db.deletePostReaction({ postId: post.id, contactId: currentUserId });
+  }
+}
+
+/**
+ * Verifies whether a post was actually delivered to the server.
+ * This is used for posts that are marked as 'needs_verification' due to connection issues.
+ *
+ * Uses authorId and sentAt to find matching posts on the server.
+ */
+export async function verifyPostDelivery(post: db.Post): Promise<boolean> {
+  logger.crumb('verifying post delivery', {
+    postId: post.id,
+    channelId: post.channelId,
+  });
+
+  if (post.deliveryStatus !== 'needs_verification') {
+    logger.crumb('post does not need verification', {
+      status: post.deliveryStatus,
+    });
+    return false;
+  }
+
+  try {
+    const response = await api.getChannelPosts({
+      channelId: post.channelId,
+      mode: 'newest',
+      count: 30,
+    });
+
+    const matchingServerPost = response.posts.find((serverPost) => {
+      if (serverPost.authorId !== post.authorId) return false;
+
+      if (serverPost.sentAt !== post.sentAt) return false;
+
+      return true;
+    });
+
+    if (matchingServerPost) {
+      logger.crumb('post verified as delivered', {
+        postId: post.id,
+        matchedWithId: matchingServerPost.id,
+      });
+
+      await db.updatePost({ id: post.id, deliveryStatus: 'sent' });
+      return true;
+    } else {
+      logger.crumb('post verified as not delivered', { postId: post.id });
+      await db.updatePost({ id: post.id, deliveryStatus: 'failed' });
+      return false;
+    }
+  } catch (e) {
+    logger.crumb('post verification inconclusive', {
+      postId: post.id,
+      error: e.message,
+    });
+    return false;
   }
 }
 

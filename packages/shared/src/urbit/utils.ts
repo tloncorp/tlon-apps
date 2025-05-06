@@ -213,7 +213,8 @@ export function getChannelKindFromType(
   }
 }
 
-export function getTextContent(story?: PostContent) {
+export function getTextContent(story: PostContent): string;
+export function getTextContent(story?: PostContent): string | undefined {
   if (!story) {
     return;
   }

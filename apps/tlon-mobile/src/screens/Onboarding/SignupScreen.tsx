@@ -21,7 +21,11 @@ import {
   YStack,
 } from '@tloncorp/app/ui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  AnalyticsSeverity,
+  createDevLogger,
+} from '@tloncorp/shared';
 import { HostingError } from '@tloncorp/shared/api';
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -110,7 +114,9 @@ export const SignupScreen = ({ navigation }: Props) => {
         priorityToken: signupParams.priorityToken,
       });
       if (!enabled) {
-        logger.trackError(AnalyticsEvent.InvitedUserFailedInventoryCheck);
+        logger.trackError(AnalyticsEvent.InvitedUserFailedInventoryCheck, {
+          severity: AnalyticsSeverity.Critical,
+        });
         navigation.navigate('JoinWaitList', {});
         return;
       }

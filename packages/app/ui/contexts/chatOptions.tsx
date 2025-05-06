@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/shared/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
@@ -15,6 +16,7 @@ import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { ChatOptionsSheet } from '../components/ChatOptionsSheet';
+import { InviteUsersSheet } from '../components/InviteUsersSheet';
 import { useChannelTitle } from '../utils';
 
 export type ChatOptionsContextValue = {
@@ -59,7 +61,7 @@ const defaultValue: ChatOptionsContextValue = {
   onPressChannelTemplate: () => {},
   onPressChatDetails: () => {},
   togglePinned: () => {},
-  leaveGroup: async () => {}, 
+  leaveGroup: async () => {},
   leaveChannel: () => {},
   updateVolume: () => {},
   setChannelSortPreference: () => {},
@@ -123,6 +125,7 @@ export const ChatOptionsProvider = ({
   onPressConfigureChannel,
 }: ChatOptionsProviderProps) => {
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [inviteSheetOpen, setInviteSheetOpen] = useState(false);
   const [chat, setChat] = useState<{
     id: string;
     type: 'group' | 'channel';
@@ -139,6 +142,10 @@ export const ChatOptionsProvider = ({
     },
     []
   );
+
+  const closeInviteSheet = useCallback(() => {
+    setInviteSheetOpen(false);
+  }, []);
 
   const closeSheet = useCallback(() => {
     setSheetOpen(false);
@@ -274,7 +281,12 @@ export const ChatOptionsProvider = ({
 
   const handlePressInvite = useCallback(() => {
     if (groupId) {
-      onPressInvite?.(groupId);
+      if (onPressInvite) {
+        onPressInvite?.(groupId);
+      } else {
+        // if not handled by the parent, open built in invite sheet
+        setInviteSheetOpen(true);
+      }
       closeSheet();
     }
   }, [closeSheet, groupId, onPressInvite]);
@@ -400,19 +412,27 @@ export const ChatOptionsProvider = ({
     <ChatOptionsContext.Provider value={contextValue}>
       {children}
       {isWindowNarrow && (
-        <ChatOptionsSheet
-          open={sheetOpen && (chat?.type === 'channel' ? !!channel : !!group)}
-          onOpenChange={setSheetOpen}
-          chat={chat}
-          onPressConfigureChannel={
-            onPressConfigureChannel == null
-              ? undefined
-              : () => {
-                  onPressConfigureChannel();
-                  setSheetOpen(false);
-                }
-          }
-        />
+        <>
+          <ChatOptionsSheet
+            open={sheetOpen && (chat?.type === 'channel' ? !!channel : !!group)}
+            onOpenChange={setSheetOpen}
+            chat={chat}
+            onPressConfigureChannel={
+              onPressConfigureChannel == null
+                ? undefined
+                : () => {
+                    onPressConfigureChannel();
+                    setSheetOpen(false);
+                  }
+            }
+          />
+          <InviteUsersSheet
+            open={inviteSheetOpen}
+            onOpenChange={closeInviteSheet}
+            onInviteComplete={() => closeInviteSheet()}
+            groupId={groupId}
+          />
+        </>
       )}
     </ChatOptionsContext.Provider>
   );

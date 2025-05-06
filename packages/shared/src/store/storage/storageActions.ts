@@ -20,6 +20,10 @@ import {
 const logger = createDevLogger('storageActions', false);
 
 export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
+  if (asset.uri === 'placeholder-image-uri') {
+    logger.log('placeholder image, skipping upload');
+    return;
+  }
   logger.crumb(
     'uploading asset',
     asset.mimeType,
