@@ -380,7 +380,7 @@ export const insertSystemContacts = createWriteQuery(
           .values(batch)
           .onConflictDoUpdate({
             target: [$systemContacts.id],
-            set: conflictUpdateSetAll($systemContacts),
+            set: conflictUpdateSetAll($systemContacts, ['contactId']),
           });
         logger.trackEvent(domain.AnalyticsEvent.DebugSystemContacts, {
           context: 'inserted system contacts batch',
