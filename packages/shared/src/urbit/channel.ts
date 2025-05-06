@@ -5,8 +5,8 @@ import BTree from 'sorted-btree';
 
 import { Stringified } from '../utils';
 import { Inline } from './content';
-import { GroupMeta } from './groups';
 import { Flag } from './hark';
+import { Metadata } from './meta';
 
 export interface CacheId {
   author: string;
@@ -101,7 +101,7 @@ export interface LinkBlock {
       image?: string;
       ['site-name']?: string;
       ['site-icon']?: string;
-    };
+    } & Record<string, string>;
   };
 }
 
@@ -209,7 +209,7 @@ export interface PostEssay1 {
   sent: number;
   kind: string;
   blob: string | null;
-  meta: any; // ?
+  meta: Metadata | null;
 }
 
 export type Post = {
@@ -804,4 +804,4 @@ export type ChannelHead = {
 
 export type ChannelHeadsResponse = ChannelHead[];
 
-export type ChannelHooksPreview = { name: string; meta: GroupMeta }[];
+export type ChannelHooksPreview = { name: string; meta: Metadata }[];

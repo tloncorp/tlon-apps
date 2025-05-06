@@ -31,3 +31,4 @@ export * from './storage';
 export * from './vitals';
 export * from './lanyard';
 export * from './metagrab';
+export * from './meta';
