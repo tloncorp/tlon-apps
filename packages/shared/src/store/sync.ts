@@ -17,9 +17,8 @@ import {
 import { createBatchHandler, createHandler } from './bufferedSubscription';
 import * as LocalCache from './cachedData';
 import {
-  addChannelToNavSection,
-  moveChannel,
   recoverPartiallyCreatedPersonalGroup,
+  updateChannelSections,
 } from './groupActions';
 import { verifyUserInviteLink } from './inviteActions';
 import { useLureState } from './lure';
@@ -838,20 +837,18 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
       break;
     case 'moveChannel':
       logger.log('moving channel', update);
-      await moveChannel({
-        channelId: update.channelId,
-        groupId: update.groupId,
+      await updateChannelSections({
+        ...update,
         navSectionId: update.sectionId,
-        index: update.index,
       });
       break;
     case 'addChannelToNavSection':
       logger.log('adding channel to nav section', update);
 
-      await addChannelToNavSection({
+      await db.addChannelToNavSection({
         channelId: update.channelId,
-        groupId: update.groupId,
-        navSectionId: update.sectionId,
+        groupNavSectionId: update.sectionId,
+        index: 0,
       });
       break;
     case 'setUnjoinedGroups':
