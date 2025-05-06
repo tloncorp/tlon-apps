@@ -837,17 +837,9 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
       break;
     case 'moveChannel':
       logger.log('moving channel', update);
-      // eslint-disable-next-line
-      const existingGroup = await db.getGroup({ id: update.groupId });
-      if (!existingGroup) {
-        logger.error('Group not found');
-        return;
-      }
       await updateChannelSections({
-        channelId: update.channelId,
-        group: existingGroup,
+        ...update,
         navSectionId: update.sectionId,
-        index: update.index,
       });
       break;
     case 'addChannelToNavSection':
