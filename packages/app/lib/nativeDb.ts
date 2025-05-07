@@ -17,6 +17,7 @@ export class NativeDb extends BaseDb {
   private connection: SQLiteConnection | null = null;
   private isProcessingChanges: boolean = false;
   private changesPending: boolean = false;
+  private didMigrate: boolean = false;
 
   async setupDb() {
     if (this.connection || this.client) {
@@ -87,6 +88,10 @@ export class NativeDb extends BaseDb {
   }
 
   async runMigrations() {
+    if (this.didMigrate) {
+      return;
+    }
+
     if (!this.client || !this.connection) {
       logger.warn('runMigrations called before setupDb, ignoring');
       return;
@@ -95,6 +100,7 @@ export class NativeDb extends BaseDb {
     try {
       await this.connection?.migrateClient(this.client!);
       this.connection?.execute(TRIGGER_SETUP);
+      this.didMigrate = true;
       return;
     } catch (e) {
       logger.log('migrations failed, purging db and retrying', e);
@@ -102,6 +108,7 @@ export class NativeDb extends BaseDb {
     await this.purgeDb();
     await this.connection?.migrateClient(this.client!);
     logger.log("migrations succeeded after purge, shouldn't happen often");
+    this.didMigrate = true;
   }
 }
 
