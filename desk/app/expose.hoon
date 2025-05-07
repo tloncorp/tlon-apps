@@ -16,6 +16,7 @@
 +$  state-2
   $:  %2
       open=(set cite:c)
+      eager=?
   ==
 ::
 +$  action
@@ -157,7 +158,7 @@
     :~  [%pass /contacts/news %agent [our.bowl %contacts] %leave ~]
         [%pass /contacts/news %agent [our.bowl %contacts] %watch /v1/news]
     ==
-  =?  old  ?=(%1 -.old)  old(- %2)
+  =?  old  ?=(%1 -.old)  [%2 open.old &]
   ?>  ?=(%2 -.old)
   =.  state  old
   =.  caz
@@ -191,6 +192,9 @@
   ?+  mark  !!
       %noun
     ?+  q.vase  !!
+        [%eager eager=?]
+      [~ this(eager eager.q.vase)]
+    ::
         [?(%show %hide) *]
       =+  !<(act=action vase)
       ?-  -.act
@@ -393,9 +397,10 @@
       ::
           %peer
         ::  someone else's contact details changed. if they have any pinned
-        ::  posts, pre-fetch those to prime the cache.
+        ::  posts, and we're eager, pre-fetch those to prime the cache.
         ::
         :_  this
+        ?.  eager  ~
         ?~  piz=(~(get by con.response) %expose-cites)
           ~
         ?.  ?=(%set -.u.piz)  ~
