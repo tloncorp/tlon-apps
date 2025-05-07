@@ -364,42 +364,48 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
     triggerHaptic('success');
   }, [doCopy]);
 
+  const primaryNameProps = props.hasNickname
+    ? { mode: 'nickname' as const, color: '$primaryText' }
+    : { mode: 'contactId' as const };
+
   return (
     <Pressable width="100%" onPress={handleCopy}>
       <XStack alignItems="center" padding="$l" gap="$xl" width={'100%'}>
         <ContactAvatar contactId={props.userId} size="$5xl" />
         <YStack flex={1} justifyContent="center">
-          {props.hasNickname ? (
-            <>
-              <ContactName
-                contactId={props.userId}
-                color="$primaryText"
-                mode="nickname"
-                fontSize={24}
-                lineHeight={24}
-                maxWidth="100%"
-                numberOfLines={1}
-              />
-              <XStack alignItems="center">
-                <Text color="$secondaryText">
-                  <ContactName contactId={props.userId} mode="contactId" />
-                </Text>
-                {didCopy ? (
+          <ContactName
+            contactId={props.userId}
+            fontSize={24}
+            lineHeight={32}
+            maxWidth="100%"
+            numberOfLines={1}
+            {...primaryNameProps}
+          />
+          {(props.hasNickname || didCopy) && (
+            <XStack alignItems="center">
+              {didCopy ? (
+                <>
                   <Icon
                     type="Checkmark"
                     customSize={[14, 14]}
                     position="relative"
                     top={1}
+                    color="$secondaryText"
                   />
-                ) : null}
-              </XStack>
-            </>
-          ) : (
-            <ContactName
-              fontSize={24}
-              lineHeight={24}
-              contactId={props.userId}
-            />
+                  <Text color="$secondaryText">Copied!</Text>
+                </>
+              ) : (
+                props.hasNickname && (
+                  <Text color="$secondaryText">
+                    <ContactName
+                      contactId={props.userId}
+                      mode="contactId"
+                      expandLongIds
+                    />
+                  </Text>
+                )
+              )}
+            </XStack>
           )}
         </YStack>
       </XStack>

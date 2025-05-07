@@ -34,7 +34,7 @@ CREATE TABLE `attestations` (
 	`type` text NOT NULL,
 	`value` text,
 	`initiated_at` integer,
-	`visibility` text NOT NULL,
+	`discoverability` text NOT NULL,
 	`status` text NOT NULL,
 	`status_message` text,
 	`contact_id` text NOT NULL,
@@ -151,7 +151,8 @@ CREATE TABLE `contacts` (
 	`coverImage` text,
 	`blocked` integer,
 	`isContact` integer,
-	`isContactSuggestion` integer
+	`isContactSuggestion` integer,
+	`systemContactId` text
 );
 --> statement-breakpoint
 CREATE TABLE `group_flagged_posts` (
@@ -220,7 +221,7 @@ CREATE TABLE `group_rank_bans` (
 );
 --> statement-breakpoint
 CREATE TABLE `group_roles` (
-	`id` text,
+	`id` text NOT NULL,
 	`group_id` text,
 	`icon_image` text,
 	`icon_image_color` text,
@@ -356,6 +357,22 @@ CREATE TABLE `settings` (
 	`activity_seen_timestamp` integer,
 	`completed_wayfinding_splash` integer,
 	`completed_wayfinding_tutorial` integer
+);
+--> statement-breakpoint
+CREATE TABLE `system_contact_sent_invites` (
+	`invited_to` text,
+	`system_contact_id` text,
+	`invited_at` integer,
+	PRIMARY KEY(`invited_to`, `system_contact_id`)
+);
+--> statement-breakpoint
+CREATE TABLE `system_contacts` (
+	`id` text PRIMARY KEY NOT NULL,
+	`first_name` text,
+	`last_name` text,
+	`phone_number` text,
+	`email` text,
+	`contact_id` text
 );
 --> statement-breakpoint
 CREATE TABLE `thread_unreads` (

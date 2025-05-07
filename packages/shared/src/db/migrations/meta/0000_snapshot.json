@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "3303be3f-f219-4db0-b80f-dc73fc170656",
+  "id": "d5572741-b7ba-4c33-84be-5fd69e8f4885",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -245,8 +245,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "visibility": {
-          "name": "visibility",
+        "discoverability": {
+          "name": "discoverability",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -1018,6 +1018,13 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "systemContactId": {
+          "name": "systemContactId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {},
@@ -1472,7 +1479,7 @@
           "name": "id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "group_id": {
@@ -2364,6 +2371,97 @@
         "completed_wayfinding_tutorial": {
           "name": "completed_wayfinding_tutorial",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "system_contact_sent_invites": {
+      "name": "system_contact_sent_invites",
+      "columns": {
+        "invited_to": {
+          "name": "invited_to",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "system_contact_id": {
+          "name": "system_contact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "invited_at": {
+          "name": "invited_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "system_contact_sent_invites_invited_to_system_contact_id_pk": {
+          "columns": [
+            "invited_to",
+            "system_contact_id"
+          ],
+          "name": "system_contact_sent_invites_invited_to_system_contact_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "system_contacts": {
+      "name": "system_contacts",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "first_name": {
+          "name": "first_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_name": {
+          "name": "last_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "phone_number": {
+          "name": "phone_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "contact_id": {
+          "name": "contact_id",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false

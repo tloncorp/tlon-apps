@@ -38,6 +38,11 @@ export type MentionInlineData = {
   contactId: string;
 };
 
+export type GroupMentionInlineData = {
+  type: 'groupMention';
+  group: 'all' | string;
+};
+
 export type LineBreakInlineData = {
   type: 'lineBreak';
 };
@@ -58,6 +63,7 @@ export type InlineData =
   | StyleInlineData
   | TextInlineData
   | MentionInlineData
+  | GroupMentionInlineData
   | LineBreakInlineData
   | LinkInlineData
   | TaskInlineData;
@@ -253,7 +259,7 @@ function convertTopLevelInline(verse: ub.VerseInline): BlockData[] {
     (!verse.inline[1] || ub.isBreak(verse.inline[1])) &&
     typeof verse.inline[0] === 'string' &&
     verse.inline[0].length < 12 &&
-    utils.containsOnlyEmoji(verse.inline[0])
+    utils.containsOnlyEmoji(verse.inline[0].trim())
   ) {
     return [
       {
@@ -456,6 +462,11 @@ function convertInlineContent(inlines: ub.Inline[]): InlineData[] {
       nodes.push({
         type: 'mention',
         contactId: inline.ship,
+      });
+    } else if (ub.isSect(inline)) {
+      nodes.push({
+        type: 'groupMention',
+        group: !inline.sect ? 'all' : inline.sect,
       });
     } else if (ub.isTask(inline)) {
       nodes.push({

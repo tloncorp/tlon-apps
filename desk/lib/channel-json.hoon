@@ -532,6 +532,8 @@
     ::
         %ship  s/(scot %p p.i)
     ::
+        %sect  ?~(p.i ~ s+p.i)
+    ::
         ?(%code %tag %inline-code)
       s+p.i
     ::
@@ -1390,6 +1392,7 @@
         strike/(ar inline)
         blockquote/(ar inline)
         ship/ship
+        sect/(maybe (se %tas))
         inline-code/so
         code/so
         tag/so
@@ -1425,5 +1428,9 @@
     :~  hide/(se %ud)
         show/(se %ud)
     ==
+  ++  maybe
+    |*  wit=fist
+    |=  jon=json
+    ?~(jon ~ (wit jon))
   --
 --

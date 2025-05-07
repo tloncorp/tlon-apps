@@ -39,7 +39,7 @@ export function InviteFriendsToTlonButton({
 
   useEffect(() => {
     logger.trackEvent('Invite Button Shown', { group: group?.id });
-  }, []);
+  }, [group?.id]);
 
   const handleInviteButtonPress = useCallback(async () => {
     if (shareUrl && status === 'ready' && group) {
@@ -73,16 +73,23 @@ export function InviteFriendsToTlonButton({
 
   useEffect(() => {
     const enableLinks = async () => {
-      if (!group) return;
-      await enableGroupLinks(group.id);
+      if (!group?.id) return;
+      try {
+        await enableGroupLinks(group.id);
+        logger.trackEvent(AnalyticsEvent.InviteDebug, {
+          group: group?.id,
+          context: 'enabled group on %grouper',
+        });
+      } catch (e) {
+        logger.trackEvent(AnalyticsEvent.InviteError, {
+          context: 'failed to enable group link',
+          groupId: group.id,
+          error: e,
+        });
+      }
     };
-
-    logger.trackEvent(AnalyticsEvent.InviteDebug, {
-      group: group?.id,
-      context: 'invite button: disabled and isAdmin, enabling',
-    });
     enableLinks();
-  }, [group]);
+  }, [group?.id]);
 
   if (
     (group?.privacy === 'private' || group?.privacy === 'secret') &&

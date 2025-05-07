@@ -9,6 +9,7 @@ import {
   ChannelStatus,
   NounPokeInterface,
   PokeInterface,
+  Thread,
   Urbit,
 } from '../http-api';
 import { desig, preSig } from '../urbit';
@@ -608,6 +609,24 @@ export async function scryNoun({ app, path }: { app: string; path: string }) {
     });
     throw new BadResponseError(res.status, body);
   }
+}
+
+export async function thread<T, R = any>(params: Thread<T>): Promise<R> {
+  if (!params.desk) {
+    throw new Error('Must supply desk to run thread from');
+  }
+
+  if (!config.client) {
+    throw new Error('Cannot call thread before client is initialized');
+  }
+
+  const response = await config.client.thread<T>(params);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new BadResponseError(response.status, errorText);
+  }
+
+  return response.json();
 }
 
 // Remove any identifiable information from path

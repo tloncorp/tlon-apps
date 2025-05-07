@@ -14,6 +14,7 @@ import {
 import * as db from '../db';
 import * as domain from '../domain';
 import * as ub from '../urbit';
+import { Stringified } from '../utils';
 
 export { isDmChannelId, isGroupChannelId, isGroupDmChannelId };
 
@@ -310,7 +311,7 @@ export function extractBlocksFromContent(story: api.PostContent): ub.Block[] {
 }
 
 export const extractContentTypes = (
-  content: string | api.PostContent
+  content: Stringified<api.PostContent> | api.PostContent
 ): {
   inlines: ub.Inline[];
   references: api.ContentReference[];
@@ -334,7 +335,7 @@ export const extractContentTypesFromPost = (
   story: api.PostContent;
 } => {
   const { inlines, references, blocks, story } = extractContentTypes(
-    post.content as string
+    post.content as Stringified<api.PostContent>
   );
 
   return { inlines, references, blocks, story };
@@ -613,4 +614,8 @@ export function getModelAnalytics({
   }
 
   return details;
+}
+
+export function escapeRegExp(text: string): string {
+  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
 }

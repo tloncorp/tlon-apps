@@ -1,12 +1,12 @@
 import { formatUd, unixToDa } from '@urbit/aura';
 import { Poke } from '@urbit/http-api';
-import bigInt from 'big-integer';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as ub from '../urbit';
 import { Action, ChannelsAction, Posts } from '../urbit';
 import { stringToTa } from '../urbit/utils';
+import { Stringified } from '../utils';
 import {
   getCanonicalPostId,
   getChannelIdType,
@@ -14,11 +14,11 @@ import {
 } from './apiUtils';
 import { toPostData, toPostReplyData, toReactionsData } from './postsApi';
 import {
-  client,
   poke,
   scry,
   subscribe,
   subscribeOnce,
+  thread,
   trackedPoke,
 } from './urbit';
 
@@ -158,7 +158,7 @@ export const setupChannelFromTemplate = async (
   exampleChannelId: string,
   targetChannelId: string
 ) => {
-  return client.thread<string>({
+  return thread({
     desk: 'groups',
     inputMark: 'hook-setup-template-args',
     outputMark: 'json',

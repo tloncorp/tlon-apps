@@ -12,7 +12,6 @@ import { ScrollView } from 'react-native-gesture-handler';
 
 import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../../constants';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { useTelemetry } from '../../hooks/useTelemetry';
 import { getEasUpdateDisplay } from '../../lib/platformHelpers';
 import { RootStackParamList } from '../../navigation/types';
 import {
@@ -62,16 +61,7 @@ export function AppInfoScreen(props: Props) {
   } = useDebugStore();
   const easUpdateDisplay = useMemo(() => getEasUpdateDisplay(Updates), []);
   const [hasClients, setHasClients] = useState(true);
-  const telemetry = useTelemetry();
   const currentUserId = useCurrentUserId();
-  const [telemetryDisabled, setTelemetryDisabled] = useState(
-    telemetry.getIsOptedOut()
-  );
-
-  const toggleSetTelemetry = useCallback(() => {
-    setTelemetryDisabled(!telemetryDisabled);
-    telemetry.setDisabled(!telemetryDisabled);
-  }, [telemetryDisabled, telemetry]);
 
   useEffect(() => {
     async function checkClients() {
@@ -86,22 +76,25 @@ export function AppInfoScreen(props: Props) {
     checkClients();
   }, []);
 
-  const toggleDebugFlag = useCallback((enabled: boolean) => {
-    setDebugEnabled(enabled);
-    if (!enabled) {
-      return;
-    }
+  const toggleDebugFlag = useCallback(
+    (enabled: boolean) => {
+      setDebugEnabled(enabled);
+      if (!enabled) {
+        return;
+      }
 
-    Alert.alert(
-      'Debug mode enabled',
-      'Debug mode is now enabled. You may experience some degraded performance, because logs will be captured as you use the app. To get the best capture, you should kill the app and open it again.',
-      [
-        {
-          text: 'OK',
-        },
-      ]
-    );
-  }, []);
+      Alert.alert(
+        'Debug mode enabled',
+        'Debug mode is now enabled. You may experience some degraded performance, because logs will be captured as you use the app. To get the best capture, you should kill the app and open it again.',
+        [
+          {
+            text: 'OK',
+          },
+        ]
+      );
+    },
+    [setDebugEnabled]
+  );
 
   const onUploadLogs = useCallback(async () => {
     const id = uploadLogs();
@@ -118,7 +111,7 @@ export function AppInfoScreen(props: Props) {
       subject: `${currentUserId} uploaded logs ${id}`,
       body: makeDebugEmail(appInfo, platformInfo, currentUserId),
     });
-  }, [hasClients, currentUserId]);
+  }, [uploadLogs, hasClients, currentUserId]);
 
   return (
     <View flex={1} backgroundColor="$background">
@@ -200,24 +193,6 @@ export function AppInfoScreen(props: Props) {
               <Text>{logId}</Text>
             </YStack>
           )}
-
-          <YStack>
-            <XStack
-              justifyContent="space-between"
-              alignItems="center"
-              padding="$l"
-            >
-              <SizableText flexShrink={1}>Share Usage Statistics</SizableText>
-              <Switch
-                style={{ flexShrink: 0 }}
-                value={!telemetryDisabled}
-                onValueChange={toggleSetTelemetry}
-              ></Switch>
-            </XStack>
-            <SizableText size="$s" marginLeft="$l">
-              By sharing, you help us improve the app for everyone.
-            </SizableText>
-          </YStack>
         </YStack>
       </ScrollView>
     </View>

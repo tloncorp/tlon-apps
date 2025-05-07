@@ -719,13 +719,22 @@
   scam(scan (scan-1 scan.scam))
 ::
 ++  was-mentioned
-  |=  [=story:c who=ship]
+  |=  [=story:c who=ship vessel=(unit vessel:fleet:g)]
   ^-  ?
   %+  lien  story
   |=  =verse:c
   ?:  ?=(%block -.verse)  |
   %+  lien  p.verse
-  (cury test [%ship who])
+  |=  =inline:c
+  ?@  inline  |
+  ?+  -.inline  |
+    %ship  =(who p.inline)
+  ::
+      %sect
+    ?~  p.inline  &
+    ?~  vessel  |
+    (~(has in sects.u.vessel) p.inline)
+  ==
 ::
 ++  flatten
   |=  content=(list verse:c)
@@ -750,8 +759,13 @@
         ?(%code %inline-code)  ''
         %ship                  (scot %p p.c)
         %task                  (flatten [%inline q.c]~)
+    ::
         ?(%italics %bold %strike %blockquote)
       (flatten [%inline p.c]~)
+    ::
+        %sect
+      ?~  p.c  '@all'
+      (cat 3 '@' (scot %tas p.c))
     ==
   ==
 ::
@@ -962,6 +976,7 @@
     ?(%italics %bold %strike %blockquote)  (rap 3 (turn p.i flatten-inline))
     ?(%inline-code %code %tag)  p.i
     %ship   (scot %p p.i)
+    %sect  ?~(p.i '@all' (cat 3 '@' p.i))
     %block  q.i
     %link   q.i
     %task   (rap 3 (turn q.i flatten-inline))
@@ -1153,6 +1168,10 @@
     ::
         %ship
       ;span.ship:"{(scow %p p.inline)}"
+    ::
+        %sect
+      ?~  p.inline  ;span.sect:"@all"
+      ;span.sect:"@{<p.inline>}"
     ::
         %block
       ;span.block:"[block xx]"

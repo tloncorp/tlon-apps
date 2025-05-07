@@ -7,6 +7,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { storage } from '@tloncorp/shared/db';
 import { memo, useEffect, useMemo, useRef } from 'react';
 
+import { useNavigationLogging } from '../hooks/useNavigationLogger';
 import { useRenderCount } from '../hooks/useRenderCount';
 import { RootStack } from './RootStack';
 import { TopLevelDrawer } from './desktop/TopLevelDrawer';
@@ -39,6 +40,7 @@ export const BasePathNavigator = memo(({ isMobile }: { isMobile: boolean }) => {
     ? MobileBasePathStackNavigator
     : DesktopBasePathStackNavigator;
 
+  useNavigationLogging();
   const navStateIndex = useNavigationState((state) => state?.index);
   const navStateRoutes = useNavigationState((state) => state?.routes);
   const currentRoute = useMemo(

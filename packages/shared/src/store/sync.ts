@@ -8,16 +8,22 @@ import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { SETTINGS_SINGLETON_KEY } from '../db/schema';
 import { createDevLogger, runIfDev } from '../debug';
-import { AnalyticsEvent } from '../domain';
+import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
 import { extractClientVolumes } from '../logic/activity';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
 } from '../store/useActivityFetchers';
+import { createBatchHandler, createHandler } from './bufferedSubscription';
 import * as LocalCache from './cachedData';
-import { addChannelToNavSection, moveChannel } from './groupActions';
+import {
+  addChannelToNavSection,
+  moveChannel,
+  recoverPartiallyCreatedPersonalGroup,
+} from './groupActions';
 import { verifyUserInviteLink } from './inviteActions';
 import { useLureState } from './lure';
+import { verifyPostDelivery } from './postActions';
 import { Session, getSession, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
@@ -244,6 +250,24 @@ export const syncVolumeSettings = async (ctx?: SyncCtx) => {
   await db.setVolumes({ volumes: clientVolumes, deleteOthers: true });
 };
 
+export const syncSystemContacts = async (ctx?: SyncCtx) => {
+  const systemContacts = await api.getSystemContacts();
+  try {
+    await db.insertSystemContacts({ systemContacts });
+    logger.trackEvent(AnalyticsEvent.DebugSystemContacts, {
+      context: 'inserted system contacts',
+      numContacts: systemContacts.length,
+    });
+  } catch (error) {
+    logger.trackEvent(AnalyticsEvent.ErrorSystemContacts, {
+      context: 'failed to insert system contacts',
+      severity: AnalyticsSeverity.Critical,
+      numContacts: systemContacts.length,
+      error,
+    });
+  }
+};
+
 export const syncContacts = async (ctx?: SyncCtx, yieldWriter = false) => {
   const contacts = await syncQueue.add('contacts', ctx, () =>
     api.getContacts()
@@ -426,7 +450,11 @@ export async function syncThreadPosts(
 
 const groupSyncsInProgress = new Set<string>();
 
-export async function syncGroup(id: string, ctx?: SyncCtx) {
+export async function syncGroup(
+  id: string,
+  ctx?: SyncCtx,
+  config?: { force?: boolean }
+) {
   if (groupSyncsInProgress.has(id)) {
     return;
   }
@@ -434,7 +462,12 @@ export async function syncGroup(id: string, ctx?: SyncCtx) {
   try {
     const group = await db.getGroup({ id });
     const session = getSession();
-    if (group && session && (session.startTime ?? 0) < (group.syncedAt ?? 0)) {
+    if (
+      group &&
+      session &&
+      (session.startTime ?? 0) < (group.syncedAt ?? 0) &&
+      !config?.force
+    ) {
       return;
     }
     const response = await syncQueue.add('syncGroup', ctx, () =>
@@ -526,7 +559,7 @@ async function handleLanyardUpdate(update: api.LanyardUpdate) {
   }
 }
 
-async function handleGroupUpdate(update: api.GroupUpdate) {
+async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
   logger.log('received group update', update.type);
 
   let channelNavSection: db.GroupNavSectionChannel | null | undefined;
@@ -534,148 +567,202 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
 
   switch (update.type) {
     case 'addGroup':
-      await db.insertGroups({ groups: [update.group] });
+      await db.insertGroups({ groups: [update.group] }, ctx);
       break;
     case 'editGroup':
-      await db.updateGroup({ id: update.groupId, ...update.meta });
+      await db.updateGroup({ id: update.groupId, ...update.meta }, ctx);
       break;
     case 'deleteGroup':
-      await db.deleteGroup(update.groupId);
+      await db.deleteGroup(update.groupId, ctx);
       break;
     case 'inviteGroupMembers':
-      await db.addGroupInvites({
-        groupId: update.groupId,
-        contactIds: update.ships,
-      });
-      break;
-    case 'revokeGroupMemberInvites':
-      await db.deleteGroupInvites({
-        groupId: update.groupId,
-        contactIds: update.ships,
-      });
-      break;
-    case 'groupJoinRequest':
-      await db.addGroupJoinRequests({
-        groupId: update.groupId,
-        contactIds: update.ships,
-      });
-      break;
-    case 'revokeGroupJoinRequests':
-      await db.deleteGroupJoinRequests({
-        groupId: update.groupId,
-        contactIds: update.ships,
-      });
-      break;
-    case 'banGroupMembers':
-      await db.addGroupMemberBans({
-        groupId: update.groupId,
-        contactIds: update.ships,
-      });
-      await db.removeChatMembers({
-        chatId: update.groupId,
-        contactIds: update.ships,
-      });
-      break;
-    case 'unbanGroupMembers':
-      await db.deleteGroupMemberBans({
-        groupId: update.groupId,
-        contactIds: update.ships,
-      });
-      break;
-    case 'banAzimuthRanks':
-      await db.addGroupRankBans({
-        groupId: update.groupId,
-        ranks: update.ranks,
-      });
-      break;
-    case 'unbanAzimuthRanks':
-      await db.deleteGroupRankBans({
-        groupId: update.groupId,
-        ranks: update.ranks,
-      });
-      break;
-    case 'flagGroupPost':
-      await db.insertFlaggedPosts([
+      await db.addGroupInvites(
         {
           groupId: update.groupId,
-          channelId: update.channelId,
-          flaggedByContactId: update.flaggingUser,
-          postId: update.postId,
+          contactIds: update.ships,
         },
-      ]);
+        ctx
+      );
+      break;
+    case 'revokeGroupMemberInvites':
+      await db.deleteGroupInvites(
+        {
+          groupId: update.groupId,
+          contactIds: update.ships,
+        },
+        ctx
+      );
+      break;
+    case 'groupJoinRequest':
+      await db.addGroupJoinRequests(
+        {
+          groupId: update.groupId,
+          contactIds: update.ships,
+        },
+        ctx
+      );
+      break;
+    case 'revokeGroupJoinRequests':
+      await db.deleteGroupJoinRequests(
+        {
+          groupId: update.groupId,
+          contactIds: update.ships,
+        },
+        ctx
+      );
+      break;
+    case 'banGroupMembers':
+      await db.addGroupMemberBans(
+        {
+          groupId: update.groupId,
+          contactIds: update.ships,
+        },
+        ctx
+      );
+      await db.removeChatMembers(
+        {
+          chatId: update.groupId,
+          contactIds: update.ships,
+        },
+        ctx
+      );
+      break;
+    case 'unbanGroupMembers':
+      await db.deleteGroupMemberBans(
+        {
+          groupId: update.groupId,
+          contactIds: update.ships,
+        },
+        ctx
+      );
+      break;
+    case 'banAzimuthRanks':
+      await db.addGroupRankBans(
+        {
+          groupId: update.groupId,
+          ranks: update.ranks,
+        },
+        ctx
+      );
+      break;
+    case 'unbanAzimuthRanks':
+      await db.deleteGroupRankBans(
+        {
+          groupId: update.groupId,
+          ranks: update.ranks,
+        },
+        ctx
+      );
+      break;
+    case 'flagGroupPost':
+      await db.insertFlaggedPosts(
+        [
+          {
+            groupId: update.groupId,
+            channelId: update.channelId,
+            flaggedByContactId: update.flaggingUser,
+            postId: update.postId,
+          },
+        ],
+        ctx
+      );
       break;
     case 'setGroupAsOpen':
-      await db.updateGroup({ id: update.groupId, privacy: 'public' });
+      await db.updateGroup({ id: update.groupId, privacy: 'public' }, ctx);
       break;
     case 'setGroupAsShut':
-      group = await db.getGroup({ id: update.groupId });
+      group = await db.getGroup({ id: update.groupId }, ctx);
 
       if (group?.privacy !== 'secret') {
-        await db.updateGroup({ id: update.groupId, privacy: 'private' });
+        await db.updateGroup({ id: update.groupId, privacy: 'private' }, ctx);
       }
       break;
     case 'setGroupAsSecret':
-      await db.updateGroup({ id: update.groupId, privacy: 'secret' });
+      await db.updateGroup({ id: update.groupId, privacy: 'secret' }, ctx);
       break;
     case 'setGroupAsNotSecret':
-      group = await db.getGroup({ id: update.groupId });
-      await db.updateGroup({
-        id: update.groupId,
-        privacy: group?.privacy === 'public' ? 'public' : 'private',
-      });
+      group = await db.getGroup({ id: update.groupId }, ctx);
+      await db.updateGroup(
+        {
+          id: update.groupId,
+          privacy: group?.privacy === 'public' ? 'public' : 'private',
+        },
+        ctx
+      );
       break;
     case 'addGroupMembers':
-      await db.addChatMembers({
-        chatId: update.groupId,
-        contactIds: update.ships,
-        type: 'group',
-      });
+      await db.addChatMembers(
+        {
+          chatId: update.groupId,
+          contactIds: update.ships,
+          type: 'group',
+        },
+        ctx
+      );
       break;
     case 'removeGroupMembers':
-      await db.removeChatMembers({
-        chatId: update.groupId,
-        contactIds: update.ships,
-      });
+      await db.removeChatMembers(
+        {
+          chatId: update.groupId,
+          contactIds: update.ships,
+        },
+        ctx
+      );
       break;
     case 'addRole':
-      await db.addRole({
-        id: update.roleId,
-        groupId: update.groupId,
-        ...update.meta,
-      });
+      await db.addRole(
+        {
+          id: update.roleId,
+          groupId: update.groupId,
+          ...update.meta,
+        },
+        ctx
+      );
       break;
     case 'editRole':
-      await db.updateRole({
-        id: update.roleId,
-        groupId: update.groupId,
-        ...update.meta,
-      });
+      await db.updateRole(
+        {
+          id: update.roleId,
+          groupId: update.groupId,
+          ...update.meta,
+        },
+        ctx
+      );
       break;
     case 'deleteRole':
-      await db.deleteRole({ roleId: update.roleId, groupId: update.groupId });
+      await db.deleteRole(
+        { roleId: update.roleId, groupId: update.groupId },
+        ctx
+      );
       break;
     case 'addGroupMembersToRole': {
-      await db.addChatMembersToRoles({
-        groupId: update.groupId,
-        contactIds: update.ships,
-        roleIds: update.roles,
-      });
+      await db.addChatMembersToRoles(
+        {
+          groupId: update.groupId,
+          contactIds: update.ships,
+          roleIds: update.roles,
+        },
+        ctx
+      );
       await syncGroup(update.groupId);
       await syncUnreads();
       break;
     }
     case 'removeGroupMembersFromRole': {
-      await db.removeChatMembersFromRoles({
-        groupId: update.groupId,
-        contactIds: update.ships,
-        roleIds: update.roles,
-      });
+      await db.removeChatMembersFromRoles(
+        {
+          groupId: update.groupId,
+          contactIds: update.ships,
+          roleIds: update.roles,
+        },
+        ctx
+      );
       await syncGroup(update.groupId);
       await syncUnreads();
       break;
     }
     case 'addChannel': {
-      await db.insertChannels([update.channel]);
+      await db.insertChannels([update.channel], ctx);
       if (update.channel.groupId) {
         await syncGroup(update.channel.groupId);
         await syncUnreads();
@@ -683,7 +770,7 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
       break;
     }
     case 'updateChannel': {
-      await db.updateChannel(update.channel);
+      await db.updateChannel(update.channel, ctx);
       if (update.channel.groupId) {
         await syncGroup(update.channel.groupId);
         await syncUnreads();
@@ -691,48 +778,63 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
       break;
     }
     case 'deleteChannel':
-      channelNavSection = await db.getChannelNavSection({
-        channelId: update.channelId,
-      });
+      channelNavSection = await db.getChannelNavSection(
+        {
+          channelId: update.channelId,
+        },
+        ctx
+      );
 
       if (channelNavSection && channelNavSection.groupNavSectionId) {
-        await db.deleteChannelFromNavSection({
-          channelId: update.channelId,
-          groupNavSectionId: channelNavSection.groupNavSectionId,
-        });
+        await db.deleteChannelFromNavSection(
+          {
+            channelId: update.channelId,
+            groupNavSectionId: channelNavSection.groupNavSectionId,
+          },
+          ctx
+        );
       }
 
-      await db.deleteChannels([update.channelId]);
+      await db.deleteChannels([update.channelId], ctx);
       break;
     case 'joinChannel':
-      await db.addJoinedGroupChannel({ channelId: update.channelId });
+      await db.addJoinedGroupChannel({ channelId: update.channelId }, ctx);
       break;
     case 'leaveChannel':
-      await db.removeJoinedGroupChannel({ channelId: update.channelId });
+      await db.removeJoinedGroupChannel({ channelId: update.channelId }, ctx);
       break;
     case 'addNavSection':
       logger.log('adding nav section', update);
-      await db.addNavSectionToGroup({
-        id: update.navSectionId,
-        sectionId: update.sectionId,
-        groupId: update.groupId,
-        meta: update.clientMeta,
-      });
+      await db.addNavSectionToGroup(
+        {
+          id: update.navSectionId,
+          sectionId: update.sectionId,
+          groupId: update.groupId,
+          meta: update.clientMeta,
+        },
+        ctx
+      );
       break;
     case 'editNavSection':
-      await db.updateNavSection({
-        id: update.navSectionId,
-        ...update.clientMeta,
-      });
+      await db.updateNavSection(
+        {
+          id: update.navSectionId,
+          ...update.clientMeta,
+        },
+        ctx
+      );
       break;
     case 'deleteNavSection':
-      await db.deleteNavSection(update.navSectionId);
+      await db.deleteNavSection(update.navSectionId, ctx);
       break;
     case 'moveNavSection':
-      await db.updateNavSection({
-        id: update.navSectionId,
-        sectionIndex: update.index,
-      });
+      await db.updateNavSection(
+        {
+          id: update.navSectionId,
+          sectionIndex: update.index,
+        },
+        ctx
+      );
       break;
     case 'moveChannel':
       logger.log('moving channel', update);
@@ -753,7 +855,7 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
       });
       break;
     case 'setUnjoinedGroups':
-      await db.insertUnjoinedGroups(update.groups);
+      await db.insertUnjoinedGroups(update.groups, ctx);
       break;
     case 'unknown':
     default:
@@ -761,106 +863,102 @@ async function handleGroupUpdate(update: api.GroupUpdate) {
   }
 }
 
-const createActivityUpdateHandler = (queueDebounce: number = 100) => {
-  const queue: api.ActivityUpdateQueue = {
-    baseUnread: undefined,
-    groupUnreads: [],
-    channelUnreads: [],
-    threadUnreads: [],
-    volumeUpdates: [],
-    activityEvents: [],
-  };
-  const processQueue = _.debounce(
-    async () => {
-      const activitySnapshot = _.cloneDeep(queue);
-      queue.baseUnread = undefined;
-      queue.groupUnreads = [];
-      queue.channelUnreads = [];
-      queue.threadUnreads = [];
-      queue.volumeUpdates = [];
-      queue.activityEvents = [];
-
-      logger.log(
-        `processing activity queue`,
-        activitySnapshot.baseUnread,
-        activitySnapshot.groupUnreads.length,
-        activitySnapshot.channelUnreads.length,
-        activitySnapshot.threadUnreads.length,
-        activitySnapshot.volumeUpdates.length,
-        activitySnapshot.activityEvents.length
-      );
-      await batchEffects('activityUpdate', async (ctx) => {
-        if (activitySnapshot.baseUnread) {
-          await db.insertBaseUnread(activitySnapshot.baseUnread, ctx);
-        }
-        await db.insertGroupUnreads(activitySnapshot.groupUnreads, ctx);
-        await db.insertChannelUnreads(activitySnapshot.channelUnreads, ctx);
-        await db.insertThreadUnreads(activitySnapshot.threadUnreads, ctx);
-        await db.setVolumes({ volumes: activitySnapshot.volumeUpdates }, ctx);
-        await db.insertActivityEvents(activitySnapshot.activityEvents, ctx);
-      });
-
-      // if we inserted new activity, invalidate the activity page
-      // data loader
-      if (activitySnapshot.activityEvents.length > 0) {
-        api.queryClient.invalidateQueries({
-          queryKey: [INFINITE_ACTIVITY_QUERY_KEY],
-          refetchType: 'active',
-        });
+const handleActivityUpdate = async (
+  activityEvents: api.ActivityEvent[],
+  ctx: QueryCtx
+) => {
+  const activitySnapshot: api.ActivityUpdateQueue = activityEvents.reduce(
+    (memo, event) => {
+      switch (event.type) {
+        case 'updateBaseUnread':
+          memo.baseUnread = event.unread;
+          break;
+        case 'updateGroupUnread':
+          memo.groupUnreads.push(event.unread);
+          break;
+        case 'updateChannelUnread':
+          memo.channelUnreads.push(event.activity);
+          break;
+        case 'updateThreadUnread':
+          memo.threadUnreads.push(event.activity);
+          break;
+        case 'updateItemVolume':
+          memo.volumeUpdates.push(event.volumeUpdate);
+          break;
+        case 'addActivityEvent':
+          memo.activityEvents.push(...event.events);
+          break;
+        case 'updatePushNotificationsSetting':
+          db.pushNotificationSettings.setValue(event.value);
+          break;
       }
-      // check for any newly joined groups and channels
-      // WARNING -- removing this will break loading of initial channnels on
-      // group join. Shouldn't be the case, but here we are.
-      checkForNewlyJoined({
-        groupUnreads: activitySnapshot.groupUnreads,
-        channelUnreads: activitySnapshot.channelUnreads,
-      });
+      return memo;
     },
-    queueDebounce,
-    { leading: true, trailing: true }
+    {
+      baseUnread: undefined,
+      groupUnreads: [],
+      channelUnreads: [],
+      threadUnreads: [],
+      volumeUpdates: [],
+      activityEvents: [],
+    } as api.ActivityUpdateQueue
   );
 
-  return (event: api.ActivityEvent) => {
-    switch (event.type) {
-      case 'updateBaseUnread':
-        queue.baseUnread = event.unread;
-        break;
-      case 'updateGroupUnread':
-        queue.groupUnreads.push(event.unread);
-        break;
-      case 'updateChannelUnread':
-        queue.channelUnreads.push(event.activity);
-        break;
-      case 'updateThreadUnread':
-        queue.threadUnreads.push(event.activity);
-        break;
-      case 'updateItemVolume':
-        queue.volumeUpdates.push(event.volumeUpdate);
-        break;
-      case 'addActivityEvent':
-        queue.activityEvents.push(...event.events);
-        break;
-      case 'updatePushNotificationsSetting':
-        db.pushNotificationSettings.setValue(event.value);
-        break;
-    }
-    processQueue();
-  };
+  logger.log(
+    `processing activity queue`,
+    activitySnapshot.baseUnread,
+    activitySnapshot.groupUnreads.length,
+    activitySnapshot.channelUnreads.length,
+    activitySnapshot.threadUnreads.length,
+    activitySnapshot.volumeUpdates.length,
+    activitySnapshot.activityEvents.length
+  );
+
+  if (activitySnapshot.baseUnread) {
+    await db.insertBaseUnread(activitySnapshot.baseUnread, ctx);
+  }
+  await db.insertGroupUnreads(activitySnapshot.groupUnreads, ctx);
+  await db.insertChannelUnreads(activitySnapshot.channelUnreads, ctx);
+  await db.insertThreadUnreads(activitySnapshot.threadUnreads, ctx);
+  await db.setVolumes({ volumes: activitySnapshot.volumeUpdates }, ctx);
+  await db.insertActivityEvents(activitySnapshot.activityEvents, ctx);
+
+  // if we inserted new activity, invalidate the activity page
+  // data loader
+  if (activitySnapshot.activityEvents.length > 0) {
+    api.queryClient.invalidateQueries({
+      queryKey: [INFINITE_ACTIVITY_QUERY_KEY],
+      refetchType: 'active',
+    });
+  }
+  // check for any newly joined groups and channels
+  // WARNING -- removing this will break loading of initial channnels on
+  // group join. Shouldn't be the case, but here we are.
+  checkForNewlyJoined({
+    groupUnreads: activitySnapshot.groupUnreads,
+    channelUnreads: activitySnapshot.channelUnreads,
+  });
 };
 
-export const handleContactUpdate = async (update: api.ContactsUpdate) => {
+export const handleContactUpdate = async (
+  update: api.ContactsUpdate,
+  ctx?: QueryCtx
+) => {
   switch (update.type) {
     case 'upsertContact':
-      await db.upsertContact(update.contact);
+      await db.upsertContact(update.contact, ctx);
       break;
 
     case 'removeContact':
-      await db.updateContact({
-        id: update.contactId,
-        isContact: false,
-        customNickname: null,
-        customAvatarImage: null,
-      });
+      await db.updateContact(
+        {
+          id: update.contactId,
+          isContact: false,
+          customNickname: null,
+          customAvatarImage: null,
+        },
+        ctx
+      );
       break;
   }
 };
@@ -927,62 +1025,80 @@ export const handleStorageUpdate = async (update: api.StorageUpdate) => {
   }
 };
 
-export const handleSettingsUpdate = async (update: api.SettingsUpdate) => {
+export const handleSettingsUpdate = async (
+  update: api.SettingsUpdate,
+  ctx?: QueryCtx
+) => {
   switch (update.type) {
     case 'updateSetting':
-      await db.insertSettings({
-        id: SETTINGS_SINGLETON_KEY,
-        ...update.setting,
-      });
+      await db.insertSettings(
+        {
+          id: SETTINGS_SINGLETON_KEY,
+          ...update.setting,
+        },
+        ctx
+      );
       break;
   }
 };
 
-export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
+export const handleChannelsUpdate = async (
+  update: api.ChannelsUpdate,
+  ctx: QueryCtx
+) => {
   logger.log('event: channels update', update);
   switch (update.type) {
     case 'addPost':
-      await handleAddPost(update.post);
+      await handleAddPost(update.post, undefined, ctx);
       break;
     case 'updateWriters':
-      await db.updateChannel({
-        id: update.channelId,
-        writerRoles: update.writers.map((r) => ({
-          channelId: update.channelId,
-          roleId: r,
-        })),
-      });
+      await db.updateChannel(
+        {
+          id: update.channelId,
+          writerRoles: update.writers.map((r) => ({
+            channelId: update.channelId,
+            roleId: r,
+          })),
+        },
+        ctx
+      );
       break;
     case 'deletePost':
-      await db.markPostAsDeleted(update.postId);
-      await db.updateChannel({ id: update.channelId, lastPostId: null });
+      await db.markPostAsDeleted(update.postId, ctx);
+      await db.updateChannel({ id: update.channelId, lastPostId: null }, ctx);
       break;
     case 'hidePost':
-      await db.updatePost({ id: update.postId, hidden: true });
+      await db.updatePost({ id: update.postId, hidden: true }, ctx);
       break;
     case 'showPost':
-      await db.updatePost({ id: update.postId, hidden: false });
+      await db.updatePost({ id: update.postId, hidden: false }, ctx);
       break;
     case 'updateReactions':
-      await db.replacePostReactions({
-        postId: update.postId,
-        reactions: update.reactions,
-      });
+      await db.replacePostReactions(
+        {
+          postId: update.postId,
+          reactions: update.reactions,
+        },
+        ctx
+      );
       break;
     case 'markPostSent':
-      await db.updatePost({ id: update.cacheId, deliveryStatus: 'sent' });
+      await db.updatePost({ id: update.cacheId, deliveryStatus: 'sent' }, ctx);
       break;
     case 'joinChannelSuccess':
-      await db.addJoinedGroupChannel({ channelId: update.channelId });
+      await db.addJoinedGroupChannel({ channelId: update.channelId }, ctx);
       break;
     case 'leaveChannelSuccess':
-      await db.removeJoinedGroupChannel({ channelId: update.channelId });
+      await db.removeJoinedGroupChannel({ channelId: update.channelId }, ctx);
       break;
     case 'initialPostsOnChannelJoin':
-      await db.insertChannelPosts({
-        channelId: update.channelId,
-        posts: update.posts,
-      });
+      await db.insertChannelPosts(
+        {
+          channelId: update.channelId,
+          posts: update.posts,
+        },
+        ctx
+      );
       break;
     case 'unknown':
       logger.log('unknown channels update', update);
@@ -992,41 +1108,50 @@ export const handleChannelsUpdate = async (update: api.ChannelsUpdate) => {
   }
 };
 
-export const handleChatUpdate = async (update: api.ChatEvent) => {
+export const handleChatUpdate = async (
+  update: api.ChatEvent,
+  ctx: QueryCtx
+) => {
   logger.log('event: chat update', update);
 
   switch (update.type) {
     case 'showPost':
-      await db.updatePost({ id: update.postId, hidden: false });
+      await db.updatePost({ id: update.postId, hidden: false }, ctx);
       break;
     case 'hidePost':
-      await db.updatePost({ id: update.postId, hidden: true });
+      await db.updatePost({ id: update.postId, hidden: true }, ctx);
       break;
     case 'addPost':
-      await handleAddPost(update.post, update.replyMeta);
+      await handleAddPost(update.post, update.replyMeta, ctx);
       break;
     case 'deletePost':
-      await db.deletePosts({ ids: [update.postId] });
+      await db.deletePosts({ ids: [update.postId] }, ctx);
       break;
     case 'addReaction':
-      db.insertPostReactions({
-        reactions: [
-          {
-            postId: update.postId,
-            contactId: update.userId,
-            value: update.react,
-          },
-        ],
-      });
+      db.insertPostReactions(
+        {
+          reactions: [
+            {
+              postId: update.postId,
+              contactId: update.userId,
+              value: update.react,
+            },
+          ],
+        },
+        ctx
+      );
       break;
     case 'deleteReaction':
-      db.deletePostReaction({
-        postId: update.postId,
-        contactId: update.userId,
-      });
+      db.deletePostReaction(
+        {
+          postId: update.postId,
+          contactId: update.userId,
+        },
+        ctx
+      );
       break;
     case 'addDmInvites':
-      db.insertChannels(update.channels);
+      db.insertChannels(update.channels, ctx);
       break;
     case 'groupDmsUpdate':
       syncDms();
@@ -1038,7 +1163,8 @@ let lastAdded: string;
 
 export async function handleAddPost(
   post: db.Post,
-  replyMeta?: db.ReplyMeta | null
+  replyMeta?: db.ReplyMeta | null,
+  ctx?: QueryCtx
 ) {
   logger.log('event: add post', post);
   // We frequently get duplicate addPost events from the api,
@@ -1058,26 +1184,35 @@ export async function handleAddPost(
       authorId: post.authorId,
     });
     if (!cachedReply) {
-      await db.addReplyToPost({
-        parentId: post.parentId,
-        replyAuthor: post.authorId,
-        replyTime: post.sentAt,
-        replyMeta,
-      });
+      await db.addReplyToPost(
+        {
+          parentId: post.parentId,
+          replyAuthor: post.authorId,
+          replyTime: post.sentAt,
+          replyMeta,
+        },
+        ctx
+      );
     }
-    await db.insertChannelPosts({
-      channelId: post.channelId,
-      posts: [post],
-    });
+    await db.insertChannelPosts(
+      {
+        channelId: post.channelId,
+        posts: [post],
+      },
+      ctx
+    );
   } else {
     const older = channelCursors.get(post.channelId);
     addToChannelPosts(post, older);
     updateChannelCursor(post.channelId, post.id);
-    await db.insertChannelPosts({
-      channelId: post.channelId,
-      posts: [post],
-      older,
-    });
+    await db.insertChannelPosts(
+      {
+        channelId: post.channelId,
+        posts: [post],
+        older,
+      },
+      ctx
+    );
   }
 }
 
@@ -1261,6 +1396,34 @@ export const handleChannelStatusChange = async (status: ChannelStatus) => {
     api.checkExistingUserInviteLink();
   }
   updateSession({ channelStatus: status });
+
+  // Trigger verification for posts marked as 'needs_verification' when connection becomes active
+  if (status === 'active') {
+    logger.log('Connection active, verifying pending posts...');
+    db.getPostsByStatus({
+      deliveryStatus: 'needs_verification',
+    })
+      .then((postsToVerify) => {
+        if (postsToVerify.length > 0) {
+          logger.log(
+            `Found ${postsToVerify.length} posts needing verification.`
+          );
+          postsToVerify.forEach((post) => {
+            verifyPostDelivery(post).catch((err) => {
+              logger.error('Error during post verification:', {
+                postId: post.id,
+                error: err,
+              });
+            });
+          });
+        } else {
+          logger.log('No posts need verification.');
+        }
+      })
+      .catch((err) => {
+        logger.error('Error fetching posts needing verification:', err);
+      });
+  }
 };
 
 let isSyncing = false;
@@ -1275,150 +1438,148 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
   const startTime = Date.now();
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
 
-  let didLoadCachedContacts = false;
-
   try {
-    await batchEffects('sync start (high)', async (ctx) => {
-      // this allows us to run the api calls first in parallel but handle
-      // writing the data in a specific order
-      const yieldWriter = true;
+    let didLoadCachedContacts = false;
 
-      // first kickoff the fetching
-      const syncInitPromise = syncInitData(
-        { priority: SyncPriority.High, retry: true },
-        ctx,
-        yieldWriter
-      );
-      const syncLatestPostsPromise = syncLatestPosts(
-        {
-          priority: SyncPriority.High,
-          retry: true,
-        },
-        ctx,
-        yieldWriter
-      );
-      const subsPromise = alreadySubscribed
+    try {
+      await batchEffects('sync start (high)', async (ctx) => {
+        // this allows us to run the api calls first in parallel but handle
+        // writing the data in a specific order
+        const yieldWriter = true;
+
+        // first kickoff the fetching
+        const syncInitPromise = syncInitData(
+          { priority: SyncPriority.High, retry: true },
+          ctx,
+          yieldWriter
+        );
+        const syncLatestPostsPromise = syncLatestPosts(
+          {
+            priority: SyncPriority.High,
+            retry: true,
+          },
+          ctx,
+          yieldWriter
+        );
+        const subsPromise = alreadySubscribed
+          ? Promise.resolve()
+          : setupHighPrioritySubscriptions({
+              priority: SyncPriority.High - 1,
+            }).then(() => logger.crumb('subscribed high priority'));
+
+        didLoadCachedContacts = await LocalCache.loadCachedContacts();
+        // if we don't have cached contacts, we need to load them with high priority
+        const syncContactsPromise = didLoadCachedContacts
+          ? () => Promise.resolve()
+          : syncContacts(
+              { priority: SyncPriority.High, retry: true },
+              yieldWriter
+            );
+
+        const trackStep = (function () {
+          let last = Date.now();
+          return (event: AnalyticsEvent) => {
+            const now = Date.now();
+            logger.trackEvent(event, { duration: now - last });
+            last = now;
+          };
+        })();
+
+        // then enforce the ordering of writes to avoid race conditions
+        const initWriter = await syncInitPromise;
+        trackStep(AnalyticsEvent.InitDataFetched);
+        await initWriter();
+        trackStep(AnalyticsEvent.InitDataWritten);
+        logger.crumb('finished writing init data');
+
+        const latestPostsWriter = await syncLatestPostsPromise;
+        trackStep(AnalyticsEvent.LatestPostsFetched);
+        await latestPostsWriter();
+        trackStep(AnalyticsEvent.LatestPostsWritten);
+        logger.crumb('finished writing latest posts');
+
+        const contactsWriter = await syncContactsPromise;
+        await contactsWriter();
+
+        await subsPromise;
+        trackStep(AnalyticsEvent.SubscriptionsEstablished);
+        logger.crumb('finished initializing high priority subs');
+
+        logger.crumb(`finished high priority init sync`);
+        logger.trackEvent(AnalyticsEvent.SessionInitialized, {
+          duration: Date.now() - startTime,
+        });
+        updateSession({ startTime: Date.now() });
+      });
+    } catch (err) {
+      logger.trackError(AnalyticsEvent.ErrorSyncStartHighPriority, {
+        errorMessage: err.message,
+      });
+    }
+
+    const lowPriorityPromises = [
+      alreadySubscribed
         ? Promise.resolve()
-        : setupHighPrioritySubscriptions({
-            priority: SyncPriority.High - 1,
-          }).then(() => logger.crumb('subscribed high priority'));
+        : setupLowPrioritySubscriptions({
+            priority: SyncPriority.Medium,
+          }).then(() => logger.crumb('subscribed low priority')),
+      resetActivity({ priority: SyncPriority.Medium + 1, retry: true }).then(
+        () => logger.crumb(`finished resetting activity`)
+      ),
+      // if we had cached contacts, we refresh them here with low priority
+      didLoadCachedContacts
+        ? syncContacts({ priority: SyncPriority.Medium + 1, retry: true }).then(
+            () => logger.crumb(`finished syncing contacts`)
+          )
+        : Promise.resolve(),
+      syncSettings({ priority: SyncPriority.Medium }).then(() =>
+        logger.crumb(`finished syncing settings`)
+      ),
+      syncVolumeSettings({ priority: SyncPriority.Low }).then(() =>
+        logger.crumb(`finished syncing volume settings`)
+      ),
+      syncStorageSettings({ priority: SyncPriority.Low }).then(() =>
+        logger.crumb(`finished initializing storage`)
+      ),
+      syncPushNotificationsSetting({ priority: SyncPriority.Low }).then(() =>
+        logger.crumb(`finished syncing push notifications setting`)
+      ),
+      syncAppInfo({ priority: SyncPriority.Low }).then(() => {
+        logger.crumb(`finished syncing app info`);
+      }),
+      syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
+        logger.crumb(`finished channel predictive sync`);
+      }),
+      syncSystemContacts({ priority: SyncPriority.Low }).then(() => {
+        logger.crumb(`finished syncing system contacts`);
+      }),
+    ];
 
-      didLoadCachedContacts = await LocalCache.loadCachedContacts();
-      // if we don't have cached contacts, we need to load them with high priority
-      const syncContactsPromise = didLoadCachedContacts
-        ? () => Promise.resolve()
-        : syncContacts(
-            { priority: SyncPriority.High, retry: true },
-            yieldWriter
-          );
-
-      const trackStep = (function () {
-        let last = Date.now();
-        return (event: AnalyticsEvent) => {
-          const now = Date.now();
-          logger.trackEvent(event, { duration: now - last });
-          last = now;
-        };
-      })();
-
-      // then enforce the ordering of writes to avoid race conditions
-      const initWriter = await syncInitPromise;
-      trackStep(AnalyticsEvent.InitDataFetched);
-      await initWriter();
-      trackStep(AnalyticsEvent.InitDataWritten);
-      logger.crumb('finished writing init data');
-
-      const latestPostsWriter = await syncLatestPostsPromise;
-      trackStep(AnalyticsEvent.LatestPostsFetched);
-      await latestPostsWriter();
-      trackStep(AnalyticsEvent.LatestPostsWritten);
-      logger.crumb('finished writing latest posts');
-
-      const contactsWriter = await syncContactsPromise;
-      await contactsWriter();
-
-      await subsPromise;
-      trackStep(AnalyticsEvent.SubscriptionsEstablished);
-      logger.crumb('finished initializing high priority subs');
-
-      logger.crumb(`finished high priority init sync`);
-      logger.trackEvent(AnalyticsEvent.SessionInitialized, {
-        duration: Date.now() - startTime,
+    await Promise.all(lowPriorityPromises)
+      .then(() => {
+        logger.crumb(`finished low priority sync`);
+      })
+      .catch((e) => {
+        logger.trackError(AnalyticsEvent.ErrorSyncStartLowPriority, {
+          errorMessage: e.message,
+        });
       });
-      updateSession({ startTime: Date.now() });
-    });
-  } catch (err) {
-    logger.trackError(AnalyticsEvent.ErrorSyncStartHighPriority, {
-      errorMessage: err.message,
-    });
+
+    // post sync initialization work
+    await verifyUserInviteLink();
+    recoverPartiallyCreatedPersonalGroup();
+    db.userHasCompletedFirstSync.setValue(true);
+  } finally {
+    isSyncing = false;
   }
-
-  const lowPriorityPromises = [
-    alreadySubscribed
-      ? Promise.resolve()
-      : setupLowPrioritySubscriptions({
-          priority: SyncPriority.Medium,
-        }).then(() => logger.crumb('subscribed low priority')),
-    resetActivity({ priority: SyncPriority.Medium + 1, retry: true }).then(() =>
-      logger.crumb(`finished resetting activity`)
-    ),
-    // if we had cached contacts, we refresh them here with low priority
-    didLoadCachedContacts
-      ? syncContacts({ priority: SyncPriority.Medium + 1, retry: true }).then(
-          () => logger.crumb(`finished syncing contacts`)
-        )
-      : Promise.resolve(),
-    syncSettings({ priority: SyncPriority.Medium }).then(() =>
-      logger.crumb(`finished syncing settings`)
-    ),
-    syncVolumeSettings({ priority: SyncPriority.Low }).then(() =>
-      logger.crumb(`finished syncing volume settings`)
-    ),
-    syncStorageSettings({ priority: SyncPriority.Low }).then(() =>
-      logger.crumb(`finished initializing storage`)
-    ),
-    syncPushNotificationsSetting({ priority: SyncPriority.Low }).then(() =>
-      logger.crumb(`finished syncing push notifications setting`)
-    ),
-    syncAppInfo({ priority: SyncPriority.Low }).then(() => {
-      logger.crumb(`finished syncing app info`);
-    }),
-    syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
-      logger.crumb(`finished channel predictive sync`);
-    }),
-  ];
-
-  await Promise.all(lowPriorityPromises)
-    .then(() => {
-      logger.crumb(`finished low priority sync`);
-    })
-    .catch((e) => {
-      logger.trackError(AnalyticsEvent.ErrorSyncStartLowPriority, {
-        errorMessage: e.message,
-      });
-    });
-
-  // post sync initialization work
-  await verifyUserInviteLink();
-
-  const hostingUser = await db.hostingUserId.getValue();
-  await api.getHostingUser(hostingUser);
-
-  const ship = await db.hostedUserNodeId.getValue();
-  if (ship) {
-    await api.getShip(ship);
-  }
-
-  isSyncing = false;
-  db.userHasCompletedFirstSync.setValue(true);
 };
 
 export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {
   return syncQueue.add('setupHighPrioritySubscriptions', ctx, () => {
     return Promise.all([
-      api.subscribeToChannelsUpdates(handleChannelsUpdate),
-      api.subscribeToChatUpdates(handleChatUpdate),
-      api.subscribeGroups(handleGroupUpdate),
+      api.subscribeToChannelsUpdates(createHandler(handleChannelsUpdate)),
+      api.subscribeToChatUpdates(createHandler(handleChatUpdate)),
+      api.subscribeGroups(createHandler(handleGroupUpdate)),
     ]);
   });
 };
@@ -1426,11 +1587,11 @@ export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {
 export const setupLowPrioritySubscriptions = async (ctx?: SyncCtx) => {
   return syncQueue.add('setupLowPrioritySubscription', ctx, () => {
     return Promise.all([
-      api.subscribeToActivity(createActivityUpdateHandler()),
-      api.subscribeToContactUpdates(handleContactUpdate),
-      api.subscribeToStorageUpdates(handleStorageUpdate),
+      api.subscribeToActivity(createBatchHandler(handleActivityUpdate)),
+      api.subscribeToContactUpdates(createHandler(handleContactUpdate)),
+      api.subscribeToStorageUpdates(createHandler(handleStorageUpdate)),
       api.subscribeToLanyardUpdates(handleLanyardUpdate),
-      api.subscribeToSettings(handleSettingsUpdate),
+      api.subscribeToSettings(createHandler(handleSettingsUpdate)),
     ]);
   });
 };

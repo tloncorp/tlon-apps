@@ -16,6 +16,7 @@ import { useConfigureUrbitClient } from './useConfigureUrbitClient';
 import { usePosthog } from './usePosthog';
 
 const HANDLE_INVITES_TIMEOUT = 1000 * 30;
+const HANDLE_SCAFFOLD_TIMEOUT = 1000 * 60;
 
 const logger = createDevLogger('boot sequence', true);
 
@@ -182,7 +183,10 @@ export function useBootSequence() {
     if (bootPhase === NodeBootPhase.CHECKING_FOR_INVITE) {
       // always add the inviter as a contact first
       if (lureMeta?.inviterUserId) {
-        store.addContact(lureMeta?.inviterUserId);
+        const contact = await db.getContact({ id: lureMeta.inviterUserId });
+        if (!contact || !contact.isContact) {
+          store.addContact(lureMeta?.inviterUserId);
+        }
       }
 
       const { invitedDm, invitedGroup, tlonTeamDM } =
@@ -247,7 +251,7 @@ export function useBootSequence() {
       await wait(2000);
       if (invitedGroup) {
         try {
-          await store.syncGroup(invitedGroup?.id);
+          await store.syncGroup(invitedGroup?.id, undefined, { force: true });
         } catch (e) {
           logger.error('failed to sync group?', e.body);
         }
@@ -359,10 +363,10 @@ export function useBootSequence() {
     // if we're stuck trying to scaffold wayfinding, bail
     if (bootPhase === NodeBootPhase.SCAFFOLDING_WAYFINDING) {
       if (!tryingWayfindingSince.current) {
-        tryingWayfindingSince.current = bootStepCounter;
+        tryingWayfindingSince.current = Date.now();
       } else if (
-        bootStepCounter - tryingWayfindingSince.current >
-        MAX_WAYFINDING_ATTEMPTS
+        Date.now() - tryingWayfindingSince.current >
+        HANDLE_SCAFFOLD_TIMEOUT
       ) {
         logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
           context: 'failed to scaffold personal group',

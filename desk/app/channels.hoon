@@ -1015,6 +1015,23 @@
   |=  [agent=term =path]
   ^-  ^path
   (welp /(scot %p our.bowl)/[agent]/(scot %da now.bowl) path)
+++  get-vessel
+  |=  [=flag:g =ship]
+  ^-  (unit vessel:fleet:g)
+  =/  base-path
+    (scry-path %groups /)
+  =>  [flag=flag ship=ship base-path=base-path vessel=vessel:fleet:g ..zuse]  ~+
+  =/  groups-running
+    .^(? %gu (weld base-path /$))
+  ?.  groups-running  ~
+  =/  group-exists
+    .^(? %gx (weld base-path /exists/(scot %p p.flag)/[q.flag]/noun))
+  ?.  group-exists  ~
+  %-  some
+  .^  vessel  %gx
+    %+  weld  base-path
+    /groups/(scot %p p.flag)/[q.flag]/fleet/(scot %p ship)/vessel/noun
+  ==
 ++  ca-core
   |_  [=nest:c channel=v-channel:c gone=_|]
   ++  ca-core  .
@@ -1055,7 +1072,8 @@
       ?:  =(author-ship our.bowl)
         =/  =source  [%channel nest group.perm.perm.channel]
         (send [%read source [%all `now.bowl |]] ~)
-      =/  mention=?  (was-mentioned:utils content our.bowl)
+      =/  vessel=(unit vessel:fleet:g)  (get-vessel group.perm.perm.channel our.bowl)
+      =/  mention=?  (was-mentioned:utils content our.bowl vessel)
       =/  action
         [%add %post [[author-ship id] id] nest group.perm.perm.channel content mention]
       (send ~[action])
@@ -1070,7 +1088,8 @@
       =/  key=message-key
         [[(get-author-ship:utils author) id] id]
       =/  thread=source  [%thread key nest group]
-      =/  mention  (was-mentioned:utils content our.bowl)
+      =/  vessel=(unit vessel:fleet:g)  (get-vessel group.perm.perm.channel our.bowl)
+      =/  mention  (was-mentioned:utils content our.bowl vessel)
       =/  =incoming-event  [%post key nest group content mention]
       (send [%del thread] [%del-event chan incoming-event] ~)
     ::
@@ -1086,7 +1105,8 @@
       ?:  =(reply-author our.bowl)
         =/  =source  [%thread parent-key nest group.perm.perm.channel]
         (send [%read source [%all `now.bowl |]] ~)
-      =/  mention=?  (was-mentioned:utils content our.bowl)
+      =/  vessel=(unit vessel:fleet:g)  (get-vessel group.perm.perm.channel our.bowl)
+      =/  mention=?  (was-mentioned:utils content our.bowl vessel)
       =/  in-replies
           %+  lien  (tap:on-v-replies:c replies.parent)
           |=  [=time reply=(unit v-reply:c)]
@@ -1128,7 +1148,8 @@
       =/  top=message-key
         [[parent-author id.parent] id.parent]
       =/  thread=source  [%thread top nest group]
-      =/  mention  (was-mentioned:utils content.reply our.bowl)
+      =/  vessel=(unit vessel:fleet:g)  (get-vessel group.perm.perm.channel our.bowl)
+      =/  mention  (was-mentioned:utils content.reply our.bowl vessel)
       =/  =incoming-event  [%reply key top nest group content.reply mention]
       (send [%del-event thread incoming-event] ~)
     ::
@@ -1821,7 +1842,8 @@
       ::
       ?.  ?=(kind:c -.kind.post)  ca-core
       =/  =rope:ha  (ca-rope -.kind.post id-post ~)
-      ?:  (was-mentioned:utils content.post our.bowl)
+      =/  vessel=(unit vessel:fleet:g)  (get-vessel group.perm.perm.channel our.bowl)
+      ?:  (was-mentioned:utils content.post our.bowl vessel)
         ?.  (want-hark %mention)
           ca-core
         =/  cs=(list content:ha)
@@ -1885,7 +1907,8 @@
         ==
       ::  notify because we were mentioned in the reply
       ::
-      ?:  (was-mentioned:utils content.reply our.bowl)
+      =/  vessel=(unit vessel:fleet:g)  (get-vessel group.perm.perm.channel our.bowl)
+      ?:  (was-mentioned:utils content.reply our.bowl vessel)
         ?.  (want-hark %mention)  ~
         `~[[%ship reply-author] ' mentioned you: ' (flatten:utils content.reply)]
       ::  notify because we ourselves responded to this post previously
@@ -2676,6 +2699,11 @@
       ?+  -.inline  |
         ?(%bold %italics %strike %blockquote)  ^$(p.verse p.inline)
         ?(%code %inline-code)                  $(inline p.inline)
+        %ship                                  $(inline (scot %p p.inline))
+      ::
+          %sect
+        ?~  p.inline  $(inline '@all')
+        $(inline (cat 3 '@' p.inline))
       ::
           %link
         ?|  $(inline p.inline)

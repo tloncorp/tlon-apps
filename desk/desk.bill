@@ -10,6 +10,12 @@
     %channels-server
     %profile
     %activity
+    %contacts
+    %reel
+    %bait
+    %growl
+    %bark
+    %genuine
     %lanyard
     %expose
 ==

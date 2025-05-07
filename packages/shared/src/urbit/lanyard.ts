@@ -23,6 +23,13 @@ export interface QueryResponseEvent {
   query: { result: { valid: boolean; live: boolean } };
 }
 
+export interface WhoseBulkResponseEvent {
+  result: {
+    'next-salt': string;
+    result: Record<string, string | null>;
+  };
+}
+
 export interface RecordId {
   provider: string;
   type: 'urbit' | 'phone' | 'twitter' | 'dummy';
