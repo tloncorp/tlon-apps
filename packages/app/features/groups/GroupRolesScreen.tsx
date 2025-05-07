@@ -1,6 +1,7 @@
 import { useRoute } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
+import { generateSafeId } from '@tloncorp/shared/logic';
 import { useCallback, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
@@ -25,7 +26,6 @@ import {
   View,
   YStack,
 } from '../../ui';
-import { generateSafeId } from '../../utils/string';
 
 type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'GroupRoles'>;
 
