@@ -166,6 +166,7 @@ export function internalConfigureClient({
     logger.trackEvent(AnalyticsEvent.NodeConnectionDebug, {
       context: 'status update',
       connectionStatus: event.status,
+      statusUpdateContext: event.context ? event.context : null,
     });
     config.lastStatus = event.status;
     onChannelStatusChange?.(event.status);
@@ -196,6 +197,15 @@ export function internalConfigureClient({
     });
     logger.log('client channel-reaped');
   });
+
+  setTimeout(() => {
+    async function run() {
+      console.log('bl: initiating connection close');
+      await config.client?.delete();
+      console.log('bl: completed connection close');
+    }
+    run();
+  }, 10000);
 }
 
 export function internalRemoveClient() {
@@ -616,13 +626,36 @@ export async function thread<T, R = any>(params: Thread<T>): Promise<R> {
     throw new Error('Cannot call thread before client is initialized');
   }
 
-  const response = await config.client.thread<T>(params);
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new BadResponseError(response.status, errorText);
-  }
+  try {
+    const response = await config.client.thread<T>(params);
+    if (!response.ok) {
+      const errorText = await response.text();
+      logger.trackEvent(AnalyticsEvent.ErrorThread, {
+        context: 'bad thread response',
+        requestTag: params.threadName,
+        connectionStatus: config.lastStatus,
+      });
+      throw new BadResponseError(response.status, errorText);
+    }
 
-  return response.json();
+    return response.json();
+  } catch (err) {
+    if (err instanceof Error) {
+      if (err.message === 'timeout') {
+        logger.trackEvent(AnalyticsEvent.ErrorThread, {
+          context: 'thread timed out',
+          requestTag: params.threadName,
+          connectionStatus: config.lastStatus,
+          timeoutDuration: params.timeout ?? 20000,
+        });
+        throw new TimeoutError({
+          connectionStatus: config.lastStatus,
+          timeoutDuration: params.timeout ?? 20000,
+        });
+      }
+    }
+    throw err;
+  }
 }
 
 // Remove any identifiable information from path

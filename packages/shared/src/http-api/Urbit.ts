@@ -2,6 +2,7 @@ import { formatUw, patp2bn, patp2dec } from '@urbit/aura';
 import { Atom, Cell, Noun, dejs, enjs, jam } from '@urbit/nockjs';
 import { isBrowser } from 'browser-or-node';
 
+import { TimeoutError } from '../api';
 import { desig } from '../urbit';
 import { UrbitHttpApiEvent, UrbitHttpApiEventType } from './events';
 import { EventSourceMessage, fetchEventSource } from './fetch-event-source';
@@ -16,7 +17,9 @@ import {
   PokeHandlers,
   PokeInterface,
   ReapError,
+  SSEBadResponseError,
   SSEOptions,
+  SSETimeoutError,
   Scry,
   SubscriptionRequestInterface,
   Thread,
@@ -464,7 +467,15 @@ export class Urbit {
             return;
           }
           if (!(error instanceof FatalError)) {
-            this.emit('status-update', { status: 'reconnecting' });
+            const context: any = {};
+            if (error instanceof SSEBadResponseError) {
+              context.message = error.message;
+              context.requestStatus = error.status;
+            }
+            if (error instanceof SSETimeoutError) {
+              context.message = error.message;
+            }
+            this.emit('status-update', { status: 'reconnecting', context });
             return Math.min(5000, Math.pow(2, this.errorCount - 1) * 750);
           }
           this.emit('status-update', { status: 'errored' });
@@ -907,21 +918,45 @@ export class Urbit {
       threadName,
       body,
       desk = this.desk,
+      timeout = 20000,
     } = params;
     if (!desk) {
       throw new Error('Must supply desk to run thread from');
     }
 
-    const res = await this.fetchFn(
-      `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
-      {
-        ...this.fetchOptions,
-        method: 'POST',
-        body: JSON.stringify(body),
-      }
-    );
+    let done = false;
+    return new Promise((resolve, reject) => {
+      this.fetchFn(
+        `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
+        {
+          ...this.fetchOptions,
+          signal: undefined,
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      )
+        .then((response) => resolve(response))
+        .catch((e) => reject(e));
 
-    return res;
+      setTimeout(() => {
+        if (!done) {
+          done = true;
+          reject(new Error('timeout'));
+        }
+      }, timeout);
+    });
+
+    // const res = await this.fetchFn(
+    //   `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
+    //   {
+    //     ...this.fetchOptions,
+    //     signal: undefined,
+    //     method: 'POST',
+    //     body: JSON.stringify(body),
+    //   }
+    // );
+
+    // return res;
   }
 
   /**
