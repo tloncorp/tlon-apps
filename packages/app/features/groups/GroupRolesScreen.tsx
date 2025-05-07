@@ -25,6 +25,7 @@ import {
   View,
   YStack,
 } from '../../ui';
+import { generateSafeId } from '../../utils/string';
 
 type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'GroupRoles'>;
 
@@ -96,15 +97,8 @@ function GroupRolesScreenView() {
 
   const handleAddRole = useCallback(
     ({ title, description }: { title: string; description: string }) => {
-      const generateSafeId = (text: string) => {
-        if (!text.match(/[a-zA-Z0-9]/)) {
-          return `role-${Math.random().toString(36).substring(2, 10)}`;
-        }
-        return text.toLowerCase().replace(/\s/g, '-');
-      };
-
       createGroupRole({
-        id: generateSafeId(title),
+        id: generateSafeId(title, 'role'),
         title,
         description,
       });
@@ -156,9 +150,9 @@ function GroupRolesScreenView() {
                 borderRadius="$2xl"
               >
                 <ActionSheet.MainContent>
-                  <Text color="$primaryText" fontSize="$l" numberOfLines={1}>
+                  <ActionSheet.ActionTitle>
                     {role.title}
-                  </Text>
+                  </ActionSheet.ActionTitle>
                   {role.description && (
                     <ListItem.Subtitle>{role.description}</ListItem.Subtitle>
                   )}
