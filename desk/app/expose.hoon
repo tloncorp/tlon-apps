@@ -410,9 +410,16 @@
         |^  |=  val=value:co
             ^-  (unit card)
             ?~  plan=(value-to-plan val)  ~
-            ::TODO  want to not do this, or not trigger network activity,
-            ::      if we already have a cache entry?
             =/  =path  (plan-to-path u.plan)
+            ::  if we already have a cache entry, don't do an eager
+            ::  over-the-network lookup, assume it hasn't gone stale
+            ::
+            =+  .^  cache=(unit (unit said:d))
+                  %gx  (scot %p our.bowl)  %channels  (scot %da now.bowl)
+                  %v3  %said  (snoc path %noun)
+                ==
+            ?^  cache
+              ~
             %-  some
             :+  %pass   [%contacts %prime path]
             :+  %agent  [our.bowl %channels]
