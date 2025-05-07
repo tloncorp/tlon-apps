@@ -8,6 +8,10 @@ export type ChannelStatus =
 
 export interface StatusUpdateEvent {
   status: ChannelStatus;
+  context?: {
+    message?: string;
+    requestStatus?: string;
+  };
 }
 
 export interface FactEvent {
