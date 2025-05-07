@@ -2,6 +2,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
+import { useRootNavigation } from '../../navigation/utils';
 import { ManageChannelsScreenView } from '../../ui';
 
 type Props = NativeStackScreenProps<
@@ -11,6 +12,7 @@ type Props = NativeStackScreenProps<
 
 export function ManageChannelsScreen(props: Props) {
   const { groupId } = props.route.params;
+  const { navigateToChatDetails } = useRootNavigation();
 
   const {
     group,
@@ -25,7 +27,7 @@ export function ManageChannelsScreen(props: Props) {
 
   return (
     <ManageChannelsScreenView
-      goBack={() => props.navigation.goBack()}
+      goBack={() => navigateToChatDetails({ type: 'group', id: groupId })}
       goToEditChannel={(channelId) => {
         props.navigation.navigate('EditChannel', { groupId, channelId });
       }}

@@ -1,6 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/shared/urbit';
+import { useCallback } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { RootStackParamList } from '../../navigation/types';
@@ -17,6 +18,7 @@ export function ChatVolumeScreen(
   props: NativeStackScreenProps<RootStackParamList, 'ChatVolume'>
 ) {
   const { chatType, chatId } = props.route.params;
+  const chatSettings = useChatSettingsNavigation();
 
   return (
     <ChatOptionsProvider
@@ -24,9 +26,9 @@ export function ChatVolumeScreen(
         type: chatType,
         id: chatId,
       }}
-      {...useChatSettingsNavigation()}
+      {...chatSettings}
     >
-      <ChatVolumeScreenView chatType={chatType} />
+      <ChatVolumeScreenView chatType={chatType} chatId={chatId} />
     </ChatOptionsProvider>
   );
 }
@@ -53,8 +55,14 @@ export const volumeOptions: {
   },
 ];
 
-function ChatVolumeScreenView({ chatType }: { chatType: 'group' | 'channel' }) {
-  const { navigateBack } = useRootNavigation();
+function ChatVolumeScreenView({
+  chatType,
+  chatId,
+}: {
+  chatType: 'group' | 'channel';
+  chatId: string;
+}) {
+  const { navigateToChatDetails } = useRootNavigation();
   const { updateVolume, group, channel } = useChatOptions();
 
   const { data: currentChannelVolume } = store.useChannelVolumeLevel(
@@ -67,9 +75,16 @@ function ChatVolumeScreenView({ chatType }: { chatType: 'group' | 'channel' }) {
   const currentVolumeLevel =
     chatType === 'channel' ? currentChannelVolume : currentGroupVolume;
 
+  const handleBackNavigation = useCallback(() => {
+    navigateToChatDetails({
+      type: chatType,
+      id: chatId,
+    });
+  }, [chatType, chatId, navigateToChatDetails]);
+
   return (
     <View backgroundColor={'$secondaryBackground'} flex={1}>
-      <ScreenHeader title="Notifications" backAction={navigateBack} />
+      <ScreenHeader title="Notifications" backAction={handleBackNavigation} />
       <Form.FormFrame backgroundType="secondary">
         <Form.RadioInput
           options={volumeOptions}

@@ -72,7 +72,7 @@ export function GroupMetaScreen(props: Props) {
       <MetaEditorScreenView
         chat={group}
         title={'Edit group info'}
-        goBack={props.navigation.goBack}
+        goBack={() => onPressChatDetails({ type: 'group', id: groupId })}
         onSubmit={handleSubmit}
         currentUserId={currentUserId}
       >

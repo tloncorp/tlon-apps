@@ -12,7 +12,7 @@ type Props = NativeStackScreenProps<
   'GroupMembers'
 >;
 
-export function GroupMembersScreen({ route, navigation }: Props) {
+export function GroupMembersScreen({ route }: Props) {
   const { groupId } = route.params;
   const {
     groupMembers,
@@ -33,7 +33,11 @@ export function GroupMembersScreen({ route, navigation }: Props) {
 
   const currentUserId = useCurrentUserId();
 
-  const { resetToDm } = useRootNavigation();
+  const { resetToDm, navigateToChatDetails } = useRootNavigation();
+
+  const handleGoBack = useCallback(() => {
+    navigateToChatDetails({ type: 'group', id: groupId });
+  }, [navigateToChatDetails, groupId]);
 
   const handleGoToDm = useCallback(
     async (participants: string[]) => {
@@ -44,7 +48,7 @@ export function GroupMembersScreen({ route, navigation }: Props) {
 
   return (
     <GroupMembersScreenView
-      goBack={() => navigation.goBack()}
+      goBack={handleGoBack}
       onPressGoToDm={(contactId: string) => handleGoToDm([contactId])}
       members={groupMembers}
       roles={groupRoles}

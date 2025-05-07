@@ -5,6 +5,7 @@ import { useCallback } from 'react';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
+import { useRootNavigation } from '../../navigation/utils';
 import { Form, ScreenHeader, View, triggerHaptic } from '../../ui';
 
 type GroupPrivacy = schema.GroupPrivacy;
@@ -32,6 +33,7 @@ const privacyOptions = [
 export function GroupPrivacyScreen(props: Props) {
   const { groupId } = props.route.params;
   const { group } = useGroupContext({ groupId });
+  const { navigateToChatDetails } = useRootNavigation();
 
   const handlePrivacyChange = useCallback(
     (newPrivacy: GroupPrivacy) => {
@@ -47,7 +49,7 @@ export function GroupPrivacyScreen(props: Props) {
     <View backgroundColor={'$secondaryBackground'} flex={1}>
       <ScreenHeader
         title="Group privacy"
-        backAction={props.navigation.goBack}
+        backAction={() => navigateToChatDetails({ type: 'group', id: groupId })}
       />
       <Form.FormFrame backgroundType="secondary">
         {group ? (

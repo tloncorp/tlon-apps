@@ -39,7 +39,7 @@ function GroupRolesScreenView() {
   const [editRole, setEditRole] = useState<db.GroupRole | null>(null);
   const [showAddRole, setShowAddRole] = useState(false);
 
-  const { navigateBack } = useRootNavigation();
+  const { navigateToChatDetails } = useRootNavigation();
   const insets = useSafeAreaInsets();
 
   const {
@@ -121,7 +121,10 @@ function GroupRolesScreenView() {
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader backAction={navigateBack} title={'Group Roles'} />
+      <ScreenHeader
+        backAction={() => navigateToChatDetails({ type: 'group', id: groupId })}
+        title={'Group Roles'}
+      />
       <ScrollView
         flex={1}
         contentContainerStyle={{
