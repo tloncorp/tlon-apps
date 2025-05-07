@@ -1,10 +1,3 @@
-import { RawText, Text } from '@tloncorp/ui';
-import React, { PropsWithChildren, useCallback, useContext } from 'react';
-import { Linking, Platform } from 'react-native';
-import { ColorTokens, styled } from 'tamagui';
-
-import { useNavigation } from '../../contexts';
-import { useContactName } from '../ContactNameV2';
 import {
   InlineData,
   InlineFromType,
@@ -13,7 +6,14 @@ import {
   StyleInlineData,
   TaskInlineData,
   TextInlineData,
-} from './contentUtils';
+} from '@tloncorp/shared/logic';
+import { RawText, Text } from '@tloncorp/ui';
+import React, { PropsWithChildren, useCallback, useContext } from 'react';
+import { Linking, Platform } from 'react-native';
+import { ColorTokens, styled } from 'tamagui';
+
+import { useNavigation } from '../../contexts';
+import { useContactName } from '../ContactNameV2';
 
 export const CodeText = styled(Text, {
   name: 'CodeText',
