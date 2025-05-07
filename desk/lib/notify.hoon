@@ -172,10 +172,10 @@
               %+  join  ', '
               %+  turn
                 ~(tap in roles.event)
-              |=  =sect:g:a
-              ?.  (~(has by cabals.group) sect)  sect
-              =/  cabal  (~(got by cabals.group) sect)
-              title.meta.cabal
+              |=  =sect:v0:g:a
+              ?.  (~(has by roles.group) `role-id:g:a`sect)  sect
+              =/  role  (~(got by roles.group) `role-id:g:a`sect)
+              title.meta.role
             ==
           ::
               %contact

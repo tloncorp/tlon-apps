@@ -168,7 +168,7 @@
 ::           up the same hook at a later time.
 +$  effect
   $%  [%channels =a-channels]
-      [%groups =action:g]
+      [%groups =a-groups:g]
       [%activity =action:a]
       [%dm =action:dm:ch]
       [%club =action:club:ch]

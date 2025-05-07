@@ -591,13 +591,13 @@
       [%channel * %del-sects *]  (recheck-perms affected ~)
       [%channel * %add-sects *]  (recheck-perms affected ~)
       [%cabal * %del *]
-    =/  =sect:g  (slav %tas p.diff)
+    =/  =sect:v0:g  (slav %tas p.diff)
     %+  recheck-perms  affected
-    (~(gas in *(set sect:g)) ~[p.diff])
+    (~(gas in *(set sect:v0:g)) ~[p.diff])
   ==
 ::
 ++  recheck-perms
-  |=  [affected=(list nest:c) sects=(set sect:g)]
+  |=  [affected=(list nest:c) sects=(set sect:v0:g)]
   ~&  "%channel-server recheck permissions for {<affected>}"
   %+  roll  affected
   |=  [=nest:c co=_cor]
@@ -626,8 +626,8 @@
   ++  ca-area  `path`/[kind.nest]/[name.nest]
   ++  ca-sub-path  `path`(weld ca-area /updates)
   ++  ca-watch-create
-    =/  =cage  [%channel-update !>([now.bowl %create perm.perm.channel])]
-    (give %fact ~[/[kind.nest]/[name.nest]/create] cage)
+  =/  =cage  [%channel-update !>([now.bowl %create perm.perm.channel])]
+  (give %fact ~[/[kind.nest]/[name.nest]/create] cage)
   ::
   ++  ca-watch-updates
     |=  =@da
@@ -993,7 +993,7 @@
     (emit:ca %give %kick ~[path] `ship)
   ::
   ++  ca-recheck
-    |=  sects=(set sect:g)
+    |=  sects=(set sect:v0:g)
     ::  if we have sects, we need to delete them from writers
     =?  ca-core  !=(sects ~)
       =/  =c-channels:c  [%channel nest %del-writers sects]
@@ -1259,7 +1259,7 @@
     (emit [%pass /hooks/effect %agent [our.bowl %channels] %poke cage])
   ::
       %groups
-    =/  =cage  group-action-3+!>(action.effect)
+    =/  =cage  group-action-5+!>(a-groups.effect)
     (emit [%pass /hooks/effect %agent [our.bowl %groups] %poke cage])
   ::
       %activity

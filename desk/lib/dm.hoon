@@ -1,4 +1,4 @@
-/-  c=chat, d=channels
+/-  c=chat, d=channels, s=story
 /+  mp=mop-extensions
 |_  pac=pact:c
 ++  mope  ((mp time writ:c) lte)
@@ -383,12 +383,12 @@
     (match-story-mention nedl content.writ)
   ::
   ++  match-story-mention
-    |=  [nedl=ship =story:d]
+    |=  [nedl=ship =story:s]
     %+  lien  story
-    |=  =verse:d
+    |=  =verse:s
     ?.  ?=(%inline -.verse)  |
     %+  lien  p.verse
-    |=  =inline:d
+    |=  =inline:s
     ?+  -.inline  |
       %ship                                  =(nedl p.inline)
       ?(%bold %italics %strike %blockquote)  ^$(p.verse p.inline)
@@ -400,12 +400,12 @@
     (match-story-text nedl content.writ)
   ::
   ++  match-story-text
-    |=  [nedl=@t =story:d]
+    |=  [nedl=@t =story:s]
     %+  lien  story
-    |=  =verse:d
+    |=  =verse:s
     ?.  ?=(%inline -.verse)  |
     %+  lien  p.verse
-    |=  =inline:d
+    |=  =inline:s
     ?@  inline
       (find nedl inline |)
     ?+  -.inline  |
