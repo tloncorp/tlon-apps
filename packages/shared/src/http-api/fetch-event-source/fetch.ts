@@ -139,7 +139,6 @@ export function fetchEventSource(
             'Invalid server response',
             response.status
           );
-          // throw new Error(`Invalid server response: ${response.status}`);
         }
 
         await onopen(response, isReconnect);
