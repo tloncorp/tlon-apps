@@ -27,6 +27,7 @@ import {
 import * as ub from '@tloncorp/shared/urbit';
 import { Notification, useLastNotificationResponse } from 'expo-notifications';
 import { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 
 const logger = createDevLogger('useNotificationListener', false);
 
@@ -57,12 +58,17 @@ function payloadFromNotification(
   // `content`. When "triggered" through the NSE, the payload is in the
   // `trigger`.
   // Detect and use whatever payload is available.
-  const payload =
-    // `NotificationRequest.trigger` is marked as non-null in
-    // expo-notifications' types, but is null on Android - so we need the `?`
-    notification.request.trigger?.type === 'push'
-      ? notification.request.trigger.payload
-      : notification.request.content.data;
+  const payload = (() => {
+    // Not sure why the payload is in different places per platform,
+    // but it is what it is
+    if (Platform.OS === 'android') {
+      return notification.request.content.data;
+    } else {
+      return notification.request.trigger.type === 'push'
+        ? notification.request.trigger.payload
+        : notification.request.content.data;
+    }
+  })();
 
   if (payload == null || typeof payload !== 'object') {
     return null;
