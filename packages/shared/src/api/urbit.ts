@@ -197,15 +197,6 @@ export function internalConfigureClient({
     });
     logger.log('client channel-reaped');
   });
-
-  setTimeout(() => {
-    async function run() {
-      console.log('bl: initiating connection close');
-      await config.client?.delete();
-      console.log('bl: completed connection close');
-    }
-    run();
-  }, 10000);
 }
 
 export function internalRemoveClient() {

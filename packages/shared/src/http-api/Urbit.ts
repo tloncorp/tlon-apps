@@ -945,18 +945,6 @@ export class Urbit {
         }
       }, timeout);
     });
-
-    // const res = await this.fetchFn(
-    //   `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
-    //   {
-    //     ...this.fetchOptions,
-    //     signal: undefined,
-    //     method: 'POST',
-    //     body: JSON.stringify(body),
-    //   }
-    // );
-
-    // return res;
   }
 
   /**
