@@ -31,6 +31,7 @@ export type BootPhase =
 export type HostedShipInfo = {
   booting: boolean;
   manualUpdateNeeded?: boolean;
+  showWayfinding?: boolean;
   id: string;
 };
 
@@ -49,4 +50,8 @@ export enum HostedNodeStatus {
   Suspended = 'Suspended',
   UnderMaintenance = 'UnderMaintenance',
   Unknown = 'Unknown',
+}
+
+export function nodeUrlIsHosted(url: string) {
+  return url.endsWith('tlon.network') || url.endsWith('.test.tlon.systems');
 }

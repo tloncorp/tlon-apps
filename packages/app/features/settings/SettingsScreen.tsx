@@ -54,6 +54,9 @@ export default function SettingsScreen(props: Props) {
     navigationRef.current.navigate('Theme');
   }, [navigationRef]);
 
+  const onPrivacyPressed = useCallback(() => {
+    navigationRef.current.navigate('PrivacySettings');
+  }, [navigationRef]);
   const backgroundColor = getVariableValue(useTheme().background);
 
   return (
@@ -69,6 +72,7 @@ export default function SettingsScreen(props: Props) {
         onManageAccountPressed={onManageAccountPressed}
         onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
         onThemePressed={onThemePressed}
+        onPrivacyPressed={onPrivacyPressed}
         dmLink={dmLink}
         onBackPressed={onBack}
       />

@@ -1,7 +1,15 @@
+import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import { FloatingActionButton } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { ParentAgnosticKeyboardAvoidingView } from '@tloncorp/ui';
-import { useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from 'react';
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -10,6 +18,7 @@ import { View } from 'tamagui';
 
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import { ScreenHeader } from '../ScreenHeader';
+import WayfindingNotices from '../Wayfinding/Notices';
 import { DraftInputConnectedBigInput } from './DraftInputConnectedBigInput';
 import { DraftInputContext } from './shared';
 
@@ -34,17 +43,33 @@ export function NotebookInput({
     setShowBigInput(isEditingPost);
   }, [isEditingPost]);
 
+  const handleAdd = useCallback(() => {
+    setShowBigInput(true);
+
+    if (logic.isPersonalNotebookChannel(draftInputContext.channel.id)) {
+      db.wayfindingProgress.setValue((prev) => ({
+        ...prev,
+        tappedAddNote: true,
+      }));
+    }
+  }, [draftInputContext.channel.id]);
+
   useRegisterChannelHeaderItem(
     useMemo(
       () =>
         showBigInput ? null : (
-          <ScreenHeader.IconButton
-            key="notebook"
-            type="Add"
-            onPress={() => setShowBigInput(true)}
-          />
+          <>
+            <ScreenHeader.IconButton
+              key="notebook"
+              type="Add"
+              onPress={handleAdd}
+            />
+            <WayfindingNotices.NotebookInputTooltip
+              channelId={draftInputContext.channel.id}
+            />
+          </>
         ),
-      [showBigInput]
+      [draftInputContext.channel.id, handleAdd, showBigInput]
     )
   );
 

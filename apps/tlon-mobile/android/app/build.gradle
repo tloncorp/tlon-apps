@@ -6,6 +6,40 @@ apply plugin: "com.google.firebase.crashlytics"
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 
+// monorepo root; contains `packages/`, `apps/`, etc
+def workspaceRoot = "$projectRoot/../.."
+
+// Add tasks to bundle and copy `packages/scripts/` so that it can be accessed by
+// `TalkMessagingService` at runtime.
+afterEvaluate {
+    def buildTask = tasks.create(
+            name: "buildNotificationServiceJsBundle",
+            type: Exec
+    ) {
+        description = "Bundle JS for TalkMessagingService"
+        workingDir workspaceRoot
+        commandLine "pnpm", "run", "--filter", "scripts", "build"
+    }
+    def copyTask = tasks.create(
+            name: "copyNotificationServiceJsBundle",
+            type: Copy
+    ) {
+        description = "Copy JS assets for TalkMessagingService into app bundle"
+        into "$projectDir/src/main/assets"
+        from("$workspaceRoot/packages/scripts/build") {
+            include("*.js")
+            rename '(.*).js', '$1.jsbundle'
+        }
+    }
+
+    copyTask.dependsOn(buildTask)
+    android.applicationVariants.all { def variant ->
+        def targetName = variant.name.capitalize()
+        def generateAssetsTask = tasks.findByName("generate${targetName}Assets")
+        generateAssetsTask.dependsOn(copyTask)
+    }
+}
+
 /**
  * This is the configuration block to customize your React Native Android app.
  * By default you don't need to apply any configuration, just uncomment the lines you need.
@@ -88,9 +122,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         compileSdk rootProject.ext.compileSdkVersion
         versionCode 108
-        versionName "5.3.1"
-
-        buildConfigField("boolean", "REACT_NATIVE_UNSTABLE_USE_RUNTIME_SCHEDULER_ALWAYS", (findProperty("reactNative.unstable_useRuntimeSchedulerAlways") ?: true).toString())
+        versionName "5.5.0"
     }
     signingConfigs {
         debug {
@@ -111,6 +143,7 @@ android {
             shrinkResources (findProperty('android.enableShrinkResourcesInReleaseBuilds')?.toBoolean() ?: false)
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+            crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)
         }
     }
     packagingOptions {
@@ -173,8 +206,6 @@ dependencies {
         }
     }
 
-    implementation("com.facebook.react:flipper-integration")
-
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {
@@ -184,6 +215,8 @@ dependencies {
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
     implementation("androidx.security:security-crypto-ktx:1.1.0-alpha06")
     implementation("com.android.volley:volley:1.2.1")
+    implementation "com.google.firebase:firebase-messaging"
+
 
     // Branch.io
     implementation("io.branch.sdk.android:library:5.9.0")

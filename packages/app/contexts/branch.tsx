@@ -118,6 +118,16 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
           if (params.lure) {
             // Link had a lure field embedded
             logger.log('detected lure link:', params.lure);
+            if (
+              params?.['+match_guaranteed'] &&
+              params?.['+is_first_session']
+            ) {
+              logger.trackEvent(AnalyticsEvent.ActionDeferredDeepLink, {
+                inviteId: params.lure,
+                inviterUserId: params?.inviterUserId,
+              });
+            }
+
             try {
               const nextLure: Lure = {
                 lure: {

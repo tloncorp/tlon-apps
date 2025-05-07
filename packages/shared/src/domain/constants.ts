@@ -1,6 +1,7 @@
 const TLON_NAMESPACE = 'tlonEnv';
 
 interface Constants {
+  DEV_SHIP_URL: string;
   NOTIFY_PROVIDER: string;
   NOTIFY_SERVICE: string;
   POST_HOG_API_KEY: string;

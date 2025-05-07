@@ -2,12 +2,14 @@ import { Noun } from '@urbit/nockjs';
 import _ from 'lodash';
 
 import { createDevLogger, escapeLog, runIfDev } from '../debug';
-import { AnalyticsEvent } from '../domain';
+import { AnalyticsEvent, getConstants } from '../domain';
+import * as Hosting from '../domain/hosting';
 import {
   AuthError,
   ChannelStatus,
   NounPokeInterface,
   PokeInterface,
+  Thread,
   Urbit,
 } from '../http-api';
 import { desig, preSig } from '../urbit';
@@ -23,6 +25,7 @@ interface Config
   client: Urbit | null;
   subWatchers: Watchers;
   pendingAuth: Promise<string | void> | null;
+  lastStatus: string;
 }
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -56,6 +59,23 @@ export class BadResponseError extends Error {
   }
 }
 
+export class TimeoutError extends Error {
+  connectionStatus: string;
+  timeoutDuration: number | null;
+
+  constructor({
+    connectionStatus,
+    timeoutDuration,
+  }: {
+    connectionStatus?: string;
+    timeoutDuration?: number;
+  }) {
+    super(`TimeoutError: ${connectionStatus}`);
+    this.connectionStatus = connectionStatus || 'unknown';
+    this.timeoutDuration = timeoutDuration ?? null;
+  }
+}
+
 interface UrbitEndpoint {
   app: string;
   path: string;
@@ -74,6 +94,7 @@ export interface ClientParams {
 
 const config: Config = {
   client: null,
+  lastStatus: '',
   shipUrl: '',
   subWatchers: {},
   pendingAuth: null,
@@ -106,7 +127,19 @@ export const getCurrentUserIsHosted = () => {
     throw new Error('Client not initialized');
   }
 
-  return client.url.endsWith('tlon.network');
+  // prefer referencing client URL if available
+  if (client.url) {
+    return Hosting.nodeUrlIsHosted(client.url);
+  }
+
+  /*
+    On web, client URL is implicit based on location
+    Note: during development, the true URL is supplied via the environment. Localhost is
+    set up to redirect there
+  */
+  const env = getConstants();
+  const implicitUrl = __DEV__ ? env.DEV_SHIP_URL : window.location.hostname;
+  return Hosting.nodeUrlIsHosted(implicitUrl);
 };
 
 export function internalConfigureClient({
@@ -119,7 +152,6 @@ export function internalConfigureClient({
   onQuitOrReset,
   onChannelStatusChange,
 }: ClientParams) {
-  logger.log('configuring client', shipName, shipUrl);
   config.client = config.client || new Urbit(shipUrl, '', '', fetchFn);
   config.client.verbose = verbose;
   config.client.nodeId = preSig(shipName);
@@ -135,6 +167,7 @@ export function internalConfigureClient({
       context: 'status update',
       connectionStatus: event.status,
     });
+    config.lastStatus = event.status;
     onChannelStatusChange?.(event.status);
   });
 
@@ -154,9 +187,6 @@ export function internalConfigureClient({
   });
 
   config.client.on('error', (error) => {
-    logger.trackError(AnalyticsEvent.NodeConnectionError, {
-      errorMessage: error.msg,
-    });
     logger.log('client error', error);
   });
 
@@ -258,7 +288,8 @@ export async function subscribe<T>(
 export async function subscribeOnce<T>(
   endpoint: UrbitEndpoint,
   timeout?: number,
-  ship?: string
+  ship?: string,
+  requestConfig?: { tag?: string }
 ) {
   if (!config.client) {
     throw new Error('Client not initialized');
@@ -281,6 +312,12 @@ export async function subscribeOnce<T>(
       });
     } else if (err === 'timeout') {
       logger.error('subscribeOnce timed out', printEndpoint(endpoint));
+      logger.trackEvent(AnalyticsEvent.ErrorSubscribeOnceTimeout, {
+        requestTag: requestConfig?.tag,
+        subEndpoint: printEndpoint(endpoint),
+        connectionStatus: config.lastStatus,
+        timeoutDuration: timeout,
+      });
     } else {
       logger.error('subscribeOnce quit', printEndpoint(endpoint));
     }
@@ -331,12 +368,6 @@ export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
       app,
       mark,
       noun,
-      onSuccess: () => {
-        console.log(`poke success`);
-      },
-      onError: (err) => {
-        console.log(`poke error`, err);
-      },
     });
   };
   const retry = async (err: any) => {
@@ -394,7 +425,7 @@ export async function poke({ app, mark, json }: PokeParams) {
   };
 
   try {
-    const result = await doPoke({ onError: retry });
+    const result = await doPoke();
     trackDuration('success');
     return result;
   } catch (err) {
@@ -407,7 +438,8 @@ export async function poke({ app, mark, json }: PokeParams) {
 export async function trackedPoke<T, R = T>(
   params: PokeParams,
   endpoint: UrbitEndpoint,
-  predicate: (event: R) => boolean
+  predicate: (event: R) => boolean,
+  requestConfig?: { tag?: string; timeout?: number }
 ) {
   if (config.pendingAuth) {
     await config.pendingAuth;
@@ -416,21 +448,77 @@ export async function trackedPoke<T, R = T>(
     app: params.app,
     mark: params.mark,
   });
+  let pokeCompleted = false;
   try {
-    const tracking = track(endpoint, predicate);
-    const poking = poke(params);
+    const tracking = track(
+      endpoint,
+      predicate,
+      requestConfig?.timeout ?? 20000
+    );
+    const poking = poke(params).then(() => (pokeCompleted = true));
     await Promise.all([tracking, poking]);
     trackDuration('success');
   } catch (e) {
     logger.error(`tracked poke failed`, e);
     trackDuration('error');
+    if (e instanceof TimeoutError) {
+      logger.trackEvent(AnalyticsEvent.ErrorTrackedPokeTimeout, {
+        requestTag: requestConfig?.tag,
+        pokeParams: params,
+        subEndpoint: printEndpoint(endpoint),
+        connectionStatus: config.lastStatus,
+        timeoutDuration: e.timeoutDuration,
+        pokeCompleted,
+      });
+    }
+    throw e;
+  }
+}
+
+export async function trackedPokeNoun<T, R = T>(
+  params: NounPokeParams,
+  endpoint: UrbitEndpoint,
+  predicate: (event: R) => boolean,
+  requestConfig?: { tag: string; timeout?: number }
+) {
+  if (config.pendingAuth) {
+    await config.pendingAuth;
+  }
+  const trackDuration = createDurationTracker(AnalyticsEvent.TrackedPoke, {
+    app: params.app,
+    mark: params.mark,
+  });
+  let pokeCompleted = false;
+  try {
+    const tracking = track(
+      endpoint,
+      predicate,
+      requestConfig?.timeout ?? 20000
+    );
+    const poking = pokeNoun(params).then(() => (pokeCompleted = true));
+    await Promise.all([tracking, poking]);
+    trackDuration('success');
+  } catch (e) {
+    logger.error(`tracked poke failed`, e);
+    trackDuration('error');
+    if (e instanceof TimeoutError) {
+      logger.trackEvent(AnalyticsEvent.ErrorTrackedPokeTimeout, {
+        requestTag: requestConfig?.tag,
+        pokeParams: params,
+        subEndpoint: printEndpoint(endpoint),
+        connectionStatus: config.lastStatus,
+        timeoutDuration: e.timeoutDuration,
+        pokeCompleted,
+      });
+    }
     throw e;
   }
 }
 
 async function track<R>(
   endpoint: UrbitEndpoint,
-  predicate: (event: R) => boolean
+  predicate: (event: R) => boolean,
+  timeout = 15000
 ) {
   const endpointKey = printEndpoint(endpoint);
   return new Promise((resolve, reject) => {
@@ -443,6 +531,20 @@ async function track<R>(
       resolve,
       reject,
     });
+
+    if (timeout) {
+      setTimeout(() => {
+        if (watchers.has(id)) {
+          watchers.delete(id);
+          reject(
+            new TimeoutError({
+              connectionStatus: config.lastStatus,
+              timeoutDuration: timeout,
+            })
+          );
+        }
+      }, timeout);
+    }
   });
 }
 
@@ -495,8 +597,32 @@ export async function scryNoun({ app, path }: { app: string; path: string }) {
       return config.client.scryNoun({ app, path });
     }
     const body = await res.text();
+    logger.trackEvent('Bad Noun Scry Response', {
+      status: res.status,
+      app,
+      path,
+      body,
+    });
     throw new BadResponseError(res.status, body);
   }
+}
+
+export async function thread<T, R = any>(params: Thread<T>): Promise<R> {
+  if (!params.desk) {
+    throw new Error('Must supply desk to run thread from');
+  }
+
+  if (!config.client) {
+    throw new Error('Cannot call thread before client is initialized');
+  }
+
+  const response = await config.client.thread<T>(params);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new BadResponseError(response.status, errorText);
+  }
+
+  return response.json();
 }
 
 // Remove any identifiable information from path

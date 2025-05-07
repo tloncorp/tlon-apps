@@ -713,16 +713,20 @@ export class Urbit {
       mark,
       json,
     };
-    this.outstandingPokes.set(message.id, {
-      onSuccess: () => {
-        onSuccess();
-      },
-      onError: (err) => {
-        onError(err);
-      },
+
+    return new Promise((resolve, reject) => {
+      this.outstandingPokes.set(message.id, {
+        onSuccess: () => {
+          onSuccess();
+          resolve(message.id);
+        },
+        onError: (err) => {
+          onError(err);
+          reject(err);
+        },
+      });
+      this.sendJSONtoChannel(message).catch(reject);
     });
-    await this.sendJSONtoChannel(message);
-    return message.id;
   }
 
   /**
@@ -859,6 +863,11 @@ export class Urbit {
         `${this.url}/~/scry/${app}${path}.noun`,
         this.fetchOptionsNoun('GET', 'noun')
       );
+
+      if (!response.ok) {
+        return Promise.reject(response);
+      }
+
       const responseBlob = await response.blob();
       const buffer: ArrayBuffer = await new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -889,7 +898,7 @@ export class Urbit {
    * @param body        The data to send to the thread
    * @returns  The return value of the thread
    */
-  async thread<R, T = any>(params: Thread<T>): Promise<R> {
+  async thread<T = any>(params: Thread<T>): Promise<Response> {
     const {
       inputMark,
       outputMark,
@@ -900,6 +909,7 @@ export class Urbit {
     if (!desk) {
       throw new Error('Must supply desk to run thread from');
     }
+
     const res = await this.fetchFn(
       `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
       {
@@ -909,7 +919,7 @@ export class Urbit {
       }
     );
 
-    return res.json();
+    return res;
   }
 
   /**

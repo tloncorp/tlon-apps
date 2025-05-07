@@ -1,3 +1,4 @@
+import { queryClient } from '@tloncorp/shared';
 import { createContext, useCallback, useEffect, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
@@ -71,11 +72,13 @@ export default function useAppUpdates() {
 
   const triggerUpdate = useCallback(
     async (returnToRoot: boolean) => {
+      const basePath = '/apps/groups/';
       const path = returnToRoot
-        ? `${window.location.origin}/apps/groups/?updatedAt=${Date.now()}`
+        ? `${window.location.origin}${basePath}?updatedAt=${Date.now()}`
         : `${window.location.href}?updatedAt=${Date.now()}`;
 
       if (needRefresh) {
+        queryClient.clear();
         try {
           await updateServiceWorker(false);
         } catch (e) {

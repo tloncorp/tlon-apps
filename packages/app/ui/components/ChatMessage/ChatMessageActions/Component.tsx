@@ -146,7 +146,6 @@ export function ChatMessageActions({
         <Popover.Trigger asChild>{trigger}</Popover.Trigger>
         <Popover.Content
           elevate
-          animation="quick"
           zIndex={1000000}
           position="relative"
           borderColor="$border"
@@ -154,15 +153,13 @@ export function ChatMessageActions({
           padding={1}
         >
           <YStack gap="$xs">
-            {post.type === 'chat' && (
-              <XStack justifyContent="center">
-                <EmojiToolbar
-                  post={post}
-                  onDismiss={onDismiss}
-                  openExternalSheet={onShowEmojiPicker}
-                />
-              </XStack>
-            )}
+            <XStack justifyContent="center">
+              <EmojiToolbar
+                post={post}
+                onDismiss={onDismiss}
+                openExternalSheet={onShowEmojiPicker}
+              />
+            </XStack>
             <MessageActions
               post={post}
               postActionIds={postActionIds}

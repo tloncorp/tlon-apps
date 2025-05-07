@@ -1,7 +1,12 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { createDevLogger, useChannelContext } from '@tloncorp/shared';
+import {
+  configurationFromChannel,
+  createDevLogger,
+  useChannelContext,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import {
   useCanUpload,
@@ -72,6 +77,9 @@ export default function ChannelScreen(props: Props) {
       if (!channelIsPending) {
         store.markChannelVisited(channelId);
       }
+
+      // Mark wayfinding channels as visited if needed
+      store.markPotentialWayfindingChannelVisit(channelId);
     }, [channelId, channelIsPending])
   );
 
@@ -90,18 +98,24 @@ export default function ChannelScreen(props: Props) {
       if (groupId) {
         // Update the last visited channel in the group so we can return to it
         // when we come back to the group
-        db.updateGroup({
-          id: groupId,
-          lastVisitedChannelId: channelId,
-        });
+        db.lastVisitedChannelId(groupId).setValue(channelId);
       }
     }, [groupId, channelId])
   );
 
+  const channelThreadAbortController = useRef<AbortController | null>(
+    new AbortController()
+  );
+
   useEffect(() => {
     if (!channelIsPending) {
+      if (channelThreadAbortController.current) {
+        channelThreadAbortController.current.abort();
+      }
+      channelThreadAbortController.current = new AbortController();
       store.syncChannelThreadUnreads(channelId, {
         priority: store.SyncPriority.High,
+        abortSignal: channelThreadAbortController.current?.signal,
       });
     }
   }, [channelIsPending, channelId]);
@@ -115,10 +129,12 @@ export default function ChannelScreen(props: Props) {
   // time
   const [initialChannelUnread, setInitialChannelUnread] =
     React.useState<db.ChannelUnread | null>(null);
+  const [unreadDidInitialize, setUnreadDidInitialize] = React.useState(false);
   useEffect(() => {
     async function initializeChannelUnread() {
       const unread = await db.getChannelUnread({ channelId: currentChannelId });
       setInitialChannelUnread(unread ?? null);
+      setUnreadDidInitialize(true);
     }
     initializeChannelUnread();
   }, [currentChannelId]);
@@ -130,55 +146,13 @@ export default function ChannelScreen(props: Props) {
 
   const session = store.useCurrentSession();
   const hasCachedNewest = useMemo(() => {
-    if (!session || !channel) {
+    if (!channel) {
       return false;
     }
-    const { syncedAt, lastPostAt } = channel;
-
-    if (syncedAt == null) {
-      return false;
-    }
-
-    // `syncedAt` is only set when sync endpoint reports that there are no newer posts.
-    // https://github.com/tloncorp/tlon-apps/blob/adde000f4330af7e0a2e19bdfcb295f5eb9fe3da/packages/shared/src/store/sync.ts#L905-L910
-    // We are guaranteed to have the most recent post before `syncedAt`; and
-    // we are guaranteed to have the most recent post after `session.startTime`.
-
-    // This case checks that we have overlap between sync backfill and session subscription.
-    //
-    //   ------------------------| syncedAt
-    //     session.startTime |---------------
-    if (syncedAt >= (session.startTime ?? 0)) {
-      return true;
-    }
-
-    // `lastPostAt` is set with the channel's latest post during session init:
-    // https://github.com/tloncorp/tlon-apps/blob/adde000f4330af7e0a2e19bdfcb295f5eb9fe3da/packages/shared/src/store/sync.ts#L1052
-    //
-    // Since we already checked that a session is active, this case checks
-    // that we've hit `syncedAt`'s "no newer posts" at some point _after_ the
-    // channel's most recent post's timestamp.
-    //
-    //          lastPostAt
-    //              v
-    //   ------------------------| syncedAt
-    //
-    // This check would fail if we first caught up via sync, and then later
-    // started a session: in that case, there could be missing posts between
-    // `syncedAt`'s "no newer posts" and the start of the session:
-    //
-    //                lastPostAt (post not received)
-    //                    v
-    //   ----| syncedAt
-    //         session.startTime |---------
-    //
-    // NB: In that case, we *do* have the single latest post for the channel,
-    // but we'd likely be missing all other posts in the gap. Wait until we
-    // filled in the gap to show posts.
-    if (lastPostAt && syncedAt > lastPostAt) {
-      return true;
-    }
-    return false;
+    return store.hasChannelCachedNewestPosts({
+      session,
+      channel,
+    });
   }, [channel, session]);
 
   const cursor = useMemo(() => {
@@ -215,6 +189,11 @@ export default function ChannelScreen(props: Props) {
     setClearedCursor(true);
   }, []);
 
+  const channelConfiguration = useMemo(
+    () => configurationFromChannel(channel),
+    [channel]
+  );
+
   const {
     posts,
     query: postsQuery,
@@ -226,6 +205,7 @@ export default function ChannelScreen(props: Props) {
     channelId: currentChannelId,
     count: 15,
     hasCachedNewest,
+    filterDeleted: !channelConfiguration?.includeDeletedPosts,
     ...(cursor && !clearedCursor
       ? {
           mode: 'around',
@@ -237,6 +217,20 @@ export default function ChannelScreen(props: Props) {
           firstPageCount: 50,
         }),
   });
+
+  useEffect(() => {
+    // make sure we always load enough posts to fill the screen or
+    // onScrollEndReached might not fire properly
+    const ENOUGH_POSTS_TO_FILL_SCREEN = 20;
+    if (
+      !postsQuery.isFetching &&
+      postsQuery.hasNextPage &&
+      unreadDidInitialize &&
+      (!posts || posts.length < ENOUGH_POSTS_TO_FILL_SCREEN)
+    ) {
+      loadOlder();
+    }
+  }, [postsQuery, posts, loadOlder, unreadDidInitialize]);
 
   const filteredPosts = useMemo(
     () =>
@@ -373,6 +367,15 @@ export default function ChannelScreen(props: Props) {
   }, []);
 
   const channelRef = useRef<React.ElementRef<typeof Channel>>(null);
+  const handlePressInvite = useCallback((groupId: string) => {
+    setInviteSheetGroup(groupId);
+  }, []);
+
+  const handleConfigureChannel = useCallback(() => {
+    if (channelRef.current) {
+      channelRef.current.openChannelConfigurationBar();
+    }
+  }, [channelRef]);
 
   if (!channel) {
     return null;
@@ -385,10 +388,8 @@ export default function ChannelScreen(props: Props) {
         id: currentChannelId,
       }}
       useGroup={store.useGroup}
-      onPressInvite={(group) => {
-        setInviteSheetGroup(group);
-      }}
-      onPressConfigureChannel={channelRef.current?.openChannelConfigurationBar}
+      onPressInvite={handlePressInvite}
+      onPressConfigureChannel={handleConfigureChannel}
       {...chatOptionsNavProps}
     >
       <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
@@ -437,7 +438,7 @@ export default function ChannelScreen(props: Props) {
           onPressScrollToBottom={handleScrollToBottom}
         />
       </AttachmentProvider>
-      {group && (
+      {group && isChannelSwitcherEnabled && (
         <>
           <ChannelSwitcherSheet
             open={channelNavOpen}

@@ -8,9 +8,6 @@ import {
   useLureMetadata,
   useSignupParams,
 } from '@tloncorp/app/contexts/branch';
-import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import { HostingError } from '@tloncorp/shared/api';
 import {
   Field,
   KeyboardAvoidingView,
@@ -23,6 +20,13 @@ import {
   View,
   YStack,
 } from '@tloncorp/app/ui';
+import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import {
+  AnalyticsEvent,
+  AnalyticsSeverity,
+  createDevLogger,
+} from '@tloncorp/shared';
+import { HostingError } from '@tloncorp/shared/api';
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Platform } from 'react-native';
@@ -110,7 +114,9 @@ export const SignupScreen = ({ navigation }: Props) => {
         priorityToken: signupParams.priorityToken,
       });
       if (!enabled) {
-        logger.trackError(AnalyticsEvent.InvitedUserFailedInventoryCheck);
+        logger.trackError(AnalyticsEvent.InvitedUserFailedInventoryCheck, {
+          severity: AnalyticsSeverity.Critical,
+        });
         navigation.navigate('JoinWaitList', {});
         return;
       }
@@ -230,9 +236,15 @@ export const SignupScreen = ({ navigation }: Props) => {
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoCorrect={false}
-                      returnKeyType={emailForm.formState.isValid ? "next" : "default"}
-                      enablesReturnKeyAutomatically={emailForm.formState.isValid}
-                      onSubmitEditing={emailForm.formState.isValid ? onSubmit : undefined}
+                      returnKeyType={
+                        emailForm.formState.isValid ? 'next' : 'default'
+                      }
+                      enablesReturnKeyAutomatically={
+                        emailForm.formState.isValid
+                      }
+                      onSubmitEditing={
+                        emailForm.formState.isValid ? onSubmit : undefined
+                      }
                       autoFocus
                     />
                   </Field>
@@ -246,7 +258,6 @@ export const SignupScreen = ({ navigation }: Props) => {
               loading={isSubmitting}
               disabled={
                 isSubmitting ||
-                remoteError !== undefined ||
                 (otpMethod === 'phone'
                   ? !phoneForm.formState.isValid
                   : !emailForm.formState.isValid)

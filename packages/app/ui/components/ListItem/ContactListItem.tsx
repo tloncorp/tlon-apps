@@ -2,6 +2,7 @@ import { Pressable } from '@tloncorp/ui';
 import { ComponentProps } from 'react';
 import { isWeb } from 'tamagui';
 
+import { formatUserId } from '../../utils';
 import { AvatarProps } from '../Avatar';
 import ContactName from '../ContactName';
 import { ListItem } from './ListItem';
@@ -13,7 +14,7 @@ export const ContactListItem = ({
   onLongPress,
   showNickname = false,
   showUserId = false,
-  full = false,
+  full = true,
   showIcon = true,
   showEndContent = false,
   endContent,
@@ -57,7 +58,9 @@ export const ContactListItem = ({
             />
           </ListItem.Title>
           {showUserId && showNickname ? (
-            <ListItem.Subtitle>{contactId}</ListItem.Subtitle>
+            <ListItem.Subtitle>
+              {formatUserId(contactId, true)?.display}
+            </ListItem.Subtitle>
           ) : null}
           {subtitle && <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>}
         </ListItem.MainContent>

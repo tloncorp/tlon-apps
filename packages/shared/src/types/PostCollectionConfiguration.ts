@@ -126,7 +126,7 @@ export function layoutForType(
         columnCount: 2,
         dividersEnabled: false,
         enableUnreadAnchor: false,
-        itemAspectRatio: 1,
+        itemAspectRatio: 0.8,
         shouldMaintainVisibleContentPosition: false,
         scrollDirection: 'top-to-bottom',
       };
@@ -148,6 +148,11 @@ export interface PostCollectionConfiguration {
    * with a comma-separated list of member names.
    */
   usesMemberListAsFallbackTitle: boolean;
+
+  /**
+   * If true, include deleted posts when querying posts.
+   */
+  includeDeletedPosts: boolean;
 }
 
 export function configurationFromChannel(
@@ -170,18 +175,21 @@ export function configurationFromChannel(
     // fallthrough
     case 'groupDm':
       return {
+        includeDeletedPosts: true,
         postActionIds: ChannelAction.channelActionIdsFor({ channel }),
         usesMemberListAsFallbackTitle: channel.type !== 'chat',
       };
 
     case 'notebook':
       return {
+        includeDeletedPosts: false,
         postActionIds: ChannelAction.channelActionIdsFor({ channel }),
         usesMemberListAsFallbackTitle: false,
       };
 
     case 'gallery':
       return {
+        includeDeletedPosts: false,
         postActionIds: ChannelAction.channelActionIdsFor({ channel }),
         usesMemberListAsFallbackTitle: false,
       };

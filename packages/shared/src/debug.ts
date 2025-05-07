@@ -259,13 +259,18 @@ export function createDevLogger(tag: string, enabled: boolean) {
             args[1] && typeof args[1] === 'object' ? args[1] : {};
           const report = (debugInfo: any = undefined) =>
             errorLogger?.capture('app_error', {
-              ...customProps,
               debugInfo,
               message:
                 typeof args[0] === 'string'
                   ? `[${tag}] ${args[0]}`
                   : 'no message',
               breadcrumbs: useDebugStore.getState().getBreadcrumbs(),
+              errorMessage:
+                customProps instanceof Error ? customProps.message : undefined,
+              errorStack:
+                customProps instanceof Error ? customProps.stack : undefined,
+              logLevel: 'error',
+              ...customProps,
             });
           getDebugInfo()
             .then(report)

@@ -52,6 +52,8 @@
 	<string>Tlon needs access to your photo library to upload photos for sharing.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Tlon needs access to your photo library to save images to your library.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Tlon Messenger wants to access your contacts.</string>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>INSendMessageIntent</string>

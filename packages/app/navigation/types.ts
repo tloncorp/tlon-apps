@@ -49,14 +49,19 @@ export type RootStackParamList = {
   FeatureFlags: undefined;
   ManageAccount: undefined;
   BlockedUsers: undefined;
+  PrivacySettings: undefined;
   AppInfo: undefined;
   PushNotificationSettings: undefined;
   AddContacts: undefined;
+  InviteSystemContacts: undefined;
   UserProfile: {
     userId: string;
   };
   EditProfile: {
     userId: string;
+  };
+  Attestation: {
+    attestationType: 'twitter' | 'phone';
   };
   WompWomp: undefined;
   ChannelMembers: {
@@ -131,6 +136,7 @@ export type SettingsDrawerParamList = Pick<
   | 'AppInfo'
   | 'PushNotificationSettings'
   | 'WompWomp'
+  | 'PrivacySettings'
 >;
 
 export type ChannelStackParamList = {

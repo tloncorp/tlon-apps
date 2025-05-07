@@ -10,8 +10,12 @@ export const ChatListItem = React.memo(function ChatListItemComponent({
   model,
   onPress,
   onLongPress,
+  onLayout,
   ...props
-}: ListItemProps<db.Chat>) {
+}: ListItemProps<db.Chat> & {
+  onLayout?: (e: any) => void;
+  showGroupTitle?: boolean;
+}) {
   const handlePress = logic.useMutableCallback(() => {
     onPress?.(model);
   });
@@ -26,6 +30,7 @@ export const ChatListItem = React.memo(function ChatListItemComponent({
         onPress={handlePress}
         onLongPress={handleLongPress}
         model={model.group}
+        onLayout={onLayout}
         {...props}
       />
     );
@@ -35,6 +40,7 @@ export const ChatListItem = React.memo(function ChatListItemComponent({
         model={model.channel}
         onPress={handlePress}
         onLongPress={handleLongPress}
+        onLayout={onLayout}
         {...props}
       />
     );

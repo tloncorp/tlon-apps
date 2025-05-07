@@ -4,7 +4,7 @@ import { Icon, IconType } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
-import { typeStyles } from '@tloncorp/ui';
+import { desktopTypeStyles, mobileTypeStyles } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import {
   ComponentProps,
@@ -45,7 +45,7 @@ export const RawTextInput = styled(
   RNTextInput,
   {
     name: 'RawTextInput',
-    ...typeStyles['$label/xl'],
+    ...mobileTypeStyles['$label/xl'],
     lineHeight: 'unset',
     context: FieldContext,
     color: '$primaryText',
@@ -55,6 +55,7 @@ export const RawTextInput = styled(
     paddingVertical: '$l',
     numberOfLines: 1,
     '$platform-web': { outlineStyle: 'none' },
+    $gtSm: desktopTypeStyles['$label/xl'],
     variants: {
       accent: {
         negative: {
@@ -186,7 +187,7 @@ export const ImageInput = XStack.styleable<{
   const [assetUri, setAssetUri] = useState<string | undefined>(
     value ?? undefined
   );
-  const { attachAssets, canUpload } = useAttachmentContext();
+  const { canUpload } = useAttachmentContext();
   const isWindowNarrow = useIsWindowNarrow();
 
   useEffect(() => {
@@ -197,13 +198,9 @@ export const ImageInput = XStack.styleable<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assetUri]);
 
-  const handleImageSelected = useCallback(
-    (assets: ImagePickerAsset[]) => {
-      attachAssets([assets[0]]);
-      setAssetUri(assets[0].uri);
-    },
-    [attachAssets]
-  );
+  const handleImageSelected = useCallback((assets: ImagePickerAsset[]) => {
+    setAssetUri(assets[0].uri);
+  }, []);
 
   const handleSheetToggled = useCallback(() => {
     if (!canUpload) {
@@ -253,7 +250,7 @@ export const ImageInput = XStack.styleable<{
       <AttachmentSheet
         isOpen={sheetOpen}
         onOpenChange={setSheetOpen}
-        onAttachmentsSet={handleImageSelected}
+        onAttach={handleImageSelected}
         showClearOption={showClear && !!value}
         onClearAttachments={handleImageRemoved}
       />

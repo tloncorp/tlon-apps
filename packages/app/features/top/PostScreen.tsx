@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
@@ -24,9 +24,16 @@ export default function PostScreen(props: Props) {
   const { postId, channelId, authorId } = props.route.params;
   const chatOptionsNavProps = useChatSettingsNavigation();
   const canUpload = store.useCanUpload();
-  const { data: post } = store.usePostWithThreadUnreads({
+  const { data: post, isLoading } = store.usePostWithThreadUnreads({
     id: postId,
   });
+
+  useEffect(() => {
+    // if we don't already have the post in the DB, make sure we sync it
+    if (!post && !isLoading) {
+      store.syncThreadPosts({ postId, authorId, channelId });
+    }
+  }, [post, isLoading, postId, authorId, channelId]);
 
   return (
     <ChatOptionsProvider

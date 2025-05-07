@@ -1,23 +1,31 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { SizableEmoji } from '@tloncorp/ui';
+import { Icon, SizableEmoji } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
-import { useCallback } from 'react';
-import { Tooltip, XStack } from 'tamagui';
+import { useCallback, useState } from 'react';
+import { Tooltip, View, XStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
+import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
 import { triggerHaptic } from '../../utils';
 import { ReactionListItem, useReactionDetails } from '../../utils/postUtils';
+import { EmojiPickerSheet } from '../Emoji';
 
 export function ReactionsDisplay({
   post,
   onViewPostReactions,
+  minimal = false,
 }: {
   post: db.Post;
   onViewPostReactions?: (post: db.Post) => void;
+  minimal?: boolean;
 }) {
   const currentUserId = useCurrentUserId();
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const handleSelectEmoji = useOnEmojiSelect(post, () => setSheetOpen(false));
+
   const reactionDetails = useReactionDetails(
     post.reactions ?? [],
     currentUserId
@@ -46,7 +54,7 @@ export function ReactionsDisplay({
       reaction.users
         ? reaction.users
             .slice(0, 3)
-            .map((user) => user.name)
+            .map((user) => user.name || user.id)
             .join(', ') +
           (reaction.users.length > 3
             ? ` +${reaction.users.length - 3} more`
@@ -55,75 +63,149 @@ export function ReactionsDisplay({
     []
   );
 
-  if (reactionDetails.list.length === 0) {
-    return null;
+  if (minimal) {
+    if (reactionDetails.list.length === 0) {
+      return null;
+    }
+    const displayedReactions = reactionDetails.list.slice(0, 2);
+    const remainingCount = reactionDetails.list.length - 2;
+
+    return (
+      <Pressable onPress={() => handleOpenReactions(post)}>
+        <XStack gap="$2xs" alignItems="center">
+          {displayedReactions.map((reaction) => (
+            <Pressable
+              key={reaction.value}
+              onPress={() => handleModifyYourReaction(reaction.value)}
+              testID={`ReactionDisplay-minimal`}
+            >
+              <Tooltip placement="top" delay={0} restMs={25}>
+                <Tooltip.Trigger>
+                  <XStack
+                    key={reaction.value}
+                    justifyContent="center"
+                    alignItems="center"
+                  >
+                    <SizableEmoji
+                      key={reaction.value}
+                      shortCode={reaction.value}
+                      fontSize="$s"
+                    />
+                  </XStack>
+                </Tooltip.Trigger>
+                <Tooltip.Content
+                  padding="$s"
+                  backgroundColor="$secondaryBackground"
+                  borderRadius="$s"
+                >
+                  <Text size="$label/m">
+                    {firstThreeReactionUsers(reaction)}
+                  </Text>
+                </Tooltip.Content>
+              </Tooltip>
+            </Pressable>
+          ))}
+          {remainingCount > 0 && (
+            <Text size="$label/s" color="$primaryText">
+              +{remainingCount}
+            </Text>
+          )}
+        </XStack>
+      </Pressable>
+    );
   }
 
   return (
-    <Pressable borderRadius="$m" onLongPress={() => handleOpenReactions(post)}>
-      <XStack
-        paddingBottom="$l"
-        paddingLeft="$4xl"
+    <XStack alignItems="center">
+      <Pressable
         borderRadius="$m"
-        gap="$xs"
-        flexWrap="wrap"
+        onLongPress={() => handleOpenReactions(post)}
       >
-        {reactionDetails.list.map((reaction) => (
-          <Pressable
-            key={reaction.value}
-            borderRadius="$s"
-            onPress={() => handleModifyYourReaction(reaction.value)}
-            onLongPress={() => handleOpenReactions(post)}
-            testID={`ReactionDisplay`}
-          >
-            <Tooltip placement="top" delay={0} restMs={25}>
-              <Tooltip.Trigger>
-                <XStack
-                  key={reaction.value}
-                  justifyContent="center"
-                  alignItems="center"
-                  backgroundColor={
-                    reaction.value === reactionDetails.self.value
-                      ? '$positiveBackground'
-                      : '$secondaryBackground'
-                  }
-                  padding="$xs"
-                  paddingHorizontal="$s"
-                  height="$3xl"
-                  borderRadius="$s"
-                  borderColor={
-                    reaction.value === reactionDetails.self.value
-                      ? '$positiveBorder'
-                      : '$border'
-                  }
-                  borderWidth={1}
-                  gap={'$s'}
-                  disabled={
-                    reactionDetails.self.didReact &&
-                    reaction.value !== reactionDetails.self.value
-                  }
-                >
-                  <SizableEmoji
+        <XStack borderRadius="$m" gap="$xs" flexWrap="wrap">
+          {reactionDetails.list.map((reaction) => (
+            <Pressable
+              key={reaction.value}
+              borderRadius="$s"
+              onPress={() => handleModifyYourReaction(reaction.value)}
+              onLongPress={() => handleOpenReactions(post)}
+              testID={`ReactionDisplay`}
+            >
+              <Tooltip placement="top" delay={0} restMs={25}>
+                <Tooltip.Trigger>
+                  <XStack
                     key={reaction.value}
-                    shortCode={reaction.value}
-                    fontSize="$s"
-                  />
-                  {reaction.count > 0 && (
-                    <Text size="$label/m">{reaction.count}</Text>
-                  )}
-                </XStack>
-              </Tooltip.Trigger>
-              <Tooltip.Content
-                padding="$s"
-                backgroundColor="$secondaryBackground"
-                borderRadius="$s"
-              >
-                <Text size="$label/m">{firstThreeReactionUsers(reaction)}</Text>
-              </Tooltip.Content>
-            </Tooltip>
+                    justifyContent="center"
+                    alignItems="center"
+                    backgroundColor={
+                      reaction.value === reactionDetails.self.value
+                        ? '$positiveBackground'
+                        : '$secondaryBackground'
+                    }
+                    padding="$xs"
+                    paddingHorizontal="$s"
+                    height="$3xl"
+                    borderRadius="$m"
+                    borderColor={
+                      reaction.value === reactionDetails.self.value
+                        ? '$positiveBorder'
+                        : '$border'
+                    }
+                    gap={'$s'}
+                    disabled={
+                      reactionDetails.self.didReact &&
+                      reaction.value !== reactionDetails.self.value
+                    }
+                  >
+                    <SizableEmoji
+                      key={reaction.value}
+                      shortCode={reaction.value}
+                      fontSize="$s"
+                    />
+                    {reaction.count > 0 && (
+                      <Text size="$label/m">{reaction.count}</Text>
+                    )}
+                  </XStack>
+                </Tooltip.Trigger>
+                <Tooltip.Content
+                  padding="$s"
+                  backgroundColor="$secondaryBackground"
+                  borderRadius="$s"
+                >
+                  <Text size="$label/m">
+                    {firstThreeReactionUsers(reaction)}
+                  </Text>
+                </Tooltip.Content>
+              </Tooltip>
+            </Pressable>
+          ))}
+        </XStack>
+      </Pressable>
+
+      {post.type !== 'chat' && post.type !== 'reply' ? (
+        <>
+          <Pressable onPress={() => setSheetOpen(true)}>
+            <View
+              justifyContent="center"
+              alignItems="center"
+              backgroundColor="$secondaryBackground"
+              padding="$xs"
+              paddingHorizontal="$s"
+              marginLeft={reactionDetails.list.length > 0 ? '$s' : 0}
+              height="$3xl"
+              borderRadius="$m"
+              borderColor="$border"
+              disableOptimization // height is wrong if optimized
+            >
+              <Icon type="React" />
+            </View>
           </Pressable>
-        ))}
-      </XStack>
-    </Pressable>
+          <EmojiPickerSheet
+            open={sheetOpen}
+            onOpenChange={() => setSheetOpen(false)}
+            onEmojiSelect={handleSelectEmoji}
+          />
+        </>
+      ) : null}
+    </XStack>
   );
 }

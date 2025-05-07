@@ -294,6 +294,20 @@
       [~ %| *]  ~&  [dap.bowl %overwriting-pending-import]
                 cor(pimp `|+egg-any)
     ==
+  ::
+      %handle-http-request
+    ::  we may (in some Tlon hosting circumstances) have been bound to serve
+    ::  on the root path, making us act as a catch-all for http requests.
+    ::  handle all requests that hit us by redirecting back into the web app.
+    ::
+    =+  !<([id=@ta inbound-request:eyre] vase)
+    =/  pax=path                 /http-response/[id]
+    =/  pay=simple-payload:http  [[307 ['location' '/apps/groups/']~] ~]
+    %-  emil
+    :~  [%give %fact ~[pax] %http-response-header !>(response-header.pay)]
+        [%give %fact ~[pax] %http-response-data !>(data.pay)]
+        [%give %kick ~[pax] ~]
+    ==
   ==
 ::
 ++  run-import
@@ -405,14 +419,11 @@
     %+  roll  ~(tap by wex.bowl)
     |=  [[[=wire =dock] *] =_cor]
     ?.  ?=([%epic ~] wire)  cor
-    =^  caz=(list card)  subs
+    =^  caz=(list card)  subs.cor
       (~(unsubscribe s [subs bowl]) wire dock)
-    ::XX bug: emil does not refer to cor
-    ::we should repeat this migration with the next upgrade
-    ::
     =.  cor  (emil:cor caz)
     ::  force leave
-    (emit [%pass wire %agent dock %leave ~])
+    (emit:cor [%pass wire %agent dock %leave ~])
   =?  cor  ?=(%4 -.old)
     (emit [%pass /load/active-channels %arvo %b %wait now.bowl])
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)

@@ -6,12 +6,6 @@ import {
   DEFAULT_INVITE_LINK_URL,
 } from '@tloncorp/app/constants';
 import { useBranch, useLureMetadata } from '@tloncorp/app/contexts/branch';
-import { trackError, trackOnboardingAction } from '@tloncorp/app/utils/posthog';
-import {
-  createInviteLinkRegex,
-  extractNormalizedInviteLink,
-  getInviteLinkMeta,
-} from '@tloncorp/shared';
 import {
   Button,
   Field,
@@ -23,6 +17,13 @@ import {
   View,
   YStack,
 } from '@tloncorp/app/ui';
+import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import {
+  createDevLogger,
+  createInviteLinkRegex,
+  extractNormalizedInviteLink,
+  getInviteLinkMeta,
+} from '@tloncorp/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
@@ -39,6 +40,8 @@ type Props = NativeStackScreenProps<
 type FormData = {
   inviteLink: string;
 };
+
+const logger = createDevLogger('PasteInviteLinkScreen', true);
 
 export const PasteInviteLinkScreen = ({ navigation }: Props) => {
   const lureMeta = useLureMetadata();
@@ -78,8 +81,8 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
             throw new Error('Failed to retrieve invite metadata');
           }
         } catch (e) {
-          trackError({
-            message: e.message,
+          logger.trackError('Error retrieving invite metadata', {
+            errorMessage: e.message,
             properties: {
               inviteLink: extractedLink,
               branchDomain: BRANCH_DOMAIN,

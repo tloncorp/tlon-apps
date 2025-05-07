@@ -209,6 +209,19 @@ const ChatMessage = ({
           </View>
         ) : null}
 
+        {!showAuthor && post.isEdited ? (
+          <View
+            position="absolute"
+            right={12}
+            top={8}
+            zIndex={199}
+          >
+            <Text size="$label/s" color="$tertiaryText">
+              Edited
+            </Text>
+          </View>
+        ) : null}
+
         {!showAuthor && deliveryFailed ? (
           <Pressable
             onPress={() => setShowRetrySheet(true)}
@@ -235,10 +248,14 @@ const ChatMessage = ({
           />
         </View>
 
-        <ReactionsDisplay
-          post={post}
-          onViewPostReactions={setViewReactionsPost}
-        />
+        {post.reactions && post.reactions.length > 0 && (
+          <View paddingBottom="$l" paddingLeft="$4xl">
+            <ReactionsDisplay
+              post={post}
+              onViewPostReactions={setViewReactionsPost}
+            />
+          </View>
+        )}
 
         {shouldRenderReplies ? (
           <XStack paddingLeft={'$4xl'} paddingRight="$l" paddingBottom="$l">

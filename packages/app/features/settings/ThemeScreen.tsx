@@ -78,7 +78,14 @@ export function ThemeScreen(props: Props) {
         title="Theme"
         backAction={() => props.navigation.goBack()}
       />
-      <ScrollView flex={1} width="100%" maxWidth={600} marginHorizontal="auto">
+      <ScrollView
+        flex={1}
+        contentContainerStyle={{
+          width: '100%',
+          maxWidth: 600,
+          marginHorizontal: 'auto',
+        }}
+      >
         <YStack flex={1} padding="$l">
           {themes.map((theme) => (
             <Pressable

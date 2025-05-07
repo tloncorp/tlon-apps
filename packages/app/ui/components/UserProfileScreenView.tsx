@@ -2,7 +2,7 @@ import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCopy } from '@tloncorp/ui';
-import { triggerHaptic, useIsWindowNarrow } from '@tloncorp/ui';
+import { triggerHaptic } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
@@ -17,12 +17,10 @@ import {
 import { LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  Circle,
   ScrollView,
   View,
   XStack,
   YStack,
-  isWeb,
   styled,
   useTheme,
   useWindowDimensions,
@@ -33,15 +31,16 @@ import { useGroupTitle } from '../utils';
 import { ContactAvatar, GroupAvatar } from './Avatar';
 import { ContactName } from './ContactNameV2';
 import { useBoundHandler } from './ListItem/listItemUtils';
-import { ScreenHeader } from './ScreenHeader';
+import {
+  PhoneAttestDisplay,
+  TwitterAttestDisplay,
+} from './Profile/ConnectedAccountsWidget';
 import { WidgetPane } from './WidgetPane';
 
 interface Props {
   userId: string;
-  onBack: () => void;
   connectionStatus: api.ConnectionStatus | null;
   onPressGroup: (group: db.Group) => void;
-  onPressEdit: () => void;
 }
 
 export function UserProfileScreenView(props: Props) {
@@ -55,6 +54,24 @@ export function UserProfileScreenView(props: Props) {
       []
     );
   }, [userContact?.pinnedGroups]);
+
+  const attestations = useMemo(() => {
+    return (userContact?.attestations
+      ?.map((a) => a.attestation)
+      .filter(Boolean) ?? []) as db.Attestation[];
+  }, [userContact]);
+
+  const twitterAttestation = useMemo(() => {
+    return attestations.find(
+      (a) => a.type === 'twitter' && a.status === 'verified'
+    );
+  }, [attestations]);
+
+  const phoneAttestation = useMemo(() => {
+    return attestations.find(
+      (a) => a.type === 'phone' && a.status === 'verified'
+    );
+  }, [attestations]);
 
   const nodeStatus = !props.connectionStatus?.complete
     ? 'pending'
@@ -85,54 +102,60 @@ export function UserProfileScreenView(props: Props) {
 
   return (
     <View flex={1} backgroundColor={theme.secondaryBackground.val}>
-      <ScreenHeader
-        title="Profile"
-        leftControls={<ScreenHeader.BackButton onPress={props.onBack} />}
-        rightControls={
-          canEdit ? (
-            <ScreenHeader.TextButton onPress={() => props.onPressEdit()}>
-              Edit
-            </ScreenHeader.TextButton>
-          ) : null
-        }
-      />
-      <View flex={1} width="100%" maxWidth={600} marginHorizontal="auto">
-        <ScrollView
-          flex={1}
-          contentContainerStyle={{
-            padding: '$l',
-            gap: '$l',
-            paddingBottom: insets.bottom + 20,
-            flexWrap: 'wrap',
-            flexDirection: 'row',
-          }}
-        >
-          <UserInfoRow
-            userId={props.userId}
-            hasNickname={!!userContact?.nickname?.length}
-          />
-          {userContact?.status && <View width="100%"></View>}
+      <ScrollView
+        flex={1}
+        contentContainerStyle={{
+          width: '100%',
+          maxWidth: 600,
+          marginHorizontal: 'auto',
+          padding: '$l',
+          gap: '$l',
+          paddingBottom: insets.bottom + 20,
+          flexWrap: 'wrap',
+          flexDirection: 'row',
+        }}
+      >
+        <UserInfoRow
+          userId={props.userId}
+          hasNickname={!!userContact?.nickname?.length}
+        />
+        {userContact?.status && <View width="100%"></View>}
 
-          {currentUserId !== props.userId ? (
-            <ProfileButtons userId={props.userId} contact={userContact} />
-          ) : null}
+        {currentUserId !== props.userId ? (
+          <ProfileButtons userId={props.userId} contact={userContact} />
+        ) : null}
 
-          {userContact?.status && (
-            <StatusDisplay status={userContact?.status ?? ''} />
+        {userContact?.status && (
+          <StatusDisplay status={userContact?.status ?? ''} />
+        )}
+        <BioDisplay bio={userContact?.bio ?? ''} />
+
+        <XStack gap="$l" width="100%" flexWrap="wrap">
+          {twitterAttestation && (
+            <View width="48%" height={120}>
+              <TwitterAttestDisplay attestation={twitterAttestation} />
+            </View>
           )}
-          <BioDisplay bio={userContact?.bio ?? ''} />
 
-          <XStack gap="$l" width="100%">
+          {phoneAttestation && (
+            <View width="48%" height={120}>
+              <PhoneAttestDisplay attestation={phoneAttestation} />
+            </View>
+          )}
+
+          <View width="48%" height={120}>
             <StatusBlock status={nodeStatus} label="Node" />
-            <StatusBlock status={sponsorStatus} label="Sponsor" />
-          </XStack>
+          </View>
 
-          <PinnedGroupsDisplay
-            groups={pinnedGroups}
-            onPressGroup={onPressGroup}
-          />
-        </ScrollView>
-      </View>
+          <View width="48%" height={120}>
+            <StatusBlock status={sponsorStatus} label="Sponsor" />
+          </View>
+        </XStack>
+        <PinnedGroupsDisplay
+          groups={pinnedGroups}
+          onPressGroup={onPressGroup}
+        />
+      </ScrollView>
     </View>
   );
 }
@@ -144,16 +167,8 @@ function StatusBlock({
   status: 'online' | 'offline' | 'pending';
   label: string;
 }) {
-  const windowDimensions = useWindowDimensions();
-  const isWindowNarrow = useIsWindowNarrow();
-
   return (
-    <PaddedBlock
-      flex={1}
-      padding="$2xl"
-      width={isWindowNarrow ? (windowDimensions.width - 36) / 2 : '100%'}
-      gap="$2xl"
-    >
+    <PaddedBlock flex={1} padding="$2xl" gap="$2xl">
       <XStack width="100%" justifyContent="space-between">
         <Text size="$body" color="$tertiaryText">
           {label}
@@ -349,42 +364,48 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
     triggerHaptic('success');
   }, [doCopy]);
 
+  const primaryNameProps = props.hasNickname
+    ? { mode: 'nickname' as const, color: '$primaryText' }
+    : { mode: 'contactId' as const };
+
   return (
     <Pressable width="100%" onPress={handleCopy}>
       <XStack alignItems="center" padding="$l" gap="$xl" width={'100%'}>
         <ContactAvatar contactId={props.userId} size="$5xl" />
         <YStack flex={1} justifyContent="center">
-          {props.hasNickname ? (
-            <>
-              <ContactName
-                contactId={props.userId}
-                color="$primaryText"
-                mode="nickname"
-                fontSize={24}
-                lineHeight={24}
-                maxWidth="100%"
-                numberOfLines={1}
-              />
-              <XStack alignItems="center">
-                <Text color="$secondaryText">
-                  <ContactName contactId={props.userId} mode="contactId" />
-                </Text>
-                {didCopy ? (
+          <ContactName
+            contactId={props.userId}
+            fontSize={24}
+            lineHeight={32}
+            maxWidth="100%"
+            numberOfLines={1}
+            {...primaryNameProps}
+          />
+          {(props.hasNickname || didCopy) && (
+            <XStack alignItems="center">
+              {didCopy ? (
+                <>
                   <Icon
                     type="Checkmark"
                     customSize={[14, 14]}
                     position="relative"
                     top={1}
+                    color="$secondaryText"
                   />
-                ) : null}
-              </XStack>
-            </>
-          ) : (
-            <ContactName
-              fontSize={24}
-              lineHeight={24}
-              contactId={props.userId}
-            />
+                  <Text color="$secondaryText">Copied!</Text>
+                </>
+              ) : (
+                props.hasNickname && (
+                  <Text color="$secondaryText">
+                    <ContactName
+                      contactId={props.userId}
+                      mode="contactId"
+                      expandLongIds
+                    />
+                  </Text>
+                )
+              )}
+            </XStack>
           )}
         </YStack>
       </XStack>
@@ -477,8 +498,7 @@ export function ProfileButton({
 
   return (
     <Button
-      flexGrow={1}
-      flexBasis={1}
+      flex={1}
       borderWidth={0}
       paddingVertical="$xl"
       paddingHorizontal="$2xl"
@@ -491,8 +511,9 @@ export function ProfileButton({
       <Text
         size="$label/xl"
         color={hero ? '$background' : '$primaryText'}
-        paddingHorizontal={isWeb ? '$m' : undefined}
         textWrap="nowrap"
+        wordWrap="unset"
+        whiteSpace="nowrap"
       >
         {title}
       </Text>

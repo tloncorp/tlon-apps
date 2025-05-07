@@ -3,19 +3,17 @@ import {
   useLureMetadata,
   useSignupParams,
 } from '@tloncorp/app/contexts/branch';
-import { useShip } from '@tloncorp/app/contexts/ship';
-import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
-import { getShipUrl } from '@tloncorp/app/utils/ship';
 import {
-  AnalyticsEvent,
-  HostedNodeStatus,
-  createDevLogger,
-} from '@tloncorp/shared';
+  ScreenHeader,
+  TlonText,
+  View,
+  YStack,
+  useStore,
+} from '@tloncorp/app/ui';
+import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import { AnalyticsSeverity, createDevLogger } from '@tloncorp/shared';
 import { HostingError } from '@tloncorp/shared/api';
-import { getLandscapeAuthCookie } from '@tloncorp/shared/api';
 import { storage } from '@tloncorp/shared/db';
-import * as db from '@tloncorp/shared/db';
-import { ScreenHeader, TlonText, View, YStack, useStore } from '@tloncorp/app/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
@@ -114,6 +112,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
         logger.trackError('Error signing up user', {
           errorMessage: err.message,
           errorStack: err.stack,
+          severity: AnalyticsSeverity.Critical,
           ...accountCreds,
         });
         throw err;

@@ -1,0 +1,75 @@
+gangs:
+  get:
+    summary: "Get group gangs"
+    description: >
+      Retrieves a collection of gangs, keyed by
+      the group `$flag`. A `$gang` is an invitation to a group.
+    operationId: getGroupsGangs
+    tags:
+      - "Groups"
+    responses:
+      "200":
+        description: "OK"
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                $ref: "../components/groups.yaml#/gang-v2"
+v1-gangs:
+  get:
+    summary: "(v1) Get group gangs"
+    description: >
+      Retrieves a collection of gangs, keyed by
+      the group `$flag`. A `$gang` is a preview or invitation to a group.
+    operationId: getGroupsGangs-v1
+    tags:
+      - "Groups"
+    responses:
+      "200":
+        description: "OK"
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                $ref: "../components/groups.yaml#/gang-v5"
+v2-gangs:
+  get:
+    summary: "(v2) Get group gangs"
+    description: >
+      Retrieves a collection of gangs, keyed by
+      the group `$flag`. A `$gang` is an invitation to a group.
+    operationId: getGroupsGangs-v2
+    tags:
+      - "Groups"
+    responses:
+      "200":
+        description: "OK"
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                $ref: "../components/groups.yaml#/gang-v6"
+
+groups-light:
+  get:
+    summary: "Get groups lightweight"
+    description: >
+      Returns a collection of groups, keyed by the group $flag.
+      The fleet, which is a collection of group members and can be
+      quite big, is removed from each group, with only your self
+      remaining.
+    operationId: getGroupsLight
+    tags:
+      - "Groups"
+    responses:
+      "200":
+        description: "OK"
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                $ref: "../components/groups.yaml#/group-v2"

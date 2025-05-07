@@ -101,7 +101,9 @@ export const useLureState = create<LureState>((set, get) => ({
         lureLogger.crumb(performance.now(), 'fetching url with sub', flag);
         return subscribeOnce<string>(
           { app: 'reel', path: `/v1/id-link/${flag}` },
-          LURE_REQUEST_TIMEOUT
+          LURE_REQUEST_TIMEOUT,
+          undefined,
+          { tag: 'lureFetcher' }
         )
           .then((u) => {
             lureLogger.crumb(performance.now(), 'url fetched', u, flag);
@@ -186,8 +188,7 @@ export function useLure({
 
   const canCheckForUpdate = useMemo(() => {
     const uninitialized = Boolean(
-      !lure.fetched &&
-        (!lure.url || !checkLureToken(lure.url) || !lure.deepLinkUrl)
+      !lure.url || !checkLureToken(lure.url) || !lure.deepLinkUrl
     );
     return Boolean(bait && !disableLoading && uninitialized);
   }, [bait, lure, disableLoading]);
@@ -228,7 +229,7 @@ export function useLure({
     }
 
     return 'ready';
-  }, [bait, fetched, url, deepLinkUrl, flag]);
+  }, [bait, fetched, url, deepLinkUrl]);
 
   // prevent over zealous logging
   const statusKey = useMemo(() => {

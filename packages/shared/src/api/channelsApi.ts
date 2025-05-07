@@ -14,11 +14,11 @@ import {
 } from './apiUtils';
 import { toPostData, toPostReplyData, toReactionsData } from './postsApi';
 import {
-  client,
   poke,
   scry,
   subscribe,
   subscribeOnce,
+  thread,
   trackedPoke,
 } from './urbit';
 
@@ -119,7 +119,8 @@ export const createChannel = async ({
     { app: 'channels', path: '/v1' },
     (event) => {
       return 'create' in event.response && event.nest === id;
-    }
+    },
+    { tag: 'createChannel' }
   );
 };
 
@@ -127,7 +128,7 @@ export const setupChannelFromTemplate = async (
   exampleChannelId: string,
   targetChannelId: string
 ) => {
-  return client.thread<string>({
+  return thread({
     desk: 'groups',
     inputMark: 'hook-setup-template-args',
     outputMark: 'json',
@@ -353,7 +354,8 @@ export const createNewGroupDefaultChannel = async ({
         nest ===
           `${channelPayload.kind}/${currentUserId}/${channelPayload.name}`
       );
-    }
+    },
+    { tag: 'createNewGroupDefaultChannel' }
   );
 };
 
@@ -432,7 +434,8 @@ export const leaveChannel = async (channelId: string) => {
     { app: 'channels', path: '/v1' },
     (event) => {
       return 'leave' in event.response && event.response.leave === channelId;
-    }
+    },
+    { tag: 'leaveChannel' }
   );
 };
 
@@ -453,7 +456,8 @@ export const joinChannel = async (channelId: string, groupId: string) => {
     { app: 'channels', path: '/v1' },
     (event) => {
       return 'join' in event.response && event.nest === channelId;
-    }
+    },
+    { tag: 'joinChannel' }
   );
 };
 

@@ -3,8 +3,9 @@ import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useCallback } from 'react';
+import { View, isWeb, useTheme } from 'tamagui';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupActions } from '../../hooks/useGroupActions';
@@ -16,6 +17,7 @@ import {
   GroupPreviewAction,
   GroupPreviewSheet,
   NavigationProvider,
+  ScreenHeader,
   UserProfileScreenView,
   useIsWindowNarrow,
 } from '../../ui';
@@ -26,6 +28,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
 const logger = createDevLogger('UserProfileScreen', false);
 
 export function UserProfileScreen({ route, navigation }: Props) {
+  const theme = useTheme();
   const { params } = route;
   const isWindowNarrow = useIsWindowNarrow();
   const { performGroupAction } = useGroupActions();
@@ -33,9 +36,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
   const userId = params?.userId || currentUserId;
   const { data: contacts } = store.useContacts();
   const connectionStatus = useConnectionStatus(userId);
-  const { data: calmSettings } = store.useCalmSettings({
-    userId: currentUserId,
-  });
+  const { data: calmSettings } = store.useCalmSettings();
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const { resetToDm } = useRootNavigation();
 
@@ -80,6 +81,19 @@ export function UserProfileScreen({ route, navigation }: Props) {
     setSelectedGroup(group);
   }, []);
 
+  const canEdit = useMemo(() => {
+    return (
+      currentUserId === userId ||
+      contacts?.find((c) => c.id === userId)?.isContact
+    );
+  }, [currentUserId, userId, contacts]);
+
+  const shouldShowBackButton = useMemo(() => {
+    const isWebDesktop = isWeb && !isWindowNarrow;
+    const isContactsTabRoot = navigation.getState().history?.length === 1;
+    return !(isWebDesktop && isContactsTabRoot);
+  }, [isWindowNarrow, navigation]);
+
   return (
     <AppDataContextProvider
       currentUserId={currentUserId}
@@ -91,13 +105,30 @@ export function UserProfileScreen({ route, navigation }: Props) {
           canUpload={canUpload}
           uploadAsset={store.uploadAsset}
         >
-          <UserProfileScreenView
-            userId={userId}
-            onBack={() => navigation.goBack()}
-            connectionStatus={connectionStatus}
-            onPressGroup={handlePressGroup}
-            onPressEdit={handlePressEdit}
-          />
+          <View flex={1} backgroundColor={theme.secondaryBackground.val}>
+            <ScreenHeader
+              title="Profile"
+              leftControls={
+                shouldShowBackButton ? (
+                  <ScreenHeader.BackButton
+                    onPress={() => navigation.goBack()}
+                  />
+                ) : null
+              }
+              rightControls={
+                canEdit ? (
+                  <ScreenHeader.TextButton onPress={handlePressEdit}>
+                    Edit
+                  </ScreenHeader.TextButton>
+                ) : null
+              }
+            />
+            <UserProfileScreenView
+              userId={userId}
+              connectionStatus={connectionStatus}
+              onPressGroup={handlePressGroup}
+            />
+          </View>
           <GroupPreviewSheet
             open={selectedGroup !== null}
             onOpenChange={handleGroupPreviewSheetOpenChange}

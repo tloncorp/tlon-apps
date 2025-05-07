@@ -83,13 +83,6 @@ module.exports = {
       const store = await initStore();
       if (!store) return null;
       const value = store.get(key);
-      if (key === 'encryptionKey' || key === 'encryptedAuthCookie') {
-        console.log(
-          `Reading ${key} from store: ${value ? 'exists' : 'missing'}`
-        );
-      } else {
-        console.log(`Reading ${key} from store:`, value);
-      }
       return value;
     } catch (error) {
       console.error(`Error getting ${key} from store:`, error);

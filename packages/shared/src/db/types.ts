@@ -33,6 +33,8 @@ type BaseModel<T extends TableName> = InferModelFromColumns<
 > &
   BaseModelRelations<SchemaWithRelations[T]>;
 
+export type SystemContact = BaseModel<'systemContacts'>;
+export type SystemContactSentInvite = BaseModel<'systemContactSentInvites'>;
 export type Contact = BaseModel<'contacts'> & {
   nickname?: string | null;
   avatarImage?: string | null;
@@ -40,6 +42,7 @@ export type Contact = BaseModel<'contacts'> & {
 export type ContactPinnedGroups = Contact['pinnedGroups'];
 export type ChannelUnread = BaseModel<'channelUnreads'>;
 export type GroupUnread = BaseModel<'groupUnreads'>;
+export type BaseUnread = BaseModel<'baseUnreads'>;
 export type ActivityEvent = BaseModel<'activityEvents'>;
 export type ActivityEventContactUpdateGroups =
   ActivityEvent['contactUpdateGroups'];
@@ -95,9 +98,11 @@ export type PinType = schema.PinType;
 export type Settings = BaseModel<'settings'>;
 export type PostWindow = BaseModel<'postWindows'>;
 export type VolumeSettings = BaseModel<'volumeSettings'>;
-export type Verification = BaseModel<'verifications'>;
-export type VerificationStatus = schema.VerificationStatus;
-export type VerificationVisibility = schema.VerificationVisibility;
+export type Attestation = BaseModel<'attestations'>;
+export type AttestationStatus = schema.AttestationStatus;
+export type AttestationDiscoverability = schema.AttestationDiscoverability;
+export type AttestationType = schema.AttestationType;
+export type ContactAttestation = BaseModel<'contactAttestations'>;
 
 export type Chat = {
   id: string;
@@ -126,4 +131,12 @@ export function isGroupEvent(event: ActivityEvent): event is GroupEvent {
   return Boolean(
     event.type === 'group-ask' && event.groupEventUserId && event.groupId
   );
+}
+
+export function isSystemContact(
+  contact: Contact | SystemContact
+): contact is SystemContact {
+  const hasPhone = 'phoneNumber' in contact;
+  const hasEmail = 'email' in contact;
+  return hasPhone || hasEmail;
 }

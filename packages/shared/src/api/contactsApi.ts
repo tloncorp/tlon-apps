@@ -1,10 +1,10 @@
-import { daToUnix, parseDa } from '@urbit/aura';
-
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import { normalizeUrbitColor } from '../logic';
 import * as ub from '../urbit';
+import { parseAttestationId } from './lanyardApi';
+import * as NounParsers from './nounParsers';
 import { getCurrentUserId, poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('contactsApi', true);
@@ -276,24 +276,147 @@ export const v0PeerToClientProfile = (
         contactId: id,
       })) ?? [],
 
+    attestations: parseContactAttestations(id, contact),
     isContact: false,
     isContactSuggestion: config?.isContactSuggestion && id !== currentUserId,
   };
 };
 
-function contactVerifyToClientForm(
+function parseContactAttestations(
+  contactId: string,
   contact?: ub.Contact | ub.ContactBookProfile | null
-): Partial<db.Contact> {
+): db.ContactAttestation[] | null {
   if (!contact) {
-    return {};
+    return null;
   }
-  return {
-    hasVerifiedPhone: contact['lanyard-tmp-phone-sign']?.value ? true : false,
-    verifiedPhoneSignature: contact['lanyard-tmp-phone-sign']?.value ?? null,
-    verifiedPhoneAt: contact['lanyard-tmp-phone-since']?.value
-      ? daToUnix(parseDa(contact['lanyard-tmp-phone-since'].value))
-      : null,
-  };
+
+  const attestations: db.Attestation[] = [];
+
+  if (
+    contact['lanyard-twitter-0-sign'] &&
+    contact['lanyard-twitter-0-sign'].value
+  ) {
+    try {
+      const sign = NounParsers.parseSigned(
+        contact['lanyard-twitter-0-sign'].value
+      );
+
+      // TODO: check contactId matches signed data
+
+      if (sign) {
+        const signIsGenuine = sign.contactId === contactId;
+        if (signIsGenuine) {
+          const providerUrl = contact['lanyard-twitter-0-url']?.value ?? null;
+          const provider = '~zod'; // TODO: can we get this info?
+          const type = sign.type;
+          const value = sign.signType === 'full' ? sign.value : '';
+          const id = parseAttestationId({ provider, type, value, contactId });
+          const provingTweetId =
+            sign.signType === 'full' ? sign.proofTweetId ?? null : null;
+
+          attestations.push({
+            id,
+            provider,
+            type,
+            value,
+            contactId,
+            initiatedAt: sign.when,
+            discoverability: sign.signType === 'full' ? 'public' : 'verified',
+            status: 'verified',
+            providerUrl,
+            provingTweetId,
+            signature: sign.signature,
+          });
+        } else {
+          logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
+            context: 'forged attestation',
+            type: 'twitter',
+            contactId,
+            sign: contact['lanyard-twitter-0-sign']?.value,
+          });
+        }
+      }
+    } catch (e) {
+      logger.trackEvent(AnalyticsEvent.ErrorNounParse, {
+        parser: 'twitter signed',
+        error: e,
+        errorMessage: e.message,
+        noun: contact['lanyard-twitter-0-sign'].value,
+      });
+    }
+  }
+
+  if (
+    contact['lanyard-phone-0-sign'] &&
+    contact['lanyard-phone-0-sign'].value
+  ) {
+    try {
+      const sign = NounParsers.parseSigned(
+        contact['lanyard-phone-0-sign'].value
+      );
+
+      if (sign) {
+        const signIsGenuine = sign.contactId === contactId;
+        if (signIsGenuine) {
+          const providerUrl = contact['lanyard-phone-0-url']?.value ?? null;
+          const provider = '~zod'; // TODO: can we get this info?
+          const type = sign.type;
+          const value = sign.signType === 'full' ? sign.value : '';
+          const id = parseAttestationId({ provider, type, value, contactId });
+          const provingTweetId =
+            sign.signType === 'full' ? sign.proofTweetId ?? null : null;
+
+          if (sign.contactId !== contactId) {
+            logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
+              context: 'forged attestation',
+              contactId,
+              sign: contact['lanyard-phone-0-sign']?.value,
+            });
+          }
+
+          attestations.push({
+            id,
+            provider,
+            type,
+            value,
+            contactId,
+            initiatedAt: sign.when,
+            discoverability: sign.signType === 'full' ? 'public' : 'verified',
+            status: 'verified',
+            providerUrl,
+            provingTweetId,
+            signature: sign.signature,
+          });
+        } else {
+          logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
+            context: 'forged attestation',
+            type: 'phone',
+            contactId,
+            sign: contact['lanyard-phone-0-sign']?.value,
+          });
+        }
+      }
+    } catch (e) {
+      logger.trackEvent(AnalyticsEvent.ErrorNounParse, {
+        parser: 'phone signed',
+        error: e,
+        errorMessage: e.message,
+        noun: contact['lanyard-phone-0-sign'].value,
+      });
+    }
+  }
+
+  if (attestations.length === 0) {
+    return null;
+  }
+
+  const finalAttests = attestations.map((a) => ({
+    contactId,
+    attestationId: a.id,
+    attestation: a,
+  }));
+
+  return finalAttests;
 }
 
 export const v1PeersToClientProfiles = (
@@ -331,6 +454,7 @@ export const v1PeerToClientProfile = (
         groupId: group.value,
         contactId: id,
       })) ?? [],
+    attestations: parseContactAttestations(id, contact),
     isContact: config?.isContact,
     isContactSuggestion:
       config?.isContactSuggestion && !config?.isContact && id !== currentUserId,
@@ -378,6 +502,7 @@ export const contactToClientProfile = (
         groupId: group.value,
         contactId: userId,
       })) ?? [],
+    attestations: parseContactAttestations(userId, base),
     isContact: true,
     isContactSuggestion: false,
   };

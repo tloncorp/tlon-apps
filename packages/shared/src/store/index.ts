@@ -21,5 +21,7 @@ export * from './clientActions';
 export * from './lure';
 export * from './inviteActions';
 export * from './hostingActions';
+export * from './lanyardActions';
 export * from './settingsActions';
+export * from './systemContactActions';
 export { useChannelContext } from './useChannelContext';

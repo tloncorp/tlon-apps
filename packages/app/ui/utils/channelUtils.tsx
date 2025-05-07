@@ -87,25 +87,60 @@ export function getGroupTitle(
   group: db.Group,
   disableNicknames: boolean
 ): string {
+  const isPending = group.currentUserIsMember === false;
+
   if (group?.title && group?.title !== '') {
     return group.title;
   } else if ((group?.members?.length ?? 0) > 1) {
     return (
       group.members
         ?.map((member) => getChannelMemberName(member, disableNicknames))
+        .sort((a, b) => (a && b ? a.localeCompare(b) : 0))
         .join(', ') ?? 'No title'
     );
+  } else if (isPending) {
+    if (group?.members?.length === 1) {
+      return `New group by ${getChannelMemberName(group?.members[0], disableNicknames)}`;
+    } else {
+      return 'New group';
+    }
   } else {
     return 'Untitled group';
   }
 }
 
-export function useGroupTitle(group?: db.Group | null) {
+export function useGroupTitle(
+  group?: db.Group | null,
+  hostContact?: db.Contact | null
+) {
+  const modelWithHost = useMemo(() => {
+    if (!group) {
+      return null;
+    }
+    if (
+      hostContact &&
+      group.haveInvite === true &&
+      group.currentUserIsMember === false
+    ) {
+      return {
+        ...group,
+        members: [
+          {
+            contact: hostContact,
+            contactId: hostContact.id,
+            membershipType: 'group',
+          } as const,
+        ],
+      };
+    }
+    return group;
+  }, [hostContact, group]);
+
   const { disableNicknames } = useCalm();
-  if (!group) {
+  if (!group || !modelWithHost) {
     return null;
   }
-  return getGroupTitle(group, disableNicknames);
+  return getGroupTitle(modelWithHost, disableNicknames);
 }
 
 export function isDmChannel(channel: db.Channel): boolean {

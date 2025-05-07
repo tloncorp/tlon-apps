@@ -7,14 +7,34 @@ import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 
 import { useCalm } from '../ui';
 import { getChannelTitle, getGroupTitle } from '../ui';
-import { useCurrentUserId } from './useCurrentUser';
 
-export type TabName = 'all' | 'home' | 'groups' | 'messages' | 'talk';
+export type TabName =
+  | 'all'
+  | 'home'
+  | 'groups'
+  | 'messages'
+  | 'talk'
+  | 'channels';
 
 export type SectionedChatData = {
   title: string;
   data: db.Chat[];
 }[];
+
+function getAllSectionHeader(
+  activeTab: TabName,
+  msgsFilter?: TalkSidebarFilter
+): string {
+  if (activeTab === 'talk') {
+    if (msgsFilter === 'Group Channels') {
+      return 'Chat Channels';
+    }
+
+    return msgsFilter ?? 'Direct Messages';
+  }
+
+  return 'All';
+}
 
 export function useFilteredChats({
   pinned,
@@ -29,7 +49,6 @@ export function useFilteredChats({
   searchQuery: string;
   activeTab: TabName;
 }): SectionedChatData {
-  const userId = useCurrentUserId();
   const performSearch = useChatSearch({ pinned, unpinned, pending });
   const debouncedQuery = useDebouncedValue(searchQuery, 200);
   const searchResults = useMemo(
@@ -37,9 +56,12 @@ export function useFilteredChats({
     [debouncedQuery, performSearch]
   );
 
-  const { data } = useMessagesFilter({ userId });
-  const talkFilter =
-    activeTab === 'talk' ? data ?? 'Direct Messages' : 'Direct Messages';
+  const { data } = useMessagesFilter();
+  const talkFilter = useMemo(
+    () =>
+      activeTab === 'talk' ? data ?? 'Direct Messages' : 'Direct Messages',
+    [data, activeTab]
+  );
 
   return useMemo(() => {
     const isSearching = searchQuery && searchQuery.trim() !== '';
@@ -49,7 +71,7 @@ export function useFilteredChats({
         data: filterChats(pinned, activeTab, talkFilter),
       };
       const allSection = {
-        title: 'All',
+        title: getAllSectionHeader(activeTab, talkFilter),
         data: filterChats([...pending, ...unpinned], activeTab, talkFilter),
       };
       return pinnedSection.data.length
@@ -98,6 +120,15 @@ function useChatSearch({
               : normalizeString(title);
           },
         },
+        {
+          name: 'id',
+          getFn: (chat: db.Chat) => {
+            if (chat.type === 'channel') {
+              return normalizeString(chat.channel.id);
+            }
+            return normalizeString(chat.group.id);
+          },
+        },
       ],
     });
   }, [pinned, unpinned, pending, disableNicknames]);
@@ -129,9 +160,17 @@ function filterChats(
       return chat.type === 'group';
     }
 
-    if (activeTab === 'messages' || activeTab === 'talk') {
+    if (
+      activeTab === 'messages' ||
+      activeTab === 'talk' ||
+      activeTab === 'channels'
+    ) {
       if (chat.type !== 'channel') {
         return false;
+      }
+
+      if (activeTab === 'channels') {
+        return true;
       }
 
       if (filter === 'Direct Messages') {

@@ -24,11 +24,15 @@ export enum AnalyticsEvent {
   InviteButtonShown = 'Invite Button Shown',
   InitializedNewInvite = 'Initialized New Invite',
   DebugLogs = 'Debug Logs',
+  DebugGroupCreate = 'Create Group Debug',
+  DebugAttestation = 'Attestation Debug',
   AppError = 'App Error',
   AuthenticatedNodeStopped = 'Node Stopped While Logged In',
   Scry = 'Scry',
   Poke = 'Poke',
   TrackedPoke = 'TrackedPoke',
+  ErrorTrackedPokeTimeout = 'Error Tracked Poke Timeout',
+  ErrorSubscribeOnceTimeout = 'Error Subscribe Once Timeout',
   InitDataFetched = 'Init Data Fetched',
   InitDataWritten = 'Init Data Written',
   LatestPostsFetched = 'Latest Posts Fetched',
@@ -44,12 +48,16 @@ export enum AnalyticsEvent {
   NodeAuthSaved = 'Node Auth Saved',
   ErrorNodeResumePush = 'Node Resume Push Error',
   AnalyticsDigest = 'Usage Digest Report',
+  WebAppOpened = 'Web App Opened',
+  WebConsoleError = 'Web Console Error',
+  WayfindingDebug = 'Wayfinding Debug',
   ActionContactAdded = 'Contact Added',
   ActionContactRemoved = 'Contact Removed',
   ActionRemoveContactSuggestion = 'Removed Contact Suggestion',
   ActionContactEdited = 'Contact Edited',
   ActionUpdatedProfile = 'Updated Profile',
   ActionSendPost = 'Sent Post',
+  ActionForwardPost = 'Forwarded Post',
   ActionStartedDM = 'Started DM',
   ActionSendPostRetry = 'Retried Post Send',
   ActionHidePost = 'Hid Post',
@@ -94,8 +102,24 @@ export enum AnalyticsEvent {
   ActionViewProfileGroup = 'Viewed Pinned Profile Group',
   ActionSelectActivityEvent = 'Tapped Activity Event',
   ActionsNotifPermsChecked = 'Checked Notification Permissions',
+  ActionInitiateTwitterAttest = 'Initiated Twitter Attestation',
+  ActionConfirmTwitterAttest = 'Confirmed Twitter Attestation',
+  ActionInitiatePhoneAttest = 'Initiated Phone Attestation',
+  ActionCheckAttestSig = 'Checked Attestation Signature',
+  ActionRevokeAttestation = 'Revoked Attestation',
+  ActionUpdateAttestDiscoverability = 'Updated Attestation Discoverability',
+  ActionConfirmPhoneAttest = 'Confirmed Phone Attestation',
   ActionGroupChannelSelected = 'Tapped group channel',
   ActionTappedPushNotif = 'Tapped Push Notification',
+  ActionDeferredDeepLink = 'Installed with Deferred Deeplink Invite',
+  ActionContactBookSkipped = 'Skipped Syncing Contact Book',
+  ActionContactBookPermRequested = 'Contact Book Requesting Permission',
+  ActionContactBookPermGranted = 'Contact Book Permission Granted',
+  ActionContactBookPermDenied = 'Contact Book Permission Denied',
+  ActionContactBookInviteShown = 'Contact Book Invite Shown',
+  ActionContactBookInviteSent = 'Contact Book Invite Sent',
+  ActionCalmSettingsUpdate = 'Calm Settings Updated',
+  DebugSystemContacts = 'System Contacts Debug',
   GroupJoinComplete = 'Group Join Complete',
   PersonalInviteLinkReady = 'Personal Invite Link Ready',
   ErrorSendPost = 'Error Sending Post',
@@ -107,10 +131,19 @@ export enum AnalyticsEvent {
   ErrorSyncStartHighPriority = 'Error Start Sync: High Priority',
   ErrorSyncStartLowPriority = 'Error Start Sync: Low Priority',
   ErrorVerifyingPersonalInvite = 'Error Verifying DM Invite Link',
+  ErrorAttestation = 'Attestation Error',
+  ErrorNounParse = 'Error Parsing Noun',
+  ErrorNotificationService = 'Notification Service Error',
+  ErrorCreateGroup = 'Error Creating Group',
+  ErrorWayfinding = 'Wayfinding Error',
+  ErrorSystemContacts = 'System Contacts Error',
+  ErrorCalmSettingsUpdate = 'Error Updating Calm Settings',
+  ErrorApi = 'API Error',
 }
 
 export interface AnalyticsDigest {
   numContacts?: number | null;
+  numSystemContacts?: number | null;
   numGroups?: number | null;
   numGroupchats?: number | null;
   numGroupsHosted?: number | null;
@@ -119,4 +152,11 @@ export interface AnalyticsDigest {
   numLegacyGroupDms?: number | null;
   numGalleries?: number | null;
   numNotebooks?: number | null;
+}
+
+export enum AnalyticsSeverity {
+  Critical = 'Critical',
+  High = 'High',
+  Medium = 'Medium',
+  Low = 'Low',
 }

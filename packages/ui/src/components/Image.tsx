@@ -1,7 +1,7 @@
 import { Image as BaseImage, ImageErrorEventData } from 'expo-image';
 import { ReactElement, useCallback, useState } from 'react';
 import { Platform, StyleSheet } from 'react-native';
-import { SizableText, View, styled } from 'tamagui';
+import { SizableText, View, styled, usePropsAndStyle } from 'tamagui';
 
 import { Icon } from './Icon';
 
@@ -17,9 +17,10 @@ const WebImage = ({
   style,
   alt,
   onLoad,
+  onLoadEnd,
   onError,
   fallback,
-  ...props
+  ...otherProps
 }: any) => {
   const [hasError, setHasError] = useState(false);
 
@@ -34,18 +35,18 @@ const WebImage = ({
   };
 
   const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    if (onLoad) {
-      // Mimic expo-image's onLoad event structure
-      onLoad({
-        source: {
-          width: e.currentTarget.naturalWidth,
-          height: e.currentTarget.naturalHeight,
-        },
-      });
-    }
+    // Mimic expo-image's onLoad event structure
+    const loadEvent = {
+      source: {
+        width: e.currentTarget.naturalWidth,
+        height: e.currentTarget.naturalHeight,
+      },
+    };
+    onLoad?.(loadEvent);
+    onLoadEnd?.(loadEvent);
   };
 
-  const { contentFit } = props;
+  const [{ contentFit, ...props }, propStyles] = usePropsAndStyle(otherProps);
 
   if (hasError && fallback) {
     return fallback;
@@ -64,6 +65,7 @@ const WebImage = ({
         height: props.height ? props.height : '100%',
         objectFit: contentFit ? contentFit : undefined,
         ...StyleSheet.flatten(style),
+        ...propStyles,
       }}
       onLoad={handleLoad}
       onError={handleError}

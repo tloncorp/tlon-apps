@@ -49,19 +49,22 @@ export function SearchBar({
   return (
     <YStack flexGrow={1} justifyContent="center" alignItems="center" {...rest}>
       <TextInput
+        frameStyle={{ width: '100%' }}
         icon="Search"
         value={value}
         onChangeText={onTextChange}
         placeholder={placeholder}
         rightControls={
-          <TextInput.InnerButton
-            label={value === '' && !!onPressCancel ? 'Cancel' : 'Clear'}
-            onPress={() =>
-              value === '' && !!onPressCancel
-                ? onPressCancel()
-                : onTextChange('')
-            }
-          />
+          value !== '' || onPressCancel ? (
+            <TextInput.InnerButton
+              label={value === '' && !!onPressCancel ? 'Cancel' : 'Clear'}
+              onPress={() =>
+                value === '' && !!onPressCancel
+                  ? onPressCancel()
+                  : onTextChange('')
+              }
+            />
+          ) : null
         }
         {...inputProps}
       />

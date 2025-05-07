@@ -10,6 +10,7 @@ import { useCallback } from 'react';
 import { Alert } from 'react-native';
 
 import { AddContactsScreen } from '../../features/contacts/AddContactsScreen';
+import { AttestationScreen } from '../../features/profile/AttestationScreen';
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import {
@@ -37,6 +38,10 @@ function DrawerContent(props: DrawerContentComponentProps) {
     },
     [navigate]
   );
+
+  const onAddContact = useCallback((contact: db.Contact) => {
+    store.addContact(contact.id);
+  }, []);
 
   const onContactLongPress = useCallback((contact: db.Contact) => {
     if (!isWeb && contact.isContactSuggestion) {
@@ -79,7 +84,10 @@ function DrawerContent(props: DrawerContentComponentProps) {
         suggestions={suggestions ?? []}
         focusedContactId={focusedRoute.params?.userId}
         onContactPress={onContactPress}
+        onAddContact={onAddContact}
         onContactLongPress={onContactLongPress}
+        systemContacts={[]}
+        onInviteSystemContact={() => {}}
       />
     </View>
   );
@@ -99,18 +107,13 @@ export const ProfileNavigator = () => {
           borderRightColor: getVariableValue(useTheme().border),
         },
       }}
+      id="ProfileDrawer"
+      backBehavior="history"
     >
-      <ProfileDrawer.Screen
-        name="ContactsEmpty"
-        component={EmptyContactsScreen}
-      />
       <ProfileDrawer.Screen name="AddContacts" component={AddContactsScreen} />
       <ProfileDrawer.Screen name="UserProfile" component={UserProfileScreen} />
       <ProfileDrawer.Screen name="EditProfile" component={EditProfileScreen} />
+      <ProfileDrawer.Screen name="Attestation" component={AttestationScreen} />
     </ProfileDrawer.Navigator>
   );
 };
-
-function EmptyContactsScreen() {
-  return <View />;
-}

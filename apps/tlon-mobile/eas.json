@@ -6,7 +6,8 @@
   },
   "build": {
     "base": {
-      "pnpm": "9.0.5"
+      "pnpm": "9.0.5",
+      "node": "20.11.0"
     },
     "preview": {
       "extends": "base",
@@ -22,13 +23,13 @@
         "gradleCommand": ":app:bundlePreviewRelease"
       },
       "ios": {
-        "scheme": "Landscape-preview"
+        "scheme": "Landscape-preview",
+        "image": "macos-sonoma-14.6-xcode-16.0"
       }
     },
     "production": {
       "extends": "base",
       "channel": "production",
-      "node": "20.11.0",
       "autoIncrement": true,
       "env": {
         "NOTIFY_PROVIDER": "rivfur-livmet",
@@ -39,7 +40,8 @@
         "gradleCommand": ":app:bundleProductionRelease"
       },
       "ios": {
-        "scheme": "Landscape"
+        "scheme": "Landscape",
+        "image": "macos-sonoma-14.6-xcode-16.0"
       }
     },
     "demo": {
@@ -59,7 +61,7 @@
       },
       "ios": {
         "scheme": "Landscape-preview",
-        "image": "latest"
+        "image": "macos-sonoma-14.6-xcode-16.0"
       }
     },
     "local-testing": {

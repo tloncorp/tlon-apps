@@ -28,8 +28,9 @@ const metaFields = {
   description: text('description'),
 };
 
+export const SETTINGS_SINGLETON_KEY = 'settings';
 export const settings = sqliteTable('settings', {
-  userId: text('user_id').primaryKey(),
+  id: text('id').primaryKey().default(SETTINGS_SINGLETON_KEY),
   theme: text('theme'),
   disableAppTileUnreads: boolean('disable_app_tile_unreads'),
   disableAvatars: boolean('disable_avatars'),
@@ -51,7 +52,54 @@ export const settings = sqliteTable('settings', {
   messagesFilter: text('messages_filter'),
   gallerySettings: text('gallery_settings'),
   notebookSettings: text('notebook_settings', { mode: 'json' }),
+  activitySeenTimestamp: timestamp('activity_seen_timestamp'),
+  completedWayfindingSplash: boolean('completed_wayfinding_splash'),
+  completedWayfindingTutorial: boolean('completed_wayfinding_tutorial'),
 });
+
+export const systemContacts = sqliteTable('system_contacts', {
+  id: text('id').primaryKey(),
+  firstName: text('first_name'),
+  lastName: text('last_name'),
+  phoneNumber: text('phone_number'),
+  email: text('email'),
+  contactId: text('contact_id'),
+});
+
+export const systemContactRelations = relations(
+  systemContacts,
+  ({ one, many }) => ({
+    contact: one(contacts, {
+      fields: [systemContacts.contactId],
+      references: [contacts.id],
+    }),
+    sentInvites: many(systemContactSentInvites),
+  })
+);
+
+export const systemContactSentInvites = sqliteTable(
+  'system_contact_sent_invites',
+  {
+    invitedTo: text('invited_to'),
+    systemContactId: text('system_contact_id'),
+    invitedAt: timestamp('invited_at'),
+  },
+  (table) => ({
+    pk: primaryKey({
+      columns: [table.invitedTo, table.systemContactId],
+    }),
+  })
+);
+
+export const systemContactSentInviteRelations = relations(
+  systemContactSentInvites,
+  ({ one }) => ({
+    systemContact: one(systemContacts, {
+      fields: [systemContactSentInvites.systemContactId],
+      references: [systemContacts.id],
+    }),
+  })
+);
 
 export const contacts = sqliteTable('contacts', {
   id: text('id').primaryKey(),
@@ -79,13 +127,16 @@ export const contacts = sqliteTable('contacts', {
   isBlocked: boolean('blocked'),
   isContact: boolean('isContact'),
   isContactSuggestion: boolean('isContactSuggestion'),
-  hasVerifiedPhone: boolean('hasVerifiedPhone'),
-  verifiedPhoneSignature: text('verifiedPhoneSignature'),
-  verifiedPhoneAt: timestamp('verifiedPhoneAt'),
+  systemContactId: text('systemContactId'),
 });
 
-export const contactsRelations = relations(contacts, ({ many }) => ({
+export const contactsRelations = relations(contacts, ({ one, many }) => ({
   pinnedGroups: many(contactGroups),
+  attestations: many(contactAttestations),
+  systemContact: one(systemContacts, {
+    fields: [contacts.systemContactId],
+    references: [systemContacts.id],
+  }),
 }));
 
 export const contactGroups = sqliteTable(
@@ -95,7 +146,7 @@ export const contactGroups = sqliteTable(
       .references(() => contacts.id, { onDelete: 'cascade' })
       .notNull(),
     groupId: text('group_id')
-      .references(() => groups.id)
+      .references(() => groups.id, { onDelete: 'cascade' })
       .notNull(),
   },
   (table) => {
@@ -113,6 +164,66 @@ export const contactGroupRelations = relations(contactGroups, ({ one }) => ({
   group: one(groups, {
     fields: [contactGroups.groupId],
     references: [groups.id],
+  }),
+}));
+
+export const contactAttestations = sqliteTable(
+  'contact_attestations',
+  {
+    contactId: text('contact_id')
+      .references(() => contacts.id, { onDelete: 'cascade' })
+      .notNull(),
+    attestationId: text('attestation_id')
+      .references(() => attestations.id, { onDelete: 'cascade' })
+      .notNull(),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({
+        columns: [table.contactId, table.attestationId],
+      }),
+    };
+  }
+);
+
+export const contactAttestationRelations = relations(
+  contactAttestations,
+  ({ one }) => ({
+    contact: one(contacts, {
+      fields: [contactAttestations.contactId],
+      references: [contacts.id],
+    }),
+    attestation: one(attestations, {
+      fields: [contactAttestations.attestationId],
+      references: [attestations.id],
+    }),
+  })
+);
+
+export type AttestationType = 'phone' | 'node' | 'twitter' | 'dummy';
+export type AttestationDiscoverability = 'public' | 'verified' | 'hidden';
+export type AttestationStatus = 'waiting' | 'pending' | 'verified';
+export const attestations = sqliteTable('attestations', {
+  id: text('id').primaryKey(),
+  provider: text('provider').notNull(),
+  type: text('type').$type<AttestationType>().notNull(),
+  value: text('value'),
+  initiatedAt: timestamp('initiated_at'),
+  discoverability: text('discoverability')
+    .$type<AttestationDiscoverability>()
+    .notNull(),
+  status: text('status').$type<AttestationStatus>().notNull(),
+  statusMessage: text('status_message'),
+  contactId: text('contact_id').notNull(),
+  providerUrl: text('provider__url'),
+  provingTweetId: text('proving_tweet_id'),
+  signature: text('signature'),
+});
+
+export const attestationRelations = relations(attestations, ({ one }) => ({
+  contact: one(contacts, {
+    fields: [attestations.contactId],
+    references: [contacts.id],
   }),
 }));
 
@@ -179,6 +290,15 @@ export const groupUnreadsRelations = relations(groupUnreads, ({ one }) => ({
   }),
 }));
 
+export const BASE_UNREADS_SINGLETON_KEY = 'base_unreads';
+export const baseUnreads = sqliteTable('base_unreads', {
+  id: text('id').primaryKey().default(BASE_UNREADS_SINGLETON_KEY),
+  notify: boolean('notify'),
+  count: integer('count'),
+  notifyCount: integer('notify_count'),
+  updatedAt: timestamp('updated_at').notNull(),
+});
+
 export type ActivityBucket = 'all' | 'mentions' | 'replies';
 export const activityEvents = sqliteTable(
   'activity_events',
@@ -216,7 +336,7 @@ export const activityEventContactGroups = sqliteTable(
       .references(() => activityEvents.id, { onDelete: 'cascade' })
       .notNull(),
     groupId: text('group_id')
-      .references(() => groups.id)
+      .references(() => groups.id, { onDelete: 'cascade' })
       .notNull(),
   },
   (table) => {
@@ -314,7 +434,6 @@ export const groups = sqliteTable('groups', {
   joinStatus: text('join_status').$type<GroupJoinStatus>(),
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
-  lastVisitedChannelId: text('last_visited_channel_id'),
   syncedAt: timestamp('synced_at'),
 });
 
@@ -374,9 +493,7 @@ export const chatMembers = sqliteTable(
     membershipType: text('membership_type')
       .$type<'group' | 'channel'>()
       .notNull(),
-    chatId: text('chat_id').references(() => channels.id, {
-      onDelete: 'cascade',
-    }),
+    chatId: text('chat_id'),
     contactId: text('contact_id').notNull(),
     joinedAt: timestamp('joined_at'),
     status: text('status').$type<'invited' | 'joined'>(),
@@ -406,26 +523,6 @@ export const groupFlaggedPosts = sqliteTable(
       pk: primaryKey({
         columns: [table.groupId, table.postId],
       }),
-    };
-  }
-);
-
-export type VerificationType = 'phone' | 'node';
-export type VerificationVisibility = 'public' | 'discoverable' | 'hidden';
-export type VerificationStatus = 'waiting' | 'pending' | 'verified';
-export const verifications = sqliteTable(
-  'verifications',
-  {
-    provider: text('provider').notNull(),
-    type: text('type').$type<VerificationType>().notNull(),
-    value: text('value').notNull(),
-    initiatedAt: timestamp('initiated_at'),
-    visibility: text('visibility').$type<VerificationVisibility>().notNull(),
-    status: text('status').$type<VerificationStatus>().notNull(),
-  },
-  (table) => {
-    return {
-      pk: primaryKey({ columns: [table.provider, table.type, table.value] }),
     };
   }
 );
@@ -708,9 +805,14 @@ export const groupNavSectionChannels = sqliteTable(
   'group_nav_section_channels',
   {
     groupNavSectionId: text('group_nav_section_id').references(
-      () => groupNavSections.id
+      () => groupNavSections.id,
+      {
+        onDelete: 'cascade',
+      }
     ),
-    channelId: text('channel_id').references(() => channels.id),
+    channelId: text('channel_id').references(() => channels.id, {
+      onDelete: 'cascade',
+    }),
     channelIndex: integer('channel_index'),
   },
   (table) => ({
@@ -818,16 +920,14 @@ export const channelRelations = relations(channels, ({ one, many }) => ({
   }),
 }));
 
-export type PostDeliveryStatus = 'pending' | 'sent' | 'failed';
+export type PostDeliveryStatus = 'pending' | 'sent' | 'failed' | 'needs_verification';
 
 export const posts = sqliteTable(
   'posts',
   {
     id: text('id').primaryKey().notNull(),
     authorId: text('author_id').notNull(),
-    channelId: text('channel_id')
-      .references(() => channels.id, { onDelete: 'cascade' })
-      .notNull(),
+    channelId: text('channel_id').notNull(),
     groupId: text('group_id'),
     parentId: text('parent_id'),
     type: text('type')
@@ -837,7 +937,7 @@ export const posts = sqliteTable(
     image: text('image'),
     content: text('content', { mode: 'json' }),
     receivedAt: timestamp('received_at').notNull(),
-    sentAt: timestamp('sent_at').unique().notNull(),
+    sentAt: timestamp('sent_at').notNull(),
     // client-side time
     replyCount: integer('reply_count'),
     replyTime: timestamp('reply_time'),
@@ -869,7 +969,11 @@ export const posts = sqliteTable(
     backendTime: text('backend_time'),
   },
   (table) => ({
-    cacheId: uniqueIndex('cache_id').on(table.authorId, table.sentAt),
+    cacheId: uniqueIndex('cache_id').on(
+      table.channelId,
+      table.authorId,
+      table.sentAt
+    ),
     channelId: index('posts_channel_id').on(table.channelId, table.id),
     groupId: index('posts_group_id').on(table.groupId, table.id),
   })
@@ -909,7 +1013,7 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
 export const postImages = sqliteTable(
   'post_images',
   {
-    postId: text('post_id').references(() => posts.id),
+    postId: text('post_id').references(() => posts.id, { onDelete: 'cascade' }),
     src: text('src'),
     alt: text('alt'),
     width: integer('width'),
@@ -932,7 +1036,7 @@ export const postReactions = sqliteTable(
   {
     contactId: text('contact_id').notNull(),
     postId: text('post_id')
-      .references(() => posts.id)
+      .references(() => posts.id, { onDelete: 'cascade' })
       .notNull(),
     value: text('value').notNull(),
   },

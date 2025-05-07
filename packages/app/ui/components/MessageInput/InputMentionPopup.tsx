@@ -1,30 +1,52 @@
 import * as db from '@tloncorp/shared/db';
+import { PropsWithRef, useEffect } from 'react';
+import React from 'react';
 import { View, YStack } from 'tamagui';
 
-import MentionPopup from '../MentionPopup';
+import { useIsWindowNarrow } from '../Emoji';
+import MentionPopup, { MentionPopupRef } from '../MentionPopup';
 
-export default function InputMentionPopup({
-  containerHeight,
-  showMentionPopup,
-  mentionText,
-  groupMembers,
-  onSelectMention,
-}: {
-  containerHeight: number;
-  showMentionPopup: boolean;
-  mentionText?: string;
-  groupMembers: db.ChatMember[];
-  onSelectMention: (contact: db.Contact) => void;
-}) {
-  return showMentionPopup ? (
-    <YStack position="absolute" bottom={containerHeight + 24} zIndex={15}>
+function InputMentionPopupInternal(
+  {
+    containerHeight,
+    isMentionModeActive,
+    mentionText,
+    groupMembers,
+    onSelectMention,
+    setHasMentionCandidates,
+  }: PropsWithRef<{
+    containerHeight: number;
+    isMentionModeActive: boolean;
+    mentionText?: string;
+    groupMembers: db.ChatMember[];
+    onSelectMention: (contact: db.Contact) => void;
+    setHasMentionCandidates?: (has: boolean) => void;
+  }>,
+  ref: MentionPopupRef
+) {
+  const isNarrow = useIsWindowNarrow();
+  return isMentionModeActive ? (
+    <YStack
+      position="absolute"
+      bottom={containerHeight + 24}
+      zIndex={15}
+      // borderWidth={2}
+      // borderColor="orange"
+      width="90%"
+      maxWidth={isNarrow ? 'unset' : 500}
+    >
       <View position="relative" top={0} left={8}>
         <MentionPopup
           onPress={onSelectMention}
           matchText={mentionText}
           groupMembers={groupMembers}
+          setHasMentionCandidates={setHasMentionCandidates}
+          ref={ref}
         />
       </View>
     </YStack>
   ) : null;
 }
+
+const InputMentionPopup = React.forwardRef(InputMentionPopupInternal);
+export default InputMentionPopup;

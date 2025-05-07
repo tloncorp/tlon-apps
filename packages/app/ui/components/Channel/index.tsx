@@ -7,10 +7,14 @@ import {
   usePostReference as usePostReferenceHook,
   usePostWithRelations,
 } from '@tloncorp/shared';
-import { ChannelContentConfiguration } from '@tloncorp/shared/api';
+import {
+  ChannelContentConfiguration,
+  isDmChannelId,
+} from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { useIsWindowNarrow } from '@tloncorp/ui';
+import { ImagePickerAsset } from 'expo-image-picker';
 import {
   forwardRef,
   useCallback,
@@ -23,7 +27,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   AnimatePresence,
-  SizableText,
   View,
   YStack,
   getVariableValue,
@@ -56,6 +59,7 @@ import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
 import { DmInviteOptions } from './DmInviteOptions';
 import { DraftInputView } from './DraftInputView';
 import { PostView } from './PostView';
+import { ReadOnlyNotice } from './ReadOnlyNotice';
 
 export { INITIAL_POSTS_PER_PAGE } from './Scroller';
 
@@ -164,6 +168,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const collectionRef = useRef<PostCollectionHandle>(null);
 
     const isChatChannel = channel ? getIsChatChannel(channel) : true;
+    const isDM = isDmChannelId(channel.id);
 
     const onPressGroupRef = useCallback((group: db.Group) => {
       setGroupPreview(group);
@@ -180,11 +185,12 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
 
     const inView = useIsFocused();
     const hasLoaded = !!(posts && channel);
+    const hasUnreads = (channel?.unread?.count ?? 0) > 0;
     useEffect(() => {
-      if (hasLoaded && inView) {
+      if (hasUnreads && hasLoaded && inView) {
         markRead();
       }
-    }, [hasLoaded, inView, markRead]);
+    }, [hasUnreads, hasLoaded, inView, markRead]);
 
     const handleRefPress = useCallback(
       (refChannel: db.Channel, post: db.Post) => {
@@ -203,6 +209,44 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         onPressRef(refChannel, post);
       },
       [onPressRef, posts, channel]
+    );
+
+    const { uploadAssets, clearAttachments } = useAttachmentContext();
+
+    const handleImageDrop = useCallback(
+      async (assets: ImagePickerAsset[]) => {
+        if (channel.type !== 'gallery') {
+          attachAssets(assets);
+          return;
+        }
+
+        try {
+          const uploadedAttachments = await uploadAssets(assets);
+
+          for (const attachment of uploadedAttachments) {
+            const story: Story = [
+              {
+                block: {
+                  image: {
+                    src: attachment.uploadState.remoteUri,
+                    height: attachment.file.height || 0,
+                    width: attachment.file.width || 0,
+                    alt: 'image',
+                  },
+                },
+              },
+            ];
+
+            // Send the post with just this image
+            await messageSender(story, channel.id);
+          }
+        } catch (error) {
+          console.error('Error handling image drop:', error);
+        } finally {
+          clearAttachments();
+        }
+      },
+      [channel, messageSender, uploadAssets, attachAssets, clearAttachments]
     );
 
     /** when `null`, input is not shown or presentation is unknown */
@@ -305,7 +349,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                     justifyContent="space-between"
                     width="100%"
                     height="100%"
-                    onAssetsDropped={attachAssets}
+                    onAssetsDropped={handleImageDrop}
                   >
                     <ChannelHeaderItemsProvider>
                       <>
@@ -320,12 +364,17 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                               ? handleGoBack
                               : undefined
                           }
-                          showSearchButton={isChatChannel}
+                          showSearchButton={
+                            isChatChannel &&
+                            draftInputPresentationMode !== 'fullscreen'
+                          }
                           goToSearch={goToSearch}
                           goToChannels={goToChannels}
                           goToChatDetails={goToChatDetails}
                           showSpinner={isLoadingPosts}
-                          showMenuButton={true}
+                          showMenuButton={
+                            draftInputPresentationMode !== 'fullscreen'
+                          }
                         />
                         <YStack alignItems="stretch" flex={1}>
                           <AnimatePresence>
@@ -369,48 +418,49 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                             )}
                           </AnimatePresence>
 
-                          {canWrite &&
-                            (channel.contentConfiguration == null ? (
-                              <>
-                                {isChatChannel &&
-                                  !channel.isDmInvite &&
-                                  (negotiationMatch ? (
-                                    <DraftInputView
-                                      draftInputContext={draftInputContext}
-                                      type={DraftInputId.chat}
-                                    />
-                                  ) : (
-                                    <SafeAreaView
-                                      edges={['right', 'left', 'bottom']}
-                                    >
-                                      <NegotionMismatchNotice />
-                                    </SafeAreaView>
-                                  ))}
+                          {!canWrite || !negotiationMatch ? (
+                            <ReadOnlyNotice
+                              type={
+                                !canWrite
+                                  ? 'read-only'
+                                  : isDM
+                                    ? 'dm-mismatch'
+                                    : 'channel-mismatch'
+                              }
+                            />
+                          ) : channel.contentConfiguration == null ? (
+                            <>
+                              {isChatChannel && !channel.isDmInvite && (
+                                <DraftInputView
+                                  draftInputContext={draftInputContext}
+                                  type={DraftInputId.chat}
+                                />
+                              )}
 
-                                {channel.type === 'gallery' && (
-                                  <DraftInputView
-                                    draftInputContext={draftInputContext}
-                                    type={DraftInputId.gallery}
-                                  />
-                                )}
+                              {channel.type === 'gallery' && (
+                                <DraftInputView
+                                  draftInputContext={draftInputContext}
+                                  type={DraftInputId.gallery}
+                                />
+                              )}
 
-                                {channel.type === 'notebook' && (
-                                  <DraftInputView
-                                    draftInputContext={draftInputContext}
-                                    type={DraftInputId.notebook}
-                                  />
-                                )}
-                              </>
-                            ) : (
-                              <DraftInputView
-                                draftInputContext={draftInputContext}
-                                type={
-                                  ChannelContentConfiguration.draftInput(
-                                    channel.contentConfiguration
-                                  ).id
-                                }
-                              />
-                            ))}
+                              {channel.type === 'notebook' && (
+                                <DraftInputView
+                                  draftInputContext={draftInputContext}
+                                  type={DraftInputId.notebook}
+                                />
+                              )}
+                            </>
+                          ) : (
+                            <DraftInputView
+                              draftInputContext={draftInputContext}
+                              type={
+                                ChannelContentConfiguration.draftInput(
+                                  channel.contentConfiguration
+                                ).id
+                              }
+                            />
+                          )}
 
                           {channel.isDmInvite && (
                             <DmInviteOptions
@@ -452,21 +502,3 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     );
   }
 );
-
-function NegotionMismatchNotice() {
-  return (
-    <View alignItems="center" justifyContent="center" padding="$l">
-      <View
-        backgroundColor="$secondaryBackground"
-        borderRadius="$l"
-        paddingHorizontal="$l"
-        paddingVertical="$xl"
-      >
-        <SizableText size="$s">
-          Your ship&apos;s version of the Tlon app doesn&apos;t match the
-          channel host.
-        </SizableText>
-      </View>
-    </View>
-  );
-}

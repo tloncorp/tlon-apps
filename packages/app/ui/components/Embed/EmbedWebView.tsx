@@ -1,3 +1,4 @@
+import { createDevLogger } from '@tloncorp/shared';
 import { LoadingSpinner } from '@tloncorp/ui';
 import {
   memo,
@@ -19,6 +20,8 @@ import { View, getTokenValue, useTheme } from 'tamagui';
 
 import { useIsDarkTheme } from '../../utils';
 import { EmbedProviderConfig } from './providers';
+
+const logger = createDevLogger('EmbedWebView', false);
 
 const IS_ANDROID = Platform.OS === 'android';
 const ANDROID_LAYER_TYPE = IS_ANDROID ? 'hardware' : undefined;
@@ -58,7 +61,7 @@ function webViewReducer(
 ): WebViewState {
   switch (action.type) {
     case 'HIDE_MEDIA':
-      return { ...state, hideTweetMedia: true };
+      return { ...state, isLoading: false, hideTweetMedia: true };
     case 'SET_HEIGHT':
       return { ...state, webViewHeight: action.height };
     case 'LOADING_COMPLETE':
@@ -154,6 +157,17 @@ export const EmbedWebView = memo<EmbedWebViewProps>(
       currentHeightRef.current = webViewHeight;
     }, [webViewHeight]);
 
+    useEffect(() => {
+      const webView = webViewRef.current;
+      return () => {
+        if (webView) {
+          webView.stopLoading();
+          webView.clearHistory?.();
+          webView.clearCache?.(true);
+        }
+      };
+    }, []);
+
     const onLayoutHandler = useCallback((event: LayoutChangeEvent) => {
       if (!IS_ANDROID) return;
       const { height } = event.nativeEvent.layout;
@@ -168,15 +182,21 @@ export const EmbedWebView = memo<EmbedWebViewProps>(
       (event: any) => {
         try {
           const data = JSON.parse(event.nativeEvent.data) as WebViewMessageData;
+          logger.log('onMessageHandler', data);
           if (data.height && data.height > 0) {
             // For Twitter's initial load
             if (provider.name === 'Twitter' && data.loaded) {
               // For tall tweets that need media hiding
               if (data.height > maxAllowedHeight) {
+                logger.log(
+                  'Twitter height update, loaded, too tall',
+                  data.height
+                );
                 // Just set the flag, don't update height yet
                 dispatch({ type: 'HIDE_MEDIA' });
               } else {
                 // For normal sized tweets, update height and complete loading in one action
+                logger.log('Twitter height update, loaded', data.height);
                 lastHeightRef.current = data.height;
                 dispatch({
                   type: 'UPDATE_HEIGHT_AND_COMPLETE',
@@ -187,7 +207,15 @@ export const EmbedWebView = memo<EmbedWebViewProps>(
             // For height updates from Twitter after media hiding
             else if (provider.name === 'Twitter' && !data.loaded) {
               const heightDiff = Math.abs(data.height - lastHeightRef.current);
+              logger.log(
+                'Twitter height update, not yet loaded, get diff',
+                heightDiff
+              );
               if (heightDiff > 25 && data.height !== lastHeightRef.current) {
+                logger.log(
+                  'Twitter height update, not yet loaded',
+                  data.height
+                );
                 lastHeightRef.current = data.height;
                 dispatch({ type: 'SET_HEIGHT', height: data.height });
               }
@@ -201,7 +229,7 @@ export const EmbedWebView = memo<EmbedWebViewProps>(
             }
           }
         } catch (e) {
-          console.warn('Failed to parse WebView message:', e);
+          logger.crumb('Failed to parse WebView message:', e);
         }
       },
       [provider.name, maxAllowedHeight]
@@ -209,9 +237,10 @@ export const EmbedWebView = memo<EmbedWebViewProps>(
 
     const onErrorHandler = useCallback(
       (event: any) => {
+        logger.log('onErrorHandler', event);
         dispatch({ type: 'LOADING_COMPLETE' });
         const { nativeEvent } = event;
-        console.warn('WebView error: ', nativeEvent);
+        logger.crumb('WebView error: ', nativeEvent);
         onError?.(nativeEvent);
       },
       [onError]
@@ -219,7 +248,7 @@ export const EmbedWebView = memo<EmbedWebViewProps>(
 
     const onHttpErrorHandler = useCallback((event: any) => {
       const { nativeEvent } = event;
-      console.warn(
+      logger.crumb(
         `WebView received error status code: ${nativeEvent.statusCode}`
       );
     }, []);
@@ -228,7 +257,11 @@ export const EmbedWebView = memo<EmbedWebViewProps>(
       (navState: { url: string }) => {
         if (navState.url !== 'about:blank') {
           webViewRef.current?.stopLoading();
-          Linking.openURL(navState.url);
+          setTimeout(() => {
+            Linking.openURL(navState.url).catch((err) =>
+              logger.crumb('Failed to open URL:', err)
+            );
+          }, 50);
           return false;
         }
         return true;
@@ -256,7 +289,7 @@ export const EmbedWebView = memo<EmbedWebViewProps>(
         )}
         <View
           width={provider.defaultWidth}
-          height={webViewHeight}
+          height={isLoading ? 0 : webViewHeight}
           backgroundColor={primaryBackground}
           borderRadius="$s"
           style={containerStyle}

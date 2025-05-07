@@ -35,6 +35,7 @@ import {
   with404Handler,
 } from './apiUtils';
 import { channelAction } from './channelsApi';
+import { multiDmAction } from './chatApi';
 import { poke, scry, subscribeOnce } from './urbit';
 
 const logger = createDevLogger('postsApi', false);
@@ -91,7 +92,12 @@ export async function getPostReference({
   const path = `/said/${channelId}/post/${postId}${
     replyId ? '/' + replyId : ''
   }`;
-  const data = await subscribeOnce<ub.Said>({ app: 'channels', path }, 3000);
+  const data = await subscribeOnce<ub.Said>(
+    { app: 'channels', path },
+    3000,
+    undefined,
+    { tag: 'getPostReference' }
+  );
   const post = toPostReference(data);
   // The returned post id can be different than the postId we requested?? But the
   // post is going to be requested by the original id, so set manually :/
@@ -684,12 +690,29 @@ export const getHiddenDMPosts = async () => {
   return hiddenDMPosts.map((postId) => getCanonicalPostId(postId));
 };
 
-export async function deletePost(channelId: string, postId: string) {
-  const action = channelAction(channelId, {
-    post: {
-      del: postId,
-    },
-  });
+export async function deletePost(
+  channelId: string,
+  postId: string,
+  authorId: string
+) {
+  const action = isDmChannelId(channelId)
+    ? chatAction(channelId, `${authorId}/${postId}`, {
+        del: null,
+      })
+    : isGroupDmChannelId(channelId)
+      ? multiDmAction(channelId, {
+          writ: {
+            id: `${authorId}/${postId}`,
+            delta: {
+              del: null,
+            },
+          },
+        })
+      : channelAction(channelId, {
+          post: {
+            del: postId,
+          },
+        });
 
   // todo: we need to use a tracked poke here (or settle on a different pattern
   // for expressing request response semantics)
@@ -705,6 +728,7 @@ export const getPostWithReplies = async ({
   channelId: string;
   authorId: string;
 }) => {
+  logger.log('fetching post with replies', { postId, channelId, authorId });
   if (
     !authorId &&
     (isDmChannelId(channelId) || isGroupDmChannelId(channelId))

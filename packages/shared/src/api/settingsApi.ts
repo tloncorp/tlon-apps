@@ -1,4 +1,5 @@
 import * as db from '../db';
+import { SETTINGS_SINGLETON_KEY } from '../db/schema';
 import * as ub from '../urbit';
 import { getCurrentUserId, poke, scry, subscribe } from './urbit';
 
@@ -23,8 +24,22 @@ function getBucket(key: string): string {
   switch (key) {
     case 'messagesFilter':
       return 'talk';
+    case 'activitySeenTimestamp':
+    case 'completedWayfindingSplash':
+    case 'completedWayfindingTutorial':
+      return 'groups';
+    case 'disableAvatars':
+    case 'disableNicknames':
+    case 'disableRemoteContent':
+    case 'disableAppTileUnreads':
+    case 'disableSpellcheck':
+    case 'showUnreadCounts':
+      return 'calmEngine';
     default:
-      throw new Error(`Invalid setting key: ${key}`);
+      console.warn(
+        `No explicit bucket defined for setting key: ${key}, defaulting to 'groups'`
+      );
+      return 'groups';
   }
 }
 
@@ -72,7 +87,6 @@ export const toClientSettings = (
   settings: ub.GroupsDeskSettings
 ): db.Settings => {
   return {
-    userId: getCurrentUserId(),
     theme: settings.desk.display?.theme,
     disableAppTileUnreads: settings.desk.calmEngine?.disableAppTileUnreads,
     disableAvatars: settings.desk.calmEngine?.disableAvatars,
@@ -92,6 +106,11 @@ export const toClientSettings = (
     messagesFilter: settings.desk.talk?.messagesFilter,
     gallerySettings: settings.desk.heaps?.heapSettings,
     notebookSettings: JSON.stringify(settings.desk.diary),
+    activitySeenTimestamp: settings.desk.groups?.activitySeenTimestamp,
+    completedWayfindingSplash:
+      settings.desk.groups?.completedWayfindingSplash ?? false,
+    completedWayfindingTutorial:
+      settings.desk.groups?.completedWayfindingTutorial ?? false,
   };
 };
 

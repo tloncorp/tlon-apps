@@ -1,10 +1,12 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
+import * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
 import { useTheme } from 'tamagui';
 
+import SystemNotices from '../..//ui/components/SystemNotices';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import type { RootStackParamList } from '../../navigation/types';
 import {
@@ -15,6 +17,8 @@ import {
   View,
   getDisplayName,
   isWeb,
+  triggerHaptic,
+  useInviteSystemContacts,
 } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Contacts'>;
@@ -25,12 +29,14 @@ export default function ContactsScreen(props: Props) {
     navigation: { navigate },
   } = props;
 
+  const inviteSystemContacts = useInviteSystemContacts();
   const currentUser = useCurrentUserId();
 
   const { data: userContacts } = store.useUserContacts();
   const { data: contacts } = store.useContacts();
   const { data: suggestions } = store.useSuggestedContacts();
-  const { data: calmSettings } = store.useCalmSettings({ userId: currentUser });
+  const { data: calmSettings } = store.useCalmSettings();
+  const { data: systemContacts } = store.useSystemContacts();
 
   const onContactPress = useCallback(
     (contact: db.Contact) => {
@@ -38,6 +44,10 @@ export default function ContactsScreen(props: Props) {
     },
     [navigate]
   );
+
+  const onAddContact = useCallback((contact: db.Contact) => {
+    store.addContact(contact.id);
+  }, []);
 
   const onContactLongPress = useCallback((contact: db.Contact) => {
     if (!isWeb && contact.isContactSuggestion) {
@@ -63,6 +73,50 @@ export default function ContactsScreen(props: Props) {
       ]);
     }
   }, []);
+
+  const handleInviteSystemContact = useCallback(
+    async (systemContact: db.SystemContact) => {
+      if (!inviteSystemContacts) {
+        triggerHaptic('error');
+        return;
+      }
+
+      const alreadyInvited = !!systemContact.sentInvites?.find(
+        (invite) => invite.invitedTo === domain.InvitedToPersonalKey
+      );
+      if (alreadyInvited) {
+        triggerHaptic('error');
+        return;
+      }
+
+      const inviteType = systemContact.phoneNumber ? 'sms' : 'email';
+      const recipient =
+        inviteType === 'sms' ? systemContact.phoneNumber : systemContact.email;
+      const personalInviteLink = await db.personalInviteLink.getValue();
+
+      if (!recipient || !personalInviteLink) {
+        triggerHaptic('error');
+        return;
+      }
+
+      triggerHaptic('baseButtonClick');
+      const params: domain.SystemContactInviteParams = {
+        type: inviteType,
+        recipients: [recipient],
+        invite: {
+          link: personalInviteLink,
+          message: domain.SystemContactInviteMessages.Personal,
+        },
+      };
+      const didSend = await inviteSystemContacts(params);
+      if (didSend) {
+        await store.recordSentInvites(domain.InvitedToPersonalKey, [
+          systemContact,
+        ]);
+      }
+    },
+    [inviteSystemContacts]
+  );
 
   return (
     <AppDataContextProvider
@@ -91,11 +145,20 @@ export default function ContactsScreen(props: Props) {
               />
             }
           />
+          <SystemNotices.ContactBookPrompt
+            status="undetermined"
+            onDismiss={() => {}}
+            onRequestAccess={() => {}}
+            onOpenSettings={() => {}}
+          />
           <ContactsScreenView
             contacts={userContacts ?? []}
+            systemContacts={systemContacts ?? []}
             suggestions={suggestions ?? []}
             onContactPress={onContactPress}
+            onAddContact={onAddContact}
             onContactLongPress={onContactLongPress}
+            onInviteSystemContact={handleInviteSystemContact}
           />
           <NavBarView
             navigateToContacts={() => {

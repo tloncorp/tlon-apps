@@ -9,20 +9,8 @@ import { deSig } from '@urbit/aura';
 import { isEqual, reduce } from 'lodash';
 
 import { Block, Cite, HeaderLevel, Listing, Story } from '../urbit/channel';
-import {
-  Inline,
-  InlineKey,
-  Link,
-  Task,
-  isBlockquote,
-  isBold,
-  isInlineCode,
-  isItalics,
-  isLink,
-  isShip,
-  isStrikethrough,
-} from '../urbit/content';
-import { citeToPath, getFirstInline, pathToCite, preSig } from '../urbit/utils';
+import { Inline, InlineKey, Link, Task } from '../urbit/content';
+import { citeToPath, pathToCite, preSig } from '../urbit/utils';
 
 export interface HandlerParams {
   editor: Editor;
@@ -104,66 +92,6 @@ export function tipTapToString(json: JSONContent): string {
   }
 
   return json.text || '';
-}
-
-export function inlineToString(inline: Inline): any {
-  if (typeof inline === 'string') {
-    return inline;
-  }
-
-  if (isBold(inline)) {
-    return inline.bold.map((i: Inline) => inlineToString(i)).join(' ');
-  }
-
-  if (isItalics(inline)) {
-    return inline.italics.map((i: Inline) => inlineToString(i));
-  }
-
-  if (isStrikethrough(inline)) {
-    return inline.strike.map((i: Inline) => inlineToString(i));
-  }
-
-  if (isLink(inline)) {
-    return inline.link.content;
-  }
-
-  if (isBlockquote(inline)) {
-    return Array.isArray(inline.blockquote)
-      ? inline.blockquote.map((i) => inlineToString(i)).join(' ')
-      : inline.blockquote;
-  }
-
-  if (isInlineCode(inline)) {
-    return typeof inline['inline-code'] === 'object'
-      ? inlineToString(inline['inline-code'])
-      : inline['inline-code'];
-  }
-
-  if (isShip(inline)) {
-    return inline.ship;
-  }
-
-  return '';
-}
-
-export function flattenInline(content: Inline[]): string {
-  return content.map((inline) => inlineToString(inline)).join(' ');
-}
-
-export function firstInlineSummary(content: Story): string {
-  const inlines = getFirstInline(content);
-  if (!inlines) {
-    return '';
-  }
-
-  return flattenInline(inlines);
-}
-
-export function inlineSummary(content: Story): string {
-  return (content.filter((v) => 'inline' in v) as { inline: Inline[] }[])
-    .map((v) => v.inline.map((i) => inlineToString(i)).join(' '))
-    .flat()
-    .join(' ');
 }
 
 // Limits the amount of consecutive breaks to 2 or less
@@ -636,6 +564,20 @@ export const inlineToContent = (
     const inlineValue = inline[key as keyof Inline];
     const newContext: JSONContent = ctx ? Object.assign(ctx) : {};
     newContext.marks = [makeMarks(key), ...(newContext?.marks ?? [])];
+    if (key === 'code') {
+      // this is a special case for inline code. `code` is always actually a code block,
+      // meanwhile `inline-code` is a span of text.
+      return {
+        type: 'codeBlock',
+        content: [
+          {
+            type: 'text',
+            text: inline[key as keyof Inline] as string,
+          },
+        ],
+      };
+    }
+
     // if Array, it's a nestable tag (bold, italics, strike); otherwise it's
     // an un-nestable tag such as inline-code or code
     return inlineToContent(

@@ -29,7 +29,6 @@ export {
   allDraftInputs,
   allContentRenderers,
 } from './api/channelContentConfig';
-export { parseActiveTab, trimFullPath } from './logic/navigation';
 export * from './logic';
 export * from './store';
 export * from './domain';

@@ -6,11 +6,14 @@ import { ChannelMembersScreen } from '../features/channels/ChannelMembersScreen'
 import { ChannelMetaScreen } from '../features/channels/ChannelMetaScreen';
 import { ChannelTemplateScreen } from '../features/channels/ChannelTemplateScreen';
 import { AddContactsScreen } from '../features/contacts/AddContactsScreen';
+import { InviteSystemContactsScreen } from '../features/contacts/InviteSystemContactsScreen';
+import { AttestationScreen } from '../features/profile/AttestationScreen';
 import { AppInfoScreen } from '../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../features/settings/BlockedUsersScreen';
 import { EditProfileScreen } from '../features/settings/EditProfileScreen';
 import { FeatureFlagScreen } from '../features/settings/FeatureFlagScreen';
 import { ManageAccountScreen } from '../features/settings/ManageAccountScreen';
+import { PrivacySettingsScreen } from '../features/settings/PrivacyScreen';
 import { PushNotificationSettingsScreen } from '../features/settings/PushNotificationSettingsScreen';
 import SettingsScreen from '../features/settings/SettingsScreen';
 import { ThemeScreen } from '../features/settings/ThemeScreen';
@@ -112,8 +115,10 @@ export function RootStack() {
         component={PushNotificationSettingsScreen}
       />
       <Root.Screen name="UserProfile" component={UserProfileScreen} />
+      <Root.Screen name="Attestation" component={AttestationScreen} />
       <Root.Screen name="EditProfile" component={EditProfileScreen} />
       <Root.Screen name="WompWomp" component={UserBugReportScreen} />
+      <Root.Screen name="PrivacySettings" component={PrivacySettingsScreen} />
       <Root.Screen name="ChannelMembers" component={ChannelMembersScreen} />
       <Root.Screen name="ChannelMeta" component={ChannelMetaScreen} />
       <Root.Screen
@@ -121,6 +126,10 @@ export function RootStack() {
         component={PostUsingContentConfigurationScreen}
       />
       <Root.Screen name="ChannelTemplate" component={ChannelTemplateScreen} />
+      <Root.Screen
+        name="InviteSystemContacts"
+        component={InviteSystemContactsScreen}
+      />
     </Root.Navigator>
   );
 }

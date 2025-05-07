@@ -9,12 +9,17 @@ export interface Mention {
 }
 
 export const useMentions = () => {
-  const [showMentionPopup, setShowMentionPopup] = useState(false);
+  const [isMentionModeActive, setIsMentionModeActive] = useState(false);
+  const [hasMentionCandidates, setHasMentionCandidates] = useState(false);
   const [mentionStartIndex, setMentionStartIndex] = useState<number | null>(
     null
   );
   const [mentionSearchText, setMentionSearchText] = useState<string>('');
   const [mentions, setMentions] = useState<Mention[]>([]);
+  const [wasDismissedByEscape, setWasDismissedByEscape] = useState(false);
+  const [lastDismissedTriggerIndex, setLastDismissedTriggerIndex] = useState<
+    number | null
+  >(null);
 
   const handleMention = (oldText: string, newText: string) => {
     // Find cursor position by comparing old and new text
@@ -28,11 +33,30 @@ export const useMentions = () => {
       }
     }
 
+    // Clear escape state when starting a new word
+    if (
+      oldText.length < newText.length &&
+      newText[cursorPosition - 1] === ' '
+    ) {
+      setWasDismissedByEscape(false);
+    }
+
+    // Clear escape state when deleting past the escaped trigger
+    if (wasDismissedByEscape && lastDismissedTriggerIndex !== null) {
+      if (
+        oldText.length > newText.length &&
+        cursorPosition <= lastDismissedTriggerIndex
+      ) {
+        setWasDismissedByEscape(false);
+        setLastDismissedTriggerIndex(null);
+      }
+    }
+
     // Check if we're deleting a trigger symbol
-    if (newText.length < oldText.length && showMentionPopup) {
+    if (newText.length < oldText.length && isMentionModeActive) {
       const deletedChar = oldText[cursorPosition];
       if (deletedChar === '@' || deletedChar === '~') {
-        setShowMentionPopup(false);
+        setIsMentionModeActive(false);
         setMentionStartIndex(null);
         setMentionSearchText('');
         return;
@@ -53,24 +77,37 @@ export const useMentions = () => {
       const textBetweenTriggerAndCursor = beforeCursor.slice(
         lastTriggerIndex + 1
       );
-      const hasSpace = textBetweenTriggerAndCursor.includes(' ');
+      const textBeforeTrigger = beforeCursor.slice(
+        lastTriggerIndex - 1,
+        lastTriggerIndex
+      );
+      const whitespaceBeforeOrFirst =
+        lastTriggerIndex === 0 || textBeforeTrigger.match(/\s+/);
+      const spaceAfter = textBetweenTriggerAndCursor.includes(' ');
 
-      // Only show popup if we're right after the trigger or actively searching
+      // Only show popup if:
+      // 1. We're right after the trigger or actively searching
+      // 2. AND it wasn't dismissed by escape for this trigger index
+      // 3. OR it's a new trigger position different from the dismissed one
+      const isDismissedTrigger =
+        wasDismissedByEscape && lastTriggerIndex === lastDismissedTriggerIndex;
       if (
-        !hasSpace &&
+        whitespaceBeforeOrFirst &&
+        !spaceAfter &&
+        !isDismissedTrigger &&
         (cursorPosition === lastTriggerIndex + 1 ||
           (cursorPosition > lastTriggerIndex && !afterCursor.includes(' ')))
       ) {
-        setShowMentionPopup(true);
+        setIsMentionModeActive(true);
         setMentionStartIndex(lastTriggerIndex);
         setMentionSearchText(textBetweenTriggerAndCursor);
       } else {
-        setShowMentionPopup(false);
+        setIsMentionModeActive(false);
         setMentionStartIndex(null);
         setMentionSearchText('');
       }
     } else {
-      setShowMentionPopup(false);
+      setIsMentionModeActive(false);
       setMentionStartIndex(null);
       setMentionSearchText('');
     }
@@ -91,7 +128,7 @@ export const useMentions = () => {
   const handleSelectMention = (contact: db.Contact, text: string) => {
     if (mentionStartIndex === null) return;
 
-    const mentionDisplay = `${contact.id}`;
+    const mentionDisplay = contact.id;
     const beforeMention = text.slice(0, mentionStartIndex);
     const afterMention = text.slice(
       mentionStartIndex + (mentionSearchText?.length || 0) + 1
@@ -106,11 +143,19 @@ export const useMentions = () => {
     };
 
     setMentions((prev) => [...prev, newMention]);
-    setShowMentionPopup(false);
+    setIsMentionModeActive(false);
     setMentionStartIndex(null);
     setMentionSearchText('');
+    setWasDismissedByEscape(false);
+    setLastDismissedTriggerIndex(null);
 
     return newText;
+  };
+
+  const handleMentionEscape = () => {
+    setIsMentionModeActive(false);
+    setWasDismissedByEscape(true);
+    setLastDismissedTriggerIndex(mentionStartIndex);
   };
 
   return {
@@ -120,7 +165,10 @@ export const useMentions = () => {
     setMentionSearchText,
     handleMention,
     handleSelectMention,
-    showMentionPopup,
-    setShowMentionPopup,
+    isMentionModeActive,
+    setIsMentionModeActive,
+    handleMentionEscape,
+    hasMentionCandidates,
+    setHasMentionCandidates,
   };
 };

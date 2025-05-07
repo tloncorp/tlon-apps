@@ -1,13 +1,14 @@
-import type { EditorBridge } from '@10play/tentap-editor';
+import type { BridgeState, EditorBridge } from '@10play/tentap-editor';
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
-import { Button } from '@tloncorp/ui';
-import { FloatingActionButton } from '@tloncorp/ui';
+import { Button, LoadingSpinner } from '@tloncorp/ui';
+import { FloatingActionButton, Text } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { memo } from 'react';
 import { PropsWithChildren } from 'react';
-import { SpaceTokens } from 'tamagui';
+import { Circle, SpaceTokens, styled } from 'tamagui';
 import {
   ThemeTokens,
   View,
@@ -18,6 +19,8 @@ import {
 } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
+import { MentionPopupRef } from '../MentionPopup';
+import Notices from '../Wayfinding/Notices';
 import { GalleryDraftType } from '../draftInputs/shared';
 import AttachmentButton from './AttachmentButton';
 import InputMentionPopup from './InputMentionPopup';
@@ -48,6 +51,7 @@ export interface MessageInputProps {
   ) => Promise<void>;
   setShowBigInput?: (showBigInput: boolean) => void;
   showAttachmentButton?: boolean;
+  showWayfindingTooltip?: boolean;
   floatingActionButton?: boolean;
   paddingHorizontal?: SpaceTokens;
   backgroundColor?: ThemeTokens;
@@ -61,14 +65,24 @@ export interface MessageInputProps {
   channelType: db.ChannelType;
   initialHeight?: number;
   onSend?: () => void;
+  onEditorStateChange?: (state: BridgeState) => void;
+  onEditorContentChange?: (content?: object) => void;
+  onInitialContentSet?: () => void;
   // for external access to height
   setHeight?: (height: number) => void;
   goBack?: () => void;
   shouldAutoFocus?: boolean;
+  frameless?: boolean;
   ref?: React.RefObject<{
     editor: EditorBridge | null;
   }>;
 }
+
+const AttachmentButtonContainer = styled(View, {
+  $sm: {
+    marginBottom: '$xs',
+  },
+});
 
 export const MessageInputContainer = memo(
   ({
@@ -77,41 +91,49 @@ export const MessageInputContainer = memo(
     setShouldBlur,
     containerHeight,
     sendError,
-    showMentionPopup = false,
+    isMentionModeActive = false,
     showAttachmentButton = true,
     floatingActionButton = false,
+    showWayfindingTooltip = false,
     disableSend = false,
+    isSending = false,
     mentionText,
     groupMembers,
     onSelectMention,
-    isSending,
     isEditing = false,
     cancelEditing,
     onPressEdit,
     goBack,
+    mentionRef,
+    frameless = false,
+    setHasMentionCandidates,
   }: PropsWithChildren<{
     setShouldBlur: (shouldBlur: boolean) => void;
     onPressSend: () => void;
     containerHeight: number;
     sendError: boolean;
-    showMentionPopup?: boolean;
+    isMentionModeActive?: boolean;
     showAttachmentButton?: boolean;
     floatingActionButton?: boolean;
+    showWayfindingTooltip?: boolean;
     disableSend?: boolean;
+    isSending?: boolean;
     mentionText?: string;
     groupMembers: db.ChatMember[];
     onSelectMention: (contact: db.Contact) => void;
     isEditing?: boolean;
-    isSending?: boolean;
     cancelEditing?: () => void;
     onPressEdit?: () => void;
     goBack?: () => void;
+    mentionRef?: MentionPopupRef;
+    frameless?: boolean;
+    setHasMentionCandidates?: (has: boolean) => void;
   }>) => {
     const { canUpload } = useAttachmentContext();
-
-    const defaultBackgroundColor = getVariableValue(useTheme().background);
+    const theme = useTheme();
+    const defaultBackgroundColor = getVariableValue(theme.background);
     const secondaryBackgroundColor = getVariableValue(
-      useTheme().secondaryBackground
+      theme.secondaryBackground
     );
 
     return (
@@ -123,83 +145,103 @@ export const MessageInputContainer = memo(
       >
         <InputMentionPopup
           containerHeight={containerHeight}
-          showMentionPopup={showMentionPopup}
+          isMentionModeActive={isMentionModeActive}
           mentionText={mentionText}
           groupMembers={groupMembers}
           onSelectMention={onSelectMention}
+          ref={mentionRef}
+          setHasMentionCandidates={setHasMentionCandidates}
         />
-        <XStack
-          paddingVertical="$s"
-          paddingHorizontal="$xl"
-          gap="$l"
-          alignItems="flex-end"
-          justifyContent="space-between"
-          backgroundColor="$background"
-        >
-          {goBack ? (
-            <View paddingBottom="$xs">
-              <Button
-                backgroundColor="unset"
-                borderColor="transparent"
-                onPress={goBack}
-              >
-                <Icon type="ChevronLeft" />
-              </Button>
-            </View>
-          ) : null}
+        {!frameless ? (
+          <XStack
+            paddingVertical="$s"
+            paddingHorizontal="$xl"
+            gap="$l"
+            alignItems="flex-end"
+            justifyContent="space-between"
+            backgroundColor="$background"
+            disableOptimization
+          >
+            {goBack ? (
+              <View paddingBottom="$xs">
+                <Button
+                  backgroundColor="unset"
+                  borderColor="transparent"
+                  onPress={goBack}
+                >
+                  <Icon type="ChevronLeft" />
+                </Button>
+              </View>
+            ) : null}
 
-          {isEditing ? (
-            // using $2xs instead of $xs to match the padding of the attachment button
-            // might need to update the close icon?
-            <View marginBottom="$2xs">
-              <Button
-                backgroundColor="unset"
-                borderColor="transparent"
-                onPress={cancelEditing}
-              >
-                <Icon size="$m" type="Close" />
-              </Button>
-            </View>
-          ) : null}
-          {canUpload && showAttachmentButton ? (
-            <View marginBottom="$xs">
-              <AttachmentButton setShouldBlur={setShouldBlur} />
-            </View>
-          ) : null}
-          {children}
-          {floatingActionButton ? (
-            <View position="absolute" bottom="$l" right="$l">
-              {disableSend ? null : (
-                <FloatingActionButton
-                  onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
-                  icon={
-                    <Icon
-                      color={sendError ? 'red' : undefined}
-                      type={sendError ? 'Refresh' : 'ArrowUp'}
-                    />
-                  }
-                />
-              )}
-            </View>
-          ) : (
-            <View marginBottom="$xs">
-              <Button
-                disabled={disableSend || isSending}
-                onPress={isEditing ? onPressEdit : onPressSend}
-                backgroundColor="unset"
-                borderColor="transparent"
-                opacity={disableSend ? 0.5 : 1}
-                testID="MessageInputSendButton"
-              >
-                {isEditing ? (
-                  <Icon size="$m" type="Checkmark" />
-                ) : (
-                  <Icon size="$m" type="ArrowUp" />
+            {isEditing ? (
+              // using $2xs instead of $xs to match the padding of the attachment button
+              // might need to update the close icon?
+              <View marginBottom="$2xs">
+                <Button
+                  backgroundColor="unset"
+                  borderColor="transparent"
+                  onPress={cancelEditing}
+                >
+                  <Icon size="$m" type="Close" />
+                </Button>
+              </View>
+            ) : null}
+            {canUpload && showAttachmentButton ? (
+              <AttachmentButtonContainer>
+                <AttachmentButton setShouldBlur={setShouldBlur} />
+              </AttachmentButtonContainer>
+            ) : null}
+            {children}
+            {floatingActionButton ? (
+              <View position="absolute" bottom="$l" right="$l">
+                {disableSend ? null : (
+                  <FloatingActionButton
+                    onPress={
+                      isEditing && onPressEdit ? onPressEdit : onPressSend
+                    }
+                    icon={
+                      <Icon
+                        color={sendError ? 'red' : undefined}
+                        type={sendError ? 'Refresh' : 'ArrowUp'}
+                      />
+                    }
+                  />
                 )}
-              </Button>
-            </View>
-          )}
-        </XStack>
+              </View>
+            ) : (
+              <View marginBottom="$xs">
+                {showWayfindingTooltip && <Notices.ChatInputTooltip />}
+                <Button
+                  disabled={disableSend}
+                  onPress={isEditing ? onPressEdit : onPressSend}
+                  backgroundColor="unset"
+                  borderColor="transparent"
+                  opacity={disableSend ? 0.5 : 1}
+                  testID="MessageInputSendButton"
+                >
+                  {isEditing ? (
+                    <Icon size="$m" type="Checkmark" />
+                  ) : isSending ? (
+                    <LoadingSpinner />
+                  ) : (
+                    <Icon
+                      color={sendError ? '$negativeActionText' : undefined}
+                      size="$m"
+                      type="ArrowUp"
+                    />
+                  )}
+                </Button>
+              </View>
+            )}
+          </XStack>
+        ) : (
+          // Note: This **must** be an XStack (not a YStack, View, or Stack), otherwise the WebView in MessageInput will not
+          // be interactive on Android.
+          <XStack width="100%" backgroundColor="$background">
+            {children}
+          </XStack>
+        )}
       </YStack>
     );
   }

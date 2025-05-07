@@ -8,6 +8,7 @@ import { ScrollView, View, XStack, useTheme } from 'tamagui';
 
 import { useContact, useCurrentUserId, useStore } from '../contexts';
 import { SigilAvatar } from './Avatar';
+import { EditAttestationsDisplay } from './EditProfile/EditAttestationsDisplay';
 import { FavoriteGroupsDisplay } from './FavoriteGroupsDisplay';
 import {
   ControlledImageField,
@@ -22,6 +23,7 @@ import { BioDisplay, PinnedGroupsDisplay } from './UserProfileScreenView';
 interface Props {
   userId: string;
   onGoBack: () => void;
+  onGoToAttestation?: (type: 'twitter' | 'phone') => void;
 }
 
 export function EditProfileScreenView(props: Props) {
@@ -35,6 +37,12 @@ export function EditProfileScreenView(props: Props) {
       ?.map((pin) => pin.group)
       .filter(Boolean) as db.Group[]) ?? []
   );
+
+  const attestations = useMemo(() => {
+    return (userContact?.attestations
+      ?.map((a) => a.attestation)
+      .filter(Boolean) ?? []) as db.Attestation[];
+  }, [userContact]);
 
   const isCurrUser = useMemo(
     () => props.userId === currentUserId,
@@ -174,9 +182,11 @@ export function EditProfileScreenView(props: Props) {
         <ScrollView
           keyboardDismissMode="on-drag"
           flex={1}
-          width="100%"
-          maxWidth={600}
-          marginHorizontal="auto"
+          contentContainerStyle={{
+            width: '100%',
+            maxWidth: 600,
+            marginHorizontal: 'auto',
+          }}
         >
           <FormFrame paddingBottom={insets.bottom + 20}>
             <XStack alignItems="flex-end" gap="$m">
@@ -272,6 +282,11 @@ export function EditProfileScreenView(props: Props) {
                     onUpdate={handleUpdatePinnedGroups}
                   />
                 </Field>
+
+                <EditAttestationsDisplay
+                  attestations={attestations}
+                  onPressAttestation={props.onGoToAttestation}
+                />
               </>
             ) : (
               <>

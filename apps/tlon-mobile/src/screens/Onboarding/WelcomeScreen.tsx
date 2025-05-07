@@ -1,9 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
-import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
-import * as db from '@tloncorp/shared/db';
-import { finishingSelfHostedLogin as selfHostedLoginStatus } from '@tloncorp/shared/db';
 import {
   ActionSheet,
   Button,
@@ -17,7 +14,8 @@ import {
   XStack,
   YStack,
 } from '@tloncorp/app/ui';
-import { OnboardingBenefitsSheet } from '@tloncorp/app/ui';
+import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import { finishingSelfHostedLogin as selfHostedLoginStatus } from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -32,20 +30,10 @@ export const WelcomeScreen = ({ navigation }: Props) => {
   const lureMeta = useLureMetadata();
   const { bottom, top } = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
-  const didShowBenefitsSheet = db.benefitsSheetDismissed.useValue();
   const { isAuthenticated } = useShip();
   const finishingSelfHostedLogin = selfHostedLoginStatus.useValue();
 
   useCheckAppInstalled();
-
-  const handleBenefitsSheetOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      setTimeout(() => {
-        db.benefitsSheetDismissed.setValue(true);
-      }, 1000);
-    }
-    setOpen(open);
-  }, []);
 
   const handlePressInvite = useCallback(() => {
     navigation.navigate('Signup');
@@ -177,14 +165,6 @@ export const WelcomeScreen = ({ navigation }: Props) => {
           </ActionSheet.ContentBlock>
         </ActionSheet.Content>
       </ActionSheet>
-      {/* 
-        Open modals during navigation will cause a crash so we need to be careful not to pop this
-        until after checking for onboarding revive (which may auto navigate) 
-      */}
-      <OnboardingBenefitsSheet
-        open={!didShowBenefitsSheet}
-        onOpenChange={handleBenefitsSheetOpenChange}
-      />
     </View>
   );
 };
