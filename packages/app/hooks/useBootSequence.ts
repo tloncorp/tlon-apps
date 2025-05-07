@@ -319,7 +319,7 @@ export function useBootSequence() {
   // the step didn't advance
   const [bootStepCounter, setBootCounter] = useState(0);
   const tryingWayfindingSince = useRef<number | null>(null);
-  const MAX_WAYFINDING_ATTEMPTS = 5;
+  const tryingInviteHandling = useRef<number | null>(null);
   useEffect(() => {
     const runBootSequence = async () => {
       // prevent simultaneous runs
@@ -383,16 +383,22 @@ export function useBootSequence() {
     }
 
     // if we're stuck trying to handle invites afte user finishes signing up, bail
-    const beenRunningTooLong =
-      Date.now() - sequenceStartTimeRef.current > HANDLE_INVITES_TIMEOUT;
-    const isInOptionalPhase = [
-      NodeBootPhase.ACCEPTING_INVITES,
-      NodeBootPhase.CHECKING_FOR_INVITE,
-    ].includes(bootPhase);
-    if (isInOptionalPhase && beenRunningTooLong) {
-      logger.trackError('accept invites abort', { inviteId: lureMeta?.id });
-      setBootPhase(NodeBootPhase.READY);
-      return;
+    if (
+      [
+        NodeBootPhase.ACCEPTING_INVITES,
+        NodeBootPhase.CHECKING_FOR_INVITE,
+      ].includes(bootPhase)
+    ) {
+      if (!tryingInviteHandling.current) {
+        tryingInviteHandling.current = Date.now();
+      } else if (
+        Date.now() - tryingInviteHandling.current >
+        HANDLE_INVITES_TIMEOUT
+      ) {
+        logger.trackError('accept invites abort', { inviteId: lureMeta?.id });
+        setBootPhase(NodeBootPhase.READY);
+        return;
+      }
     }
 
     if (![NodeBootPhase.IDLE, NodeBootPhase.READY].includes(bootPhase)) {
@@ -408,6 +414,7 @@ export function useBootSequence() {
     lastRunPhaseRef.current = NodeBootPhase.IDLE;
     lastRunErrored.current = false;
     tryingWayfindingSince.current = null;
+    tryingInviteHandling.current = null;
 
     sequenceStartTimeRef.current = 0;
   }, []);
