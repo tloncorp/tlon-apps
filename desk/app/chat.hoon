@@ -1,4 +1,5 @@
-/-  c=chat, d=channels, g=groups, u=ui, e=epic, old=chat-2, activity
+/-  c=chat, d=channels, g=groups, u=ui, e=epic, old=chat-2, activity,
+    s=story
 /-  meta
 /-  ha=hark
 /-  contacts-0
@@ -40,7 +41,7 @@
         blocked=(set ship)
         blocked-by=(set ship)
         hidden-messages=(set id:c)
-        old-chats=(map flag:old chat:old)  :: for migration
+        old-chats=(map flag:old chat:old)  :: for migraton
         old-pins=(list whom:old)
     ==
   +$  sent-id
@@ -1131,7 +1132,7 @@
       =-  (snoc - [%inline q.p.old])
       %+  turn  p.p.old
       |=  =block:t
-      ^-  verse:d
+      ^-  verse:s
       :-  %block
       ?.  ?=([%cite %chan *] block)  block
       =;  new=(unit path)
@@ -1643,17 +1644,17 @@
   (give %fact ~[/ /dm/invited] ships+!>(invites))
 ::
 ++  verses-to-inlines  ::  for backcompat
-  |=  l=(list verse:d)
+  |=  l=(list verse:s)
   ^-  (list inline:old)
   %-  zing
   %+  turn  l
-  |=  v=verse:d
+  |=  v=verse:s
   ^-  (list inline:old)
   ?-  -.v
       %block   ~
       %inline
     %+  murn  p.v
-    |=  i=inline:d
+    |=  i=inline:s
     ^-  (unit inline:old)
     ?@  i    `i
     ?+  -.i  `i

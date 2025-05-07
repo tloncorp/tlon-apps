@@ -8,9 +8,11 @@
 ::    note: all subscriptions are handled by the subscriber library so
 ::    we can have resubscribe loop protection.
 ::
-/-  c=channels, g=groups, ha=hark, activity
+/-  c=channels, g=groups, ha=hark, activity, story
 /-  meta
 /+  default-agent, verb, dbug, sparse, neg=negotiate, imp=import-aid, logs
+::XX keep s=story, sub=subscriber?
+::XX source story from /sur/story, not from /sur/channels
 /+  utils=channel-utils, volume, s=subscriber
 ::  performance, keep warm
 /+  channel-json
@@ -466,6 +468,7 @@
     :: TODO: add transfer/import channels
       %channel-action
     =+  !<(=a-channels:c vase)
+    ::XX  turn it into a proper case
     ?:  ?=(%create -.a-channels)
       ca-abet:(ca-create:ca-core create-channel.a-channels)
     ?:  ?=(%pin -.a-channels)
@@ -733,13 +736,13 @@
       [%channel * %del-sects *]  (recheck-perms affected ~)
       [%channel * %add-sects *]  (recheck-perms affected ~)
       [%cabal * %del *]
-    =/  =sect:g  (slav %tas p.diff)
+    =/  =sect:v0:g  (slav %tas p.diff)
     %+  recheck-perms  affected
-    (~(gas in *(set sect:g)) ~[p.diff])
+    (~(gas in *(set sect:v0:g)) ~[p.diff])
   ==
 ::
 ++  recheck-perms
-  |=  [affected=(list nest:c) sects=(set sect:g)]
+  |=  [affected=(list nest:c) sects=(set sect:v0:g)]
   ~&  "%channel recheck permissions for {<affected>}"
   %+  roll  affected
   |=  [=nest:c co=_cor]
@@ -1199,7 +1202,7 @@
     |=  [=wire =sign:agent:gall]
     ^+  ca-core
     ?+    wire  ~|(channel-strange-agent-wire+wire !!)
-      ~  ca-core  :: noop wire, should only send pokes
+      ~  ca-core  :: no-op wire, should only send pokes
       [%create ~]       (ca-take-create sign)
       [%updates ~]      (ca-take-update sign)
       [%backlog ~]      (ca-take-backlog sign)
@@ -1367,7 +1370,7 @@
   ::    often this will modify the state and emit a "response" to our
   ::    own subscribers.  it may also emit unreads and/or trigger hark
   ::    events.
-  ::XX rename to ca-u-channel
+  ::
   ++  ca-u-channels
     |=  [=time =u-channel:c]
     ?>  ca-from-host
@@ -2312,10 +2315,10 @@
     ++  match-story-mention
       |=  [nedl=ship =story:c]
       %+  lien  story
-      |=  =verse:c
+      |=  =verse:^story
       ?.  ?=(%inline -.verse)  |
       %+  lien  p.verse
-      |=  =inline:c
+      |=  =inline:^story
       ?+  -.inline  |
         %ship                                  =(nedl p.inline)
         ?(%bold %italics %strike %blockquote)  ^$(p.verse p.inline)
@@ -2342,10 +2345,10 @@
     ++  match-story-text
       |=  [nedl=@t =story:c]
       %+  lien  story
-      |=  =verse:c
+      |=  =verse:^story
       ?.  ?=(%inline -.verse)  |
       %+  lien  p.verse
-      |=  =inline:c
+      |=  =inline:^story
       ?@  inline
         (find nedl inline |)
       ?+  -.inline  |
@@ -2399,7 +2402,7 @@
   ::  need to change anything
   ::
   ++  ca-recheck
-    |=  sects=(set sect:g)
+    |=  sects=(set sect:v0:g)
     =/  =flag:g  group.perm.perm.channel
     =/  exists-path
       (scry-path %groups /exists/(scot %p p.flag)/[q.flag]/noun)

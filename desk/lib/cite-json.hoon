@@ -20,12 +20,7 @@
         where/s/(spat wer.cite)
     ==
   ::
-      %bait
-    %-  pairs
-    :~  group/s/(flag:enjs:j grp.cite)
-        graph/s/(flag:enjs:j gra.cite)
-        where/s/(spat wer.cite)
-    ==
+    %bait  ~|(%deprecated !!)
   ==
 ::
 ++  dejs
@@ -43,13 +38,6 @@
       :-  %chan
       %-  ot
       :~  nest/nest:dejs:j
-          where/pa
-      ==
-      ::
-      :-  %bait
-      %-  ot
-      :~  group/flag:dejs:j
-          graph/flag:dejs:j
           where/pa
       ==
   ==

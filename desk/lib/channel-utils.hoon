@@ -1,4 +1,4 @@
-/-  c=channels, g=groups, ci=cite, h=hooks
+/-  c=channels, g=groups, ci=cite, s=story, h=hooks
 ::  convert a post to a preview for a "said" response
 ::
 |%
@@ -292,27 +292,27 @@
   [%channel-said !>(`said:c`[nest %reply p.plan reply])]
 ::
 ++  was-mentioned
-  |=  [=story:c who=ship]
+  |=  [=story:s who=ship]
   ^-  ?
   %+  lien  story
-  |=  =verse:c
+  |=  =verse:s
   ?:  ?=(%block -.verse)  |
   %+  lien  p.verse
   (cury test [%ship who])
 ::
 ++  flatten
-  |=  content=(list verse:c)
+  |=  content=(list verse:s)
   ^-  cord
   %+  rap   3
   %+  turn  content
-  |=  v=verse:c
+  |=  v=verse:s
   ^-  cord
   ?-  -.v
       %block  ''
       %inline
     %+  rap  3
     %+  turn  p.v
-    |=  c=inline:c
+    |=  c=inline:s
     ^-  cord
     ?@  c  c
     ?-  -.c
@@ -393,13 +393,13 @@
     ==  ==
   ::
   ++  can-write
-    |=  [her=ship writers=(set sect:g)]
+    |=  [her=ship writers=(set sect:v0:g)]
     ?:  =(ship.nest her)  &
     =/  =path
       %+  welp  groups-scry
       :+  %channel  kind.nest
       /(scot %p ship.nest)/[name.nest]/can-write/(scot %p her)/noun
-    =+  .^(write=(unit [bloc=? sects=(set sect:g)]) %gx path)
+    =+  .^(write=(unit [bloc=? sects=(set sect:v0:g)]) %gx path)
     ?~  write  |
     =/  perms  (need write)
     ?:  |(bloc.perms =(~ writers))  &
@@ -452,7 +452,7 @@
   --
 ::
 ++  flatten-inline
-  |=  i=inline:c
+  |=  i=inline:s
   ^-  cord
   ?@  i  i
   ?-  -.i
@@ -466,8 +466,8 @@
   ==
 ::
 ++  first-inline
-  |=  content=story:c
-  ^-  (list inline:c)
+  |=  content=story:s
+  ^-  (list inline:s)
   ?~  content  ~
   ?:  ?=(%inline -.i.content)
     p.i.content
@@ -496,12 +496,12 @@
   |%
   ++  content  story
   ++  story
-    |=  content=story:c
+    |=  content=story:s
     ^-  marl
     (zing (turn content verse))
   ::
   ++  verse
-    |=  =verse:c
+    |=  =verse:s
     ^-  marl
     ?-  -.verse
       %block  (block p.verse)
@@ -516,7 +516,7 @@
     ==
   ::
   ++  block
-    |=  =block:c
+    |=  =block:s
     ^-  marl
     ?-  -.block
         %image
@@ -571,7 +571,7 @@
             %ordered
           ;ol
             ;*  %+  turn  q.p.block
-                |=  l=listing:c
+                |=  l=listing:s
                 ;li
                   ;*  (^block %listing l)
                 ==
@@ -580,7 +580,7 @@
             %unordered
           ;ul
             ;*  %+  turn  q.p.block
-                |=  l=listing:c
+                |=  l=listing:s
                 ;li
                   ;*  (^block %listing l)
                 ==
@@ -589,7 +589,7 @@
             %tasklist
           ;ul.tasklist
             ;*  %+  turn  q.p.block
-                |=  l=listing:c
+                |=  l=listing:s
                 ;li
                   ;*  (^block %listing l)
                 ==
@@ -608,7 +608,7 @@
     ==
   ::
   ++  inline
-    |=  =inline:c
+    |=  =inline:s
     ^-  manx
     ?@  inline
       ;span:"{(trip inline)}"

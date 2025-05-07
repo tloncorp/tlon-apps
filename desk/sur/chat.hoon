@@ -1,4 +1,4 @@
-/-  g=groups, d=channels
+/-  d=channels
 /-  meta
 |%
 ::

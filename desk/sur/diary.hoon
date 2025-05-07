@@ -234,8 +234,8 @@
 +$  diff
   $%  [%notes p=diff:notes]
     ::
-      [%add-sects p=(set sect:g)]
-      [%del-sects p=(set sect:g)]
+      [%add-sects p=(set sect:v0:g)]
+      [%del-sects p=(set sect:v0:g)]
     ::
       [%create p=perm q=notes]
       [%view p=view]
@@ -287,7 +287,7 @@
 ::  pointer back to the group it belongs to.
 ::
 +$  perm
-  $:  writers=(set sect:g)
+  $:  writers=(set sect:v0:g)
       group=flag:g
   ==
 ::  $join: a group + channel flag to join a channel, group required for perms
@@ -314,8 +314,8 @@
       name=term
       title=cord
       description=cord
-      readers=(set sect:g)
-      writers=(set sect:g)
+      readers=(set sect:v0:g)
+      writers=(set sect:v0:g)
   ==
 ::
 +$  post-toggle

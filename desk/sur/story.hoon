@@ -20,9 +20,9 @@
 ::  $block: post content that sits outside of the normal text
 ::
 ::    %image: a visual, we record dimensions for better rendering
-::    %cite: an Urbit reference
-::    %header: a traditional HTML heading, h1-h6
-::    %listing: a traditional HTML list, ul and ol
+::    %cite: a reference
+::    %header: a traditional html heading, h1-h6
+::    %listing: a traditional html list, ul and ol
 ::    %code: a block of code
 ::
 +$  block

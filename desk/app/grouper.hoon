@@ -1,4 +1,4 @@
-/-  reel, groups, c=chat, ch=channels
+/-  reel, g=groups, c=chat, ch=channels
 /+  gj=groups-json, default-agent, verb, logs, dbug
 ::
 |%
@@ -181,12 +181,13 @@
       :_  ~
       %^  lure-log  %warn  group-event
       ~['group field missing']
-    =/  =flag:groups  (flag:dejs:gj s+u.group)
+    =/  =flag:g  (flag:dejs:gj s+u.group)
     ?.  (~(has in enabled-groups) q.flag)
       :_  ~
       %^  lure-log  %warn  group-event
       ~[leaf+"invites for group {<p.flag>}/{(trip q.flag)} not enabled"]
-    =/  =invite:groups  [flag joiner.bite]
+    ::TICKETS
+    =/  =invite:v2:g  [flag joiner.bite]
     =/  prefix  /(scot %p our.bowl)/groups/(scot %da now.bowl)
     ?.  .^(? %gu (weld prefix /$))
       :_  ~
@@ -197,7 +198,7 @@
       :_  ~
       %^  lure-log  %warn  group-event
       ~[leaf+"group {<p.flag>}/{(trip q.flag)} missing"]
-    =+  .^(=group:v2:groups %gx :(weld prefix /groups gnat))
+    =+  .^(=group:v2:g %gx :(weld prefix /groups gnat))
     ?+  -.cordon.group  ~
         %open
       :-  %^  lure-log  %info  'Group Invite Sent'
@@ -205,7 +206,7 @@
       ~[[%pass /invite %agent [our.bowl %groups] %poke %group-invite !>(invite)]]
     ::
         %shut
-      =/  =action:v2:groups
+      =/  =action:v2:g
         :-  flag
         :-  now.bowl
         :-  %cordon

@@ -1,13 +1,12 @@
 /-  meta, e=epic, s=story
 |%
-::  +okay: protocol version, defunct
-::
-++  okay  `epic:e`4
 ::  $flag: id for a group
 ::
 +$  flag  (pair ship term)
 ::
 ::  $nest: id for a channel, {app}/{ship}/{name}
+::TODO with custom channels, the $nest in %channels
+::     should be relaxed this type
 ::
 +$  nest  (pair term flag)
 ::  $section-id: section id
@@ -51,8 +50,10 @@
 ::
 +$  channel
   $:  meta=data:meta
+      ::XX this was never filled; make sure we set this.
       added=time
-      =section-id
+      ::XX section or section-id?
+      section=section-id
       join=?
       readers=(set role-id)
   ==
@@ -101,7 +102,7 @@
   ==
 ::  $banned: blacklist
 ::
-+$  banned  [ships=(set ship) rank=(set rank:title)]
++$  banned  [ships=(set ship) ranks=(set rank:title)]
 ::  $privacy: group privacy
 ::
 ::  %public: group is indexed and open to public
@@ -206,7 +207,7 @@
       =banned
       guests=(set ship)
   ==
-::
+::XX use id-post
 +$  post-key  [post=time reply=(unit time)]
 ::
 +$  flaggers  (set ship)
@@ -243,25 +244,29 @@
 ::    to have separate %group-join, %group-invite pokes
 ::
 +$  a-groups
-  $%  [%join =flag pass=token]
+  $%  [%join =flag =token]
       :: [%invite =a-invite]
-      [%leave =flag]
       [%group =flag =a-group]
   ==
 +$  a-group
-  $%  [%entry =a-entry]
-      [%seat =ship =a-seat]
+  $%  [%meta meta=data:meta]
+      [%entry =a-entry]
+      [%seat ships=(set ship) =a-seat]
       [%role =role-id =a-role]
-      [%section =section =a-section]
+      [%channel =nest =a-channel]
+      [%section =section-id =a-section]
       [%flag-content =nest =post-key src=ship]
+      [%leave ~]
   ==
 +$  a-entry  c-entry
 +$  a-seat  c-seat
 +$  a-role  c-role
++$  a-channel  c-channel
 +$  a-section  c-section
 ::
 +$  c-groups
   $%  [%create =create-group]
+      [%join =flag =token]
       [%group =flag =c-group]
   ==
 +$  c-group
@@ -351,40 +356,22 @@
       [%move idx=@ud]
       [%move-nest =nest idx=@ud]
   ==
-+$  r-groups
-  $%  [%preview =preview]
-      [%leave =flag]
-      [%group =flag =r-group]
-  ==
-+$  r-group
-  $%  [%meta =data:meta]
-      :: XX type aliases below
-      [%entry r-entry=u-entry]
-      [%seat =ship r-seat=u-seat]
-      [%role =role r-role=u-role]
-      [%channel =nest r-channel=u-channel]
-      [%section =section r-section=u-section]
-      [%flag-content =nest =post-key src=ship]
-      [%del ~]
-  ==
-+$  u-groups
-  $%  [%create =create]
-      [%group =flag =u-group]
-  ==
++$  update  [=time =u-group]
++$  u-groups  [=flag =u-group]
 +$  u-group
   $%  [%meta =data:meta]
       [%entry =u-entry]
-      [%seat ships=(set-ship) =u-seat]
-      [%role =role =u-role]
+      [%seat =ship =u-seat]
+      [%role =role-id =u-role]
       [%channel =nest =u-channel]
-      [%section =section =u-section]
+      [%section =section-id =u-section]
       [%flag-content =nest =post-key src=ship]
       [%del ~]
   ==
 +$  u-entry
   $%  [%privacy =privacy]
-      [%ban =c-ban]
-      [%token =c-token]
+      [%ban =u-ban]
+      [%token =u-token]
   ==
 +$  u-ban
   $%  [%add-ships ships=(set ship)]
@@ -404,24 +391,46 @@
       [%del-admin ~]
   ==
 +$  u-seat
-  $%  [%add ~]
+  $%  [%add =seat]
       [%del ~]
-      [%add-roles roles=(set role)]
-      [%del-roles roles=(set role)]
+      [%add-roles roles=(set role-id)]
+      [%del-roles roles=(set role-id)]
   ==
 +$  u-channel
   $%  [%add =channel]
       [%edit =channel]
       [%del ~]
-      [%section =section]
+      [%add-roles roles=(set role-id)]
+      [%del-roles roles=(set role-id)]
+      [%section section=section-id]
   ==
 +$  u-section
   $%  [%add meta=data:meta]
       [%edit meta=data:meta]
       [%del ~]
       [%move idx=@ud]
-      [%move-nest =nest idx=@ud]
+      [%move-nest idx=@ud =nest]
   ==
++$  r-groups
+  $%  [%preview =preview]
+      [%leave =flag]
+      [%group =flag =r-group]
+  ==
++$  r-group
+  $%  [%meta =data:meta]
+      [%entry =r-entry]
+      [%seat =ship =r-seat]
+      [%role =role-id =r-role]
+      [%channel =nest =r-channel]
+      [%section =section-id =r-section]
+      [%flag-content =nest =post-key src=ship]
+      [%del ~]
+  ==
++$  r-entry  u-entry
++$  r-seat  u-seat
++$  r-role  u-role
++$  r-channel  u-channel
++$  r-section  u-section
 ::  $group-update: a group update with timestamp
 ::
 +$  group-update  [=time =u-group]
@@ -432,11 +441,12 @@
 ::
 +$  init  [=time =group]
 ::
-+$  log
-  ((mop time u-groups) lte)
++$  log  ((mop time update) lte)
 ::
-++  log-on
-  ((on time u-groups) lte)
+++  log-on  ((on time update) lte)
+::  +okay: protocol version, defunct
+::
+++  okay  `epic:e`4
 ::
 ::  version aliases
 ::

@@ -244,7 +244,7 @@
       %-  pairs
       :~  group/s+(flag:enjs:gj group.e)
           ship+(ship ship.e)
-          roles+a+(turn ~(tap in roles.e) |=(role=sect:g s+role))
+          roles+a+(turn ~(tap in roles.e) |=(role=sect:v0:g s+role))
       ==
     ::
         %contact

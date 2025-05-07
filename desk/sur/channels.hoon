@@ -109,6 +109,7 @@
       [%heap title=(unit @t)]
       [%chat kind=$@(~ [%notice ~])]
   ==
++$  story  story:s
 ::  $memo: post data proper
 ::
 ::    content: the body of the comment
@@ -116,7 +117,7 @@
 ::    sent: the client-side time the comment was made
 ::
 +$  memo
-  $:  content=story:s
+  $:  content=story
       author=ship
       sent=time
   ==
@@ -197,7 +198,7 @@
 ::  pointer back to the group it belongs to.
 ::
 +$  perm
-  $:  writers=(set sect:g)
+  $:  writers=(set sect:v0:g)
       group=flag:g
   ==
 ::
@@ -220,8 +221,8 @@
       group=flag:g
       title=cord
       description=cord
-      readers=(set sect:g)
-      writers=(set sect:g)
+      readers=(set sect:v0:g)
+      writers=(set sect:v0:g)
   ==
 ::  $outline: abridged $post
 ::    .replies: number of comments
@@ -296,8 +297,8 @@
       [%view =view]
       [%sort =sort]
       [%order order=arranged-posts]
-      [%add-writers sects=(set sect:g)]
-      [%del-writers sects=(set sect:g)]
+      [%add-writers sects=(set sect:v0:g)]
+      [%del-writers sects=(set sect:v0:g)]
   ==
 ::
 +$  c-post

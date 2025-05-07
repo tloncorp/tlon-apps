@@ -1,4 +1,4 @@
-/-  j=joint, c=channels, g=groups
+/-  c=channels, g=groups, s=story
 /-  meta
 /+  cite=cite-json, gj=groups-json
 =*  z  ..zuse
@@ -391,11 +391,11 @@
     ==
   ::
   ++  reacts
-    |=  reacts=(map ship:z react:j)
+    |=  reacts=(map ship:z react:c)
     ^-  json
     %-  pairs
     %+  turn  ~(tap by reacts)
-    |=  [her=@p =react:j]
+    |=  [her=@p =react:c]
     [(scot %p her) s+react]
   ::
   ++  essay
@@ -425,7 +425,7 @@
     ==
   ::
   ++  verse
-    |=  =verse:c
+    |=  =verse:s
     ^-  json
     %+  frond  -.verse
     ?-  -.verse
@@ -433,7 +433,7 @@
         %inline  a+(turn p.verse inline)
     ==
   ++  block
-    |=  b=block:c
+    |=  b=block:s
     ^-  json
     %+  frond  -.b
     ?-  -.b
@@ -460,7 +460,7 @@
     ==
   ::
   ++  listing
-    |=  l=listing:c
+    |=  l=listing:s
     ^-  json
     %+  frond  -.l
     ?-  -.l
@@ -474,7 +474,7 @@
     ==
   ::
   ++  inline
-    |=  i=inline:c
+    |=  i=inline:s
     ^-  json
     ?@  i  s+i
     %+  frond  -.i
@@ -510,7 +510,7 @@
     ==
   ::
   ++  story
-    |=  s=story:c
+    |=  s=story:s
     ^-  json
     a+(turn s verse)
   ::
@@ -756,7 +756,7 @@
     ((of notice+ul ~) jon)
   ::
   ++  verse
-    ^-  $-(json verse:c)
+    ^-  $-(json verse:s)
     %-  of
     :~  block/block
         inline/(ar inline)
@@ -764,7 +764,7 @@
   ::
   ++  block
     |=  j=json
-    ^-  block:c
+    ^-  block:s
     %.  j
     %-  of
     :~  rule/ul
@@ -794,7 +794,7 @@
   ::
   ++  listing
     |=  j=json
-    ^-  listing:c
+    ^-  listing:s
     %.  j
     %-  of
     :~
@@ -809,7 +809,7 @@
   ::
   ++  inline
     |=  j=json
-    ^-  inline:c
+    ^-  inline:s
     ?:  ?=([%s *] j)  p.j
     =>  .(j `json`j)
     %.  j

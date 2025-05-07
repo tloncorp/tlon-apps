@@ -1,4 +1,4 @@
-/-  h=heap, c=channels, g=groups, ha=hark, e=epic, c2=chat-2
+/-  h=heap, c=channels, g=groups, ha=hark, e=epic, c2=chat-2, s=story
 /-  meta
 /+  default-agent, verb, dbug
 /+  cur=curios
@@ -422,13 +422,13 @@
     [%channel * %add-sects *]  (recheck-perms affected ~)
   ::
       [%cabal * %del *]
-    =/  =sect:g  (slav %tas p.diff)
+    =/  =sect:v0:g  (slav %tas p.diff)
     %+  recheck-perms  affected
-    (~(gas in *(set sect:g)) ~[p.diff])
+    (~(gas in *(set sect:v0:g)) ~[p.diff])
   ==
 ::
 ++  recheck-perms
-  |=  [affected=(list flag:h) sects=(set sect:g)]
+  |=  [affected=(list flag:h) sects=(set sect:v0:g)]
   ~&  "%heap recheck permissions for {<affected>}"
   %+  roll  affected
   |=  [=flag:h co=_cor]
@@ -633,11 +633,11 @@
   ::
   ++  convert-story
     |=  old=content:h
-    ^-  story:c
+    ^-  story:s
     =-  (snoc - [%inline q.old])
     %+  turn  p.old
     |=  =block:h
-    ^-  verse:c
+    ^-  verse:s
     :-  %block
     ?.  ?=([%cite %chan *] block)  block
     =;  new=(unit path)
@@ -843,7 +843,7 @@
     he(cor (emit %give %kick ~[path] `ship))
   ::
   ++  he-recheck
-    |=  sects=(set sect:g)
+    |=  sects=(set sect:v0:g)
     ::  if we have sects, we need to delete them from writers
     =?  cor  &(!=(sects ~) =(p.flag our.bowl))
       =/  =cage  [act:mar:h !>([flag now.bowl %del-sects sects])]
@@ -943,7 +943,7 @@
     =/  =path
       %+  welp  he-groups-scry
       /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-write/(scot %p src.bowl)/noun
-    =+  .^(write=(unit [bloc=? sects=(set sect:g)]) %gx path)
+    =+  .^(write=(unit [bloc=? sects=(set sect:v0:g)]) %gx path)
     ?~  write  |
     =/  perms  (need write)
     ?:  |(bloc.perms =(~ writers.perm.heap))  &

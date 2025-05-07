@@ -31,16 +31,16 @@
       ~|(%not-implemented !!)
     --
   ::
-  ++  r-groups
+  ++  r-group
     |%
     ++  action
       |%
       ++  v5
-        |=  =r-groups:v7:g
+        |=  =r-group:v7:g
         ^-  action:v5:g
         !!
       ++  v2
-        |=  =r-groups:v7:g
+        |=  =r-group:v7:g
         ^-  action:v2:g
         !!
       --
@@ -54,9 +54,17 @@
       |=  [=group:v6:g =bowl:gall]
       ^-  group:v6:g
       =.  fleet.group
-        %+  ~(put by *fleet:v6:g)
-          our.bowl
-        (~(gut by fleet.group) our.bowl *vessel:fleet:v6:g)
+        =/  our-vessel=vessel:fleet:v6:g  
+          (~(gut by fleet.group) our.bowl *vessel:fleet:v6:g)
+        =/  fleet-size=@ud  ~(wyt by fleet.group)
+        ?:  (lte fleet-size 15)
+          fleet.group  :: keep all members if 15 or fewer
+        =/  other-ships=(list [ship vessel:fleet:v6:g])
+          ~(tap by (~(del by fleet.group) our.bowl))
+        =/  keep-ships=(list [ship vessel:fleet:v6:g])
+          :-  [our.bowl our-vessel]
+          (scag 14 other-ships)  :: take first 14 other ships
+        (~(gas by *fleet:v6:g) keep-ships)
       group
     --
   |%
