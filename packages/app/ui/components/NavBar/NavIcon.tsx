@@ -11,11 +11,13 @@ export function AvatarNavIcon({
   id,
   focused,
   onPress,
+  onDoublePress,
   onLongPress,
 }: {
   id: string;
   focused: boolean;
   onPress?: () => void;
+  onDoublePress?: () => void;
   onLongPress?: () => void;
 }) {
   const props: Omit<ComponentProps<typeof Pressable>, 'children'> = isWeb
@@ -36,6 +38,7 @@ export function AvatarNavIcon({
       testID="AvatarNavIcon"
       flex={1}
       onPress={onPress}
+      onDoublePress={onDoublePress}
       onLongPress={onLongPress}
       alignItems="center"
       borderRadius="$s"
@@ -58,6 +61,7 @@ export default function NavIcon({
   isActive,
   hasUnreads = false,
   onPress,
+  onDoublePress,
   backgroundColor,
   shouldShowUnreads = true,
 }: {
@@ -66,6 +70,7 @@ export default function NavIcon({
   isActive: boolean;
   hasUnreads?: boolean;
   onPress?: () => void;
+  onDoublePress?: () => void;
   backgroundColor?: ColorTokens;
   shouldShowUnreads?: boolean;
 }) {
@@ -83,6 +88,7 @@ export default function NavIcon({
       alignItems="center"
       flex={1}
       onPress={onPress}
+      onDoublePress={onDoublePress}
       borderRadius="$s"
       backgroundColor={backgroundColor}
       {...props}

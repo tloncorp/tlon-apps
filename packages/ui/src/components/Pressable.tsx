@@ -3,11 +3,14 @@ import { To } from '@react-navigation/native/lib/typescript/src/useLinkTo';
 import { GestureResponderEvent } from 'react-native';
 import { Stack, StackProps, isWeb } from 'tamagui';
 
-type PressHandler = ((event: GestureResponderEvent) => void) | undefined | null;
+import { useDoublePress } from '../hooks/useDoublePress';
+
+type PressHandler = ((event: GestureResponderEvent) => void) | undefined;
 
 type PressableProps = Omit<StackProps, 'onPress' | 'onLongPress'> & {
   onLongPress?: PressHandler;
   onPress?: PressHandler;
+  onDoublePress?: PressHandler;
   to?: To;
   action?: NavigationAction;
   children: React.ReactNode;
@@ -50,12 +53,18 @@ const StackComponent = ({
 
 export default function Pressable({
   onPress,
+  onDoublePress,
   onLongPress,
   to,
   action,
   children,
   ...stackProps
 }: PressableProps) {
+  const handlePress = useDoublePress(
+    onPress,
+    onDoublePress,
+    300 // Adjust the delay as needed
+  );
   const longPressHandler = isWeb ? undefined : onLongPress;
   const { onPress: onPressLink, ...linkProps } = useLinkProps({
     to: to ?? '',
@@ -77,7 +86,7 @@ export default function Pressable({
         {...stackProps}
         {...linkProps}
         group
-        onPress={onPressLink ?? onPress}
+        onPress={onPressLink ?? handlePress}
         onLongPress={longPressHandler}
         cursor="pointer"
         // Pressable always blocks touches from bubbling to ancestors, even if
@@ -94,7 +103,7 @@ export default function Pressable({
   return (
     <StackComponent
       {...stackProps}
-      onPress={onPress}
+      onPress={handlePress}
       onLongPress={longPressHandler}
       disabled={!hasInteractionHandler}
       cursor="pointer"

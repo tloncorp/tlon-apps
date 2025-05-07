@@ -54,20 +54,27 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
     }
   }, [props.state, isRouteActive]);
 
+  const resetNavigationState = useCallback(() => {
+    props.navigation.reset({
+      index: 0,
+      routes: [{ name: 'Home' }],
+    });
+  }, [props.navigation]);
+
   const restoreHomeState = useCallback(() => {
     try {
       if (lastHomeStateRef.current) {
         props.navigation.reset(lastHomeStateRef.current);
       } else {
         // Default state if no saved state exists
-        props.navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+        resetNavigationState();
       }
     } catch (error) {
       console.error('Error restoring Home navigation state:', error);
       // Fallback to default state if restoration fails
-      props.navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+      resetNavigationState();
     }
-  }, [props.navigation]);
+  }, [props.navigation, resetNavigationState]);
 
   return (
     <YStack flex={1} paddingVertical="$l">
@@ -80,6 +87,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           // intentionally leave undotted for now
           shouldShowUnreads={false}
           onPress={restoreHomeState}
+          onDoublePress={resetNavigationState}
         />
         <NavIcon
           type="Messages"
