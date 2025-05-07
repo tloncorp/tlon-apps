@@ -1,4 +1,9 @@
-import { FatalError, ReapError, SSEBadResponseError } from '../types';
+import {
+  FatalError,
+  ReapError,
+  SSEBadResponseError,
+  SSETimeoutError,
+} from '../types';
 import { EventSourceMessage, getBytes, getLines, getMessages } from './parse';
 
 export const EventStreamContentType = 'text/event-stream';
@@ -121,7 +126,7 @@ export function fetchEventSource(
           }),
           new Promise((_, reject) => {
             setTimeout(
-              () => reject(new Error('fetch timed out')),
+              () => reject(new SSETimeoutError('Request timed out')),
               responseTimeout
             );
           }),
