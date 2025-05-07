@@ -5,7 +5,7 @@ import { Stack, StackProps, isWeb } from 'tamagui';
 
 import { useDoublePress } from '../hooks/useDoublePress';
 
-type PressHandler = ((event: GestureResponderEvent) => void) | undefined;
+type PressHandler = ((event: GestureResponderEvent) => void) | undefined | null;
 
 type PressableProps = Omit<StackProps, 'onPress' | 'onLongPress'> & {
   onLongPress?: PressHandler;
@@ -61,8 +61,8 @@ export default function Pressable({
   ...stackProps
 }: PressableProps) {
   const handlePress = useDoublePress(
-    onPress,
-    onDoublePress,
+    onPress ?? (() => {}),
+    onDoublePress ?? (() => {}),
     300 // Adjust the delay as needed
   );
   const longPressHandler = isWeb ? undefined : onLongPress;
