@@ -796,10 +796,16 @@
         ~[v2+path v3-path]
       ?~  got  cage.sign
       channel-said-1+!>(u.got)
-    ::  they all got their responses, so kick their subscriptions
+    ::  they all got their responses, so kick their subscriptions,
+    ::  and make sure we leave ours so we can do another fetch later.
+    ::  (we don't know what agent we subscribed to, but it's fine, we can
+    ::  just leave both.)
     ::
     =.  cor  (give %kick ~[path v0+path v1+path v2+path v3-path] ~)
-    cor
+    %-  emil
+    :~  [%pass path %agent [src.bowl dap.bowl] %leave ~]
+        [%pass path %agent [src.bowl server] %leave ~]
+    ==
   ==
 ::
 ++  agent
