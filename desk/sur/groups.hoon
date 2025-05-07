@@ -52,7 +52,6 @@
   $:  meta=data:meta
       ::XX this was never filled; make sure we set this.
       added=time
-      ::XX section or section-id?
       section=section-id
       join=?
       readers=(set role-id)
@@ -159,13 +158,17 @@
       =flagged-content
   ==
 ::
-+$  group-ui  [group init=? count=@ud]
++$  group-ui  
+  $:  =group
+      init=?
+      member-count=@ud
+  ==
 ::  $net: an indicator of whether we are a host or a subscriber
 ::
 +$  net
   $~  [%pub ~]
   $%  [%pub =log]
-      [%sub =time load=_|]
+      [%sub =time init=_|]
   ==
 ::
 +$  groups-ui

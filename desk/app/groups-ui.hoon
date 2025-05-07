@@ -132,7 +132,7 @@
     ``ships+!>(get-suggested-contacts)
   ::
       [%x %init ~]
-    =+  .^([=groups-ui:v2:g =gangs:v2:g] (scry %gx %groups /init/v1/noun))
+    =+  .^([=groups-ui:v2:g =gangs:v2:g] (scry %gx %groups /v1/init/noun))
     =+  .^([=unreads:d channels=channels-0:d] (scry %gx %channels /v1/init/noun))
     =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
@@ -147,7 +147,7 @@
       ==
     ``ui-init+!>(`init-0:u`init)
       [%x %v1 %init ~]
-    =+  .^([=groups-ui:v2:g =gangs:v2:g] (scry %gx %groups /init/v1/noun))
+    =+  .^([=groups-ui:v2:g =gangs:v2:g] (scry %gx %groups /v1/init/noun))
     =+  .^([=unreads:d =channels:d] (scry %gx %channels /v2/init/noun))
     =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
     =+  .^(profile=? (scry %gx %profile /bound/loob))
@@ -168,7 +168,7 @@
     ``ui-heads+!>(`mixed-heads:u`[chan chat])
   ::
       [%x %v2 %init ~]
-    =+  .^([=groups-ui:v2:g =gangs:v2:g] (scry %gx %groups /init/v1/noun))
+    =+  .^([=groups-ui:v2:g =gangs:v2:g] (scry %gx %groups /v1/init/noun))
     =+  .^([* =channels:d] (scry %gx %channels /v2/init/noun))
     =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
     =+  .^(=activity:v2:old:a (scry %gx %activity /activity/noun))
@@ -185,7 +185,7 @@
     ``ui-init-2+!>(`init-2:u`init)
   ::
       [%x %v3 %init ~]
-    =+  .^([=groups-ui:v2:g =gangs:v2:g] (scry %gx %groups /init/v1/noun))
+    =+  .^([=groups-ui:v2:g =gangs:v2:g] (scry %gx %groups /v1/init/noun))
     =+  .^([* =channels:d] (scry %gx %channels /v2/init/noun))
     =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
     =+  .^(=activity:v3:old:a (scry %gx %activity /v1/activity/noun))
@@ -202,7 +202,7 @@
     ``ui-init-3+!>(`init-3:u`init)
   ::
       [%x %v4 %init ~]
-    =+  .^([=groups-ui:v2:g =gangs:v2:g] (scry %gx %groups /init/v1/noun))
+    =+  .^([=groups-ui:v2:g =gangs:v2:g] (scry %gx %groups /v1/init/noun))
     =+  .^(=channel-0:u (scry %gx %channels /v3/init/noun))
     =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
     =+  .^(=activity:a (scry %gx %activity /v4/activity/noun))
@@ -217,40 +217,40 @@
           profile
       ==
     ``ui-init-4+!>(init)
-  ::
-      [%x %v5 %init ~]
-    =+  .^([=groups-ui:v5:g =gangs:v5:g] (scry %gx %groups /v2/init/noun))
-    =+  .^(=channel-0:u (scry %gx %channels /v3/init/noun))
-    =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
-    =+  .^(=activity:a (scry %gx %activity /v4/activity/noun))
-    =+  .^(profile=? (scry %gx %profile /bound/loob))
-    =/  init=init-5:u
-      :*  groups-ui
-          gangs
-          channel-0
-          activity
-          pins
-          chat
-          profile
-      ==
-    ``ui-init-5+!>(init)
-  ::
-      [%x %v6 %init ~]
-    =+  .^([=groups-ui:v5:g =gangs:v6:g] (scry %gx %groups /v3/init/noun))
-    =+  .^(=channel-0:u (scry %gx %channels /v3/init/noun))
-    =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
-    =+  .^(=activity:a (scry %gx %activity /v4/activity/noun))
-    =+  .^(profile=? (scry %gx %profile /bound/loob))
-    =/  init=init-6:u
-      :*  groups-ui
-          gangs
-          channel-0
-          activity
-          pins
-          chat
-          profile
-      ==
-    ``ui-init-6+!>(init)
+  ::XX unused, reclaim
+    ::   [%x %v5 %init ~]
+    :: =+  .^([=groups-ui:v5:g =gangs:v5:g] (scry %gx %groups /v2/init/noun))
+    :: =+  .^(=channel-0:u (scry %gx %channels /v3/init/noun))
+    :: =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
+    :: =+  .^(=activity:a (scry %gx %activity /v4/activity/noun))
+    :: =+  .^(profile=? (scry %gx %profile /bound/loob))
+    :: =/  init=init-5:u
+    ::   :*  groups-ui
+    ::       gangs
+    ::       channel-0
+    ::       activity
+    ::       pins
+    ::       chat
+    ::       profile
+    ::   ==
+    :: ``ui-init-5+!>(init)
+  ::XX unused, reclaim
+    ::   [%x %v6 %init ~]
+    :: =+  .^([=groups-ui:v5:g =gangs:v6:g] (scry %gx %groups /v3/init/noun))
+    :: =+  .^(=channel-0:u (scry %gx %channels /v3/init/noun))
+    :: =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
+    :: =+  .^(=activity:a (scry %gx %activity /v4/activity/noun))
+    :: =+  .^(profile=? (scry %gx %profile /bound/loob))
+    :: =/  init=init-6:u
+    ::   :*  groups-ui
+    ::       gangs
+    ::       channel-0
+    ::       activity
+    ::       pins
+    ::       chat
+    ::       profile
+    ::   ==
+    :: ``ui-init-6+!>(init)
   ==
 ::
 ++  poke

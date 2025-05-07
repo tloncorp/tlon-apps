@@ -123,12 +123,30 @@
   ^+  cor
   ?+    mark  ~|(bad-mark+mark !!)
       %noun
-    ?+  q.vase  !!
+    ?+    q.vase  !!      
+      %reset-all-perms  reset-all-perms
+    ::XX review is this necessary
+      ::   [%group-wake flag:g]
+      :: =+  ;;(=flag:g +.q.vase)
+      :: ?.  |(=(our src):bowl =(p.flag src.bowl))
+      ::   cor
+      :: ?~  g=(~(get by groups) flag)
+      ::   cor
+      :: go-abet:(go-safe-sub:(go-abed:group-core:cor flag) |)
+    ::XX review, what is going on here? 
+        %pimp-ready
+      ?-  pimp
+        ~         cor(pimp `&+~)
+        [~ %& *]  cor
+        [~ %| *]  (run-import p.u.pimp)
+      ==
+    ==
     ::
         %group-command
       =+  !<(=c-groups:v7:g vase)
       ?-    -.c-groups
           %create
+        ~&  %group-command-create
         =/  =flag:g  [our.bowl name.create-group.c-groups]
         se-abet:(se-c-create:se-core flag create-group.c-groups)
       ::
@@ -143,7 +161,7 @@
       ==
     ::
         %group-action-1
-    =+  !<(=a-groups:v7:g vase)
+      =+  !<(=a-groups:v7:g vase)
       ?-    -.a-groups
           %join
         go-abet:(go-join:go-core [flag token]:a-groups)
@@ -162,13 +180,6 @@
       :: go-abet:(go-safe-sub:(go-abed:group-core:cor flag) |)
     ::
     ::XX this is quite unreadable. what is going on here?
-        %pimp-ready
-      ?-  pimp
-        ~         cor(pimp `&+~)
-        [~ %& *]  cor
-        [~ %| *]  (run-import p.u.pimp)
-      ==
-    ==
     ::  XX verify this is in use. if so, 
     ::  introduce a standalone command to do this
     ::   %reset-all-perms  reset-all-perms
@@ -628,6 +639,7 @@
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
+  ~&  peek+pole
   ::  compatibility
   ::
   :: =>
@@ -672,6 +684,44 @@
     :: --
   ::
   ?+    pole  [~ ~]
+  ::
+    ::
+    ::  client paths
+    ::
+  ::
+      [%x %v1 %init ~]
+  =/  groups-ui-2=groups-ui:v2:g
+    %-  ~(run by groups)
+    (curr group-ui:v2:group:v7:ver our.bowl)
+  =/  gangs-2=gangs:v2:g  ~
+  ``noun+!>([groups-ui-2 gangs-2])
+  ::
+     [%x ver=?(%v0 %v1) %groups ship=@ name=@ rest=*]
+    =+  ship=(slav %p ship.pole)
+    =*  flag  [ship name.pole]
+    =+  net-group=(~(get by groups) flag)
+    ?~  net-group  [~ ~]
+    ?.  ?=(~ rest.pole)
+      ::  deprecated
+      ?:  ?=([%v1 ~] rest.pole)
+        $(pole [%x ver %groups ship name ~]:pole)
+      (go-peek:(go-abed:go-core ship name.pole) ver.pole rest.pole)
+    ?-    ver.pole
+    ::
+        %v0
+      ``group-ui+!>((group-ui:v2:group:v7:ver u.net-group our.bowl))
+    ::
+        %v1
+      ``group-ui-1+!>((group-ui:group:v7:ver u.net-group our.bowl))
+    ==
+  ::
+      ::  deprecated
+      [%x %groups ship=@ name=@ rest=*]
+    $(pole [%x %v0 %groups ship.pole name.pole rest.pole])
+  ::
+      [%u %groups ship=@ name=@ %noun ~]
+    =+  ship=(slav %p ship.pole)
+    ``loob+!>((~(has by groups) [ship name.pole]))
   ::
     :: [%x %gangs ~]  ``gangs+!>(xeno-2)
     :: [%x %v1 %gangs ~]  ``gangs-1+!>(xeno-5)
@@ -724,9 +774,6 @@
     ::   ``group-ui-1+!>((v5:group-ui:v6:ver u.group))
     :: ==
   ::
-      :: [%x %exists ship=@ name=@ rest=*]
-      :: =/  src  (slav %p ship.pole)
-      :: ``noun+!>((~(has by groups) [src name.pole]))
   ::
       [%x %volume ~]
     ``volume-value+!>(base.volume)
@@ -957,13 +1004,13 @@
   ::  +se-abed: init
   ::
   ++  se-abed
-    |=  f=flag:g
+    |=  =flag:g
     ^+  se-core
     ?>  =(p.flag our.bowl)
-    ~|  flag=f
-    =/  [=net:g =group:g]  (~(got by groups) f)
+    ~|  flag=flag
+    =/  [=net:g =group:g]  (~(got by groups) flag)
     ?>  ?=(%pub -.net)
-    se-core(flag f, log log.net, group group)
+    se-core(flag flag, log log.net, group group)
   ::  +se-abet: final
   ::
   ++  se-abet
@@ -1525,17 +1572,22 @@
 ::  +go-core: group client core
 ::
 ++  go-core
-  |_  [=flag:g net=[=time load=_|] =group:g gone=_|]
+  |_  [=flag:g net=[=time init=_|] =group:g gone=_|]
   ++  go-core  .
   ::  +go-abed: init
   ::
   ++  go-abed
     |=  f=flag:g
     ^+  go-core
-    ?<  =(p.flag our.bowl)
     ~|  flag=f
     =/  [=net:g =group:g]  (~(got by groups) f)
-    ?>  ?=(%sub -.net)
+    ::  hosted group adapter
+    ::
+    =/  =$>(%sub net:g)
+      ?:  ?=(%sub -.net)  net
+      =/  item=(unit [=time *])
+        (ram:log-on:g log.net)
+      [%sub ?~(item *time time.u.item) &]
     go-core(flag f, group group, net +.net)
   ::  +go-abet: final
   ::
@@ -1544,7 +1596,7 @@
     %_  cor  groups
       ?:  gone  
         (~(del by groups) flag)
-      (~(put by groups) flag [%sub time.net load.net] group)
+      (~(put by groups) flag [%sub time.net init.net] group)
     ==
   ::  +go-area: group base path
   ++  go-area  `path`/(scot %p p.flag)/[q.flag]
@@ -2195,6 +2247,59 @@
       (v2:action:r-group:v7:ver r-group)
     =.  cor  (give %fact v0-paths group-action-3+!>(action-2))
     go-core
+  ::  +go-peek: handle a group scry request
+  ::
+  ++  go-peek
+    |=  [ver=?(%v0 %v1) =(pole knot)]
+    ^-  (unit (unit cage))
+    ?+    pole  ~|(bad-go-peek+pole !!)
+      ::XX find out which ones were ever used by anything
+      ::   and restore them
+      ::   [%hosts ~]
+      :: `ships+!>(go-channel-hosts)
+      :: ::
+      ::   [%fleet %ships ~]
+      :: `ships+!>(~(key by fleet.group))
+      :: ::
+      ::   [%fleet ship=@ %vessel ~]
+      :: =/  src  (slav %p ship.pole)
+      :: `noun+!>((~(got by fleet.group) src))
+      :: ::
+      ::   [%fleet ship=@ %is-bloc ~]
+      :: =/  src  (slav %p ship.pole)
+      :: `loob+!>((~(has in go-bloc-who) src))
+      :: ::
+      ::   [%fleet ship=@ %is-ban ~]
+      :: =/  src  (slav %p ship.pole)
+      :: `loob+!>((go-is-banned src))
+      ::
+      ::   [%channel app=@ ship=@ name=@ rest=*]
+      :: =/  nes=nest:g  [app.pole (slav %p ship.pole) name.pole]
+      :: ?+    rest.pole  ~
+      ::     [%can-read member=@ ~]
+      ::   ?~  channel=(~(get by channels.group) nes)
+      ::     `loob+!>(`?`|)
+      ::   =/  member  (slav %p member.rest.pole)
+      ::   `loob+!>((go-can-read member u.channel))
+      ::   ::
+      ::     [%can-write member=@ ~]
+      ::   =/  member  (slav %p member.rest.pole)
+      ::   =-  `noun+!>(-)
+      ::   ?:  |((go-is-banned member) !(~(has by fleet.group) member))  ~
+      ::   %-  some
+      ::   :-  bloc=(~(has in go-bloc-who) member)
+      ::   sects=sects:(~(got by fleet.group) member)
+      :: ==
+      ::
+          [%can-read ~]
+        [~ ~]
+      ::   [%can-read ~]
+      :: :+  ~  %noun
+      :: !>  ^-  $-([ship nest:g] ?)
+      :: |=  [=ship =nest:g]
+      :: ?~  cha=(~(get by channels.group) nest)  |
+      :: (go-can-read ship u.cha)
+    ==
   ::  +go-watch: handle a group subscription request
   ::
   ++  go-watch
@@ -2259,55 +2364,6 @@
     :: =.  cor
     ::   (emit %give %kick ~ ~)
     :: go-core
-  ::  +go-peek: handle a group scry request
-  ::
-  :: ++  go-peek
-  ::   |=  =(pole knot)
-  ::   ^-  (unit (unit cage))
-  ::   ?+    pole  [~ ~]
-  ::       [%hosts ~]
-  ::     ``ships+!>(go-channel-hosts)
-  ::     ::XX rename to /seats/ships
-  ::       [%fleet %ships ~]
-  ::     ``ships+!>(~(key by seats.group))
-  ::     ::XX rename to /seats/ship
-  ::       [%fleet ship=@ %vessel ~]
-  ::     =/  src  (slav %p ship.pole)
-  ::     ``noun+!>((~(got by seats.group) src))
-  ::     ::XX rename to /seats/ship/is-admin
-  ::       [%fleet ship=@ %is-bloc ~]
-  ::     =/  src  (slav %p ship.pole)
-  ::     ``loob+!>((~(has in go-admins) src))
-  ::     ::XX rename to /seats/ships/is-banned
-  ::       [%fleet ship=@ %is-ban ~]
-  ::     =/  src  (slav %p ship.pole)
-  ::     ``loob+!>((go-is-banned src))
-  ::     ::
-  ::       [%channel app=@ ship=@ name=@ rest=*]
-  ::     =/  nes=nest:g  [app.pole (slav %p ship.pole) name.pole]
-  ::     ?+    rest.pole  ~
-  ::         [%can-read member=@ ~]
-  ::       ?~  channel=(~(get by channels.group) nes)
-  ::         ``loob+!>(`?`|)
-  ::       =/  member  (slav %p member.rest.pole)
-  ::       ``loob+!>((go-can-read member u.channel))
-  ::       ::
-  ::         [%can-write member=@ ~]
-  ::       =/  member  (slav %p member.rest.pole)
-  ::       =-  ``noun+!>(-)
-  ::       ?:  |((go-is-banned member) !(~(has by fleet.group) member))  ~
-  ::       %-  some
-  ::       :-  bloc=(~(has in go-bloc-who) member)
-  ::       sects=sects:(~(got by fleet.group) member)
-  ::     ==
-  ::     ::
-    ::     [%can-read ~]
-    ::   :+  ~  %noun
-    ::   !>  ^-  $-([ship nest:g] ?)
-    ::   |=  [=ship =nest:g]
-    ::   ?~  cha=(~(get by channels.group) nest)  |
-    ::   (go-can-read ship u.cha)
-    :: ==
   ::  +go-can-read: check if a ship has read permission to a channel
   ::
   ::XX verify that we mean to allow non-member ships to read

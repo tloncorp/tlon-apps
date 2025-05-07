@@ -1,24 +1,131 @@
 ::  groups-ver: groups type conversions
 ::
-::TODO seems like a door interface would be nicer.
-::     however, that would need an adapter for generating
-::     a conversion function, as opposed to conversion call,
-::     since conversions are frequently invoked over a container.
-::
 /-  g=groups
 /+  neg=negotiate
 ::
 |%
 ++  v7
   |%
+  ::
   ++  group
+    =>
+      |%
+      ++  drop-seats
+        |=  [=group:v7:g our=ship]
+        ^-  group:v7:g
+        =.  seats.group
+          =/  our-seat=seat:v7:g
+            (~(gut by seats.group) our *seat:v7:g)
+          =/  seats-number=@ud  ~(wyt by seats.group)
+          ?:  (lte seats-number 15)
+            seats.group  :: keep all members if 15 or fewer
+          =/  other-ships=(list [ship seat:v7:g])
+            ~(tap by (~(del by seats.group) our))
+          =/  keep-ships=(list [ship seat:v7:g])
+            :-  [our our-seat]
+            (scag 14 other-ships)  :: take first 14 other ships
+          (~(gas by *(map ship seat:v7:g)) keep-ships)
+        group
+      --
     |%
     ++  v2
-      |=  =group:v7:g
-      ~|(%not-implemented !!)
-    ++  v5
-      |=  =group:v7:g
-      ~|(%not-implemented !!)
+      =<  group
+      |%
+      ++  group
+        |=  =group:v7:g
+        ^-  group:v2:g
+        =/  =fleet:v2:g
+          (~(run by seats.group) vessel:v2:seat)
+        =/  cabals=(map sect:v2:g cabal:v2:g)
+          %-  malt
+          %+  turn  ~(tap by roles.group)
+          |=  [=role-id:v7:g =role:v7:g]
+          :-  `sect:v2:g`role-id
+          `cabal:v2:g`[meta.role ~]
+        =/  zones=(map zone:v2:g realm:zone:v2:g)
+          %-  malt
+          %+  turn  ~(tap by sections.group)
+          |=  [=section-id:v7:g =section:v7:g]
+          :-  `zone:v2:g`section-id
+          ^-  realm:zone:v2:g
+          [meta.section order.section]
+        =/  zone-ord=(list zone:v2:g)
+          %+  turn  section-order.group
+          |=(section-id:v7:g `zone:v2:g`+<)
+        =/  =bloc:v2:g
+          %-  ~(run in admins.group)
+          |=(role-id:v7:g `sect:v2:g`+<)
+        =/  =channels:channel:v2:g
+          (~(run by channels.group) v2:channel:v7)
+        =*  admissions  admissions.group
+        =/  secret=?
+          ?=(%secret privacy.admissions)
+        =/  =cordon:v2:g
+          ?:  ?=(%public privacy.admissions)
+            [%open [ships ranks]:banned.admissions]
+          ::TICKETS to be implemented when we have settled
+          ::        upon entry mechanics
+          [%shut ~ ~]
+        :*  fleet
+            cabals
+            zones
+            zone-ord
+            bloc
+            channels
+            ~  ::  imported
+            cordon
+            secret
+            meta.group
+            flagged-content.group
+        ==
+      ::
+      ++  group-ui  
+        |=  [[=net:v7:g =group:v7:g] our=ship]
+        ^-  group-ui:v2:g
+        ::XX  saga is unused by the client?
+        :_  ~
+        (v2:group:v7 (drop-seats group our))
+      --
+    ::
+    ++  group-ui
+      |=  [[=net:v7:g =group:v7:g] our=ship]
+      ^-  group-ui:v7:g
+      =/  init=?
+        ?:  ?=(%pub -.net)  &
+        init.net
+      :*  (drop-seats group our)
+          init
+          ~(wyt by seats.group)
+      ==
+    --
+  ::
+  ++  seat
+    |%
+    ++  v2  v0
+    ++  v0
+      |%
+      ++  vessel
+        |=  =seat:v7:g
+        ^-  vessel:fleet:v0:g
+        :_  joined.seat
+        %-  ~(run in roles.seat)
+        |=  =role-id:v7:g
+        `sect:v0:g`role-id
+      --
+    --
+  ::
+  ++  channel
+    |%
+    ++  v2  v0
+    ++  v0
+      |=  channel:v7:g
+      ^-  channel:v0:g
+      :*  meta
+          added
+          `zone:v0:g`section
+          join
+          (~(run in readers) |=(role-id:v7:g `sect:v0:g`+<))
+      ==
     --
   ::
   ++  log
@@ -45,7 +152,6 @@
         !!
       --
     --
-
   --
 ++  v6
   =>

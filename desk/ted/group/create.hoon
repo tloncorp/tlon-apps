@@ -22,28 +22,24 @@
 =*  channels  channels.create
 ;<  =bowl:spider  bind:m  get-bowl:io
 ?>  =(p.group-id.create our.bowl)
+~&  %thread-run
 ;<  exists=?  bind:m
-  (scry:io ? /gx/groups/exists/(scot %p p.group-id.create)/[q.group-id.create]/noun)
+  (scry:io ? /gu/groups/groups/(scot %p p.group-id.create)/[q.group-id.create]/noun)
 ~&  group+[group-id.create exists=exists]
 ::  create the group if it does not exist
 ::
 ;<  ~  bind:m
   ?:  exists  (pure:n ~)
-   =/  =create:g
+   =/  =create-group:g
      =,  create
      :*  q.group-id
-         title.meta
-         description.meta
-         image.meta
-         cover.meta
-         [%shut ~ ~]
-         %-  ~(gas by *(map ship (set sect:g)))
-         %+  turn  ~(tap in guest-list)
-         |=(=ship [ship ~])
-         ::
-         &
+         meta
+         %secret     ::  privacy
+         [~ ~]       ::  banned
+         guest-list
      ==
-  (poke:io [our.bowl %groups] group-create+!>(`create:v6:g`create))
+  =/  =c-groups:g  [%create create-group]
+  (poke:io [our.bowl %groups] group-command+!>(c-groups))
 ::  set metadata and cordon if the group exists
 ;<  ~  bind:m
   ?.  exists  (pure:n ~)
