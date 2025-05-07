@@ -96,8 +96,15 @@ function GroupRolesScreenView() {
 
   const handleAddRole = useCallback(
     ({ title, description }: { title: string; description: string }) => {
+      const generateSafeId = (text: string) => {
+        if (!text.match(/[a-zA-Z0-9]/)) {
+          return `role-${Math.random().toString(36).substring(2, 10)}`;
+        }
+        return text.toLowerCase().replace(/\s/g, '-');
+      };
+
       createGroupRole({
-        id: title.toLowerCase().replace(/\s/g, '-'),
+        id: generateSafeId(title),
         title,
         description,
       });
@@ -149,9 +156,9 @@ function GroupRolesScreenView() {
                 borderRadius="$2xl"
               >
                 <ActionSheet.MainContent>
-                  <ActionSheet.ActionTitle>
+                  <Text color="$primaryText" fontSize="$l" numberOfLines={1}>
                     {role.title}
-                  </ActionSheet.ActionTitle>
+                  </Text>
                   {role.description && (
                     <ListItem.Subtitle>{role.description}</ListItem.Subtitle>
                   )}
