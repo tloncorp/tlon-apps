@@ -44,15 +44,14 @@ export async function addContacts(contacts: string[]) {
     contacts,
   });
 
-  // Backend will balk if we try to add the same contact twice, so filter out
-  // any that are already contacts
-  const existingContacts = await db.getContacts();
-  const newContacts = contacts.filter(
-    (contactId) => !existingContacts.some((c) => c.id === contactId)
-  );
-
-
   try {
+    // Backend will balk if we try to add the same contact twice, so filter out
+    // any that are already contacts
+    const existingContacts = await api.getContacts();
+    const newContacts = contacts.filter(
+      (contactId) => !existingContacts.some((c) => c.id === contactId)
+    );
+
     await api.addUserContacts(newContacts);
   } catch (e) {
     logger.trackError('Error adding contacts', {
@@ -275,6 +274,10 @@ export async function updateContactMetadata(
           : undefined,
     });
   } catch (e) {
+    logger.trackError('Error updating contact metadata', {
+      errorMessage: e.message,
+      errorStack: e.stack,
+    });
     // rollback the update
     await db.updateContact({
       id: contactId,
