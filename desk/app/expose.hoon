@@ -191,6 +191,7 @@
   ^-  (quip card _this)
   ?+  mark  !!
       %noun
+    ?>  =(src our):bowl
     ?+  q.vase  !!
         [%eager eager=?]
       [~ this(eager eager.q.vase)]
@@ -238,6 +239,7 @@
       %json
     ::  we intentionally slum it with in-agent conversions for now
     ::
+    ?>  =(src our):bowl
     =+  !<(=json vase)
     =-  $(mark %noun, vase !>(`action`-))
     %.  json
