@@ -374,10 +374,9 @@ export function InvitePane(props: { onActionPress: () => void }) {
     props.onActionPress();
   };
 
-  const shouldPromptForPermission = true;
-  // const shouldPromptForPermission = useMemo(() => {
-  //   return !isWeb && !perms.hasPermission;
-  // }, [perms]);
+  const shouldPromptForPermission = useMemo(() => {
+    return !isWeb && !perms.hasPermission;
+  }, [perms]);
   const handleAction = shouldPromptForPermission
     ? handleShareContacts
     : props.onActionPress;
