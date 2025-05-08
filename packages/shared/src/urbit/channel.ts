@@ -200,13 +200,6 @@ export interface PostEssay {
   content: Story;
   author: Ship;
   sent: number;
-  'kind-data': KindData;
-}
-
-export interface PostEssay1 {
-  content: Story;
-  author: Ship;
-  sent: number;
   kind: string;
   blob: string | null;
   meta: Metadata | null;
@@ -262,7 +255,7 @@ interface PostActionAdd {
 }
 
 interface PostActionAdd1 {
-  add: PostEssay1;
+  add: PostEssay;
 }
 
 interface PostActionEdit {
@@ -636,7 +629,9 @@ export const emptyPost: Post = {
     author: '',
     content: [],
     sent: 0,
-    'kind-data': { chat: null },
+    kind: '/chat',
+    blob: null,
+    meta: null,
   },
 };
 
@@ -687,6 +682,7 @@ export function constructStory(
       'desk',
       'bait',
       'group',
+      'link',
       'listing',
       'header',
       'rule',
