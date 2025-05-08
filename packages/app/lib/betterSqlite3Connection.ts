@@ -10,7 +10,7 @@ import type { SQLiteConnection } from './sqliteConnection';
 export class BetterSqlite3$SQLiteConnection implements SQLiteConnection {
   constructor(private connection: Database) {}
 
-  execute(query: string): void {
+  async execute(query: string): Promise<void> {
     this.connection.exec(query);
   }
 
@@ -47,12 +47,11 @@ export class BetterSqlite3$SQLiteConnection implements SQLiteConnection {
   }
 
   async migrateClient(_client: AnySqliteDatabase): Promise<void> {
-    Object.entries(migrations.migrations)
-      .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
-      .forEach(([_key, migration]) => {
-        this.execute(migration);
-      });
-    return;
+    await Promise.all(
+      Object.entries(migrations.migrations)
+        .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+        .map(([_key, migration]) => this.execute(migration))
+    );
   }
 
   createClient(opts: DrizzleConfig<Schema>): AnySqliteDatabase {
