@@ -56,6 +56,13 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
 
   const restoreHomeState = useCallback(() => {
     try {
+      const currentScreenIsHome = isRouteActive('Home');
+      if (currentScreenIsHome) {
+        // If already on Home, just reset navigation state
+        props.navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+        return;
+      }
+
       if (lastHomeStateRef.current) {
         props.navigation.reset(lastHomeStateRef.current);
       } else {
@@ -67,7 +74,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
       // Fallback to default state if restoration fails
       props.navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
     }
-  }, [props.navigation]);
+  }, [props.navigation, isRouteActive]);
 
   return (
     <YStack flex={1} paddingVertical="$l">
