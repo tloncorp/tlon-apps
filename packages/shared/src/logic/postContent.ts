@@ -142,6 +142,132 @@ export type BlockFromType<T extends BlockType> = Extract<
 
 export type PostContent = BlockData[];
 
+export interface PlaintextPreviewConfig {
+  blockSeparator: string;
+  includeLinebreaks: boolean;
+  includeRefTag: boolean;
+  indentDepth?: number;
+}
+// eslint-disable-next-line @typescript-eslint/no-namespace
+export namespace PlaintextPreviewConfig {
+  export const defaultConfig: PlaintextPreviewConfig = Object.freeze({
+    blockSeparator: '\n',
+    includeLinebreaks: true,
+    includeRefTag: true,
+  });
+
+  export const inlineConfig: PlaintextPreviewConfig = Object.freeze({
+    blockSeparator: ' ',
+    includeLinebreaks: false,
+    includeRefTag: false,
+  });
+}
+
+export function plaintextPreviewOf(
+  content: PostContent,
+  config: PlaintextPreviewConfig = PlaintextPreviewConfig.defaultConfig
+): string {
+  return content
+    .map((block) => {
+      switch (block.type) {
+        case 'blockquote':
+          return `> ${plaintextPreviewOfInlineString(block.content, config)}`;
+        case 'paragraph':
+          return plaintextPreviewOfInlineString(block.content, config);
+        case 'image':
+          return '(Image)';
+        case 'video':
+          return '(Video)';
+        case 'embed':
+          return block.content ?? block.url;
+        case 'reference':
+          return config.includeRefTag ? '(Ref)' : '';
+        case 'code':
+          return `\`\`\`${block.lang ?? ''}\n${block.content}\n\`\`\``;
+        case 'header':
+          return plaintextPreviewOfInlineString(block.children, config);
+        case 'rule':
+          return '---';
+        case 'list':
+          return plaintextPreviewOfListData(block.list, config);
+        case 'bigEmoji':
+          return block.emoji;
+      }
+    })
+    .join(config.blockSeparator)
+    .trim();
+}
+
+function plaintextPreviewOfListData(
+  list: ListData,
+  config: PlaintextPreviewConfig
+): string {
+  const out: string[] = [];
+  out.push(plaintextPreviewOfInlineString(list.content, config));
+  if (list.children != null) {
+    const delimiter = (index: number) => {
+      switch (list.type) {
+        case undefined:
+        // fallthrough
+        case 'tasklist':
+        // fallthrough
+        case 'unordered':
+          return '-';
+        case 'ordered':
+          return `${index + 1}.`;
+      }
+    };
+    const currentIndentDepth = config.indentDepth ?? 0;
+    const effectiveIndentDepth = config.includeLinebreaks
+      ? currentIndentDepth
+      : 0;
+    out.push(
+      ...list.children.map(
+        (child, index) =>
+          `${'\t'.repeat(effectiveIndentDepth)}${delimiter(index)} ${plaintextPreviewOfListData(
+            child,
+            {
+              ...config,
+              indentDepth: currentIndentDepth + 1,
+            }
+          )}`
+      )
+    );
+  }
+  return out.join(config.blockSeparator);
+}
+
+export function plaintextPreviewOfInlineString(
+  inlines: InlineData[],
+  config: PlaintextPreviewConfig
+): string {
+  return inlines
+    .map((inline) => plaintextPreviewOfInline(inline, config))
+    .join('');
+}
+export function plaintextPreviewOfInline(
+  inline: InlineData,
+  config: PlaintextPreviewConfig
+): string {
+  switch (inline.type) {
+    case 'style':
+      return plaintextPreviewOfInlineString(inline.children, config);
+    case 'text':
+      return inline.text;
+    case 'mention':
+      return inline.contactId;
+    case 'lineBreak':
+      return '\n';
+    case 'link':
+      return inline.text;
+    case 'task': {
+      let out = inline.checked ? '[x] ' : '[ ] ';
+      out += plaintextPreviewOfInlineString(inline.children, config);
+      return out;
+    }
+  }
+}
+
 /**
  * Preprocess content for rendering. Alterations include:
  * - Removing line breaks at end of content
