@@ -1,6 +1,7 @@
 import crashlytics from '@react-native-firebase/crashlytics';
 import type { NavigationProp } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
+import { useAppStatusChange } from '@tloncorp/app/hooks/useAppStatusChange';
 import { useFeatureFlag } from '@tloncorp/app/lib/featureFlags';
 import { connectNotifications } from '@tloncorp/app/lib/notifications';
 import { RootStackParamList } from '@tloncorp/app/navigation/types';
@@ -25,8 +26,13 @@ import {
   whomIsMultiDm,
 } from '@tloncorp/shared/urbit';
 import * as ub from '@tloncorp/shared/urbit';
-import { Notification, useLastNotificationResponse } from 'expo-notifications';
-import { useEffect, useState } from 'react';
+import {
+  Notification,
+  dismissAllNotificationsAsync,
+  setBadgeCountAsync,
+  useLastNotificationResponse,
+} from 'expo-notifications';
+import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
 const logger = createDevLogger('useNotificationListener', false);
@@ -178,6 +184,20 @@ export default function useNotificationListener() {
   useEffect(() => {
     connectNotifications();
   }, []);
+
+  // Clear all notifications on login
+  useAppStatusChange(
+    useCallback((status) => {
+      if (['opened', 'active'].includes(status)) {
+        Promise.allSettled([
+          dismissAllNotificationsAsync(),
+          setBadgeCountAsync(0),
+        ]).catch((err) => {
+          console.error('Failed to dismiss all notifications', err);
+        });
+      }
+    }, [])
+  );
 
   const notificationResponse = useLastNotificationResponse();
   useEffect(() => {
