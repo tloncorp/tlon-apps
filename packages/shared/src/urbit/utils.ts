@@ -5,6 +5,12 @@ import { ContentReference, PostContent } from '../api';
 import { ChannelType } from '../db';
 import { GroupJoinStatus, GroupPrivacy } from '../db/schema';
 import { createDevLogger } from '../debug';
+import {
+  PlaintextPreviewConfig,
+  convertContentSafe,
+  getTextContent as getTextContentBase,
+  plaintextPreviewOf,
+} from '../logic/postContent';
 import * as ub from './channel';
 import * as ubc from './content';
 import * as ubd from './dms';
@@ -215,24 +221,10 @@ export function getChannelKindFromType(
 
 export function getTextContent(story: PostContent): string;
 export function getTextContent(story?: PostContent): string | undefined {
-  if (!story) {
-    return;
-  }
-  return story
-    .map((verse) => {
-      if (isReferenceVerse(verse)) {
-        return '';
-      } else if (ubc.isBlock(verse)) {
-        return getBlockContent(verse.block);
-      } else if ('inline' in verse) {
-        return getInlinesContent(verse.inline);
-      } else {
-        return '';
-      }
-    })
-    .filter((v) => !!v && v !== '')
-    .join(' ')
-    .trim();
+  return (
+    getTextContentBase(story ?? null, PlaintextPreviewConfig.inlineConfig) ??
+    undefined
+  );
 }
 
 function isReferenceVerse(

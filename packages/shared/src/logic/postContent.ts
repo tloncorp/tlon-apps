@@ -284,18 +284,28 @@ export function plaintextPreviewOfInline(
  * and could be converted to be compatible pretty easily.
  */
 export function convertContent(input: unknown): PostContent {
-  const blocks: PostContent = [];
   if (!input) {
-    return blocks;
+    return [];
   }
 
   const story: api.PostContent =
     typeof input === 'string' ? JSON.parse(input) : input;
 
   if (!story) {
-    return blocks;
+    return [];
   }
 
+  return convertContentSafe(story);
+}
+
+/**
+ * Same as `convertContent`, but does not parse the input, and
+ * applies more type strictness at callsite.
+ */
+export function convertContentSafe(
+  story: Exclude<api.PostContent, null>
+): PostContent {
+  const blocks: PostContent = [];
   for (const verse of story) {
     if ('type' in verse && verse.type === 'reference') {
       blocks.push(verse);
@@ -600,4 +610,13 @@ export function appendInline(
       },
     ];
   }
+}
+
+export function getTextContent(
+  postContent: api.PostContent,
+  config: PlaintextPreviewConfig = PlaintextPreviewConfig.defaultConfig
+): string | null {
+  return postContent == null
+    ? null
+    : plaintextPreviewOf(convertContentSafe(postContent), config);
 }
