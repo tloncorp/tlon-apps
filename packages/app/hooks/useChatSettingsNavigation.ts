@@ -36,7 +36,8 @@ export const useChatSettingsNavigation = () => {
 
   const { navigateToChatDetails } = useRootNavigation();
 
-  const { navigateToGroup, navigateToChatVolume } = useRootNavigation();
+  const { navigateToGroup, navigateToChatVolume: rootNavigateToChatVolume } =
+    useRootNavigation();
   const isWindowNarrow = useIsWindowNarrow();
 
   const navigateToGroupSettings = useCallback(
@@ -49,12 +50,10 @@ export const useChatSettingsNavigation = () => {
         fromChatDetails: params.fromChatDetails ?? true,
       } as GroupSettingsStackParamList[T];
 
-      if (!isWindowNarrow) {
+      if (!isWindowNarrow && 'groupId' in params) {
         await navigateToGroup(params.groupId);
       }
 
-      // Set a timeout to ensure the group is loaded before navigating
-      // when navigating through a Drawer
       setTimeout(
         () => {
           navigation.navigate('GroupSettings', {
@@ -111,6 +110,27 @@ export const useChatSettingsNavigation = () => {
     [navigateToGroupSettings]
   );
 
+  const onPressChatVolume = useCallback(
+    (params: {
+      type: 'group' | 'channel';
+      id: string;
+      fromChatDetails?: boolean;
+    }) => {
+      const { type, id, fromChatDetails } = params;
+
+      if (type === 'group') {
+        navigateToGroupSettings('ChatVolume', {
+          chatType: type,
+          chatId: id,
+          fromChatDetails,
+        });
+      } else {
+        rootNavigateToChatVolume(params);
+      }
+    },
+    [navigateToGroupSettings, rootNavigateToChatVolume]
+  );
+
   const onPressChannelMembers = useCallback(
     (channelId: string) => {
       navigationRef.current.navigate('ChannelMembers', { channelId });
@@ -145,7 +165,7 @@ export const useChatSettingsNavigation = () => {
     onPressManageChannels,
     onPressGroupPrivacy,
     onPressChatDetails: navigateToChatDetails,
-    onPressChatVolume: navigateToChatVolume,
+    onPressChatVolume,
     onPressRoles,
     onLeaveGroup,
   };
