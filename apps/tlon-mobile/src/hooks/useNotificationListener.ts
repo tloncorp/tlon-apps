@@ -17,6 +17,7 @@ import {
   syncGroups,
 } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
+import { markChatRead } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import {
@@ -25,9 +26,11 @@ import {
   whomIsMultiDm,
 } from '@tloncorp/shared/urbit';
 import * as ub from '@tloncorp/shared/urbit';
-import { Notification, useLastNotificationResponse } from 'expo-notifications';
+import {
+  Notification,
+  addNotificationResponseReceivedListener,
+} from 'expo-notifications';
 import { useEffect, useState } from 'react';
-import { Platform } from 'react-native';
 
 const logger = createDevLogger('useNotificationListener', false);
 
@@ -58,17 +61,12 @@ function payloadFromNotification(
   // `content`. When "triggered" through the NSE, the payload is in the
   // `trigger`.
   // Detect and use whatever payload is available.
-  const payload = (() => {
-    // Not sure why the payload is in different places per platform,
-    // but it is what it is
-    if (Platform.OS === 'android') {
-      return notification.request.content.data;
-    } else {
-      return notification.request.trigger.type === 'push'
-        ? notification.request.trigger.payload
-        : notification.request.content.data;
-    }
-  })();
+  const payload =
+    // `NotificationRequest.trigger` is marked as non-null in
+    // expo-notifications' types, but is null on Android - so we need the `?`
+    notification.request.trigger?.type === 'push'
+      ? notification.request.trigger.payload
+      : notification.request.content.data;
 
   if (payload == null || typeof payload !== 'object') {
     return null;
@@ -179,42 +177,57 @@ export default function useNotificationListener() {
     connectNotifications();
   }, []);
 
-  const notificationResponse = useLastNotificationResponse();
   useEffect(() => {
-    if (notificationResponse != null) {
-      const data = payloadFromNotification(notificationResponse.notification);
+    // Start notification tap listener
+    // This only seems to get triggered on iOS. Android handles the tap and other intents in native code.
+    const notificationTapListener = addNotificationResponseReceivedListener(
+      (response) => {
+        const data = payloadFromNotification(response.notification);
 
-      // If the NSE caught an error, it puts it in a list under
-      // `notificationServiceExtensionErrors` - slurp em and log.
-      //
-      // NB: This will only log errors on tapped notifications - we could use
-      // `getPresentedNotificationsAsync` to log all notifications' errors,
-      // but we don't have a good way to prevent logging the same
-      // notification multiple times.
-      const errorsFromExtension = data?.meta.errorsFromExtension;
-      if (errorsFromExtension != null) {
-        logger.trackError(AnalyticsEvent.ErrorNotificationService, {
-          context: 'Notification service extension forwarded an error:',
-          properties: { errors: errorsFromExtension },
-        });
+        // If the NSE caught an error, it puts it in a list under
+        // `notificationServiceExtensionErrors` - slurp em and log.
+        //
+        // NB: This will only log errors on tapped notifications - we could use
+        // `getPresentedNotificationsAsync` to log all notifications' errors,
+        // but we don't have a good way to prevent logging the same
+        // notification multiple times.
+        const errorsFromExtension = data?.meta.errorsFromExtension;
+        if (errorsFromExtension != null) {
+          logger.trackError(AnalyticsEvent.ErrorNotificationService, {
+            context: 'Notification service extension forwarded an error:',
+            properties: { errors: errorsFromExtension },
+          });
+        }
+
+        if (data == null || data.type === 'unrecognized') {
+          // https://linear.app/tlon/issue/TLON-2551/multiple-notifications-that-lead-to-nowhere-crash-app
+          // We're seeing cases where `data` is null here - not sure why this is happening.
+          // Log the notification and don't try to navigate.
+          logger.trackError(AnalyticsEvent.ErrorNotificationService, {
+            context: 'Failed to get notification payload',
+            properties: isTlonEmployee
+              ? response.notification.request
+              : undefined,
+          });
+          return;
+        }
+
+        const { actionIdentifier, userText } = response;
+        if (actionIdentifier === 'markAsRead' && data.channelId) {
+          markChatRead(data.channelId);
+        } else if (actionIdentifier === 'reply' && userText) {
+          // TODO: this is unhandled, when is actionIdentifier = reply?
+        } else if (data.channelId) {
+          setNotifToProcess(data);
+        }
       }
+    );
 
-      if (data == null || data.type === 'unrecognized') {
-        // https://linear.app/tlon/issue/TLON-2551/multiple-notifications-that-lead-to-nowhere-crash-app
-        // We're seeing cases where `data` is null here - not sure why this is happening.
-        // Log the notification and don't try to navigate.
-        logger.trackError(AnalyticsEvent.ErrorNotificationService, {
-          context: 'Failed to get notification payload',
-          properties: isTlonEmployee
-            ? notificationResponse.notification.request
-            : undefined,
-        });
-        return;
-      }
-
-      setNotifToProcess(data);
-    }
-  }, [notificationResponse, isTlonEmployee]);
+    return () => {
+      // Clean up listeners
+      notificationTapListener.remove();
+    };
+  }, [navigation, isTlonEmployee]);
 
   const isDesktop = useIsWindowNarrow();
 

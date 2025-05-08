@@ -10,7 +10,7 @@ import type { DrizzleConfig } from 'drizzle-orm/utils';
 export interface SQLiteConnection<
   Client extends AnySqliteDatabase = AnySqliteDatabase,
 > {
-  execute(query: string): Promise<void>;
+  execute(query: string): void;
   updateHook(
     callback:
       | ((params: {
