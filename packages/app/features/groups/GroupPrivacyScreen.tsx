@@ -3,6 +3,7 @@ import { schema } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
+import { useHandleGoBack } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
 import { Form, ScreenHeader, View, triggerHaptic } from '../../ui';
@@ -43,16 +44,10 @@ export function GroupPrivacyScreen(props: Props) {
     [group]
   );
 
-  const handleGoBack = useCallback(() => {
-    if (fromChatDetails) {
-      navigation.getParent()?.navigate('ChatDetails', {
-        chatType: 'group',
-        chatId: groupId,
-      });
-    } else {
-      navigation.goBack();
-    }
-  }, [navigation, fromChatDetails, groupId]);
+  const handleGoBack = useHandleGoBack(navigation, {
+    groupId,
+    fromChatDetails,
+  });
 
   return (
     <View backgroundColor={'$secondaryBackground'} flex={1}>

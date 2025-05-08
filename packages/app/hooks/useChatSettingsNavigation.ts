@@ -8,6 +8,27 @@ import { GroupSettingsStackParamList } from '../navigation/types';
 import { useRootNavigation } from '../navigation/utils';
 import { useIsWindowNarrow } from '../ui';
 
+export const useHandleGoBack = (
+  navigation: NativeStackNavigationProp<
+    GroupSettingsStackParamList,
+    keyof GroupSettingsStackParamList
+  >,
+  params: { groupId: string; fromChatDetails?: boolean }
+) => {
+  const { groupId, fromChatDetails } = params;
+
+  return useCallback(() => {
+    if (fromChatDetails) {
+      navigation.getParent()?.navigate('ChatDetails', {
+        chatType: 'group',
+        chatId: groupId,
+      });
+    } else {
+      navigation.goBack();
+    }
+  }, [navigation, fromChatDetails, groupId]);
+};
+
 export const useChatSettingsNavigation = () => {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();

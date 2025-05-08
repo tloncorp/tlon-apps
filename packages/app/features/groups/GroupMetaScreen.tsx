@@ -4,7 +4,10 @@ import * as store from '@tloncorp/shared/store';
 import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
 import { useCallback, useState } from 'react';
 
-import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import {
+  useChatSettingsNavigation,
+  useHandleGoBack,
+} from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
@@ -38,16 +41,10 @@ export function GroupMetaScreen(props: Props) {
     navigation.getParent()?.navigate('ChatList');
   }, [navigation]);
 
-  const handleGoBack = useCallback(() => {
-    if (fromChatDetails) {
-      navigation.getParent()?.navigate('ChatDetails', {
-        chatType: 'group',
-        chatId: groupId,
-      });
-    } else {
-      navigation.goBack();
-    }
-  }, [navigation, fromChatDetails, groupId]);
+  const handleGoBack = useHandleGoBack(navigation, {
+    groupId,
+    fromChatDetails,
+  });
 
   const handleSubmit = useCallback(
     (data: db.ClientMeta) => {

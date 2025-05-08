@@ -1,6 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback } from 'react';
 
+import { useHandleGoBack } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
@@ -36,16 +37,10 @@ export function GroupMembersScreen(props: Props) {
 
   const { resetToDm } = useRootNavigation();
 
-  const handleGoBack = useCallback(() => {
-    if (fromChatDetails) {
-      navigation.getParent()?.navigate('ChatDetails', {
-        chatType: 'group',
-        chatId: groupId,
-      });
-    } else {
-      navigation.goBack();
-    }
-  }, [navigation, fromChatDetails, groupId]);
+  const handleGoBack = useHandleGoBack(navigation, {
+    groupId,
+    fromChatDetails,
+  });
 
   const handleGoToDm = useCallback(
     (contactId: string) => {
