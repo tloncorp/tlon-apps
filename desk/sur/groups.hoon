@@ -553,7 +553,7 @@
       ==
     ::
     +$  init  [=time =group]
-    ::
+    +$  group-ui  [group init=? count=@ud]
     +$  groups-ui
       (map flag group-ui)
     +$  groups
@@ -572,8 +572,6 @@
       $%  [%pub p=log]
           [%sub p=time load=_|]
       ==
-    ::
-    +$  group-ui  [group init=? count=@ud]
     ::
     +$  progress
       $?  %knocking

@@ -101,59 +101,6 @@
     =,  v5
     |%
     ::
-    ++  group
-      |=  gr=group:v6:g
-      =/  active-channels
-        (turn ~(tap in active-channels.gr) (cork nest (lead %s)))
-      %-  pairs
-      :~  fleet/(fleet fleet.gr)
-          cabals/(cabals cabals.gr)
-          zones/(zones zones.gr)
-          zone-ord/a/(turn zone-ord.gr (lead %s))
-          channels/(channels channels.gr)
-          active-channels/a/active-channels
-          bloc/a/(turn ~(tap in bloc.gr) (lead %s))
-          cordon/(cordon cordon.gr)
-          meta/(meta meta.gr)
-          secret/b/secret.gr
-          flagged-content/(flagged-content flagged-content.gr)
-      ==
-    ::
-    ++  group-ui
-      |=  gr=group-ui:v6:g
-      =/  active-channels
-        (turn ~(tap in active-channels.gr) (cork nest (lead %s)))
-      %-  pairs
-      :~  fleet/(fleet fleet.gr)
-          cabals/(cabals cabals.gr)
-          zones/(zones zones.gr)
-          zone-ord/a/(turn zone-ord.gr (lead %s))
-          channels/(channels channels.gr)
-          active-channels/a/active-channels
-          bloc/a/(turn ~(tap in bloc.gr) (lead %s))
-          cordon/(cordon cordon.gr)
-          meta/(meta meta.gr)
-          secret/b/secret.gr
-          flagged-content/(flagged-content flagged-content.gr)
-          ::
-          init+b/init.gr
-          count+(numb count.gr)
-      ==
-    ::
-    ++  groups
-      |=  gs=groups:v6:g
-      %-  pairs
-      %+  turn  ~(tap by gs)
-      |=  [f=flag:g gr=group:v6:g]
-      [(flag f) (group gr)]
-    ::
-    ++  groups-ui
-      |=  gs=groups-ui:v6:g
-      %-  pairs
-      %+  turn  ~(tap by gs)
-      |=  [f=flag:g gr=group-ui:v6:g]
-      [(flag f) (group-ui gr)]
-    ::
     ++  gangs
       |=  gs=(map flag:g gang:v6:g)
       %-  pairs
@@ -182,29 +129,87 @@
           progress/s/`@t`progress.c
       ==
     ::
-    ++  action
-      |=  a=action:v6:g
-      %-  pairs
-      :~  flag/s/(flag p.a)
-          update/(update q.a)
-      ==
-    ::
-    ::
     ++  preview-response
       |=  pr=preview-response:v6:g
       ?:  ?=(%| -.pr)
         (frond error+(access-error p.pr))
       (frond preview+(preview p.pr))
     ::
+    --
+  ::
+  ++  v5
+    =,  v2
+    |%
+    ::
+    ++  group
+      |=  gr=group:v5:g
+      =/  active-channels
+        (turn ~(tap in active-channels.gr) (cork nest (lead %s)))
+      %-  pairs
+      :~  fleet/(fleet fleet.gr)
+          cabals/(cabals cabals.gr)
+          zones/(zones zones.gr)
+          zone-ord/a/(turn zone-ord.gr (lead %s))
+          channels/(channels channels.gr)
+          active-channels/a/active-channels
+          bloc/a/(turn ~(tap in bloc.gr) (lead %s))
+          cordon/(cordon cordon.gr)
+          meta/(meta meta.gr)
+          secret/b/secret.gr
+          flagged-content/(flagged-content flagged-content.gr)
+      ==
+    ::
+    ++  group-ui
+      |=  gr=group-ui:v5:g
+      =/  active-channels
+        (turn ~(tap in active-channels.gr) (cork nest (lead %s)))
+      %-  pairs
+      :~  fleet/(fleet fleet.gr)
+          cabals/(cabals cabals.gr)
+          zones/(zones zones.gr)
+          zone-ord/a/(turn zone-ord.gr (lead %s))
+          channels/(channels channels.gr)
+          active-channels/a/active-channels
+          bloc/a/(turn ~(tap in bloc.gr) (lead %s))
+          cordon/(cordon cordon.gr)
+          meta/(meta meta.gr)
+          secret/b/secret.gr
+          flagged-content/(flagged-content flagged-content.gr)
+          ::
+          init+b/init.gr
+          count+(numb count.gr)
+      ==
+    ::
+    ++  groups
+      |=  gs=groups:v5:g
+      %-  pairs
+      %+  turn  ~(tap by gs)
+      |=  [f=flag:g gr=group:v5:g]
+      [(flag f) (group gr)]
+    ::
+    ++  groups-ui
+      |=  gs=groups-ui:v5:g
+      %-  pairs
+      %+  turn  ~(tap by gs)
+      |=  [f=flag:g gr=group-ui:v5:g]
+      [(flag f) (group-ui gr)]
+    ::
+    ++  action
+      |=  a=action:v5:g
+      %-  pairs
+      :~  flag/s/(flag p.a)
+          update/(update q.a)
+      ==
+    ::
     ++  update
-      |=  =update:v6:g
+      |=  =update:v5:g
       %-  pairs
       :~  time+s+(scot %ud p.update)
           diff+(diff q.update)
       ==
     ::
     ++  diff
-      |=  d=diff:v6:g
+      |=  d=diff:v5:g
       %+  frond  -.d
       ?-    -.d
         %fleet    (pairs ships/a/(turn ~(tap in p.d) ship) diff/(fleet-diff q.d) ~)
@@ -219,11 +224,7 @@
         %del      ~
         %flag-content  (flag-content +:d)
       ==
-    --
-  ::
-  ++  v5
-    =,  v2
-    |%
+    ::
     ++  previews
       |=  ps=previews:v5:g
       %-  pairs

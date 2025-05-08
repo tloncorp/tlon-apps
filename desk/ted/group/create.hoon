@@ -5,7 +5,7 @@
 ::
 /-  spider
 /-  g=groups, gt=groups-thread, c=channels, meta
-/+  io=strandio
+/+  gv=groups-ver, io=strandio
 ::  keep warm
 /=  in-mark  /mar/group/create-thread
 ::
@@ -24,7 +24,7 @@
 ?>  =(p.group-id.create our.bowl)
 ~&  %thread-run
 ;<  exists=?  bind:m
-  (scry:io ? /gu/groups/groups/(scot %p p.group-id.create)/[q.group-id.create]/noun)
+  (scry:io ? /gu/groups/groups/(scot %p p.group-id.create)/[q.group-id.create])
 ~&  group+[group-id.create exists=exists]
 ::  create the group if it does not exist
 ::
@@ -44,14 +44,14 @@
 ;<  ~  bind:m
   ?.  exists  (pure:n ~)
   ;<  ~  bind:n
-    =/  =action:v5:g
+    =/  =action:v2:g
       group-id.create^[now.bowl [%meta meta.create]]
-    (poke:io [our.bowl %groups] group-action-4+!>(action))
-  =/  =action:v5:g
+    (poke:io [our.bowl %groups] group-action-3+!>(action))
+  =/  =action:v2:g
     :+  group-id.create
       now.bowl
     [%cordon %shut %add-ships %pending guest-list.create]
-  (poke:io [our.bowl %groups] group-action-4+!>(action))
+  (poke:io [our.bowl %groups] group-action-3+!>(action))
 ;<  ~  bind:m
   |-
   ?~  channels  (pure:n ~)
@@ -80,27 +80,27 @@
     (poke:io [our.bowl %channels] channel-action+!>(a-channels))
   ::  register the channel with %groups
   ;<  ~  bind:n
-    =/  =channel:v5:g
+    =/  =channel:v2:g
       :-  [title.meta description.meta '' '']:create-channel
       [now.bowl %default | ~]
-    =/  =action:v5:g
+    =/  =action:v2:g
       [group-id.create now.bowl %channel channel-id.create-channel %add channel]
-    (poke:io [our.bowl %groups] group-action-4+!>(action))
+    (poke:io [our.bowl %groups] group-action-3+!>(action))
   $(channels t.channels)
 ::  send out group invites
 ::
-;<  ~  bind:m
-  =+  guest-list=~(tap in guest-list.create)
-  |-
-  ?~  guest-list  (pure:n ~)
-  =/  =invite:v5:g
-    :_  i.guest-list
-    [our.bowl q.group-id.create]
-  ~&  invite+i.guest-list
-  ;<  ~  bind:n
-    (poke:io [our.bowl %groups] group-invite+!>(invite))
-  $(guest-list t.guest-list)
-::
-;<  =group-ui:v5:g  bind:m
-  (scry:io group-ui:v5:g /gx/groups/groups/(scot %p p.group-id.create)/[q.group-id.create]/v2/noun)
-(pure:m !>(group-ui))
+:: ;<  ~  bind:m
+::   =+  guest-list=~(tap in guest-list.create)
+::   |-
+::   ?~  guest-list  (pure:n ~)
+::   =/  =invite:v5:g
+::     :_  i.guest-list
+::     [our.bowl q.group-id.create]
+::   ~&  invite+i.guest-list
+::   ;<  ~  bind:n
+::     (poke:io [our.bowl %groups] group-invite+!>(invite))
+::   $(guest-list t.guest-list)
+;<  group-ui-5=group-ui:v5:g  bind:m
+  %+  scry:io  group-ui:v5:g
+  /gx/groups/v1/ui/groups/(scot %p p.group-id.create)/[q.group-id.create]/noun
+(pure:m !>(group-ui-5))

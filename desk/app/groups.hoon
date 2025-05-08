@@ -120,6 +120,7 @@
 ::
 ++  poke
   |=  [=mark =vase]
+  ~&  poke+mark
   ^+  cor
   ?+    mark  ~|(bad-mark+mark !!)
       %noun
@@ -160,8 +161,9 @@
         se-abet:(se-c-group:server-core c-group.c-groups)
       ==
     ::
-        %group-action-1
+        %group-action-4
       =+  !<(=a-groups:v7:g vase)
+      ~&  group-action-4+-.a-groups
       ?-    -.a-groups
           %join
         go-abet:(go-join:go-core [flag token]:a-groups)
@@ -170,6 +172,29 @@
         =*  group-core  (go-abed:go-core flag.a-groups)
         go-abet:(go-a-group:group-core a-group.a-groups)
       ==
+    ::
+        ::  deprecated
+        %group-action-3
+      =+  !<(=action:v2:g vase)
+      =*  flag  p.action
+      =*  diff  q.q.action
+      :: ?:  ?=(%create -.diff)
+      ::   ?>  =(p.flag our.bowl)
+      ::   =/  =c-groups:g
+      ::     [%create (create-group:v7:create:v2:ver p.diff)]
+        :: $(+< group-command+!>(c-groups))
+      ?:  ?=(%del -.diff)
+        ?>  =(p.flag our.bowl)
+        =/  =c-groups:g
+          [%group flag [%delete ~]]
+        $(+< group-command+!>(c-groups))
+      =/  a-group-list=(list a-group:v7:g)
+        (a-group:v7:diff:v2:ver diff)
+      ?:  =(~ a-group-list)  cor
+      %+  roll  a-group-list
+      |=  [=a-group:v7:g =_cor]
+      =/  =a-groups:v7:g  [%group flag a-group]
+      ^$(+< group-action-4+!>(a-groups))
       ::XX is this used for anything important?
       ::   [%group-wake flag:g]
       :: =+  ;;(=flag:g +.q.vase)
@@ -639,7 +664,6 @@
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
-  ~&  peek+pole
   ::  compatibility
   ::
   :: =>
@@ -689,91 +713,78 @@
     ::  client paths
     ::
   ::
+      ::  deprecate
       [%x %v1 %init ~]
   =/  groups-ui-2=groups-ui:v2:g
-    %-  ~(run by groups)
-    (curr group-ui:v2:group:v7:ver our.bowl)
+    (~(run by groups) group-ui:v2:group:v7:ver)
   =/  gangs-2=gangs:v2:g  ~
   ``noun+!>([groups-ui-2 gangs-2])
   ::
-     [%x ver=?(%v0 %v1) %groups ship=@ name=@ rest=*]
+       [%x ver=?(%v0 %v1) %groups ~]
+    =/  groups-7=groups:v7:g  (~(run by groups) tail)
+    ?-    ver.pole
+        %v0  ``groups+!>((~(run by groups-7) v2:group:v7:ver))
+        %v1  ``groups-1+!>(groups-7)
+    ==
+  ::
+      [%x ver=?(%v0 %v1) %light %groups ~]
+    =/  groups-7=groups:v7:g  
+      %-  ~(run by groups)
+      |=  [=net:v7:g =group:v7:g]
+      (drop-seats:group:v7:ver group our.bowl)
+    ?-    ver.pole
+        %v0  ``groups+!>((~(run by groups-7) v2:group:v7:ver))
+        %v1  ``groups-1+!>(groups-7)
+    ==
+  ::
+    ::  deprecated
+    [%x %groups ~]  $(pole /x/v0/groups)
+    ::  deprecated
+    [%x %groups %light ~]  $(pole /x/v0/light/groups)
+  ::
+      [%x ver=?(%v0 %v1) %groups ship=@ name=@ rest=*]
     =+  ship=(slav %p ship.pole)
     =*  flag  [ship name.pole]
     =+  net-group=(~(get by groups) flag)
     ?~  net-group  [~ ~]
     ?.  ?=(~ rest.pole)
-      ::  deprecated
-      ?:  ?=([%v1 ~] rest.pole)
-        $(pole [%x ver %groups ship name ~]:pole)
       (go-peek:(go-abed:go-core ship name.pole) ver.pole rest.pole)
     ?-    ver.pole
-    ::
         %v0
-      ``group-ui+!>((group-ui:v2:group:v7:ver u.net-group our.bowl))
+      ``group+!>((v2:group:v7:ver +.u.net-group))
     ::
         %v1
-      ``group-ui-1+!>((group-ui:group:v7:ver u.net-group our.bowl))
+      ``group-1+!>(`group:v7:g`+.u.net-group)
+    ==
+  ::
+      [%x ver=?(%v0 %v1 %v2) %ui %groups ship=@ name=@ rest=*]
+    =+  ship=(slav %p ship.pole)
+    =*  flag  [ship name.pole]
+    =+  net-group=(~(get by groups) flag)
+    ?~  net-group  [~ ~]
+    ?.  ?=(~ rest.pole)
+      ?:  ?=([%v1 ~] rest.pole)
+        ::  deprecated
+        $(pole [%x ver %ui %groups ship name ~]:pole)
+      ~|(peek-bad-path+pole !!)
+    ?-    ver.pole
+        %v0
+      ``group-ui+!>((group-ui:v2:group:v7:ver u.net-group))
+    ::
+        %v1
+      ``group-ui-1+!>((group-ui:v5:group:v7:ver u.net-group))
+    ::
+        %v2
+      ``group-ui-2+!>((group-ui:group:v7:ver u.net-group))
     ==
   ::
       ::  deprecated
       [%x %groups ship=@ name=@ rest=*]
-    $(pole [%x %v0 %groups ship.pole name.pole rest.pole])
+    $(pole [%x %v0 %ui %groups ship.pole name.pole rest.pole])
   ::
-      [%u %groups ship=@ name=@ %noun ~]
+      [%u %groups ship=@ name=@ ~]
     =+  ship=(slav %p ship.pole)
-    ``loob+!>((~(has by groups) [ship name.pole]))
-  ::
-    :: [%x %gangs ~]  ``gangs+!>(xeno-2)
-    :: [%x %v1 %gangs ~]  ``gangs-1+!>(xeno-5)
-    :: [%x %v2 %gangs ~]  ``gangs-2+!>(xeno-6)
-  ::
-    :: [%x %init ~]  ``noun+!>([groups-light-2 xeno-2])
-    :: [%x %init %v0 ~]  ``noun+!>([groups-light-ui-0 xeno-2])
-    :: [%x %init %v1 ~]  ``noun+!>([groups-light-ui-2 xeno-2])
-    :: [%x %v2 %init ~]  ``noun+!>([groups-light-ui-5 xeno-5])
-    :: [%x %v3 %init ~]  ``noun+!>([groups-light-ui-5 xeno-6])
-  ::
-    :: [%x %groups %light ~]  ``groups+!>(groups-light-2)
-    :: [%x %groups %light %v0 ~]  ``groups-ui-v0+!>(groups-light-ui-0)
-    :: [%x %groups %light %v1 ~]  ``groups-ui+!>(groups-light-ui-2)
-  ::
-    ::   [%x %groups ~]
-    :: =*  groups-2
-    ::   %-  ~(run by groups)
-    ::   |=  [net:g =group:g]
-    ::   (v2:group:v6:ver group)
-    :: ``groups+!>(groups-2)
-  ::
-    ::   [%x %v1 %groups ~]
-    :: ``groups-1+!>(`groups:v5:g`(~(run by groups) tail))
-  ::
-    ::   [%x %groups %v0 ~]
-    :: ``groups-ui-v0+!>((~(urn by groups) v0:group-ui:v6:ver))
-  ::
-    ::   [%x %groups %v1 ~]
-    :: ``groups-ui+!>((~(urn by groups) v2:group-ui:v6:ver))
-  ::
-    ::   [%x %groups ship=@ name=@ rest=*]
-    :: =/  ship  (slav %p ship.pole)
-    :: =*  flag  [ship name.pole]
-    :: =/  group  (~(get by groups) flag)
-    :: ?~  group  [~ ~]
-    :: ?~  rest.pole
-    ::   ``group+!>((v2:group:v6:ver +.u.group))
-    :: ?+    rest.pole
-    ::     (go-peek:(go-abed:group-core ship name.pole) rest.pole)
-    ::   ::
-    :: ::
-    ::     [%v0 ~]
-    ::   ``group-ui-v0+!>((v0:group-ui:v6:ver flag u.group))
-    :: ::
-    ::     [%v1 ~]
-    ::   ``group-ui+!>((v2:group-ui:v6:ver flag u.group))
-    :: ::
-    ::     [%v2 ~]
-    ::   ``group-ui-1+!>((v5:group-ui:v6:ver u.group))
-    :: ==
-  ::
+    ``noun+!>((~(has by groups) [ship name.pole]))
   ::
       [%x %volume ~]
     ``volume-value+!>(base.volume)
@@ -1754,6 +1765,7 @@
   ::
   ++  go-a-group
     |=  =a-group:g
+    ~&  go-a-group+-.a-group
     ^+  go-core
     ?>  from-self
     ?+  -.a-group  (go-send-command [%group flag `c-group:g`a-group])
