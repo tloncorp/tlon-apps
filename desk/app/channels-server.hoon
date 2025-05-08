@@ -299,7 +299,7 @@
   inflate-io
 ::
 ++  inflate-io
-  (safe-watch /groups [our.bowl %groups] /groups)
+  (safe-watch /groups [our.bowl %groups] /server/groups)
 ::
 ++  poke
   |=  [=mark =vase]
@@ -520,8 +520,7 @@
       ((slog tank u.p.sign) cor)
     ::
         %fact
-      ?.  ?=(%group-action-4 p.cage.sign)  cor
-      (take-groups !<(action:v5:g q.cage.sign))
+      (take-groups !<(r-groups:v7:g q.cage.sign))
     ==
   ::
       [%migrate ~]
@@ -564,40 +563,39 @@
     (wake-hook rest.pole)
   ==
 ::
-++  watch-groups  (safe-watch /groups [our.bowl %groups] /groups)
+++  watch-groups  (safe-watch /groups [our.bowl %groups] /v1/groups)
+::  +take-groups: process group update
+::  
 ++  take-groups
-  |=  =action:v5:g
+  |=  =r-groups:v7:g
+  =*  flag  flag.r-groups
   =/  affected=(list nest:c)
     %+  murn  ~(tap by v-channels)
     |=  [=nest:c channel=v-channel:c]
-    ?.  =(p.action group.perm.perm.channel)  ~
+    ?.  =(flag group.perm.perm.channel)  ~
     `nest
-  =/  diff  q.q.action
-  ?+    diff  cor
-      [%fleet * %del ~]
+  =*  r-group  r-group.r-groups
+  ?+    r-group  cor
+      [%seat * %add-roles *]    (recheck-perms affected ~)
+      [%seat * %del-roles *]     (recheck-perms affected ~)
+      [%channel * %edit *]       (recheck-perms affected ~)
+      [%channel * %add-roles *]  (recheck-perms affected ~)
+      [%channel * %del-roles *]  (recheck-perms affected ~)
+  ::
+      [%role * %del *]
+    (recheck-perms affected (sy role-id.r-group ~))
+  ::
+      [%seat * %del ~]
     ~&  "%channel-server: revoke perms for {<affected>}"
     %+  roll  affected
     |=  [=nest:c co=_cor]
     ^+  cor
-    %+  roll  ~(tap in p.diff)
-    |=  [=ship ci=_co]
-    ^+  cor
-    =/  ca  (ca-abed:ca-core:ci nest)
-    ca-abet:(ca-revoke:ca ship)
-  ::
-      [%fleet * %add-sects *]    (recheck-perms affected ~)
-      [%fleet * %del-sects *]    (recheck-perms affected ~)
-      [%channel * %edit *]       (recheck-perms affected ~)
-      [%channel * %del-sects *]  (recheck-perms affected ~)
-      [%channel * %add-sects *]  (recheck-perms affected ~)
-      [%cabal * %del *]
-    =/  =sect:v0:g  (slav %tas p.diff)
-    %+  recheck-perms  affected
-    (~(gas in *(set sect:v0:g)) ~[p.diff])
+    =/  ca  (ca-abed:ca-core:co nest)
+    ca-abet:(ca-revoke:ca ship.r-group)
   ==
 ::
 ++  recheck-perms
-  |=  [affected=(list nest:c) sects=(set sect:v0:g)]
+  |=  [affected=(list nest:c) sects=(set role-id:v7:g)]
   ~&  "%channel-server recheck permissions for {<affected>}"
   %+  roll  affected
   |=  [=nest:c co=_cor]

@@ -694,8 +694,7 @@
       ((slog tank u.p.sign) cor)
     ::
         %fact
-      ?.  ?=(%group-action-4 p.cage.sign)  cor
-      (take-groups !<(=action:v5:g q.cage.sign))
+      (take-groups !<(=r-groups:v7:g q.cage.sign))
     ==
   ::
       [%migrate ~]
@@ -719,26 +718,27 @@
     ==
   ==
 ::
-++  watch-groups  (safe-watch /groups [our.bowl %groups] /groups)
+++  watch-groups  (safe-watch /groups [our.bowl %groups] /v1/groups)
+::  +take-groups: process group update
 ::
 ++  take-groups
-  |=  =action:v5:g
+  |=  =r-groups:v7:g
+  =*  flag  flag.r-groups
   =/  affected=(list nest:c)
     %+  murn  ~(tap by v-channels)
     |=  [=nest:c channel=v-channel:c]
-    ?.  =(p.action group.perm.perm.channel)  ~
+    ?.  =(flag group.perm.perm.channel)  ~
     `nest
-  =/  diff  q.q.action
-  ?+    diff  cor
-      [%fleet * %add-sects *]    (recheck-perms affected ~)
-      [%fleet * %del-sects *]    (recheck-perms affected ~)
+  =*  r-group  r-group.r-groups
+  ?+    r-group  cor
+      [%seat * %add-roles *]     (recheck-perms affected ~)
+      [%seat * %del-roles *]     (recheck-perms affected ~)
       [%channel * %edit *]       (recheck-perms affected ~)
-      [%channel * %del-sects *]  (recheck-perms affected ~)
-      [%channel * %add-sects *]  (recheck-perms affected ~)
-      [%cabal * %del *]
-    =/  =sect:v0:g  (slav %tas p.diff)
-    %+  recheck-perms  affected
-    (~(gas in *(set sect:v0:g)) ~[p.diff])
+      [%channel * %add-roles *]  (recheck-perms affected ~)
+      [%channel * %del-roles *]  (recheck-perms affected ~)
+  ::
+      [%role * %del *]
+    (recheck-perms affected (sy role-id.r-group ~))
   ==
 ::
 ++  recheck-perms

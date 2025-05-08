@@ -364,6 +364,8 @@
 +$  u-group
   $%  [%meta =data:meta]
       [%entry =u-entry]
+      ::XX consider allowing a batch ships update
+      ::   like in c-group.
       [%seat =ship =u-seat]
       [%role =role-id =u-role]
       [%channel =nest =u-channel]
@@ -414,11 +416,7 @@
       [%move idx=@ud]
       [%move-nest idx=@ud =nest]
   ==
-+$  r-groups
-  $%  [%preview =preview]
-      [%leave =flag]
-      [%group =flag =r-group]
-  ==
++$  r-groups  [=flag =r-group]
 +$  r-group
   $%  [%meta =data:meta]
       [%entry =r-entry]
@@ -428,6 +426,7 @@
       [%section =section-id =r-section]
       [%flag-content =nest =post-key src=ship]
       [%del ~]
+      [%leave ~]
   ==
 +$  r-entry  u-entry
 +$  r-seat  u-seat

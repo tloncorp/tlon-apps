@@ -359,7 +359,6 @@
       [%view =view]
       [%sort =sort]
       [%perm =perm]
-    ::
       [%create =perm]
       [%join group=flag:g]
       [%leave ~]

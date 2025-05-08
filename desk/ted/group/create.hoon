@@ -89,17 +89,17 @@
   $(channels t.channels)
 ::  send out group invites
 ::
-:: ;<  ~  bind:m
-::   =+  guest-list=~(tap in guest-list.create)
-::   |-
-::   ?~  guest-list  (pure:n ~)
-::   =/  =invite:v5:g
-::     :_  i.guest-list
-::     [our.bowl q.group-id.create]
-::   ~&  invite+i.guest-list
-::   ;<  ~  bind:n
-::     (poke:io [our.bowl %groups] group-invite+!>(invite))
-::   $(guest-list t.guest-list)
+;<  ~  bind:m
+  =+  guest-list=~(tap in guest-list.create)
+  |-
+  ?~  guest-list  (pure:n ~)
+  =/  =invite:v5:g
+    :_  i.guest-list
+    [our.bowl q.group-id.create]
+  ~&  invite+i.guest-list
+  ;<  ~  bind:n
+    (poke:io [our.bowl %groups] group-invite+!>(invite))
+  $(guest-list t.guest-list)
 ;<  group-ui-5=group-ui:v5:g  bind:m
   %+  scry:io  group-ui:v5:g
   /gx/groups/v1/ui/groups/(scot %p p.group-id.create)/[q.group-id.create]/noun

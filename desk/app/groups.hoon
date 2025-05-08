@@ -23,6 +23,7 @@
       [~.groups^%1 ~ ~]
     %-  my
     :~  %groups^[~.groups^%1 ~ ~]
+        %channels^[~.channels^%1 ~ ~]
         %channels-server^[~.channels^%1 ~ ~]
     ==
 %-  agent:dbug
@@ -120,7 +121,7 @@
 ::
 ++  poke
   |=  [=mark =vase]
-  ~&  poke+mark
+  ~&  groups-poke+[mark src.bowl]
   ^+  cor
   ?+    mark  ~|(bad-mark+mark !!)
       %noun
@@ -145,6 +146,7 @@
     ::
         %group-command
       =+  !<(=c-groups:v7:g vase)
+      ~&  group-command+-.c-groups
       ?-    -.c-groups
           %create
         ~&  %group-command-create
@@ -157,7 +159,9 @@
         se-abet:(se-join:server-core token.c-groups)
       ::
           %group
-        =*  server-core  (se-abed:se-core flag.c-groups)
+        ~&  group-command-group+-.c-group.c-groups
+        =/  server-core  (se-abed:se-core flag.c-groups)
+        ~&  %what-the-heck
         se-abet:(se-c-group:server-core c-group.c-groups)
       ==
     ::
@@ -409,7 +413,8 @@
   |=  [[=flag:g [=net:g =group:g]] cr=_core]
   ?.  =(our.bowl p.flag)  cr
   (~(rep by channels.group) (reset-channel-perms flag cr))
-::
+::TODO examine whether this should execute in the client
+::     component or in the server component
 ++  reset-channel-perms
   |=  [=flag:g cr=_cor]
   |=  [[=nest:g =channel:g] core=_cr]
@@ -664,49 +669,6 @@
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
-  ::  compatibility
-  ::
-  :: =>
-  ::   |%
-    :: ++  xeno-2
-    ::   ^-  gangs:v2:g
-    ::   (~(run by xeno) v2:gang:v6:ver)
-    :: ::
-    :: ++  xeno-5
-    ::   ^-  gangs:v5:g
-    ::   (~(run by xeno) v5:gang:v6:ver)
-    :: ::
-    :: ++  xeno-6
-    ::   ^-  gangs:v6:g
-    ::   xeno
-    ::
-    :: ++  groups-light-2
-    ::   ^-  groups:v2:g
-    ::   %-  ~(run by groups)
-    ::   |=  [=net:v6:g =group:v6:g]
-    ::   (v2:group:v6:ver (drop-fleet:v6 group bowl))
-    :: ::
-    :: ++  groups-light-ui-0
-    ::   ^-  groups-ui:v2:g
-    ::   %-  ~(urn by groups)
-    ::   |=  [=flag:g [=net:v6:g =group:v6:g]]
-    ::   =*  status  (read-status:neg bowl [p.flag %groups])
-    ::   (v0:group-ui:v6:g flag net (drop-fleet:v6 group bowl) status)
-    :: ::
-    :: ++  groups-light-ui-2
-    ::   ^-  groups-ui:v2:g
-    ::   %-  ~(urn by groups)
-    ::   |=  [=flag:g [=net:v6:g =group:v6:g]]
-    ::   =*  status  (read-status:neg bowl [p.flag %groups])
-    ::   (v2:group-ui:v6:g flag net (drop-fleet:v6 group bowl) status)
-    :: ::
-    :: ++  groups-light-ui-5
-    ::   ^-  groups-ui:v5:g
-    ::   %-  ~(run by groups)
-    ::   |=  [=net:v6:g =group:v6:g]
-    ::   (v5:group-ui:v6 net (drop-fleet:v6 group))
-    :: --
-  ::
   ?+    pole  [~ ~]
   ::
     ::
@@ -714,27 +676,37 @@
     ::
   ::
       ::  deprecate
-      [%x %v1 %init ~]
-  =/  groups-ui-2=groups-ui:v2:g
-    (~(run by groups) group-ui:v2:group:v7:ver)
-  =/  gangs-2=gangs:v2:g  ~
-  ``noun+!>([groups-ui-2 gangs-2])
+  ::     [%x %v1 %init ~]
+  :: =/  groups-ui-2=groups-ui:v2:g
+  ::   (~(run by groups) group-ui:v2:group:v7:ver)
+  :: =/  gangs-2=gangs:v2:g  ~
+  :: ``noun+!>([groups-ui-2 gangs-2])
   ::
-       [%x ver=?(%v0 %v1) %groups ~]
+       [%x ver=?(%v0 %v1 %v2) %groups ~]
     =/  groups-7=groups:v7:g  (~(run by groups) tail)
     ?-    ver.pole
         %v0  ``groups+!>((~(run by groups-7) v2:group:v7:ver))
-        %v1  ``groups-1+!>(groups-7)
+        %v1  ``groups-1+!>((~(run by groups-7) v5:group:v7:ver))
+        %v2  ``groups-2+!>(groups-7)
     ==
   ::
-      [%x ver=?(%v0 %v1) %light %groups ~]
+      [%x ver=?(%v0 %v1 %v2) %light %groups ~]
     =/  groups-7=groups:v7:g  
       %-  ~(run by groups)
       |=  [=net:v7:g =group:v7:g]
       (drop-seats:group:v7:ver group our.bowl)
     ?-    ver.pole
         %v0  ``groups+!>((~(run by groups-7) v2:group:v7:ver))
-        %v1  ``groups-1+!>(groups-7)
+        %v1  ``groups-1+!>((~(run by groups-7) v5:group:v7:ver))
+        %v2  ``groups-2+!>(groups-7)
+    ==
+  ::
+      [%x ver=?(%v0 %v1 %v2) %ui %groups ~]
+    =/  net-groups-7=net-groups:v7:g  groups
+    ?-    ver.pole
+        %v0  ``groups-ui+!>((~(run by net-groups-7) group-ui:v2:group:v7:ver))
+        %v1  ``groups-ui-1+!>((~(run by net-groups-7) group-ui:v5:group:v7:ver))
+        %v2  ``groups-ui-2+!>((~(run by net-groups-7) group-ui:group:v7:ver))
     ==
   ::
     ::  deprecated
@@ -742,7 +714,7 @@
     ::  deprecated
     [%x %groups %light ~]  $(pole /x/v0/light/groups)
   ::
-      [%x ver=?(%v0 %v1) %groups ship=@ name=@ rest=*]
+      [%x ver=?(%v0 %v1 %v2) %groups ship=@ name=@ rest=*]
     =+  ship=(slav %p ship.pole)
     =*  flag  [ship name.pole]
     =+  net-group=(~(get by groups) flag)
@@ -754,7 +726,10 @@
       ``group+!>((v2:group:v7:ver +.u.net-group))
     ::
         %v1
-      ``group-1+!>(`group:v7:g`+.u.net-group)
+      ``group-1+!>((v5:group:v7:ver +.u.net-group))
+    ::
+        %v2
+      ``group-2+!>(`group:v7:g`+.u.net-group)
     ==
   ::
       [%x ver=?(%v0 %v1 %v2) %ui %groups ship=@ name=@ rest=*]
@@ -1182,7 +1157,9 @@
   ++  se-c-group
     |=  =c-group:g
     ^+  se-core
+    ~&  %what-what
     =*  se-src-is-admin  (se-is-admin src.bowl)
+    ~&  se-c-group+[se-src-is-admin]
     ::XX disallow commands from banned ships?
     ::XX who can ban ships. make sure the host can't
     ::   ban itself, and rank is not in effect for the host
@@ -1397,11 +1374,14 @@
     ^+  se-core
     =*  by-ch  ~(. by channels.group)
     =*  chan  channel.c-channel
+    ~&  se-c-chanel+[c-channel ~(key by channels.group)]
     ?.  |(?=(%add -.c-channel) (has:by-ch nest))  se-core
     ?-    -.c-channel
+        ::XX fix channels not showing up
         %add
       =.  sections.group  (se-section-add-channel nest chan)
       =.  channels.group  (put:by-ch nest chan)
+      ~&  se-core-add-channel+nest
       (se-update %channel nest [%add chan])
     ::
         %edit
@@ -1583,7 +1563,7 @@
 ::  +go-core: group client core
 ::
 ++  go-core
-  |_  [=flag:g net=[=time init=_|] =group:g gone=_|]
+  |_  [=flag:g =net:g =group:g gone=_|]
   ++  go-core  .
   ::  +go-abed: init
   ::
@@ -1592,14 +1572,7 @@
     ^+  go-core
     ~|  flag=f
     =/  [=net:g =group:g]  (~(got by groups) f)
-    ::  hosted group adapter
-    ::
-    =/  =$>(%sub net:g)
-      ?:  ?=(%sub -.net)  net
-      =/  item=(unit [=time *])
-        (ram:log-on:g log.net)
-      [%sub ?~(item *time time.u.item) &]
-    go-core(flag f, group group, net +.net)
+    go-core(flag f, group group, net net)
   ::  +go-abet: final
   ::
   ++  go-abet
@@ -1607,7 +1580,7 @@
     %_  cor  groups
       ?:  gone  
         (~(del by groups) flag)
-      (~(put by groups) flag [%sub time.net init.net] group)
+      (~(put by groups) flag net group)
     ==
   ::  +go-area: group base path
   ++  go-area  `path`/(scot %p p.flag)/[q.flag]
@@ -1653,7 +1626,7 @@
     !=(~ (~(int in roles.seat) admins.group))
   ::  go-our-host: check whether we are the host
   ::
-  ++  go-our-host  =(p.flag our.bowl)
+  ++  go-our-host  ?=(%pub -.net)
   ::  +go-channel-hosts: set of ships hosting a group channel
   ::
   ++  go-channel-hosts
@@ -1731,6 +1704,7 @@
   ++  go-start-updates
     |=  delay=?
     ^+  go-core
+    ?>  ?=(%sub -.net)
     =.  cor
       %.  delay
       %^  safe-watch  go-sub-wire  [p.flag server]
@@ -1778,7 +1752,7 @@
     ^+  go-core
     ?>  from-self
     ?>  ?=(%group -.c-groups)
-    =/  =cage  channel-command+!>(c-groups)
+    =/  =cage  group-command+!>(c-groups)
     =.  cor  (emit %pass go-area %agent [p.flag server] %poke cage)
     go-core
   ::
@@ -1832,6 +1806,7 @@
   ++  go-u-group
     |=  update=group-update:g
     ^+  go-core
+    ?>  ?=(%sub -.net)
     ?>  (gth time.update time.net)
     =.  time.net  time.update
     =*  u-group  u-group.update
@@ -2247,22 +2222,21 @@
   ++  go-response
     |=  =r-group:g
     ^+  go-core
-    =/  =r-groups:g  [%group flag r-group]
-    ::
+    =/  =r-groups:g  [flag r-group]
     =/  v1-paths  ~[/v1/groups (weld /v1/groups go-area)]
-    ::XX use conversion functions from 'latest'
+    :: ::XX use conversion functions from 'latest'
     =/  r-groups-7=r-groups:v7:g  r-groups
     =.  cor  (give %fact v1-paths group-response-1+!>(r-groups-7))
-    ::
-    =/  v0-paths  ~[/groups/ui]
-    =/  action-2=action:v2:g
-      (v2:action:r-group:v7:ver r-group)
-    =.  cor  (give %fact v0-paths group-action-3+!>(action-2))
+    :: ::
+    :: =/  v0-paths  ~[/groups/ui]
+    :: =/  action-2=action:v2:g
+    ::   (v2:action:r-group:v7:ver r-group)
+    :: =.  cor  (give %fact v0-paths group-action-3+!>(action-2))
     go-core
   ::  +go-peek: handle a group scry request
   ::
   ++  go-peek
-    |=  [ver=?(%v0 %v1) =(pole knot)]
+    |=  [ver=?(%v0 %v1 %v2) =(pole knot)]
     ^-  (unit (unit cage))
     ?+    pole  ~|(bad-go-peek+pole !!)
       ::XX find out which ones were ever used by anything
