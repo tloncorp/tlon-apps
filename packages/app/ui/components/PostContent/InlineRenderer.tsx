@@ -15,10 +15,6 @@ import {
   TextInlineData,
 } from './contentUtils';
 
-const StyleContext = React.createContext<{
-  parentStyle?: 'code' | 'bold' | 'italic' | 'strikethrough';
-}>({});
-
 export const CodeText = styled(Text, {
   name: 'CodeText',
   size: '$mono/m',
@@ -86,13 +82,11 @@ export function InlineStyle({
   }[inline.style];
 
   return (
-    <StyleContext.Provider value={{ parentStyle: inline.style }}>
-      <StyleComponent {...props}>
-        {inline.children.map((child, i) => (
-          <InlineRenderer inline={child} key={i} />
-        ))}
-      </StyleComponent>
-    </StyleContext.Provider>
+    <StyleComponent {...props}>
+      {inline.children.map((child, i) => (
+        <InlineRenderer inline={child} key={i} />
+      ))}
+    </StyleComponent>
   );
 }
 
@@ -103,12 +97,6 @@ export function InlineText({
   inline: TextInlineData;
   color?: ColorTokens;
 }) {
-  const { parentStyle } = useContext(StyleContext);
-
-  if (parentStyle === 'code') {
-    return <CodeText>{inline.text}</CodeText>;
-  }
-
   return <RawText color={color}>{inline.text}</RawText>;
 }
 
