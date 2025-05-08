@@ -613,6 +613,14 @@ export function appendInline(
 }
 
 export function getTextContent(
+  postContent: Exclude<api.PostContent, null>,
+  config?: PlaintextPreviewConfig
+): string;
+export function getTextContent(
+  postContent: api.PostContent,
+  config?: PlaintextPreviewConfig
+): string | null;
+export function getTextContent(
   postContent: api.PostContent,
   config: PlaintextPreviewConfig = PlaintextPreviewConfig.defaultConfig
 ): string | null {
