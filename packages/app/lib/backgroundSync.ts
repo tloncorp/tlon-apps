@@ -7,7 +7,7 @@ import * as TaskManager from 'expo-task-manager';
 
 import { configureUrbitClient } from '../hooks/useConfigureUrbitClient';
 
-const logger = createDevLogger('backgroundSync', false);
+const logger = createDevLogger('backgroundSync', true);
 
 function summarizePost(post: db.Post) {
   return {
@@ -32,6 +32,8 @@ async function performSync() {
     logger.info('Ship info missing necessary fields');
     return;
   }
+
+  logger.trackEvent('Performing Background Sync');
 
   logger.log('Configuring urbit client...');
   configureUrbitClient({

@@ -857,10 +857,13 @@ export class Urbit {
    * @returns The scry result
    */
   async scry<T = any>(params: Scry): Promise<T> {
-    const { app, path } = params;
+    const { app, path, timeout } = params;
     const response = await this.fetchFn(
       `${this.url}/~/scry/${app}${path}.json`,
-      this.fetchOptions
+      {
+        ...this.fetchOptions,
+        signal: timeout ? AbortSignal.timeout(timeout) : undefined,
+      }
     );
 
     if (!response.ok) {
@@ -921,34 +924,22 @@ export class Urbit {
       outputMark,
       threadName,
       body,
+      timeout,
       desk = this.desk,
-      timeout = 20000,
     } = params;
     if (!desk) {
       throw new Error('Must supply desk to run thread from');
     }
 
-    let done = false;
-    return new Promise((resolve, reject) => {
-      this.fetchFn(
-        `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
-        {
-          ...this.fetchOptions,
-          signal: undefined,
-          method: 'POST',
-          body: JSON.stringify(body),
-        }
-      )
-        .then((response) => resolve(response))
-        .catch((e) => reject(e));
-
-      setTimeout(() => {
-        if (!done) {
-          done = true;
-          reject(new Error('timeout'));
-        }
-      }, timeout);
-    });
+    return this.fetchFn(
+      `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
+      {
+        ...this.fetchOptions,
+        signal: timeout ? AbortSignal.timeout(timeout) : undefined,
+        method: 'POST',
+        body: JSON.stringify(body),
+      }
+    );
   }
 
   /**

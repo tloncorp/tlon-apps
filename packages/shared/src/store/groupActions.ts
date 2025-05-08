@@ -18,31 +18,6 @@ interface CreateGroupParams {
   memberIds?: string[];
 }
 
-export async function recoverPartiallyCreatedPersonalGroup() {
-  try {
-    const currentUserId = api.getCurrentUserId();
-    const PersonalGroupKeys = logic.getPersonalGroupKeys(currentUserId);
-
-    const pg = await db.getGroup({ id: PersonalGroupKeys.groupId });
-    if (pg) {
-      const isIncomplete = pg.channels.length !== 3;
-      const recentlyAdded = (await db.wayfindingProgress.getValue())
-        .tappedChatInput; // use coachmarks enabled as heuristic
-      if (isIncomplete && recentlyAdded) {
-        logger.trackEvent('Personal Group Recovery', {
-          context: 'detected incomplete personal group, attempting recovery',
-        });
-        await scaffoldPersonalGroup();
-      }
-    }
-  } catch (e) {
-    logger.trackEvent('Error Personal Group Recovery', {
-      context: 'failed to recover personal group',
-      error: e,
-    });
-  }
-}
-
 export async function scaffoldPersonalGroup() {
   const currentUserId = api.getCurrentUserId();
   const PersonalGroupKeys = logic.getPersonalGroupKeys(currentUserId);

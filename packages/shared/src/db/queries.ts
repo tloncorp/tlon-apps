@@ -768,7 +768,7 @@ export const insertGroups = createWriteQuery(
           await txCtx.db.insert($groups).values(group).onConflictDoNothing();
         }
         if (group.channels?.length) {
-          logger.log(
+          console.log(
             'insertGroups: inserting channels for group',
             group.id,
             group.channels.map((c) => ({
@@ -804,7 +804,7 @@ export const insertGroups = createWriteQuery(
             .filter(
               (id) => group.channels?.find((c) => c.id === id) === undefined
             );
-          logger.log('insertGroups: deleting channels', toDelete);
+          console.log('insertGroups: deleting channels', toDelete);
           await txCtx.db
             .delete($channels)
             .where(inArray($channels.id, toDelete));
@@ -1220,6 +1220,7 @@ export const addChatMembers = createWriteQuery(
 export const addGroupInvites = createWriteQuery(
   'addGroupInvites',
   async (invites: { groupId: string; contactIds: string[] }, ctx: QueryCtx) => {
+    if (invites.contactIds.length === 0) return;
     return ctx.db
       .insert($groupMemberInvites)
       .values(
