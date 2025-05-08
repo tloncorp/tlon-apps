@@ -518,13 +518,21 @@ export default function BareChatInput({
     runSendMessage(true);
   }, [runSendMessage, editingPost]);
 
-  // Handle autofocus
   useEffect(() => {
-    if (!shouldBlur && shouldAutoFocus && !hasAutoFocused) {
-      inputRef.current?.focus();
+    if (shouldAutoFocus && !hasAutoFocused && !shouldBlur && inputRef.current) {
+      // Check if the input is not already focused (extra precaution)
+      if (!inputRef.current.isFocused()) {
+        inputRef.current.focus();
+      }
+      // Mark as focused for this channel context
       setHasAutoFocused(true);
     }
-  }, [shouldBlur, shouldAutoFocus, hasAutoFocused]);
+  }, [shouldAutoFocus, hasAutoFocused, shouldBlur]);
+
+  // Reset when the channel context changes
+  useEffect(() => {
+    setHasAutoFocused(false);
+  }, [channelId]);
 
   // Blur input when needed
   useEffect(() => {
