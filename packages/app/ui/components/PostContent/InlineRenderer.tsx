@@ -97,7 +97,7 @@ export function InlineText({
   inline: TextInlineData;
   color?: ColorTokens;
 }) {
-  return <RawText color={color}>{inline.text}</RawText>;
+  return color ? <RawText color={color}>{inline.text}</RawText> : inline.text;
 }
 
 export function InlineLink({ inline: node }: { inline: LinkInlineData }) {

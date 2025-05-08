@@ -21,7 +21,6 @@ export const RawText = styled(TamaguiText, {
   name: 'RawText',
   unstyled: true,
   color: 'unset',
-  fontFamily: 'inherit',
 });
 
 export const mobileTypeStyles = {
