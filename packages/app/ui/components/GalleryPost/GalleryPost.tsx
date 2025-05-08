@@ -393,10 +393,14 @@ function LargePreview({
   ComponentProps<typeof PreviewFrame>,
   'content'
 >) {
+  const containsImage = useMemo(() => {
+    return content.some((block) => block.type === 'image');
+  }, [content]);
+
   return (
     <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
       <LargeContentRenderer
-        content={content.slice(0, 1)}
+        content={containsImage ? content.slice(0, 1) : content}
         onPressImage={onPressImage}
       />
     </PreviewFrame>
@@ -411,6 +415,9 @@ function SmallPreview({
   'content'
 >) {
   const link = useBlockLink(content);
+  const containsImage = useMemo(() => {
+    return content.some((block) => block.type === 'image');
+  }, [content]);
 
   return link ? (
     <PreviewFrame {...props} previewType="link">
@@ -418,7 +425,9 @@ function SmallPreview({
     </PreviewFrame>
   ) : (
     <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
-      <SmallContentRenderer height={'100%'} content={content.slice(0, 1)} />
+      <SmallContentRenderer
+        content={containsImage ? content.slice(0, 1) : content}
+      />
     </PreviewFrame>
   );
 }

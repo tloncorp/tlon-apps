@@ -260,6 +260,9 @@ p.kyz
   { replyCount: 0 }
 );
 export const postWithList = makePost(exampleContacts.hooncell, [
+  verse.inline(
+    'This is a list. It has a few items, and some of them are long.'
+  ),
   block.list(
     'ordered',
     ['helo my list!'],
