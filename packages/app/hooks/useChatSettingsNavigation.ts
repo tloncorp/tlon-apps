@@ -1,4 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
+import { NavigatorScreenParams, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useMutableRef } from '@tloncorp/shared';
 import { useCallback } from 'react';
@@ -23,56 +23,69 @@ export const useChatSettingsNavigation = () => {
       screen: T,
       params: GroupSettingsStackParamList[T]
     ) => {
+      const paramsWithOrigin = {
+        ...params,
+        fromChatDetails: params.fromChatDetails ?? true,
+      } as GroupSettingsStackParamList[T];
+
       if (!isWindowNarrow) {
-        // We need to navigate to the group first to ensure that the group is loaded
         await navigateToGroup(params.groupId);
-        setTimeout(() => {
+      }
+
+      // Set a timeout to ensure the group is loaded before navigating
+      // when navigating through a Drawer
+      setTimeout(
+        () => {
           navigation.navigate('GroupSettings', {
             screen,
-            params,
-          } as any);
-        }, 100);
-      } else {
-        navigation.navigate('GroupSettings', {
-          screen,
-          params,
-        } as any);
-      }
+            params: paramsWithOrigin,
+          } as NavigatorScreenParams<GroupSettingsStackParamList>);
+        },
+        !isWindowNarrow ? 100 : 0
+      );
     },
     [navigation, navigateToGroup, isWindowNarrow]
   );
 
   const onPressGroupMeta = useCallback(
-    (groupId: string, fromBlankChannel?: boolean) => {
-      navigateToGroupSettings('GroupMeta', { groupId, fromBlankChannel });
+    (
+      groupId: string,
+      fromBlankChannel?: boolean,
+      fromChatDetails?: boolean
+    ) => {
+      navigateToGroupSettings('GroupMeta', {
+        groupId,
+        fromBlankChannel,
+        fromChatDetails,
+      });
     },
     [navigateToGroupSettings]
   );
 
   const onPressGroupMembers = useCallback(
-    (groupId: string) => {
-      navigateToGroupSettings('GroupMembers', { groupId });
+    (groupId: string, fromChatDetails?: boolean) => {
+      navigateToGroupSettings('GroupMembers', { groupId, fromChatDetails });
     },
     [navigateToGroupSettings]
   );
 
   const onPressManageChannels = useCallback(
-    (groupId: string) => {
-      navigateToGroupSettings('ManageChannels', { groupId });
+    (groupId: string, fromChatDetails?: boolean) => {
+      navigateToGroupSettings('ManageChannels', { groupId, fromChatDetails });
     },
     [navigateToGroupSettings]
   );
 
   const onPressGroupPrivacy = useCallback(
-    (groupId: string) => {
-      navigateToGroupSettings('Privacy', { groupId });
+    (groupId: string, fromChatDetails?: boolean) => {
+      navigateToGroupSettings('Privacy', { groupId, fromChatDetails });
     },
     [navigateToGroupSettings]
   );
 
   const onPressRoles = useCallback(
-    (groupId: string) => {
-      navigateToGroupSettings('GroupRoles', { groupId });
+    (groupId: string, fromChatDetails?: boolean) => {
+      navigateToGroupSettings('GroupRoles', { groupId, fromChatDetails });
     },
     [navigateToGroupSettings]
   );

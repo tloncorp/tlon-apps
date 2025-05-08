@@ -1,4 +1,3 @@
-import { useRoute } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useMemo, useState } from 'react';
@@ -7,11 +6,7 @@ import { Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
-import {
-  GroupSettingsStackParamList,
-  GroupSettingsStackRouteProp,
-} from '../../navigation/types';
-import { useRootNavigation } from '../../navigation/utils';
+import { GroupSettingsStackParamList } from '../../navigation/types';
 import {
   ActionSheet,
   Button,
@@ -29,17 +24,24 @@ import {
 type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'GroupRoles'>;
 
 export function GroupRolesScreen(props: Props) {
-  return <GroupRolesScreenView />;
+  return (
+    <GroupRolesScreenView navigation={props.navigation} route={props.route} />
+  );
 }
 
-function GroupRolesScreenView() {
-  const {
-    params: { groupId },
-  } = useRoute<GroupSettingsStackRouteProp<'GroupRoles'>>();
+type GroupRolesScreenViewProps = {
+  navigation: Props['navigation'];
+  route: Props['route'];
+};
+
+function GroupRolesScreenView({
+  navigation,
+  route,
+}: GroupRolesScreenViewProps) {
+  const { groupId, fromChatDetails } = route.params;
   const [editRole, setEditRole] = useState<db.GroupRole | null>(null);
   const [showAddRole, setShowAddRole] = useState(false);
 
-  const { navigateToChatDetails } = useRootNavigation();
   const insets = useSafeAreaInsets();
 
   const {
@@ -52,6 +54,17 @@ function GroupRolesScreenView() {
   } = useGroupContext({
     groupId,
   });
+
+  const handleGoBack = useCallback(() => {
+    if (fromChatDetails) {
+      navigation.getParent()?.navigate('ChatDetails', {
+        chatType: 'group',
+        chatId: groupId,
+      });
+    } else {
+      navigation.goBack();
+    }
+  }, [navigation, fromChatDetails, groupId]);
 
   const rolesWithMembers = useMemo(() => {
     return groupRoles.filter((role) => {
@@ -83,7 +96,7 @@ function GroupRolesScreenView() {
   const getChannelsForRole = useCallback(
     (role: db.GroupRole) => {
       return Object.entries(rolesByChannel)
-        .filter(([channelId, roles]) => roles.includes(role))
+        .filter(([_, roles]) => roles.includes(role))
         .map(([channelId]) => groupChannels.find((c) => c.id === channelId)!)
         .filter((c) => c !== undefined) as db.Channel[];
     },
@@ -121,10 +134,7 @@ function GroupRolesScreenView() {
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader
-        backAction={() => navigateToChatDetails({ type: 'group', id: groupId })}
-        title={'Group Roles'}
-      />
+      <ScreenHeader backAction={handleGoBack} title={'Group Roles'} />
       <ScrollView
         flex={1}
         contentContainerStyle={{

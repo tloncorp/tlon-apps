@@ -24,6 +24,7 @@ type GroupMetaProps = {
     name: 'GroupMeta';
     params: {
       groupId: string;
+      fromBlankChannel?: boolean;
     };
   };
 };

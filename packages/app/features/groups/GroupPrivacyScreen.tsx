@@ -5,7 +5,6 @@ import { useCallback } from 'react';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
-import { useRootNavigation } from '../../navigation/utils';
 import { Form, ScreenHeader, View, triggerHaptic } from '../../ui';
 
 type GroupPrivacy = schema.GroupPrivacy;
@@ -16,25 +15,24 @@ const privacyOptions = [
   {
     title: 'Public',
     value: 'public',
-    description: 'Everyone can find and join',
+    description: 'Anyone can join this group without needing an invite.',
   },
   {
     title: 'Private',
     value: 'private',
-    description: 'New members require approval',
+    description: 'Users must be invited to join this group.',
   },
   {
     title: 'Secret',
     value: 'secret',
-    description: 'Invite-only',
+    description: 'Membership is invite only and private.',
   },
 ];
 
 export function GroupPrivacyScreen(props: Props) {
-  const { groupId } = props.route.params;
+  const { groupId, fromChatDetails } = props.route.params;
+  const { navigation } = props;
   const { group } = useGroupContext({ groupId });
-  const { navigateToChatDetails } = useRootNavigation();
-
   const handlePrivacyChange = useCallback(
     (newPrivacy: GroupPrivacy) => {
       if (group && group.privacy !== newPrivacy) {
@@ -45,12 +43,20 @@ export function GroupPrivacyScreen(props: Props) {
     [group]
   );
 
+  const handleGoBack = useCallback(() => {
+    if (fromChatDetails) {
+      navigation.getParent()?.navigate('ChatDetails', {
+        chatType: 'group',
+        chatId: groupId,
+      });
+    } else {
+      navigation.goBack();
+    }
+  }, [navigation, fromChatDetails, groupId]);
+
   return (
     <View backgroundColor={'$secondaryBackground'} flex={1}>
-      <ScreenHeader
-        title="Group privacy"
-        backAction={() => navigateToChatDetails({ type: 'group', id: groupId })}
-      />
+      <ScreenHeader title="Group privacy" backAction={handleGoBack} />
       <Form.FormFrame backgroundType="secondary">
         {group ? (
           <Form.RadioInput
