@@ -39,14 +39,10 @@ import {
   interleaveActivityEvents,
   toSourceActivityEvents,
 } from '../logic/activity';
-import {
-  createDmChannelsForNewContacts,
-  generateNicknameUpdates,
-  updateContactNicknames,
-  updateSystemContactIds,
-} from '../logic/contactHelpers';
 import { Session } from '../store';
 import { Rank } from '../urbit';
+import { processBatchOperation } from './dbUtils';
+import { createDmChannelsForNewContacts } from './modelBuilders';
 import {
   QueryCtx,
   createReadQuery,
@@ -404,6 +400,82 @@ export const insertSystemContacts = createWriteQuery(
   },
   ['systemContacts', 'systemContactSentInvites', 'contacts']
 );
+
+function generateNicknameUpdates(
+  matches: [string, string][],
+  systemContacts: SystemContact[]
+): { contactId: string; nicknamePart: string }[] {
+  const nicknameUpdates: { contactId: string; nicknamePart: string }[] = [];
+
+  for (const [phoneNumber, contactId] of matches) {
+    const matchingSystemContact = systemContacts.find(
+      (sc) => sc.phoneNumber === phoneNumber
+    );
+
+    if (
+      matchingSystemContact &&
+      (matchingSystemContact.firstName || matchingSystemContact.lastName)
+    ) {
+      const nicknamePart =
+        `${matchingSystemContact.firstName || ''} ${matchingSystemContact.lastName || ''}`.trim();
+
+      if (nicknamePart) {
+        nicknameUpdates.push({ contactId, nicknamePart });
+      }
+    }
+  }
+
+  return nicknameUpdates;
+}
+
+async function updateContactNicknames(
+  nicknameUpdates: { contactId: string; nicknamePart: string }[],
+  txCtx: QueryCtx,
+  batchSize: number
+): Promise<void> {
+  await processBatchOperation(
+    nicknameUpdates,
+    batchSize,
+    async (batch) => {
+      return Promise.all(
+        batch.map(({ contactId, nicknamePart }) =>
+          txCtx.db
+            .update($contacts)
+            .set({ customNickname: nicknamePart })
+            .where(eq($contacts.id, contactId))
+        )
+      );
+    },
+    'Error updating contact nicknames'
+  );
+}
+
+export async function updateSystemContactIds(
+  matches: [string, string][],
+  txCtx: QueryCtx,
+  batchSize: number
+): Promise<void> {
+  const contactIdUpdates = matches.map(([phoneNumber, contactId]) => ({
+    phoneNumber,
+    contactId,
+  }));
+
+  await processBatchOperation(
+    contactIdUpdates,
+    batchSize,
+    async (batch) => {
+      return Promise.all(
+        batch.map(({ phoneNumber, contactId }) =>
+          txCtx.db
+            .update($systemContacts)
+            .set({ contactId })
+            .where(eq($systemContacts.phoneNumber, phoneNumber))
+        )
+      );
+    },
+    'Error updating system contact contactId'
+  );
+}
 
 export const linkSystemContacts = createWriteQuery(
   'linkSystemContacts',
