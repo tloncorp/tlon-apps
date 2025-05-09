@@ -23,6 +23,7 @@ import {
   recoverPartiallyCreatedPersonalGroup,
 } from './groupActions';
 import { verifyUserInviteLink } from './inviteActions';
+import { discoverContacts } from './lanyardActions';
 import { useLureState } from './lure';
 import { verifyPostDelivery } from './postActions';
 import { Session, getSession, updateSession } from './session';
@@ -308,7 +309,7 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
   try {
     const matches = (
       await syncQueue.add('discoverContacts', ctx, () =>
-        api.discoverContacts(phoneNumbers)
+        discoverContacts(phoneNumbers)
       )
     ).filter((match) => match[1] !== currentUserId);
     logger.log('syncContactDiscovery: got contact discovery matches', matches);

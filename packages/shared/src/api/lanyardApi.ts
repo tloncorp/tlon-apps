@@ -61,11 +61,12 @@ export async function checkAttestedSignature(signData: string) {
 }
 
 export async function discoverContacts(
-  phoneNums: string[]
-): Promise<[string, string][]> {
+  phoneNums: string[],
+  storedLastSalt: string | null = null,
+  lastPhoneNumberSetSent: string | null = null
+): Promise<{ matches: [string, string][]; nextSalt: string | null }> {
   try {
-    const nums = await diffContactBook(phoneNums);
-    const storedLastSalt = await db.lastLanyardSalt.getValue();
+    const nums = await diffContactBook(phoneNums, lastPhoneNumberSetSent);
     // because parseUx doesn't actually remove the dots
     const parsedLastSalt = storedLastSalt?.replaceAll('.', '') ?? '0x0';
     const lastSalt = BigInt(parsedLastSalt);
@@ -112,24 +113,31 @@ export async function discoverContacts(
             context: 'discoverContacts',
             errorMessage: 'rate limited',
           });
-          return [];
+          return {
+            matches: [],
+            nextSalt: null,
+          };
         }
 
         // always store the phone numbers we just successfully sent, will be used to diff
         // against the next time we send a request
-        await db.lastPhoneContactSetRequest.setValue(JSON.stringify(phoneNums));
         const nextSalt = queryResponse.query.result?.['next-salt'];
-        await db.lastLanyardSalt.setValue(nextSalt);
         const matches = queryResponse.query.result?.results
           ? (Object.entries(queryResponse.query.result.results).filter(
               ([_key, value]) => Boolean(value)
             ) as [string, string][])
           : [];
 
-        return matches;
+        return {
+          matches,
+          nextSalt,
+        };
       }
 
-      return [];
+      return {
+        matches: [],
+        nextSalt: null,
+      };
     } catch (e) {
       logger.error('error in discoverContacts', e);
       logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
@@ -145,8 +153,7 @@ export async function discoverContacts(
   }
 }
 
-async function diffContactBook(phoneNums: string[]) {
-  const last = await db.lastPhoneContactSetRequest.getValue();
+async function diffContactBook(phoneNums: string[], last: string | null) {
   logger.log('diffContactBook: last phone contact set', last);
 
   if (last) {
