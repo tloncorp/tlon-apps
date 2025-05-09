@@ -49,7 +49,8 @@ export async function addContacts(contacts: string[]) {
     // any that are already contacts
     const existingContacts = await api.getContacts();
     const newContacts = contacts.filter(
-      (contactId) => !existingContacts.some((c) => c.id === contactId)
+      (contactId) =>
+        !existingContacts.some((c) => c.id === contactId && c.isContact)
     );
 
     await api.addUserContacts(newContacts);
