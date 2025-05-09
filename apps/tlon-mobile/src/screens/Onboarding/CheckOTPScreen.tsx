@@ -190,6 +190,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
       navigation,
       params.mode,
       signupContext,
+      store.HostingAccountIssue.NoInventory,
       store.HostingAccountIssue.RequiresVerification,
     ]
   );
