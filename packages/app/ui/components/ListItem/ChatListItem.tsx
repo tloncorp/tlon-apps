@@ -1,6 +1,6 @@
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import React, { useMemo } from 'react';
+import React from 'react';
 
 import { ChannelListItem } from './ChannelListItem';
 import { GroupListItem } from './GroupListItem';
@@ -24,17 +24,6 @@ export const ChatListItem = React.memo(function ChatListItemComponent({
     onLongPress?.(model);
   });
 
-  const customSubtitle = useMemo(() => {
-    if (
-      model.type === 'channel' &&
-      model.channel.isNewMatchedContact &&
-      model.channel.lastPostId === null
-    ) {
-      // show this subtitle only if the channel has no posts
-      return 'is on Tlon Messenger';
-    }
-  }, [model]);
-
   if (model.type === 'group') {
     return (
       <GroupListItem
@@ -52,7 +41,6 @@ export const ChatListItem = React.memo(function ChatListItemComponent({
         onPress={handlePress}
         onLongPress={handleLongPress}
         onLayout={onLayout}
-        customSubtitle={customSubtitle}
         {...props}
       />
     );

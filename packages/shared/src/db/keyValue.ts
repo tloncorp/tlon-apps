@@ -322,15 +322,3 @@ export const didDismissSystemContactsPrompt = createStorageItem<boolean>({
   key: 'didDismissSystemContactsPrompt',
   defaultValue: false,
 });
-
-export const lastLanyardSalt = createStorageItem<string | null>({
-  key: 'lastLanyardSalt',
-  defaultValue: null,
-  persistAfterLogout: false,
-});
-
-export const lastPhoneContactSetRequest = createStorageItem<string | null>({
-  key: 'lastPhoneContactSetRequest',
-  defaultValue: null,
-  persistAfterLogout: false,
-});

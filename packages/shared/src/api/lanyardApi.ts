@@ -1,4 +1,4 @@
-import { formatUv, parseUw } from '@urbit/aura';
+import { formatUv, formatUw, parseUw } from '@urbit/aura';
 import { Atom, Cell, Noun, dejs, dwim, enjs } from '@urbit/nockjs';
 
 import * as db from '../db';
@@ -60,29 +60,15 @@ export async function checkAttestedSignature(signData: string) {
   return false;
 }
 
-export async function discoverContacts(
-  phoneNums: string[],
-  storedLastSalt: string | null = null,
-  lastPhoneNumberSetSent: string | null = null
-): Promise<{ matches: [string, string][]; nextSalt: string | null }> {
+export async function discoverContacts(phoneNums: string[]) {
   try {
-    const nums = await diffContactBook(phoneNums, lastPhoneNumberSetSent);
-    // because parseUx doesn't actually remove the dots
-    const parsedLastSalt = storedLastSalt?.replaceAll('.', '') ?? '0x0';
-    const lastSalt = BigInt(parsedLastSalt);
-    const nonce = Math.floor(Math.random() * 1000000);
-    const encodedNonce = formatUv(BigInt(nonce));
-    const payload = [
-      null,
-      [null, nonce],
-      'whose-bulk',
-      lastSalt,
-      nums.last,
-      nums.add,
-      nums.del,
-    ];
+    const nums = diffContactBook(phoneNums);
+    // const lastSalt = formatUw('0');
+    const payload = ['whose-bulk', 0, nums.last, nums.add, nums.del];
     const noun = dwim(payload);
 
+    const nonce = Math.floor(Math.random() * 1000000);
+    const encodedNonce = formatUv(BigInt(nonce));
     const queryResponseSub = subscribeOnce<ub.WhoseBulkResponseEvent>(
       {
         app: 'lanyard',
@@ -96,103 +82,32 @@ export async function discoverContacts(
     try {
       await pokeNoun({ app: 'lanyard', mark: 'lanyard-query-1', noun });
     } catch (e) {
-      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
-        error: e,
-        errorMessage: e.message,
-        context: 'discoverContacts',
-      });
+      console.error('contact discovery poke error', e);
     }
-    try {
-      const queryResponse = await queryResponseSub;
-      logger.log('discoverContacts: queryResponse', queryResponse);
+    const queryResponse = await queryResponseSub;
+    console.log(`bulk result`, queryResponse);
 
-      if (queryResponse && queryResponse.query.nonce === encodedNonce) {
-        if (queryResponse.query.result === 'rate limited') {
-          logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
-            error: 'rate limited',
-            context: 'discoverContacts',
-            errorMessage: 'rate limited',
-          });
-          return {
-            matches: [],
-            nextSalt: null,
-          };
-        }
+    if (queryResponse) {
+      // return matches
+      const nextSalt = queryResponse.result?.['next-salt'];
+      const matches = queryResponse.result?.result
+        ? Object.entries(queryResponse.result.result).filter(([_key, value]) =>
+            Boolean(value)
+          )
+        : [];
 
-        // always store the phone numbers we just successfully sent, will be used to diff
-        // against the next time we send a request
-        const nextSalt = queryResponse.query.result?.['next-salt'];
-        const matches = queryResponse.query.result?.results
-          ? (Object.entries(queryResponse.query.result.results).filter(
-              ([_key, value]) => Boolean(value)
-            ) as [string, string][])
-          : [];
-
-        return {
-          matches,
-          nextSalt,
-        };
-      }
-
-      return {
-        matches: [],
-        nextSalt: null,
-      };
-    } catch (e) {
-      logger.error('error in discoverContacts', e);
-      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
-        context: 'discoverContacts',
-        error: e,
-        errorMessage: e.message,
-      });
-      throw e;
+      return matches;
     }
+
+    return [];
   } catch (e) {
-    logger.error('error discovering contacts', e);
+    console.error('error discovering contacts', e);
     throw e;
   }
 }
 
-async function diffContactBook(phoneNums: string[], last: string | null) {
-  logger.log('diffContactBook: last phone contact set', last);
-
-  if (last) {
-    const lastSet = JSON.parse(last);
-    logger.log('diffContactBook: lastSet', lastSet);
-
-    // find new phone numbers (additions)
-    const diff = phoneNums.filter((num) => !lastSet.includes(num));
-    logger.log('diffContactBook: diff', diff);
-    logger.trackEvent(AnalyticsEvent.DebugContactMatching, {
-      context: 'diffContactBook',
-      diffSetLength: diff.length,
-    });
-    // find removed phone numbers (deletions)
-    const delSet = lastSet.filter((num: string) => !phoneNums.includes(num));
-    logger.log('diffContactBook: delSet', delSet);
-    logger.trackEvent(AnalyticsEvent.DebugContactMatching, {
-      context: 'diffContactBook',
-      delSetLength: delSet.length,
-    });
-
-    if (diff.length === 0 && delSet.length === 0) {
-      logger.log('diffContactBook: no changes, returning empty with lastSet');
-      return {
-        last: toPhoneIdentifierSet(lastSet),
-        add: toPhoneIdentifierSet([]),
-        del: toPhoneIdentifierSet([]),
-      };
-    } else {
-      logger.log('diffContactBook: returning diff and del', diff, delSet);
-      return {
-        last: toPhoneIdentifierSet(lastSet),
-        add: toPhoneIdentifierSet(diff),
-        del: toPhoneIdentifierSet(delSet),
-      };
-    }
-  }
-
-  logger.log('diffContactBook: no last set, returning with add');
+function diffContactBook(phoneNums: string[]) {
+  // TODO: diff last request
   return {
     last: toPhoneIdentifierSet([]),
     add: toPhoneIdentifierSet(phoneNums),
