@@ -5,8 +5,8 @@ import BTree from 'sorted-btree';
 
 import { Stringified } from '../utils';
 import { Inline } from './content';
-import { GroupMeta } from './groups';
 import { Flag } from './hark';
+import { Metadata } from './meta';
 
 export interface CacheId {
   author: string;
@@ -91,6 +91,22 @@ export interface Image {
   };
 }
 
+export interface LinkBlock {
+  link: {
+    url: string;
+    meta: Record<string, string | undefined> & {
+      title?: string;
+      description?: string;
+      author?: string;
+      siteName?: string;
+      siteIcon?: string;
+      previewImageUrl?: string;
+      previewImageHeight?: string;
+      previewImageWidth?: string;
+    };
+  };
+}
+
 export type ListType = 'ordered' | 'unordered' | 'tasklist';
 
 export interface List {
@@ -135,13 +151,18 @@ export function isImage(item: unknown): item is Image {
   return typeof item === 'object' && item !== null && 'image' in item;
 }
 
+export function isBlockLink(item: unknown): item is LinkBlock {
+  return typeof item === 'object' && item !== null && 'link' in item;
+}
+
 export type Block =
   | Image
   | { cite: Cite }
   | ListingBlock
   | Header
   | Rule
-  | Code;
+  | Code
+  | LinkBlock;
 
 export interface VerseBlock {
   block: Block;
@@ -181,7 +202,9 @@ export interface PostEssay {
   content: Story;
   author: Ship;
   sent: number;
-  'kind-data': KindData;
+  kind: string;
+  blob: string | null;
+  meta: Metadata | null;
 }
 
 export type Post = {
@@ -230,6 +253,10 @@ export interface Replies {
 }
 
 interface PostActionAdd {
+  add: PostEssay;
+}
+
+interface PostActionAdd1 {
   add: PostEssay;
 }
 
@@ -292,7 +319,8 @@ export type PostAction =
   | PostActionDel
   | PostActionAddReact
   | PostActionDelReact
-  | PostActionReply;
+  | PostActionReply
+  | PostActionAdd1;
 
 export interface DiffView {
   view: DisplayMode;
@@ -603,7 +631,9 @@ export const emptyPost: Post = {
     author: '',
     content: [],
     sent: 0,
-    'kind-data': { chat: null },
+    kind: '/chat',
+    blob: null,
+    meta: null,
   },
 };
 
@@ -654,6 +684,7 @@ export function constructStory(
       'desk',
       'bait',
       'group',
+      'link',
       'listing',
       'header',
       'rule',
@@ -771,4 +802,4 @@ export type ChannelHead = {
 
 export type ChannelHeadsResponse = ChannelHead[];
 
-export type ChannelHooksPreview = { name: string; meta: GroupMeta }[];
+export type ChannelHooksPreview = { name: string; meta: Metadata }[];

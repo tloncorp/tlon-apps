@@ -5,6 +5,14 @@ import { Dispatch, SetStateAction } from 'react';
 
 export type GalleryDraftType = 'caption' | 'text';
 
+export type GalleryRoute =
+  | 'gallery'
+  | 'add-post'
+  | 'add-attachment'
+  | 'link'
+  | 'image'
+  | 'text';
+
 export interface DraftInputHandle {
   /**
    * Perform anything necessary to put the user in a drafting state for this
@@ -31,7 +39,12 @@ export interface DraftInputContext {
   clearDraft: (draftType?: GalleryDraftType) => Promise<void>;
   configuration?: Record<string, JSONValue>;
   draftInputRef?: React.Ref<DraftInputHandle>;
-  editPost: (post: db.Post, content: Story) => Promise<void>;
+  editPost: (
+    post: db.Post,
+    content: Story,
+    parentId?: string,
+    metadata?: db.PostMetadata
+  ) => Promise<void>;
   editingPost?: db.Post;
   getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent | null>;
   group: db.Group | null;

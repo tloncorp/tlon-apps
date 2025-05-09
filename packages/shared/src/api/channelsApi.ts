@@ -30,7 +30,7 @@ export function channelAction(
 ): Poke<ChannelsAction> {
   return {
     app: 'channels',
-    mark: 'channel-action',
+    mark: 'channel-action-1',
     json: {
       channel: {
         nest: channelId,

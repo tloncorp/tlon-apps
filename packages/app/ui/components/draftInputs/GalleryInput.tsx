@@ -26,7 +26,8 @@ import GalleryImagePreview from '../Channel/GalleryImagePreview';
 import { ScreenHeader } from '../ScreenHeader';
 import Notices from '../Wayfinding/Notices';
 import { DraftInputConnectedBigInput } from './DraftInputConnectedBigInput';
-import { DraftInputContext } from './shared';
+import { LinkInput, LinkInputSaveParams } from './LinkInput';
+import { DraftInputContext, GalleryRoute } from './shared';
 
 export function GalleryInput({
   draftInputContext,
@@ -52,17 +53,15 @@ export function GalleryInput({
   const { resetAttachments, waitForAttachmentUploads, attachAssets } =
     useAttachmentContext();
 
-  const [showBigInput, setShowBigInput] = useState(false);
-  const [showAddGalleryPost, setShowAddGalleryPost] = useState(false);
-  const [isUploadingGalleryImage, setIsUploadingGalleryImage] = useState(false);
+  const [route, setRoute] = useState<GalleryRoute>('gallery');
   const [canPost, setCanPost] = useState(false);
   const [caption, setCaption] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   // Tracks whether the post being edited is an image gallery post (vs. a text gallery post)
   // This flag controls which editing UI to show - image preview or BigInput
-  const [isImageGalleryPost, setIsImageGalleryPost] = useState(false);
+  // const [isImageGalleryPost, setIsImageGalleryPost] = useState(false);
 
-  const isShowingImagePreview = !editingPost && isUploadingGalleryImage;
+  // const isShowingImagePreview = !editingPost && isUploadingGalleryImage;
   const isEditingPost = editingPost != null;
 
   // Determine if the editing post is an image gallery post or text gallery post
@@ -75,9 +74,7 @@ export function GalleryInput({
 
       // Check if the first block is an image - if so, it's an image gallery post
       if (blocks.length > 0 && 'image' in blocks[0]) {
-        setIsImageGalleryPost(true);
-        // Ensure BigInput is not shown for image gallery posts
-        setShowBigInput(false);
+        setRoute('image');
 
         // Extract caption from the post if it exists (should be in the inline content)
         const { inlines } = extractContentTypesFromPost(editingPost);
@@ -119,29 +116,27 @@ export function GalleryInput({
 
           // Set the attachment for editing
           attachAssets([mockAttachment.file]);
-          setIsUploadingGalleryImage(true);
+          setRoute('image');
           setCanPost(true);
         }
       } else {
         // If not an image post, use the BigInput for editing text gallery posts
-        setIsImageGalleryPost(false);
-        setShowBigInput(true);
+        setRoute('text');
       }
     } catch (error) {
       console.error('Error determining gallery post type:', error);
       // Default to BigInput if we can't determine the type
-      setShowBigInput(true);
+      setRoute('link');
     }
   }, [editingPost, storeDraft, attachAssets]);
 
   // Reset all gallery-related state
   const resetGalleryState = useCallback(() => {
-    setIsUploadingGalleryImage(false);
     setCanPost(false);
     setCaption('');
     clearDraft('caption');
     resetAttachments([]);
-    setIsImageGalleryPost(false);
+    setRoute('gallery');
     // Don't call setEditingPost here, as it's now handled in handlePost
     // This prevents the blank BigInput from showing after saving
   }, [clearDraft, resetAttachments]);
@@ -150,7 +145,7 @@ export function GalleryInput({
   const handleGalleryImageSet = useCallback(
     (assets?: ImagePickerAsset[] | null) => {
       const hasAssets = !!assets;
-      setIsUploadingGalleryImage(hasAssets);
+      setRoute(hasAssets ? 'image' : 'gallery');
       setCanPost(hasAssets);
     },
     []
@@ -158,7 +153,7 @@ export function GalleryInput({
 
   // Load caption from draft when image is being uploaded
   useEffect(() => {
-    if (!isUploadingGalleryImage) return;
+    if (!(route === 'image' && !editingPost)) return;
 
     getDraft('caption').then((draft) => {
       if (!draft || typeof draft !== 'object' || !('content' in draft)) return;
@@ -166,11 +161,11 @@ export function GalleryInput({
       const text = draft.content?.[0]?.content?.[0]?.text || '';
       setCaption(text);
     });
-  }, [isUploadingGalleryImage, getDraft]);
+  }, [route, editingPost, getDraft]);
 
   // Store caption in draft when it changes
   useEffect(() => {
-    if (!isUploadingGalleryImage || !caption) return;
+    if (!(route === 'image' && !editingPost) || !caption) return;
 
     const jsonContent = {
       type: 'doc',
@@ -182,33 +177,25 @@ export function GalleryInput({
       ],
     };
     storeDraft(jsonContent, 'caption');
-  }, [caption, isUploadingGalleryImage, storeDraft]);
+  }, [caption, route, editingPost, storeDraft]);
 
   // Use big input when editing a text post
-  useEffect(() => {
-    // Only show BigInput for text gallery posts, not for image gallery posts
-    if (isEditingPost && !isImageGalleryPost) {
-      setShowBigInput(true);
-    } else if (!isEditingPost) {
-      // Reset BigInput visibility when not editing
-      setShowBigInput(false);
-    }
-  }, [isEditingPost, isImageGalleryPost]);
+  // useEffect(() => {
+  //   // Only show BigInput for text gallery posts, not for image gallery posts
+  //   if (isEditingPost && !isImageGalleryPost) {
+  //     setShowBigInput(true);
+  //   } else if (!isEditingPost) {
+  //     // Reset BigInput visibility when not editing
+  //     setShowBigInput(false);
+  //   }
+  // }, [isEditingPost, isImageGalleryPost]);
 
   // Notify host when changing presentation mode
   useEffect(() => {
     const isFullscreen =
-      showBigInput ||
-      isShowingImagePreview ||
-      (isEditingPost && isImageGalleryPost);
+      route === 'text' || route === 'image' || route === 'link';
     onPresentationModeChange?.(isFullscreen ? 'fullscreen' : 'inline');
-  }, [
-    showBigInput,
-    isShowingImagePreview,
-    onPresentationModeChange,
-    isEditingPost,
-    isImageGalleryPost,
-  ]);
+  }, [route, onPresentationModeChange]);
 
   // Handle posting the gallery image
   const handlePost = useCallback(async () => {
@@ -313,7 +300,7 @@ export function GalleryInput({
   ]);
 
   const handleAdd = useCallback(() => {
-    setShowAddGalleryPost(true);
+    setRoute('add-post');
 
     if (logic.isPersonalCollectionChannel(channel.id)) {
       db.wayfindingProgress.setValue((prev) => ({
@@ -323,13 +310,60 @@ export function GalleryInput({
     }
   }, [channel.id]);
 
+  const handleLinkPost = useCallback(
+    async ({ block, meta }: LinkInputSaveParams) => {
+      if (isPosting) return;
+
+      try {
+        setIsPosting(true);
+
+        const story = constructStory([block]);
+        // If editing, use the editPost function from the context
+        if (isEditingPost && editPost && editingPost) {
+          await editPost(editingPost, story, undefined, meta);
+
+          // IMPORTANT: The order of these operations is critical to prevent unwanted UI transitions
+          // First reset all gallery-related state to clean up the editing environment
+          resetGalleryState();
+
+          // Then clear the editing state to prevent BigInput from showing
+          // This must happen after resetGalleryState to avoid triggering the BigInput display
+          if (setEditingPost) {
+            setEditingPost(undefined);
+          }
+
+          // Force inline presentation mode to return to the gallery view
+          // This ensures we exit the fullscreen editing mode completely
+          onPresentationModeChange?.('inline');
+        } else {
+          // Otherwise send as a new post
+          await send(story, channel.id, meta);
+          resetGalleryState();
+        }
+
+        // Reset posting state after a short delay
+        setTimeout(() => setIsPosting(false), 500);
+      } catch (error) {
+        console.error('Error posting link:', error);
+        setIsPosting(false);
+      }
+    },
+    [
+      isPosting,
+      isEditingPost,
+      editingPost,
+      send,
+      editPost,
+      onPresentationModeChange,
+      resetGalleryState,
+    ]
+  );
+
   // Register the "Add" button in the header
   useRegisterChannelHeaderItem(
     useMemo(
       () =>
-        showBigInput ||
-        isShowingImagePreview ||
-        (isEditingPost && isImageGalleryPost) ? null : (
+        route !== 'gallery' && route !== 'add-post' ? null : (
           <>
             <ScreenHeader.IconButton
               key="gallery"
@@ -339,14 +373,7 @@ export function GalleryInput({
             <Notices.CollectionInputTooltip channelId={channel.id} />
           </>
         ),
-      [
-        showBigInput,
-        isShowingImagePreview,
-        isEditingPost,
-        isImageGalleryPost,
-        handleAdd,
-        channel.id,
-      ]
+      [route, handleAdd, channel.id]
     )
   );
 
@@ -354,7 +381,7 @@ export function GalleryInput({
   useRegisterChannelHeaderItem(
     useMemo(
       () =>
-        isShowingImagePreview || (isEditingPost && isImageGalleryPost) ? (
+        route === 'image' ? (
           <ScreenHeader.TextButton
             key="gallery-preview-post"
             onPress={handlePost}
@@ -364,14 +391,7 @@ export function GalleryInput({
             {isPosting ? 'Posting...' : isEditingPost ? 'Save' : 'Post'}
           </ScreenHeader.TextButton>
         ) : null,
-      [
-        isShowingImagePreview,
-        handlePost,
-        canPost,
-        isPosting,
-        isEditingPost,
-        isImageGalleryPost,
-      ]
+      [handlePost, canPost, isPosting, isEditingPost, route]
     )
   );
 
@@ -384,7 +404,7 @@ export function GalleryInput({
       // exitFullscreen: Called by parent when user presses back or after saving a post
       // Handles proper cleanup and state reset to ensure smooth UI transitions
       exitFullscreen: () => {
-        if (isShowingImagePreview || (isEditingPost && isImageGalleryPost)) {
+        if (route === 'image') {
           // First reset gallery state
           resetGalleryState();
 
@@ -396,17 +416,16 @@ export function GalleryInput({
           // Force inline presentation mode
           onPresentationModeChange?.('inline');
         } else {
-          setShowBigInput(false);
+          setRoute('gallery');
         }
       },
       // startDraft: Called by parent when user wants to create a new gallery post
-      startDraft: () => setShowAddGalleryPost(true),
+      startDraft: () => setRoute('add-post'),
     }),
     [
-      isShowingImagePreview,
       resetGalleryState,
       isEditingPost,
-      isImageGalleryPost,
+      route,
       setEditingPost,
       onPresentationModeChange,
     ]
@@ -415,46 +434,36 @@ export function GalleryInput({
   return (
     <>
       {/* Big input for editing text gallery posts */}
-      {/* Only rendered when NOT editing an image gallery post */}
-      {!isImageGalleryPost && (
+      {route === 'text' && (
         <DraftInputConnectedBigInput
           draftInputContext={{
             ...draftInputContext,
-            // Only pass editingPost to BigInput if it's not an image gallery post
-            // and we're actually showing the BigInput
-            // This prevents duplicate Save buttons and unwanted UI transitions
-            editingPost:
-              showBigInput && !isImageGalleryPost ? editingPost : undefined,
+            editingPost,
           }}
-          setShowBigInput={setShowBigInput}
-          hidden={!showBigInput}
+          setShowBigInput={(open) => setRoute(open ? 'text' : 'gallery')}
           overrideChannelType="gallery"
         />
       )}
 
       {/* Floating action button - only shown in normal gallery view */}
-      {headerMode === 'next' &&
-        !showBigInput &&
-        !showAddGalleryPost &&
-        !isUploadingGalleryImage &&
-        !(isEditingPost && isImageGalleryPost) && (
-          <View
-            position="absolute"
-            bottom={safeAreaInsets.bottom}
-            flex={1}
-            width="100%"
-            alignItems="center"
-          >
-            <FloatingActionButton
-              onPress={() => setShowAddGalleryPost(true)}
-              icon={<Icon type="Add" size={'$m'} />}
-            />
-          </View>
-        )}
+      {headerMode === 'next' && route === 'gallery' && (
+        <View
+          position="absolute"
+          bottom={safeAreaInsets.bottom}
+          flex={1}
+          width="100%"
+          alignItems="center"
+        >
+          <FloatingActionButton
+            onPress={() => setRoute('add-post')}
+            icon={<Icon type="Add" size={'$m'} />}
+          />
+        </View>
+      )}
 
       {/* Image preview and caption input - shown for both new image posts and editing image gallery posts */}
       {/* This is the UI for creating/editing image gallery posts */}
-      {(isShowingImagePreview || (isEditingPost && isImageGalleryPost)) && (
+      {route === 'image' && (
         <YStack
           alignItems="stretch"
           flex={1}
@@ -491,11 +500,19 @@ export function GalleryInput({
         </YStack>
       )}
 
+      {/* Link input - shown when creating/editing rich link posts that contain metadata */}
+      {route === 'link' && (
+        <LinkInput
+          isPosting={isPosting}
+          editingPost={editingPost}
+          onSave={handleLinkPost}
+        />
+      )}
+
       {/* Add gallery post sheet */}
       <AddGalleryPost
-        showAddGalleryPost={showAddGalleryPost}
-        setShowAddGalleryPost={setShowAddGalleryPost}
-        setShowGalleryInput={setShowBigInput}
+        route={route}
+        setRoute={setRoute}
         onSetImage={handleGalleryImageSet}
       />
     </>

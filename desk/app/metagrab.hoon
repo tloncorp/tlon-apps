@@ -105,8 +105,12 @@
 ++  fetch
   |=  url=@t
   ^-  card
+  =/  =header-list:http
+    :~  ['user-agent' 'urbit/1.0']
+        ['accept' '*/*']
+    ==
   =/  =request:http
-    [%'GET' url ~ ~]
+    [%'GET' url header-list ~]
   ::NOTE  outbound-config is actually meaningless,
   ::      iris doesn't do anything with it at present...
   [%pass /fetch/(scot %t url) %arvo %i %request request *outbound-config:iris]
@@ -127,7 +131,7 @@
     :-  |
     ::TODO  extract message from response body somehow?
     ?:  (gte cod 500)
-      [%500 `(scot %ud cod)]
+      [%500 ?~(dat `(scot %ud cod) `q.data.u.dat)]
     [%400 `(scot %ud cod)]
   ::  miscellaneous
   ::

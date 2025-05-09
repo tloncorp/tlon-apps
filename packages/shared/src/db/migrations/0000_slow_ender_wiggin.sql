@@ -305,6 +305,8 @@ CREATE TABLE `posts` (
 	`type` text NOT NULL,
 	`title` text,
 	`image` text,
+	`description` text,
+	`cover` text,
 	`content` text,
 	`received_at` integer NOT NULL,
 	`sent_at` integer NOT NULL,

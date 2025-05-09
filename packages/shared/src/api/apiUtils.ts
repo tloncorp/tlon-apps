@@ -200,6 +200,38 @@ export function toPostEssay({
   return essay;
 }
 
+export function toPostEssay1({
+  content,
+  authorId,
+  sentAt,
+  channelType,
+  blob,
+  metadata,
+}: {
+  content: ub.Story;
+  authorId: string;
+  sentAt: number;
+  channelType: db.ChannelType;
+  blob?: string;
+  metadata?: ub.Metadata;
+}): ub.PostEssay1 {
+  const essay: ub.PostEssay1 = {
+    content,
+    sent: sentAt,
+    kind:
+      channelType === 'notebook'
+        ? '/diary'
+        : channelType === 'gallery'
+          ? '/heap'
+          : '/chat',
+    author: authorId,
+    blob: blob || null,
+    meta: metadata || null,
+  };
+
+  return essay;
+}
+
 // the chat subscription doesn't include full posts (writs) in its add events,
 // so we need to recreate the implicit msising data before inserting them
 export function deriveFullWrit(
