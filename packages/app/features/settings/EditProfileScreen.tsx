@@ -27,7 +27,7 @@ export function EditProfileScreen({ route, navigation }: Props) {
       <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
         <EditProfileScreenView
           userId={route.params.userId}
-          onGoBack={() => navigation.goBack()}
+          onGoBack={navigation.goBack}
           onGoToAttestation={handleGoToAttestation}
         />
       </AttachmentProvider>
