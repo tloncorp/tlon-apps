@@ -417,6 +417,24 @@ export const searchChannel = async (params: {
   return { posts, cursor };
 };
 
+export const setOrder = async (
+  channelId: string,
+  arrangedPostIds: string[]
+) => {
+  await poke({
+    app: 'channels',
+    mark: 'channel-action',
+    json: {
+      channel: {
+        nest: channelId,
+        action: {
+          order: arrangedPostIds,
+        },
+      },
+    },
+  });
+};
+
 export const leaveChannel = async (channelId: string) => {
   return trackedPoke<ub.ChannelsResponse>(
     {
