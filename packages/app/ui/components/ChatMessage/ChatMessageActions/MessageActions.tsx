@@ -1,5 +1,6 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import { ChannelAction } from '@tloncorp/shared';
+import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -35,6 +36,21 @@ export default function MessageActions({
   const width = isWeb ? 'auto' : 220;
   return (
     <ActionList width={width}>
+      <ActionList.Action
+        height="auto"
+        onPress={() => {
+          api
+            .setOrder(post.channelId, [post.id])
+            .then(() => {
+              console.log('thenned order');
+            })
+            .catch((e) => {
+              console.error('failed order', e);
+            });
+        }}
+      >
+        Pin
+      </ActionList.Action>
       {postActionIds.map((actionId, index, list) => (
         <ConnectedAction
           key={actionId}

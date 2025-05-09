@@ -146,6 +146,7 @@ export const subscribeToChannelsUpdates = async (
   subscribe(
     { app: 'channels', path: '/v1' },
     (rawEvent: ub.ChannelsSubscribeResponse) => {
+      console.log('received channel event', rawEvent);
       eventHandler(toChannelsUpdate(rawEvent));
     }
   );
@@ -415,6 +416,24 @@ export const searchChannel = async (params: {
   const cursor = response.last;
 
   return { posts, cursor };
+};
+
+export const setOrder = async (
+  channelId: string,
+  arrangedPostIds: string[]
+) => {
+  await poke({
+    app: 'channels',
+    mark: 'channel-action',
+    json: {
+      channel: {
+        nest: channelId,
+        action: {
+          order: arrangedPostIds,
+        },
+      },
+    },
+  });
 };
 
 export const leaveChannel = async (channelId: string) => {
