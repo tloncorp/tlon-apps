@@ -36,7 +36,8 @@
   +$  current-state
     $:  %7
         groups=net-groups:v7:g
-        previews=(map flag preview:g)
+        :: foreign=(map flag foreign-group:v7:g)
+        invites=(map flag invite:v7:g)
         =volume:v
         =^subs:s
         =pimp:imp
@@ -159,9 +160,7 @@
         se-abet:(se-join:server-core token.c-groups)
       ::
           %group
-        ~&  group-command-group+-.c-group.c-groups
         =/  server-core  (se-abed:se-core flag.c-groups)
-        ~&  %what-the-heck
         se-abet:(se-c-group:server-core c-group.c-groups)
       ==
     ::
@@ -658,10 +657,20 @@
     =/  ship=@p  (slav %p ship.pole)
     go-abet:(go-watch:(go-abed:go-core ship name.pole) %v1 rest.pole)
   ::
-      :: deprecated
-      [%groups %ui ~]  cor
-      :: deprecated
-      [%gangs %updates ~]  cor
+      [%v1 %previews rest=*]  cor
+  ::
+    ::  deprecated
+    [%groups %ui ~]  cor
+  ::
+      ::  deprecated
+      [%gangs ship=@ name=@ %preview ~]  !!
+      ::XX implement preview here
+    ::XX disambiguate with channels if we really want
+    ::   to preview channels in %groups
+  ::
+      ::  deprecated
+      [%gangs %index ship=@ ~]  !!
+      ::XX implement bulk groups preview here
   ::
     :: deprecated
     [%epic ~]  (give %fact ~ epic+!>(okay:g))
@@ -802,30 +811,10 @@
       ~   cor
       [%epic ~]  cor
       [%logs ~]  cor
-      [%groups ~]  cor
       [%activity %submit *]  cor
-      [%channels %role ~]  cor
       ::TODO confirm this is safe to remove after lib-negotiate
       ::     migration
       :: [%cast ship=@ name=@ ~]  cor
-  ::
-    ::XX remove?
-    ::   [%hi ship=@ ~]
-    :: =/  =ship  (slav %p ship.pole)
-    :: (take-hi ship sign)
-  ::
-    ::   [%gangs %invite ~]
-    :: ?>  ?=(%poke-ack -.sign)
-    :: ?~  p.sign  cor
-    :: %.  cor
-    :: (slog leaf/"Error giving invite" u.p.sign)
-  ::
-    ::   [%groups ship=@ name=@ %proxy ~]
-    :: ?>  ?=(%poke-ack -.sign)
-    :: ::  whether it's an ack or nack, nothing to do on our end
-    :: ?~  p.sign  cor
-    :: %-  (slog leaf/"Error forwarding poke" u.p.sign)
-    :: cor
   ::
       [%groups ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
@@ -835,13 +824,6 @@
       cor
     go-abet:(go-agent:(go-abed:go-core ship name.pole) rest.pole sign)
   ::
-    ::   [%gangs %index ship=@ ~]
-    :: (take-gang-index (slav %p ship.pole) sign)
-  ::
-    ::   [%gangs ship=@ name=@ rest=*]
-    :: =/  =ship  (slav %p ship.pole)
-    :: ga-abet:(ga-agent:(ga-abed:gang-core ship name.pole) rest.pole sign)
-  ::XX remove?
     ::   [%chan app=@ ship=@ name=@ rest=*]
     :: =/  =ship  (slav %p ship.pole)
     :: =/  =nest:g  [app.pole ship name.pole]
@@ -849,6 +831,8 @@
   ::
       [%channels ~]
     (take-channels sign)
+  ::
+    [%channels %perms ~]  cor
   ::
       [%contacts ~]
     (take-contacts sign)
@@ -1028,7 +1012,8 @@
       ?~  reply  now.bowl
       $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
     =/  =update:g  [time u-group]
-    :: =.  log  (put:log-on:g log now.bowl [%meta *data:meta])
+    =.  log  (put:log-on:g log update)
+    ~&  se-update+u-group
     (se-give-update update)
   ::  +se-pass: server cards core
   ::
@@ -1068,11 +1053,15 @@
   ++  se-give-update
     |=  =update:g
     ^+  se-core
+    ::  update +go-core
+    ::
+    =.  cor
+      go-abet:(go-u-group:(go-abed:go-core flag) update)
+    ::  update subscribers
+    ::
     =/  paths  se-subscription-paths
     ?:  =(~ paths)
       se-core
-    ::TODO define convenience emit, emil and give 
-    ::     in +go-core and +se-core
     =.  cor  (give %fact paths group-update+!>(update))
     se-core
   ::  +se-c-create: create a group
@@ -1157,9 +1146,7 @@
   ++  se-c-group
     |=  =c-group:g
     ^+  se-core
-    ~&  %what-what
     =*  se-src-is-admin  (se-is-admin src.bowl)
-    ~&  se-c-group+[se-src-is-admin]
     ::XX disallow commands from banned ships?
     ::XX who can ban ships. make sure the host can't
     ::   ban itself, and rank is not in effect for the host
@@ -1624,6 +1611,14 @@
     ?:  =(ship p.flag)  &
     =/  =seat:g  (~(got by seats.group) ship)
     !=(~ (~(int in roles.seat) admins.group))
+  ::  +go-is-banned: check whether the ship is banned
+  ::
+ ++  go-is-banned
+    |=  =ship
+    =*  banned  banned.admissions.group
+    ?|  (~(has in ranks.banned) (clan:title ship))
+        (~(has in ships.banned) ship)
+    ==
   ::  go-our-host: check whether we are the host
   ::
   ++  go-our-host  ?=(%pub -.net)
@@ -1697,7 +1692,7 @@
   ++  go-safe-sub
     |=  delay=?
     ^+  go-core
-    ?:  go-has-sub  go-core
+    ?:  |(go-has-sub go-our-host)  go-core
     (go-start-updates |)
   ::  +go-start-updates: subscribe to the group for updates
   ::
@@ -1708,7 +1703,7 @@
     =.  cor
       %.  delay
       %^  safe-watch  go-sub-wire  [p.flag server]
-      /updates/(scot %da time.net)
+      /server/groups/updates/(scot %da time.net)
     go-core
   ::  +go-join: join a group
   ::
@@ -1799,16 +1794,16 @@
         %fact
       =*  cage  cage.sign
       ?>  =(%group-update p.cage)
-      (go-u-group !<(group-update:g q.cage))
+      (go-u-group !<(update:g q.cage))
     ==
   ::  +go-u-group: apply group update
   ::
   ++  go-u-group
-    |=  update=group-update:g
+    |=  =update:g
     ^+  go-core
-    ?>  ?=(%sub -.net)
-    ?>  (gth time.update time.net)
-    =.  time.net  time.update
+    =?  net  ?=(%sub -.net)
+      ?>  (gte time.update time.net)
+      [%sub time.update init.net]
     =*  u-group  u-group.update
     ?-  -.u-group
       %meta          (go-u-meta data.u-group)
@@ -1995,7 +1990,7 @@
         =/  cmd=c-channels:d  [%channel nest %del-writers old-sect]
         =/  cage  channel-command+!>(cmd)
         =/  dock  [p.q.nest %channels-server]
-        =.  cor  (emit %pass /channels/role %agent dock %poke cage)
+        =.  cor  (emit %pass /channels/perms %agent dock %poke cage)
         next
       ?:  go-our-host  go-core
       ::
@@ -2222,16 +2217,17 @@
   ++  go-response
     |=  =r-group:g
     ^+  go-core
-    =/  =r-groups:g  [flag r-group]
+    ~&  go-response+r-group
+    ::  v1 response
+    ::
+    =/  r-groups-7=r-groups:v7:g  [flag r-group]
     =/  v1-paths  ~[/v1/groups (weld /v1/groups go-area)]
-    :: ::XX use conversion functions from 'latest'
-    =/  r-groups-7=r-groups:v7:g  r-groups
     =.  cor  (give %fact v1-paths group-response-1+!>(r-groups-7))
-    :: ::
-    :: =/  v0-paths  ~[/groups/ui]
-    :: =/  action-2=action:v2:g
-    ::   (v2:action:r-group:v7:ver r-group)
-    :: =.  cor  (give %fact v0-paths group-action-3+!>(action-2))
+    ::  v0 backcompat
+    ::
+    =/  action-2=action:v2:g  
+      [flag now.bowl (diff:v2:r-group:v7:ver r-group)]
+    =.  cor  (give %fact ~[/groups/ui] group-action-3+!>(action-2))
     go-core
   ::  +go-peek: handle a group scry request
   ::
@@ -2239,46 +2235,48 @@
     |=  [ver=?(%v0 %v1 %v2) =(pole knot)]
     ^-  (unit (unit cage))
     ?+    pole  ~|(bad-go-peek+pole !!)
-      ::XX find out which ones were ever used by anything
-      ::   and restore them
-      ::   [%hosts ~]
-      :: `ships+!>(go-channel-hosts)
-      :: ::
-      ::   [%fleet %ships ~]
-      :: `ships+!>(~(key by fleet.group))
-      :: ::
-      ::   [%fleet ship=@ %vessel ~]
-      :: =/  src  (slav %p ship.pole)
-      :: `noun+!>((~(got by fleet.group) src))
-      :: ::
-      ::   [%fleet ship=@ %is-bloc ~]
-      :: =/  src  (slav %p ship.pole)
-      :: `loob+!>((~(has in go-bloc-who) src))
-      :: ::
-      ::   [%fleet ship=@ %is-ban ~]
-      :: =/  src  (slav %p ship.pole)
-      :: `loob+!>((go-is-banned src))
+    ::
       ::
-      ::   [%channel app=@ ship=@ name=@ rest=*]
-      :: =/  nes=nest:g  [app.pole (slav %p ship.pole) name.pole]
-      :: ?+    rest.pole  ~
-      ::     [%can-read member=@ ~]
-      ::   ?~  channel=(~(get by channels.group) nes)
-      ::     `loob+!>(`?`|)
-      ::   =/  member  (slav %p member.rest.pole)
-      ::   `loob+!>((go-can-read member u.channel))
-      ::   ::
-      ::     [%can-write member=@ ~]
-      ::   =/  member  (slav %p member.rest.pole)
-      ::   =-  `noun+!>(-)
-      ::   ?:  |((go-is-banned member) !(~(has by fleet.group) member))  ~
-      ::   %-  some
-      ::   :-  bloc=(~(has in go-bloc-who) member)
-      ::   sects=sects:(~(got by fleet.group) member)
-      :: ==
+      ::  seats queries
       ::
-          [%can-read ~]
-        [~ ~]
+        [%seats %ships ~]
+      ``ships+!>(~(key by seats.group))
+    ::
+        [%seats ship=@ ~]
+      =+  ship=(slav %p ship.pole)
+      ``noun+!>((~(got by seats.group) ship))
+    ::
+        [%seats ship=@ %is-admin ~]
+      =+  ship=(slav %p ship.pole)
+      ``noun+!>((go-is-admin ship))
+    ::
+        [%seats ship=@ %is-banned ~]
+      =+  ship=(slav %p ship.pole)
+      ``noun+!>((go-is-banned ship))
+    ::
+      ::
+      ::  channels queries
+      ::
+        [%channels app=@ ship=@ name=@ rest=*]
+      =/  =nest:g  [app.pole (slav %p ship.pole) name.pole]
+      ?+    rest.pole  [~ ~]
+          [%can-read ship=@ ~]
+        ?~  channel=(~(get by channels.group) nest)
+          ``noun+!>(|)
+        =+  ship=(slav %p ship.rest.pole)
+        ``noun+!>((go-can-read ship u.channel))
+        ::
+          [%can-write ship=@ ~]
+        =+  ship=(slav %p ship.rest.pole)
+        =-  ``noun+!>(-)
+        ::XX use arms from +ad-core for permission checking
+        ?~  seat=(~(get by seats.group) ship)  ~
+        ?:  (go-is-banned ship)  ~
+        %-  some
+        :-  admin=(go-is-admin ship)
+        roles=roles.u.seat
+      ==
+      ::
       ::   [%can-read ~]
       :: :+  ~  %noun
       :: !>  ^-  $-([ship nest:g] ?)
@@ -2286,6 +2284,27 @@
       :: ?~  cha=(~(get by channels.group) nest)  |
       :: (go-can-read ship u.cha)
     ==
+  ++  go-can-read
+    ::XX use her=ship universally?
+    |=  [=ship =channel:g]
+    ^-  ?
+    ::XX update for tickets
+    =/  open=?  ?=(%public privacy.admissions.group)
+    =/  visible  =(~ readers.channel)
+    =/  seat  (~(get by seats.group) ship)
+    ?:  (go-is-banned ship)  |
+    ::  allow to read the channel:
+    ::  (1) the ship is admin, or
+    ::  (2) the group is public and the channel is visible
+    ::  (3) the ship is a member
+    ::
+    ?:  ?|  (go-is-admin ship)
+            &(open visible)
+            &(!=(~ seat) visible)
+        ==
+      &
+    ?~  seat  |
+    !=(~ (~(int in readers.channel) roles.u.seat))
   ::  +go-watch: handle a group subscription request
   ::
   ++  go-watch
@@ -2355,22 +2374,6 @@
   ::XX verify that we mean to allow non-member ships to read
   ::   from visible channels
   ::
-  :: ++  go-can-read
-  ::   |=  [=ship =channel:g]
-  ::   ^-  ?
-  ::   ::XX update for tickets
-  ::   :: =/  open  =(-.cordon.group %open)
-  ::   =+  open=|
-  ::   =/  seat  (~(get by seats.group) ship)
-  ::   =/  visible  =(~ readers.channel)
-  ::   ?:  (go-is-banned src)  |
-  ::   ?:  ?|  (~(has in go-admins) ship)
-  ::           &(open visible)
-  ::           &(!=(~ seat) visible)
-  ::       ==
-  ::     &
-  ::   ?~  seat  |
-  ::   !=(~ (~(int in readers.channel) roles.u.seat))
   ::  +go-agent: handle group-specific subscription update
   ::
   ::  +go-up-groups: apply groups update

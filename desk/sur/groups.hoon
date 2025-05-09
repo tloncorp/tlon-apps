@@ -177,7 +177,7 @@
   (map flag group)
 +$  net-groups
   (map flag [net group])
-::  $preview: group preview
+::  $preview: a group preview
 ::
 ::  .flag: group flag
 ::  .meta: group metadata
@@ -192,6 +192,12 @@
       member-count=@ud
       public-token=(unit token)
   ==
+:: +$  join-status  ?(%idle %init %error %done)
+::  $foreign-group: our view of a foreign group
+:: +$  foreign-group
+::   $:  =preview
+::       =join
+::   ==
 ::  $previews: collection of group previews
 ::
 +$  previews  (map flag preview)
@@ -276,6 +282,7 @@
   $%  [%meta meta=data:meta]
       [%entry =c-entry]
       [%seat ships=(set ship) =c-seat]
+      ::XX take a set of roles
       [%role =role-id =c-role]
       [%channel =nest =c-channel]
       [%section =section-id =c-section]
@@ -418,14 +425,13 @@
   ==
 +$  r-groups  [=flag =r-group]
 +$  r-group
-  $%  [%meta =data:meta]
+  $%  [%meta meta=data:meta]
       [%entry =r-entry]
       [%seat =ship =r-seat]
       [%role =role-id =r-role]
       [%channel =nest =r-channel]
       [%section =section-id =r-section]
       [%flag-content =nest =post-key src=ship]
-      [%del ~]
       [%leave ~]
   ==
 +$  r-entry  u-entry
@@ -433,9 +439,6 @@
 +$  r-role  u-role
 +$  r-channel  u-channel
 +$  r-section  u-section
-::  $group-update: a group update with timestamp
-::
-+$  group-update  [=time =u-group]
 ::  $preview-update: group preview update
 ::
 +$  preview-update  (unit preview)
@@ -443,9 +446,9 @@
 ::
 +$  init  [=time =group]
 ::
-+$  log  ((mop time update) lte)
++$  log  ((mop time u-group) lte)
 ::
-++  log-on  ((on time update) lte)
+++  log-on  ((on time u-group) lte)
 ::  +okay: protocol version, defunct
 ::
 ++  okay  `epic:e`4

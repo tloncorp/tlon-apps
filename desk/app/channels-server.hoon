@@ -8,7 +8,9 @@
 /+  hj=hooks-json
 ::
 %-  %-  agent:neg
-    [| [~.channels^%1 ~ ~] ~]
+    :+  notify=&
+      [~.channels^%1 ~ ~]
+    (my %groups^[~.groups^%1 ~ ~] ~)
 %-  agent:dbug
 %+  verb  |
 ::
@@ -299,7 +301,7 @@
   inflate-io
 ::
 ++  inflate-io
-  (safe-watch /groups [our.bowl %groups] /server/groups)
+  watch-groups
 ::
 ++  poke
   |=  [=mark =vase]
@@ -665,7 +667,7 @@
       %-  (slog leaf+"channel-server: create already exists: {<n>}" ~)
       ca-core
     ?>  can-nest
-    ?>  am-host:ca-perms
+    ?>  our-host:ca-perms
     ?>  ((sane %tas) name.nest)
     =.  channel
       %*  .  *v-channel:c
@@ -702,7 +704,7 @@
   ++  ca-c-channel
     |=  =c-channel:c
     ^+  ca-core
-    ?>  am-host:ca-perms
+    ?>  our-host:ca-perms
     ?-    -.c-channel
         %view
       ?>  (is-admin:ca-perms src.bowl)

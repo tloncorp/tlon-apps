@@ -376,11 +376,11 @@
   $(entries +.entries)
 ++  perms
   |_  [our=@p now=@da =nest:c group=flag:g]
-  ++  am-host  =(our ship.nest)
+  ++  our-host  =(our ship.nest)
   ++  groups-scry
     ^-  path
     :-  (scot %p our)
-    /groups/(scot %da now)/groups/(scot %p p.group)/[q.group]
+    /groups/(scot %da now)/v2/groups/(scot %p p.group)/[q.group]
   ::
   ++  is-admin
     |=  her=ship
@@ -389,32 +389,30 @@
     ;:  weld
         /gx
         groups-scry
-        /fleet/(scot %p her)/is-bloc/loob
+        /seats/(scot %p her)/is-admin/noun
     ==  ==
   ::
   ++  can-write
-    |=  [her=ship writers=(set sect:v0:g)]
+    |=  [her=ship writers=(set role-id:v7:g)]
     ?:  =(ship.nest her)  &
     =/  =path
       %+  welp  groups-scry
-      :+  %channel  kind.nest
+      :+  %channels
+        kind.nest
       /(scot %p ship.nest)/[name.nest]/can-write/(scot %p her)/noun
-    =+  .^(write=(unit [bloc=? sects=(set sect:v0:g)]) %gx path)
+    =+  .^(write=(unit [admin=? roles=(set role-id:v7:g)]) %gx path)
     ?~  write  |
     =/  perms  (need write)
-    ?:  |(bloc.perms =(~ writers))  &
-    !=(~ (~(int in writers) sects.perms))
+    ?:  |(admin.perms =(~ writers))  &
+    !=(~ (~(int in writers) roles.perms))
   ::
   ++  can-read
     |=  her=ship
     ?:  =(our her)  &
     =/  =path
       %+  welp  groups-scry
-      /can-read/noun
-    =/  test=$-([ship nest:g] ?)
-      =>  [path=path nest=nest:g ..zuse]  ~+
-      .^($-([ship nest] ?) %gx path)
-    (test her nest)
+      /can-read/(scot %p her)/noun
+    .^(read=? %gx path)
   --
 ::
 ++  cite

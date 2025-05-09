@@ -204,16 +204,113 @@
   ::
   ++  r-group
     |%
-    ++  action
+    ++  v2
       |%
-      ++  v5
+      ++  diff
+        |^
         |=  =r-group:v7:g
-        ^-  action:v5:g
-        !!
-      ++  v2
-        |=  =r-group:v7:g
-        ^-  action:v2:g
-        !!
+        ^-  diff:v2:g
+        ?+  -.r-group  ~|(diff-bad-r-group+-.r-group !!)
+          %meta     [%meta meta.r-group]
+          %seat     (diff-from-seat [ship r-seat]:r-group)
+          %role     (diff-from-role [role-id r-role]:r-group)
+          %channel  (diff-from-channel [nest r-channel]:r-group)
+          %section  (diff-from-section [section-id r-section]:r-group)
+          %entry    (diff-from-entry r-entry.r-group)
+          %flag-content  [%flag-content [nest post-key src]:r-group]
+          :: leave?
+        ==
+        ::
+        ++  diff-from-seat
+          |=  [=ship =r-seat:v7:g]
+          ^-  diff:v2:g
+          :+  %fleet
+            (silt ship ~)
+          ?-  -.r-seat
+            %add       [%add ~]
+            %del       [%del ~]
+            %add-roles  [%add-sects (sects-from-roles roles.r-seat)]
+            %del-roles  [%del-sects (sects-from-roles roles.r-seat)]
+          ==
+        ::
+        ++  diff-from-role
+          |=  [=role-id:v7:g =r-role:v7:g]
+          ^-  diff:v2:g
+          ?:  ?=(?(%add %edit %del) -.r-role)
+            :+  %cabal
+              `sect:v2:g`role-id
+            ?-  -.r-role
+              %add       [%add meta.r-role]
+              %edit      [%edit meta.r-role]
+              %del       [%del ~]
+            ==
+          :-  %bloc
+          ?-  -.r-role
+            %set-admin  [%add (sy `sect:v2:g`role-id ~)]
+            %del-admin  [%del (sy `sect:v2:g`role-id ~)]
+          ==
+        ::
+        ++  sects-from-roles
+          |=  roles=(set role-id:v7:g)
+          ^-  (set sect:v2:g)
+          (~(run in roles) |=(role-id:v7:g `sect:v2:g`+<))
+        ::
+        ++  diff-from-channel
+          |=  [=nest:v7:g =r-channel:v7:g]
+          ^-  diff:v2:g
+          :+  %channel
+            nest
+          ?-    -.r-channel
+            %add       [%add (v2:channel:v7 channel.r-channel)]
+            %edit      [%edit (v2:channel:v7 channel.r-channel)]
+            %del       [%del ~]
+            %add-roles  [%add-sects (sects-from-roles roles.r-channel)]
+            %del-roles  [%del-sects (sects-from-roles roles.r-channel)]
+            %section    [%zone `zone:v2:g`section.r-channel]
+          ==
+        ::
+        ++  diff-from-section
+          |=  [=section-id:v7:g =r-section:v7:g]
+          ^-  diff:v2:g
+          :+  %zone
+            `zone:v2:g`section-id
+          ?-  -.r-section
+            %add       [%add meta.r-section]
+            %edit      [%edit meta.r-section]
+            %del       [%del ~]
+            %move      [%mov idx.r-section]
+            %move-nest  [%mov-nest [nest idx]:r-section]
+          ==
+        ::
+        ++  diff-from-entry
+          |=  =r-entry:v7:g
+          ^-  diff:v2:g
+          ?-  -.r-entry
+              %privacy  
+            ?-  privacy.r-entry
+              ::XX this should be improved when privacy change
+              ::   logic is worked out. the conversion function
+              ::   should probably be passed admissions structure
+              ::   to populate the full cordon.
+              ::
+              %public   [%cordon %swap [%open *ban:open:cordon:v2:g]]
+              %private  [%cordon %swap [%shut ~ ~]]
+              %secret   [%secret &]
+            ==
+          ::
+              %ban
+            :+  %cordon
+              %open
+            ?-  -.u-ban.r-entry
+              %add-ships  [%add-ships ships.u-ban.r-entry]
+              %del-ships  [%del-ships ships.u-ban.r-entry]
+              %add-ranks  [%add-ranks ranks.u-ban.r-entry]
+              %del-ranks  [%del-ranks ranks.u-ban.r-entry]
+            ==
+          ::
+            %token  ~|(%r-group-to-diff-token-not-implemented !!)
+          ==
+        --
       --
     --
   --

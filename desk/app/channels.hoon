@@ -21,7 +21,10 @@
 %-  %-  agent:neg
     :+  notify=&
       [~.channels^%1 ~ ~]
-    [%channels-server^[~.channels^%1 ~ ~] ~ ~]
+    %-  my
+    :~  %groups^[~.groups^%1 ~ ~]
+        %channels-server^[~.channels^%1 ~ ~]
+    ==
 %-  agent:dbug
 %+  verb  |
 ::
