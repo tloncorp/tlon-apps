@@ -50,6 +50,9 @@ export function ContactBookPrompt(props: {
       const result = await perms.requestPermissions();
       if (result === 'granted') {
         await store.syncSystemContacts();
+        await store.syncContactDiscovery().catch(() => {
+          didDismiss.setValue(true);
+        });
       }
       didDismiss.setValue(true);
     } else {
