@@ -11,6 +11,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import { Linking, Platform } from 'react-native';
 import {
   ScrollView,
   TamaguiComponent,
@@ -222,9 +223,11 @@ const BigEmojiText = styled(Text, {
 export function LinkBlock({
   block,
   imageProps,
+  clickable = true,
   ...props
 }: {
   block: cn.LinkBlockData;
+  clickable?: boolean;
   imageProps?: ComponentProps<typeof ContentImage>;
 } & ComponentProps<typeof Reference.Frame>) {
   const domain = useMemo(() => {
@@ -232,8 +235,33 @@ export function LinkBlock({
     return url.hostname;
   }, [block.url]);
 
+  const onPress = useCallback(() => {
+    if (Platform.OS === 'web') {
+      window.open(block.url, '_blank', 'noopener,noreferrer');
+    } else {
+      Linking.openURL(block.url);
+    }
+  }, [block.url]);
+  console.log('LinkBlock', block);
+
+  const aspectRatio = useMemo(() => {
+    if (!block.previewImageHeight || !block.previewImageWidth) {
+      return 1.5;
+    }
+
+    try {
+      return (
+        parseInt(block.previewImageWidth) / parseInt(block.previewImageHeight)
+      );
+    } catch (e) {
+      console.error('Error parsing aspect ratio', e);
+    }
+
+    return 1.5;
+  }, [block.previewImageHeight, block.previewImageWidth]);
+
   return (
-    <Reference.Frame {...props}>
+    <Reference.Frame {...props} onPress={clickable ? onPress : undefined}>
       <Reference.Header>
         <Reference.Title>
           <Icon type="Link" color="$tertiaryText" customSize={[12, 12]} />
@@ -245,6 +273,7 @@ export function LinkBlock({
           <ContentImage
             source={block.previewImageUrl}
             flex={1}
+            aspectRatio={aspectRatio}
             width="100%"
             contentFit="cover"
             {...imageProps}

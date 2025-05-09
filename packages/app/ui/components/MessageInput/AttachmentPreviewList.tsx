@@ -160,7 +160,7 @@ const RemoveAttachmentButton = ({ attachment }: { attachment: Attachment }) => {
 
 const LinkPreview = ({ attachment }: { attachment: domain.LinkAttachment }) => {
   console.log('LinkPreview', { attachment });
-  const { siteIconUrl, siteName, description, previewImageUrl } = attachment;
+  const { url, title, previewImageUrl } = attachment;
   const [imageLoaded, setImageLoaded] = useState(false);
 
   useEffect(() => {
@@ -168,9 +168,9 @@ const LinkPreview = ({ attachment }: { attachment: domain.LinkAttachment }) => {
   }, [imageLoaded, previewImageUrl]);
 
   const domain = useMemo(() => {
-    const url = new URL(attachment.url);
-    return url.hostname;
-  }, [attachment.url]);
+    const parsed = new URL(url);
+    return parsed.hostname;
+  }, [url]);
 
   return (
     <View
@@ -187,7 +187,7 @@ const LinkPreview = ({ attachment }: { attachment: domain.LinkAttachment }) => {
             <Image
               backgroundColor={'$secondaryBackground'}
               onLoad={() => setImageLoaded(true)}
-              source={{ uri: attachment.previewImageUrl }}
+              source={{ uri: previewImageUrl }}
               height={200}
               width={240}
               contentFit="cover"
@@ -202,7 +202,7 @@ const LinkPreview = ({ attachment }: { attachment: domain.LinkAttachment }) => {
             gap="$m"
           >
             <Text size="$label/m" numberOfLines={1}>
-              {attachment.title}
+              {title}
             </Text>
             <XStack alignItems="center" gap="$s">
               <Icon type="Link" color="$secondaryText" customSize={[14, 14]} />

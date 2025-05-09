@@ -1,15 +1,20 @@
 export type LinkMetadata = PageMetadata | FileMetadata;
 
-export type PageMetadata = {
-  url: string;
-  type: 'page';
+export type DefaultPageMetadata = {
   siteIconUrl?: string;
   siteName?: string;
   title?: string;
   author?: string;
   description?: string;
   previewImageUrl?: string;
+  previewImageHeight?: string;
+  previewImageWidth?: string;
 };
+
+export interface PageMetadata extends DefaultPageMetadata {
+  url: string;
+  type: 'page';
+}
 
 export type FileMetadata = {
   url: string;
@@ -18,14 +23,8 @@ export type FileMetadata = {
   isImage?: boolean;
 };
 
-export type LinkAttachment = {
+export interface LinkAttachment extends DefaultPageMetadata {
   type: 'link';
   url: string;
   resourceType?: 'page' | 'file';
-  siteIconUrl?: string;
-  siteName?: string;
-  title?: string;
-  author?: string;
-  description?: string;
-  previewImageUrl?: string;
-};
+}

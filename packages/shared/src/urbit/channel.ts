@@ -94,14 +94,16 @@ export interface Image {
 export interface LinkBlock {
   link: {
     url: string;
-    meta: {
+    meta: Record<string, string | undefined> & {
       title?: string;
       description?: string;
       author?: string;
-      image?: string;
-      ['site-name']?: string;
-      ['site-icon']?: string;
-    } & Record<string, string>;
+      siteName?: string;
+      siteIcon?: string;
+      previewImageUrl?: string;
+      previewImageHeight?: string;
+      previewImageWidth?: string;
+    };
   };
 }
 

@@ -113,9 +113,11 @@ export type LinkBlockData = {
   url: string;
   title?: string;
   description?: string;
-  previewImageUrl?: string;
   siteName?: string;
   siteIconUrl?: string;
+  previewImageUrl?: string;
+  previewImageWidth?: string;
+  previewImageHeight?: string;
 };
 
 export type EmbedBlockData = {
@@ -382,13 +384,9 @@ function convertBlock(block: ub.Block): BlockData {
     }
   } else if (ub.isBlockLink(block)) {
     return {
+      ...block.link.meta,
       type: 'link',
       url: block.link.url,
-      title: block.link.meta?.title,
-      description: block.link.meta?.description,
-      previewImageUrl: block.link.meta?.previewImageUrl,
-      siteName: block.link.meta?.['site-name'],
-      siteIconUrl: block.link.meta?.['site-icon'],
     };
   } else if (ub.isListing(block)) {
     return {

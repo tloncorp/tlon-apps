@@ -12,7 +12,7 @@ import { Button } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
-import { truncate } from 'lodash';
+import { now, truncate } from 'lodash';
 import {
   ComponentProps,
   PropsWithChildren,
@@ -278,6 +278,10 @@ export function GalleryPostDetailView({
   }, [content]);
 
   const isImagePost = useMemo(() => !!firstImage, [firstImage]);
+  const isTextPost = useMemo(() => {
+    const type = content[0]?.type;
+    return !['embed', 'video', 'image', 'link', 'reference'].includes(type);
+  }, [content]);
 
   const handlePressImage = useCallback(
     (src: string) => {
@@ -311,10 +315,14 @@ export function GalleryPostDetailView({
       <View
         // For some reason minHeight ternary isn't working unless we disable optimization here
         disableOptimization
-        borderTopWidth={1}
-        borderBottomWidth={1}
-        borderColor="$border"
-        backgroundColor="$secondaryBackground"
+        {...(isTextPost
+          ? {
+              borderTopWidth: 1,
+              borderBottomWidth: 1,
+              borderColor: '$border',
+              backgroundColor: '$secondaryBackground',
+            }
+          : {})}
         minHeight={isImagePost ? 100 : 300}
       >
         <GalleryContentRenderer
@@ -547,6 +555,7 @@ const LargeContentRenderer = createContentRenderer({
       ...noWrapperPadding,
     },
     link: {
+      ...noWrapperPadding,
       imageProps: {
         aspectRatio: 1.5,
       },

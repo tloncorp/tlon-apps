@@ -2,6 +2,7 @@ import {
   extractContentTypesFromPost,
   getRichLinkMetadata,
   isRichLinkPost,
+  isValidUrl,
   useDebouncedValue,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -12,7 +13,7 @@ import { useForm } from 'react-hook-form';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, useTheme } from 'tamagui';
 
-import { KeyboardAvoidingView } from '../..';
+import { KeyboardAvoidingView, LoadingSpinner } from '../..';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import {
   ControlledImageField,
@@ -20,6 +21,8 @@ import {
   ControlledTextareaField,
   FormFrame,
 } from '../Form';
+import { LinkBlock } from '../PostContent/BlockRenderer';
+import { LinkBlockData } from '../PostContent/contentUtils';
 import { ScreenHeader } from '../ScreenHeader';
 
 export type LinkInputSaveParams = { block: ub.LinkBlock; meta: ub.Metadata };
@@ -83,6 +86,25 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
       }
     }
   }, [data, form]);
+
+  const block: LinkBlockData | null = useMemo(() => {
+    if (!data) {
+      return null;
+    }
+    if (data.type === 'file') {
+      return {
+        type: 'link',
+        url: data.url,
+      };
+    }
+
+    const { url, type, ...meta } = data;
+    return {
+      ...meta,
+      type: 'link',
+      url,
+    };
+  }, [data]);
 
   const handlePressDone = useCallback(() => {
     if (isDirty && isValid) {
@@ -174,26 +196,33 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
           }}
         >
           <FormFrame paddingBottom={insets.bottom + 20}>
-            <ControlledTextField
-              name="url"
-              label="URL"
-              control={control}
-              inputProps={{
-                autoFocus: true,
-                placeholder: 'https://example.com',
-                autoCapitalize: 'none',
-                keyboardType: 'url',
-                testID: 'LinkUrlInput',
-              }}
-              rules={{
-                required: 'URL is required',
-                pattern: {
-                  value:
-                    /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/,
-                  message: 'Please enter a valid URL',
-                },
-              }}
-            />
+            {block && <LinkBlock block={block} aspectRatio={1.5} />}
+            <View>
+              <ControlledTextField
+                name="url"
+                label="URL"
+                control={control}
+                inputProps={{
+                  autoFocus: true,
+                  placeholder: 'https://example.com',
+                  autoCapitalize: 'none',
+                  keyboardType: 'url',
+                  testID: 'LinkUrlInput',
+                  paddingRight: '$3xl',
+                }}
+                rules={{
+                  required: 'URL is required',
+                  validate: (url) => {
+                    return isValidUrl(url) || 'Please enter a valid URL';
+                  },
+                }}
+              />
+              {isLoading && (
+                <View position="absolute" right="$xl" bottom={18}>
+                  <LoadingSpinner size="small" />
+                </View>
+              )}
+            </View>
 
             <ControlledTextField
               name="title"

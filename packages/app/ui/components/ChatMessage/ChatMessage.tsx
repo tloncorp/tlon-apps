@@ -314,6 +314,9 @@ const ChatContentRenderer = createContentRenderer({
       contentSize: '$l',
     },
     image: isWeb ? WebChatImageRenderer : undefined,
+    link: {
+      maxWidth: 400,
+    },
   },
 });
 

@@ -4,6 +4,7 @@ import { getLinkMetadata } from '../api';
 import { isValidUrl } from '../logic';
 
 export function useLinkGrabber(url: string) {
+  console.log('useLinkGrabber', url, isValidUrl(url));
   return useQuery({
     queryKey: ['metagrab', url],
     queryFn: () => getLinkMetadata(url),

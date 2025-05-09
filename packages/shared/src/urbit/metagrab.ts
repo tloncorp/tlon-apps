@@ -21,4 +21,5 @@ export interface LinkMetadataItem {
   key: string;
   namespace: string;
   value: string;
+  attributes?: Record<string, string>;
 }

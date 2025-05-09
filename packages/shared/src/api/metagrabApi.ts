@@ -42,8 +42,8 @@ function parseLinkMetadataResponse(
     const siteIconUrl = site_icon?.[0]?.value;
     const siteName = site_name?.[0]?.value;
     const siteTitle = title?.[0]?.value;
-    const siteDescription = result.description?.[0]?.value;
-    const previewImageUrl = parseImageData(image ?? []) ?? undefined;
+    const siteDescription = description?.[0]?.value;
+    const imageData = parseImageData(url, image ?? []);
 
     const parsed: domain.LinkMetadata = {
       type: 'page',
@@ -52,7 +52,9 @@ function parseLinkMetadataResponse(
       siteName,
       title: siteTitle,
       description: siteDescription,
-      previewImageUrl,
+      previewImageUrl: imageData.url,
+      previewImageHeight: imageData.height,
+      previewImageWidth: imageData.width,
     };
     logger.log(`parsed page metadata`, parsed);
     return parsed;
@@ -71,13 +73,37 @@ function parseLinkMetadataResponse(
   return null;
 }
 
-function parseImageData(data: ub.LinkMetadataItem[]): string | void {
-  const index: Record<string, string> = data.reduce(
-    (acc, item) => ({ ...acc, [item.namespace]: item.value }),
-    {}
+interface ImageData {
+  namespaces: Record<string, string>;
+  attributes: Record<string, string>;
+}
+
+function grabImageUrl(url: string, data: ub.LinkMetadataItem[]) {
+  return data.find((item) => item.value !== url)?.value;
+}
+
+function parseImageData(url: string, data: ub.LinkMetadataItem[]) {
+  const twitter = grabImageUrl(
+    url,
+    data.filter((item) => item.namespace === 'twitter' && item.key === 'image')
+  );
+  const og = data.filter(
+    (item) => item.namespace === 'og' && item.key === 'image'
   );
 
-  return index.twitter || index.og || data[0]?.value;
+  // API returns the URL as the value if there isn't a value for a
+  // particular set of tags aka "attributes" like image height/width
+  const ogImage = grabImageUrl(url, og);
+  const ogHeight = og.find((item) => item.attributes?.height)?.attributes
+    ?.height;
+  const ogWidth = og.find((item) => item.attributes?.width)?.attributes?.width;
+  console.log('image data', { og, ogImage, ogHeight, ogWidth, twitter });
+
+  return {
+    url: ogImage || twitter || data[0]?.value,
+    height: ogHeight,
+    width: ogWidth,
+  };
 }
 
 /**

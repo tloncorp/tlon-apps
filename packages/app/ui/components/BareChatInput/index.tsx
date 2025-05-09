@@ -318,15 +318,11 @@ export default function BareChatInput({
 
             // first add the link attachment
             if (linkMetadata.type === 'page') {
+              const { type, ...rest } = linkMetadata;
               addAttachment({
                 type: 'link',
-                url: linkMetadata.url,
-                resourceType: linkMetadata.type,
-                siteIconUrl: linkMetadata.siteIconUrl,
-                siteName: linkMetadata.siteName,
-                title: linkMetadata.title,
-                description: linkMetadata.description,
-                previewImageUrl: linkMetadata.previewImageUrl,
+                resourceType: type,
+                ...rest,
               });
             }
 
@@ -502,18 +498,12 @@ export default function BareChatInput({
             }
 
             if (attachment.type === 'link') {
+              const { url, type, resourceType, ...meta } = attachment;
               return [
                 {
                   link: {
-                    url: attachment.url,
-                    meta: {
-                      title: attachment.title,
-                      description: attachment.description,
-                      author: attachment.author,
-                      image: attachment.previewImageUrl,
-                      ['site-name']: attachment.siteName,
-                      ['site-icon']: attachment.siteIconUrl,
-                    },
+                    url,
+                    meta,
                   },
                 },
               ];
