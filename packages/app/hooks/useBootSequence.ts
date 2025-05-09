@@ -45,7 +45,6 @@ export function useBootSequence() {
   const connectionStatus = store.useConnectionStatus();
   const lureMeta = useLureMetadata();
   const configureUrbitClient = useConfigureUrbitClient();
-  const session = store.useCurrentSession();
 
   const [bootPhase, setBootPhase] = useState(NodeBootPhase.IDLE);
   const [reservedNodeId, setReservedNodeId] = useState<string | null>(null);
@@ -305,7 +304,6 @@ export function useBootSequence() {
     connectionStatus,
     lureMeta,
     reservedNodeId,
-    session?.startTime,
     setShip,
     telemetry,
   ]);
@@ -344,6 +342,7 @@ export function useBootSequence() {
       } catch (e) {
         logger.trackError('runBootPhase error', {
           bootPhase,
+          bootPhaseName: BootPhaseNames[bootPhase],
           errorMessage: e.message,
           errorStack: e.stack,
         });

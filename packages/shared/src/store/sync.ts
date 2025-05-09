@@ -760,7 +760,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
     case 'addChannel': {
       await db.insertChannels([update.channel], ctx);
       if (update.channel.groupId) {
-        await syncGroup(update.channel.groupId);
+        await syncGroup(update.channel.groupId, undefined, { force: true });
         await syncUnreads();
       }
       break;
@@ -768,7 +768,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
     case 'updateChannel': {
       await db.updateChannel(update.channel, ctx);
       if (update.channel.groupId) {
-        await syncGroup(update.channel.groupId);
+        await syncGroup(update.channel.groupId, undefined, { force: true });
         await syncUnreads();
       }
       break;

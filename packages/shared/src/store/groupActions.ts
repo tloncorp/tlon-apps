@@ -62,23 +62,27 @@ export async function scaffoldPersonalGroup() {
 
     personalGroup.channels = [chatChannel, collectionChannel, notebookChannel];
 
-    await createGroup({ group: personalGroup });
+    const createdGroup = await createGroup({ group: personalGroup });
 
     // Final consistency check
-    const group = await db.getGroup({ id: PersonalGroupKeys.groupId });
-    const createdChat = group?.channels.find(
+    const createdChat = createdGroup.channels?.find(
       (chan) => chan.id === PersonalGroupKeys.chatChannelId
     );
-    const createdCollection = group?.channels.find(
+    const createdCollection = createdGroup.channels?.find(
       (chan) => chan.id === PersonalGroupKeys.collectionChannelId
     );
-    const createdNotebook = group?.channels.find(
+    const createdNotebook = createdGroup.channels?.find(
       (chan) => chan.id === PersonalGroupKeys.notebookChannelId
     );
-    if (!group || !createdChat || !createdCollection || !createdNotebook) {
+    if (
+      !createdGroup ||
+      !createdChat ||
+      !createdCollection ||
+      !createdNotebook
+    ) {
       logger.trackEvent('Personal Group Scaffold', {
         notes: 'Completed scaffold, but not all items are present',
-        hasGroup: !!group,
+        hasGroup: !!createdGroup,
         hasChatChannel: !!createdChat,
         hasCollectionChannel: !!createdCollection,
         hasNotesChannel: !!createdNotebook,
@@ -91,7 +95,7 @@ export async function scaffoldPersonalGroup() {
     }
 
     // attempt to pin it
-    pinGroup(group);
+    pinGroup(createdGroup);
 
     logger.trackEvent('Completed Personal Group Scaffold', {
       ...logic.getModelAnalytics({ group: { id: PersonalGroupKeys.groupId } }),

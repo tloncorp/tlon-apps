@@ -594,8 +594,7 @@ export async function scry<T>({
       message: res.message,
       responseStatus: res.status,
     });
-    const body = await res.text();
-    throw new BadResponseError(res.status, body);
+    throw new BadResponseError(res.status, res.toString());
   }
 }
 
@@ -637,12 +636,11 @@ export async function scryNoun({
       trackDuration('success');
       return result;
     }
-    const body = await res.text();
     trackDuration('error', {
       message: res.message,
       responseStatus: res.status,
     });
-    throw new BadResponseError(res.status, body);
+    throw new BadResponseError(res.status, res.toString());
   }
 }
 
@@ -679,7 +677,7 @@ export async function thread<T, R = any>(params: Thread<T>): Promise<R> {
     trackDuration('success');
     return response.json();
   } catch (err) {
-    trackDuration('error', { ...requestContext, error: err });
+    trackDuration('error', { ...requestContext, errorMessage: err.toString() });
     throw err;
   }
 }
