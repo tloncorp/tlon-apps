@@ -628,18 +628,6 @@ export function useTiles() {
   );
 }
 
-export function useThemeMutation() {
-  const { mutate, status } = usePutEntryMutation({
-    bucket: 'display',
-    key: 'theme',
-  });
-
-  return {
-    mutate: (theme: Theme) => mutate({ val: theme }),
-    status,
-  };
-}
-
 export function createAnalyticsId() {
   return uuidv4();
 }
