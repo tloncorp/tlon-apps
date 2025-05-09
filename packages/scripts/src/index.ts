@@ -105,19 +105,24 @@ export function renderActivityEventPreview({
   }
 
   function buildPostNotification(
-    info: Pick<ub.PostEvent['post'], 'key' | 'channel' | 'content'>
+    info: Pick<ub.PostEvent['post'], 'key' | 'channel' | 'content' | 'group'>
   ): PreviewContentPayload {
     const base = buildMessageNotification(info);
+    const groupAndChannel = concat([
+      groupTitle(info.group),
+      lit(': '),
+      channelTitle(info.channel),
+    ]);
     return {
       ...base,
       notification: {
         ...base.notification,
-        title: channelTitle(info.channel),
+        title: groupAndChannel,
       },
       message: {
         ...base.message,
         type: 'group',
-        conversationTitle: channelTitle(info.channel),
+        conversationTitle: groupAndChannel,
       },
     };
   }
