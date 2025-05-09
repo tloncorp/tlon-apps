@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
+import { BlockData, InlineData, prependInline } from '@tloncorp/shared/logic';
 import { Icon } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { useMemo } from 'react';
@@ -9,12 +10,7 @@ import { useContactName } from '../ContactNameV2';
 import { ContentReferenceLoader, PostReference } from '../ContentReference';
 import { GalleryPost } from '../GalleryPost';
 import { createContentRenderer } from '../PostContent';
-import {
-  BlockData,
-  InlineData,
-  prependInline,
-  usePostContent,
-} from '../PostContent/contentUtils';
+import { usePostContent } from '../PostContent/contentUtils';
 
 type ActivitySourceContentProps = {
   summary: logic.SourceActivityEvents;

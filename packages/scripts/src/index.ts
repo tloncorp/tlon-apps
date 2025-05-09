@@ -1,6 +1,6 @@
 import { parseContactUpdateEvent } from '@tloncorp/shared/api';
+import { PlaintextPreviewConfig, getTextContent } from '@tloncorp/shared/logic';
 import type * as ub from '@tloncorp/shared/urbit';
-import { getTextContent } from '@tloncorp/shared/urbit';
 import {
   ActivityIncomingEvent,
   getIdParts,

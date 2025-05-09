@@ -3,7 +3,11 @@ import { Poke } from '@urbit/http-api';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import { IMAGE_URL_REGEX } from '../logic';
+import {
+  IMAGE_URL_REGEX,
+  PlaintextPreviewConfig,
+  getTextContent,
+} from '../logic';
 import * as ub from '../urbit';
 import {
   ClubAction,
@@ -18,7 +22,6 @@ import {
   WritDiff,
   checkNest,
   getChannelType,
-  getTextContent,
   whomIsDm,
 } from '../urbit';
 import {
@@ -905,7 +908,10 @@ export function toPostData(
     content: galleryImageLink
       ? JSON.stringify(galleryImageLinkContent)
       : JSON.stringify(content),
-    textContent: getTextContent(post?.essay.content),
+    textContent: getTextContent(
+      post?.essay.content,
+      PlaintextPreviewConfig.inlineConfig
+    ),
     sentAt: post.essay.sent,
     receivedAt: getReceivedAtFromId(id),
     replyCount: post?.seal.meta.replyCount,

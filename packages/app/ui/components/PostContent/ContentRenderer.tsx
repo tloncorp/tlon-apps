@@ -1,4 +1,5 @@
 import { Post } from '@tloncorp/shared/db';
+import { PostContent, convertContent } from '@tloncorp/shared/logic';
 import { ComponentProps, useMemo } from 'react';
 import React from 'react';
 import { YStack, styled } from 'tamagui';
@@ -10,12 +11,7 @@ import {
   DefaultRendererProps,
 } from './BlockRenderer';
 import { InlineRendererConfig, InlineRendererProvider } from './InlineRenderer';
-import {
-  ContentContext,
-  ContentContextProps,
-  PostContent,
-  convertContent,
-} from './contentUtils';
+import { ContentContext, ContentContextProps } from './contentUtils';
 
 const ContentRendererFrame = styled(YStack, {
   name: 'ContentFrame',
