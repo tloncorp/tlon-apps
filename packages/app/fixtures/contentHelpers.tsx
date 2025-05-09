@@ -199,7 +199,7 @@ export const exampleContacts = {
 
 export const postWithImage = makePost(
   exampleContacts.eleanor,
-  [block.randomImage(317 * 2, 251 * 2)],
+  [block.randomImage(317 * 2, 251 * 2), verse.inline('Check out this image!')],
   {
     replyCount: 56,
     reactions: createFakeReactions({ count: 5, minTotal: 1, maxTotal: 5 }),
@@ -530,6 +530,7 @@ export const postWithVideo = makePost(exampleContacts.emotive, [
     src: 'https://storage.googleapis.com/tlon-prod-memex-assets/solfer-magfed/solfer-magfed/2024.8.28..21.6.48..978d.4fdf.3b64.05a1-Screen-Recording-2024-08-02-at-9.13.37 AM.mov',
     height: 1660,
   }),
+  verse.inline('Check out this video!'),
 ]);
 
 export const postWithDeleted = makePost(exampleContacts.eleanor, [], {
