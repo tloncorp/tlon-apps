@@ -9,7 +9,8 @@ import { EditChannelScreenView } from '../../ui';
 type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'EditChannel'>;
 
 export function EditChannelScreen(props: Props) {
-  const { groupId, channelId } = props.route.params;
+  const { groupId, channelId, fromChatDetails } = props.route.params;
+  const { navigation } = props;
   const { updateChannel, deleteChannel } = useGroupContext({
     groupId,
   });
@@ -17,13 +18,27 @@ export function EditChannelScreen(props: Props) {
     id: channelId ?? '',
   });
 
+  const handleGoBack = useCallback(() => {
+    if (fromChatDetails) {
+      navigation.getParent()?.navigate('ChatDetails', {
+        chatType: 'group',
+        chatId: groupId,
+      });
+    } else {
+      navigation.goBack();
+    }
+  }, [navigation, fromChatDetails, groupId]);
+
   const handleDeleteChannel = useCallback(() => {
     const prevChannel = data;
     if (prevChannel) {
       deleteChannel(prevChannel.id);
-      props.navigation.navigate('ManageChannels', { groupId });
+      navigation.navigate('ManageChannels', {
+        groupId,
+        fromChatDetails,
+      });
     }
-  }, [data, deleteChannel, props.navigation, groupId]);
+  }, [data, deleteChannel, navigation, groupId, fromChatDetails]);
 
   const handleSubmit = useCallback(
     async (
@@ -43,15 +58,15 @@ export function EditChannelScreen(props: Props) {
           readers,
           writers
         );
-        props.navigation.goBack();
+        handleGoBack();
       }
     },
-    [data, updateChannel, props.navigation]
+    [data, updateChannel, handleGoBack]
   );
 
   return (
     <EditChannelScreenView
-      goBack={props.navigation.goBack}
+      goBack={handleGoBack}
       isLoading={isLoading}
       channel={data}
       onDeleteChannel={handleDeleteChannel}

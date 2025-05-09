@@ -1,9 +1,14 @@
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/shared/urbit';
+import { useCallback } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
-import { RootStackParamList } from '../../navigation/types';
+import {
+  GroupSettingsStackParamList,
+  RootStackParamList,
+} from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   ChatOptionsProvider,
@@ -13,10 +18,22 @@ import {
   useChatOptions,
 } from '../../ui';
 
-export function ChatVolumeScreen(
-  props: NativeStackScreenProps<RootStackParamList, 'ChatVolume'>
-) {
+// Account for both root and group settings navigation stacks
+type RootStackProps = NativeStackScreenProps<RootStackParamList, 'ChatVolume'>;
+type GroupSettingsProps = NativeStackScreenProps<
+  GroupSettingsStackParamList,
+  'ChatVolume'
+>;
+type Props = RootStackProps | GroupSettingsProps;
+
+// Check if we're in group settings stack
+function isGroupSettingsProps(props: Props): props is GroupSettingsProps {
+  return 'fromChatDetails' in props.route.params;
+}
+
+export function ChatVolumeScreen(props: Props) {
   const { chatType, chatId } = props.route.params;
+  const chatSettings = useChatSettingsNavigation();
 
   return (
     <ChatOptionsProvider
@@ -24,9 +41,17 @@ export function ChatVolumeScreen(
         type: chatType,
         id: chatId,
       }}
-      {...useChatSettingsNavigation()}
+      {...chatSettings}
     >
-      <ChatVolumeScreenView chatType={chatType} />
+      <ChatVolumeScreenView
+        chatType={chatType}
+        chatId={chatId}
+        fromChatDetails={
+          isGroupSettingsProps(props)
+            ? props.route.params.fromChatDetails
+            : false
+        }
+      />
     </ChatOptionsProvider>
   );
 }
@@ -53,8 +78,17 @@ export const volumeOptions: {
   },
 ];
 
-function ChatVolumeScreenView({ chatType }: { chatType: 'group' | 'channel' }) {
-  const { navigateBack } = useRootNavigation();
+function ChatVolumeScreenView({
+  chatType,
+  chatId,
+  fromChatDetails,
+}: {
+  chatType: 'group' | 'channel';
+  chatId: string;
+  fromChatDetails?: boolean;
+}) {
+  const navigation = useNavigation();
+  const { navigateToChatDetails } = useRootNavigation();
   const { updateVolume, group, channel } = useChatOptions();
 
   const { data: currentChannelVolume } = store.useChannelVolumeLevel(
@@ -67,9 +101,26 @@ function ChatVolumeScreenView({ chatType }: { chatType: 'group' | 'channel' }) {
   const currentVolumeLevel =
     chatType === 'channel' ? currentChannelVolume : currentGroupVolume;
 
+  const handleBackNavigation = useCallback(() => {
+    if (fromChatDetails && group?.id) {
+      navigateToChatDetails({ type: 'group', id: group.id });
+    } else if (chatType === 'group' && chatId) {
+      navigateToChatDetails({ type: chatType, id: chatId });
+    } else {
+      navigation.goBack();
+    }
+  }, [
+    navigateToChatDetails,
+    group,
+    fromChatDetails,
+    navigation,
+    chatType,
+    chatId,
+  ]);
+
   return (
     <View backgroundColor={'$secondaryBackground'} flex={1}>
-      <ScreenHeader title="Notifications" backAction={navigateBack} />
+      <ScreenHeader title="Notifications" backAction={handleBackNavigation} />
       <Form.FormFrame backgroundType="secondary">
         <Form.RadioInput
           options={volumeOptions}
