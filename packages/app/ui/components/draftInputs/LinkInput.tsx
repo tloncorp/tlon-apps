@@ -137,7 +137,7 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
         }
       })();
     }
-  }, [handleSubmit, isDirty, isValid, onSave]);
+  }, [data, isDirty, isValid, handleSubmit, onSave]);
 
   console.log('LinkInput', {
     isPosting,

@@ -210,12 +210,7 @@ const ChatMessage = ({
         ) : null}
 
         {!showAuthor && post.isEdited ? (
-          <View
-            position="absolute"
-            right={12}
-            top={8}
-            zIndex={199}
-          >
+          <View position="absolute" right={12} top={8} zIndex={199}>
             <Text size="$label/s" color="$tertiaryText">
               Edited
             </Text>
@@ -305,11 +300,8 @@ const ChatMessage = ({
 const WebChatImageRenderer: DefaultRendererProps['image'] = {
   alignItems: 'flex-start',
   imageProps: {
-    maxWidth: 600,
-    maxHeight: 600,
-    height: 'auto',
-    width: 'auto',
-    objectFit: 'contain',
+    maxWidth: 400,
+    maxHeight: 400,
   },
 };
 

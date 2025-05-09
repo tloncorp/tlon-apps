@@ -11,7 +11,15 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
+import {
+  ScrollView,
+  TamaguiComponent,
+  View,
+  ViewStyle,
+  XStack,
+  YStack,
+  styled,
+} from 'tamagui';
 
 import {
   ContentReferenceLoader,
@@ -213,15 +221,19 @@ const BigEmojiText = styled(Text, {
 
 export function LinkBlock({
   block,
+  imageProps,
   ...props
-}: { block: cn.LinkBlockData } & ComponentProps<typeof Reference.Frame>) {
+}: {
+  block: cn.LinkBlockData;
+  imageProps?: ComponentProps<typeof ContentImage>;
+} & ComponentProps<typeof Reference.Frame>) {
   const domain = useMemo(() => {
     const url = new URL(block.url);
     return url.hostname;
   }, [block.url]);
 
   return (
-    <Reference.Frame>
+    <Reference.Frame {...props}>
       <Reference.Header>
         <Reference.Title>
           <Icon type="Link" color="$tertiaryText" customSize={[12, 12]} />
@@ -230,14 +242,15 @@ export function LinkBlock({
       </Reference.Header>
       <Reference.Body>
         {block.previewImageUrl && (
-          <Image
+          <ContentImage
             source={block.previewImageUrl}
-            height={200}
+            flex={1}
             width="100%"
             contentFit="cover"
+            {...imageProps}
           />
         )}
-        <YStack padding="$xl" gap="$xl">
+        <YStack flex={0} padding="$xl" gap="$xl">
           <YStack gap="$s">
             <Text fontWeight="500" color="$secondaryText">
               {block.siteName}
@@ -297,34 +310,6 @@ export function ImageBlock({
 
   const shouldUseAspectRatio = imageProps?.aspectRatio !== 'unset';
 
-  if (isInsideReference) {
-    return (
-      <Pressable
-        overflow="hidden"
-        onPress={handlePress}
-        onLongPress={onLongPress}
-        {...props}
-      >
-        <ContentImage
-          source={{ uri: block.src }}
-          style={{
-            width: '100%',
-            maxHeight: 250,
-            resizeMode: 'contain',
-            ...(shouldUseAspectRatio
-              ? { aspectRatio: dimensions.aspect || 1 }
-              : {}),
-          }}
-          contentFit="contain"
-          borderRadius="$s"
-          alt={block.alt}
-          onLoad={handleImageLoaded}
-          {...imageProps}
-        />
-      </Pressable>
-    );
-  }
-
   return (
     <Pressable
       overflow="hidden"
@@ -336,11 +321,16 @@ export function ImageBlock({
         source={{
           uri: block.src,
         }}
-        style={{
-          ...(shouldUseAspectRatio
-            ? { aspectRatio: dimensions.aspect || 1 }
-            : {}),
-        }}
+        {...(shouldUseAspectRatio
+          ? { aspectRatio: dimensions.aspect || 1 }
+          : {})}
+        {...(isInsideReference
+          ? {
+              maxHeight: 250,
+              resizeMode: 'contain',
+            }
+          : {})}
+        contentFit="contain"
         borderRadius="$s"
         alt={block.alt}
         onLoad={handleImageLoaded}
@@ -350,7 +340,7 @@ export function ImageBlock({
   );
 }
 
-const ContentImage = styled(Image, {
+const ContentImage: TamaguiComponent = styled(Image, {
   name: 'ContentImage',
   context: cn.ContentContext,
   width: '100%',

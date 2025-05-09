@@ -75,6 +75,7 @@ export function GalleryPost({
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [overFlowIsHovered, setOverFlowIsHovered] = useState(false);
+  const showHeaderFooter = showAuthor && !post.hidden && !post.isDeleted;
   const embedded = useMemo(
     () => JSONValue.asBoolean(contentRendererConfiguration?.embedded, false),
     [contentRendererConfiguration]
@@ -139,80 +140,15 @@ export function GalleryPost({
       flex={1}
     >
       <GalleryPostFrame {...props}>
+        {showHeaderFooter && <GalleryPostHeader post={post} />}
         <GalleryContentRenderer
           post={post}
           pointerEvents="none"
           size={size}
           embedded={embedded}
         />
-        {showAuthor && !post.hidden && !post.isDeleted && (
-          <>
-            <View
-              position="absolute"
-              top={0}
-              left={0}
-              right={0}
-              width="100%"
-              pointerEvents="none"
-            >
-              <XStack
-                alignItems="center"
-                justifyContent="space-between"
-                backgroundColor="$background"
-                borderBottomWidth={1}
-                borderColor="$border"
-                borderTopWidth={0}
-                padding="$l"
-                gap="$m"
-              >
-                <ContactName
-                  userId={post.authorId}
-                  showNickname
-                  size="$label/m"
-                  color="$tertiaryText"
-                />
-                <Text size="$label/m" color="$tertiaryText">
-                  {makePrettyDaysSince(new Date(post.receivedAt))}
-                </Text>
-              </XStack>
-            </View>
-            <View
-              position="absolute"
-              bottom={0}
-              left={0}
-              right={0}
-              width="100%"
-              pointerEvents="none"
-            >
-              <XStack
-                alignItems="center"
-                justifyContent="space-between"
-                backgroundColor="$background"
-                borderTopWidth={1}
-                borderColor="$border"
-                gap="$xl"
-                height="$3.5xl"
-                padding="$m"
-                {...props}
-              >
-                <View pointerEvents="auto">
-                  <ReactionsDisplay post={post} minimal={true} />
-                </View>
-                {deliveryFailed ? (
-                  <Text color="$negativeActionText" size="$label/s">
-                    Tap to retry
-                  </Text>
-                ) : (
-                  <XStack alignItems="center" gap="$xs" justifyContent="center">
-                    <Text size="$label/m" color="$tertiaryText">
-                      {post.replyCount}
-                    </Text>
-                    <Icon color="$tertiaryText" size="$s" type="Messages" />
-                  </XStack>
-                )}
-              </XStack>
-            </View>
-          </>
+        {showHeaderFooter && (
+          <GalleryPostFooter post={post} deliveryFailed={deliveryFailed} />
         )}
         <SendPostRetrySheet
           open={showRetrySheet}
@@ -248,6 +184,73 @@ export function GalleryPost({
   );
 }
 
+export function GalleryPostHeader({ post }: { post: db.Post }) {
+  return (
+    <View width="100%" pointerEvents="none">
+      <XStack
+        alignItems="center"
+        justifyContent="space-between"
+        backgroundColor="$background"
+        borderBottomWidth={1}
+        borderColor="$border"
+        borderTopWidth={0}
+        padding="$l"
+        gap="$m"
+      >
+        <ContactName
+          userId={post.authorId}
+          showNickname
+          size="$label/m"
+          color="$tertiaryText"
+        />
+        <Text size="$label/m" color="$tertiaryText">
+          {makePrettyDaysSince(new Date(post.receivedAt))}
+        </Text>
+      </XStack>
+    </View>
+  );
+}
+
+export function GalleryPostFooter({
+  post,
+  deliveryFailed,
+  ...props
+}: { post: db.Post; deliveryFailed?: boolean } & ComponentProps<
+  typeof XStack
+>) {
+  return (
+    <View width="100%" pointerEvents="none">
+      <XStack
+        alignItems="center"
+        justifyContent="space-between"
+        backgroundColor="$background"
+        borderTopWidth={1}
+        borderColor="$border"
+        gap="$xl"
+        height="$3.5xl"
+        padding="$m"
+        {...props}
+      >
+        <View pointerEvents="auto">
+          <ReactionsDisplay post={post} minimal={true} />
+        </View>
+        {deliveryFailed ? (
+          <Text color="$negativeActionText" size="$label/s">
+            Tap to retry
+          </Text>
+        ) : (
+          <XStack alignItems="center" gap="$xs" justifyContent="center">
+            <Text size="$label/m" color="$tertiaryText">
+              {post.replyCount}
+            </Text>
+            <Icon color="$tertiaryText" size="$s" type="Messages" />
+          </XStack>
+        )}
+      </XStack>
+    </View>
+  );
+}
+
 export function GalleryPostDetailView({
   post,
   onPressImage,
@@ -266,6 +269,7 @@ export function GalleryPostDetailView({
     return makePrettyShortDate(new Date(post.receivedAt));
   }, [post.receivedAt]);
   const content = usePostContent(post);
+  // console.log('gallery post detail view', { post, livePost, content });
   const [viewReactionsOpen, setViewReactionsOpen] = useState(false);
 
   const firstImage = useMemo(() => {
@@ -369,6 +373,7 @@ export function GalleryContentRenderer({
 } & Omit<ComponentProps<typeof PreviewFrame>, 'content'>) {
   const content = usePostContent(post);
   const previewContent = usePreviewContent(content);
+  console.log('gallery content renderer', { post, content, previewContent });
 
   if (post.hidden) {
     return (
@@ -427,7 +432,7 @@ const PreviewFrame = styled(View, {
   name: 'PostPreviewFrame',
   flex: 1,
   borderColor: '$border',
-  borderRadius: '$m',
+  borderRadius: 0,
   backgroundColor: '$background',
   overflow: 'hidden',
   variants: {
@@ -438,10 +443,7 @@ const PreviewFrame = styled(View, {
         backgroundColor: 'transparent',
       },
     },
-    previewType: (
-      type: BlockType | 'link',
-      config: { props: { embedded?: true } }
-    ) => {
+    previewType: (type: BlockType, config: { props: { embedded?: true } }) => {
       if (config.props.embedded) {
         return {};
       }
@@ -544,6 +546,11 @@ const LargeContentRenderer = createContentRenderer({
       height: '100%',
       ...noWrapperPadding,
     },
+    link: {
+      imageProps: {
+        aspectRatio: 1.5,
+      },
+    },
   },
 });
 
@@ -558,6 +565,7 @@ const SmallContentRenderer = createContentRenderer({
     },
     image: {
       height: '100%',
+      borderRadius: 0,
       imageProps: {
         aspectRatio: 'unset',
         height: '100%',
@@ -580,6 +588,10 @@ const SmallContentRenderer = createContentRenderer({
       borderWidth: 0,
       contentSize: '$s',
       textProps: { size: '$mono/s' },
+      ...noWrapperPadding,
+    },
+    link: {
+      borderRadius: 0,
       ...noWrapperPadding,
     },
   },
@@ -624,6 +636,8 @@ function usePreviewContent(content: BlockData[]): BlockData[] {
       return [groupedBlocks.image[0]];
     } else if (groupedBlocks.video?.length) {
       return [groupedBlocks.video[0]];
+    } else if (groupedBlocks.link?.length) {
+      return [groupedBlocks.link[0]];
     }
     return content;
   }, [content]);
