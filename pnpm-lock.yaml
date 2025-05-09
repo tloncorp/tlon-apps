@@ -235,9 +235,6 @@ importers:
       '@urbit/http-api':
         specifier: 3.2.0-dev
         version: 3.2.0-dev
-      '@urbit/nockjs':
-        specifier: github:urbit/nockjs#8ed20e5
-        version: https://codeload.github.com/urbit/nockjs/tar.gz/8ed20e5
       classnames:
         specifier: ^2.3.2
         version: 2.5.1
