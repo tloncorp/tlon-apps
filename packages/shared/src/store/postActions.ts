@@ -502,6 +502,7 @@ export async function verifyPostDelivery(post: db.Post): Promise<boolean> {
   }
 
   try {
+    logger.trackEvent(`verifying post delivery for chan ${post.channelId}`);
     const response = await api.getChannelPosts({
       channelId: post.channelId,
       mode: 'newest',

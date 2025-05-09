@@ -110,6 +110,8 @@ export interface Scry {
   app: GallAgent;
   /** {@inheritDoc Path} */
   path: Path;
+  /** {@inheritDoc Timeout} */
+  timeout?: number;
 }
 
 /**
