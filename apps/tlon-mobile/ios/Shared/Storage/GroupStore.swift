@@ -7,6 +7,6 @@
 
 import Foundation
 
-final class GroupStore: UserDefaultsStore<Gang> {
-    static let sharedInstance = GroupStore(storageKey: "store.groups", fetchItems: PocketAPI.shared.fetchGangs)
+final class GroupStore: UserDefaultsStore<Group> {
+    static let sharedInstance = GroupStore(storageKey: "store.groups", fetchItems: PocketAPI.shared.fetchGroups)
 }

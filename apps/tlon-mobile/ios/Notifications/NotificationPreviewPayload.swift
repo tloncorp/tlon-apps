@@ -85,7 +85,7 @@ struct NotificationPreviewContentNodeRenderer {
         case let .channelTitle(channelId):
             return (try? await GroupChannelStore.sharedInstance.getOrFetchItem(channelId)?.meta.title) ?? channelId
         case let .groupTitle(groupId):
-            return (try? await GroupStore.sharedInstance.getOrFetchItem(groupId)?.preview?.meta.title) ?? groupId
+            return (try? await GroupStore.sharedInstance.getOrFetchItem(groupId)?.meta.title) ?? groupId
         case let .concatenateStrings(first, second):
             return [await render(first), await render(second)].joined()
         case let .userNickname(ship):
