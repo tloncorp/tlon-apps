@@ -22,20 +22,12 @@ export function EditProfileScreen({ route, navigation }: Props) {
     [navigation]
   );
 
-  const handleGoBack = useCallback(() => {
-    // We'll always go back to the profile screen of the user being edited
-    // navigation.goBack() was sometimes not working as expected (particularly in the Activity tab)
-    navigation.navigate('UserProfile', {
-      userId: route.params.userId,
-    });
-  }, [navigation, route.params.userId]);
-
   return (
     <GroupsProvider groups={groups ?? []}>
       <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
         <EditProfileScreenView
           userId={route.params.userId}
-          onGoBack={handleGoBack}
+          onGoBack={navigation.goBack}
           onGoToAttestation={handleGoToAttestation}
         />
       </AttachmentProvider>

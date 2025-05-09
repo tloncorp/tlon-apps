@@ -90,6 +90,7 @@ export const ActivityNavigator = () => {
     <ActivityDrawer.Navigator
       initialRouteName="ActivityEmpty"
       drawerContent={DrawerContent}
+      backBehavior='history'
       screenOptions={{
         headerShown: false,
         drawerType: 'permanent',

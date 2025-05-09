@@ -94,7 +94,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
     const isContactsTabRoot = navHistory?.length === 1;
     // @ts-expect-error - key is a valid property
     const isActivityTab = navHistory?.[0]?.key.includes('ActivityEmpty');
-    return !((isWebDesktop && isContactsTabRoot) || isActivityTab);
+    return !(isWebDesktop && (isContactsTabRoot || isActivityTab));
   }, [isWindowNarrow, navigation]);
 
   return (
