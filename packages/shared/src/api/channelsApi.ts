@@ -61,6 +61,11 @@ export type WritersUpdate = {
   writers: string[];
   groupId: string | null;
 };
+export type OrderUpdate = {
+  type: 'updateOrder';
+  channelId: string;
+  order: string[];
+};
 export type CreateChannelUpdate = {
   type: 'createChannel';
   channelId: string;
@@ -102,6 +107,7 @@ export type ChannelsUpdate =
   | LeaveChannelSuccessUpdate
   | InitialPostsOnChannelJoin
   // | MarkChannelReadUpdate
+  | OrderUpdate
   | WritersUpdate;
 
 export const createChannel = async ({
@@ -198,6 +204,14 @@ export const toChannelsUpdate = (
   const channelId = channelEvent.nest;
 
   if ('response' in channelEvent) {
+    if ('order' in channelEvent.response) {
+      return {
+        type: 'updateOrder',
+        channelId,
+        order: channelEvent.response.order.map((id) => getCanonicalPostId(id)),
+      };
+    }
+
     if ('perm' in channelEvent.response) {
       return {
         type: 'updateWriters',
