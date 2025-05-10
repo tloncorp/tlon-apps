@@ -1153,6 +1153,15 @@ export const handleChannelsUpdate = async (
         ctx
       );
       break;
+    case 'updateOrder':
+      await db.updateChannel(
+        {
+          id: update.channelId,
+          order: update.order,
+        },
+        ctx
+      );
+      break;
     case 'deletePost':
       await db.markPostAsDeleted(update.postId, ctx);
       await db.updateChannel({ id: update.channelId, lastPostId: null }, ctx);
