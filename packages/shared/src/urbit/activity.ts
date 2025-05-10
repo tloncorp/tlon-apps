@@ -4,6 +4,7 @@ import _ from 'lodash';
 import { Kind, Story } from './channel';
 import { ContactBookProfile } from './contact';
 import { nestToFlag, whomIsDm, whomIsFlag, whomIsMultiDm } from './utils';
+import type { UnionToIntersection } from '../utils';
 
 export type Whom = { ship: string } | { club: string };
 
@@ -877,10 +878,6 @@ export function getRelevancy(
   );
   return 'involvedThread';
 }
-
-type UnionToIntersection<T> = {
-  [E in T as keyof E]: E[keyof E];
-};
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace ActivityIncomingEvent {

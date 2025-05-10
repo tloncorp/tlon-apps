@@ -3,6 +3,7 @@ import bigInt, { BigInteger } from 'big-integer';
 import _ from 'lodash';
 import BTree from 'sorted-btree';
 
+import { UnionToIntersection } from '../utils';
 import { Inline } from './content';
 import { GroupMeta } from './groups';
 import { Flag } from './hark';
@@ -141,6 +142,17 @@ export type Block =
   | Header
   | Rule
   | Code;
+
+// eslint-disable-next-line @typescript-eslint/no-namespace
+export namespace Block {
+  export function is<K extends keyof UnionToIntersection<Block>>(
+    poly: Block,
+    type: K
+  ): // @ts-expect-error - hey, I'm asserting here!
+  poly is Pick<UnionToIntersection<Block>, K> {
+    return type in poly;
+  }
+}
 
 export interface VerseBlock {
   block: Block;
