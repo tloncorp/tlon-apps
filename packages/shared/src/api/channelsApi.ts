@@ -168,6 +168,7 @@ export function toClientChannelsInit(
 
 export type ChannelInit = {
   channelId: string;
+  order: string[];
   writers: string[];
   readers: string[];
 };
@@ -177,7 +178,12 @@ export function toClientChannelInit(
   channel: ub.Channel,
   readers: string[]
 ): ChannelInit {
-  return { channelId: id, writers: channel.perms.writers ?? [], readers };
+  return {
+    channelId: id,
+    writers: channel.perms.writers ?? [],
+    readers,
+    order: channel.order.map(x => getCanonicalPostId(x)),
+  };
 }
 
 export const toChannelsUpdate = (
