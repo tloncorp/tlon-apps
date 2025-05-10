@@ -347,6 +347,11 @@ function extractEmbedsFromInlines(inlines: ub.Inline[]): BlockData[] {
 
 function convertBlock(block: ub.Block): BlockData {
   const is = ub.Block.is;
+  const errorMessage = (text: string): BlockData => ({
+    type: 'paragraph',
+    content: [{ type: 'text', text }],
+  });
+
   switch (true) {
     case is(block, 'image'): {
       if (utils.VIDEO_REGEX.test(block.image.src)) {
@@ -387,14 +392,16 @@ function convertBlock(block: ub.Block): BlockData {
         type: 'rule',
       };
     }
+    case is(block, 'cite'): {
+      return (
+        api.toContentReference(block.cite) ?? errorMessage('Failed to parse')
+      );
+    }
     default: {
       assertNever(block);
 
       console.warn('Unhandled block type:', { block });
-      return {
-        type: 'paragraph',
-        content: [{ type: 'text', text: 'Unknown content type' }],
-      };
+      return errorMessage('Unknown content type');
     }
   }
 }
