@@ -504,14 +504,14 @@ export const usePostWithThreadUnreads = (options: { id: string }) => {
 };
 
 export const usePostWithRelations = (
-  options: { id: string },
+  options: { id: string } | null,
   initialData?: db.Post
 ) => {
   return useQuery({
-    queryKey: ['post', options.id],
+    queryKey: ['post', options?.id],
     staleTime: Infinity,
     ...(initialData ? { initialData } : {}),
-    queryFn: () => db.getPostWithRelations(options),
+    queryFn: () => (options == null ? null : db.getPostWithRelations(options)),
   });
 };
 
