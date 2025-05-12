@@ -33,10 +33,10 @@ interface LinkInputProps {
   onSave: ({ block, meta }: LinkInputSaveParams) => void;
 }
 
+const TITLE_MAX_LENGTH = 240;
+const DESCRIPTION_MAX_LENGTH = 580;
+
 export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
-  const [status, setStatus] = useState<
-    'idle' | 'loading' | 'success' | 'error'
-  >('idle');
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const initialValues = useMemo(() => {
@@ -73,15 +73,21 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
   const { data, isLoading } = store.useLinkGrabber(url);
   useEffect(() => {
     if (data && data.type === 'page') {
-      if (form.title === '') {
+      const newTitle = data.title || '';
+      if (form.title === '' && newTitle !== form.title) {
         setValue('title', data.title || '', {
+          shouldTouch: true,
           shouldDirty: true,
+          shouldValidate: true,
         });
       }
 
-      if (form.description === '') {
-        setValue('description', data.description || '', {
+      const newDescription = data.description || '';
+      if (form.description === '' && newDescription !== form.description) {
+        setValue('description', newDescription, {
+          shouldTouch: true,
           shouldDirty: true,
+          shouldValidate: true,
         });
       }
     }
@@ -234,8 +240,8 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
               }}
               rules={{
                 maxLength: {
-                  value: 100,
-                  message: 'Title is limited to 100 characters',
+                  value: TITLE_MAX_LENGTH,
+                  message: `Title is limited to ${TITLE_MAX_LENGTH} characters`,
                 },
               }}
             />
@@ -268,8 +274,8 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
               }}
               rules={{
                 maxLength: {
-                  value: 240,
-                  message: 'Description is limited to 240 characters',
+                  value: DESCRIPTION_MAX_LENGTH,
+                  message: `Description is limited to ${DESCRIPTION_MAX_LENGTH} characters`,
                 },
               }}
             />
