@@ -261,6 +261,8 @@ export const syncSystemContacts = async (ctx?: SyncCtx) => {
       numContacts: systemContacts.length,
       error,
     });
+    // we throw here so that we can avoid showing the "Success" alert
+    throw error;
   }
 };
 
