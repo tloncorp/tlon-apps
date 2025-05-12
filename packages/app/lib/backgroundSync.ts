@@ -52,6 +52,11 @@ async function performSync() {
 }
 
 const TASK_ID = 'backgroundSync';
+export async function unregisterBackgroundSyncTask() {
+  await Notifications.unregisterTaskAsync(TASK_ID);
+  await BackgroundFetch.unregisterTaskAsync(TASK_ID);
+  await TaskManager.unregisterTaskAsync(TASK_ID);
+}
 export function registerBackgroundSyncTask() {
   TaskManager.defineTask<Record<string, unknown>>(
     TASK_ID,
