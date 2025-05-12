@@ -41,6 +41,8 @@ import {
 } from '../logic/activity';
 import { Session } from '../store';
 import { Rank } from '../urbit';
+import { processBatchOperation } from './dbUtils';
+import { createDmChannelsForNewContacts } from './modelBuilders';
 import {
   QueryCtx,
   createReadQuery,
@@ -380,7 +382,7 @@ export const insertSystemContacts = createWriteQuery(
           .values(batch)
           .onConflictDoUpdate({
             target: [$systemContacts.id],
-            set: conflictUpdateSetAll($systemContacts),
+            set: conflictUpdateSetAll($systemContacts, ['contactId']),
           });
         logger.trackEvent(domain.AnalyticsEvent.DebugSystemContacts, {
           context: 'inserted system contacts batch',
@@ -399,10 +401,138 @@ export const insertSystemContacts = createWriteQuery(
   ['systemContacts', 'systemContactSentInvites', 'contacts']
 );
 
-export const linkSystemContact = createWriteQuery(
-  'insertSystemContactSentInvites',
-  async (params: { sentInvites: SystemContactSentInvite[] }, ctx: QueryCtx) => {
-    // TODO
+function generateNicknameUpdates(
+  matches: [string, string][],
+  systemContacts: SystemContact[]
+): { contactId: string; nicknamePart: string }[] {
+  const nicknameUpdates: { contactId: string; nicknamePart: string }[] = [];
+
+  for (const [phoneNumber, contactId] of matches) {
+    const matchingSystemContact = systemContacts.find(
+      (sc) => sc.phoneNumber === phoneNumber
+    );
+
+    if (
+      matchingSystemContact &&
+      (matchingSystemContact.firstName || matchingSystemContact.lastName)
+    ) {
+      const nicknamePart =
+        `${matchingSystemContact.firstName || ''} ${matchingSystemContact.lastName || ''}`.trim();
+
+      if (nicknamePart) {
+        nicknameUpdates.push({ contactId, nicknamePart });
+      }
+    }
+  }
+
+  return nicknameUpdates;
+}
+
+async function updateContactNicknames(
+  nicknameUpdates: { contactId: string; nicknamePart: string }[],
+  txCtx: QueryCtx,
+  batchSize: number
+): Promise<void> {
+  await processBatchOperation(
+    nicknameUpdates,
+    batchSize,
+    async (batch) => {
+      return Promise.all(
+        batch.map(({ contactId, nicknamePart }) =>
+          txCtx.db
+            .update($contacts)
+            .set({ customNickname: nicknamePart })
+            .where(eq($contacts.id, contactId))
+        )
+      );
+    },
+    'Error updating contact nicknames'
+  );
+}
+
+export async function updateSystemContactIds(
+  matches: [string, string][],
+  txCtx: QueryCtx,
+  batchSize: number
+): Promise<void> {
+  const contactIdUpdates = matches.map(([phoneNumber, contactId]) => ({
+    phoneNumber,
+    contactId,
+  }));
+
+  await processBatchOperation(
+    contactIdUpdates,
+    batchSize,
+    async (batch) => {
+      return Promise.all(
+        batch.map(({ phoneNumber, contactId }) =>
+          txCtx.db
+            .update($systemContacts)
+            .set({ contactId })
+            .where(eq($systemContacts.phoneNumber, phoneNumber))
+        )
+      );
+    },
+    'Error updating system contact contactId'
+  );
+}
+
+export const linkSystemContacts = createWriteQuery(
+  'linkSystemContacts',
+  async (params: { matches: [string, string][] }, ctx: QueryCtx) => {
+    if (!params.matches.length) return;
+    const { matches } = params;
+
+    const systemContactPhoneNumbers = matches.map((m) => m[0]);
+
+    const contactIds = matches.map((m) => m[1]);
+
+    const systemContacts = await getSystemContacts(ctx);
+
+    return withTransactionCtx(ctx, async (txCtx) => {
+      const [existingContacts, linkedSystemContacts] = await Promise.all([
+        txCtx.db.query.contacts.findMany({
+          where: and(
+            inArray($contacts.id, contactIds),
+            eq($contacts.isContact, true)
+          ),
+        }),
+        txCtx.db.query.systemContacts.findMany({
+          where: and(
+            inArray($systemContacts.phoneNumber, systemContactPhoneNumbers),
+            isNotNull($systemContacts.contactId)
+          ),
+        }),
+      ]);
+
+      // determine which contacts and phone links are new
+      const existingContactIds = new Set(existingContacts.map((c) => c.id));
+      const alreadyLinkedPhoneNumbers = new Set(
+        linkedSystemContacts.map((sc) => sc.phoneNumber)
+      );
+
+      const newContactMatches = matches.filter(
+        ([phoneNumber, contactId]) =>
+          !existingContactIds.has(contactId) ||
+          !alreadyLinkedPhoneNumbers.has(phoneNumber)
+      );
+
+      const batchSize = 200;
+
+      // generate and process nickname updates
+      const nicknameUpdates = generateNicknameUpdates(matches, systemContacts);
+      await updateContactNicknames(nicknameUpdates, txCtx, batchSize);
+
+      // update system contact IDs
+      await updateSystemContactIds(matches, txCtx, batchSize);
+
+      // create channels for new contacts
+      const newChannels = createDmChannelsForNewContacts(newContactMatches);
+
+      // we use insertChannelsInternal so that we can create the channels within
+      // the transaction
+      await insertChannelsInternal(newChannels, txCtx);
+    });
   },
   ['systemContacts', 'systemContactSentInvites', 'contacts']
 );
@@ -430,7 +560,27 @@ export const getSystemContacts = createReadQuery(
   'getSystemContacts',
   async (ctx: QueryCtx): Promise<SystemContact[]> => {
     try {
+      logger.log('getSystemContacts: getting system contacts');
       const result = await ctx.db.query.systemContacts.findMany({
+        with: { sentInvites: true },
+      });
+      logger.log('getSystemContacts: got system contacts', result);
+      return result;
+    } catch (e) {
+      console.log(`Error getting system contacts`, e);
+      throw e;
+    }
+  },
+  ['systemContacts', 'systemContactSentInvites']
+);
+
+export const getSystemContactsBatchByContactId = createReadQuery(
+  'getSystemContactsBatchByContactId',
+  async (contactIds: string[], ctx: QueryCtx): Promise<SystemContact[]> => {
+    if (!contactIds.length) return [];
+    try {
+      const result = await ctx.db.query.systemContacts.findMany({
+        where: inArray($systemContacts.contactId, contactIds),
         with: { sentInvites: true },
       });
       return result;
@@ -1856,6 +2006,44 @@ export const getChannelWithRelations = createReadQuery(
   ]
 );
 
+async function insertChannelsInternal(channels: Channel[], ctx: QueryCtx) {
+  if (channels.length === 0) {
+    return;
+  }
+
+  logger.log(
+    'insertChannelsInternal',
+    channels.length,
+    channels.map((c) => c.id)
+  );
+
+  await ctx.db
+    .insert($channels)
+    .values(channels)
+    .onConflictDoUpdate({
+      target: $channels.id,
+      set: conflictUpdateSetAll($channels, [
+        'lastPostId',
+        'lastPostAt',
+        'currentUserIsMember',
+      ]),
+    });
+
+  for (const channel of channels) {
+    logger.log('insertChannels: members', channel.id, channel.members);
+    if (channel.members && channel.members.length > 0) {
+      await ctx.db
+        .delete($chatMembers)
+        .where(eq($chatMembers.chatId, channel.id));
+      await ctx.db
+        .insert($chatMembers)
+        .values(channel.members)
+        .onConflictDoNothing();
+    }
+  }
+  await setLastPosts(null, ctx);
+}
+
 export const insertChannels = createWriteQuery(
   'insertChannels',
   async (channels: Channel[], ctx: QueryCtx) => {
@@ -1866,35 +2054,12 @@ export const insertChannels = createWriteQuery(
     logger.log(
       'insertChannels',
       channels.length,
-      channels.map((c) => c.id)
+      channels.map((c) => c.id),
+      'skipTransaction'
     );
 
     return withTransactionCtx(ctx, async (txCtx) => {
-      await txCtx.db
-        .insert($channels)
-        .values(channels)
-        .onConflictDoUpdate({
-          target: $channels.id,
-          set: conflictUpdateSetAll($channels, [
-            'lastPostId',
-            'lastPostAt',
-            'currentUserIsMember',
-          ]),
-        });
-
-      for (const channel of channels) {
-        logger.log('insertChannels: members', channel.id, channel.members);
-        if (channel.members && channel.members.length > 0) {
-          await txCtx.db
-            .delete($chatMembers)
-            .where(eq($chatMembers.chatId, channel.id));
-          await txCtx.db
-            .insert($chatMembers)
-            .values(channel.members)
-            .onConflictDoNothing();
-        }
-      }
-      await setLastPosts(null, txCtx);
+      await insertChannelsInternal(channels, txCtx);
     });
   },
   ['channels']
