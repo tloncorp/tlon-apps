@@ -31,9 +31,9 @@ export class NativeDb extends BaseDb {
     );
     // Experimental SQLite settings. May cause crashes. More here:
     // https://ospfranco.notion.site/Configuration-6b8b9564afcc4ac6b6b377fe34475090
-    await this.connection.execute('PRAGMA mmap_size=268435456');
-    await this.connection.execute('PRAGMA journal_mode=MEMORY');
-    await this.connection.execute('PRAGMA synchronous=OFF');
+    this.connection.execute('PRAGMA mmap_size=268435456');
+    this.connection.execute('PRAGMA journal_mode=MEMORY');
+    this.connection.execute('PRAGMA synchronous=OFF');
 
     this.connection.updateHook(() => this.handleUpdate());
 
@@ -101,7 +101,7 @@ export class NativeDb extends BaseDb {
 
     try {
       await this.connection?.migrateClient(this.client!);
-      await this.connection?.execute(TRIGGER_SETUP);
+      this.connection?.execute(TRIGGER_SETUP);
       this.needsMigration = false;
       return;
     } catch (e) {
