@@ -1,4 +1,4 @@
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, withRetry } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
   AnalyticsSeverity,
@@ -45,7 +45,6 @@ export function useBootSequence() {
   const connectionStatus = store.useConnectionStatus();
   const lureMeta = useLureMetadata();
   const configureUrbitClient = useConfigureUrbitClient();
-  const session = store.useCurrentSession();
 
   const [bootPhase, setBootPhase] = useState(NodeBootPhase.IDLE);
   const [reservedNodeId, setReservedNodeId] = useState<string | null>(null);
@@ -119,7 +118,10 @@ export function useBootSequence() {
           shipName: shipInfo.ship,
           shipUrl: shipInfo.shipUrl,
         });
-        store.syncStart();
+        withRetry(() => store.syncStart(), {
+          numOfAttempts: 3,
+          startingDelay: 30000,
+        });
 
         logger.crumb(`authenticated with node`);
         return NodeBootPhase.CONNECTING;
@@ -148,14 +150,6 @@ export function useBootSequence() {
     if (bootPhase === NodeBootPhase.SCAFFOLDING_WAYFINDING) {
       // provide some wiggle room for sync start to run
       await wait(3000);
-
-      // only once high priority sync has completed will we try to scaffold
-      if (!session?.startTime) {
-        logger.trackEvent(AnalyticsEvent.WayfindingDebug, {
-          context: 'Cannot scaffold yet, connection not established',
-        });
-        return NodeBootPhase.SCAFFOLDING_WAYFINDING;
-      }
 
       try {
         await store.scaffoldPersonalGroup();
@@ -310,7 +304,6 @@ export function useBootSequence() {
     connectionStatus,
     lureMeta,
     reservedNodeId,
-    session?.startTime,
     setShip,
     telemetry,
   ]);
@@ -319,7 +312,7 @@ export function useBootSequence() {
   // the step didn't advance
   const [bootStepCounter, setBootCounter] = useState(0);
   const tryingWayfindingSince = useRef<number | null>(null);
-  const MAX_WAYFINDING_ATTEMPTS = 5;
+  const tryingInviteHandling = useRef<number | null>(null);
   useEffect(() => {
     const runBootSequence = async () => {
       // prevent simultaneous runs
@@ -349,6 +342,7 @@ export function useBootSequence() {
       } catch (e) {
         logger.trackError('runBootPhase error', {
           bootPhase,
+          bootPhaseName: BootPhaseNames[bootPhase],
           errorMessage: e.message,
           errorStack: e.stack,
         });
@@ -383,16 +377,22 @@ export function useBootSequence() {
     }
 
     // if we're stuck trying to handle invites afte user finishes signing up, bail
-    const beenRunningTooLong =
-      Date.now() - sequenceStartTimeRef.current > HANDLE_INVITES_TIMEOUT;
-    const isInOptionalPhase = [
-      NodeBootPhase.ACCEPTING_INVITES,
-      NodeBootPhase.CHECKING_FOR_INVITE,
-    ].includes(bootPhase);
-    if (isInOptionalPhase && beenRunningTooLong) {
-      logger.trackError('accept invites abort', { inviteId: lureMeta?.id });
-      setBootPhase(NodeBootPhase.READY);
-      return;
+    if (
+      [
+        NodeBootPhase.ACCEPTING_INVITES,
+        NodeBootPhase.CHECKING_FOR_INVITE,
+      ].includes(bootPhase)
+    ) {
+      if (!tryingInviteHandling.current) {
+        tryingInviteHandling.current = Date.now();
+      } else if (
+        Date.now() - tryingInviteHandling.current >
+        HANDLE_INVITES_TIMEOUT
+      ) {
+        logger.trackError('accept invites abort', { inviteId: lureMeta?.id });
+        setBootPhase(NodeBootPhase.READY);
+        return;
+      }
     }
 
     if (![NodeBootPhase.IDLE, NodeBootPhase.READY].includes(bootPhase)) {
@@ -408,6 +408,7 @@ export function useBootSequence() {
     lastRunPhaseRef.current = NodeBootPhase.IDLE;
     lastRunErrored.current = false;
     tryingWayfindingSince.current = null;
+    tryingInviteHandling.current = null;
 
     sequenceStartTimeRef.current = 0;
   }, []);

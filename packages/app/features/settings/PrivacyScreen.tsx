@@ -49,6 +49,15 @@ export function PrivacySettingsScreen(props: Props) {
     }
   }, [calmSettings]);
 
+  useEffect(() => {
+    if (phoneAttest) {
+      setState((prev) => ({
+        ...prev,
+        phoneDiscoverable: parsePhoneDiscoverability(phoneAttest),
+      }));
+    }
+  }, [phoneAttest]);
+
   const togglePhoneDiscoverable = useCallback(async () => {
     if (!phoneAttest) {
       return;

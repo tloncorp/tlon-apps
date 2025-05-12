@@ -12,10 +12,13 @@ import {
   Thread,
   Urbit,
 } from '../http-api';
-import { desig, preSig } from '../urbit';
+import { preSig } from '../urbit';
 import { getLandscapeAuthCookie } from './landscapeApi';
 
 const logger = createDevLogger('urbit', false);
+
+const DEFAULT_SCRY_TIMEOUT = 60 * 1000; // 1 minute
+const DEFAULT_THREAD_TIMEOUT = 90 * 1000; // 90 seconds
 
 interface Config
   extends Pick<
@@ -166,6 +169,7 @@ export function internalConfigureClient({
     logger.trackEvent(AnalyticsEvent.NodeConnectionDebug, {
       context: 'status update',
       connectionStatus: event.status,
+      statusUpdateContext: event.context ? event.context : null,
     });
     config.lastStatus = event.status;
     onChannelStatusChange?.(event.status);
@@ -548,7 +552,15 @@ async function track<R>(
   });
 }
 
-export async function scry<T>({ app, path }: { app: string; path: string }) {
+export async function scry<T>({
+  app,
+  path,
+  timeout,
+}: {
+  app: string;
+  path: string;
+  timeout?: number;
+}) {
   if (!config.client) {
     throw new Error('Client not initialized');
   }
@@ -559,9 +571,14 @@ export async function scry<T>({ app, path }: { app: string; path: string }) {
   const trackDuration = createDurationTracker(AnalyticsEvent.Scry, {
     app,
     path: redactPath(path),
+    shouldTimeoutAfter: timeout ?? DEFAULT_SCRY_TIMEOUT,
   });
   try {
-    const result = await config.client.scry<T>({ app, path });
+    const result = await config.client.scry<T>({
+      app,
+      path,
+      timeout: timeout ?? DEFAULT_SCRY_TIMEOUT,
+    });
     trackDuration('success');
     return result;
   } catch (res) {
@@ -573,13 +590,23 @@ export async function scry<T>({ app, path }: { app: string; path: string }) {
       trackDuration('success');
       return result;
     }
-    trackDuration('error');
-    const body = await res.text();
-    throw new BadResponseError(res.status, body);
+    trackDuration('error', {
+      message: res.message,
+      responseStatus: res.status,
+    });
+    throw new BadResponseError(res.status, res.toString());
   }
 }
 
-export async function scryNoun({ app, path }: { app: string; path: string }) {
+export async function scryNoun({
+  app,
+  path,
+  timeout,
+}: {
+  app: string;
+  path: string;
+  timeout?: number;
+}) {
   if (!config.client) {
     throw new Error('Client not initialized');
   }
@@ -587,23 +614,33 @@ export async function scryNoun({ app, path }: { app: string; path: string }) {
     await config.pendingAuth;
   }
   logger.log('scry noun', app, path);
+  const trackDuration = createDurationTracker(AnalyticsEvent.ScryNoun, {
+    app,
+    path: redactPath(path),
+    shouldTimeoutAfter: timeout ?? DEFAULT_SCRY_TIMEOUT,
+  });
   try {
-    return await config.client.scryNoun({ app, path });
+    const result = await config.client.scryNoun({
+      app,
+      path,
+      timeout: timeout ?? DEFAULT_SCRY_TIMEOUT,
+    });
+    trackDuration('success');
+    return result;
   } catch (res) {
     logger.log('bad scry', app, path, res.status);
     if (res.status === 403) {
       logger.log('scry failed with 403, authing to try again');
       await reauth();
-      return config.client.scryNoun({ app, path });
+      const result = config.client.scryNoun({ app, path });
+      trackDuration('success');
+      return result;
     }
-    const body = await res.text();
-    logger.trackEvent('Bad Noun Scry Response', {
-      status: res.status,
-      app,
-      path,
-      body,
+    trackDuration('error', {
+      message: res.message,
+      responseStatus: res.status,
     });
-    throw new BadResponseError(res.status, body);
+    throw new BadResponseError(res.status, res.toString());
   }
 }
 
@@ -616,13 +653,33 @@ export async function thread<T, R = any>(params: Thread<T>): Promise<R> {
     throw new Error('Cannot call thread before client is initialized');
   }
 
-  const response = await config.client.thread<T>(params);
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new BadResponseError(response.status, errorText);
-  }
+  const trackDuration = createDurationTracker(AnalyticsEvent.Thread, {
+    desk: params.desk,
+    inputMark: params.inputMark,
+    threadName: params.threadName,
+    outputMark: params.outputMark,
+    shouldTimeoutAfter: params.timeout ?? DEFAULT_THREAD_TIMEOUT,
+  });
+  const requestContext: any = {};
 
-  return response.json();
+  try {
+    const response = await config.client.thread<T>({
+      ...params,
+      timeout: params.timeout ?? DEFAULT_THREAD_TIMEOUT,
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      requestContext.responseStatus = response.status;
+      requestContext.responseText = errorText;
+      throw new BadResponseError(response.status, errorText);
+    }
+
+    trackDuration('success');
+    return response.json();
+  } catch (err) {
+    trackDuration('error', { ...requestContext, errorMessage: err.toString() });
+    throw err;
+  }
 }
 
 // Remove any identifiable information from path
@@ -701,9 +758,10 @@ function createDurationTracker<T extends Record<string, any>>(
   data: T
 ) {
   const startTime = Date.now();
-  return (status: 'success' | 'error') => {
+  return (status: 'success' | 'error', properties?: Record<string, any>) => {
     logger.trackEvent(event, {
       ...data,
+      ...properties,
       status,
       duration: Date.now() - startTime,
     });
