@@ -209,82 +209,91 @@
       ++  diff
         |^
         |=  =r-group:v7:g
-        ^-  diff:v2:g
-        ?+  -.r-group  ~|(diff-bad-r-group+-.r-group !!)
-          %meta     [%meta meta.r-group]
-          %seat     (diff-from-seat [ship r-seat]:r-group)
-          %role     (diff-from-role [role-id r-role]:r-group)
+        ^-  (list diff:v2:g)
+        ?-  -.r-group
+          %meta     [%meta meta.r-group]~
+          %seat     (diff-from-seat [ships r-seat]:r-group)
+          %role     (diff-from-role [roles r-role]:r-group)
           %channel  (diff-from-channel [nest r-channel]:r-group)
           %section  (diff-from-section [section-id r-section]:r-group)
           %entry    (diff-from-entry r-entry.r-group)
-          %flag-content  [%flag-content [nest post-key src]:r-group]
-          :: leave?
+          %flag-content  [%flag-content [nest post-key src]:r-group]~
+          %leave  [%del ~]~
         ==
         ::
         ++  diff-from-seat
-          |=  [=ship =r-seat:v7:g]
-          ^-  diff:v2:g
+          |=  [ships=(set ship) =r-seat:v7:g]
+          ^-  (list diff:v2:g)
+          :_  ~
           :+  %fleet
-            (silt ship ~)
+            ships
           ?-  -.r-seat
             %add       [%add ~]
             %del       [%del ~]
-            %add-roles  [%add-sects (sects-from-roles roles.r-seat)]
-            %del-roles  [%del-sects (sects-from-roles roles.r-seat)]
+            %add-roles  [%add-sects (sects:v2:roles:v7 roles.r-seat)]
+            %del-roles  [%del-sects (sects:v2:roles:v7 roles.r-seat)]
           ==
         ::
         ++  diff-from-role
-          |=  [=role-id:v7:g =r-role:v7:g]
-          ^-  diff:v2:g
+          |=  [roles=(set role-id:v7:g) =r-role:v7:g]
+          ^-  (list diff:v2:g)
           ?:  ?=(?(%add %edit %del) -.r-role)
-            :+  %cabal
-              `sect:v2:g`role-id
-            ?-  -.r-role
-              %add       [%add meta.r-role]
-              %edit      [%edit meta.r-role]
-              %del       [%del ~]
+            ?-    -.r-role
+                %add       
+              %+  turn  ~(tap in roles)
+              |=  =role-id:v7:g
+              [%cabal `sect:v2:g`role-id [%add meta.r-role]]
+            ::
+                %edit
+              %+  turn  ~(tap in roles)
+              |=  =role-id:v7:g
+              [%cabal `sect:v2:g`role-id [%edit meta.r-role]]
+            ::
+                %del
+              %+  turn  ~(tap in roles)
+              |=  =role-id:v7:g
+              [%cabal `sect:v2:g`role-id [%del ~]]
             ==
+          :_  ~
           :-  %bloc
           ?-  -.r-role
-            %set-admin  [%add (sy `sect:v2:g`role-id ~)]
-            %del-admin  [%del (sy `sect:v2:g`role-id ~)]
+            %set-admin  [%add (sects:v2:roles:v7 roles)]
+            %del-admin  [%del (sects:v2:roles:v7 roles)]
           ==
-        ::
-        ++  sects-from-roles
-          |=  roles=(set role-id:v7:g)
-          ^-  (set sect:v2:g)
-          (~(run in roles) |=(role-id:v7:g `sect:v2:g`+<))
         ::
         ++  diff-from-channel
           |=  [=nest:v7:g =r-channel:v7:g]
-          ^-  diff:v2:g
+          ^-  (list diff:v2:g)
+          :_  ~
           :+  %channel
             nest
           ?-    -.r-channel
-            %add       [%add (v2:channel:v7 channel.r-channel)]
-            %edit      [%edit (v2:channel:v7 channel.r-channel)]
-            %del       [%del ~]
-            %add-roles  [%add-sects (sects-from-roles roles.r-channel)]
-            %del-roles  [%del-sects (sects-from-roles roles.r-channel)]
+            %add        [%add (v2:channel:v7 channel.r-channel)]
+            %edit       [%edit (v2:channel:v7 channel.r-channel)]
+            %del        [%del ~]
+            %add-roles  [%add-sects (sects:v2:roles:v7 roles.r-channel)]
+            %del-roles  [%del-sects (sects:v2:roles:v7 roles.r-channel)]
             %section    [%zone `zone:v2:g`section.r-channel]
           ==
         ::
         ++  diff-from-section
           |=  [=section-id:v7:g =r-section:v7:g]
-          ^-  diff:v2:g
+          ^-  (list diff:v2:g)
+          :_  ~
           :+  %zone
             `zone:v2:g`section-id
           ?-  -.r-section
-            %add       [%add meta.r-section]
-            %edit      [%edit meta.r-section]
-            %del       [%del ~]
-            %move      [%mov idx.r-section]
+            %add        [%add meta.r-section]
+            %edit       [%edit meta.r-section]
+            %del        [%del ~]
+            %move       [%mov idx.r-section]
             %move-nest  [%mov-nest [nest idx]:r-section]
           ==
         ::
         ++  diff-from-entry
           |=  =r-entry:v7:g
-          ^-  diff:v2:g
+          ^-  (list diff:v2:g)
+          :_  ~
           ?-  -.r-entry
               %privacy  
             ?-  privacy.r-entry
@@ -311,6 +320,16 @@
             %token  ~|(%r-group-to-diff-token-not-implemented !!)
           ==
         --
+      --
+    --
+  ++  roles
+    |%
+    ++  v2
+      |%
+      ++  sects
+        |=  roles=(set role-id:v7:g)
+        ^-  (set sect:v2:g)
+        (~(run in roles) |=(role-id:v7:g `sect:v2:g`+<))
       --
     --
   --
@@ -560,7 +579,8 @@
           |=  [ships=(set ship) =diff:fleet:v2:g]
           ^-  (list a-group:v7:g)
           :_  ~
-          :+  %seat  ships
+          :+  %seat  
+            ships
           ?-  -.diff
             %add  [%add ~]
             %del  [%del ~]
@@ -575,7 +595,9 @@
           |=  [=sect:v2:g =diff:cabal:v2:g]
           ^-  (list a-group:v7:g)
           :_  ~
-          :+  %role  `role-id:v7:g`sect
+          ^-  a-group:v7:g
+          :+  %role  
+            (sy `role-id:v7:g`sect ~)
           ?-  diff
             [%add meta=data:meta]   [%add meta.diff]
             [%edit meta=data:meta]  [%edit meta.diff]
@@ -607,14 +629,13 @@
         ++  a-group-from-bloc
           |=  =diff:bloc:v2:g
           ^-  (list a-group:v7:g)
+          :_  ~
           ?-    -.diff
               %add
-            %+  turn  ~(tap in p.diff)
-            |=(=sect:v2:g [%role `role-id:v7:g`sect %set-admin ~])
+            [%role (roles-from-sects p.diff) %set-admin ~]
           ::
               %del
-            %+  turn  ~(tap in p.diff)
-            |=(=sect:v2:g [%role `role-id:v7:g`sect %del-admin ~])
+            [%role (roles-from-sects p.diff) %del-admin ~]
           ==
         ++  a-group-from-cordon
           |=  =diff:cordon:v2:g

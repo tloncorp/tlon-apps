@@ -1167,7 +1167,7 @@
     ::
         %role
       ?>  se-src-is-admin
-      (se-c-role [role-id c-role]:c-group)
+      (se-c-role [roles c-role]:c-group)
     ::
         %channel
       ?>  se-src-is-admin
@@ -1257,12 +1257,15 @@
         ::  preserve roles
         =/  seat  (~(gut by seats.group) ship *seat:g)
         [ship [roles.seat joined]]
+      ::TODO send a bulk update if possible, 
+      ::     separately sending new ships and
+      ::     existing ships.
       ::
       =.  se-core
         %+  roll  ~(tap in ships)
         |=  [=ship =_se-core]
         =+  seat=(~(got by seats.group) ship)
-        (se-update:se-core %seat ship [%add seat])
+        (se-update:se-core %seat (sy ship ~) [%add seat])
       se-core
     ::
         %del
@@ -1270,67 +1273,72 @@
               !=(~ (~(int in ships) se-channel-hosts))
           ==
       =.  seats.group
-        %+  roll  ~(tap in ships)
+        %-  ~(rep in ships)
         |=  [=ship =_seats.group]
         (~(del by seats) ship)
-      %+  roll  ~(tap in ships)
-      |=  [=ship =_se-core]
-      (se-update:se-core %seat ship [%del ~])
+      (se-update:se-core %seat ships [%del ~])
     ::
         %add-roles
-      =.  roles.c-seat  (~(int in roles.c-seat) ~(key by roles.group))
+      =.  roles.c-seat  
+        (~(int in ~(key by roles.group)) roles.c-seat)
       ?:  =(~ roles.c-seat)  se-core
       =.  seats.group
-        %-  ~(urn by seats.group)
-        |=  [=ship =seat:g]
-        ?.  (~(has in ships) ship)  seat
-        seat(roles (~(uni in roles.seat) roles.c-seat))
-      %+  roll  ~(tap in ships)
-      |=  [=ship =_se-core]
-      (se-update:se-core %seat ship [%add-roles roles.c-seat])
+        %-  ~(rep in ships)
+        |=  [=ship =_seats.group]
+        =+  seat=(~(got by seats) ship)
+        =.  seat
+          seat(roles (~(uni in roles.seat) roles.c-seat))
+        (~(put by seats) ship seat)
+      (se-update:se-core %seat ships [%add-roles roles.c-seat])
     ::
         %del-roles
       =.  seats.group
-        %-  ~(urn by seats.group)
-        |=  [=ship =seat:g]
-        ?.  (~(has in ships) ship)  seat
-        seat(roles (~(dif in roles.seat) roles.c-seat))
-      %+  roll  ~(tap in ships)
-      |=  [=ship =_se-core]
-      (se-update:se-core %seat ship [%del-roles roles.c-seat])
+        %-  ~(rep in ships)
+        |=  [=ship =_seats.group]
+        =+  seat=(~(got by seats) ship)
+        =.  seat
+          seat(roles (~(dif in roles.seat) roles.c-seat))
+        (~(put by seats) ship seat)
+      (se-update:se-core %seat ships [%del-roles roles.c-seat])
     ==
   ::  +se-c-role: execute a role command
   ::
   ++  se-c-role
-    |=  [=role-id:g =c-role:g]
+    |=  [roles=(set role-id:g) =c-role:g]
     ^+  se-core
-    ?.  |(?=(%add -.c-role) (~(has by roles.group) role-id))
+    ?.  ?|  ?=(%add -.c-role)
+            =(roles (~(int in ~(key by roles.group)) roles))
+        ==
       se-core
     ?-    -.c-role
         %add
       =/  =role:g
         [meta.c-role ~]
-      =.  roles.group  (~(put by roles.group) role-id role)
-      (se-update %role role-id [%add meta.c-role])
+      =.  roles.group  
+        %-  ~(rep in roles)
+        |=  [=role-id:g =_roles.group]
+        (~(put by roles) role-id role)
+      (se-update %role roles [%add meta.c-role])
     ::
         %edit
-      ?>  (~(has by roles.group) role-id)
       =.  roles.group
-        %+  ~(jab by roles.group)  role-id
-        |=  =role:g
-        role(meta meta.c-role)
-      (se-update %role role-id [%edit meta.c-role])
+        %-  ~(rep in roles)
+        |=  [=role-id:g =_roles.group]
+        =+  role=(~(got by roles) role-id)
+        =.  role  role(meta meta.c-role)
+        (~(put by roles) role-id role)
+      (se-update %role roles [%edit meta.c-role])
     ::
         %del
-      =.  roles.group  (~(del by roles.group) role-id)
-      ::  remove the role from seats
-      ::
-      =/  old-role-id=(set role-id:g)  (sy role-id ~)
-      =.  seats.group
-        %-  ~(urn by seats.group)
-        |=  [* =seat:g]
-        seat(roles (~(dif in roles.seat) old-role-id))
-      ::  remove the role from channels
+        =.  roles.group  
+          %-  ~(rep in roles)
+          |=  [=role-id:g =_roles.group]
+          (~(del by roles) role-id)
+        =.  seats.group
+          %-  ~(urn by seats.group)
+          |=  [* =seat:g]
+          seat(roles (~(dif in roles.seat) roles))
+      ::  remove roles from channels
       ::
       =/  channels  ~(tap by channels.group)
       =.  se-core
@@ -1340,19 +1348,31 @@
         =/  [=nest:g =channel:g]  i.channels
         ::  repair readers as needed
         ::
-        =.  se-core  (se-channel-del-roles nest old-role-id)
+        =.  se-core  (se-channel-del-roles nest roles)
+        ::  repair writers as needed
+        ::
+        ::  not host
+        ?:  !=(our.bowl p.q.nest)  next
+        =+  .^(has=? %gu (channels-scry nest))
+        ::  missing channel
+        ?.  has  next
+        ::  unsupported channel
+        ?.  ?=(?(%chat %heap %diary) p.nest)  next
+        =/  cmd=c-channels:d  
+          [%channel nest %del-writers (sects:v2:roles:v7:ver roles)]
+        =/  cage  channel-command+!>(cmd)
+        =/  dock  [p.q.nest %channels-server]
+        =.  cor  (emit %pass /channels/perms %agent dock %poke cage)
         next
-      (se-update %role role-id [%del ~])
+      (se-update %role roles [%del ~])
     ::
         %set-admin
-      ?>  (~(has by roles.group) role-id)
-      =.  admins.group  (~(put in admins.group) role-id)
-      (se-update %role role-id [%set-admin ~])
+      =.  admins.group  (~(uni in admins.group) roles)
+      (se-update %role roles [%set-admin ~])
     ::
         %del-admin
-      ?>  (~(has by roles.group) role-id)
-      =.  admins.group  (~(del in admins.group) role-id)
-      (se-update %role role-id [%del-admin ~])
+      =.  admins.group  (~(dif in admins.group) roles)
+      (se-update %role roles [%del-admin ~])
     ==
   ::  +se-c-channel: execute a channel command
   ::
@@ -1808,12 +1828,12 @@
     ?-  -.u-group
       %meta          (go-u-meta data.u-group)
       %entry         (go-u-entry u-entry.u-group)
-      %seat          (go-u-seat [ship u-seat]:u-group)
-      %role          (go-u-role [role-id u-role]:u-group)
+      %seat          (go-u-seat [ships u-seat]:u-group)
+      %role          (go-u-role [roles u-role]:u-group)
       %channel       (go-u-channel [nest u-channel]:u-group)
       %section       (go-u-section [section-id u-section]:u-group)
       %flag-content  (go-u-flag-content [nest post-key src]:u-group)
-      %del           (go-leave |)
+      %delete           (go-leave |)
     ==
   ::  +go-u-meta: apply meta update
   ::
@@ -1885,87 +1905,124 @@
   ::  +go-u-seat: apply seat update
   ::
   ++  go-u-seat
-    |=  [=ship =u-seat:g]
+    |=  [ships=(set ship) =u-seat:g]
     ^+  go-core
     ?-    -.u-seat
         %add
-      =.  go-core  (go-response %seat ship [%add seat.u-seat])
+      =.  go-core  (go-response %seat ships [%add seat.u-seat])
       =?  go-core  !=(joined.seat.u-seat *@da)
-        (go-activity %join ship)
+        %-  ~(rep in ships)
+        |=  [=ship =_go-core]
+        (go-activity:go-core %join ship)
       ?:  go-our-host  go-core
       ::
       =.  seats.group  
-        (~(put by seats.group) ship seat.u-seat)
+        %-  ~(rep in ships)
+        |=  [=ship =_seats.group]
+        (~(put by seats) ship seat.u-seat)
       go-core
     ::
         %del
-      =+  leave==(ship our.bowl)
-      =.  go-core  (go-response %seat ship [%del ~])
+      =+  leave=(~(has in ships) our.bowl)
+      =.  go-core  (go-response %seat ships [%del ~])
       ::XX make sure the host can't kick himself
-      =.  go-core  (go-activity %kick ship)
+      =.  go-core  
+        %-  ~(rep in ships)
+        |=  [=ship =_go-core]
+        (go-activity:go-core %kick ship)
       ?:  go-our-host  go-core
       ::
       =.  seats.group
+        %-  ~(rep in ships)
+        |=  [=ship =_seats.group]
         (~(del by seats.group) ship)
       =?  go-core  leave  (go-leave |)
       go-core
     ::
         %add-roles
-      =.  go-core  (go-response %seat ship [%add-roles roles.u-seat])
-      =.  go-core  (go-activity %role ship roles.u-seat)
+      =.  go-core  (go-response %seat ships [%add-roles roles.u-seat])
+      =.  go-core  
+        %-  ~(rep in ships)
+        |=  [=ship =_go-core]
+        (go-activity:go-core %role ship roles.u-seat)
       ?:  go-our-host  go-core
       ::
       =.  seats.group
-        %+  ~(jab by seats.group)  ship
-        |=  =seat:g
-        seat(roles (~(uni in roles.seat) roles.u-seat))
+        %-  ~(rep in ships)
+        |=  [=ship =_seats.group]
+        =+  seat=(~(got by seats) ship)
+        =.  seat
+          seat(roles (~(uni in roles.seat) roles.u-seat))
+        (~(put by seats) ship seat)
       go-core
     ::
         %del-roles
-      =.  go-core  (go-response %seat ship [%del-roles roles.u-seat])
-      =.  go-core  (go-activity %role ship roles.u-seat)
+      =.  go-core  (go-response %seat ships [%del-roles roles.u-seat])
+      =.  go-core  
+        %-  ~(rep in ships)
+        |=  [=ship =_go-core]
+        (go-activity:go-core %role ship roles.u-seat)
       ?:  go-our-host  go-core
       ::
       =.  seats.group
-        %+  ~(jab by seats.group)  ship
-        |=  =seat:g
-        seat(roles (~(dif in roles.seat) roles.u-seat))
+        %-  ~(rep in ships)
+        |=  [=ship =_seats.group]
+        =+  seat=(~(got by seats) ship)
+        =.  seat
+          seat(roles (~(dif in roles.seat) roles.u-seat))
+        (~(put by seats) ship seat)
       go-core
     ==
   ::  +go-u-role: apply role update
   ::
   ++  go-u-role
-    |=  [=role-id:g =u-role:g]
+    |=  [roles=(set role-id:g) =u-role:g]
     ^+  go-core
     ::TODO review updates in other places. do we no-op
     ::     when a resource does not exist?
     ::
-    ?.  |(?=(%add -.u-role) (~(has by roles.group) role-id))
+    ?.  ?|  ?=(%add -.u-role) 
+            =(roles (~(int in ~(key by roles.group)) roles))
+        ==
       go-core
     ?-    -.u-role
         %add
-      =.  go-core  (go-response %role role-id [%add meta.u-role])
+      =.  go-core  (go-response %role roles [%add meta.u-role])
       ?:  go-our-host  go-core
       ::
       =/  =role:g
         [meta.u-role ~]
-      =.  roles.group  (~(put by roles.group) role-id role)
+      =.  roles.group  
+        %-  ~(rep in roles)
+        |=  [=role-id:g =_roles.group]
+        (~(put by roles) role-id role)
       go-core
     ::
         %edit
-      =.  go-core  (go-response %role role-id [%edit meta.u-role])
+      =.  go-core  (go-response %role roles [%edit meta.u-role])
       ?:  go-our-host  go-core
       ::
       =.  roles.group
-        %+  ~(jab by roles.group)  role-id
-        |=  =role:g
-        role(meta meta.u-role)
+        %-  ~(rep in roles)
+        |=  [=role-id:g =_roles.group]
+        =+  role=(~(got by roles) role-id)
+        =.  role  role(meta meta.u-role)
+        (~(put by roles) role-id role)
       go-core
     ::
         %del
-      =.  go-core  (go-response %role role-id [%del ~])
-      =/  old-role-id=(set role-id:g)  (sy role-id ~)
-      ::  remove the role from channels
+      =.  go-core  (go-response %role roles [%del ~])
+      ?:  go-our-host  go-core
+      ::
+      =.  roles.group  
+        %-  ~(rep in roles)
+        |=  [=role-id:g =_roles.group]
+        (~(del by roles) role-id)
+      =.  seats.group
+        %-  ~(urn by seats.group)
+        |=  [* =seat:g]
+        seat(roles (~(dif in roles.seat) roles))
+      ::  remove roles from channels
       ::
       =/  channels  ~(tap by channels.group)
       =.  go-core
@@ -1975,7 +2032,7 @@
         =/  [=nest:g =channel:g]  i.channels
         ::  repair readers as needed
         ::
-        =.  go-core  (go-channel-del-roles nest old-role-id)
+        =.  go-core  (go-channel-del-roles nest roles)
         ::  repair writers as needed
         ::
         ::  not host
@@ -1985,34 +2042,26 @@
         ?.  has  next
         ::  unsupported channel
         ?.  ?=(?(%chat %heap %diary) p.nest)  next
-        ::TODO migrate channels to new types
-        =/  old-sect=(set sect:v0:g)  (sy `sect:v0:g`role-id ~)
-        =/  cmd=c-channels:d  [%channel nest %del-writers old-sect]
+        =/  cmd=c-channels:d  
+          [%channel nest %del-writers (sects:v2:roles:v7:ver roles)]
         =/  cage  channel-command+!>(cmd)
         =/  dock  [p.q.nest %channels-server]
         =.  cor  (emit %pass /channels/perms %agent dock %poke cage)
         next
-      ?:  go-our-host  go-core
-      ::
-      =.  roles.group  (~(del by roles.group) role-id)
-      =.  seats.group
-        %-  ~(urn by seats.group)
-        |=  [* =seat:g]
-        seat(roles (~(dif in roles.seat) old-role-id))
       go-core
     ::
         %set-admin
-      =.  go-core  (go-response %role role-id [%set-admin ~])
+      =.  go-core  (go-response %role roles [%set-admin ~])
       ?:  go-our-host  go-core
       ::
-      =.  admins.group  (~(put in admins.group) role-id)
+      =.  admins.group  (~(uni in admins.group) roles)
       go-core
     ::
         %del-admin
-      =.  go-core  (go-response %role role-id [%del-admin ~])
+      =.  go-core  (go-response %role roles [%del-admin ~])
       ?:  go-our-host  go-core
       ::
-      =.  admins.group  (~(del in admins.group) role-id)
+      =.  admins.group  (~(dif in admins.group) roles)
       go-core
     ==
   ::  +go-u-channel: apply channel update
@@ -2225,9 +2274,13 @@
     =.  cor  (give %fact v1-paths group-response-1+!>(r-groups-7))
     ::  v0 backcompat
     ::
-    =/  action-2=action:v2:g  
-      [flag now.bowl (diff:v2:r-group:v7:ver r-group)]
-    =.  cor  (give %fact ~[/groups/ui] group-action-3+!>(action-2))
+    =/  diffs-2=(list diff:v2:g)
+      (diff:v2:r-group:v7:ver r-group)
+    =.  cor
+      %+  roll  diffs-2
+      |=  [=diff:v2:g =_cor]
+      =/  action-2=action:v2:g  [flag now.bowl diff]
+      (give:cor %fact ~[/groups/ui] group-action-3+!>(action-2))
     go-core
   ::  +go-peek: handle a group scry request
   ::

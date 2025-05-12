@@ -585,15 +585,16 @@
       [%channel * %del-roles *]  (recheck-perms affected ~)
   ::
       [%role * %del *]
-    (recheck-perms affected (sy role-id.r-group ~))
+    (recheck-perms affected roles.r-group)
   ::
       [%seat * %del ~]
     ~&  "%channel-server: revoke perms for {<affected>}"
     %+  roll  affected
-    |=  [=nest:c co=_cor]
-    ^+  cor
-    =/  ca  (ca-abed:ca-core:co nest)
-    ca-abet:(ca-revoke:ca ship.r-group)
+    |=  [=nest:c =_cor]
+    %-  ~(rep in ships.r-group)
+    |=  [=ship =_cor]
+    =/  ca  (ca-abed:ca-core:cor nest)
+    ca-abet:(ca-revoke:ca ship)
   ==
 ::
 ++  recheck-perms
@@ -685,7 +686,7 @@
       [group.new now.bowl %channel nest %add channel]
     =/  =dock    [p.group.new %groups]
     =/  =wire    (snoc ca-area %create)
-    (emit %pass wire %agent dock %poke group-action-4+!>(action))
+    (emit %pass wire %agent dock %poke group-action-3+!>(action))
     ::
     ::  +can-nest: does group exist, are we allowed
     ::

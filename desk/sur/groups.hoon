@@ -261,7 +261,7 @@
   $%  [%meta meta=data:meta]
       [%entry =a-entry]
       [%seat ships=(set ship) =a-seat]
-      [%role =role-id =a-role]
+      [%role roles=(set role-id) =a-role]
       [%channel =nest =a-channel]
       [%section =section-id =a-section]
       [%flag-content =nest =post-key src=ship]
@@ -282,8 +282,7 @@
   $%  [%meta meta=data:meta]
       [%entry =c-entry]
       [%seat ships=(set ship) =c-seat]
-      ::XX take a set of roles
-      [%role =role-id =c-role]
+      [%role roles=(set role-id) =c-role]
       [%channel =nest =c-channel]
       [%section =section-id =c-section]
       [%flag-content =nest =post-key src=ship]
@@ -371,14 +370,12 @@
 +$  u-group
   $%  [%meta =data:meta]
       [%entry =u-entry]
-      ::XX consider allowing a batch ships update
-      ::   like in c-group.
-      [%seat =ship =u-seat]
-      [%role =role-id =u-role]
+      [%seat ships=(set ship) =u-seat]
+      [%role roles=(set role-id) =u-role]
       [%channel =nest =u-channel]
       [%section =section-id =u-section]
       [%flag-content =nest =post-key src=ship]
-      [%del ~]
+      [%delete ~]
   ==
 +$  u-entry
   $%  [%privacy =privacy]
@@ -427,8 +424,8 @@
 +$  r-group
   $%  [%meta meta=data:meta]
       [%entry =r-entry]
-      [%seat =ship =r-seat]
-      [%role =role-id =r-role]
+      [%seat ships=(set ship) =r-seat]
+      [%role roles=(set role-id) =r-role]
       [%channel =nest =r-channel]
       [%section =section-id =r-section]
       [%flag-content =nest =post-key src=ship]

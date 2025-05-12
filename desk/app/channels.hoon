@@ -741,7 +741,7 @@
       [%channel * %del-roles *]  (recheck-perms affected ~)
   ::
       [%role * %del *]
-    (recheck-perms affected (sy role-id.r-group ~))
+    (recheck-perms affected roles.r-group)
   ==
 ::
 ++  recheck-perms
