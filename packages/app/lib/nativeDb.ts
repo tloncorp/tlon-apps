@@ -17,7 +17,6 @@ export class NativeDb extends BaseDb {
   private connection: SQLiteConnection | null = null;
   private isProcessingChanges: boolean = false;
   private changesPending: boolean = false;
-  private needsMigration: boolean = true;
 
   async setupDb() {
     if (this.connection || this.client) {
@@ -31,9 +30,9 @@ export class NativeDb extends BaseDb {
     );
     // Experimental SQLite settings. May cause crashes. More here:
     // https://ospfranco.notion.site/Configuration-6b8b9564afcc4ac6b6b377fe34475090
-    await this.connection.execute('PRAGMA mmap_size=268435456');
-    await this.connection.execute('PRAGMA journal_mode=MEMORY');
-    await this.connection.execute('PRAGMA synchronous=OFF');
+    this.connection.execute('PRAGMA mmap_size=268435456');
+    this.connection.execute('PRAGMA journal_mode=MEMORY');
+    this.connection.execute('PRAGMA synchronous=OFF');
 
     this.connection.updateHook(() => this.handleUpdate());
 
@@ -76,8 +75,6 @@ export class NativeDb extends BaseDb {
     this.connection = null;
     this.client = null;
 
-    this.needsMigration = true;
-
     // reset values related to tracking db sync state
     await kv.headsSyncedAt.resetValue();
 
@@ -90,10 +87,6 @@ export class NativeDb extends BaseDb {
   }
 
   async runMigrations() {
-    if (!this.needsMigration) {
-      return;
-    }
-
     if (!this.client || !this.connection) {
       logger.warn('runMigrations called before setupDb, ignoring');
       return;
@@ -101,8 +94,7 @@ export class NativeDb extends BaseDb {
 
     try {
       await this.connection?.migrateClient(this.client!);
-      await this.connection?.execute(TRIGGER_SETUP);
-      this.needsMigration = false;
+      this.connection?.execute(TRIGGER_SETUP);
       return;
     } catch (e) {
       logger.log('migrations failed, purging db and retrying', e);
@@ -110,7 +102,6 @@ export class NativeDb extends BaseDb {
     await this.purgeDb();
     await this.connection?.migrateClient(this.client!);
     logger.log("migrations succeeded after purge, shouldn't happen often");
-    this.needsMigration = false;
   }
 }
 
