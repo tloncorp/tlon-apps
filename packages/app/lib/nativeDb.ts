@@ -65,6 +65,26 @@ export class NativeDb extends BaseDb {
     }
   }
 
+  async handleMalformedDb() {
+    logger.trackEvent('Running DB integrity check');
+    const results = await this.client?.execute('PRAGMA integrity_check');
+    if (results && results.length < 100) {
+      logger.trackEvent('Integrity Check Results', {
+        results: results.map((r: any) => JSON.stringify(r)),
+      });
+    } else {
+      const batchSize = 100;
+      for (let i = 0; i < results.length; i += batchSize) {
+        const batch = results.slice(i, i + batchSize);
+        logger.trackEvent('Integrity Check Results', {
+          results: batch.map((r: any) => JSON.stringify(r)),
+        });
+      }
+    }
+
+    await resetDb();
+  }
+
   async purgeDb() {
     if (!this.connection) {
       logger.warn('purgeDb called before setupDb, ignoring');
@@ -121,3 +141,4 @@ export const purgeDb = () => nativeDb.purgeDb();
 export const getDbPath = () => nativeDb.getDbPath();
 export const resetDb = () => nativeDb.resetDb();
 export const useMigrations = () => useMigrationsBase(nativeDb);
+export const handleMalformedDb = () => nativeDb.handleMalformedDb();

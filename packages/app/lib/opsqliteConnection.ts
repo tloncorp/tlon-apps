@@ -13,8 +13,9 @@ export class OPSQLite$SQLiteConnection
 {
   constructor(private connection: DB) {}
 
-  async execute(query: string): Promise<void> {
-    await this.connection.execute(query);
+  async execute(query: string): Promise<void | any> {
+    const results = await this.connection.execute(query);
+    return results;
   }
 
   updateHook(

@@ -6,6 +6,7 @@ import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitCl
 import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
 import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
+import { handleMalformedDb } from '@tloncorp/app/lib/nativeDb';
 import { useUpdatePresentedNotifications } from '@tloncorp/app/lib/notifications';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
@@ -66,6 +67,11 @@ function AuthenticatedApp() {
   useEffect(() => {
     // reset this anytime we get back into the authenticated app
     db.nodeStoppedWhileLoggedIn.setValue(false);
+
+    db.registerMalformedHandler(async () => {
+      await handleMalformedDb();
+      sync.syncStart();
+    });
   }, []);
 
   return (

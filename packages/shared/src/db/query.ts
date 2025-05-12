@@ -72,6 +72,14 @@ export const createWriteQuery = <TOptions, TReturn>(
   });
 };
 
+let malformedHandler: () => Promise<void> = () => {
+  logger.trackEvent('No malformed handler registered');
+  return Promise.resolve();
+};
+export const registerMalformedHandler = (handler: () => Promise<void>) => {
+  malformedHandler = handler;
+};
+
 export const createQuery = <TOptions, TReturn>(
   queryFn: QueryFn<TOptions, TReturn>,
   meta: QueryMeta<TOptions>
@@ -137,6 +145,12 @@ export const createQuery = <TOptions, TReturn>(
           errorMessage: e.message,
           errorStack: e.stack,
         });
+
+        // if the DB is malformed, try to figure out why
+        if (e instanceof Error && e.message.includes('image is malformed')) {
+          console.log('bl: MALFORMED DB');
+          malformedHandler();
+        }
         throw e;
       }
     });
