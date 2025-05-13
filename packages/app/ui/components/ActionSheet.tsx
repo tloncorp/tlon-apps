@@ -414,7 +414,6 @@ const ActionSheetActionGroupSeparator = styled(View, {
 
 const ActionSheetActionGroupContent = styled(YStack, {
   name: 'ActionSheetActionGroupContent',
-  context: ActionSheetActionGroupContext,
   borderRadius: '$xl',
   borderWidth: 1,
   borderColor: '$border',
@@ -570,7 +569,6 @@ function resolveIcon(icon: IconType | ReactElement, accent: Accent) {
 }
 
 const ActionSheetActionIcon = styled(Icon, {
-  context: ActionSheetActionGroupContext,
   size: '$m',
   variants: {
     accent: {
