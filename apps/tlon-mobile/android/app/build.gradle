@@ -31,6 +31,11 @@ afterEvaluate {
             rename '(.*).js', '$1.jsbundle'
         }
     }
+    if (copyTask != null) {
+        tasks.named("lintVitalAnalyzeProductionRelease") {
+            dependsOn(copyTask)
+        }
+    }
 
     copyTask.dependsOn(buildTask)
     android.applicationVariants.all { def variant ->
@@ -39,12 +44,6 @@ afterEvaluate {
         generateAssetsTask.dependsOn(copyTask)
     }
 
-    def copyTask = tasks.findByName("copyNotificationServiceJsBundle")
-    if (copyTask != null) {
-        tasks.named("lintVitalAnalyzeProductionRelease") {
-            dependsOn(copyTask)
-        }
-    }
 }
 
 /**
