@@ -104,7 +104,7 @@ export class NativeDb extends BaseDb {
       await kv.headsSyncedAt.resetValue();
 
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
-        message: 'purbeDb: completed purge, recreating',
+        message: 'purgeDb: completed purge, recreating',
       });
       await this.setupDb();
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
