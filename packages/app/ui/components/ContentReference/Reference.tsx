@@ -65,8 +65,10 @@ const ReferenceComponent = ReferenceFrame.styleable<{
   hasData?: boolean;
 }>(
   ({ children, isLoading, isError, hasData, errorMessage, ...props }, ref) => {
+    // We cannot pass `contentSize` to the styled component, so we need to extract it
+    const { contentSize, ...rest } = props;
     return (
-      <ReferenceFrame {...props} pressable={!!props.onPress} ref={ref}>
+      <ReferenceFrame {...rest} pressable={!!props.onPress} ref={ref}>
         {children}
         {isLoading ? (
           <ReferenceSkeleton
@@ -183,8 +185,9 @@ export function ReferenceSkeleton({
   message?: string;
   messageType?: 'loading' | 'error' | 'not-found';
 } & ComponentProps<typeof ReferenceFrame>) {
+  const { contentSize, ...rest } = props;
   return (
-    <ReferenceFrame {...props}>
+    <ReferenceFrame {...rest}>
       <ReferenceBody padding="$l" justifyContent="center" alignItems="center">
         <YStack gap="$l" alignItems="center">
           {messageType === 'error' ? (
@@ -195,7 +198,7 @@ export function ReferenceSkeleton({
             />
           ) : null}
           <Text
-            size={props.contentSize === '$s' ? '$label/s' : '$label/m'}
+            size={contentSize === '$s' ? '$label/s' : '$label/m'}
             color="$tertiaryText"
             flex={1}
           >
