@@ -38,6 +38,13 @@ afterEvaluate {
         def generateAssetsTask = tasks.findByName("generate${targetName}Assets")
         generateAssetsTask.dependsOn(copyTask)
     }
+
+    def copyTask = tasks.findByName("copyNotificationServiceJsBundle")
+    if (copyTask != null) {
+        tasks.named("lintVitalAnalyzeProductionRelease") {
+            dependsOn(copyTask)
+        }
+    }
 }
 
 /**
