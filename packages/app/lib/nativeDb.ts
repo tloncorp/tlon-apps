@@ -37,7 +37,7 @@ export class NativeDb extends BaseDb {
       // Experimental SQLite settings. May cause crashes. More here:
       // https://ospfranco.notion.site/Configuration-6b8b9564afcc4ac6b6b377fe34475090
       this.connection.execute('PRAGMA mmap_size=268435456');
-      this.connection.execute('PRAGMA journal_mode=MEMORY');
+      this.connection.execute('PRAGMA journal_mode=DELETE');
       this.connection.execute('PRAGMA synchronous=OFF');
 
       this.connection.updateHook(() => this.handleUpdate());
