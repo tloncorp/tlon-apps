@@ -20,11 +20,11 @@ export class NativeDb extends BaseDb {
 
   async setupDb() {
     logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
-      message: 'setupDb: starting setup',
+      context: 'setupDb: starting setup',
     });
     if (this.connection || this.client) {
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
-        message: 'setupDb: already have existing connection, ignoring',
+        context: 'setupDb: already have existing connection, ignoring',
       });
       return;
     }
@@ -56,7 +56,7 @@ export class NativeDb extends BaseDb {
       logger.log('SQLite database opened at', this.connection.getDbPath());
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
-        message: 'setupDb: error setting up db',
+        context: 'setupDb: error setting up db',
         errorMessage: e.message,
         errorStack: e.stack,
         severity: AnalyticsSeverity.Critical,
@@ -81,11 +81,11 @@ export class NativeDb extends BaseDb {
 
   async purgeDb() {
     logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
-      message: 'purgeDb: purging db',
+      context: 'purgeDb: purging db',
     });
     if (!this.connection) {
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
-        message:
+        context:
           'purgeDb: attempted before connection connection was set up, skipping',
       });
       return;
@@ -97,22 +97,22 @@ export class NativeDb extends BaseDb {
       this.client = null;
 
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
-        message: 'purgeDb: closed the connection, cleared the client',
+        context: 'purgeDb: closed the connection, cleared the client',
       });
 
       // reset values related to tracking db sync state
       await kv.headsSyncedAt.resetValue();
 
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
-        message: 'purgeDb: completed purge, recreating',
+        context: 'purgeDb: completed purge, recreating',
       });
       await this.setupDb();
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
-        message: 'purgeDb: post-purge setup complete',
+        context: 'purgeDb: post-purge setup complete',
       });
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
-        message: 'purgeDb: error purging db',
+        context: 'purgeDb: error purging db',
         errorMessage: e.message,
         errorStack: e.stack,
         severity: AnalyticsSeverity.Critical,
@@ -127,11 +127,11 @@ export class NativeDb extends BaseDb {
 
   async runMigrations() {
     logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
-      message: 'runMigrations: starting migrations',
+      context: 'runMigrations: starting migrations',
     });
     if (!this.client || !this.connection) {
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
-        message:
+        context:
           'runMigrations: attempted before connection connection was set up, skipping',
       });
       return;
@@ -140,13 +140,13 @@ export class NativeDb extends BaseDb {
     try {
       await this.connection?.migrateClient(this.client!);
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
-        message: 'runMigrations: successfully migrated DB',
+        context: 'runMigrations: successfully migrated DB',
       });
       this.connection?.execute(TRIGGER_SETUP);
       return;
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
-        message:
+        context:
           'runMigrations: migrations failed. Attempting to purge and retry',
         errorMessage: e.message,
         errorStack: e.stack,
@@ -156,16 +156,16 @@ export class NativeDb extends BaseDb {
     try {
       await this.purgeDb();
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
-        message: 'runMigrations: migration retry: purged db',
+        context: 'runMigrations: migration retry: purged db',
       });
       await this.connection?.migrateClient(this.client!);
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
-        message:
+        context:
           'runMigrations: migration retry: successfully migrated on retry (this should not happen often)',
       });
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
-        message: 'runMigrations: migration retry failed. Giving up',
+        context: 'runMigrations: migration retry failed. Giving up',
         errorMessage: e.message,
         errorStack: e.stack,
         severity: AnalyticsSeverity.Critical,
