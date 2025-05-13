@@ -1,7 +1,7 @@
 ::  groups: agent for managing group membership, metadata and permissions
 ::
-::  groups agent can act both as a group server and 
-::  as a client to remote groups. unlike channels, this agent it is 
+::  groups agent can act both as a group server and
+::  as a client to remote groups. unlike channels, this agent it is
 ::  not separated into two distinct client and server agents, but
 ::  rather achieves the separation with two cores:
 ::  the server core +se-core and client core +go-core.
@@ -126,7 +126,7 @@
   ^+  cor
   ?+    mark  ~|(bad-mark+mark !!)
       %noun
-    ?+    q.vase  !!      
+    ?+    q.vase  !!
       %reset-all-perms  reset-all-perms
     ::XX review is this necessary
       ::   [%group-wake flag:g]
@@ -136,7 +136,7 @@
       :: ?~  g=(~(get by groups) flag)
       ::   cor
       :: go-abet:(go-safe-sub:(go-abed:group-core:cor flag) |)
-    ::XX review, what is going on here? 
+    ::XX review, what is going on here?
         %pimp-ready
       ?-  pimp
         ~         cor(pimp `&+~)
@@ -208,7 +208,7 @@
       :: go-abet:(go-safe-sub:(go-abed:group-core:cor flag) |)
     ::
     ::XX this is quite unreadable. what is going on here?
-    ::  XX verify this is in use. if so, 
+    ::  XX verify this is in use. if so,
     ::  introduce a standalone command to do this
     ::   %reset-all-perms  reset-all-perms
     ::   ::XX verify this is used at all
@@ -269,7 +269,7 @@
     :: ?:  &(!=(our.bowl p.p.action) from-self)
     ::   go-abet:(go-proxy:group-core q.action)
     :: go-abet:(go-update:group-core q.action)
-  ::XX 
+  ::XX
     ::   %group-invite
     :: =+  !<(=invite:g vase)
     :: ?:  =(q.invite our.bowl)
@@ -643,7 +643,7 @@
     ?:  (~(has by groups) our.bowl name.pole)
       se-abet:(se-watch:(se-abed:se-core [our.bowl name.pole]) /preview)
     =/  =preview-update:g  ~
-    =.  cor  
+    =.  cor
       (emit %give %fact ~ group-preview-update+!>(preview-update))
     (emit %give %kick ~ ~)
   ::
@@ -700,7 +700,7 @@
     ==
   ::
       [%x ver=?(%v0 %v1 %v2) %light %groups ~]
-    =/  groups-7=groups:v7:g  
+    =/  groups-7=groups:v7:g
       %-  ~(run by groups)
       |=  [=net:v7:g =group:v7:g]
       (drop-seats:group:v7:ver group our.bowl)
@@ -970,6 +970,7 @@
   +*  ads  admissions.group
       ad  ~(. ad-core admissions.group)
   ::
+  ::TODO  can just remove, no?
   ++  se-core  .
   ::  +se-abed: init
   ::
@@ -987,7 +988,7 @@
     ^+  cor
     ?>  =(p.flag our.bowl)
     %_  cor  groups
-      ?:  gone  
+      ?:  gone
         (~(del by groups) flag)
       (~(put by groups) flag [%pub log] group)
     ==
@@ -1000,6 +1001,11 @@
     ^-  (list path)
     %+  skim  ~(tap in (~(gas in *(set path)) (turn ~(val by sup.bowl) tail)))
     |=  =path
+    ::TODO  should be (scag 2 path), but also that's a brittle pattern lol,
+    ::      probably just want to put ^~((lent se-sub-wire)).
+    ::      ^~ tries to compute it during compile-time. i would be surprised
+    ::      if that actually works here (given that +se-sub-wire is variable in
+    ::      its content (but not its length!)), but it has the right idea at least (^:
     =((scag 3 path) se-sub-wire)
   ::  +se-update: record and send group update
   ::
@@ -1013,12 +1019,13 @@
       $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
     =/  =update:g  [time u-group]
     =.  log  (put:log-on:g log update)
-    ~&  se-update+u-group
+    ~&  se-update+u-group  ::TODO  clean-up
     (se-give-update update)
   ::  +se-pass: server cards core
   ::
   ++  se-pass
     |%
+    ::  ):
     --
   ::  +se-is-admin: check whether the ship has admin rights
   ::
@@ -1026,6 +1033,8 @@
     |=  =ship
     ^-  ?
     ?:  =(ship p.flag)  &
+    ::REVIEW  this will crash if check is run on not-a-member,
+    ::        which might not always be intentional
     =/  =seat:g  (~(got by seats.group) ship)
     !=(~ (~(int in roles.seat) admins.group))
   ::  +se-admins: the set of members with admin rights
@@ -1076,6 +1085,7 @@
         banned   banned.create
       ==
     =/  =group:g
+      ::TODO  maybe you %* here too
       :*  meta.create
           admissions
           ~  ::  seats
@@ -1088,12 +1098,17 @@
           ~  ::  flagged-content
       ==
     =.  groups  (~(put by groups) flag [%pub *log:g] group)
+    ::TODO  feels like it should be inlined in the =/ group above, maybe?
     =.  se-core  se-init:(se-abed:se-core flag)
     ::XX this is modeled after %channels-server.
     ::   make sure this is actually used by the client
     ::   before introducing it in %groups
-    ::   
+    ::
     =/  cage  group-update+!>([%create group])
+    ::TODO  we don't have this path in %watch handling
+    ::TODO  shouldn't this also go to the /updates path? except that +se-abed
+    ::      would crash for non-existent groups, so you wouldn't be able to
+    ::      establish that subscription yet...
     =/  =path  /[q.flag]/create
     =.  cor  (give %fact ~[path] cage)
     =.  cor  (give %kick ~[path] ~)
@@ -1108,7 +1123,7 @@
       =;  meta=data:meta
         [meta ~]
       :*  'Admin'
-          'Admins can add and remove channels and edit metadata' 
+          'Admins can add and remove channels and edit metadata'
           ''
           ''
       ==
@@ -1132,13 +1147,14 @@
   ::  +se-c-delete: delete the group
   ::
   ++  se-c-delete
+    ::TODO  neither this nor +se-abet sends an update about deletion...
     se-core(gone &)
   ::  +se-join: handle join request
   ::
   ++  se-join
     |=  =token:g
     ^+  se-core
-    =.  admissions.group  
+    =.  admissions.group
       (ad-join:ad src.bowl token)
     (se-c-seat (silt src.bowl ~) [%add ~])
   ::  +se-c-group: execute the group command
@@ -1150,6 +1166,7 @@
     ::XX disallow commands from banned ships?
     ::XX who can ban ships. make sure the host can't
     ::   ban itself, and rank is not in effect for the host
+    ::TODO  yes please for both of these
     ::
     ?-    -.c-group
         %meta
@@ -1159,6 +1176,7 @@
       (se-update %meta meta.group)
     ::
         %entry
+      ::TODO  ?>  se-src-is-admin
       (se-c-entry c-entry.c-group)
     ::
         %seat
@@ -1176,9 +1194,9 @@
         %section
       ?>  se-src-is-admin
       (se-c-section [section-id c-section]:c-group)
-    :: 
+    ::
         %flag-content
-      ?>  se-src-is-admin
+      ?>  se-src-is-admin  ::REVIEW  shouldn't everyone be able to flag? cc james
       (se-c-flag-content [nest post-key src]:c-group)
     ::
         %delete
@@ -1200,7 +1218,7 @@
   ++  se-c-entry-privacy
     |=  =privacy:g
     ^+  se-core
-    ::TODO use admissions core
+    ::TODO  don't use admissions core
     =.  ads  (set-privacy:ad privacy)
     (se-update [%entry %privacy privacy])
   ::  +se-c-entry-ban: execute an entry ban command
@@ -1257,7 +1275,7 @@
         ::  preserve roles
         =/  seat  (~(gut by seats.group) ship *seat:g)
         [ship [roles.seat joined]]
-      ::TODO send a bulk update if possible, 
+      ::TODO send a bulk update if possible,
       ::     separately sending new ships and
       ::     existing ships.
       ::
@@ -1279,7 +1297,7 @@
       (se-update:se-core %seat ships [%del ~])
     ::
         %add-roles
-      =.  roles.c-seat  
+      =.  roles.c-seat
         (~(int in ~(key by roles.group)) roles.c-seat)
       ?:  =(~ roles.c-seat)  se-core
       =.  seats.group
@@ -1314,7 +1332,7 @@
         %add
       =/  =role:g
         [meta.c-role ~]
-      =.  roles.group  
+      =.  roles.group
         %-  ~(rep in roles)
         |=  [=role-id:g =_roles.group]
         (~(put by roles) role-id role)
@@ -1330,14 +1348,14 @@
       (se-update %role roles [%edit meta.c-role])
     ::
         %del
-        =.  roles.group  
-          %-  ~(rep in roles)
-          |=  [=role-id:g =_roles.group]
-          (~(del by roles) role-id)
-        =.  seats.group
-          %-  ~(urn by seats.group)
-          |=  [* =seat:g]
-          seat(roles (~(dif in roles.seat) roles))
+      =.  roles.group
+        %-  ~(rep in roles)
+        |=  [=role-id:g =_roles.group]
+        (~(del by roles) role-id)
+      =.  seats.group
+        %-  ~(urn by seats.group)
+        |=  [* =seat:g]
+        seat(roles (~(dif in roles.seat) roles))
       ::  remove roles from channels
       ::
       =/  channels  ~(tap by channels.group)
@@ -1355,10 +1373,11 @@
         ?:  !=(our.bowl p.q.nest)  next
         =+  .^(has=? %gu (channels-scry nest))
         ::  missing channel
+        ::TODO  print and/or log
         ?.  has  next
         ::  unsupported channel
         ?.  ?=(?(%chat %heap %diary) p.nest)  next
-        =/  cmd=c-channels:d  
+        =/  cmd=c-channels:d
           [%channel nest %del-writers (sects:v2:roles:v7:ver roles)]
         =/  cage  channel-command+!>(cmd)
         =/  dock  [p.q.nest %channels-server]
@@ -1381,7 +1400,8 @@
     ^+  se-core
     =*  by-ch  ~(. by channels.group)
     =*  chan  channel.c-channel
-    ~&  se-c-chanel+[c-channel ~(key by channels.group)]
+    ~&  se-c-chanel+[c-channel ~(key by channels.group)]  ::TODO  clean-up
+    ::TODO  should just assert instead of silently no-op
     ?.  |(?=(%add -.c-channel) (has:by-ch nest))  se-core
     ?-    -.c-channel
         ::XX fix channels not showing up
@@ -1399,14 +1419,14 @@
         %del
       =/  =channel:g   (got:by-ch nest)
       =.  sections.group
-        ?.  (~(has by sections.group) section.channel)  
+        ?.  (~(has by sections.group) section.channel)
           sections.group
         %+  ~(jab by sections.group)  section.channel
         |=(=section:g section(order (~(del of order.section) nest)))
       =.  channels.group  (del:by-ch nest)
       (se-update %channel nest [%del ~])
     ::
-        %add-roles
+        %add-roles  ::TODO  misnomer lol, confusing. %add-readers mb
       ::XX the overall strategy seems to no-op instead of crashing
       ::   like below.
       ?>  =(~ (~(dif in roles.c-channel) ~(key by roles.group)))
@@ -1429,6 +1449,7 @@
       ::
       ::XX  this seems at odds with logic in %add and %edit above?
       ::
+      ::TODO  this first =. can go (+of is "set logic", no need to del first)
       =.  sections.group
         %+  ~(jab by sections.group)  section.channel
         |=(=section:g section(order (~(del of order.section) nest)))
@@ -1437,6 +1458,7 @@
         |=(=section:g section(order (~(push of order.section) nest)))
       (se-update %channel nest [%section section-id.c-channel])
     ==
+  ::XX continue review
   ::  +se-channel-del-roles: remove roles from channel readers
   ::
   ++  se-channel-del-roles
@@ -1509,7 +1531,7 @@
     |=  [=nest:g =post-key:g src=ship]
     ^+  se-core
     ::TODO make flagged-content a jug
-    =/  posts  
+    =/  posts
       (~(gut by flagged-content.group) nest *(map post-key:g flaggers:g))
     =/  flaggers=(unit flaggers:g)  (~(get by posts) post-key)
     =/  channel-flagged
@@ -1585,7 +1607,7 @@
   ++  go-abet
     ^+  cor
     %_  cor  groups
-      ?:  gone  
+      ?:  gone
         (~(del by groups) flag)
       (~(put by groups) flag net group)
     ==
@@ -1916,7 +1938,7 @@
         (go-activity:go-core %join ship)
       ?:  go-our-host  go-core
       ::
-      =.  seats.group  
+      =.  seats.group
         %-  ~(rep in ships)
         |=  [=ship =_seats.group]
         (~(put by seats) ship seat.u-seat)
@@ -1926,7 +1948,7 @@
       =+  leave=(~(has in ships) our.bowl)
       =.  go-core  (go-response %seat ships [%del ~])
       ::XX make sure the host can't kick himself
-      =.  go-core  
+      =.  go-core
         %-  ~(rep in ships)
         |=  [=ship =_go-core]
         (go-activity:go-core %kick ship)
@@ -1941,7 +1963,7 @@
     ::
         %add-roles
       =.  go-core  (go-response %seat ships [%add-roles roles.u-seat])
-      =.  go-core  
+      =.  go-core
         %-  ~(rep in ships)
         |=  [=ship =_go-core]
         (go-activity:go-core %role ship roles.u-seat)
@@ -1958,7 +1980,7 @@
     ::
         %del-roles
       =.  go-core  (go-response %seat ships [%del-roles roles.u-seat])
-      =.  go-core  
+      =.  go-core
         %-  ~(rep in ships)
         |=  [=ship =_go-core]
         (go-activity:go-core %role ship roles.u-seat)
@@ -1981,7 +2003,7 @@
     ::TODO review updates in other places. do we no-op
     ::     when a resource does not exist?
     ::
-    ?.  ?|  ?=(%add -.u-role) 
+    ?.  ?|  ?=(%add -.u-role)
             =(roles (~(int in ~(key by roles.group)) roles))
         ==
       go-core
@@ -1992,7 +2014,7 @@
       ::
       =/  =role:g
         [meta.u-role ~]
-      =.  roles.group  
+      =.  roles.group
         %-  ~(rep in roles)
         |=  [=role-id:g =_roles.group]
         (~(put by roles) role-id role)
@@ -2014,7 +2036,7 @@
       =.  go-core  (go-response %role roles [%del ~])
       ?:  go-our-host  go-core
       ::
-      =.  roles.group  
+      =.  roles.group
         %-  ~(rep in roles)
         |=  [=role-id:g =_roles.group]
         (~(del by roles) role-id)
@@ -2042,7 +2064,7 @@
         ?.  has  next
         ::  unsupported channel
         ?.  ?=(?(%chat %heap %diary) p.nest)  next
-        =/  cmd=c-channels:d  
+        =/  cmd=c-channels:d
           [%channel nest %del-writers (sects:v2:roles:v7:ver roles)]
         =/  cage  channel-command+!>(cmd)
         =/  dock  [p.q.nest %channels-server]
@@ -2095,7 +2117,7 @@
       ::
       =/  =channel:g   (got:by-ch nest)
       =.  sections.group
-        ?.  (~(has by sections.group) section.channel)  
+        ?.  (~(has by sections.group) section.channel)
           sections.group
         %+  ~(jab by sections.group)  section.channel
         |=(=section:g section(order (~(del of order.section) nest)))
@@ -2148,7 +2170,7 @@
   ++  go-section-add-channel
     |=  [=nest:g =channel:g]
     ^+  sections.group
-    ?.  (~(has by sections.group) section.channel)  
+    ?.  (~(has by sections.group) section.channel)
       sections.group
     %+  ~(jab by sections.group)  section.channel
     |=(=section:g section(order (~(push of order.section) nest)))
@@ -2197,7 +2219,7 @@
       go-core
     ::
         %move
-      =.  go-core  
+      =.  go-core
         (go-response %section section-id [%move idx.u-section])
       ?:  go-our-host  go-core
       ::
@@ -2206,7 +2228,7 @@
       go-core
     ::
         %move-nest
-      =.  go-core  
+      =.  go-core
         (go-response %section section-id [%move-nest [idx nest]:u-section])
       ?:  go-our-host  go-core
       ::
@@ -2227,7 +2249,7 @@
     ?:  go-our-host  go-core
     ::
     ::TODO make flagged-content a jug
-    =/  posts  
+    =/  posts
       (~(gut by flagged-content.group) nest *(map post-key:g flaggers:g))
     =/  flaggers=(unit flaggers:g)  (~(get by posts) post-key)
     =/  channel-flagged

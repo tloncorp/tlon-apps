@@ -47,6 +47,7 @@
 ::  .join: should the channel be joined by new members
 ::  .readers: roles with read permissions. empty set
 ::            means the channel is accessible by everyone.
+::TODO  make NOTE about where write permission lives
 ::
 +$  channel
   $:  meta=data:meta
@@ -60,7 +61,7 @@
 ::
 ::  .privacy: determines group visibility
 ::  .banned: ships and ranks blacklist
-::  .requests: entry requests 
+::  .requests: entry requests
 ::  .tokens: access tokens
 ::  .referrals: token attribution
 ::  .invited: invited guest list
@@ -87,6 +88,7 @@
   $:  scheme=claim-scheme
       expiry=@da
       label=(unit @t)
+      ::TODO  include attribution=ship or w/e reverse lookup
   ==
 ::  $claim-scheme: token claim scheme
 ::
@@ -150,7 +152,7 @@
       =admins
     ::
       channels=(map nest channel)
-      active-channels=(set nest)
+      active-channels=(set nest)  ::NOTE  subscriber-only state
     ::
       sections=(map section-id section)
       section-order=(list section-id)
@@ -158,7 +160,7 @@
       =flagged-content
   ==
 ::
-+$  group-ui  
++$  group-ui
   $:  =group
       init=?
       member-count=@ud
@@ -216,7 +218,7 @@
       =banned
       guests=(set ship)
   ==
-::XX use id-post
+::XX use id-post instead of time, or just $plan ?
 +$  post-key  [post=time reply=(unit time)]
 ::
 +$  flaggers  (set ship)
@@ -249,7 +251,7 @@
 ::    to subscribers. most updates also trigger
 ::    a response.
 ::
-::XX  consider whether it is better 
+::XX  consider whether it is better
 ::    to have separate %group-join, %group-invite pokes
 ::
 +$  a-groups
@@ -389,6 +391,7 @@
       [%del-ranks ranks=(set rank:title)]
   ==
 +$  u-token
+  ::TODO  =token in %add
   $%  [%add scheme=claim-scheme expiry=(unit @dr) label=(unit @t)]
       [%del =token]
   ==
