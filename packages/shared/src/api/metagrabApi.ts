@@ -84,7 +84,17 @@ function parseLinkMetadataResponse(
 }
 
 function grabImageUrl(url: string, data: ub.LinkMetadataItem[]) {
-  return data.find((item) => item.value !== url)?.value;
+  return data.find((item) => {
+    if (item.attributes?.secure_url) {
+      return true;
+    }
+
+    if (!('attributes' in item)) {
+      return true;
+    }
+
+    return !url.startsWith(item.value);
+  })?.value;
 }
 
 function parseImageData(url: string, data: ub.LinkMetadataItem[]) {

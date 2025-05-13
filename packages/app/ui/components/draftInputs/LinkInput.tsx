@@ -29,12 +29,15 @@ import {
 import { BlockData } from '../PostContent/contentUtils';
 import { ScreenHeader } from '../ScreenHeader';
 
-export type LinkInputSaveParams = { block: ub.Block; meta: ub.Metadata };
+export type LinkInputSaveParams = {
+  content: ub.Block | ub.Inline;
+  meta: ub.Metadata;
+};
 
 interface LinkInputProps {
   editingPost?: db.Post;
   isPosting?: boolean;
-  onSave: ({ block, meta }: LinkInputSaveParams) => void;
+  onSave: ({ content, meta }: LinkInputSaveParams) => void;
 }
 
 const TITLE_MAX_LENGTH = 240;
@@ -120,6 +123,7 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
 
       return null;
     }
+
     if (data.type === 'file') {
       if (data.isImage) {
         return {
@@ -155,66 +159,63 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
   const handlePressDone = useCallback(() => {
     if (isDirty && isValid) {
       handleSubmit((formData) => {
-        if (!data || hasIssue) {
-          onSave({
-            block: { link: { url: formData.url, meta: {} } },
-            meta: {
-              title: formData.title,
-              description: formData.description,
-              image: '',
-              cover: '',
-            },
-          });
-        } else if (data.type === 'file') {
-          const { isImage, mime } = data;
-          const block: ub.LinkBlock = {
-            link: {
-              url: formData.url,
-              meta: {
-                mime,
+        const defaultMeta = {
+          title: formData.title,
+          description: formData.description,
+          image: '',
+          cover: '',
+        };
+
+        if (!block) {
+          console.warn('LinkInput: No block to save');
+          return;
+        }
+
+        if (block.type === 'embed') {
+          return onSave({
+            content: {
+              link: {
+                href: block.url,
+                content: block.url,
               },
             },
-          };
-          onSave({
-            block,
-            meta: {
-              title: formData.title,
-              description: formData.description,
-              image: isImage ? data.url : '',
-              cover: '',
-            },
+            meta: defaultMeta,
           });
-        } else {
-          const { url, type, ...meta } = data;
-          const block: ub.LinkBlock = {
-            link: {
-              url: formData.url,
-              meta,
+        }
+
+        if (block.type === 'image') {
+          return onSave({
+            content: {
+              image: {
+                src: block.src,
+                height: block.height,
+                width: block.width,
+                alt: block.alt,
+              },
             },
-          };
-          const image = data.previewImageUrl || data.siteIconUrl || '';
-          onSave({
-            block,
             meta: {
-              title: formData.title,
-              description: formData.description,
-              image,
-              cover: '',
+              ...defaultMeta,
+              image: block.src,
             },
           });
         }
+
+        const { url, type, ...meta } = block;
+        return onSave({
+          content: {
+            link: {
+              url,
+              meta,
+            },
+          },
+          meta: {
+            ...defaultMeta,
+            image: block.previewImageUrl || block.siteIconUrl || '',
+          },
+        });
       })();
     }
   }, [data, hasIssue, isDirty, isValid, handleSubmit, onSave]);
-
-  console.log('LinkInput', {
-    block,
-    data,
-    hasIssue,
-    isPosting,
-    isValid,
-    isDirty,
-  });
 
   useRegisterChannelHeaderItem(
     useMemo(

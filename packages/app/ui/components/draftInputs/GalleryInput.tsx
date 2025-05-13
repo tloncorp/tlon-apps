@@ -311,13 +311,13 @@ export function GalleryInput({
   }, [channel.id]);
 
   const handleLinkPost = useCallback(
-    async ({ block, meta }: LinkInputSaveParams) => {
+    async ({ content, meta }: LinkInputSaveParams) => {
       if (isPosting) return;
 
       try {
         setIsPosting(true);
 
-        const story = constructStory([block]);
+        const story = constructStory([content]);
         // If editing, use the editPost function from the context
         if (isEditingPost && editPost && editingPost) {
           await editPost(editingPost, story, undefined, meta);
