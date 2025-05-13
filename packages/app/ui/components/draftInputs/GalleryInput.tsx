@@ -57,11 +57,6 @@ export function GalleryInput({
   const [canPost, setCanPost] = useState(false);
   const [caption, setCaption] = useState('');
   const [isPosting, setIsPosting] = useState(false);
-  // Tracks whether the post being edited is an image gallery post (vs. a text gallery post)
-  // This flag controls which editing UI to show - image preview or BigInput
-  // const [isImageGalleryPost, setIsImageGalleryPost] = useState(false);
-
-  // const isShowingImagePreview = !editingPost && isUploadingGalleryImage;
   const isEditingPost = editingPost != null;
 
   // Determine if the editing post is an image gallery post or text gallery post
@@ -178,17 +173,6 @@ export function GalleryInput({
     };
     storeDraft(jsonContent, 'caption');
   }, [caption, route, editingPost, storeDraft]);
-
-  // Use big input when editing a text post
-  // useEffect(() => {
-  //   // Only show BigInput for text gallery posts, not for image gallery posts
-  //   if (isEditingPost && !isImageGalleryPost) {
-  //     setShowBigInput(true);
-  //   } else if (!isEditingPost) {
-  //     // Reset BigInput visibility when not editing
-  //     setShowBigInput(false);
-  //   }
-  // }, [isEditingPost, isImageGalleryPost]);
 
   // Notify host when changing presentation mode
   useEffect(() => {

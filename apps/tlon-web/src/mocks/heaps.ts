@@ -14,6 +14,13 @@ const mockPerms: Perm = {
   group: '~zod/test',
 };
 
+const emptyMeta = {
+  title: '',
+  description: '',
+  image: '',
+  cover: '',
+};
+
 const mockStash: Channels = {
   'heap/~zod/testHeap': {
     perms: mockPerms,
@@ -55,8 +62,11 @@ const mockCurios: Posts = {
       reacts: {},
     },
     essay: {
-      'kind-data': {
-        heap: 'House rendering',
+      kind: '/heap',
+      blob: null,
+      meta: {
+        ...emptyMeta,
+        title: 'House rendering',
       },
       content: [
         {
@@ -81,8 +91,11 @@ const mockCurios: Posts = {
       reacts: {},
     },
     essay: {
-      'kind-data': {
-        heap: 'Description of a Martini',
+      kind: '/heap',
+      blob: null,
+      meta: {
+        ...emptyMeta,
+        title: 'Description of a Martini',
       },
       content: [
         {
@@ -107,8 +120,11 @@ const mockCurios: Posts = {
       reacts: {},
     },
     essay: {
-      'kind-data': {
-        heap: 'House rendering',
+      kind: '/heap',
+      blob: null,
+      meta: {
+        ...emptyMeta,
+        title: 'House rendering',
       },
       content: [
         {
@@ -133,9 +149,9 @@ const mockCurios: Posts = {
       reacts: {},
     },
     essay: {
-      'kind-data': {
-        heap: '',
-      },
+      kind: '/heap',
+      blob: null,
+      meta: emptyMeta,
       content: [
         {
           inline: [
@@ -159,8 +175,11 @@ const mockCurios: Posts = {
       reacts: {},
     },
     essay: {
-      'kind-data': {
-        heap: 'One Thing About Me',
+      kind: '/heap',
+      blob: null,
+      meta: {
+        ...emptyMeta,
+        title: 'One Thing About Me',
       },
       content: [
         {
