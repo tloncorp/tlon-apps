@@ -23,9 +23,8 @@ export class NativeDb extends BaseDb {
       message: 'setupDb: starting setup',
     });
     if (this.connection || this.client) {
-      logger.warn('setupDb called multiple times, ignoring');
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
-        message: 'setupDb: already have existing setup, ignoring',
+        message: 'setupDb: already have existing connection, ignoring',
       });
       return;
     }
@@ -85,11 +84,13 @@ export class NativeDb extends BaseDb {
       message: 'purgeDb: purging db',
     });
     if (!this.connection) {
-      logger.warn('purgeDb called before setupDb, ignoring');
+      logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+        message:
+          'purgeDb: attempted before connection connection was set up, skipping',
+      });
       return;
     }
     try {
-      logger.log('purging sqlite database');
       this.connection.close();
       this.connection.delete();
       this.connection = null;
@@ -102,10 +103,12 @@ export class NativeDb extends BaseDb {
       // reset values related to tracking db sync state
       await kv.headsSyncedAt.resetValue();
 
-      logger.log('purged sqlite database, recreating');
+      logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+        message: 'purbeDb: completed purge, recreating',
+      });
       await this.setupDb();
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
-        message: 'purbeDb: setupDb after purge',
+        message: 'purbeDb: post-purge setup complete',
       });
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
@@ -129,9 +132,8 @@ export class NativeDb extends BaseDb {
     if (!this.client || !this.connection) {
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
         message:
-          'runMigrations: attempted migrations before connection client was set up',
+          'runMigrations: attempted before connection connection was set up, skipping',
       });
-      logger.warn('runMigrations called before setupDb, ignoring');
       return;
     }
 
@@ -143,7 +145,6 @@ export class NativeDb extends BaseDb {
       this.connection?.execute(TRIGGER_SETUP);
       return;
     } catch (e) {
-      logger.log('migrations failed, purging db and retrying', e);
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         message:
           'runMigrations: migrations failed. Attempting to purge and retry',
@@ -160,9 +161,8 @@ export class NativeDb extends BaseDb {
       await this.connection?.migrateClient(this.client!);
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
         message:
-          'runMigrations: migration retry: successfully migrated on retry',
+          'runMigrations: migration retry: successfully migrated on retry (this should not happen often)',
       });
-      logger.log("migrations succeeded after purge, shouldn't happen often");
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         message: 'runMigrations: migration retry failed. Giving up',
