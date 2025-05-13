@@ -108,7 +108,7 @@ export class NativeDb extends BaseDb {
       });
       await this.setupDb();
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
-        message: 'purbeDb: post-purge setup complete',
+        message: 'purgeDb: post-purge setup complete',
       });
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
