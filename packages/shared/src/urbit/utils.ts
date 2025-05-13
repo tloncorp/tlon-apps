@@ -69,7 +69,7 @@ export function getFirstInline(content: ub.Story) {
   return inlines[0].inline;
 }
 
-export function citeToPath(cite: ub.Cite) {
+export function citeToPath(cite: ubc.Cite) {
   if ('desk' in cite) {
     return `/1/desk/${cite.desk.flag}${cite.desk.where}`;
   }
@@ -83,7 +83,7 @@ export function citeToPath(cite: ub.Cite) {
   return `/1/bait/${cite.bait.group}/${cite.bait.graph}/${cite.bait.where}`;
 }
 
-export function pathToCite(path: string): ub.Cite | undefined {
+export function pathToCite(path: string): ubc.Cite | undefined {
   const segments = path.split('/');
   if (segments.length < 3) {
     return undefined;
@@ -221,7 +221,7 @@ export function getTextContent(story?: PostContent) {
     .map((verse) => {
       if (isReferenceVerse(verse)) {
         return '';
-      } else if (ubc.isBlock(verse)) {
+      } else if (ub.isBlockVerse(verse)) {
         return getBlockContent(verse.block);
       } else if ('inline' in verse) {
         return getInlinesContent(verse.inline);
@@ -240,10 +240,10 @@ function isReferenceVerse(
   return 'type' in verse && verse.type === 'reference';
 }
 
-export function getBlockContent(block: ub.Block) {
-  if (ub.isImage(block)) {
+export function getBlockContent(block: ubc.Block) {
+  if (ubc.isImage(block)) {
     return '(Image)';
-  } else if (ub.isCite(block)) {
+  } else if (ubc.isCite(block)) {
     return '(Reference)';
   } else if (ubc.isHeader(block)) {
     return block.header.content.map(getInlineContent);
@@ -254,7 +254,7 @@ export function getBlockContent(block: ub.Block) {
   }
 }
 
-export function getListingContent(listing: ub.Listing): string {
+export function getListingContent(listing: ubc.Listing): string {
   if (ubc.isListItem(listing)) {
     return listing.item.map(getInlineContent).join(' ');
   } else {
@@ -320,9 +320,8 @@ export function createMessage(
 } {
   const { id, sent } = makeId(our);
   const cacheId = { author: mem.author, sent };
-  const memo: Omit<ub.PostEssay, 'kind-data'> = {
-    content: mem.content,
-    author: mem.author,
+  const memo: ub.PostEssay = {
+    ...mem,
     sent,
   };
 

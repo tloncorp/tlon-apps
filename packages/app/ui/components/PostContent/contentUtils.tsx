@@ -1,4 +1,4 @@
-import { utils } from '@tloncorp/shared';
+import { isTrustedEmbed, utils } from '@tloncorp/shared';
 import { trustedProviders } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import { Post } from '@tloncorp/shared/db';
@@ -338,12 +338,10 @@ function extractEmbedsFromInlines(inlines: ub.Inline[]): BlockData[] {
   for (const inline of inlines) {
     // Check if this is a link that matches any of our trusted providers
     if (ub.isLink(inline)) {
-      const isTrustedEmbed = trustedProviders.some((provider) =>
-        provider.regex.test(inline.link.href)
-      );
+      const isEmbed = isTrustedEmbed(inline.link.href);
       const isNotFormattedText = inline.link.href === inline.link.content;
 
-      if (isTrustedEmbed && isNotFormattedText) {
+      if (isEmbed && isNotFormattedText) {
         // Flush the current segment before adding the embed
         flushSegment();
 

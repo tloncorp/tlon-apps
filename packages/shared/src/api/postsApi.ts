@@ -31,7 +31,6 @@ import {
   isGroupChannelId,
   isGroupDmChannelId,
   toPostEssay,
-  toPostEssay1,
   udToDate,
   with404Handler,
 } from './apiUtils';
@@ -170,7 +169,7 @@ export const sendPost = async ({
     return;
   }
 
-  const essay = toPostEssay1({
+  const essay = toPostEssay({
     content,
     authorId,
     sentAt,
@@ -254,7 +253,14 @@ export const editPost = async ({
     authorId,
     sentAt,
     channelType,
-    metadata,
+    metadata: metadata
+      ? {
+          title: metadata.title || '',
+          image: metadata.image || '',
+          description: metadata.description || '',
+          cover: metadata.cover || '',
+        }
+      : undefined,
   });
 
   const action = channelPostAction(channelId, {
@@ -1132,7 +1138,7 @@ function isChatData(data: KindData): data is KindDataChat {
 
 export function getContentImages(postId: string, content?: ub.Story | null) {
   return (content || []).reduce<db.PostImage[]>((memo, story) => {
-    if (ub.isBlock(story) && ub.isImage(story.block)) {
+    if (ub.isBlockVerse(story) && ub.isImage(story.block)) {
       memo.push({ ...story.block.image, postId });
     }
     return memo;

@@ -2,30 +2,34 @@ import {
   extractContentTypesFromPost,
   getRichLinkMetadata,
   isRichLinkPost,
+  isTrustedEmbed,
   isValidUrl,
   useDebouncedValue,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/shared/urbit';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Text } from '@tloncorp/ui';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, useTheme } from 'tamagui';
 
-import { KeyboardAvoidingView, LoadingSpinner } from '../..';
+import {
+  KeyboardAvoidingView,
+  LoadingSpinner,
+  createContentRenderer,
+} from '../..';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import {
-  ControlledImageField,
   ControlledTextField,
   ControlledTextareaField,
   FormFrame,
 } from '../Form';
-import { LinkBlock } from '../PostContent/BlockRenderer';
-import { LinkBlockData } from '../PostContent/contentUtils';
+import { BlockData } from '../PostContent/contentUtils';
 import { ScreenHeader } from '../ScreenHeader';
 
-export type LinkInputSaveParams = { block: ub.LinkBlock; meta: ub.Metadata };
+export type LinkInputSaveParams = { block: ub.Block; meta: ub.Metadata };
 
 interface LinkInputProps {
   editingPost?: db.Post;
@@ -35,6 +39,14 @@ interface LinkInputProps {
 
 const TITLE_MAX_LENGTH = 240;
 const DESCRIPTION_MAX_LENGTH = 580;
+
+const PostRenderer = createContentRenderer({
+  blockSettings: {
+    link: {
+      aspectRatio: 1.5,
+    },
+  },
+});
 
 export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
   const theme = useTheme();
@@ -57,13 +69,12 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
     watch,
     handleSubmit,
     setValue,
-    formState: { isDirty, isValid, errors },
+    formState: { isDirty, isValid },
   } = useForm({
     mode: 'onChange',
     defaultValues: {
       url: initialValues?.url || '',
       title: initialValues?.title || '',
-      // image: initialValues?.image || '',
       description: initialValues?.description || '',
     },
   });
@@ -71,6 +82,11 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
   const form = watch();
   const url = useDebouncedValue(form.url, 500);
   const { data, isLoading } = store.useLinkGrabber(url);
+  const hasIssue = data && (data.type === 'error' || data.type === 'redirect');
+  const isEmbed = useMemo(() => {
+    return isTrustedEmbed(url);
+  }, [url]);
+
   useEffect(() => {
     if (data && data.type === 'page') {
       const newTitle = data.title || '';
@@ -93,29 +109,53 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
     }
   }, [data, form]);
 
-  const block: LinkBlockData | null = useMemo(() => {
-    if (!data) {
+  const block: BlockData | null = useMemo(() => {
+    if (!data || hasIssue) {
+      if (isEmbed) {
+        return {
+          type: 'embed',
+          url,
+        };
+      }
+
       return null;
     }
     if (data.type === 'file') {
+      if (data.isImage) {
+        return {
+          type: 'image',
+          src: data.url,
+          height: 300,
+          width: 300,
+          alt: '',
+        };
+      }
+
       return {
+        ...data,
         type: 'link',
-        url: data.url,
       };
     }
 
-    const { url, type, ...meta } = data;
+    const { url: retrievedUrl, type, ...meta } = data;
+    if (isEmbed) {
+      return {
+        type: 'embed',
+        url,
+      };
+    }
+
     return {
       ...meta,
       type: 'link',
       url,
     };
-  }, [data]);
+  }, [url, data, hasIssue]);
 
   const handlePressDone = useCallback(() => {
     if (isDirty && isValid) {
       handleSubmit((formData) => {
-        if (!data) {
+        if (!data || hasIssue) {
           onSave({
             block: { link: { url: formData.url, meta: {} } },
             meta: {
@@ -165,9 +205,12 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
         }
       })();
     }
-  }, [data, isDirty, isValid, handleSubmit, onSave]);
+  }, [data, hasIssue, isDirty, isValid, handleSubmit, onSave]);
 
   console.log('LinkInput', {
+    block,
+    data,
+    hasIssue,
     isPosting,
     isValid,
     isDirty,
@@ -202,7 +245,17 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
           }}
         >
           <FormFrame paddingBottom={insets.bottom + 20}>
-            {block && <LinkBlock block={block} aspectRatio={1.5} />}
+            {block && <PostRenderer content={[block]} />}
+            {hasIssue && !isTrustedEmbed && (
+              <View
+                padding="$l"
+                backgroundColor="$secondaryBackground"
+                borderRadius="$m"
+                marginBottom="$l"
+              >
+                <Text color="$secondaryText">Unable to fetch link preview</Text>
+              </View>
+            )}
             <View>
               <ControlledTextField
                 name="url"
@@ -245,22 +298,6 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
                 },
               }}
             />
-
-            {/* <ControlledImageField
-              label="Preview image"
-              name="image"
-              hideError={true}
-              control={control}
-              inputProps={{
-                buttonLabel: 'Change preview image',
-              }}
-              rules={{
-                pattern: {
-                  value: /^(?!file).+/,
-                  message: 'Image has not finished uploading',
-                },
-              }}
-            /> */}
 
             <ControlledTextareaField
               name="description"

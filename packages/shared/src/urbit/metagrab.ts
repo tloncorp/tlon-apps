@@ -1,5 +1,7 @@
 export interface LinkMetadataResponse {
-  result?: PageMetadata | FileMetadata;
+  result: PageMetadata | FileMetadata | string | null;
+  status: number;
+  fetched_at: string;
 }
 
 interface PageMetadata {

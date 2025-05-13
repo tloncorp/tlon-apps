@@ -1,5 +1,9 @@
 export type LinkMetadata = PageMetadata | FileMetadata;
 
+export type LinkMetadataError =
+  | { type: 'redirect' }
+  | { type: 'error'; reason: 'bad response' | 'unknown error' | string };
+
 export type DefaultPageMetadata = {
   siteIconUrl?: string;
   siteName?: string;

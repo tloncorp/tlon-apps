@@ -4,6 +4,7 @@ import {
   createDevLogger,
   diaryMixedToJSON,
   extractContentTypesFromPost,
+  isTrustedEmbed,
 } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import {
@@ -308,65 +309,41 @@ export default function BareChatInput({
           const parsedUrl = new URL(urlMatch);
           parsedUrl.hash = '';
           const url = parsedUrl.toString();
+          const isEmbed = isTrustedEmbed(url);
           console.log(`bl: detected url`, url);
-          const urlStartIndex = newText.indexOf(url);
-          const urlEndIndex = urlStartIndex + urlMatch.length;
-          api.getLinkMetadata(url).then((linkMetadata) => {
-            if (!linkMetadata) {
-              return;
-            }
 
-            // first add the link attachment
-            if (linkMetadata.type === 'page') {
-              const { type, ...rest } = linkMetadata;
-              addAttachment({
-                type: 'link',
-                resourceType: type,
-                ...rest,
-              });
-            }
+          if (!isEmbed) {
+            api.getLinkMetadata(url).then((linkMetadata) => {
+              // todo: handle error case with toast or similar
+              if (!linkMetadata) {
+                return;
+              }
 
-            if (linkMetadata.type === 'file') {
-              if (linkMetadata.isImage) {
+              // first add the link attachment
+              if (linkMetadata.type === 'page') {
+                const { type, ...rest } = linkMetadata;
                 addAttachment({
-                  type: 'image',
-                  file: {
-                    uri: url,
-                    height: 300,
-                    width: 300,
-                    mimeType: linkMetadata.mime,
-                  },
+                  type: 'link',
+                  resourceType: type,
+                  ...rest,
                 });
               }
-            }
 
-            // then update the text to remove the URL
-            const textBeforeUrl = newText.substring(0, urlStartIndex);
-            const textAfterUrl = newText.substring(urlEndIndex);
-
-            let cleanedText = textBeforeUrl;
-            if (textBeforeUrl.endsWith(' ') && textAfterUrl.startsWith(' ')) {
-              cleanedText += textAfterUrl.slice(1);
-            } else {
-              // Otherwise just concatenate, preserving any spacing
-              cleanedText += textAfterUrl;
-            }
-
-            setControlledText(cleanedText);
-            handleMention(oldText, cleanedText);
-
-            const jsonContent = textAndMentionsToContent(cleanedText, mentions);
-            bareChatInputLogger.log('setting draft', jsonContent);
-            storeDraft(jsonContent);
-
-            if (!isWeb) {
-              inputRef.current?.setNativeProps({ text: '' });
-            }
-          });
-
-          // Don't update the text with the URL, as the text attachment handler
-          // will take care of adding it in a controlled way
-          return;
+              if (linkMetadata.type === 'file') {
+                if (linkMetadata.isImage) {
+                  addAttachment({
+                    type: 'image',
+                    file: {
+                      uri: url,
+                      height: 300,
+                      width: 300,
+                      mimeType: linkMetadata.mime,
+                    },
+                  });
+                }
+              }
+            });
+          }
         }
       }
 

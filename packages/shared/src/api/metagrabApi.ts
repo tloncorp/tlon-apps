@@ -9,33 +9,43 @@ const logger = createDevLogger('metagrabApi', true);
 
 export async function getLinkMetadata(
   url: string
-): Promise<domain.LinkMetadata | null> {
-  const bytes = stringToBigIntForUw(url);
-  const encodedUrl = formatUw(bytes);
-  logger.log('encoded', { url, encodedUrl });
-  const response = await request(`/apps/groups/~/metagrab/${encodedUrl}`, {
-    method: 'GET',
-    mode: 'cors',
-  });
-  logger.log('metagrab response', response);
+): Promise<domain.LinkMetadata | domain.LinkMetadataError> {
+  try {
+    const bytes = stringToBigIntForUw(url);
+    const encodedUrl = formatUw(bytes);
+    logger.log('encoded', { url, encodedUrl });
+    const response = await request(`/apps/groups/~/metagrab/${encodedUrl}`, {
+      method: 'GET',
+      mode: 'cors',
+    });
+    logger.log('metagrab response', response);
 
-  if (response.status !== 200) {
-    logger.error(`bad metagrab response: ${response.status}`, response);
-    return null;
+    if (response.status !== 200) {
+      logger.error(`bad metagrab response: ${response.status}`, response);
+      return { type: 'error', reason: 'bad response' };
+    }
+
+    return parseLinkMetadataResponse(url, response);
+  } catch (error) {
+    logger.error('metagrab error', error);
+    return { type: 'error', reason: 'unknown error' };
   }
-
-  return parseLinkMetadataResponse(url, response);
 }
 
 function parseLinkMetadataResponse(
   url: string,
   response: ub.LinkMetadataResponse
-): domain.LinkMetadata | null {
-  if (!response.result) {
-    return null;
+): domain.LinkMetadata | domain.LinkMetadataError {
+  const { result } = response;
+  if (!result) {
+    return { type: 'redirect' };
   }
 
-  const result = response.result;
+  if (typeof result === 'string') {
+    logger.error(`link preview error: ${result}`);
+    return { type: 'error', reason: result };
+  }
+
   if (result.type === 'page') {
     const { site_icon, site_name, title, image, description } = result;
 
@@ -70,12 +80,7 @@ function parseLinkMetadataResponse(
     return parsed;
   }
 
-  return null;
-}
-
-interface ImageData {
-  namespaces: Record<string, string>;
-  attributes: Record<string, string>;
+  return { type: 'error', reason: 'unknown' };
 }
 
 function grabImageUrl(url: string, data: ub.LinkMetadataItem[]) {

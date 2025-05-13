@@ -1,14 +1,5 @@
-import {
-  Block,
-  Code,
-  Header,
-  List,
-  ListItem,
-  Listing,
-  ListingBlock,
-  Verse,
-  VerseBlock,
-} from './channel';
+type Flag = string;
+type Nest = string;
 
 export type JSONContent = {
   type?: string;
@@ -118,8 +109,183 @@ export type InlineKey =
   | 'task'
   | 'sect';
 
-export function isBlock(verse: Verse): verse is VerseBlock {
-  return 'block' in verse;
+export function isInline(c: Inline | Block): c is Inline {
+  if (typeof c === 'string') {
+    return true;
+  }
+
+  if (typeof c !== 'object') {
+    throw new Error('Invalid content type');
+  }
+
+  return (
+    !isBlockLink(c) &&
+    [
+      'text',
+      'mention',
+      'url',
+      'color',
+      'italics',
+      'bold',
+      'strike',
+      'blockquote',
+      'inline-code',
+      'block',
+      'code',
+      'tag',
+      'link',
+      'break',
+    ].some((k) => k in c)
+  );
+}
+
+export interface ChanCite {
+  chan: {
+    nest: Nest;
+    where: string;
+  };
+}
+
+export interface GroupCite {
+  group: Flag;
+}
+
+export interface DeskCite {
+  desk: {
+    flag: string;
+    where: string;
+  };
+}
+
+export interface BaitCite {
+  bait: {
+    group: Flag;
+    graph: Flag;
+    where: string;
+  };
+}
+
+export type Cite = ChanCite | GroupCite | DeskCite | BaitCite;
+
+export interface Image {
+  image: {
+    src: string;
+    height: number;
+    width: number;
+    alt: string;
+  };
+}
+
+export interface LinkBlock {
+  link: {
+    url: string;
+    meta: Record<string, string | undefined> & {
+      title?: string;
+      description?: string;
+      author?: string;
+      siteName?: string;
+      siteIcon?: string;
+      previewImageUrl?: string;
+      previewImageHeight?: string;
+      previewImageWidth?: string;
+    };
+  };
+}
+
+export type ListType = 'ordered' | 'unordered' | 'tasklist';
+
+export interface List {
+  list: {
+    type: 'ordered' | 'unordered' | 'tasklist';
+    items: Listing[];
+    contents: Inline[];
+  };
+}
+
+export type ListItem = {
+  item: Inline[];
+};
+
+export type Listing = List | ListItem;
+
+export interface ListingBlock {
+  listing: Listing;
+}
+
+export type HeaderLevel = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+
+export interface Header {
+  header: {
+    tag: HeaderLevel;
+    content: Inline[];
+  };
+}
+
+export interface Rule {
+  rule: null;
+}
+
+export interface Code {
+  code: {
+    code: string;
+    lang: string;
+  };
+}
+
+export function isImage(item: unknown): item is Image {
+  return typeof item === 'object' && item !== null && 'image' in item;
+}
+
+export function isBlockLink(item: unknown): item is LinkBlock {
+  return (
+    typeof item === 'object' &&
+    item !== null &&
+    'link' in item &&
+    'url' in (item as LinkBlock).link
+  );
+}
+
+export function isCite(s: Block): boolean {
+  if ('cite' in s) {
+    return true;
+  }
+  return false;
+}
+
+export type Block =
+  | Image
+  | { cite: Cite }
+  | ListingBlock
+  | Header
+  | Rule
+  | Code
+  | LinkBlock;
+
+export function isBlock(c: Inline | Block): c is Block {
+  if (typeof c === 'string') {
+    return false;
+  }
+
+  if (typeof c !== 'object') {
+    throw new Error('Invalid content type');
+  }
+
+  return (
+    !isLink(c) &&
+    [
+      'cite',
+      'link',
+      'image',
+      'listing',
+      'header',
+      'rule',
+      'code',
+      'chan',
+      'desk',
+      'bait',
+      'group',
+    ].some((k) => k in c)
+  );
 }
 
 export function isBold(item: unknown): item is Bold {
@@ -131,7 +297,12 @@ export function isItalics(item: unknown): item is Italics {
 }
 
 export function isLink(item: unknown): item is Link {
-  return typeof item === 'object' && item !== null && 'link' in item;
+  return (
+    typeof item === 'object' &&
+    item !== null &&
+    'link' in item &&
+    'href' in (item as Link).link
+  );
 }
 
 export function isStrikethrough(item: unknown): item is Strikethrough {
