@@ -1,5 +1,7 @@
 name: Test Tlon Mobile E2E
 on:
+  pull_request:
+    branches: [develop]
   push:
     branches: [develop]
   workflow_dispatch:
