@@ -18,7 +18,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { Dimensions, Image, Platform } from 'react-native';
+import { Alert, Dimensions, Image, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ColorTokens,
@@ -340,10 +340,24 @@ export function InvitePane(props: { onActionPress: () => void }) {
     try {
       setIsProcessing(true);
       await store.syncSystemContacts();
-      // if successful, continue
-      props.onActionPress();
+      Alert.alert('Success', 'Your contacts have been synced.', [
+        {
+          text: 'OK',
+          onPress: () => {
+            props.onActionPress();
+          },
+        },
+      ]);
     } catch (error) {
       setError('Something went wrong, please try again.');
+      Alert.alert('Error', "We weren't able to sync your contacts.", [
+        {
+          text: 'OK',
+          onPress: () => {
+            props.onActionPress();
+          },
+        },
+      ]);
     } finally {
       setIsProcessing(false);
     }
@@ -354,7 +368,7 @@ export function InvitePane(props: { onActionPress: () => void }) {
       if (perms.canAskPermission) {
         const status = await perms.requestPermissions();
         if (status === 'granted') {
-          processContacts();
+          await processContacts();
         }
       }
     } catch (e) {
@@ -363,9 +377,6 @@ export function InvitePane(props: { onActionPress: () => void }) {
         error: e,
         severity: AnalyticsSeverity.Critical,
       });
-    } finally {
-      // always advance past splash regardless
-      props.onActionPress();
     }
   };
 
