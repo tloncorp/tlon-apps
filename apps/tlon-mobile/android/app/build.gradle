@@ -33,10 +33,9 @@ afterEvaluate {
     }
 
     copyTask.dependsOn(buildTask)
-    android.applicationVariants.all { def variant ->
-        def targetName = variant.name.capitalize()
-        def generateAssetsTask = tasks.findByName("generate${targetName}Assets")
-        generateAssetsTask.dependsOn(copyTask)
+
+    tasks.matching { it.name.startsWith("preBuild") }.all { preBuildTask ->
+        preBuildTask.dependsOn(copyTask)
     }
 }
 
