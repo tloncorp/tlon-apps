@@ -72,7 +72,8 @@ export async function jsonFetch<T>(
 ): Promise<T> {
   const res = await fetch(info, init);
   if (!res.ok) {
-    throw new Error('Bad Fetch Response');
+    console.log('Could not fetch', res.status, res.statusText);
+    return {} as T;
   }
   const data = await res.json();
   return data as T;
