@@ -35,8 +35,16 @@ afterEvaluate {
     copyTask.dependsOn(buildTask)
     android.applicationVariants.all { def variant ->
         def targetName = variant.name.capitalize()
-        def generateAssetsTask = tasks.findByName("generate${targetName}Assets")
-        generateAssetsTask.dependsOn(copyTask)
+
+        def dependents = [
+            tasks.findByName("generate${targetName}Assets"),
+            tasks.findByName("lintVitalAnalyze${targetName}"),
+            tasks.findByName("generate${targetName}LintVitalReportModel"),
+        ]
+
+        dependents.each { dependent ->
+            dependent?.dependsOn(copyTask)
+        }
     }
 }
 
