@@ -30,6 +30,9 @@ patchedDependencies:
   '@react-navigation/drawer@6.7.2':
     hash: rib4hjvzksqzwv3bbw4vfi5a5i
     path: patches/@react-navigation__drawer@6.7.2.patch
+  '@tamagui/sheet@1.126.12':
+    hash: cr6gzke7qcuv6dkqbx6tr2ssue
+    path: patches/@tamagui__sheet@1.126.12.patch
   '@tiptap/react@2.0.3':
     hash: tt2duu22fpwhmhaws3iaoig4mu
     path: patches/@tiptap__react@2.0.3.patch
@@ -19191,7 +19194,7 @@ snapshots:
       '@tamagui/popper': 1.126.12(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@tamagui/portal': 1.126.12(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@tamagui/remove-scroll': 1.126.12(@types/react@18.2.55)(react@18.2.0)
-      '@tamagui/sheet': 1.126.12(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+      '@tamagui/sheet': 1.126.12(patch_hash=cr6gzke7qcuv6dkqbx6tr2ssue)(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@tamagui/stacks': 1.126.12(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@tamagui/text': 1.126.12(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@tamagui/use-controllable-state': 1.126.12(react@18.2.0)
@@ -19422,7 +19425,7 @@ snapshots:
       '@tamagui/portal': 1.126.12(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@tamagui/remove-scroll': 1.126.12(@types/react@18.2.55)(react@18.2.0)
       '@tamagui/scroll-view': 1.126.12(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
-      '@tamagui/sheet': 1.126.12(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+      '@tamagui/sheet': 1.126.12(patch_hash=cr6gzke7qcuv6dkqbx6tr2ssue)(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@tamagui/stacks': 1.126.12(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@tamagui/use-controllable-state': 1.126.12(react@18.2.0)
       react: 18.2.0
@@ -19607,7 +19610,7 @@ snapshots:
       '@tamagui/portal': 1.126.12(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@tamagui/remove-scroll': 1.126.12(@types/react@18.2.55)(react@18.2.0)
       '@tamagui/separator': 1.126.12(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
-      '@tamagui/sheet': 1.126.12(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+      '@tamagui/sheet': 1.126.12(patch_hash=cr6gzke7qcuv6dkqbx6tr2ssue)(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@tamagui/stacks': 1.126.12(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@tamagui/text': 1.126.12(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@tamagui/use-controllable-state': 1.126.12(react@18.2.0)
@@ -19638,7 +19641,7 @@ snapshots:
       - react-dom
       - react-native
 
-  '@tamagui/sheet@1.126.12(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
+  '@tamagui/sheet@1.126.12(patch_hash=cr6gzke7qcuv6dkqbx6tr2ssue)(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)':
     dependencies:
       '@tamagui/adapt': 1.126.12(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@tamagui/animate-presence': 1.126.12(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
@@ -29042,7 +29045,7 @@ snapshots:
       '@tamagui/select': 1.126.12(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@tamagui/separator': 1.126.12(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@tamagui/shapes': 1.126.12(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
-      '@tamagui/sheet': 1.126.12(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
+      '@tamagui/sheet': 1.126.12(patch_hash=cr6gzke7qcuv6dkqbx6tr2ssue)(@types/react@18.2.55)(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@tamagui/slider': 1.126.12(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@tamagui/stacks': 1.126.12(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
       '@tamagui/switch': 1.126.12(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@types/react@18.2.55)(encoding@0.1.13)(react@18.2.0))(react@18.2.0)
