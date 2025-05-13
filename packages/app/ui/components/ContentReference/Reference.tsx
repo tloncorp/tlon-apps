@@ -36,7 +36,6 @@ export const useReferenceContext = () => {
 };
 
 const ReferenceFrame = styled(YStack, {
-  context: ReferenceContext,
   name: 'ReferenceFrame',
   borderRadius: '$s',
   padding: 0,
@@ -99,7 +98,6 @@ const ReferenceComponent = ReferenceFrame.styleable<{
 );
 
 const ReferenceHeader = styled(XStack, {
-  context: ReferenceContext,
   name: 'ReferenceHeader',
   paddingLeft: '$l',
   paddingRight: '$l',
@@ -131,7 +129,6 @@ const ReferenceTitleIcon = styled(
 
 const ReferenceTitleText = styled(Text, {
   name: 'ReferenceTitleText',
-  context: ReferenceContext,
   size: '$label/m',
   color: '$tertiaryText',
   variants: {
@@ -163,7 +160,6 @@ const ReferenceActionIcon = ({
 };
 
 const ReferenceBody = styled(View, {
-  context: ReferenceContext,
   name: 'ReferenceBody',
   pointerEvents: 'none',
   flex: 1,
