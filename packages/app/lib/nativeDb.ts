@@ -1,5 +1,5 @@
 import { open } from '@op-engineering/op-sqlite';
-import { escapeLog } from '@tloncorp/shared';
+import { AnalyticsEvent, AnalyticsSeverity, escapeLog } from '@tloncorp/shared';
 import * as kv from '@tloncorp/shared/db';
 import { schema, setClient } from '@tloncorp/shared/db';
 
@@ -19,35 +19,51 @@ export class NativeDb extends BaseDb {
   private changesPending: boolean = false;
 
   async setupDb() {
+    logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+      message: 'setupDb: starting setup',
+    });
     if (this.connection || this.client) {
       logger.warn('setupDb called multiple times, ignoring');
+      logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+        message: 'setupDb: already have existing setup, ignoring',
+      });
       return;
     }
-    this.connection = new OPSQLite$SQLiteConnection(
-      // NB: the iOS code in SQLiteDB.swift relies on this path - if you change
-      // this, you should change that too.
-      open({ location: 'default', name: 'tlon.sqlite' })
-    );
-    // Experimental SQLite settings. May cause crashes. More here:
-    // https://ospfranco.notion.site/Configuration-6b8b9564afcc4ac6b6b377fe34475090
-    this.connection.execute('PRAGMA mmap_size=268435456');
-    this.connection.execute('PRAGMA journal_mode=MEMORY');
-    this.connection.execute('PRAGMA synchronous=OFF');
+    try {
+      this.connection = new OPSQLite$SQLiteConnection(
+        // NB: the iOS code in SQLiteDB.swift relies on this path - if you change
+        // this, you should change that too.
+        open({ location: 'default', name: 'tlon.sqlite' })
+      );
+      // Experimental SQLite settings. May cause crashes. More here:
+      // https://ospfranco.notion.site/Configuration-6b8b9564afcc4ac6b6b377fe34475090
+      this.connection.execute('PRAGMA mmap_size=268435456');
+      this.connection.execute('PRAGMA journal_mode=MEMORY');
+      this.connection.execute('PRAGMA synchronous=OFF');
 
-    this.connection.updateHook(() => this.handleUpdate());
+      this.connection.updateHook(() => this.handleUpdate());
 
-    this.client = this.connection.createClient({
-      schema,
-      logger: enableLogger
-        ? {
-            logQuery(query, params) {
-              logger.log(escapeLog(query), params);
-            },
-          }
-        : undefined,
-    });
-    setClient(this.client);
-    logger.log('SQLite database opened at', this.connection.getDbPath());
+      this.client = this.connection.createClient({
+        schema,
+        logger: enableLogger
+          ? {
+              logQuery(query, params) {
+                logger.log(escapeLog(query), params);
+              },
+            }
+          : undefined,
+      });
+      setClient(this.client);
+      logger.log('SQLite database opened at', this.connection.getDbPath());
+    } catch (e) {
+      logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
+        message: 'setupDb: error setting up db',
+        errorMessage: e.message,
+        errorStack: e.stack,
+        severity: AnalyticsSeverity.Critical,
+      });
+      throw e;
+    }
   }
 
   async handleUpdate() {
@@ -65,21 +81,41 @@ export class NativeDb extends BaseDb {
   }
 
   async purgeDb() {
+    logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+      message: 'purgeDb: purging db',
+    });
     if (!this.connection) {
       logger.warn('purgeDb called before setupDb, ignoring');
       return;
     }
-    logger.log('purging sqlite database');
-    this.connection.close();
-    this.connection.delete();
-    this.connection = null;
-    this.client = null;
+    try {
+      logger.log('purging sqlite database');
+      this.connection.close();
+      this.connection.delete();
+      this.connection = null;
+      this.client = null;
 
-    // reset values related to tracking db sync state
-    await kv.headsSyncedAt.resetValue();
+      logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+        message: 'purgeDb: closed the connection, cleared the client',
+      });
 
-    logger.log('purged sqlite database, recreating');
-    await this.setupDb();
+      // reset values related to tracking db sync state
+      await kv.headsSyncedAt.resetValue();
+
+      logger.log('purged sqlite database, recreating');
+      await this.setupDb();
+      logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+        message: 'purbeDb: setupDb after purge',
+      });
+    } catch (e) {
+      logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
+        message: 'purgeDb: error purging db',
+        errorMessage: e.message,
+        errorStack: e.stack,
+        severity: AnalyticsSeverity.Critical,
+      });
+      throw e;
+    }
   }
 
   async getDbPath(): Promise<string | undefined> {
@@ -87,21 +123,55 @@ export class NativeDb extends BaseDb {
   }
 
   async runMigrations() {
+    logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+      message: 'runMigrations: starting migrations',
+    });
     if (!this.client || !this.connection) {
+      logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+        message:
+          'runMigrations: attempted migrations before connection client was set up',
+      });
       logger.warn('runMigrations called before setupDb, ignoring');
       return;
     }
 
     try {
       await this.connection?.migrateClient(this.client!);
+      logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+        message: 'runMigrations: successfully migrated DB',
+      });
       this.connection?.execute(TRIGGER_SETUP);
       return;
     } catch (e) {
       logger.log('migrations failed, purging db and retrying', e);
+      logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
+        message:
+          'runMigrations: migrations failed. Attempting to purge and retry',
+        errorMessage: e.message,
+        errorStack: e.stack,
+        severity: AnalyticsSeverity.Critical,
+      });
     }
-    await this.purgeDb();
-    await this.connection?.migrateClient(this.client!);
-    logger.log("migrations succeeded after purge, shouldn't happen often");
+    try {
+      await this.purgeDb();
+      logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+        message: 'runMigrations: migration retry: purged db',
+      });
+      await this.connection?.migrateClient(this.client!);
+      logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+        message:
+          'runMigrations: migration retry: successfully migrated on retry',
+      });
+      logger.log("migrations succeeded after purge, shouldn't happen often");
+    } catch (e) {
+      logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
+        message: 'runMigrations: migration retry failed. Giving up',
+        errorMessage: e.message,
+        errorStack: e.stack,
+        severity: AnalyticsSeverity.Critical,
+      });
+      throw e;
+    }
   }
 }
 
