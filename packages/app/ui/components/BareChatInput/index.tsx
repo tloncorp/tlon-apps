@@ -310,7 +310,6 @@ export default function BareChatInput({
           parsedUrl.hash = '';
           const url = parsedUrl.toString();
           const isEmbed = isTrustedEmbed(url);
-          console.log(`bl: detected url`, url);
 
           if (!isEmbed) {
             api.getLinkMetadata(url).then((linkMetadata) => {

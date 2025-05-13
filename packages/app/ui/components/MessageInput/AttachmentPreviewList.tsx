@@ -159,13 +159,7 @@ const RemoveAttachmentButton = ({ attachment }: { attachment: Attachment }) => {
 };
 
 const LinkPreview = ({ attachment }: { attachment: domain.LinkAttachment }) => {
-  console.log('LinkPreview', { attachment });
   const { url, title, previewImageUrl } = attachment;
-  const [imageLoaded, setImageLoaded] = useState(false);
-
-  useEffect(() => {
-    console.log(`bl: image loaded update`, { imageLoaded, previewImageUrl });
-  }, [imageLoaded, previewImageUrl]);
 
   const domain = useMemo(() => {
     const parsed = new URL(url);
@@ -186,7 +180,6 @@ const LinkPreview = ({ attachment }: { attachment: domain.LinkAttachment }) => {
           {previewImageUrl ? (
             <Image
               backgroundColor={'$secondaryBackground'}
-              onLoad={() => setImageLoaded(true)}
               source={{ uri: previewImageUrl }}
               height={200}
               width={240}

@@ -188,8 +188,6 @@ export const sendPost = async ({
     add: essay,
   });
 
-  console.log(`bl: posting action`, action);
-
   await poke(action);
   logger.log('post sent', { channelId, authorId, sentAt, content });
 };

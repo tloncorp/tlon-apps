@@ -269,7 +269,6 @@ export function GalleryPostDetailView({
     return makePrettyShortDate(new Date(post.receivedAt));
   }, [post.receivedAt]);
   const content = usePostContent(post);
-  // console.log('gallery post detail view', { post, livePost, content });
   const [viewReactionsOpen, setViewReactionsOpen] = useState(false);
 
   const firstImage = useMemo(() => {
@@ -381,7 +380,6 @@ export function GalleryContentRenderer({
 } & Omit<ComponentProps<typeof PreviewFrame>, 'content'>) {
   const content = usePostContent(post);
   const previewContent = usePreviewContent(content);
-  console.log('gallery content renderer', { post, content, previewContent });
 
   if (post.hidden) {
     return (

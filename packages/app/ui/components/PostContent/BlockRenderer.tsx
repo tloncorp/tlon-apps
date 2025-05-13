@@ -242,7 +242,6 @@ export function LinkBlock({
       Linking.openURL(block.url);
     }
   }, [block.url]);
-  console.log('LinkBlock', block);
 
   const aspectRatio = useMemo(() => {
     if (!block.previewImageHeight || !block.previewImageWidth) {

@@ -112,7 +112,6 @@ function parseImageData(url: string, data: ub.LinkMetadataItem[]) {
   const ogHeight = og.find((item) => item.attributes?.height)?.attributes
     ?.height;
   const ogWidth = og.find((item) => item.attributes?.width)?.attributes?.width;
-  console.log('image data', { og, ogImage, ogHeight, ogWidth, twitter });
 
   return {
     url: ogImage || twitter || data[0]?.value,
