@@ -8,8 +8,9 @@ import { useMemo } from 'react';
 import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
 
-import { useChannelContext, useCurrentUserId } from '../../../contexts';
+import { useCurrentUserId } from '../../../contexts/appDataContext';
 import { Attachment, useAttachmentContext } from '../../../contexts/attachment';
+import { useChannelContext } from '../../../contexts/channel';
 import { triggerHaptic, useIsAdmin } from '../../../utils';
 import ActionList from '../../ActionList';
 import { useForwardPostSheet } from '../../ForwardPostSheet';

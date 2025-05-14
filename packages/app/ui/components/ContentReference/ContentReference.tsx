@@ -8,7 +8,7 @@ import React, { createContext } from 'react';
 import { ComponentProps, useCallback, useContext } from 'react';
 import { View, XStack, styled } from 'tamagui';
 
-import { useNavigation } from '../../contexts';
+import { useNavigation } from '../../contexts/navigation';
 import { useRequests } from '../../contexts/requests';
 import { useGroupTitle } from '../../utils';
 import { ContactAvatar, GroupAvatar } from '../Avatar';

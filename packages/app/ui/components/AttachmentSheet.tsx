@@ -4,7 +4,7 @@ import { useCallback, useMemo } from 'react';
 import { Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
-import { useAttachmentContext } from '../contexts';
+import { useAttachmentContext } from '../contexts/attachment';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { ListItem } from './ListItem';
 

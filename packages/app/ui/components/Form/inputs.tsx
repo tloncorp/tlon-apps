@@ -31,9 +31,9 @@ import {
 import {
   useAttachmentContext,
   useMappedImageAttachments,
-} from '../../contexts';
+} from '../../contexts/attachment';
 import AttachmentSheet from '../AttachmentSheet';
-import { ListItem } from '../ListItem';
+import { ListItem } from '../ListItem/ListItem';
 import { useBoundHandler } from '../ListItem/listItemUtils';
 import { FieldContext } from './Field';
 import {

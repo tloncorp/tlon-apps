@@ -23,8 +23,9 @@ import {
 import { View, XStack, styled } from 'tamagui';
 
 import { RootStackParamList } from '../../../navigation/types';
-import { useChannelContext, useRequests } from '../../contexts';
+import { useChannelContext } from '../../contexts/channel';
 import { MinimalRenderItemProps } from '../../contexts/componentsKits';
+import { useRequests } from '../../contexts/requests';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ReactionsDisplay } from '../ChatMessage/ReactionsDisplay';

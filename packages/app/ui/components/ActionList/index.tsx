@@ -1,7 +1,7 @@
 import { ComponentProps, PropsWithChildren } from 'react';
 import { styled, withStaticProperties } from 'tamagui';
 
-import { ListItem } from '../ListItem';
+import { ListItem } from '../ListItem/ListItem';
 import ListFrame from './ListFrame';
 
 const ActionFrame = styled(ListItem, {

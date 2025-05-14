@@ -2,7 +2,7 @@ import { JSONValue } from '@tloncorp/shared';
 import { ChannelContentConfiguration } from '@tloncorp/shared/api';
 import { useMemo } from 'react';
 
-import { useChannelContext } from '../../contexts';
+import { useChannelContext } from '../../contexts/channel';
 import {
   RenderItemType,
   useComponentsKitContext,
