@@ -8,139 +8,21 @@ import {
 import { AppDataContextProvider } from '../ui/contexts/appDataContext';
 import { ChatOptionsProvider } from '../ui/contexts/chatOptions';
 import { FixtureWrapper } from './FixtureWrapper';
+import { initialContacts, jamesContact } from './fakeData';
 
-interface ChannelMock {
-  channel: db.Channel;
-}
+/**
+ * ChatOptionsSheet fixture
+ *
+ * This fixture demonstrates the various states of the ChatOptionsSheet component,
+ * focusing on three main scenarios:
+ * 1. Channel options (with host/member variations)
+ * 2. Group options (with host/member variations and privacy settings)
+ * 3. DM options (individual and group DMs)
+ *
+ * Each scenario also demonstrates different unread counts.
+ */
 
-interface GroupMock {
-  group: db.Group;
-  groupUnread: db.GroupUnread | null;
-}
-
-const createMockData = (params: {
-  type: 'channel' | 'dm' | 'groupDm' | 'group';
-  isHost?: boolean;
-  unreadCount?: number;
-  privacy?: 'public' | 'private' | 'secret';
-  contactsCount?: number;
-}): ChannelMock | GroupMock => {
-  const {
-    type,
-    isHost = false,
-    unreadCount = 0,
-    privacy = 'public',
-    contactsCount = 1,
-  } = params;
-
-  const timestamp = Date.now();
-
-  if (type === 'group') {
-    if (unreadCount > 0) {
-      const group: db.Group = {
-        id: 'group/~sampel-palnet/test-group',
-        title: 'Test Group',
-        privacy,
-        currentUserIsMember: true,
-        currentUserIsHost: isHost,
-        hostUserId: '~sampel-palnet',
-        members: [],
-      } as db.Group;
-
-      // @ts-expect-error - dynamic property for UI
-      group.unread = {
-        count: unreadCount,
-      };
-
-      const groupUnread: db.GroupUnread = {
-        groupId: group.id,
-        updatedAt: timestamp,
-        count: unreadCount,
-        notifyCount: 0,
-        notify: false,
-      } as db.GroupUnread;
-
-      return { group, groupUnread };
-    } else {
-      const group: db.Group = {
-        id: 'group/~sampel-palnet/test-group',
-        title: 'Test Group',
-        privacy,
-        currentUserIsMember: true,
-        currentUserIsHost: isHost,
-        hostUserId: '~sampel-palnet',
-        members: [],
-      } as db.Group;
-
-      // @ts-expect-error - dynamic property for UI display
-      group.unread = {
-        count: 0,
-      };
-
-      const groupUnread: db.GroupUnread = {
-        groupId: group.id,
-        updatedAt: timestamp,
-        count: 0,
-        notifyCount: 0,
-        notify: false,
-      } as db.GroupUnread;
-
-      return { group, groupUnread };
-    }
-  }
-
-  if (type === 'dm' || type === 'groupDm') {
-    const members = Array.from({ length: contactsCount }, (_, i) => ({
-      contactId: `~${i === 0 ? 'sampel-palnet' : i}`,
-      membershipType: 'channel',
-    }));
-
-    const channel: db.Channel = {
-      id: `${type}/~sampel-palnet/${type === 'dm' ? 'direct-chat' : 'group-chat'}`,
-      type,
-      title: type === 'dm' ? undefined : 'Club',
-      groupId: undefined,
-      currentUserIsMember: true,
-      currentUserIsHost: false,
-      contactId: type === 'dm' ? '~zod' : undefined,
-      members: type === 'groupDm' ? members : undefined,
-    } as db.Channel;
-
-    if (unreadCount > 0) {
-      // @ts-expect-error - dynamic property for UI display
-      channel.unread = {
-        count: unreadCount,
-      };
-    } else {
-      // @ts-expect-error - dynamic property for UI display
-      channel.unread = { count: 0 };
-    }
-
-    return { channel };
-  }
-
-  const channel: db.Channel = {
-    id: 'chat/~sampel-palnet/test-channel',
-    type: 'chat',
-    title: 'Test Channel',
-    groupId: 'group/~sampel-palnet/test-group',
-    currentUserIsMember: true,
-    currentUserIsHost: isHost,
-  } as db.Channel;
-
-  if (unreadCount > 0) {
-    // @ts-expect-error - dynamic property for UI display
-    channel.unread = {
-      count: unreadCount,
-    };
-  } else {
-    // @ts-expect-error - dynamic property for UI display
-    channel.unread = { count: 0 };
-  }
-
-  return { channel };
-};
-
+// Standard mock functions to pass to ChatOptionsProvider
 const mockFunctions = {
   onPressGroupMeta: () => {},
   onPressGroupMembers: () => {},
@@ -161,6 +43,107 @@ const mockFunctions = {
   updateVolume: () => {},
 };
 
+interface MockDataResult {
+  channel?: db.Channel;
+  group?: db.Group;
+  groupUnread?: db.GroupUnread;
+}
+
+/**
+ * Creates mock data for different chat scenarios
+ */
+const createMockData = (params: {
+  type: 'channel' | 'dm' | 'groupDm' | 'group';
+  isHost?: boolean;
+  unreadCount?: number;
+  privacy?: 'public' | 'private' | 'secret';
+  contactsCount?: number;
+}): MockDataResult => {
+  const {
+    type,
+    isHost = false,
+    unreadCount = 0,
+    privacy = 'public',
+    contactsCount = 1,
+  } = params;
+
+  const timestamp = Date.now();
+  const hostId = '~sampel-palnet';
+
+  if (type === 'group') {
+    // Create basic group structure that conforms to db.Group
+    const group = {
+      id: `group/${hostId}/test-group`,
+      title: 'Test Group',
+      privacy,
+      currentUserIsMember: true,
+      currentUserIsHost: isHost,
+      hostUserId: hostId,
+      // Members need to be structured as db.ChatMembers
+      members: Array.from({ length: 5 }, (_, i) => ({
+        contactId: i === 0 ? hostId : i,
+        membershipType: 'group',
+      })) as db.ChatMember[],
+      channels: [],
+    } as unknown as db.Group;
+
+    // @ts-expect-error - dynamic property for UI display
+    group.unread = { count: unreadCount };
+
+    const groupUnread = {
+      groupId: group.id,
+      updatedAt: timestamp,
+      count: unreadCount,
+      notifyCount: 0,
+      notify: false,
+    } as db.GroupUnread;
+
+    return { group, groupUnread };
+  }
+
+  if (type === 'dm' || type === 'groupDm') {
+    const members = Array.from({ length: contactsCount }, (_, i) => ({
+      contactId: i === 0 ? hostId : i,
+      membershipType: 'channel',
+    })) as db.ChatMember[];
+
+    const channel = {
+      id: `${type}/${hostId}/${type === 'dm' ? 'direct-chat' : 'group-chat'}`,
+      type,
+      title: type === 'dm' ? undefined : 'Group Chat',
+      groupId: undefined,
+      currentUserIsMember: true,
+      currentUserIsHost: type === 'groupDm' && isHost,
+      contactId: type === 'dm' ? '~zod' : undefined,
+      members: type === 'groupDm' ? members : undefined,
+    } as db.Channel;
+
+    // @ts-expect-error - dynamic property for UI display
+    channel.unread = { count: unreadCount };
+
+    return { channel };
+  }
+
+  // Channel in a group
+  const channel = {
+    id: `chat/${hostId}/test-channel`,
+    type: 'chat',
+    title: 'Test Channel',
+    groupId: `group/${hostId}/test-group`,
+    currentUserIsMember: true,
+    currentUserIsHost: isHost,
+  } as db.Channel;
+
+  // @ts-expect-error - dynamic property for UI display
+  channel.unread = { count: unreadCount };
+
+  return { channel };
+};
+
+/**
+ * Channel options fixture component
+ * Shows how the channel options sheet appears in different states
+ */
 const ChannelOptions = () => {
   const [isHost] = useValue('Is Host', { defaultValue: false });
   const [unreadCount] = useValue('Unread Count', { defaultValue: 0 });
@@ -169,14 +152,24 @@ const ChannelOptions = () => {
     type: 'channel',
     isHost,
     unreadCount,
-  }) as ChannelMock;
+  });
+
+  const hostStatus = isHost ? "you're the host" : "you're a member";
+
+  // Make sure we have a valid channel
+  if (!mock.channel) {
+    return null;
+  }
 
   return (
-    <AppDataContextProvider>
+    <AppDataContextProvider
+      currentUserId={jamesContact.id}
+      contacts={initialContacts}
+    >
       <FixtureWrapper>
         <ChatOptionsProvider {...mockFunctions}>
           <ChannelOptionsSheetContent
-            chatTitle={`Test Channel (${isHost ? "you're the host" : "you're a member"})`}
+            chatTitle={`Test Channel (${hostStatus})`}
             channel={mock.channel}
             onPressNotifications={() => {}}
             onOpenChange={() => {}}
@@ -187,6 +180,10 @@ const ChannelOptions = () => {
   );
 };
 
+/**
+ * Group options fixture component
+ * Shows how the group options sheet appears in different states
+ */
 const GroupOptions = () => {
   const [isHost] = useValue('Is Host', { defaultValue: false });
   const [unreadCount] = useValue('Unread Count', { defaultValue: 0 });
@@ -200,16 +197,27 @@ const GroupOptions = () => {
     isHost,
     unreadCount,
     privacy: privacy as 'public' | 'private' | 'secret',
-  }) as GroupMock;
+  });
+
+  const hostStatus = isHost ? "you're the host" : "you're a member";
+  const titleWithPrivacy = `${privacy.charAt(0).toUpperCase() + privacy.slice(1)} Group (${hostStatus})`;
+
+  // Make sure we have a valid group and groupUnread
+  if (!mock.group) {
+    return null;
+  }
 
   return (
-    <AppDataContextProvider>
+    <AppDataContextProvider
+      currentUserId={jamesContact.id}
+      contacts={initialContacts}
+    >
       <FixtureWrapper>
         <ChatOptionsProvider {...mockFunctions}>
           <GroupOptionsSheetContent
-            chatTitle={`${privacy.charAt(0).toUpperCase() + privacy.slice(1)} Group (${isHost ? "you're the host" : "you're a member"})`}
+            chatTitle={titleWithPrivacy}
             group={mock.group}
-            groupUnread={mock.groupUnread}
+            groupUnread={mock.groupUnread || null}
             currentUserIsAdmin={isHost}
             onPressNotifications={() => {}}
             onPressSort={() => {}}
@@ -221,6 +229,10 @@ const GroupOptions = () => {
   );
 };
 
+/**
+ * DM options fixture component
+ * Shows the options for both individual DMs and group DMs
+ */
 const DMOptions = () => {
   const [dmType] = useSelect('DM Type', {
     options: ['dm', 'groupDm'],
@@ -232,18 +244,25 @@ const DMOptions = () => {
   });
 
   const [unreadCount] = useValue('Unread Count', { defaultValue: 0 });
-
   const mock = createMockData({
     type: dmType as 'dm' | 'groupDm',
     contactsCount: memberCount,
     unreadCount,
-  }) as ChannelMock;
+  });
 
   const title =
     dmType === 'dm' ? 'Direct Message' : `Group DM (${memberCount} members)`;
 
+  // Make sure we have a valid channel
+  if (!mock.channel) {
+    return null;
+  }
+
   return (
-    <AppDataContextProvider>
+    <AppDataContextProvider
+      currentUserId={jamesContact.id}
+      contacts={initialContacts}
+    >
       <FixtureWrapper>
         <ChatOptionsProvider {...mockFunctions}>
           <ChannelOptionsSheetContent
