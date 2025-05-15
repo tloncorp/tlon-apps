@@ -780,7 +780,6 @@ export const getPostWithReplies = async ({
   });
 
   const postData = toPostData(channelId, post);
-  logger.log('got post', { post, postData });
   return postData;
 };
 
