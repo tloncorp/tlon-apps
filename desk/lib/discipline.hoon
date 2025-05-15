@@ -174,7 +174,7 @@
     ^-  ?
     ?.  ?=([~ ~ *] result)  &
     ?~  want=(expected-scry-mark path)
-      ~&  [%discipline %unknown-scry-path path=path]
+      ~&  [%discipline %unknown-scry-path path=path mark=p.u.u.result]
       &
     ?:  =(%$ u.want)
       ::NOTE  easy-out
