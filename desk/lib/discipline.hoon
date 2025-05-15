@@ -144,19 +144,19 @@
     :-  card
     ?.  ?=([%give %fact *] card)  ~
     =?  paths.p.card  ?=(~ paths.p.card)
-      ~?  >>  ?=(~ watch-path)  [%discipline %initial-fact-but-no-watch-path]
+      ~?  >>  ?=(~ watch-path)  [%discipline dap=dap.bowl %initial-fact-but-no-watch-path]
       (drop watch-path)
     %+  murn  paths.p.card
     |=  =path
     ^-  (unit ^card)
     ?~  ex-marks=(expected-fact-marks path)
-      ~&  >>  [%discipline %unknown-path path=path]
+      ~&  >>  [%discipline dap=dap.bowl %unknown-path path=path]
       `(tell:log %warn ~['discipline: unknown path' >path<] ~)
     ?.  ?|  =(~ u.ex-marks)  ::  empty list allows any mark
             ?=(^ (find ~[p.cage.p.card] u.ex-marks))
         ==
       =+  n=[path=path mark=p.cage.p.card allowed=u.ex-marks]
-      ~&  >>>  [%discipline %bad-fact-mark n]
+      ~&  >>>  [%discipline dap=dap.bowl %bad-fact-mark n]
       `(tell:log %crit ~['discipline: bad fact mark' >n<] ~)
     ?~  type=(~(get by marks) p.cage.p.card)
       ::NOTE  if we don't have a type for this mark,
@@ -165,7 +165,7 @@
     ?:  (~(nest ut u.type) | p.q.cage.p.card)
       ~
     =+  n=[on-path=path with-mark=p.cage.p.card %nest-fail]
-    ~&  >>>  [%discipline %bad-fact-data n]
+    ~&  >>>  [%discipline dap=dap.bowl %bad-fact-data n]
     `(tell:log %crit ~['discipline: bad fact data' >n<] ~)
   ::  +check-scry: validate result against known marks
   ::
@@ -174,13 +174,13 @@
     ^-  ?
     ?.  ?=([~ ~ *] result)  &
     ?~  want=(expected-scry-mark path)
-      ~&  [%discipline %unknown-scry-path path=path mark=p.u.u.result]
+      ~&  [%discipline dap=dap.bowl %unknown-scry-path path=path mark=p.u.u.result]
       &
     ?:  =(%$ u.want)
       ::NOTE  easy-out
       &
     ?.  =(p.u.u.result u.want)
-      ~&  >>>  [%discipline %bad-scry-mark path=path want=want got=p.u.u.result]
+      ~&  >>>  [%discipline dap=dap.bowl %bad-scry-mark path=path want=want got=p.u.u.result]
       |
     ?~  type=(~(get by marks) p.u.u.result)
       ::NOTE  if we don't have a type for this mark,
@@ -188,7 +188,7 @@
       &
     ?:  (~(nest ut u.type) | p.q.u.u.result)
       &
-    ~&  >>>  [%discipline %bad-scry-data on-path=path with-mark=p.u.u.result %nest-fail]
+    ~&  >>>  [%discipline dap=dap.bowl %bad-scry-data on-path=path with-mark=p.u.u.result %nest-fail]
     |
   ::  +check-marks: for marks where we know both sides, check equivalence
   ::
@@ -243,7 +243,7 @@
     =+  !<([%discipline old=state-0] (slot 2 ole))
     =.  state  old
     ?^  bad=(check-marks:help last-marks mark-map)
-      ~|  [%discipline %mark-types-changed marks=bad]
+      ~|  [%discipline dap=dap.bowl %mark-types-changed marks=;;((list mark) bad)]
       !!  ::REVIEW  possibly annoying during development?
     =.  last-marks  mark-types
     =^  cards  inner  (on-load:og (slot 3 ole))  !:
@@ -284,7 +284,7 @@
     ^-  (quip card _this)
     ?:  ?=([%~.~ %discipline *] wire)
       ?:  ?=([%logs ~] t.t.wire)  [~ this]
-      ~&  [%discipline bad-wire=wire]
+      ~&  [%discipline dap=dap.bowl bad-wire=wire]
       [~ this]
     =^  cards  inner  (on-agent:og wire sign)
     =.  cards  (check-cards:help ~ cards)
