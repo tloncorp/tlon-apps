@@ -464,7 +464,7 @@ export const groupsRelations = relations(groups, ({ one, many }) => ({
 export const groupRoles = sqliteTable(
   'group_roles',
   {
-    id: text('id'),
+    id: text('id').notNull(),
     groupId: text('group_id').references(() => groups.id, {
       onDelete: 'cascade',
     }),

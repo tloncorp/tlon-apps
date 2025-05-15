@@ -1,3 +1,4 @@
+import { Stringified } from '../utils';
 import { DisplayMode, SortMode } from './channel';
 
 export type Theme = 'light' | 'dark' | 'auto';
@@ -22,10 +23,6 @@ interface GroupSideBarSort {
     | typeof RECENT_SORT
     | typeof DEFAULT_SORT;
 }
-
-export type Stringified<T> = string & {
-  [P in keyof T]: { '_ value': T[P] };
-};
 
 interface ChannelSetting {
   flag: string;

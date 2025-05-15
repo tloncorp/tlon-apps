@@ -237,6 +237,10 @@ export async function subscribe<T>(
         // tracked pokes
         const endpointKey = printEndpoint(endpoint);
         const endpointWatchers = config.subWatchers[endpointKey];
+        logger.debug(
+          `checking for endpoint watchers on ${endpointKey}:`,
+          endpointWatchers
+        );
         if (endpointWatchers) {
           endpointWatchers.forEach((watcher) => {
             if (watcher.predicate(event, mark)) {

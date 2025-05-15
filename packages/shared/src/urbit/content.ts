@@ -27,6 +27,10 @@ export interface Ship {
   ship: string;
 }
 
+export interface Sect {
+  sect: string | null;
+}
+
 export interface Italics {
   italics: Inline[];
 }
@@ -89,6 +93,7 @@ export type Inline =
   | Italics
   | Strikethrough
   | Ship
+  | Sect
   | Break
   | InlineCode
   | BlockCode
@@ -108,7 +113,10 @@ export type InlineKey =
   | 'code'
   | 'tag'
   | 'link'
-  | 'break';
+  | 'break'
+  | 'ship'
+  | 'task'
+  | 'sect';
 
 export function isBlock(verse: Verse): verse is VerseBlock {
   return 'block' in verse;
@@ -148,6 +156,10 @@ export function isBreak(item: unknown): item is Break {
 
 export function isShip(item: unknown): item is Ship {
   return typeof item === 'object' && item !== null && 'ship' in item;
+}
+
+export function isSect(item: unknown): item is Sect {
+  return typeof item === 'object' && item !== null && 'sect' in item;
 }
 
 export function isHeader(block: Block): block is Header {

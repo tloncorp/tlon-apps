@@ -289,6 +289,8 @@ export function getInlineContent(inline: ubc.Inline): string {
     return '';
   } else if (ubc.isShip(inline)) {
     return inline.ship;
+  } else if (ubc.isSect(inline)) {
+    return `@${inline.sect || 'all'}`;
   } else if (ubc.isTag(inline)) {
     return inline.tag;
   } else if (ubc.isBlockReference(inline)) {
