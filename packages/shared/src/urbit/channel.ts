@@ -538,24 +538,7 @@ export const emptyReply: Reply = {
   },
 };
 
-export function constructStory(
-  data: (Inline | Block)[],
-  codeAsBlock?: boolean
-): Story {
-  // const isBlock = (c: Inline | Block) =>
-  //   [
-  //     'image',
-  //     'chan',
-  //     'desk',
-  //     'bait',
-  //     'group',
-  //     'link',
-  //     'listing',
-  //     'header',
-  //     'rule',
-  //     'cite',
-  //     codeAsBlock ? 'code' : '',
-  //   ].some((k) => typeof c !== 'string' && k in c);
+export function constructStory(data: (Inline | Block)[]): Story {
   const postContent: Story = [];
   let index = 0;
   data.forEach((c, i) => {
