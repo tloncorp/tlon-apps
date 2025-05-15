@@ -5,7 +5,7 @@ import * as domain from '../domain';
 import * as ub from '../urbit';
 import { request } from './urbit';
 
-const logger = createDevLogger('metagrabApi', true);
+const logger = createDevLogger('metagrabApi', false);
 
 export async function getLinkMetadata(
   url: string
@@ -21,13 +21,26 @@ export async function getLinkMetadata(
     logger.log('metagrab response', response);
 
     if (response.status !== 200) {
-      logger.error(`bad metagrab response: ${response.status}`, response);
+      logger.trackError(domain.AnalyticsEvent.ErrorFetchLinkMetadata, {
+        message: `bad metagrab response: ${response.status}`,
+        response,
+      });
       return { type: 'error', reason: 'bad response' };
     }
 
-    return parseLinkMetadataResponse(url, response);
+    const parsed = parseLinkMetadataResponse(url, response);
+    if (parsed.type === 'error') {
+      logger.trackError(domain.AnalyticsEvent.ErrorFetchLinkMetadata, {
+        message: `metagrab error: ${parsed.reason}`,
+        response,
+        parsedResponse: parsed,
+      });
+    } else {
+      logger.trackEvent(domain.AnalyticsEvent.FetchLinkMetadata);
+    }
+    return parsed;
   } catch (error) {
-    logger.error('metagrab error', error);
+    logger.trackError(domain.AnalyticsEvent.ErrorFetchLinkMetadata, error);
     return { type: 'error', reason: 'unknown error' };
   }
 }
