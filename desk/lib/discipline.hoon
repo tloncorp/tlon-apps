@@ -43,7 +43,7 @@
 ::
 /%  m-noun  %noun
 ::
-|=  $:  marks=(list [=mark =type])
+|=  $:  marks=(list [=mark strict=? =type])
         facts=(list [=path marks=(list mark)])  ::  first matching is used, ~ for any
         scries=(list [=path =mark])
     ==
@@ -51,7 +51,7 @@
 ::
 =.  marks
   =-  (weld - marks)
-  :~  [%noun -:!>(*vale:m-noun)]
+  :~  [%noun & -:!>(*vale:m-noun)]
   ==
 =.  facts
   %+  weld
@@ -77,6 +77,11 @@
   (aor i.a i.b)
 =.  facts   (sort facts por)
 =.  scries  (sort scries por)
+::
+=/  mark-map=(map mark [strict=? =type])
+  (~(gas by *(map mark [? type])) marks)
+=/  mark-types=(map mark type)
+  (~(run by mark-map) tail)
 ::
 |=  inner=agent:gall
 |^  agent
@@ -190,16 +195,17 @@
   ::    produces the marks that aren't equivalent
   ::
   ++  check-marks
-    |=  [ole=(map mark type) neu=(map mark type)]
+    |=  [ole=(map mark type) neu=(map mark [strict=? =type])]
     ^-  (list mark)
     %+  murn  ~(tap by ole)
     |=  old=[=mark =type]
     ^-  (unit mark)
     ?~  new=(~(get by neu) mark.old)  ~
+    ?.  strict.u.new  ~
     =;  match=?
       ?:(match ~ `mark.old)
-    ?&  (~(nest ut type.old) | u.new)
-        (~(nest ut u.new) | type.old)
+    ?&  (~(nest ut type.old) | type.u.new)
+        (~(nest ut type.u.new) | type.old)
     ==
   --
 ::
@@ -220,7 +226,7 @@
   ::
   ++  on-init
     ^-  (quip card _this)
-    =.  last-marks  (~(gas by *(map mark type)) marks)
+    =.  last-marks  mark-types
     =^  cards  inner  on-init:og  !:
     =.  cards  (check-cards:help ~ cards)
     [cards this]
@@ -230,16 +236,16 @@
     |=  ole=vase
     ^-  (quip card _this)
     ?.  ?=([[%discipline *] *] q.ole)
-      =.  last-marks  (~(gas by *(map mark type)) marks)
+      =.  last-marks  mark-types
       =^  cards  inner  (on-load:og ole)  !:
       =.  cards  (check-cards:help ~ cards)
       [cards this]
     =+  !<([%discipline old=state-0] (slot 2 ole))
     =.  state  old
-    ?^  bad=(check-marks:help last-marks (~(gas by *(map mark type)) marks))
+    ?^  bad=(check-marks:help last-marks mark-map)
       ~|  [%discipline %mark-types-changed marks=bad]
       !!  ::REVIEW  possibly annoying during development?
-    =.  last-marks  (~(gas by *(map mark type)) marks)
+    =.  last-marks  mark-types
     =^  cards  inner  (on-load:og (slot 3 ole))  !:
     =.  cards  (check-cards:help ~ cards)
     [cards this]
