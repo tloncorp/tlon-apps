@@ -289,7 +289,6 @@ export function textAndMentionsToContent(
   let absoluteStart = 0;
   lines.forEach((line) => {
     const absoluteEnd = absoluteStart + line.length + 1;
-    console.log({ absoluteStart, absoluteEnd });
     const found = mentions.filter(
       (mention) => mention.start >= absoluteStart && mention.end < absoluteEnd
     );
@@ -304,10 +303,8 @@ export function textAndMentionsToContent(
     absoluteStart += line.length + 1;
   });
 
-  console.log({ mentions, normalizedLines });
-
-  normalizedLines.forEach((line, index) => {
-    const { text, mentions } = line;
+  normalizedLines.forEach((line) => {
+    const { text } = line;
     if (text.startsWith('```')) {
       if (!inCodeBlock) {
         if (currentLines.length > 0) {
