@@ -85,15 +85,21 @@ interface MentionNode {
 
 type LineNode = TextNode | MentionNode;
 
-const processLine = (line: string, mentions: Mention[]): JSONContent => {
+interface Line {
+  text: string;
+  mentions: Mention[];
+}
+
+const processLine = (line: Line): JSONContent => {
+  const { text, mentions } = line;
   const parsedContent: JSONContent[] = [];
   let isBolding = false;
   let isItalicizing = false;
   let isCoding = false;
   let isEndOfFormatting = false;
 
-  if (line.startsWith('> ')) {
-    const quotedContent = processLine(line.slice(2), mentions);
+  if (text.startsWith('> ')) {
+    const quotedContent = processLine({ text: text.slice(2), mentions });
     return {
       type: 'blockquote',
       content: [quotedContent],
@@ -102,11 +108,11 @@ const processLine = (line: string, mentions: Mention[]): JSONContent => {
 
   let segments: LineNode[] =
     mentions.length === 0
-      ? line.split(' ').map((word) => ({ type: 'text', text: word }))
+      ? text.split(' ').map((word) => ({ type: 'text', text: word }))
       : [];
   let index = 0;
   for (const [i, mention] of mentions.entries()) {
-    const nextSegment = line.slice(index, Math.max(mention.start - 1, 0));
+    const nextSegment = text.slice(index, Math.max(mention.start - 1, 0));
     const parts: string[] = nextSegment === '' ? [] : nextSegment.split(' ');
     const partsUptoMention: LineNode[] = parts.map((word) => ({
       type: 'text',
@@ -123,7 +129,7 @@ const processLine = (line: string, mentions: Mention[]): JSONContent => {
     index = mention.end + 1;
 
     if (i === mentions.length - 1) {
-      const lastSegment = line.slice(index);
+      const lastSegment = text.slice(index);
       if (lastSegment) {
         const parts: LineNode[] = lastSegment.split(' ').map((word) => ({
           type: 'text',
@@ -261,8 +267,8 @@ const processLine = (line: string, mentions: Mention[]): JSONContent => {
   return makeParagraph(mergeTextNodes(parsedContent));
 };
 
-function processTextLines(lines: string[], mentions: Mention[]): JSONContent[] {
-  return lines.map((line) => processLine(line.trim(), mentions));
+function processTextLines(lines: Line[]): JSONContent[] {
+  return lines.map(processLine);
 }
 
 export function textAndMentionsToContent(
@@ -275,16 +281,37 @@ export function textAndMentionsToContent(
 
   const lines = text.split('\n');
   const content: JSONContent[] = [];
-  let currentLines: string[] = [];
+  let currentLines: Line[] = [];
   let inCodeBlock = false;
-  let currentCodeBlock: string[] = [];
+  let currentCodeBlock: Line[] = [];
   const language = 'plaintext';
-
+  const normalizedLines: Line[] = [];
+  let absoluteStart = 0;
   lines.forEach((line) => {
-    if (line.startsWith('```')) {
+    const absoluteEnd = absoluteStart + line.length + 1;
+    console.log({ absoluteStart, absoluteEnd });
+    const found = mentions.filter(
+      (mention) => mention.start >= absoluteStart && mention.end < absoluteEnd
+    );
+    normalizedLines.push({
+      text: line.trim(),
+      mentions: found.map((mention) => ({
+        ...mention,
+        start: mention.start - absoluteStart,
+        end: mention.end - absoluteStart,
+      })),
+    });
+    absoluteStart += line.length + 1;
+  });
+
+  console.log({ mentions, normalizedLines });
+
+  normalizedLines.forEach((line, index) => {
+    const { text, mentions } = line;
+    if (text.startsWith('```')) {
       if (!inCodeBlock) {
         if (currentLines.length > 0) {
-          content.push(...processTextLines(currentLines, mentions));
+          content.push(...processTextLines(currentLines));
           currentLines = [];
         }
 
@@ -318,7 +345,7 @@ export function textAndMentionsToContent(
       content: [
         {
           type: 'text',
-          text: currentCodeBlock.join('\n'),
+          text: currentCodeBlock.map((line) => line.text).join('\n'),
         },
       ],
       attrs: {
@@ -328,7 +355,7 @@ export function textAndMentionsToContent(
   }
 
   if (currentLines.length > 0) {
-    content.push(...processTextLines(currentLines, mentions));
+    content.push(...processTextLines(currentLines));
   }
 
   return {
