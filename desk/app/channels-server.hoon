@@ -4,8 +4,45 @@
 ::
 /-  c=channels, g=groups, h=hooks, m=meta
 /+  utils=channel-utils, imp=import-aid
-/+  default-agent, verb, dbug, neg=negotiate, logs
+/+  default-agent, verb, dbug, neg=negotiate, logs, discipline
 /+  hj=hooks-json
+::
+/%  m-hook-full  %hook-full
+/%  m-hook-channel-preview  %hook-channel-preview
+/%  m-hook-template  %hook-template
+/%  m-hook-response-0  %hook-response-0
+/%  m-channel-update  %channel-update
+/%  m-channel-checkpoint  %channel-checkpoint
+/%  m-channel-said  %channel-said
+/%  m-channel-denied  %channel-denied
+::
+%-  %-  discipline
+    :+  ::  marks
+        ::
+        :~  [%hook-full & -:!>(*vale:m-hook-full)]
+            [%hook-channel-preview & -:!>(*vale:m-hook-channel-preview)]
+            [%hook-template & -:!>(*vale:m-hook-template)]
+            [%hook-response-0 & -:!>(*vale:m-hook-response-0)]
+            [%channel-update | -:!>(*vale:m-channel-update)]
+            [%channel-checkpoint | -:!>(*vale:m-channel-checkpoint)]
+            [%channel-said | -:!>(*vale:m-channel-said)]
+            [%channel-denied & -:!>(*vale:m-channel-denied)]
+        ==
+      ::  facts
+      ::
+      :~  [/v0/hooks/full %hook-full ~]
+          [/v0/hooks/preview %hook-channel-preview ~]
+          [/v0/hooks/template %hook-template ~]
+          [/v0/hooks %hook-response-0 ~]
+          [/$/$/create %channel-update ~]
+          [/$/$/updates %channel-update ~]
+          [/$/$/checkpoint %channel-checkpoint ~]
+          [/said %channel-said %channel-denied ~]
+      ==
+    ::  scries
+    ::
+    :~  [/x/v0/hooks %hook-full]
+    ==
 ::
 %-  %-  agent:neg
     [| [~.channels^%2 ~ ~] ~]

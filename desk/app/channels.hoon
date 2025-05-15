@@ -11,9 +11,72 @@
 /-  c=channels, g=groups, ha=hark, activity
 /-  meta
 /+  default-agent, verb, dbug, sparse, neg=negotiate, imp=import-aid, logs
-/+  utils=channel-utils, volume, s=subscriber, em=emojimart
+/+  utils=channel-utils, volume, s=subscriber, em=emojimart, discipline
+::  compile all marks
+::XX  /~ rune is broken, see urbit issue #5242
+:: /~  marks  *  /mar/channel
 ::  performance, keep warm
 /+  channel-json
+::
+::
+/%  m-channel-unread-update  %channel-unread-update
+/%  m-toggle-post  %toggle-post
+/%  m-channel-denied  %channel-denied
+/%  m-channel-response-1  %channel-response-1
+/%  m-channel-response  %channel-response
+::NOTE  these fail to build with /%, but can be built from dojo just fine.
+::      presuming a mark filepath resolution bug in clay...
+:: /%  m-channel-simple-reply  %channel-simple-reply
+:: /%  m-channel-simple-replies  %channel-simple-replies
+/%  m-channel-simple-post  %channel-simple-post
+/%  m-channel-simple-posts  %channel-simple-posts
+::
+%-  %-  discipline
+    :+  ::  marks
+        ::
+        :~  [%channel-unread-update & -:!>(*vale:m-channel-unread-update)]
+            [%toggle-post & -:!>(*vale:m-toggle-post)]
+            [%channel-denied & -:!>(*vale:m-channel-denied)]
+            [%channel-response-1 | -:!>(*vale:m-channel-response-1)]
+            [%channel-response | -:!>(*vale:m-channel-response)]
+            :: [%channel-simple-reply & -:!>(*vale:m-channel-simple-reply)]
+            :: [%channel-simple-replies & -:!>(*vale:m-channel-simple-replies)]
+            [%channel-simple-post | -:!>(*vale:m-channel-simple-post)]
+            [%channel-simple-posts | -:!>(*vale:m-channel-simple-posts)]
+        ==
+      ::  facts
+      ::
+      :~  [/unreads %channel-unread-update ~]
+          [/$/unreads %channel-unread-update ~]
+          [/v1 %channel-response-1 ~]
+          [/v0 %channel-response ~]
+          [/ %channel-response %toggle-post ~]
+      ==
+    ::  scries
+    ::
+    :~  [/x/v3/init %noun]
+        [/x/v2/heads %channel-heads]
+        [/x/v2/$/$/$/posts/post/id/$/replies/reply %channel-reply]
+        [/x/v2/$/$/$/posts/post/id/$/replies %channel-replies-2]
+        [/x/v2/$/$/$/posts/post %channel-post-2]
+        [/x/v1/$/$/$/posts/post/id/$/replies/reply %channel-reply]
+        [/x/v1/$/$/$/posts/post/id/$/replies %channel-replies]
+        [/x/v1/$/$/$/posts/post %channel-post]
+        [/x/v1/$/$/$/posts %channel-posts]
+        [/x/v0/$/$/$/posts/post/id/$/replies/reply %channel-simple-reply]
+        [/x/v0/$/$/$/posts/post/id/$/replies %channel-simple-replies]
+        [/x/v0/$/$/$/posts/post %channel-simple-post]
+        [/x/v0/$/$/$/posts %channel-simple-posts]
+      ::
+        ::  from old docs
+        [/x/channels %channels]
+        [/x/unreads %channel-unreads]
+        [/x/init %noun]
+        [/x/pins %channel-pins]
+        [/x/$/$/$/perm %channel-perm]
+        [/x/$/$/$/search %channel-scan]
+        [/x/$/$/$/posts %channel-posts]
+    ==
 ::
 =/  verbose  |
 %-  %-  agent:neg

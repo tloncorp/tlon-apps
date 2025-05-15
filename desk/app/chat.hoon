@@ -2,7 +2,7 @@
 /-  old-3=chat-3, old-2=chat-2
 /-  ha=hark
 /-  contacts-0
-/+  default-agent, verb-lib=verb, dbug, neg=negotiate, em=emojimart, logs
+/+  default-agent, verb-lib=verb, dbug, neg=negotiate, em=emojimart, logs, discipline
 /+  pac=dm
 /+  utils=channel-utils
 /+  volume
