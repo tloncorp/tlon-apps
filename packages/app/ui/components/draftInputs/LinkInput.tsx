@@ -15,17 +15,14 @@ import { useForm } from 'react-hook-form';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, useTheme } from 'tamagui';
 
-import {
-  KeyboardAvoidingView,
-  LoadingSpinner,
-  createContentRenderer,
-} from '../..';
+import { KeyboardAvoidingView, LoadingSpinner } from '../..';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import {
   ControlledTextField,
   ControlledTextareaField,
   FormFrame,
 } from '../Form';
+import { createContentRenderer } from '../PostContent/ContentRenderer';
 import { BlockData } from '../PostContent/contentUtils';
 import { ScreenHeader } from '../ScreenHeader';
 
@@ -46,7 +43,9 @@ const DESCRIPTION_MAX_LENGTH = 580;
 const PostRenderer = createContentRenderer({
   blockSettings: {
     link: {
-      aspectRatio: 1.5,
+      imageProps: {
+        width: '100%',
+      },
     },
   },
 });
