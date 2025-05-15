@@ -17,7 +17,7 @@ import {
   hasHostingUploadCreds,
 } from './storageUtils';
 
-const logger = createDevLogger('storageActions', true);
+const logger = createDevLogger('storageActions', false);
 
 export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
   if (asset.uri === 'placeholder-image-uri') {
