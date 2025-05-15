@@ -102,20 +102,18 @@
       ==
   ==
 ::
-++  urbit-agent  'urbit/1.0'
-++  chrome-agent  'chrome/123.0.0.0'
 ++  fetch
-  |=  [url=@t agent=@t]
+  |=  url=@t
   ^-  card
   =/  =header-list:http
-    :~  ['user-agent' agent]
+    :~  ['user-agent' 'chrome/123.0.0.0']
         ['accept' '*/*']
     ==
   =/  =request:http
     [%'GET' url header-list ~]
   ::NOTE  outbound-config is actually meaningless,
   ::      iris doesn't do anything with it at present...
-  [%pass /fetch/(scot %t url)/(scot %t agent) %arvo %i %request request *outbound-config:iris]
+  [%pass /fetch/(scot %t url) %arvo %i %request request *outbound-config:iris]
 ::
 ++  extract-data
   |=  $:  url=@t
@@ -279,7 +277,7 @@
       %noun
     =+  url=!<(@t vase)
     ?>  ?=(^ (de-purl:html url))
-    [[(fetch url urbit-agent) ~] this]
+    [[(fetch url) ~] this]
   ::
       %handle-http-request
     =+  !<(order:hutils vase)
@@ -322,7 +320,7 @@
         ::  no valid cache entry for this target, start a new fetch
         ::
         =.  await  (~(put ju await) u.target id)
-        [[(fetch u.target urbit-agent) ~] this]
+        [[(fetch u.target) ~] this]
       ::  we have a valid cache entry.
       ::  if it's a redirect where we know the next target,
       ::  and can make a request to that,
@@ -351,9 +349,8 @@
     %-  (slog dap.bowl 'failed to eyre-bind' ~)
     [~ this]
   ::
-      [%fetch @ @ ~]
+      [%fetch @ ~]
     =/  url=@t  (slav %t i.t.wire)
-    =/  user-agent=@t  (slav %t i.t.t.wire)
     =.  url.log  `url
     ?>  ?=([%iris %http-response *] sign)
     =*  res  client-response.sign
@@ -369,19 +366,13 @@
     ::  request. simply retry.
     ::
     ?:  ?=(%cancel -.res)
-      [[(fetch url urbit-agent) ~] this]
+      [[(fetch url) ~] this]
     ::
     ?>  ?=(%finished -.res)
     =*  cod  status-code.response-header.res
-    ~&  ['fetched' url cod response-header.res]
     ?.  &((gte cod 300) (lth cod 400))
       =/  [report=? =result]
         (extract-data url [response-header full-file]:res)
-      =/  is-good  |(=(%400 -.result) =(%500 -.result))
-      ~&  ['Non-redirect response' is-good result]
-      ?:  &(!is-good =(user-agent urbit-agent))
-        ~&  ['fetching with chrome instead' url result]
-        [[(fetch url chrome-agent) ~] this]
       %-  ?.  report  same
           (tell:l %warn 'failed to parse' url ~)
       =.  cache  (~(put by cache) url now.bowl result)
@@ -415,8 +406,7 @@
         ==
       ::  no valid cache entry, start a new fetch
       ::
-      ~&  ['fetching after redirect' u.nex user-agent]
-      [[(fetch u.nex ?:(=(user-agent urbit-agent) chrome-agent urbit-agent))]~ this]
+      [[(fetch u.nex)]~ this]
     ::TODO  detect redirect loops
     ::  we have a valid cache entry.
     ::  if it's a redirect where we know the next target,
