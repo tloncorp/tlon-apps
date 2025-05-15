@@ -198,10 +198,9 @@
 
     .signature-hex {
       font-family: Menlo, Consolas, Monaco, Liberation Mono, Lucida Console, monospace;
-      white-space: pre-wrap;
-      word-break: break-all;
       width: 30ch;
       text-indent: -2ch;
+      user-select: all;
     }
 
 
@@ -258,9 +257,26 @@
           ;dl(id "signature")
             ;dt(title "The cryptographic signature proving this verification"):"Signature Hex"
             ;dd.signature-hex
-              ;span:"0x"
-              ;span(style "user-select: none;"):"{(reap (sub 4 (mod (met 2 current-sig) 4)) '0')}"
-              ;span:"{((ox-co:co [16 4] |=(a=@ ~(x ne a))) current-sig)}"
+              ::  for the first "block" (two bytes), leading zeroes shouldn't
+              ::  show up in text selection.
+              ::
+              ;*  :+  ;span:"0x"
+                ;span(style "user-select: none;"):"{(reap (sub 4 (mod (met 2 current-sig) 4)) '0')}"
+              =+  blocks=(rip 4 current-sig)
+              ?:  =(~ blocks)  [;span:"0"]~
+              :-  ;span:"{((x-co:co 1) (rear blocks))}"
+              ::  for everything after, render as double-byte blocks with dots
+              ::  in between, manually line-breaking every six blocks.
+              ::
+              =-  (flop spans)
+              %+  roll  (tail (flop blocks))
+              |=  [seg=@ n=@ud spans=(list manx)]
+              :-  (mod +(n) 6)
+              ^-  (list manx)
+              =*  ren  ((x-co:co 4) seg)
+              ?.  =(5 n)
+                [;span:".{ren}" spans]
+              [;span:"{ren}" ;br(style "user-select: none;"); ;span:"." spans]
             ==
           ==
         ==
