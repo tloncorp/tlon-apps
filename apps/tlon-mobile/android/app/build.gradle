@@ -121,7 +121,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         compileSdk rootProject.ext.compileSdkVersion
         versionCode 108
-        versionName "5.5.4"
+        versionName "5.5.5"
     }
     signingConfigs {
         debug {
