@@ -271,4 +271,3 @@
     "Verified that {owner} has {text-description} on {nice-date}."
   --
 --
-s
