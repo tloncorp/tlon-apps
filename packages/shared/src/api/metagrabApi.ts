@@ -1,4 +1,5 @@
 import { formatUw } from '@urbit/aura';
+import { Atom } from '@urbit/nockjs';
 
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
@@ -11,8 +12,7 @@ export async function getLinkMetadata(
   url: string
 ): Promise<domain.LinkMetadata | domain.LinkMetadataError> {
   try {
-    const bytes = stringToBigIntForUw(url);
-    const encodedUrl = formatUw(bytes);
+    const encodedUrl = formatUw(Atom.fromCord(url).number);
     logger.log('encoded', { url, encodedUrl });
     const response = await request(`/apps/groups/~/metagrab/${encodedUrl}`, {
       method: 'GET',
@@ -131,25 +131,4 @@ function parseImageData(url: string, data: ub.LinkMetadataItem[]) {
     height: ogHeight,
     width: ogWidth,
   };
-}
-
-/**
- * Converts a string to a BigInt for use with formatUw.
- * Uses UTF-8 encoding with little-endian byte order.
- *
- * @param {string} input - The string to convert
- * @returns {BigInt} - The bigint representation suitable for formatUw
- */
-function stringToBigIntForUw(input: string) {
-  // Convert string to UTF-8 bytes
-  const encoder = new TextEncoder();
-  const bytes = encoder.encode(input);
-
-  // Process bytes in little-endian order (least significant byte first)
-  let result = 0n;
-  for (let i = bytes.length - 1; i >= 0; i--) {
-    result = (result << 8n) | BigInt(bytes[i]);
-  }
-
-  return result;
 }
