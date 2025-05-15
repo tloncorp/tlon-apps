@@ -54,10 +54,30 @@
   :~  [%noun -:!>(*vale:m-noun)]
   ==
 =.  facts
-  %+  weld  facts
-  ^-  (list [path (list mark)])
-  :~  [/verb ~]
+  %+  weld
+    ^-  (list [path (list mark)])
+    :~  [/verb ~]
+    ==
+  facts
+=.  scries
+  %+  weld  scries
+  ^-  (list [path mark])
+  :~  [/u %loob]
+      [/x/~/negotiate %$]
   ==
+::  sort arguments such that we always encounter/test the most specific ones first
+::
+=/  por
+  |=  [[a=path *] [b=path *]]
+  ?~  a  |
+  ?~  b  &
+  ?:  =(i.a i.b)  $(a t.a, b t.b)
+  ?:  =(%$ i.a)  |
+  ?:  =(%$ i.b)  &
+  (aor i.a i.b)
+=.  facts   (sort facts por)
+=.  scries  (sort scries por)
+::
 |=  inner=agent:gall
 |^  agent
 ::
