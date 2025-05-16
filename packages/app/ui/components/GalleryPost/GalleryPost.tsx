@@ -448,6 +448,7 @@ function SmallPreview({
   ) : (
     <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
       <SmallContentRenderer
+        height={'100%'}
         content={containsPreviewableContent ? content.slice(0, 1) : content}
       />
     </PreviewFrame>
