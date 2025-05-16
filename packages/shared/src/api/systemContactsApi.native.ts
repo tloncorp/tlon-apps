@@ -14,9 +14,19 @@ export async function getSystemContacts(): Promise<db.SystemContact[]> {
     return [];
   }
 
-  const { data: nativeContactBook } = await Contacts.getContactsAsync({
-    fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Emails],
-  });
+  let nativeContactBook: Contacts.Contact[] = [];
+  try {
+    const { data } = await Contacts.getContactsAsync({
+      fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Emails],
+    });
+    nativeContactBook = data;
+  } catch (e) {
+    logger.trackEvent(domain.AnalyticsEvent.ErrorSystemContacts, {
+      context: 'failed to get native contacts',
+      severity: domain.AnalyticsSeverity.High,
+    });
+    return [];
+  }
   try {
     const processedContacts = parseNativeContacts(nativeContactBook);
     return processedContacts;

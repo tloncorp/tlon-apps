@@ -46,9 +46,10 @@ export function useTelemetry(): TelemetryClient {
         posthog?.optOut();
       } else {
         posthog?.optIn();
-        if (isHosted) {
-          posthog?.identify(currentUserId, { isHostedUser: true });
-        }
+        posthog?.identify(currentUserId, {
+          isHostedUser: isHosted,
+          userId: currentUserId,
+        });
         posthog?.capture('Telemetry enabled', {
           isHostedUser: isHostedUser(isHosted),
         });
@@ -127,14 +128,10 @@ export function useTelemetry(): TelemetryClient {
         posthog?.capture('Initializing telemetry');
       }
 
-      if (isHosted) {
-        posthog?.identify(currentUserId, { isHostedUser: true });
-      } else {
-        captureMandatoryEvent({
-          eventId: '$set',
-          properties: { $set: { isHostedUser: false } },
-        });
-      }
+      posthog?.identify(currentUserId, {
+        isHostedUser: true,
+        userId: currentUserId,
+      });
       setDisabled(posthog.getIsOptedOut());
       telemetryInitialized.setValue(true);
     }

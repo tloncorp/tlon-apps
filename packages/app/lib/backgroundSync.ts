@@ -7,7 +7,7 @@ import * as TaskManager from 'expo-task-manager';
 
 import { configureUrbitClient } from '../hooks/useConfigureUrbitClient';
 
-const logger = createDevLogger('backgroundSync', false);
+const logger = createDevLogger('backgroundSync', true);
 
 function summarizePost(post: db.Post) {
   return {
@@ -33,6 +33,8 @@ async function performSync() {
     return;
   }
 
+  logger.trackEvent('Performing Background Sync');
+
   logger.log('Configuring urbit client...');
   configureUrbitClient({
     ship: shipInfo.ship,
@@ -50,6 +52,11 @@ async function performSync() {
 }
 
 const TASK_ID = 'backgroundSync';
+export async function unregisterBackgroundSyncTask() {
+  await Notifications.unregisterTaskAsync(TASK_ID);
+  await BackgroundFetch.unregisterTaskAsync(TASK_ID);
+  await TaskManager.unregisterTaskAsync(TASK_ID);
+}
 export function registerBackgroundSyncTask() {
   TaskManager.defineTask<Record<string, unknown>>(
     TASK_ID,

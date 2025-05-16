@@ -1,7 +1,9 @@
+import { ThemeName } from 'tamagui';
+
 import { Stringified } from '../utils';
 import { DisplayMode, SortMode } from './channel';
 
-export type Theme = 'light' | 'dark' | 'auto';
+export type AppTheme = ThemeName | 'auto';
 
 export type TalkSidebarFilter =
   | 'Direct Messages'
@@ -48,7 +50,7 @@ export type CalmEngineSettings = {
 };
 
 export type DisplaySettings = {
-  theme?: Theme;
+  theme?: AppTheme;
 };
 
 export type GroupsSettings = {

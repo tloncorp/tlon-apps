@@ -28,8 +28,20 @@ function getBucket(key: string): string {
     case 'completedWayfindingSplash':
     case 'completedWayfindingTutorial':
       return 'groups';
+    case 'disableAvatars':
+    case 'disableNicknames':
+    case 'disableRemoteContent':
+    case 'disableAppTileUnreads':
+    case 'disableSpellcheck':
+    case 'showUnreadCounts':
+      return 'calmEngine';
+    case 'theme':
+      return 'display';
     default:
-      throw new Error(`Invalid setting key: ${key}`);
+      console.warn(
+        `No explicit bucket defined for setting key: ${key}, defaulting to 'groups'`
+      );
+      return 'groups';
   }
 }
 

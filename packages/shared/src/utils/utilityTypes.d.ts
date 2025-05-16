@@ -14,3 +14,10 @@ export interface JSON {
   // parse(text: string, reviver?: (key: any, value: any) => any): any;
   parse<T>(text: Stringified<T>, reviver?: (key: any, value: any) => any): T;
 }
+
+/**
+ * UnionToIntersection<A | B | C> = A & B & C
+ */
+export type UnionToIntersection<T> = {
+  [E in T as keyof E]: E[keyof E];
+};

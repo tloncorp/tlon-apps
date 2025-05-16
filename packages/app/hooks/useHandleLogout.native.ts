@@ -25,6 +25,7 @@ export function useHandleLogout({ resetDb }: { resetDb: () => void }) {
     clearTelemetry();
     clearSessionStorageItems();
     store.updateSession(null);
+    store.clearSyncStartLock();
     cancelNodeResumeNudge();
     if (!resetDb) {
       logger.trackError('could not reset db on logout');

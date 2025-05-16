@@ -17,6 +17,8 @@
 		5A1EB9552CAC451A00029EDC /* GroupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1EB9522CAC451A00029EDC /* GroupStore.swift */; };
 		5A1EB9562CAC451A00029EDC /* GroupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1EB9522CAC451A00029EDC /* GroupStore.swift */; };
 		5A1EB9572CAC451A00029EDC /* GroupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1EB9522CAC451A00029EDC /* GroupStore.swift */; };
+		6303C7802DB17BC200A40B07 /* NotificationPreviewPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6303C77F2DB17BC100A40B07 /* NotificationPreviewPayload.swift */; };
+		6303C7812DB17BC200A40B07 /* NotificationPreviewPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6303C77F2DB17BC100A40B07 /* NotificationPreviewPayload.swift */; };
 		630DE0B72C51A0F80053603B /* Error+isAFTimeout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */; };
 		630DE0C52C51A8780053603B /* UIColor+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386702A60A3E600AFB46E /* UIColor+Extension.swift */; };
 		630DE0C62C51A8780053603B /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635C2A71DFE90017F40F /* Contact.swift */; };
@@ -26,7 +28,6 @@
 		630DE0CA2C51A8780053603B /* TlonError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7083A16B2AFB01A30022404A /* TlonError.swift */; };
 		630DE0CB2C51A8780053603B /* Error+isAFTimeout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */; };
 		630DE0CC2C51A8780053603B /* PushNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386532A609BFC00AFB46E /* PushNotificationManager.swift */; };
-		630DE0CD2C51A8780053603B /* Yarn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386692A60A38400AFB46E /* Yarn.swift */; };
 		630DE0CE2C51A8780053603B /* GroupChannelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3512ACD08E30020A9FB /* GroupChannelStore.swift */; };
 		630DE0CF2C51A8780053603B /* PocketUserAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635A2A71DF860017F40F /* PocketUserAPI.swift */; };
 		630DE0D02C51A8780053603B /* UserDefaultsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3532ACD0FC90020A9FB /* UserDefaultsStore.swift */; };
@@ -56,7 +57,6 @@
 		632793BE2C4AE4B500F942B1 /* Error+isAFTimeout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */; };
 		632793BF2C4AE4B500F942B1 /* Error+isAFTimeout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */; };
 		632793C02C4AE4B500F942B1 /* Error+isAFTimeout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */; };
-		632793C22C4AE4FA00F942B1 /* Yarn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386692A60A38400AFB46E /* Yarn.swift */; };
 		632793C32C4AE53500F942B1 /* ContactStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B63612A71E0D70017F40F /* ContactStore.swift */; };
 		632793C42C4AE53A00F942B1 /* UserDefaultsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3532ACD0FC90020A9FB /* UserDefaultsStore.swift */; };
 		632793C52C4AE56500F942B1 /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635C2A71DFE90017F40F /* Contact.swift */; };
@@ -71,6 +71,8 @@
 		632793CE2C4AE81E00F942B1 /* UIColor+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386702A60A3E600AFB46E /* UIColor+Extension.swift */; };
 		632793D22C4AEA6400F942B1 /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = 632793D12C4AEA6400F942B1 /* Alamofire */; };
 		632793D42C4AEA6800F942B1 /* UrsusSigil in Frameworks */ = {isa = PBXBuildFile; productRef = 632793D32C4AEA6800F942B1 /* UrsusSigil */; };
+		6354B01C2DA4510400A00356 /* bundle.js in Resources */ = {isa = PBXBuildFile; fileRef = 6354B01B2DA4510400A00356 /* bundle.js */; };
+		6354B01D2DA4510400A00356 /* bundle.js in Resources */ = {isa = PBXBuildFile; fileRef = 6354B01B2DA4510400A00356 /* bundle.js */; };
 		63566D1C2C530A370048E3C4 /* INPerson+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386662A60A37000AFB46E /* INPerson+Extension.swift */; };
 		63566D1D2C530A370048E3C4 /* INPerson+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386662A60A37000AFB46E /* INPerson+Extension.swift */; };
 		635BCB0B2CC6F969004D52AA /* OpenAppIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 635BCB0A2CC6F969004D52AA /* OpenAppIntent.swift */; };
@@ -86,11 +88,6 @@
 		638753092CC7036C003942F5 /* ShortcutsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 638753072CC7036C003942F5 /* ShortcutsManager.swift */; };
 		63A5A04E2CD05CB900928EED /* ChannelEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63A5A04D2CD05CB600928EED /* ChannelEntity.swift */; };
 		63A5A04F2CD05CB900928EED /* ChannelEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63A5A04D2CD05CB600928EED /* ChannelEntity.swift */; };
-		63CF1DB92D07665B00C0F34E /* ActivityEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63CF1DB82D07665700C0F34E /* ActivityEvent.swift */; };
-		63CF1DBA2D07665B00C0F34E /* ActivityEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63CF1DB82D07665700C0F34E /* ActivityEvent.swift */; };
-		63CF1DBB2D07665B00C0F34E /* ActivityEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63CF1DB82D07665700C0F34E /* ActivityEvent.swift */; };
-		63CF1DBC2D07665B00C0F34E /* ActivityEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63CF1DB82D07665700C0F34E /* ActivityEvent.swift */; };
-		63CF1DBD2D07665B00C0F34E /* ActivityEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63CF1DB82D07665700C0F34E /* ActivityEvent.swift */; };
 		63E27E0B2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E27E0A2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift */; };
 		63E27E0C2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E27E0A2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift */; };
 		63E27E0D2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E27E0A2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift */; };
@@ -118,7 +115,6 @@
 		70D3865B2A609BFC00AFB46E /* PocketAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386572A609BFC00AFB46E /* PocketAPI.swift */; };
 		70D386622A609CE100AFB46E /* PocketChatAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386612A609CE100AFB46E /* PocketChatAPI.swift */; };
 		70D386672A60A37000AFB46E /* INPerson+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386662A60A37000AFB46E /* INPerson+Extension.swift */; };
-		70D3866B2A60A38400AFB46E /* Yarn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386692A60A38400AFB46E /* Yarn.swift */; };
 		70D3866C2A60A38400AFB46E /* Group.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D3866A2A60A38400AFB46E /* Group.swift */; };
 		70D3866F2A60A3B300AFB46E /* UrsusSigil in Frameworks */ = {isa = PBXBuildFile; productRef = 70D3866E2A60A3B300AFB46E /* UrsusSigil */; };
 		70D386712A60A3E600AFB46E /* UIColor+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386702A60A3E600AFB46E /* UIColor+Extension.swift */; };
@@ -145,7 +141,6 @@
 		70DBBFFD2B7C60B50021EA96 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB71A68108700A75B9A /* main.m */; };
 		70DBBFFF2B7C60B50021EA96 /* UrbitModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70EAEAB42A57A99100FE96E4 /* UrbitModule.swift */; };
 		70DBC0002B7C60B50021EA96 /* ContactStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B63612A71E0D70017F40F /* ContactStore.swift */; };
-		70DBC0012B7C60B50021EA96 /* Yarn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386692A60A38400AFB46E /* Yarn.swift */; };
 		70DBC0032B7C60B50021EA96 /* UrsusSigil in Frameworks */ = {isa = PBXBuildFile; productRef = 70DBBFE42B7C60B50021EA96 /* UrsusSigil */; };
 		70DBC0042B7C60B50021EA96 /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = 70DBBFE22B7C60B50021EA96 /* Alamofire */; };
 		70DBC0082B7C60B50021EA96 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
@@ -155,7 +150,6 @@
 		70EAEAB52A57A99100FE96E4 /* UrbitModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70EAEAB42A57A99100FE96E4 /* UrbitModule.swift */; };
 		70EAEAB92A57CE2A00FE96E4 /* UrbitModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 70EAEAB62A57AAF200FE96E4 /* UrbitModule.m */; };
 		70F99A982B2D2B6E00D77256 /* YarnTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70F99A972B2D2B6E00D77256 /* YarnTests.swift */; };
-		70F99A992B2D319400D77256 /* Yarn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386692A60A38400AFB46E /* Yarn.swift */; };
 		70F99A9A2B2D333300D77256 /* PushNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386532A609BFC00AFB46E /* PushNotificationManager.swift */; };
 		70F99A9B2B2D336500D77256 /* INPerson+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386662A60A37000AFB46E /* INPerson+Extension.swift */; };
 		70F99A9C2B2D336500D77256 /* UIColor+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386702A60A3E600AFB46E /* UIColor+Extension.swift */; };
@@ -244,11 +238,13 @@
 		13B07FB71A68108700A75B9A /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = main.m; path = Landscape/main.m; sourceTree = "<group>"; };
 		3B0B210E999A7E0E1A345468 /* Pods-Landscape-preview.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Landscape-preview.release.xcconfig"; path = "Target Support Files/Pods-Landscape-preview/Pods-Landscape-preview.release.xcconfig"; sourceTree = "<group>"; };
 		5A1EB9522CAC451A00029EDC /* GroupStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupStore.swift; sourceTree = "<group>"; };
+		6303C77F2DB17BC100A40B07 /* NotificationPreviewPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationPreviewPayload.swift; sourceTree = "<group>"; };
 		630DE0B82C51A1500053603B /* LandscapePreview-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "LandscapePreview-Bridging-Header.h"; path = "Landscape/LandscapePreview-Bridging-Header.h"; sourceTree = "<group>"; };
 		630DE0E22C51A8790053603B /* Notifications-preview.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Notifications-preview.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		630DE0EB2C51AC840053603B /* UserDefaults+appGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UserDefaults+appGroup.swift"; sourceTree = "<group>"; };
 		630DE0F02C51AE870053603B /* Info-preview.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info-preview.plist"; sourceTree = "<group>"; };
 		632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Error+isAFTimeout.swift"; sourceTree = "<group>"; };
+		6354B01B2DA4510400A00356 /* bundle.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = bundle.js; path = ../../../packages/scripts/build/bundle.js; sourceTree = SOURCE_ROOT; };
 		635BCB0A2CC6F969004D52AA /* OpenAppIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAppIntent.swift; sourceTree = "<group>"; };
 		636788082C90DC2600F5331E /* Notifications-preview.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Notifications-preview.entitlements"; sourceTree = "<group>"; };
 		6374ACDF2C49DA9600E637C0 /* Notifications.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = Notifications.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -259,7 +255,6 @@
 		6374ACFC2C4ACD7500E637C0 /* Login.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Login.swift; sourceTree = "<group>"; };
 		638753072CC7036C003942F5 /* ShortcutsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsManager.swift; sourceTree = "<group>"; };
 		63A5A04D2CD05CB600928EED /* ChannelEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChannelEntity.swift; sourceTree = "<group>"; };
-		63CF1DB82D07665700C0F34E /* ActivityEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityEvent.swift; sourceTree = "<group>"; };
 		63E27E0A2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Alamofire+sessionWithSharedCookieStorage.swift"; sourceTree = "<group>"; };
 		63E27E122C5AF5B8008ACB45 /* HTTPCookieStorage+forwardChanges.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = "HTTPCookieStorage+forwardChanges.swift"; path = "Landscape/HTTPCookieStorage+forwardChanges.swift"; sourceTree = "<group>"; };
 		63EC5CBF2CD049540098C343 /* SQLiteDB.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLiteDB.swift; sourceTree = "<group>"; };
@@ -282,7 +277,6 @@
 		70D386572A609BFC00AFB46E /* PocketAPI.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PocketAPI.swift; sourceTree = "<group>"; };
 		70D386612A609CE100AFB46E /* PocketChatAPI.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PocketChatAPI.swift; sourceTree = "<group>"; };
 		70D386662A60A37000AFB46E /* INPerson+Extension.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "INPerson+Extension.swift"; sourceTree = "<group>"; };
-		70D386692A60A38400AFB46E /* Yarn.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Yarn.swift; sourceTree = "<group>"; };
 		70D3866A2A60A38400AFB46E /* Group.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Group.swift; sourceTree = "<group>"; };
 		70D386702A60A3E600AFB46E /* UIColor+Extension.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "UIColor+Extension.swift"; sourceTree = "<group>"; };
 		70DBC0152B7C60B50021EA96 /* Landscape-preview.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Landscape-preview.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -419,6 +413,8 @@
 		6374ACE02C49DA9600E637C0 /* Notifications */ = {
 			isa = PBXGroup;
 			children = (
+				6303C77F2DB17BC100A40B07 /* NotificationPreviewPayload.swift */,
+				6354B01B2DA4510400A00356 /* bundle.js */,
 				6374ACEB2C49DAB600E637C0 /* Notifications.entitlements */,
 				636788082C90DC2600F5331E /* Notifications-preview.entitlements */,
 				6374ACE12C49DA9600E637C0 /* NotificationService.swift */,
@@ -455,13 +451,11 @@
 		63E7040D2C540FD6006CF214 /* Models */ = {
 			isa = PBXGroup;
 			children = (
-				63CF1DB82D07665700C0F34E /* ActivityEvent.swift */,
 				709FC0EC2AC1E25D00B0644D /* Club.swift */,
 				700B635C2A71DFE90017F40F /* Contact.swift */,
 				70D3866A2A60A38400AFB46E /* Group.swift */,
 				6374ACFC2C4ACD7500E637C0 /* Login.swift */,
 				7083A16B2AFB01A30022404A /* TlonError.swift */,
-				70D386692A60A38400AFB46E /* Yarn.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -540,9 +534,9 @@
 				D7E4C46ADA2E9064B798F356 /* ExpoModulesProviders */,
 				9D6B23EFDEDD5888235A22BB /* PrivacyInfo.xcprivacy */,
 			);
-			indentWidth = 2;
+			indentWidth = 4;
 			sourceTree = "<group>";
-			tabWidth = 2;
+			tabWidth = 4;
 			usesTabs = 0;
 		};
 		83CBBA001A601CBA00E9B192 /* Products */ = {
@@ -638,6 +632,7 @@
 			buildPhases = (
 				630DE0C42C51A8780053603B /* Sources */,
 				630DE0DA2C51A8780053603B /* Frameworks */,
+				6354B0192DA44FB700A00356 /* Build JS bundle */,
 				630DE0DE2C51A8780053603B /* Resources */,
 			);
 			buildRules = (
@@ -659,6 +654,7 @@
 			buildPhases = (
 				6374ACDB2C49DA9600E637C0 /* Sources */,
 				6374ACDC2C49DA9600E637C0 /* Frameworks */,
+				6354B0192DA44FB700A00356 /* Build JS bundle */,
 				6374ACDD2C49DA9600E637C0 /* Resources */,
 			);
 			buildRules = (
@@ -789,6 +785,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6354B01C2DA4510400A00356 /* bundle.js in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -796,6 +793,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6354B01D2DA4510400A00356 /* bundle.js in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -885,6 +883,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "#!/usr/bin/env bash\n#\n# Copyright (c) 2016-present Invertase Limited & Contributors\n#\n# Licensed under the Apache License, Version 2.0 (the \"License\");\n# you may not use this library except in compliance with the License.\n# You may obtain a copy of the License at\n#\n#   http://www.apache.org/licenses/LICENSE-2.0\n#\n# Unless required by applicable law or agreed to in writing, software\n# distributed under the License is distributed on an \"AS IS\" BASIS,\n# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n# See the License for the specific language governing permissions and\n# limitations under the License.\n#\n\n##########################################################################\n##########################################################################\n#\n#  NOTE THAT IF YOU CHANGE THIS FILE YOU MUST RUN pod install AFTERWARDS\n#\n#  This file is installed as an Xcode build script in the project file\n#  by cocoapods, and you will not see your changes until you pod install\n#\n##########################################################################\n##########################################################################\n\nset -e\n\n_MAX_LOOKUPS=2;\n_SEARCH_RESULT=''\n_RN_ROOT_EXISTS=''\n_CURRENT_LOOKUPS=1\n_JSON_ROOT=\"'react-native'\"\n_JSON_FILE_NAME='firebase.json'\n_JSON_OUTPUT_BASE64='e30=' # { }\n_CURRENT_SEARCH_DIR=${PROJECT_DIR}\n_PLIST_BUDDY=/usr/libexec/PlistBuddy\n_TARGET_PLIST=\"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n_DSYM_PLIST=\"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Info.plist\"\n\n# plist arrays\n_PLIST_ENTRY_KEYS=()\n_PLIST_ENTRY_TYPES=()\n_PLIST_ENTRY_VALUES=()\n\nfunction setPlistValue {\n  echo \"info:      setting plist entry '$1' of type '$2' in file '$4'\"\n  ${_PLIST_BUDDY} -c \"Add :$1 $2 '$3'\" $4 || echo \"info:      '$1' already exists\"\n}\n\nfunction getFirebaseJsonKeyValue () {\n  if [[ ${_RN_ROOT_EXISTS} ]]; then\n    ruby -Ku -e \"require 'rubygems';require 'json'; output=JSON.parse('$1'); puts output[$_JSON_ROOT]['$2']\"\n  else\n    echo \"\"\n  fi;\n}\n\nfunction jsonBoolToYesNo () {\n  if [[ $1 == \"false\" ]]; then\n    echo \"NO\"\n  elif [[ $1 == \"true\" ]]; then\n    echo \"YES\"\n  else echo \"NO\"\n  fi\n}\n\necho \"info: -> RNFB build script started\"\necho \"info: 1) Locating ${_JSON_FILE_NAME} file:\"\n\nif [[ -z ${_CURRENT_SEARCH_DIR} ]]; then\n  _CURRENT_SEARCH_DIR=$(pwd)\nfi;\n\nwhile true; do\n  _CURRENT_SEARCH_DIR=$(dirname \"$_CURRENT_SEARCH_DIR\")\n  if [[ \"$_CURRENT_SEARCH_DIR\" == \"/\" ]] || [[ ${_CURRENT_LOOKUPS} -gt ${_MAX_LOOKUPS} ]]; then break; fi;\n  echo \"info:      ($_CURRENT_LOOKUPS of $_MAX_LOOKUPS) Searching in '$_CURRENT_SEARCH_DIR' for a ${_JSON_FILE_NAME} file.\"\n  _SEARCH_RESULT=$(find \"$_CURRENT_SEARCH_DIR\" -maxdepth 2 -name ${_JSON_FILE_NAME} -print | /usr/bin/head -n 1)\n  if [[ ${_SEARCH_RESULT} ]]; then\n    echo \"info:      ${_JSON_FILE_NAME} found at $_SEARCH_RESULT\"\n    break;\n  fi;\n  _CURRENT_LOOKUPS=$((_CURRENT_LOOKUPS+1))\ndone\n\nif [[ ${_SEARCH_RESULT} ]]; then\n  _JSON_OUTPUT_RAW=$(cat \"${_SEARCH_RESULT}\")\n  _RN_ROOT_EXISTS=$(ruby -Ku -e \"require 'rubygems';require 'json'; output=JSON.parse('$_JSON_OUTPUT_RAW'); puts output[$_JSON_ROOT]\" || echo '')\n\n  if [[ ${_RN_ROOT_EXISTS} ]]; then\n    if ! python3 --version >/dev/null 2>&1; then echo \"python3 not found, firebase.json file processing error.\" && exit 1; fi\n    _JSON_OUTPUT_BASE64=$(python3 -c 'import json,sys,base64;print(base64.b64encode(bytes(json.dumps(json.loads(open('\"'${_SEARCH_RESULT}'\"', '\"'rb'\"').read())['${_JSON_ROOT}']), '\"'utf-8'\"')).decode())' || echo \"e30=\")\n  fi\n\n  _PLIST_ENTRY_KEYS+=(\"firebase_json_raw\")\n  _PLIST_ENTRY_TYPES+=(\"string\")\n  _PLIST_ENTRY_VALUES+=(\"$_JSON_OUTPUT_BASE64\")\n\n  # config.app_data_collection_default_enabled\n  _APP_DATA_COLLECTION_ENABLED=$(getFirebaseJsonKeyValue \"$_JSON_OUTPUT_RAW\" \"app_data_collection_default_enabled\")\n  if [[ $_APP_DATA_COLLECTION_ENABLED ]]; then\n    _PLIST_ENTRY_KEYS+=(\"FirebaseDataCollectionDefaultEnabled\")\n    _PLIST_ENTRY_TYPES+=(\"bool\")\n    _PLIST_ENTRY_VALUES+=(\"$(jsonBoolToYesNo \"$_APP_DATA_COLLECTION_ENABLED\")\")\n  fi\n\n  # config.analytics_auto_collection_enabled\n  _ANALYTICS_AUTO_COLLECTION=$(getFirebaseJsonKeyValue \"$_JSON_OUTPUT_RAW\" \"analytics_auto_collection_enabled\")\n  if [[ $_ANALYTICS_AUTO_COLLECTION ]]; then\n    _PLIST_ENTRY_KEYS+=(\"FIREBASE_ANALYTICS_COLLECTION_ENABLED\")\n    _PLIST_ENTRY_TYPES+=(\"bool\")\n    _PLIST_ENTRY_VALUES+=(\"$(jsonBoolToYesNo \"$_ANALYTICS_AUTO_COLLECTION\")\")\n  fi\n\n  # config.analytics_collection_deactivated\n  _ANALYTICS_DEACTIVATED=$(getFirebaseJsonKeyValue \"$_JSON_OUTPUT_RAW\" \"analytics_collection_deactivated\")\n  if [[ $_ANALYTICS_DEACTIVATED ]]; then\n    _PLIST_ENTRY_KEYS+=(\"FIREBASE_ANALYTICS_COLLECTION_DEACTIVATED\")\n    _PLIST_ENTRY_TYPES+=(\"bool\")\n    _PLIST_ENTRY_VALUES+=(\"$(jsonBoolToYesNo \"$_ANALYTICS_DEACTIVATED\")\")\n  fi\n\n  # config.analytics_idfv_collection_enabled\n  _ANALYTICS_IDFV_COLLECTION=$(getFirebaseJsonKeyValue \"$_JSON_OUTPUT_RAW\" \"analytics_idfv_collection_enabled\")\n  if [[ $_ANALYTICS_IDFV_COLLECTION ]]; then\n    _PLIST_ENTRY_KEYS+=(\"GOOGLE_ANALYTICS_IDFV_COLLECTION_ENABLED\")\n    _PLIST_ENTRY_TYPES+=(\"bool\")\n    _PLIST_ENTRY_VALUES+=(\"$(jsonBoolToYesNo \"$_ANALYTICS_IDFV_COLLECTION\")\")\n  fi\n\n  # config.analytics_default_allow_analytics_storage\n  _ANALYTICS_STORAGE=$(getFirebaseJsonKeyValue \"$_JSON_OUTPUT_RAW\" \"analytics_default_allow_analytics_storage\")\n  if [[ $_ANALYTICS_STORAGE ]]; then\n    _PLIST_ENTRY_KEYS+=(\"GOOGLE_ANALYTICS_DEFAULT_ALLOW_ANALYTICS_STORAGE\")\n    _PLIST_ENTRY_TYPES+=(\"bool\")\n    _PLIST_ENTRY_VALUES+=(\"$(jsonBoolToYesNo \"$_ANALYTICS_STORAGE\")\")\n  fi\n\n  # config.analytics_default_allow_ad_storage\n  _ANALYTICS_AD_STORAGE=$(getFirebaseJsonKeyValue \"$_JSON_OUTPUT_RAW\" \"analytics_default_allow_ad_storage\")\n  if [[ $_ANALYTICS_AD_STORAGE ]]; then\n    _PLIST_ENTRY_KEYS+=(\"GOOGLE_ANALYTICS_DEFAULT_ALLOW_AD_STORAGE\")\n    _PLIST_ENTRY_TYPES+=(\"bool\")\n    _PLIST_ENTRY_VALUES+=(\"$(jsonBoolToYesNo \"$_ANALYTICS_AD_STORAGE\")\")\n  fi\n\n  # config.analytics_default_allow_ad_user_data\n  _ANALYTICS_AD_USER_DATA=$(getFirebaseJsonKeyValue \"$_JSON_OUTPUT_RAW\" \"analytics_default_allow_ad_user_data\")\n  if [[ $_ANALYTICS_AD_USER_DATA ]]; then\n    _PLIST_ENTRY_KEYS+=(\"GOOGLE_ANALYTICS_DEFAULT_ALLOW_AD_USER_DATA\")\n    _PLIST_ENTRY_TYPES+=(\"bool\")\n    _PLIST_ENTRY_VALUES+=(\"$(jsonBoolToYesNo \"$_ANALYTICS_AD_USER_DATA\")\")\n  fi\n\n  # config.analytics_default_allow_ad_personalization_signals\n  _ANALYTICS_PERSONALIZATION=$(getFirebaseJsonKeyValue \"$_JSON_OUTPUT_RAW\" \"analytics_default_allow_ad_personalization_signals\")\n  if [[ $_ANALYTICS_PERSONALIZATION ]]; then\n    _PLIST_ENTRY_KEYS+=(\"GOOGLE_ANALYTICS_DEFAULT_ALLOW_AD_PERSONALIZATION_SIGNALS\")\n    _PLIST_ENTRY_TYPES+=(\"bool\")\n    _PLIST_ENTRY_VALUES+=(\"$(jsonBoolToYesNo \"$_ANALYTICS_PERSONALIZATION\")\")\n  fi\n\n  # config.analytics_registration_with_ad_network_enabled\n  _ANALYTICS_REGISTRATION_WITH_AD_NETWORK=$(getFirebaseJsonKeyValue \"$_JSON_OUTPUT_RAW\" \"google_analytics_registration_with_ad_network_enabled\")\n  if [[ $_ANALYTICS_REGISTRATION_WITH_AD_NETWORK ]]; then\n    _PLIST_ENTRY_KEYS+=(\"GOOGLE_ANALYTICS_REGISTRATION_WITH_AD_NETWORK_ENABLED\")\n    _PLIST_ENTRY_TYPES+=(\"bool\")\n    _PLIST_ENTRY_VALUES+=(\"$(jsonBoolToYesNo \"$_ANALYTICS_REGISTRATION_WITH_AD_NETWORK\")\")\n  fi\n\n  # config.google_analytics_automatic_screen_reporting_enabled\n  _ANALYTICS_AUTO_SCREEN_REPORTING=$(getFirebaseJsonKeyValue \"$_JSON_OUTPUT_RAW\" \"google_analytics_automatic_screen_reporting_enabled\")\n  if [[ $_ANALYTICS_AUTO_SCREEN_REPORTING ]]; then\n    _PLIST_ENTRY_KEYS+=(\"FirebaseAutomaticScreenReportingEnabled\")\n    _PLIST_ENTRY_TYPES+=(\"bool\")\n    _PLIST_ENTRY_VALUES+=(\"$(jsonBoolToYesNo \"$_ANALYTICS_AUTO_SCREEN_REPORTING\")\")\n  fi\n\n  # config.perf_auto_collection_enabled\n  _PERF_AUTO_COLLECTION=$(getFirebaseJsonKeyValue \"$_JSON_OUTPUT_RAW\" \"perf_auto_collection_enabled\")\n  if [[ $_PERF_AUTO_COLLECTION ]]; then\n    _PLIST_ENTRY_KEYS+=(\"firebase_performance_collection_enabled\")\n    _PLIST_ENTRY_TYPES+=(\"bool\")\n    _PLIST_ENTRY_VALUES+=(\"$(jsonBoolToYesNo \"$_PERF_AUTO_COLLECTION\")\")\n  fi\n\n  # config.perf_collection_deactivated\n  _PERF_DEACTIVATED=$(getFirebaseJsonKeyValue \"$_JSON_OUTPUT_RAW\" \"perf_collection_deactivated\")\n  if [[ $_PERF_DEACTIVATED ]]; then\n    _PLIST_ENTRY_KEYS+=(\"firebase_performance_collection_deactivated\")\n    _PLIST_ENTRY_TYPES+=(\"bool\")\n    _PLIST_ENTRY_VALUES+=(\"$(jsonBoolToYesNo \"$_PERF_DEACTIVATED\")\")\n  fi\n\n  # config.messaging_auto_init_enabled\n  _MESSAGING_AUTO_INIT=$(getFirebaseJsonKeyValue \"$_JSON_OUTPUT_RAW\" \"messaging_auto_init_enabled\")\n  if [[ $_MESSAGING_AUTO_INIT ]]; then\n    _PLIST_ENTRY_KEYS+=(\"FirebaseMessagingAutoInitEnabled\")\n    _PLIST_ENTRY_TYPES+=(\"bool\")\n    _PLIST_ENTRY_VALUES+=(\"$(jsonBoolToYesNo \"$_MESSAGING_AUTO_INIT\")\")\n  fi\n\n  # config.in_app_messaging_auto_colllection_enabled\n  _FIAM_AUTO_INIT=$(getFirebaseJsonKeyValue \"$_JSON_OUTPUT_RAW\" \"in_app_messaging_auto_collection_enabled\")\n  if [[ $_FIAM_AUTO_INIT ]]; then\n    _PLIST_ENTRY_KEYS+=(\"FirebaseInAppMessagingAutomaticDataCollectionEnabled\")\n    _PLIST_ENTRY_TYPES+=(\"bool\")\n    _PLIST_ENTRY_VALUES+=(\"$(jsonBoolToYesNo \"$_FIAM_AUTO_INIT\")\")\n  fi\n\n  # config.app_check_token_auto_refresh\n  _APP_CHECK_TOKEN_AUTO_REFRESH=$(getFirebaseJsonKeyValue \"$_JSON_OUTPUT_RAW\" \"app_check_token_auto_refresh\")\n  if [[ $_APP_CHECK_TOKEN_AUTO_REFRESH ]]; then\n    _PLIST_ENTRY_KEYS+=(\"FirebaseAppCheckTokenAutoRefreshEnabled\")\n    _PLIST_ENTRY_TYPES+=(\"bool\")\n    _PLIST_ENTRY_VALUES+=(\"$(jsonBoolToYesNo \"$_APP_CHECK_TOKEN_AUTO_REFRESH\")\")\n  fi\n\n  # config.crashlytics_disable_auto_disabler - undocumented for now - mainly for debugging, document if becomes useful\n  _CRASHLYTICS_AUTO_DISABLE_ENABLED=$(getFirebaseJsonKeyValue \"$_JSON_OUTPUT_RAW\" \"crashlytics_disable_auto_disabler\")\n  if [[ $_CRASHLYTICS_AUTO_DISABLE_ENABLED == \"true\" ]]; then\n    echo \"Disabled Crashlytics auto disabler.\" # do nothing\n  else\n    _PLIST_ENTRY_KEYS+=(\"FirebaseCrashlyticsCollectionEnabled\")\n    _PLIST_ENTRY_TYPES+=(\"bool\")\n    _PLIST_ENTRY_VALUES+=(\"NO\")\n  fi\nelse\n  _PLIST_ENTRY_KEYS+=(\"firebase_json_raw\")\n  _PLIST_ENTRY_TYPES+=(\"string\")\n  _PLIST_ENTRY_VALUES+=(\"$_JSON_OUTPUT_BASE64\")\n  echo \"warning:   A firebase.json file was not found, whilst this file is optional it is recommended to include it to configure firebase services in React Native Firebase.\"\nfi;\n\necho \"info: 2) Injecting Info.plist entries: \"\n\n# Log out the keys we're adding\nfor i in \"${!_PLIST_ENTRY_KEYS[@]}\"; do\n  echo \"    ->  $i) ${_PLIST_ENTRY_KEYS[$i]}\" \"${_PLIST_ENTRY_TYPES[$i]}\" \"${_PLIST_ENTRY_VALUES[$i]}\"\ndone\n\nfor plist in \"${_TARGET_PLIST}\" \"${_DSYM_PLIST}\" ; do\n  if [[ -f \"${plist}\" ]]; then\n\n    # paths with spaces break the call to setPlistValue. temporarily modify\n    # the shell internal field separator variable (IFS), which normally\n    # includes spaces, to consist only of line breaks\n    oldifs=$IFS\n    IFS=\"\n\"\n\n    for i in \"${!_PLIST_ENTRY_KEYS[@]}\"; do\n      setPlistValue \"${_PLIST_ENTRY_KEYS[$i]}\" \"${_PLIST_ENTRY_TYPES[$i]}\" \"${_PLIST_ENTRY_VALUES[$i]}\" \"${plist}\"\n    done\n\n    # restore the original internal field separator value\n    IFS=$oldifs\n  else\n    echo \"warning:   A Info.plist build output file was not found (${plist})\"\n  fi\ndone\n\necho \"info: <- RNFB build script finished\"\n";
+		};
+		6354B0192DA44FB700A00356 /* Build JS bundle */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 12;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build JS bundle";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "pnpm run --filter scripts build\n";
 		};
 		70DBBFE62B7C60B50021EA96 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1260,7 +1277,6 @@
 				70D3865B2A609BFC00AFB46E /* PocketAPI.swift in Sources */,
 				70D386582A609BFC00AFB46E /* PushNotificationManager.swift in Sources */,
 				63E27E0B2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
-				63CF1DBC2D07665B00C0F34E /* ActivityEvent.swift in Sources */,
 				700B635D2A71DFE90017F40F /* Contact.swift in Sources */,
 				70EAEAB92A57CE2A00FE96E4 /* UrbitModule.m in Sources */,
 				70D386672A60A37000AFB46E /* INPerson+Extension.swift in Sources */,
@@ -1284,7 +1300,6 @@
 				63E27E132C5AF5B9008ACB45 /* HTTPCookieStorage+forwardChanges.swift in Sources */,
 				6374ACF92C4ACD5100E637C0 /* LoginStore.swift in Sources */,
 				630DE0EC2C51AC840053603B /* UserDefaults+appGroup.swift in Sources */,
-				70D3866B2A60A38400AFB46E /* Yarn.swift in Sources */,
 				D0A57BA86BAF5327C2EECEE4 /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1296,13 +1311,12 @@
 				630DE0C52C51A8780053603B /* UIColor+Extension.swift in Sources */,
 				630DE0C62C51A8780053603B /* Contact.swift in Sources */,
 				630DE0C72C51A8780053603B /* Club.swift in Sources */,
+				6303C7812DB17BC200A40B07 /* NotificationPreviewPayload.swift in Sources */,
 				630DE0C82C51A8780053603B /* UrbitAPI.swift in Sources */,
 				630DE0C92C51A8780053603B /* Group.swift in Sources */,
 				630DE0CA2C51A8780053603B /* TlonError.swift in Sources */,
 				630DE0CB2C51A8780053603B /* Error+isAFTimeout.swift in Sources */,
 				630DE0CC2C51A8780053603B /* PushNotificationManager.swift in Sources */,
-				630DE0CD2C51A8780053603B /* Yarn.swift in Sources */,
-				63CF1DBA2D07665B00C0F34E /* ActivityEvent.swift in Sources */,
 				630DE0CE2C51A8780053603B /* GroupChannelStore.swift in Sources */,
 				63E27E0E2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
 				630DE0CF2C51A8780053603B /* PocketUserAPI.swift in Sources */,
@@ -1329,13 +1343,12 @@
 				632793CE2C4AE81E00F942B1 /* UIColor+Extension.swift in Sources */,
 				632793C52C4AE56500F942B1 /* Contact.swift in Sources */,
 				632793CC2C4AE7E500F942B1 /* Club.swift in Sources */,
+				6303C7802DB17BC200A40B07 /* NotificationPreviewPayload.swift in Sources */,
 				632793BB2C4AE49600F942B1 /* UrbitAPI.swift in Sources */,
 				632793CD2C4AE7EC00F942B1 /* Group.swift in Sources */,
 				632793C82C4AE78400F942B1 /* TlonError.swift in Sources */,
 				630DE0B72C51A0F80053603B /* Error+isAFTimeout.swift in Sources */,
 				632793B62C4ADE9800F942B1 /* PushNotificationManager.swift in Sources */,
-				632793C22C4AE4FA00F942B1 /* Yarn.swift in Sources */,
-				63CF1DBD2D07665B00C0F34E /* ActivityEvent.swift in Sources */,
 				632793C92C4AE7C900F942B1 /* GroupChannelStore.swift in Sources */,
 				63E27E0D2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
 				632793C62C4AE56F00F942B1 /* PocketUserAPI.swift in Sources */,
@@ -1370,7 +1383,6 @@
 				70DBBFF02B7C60B50021EA96 /* PushNotificationManager.swift in Sources */,
 				63E27E0C2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
 				70DBBFF12B7C60B50021EA96 /* Contact.swift in Sources */,
-				63CF1DB92D07665B00C0F34E /* ActivityEvent.swift in Sources */,
 				70DBBFF22B7C60B50021EA96 /* UrbitModule.m in Sources */,
 				70DBBFF32B7C60B50021EA96 /* INPerson+Extension.swift in Sources */,
 				70DBBFF42B7C60B50021EA96 /* Error+logWithDomain.swift in Sources */,
@@ -1394,7 +1406,6 @@
 				63E27E142C5AF5B9008ACB45 /* HTTPCookieStorage+forwardChanges.swift in Sources */,
 				6374ACFA2C4ACD5100E637C0 /* LoginStore.swift in Sources */,
 				630DE0ED2C51AC840053603B /* UserDefaults+appGroup.swift in Sources */,
-				70DBC0012B7C60B50021EA96 /* Yarn.swift in Sources */,
 				3DC46BC1B669DF8F5F059CA8 /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1412,7 +1423,6 @@
 				70F99A9B2B2D336500D77256 /* INPerson+Extension.swift in Sources */,
 				70F99AAB2B2D337600D77256 /* UserDefaultsStore.swift in Sources */,
 				70F99A982B2D2B6E00D77256 /* YarnTests.swift in Sources */,
-				63CF1DBB2D07665B00C0F34E /* ActivityEvent.swift in Sources */,
 				632793C02C4AE4B500F942B1 /* Error+isAFTimeout.swift in Sources */,
 				70F99AA92B2D337600D77256 /* GroupChannelStore.swift in Sources */,
 				70F99A9F2B2D336800D77256 /* Group.swift in Sources */,
@@ -1421,7 +1431,6 @@
 				70F99AA22B2D336E00D77256 /* UrbitAPI.swift in Sources */,
 				70F99AAA2B2D337600D77256 /* SettingsStore.swift in Sources */,
 				70F99AA62B2D336E00D77256 /* PocketChatAPI.swift in Sources */,
-				70F99A992B2D319400D77256 /* Yarn.swift in Sources */,
 				70F99A9D2B2D336500D77256 /* Error+logWithDomain.swift in Sources */,
 				6374ACFF2C4ACD7500E637C0 /* Login.swift in Sources */,
 				70F99AA12B2D336800D77256 /* TlonError.swift in Sources */,
@@ -1475,7 +1484,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.4.2;
+				MARKETING_VERSION = 5.5.6;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1513,7 +1522,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.4.2;
+				MARKETING_VERSION = 5.5.6;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1737,7 +1746,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.4.2;
+				MARKETING_VERSION = 5.5.6;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1780,7 +1789,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.4.2;
+				MARKETING_VERSION = 5.5.6;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",

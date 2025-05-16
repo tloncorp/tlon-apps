@@ -740,6 +740,7 @@
     ==
   ::
       %verifier-user-query
+    =.  for.log  `src.bowl
     =+  !<(qer=user-query vase)
     =;  [res=result:query-result nu=_state]
       =.  state  nu
@@ -1081,6 +1082,12 @@
     ::
     =/  result
       (parse-post:twitter [handle nonce.u.pre.status] +.res)
+    %-  %+  tell:l  %info
+        :~  (cat 3 'twitter api response: %' ?@(result result -.result))
+            (cat 3 'status code: ' (crip (a-co:co status-code.response-header.res)))
+            ?~  full-file.res  'no body'
+            q.data.u.full-file.res
+        ==
     ::
     =*  abort
       %-  (tell:l %warn (cat 3 'twitter verification aborted with result %' result) ~)
