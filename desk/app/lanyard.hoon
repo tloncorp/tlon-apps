@@ -248,8 +248,20 @@
   ~|  [%on-poke mark=mark]
   ?+  mark  !!
       %noun
-    ?.  ?=([@ *] q.vase)  !!
-    $(mark -.q.vase, vase (slot 3 vase))
+    ?+  q.vase
+      ?.  ?=([@ *] q.vase)  !!
+      $(mark -.q.vase, vase (slot 3 vase))
+    ::
+        [%revoke-all ~]
+      =/  kez=(list key)  ~(tap in ~(key by records))
+      =|  caz=(list card)
+      |-
+      ?~  kez  [caz this]
+      =/  cmd=command:l  [`h.i.kez %revoke id.i.kez]
+      =^  cas  this  (on-poke %lanyard-command-1 !>(cmd))
+      =.  caz  (weld caz cas)
+      $(kez t.kez)
+    ==
   ::
       %json  ::TMP
     =;  cmd=command:l
