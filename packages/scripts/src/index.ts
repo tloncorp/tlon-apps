@@ -11,6 +11,7 @@ import {
 type PreviewContentNode =
   | { type: 'channelTitle'; channelId: string }
   | { type: 'groupTitle'; groupId: string }
+  | { type: 'gangTitle'; gangId: string }
   | { type: 'userNickname'; ship: string }
   | { type: 'stringLiteral'; content: string }
   | {
@@ -50,6 +51,9 @@ namespace PreviewContentNode {
   export function groupTitle(groupId: string): PreviewContentNode {
     return { type: 'groupTitle', groupId };
   }
+  export function gangTitle(gangId: string): PreviewContentNode {
+    return { type: 'gangTitle', gangId };
+  }
 }
 
 interface PreviewContentPayload {
@@ -73,6 +77,7 @@ export function renderActivityEventPreview({
   event: ub.ActivityEvent;
 }): PreviewContentPayload | null {
   const {
+    gangTitle,
     groupTitle,
     stringLiteral: lit,
     channelTitle,
@@ -100,19 +105,24 @@ export function renderActivityEventPreview({
   }
 
   function buildPostNotification(
-    info: Pick<ub.PostEvent['post'], 'key' | 'channel' | 'content'>
+    info: Pick<ub.PostEvent['post'], 'key' | 'channel' | 'content' | 'group'>
   ): PreviewContentPayload {
     const base = buildMessageNotification(info);
+    const groupAndChannel = concat([
+      groupTitle(info.group),
+      lit(': '),
+      channelTitle(info.channel),
+    ]);
     return {
       ...base,
       notification: {
         ...base.notification,
-        title: channelTitle(info.channel),
+        title: groupAndChannel,
       },
       message: {
         ...base.message,
         type: 'group',
-        conversationTitle: channelTitle(info.channel),
+        conversationTitle: groupAndChannel,
       },
     };
   }
@@ -161,7 +171,7 @@ export function renderActivityEventPreview({
         notification: {
           body: concat([
             lit('You were invited to '),
-            groupTitle(ev['group-invite'].group),
+            gangTitle(ev['group-invite'].group),
             lit(' by '),
             userNickname(ev['group-invite'].ship),
           ]),

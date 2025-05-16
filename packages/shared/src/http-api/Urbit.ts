@@ -4,6 +4,7 @@ import { isBrowser } from 'browser-or-node';
 
 import { TimeoutError } from '../api';
 import { desig } from '../urbit';
+import * as utils from '../utils';
 import { UrbitHttpApiEvent, UrbitHttpApiEventType } from './events';
 import { EventSourceMessage, fetchEventSource } from './fetch-event-source';
 import {
@@ -858,13 +859,15 @@ export class Urbit {
    */
   async scry<T = any>(params: Scry): Promise<T> {
     const { app, path, timeout } = params;
+    const signal = timeout ? utils.createTimeoutSignal(timeout) : undefined;
     const response = await this.fetchFn(
       `${this.url}/~/scry/${app}${path}.json`,
       {
         ...this.fetchOptions,
-        signal: timeout ? AbortSignal.timeout(timeout) : undefined,
+        signal,
       }
     );
+    signal?.cleanup();
 
     if (!response.ok) {
       return Promise.reject(response);
@@ -931,15 +934,19 @@ export class Urbit {
       throw new Error('Must supply desk to run thread from');
     }
 
-    return this.fetchFn(
+    const signal = timeout ? utils.createTimeoutSignal(timeout) : undefined;
+
+    const result = await this.fetchFn(
       `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
       {
         ...this.fetchOptions,
-        signal: timeout ? AbortSignal.timeout(timeout) : undefined,
+        signal,
         method: 'POST',
         body: JSON.stringify(body),
       }
     );
+    signal?.cleanup();
+    return result;
   }
 
   /**

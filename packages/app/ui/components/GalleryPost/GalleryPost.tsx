@@ -393,10 +393,25 @@ function LargePreview({
   ComponentProps<typeof PreviewFrame>,
   'content'
 >) {
+  const containsPreviewableContent = useMemo(() => {
+    return (
+      (content.some(
+        (block) =>
+          block.type === 'image' ||
+          block.type === 'video' ||
+          block.type === 'reference'
+      ) &&
+        content.length > 1 &&
+        content[0].type === 'image') ||
+      content[0].type === 'video' ||
+      content[0].type === 'reference'
+    );
+  }, [content]);
+
   return (
     <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
       <LargeContentRenderer
-        content={content.slice(0, 1)}
+        content={containsPreviewableContent ? content.slice(0, 1) : content}
         onPressImage={onPressImage}
       />
     </PreviewFrame>
@@ -411,6 +426,20 @@ function SmallPreview({
   'content'
 >) {
   const link = useBlockLink(content);
+  const containsPreviewableContent = useMemo(() => {
+    return (
+      (content.some(
+        (block) =>
+          block.type === 'image' ||
+          block.type === 'video' ||
+          block.type === 'reference'
+      ) &&
+        content.length > 1 &&
+        content[0].type === 'image') ||
+      content[0].type === 'video' ||
+      content[0].type === 'reference'
+    );
+  }, [content]);
 
   return link ? (
     <PreviewFrame {...props} previewType="link">
@@ -418,7 +447,9 @@ function SmallPreview({
     </PreviewFrame>
   ) : (
     <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
-      <SmallContentRenderer height={'100%'} content={content.slice(0, 1)} />
+      <SmallContentRenderer
+        content={containsPreviewableContent ? content.slice(0, 1) : content}
+      />
     </PreviewFrame>
   );
 }
