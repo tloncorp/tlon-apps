@@ -1,6 +1,7 @@
 import { useRoute } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
+import { generateSafeId } from '@tloncorp/shared/logic';
 import { useCallback, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
@@ -97,7 +98,7 @@ function GroupRolesScreenView() {
   const handleAddRole = useCallback(
     ({ title, description }: { title: string; description: string }) => {
       createGroupRole({
-        id: title.toLowerCase().replace(/\s/g, '-'),
+        id: generateSafeId(title, 'role'),
         title,
         description,
       });
