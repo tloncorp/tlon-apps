@@ -686,8 +686,16 @@ export async function thread<T, R = any>(params: Thread<T>): Promise<R> {
   }
 }
 
-export async function request(path: string, options: RequestInit = {}) {
-  return config.client?.request(path, options);
+export async function request<T>(
+  path: string,
+  options: RequestInit = {},
+  timeout?: number
+) {
+  if (!config.client) {
+    throw new Error('Cannot make request before client is initialized');
+  }
+
+  return config.client.request<T>(path, options, timeout);
 }
 
 // Remove any identifiable information from path

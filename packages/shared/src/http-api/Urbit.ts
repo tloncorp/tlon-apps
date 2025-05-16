@@ -956,12 +956,17 @@ export class Urbit {
    * @param options Request options (method, headers, body, etc.)
    * @returns The response from the request
    */
-  async request<T = any>(path: string, options: RequestInit = {}): Promise<T> {
+  async request<T>(
+    path: string,
+    options: RequestInit = {},
+    timeout?: number
+  ): Promise<T> {
     // Ensure path starts with a slash if not provided
     if (!path.startsWith('/')) {
       path = '/' + path;
     }
 
+    const signal = timeout ? utils.createTimeoutSignal(timeout) : undefined;
     // Prepare request options with authentication
     const requestOptions: RequestInit = {
       ...this.fetchOptions,
@@ -971,6 +976,7 @@ export class Urbit {
         ...this.fetchOptions.headers,
         ...(options.headers || {}),
       },
+      signal,
     };
 
     // If we're in a Node.js environment, add the cookie for authentication
@@ -983,6 +989,7 @@ export class Urbit {
 
     // Make the request
     const response = await this.fetchFn(`${this.url}${path}`, requestOptions);
+    signal?.cleanup();
 
     // Handle response
     if (!response.ok) {

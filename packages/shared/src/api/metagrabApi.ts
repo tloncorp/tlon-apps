@@ -14,10 +14,14 @@ export async function getLinkMetadata(
   try {
     const encodedUrl = formatUw(Atom.fromCord(url).number);
     logger.log('encoded', { url, encodedUrl });
-    const response = await request(`/apps/groups/~/metagrab/${encodedUrl}`, {
-      method: 'GET',
-      mode: 'cors',
-    });
+    const response = await request<ub.LinkMetadataResponse>(
+      `/apps/groups/~/metagrab/${encodedUrl}`,
+      {
+        method: 'GET',
+        mode: 'cors',
+      },
+      10_000
+    );
     logger.log('metagrab response', response);
 
     if (response.status !== 200) {
