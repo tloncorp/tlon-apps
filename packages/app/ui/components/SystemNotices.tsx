@@ -53,6 +53,9 @@ export function ContactBookPrompt(props: {
         await store.syncSystemContacts().then(() => {
           Alert.alert('Success', 'Your contacts have been synced.');
         });
+        await store.syncContactDiscovery().catch(() => {
+          didDismiss.setValue(true);
+        });
       }
       didDismiss.setValue(true);
     } else {
