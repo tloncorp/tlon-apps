@@ -451,9 +451,42 @@
 ++  verse-1
   |=  =verse:c
   ^-  verse:v7:old:c
-  ?.  ?=([%block %link *] verse)
-    verse
-  [%inline [%link [. .]:url.p.verse] ~]  ::REVIEW
+  ?+  verse  verse
+      [%inline *]
+    [%inline (turn p.verse inline-1)]
+  ::
+      [%block %header *]
+    verse(q.p (turn q.p.verse inline-1))
+  ::
+      [%block %listing *]
+    verse(p.p (listing-1 p.p.verse))
+  ::
+      [%block %link *]
+    [%inline [%link [. .]:url.p.verse] ~]  ::REVIEW
+  ==
+::
+++  listing-1
+  |=  =listing:c
+  ^-  listing:v7:old:c
+  ?-  -.listing
+    %list  listing(q (turn q.listing listing-1), r (turn r.listing inline-1))
+    %item  listing(p (turn p.listing inline-1))
+  ==
+::
+++  inline-1
+  |=  =inline:c
+  ^-  inline:v7:old:c
+  ?@  inline  inline
+  ?+  -.inline  inline
+      ?(%italics %bold %strike %blockquote)
+    inline(p (turn p.inline inline-1))
+  ::
+      %task
+    inline(q (turn q.inline inline-1))
+  ::
+      %sect
+    (cat 3 '@' ?~(p.inline 'all' p.inline))
+  ==
 ::
 ++  essay-1
   |=  =essay:c

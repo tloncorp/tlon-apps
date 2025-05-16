@@ -636,9 +636,33 @@
       $%  [%block p=block]
           [%inline p=(list inline)]
       ==
+    +$  listing
+      $%  [%list p=?(%ordered %unordered %tasklist) q=(list listing) r=(list inline)]
+          [%item p=(list inline)]
+      ==
     +$  block
-      $~  [%rule ~]
-      $<(%link ^block)
+      $%  [%image src=cord height=@ud width=@ud alt=cord]
+          [%cite =cite:c]
+          [%header p=?(%h1 %h2 %h3 %h4 %h5 %h6) q=(list inline)]
+          [%listing p=listing]
+          [%rule ~]
+          [%code code=cord lang=cord]
+      ==
+    +$  inline
+      $@  @t
+      $%  [%italics p=(list inline)]
+          [%bold p=(list inline)]
+          [%strike p=(list inline)]
+          [%blockquote p=(list inline)]
+          [%inline-code p=cord]
+          [%code p=cord]
+          [%ship p=ship]
+          [%block p=@ud q=cord]
+          [%tag p=cord]
+          [%link p=cord q=cord]
+          [%task p=?(%.y %.n) q=(list inline)]
+          [%break ~]
+      ==
     +$  v-replies     ((mop id-reply (unit v-reply)) lte)
     +$  channels  (map nest channel)
     ++  channel
