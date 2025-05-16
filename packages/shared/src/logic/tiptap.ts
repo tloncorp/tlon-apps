@@ -8,7 +8,8 @@ import { JSONContent } from '@tiptap/react';
 import { deSig, isValidPatp } from '@urbit/aura';
 import { isEqual, reduce } from 'lodash';
 
-import { Block, Cite, HeaderLevel, Listing, Story } from '../urbit/channel';
+import { Story } from '../urbit/channel';
+import { Block, Cite, HeaderLevel, Listing } from '../urbit/content';
 import { Inline, InlineKey, Link, Task } from '../urbit/content';
 import { citeToPath, pathToCite, preSig } from '../urbit/utils';
 

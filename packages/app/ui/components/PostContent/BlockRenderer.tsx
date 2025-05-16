@@ -1,4 +1,4 @@
-import { Image, Pressable, Text, useCopy } from '@tloncorp/ui';
+import { Icon, Image, Pressable, Text, useCopy } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
 import React, {
   ComponentProps,
@@ -8,9 +8,19 @@ import React, {
   memo,
   useCallback,
   useContext,
+  useMemo,
   useState,
 } from 'react';
-import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
+import { Linking, Platform } from 'react-native';
+import {
+  ScrollView,
+  TamaguiComponent,
+  View,
+  ViewStyle,
+  XStack,
+  YStack,
+  styled,
+} from 'tamagui';
 
 import {
   ContentReferenceLoader,
@@ -210,6 +220,82 @@ const BigEmojiText = styled(Text, {
   trimmed: true,
 });
 
+export function LinkBlock({
+  block,
+  imageProps,
+  clickable = true,
+  ...props
+}: {
+  block: cn.LinkBlockData;
+  clickable?: boolean;
+  imageProps?: ComponentProps<typeof ContentImage>;
+} & ComponentProps<typeof Reference.Frame>) {
+  const domain = useMemo(() => {
+    const url = new URL(block.url);
+    return url.hostname;
+  }, [block.url]);
+
+  const onPress = useCallback(() => {
+    if (Platform.OS === 'web') {
+      window.open(block.url, '_blank', 'noopener,noreferrer');
+    } else {
+      Linking.openURL(block.url);
+    }
+  }, [block.url]);
+
+  const aspectRatio = useMemo(() => {
+    if (!block.previewImageHeight || !block.previewImageWidth) {
+      return 1.5;
+    }
+
+    try {
+      return (
+        parseInt(block.previewImageWidth) / parseInt(block.previewImageHeight)
+      );
+    } catch (e) {
+      console.error('Error parsing aspect ratio', e);
+    }
+
+    return 1.5;
+  }, [block.previewImageHeight, block.previewImageWidth]);
+
+  return (
+    <Reference.Frame {...props} onPress={clickable ? onPress : undefined}>
+      <Reference.Header>
+        <Reference.Title>
+          <Icon type="Link" color="$tertiaryText" customSize={[12, 12]} />
+          <Reference.TitleText>{domain}</Reference.TitleText>
+        </Reference.Title>
+      </Reference.Header>
+      <Reference.Body>
+        {block.previewImageUrl && (
+          <ContentImage
+            source={block.previewImageUrl}
+            flex={1}
+            aspectRatio={aspectRatio}
+            width="100%"
+            contentFit="cover"
+            {...imageProps}
+          />
+        )}
+        <YStack flex={0} padding="$xl" gap="$xl">
+          <YStack gap="$s">
+            <Text fontWeight="500" color="$secondaryText">
+              {block.siteName}
+            </Text>
+            <Text size="$label/m" numberOfLines={1}>
+              {block.title}
+            </Text>
+          </YStack>
+          <Text size="$label/s" color="$secondaryText">
+            {block.description}
+          </Text>
+        </YStack>
+      </Reference.Body>
+    </Reference.Frame>
+  );
+}
+
 export function VideoBlock({
   block,
   ...props
@@ -252,34 +338,6 @@ export function ImageBlock({
 
   const shouldUseAspectRatio = imageProps?.aspectRatio !== 'unset';
 
-  if (isInsideReference) {
-    return (
-      <Pressable
-        overflow="hidden"
-        onPress={handlePress}
-        onLongPress={onLongPress}
-        {...props}
-      >
-        <ContentImage
-          source={{ uri: block.src }}
-          style={{
-            width: '100%',
-            maxHeight: 250,
-            resizeMode: 'contain',
-            ...(shouldUseAspectRatio
-              ? { aspectRatio: dimensions.aspect || 1 }
-              : {}),
-          }}
-          contentFit="contain"
-          borderRadius="$s"
-          alt={block.alt}
-          onLoad={handleImageLoaded}
-          {...imageProps}
-        />
-      </Pressable>
-    );
-  }
-
   return (
     <Pressable
       overflow="hidden"
@@ -291,11 +349,16 @@ export function ImageBlock({
         source={{
           uri: block.src,
         }}
-        style={{
-          ...(shouldUseAspectRatio
-            ? { aspectRatio: dimensions.aspect || 1 }
-            : {}),
-        }}
+        {...(shouldUseAspectRatio
+          ? { aspectRatio: dimensions.aspect || 1 }
+          : {})}
+        {...(isInsideReference
+          ? {
+              maxHeight: 250,
+              resizeMode: 'contain',
+            }
+          : {})}
+        contentFit="contain"
         borderRadius="$s"
         alt={block.alt}
         onLoad={handleImageLoaded}
@@ -305,7 +368,7 @@ export function ImageBlock({
   );
 }
 
-const ContentImage = styled(Image, {
+const ContentImage: TamaguiComponent = styled(Image, {
   name: 'ContentImage',
   context: cn.ContentContext,
   width: '100%',
@@ -427,6 +490,7 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   lineText: LineText,
   blockquote: BlockquoteBlock,
   paragraph: ParagraphBlock,
+  link: LinkBlock,
   image: ImageBlock,
   video: VideoBlock,
   reference: ReferenceBlock,
@@ -447,6 +511,7 @@ export type DefaultRendererProps = {
   lineText: Partial<ComponentProps<typeof LineText>>;
   blockquote: BlockSettings<typeof BlockquoteBlock>;
   paragraph: BlockSettings<typeof ParagraphBlock>;
+  link: BlockSettings<typeof LinkBlock>;
   image: BlockSettings<typeof ImageBlock>;
   video: BlockSettings<typeof VideoBlock>;
   reference: BlockSettings<typeof ReferenceBlock>;

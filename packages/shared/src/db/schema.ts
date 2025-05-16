@@ -921,7 +921,11 @@ export const channelRelations = relations(channels, ({ one, many }) => ({
   }),
 }));
 
-export type PostDeliveryStatus = 'pending' | 'sent' | 'failed' | 'needs_verification';
+export type PostDeliveryStatus =
+  | 'pending'
+  | 'sent'
+  | 'failed'
+  | 'needs_verification';
 
 export const posts = sqliteTable(
   'posts',
@@ -936,6 +940,8 @@ export const posts = sqliteTable(
       .notNull(),
     title: text('title'),
     image: text('image'),
+    description: text('description'),
+    cover: text('cover'),
     content: text('content', { mode: 'json' }),
     receivedAt: timestamp('received_at').notNull(),
     sentAt: timestamp('sent_at').notNull(),

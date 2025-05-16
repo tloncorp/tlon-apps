@@ -369,6 +369,35 @@ export const isImagePost = (post: db.Post) => {
   return blocks.length === 1 && blocks.some((b) => 'image' in b);
 };
 
+export const isRichLinkPost = (post: db.Post) => {
+  const { blocks } = extractContentTypesFromPost(post);
+  return blocks.length === 1 && blocks.some((b) => 'link' in b);
+};
+
+export function getRichLinkMetadata(block: ub.Block):
+  | {
+      url: string;
+      title?: string;
+      description?: string;
+      image?: string;
+    }
+  | undefined {
+  if (!('link' in block)) {
+    return undefined;
+  }
+  const { link } = block;
+  const {
+    url,
+    meta: { title, description, image },
+  } = link;
+  return {
+    url,
+    title,
+    description,
+    image,
+  };
+}
+
 export const findFirstImageBlock = (blocks: ub.Block[]): ub.Image | null => {
   return blocks.find((b) => 'image' in b) as ub.Image;
 };

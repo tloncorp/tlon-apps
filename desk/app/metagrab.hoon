@@ -105,8 +105,12 @@
 ++  fetch
   |=  url=@t
   ^-  card
+  =/  =header-list:http
+    :~  ['user-agent' 'chrome/123.0.0.0']
+        ['accept' '*/*']
+    ==
   =/  =request:http
-    [%'GET' url ~ ~]
+    [%'GET' url header-list ~]
   ::NOTE  outbound-config is actually meaningless,
   ::      iris doesn't do anything with it at present...
   [%pass /fetch/(scot %t url) %arvo %i %request request *outbound-config:iris]
@@ -116,6 +120,7 @@
           [response-header:http dat=(unit mime-data:iris)]
       ==
   ^-  [report=? result]
+  ~?  ?=(^ dat)  size=p.data.u.dat
   =*  cod  status-code
   ::  redirects
   ::
@@ -127,7 +132,7 @@
     :-  |
     ::TODO  extract message from response body somehow?
     ?:  (gte cod 500)
-      [%500 `(scot %ud cod)]
+      [%500 ?~(dat `(scot %ud cod) `q.data.u.dat)]
     [%400 `(scot %ud cod)]
   ::  miscellaneous
   ::
