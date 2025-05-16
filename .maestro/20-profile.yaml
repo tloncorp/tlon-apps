@@ -22,18 +22,31 @@ appId: io.tlon.groups
 - inputText: 'Testing nickname'
 - 'hideKeyboard'
 - tapOn: 'Change avatar image'
+- waitForAnimationToEnd:
+    timeout: 5000
 - assertVisible: 'Photo Library'
 - swipe:
     direction: 'DOWN'
 - waitForAnimationToEnd:
     timeout: 5000
-- tapOn: 'Hanging out...'
+- longPressOn: 'Hanging out...'
+- runFlow:
+    when:
+      visible: 'Select All'
+    commands:
+      - tapOn: 'Select All'
 - 'eraseText'
-- inputText: 'Testing status'
+- runFlow:
+    file: 'input-text.yaml'
+    env:
+      INPUT_TEXT: 'Testing status'
 - 'hideKeyboard'
 - tapOn: 'About yourself'
 - 'eraseText'
-- inputText: 'Testing bio'
+- runFlow:
+    file: 'input-text.yaml'
+    env:
+      INPUT_TEXT: 'Testing bio'
 - 'hideKeyboard'
 # Set favorite group
 - tapOn: 'Add a group'
@@ -60,13 +73,28 @@ appId: io.tlon.groups
 - assertVisible: 'Profile'
 - tapOn: 'Edit'
 - assertVisible: 'Edit Profile'
-- tapOn: 'Testing nickname'
+- longPressOn: 'Testing nickname'
+- runFlow:
+    when:
+      visible: 'Select All'
+    commands:
+      - tapOn: 'Select All'
 - 'eraseText'
 - 'hideKeyboard'
-- tapOn: 'Testing status'
+- longPressOn: 'Testing status'
+- runFlow:
+    when:
+      visible: 'Select All'
+    commands:
+      - tapOn: 'Select All'
 - 'eraseText'
 - 'hideKeyboard'
-- tapOn: 'Testing bio'
+- longPressOn: 'Testing bio'
+- runFlow:
+    when:
+      visible: 'Select All'
+    commands:
+      - tapOn: 'Select All'
 - 'eraseText'
 - 'hideKeyboard'
 - tapOn:
