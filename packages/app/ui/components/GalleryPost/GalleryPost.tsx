@@ -393,27 +393,9 @@ function LargePreview({
   ComponentProps<typeof PreviewFrame>,
   'content'
 >) {
-  const containsPreviewableContent = useMemo(() => {
-    return (
-      (content.some(
-        (block) =>
-          block.type === 'image' ||
-          block.type === 'video' ||
-          block.type === 'reference'
-      ) &&
-        content.length > 1 &&
-        content[0].type === 'image') ||
-      content[0].type === 'video' ||
-      content[0].type === 'reference'
-    );
-  }, [content]);
-
   return (
     <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
-      <LargeContentRenderer
-        content={containsPreviewableContent ? content.slice(0, 1) : content}
-        onPressImage={onPressImage}
-      />
+      <LargeContentRenderer content={content} onPressImage={onPressImage} />
     </PreviewFrame>
   );
 }
@@ -426,31 +408,13 @@ function SmallPreview({
   'content'
 >) {
   const link = useBlockLink(content);
-  const containsPreviewableContent = useMemo(() => {
-    return (
-      (content.some(
-        (block) =>
-          block.type === 'image' ||
-          block.type === 'video' ||
-          block.type === 'reference'
-      ) &&
-        content.length > 1 &&
-        content[0].type === 'image') ||
-      content[0].type === 'video' ||
-      content[0].type === 'reference'
-    );
-  }, [content]);
-
   return link ? (
     <PreviewFrame {...props} previewType="link">
       <LinkPreview link={link} />
     </PreviewFrame>
   ) : (
     <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
-      <SmallContentRenderer
-        height={'100%'}
-        content={containsPreviewableContent ? content.slice(0, 1) : content}
-      />
+      <SmallContentRenderer height={'100%'} content={content} />
     </PreviewFrame>
   );
 }
@@ -657,6 +621,15 @@ function usePreviewContent(content: BlockData[]): BlockData[] {
     } else if (groupedBlocks.video?.length) {
       return [groupedBlocks.video[0]];
     }
-    return content;
+    return firstBlockIsPreviewable(content) ? content.slice(0, 1) : content;
   }, [content]);
+}
+
+function firstBlockIsPreviewable(content: BlockData[]): boolean {
+  return (
+    content.length > 0 &&
+    (content[0].type === 'image' ||
+      content[0].type === 'video' ||
+      content[0].type === 'reference')
+  );
 }
