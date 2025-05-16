@@ -326,7 +326,7 @@ export function textAndMentionsToContent(
           content: [
             {
               type: 'text',
-              text: currentCodeBlock.join('\n'),
+              text: currentCodeBlock.map((line) => line.text).join('\n'),
             },
           ],
           attrs: {
