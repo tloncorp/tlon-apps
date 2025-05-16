@@ -100,7 +100,10 @@ appId: io.tlon.groups
 - tapOn: 'Add Role'
 - assertVisible: 'Add role'
 - tapOn: 'Role title'
-- inputText: 'Testing role'
+- runFlow:
+    file: 'input-text.yaml'
+    when:
+      visible: 'Testing role'
 - tapOn: 'Role description'
 - tapOn: 'Role description'
 - inputText: 'Description for test role'
