@@ -1220,6 +1220,7 @@ export const addChatMembers = createWriteQuery(
 export const addGroupInvites = createWriteQuery(
   'addGroupInvites',
   async (invites: { groupId: string; contactIds: string[] }, ctx: QueryCtx) => {
+    if (invites.contactIds.length === 0) return;
     return ctx.db
       .insert($groupMemberInvites)
       .values(

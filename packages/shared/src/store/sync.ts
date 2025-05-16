@@ -16,10 +16,7 @@ import {
 } from '../store/useActivityFetchers';
 import { createBatchHandler, createHandler } from './bufferedSubscription';
 import * as LocalCache from './cachedData';
-import {
-  recoverPartiallyCreatedPersonalGroup,
-  updateChannelSections,
-} from './groupActions';
+import { updateChannelSections } from './groupActions';
 import { verifyUserInviteLink } from './inviteActions';
 import { useLureState } from './lure';
 import { verifyPostDelivery } from './postActions';
@@ -264,6 +261,8 @@ export const syncSystemContacts = async (ctx?: SyncCtx) => {
       numContacts: systemContacts.length,
       error,
     });
+    // we throw here so that we can avoid showing the "Success" alert
+    throw error;
   }
 };
 
@@ -763,7 +762,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
     case 'addChannel': {
       await db.insertChannels([update.channel], ctx);
       if (update.channel.groupId) {
-        await syncGroup(update.channel.groupId);
+        await syncGroup(update.channel.groupId, undefined, { force: true });
         await syncUnreads();
       }
       break;
@@ -771,7 +770,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
     case 'updateChannel': {
       await db.updateChannel(update.channel, ctx);
       if (update.channel.groupId) {
-        await syncGroup(update.channel.groupId);
+        await syncGroup(update.channel.groupId, undefined, { force: true });
         await syncUnreads();
       }
       break;
@@ -1405,6 +1404,14 @@ export const handleChannelStatusChange = async (status: ChannelStatus) => {
           logger.log(
             `Found ${postsToVerify.length} posts needing verification.`
           );
+          const channelsSet = new Set();
+          postsToVerify.forEach((post) => {
+            channelsSet.add(post.channelId);
+          });
+          logger.trackEvent('Verifying Unsent Posts', {
+            numPosts: postsToVerify.length,
+            numChannels: channelsSet.size,
+          });
           postsToVerify.forEach((post) => {
             verifyPostDelivery(post).catch((err) => {
               logger.error('Error during post verification:', {
@@ -1418,12 +1425,18 @@ export const handleChannelStatusChange = async (status: ChannelStatus) => {
         }
       })
       .catch((err) => {
+        logger.trackEvent('Error Verifying Unsent Posts', {
+          error: err.toString(),
+        });
         logger.error('Error fetching posts needing verification:', err);
       });
   }
 };
 
 let isSyncing = false;
+export function clearSyncStartLock() {
+  isSyncing = false;
+}
 
 export const syncStart = async (alreadySubscribed?: boolean) => {
   if (isSyncing) {
@@ -1559,12 +1572,12 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       .catch((e) => {
         logger.trackError(AnalyticsEvent.ErrorSyncStartLowPriority, {
           errorMessage: e.message,
+          errorStack: e.stack,
         });
       });
 
     // post sync initialization work
     await verifyUserInviteLink();
-    recoverPartiallyCreatedPersonalGroup();
     db.userHasCompletedFirstSync.setValue(true);
   } finally {
     isSyncing = false;

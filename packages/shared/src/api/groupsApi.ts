@@ -419,8 +419,7 @@ export const createGroup = async ({
       logger.trackEvent('Create Group Error', {
         severity: AnalyticsSeverity.Critical,
         status: err.status,
-        body: err.body,
-        errorMessage: err.message,
+        error: err.toString(),
         context: 'group-create-thread request failed',
       });
     } else {
@@ -1357,7 +1356,6 @@ export const toGroupUpdate = (
   if ('channel' in updateDiff) {
     const channelDiff = updateDiff.channel.diff;
     const channelId = updateDiff.channel.nest;
-    logger.log('channelDiff', { channelDiff });
 
     if ('add' in channelDiff) {
       return {

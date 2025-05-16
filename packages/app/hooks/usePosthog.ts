@@ -7,7 +7,8 @@ export function usePosthog() {
   const posthog = useWebPosthog();
   return useMemo((): PosthogClient => {
     return {
-      getIsOptedOut: () => posthog?.has_opted_out_capturing() ?? false,
+      // since the function returns undefined if posthog is blocked or not available, we default to true
+      getIsOptedOut: () => posthog?.has_opted_out_capturing() ?? true,
       optIn: () => {
         posthog?.opt_in_capturing();
       },

@@ -13,7 +13,7 @@ import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { ShipProvider, useShip } from '@tloncorp/app/contexts/ship';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
-import { registerBackgroundSyncTask } from '@tloncorp/app/lib/backgroundSync';
+import { unregisterBackgroundSyncTask } from '@tloncorp/app/lib/backgroundSync';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import {
@@ -40,7 +40,7 @@ import { OnboardingStack } from './OnboardingStack';
 import AuthenticatedApp from './components/AuthenticatedApp';
 import { SignupProvider, useSignupContext } from './lib/signupContext';
 
-registerBackgroundSyncTask();
+unregisterBackgroundSyncTask();
 
 // Android notification tap handler passes initial params here
 const App = () => {

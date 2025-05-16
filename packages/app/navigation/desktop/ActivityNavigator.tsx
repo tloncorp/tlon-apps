@@ -8,6 +8,8 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useMemo } from 'react';
 
+import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
+import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { ActivityScreenView, DESKTOP_SIDEBAR_WIDTH } from '../../ui';
 import { useRootNavigation } from '../utils';
@@ -86,8 +88,9 @@ function DrawerContent(props: DrawerContentComponentProps) {
 export const ActivityNavigator = () => {
   return (
     <ActivityDrawer.Navigator
-      initialRouteName="UserProfile"
+      initialRouteName="ActivityEmpty"
       drawerContent={DrawerContent}
+      backBehavior='history'
       screenOptions={{
         headerShown: false,
         drawerType: 'permanent',
@@ -102,6 +105,8 @@ export const ActivityNavigator = () => {
         name="ActivityEmpty"
         component={EmptyActivityScreen}
       />
+      <ActivityDrawer.Screen name="UserProfile" component={UserProfileScreen} />
+      <ActivityDrawer.Screen name="EditProfile" component={EditProfileScreen} />
     </ActivityDrawer.Navigator>
   );
 };
