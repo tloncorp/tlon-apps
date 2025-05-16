@@ -25,7 +25,6 @@ import {
   ForwardPostSheetProvider,
   LoadingSpinner,
   StoreProvider,
-  Text,
   View,
 } from '@tloncorp/app/ui';
 import {
@@ -37,6 +36,7 @@ import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
+import { Text } from '@tloncorp/ui';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, {
@@ -408,7 +408,7 @@ function ConnectedDesktopApp({
           borderColor="$border"
         >
           <LoadingSpinner color="$primaryText" />
-          <Text color="$primaryText" marginTop="$xl" fontSize="$s">
+          <Text color="$primaryText" marginTop="$xl" size="$label/m">
             Starting up&hellip;
           </Text>
         </View>
@@ -545,7 +545,7 @@ function ConnectedWebApp() {
           borderColor="$border"
         >
           <LoadingSpinner color="$primaryText" />
-          <Text color="$primaryText" marginTop="$xl" fontSize="$s">
+          <Text color="$primaryText" marginTop="$xl" size="$label/m">
             Starting up&hellip;
           </Text>
         </View>

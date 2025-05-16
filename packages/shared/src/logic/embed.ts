@@ -66,7 +66,7 @@ export async function fetchEmbed(inputUrl: string, isMobile?: boolean) {
     return jsonFetch(`https://www.tiktok.com/oembed?url=${url}`);
   }
 
-  if (isTwitter) {
+  if (isTwitter && isMobile) {
     return jsonFetch(`https://publish.twitter.com/oembed?url=${url}`);
   }
 

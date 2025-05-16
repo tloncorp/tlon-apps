@@ -18,7 +18,7 @@ export function IconButton({
   backgroundColor = '$background',
   backgroundColorOnPress = '$secondaryBackground',
   disabled = false,
-  radius = '$l',
+  radius = '$radius.l',
   style,
   pressStyle,
   borderWidth = 'unset',
