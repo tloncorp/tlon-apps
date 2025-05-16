@@ -74,8 +74,9 @@ export const usePins = (
 };
 
 export const useCalmSettings = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
   return useQuery({
-    queryKey: ['calmSettings'],
+    queryKey: ['calmSettings', deps],
     queryFn: () =>
       db.getSettings().then((r) => ({
         disableAvatars: r?.disableAvatars ?? false,
@@ -600,4 +601,15 @@ export const useShowNotebookAddTooltip = (channelId: string) => {
     return logic.isPersonalNotebookChannel(channelId);
   }, [channelId]);
   return isCorrectChan && !wayfindingProgress.tappedAddNote;
+};
+
+export const useThemeSettings = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['themeSettings', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings();
+      return settings?.theme || null;
+    },
+  });
 };

@@ -16,12 +16,10 @@ import {
 } from '../store/useActivityFetchers';
 import { createBatchHandler, createHandler } from './bufferedSubscription';
 import * as LocalCache from './cachedData';
-import {
-  addChannelToNavSection,
-  moveChannel,
-  recoverPartiallyCreatedPersonalGroup,
-} from './groupActions';
+import { addContacts, updateContactMetadata } from './contactActions';
+import { updateChannelSections } from './groupActions';
 import { verifyUserInviteLink } from './inviteActions';
+import { discoverContacts } from './lanyardActions';
 import { useLureState } from './lure';
 import { verifyPostDelivery } from './postActions';
 import { Session, getSession, updateSession } from './session';
@@ -263,6 +261,100 @@ export const syncSystemContacts = async (ctx?: SyncCtx) => {
       context: 'failed to insert system contacts',
       severity: AnalyticsSeverity.Critical,
       numContacts: systemContacts.length,
+      error,
+    });
+    // we throw here so that we can avoid showing the "Success" alert
+    throw error;
+  }
+};
+
+export const syncContactDiscovery = async (ctx?: SyncCtx) => {
+  logger.log('syncContactDiscovery: starting');
+  const currentUserId = api.getCurrentUserId();
+  const currentUserAttestations = await db.getUserAttestations({
+    userId: currentUserId,
+  });
+  logger.log('got current user attestations', currentUserAttestations);
+  const hasPhoneAttestation = currentUserAttestations.some(
+    (attestation) => attestation.type === 'phone' && attestation.value
+  );
+  if (!hasPhoneAttestation) {
+    logger.log(
+      'syncContactDiscovery: skipping contact discovery since no phone attestation found'
+    );
+    logger.trackEvent(AnalyticsEvent.DebugSystemContacts, {
+      context: 'no phone attestation found, skipping discovery',
+    });
+    return;
+  }
+  const systemContacts = await api.getSystemContacts();
+  const phoneNumbers = systemContacts
+    .map((contact) => contact.phoneNumber)
+    .filter((phoneNumber) => phoneNumber && phoneNumber.length > 0) as string[];
+
+  if (!phoneNumbers.length) {
+    logger.log(
+      'syncContactDiscovery: skipping contact discovery since no phone numbers found'
+    );
+    logger.trackEvent(AnalyticsEvent.DebugSystemContacts, {
+      context: 'no phone numbers found, skipping discovery',
+    });
+    // this should also mean we no-op on web since we don't have any
+    // system contacts
+    return;
+  }
+
+  try {
+    const matches = (
+      await syncQueue.add('discoverContacts', ctx, () =>
+        discoverContacts(phoneNumbers)
+      )
+    ).filter((match) => match[1] !== currentUserId);
+    logger.log('syncContactDiscovery: got contact discovery matches', matches);
+
+    await db.linkSystemContacts({ matches }).catch((e) => {
+      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+        context: 'failed to link system contacts',
+        severity: AnalyticsSeverity.Critical,
+        error: e,
+      });
+    });
+    logger.log(
+      'syncContactDiscovery: inserted contact discovery matches',
+      matches
+    );
+    const contactIds = matches.map((m) => m[1]);
+    await addContacts(contactIds).catch((e) => {
+      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+        context: 'failed to add contacts',
+        severity: AnalyticsSeverity.Critical,
+        error: e,
+      });
+    });
+    logger.log('syncContactDiscovery: added contacts', contactIds);
+    const newContacts = await db.getSystemContactsBatchByContactId(contactIds);
+
+    await Promise.all(
+      newContacts
+        .filter((c) => !!c.contactId)
+        .map((contact) =>
+          updateContactMetadata(contact.contactId!, {
+            nickname:
+              `${contact.firstName || ''} ${contact.lastName || ''}`.trim(),
+          })
+        )
+    ).catch((e) => {
+      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+        context: 'failed to update contact metadata',
+        severity: AnalyticsSeverity.Critical,
+        error: e,
+      });
+    });
+  } catch (error) {
+    logger.error('error discovering contacts', error);
+    logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+      context: 'failed to discover contacts',
+      severity: AnalyticsSeverity.Critical,
       error,
     });
   }
@@ -764,7 +856,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
     case 'addChannel': {
       await db.insertChannels([update.channel], ctx);
       if (update.channel.groupId) {
-        await syncGroup(update.channel.groupId);
+        await syncGroup(update.channel.groupId, undefined, { force: true });
         await syncUnreads();
       }
       break;
@@ -772,7 +864,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
     case 'updateChannel': {
       await db.updateChannel(update.channel, ctx);
       if (update.channel.groupId) {
-        await syncGroup(update.channel.groupId);
+        await syncGroup(update.channel.groupId, undefined, { force: true });
         await syncUnreads();
       }
       break;
@@ -838,20 +930,18 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
       break;
     case 'moveChannel':
       logger.log('moving channel', update);
-      await moveChannel({
-        channelId: update.channelId,
-        groupId: update.groupId,
+      await updateChannelSections({
+        ...update,
         navSectionId: update.sectionId,
-        index: update.index,
       });
       break;
     case 'addChannelToNavSection':
       logger.log('adding channel to nav section', update);
 
-      await addChannelToNavSection({
+      await db.addChannelToNavSection({
         channelId: update.channelId,
-        groupId: update.groupId,
-        navSectionId: update.sectionId,
+        groupNavSectionId: update.sectionId,
+        index: 0,
       });
       break;
     case 'setUnjoinedGroups':
@@ -1408,6 +1498,14 @@ export const handleChannelStatusChange = async (status: ChannelStatus) => {
           logger.log(
             `Found ${postsToVerify.length} posts needing verification.`
           );
+          const channelsSet = new Set();
+          postsToVerify.forEach((post) => {
+            channelsSet.add(post.channelId);
+          });
+          logger.trackEvent('Verifying Unsent Posts', {
+            numPosts: postsToVerify.length,
+            numChannels: channelsSet.size,
+          });
           postsToVerify.forEach((post) => {
             verifyPostDelivery(post).catch((err) => {
               logger.error('Error during post verification:', {
@@ -1421,12 +1519,18 @@ export const handleChannelStatusChange = async (status: ChannelStatus) => {
         }
       })
       .catch((err) => {
+        logger.trackEvent('Error Verifying Unsent Posts', {
+          error: err.toString(),
+        });
         logger.error('Error fetching posts needing verification:', err);
       });
   }
 };
 
 let isSyncing = false;
+export function clearSyncStartLock() {
+  isSyncing = false;
+}
 
 export const syncStart = async (alreadySubscribed?: boolean) => {
   if (isSyncing) {
@@ -1553,6 +1657,9 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       syncSystemContacts({ priority: SyncPriority.Low }).then(() => {
         logger.crumb(`finished syncing system contacts`);
       }),
+      syncContactDiscovery({ priority: SyncPriority.Low }).then(() => {
+        logger.crumb(`finished syncing contact discovery`);
+      }),
     ];
 
     await Promise.all(lowPriorityPromises)
@@ -1562,12 +1669,12 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       .catch((e) => {
         logger.trackError(AnalyticsEvent.ErrorSyncStartLowPriority, {
           errorMessage: e.message,
+          errorStack: e.stack,
         });
       });
 
     // post sync initialization work
     await verifyUserInviteLink();
-    recoverPartiallyCreatedPersonalGroup();
     db.userHasCompletedFirstSync.setValue(true);
   } finally {
     isSyncing = false;

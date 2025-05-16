@@ -1,6 +1,6 @@
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { Button, Icon, Pressable } from '@tloncorp/ui';
+import { Button, Icon, Pressable, RawText } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, isWeb } from 'tamagui';
 
@@ -20,9 +20,11 @@ export function ChannelListItem({
   EndContent,
   dimmed,
   disableOptions = false,
+  showGroupTitle = false,
   onLayout,
   ...props
 }: {
+  showGroupTitle?: boolean;
   useTypeIcon?: boolean;
   customSubtitle?: string;
   dimmed?: boolean;
@@ -55,7 +57,8 @@ export function ChannelListItem({
       <Button
         backgroundColor="transparent"
         borderWidth="unset"
-        paddingHorizontal={0}
+        paddingLeft={0}
+        paddingRight="$s"
         marginHorizontal="$-m"
         minimal
         onPress={(e) => {
@@ -124,6 +127,7 @@ export function ChannelListItem({
   }, [model, firstMemberId, memberCount]);
 
   const isFocused = useNavigation().focusedChannelId === model.id;
+  const groupTitle = utils.useGroupTitle(model.group);
 
   return (
     <View ref={containerRef}>
@@ -146,6 +150,8 @@ export function ChannelListItem({
             <ListItem.Title dimmed={dimmed}>{title}</ListItem.Title>
             {customSubtitle ? (
               <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
+            ) : showGroupTitle && model.group ? (
+              <ListItem.Subtitle>{groupTitle}</ListItem.Subtitle>
             ) : (model.type === 'dm' || model.type === 'groupDm') &&
               utils.hasNickname(model.members?.[0]?.contact) ? (
               <ListItem.SubtitleWithIcon icon={subtitleIcon}>
@@ -170,6 +176,7 @@ export function ChannelListItem({
                 <Badge text="Invite" />
               ) : (
                 <ListItem.Count
+                  opacity={isHovered ? 0 : 1}
                   notified={notified}
                   count={unreadCount}
                   muted={logic.isMuted(model.volumeSettings?.level, 'channel')}

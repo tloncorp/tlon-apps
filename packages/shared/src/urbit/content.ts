@@ -1,3 +1,5 @@
+import { UnionToIntersection } from '../utils';
+
 type Flag = string;
 type Nest = string;
 
@@ -232,26 +234,6 @@ export interface Code {
   };
 }
 
-export function isImage(item: unknown): item is Image {
-  return typeof item === 'object' && item !== null && 'image' in item;
-}
-
-export function isBlockLink(item: unknown): item is LinkBlock {
-  return (
-    typeof item === 'object' &&
-    item !== null &&
-    'link' in item &&
-    'url' in (item as LinkBlock).link
-  );
-}
-
-export function isCite(s: Block): boolean {
-  if ('cite' in s) {
-    return true;
-  }
-  return false;
-}
-
 export type Block =
   | Image
   | { cite: Cite }
@@ -260,6 +242,21 @@ export type Block =
   | Rule
   | Code
   | LinkBlock;
+
+// eslint-disable-next-line @typescript-eslint/no-namespace
+export namespace Block {
+  export function is<K extends keyof UnionToIntersection<Block>>(
+    poly: Block,
+    type: K
+  ): // @ts-expect-error - hey, I'm asserting here!
+  poly is Pick<UnionToIntersection<Block>, K> {
+    if (type === 'link') {
+      return isBlockLink(poly);
+    }
+
+    return type in poly;
+  }
+}
 
 export function isBlock(c: Inline | Block): c is Block {
   if (typeof c === 'string') {
@@ -363,4 +360,24 @@ export function isBlockReference(item: unknown): item is BlockReference {
 
 export function isTask(item: unknown): item is Task {
   return typeof item === 'object' && item !== null && 'task' in item;
+}
+
+export function isImage(item: unknown): item is Image {
+  return typeof item === 'object' && item !== null && 'image' in item;
+}
+
+export function isBlockLink(item: unknown): item is LinkBlock {
+  return (
+    typeof item === 'object' &&
+    item !== null &&
+    'link' in item &&
+    'url' in (item as LinkBlock).link
+  );
+}
+
+export function isCite(s: Block): boolean {
+  if ('cite' in s) {
+    return true;
+  }
+  return false;
 }

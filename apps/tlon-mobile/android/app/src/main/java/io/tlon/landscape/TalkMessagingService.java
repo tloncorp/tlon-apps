@@ -8,7 +8,7 @@ import com.google.firebase.messaging.RemoteMessage;
 import java.util.Map;
 import java.util.Objects;
 
-import io.tlon.landscape.notifications.TalkNotificationManager;
+import io.tlon.landscape.notifications.NotificationManagerKt;
 
 @SuppressLint("MissingFirebaseInstanceTokenRefresh")
 public class TalkMessagingService extends FirebaseMessagingService {
@@ -24,7 +24,7 @@ public class TalkMessagingService extends FirebaseMessagingService {
         if (remoteMessage.getData().size() > 0) {
             Map<String, String> data = remoteMessage.getData();
             if (Objects.equals(data.get("action"), "notify")) {
-                TalkNotificationManager.handleNotification(this, data.get("uid"));
+                NotificationManagerKt.processNotificationBlocking(this, data.get("uid"));
             }
         }
     }

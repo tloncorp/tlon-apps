@@ -159,8 +159,8 @@ export const useMentions = ({ options }: { options: MentionOption[] }) => {
         lastTriggerIndex - 1,
         lastTriggerIndex
       );
-      const spaceBeforeOrFirst =
-        lastTriggerIndex === 0 || textBeforeTrigger === ' ';
+      const whitespaceBeforeOrFirst =
+        lastTriggerIndex === 0 || textBeforeTrigger.match(/\s+/);
       const spaceAfter = textBetweenTriggerAndCursor.includes(' ');
 
       // Only show popup if:
@@ -170,7 +170,7 @@ export const useMentions = ({ options }: { options: MentionOption[] }) => {
       const isDismissedTrigger =
         wasDismissedByEscape && lastTriggerIndex === lastDismissedTriggerIndex;
       if (
-        spaceBeforeOrFirst &&
+        whitespaceBeforeOrFirst &&
         !spaceAfter &&
         !isDismissedTrigger &&
         (cursorPosition === lastTriggerIndex + 1 ||

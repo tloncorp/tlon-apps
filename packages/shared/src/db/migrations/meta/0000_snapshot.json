@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "44daa4e2-5e0e-4d72-bf61-9c11b7582b4e",
+  "id": "6e0f6081-47e3-44b5-bf2f-55756a9c8458",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -608,6 +608,13 @@
         },
         "is_cached_pending_channel": {
           "name": "is_cached_pending_channel",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "is_new_matched_contact": {
+          "name": "is_new_matched_contact",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,

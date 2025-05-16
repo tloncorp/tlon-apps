@@ -451,9 +451,42 @@
 ++  verse-1
   |=  =verse:c
   ^-  verse:v7:old:c
-  ?.  ?=([%block %link *] verse)
-    verse
-  [%inline [%link [. .]:url.p.verse] ~]  ::REVIEW
+  ?+  verse  verse
+      [%inline *]
+    [%inline (turn p.verse inline-1)]
+  ::
+      [%block %header *]
+    verse(q.p (turn q.p.verse inline-1))
+  ::
+      [%block %listing *]
+    verse(p.p (listing-1 p.p.verse))
+  ::
+      [%block %link *]
+    [%inline [%link [. .]:url.p.verse] ~]  ::REVIEW
+  ==
+::
+++  listing-1
+  |=  =listing:c
+  ^-  listing:v7:old:c
+  ?-  -.listing
+    %list  listing(q (turn q.listing listing-1), r (turn r.listing inline-1))
+    %item  listing(p (turn p.listing inline-1))
+  ==
+::
+++  inline-1
+  |=  =inline:c
+  ^-  inline:v7:old:c
+  ?@  inline  inline
+  ?+  -.inline  inline
+      ?(%italics %bold %strike %blockquote)
+    inline(p (turn p.inline inline-1))
+  ::
+      %task
+    inline(q (turn q.inline inline-1))
+  ::
+      %sect
+    (cat 3 '@' ?~(p.inline 'all' p.inline))
+  ==
 ::
 ++  essay-1
   |=  =essay:c
@@ -612,6 +645,17 @@
      %post  q.said(post (simple-post-1 post.q.said))
      %reply  q.said(reply (simple-reply-1 reply.q.said))
   ==
+::
+++  have-plan  ::NOTE  matches +said-*
+  |=  [=nest:c =plan:c posts=v-posts:c]
+  ^-  ?
+  =/  post=(unit (unit v-post:c))
+    (get:on-v-posts:c posts p.plan)
+  ?&  ?=(^ post)    ::  known post, and
+  ?|  ?=(~ q.plan)  ::  no reply requested, or
+      ?=(~ u.post)  ::  no replies available, or
+      ?=(^ (get:on-v-replies:c replies.u.u.post u.q.plan))  ::  depth found
+  ==  ==
 ::
 ++  said-1
   |=  [=nest:c =plan:c posts=v-posts:c]
@@ -912,15 +956,28 @@
 ::
 ++  cite
   |%
-  ++  grab-post
-    |=  [=bowl:gall ref=cite:ci]
-    ^-  (unit [=nest:g =post:c])
+  ++  ref-to-pointer  ::TODO  formalize "pointer" type?
+    |=  ref=cite:ci
+    ^-  (unit [=nest:g =plan:c])
     ?.  ?=(%chan -.ref)
       ~
     ::TODO  the whole "deconstruct the ref path" situation is horrendous
-    ?.  ?=([?(%msg %note %curio) @ ~] wer.ref)
+    ?.  ?=([?(%msg %note %curio) ?([@ ~] [@ @ ~])] wer.ref)
       ~
     =,  ref
+    ?~  pid=(rush i.t.wer dum:ag)  ~
+    ?@  t.t.wer.ref
+      `[nest u.pid ~]
+    ?~  rid=(rush i.t.t.wer dum:ag)  ~
+    `[nest u.pid `u.rid]
+  ::
+  ++  grab-post
+    |=  [=bowl:gall ref=cite:ci]
+    ^-  (unit [=nest:g =post:c])
+    ?~  point=(ref-to-pointer ref)
+      ~
+    =,  u.point
+    ?^  q.plan  ~  ::TODO  support?
     =/  base=path
       %+  weld
         /(scot %p our.bowl)/channels/(scot %da now.bowl)
@@ -929,17 +986,17 @@
     :+  ~  nest
     .^  post:c  %gx
       %+  weld  base
-      /posts/post/(scot %ud (rash i.t.wer dum:ag))/channel-post-3
+      /posts/post/(scot %ud p.plan)/channel-post-3
     ==
   ::
   ++  from-post
-    |=  [=nest:g =id-post:c =kind-data:c]
+    |=  [=nest:g =id-post:c kind=path]
     ^-  cite:ci
-    =/  kind
-      ?-  -.kind-data
-        %chat   %msg
-        %diary  %note
-        %heap   %curio
+    =/  kind=@ta
+      ?+  kind  ~&([%from-post-strange-kind kind] %msg)
+        [%chat *]   %msg
+        [%diary *]  %note
+        [%heap *]   %curio
       ==
     [%chan nest /[kind]/(crip (a-co:co id-post))]
   --

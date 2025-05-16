@@ -114,6 +114,7 @@ export function InlineStyle({
     strikethrough: StrikethroughText,
     code: CodeText,
   }[inline.style];
+
   return (
     <StyleComponent {...props}>
       {inline.children.map((child, i) => (

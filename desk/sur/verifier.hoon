@@ -18,7 +18,7 @@
       lookups=(map @ identifier)
       reverse=(jug identifier @)
     ::
-      limits=[solo=(map @p allowance) pool=_allowance:pool:rates]
+      limits=[solo=(map @p allowance) pool=$~(allowance:pool:rates allowance)]
     ::
       ::NOTE  basic auth only needed for staging api key
       phone-api=[base=@t key=@t basic=(unit [user=@t pass=@t])]

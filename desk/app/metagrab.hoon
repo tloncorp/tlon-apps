@@ -273,6 +273,7 @@
 ++  on-poke
   |=  [=mark =vase]
   ^-  (quip card _this)
+  ?>  =(our src):bowl
   ?+  mark  ~|([%strange-mark mark=mark] !!)
       %noun
     =+  url=!<(@t vase)
@@ -424,6 +425,7 @@
 ++  on-watch
   |=  =path
   ^-  (quip card _this)
+  ?>  =(our src):bowl
   ?>  ?=([%http-response @ ~] path)
   [~ this]
 ::

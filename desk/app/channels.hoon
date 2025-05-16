@@ -681,7 +681,7 @@
 ++  watch
   |=  =(pole knot)
   ^+  cor
-  =?  pole  !?=([?(%v0 %v1 %v2) *] pole)
+  =?  pole  !?=([?(%v0 %v1 %v2 %v3) *] pole)
     [%v0 pole]
   ?+  pole  ~|(bad-watch-path+`path`pole !!)
     [?(%v0 %v1 %v2) ~]                    ?>(from-self cor)
@@ -697,18 +697,49 @@
     =/  host=ship   (slav %p host.pole)
     =/  =nest:c     [kind.pole host name.pole]
     =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
-    (watch-said nest plan -.pole)
+    (watch-said host nest plan -.pole)
+  ::
+      [%v3 %said ask=@ =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
+    ::NOTE  best used through /ted/contact-pins or similar
+    =/  ask=ship    (slav %p ask.pole)
+    =/  host=ship   (slav %p host.pole)
+    =/  =nest:c     [kind.pole host name.pole]
+    =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
+    (watch-said ask nest plan %v3)
   ==
 ::
 ++  watch-said
-  |=  [=nest:c =plan:c ver=?(%v0 %v1 %v2)]
-  ?.  (~(has by v-channels) nest)
-    =/  =path  (said-path nest plan)
-    ((safe-watch path [ship.nest server] path) |)
-  ::TODO  not guaranteed to resolve, we might have partial backlog
-  ?.  ?=(%v2 ver)
-    ca-abet:(ca-said-1:(ca-abed:ca-core nest) plan)
-  ca-abet:(ca-said-2:(ca-abed:ca-core nest) plan)
+  |=  [ask=ship =nest:c =plan:c ver=?(%v0 %v1 %v2 %v3)]
+  ^+  cor
+  ::  if we have the data locally, give it
+  ::
+  ?:  ?&  (~(has by v-channels) nest)
+          (ca-know-said:(ca-abed:ca-core nest) plan)
+      ==
+    ?-  ver
+      ?(%v0 %v1)  ca-abet:(ca-said-1:(ca-abed:ca-core nest) plan)
+      ?(%v2 %v3)  ca-abet:(ca-said-2:(ca-abed:ca-core nest) plan)
+    ==
+  ::  if we don't have the data locally, ask the target for latest,
+  ::  but don't go over the network on behalf of someone else.
+  ::  if the target is the host, ask channels-server, if not, ask channels.
+  ::  we don't give the response from cache here. if the subscriber wanted
+  ::  an instant response from cache, they could've scried for it.
+  ::
+  ?>  |(from-self =(ask our.bowl))
+  =/  [=wire =dude:gall =path]
+    =/  base=path  (said-path nest plan)
+    ::  v3 subscriptions will _always_ ask the client agent,
+    ::  because they want to hit the logic that circumvents channel permissions
+    ::  for pinned posts
+    ::
+    ?:  &(=(ask ship.nest) !?=(%v3 ver))
+      [base server base]
+    ::NOTE  attention! we subscribe to other "client agent" instances here.
+    ::      uncommon pattern, very "soft". expect subscription failure and
+    ::      handle it gracefully.
+    [base dap.bowl [%v2 base]]
+  ((safe-watch wire [ask dude] path) |)
 ::
 ++  said-path
   |=  [=nest:c =plan:c]
@@ -723,9 +754,11 @@
   ^+  cor
   ?+    -.sign  !!
       %watch-ack
-    %.  cor
-    ?~  p.sign  same
-    (slog leaf+"Preview failed" u.p.sign)
+    ?~  p.sign  cor
+    %-  (slog leaf+"Preview failed" u.p.sign)
+    ::  treat subscription failures as if we received a %channel-denied
+    ::
+    $(sign [%fact %channel-denied !>(~)])
   ::
       %kick
     ?:  (~(has by voc) nest plan)
@@ -733,24 +766,45 @@
     (give %kick ~[path v0+path v1+path v2+path] ~)
   ::
       %fact
-    =.  cor  (give %fact ~[v2+path] cage.sign)
+    ::  we update state only if we learn anything new
+    ::
+    =/  had=(unit said:c)
+      (~(gut by voc) [nest plan] ~)
+    =/  got=(unit said:c)
+      ?+  p.cage.sign  ~|(funny-mark+p.cage.sign !!)
+        %channel-denied  ~
+        %channel-said    `(said-7-to-8:utils !<(=said:v7:old:c q.cage.sign))
+        %channel-said-1  `!<(=said:c q.cage.sign)
+      ==
+    =.  voc
+      %+  ~(put by voc)  [nest plan]
+      %^  clap  had  got
+      |=  [h=said:c g=said:c]
+      g  ::TODO  can we pick the "latest" version? we have no .rev numbers...
+    ::  give the fact exactly as we got it
+    ::TODO  should v3 give what ended up going into state?
+    ::
     =.  cor
       %^  give  %fact
         ~[path v0+path v1+path]
-      ?+  p.cage.sign  ~|(funny-mark+p.cage.sign !!)
-        %channel-denied  cage.sign
-      ::
-          %channel-said-1
-        =+  !<(=said:c q.cage.sign)
-        ::  NB: mark version is not the type version
-        channels-said+!>((to-said-1:utils said))
-      ==
-    =.  cor  (give %kick ~[path v0+path v1+path v2+path] ~)
-    ?+    p.cage.sign  ~|(funny-mark+p.cage.sign !!)
-        %channel-denied  cor(voc (~(put by voc) [nest plan] ~))
-        %channel-said-1
-      =+  !<(=said:c q.cage.sign)
-      cor(voc (~(put by voc) [nest plan] `said))
+      ?~  got  cage.sign
+      channel-said+!>((to-said-1:utils u.got))
+    =/  v3-path
+      [%v3 %said (scot %p src.bowl) (tail path)]
+    =.  cor
+      %^  give  %fact
+        ~[v2+path v3-path]
+      ?~  got  cage.sign
+      channel-said-1+!>(u.got)
+    ::  they all got their responses, so kick their subscriptions,
+    ::  and make sure we leave ours so we can do another fetch later.
+    ::  (we don't know what agent we subscribed to, but it's fine, we can
+    ::  just leave both.)
+    ::
+    =.  cor  (give %kick ~[path v0+path v1+path v2+path v3-path] ~)
+    %-  emil
+    :~  [%pass path %agent [src.bowl dap.bowl] %leave ~]
+        [%pass path %agent [src.bowl server] %leave ~]
     ==
   ==
 ::
@@ -903,7 +957,13 @@
       [%u ?(%v0 %v1 %v2 %v3) =kind:c ship=@ name=@ ~]
     =/  =ship  (slav %p ship.pole)
     ``loob+!>((~(has by v-channels) kind.pole ship name.pole))
-    ::
+  ::
+      [%x %v3 %said =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
+    =/  host=ship   (slav %p host.pole)
+    =/  =nest:c     [kind.pole host name.pole]
+    =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
+    ``noun+!>((~(get by voc) nest plan))
+  ::
     ::  /x/v/heads: get the latest post in each channel
     ::
       [%x %v2 %heads since=?(~ [u=@ ~])]
@@ -1288,6 +1348,11 @@
     ::
     (emit %pass ca-area %agent [ship.nest.command server] %poke cage)
   ::
+  ++  ca-know-said
+    |=  =plan:c
+    ^-  ?
+    (have-plan:utils nest plan posts.channel)
+  ::
   ::  handle a said (previews) request where we have the data to respond
   ::
   ++  ca-said-1
@@ -1305,9 +1370,24 @@
     ^+  ca-core
     =.  ca-core
       %^  give  %fact  ~
-      ?.  (can-read:ca-perms src.bowl)
-        channel-denied+!>(~)
-      (said-2:utils nest plan posts.channel)
+      ::  give result if it's readable by the requester,
+      ::  or if we pinned it intentionally
+      ::
+      =;  share=?
+        ?.  share
+          channel-denied+!>(~)
+        (said-2:utils nest plan posts.channel)
+      ?:  (can-read:ca-perms src.bowl)  &
+      ?^  q.plan  |  ::NOTE  expose/+grab-post doesn't support replies
+      ::  we need to grab the post first before we can check whether it's
+      ::  pinned, because its kind appears in the reference path...
+      ::
+      ?~  post=(get:on-v-posts:c posts.channel p.plan)  |
+      ?~  u.post  |
+      ?.  .^(? %gu (scry-path %expose /$))  |
+      =/  =cite:ci:utils
+        (from-post:cite:utils nest p.plan kind.u.u.post)
+      .^(? %gu (scry-path %expose [%show (print:ci:utils cite)]))
     (give %kick ~ ~)
   ::
   ++  ca-has-sub

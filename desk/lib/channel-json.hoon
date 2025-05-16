@@ -1225,6 +1225,57 @@
           inline+(ar inline)
       ==
     ::
+    ++  inline
+      |=  j=json
+      ^-  inline:v7:old:c
+      ?:  ?=([%s *] j)  p.j
+      =>  .(j `json`j)
+      %.  j
+      %-  of
+      :~  italics/(ar inline)
+          bold/(ar inline)
+          strike/(ar inline)
+          blockquote/(ar inline)
+          ship/ship
+          inline-code/so
+          code/so
+          tag/so
+          break/ul
+      ::
+        :-  %block
+        %-  ot
+        :~  index/ni
+            text/so
+        ==
+      ::
+        :-  %link
+        %-  ot
+        :~  href/so
+            content/so
+        ==
+      ::
+        :-  %task
+        %-  ot
+        :~  checked/bo
+            content/(ar inline)
+        ==
+      ==
+    ::
+    ++  listing
+      |=  j=json
+      ^-  listing:v7:old:c
+      %.  j
+      %-  of
+      :~
+        item/(ar inline)
+        :-  %list
+        %-  ot
+        :~  type/(su (perk %ordered %unordered %tasklist ~))
+            items/(ar listing)
+            contents/(ar inline)
+        ==
+      ==
+    ::
     ++  block
       ^-  $-(json block:v7:old:c)
       %-  of

@@ -1,3 +1,5 @@
+import { ThemeName } from 'tamagui';
+
 import { setSetting } from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
@@ -5,6 +7,8 @@ import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
 import * as logic from '../logic';
 import { withRetry } from '../logic';
 import { TalkSidebarFilter } from '../urbit';
+
+export type AppTheme = ThemeName | 'auto';
 
 const logger = createDevLogger('SettingsActions', false);
 
@@ -18,6 +22,36 @@ export async function changeMessageFilter(filter: TalkSidebarFilter) {
   } catch (e) {
     console.error('Failed to change message filter', e);
     await db.insertSettings({ messagesFilter: oldFilter });
+  }
+}
+
+export async function updateCalmSetting(
+  calmKey: 'disableNicknames' | 'disableAvatars',
+  value: boolean
+) {
+  const existing = await db.getSettings();
+  const oldValue = existing?.[calmKey];
+
+  try {
+    // optimistic update
+    await db.insertSettings({ [calmKey]: value });
+
+    await setSetting(calmKey, value);
+    logger.trackEvent(AnalyticsEvent.ActionCalmSettingsUpdate, {
+      calmKey,
+      value,
+    });
+  } catch (error) {
+    logger.trackEvent(AnalyticsEvent.ErrorCalmSettingsUpdate, {
+      calmKey,
+      value,
+      severity: AnalyticsSeverity.Medium,
+      errorMessage: error.message,
+      errorStack: error.stack,
+    });
+    // rollback optimistic update
+    await db.insertSettings({ [calmKey]: oldValue });
+    throw new Error('Failed to update calm setting');
   }
 }
 
@@ -88,5 +122,28 @@ export async function markPotentialWayfindingChannelVisit(channelId: string) {
 
   if (visitedAllChannels && !alreadyCompletedTutorial) {
     await completeWayfindingTutorial();
+  }
+}
+
+export async function updateTheme(theme: AppTheme) {
+  const existing = await db.getSettings();
+  const oldTheme = existing?.theme;
+
+  try {
+    const dbTheme = theme === 'auto' ? null : theme;
+    await db.insertSettings({ theme: dbTheme });
+    await setSetting('theme', theme === 'auto' ? '' : theme);
+    logger.trackEvent(AnalyticsEvent.ActionThemeUpdate, {
+      theme: theme === 'auto' ? 'auto' : theme,
+    });
+  } catch (error) {
+    logger.trackError(AnalyticsEvent.ErrorThemeUpdate, {
+      theme,
+      severity: AnalyticsSeverity.Medium,
+      errorMessage: error.message,
+      errorStack: error.stack,
+    });
+    await db.insertSettings({ theme: oldTheme });
+    throw new Error('Failed to update theme setting');
   }
 }

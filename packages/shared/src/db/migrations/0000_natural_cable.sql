@@ -94,6 +94,7 @@ CREATE TABLE `channels` (
 	`last_post_id` text,
 	`last_post_at` integer,
 	`is_cached_pending_channel` integer,
+	`is_new_matched_contact` integer,
 	`is_dm_invite` integer DEFAULT false,
 	`synced_at` integer,
 	`remote_updated_at` integer,

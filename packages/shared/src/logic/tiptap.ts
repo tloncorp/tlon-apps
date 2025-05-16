@@ -10,20 +10,8 @@ import { isEqual, reduce } from 'lodash';
 
 import { Story } from '../urbit/channel';
 import { Block, Cite, HeaderLevel, Listing } from '../urbit/content';
-import {
-  Inline,
-  InlineKey,
-  Link,
-  Task,
-  isBlockquote,
-  isBold,
-  isInlineCode,
-  isItalics,
-  isLink,
-  isShip,
-  isStrikethrough,
-} from '../urbit/content';
-import { citeToPath, getFirstInline, pathToCite, preSig } from '../urbit/utils';
+import { Inline, InlineKey, Link, Task } from '../urbit/content';
+import { citeToPath, pathToCite, preSig } from '../urbit/utils';
 
 export const ALL_MENTION_ID = '-all-';
 
@@ -107,66 +95,6 @@ export function tipTapToString(json: JSONContent): string {
   }
 
   return json.text || '';
-}
-
-export function inlineToString(inline: Inline): any {
-  if (typeof inline === 'string') {
-    return inline;
-  }
-
-  if (isBold(inline)) {
-    return inline.bold.map((i: Inline) => inlineToString(i)).join(' ');
-  }
-
-  if (isItalics(inline)) {
-    return inline.italics.map((i: Inline) => inlineToString(i));
-  }
-
-  if (isStrikethrough(inline)) {
-    return inline.strike.map((i: Inline) => inlineToString(i));
-  }
-
-  if (isLink(inline)) {
-    return inline.link.content;
-  }
-
-  if (isBlockquote(inline)) {
-    return Array.isArray(inline.blockquote)
-      ? inline.blockquote.map((i) => inlineToString(i)).join(' ')
-      : inline.blockquote;
-  }
-
-  if (isInlineCode(inline)) {
-    return typeof inline['inline-code'] === 'object'
-      ? inlineToString(inline['inline-code'])
-      : inline['inline-code'];
-  }
-
-  if (isShip(inline)) {
-    return inline.ship;
-  }
-
-  return '';
-}
-
-export function flattenInline(content: Inline[]): string {
-  return content.map((inline) => inlineToString(inline)).join(' ');
-}
-
-export function firstInlineSummary(content: Story): string {
-  const inlines = getFirstInline(content);
-  if (!inlines) {
-    return '';
-  }
-
-  return flattenInline(inlines);
-}
-
-export function inlineSummary(content: Story): string {
-  return (content.filter((v) => 'inline' in v) as { inline: Inline[] }[])
-    .map((v) => v.inline.map((i) => inlineToString(i)).join(' '))
-    .flat()
-    .join(' ');
 }
 
 // Limits the amount of consecutive breaks to 2 or less
@@ -633,7 +561,7 @@ export const inlineToContent = (
   }
 
   if ('sect' in inline) {
-    return makeMention(inline.sect || 'all');
+    return makeMention(inline.sect || ALL_MENTION_ID);
   }
 
   if ('link' in inline) {

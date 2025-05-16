@@ -18,7 +18,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { Dimensions, Image, Platform } from 'react-native';
+import { Alert, Dimensions, Image, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ColorTokens,
@@ -87,7 +87,7 @@ const SplashTitle = styled(Text, {
 });
 
 const SplashParagraph = styled(Text, {
-  size: '$label/m',
+  size: '$body',
   marginHorizontal: '$xl',
 });
 
@@ -165,14 +165,13 @@ export function WelcomePane(props: { onActionPress: () => void }) {
         <View marginHorizontal="$2xl">
           <SplashTitle marginTop="$4xl">Welcome to Tlon Messenger</SplashTitle>
           <SplashParagraph marginTop="$2xl">
-            Tlon Messenger is a new kind of app where you control your data.
-            Unlike other apps, everything is stored on your personal cloud
-            computer that only you can access. Most apps keep your content on
-            servers they own, but we're different.
+            On Tlon Messenger you control your data. Unlike other apps,
+            everything is stored on your personal cloud computer that only you
+            can access.
           </SplashParagraph>
         </View>
       </YStack>
-      <XStack width="100%" justifyContent="center">
+      <XStack width="100%" justifyContent="center" marginTop="$2xl">
         <SplashButton onPress={props.onActionPress} marginHorizontal="$2xl">
           Let's get started
         </SplashButton>
@@ -220,7 +219,7 @@ export function GroupsPane(props: { onActionPress: () => void }) {
           </SplashParagraph>
         </YStack>
       </YStack>
-      <XStack width="100%" justifyContent="center">
+      <XStack width="100%" justifyContent="center" marginTop="$2xl">
         <SplashButton
           marginTop="$l"
           onPress={props.onActionPress}
@@ -261,17 +260,16 @@ export function ChannelsPane(props: { onActionPress: () => void }) {
             A group contains <Text color="$positiveActionText">channels.</Text>
           </SplashTitle>
           <SplashParagraph marginTop="$2xl">
-            Whether your group is for posting memes, sharing knowledge, or
-            keeping up with the latest on a project, everything happens in a
+            No matter what you use your group for, everything happens in a
             channel.
           </SplashParagraph>
           <SplashParagraph marginTop="$2xl">
-            Send messages in chats; post longer thoughts in notebooks; collect
+            Send messages in chats, post longer thoughts in notebooks, collect
             images and links in galleries.
           </SplashParagraph>
         </YStack>
       </YStack>
-      <XStack width="100%" justifyContent="center">
+      <XStack width="100%" justifyContent="center" marginTop="$2xl">
         <SplashButton
           marginTop="$l"
           onPress={props.onActionPress}
@@ -310,12 +308,12 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
             </SplashTitle>
             <SplashParagraph marginTop="$2xl">
               Only the people you invite can see your group. If you want to open
-              it up to other people on the network, edit your privacy selection
-              in your group settings.
+              it up to other people on the network, edit the privacy controls in
+              your group settings.
             </SplashParagraph>
           </YStack>
         </YStack>
-        <XStack width="100%" justifyContent="center">
+        <XStack width="100%" justifyContent="center" marginTop="$2xl">
           <SplashButton
             marginTop="$l"
             onPress={props.onActionPress}
@@ -342,10 +340,24 @@ export function InvitePane(props: { onActionPress: () => void }) {
     try {
       setIsProcessing(true);
       await store.syncSystemContacts();
-      // if successful, continue
-      props.onActionPress();
+      Alert.alert('Success', 'Your contacts have been synced.', [
+        {
+          text: 'OK',
+          onPress: () => {
+            props.onActionPress();
+          },
+        },
+      ]);
     } catch (error) {
       setError('Something went wrong, please try again.');
+      Alert.alert('Error', "We weren't able to sync your contacts.", [
+        {
+          text: 'OK',
+          onPress: () => {
+            props.onActionPress();
+          },
+        },
+      ]);
     } finally {
       setIsProcessing(false);
     }
@@ -356,7 +368,7 @@ export function InvitePane(props: { onActionPress: () => void }) {
       if (perms.canAskPermission) {
         const status = await perms.requestPermissions();
         if (status === 'granted') {
-          processContacts();
+          await processContacts();
         }
       }
     } catch (e) {
@@ -365,9 +377,6 @@ export function InvitePane(props: { onActionPress: () => void }) {
         error: e,
         severity: AnalyticsSeverity.Critical,
       });
-    } finally {
-      // always advance past splash regardless
-      props.onActionPress();
     }
   };
 
@@ -388,18 +397,19 @@ export function InvitePane(props: { onActionPress: () => void }) {
       <YStack flex={1}>
         <InviteFriendsDisplay />
         <YStack marginHorizontal={isWeb ? '$4xl' : '$2xl'}>
-          <SplashTitle marginTop={isWeb ? '$4xl' : '$2xl'}>
+          <SplashTitle
+            marginTop={isWeb || !shouldPromptForPermission ? '$4xl' : 'unset'}
+          >
             Tlon is better{' '}
             <Text color="$positiveActionText">with friends.</Text>
           </SplashTitle>
           <SplashParagraph marginTop="$xl">
-            Your group is a <Text fontWeight={'bold'}>private</Text> social
-            space and social spaces are more fun with friends. When your friends
-            join, they get their own cloud computer. So you can all post
+            Social spaces are more fun with friends. When your friends join Tlon
+            Messenger, they get their own cloud computer. You can all post
             together with peace of mind, for as long as your group exists.
           </SplashParagraph>
           {shouldPromptForPermission && (
-            <SplashParagraph marginTop="$l">
+            <SplashParagraph marginTop="$xl">
               Sync your contact book to easily find people you know on Tlon.
             </SplashParagraph>
           )}
@@ -413,6 +423,7 @@ export function InvitePane(props: { onActionPress: () => void }) {
       <XStack
         width="100%"
         justifyContent="center"
+        marginTop="$2xl"
         marginBottom={
           isWeb || Platform.OS === 'android' ? '$4xl' : insets.bottom
         }
@@ -434,7 +445,7 @@ export function InvitePane(props: { onActionPress: () => void }) {
             textProps={{ color: '$white' }}
             disabled={isProcessing}
           >
-            {shouldPromptForPermission ? 'Connect your contacts' : 'Finish'}
+            {shouldPromptForPermission ? 'Connect contact book' : 'Finish'}
           </SplashButton>
           {shouldPromptForPermission && (
             <SplashButton
