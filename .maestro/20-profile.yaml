@@ -20,7 +20,6 @@ appId: io.tlon.groups
       - tapOn: 'Select All'
 - 'eraseText'
 - inputText: 'Testing nickname'
-- 'hideKeyboard'
 - tapOn: 'Change avatar image'
 - waitForAnimationToEnd:
     timeout: 5000
