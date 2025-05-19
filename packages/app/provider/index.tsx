@@ -1,4 +1,3 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { syncSettings, updateTheme, useThemeSettings } from '@tloncorp/shared';
 import { subscribeToSettings } from '@tloncorp/shared/api';
 import { themeSettings } from '@tloncorp/shared/db';
@@ -24,35 +23,10 @@ export const ThemeContext = React.createContext<ThemeContextType>({
   themeIsDark: false,
 });
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: true,
-      retry: true,
-    },
-  },
-});
-
 export function Provider({
   children,
-  ...rest
+  ...tamaguiProps
 }: Omit<TamaguiProviderProps, 'config'>) {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProviderContent tamaguiProps={rest}>
-        {children}
-      </ThemeProviderContent>
-    </QueryClientProvider>
-  );
-}
-
-function ThemeProviderContent({
-  children,
-  tamaguiProps,
-}: {
-  children: React.ReactNode;
-  tamaguiProps: Omit<TamaguiProviderProps, 'config'>;
-}) {
   const systemIsDark = useIsDarkMode();
   const [activeTheme, setActiveThemeState] = useState<AppTheme>(
     systemIsDark ? 'dark' : 'light'
@@ -74,7 +48,6 @@ function ThemeProviderContent({
         }
 
         await refetch();
-        queryClient.invalidateQueries({ queryKey: ['themeSettings'] });
       } catch (error) {
         console.warn('Failed to save theme preference:', error);
       }
@@ -113,7 +86,6 @@ function ThemeProviderContent({
           );
 
         refetch();
-        queryClient.invalidateQueries({ queryKey: ['themeSettings'] });
       }
     });
 

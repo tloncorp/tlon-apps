@@ -16,6 +16,7 @@ import {
   ScreenHeader,
   View,
 } from '../../ui';
+import { themes } from '../../ui/tamagui.config';
 import { normalizeTheme } from '../../ui/utils/themeUtils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Theme'>;
@@ -27,7 +28,7 @@ export function ThemeScreen(props: Props) {
   const [selectedTheme, setSelectedTheme] = useState<AppTheme>('auto');
   const [loadingTheme, setLoadingTheme] = useState<AppTheme | null>(null);
 
-  const themes: ListItemInputOption<AppTheme>[] = [
+  const themeOptions: ListItemInputOption<AppTheme>[] = [
     {
       title: 'Auto',
       value: 'auto',
@@ -35,13 +36,13 @@ export function ThemeScreen(props: Props) {
     },
     { title: 'Tlon Light', value: 'light' },
     { title: 'Tlon Dark', value: 'dark' },
-    { title: 'Dracula', value: 'dracula' },
-    { title: 'Greenscreen', value: 'greenscreen' },
-    { title: 'Gruvbox', value: 'gruvbox' },
-    { title: 'Monokai', value: 'monokai' },
-    { title: 'Nord', value: 'nord' },
-    { title: 'Peony', value: 'peony' },
-    { title: 'Solarized', value: 'solarized' },
+    ...Object.keys(themes)
+      .filter((themeName) => themeName !== 'light' && themeName !== 'dark')
+      .sort()
+      .map((themeName) => ({
+        title: themeName.charAt(0).toUpperCase() + themeName.slice(1),
+        value: themeName as AppTheme,
+      })),
   ];
 
   const handleThemeChange = async (value: AppTheme) => {
@@ -89,27 +90,31 @@ export function ThemeScreen(props: Props) {
         }}
       >
         <YStack flex={1} padding="$l">
-          {themes.map((theme) => (
+          {themeOptions.map((themeOption) => (
             <Pressable
-              key={theme.value}
+              key={themeOption.value}
               disabled={loadingTheme !== null}
-              onPress={() => handleThemeChange(theme.value)}
+              onPress={() => handleThemeChange(themeOption.value)}
               borderRadius="$xl"
             >
               <ListItem>
                 <ListItem.MainContent>
-                  <ListItem.Title>{theme.title}</ListItem.Title>
-                  {theme.subtitle && (
-                    <ListItem.Subtitle>{theme.subtitle}</ListItem.Subtitle>
+                  <ListItem.Title>{themeOption.title}</ListItem.Title>
+                  {themeOption.subtitle && (
+                    <ListItem.Subtitle>
+                      {themeOption.subtitle}
+                    </ListItem.Subtitle>
                   )}
                 </ListItem.MainContent>
                 <ListItem.EndContent>
-                  {loadingTheme === theme.value ? (
+                  {loadingTheme === themeOption.value ? (
                     <View padding="$m">
                       <LoadingSpinner color="$primaryText" size="small" />
                     </View>
                   ) : (
-                    <RadioControl checked={theme.value === selectedTheme} />
+                    <RadioControl
+                      checked={themeOption.value === selectedTheme}
+                    />
                   )}
                 </ListItem.EndContent>
               </ListItem>
