@@ -1,13 +1,11 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useThemeSettings } from '@tloncorp/shared';
-import { subscribeToSettings } from '@tloncorp/shared/api';
-import { useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, YStack } from 'tamagui';
 import { useTheme } from 'tamagui';
 
-import { useIsDarkMode } from '../../hooks/useIsDarkMode';
 import { RootStackParamList } from '../../navigation/types';
-import { ThemeContext, clearTheme, setTheme } from '../../provider';
+import { useActiveTheme } from '../../provider';
 import { AppTheme } from '../../types/theme';
 import {
   ListItem,
@@ -25,8 +23,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Theme'>;
 export function ThemeScreen(props: Props) {
   const theme = useTheme();
   const { data: storedTheme, isLoading } = useThemeSettings();
-  const { setActiveTheme } = useContext(ThemeContext);
-  const isDarkMode = useIsDarkMode();
+  const { activeTheme, setActiveTheme, systemIsDark } = useActiveTheme();
   const [selectedTheme, setSelectedTheme] = useState<AppTheme>('auto');
   const [loadingTheme, setLoadingTheme] = useState<AppTheme | null>(null);
 
@@ -34,7 +31,7 @@ export function ThemeScreen(props: Props) {
     {
       title: 'Auto',
       value: 'auto',
-      subtitle: `Uses system ${isDarkMode ? 'dark' : 'light'} theme`,
+      subtitle: `Uses system ${systemIsDark ? 'dark' : 'light'} theme`,
     },
     { title: 'Tlon Light', value: 'light' },
     { title: 'Tlon Dark', value: 'dark' },
@@ -52,13 +49,7 @@ export function ThemeScreen(props: Props) {
 
     setLoadingTheme(value);
     try {
-      if (value === 'auto') {
-        setActiveTheme(isDarkMode ? 'dark' : 'light');
-        await clearTheme(setActiveTheme, isDarkMode);
-      } else {
-        setActiveTheme(value);
-        await setTheme(value, setActiveTheme);
-      }
+      await setActiveTheme(value);
       setSelectedTheme(value);
     } finally {
       setLoadingTheme(null);
@@ -72,21 +63,16 @@ export function ThemeScreen(props: Props) {
   }, [storedTheme, isLoading]);
 
   useEffect(() => {
-    subscribeToSettings((update) => {
-      if (update.type === 'updateSetting' && 'theme' in update.setting) {
-        const newTheme = update.setting.theme;
-        const themeValue = normalizeTheme(newTheme as AppTheme);
+    const normalizedActiveTheme =
+      (activeTheme === 'dark' || activeTheme === 'light') &&
+      normalizeTheme(storedTheme ?? null) === 'auto'
+        ? 'auto'
+        : activeTheme;
 
-        setSelectedTheme(themeValue);
-
-        if (themeValue === 'auto') {
-          setActiveTheme(isDarkMode ? 'dark' : 'light');
-        } else {
-          setActiveTheme(themeValue);
-        }
-      }
-    });
-  }, [isDarkMode, setActiveTheme]);
+    if (normalizedActiveTheme !== selectedTheme && !isLoading) {
+      setSelectedTheme(normalizedActiveTheme);
+    }
+  }, [activeTheme, selectedTheme, isLoading, storedTheme]);
 
   return (
     <View backgroundColor={theme?.background?.val} flex={1}>
