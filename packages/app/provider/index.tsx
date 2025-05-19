@@ -1,6 +1,6 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { syncSettings, updateTheme, useThemeSettings } from '@tloncorp/shared';
 import { subscribeToSettings } from '@tloncorp/shared/api';
+import { queryClient } from '@tloncorp/shared/api';
 import { themeSettings } from '@tloncorp/shared/db';
 import React, { useEffect, useState } from 'react';
 import { TamaguiProvider, TamaguiProviderProps } from 'tamagui';
@@ -15,25 +15,12 @@ export const ThemeContext = React.createContext<{
   activeTheme: AppTheme;
 }>({ setActiveTheme: () => {}, activeTheme: 'light' });
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      retry: false,
-    },
-  },
-});
-
 export function Provider({
   children,
   ...rest
 }: Omit<TamaguiProviderProps, 'config'>) {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProviderContent tamaguiProps={rest}>
-        {children}
-      </ThemeProviderContent>
-    </QueryClientProvider>
+    <ThemeProviderContent tamaguiProps={rest}>{children}</ThemeProviderContent>
   );
 }
 
