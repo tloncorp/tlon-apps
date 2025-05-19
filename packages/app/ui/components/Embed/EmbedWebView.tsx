@@ -18,7 +18,7 @@ import {
 import WebView from 'react-native-webview';
 import { View, getTokenValue, useTheme } from 'tamagui';
 
-import { useIsDarkTheme } from '../../utils';
+import { useIsThemeDark } from '../../../provider';
 import { EmbedProviderConfig } from './providers';
 
 const logger = createDevLogger('EmbedWebView', false);
@@ -99,7 +99,7 @@ export const EmbedWebView = memo<EmbedWebViewProps>(
 
     const webViewRef = useRef<WebView>(null);
     const lastHeightRef = useRef(provider.defaultHeight);
-    const isDark = useIsDarkTheme();
+    const isDark = useIsThemeDark();
     const borderRadiusVal = getTokenValue('$s');
 
     const maxAllowedHeight = useMemo(() => {

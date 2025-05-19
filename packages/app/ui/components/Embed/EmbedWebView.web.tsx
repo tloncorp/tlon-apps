@@ -10,7 +10,7 @@ import React, {
 } from 'react';
 import { View, useTheme } from 'tamagui';
 
-import { useIsDarkTheme } from '../../utils';
+import { useIsThemeDark } from '../../../provider';
 import { EmbedProviderConfig } from './providers';
 
 declare global {
@@ -42,7 +42,7 @@ interface EmbedWebViewProps {
 export const EmbedWebView = memo<EmbedWebViewProps>(
   ({ url, provider, embedHtml, onHeightChange, onError }) => {
     const primaryBackground = useTheme().background.val;
-    const isDark = useIsDarkTheme();
+    const isDark = useIsThemeDark();
     const [isLoading, setIsLoading] = useState(true);
     const [webViewHeight, setWebViewHeight] = useState(provider.defaultHeight);
     const iframeRef = useRef<HTMLIFrameElement>(null);

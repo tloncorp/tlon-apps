@@ -7,19 +7,21 @@ import { TamaguiProvider, TamaguiProviderProps } from 'tamagui';
 
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import { AppTheme } from '../types/theme';
-import { config } from '../ui';
+import { DARK_THEME_NAMES, config } from '../ui';
 import { getDisplayTheme, normalizeTheme } from '../ui/utils/themeUtils';
 
 export interface ThemeContextType {
   setActiveTheme: (theme: AppTheme) => Promise<void>;
   activeTheme: AppTheme;
   systemIsDark: boolean;
+  themeIsDark: boolean;
 }
 
 export const ThemeContext = React.createContext<ThemeContextType>({
   setActiveTheme: async () => {},
   activeTheme: 'light',
   systemIsDark: false,
+  themeIsDark: false,
 });
 
 const queryClient = new QueryClient({
@@ -51,10 +53,12 @@ function ThemeProviderContent({
   children: React.ReactNode;
   tamaguiProps: Omit<TamaguiProviderProps, 'config'>;
 }) {
-  const isDarkMode = useIsDarkMode();
+  const systemIsDark = useIsDarkMode();
   const [activeTheme, setActiveThemeState] = useState<AppTheme>(
-    isDarkMode ? 'dark' : 'light'
+    systemIsDark ? 'dark' : 'light'
   );
+
+  const themeIsDark = DARK_THEME_NAMES.includes(activeTheme as any);
 
   const { data: storedTheme, isLoading, refetch } = useThemeSettings();
 
@@ -84,7 +88,7 @@ function ThemeProviderContent({
         await syncSettings();
         if (!isLoading && storedTheme !== undefined) {
           const normalizedTheme = normalizeTheme(storedTheme);
-          setActiveThemeState(getDisplayTheme(normalizedTheme, isDarkMode));
+          setActiveThemeState(getDisplayTheme(normalizedTheme, systemIsDark));
         }
       } catch (error) {
         console.warn('Failed to load theme preference:', error);
@@ -92,7 +96,7 @@ function ThemeProviderContent({
     };
 
     loadTheme();
-  }, [isDarkMode, isLoading, storedTheme]);
+  }, [systemIsDark, isLoading, storedTheme]);
 
   useEffect(() => {
     subscribeToSettings((update) => {
@@ -100,7 +104,7 @@ function ThemeProviderContent({
         const newTheme = update.setting.theme;
         const normalizedTheme = normalizeTheme(newTheme as string);
 
-        setActiveThemeState(getDisplayTheme(normalizedTheme, isDarkMode));
+        setActiveThemeState(getDisplayTheme(normalizedTheme, systemIsDark));
 
         themeSettings
           .setValue(normalizedTheme === 'auto' ? null : normalizedTheme)
@@ -116,17 +120,17 @@ function ThemeProviderContent({
     syncSettings().catch((err) =>
       console.warn('Initial settings sync failed:', err)
     );
-  }, [isDarkMode, refetch]);
+  }, [systemIsDark, refetch]);
 
   useEffect(() => {
     if (!isLoading && !storedTheme) {
-      setActiveThemeState(isDarkMode ? 'dark' : 'light');
+      setActiveThemeState(systemIsDark ? 'dark' : 'light');
     }
-  }, [isDarkMode, isLoading, storedTheme]);
+  }, [systemIsDark, isLoading, storedTheme]);
 
   return (
     <ThemeContext.Provider
-      value={{ setActiveTheme, activeTheme, systemIsDark: isDarkMode }}
+      value={{ setActiveTheme, activeTheme, systemIsDark, themeIsDark }}
     >
       <TamaguiProvider
         {...tamaguiProps}
@@ -140,19 +144,12 @@ function ThemeProviderContent({
 }
 
 export const useActiveTheme = () => {
-  const { activeTheme, setActiveTheme, systemIsDark } =
+  const { activeTheme, setActiveTheme, systemIsDark, themeIsDark } =
     React.useContext(ThemeContext);
-  return { activeTheme, setActiveTheme, systemIsDark };
+  return { activeTheme, setActiveTheme, systemIsDark, themeIsDark };
 };
 
-export const useIsDark = () => {
-  const { activeTheme } = useActiveTheme();
-  return [
-    'dark',
-    'dracula',
-    'nord',
-    'monokai',
-    'gruvbox',
-    'greenscreen',
-  ].includes(activeTheme);
+export const useIsThemeDark = () => {
+  const { themeIsDark } = React.useContext(ThemeContext);
+  return themeIsDark;
 };

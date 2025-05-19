@@ -12,7 +12,10 @@ import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { ShipProvider, useShip } from '@tloncorp/app/contexts/ship';
 import { unregisterBackgroundSyncTask } from '@tloncorp/app/lib/backgroundSync';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
-import { Provider as ThemeProvider } from '@tloncorp/app/provider';
+import {
+  Provider as ThemeProvider,
+  useIsThemeDark,
+} from '@tloncorp/app/provider';
 import {
   LoadingSpinner,
   PortalProvider,
@@ -49,6 +52,8 @@ const App = () => {
   } = useShip();
   const [connected, setConnected] = useState(true);
   const signupContext = useSignupContext();
+
+  const isDarkTheme = useIsThemeDark();
 
   const finishingSelfHostedLogin = db.finishingSelfHostedLogin.useValue();
   const haveHostedLogin = db.haveHostedLogin.useValue();
@@ -124,8 +129,8 @@ const App = () => {
         </View>
       )}
       <StatusBar
-      // backgroundColor={isDarkMode ? 'black' : 'white'}
-      // barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+        backgroundColor={isDarkTheme ? 'black' : 'white'}
+        barStyle={isDarkTheme ? 'light-content' : 'dark-content'}
       />
     </View>
   );
