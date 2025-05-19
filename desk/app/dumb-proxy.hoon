@@ -1,6 +1,6 @@
 ::  dumb-proxy: stupid stateless http proxy
 ::
-::    serves an api endpoint at /apps/groups/~/metagrab,
+::    serves an api endpoint at /apps/groups/~/proxy,
 ::    to which you can make requests at /[@uw-encoded-url-string],
 ::    which will trigger this agent to pass the request on to that target url
 ::    mostly unchanged (only changing adding in a Forwarded header), and
@@ -104,7 +104,6 @@
         =.  msg  'target not @uw'
         bad-req
       ?~  (de-purl:html u.target)
-        ::TODO  if parser fails, just dumb find <title> and extract
         =.  msg  'target not parseable'
         bad-req
       =.  url.request  u.target
