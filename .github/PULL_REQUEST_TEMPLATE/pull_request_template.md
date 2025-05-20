@@ -6,28 +6,24 @@
 
 <!-- Outline specific changes made in this PR. -->
 
-## Testing
+## How did I test?
 
-### Automated tests
-
-- [ ] Unit tests added/updated
-- [ ] Integration tests added/updated
-- [ ] E2E tests added/updated
-
-### Manual testing steps
-
-1.
-2.
-3.
+<!-- Describe your testing process. -->
 
 ## Risks and impact
 
-- Risk level: low | medium | high
-- Areas of concern:
-- Dependencies:
+- Safe to rollback without consulting PR author? (Yes | No)
+- Affects important code area:
+  - [ ] Onboarding
+  - [ ] State / providers
+  - [ ] Message sync
+  - [ ] Channel display
+  - [ ] Notifications
 
 ## Rollback plan
 
-Describe the steps to revert these changes if needed.
+<!-- Describe the steps to revert these changes if needed. -->
 
 ## Screenshots / videos
+
+<!-- Attach any relevant media. -->
