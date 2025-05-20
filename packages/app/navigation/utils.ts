@@ -475,3 +475,151 @@ export function screenNameFromChannelId(channelId: string) {
       ? 'GroupDM'
       : 'Channel';
 }
+
+/**
+ * Safely extracts a channel ID from navigation route parameters
+ * handling various parameter structures in the navigation system.
+ * 
+ * @param route Any navigation route object
+ * @returns The channel ID if found, undefined otherwise
+ */
+export function getChannelId(route: any): string | undefined {
+  return getParamValue<string>(route, 'channelId');
+}
+
+/**
+ * Safely extracts a group ID from navigation route parameters
+ * handling various parameter structures in the navigation system.
+ * 
+ * @param route Any navigation route object
+ * @returns The group ID if found, undefined otherwise
+ */
+export function getGroupId(route: any): string | undefined {
+  return getParamValue<string>(route, 'groupId');
+}
+
+/**
+ * Safely extracts a user ID from navigation route parameters
+ * handling various parameter structures in the navigation system.
+ * 
+ * @param route Any navigation route object
+ * @returns The user ID if found, undefined otherwise
+ */
+export function getUserId(route: any): string | undefined {
+  return getParamValue<string>(route, 'userId');
+}
+
+/**
+ * Safely extracts chat details (chatId and chatType) from route parameters
+ * 
+ * @param route Any navigation route object
+ * @returns Object with chatId and chatType if found, undefined otherwise
+ */
+export function getChatDetails(route: any): { chatId: string; chatType: 'group' | 'channel' } | undefined {
+  const chatId = getParamValue<string>(route, 'chatId');
+  const chatType = getParamValue<'group' | 'channel'>(route, 'chatType');
+  
+  if (chatId && chatType) {
+    return { chatId, chatType };
+  }
+  
+  return undefined;
+}
+
+/**
+ * Safely extracts a post ID from navigation route parameters
+ * 
+ * @param route Any navigation route object
+ * @returns The post ID if found, undefined otherwise
+ */
+export function getPostId(route: any): string | undefined {
+  return getParamValue<string>(route, 'postId');
+}
+
+/**
+ * Safely extracts a selected post ID from navigation route parameters
+ * 
+ * @param route Any navigation route object
+ * @returns The selected post ID if found, undefined otherwise
+ */
+export function getSelectedPostId(route: any): string | undefined {
+  return getParamValue<string>(route, 'selectedPostId');
+}
+
+/**
+ * Safely extracts an author ID from navigation route parameters
+ * 
+ * @param route Any navigation route object
+ * @returns The author ID if found, undefined otherwise
+ */
+export function getAuthorId(route: any): string | undefined {
+  return getParamValue<string>(route, 'authorId');
+}
+
+/**
+ * Safely checks if the startDraft flag is set in the navigation route parameters
+ * 
+ * @param route Any navigation route object
+ * @returns True if startDraft is set, false otherwise
+ */
+export function shouldStartDraft(route: any): boolean {
+  return getParamValue<boolean>(route, 'startDraft') === true;
+}
+
+/**
+ * Safely extracts the route name from navigation route parameters
+ * 
+ * @param route Any navigation route object
+ * @returns The route name if found, undefined otherwise
+ */
+export function getRouteName(route: any): string | undefined {
+  return getParamValue<string>(route, 'name');
+}
+
+/**
+ * Generic function to safely extract parameters from navigation route objects
+ * handling various parameter structures in the navigation system.
+ * 
+ * @param route Any navigation route object
+ * @param paramName The name of the parameter to extract
+ * @param defaultValue Optional default value to return if parameter is not found
+ * @returns The parameter value if found, defaultValue or undefined otherwise
+ */
+export function getParamValue<T>(
+  route: any,
+  paramName: string,
+  defaultValue?: T
+): T | undefined {
+  // Handle null or undefined route
+  if (!route) return defaultValue;
+  
+  // Direct access - route.params[paramName]
+  if (route.params && typeof route.params[paramName] !== 'undefined') {
+    return route.params[paramName] as T;
+  }
+  
+  // Nested params - route.params.params[paramName]
+  if (route.params?.params && typeof route.params.params[paramName] !== 'undefined') {
+    return route.params.params[paramName] as T;
+  }
+  
+  // Screen → params pattern often used in nested navigators
+  if (
+    route.params?.screen && 
+    route.params.params && 
+    typeof route.params.params[paramName] !== 'undefined'
+  ) {
+    return route.params.params[paramName] as T;
+  }
+  
+  // Deep nesting common in desktop navigators
+  if (
+    route.params?.params?.screen && 
+    route.params.params.params && 
+    typeof route.params.params.params[paramName] !== 'undefined'
+  ) {
+    return route.params.params.params[paramName] as T;
+  }
+  
+  return defaultValue;
+}

@@ -22,6 +22,7 @@ import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
 import { GroupSettingsStack } from '../GroupSettingsStack';
 import { HomeDrawerParamList } from '../types';
+import { getChannelId } from '../utils';
 import { MessagesSidebar } from './MessagesSidebar';
 
 const MessagesDrawer = createDrawerNavigator();
@@ -66,8 +67,11 @@ export const MessagesNavigator = () => {
 const DrawerContent = memo((props: DrawerContentComponentProps) => {
   const state = props.state as NavigationState<HomeDrawerParamList>;
   const focusedRoute = state.routes[props.state.index];
-  if (focusedRoute.params && 'channelId' in focusedRoute.params) {
-    return <MessagesSidebar focusedChannelId={focusedRoute.params.channelId} />;
+  
+  const channelId = getChannelId(focusedRoute);
+  
+  if (channelId) {
+    return <MessagesSidebar focusedChannelId={channelId} />;
   } else {
     return <MessagesSidebar />;
   }
@@ -96,14 +100,8 @@ function ChannelStack(
   props: NativeStackScreenProps<HomeDrawerParamList, 'Channel'>
 ) {
   const navKey = () => {
-    if ('channelId' in props.route.params) {
-      return props.route.params.channelId;
-    }
-    if (props.route.params.params && 'channelId' in props.route.params.params) {
-      return props.route.params.params.channelId;
-    }
-
-    return 'none';
+    const channelId = getChannelId(props.route);
+    return channelId || 'none';
   };
 
   return (

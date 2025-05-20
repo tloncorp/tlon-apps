@@ -6,7 +6,6 @@ import {
   useChannelContext,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import {
   useCanUpload,
@@ -24,6 +23,11 @@ import { useGroupActions } from '../../hooks/useGroupActions';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
 import {
+  getChannelId,
+  getSelectedPostId,
+  shouldStartDraft,
+} from '../../navigation/utils';
+import {
   AttachmentProvider,
   Channel,
   ChannelSwitcherSheet,
@@ -38,11 +42,10 @@ const logger = createDevLogger('ChannelScreen', false);
 type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
 
 export default function ChannelScreen(props: Props) {
-  const { channelId, selectedPostId, startDraft } = props.route.params ?? {
-    channelId: '',
-    selectedPostId: '',
-    startDraft: false,
-  };
+  const channelId = getChannelId(props.route) ?? '';
+  const selectedPostId = getSelectedPostId(props.route) ?? '';
+  const startDraft = shouldStartDraft(props.route);
+
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
 
   useEffect(() => {

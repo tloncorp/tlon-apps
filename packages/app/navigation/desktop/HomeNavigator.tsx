@@ -23,6 +23,7 @@ import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
 import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
 import { HomeDrawerParamList } from '../types';
+import { getChannelId, getGroupId, getChatDetails } from '../utils';
 import { HomeSidebar } from './HomeSidebar';
 
 const HomeDrawer = createDrawerNavigator();
@@ -67,55 +68,36 @@ export const HomeNavigator = () => {
 const DrawerContent = memo((props: DrawerContentComponentProps) => {
   const state = props.state as NavigationState<HomeDrawerParamList>;
   const focusedRoute = state.routes[props.state.index];
-  const focusedRouteParams = focusedRoute.params;
-  // @ts-expect-error - nested params is not in the type
-  const nestedFocusedRouteParams = focusedRouteParams?.params;
-  if (
-    focusedRouteParams &&
-    'groupId' in focusedRouteParams &&
-    focusedRouteParams.groupId
-  ) {
-    if ('channelId' in focusedRouteParams) {
-      return (
-        <GroupChannelsScreenContent
-          groupId={focusedRouteParams.groupId}
-          focusedChannelId={focusedRouteParams.channelId}
-        />
-      );
+  
+  const channelId = getChannelId(focusedRoute);
+  const groupId = getGroupId(focusedRoute);
+  const chatDetails = getChatDetails(focusedRoute);
+
+  if (chatDetails) {
+    if (chatDetails.chatType === 'channel') {
+      return <HomeSidebar focusedChannelId={chatDetails.chatId} />;
+    } else if (chatDetails.chatType === 'group') {
+      return <GroupChannelsScreenContent groupId={chatDetails.chatId} />;
     }
-    return <GroupChannelsScreenContent groupId={focusedRouteParams.groupId} />;
-  } else if (
-    focusedRouteParams &&
-    nestedFocusedRouteParams &&
-    'groupId' in nestedFocusedRouteParams
-  ) {
-    if ('channelId' in nestedFocusedRouteParams) {
-      return (
-        <GroupChannelsScreenContent
-          groupId={nestedFocusedRouteParams.groupId}
-          focusedChannelId={nestedFocusedRouteParams.channelId}
-        />
-      );
-    }
-    return (
-      <GroupChannelsScreenContent groupId={nestedFocusedRouteParams.groupId} />
-    );
-  } else if (
-    focusedRouteParams &&
-    focusedRoute.name === 'ChatDetails' &&
-    'chatId' in focusedRouteParams &&
-    'chatType' in focusedRouteParams
-  ) {
-    if (focusedRouteParams.chatType === 'channel') {
-      return <HomeSidebar focusedChannelId={focusedRouteParams.chatId} />;
-    } else if (focusedRouteParams.chatType === 'group') {
-      return <GroupChannelsScreenContent groupId={focusedRouteParams.chatId} />;
-    }
-  } else if (focusedRoute.params && 'channelId' in focusedRoute.params) {
-    return <HomeSidebar focusedChannelId={focusedRoute.params.channelId} />;
-  } else {
-    return <HomeSidebar />;
   }
+  
+  if (groupId) {
+    if (channelId) {
+      return (
+        <GroupChannelsScreenContent
+          groupId={groupId}
+          focusedChannelId={channelId}
+        />
+      );
+    }
+    return <GroupChannelsScreenContent groupId={groupId} />;
+  }
+  
+  if (channelId) {
+    return <HomeSidebar focusedChannelId={channelId} />;
+  }
+  
+  return <HomeSidebar />;
 }, isEqual);
 
 DrawerContent.displayName = 'HomeSidebarDrawerContent';
@@ -141,18 +123,8 @@ function ChannelStack(
   props: NativeStackScreenProps<HomeDrawerParamList, 'Channel'>
 ) {
   const navKey = () => {
-    if (props.route.params && 'channelId' in props.route.params) {
-      return props.route.params.channelId;
-    }
-    if (
-      props.route.params &&
-      props.route.params.params &&
-      'channelId' in props.route.params.params
-    ) {
-      return props.route.params.params.channelId;
-    }
-
-    return 'none';
+    const channelId = getChannelId(props.route);
+    return channelId || 'none';
   };
 
   return (
