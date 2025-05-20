@@ -2210,19 +2210,11 @@ SPEC CHECKSUMS:
   boost: d3f49c53809116a5d38da093a8aa78bf551aed09
   BranchSDK: cb046c2714b03e573484ce9e349e2ddbad7016e8
   DoubleConversion: fea03f2699887d960129cc54bba7e52542b6f953
-<<<<<<< HEAD
-  EASClient: 95592393d6d1e60609f0afb373191d918c687b98
-  EXApplication: ec862905fdab3a15bf6bd8ca1a99df7fc02d7762
-  EXAV: 64e72329d2f8c2ba13608fed4a713af4e793242d
-  EXConstants: 89d35611505a8ce02550e64e43cd05565da35f9a
-  EXImageLoader: 1fe96c70cdc78bedc985ec4b1fab5dd8e67dc38b
-=======
   EASClient: 1509a9a6b48b932ec61667644634daf2562983b8
   EXApplication: c08200c34daca7af7fd76ac4b9d606077410e8ad
   EXAV: afa491e598334bbbb92a92a2f4dd33d7149ad37f
   EXConstants: 409690fbfd5afea964e5e9d6c4eb2c2b59222c59
   EXImageLoader: ab589d67d6c5f2c33572afea9917304418566334
->>>>>>> release-channels-updates
   EXJSONUtils: 30c17fd9cc364d722c0946a550dfbf1be92ef6a4
   EXManifests: c1fab4c3237675e7b0299ea8df0bcb14baca4f42
   EXNotifications: 85496c9fab09d759d0e4ff594bca078ab817c40c
