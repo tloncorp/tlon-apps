@@ -402,6 +402,7 @@ export default function ChannelScreen(props: Props) {
             clearedCursor ? undefined : initialChannelUnread
           }
           isLoadingPosts={isLoadingPosts}
+          loadPostsError={postsQuery.error}
           hasNewerPosts={postsQuery.hasPreviousPage}
           hasOlderPosts={postsQuery.hasNextPage}
           group={group}
@@ -430,7 +431,8 @@ export default function ChannelScreen(props: Props) {
           getDraft={getDraft}
           editingPost={editingPost}
           onPressDelete={handleDeletePost}
-          onPressRetry={handleRetrySend}
+          onPressRetrySend={handleRetrySend}
+          onPressRetryLoad={postsQuery.refetch}
           setEditingPost={setEditingPost}
           editPost={editPost}
           negotiationMatch={negotiationStatus.matchedOrPending}

@@ -24,7 +24,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   AnimatePresence,
   View,
@@ -85,6 +84,7 @@ interface ChannelProps {
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
+  loadPostsError?: Error | null;
   onPressRef: (channel: db.Channel, post: db.Post) => void;
   markRead: () => void;
   usePost: typeof usePostWithRelations;
@@ -101,7 +101,8 @@ interface ChannelProps {
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost: (post: db.Post, content: Story) => Promise<void>;
-  onPressRetry: (post: db.Post) => Promise<void>;
+  onPressRetrySend: (post: db.Post) => Promise<void>;
+  onPressRetryLoad: () => void;
   onPressDelete: (post: db.Post) => void;
   negotiationMatch: boolean;
   hasNewerPosts?: boolean;
@@ -135,6 +136,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       onScrollEndReached,
       onScrollStartReached,
       isLoadingPosts,
+      loadPostsError,
       markRead,
       onPressRef,
       usePost,
@@ -148,7 +150,8 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       editingPost,
       setEditingPost,
       editPost,
-      onPressRetry,
+      onPressRetryLoad,
+      onPressRetrySend,
       onPressDelete,
       negotiationMatch,
       hasNewerPosts,
@@ -397,8 +400,10 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                     headerMode,
                                     initialChannelUnread,
                                     isLoadingPosts: isLoadingPosts ?? false,
+                                    loadPostsError,
                                     onPressDelete,
-                                    onPressRetry,
+                                    onPressRetrySend,
+                                    onPressRetryLoad,
                                     onScrollEndReached,
                                     onScrollStartReached,
                                     posts: posts ?? undefined,
