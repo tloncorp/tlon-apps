@@ -1,6 +1,6 @@
 ## Summary
 
-Briefly describe what this pull request does in 1-3 sentences.
+<!-- Briefly describe what this pull request does in 1-3 sentences. -->
 
 ## Changes
 
