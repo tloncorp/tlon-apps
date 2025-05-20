@@ -121,6 +121,7 @@ const baseProps: ComponentProps<typeof Channel> = {
   storeDraft: async () => {},
   clearDraft: async () => {},
   onPressRetrySend: async () => {},
+  onPressRetryLoad: () => {},
   onPressDelete: () => {},
 } as const;
 
