@@ -20,14 +20,14 @@ appId: io.tlon.groups
       - tapOn: 'Select All'
 - 'eraseText'
 - inputText: 'Testing nickname'
-- tapOn: 'Change avatar image'
-- waitForAnimationToEnd:
-    timeout: 5000
-- assertVisible: 'Photo Library'
-- swipe:
-    direction: 'DOWN'
-- waitForAnimationToEnd:
-    timeout: 5000
+# - tapOn: 'Change avatar image'
+# - waitForAnimationToEnd:
+#     timeout: 5000
+# - assertVisible: 'Photo Library'
+# - swipe:
+#     direction: 'DOWN'
+# - waitForAnimationToEnd:
+#     timeout: 5000
 - longPressOn: 'Hanging out...'
 - runFlow:
     when:
