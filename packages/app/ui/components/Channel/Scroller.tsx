@@ -470,7 +470,7 @@ const Scroller = forwardRef(
     );
 
     return (
-      <View flex={1} backgroundColor="red">
+      <View flex={1}>
         {shouldShowScrollButton() && (
           <View position="absolute" bottom={'$m'} right={'$l'} zIndex={1000}>
             <FloatingActionButton
