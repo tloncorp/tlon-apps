@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import { getTextContent } from '@tloncorp/shared/urbit';
+import { PlaintextPreviewConfig, getTextContent } from '@tloncorp/shared/logic';
 import type { Story } from '@tloncorp/shared/urbit';
 import { formatUd, unixToDa } from '@urbit/aura';
 import seedrandom from 'seedrandom';
@@ -288,7 +288,10 @@ export const tlonLocalIntros: db.Channel = {
     image: null,
     receivedAt: 0,
     textContent:
-      getTextContent(JSON.parse(createSimpleContent('hello'))) ?? null,
+      getTextContent(
+        JSON.parse(createSimpleContent('hello')),
+        PlaintextPreviewConfig.inlineConfig
+      ) ?? null,
     hasAppReference: null,
     hasChannelReference: null,
     hasGroupReference: null,
