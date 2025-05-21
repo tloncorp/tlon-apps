@@ -153,26 +153,28 @@ export default function ConnectedApp() {
   return (
     <ErrorBoundary>
       <FeatureFlagConnectedInstrumentationProvider>
-        <ShipProvider>
+        <QueryClientProvider client={queryClient}>
           <ThemeProvider>
-            <NavigationContainer ref={navigationContainerRef}>
-              <StoreProvider>
-                <BranchProvider>
-                  <PostHogProvider
-                    client={posthogAsync}
-                    autocapture={{
-                      captureTouches: false,
-                    }}
-                    options={{
-                      enable:
-                        process.env.NODE_ENV !== 'test' ||
-                        !!process.env.POST_HOG_IN_DEV,
-                    }}
-                  >
-                    <GestureHandlerRootView style={{ flex: 1 }}>
-                      <SafeAreaProvider>
-                        <MigrationCheck>
-                          <QueryClientProvider client={queryClient}>
+            <ShipProvider>
+              <NavigationContainer
+                ref={navigationContainerRef}
+              >
+                <StoreProvider>
+                  <BranchProvider>
+                    <PostHogProvider
+                      client={posthogAsync}
+                      autocapture={{
+                        captureTouches: false,
+                      }}
+                      options={{
+                        enable:
+                          process.env.NODE_ENV !== 'test' ||
+                          !!process.env.POST_HOG_IN_DEV,
+                      }}
+                    >
+                      <GestureHandlerRootView style={{ flex: 1 }}>
+                        <SafeAreaProvider>
+                          <MigrationCheck>
                             <SignupProvider>
                               <PortalProvider>
                                 <App />
@@ -186,16 +188,16 @@ export default function ConnectedApp() {
                                 />
                               )}
                             </SignupProvider>
-                          </QueryClientProvider>
-                        </MigrationCheck>
-                      </SafeAreaProvider>
-                    </GestureHandlerRootView>
-                  </PostHogProvider>
-                </BranchProvider>
-              </StoreProvider>
-            </NavigationContainer>
-          </ThemeProvider>
-        </ShipProvider>
+                          </MigrationCheck>
+                        </SafeAreaProvider>
+                      </GestureHandlerRootView>
+                    </PostHogProvider>
+                  </BranchProvider>
+                </StoreProvider>
+              </NavigationContainer>
+            </ShipProvider>
+          </TamaguiProvider>
+        </QueryClientProvider>
       </FeatureFlagConnectedInstrumentationProvider>
     </ErrorBoundary>
   );
