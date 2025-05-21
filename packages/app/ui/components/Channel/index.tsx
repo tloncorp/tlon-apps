@@ -78,6 +78,7 @@ interface ChannelProps {
   goToChatDetails?: () => void;
   goToPost: (post: db.Post) => void;
   goToDm: (participants: string[]) => void;
+  goToGroupSettings: () => void;
   goToImageViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
   goToUserProfile: (userId: string) => void;
@@ -131,6 +132,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       goToPost,
       goToDm,
       goToUserProfile,
+      goToGroupSettings,
       messageSender,
       onScrollEndReached,
       onScrollStartReached,
@@ -342,6 +344,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                 onPressGroupRef={onPressGroupRef}
                 onPressGoToDm={goToDm}
                 onGoToUserProfile={goToUserProfile}
+                onGoToGroupSettings={goToGroupSettings}
               >
                 <View backgroundColor={backgroundColor} flex={1}>
                   <FileDrop

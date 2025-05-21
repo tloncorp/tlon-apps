@@ -79,9 +79,10 @@
           description.meta
           ~
           ~
+          ~
       ==
     =/  =a-channels:c  [%create create-channel]
-    (poke:io [our.bowl %channels] channel-action+!>(a-channels))
+    (poke:io [our.bowl %channels] channel-action-1+!>(a-channels))
   ::  register the channel with %groups
   ;<  ~  bind:n
     =/  =channel:v5:g

@@ -222,7 +222,7 @@ CREATE TABLE `group_rank_bans` (
 );
 --> statement-breakpoint
 CREATE TABLE `group_roles` (
-	`id` text,
+	`id` text NOT NULL,
 	`group_id` text,
 	`icon_image` text,
 	`icon_image_color` text,
@@ -306,6 +306,8 @@ CREATE TABLE `posts` (
 	`type` text NOT NULL,
 	`title` text,
 	`image` text,
+	`description` text,
+	`cover` text,
 	`content` text,
 	`received_at` integer NOT NULL,
 	`sent_at` integer NOT NULL,

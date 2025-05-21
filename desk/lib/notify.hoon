@@ -59,10 +59,11 @@
           time-id
         ::
           ^-  (list content:h)
+          =*  author-ship  (get-author-ship:cu p.id.key.event)
           ?-  -<.event
               %post
             =,  -.event
-            :~  [%ship p.id.key]
+            :~  [%ship author-ship]
                 ?:(mention ' mentioned you: ' ' sent a message: ')
                 (flatten:cu content)
             ==
@@ -70,28 +71,28 @@
               %reply
             =,  -.event
             ?:  mention
-              :~  [%ship p.id.key]
+              :~  [%ship author-ship]
                   ' mentioned you: '
                   (flatten:cu content)
               ==
             =*  diary-contents
-              :~  [%ship p.id.key]  ' commented on '
+              :~  [%ship author-ship]  ' commented on '
                   [%emph 'a notebook post']   ': '  ::REVIEW  don't have access to title.kind-data
-                  [%ship p.id.key]  ': '
+                  [%ship author-ship]  ': '
                   (flatten:cu content)
               ==
             =*  heap-contents
-              :~  [%ship p.id.key]  ' commented on '
+              :~  [%ship author-ship]  ' commented on '
                   [%emph 'a collection item']   ': '  ::REVIEW  don't have access to title.kind-data
-                  [%ship p.id.key]  ': '
+                  [%ship author-ship]  ': '
                   (flatten:cu content)
               ==
-            ?:  =(p.id.parent our)
+            ?:  =(author-ship our)
               ?-  kind.channel.event
                   %diary  diary-contents
                   %heap   heap-contents
                   %chat
-                :~  [%ship p.id.key]
+                :~  [%ship author-ship]
                     ' replied to you: '
                     (flatten:cu content)
                 ==
@@ -100,7 +101,7 @@
                 %diary  diary-contents
                 %heap   heap-contents
                 %chat
-              :~  [%ship p.id.key]
+              :~  [%ship author-ship]
                   ' sent a message: '
                   (flatten:cu content)
               ==
@@ -115,14 +116,14 @@
           ::
               %dm-post
             ::REVIEW  should maybe not be rendered if you haven't accepted
-            :~  [%ship p.id.key.event]
+            :~  [%ship author-ship]
                 ': '
                 (flatten:cu content.event)
             ==
           ::
               %dm-reply
             ::REVIEW  should maybe not be rendered if you haven't accepted
-            :~  [%ship p.id.key.event]
+            :~  [%ship author-ship]
                 ': '
                 (flatten:cu content.event)
             ==
@@ -201,7 +202,8 @@
           ::
               %dm-reply
             ::REVIEW
-            (weld (dm-path whom.event) /message/(scot %p p.id.parent.event)/(scot %ud q.id.parent.event))
+            %+  weld  (dm-path whom.event) 
+            /message/(scot %p (get-author-ship:cu p.id.parent.event))/(scot %ud q.id.parent.event)
           ::
             %group-ask     (weld (group-path group.event) /edit/members)
             %group-invite  /find

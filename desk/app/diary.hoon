@@ -4,7 +4,7 @@
 /+  default-agent, verb, dbug
 /+  not=notes
 /+  qup=quips
-/+  volume, cutils=channel-utils
+/+  volume, cutils=channel-utils, em=emojimart
 /+  epos-lib=saga
 ::  performance, keep warm
 /+  diary-json
@@ -534,7 +534,7 @@
         `[%edit time u.edit]
       ?~  command  ~
       =/  =cage
-        :-  %channel-action
+        :-  %channel-action-1
         !>(`a-channels:d`[%channel [%diary flag] %post u.command])
       [%pass /migrate %agent [our.bowl %channels] %poke cage]~
     ::  then, repeat for the quips on the post
@@ -555,7 +555,7 @@
       `[%reply time %edit rtime u.edit]
     ?~  command  ~
     =/  =cage
-      :-  %channel-action
+      :-  %channel-action-1
       !>(`a-channels:d`[%channel [%diary flag] %post u.command])
     `[%pass /migrate %agent [our.bowl %channels] %poke cage]
   ::
@@ -595,15 +595,23 @@
     |=  old=notes:a
     ^-  v-posts:d
     %+  gas:on-v-posts:d  *v-posts:d
-    %+  turn  (tap:on:notes:a old)
-    |=  [=time =note:a]
-    ^-  [id-post:d (unit v-post:d)]
-    [time `(convert-note time note)]
+    =|  posts=(list [id-post:d (unit v-post:d)])
+    =<  posts
+    %+  roll  (tap:on:notes:a old)
+    |=  [[=time =note:a] count=@ud =_posts]
+    ^+  [count posts]
+    =.  count  +(count)
+    :-  count
+    :_  posts
+    [time `(convert-note time count note)]
   ::
   ++  convert-note
-    |=  [id=@da old=note:a]
+    |=  [id=@da seq=@ud old=note:a]
     ^-  v-post:d
-    :-  [id (convert-quips quips.old) (convert-feels feels.old)]
+    =/  modified-at=@da
+      ?~  mod=(ram:on:quips:a quips.old)  id
+      ?:((gth key.u.mod id) key.u.mod id)
+    :-  [id seq modified-at (convert-quips quips.old) (convert-feels feels.old)]
     [%0 (convert-essay +.old)]
   ::
   ++  convert-quips
@@ -623,7 +631,8 @@
   ++  convert-essay
     |=  old=essay:a
     ^-  essay:d
-    =-  [[- author.old sent.old] %diary title.old image.old]
+    =/  meta=data:meta  [title.old '' image.old '']
+    =-  [[- author.old sent.old] /diary `meta ~]
     %+  turn  content.old
     |=  v=verse:a
     ^-  verse:d
@@ -670,7 +679,9 @@
     ^-  v-reacts:d
     %-  ~(run by old)
     |=  =feel:a
-    [%0 `feel]
+    ?~  react=(kill:em feel)
+      [%0 `[%any feel]]
+    [%0 `u.react]
   ::
   ++  convert-log
     |=  [old=notes:a posts=v-posts:d =perm:d =log:a]
@@ -691,7 +702,7 @@
     ?-    -.diff
         ?(%add-sects %del-sects)  [%perm 0 perm]~
         %create
-      :-  [%create p.diff]
+      :-  [%create p.diff ~]
       %+  murn  (tap:on:notes:a q.diff)
       |=  [=^time =note:a]
       =/  new-post  (get:on-v-posts:d posts time)

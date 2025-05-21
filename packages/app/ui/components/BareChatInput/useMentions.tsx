@@ -1,5 +1,13 @@
+import { escapeRegExp, isValidPatp } from '@tloncorp/shared';
+import { ALL_MENTION_ID as allID } from '@tloncorp/shared';
+import { getCurrentUserId } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+
+import { emptyContact } from '../../../fixtures/fakeData';
+import { formatUserId } from '../../utils';
+
+export const ALL_MENTION_ID = allID;
 
 export interface Mention {
   id: string;
@@ -8,9 +16,67 @@ export interface Mention {
   end: number;
 }
 
-export const useMentions = () => {
+export interface MentionOption {
+  id: string;
+  type: 'contact' | 'group';
+  title?: string | null;
+  subtitle?: string | null;
+  priority: number;
+}
+
+export function getMentionPriority(member: db.ChatMember): number {
+  const { contact } = member;
+  if (!contact) {
+    return 1;
+  }
+
+  if (contact.isContact) {
+    return 3;
+  }
+
+  if (contact.isContactSuggestion) {
+    return 2;
+  }
+
+  return 1;
+}
+
+export function createMentionOptions(
+  groupMembers: db.ChatMember[],
+  groupRoles: db.GroupRole[]
+): MentionOption[] {
+  const currentUserId = getCurrentUserId();
+  const members = groupMembers
+    .filter((member) => member.contactId !== currentUserId)
+    .map<MentionOption>((member) => ({
+      id: member.contactId,
+      title: member.contact?.nickname || member.contactId,
+      subtitle: formatUserId(member.contactId, true)?.display,
+      type: 'contact',
+      priority: getMentionPriority(member),
+      contact: member.contact || emptyContact,
+    }));
+
+  const roles = groupRoles.map<MentionOption>((role) => ({
+    id: role.id,
+    title: role.title || role.id,
+    subtitle: role.description,
+    type: 'group',
+    priority: 4,
+  }));
+
+  const all: MentionOption = {
+    id: ALL_MENTION_ID,
+    title: 'All',
+    subtitle: 'All members in this channel',
+    type: 'group',
+    priority: 5,
+  };
+  return [all, ...members, ...roles].sort((a, b) => a.priority - b.priority);
+}
+
+export const useMentions = ({ options }: { options: MentionOption[] }) => {
   const [isMentionModeActive, setIsMentionModeActive] = useState(false);
-  const [hasMentionCandidates, setHasMentionCandidates] = useState(false);
   const [mentionStartIndex, setMentionStartIndex] = useState<number | null>(
     null
   );
@@ -20,6 +86,18 @@ export const useMentions = () => {
   const [lastDismissedTriggerIndex, setLastDismissedTriggerIndex] = useState<
     number | null
   >(null);
+
+  const validOptions = useMemo(() => {
+    return options.filter((option) => {
+      const pattern = new RegExp(escapeRegExp(mentionSearchText), 'i');
+
+      return option.title?.match(pattern) || option.subtitle?.match(pattern);
+    });
+  }, [options, mentionSearchText]);
+
+  const hasMentionCandidates = useMemo(() => {
+    return validOptions.length > 0;
+  }, [validOptions]);
 
   const handleMention = (oldText: string, newText: string) => {
     // Find cursor position by comparing old and new text
@@ -125,10 +203,11 @@ export const useMentions = () => {
     }
   };
 
-  const handleSelectMention = (contact: db.Contact, text: string) => {
+  const handleSelectMention = (option: MentionOption, text: string) => {
     if (mentionStartIndex === null) return;
 
-    const mentionDisplay = contact.nickname || contact.id;
+    const display = option.title || option.id;
+    const mentionDisplay = isValidPatp(display) ? display : `@${display}`;
     const beforeMention = text.slice(0, mentionStartIndex);
     const afterMention = text.slice(
       mentionStartIndex + (mentionSearchText?.length || 0) + 1
@@ -136,7 +215,7 @@ export const useMentions = () => {
 
     const newText = beforeMention + mentionDisplay + ' ' + afterMention;
     const newMention: Mention = {
-      id: contact.id,
+      id: option.id,
       display: mentionDisplay,
       start: mentionStartIndex,
       end: mentionStartIndex + mentionDisplay.length,
@@ -160,6 +239,7 @@ export const useMentions = () => {
 
   return {
     mentions,
+    validOptions,
     setMentions,
     mentionSearchText,
     setMentionSearchText,
@@ -169,6 +249,5 @@ export const useMentions = () => {
     setIsMentionModeActive,
     handleMentionEscape,
     hasMentionCandidates,
-    setHasMentionCandidates,
   };
 };

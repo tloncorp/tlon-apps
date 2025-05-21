@@ -151,6 +151,9 @@ export const sendPost = async ({
           content,
           sent: sentAt,
           author: authorId,
+          kind: '/dm',
+          meta: null,
+          blob: null,
         },
         kind: null,
         time: null,
@@ -171,14 +174,21 @@ export const sendPost = async ({
     authorId,
     sentAt,
     channelType,
-    metadata,
+    metadata: metadata
+      ? {
+          title: metadata.title || '',
+          image: metadata.image || '',
+          description: metadata.description || '',
+          cover: metadata.cover || '',
+        }
+      : undefined,
   });
 
-  await poke(
-    channelPostAction(channelId, {
-      add: essay,
-    })
-  );
+  const action = channelPostAction(channelId, {
+    add: essay,
+  });
+
+  await poke(action);
   logger.log('post sent', { channelId, authorId, sentAt, content });
 };
 
@@ -241,7 +251,14 @@ export const editPost = async ({
     authorId,
     sentAt,
     channelType,
-    metadata,
+    metadata: metadata
+      ? {
+          title: metadata.title || '',
+          image: metadata.image || '',
+          description: metadata.description || '',
+          cover: metadata.cover || '',
+        }
+      : undefined,
   });
 
   const action = channelPostAction(channelId, {
@@ -282,6 +299,9 @@ export const sendReply = async ({
               content,
               author: authorId,
               sent: sentAt,
+              kind: '/dm',
+              meta: null,
+              blob: null,
             },
             time: null,
           },
@@ -340,7 +360,7 @@ export const getChannelPosts = async ({
     ...[
       type === 'dm' ? 'dm' : null,
       type === 'club' ? 'club' : null,
-      type === 'channel' ? 'v1' : null,
+      type === 'channel' ? 'v3' : null,
     ],
     channelId,
     type === 'channel' ? 'posts' : 'writs',
@@ -749,7 +769,7 @@ export const getPostWithReplies = async ({
     path = `/club/${channelId}/writs/writ/id/${authorId}/${postId}`;
   } else if (isGroupChannelId(channelId)) {
     app = 'channels';
-    path = `/v1/${channelId}/posts/post/${postId}`;
+    path = `/v3/${channelId}/posts/post/${postId}`;
   } else {
     throw new Error('invalid channel id');
   }
@@ -759,7 +779,8 @@ export const getPostWithReplies = async ({
     path,
   });
 
-  return toPostData(channelId, post);
+  const postData = toPostData(channelId, post);
+  return postData;
 };
 
 export interface DeletedPost {
@@ -850,9 +871,7 @@ export function toPostData(
     }
   };
   const type = getPostType(post);
-  const kindData = post?.essay['kind-data'];
   const [content, flags] = toPostContent(post?.essay.content);
-  const metadata = parseKindData(kindData);
   const id = getCanonicalPostId(post.seal.id);
   const backendTime =
     post.seal && 'time' in post.seal
@@ -898,8 +917,10 @@ export function toPostData(
     type,
     backendTime,
     // Kind data will override
-    title: metadata?.title ?? '',
-    image: metadata?.image ?? '',
+    title: post.essay.meta?.title ?? '',
+    image: post.essay.meta?.image ?? '',
+    description: post.essay.meta?.description ?? '',
+    cover: post.essay.meta?.cover ?? '',
     authorId: post.essay.author,
     isEdited: 'revision' in post && post.revision !== '0',
     content: galleryImageLink
@@ -1105,13 +1126,7 @@ function parseKindData(kindData?: ub.KindData): db.PostMetadata | undefined {
 }
 
 function isNotice(post: ub.Post | ub.PostDataResponse | null) {
-  const kindData = post?.essay['kind-data'];
-  return (
-    kindData &&
-    isChatData(kindData) &&
-    kindData.chat &&
-    'notice' in kindData.chat
-  );
+  return post?.essay.kind === '/chat/notice';
 }
 
 function isChatData(data: KindData): data is KindDataChat {
@@ -1120,7 +1135,7 @@ function isChatData(data: KindData): data is KindDataChat {
 
 export function getContentImages(postId: string, content?: ub.Story | null) {
   return (content || []).reduce<db.PostImage[]>((memo, story) => {
-    if (ub.isBlock(story) && ub.isImage(story.block)) {
+    if (ub.isBlockVerse(story) && ub.isImage(story.block)) {
       memo.push({ ...story.block.image, postId });
     }
     return memo;

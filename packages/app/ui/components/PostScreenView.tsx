@@ -57,8 +57,7 @@ const FocusedPostContext = createContext<{
 );
 
 interface ChannelContext {
-  group?: db.Group | null;
-  groupMembers: db.ChatMember[];
+  group: db.Group | null;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost: (
@@ -75,9 +74,9 @@ interface ChannelContext {
 
 export function PostScreenView({
   channel,
+  group,
   parentPost,
   goBack,
-  groupMembers,
   handleGoToImage,
   handleGoToUserProfile,
   editingPost,
@@ -98,6 +97,8 @@ export function PostScreenView({
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   goToDm: (participants: string[]) => void;
 } & ChannelContext) {
+  const groupMembers = group?.members ?? [];
+  const groupRoles = group?.roles ?? [];
   const isWindowNarrow = utils.useIsWindowNarrow();
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = utils.useIsAdmin(
@@ -235,7 +236,7 @@ export function PostScreenView({
                           editPost,
                           editingPost,
                           goBack,
-                          groupMembers,
+                          group,
                           handleGoToImage,
                           headerMode,
                           negotiationMatch,
@@ -254,7 +255,7 @@ export function PostScreenView({
                         channelContext={{
                           editPost,
                           editingPost,
-                          groupMembers,
+                          group,
                           headerMode,
                           negotiationMatch,
                           onPressDelete,
@@ -350,10 +351,10 @@ function useMarkThreadAsReadEffect(
 
 function SinglePostView({
   channel,
+  group,
   editPost,
   editingPost,
   goBack,
-  groupMembers,
   handleGoToImage,
   headerMode,
   negotiationMatch,
@@ -371,8 +372,7 @@ function SinglePostView({
   ) => Promise<void>;
   editingPost?: db.Post;
   goBack?: () => void;
-  group?: db.Group | null;
-  groupMembers: db.ChatMember[];
+  group: db.Group | null;
   handleGoToImage?: (post: db.Post, uri?: string) => void;
   headerMode: 'default' | 'next';
   negotiationMatch: boolean;
@@ -381,6 +381,8 @@ function SinglePostView({
   parentPost: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
 }) {
+  const groupMembers = group?.members ?? [];
+  const groupRoles = group?.roles ?? [];
   const store = useStore();
   const { focusedPost } = useContext(FocusedPostContext);
   const isFocusedPost = focusedPost?.id === parentPost.id;
@@ -518,6 +520,7 @@ function SinglePostView({
               send={sendReply}
               channelId={channel.id}
               groupMembers={groupMembers}
+              groupRoles={groupRoles}
               {...bareInputDraftProps}
               editingPost={editingPost}
               setEditingPost={setEditingPost}
@@ -573,6 +576,7 @@ function SinglePostView({
             storeDraft={storeDraft}
             clearDraft={clearDraft}
             groupMembers={groupMembers}
+            groupRoles={groupRoles}
           />
         </View>
       ) : null}

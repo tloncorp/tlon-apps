@@ -1,6 +1,6 @@
-/-  d=channels
+/-  c=channels
 /+  j=channel-json
-|_  =log:d
+|_  =log:c
 ++  grad  %noun
 ++  grow
   |%
@@ -8,6 +8,6 @@
   --
 ++  grab
   |%
-  ++  noun  log:d
+  ++  noun  log:c
   --
 --

@@ -154,47 +154,28 @@ export function toPostEssay({
   authorId,
   sentAt,
   channelType,
+  blob,
   metadata,
 }: {
   content: ub.Story;
   authorId: string;
   sentAt: number;
   channelType: db.ChannelType;
-  metadata?: db.PostMetadata;
+  blob?: string;
+  metadata?: ub.Metadata;
 }): ub.PostEssay {
-  const kindData = (): ub.KindData => {
-    if (!metadata || Object.keys(metadata).length === 0) {
-      switch (channelType) {
-        case 'chat':
-          return { chat: null };
-        case 'notebook':
-          throw new Error('Notebook posts must have a title');
-        case 'gallery':
-          return { heap: '' };
-      }
-    }
-
-    if (channelType === 'chat') {
-      return { chat: { notice: null } };
-    }
-
-    if (channelType === 'notebook') {
-      if (!metadata!.title || metadata!.title === '') {
-        throw new Error('Notebook posts must have a title');
-      }
-      return {
-        diary: { title: metadata!.title, image: metadata!.image ?? '' },
-      };
-    }
-
-    return { heap: metadata!.title ?? '' };
-  };
-
   const essay: ub.PostEssay = {
     content,
     sent: sentAt,
-    'kind-data': kindData(),
+    kind:
+      channelType === 'notebook'
+        ? '/diary'
+        : channelType === 'gallery'
+          ? '/heap'
+          : '/chat',
     author: authorId,
+    blob: blob || null,
+    meta: metadata || null,
   };
 
   return essay;

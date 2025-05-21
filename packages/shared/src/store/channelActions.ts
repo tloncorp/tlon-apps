@@ -77,6 +77,7 @@ export async function createChannel({
       name: channelSlug,
       title,
       description: encodedDescription ?? '',
+      meta: null,
       readers: [],
       writers: [],
     });

@@ -360,6 +360,15 @@ export default function ChannelScreen(props: Props) {
     [props.navigation]
   );
 
+  const handleGoToGroupSettings = useCallback(() => {
+    if (group) {
+      props.navigation.navigate('GroupSettings', {
+        screen: 'GroupMembers',
+        params: { groupId: group.id },
+      });
+    }
+  }, [group, props.navigation]);
+
   const handleInviteSheetOpenChange = useCallback((open: boolean) => {
     if (!open) {
       setInviteSheetGroup(null);
@@ -416,6 +425,7 @@ export default function ChannelScreen(props: Props) {
           goToSearch={navigateToSearch}
           goToDm={handleGoToDm}
           goToUserProfile={handleGoToUserProfile}
+          goToGroupSettings={handleGoToGroupSettings}
           onScrollEndReached={loadOlder}
           onScrollStartReached={loadNewer}
           onPressRef={navigateToRef}
