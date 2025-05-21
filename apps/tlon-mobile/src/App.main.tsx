@@ -196,7 +196,7 @@ export default function ConnectedApp() {
                 </StoreProvider>
               </NavigationContainer>
             </ShipProvider>
-          </TamaguiProvider>
+          </ThemeProvider>
         </QueryClientProvider>
       </FeatureFlagConnectedInstrumentationProvider>
     </ErrorBoundary>
