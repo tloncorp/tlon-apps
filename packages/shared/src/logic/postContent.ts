@@ -1,4 +1,4 @@
-import type * as api from '../api';
+import * as api from '../api';
 import * as ub from '../urbit';
 import { assertNever } from '../utils';
 import { trustedProviders } from './embed';
