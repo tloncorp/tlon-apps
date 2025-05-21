@@ -76,6 +76,15 @@ module.exports = {
         message:
           'Do not import directly from the "packages" directory. Use the package name (or relative path, if within the same package) instead.',
       },
+      'error',
+      {
+        selector: 'MemberExpression[object.property.name="route"][property.name="params"]',
+        message: 'Do not access route.params directly. Use parameter extraction utilities from navigation/utils.ts instead.'
+      },
+      {
+        selector: 'MemberExpression[object.object.name="props"][object.property.name="route"][property.name="params"]',
+        message: 'Do not access props.route.params directly. Use parameter extraction utilities from navigation/utils.ts instead.'
+      }
     ],
   },
 };
