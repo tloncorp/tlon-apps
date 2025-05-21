@@ -46,7 +46,17 @@ appId: io.tlon.groups
     file: 'input-text.yaml'
     env:
       INPUT_TEXT: 'Testing bio'
-- 'hideKeyboard'
+- runFlow:
+    when:
+      platform: ios
+    commands:
+      - tapOn:
+          point: 50%,36%
+- runFlow:
+    when:
+      platform: android
+    commands:
+      - hideKeyboard
 # Set favorite group
 - tapOn: 'Add a group'
 - scrollUntilVisible:
