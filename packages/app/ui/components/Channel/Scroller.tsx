@@ -102,7 +102,6 @@ const Scroller = forwardRef(
       hasNewerPosts,
       activeMessage,
       setActiveMessage,
-      headerMode,
       isLoading,
       onPressScrollToBottom,
     }: {
@@ -130,7 +129,6 @@ const Scroller = forwardRef(
       activeMessage: db.Post | null;
       setActiveMessage: (post: db.Post | null) => void;
       ref?: RefObject<{ scrollToIndex: (params: { index: number }) => void }>;
-      headerMode: 'default' | 'next';
       isLoading?: boolean;
       // Unused
       hasOlderPosts?: boolean;
@@ -362,7 +360,6 @@ const Scroller = forwardRef(
               paddingHorizontal: '$m',
               gap: '$l',
               paddingBottom: insets.bottom,
-              paddingTop: headerMode === 'next' ? insets.top + 54 : 0,
             };
           }
 
@@ -371,11 +368,10 @@ const Scroller = forwardRef(
               paddingHorizontal: '$m',
               gap: '$l',
               paddingBottom: insets.bottom,
-              paddingTop: headerMode === 'next' ? insets.top + 54 : 0,
             };
           }
         }
-      }, [insets, posts?.length, headerMode, collectionLayoutType])
+      }, [insets, posts?.length, collectionLayoutType])
     ) as StyleProp<ViewStyle>;
 
     const columnWrapperStyle = useStyle(

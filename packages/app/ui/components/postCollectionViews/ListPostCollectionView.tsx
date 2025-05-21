@@ -112,7 +112,6 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
         activeMessage={activeMessage}
         setActiveMessage={setActiveMessage}
         ref={flatListRef}
-        headerMode={ctx.headerMode}
         isLoading={ctx.isLoadingPosts}
         onPressScrollToBottom={ctx.scrollToBottom}
       />

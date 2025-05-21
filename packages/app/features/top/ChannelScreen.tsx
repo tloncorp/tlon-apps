@@ -6,7 +6,6 @@ import {
   useChannelContext,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import {
   useCanUpload,
@@ -21,15 +20,12 @@ import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';
-import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
 import {
   AttachmentProvider,
   Channel,
-  ChannelSwitcherSheet,
   ChatOptionsProvider,
   INITIAL_POSTS_PER_PAGE,
-  InviteUsersSheet,
   useCurrentUserId,
 } from '../../ui';
 
@@ -49,7 +45,6 @@ export default function ChannelScreen(props: Props) {
     setCurrentChannelId(channelId);
   }, [channelId]);
 
-  const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
   const {
     negotiationStatus,
     getDraft,
@@ -60,11 +55,9 @@ export default function ChannelScreen(props: Props) {
     editPost,
     channel,
     group,
-    headerMode,
   } = useChannelContext({
     channelId: currentChannelId,
     draftKey: currentChannelId,
-    isChannelSwitcherEnabled,
   });
 
   const groupId = channel?.groupId ?? group?.id;
@@ -119,11 +112,6 @@ export default function ChannelScreen(props: Props) {
       });
     }
   }, [channelIsPending, channelId]);
-
-  const [channelNavOpen, setChannelNavOpen] = React.useState(false);
-  const [inviteSheetGroup, setInviteSheetGroup] = React.useState<
-    string | null
-  >();
 
   // for the unread channel divider, we care about the unread state when you enter but don't want it to update over
   // time
@@ -312,10 +300,6 @@ export default function ChannelScreen(props: Props) {
     [channel]
   );
 
-  const handleChannelNavButtonPressed = useCallback(() => {
-    setChannelNavOpen(true);
-  }, []);
-
   const handleChatDetailsPressed = useCallback(() => {
     if (group) {
       props.navigation.navigate('ChatDetails', {
@@ -324,11 +308,6 @@ export default function ChannelScreen(props: Props) {
       });
     }
   }, [group, props.navigation]);
-
-  const handleChannelSelected = useCallback((channel: db.Channel) => {
-    setCurrentChannelId(channel.id);
-    setChannelNavOpen(false);
-  }, []);
 
   const handleGoToDm = useCallback(
     async (participants: string[]) => {
@@ -360,17 +339,7 @@ export default function ChannelScreen(props: Props) {
     [props.navigation]
   );
 
-  const handleInviteSheetOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      setInviteSheetGroup(null);
-    }
-  }, []);
-
   const channelRef = useRef<React.ElementRef<typeof Channel>>(null);
-  const handlePressInvite = useCallback((groupId: string) => {
-    setInviteSheetGroup(groupId);
-  }, []);
-
   const handleConfigureChannel = useCallback(() => {
     if (channelRef.current) {
       channelRef.current.openChannelConfigurationBar();
@@ -388,7 +357,6 @@ export default function ChannelScreen(props: Props) {
         id: currentChannelId,
       }}
       useGroup={store.useGroup}
-      onPressInvite={handlePressInvite}
       onPressConfigureChannel={handleConfigureChannel}
       {...chatOptionsNavProps}
     >
@@ -396,7 +364,6 @@ export default function ChannelScreen(props: Props) {
         <Channel
           key={currentChannelId}
           ref={channelRef}
-          headerMode={headerMode}
           channel={channel}
           initialChannelUnread={
             clearedCursor ? undefined : initialChannelUnread
@@ -411,7 +378,6 @@ export default function ChannelScreen(props: Props) {
           messageSender={sendPost}
           goToPost={navigateToPost}
           goToImageViewer={navigateToImage}
-          goToChannels={handleChannelNavButtonPressed}
           goToChatDetails={handleChatDetailsPressed}
           goToSearch={navigateToSearch}
           goToDm={handleGoToDm}
@@ -438,23 +404,6 @@ export default function ChannelScreen(props: Props) {
           onPressScrollToBottom={handleScrollToBottom}
         />
       </AttachmentProvider>
-      {group && isChannelSwitcherEnabled && (
-        <>
-          <ChannelSwitcherSheet
-            open={channelNavOpen}
-            onOpenChange={(open) => setChannelNavOpen(open)}
-            group={group}
-            channels={group?.channels || []}
-            onSelect={handleChannelSelected}
-          />
-          <InviteUsersSheet
-            open={inviteSheetGroup !== null}
-            onOpenChange={handleInviteSheetOpenChange}
-            onInviteComplete={() => setInviteSheetGroup(null)}
-            groupId={inviteSheetGroup ?? undefined}
-          />
-        </>
-      )}
     </ChatOptionsProvider>
   );
 }
