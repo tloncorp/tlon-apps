@@ -9,7 +9,11 @@ import {
   GroupSettingsStackParamList,
   RootStackParamList,
 } from '../../navigation/types';
-import { useRootNavigation } from '../../navigation/utils';
+import {
+  getChatId,
+  getChatType,
+  useRootNavigation,
+} from '../../navigation/utils';
 import {
   ChatOptionsProvider,
   Form,
@@ -28,11 +32,14 @@ type Props = RootStackProps | GroupSettingsProps;
 
 // Check if we're in group settings stack
 function isGroupSettingsProps(props: Props): props is GroupSettingsProps {
+  // eslint-disable-next-line no-restricted-syntax
   return 'fromChatDetails' in props.route.params;
 }
 
 export function ChatVolumeScreen(props: Props) {
-  const { chatType, chatId } = props.route.params;
+  const chatType = getChatType(props.route);
+  const chatId = getChatId(props.route);
+
   const chatSettings = useChatSettingsNavigation();
 
   return (
@@ -48,7 +55,8 @@ export function ChatVolumeScreen(props: Props) {
         chatId={chatId}
         fromChatDetails={
           isGroupSettingsProps(props)
-            ? props.route.params.fromChatDetails
+            ? // eslint-disable-next-line no-restricted-syntax
+              props.route.params.fromChatDetails
             : false
         }
       />

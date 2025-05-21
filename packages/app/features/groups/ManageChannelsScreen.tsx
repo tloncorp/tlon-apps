@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
+import { getFromChatDetails, getGroupId } from '../../navigation/utils';
 import { ManageChannelsScreenView } from '../../ui';
 
 type Props = NativeStackScreenProps<
@@ -11,7 +12,9 @@ type Props = NativeStackScreenProps<
 >;
 
 export function ManageChannelsScreen(props: Props) {
-  const { groupId, fromChatDetails } = props.route.params;
+  const groupId = getGroupId(props.route);
+  const fromChatDetails = getFromChatDetails(props.route);
+
   const { navigation } = props;
 
   const {

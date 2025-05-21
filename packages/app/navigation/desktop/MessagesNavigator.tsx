@@ -70,7 +70,7 @@ const DrawerContent = memo((props: DrawerContentComponentProps) => {
   
   const channelId = getChannelId(focusedRoute);
   
-  if (channelId) {
+  if (channelId && channelId !== '') {
     return <MessagesSidebar focusedChannelId={channelId} />;
   } else {
     return <MessagesSidebar />;
@@ -99,6 +99,8 @@ const ChannelStackNavigator = createNativeStackNavigator();
 function ChannelStack(
   props: NativeStackScreenProps<HomeDrawerParamList, 'Channel'>
 ) {
+  // eslint-disable-next-line no-restricted-syntax
+  const initialParams = props.route.params;
   const navKey = () => {
     const channelId = getChannelId(props.route);
     return channelId || 'none';
@@ -115,7 +117,7 @@ function ChannelStack(
         <ChannelStackNavigator.Screen
           name="ChannelRoot"
           component={ChannelScreen}
-          initialParams={props.route.params}
+          initialParams={initialParams}
         />
         <ChannelStackNavigator.Screen
           name="GroupSettings"
@@ -128,7 +130,7 @@ function ChannelStack(
         <ChannelStackNavigator.Screen
           name="Post"
           component={PostScreen}
-          initialParams={props.route.params}
+          initialParams={initialParams}
         />
         <ChannelStackNavigator.Screen
           name="ImageViewer"

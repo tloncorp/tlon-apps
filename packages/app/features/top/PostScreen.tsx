@@ -9,7 +9,12 @@ import { useGroupActions } from '../../hooks/useGroupActions';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
 import { useNavigation } from '../../navigation/utils';
-import { useRootNavigation } from '../../navigation/utils';
+import {
+  getAuthorId,
+  getChannelId,
+  getPostId,
+  useRootNavigation,
+} from '../../navigation/utils';
 import {
   AttachmentProvider,
   ChatOptionsProvider,
@@ -21,7 +26,9 @@ import { useStore } from '../../ui/contexts/storeContext';
 type Props = NativeStackScreenProps<RootStackParamList, 'Post'>;
 
 export default function PostScreen(props: Props) {
-  const { postId, channelId, authorId } = props.route.params;
+  const postId = getPostId(props.route);
+  const channelId = getChannelId(props.route);
+  const authorId = getAuthorId(props.route);
   const chatOptionsNavProps = useChatSettingsNavigation();
   const canUpload = store.useCanUpload();
   const { data: post, isLoading } = store.usePostWithThreadUnreads({

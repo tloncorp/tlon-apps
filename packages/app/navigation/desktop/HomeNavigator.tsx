@@ -23,7 +23,7 @@ import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
 import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
 import { HomeDrawerParamList } from '../types';
-import { getChannelId, getGroupId, getChatDetails } from '../utils';
+import { getChannelId, getChatDetails, getGroupId } from '../utils';
 import { HomeSidebar } from './HomeSidebar';
 
 const HomeDrawer = createDrawerNavigator();
@@ -68,7 +68,7 @@ export const HomeNavigator = () => {
 const DrawerContent = memo((props: DrawerContentComponentProps) => {
   const state = props.state as NavigationState<HomeDrawerParamList>;
   const focusedRoute = state.routes[props.state.index];
-  
+
   const channelId = getChannelId(focusedRoute);
   const groupId = getGroupId(focusedRoute);
   const chatDetails = getChatDetails(focusedRoute);
@@ -80,9 +80,9 @@ const DrawerContent = memo((props: DrawerContentComponentProps) => {
       return <GroupChannelsScreenContent groupId={chatDetails.chatId} />;
     }
   }
-  
-  if (groupId) {
-    if (channelId) {
+
+  if (groupId && groupId !== '') {
+    if (channelId && channelId !== '') {
       return (
         <GroupChannelsScreenContent
           groupId={groupId}
@@ -92,11 +92,11 @@ const DrawerContent = memo((props: DrawerContentComponentProps) => {
     }
     return <GroupChannelsScreenContent groupId={groupId} />;
   }
-  
-  if (channelId) {
+
+  if (channelId && channelId !== '') {
     return <HomeSidebar focusedChannelId={channelId} />;
   }
-  
+
   return <HomeSidebar />;
 }, isEqual);
 
@@ -122,6 +122,8 @@ const ChannelStackNavigator = createNativeStackNavigator();
 function ChannelStack(
   props: NativeStackScreenProps<HomeDrawerParamList, 'Channel'>
 ) {
+  // eslint-disable-next-line no-restricted-syntax
+  const initialParams = props.route.params;
   const navKey = () => {
     const channelId = getChannelId(props.route);
     return channelId || 'none';
@@ -138,7 +140,7 @@ function ChannelStack(
         <ChannelStackNavigator.Screen
           name="ChannelRoot"
           component={ChannelScreen}
-          initialParams={props.route.params}
+          initialParams={initialParams}
         />
         <ChannelStackNavigator.Screen
           name="GroupSettings"
@@ -151,7 +153,7 @@ function ChannelStack(
         <ChannelStackNavigator.Screen
           name="Post"
           component={PostScreen}
-          initialParams={props.route.params}
+          initialParams={initialParams}
         />
         <ChannelStackNavigator.Screen
           name="ImageViewer"

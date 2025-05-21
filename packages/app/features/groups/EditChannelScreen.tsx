@@ -4,18 +4,26 @@ import { useCallback } from 'react';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
+import {
+  getChannelId,
+  getFromChatDetails,
+  getGroupId,
+} from '../../navigation/utils';
 import { EditChannelScreenView } from '../../ui';
 
 type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'EditChannel'>;
 
 export function EditChannelScreen(props: Props) {
-  const { groupId, channelId, fromChatDetails } = props.route.params;
+  const groupId = getGroupId(props.route);
+  const channelId = getChannelId(props.route);
+  const fromChatDetails = getFromChatDetails(props.route);
+
   const { navigation } = props;
   const { updateChannel, deleteChannel } = useGroupContext({
     groupId,
   });
   const { data, isLoading } = store.useChannel({
-    id: channelId ?? '',
+    id: channelId,
   });
 
   const handleGoBack = useCallback(() => {

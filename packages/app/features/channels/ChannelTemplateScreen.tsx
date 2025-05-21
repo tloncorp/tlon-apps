@@ -5,11 +5,13 @@ import { useCallback } from 'react';
 
 import { RootStackParamList } from '../../navigation/types';
 import { ChannelFromTemplateView, GroupsProvider } from '../../ui';
+import { getChannelId } from '../../navigation/utils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChannelTemplate'>;
 
 export function ChannelTemplateScreen(props: Props) {
-  const { channelId } = props.route.params;
+  const channelId = getChannelId(props.route);
+
   const channelQuery = store.useChannel({ id: channelId });
   const { data: groups } = store.useGroups({});
 
