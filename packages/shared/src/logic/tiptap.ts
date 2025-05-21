@@ -329,12 +329,14 @@ export function JSONToInlines(
         return [];
       }
       return [
-        {
-          code: {
-            code: json.content[0].text ?? '',
-            lang: json.attrs?.language ?? 'plaintext',
-          },
-        },
+        codeWithLang
+          ? {
+              code: {
+                code: json.content[0].text ?? '',
+                lang: json.attrs?.language ?? 'plaintext',
+              },
+            }
+          : { code: json.content[0].text ?? '' },
       ];
     }
     case 'orderedList': {

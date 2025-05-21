@@ -122,6 +122,7 @@ export function isInline(c: Inline | Block): c is Inline {
 
   return (
     !isBlockLink(c) &&
+    !isCode(c) &&
     [
       'text',
       'mention',
@@ -269,6 +270,7 @@ export function isBlock(c: Inline | Block): c is Block {
 
   return (
     !isLink(c) &&
+    !isBlockCode(c) &&
     [
       'cite',
       'link',
@@ -315,7 +317,12 @@ export function isInlineCode(item: unknown): item is InlineCode {
 }
 
 export function isBlockCode(item: unknown): item is BlockCode {
-  return typeof item === 'object' && item !== null && 'code' in item;
+  return (
+    typeof item === 'object' &&
+    item !== null &&
+    'code' in item &&
+    typeof item.code === 'string'
+  );
 }
 
 export function isBreak(item: unknown): item is Break {
@@ -334,8 +341,13 @@ export function isHeader(block: Block): block is Header {
   return 'header' in block;
 }
 
-export function isCode(block: Block): block is Code {
-  return 'code' in block;
+export function isCode(item: unknown): item is Code {
+  return (
+    typeof item === 'object' &&
+    item !== null &&
+    'code' in item &&
+    typeof item.code === 'object'
+  );
 }
 
 export function isListing(block: Block): block is ListingBlock {
