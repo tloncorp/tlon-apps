@@ -255,6 +255,7 @@ export function buildChannel(
     | 'lastViewedAt'
     | 'members'
     | 'postCount'
+    | 'order'
     | 'remoteUpdatedAt'
     | 'syncedAt'
     | 'title'
@@ -282,6 +283,7 @@ export function buildChannel(
     lastViewedAt: null,
     members: [],
     postCount: null,
+    order: null,
     remoteUpdatedAt: null,
     syncedAt: null,
     title: '',
