@@ -483,8 +483,8 @@ export function screenNameFromChannelId(channelId: string) {
  * @param route Any navigation route object
  * @returns The channel ID if found, undefined otherwise
  */
-export function getChannelId(route: any): string | undefined {
-  return getParamValue<string>(route, 'channelId');
+export function getChannelId(route: any): string {
+  return getParamValue<string>(route, 'channelId') ?? '';
 }
 
 /**
@@ -494,8 +494,8 @@ export function getChannelId(route: any): string | undefined {
  * @param route Any navigation route object
  * @returns The group ID if found, undefined otherwise
  */
-export function getGroupId(route: any): string | undefined {
-  return getParamValue<string>(route, 'groupId');
+export function getGroupId(route: any): string {
+  return getParamValue<string>(route, 'groupId') ?? '';
 }
 
 /**
@@ -505,8 +505,8 @@ export function getGroupId(route: any): string | undefined {
  * @param route Any navigation route object
  * @returns The user ID if found, undefined otherwise
  */
-export function getUserId(route: any): string | undefined {
-  return getParamValue<string>(route, 'userId');
+export function getUserId(route: any): string {
+  return getParamValue<string>(route, 'userId') ?? '';
 }
 
 /**
@@ -527,13 +527,73 @@ export function getChatDetails(route: any): { chatId: string; chatType: 'group' 
 }
 
 /**
+ * Safely extracts the fromChatDetails flag from navigation route parameters
+ * 
+ * @param route Any navigation route object
+ * @returns True if fromChatDetails is set, false otherwise
+ */
+export function getFromChatDetails(route: any): boolean {
+  return getParamValue<boolean>(route, 'fromChatDetails') ?? false;
+}
+
+/**
+ * Safely extracts the fromBlankChannel flag from navigation route parameters
+ * 
+ * @param route Any navigation route object
+ * @returns True if fromBlankChannel is set, false otherwise
+ */
+export function getFromBlankChannel(route: any): boolean {
+  return getParamValue<boolean>(route, 'fromBlankChannel') ?? false;
+}
+
+/**
+ * Safely extracts a chat ID from navigation route parameters
+ * 
+ * @param route Any navigation route object
+ * @returns The chat ID if found, empty string otherwise
+ */
+export function getChatId(route: any): string {
+  return getParamValue<string>(route, 'chatId') ?? '';
+}
+
+/**
+ * Safely extracts a chat type from navigation route parameters
+ * 
+ * @param route Any navigation route object
+ * @returns The chat type if found, empty string otherwise
+ */
+export function getChatType(route: any): 'group' | 'channel' {
+  return getParamValue<'group' | 'channel'>(route, 'chatType') ?? 'channel';
+}
+
+/**
+ * Safely extracts a preview group ID from navigation route parameters
+ * 
+ * @param route Any navigation route object
+ * @returns The preview group ID if found, undefined otherwise
+ */
+export function getPreviewGroupId(route: any): string | undefined {
+  return getParamValue<string>(route, 'previewGroupId');
+}
+
+/**
+ * Safely extracts a URI from navigation route parameters
+ * 
+ * @param route Any navigation route object
+ * @returns The URI if found, empty string otherwise
+ */
+export function getUri(route: any): string {
+  return getParamValue<string>(route, 'uri') ?? '';
+}
+
+/**
  * Safely extracts a post ID from navigation route parameters
  * 
  * @param route Any navigation route object
  * @returns The post ID if found, undefined otherwise
  */
-export function getPostId(route: any): string | undefined {
-  return getParamValue<string>(route, 'postId');
+export function getPostId(route: any): string {
+  return getParamValue<string>(route, 'postId') ?? '';
 }
 
 /**
@@ -542,8 +602,8 @@ export function getPostId(route: any): string | undefined {
  * @param route Any navigation route object
  * @returns The selected post ID if found, undefined otherwise
  */
-export function getSelectedPostId(route: any): string | undefined {
-  return getParamValue<string>(route, 'selectedPostId');
+export function getSelectedPostId(route: any): string {
+  return getParamValue<string>(route, 'selectedPostId') ?? '';
 }
 
 /**
@@ -552,8 +612,8 @@ export function getSelectedPostId(route: any): string | undefined {
  * @param route Any navigation route object
  * @returns The author ID if found, undefined otherwise
  */
-export function getAuthorId(route: any): string | undefined {
-  return getParamValue<string>(route, 'authorId');
+export function getAuthorId(route: any): string {
+  return getParamValue<string>(route, 'authorId') ?? '';
 }
 
 /**
@@ -572,8 +632,8 @@ export function shouldStartDraft(route: any): boolean {
  * @param route Any navigation route object
  * @returns The route name if found, undefined otherwise
  */
-export function getRouteName(route: any): string | undefined {
-  return getParamValue<string>(route, 'name');
+export function getRouteName(route: any): string {
+  return getParamValue<string>(route, 'name') ?? '';
 }
 
 /**
