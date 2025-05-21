@@ -14,9 +14,11 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { Popover, isWeb } from 'tamagui';
+import { Text } from 'react-native';
+import { Popover, XStack, YStack, isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../contexts/appDataContext';
+import { ChannelProvider } from '../contexts/channel';
 import { useChatOptions } from '../contexts/chatOptions';
 import { useStore } from '../contexts/storeContext';
 import * as utils from '../utils';
@@ -26,6 +28,7 @@ import {
   ActionSheet,
   createActionGroups,
 } from './ActionSheet';
+import { PostView } from './Channel/PostView';
 import { ListItem } from './ListItem';
 
 type ChatOptionsSheetProps = {
@@ -540,19 +543,21 @@ const ChannelOptionsSheetLoader = memo(
             borderWidth={1}
             padding={1}
           >
-            {pane === 'notifications' ? (
-              <NotificationsSheetContent
-                chatTitle={chatTitle}
-                onPressBack={resetPane}
-              />
-            ) : (
-              <ChannelOptionsSheetContent
-                chatTitle={chatTitle}
-                channel={channel}
-                onPressNotifications={handlePressNotifications}
-                onOpenChange={onOpenChange}
-              />
-            )}
+            <ChannelProvider value={{ channel }}>
+              {pane === 'notifications' ? (
+                <NotificationsSheetContent
+                  chatTitle={chatTitle}
+                  onPressBack={resetPane}
+                />
+              ) : (
+                <ChannelOptionsSheetContent
+                  chatTitle={chatTitle}
+                  channel={channel}
+                  onPressNotifications={handlePressNotifications}
+                  onOpenChange={onOpenChange}
+                />
+              )}
+            </ChannelProvider>
           </Popover.Content>
         </Popover>
       );
@@ -560,20 +565,22 @@ const ChannelOptionsSheetLoader = memo(
 
     return (
       <ActionSheet open={open} onOpenChange={onOpenChange}>
-        {pane === 'notifications' ? (
-          <NotificationsSheetContent
-            chatTitle={chatTitle}
-            onPressBack={resetPane}
-          />
-        ) : (
-          <ChannelOptionsSheetContent
-            chatTitle={chatTitle}
-            channel={channel}
-            onPressNotifications={handlePressNotifications}
-            onOpenChange={onOpenChange}
-            onPressConfigureChannel={onPressConfigureChannel}
-          />
-        )}
+        <ChannelProvider value={{ channel }}>
+          {pane === 'notifications' ? (
+            <NotificationsSheetContent
+              chatTitle={chatTitle}
+              onPressBack={resetPane}
+            />
+          ) : (
+            <ChannelOptionsSheetContent
+              chatTitle={chatTitle}
+              channel={channel}
+              onPressNotifications={handlePressNotifications}
+              onOpenChange={onOpenChange}
+              onPressConfigureChannel={onPressConfigureChannel}
+            />
+          )}
+        </ChannelProvider>
       </ActionSheet>
     );
   }
@@ -750,40 +757,58 @@ export function ChannelOptionsSheetContent({
     }
   }, [channel, group, groupTitle, isSingleChannelGroup]);
 
+  const pinnedPost = useHeroPinnedPost(channel);
+
   return (
     <ChatOptionsSheetContent
       title={chatTitle ?? ''}
       subtitle={subtitle}
       actionGroups={actionGroups}
       icon={<ListItem.ChannelIcon model={channel} />}
+      headerContent={
+        pinnedPost == null ? undefined : (
+          <PostView post={pinnedPost} onPressDelete={() => {}} showAuthor />
+        )
+      }
     />
   );
 }
 
-export function ChatOptionsSheetContent({
+function useHeroPinnedPost(c?: db.Channel) {
+  const channel = useStore().useChannel({ id: c?.id }).data;
+  const id = channel?.order?.at(0) ?? null;
+  return store.usePostWithRelations(id == null ? null : { id }).data;
+}
+
+function ChatOptionsSheetContent({
   actionGroups,
   title,
   subtitle,
   icon,
+  headerContent,
 }: {
   actionGroups: ActionGroup[];
   title: string;
   subtitle: string;
   icon?: ReactElement;
+  headerContent?: ReactElement;
 }) {
   const isWindowNarrow = useIsWindowNarrow();
   return (
     <>
       {isWindowNarrow && (
-        <ActionSheet.Header>
-          {icon}
-          <ActionSheet.MainContent>
-            <ListItem.Title>{title}</ListItem.Title>
-            <ListItem.Subtitle $gtSm={{ maxWidth: '100%' }}>
-              {subtitle}
-            </ListItem.Subtitle>
-          </ActionSheet.MainContent>
-        </ActionSheet.Header>
+        <YStack>
+          <ActionSheet.Header>
+            {icon}
+            <ActionSheet.MainContent>
+              <ListItem.Title>{title}</ListItem.Title>
+              <ListItem.Subtitle $gtSm={{ maxWidth: '100%' }}>
+                {subtitle}
+              </ListItem.Subtitle>
+            </ActionSheet.MainContent>
+          </ActionSheet.Header>
+          {headerContent}
+        </YStack>
       )}
       <ActionSheet.ScrollableContent width={isWindowNarrow ? '100%' : 240}>
         <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
