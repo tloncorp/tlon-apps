@@ -1,5 +1,6 @@
 import type * as api from '../api';
 import * as ub from '../urbit';
+import { assertNever } from '../utils';
 import { trustedProviders } from './embed';
 import { VIDEO_REGEX, containsOnlyEmoji } from './utils';
 
@@ -442,45 +443,63 @@ function extractEmbedsFromInlines(inlines: ub.Inline[]): BlockData[] {
 }
 
 function convertBlock(block: ub.Block): BlockData {
-  if (ub.isImage(block)) {
-    if (VIDEO_REGEX.test(block.image.src)) {
+  const is = ub.Block.is;
+  const errorMessage = (text: string): BlockData => ({
+    type: 'paragraph',
+    content: [{ type: 'text', text }],
+  });
+
+  switch (true) {
+    case is(block, 'image'): {
+      if (VIDEO_REGEX.test(block.image.src)) {
+        return {
+          type: 'video',
+          ...block.image,
+        };
+      } else {
+        return {
+          type: 'image',
+          ...block.image,
+        };
+      }
+    }
+
+    case is(block, 'listing'): {
       return {
-        type: 'video',
-        ...block.image,
-      };
-    } else {
-      return {
-        type: 'image',
-        ...block.image,
+        type: 'list',
+        list: convertListing(block.listing),
       };
     }
-  } else if (ub.isListing(block)) {
-    return {
-      type: 'list',
-      list: convertListing(block.listing),
-    };
-  } else if (ub.isHeader(block)) {
-    return {
-      type: 'header',
-      level: block.header.tag,
-      children: convertInlineContent(block.header.content),
-    };
-  } else if (ub.isCode(block)) {
-    return {
-      type: 'code',
-      content: block.code.code,
-      lang: block.code.lang,
-    };
-  } else if ('rule' in block) {
-    return {
-      type: 'rule',
-    };
-  } else {
-    console.warn('Unhandled block type:', { block });
-    return {
-      type: 'paragraph',
-      content: [{ type: 'text', text: 'Unknown content type' }],
-    };
+    case is(block, 'header'): {
+      return {
+        type: 'header',
+        level: block.header.tag,
+        children: convertInlineContent(block.header.content),
+      };
+    }
+    case is(block, 'code'): {
+      return {
+        type: 'code',
+        content: block.code.code,
+        lang: block.code.lang,
+      };
+    }
+    case is(block, 'rule'): {
+      return {
+        type: 'rule',
+      };
+    }
+    case is(block, 'cite'): {
+      return (
+        api.toContentReference(block.cite) ?? errorMessage('Failed to parse')
+      );
+    }
+    default: {
+      assertNever(block);
+
+      console.warn('Unhandled block type:', { block });
+      return errorMessage('Unknown content type');
+    }
   }
 }
 

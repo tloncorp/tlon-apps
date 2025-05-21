@@ -1,6 +1,7 @@
 import * as db from '@tloncorp/shared/db';
 import { Button, Text } from '@tloncorp/ui';
 import { useCallback } from 'react';
+import { Alert } from 'react-native';
 import { XStack, YStack, isWeb, styled } from 'tamagui';
 
 import { useContactPermissions } from '../../hooks/useContactPermissions';
@@ -49,7 +50,12 @@ export function ContactBookPrompt(props: {
     if (perms.canAskPermission) {
       const result = await perms.requestPermissions();
       if (result === 'granted') {
-        await store.syncSystemContacts();
+        await store.syncSystemContacts().then(() => {
+          Alert.alert('Success', 'Your contacts have been synced.');
+        });
+        await store.syncContactDiscovery().catch(() => {
+          didDismiss.setValue(true);
+        });
       }
       didDismiss.setValue(true);
     } else {

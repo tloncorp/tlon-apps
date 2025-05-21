@@ -4,6 +4,7 @@ import { isBrowser } from 'browser-or-node';
 
 import { TimeoutError } from '../api';
 import { desig } from '../urbit';
+import * as utils from '../utils';
 import { UrbitHttpApiEvent, UrbitHttpApiEventType } from './events';
 import { EventSourceMessage, fetchEventSource } from './fetch-event-source';
 import {
@@ -91,7 +92,7 @@ export class Urbit {
   /**
    * Our abort controller, used to close the connection
    */
-  private abort = new AbortController();
+  private channelAbort = new AbortController();
 
   /**
    * Identity of the ship we're connected to
@@ -132,7 +133,6 @@ export class Urbit {
       credentials: isBrowser ? 'include' : undefined,
       accept: '*',
       headers,
-      signal: this.abort.signal,
     };
   }
 
@@ -166,7 +166,6 @@ export class Urbit {
       credentials: 'include',
       accept: '*',
       headers,
-      signal: this.abort.signal,
     };
   }
 
@@ -347,6 +346,7 @@ export class Urbit {
       }
       fetchEventSource(this.channelUrl, {
         ...this.fetchOptions,
+        signal: this.channelAbort.signal,
         reactNative: { textStreaming: true },
         openWhenHidden: true,
         responseTimeout: 25000,
@@ -573,6 +573,7 @@ export class Urbit {
     const body = formatUw(jam(dejs.list(args)).number.toString());
     const response = await this.fetchFn(this.channelUrl, {
       ...options,
+      signal: this.channelAbort.signal,
       method: 'PUT',
       body,
     });
@@ -597,6 +598,7 @@ export class Urbit {
   private async sendJSONtoChannel(...json: (Message | Ack)[]): Promise<void> {
     const response = await this.fetchFn(this.channelUrl, {
       ...this.fetchOptions,
+      signal: this.channelAbort.signal,
       method: 'PUT',
       body: JSON.stringify(json),
     });
@@ -816,8 +818,8 @@ export class Urbit {
    * Deletes the connection to a channel.
    */
   async delete() {
-    this.abort.abort();
-    this.abort = new AbortController();
+    this.channelAbort.abort();
+    this.channelAbort = new AbortController();
     const body = JSON.stringify([
       {
         id: this.getEventId(),
@@ -829,6 +831,7 @@ export class Urbit {
     } else {
       const response = await this.fetchFn(this.channelUrl, {
         ...this.fetchOptions,
+        signal: this.channelAbort.signal,
         method: 'POST',
         body: body,
       });
@@ -855,11 +858,16 @@ export class Urbit {
    * @returns The scry result
    */
   async scry<T = any>(params: Scry): Promise<T> {
-    const { app, path } = params;
+    const { app, path, timeout } = params;
+    const signal = timeout ? utils.createTimeoutSignal(timeout) : undefined;
     const response = await this.fetchFn(
       `${this.url}/~/scry/${app}${path}.json`,
-      this.fetchOptions
+      {
+        ...this.fetchOptions,
+        signal,
+      }
     );
+    signal?.cleanup();
 
     if (!response.ok) {
       return Promise.reject(response);
@@ -874,7 +882,9 @@ export class Urbit {
     try {
       const response = await this.fetchFn(
         `${this.url}/~/scry/${app}${path}.noun`,
-        this.fetchOptionsNoun('GET', 'noun')
+        {
+          ...this.fetchOptionsNoun('GET', 'noun'),
+        }
       );
 
       if (!response.ok) {
@@ -917,34 +927,26 @@ export class Urbit {
       outputMark,
       threadName,
       body,
+      timeout,
       desk = this.desk,
-      timeout = 20000,
     } = params;
     if (!desk) {
       throw new Error('Must supply desk to run thread from');
     }
 
-    let done = false;
-    return new Promise((resolve, reject) => {
-      this.fetchFn(
-        `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
-        {
-          ...this.fetchOptions,
-          signal: undefined,
-          method: 'POST',
-          body: JSON.stringify(body),
-        }
-      )
-        .then((response) => resolve(response))
-        .catch((e) => reject(e));
+    const signal = timeout ? utils.createTimeoutSignal(timeout) : undefined;
 
-      setTimeout(() => {
-        if (!done) {
-          done = true;
-          reject(new Error('timeout'));
-        }
-      }, timeout);
-    });
+    const result = await this.fetchFn(
+      `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
+      {
+        ...this.fetchOptions,
+        signal,
+        method: 'POST',
+        body: JSON.stringify(body),
+      }
+    );
+    signal?.cleanup();
+    return result;
   }
 
   /**

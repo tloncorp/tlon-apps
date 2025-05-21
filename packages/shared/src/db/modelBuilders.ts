@@ -281,6 +281,7 @@ export function buildChannel(
     iconImage: null,
     iconImageColor: null,
     isDmInvite: false,
+    isNewMatchedContact: null,
     isPendingChannel: null,
     lastPostAt: null,
     lastPostId: null,
@@ -387,4 +388,35 @@ export function postFromDmPostActivityEvent(
 
 function getReceivedAtFromId(postId: string) {
   return api.udToDate(postId.split('/').pop() ?? postId);
+}
+
+export function createDmChannelsForNewContacts(
+  newContactMatches: [string, string][]
+): db.Channel[] {
+  const newContacts = newContactMatches.map(([phoneNumber, contactId]) => ({
+    id: contactId,
+    phoneNumber,
+  }));
+
+  return newContacts.map((contact) => ({
+    id: contact.id,
+    contactId: contact.id,
+    type: 'dm' as const,
+    currentUserIsMember: null,
+    currentUserIsHost: null,
+    isDmInvite: false,
+    isPending: false,
+    isNewMatchedContact: true,
+    title: '',
+    isNew: true,
+    members: [
+      {
+        chatId: contact.id,
+        contactId: contact.id,
+        contact: contact,
+        membershipType: 'channel' as const,
+      },
+    ],
+    timestamp: Date.now(),
+  }));
 }

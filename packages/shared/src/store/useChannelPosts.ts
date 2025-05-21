@@ -75,6 +75,16 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
       count: firstPageCount,
     } as UseChannelPostsPageParams,
     refetchOnMount: false,
+    retry(failureCount, error) {
+      postsLogger.trackError('failed to load posts', {
+        errorMessage: error.message,
+        errorStack: error.stack,
+      });
+      if (failureCount > 3) {
+        return false;
+      }
+      return true;
+    },
     queryFn: async (ctx): Promise<PostQueryPage> => {
       const queryOptions = ctx.pageParam || options;
       postsLogger.log('loading posts', { queryOptions, options });

@@ -395,10 +395,7 @@ function LargePreview({
 >) {
   return (
     <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
-      <LargeContentRenderer
-        content={content.slice(0, 1)}
-        onPressImage={onPressImage}
-      />
+      <LargeContentRenderer content={content} onPressImage={onPressImage} />
     </PreviewFrame>
   );
 }
@@ -411,14 +408,13 @@ function SmallPreview({
   'content'
 >) {
   const link = useBlockLink(content);
-
   return link ? (
     <PreviewFrame {...props} previewType="link">
       <LinkPreview link={link} />
     </PreviewFrame>
   ) : (
     <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
-      <SmallContentRenderer height={'100%'} content={content.slice(0, 1)} />
+      <SmallContentRenderer height={'100%'} content={content} />
     </PreviewFrame>
   );
 }
@@ -625,6 +621,15 @@ function usePreviewContent(content: BlockData[]): BlockData[] {
     } else if (groupedBlocks.video?.length) {
       return [groupedBlocks.video[0]];
     }
-    return content;
+    return firstBlockIsPreviewable(content) ? content.slice(0, 1) : content;
   }, [content]);
+}
+
+function firstBlockIsPreviewable(content: BlockData[]): boolean {
+  return (
+    content.length > 0 &&
+    (content[0].type === 'image' ||
+      content[0].type === 'video' ||
+      content[0].type === 'reference')
+  );
 }
