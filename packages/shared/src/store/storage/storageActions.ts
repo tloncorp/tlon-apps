@@ -19,8 +19,10 @@ import {
 
 const logger = createDevLogger('storageActions', false);
 
+export const PLACEHOLDER_ASSET_URI = 'placeholder-asset-id';
+
 export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
-  if (asset.uri === 'placeholder-image-uri') {
+  if (asset.uri === PLACEHOLDER_ASSET_URI) {
     logger.log('placeholder image, skipping upload');
     return;
   }

@@ -1,8 +1,8 @@
-import { createDevLogger } from '@tloncorp/shared';
+import { PLACEHOLDER_ASSET_URI, createDevLogger } from '@tloncorp/shared';
 import { Image as BaseImage, ImageErrorEventData } from 'expo-image';
 import { ReactElement, useCallback, useMemo, useState } from 'react';
 import { SizableText, View, styled } from 'tamagui';
-import isURL from 'validator/es/lib/isURL';
+import { isDataURI, isURL } from 'validator';
 
 import { ErrorBoundary } from './ErrorBoundary';
 import { Icon } from './Icon';
@@ -44,6 +44,9 @@ export const Image = StyledBaseImage.styleable<{
     );
 
     const showFallback = useMemo(() => {
+      if (isPlaceholderAsset(props.source)) {
+        return false;
+      }
       const isValid = isValidImageSource(props.source);
       return !isValid || hasErrored;
     }, [props.source, hasErrored]);
@@ -82,7 +85,12 @@ function isValidImageSource(source: any) {
       return true;
     }
 
-    return isURL(uri, { protocols: ['http', 'https', 'data', 'file'] });
+    if (typeof uri === 'string' && uri.startsWith('file://')) {
+      // permit file URIs
+      return true;
+    }
+
+    return isURL(uri) || isDataURI(uri);
   } catch (e) {
     logger.trackError('Failed to validate image source', {
       source,
@@ -91,4 +99,8 @@ function isValidImageSource(source: any) {
     });
   }
   return false;
+}
+
+function isPlaceholderAsset(source: any) {
+  return typeof source === 'object' && source.uri === PLACEHOLDER_ASSET_URI;
 }
