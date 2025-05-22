@@ -20,6 +20,7 @@ import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
 import { DESKTOP_SIDEBAR_WIDTH, SettingsScreenView } from '../../ui';
+import { getRouteName } from '../utils';
 
 const SettingsDrawer = createDrawerNavigator();
 
@@ -31,7 +32,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
   const { dmLink } = useDMLureLink();
   const hasHostedAuth = useHasHostedAuth();
   const focusedRoute = props.state.routes[props.state.index];
-
+  const routeName = getRouteName(focusedRoute);
   const onAppInfoPressed = useCallback(() => {
     navigate('AppInfo');
   }, [navigate]);
@@ -78,7 +79,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
       onThemePressed={onThemePressed}
       onPrivacyPressed={onPrivacyPressed}
       dmLink={dmLink}
-      focusedRouteName={focusedRoute.name}
+      focusedRouteName={routeName}
     />
   );
 }

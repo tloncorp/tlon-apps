@@ -12,6 +12,11 @@ import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
 import {
+  getFromBlankChannel,
+  getFromChatDetails,
+  getGroupId,
+} from '../../navigation/utils';
+import {
   AttachmentProvider,
   DeleteSheet,
   MetaEditorScreenView,
@@ -27,7 +32,10 @@ type Props = NativeStackScreenProps<
 };
 
 export function GroupMetaScreen(props: Props) {
-  const { groupId, fromBlankChannel, fromChatDetails } = props.route.params;
+  const groupId = getGroupId(props.route);
+  const fromBlankChannel = getFromBlankChannel(props.route);
+  const fromChatDetails = getFromChatDetails(props.route);
+
   const { navigation } = props;
   const { group, setGroupMetadata, deleteGroup } = useGroupContext({
     groupId,

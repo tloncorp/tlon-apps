@@ -6,6 +6,7 @@ import { useCallback } from 'react';
 import { useHandleGoBack } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
+import { getFromChatDetails, getGroupId } from '../../navigation/utils';
 import { Form, ScreenHeader, View, triggerHaptic } from '../../ui';
 
 type GroupPrivacy = schema.GroupPrivacy;
@@ -31,7 +32,9 @@ const privacyOptions = [
 ];
 
 export function GroupPrivacyScreen(props: Props) {
-  const { groupId, fromChatDetails } = props.route.params;
+  const groupId = getGroupId(props.route);
+  const fromChatDetails = getFromChatDetails(props.route);
+
   const { navigation } = props;
   const { group } = useGroupContext({ groupId });
   const handlePrivacyChange = useCallback(

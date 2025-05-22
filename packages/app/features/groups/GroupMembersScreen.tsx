@@ -5,7 +5,11 @@ import { useHandleGoBack } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
-import { useRootNavigation } from '../../navigation/utils';
+import {
+  getFromChatDetails,
+  getGroupId,
+  useRootNavigation,
+} from '../../navigation/utils';
 import { GroupMembersScreenView } from '../../ui';
 
 type Props = NativeStackScreenProps<
@@ -14,7 +18,9 @@ type Props = NativeStackScreenProps<
 >;
 
 export function GroupMembersScreen(props: Props) {
-  const { groupId, fromChatDetails } = props.route.params;
+  const groupId = getGroupId(props.route);
+  const fromChatDetails = getFromChatDetails(props.route);
+
   const { navigation } = props;
   const {
     groupMembers,

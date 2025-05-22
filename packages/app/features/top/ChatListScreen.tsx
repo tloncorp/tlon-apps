@@ -19,7 +19,7 @@ import { useFilteredChats } from '../../hooks/useFilteredChats';
 import { TabName } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import type { RootStackParamList } from '../../navigation/types';
-import { useRootNavigation } from '../../navigation/utils';
+import { getPreviewGroupId, useRootNavigation } from '../../navigation/utils';
 import {
   ChatOptionsProvider,
   GroupPreviewAction,
@@ -46,7 +46,7 @@ const logger = createDevLogger('ChatListScreen', false);
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatList'>;
 
 export default function ChatListScreen(props: Props) {
-  const previewGroupId = props.route.params?.previewGroupId;
+  const previewGroupId = getPreviewGroupId(props.route);
   return <ChatListScreenView previewGroupId={previewGroupId} />;
 }
 

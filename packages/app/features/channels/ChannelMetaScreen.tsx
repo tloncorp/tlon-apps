@@ -6,12 +6,14 @@ import { useCallback } from 'react';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { RootStackParamList } from '../../navigation/types';
+import { getChannelId } from '../../navigation/utils';
 import { AttachmentProvider, MetaEditorScreenView } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChannelMeta'>;
 
 export function ChannelMetaScreen(props: Props) {
-  const { channelId } = props.route.params;
+  const channelId = getChannelId(props.route);
+
   const channelQuery = store.useChannel({ id: channelId });
   const canUpload = useCanUpload();
   const currentUserId = useCurrentUserId();

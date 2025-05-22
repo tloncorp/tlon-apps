@@ -9,7 +9,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { RootStackParamList, RootStackRouteProp } from '../../navigation/types';
-import { useRootNavigation } from '../../navigation/utils';
+import {
+  getChatId,
+  getChatType,
+  useRootNavigation,
+} from '../../navigation/utils';
 import {
   ActionSheet,
   ChatOptionsProvider,
@@ -42,7 +46,8 @@ import {
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatDetails'>;
 
 export function ChatDetailsScreen(props: Props) {
-  const { chatType, chatId } = props.route.params;
+  const chatType = getChatType(props.route);
+  const chatId = getChatId(props.route);
 
   const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
   const handleInvitePressed = useCallback((group: string) => {

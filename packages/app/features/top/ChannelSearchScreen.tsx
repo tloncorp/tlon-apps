@@ -5,7 +5,11 @@ import { useCallback, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { RootStackParamList } from '../../navigation/types';
-import { useRootNavigation } from '../../navigation/utils';
+import {
+  getChannelId,
+  getGroupId,
+  useRootNavigation,
+} from '../../navigation/utils';
 import {
   SearchBar,
   SearchResults,
@@ -18,8 +22,8 @@ import {
 type Props = NativeStackScreenProps<RootStackParamList, 'ChannelSearch'>;
 
 export default function ChannelSearchScreen(props: Props) {
-  const channelId = props.route.params.channelId;
-  const groupId = props.route.params.groupId;
+  const channelId = getChannelId(props.route);
+  const groupId = getGroupId(props.route);
   const channelQuery = useChannel({
     id: channelId,
   });
