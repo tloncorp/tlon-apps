@@ -61,7 +61,7 @@
     ::
       :-  'result'
       ?-  -.wat
-        %300  ?>(?=(~ nex.wat) ~)
+        %300  ?~(nex.wat ~ s+u.nex.wat)
         %400  ?~(bod.wat ~ s+u.bod.wat)
         %500  ?~(bod.wat ~ s+u.bod.wat)
       ::
