@@ -383,6 +383,9 @@
     ::
     =/  nex=(unit @t)
       (get-header:http 'location' headers.response-header.res)
+    ::  the location value could be relative, make sure to resolve it first
+    ::
+    =?  nex    ?=(^ nex)  `(expand-url:mg url u.nex)
     =.  cache  (~(put by cache) url now.bowl %300 nex)
     ?~  nex
       :-  (give-response (~(get ju await) url) now.bowl %300 ~)
