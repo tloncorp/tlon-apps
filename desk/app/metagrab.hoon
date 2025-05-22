@@ -133,7 +133,19 @@
     ::TODO  extract message from response body somehow?
     ?:  (gte cod 500)
       [%500 ?~(dat `(scot %ud cod) `q.data.u.dat)]
-    [%400 `(scot %ud cod)]
+    ::  experimental bot-protection detection, which the client may
+    ::  want to know about so it can retry in a more advanced way.
+    ::
+    :-  %400
+    ?:  ?|  ::  datadome header
+            ::
+            =(`'protected' (get-header:http 'x-datadome' headers))
+            ::  captcha service in response body
+            ::
+            &(?=(^ dat) ?=(^ (find "captcha-delivery.com" (trip q.data.u.dat))))
+        ==
+      `'possibly-blocked'
+    `(scot %ud cod)
   ::  miscellaneous
   ::
   ?:  |((lth cod 200) (gte cod 600))
