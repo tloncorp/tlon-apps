@@ -12,15 +12,7 @@ import React, {
   useState,
 } from 'react';
 import { Linking, Platform } from 'react-native';
-import {
-  ScrollView,
-  TamaguiComponent,
-  View,
-  ViewStyle,
-  XStack,
-  YStack,
-  styled,
-} from 'tamagui';
+import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 
 import {
   ContentReferenceLoader,
