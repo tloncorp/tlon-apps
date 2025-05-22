@@ -88,6 +88,16 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
 
   const form = watch();
   const url = useDebouncedValue(form.url, 500);
+  // We need to track debounce dirty state to appropriately disable the send button. useLinkGrabber's
+  // loading state will not be set until the debounce fires.
+  const [isPendingDebounce, setIsPendingDebounce] = useState(false);
+  useEffect(() => {
+    if (form.url !== url) {
+      setIsPendingDebounce(true);
+    } else {
+      setIsPendingDebounce(false);
+    }
+  }, [form.url, url]);
   const { data, isLoading } = store.useLinkGrabber(url);
   const hasIssue = data && (data.type === 'error' || data.type === 'redirect');
   const isEmbed = useMemo(() => {
@@ -168,7 +178,7 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
       type: 'link',
       url,
     };
-  }, [url, data, hasIssue]);
+  }, [data, hasIssue, isEmbed, url]);
 
   const handlePressDone = useCallback(() => {
     if (isDirty && isValid) {
@@ -236,7 +246,7 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
         });
       })();
     }
-  }, [data, hasIssue, isDirty, isValid, handleSubmit, onSave]);
+  }, [isDirty, isValid, handleSubmit, block, onSave]);
 
   useRegisterChannelHeaderItem(
     useMemo(
@@ -244,13 +254,20 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
         <ScreenHeader.TextButton
           key="gallery-preview-post"
           onPress={handlePressDone}
-          disabled={!isValid || isLoading || isPosting}
+          disabled={!isValid || isPendingDebounce || isLoading || isPosting}
           testID="GalleryPostButton"
         >
           {isPosting ? 'Posting...' : editingPost ? 'Save' : 'Post'}
         </ScreenHeader.TextButton>
       ),
-      [handlePressDone, isPosting, editingPost, isValid]
+      [
+        handlePressDone,
+        isValid,
+        isPendingDebounce,
+        isLoading,
+        isPosting,
+        editingPost,
+      ]
     )
   );
 
