@@ -12,15 +12,7 @@ import React, {
   useState,
 } from 'react';
 import { Linking, Platform } from 'react-native';
-import {
-  ScrollView,
-  TamaguiComponent,
-  View,
-  ViewStyle,
-  XStack,
-  YStack,
-  styled,
-} from 'tamagui';
+import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 
 import {
   ContentReferenceLoader,
@@ -223,11 +215,17 @@ const BigEmojiText = styled(Text, {
 export function LinkBlock({
   block,
   imageProps,
+  renderDescription = true,
+  renderTitle = true,
+  renderImage = true,
   clickable = true,
   ...props
 }: {
   block: cn.LinkBlockData;
   clickable?: boolean;
+  renderDescription?: boolean;
+  renderTitle?: boolean;
+  renderImage?: boolean;
   imageProps?: ComponentProps<typeof ContentImage>;
 } & ComponentProps<typeof Reference.Frame>) {
   const domain = useMemo(() => {
@@ -243,22 +241,6 @@ export function LinkBlock({
     }
   }, [block.url]);
 
-  const aspectRatio = useMemo(() => {
-    if (!block.previewImageHeight || !block.previewImageWidth) {
-      return 1.5;
-    }
-
-    try {
-      return (
-        parseInt(block.previewImageWidth) / parseInt(block.previewImageHeight)
-      );
-    } catch (e) {
-      console.error('Error parsing aspect ratio', e);
-    }
-
-    return 1.5;
-  }, [block.previewImageHeight, block.previewImageWidth]);
-
   return (
     <Reference.Frame {...props} onPress={clickable ? onPress : undefined}>
       <Reference.Header>
@@ -268,28 +250,39 @@ export function LinkBlock({
         </Reference.Title>
       </Reference.Header>
       <Reference.Body>
-        {block.previewImageUrl && (
+        {renderImage && block.previewImageUrl && (
           <ContentImage
+            fallback={null}
             source={block.previewImageUrl}
             flex={1}
-            aspectRatio={aspectRatio}
+            aspectRatio={2}
+            flexShrink={0}
             width="100%"
             contentFit="cover"
+            contentPosition="center"
             {...imageProps}
           />
         )}
         <YStack flex={0} padding="$xl" gap="$xl">
           <YStack gap="$s">
             <Text fontWeight="500" color="$secondaryText">
-              {block.siteName}
+              {block.siteName && block.siteName.length > 0
+                ? block.siteName
+                : domain}
             </Text>
-            <Text size="$label/m" numberOfLines={1}>
-              {block.title}
-            </Text>
+            {renderTitle && (
+              <Text size="$label/m" numberOfLines={1}>
+                {block.title && block.title.length > 0
+                  ? block.title
+                  : block.url}
+              </Text>
+            )}
           </YStack>
-          <Text size="$label/s" color="$secondaryText">
-            {block.description}
-          </Text>
+          {block.description && renderDescription && (
+            <Text size="$label/s" color="$secondaryText">
+              {block.description}
+            </Text>
+          )}
         </YStack>
       </Reference.Body>
     </Reference.Frame>
@@ -368,7 +361,7 @@ export function ImageBlock({
   );
 }
 
-const ContentImage: TamaguiComponent = styled(Image, {
+const ContentImage = styled(Image, {
   name: 'ContentImage',
   context: cn.ContentContext,
   width: '100%',

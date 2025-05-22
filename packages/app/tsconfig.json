@@ -8,7 +8,8 @@
     "paths": {
       "sqlocal/drizzle": ["node_modules/sqlocal/dist/drizzle"],
       // needed to prevent TS mistakenly finding the old-web posthog-js version in root node_modules
-      "posthog-js": ["node_modules/posthog-js"]
+      "posthog-js": ["node_modules/posthog-js"],
+      "expo-image": ["node_modules/expo-image"]
     }
   }
 }
