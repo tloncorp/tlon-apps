@@ -39,6 +39,7 @@
   ==
 ::
 ++  cache-time  ~m5
+++  user-agent  'chrome/123.0.0.0'  ::  fallback user-agent string
 ::
 ++  give-response
   |=  [ids=(set @ta) response]
@@ -103,10 +104,10 @@
   ==
 ::
 ++  fetch
-  |=  url=@t
+  |=  [url=@t uas=@t]
   ^-  card
   =/  =header-list:http
-    :~  ['user-agent' 'chrome/123.0.0.0']
+    :~  ['user-agent' uas]
         ['accept' '*/*']
     ==
   =/  =request:http
@@ -277,7 +278,7 @@
       %noun
     =+  url=!<(@t vase)
     ?>  ?=(^ (de-purl:html url))
-    [[(fetch url) ~] this]
+    [[(fetch url user-agent) ~] this]
   ::
       %handle-http-request
     =+  !<(order:hutils vase)
@@ -320,7 +321,14 @@
         ::  no valid cache entry for this target, start a new fetch
         ::
         =.  await  (~(put ju await) u.target id)
-        [[(fetch u.target) ~] this]
+        =/  uas=@t
+          ::  pass on the user-agent string from the original request,
+          ::  in an attempt to evade some over-aggresive bot protections
+          ::
+          %+  fall
+            (get-header:http 'user-agent' header-list.request)
+          user-agent
+        [[(fetch u.target uas) ~] this]
       ::  we have a valid cache entry.
       ::  if it's a redirect where we know the next target,
       ::  and can make a request to that,
@@ -349,9 +357,12 @@
     %-  (slog dap.bowl 'failed to eyre-bind' ~)
     [~ this]
   ::
-      [%fetch @ ~]
+      [%fetch @ ?([@ ~] ~)]
     =/  url=@t  (slav %t i.t.wire)
     =.  url.log  `url
+    =/  uas=@t
+      ?~  t.t.wire  user-agent
+      (fall (slaw %t i.t.t.wire) user-agent)
     ?>  ?=([%iris %http-response *] sign)
     =*  res  client-response.sign
     ::  %progress responses are unexpected, the runtime doesn't support them
@@ -366,7 +377,7 @@
     ::  request. simply retry.
     ::
     ?:  ?=(%cancel -.res)
-      [[(fetch url) ~] this]
+      [[(fetch url uas) ~] this]
     ::
     ?>  ?=(%finished -.res)
     =*  cod  status-code.response-header.res
@@ -409,7 +420,7 @@
         ==
       ::  no valid cache entry, start a new fetch
       ::
-      [[(fetch u.nex)]~ this]
+      [[(fetch u.nex uas)]~ this]
     ::TODO  detect redirect loops
     ::  we have a valid cache entry.
     ::  if it's a redirect where we know the next target,
