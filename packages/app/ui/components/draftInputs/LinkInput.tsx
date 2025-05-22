@@ -166,8 +166,15 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
         };
 
         if (!block) {
-          console.warn('LinkInput: No block to save');
-          return;
+          return onSave({
+            content: {
+              link: {
+                url: formData.url,
+                meta: {},
+              },
+            },
+            meta: defaultMeta,
+          });
         }
 
         if (block.type === 'embed') {
@@ -246,7 +253,7 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
         >
           <FormFrame paddingBottom={insets.bottom + 20}>
             {block && <PostRenderer content={[block]} />}
-            {hasIssue && !isTrustedEmbed && (
+            {hasIssue && !isEmbed && (
               <View
                 padding="$l"
                 backgroundColor="$secondaryBackground"
