@@ -102,9 +102,8 @@ appId: io.tlon.groups
 - tapOn: 'Role title'
 - runFlow:
     file: 'input-text.yaml'
-    when:
-      visible: 'Testing role'
-- tapOn: 'Role description'
+    env:
+      INPUT_TEXT: 'Testing role'
 - tapOn: 'Role description'
 - inputText: 'Description for test role'
 - tapOn: 'Save'
