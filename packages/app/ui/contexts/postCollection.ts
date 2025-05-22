@@ -12,7 +12,6 @@ export interface PostCollectionContextValue {
   goToPost: (post: db.Post) => void;
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
-  headerMode: 'default' | 'next';
   initialChannelUnread?: db.ChannelUnread | null;
   isLoadingPosts: boolean;
   onPressDelete: (post: db.Post) => void;

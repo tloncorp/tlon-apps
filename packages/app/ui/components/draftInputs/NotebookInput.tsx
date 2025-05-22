@@ -1,7 +1,5 @@
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { FloatingActionButton } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
 import { ParentAgnosticKeyboardAvoidingView } from '@tloncorp/ui';
 import {
   useCallback,
@@ -10,11 +8,7 @@ import {
   useMemo,
   useState,
 } from 'react';
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
-import { View } from 'tamagui';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import { ScreenHeader } from '../ScreenHeader';
@@ -27,9 +21,8 @@ export function NotebookInput({
 }: {
   draftInputContext: DraftInputContext;
 }) {
-  const { draftInputRef, editingPost, onPresentationModeChange, headerMode } =
+  const { draftInputRef, editingPost, onPresentationModeChange } =
     draftInputContext;
-  const safeAreaInsets = useSafeAreaInsets();
   const [showBigInput, setShowBigInput] = useState(false);
 
   // Notify host when presenting/dismissing big input
@@ -99,21 +92,6 @@ export function NotebookInput({
           hidden={!showBigInput}
           overrideChannelType="notebook"
         />
-
-        {headerMode === 'next' && !showBigInput && (
-          <View
-            position="absolute"
-            bottom={safeAreaInsets.bottom}
-            flex={1}
-            width="100%"
-            alignItems="center"
-          >
-            <FloatingActionButton
-              onPress={() => setShowBigInput(true)}
-              icon={<Icon type="Add" size={'$m'} />}
-            />
-          </View>
-        )}
       </ParentAgnosticKeyboardAvoidingView>
     </SafeAreaView>
   );

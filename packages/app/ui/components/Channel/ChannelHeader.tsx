@@ -15,7 +15,6 @@ import { useChatOptions } from '../../contexts';
 import { useChatTitle } from '../../utils';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import { ScreenHeader } from '../ScreenHeader';
-import { BaubleHeader } from './BaubleHeader';
 
 export interface ChannelHeaderItemsContextValue {
   registerItem: (options: { item: JSX.Element }) => { remove: () => void };
@@ -78,7 +77,6 @@ export function useRegisterChannelHeaderItem(item: JSX.Element | null) {
 
 export function ChannelHeader({
   title,
-  mode = 'default',
   channel,
   group,
   goBack,
@@ -91,13 +89,11 @@ export function ChannelHeader({
   showEditButton = false,
 }: {
   title: string;
-  mode?: 'default' | 'next';
   channel: db.Channel;
   group?: db.Group | null;
   goBack?: () => void;
   goToSearch?: () => void;
   goToEdit?: () => void;
-  goToChannels?: () => void; // remove once we're confident we don't wanna open that as a pattern
   goToChatDetails?: () => void;
   showSpinner?: boolean;
   showSearchButton?: boolean;
@@ -131,20 +127,6 @@ export function ChannelHeader({
 
     return statusText;
   }, [chatTitle, title, connectionStatus]);
-
-  if (mode === 'next') {
-    return (
-      <BaubleHeader
-        channel={channel}
-        group={group}
-        showSpinner={
-          showSpinner ||
-          connectionStatus === 'Connecting' ||
-          connectionStatus === 'Reconnecting'
-        }
-      />
-    );
-  }
 
   const titleWidth = () => {
     if (showSearchButton && showMenuButton) {
