@@ -1101,6 +1101,9 @@ importers:
       uuid:
         specifier: ^9.0.0
         version: 9.0.0
+      validator:
+        specifier: ^13.7.0
+        version: 13.7.0
       zustand:
         specifier: ^3.7.2
         version: 3.7.2(react@18.2.0)

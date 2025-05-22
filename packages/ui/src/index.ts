@@ -31,3 +31,4 @@ export * from './contexts/globalSearch';
 export { useCopy } from './hooks/useCopy';
 export { default as useIsWindowNarrow } from './hooks/useIsWindowNarrow';
 export * from './utils';
+export * from './components/ErrorBoundary';
