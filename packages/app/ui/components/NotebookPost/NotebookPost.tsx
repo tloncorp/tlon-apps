@@ -178,7 +178,10 @@ export function NotebookPost({
             <ChatMessageActions
               post={post}
               postActionIds={postActionIds}
-              onDismiss={() => setIsPopoverOpen(false)}
+              onDismiss={() => {
+                setIsPopoverOpen(false);
+                setIsHovered(false);
+              }}
               onOpenChange={setIsPopoverOpen}
               onEdit={onPressEdit}
               onReply={handlePress}
