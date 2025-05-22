@@ -1,8 +1,13 @@
+import { createDevLogger } from '@tloncorp/shared';
 import { Image as BaseImage, ImageErrorEventData } from 'expo-image';
-import { ReactElement, useCallback, useState } from 'react';
+import { ReactElement, useCallback, useMemo, useState } from 'react';
 import { SizableText, View, styled } from 'tamagui';
+import isURL from 'validator/es/lib/isURL';
 
+import { ErrorBoundary } from './ErrorBoundary';
 import { Icon } from './Icon';
+
+const logger = createDevLogger('Image', false);
 
 const DefaultImageFallback = View.styleable((props, ref) => {
   return (
@@ -38,15 +43,24 @@ export const Image = StyledBaseImage.styleable<{
       [onError]
     );
 
-    if (hasErrored && fallback) {
+    const showFallback = useMemo(() => {
+      const isValid = isValidImageSource(props.source);
+      return !isValid || hasErrored;
+    }, [props.source, hasErrored]);
+
+    if (showFallback && fallback) {
       return fallback;
     }
 
-    if (hasErrored) {
+    if (showFallback) {
       return <DefaultImageFallback />;
     }
 
-    return <StyledBaseImage ref={ref} {...props} onError={handleError} />;
+    return (
+      <ErrorBoundary fallback={fallback ?? <DefaultImageFallback />}>
+        <StyledBaseImage ref={ref} {...props} onError={handleError} />
+      </ErrorBoundary>
+    );
   },
   {
     staticConfig: {
@@ -54,3 +68,21 @@ export const Image = StyledBaseImage.styleable<{
     },
   }
 );
+
+function isValidImageSource(source: any) {
+  try {
+    if (!source) return false;
+    const uri: string = typeof source === 'object' ? source.uri : source;
+    if (!uri) {
+      return false;
+    }
+    return isURL(uri, { protocols: ['http', 'https', 'data', 'file'] });
+  } catch (e) {
+    logger.trackError('Failed to validate image source', {
+      source,
+      errorMessage: e.message,
+      errorStack: e.stack,
+    });
+  }
+  return false;
+}
