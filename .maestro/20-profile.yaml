@@ -40,7 +40,8 @@ appId: io.tlon.groups
     env:
       INPUT_TEXT: 'Testing status'
 - 'hideKeyboard'
-- tapOn: 'About yourself'
+- tapOn:
+    point: '51%,61%'
 - 'eraseText'
 - runFlow:
     file: 'input-text.yaml'
