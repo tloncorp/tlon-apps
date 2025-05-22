@@ -164,7 +164,7 @@ export async function logInHostedUser({
 
 export async function checkHostingNodeStatus(
   supressStatusLog?: boolean
-): Promise<domain.HostedNodeStatus> {
+): Promise<{ status: domain.HostedNodeStatus; isBeingRevived: boolean }> {
   const nodeId = await db.hostedUserNodeId.getValue();
   if (!nodeId) {
     logger.trackError(AnalyticsEvent.LoginAnomaly, {
@@ -174,7 +174,8 @@ export async function checkHostingNodeStatus(
   }
 
   try {
-    const nodeStatus = await api.getNodeStatus(nodeId);
+    const { status: nodeStatus, isBeingRevived } =
+      await api.getNodeStatus(nodeId);
     if (nodeStatus === domain.HostedNodeStatus.Running) {
       await db.hostedNodeIsRunning.setValue(true);
     }
@@ -200,14 +201,14 @@ export async function checkHostingNodeStatus(
       }
     }
 
-    return nodeStatus;
+    return { status: nodeStatus, isBeingRevived };
   } catch (e) {
     logger.trackError(AnalyticsEvent.LoginDebug, {
       context: 'Failed to get node status',
       errorMessage: e.message,
       errorStack: e.stack,
     });
-    return domain.HostedNodeStatus.Unknown;
+    return { status: domain.HostedNodeStatus.Unknown, isBeingRevived: false };
   }
 }
 
@@ -320,4 +321,18 @@ export async function redeemInviteIfNeeded(invite: logic.AppInvite) {
       shouldRedeem,
     });
   }
+}
+
+export async function clearShipRevivalStatus() {
+  const nodeId = await db.hostedUserNodeId.getValue();
+  if (!nodeId) {
+    logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
+      context: 'Tried to clear revival status without node ID',
+    });
+    throw new Error('Cannot clear revival status, no node ID found');
+  }
+
+  // note: the Hosting api only lets us blindly toggle the revival status,
+  // not explicitly clear it
+  await api.clearShipRevivalStatus(nodeId);
 }

@@ -4,7 +4,11 @@ import * as store from '@tloncorp/shared/store';
 import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
 import { useCallback, useState } from 'react';
 
-import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import {
+  useChatSettingsNavigation,
+  useHandleGoBack,
+} from '../../hooks/useChatSettingsNavigation';
+import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
 import {
@@ -23,39 +27,56 @@ type Props = NativeStackScreenProps<
 };
 
 export function GroupMetaScreen(props: Props) {
-  const { groupId, fromBlankChannel } = props.route.params;
+  const { groupId, fromBlankChannel, fromChatDetails } = props.route.params;
+  const { navigation } = props;
   const { group, setGroupMetadata, deleteGroup } = useGroupContext({
     groupId,
   });
   const { onPressChatDetails } = useChatSettingsNavigation();
   const canUpload = useCanUpload();
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
+  const currentUserId = useCurrentUserId();
+
+  const navigateToHome = useCallback(() => {
+    navigation.getParent()?.navigate('ChatList');
+  }, [navigation]);
+
+  const handleGoBack = useHandleGoBack(navigation, {
+    groupId,
+    fromChatDetails,
+  });
 
   const handleSubmit = useCallback(
     (data: db.ClientMeta) => {
       setGroupMetadata(data);
-      
-      // If coming from a blank channel, go back instead of navigating to chat details
+
       if (fromBlankChannel) {
-        props.navigation.goBack();
+        navigation.goBack();
+      } else if (fromChatDetails) {
+        navigation.getParent()?.navigate('ChatDetails', {
+          chatType: 'group',
+          chatId: groupId,
+        });
       } else {
-        // Default behavior - navigate to chat details
         onPressChatDetails({ type: 'group', id: groupId });
       }
-      
+
       store.createGroupInviteLink(groupId);
     },
-    [setGroupMetadata, groupId, onPressChatDetails, fromBlankChannel, props.navigation]
+    [
+      setGroupMetadata,
+      groupId,
+      onPressChatDetails,
+      fromBlankChannel,
+      fromChatDetails,
+      navigation,
+    ]
   );
-
-  const handlePressDelete = useCallback(() => {
-    setShowDeleteSheet(true);
-  }, []);
 
   const handleDeleteGroup = useCallback(() => {
     deleteGroup();
-    props.navigateToHome();
-  }, [deleteGroup, props]);
+    navigateToHome();
+  }, [deleteGroup, navigateToHome]);
 
   const title = useGroupTitle(group);
 
@@ -64,8 +85,9 @@ export function GroupMetaScreen(props: Props) {
       <MetaEditorScreenView
         chat={group}
         title={'Edit group info'}
-        goBack={props.navigation.goBack}
+        goBack={handleGoBack}
         onSubmit={handleSubmit}
+        currentUserId={currentUserId}
       >
         <YStack flex={1} justifyContent="flex-end">
           <DeleteSheet

@@ -1,6 +1,8 @@
+import { ThemeName } from 'tamagui';
+
 import { DisplayMode, SortMode } from './channel';
 
-export type Theme = 'light' | 'dark' | 'auto';
+export type AppTheme = ThemeName | 'auto';
 
 export type TalkSidebarFilter =
   | 'Direct Messages'
@@ -51,7 +53,7 @@ export type CalmEngineSettings = {
 };
 
 export type DisplaySettings = {
-  theme?: Theme;
+  theme?: AppTheme;
 };
 
 export type GroupsSettings = {
@@ -67,6 +69,8 @@ export type GroupsSettings = {
   groupsNavState?: string;
   messagesNavState?: string;
   activitySeenTimestamp?: number;
+  completedWayfindingSplash?: boolean;
+  completedWayfindingTutorial?: boolean;
 };
 
 export type TalkSettings = {

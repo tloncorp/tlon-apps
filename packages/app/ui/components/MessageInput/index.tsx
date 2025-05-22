@@ -154,7 +154,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
   ) => {
     const branchDomain = useBranchDomain();
     const branchKey = useBranchKey();
-    const [isSending, setIsSending] = useState(false);
     const [sendError, setSendError] = useState(false);
     const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
     useEffect(() => {
@@ -165,6 +164,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const [hasAutoFocused, setHasAutoFocused] = useState(false);
     const [editorCrashed, setEditorCrashed] = useState<string | undefined>();
     const [containerHeight, setContainerHeight] = useState(initialHeight);
+    const [isSending, setIsSending] = useState(false);
     const { bottom, top } = useSafeAreaInsets();
     const { height } = useWindowDimensions();
     const headerHeight = 48;
@@ -266,26 +266,8 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 'Not editing and we have draft content',
                 draft
               );
-              const inlines = tiptap.JSONToInlines(draft);
-              const newInlines = inlines
-                .map((inline) => {
-                  if (typeof inline === 'string') {
-                    if (inline.match(REF_REGEX)) {
-                      return null;
-                    }
-                    return inline;
-                  }
-                  return inline;
-                })
-                .filter((inline) => inline !== null) as Inline[];
-              const newStory = constructStory(newInlines);
-              const tiptapContent = tiptap.diaryMixedToJSON(newStory);
-              messageInputLogger.log(
-                'Setting content with draft',
-                tiptapContent
-              );
               // @ts-expect-error setContent does accept JSONContent
-              editor.setContent(tiptapContent);
+              editor.setContent(draft);
               setEditorIsEmpty(false);
               messageInputLogger.log(
                 'set has set initial content, not editing'
@@ -294,7 +276,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             }
 
             if (editingPost && editingPost.content) {
-              messageInputLogger.log('Editing post', editingPost);
+              messageInputLogger.log('Editing post', editingPost.content);
               const {
                 story,
                 references: postReferences,
@@ -481,6 +463,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         clearDraft(draftType);
       }
 
+      messageInputLogger.log('Storing draft', json);
       storeDraft(json, draftType);
     };
 
@@ -767,15 +750,16 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
     const runSendMessage = useCallback(
       async (isEdit: boolean) => {
-        setIsSending(true);
         try {
+          setIsSending(true);
           await sendMessage(isEdit);
         } catch (e) {
           console.error('failed to send', e);
           setSendError(true);
+        } finally {
+          setIsSending(false);
+          setSendError(false);
         }
-        setIsSending(false);
-        setSendError(false);
       },
       [sendMessage]
     );
@@ -793,40 +777,15 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       runSendMessage(true);
     }, [runSendMessage, editingPost]);
 
-    const handleAddNewLine = useCallback(() => {
-      if (editorState.isCodeBlockActive) {
-        editor.newLineInCode();
-        return;
-      }
-
-      if (editorState.isBulletListActive || editorState.isOrderedListActive) {
-        editor.splitListItem('listItem');
-        return;
-      }
-
-      if (editorState.isTaskListActive) {
-        editor.splitListItem('taskItem');
-        return;
-      }
-
-      editor.splitBlock();
-    }, [editor, editorState]);
-
     const handleMessage = useCallback(
       async (event: WebViewMessageEvent) => {
         const { data } = event.nativeEvent;
         messageInputLogger.log('[webview] Message from editor', data);
-        if (data === 'enter') {
-          handleAddNewLine();
-          return;
-        }
 
-        if (data === 'shift-enter') {
-          handleAddNewLine();
-          return;
-        }
-
-        const { type, payload } = JSON.parse(data) as MessageEditorMessage;
+        const { type, payload } =
+          typeof data === 'object'
+            ? data
+            : (JSON.parse(data) as MessageEditorMessage);
 
         if (type === 'editor-ready') {
           webviewRef.current?.injectJavaScript(
@@ -879,6 +838,17 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
         if (type === 'content-error') {
           messageInputLogger.log('[webview] Content error', payload);
+          if (
+            payload &&
+            typeof payload === 'string' &&
+            // @ts-expect-error - this is a string
+            payload.includes("(reading 'nodeSize')")
+          ) {
+            // We know this error is related to handlePaste within the editor in the webview,
+            // it's incidental to the way we're using the editor, and it doesn't affect the
+            // functionality of the editor. We can safely ignore it.
+            return;
+          }
           if (!editorCrashed) {
             setEditorCrashed(payload);
           }
@@ -896,7 +866,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       },
       [
         editor,
-        handleAddNewLine,
         handlePaste,
         setHeight,
         webviewRef,
@@ -1019,14 +988,14 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         mentionText={mentionText}
         groupMembers={groupMembers}
         onSelectMention={onSelectMention}
-        showMentionPopup={showMentionPopup && !bigInput}
         isEditing={!!editingPost}
-        isSending={isSending}
         cancelEditing={handleCancelEditing}
         showAttachmentButton={showAttachmentButton}
         floatingActionButton={floatingActionButton}
         disableSend={
-          editorIsEmpty || (channelType === 'notebook' && titleIsEmpty)
+          editorIsEmpty ||
+          (channelType === 'notebook' && titleIsEmpty) ||
+          isSending
         }
         goBack={goBack}
         frameless={frameless}

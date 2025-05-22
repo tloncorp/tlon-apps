@@ -10,7 +10,6 @@ import {
   screenNameFromChannelId,
 } from '@tloncorp/app/navigation/utils';
 import { useIsWindowNarrow } from '@tloncorp/app/ui';
-import * as posthog from '@tloncorp/app/utils/posthog';
 import {
   AnalyticsEvent,
   createDevLogger,
@@ -18,15 +17,17 @@ import {
   syncGroups,
 } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
-import { markChatRead } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { whomIsDm, whomIsMultiDm } from '@tloncorp/shared/urbit';
 import {
-  Notification,
-  addNotificationResponseReceivedListener,
-} from 'expo-notifications';
+  ActivityIncomingEvent,
+  whomIsDm,
+  whomIsMultiDm,
+} from '@tloncorp/shared/urbit';
+import * as ub from '@tloncorp/shared/urbit';
+import { Notification, useLastNotificationResponse } from 'expo-notifications';
 import { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 
 const logger = createDevLogger('useNotificationListener', false);
 
@@ -38,17 +39,16 @@ type RouteStack = {
 interface BaseNotificationData {
   meta: { errorsFromExtension?: unknown };
 }
-interface WerNotificationData extends BaseNotificationData {
-  type: 'wer';
+interface MinimalNotificationData extends BaseNotificationData {
+  type?: undefined;
   channelId: string;
   postInfo: { id: string; authorId: string; isDm: boolean } | null;
-  wer: string;
 }
 interface UnrecognizedNotificationData extends BaseNotificationData {
   type: 'unrecognized';
 }
 
-type NotificationData = WerNotificationData | UnrecognizedNotificationData;
+type NotificationData = MinimalNotificationData | UnrecognizedNotificationData;
 
 function payloadFromNotification(
   notification: Notification
@@ -58,12 +58,17 @@ function payloadFromNotification(
   // `content`. When "triggered" through the NSE, the payload is in the
   // `trigger`.
   // Detect and use whatever payload is available.
-  const payload =
-    // `NotificationRequest.trigger` is marked as non-null in
-    // expo-notifications' types, but is null on Android - so we need the `?`
-    notification.request.trigger?.type === 'push'
-      ? notification.request.trigger.payload
-      : notification.request.content.data;
+  const payload = (() => {
+    // Not sure why the payload is in different places per platform,
+    // but it is what it is
+    if (Platform.OS === 'android') {
+      return notification.request.content.data;
+    } else {
+      return notification.request.trigger.type === 'push'
+        ? notification.request.trigger.payload
+        : notification.request.content.data;
+    }
+  })();
 
   if (payload == null || typeof payload !== 'object') {
     return null;
@@ -72,17 +77,89 @@ function payloadFromNotification(
   const baseNotificationData: BaseNotificationData = {
     meta: { errorsFromExtension: payload.notificationServiceExtensionErrors },
   };
-
-  // welcome to my validation library ;)
-  if (payload.wer != null && payload.channelId != null) {
-    return {
-      ...baseNotificationData,
-      type: 'wer',
-      channelId: payload.channelId,
-      postInfo: api.getPostInfoFromWer(payload.wer),
-      wer: payload.wer,
+  if (
+    payload.activityEventJsonString != null &&
+    typeof payload.activityEventJsonString === 'string'
+  ) {
+    const { event: ev } = JSON.parse(payload.activityEventJsonString) as {
+      event: ub.ActivityEvent;
     };
+    const is = ActivityIncomingEvent.is;
+
+    const authorAndId = (id: string) => ({
+      id: api.getCanonicalPostId(id),
+      authorId: ub.getIdParts(id).author,
+    });
+
+    const dmTarget = (
+      info: Pick<ub.DmPostEvent['dm-post'], 'whom'>,
+      { parent }: { parent?: ub.DmReplyEvent['dm-reply']['parent'] } = {}
+    ) => ({
+      ...baseNotificationData,
+      channelId: 'ship' in info.whom ? info.whom.ship : 'unknown',
+      postInfo:
+        parent == null
+          ? null
+          : {
+              ...authorAndId(parent.id),
+              isDm: false,
+            },
+    });
+    const channelPostTarget = (
+      info: Pick<ub.PostEvent['post'], 'channel'>,
+      { parent }: { parent?: ub.ReplyEvent['reply']['parent'] } = {}
+    ) => ({
+      ...baseNotificationData,
+      channelId: info.channel,
+      postInfo:
+        parent == null
+          ? null
+          : {
+              ...authorAndId(parent.id),
+              isDm: false,
+            },
+    });
+
+    switch (true) {
+      case is(ev, 'dm-post'):
+        return dmTarget(ev['dm-post']);
+
+      case is(ev, 'dm-reply'):
+        return dmTarget(ev['dm-reply']);
+
+      case is(ev, 'post'):
+        return channelPostTarget(ev.post);
+
+      case is(ev, 'reply'):
+        return channelPostTarget(ev.reply, { parent: ev.reply.parent });
+
+      case is(ev, 'dm-invite'):
+      // fallthrough
+      case is(ev, 'group-ask'):
+      // fallthrough
+      case is(ev, 'group-join'):
+      // fallthrough
+      case is(ev, 'group-kick'):
+      // fallthrough
+      case is(ev, 'group-invite'):
+      // fallthrough
+      case is(ev, 'group-role'):
+      // fallthrough
+      case is(ev, 'flag-post'):
+      // fallthrough
+      case is(ev, 'contact'):
+      // fallthrough
+      case is(ev, 'flag-reply'):
+        return null;
+
+      default: {
+        return ((_x: never) => {
+          throw new Error(`Unexpected activity event: ${ev}`);
+        })(ev);
+      }
+    }
   }
+
   return {
     ...baseNotificationData,
     type: 'unrecognized',
@@ -95,64 +172,49 @@ export default function useNotificationListener() {
   const [channelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
 
   const [notifToProcess, setNotifToProcess] =
-    useState<WerNotificationData | null>(null);
+    useState<MinimalNotificationData | null>(null);
 
   // Start notifications prompt
   useEffect(() => {
     connectNotifications();
   }, []);
 
+  const notificationResponse = useLastNotificationResponse();
   useEffect(() => {
-    // Start notification tap listener
-    // This only seems to get triggered on iOS. Android handles the tap and other intents in native code.
-    const notificationTapListener = addNotificationResponseReceivedListener(
-      (response) => {
-        const data = payloadFromNotification(response.notification);
+    if (notificationResponse != null) {
+      const data = payloadFromNotification(notificationResponse.notification);
 
-        // If the NSE caught an error, it puts it in a list under
-        // `notificationServiceExtensionErrors` - slurp em and log.
-        //
-        // NB: This will only log errors on tapped notifications - we could use
-        // `getPresentedNotificationsAsync` to log all notifications' errors,
-        // but we don't have a good way to prevent logging the same
-        // notification multiple times.
-        const errorsFromExtension = data?.meta.errorsFromExtension;
-        if (errorsFromExtension != null) {
-          logger.trackError(AnalyticsEvent.ErrorNotificationService, {
-            context: 'Notification service extension forwarded an error:',
-            properties: { errors: errorsFromExtension },
-          });
-        }
-
-        if (data == null || data.type === 'unrecognized') {
-          // https://linear.app/tlon/issue/TLON-2551/multiple-notifications-that-lead-to-nowhere-crash-app
-          // We're seeing cases where `data` is null here - not sure why this is happening.
-          // Log the notification and don't try to navigate.
-          logger.trackError(AnalyticsEvent.ErrorNotificationService, {
-            context: 'Failed to get notification payload',
-            properties: isTlonEmployee
-              ? response.notification.request
-              : undefined,
-          });
-          return;
-        }
-
-        const { actionIdentifier, userText } = response;
-        if (actionIdentifier === 'markAsRead' && data.channelId) {
-          markChatRead(data.channelId);
-        } else if (actionIdentifier === 'reply' && userText) {
-          // TODO: this is unhandled, when is actionIdentifier = reply?
-        } else if (data.channelId) {
-          setNotifToProcess(data);
-        }
+      // If the NSE caught an error, it puts it in a list under
+      // `notificationServiceExtensionErrors` - slurp em and log.
+      //
+      // NB: This will only log errors on tapped notifications - we could use
+      // `getPresentedNotificationsAsync` to log all notifications' errors,
+      // but we don't have a good way to prevent logging the same
+      // notification multiple times.
+      const errorsFromExtension = data?.meta.errorsFromExtension;
+      if (errorsFromExtension != null) {
+        logger.trackError(AnalyticsEvent.ErrorNotificationService, {
+          context: 'Notification service extension forwarded an error:',
+          properties: { errors: errorsFromExtension },
+        });
       }
-    );
 
-    return () => {
-      // Clean up listeners
-      notificationTapListener.remove();
-    };
-  }, [navigation, isTlonEmployee]);
+      if (data == null || data.type === 'unrecognized') {
+        // https://linear.app/tlon/issue/TLON-2551/multiple-notifications-that-lead-to-nowhere-crash-app
+        // We're seeing cases where `data` is null here - not sure why this is happening.
+        // Log the notification and don't try to navigate.
+        logger.trackError(AnalyticsEvent.ErrorNotificationService, {
+          context: 'Failed to get notification payload',
+          properties: isTlonEmployee
+            ? notificationResponse.notification.request
+            : undefined,
+        });
+        return;
+      }
+
+      setNotifToProcess(data);
+    }
+  }, [notificationResponse, isTlonEmployee]);
 
   const isDesktop = useIsWindowNarrow();
 

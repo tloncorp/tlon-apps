@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import { desig } from '@tloncorp/shared/urbit';
+import _ from 'lodash';
 import {
   PropsWithRef,
   useEffect,
@@ -10,6 +11,7 @@ import {
 import React from 'react';
 import { Platform } from 'react-native';
 
+import { emptyContact } from '../../fixtures/fakeData';
 import { ContactList } from './ContactList';
 
 export interface MentionController {
@@ -22,37 +24,40 @@ function MentionPopupInternal(
     groupMembers,
     onPress,
     matchText,
+    setHasMentionCandidates,
   }: PropsWithRef<{
     groupMembers: db.ChatMember[];
     onPress: (contact: db.Contact) => void;
     matchText?: string;
+    setHasMentionCandidates?: (has: boolean) => void;
   }>,
   ref: React.Ref<{
     handleMentionKey(key: 'ArrowUp' | 'ArrowDown' | 'Enter'): void;
   }>
 ) {
-  const subSet = useMemo(
-    () =>
-      groupMembers
-        .map((member) => member.contact)
-        .filter((contact) => {
-          if (contact === null || contact === undefined) {
-            return false;
-          }
-          if (!matchText) {
-            return true;
-          }
+  const subSet = useMemo(() => {
+    const pattern = matchText
+      ? new RegExp(_.escapeRegExp(matchText), 'i')
+      : null;
+    return groupMembers
+      .map(
+        (member) => member.contact || { ...emptyContact, id: member.contactId }
+      )
+      .filter((contact) => {
+        if (!pattern) {
+          return true;
+        }
 
-          return (
-            contact.id.match(new RegExp(matchText, 'i')) ||
-            contact.nickname?.match(new RegExp(matchText, 'i'))
-          );
-        })
-        .slice(0, 7),
-    [groupMembers, matchText]
-  );
+        return contact.id.match(pattern) || contact.nickname?.match(pattern);
+      })
+      .slice(0, 7);
+  }, [groupMembers, matchText]);
 
   const subsetSize = useMemo(() => subSet.length, [subSet]);
+
+  useEffect(() => {
+    setHasMentionCandidates?.(subsetSize > 0);
+  }, [subsetSize, setHasMentionCandidates]);
 
   const [selectedIndex, setSelectedIndex] = useState(0);
 

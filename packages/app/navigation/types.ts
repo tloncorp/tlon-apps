@@ -49,9 +49,11 @@ export type RootStackParamList = {
   FeatureFlags: undefined;
   ManageAccount: undefined;
   BlockedUsers: undefined;
+  PrivacySettings: undefined;
   AppInfo: undefined;
   PushNotificationSettings: undefined;
   AddContacts: undefined;
+  InviteSystemContacts: undefined;
   UserProfile: {
     userId: string;
   };
@@ -134,6 +136,7 @@ export type SettingsDrawerParamList = Pick<
   | 'AppInfo'
   | 'PushNotificationSettings'
   | 'WompWomp'
+  | 'PrivacySettings'
 >;
 
 export type ChannelStackParamList = {
@@ -165,21 +168,32 @@ export type GroupSettingsStackParamList = {
   EditChannel: {
     channelId: string;
     groupId: string;
+    fromChatDetails?: boolean;
   };
   GroupMeta: {
     groupId: string;
     fromBlankChannel?: boolean;
+    fromChatDetails?: boolean;
   };
   GroupMembers: {
     groupId: string;
+    fromChatDetails?: boolean;
   };
   ManageChannels: {
     groupId: string;
+    fromChatDetails?: boolean;
   };
   Privacy: {
     groupId: string;
+    fromChatDetails?: boolean;
   };
   GroupRoles: {
     groupId: string;
+    fromChatDetails?: boolean;
+  };
+  ChatVolume: {
+    chatType: 'group' | 'channel';
+    chatId: string;
+    fromChatDetails?: boolean;
   };
 };

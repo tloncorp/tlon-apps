@@ -1,13 +1,10 @@
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { useIsWindowNarrow } from '@tloncorp/ui';
-import { Button } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
-import { Pressable } from '@tloncorp/ui';
-import { useMemo, useState } from 'react';
+import { Button, Icon, Pressable, RawText } from '@tloncorp/ui';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, isWeb } from 'tamagui';
 
-import { useNavigation } from '../../contexts';
+import { useChatOptions, useNavigation } from '../../contexts';
 import * as utils from '../../utils';
 import { capitalize } from '../../utils';
 import { Badge } from '../Badge';
@@ -23,19 +20,84 @@ export function ChannelListItem({
   EndContent,
   dimmed,
   disableOptions = false,
+  showGroupTitle = false,
+  onLayout,
   ...props
 }: {
+  showGroupTitle?: boolean;
   useTypeIcon?: boolean;
   customSubtitle?: string;
   dimmed?: boolean;
+  onLayout?: (e: any) => void;
 } & ListItemProps<db.Channel>) {
   const [open, setOpen] = useState(false);
+  const { setChat } = useChatOptions(disableOptions);
+  const [isHovered, setIsHovered] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const unreadCount = model.unread?.count ?? 0;
   const notified = model.unread?.notify ?? false;
   const title = utils.useChannelTitle(model);
   const firstMemberId = model.members?.[0]?.contactId ?? '';
   const memberCount = model.members?.length ?? 0;
-  const isWindowNarrow = useIsWindowNarrow();
+
+  const handleHoverIn = useCallback(() => {
+    if (isWeb) {
+      setIsHovered(true);
+    }
+  }, []);
+
+  const handleHoverOut = useCallback(() => {
+    if (isWeb) {
+      setIsHovered(false);
+    }
+  }, []);
+
+  const triggerButton = useMemo(
+    () => (
+      <Button
+        backgroundColor="transparent"
+        borderWidth="unset"
+        paddingLeft={0}
+        paddingRight="$s"
+        marginHorizontal="$-m"
+        minimal
+        onPress={(e) => {
+          e.stopPropagation();
+        }}
+      >
+        <Icon type="Overflow" />
+      </Button>
+    ),
+    []
+  );
+
+  useEffect(() => {
+    if (isWeb && !disableOptions && containerRef.current) {
+      const handleContextMenu = (e: MouseEvent) => {
+        e.preventDefault();
+        setOpen(true);
+        setChat({
+          type: 'channel',
+          id: model.id,
+        });
+      };
+
+      const element = containerRef.current;
+      element.addEventListener('contextmenu', handleContextMenu);
+
+      return () => {
+        element.removeEventListener('contextmenu', handleContextMenu);
+      };
+    }
+  }, [disableOptions, setChat, model.id]);
+
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (!isOpen) {
+      setChat(null);
+      setIsHovered(false);
+    }
+  };
 
   const handlePress = logic.useMutableCallback(() => {
     onPress?.(model);
@@ -65,17 +127,20 @@ export function ChannelListItem({
   }, [model, firstMemberId, memberCount]);
 
   const isFocused = useNavigation().focusedChannelId === model.id;
+  const groupTitle = utils.useGroupTitle(model.group);
 
   return (
-    <View>
+    <View ref={containerRef}>
       <Pressable
         borderRadius="$xl"
-        onPress={handlePress}
+        onPress={open ? undefined : handlePress}
         onLongPress={isWeb ? undefined : handleLongPress}
         backgroundColor={isFocused ? '$shadow' : undefined}
         hoverStyle={{ backgroundColor: '$secondaryBackground' }}
+        onHoverIn={handleHoverIn}
+        onHoverOut={handleHoverOut}
       >
-        <ListItem {...props}>
+        <ListItem onLayout={onLayout} {...props}>
           <ListItem.ChannelIcon
             model={model}
             useTypeIcon={useTypeIcon}
@@ -85,6 +150,8 @@ export function ChannelListItem({
             <ListItem.Title dimmed={dimmed}>{title}</ListItem.Title>
             {customSubtitle ? (
               <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
+            ) : showGroupTitle && model.group ? (
+              <ListItem.Subtitle>{groupTitle}</ListItem.Subtitle>
             ) : (model.type === 'dm' || model.type === 'groupDm') &&
               utils.hasNickname(model.members?.[0]?.contact) ? (
               <ListItem.SubtitleWithIcon icon={subtitleIcon}>
@@ -109,48 +176,27 @@ export function ChannelListItem({
                 <Badge text="Invite" />
               ) : (
                 <ListItem.Count
+                  opacity={isHovered ? 0 : 1}
                   notified={notified}
                   count={unreadCount}
                   muted={logic.isMuted(model.volumeSettings?.level, 'channel')}
-                  marginRight={isWeb ? '$xl' : 'unset'}
                   marginTop={isWeb ? 3 : 'unset'}
                 />
               )}
             </ListItem.EndContent>
           )}
         </ListItem>
-      </Pressable>
-      {isWeb && !disableOptions && (
-        <View position="absolute" right={10} top="$2xl" zIndex={1}>
-          {isWindowNarrow ? (
-            <Button
-              onPress={handleLongPress}
-              borderWidth="unset"
-              paddingHorizontal={0}
-              minimal
-            >
-              <Icon type="Overflow" />
-            </Button>
-          ) : (
+        {isWeb && !disableOptions && (isHovered || open) && (
+          <View position="absolute" right={10} top="$2xl">
             <ChatOptionsSheet
               open={open}
-              onOpenChange={setOpen}
+              onOpenChange={handleOpenChange}
               chat={{ type: 'channel', id: model.id }}
-              trigger={
-                <Button
-                  backgroundColor="transparent"
-                  borderWidth="unset"
-                  paddingHorizontal={0}
-                  marginHorizontal="$-m"
-                  minimal
-                >
-                  <Icon type="Overflow" />
-                </Button>
-              }
+              trigger={triggerButton}
             />
-          )}
-        </View>
-      )}
+          </View>
+        )}
+      </Pressable>
     </View>
   );
 }

@@ -1,7 +1,7 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
-import { getTextContent } from '@tloncorp/shared/urbit';
+import { getTextContent } from '@tloncorp/shared/logic';
 import { useCallback, useEffect, useRef } from 'react';
 
 import { useIsElectron } from './useIsElectron';

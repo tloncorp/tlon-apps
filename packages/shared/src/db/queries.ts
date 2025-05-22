@@ -39,7 +39,10 @@ import {
   interleaveActivityEvents,
   toSourceActivityEvents,
 } from '../logic/activity';
+import { Session } from '../store';
 import { Rank } from '../urbit';
+import { processBatchOperation } from './dbUtils';
+import { createDmChannelsForNewContacts } from './modelBuilders';
 import {
   QueryCtx,
   createReadQuery,
@@ -75,6 +78,8 @@ import {
   postWindows as $postWindows,
   posts as $posts,
   settings as $settings,
+  systemContactSentInvites as $systemContactSentInvites,
+  systemContacts as $systemContacts,
   threadUnreads as $threadUnreads,
   volumeSettings as $volumeSettings,
   BASE_UNREADS_SINGLETON_KEY,
@@ -102,6 +107,8 @@ import {
   Reaction,
   ReplyMeta,
   Settings,
+  SystemContact,
+  SystemContactSentInvite,
   TableName,
   ThreadUnreadState,
   VolumeSettings,
@@ -316,6 +323,10 @@ export const getAnalyticsDigest = createReadQuery(
       .from($contacts)
       .where(eq($contacts.isContact, true));
 
+    const numSystemContacts = await ctx.db
+      .select({ count: count() })
+      .from($systemContacts);
+
     const groups = await ctx.db.query.groups.findMany({
       where: eq($groups.currentUserIsMember, true),
       with: {
@@ -340,6 +351,7 @@ export const getAnalyticsDigest = createReadQuery(
 
     return {
       numContacts: numContacts[0]?.count ?? 0,
+      numSystemContacts: numSystemContacts[0]?.count ?? 0,
       numGroups,
       numGroupchats,
       numGroupsHosted,
@@ -351,6 +363,254 @@ export const getAnalyticsDigest = createReadQuery(
     };
   },
   []
+);
+
+export const insertSystemContacts = createWriteQuery(
+  'insertSystemContacts',
+  async (params: { systemContacts: SystemContact[] }, ctx: QueryCtx) => {
+    const { systemContacts } = params;
+    if (!systemContacts.length) return;
+
+    // Process in batches of 200
+    const batchSize = 200;
+    for (let i = 0; i < systemContacts.length; i += batchSize) {
+      const batch = systemContacts.slice(i, i + batchSize);
+      if (!batch.length) continue;
+      try {
+        await ctx.db
+          .insert($systemContacts)
+          .values(batch)
+          .onConflictDoUpdate({
+            target: [$systemContacts.id],
+            set: conflictUpdateSetAll($systemContacts, ['contactId']),
+          });
+        logger.trackEvent(domain.AnalyticsEvent.DebugSystemContacts, {
+          context: 'inserted system contacts batch',
+          count: batch.length,
+          startIndex: i,
+        });
+      } catch (e) {
+        logger.trackEvent(domain.AnalyticsEvent.ErrorSystemContacts, {
+          context: 'failed to insert system contacts',
+          count: batch.length,
+          totalNumContacts: systemContacts.length,
+        });
+      }
+    }
+  },
+  ['systemContacts', 'systemContactSentInvites', 'contacts']
+);
+
+function generateNicknameUpdates(
+  matches: [string, string][],
+  systemContacts: SystemContact[]
+): { contactId: string; nicknamePart: string }[] {
+  const nicknameUpdates: { contactId: string; nicknamePart: string }[] = [];
+
+  for (const [phoneNumber, contactId] of matches) {
+    const matchingSystemContact = systemContacts.find(
+      (sc) => sc.phoneNumber === phoneNumber
+    );
+
+    if (
+      matchingSystemContact &&
+      (matchingSystemContact.firstName || matchingSystemContact.lastName)
+    ) {
+      const nicknamePart =
+        `${matchingSystemContact.firstName || ''} ${matchingSystemContact.lastName || ''}`.trim();
+
+      if (nicknamePart) {
+        nicknameUpdates.push({ contactId, nicknamePart });
+      }
+    }
+  }
+
+  return nicknameUpdates;
+}
+
+async function updateContactNicknames(
+  nicknameUpdates: { contactId: string; nicknamePart: string }[],
+  txCtx: QueryCtx,
+  batchSize: number
+): Promise<void> {
+  await processBatchOperation(
+    nicknameUpdates,
+    batchSize,
+    async (batch) => {
+      return Promise.all(
+        batch.map(({ contactId, nicknamePart }) =>
+          txCtx.db
+            .update($contacts)
+            .set({ customNickname: nicknamePart })
+            .where(eq($contacts.id, contactId))
+        )
+      );
+    },
+    'Error updating contact nicknames'
+  );
+}
+
+export async function updateSystemContactIds(
+  matches: [string, string][],
+  txCtx: QueryCtx,
+  batchSize: number
+): Promise<void> {
+  const contactIdUpdates = matches.map(([phoneNumber, contactId]) => ({
+    phoneNumber,
+    contactId,
+  }));
+
+  await processBatchOperation(
+    contactIdUpdates,
+    batchSize,
+    async (batch) => {
+      return Promise.all(
+        batch.map(({ phoneNumber, contactId }) =>
+          txCtx.db
+            .update($systemContacts)
+            .set({ contactId })
+            .where(eq($systemContacts.phoneNumber, phoneNumber))
+        )
+      );
+    },
+    'Error updating system contact contactId'
+  );
+}
+
+export const linkSystemContacts = createWriteQuery(
+  'linkSystemContacts',
+  async (params: { matches: [string, string][] }, ctx: QueryCtx) => {
+    if (!params.matches.length) return;
+    const { matches } = params;
+
+    const systemContactPhoneNumbers = matches.map((m) => m[0]);
+
+    const contactIds = matches.map((m) => m[1]);
+
+    const systemContacts = await getSystemContacts(ctx);
+
+    return withTransactionCtx(ctx, async (txCtx) => {
+      const [existingContacts, linkedSystemContacts] = await Promise.all([
+        txCtx.db.query.contacts.findMany({
+          where: and(
+            inArray($contacts.id, contactIds),
+            eq($contacts.isContact, true)
+          ),
+        }),
+        txCtx.db.query.systemContacts.findMany({
+          where: and(
+            inArray($systemContacts.phoneNumber, systemContactPhoneNumbers),
+            isNotNull($systemContacts.contactId)
+          ),
+        }),
+      ]);
+
+      // determine which contacts and phone links are new
+      const existingContactIds = new Set(existingContacts.map((c) => c.id));
+      const alreadyLinkedPhoneNumbers = new Set(
+        linkedSystemContacts.map((sc) => sc.phoneNumber)
+      );
+
+      const newContactMatches = matches.filter(
+        ([phoneNumber, contactId]) =>
+          !existingContactIds.has(contactId) ||
+          !alreadyLinkedPhoneNumbers.has(phoneNumber)
+      );
+
+      const batchSize = 200;
+
+      // generate and process nickname updates
+      const nicknameUpdates = generateNicknameUpdates(matches, systemContacts);
+      await updateContactNicknames(nicknameUpdates, txCtx, batchSize);
+
+      // update system contact IDs
+      await updateSystemContactIds(matches, txCtx, batchSize);
+
+      // create channels for new contacts
+      const newChannels = createDmChannelsForNewContacts(newContactMatches);
+
+      // we use insertChannelsInternal so that we can create the channels within
+      // the transaction
+      await insertChannelsInternal(newChannels, txCtx);
+    });
+  },
+  ['systemContacts', 'systemContactSentInvites', 'contacts']
+);
+
+export const insertSystemContactSentInvites = createWriteQuery(
+  'insertSystemContactSentInvites',
+  async (params: { sentInvites: SystemContactSentInvite[] }, ctx: QueryCtx) => {
+    const { sentInvites } = params;
+    if (!sentInvites.length) return;
+    await ctx.db
+      .insert($systemContactSentInvites)
+      .values(sentInvites)
+      .onConflictDoUpdate({
+        target: [
+          $systemContactSentInvites.systemContactId,
+          $systemContactSentInvites.invitedTo,
+        ],
+        set: conflictUpdateSetAll($systemContactSentInvites),
+      });
+  },
+  ['systemContacts', 'systemContactSentInvites', 'contacts']
+);
+
+export const getSystemContacts = createReadQuery(
+  'getSystemContacts',
+  async (ctx: QueryCtx): Promise<SystemContact[]> => {
+    try {
+      logger.log('getSystemContacts: getting system contacts');
+      const result = await ctx.db.query.systemContacts.findMany({
+        with: { sentInvites: true },
+      });
+      logger.log('getSystemContacts: got system contacts', result);
+      return result;
+    } catch (e) {
+      console.log(`Error getting system contacts`, e);
+      throw e;
+    }
+  },
+  ['systemContacts', 'systemContactSentInvites']
+);
+
+export const getSystemContactsBatchByContactId = createReadQuery(
+  'getSystemContactsBatchByContactId',
+  async (contactIds: string[], ctx: QueryCtx): Promise<SystemContact[]> => {
+    if (!contactIds.length) return [];
+    try {
+      const result = await ctx.db.query.systemContacts.findMany({
+        where: inArray($systemContacts.contactId, contactIds),
+        with: { sentInvites: true },
+      });
+      return result;
+    } catch (e) {
+      console.log(`Error getting system contacts`, e);
+      throw e;
+    }
+  },
+  ['systemContacts', 'systemContactSentInvites']
+);
+
+export const getUninvitedSystemContactsShortlist = createReadQuery(
+  'getUninvitedSystemContactsShortlist',
+  async (ctx: QueryCtx): Promise<SystemContact[]> => {
+    try {
+      const result = await ctx.db.query.systemContacts.findMany({
+        with: { sentInvites: true },
+      });
+
+      const uninvitedContacts = result.filter(
+        (contact) => contact.sentInvites?.length === 0
+      );
+
+      return uninvitedContacts.slice(0, 10);
+    } catch (e) {
+      console.log(`Error getting uninvited system contacts`, e);
+      throw e;
+    }
+  },
+  ['systemContacts', 'systemContactSentInvites']
 );
 
 export const insertCurrentUserAttestations = createWriteQuery(
@@ -422,6 +682,37 @@ export const getAttestations = createReadQuery(
   ['attestations']
 );
 
+export const getAttestation = createReadQuery(
+  'getAttestation',
+  async ({ attestation }: { attestation: Attestation }, ctx: QueryCtx) => {
+    return ctx.db.query.attestations.findFirst({
+      where: eq($attestations.id, attestation.id),
+    });
+  },
+  ['attestations']
+);
+
+export const updateAttestation = createWriteQuery(
+  'updateAttestations',
+  async ({ attestation }: { attestation: Attestation }, ctx: QueryCtx) => {
+    return ctx.db
+      .update($attestations)
+      .set(attestation)
+      .where(eq($attestations.id, attestation.id));
+  },
+  ['attestations']
+);
+
+export const getUserAttestations = createReadQuery(
+  'getUserAttestations',
+  async ({ userId }: { userId: string }, ctx: QueryCtx) => {
+    return ctx.db.query.attestations.findMany({
+      where: eq($attestations.contactId, userId),
+    });
+  },
+  ['attestations']
+);
+
 export const getPins = createReadQuery(
   'getPins',
   async (ctx: QueryCtx): Promise<Pin[]> => {
@@ -434,6 +725,37 @@ export const getAllChannels = createReadQuery(
   'getAllChannels',
   async (ctx: QueryCtx) => {
     return ctx.db.query.channels.findMany();
+  },
+  ['channels']
+);
+
+export const getChannelsForPredictiveSync = createReadQuery(
+  'getChannelsWithUncachedGap',
+  async (
+    opts: { session: Session; limit?: number },
+    ctx: QueryCtx
+  ): Promise<Channel[]> => {
+    const { session } = opts;
+    return await ctx.db.query.channels.findMany({
+      // where channel can fetch newer posts (i.e. has not cached newest posts)
+      where: not(
+        // logic ported from `hasChannelCachedNewestPosts`
+        // https://github.com/tloncorp/tlon-apps/blob/b967030abb33522964b7ca925c4c599bee489ae7/packages/shared/src/store/sync.ts#L1400
+        and(
+          isNotNull($channels.syncedAt),
+          or(
+            gte($channels.syncedAt, session.startTime ?? 0),
+            and(
+              isNotNull($channels.lastPostAt),
+              gt($channels.syncedAt, $channels.lastPostAt)
+            )
+          )
+        )!
+      ),
+
+      orderBy: [desc($channels.lastViewedAt), desc($channels.lastPostAt)],
+      limit: opts.limit,
+    });
   },
   ['channels']
 );
@@ -727,7 +1049,11 @@ export const insertGroups = createWriteQuery(
           await txCtx.db
             .insert($chatMembers)
             .values(group.members)
-            .onConflictDoNothing();
+            .onConflictDoUpdate({
+              target: [$chatMembers.chatId, $chatMembers.contactId],
+              set: conflictUpdateSetAll($chatMembers),
+            });
+
           const validRoleNames = group.roles?.map((r) => r.id);
           const memberRoles = group.members.flatMap((m) => {
             return (m.roles ?? []).flatMap((r) => {
@@ -1044,6 +1370,7 @@ export const addChatMembers = createWriteQuery(
 export const addGroupInvites = createWriteQuery(
   'addGroupInvites',
   async (invites: { groupId: string; contactIds: string[] }, ctx: QueryCtx) => {
+    if (invites.contactIds.length === 0) return;
     return ctx.db
       .insert($groupMemberInvites)
       .values(
@@ -1679,6 +2006,44 @@ export const getChannelWithRelations = createReadQuery(
   ]
 );
 
+async function insertChannelsInternal(channels: Channel[], ctx: QueryCtx) {
+  if (channels.length === 0) {
+    return;
+  }
+
+  logger.log(
+    'insertChannelsInternal',
+    channels.length,
+    channels.map((c) => c.id)
+  );
+
+  await ctx.db
+    .insert($channels)
+    .values(channels)
+    .onConflictDoUpdate({
+      target: $channels.id,
+      set: conflictUpdateSetAll($channels, [
+        'lastPostId',
+        'lastPostAt',
+        'currentUserIsMember',
+      ]),
+    });
+
+  for (const channel of channels) {
+    logger.log('insertChannels: members', channel.id, channel.members);
+    if (channel.members && channel.members.length > 0) {
+      await ctx.db
+        .delete($chatMembers)
+        .where(eq($chatMembers.chatId, channel.id));
+      await ctx.db
+        .insert($chatMembers)
+        .values(channel.members)
+        .onConflictDoNothing();
+    }
+  }
+  await setLastPosts(null, ctx);
+}
+
 export const insertChannels = createWriteQuery(
   'insertChannels',
   async (channels: Channel[], ctx: QueryCtx) => {
@@ -1689,35 +2054,12 @@ export const insertChannels = createWriteQuery(
     logger.log(
       'insertChannels',
       channels.length,
-      channels.map((c) => c.id)
+      channels.map((c) => c.id),
+      'skipTransaction'
     );
 
     return withTransactionCtx(ctx, async (txCtx) => {
-      await txCtx.db
-        .insert($channels)
-        .values(channels)
-        .onConflictDoUpdate({
-          target: $channels.id,
-          set: conflictUpdateSetAll($channels, [
-            'lastPostId',
-            'lastPostAt',
-            'currentUserIsMember',
-          ]),
-        });
-
-      for (const channel of channels) {
-        logger.log('insertChannels: members', channel.id, channel.members);
-        if (channel.members && channel.members.length > 0) {
-          await txCtx.db
-            .delete($chatMembers)
-            .where(eq($chatMembers.chatId, channel.id));
-          await txCtx.db
-            .insert($chatMembers)
-            .values(channel.members)
-            .onConflictDoNothing();
-        }
-      }
-      await setLastPosts(null, txCtx);
+      await insertChannelsInternal(channels, txCtx);
     });
   },
   ['channels']
@@ -2099,6 +2441,43 @@ export const setLeftGroups = createWriteQuery(
   ['groups', 'channels']
 );
 
+export const getPostWindow = createReadQuery(
+  'getPostWindow',
+  async (
+    {
+      channelId,
+      postId,
+    }: {
+      channelId: string;
+      /**
+       * Find window containing this post ID.
+       * If omitted, returns window with newest post.
+       */
+      postId: string | null;
+    },
+    ctx: QueryCtx
+  ) => {
+    // Find the window (set of contiguous posts) that this cursor belongs to.
+    // These are the posts that we can return safely without gaps and without hitting the api.
+    return await ctx.db.query.postWindows.findFirst({
+      where: and(
+        // For this channel
+        eq($postWindows.channelId, channelId),
+
+        // window.oldest <= postId <= window.newest
+        postId ? gte($postWindows.newestPostId, postId) : undefined,
+        postId ? lte($postWindows.oldestPostId, postId) : undefined
+      ),
+      orderBy: [desc($postWindows.newestPostId)],
+      columns: {
+        oldestPostId: true,
+        newestPostId: true,
+      },
+    });
+  },
+  ['postWindows']
+);
+
 export type GetChannelPostsOptions = {
   channelId: string;
   count?: number;
@@ -2114,21 +2493,10 @@ export const getChannelPosts = createReadQuery(
   ): Promise<Post[]> => {
     // Find the window (set of contiguous posts) that this cursor belongs to.
     // These are the posts that we can return safely without gaps and without hitting the api.
-    const window = await ctx.db.query.postWindows.findFirst({
-      where: and(
-        // For this channel
-        eq($postWindows.channelId, channelId),
-        // Depending on mode, either older or newer than cursor. If mode is
-        // `newest`, we don't need to filter by cursor.
-        cursor ? gte($postWindows.newestPostId, cursor) : undefined,
-        cursor ? lte($postWindows.oldestPostId, cursor) : undefined
-      ),
-      orderBy: [desc($postWindows.newestPostId)],
-      columns: {
-        oldestPostId: true,
-        newestPostId: true,
-      },
-    });
+    const window = await getPostWindow(
+      { channelId, postId: cursor ?? null },
+      ctx
+    );
     // If the cursor isn't part of any window, we return an empty array.
     if (!window) {
       return [];
@@ -2249,6 +2617,20 @@ export const getChannelPosts = createReadQuery(
     } else {
       throw new Error('invalid mode');
     }
+  },
+  ['posts']
+);
+
+export const getPostsByStatus = createReadQuery(
+  'getPostsByStatus',
+  async (
+    { deliveryStatus }: { deliveryStatus: Post['deliveryStatus'] },
+    ctx: QueryCtx
+  ) => {
+    if (!deliveryStatus) return [];
+    return ctx.db.query.posts.findMany({
+      where: eq($posts.deliveryStatus, deliveryStatus),
+    });
   },
   ['posts']
 );
@@ -2424,7 +2806,7 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
       set: conflictUpdateSetAll($posts, ['hidden']),
     })
     .onConflictDoUpdate({
-      target: [$posts.authorId, $posts.sentAt],
+      target: [$posts.authorId, $posts.channelId, $posts.sentAt],
       set: conflictUpdateSetAll($posts, ['hidden']),
     });
 
@@ -2648,7 +3030,7 @@ async function updatePostWindows(
 
   logger.log('inserting final window', finalWindow);
   // Insert final window.
-  await ctx.db.insert($postWindows).values(finalWindow);
+  await ctx.db.insert($postWindows).values(finalWindow).onConflictDoNothing();
 }
 
 function overlapsWindow(window: PostWindow) {
@@ -2807,13 +3189,23 @@ export const getPostByBackendTime = createReadQuery(
 export const getPostByCacheId = createReadQuery(
   'getPostByCacheId',
   async (
-    { sentAt, authorId }: { sentAt: number; authorId: string },
+    {
+      channelId,
+      sentAt,
+      authorId,
+    }: { channelId: string; sentAt: number; authorId: string },
     ctx: QueryCtx
   ) => {
     const postData = await ctx.db
       .select()
       .from($posts)
-      .where(and(eq($posts.sentAt, sentAt), eq($posts.authorId, authorId)));
+      .where(
+        and(
+          eq($posts.sentAt, sentAt),
+          eq($posts.authorId, authorId),
+          eq($posts.channelId, channelId)
+        )
+      );
     if (!postData.length) return null;
     return postData[0];
   },
@@ -2891,6 +3283,26 @@ export const getPostWithRelations = createReadQuery(
       .then(returnNullIfUndefined);
   },
   ['posts', 'threadUnreads', 'volumeSettings']
+);
+
+export const getPersonalGroup = createReadQuery(
+  'getPersonalGroup',
+  async (ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
+    const groupId = `${currentUserId}/${domain.PersonalGroupSlugs.slug}`;
+    const group = await getGroup({ id: groupId }, ctx);
+    return group;
+  },
+  [
+    'groups',
+    'channelUnreads',
+    'volumeSettings',
+    'channels',
+    'groupJoinRequests',
+    'groupMemberBans',
+    'groupNavSectionChannels',
+    'groupRoles',
+  ]
 );
 
 export const getGroup = createReadQuery(
@@ -3310,7 +3722,6 @@ export const insertContacts = createWriteQuery(
           .onConflictDoNothing();
       }
 
-      console.log(`check 1`);
       // clear existing
       await txCtx.db
         .delete($attestations)
@@ -3487,9 +3898,15 @@ export const insertThreadUnreads = createWriteQuery(
 
 export const getThreadUnreadsByChannel = createReadQuery(
   'getThreadUnreadsByChannel',
-  async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
+  async (
+    { channelId, excludeRead }: { channelId: string; excludeRead?: boolean },
+    ctx: QueryCtx
+  ): Promise<ThreadUnreadState[]> => {
     return ctx.db.query.threadUnreads.findMany({
-      where: eq($threadUnreads.channelId, channelId),
+      where: and(
+        eq($threadUnreads.channelId, channelId),
+        excludeRead ? not(eq($threadUnreads.count, 0)) : undefined
+      ),
     });
   },
   ['threadUnreads']
@@ -3510,6 +3927,17 @@ export const clearThreadUnread = createWriteQuery(
           eq($threadUnreads.threadId, threadId)
         )
       );
+  },
+  ['threadUnreads']
+);
+
+export const clearChannelThreadUnreads = createWriteQuery(
+  'clearChannelThreadUnreads',
+  async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
+    return ctx.db
+      .update($threadUnreads)
+      .set({ count: 0, firstUnreadPostId: null })
+      .where(eq($threadUnreads.channelId, channelId));
   },
   ['threadUnreads']
 );

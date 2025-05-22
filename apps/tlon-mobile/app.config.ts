@@ -45,12 +45,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     enabledLoggers: process.env.ENABLED_LOGGERS,
     ignoreCosmos: process.env.IGNORE_COSMOS,
     TlonEmployeeGroup: process.env.TLON_EMPLOYEE_GROUP,
-    branchKey: isPreview
-      ? process.env.BRANCH_KEY_TEST
-      : process.env.BRANCH_KEY_PROD,
-    branchDomain: isPreview
-      ? process.env.BRANCH_DOMAIN_TEST
-      : process.env.BRANCH_DOMAIN_PROD,
+    branchKey: process.env.BRANCH_KEY_PROD,
+    branchDomain: process.env.BRANCH_DOMAIN_PROD,
     inviteServiceEndpoint: process.env.INVITE_SERVICE_ENDPOINT,
     inviteServiceIsDev: process.env.INVITE_SERVICE_IS_DEV,
   },
@@ -83,6 +79,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           'The app accesses your camera to allow you to take photos.',
         microphonePermission:
           'The app accesses your microphone to allow you to record audio.',
+      },
+    ],
+    [
+      'expo-contacts',
+      {
+        contactsPermission: 'Allow Tlon Messenger to access your contacts.',
       },
     ],
   ],

@@ -12,6 +12,7 @@ import {
   isGroupDmChannelId,
 } from '../api/apiUtils';
 import * as db from '../db';
+import * as domain from '../domain';
 import * as ub from '../urbit';
 
 export { isDmChannelId, isGroupChannelId, isGroupDmChannelId };
@@ -120,6 +121,18 @@ export function makePrettyDay(date: Date) {
   }
 }
 
+export function makePrettyDaysSince(date: Date) {
+  const diff = differenceInDays(endOfToday(), date);
+  switch (diff) {
+    case 0:
+      return 'Today';
+    case 1:
+      return 'Yesterday';
+    default:
+      return `${diff}d`;
+  }
+}
+
 export function makePrettyShortDate(date: Date) {
   return format(date, `MMMM do, yyyy`);
 }
@@ -213,6 +226,19 @@ export function normalizeUrbitColor(color: string): string {
   const lengthAdjustedColor = prefixStripped.toUpperCase().padStart(6, '0');
   return `#${lengthAdjustedColor}`;
 }
+
+/**
+ * Generates a safe ID from a given text.
+ * @param text The text to generate a safe ID from.
+ * @param prefix Optional prefix for the ID, defaults to 'id'.
+ * @returns A safe ID.
+ */
+export const generateSafeId = (text: string, prefix: string = 'id') => {
+  if (!text.match(/[a-zA-Z0-9]/)) {
+    return `${prefix}-${Math.random().toString(36).substring(2, 10)}`;
+  }
+  return text.toLowerCase().replace(/\s/g, '-');
+};
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const timezoneOffset = new Date().getTimezoneOffset() * 60 * 1000;
@@ -546,21 +572,54 @@ export function getModelAnalytics({
   group?: Partial<db.Group> | null;
   channel?: Partial<db.Channel> | null;
 }) {
-  const details: Record<string, string | null> = {};
+  const wayfindingGroup = domain.PersonalGroupSlugs;
+  const details: Record<string, string | boolean | null> = {};
+
+  const isWayfindingGroup = group?.id;
+  const isWayfindingChannel = [
+    wayfindingGroup.chatSlug,
+    wayfindingGroup.collectionSlug,
+    wayfindingGroup.notebookSlug,
+  ].includes(channel?.id ?? '');
+
+  if (isWayfindingGroup || isWayfindingChannel) {
+    details.isPersonalGroup = true;
+  }
+
+  const isTlonTeamDM = channel?.id === '~wittyr-witbes'; // Tlon Team node
+  if (isTlonTeamDM) {
+    details.isTlonTeamDM = true;
+  }
+
+  // we want to mask all group/channel IDs unless:
+  // 1. it's the default wayfinding group
+  // 2. it's the Tlon Team DM
+  const getMaskedId = (id: string | null | undefined) => {
+    if (!id) return null;
+    if (isWayfindingGroup || isWayfindingChannel) {
+      return id;
+    }
+
+    if (isTlonTeamDM) {
+      return id;
+    }
+
+    return id ? simpleHash(id) : null;
+  };
 
   if (post) {
     details.postId = post.sentAt ? simpleHash(post.sentAt.toString()) : null;
-    details.channelId = post.channelId ? simpleHash(post.channelId) : null;
+    details.channelId = getMaskedId(post.channelId);
   }
 
   if (channel) {
-    details.channelId = channel.id ? simpleHash(channel.id) : null;
+    details.channelId = getMaskedId(channel.id);
     details.channelType = channel.type ?? null;
-    details.groupId = channel.groupId ? simpleHash(channel.groupId) : null;
+    details.groupId = getMaskedId(channel.groupId);
   }
 
   if (group) {
-    details.groupId = group.id ? simpleHash(group.id) : null;
+    details.groupId = getMaskedId(group.id);
     details.groupType =
       (group.channels?.length ?? 1) > 1 ? 'multi-topic' : 'groupchat';
     details.groupPrivacy = group.privacy ?? null;

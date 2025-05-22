@@ -16,6 +16,9 @@ on:
       - "develop"
 env:
   tag: ${{ github.event.inputs.tag || 'develop' }}
+concurrency:
+  group: ${{ format('{0}-{1}', github.ref, 'deploy') }}
+  cancel-in-progress: true
 jobs:
   build-frontend:
     runs-on: ubuntu-latest
@@ -35,12 +38,12 @@ jobs:
               args: [--frozen-lockfile]
       - name: Build packages
         run: pnpm build:all
-      - working-directory: ./apps/tlon-web-new
+      - working-directory: ./apps/tlon-web
         run: pnpm build
       - uses: actions/upload-artifact@v4
         with:
           name: "ui-dist"
-          path: apps/tlon-web-new/dist
+          path: apps/tlon-web/dist
     env:
       VITE_BRANCH_DOMAIN_PROD: ${{ secrets.VITE_BRANCH_DOMAIN_PROD}}
       VITE_BRANCH_DOMAIN_TEST: ${{ secrets.VITE_BRANCH_DOMAIN_TEST}}
@@ -60,7 +63,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: "ui-dist"
-          path: apps/tlon-web-new/dist
+          path: apps/tlon-web/dist
       - id: "auth"
         uses: "google-github-actions/auth@v1"
         with:
@@ -70,7 +73,7 @@ jobs:
       - name: "glob"
         uses: ./.github/actions/glob
         with:
-          folder: "apps/tlon-web-new/dist/*"
+          folder: "apps/tlon-web/dist/*"
           docket: "desk/desk.docket-0"
       - name: Commit and Push Glob
         run: |

@@ -11,7 +11,11 @@ import {
   useStore,
 } from '@tloncorp/app/ui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
-import { createDevLogger } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  AnalyticsSeverity,
+  createDevLogger,
+} from '@tloncorp/shared';
 import { HostingError } from '@tloncorp/shared/api';
 import { storage } from '@tloncorp/shared/db';
 import { useCallback, useMemo, useState } from 'react';
@@ -112,6 +116,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
         logger.trackError('Error signing up user', {
           errorMessage: err.message,
           errorStack: err.stack,
+          severity: AnalyticsSeverity.Critical,
           ...accountCreds,
         });
         throw err;
@@ -138,6 +143,13 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
             maybeAccountIssue === store.HostingAccountIssue.RequiresVerification
           ) {
             navigation.navigate('RequestPhoneVerify', { mode: params.mode });
+            return;
+          }
+          if (maybeAccountIssue === store.HostingAccountIssue.NoInventory) {
+            logger.trackError(AnalyticsEvent.InvitedUserFailedInventoryCheck, {
+              severity: AnalyticsSeverity.Critical,
+            });
+            navigation.navigate('JoinWaitList', {});
             return;
           }
           signupContext.kickOffBootSequence();
@@ -178,6 +190,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
       navigation,
       params.mode,
       signupContext,
+      store.HostingAccountIssue.NoInventory,
       store.HostingAccountIssue.RequiresVerification,
     ]
   );

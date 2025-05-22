@@ -25,13 +25,22 @@ export enum AnalyticsEvent {
   InitializedNewInvite = 'Initialized New Invite',
   DebugLogs = 'Debug Logs',
   DebugGroupCreate = 'Create Group Debug',
+  DebugAttestation = 'Attestation Debug',
+  DebugContactMatching = 'Contact Matching Debug',
+  ErrorContactMatching = 'Contact Matching Error',
   AppError = 'App Error',
   AuthenticatedNodeStopped = 'Node Stopped While Logged In',
   Scry = 'Scry',
+  ScryNoun = 'Scry Noun',
   Poke = 'Poke',
+  NativeDbDebug = 'Native DB Debug',
+  Thread = 'Thread',
   TrackedPoke = 'TrackedPoke',
+  ErrorDatabaseQuery = 'Database Query Error',
   ErrorTrackedPokeTimeout = 'Error Tracked Poke Timeout',
+  ErrorThread = 'Thread Error',
   ErrorSubscribeOnceTimeout = 'Error Subscribe Once Timeout',
+  ErrorNativeDb = 'Native DB Error',
   InitDataFetched = 'Init Data Fetched',
   InitDataWritten = 'Init Data Written',
   LatestPostsFetched = 'Latest Posts Fetched',
@@ -49,12 +58,14 @@ export enum AnalyticsEvent {
   AnalyticsDigest = 'Usage Digest Report',
   WebAppOpened = 'Web App Opened',
   WebConsoleError = 'Web Console Error',
+  WayfindingDebug = 'Wayfinding Debug',
   ActionContactAdded = 'Contact Added',
   ActionContactRemoved = 'Contact Removed',
   ActionRemoveContactSuggestion = 'Removed Contact Suggestion',
   ActionContactEdited = 'Contact Edited',
   ActionUpdatedProfile = 'Updated Profile',
   ActionSendPost = 'Sent Post',
+  ActionForwardPost = 'Forwarded Post',
   ActionStartedDM = 'Started DM',
   ActionSendPostRetry = 'Retried Post Send',
   ActionHidePost = 'Hid Post',
@@ -95,6 +106,7 @@ export enum AnalyticsEvent {
   ActionVisitedChannel = 'Viewed Channel',
   ActionTappedChat = 'Tapped Chatlist Item',
   ActionJoinChannel = 'Joined Channel',
+  ActionMoveChannel = 'Moved Channel',
   ActionUpdateChannelWriters = 'Updated Channel Writers',
   ActionViewProfileGroup = 'Viewed Pinned Profile Group',
   ActionSelectActivityEvent = 'Tapped Activity Event',
@@ -104,9 +116,20 @@ export enum AnalyticsEvent {
   ActionInitiatePhoneAttest = 'Initiated Phone Attestation',
   ActionCheckAttestSig = 'Checked Attestation Signature',
   ActionRevokeAttestation = 'Revoked Attestation',
+  ActionUpdateAttestDiscoverability = 'Updated Attestation Discoverability',
   ActionConfirmPhoneAttest = 'Confirmed Phone Attestation',
   ActionGroupChannelSelected = 'Tapped group channel',
   ActionTappedPushNotif = 'Tapped Push Notification',
+  ActionDeferredDeepLink = 'Installed with Deferred Deeplink Invite',
+  ActionContactBookSkipped = 'Skipped Syncing Contact Book',
+  ActionContactBookPermRequested = 'Contact Book Requesting Permission',
+  ActionContactBookPermGranted = 'Contact Book Permission Granted',
+  ActionContactBookPermDenied = 'Contact Book Permission Denied',
+  ActionContactBookInviteShown = 'Contact Book Invite Shown',
+  ActionContactBookInviteSent = 'Contact Book Invite Sent',
+  ActionCalmSettingsUpdate = 'Calm Settings Updated',
+  ActionThemeUpdate = 'Theme Setting Updated',
+  DebugSystemContacts = 'System Contacts Debug',
   GroupJoinComplete = 'Group Join Complete',
   PersonalInviteLinkReady = 'Personal Invite Link Ready',
   ErrorSendPost = 'Error Sending Post',
@@ -122,10 +145,16 @@ export enum AnalyticsEvent {
   ErrorNounParse = 'Error Parsing Noun',
   ErrorNotificationService = 'Notification Service Error',
   ErrorCreateGroup = 'Error Creating Group',
+  ErrorWayfinding = 'Wayfinding Error',
+  ErrorSystemContacts = 'System Contacts Error',
+  ErrorCalmSettingsUpdate = 'Error Updating Calm Settings',
+  ErrorThemeUpdate = 'Error Updating Theme Setting',
+  ErrorApi = 'API Error',
 }
 
 export interface AnalyticsDigest {
   numContacts?: number | null;
+  numSystemContacts?: number | null;
   numGroups?: number | null;
   numGroupchats?: number | null;
   numGroupsHosted?: number | null;
@@ -134,4 +163,11 @@ export interface AnalyticsDigest {
   numLegacyGroupDms?: number | null;
   numGalleries?: number | null;
   numNotebooks?: number | null;
+}
+
+export enum AnalyticsSeverity {
+  Critical = 'Critical',
+  High = 'High',
+  Medium = 'Medium',
+  Low = 'Low',
 }

@@ -8,17 +8,65 @@ interface EmbedProviderConfig {
     isDark?: boolean,
     constrainHeight?: boolean
   ) => string;
-  extractId?: (url: string) => string;
+  extractId?: (url: string) => string | null;
   getCustomStyles?: () => string;
 }
+
+const extractYoutubeId = (url: string): string | null => {
+  let videoId: string | null = null;
+  try {
+    const parsedUrl = new URL(url);
+    const hostname = parsedUrl.hostname;
+    const pathname = parsedUrl.pathname;
+
+    if (hostname === 'youtu.be') {
+      // Handle youtu.be links: https://youtu.be/VIDEO_ID
+      videoId = pathname.substring(1); // Remove leading '/'
+    } else if (hostname.includes('youtube.com')) {
+      if (pathname === '/watch' && parsedUrl.searchParams.has('v')) {
+        // Handle youtube.com/watch links: https://www.youtube.com/watch?v=VIDEO_ID
+        videoId = parsedUrl.searchParams.get('v');
+      } else if (pathname.startsWith('/shorts/')) {
+        // Handle youtube.com/shorts links: https://youtube.com/shorts/VIDEO_ID
+        videoId = pathname.substring('/shorts/'.length); // Extract part after /shorts/
+      } else if (pathname.startsWith('/embed/')) {
+        // Also handle direct embed links: https://www.youtube.com/embed/VIDEO_ID
+        videoId = pathname.substring('/embed/'.length);
+      }
+    }
+  } catch (e) {
+    // Fallback for potentially invalid URLs or formats not handled above
+    // Try simple regex matching as a last resort
+    console.error('URL parsing failed, attempting regex fallback:', e);
+    const regex =
+      /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+    const match = url.match(regex);
+    if (match && match[1]) {
+      videoId = match[1];
+    }
+  }
+
+  // Basic check for typical YouTube ID format (alphanumeric, -, _)
+  if (videoId && /^[a-zA-Z0-9_-]+$/.test(videoId)) {
+    // Further check: YouTube IDs are often 11 characters, but let's be a bit flexible
+    if (videoId.length >= 10 && videoId.length <= 12) {
+      // Remove potential trailing query params from shorts/embed paths
+      videoId = videoId.split('?')[0];
+      return videoId;
+    }
+  }
+
+  console.warn('Could not extract a valid YouTube ID from URL:', url);
+  return null;
+};
 
 const youtubeConfig: EmbedProviderConfig = {
   name: 'YouTube',
   defaultHeight: 180,
   defaultWidth: 320,
-  extractId: (url: string) => url.split('v=')[1],
+  extractId: extractYoutubeId,
   generateHtml: (url: string) => {
-    const videoId = url.split('v=')[1];
+    const videoId = extractYoutubeId(url);
     return `
       <!DOCTYPE html>
       <html>

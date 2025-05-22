@@ -1,7 +1,7 @@
 import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import { AnalyticsEvent } from '../domain';
+import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
 
 const logger = createDevLogger('lanyardActions', true);
 
@@ -14,7 +14,7 @@ export async function initiateTwitterAttestation(handle: string) {
 
     // for twitter, set visibility to public
     step = 'setting discoverability';
-    await api.updateAttestationVisibility({
+    await api.updateAttestationDiscoverability({
       type: 'twitter',
       value: handle,
       visibility: 'public',
@@ -49,10 +49,10 @@ export async function initiatePhoneAttestation(phoneNumber: string) {
 
     // for phone, set visibility to discoverable
     step = 'setting discoverability';
-    await api.updateAttestationVisibility({
+    await api.updateAttestationDiscoverability({
       type: 'phone',
       value: phoneNumber,
-      visibility: 'discoverable',
+      visibility: 'verified',
     });
 
     // set it to display on your profile
@@ -167,6 +167,73 @@ export async function checkAttestedSignature(
     logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
       context: 'failed to check attestation signature',
       signature,
+      error: e,
+      errorMessage: e.message,
+    });
+    throw e;
+  }
+}
+
+export async function updateAttestationDiscoverability({
+  attestation,
+  discoverability,
+}: {
+  attestation: db.Attestation;
+  discoverability: db.AttestationDiscoverability;
+}) {
+  if (!attestation.value) {
+    logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
+      context: 'tried to update discoverability for incomplete attestation',
+    });
+    throw new Error('Attestation not full, cannot update discoverability');
+  }
+  // optimistic update
+  await db.updateAttestation({
+    attestation: { ...attestation, discoverability },
+  });
+
+  try {
+    await api.updateAttestationDiscoverability({
+      type: attestation.type,
+      value: attestation.value!,
+      visibility: discoverability,
+    });
+    logger.trackEvent(AnalyticsEvent.ActionUpdateAttestDiscoverability, {
+      type: attestation.type,
+      discoverability,
+    });
+  } catch (e) {
+    // Rollback
+    await db.updateAttestation({ attestation });
+    logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
+      context: 'failed to update discoverability',
+      severity: AnalyticsSeverity.Critical,
+      error: e,
+    });
+  }
+}
+
+export async function discoverContacts(
+  phoneNumbers: string[]
+): Promise<[string, string][]> {
+  const lastSalt = await db.lastLanyardSalt.getValue();
+  const lastPhoneNumbers = await db.lastPhoneContactSetRequest.getValue();
+
+  try {
+    const { matches, nextSalt } = await api.discoverContacts(
+      phoneNumbers,
+      lastSalt,
+      lastPhoneNumbers
+    );
+
+    // always store the phone numbers we just successfully sent, will be used to diff
+    // against the next time we send a request
+    await db.lastPhoneContactSetRequest.setValue(JSON.stringify(phoneNumbers));
+    await db.lastLanyardSalt.setValue(nextSalt);
+    return matches;
+  } catch (e) {
+    logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+      context: 'failed to discover contacts',
       error: e,
       errorMessage: e.message,
     });

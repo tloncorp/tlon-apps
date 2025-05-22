@@ -1,17 +1,22 @@
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, withRetry } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import {
+  AnalyticsSeverity,
+  BootPhaseNames,
+  NodeBootPhase,
+} from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import { preSig } from '@tloncorp/shared/urbit';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useLureMetadata } from '../contexts/branch';
 import { useShip } from '../contexts/ship';
-import { BootPhaseNames, NodeBootPhase } from '../lib/bootHelpers';
 import BootHelpers from '../lib/bootHelpers';
 import { useConfigureUrbitClient } from './useConfigureUrbitClient';
 import { usePosthog } from './usePosthog';
 
 const HANDLE_INVITES_TIMEOUT = 1000 * 30;
+const HANDLE_SCAFFOLD_TIMEOUT = 1000 * 60;
 
 const logger = createDevLogger('boot sequence', true);
 
@@ -104,7 +109,7 @@ export function useBootSequence() {
         if (!shipInfo) {
           throw new Error('Could not authenticate with node');
         }
-        setShip(shipInfo);
+        setShip({ ...shipInfo, needsSplashSequence: true });
         telemetry?.identify(preSig(shipInfo.ship!), { isHostedUser: true });
 
         await wait(2000);
@@ -113,7 +118,10 @@ export function useBootSequence() {
           shipName: shipInfo.ship,
           shipUrl: shipInfo.shipUrl,
         });
-        store.syncStart();
+        withRetry(() => store.syncStart(), {
+          numOfAttempts: 3,
+          startingDelay: 30000,
+        });
 
         logger.crumb(`authenticated with node`);
         return NodeBootPhase.CONNECTING;
@@ -130,14 +138,37 @@ export function useBootSequence() {
       await wait(1000);
       if (connectionStatus === 'Connected') {
         logger.crumb(`connection to node established`);
-        const signedUpWithInvite = Boolean(lureMeta?.id);
-        return signedUpWithInvite
-          ? NodeBootPhase.CHECKING_FOR_INVITE
-          : NodeBootPhase.READY;
+        return NodeBootPhase.SCAFFOLDING_WAYFINDING;
       }
 
       logger.crumb(`still connecting to node`, connectionStatus);
       return NodeBootPhase.CONNECTING;
+    }
+
+    //
+    // SCAFFOLDING WAYFINDING: make sure the starter group is created
+    if (bootPhase === NodeBootPhase.SCAFFOLDING_WAYFINDING) {
+      // provide some wiggle room for sync start to run
+      await wait(3000);
+
+      try {
+        await store.scaffoldPersonalGroup();
+
+        // since we know they're using the app for the first time, enable coach marks
+        db.wayfindingProgress.setValue((prev) => ({
+          ...prev,
+          tappedChatInput: false,
+          tappedAddCollection: false,
+          tappedAddNote: false,
+        }));
+
+        const signedUpWithInvite = Boolean(lureMeta?.id);
+        return signedUpWithInvite
+          ? NodeBootPhase.CHECKING_FOR_INVITE
+          : NodeBootPhase.READY;
+      } catch (e) {
+        return NodeBootPhase.SCAFFOLDING_WAYFINDING;
+      }
     }
 
     //
@@ -146,7 +177,10 @@ export function useBootSequence() {
     if (bootPhase === NodeBootPhase.CHECKING_FOR_INVITE) {
       // always add the inviter as a contact first
       if (lureMeta?.inviterUserId) {
-        store.addContact(lureMeta?.inviterUserId);
+        const contact = await db.getContact({ id: lureMeta.inviterUserId });
+        if (!contact || !contact.isContact) {
+          store.addContact(lureMeta?.inviterUserId);
+        }
       }
 
       const { invitedDm, invitedGroup, tlonTeamDM } =
@@ -211,7 +245,7 @@ export function useBootSequence() {
       await wait(2000);
       if (invitedGroup) {
         try {
-          await store.syncGroup(invitedGroup?.id);
+          await store.syncGroup(invitedGroup?.id, undefined, { force: true });
         } catch (e) {
           logger.error('failed to sync group?', e.body);
         }
@@ -229,6 +263,7 @@ export function useBootSequence() {
         invitedDm: updatedDm,
         invitedGroup: updatedGroup,
         tlonTeamDM: updatedTlonTeamDm,
+        personalGroup,
       } = await BootHelpers.getInvitedGroupAndDm(lureMeta);
 
       const dmIsGood = updatedDm && !updatedDm.isDmInvite;
@@ -246,6 +281,9 @@ export function useBootSequence() {
         logger.crumb('successfully accepted invites');
         if (updatedTlonTeamDm) {
           store.pinChannel(updatedTlonTeamDm);
+        }
+        if (personalGroup) {
+          store.pinGroup(personalGroup);
         }
         return NodeBootPhase.READY;
       }
@@ -273,6 +311,8 @@ export function useBootSequence() {
   // we increment a counter to ensure the effect executes after every run, even if
   // the step didn't advance
   const [bootStepCounter, setBootCounter] = useState(0);
+  const tryingWayfindingSince = useRef<number | null>(null);
+  const tryingInviteHandling = useRef<number | null>(null);
   useEffect(() => {
     const runBootSequence = async () => {
       // prevent simultaneous runs
@@ -302,6 +342,7 @@ export function useBootSequence() {
       } catch (e) {
         logger.trackError('runBootPhase error', {
           bootPhase,
+          bootPhaseName: BootPhaseNames[bootPhase],
           errorMessage: e.message,
           errorStack: e.stack,
         });
@@ -313,17 +354,45 @@ export function useBootSequence() {
       }
     };
 
+    // if we're stuck trying to scaffold wayfinding, bail
+    if (bootPhase === NodeBootPhase.SCAFFOLDING_WAYFINDING) {
+      if (!tryingWayfindingSince.current) {
+        tryingWayfindingSince.current = Date.now();
+      } else if (
+        Date.now() - tryingWayfindingSince.current >
+        HANDLE_SCAFFOLD_TIMEOUT
+      ) {
+        logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
+          context: 'failed to scaffold personal group',
+          during: 'mobile signup (useBootSequence)',
+          severity: AnalyticsSeverity.Critical,
+        });
+        const signedUpWithInvite = Boolean(lureMeta?.id);
+        const nextBootPhase = signedUpWithInvite
+          ? NodeBootPhase.CHECKING_FOR_INVITE
+          : NodeBootPhase.READY;
+        setBootPhase(nextBootPhase);
+        return;
+      }
+    }
+
     // if we're stuck trying to handle invites afte user finishes signing up, bail
-    const beenRunningTooLong =
-      Date.now() - sequenceStartTimeRef.current > HANDLE_INVITES_TIMEOUT;
-    const isInOptionalPhase = [
-      NodeBootPhase.ACCEPTING_INVITES,
-      NodeBootPhase.CHECKING_FOR_INVITE,
-    ].includes(bootPhase);
-    if (isInOptionalPhase && beenRunningTooLong) {
-      logger.trackError('accept invites abort', { inviteId: lureMeta?.id });
-      setBootPhase(NodeBootPhase.READY);
-      return;
+    if (
+      [
+        NodeBootPhase.ACCEPTING_INVITES,
+        NodeBootPhase.CHECKING_FOR_INVITE,
+      ].includes(bootPhase)
+    ) {
+      if (!tryingInviteHandling.current) {
+        tryingInviteHandling.current = Date.now();
+      } else if (
+        Date.now() - tryingInviteHandling.current >
+        HANDLE_INVITES_TIMEOUT
+      ) {
+        logger.trackError('accept invites abort', { inviteId: lureMeta?.id });
+        setBootPhase(NodeBootPhase.READY);
+        return;
+      }
     }
 
     if (![NodeBootPhase.IDLE, NodeBootPhase.READY].includes(bootPhase)) {
@@ -338,6 +407,8 @@ export function useBootSequence() {
     isRunningRef.current = false;
     lastRunPhaseRef.current = NodeBootPhase.IDLE;
     lastRunErrored.current = false;
+    tryingWayfindingSince.current = null;
+    tryingInviteHandling.current = null;
 
     sequenceStartTimeRef.current = 0;
   }, []);

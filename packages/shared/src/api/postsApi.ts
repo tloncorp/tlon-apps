@@ -3,7 +3,11 @@ import { Poke } from '@urbit/http-api';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import { IMAGE_URL_REGEX } from '../logic';
+import {
+  IMAGE_URL_REGEX,
+  PlaintextPreviewConfig,
+  getTextContent,
+} from '../logic';
 import * as ub from '../urbit';
 import {
   ClubAction,
@@ -18,7 +22,6 @@ import {
   WritDiff,
   checkNest,
   getChannelType,
-  getTextContent,
   whomIsDm,
 } from '../urbit';
 import {
@@ -35,6 +38,7 @@ import {
   with404Handler,
 } from './apiUtils';
 import { channelAction } from './channelsApi';
+import { multiDmAction } from './chatApi';
 import { poke, scry, subscribeOnce } from './urbit';
 
 const logger = createDevLogger('postsApi', false);
@@ -689,12 +693,29 @@ export const getHiddenDMPosts = async () => {
   return hiddenDMPosts.map((postId) => getCanonicalPostId(postId));
 };
 
-export async function deletePost(channelId: string, postId: string) {
-  const action = channelAction(channelId, {
-    post: {
-      del: postId,
-    },
-  });
+export async function deletePost(
+  channelId: string,
+  postId: string,
+  authorId: string
+) {
+  const action = isDmChannelId(channelId)
+    ? chatAction(channelId, `${authorId}/${postId}`, {
+        del: null,
+      })
+    : isGroupDmChannelId(channelId)
+      ? multiDmAction(channelId, {
+          writ: {
+            id: `${authorId}/${postId}`,
+            delta: {
+              del: null,
+            },
+          },
+        })
+      : channelAction(channelId, {
+          post: {
+            del: postId,
+          },
+        });
 
   // todo: we need to use a tracked poke here (or settle on a different pattern
   // for expressing request response semantics)
@@ -887,7 +908,10 @@ export function toPostData(
     content: galleryImageLink
       ? JSON.stringify(galleryImageLinkContent)
       : JSON.stringify(content),
-    textContent: getTextContent(post?.essay.content),
+    textContent: getTextContent(
+      post?.essay.content,
+      PlaintextPreviewConfig.inlineConfig
+    ),
     sentAt: post.essay.sent,
     receivedAt: getReceivedAtFromId(id),
     replyCount: post?.seal.meta.replyCount,

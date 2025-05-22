@@ -3,4 +3,5 @@ export type HapticAction =
   | 'sheetOpen'
   | 'success'
   | 'zoomable'
-  | 'swipeAction';
+  | 'swipeAction'
+  | 'error';

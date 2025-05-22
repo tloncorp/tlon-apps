@@ -13,21 +13,22 @@ import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { ShipProvider, useShip } from '@tloncorp/app/contexts/ship';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
-import { registerBackgroundSyncTask } from '@tloncorp/app/lib/backgroundSync';
+import { unregisterBackgroundSyncTask } from '@tloncorp/app/lib/backgroundSync';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
-import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
-import { posthogAsync } from '@tloncorp/app/utils/posthog';
-import { QueryClientProvider, queryClient } from '@tloncorp/shared/api';
-import * as db from '@tloncorp/shared/db';
 import {
   LoadingSpinner,
   PortalProvider,
+  SplashSequence,
   StoreProvider,
   Text,
   View,
   usePreloadedEmojis,
 } from '@tloncorp/app/ui';
+import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
+import { posthogAsync } from '@tloncorp/app/utils/posthog';
+import { QueryClientProvider, queryClient } from '@tloncorp/shared/api';
+import * as db from '@tloncorp/shared/db';
 import { PostHogProvider } from 'posthog-react-native';
 import type { PropsWithChildren } from 'react';
 import { useEffect, useMemo, useState } from 'react';
@@ -39,12 +40,17 @@ import { OnboardingStack } from './OnboardingStack';
 import AuthenticatedApp from './components/AuthenticatedApp';
 import { SignupProvider, useSignupContext } from './lib/signupContext';
 
-registerBackgroundSyncTask();
+unregisterBackgroundSyncTask();
 
 // Android notification tap handler passes initial params here
 const App = () => {
   const isDarkMode = useIsDarkMode();
-  const { isLoading, isAuthenticated } = useShip();
+  const {
+    isLoading,
+    isAuthenticated,
+    needsSplashSequence,
+    clearNeedsSplashSequence,
+  } = useShip();
   const [connected, setConnected] = useState(true);
   const signupContext = useSignupContext();
 
@@ -91,6 +97,10 @@ const App = () => {
     isAuthenticated,
   ]);
 
+  const showSplashSequence = useMemo(() => {
+    return showAuthenticatedApp && needsSplashSequence;
+  }, [showAuthenticatedApp, needsSplashSequence]);
+
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">
       {connected ? (
@@ -98,6 +108,8 @@ const App = () => {
           <View flex={1} alignItems="center" justifyContent="center">
             <LoadingSpinner />
           </View>
+        ) : showSplashSequence ? (
+          <SplashSequence onCompleted={clearNeedsSplashSequence} />
         ) : showAuthenticatedApp ? (
           <AuthenticatedApp />
         ) : (
@@ -141,29 +153,29 @@ export default function ConnectedApp() {
   return (
     <ErrorBoundary>
       <FeatureFlagConnectedInstrumentationProvider>
-        <TamaguiProvider>
-          <ShipProvider>
-            <NavigationContainer
-              theme={isDarkMode ? DarkTheme : DefaultTheme}
-              ref={navigationContainerRef}
-            >
-              <StoreProvider>
-                <BranchProvider>
-                  <PostHogProvider
-                    client={posthogAsync}
-                    autocapture={{
-                      captureTouches: false,
-                    }}
-                    options={{
-                      enable:
-                        process.env.NODE_ENV !== 'test' ||
-                        !!process.env.POST_HOG_IN_DEV,
-                    }}
-                  >
-                    <GestureHandlerRootView style={{ flex: 1 }}>
-                      <SafeAreaProvider>
-                        <MigrationCheck>
-                          <QueryClientProvider client={queryClient}>
+        <QueryClientProvider client={queryClient}>
+          <TamaguiProvider>
+            <ShipProvider>
+              <NavigationContainer
+                theme={isDarkMode ? DarkTheme : DefaultTheme}
+                ref={navigationContainerRef}
+              >
+                <StoreProvider>
+                  <BranchProvider>
+                    <PostHogProvider
+                      client={posthogAsync}
+                      autocapture={{
+                        captureTouches: false,
+                      }}
+                      options={{
+                        enable:
+                          process.env.NODE_ENV !== 'test' ||
+                          !!process.env.POST_HOG_IN_DEV,
+                      }}
+                    >
+                      <GestureHandlerRootView style={{ flex: 1 }}>
+                        <SafeAreaProvider>
+                          <MigrationCheck>
                             <SignupProvider>
                               <PortalProvider>
                                 <App />
@@ -177,16 +189,16 @@ export default function ConnectedApp() {
                                 />
                               )}
                             </SignupProvider>
-                          </QueryClientProvider>
-                        </MigrationCheck>
-                      </SafeAreaProvider>
-                    </GestureHandlerRootView>
-                  </PostHogProvider>
-                </BranchProvider>
-              </StoreProvider>
-            </NavigationContainer>
-          </ShipProvider>
-        </TamaguiProvider>
+                          </MigrationCheck>
+                        </SafeAreaProvider>
+                      </GestureHandlerRootView>
+                    </PostHogProvider>
+                  </BranchProvider>
+                </StoreProvider>
+              </NavigationContainer>
+            </ShipProvider>
+          </TamaguiProvider>
+        </QueryClientProvider>
       </FeatureFlagConnectedInstrumentationProvider>
     </ErrorBoundary>
   );

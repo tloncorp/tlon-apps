@@ -37,7 +37,7 @@ export function usePostDraftCallbacks(
         try {
           return await kv
             .postDraft({ key: draftKey, type: draftType })
-            .getValue();
+            .getValue(true);
         } catch (e) {
           return null;
         }

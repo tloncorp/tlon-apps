@@ -8,12 +8,33 @@ import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { useCalm } from '../ui';
 import { getChannelTitle, getGroupTitle } from '../ui';
 
-export type TabName = 'all' | 'home' | 'groups' | 'messages' | 'talk';
+export type TabName =
+  | 'all'
+  | 'home'
+  | 'groups'
+  | 'messages'
+  | 'talk'
+  | 'channels';
 
 export type SectionedChatData = {
   title: string;
   data: db.Chat[];
 }[];
+
+function getAllSectionHeader(
+  activeTab: TabName,
+  msgsFilter?: TalkSidebarFilter
+): string {
+  if (activeTab === 'talk') {
+    if (msgsFilter === 'Group Channels') {
+      return 'Chat Channels';
+    }
+
+    return msgsFilter ?? 'Direct Messages';
+  }
+
+  return 'All';
+}
 
 export function useFilteredChats({
   pinned,
@@ -36,8 +57,11 @@ export function useFilteredChats({
   );
 
   const { data } = useMessagesFilter();
-  const talkFilter =
-    activeTab === 'talk' ? data ?? 'Direct Messages' : 'Direct Messages';
+  const talkFilter = useMemo(
+    () =>
+      activeTab === 'talk' ? data ?? 'Direct Messages' : 'Direct Messages',
+    [data, activeTab]
+  );
 
   return useMemo(() => {
     const isSearching = searchQuery && searchQuery.trim() !== '';
@@ -47,7 +71,7 @@ export function useFilteredChats({
         data: filterChats(pinned, activeTab, talkFilter),
       };
       const allSection = {
-        title: 'All',
+        title: getAllSectionHeader(activeTab, talkFilter),
         data: filterChats([...pending, ...unpinned], activeTab, talkFilter),
       };
       return pinnedSection.data.length
@@ -136,9 +160,17 @@ function filterChats(
       return chat.type === 'group';
     }
 
-    if (activeTab === 'messages' || activeTab === 'talk') {
+    if (
+      activeTab === 'messages' ||
+      activeTab === 'talk' ||
+      activeTab === 'channels'
+    ) {
       if (chat.type !== 'channel') {
         return false;
+      }
+
+      if (activeTab === 'channels') {
+        return true;
       }
 
       if (filter === 'Direct Messages') {

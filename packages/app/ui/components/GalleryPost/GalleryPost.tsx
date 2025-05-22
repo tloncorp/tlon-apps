@@ -4,9 +4,16 @@ import {
   ChannelAction,
   JSONValue,
   createDevLogger,
+  makePrettyDaysSince,
   makePrettyShortDate,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import {
+  BlockData,
+  BlockFromType,
+  BlockType,
+  PostContent,
+} from '@tloncorp/shared/logic';
 import { Button } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
@@ -22,22 +29,16 @@ import {
 import { View, XStack, styled } from 'tamagui';
 
 import { RootStackParamList } from '../../../navigation/types';
-import { useChannelContext } from '../../contexts';
+import { useChannelContext, useRequests } from '../../contexts';
 import { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { DetailViewAuthorRow } from '../AuthorRow';
-import { ContactAvatar } from '../Avatar';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ReactionsDisplay } from '../ChatMessage/ReactionsDisplay';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
+import ContactName from '../ContactName';
 import { useBoundHandler } from '../ListItem/listItemUtils';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
-import {
-  BlockData,
-  BlockFromType,
-  BlockType,
-  PostContent,
-  usePostContent,
-} from '../PostContent/contentUtils';
+import { usePostContent } from '../PostContent/contentUtils';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 
 const GalleryPostFrame = styled(View, {
@@ -45,6 +46,9 @@ const GalleryPostFrame = styled(View, {
   maxHeight: '100%',
   overflow: 'hidden',
   flex: 1,
+  borderWidth: 1,
+  borderColor: '$border',
+  borderRadius: '$m',
 });
 
 export function GalleryPost({
@@ -142,43 +146,73 @@ export function GalleryPost({
           embedded={embedded}
         />
         {showAuthor && !post.hidden && !post.isDeleted && (
-          <View
-            position="absolute"
-            bottom={0}
-            left={0}
-            right={0}
-            width="100%"
-            pointerEvents="none"
-          >
-            <XStack
-              alignItems="flex-end"
-              justifyContent="space-between"
-              gap="$xl"
-              padding="$m"
-              {...props}
+          <>
+            <View
+              position="absolute"
+              top={0}
+              left={0}
+              right={0}
+              width="100%"
+              pointerEvents="none"
             >
-              <ContactAvatar size="$2xl" contactId={post.authorId} />
-              <View pointerEvents="auto">
-                <ReactionsDisplay post={post} minimal={true} />
-              </View>
-              {deliveryFailed && (
-                <Text
-                  // applying some shadow here because we could be rendering it
-                  // on top of an image
-                  shadowOffset={{
-                    width: 0,
-                    height: 1,
-                  }}
-                  shadowOpacity={0.8}
-                  shadowColor="$redSoft"
-                  color="$negativeActionText"
-                  size="$label/s"
-                >
-                  Tap to retry
+              <XStack
+                alignItems="center"
+                justifyContent="space-between"
+                backgroundColor="$background"
+                borderBottomWidth={1}
+                borderColor="$border"
+                borderTopWidth={0}
+                padding="$l"
+                gap="$m"
+              >
+                <ContactName
+                  userId={post.authorId}
+                  showNickname
+                  size="$label/m"
+                  color="$tertiaryText"
+                />
+                <Text size="$label/m" color="$tertiaryText">
+                  {makePrettyDaysSince(new Date(post.receivedAt))}
                 </Text>
-              )}
-            </XStack>
-          </View>
+              </XStack>
+            </View>
+            <View
+              position="absolute"
+              bottom={0}
+              left={0}
+              right={0}
+              width="100%"
+              pointerEvents="none"
+            >
+              <XStack
+                alignItems="center"
+                justifyContent="space-between"
+                backgroundColor="$background"
+                borderTopWidth={1}
+                borderColor="$border"
+                gap="$xl"
+                height="$3.5xl"
+                padding="$m"
+                {...props}
+              >
+                <View pointerEvents="auto">
+                  <ReactionsDisplay post={post} minimal={true} />
+                </View>
+                {deliveryFailed ? (
+                  <Text color="$negativeActionText" size="$label/s">
+                    Tap to retry
+                  </Text>
+                ) : (
+                  <XStack alignItems="center" gap="$xs" justifyContent="center">
+                    <Text size="$label/m" color="$tertiaryText">
+                      {post.replyCount}
+                    </Text>
+                    <Icon color="$tertiaryText" size="$s" type="Messages" />
+                  </XStack>
+                )}
+              </XStack>
+            </View>
+          </>
         )}
         <SendPostRetrySheet
           open={showRetrySheet}
@@ -188,7 +222,7 @@ export function GalleryPost({
           onPressRetry={handleRetryPressed}
         />
         {!hideOverflowMenu && (isPopoverOpen || isHovered) && (
-          <View position="absolute" top={0} right={12}>
+          <View position="absolute" top={36} right={4}>
             <ChatMessageActions
               post={post}
               postActionIds={postActionIds}
@@ -198,9 +232,8 @@ export function GalleryPost({
               onEdit={onPressEdit}
               trigger={
                 <Button
-                  backgroundColor="transparent"
                   borderWidth="unset"
-                  size="$l"
+                  size="$xs"
                   onHoverIn={onOverflowHoverIn}
                   onHoverOut={onOverflowHoverOut}
                 >
@@ -222,6 +255,10 @@ export function GalleryPostDetailView({
   post: db.Post;
   onPressImage?: (post: db.Post, uri?: string) => void;
 }) {
+  const { usePost } = useRequests();
+  // we use usePost so we can get updated reactions
+  // and reply count
+  const { data: livePost } = usePost({ id: post.id });
   const logger = createDevLogger('GalleryPostDetailView', true);
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -233,9 +270,8 @@ export function GalleryPostDetailView({
 
   const firstImage = useMemo(() => {
     const img = content.find((block) => block.type === 'image');
-    logger.log('First image found in GalleryPostDetailView:', img);
     return img;
-  }, [content, logger]);
+  }, [content]);
 
   const isImagePost = useMemo(() => !!firstImage, [firstImage]);
 
@@ -258,6 +294,13 @@ export function GalleryPostDetailView({
   const handleViewPostReactions = useCallback(() => {
     setViewReactionsOpen(true);
   }, []);
+
+  // we need to remove the image from the content for the caption
+  // if we don't, it gets filtered out in the renderer
+  // and we end up with a blank space
+  const contentWithoutImage = useMemo(() => {
+    return content.filter((block) => block.type !== 'image');
+  }, [content]);
 
   return (
     <View paddingBottom="$xs" borderBottomWidth={1} borderColor="$border">
@@ -287,13 +330,24 @@ export function GalleryPostDetailView({
 
         {post.title && <Text size="$body">{post.title}</Text>}
 
-        <ReactionsDisplay
-          post={post}
-          minimal={false}
-          onViewPostReactions={handleViewPostReactions}
-        />
+        {isImagePost && (
+          <CaptionContentRenderer content={contentWithoutImage} />
+        )}
 
-        {isImagePost && <CaptionContentRenderer content={content} />}
+        <XStack justifyContent="space-between" alignItems="center">
+          <ReactionsDisplay
+            post={livePost ?? post}
+            minimal={false}
+            onViewPostReactions={handleViewPostReactions}
+          />
+          <Text size="$label/m" color="$secondaryText">
+            {livePost && livePost.replyCount && livePost.replyCount > 0
+              ? livePost.replyCount === 1
+                ? `${livePost.replyCount} comment`
+                : `${livePost.replyCount} comments`
+              : 'No comments'}
+          </Text>
+        </XStack>
       </View>
 
       <ViewReactionsSheet
@@ -341,10 +395,7 @@ function LargePreview({
 >) {
   return (
     <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
-      <LargeContentRenderer
-        content={content.slice(0, 1)}
-        onPressImage={onPressImage}
-      />
+      <LargeContentRenderer content={content} onPressImage={onPressImage} />
     </PreviewFrame>
   );
 }
@@ -357,14 +408,13 @@ function SmallPreview({
   'content'
 >) {
   const link = useBlockLink(content);
-
   return link ? (
     <PreviewFrame {...props} previewType="link">
       <LinkPreview link={link} />
     </PreviewFrame>
   ) : (
     <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
-      <SmallContentRenderer height={'100%'} content={content.slice(0, 1)} />
+      <SmallContentRenderer height={'100%'} content={content} />
     </PreviewFrame>
   );
 }
@@ -393,11 +443,14 @@ const PreviewFrame = styled(View, {
       }
       switch (type) {
         case 'reference':
-          return { backgroundColor: '$secondaryBackground' };
+          return {
+            backgroundColor: '$secondaryBackground',
+            paddingTop: '$3xl',
+          };
         case 'paragraph':
         case 'list':
         case 'blockquote':
-          return { borderWidth: 1 };
+          return { paddingTop: '$3xl' };
       }
     },
   } as const,
@@ -568,6 +621,15 @@ function usePreviewContent(content: BlockData[]): BlockData[] {
     } else if (groupedBlocks.video?.length) {
       return [groupedBlocks.video[0]];
     }
-    return content;
+    return firstBlockIsPreviewable(content) ? content.slice(0, 1) : content;
   }, [content]);
+}
+
+function firstBlockIsPreviewable(content: BlockData[]): boolean {
+  return (
+    content.length > 0 &&
+    (content[0].type === 'image' ||
+      content[0].type === 'video' ||
+      content[0].type === 'reference')
+  );
 }

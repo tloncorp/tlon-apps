@@ -225,6 +225,8 @@ const Scroller = forwardRef(
       shouldMaintainVisibleContentPosition:
         collectionLayout.shouldMaintainVisibleContentPosition,
       isScrollingToBottom: hasPressedGoToBottom,
+      collectionLayoutType,
+      columnsCount: columns,
     });
 
     const theme = useTheme();
@@ -266,8 +268,10 @@ const Scroller = forwardRef(
         const showAuthor =
           post.type === 'note' ||
           post.type === 'block' ||
+          !previousItem ||
           previousItem?.authorId !== post.authorId ||
           previousItem?.type === 'notice' ||
+          previousItem?.isDeleted === true ||
           isFirstPostOfDay;
         const isSelected =
           anchor?.type === 'selected' && anchor.postId === post.id;
@@ -308,6 +312,7 @@ const Scroller = forwardRef(
             itemAspectRatio={collectionLayout.itemAspectRatio ?? undefined}
             itemWidth={itemWidth}
             columnCount={columns}
+            previousPost={previousItem}
             {...anchorScrollLockScrollerItemProps}
           />
         );
@@ -585,6 +590,18 @@ function getPostId({ post }: PostWithNeighbors) {
   return post.id;
 }
 
+// Create empty post object to avoid recreating it on every render
+const EMPTY_POST: db.Post = {
+  id: '',
+  authorId: '',
+  channelId: '',
+  type: 'chat',
+  receivedAt: 0,
+  sentAt: 0,
+  isDeleted: false,
+  replyCount: 0,
+};
+
 const BaseScrollerItem = ({
   item,
   index,
@@ -612,6 +629,7 @@ const BaseScrollerItem = ({
   itemAspectRatio,
   itemWidth,
   columnCount,
+  previousPost,
 }: {
   showUnreadDivider: boolean;
   showAuthor: boolean;
@@ -639,8 +657,27 @@ const BaseScrollerItem = ({
   itemAspectRatio?: number;
   itemWidth?: number;
   columnCount: number;
+  previousPost?: db.Post | null;
 }) => {
   const post = useLivePost(item);
+
+  // Checking if the previous post exists
+  const hasPreviousPost = Boolean(previousPost);
+  // Get the live post for the previous post
+  const livePreviousPost = useLivePost(
+    // If there is a previous post, use it, otherwise use the empty post
+    hasPreviousPost ? previousPost! : EMPTY_POST
+  );
+  // Check if the previous post (A) exists and (B) is deleted
+  const isPrevDeleted = hasPreviousPost && livePreviousPost.isDeleted === true;
+  // If the previous post is deleted, show the author, otherwise fall back to the
+  // display rules calculated in the showAuthor prop
+  const showAuthorLive = useMemo(() => {
+    if (isPrevDeleted) {
+      return true;
+    }
+    return showAuthor;
+  }, [isPrevDeleted, showAuthor]);
 
   const handleLayout = useCallback(
     (e: LayoutChangeEvent) => {
@@ -712,7 +749,7 @@ const BaseScrollerItem = ({
           isHighlighted={isSelected}
           post={post}
           setViewReactionsPost={setViewReactionsPost}
-          showAuthor={showAuthor}
+          showAuthor={showAuthorLive}
           showReplies={showReplies}
           onPressReplies={post.isDeleted ? undefined : onPressReplies}
           onPressImage={post.isDeleted ? undefined : onPressImage}

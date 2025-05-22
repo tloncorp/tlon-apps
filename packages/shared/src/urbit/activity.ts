@@ -4,6 +4,7 @@ import _ from 'lodash';
 import { Kind, Story } from './channel';
 import { ContactBookProfile } from './contact';
 import { nestToFlag, whomIsDm, whomIsFlag, whomIsMultiDm } from './utils';
+import type { UnionToIntersection } from '../utils';
 
 export type Whom = { ship: string } | { club: string };
 
@@ -676,60 +677,66 @@ export function getTop(bundle: ActivityBundle): ActivityEvent {
 
 export function getSource(bundle: ActivityBundle): Source {
   const top = getTop(bundle);
+  return getSourceForEvent(top);
+}
 
-  if ('post' in top) {
-    return { channel: { nest: top.post.channel, group: top.post.group } };
+export function getSourceForEvent(event: ActivityEvent): Source {
+  if ('post' in event) {
+    return { channel: { nest: event.post.channel, group: event.post.group } };
   }
 
-  if ('reply' in top) {
+  if ('reply' in event) {
     return {
       thread: {
-        key: top.reply.parent,
-        channel: top.reply.channel,
-        group: top.reply.group,
+        key: event.reply.parent,
+        channel: event.reply.channel,
+        group: event.reply.group,
       },
     };
   }
 
-  if ('dm-post' in top) {
-    return { dm: top['dm-post'].whom };
+  if ('dm-post' in event) {
+    return { dm: event['dm-post'].whom };
   }
 
-  if ('dm-reply' in top) {
+  if ('dm-reply' in event) {
     return {
-      'dm-thread': { key: top['dm-reply'].parent, whom: top['dm-reply'].whom },
+      'dm-thread': {
+        key: event['dm-reply'].parent,
+        whom: event['dm-reply'].whom,
+      },
     };
   }
 
-  if ('group-ask' in top) {
-    return { group: top['group-ask'].group };
+  if ('group-ask' in event) {
+    return { group: event['group-ask'].group };
   }
 
-  if ('group-join' in top) {
-    return { group: top['group-join'].group };
+  if ('group-join' in event) {
+    return { group: event['group-join'].group };
   }
 
-  if ('group-role' in top) {
-    return { group: top['group-role'].group };
+  if ('group-role' in event) {
+    return { group: event['group-role'].group };
   }
 
-  if ('group-kick' in top) {
-    return { group: top['group-kick'].group };
+  if ('group-kick' in event) {
+    return { group: event['group-kick'].group };
   }
 
-  if ('group-invite' in top) {
-    return { group: top['group-invite'].group };
+  if ('group-invite' in event) {
+    return { group: event['group-invite'].group };
   }
 
-  if ('flag-post' in top) {
+  if ('flag-post' in event) {
     return {
-      group: top['flag-post'].group,
+      group: event['flag-post'].group,
     };
   }
 
-  if ('flag-reply' in top) {
+  if ('flag-reply' in event) {
     return {
-      group: top['flag-reply'].group,
+      group: event['flag-reply'].group,
     };
   }
 
@@ -870,4 +877,30 @@ export function getRelevancy(
     event
   );
   return 'involvedThread';
+}
+
+// eslint-disable-next-line @typescript-eslint/no-namespace
+export namespace ActivityIncomingEvent {
+  /**
+   * Helper for building exhaustive checks:
+   * ```ts
+   * declare const event: ActivityIncomingEvent;
+   * switch (true) {
+   * case is(event, "dm-post"):
+   *   // `event` is typed as `DmPostEvent`
+   *   return event['dm-post'].content;
+   *
+   * // TS should complain about missing cases until you add all of them
+   * }
+   * ```
+   */
+  export function is<
+    K extends keyof UnionToIntersection<ActivityIncomingEvent>,
+  >(
+    poly: ActivityIncomingEvent,
+    type: K
+  ): // @ts-expect-error - hey, I'm asserting here!
+  poly is Pick<UnionToIntersection<ActivityIncomingEvent>, K> {
+    return type in poly;
+  }
 }

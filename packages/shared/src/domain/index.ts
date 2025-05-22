@@ -4,3 +4,6 @@ export * from './analytics';
 export * from './hosting';
 export * from './system';
 export * from './attestations';
+export * from './wayfinding';
+export * from './onboarding';
+export * from './systemContacts';

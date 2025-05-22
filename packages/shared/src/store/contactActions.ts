@@ -2,6 +2,8 @@ import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
+import * as logic from '../logic';
+import * as GroupActions from './groupActions';
 import { syncContacts, syncGroup } from './sync';
 
 const logger = createDevLogger('ContactActions', false);
@@ -28,6 +30,7 @@ export async function addContacts(contacts: string[]) {
   logger.trackEvent(AnalyticsEvent.ActionContactAdded, {
     count: contacts.length,
   });
+
   const optimisticUpdates = contacts.map((contactId) =>
     db.updateContact({
       id: contactId,
@@ -36,10 +39,26 @@ export async function addContacts(contacts: string[]) {
     })
   );
   await Promise.all(optimisticUpdates);
+  logger.log('Optimistic updates complete', {
+    optimisticUpdates,
+    contacts,
+  });
 
   try {
-    await api.addUserContacts(contacts);
+    // Backend will balk if we try to add the same contact twice, so filter out
+    // any that are already contacts
+    const existingContacts = await api.getContacts();
+    const newContacts = contacts.filter(
+      (contactId) =>
+        !existingContacts.some((c) => c.id === contactId && c.isContact)
+    );
+
+    await api.addUserContacts(newContacts);
   } catch (e) {
+    logger.trackError('Error adding contacts', {
+      errorMessage: e.message,
+      errorStack: e.stack,
+    });
     // Rollback the update
     const rolbacks = contacts.map((contactId) =>
       db.updateContact({
@@ -256,6 +275,10 @@ export async function updateContactMetadata(
           : undefined,
     });
   } catch (e) {
+    logger.trackError('Error updating contact metadata', {
+      errorMessage: e.message,
+      errorStack: e.stack,
+    });
     // rollback the update
     await db.updateContact({
       id: contactId,
@@ -296,6 +319,25 @@ export async function updateCurrentUserProfile(update: api.ProfileUpdate) {
 
   try {
     await api.updateCurrentUserProfile(update);
+
+    // handle updating the personal group title if user sets their nickname
+    const personalGroup = await db.getPersonalGroup();
+    if (personalGroup) {
+      const hasDefaultTitle = logic.personalGroupHasDefaultTitle(personalGroup);
+      const changedNickname =
+        currentUserContact?.peerNickname !== update.nickname;
+
+      if (hasDefaultTitle && changedNickname) {
+        const newTitle = logic.generatePersonalGroupTitle({
+          id: currentUserId,
+          nickname: update.nickname,
+        });
+        await GroupActions.updateGroupMeta({
+          ...personalGroup,
+          title: newTitle,
+        });
+      }
+    }
   } catch (e) {
     console.error('Error updating profile', e);
     // Rollback the update

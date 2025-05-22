@@ -25,9 +25,23 @@ function getBucket(key: string): string {
     case 'messagesFilter':
       return 'talk';
     case 'activitySeenTimestamp':
+    case 'completedWayfindingSplash':
+    case 'completedWayfindingTutorial':
       return 'groups';
+    case 'disableAvatars':
+    case 'disableNicknames':
+    case 'disableRemoteContent':
+    case 'disableAppTileUnreads':
+    case 'disableSpellcheck':
+    case 'showUnreadCounts':
+      return 'calmEngine';
+    case 'theme':
+      return 'display';
     default:
-      throw new Error(`Invalid setting key: ${key}`);
+      console.warn(
+        `No explicit bucket defined for setting key: ${key}, defaulting to 'groups'`
+      );
+      return 'groups';
   }
 }
 
@@ -95,6 +109,10 @@ export const toClientSettings = (
     gallerySettings: settings.desk.heaps?.heapSettings,
     notebookSettings: JSON.stringify(settings.desk.diary),
     activitySeenTimestamp: settings.desk.groups?.activitySeenTimestamp,
+    completedWayfindingSplash:
+      settings.desk.groups?.completedWayfindingSplash ?? false,
+    completedWayfindingTutorial:
+      settings.desk.groups?.completedWayfindingTutorial ?? false,
   };
 };
 

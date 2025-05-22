@@ -303,7 +303,7 @@ function toActivityEvent({
   return null;
 }
 
-function parseContactUpdateEvent(
+export function parseContactUpdateEvent(
   eventId: string,
   event: ub.ContactEvent
 ): Partial<db.ActivityEvent> | null {
@@ -609,22 +609,30 @@ export const readGroup = async (group: db.Group, deep: boolean = false) => {
   });
 };
 
-export const readChannel = async (
-  channel: Pick<db.Channel, 'id' | 'groupId' | 'type'>
-) => {
+export const readChannel = async ({
+  channelId,
+  channelType,
+  groupId,
+  deep,
+}: {
+  channelId: string;
+  channelType: db.ChannelType;
+  groupId?: string | null;
+  deep?: boolean;
+}) => {
   let source: ub.Source;
-  if (channel.type === 'dm') {
-    source = { dm: { ship: channel.id } };
-  } else if (channel.type == 'groupDm') {
-    source = { dm: { club: channel.id } };
+  if (channelType === 'dm') {
+    source = { dm: { ship: channelId } };
+  } else if (channelType == 'groupDm') {
+    source = { dm: { club: channelId } };
   } else {
-    source = { channel: { nest: channel.id, group: channel.groupId! } };
+    source = { channel: { nest: channelId, group: groupId! } };
   }
 
   const action = activityAction({
-    read: { source, action: { all: { time: null, deep: false } } },
+    read: { source, action: { all: { time: null, deep: !!deep } } },
   });
-  logger.log(`reading channel ${channel.id}`, action);
+  logger.log(`reading channel ${channelId}`, action);
 
   // simple retry logic to avoid failed read leading to lingering unread state
   return backOff(() => poke(action), {

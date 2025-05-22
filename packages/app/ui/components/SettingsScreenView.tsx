@@ -13,6 +13,7 @@ interface Props {
   onAppInfoPressed?: () => void;
   onNotificationSettingsPressed: () => void;
   onBlockedUsersPressed: () => void;
+  onPrivacyPressed: () => void;
   onManageAccountPressed: () => void;
   onThemePressed?: () => void;
   onLogoutPressed?: () => void;
@@ -59,6 +60,13 @@ export function SettingsScreenView(props: Props) {
             leftIcon="Placeholder"
             rightIcon={'ChevronRight'}
             onPress={props.onBlockedUsersPressed}
+            isFocused={props.focusedRouteName === 'BlockedUsers'}
+          />
+          <SettingsAction
+            title="Privacy"
+            leftIcon="Lock"
+            rightIcon={'ChevronRight'}
+            onPress={props.onPrivacyPressed}
             isFocused={props.focusedRouteName === 'BlockedUsers'}
           />
           {props.hasHostedAuth && (

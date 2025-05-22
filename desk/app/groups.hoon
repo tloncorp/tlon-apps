@@ -270,6 +270,20 @@
       [~ %| *]  ~&  [dap.bowl %overwriting-pending-import]
                 cor(pimp `|+egg-any)
     ==
+  ::
+      %handle-http-request
+    ::  we may (in some Tlon hosting circumstances) have been bound to serve
+    ::  on the root path, making us act as a catch-all for http requests.
+    ::  handle all requests that hit us by redirecting back into the web app.
+    ::
+    =+  !<([id=@ta inbound-request:eyre] vase)
+    =/  pax=path                 /http-response/[id]
+    =/  pay=simple-payload:http  [[307 ['location' '/apps/groups/']~] ~]
+    %-  emil
+    :~  [%give %fact ~[pax] %http-response-header !>(response-header.pay)]
+        [%give %fact ~[pax] %http-response-data !>(data.pay)]
+        [%give %kick ~[pax] ~]
+    ==
   ==
 ::
 ++  run-import
@@ -635,6 +649,7 @@
   ^+  cor
   ~|  watch-path=`path`pole
   ?+  pole  ~|(%bad-watch-path !!)
+    [%http-response *]    cor
   ::
     ::
     ::  /v0/groups
@@ -835,9 +850,16 @@
   |=  =group:g
   ^-  group:g
   =.  fleet.group
-    %+  ~(put by *fleet:g)
-      our.bowl
-    (~(gut by fleet.group) our.bowl *vessel:fleet:g)
+    =/  our-vessel=vessel:fleet:g  (~(gut by fleet.group) our.bowl *vessel:fleet:g)
+    =/  fleet-size=@ud  ~(wyt by fleet.group)
+    ?:  (lte fleet-size 15)
+      fleet.group  :: keep all members if 15 or fewer
+    =/  other-ships=(list [ship vessel:fleet:g])
+      ~(tap by (~(del by fleet.group) our.bowl))
+    =/  keep-ships=(list [ship vessel:fleet:g])
+      :-  [our.bowl our-vessel]
+      (scag 14 other-ships)  :: take first 14 other ships
+    (~(gas by *fleet:g) keep-ships)
   group
 ::
 ++  to-claim-2

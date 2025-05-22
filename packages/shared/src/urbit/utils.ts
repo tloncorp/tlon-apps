@@ -1,13 +1,12 @@
-import { formatUd, formatUv, isValidPatp, unixToDa } from '@urbit/aura';
-import { useMemo } from 'react';
+import { formatUv, isValidPatp, unixToDa } from '@urbit/aura';
 
-import { ContentReference, PostContent } from '../api';
 import { ChannelType } from '../db';
 import { GroupJoinStatus, GroupPrivacy } from '../db/schema';
+import { createDevLogger } from '../debug';
 import * as ub from './channel';
-import * as ubc from './content';
-import * as ubd from './dms';
 import * as ubg from './groups';
+
+const logger = createDevLogger('urbitUtils', false);
 
 type App = 'chat' | 'heap' | 'diary';
 const APP_PREFIXES = ['chat', 'heap', 'diary'];
@@ -15,12 +14,12 @@ const APP_PREFIXES = ['chat', 'heap', 'diary'];
 export function checkNest(nest: string): boolean {
   const parts = nest.split('/');
   if (parts.length !== 3) {
-    console.error('Invalid nest:', nest);
+    logger.error('Invalid nest:', nest);
     return false;
   }
 
   if (!APP_PREFIXES.includes(parts[0])) {
-    console.log(
+    logger.log(
       `Custom channel type detected (${parts[0]}), pretending its chat.`,
       nest
     );
@@ -55,15 +54,6 @@ export function desig(ship: string): string {
   }
 
   return ship.trim().replace('~', '');
-}
-
-export function getFirstInline(content: ub.Story) {
-  const inlines = content.filter((v) => 'inline' in v) as ub.VerseInline[];
-  if (inlines.length === 0) {
-    return null;
-  }
-
-  return inlines[0].inline;
 }
 
 export function citeToPath(cite: ub.Cite) {
@@ -210,144 +200,6 @@ export function getChannelKindFromType(
   }
 }
 
-export function getTextContent(story?: PostContent) {
-  if (!story) {
-    return;
-  }
-  return story
-    .map((verse) => {
-      if (isReferenceVerse(verse)) {
-        return '';
-      } else if (ubc.isBlock(verse)) {
-        return getBlockContent(verse.block);
-      } else if ('inline' in verse) {
-        return getInlinesContent(verse.inline);
-      } else {
-        return '';
-      }
-    })
-    .filter((v) => !!v && v !== '')
-    .join(' ')
-    .trim();
-}
-
-function isReferenceVerse(
-  verse: ub.Verse | ContentReference
-): verse is ContentReference {
-  return 'type' in verse && verse.type === 'reference';
-}
-
-export function getBlockContent(block: ub.Block) {
-  if (ub.isImage(block)) {
-    return '(Image)';
-  } else if (ub.isCite(block)) {
-    return '(Reference)';
-  } else if (ubc.isHeader(block)) {
-    return block.header.content.map(getInlineContent);
-  } else if (ubc.isCode(block)) {
-    return block.code.code;
-  } else if (ubc.isListing(block)) {
-    return getListingContent(block.listing);
-  }
-}
-
-export function getListingContent(listing: ub.Listing): string {
-  if (ubc.isListItem(listing)) {
-    return listing.item.map(getInlineContent).join(' ');
-  } else {
-    return listing.list.items.map(getListingContent).join(' ');
-  }
-}
-
-export function getInlinesContent(inlines: ubc.Inline[]): string {
-  return inlines
-    .map(getInlineContent)
-    .filter((v) => v && v !== '')
-    .join(' ');
-}
-
-export function getInlineContent(inline: ubc.Inline): string {
-  if (ubc.isBold(inline)) {
-    return inline.bold.map(getInlineContent).join(' ');
-  } else if (ubc.isItalics(inline)) {
-    return inline.italics.map(getInlineContent).join(' ');
-  } else if (ubc.isLink(inline)) {
-    return inline.link.content;
-  } else if (ubc.isStrikethrough(inline)) {
-    return inline.strike.map(getInlineContent).join(' ');
-  } else if (ubc.isBlockquote(inline)) {
-    return inline.blockquote.map(getInlineContent).join(' ');
-  } else if (ubc.isInlineCode(inline)) {
-    return inline['inline-code'];
-  } else if (ubc.isBlockCode(inline)) {
-    return inline.code;
-  } else if (ubc.isBreak(inline)) {
-    return '';
-  } else if (ubc.isShip(inline)) {
-    return inline.ship;
-  } else if (ubc.isTag(inline)) {
-    return inline.tag;
-  } else if (ubc.isBlockReference(inline)) {
-    return inline.block.text;
-  } else if (ubc.isTask(inline)) {
-    return inline.task.content.map(getInlineContent).join(' ');
-  } else {
-    return inline;
-  }
-}
-
-function makeId(our: string) {
-  const sent = Date.now();
-  return {
-    id: `${our}/${formatUd(unixToDa(sent))}`,
-    sent,
-  };
-}
-
-export function createMessage(
-  our: string,
-  mem: ub.PostEssay,
-  replying?: string
-): {
-  id: string;
-  cacheId: ub.CacheId;
-  delta: ubd.WritDeltaAdd | ubd.ReplyDelta;
-} {
-  const { id, sent } = makeId(our);
-  const cacheId = { author: mem.author, sent };
-  const memo: Omit<ub.PostEssay, 'kind-data'> = {
-    content: mem.content,
-    author: mem.author,
-    sent,
-  };
-
-  let delta: ubd.WritDeltaAdd | ubd.ReplyDelta;
-  if (!replying) {
-    delta = {
-      add: {
-        memo,
-        kind: null,
-        time: null,
-      },
-    };
-  } else {
-    delta = {
-      reply: {
-        id,
-        meta: null,
-        delta: {
-          add: {
-            memo,
-            time: null,
-          },
-        },
-      },
-    };
-  }
-
-  return { id, cacheId, delta };
-}
-
 export function whomIsDm(whom: string): boolean {
   return whom.startsWith('~') && !whom.match('/');
 }
@@ -361,17 +213,6 @@ export function whomIsFlag(whom: string): boolean {
   return (
     /^~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) && isValidPatp(whom.split('/')[0])
   );
-}
-
-export function whomIsNest(whom: string): boolean {
-  return (
-    /^[a-z]+\/~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) &&
-    isValidPatp(whom.split('/')[1])
-  );
-}
-
-export function useIsDmOrMultiDm(whom: string) {
-  return useMemo(() => whomIsDm(whom) || whomIsMultiDm(whom), [whom]);
 }
 
 export function createMultiDmId(seed = Date.now()) {
