@@ -76,6 +76,12 @@ function isValidImageSource(source: any) {
     if (!uri) {
       return false;
     }
+
+    if (typeof uri === 'number') {
+      // this is the case for imports of bundled files (require() returns a numeric metro module ID)
+      return true;
+    }
+
     return isURL(uri, { protocols: ['http', 'https', 'data', 'file'] });
   } catch (e) {
     logger.trackError('Failed to validate image source', {
