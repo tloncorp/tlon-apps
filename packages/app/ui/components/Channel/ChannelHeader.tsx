@@ -1,4 +1,4 @@
-import { useConnectionStatus } from '@tloncorp/shared';
+import { useConnectionStatus, useDebouncedValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
@@ -113,7 +113,7 @@ export function ChannelHeader({
   const contextItems = useContext(ChannelHeaderItemsContext)?.items ?? [];
   const isWindowNarrow = useIsWindowNarrow();
 
-  const displayTitle = useMemo(() => {
+  const titleText = useMemo(() => {
     if (connectionStatus === 'Connected') {
       return chatTitle ?? title;
     }
@@ -127,6 +127,7 @@ export function ChannelHeader({
 
     return statusText;
   }, [chatTitle, title, connectionStatus]);
+  const displayTitle = useDebouncedValue(titleText, 300);
 
   const titleWidth = () => {
     if (showSearchButton && showMenuButton) {

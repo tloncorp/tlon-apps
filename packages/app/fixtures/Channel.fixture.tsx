@@ -90,7 +90,8 @@ const baseProps: ComponentProps<typeof Channel> = {
   getDraft: async () => ({}),
   storeDraft: async () => {},
   clearDraft: async () => {},
-  onPressRetry: async () => {},
+  onPressRetrySend: async () => {},
+  onPressRetryLoad: () => {},
   onPressDelete: () => {},
 } as const;
 

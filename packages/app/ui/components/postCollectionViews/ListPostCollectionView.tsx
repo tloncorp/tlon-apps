@@ -37,9 +37,21 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
 
     const renderEmptyComponent = useCallback(() => {
       return (
-        <EmptyChannelNotice channel={ctx.channel} userId={currentUserId} />
+        <EmptyChannelNotice
+          channel={ctx.channel}
+          userId={currentUserId}
+          loadPostsError={ctx.loadPostsError}
+          isLoading={ctx.isLoadingPosts}
+          onPressRetryLoad={ctx.onPressRetryLoad}
+        />
       );
-    }, [currentUserId, ctx.channel]);
+    }, [
+      currentUserId,
+      ctx.channel,
+      ctx.loadPostsError,
+      ctx.isLoadingPosts,
+      ctx.onPressRetryLoad,
+    ]);
 
     const canDrillIntoPost = useMemo(
       () => !getIsChatChannel(ctx.channel),
@@ -107,7 +119,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
         onPressImage={ctx.goToImageViewer}
         onEndReached={ctx.onScrollEndReached}
         onStartReached={ctx.onScrollStartReached}
-        onPressRetry={ctx.onPressRetry}
+        onPressRetry={ctx.onPressRetrySend}
         onPressDelete={ctx.onPressDelete}
         activeMessage={activeMessage}
         setActiveMessage={setActiveMessage}
