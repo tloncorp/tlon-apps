@@ -1,4 +1,4 @@
-import { createDevLogger } from '@tloncorp/shared';
+import { PLACEHOLDER_ASSET_URI, createDevLogger } from '@tloncorp/shared';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useMemo } from 'react';
 import { Platform } from 'react-native';
@@ -34,7 +34,7 @@ export default function AttachmentSheet({
   const placeholderAsset: ImagePicker.ImagePickerAsset = useMemo(
     () => ({
       assetId: 'placeholder-asset-id',
-      uri: 'placeholder-image-uri',
+      uri: PLACEHOLDER_ASSET_URI,
       width: 300,
       height: 300,
       fileName: 'camera-image.jpg',
@@ -50,7 +50,7 @@ export default function AttachmentSheet({
   const removePlaceholderAttachment = useCallback(() => {
     const placeholderToRemove = {
       type: 'image' as const,
-      file: { uri: 'placeholder-image-uri' } as ImagePicker.ImagePickerAsset,
+      file: { uri: PLACEHOLDER_ASSET_URI } as ImagePicker.ImagePickerAsset,
     };
 
     removeAttachment(placeholderToRemove);
@@ -126,11 +126,13 @@ export default function AttachmentSheet({
           }
         }
 
-        // Immediately set the placeholder attachment to show in the UI
+        // Wait for the attachment sheet to pop, then set the placeholder attachment to show in the UI
         // skip on web, the browser doesn't like trying to load a file that doesn't exist
-        if (Platform.OS !== 'web') {
-          attachAssets([placeholderAsset]);
-        }
+        setTimeout(() => {
+          if (Platform.OS !== 'web') {
+            attachAssets([placeholderAsset]);
+          }
+        }, 200);
 
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
