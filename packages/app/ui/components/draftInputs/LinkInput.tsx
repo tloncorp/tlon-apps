@@ -10,7 +10,7 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/shared/urbit';
 import { Text } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, useTheme } from 'tamagui';
@@ -66,6 +66,11 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
     return getRichLinkMetadata(blocks[0]);
   }, [editingPost]);
 
+  const lastPreloadedRef = useRef<{
+    title: string | null;
+    description: string | null;
+  }>({ title: null, description: null });
+
   const {
     control,
     watch,
@@ -83,6 +88,12 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
 
   const form = watch();
   const url = useDebouncedValue(form.url, 500);
+  // We need to track debounce dirty state to appropriately disable the send button. useLinkGrabber's
+  // loading state will not be set until the debounce fires.
+  const [isPendingDebounce, setIsPendingDebounce] = useState(false);
+  useEffect(() => {
+    setIsPendingDebounce(form.url !== url);
+  }, [form.url, url]);
   const { data, isLoading } = store.useLinkGrabber(url);
   const hasIssue = data && (data.type === 'error' || data.type === 'redirect');
   const isEmbed = useMemo(() => {
@@ -92,8 +103,13 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
   useEffect(() => {
     if (data && data.type === 'page') {
       const newTitle = data.title || '';
-      if (form.title === '' && newTitle !== form.title) {
-        setValue('title', data.title || '', {
+      if (
+        form.title === '' &&
+        newTitle !== form.title &&
+        lastPreloadedRef.current?.title !== data.title
+      ) {
+        lastPreloadedRef.current.title = newTitle;
+        setValue('title', newTitle, {
           shouldTouch: true,
           shouldDirty: true,
           shouldValidate: true,
@@ -101,7 +117,12 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
       }
 
       const newDescription = data.description || '';
-      if (form.description === '' && newDescription !== form.description) {
+      if (
+        form.description === '' &&
+        newDescription !== form.description &&
+        lastPreloadedRef.current?.description !== data.description
+      ) {
+        lastPreloadedRef.current.description = newDescription;
         setValue('description', newDescription, {
           shouldTouch: true,
           shouldDirty: true,
@@ -109,7 +130,7 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
         });
       }
     }
-  }, [data, form]);
+  }, [data, form, setValue]);
 
   const block: BlockData | null = useMemo(() => {
     if (!data || hasIssue) {
@@ -153,7 +174,7 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
       type: 'link',
       url,
     };
-  }, [url, data, hasIssue]);
+  }, [data, hasIssue, isEmbed, url]);
 
   const handlePressDone = useCallback(() => {
     if (isDirty && isValid) {
@@ -221,7 +242,7 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
         });
       })();
     }
-  }, [data, hasIssue, isDirty, isValid, handleSubmit, onSave]);
+  }, [isDirty, isValid, handleSubmit, block, onSave]);
 
   useRegisterChannelHeaderItem(
     useMemo(
@@ -229,13 +250,20 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
         <ScreenHeader.TextButton
           key="gallery-preview-post"
           onPress={handlePressDone}
-          disabled={!isValid || isLoading || isPosting}
+          disabled={!isValid || isPendingDebounce || isLoading || isPosting}
           testID="GalleryPostButton"
         >
           {isPosting ? 'Posting...' : editingPost ? 'Save' : 'Post'}
         </ScreenHeader.TextButton>
       ),
-      [handlePressDone, isPosting, editingPost, isValid]
+      [
+        handlePressDone,
+        isValid,
+        isPendingDebounce,
+        isLoading,
+        isPosting,
+        editingPost,
+      ]
     )
   );
 

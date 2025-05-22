@@ -239,7 +239,6 @@ export default function BareChatInput({
     return createMentionOptions(groupMembers, groupRoles);
   }, [groupMembers, groupRoles]);
 
-  const [isSending, setIsSending] = useState(false);
   const {
     mentions,
     validOptions,
@@ -254,7 +253,11 @@ export default function BareChatInput({
   const maxInputHeight = useKeyboardHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
 
-  usePasteHandler(addAttachment);
+  const [isSending, setIsSending] = useState(false);
+  const [linkMetaLoading, setLinkMetaLoading] = useState(false);
+  const disableSend = useMemo(() => {
+    return editorIsEmpty || isSending || linkMetaLoading;
+  }, [editorIsEmpty, isSending, linkMetaLoading]);
 
   const processReferences = useCallback(
     (text: string): string => {
@@ -312,36 +315,40 @@ export default function BareChatInput({
           const isEmbed = isTrustedEmbed(url);
 
           if (!isEmbed) {
-            api.getLinkMetadata(url).then((linkMetadata) => {
-              // todo: handle error case with toast or similar
-              if (!linkMetadata) {
-                return;
-              }
+            setLinkMetaLoading(true);
+            api
+              .getLinkMetadata(url)
+              .then((linkMetadata) => {
+                // todo: handle error case with toast or similar
+                if (!linkMetadata) {
+                  return;
+                }
 
-              // first add the link attachment
-              if (linkMetadata.type === 'page') {
-                const { type, ...rest } = linkMetadata;
-                addAttachment({
-                  type: 'link',
-                  resourceType: type,
-                  ...rest,
-                });
-              }
-
-              if (linkMetadata.type === 'file') {
-                if (linkMetadata.isImage) {
+                // first add the link attachment
+                if (linkMetadata.type === 'page') {
+                  const { type, ...rest } = linkMetadata;
                   addAttachment({
-                    type: 'image',
-                    file: {
-                      uri: url,
-                      height: 300,
-                      width: 300,
-                      mimeType: linkMetadata.mime,
-                    },
+                    type: 'link',
+                    resourceType: type,
+                    ...rest,
                   });
                 }
-              }
-            });
+
+                if (linkMetadata.type === 'file') {
+                  if (linkMetadata.isImage) {
+                    addAttachment({
+                      type: 'image',
+                      file: {
+                        uri: url,
+                        height: 300,
+                        width: 300,
+                        mimeType: linkMetadata.mime,
+                      },
+                    });
+                  }
+                }
+              })
+              .finally(() => setLinkMetaLoading(false));
           }
         }
       }
@@ -864,7 +871,7 @@ export default function BareChatInput({
       onPressSend={handleSend}
       setShouldBlur={setShouldBlur}
       containerHeight={48}
-      disableSend={editorIsEmpty || isSending}
+      disableSend={disableSend}
       isSending={isSending}
       sendError={sendError}
       showWayfindingTooltip={showWayfindingTooltip}

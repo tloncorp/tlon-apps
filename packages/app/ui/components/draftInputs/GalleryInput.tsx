@@ -335,11 +335,13 @@ export function GalleryInput({
     [
       isPosting,
       isEditingPost,
-      editingPost,
-      send,
       editPost,
-      onPresentationModeChange,
+      editingPost,
       resetGalleryState,
+      setEditingPost,
+      onPresentationModeChange,
+      send,
+      channel.id,
     ]
   );
 
