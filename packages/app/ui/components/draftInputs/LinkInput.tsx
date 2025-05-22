@@ -92,11 +92,7 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
   // loading state will not be set until the debounce fires.
   const [isPendingDebounce, setIsPendingDebounce] = useState(false);
   useEffect(() => {
-    if (form.url !== url) {
-      setIsPendingDebounce(true);
-    } else {
-      setIsPendingDebounce(false);
-    }
+    setIsPendingDebounce(form.url !== url);
   }, [form.url, url]);
   const { data, isLoading } = store.useLinkGrabber(url);
   const hasIssue = data && (data.type === 'error' || data.type === 'redirect');
