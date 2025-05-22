@@ -120,7 +120,6 @@
           [response-header:http dat=(unit mime-data:iris)]
       ==
   ^-  [report=? result]
-  ~?  ?=(^ dat)  size=p.data.u.dat
   =*  cod  status-code
   ::  redirects
   ::
