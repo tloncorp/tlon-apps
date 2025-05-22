@@ -38,7 +38,7 @@ const MemoizedEmojiButton = React.memo(function MemoizedEmojiButtonComponent({
       justifyContent="center"
       alignItems="center"
     >
-      <SizableEmoji shortCode={item} fontSize={EMOJI_SIZE} />
+      <SizableEmoji emojiInput={item} fontSize={EMOJI_SIZE} />
     </Button>
   );
 });
