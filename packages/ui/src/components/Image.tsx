@@ -31,7 +31,7 @@ const DefaultImageFallback = View.styleable((props, ref) => {
 const StyledBaseImage = styled(BaseImage, { name: 'StyledExpoImage' });
 
 export const Image = StyledBaseImage.styleable<{
-  fallback?: ReactElement;
+  fallback?: ReactElement | null;
 }>(
   ({ fallback, onError, ...props }, ref) => {
     const [hasErrored, setHasErrored] = useState(false);
@@ -48,7 +48,7 @@ export const Image = StyledBaseImage.styleable<{
       return !isValid || hasErrored;
     }, [props.source, hasErrored]);
 
-    if (showFallback && fallback) {
+    if (showFallback && fallback !== undefined) {
       return fallback;
     }
 

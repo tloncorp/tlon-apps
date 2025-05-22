@@ -453,7 +453,6 @@ const PreviewFrame = styled(View, {
         case 'reference':
           return {
             backgroundColor: '$secondaryBackground',
-            paddingTop: '$3xl',
           };
         case 'paragraph':
         case 'list':
@@ -550,6 +549,7 @@ const LargeContentRenderer = createContentRenderer({
     },
     link: {
       ...noWrapperPadding,
+      minHeight: 300,
       imageProps: {
         aspectRatio: 1.5,
       },
@@ -595,6 +595,12 @@ const SmallContentRenderer = createContentRenderer({
     },
     link: {
       borderRadius: 0,
+      borderWidth: 0,
+      renderDescription: false,
+      imageProps: {
+        height: '66%',
+        aspectRatio: 'unset',
+      },
       ...noWrapperPadding,
     },
   },

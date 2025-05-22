@@ -300,7 +300,7 @@ const ChatMessage = ({
 const WebChatImageRenderer: DefaultRendererProps['image'] = {
   alignItems: 'flex-start',
   imageProps: {
-    maxWidth: 400,
+    maxWidth: 600,
     maxHeight: 400,
   },
 };
@@ -312,10 +312,18 @@ const ChatContentRenderer = createContentRenderer({
     },
     reference: {
       contentSize: '$l',
+      maxWidth: 600,
     },
     image: isWeb ? WebChatImageRenderer : undefined,
     link: {
-      maxWidth: 400,
+      renderDescription: false,
+      maxWidth: 600,
+      imageProps: {
+        aspectRatio: 2,
+      },
+    },
+    code: {
+      maxWidth: 600,
     },
   },
 });
