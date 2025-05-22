@@ -78,7 +78,7 @@ function isValidImageSource(source: any) {
     }
 
     if (typeof uri === 'number') {
-      // this is the case for imports of bundled files (require returns a numeric module ID)
+      // this is the case for imports of bundled files (require() returns a numeric metro module ID)
       return true;
     }
 
