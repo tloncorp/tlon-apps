@@ -275,7 +275,10 @@ const ChatMessage = ({
           <ChatMessageActions
             post={post}
             postActionIds={postActionIds}
-            onDismiss={() => setIsPopoverOpen(false)}
+            onDismiss={() => {
+              setIsPopoverOpen(false);
+              setIsHovered(false);
+            }}
             onOpenChange={setIsPopoverOpen}
             onReply={handleRepliesPressed}
             onEdit={onPressEdit}
