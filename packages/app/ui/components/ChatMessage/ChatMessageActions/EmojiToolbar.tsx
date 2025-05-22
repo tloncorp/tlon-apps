@@ -113,7 +113,7 @@ function EmojiToolbarButton({
       onPress={() => handlePress(shortCode)}
       testID={testID}
     >
-      <SizableEmoji shortCode={shortCode} fontSize={32} />
+      <SizableEmoji emojiInput={shortCode} fontSize={32} />
     </Button>
   );
 }
