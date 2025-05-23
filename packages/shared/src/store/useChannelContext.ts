@@ -12,13 +12,9 @@ import { usePostDraftCallbacks } from './usePostDraftCallbacks';
 export const useChannelContext = ({
   channelId,
   draftKey,
-  isChannelSwitcherEnabled,
 }: {
   channelId: string;
   draftKey: string;
-
-  // need to populate this from feature flags :(
-  isChannelSwitcherEnabled: boolean;
 }) => {
   const channelQuery = dbHooks.useChannel({
     id: channelId,
@@ -89,6 +85,5 @@ export const useChannelContext = ({
     editPost,
     channel: channelQuery.data ?? null,
     group: groupQuery.data ?? null,
-    headerMode: isChannelSwitcherEnabled ? 'next' : 'default',
   } as const;
 };

@@ -1,15 +1,6 @@
-import { useConnectionStatus } from '@tloncorp/shared';
-import { Icon } from '@tloncorp/ui';
-import { Pressable } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
-import {
-  ComponentProps,
-  PropsWithChildren,
-  ReactNode,
-  useEffect,
-  useState,
-} from 'react';
-import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
+import { useConnectionStatus, useDebouncedValue } from '@tloncorp/shared';
+import { Icon, Text } from '@tloncorp/ui';
+import { ComponentProps, PropsWithChildren, ReactNode } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, isWeb, styled, withStaticProperties } from 'tamagui';
 
@@ -32,7 +23,7 @@ export const ScreenHeaderComponent = ({
   showSessionStatus?: boolean;
 }>) => {
   const { top } = useSafeAreaInsets();
-  const resolvedTitle = isLoading ? 'Loading…' : title;
+  const resolvedTitle = useDebouncedValue(isLoading ? 'Loading…' : title, 200);
   const connectionStatus = useConnectionStatus();
   const textColor =
     showSessionStatus === false
@@ -123,35 +114,20 @@ function HeaderTitle({
   title: string;
   titleWidth?: 100 | 75 | 55;
 } & ComponentProps<typeof HeaderTitleText>) {
-  const hasMounted = useHasMounted();
   const renderedTitle = <HeaderTitleText {...props}>{title}</HeaderTitleText>;
 
   return isWeb ? (
     renderedTitle
   ) : (
-    <Animated.View
-      key={title}
-      // We only want the animation to trigger when the title changes, not when
-      // it first enters.
-      entering={hasMounted ? FadeInDown : undefined}
-      exiting={FadeOutUp}
+    <View
       style={{
         flex: 1,
         maxWidth: `${titleWidth}%`,
       }}
     >
       {renderedTitle}
-    </Animated.View>
+    </View>
   );
-}
-function useHasMounted() {
-  const [hasMounted, setHasMounted] = useState(false);
-
-  useEffect(() => {
-    setHasMounted(true);
-  }, []);
-
-  return hasMounted;
 }
 
 const HeaderControls = styled(XStack, {

@@ -33,7 +33,6 @@ import * as fixture26 from './packages/app/fixtures/EditProfileScreen.fixture';
 import * as fixture27 from './packages/app/fixtures/CreateChatSheet.fixture';
 import * as fixture28 from './packages/app/fixtures/ContactList.fixture';
 import * as fixture29 from './packages/app/fixtures/ChatMessage.fixture';
-import * as fixture30 from './packages/app/fixtures/ChannelSwitcherSheet.fixture';
 import * as fixture31 from './packages/app/fixtures/ChannelHeader.fixture';
 import * as fixture32 from './packages/app/fixtures/ChannelDivider.fixture';
 import * as fixture33 from './packages/app/fixtures/ChannelConfigurationBar.fixture';
@@ -102,7 +101,6 @@ const fixtures = {
   'packages/app/fixtures/CreateChatSheet.fixture.tsx': { module: fixture27 },
   'packages/app/fixtures/ContactList.fixture.tsx': { module: fixture28 },
   'packages/app/fixtures/ChatMessage.fixture.tsx': { module: fixture29 },
-  'packages/app/fixtures/ChannelSwitcherSheet.fixture.tsx': { module: fixture30 },
   'packages/app/fixtures/ChannelHeader.fixture.tsx': { module: fixture31 },
   'packages/app/fixtures/ChannelDivider.fixture.tsx': { module: fixture32 },
   'packages/app/fixtures/ChannelConfigurationBar.fixture.tsx': { module: fixture33 },
