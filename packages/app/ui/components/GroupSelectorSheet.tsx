@@ -30,15 +30,13 @@ export function GroupSelectorSheet(props: SheetProps) {
     <ActionSheet
       open={props.open}
       onOpenChange={props.onOpenChange}
-      snapPoints={['85%']}
+      snapPoints={[85]}
+      snapPointsMode="percent"
       disableDrag={contentScrolling}
       dismissOnSnapToBottom
     >
-      <ActionSheet.ScrollableContent
-        id="GroupSelectorScrollableContent"
-        padding="$xl"
-      >
-        <SheetHeader marginBottom="$2xl">
+      <ActionSheet.Content paddingBottom="$s">
+        <SheetHeader paddingHorizontal="$2xl">
           <SheetHeader.Title>{props.TopContent}</SheetHeader.Title>
           <SheetHeader.RightControls>
             <SheetHeader.ButtonText
@@ -49,6 +47,11 @@ export function GroupSelectorSheet(props: SheetProps) {
             </SheetHeader.ButtonText>
           </SheetHeader.RightControls>
         </SheetHeader>
+      </ActionSheet.Content>
+      <ActionSheet.ScrollableContent
+        id="GroupSelectorScrollableContent"
+        padding="$xl"
+      >
         <View flex={1} height="100%">
           <GroupSelector
             selected={props.selected}

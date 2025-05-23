@@ -1,0 +1,14 @@
+# Required env:
+#   INPUT_TEXT
+#  got it from here: https://github.com/mobile-dev-inc/Maestro/issues/395#issuecomment-2750427472
+appId: ${APP_ID}
+---
+
+- evalScript: ${output.counter = 0}
+- repeat:
+    optional: true
+    while:
+      true: ${output.counter < INPUT_TEXT.length}
+    commands:
+      - inputText: ${INPUT_TEXT.charAt(output.counter)}
+      - evalScript: ${output.counter = output.counter + 1}
