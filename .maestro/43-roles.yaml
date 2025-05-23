@@ -120,6 +120,7 @@ appId: io.tlon.groups
     file: 'input-text.yaml'
     env:
       INPUT_TEXT: 'Renamed role'
+- tapOn: 'This role is currently used in the following channels:'
 - tapOn: 'Save'
 - waitForAnimationToEnd:
     timeout: 5000
