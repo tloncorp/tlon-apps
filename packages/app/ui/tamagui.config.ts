@@ -559,6 +559,7 @@ export const config =
         themes,
         media,
         settings: {
+          defaultFont: 'body',
           allowedStyleValues: {
             space: 'somewhat-strict',
             size: 'somewhat-strict',
