@@ -228,6 +228,7 @@ const PostReferenceAuthor = ({
 };
 
 const PostReferenceAuthorFrame = styled(XStack, {
+  context: ReferenceContext,
   name: 'PostReferenceAuthorFrame',
   gap: '$m',
   alignItems: 'center',
@@ -242,6 +243,7 @@ const PostReferenceAuthorFrame = styled(XStack, {
 });
 
 const PostReferenceAuthorName = styled(Text, {
+  context: ReferenceContext,
   name: 'PostReferenceAuthorName',
   color: '$tertiaryText',
   size: '$label/m',
