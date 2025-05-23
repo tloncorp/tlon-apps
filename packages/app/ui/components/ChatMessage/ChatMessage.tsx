@@ -210,12 +210,7 @@ const ChatMessage = ({
         ) : null}
 
         {!showAuthor && post.isEdited ? (
-          <View
-            position="absolute"
-            right={12}
-            top={8}
-            zIndex={199}
-          >
+          <View position="absolute" right={12} top={8} zIndex={199}>
             <Text size="$label/s" color="$tertiaryText">
               Edited
             </Text>
@@ -240,7 +235,7 @@ const ChatMessage = ({
           </Pressable>
         ) : null}
 
-        <View paddingLeft={!isNotice && '$4xl'}>
+        <View paddingLeft={!isNotice ? '$4xl' : undefined}>
           <ChatContentRenderer
             content={post.editStatus === 'failed' ? lastEditContent : content}
             isNotice={post.type === 'notice'}

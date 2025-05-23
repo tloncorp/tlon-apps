@@ -1,9 +1,8 @@
 import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { useIsWindowNarrow } from '@tloncorp/ui';
+import { SectionListHeader, useIsWindowNarrow } from '@tloncorp/ui';
 import { LoadingSpinner } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -90,8 +89,8 @@ export const GroupChannelsScreenView = React.memo(
     const isWindowNarrow = useIsWindowNarrow();
 
     const sizeRefs = useRef({
-      sectionHeader: 44,
-      channelItem: 64,
+      sectionHeader: isWindowNarrow ? 28 : 24.55,
+      channelItem: isWindowNarrow ? 72 : 64,
     });
 
     const handleHeaderLayout = useCallback((e: LayoutChangeEvent) => {
@@ -188,15 +187,11 @@ export const GroupChannelsScreenView = React.memo(
       ({ item }) => {
         if (isSectionHeader(item)) {
           return (
-            <Text
-              paddingHorizontal="$l"
-              paddingVertical="$xl"
-              fontSize="$s"
-              color={listSectionTitleColor}
-              onLayout={handleHeaderLayout}
-            >
-              {item.title}
-            </Text>
+            <SectionListHeader onLayout={handleHeaderLayout}>
+              <SectionListHeader.Text color={listSectionTitleColor}>
+                {item.title}
+              </SectionListHeader.Text>
+            </SectionListHeader>
           );
         }
 
