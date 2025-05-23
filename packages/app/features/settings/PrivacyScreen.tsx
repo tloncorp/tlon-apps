@@ -175,9 +175,7 @@ export function PrivacySettingsScreen(props: Props) {
 
         <YStack paddingHorizontal="$l" paddingTop="$2xl" gap="$xl">
           <XStack justifyContent="space-between" alignItems="center">
-            <SizableText flexShrink={1}>
-              Disable centralized features
-            </SizableText>
+            <SizableText flexShrink={1}>Disable Tlon helpers</SizableText>
             <Switch
               style={{ flexShrink: 0 }}
               value={state.disableTlonInfraEnhancement}
@@ -185,8 +183,9 @@ export function PrivacySettingsScreen(props: Props) {
             ></Switch>
           </XStack>
           <Text size="$label/s" color="$secondaryText">
-            If disabled, the app will avoid falling back to Tlon's
-            infrastructure for progressive enhancements (e.g. link previews).
+            Your ship will always attempt to generate rich link previews
+            locally. If disabled, the app will avoid making backup requests to
+            Tlon's service if local generation fails.
           </Text>
         </YStack>
 
