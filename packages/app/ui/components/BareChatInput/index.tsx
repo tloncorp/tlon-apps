@@ -6,7 +6,6 @@ import {
   extractContentTypesFromPost,
   isTrustedEmbed,
 } from '@tloncorp/shared';
-import * as api from '@tloncorp/shared/api';
 import {
   contentReferenceToCite,
   toContentReference,
@@ -316,8 +315,8 @@ export default function BareChatInput({
 
           if (!isEmbed) {
             setLinkMetaLoading(true);
-            api
-              .getLinkMetadata(url)
+            store
+              .getLinkMetaWithFallback(url)
               .then((linkMetadata) => {
                 // todo: handle error case with toast or similar
                 if (!linkMetadata) {

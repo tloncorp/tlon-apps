@@ -3,6 +3,7 @@ import { Atom } from '@urbit/nockjs';
 
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
+import { getConstants } from '../domain';
 import * as ub from '../urbit';
 import { request } from './urbit';
 
@@ -135,4 +136,48 @@ function parseImageData(url: string, data: ub.LinkMetadataItem[]) {
     height: ogHeight,
     width: ogWidth,
   };
+}
+
+export async function getFallbackLinkMetadata(
+  url: string
+): Promise<domain.LinkMetadata | domain.LinkMetadataError> {
+  try {
+    const env = getConstants();
+    // hack to avoid shuffling env vars around
+    const serverlessInfraUrl = env.INVITE_SERVICE_ENDPOINT.substring(
+      0,
+      env.INVITE_SERVICE_ENDPOINT.lastIndexOf('/')
+    );
+    const response = await fetch(`${serverlessInfraUrl}/linkPreview`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ url }),
+    });
+    if (!response.ok) {
+      throw new Error(`fallback link meta bad response: ${response.status}`);
+    }
+    const payload = await response.json();
+    if (!payload || typeof payload !== 'object') {
+      throw new Error('fallback link meta payload invalid');
+    }
+
+    const meta: domain.LinkMetadata = {
+      type: 'page',
+      url,
+      siteIconUrl: payload.siteIconUrl || '',
+      siteName: payload.siteName || '',
+      title: payload.title || '',
+      description: payload.description || '',
+      previewImageUrl: payload.previewImageUrl || '',
+    };
+    return meta;
+  } catch (e) {
+    console.log('fallback no good', e);
+    logger.trackError('Failed to get fallback link metadata response', {
+      errorMessage: e.message,
+    });
+    return { type: 'error', reason: 'unknown error' };
+  }
 }

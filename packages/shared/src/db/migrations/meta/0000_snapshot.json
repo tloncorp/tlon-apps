@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "6e0f6081-47e3-44b5-bf2f-55756a9c8458",
+  "id": "85ae1265-0891-4d62-8976-e70dde4e41a5",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2391,6 +2391,13 @@
         },
         "completed_wayfinding_tutorial": {
           "name": "completed_wayfinding_tutorial",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "disable_tlon_infra_enhancement": {
+          "name": "disable_tlon_infra_enhancement",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
