@@ -68,6 +68,7 @@ export type GroupsSettings = {
   activitySeenTimestamp?: number;
   completedWayfindingSplash?: boolean;
   completedWayfindingTutorial?: boolean;
+  disableTlonInfraEnhancement?: boolean;
 };
 
 export type TalkSettings = {

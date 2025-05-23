@@ -359,7 +359,8 @@ CREATE TABLE `settings` (
 	`notebook_settings` text,
 	`activity_seen_timestamp` integer,
 	`completed_wayfinding_splash` integer,
-	`completed_wayfinding_tutorial` integer
+	`completed_wayfinding_tutorial` integer,
+	`disable_tlon_infra_enhancement` integer
 );
 --> statement-breakpoint
 CREATE TABLE `system_contact_sent_invites` (
