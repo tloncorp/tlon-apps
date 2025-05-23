@@ -61,6 +61,7 @@ export function GalleryPost({
   showAuthor = true,
   hideOverflowMenu,
   contentRendererConfiguration,
+  ...props
 }: MinimalRenderItemProps &
   Omit<ComponentProps<typeof GalleryPostFrame>, 'onPress' | 'onLongPress'> & {
     hideOverflowMenu?: boolean;
@@ -129,6 +130,18 @@ export function GalleryPost({
     return null;
   }
 
+  // we need to filter out props that are not supported by the GalleryPostFrame
+  const {
+    onShowEmojiPicker: _onShowEmojiPicker,
+    onPressImage: _onPressImage,
+    editPost: _editPost,
+    isHighlighted: _isHighlighted,
+    showReplies: _showReplies,
+    setViewReactionsPost: _setViewReactionsPost,
+    onPressReplies: _onPressReplies,
+    ...rest
+  } = props;
+
   return (
     <Pressable
       onPress={overFlowIsHovered || isPopoverOpen ? undefined : handlePress}
@@ -137,7 +150,7 @@ export function GalleryPost({
       onHoverOut={onHoverOut}
       flex={1}
     >
-      <GalleryPostFrame>
+      <GalleryPostFrame {...rest}>
         <GalleryContentRenderer
           post={post}
           pointerEvents="none"
