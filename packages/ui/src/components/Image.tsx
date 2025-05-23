@@ -46,9 +46,7 @@ const WebImage = ({
     onLoadEnd?.(loadEvent);
   };
 
-  const { ref, ...rest } = otherProps;
-
-  const [{ contentFit, ...props }, propStyles] = usePropsAndStyle(rest);
+  const [{ contentFit, ...props }, propStyles] = usePropsAndStyle(otherProps);
 
   if (hasError && fallback) {
     return fallback;

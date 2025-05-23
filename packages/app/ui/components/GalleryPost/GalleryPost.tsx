@@ -339,7 +339,7 @@ export function GalleryPostDetailView({
           showSentAt={true}
         />
 
-        {post.title && <Text size="$body">{post.title}</Text>}
+        {post.title ? <Text size="$body">{post.title}</Text> : null}
 
         {isImagePost && (
           <CaptionContentRenderer content={contentWithoutImage} />
