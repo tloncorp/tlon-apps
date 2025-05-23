@@ -7,7 +7,6 @@ import {
 import {
   ChannelContentConfiguration,
   CollectionRendererId,
-  Upload,
 } from '@tloncorp/shared/api';
 import type * as db from '@tloncorp/shared/db';
 import { range } from 'lodash';
@@ -18,7 +17,6 @@ import { Button, SafeAreaView, View } from 'react-native';
 import {
   AppDataContextProvider,
   Channel,
-  ChannelSwitcherSheet,
   ChatOptionsProvider,
   Sheet,
 } from '../ui';
@@ -50,32 +48,6 @@ const usePostReference = ({
   });
 };
 
-const fakeMostRecentFile: Upload = {
-  key: 'key',
-  file: {
-    blob: new Blob(),
-    name: 'name',
-    type: 'type',
-    uri: 'https://togten.com:9001/finned-palmer/~dotnet-botnet-finned-palmer/2024.4.22..16.23.42..f70a.3d70.a3d7.0a3d-3DD4524C-3125-4974-978D-08EAE71CE220.jpg',
-  },
-  url: 'https://togten.com:9001/finned-palmer/~dotnet-botnet-finned-palmer/2024.4.22..16.23.42..f70a.3d70.a3d7.0a3d-3DD4524C-3125-4974-978D-08EAE71CE220.jpg',
-  status: 'success',
-  size: [100, 100],
-};
-
-const fakeLoadingMostRecentFile: Upload = {
-  key: 'key',
-  file: {
-    blob: new Blob(),
-    name: 'name',
-    type: 'type',
-    uri: 'https://togten.com:9001/finned-palmer/~dotnet-botnet-finned-palmer/2024.4.22..16.23.42..f70a.3d70.a3d7.0a3d-3DD4524C-3125-4974-978D-08EAE71CE220.jpg',
-  },
-  url: '',
-  status: 'loading',
-  size: [100, 100],
-};
-
 function noopProps<T extends object>() {
   return new Proxy<T>({} as unknown as T, {
     get: (_target, prop) => () => console.log(`${String(prop)} called`),
@@ -95,7 +67,6 @@ const ChannelFixtureWrapper = ({
 };
 
 const baseProps: ComponentProps<typeof Channel> = {
-  headerMode: 'default',
   posts: posts,
   channel: tlonLocalIntros,
   negotiationMatch: true,
@@ -103,7 +74,6 @@ const baseProps: ComponentProps<typeof Channel> = {
   group: group,
   goBack: () => {},
   goToSearch: () => {},
-  goToChannels: () => {},
   goToDm: () => {},
   goToPost: () => {},
   goToImageViewer: () => {},
@@ -120,14 +90,14 @@ const baseProps: ComponentProps<typeof Channel> = {
   getDraft: async () => ({}),
   storeDraft: async () => {},
   clearDraft: async () => {},
-  onPressRetry: async () => {},
+  onPressRetrySend: async () => {},
+  onPressRetryLoad: () => {},
   onPressDelete: () => {},
 } as const;
 
 export const ChannelFixture = (props: {
   theme?: 'light' | 'dark';
   negotiationMatch?: boolean;
-  headerMode?: 'default' | 'next';
   passedProps?: (
     baseProps: ComponentProps<typeof Channel>
   ) => Partial<ComponentProps<typeof Channel>>;
@@ -136,147 +106,47 @@ export const ChannelFixture = (props: {
     setChannel: (update: SetStateAction<db.Channel>) => void;
   }) => React.ReactNode;
 }) => {
-  const switcher = useChannelSwitcher(tlonLocalIntros);
-
+  const [channel, setChannel] = useState<db.Channel>(tlonLocalIntros);
   const channelProps = useMemo(
     () => ({
       ...baseProps,
-      headerModel: props.headerMode,
-      channel: switcher.activeChannel,
       negotiationMatch: props.negotiationMatch ?? true,
-      goToChannels: () => switcher.open(),
     }),
-    [props.headerMode, props.negotiationMatch, switcher]
+    [props.negotiationMatch]
   );
 
   return (
     <ChannelFixtureWrapper theme={props.theme}>
       <Channel {...channelProps} {...props.passedProps?.(channelProps)} />
-      <SwitcherFixture switcher={switcher} />
       {props.children?.({
-        channel: switcher.activeChannel,
-        setChannel: switcher.setActiveChannel,
+        channel,
+        setChannel,
       })}
     </ChannelFixtureWrapper>
   );
 };
 
 export const GalleryChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
-  const switcher = useChannelSwitcher(tlonLocalBulletinBoard);
-
   const [posts] = useState(() => createFakePosts(10, 'block'));
 
   return (
     <ChannelFixtureWrapper theme={props.theme}>
-      <Channel
-        {...baseProps}
-        posts={posts}
-        channel={switcher.activeChannel}
-        goToChannels={() => switcher.open()}
-      />
-      <SwitcherFixture switcher={switcher} />
+      <Channel {...baseProps} posts={posts} channel={tlonLocalBulletinBoard} />
     </ChannelFixtureWrapper>
   );
 };
 
 export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
-  const switcher = useChannelSwitcher(tlonLocalGettingStarted);
-
   return (
     <ChannelFixtureWrapper theme={props.theme}>
       <Channel
         {...baseProps}
         posts={notebookPosts}
-        channel={switcher.activeChannel}
-        goToChannels={() => switcher.open()}
+        channel={tlonLocalGettingStarted}
       />
-      <SwitcherFixture switcher={switcher} />
     </ChannelFixtureWrapper>
   );
 };
-const ChannelFixtureWithImage = () => {
-  const switcher = useChannelSwitcher(tlonLocalIntros);
-  const [imageAttachment, setImageAttachment] = useState<string | null>(null);
-  const [uploadedImage, setUploadedImage] = useState<Upload | null>(null);
-  const mostRecentFile = fakeMostRecentFile;
-
-  const resetImageAttachment = () => {
-    setImageAttachment(null);
-    setUploadedImage(null);
-  };
-
-  const fakeSetImageAttachment = () => {
-    setUploadedImage(fakeLoadingMostRecentFile);
-
-    setTimeout(() => {
-      setImageAttachment(fakeMostRecentFile.url);
-      setUploadedImage(fakeMostRecentFile);
-    }, 1000);
-  };
-
-  useEffect(() => {
-    setUploadedImage(mostRecentFile);
-  }, [mostRecentFile]);
-
-  return (
-    <ChannelFixtureWrapper>
-      <Channel
-        {...baseProps}
-        channel={switcher.activeChannel}
-        goToChannels={switcher.open}
-      />
-      <SwitcherFixture switcher={switcher} />
-    </ChannelFixtureWrapper>
-  );
-};
-
-function useChannelSwitcher(defaultChannel: db.Channel) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [selectedChannel, setSelectedChannel] = useState<db.Channel | null>(
-    defaultChannel
-  );
-
-  const activeChannel: db.Channel = useMemo(() => {
-    const channel = selectedChannel ?? tlonLocalGettingStarted;
-    return {
-      ...channel,
-      unread: channel.unread
-        ? {
-            ...channel.unread,
-            firstUnreadPostId: posts[5].id,
-          }
-        : null,
-    };
-  }, [selectedChannel]);
-
-  return {
-    isOpen,
-    open: () => setIsOpen(true),
-    close: () => setIsOpen(false),
-    toggle: (val?: boolean) => setIsOpen(val ?? !isOpen),
-    activeChannel,
-    setActiveChannel: setSelectedChannel,
-  };
-}
-
-function SwitcherFixture({
-  switcher,
-}: {
-  switcher: ReturnType<typeof useChannelSwitcher>;
-}) {
-  return (
-    <ChannelSwitcherSheet
-      open={switcher.isOpen}
-      onOpenChange={switcher.toggle}
-      group={group}
-      channels={group.channels || []}
-      onSelect={(channel: db.Channel) => {
-        switcher.setActiveChannel(channel);
-        switcher.close();
-      }}
-    />
-  );
-}
 
 function useSimulatedPostsQuery({
   getPostAt = () => createFakePost(),
@@ -381,7 +251,6 @@ function ChannelWithControlledPostLoading() {
       <ChannelFixture
         negotiationMatch={true}
         theme={'light'}
-        headerMode={'default'}
         passedProps={(baseProps) => ({
           posts,
           isLoading,
@@ -551,18 +420,11 @@ function createTestChannelUnread({
 }
 
 export default {
-  chat: (
-    <ChannelFixture
-      negotiationMatch={true}
-      theme={'light'}
-      headerMode={'default'}
-    />
-  ),
+  chat: <ChannelFixture negotiationMatch={true} theme={'light'} />,
   emptyChat: (
     <ChannelFixture
       negotiationMatch={true}
       theme={'light'}
-      headerMode={'default'}
       passedProps={() => ({
         posts: [],
       })}
@@ -573,7 +435,6 @@ export default {
     <ChannelFixture
       negotiationMatch={true}
       theme={'light'}
-      headerMode={'default'}
       passedProps={(baseProps) => ({
         initialChannelUnread: createTestChannelUnread({
           channel: baseProps.channel,
@@ -584,7 +445,6 @@ export default {
   ),
   gallery: <GalleryChannelFixture />,
   notebook: <NotebookChannelFixture />,
-  chatWithImage: <ChannelFixtureWithImage />,
   negotiationMismatch: <ChannelFixture negotiationMatch={false} />,
   customChannel: (
     <ConfigurableChannelFixture

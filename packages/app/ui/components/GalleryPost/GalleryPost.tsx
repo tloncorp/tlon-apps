@@ -8,6 +8,12 @@ import {
   makePrettyShortDate,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import {
+  BlockData,
+  BlockFromType,
+  BlockType,
+  PostContent,
+} from '@tloncorp/shared/logic';
 import { Button } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
@@ -32,13 +38,7 @@ import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import ContactName from '../ContactName';
 import { useBoundHandler } from '../ListItem/listItemUtils';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
-import {
-  BlockData,
-  BlockFromType,
-  BlockType,
-  PostContent,
-  usePostContent,
-} from '../PostContent/contentUtils';
+import { usePostContent } from '../PostContent/contentUtils';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 
 const GalleryPostFrame = styled(View, {
@@ -395,10 +395,7 @@ function LargePreview({
 >) {
   return (
     <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
-      <LargeContentRenderer
-        content={content.slice(0, 1)}
-        onPressImage={onPressImage}
-      />
+      <LargeContentRenderer content={content} onPressImage={onPressImage} />
     </PreviewFrame>
   );
 }
@@ -411,14 +408,13 @@ function SmallPreview({
   'content'
 >) {
   const link = useBlockLink(content);
-
   return link ? (
     <PreviewFrame {...props} previewType="link">
       <LinkPreview link={link} />
     </PreviewFrame>
   ) : (
     <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
-      <SmallContentRenderer height={'100%'} content={content.slice(0, 1)} />
+      <SmallContentRenderer height={'100%'} content={content} />
     </PreviewFrame>
   );
 }
@@ -625,6 +621,15 @@ function usePreviewContent(content: BlockData[]): BlockData[] {
     } else if (groupedBlocks.video?.length) {
       return [groupedBlocks.video[0]];
     }
-    return content;
+    return firstBlockIsPreviewable(content) ? content.slice(0, 1) : content;
   }, [content]);
+}
+
+function firstBlockIsPreviewable(content: BlockData[]): boolean {
+  return (
+    content.length > 0 &&
+    (content[0].type === 'image' ||
+      content[0].type === 'video' ||
+      content[0].type === 'reference')
+  );
 }

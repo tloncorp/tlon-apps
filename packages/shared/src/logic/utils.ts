@@ -228,6 +228,19 @@ export function normalizeUrbitColor(color: string): string {
   return `#${lengthAdjustedColor}`;
 }
 
+/**
+ * Generates a safe ID from a given text.
+ * @param text The text to generate a safe ID from.
+ * @param prefix Optional prefix for the ID, defaults to 'id'.
+ * @returns A safe ID.
+ */
+export const generateSafeId = (text: string, prefix: string = 'id') => {
+  if (!text.match(/[a-zA-Z0-9]/)) {
+    return `${prefix}-${Math.random().toString(36).substring(2, 10)}`;
+  }
+  return text.toLowerCase().replace(/\s/g, '-');
+};
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const timezoneOffset = new Date().getTimezoneOffset() * 60 * 1000;
 

@@ -32,7 +32,6 @@ import {
 import * as utils from '../utils';
 import BareChatInput from './BareChatInput';
 import { BigInput } from './BigInput';
-import { ChannelFooter } from './Channel/ChannelFooter';
 import {
   ChannelHeader,
   ChannelHeaderItemsProvider,
@@ -68,7 +67,6 @@ interface ChannelContext {
     metadata?: db.PostMetadata
   ) => Promise<void>;
   negotiationMatch: boolean;
-  headerMode: 'default' | 'next';
   onPressRetry?: (post: db.Post) => Promise<void>;
   onPressDelete: (post: db.Post) => void;
 }
@@ -88,7 +86,6 @@ export function PostScreenView({
   onGroupAction,
   goToDm,
   negotiationMatch,
-  headerMode,
 }: {
   channel: db.Channel;
   parentPost: db.Post | null;
@@ -223,7 +220,6 @@ export function PostScreenView({
                   <ConnectedHeader
                     channel={channel}
                     goBack={handleGoBack}
-                    mode={headerMode}
                     showEditButton={showEdit}
                     goToEdit={handleEditPress}
                   />
@@ -237,7 +233,6 @@ export function PostScreenView({
                           goBack,
                           groupMembers,
                           handleGoToImage,
-                          headerMode,
                           negotiationMatch,
                           onPressDelete,
                           onPressRetry,
@@ -255,7 +250,6 @@ export function PostScreenView({
                           editPost,
                           editingPost,
                           groupMembers,
-                          headerMode,
                           negotiationMatch,
                           onPressDelete,
                           onPressRetry,
@@ -355,7 +349,6 @@ function SinglePostView({
   goBack,
   groupMembers,
   handleGoToImage,
-  headerMode,
   negotiationMatch,
   onPressDelete,
   onPressRetry,
@@ -374,7 +367,6 @@ function SinglePostView({
   group?: db.Group | null;
   groupMembers: db.ChatMember[];
   handleGoToImage?: (post: db.Post, uri?: string) => void;
-  headerMode: 'default' | 'next';
   negotiationMatch: boolean;
   onPressDelete: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => Promise<void>;
@@ -501,7 +493,6 @@ function SinglePostView({
           goBack={goBack}
           activeMessage={activeMessage}
           setActiveMessage={setActiveMessage}
-          headerMode={headerMode}
           editorIsFocused={false}
         />
       ) : null}
@@ -576,13 +567,6 @@ function SinglePostView({
           />
         </View>
       ) : null}
-      {headerMode === 'next' && (
-        <ChannelFooter
-          showSearchButton={false}
-          title={'Thread: ' + channel.title}
-          goBack={goBack}
-        />
-      )}
     </YStack>
   );
 }

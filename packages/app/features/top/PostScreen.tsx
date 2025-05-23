@@ -6,10 +6,8 @@ import { useCallback, useEffect } from 'react';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';
-import { useFeatureFlag } from '../../lib/featureFlags';
 import type { RootStackParamList } from '../../navigation/types';
-import { useNavigation } from '../../navigation/utils';
-import { useRootNavigation } from '../../navigation/utils';
+import { useNavigation, useRootNavigation } from '../../navigation/utils';
 import {
   AttachmentProvider,
   ChatOptionsProvider,
@@ -63,7 +61,6 @@ function PostScreenContent({
 }) {
   const postId = post.id;
   const navigation = useNavigation();
-  const [isChannelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
   const {
     group,
     channel,
@@ -71,13 +68,11 @@ function PostScreenContent({
     editingPost,
     setEditingPost,
     editPost,
-    headerMode,
   } = useStore().useChannelContext({
     channelId: channelId,
     draftKey: store.draftKeyFor.thread({
       parentPostId: postId,
     }),
-    isChannelSwitcherEnabled,
   });
 
   const { navigateToImage } = useChannelNavigation({
@@ -154,7 +149,6 @@ function PostScreenContent({
       onGroupAction={performGroupAction}
       goToDm={handleGoToDm}
       negotiationMatch={negotiationStatus.matchedOrPending}
-      headerMode={headerMode}
       // NB: If we're showing posts in a carousel, all carousel items share the
       // same editingPost.
       editingPost={editingPost}

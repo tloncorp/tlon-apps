@@ -1,10 +1,3 @@
-import { RawText, Text } from '@tloncorp/ui';
-import React, { PropsWithChildren, useCallback, useContext } from 'react';
-import { Linking, Platform } from 'react-native';
-import { ColorTokens, styled } from 'tamagui';
-
-import { useNavigation } from '../../contexts';
-import { useContactName } from '../ContactNameV2';
 import {
   InlineData,
   InlineFromType,
@@ -13,7 +6,14 @@ import {
   StyleInlineData,
   TaskInlineData,
   TextInlineData,
-} from './contentUtils';
+} from '@tloncorp/shared/logic';
+import { RawText, Text } from '@tloncorp/ui';
+import React, { PropsWithChildren, useCallback, useContext } from 'react';
+import { Linking, Platform } from 'react-native';
+import { ColorTokens, styled } from 'tamagui';
+
+import { useNavigation } from '../../contexts';
+import { useContactName } from '../ContactNameV2';
 
 export const CodeText = styled(Text, {
   name: 'CodeText',
@@ -80,6 +80,7 @@ export function InlineStyle({
     strikethrough: StrikethroughText,
     code: CodeText,
   }[inline.style];
+
   return (
     <StyleComponent {...props}>
       {inline.children.map((child, i) => (
@@ -96,7 +97,7 @@ export function InlineText({
   inline: TextInlineData;
   color?: ColorTokens;
 }) {
-  return <RawText color={color}>{inline.text}</RawText>;
+  return color ? <RawText color={color}>{inline.text}</RawText> : inline.text;
 }
 
 export function InlineLink({ inline: node }: { inline: LinkInlineData }) {

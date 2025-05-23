@@ -9,11 +9,7 @@ import { getChannelIdType } from '../api/apiUtils';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
-import {
-  useDebouncedValue,
-  useLiveRef,
-  useOptimizedQueryResults,
-} from '../logic/utilHooks';
+import { useLiveRef, useOptimizedQueryResults } from '../logic/utilHooks';
 import { queryClient } from './reactQuery';
 import { useCurrentSession } from './session';
 import * as sync from './sync';
@@ -68,6 +64,8 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     };
   }, [queryKey]);
 
+  const maxFailureCount = 3;
+
   const query = useInfiniteQuery({
     enabled,
     initialPageParam: {
@@ -75,6 +73,17 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
       count: firstPageCount,
     } as UseChannelPostsPageParams,
     refetchOnMount: false,
+    retry(failureCount, error) {
+      postsLogger.trackError('failed to load posts', {
+        errorMessage: error.message,
+        errorStack: error.stack,
+      });
+      if (failureCount > maxFailureCount) {
+        return false;
+      }
+      return true;
+    },
+    retryDelay: () => 500,
     queryFn: async (ctx): Promise<PostQueryPage> => {
       const queryOptions = ctx.pageParam || options;
       postsLogger.log('loading posts', { queryOptions, options });
@@ -219,14 +228,13 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
 
   useRefreshPosts(options.channelId, posts);
 
-  const isLoading = useDebouncedValue(
+  const isLoading =
     enabled &&
-      (query.isPending ||
-        query.isPaused ||
-        query.isFetchingNextPage ||
-        query.isFetchingPreviousPage),
-    100
-  );
+    (query.isPending ||
+      query.isPaused ||
+      query.isFetchingNextPage ||
+      query.isFetchingPreviousPage ||
+      (query.isError && query.failureCount < maxFailureCount));
 
   const { loadOlder, loadNewer } = useLoadActionsWithPendingHandlers(query);
 
