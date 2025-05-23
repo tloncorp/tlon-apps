@@ -1277,6 +1277,17 @@ export const insertChannelPerms = createWriteQuery(
           set: conflictUpdateSetAll($channelWriters),
         });
     }
+
+    await ctx.db.transaction(async (tx) => {
+      await Promise.all(
+        channelsInit.map(async (chanInit) => {
+          await tx
+            .update($channels)
+            .set({ order: chanInit.order })
+            .where(eq($channels.id, chanInit.channelId));
+        })
+      );
+    });
   },
   ['channelWriters', 'channels']
 );
