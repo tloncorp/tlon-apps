@@ -61,7 +61,6 @@ export function GalleryPost({
   showAuthor = true,
   hideOverflowMenu,
   contentRendererConfiguration,
-  ...props
 }: MinimalRenderItemProps &
   Omit<ComponentProps<typeof GalleryPostFrame>, 'onPress' | 'onLongPress'> & {
     hideOverflowMenu?: boolean;
@@ -138,7 +137,7 @@ export function GalleryPost({
       onHoverOut={onHoverOut}
       flex={1}
     >
-      <GalleryPostFrame {...props}>
+      <GalleryPostFrame>
         <GalleryContentRenderer
           post={post}
           pointerEvents="none"
@@ -193,7 +192,6 @@ export function GalleryPost({
                 gap="$xl"
                 height="$3.5xl"
                 padding="$m"
-                {...props}
               >
                 <View pointerEvents="auto">
                   <ReactionsDisplay post={post} minimal={true} />
