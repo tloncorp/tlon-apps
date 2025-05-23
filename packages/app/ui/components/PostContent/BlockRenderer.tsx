@@ -242,11 +242,7 @@ export function LinkBlock({
   }, [block.url]);
 
   return (
-    <Reference.Frame
-      {...props}
-      maxWidth={400}
-      onPress={clickable ? onPress : undefined}
-    >
+    <Reference.Frame {...props} onPress={clickable ? onPress : undefined}>
       <Reference.Header>
         <Reference.Title>
           <Icon type="Link" color="$tertiaryText" customSize={[12, 12]} />
