@@ -189,10 +189,8 @@ export const ChatOptionsProvider = ({
   }, [groupId, group]);
 
   const togglePinned = useCallback(() => {
-    if (group && group.channels?.[0]) {
-      group.pin ? store.unpinItem(group.pin) : store.pinGroup(group);
-    }
-  }, [group]);
+    logic.togglePin({ chat, channel, group });
+  }, [chat, channel, group]);
 
   const updateVolume = useCallback(
     (level: ub.NotificationLevel | null) => {
