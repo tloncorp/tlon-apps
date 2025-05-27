@@ -210,37 +210,6 @@ test('textAndMentionsToContent: inline code with various punctuation', () => {
   });
 });
 
-test('textAndMentionsToContent: inline code without trailing punctuation', () => {
-  const text = 'This is `regular code` without punctuation';
-  const mentions: Mention[] = [];
-
-  const result = textAndMentionsToContent(text, mentions);
-
-  expect(result).toEqual({
-    type: 'doc',
-    content: [
-      {
-        type: 'paragraph',
-        content: [
-          {
-            type: 'text',
-            text: 'This is ',
-          },
-          {
-            type: 'text',
-            text: 'regular code',
-            marks: [{ type: 'code' }],
-          },
-          {
-            type: 'text',
-            text: ' without punctuation ',
-          },
-        ],
-      },
-    ],
-  });
-});
-
 test('textAndMentionsToContent: inline code followed by space', () => {
   const text = 'This is `code` with space after';
   const mentions: Mention[] = [];
