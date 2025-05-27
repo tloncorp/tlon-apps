@@ -1,44 +1,82 @@
-import * as db from '../db';
-import * as store from '../store';
+export interface Pin {
+  type: 'group' | 'channel' | 'dm' | 'groupDm';
+  index: number;
+  itemId: string;
+}
+
+export interface Channel {
+  id: string;
+  pin?: Pin | null;
+}
+
+export interface Group {
+  id: string;
+  pin?: Pin | null;
+}
 
 export interface PinToggleParams {
   chat: { type: 'channel' | 'group'; id: string } | null;
-  channel?: db.Channel | null;
-  group?: db.Group | null;
+  channel?: Channel | null;
+  group?: Group | null;
+}
+
+export interface PinToggleActions {
+  unpinItem: (pin: Pin) => Promise<void>;
+  pinChannel: (channel: Channel) => Promise<void>;
+  pinGroup: (group: Group) => Promise<void>;
 }
 
 /**
- * Toggles the pin state of a chat (channel or group) while querying
- * the pin relation to ensure we have the current pin state.
+ * Determines what pin action to take based on the current state.
+ *
+ * @param params - The parameters for the pin toggle.
+ * @returns The action to take and the target to pin.
  */
-export async function togglePin(params: PinToggleParams): Promise<void> {
+export function whichPin(params: PinToggleParams): {
+  action: 'unpin' | 'pin-channel' | 'pin-group' | 'none';
+  target?: Pin | Channel | Group;
+} {
   const { chat, channel, group } = params;
 
   if (chat?.type === 'channel' && channel) {
-    // Handle channel pinning (including DMs and group DMs)
-    const channelWithPin = await db.getChannelWithRelations({ id: channel.id });
-    if (!channelWithPin) {
-      console.warn(`Channel ${channel.id} not found`);
-      return;
-    }
-
-    if (channelWithPin.pin) {
-      await store.unpinItem(channelWithPin.pin);
+    if (channel.pin) {
+      return { action: 'unpin', target: channel.pin };
     } else {
-      await store.pinChannel(channel);
+      return { action: 'pin-channel', target: channel };
     }
   } else if (chat?.type === 'group' && group) {
-    // Handle group pinning
-    const groupWithPin = await db.getGroup({ id: group.id });
-    if (!groupWithPin) {
-      console.warn(`Group ${group.id} not found`);
-      return;
-    }
-
-    if (groupWithPin.pin) {
-      await store.unpinItem(groupWithPin.pin);
+    if (group.pin) {
+      return { action: 'unpin', target: group.pin };
     } else {
-      await store.pinGroup(group);
+      return { action: 'pin-group', target: group };
     }
+  }
+
+  return { action: 'none' };
+}
+
+/**
+ * Performs the pin action using the provided actions interface.
+ *
+ * @param res - The result of the whichPin function.
+ * @param actions - The actions to execute.
+ */
+export async function doPin(
+  res: ReturnType<typeof whichPin>,
+  actions: PinToggleActions
+): Promise<void> {
+  switch (res.action) {
+    case 'unpin':
+      await actions.unpinItem(res.target as Pin);
+      break;
+    case 'pin-channel':
+      await actions.pinChannel(res.target as Channel);
+      break;
+    case 'pin-group':
+      await actions.pinGroup(res.target as Group);
+      break;
+    case 'none':
+      // Do nothing
+      break;
   }
 }
