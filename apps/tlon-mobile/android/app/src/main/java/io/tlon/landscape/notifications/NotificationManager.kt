@@ -63,8 +63,12 @@ suspend fun processNotification(context: Context, uid: String) {
     val tapIntent = Intent(context, MainActivity::class.java)
     tapIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
     tapIntent.replaceExtras(extras)
-    val tapPendingIntent =
-        PendingIntent.getActivity(context, id, tapIntent, PendingIntent.FLAG_IMMUTABLE)
+    val tapPendingIntent = PendingIntent.getActivity(
+        context,
+        id,
+        tapIntent,
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+    )
 
     val markAsReadIntent = Intent(
         context,
