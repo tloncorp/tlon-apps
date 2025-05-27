@@ -8,25 +8,37 @@ export interface PinToggleParams {
 }
 
 /**
- * Toggles the pin state of a chat (channel or group)
+ * Toggles the pin state of a chat (channel or group) while querying
+ * the pin relation to ensure we have the current pin state.
  */
 export async function togglePin(params: PinToggleParams): Promise<void> {
   const { chat, channel, group } = params;
 
   if (chat?.type === 'channel' && channel) {
     // Handle channel pinning (including DMs and group DMs)
-    if (channel.pin) {
-      await store.unpinItem(channel.pin);
+    const channelWithPin = await db.getChannelWithRelations({ id: channel.id });
+    if (!channelWithPin) {
+      console.warn(`Channel ${channel.id} not found`);
+      return;
+    }
+
+    if (channelWithPin.pin) {
+      await store.unpinItem(channelWithPin.pin);
     } else {
       await store.pinChannel(channel);
     }
-  } else if (chat?.type === 'group' && group && group.channels?.[0]) {
+  } else if (chat?.type === 'group' && group) {
     // Handle group pinning
-    if (group.pin) {
-      await store.unpinItem(group.pin);
+    const groupWithPin = await db.getGroup({ id: group.id });
+    if (!groupWithPin) {
+      console.warn(`Group ${group.id} not found`);
+      return;
+    }
+
+    if (groupWithPin.pin) {
+      await store.unpinItem(groupWithPin.pin);
     } else {
       await store.pinGroup(group);
     }
   }
-  // If none of the conditions match, do nothing
 }
