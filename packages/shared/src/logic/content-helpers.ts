@@ -24,11 +24,11 @@ const isCodeStart = (text: string): boolean => {
 };
 
 const isCodeEnd = (text: string): boolean => {
-  return /`[^`]?$/.test(text);
+  return /`[^`]*$/.test(text);
 };
 
 const getCodeEndIndex = (text: string): number => {
-  const match = text.match(/`[^`]?$/);
+  const match = text.match(/`[^`]*$/);
   if (!match) return -1;
   return text.lastIndexOf('`');
 };

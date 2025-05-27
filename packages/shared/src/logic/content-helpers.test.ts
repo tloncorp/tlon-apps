@@ -240,3 +240,35 @@ test('textAndMentionsToContent: inline code followed by space', () => {
     ],
   });
 });
+
+test('textAndMentionsToContent: inline code followed multipl chars', () => {
+  const text =
+    'This is `code`!! with multiple characters in the same word after';
+  const mentions: Mention[] = [];
+
+  const result = textAndMentionsToContent(text, mentions);
+
+  expect(result).toEqual({
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [
+          {
+            type: 'text',
+            text: 'This is ',
+          },
+          {
+            type: 'text',
+            text: 'code',
+            marks: [{ type: 'code' }],
+          },
+          {
+            type: 'text',
+            text: '!! with multiple characters in the same word after ',
+          },
+        ],
+      },
+    ],
+  });
+});
