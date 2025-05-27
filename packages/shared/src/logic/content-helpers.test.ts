@@ -153,7 +153,7 @@ test('textAndMentionsToContent: inline code with punctuation after closing backt
           },
           {
             type: 'text',
-            text: ' , more text ',
+            text: ', more text ',
           },
         ],
       },
@@ -184,7 +184,7 @@ test('textAndMentionsToContent: inline code with various punctuation', () => {
           },
           {
             type: 'text',
-            text: ' . And ',
+            text: '. And ',
           },
           {
             type: 'text',
@@ -193,7 +193,7 @@ test('textAndMentionsToContent: inline code with various punctuation', () => {
           },
           {
             type: 'text',
-            text: ' ! Also ',
+            text: '! Also ',
           },
           {
             type: 'text',
@@ -202,7 +202,7 @@ test('textAndMentionsToContent: inline code with various punctuation', () => {
           },
           {
             type: 'text',
-            text: ' ; works ',
+            text: '; works ',
           },
         ],
       },

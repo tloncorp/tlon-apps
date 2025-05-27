@@ -209,18 +209,22 @@ const processLine = (line: Line): JSONContent => {
         isCoding = false;
         const endIndex = getCodeEndIndex(word);
         const codeContent = word.slice(0, endIndex);
-        const punctuation = word.slice(endIndex + 1);
+        const afterBacktick = word.slice(endIndex + 1);
+
         if (codeContent) {
           parsedContent.push({
             ...makeText(codeContent),
             marks,
           });
         }
-        parsedContent.push(makeText(' '));
-        if (punctuation) {
-          parsedContent.push(makeText(punctuation));
+
+        if (!afterBacktick) {
+          parsedContent.push(makeText(' '));
+        } else {
+          parsedContent.push(makeText(afterBacktick));
           parsedContent.push(makeText(' '));
         }
+
         return;
       }
 
