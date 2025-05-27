@@ -11,6 +11,12 @@ vi.mock('../store', () => ({
   pinGroup: vi.fn(),
 }));
 
+// Mock the database query functions
+vi.mock('../db', () => ({
+  getChannelWithRelations: vi.fn(),
+  getGroup: vi.fn(),
+}));
+
 describe('togglePin', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -25,12 +31,16 @@ describe('togglePin', () => {
       pin,
     } as db.Channel;
 
+    const channelWithPin = { ...channel, pin };
+    vi.mocked(db.getChannelWithRelations).mockResolvedValue(channelWithPin);
+
     const params: PinToggleParams = {
       chat: { type: 'channel', id: '~zod' },
       channel,
     };
 
     await togglePin(params);
+    expect(db.getChannelWithRelations).toHaveBeenCalledWith({ id: '~zod' });
     expect(store.unpinItem).toHaveBeenCalledWith(pin);
     expect(store.pinChannel).not.toHaveBeenCalled();
   });
@@ -43,12 +53,16 @@ describe('togglePin', () => {
       pin: undefined,
     } as db.Channel;
 
+    const channelWithoutPin = { ...channel, pin: null };
+    vi.mocked(db.getChannelWithRelations).mockResolvedValue(channelWithoutPin);
+
     const params: PinToggleParams = {
       chat: { type: 'channel', id: '~zod' },
       channel,
     };
 
     await togglePin(params);
+    expect(db.getChannelWithRelations).toHaveBeenCalledWith({ id: '~zod' });
     expect(store.pinChannel).toHaveBeenCalledWith(channel);
     expect(store.unpinItem).not.toHaveBeenCalled();
   });
@@ -65,12 +79,18 @@ describe('togglePin', () => {
       pin,
     } as db.Channel;
 
+    const channelWithPin = { ...channel, pin };
+    vi.mocked(db.getChannelWithRelations).mockResolvedValue(channelWithPin);
+
     const params: PinToggleParams = {
       chat: { type: 'channel', id: '0v4.00000.test' },
       channel,
     };
 
     await togglePin(params);
+    expect(db.getChannelWithRelations).toHaveBeenCalledWith({
+      id: '0v4.00000.test',
+    });
     expect(store.unpinItem).toHaveBeenCalledWith(pin);
   });
 
@@ -81,12 +101,18 @@ describe('togglePin', () => {
       pin: undefined,
     } as db.Channel;
 
+    const channelWithoutPin = { ...channel, pin: null };
+    vi.mocked(db.getChannelWithRelations).mockResolvedValue(channelWithoutPin);
+
     const params: PinToggleParams = {
       chat: { type: 'channel', id: '0v4.00000.test' },
       channel,
     };
 
     await togglePin(params);
+    expect(db.getChannelWithRelations).toHaveBeenCalledWith({
+      id: '0v4.00000.test',
+    });
     expect(store.pinChannel).toHaveBeenCalledWith(channel);
   });
 
@@ -103,12 +129,18 @@ describe('togglePin', () => {
       pin,
     } as db.Channel;
 
+    const channelWithPin = { ...channel, pin };
+    vi.mocked(db.getChannelWithRelations).mockResolvedValue(channelWithPin);
+
     const params: PinToggleParams = {
       chat: { type: 'channel', id: 'chat/~zod/test' },
       channel,
     };
 
     await togglePin(params);
+    expect(db.getChannelWithRelations).toHaveBeenCalledWith({
+      id: 'chat/~zod/test',
+    });
     expect(store.unpinItem).toHaveBeenCalledWith(pin);
   });
 
@@ -124,12 +156,16 @@ describe('togglePin', () => {
       pin,
     } as db.Group;
 
+    const groupWithPin = { ...group, pin } as any;
+    vi.mocked(db.getGroup).mockResolvedValue(groupWithPin);
+
     const params: PinToggleParams = {
       chat: { type: 'group', id: '~zod/test-group' },
       group,
     };
 
     await togglePin(params);
+    expect(db.getGroup).toHaveBeenCalledWith({ id: '~zod/test-group' });
     expect(store.unpinItem).toHaveBeenCalledWith(pin);
     expect(store.pinGroup).not.toHaveBeenCalled();
   });
@@ -141,32 +177,40 @@ describe('togglePin', () => {
       pin: undefined,
     } as db.Group;
 
+    const groupWithoutPin = { ...group, pin: null } as any;
+    vi.mocked(db.getGroup).mockResolvedValue(groupWithoutPin);
+
     const params: PinToggleParams = {
       chat: { type: 'group', id: '~zod/test-group' },
       group,
     };
 
     await togglePin(params);
+    expect(db.getGroup).toHaveBeenCalledWith({ id: '~zod/test-group' });
     expect(store.pinGroup).toHaveBeenCalledWith(group);
     expect(store.unpinItem).not.toHaveBeenCalled();
   });
 
-  test('does nothing for group without channels', async () => {
+  test('pins a group without channels', async () => {
     const group = {
       id: '~zod/test-group',
       channels: [],
       pin: undefined,
     } as unknown as db.Group;
 
+    const groupWithoutPin = { ...group, pin: null } as any;
+    vi.mocked(db.getGroup).mockResolvedValue(groupWithoutPin);
+
     const params: PinToggleParams = {
       chat: { type: 'group', id: '~zod/test-group' },
       group,
     };
 
     await togglePin(params);
+    expect(db.getGroup).toHaveBeenCalledWith({ id: '~zod/test-group' });
+    expect(store.pinGroup).toHaveBeenCalledWith(group);
     expect(store.unpinItem).not.toHaveBeenCalled();
     expect(store.pinChannel).not.toHaveBeenCalled();
-    expect(store.pinGroup).not.toHaveBeenCalled();
   });
 
   test('does nothing when chat is null', async () => {
@@ -177,6 +221,8 @@ describe('togglePin', () => {
     };
 
     await togglePin(params);
+    expect(db.getChannelWithRelations).not.toHaveBeenCalled();
+    expect(db.getGroup).not.toHaveBeenCalled();
     expect(store.unpinItem).not.toHaveBeenCalled();
     expect(store.pinChannel).not.toHaveBeenCalled();
     expect(store.pinGroup).not.toHaveBeenCalled();
@@ -189,6 +235,7 @@ describe('togglePin', () => {
     };
 
     await togglePin(params);
+    expect(db.getChannelWithRelations).not.toHaveBeenCalled();
     expect(store.unpinItem).not.toHaveBeenCalled();
     expect(store.pinChannel).not.toHaveBeenCalled();
     expect(store.pinGroup).not.toHaveBeenCalled();
@@ -201,8 +248,48 @@ describe('togglePin', () => {
     };
 
     await togglePin(params);
+    expect(db.getGroup).not.toHaveBeenCalled();
     expect(store.unpinItem).not.toHaveBeenCalled();
     expect(store.pinChannel).not.toHaveBeenCalled();
+    expect(store.pinGroup).not.toHaveBeenCalled();
+  });
+
+  test('handles channel not found', async () => {
+    const channel: db.Channel = {
+      id: '~zod',
+      type: 'dm',
+      contactId: '~zod',
+    } as db.Channel;
+
+    vi.mocked(db.getChannelWithRelations).mockResolvedValue(null);
+
+    const params: PinToggleParams = {
+      chat: { type: 'channel', id: '~zod' },
+      channel,
+    };
+
+    await togglePin(params);
+    expect(db.getChannelWithRelations).toHaveBeenCalledWith({ id: '~zod' });
+    expect(store.unpinItem).not.toHaveBeenCalled();
+    expect(store.pinChannel).not.toHaveBeenCalled();
+  });
+
+  test('handles group not found', async () => {
+    const group: db.Group = {
+      id: '~zod/test-group',
+      channels: [{ id: 'channel1' }],
+    } as db.Group;
+
+    vi.mocked(db.getGroup).mockResolvedValue(null);
+
+    const params: PinToggleParams = {
+      chat: { type: 'group', id: '~zod/test-group' },
+      group,
+    };
+
+    await togglePin(params);
+    expect(db.getGroup).toHaveBeenCalledWith({ id: '~zod/test-group' });
+    expect(store.unpinItem).not.toHaveBeenCalled();
     expect(store.pinGroup).not.toHaveBeenCalled();
   });
 });
