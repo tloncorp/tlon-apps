@@ -162,13 +162,6 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
     }
 
     const { url: retrievedUrl, type, ...meta } = data;
-    if (isEmbed) {
-      return {
-        type: 'embed',
-        url,
-      };
-    }
-
     return {
       ...meta,
       type: 'link',

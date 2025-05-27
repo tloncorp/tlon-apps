@@ -311,44 +311,41 @@ export default function BareChatInput({
           const parsedUrl = new URL(urlMatch);
           parsedUrl.hash = '';
           const url = parsedUrl.toString();
-          const isEmbed = isTrustedEmbed(url);
 
-          if (!isEmbed) {
-            setLinkMetaLoading(true);
-            store
-              .getLinkMetaWithFallback(url)
-              .then((linkMetadata) => {
-                // todo: handle error case with toast or similar
-                if (!linkMetadata) {
-                  return;
-                }
+          setLinkMetaLoading(true);
+          store
+            .getLinkMetaWithFallback(url)
+            .then((linkMetadata) => {
+              // todo: handle error case with toast or similar
+              if (!linkMetadata) {
+                return;
+              }
 
-                // first add the link attachment
-                if (linkMetadata.type === 'page') {
-                  const { type, ...rest } = linkMetadata;
+              // first add the link attachment
+              if (linkMetadata.type === 'page') {
+                const { type, ...rest } = linkMetadata;
+                addAttachment({
+                  type: 'link',
+                  resourceType: type,
+                  ...rest,
+                });
+              }
+
+              if (linkMetadata.type === 'file') {
+                if (linkMetadata.isImage) {
                   addAttachment({
-                    type: 'link',
-                    resourceType: type,
-                    ...rest,
+                    type: 'image',
+                    file: {
+                      uri: url,
+                      height: 300,
+                      width: 300,
+                      mimeType: linkMetadata.mime,
+                    },
                   });
                 }
-
-                if (linkMetadata.type === 'file') {
-                  if (linkMetadata.isImage) {
-                    addAttachment({
-                      type: 'image',
-                      file: {
-                        uri: url,
-                        height: 300,
-                        width: 300,
-                        mimeType: linkMetadata.mime,
-                      },
-                    });
-                  }
-                }
-              })
-              .finally(() => setLinkMetaLoading(false));
-          }
+              }
+            })
+            .finally(() => setLinkMetaLoading(false));
         }
       }
 
