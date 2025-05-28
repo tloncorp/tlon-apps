@@ -13,3 +13,4 @@ export * from './noun';
 export * from './wayfinding';
 export * from './postContent';
 export * from './content-helpers';
+export * from './pinning';
