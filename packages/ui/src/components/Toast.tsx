@@ -27,21 +27,19 @@ type Toast = {
   duration: number;
 };
 
-type VisibleToast = {
-  message: string;
-  visible: boolean;
-};
-
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [toast, setToast] = useState<VisibleToast>({
+  const [toast, setToast] = useState<{
+    message: string;
+    visible: boolean;
+  }>({
     message: '',
     visible: false,
   });
   const queueRef = useRef<Array<Toast>>([]);
   const isProcessingRef = useRef(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const processQueue = useCallback(() => {
     if (isProcessingRef.current || queueRef.current.length === 0) return;
@@ -116,7 +114,7 @@ function ToastView({
   visible: boolean;
   message: string;
 }) {
-  const translateY = useSharedValue(40);
+  const translateY = useSharedValue(400);
   const opacity = useSharedValue(0);
   const insets = useSafeAreaInsets();
 
