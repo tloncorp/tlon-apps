@@ -2,8 +2,9 @@
 ::
 ::    guards the inner agent's egress against mark shenanigans.
 ::    set it up by wrapping it around an agent, providing known marks and
-::    their types, and specifying which subscription and scry paths are
-::    allowed to produce which marks.
+::    their types (and whether to hard-prevent changing their types),
+::    and specifying which subscription and scry paths are allowed to produce
+::    which marks.
 ::    on agent reload, will check to ensure mark types have not changed.
 ::    whenever the agent emits facts, or gets scried into, will check that
 ::    the output lines up with what was specified, and if we know the relevant
@@ -26,7 +27,7 @@
 ::      %-  %-  discipline
 ::          :+  ::  marks
 ::              ::
-::              :~  [%my-mark -:!>(*vale:m-my-mark)]
+::              :~  [%my-mark strict=& -:!>(*vale:m-my-mark)]
 ::              ==
 ::            ::  facts
 ::            ::
