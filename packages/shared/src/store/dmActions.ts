@@ -59,7 +59,6 @@ export async function blockUser(userId: string) {
 
   try {
     await api.blockUser(userId);
-    await sync.syncBlockedUsers();
   } catch (e) {
     console.error('Failed to block user', e);
     // rollback optimistic update
@@ -80,7 +79,6 @@ export async function unblockUser(userId: string) {
 
   try {
     await api.unblockUser(userId);
-    await sync.syncBlockedUsers();
   } catch (e) {
     console.error('Failed to unblock user', e);
     // rollback optimistic update

@@ -11,12 +11,9 @@ export async function handleBlockingAction(
     await blockUser(userId);
   }
 
-  // Invalidate queries to refresh UI
   queryClient.invalidateQueries({
-    queryKey: ['blockedContacts'],
-  });
-  queryClient.invalidateQueries({
-    queryKey: [['contact', userId]],
+    predicate: (query) => 
+      query.queryKey.includes('contacts')
   });
 }
 
