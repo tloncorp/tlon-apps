@@ -6,6 +6,7 @@ import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
+import { getDisplayName } from '../../ui';
 import {
   BlockedContactsWidget,
   ScreenHeader,
@@ -16,53 +17,33 @@ import {
 type Props = NativeStackScreenProps<RootStackParamList, 'BlockedUsers'>;
 
 export function BlockedUsersScreen(props: Props) {
-  const { data: calm } = store.useCalmSettings();
   const { data: blockedContacts } = store.useBlockedContacts();
   const isNarrow = useIsWindowNarrow();
 
-  const handleUnblockUser = useCallback(async (contact: db.Contact) => {
-    await store.unblockUser(contact.id);
-    store.queryClient.invalidateQueries({
-      queryKey: ['blockedContacts'],
-    });
-    store.queryClient.invalidateQueries({
-      queryKey: [['contact', contact.id]],
-    });
-  }, []);
+  const onBlockedContactPress = useCallback((contact: db.Contact) => {
+    const displayName = getDisplayName(contact);
+    const message = store.getConfirmationMessage(false); // Always unblocking from this screen
 
-  const onBlockedContactPress = useCallback(
-    (contact: db.Contact) => {
-      const displayName =
-        calm?.disableNicknames && contact.nickname
-          ? contact.nickname
-          : contact.id;
-
-      if (isWeb) {
-        const confirmed = window.confirm(
-          `Are you sure you want to unblock ${displayName}?`
-        );
-        if (confirmed) {
-          handleUnblockUser(contact);
-        }
-      } else {
-        Alert.alert(
-          displayName,
-          `Are you sure you want to unblock this user?`,
-          [
-            {
-              text: 'Cancel',
-              style: 'cancel',
-            },
-            {
-              text: 'Unblock',
-              onPress: () => handleUnblockUser(contact),
-            },
-          ]
-        );
+    if (isWeb) {
+      const confirmed = window.confirm(
+        `Are you sure you want to unblock ${displayName}?`
+      );
+      if (confirmed) {
+        store.handleBlockingAction(contact.id, true);
       }
-    },
-    [calm?.disableNicknames, handleUnblockUser]
-  );
+    } else {
+      Alert.alert(displayName, message, [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Unblock',
+          onPress: () => store.handleBlockingAction(contact.id, true),
+        },
+      ]);
+    }
+  }, []);
 
   return (
     <View flex={1} backgroundColor="$background">
