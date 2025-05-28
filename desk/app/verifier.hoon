@@ -867,10 +867,11 @@
       ?~  aid=(~(get by attested) u.sig)  fof
       ?~  rec=(~(get by records) u.aid)   fof
       ?.  ?=(%done -.status.u.rec)        fof
+      =/  url  (~(get by invites) for.u.rec)
       ?:  =(sig.half.status.u.rec u.sig)
-        [(spout:hu id [200 ~] `(display | +.status.u.rec)) this]
+        [(spout:hu id [200 ~] `(display url | +.status.u.rec)) this]
       ?:  =(sig.full.status.u.rec u.sig)
-        [(spout:hu id [200 ~] `(display & +.status.u.rec)) this]
+        [(spout:hu id [200 ~] `(display url & +.status.u.rec)) this]
       ::  if we make it into this branch our bookkeeping is bad
       ::
       ~&  [dap.bowl %no-such-sig sig=`@uw`u.sig in=u.aid]
@@ -884,7 +885,8 @@
       ?~  aid=(~(get by lookups) u.num)  fof
       ?~  rec=(~(get by records) u.aid)  fof
       ?.  ?=(%done -.status.u.rec)       fof
-      [(spout:hu id [200 ~] `(display & +.status.u.rec)) this]
+      =/  url  (~(get by invites) for.u.rec)
+      [(spout:hu id [200 ~] `(display url & +.status.u.rec)) this]
     ==
   ==
 ::

@@ -4,7 +4,7 @@
 /+  hu=http-utils
 =,  (verifier)
 ::
-|=  [full=? tat=attestation]
+|=  [invite=(unit @t) full=? tat=attestation]
 ^-  octs
 %-  press:hu
 ^-  manx
@@ -281,10 +281,20 @@
             ==
           ==
         ==
-        ;a(href "https://tlon.io", id "tlon-button"):"Not on Tlon Messenger? Join now"
+        ;+  tlon-button
       ==
   ::
   ++  text
     "Verified that {owner} has {text-description} on {nice-date}."
+  ::
+  ++  tlon-button
+    ^-  manx
+    =;  [url=tape msg=tape]
+      ;a(href url, id "tlon-button"):"{msg}"
+    =/  url=tape
+      (trip (fall invite ''))
+    ?:  =(`0 (find "https://tlon.network/" url))
+      [url "DM {owner} on Tlon Messenger"]
+    ["https://tlon.io" "Not on Tlon Messenger? Join now"]
   --
 --
