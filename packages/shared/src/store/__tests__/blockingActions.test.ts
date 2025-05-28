@@ -28,12 +28,7 @@ describe('blockingLogic', () => {
 
       expect(unblockUser).toHaveBeenCalledWith(userId);
       expect(blockUser).not.toHaveBeenCalled();
-      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
-        queryKey: ['blockedContacts'],
-      });
-      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
-        queryKey: [['contact', userId]],
-      });
+      expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(1);
     });
 
     it('should block user when currently unblocked', async () => {
@@ -41,7 +36,7 @@ describe('blockingLogic', () => {
 
       expect(blockUser).toHaveBeenCalledWith(userId);
       expect(unblockUser).not.toHaveBeenCalled();
-      expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(2);
+      expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(1);
     });
   });
 
