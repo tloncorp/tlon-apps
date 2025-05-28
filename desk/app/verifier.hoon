@@ -32,7 +32,7 @@
 ::
 =>
 |%
-+$  state-0  [%0 state]
++$  state-1  [%1 state]
 +$  card     card:agent:gall
 ::
 ++  attempt-timeout  ~h1
@@ -470,7 +470,7 @@
   ==
 --
 ::
-=|  state-0
+=|  state-1
 =*  state  -
 ::
 =+  log=l
@@ -490,8 +490,38 @@
 ::
 ++  on-load
   |=  ole=vase
-  ^-  (quip card _this)
-  [~ this(state !<(state-0 ole))]
+  |^  ^-  (quip card _this)
+      =/  old=state-any  !<(state-any ole)
+      =?  old  ?=(%0 -.old)  (state-0-to-1 old)
+      ?>  ?=(%1 -.old)
+      =.  state  old
+      ::  we always send an endpoint update, to trigger lanyard clients
+      ::  to send us their invite links if necessary
+      ::
+      [[(give-endpoint domain)]~ this]
+  ::
+  +$  state-any  $%(state-0 state-1)
+  ::
+  +$  state-0
+    $:  %0
+        records=(map identifier record)
+        owners=(jug ship identifier)
+        attested=(map @ux identifier)
+        lookups=(map @ identifier)
+        reverse=(jug identifier @)
+      ::
+        limits=[solo=(map @p allowance) pool=_allowance:pool:rates]
+      ::
+        ::NOTE  basic auth only needed for staging api key
+        phone-api=[base=@t key=@t basic=(unit [user=@t pass=@t])]
+        twitter-api=[bearer=@t]
+        domain=(unit @t)  ::  as 'https://example.org:123/verifier'
+    ==
+  ++  state-0-to-1
+    |=  s=state-0
+    ^-  state-1
+    s(- %1, domain [domain.s invites=~])
+  --
 ::
 ++  on-poke
   |=  [=mark =vase]
@@ -687,6 +717,12 @@
             (req-challenge:website +.id)
         ==
       ==
+    ::
+        %invite
+      =-  [~ this(invites -)]
+      ?~  url.cmd
+        (~(del by invites) src.bowl)
+      (~(put by invites) src.bowl u.url.cmd)
     ==
   ::
       %verifier-host-command
