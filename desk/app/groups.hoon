@@ -307,9 +307,14 @@
       :: inviter
       ::
       =/  far=foreign:g  (~(got by foreigns) p.invite-2)
+      ::TODO  wrong kind of token! want to pull from tokens.xx instead
       =/  token=(unit token:g)
         ?~  invites.far  ~
         `id.i.invites.far
+      ::  upgrade this poke into a new-style one, then process as normal.
+      ::TODO  this ties public-token here to logic in +go-a-invite.
+      ::      just explicate this case by making token.a-invite (unit) instead
+      ::
       =/  =a-invite:v7:g  [q.invite-2 (fall token public-token:g) ~]
       $(+< group-action-4+!>(`a-groups:v7:g`[%invite p.invite-2 a-invite]))
     ::
@@ -1366,6 +1371,7 @@
   ::
   ++  se-c-leave
     ^+  se-core
+    ::TODO  should do both unconditionally, maybe?
     ?:  (~(has by seats.group) src.bowl)
       (se-c-seat (sy src.bowl ~) [%del ~])
     ?:  (~(has by requests.ad) src.bowl)
@@ -1556,6 +1562,7 @@
     ?-    -.c-seat
         %add
       ::XX prevent re-adding a seat
+      ::TODO  remove ships from .requests
       =.  seats.group
         %-  ~(uni by seats.group)
         %-  malt
@@ -1761,7 +1768,6 @@
         |=(=section:g section(order (~(push of order.section) nest)))
       (se-update %channel nest [%section section-id.c-channel])
     ==
-  ::CONTINUE
   ::  +se-channel-del-roles: remove roles from channel readers
   ::
   ++  se-channel-del-roles
@@ -1849,6 +1855,7 @@
     ^+  se-core
     ?+    path  ~|(se-watch-bad+path !!)
         [%updates ship=@ ~]
+      ::TODO  consider removing, we won't be using this
       =/  ship  (slav %p i.t.path)
       ?>  =(ship src.bowl)
       ?>  (se-is-member src.bowl)
@@ -1893,6 +1900,7 @@
   ::
   ++  se-is-admin-update
     |=  =u-group:g
+    ::TODO  filter out %ask updates?
     ?+  u-group  |
       [%entry %token *]  &
     ==
@@ -2028,7 +2036,7 @@
       =^  caz=(list card)  subs
         (~(unsubscribe s [subs bowl]) wire dock)
       caz
-    ++  leave
+    ++  leave  ::TODO  rename to remove-self? or leave-seat?
       ^-  card
       =/  =wire  (weld go-area /command/leave)
       =/  =dock  [p.flag server]
@@ -2042,13 +2050,13 @@
     ::     group-command-1+!>([%group flag %seat (silt our.bowl ~) %del ~])
     ::   [%pass wire %agent dock %poke cage]
     ::
-    ++  leave-channels
+    ++  leave-channels  ::TODO  rename to match +leave's rename
       |=  nests=(list nest:g)
       ^-  (list card)
-      %+  murn
-          nests
+      %+  murn  nests
       |=  nes=nest:g
       ^-  (unit card)
+      ::TODO  i don't think this check is necessary here
       ?.  ?=(?(%chat %diary %heap) p.nes)
         ~
       =/  =dock  [our.bowl %channels]
@@ -2061,10 +2069,10 @@
     ++  join-channels
       |=  nests=(list nest:g)
       ^-  (list card)
-      %+  murn
-          nests
+      %+  murn  nests
       |=  nes=nest:g
       ^-  (unit card)
+      ::TODO  same as above
       ?.  ?=(?(%chat %diary %heap) p.nes)
         ~
       =/  =dock  [our.bowl %channels]
@@ -2079,6 +2087,7 @@
   ::
   ++  go-has-sub
     ::XX verify this is the correct wire. does not seem correct
+    ::REVIEW  don't confuse the wire and the path!
     (~(has by wex.bowl) [(snoc go-area %updates) p.flag server])
   ::  +go-safe-sub: safely subscribe to the group for updates
   ::
@@ -2138,38 +2147,47 @@
   ++  go-a-invite
     |=  =a-invite:g
     ~&  go-a-invite+a-invite
-    ?.  |(=(public-token:g token.a-invite) !?=(%public privacy.ad))
+    ::  check to make sure that we're not using the public token
+    ::  for inviting to a non-public group.
+    ::  (old clients will do this)
+    ::
+    ::TODO  this becomes just "?~  token.a-invite" with proposed changes
+    ?:  &(=(public-token:g token.a-invite) !?=(%public privacy.ad))
+      ::  if we are misusing the public token, then
+      ::  ask the host for a fresh invite token instead
+      ::  if we don't have suitable token, we are
+      ::  going to request for it.
+      ::
+      ~&  go-invite-action+%missing-token
+      =.  invited.ad  (~(put by invited.ad) ship.a-invite [now.bowl ~])
       =/  =wire
         %+  weld  go-area
-        /invite/(scot %p ship.a-invite)
-      =/  =invite:v7:g
-        :*  flag
-            now.bowl
-            our.bowl
-            token.a-invite
-            note.a-invite
-            go-preview
-        ==
-      =.  invited.ad  (~(put by invited.ad) ship.a-invite [now.bowl `token.a-invite])
-      =.  cor
-        =/  =cage
-          group-foreign-action-1+!>(`a-foreigns:v7:g`[%foreign flag [%invite invite]])
-        ~&  go-invite+ship.a-invite
-        %^  emit  %pass  wire
-        [%agent [ship.a-invite dap.bowl] %poke cage]
-      go-core
-    ::  if we don't have suitable token, we are
-    ::  going to request for it.
+        /invite/(scot %p ship.a-invite)/token
+      =/  =c-token-add:v7:g
+        [[%personal ship.a-invite] ~ ~ &]
+      (go-send-command wire [%entry %token [%add c-token-add]])
+    ::  we have a sane token, send the invite to the target right away
     ::
-    ~&  go-invite-action+%missing-token
-    =.  invited.ad  (~(put by invited.ad) ship.a-invite [now.bowl ~])
     =/  =wire
       %+  weld  go-area
-      /invite/(scot %p ship.a-invite)/token
-    =/  =c-token-add:v7:g
-      [[%personal ship.a-invite] ~ ~ &]
-    (go-send-command wire [%entry %token [%add c-token-add]])
-
+      /invite/(scot %p ship.a-invite)
+    =/  =invite:v7:g
+      :*  flag
+          now.bowl
+          our.bowl
+          token.a-invite
+          note.a-invite
+          go-preview
+      ==
+    =.  invited.ad  (~(put by invited.ad) ship.a-invite [now.bowl `token.a-invite])
+    =.  cor
+      =/  =cage
+        group-foreign-action-1+!>(`a-foreigns:v7:g`[%foreign flag [%invite invite]])
+      ~&  go-invite+ship.a-invite
+      %^  emit  %pass  wire
+      [%agent [ship.a-invite dap.bowl] %poke cage]
+    go-core
+  ::REVIEW  CONTINUE
   ::  +go-a-group: execute group action
   ::
   ++  go-a-group
@@ -3063,7 +3081,7 @@
     ?>  |(from-self ?=(%invite -.a-foreign))
     ?-  -.a-foreign
       %join     (fi-join token.a-foreign)
-      %cancel   ~|(%fi-a-foreign-cancel-not-implemented !!)
+      %cancel   ~|(%fi-a-foreign-cancel-not-implemented !!)  ::TODO
       %invite   (fi-invite invite.a-foreign)
       %decline  (fi-decline id.a-foreign)
     ==
@@ -3194,7 +3212,7 @@
         ::  poked the host to ask to join
         ::
         [%join %ask ~]
-      =/  token  (slav %uv token.pole)
+      =/  token  (slav %uv token.pole)  ::TODO  no token.pole
       ?>  ?=(%poke-ack -.sign)
       ?>  ?=(^ join)
       ?^  p.sign

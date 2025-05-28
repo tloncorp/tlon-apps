@@ -60,7 +60,7 @@
 ::
 ::  .privacy: determines group visibility
 ::  .banned: ships and ranks blacklist
-::  .requests: entry requests 
+::  .requests: entry requests
 ::  .tokens: access tokens
 ::  .referrals: token attribution
 ::  .invited: invited guest list
@@ -132,7 +132,7 @@
 ::  .preview: group preview
 ::  .sign: preview host signature
 ::
-::  TODO: group invitation should be attested 
+::  TODO: group invitation should be attested
 ::        for by the group host, who should sign
 ::        the [token from preview] triple.
 ::
@@ -214,7 +214,7 @@
       =flagged-content
   ==
 ::
-+$  group-ui  
++$  group-ui
   $:  =group
       init=?
       member-count=@ud
@@ -299,7 +299,7 @@
 ::    to subscribers. most updates also trigger
 ::    a response.
 ::
-::XX  consider whether it is better 
+::XX  consider whether it is better
 ::    to have separate %group-join, %group-invite pokes
 ::
 ::  $a-groups: groups actions
@@ -324,7 +324,11 @@
 ::  $a-invite: invite a ship
 +$  a-invite
   $:  =ship
-      =token
+      ::REVIEW  we need to have a discussion around "token management",
+      ::        which this approach kind of necessitates. client app will
+      ::        need to have ui for selecting a token, generating new ones,
+      ::        etc... who is going to work on proofing that out / integrating??
+      =token  ::TODO  (unit token)  ::  empty if client doesn't know (or care!) about tokens
       note=(unit story:s)
   ==
 +$  a-entry  c-entry
@@ -534,6 +538,7 @@
 ::  $a-foreign: foreign group action
 ::
 ::  %join: join the group, or for entry
+::  %ask: xx
 ::  %cancel: cancel a join in progress
 ::  %invite: receive an invitation
 ::  %decline: decline an invitation
