@@ -245,7 +245,7 @@
     =.  state  old
     ?^  bad=(check-marks:help last-marks mark-map)
       ~|  [%discipline dap=dap.bowl %mark-types-changed marks=;;((list mark) bad)]
-      !!  ::REVIEW  possibly annoying during development?
+      !!
     =.  last-marks  mark-types
     =^  cards  inner  (on-load:og (slot 3 ole))  !:
     =.  cards  (check-cards:help ~ cards)
