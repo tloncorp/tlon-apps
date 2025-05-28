@@ -112,6 +112,7 @@
   ++  on-fail
     |=  [=term =tang]
     ^-  (quip card _this)
+    %-  (slog term tang)
     :_  this
     [(fail:log term tang ~)]~
   --
@@ -1353,7 +1354,7 @@
     ?~  entries  [checkers cor]
     =/  [=nest:c =channel:c]  i.entries
     =*  group  group.perm.channel
-    =+  .^(exists=? %gx (scry-path %groups /exists/(scot %p p.group)/[q.group]/noun))
+    =+  .^(exists=? %gu (scry-path %groups /groups/(scot %p p.group)/[q.group]/noun))
     ?.  exists  $(entries t.entries)
     =^  can-read  checkers
       ?^  gate=(~(get by checkers) group)  [u.gate checkers]

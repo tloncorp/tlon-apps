@@ -194,7 +194,7 @@
       %^  lure-log  %warn  group-event
       ~['%groups not running']
     =/  gnat=path  /(scot %p p.flag)/[q.flag]/noun
-    ?.  .^(? %gx :(weld prefix /exists gnat))
+    ?.  .^(? %gu :(weld prefix /groups gnat))
       :_  ~
       %^  lure-log  %warn  group-event
       ~[leaf+"group {<p.flag>}/{(trip q.flag)} missing"]

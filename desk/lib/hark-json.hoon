@@ -132,7 +132,7 @@
     ^-  json
     ?-  -.s
       %all    ~
-      %group  s/(flag flag.s)
+      %group  (flag flag.s)
       %desk   s/desk.s
     ==
   ::
@@ -143,8 +143,8 @@
     |=  r=rope:h
     ^-  json
     %-  pairs
-    :~  group/?~(gop.r ~ s/(flag u.gop.r))
-        channel/?~(can.r ~ s/(nest u.can.r))
+    :~  group/?~(gop.r ~ (flag u.gop.r))
+        channel/?~(can.r ~ (nest u.can.r))
         desk/s/des.r
         thread/s/(spat ted.r)
     ==

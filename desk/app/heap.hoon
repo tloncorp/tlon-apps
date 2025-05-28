@@ -789,7 +789,7 @@
       he-core
     ::
     ++  create-channel
-      |=  [=term group=flag:g =channel:g]
+      |=  [=term group=flag:g =channel:v2:g]
       ^+  he-core
       =/  =nest:g  [dap.bowl flag]
       (poke-group term group now.bowl %channel nest %add channel)

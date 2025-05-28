@@ -66,6 +66,7 @@
   ++  on-fail
     |=  [=term =tang]
     ^-  (quip card _this)
+    %-  (slog term tang)
     :_  this
     [(fail:log term tang ~)]~
   ::
@@ -581,8 +582,8 @@
       [%seat * %add-roles *]    (recheck-perms affected ~)
       [%seat * %del-roles *]     (recheck-perms affected ~)
       [%channel * %edit *]       (recheck-perms affected ~)
-      [%channel * %add-roles *]  (recheck-perms affected ~)
-      [%channel * %del-roles *]  (recheck-perms affected ~)
+      [%channel * %add-readers *]  (recheck-perms affected ~)
+      [%channel * %del-readers *]  (recheck-perms affected ~)
   ::
       [%role * %del *]
     (recheck-perms affected roles.r-group)
@@ -679,10 +680,10 @@
       =/  =path  /[kind.nest]/[name.nest]/create
       =.  ca-core  (give %fact ~[path] cage)
       (give %kick ~[path] ~)
-    =/  =channel:g
+    =/  =channel:v2:g
       :-  [title description '' '']:new
       [now.bowl %default | readers.new]
-    =/  =action:v5:g
+    =/  =action:v2:g
       [group.new now.bowl %channel nest %add channel]
     =/  =dock    [p.group.new %groups]
     =/  =wire    (snoc ca-area %create)
@@ -752,6 +753,7 @@
     |=  =c-post:c
     ^-  [(unit u-channel:c) _ca-core]
     ?>  (can-write:ca-perms src.bowl writers.perm.perm.channel)
+    ~&  ca-c-post+%can-write
     =*  no-op  `ca-core
     ?-    -.c-post
         %add
@@ -1029,7 +1031,7 @@
     =*  flag  group.perm.perm.+.u.channel
     %-  some
     ?.  .^(? %gu (scry-path %groups /$))  *group-ui:v2:g
-    ?.  .^(? %gx (scry-path %groups /exists/(scot %p p.flag)/[q.flag]/noun))
+    ?.  .^(? %gu (scry-path %groups /groups/(scot %p p.flag)/[q.flag]/noun))
       *group-ui:v2:g
     .^(group-ui:v2:g %gx (scry-path %groups /groups/(scot %p p.flag)/[q.flag]/v1/group-ui))
   :*  channel

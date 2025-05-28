@@ -87,6 +87,7 @@
   ++  on-fail
     |=  [=term =tang]
     ^-  (quip card _this)
+    %-  (slog term tang)
     :_  this
     [(fail:log term tang ~)]~
   ::
@@ -737,8 +738,8 @@
       [%seat * %add-roles *]     (recheck-perms affected ~)
       [%seat * %del-roles *]     (recheck-perms affected ~)
       [%channel * %edit *]       (recheck-perms affected ~)
-      [%channel * %add-roles *]  (recheck-perms affected ~)
-      [%channel * %del-roles *]  (recheck-perms affected ~)
+      [%channel * %add-readers *]  (recheck-perms affected ~)
+      [%channel * %del-readers *]  (recheck-perms affected ~)
   ::
       [%role * %del *]
     (recheck-perms affected roles.r-group)
@@ -2408,8 +2409,8 @@
     |=  sects=(set sect:v0:g)
     =/  =flag:g  group.perm.perm.channel
     =/  exists-path
-      (scry-path %groups /exists/(scot %p p.flag)/[q.flag]/noun)
-    =+  .^(exists=? %gx exists-path)
+      (scry-path %groups /groups/(scot %p p.flag)/[q.flag]/noun)
+    =+  .^(exists=? %gu exists-path)
     ?.  exists  ca-core
     =/  =path
       %+  scry-path  %groups

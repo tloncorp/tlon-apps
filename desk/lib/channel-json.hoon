@@ -1,6 +1,6 @@
 /-  c=channels, g=groups, s=story
 /-  meta
-/+  cite=cite-json, gj=groups-json
+/+  gj=groups-json, sj=story-json, dj=cite-json
 =*  z  ..zuse
 |%
 ++  enjs
@@ -401,7 +401,7 @@
   ++  essay
     |=  =essay:c
     %-  pairs
-    :~  content+(story content.essay)
+    :~  content+(story:enjs:sj content.essay)
         author+(ship author.essay)
         sent+(time sent.essay)
         kind-data+(kind-data kind-data.essay)
@@ -424,101 +424,11 @@
         'lastRepliers'^a/(turn ~(tap in last-repliers.r) ship)
     ==
   ::
-  ++  verse
-    |=  =verse:s
-    ^-  json
-    %+  frond  -.verse
-    ?-  -.verse
-        %block  (block p.verse)
-        %inline  a+(turn p.verse inline)
-    ==
-  ++  block
-    |=  b=block:s
-    ^-  json
-    %+  frond  -.b
-    ?-  -.b
-        %rule  ~
-        %cite  (enjs:cite cite.b)
-        %listing  (listing p.b)
-        %header
-      %-  pairs
-      :~  tag+s+p.b
-          content+a+(turn q.b inline)
-      ==
-        %image
-      %-  pairs
-      :~  src+s+src.b
-          height+(numb height.b)
-          width+(numb width.b)
-          alt+s+alt.b
-      ==
-        %code
-      %-  pairs
-      :~  code+s+code.b
-          lang+s+lang.b
-      ==
-    ==
-  ::
-  ++  listing
-    |=  l=listing:s
-    ^-  json
-    %+  frond  -.l
-    ?-  -.l
-        %item  a+(turn p.l inline)
-        %list
-      %-  pairs
-      :~  type+s+p.l
-          items+a+(turn q.l listing)
-          contents+a+(turn r.l inline)
-      ==
-    ==
-  ::
-  ++  inline
-    |=  i=inline:s
-    ^-  json
-    ?@  i  s+i
-    %+  frond  -.i
-    ?-  -.i
-        %break
-      ~
-    ::
-        %ship  s/(scot %p p.i)
-    ::
-        ?(%code %tag %inline-code)
-      s+p.i
-    ::
-        ?(%italics %bold %strike %blockquote)
-      :-  %a
-      (turn p.i inline)
-    ::
-        %block
-      %-  pairs
-      :~  index+(numb p.i)
-          text+s+q.i
-      ==
-    ::
-        %link
-      %-  pairs
-      :~  href+s+p.i
-          content+s+q.i
-      ==
-        %task
-      %-  pairs
-      :~  checked+b+p.i
-          content+a+(turn q.i inline)
-      ==
-    ==
-  ::
-  ++  story
-    |=  s=story:s
-    ^-  json
-    a+(turn s verse)
-  ::
   ++  memo
     |=  m=memo:c
     ^-  json
     %-  pairs
-    :~  content/(story content.m)
+    :~  content/(story:enjs:sj content.m)
         author/(ship author.m)
         sent/(time sent.m)
     ==
@@ -728,17 +638,16 @@
   ++  add-sects  (as (se %tas))
   ++  del-sects  (as so)
   ::
-  ++  story  (ar verse)
   ++  essay
     ^-  $-(json essay:c)
     %+  cu
       |=  [=story:c =ship:z =time:z =kind-data:c]
       `essay:c`[[story ship time] kind-data]
     %-  ot
-    :~  content/story
-        author/ship
-        sent/di
-        kind-data/kind-data
+    :~  content+story:dejs:sj
+        author+ship
+        sent+di
+        kind-data+kind-data
     ==
   ::
   ++  kind-data
@@ -755,97 +664,10 @@
     ?~  jon  ~
     ((of notice+ul ~) jon)
   ::
-  ++  verse
-    ^-  $-(json verse:s)
-    %-  of
-    :~  block/block
-        inline/(ar inline)
-    ==
-  ::
-  ++  block
-    |=  j=json
-    ^-  block:s
-    %.  j
-    %-  of
-    :~  rule/ul
-        cite/dejs:cite
-        listing/listing
-    ::
-      :-  %code
-      %-  ot
-      :~  code/so
-          lang/(se %tas)
-      ==
-    ::
-      :-  %header
-      %-  ot
-      :~  tag/(su (perk %h1 %h2 %h3 %h4 %h5 %h6 ~))
-          content/(ar inline)
-      ==
-    ::
-      :-  %image
-      %-  ot
-      :~  src/so
-          height/ni
-          width/ni
-          alt/so
-      ==
-    ==
-  ::
-  ++  listing
-    |=  j=json
-    ^-  listing:s
-    %.  j
-    %-  of
-    :~
-      item/(ar inline)
-      :-  %list
-      %-  ot
-      :~  type/(su (perk %ordered %unordered %tasklist ~))
-          items/(ar listing)
-          contents/(ar inline)
-      ==
-    ==
-  ::
-  ++  inline
-    |=  j=json
-    ^-  inline:s
-    ?:  ?=([%s *] j)  p.j
-    =>  .(j `json`j)
-    %.  j
-    %-  of
-    :~  italics/(ar inline)
-        bold/(ar inline)
-        strike/(ar inline)
-        blockquote/(ar inline)
-        ship/ship
-        inline-code/so
-        code/so
-        tag/so
-        break/ul
-    ::
-      :-  %block
-      %-  ot
-      :~  index/ni
-          text/so
-      ==
-    ::
-      :-  %link
-      %-  ot
-      :~  href/so
-          content/so
-      ==
-    ::
-      :-  %task
-      %-  ot
-      :~  checked/bo
-          content/(ar inline)
-      ==
-    ==
   ::
   ++  memo
     %-  ot
-    :~  content/story
+    :~  content/story:dejs:sj
         author/ship
         sent/di
     ==

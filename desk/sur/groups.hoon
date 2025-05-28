@@ -5,8 +5,8 @@
 +$  flag  (pair ship term)
 ::
 ::  $nest: id for a channel, {app}/{ship}/{name}
-::TODO with custom channels, the $nest in %channels
-::     should be relaxed this type
+::TODO with custom channels, should $nest in %channels
+::     should be relaxed
 ::
 +$  nest  (pair term flag)
 ::  $section-id: section id
@@ -53,8 +53,8 @@
       ::XX this was never filled; make sure we set this.
       added=time
       section=section-id
-      join=?
       readers=(set role-id)
+      join=?
   ==
 ::  $admissions: group entry policy
 ::
@@ -64,19 +64,31 @@
 ::  .tokens: access tokens
 ::  .referrals: token attribution
 ::  .invited: invited guest list
-::  .public-token: public access token
+::
+::  sync semantics
+::
+::  privacy    global
+::  banned     global
+::  requests   partial
+::  tokens     partial. forever and limited tokens
+::             are shared between admins, while personal
+::             tokens are only shared with the requesting ship.
+::  referrals  partial
+::  invited    local
 ::
 +$  admissions
   $:  =privacy
       =banned
+      ::XX keep a date
       requests=(map ship (unit story:s))
       tokens=(map token token-meta)
-      referrals=(map ship token)
-      invited=(map ship [at=@da =token])
-      public-token=(unit token)
+      referrals=(jug ship token)
+      invited=(map ship [at=@da token=(unit token)])
   ==
-::  $token: access token
+::  $token: group access token
 +$  token  @uv
+::  +public-token: public group access token
+++  public-token  0v0
 ::  $token-meta: token metadata
 ::
 ::  .scheme: claim scheme
@@ -87,17 +99,18 @@
   $:  scheme=claim-scheme
       expiry=@da
       label=(unit @t)
+      ::TODO add attribution or reverse lookup in admissions
   ==
 ::  $claim-scheme: token claim scheme
 ::
-::  .forever: unlimited claims
-::  .limited: limited number of claims
-::  .once: single claim
+::  %forever: unlimited claims
+::  %limited: limited number of claims
+::  %personal: single claim by the named
 ::
 +$  claim-scheme
   $%  [%forever ~]
-      [%limited remaining=@ud]
-      [%once ~]
+      [%limited count=@ud]
+      [%personal =ship]
   ==
 ::  $banned: blacklist
 ::
@@ -111,19 +124,49 @@
 +$  privacy  ?(%public %private %secret)
 ::  $invite: group invitation
 ::
-::  .flag: group invitation
+::  .flag: target group
+::  .time: time received
 ::  .token: access token
 ::  .from: inviter ship
 ::  .note: letter
 ::  .preview: group preview
+::  .sign: preview host signature
+::
+::  TODO: group invitation should be attested 
+::        for by the group host, who should sign
+::        the [token from preview] triple.
 ::
 +$  invite
   $:  =flag
-      =token
+      =time
       from=ship
+      =token
       note=(unit story:s)
       =preview
   ==
+::  $progress: group join in progress
+::
+::  %join: waiting for a seat
+::  %watch: waiting for a subscription
+::  %done: subscribed to the group
+::  %error: error occured
+::
+::  XX consider %kick for marking groups we
+::  have been banned from.
+::
++$  progress  ?(%ask %join %watch %done %error)
+::  $foreign: view of a foreign group
+::
+::  .preview: group preview
+::  .invites: received group invites
+::  .join: group join in progress
+::
++$  foreign
+  $:  preview=(unit preview)
+      invites=(list [id=token invite])
+      join=(unit [id=token =progress])
+  ==
++$  foreigns  (map flag foreign)
 ::  $group: collection of people and the pathways in which they interact
 ::
 ::    group holds all data around members, permissions, channel
@@ -139,6 +182,19 @@
 ::  .sections: channel sections
 ::  .section-order: sections order
 ::  .flagged-content: flagged content
+::
+::  sync semantics
+::
+::  .meta             global
+::  .admissions       partial
+::  .seats            global
+::  .roles            global
+::  .admins           global
+::  .channels         global
+::  .active-channels  local
+::  .sections         global
+::  .section-order    global
+::  .flagged-content  global
 ::
 +$  group
   $:  meta=data:meta
@@ -168,7 +224,7 @@
 +$  net
   $~  [%pub ~]
   $%  [%pub =log]
-      [%sub =time init=_|]
+      [%sub =time]
   ==
 ::
 +$  groups-ui
@@ -183,21 +239,15 @@
 ::  .meta: group metadata
 ::  .time: preview timestamp
 ::  .member-count: group member count
-::  .public-token: public access token
+::  .public: whether group is public
 ::
 +$  preview
   $:  =flag
       meta=data:meta
       =time
       member-count=@ud
-      public-token=(unit token)
+      =privacy
   ==
-:: +$  join-status  ?(%idle %init %error %done)
-::  $foreign-group: our view of a foreign group
-:: +$  foreign-group
-::   $:  =preview
-::       =join
-::   ==
 ::  $previews: collection of group previews
 ::
 +$  previews  (map flag preview)
@@ -216,7 +266,7 @@
       =banned
       guests=(set ship)
   ==
-::XX use id-post
+::XX use $plan from channels
 +$  post-key  [post=time reply=(unit time)]
 ::
 +$  flaggers  (set ship)
@@ -252,10 +302,14 @@
 ::XX  consider whether it is better 
 ::    to have separate %group-join, %group-invite pokes
 ::
+::  $a-groups: groups actions
+::
+::  %group: operate on a group
+::  %invite: send an invite
+::
 +$  a-groups
-  $%  [%join =flag =token]
-      :: [%invite =a-invite]
-      [%group =flag =a-group]
+  $%  [%group =flag =a-group]
+      [%invite =flag =a-invite]
   ==
 +$  a-group
   $%  [%meta meta=data:meta]
@@ -267,6 +321,12 @@
       [%flag-content =nest =post-key src=ship]
       [%leave ~]
   ==
+::  $a-invite: invite a ship
++$  a-invite
+  $:  =ship
+      =token
+      note=(unit story:s)
+  ==
 +$  a-entry  c-entry
 +$  a-seat  c-seat
 +$  a-role  c-role
@@ -275,8 +335,12 @@
 ::
 +$  c-groups
   $%  [%create =create-group]
-      [%join =flag =token]
       [%group =flag =c-group]
+      ::
+      [%join =flag =token]
+      [%ask =flag story=(unit story:s)]
+      ::
+      [%leave =flag]
   ==
 +$  c-group
   $%  [%meta meta=data:meta]
@@ -294,14 +358,23 @@
       [%token =c-token]
   ==
 +$  c-ban
-  $%  [%add-ships ships=(set ship)]
+  $%  [%set ships=(set ship) ranks=(set rank:title)]
+    ::
+      [%add-ships ships=(set ship)]
       [%del-ships ships=(set ship)]
+    ::
       [%add-ranks ranks=(set rank:title)]
       [%del-ranks ranks=(set rank:title)]
   ==
 +$  c-token
-  $%  [%add scheme=claim-scheme expiry=(unit @dr) referral=?]
+  $%  [%add =c-token-add]
       [%del =token]
+  ==
++$  c-token-add
+  $:  scheme=claim-scheme
+      expiry=(unit @dr)
+      label=(unit @t)
+      referral=?
   ==
 ::  $c-role: role command
 ::
@@ -336,8 +409,8 @@
 ::  %add: add a channel
 ::  %edit: edit the channel
 ::  %del: delete the channel
-::  %add-roles: add roles to readers set
-::  %del-roles: delete roles from readers set
+::  %add-readers: add roles to readers set
+::  %del-readers: delete roles from readers set
 ::  %section: assign the channel to a section
 ::
 +$  c-channel
@@ -345,8 +418,8 @@
       [%edit =channel]
       [%del ~]
     ::
-      [%add-roles roles=(set role-id)]
-      [%del-roles roles=(set role-id)]
+      [%add-readers roles=(set role-id)]
+      [%del-readers roles=(set role-id)]
     ::
       [%section =section-id]
   ==
@@ -368,7 +441,8 @@
 +$  update  [=time =u-group]
 +$  u-groups  [=flag =u-group]
 +$  u-group
-  $%  [%meta =data:meta]
+  $%  [%create =group]
+      [%meta =data:meta]
       [%entry =u-entry]
       [%seat ships=(set ship) =u-seat]
       [%role roles=(set role-id) =u-role]
@@ -380,16 +454,24 @@
 +$  u-entry
   $%  [%privacy =privacy]
       [%ban =u-ban]
+      [%ask =u-ask]
       [%token =u-token]
   ==
 +$  u-ban
-  $%  [%add-ships ships=(set ship)]
+  $%  [%set ships=(set ship) ranks=(set rank:title)]
+    ::
+      [%add-ships ships=(set ship)]
       [%del-ships ships=(set ship)]
+    ::
       [%add-ranks ranks=(set rank:title)]
       [%del-ranks ranks=(set rank:title)]
   ==
++$  u-ask
+  $%  [%add-ship =ship story=(unit story:s)]
+      [%del-ship =ship story=(unit story:s)]
+  ==
 +$  u-token
-  $%  [%add scheme=claim-scheme expiry=(unit @dr) label=(unit @t)]
+  $%  [%add =token meta=token-meta]
       [%del =token]
   ==
 +$  u-role
@@ -409,8 +491,8 @@
   $%  [%add =channel]
       [%edit =channel]
       [%del ~]
-      [%add-roles roles=(set role-id)]
-      [%del-roles roles=(set role-id)]
+      [%add-readers roles=(set role-id)]
+      [%del-readers roles=(set role-id)]
       [%section section=section-id]
   ==
 +$  u-section
@@ -422,20 +504,47 @@
   ==
 +$  r-groups  [=flag =r-group]
 +$  r-group
-  $%  [%meta meta=data:meta]
+  $%  [%create =group]
+      [%meta meta=data:meta]
       [%entry =r-entry]
       [%seat ships=(set ship) =r-seat]
       [%role roles=(set role-id) =r-role]
       [%channel =nest =r-channel]
       [%section =section-id =r-section]
       [%flag-content =nest =post-key src=ship]
-      [%leave ~]
+      [%delete ~]
   ==
-+$  r-entry  u-entry
++$  r-entry
+  $%  [%privacy =privacy]
+      [%ban =r-ban]
+      [%ask =u-ask]
+      [%token =r-token]
+  ==
++$  r-ban  u-ban
++$  r-ask  u-ask
++$  r-token  u-token
 +$  r-seat  u-seat
 +$  r-role  u-role
 +$  r-channel  u-channel
 +$  r-section  u-section
+::  $a-foreigns: foreigns action
++$  a-foreigns
+  $%  [%foreign =flag =a-foreign]
+  ==
+::  $a-foreign: foreign group action
+::
+::  %join: join the group, or for entry
+::  %cancel: cancel a join in progress
+::  %invite: receive an invitation
+::  %decline: decline an invitation
+::
++$  a-foreign
+  $%  [%join =token]
+      [%ask story=(unit story:s)]
+      [%cancel ~]
+      [%invite =invite]
+      [%decline id=token]
+  ==
 ::  $preview-update: group preview update
 ::
 +$  preview-update  (unit preview)
@@ -534,7 +643,7 @@
       (pair flag update)
     ::
     +$  update
-      (pair time diff)
+    (pair time diff)
     ::
     +$  group
       $:  =fleet
@@ -553,12 +662,9 @@
     ::
     +$  init  [=time =group]
     +$  group-ui  [group init=? count=@ud]
-    +$  groups-ui
-      (map flag group-ui)
-    +$  groups
-      (map flag group)
-    +$  net-groups
-      (map flag [net group])
+    +$  groups-ui  (map flag group-ui)
+    +$  groups  (map flag group)
+    +$  net-groups  (map flag [net group])
     ::
     +$  log
       ((mop time diff) lte)
@@ -602,28 +708,28 @@
     ::
     +$  gangs  (map flag gang)
     --
-  ::
-  ++  v2
-    =,  v0
-    |%
     ::
-    +$  group
-      $:  =fleet
-          cabals=(map sect cabal)
-          zones=(map zone realm:zone)
-          zone-ord=(list zone)
-          =bloc
-          =channels:channel
-          imported=(set nest)
-          =cordon
-          secret=?
-          meta=data:meta
-          =flagged-content
-      ==
-    ::
-    +$  group-ui  [group saga=(unit saga:e)]
-    ::
-    +$  diff
+    ++  v2
+      =,  v0
+      |%
+      ::
+      +$  group
+        $:  =fleet
+            cabals=(map sect cabal)
+            zones=(map zone realm:zone)
+            zone-ord=(list zone)
+            =bloc
+            =channels:channel
+            imported=(set nest)
+            =cordon
+            secret=?
+            meta=data:meta
+            =flagged-content
+        ==
+      ::
+      +$  group-ui  [group saga=(unit saga:e)]
+      ::
+      +$  diff
       $%  [%fleet p=(set ship) q=diff:fleet]
           [%cabal p=sect q=diff:cabal]
           [%channel p=nest q=diff:channel]

@@ -26,14 +26,14 @@
     ?@  val
       (frond type+s/%null)
     ?-  -.val
-      %text  (pairs type+s/%text value+s/p.val ~)
+      %text  (pairs type+s/%text value+s+p.val ~)
       %numb  (pairs type+s/%numb value+(numb p.val) ~)
-      %date  (pairs type+s/%date value+s/(scot %da p.val) ~)
-      %tint  (pairs type+s/%tint value+s/(rsh 3^2 (scot %ux p.val)) ~)
+      %date  (pairs type+s/%date value+s+(scot %da p.val) ~)
+      %tint  (pairs type+s/%tint value+s+(rsh 3^2 (scot %ux p.val)) ~)
       %ship  (pairs type+s/%ship value+(ship p.val) ~)
       %look  (pairs type+s/%look value+s/p.val ~)
-      %flag  (pairs type+s/%flag value+s/(flag:enjs:gj p.val) ~)
-      %set   (pairs type+s/%set value+a/(turn ~(tap in p.val) value) ~)
+      %flag  (pairs type+s/%flag value+(flag:enjs:gj p.val) ~)
+      %set   (pairs type+s/%set value+a+(turn ~(tap in p.val) value) ~)
     ==
   ::
   ++  contact

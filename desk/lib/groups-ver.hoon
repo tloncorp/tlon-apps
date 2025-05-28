@@ -1,4 +1,4 @@
-::  groups-ver: groups type conversions
+::  groups-vegg: groups type conversions
 ::
 /-  g=groups, meta
 /+  neg=negotiate
@@ -61,11 +61,7 @@
         =/  secret=?
           ?=(%secret privacy.admissions)
         =/  =cordon:v2:g
-          ?:  ?=(%public privacy.admissions)
-            [%open [ships ranks]:banned.admissions]
-          ::TICKETS to be implemented when we have settled
-          ::        upon entry mechanics
-          [%shut ~ ~]
+          (cordon:v2:admissions:v7 admissions)
         :*  fleet
             cabals
             zones
@@ -119,11 +115,7 @@
         =/  secret=?
           ?=(%secret privacy.admissions)
         =/  =cordon:v5:g
-          ?:  ?=(%public privacy.admissions)
-            [%open [ships ranks]:banned.admissions]
-          ::TICKETS to be implemented when we have settled
-          ::        upon entry mechanics
-          [%shut ~ ~]
+          (cordon:v5:admissions:v7 admissions)
         :*  fleet
             cabals
             zones
@@ -142,7 +134,7 @@
         ^-  group-ui:v5:g
         =/  init=?
           ?:  ?=(%pub -.net)  &
-          init.net
+          !=(time.net *@da)
         :*  (v5:group:v7 group)
             init
             ~(wyt by seats.group)
@@ -154,7 +146,7 @@
       ^-  group-ui:v7:g
       =/  init=?
         ?:  ?=(%pub -.net)  &
-        init.net
+        !=(time.net *@da)
       :*  group
           init
           ~(wyt by seats.group)
@@ -192,6 +184,25 @@
       ==
     --
   ::
+  ++  admissions
+    |%
+    ++  v5  v2
+    ++  v2
+      |%
+      ++  cordon
+        |=  ad=admissions:v7:g
+        ^-  cordon:v2:g
+        ?:  ?=(%public privacy.ad)
+          [%open [ships ranks]:banned.ad]
+        ::TODO figure out compatible logic for
+        ::     the pending set
+        :*  %shut
+          ~                      :: pending
+          ~(key by requests.ad)  :: ask
+        ==
+      --
+    --
+  ::
   ++  log
     |%
     ++  v2
@@ -211,6 +222,7 @@
         |=  =r-group:v7:g
         ^-  (list diff:v2:g)
         ?-  -.r-group
+          %create   [%create (v2:group:v7 group.r-group)]~
           %meta     [%meta meta.r-group]~
           %seat     (diff-from-seat [ships r-seat]:r-group)
           %role     (diff-from-role [roles r-role]:r-group)
@@ -218,7 +230,7 @@
           %section  (diff-from-section [section-id r-section]:r-group)
           %entry    (diff-from-entry r-entry.r-group)
           %flag-content  [%flag-content [nest post-key src]:r-group]~
-          %leave  [%del ~]~
+          %delete  [%del ~]~
         ==
         ::
         ++  diff-from-seat
@@ -268,12 +280,12 @@
           :+  %channel
             nest
           ?-    -.r-channel
-            %add        [%add (v2:channel:v7 channel.r-channel)]
-            %edit       [%edit (v2:channel:v7 channel.r-channel)]
-            %del        [%del ~]
-            %add-roles  [%add-sects (sects:v2:roles:v7 roles.r-channel)]
-            %del-roles  [%del-sects (sects:v2:roles:v7 roles.r-channel)]
-            %section    [%zone `zone:v2:g`section.r-channel]
+            %add          [%add (v2:channel:v7 channel.r-channel)]
+            %edit         [%edit (v2:channel:v7 channel.r-channel)]
+            %del          [%del ~]
+            %add-readers  [%add-sects (sects:v2:roles:v7 roles.r-channel)]
+            %del-readers  [%del-sects (sects:v2:roles:v7 roles.r-channel)]
+            %section      [%zone `zone:v2:g`section.r-channel]
           ==
         ::
         ++  diff-from-section
@@ -293,9 +305,9 @@
         ++  diff-from-entry
           |=  =r-entry:v7:g
           ^-  (list diff:v2:g)
-          :_  ~
           ?-  -.r-entry
               %privacy  
+            :_  ~
             ?-  privacy.r-entry
               ::XX this should be improved when privacy change
               ::   logic is worked out. the conversion function
@@ -308,16 +320,19 @@
             ==
           ::
               %ban
+            ?:  ?=(%set -.r-ban.r-entry)
+              [%cordon %swap [%open [ships ranks]:r-ban.r-entry]]~
+            :_  ~
             :+  %cordon
               %open
-            ?-  -.u-ban.r-entry
-              %add-ships  [%add-ships ships.u-ban.r-entry]
-              %del-ships  [%del-ships ships.u-ban.r-entry]
-              %add-ranks  [%add-ranks ranks.u-ban.r-entry]
-              %del-ranks  [%del-ranks ranks.u-ban.r-entry]
+            ?-  -.r-ban.r-entry
+              %add-ships  [%add-ships ships.r-ban.r-entry]
+              %del-ships  [%del-ships ships.r-ban.r-entry]
+              %add-ranks  [%add-ranks ranks.r-ban.r-entry]
+              %del-ranks  [%del-ranks ranks.r-ban.r-entry]
             ==
           ::
-            %token  ~|(%r-group-to-diff-token-not-implemented !!)
+            %token  ~
           ==
         --
       --
@@ -331,6 +346,60 @@
         ^-  (set sect:v2:g)
         (~(run in roles) |=(role-id:v7:g `sect:v2:g`+<))
       --
+    --
+  ++  foreign
+    |%
+    ++  v2
+      |%
+      ++  gang
+        |=  foreign:v7:g
+        ^-  gang:v2:g
+        :*  ?~(join ~ `(claim:v2:progress:v7 progress.u.join))
+            (bind preview v2:preview:v7)
+            ::
+            ?~  invites  ~
+            `(v2:invite:v7 +.i.invites)
+        ==
+      --
+    --
+  ++  progress
+    |%
+    ++  v2
+      |%
+      ++  claim
+        |=  =progress:v7:g
+        ^-  claim:v2:g
+        :-  |
+        ?-  progress
+          %join   %adding
+          %watch  %watching
+          %done   %done
+          %error  %error
+        ==
+      --
+    --
+  ++  preview
+    |%
+    ++  v2
+      |=  preview:v7:g
+      ^-  preview:v2:g
+      =/  =cordon:v2:g
+        ?:  ?=(%public privacy)
+          [%open ~ ~]
+        [%shut ~ ~]
+      :*  flag
+          meta
+          cordon
+          time
+          ?=(%secret privacy)
+      ==
+    --
+  ++  invite
+    |%
+    ++  v2
+      |=  invite:v7:g
+      ^-  invite:v2:g
+      [flag from]
     --
   --
 ++  v6
@@ -571,7 +640,6 @@
           %cordon   (a-group-from-cordon p.diff)
           %zone     (a-group-from-zone p.diff)
           %meta     [%meta p.diff]~
-          %secret   [%entry %privacy %secret]~
           %flag-content  [%flag-content [nest post-key src]:diff]~
         ==
         ::
@@ -614,10 +682,10 @@
             %del   [%del ~]
           ::
               %add-sects
-            [%add-roles (roles-from-sects sects.diff)]
+            [%add-readers (roles-from-sects sects.diff)]
           ::
               %del-sects
-            [%del-roles (roles-from-sects sects.diff)]
+            [%del-readers (roles-from-sects sects.diff)]
           ::
             %zone  [%section `section-id:v7:g`zone.diff]
             %join  ~|(%a-group-from-channel-join !!)
@@ -640,7 +708,7 @@
         ++  a-group-from-cordon
           |=  =diff:cordon:v2:g
           ^-  (list a-group:v7:g)
-          ?+    -.diff  ~|(a-group-bad-diff+-.diff !!)
+          ?-    -.diff
               %open
             ?-  -.p.diff
               %add-ships  [%entry %ban %add-ships p.p.diff]~
@@ -650,9 +718,25 @@
             ==
           ::
               %shut
-            ?-  -.p.diff
-              %add-ships  ~&(%need-implement ~)
-              %del-ships  ~&(%need-implement ~)
+            ~|(%a-group-from-cordon-shut-unsupported !!)
+          ::
+              %swap
+            =*  cordon  p.diff
+            ?-    -.cordon
+                %open
+              :~  [%entry %ban %set [~ ~]]
+                  [%entry %privacy %public]
+              ==
+            ::
+                %shut
+              ::TODO find out whether we need to support
+              ::     swapping for non-empty shut cordon
+              ::
+              :~  [%entry %privacy %private]
+              ==
+            ::
+                %afar
+              ~|(a-group-from-cordon-bad-cordon+cordon !!)
             ==
           ==
         ++  a-group-from-zone
@@ -755,8 +839,8 @@
       :*  meta
           added
           `section-id:v7:g`zone
-          join
           (~(run in readers) |=(sect:v0:g `role-id:v7:g`+<))
+          join
       ==
     --
   --

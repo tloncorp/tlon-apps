@@ -9,6 +9,6 @@
 ++  grab
   |%
   ++  noun  c-groups:g
-  ++  json  c-groups:dejs:j
+  :: ++  json  c-groups:dejs:j
   --
 --

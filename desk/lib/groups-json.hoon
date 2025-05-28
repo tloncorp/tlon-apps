@@ -1,20 +1,32 @@
-/-  g=groups, u=ui, e=epic, zer=groups-0
+/-  g=groups, s=story, u=ui, e=epic, zer=groups-0
+::XX use v0:g instead of /sur/groups-0
 /-  meta
+/+  sj=story-json
+=*  z  ..zuse
 |%
 ++  enjs
   =,  enjs:format
   |%
-  ++  nest
-    |=  n=nest:g
-    (rap 3 p.n '/' (flag q.n) ~)
-  ::
   ++  ship
     |=  her=@p
-    s/(scot %p her)
+    s+(scot %p her)
   ::
+  ++  print-flag
+    |=  f=flag:g
+    ^-  @t
+    (rap 3 (scot %p p.f) '/' q.f ~)
   ++  flag
     |=  f=flag:g
-    (rap 3 (scot %p p.f) '/' q.f ~)
+    s+(print-flag f)
+  ::
+  ++  print-nest
+    |=  n=nest:g
+    ^-  @t
+    (rap 3 p.n '/' (print-flag q.n) ~)
+  ::
+  ++  nest
+    |=  n=nest:g
+    s+(print-nest n)
   ::
   ++  meta
     |=  m=data:^meta
@@ -24,6 +36,139 @@
         image/s/image.m
         cover/s/cover.m
     ==
+  ::
+  ++  group
+    |=  group:v7:g
+    ^-  json
+    %-  pairs
+    ^-  (list [@t json])
+    :~  meta+(^meta meta)
+      ::
+        admissions+(^admissions admissions)
+        seats+(^seats seats)
+      ::
+        roles+(^roles roles)
+        admins+a+(turn ~(tap in admins) (lead %s))
+      ::
+        channels+(^channels channels)
+        active-channels+a+(turn ~(tap in active-channels) nest)
+      ::
+        sections+(^sections sections)
+        section-order+a+(turn section-order (lead %s))
+      ::
+        flagged-content+(^flagged-content flagged-content)
+    ==
+  ::
+  ++  admissions
+    |=  ad=admissions:v7:g
+    |^
+    ::XX some compiler bug prevents exposing admissions either
+    ::   in the sample above, or using tiscom below
+    %-  pairs
+    :~  privacy+s+privacy.ad
+        banned+(banned banned.ad)
+        requests+(requests requests.ad)
+        tokens+(tokens tokens.ad)
+        ::XX referrals
+        ::XX invited
+    ==
+    ::
+    ++  banned
+      |=  banned:v7:g
+      ^-  json
+      %-  pairs
+      :~  ships+a+(turn ~(tap in ships) ship)
+          ranks+a+(turn ~(tap in ranks) (lead %s))
+      ==
+    ::
+    ++  requests
+      |=  reqs=(map ship:z (unit story:s))
+      %-  pairs
+      %+  turn  ~(tap in reqs)
+      |=  [=ship:z story=(unit story:s)]
+      :-  (scot %p ship)
+      ?~(story ~ (story:enjs:sj u.story))
+    ::
+    ++  tokens
+      |=  tokens=(map token:v7:g token-meta:v7:g)
+      %-  pairs
+      %+  turn  ~(tap in tokens)
+      |=  [=token:v7:g meta=token-meta:v7:g]
+      [(scot %uv token) (token-meta meta)]
+    ::
+    ++  token
+      |=  =token:v7:g
+      s+(scot %uv token)
+    ++  token-meta
+      |=  token-meta:v7:g
+      %-  pairs
+      :~  scheme+(claim-scheme scheme)
+          ::XX return time-id?
+          expiry+s+(scot %da expiry)
+          label+?~(label ~ s+u.label)
+      ==
+    ++  claim-scheme
+      |=  scheme=claim-scheme:v7:g
+      ^-  json
+      ?-  -.scheme
+        %forever   (frond %forever ~)
+        %limited   (frond %limited (numb count.scheme))
+        %personal  (frond %personal (ship ship.scheme))
+      ==
+    --
+  ::
+  ++  seats
+    |=  seats=(map ship:z seat:v7:g)
+    %-  pairs
+    %+  turn  ~(tap in seats)
+    |=  [=ship:z =seat:v7:g]
+    [(scot %p ship) (^seat seat)]
+  ::
+  ++  seat
+    |=  seat:v7:g
+    ^-  json
+    %-  pairs
+    :~  roles+a+(turn ~(tap in roles) (lead %s))
+        joined+(time joined)
+    ==
+  ::
+  ++  roles
+    |=  roles=(map role-id:g role:v7:g)
+    %-  pairs
+    %+  turn  ~(tap by roles)
+    |=  [=role-id:g =role:v7:g]
+    ^-  [@t json]
+    [role-id (meta meta.role)]
+  ::
+  ++  channels
+    |=  chans=(map nest:g channel:v7:g)
+    %-  pairs
+    %+  turn  ~(tap by chans)
+    |=  [n=nest:g c=channel:v7:g]
+    ^-  [@t json]
+    [(print-nest n) (channel c)]
+  ::
+  ++  channel
+    |=  ch=channel:v7:g
+    %-  pairs
+    :~  meta+(meta meta.ch)
+        added+(time added.ch)
+        section+s+section.ch
+        readers+a+(turn ~(tap in readers.ch) (lead %s))
+        join+b+join.ch
+    ==
+  ++  sections
+    |=  sections=(map section-id:g section:v7:g)
+    %-  pairs
+    %+  turn  ~(tap by sections)
+    |=  [=section-id:g =section:v7:g]
+    ^-  [@t json]
+    :-  section-id
+    %-  pairs
+    :~  meta+(meta meta.section)
+        order+a+(turn order.section nest)
+    ==
+  ::
   ::XX deprecated?
   ++  saga
     |=  s=saga:e
@@ -33,13 +178,13 @@
       %chi  synced/~
       %lev  behind/~
     ==
-  ::
+  ::XX deprecated?
   ++  whom
     |=  w=whom:u
     :-  %s
     ?-  w
-      [%group *]       (flag flag.w)
-      [%channel *]     (nest nest.w)
+      [%group *]       (print-flag flag.w)
+      [%channel *]     (print-nest nest.w)
       [%chat %ship *]  (scot %p p.whom.w)
       [%chat %club *]  (scot %uv p.whom.w)
     ==
@@ -49,7 +194,7 @@
       %-  pairs
       %+  turn  ~(tap by -)
       |=  [n=nest:g posts=(map ^time flagged-data)]
-      :-  (nest n)
+      :-  (print-nest n)
       ::  object so we can easily check if it's in the set
       %-  pairs
       %+  turn  ~(tap by posts)
@@ -76,25 +221,101 @@
     flagged-data(replies (~(put by replies.flagged-data) u.reply.pk flaggers))
   ::
   +$  flagged-data  [flagged=_| =flaggers:g replies=(map ^time flaggers:g)]
-  ++  time-id
-    |=  =@da
-    s+`@t`(rsh 4 (scot %ui da))
   ::
   ++  flag-content
     |=  [n=nest:g =post-key:g src=@p]
     %-  pairs
-    :~  nest/s/(nest n)
-        src/(ship src)
+    :~  nest+(nest n)
+        src+(ship src)
         :-  %post-key
         %-  pairs
         :~  post/(time-id post.post-key)
             reply/?~(reply.post-key ~ (time-id u.reply.post-key))
         ==
     ==
+  ++  groups
+    |=  gs=groups:v7:g
+    %-  pairs
+    %+  turn  ~(tap by gs)
+    |=  [f=flag:g gr=group:v7:g]
+    [(print-flag f) (group gr)]
+  ++  time-id
+    |=  =@da
+    s+`@t`(rsh 4 (scot %ui da))
   ++  r-groups
     |=  =r-groups:v7:g
     ^-  json
     !!
+  ++  preview-update
+    |=  =preview-update:v7:g
+    ^-  json
+    !!
+  :: ++  invites
+  ::   |=  =invites:v7:g
+  ::   ^-  json
+  ::   %-  pairs
+  ::   %+  turn  ~(tap by invites)
+  ::   |=  [=flag:g invites=(list invite:v7:g)]
+  ::   [(print-flag flag) a+(turn invites invite)]
+  ++  token
+    |=  =token:v7:g
+    ^-  json
+    s+(scot %uv token)
+  ++  invite
+    |=  invite:v7:g
+    ^-  json
+    %-  pairs
+    :~  flag+(^flag flag)
+        token+(^token token)
+        from+(ship from)
+        note+?~(note ~ (story:enjs:sj u.note))
+        preview+(^preview preview)
+    ==
+  ++  preview
+    |=  preview:v7:g
+    ^-  json
+    %-  pairs
+    :~  flag+(^flag flag)
+        meta+(^meta meta)
+        time+(^time time)
+        member-count+(numb member-count)
+        privacy+s+privacy
+    ==
+  ::
+  ++  foreigns
+    |=  =foreigns:v7:g
+    ^-  json
+    ~&  %foreigns
+    %-  pairs
+    %+  turn  ~(tap by foreigns)
+    |=  [=flag:g =foreign:v7:g]
+    ~&  json-foreigns+flag
+    [(print-flag flag) (^foreign foreign)]
+  ::
+  ++  foreign
+    |=  foreign:v7:g
+    ^-  json
+    ~&  %json-foreign
+    %-  pairs
+    :~  preview+?~(preview ~ (^preview u.preview))
+      ::
+        :-  %invites  
+        ?~  invites  ~
+        :-  %a
+        %+  turn  invites
+        |=  [id=token:g =invite:g]
+        %-  pairs
+        :~  id+(token id)
+            invite+(^invite invite)
+        ==
+      ::
+        :-  %join  
+        ?~  join  ~
+        %-  pairs
+        :~  id+(token id.u.join)
+            progress+s+progress.u.join
+        ==
+    ==
   ::
   ++  v7  .
   ++  v6
@@ -106,7 +327,7 @@
       %-  pairs
       %+  turn  ~(tap by gs)
       |=  [f=flag:g gr=gang:v6:g]
-      [(flag f) (gang gr)]
+      [(print-flag f) (gang gr)]
     ::
     ++  gang
       |=  ga=gang:v6:g
@@ -144,7 +365,7 @@
     ++  group
       |=  gr=group:v5:g
       =/  active-channels
-        (turn ~(tap in active-channels.gr) (cork nest (lead %s)))
+        (turn ~(tap in active-channels.gr) nest)
       %-  pairs
       :~  fleet/(fleet fleet.gr)
           cabals/(cabals cabals.gr)
@@ -162,7 +383,7 @@
     ++  group-ui
       |=  gr=group-ui:v5:g
       =/  active-channels
-        (turn ~(tap in active-channels.gr) (cork nest (lead %s)))
+        (turn ~(tap in active-channels.gr) nest)
       %-  pairs
       :~  fleet/(fleet fleet.gr)
           cabals/(cabals cabals.gr)
@@ -185,20 +406,20 @@
       %-  pairs
       %+  turn  ~(tap by gs)
       |=  [f=flag:g gr=group:v5:g]
-      [(flag f) (group gr)]
+      [(print-flag f) (group gr)]
     ::
     ++  groups-ui
       |=  gs=groups-ui:v5:g
       %-  pairs
       %+  turn  ~(tap by gs)
       |=  [f=flag:g gr=group-ui:v5:g]
-      [(flag f) (group-ui gr)]
+      [(print-flag f) (group-ui gr)]
     ::
     ++  action
       |=  a=action:v5:g
       %-  pairs
-      :~  flag/s/(flag p.a)
-          update/(update q.a)
+      :~  flag+(flag p.a)
+          update+(update q.a)
       ==
     ::
     ++  update
@@ -213,7 +434,7 @@
       %+  frond  -.d
       ?-    -.d
         %fleet    (pairs ships/a/(turn ~(tap in p.d) ship) diff/(fleet-diff q.d) ~)
-        %channel  (pairs nest/s/(nest p.d) diff/(channel-diff q.d) ~)
+        %channel  (pairs nest+(nest p.d) diff/(channel-diff q.d) ~)
         %cabal    (pairs sect/s/p.d diff/(cabal-diff q.d) ~)
         %bloc     (bloc-diff p.d)
         %cordon   (cordon-diff p.d)
@@ -230,12 +451,12 @@
       %-  pairs
       %+  turn  ~(tap by ps)
       |=  [f=flag:g p=preview:v5:g]
-      [(flag f) (preview p)]
+      [(print-flag f) (preview p)]
     ::
     ++  channel-preview
       |=  p=preview:channel:v5:g
       %-  pairs
-      :~  nest+s+(nest nest.p)
+      :~  nest+(nest nest.p)
           meta+(meta meta.p)
           group+(preview group.p)
       ==
@@ -243,7 +464,7 @@
     ++  preview
       |=  p=preview:v5:g
       %-  pairs
-      :~  flag+s+(flag flag.p)
+      :~  flag+(flag flag.p)
           time+(time time.p)
           meta+(meta meta.p)
           cordon+(cordon cordon.p)
@@ -255,7 +476,7 @@
       %-  pairs
       %+  turn  ~(tap by gs)
       |=  [f=flag:g gr=gang:v5:g]
-      [(flag f) (gang gr)]
+      [(print-flag f) (gang gr)]
     ::
     ++  gang
       |=  ga=gang:v5:g
@@ -276,15 +497,15 @@
       ^-  [@t json]
       :-  zone
       %-  pairs
-      :~  meta/(meta met.r)
-          idx/a/(turn ord.r (cork nest (lead %s)))
+      :~  meta+(meta met.r)
+          idx+a+(turn ord.r nest)
       ==
     ::
     ++  invite
       |=  i=invite:v2:g
       %-  pairs
-      :~  flag/s/(flag p.i)
-          ship/(ship q.i)
+      :~  flag+(flag p.i)
+          ship+(ship q.i)
       ==
     ::
     ++  fleet
@@ -331,8 +552,8 @@
           ?(%add %edit)  (meta meta.d)
           %mov-nest
         %-  pairs
-        :~  nest/s/(nest nest.d)
-            idx/(numb idx.d)
+        :~  nest+(nest nest.d)
+            idx+(numb idx.d)
         ==
       ==
     ++  channels
@@ -340,8 +561,8 @@
       %-  pairs
       %+  turn  ~(tap by chs)
       |=  [n=nest:g c=channel:v2:g]
-      ^-  [cord json]
-      [(nest n) (channel c)]
+      ^-  [@t json]
+      [(print-nest n) (channel c)]
     ::
     ++  channel
       |=  ch=channel:v2:g
@@ -372,7 +593,7 @@
     ++  afar-cordon
       |=  [app=flag:g pax=^path desc=@t]
       %-  pairs
-      :~  app/s/(flag app)
+      :~  app+(flag app)
           path/s/(spat pax)
           desc/s/desc
       ==
@@ -448,12 +669,12 @@
       %-  pairs
       %+  turn  ~(tap by ps)
       |=  [f=flag:g p=preview:v2:g]
-      [(flag f) (preview p)]
+      [(print-flag f) (preview p)]
     ::
     ++  channel-preview
       |=  p=preview:channel:v2:g
       %-  pairs
-      :~  nest+s+(nest nest.p)
+      :~  nest+(nest nest.p)
           meta+(meta meta.p)
           group+(preview group.p)
       ==
@@ -461,7 +682,7 @@
     ++  preview
       |=  p=preview:v2:g
       %-  pairs
-      :~  flag+s+(flag flag.p)
+      :~  flag+(flag flag.p)
           time+(time time.p)
           meta+(meta meta.p)
           cordon+(cordon cordon.p)
@@ -471,8 +692,8 @@
     ++  action
       |=  a=action:v2:g
       %-  pairs
-      :~  flag/s/(flag p.a)
-          update/(update q.a)
+      :~  flag+(flag p.a)
+          update+(update q.a)
       ==
     ::
     ++  update
@@ -487,7 +708,7 @@
       %+  frond  -.d
       ?-  -.d
         %fleet    (pairs ships/a/(turn ~(tap in p.d) ship) diff/(fleet-diff q.d) ~)
-        %channel  (pairs nest/s/(nest p.d) diff/(channel-diff q.d) ~)
+        %channel  (pairs nest/(nest p.d) diff/(channel-diff q.d) ~)
         %cabal    (pairs sect/s/p.d diff/(cabal-diff q.d) ~)
         %bloc     (bloc-diff p.d)
         %cordon   (cordon-diff p.d)
@@ -549,28 +770,28 @@
       %-  pairs
       %+  turn  ~(tap by gs)
       |=  [f=flag:g gr=group:v2:g]
-      [(flag f) (group gr)]
+      [(print-flag f) (group gr)]
     ::
     ++  groups-ui
       |=  gs=groups-ui:v2:g
       %-  pairs
       %+  turn  ~(tap by gs)
       |=  [f=flag:g gr=group-ui:v2:g]
-      [(flag f) (group-ui gr)]
+      [(print-flag f) (group-ui gr)]
     ::
     ++  groups-ui-v0
       |=  gs=groups-ui:zer
       %-  pairs
       %+  turn  ~(tap by gs)
       |=  [f=flag:g gr=group-ui:zer]
-      [(flag f) (group-ui-v0 gr)]
+      [(print-flag f) (group-ui-v0 gr)]
     ::
     ++  gangs
       |=  gs=(map flag:g gang:v2:g)
       %-  pairs
       %+  turn  ~(tap by gs)
       |=  [f=flag:g gr=gang:v2:g]
-      [(flag f) (gang gr)]
+      [(print-flag f) (gang gr)]
     ::
     ++  claim
       |=  c=claim:v2:g

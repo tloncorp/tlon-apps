@@ -187,9 +187,7 @@
     ``ui-init-2+!>(`init-2:u`init)
   ::
       [%x %v3 %init ~]
-    =+  .^(=groups-ui:v2:g (scry %gx %groups /v0/ui/groups/noun))
-    ::XX backcompat
-    =/  =gangs:v2:g  ~
+    =+  .^([=groups-ui:v2:g =gangs:v2:g] (scry %gx %groups /init/v1/noun))
     =+  .^([* =channels:d] (scry %gx %channels /v2/init/noun))
     =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
     =+  .^(=activity:v3:old:a (scry %gx %activity /v1/activity/noun))
@@ -206,9 +204,7 @@
     ``ui-init-3+!>(`init-3:u`init)
   ::
       [%x %v4 %init ~]
-    =+  .^(=groups-ui:v2:g (scry %gx %groups /v0/ui/groups/noun))
-    ::XX backcompat
-    =/  =gangs:v2:g  ~
+    =+  .^([=groups-ui:v2:g =gangs:v2:g] (scry %gx %groups /init/v1/noun))
     =+  .^(=channel-0:u (scry %gx %channels /v3/init/noun))
     =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
     =+  .^(=activity:a (scry %gx %activity /v4/activity/noun))

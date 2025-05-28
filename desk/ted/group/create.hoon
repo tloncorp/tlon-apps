@@ -93,7 +93,7 @@
   =+  guest-list=~(tap in guest-list.create)
   |-
   ?~  guest-list  (pure:n ~)
-  =/  =invite:v5:g
+  =/  =invite:v2:g
     :_  i.guest-list
     [our.bowl q.group-id.create]
   ~&  invite+i.guest-list

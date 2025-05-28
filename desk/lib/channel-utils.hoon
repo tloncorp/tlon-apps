@@ -392,9 +392,19 @@
         /seats/(scot %p her)/is-admin/noun
     ==  ==
   ::
+  ++  can-read
+    |=  her=ship
+    ?:  =(our her)  &
+    =/  =path
+      %+  welp  groups-scry
+      :+  %channels
+        kind.nest
+      /(scot %p ship.nest)/[name.nest]/can-read/(scot %p her)/noun
+    .^(read=? %gx path)
+  ::
   ++  can-write
     |=  [her=ship writers=(set role-id:v7:g)]
-    ?:  =(ship.nest her)  &
+    ?:  =(ship.nest her)  ~&(%write-ok &)
     =/  =path
       %+  welp  groups-scry
       :+  %channels
@@ -403,16 +413,8 @@
     =+  .^(write=(unit [admin=? roles=(set role-id:v7:g)]) %gx path)
     ?~  write  |
     =/  perms  (need write)
-    ?:  |(admin.perms =(~ writers))  &
+    ?:  |(admin.perms =(~ writers))  ~&(%write-ok &)
     !=(~ (~(int in writers) roles.perms))
-  ::
-  ++  can-read
-    |=  her=ship
-    ?:  =(our her)  &
-    =/  =path
-      %+  welp  groups-scry
-      /can-read/(scot %p her)/noun
-    .^(read=? %gx path)
   --
 ::
 ++  cite
