@@ -41,7 +41,6 @@ appId: io.tlon.groups
 - tapOn: 'Role title'
 - inputText: 'Testing role'
 - tapOn: 'Role description'
-- tapOn: 'Role description'
 - inputText: 'Description for test role'
 - tapOn: 'Save'
 - assertVisible: 'Testing role'
