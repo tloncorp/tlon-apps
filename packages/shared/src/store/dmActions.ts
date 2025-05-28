@@ -3,6 +3,7 @@ import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
+import * as sync from './sync';
 
 const logger = createDevLogger('dmActions', true);
 
@@ -58,6 +59,7 @@ export async function blockUser(userId: string) {
 
   try {
     await api.blockUser(userId);
+    await sync.syncBlockedUsers();
   } catch (e) {
     console.error('Failed to block user', e);
     // rollback optimistic update
@@ -78,6 +80,7 @@ export async function unblockUser(userId: string) {
 
   try {
     await api.unblockUser(userId);
+    await sync.syncBlockedUsers();
   } catch (e) {
     console.error('Failed to unblock user', e);
     // rollback optimistic update
