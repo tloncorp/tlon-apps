@@ -432,6 +432,8 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
 
 function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
   const navContext = useContextNavigation();
+  const queryClient = store.queryClient;
+
   const handleMessageUser = useCallback(() => {
     if (!navContext.onPressGoToDm) {
       console.warn('Navigation context missing onPressGoToDm handler');
@@ -449,13 +451,16 @@ function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
     }
   }, [navContext, props.userId, props.contact?.isBlocked]);
 
-  const handleBlock = useCallback(() => {
+  const handleBlock = useCallback(async () => {
     if (props.contact && props.contact.isBlocked) {
-      store.unblockUser(props.userId);
+      await store.unblockUser(props.userId);
     } else {
-      store.blockUser(props.userId);
+      await store.blockUser(props.userId);
     }
-  }, [props]);
+    queryClient.invalidateQueries({
+      queryKey: [['contact', props.userId]],
+    });
+  }, [props, queryClient]);
 
   const handleToggleContact = useCallback(() => {
     if (props.contact && props.contact.isContact) {
