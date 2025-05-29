@@ -543,8 +543,8 @@ export const config =
         themes,
         media,
         settings: {
+          defaultFont: 'body',
           allowedStyleValues: {
-            defaultFont: 'body',
             space: 'somewhat-strict',
             size: 'somewhat-strict',
             radius: 'somewhat-strict',
