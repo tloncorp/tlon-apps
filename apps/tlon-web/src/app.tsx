@@ -37,6 +37,7 @@ import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
+import { ToastProvider } from '@tloncorp/ui';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, {
@@ -614,54 +615,56 @@ const App = React.memo(function AppComponent() {
         <MigrationCheck>
           <SafeAreaProvider>
             <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
-              <StoreProvider>
-                {isElectron() ? (
-                  isLoading ? (
-                    <View
-                      height="100%"
-                      width="100%"
-                      justifyContent="center"
-                      alignItems="center"
-                      backgroundColor="$secondaryBackground"
-                    >
+              <ToastProvider>
+                <StoreProvider>
+                  {isElectron() ? (
+                    isLoading ? (
                       <View
-                        backgroundColor="$background"
-                        padding="$xl"
-                        borderRadius="$l"
-                        aspectRatio={1}
-                        alignItems="center"
+                        height="100%"
+                        width="100%"
                         justifyContent="center"
-                        borderWidth={1}
-                        borderColor="$border"
+                        alignItems="center"
+                        backgroundColor="$secondaryBackground"
                       >
-                        <LoadingSpinner color="$primaryText" />
-                        <Text
-                          color="$primaryText"
-                          marginTop="$xl"
-                          fontSize="$s"
+                        <View
+                          backgroundColor="$background"
+                          padding="$xl"
+                          borderRadius="$l"
+                          aspectRatio={1}
+                          alignItems="center"
+                          justifyContent="center"
+                          borderWidth={1}
+                          borderColor="$border"
                         >
-                          Loading saved credentials&hellip;
-                        </Text>
+                          <LoadingSpinner color="$primaryText" />
+                          <Text
+                            color="$primaryText"
+                            marginTop="$xl"
+                            fontSize="$s"
+                          >
+                            Loading saved credentials&hellip;
+                          </Text>
+                        </View>
                       </View>
-                    </View>
-                  ) : isAuthenticated && authParams ? (
-                    <ConnectedDesktopApp
-                      ship={authParams.ship}
-                      shipUrl={authParams.shipUrl}
-                      authCookie={authParams.authCookie}
-                    />
+                    ) : isAuthenticated && authParams ? (
+                      <ConnectedDesktopApp
+                        ship={authParams.ship}
+                        shipUrl={authParams.shipUrl}
+                        authCookie={authParams.authCookie}
+                      />
+                    ) : (
+                      <DesktopLoginScreen
+                        onLoginSuccess={(params) => {
+                          setAuthParams(params);
+                          setIsAuthenticated(true);
+                        }}
+                      />
+                    )
                   ) : (
-                    <DesktopLoginScreen
-                      onLoginSuccess={(params) => {
-                        setAuthParams(params);
-                        setIsAuthenticated(true);
-                      }}
-                    />
-                  )
-                ) : (
-                  <ConnectedWebApp />
-                )}
-              </StoreProvider>
+                    <ConnectedWebApp />
+                  )}
+                </StoreProvider>
+              </ToastProvider>
             </TamaguiProvider>
           </SafeAreaProvider>
         </MigrationCheck>

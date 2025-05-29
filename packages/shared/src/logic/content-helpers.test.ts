@@ -133,3 +133,142 @@ test('textAndMentionsToContent: mixed text mentions with code blocks in between'
     ],
   });
 });
+
+test('textAndMentionsToContent: inline code with punctuation after closing backtick', () => {
+  const text = '`some text that should be in an inline code block`, more text';
+  const mentions: Mention[] = [];
+
+  const result = textAndMentionsToContent(text, mentions);
+
+  expect(result).toEqual({
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [
+          {
+            type: 'text',
+            text: 'some text that should be in an inline code block',
+            marks: [{ type: 'code' }],
+          },
+          {
+            type: 'text',
+            text: ', more text ',
+          },
+        ],
+      },
+    ],
+  });
+});
+
+test('textAndMentionsToContent: inline code with various punctuation', () => {
+  const text = 'Here is `code`. And `more code`! Also `code`; works';
+  const mentions: Mention[] = [];
+
+  const result = textAndMentionsToContent(text, mentions);
+
+  expect(result).toEqual({
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [
+          {
+            type: 'text',
+            text: 'Here is ',
+          },
+          {
+            type: 'text',
+            text: 'code',
+            marks: [{ type: 'code' }],
+          },
+          {
+            type: 'text',
+            text: '. And ',
+          },
+          {
+            type: 'text',
+            text: 'more code',
+            marks: [{ type: 'code' }],
+          },
+          {
+            type: 'text',
+            text: '! Also ',
+          },
+          {
+            type: 'text',
+            text: 'code',
+            marks: [{ type: 'code' }],
+          },
+          {
+            type: 'text',
+            text: '; works ',
+          },
+        ],
+      },
+    ],
+  });
+});
+
+test('textAndMentionsToContent: inline code followed by space', () => {
+  const text = 'This is `code` with space after';
+  const mentions: Mention[] = [];
+
+  const result = textAndMentionsToContent(text, mentions);
+
+  expect(result).toEqual({
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [
+          {
+            type: 'text',
+            text: 'This is ',
+          },
+          {
+            type: 'text',
+            text: 'code',
+            marks: [{ type: 'code' }],
+          },
+          {
+            type: 'text',
+            text: ' with space after ',
+          },
+        ],
+      },
+    ],
+  });
+});
+
+test('textAndMentionsToContent: inline code followed multipl chars', () => {
+  const text =
+    'This is `code`!! with multiple characters in the same word after';
+  const mentions: Mention[] = [];
+
+  const result = textAndMentionsToContent(text, mentions);
+
+  expect(result).toEqual({
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [
+          {
+            type: 'text',
+            text: 'This is ',
+          },
+          {
+            type: 'text',
+            text: 'code',
+            marks: [{ type: 'code' }],
+          },
+          {
+            type: 'text',
+            text: '!! with multiple characters in the same word after ',
+          },
+        ],
+      },
+    ],
+  });
+});

@@ -3,41 +3,52 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
+import { isWeb } from 'tamagui';
 
-import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { RootStackParamList } from '../../navigation/types';
-import { BlockedContactsWidget, ScreenHeader, View } from '../../ui';
+import { getDisplayName } from '../../ui';
+import {
+  BlockedContactsWidget,
+  ScreenHeader,
+  View,
+  useIsWindowNarrow,
+} from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BlockedUsers'>;
 
 export function BlockedUsersScreen(props: Props) {
-  const { data: calm } = store.useCalmSettings();
   const { data: blockedContacts } = store.useBlockedContacts();
+  const isNarrow = useIsWindowNarrow();
 
-  const onBlockedContactPress = useCallback(
-    (contact: db.Contact) => {
-      Alert.alert(
-        `${calm?.disableNicknames && contact.nickname ? contact.nickname : contact.id}`,
-        `Are you sure you want to unblock this user?`,
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-          {
-            text: 'Unblock',
-            onPress: () => store.unblockUser(contact.id),
-          },
-        ]
+  const onBlockedContactPress = useCallback((contact: db.Contact) => {
+    const displayName = getDisplayName(contact);
+    const message = store.getConfirmationMessage(false); // Always unblocking from this screen
+
+    if (isWeb) {
+      const confirmed = window.confirm(
+        `Are you sure you want to unblock ${displayName}?`
       );
-    },
-    [calm?.disableNicknames]
-  );
+      if (confirmed) {
+        store.handleBlockingAction(contact.id, true);
+      }
+    } else {
+      Alert.alert(displayName, message, [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Unblock',
+          onPress: () => store.handleBlockingAction(contact.id, true),
+        },
+      ]);
+    }
+  }, []);
 
   return (
     <View flex={1} backgroundColor="$background">
       <ScreenHeader
-        backAction={() => props.navigation.goBack()}
+        backAction={isNarrow ? () => props.navigation.goBack() : undefined}
         title="Blocked users"
       />
       <View

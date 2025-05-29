@@ -7,6 +7,7 @@
   "module:jsx": "src",
   "exports": {
     ".": "./src/index.ts",
+    "./config": "./tamagui.config.ts",
     "./assets/icons": "./src/assets/icons/index.ts"
   },
   "files": [

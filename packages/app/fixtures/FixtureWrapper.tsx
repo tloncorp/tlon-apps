@@ -12,6 +12,7 @@ import {
   AppDataContextProvider,
   ChatOptionsProvider,
   Theme,
+  ToastProvider,
   View,
 } from '../ui';
 import { initialContacts } from './fakeData';
@@ -28,9 +29,11 @@ type FixtureWrapperProps = PropsWithChildren<{
 
 export const FixtureWrapper = (props: FixtureWrapperProps) => {
   return (
-    <NavigationContainer>
-      <InnerWrapper {...props} />
-    </NavigationContainer>
+    <ToastProvider>
+      <NavigationContainer>
+        <InnerWrapper {...props} />
+      </NavigationContainer>
+    </ToastProvider>
   );
 };
 

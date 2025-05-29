@@ -29,6 +29,7 @@ import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils
 import { posthogAsync } from '@tloncorp/app/utils/posthog';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import { ToastProvider } from '@tloncorp/ui';
 import { PostHogProvider } from 'posthog-react-native';
 import type { PropsWithChildren } from 'react';
 import { useEffect, useMemo, useState } from 'react';
@@ -175,21 +176,23 @@ export default function ConnectedApp() {
                     >
                       <GestureHandlerRootView style={{ flex: 1 }}>
                         <SafeAreaProvider>
-                          <MigrationCheck>
-                            <SignupProvider>
-                              <PortalProvider>
-                                <App />
-                              </PortalProvider>
+                          <ToastProvider>
+                            <MigrationCheck>
+                              <SignupProvider>
+                                <PortalProvider>
+                                  <App />
+                                </PortalProvider>
 
-                              {__DEV__ && (
-                                <DevTools
-                                  navigationContainerRef={
-                                    navigationContainerRef
-                                  }
-                                />
-                              )}
-                            </SignupProvider>
-                          </MigrationCheck>
+                                {__DEV__ && (
+                                  <DevTools
+                                    navigationContainerRef={
+                                      navigationContainerRef
+                                    }
+                                  />
+                                )}
+                              </SignupProvider>
+                            </MigrationCheck>
+                          </ToastProvider>
                         </SafeAreaProvider>
                       </GestureHandlerRootView>
                     </PostHogProvider>
