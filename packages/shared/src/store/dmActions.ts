@@ -3,6 +3,7 @@ import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
+import * as sync from './sync';
 
 const logger = createDevLogger('dmActions', true);
 

@@ -1,4 +1,5 @@
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/api';
+import { ToastProvider } from '@tloncorp/ui';
 import { ComponentProps, PropsWithChildren } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -29,7 +30,11 @@ export function BaseProviderStack({
           <StoreProvider>
             <ShipProvider>
               <SafeAreaProvider>
-                <MigrationCheck {...migrationState}>{children}</MigrationCheck>
+                <ToastProvider>
+                  <MigrationCheck {...migrationState}>
+                    {children}
+                  </MigrationCheck>
+                </ToastProvider>
               </SafeAreaProvider>
             </ShipProvider>
           </StoreProvider>

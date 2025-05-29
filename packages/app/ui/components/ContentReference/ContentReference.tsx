@@ -243,8 +243,8 @@ const PostReferenceAuthorFrame = styled(XStack, {
 });
 
 const PostReferenceAuthorName = styled(Text, {
-  name: 'PostReferenceAuthorName',
   context: ReferenceContext,
+  name: 'PostReferenceAuthorName',
   color: '$tertiaryText',
   size: '$label/m',
   variants: {

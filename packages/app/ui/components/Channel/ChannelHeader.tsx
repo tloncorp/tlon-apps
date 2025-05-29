@@ -1,8 +1,9 @@
-import { useConnectionStatus } from '@tloncorp/shared';
+import { useConnectionStatus, useDebouncedValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import {
+  Fragment,
   createContext,
   useCallback,
   useContext,
@@ -15,7 +16,6 @@ import { useChatOptions } from '../../contexts';
 import { useChatTitle } from '../../utils';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import { ScreenHeader } from '../ScreenHeader';
-import { BaubleHeader } from './BaubleHeader';
 
 export interface ChannelHeaderItemsContextValue {
   registerItem: (options: { item: JSX.Element }) => { remove: () => void };
@@ -78,7 +78,6 @@ export function useRegisterChannelHeaderItem(item: JSX.Element | null) {
 
 export function ChannelHeader({
   title,
-  mode = 'default',
   channel,
   group,
   goBack,
@@ -91,13 +90,11 @@ export function ChannelHeader({
   showEditButton = false,
 }: {
   title: string;
-  mode?: 'default' | 'next';
   channel: db.Channel;
   group?: db.Group | null;
   goBack?: () => void;
   goToSearch?: () => void;
   goToEdit?: () => void;
-  goToChannels?: () => void; // remove once we're confident we don't wanna open that as a pattern
   goToChatDetails?: () => void;
   showSpinner?: boolean;
   showSearchButton?: boolean;
@@ -117,7 +114,7 @@ export function ChannelHeader({
   const contextItems = useContext(ChannelHeaderItemsContext)?.items ?? [];
   const isWindowNarrow = useIsWindowNarrow();
 
-  const displayTitle = useMemo(() => {
+  const titleText = useMemo(() => {
     if (connectionStatus === 'Connected') {
       return chatTitle ?? title;
     }
@@ -131,20 +128,7 @@ export function ChannelHeader({
 
     return statusText;
   }, [chatTitle, title, connectionStatus]);
-
-  if (mode === 'next') {
-    return (
-      <BaubleHeader
-        channel={channel}
-        group={group}
-        showSpinner={
-          showSpinner ||
-          connectionStatus === 'Connecting' ||
-          connectionStatus === 'Reconnecting'
-        }
-      />
-    );
-  }
+  const displayTitle = useDebouncedValue(titleText, 300);
 
   const titleWidth = () => {
     if (showSearchButton && showMenuButton) {
@@ -175,7 +159,10 @@ export function ChannelHeader({
             {showSearchButton && (
               <ScreenHeader.IconButton type="Search" onPress={goToSearch} />
             )}
-            {contextItems}
+            {/* this fragment/map is necessary to be able to provide a key to the items */}
+            {contextItems.map((item, index) => (
+              <Fragment key={index}>{item}</Fragment>
+            ))}
             {showMenuButton ? (
               isWindowNarrow ? (
                 <ScreenHeader.IconButton

@@ -293,8 +293,18 @@ export const useGroupContext = ({
   );
 
   const togglePinned = useCallback(async () => {
-    if (group && group.channels[0]) {
-      group.pin ? store.unpinItem(group.pin) : store.pinGroup(group);
+    if (group) {
+      const groupWithPin = await db.getGroup({ id: group.id });
+      if (!groupWithPin) {
+        console.warn(`Group ${group.id} not found`);
+        return;
+      }
+
+      if (groupWithPin.pin) {
+        await store.unpinItem(groupWithPin.pin);
+      } else {
+        await store.pinGroup(group);
+      }
     }
   }, [group]);
 
