@@ -27,6 +27,7 @@ import {
 } from '@tloncorp/app/ui';
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
 import * as db from '@tloncorp/shared/db';
+import { setBadgeCountAsync } from 'expo-notifications';
 import { useEffect, useMemo, useState } from 'react';
 import { StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -95,6 +96,8 @@ const App = () => {
   const showSplashSequence = useMemo(() => {
     return showAuthenticatedApp && needsSplashSequence;
   }, [showAuthenticatedApp, needsSplashSequence]);
+
+  useClearAppBadgeUnconditionally();
 
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">
@@ -176,3 +179,11 @@ const DevTools = ({
   useReactNavigationDevTools(navigationContainerRef);
   return null;
 };
+
+function useClearAppBadgeUnconditionally() {
+  useEffect(() => {
+    setBadgeCountAsync(0).catch((err) => {
+      console.error('Failed to set badge count', err);
+    });
+  }, []);
+}
