@@ -231,12 +231,12 @@ export const ListItemPostPreview = ({
   post,
   showAuthor = true,
 }: {
-  post: Pick<db.Post, 'authorId' | 'textContent' | 'hidden'>;
+  post: Pick<db.Post, 'authorId' | 'textContent' | 'hidden' | 'isDeleted'>;
   showAuthor?: boolean;
 }) => {
   return (
     <ListItemSubtitle>
-      {showAuthor ? (
+      {showAuthor && !post.isDeleted && !post.hidden ? (
         <>
           <ContactName
             userId={post.authorId}
@@ -247,7 +247,11 @@ export const ListItemPostPreview = ({
           {': '}
         </>
       ) : null}
-      {post.hidden ? '(This post has been hidden)' : post.textContent ?? ''}
+      {post.isDeleted
+        ? '(Deleted post)'
+        : post.hidden
+          ? '(Hidden post)'
+          : post.textContent ?? ''}
     </ListItemSubtitle>
   );
 };
