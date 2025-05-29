@@ -30,6 +30,7 @@ import { posthogAsync } from '@tloncorp/app/utils/posthog';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { ToastProvider } from '@tloncorp/ui';
+import { setBadgeCountAsync } from 'expo-notifications';
 import { PostHogProvider } from 'posthog-react-native';
 import type { PropsWithChildren } from 'react';
 import { useEffect, useMemo, useState } from 'react';
@@ -101,6 +102,8 @@ const App = () => {
   const showSplashSequence = useMemo(() => {
     return showAuthenticatedApp && needsSplashSequence;
   }, [showAuthenticatedApp, needsSplashSequence]);
+
+  useClearAppBadgeUnconditionally();
 
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">
@@ -219,3 +222,11 @@ const DevTools = ({
   useReactNavigationDevTools(navigationContainerRef);
   return null;
 };
+
+function useClearAppBadgeUnconditionally() {
+  useEffect(() => {
+    setBadgeCountAsync(0).catch((err) => {
+      console.error('Failed to set badge count', err);
+    });
+  }, []);
+}
