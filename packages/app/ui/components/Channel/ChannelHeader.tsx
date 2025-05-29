@@ -3,6 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import {
+  Fragment,
   createContext,
   useCallback,
   useContext,
@@ -158,7 +159,10 @@ export function ChannelHeader({
             {showSearchButton && (
               <ScreenHeader.IconButton type="Search" onPress={goToSearch} />
             )}
-            {contextItems}
+            {/* this fragment/map is necessary to be able to provide a key to the items */}
+            {contextItems.map((item, index) => (
+              <Fragment key={index}>{item}</Fragment>
+            ))}
             {showMenuButton ? (
               isWindowNarrow ? (
                 <ScreenHeader.IconButton

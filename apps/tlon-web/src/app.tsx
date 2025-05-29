@@ -603,7 +603,14 @@ const App = React.memo(function AppComponent() {
   }, []);
 
   return (
-    <div className="flex h-full w-full flex-col">
+    <div
+      style={{
+        display: 'flex',
+        height: '100%',
+        width: '100%',
+        flexDirection: 'column',
+      }}
+    >
       <ShipProvider>
         <MigrationCheck>
           <SafeAreaProvider>
@@ -744,9 +751,6 @@ function RoutedApp() {
           <React.Suspense fallback={null}>
             <ReactQueryDevtoolsProduction />
           </React.Suspense>
-          <div className="fixed bottom-4 right-4">
-            <EyrieMenu />
-          </div>
         </>
       )}
     </>
