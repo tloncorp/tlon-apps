@@ -5,10 +5,6 @@ import create from 'zustand';
 
 // Add new feature flags here:
 export const featureMeta = {
-  channelSwitcher: {
-    default: false,
-    label: 'Experimental channel switcher',
-  },
   instrumentationEnabled: {
     default: false,
     label: 'Enable collecting and reporting performance data',

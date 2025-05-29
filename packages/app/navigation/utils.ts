@@ -9,7 +9,6 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useMemo } from 'react';
 
-import { useFeatureFlagStore } from '../lib/featureFlags';
 import { useGlobalSearch, useIsWindowNarrow } from '../ui';
 import {
   DesktopBasePathStackParamList,
@@ -441,12 +440,10 @@ export async function getMainGroupRoute(
   const lastVisitedChannelId = await db
     .lastVisitedChannelId(groupId)
     .getValue();
-  const channelSwitcherEnabled =
-    useFeatureFlagStore.getState().flags.channelSwitcher;
   if (
     group &&
     group.channels &&
-    (group.channels.length === 1 || channelSwitcherEnabled || !isWindowNarrow)
+    (group.channels.length === 1 || !isWindowNarrow)
   ) {
     if (!isWindowNarrow && lastVisitedChannelId) {
       return getDesktopChannelRoute('Home', lastVisitedChannelId, groupId);

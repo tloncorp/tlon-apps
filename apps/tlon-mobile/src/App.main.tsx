@@ -29,6 +29,7 @@ import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils
 import { posthogAsync } from '@tloncorp/app/utils/posthog';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import { ToastProvider } from '@tloncorp/ui';
 import { PostHogProvider } from 'posthog-react-native';
 import type { PropsWithChildren } from 'react';
 import { useEffect, useMemo, useState } from 'react';
@@ -153,52 +154,54 @@ export default function ConnectedApp() {
   return (
     <ErrorBoundary>
       <FeatureFlagConnectedInstrumentationProvider>
-        <TamaguiProvider>
-          <ShipProvider>
-            <NavigationContainer
-              theme={isDarkMode ? DarkTheme : DefaultTheme}
-              ref={navigationContainerRef}
-            >
-              <StoreProvider>
-                <BranchProvider>
-                  <PostHogProvider
-                    client={posthogAsync}
-                    autocapture={{
-                      captureTouches: false,
-                    }}
-                    options={{
-                      enable:
-                        process.env.NODE_ENV !== 'test' ||
-                        !!process.env.POST_HOG_IN_DEV,
-                    }}
-                  >
-                    <GestureHandlerRootView style={{ flex: 1 }}>
-                      <SafeAreaProvider>
-                        <MigrationCheck>
-                          <QueryClientProvider client={queryClient}>
-                            <SignupProvider>
-                              <PortalProvider>
-                                <App />
-                              </PortalProvider>
+        <QueryClientProvider client={queryClient}>
+          <TamaguiProvider>
+            <ShipProvider>
+              <NavigationContainer
+                theme={isDarkMode ? DarkTheme : DefaultTheme}
+                ref={navigationContainerRef}
+              >
+                <StoreProvider>
+                  <BranchProvider>
+                    <PostHogProvider
+                      client={posthogAsync}
+                      autocapture={{
+                        captureTouches: false,
+                      }}
+                      options={{
+                        enable:
+                          process.env.NODE_ENV !== 'test' ||
+                          !!process.env.POST_HOG_IN_DEV,
+                      }}
+                    >
+                      <GestureHandlerRootView style={{ flex: 1 }}>
+                        <SafeAreaProvider>
+                          <ToastProvider>
+                            <MigrationCheck>
+                              <SignupProvider>
+                                <PortalProvider>
+                                  <App />
+                                </PortalProvider>
 
-                              {__DEV__ && (
-                                <DevTools
-                                  navigationContainerRef={
-                                    navigationContainerRef
-                                  }
-                                />
-                              )}
-                            </SignupProvider>
-                          </QueryClientProvider>
-                        </MigrationCheck>
-                      </SafeAreaProvider>
-                    </GestureHandlerRootView>
-                  </PostHogProvider>
-                </BranchProvider>
-              </StoreProvider>
-            </NavigationContainer>
-          </ShipProvider>
-        </TamaguiProvider>
+                                {__DEV__ && (
+                                  <DevTools
+                                    navigationContainerRef={
+                                      navigationContainerRef
+                                    }
+                                  />
+                                )}
+                              </SignupProvider>
+                            </MigrationCheck>
+                          </ToastProvider>
+                        </SafeAreaProvider>
+                      </GestureHandlerRootView>
+                    </PostHogProvider>
+                  </BranchProvider>
+                </StoreProvider>
+              </NavigationContainer>
+            </ShipProvider>
+          </TamaguiProvider>
+        </QueryClientProvider>
       </FeatureFlagConnectedInstrumentationProvider>
     </ErrorBoundary>
   );

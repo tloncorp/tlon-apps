@@ -46,7 +46,6 @@ export const DetailViewFixture = ({
             editPost={async () => {}}
             goBack={() => {}}
             handleGoToUserProfile={() => {}}
-            headerMode="default"
             onGroupAction={() => {}}
             goToDm={() => {}}
           />

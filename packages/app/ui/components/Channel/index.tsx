@@ -24,7 +24,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   AnimatePresence,
   View,
@@ -54,7 +53,6 @@ import {
   ConnectedPostView,
   PostCollectionHandle,
 } from '../postCollectionViews/shared';
-import { ChannelFooter } from './ChannelFooter';
 import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
 import { DmInviteOptions } from './DmInviteOptions';
 import { DraftInputView } from './DraftInputView';
@@ -70,11 +68,9 @@ interface ChannelProps {
   channel: db.Channel;
   initialChannelUnread?: db.ChannelUnread | null;
   selectedPostId?: string | null;
-  headerMode: 'default' | 'next';
   posts: db.Post[] | null;
   group: db.Group | null;
   goBack: () => void;
-  goToChannels: () => void;
   goToChatDetails?: () => void;
   goToPost: (post: db.Post) => void;
   goToDm: (participants: string[]) => void;
@@ -85,6 +81,7 @@ interface ChannelProps {
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
+  loadPostsError?: Error | null;
   onPressRef: (channel: db.Channel, post: db.Post) => void;
   markRead: () => void;
   usePost: typeof usePostWithRelations;
@@ -101,7 +98,8 @@ interface ChannelProps {
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost: (post: db.Post, content: Story) => Promise<void>;
-  onPressRetry: (post: db.Post) => Promise<void>;
+  onPressRetrySend: (post: db.Post) => Promise<void>;
+  onPressRetryLoad: () => void;
   onPressDelete: (post: db.Post) => void;
   negotiationMatch: boolean;
   hasNewerPosts?: boolean;
@@ -122,9 +120,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       posts,
       selectedPostId,
       group,
-      headerMode,
       goBack,
-      goToChannels,
       goToChatDetails,
       goToSearch,
       goToImageViewer,
@@ -135,6 +131,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       onScrollEndReached,
       onScrollStartReached,
       isLoadingPosts,
+      loadPostsError,
       markRead,
       onPressRef,
       usePost,
@@ -148,7 +145,8 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       editingPost,
       setEditingPost,
       editPost,
-      onPressRetry,
+      onPressRetryLoad,
+      onPressRetrySend,
       onPressDelete,
       negotiationMatch,
       hasNewerPosts,
@@ -276,7 +274,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         setShouldBlur: setInputShouldBlur,
         shouldBlur: inputShouldBlur,
         storeDraft,
-        headerMode: headerMode,
       }),
       [
         channel,
@@ -289,7 +286,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         messageSender,
         setEditingPost,
         storeDraft,
-        headerMode,
       ]
     );
 
@@ -356,7 +352,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                         <ChannelHeader
                           channel={channel}
                           group={group}
-                          mode={headerMode}
                           title={title ?? ''}
                           goBack={
                             isNarrow ||
@@ -369,7 +364,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                             draftInputPresentationMode !== 'fullscreen'
                           }
                           goToSearch={goToSearch}
-                          goToChannels={goToChannels}
                           goToChatDetails={goToChatDetails}
                           showSpinner={isLoadingPosts}
                           showMenuButton={
@@ -394,11 +388,12 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                     goToPost,
                                     hasNewerPosts,
                                     hasOlderPosts,
-                                    headerMode,
                                     initialChannelUnread,
                                     isLoadingPosts: isLoadingPosts ?? false,
+                                    loadPostsError,
                                     onPressDelete,
-                                    onPressRetry,
+                                    onPressRetrySend,
+                                    onPressRetryLoad,
                                     onScrollEndReached,
                                     onScrollStartReached,
                                     posts: posts ?? undefined,
@@ -475,15 +470,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                             />
                           )}
                         </YStack>
-                        {headerMode === 'next' ? (
-                          <ChannelFooter
-                            title={title ?? ''}
-                            goBack={handleGoBack}
-                            goToChannels={goToChannels}
-                            goToSearch={goToSearch}
-                            showPickerButton={!!group}
-                          />
-                        ) : null}
                         <GroupPreviewSheet
                           group={groupPreview ?? undefined}
                           open={!!groupPreview}

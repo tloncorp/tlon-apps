@@ -8,6 +8,12 @@ import {
   makePrettyShortDate,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import {
+  BlockData,
+  BlockFromType,
+  BlockType,
+  PostContent,
+} from '@tloncorp/shared/logic';
 import { Button } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
@@ -32,13 +38,7 @@ import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import ContactName from '../ContactName';
 import { useBoundHandler } from '../ListItem/listItemUtils';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
-import {
-  BlockData,
-  BlockFromType,
-  BlockType,
-  PostContent,
-  usePostContent,
-} from '../PostContent/contentUtils';
+import { usePostContent } from '../PostContent/contentUtils';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 
 const GalleryPostFrame = styled(View, {
@@ -130,6 +130,18 @@ export function GalleryPost({
     return null;
   }
 
+  // we need to filter out props that are not supported by the GalleryPostFrame
+  const {
+    onShowEmojiPicker: _onShowEmojiPicker,
+    onPressImage: _onPressImage,
+    editPost: _editPost,
+    isHighlighted: _isHighlighted,
+    showReplies: _showReplies,
+    setViewReactionsPost: _setViewReactionsPost,
+    onPressReplies: _onPressReplies,
+    ...rest
+  } = props;
+
   return (
     <Pressable
       onPress={overFlowIsHovered || isPopoverOpen ? undefined : handlePress}
@@ -138,7 +150,7 @@ export function GalleryPost({
       onHoverOut={onHoverOut}
       flex={1}
     >
-      <GalleryPostFrame {...props}>
+      <GalleryPostFrame {...rest}>
         <GalleryContentRenderer
           post={post}
           pointerEvents="none"
@@ -193,7 +205,6 @@ export function GalleryPost({
                 gap="$xl"
                 height="$3.5xl"
                 padding="$m"
-                {...props}
               >
                 <View pointerEvents="auto">
                   <ReactionsDisplay post={post} minimal={true} />
@@ -328,7 +339,7 @@ export function GalleryPostDetailView({
           showSentAt={true}
         />
 
-        {post.title && <Text size="$body">{post.title}</Text>}
+        {post.title ? <Text size="$body">{post.title}</Text> : null}
 
         {isImagePost && (
           <CaptionContentRenderer content={contentWithoutImage} />
@@ -393,27 +404,9 @@ function LargePreview({
   ComponentProps<typeof PreviewFrame>,
   'content'
 >) {
-  const containsPreviewableContent = useMemo(() => {
-    return (
-      (content.some(
-        (block) =>
-          block.type === 'image' ||
-          block.type === 'video' ||
-          block.type === 'reference'
-      ) &&
-        content.length > 1 &&
-        content[0].type === 'image') ||
-      content[0].type === 'video' ||
-      content[0].type === 'reference'
-    );
-  }, [content]);
-
   return (
     <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
-      <LargeContentRenderer
-        content={containsPreviewableContent ? content.slice(0, 1) : content}
-        onPressImage={onPressImage}
-      />
+      <LargeContentRenderer content={content} onPressImage={onPressImage} />
     </PreviewFrame>
   );
 }
@@ -426,30 +419,13 @@ function SmallPreview({
   'content'
 >) {
   const link = useBlockLink(content);
-  const containsPreviewableContent = useMemo(() => {
-    return (
-      (content.some(
-        (block) =>
-          block.type === 'image' ||
-          block.type === 'video' ||
-          block.type === 'reference'
-      ) &&
-        content.length > 1 &&
-        content[0].type === 'image') ||
-      content[0].type === 'video' ||
-      content[0].type === 'reference'
-    );
-  }, [content]);
-
   return link ? (
     <PreviewFrame {...props} previewType="link">
       <LinkPreview link={link} />
     </PreviewFrame>
   ) : (
     <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
-      <SmallContentRenderer
-        content={containsPreviewableContent ? content.slice(0, 1) : content}
-      />
+      <SmallContentRenderer height={'100%'} content={content} />
     </PreviewFrame>
   );
 }
@@ -656,6 +632,15 @@ function usePreviewContent(content: BlockData[]): BlockData[] {
     } else if (groupedBlocks.video?.length) {
       return [groupedBlocks.video[0]];
     }
-    return content;
+    return firstBlockIsPreviewable(content) ? content.slice(0, 1) : content;
   }, [content]);
+}
+
+function firstBlockIsPreviewable(content: BlockData[]): boolean {
+  return (
+    content.length > 0 &&
+    (content[0].type === 'image' ||
+      content[0].type === 'video' ||
+      content[0].type === 'reference')
+  );
 }

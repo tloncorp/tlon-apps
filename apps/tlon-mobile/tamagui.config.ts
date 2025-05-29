@@ -1,1 +1,1 @@
-export { config } from '@tloncorp/app/ui';
+export { config } from '@tloncorp/ui/config';

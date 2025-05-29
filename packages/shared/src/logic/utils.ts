@@ -70,12 +70,24 @@ export async function jsonFetch<T>(
   info: RequestInfo,
   init?: RequestInit
 ): Promise<T> {
-  const res = await fetch(info, init);
-  if (!res.ok) {
-    throw new Error('Bad Fetch Response');
+  try {
+    const res = await fetch(info, init);
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
+
+    const data = await res.json();
+    return data as T;
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error('jsonFetch error:', error.message);
+      throw error;
+    } else {
+      console.error('jsonFetch unknown error:', error);
+      throw new Error('Unknown error occurred during fetch');
+    }
   }
-  const data = await res.json();
-  return data as T;
 }
 
 const isFacebookGraphDependent = (url: string) => {
@@ -226,6 +238,19 @@ export function normalizeUrbitColor(color: string): string {
   const lengthAdjustedColor = prefixStripped.toUpperCase().padStart(6, '0');
   return `#${lengthAdjustedColor}`;
 }
+
+/**
+ * Generates a safe ID from a given text.
+ * @param text The text to generate a safe ID from.
+ * @param prefix Optional prefix for the ID, defaults to 'id'.
+ * @returns A safe ID.
+ */
+export const generateSafeId = (text: string, prefix: string = 'id') => {
+  if (!text.match(/[a-zA-Z0-9]/)) {
+    return `${prefix}-${Math.random().toString(36).substring(2, 10)}`;
+  }
+  return text.toLowerCase().replace(/\s/g, '-');
+};
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const timezoneOffset = new Date().getTimezoneOffset() * 60 * 1000;

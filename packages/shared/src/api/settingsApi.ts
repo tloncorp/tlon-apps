@@ -35,6 +35,8 @@ function getBucket(key: string): string {
     case 'disableSpellcheck':
     case 'showUnreadCounts':
       return 'calmEngine';
+    case 'theme':
+      return 'display';
     default:
       console.warn(
         `No explicit bucket defined for setting key: ${key}, defaulting to 'groups'`

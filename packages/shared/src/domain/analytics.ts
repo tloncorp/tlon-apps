@@ -26,6 +26,8 @@ export enum AnalyticsEvent {
   DebugLogs = 'Debug Logs',
   DebugGroupCreate = 'Create Group Debug',
   DebugAttestation = 'Attestation Debug',
+  DebugContactMatching = 'Contact Matching Debug',
+  ErrorContactMatching = 'Contact Matching Error',
   AppError = 'App Error',
   AuthenticatedNodeStopped = 'Node Stopped While Logged In',
   Scry = 'Scry',
@@ -126,6 +128,7 @@ export enum AnalyticsEvent {
   ActionContactBookInviteShown = 'Contact Book Invite Shown',
   ActionContactBookInviteSent = 'Contact Book Invite Sent',
   ActionCalmSettingsUpdate = 'Calm Settings Updated',
+  ActionThemeUpdate = 'Theme Setting Updated',
   DebugSystemContacts = 'System Contacts Debug',
   GroupJoinComplete = 'Group Join Complete',
   PersonalInviteLinkReady = 'Personal Invite Link Ready',
@@ -145,6 +148,7 @@ export enum AnalyticsEvent {
   ErrorWayfinding = 'Wayfinding Error',
   ErrorSystemContacts = 'System Contacts Error',
   ErrorCalmSettingsUpdate = 'Error Updating Calm Settings',
+  ErrorThemeUpdate = 'Error Updating Theme Setting',
   ErrorApi = 'API Error',
 }
 

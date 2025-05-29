@@ -212,3 +212,31 @@ export async function updateAttestationDiscoverability({
     });
   }
 }
+
+export async function discoverContacts(
+  phoneNumbers: string[]
+): Promise<[string, string][]> {
+  const lastSalt = await db.lastLanyardSalt.getValue();
+  const lastPhoneNumbers = await db.lastPhoneContactSetRequest.getValue();
+
+  try {
+    const { matches, nextSalt } = await api.discoverContacts(
+      phoneNumbers,
+      lastSalt,
+      lastPhoneNumbers
+    );
+
+    // always store the phone numbers we just successfully sent, will be used to diff
+    // against the next time we send a request
+    await db.lastPhoneContactSetRequest.setValue(JSON.stringify(phoneNumbers));
+    await db.lastLanyardSalt.setValue(nextSalt);
+    return matches;
+  } catch (e) {
+    logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+      context: 'failed to discover contacts',
+      error: e,
+      errorMessage: e.message,
+    });
+    throw e;
+  }
+}
