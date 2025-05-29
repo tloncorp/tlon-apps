@@ -1,13 +1,11 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useThemeSettings } from '@tloncorp/shared';
-import { subscribeToSettings } from '@tloncorp/shared/api';
-import { useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, YStack } from 'tamagui';
 import { useTheme } from 'tamagui';
 
-import { useIsDarkMode } from '../../hooks/useIsDarkMode';
 import { RootStackParamList } from '../../navigation/types';
-import { ThemeContext, clearTheme, setTheme } from '../../provider';
+import { useActiveTheme } from '../../provider';
 import { AppTheme } from '../../types/theme';
 import {
   ListItem,
@@ -18,6 +16,7 @@ import {
   ScreenHeader,
   View,
 } from '../../ui';
+import { themes } from '../../ui/tamagui.config';
 import { normalizeTheme } from '../../ui/utils/themeUtils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Theme'>;
@@ -25,26 +24,25 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Theme'>;
 export function ThemeScreen(props: Props) {
   const theme = useTheme();
   const { data: storedTheme, isLoading } = useThemeSettings();
-  const { setActiveTheme } = useContext(ThemeContext);
-  const isDarkMode = useIsDarkMode();
+  const { activeTheme, setActiveTheme, systemIsDark } = useActiveTheme();
   const [selectedTheme, setSelectedTheme] = useState<AppTheme>('auto');
   const [loadingTheme, setLoadingTheme] = useState<AppTheme | null>(null);
 
-  const themes: ListItemInputOption<AppTheme>[] = [
+  const themeOptions: ListItemInputOption<AppTheme>[] = [
     {
       title: 'Auto',
       value: 'auto',
-      subtitle: `Uses system ${isDarkMode ? 'dark' : 'light'} theme`,
+      subtitle: `Uses system ${systemIsDark ? 'dark' : 'light'} theme`,
     },
     { title: 'Tlon Light', value: 'light' },
     { title: 'Tlon Dark', value: 'dark' },
-    { title: 'Dracula', value: 'dracula' },
-    { title: 'Greenscreen', value: 'greenscreen' },
-    { title: 'Gruvbox', value: 'gruvbox' },
-    { title: 'Monokai', value: 'monokai' },
-    { title: 'Nord', value: 'nord' },
-    { title: 'Peony', value: 'peony' },
-    { title: 'Solarized', value: 'solarized' },
+    ...Object.keys(themes)
+      .filter((themeName) => themeName !== 'light' && themeName !== 'dark')
+      .sort()
+      .map((themeName) => ({
+        title: themeName.charAt(0).toUpperCase() + themeName.slice(1),
+        value: themeName as AppTheme,
+      })),
   ];
 
   const handleThemeChange = async (value: AppTheme) => {
@@ -52,13 +50,7 @@ export function ThemeScreen(props: Props) {
 
     setLoadingTheme(value);
     try {
-      if (value === 'auto') {
-        setActiveTheme(isDarkMode ? 'dark' : 'light');
-        await clearTheme(setActiveTheme, isDarkMode);
-      } else {
-        setActiveTheme(value);
-        await setTheme(value, setActiveTheme);
-      }
+      await setActiveTheme(value);
       setSelectedTheme(value);
     } finally {
       setLoadingTheme(null);
@@ -72,21 +64,16 @@ export function ThemeScreen(props: Props) {
   }, [storedTheme, isLoading]);
 
   useEffect(() => {
-    subscribeToSettings((update) => {
-      if (update.type === 'updateSetting' && 'theme' in update.setting) {
-        const newTheme = update.setting.theme;
-        const themeValue = normalizeTheme(newTheme as AppTheme);
+    const normalizedActiveTheme =
+      (activeTheme === 'dark' || activeTheme === 'light') &&
+      normalizeTheme(storedTheme ?? null) === 'auto'
+        ? 'auto'
+        : activeTheme;
 
-        setSelectedTheme(themeValue);
-
-        if (themeValue === 'auto') {
-          setActiveTheme(isDarkMode ? 'dark' : 'light');
-        } else {
-          setActiveTheme(themeValue);
-        }
-      }
-    });
-  }, [isDarkMode, setActiveTheme]);
+    if (normalizedActiveTheme !== selectedTheme && !isLoading) {
+      setSelectedTheme(normalizedActiveTheme);
+    }
+  }, [activeTheme, selectedTheme, isLoading, storedTheme]);
 
   return (
     <View backgroundColor={theme?.background?.val} flex={1}>
@@ -103,27 +90,31 @@ export function ThemeScreen(props: Props) {
         }}
       >
         <YStack flex={1} padding="$l">
-          {themes.map((theme) => (
+          {themeOptions.map((themeOption) => (
             <Pressable
-              key={theme.value}
+              key={themeOption.value}
               disabled={loadingTheme !== null}
-              onPress={() => handleThemeChange(theme.value)}
+              onPress={() => handleThemeChange(themeOption.value)}
               borderRadius="$xl"
             >
               <ListItem>
                 <ListItem.MainContent>
-                  <ListItem.Title>{theme.title}</ListItem.Title>
-                  {theme.subtitle && (
-                    <ListItem.Subtitle>{theme.subtitle}</ListItem.Subtitle>
+                  <ListItem.Title>{themeOption.title}</ListItem.Title>
+                  {themeOption.subtitle && (
+                    <ListItem.Subtitle>
+                      {themeOption.subtitle}
+                    </ListItem.Subtitle>
                   )}
                 </ListItem.MainContent>
                 <ListItem.EndContent>
-                  {loadingTheme === theme.value ? (
+                  {loadingTheme === themeOption.value ? (
                     <View padding="$m">
                       <LoadingSpinner color="$primaryText" size="small" />
                     </View>
                   ) : (
-                    <RadioControl checked={theme.value === selectedTheme} />
+                    <RadioControl
+                      checked={themeOption.value === selectedTheme}
+                    />
                   )}
                 </ListItem.EndContent>
               </ListItem>

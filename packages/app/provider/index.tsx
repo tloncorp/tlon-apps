@@ -1,42 +1,59 @@
 import { syncSettings, updateTheme, useThemeSettings } from '@tloncorp/shared';
 import { subscribeToSettings } from '@tloncorp/shared/api';
-import { queryClient } from '@tloncorp/shared/api';
 import { themeSettings } from '@tloncorp/shared/db';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { TamaguiProvider, TamaguiProviderProps } from 'tamagui';
 
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import { AppTheme } from '../types/theme';
-import { config } from '../ui';
+import { DARK_THEME_NAMES, config } from '../ui';
 import { getDisplayTheme, normalizeTheme } from '../ui/utils/themeUtils';
 
-export const ThemeContext = React.createContext<{
-  setActiveTheme: (theme: AppTheme) => void;
+export interface ThemeContextType {
+  setActiveTheme: (theme: AppTheme) => Promise<void>;
   activeTheme: AppTheme;
-}>({ setActiveTheme: () => {}, activeTheme: 'light' });
+  systemIsDark: boolean;
+  themeIsDark: boolean;
+}
+
+export const ThemeContext = React.createContext<ThemeContextType>({
+  setActiveTheme: async () => {},
+  activeTheme: 'light',
+  systemIsDark: false,
+  themeIsDark: false,
+});
 
 export function Provider({
   children,
-  ...rest
+  ...tamaguiProps
 }: Omit<TamaguiProviderProps, 'config'>) {
-  return (
-    <ThemeProviderContent tamaguiProps={rest}>{children}</ThemeProviderContent>
-  );
-}
-
-function ThemeProviderContent({
-  children,
-  tamaguiProps,
-}: {
-  children: React.ReactNode;
-  tamaguiProps: Omit<TamaguiProviderProps, 'config'>;
-}) {
-  const isDarkMode = useIsDarkMode();
-  const [activeTheme, setActiveTheme] = useState<AppTheme>(
-    isDarkMode ? 'dark' : 'light'
+  const systemIsDark = useIsDarkMode();
+  const [activeTheme, setActiveThemeState] = useState<AppTheme>(
+    systemIsDark ? 'dark' : 'light'
   );
 
-  const { data: storedTheme, isLoading } = useThemeSettings();
+  const themeIsDark = DARK_THEME_NAMES.includes(activeTheme as any);
+
+  const { data: storedTheme, isLoading, refetch } = useThemeSettings();
+
+  const setActiveTheme = useCallback(
+    async (theme: AppTheme) => {
+      try {
+        setActiveThemeState(theme);
+
+        if (theme === 'auto') {
+          await updateTheme('auto');
+        } else {
+          await updateTheme(theme);
+        }
+
+        await refetch();
+      } catch (error) {
+        console.warn('Failed to save theme preference:', error);
+      }
+    },
+    [refetch]
+  );
 
   useEffect(() => {
     const loadTheme = async () => {
@@ -44,7 +61,7 @@ function ThemeProviderContent({
         await syncSettings();
         if (!isLoading && storedTheme !== undefined) {
           const normalizedTheme = normalizeTheme(storedTheme);
-          setActiveTheme(getDisplayTheme(normalizedTheme, isDarkMode));
+          setActiveThemeState(getDisplayTheme(normalizedTheme, systemIsDark));
         }
       } catch (error) {
         console.warn('Failed to load theme preference:', error);
@@ -52,7 +69,7 @@ function ThemeProviderContent({
     };
 
     loadTheme();
-  }, [isDarkMode, isLoading, storedTheme]);
+  }, [systemIsDark, isLoading, storedTheme]);
 
   useEffect(() => {
     subscribeToSettings((update) => {
@@ -60,7 +77,7 @@ function ThemeProviderContent({
         const newTheme = update.setting.theme;
         const normalizedTheme = normalizeTheme(newTheme as string);
 
-        setActiveTheme(getDisplayTheme(normalizedTheme, isDarkMode));
+        setActiveThemeState(getDisplayTheme(normalizedTheme, systemIsDark));
 
         themeSettings
           .setValue(normalizedTheme === 'auto' ? null : normalizedTheme)
@@ -68,19 +85,25 @@ function ThemeProviderContent({
             console.warn('Failed to update local theme setting:', err)
           );
 
-        queryClient.invalidateQueries({ queryKey: ['themeSettings'] });
+        refetch();
       }
     });
-  }, [isDarkMode]);
+
+    syncSettings().catch((err) =>
+      console.warn('Initial settings sync failed:', err)
+    );
+  }, [systemIsDark, refetch]);
 
   useEffect(() => {
     if (!isLoading && !storedTheme) {
-      setActiveTheme(isDarkMode ? 'dark' : 'light');
+      setActiveThemeState(systemIsDark ? 'dark' : 'light');
     }
-  }, [isDarkMode, isLoading, storedTheme]);
+  }, [systemIsDark, isLoading, storedTheme]);
 
   return (
-    <ThemeContext.Provider value={{ setActiveTheme, activeTheme }}>
+    <ThemeContext.Provider
+      value={{ setActiveTheme, activeTheme, systemIsDark, themeIsDark }}
+    >
       <TamaguiProvider
         {...tamaguiProps}
         config={config}
@@ -92,31 +115,13 @@ function ThemeProviderContent({
   );
 }
 
-export const setTheme = async (
-  theme: AppTheme,
-  setActiveTheme: (theme: AppTheme) => void
-) => {
-  try {
-    setActiveTheme(theme);
-    await updateTheme(theme);
-  } catch (error) {
-    console.warn('Failed to save theme preference:', error);
-  }
-};
-
-export const clearTheme = async (
-  setActiveTheme: (theme: AppTheme) => void,
-  isDarkMode: boolean
-) => {
-  try {
-    setActiveTheme(isDarkMode ? 'dark' : 'light');
-    await updateTheme('auto');
-  } catch (error) {
-    console.warn('Failed to clear theme preference:', error);
-  }
-};
-
 export const useActiveTheme = () => {
-  const { activeTheme } = React.useContext(ThemeContext);
-  return activeTheme;
+  const { activeTheme, setActiveTheme, systemIsDark, themeIsDark } =
+    React.useContext(ThemeContext);
+  return { activeTheme, setActiveTheme, systemIsDark, themeIsDark };
+};
+
+export const useIsThemeDark = () => {
+  const { themeIsDark } = React.useContext(ThemeContext);
+  return themeIsDark;
 };

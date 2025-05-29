@@ -3,8 +3,6 @@ import { useReactNavigationDevTools } from '@dev-plugins/react-navigation';
 import { useReactQueryDevTools } from '@dev-plugins/react-query';
 import NetInfo from '@react-native-community/netinfo';
 import {
-  DarkTheme,
-  DefaultTheme,
   NavigationContainer,
   NavigationContainerRefWithCurrent,
   useNavigationContainerRef,
@@ -12,10 +10,12 @@ import {
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { ShipProvider, useShip } from '@tloncorp/app/contexts/ship';
-import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { unregisterBackgroundSyncTask } from '@tloncorp/app/lib/backgroundSync';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
-import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
+import {
+  Provider as ThemeProvider,
+  useIsThemeDark,
+} from '@tloncorp/app/provider';
 import {
   LoadingSpinner,
   PortalProvider,
@@ -44,7 +44,6 @@ unregisterBackgroundSyncTask();
 
 // Android notification tap handler passes initial params here
 const App = () => {
-  const isDarkMode = useIsDarkMode();
   const {
     isLoading,
     isAuthenticated,
@@ -53,6 +52,8 @@ const App = () => {
   } = useShip();
   const [connected, setConnected] = useState(true);
   const signupContext = useSignupContext();
+
+  const isDarkTheme = useIsThemeDark();
 
   const finishingSelfHostedLogin = db.finishingSelfHostedLogin.useValue();
   const haveHostedLogin = db.haveHostedLogin.useValue();
@@ -128,8 +129,8 @@ const App = () => {
         </View>
       )}
       <StatusBar
-        backgroundColor={isDarkMode ? 'black' : 'white'}
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+        backgroundColor={isDarkTheme ? 'black' : 'white'}
+        barStyle={isDarkTheme ? 'light-content' : 'dark-content'}
       />
     </View>
   );
@@ -147,17 +148,15 @@ function MigrationCheck({ children }: PropsWithChildren) {
 }
 
 export default function ConnectedApp() {
-  const isDarkMode = useIsDarkMode();
   const navigationContainerRef = useNavigationContainerRef();
 
   return (
     <ErrorBoundary>
       <FeatureFlagConnectedInstrumentationProvider>
         <QueryClientProvider client={queryClient}>
-          <TamaguiProvider>
+          <ThemeProvider>
             <ShipProvider>
               <NavigationContainer
-                theme={isDarkMode ? DarkTheme : DefaultTheme}
                 ref={navigationContainerRef}
               >
                 <StoreProvider>
@@ -197,7 +196,7 @@ export default function ConnectedApp() {
                 </StoreProvider>
               </NavigationContainer>
             </ShipProvider>
-          </TamaguiProvider>
+          </ThemeProvider>
         </QueryClientProvider>
       </FeatureFlagConnectedInstrumentationProvider>
     </ErrorBoundary>
