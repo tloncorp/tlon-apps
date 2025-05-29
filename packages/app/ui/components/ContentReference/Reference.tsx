@@ -100,6 +100,7 @@ const ReferenceComponent = ReferenceFrame.styleable<{
 );
 
 const ReferenceHeader = styled(XStack, {
+  context: ReferenceContext,
   name: 'ReferenceHeader',
   paddingLeft: '$l',
   paddingRight: '$l',

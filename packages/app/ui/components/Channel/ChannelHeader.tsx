@@ -159,6 +159,7 @@ export function ChannelHeader({
             {showSearchButton && (
               <ScreenHeader.IconButton type="Search" onPress={goToSearch} />
             )}
+            {/* this fragment/map is necessary to be able to provide a key to the items */}
             {contextItems.map((item, index) => (
               <Fragment key={index}>{item}</Fragment>
             ))}
