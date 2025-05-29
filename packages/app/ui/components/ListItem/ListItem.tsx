@@ -1,5 +1,6 @@
 import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import { Icon, IconType } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { ComponentProps, ReactElement, useMemo } from 'react';
@@ -234,6 +235,8 @@ export const ListItemPostPreview = ({
   post: Pick<db.Post, 'authorId' | 'textContent' | 'hidden' | 'isDeleted'>;
   showAuthor?: boolean;
 }) => {
+  const previewText = logic.getPostPreviewText(post);
+
   return (
     <ListItemSubtitle>
       {showAuthor && !post.isDeleted && !post.hidden ? (
@@ -247,11 +250,7 @@ export const ListItemPostPreview = ({
           {': '}
         </>
       ) : null}
-      {post.isDeleted
-        ? '(Deleted post)'
-        : post.hidden
-          ? '(Hidden post)'
-          : post.textContent ?? ''}
+      {previewText}
     </ListItemSubtitle>
   );
 };
