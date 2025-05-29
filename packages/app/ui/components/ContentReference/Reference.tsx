@@ -131,6 +131,7 @@ const ReferenceTitleIcon = styled(
 );
 
 const ReferenceTitleText = styled(Text, {
+  context: ReferenceContext,
   name: 'ReferenceTitleText',
   size: '$label/m',
   color: '$tertiaryText',
@@ -163,6 +164,7 @@ const ReferenceActionIcon = ({
 };
 
 const ReferenceBody = styled(View, {
+  context: ReferenceContext,
   name: 'ReferenceBody',
   pointerEvents: 'none',
   flex: 1,
