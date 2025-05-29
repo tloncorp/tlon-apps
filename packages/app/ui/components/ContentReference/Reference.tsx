@@ -36,6 +36,7 @@ export const useReferenceContext = () => {
 };
 
 const ReferenceFrame = styled(YStack, {
+  context: ReferenceContext,
   name: 'ReferenceFrame',
   borderRadius: '$s',
   padding: 0,
