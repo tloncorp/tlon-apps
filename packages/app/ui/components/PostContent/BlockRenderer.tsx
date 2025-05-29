@@ -1,4 +1,4 @@
-import { isTrustedEmbed } from '@tloncorp/shared';
+import { isTrustedEmbed, trustedProviders } from '@tloncorp/shared';
 import { Icon, Image, Pressable, Text, useCopy } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
 import React, {
@@ -244,7 +244,14 @@ export function LinkBlock({
     }
   }, [block.url]);
 
-  if (renderEmbed && isTrustedEmbed(block.url)) {
+  const embedProviders = useMemo(() => {
+    // for now, avoid showing twitter embeds on web
+    return Platform.OS === 'web'
+      ? trustedProviders.filter((tp) => tp.name !== 'Twitter')
+      : trustedProviders;
+  }, []);
+
+  if (renderEmbed && isTrustedEmbed(block.url, embedProviders)) {
     const embedBlock: cn.EmbedBlockData = {
       type: 'embed',
       url: block.url,
