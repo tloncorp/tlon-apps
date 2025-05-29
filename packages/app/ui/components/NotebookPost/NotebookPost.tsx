@@ -4,7 +4,7 @@ import { Image } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
-import { TlonText } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import {
   View,
@@ -26,8 +26,6 @@ import {
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
-
-const Text = TlonText.Text;
 
 const IMAGE_HEIGHT = 268;
 
