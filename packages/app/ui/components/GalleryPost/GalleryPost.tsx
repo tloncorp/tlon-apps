@@ -553,6 +553,7 @@ const LargeContentRenderer = createContentRenderer({
     link: {
       ...noWrapperPadding,
       minHeight: 300,
+      renderEmbed: true,
       imageProps: {
         aspectRatio: 1.5,
       },

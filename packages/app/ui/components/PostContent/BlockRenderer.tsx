@@ -1,3 +1,4 @@
+import { isTrustedEmbed } from '@tloncorp/shared';
 import { Icon, Image, Pressable, Text, useCopy } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
 import React, {
@@ -219,6 +220,7 @@ export function LinkBlock({
   renderTitle = true,
   renderImage = true,
   clickable = true,
+  renderEmbed = false,
   ...props
 }: {
   block: cn.LinkBlockData;
@@ -226,6 +228,7 @@ export function LinkBlock({
   renderDescription?: boolean;
   renderTitle?: boolean;
   renderImage?: boolean;
+  renderEmbed?: boolean;
   imageProps?: ComponentProps<typeof ContentImage>;
 } & ComponentProps<typeof Reference.Frame>) {
   const domain = useMemo(() => {
@@ -240,6 +243,14 @@ export function LinkBlock({
       Linking.openURL(block.url);
     }
   }, [block.url]);
+
+  if (renderEmbed && isTrustedEmbed(block.url)) {
+    const embedBlock: cn.EmbedBlockData = {
+      type: 'embed',
+      url: block.url,
+    };
+    return <EmbedBlock block={embedBlock} {...props} />;
+  }
 
   return (
     <Reference.Frame {...props} onPress={clickable ? onPress : undefined}>

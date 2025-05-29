@@ -320,6 +320,7 @@ const ChatContentRenderer = createContentRenderer({
     image: isWeb ? WebChatImageRenderer : undefined,
     link: {
       renderDescription: false,
+      renderEmbed: true,
       maxWidth: 600,
       imageProps: {
         aspectRatio: 2,
