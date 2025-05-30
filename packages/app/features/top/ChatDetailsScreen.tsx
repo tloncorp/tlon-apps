@@ -324,6 +324,7 @@ function GroupSettings({ group }: { group: db.Group }) {
             paddingHorizontal="$2xl"
             backgroundColor={'$background'}
             borderRadius="$2xl"
+            testID="GroupPrivacy"
           >
             <ActionSheet.MainContent>
               <ActionSheet.ActionTitle>Privacy</ActionSheet.ActionTitle>
@@ -350,6 +351,7 @@ function GroupSettings({ group }: { group: db.Group }) {
             paddingHorizontal="$2xl"
             backgroundColor={'$background'}
             borderRadius="$2xl"
+            testID="GroupRoles"
           >
             <ActionSheet.MainContent>
               <ActionSheet.ActionTitle>Roles</ActionSheet.ActionTitle>
@@ -376,6 +378,7 @@ function GroupSettings({ group }: { group: db.Group }) {
             paddingHorizontal="$2xl"
             backgroundColor={'$background'}
             borderRadius="$2xl"
+            testID="GroupChannels"
           >
             <ActionSheet.MainContent>
               <ActionSheet.ActionTitle>Channels</ActionSheet.ActionTitle>
@@ -402,6 +405,7 @@ function GroupSettings({ group }: { group: db.Group }) {
           backgroundColor={'$background'}
           borderRadius="$2xl"
           alignItems="center"
+          testID="GroupNotifications"
         >
           <ActionSheet.MainContent>
             <ActionSheet.ActionTitle>Notifications</ActionSheet.ActionTitle>
