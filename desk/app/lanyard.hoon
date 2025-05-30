@@ -57,6 +57,18 @@
       [%pass /verifier/endpoint %agent [host %verifier] %watch /endpoint]
   ==
 ::
+++  our-invite-url
+  |=  [our=@p now=@da]
+  ^-  (unit @t)
+  ?.  .^(? %gu /(scot %p our)/reel/(scot %da now)/$)
+    ~
+  =+  .^  =json
+        %gx  (scot %p our)  %reel  (scot %da now)
+        /v1/id-url/~zod/personal-invite-link/json
+      ==
+  ?.  ?=([%s *] json)  ~
+  ?:(=('' p.json) ~ `p.json)
+::
 ++  sign
   |*  [[our=@p now=@da] dat=*]
   ^-  (signed _dat)
@@ -279,6 +291,9 @@
     =+  !<(cmd=command:l vase)
     =/  host=@p
       ?~(host.cmd default u.host.cmd)
+    ::  %invite is meant to be sent by the agent itself only
+    ::
+    ?<  ?=(%invite +<.cmd)
     ::  %work-for doesn't affect any of our own records/state,
     ::  so branch off and handle it specially
     ::
@@ -422,7 +437,7 @@
   ?+  wire  !!
     [%logs ~]  [~ this]
   ::
-      [%verifier ?(~ [?(%endpoint %work-for) ~])]
+      [%verifier ?(~ [?(%endpoint %work-for %invite-url) ~])]
     =*  host  src.bowl
     =.  host.log  `host
     ?.  (~(has by ledgers) host)
@@ -437,6 +452,13 @@
     ?-  -.sign
         %poke-ack
       ?<  ?=([%endpoint ~] t.wire)  ::NOTE  no pokes on /endpoint
+      ?:  ?=([%invite-url ~] t.wire)
+        ::  we don't care about failures. we'll eventually retry sending the
+        ::  url, but it not getting registered isn't a critical failure
+        ::
+        %.  [~ this]
+        ?~  p.sign  same
+        (tell:lo %info 'invite-url poke-nacked' u.p.sign)
       ?~  p.sign
         ::  the command is being processed, we'll get updates as facts
         ::  on our subscription
@@ -520,7 +542,18 @@
             [%give %fact (vp %v1 ~[/ /records]) %lanyard-update-1 !>(upd)]
         %-  zing
         ^-  (list (list card))
-        :~  ::  update the contacts profile if needed
+        :~  ::  if we completed a registration on a service that has
+            ::  a public url, make sure the service knows our invite url,
+            ::  they might need it for their clearweb page.
+            ::
+            ?.  ?=(%done -.status.upd)  ~
+            ?~  (~(gut by ledgers) src.bowl ~)  ~
+            =/  =cage
+              :-  %verifier-user-command
+              !>(`user-command`[%invite (our-invite-url [our now]:bowl)])
+            [%pass /verifier/invite-url %agent [host %verifier] %poke cage]~
+          ::
+            ::  update the contacts profile if needed
             ::
             ?.  ?=(?(%gone %done) -.status.upd)  ~
             (drop (inflate-contacts-profile [our now]:bowl records display ledgers))
@@ -557,9 +590,26 @@
         ==
       ::
           %endpoint
-        ?:  =(base.upd (~(got by ledgers) host))  [~ this]
+        =/  caz=(list card)
+          ::  if they have an endpoint, and we have anything registered
+          ::  with them, give them our latest invite url, so that they may
+          ::  include it on their clearweb pages.
+          ::
+          ?.  ?&  ?=(^ base.upd)
+                ::
+                  %+  lien  ~(tap by records)
+                  |=  [key * * =status]
+                  &(=(host h) ?=(%done -.status))
+              ==
+            ~
+          =/  =cage
+            :-  %verifier-user-command
+            !>(`user-command`[%invite (our-invite-url [our now]:bowl)])
+          [%pass /verifier/invite-url %agent [host %verifier] %poke cage]~
+        ?:  =(base.upd (~(got by ledgers) host))  [caz this]
         =.  ledgers  (~(put by ledgers) host base.upd)
         :_  this
+        %+  weld  caz
         (drop (inflate-contacts-profile [our now]:bowl records display ledgers))
       ==
     ==
