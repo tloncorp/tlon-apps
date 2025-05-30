@@ -148,7 +148,11 @@ export function ChannelListItem({
           />
           <ListItem.MainContent>
             <ListItem.Title dimmed={dimmed}>{title}</ListItem.Title>
-            {customSubtitle ? (
+            {logic.isMuted(model.volumeSettings?.level, 'channel') ? (
+              <ListItem.SubtitleWithIcon icon="Muted">
+                Muted
+              </ListItem.SubtitleWithIcon>
+            ) : customSubtitle ? (
               <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
             ) : showGroupTitle && model.group ? (
               <ListItem.Subtitle>{groupTitle}</ListItem.Subtitle>
@@ -158,12 +162,15 @@ export function ChannelListItem({
                 {subtitle}
               </ListItem.SubtitleWithIcon>
             ) : null}
-            {model.lastPost && !model.isDmInvite && (
+            {logic.isMuted(
+              model.volumeSettings?.level,
+              'channel'
+            ) ? null : model.lastPost && !model.isDmInvite ? (
               <ListItem.PostPreview
                 post={model.lastPost}
                 showAuthor={model.type !== 'dm'}
               />
-            )}
+            ) : null}
           </ListItem.MainContent>
 
           {EndContent ?? (
