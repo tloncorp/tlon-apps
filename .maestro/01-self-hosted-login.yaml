@@ -2,4 +2,10 @@ appId: io.tlon.groups
 ---
 - runFlow: subflows/launch.yaml
 - runFlow: subflows/self-hosted-login.yaml
+- runFlow:
+    when:
+      visible: 'New direct message'
+    commands:
+      - swipe: # fixes an issue where the create group/dm sheet pops open on android during e2e tests after logning in (only seems to happen on self-hosted login)
+          direction: 'down'
 - assertVisible: 'Home'

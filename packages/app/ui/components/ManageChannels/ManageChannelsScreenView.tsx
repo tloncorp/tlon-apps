@@ -117,6 +117,7 @@ function ChannelItem({
       alignItems="center"
       justifyContent="space-between"
       backgroundColor="$background"
+      testID={`ChannelItem-${channel.title}-${index}`}
     >
       <XStack alignItems="center" gap="$l">
         <ListItem.ChannelIcon
@@ -210,6 +211,7 @@ function NavSection({
       borderColor={borderColor}
       paddingTop={paddingTop}
       paddingHorizontal="$l"
+      testID={`NavSection-${section.title}`}
     >
       <XStack width="100%" justifyContent="space-between" alignItems="center">
         <Text paddingLeft="$l" fontSize="$s" color="$secondaryText">

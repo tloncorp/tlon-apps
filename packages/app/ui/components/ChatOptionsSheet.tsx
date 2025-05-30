@@ -161,7 +161,13 @@ export function GroupOptionsSheetLoader({
         allowFlip
         offset={-12}
       >
-        <Popover.Trigger asChild>{trigger}</Popover.Trigger>
+        <Popover.Trigger
+          asChild
+          data-testid="GroupOptionsSheetTrigger"
+          role="button"
+        >
+          {trigger}
+        </Popover.Trigger>
         <Popover.Content
           elevate
           zIndex={1000000}
@@ -530,7 +536,13 @@ const ChannelOptionsSheetLoader = memo(
           allowFlip
           offset={-12}
         >
-          <Popover.Trigger asChild>{trigger}</Popover.Trigger>
+          <Popover.Trigger
+            asChild
+            data-testid="ChannelOptionsSheetTrigger"
+            role="button"
+          >
+            {trigger}
+          </Popover.Trigger>
           <Popover.Content
             elevate
             zIndex={1000000}

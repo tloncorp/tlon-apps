@@ -156,6 +156,7 @@ function GroupRolesScreenView({
                 paddingHorizontal="$2xl"
                 backgroundColor={'$background'}
                 borderRadius="$2xl"
+                testID={`GroupRole-${role.title}`}
               >
                 <ActionSheet.MainContent>
                   <ActionSheet.ActionTitle>
@@ -353,6 +354,7 @@ function EditRoleSheet({
                   }}
                   value={value}
                   editable={role.title !== 'Admin'}
+                  testID="RoleDescriptionInput"
                 />
               </Field>
             )}
@@ -457,6 +459,7 @@ function AddRoleSheet({
                     Keyboard.dismiss();
                   }}
                   value={value}
+                  testID="RoleDescriptionInput"
                 />
               </Field>
             )}

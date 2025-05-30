@@ -97,7 +97,10 @@ export function CreateChannelSheet({
             control={control}
             name="title"
             label="Title"
-            inputProps={{ placeholder: 'Channel title' }}
+            inputProps={{
+              placeholder: 'Channel title',
+              testID: 'ChannelTitleInput',
+            }}
             rules={{ required: 'Channel title is required' }}
           />
         </ActionSheet.FormBlock>

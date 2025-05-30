@@ -162,6 +162,7 @@ export function EditChannelScreenView({
                   label="title"
                   placeholder="Channel title"
                   rules={{ required: 'Channel title is required' }}
+                  testID="ChannelTitleInput"
                 />
                 <FormInput
                   control={control}
@@ -169,6 +170,7 @@ export function EditChannelScreenView({
                   name="description"
                   label="Description"
                   placeholder="Channel description"
+                  testID="ChannelDescriptionInput"
                 />
               </YStack>
             )}
