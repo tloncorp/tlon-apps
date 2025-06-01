@@ -1,10 +1,10 @@
 import { QueryClientProvider, queryClient } from '@tloncorp/shared/api';
 import { ToastProvider } from '@tloncorp/ui';
-import { ComponentProps, PropsWithChildren } from 'react';
+import { PropsWithChildren } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ShipProvider } from '../contexts/ship';
-import { StoreProvider } from '../ui';
+import { PortalProvider, StoreProvider } from '../ui';
 import { Provider as TamaguiProvider } from './';
 import { TelemetryProvider } from './TelemetryProvider';
 
@@ -30,11 +30,13 @@ export function BaseProviderStack({
           <StoreProvider>
             <ShipProvider>
               <SafeAreaProvider>
-                <ToastProvider>
-                  <MigrationCheck {...migrationState}>
-                    {children}
-                  </MigrationCheck>
-                </ToastProvider>
+                <PortalProvider>
+                  <ToastProvider>
+                    <MigrationCheck {...migrationState}>
+                      {children}
+                    </MigrationCheck>
+                  </ToastProvider>
+                </PortalProvider>
               </SafeAreaProvider>
             </ShipProvider>
           </StoreProvider>

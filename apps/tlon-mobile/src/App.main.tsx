@@ -149,9 +149,7 @@ export default function ConnectedApp() {
             <BranchProvider>
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <SignupProvider>
-                  <PortalProvider>
-                    <App />
-                  </PortalProvider>
+                  <App />
 
                   {__DEV__ && (
                     <DevTools navigationContainerRef={navigationContainerRef} />

@@ -61,6 +61,11 @@ export type WritersUpdate = {
   writers: string[];
   groupId: string | null;
 };
+export type OrderUpdate = {
+  type: 'updateOrder';
+  channelId: string;
+  order: string[];
+};
 export type CreateChannelUpdate = {
   type: 'createChannel';
   channelId: string;
@@ -102,6 +107,7 @@ export type ChannelsUpdate =
   | LeaveChannelSuccessUpdate
   | InitialPostsOnChannelJoin
   // | MarkChannelReadUpdate
+  | OrderUpdate
   | WritersUpdate;
 
 export const createChannel = async ({
@@ -162,6 +168,7 @@ export function toClientChannelsInit(
 
 export type ChannelInit = {
   channelId: string;
+  order: string[];
   writers: string[];
   readers: string[];
 };
@@ -171,7 +178,12 @@ export function toClientChannelInit(
   channel: ub.Channel,
   readers: string[]
 ): ChannelInit {
-  return { channelId: id, writers: channel.perms.writers ?? [], readers };
+  return {
+    channelId: id,
+    writers: channel.perms.writers ?? [],
+    readers,
+    order: channel.order.map(x => getCanonicalPostId(x)),
+  };
 }
 
 export const toChannelsUpdate = (
@@ -198,6 +210,14 @@ export const toChannelsUpdate = (
   const channelId = channelEvent.nest;
 
   if ('response' in channelEvent) {
+    if ('order' in channelEvent.response) {
+      return {
+        type: 'updateOrder',
+        channelId,
+        order: channelEvent.response.order.map((id) => getCanonicalPostId(id)),
+      };
+    }
+
     if ('perm' in channelEvent.response) {
       return {
         type: 'updateWriters',
@@ -415,6 +435,24 @@ export const searchChannel = async (params: {
   const cursor = response.last;
 
   return { posts, cursor };
+};
+
+export const setOrder = async (
+  channelId: string,
+  arrangedPostIds: string[]
+) => {
+  await poke({
+    app: 'channels',
+    mark: 'channel-action',
+    json: {
+      channel: {
+        nest: channelId,
+        action: {
+          order: arrangedPostIds,
+        },
+      },
+    },
+  });
 };
 
 export const leaveChannel = async (channelId: string) => {
