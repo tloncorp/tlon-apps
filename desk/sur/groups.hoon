@@ -72,14 +72,13 @@
 ::  requests   partial
 ::  tokens     partial. forever and limited tokens
 ::             are shared between admins, while personal
-::             tokens are only shared with the requesting ship.
+::             tokens are shared with admins and the requesting ship.
 ::  referrals  partial
 ::  invited    local
 ::
 +$  admissions
   $:  =privacy
       =banned
-      ::XX keep a date
       requests=(map ship (unit story:s))
       tokens=(map token token-meta)
       referrals=(jug ship token)
@@ -87,8 +86,6 @@
   ==
 ::  $token: group access token
 +$  token  @uv
-::  +public-token: public group access token
-++  public-token  0v0
 ::  $token-meta: token metadata
 ::
 ::  .scheme: claim scheme
@@ -140,31 +137,31 @@
   $:  =flag
       =time
       from=ship
-      =token
+      token=(unit token)
       note=(unit story:s)
       =preview
   ==
 ::  $progress: group join in progress
 ::
-::  %join: waiting for a seat
+::  %ask: asking for entry
+::  %join: joining with token
 ::  %watch: waiting for a subscription
 ::  %done: subscribed to the group
 ::  %error: error occured
 ::
-::  XX consider %kick for marking groups we
-::  have been banned from.
-::
 +$  progress  ?(%ask %join %watch %done %error)
 ::  $foreign: view of a foreign group
 ::
+::  .invites: received invites
 ::  .preview: group preview
-::  .invites: received group invites
-::  .join: group join in progress
+::  .progress: join in progress
+::  .token: join token
 ::
 +$  foreign
-  $:  preview=(unit preview)
-      invites=(list [id=token invite])
-      join=(unit [id=token =progress])
+  $:  invites=(list invite)
+      preview=(unit preview)
+      progress=(unit progress)
+      token=(unit token)
   ==
 +$  foreigns  (map flag foreign)
 ::  $group: collection of people and the pathways in which they interact
@@ -299,9 +296,6 @@
 ::    to subscribers. most updates also trigger
 ::    a response.
 ::
-::XX  consider whether it is better 
-::    to have separate %group-join, %group-invite pokes
-::
 ::  $a-groups: groups actions
 ::
 ::  %group: operate on a group
@@ -324,7 +318,7 @@
 ::  $a-invite: invite a ship
 +$  a-invite
   $:  =ship
-      =token
+      token=(unit token)
       note=(unit story:s)
   ==
 +$  a-entry  c-entry
@@ -332,14 +326,21 @@
 +$  a-role  c-role
 +$  a-channel  c-channel
 +$  a-section  c-section
+::  $c-groups: group commands
+::
+::   %create: create a new group
+::   %group: modify group state
+::   %join: join a group with token
+::   %ask: request entry
+::   %leave: leave a group
 ::
 +$  c-groups
   $%  [%create =create-group]
       [%group =flag =c-group]
-      ::
-      [%join =flag =token]
+    ::
+      [%join =flag token=(unit token)]
       [%ask =flag story=(unit story:s)]
-      ::
+    ::
       [%leave =flag]
   ==
 +$  c-group
@@ -394,9 +395,9 @@
 ::  $c-seat: membership command
 ::
 ::  %add: add a group member
-::  %del: remove the group member
-::  %add-roles: add the member to roles
-::  %del-roles: remove the member from roles
+::  %del: remove a group member
+::  %add-roles: add member to roles
+::  %del-roles: remove member from roles
 ::
 +$  c-seat
   $%  [%add ~]
@@ -467,8 +468,8 @@
       [%del-ranks ranks=(set rank:title)]
   ==
 +$  u-ask
-  $%  [%add-ship =ship story=(unit story:s)]
-      [%del-ship =ship story=(unit story:s)]
+  $%  [%add =ship story=(unit story:s)]
+      [%del =ship]
   ==
 +$  u-token
   $%  [%add =token meta=token-meta]
@@ -517,7 +518,7 @@
 +$  r-entry
   $%  [%privacy =privacy]
       [%ban =r-ban]
-      [%ask =u-ask]
+      [%ask =r-ask]
       [%token =r-token]
   ==
 +$  r-ban  u-ban
@@ -533,17 +534,19 @@
   ==
 ::  $a-foreign: foreign group action
 ::
-::  %join: join the group, or for entry
-::  %cancel: cancel a join in progress
+::  %join: join the group
+::  %ask: ask for entry
+::  %cancel: cancel a join or an ask in progress
 ::  %invite: receive an invitation
 ::  %decline: decline an invitation
 ::
 +$  a-foreign
-  $%  [%join =token]
+  $%  [%join token=(unit token)]
       [%ask story=(unit story:s)]
       [%cancel ~]
+    ::
       [%invite =invite]
-      [%decline id=token]
+      [%decline token=(unit token)]
   ==
 ::  $preview-update: group preview update
 ::

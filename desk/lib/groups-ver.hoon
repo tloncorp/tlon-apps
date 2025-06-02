@@ -333,6 +333,13 @@
             ==
           ::
             %token  ~
+          ::
+              %ask
+            :_  ~
+            ?-  -.r-ask.r-entry
+              %add  [%cordon %shut %add-ships %ask (sy ship.r-ask.r-entry ~)]
+              %del  [%cordon %shut %del-ships %ask (sy ship.r-ask.r-entry ~)]
+            ==
           ==
         --
       --
@@ -354,11 +361,11 @@
       ++  gang
         |=  foreign:v7:g
         ^-  gang:v2:g
-        :*  ?~(join ~ `(claim:v2:progress:v7 progress.u.join))
+        :*  ?~(progress ~ `(claim:v2:progress:v7 u.progress))
             (bind preview v2:preview:v7)
             ::
             ?~  invites  ~
-            `(v2:invite:v7 +.i.invites)
+            `(v2:invite:v7 i.invites)
         ==
       --
     --
@@ -371,6 +378,7 @@
         ^-  claim:v2:g
         :-  |
         ?-  progress
+          %ask    %knocking
           %join   %adding
           %watch  %watching
           %done   %done

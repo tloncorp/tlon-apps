@@ -1,5 +1,4 @@
-/-  g=groups, s=story, u=ui, e=epic, zer=groups-0
-::XX use v0:g instead of /sur/groups-0
+/-  g=groups, s=story, u=ui, e=epic
 /-  meta
 /+  sj=story-json
 =*  z  ..zuse
@@ -250,6 +249,12 @@
     |=  =preview-update:v7:g
     ^-  json
     !!
+  ++  previews
+    |=  ps=previews:v7:g
+    %-  pairs
+    %+  turn  ~(tap by ps)
+    |=  [f=flag:g p=preview:v7:g]
+    [(print-flag f) (preview p)]
   :: ++  invites
   ::   |=  =invites:v7:g
   ::   ^-  json
@@ -266,7 +271,7 @@
     ^-  json
     %-  pairs
     :~  flag+(^flag flag)
-        token+(^token token)
+        token+?~(token ~ (^token u.token))
         from+(ship from)
         note+?~(note ~ (story:enjs:sj u.note))
         preview+(^preview preview)
@@ -301,20 +306,10 @@
       ::
         :-  %invites  
         ?~  invites  ~
-        :-  %a
-        %+  turn  invites
-        |=  [id=token:g =invite:g]
-        %-  pairs
-        :~  id+(token id)
-            invite+(^invite invite)
-        ==
+        a+(turn invites invite)
       ::
-        :-  %join  
-        ?~  join  ~
-        %-  pairs
-        :~  id+(token id.u.join)
-            progress+s+progress.u.join
-        ==
+        progress+?~(progress ~ s+u.progress)
+        token+?~(token ~ (^token u.token))
     ==
   ::
   ++  v7  .
@@ -751,7 +746,7 @@
       ==
     ::
     ++  group-ui-v0
-      |=  gr=group-ui:zer
+      |=  gr=group-ui:v0:g
       %-  pairs
       :~  fleet/(fleet fleet.gr)
           cabals/(cabals cabals.gr)
@@ -780,10 +775,10 @@
       [(print-flag f) (group-ui gr)]
     ::
     ++  groups-ui-v0
-      |=  gs=groups-ui:zer
+      |=  gs=groups-ui:v0:g
       %-  pairs
       %+  turn  ~(tap by gs)
-      |=  [f=flag:g gr=group-ui:zer]
+      |=  [f=flag:g gr=group-ui:v0:g]
       [(print-flag f) (group-ui-v0 gr)]
     ::
     ++  gangs
