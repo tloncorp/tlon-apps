@@ -21,9 +21,11 @@ export type ChatListItemData = db.Chat | SectionHeaderData;
 export const ChatList = React.memo(function ChatListComponent({
   data,
   onPressItem,
+  compact = false,
 }: {
   data: SectionedChatData;
   onPressItem?: (chat: db.Chat) => void;
+  compact?: boolean;
 }) {
   const listItems: ChatListItemData[] = useMemo(
     () =>
@@ -49,26 +51,42 @@ export const ChatList = React.memo(function ChatListComponent({
   // removed the use of useStyle here because it was causing FlashList to
   // peg the CPU and freeze the app on web
   // see: https://github.com/Shopify/flash-list/pull/852
-  const contentContainerStyle = {
-    padding: getTokenValue('$l', 'size'),
-    paddingBottom: 100, // bottom nav height + some cushion
-  };
+  const contentContainerStyle = compact
+    ? {
+        paddingVertical: getTokenValue('$l', 'size'),
+        paddingHorizontal: getTokenValue('$m', 'size'),
+        gap: getTokenValue('$m', 'size'),
+      }
+    : {
+        padding: getTokenValue('$l', 'size'),
+        paddingBottom: 100, // bottom nav height + some cushion
+      };
 
   const isNarrow = useIsWindowNarrow();
   const sizeRefs = useRef({
-    sectionHeader: isNarrow ? 28 : 24.55,
-    chatListItem: isNarrow ? 72 : 64,
+    sectionHeader: compact ? 0 : isNarrow ? 28 : 24.55,
+    chatListItem: compact ? 56 : isNarrow ? 72 : 64,
   });
 
   // update the sizeRefs when the window size changes
   useEffect(() => {
-    sizeRefs.current.sectionHeader = isNarrow ? 28 : 24.55;
-    sizeRefs.current.chatListItem = isNarrow ? 72 : 64;
-  }, [isNarrow]);
+    if (compact) {
+      sizeRefs.current.sectionHeader = 0;
+      sizeRefs.current.chatListItem = 56;
+    } else {
+      sizeRefs.current.sectionHeader = isNarrow ? 28 : 24.55;
+      sizeRefs.current.chatListItem = isNarrow ? 72 : 64;
+    }
+  }, [isNarrow, compact]);
 
-  const handleHeaderLayout = useCallback((e: LayoutChangeEvent) => {
-    sizeRefs.current.sectionHeader = e.nativeEvent.layout.height;
-  }, []);
+  const handleHeaderLayout = useCallback(
+    (e: LayoutChangeEvent) => {
+      if (!compact) {
+        sizeRefs.current.sectionHeader = e.nativeEvent.layout.height;
+      }
+    },
+    [compact]
+  );
 
   const handleItemLayout = useCallback((e: LayoutChangeEvent) => {
     sizeRefs.current.chatListItem = e.nativeEvent.layout.height;
@@ -86,6 +104,9 @@ export const ChatList = React.memo(function ChatListComponent({
   const renderItem: ListRenderItem<ChatListItemData> = useCallback(
     ({ item }) => {
       if (isSectionHeader(item)) {
+        // // Don't render section headers in compact mode
+        // if (compact) return null;
+
         return (
           <SectionListHeader onLayout={handleHeaderLayout}>
             <SectionListHeader.Text>{item.title}</SectionListHeader.Text>
@@ -99,6 +120,7 @@ export const ChatList = React.memo(function ChatListComponent({
             onLongPress={handleLongPress}
             onLayout={handleItemLayout}
             hoverStyle={{ backgroundColor: '$secondaryBackground' }}
+            compact={compact}
           />
         );
       } else if (item.type === 'group' && !item.isPending) {
@@ -109,6 +131,7 @@ export const ChatList = React.memo(function ChatListComponent({
             onLongPress={handleLongPress}
             onLayout={handleItemLayout}
             hoverStyle={{ backgroundColor: '$secondaryBackground' }}
+            compact={compact}
           />
         );
       } else {
@@ -120,11 +143,18 @@ export const ChatList = React.memo(function ChatListComponent({
             onLayout={handleItemLayout}
             disableOptions={item.isPending}
             hoverStyle={{ backgroundColor: '$secondaryBackground' }}
+            compact={compact}
           />
         );
       }
     },
-    [handleHeaderLayout, onPressItem, handleLongPress, handleItemLayout]
+    [
+      handleHeaderLayout,
+      onPressItem,
+      handleLongPress,
+      handleItemLayout,
+      compact,
+    ]
   );
 
   useRenderCount('ChatList');

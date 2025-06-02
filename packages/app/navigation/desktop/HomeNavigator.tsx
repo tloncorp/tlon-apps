@@ -70,52 +70,97 @@ const DrawerContent = memo((props: DrawerContentComponentProps) => {
   const focusedRouteParams = focusedRoute.params;
   // @ts-expect-error - nested params is not in the type
   const nestedFocusedRouteParams = focusedRouteParams?.params;
+
+  // Extract the current groupId for highlighting
+  let currentGroupId: string | undefined;
+  let isDMRoute = false;
+
+  // Check if we're viewing a channel that belongs to a group
+  if (
+    focusedRoute.name === 'Channel' ||
+    focusedRoute.name === 'DM' ||
+    focusedRoute.name === 'GroupDM'
+  ) {
+    isDMRoute = focusedRoute.name === 'DM' || focusedRoute.name === 'GroupDM';
+
+    // For these routes, check if there's a groupId in the params structure
+    if (
+      focusedRouteParams &&
+      typeof focusedRouteParams === 'object' &&
+      'params' in focusedRouteParams
+    ) {
+      const innerParams = focusedRouteParams.params;
+      if (
+        innerParams &&
+        typeof innerParams === 'object' &&
+        'params' in innerParams
+      ) {
+        const deepParams = innerParams.params;
+        if (deepParams && 'groupId' in deepParams && deepParams.groupId) {
+          currentGroupId = deepParams.groupId as string;
+        }
+      } else if (
+        innerParams &&
+        'groupId' in innerParams &&
+        innerParams.groupId
+      ) {
+        currentGroupId = innerParams.groupId as string;
+      }
+    }
+  }
+
   if (
     focusedRouteParams &&
     'groupId' in focusedRouteParams &&
     focusedRouteParams.groupId
   ) {
-    if ('channelId' in focusedRouteParams) {
-      return (
-        <GroupChannelsScreenContent
-          groupId={focusedRouteParams.groupId}
-          focusedChannelId={focusedRouteParams.channelId}
-        />
-      );
-    }
-    return <GroupChannelsScreenContent groupId={focusedRouteParams.groupId} />;
+    currentGroupId = focusedRouteParams.groupId;
   } else if (
     focusedRouteParams &&
     nestedFocusedRouteParams &&
     'groupId' in nestedFocusedRouteParams
   ) {
-    if ('channelId' in nestedFocusedRouteParams) {
-      return (
-        <GroupChannelsScreenContent
-          groupId={nestedFocusedRouteParams.groupId}
-          focusedChannelId={nestedFocusedRouteParams.channelId}
-        />
-      );
-    }
-    return (
-      <GroupChannelsScreenContent groupId={nestedFocusedRouteParams.groupId} />
-    );
+    currentGroupId = nestedFocusedRouteParams.groupId;
+  }
+
+  // Extract the focused channel ID
+  let focusedChannelId: string | undefined;
+  if (focusedRoute.params && 'channelId' in focusedRoute.params) {
+    focusedChannelId = focusedRoute.params.channelId;
   } else if (
     focusedRouteParams &&
     focusedRoute.name === 'ChatDetails' &&
     'chatId' in focusedRouteParams &&
-    'chatType' in focusedRouteParams
+    'chatType' in focusedRouteParams &&
+    focusedRouteParams.chatType === 'channel'
   ) {
-    if (focusedRouteParams.chatType === 'channel') {
-      return <HomeSidebar focusedChannelId={focusedRouteParams.chatId} />;
-    } else if (focusedRouteParams.chatType === 'group') {
-      return <GroupChannelsScreenContent groupId={focusedRouteParams.chatId} />;
-    }
-  } else if (focusedRoute.params && 'channelId' in focusedRoute.params) {
-    return <HomeSidebar focusedChannelId={focusedRoute.params.channelId} />;
-  } else {
-    return <HomeSidebar />;
+    focusedChannelId = focusedRouteParams.chatId;
   }
+
+  // Determine if we should show compact mode
+  // Show compact mode when viewing a group, but not when viewing a DM
+  const shouldShowCompactMode = currentGroupId && !isDMRoute;
+
+  if (shouldShowCompactMode) {
+    // Show compact mode with group channels
+    return (
+      <View flex={1} flexDirection="row">
+        <HomeSidebar
+          compact
+          currentGroupId={currentGroupId!}
+          focusedChannelId={focusedChannelId}
+        />
+        <GroupChannelsScreenContent
+          groupId={currentGroupId!}
+          focusedChannelId={focusedChannelId}
+        />
+      </View>
+    );
+  }
+
+  // Otherwise, show the full home sidebar
+  // This includes when viewing DMs (even if they were accessed from within a group)
+  return <HomeSidebar focusedChannelId={focusedChannelId} />;
 }, isEqual);
 
 DrawerContent.displayName = 'HomeSidebarDrawerContent';

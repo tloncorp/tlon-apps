@@ -1,8 +1,10 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { Text } from '@tloncorp/ui';
+import { Pressable, Text } from '@tloncorp/ui';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ScrollView, YStack } from 'tamagui';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { ChatList } from '../../features/chat-list/ChatList';
@@ -26,7 +28,9 @@ import {
   View,
   useGlobalSearch,
 } from '../../ui';
+import { ContactAvatar, GroupAvatar } from '../../ui/components/Avatar';
 import { SplashModal } from '../../ui/components/Wayfinding/SplashModal';
+import { useChatTitle, useGroupTitle } from '../../ui/utils';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { useRootNavigation } from '../utils';
 
@@ -35,10 +39,125 @@ const logger = createDevLogger('HomeSidebar', false);
 interface Props {
   previewGroupId?: string;
   focusedChannelId?: string;
+  compact?: boolean;
+  currentGroupId?: string;
+}
+
+// Component for unread badge in compact mode
+function UnreadBadge({
+  count,
+  notified,
+}: {
+  count: number;
+  notified: boolean;
+}) {
+  if (count === 0) return null;
+
+  return (
+    <View
+      position="absolute"
+      top={-4}
+      right={-4}
+      backgroundColor={
+        notified ? '$primaryActionBackground' : '$secondaryBackground'
+      }
+      borderRadius="$l"
+      paddingHorizontal="$xs"
+      paddingVertical="$2xs"
+      minWidth={20}
+      alignItems="center"
+      justifyContent="center"
+    >
+      <Text size="$label/s" color="$primaryText" fontWeight="bold">
+        {count > 99 ? '99+' : count}
+      </Text>
+    </View>
+  );
+}
+
+// Component for rendering chat icon in compact mode
+function CompactChatItem({
+  chat,
+  isActive,
+  unreadCount,
+  notified,
+  isMuted,
+  onPress,
+}: {
+  chat: db.Chat;
+  isActive: boolean;
+  unreadCount: number;
+  notified: boolean;
+  isMuted: boolean;
+  onPress: () => void;
+}) {
+  const groupTitle = useGroupTitle(chat.type === 'group' ? chat.group : null);
+  const chatTitle = useChatTitle(
+    chat.type === 'channel' ? chat.channel : null,
+    chat.type === 'group' ? chat.group : null
+  );
+  const title = chat.type === 'group' ? groupTitle : chatTitle;
+
+  const renderAvatar = () => {
+    if (chat.type === 'group') {
+      return <GroupAvatar model={chat.group} />;
+    }
+
+    // chat.type === 'channel' - TypeScript needs explicit check
+    if (chat.type === 'channel') {
+      const { channel } = chat;
+
+      if (channel.type === 'dm' && channel.members?.[0]) {
+        return <ContactAvatar contactId={channel.members[0].contactId} />;
+      }
+
+      // For group DMs and channels, use a group avatar with channel info
+      return (
+        <GroupAvatar
+          model={
+            {
+              id: channel.id,
+              iconImage: null,
+              iconImageColor: null,
+              coverImage: null,
+              coverImageColor: null,
+              title: channel.title || '',
+              description: '',
+              members: channel.members || [],
+            } as any
+          }
+        />
+      );
+    }
+  };
+
+  return (
+    <Pressable
+      onPress={onPress}
+      borderRadius="$m"
+      padding="$s"
+      backgroundColor={isActive ? '$secondaryBackground' : 'unset'}
+      hoverStyle={{
+        backgroundColor: '$secondaryBackground',
+      }}
+      pressStyle={{
+        backgroundColor: '$secondaryBackground',
+      }}
+      width="100%"
+      alignItems="center"
+      // @ts-expect-error - title is a valid HTML attribute but not in the type definitions
+      title={title}
+    >
+      <View position="relative">
+        {renderAvatar()}
+        {!isMuted && <UnreadBadge count={unreadCount} notified={notified} />}
+      </View>
+    </Pressable>
+  );
 }
 
 export const HomeSidebar = memo(
-  ({ previewGroupId, focusedChannelId }: Props) => {
+  ({ previewGroupId, focusedChannelId, compact, currentGroupId }: Props) => {
     const screenTitle = 'Home';
     const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>();
 
@@ -53,6 +172,7 @@ export const HomeSidebar = memo(
 
     const { data: chats } = store.useCurrentChats();
     const { performGroupAction } = useGroupActions();
+    const chatSettingsNav = useChatSettingsNavigation();
 
     const connStatus = store.useConnectionStatus();
     const notReadyMessage: string | null = useMemo(() => {
@@ -182,6 +302,35 @@ export const HomeSidebar = memo(
 
     useRenderCount('HomeSidebar');
 
+    // Render compact mode
+    if (compact) {
+      return (
+        <RequestsProvider
+          usePostReference={store.usePostReference}
+          useChannel={store.useChannelPreview}
+          usePost={store.usePostWithRelations}
+          useApp={db.appInfo.useValue}
+          useGroup={store.useGroupPreview}
+        >
+          <ChatOptionsProvider
+            {...chatSettingsNav}
+            onPressInvite={handlePressInvite}
+          >
+            <View
+              flex={1}
+              backgroundColor="$background"
+              borderRightWidth={1}
+              borderRightColor="$border"
+              width={80}
+            >
+              <ChatList data={displayData} onPressItem={onPressChat} compact />
+            </View>
+          </ChatOptionsProvider>
+        </RequestsProvider>
+      );
+    }
+
+    // Render full mode
     return (
       <RequestsProvider
         usePostReference={store.usePostReference}
@@ -191,7 +340,7 @@ export const HomeSidebar = memo(
         useGroup={store.useGroupPreview}
       >
         <ChatOptionsProvider
-          {...useChatSettingsNavigation()}
+          {...chatSettingsNav}
           onPressInvite={handlePressInvite}
         >
           <NavigationProvider focusedChannelId={focusedChannelId}>
