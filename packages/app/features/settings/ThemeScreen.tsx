@@ -1,6 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useThemeSettings } from '@tloncorp/shared';
-import { useEffect, useState } from 'react';
+import { themes } from '@tloncorp/ui/config';
+import { useEffect, useRef, useState } from 'react';
 import { ScrollView, YStack } from 'tamagui';
 import { useTheme } from 'tamagui';
 
@@ -16,7 +17,6 @@ import {
   ScreenHeader,
   View,
 } from '../../ui';
-import { themes } from '../../ui/tamagui.config';
 import { normalizeTheme } from '../../ui/utils/themeUtils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Theme'>;
@@ -27,6 +27,9 @@ export function ThemeScreen(props: Props) {
   const { activeTheme, setActiveTheme, systemIsDark } = useActiveTheme();
   const [selectedTheme, setSelectedTheme] = useState<AppTheme>('auto');
   const [loadingTheme, setLoadingTheme] = useState<AppTheme | null>(null);
+
+  const selectedThemeRef = useRef(selectedTheme);
+  selectedThemeRef.current = selectedTheme;
 
   const themeOptions: ListItemInputOption<AppTheme>[] = [
     {
@@ -59,7 +62,10 @@ export function ThemeScreen(props: Props) {
 
   useEffect(() => {
     if (!isLoading && storedTheme !== undefined) {
-      setSelectedTheme(normalizeTheme(storedTheme));
+      const normalizedTheme = normalizeTheme(storedTheme);
+      if (normalizedTheme !== selectedThemeRef.current) {
+        setSelectedTheme(normalizedTheme);
+      }
     }
   }, [storedTheme, isLoading]);
 
@@ -70,10 +76,10 @@ export function ThemeScreen(props: Props) {
         ? 'auto'
         : activeTheme;
 
-    if (normalizedActiveTheme !== selectedTheme && !isLoading) {
+    if (normalizedActiveTheme !== selectedThemeRef.current && !isLoading) {
       setSelectedTheme(normalizedActiveTheme);
     }
-  }, [activeTheme, selectedTheme, isLoading, storedTheme]);
+  }, [activeTheme, isLoading, storedTheme]);
 
   return (
     <View backgroundColor={theme?.background?.val} flex={1}>

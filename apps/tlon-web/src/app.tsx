@@ -574,7 +574,7 @@ const App = React.memo(function AppComponent() {
 
   const migrationState = useMigrations();
 
-  const isDarkMode = useIsThemeDark();
+  const isDarkTheme = useIsThemeDark();
 
   return (
     <div
@@ -587,7 +587,7 @@ const App = React.memo(function AppComponent() {
     >
       <BaseProviderStack
         migrationState={migrationState}
-        tamaguiState={{ defaultTheme: isDarkMode ? 'dark' : 'light' }}
+        tamaguiState={{ defaultTheme: isDarkTheme ? 'dark' : 'light' }}
       >
         {isElectron() ? (
           isLoading ? (

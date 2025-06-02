@@ -1,16 +1,22 @@
 import { syncSettings, updateTheme, useThemeSettings } from '@tloncorp/shared';
 import { subscribeToSettings } from '@tloncorp/shared/api';
 import { themeSettings } from '@tloncorp/shared/db';
-import React, { useCallback, useEffect, useState } from 'react';
+import { DARK_THEME_NAMES, config } from '@tloncorp/ui/config';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { TamaguiProvider, TamaguiProviderProps } from 'tamagui';
 
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import { AppTheme } from '../types/theme';
-import { DARK_THEME_NAMES, config } from '../ui';
-import { getDisplayTheme, normalizeTheme } from '../ui/utils/themeUtils';
+import { normalizeTheme } from '../ui/utils/themeUtils';
 
 export interface ThemeContextType {
-  setActiveTheme: (theme: AppTheme) => Promise<void>;
+  setActiveTheme: (newTheme: AppTheme) => Promise<void>;
   activeTheme: AppTheme;
   systemIsDark: boolean;
   themeIsDark: boolean;
@@ -32,7 +38,14 @@ export function Provider({
     systemIsDark ? 'dark' : 'light'
   );
 
-  const themeIsDark = DARK_THEME_NAMES.includes(activeTheme as any);
+  const activeThemeRef = useRef(activeTheme);
+  activeThemeRef.current = activeTheme;
+
+  const themeIsDark = useMemo(() => {
+    const displayTheme =
+      activeTheme === 'auto' ? (systemIsDark ? 'dark' : 'light') : activeTheme;
+    return DARK_THEME_NAMES.includes(displayTheme);
+  }, [activeTheme, systemIsDark]);
 
   const { data: storedTheme, isLoading, refetch } = useThemeSettings();
 
@@ -55,13 +68,23 @@ export function Provider({
     [refetch]
   );
 
+  const displayTheme = useMemo(() => {
+    return activeTheme === 'auto'
+      ? systemIsDark
+        ? 'dark'
+        : 'light'
+      : activeTheme;
+  }, [activeTheme, systemIsDark]);
+
   useEffect(() => {
     const loadTheme = async () => {
       try {
         await syncSettings();
         if (!isLoading && storedTheme !== undefined) {
           const normalizedTheme = normalizeTheme(storedTheme);
-          setActiveThemeState(getDisplayTheme(normalizedTheme, systemIsDark));
+          if (normalizedTheme !== activeThemeRef.current) {
+            setActiveThemeState(normalizedTheme);
+          }
         }
       } catch (error) {
         console.warn('Failed to load theme preference:', error);
@@ -72,12 +95,12 @@ export function Provider({
   }, [systemIsDark, isLoading, storedTheme]);
 
   useEffect(() => {
-    subscribeToSettings((update) => {
+    const unsubscribe = subscribeToSettings((update) => {
       if (update.type === 'updateSetting' && 'theme' in update.setting) {
         const newTheme = update.setting.theme;
         const normalizedTheme = normalizeTheme(newTheme as string);
 
-        setActiveThemeState(getDisplayTheme(normalizedTheme, systemIsDark));
+        setActiveThemeState(normalizedTheme);
 
         themeSettings
           .setValue(normalizedTheme === 'auto' ? null : normalizedTheme)
@@ -92,11 +115,16 @@ export function Provider({
     syncSettings().catch((err) =>
       console.warn('Initial settings sync failed:', err)
     );
+
+    return unsubscribe;
   }, [systemIsDark, refetch]);
 
   useEffect(() => {
     if (!isLoading && !storedTheme) {
-      setActiveThemeState(systemIsDark ? 'dark' : 'light');
+      const defaultTheme = systemIsDark ? 'dark' : 'light';
+      if (activeThemeRef.current !== defaultTheme) {
+        setActiveThemeState(defaultTheme);
+      }
     }
   }, [systemIsDark, isLoading, storedTheme]);
 
@@ -107,7 +135,7 @@ export function Provider({
       <TamaguiProvider
         {...tamaguiProps}
         config={config}
-        defaultTheme={activeTheme}
+        defaultTheme={displayTheme}
       >
         {children}
       </TamaguiProvider>

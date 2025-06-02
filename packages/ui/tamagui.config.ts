@@ -3,6 +3,16 @@ import { createMedia } from '@tamagui/react-native-media-driver';
 import { Platform } from 'react-native';
 import { createFont, createTamagui, createTokens } from 'tamagui';
 
+export const DARK_THEME_NAMES = [
+  'dark',
+  'dracula',
+  'gruvbox',
+  'monokai',
+  'solarized',
+  'nord',
+  'greenscreen',
+];
+
 export const animations = createAnimations({
   simple: {
     type: 'timing',
