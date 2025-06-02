@@ -22,3 +22,4 @@ export * from './inviteApi';
 export * from './hostingApi';
 export * from './apiUtils';
 export * from './systemContactsApi';
+export * from './vitalsApi';
