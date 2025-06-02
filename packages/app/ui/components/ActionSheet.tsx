@@ -434,6 +434,10 @@ const ActionSheetActionGroupContent = styled(YStack, {
         borderColor: '$secondaryBorder',
       },
     },
+    borderless: {
+      true: {},
+      false: {},
+    },
   } as const,
 });
 
@@ -570,8 +574,8 @@ function resolveIcon(icon: IconType | ReactElement, accent: Accent) {
 }
 
 const ActionSheetActionIcon = styled(Icon, {
-  context: ActionSheetActionGroupContext,
   size: '$m',
+  context: ActionSheetActionGroupContext,
   variants: {
     accent: {
       positive: {
@@ -584,6 +588,10 @@ const ActionSheetActionIcon = styled(Icon, {
       disabled: {
         color: '$tertiaryText',
       },
+    },
+    borderless: {
+      true: {},
+      false: {},
     },
   } as const,
 });

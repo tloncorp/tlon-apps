@@ -70,12 +70,24 @@ export async function jsonFetch<T>(
   info: RequestInfo,
   init?: RequestInit
 ): Promise<T> {
-  const res = await fetch(info, init);
-  if (!res.ok) {
-    throw new Error('Bad Fetch Response');
+  try {
+    const res = await fetch(info, init);
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
+
+    const data = await res.json();
+    return data as T;
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error('jsonFetch error:', error.message);
+      throw error;
+    } else {
+      console.error('jsonFetch unknown error:', error);
+      throw new Error('Unknown error occurred during fetch');
+    }
   }
-  const data = await res.json();
-  return data as T;
 }
 
 const isFacebookGraphDependent = (url: string) => {

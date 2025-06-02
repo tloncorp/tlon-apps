@@ -1,7 +1,6 @@
 // Copyright 2025, Tlon Corporation
 import { NavigationContainer, Route } from '@react-navigation/native';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
-import { ShipProvider } from '@tloncorp/app/contexts/ship';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import useDesktopNotifications from '@tloncorp/app/hooks/useDesktopNotifications';
@@ -13,12 +12,12 @@ import {
   getDesktopLinkingConfig,
   getMobileLinkingConfig,
 } from '@tloncorp/app/navigation/linking';
-import { Provider as ThemeProvider } from '@tloncorp/app/provider';
+import { useIsThemeDark } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
+import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
   ForwardPostSheetProvider,
   LoadingSpinner,
-  StoreProvider,
   Text,
   View,
 } from '@tloncorp/app/ui';
@@ -35,7 +34,6 @@ import * as store from '@tloncorp/shared/store';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, {
-  PropsWithChildren,
   useCallback,
   useEffect,
   useMemo,
@@ -43,9 +41,7 @@ import React, {
   useState,
 } from 'react';
 import { Helmet } from 'react-helmet';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import EyrieMenu from '@/eyrie/EyrieMenu';
 import useAppUpdates from '@/logic/useAppUpdates';
 import useErrorHandler from '@/logic/useErrorHandler';
 import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
@@ -321,17 +317,6 @@ function AppRoutes() {
   );
 }
 
-function MigrationCheck({ children }: PropsWithChildren) {
-  const { success, error } = useMigrations();
-  if (!success && !error) {
-    return null;
-  }
-  if (error) {
-    throw error;
-  }
-  return <>{children}</>;
-}
-
 function ConnectedDesktopApp({
   ship,
   shipUrl,
@@ -587,64 +572,66 @@ const App = React.memo(function AppComponent() {
     }
   }, []);
 
+  const migrationState = useMigrations();
+
+  const isDarkMode = useIsThemeDark();
+
   return (
-    <div className="flex h-full w-full flex-col">
-      <ShipProvider>
-        <ThemeProvider>
-          <MigrationCheck>
-            <SafeAreaProvider>
-              <StoreProvider>
-                {isElectron() ? (
-                  isLoading ? (
-                    <View
-                      height="100%"
-                      width="100%"
-                      justifyContent="center"
-                      alignItems="center"
-                      backgroundColor="$secondaryBackground"
-                    >
-                      <View
-                        backgroundColor="$background"
-                        padding="$xl"
-                        borderRadius="$l"
-                        aspectRatio={1}
-                        alignItems="center"
-                        justifyContent="center"
-                        borderWidth={1}
-                        borderColor="$border"
-                      >
-                        <LoadingSpinner color="$primaryText" />
-                        <Text
-                          color="$primaryText"
-                          marginTop="$xl"
-                          fontSize="$s"
-                        >
-                          Loading saved credentials&hellip;
-                        </Text>
-                      </View>
-                    </View>
-                  ) : isAuthenticated && authParams ? (
-                    <ConnectedDesktopApp
-                      ship={authParams.ship}
-                      shipUrl={authParams.shipUrl}
-                      authCookie={authParams.authCookie}
-                    />
-                  ) : (
-                    <DesktopLoginScreen
-                      onLoginSuccess={(params) => {
-                        setAuthParams(params);
-                        setIsAuthenticated(true);
-                      }}
-                    />
-                  )
-                ) : (
-                  <ConnectedWebApp />
-                )}
-              </StoreProvider>
-            </SafeAreaProvider>
-          </MigrationCheck>
-        </ThemeProvider>
-      </ShipProvider>
+    <div
+      style={{
+        display: 'flex',
+        height: '100%',
+        width: '100%',
+        flexDirection: 'column',
+      }}
+    >
+      <BaseProviderStack
+        migrationState={migrationState}
+        tamaguiState={{ defaultTheme: isDarkMode ? 'dark' : 'light' }}
+      >
+        {isElectron() ? (
+          isLoading ? (
+            <View
+              height="100%"
+              width="100%"
+              justifyContent="center"
+              alignItems="center"
+              backgroundColor="$secondaryBackground"
+            >
+              <View
+                backgroundColor="$background"
+                padding="$xl"
+                borderRadius="$l"
+                aspectRatio={1}
+                alignItems="center"
+                justifyContent="center"
+                borderWidth={1}
+                borderColor="$border"
+              >
+                <LoadingSpinner color="$primaryText" />
+                <Text color="$primaryText" marginTop="$xl" fontSize="$s">
+                  Loading saved credentials&hellip;
+                </Text>
+              </View>
+            </View>
+          ) : isAuthenticated && authParams ? (
+            <ConnectedDesktopApp
+              ship={authParams.ship}
+              shipUrl={authParams.shipUrl}
+              authCookie={authParams.authCookie}
+            />
+          ) : (
+            <DesktopLoginScreen
+              onLoginSuccess={(params) => {
+                setAuthParams(params);
+                setIsAuthenticated(true);
+              }}
+            />
+          )
+        ) : (
+          <ConnectedWebApp />
+        )}
+      </BaseProviderStack>
     </div>
   );
 });
@@ -704,9 +691,6 @@ function RoutedApp() {
           <React.Suspense fallback={null}>
             <ReactQueryDevtoolsProduction />
           </React.Suspense>
-          <div className="fixed bottom-4 right-4">
-            <EyrieMenu />
-          </div>
         </>
       )}
     </>

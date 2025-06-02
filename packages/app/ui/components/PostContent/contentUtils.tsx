@@ -31,10 +31,6 @@ export interface ContentContextProps {
   onLongPress?: () => void;
 }
 
-export const ContentContext = createStyledContext<ContentContextProps>({
-  // Inclusion of this property seems to be causing the errors in the console
-  // about `isNotice` not being a valid prop. I'm not sure why this is happening
-  isNotice: false,
-});
+export const ContentContext = createStyledContext<ContentContextProps>();
 
 export const useContentContext = () => useContext(ContentContext);
