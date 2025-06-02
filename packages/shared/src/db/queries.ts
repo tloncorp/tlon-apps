@@ -3716,7 +3716,7 @@ export const insertContacts = createWriteQuery(
         .values(contactsData)
         .onConflictDoUpdate({
           target: $contacts.id,
-          set: conflictUpdateSetAll($contacts),
+          set: conflictUpdateSetAll($contacts, ['isBlocked']),
         });
 
       if (targetGroups.length) {
