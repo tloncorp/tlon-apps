@@ -20,11 +20,7 @@ export interface ConnectionStatusProps {
 
 export const getStatusLabels = (
   status: ConnectionState
-): {
-  title: string;
-  subtitle: string;
-  icon: IconType;
-} => {
+): { title: string; subtitle: string; icon?: IconType } => {
   switch (status) {
     case 'yes':
       return {
@@ -65,7 +61,7 @@ export const getStatusLabels = (
     case 'no-sponsor-hit':
       return {
         title: 'Disconnected',
-        subtitle: 'No connection to peer’s sponsor node',
+        subtitle: "No connection to peer's sponsor node",
         icon: 'Close',
       };
     case 'no-sponsor-miss':
@@ -77,26 +73,23 @@ export const getStatusLabels = (
     case 'no-their-galaxy':
       return {
         title: 'Disconnected',
-        subtitle: 'No connection to peer’s root node',
+        subtitle: "No connection to peer's root node",
         icon: 'Close',
       };
     case 'setting-up':
       return {
         title: 'Connecting...',
         subtitle: 'Setting up...',
-        icon: 'EyeOpen',
       };
     case 'trying-dns':
       return {
         title: 'Connecting...',
         subtitle: 'Trying DNS...',
-        icon: 'EyeOpen',
       };
     case 'trying-local':
       return {
         title: 'Connecting...',
         subtitle: 'Trying our node...',
-        icon: 'EyeOpen',
       };
     case 'trying-target':
       return {
@@ -112,16 +105,15 @@ export const getStatusLabels = (
       };
     default:
       return {
-        title: 'Unknown',
-        subtitle: 'Unknown',
-        icon: 'Placeholder',
+        title: 'Connecting...',
+        subtitle: 'Connecting...',
       };
   }
 };
 
 export const ConnectionStatusComponent = ({
   contactId,
-  autoCheck = false,
+  autoCheck = true,
   mockStatus,
   onPress,
 }: ConnectionStatusProps) => {
@@ -202,10 +194,10 @@ export const ConnectionStatusComponent = ({
           {connectionStatus && (
             <>
               <ListItem.Title>
-                {getStatusLabels(connectionStatus.status).title}
+                {getStatusLabels(connectionStatus.status)?.title}
               </ListItem.Title>
               <ListItem.Subtitle>
-                {error ?? getStatusLabels(connectionStatus.status).subtitle}
+                {error ?? getStatusLabels(connectionStatus.status)?.subtitle}
               </ListItem.Subtitle>
             </>
           )}
@@ -222,7 +214,15 @@ export const ConnectionStatusComponent = ({
         )}
         {!loading && !error && connectionStatus && (
           <ListItem.EndContent>
-            <Icon type={getStatusLabels(connectionStatus.status).icon} />
+            {getStatusLabels(connectionStatus.status).icon ? (
+              <Icon
+                type={
+                  getStatusLabels(connectionStatus.status).icon ?? 'Placeholder'
+                }
+              />
+            ) : (
+              <Spinner size="small" />
+            )}
           </ListItem.EndContent>
         )}
       </ListItem>
