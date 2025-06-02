@@ -262,7 +262,11 @@ function GroupLeaveActions({ group }: { group: db.Group }) {
         accent="negative"
       >
         {leaveActions.actions.map((action, i) => (
-          <ActionSheet.Action key={i} action={action} />
+          <ActionSheet.Action
+            key={i}
+            action={action}
+            testID={`GroupLeaveAction-${action.title}`}
+          />
         ))}
       </ActionSheet.ActionGroup>
       <DeleteSheet
