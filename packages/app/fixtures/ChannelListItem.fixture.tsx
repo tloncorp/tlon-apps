@@ -1,3 +1,6 @@
+import type { ChatMember, VolumeSettings } from '@tloncorp/shared/db';
+import type { NotificationLevel } from '@tloncorp/shared/urbit';
+
 import { ChannelListItem, View } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 import {
@@ -21,8 +24,8 @@ const channelMuted = {
   volumeSettings: {
     itemId: 'chat/~nibset-napwyn/muted-channel',
     itemType: 'channel' as const,
-    level: 'hush' as const,
-  } as any,
+    level: 'hush' as NotificationLevel,
+  } satisfies VolumeSettings,
   lastPost: postWithText,
 };
 
@@ -47,8 +50,8 @@ const channelMutedWithDeletedPost = {
   volumeSettings: {
     itemId: 'heap/~nibset-napwyn/muted-deleted',
     itemType: 'channel' as const,
-    level: 'hush' as const,
-  } as any,
+    level: 'hush' as NotificationLevel,
+  } satisfies VolumeSettings,
   lastPost: postWithDeleted,
 };
 
@@ -78,7 +81,7 @@ const dmChannel = {
         color: '#00FF00',
       },
     },
-  ] as any,
+  ] satisfies ChatMember[],
 };
 
 const dmChannelMuted = {
@@ -88,8 +91,8 @@ const dmChannelMuted = {
   volumeSettings: {
     itemId: '~solfer-magfed/dm-muted',
     itemType: 'channel' as const,
-    level: 'hush' as const,
-  } as any,
+    level: 'hush' as NotificationLevel,
+  } satisfies VolumeSettings,
   members: [
     {
       contactId: '~solfer-magfed',
@@ -100,7 +103,7 @@ const dmChannelMuted = {
         color: '#FFFF99',
       },
     },
-  ] as any,
+  ] satisfies ChatMember[],
 };
 
 export default {
@@ -120,8 +123,8 @@ export default {
     <FixtureWrapper fillWidth>
       <View gap="$s" paddingHorizontal="$l">
         <ChannelListItem model={tlonLocalIntros} />
-        <ChannelListItem model={channelMuted as any} />
-        <ChannelListItem model={channelMutedWithDeletedPost as any} />
+        <ChannelListItem model={channelMuted} />
+        <ChannelListItem model={channelMutedWithDeletedPost} />
       </View>
     </FixtureWrapper>
   ),
@@ -130,9 +133,9 @@ export default {
     <FixtureWrapper fillWidth>
       <View gap="$s" paddingHorizontal="$l">
         <ChannelListItem model={tlonLocalIntros} />
-        <ChannelListItem model={channelWithDeletedPost as any} />
-        <ChannelListItem model={channelWithHiddenPost as any} />
-        <ChannelListItem model={channelWithNoPosts as any} />
+        <ChannelListItem model={channelWithDeletedPost} />
+        <ChannelListItem model={channelWithHiddenPost} />
+        <ChannelListItem model={channelWithNoPosts} />
       </View>
     </FixtureWrapper>
   ),
@@ -140,8 +143,8 @@ export default {
   dmChannels: (
     <FixtureWrapper fillWidth>
       <View gap="$s" paddingHorizontal="$l">
-        <ChannelListItem model={dmChannel as any} />
-        <ChannelListItem model={dmChannelMuted as any} />
+        <ChannelListItem model={dmChannel} />
+        <ChannelListItem model={dmChannelMuted} />
       </View>
     </FixtureWrapper>
   ),
@@ -150,13 +153,13 @@ export default {
     <FixtureWrapper fillWidth>
       <View gap="$s" paddingHorizontal="$l">
         <ChannelListItem model={tlonLocalIntros} />
-        <ChannelListItem model={channelMuted as any} />
-        <ChannelListItem model={channelWithDeletedPost as any} />
-        <ChannelListItem model={channelWithHiddenPost as any} />
-        <ChannelListItem model={channelMutedWithDeletedPost as any} />
-        <ChannelListItem model={channelWithNoPosts as any} />
-        <ChannelListItem model={dmChannel as any} />
-        <ChannelListItem model={dmChannelMuted as any} />
+        <ChannelListItem model={channelMuted} />
+        <ChannelListItem model={channelWithDeletedPost} />
+        <ChannelListItem model={channelWithHiddenPost} />
+        <ChannelListItem model={channelMutedWithDeletedPost} />
+        <ChannelListItem model={channelWithNoPosts} />
+        <ChannelListItem model={dmChannel} />
+        <ChannelListItem model={dmChannelMuted} />
       </View>
     </FixtureWrapper>
   ),

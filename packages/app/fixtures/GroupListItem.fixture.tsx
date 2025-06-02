@@ -1,3 +1,6 @@
+import type { VolumeSettings } from '@tloncorp/shared/db';
+import type { NotificationLevel } from '@tloncorp/shared/urbit';
+
 import { GroupListItem, View } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 import {
@@ -21,8 +24,8 @@ const groupMuted = {
   volumeSettings: {
     itemId: '~nibset-napwyn/tlon/muted-group',
     itemType: 'group' as const,
-    level: 'soft' as const,
-  } as any,
+    level: 'soft' as NotificationLevel,
+  } satisfies VolumeSettings,
   lastPost: postWithText,
 };
 
@@ -47,8 +50,8 @@ const groupMutedWithDeletedPost = {
   volumeSettings: {
     itemId: '~nibset-napwyn/tlon/muted-deleted',
     itemType: 'group' as const,
-    level: 'hush' as const,
-  } as any,
+    level: 'hush' as NotificationLevel,
+  } satisfies VolumeSettings,
   lastPost: postWithDeleted,
 };
 
@@ -77,8 +80,8 @@ export default {
     <FixtureWrapper fillWidth>
       <View gap="$s" paddingHorizontal="$l">
         <GroupListItem model={groupWithColorAndNoImage} />
-        <GroupListItem model={groupMuted as any} />
-        <GroupListItem model={groupMutedWithDeletedPost as any} />
+        <GroupListItem model={groupMuted} />
+        <GroupListItem model={groupMutedWithDeletedPost} />
       </View>
     </FixtureWrapper>
   ),
@@ -87,9 +90,9 @@ export default {
     <FixtureWrapper fillWidth>
       <View gap="$s" paddingHorizontal="$l">
         <GroupListItem model={groupWithColorAndNoImage} />
-        <GroupListItem model={groupWithDeletedPost as any} />
-        <GroupListItem model={groupWithHiddenPost as any} />
-        <GroupListItem model={groupWithNoPosts as any} />
+        <GroupListItem model={groupWithDeletedPost} />
+        <GroupListItem model={groupWithHiddenPost} />
+        <GroupListItem model={groupWithNoPosts} />
       </View>
     </FixtureWrapper>
   ),
@@ -98,11 +101,11 @@ export default {
     <FixtureWrapper fillWidth>
       <View gap="$s" paddingHorizontal="$l">
         <GroupListItem model={groupWithColorAndNoImage} />
-        <GroupListItem model={groupMuted as any} />
-        <GroupListItem model={groupWithDeletedPost as any} />
-        <GroupListItem model={groupWithHiddenPost as any} />
-        <GroupListItem model={groupMutedWithDeletedPost as any} />
-        <GroupListItem model={groupWithNoPosts as any} />
+        <GroupListItem model={groupMuted} />
+        <GroupListItem model={groupWithDeletedPost} />
+        <GroupListItem model={groupWithHiddenPost} />
+        <GroupListItem model={groupMutedWithDeletedPost} />
+        <GroupListItem model={groupWithNoPosts} />
       </View>
     </FixtureWrapper>
   ),
