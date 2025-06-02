@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getFallbackLinkMetadata, getLinkMetadata } from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import { isValidUrl } from '../logic';
+import { isTrustedEmbed, isValidUrl, trustedProviders } from '../logic';
 
 const logger = createDevLogger('metagrabActions', false);
 
@@ -19,7 +19,16 @@ export async function getLinkMetaWithFallback(url: string) {
     !response.previewImageUrl &&
     !response.description;
 
-  if (failedToGetMeta || metaInsufficient) {
+  const twitterEmbedProvider = trustedProviders.find(
+    (tp) => tp.name === 'Twitter'
+  );
+
+  // for now, special case twitter links (metagrab is insufficient). Once we can proxy
+  // oembed, we should instead use that
+  const isTwitterUrl =
+    !!twitterEmbedProvider && isTrustedEmbed(url, [twitterEmbedProvider]);
+
+  if (failedToGetMeta || metaInsufficient || isTwitterUrl) {
     const settings = await db.getSettings();
     const shouldUseFallback = !settings?.disableTlonInfraEnhancement;
     if (shouldUseFallback) {
