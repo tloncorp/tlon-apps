@@ -38,7 +38,15 @@
 +$  admins  (set role-id)
 ::  $channel-preview: channel preview
 ::
-+$  channel-preview  [=nest meta=data:meta]
+::  .nest: channel id
+::  .meta: channel metadata
+::  .preview: group preview
+::
++$  channel-preview
+  $:  =nest
+      meta=data:meta
+      =preview
+  ==
 ::  $channel: a collection of metadata about a channel
 ::
 ::  .meta: channel description
@@ -60,7 +68,7 @@
 ::
 ::  .privacy: determines group visibility
 ::  .banned: ships and ranks blacklist
-::  .requests: entry requests 
+::  .requests: entry requests
 ::  .tokens: access tokens
 ::  .referrals: token attribution
 ::  .invited: invited guest list
@@ -129,7 +137,7 @@
 ::  .preview: group preview
 ::  .sign: preview host signature
 ::
-::  TODO: group invitation should be attested 
+::  TODO: group invitation should be attested
 ::        for by the group host, who should sign
 ::        the [token from preview] triple.
 ::
@@ -211,7 +219,7 @@
       =flagged-content
   ==
 ::
-+$  group-ui  
++$  group-ui
   $:  =group
       init=?
       member-count=@ud
@@ -782,16 +790,6 @@
     ::
     +$  sect  term
     ::
-    +$  preview
-      $:  =flag
-          meta=data:meta
-          =cordon
-          =time
-          secret=?
-      ==
-    ::
-    +$  previews  (map flag preview)
-    ::
     ++  zone
       |^  zone
       ::
@@ -826,6 +824,16 @@
             [%del-sects sects=(set sect)]
         ==
       --
+    ::
+    +$  preview
+      $:  =flag
+          meta=data:meta
+          =cordon
+          =time
+          secret=?
+      ==
+    ::
+    +$  previews  (map flag preview)
     ::
     ++  channel
       |^  channel

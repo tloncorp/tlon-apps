@@ -58,7 +58,7 @@
       abet:init:cor
     [cards this]
   ::
-  ++  on-save  !>([state okay:g])
+  ++  on-save  !>([state ~])
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
@@ -280,27 +280,19 @@
         token.i.invites.foreign
       fi-abet:(fi-join:(fi-abed:fi-core flag.join) tok)
     ::
-
-    ::
         %group-knock
-      ::  this poke is used to add oneself to the ask set
-      ::  of a shut group
-      ::
       ?>  from-self
-      ~|(%group-knock-unimplemented !!)
-      ::XX use the %ask command
-      :: =+  !<(=flag:g vase)
-      :: ga-abet:ga-knock:(ga-abed:gang-core flag)
+      =+  !<(=flag:g vase)
+      =/  =foreign-action:v7:g
+        [%foreign flag %ask ~]
+      $(+< foreign-action-1+foreign-action)
     ::
         %group-rescind
-      ::XX use the %leave command
-      ::  this poke is used to remove oneself from
-      ::  the ask set of a shut group
-      ::
       ?>  from-self
-      ~|(%group-rescind-unimplemented !!)
-      :: =+  !<(=flag:g vase)
-      :: ga-abet:ga-rescind:(ga-abed:gang-core flag)
+      =+  !<(=flag:g vase)
+      =/  =foreign-action:v7:g
+        [%foreign flag %cancel ~]
+      $(+< foreign-action-1+foreign-action)
     ::
         %group-cancel
       =+  !<(=flag:g vase)
@@ -312,7 +304,7 @@
       ?:  =(q.invite-2 our.bowl)
         ::  invitee, deprecated
         ::
-        ~|(%group-invite-deprecated !!)
+        ~|(group-invite-deprecated+%invitee !!)
       :: inviter
       ::
       ?>  (~(has by groups) p.invite-2)
@@ -497,7 +489,7 @@
 ++  load
   |^  |=  =vase
   ^+  cor
-  =+  !<([old=versioned-state cool=*] vase)
+  =+  !<([old=any-state *] vase)
   =?  old  ?=(%0 -.old)  (state-0-to-1 old)
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
   =?  old  ?=(%2 -.old)  (state-2-to-3 old)
@@ -527,7 +519,7 @@
   inflate-io
   ::
   ::
-  +$  versioned-state
+  +$  any-state
     $%  state-7
         state-6
         state-5
@@ -1050,6 +1042,7 @@
         src.bowl
       (~(got by channels.group) nest)
     $(gs t.gs)
+  ::TODO migrate to new types
   =/  =preview:channel:v2:g
     =,  group
     =*  ad  admissions
@@ -1561,7 +1554,7 @@
     ::
     ?-    -.c-seat
         %add
-      ::TODO update requests 
+      ::TODO update requests
       ::XX prevent re-adding a seat
       =.  seats.group
         %-  ~(uni by seats.group)
@@ -1583,8 +1576,7 @@
         |=  [=ship =_se-core]
         =+  seat=(~(got by seats.group) ship)
         (se-update:se-core %seat (sy ship ~) [%add seat])
-      ::  deprecated logic: send invites to manually
-      ::  added ships
+      ::  send invites to manually added ships
       ::
       =?  se-core  !user-join  (se-send-invites flag ships)
       se-core
@@ -1774,7 +1766,7 @@
   ::CONTINUE
   ::  +se-channel-del-roles: remove roles from channel readers
   ::
-  ++  se-channel-del-roles
+  ++  se-channel-del-roleg
     |=  [=nest:g roles=(set role-id:g)]
     ^+  se-core
     =.  channels.group
@@ -1970,7 +1962,7 @@
         privacy.admissions
     ==
   --
-  
+
 ::  +go-core: group client core
 ::
 ++  go-core
@@ -2120,7 +2112,6 @@
   ::  +go-has-sub: check if we are subscribed to the group
   ::
   ++  go-has-sub
-    ::XX verify this is the correct wire. does not seem correct
     (~(has by wex.bowl) [(snoc go-area %updates) p.flag server])
   ::  +go-safe-sub: safely subscribe to the group for updates
   ::
@@ -2180,10 +2171,9 @@
   ::
   ++  go-a-invite
     |=  =a-invite:g
-    ~&  go-a-invite+a-invite
     ?:  &(?=(~ token.a-invite) !?=(%public privacy.ad))
-      ::  if we don't have suitable token, we are
-      ::  going to request it
+      ::  if we don't have a suitable token for a non-public group,
+      ::  we are going to request it
       ::
       ::  TODO: this loses the note.a-invite.
       ::
@@ -2200,7 +2190,7 @@
           note.a-invite
           go-preview
       ==
-    =.  invited.ad  
+    =.  invited.ad
       (~(put by invited.ad) ship.a-invite [now.bowl token.a-invite])
     =.  cor
       =/  =cage
@@ -2256,7 +2246,7 @@
       %-  (slog u.p.sign)
       go-core
     ::
-        ::  requested a personal invite token
+        ::  requested a personal invite token for a ship
         ::
         [%invite ship=@ %token ~]
       ?+    -.sign  ~|(go-agent-bad-invite-token+-.sign !!)
@@ -2268,7 +2258,7 @@
         (slog leaf/"Failed invite token subscription" u.p.sign)
       ::
           %fact
-        ::NB even though here we receive a group update, 
+        ::NB even though here we receive a group update,
         ::   for now personal tokens are not stored and are
         ::   only used for immediately issuing an invite.
         ::
@@ -2523,7 +2513,6 @@
         %del
       =+  leave=(~(has in ships) our.bowl)
       =.  go-core  (go-response %seat ships [%del ~])
-      ::XX make sure the host can't kick himself
       =.  go-core
         %-  ~(rep in ships)
         |=  [=ship =_go-core]
@@ -3035,7 +3024,7 @@
       ^-  card
       =/  =wire  (weld fi-area /join/[?~(tok %public (scot %uv u.tok))])
       =/  =cage
-        group-command+!>(`c-groups:g`[%join flag tok]) 
+        group-command+!>(`c-groups:g`[%join flag tok])
       [%pass wire %agent [p.flag server] %poke cage]
     ::
     ++  ask
@@ -3043,7 +3032,7 @@
       ^-  card
       =/  =wire  (weld fi-area /join/ask)
       =/  =cage
-        group-command+!>(`c-groups:g`[%ask flag story]) 
+        group-command+!>(`c-groups:g`[%ask flag story])
       [%pass wire %agent [p.flag server] %poke cage]
     ::
     ++  preview
@@ -3053,7 +3042,7 @@
       =/  =dock  [p.flag dap.bowl]
       =/  =path  /server/groups/(scot %p p.flag)/[q.flag]/preview
       =/  watch  [%pass wire %agent dock %watch path]
-      ?:  =(p.flag our.bowl)  
+      ?:  =(p.flag our.bowl)
         ::XX presumably this is because we are sure of the kick
         ::   for self-subscriptions?
         ::
@@ -3140,7 +3129,7 @@
     ^+  fi-core
     =+  pro=progress  ::TMI
     ?:  ?=(~ pro)  fi-core
-    ?-    u.pro  
+    ?-    u.pro
         ?(%ask %join)
       =.  cor  (emit leave-group:fi-pass)
       =.  progress  ~
