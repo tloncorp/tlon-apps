@@ -207,7 +207,7 @@ export function ChatListScreenView({
 
   useEffect(() => {
     if (activeTab === 'home') {
-      setScreenTitle('Home');
+      setScreenTitle('Homel');
     } else if (activeTab === 'groups') {
       setScreenTitle('Groups');
     } else if (activeTab === 'messages') {

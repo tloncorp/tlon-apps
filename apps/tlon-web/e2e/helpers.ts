@@ -24,18 +24,17 @@ export async function createGroup(page: Page) {
   }
 }
 
-export async function deleteGroup(page: Page) {
+export async function deleteGroup(page: Page, groupName?: string) {
   await page.getByTestId('GroupLeaveAction-Delete group').click();
-  await expect(page.getByText('Delete Untitled group?')).toBeVisible();
+  await expect(
+    page.getByText(`Delete ${groupName || 'Untitled group'}?`)
+  ).toBeVisible();
   await page.getByTestId('ActionSheetAction-Delete group').click();
-  await expect(page.getByText('Untitled group')).not.toBeVisible();
+  await expect(page.getByText(groupName || 'Untitled group')).not.toBeVisible();
 }
 
 export async function openGroupSettings(page: Page) {
-  await page
-    .locator('[data-testid="GroupOptionsSheetTrigger"]')
-    .first()
-    .click();
+  await page.getByTestId('GroupOptionsSheetTrigger').first().click();
   await expect(page.getByText('Group info & settings')).toBeVisible();
   await page.getByText('Group info & settings').click();
 }
@@ -341,4 +340,210 @@ export async function verifyElementCount(
       .locator('div')
       .filter({ hasText: expectedCount.toString() })
   ).toBeVisible();
+}
+
+/**
+ * Opens the group customization screen
+ */
+export async function openGroupCustomization(page: Page) {
+  await page.getByText('Customize').click();
+  await expect(page.getByText('Edit group info')).toBeVisible();
+}
+
+/**
+ * Changes the group name
+ */
+export async function changeGroupName(page: Page, newName: string) {
+  await page.getByTestId('GroupTitleInput').click();
+  await fillFormField(page, 'GroupTitleInput', newName, true);
+  await page.getByText('Save').click();
+}
+
+/**
+ * Changes the group description
+ */
+export async function changeGroupDescription(page: Page, description: string) {
+  await page.getByTestId('GroupDescriptionInput').click();
+  await fillFormField(page, 'GroupDescriptionInput', description, true);
+  await page.getByText('Save').click();
+}
+
+/**
+ * Attempts to change group icon (handles web file picker behavior)
+ */
+export async function changeGroupIcon(page: Page, imagePath?: string) {
+  await page.getByText('Change icon image').click();
+
+  const fileInput = page.locator('input[type="file"]');
+  if (await fileInput.isVisible()) {
+    if (imagePath) {
+      // Upload a specific image file
+      await fileInput.setInputFiles(imagePath);
+    } else {
+      // Just verify the interface is accessible and cancel
+      await expect(fileInput).toBeVisible();
+      const cancelButton = page.getByText('Cancel');
+      if (await cancelButton.isVisible()) {
+        await cancelButton.click();
+      }
+    }
+  }
+}
+
+// Chat-related helper functions
+
+/**
+ * Sends a message in the current channel
+ */
+export async function sendMessage(page: Page, message: string) {
+  await page.getByTestId('MessageInput').click();
+  await page.fill('[data-testid="MessageInput"]', message);
+  await page.getByTestId('MessageInputSendButton').click();
+  // Wait for message to appear
+  await expect(page.getByText(message, { exact: true })).toBeVisible();
+}
+
+/**
+ * Long presses on a message to open the context menu
+ */
+export async function longPressMessage(page: Page, messageText: string) {
+  // Not really a longpress since this is web.
+  await page.getByText(messageText).first().click();
+  await page.getByTestId('MessageActionsTrigger').click();
+  await page.waitForTimeout(300);
+}
+
+/**
+ * Starts a thread from a message
+ */
+export async function startThread(page: Page, messageText: string) {
+  await longPressMessage(page, messageText);
+  await page.getByText('Start thread').click();
+  await expect(page.getByRole('textbox', { name: 'Reply' })).toBeVisible();
+}
+
+/**
+ * Sends a reply in a thread
+ */
+export async function sendThreadReply(page: Page, replyText: string) {
+  await page.getByRole('textbox', { name: 'Reply' }).click();
+  await page.getByRole('textbox', { name: 'Reply' }).fill(replyText);
+  await page
+    .locator('#reply-container')
+    .getByTestId('MessageInputSendButton')
+    .click();
+  await expect(page.getByText(replyText)).toBeVisible();
+}
+
+/**
+ * Reacts to a message with an emoji
+ */
+export async function reactToMessage(
+  page: Page,
+  messageText: string,
+  emoji: 'thumb' | 'heart' | 'laugh' = 'thumb'
+) {
+  await longPressMessage(page, messageText);
+  await page.getByTestId(`EmojiToolbarButton-${emoji}`).click();
+
+  // Map emoji names to actual emoji characters
+  const emojiMap = {
+    thumb: '👍',
+    heart: '❤️',
+    laugh: '😂',
+  };
+
+  await expect(page.getByText(emojiMap[emoji])).toBeVisible();
+}
+
+/**
+ * Removes a reaction from a message
+ */
+export async function removeReaction(page: Page, emoji: string = '👍') {
+  await page.getByTestId('ReactionDisplay').click();
+  await expect(page.getByText(emoji)).not.toBeVisible();
+}
+
+/**
+ * Quote replies to a message
+ */
+export async function quoteReply(
+  page: Page,
+  originalMessage: string,
+  replyText: string
+) {
+  await longPressMessage(page, originalMessage);
+  await page.getByText('Reply', { exact: true }).click();
+
+  // Verify quote interface appears
+  await expect(page.getByText('Chat Post')).toBeVisible();
+  await expect(page.getByText(originalMessage).nth(1)).toBeVisible(); // Quote shows original
+
+  await page.getByTestId('MessageInput').click();
+  await page.fill('[data-testid="MessageInput"]', replyText);
+  await page.getByTestId('MessageInputSendButton').click();
+
+  await expect(page.getByText(replyText)).toBeVisible();
+}
+
+/**
+ * Hides a message
+ */
+export async function hideMessage(page: Page, messageText: string) {
+  await longPressMessage(page, messageText);
+  await page.getByText('Hide message').click();
+  await expect(page.getByText(messageText)).not.toBeVisible();
+}
+
+/**
+ * Reports a message
+ */
+export async function reportMessage(page: Page, messageText: string) {
+  await longPressMessage(page, messageText);
+  await page.getByText('Report message').click();
+  await expect(page.getByText(messageText)).not.toBeVisible();
+}
+
+/**
+ * Deletes a message
+ */
+export async function deleteMessage(page: Page, messageText: string) {
+  await longPressMessage(page, messageText);
+  await page.getByText('Delete message').click();
+  await expect(page.getByText(messageText)).not.toBeVisible();
+}
+
+/**
+ * Edits a message
+ */
+export async function editMessage(
+  page: Page,
+  originalText: string,
+  newText: string
+) {
+  await longPressMessage(page, originalText);
+  await page.getByText('Edit message').click();
+
+  // Click on the message text to edit it
+  await page.getByText(originalText).nth(1).click();
+
+  // Clear existing text and input new text
+  await page.keyboard.press('Control+a'); // Select all text
+  await page.keyboard.type(newText);
+
+  await page.getByTestId('MessageInputSendButton').click();
+  await expect(page.getByText(newText)).toBeVisible();
+}
+
+/**
+ * Verifies message preview on Home screen
+ */
+export async function verifyMessagePreviewOnHome(
+  page: Page,
+  messageText: string
+) {
+  await navigateBack(page);
+  if (await page.getByText('Home').isVisible()) {
+    await expect(page.getByText(messageText)).toBeVisible();
+  }
 }

@@ -286,6 +286,7 @@ const ChatMessage = ({
                 backgroundColor="transparent"
                 borderWidth="unset"
                 size="$l"
+                testID="MessageActionsTrigger"
               >
                 <Icon type="Overflow" />
               </Button>
