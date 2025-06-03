@@ -213,7 +213,12 @@ export function convertContent(input: unknown): PostContent {
     } else if ('block' in verse) {
       blocks.push(convertBlock(verse.block));
     } else if ('inline' in verse) {
-      blocks.push(...convertTopLevelInline(verse));
+      // if we already have an embed or link block, avoid duplicating it
+      // if there's another one inline
+      const supressInlineEmbeds = blocks.some(
+        (b) => b.type === 'embed' || b.type === 'link'
+      );
+      blocks.push(...convertTopLevelInline(verse, supressInlineEmbeds));
     } else {
       console.warn('Unhandled verse type:', { verse });
       blocks.push({
@@ -254,14 +259,20 @@ export function usePostLastEditContent(post: Post): BlockData[] {
  * etc.)
  */
 
-function convertTopLevelInline(verse: ub.VerseInline): BlockData[] {
+function convertTopLevelInline(
+  verse: ub.VerseInline,
+  supressInlineEmbeds?: boolean
+): BlockData[] {
   const blocks: BlockData[] = [];
   let currentInlines: ub.Inline[] = [];
 
   function flushCurrentBlock() {
     if (currentInlines.length) {
       // Process the inlines to extract trusted embeds and split paragraphs
-      const processedBlocks = extractEmbedsFromInlines(currentInlines);
+      const processedBlocks = processParagraphsAndEmbeds(
+        currentInlines,
+        supressInlineEmbeds
+      );
       blocks.push(...processedBlocks);
       currentInlines = [];
     }
@@ -305,7 +316,10 @@ function convertTopLevelInline(verse: ub.VerseInline): BlockData[] {
 }
 
 // Process inlines to extract embeds as separate blocks
-function extractEmbedsFromInlines(inlines: ub.Inline[]): BlockData[] {
+function processParagraphsAndEmbeds(
+  inlines: ub.Inline[],
+  supressInlineEmbeds?: boolean
+): BlockData[] {
   const blocks: BlockData[] = [];
   let currentSegment: ub.Inline[] = [];
 
@@ -336,7 +350,7 @@ function extractEmbedsFromInlines(inlines: ub.Inline[]): BlockData[] {
       const isEmbed = isTrustedEmbed(inline.link.href);
       const isNotFormattedText = inline.link.href === inline.link.content;
 
-      if (isEmbed && isNotFormattedText) {
+      if (isEmbed && isNotFormattedText && !supressInlineEmbeds) {
         // Flush the current segment before adding the embed
         flushSegment();
 
