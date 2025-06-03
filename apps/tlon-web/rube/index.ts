@@ -564,7 +564,7 @@ const runPlaywrightTests = async () => {
   const runTestForShip = (ship: string) =>
     new Promise<void>((resolve, reject) => {
       console.log(`Running tests for ${ship}`);
-      const playwrightArgs = ['playwright', 'test', '--workers=2', ''];
+      const playwrightArgs = ['playwright', 'test', '--workers=1', ''];
 
       if (process.env.DEBUG_PLAYWRIGHT) {
         playwrightArgs.push('--debug');
@@ -596,7 +596,7 @@ const runPlaywrightTests = async () => {
   const runTests = () =>
     new Promise<void>((resolve, reject) => {
       console.log(`Running tests`);
-      const playwrightArgs = ['playwright', 'test', '--workers=2', ''];
+      const playwrightArgs = ['playwright', 'test', '--workers=1', ''];
 
       if (process.env.DEBUG_PLAYWRIGHT) {
         playwrightArgs.push('--debug');

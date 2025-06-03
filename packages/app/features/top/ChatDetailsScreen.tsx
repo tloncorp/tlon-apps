@@ -508,6 +508,7 @@ function ChatMembersList({
               gap="$l"
               alignItems="center"
               $group-press={{ backgroundColor: '$secondaryBackground' }}
+              testID="GroupMembers"
             >
               <TlonText.Text size="$label/l">
                 {canManage ? 'Manage members' : 'See all '}
