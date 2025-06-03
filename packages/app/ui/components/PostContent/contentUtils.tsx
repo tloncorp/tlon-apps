@@ -215,10 +215,10 @@ export function convertContent(input: unknown): PostContent {
     } else if ('inline' in verse) {
       // if we already have an embed or link block, avoid duplicating it
       // if there's another one inline
-      const supressInlineEmbeds = blocks.some(
+      const suppressInlineEmbeds = blocks.some(
         (b) => b.type === 'embed' || b.type === 'link'
       );
-      blocks.push(...convertTopLevelInline(verse, supressInlineEmbeds));
+      blocks.push(...convertTopLevelInline(verse, suppressInlineEmbeds));
     } else {
       console.warn('Unhandled verse type:', { verse });
       blocks.push({
@@ -261,7 +261,7 @@ export function usePostLastEditContent(post: Post): BlockData[] {
 
 function convertTopLevelInline(
   verse: ub.VerseInline,
-  supressInlineEmbeds?: boolean
+  suppressInlineEmbeds?: boolean
 ): BlockData[] {
   const blocks: BlockData[] = [];
   let currentInlines: ub.Inline[] = [];
@@ -271,7 +271,7 @@ function convertTopLevelInline(
       // Process the inlines to extract trusted embeds and split paragraphs
       const processedBlocks = processParagraphsAndEmbeds(
         currentInlines,
-        supressInlineEmbeds
+        suppressInlineEmbeds
       );
       blocks.push(...processedBlocks);
       currentInlines = [];
@@ -318,7 +318,7 @@ function convertTopLevelInline(
 // Process inlines to extract embeds as separate blocks
 function processParagraphsAndEmbeds(
   inlines: ub.Inline[],
-  supressInlineEmbeds?: boolean
+  suppressInlineEmbeds?: boolean
 ): BlockData[] {
   const blocks: BlockData[] = [];
   let currentSegment: ub.Inline[] = [];
@@ -350,7 +350,7 @@ function processParagraphsAndEmbeds(
       const isEmbed = isTrustedEmbed(inline.link.href);
       const isNotFormattedText = inline.link.href === inline.link.content;
 
-      if (isEmbed && isNotFormattedText && !supressInlineEmbeds) {
+      if (isEmbed && isNotFormattedText && !suppressInlineEmbeds) {
         // Flush the current segment before adding the embed
         flushSegment();
 
