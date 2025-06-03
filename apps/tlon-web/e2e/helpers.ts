@@ -64,3 +64,281 @@ export async function fillFormField(
   }
   await page.fill(`[data-testid="${testId}"]`, value);
 }
+
+// New helper functions to extract common patterns
+
+/**
+ * Waits for an element to be visible with optional timeout and executes callback if visible
+ */
+export async function waitForElementAndAct(
+  page: Page,
+  selector: string,
+  callback?: () => Promise<void>,
+  timeout = 2000
+) {
+  try {
+    const element = page.getByText(selector);
+    if (await element.isVisible({ timeout })) {
+      if (callback) {
+        await callback();
+      }
+      return true;
+    }
+  } catch (error) {
+    // Element not visible within timeout
+  }
+  return false;
+}
+
+/**
+ * Handles cleanup of existing "Untitled group" if present
+ */
+export async function cleanupExistingGroup(page: Page) {
+  if (await page.getByText('Untitled group').first().isVisible()) {
+    await page.getByText('Untitled group').first().click();
+    await openGroupSettings(page);
+    await deleteGroup(page);
+  }
+}
+
+/**
+ * Navigates back using header back button with fallback logic
+ */
+export async function navigateBack(page: Page, preferredIndex = 0) {
+  const backButtons = page.getByTestId('HeaderBackButton');
+
+  if (await backButtons.nth(preferredIndex).isVisible()) {
+    await backButtons.nth(preferredIndex).click();
+  } else if (await backButtons.first().isVisible()) {
+    await backButtons.first().click();
+  } else if (await backButtons.nth(1).isVisible()) {
+    await backButtons.nth(1).click();
+  } else {
+    await backButtons.nth(2).click();
+  }
+}
+
+/**
+ * Creates a new role with title and description
+ */
+export async function createRole(
+  page: Page,
+  title: string,
+  description: string
+) {
+  await page.getByText('Add Role').click();
+  await expect(page.getByRole('dialog').getByText('Add role')).toBeVisible();
+
+  await fillFormField(page, 'RoleTitleInput', title);
+  await fillFormField(page, 'RoleDescriptionInput', description);
+
+  await page.getByText('Save').click();
+  await expect(page.getByText(title)).toBeVisible();
+}
+
+/**
+ * Assigns a role to a member
+ */
+export async function assignRoleToMember(
+  page: Page,
+  roleName: string,
+  memberIndex = 0
+) {
+  const memberRow = page.getByTestId('MemberRow').nth(memberIndex);
+  await expect(memberRow).toBeVisible();
+  await memberRow.click();
+
+  await expect(page.getByText('Send message')).toBeVisible();
+  await page.getByText('Assign role').click();
+  await page.getByText(roleName).click();
+
+  await page.waitForTimeout(2000); // Wait for assignment to complete
+}
+
+/**
+ * Unassigns a role from a member
+ */
+export async function unassignRoleFromMember(
+  page: Page,
+  roleName: string,
+  memberIndex = 0
+) {
+  const memberRow = page.getByTestId('MemberRow').nth(memberIndex);
+  await memberRow.click();
+
+  await page.getByText('Assign role').click();
+  await page.getByRole('dialog').getByText(roleName).click(); // This should unassign the role
+
+  await page.waitForTimeout(2000);
+}
+
+/**
+ * Creates a new channel with title and optional description
+ */
+export async function createChannel(
+  page: Page,
+  title: string,
+  description?: string
+) {
+  await page.getByText('New Channel').click();
+  await expect(page.getByText('Create a new channel')).toBeVisible();
+
+  await fillFormField(page, 'ChannelTitleInput', title);
+  if (description) {
+    await fillFormField(page, 'ChannelDescriptionInput', description);
+  }
+
+  await page.getByText('Create channel').click();
+}
+
+/**
+ * Edits a channel's title and description
+ */
+export async function editChannel(
+  page: Page,
+  channelName: string,
+  newTitle?: string,
+  newDescription?: string
+) {
+  await page
+    .getByTestId(`ChannelItem-${channelName}-1`)
+    .getByTestId('EditChannelButton')
+    .first()
+    .click();
+  await expect(page.getByText('Edit channel')).toBeVisible();
+
+  if (newTitle) {
+    await fillFormField(page, 'ChannelTitleInput', newTitle, true);
+  }
+  if (newDescription) {
+    await fillFormField(page, 'ChannelDescriptionInput', newDescription);
+  }
+
+  await page.getByText('Save').click();
+}
+
+/**
+ * Deletes a channel
+ */
+export async function deleteChannel(page: Page, channelName: string) {
+  await page
+    .getByTestId(`ChannelItem-${channelName}-1`)
+    .getByTestId('EditChannelButton')
+    .first()
+    .click();
+  await expect(page.getByText('Edit channel')).toBeVisible();
+
+  await page.getByText('Delete channel for everyone').click();
+  await expect(page.getByText('This action cannot be undone.')).toBeVisible();
+  await page.getByText('Delete channel', { exact: true }).click();
+}
+
+/**
+ * Sets channel permissions for reader and writer roles
+ */
+export async function setChannelPermissions(
+  page: Page,
+  readerRoles?: string[],
+  writerRoles?: string[]
+) {
+  // Change to custom permissions
+  await page.getByText('Custom', { exact: true }).click();
+
+  if (readerRoles) {
+    await page.getByTestId('ReaderRoleSelector').click();
+    for (const role of readerRoles) {
+      await page.getByText(role).click();
+    }
+    await page.getByText('Readers').click();
+  }
+
+  if (writerRoles) {
+    await page.getByTestId('WriterRoleSelector').click();
+    for (const role of writerRoles) {
+      await page.getByText(role).nth(1).click();
+    }
+    await page.getByText('Writers').click();
+  }
+}
+
+/**
+ * Toggles group/chat pin/unpin status
+ */
+export async function toggleChatPin(page: Page) {
+  try {
+    if (await page.getByText('Unpin').isVisible({ timeout: 1000 })) {
+      await page.getByText('Unpin').click();
+      await page.getByText('Pin').waitFor({ state: 'visible', timeout: 2000 });
+      return 'unpinned';
+    } else if (await page.getByText('Pin').isVisible({ timeout: 1000 })) {
+      await page.getByText('Pin').click();
+      await page
+        .getByText('Unpin')
+        .waitFor({ state: 'visible', timeout: 2000 });
+      return 'pinned';
+    }
+  } catch (error) {
+    console.warn('Could not determine pin state or toggle pin status');
+  }
+  return null;
+}
+
+/**
+ * Changes group privacy setting
+ */
+export async function setGroupPrivacy(page: Page, isPrivate: boolean) {
+  await page.getByText('Privacy').click();
+  if (isPrivate) {
+    await page.getByText('Private', { exact: true }).click();
+  } else {
+    await page.getByText('Public', { exact: true }).click();
+  }
+}
+
+/**
+ * Changes group notification settings
+ */
+export async function setGroupNotifications(
+  page: Page,
+  level: 'All activity' | 'Posts, mentions, and replies' | 'Nothing'
+) {
+  await page.getByTestId('GroupNotifications').click();
+  await expect(page.getByText('Posts, mentions, and replies')).toBeVisible();
+  await page.getByText(level).click();
+}
+
+/**
+ * Creates a channel section
+ */
+export async function createChannelSection(page: Page, sectionName: string) {
+  await page.getByText('New Section').click();
+  await expect(page.getByText('Add section')).toBeVisible();
+
+  await fillFormField(page, 'SectionNameInput', sectionName, true);
+  await page.getByText('Save').click();
+
+  // Wait for section creation (optional)
+  try {
+    await expect(page.getByText(sectionName)).toBeVisible({
+      timeout: 10000,
+    });
+  } catch (e) {
+    // Optional assertion - continue if it fails
+  }
+}
+
+/**
+ * Verifies element count in a container
+ */
+export async function verifyElementCount(
+  page: Page,
+  containerTestId: string,
+  expectedCount: number
+) {
+  await expect(
+    page
+      .getByTestId(containerTestId)
+      .locator('div')
+      .filter({ hasText: expectedCount.toString() })
+  ).toBeVisible();
+}

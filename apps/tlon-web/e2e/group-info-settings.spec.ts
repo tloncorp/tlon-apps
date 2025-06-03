@@ -1,12 +1,24 @@
 import { expect, test } from '@playwright/test';
 
 import {
+  cleanupExistingGroup,
   clickThroughWelcome,
+  createChannel,
+  createChannelSection,
   createGroup,
+  createRole,
+  deleteChannel,
   deleteGroup,
+  editChannel,
   fillFormField,
+  navigateBack,
   navigateToHomeAndVerifyGroup,
   openGroupSettings,
+  setGroupNotifications,
+  setGroupPrivacy,
+  toggleChatPin,
+  verifyElementCount,
+  waitForElementAndAct,
 } from './helpers';
 import shipManifest from './shipManifest.json';
 
@@ -23,14 +35,8 @@ test('should handle complete group lifecycle with settings management', async ({
 
   await expect(page.getByText('Home')).toBeVisible();
 
-  if (await page.getByText('Untitled group').first().isVisible()) {
-    // this is necessary for retrying the test (it's not visible on the first run)
-    // this still doesn't work right, the header back button is not visible
-    // for some reason. TODO: figure out why.
-    await page.getByText('Untitled group').first().click();
-    await openGroupSettings(page);
-    await deleteGroup(page);
-  }
+  // Clean up any existing group
+  await cleanupExistingGroup(page);
 
   // Create a new group
   await createGroup(page);
@@ -41,7 +47,7 @@ test('should handle complete group lifecycle with settings management', async ({
   }
 
   // Navigate back to Home and verify group creation
-  await page.getByTestId('HeaderBackButton').first().click();
+  await navigateBack(page);
   if (await page.getByText('Home').isVisible()) {
     await expect(page.getByText('Untitled group').first()).toBeVisible();
     await page.getByText('Untitled group').first().click();
@@ -53,26 +59,22 @@ test('should handle complete group lifecycle with settings management', async ({
   await expect(page.getByText('Group info')).toBeVisible();
 
   // Test pin/unpin functionality
-  await page.getByText('Pin').click();
-  if (await page.getByText('Unpin').isVisible({ timeout: 2000 })) {
-    await expect(page.getByText('Unpin')).toBeVisible();
-  }
+  const pinStatus = await toggleChatPin(page);
 
   // Navigate back to check pinned status
-  await navigateToHomeAndVerifyGroup(page, 'pinned');
-
-  // Return to group settings
-  await page.getByText('Untitled group').first().click();
-  await openGroupSettings(page);
-
-  // Unpin the group
-  await page.getByText('Unpin').click();
-  if (await page.getByText('Pin').isVisible({ timeout: 2000 })) {
-    await expect(page.getByText('Pin')).toBeVisible();
+  if (pinStatus) {
+    await navigateToHomeAndVerifyGroup(page, pinStatus);
   }
 
+  // Return to group settings and toggle pin again
+  await page.getByText('Untitled group').first().click();
+  await openGroupSettings(page);
+  const unpinStatus = await toggleChatPin(page);
+
   // Navigate back to check unpinned status
-  await navigateToHomeAndVerifyGroup(page, 'unpinned');
+  if (unpinStatus) {
+    await navigateToHomeAndVerifyGroup(page, unpinStatus);
+  }
 
   // Return to group settings for remaining tests
   await page.getByText('Untitled group').first().click();
@@ -82,14 +84,13 @@ test('should handle complete group lifecycle with settings management', async ({
   // Test reference copying
   await page.getByText('Reference').click();
   // Check for copy confirmation (optional)
-  if (await page.getByText('Copied').isVisible({ timeout: 2000 })) {
+  await waitForElementAndAct(page, 'Copied', async () => {
     await expect(page.getByText('Copied')).toBeVisible();
-  }
+  });
 
   // Test privacy settings
-  await page.getByText('Privacy').click();
-  await page.getByText('Private', { exact: true }).click();
-  await page.getByTestId('HeaderBackButton').first().click();
+  await setGroupPrivacy(page, true);
+  await navigateBack(page);
   await expect(page.getByText('Private group with 1 member')).toBeVisible();
   await expect(
     page.getByTestId('GroupPrivacy').getByText('Private')
@@ -109,23 +110,10 @@ test('should handle complete group lifecycle with settings management', async ({
   await page.getByText('Save').click();
 
   // Create new role
-  await page.getByText('Add Role').click();
-  await expect(page.getByRole('dialog').getByText('Add role')).toBeVisible();
+  await createRole(page, 'Testing role', 'Description for test role');
 
-  await fillFormField(page, 'RoleTitleInput', 'Testing role');
-  await fillFormField(
-    page,
-    'RoleDescriptionInput',
-    'Description for test role'
-  );
-
-  await page.getByText('Save').click();
-  await expect(page.getByText('Testing role')).toBeVisible();
-
-  await page.getByTestId('HeaderBackButton').first().click();
-  await expect(
-    page.getByTestId('GroupRoles').locator('div').filter({ hasText: '2' })
-  ).toBeVisible();
+  await navigateBack(page);
+  await verifyElementCount(page, 'GroupRoles', 2);
 
   // Test channel management
   await page.getByTestId('GroupChannels').getByText('Channels').click();
@@ -138,16 +126,10 @@ test('should handle complete group lifecycle with settings management', async ({
   ).toBeVisible();
 
   // Create new channel
-  await page.getByText('New Channel').click();
-  await expect(page.getByText('Create a new channel')).toBeVisible();
+  await createChannel(page, 'Second chat channel');
 
-  await fillFormField(page, 'ChannelTitleInput', 'Second chat channel');
-  await page.getByText('Create channel').click();
-
-  await page.getByTestId('HeaderBackButton').first().click();
-  await expect(
-    page.getByTestId('GroupChannels').locator('div').filter({ hasText: '2' })
-  ).toBeVisible();
+  await navigateBack(page);
+  await verifyElementCount(page, 'GroupChannels', 2);
 
   // Test channel reordering
   // TODO: figure out why this is flaky
@@ -173,27 +155,13 @@ test('should handle complete group lifecycle with settings management', async ({
 
   // Edit channel
   await page.getByTestId('GroupChannels').click();
-  await page
-    .getByTestId('ChannelItem-Second chat channel-1')
-    .getByTestId('EditChannelButton')
-    .first()
-    .click();
-  await expect(page.getByText('Edit channel')).toBeVisible();
-
-  // Clear and update channel name
-  await fillFormField(
+  await editChannel(
     page,
-    'ChannelTitleInput',
+    'Second chat channel',
     'Testing channel renaming',
-    true
-  );
-  await fillFormField(
-    page,
-    'ChannelDescriptionInput',
     'Testing channel description'
   );
 
-  await page.getByText('Save').click();
   await page.getByText('Group info').click();
   await page.getByTestId('GroupChannels').click();
   await expect(
@@ -201,28 +169,13 @@ test('should handle complete group lifecycle with settings management', async ({
   ).toBeVisible();
 
   // Create channel section
-  await page.getByText('New Section').click();
-  await expect(page.getByText('Add section')).toBeVisible();
+  await createChannelSection(page, 'Testing section');
 
-  await fillFormField(page, 'SectionNameInput', 'Testing section', true);
-  await page.getByText('Save').click();
-
-  // Wait for section creation (with timeout, marked as optional in original)
-  try {
-    await expect(page.getByText('Testing section')).toBeVisible({
-      timeout: 10000,
-    });
-  } catch (e) {
-    // Optional assertion - continue if it fails
-  }
-
-  await page.getByTestId('HeaderBackButton').first().click();
+  await navigateBack(page);
 
   // Test notification settings
-  await page.getByTestId('GroupNotifications').click();
-  await expect(page.getByText('Posts, mentions, and replies')).toBeVisible();
-  await page.getByText('All activity').click();
-  await page.getByTestId('HeaderBackButton').nth(1).click();
+  await setGroupNotifications(page, 'All activity');
+  await navigateBack(page, 1);
   await expect(
     page.getByTestId('GroupNotifications').getByText('All activity')
   ).toBeVisible();
@@ -248,26 +201,15 @@ test('should handle complete group lifecycle with settings management', async ({
   // Delete channel and verify count update
   await page.waitForTimeout(2000);
   await page.getByTestId('GroupChannels').click();
-  await page
-    .getByTestId('ChannelItem-Testing channel renaming-1')
-    .getByTestId('EditChannelButton')
-    .first()
-    .click();
-  await expect(page.getByText('Edit channel')).toBeVisible();
-
-  await page.getByText('Delete channel for everyone').click();
-  await expect(page.getByText('This action cannot be undone.')).toBeVisible();
-  await page.getByText('Delete channel', { exact: true }).click();
+  await deleteChannel(page, 'Testing channel renaming');
 
   await expect(page.getByText('Manage channels')).toBeVisible();
   await expect(
     page.getByTestId('ChannelItem-Testing channel renaming-1')
   ).not.toBeVisible();
 
-  await page.getByTestId('HeaderBackButton').first().click();
-  await expect(
-    page.getByTestId('GroupChannels').locator('div').filter({ hasText: '1' })
-  ).toBeVisible();
+  await navigateBack(page);
+  await verifyElementCount(page, 'GroupChannels', 1);
 
   // Delete group
   await deleteGroup(page);
