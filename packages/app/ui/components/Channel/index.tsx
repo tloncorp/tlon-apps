@@ -10,6 +10,7 @@ import {
 import {
   ChannelContentConfiguration,
   isDmChannelId,
+  isGroupDmChannelId,
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
@@ -171,6 +172,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
 
     const isChatChannel = channel ? getIsChatChannel(channel) : true;
     const isDM = isDmChannelId(channel.id);
+    const isGroupDm = isGroupDmChannelId(channel.id);
 
     const onPressGroupRef = useCallback((group: db.Group) => {
       setGroupPreview(group);
@@ -428,7 +430,9 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                   ? 'read-only'
                                   : isDM
                                     ? 'dm-mismatch'
-                                    : 'channel-mismatch'
+                                    : isGroupDm
+                                      ? 'group-dm-mismatch'
+                                      : 'channel-mismatch'
                               }
                             />
                           ) : channel.contentConfiguration == null ? (
