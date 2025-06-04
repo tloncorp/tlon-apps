@@ -175,7 +175,7 @@ export function subscribeToChatUpdates(
         return eventHandler({
           type: 'addReaction',
           postId: id,
-          userId: addReact.ship,
+          userId: addReact.author,
           react: addReact.react,
         });
       }
@@ -221,7 +221,7 @@ export function subscribeToChatUpdates(
           return eventHandler({
             type: 'addReaction',
             postId: replyId,
-            userId: addReact.ship,
+            userId: addReact.author,
             react: addReact.react,
           });
         }

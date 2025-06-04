@@ -36,6 +36,7 @@ export type Patda = string;
 export type Ship = string;
 export type Author = Ship | BotProfile;
 export type Nest = string;
+export type React = string | { any: string };
 
 export interface ReplyMeta {
   replyCount: number;
@@ -45,7 +46,7 @@ export interface ReplyMeta {
 
 export interface PostSeal {
   id: string;
-  reacts: { [ship: Ship]: string };
+  reacts: { [ship: Ship]: React };
   replies: ReplyTuple[] | null;
   meta: ReplyMeta;
 }
@@ -54,7 +55,7 @@ export interface ReplySeal {
   id: string;
   'parent-id': string;
   reacts: {
-    [ship: Ship]: string;
+    [ship: Ship]: React;
   };
 }
 
@@ -176,7 +177,7 @@ interface PostActionDel {
 interface PostActionAddReact {
   'add-react': {
     id: string;
-    react: string;
+    react: React;
     ship: string;
   };
 }
@@ -380,9 +381,9 @@ export type PostResponse =
   | { set: Post | null }
   | { reply: { id: string; 'r-reply': ReplyResponse; meta: ReplyMeta } }
   | { essay: PostEssay }
-  | { reacts: Record<string, string> };
+  | { reacts: Record<string, React> };
 
-export type ReplyResponse = { set: Reply } | { reacts: Record<string, string> };
+export type ReplyResponse = { set: Reply } | { reacts: Record<string, React> };
 
 export interface ChannelPostResponse {
   post: {
@@ -625,7 +626,7 @@ export interface PostSealDataResponse {
   id: string;
   replies: Replies;
   reacts: {
-    [ship: Ship]: string;
+    [ship: Ship]: React;
   };
   meta: {
     replyCount: number;

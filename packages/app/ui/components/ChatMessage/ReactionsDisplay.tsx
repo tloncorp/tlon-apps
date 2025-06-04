@@ -42,9 +42,14 @@ export function ReactionsDisplay({
   const handleModifyYourReaction = useCallback(
     (value: string) => {
       triggerHaptic('baseButtonClick');
-      reactionDetails.self.didReact
-        ? store.removePostReaction(post, currentUserId)
-        : store.addPostReaction(post, value, currentUserId);
+      if (
+        reactionDetails.self.didReact &&
+        reactionDetails.self.value === value
+      ) {
+        store.removePostReaction(post, currentUserId);
+      } else {
+        store.addPostReaction(post, value, currentUserId);
+      }
     },
     [currentUserId, post, reactionDetails.self.didReact]
   );
