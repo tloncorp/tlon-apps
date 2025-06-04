@@ -45,10 +45,10 @@ jobs:
         id: version_info
         working-directory: ./apps/tlon-mobile
         run: |
-          CONFIG=$(npx expo config --type introspect)
-          VERSION=$(echo "$CONFIG" | jq -r '.expo.version')
-          ANDROID_BUILD=$(echo "$CONFIG" | jq -r '.expo.android.versionCode')
-          IOS_BUILD=$(echo "$CONFIG" | jq -r '.expo.ios.buildNumber')
+          CONFIG=$(npx expo config --json)
+          VERSION=$(echo "$CONFIG" | jq -r '.version')
+          ANDROID_BUILD=$(echo "$CONFIG" | jq -r '.android.versionCode')
+          IOS_BUILD=$(echo "$CONFIG" | jq -r '.ios.buildNumber')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "android_build=$ANDROID_BUILD" >> $GITHUB_OUTPUT
           echo "ios_build=$IOS_BUILD" >> $GITHUB_OUTPUT
