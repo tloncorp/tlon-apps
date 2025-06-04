@@ -52,7 +52,7 @@ export function chatAction(
   if (whomIsDm(whom)) {
     const action: Poke<DmAction> = {
       app: 'chat',
-      mark: 'chat-dm-action',
+      mark: 'chat-dm-action-1',
       json: {
         ship: whom,
         diff: {
@@ -67,7 +67,7 @@ export function chatAction(
   const diff: WritDiff = { id, delta };
   const action: Poke<ClubAction> = {
     app: 'chat',
-    mark: 'chat-club-action-0',
+    mark: 'chat-club-action-1',
     json: {
       id: whom,
       diff: {
@@ -147,22 +147,21 @@ export const sendPost = async ({
   if (channelType === 'dm' || channelType === 'groupDm') {
     const delta: WritDeltaAdd = {
       add: {
-        memo: {
+        essay: {
           content,
           sent: sentAt,
           author: authorId,
-          kind: '/dm',
+          kind: '/chat',
           meta: null,
           blob: null,
         },
-        kind: null,
         time: null,
       },
     };
 
     const action = chatAction(
       channelId,
-      `${delta.add.memo.author}/${formatUd(unixToDa(delta.add.memo.sent).toString())}`,
+      `${delta.add.essay.author}/${formatUd(unixToDa(delta.add.essay.sent).toString())}`,
       delta
     );
     await poke(action);
@@ -299,9 +298,6 @@ export const sendReply = async ({
               content,
               author: authorId,
               sent: sentAt,
-              kind: '/dm',
-              meta: null,
-              blob: null,
             },
             time: null,
           },
@@ -470,7 +466,7 @@ export async function addReaction({
     if (isDmChannelId(channelId)) {
       await poke({
         app: 'chat',
-        mark: 'chat-dm-action',
+        mark: 'chat-dm-action-1',
         json: {
           ship: channelId,
           diff: {
@@ -488,7 +484,7 @@ export async function addReaction({
     } else {
       await poke({
         app: 'chat',
-        mark: 'chat-club-action-0',
+        mark: 'chat-club-action-1',
         json: {
           id: channelId,
           diff: {
@@ -549,7 +545,7 @@ export async function removeReaction({
     if (isDmChannelId(channelId)) {
       return poke({
         app: 'chat',
-        mark: 'chat-dm-action',
+        mark: 'chat-dm-action-1',
         json: {
           ship: channelId,
           diff: {
@@ -563,7 +559,7 @@ export async function removeReaction({
     } else {
       return poke({
         app: 'chat',
-        mark: 'chat-club-action-0',
+        mark: 'chat-club-action-1',
         json: {
           id: channelId,
           diff: {

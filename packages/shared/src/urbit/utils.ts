@@ -7,7 +7,6 @@ import { GroupJoinStatus, GroupPrivacy } from '../db/schema';
 import { createDevLogger } from '../debug';
 import * as ub from './channel';
 import * as ubc from './content';
-import * as ubd from './dms';
 import * as ubg from './groups';
 
 const logger = createDevLogger('urbitUtils', false);
@@ -300,57 +299,6 @@ export function getInlineContent(inline: ubc.Inline): string {
   } else {
     return inline;
   }
-}
-
-function makeId(our: string) {
-  const sent = Date.now();
-  return {
-    id: `${our}/${formatUd(unixToDa(sent))}`,
-    sent,
-  };
-}
-
-export function createMessage(
-  our: string,
-  mem: ub.PostEssay,
-  replying?: string
-): {
-  id: string;
-  cacheId: ub.CacheId;
-  delta: ubd.WritDeltaAdd | ubd.ReplyDelta;
-} {
-  const { id, sent } = makeId(our);
-  const cacheId = { author: mem.author, sent };
-  const memo: ub.PostEssay = {
-    ...mem,
-    sent,
-  };
-
-  let delta: ubd.WritDeltaAdd | ubd.ReplyDelta;
-  if (!replying) {
-    delta = {
-      add: {
-        memo,
-        kind: null,
-        time: null,
-      },
-    };
-  } else {
-    delta = {
-      reply: {
-        id,
-        meta: null,
-        delta: {
-          add: {
-            memo,
-            time: null,
-          },
-        },
-      },
-    };
-  }
-
-  return { id, cacheId, delta };
 }
 
 export function whomIsDm(whom: string): boolean {

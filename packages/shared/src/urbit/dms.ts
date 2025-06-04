@@ -4,7 +4,7 @@ import _ from 'lodash';
 import BTree from 'sorted-btree';
 
 import {
-  KindDataChat,
+  Memo,
   PostEssay,
   PostSeal,
   PostSealDataResponse,
@@ -22,9 +22,9 @@ export interface Writ {
   essay: WritEssay;
 }
 
-export interface WritEssay extends PostEssay {
-  'kind-data': KindDataChat;
-}
+export type WritEssay = PostEssay;
+
+export type WritMemo = Memo;
 
 export interface WritReplySeal extends ReplySeal {
   time: string;
@@ -33,8 +33,6 @@ export interface WritReplySeal extends ReplySeal {
 export interface WritReply extends Reply {
   seal: WritReplySeal;
 }
-
-export type WritMemo = Omit<PostEssay, 'kind-data'>;
 
 export interface WritReplyReferenceResponse {
   reply: {
@@ -51,8 +49,7 @@ export interface WritSeal extends PostSeal {
 
 export interface WritDeltaAdd {
   add: {
-    memo: WritMemo;
-    kind: null;
+    essay: WritEssay;
     time: string | null;
   };
 }
@@ -120,7 +117,7 @@ export interface WritDiff {
 
 export interface WritResponseAdd {
   add: {
-    memo: WritMemo;
+    essay: WritEssay;
     time: string;
   };
 }

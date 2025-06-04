@@ -25,8 +25,16 @@ export interface WritEssay extends PostEssay {
 export interface WritSeal extends PostSeal {
   time: number;
 }
+
+export type BotProfile = {
+  ship: Ship;
+  nickname: string | null;
+  avatar: string | null;
+};
+
 export type Patda = string;
 export type Ship = string;
+export type Author = Ship | BotProfile;
 export type Nest = string;
 
 export interface ReplyMeta {
