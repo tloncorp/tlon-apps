@@ -354,8 +354,8 @@ export const getChannelPosts = async ({
   const app = type === 'channel' ? 'channels' : 'chat';
   const path = formatScryPath(
     ...[
-      type === 'dm' ? 'dm' : null,
-      type === 'club' ? 'club' : null,
+      type === 'dm' ? 'v1/dm' : null,
+      type === 'club' ? 'v1/club' : null,
       type === 'channel' ? 'v3' : null,
     ],
     channelId,
@@ -759,10 +759,10 @@ export const getPostWithReplies = async ({
 
   if (isDmChannelId(channelId)) {
     app = 'chat';
-    path = `/dm/${channelId}/writs/writ/id/${authorId}/${postId}`;
+    path = `/v1/dm/${channelId}/writs/writ/id/${authorId}/${postId}`;
   } else if (isGroupDmChannelId(channelId)) {
     app = 'chat';
-    path = `/club/${channelId}/writs/writ/id/${authorId}/${postId}`;
+    path = `/v1/club/${channelId}/writs/writ/id/${authorId}/${postId}`;
   } else if (isGroupChannelId(channelId)) {
     app = 'channels';
     path = `/v3/${channelId}/posts/post/${postId}`;
