@@ -302,7 +302,9 @@ export async function setGroupNotifications(
   level: 'All activity' | 'Posts, mentions, and replies' | 'Nothing'
 ) {
   await page.getByTestId('GroupNotifications').click();
-  await expect(page.getByText('Posts, mentions, and replies')).toBeVisible();
+  await expect(
+    page.getByText('Posts, mentions, and replies', { exact: true })
+  ).toBeVisible();
   await page.getByText(level).click();
 }
 
@@ -400,7 +402,7 @@ export async function sendMessage(page: Page, message: string) {
   await page.fill('[data-testid="MessageInput"]', message);
   await page.getByTestId('MessageInputSendButton').click();
   // Wait for message to appear
-  await expect(page.getByText(message, { exact: true })).toBeVisible();
+  await expect(page.getByText(message, { exact: true }).first()).toBeVisible();
 }
 
 /**
@@ -409,7 +411,7 @@ export async function sendMessage(page: Page, message: string) {
 export async function longPressMessage(page: Page, messageText: string) {
   // Not really a longpress since this is web.
   await page.getByText(messageText).first().click();
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(1000);
   await page.getByTestId('MessageActionsTrigger').click();
   await page.waitForTimeout(500);
 }
@@ -420,6 +422,7 @@ export async function longPressMessage(page: Page, messageText: string) {
 export async function startThread(page: Page, messageText: string) {
   await longPressMessage(page, messageText);
   await page.getByText('Start thread').click();
+  await page.waitForTimeout(500);
   await expect(page.getByRole('textbox', { name: 'Reply' })).toBeVisible();
 }
 
@@ -473,20 +476,30 @@ export async function removeReaction(page: Page, emoji: string = '👍') {
 export async function quoteReply(
   page: Page,
   originalMessage: string,
-  replyText: string
+  replyText: string,
+  isDM = false
 ) {
   await longPressMessage(page, originalMessage);
   await page.getByText('Reply', { exact: true }).click();
 
   // Verify quote interface appears
-  await expect(page.getByText('Chat Post')).toBeVisible();
+  if (!isDM) {
+    await expect(page.getByText('Chat Post')).toBeVisible();
+  }
   await expect(page.getByText(originalMessage).nth(1)).toBeVisible(); // Quote shows original
 
   await page.getByTestId('MessageInput').click();
-  await page.fill('[data-testid="MessageInput"]', replyText);
+  if (!isDM) {
+    await page.fill('[data-testid="MessageInput"]', replyText);
+  } else {
+    const inputText = await page.getByTestId('MessageInput').inputValue();
+    await page.getByTestId('MessageInput').fill(inputText + replyText);
+  }
   await page.getByTestId('MessageInputSendButton').click();
 
-  await expect(page.getByText(replyText, { exact: true })).toBeVisible();
+  await expect(
+    page.getByText(replyText, { exact: true }).first()
+  ).toBeVisible();
 }
 
 /**
@@ -522,10 +535,22 @@ export async function threadQuoteReply(
 /**
  * Hides a message
  */
-export async function hideMessage(page: Page, messageText: string) {
+export async function hideMessage(
+  page: Page,
+  messageText: string,
+  isDM = false
+) {
   await longPressMessage(page, messageText);
   await page.getByText('Hide message').click();
-  await expect(page.getByText(messageText, { exact: true })).not.toBeVisible();
+  if (!isDM) {
+    await expect(
+      page.getByText(messageText, { exact: true })
+    ).not.toBeVisible();
+  } else {
+    await expect(
+      page.getByText('Message hidden or flagged').first()
+    ).toBeVisible();
+  }
 }
 
 /**
@@ -540,10 +565,20 @@ export async function reportMessage(page: Page, messageText: string) {
 /**
  * Deletes a message
  */
-export async function deleteMessage(page: Page, messageText: string) {
+export async function deleteMessage(
+  page: Page,
+  messageText: string,
+  isDM = false
+) {
   await longPressMessage(page, messageText);
   await page.getByText('Delete message').click();
-  await expect(page.getByText(messageText, { exact: true })).not.toBeVisible();
+  if (!isDM) {
+    await expect(
+      page.getByText(messageText, { exact: true })
+    ).not.toBeVisible();
+  } else {
+    await expect(page.getByText('Message deleted').first()).toBeVisible();
+  }
 }
 
 /**
@@ -582,7 +617,47 @@ export async function verifyMessagePreviewOnHome(
   messageText: string
 ) {
   await navigateBack(page);
+  await page.waitForTimeout(500);
   if (await page.getByText('Home').isVisible()) {
     await expect(page.getByText(messageText)).toBeVisible();
   }
+}
+
+/**
+ * Creates a direct message with a specified contact
+ */
+export async function createDirectMessage(page: Page, contactId: string) {
+  await page.getByTestId('CreateChatSheetTrigger').click();
+  await expect(page.getByText('Create a new chat with one')).toBeVisible();
+  await page.getByText('New direct message').click();
+
+  await expect(page.getByText('Select a contact to chat with')).toBeVisible();
+  await page.getByPlaceholder('Filter by nickname or id').click();
+  await page.getByPlaceholder('Filter by nickname or id').fill(contactId);
+  await page.getByTestId('ContactRow').first().click();
+
+  // Wait for DM to open
+  await expect(page.getByText(contactId).first()).toBeVisible();
+  // only shown in mobile viewport
+  const viewport = await page.viewportSize();
+  if (viewport && viewport.width < 768) {
+    console.log('header back button');
+    await expect(page.getByTestId('HeaderBackButton')).toBeVisible();
+  }
+}
+
+/**
+ * Leaves a direct message
+ */
+export async function leaveDM(page: Page, contactId: string) {
+  await page.getByText(contactId, { exact: true }).first().click();
+  await page.waitForTimeout(500);
+  await page.getByTestId('ChannelOptionsSheetTrigger').first().click();
+  await page.waitForTimeout(500);
+  await page.getByTestId('ActionSheetAction-Leave chat').click();
+  await page.waitForTimeout(500);
+  // without this reload we'll still see previous messages in the DM
+  // TODO: figure out why this is happening
+  await page.reload();
+  await expect(page.getByText(contactId, { exact: true })).not.toBeVisible();
 }

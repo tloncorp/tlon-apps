@@ -129,6 +129,7 @@ test('should handle complete group lifecycle with settings management', async ({
   await createChannel(page, 'Second chat channel');
 
   await navigateBack(page);
+  await page.waitForTimeout(500);
   await verifyElementCount(page, 'GroupChannels', 2);
 
   // Test channel reordering
