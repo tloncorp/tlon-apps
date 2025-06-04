@@ -1556,22 +1556,18 @@
   ::
   ++  cu-give-writs-diff
     |=  =diff:writs:c
+    =/  =whom:c  [%club id]
     =/  response=(unit response:writs:c)  (diff-to-response diff pact.club)
     ?~  response  cu-core
+    =/  old-response-3=[whom:old-3 response:writs:old-3]
+      [whom (old-response-writs-3:pac u.response)]
+    =/  new-response=[whom:c response:writs:c]  [whom u.response]
     =.  cor
-      =/  old-response-3  [[%club id] (old-response-writs-3:pac u.response)]
       =/  cage  writ-response+!>(old-response-3)
-      (emit %give %fact ~[/ cu-area-old] cage)
+      (emit %give %fact ~[/ cu-area-old cu-area-writs-old] cage)
     =.  cor
-      =/  =cage  writ-response-1+!>(response)
-      (emit %give %fact ~[/v1 cu-area] cage)
-    =.  cor
-      =/  old-response-3  [[%club id] (old-response-writs-3:pac u.response)]
-      =/  =cage  writ-response+!>(old-response-3)
-      (emit %give %fact ~[/ cu-area-writs-old] cage)
-    =.  cor
-      =/  =cage  writ-response-1+!>(response)
-      (emit %give %fact ~[/v1 cu-area-writs] cage)
+      =/  =cage  writ-response-1+!>(new-response)
+      (emit %give %fact ~[/v1 cu-area cu-area-writs] cage)
     cu-core
   ::
   ++  cu-diff
@@ -1977,22 +1973,19 @@
   ::
   ++  di-give-writs-diff
     |=  =diff:writs:c
+    =/  =whom:c  [%ship ship]
     =/  response=(unit response:writs:c)  (diff-to-response diff pact.dm)
     ?~  response  di-core
+    =/  old-response-3=[whom:old-3 response:writs:old-3]
+      [whom (old-response-writs-3:pac u.response)]
+    =/  new-response=[whom:c response:writs:c]  [whom u.response]
     =.  cor
-      =/  old-response-3  [[%ship ship] (old-response-writs-3:pac u.response)]
-      =/  =cage  writ-response+!>(old-response-3)
-      (emit %give %fact ~[/ di-area-old] cage)
+      =/  =cage
+        writ-response+!>(old-response-3)
+      (emit %give %fact ~[/ di-area-old di-area-writs-old] cage)
     =.  cor
-      =/  =cage  writ-response-1+!>(response)
-      (emit %give %fact ~[/v1 di-area] cage)
-    =.  cor
-      =/  old-response-3  [[%ship ship] (old-response-writs-3:pac u.response)]
-      =/  =cage  writ-response+!>(old-response-3)
-      (emit %give %fact ~[/ di-area-writs-old] cage)
-    =.  cor
-      =/  =cage  writ-response+!>(response)
-      (emit %give %fact ~[/v1 di-area-writs] cage)
+      =/  =cage  writ-response-1+!>(new-response)
+      (emit %give %fact ~[/v1 di-area di-area-writs] cage)
     di-core
   ::
   ++  di-ingest-diff

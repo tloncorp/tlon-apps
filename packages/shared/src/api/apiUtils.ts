@@ -1,7 +1,6 @@
 import {
   formatUd as baseFormatUd,
   daToUnix,
-  isValidPatp,
   parseUd,
   unixToDa,
 } from '@urbit/aura';
@@ -189,7 +188,7 @@ export function deriveFullWrit(
 ): ub.Writ {
   const time = delta.add.time
     ? bigInt(delta.add.time).toString()
-    : unixToDa(delta.add.memo.sent).toString();
+    : unixToDa(delta.add.essay.sent).toString();
 
   const seal: ub.WritSeal = {
     id,
@@ -203,14 +202,7 @@ export function deriveFullWrit(
     },
   };
 
-  const essay: ub.WritEssay = {
-    ...delta.add.memo,
-    'kind-data': {
-      chat: 'kind' in delta.add ? delta.add.kind : null,
-    },
-  };
-
-  return { seal, essay };
+  return { seal, essay: delta.add.essay };
 }
 
 export function deriveFullWritReply({
