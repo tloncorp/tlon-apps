@@ -114,7 +114,7 @@ export function useNegotiateMulti(ships: string[], app: string, agent: string) {
   const { data, ...rest } = useNegotiation(app, agent);
 
   if (rest.isLoading || rest.isError || data === undefined) {
-    return { ...rest, match: false, haveAllNegotiations: false };
+    return { ...rest, matchedOrPending: true };
   }
 
   const us = api.getCurrentUserId();
@@ -123,13 +123,16 @@ export function useNegotiateMulti(ships: string[], app: string, agent: string) {
     .filter((ship) => ship !== us)
     .map((ship) => `${ship}/${agent}`);
 
-  const allShipsMatch = shipKeys.every(
-    (ship) => ship in data && data[ship] === 'match'
+  const allShipsMatchOrPending = shipKeys.every(
+    (ship) => ship in data && (data[ship] === 'match' || data[ship] === 'await')
   );
 
   const haveAllNegotiations = shipKeys.every((ship) => ship in data);
 
-  return { ...rest, match: allShipsMatch, haveAllNegotiations };
+  return {
+    ...rest,
+    matchedOrPending: allShipsMatchOrPending && haveAllNegotiations,
+  };
 }
 
 export function useForceNegotiationUpdate(ships: string[], app: string) {
