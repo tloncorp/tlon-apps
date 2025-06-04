@@ -73,6 +73,14 @@ export const usePins = (
   });
 };
 
+export const useSettings = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['settings', deps],
+    queryFn: () => db.getSettings(),
+  });
+};
+
 export const useCalmSettings = () => {
   const deps = useKeyFromQueryDeps(db.getSettings);
   return useQuery({
@@ -601,4 +609,15 @@ export const useShowNotebookAddTooltip = (channelId: string) => {
     return logic.isPersonalNotebookChannel(channelId);
   }, [channelId]);
   return isCorrectChan && !wayfindingProgress.tappedAddNote;
+};
+
+export const useThemeSettings = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['themeSettings', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings();
+      return settings?.theme || null;
+    },
+  });
 };

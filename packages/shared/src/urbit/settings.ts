@@ -1,6 +1,9 @@
+import { ThemeName } from 'tamagui';
+
+import { Stringified } from '../utils';
 import { DisplayMode, SortMode } from './channel';
 
-export type Theme = 'light' | 'dark' | 'auto';
+export type AppTheme = ThemeName | 'auto';
 
 export type TalkSidebarFilter =
   | 'Direct Messages'
@@ -22,10 +25,6 @@ interface GroupSideBarSort {
     | typeof RECENT_SORT
     | typeof DEFAULT_SORT;
 }
-
-export type Stringified<T> = string & {
-  [P in keyof T]: { '_ value': T[P] };
-};
 
 interface ChannelSetting {
   flag: string;
@@ -51,7 +50,7 @@ export type CalmEngineSettings = {
 };
 
 export type DisplaySettings = {
-  theme?: Theme;
+  theme?: AppTheme;
 };
 
 export type GroupsSettings = {
@@ -69,6 +68,7 @@ export type GroupsSettings = {
   activitySeenTimestamp?: number;
   completedWayfindingSplash?: boolean;
   completedWayfindingTutorial?: boolean;
+  disableTlonInfraEnhancement?: boolean;
 };
 
 export type TalkSettings = {

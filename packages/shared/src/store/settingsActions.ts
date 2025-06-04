@@ -1,3 +1,5 @@
+import { ThemeName } from 'tamagui';
+
 import { setSetting } from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
@@ -5,6 +7,8 @@ import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
 import * as logic from '../logic';
 import { withRetry } from '../logic';
 import { TalkSidebarFilter } from '../urbit';
+
+export type AppTheme = ThemeName | 'auto';
 
 const logger = createDevLogger('SettingsActions', false);
 
@@ -118,5 +122,47 @@ export async function markPotentialWayfindingChannelVisit(channelId: string) {
 
   if (visitedAllChannels && !alreadyCompletedTutorial) {
     await completeWayfindingTutorial();
+  }
+}
+
+export async function updateTheme(theme: AppTheme) {
+  const existing = await db.getSettings();
+  const oldTheme = existing?.theme;
+
+  try {
+    const dbTheme = theme === 'auto' ? null : theme;
+    await db.insertSettings({ theme: dbTheme });
+    await setSetting('theme', theme === 'auto' ? '' : theme);
+    logger.trackEvent(AnalyticsEvent.ActionThemeUpdate, {
+      theme: theme === 'auto' ? 'auto' : theme,
+    });
+  } catch (error) {
+    logger.trackError(AnalyticsEvent.ErrorThemeUpdate, {
+      theme,
+      severity: AnalyticsSeverity.Medium,
+      errorMessage: error.message,
+      errorStack: error.stack,
+    });
+    await db.insertSettings({ theme: oldTheme });
+    throw new Error('Failed to update theme setting');
+  }
+}
+
+export async function updateDisableTlonInfraEnhancement(disabled: boolean) {
+  const existing = await db.getSettings();
+  const oldValue = existing?.disableTlonInfraEnhancement;
+
+  try {
+    // optimistic update
+    await db.insertSettings({ disableTlonInfraEnhancement: disabled });
+    await setSetting('disableTlonInfraEnhancement', disabled);
+  } catch (e) {
+    logger.trackError('Error updating disable tlon infra setting', {
+      disabled,
+      severity: AnalyticsSeverity.Medium,
+      errorMessage: e.message,
+      errorStack: e.stack,
+    });
+    await db.insertSettings({ disableTlonInfraEnhancement: oldValue });
   }
 }

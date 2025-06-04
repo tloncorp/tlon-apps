@@ -49,7 +49,8 @@ export const GroupListItem = ({
       <Button
         backgroundColor="transparent"
         borderWidth="unset"
-        paddingHorizontal={0}
+        paddingLeft={0}
+        paddingRight="$s"
         marginHorizontal="$-m"
         minimal
         onPress={(e) => {
@@ -176,6 +177,7 @@ export const GroupListItem = ({
                 <>
                   <ListItem.Time time={model.lastPostAt} />
                   <ListItem.Count
+                    opacity={isHovered ? 0 : 1}
                     notified={notified}
                     count={unreadCount}
                     muted={logic.isMuted(model.volumeSettings?.level, 'group')}

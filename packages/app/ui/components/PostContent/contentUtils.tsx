@@ -1,4 +1,4 @@
-import { utils } from '@tloncorp/shared';
+import { isTrustedEmbed, utils } from '@tloncorp/shared';
 import { trustedProviders } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import { Post } from '@tloncorp/shared/db';
@@ -39,6 +39,11 @@ export type MentionInlineData = {
   contactId: string;
 };
 
+export type GroupMentionInlineData = {
+  type: 'groupMention';
+  group: 'all' | string;
+};
+
 export type LineBreakInlineData = {
   type: 'lineBreak';
 };
@@ -59,6 +64,7 @@ export type InlineData =
   | StyleInlineData
   | TextInlineData
   | MentionInlineData
+  | GroupMentionInlineData
   | LineBreakInlineData
   | LinkInlineData
   | TaskInlineData;
@@ -103,6 +109,18 @@ export type VideoBlockData = {
   alt: string;
 };
 
+export type LinkBlockData = {
+  type: 'link';
+  url: string;
+  title?: string;
+  description?: string;
+  siteName?: string;
+  siteIconUrl?: string;
+  previewImageUrl?: string;
+  previewImageWidth?: string;
+  previewImageHeight?: string;
+};
+
 export type EmbedBlockData = {
   type: 'embed';
   url: string;
@@ -141,6 +159,7 @@ export type ListData = {
 export type BlockData =
   | BlockquoteBlockData
   | ParagraphBlockData
+  | LinkBlockData
   | ImageBlockData
   | VideoBlockData
   | EmbedBlockData
@@ -194,7 +213,12 @@ export function convertContent(input: unknown): PostContent {
     } else if ('block' in verse) {
       blocks.push(convertBlock(verse.block));
     } else if ('inline' in verse) {
-      blocks.push(...convertTopLevelInline(verse));
+      // if we already have an embed or link block, avoid duplicating it
+      // if there's another one inline
+      const suppressInlineEmbeds = blocks.some(
+        (b) => b.type === 'embed' || b.type === 'link'
+      );
+      blocks.push(...convertTopLevelInline(verse, suppressInlineEmbeds));
     } else {
       console.warn('Unhandled verse type:', { verse });
       blocks.push({
@@ -235,14 +259,20 @@ export function usePostLastEditContent(post: Post): BlockData[] {
  * etc.)
  */
 
-function convertTopLevelInline(verse: ub.VerseInline): BlockData[] {
+function convertTopLevelInline(
+  verse: ub.VerseInline,
+  suppressInlineEmbeds?: boolean
+): BlockData[] {
   const blocks: BlockData[] = [];
   let currentInlines: ub.Inline[] = [];
 
   function flushCurrentBlock() {
     if (currentInlines.length) {
       // Process the inlines to extract trusted embeds and split paragraphs
-      const processedBlocks = extractEmbedsFromInlines(currentInlines);
+      const processedBlocks = processParagraphsAndEmbeds(
+        currentInlines,
+        suppressInlineEmbeds
+      );
       blocks.push(...processedBlocks);
       currentInlines = [];
     }
@@ -286,7 +316,10 @@ function convertTopLevelInline(verse: ub.VerseInline): BlockData[] {
 }
 
 // Process inlines to extract embeds as separate blocks
-function extractEmbedsFromInlines(inlines: ub.Inline[]): BlockData[] {
+function processParagraphsAndEmbeds(
+  inlines: ub.Inline[],
+  suppressInlineEmbeds?: boolean
+): BlockData[] {
   const blocks: BlockData[] = [];
   let currentSegment: ub.Inline[] = [];
 
@@ -314,12 +347,10 @@ function extractEmbedsFromInlines(inlines: ub.Inline[]): BlockData[] {
   for (const inline of inlines) {
     // Check if this is a link that matches any of our trusted providers
     if (ub.isLink(inline)) {
-      const isTrustedEmbed = trustedProviders.some((provider) =>
-        provider.regex.test(inline.link.href)
-      );
+      const isEmbed = isTrustedEmbed(inline.link.href);
       const isNotFormattedText = inline.link.href === inline.link.content;
 
-      if (isTrustedEmbed && isNotFormattedText) {
+      if (isEmbed && isNotFormattedText && !suppressInlineEmbeds) {
         // Flush the current segment before adding the embed
         flushSegment();
 
@@ -397,6 +428,13 @@ function convertBlock(block: ub.Block): BlockData {
         api.toContentReference(block.cite) ?? errorMessage('Failed to parse')
       );
     }
+    case is(block, 'link'): {
+      return {
+        ...block.link.meta,
+        type: 'link',
+        url: block.link.url,
+      };
+    }
     default: {
       assertNever(block);
 
@@ -469,6 +507,11 @@ function convertInlineContent(inlines: ub.Inline[]): InlineData[] {
       nodes.push({
         type: 'mention',
         contactId: inline.ship,
+      });
+    } else if (ub.isSect(inline)) {
+      nodes.push({
+        type: 'groupMention',
+        group: !inline.sect ? 'all' : inline.sect,
       });
     } else if (ub.isTask(inline)) {
       nodes.push({

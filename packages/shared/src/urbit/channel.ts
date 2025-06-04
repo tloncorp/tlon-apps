@@ -3,10 +3,10 @@ import bigInt, { BigInteger } from 'big-integer';
 import _ from 'lodash';
 import BTree from 'sorted-btree';
 
-import { UnionToIntersection } from '../utils';
-import { Inline } from './content';
-import { GroupMeta } from './groups';
+import { Stringified } from '../utils';
+import { Block, Image, Inline, isBlock, isImage } from './content';
 import { Flag } from './hark';
+import { Metadata } from './meta';
 
 export interface CacheId {
   author: string;
@@ -54,108 +54,12 @@ export interface VerseInline {
   inline: Inline[];
 }
 
-export interface ChanCite {
-  chan: {
-    nest: Nest;
-    where: string;
-  };
-}
-
-export interface GroupCite {
-  group: Flag;
-}
-
-export interface DeskCite {
-  desk: {
-    flag: string;
-    where: string;
-  };
-}
-
-export interface BaitCite {
-  bait: {
-    group: Flag;
-    graph: Flag;
-    where: string;
-  };
-}
-
-export type Cite = ChanCite | GroupCite | DeskCite | BaitCite;
-
-export interface Image {
-  image: {
-    src: string;
-    height: number;
-    width: number;
-    alt: string;
-  };
-}
-
-export type ListType = 'ordered' | 'unordered' | 'tasklist';
-
-export interface List {
-  list: {
-    type: 'ordered' | 'unordered' | 'tasklist';
-    items: Listing[];
-    contents: Inline[];
-  };
-}
-
-export type ListItem = {
-  item: Inline[];
-};
-
-export type Listing = List | ListItem;
-
-export interface ListingBlock {
-  listing: Listing;
-}
-
-export type HeaderLevel = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
-
-export interface Header {
-  header: {
-    tag: HeaderLevel;
-    content: Inline[];
-  };
-}
-
-export interface Rule {
-  rule: null;
-}
-
-export interface Code {
-  code: {
-    code: string;
-    lang: string;
-  };
-}
-
-export function isImage(item: unknown): item is Image {
-  return typeof item === 'object' && item !== null && 'image' in item;
-}
-
-export type Block =
-  | Image
-  | { cite: Cite }
-  | ListingBlock
-  | Header
-  | Rule
-  | Code;
-
-// eslint-disable-next-line @typescript-eslint/no-namespace
-export namespace Block {
-  export function is<K extends keyof UnionToIntersection<Block>>(
-    poly: Block,
-    type: K
-  ): // @ts-expect-error - hey, I'm asserting here!
-  poly is Pick<UnionToIntersection<Block>, K> {
-    return type in poly;
-  }
-}
-
 export interface VerseBlock {
   block: Block;
+}
+
+export function isBlockVerse(verse: Verse): verse is VerseBlock {
+  return 'block' in verse;
 }
 
 export type Verse = VerseInline | VerseBlock;
@@ -192,7 +96,9 @@ export interface PostEssay {
   content: Story;
   author: Ship;
   sent: number;
-  'kind-data': KindData;
+  kind: string;
+  blob: string | null;
+  meta: Metadata | null;
 }
 
 export type Post = {
@@ -244,6 +150,10 @@ interface PostActionAdd {
   add: PostEssay;
 }
 
+interface PostActionAdd1 {
+  add: PostEssay;
+}
+
 interface PostActionEdit {
   edit: {
     id: string;
@@ -286,6 +196,10 @@ interface DiffSort {
   sort: SortMode;
 }
 
+interface DiffMeta {
+  meta: Stringified<ChannelMetadata> | null;
+}
+
 interface PostActionReply {
   reply: {
     id: string; // post id
@@ -299,7 +213,8 @@ export type PostAction =
   | PostActionDel
   | PostActionAddReact
   | PostActionDelReact
-  | PostActionReply;
+  | PostActionReply
+  | PostActionAdd1;
 
 export interface DiffView {
   view: DisplayMode;
@@ -343,12 +258,48 @@ export interface PendingMessages {
   replies: Record<string, Record<string, Memo>>;
 }
 
+export type JSONValue = number | string | boolean;
+
+export interface PostInput {
+  type: string;
+  postType: string;
+  configuration?: Record<string, JSONValue>;
+}
+
+export interface PostCollectionRenderer {
+  id: string;
+  configuration?: Record<string, JSONValue>;
+}
+
+export interface ContentRenderer {
+  rendererId: string;
+}
+
+export interface ChannelMetadataSchemaV1 {
+  version: 1;
+  postInput: PostInput;
+  postCollectionRenderer: PostCollectionRenderer;
+  defaultContentRenderer: ContentRenderer;
+}
+
+export type ChannelMetadata = ChannelMetadataSchemaV1;
+
 export interface Channel {
   perms: Perm;
   view: DisplayMode;
   order: string[];
   sort: SortMode;
   pending: PendingMessages;
+  meta: ChannelMetadata;
+}
+
+export interface ChannelFromServer {
+  perms: Perm;
+  view: DisplayMode;
+  order: string[];
+  sort: SortMode;
+  pending: PendingMessages;
+  meta: Stringified<ChannelMetadata> | null;
 }
 
 export interface Channels {
@@ -361,6 +312,7 @@ export interface Create {
   name: string;
   title: string;
   description: string;
+  meta: Stringified<ChannelMetadata> | null;
   readers: string[];
   writers: string[];
 }
@@ -413,7 +365,8 @@ export type Command =
   | DiffAddWriters
   | DiffDelWriters
   | DiffArrangedPosts
-  | DiffSort;
+  | DiffSort
+  | DiffMeta;
 
 export type PostResponse =
   | { set: Post | null }
@@ -455,6 +408,7 @@ export type Response =
   | { view: DisplayMode }
   | { sort: SortMode }
   | { perm: Perm }
+  | { meta: Stringified<ChannelMetadata> | null }
   | { create: Perm }
   | { join: string }
   | { leave: null }
@@ -471,13 +425,6 @@ export interface ChannelsResponse {
 export interface ChannelsSubscribeResponse extends ChannelsResponse {
   show: string;
   hide: string;
-}
-
-export function isCite(s: Block): boolean {
-  if ('cite' in s) {
-    return true;
-  }
-  return false;
 }
 
 export function blockContentIsImage(content: Story) {
@@ -571,7 +518,9 @@ export const emptyPost: Post = {
     author: '',
     content: [],
     sent: 0,
-    'kind-data': { chat: null },
+    kind: '/chat',
+    blob: null,
+    meta: null,
   },
 };
 
@@ -589,45 +538,7 @@ export const emptyReply: Reply = {
   },
 };
 
-export function isInline(c: Inline | Block): c is Inline {
-  return (
-    typeof 'c' === 'string' ||
-    [
-      'text',
-      'mention',
-      'url',
-      'color',
-      'italics',
-      'bold',
-      'strike',
-      'blockquote',
-      'inline-code',
-      'block',
-      'code',
-      'tag',
-      'link',
-      'break',
-    ].some((k) => typeof c === 'object' && k in c)
-  );
-}
-
-export function constructStory(
-  data: (Inline | Block)[],
-  codeAsBlock?: boolean
-): Story {
-  const isBlock = (c: Inline | Block) =>
-    [
-      'image',
-      'chan',
-      'desk',
-      'bait',
-      'group',
-      'listing',
-      'header',
-      'rule',
-      'cite',
-      codeAsBlock ? 'code' : '',
-    ].some((k) => typeof c !== 'string' && k in c);
+export function constructStory(data: (Inline | Block)[]): Story {
   const postContent: Story = [];
   let index = 0;
   data.forEach((c, i) => {
@@ -739,4 +650,4 @@ export type ChannelHead = {
 
 export type ChannelHeadsResponse = ChannelHead[];
 
-export type ChannelHooksPreview = { name: string; meta: GroupMeta }[];
+export type ChannelHooksPreview = { name: string; meta: Metadata }[];

@@ -230,7 +230,7 @@ export function GroupOptionsSheetLoader({
   );
 }
 
-function GroupOptionsSheetContent({
+export function GroupOptionsSheetContent({
   chatTitle,
   group,
   groupUnread,
@@ -579,7 +579,7 @@ const ChannelOptionsSheetLoader = memo(
 );
 ChannelOptionsSheetLoader.displayName = 'ChannelOptionsSheetLoader';
 
-function ChannelOptionsSheetContent({
+export function ChannelOptionsSheetContent({
   chatTitle,
   channel,
   onPressConfigureChannel,
@@ -609,7 +609,7 @@ function ChannelOptionsSheetContent({
     channel.groupId ?? '',
     currentUserId
   );
-  const currentUserIsHost = group?.currentUserIsHost ?? false;
+  const currentUserIsChannelHost = channel.currentUserIsHost ?? false;
 
   const groupTitle = utils.useGroupTitle(group) ?? 'group';
   const isSingleChannelGroup = group?.channels?.length === 1;
@@ -690,7 +690,15 @@ function ChannelOptionsSheetContent({
             action: wrappedAction.bind(null, onPressChannelTemplate),
           },
         ],
-        !currentUserIsHost && [
+        currentUserIsChannelHost && [
+          'negative',
+          {
+            title: 'Cannot leave channel',
+            description: 'Host (you) must delete to leave',
+            disabled: true,
+          },
+        ],
+        !currentUserIsChannelHost && [
           'negative',
           {
             title: group ? `Leave channel` : 'Leave chat',
@@ -716,7 +724,7 @@ function ChannelOptionsSheetContent({
       onPressConfigureChannel,
       hooksPreview,
       onPressChannelTemplate,
-      currentUserIsHost,
+      currentUserIsChannelHost,
       leaveChannel,
     ]
   );
@@ -751,7 +759,7 @@ function ChannelOptionsSheetContent({
   );
 }
 
-function ChatOptionsSheetContent({
+export function ChatOptionsSheetContent({
   actionGroups,
   title,
   subtitle,

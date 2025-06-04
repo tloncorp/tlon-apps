@@ -88,7 +88,7 @@ export function ReactionsDisplay({
                   >
                     <SizableEmoji
                       key={reaction.value}
-                      shortCode={reaction.value}
+                      emojiInput={reaction.value}
                       fontSize="$s"
                     />
                   </XStack>
@@ -158,7 +158,7 @@ export function ReactionsDisplay({
                   >
                     <SizableEmoji
                       key={reaction.value}
-                      shortCode={reaction.value}
+                      emojiInput={reaction.value}
                       fontSize="$s"
                     />
                     {reaction.count > 0 && (

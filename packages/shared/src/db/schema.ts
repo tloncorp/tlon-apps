@@ -55,6 +55,7 @@ export const settings = sqliteTable('settings', {
   activitySeenTimestamp: timestamp('activity_seen_timestamp'),
   completedWayfindingSplash: boolean('completed_wayfinding_splash'),
   completedWayfindingTutorial: boolean('completed_wayfinding_tutorial'),
+  disableTlonInfraEnhancement: boolean('disable_tlon_infra_enhancement'),
 });
 
 export const systemContacts = sqliteTable('system_contacts', {
@@ -464,7 +465,7 @@ export const groupsRelations = relations(groups, ({ one, many }) => ({
 export const groupRoles = sqliteTable(
   'group_roles',
   {
-    id: text('id'),
+    id: text('id').notNull(),
     groupId: text('group_id').references(() => groups.id, {
       onDelete: 'cascade',
     }),
@@ -863,6 +864,7 @@ export const channels = sqliteTable(
     lastPostId: text('last_post_id'),
     lastPostAt: timestamp('last_post_at'),
     isPendingChannel: boolean('is_cached_pending_channel'),
+    isNewMatchedContact: boolean('is_new_matched_contact'),
     isDmInvite: boolean('is_dm_invite').default(false),
 
     /**
@@ -920,7 +922,11 @@ export const channelRelations = relations(channels, ({ one, many }) => ({
   }),
 }));
 
-export type PostDeliveryStatus = 'pending' | 'sent' | 'failed' | 'needs_verification';
+export type PostDeliveryStatus =
+  | 'pending'
+  | 'sent'
+  | 'failed'
+  | 'needs_verification';
 
 export const posts = sqliteTable(
   'posts',
@@ -935,6 +941,8 @@ export const posts = sqliteTable(
       .notNull(),
     title: text('title'),
     image: text('image'),
+    description: text('description'),
+    cover: text('cover'),
     content: text('content', { mode: 'json' }),
     receivedAt: timestamp('received_at').notNull(),
     sentAt: timestamp('sent_at').notNull(),

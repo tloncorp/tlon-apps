@@ -2,7 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
 import { useTheme } from 'tamagui';
 
@@ -37,6 +37,11 @@ export default function ContactsScreen(props: Props) {
   const { data: suggestions } = store.useSuggestedContacts();
   const { data: calmSettings } = store.useCalmSettings();
   const { data: systemContacts } = store.useSystemContacts();
+
+  const systemContactsWithoutContactId = useMemo(
+    () => systemContacts?.filter((contact) => !contact.contactId),
+    [systemContacts]
+  );
 
   const onContactPress = useCallback(
     (contact: db.Contact) => {
@@ -153,7 +158,7 @@ export default function ContactsScreen(props: Props) {
           />
           <ContactsScreenView
             contacts={userContacts ?? []}
-            systemContacts={systemContacts ?? []}
+            systemContacts={systemContactsWithoutContactId ?? []}
             suggestions={suggestions ?? []}
             onContactPress={onContactPress}
             onAddContact={onAddContact}

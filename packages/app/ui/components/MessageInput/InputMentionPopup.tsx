@@ -1,8 +1,9 @@
 import * as db from '@tloncorp/shared/db';
-import { PropsWithRef, useEffect } from 'react';
+import { PropsWithRef } from 'react';
 import React from 'react';
 import { View, YStack } from 'tamagui';
 
+import { MentionOption } from '../BareChatInput/useMentions';
 import { useIsWindowNarrow } from '../Emoji';
 import MentionPopup, { MentionPopupRef } from '../MentionPopup';
 
@@ -11,16 +12,14 @@ function InputMentionPopupInternal(
     containerHeight,
     isMentionModeActive,
     mentionText,
-    groupMembers,
+    options,
     onSelectMention,
-    setHasMentionCandidates,
   }: PropsWithRef<{
     containerHeight: number;
     isMentionModeActive: boolean;
     mentionText?: string;
-    groupMembers: db.ChatMember[];
-    onSelectMention: (contact: db.Contact) => void;
-    setHasMentionCandidates?: (has: boolean) => void;
+    options: MentionOption[];
+    onSelectMention: (option: MentionOption) => void;
   }>,
   ref: MentionPopupRef
 ) {
@@ -39,8 +38,7 @@ function InputMentionPopupInternal(
         <MentionPopup
           onPress={onSelectMention}
           matchText={mentionText}
-          groupMembers={groupMembers}
-          setHasMentionCandidates={setHasMentionCandidates}
+          options={options}
           ref={ref}
         />
       </View>
