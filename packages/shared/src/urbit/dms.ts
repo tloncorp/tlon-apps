@@ -61,7 +61,7 @@ interface WritDeltaDel {
 interface WritDeltaAddReact {
   'add-react': {
     react: string;
-    ship: string;
+    author: string;
   };
 }
 
@@ -82,7 +82,7 @@ export interface ReplyDeltaDel {
 
 export interface ReplyDeltaAddReact {
   'add-react': {
-    ship: string;
+    author: string;
     react: string;
   };
 }

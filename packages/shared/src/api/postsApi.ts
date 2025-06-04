@@ -449,13 +449,13 @@ export const getChangedPosts = async ({
 export async function addReaction({
   channelId,
   postId,
-  shortCode,
+  emoji,
   our,
   postAuthor,
 }: {
   channelId: string;
   postId: string;
-  shortCode: string;
+  emoji: string;
   our: string;
   postAuthor: string;
 }) {
@@ -470,11 +470,11 @@ export async function addReaction({
         json: {
           ship: channelId,
           diff: {
-            id: `${channelId}/${postId}`,
+            id: `${postAuthor}/${postId}`,
             delta: {
               'add-react': {
-                react: shortCode,
-                ship: our,
+                react: emoji,
+                author: our,
               },
             },
           },
@@ -493,8 +493,8 @@ export async function addReaction({
               writ: {
                 delta: {
                   'add-react': {
-                    react: shortCode,
-                    ship: our,
+                    react: emoji,
+                    author: our,
                   },
                 },
                 id: `${postAuthor}/${postId}`,
@@ -507,24 +507,17 @@ export async function addReaction({
     }
   }
 
-  await poke({
-    app: 'channels',
-    mark: 'channel-action',
-    json: {
-      channel: {
-        nest: channelId,
-        action: {
-          post: {
-            'add-react': {
-              id: postId,
-              react: shortCode,
-              ship: our,
-            },
-          },
+  await poke(
+    channelAction(channelId, {
+      post: {
+        'add-react': {
+          id: postId,
+          react: emoji,
+          ship: our,
         },
       },
-    },
-  });
+    })
+  );
 }
 
 export async function removeReaction({
@@ -578,30 +571,23 @@ export async function removeReaction({
     }
   }
 
-  return await poke({
-    app: 'channels',
-    mark: 'channel-action',
-    json: {
-      channel: {
-        nest: channelId,
-        action: {
-          post: {
-            'del-react': {
-              id: postId,
-              ship: our,
-            },
-          },
+  return await poke(
+    channelAction(channelId, {
+      post: {
+        'del-react': {
+          id: postId,
+          ship: our,
         },
       },
-    },
-  });
+    })
+  );
 }
 
 export async function showPost(post: db.Post) {
   if (isGroupChannelId(post.channelId)) {
     const action = {
       app: 'channels',
-      mark: 'channel-action',
+      mark: 'channel-action-1',
       json: {
         'toggle-post': {
           show: post.id,
@@ -629,7 +615,7 @@ export async function hidePost(post: db.Post) {
   if (isGroupChannelId(post.channelId)) {
     const action = {
       app: 'channels',
-      mark: 'channel-action',
+      mark: 'channel-action-1',
       json: {
         'toggle-post': {
           hide: post.id,
@@ -1139,16 +1125,18 @@ export function getContentImages(postId: string, content?: ub.Story | null) {
 }
 
 export function toReactionsData(
-  reacts: Record<string, string>,
+  reacts: Record<string, ub.React>,
   postId: string
 ): db.Reaction[] {
-  return Object.entries(reacts).map(([name, reaction]) => {
-    return {
-      contactId: name,
-      postId,
-      value: reaction,
-    };
-  });
+  return Object.entries(reacts)
+    .filter(([, r]) => typeof r === 'string')
+    .map(([name, reaction]) => {
+      return {
+        contactId: name,
+        postId,
+        value: reaction as string,
+      };
+    });
 }
 
 function formatCursor(cursor: Cursor) {

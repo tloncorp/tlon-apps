@@ -156,7 +156,7 @@
   :*  id.v-post
       seq.v-post
       mod-at.v-post
-      (uv-reacts-1 reacts.v-post)
+      (uv-reacts-2 reacts.v-post)
       (uv-replies-2 id.v-post replies.v-post)
       (get-reply-meta v-post)
   ==
@@ -270,7 +270,7 @@
   :*  id.post
       seq.post
       mod-at.post
-      (uv-reacts-1 reacts.post)
+      (uv-reacts-2 reacts.post)
       *replies:c
       (get-reply-meta post)
   ==
