@@ -885,6 +885,10 @@ export const channels = sqliteTable(
     contentConfiguration: text('content_configuration', {
       mode: 'json',
     }).$type<ChannelContentConfiguration>(),
+
+    order: text('posts_order', {
+      mode: 'json',
+    }).$type<string[]>(),
   },
   (table) => ({
     lastPostIdIndex: index('last_post_id').on(table.lastPostId),
@@ -921,7 +925,11 @@ export const channelRelations = relations(channels, ({ one, many }) => ({
   }),
 }));
 
-export type PostDeliveryStatus = 'pending' | 'sent' | 'failed' | 'needs_verification';
+export type PostDeliveryStatus =
+  | 'pending'
+  | 'sent'
+  | 'failed'
+  | 'needs_verification';
 
 export const posts = sqliteTable(
   'posts',

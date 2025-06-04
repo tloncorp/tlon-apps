@@ -206,7 +206,6 @@ export default function BareChatInput({
 }: MessageInputProps) {
   const { bottom, top } = useSafeAreaInsets();
   const { height } = useWindowDimensions();
-  const store = useStore();
   const headerHeight = 48;
   const maxInputHeightBasic = useMemo(
     () => height - headerHeight - bottom - top,
@@ -536,7 +535,10 @@ export default function BareChatInput({
 
   // Check if editor is empty
   useEffect(() => {
-    setEditorIsEmpty(controlledText === '' && attachments.length === 0);
+    setEditorIsEmpty(
+      (controlledText === '' || controlledText.trim() === '') &&
+        attachments.length === 0
+    );
   }, [controlledText, attachments]);
 
   const adjustInputHeightProgrammatically = useCallback(() => {
@@ -764,7 +766,7 @@ export default function BareChatInput({
           mentionRef.current?.handleMentionKey('Enter');
         } else if (editingPost) {
           handleEdit();
-        } else {
+        } else if (!editorIsEmpty) {
           handleSend();
         }
       }
@@ -777,6 +779,7 @@ export default function BareChatInput({
       handleSend,
       handleMentionEscape,
       hasMentionCandidates,
+      editorIsEmpty,
     ]
   );
 

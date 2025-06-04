@@ -114,7 +114,7 @@ function ToastView({
   visible: boolean;
   message: string;
 }) {
-  const translateY = useSharedValue(400);
+  const translateY = useSharedValue(40);
   const opacity = useSharedValue(0);
   const insets = useSafeAreaInsets();
 
@@ -134,12 +134,14 @@ function ToastView({
     }
   }, [visible, opacity, translateY]);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-    opacity: opacity.value,
-  }));
+  const animatedStyle = useAnimatedStyle(
+    () => ({
+      transform: [{ translateY: translateY.value }],
+      opacity: opacity.value,
+    }),
+    [translateY, opacity]
+  );
 
-  if (!visible && opacity.value === 0) return null;
   return (
     <Animated.View
       style={[
