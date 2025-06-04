@@ -409,8 +409,9 @@ export async function sendMessage(page: Page, message: string) {
 export async function longPressMessage(page: Page, messageText: string) {
   // Not really a longpress since this is web.
   await page.getByText(messageText).first().click();
+  await page.waitForTimeout(500);
   await page.getByTestId('MessageActionsTrigger').click();
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(500);
 }
 
 /**
@@ -432,7 +433,7 @@ export async function sendThreadReply(page: Page, replyText: string) {
     .locator('#reply-container')
     .getByTestId('MessageInputSendButton')
     .click();
-  await expect(page.getByText(replyText)).toBeVisible();
+  await expect(page.getByText(replyText, { exact: true })).toBeVisible();
 }
 
 /**
@@ -453,7 +454,9 @@ export async function reactToMessage(
     laugh: '😂',
   };
 
-  await expect(page.getByText(emojiMap[emoji])).toBeVisible();
+  await expect(
+    page.getByTestId('ReactionDisplay').getByText(emojiMap[emoji])
+  ).toBeVisible();
 }
 
 /**
@@ -483,7 +486,7 @@ export async function quoteReply(
   await page.fill('[data-testid="MessageInput"]', replyText);
   await page.getByTestId('MessageInputSendButton').click();
 
-  await expect(page.getByText(replyText)).toBeVisible();
+  await expect(page.getByText(replyText, { exact: true })).toBeVisible();
 }
 
 /**
@@ -492,7 +495,7 @@ export async function quoteReply(
 export async function hideMessage(page: Page, messageText: string) {
   await longPressMessage(page, messageText);
   await page.getByText('Hide message').click();
-  await expect(page.getByText(messageText)).not.toBeVisible();
+  await expect(page.getByText(messageText, { exact: true })).not.toBeVisible();
 }
 
 /**
@@ -501,7 +504,7 @@ export async function hideMessage(page: Page, messageText: string) {
 export async function reportMessage(page: Page, messageText: string) {
   await longPressMessage(page, messageText);
   await page.getByText('Report message').click();
-  await expect(page.getByText(messageText)).not.toBeVisible();
+  await expect(page.getByText(messageText, { exact: true })).not.toBeVisible();
 }
 
 /**
@@ -510,7 +513,7 @@ export async function reportMessage(page: Page, messageText: string) {
 export async function deleteMessage(page: Page, messageText: string) {
   await longPressMessage(page, messageText);
   await page.getByText('Delete message').click();
-  await expect(page.getByText(messageText)).not.toBeVisible();
+  await expect(page.getByText(messageText, { exact: true })).not.toBeVisible();
 }
 
 /**
@@ -528,11 +531,10 @@ export async function editMessage(
   await page.getByText(originalText).nth(1).click();
 
   // Clear existing text and input new text
-  await page.keyboard.press('Control+a'); // Select all text
-  await page.keyboard.type(newText);
-
+  await page.getByTestId('MessageInput').fill('');
+  await page.getByTestId('MessageInput').fill(newText);
   await page.getByTestId('MessageInputSendButton').click();
-  await expect(page.getByText(newText)).toBeVisible();
+  await expect(page.getByText(newText, { exact: true })).toBeVisible();
 }
 
 /**
