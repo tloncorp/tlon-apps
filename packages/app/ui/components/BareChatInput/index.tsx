@@ -384,6 +384,7 @@ export default function BareChatInput({
     },
     [
       controlledText,
+      store,
       addAttachment,
       processReferences,
       handleMention,
@@ -846,7 +847,7 @@ export default function BareChatInput({
           mentionRef.current?.handleMentionKey('Enter');
         } else if (editingPost) {
           handleEdit();
-        } else {
+        } else if (!disableSend) {
           handleSend();
         }
       }
@@ -854,11 +855,12 @@ export default function BareChatInput({
     [
       isMentionModeActive,
       setIsOpen,
-      editingPost,
-      handleEdit,
-      handleSend,
       handleMentionEscape,
       hasMentionCandidates,
+      editingPost,
+      disableSend,
+      handleEdit,
+      handleSend,
     ]
   );
 
