@@ -490,6 +490,36 @@ export async function quoteReply(
 }
 
 /**
+ * Quote replies to a message in thread context
+ */
+export async function threadQuoteReply(
+  page: Page,
+  originalMessage: string,
+  replyText: string
+) {
+  // Use the thread-specific message interaction
+  await page.getByText(originalMessage).first().click();
+  await page.waitForTimeout(500);
+  await page.getByTestId('MessageActionsTrigger').click();
+  await page.waitForTimeout(500);
+  await page.getByText('Reply', { exact: true }).click();
+
+  // Verify quote interface appears
+  await expect(page.getByText('Chat Post')).toBeVisible();
+  await expect(page.getByText(originalMessage).nth(1)).toBeVisible(); // Quote shows original
+
+  // Use thread-specific reply input
+  await page.getByPlaceholder('Reply').click();
+  await page.getByPlaceholder('Reply').fill(replyText);
+  await page
+    .locator('#reply-container')
+    .getByTestId('MessageInputSendButton')
+    .click();
+
+  await expect(page.getByText(replyText, { exact: true })).toBeVisible();
+}
+
+/**
  * Hides a message
  */
 export async function hideMessage(page: Page, messageText: string) {
@@ -522,7 +552,8 @@ export async function deleteMessage(page: Page, messageText: string) {
 export async function editMessage(
   page: Page,
   originalText: string,
-  newText: string
+  newText: string,
+  isThread = false
 ) {
   await longPressMessage(page, originalText);
   await page.getByText('Edit message').click();
@@ -531,9 +562,15 @@ export async function editMessage(
   await page.getByText(originalText).nth(1).click();
 
   // Clear existing text and input new text
-  await page.getByTestId('MessageInput').fill('');
-  await page.getByTestId('MessageInput').fill(newText);
-  await page.getByTestId('MessageInputSendButton').click();
+  if (isThread) {
+    await page.getByTestId('MessageInput').nth(1).fill('');
+    await page.getByTestId('MessageInput').nth(1).fill(newText);
+    await page.getByTestId('MessageInputSendButton').nth(1).click();
+  } else {
+    await page.getByTestId('MessageInput').fill('');
+    await page.getByTestId('MessageInput').fill(newText);
+    await page.getByTestId('MessageInputSendButton').click();
+  }
   await expect(page.getByText(newText, { exact: true })).toBeVisible();
 }
 
