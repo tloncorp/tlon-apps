@@ -24,6 +24,8 @@
       phone-api=[base=@t key=@t basic=(unit [user=@t pass=@t])]
       twitter-api=[bearer=@t]
       domain=(unit @t)  ::  as 'https://example.org:123/verifier'
+    ::
+      invites=(map @p @t)
   ==
 ::
 +$  id-kind  ?(%dummy %urbit %phone %twitter %website)
@@ -167,6 +169,7 @@
       [%config id=identifier =config]
       [%revoke id=identifier]
       [%work id=identifier work=user-work]
+      [%invite url=(unit @t)]
   ==
 +$  host-command
   $%  [%revoke id=identifier]
