@@ -15,6 +15,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: isPreview ? 'Tlon - Preview' : 'Tlon',
   assetBundlePatterns: ['**/*'],
   userInterfaceStyle: 'automatic',
+  version: '5.6.1',
   extra: {
     eas: {
       projectId,
@@ -51,6 +52,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     inviteServiceIsDev: process.env.INVITE_SERVICE_IS_DEV,
   },
   ios: {
+    buildNumber: '1',
     runtimeVersion: '4.0.2',
     // demo builds triggered by GitHub require this to be explicitly set rather than handled
     // elsewhere
@@ -62,6 +64,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     runtimeVersion: '4.0.2',
+    versionCode: 108,
   },
   plugins: [
     'expo-asset',
