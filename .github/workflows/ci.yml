@@ -34,9 +34,8 @@ jobs:
       - name: Get Playwright version
         id: playwright-version
         run:
-          echo "version=$(pnpm list @playwright/test --depth=0 --json | jq -r
-          '.[] | .dependencies | .["@playwright/test"] | .version')" >>
-          $GITHUB_OUTPUT
+          echo "version=$(node -p
+          "require('@playwright/test/package.json').version")" >> $GITHUB_OUTPUT
         working-directory: ./apps/tlon-web
 
       - name: Cache Playwright browsers
