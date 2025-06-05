@@ -152,6 +152,7 @@
           %create
         =/  =flag:g  [our.bowl name.create-group.c-groups]
         ?<  (~(has by groups) flag)
+        ?>  from-self
         se-abet:(se-c-create:se-core flag create-group.c-groups)
       ::
           %group
@@ -283,16 +284,16 @@
         %group-knock
       ?>  from-self
       =+  !<(=flag:g vase)
-      =/  =foreign-action:v7:g
+      =/  =a-foreigns:v7:g
         [%foreign flag %ask ~]
-      $(+< foreign-action-1+foreign-action)
+      $(+< foreign-action-1+!>(a-foreigns))
     ::
         %group-rescind
       ?>  from-self
       =+  !<(=flag:g vase)
-      =/  =foreign-action:v7:g
+      =/  =a-foreigns:v7:g
         [%foreign flag %cancel ~]
-      $(+< foreign-action-1+foreign-action)
+      $(+< foreign-action-1+!>(a-foreigns))
     ::
         %group-cancel
       =+  !<(=flag:g vase)
@@ -402,8 +403,8 @@
     ?.  ?=(%live +<.egg-any)
       ~&  [dap.bowl %egg-any-not-live]
       cor
-    =/  bak
-      (load -:!>(*[versioned-state:load _okay:g]) +>.old-state.egg-any)
+    :: =/  bak
+    ::   (load -:!>(*[versioned-state:load _okay:g]) +>.old-state.egg-any)
     ::  restore any previews & invites we might've had
     ::XX this need to be migrated for tickets
     :: =.  xeno
@@ -436,10 +437,10 @@
     ::   %-  emil:cor
     ::   %-  join-channels:go-pass:goc
     ::   ~(tap in ~(key by channels.group.gr))
-    =.  volume
-      :+  base.volume:bak
-        (~(uni by area.volume:bak) area.volume)
-      (~(uni by chan.volume:bak) chan.volume)
+    :: =.  volume
+    ::   :+  base.volume:bak
+    ::     (~(uni by area.volume:bak) area.volume)
+    ::   (~(uni by chan.volume:bak) chan.volume)
     cor
   ==
 ::
@@ -1245,11 +1246,12 @@
     |=  =ship
     ^-  ?
     ?:  =(ship p.flag)  &
-    =/  =seat:g  (~(got by seats.group) ship)
-    !=(~ (~(int in roles.seat) admins.group))
+    ?~  seat=(~(get by seats.group) ship)  |
+    !=(~ (~(int in roles.u.seat) admins.group))
   ::  +se-admins: the set of members with admin rights
   ::
   ++  se-admins
+    =-  (~(put in -) our.bowl)
     %+  roll  ~(tap by seats.group)
     |=  [[who=ship =seat:g] out=(set ship)]
     ?:  =(~ (~(int in roles.seat) admins.group))
@@ -1260,8 +1262,10 @@
     |=  =ship
     ?:  =(our.bowl ship)  |
     =*  banned  banned.admissions.group
-    ?|  (~(has in ranks.banned) (clan:title ship))
-        (~(has in ships.banned) ship)
+    ?|  (~(has in ships.banned) ship)
+        ?&  !(se-is-admin ship)
+            (~(has in ranks.banned) (clan:title ship))
+        ==
     ==
   ::  +se-channel-hosts: set of ships hosting a group channel
   ::
@@ -1334,17 +1338,28 @@
         ~
       `nest
     =.  section-order.group  (~(push of section-order.group) %default)
-    =/  our=seat:g  (~(gut by seats.group) our.bowl *seat:g)
-    =.  roles.our  (~(put in roles.our) %admin)
-    =.  seats.group  (~(put by seats.group) our.bowl our)
-    ::
+    =/  =seat:g  (~(gut by seats.group) our.bowl *seat:g)
+    =.  joined.seat  now.bowl
+    =.  roles.seat  (~(put in roles.seat) %admin)
+    =.  seats.group  (~(put by seats.group) our.bowl seat)
     =.  groups  (~(put by groups) flag [%pub *log:g] group)
+    ::TODO invite all the ships on the guest list.
+    ::
     (se-update:(se-abed flag) [%create group])
   ::  +se-c-delete: delete the group
   ::
   ++  se-c-delete
     se-core(gone &)
   ::  +se-join: handle group join request
+  ::
+  ::  a ship can join the group if she has a valid token.
+  ::  for a public group no token is required for entry.
+  ::  a private or secret group requires a valid token issued by
+  ::  the group host. 
+  ::
+  ::  a banned ship can not enter the group. 
+  ::
+  ::  re-joining the group with valid credentials is vacuous.
   ::
   ++  se-c-join
     |=  tok=(unit token:g)
@@ -1353,13 +1368,29 @@
       (se-admit src.bowl tok)
     ~|  %se-c-join-access-denied
     ?>  access
+    =/  seat=(unit seat:g)  (~(get by seats.group) src.bowl)
+    ?:  ?&  ?=(^ seat)
+            !=(*@da joined.u.seat)
+        ==
+      se-core
     (se-c-seat (sy src.bowl ~) [%add ~])
-  ::  +se-join: handle group join request
+  ::  +se-c-ask: handle group ask request
+  ::
+  ::  a ship can request to join the group. this request
+  ::  is visible to admins, who can then approve or deny.
+  ::  denying an ask request does not result in the ship ban.
+  ::
+  ::  if a user has already joined the group, an ask request is vacuous.
   ::
   ++  se-c-ask
     |=  story=(unit story:s:g) ::XX something is messed up with story imports
     ^+  se-core
     ?<  (se-is-banned src.bowl)
+    =/  seat=(unit seat:g)  (~(get by seats.group) src.bowl)
+    ?:  ?&  ?=(^ seat)
+            !=(*@da joined.u.seat)
+        ==
+      se-core
     =.  requests.ad  (~(put by requests.ad) src.bowl story)
     (se-update %entry %ask [%add src.bowl story])
   ::
@@ -1408,10 +1439,8 @@
   ++  se-c-group
     |=  =c-group:g
     ^+  se-core
-    =*  se-src-is-admin  (se-is-admin src.bowl)
     ?<  (se-is-banned src.bowl)
-    ::XX who can ban ships. make sure the host can't
-    ::   ban itself, and rank is not in effect for the host
+    =*  se-src-is-admin  (se-is-admin src.bowl)
     ::
     ?-    -.c-group
         %meta
@@ -1468,6 +1497,22 @@
     (se-update [%entry %privacy privacy])
   ::  +se-c-entry-ban: execute an entry ban command
   ::
+  ::  the entry ban command is used to forbid a ship or a class of 
+  ::  ships of certain rank from joining the group, requesting to join
+  ::  the group, or executing any commands on the group host.
+  ::
+  ::TODO  if a ship is already a group member and is subsequently banned,
+  ::      it is kicked from the group.
+  ::  
+  ::  the ship and rank blacklists do not affect the group host.
+  ::  it is illegal to execute any $c-ban commands that affects 
+  ::  the group host in any way.
+  ::
+  ::  the rank blacklist does not affect admins. it is illegal
+  ::  for an admin to execute a $c-ban command that affect 
+  ::  another admin ship.
+  ::
+  ::
   ++  se-c-entry-ban
     |=  =c-ban:g
     ^+  se-core
@@ -1477,6 +1522,16 @@
             ==
             ?&  ?=(%set -.c-ban)
                 (~(has in ships.c-ban) our.bowl)
+            ==
+        ==
+    ::  disallow operations on admins unless executed by the host
+    ?>  ?|  =(p.flag src.bowl)
+        ?!  ?|  ?&  ?=(?(%add-ships %del-ships) -.c-ban)
+                !=(~ (~(int in se-admins) ships.c-ban))
+                ==
+                ?&  ?=(%set -.c-ban)
+                    !=(~ (~(int in se-admins) ships.c-ban))
+                ==
             ==
         ==
     =*  banned  banned.ad
@@ -1547,6 +1602,19 @@
     ==
   ::  +se-c-seat: execute a seat command
   ::
+  ::  seats are used to manage group membership.
+  ::  a seat can be created in two ways: when a user joins
+  ::  the group, and when group members are manually added
+  ::  by a group admin. 
+  ::
+  ::  the case of a user join can be detected by verifying
+  ::  that the ship set contains only the ship originating
+  ::  the request. the joined time for a user join is .now.bowl.
+  ::
+  ::  group seats can also be added by a group admin. this allows,
+  ::  for instance, for pre-populating member roles ahead of time.
+  ::  seats added manually have default joined time.
+  ::
   ++  se-c-seat
     |=  [ships=(set ship) =c-seat:g]
     ^+  se-core
@@ -1554,8 +1622,7 @@
     ::
     ?-    -.c-seat
         %add
-      ::TODO update requests
-      ::XX prevent re-adding a seat
+      ::TODO update requests in admissions
       =.  seats.group
         %-  ~(uni by seats.group)
         %-  malt
@@ -1564,12 +1631,8 @@
         |=  =ship
         ::  ships added by admins have default joined time
         =/  joined  ?:(user-join now.bowl *time)
-        ::  preserve roles
-        =/  seat  (~(gut by seats.group) ship *seat:g)
-        [ship [roles.seat joined]]
-      ::TODO send a bulk update if possible,
-      ::     separately sending new ships and
-      ::     existing ships.
+        :-  ship
+        %*(. (~(gut by seats.group) ship *seat:g) joined joined)
       ::
       =.  se-core
         %+  roll  ~(tap in ships)
@@ -1635,13 +1698,29 @@
     se-core
   ::  +se-c-role: execute a role command
   ::
+  ::  roles determine member permissions. there are currently
+  ::  three kinds of permissions in groups:
+  ::
+  ::  1. permission to read a channel, stored in .readers in a $channel
+  ::  2. permission to write to a channel, stored in the channels agent
+  ::  3. admin permissions to manage the group, stored in .admins in a $group
+  ::
+  ::  these permissions do not affect the group host, who always
+  ::  possesses full power to access and administer the group.
+  ::
+  ::  only the group host can change the set of admin roles.
+  ::
   ++  se-c-role
     |=  [roles=(set role-id:g) =c-role:g]
     ^+  se-core
-    ?.  ?|  ?=(%add -.c-role)
+    ::  forbid duplicate roles
+    ?<  ?&  ?=(%add -.c-role)
             =(roles (~(int in ~(key by roles.group)) roles))
         ==
-      se-core
+    ::  forbid anyone but the group host to change admin roles
+    ?<  ?&  !=(p.flag src.bowl)
+            ?=(?(%set-admin %del-admin) -.c-role)
+        ==
     ?-    -.c-role
         %add
       =/  =role:g
@@ -1766,7 +1845,7 @@
   ::CONTINUE
   ::  +se-channel-del-roles: remove roles from channel readers
   ::
-  ++  se-channel-del-roleg
+  ++  se-channel-del-roles
     |=  [=nest:g roles=(set role-id:g)]
     ^+  se-core
     =.  channels.group
@@ -2857,7 +2936,7 @@
     ::  v1 response
     ::
     =/  r-groups-7=r-groups:v7:g  [flag r-group]
-    =/  v1-paths  ~[/v1/groups (weld /v1/groups go-area)]
+    =/  v1-paths  ~[/v1/groups [%v1 go-area]]
     =.  cor  (give %fact v1-paths group-response-1+!>(r-groups-7))
     ::  v0 backcompat
     ::
@@ -2917,6 +2996,12 @@
         :-  admin=(go-is-admin ship)
         roles=roles.u.seat
       ==
+    ::
+      ::
+      ::  admissions queries
+      ::
+        [%entry %tokens ~]
+      ``noun+!>(tokens.ad)
     ==
   ++  go-can-read
     |=  [=ship =channel:g]

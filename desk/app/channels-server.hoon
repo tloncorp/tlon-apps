@@ -1031,7 +1031,7 @@
     =*  flag  group.perm.perm.+.u.channel
     %-  some
     ?.  .^(? %gu (scry-path %groups /$))  *group-ui:v2:g
-    ?.  .^(? %gu (scry-path %groups /groups/(scot %p p.flag)/[q.flag]/noun))
+    ?.  .^(? %gu (scry-path %groups /groups/(scot %p p.flag)/[q.flag]))
       *group-ui:v2:g
     .^(group-ui:v2:g %gx (scry-path %groups /groups/(scot %p p.flag)/[q.flag]/v1/group-ui))
   :*  channel

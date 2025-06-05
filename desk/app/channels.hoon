@@ -1206,7 +1206,11 @@
     |=  [=wire =sign:agent:gall]
     ^+  ca-core
     ?+    wire  ~|(channel-strange-agent-wire+wire !!)
-      ~  ca-core  :: no-op wire, should only send pokes
+        ~  
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  ca-core
+      ((slog %ca-agent u.p.sign) ca-core)
+      :: ca-core  :: no-op wire, should only send pokes
       [%create ~]       (ca-take-create sign)
       [%updates ~]      (ca-take-update sign)
       [%backlog ~]      (ca-take-backlog sign)

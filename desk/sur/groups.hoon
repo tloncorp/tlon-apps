@@ -20,6 +20,9 @@
   ==
 ::  $seat: group membership (formerly $vessel)
 ::
+::  .roles: set of roles assigned to a seat
+::  .joined: time the ship joined
+::
 +$  seat
   $:  roles=(set role-id)
       joined=time
@@ -52,13 +55,12 @@
 ::  .meta: channel description
 ::  .added: time channel was added
 ::  .section: channel section
-::  .join: should the channel be joined by new members
 ::  .readers: roles with read permissions. empty set
 ::            means the channel is accessible by everyone.
+::  .join: should the channel be joined by new members
 ::
 +$  channel
   $:  meta=data:meta
-      ::XX this was never filled; make sure we set this.
       added=time
       section=section-id
       readers=(set role-id)
@@ -537,6 +539,7 @@
 +$  r-channel  u-channel
 +$  r-section  u-section
 ::  $a-foreigns: foreigns action
+::TODO simply to +$  a-foreign
 +$  a-foreigns
   $%  [%foreign =flag =a-foreign]
   ==
