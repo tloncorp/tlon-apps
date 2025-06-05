@@ -5,7 +5,13 @@ import { Button } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
-import { ComponentProps, useCallback, useMemo, useState } from 'react';
+import {
+  ComponentProps,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from 'react';
 import {
   View,
   ViewStyle,
@@ -142,7 +148,6 @@ export function NotebookPost({
               post={post}
               showDate={showDate}
               showAuthor={showAuthor && viewMode !== 'activity'}
-              size={size}
             />
 
             {viewMode !== 'activity' && (
@@ -212,14 +217,13 @@ function NotebookPostHeader({
   showDate,
   showAuthor,
   post,
-  size,
   ...props
 }: {
   showAuthor?: boolean;
   showDate?: boolean;
   post: db.Post;
-  size?: '$l' | '$s' | '$xs';
 } & ComponentProps<typeof NotebookPostHeaderFrame>) {
+  const { size } = useContext(NotebookPostContext);
   const formattedDate = useMemo(() => {
     return makePrettyShortDate(new Date(post.receivedAt));
   }, [post.receivedAt]);
@@ -237,7 +241,7 @@ function NotebookPostHeader({
         />
       )}
 
-      <NotebookPostTitle size={size}>
+      <NotebookPostTitle>
         {post.editStatus === 'failed' || post.editStatus === 'pending'
           ? post.lastEditTitle ?? 'Untitled Post'
           : post.title ?? 'Untitled Post'}
@@ -282,7 +286,6 @@ export function NotebookPostDetailView({ post }: { post: db.Post }) {
         paddingBottom={'$2xl'}
         borderBottomWidth={1}
         borderBottomColor="$border"
-        size={'$l'}
       />
       <NotebookContentRenderer
         marginTop="$-l"
