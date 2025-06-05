@@ -252,6 +252,8 @@ export default function BareChatInput({
   const maxInputHeight = useKeyboardHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
 
+  usePasteHandler(addAttachment);
+
   const [isSending, setIsSending] = useState(false);
   const [linkMetaLoading, setLinkMetaLoading] = useState(false);
   const disableSend = useMemo(() => {
