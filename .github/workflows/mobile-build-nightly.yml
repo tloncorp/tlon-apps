@@ -40,6 +40,10 @@ jobs:
       - name: Install dependencies
         if: steps.changes.outputs.changes != '0'
         run: pnpm install --frozen-lockfile
+      - name: Extract git hash
+        if: steps.changes.outputs.changes != '0'
+        id: gitHash
+        run: echo "hash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
       - name: Build for selected platforms
         if: steps.changes.outputs.changes != '0'
         working-directory: ./apps/tlon-mobile
@@ -48,5 +52,6 @@ jobs:
         env:
           EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
           EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
+          GIT_HASH: ${{ steps.gitHash.outputs.hash }}
           NOTIFY_PROVIDER: "binnec-dozzod-marnus"
           NOTIFY_SERVICE: "tlon-preview-release"

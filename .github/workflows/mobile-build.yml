@@ -41,6 +41,7 @@ jobs:
         id: vars
         run: |
           echo "profile=${{ inputs.profile || 'preview' }}" >> $GITHUB_OUTPUT
+          echo "gitHash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
       - name: Build for selected platforms
         working-directory: ./apps/tlon-mobile
         run:
@@ -49,6 +50,7 @@ jobs:
         env:
           EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
           EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
+          GIT_HASH: ${{ steps.vars.outputs.gitHash }}
           NOTIFY_PROVIDER:
             "${{ steps.vars.outputs.profile == 'preview' &&
             'binnec-dozzod-marnus' || 'rivfur-livmet' }}"
