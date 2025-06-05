@@ -71,12 +71,12 @@ jobs:
 
           if [ "$PLATFORM" = "all" ] || [ "$PLATFORM" = "android" ]; then
             ANDROID_BUILD=${{ steps.version_info.outputs.android_build }}
-            git tag "android-${VERSION}-${ANDROID_BUILD}-${PROFILE}"
+            git tag -f "android-${PROFILE}-${ANDROID_BUILD}"
           fi
 
           if [ "$PLATFORM" = "all" ] || [ "$PLATFORM" = "ios" ]; then
             IOS_BUILD=${{ steps.version_info.outputs.ios_build }}
-            git tag "ios-${VERSION}-${IOS_BUILD}-${PROFILE}"
+            git tag -f "ios-${PROFILE}-${IOS_BUILD}"
           fi
 
-          git push origin --tags
+          git push origin --tags --force
