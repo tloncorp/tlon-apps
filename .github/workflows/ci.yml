@@ -56,9 +56,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ./apps/tlon-web/rube/*.tgz
+            ./apps/tlon-web/rube/rube-zod9.tgz
+            ./apps/tlon-web/rube/rube-bus9.tgz
             ./apps/tlon-web/rube/urbit_binary.tgz
-          key: e2e-piers-${{ hashFiles('**/shipManifest.json') }}
+          key: e2e-piers-${{ hashFiles('apps/tlon-web/e2e/shipManifest.json') }}
           restore-keys: |
             e2e-piers-
 
