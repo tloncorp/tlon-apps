@@ -70,15 +70,6 @@ jobs:
         run: pnpm e2e
         working-directory: ./apps/tlon-web
 
-      - name: Debug - List rube directory contents
-        if: always()
-        run: |
-          echo "Contents of rube directory:"
-          ls -la ./rube/ || echo "rube directory not found"
-          echo "Current working directory:"
-          pwd
-        working-directory: ./apps/tlon-web
-
       - uses: actions/upload-artifact@v4
         if: always()
         with:
