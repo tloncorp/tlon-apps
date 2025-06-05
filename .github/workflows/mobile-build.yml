@@ -41,35 +41,32 @@ jobs:
         id: vars
         run: |
           echo "profile=${{ inputs.profile || 'preview' }}" >> $GITHUB_OUTPUT
+      # - name: Build for selected platforms
+      #   working-directory: ./apps/tlon-mobile
+      #   run:
+      #     eas build --profile ${{ steps.vars.outputs.profile }} --platform ${{
+      #     inputs.platform || 'all' }} --non-interactive --auto-submit
+      #   env:
+      #     EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
+      #     EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
+      #     NOTIFY_PROVIDER:
+      #       "${{ steps.vars.outputs.profile == 'preview' &&
+      #       'binnec-dozzod-marnus' || 'rivfur-livmet' }}"
+      #     NOTIFY_SERVICE:
+      #       "${{ steps.vars.outputs.profile == 'preview' &&
+      #       'tlon-preview-release' || 'groups-native' }}"
       - name: Extract version and build numbers
         id: version_info
         working-directory: ./apps/tlon-mobile
         run: |
-          CONFIG=$(npx expo config --json)
-          VERSION=$(echo "$CONFIG" | jq -r '.version')
-          ANDROID_BUILD=$(echo "$CONFIG" | jq -r '.android.versionCode')
-          IOS_BUILD=$(echo "$CONFIG" | jq -r '.ios.buildNumber')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          CONFIG=$(eas build:version:get --profile preview --json --non-interactive --platform all)
+          ANDROID_BUILD=$(echo "$CONFIG" | jq -r '.versionCode')
+          IOS_BUILD=$(echo "$CONFIG" | jq -r '.buildNumber')
           echo "android_build=$ANDROID_BUILD" >> $GITHUB_OUTPUT
           echo "ios_build=$IOS_BUILD" >> $GITHUB_OUTPUT
-      - name: Build for selected platforms
-        working-directory: ./apps/tlon-mobile
-        run:
-          eas build --profile ${{ steps.vars.outputs.profile }} --platform ${{
-          inputs.platform || 'all' }} --non-interactive --auto-submit
-        env:
-          EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
-          EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
-          NOTIFY_PROVIDER:
-            "${{ steps.vars.outputs.profile == 'preview' &&
-            'binnec-dozzod-marnus' || 'rivfur-livmet' }}"
-          NOTIFY_SERVICE:
-            "${{ steps.vars.outputs.profile == 'preview' &&
-            'tlon-preview-release' || 'groups-native' }}"
       - name: Create git tags
         run: |
           PROFILE=${{ steps.vars.outputs.profile }}
-          VERSION=${{ steps.version_info.outputs.version }}
           PLATFORM="${{ inputs.platform || 'all' }}"
 
           if [ "$PLATFORM" = "all" ] || [ "$PLATFORM" = "android" ]; then
