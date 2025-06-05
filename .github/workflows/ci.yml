@@ -56,15 +56,27 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ./apps/tlon-web/rube/rube-zod9.tgz
-            ./apps/tlon-web/rube/rube-bus9.tgz
-            ./apps/tlon-web/rube/urbit_binary.tgz
+            ./apps/tlon-web/rube/dist/rube-zod9.tgz
+            ./apps/tlon-web/rube/dist/rube-bus9.tgz
+            ./apps/tlon-web/rube/dist/urbit_binary.tgz
+            ./apps/tlon-web/rube/dist/urbit_extracted/
+            ./apps/tlon-web/rube/dist/zod/
+            ./apps/tlon-web/rube/dist/bus/
           key: e2e-piers-${{ hashFiles('apps/tlon-web/e2e/shipManifest.json') }}
           restore-keys: |
             e2e-piers-
 
       - name: Run E2E Tests for Groups
         run: pnpm e2e
+        working-directory: ./apps/tlon-web
+
+      - name: Debug - List rube directory contents
+        if: always()
+        run: |
+          echo "Contents of rube directory:"
+          ls -la ./rube/ || echo "rube directory not found"
+          echo "Current working directory:"
+          pwd
         working-directory: ./apps/tlon-web
 
       - uses: actions/upload-artifact@v4
