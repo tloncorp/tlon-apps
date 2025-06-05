@@ -52,7 +52,6 @@
   ?>(?=(%s -.u.event) u.event)
 =/  event=json
   %-  pairs:enjs:format
-  =/ distinct-id  
   =/  timestamp=@t
     %-  crip
     =+  (yore time.log-item)
