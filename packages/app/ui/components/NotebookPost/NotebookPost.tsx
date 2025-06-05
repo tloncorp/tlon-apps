@@ -237,7 +237,7 @@ function NotebookPostHeader({
         />
       )}
 
-      <NotebookPostTitle>
+      <NotebookPostTitle size={size}>
         {post.editStatus === 'failed' || post.editStatus === 'pending'
           ? post.lastEditTitle ?? 'Untitled Post'
           : post.title ?? 'Untitled Post'}
@@ -282,6 +282,7 @@ export function NotebookPostDetailView({ post }: { post: db.Post }) {
         paddingBottom={'$2xl'}
         borderBottomWidth={1}
         borderBottomColor="$border"
+        size={'$l'}
       />
       <NotebookContentRenderer
         marginTop="$-l"
@@ -305,7 +306,7 @@ const NotebookContentRenderer = createContentRenderer({
   },
 });
 
-const NotebookPostContext = createStyledContext<{ size: '$l' | '$s' }>({
+const NotebookPostContext = createStyledContext<{ size: '$l' | '$s' | '$xs' }>({
   size: '$l',
 });
 
@@ -359,7 +360,9 @@ export const NotebookPostTitle = styled(Text, {
   size: '$title/l',
   variants: {
     size: {
-      $s: '$label/2xl',
+      $s: { size: '$label/2xl' },
+      $l: { size: '$title/l' },
+      $xs: { size: '$label/xl' },
     },
   } as const,
 });
