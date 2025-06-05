@@ -43,15 +43,6 @@ export function extractClientVolumes(
   return settings;
 }
 
-/**
- * Determines if a channel should be considered muted,
- * checking both channel-level and group-level muting settings.
- *
- * @param volume - The volume level of the channel or group.
- * @param type - The type of the channel or group.
- * @returns True if the channel or group is muted, false otherwise.
- */
-
 export function isMuted(
   volume: NotificationLevel | null | undefined,
   type: 'group' | 'channel' | 'thread'
@@ -67,22 +58,6 @@ export function isMuted(
   }
 
   return false;
-}
-
-/**
- * Returns the appropriate preview text for a post based on its status.
- *
- * @param post - The post to get the preview text for.
- * @returns The preview text for the post.
- */
-export function getPostPreviewText(post: {
-  isDeleted?: boolean | null;
-  hidden?: boolean | null;
-  textContent?: string | null;
-}): string {
-  if (post.isDeleted) return '(Deleted post)';
-  if (post.hidden) return '(Hidden post)';
-  return post.textContent ?? '';
 }
 
 // Aggregates events from the same source into a shape that we can use

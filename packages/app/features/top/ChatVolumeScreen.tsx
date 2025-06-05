@@ -59,26 +59,21 @@ export function ChatVolumeScreen(props: Props) {
 export const volumeOptions: {
   title: string;
   value: ub.NotificationLevel;
-  description?: string;
 }[] = [
   {
     title: 'All activity',
-    description: 'Receive all notifications',
     value: 'loud',
   },
   {
     title: 'Posts, mentions, and replies',
-    description: 'Receive notifications for new posts, mentions, and replies',
     value: 'medium',
   },
   {
     title: 'Mentions and replies',
-    description: 'Only be notified when mentioned or replied to',
     value: 'soft',
   },
   {
     title: 'Nothing',
-    description: 'Mute all notifications and preview text',
     value: 'hush',
   },
 ];
