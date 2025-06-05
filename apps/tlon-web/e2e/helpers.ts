@@ -638,9 +638,7 @@ export async function createDirectMessage(page: Page, contactId: string) {
 
   // Wait for DM to open
   await expect(page.getByText(contactId).first()).toBeVisible();
-  // only shown in mobile viewport
-  const viewport = await page.viewportSize();
-  if (viewport && viewport.width < 768) {
+  if (await isMobileViewport(page)) {
     console.log('header back button');
     await expect(page.getByTestId('HeaderBackButton')).toBeVisible();
   }
@@ -660,4 +658,12 @@ export async function leaveDM(page: Page, contactId: string) {
   // TODO: figure out why this is happening
   await page.reload();
   await expect(page.getByText(contactId, { exact: true })).not.toBeVisible();
+}
+
+/**
+ * Check if we're on a mobile viewport
+ */
+export async function isMobileViewport(page: Page) {
+  const viewport = await page.viewportSize();
+  return viewport && viewport.width < 768;
 }

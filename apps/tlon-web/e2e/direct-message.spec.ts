@@ -5,6 +5,7 @@ import {
   createDirectMessage,
   deleteMessage,
   hideMessage,
+  isMobileViewport,
   leaveDM,
   navigateBack,
   quoteReply,
@@ -42,6 +43,10 @@ test('should test comprehensive direct message functionality', async ({
 
   // Send a message in the DM
   await sendMessage(page, 'Hello, ~bus!');
+
+  if (await isMobileViewport(page)) {
+    await navigateBack(page);
+  }
 
   await expect(
     page.getByTestId('ChatListItem-~bus-unpinned').getByText('Hello, ~bus!')

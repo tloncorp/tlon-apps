@@ -207,7 +207,7 @@ export function ChatListScreenView({
 
   useEffect(() => {
     if (activeTab === 'home') {
-      setScreenTitle('Homel');
+      setScreenTitle('Home');
     } else if (activeTab === 'groups') {
       setScreenTitle('Groups');
     } else if (activeTab === 'messages') {
@@ -295,7 +295,7 @@ export function ChatListScreenView({
                     <ScreenHeader.IconButton
                       type="Add"
                       onPress={handlePressAddChat}
-                      testID="CreateGroupButton"
+                      testID="CreateChatSheetTrigger"
                     />
                   ) : (
                     <CreateChatSheet
