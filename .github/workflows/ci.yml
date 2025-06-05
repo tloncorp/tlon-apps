@@ -31,7 +31,25 @@ jobs:
       - name: Run Tests
         run: pnpm test:ci
 
+      - name: Get Playwright version
+        id: playwright-version
+        run:
+          echo "version=$(pnpm list @playwright/test --depth=0 --json | jq -r
+          '.[] | .dependencies | .["@playwright/test"] | .version')" >>
+          $GITHUB_OUTPUT
+        working-directory: ./apps/tlon-web
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key:
+            playwright-${{ runner.os }}-${{
+            steps.playwright-version.outputs.version }}
+
       - name: Install Playwright Browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install chromium --with-deps
         working-directory: ./apps/tlon-web
 
