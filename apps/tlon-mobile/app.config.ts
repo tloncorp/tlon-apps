@@ -50,6 +50,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     branchDomain: process.env.BRANCH_DOMAIN_PROD,
     inviteServiceEndpoint: process.env.INVITE_SERVICE_ENDPOINT,
     inviteServiceIsDev: process.env.INVITE_SERVICE_IS_DEV,
+    gitHash: process.env.GIT_HASH,
   },
   ios: {
     buildNumber: '1',
