@@ -3,7 +3,7 @@
   "version": "5.7.0",
   "private": true,
   "scripts": {
-    "build": "tsc && vite build",
+    "build": "vite build",
     "build:mock": "tsc && vite build --mode staging",
     "build:profile": "tsc && vite build --mode profile",
     "build:electron": "tsc && vite build --mode electron",
