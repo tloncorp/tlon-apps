@@ -210,12 +210,14 @@
         $(+< group-action-4+!>(a-groups))
       ?:  ?=([%cordon %shut *] diff)
         =*  cordon-diff  p.p.diff
+        ::TODO  comment: "upgrade" the poke by doing x y z
+        ::
         ?-  -.cordon-diff
             %add-ships
           ?-    p.cordon-diff
               %ask
-            =/  =a-foreigns:v7:g
             ?>  =(q.cordon-diff (silt our.bowl ~))
+            =/  =a-foreigns:v7:g
               [%foreign flag %ask ~]
             $(+< group-foreign-1+!>(a-foreigns))
           ::
@@ -228,9 +230,9 @@
             %del-ships
           ?-    p.cordon-diff
               %ask
+            ?>  =(q.cordon-diff (silt our.bowl ~))
             =/  =a-foreigns:v7:g
               [%foreign flag %cancel ~]
-            ?>  =(q.cordon-diff (silt our.bowl ~))
             $(+< group-foreign-1+!>(a-foreigns))
           ::
               %pending
@@ -1355,9 +1357,9 @@
   ::  a ship can join the group if she has a valid token.
   ::  for a public group no token is required for entry.
   ::  a private or secret group requires a valid token issued by
-  ::  the group host. 
+  ::  the group host.
   ::
-  ::  a banned ship can not enter the group. 
+  ::  a banned ship can not enter the group.
   ::
   ::  re-joining the group with valid credentials is vacuous.
   ::
@@ -1440,6 +1442,8 @@
     |=  =c-group:g
     ^+  se-core
     ?<  (se-is-banned src.bowl)
+    ::TODO  commands that change permissions/seats should re-evaluate subscriptions,
+    ::      and kick subscriptions from people that are no longer allowed
     =*  se-src-is-admin  (se-is-admin src.bowl)
     ::
     ?-    -.c-group
@@ -1497,19 +1501,19 @@
     (se-update [%entry %privacy privacy])
   ::  +se-c-entry-ban: execute an entry ban command
   ::
-  ::  the entry ban command is used to forbid a ship or a class of 
+  ::  the entry ban command is used to forbid a ship or a class of
   ::  ships of certain rank from joining the group, requesting to join
   ::  the group, or executing any commands on the group host.
   ::
   ::TODO  if a ship is already a group member and is subsequently banned,
   ::      it is kicked from the group.
-  ::  
+  ::
   ::  the ship and rank blacklists do not affect the group host.
-  ::  it is illegal to execute any $c-ban commands that affects 
+  ::  it is illegal to execute any $c-ban commands that affects
   ::  the group host in any way.
   ::
   ::  the rank blacklist does not affect admins. it is illegal
-  ::  for an admin to execute a $c-ban command that affect 
+  ::  for an admin to execute a $c-ban command that affect
   ::  another admin ship.
   ::
   ::
@@ -1605,7 +1609,7 @@
   ::  seats are used to manage group membership.
   ::  a seat can be created in two ways: when a user joins
   ::  the group, and when group members are manually added
-  ::  by a group admin. 
+  ::  by a group admin.
   ::
   ::  the case of a user join can be detected by verifying
   ::  that the ship set contains only the ship originating
@@ -2278,12 +2282,10 @@
       %^  emit  %pass  wire
       [%agent [ship.a-invite dap.bowl] %poke cage]
     go-core
-
   ::  +go-a-group: execute group action
   ::
   ++  go-a-group
     |=  =a-group:g
-    ~&  go-a-group+-.a-group
     ^+  go-core
     ?>  from-self
     ?+  -.a-group  (go-send-command /command `c-group:g`a-group)
@@ -2370,7 +2372,7 @@
     ::
     ::
     ==
-  ++  go-take-join
+  ++  go-take-join  ::REVIEW  clean up?
     |=  =sign:agent:gall
     ^+  go-core
     ~|(%unimplemented !!)
@@ -2380,7 +2382,6 @@
     ^+  go-core
     ?+   -.sign  ~|(go-take-update-bad+-.sign !!)
         %watch-ack
-      ~&  go-take-update+%watch-ack
       =?  cor  (~(has by foreigns) flag)
         fi-abet:(fi-watched:(fi-abed:fi-core flag) p.sign)
       ::TODO think about this failure mode: we obtained a seat
@@ -2769,6 +2770,8 @@
       go-core
     ::
         %add-readers
+      ::  can't add roles that don't exist as readers
+      ::
       ?>  =(~ (~(dif in roles.u-channel) ~(key by roles.group)))
       =.  go-core  (go-response %channel nest [%add-readers roles.u-channel])
       ?:  go-our-host  go-core
@@ -2980,9 +2983,11 @@
       =/  =nest:g  [app.pole (slav %p ship.pole) name.pole]
       ?+    rest.pole  [~ ~]
           [%can-read ship=@ ~]
+        ::TODO  maybe %loob mark, here and elsewhere
         ?~  channel=(~(get by channels.group) nest)
           ``noun+!>(|)
         =+  ship=(slav %p ship.rest.pole)
+        ::TODO  this was producing a gate for a reason (channels agent perm recheck perf)
         ``noun+!>(=-(~&(groups-can-read+- -) (go-can-read ship u.channel)))
         ::
           [%can-write ship=@ ~]
@@ -3015,6 +3020,7 @@
     ::  (1) the ship is admin
     ::  (2) the group is public and the channel is visible
     ::  (3) the ship is a member
+    ::  ... or (4), the ship is in the reader role explicitly
     ::
     ?:  ?|  (go-is-admin ship)
             &(open visible)
@@ -3025,7 +3031,7 @@
     !=(~ (~(int in readers.channel) roles.u.seat))
   ::  +go-watch: handle a group subscription request
   ::
-  ++  go-watch
+  ++  go-watch  ::TODO  clean up
     |=  [ver=?(%v0 %v1) =(pole knot)]
     ^+  go-core
     ?+    pole  ~|(bad-go-watch+pole !!)
@@ -3063,6 +3069,8 @@
     ::TODO figure out the foreign lifetime logic after designining
     ::     new endpoints for the client
     ::
+    ::TODO  +fi-give-update will put it in again, even if we just deleted!
+    ::      could move its foreigns edit into the =/
     =?  foreigns  ?=([~ %done] progress)
       (~(del by foreigns) flag)
     =.  fi-core  fi-give-update
@@ -3130,10 +3138,12 @@
       ?:  =(p.flag our.bowl)
         ::XX presumably this is because we are sure of the kick
         ::   for self-subscriptions?
+        ::TODO  idk! test it, feels like it should be Fine™
         ::
         ~[watch]
-      ::  the order of cards seems wrong: inherited
-      ::  from old %groups
+      ::  clean up the old sub just in case it's still there,
+      ::  then do a new watch
+      ::
       :~  [%pass wire %agent dock %leave ~]
           watch
       ==
@@ -3144,13 +3154,16 @@
       =/  =wire  /foreigns/index/(scot %p ship)
       =/  =dock  [ship server]
       =/  =path  /server/groups/index
-      ::XX why is leave needed here. won't we receive a kick back?
+      ::  clean up the old sub just in case it's still there,
+      ::  then do a new watch
+      ::
       :~  [%pass wire %agent dock %leave ~]
           [%pass wire %agent dock %watch path]
       ==
     --
   ::  +fi-a-foreign: execute foreign group action
   ::
+  ::REVIEW  CONTINUE
   ++  fi-a-foreign
     |=  =a-foreign:g
     ^+  fi-core
