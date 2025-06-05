@@ -85,7 +85,10 @@ function isValidImageSource(source: any) {
       return true;
     }
 
-    if (typeof uri === 'string' && uri.startsWith('file://')) {
+    if (
+      typeof uri === 'string' &&
+      (uri.startsWith('file:') || uri.startsWith('blob:'))
+    ) {
       // permit file URIs
       return true;
     }
