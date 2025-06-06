@@ -6,6 +6,18 @@
 ::  rather achieves this separation with two distinct cores:
 ::  the server core +se-core and client core +go-core.
 ::
+::TODO  groups agent test cases, try to get into bad states and make sure they're recoverable:
+::   - join fails
+::     - must not have group in state after
+::   - join fails, try again later, join succeeds
+::     - must establish subs, put in state, etc
+::   - subscription fails
+::     - must be able to recover afterwards
+::   - getting banned/kicked from a group
+::     - subscription must get deleted, member must not retain state/subscriptions
+::   - different preview fetching cases
+::   - join, cancel, join etc, w/ host offline while the client acts
+::
 /-  g=groups, c=chat, d=channels,
     activity
 /-  meta
@@ -1363,9 +1375,9 @@
   ::  a ship can join the group if she has a valid token.
   ::  for a public group no token is required for entry.
   ::  a private or secret group requires a valid token issued by
-  ::  the group host. 
+  ::  the group host.
   ::
-  ::  a banned ship can not enter the group. 
+  ::  a banned ship can not enter the group.
   ::
   ::  re-joining the group with valid credentials is vacuous.
   ::
@@ -1503,7 +1515,7 @@
     (se-update [%entry %privacy privacy])
   ::  +se-c-entry-ban: execute an entry ban command
   ::
-  ::  the entry ban command is used to forbid a ship or a class of 
+  ::  the entry ban command is used to forbid a ship or a class of
   ::  ships of certain rank from joining the group, requesting to join
   ::  the group, or executing any commands on the group host.
   ::
@@ -1511,13 +1523,13 @@
   ::      it is kicked from the group. if a ship is not a group member,
   ::      but is asking to join the group, and subsequently is banned,
   ::      he is kicked from the requests list.
-  ::  
+  ::
   ::  the ship and rank blacklists do not affect the group host.
-  ::  it is illegal to execute any $c-ban commands that affects 
+  ::  it is illegal to execute any $c-ban commands that affects
   ::  the group host in any way.
   ::
   ::  the rank blacklist does not affect admins. it is illegal
-  ::  for an admin to execute a $c-ban command that affect 
+  ::  for an admin to execute a $c-ban command that affect
   ::  another admin ship.
   ::
   ::
@@ -1614,7 +1626,7 @@
     |=  [ships=(set ship) c-ask=?(%approve %deny)]
     ^+  se-core
     ?-    c-ask
-        %approve  
+        %approve
       =.  requests.ad
         %+  roll  ~(tap in ships)
         |=  [=ship =_requests.ad]
@@ -1633,7 +1645,7 @@
   ::  seats are used to manage group membership.
   ::  a seat can be created in two ways: when a user joins
   ::  the group, and when group members are manually added
-  ::  by a group admin. 
+  ::  by a group admin.
   ::
   ::  the case of a user join can be detected by verifying
   ::  that the ship set contains only the ship originating
@@ -1683,7 +1695,7 @@
         %-  ~(rep in ships)
         |=  [=ship =_seats.group]
         (~(del by seats) ship)
-      ::TODO 
+      ::TODO
       (se-update:se-core %seat ships [%del ~])
     ::
         %add-roles
@@ -2411,6 +2423,7 @@
     |=  =sign:agent:gall
     ^+  go-core
     ?+   -.sign  ~|(go-take-update-bad+-.sign !!)
+    ::TODO  handle the %kick case
         %watch-ack
       ~&  go-take-update+%watch-ack
       =?  cor  (~(has by foreigns) flag)
@@ -2422,6 +2435,9 @@
       ::
       %.  go-core
       ?~  p.sign  same
+      ::TODO  handle, do _something_, at the very least log properly
+      ::  ->  would be nice to be able to flag this in state so client can show it.
+      ::      common-ish case here could be subscribing to a group you don't have permission to
       (slog leaf/"Failed subscription" u.p.sign)
     ::
         %fact
@@ -3091,6 +3107,8 @@
     ::
     =?  foreigns  ?=([~ %done] progress)
       (~(del by foreigns) flag)
+    ::TODO  shouldn't do this unconditionally, probably? may want something
+    ::      similar to a .gone flag in the door sample, .updated or w/e
     =.  fi-core  fi-give-update
     cor
   ::  +fi-give-update: give foreigns update
@@ -3104,7 +3122,6 @@
     =/  gangs-2
       (~(run by foreigns) gang:v2:foreign:v7:gv)
     =.  cor  (give %fact ~[/gangs/updates] gangs+!>(gangs-2))
-
     fi-core
   ::
   ++  fi-activity
@@ -3152,6 +3169,7 @@
       =/  =wire
         (welp fi-area /preview)
       =/  =dock  [p.flag dap.bowl]
+      ::TODO  is this path right? don't include ship when talking to host directly
       =/  =path  /server/groups/(scot %p p.flag)/[q.flag]/preview
       =/  watch  [%pass wire %agent dock %watch path]
       ?:  =(p.flag our.bowl)
@@ -3187,6 +3205,7 @@
       %join     (fi-join token.a-foreign)
       %ask      (fi-ask story.a-foreign)
       %cancel   fi-cancel
+    ::
       %invite   (fi-invite invite.a-foreign)
       %decline  (fi-decline token.a-foreign)
     ==
@@ -3197,10 +3216,16 @@
     ^+  fi-core
     ::XX  needed? probably, but perhaps query
     ::    negotiation status first
+    ::TODO  yes, reject the join eagerly if !(may-poke:neg bowl [p.flag server]),
+    ::      otherwise start negetiation if we haven't yet and optimistically try the join poke
+    ::      (or don't check if we're fine with just crashing here)
     :: =.  cor  (emit (initiate:neg [p.flag dap.bowl]))
+    ::REVIEW  this check would prevent the agent from recovering from bad states,
+    ::        since you can't re-start subscriptions, or membership or w/e.
+    ::        could be unsafe, need to think carefully and/or write tests and/or diagram out the state machine.
+    ::        should maybe change foreign group status to %error when subs fail?
     ?:  (~(has by groups) flag)  fi-core
-    ::XX why does not this work?
-    :: ?=([~ ?(%join %watch %done)] progress)
+    ::NOTE  two-step type-check avoids tmi
     ?:  ?&  ?=(^ progress)
             ?=(?(%join %watch %done) u.progress)
         ==
@@ -3216,7 +3241,9 @@
     |=  story=(unit story:s:g)
     ^+  fi-core
     ::XX  as in +fi-join, needed?
+    ::TODO  same
     :: =.  cor  (emit (initiate:neg [p.flag dap.bowl]))
+    ::REVIEW  same
     ?:  (~(has by groups) flag)  fi-core
     ?:  ?&  ?=(^ progress)
             ?=(?(%ask %join %watch %done) u.progress)
@@ -3232,7 +3259,11 @@
   ++  fi-watched
     |=  p=(unit tang)
     ^+  fi-core
-    ?~  progress  fi-core
+    ?~  progress
+      ::NOTE  the $foreign in state might be "stale", if it's no longer
+      ::      tracking progress it's safe for it to ignore $group subscription
+      ::      updates.
+      fi-core
     ?^  p
       %-  (slog leaf/"Failed to join" u.p)
       =.  progress  `%error
@@ -3261,7 +3292,10 @@
         =.  progress  ~
         fi-core
     ::
-        %done  fi-core
+          %done
+        ::NOTE  not expected to hit this branch, rn we delete foreign on-%done
+        ::TODO  log because it's unexpected?
+        fi-core
     ==
   ::  +fi-invite: receive a group invitation
   ::
@@ -3271,15 +3305,19 @@
     :: guard against invite spoofing
     ?>  =(from.invite src.bowl)
     =.  invites  [invite(time now.bowl) invites]
-    =/  our-preview=preview:g
-      (fall preview preview.invite)
-    =?  preview  (gte time.preview.invite time.our-preview)
-      (some preview.invite)
+    ::  make sure we keep the latest group preview
+    ::
+    =.  preview
+      ?~  preview  preview.invite
+      ?:  (gte time.preview.invite time.u.preview)
+        preview.invite
+      preview
     ::  we have knocked and we have received.
     ::  assume the invite to be the ask response from the host.
     ::
     ?:  ?&  ?=(^ progress)
             ?=(%ask u.progress)
+            ::TODO  =(src.bowl p.flag) or similar
         ==
       (fi-join token.invite)
     =.  fi-core  (fi-activity %group-invite src.bowl)
@@ -3318,6 +3356,7 @@
   ::     even though no foreign group might be change. we
   ::     should rather manually generate updates at the points
   ::     that foreigns is affected.
+  ::TODO  yeah, soo note in +fi-abet
   ::
   ::  +fi-agent: receive foreign sign
   ::
@@ -3341,8 +3380,13 @@
         ::
         [%join token=@ ~]
       ?>  ?=(%poke-ack -.sign)
+      ::TODO  this case should just no-op, not crash?
+      ::      legitimate case here is that we canceled our join or w/e, before
+      ::      the host got to respond to our join.
+      ::      (also join, cancel, join before the host gets online)
       ?>  &(?=(^ progress) =(%join u.progress))  ::TMI
       ?^  p.sign
+        ::TODO  should log properly? here and elsewhere
         %-  (slog u.p.sign)
         =.  progress  `%error
         fi-core
@@ -3359,6 +3403,7 @@
         ::
         [%join %ask ~]
       ?>  ?=(%poke-ack -.sign)
+      ::TODO  same as above
       ?>  &(?=(^ progress) =(%ask u.progress))
       ?^  p.sign
         %-  (slog u.p.sign)
@@ -3384,6 +3429,8 @@
         ::TODO do we want to notify the client about unavailable previews?
         ::     we should check in what circumstances does the client
         ::     request for a preview.
+        ::TODO  yes, client should get the unit preview uncondititionally,
+        ::      it wants to know if/when the answer came back empty
         ::
         =.  preview  preview-update
         =?  cor  ?=(^ preview)
