@@ -262,7 +262,11 @@ function GroupLeaveActions({ group }: { group: db.Group }) {
         accent="negative"
       >
         {leaveActions.actions.map((action, i) => (
-          <ActionSheet.Action key={i} action={action} />
+          <ActionSheet.Action
+            key={i}
+            action={action}
+            testID={`GroupLeaveAction-${action.title}`}
+          />
         ))}
       </ActionSheet.ActionGroup>
       <DeleteSheet
@@ -324,6 +328,7 @@ function GroupSettings({ group }: { group: db.Group }) {
             paddingHorizontal="$2xl"
             backgroundColor={'$background'}
             borderRadius="$2xl"
+            testID="GroupPrivacy"
           >
             <ActionSheet.MainContent>
               <ActionSheet.ActionTitle>Privacy</ActionSheet.ActionTitle>
@@ -350,6 +355,7 @@ function GroupSettings({ group }: { group: db.Group }) {
             paddingHorizontal="$2xl"
             backgroundColor={'$background'}
             borderRadius="$2xl"
+            testID="GroupRoles"
           >
             <ActionSheet.MainContent>
               <ActionSheet.ActionTitle>Roles</ActionSheet.ActionTitle>
@@ -376,6 +382,7 @@ function GroupSettings({ group }: { group: db.Group }) {
             paddingHorizontal="$2xl"
             backgroundColor={'$background'}
             borderRadius="$2xl"
+            testID="GroupChannels"
           >
             <ActionSheet.MainContent>
               <ActionSheet.ActionTitle>Channels</ActionSheet.ActionTitle>
@@ -402,6 +409,7 @@ function GroupSettings({ group }: { group: db.Group }) {
           backgroundColor={'$background'}
           borderRadius="$2xl"
           alignItems="center"
+          testID="GroupNotifications"
         >
           <ActionSheet.MainContent>
             <ActionSheet.ActionTitle>Notifications</ActionSheet.ActionTitle>
@@ -500,6 +508,7 @@ function ChatMembersList({
               gap="$l"
               alignItems="center"
               $group-press={{ backgroundColor: '$secondaryBackground' }}
+              testID="GroupMembers"
             >
               <TlonText.Text size="$label/l">
                 {canManage ? 'Manage members' : 'See all '}

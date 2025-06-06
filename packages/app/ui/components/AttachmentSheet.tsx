@@ -1,4 +1,5 @@
 import { createDevLogger } from '@tloncorp/shared';
+import { Button } from '@tloncorp/ui';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useMemo } from 'react';
 import { Platform } from 'react-native';
@@ -212,6 +213,18 @@ export default function AttachmentSheet({
           <ListItem.Title>{title}</ListItem.Title>
           <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>
         </ListItem.MainContent>
+        <ListItem.EndContent
+          onPress={() => onOpenChange(false)}
+          testID="AttachmentSheetCloseButton"
+        >
+          <Button
+            minimal
+            onPress={() => onOpenChange(false)}
+            testID="AttachmentSheetCloseButton"
+          >
+            <Button.Text>Cancel</Button.Text>
+          </Button>
+        </ListItem.EndContent>
       </ActionSheet.Header>
       <ActionSheet.Content>
         <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
