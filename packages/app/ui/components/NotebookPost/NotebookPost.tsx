@@ -5,7 +5,13 @@ import { Button } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
-import { ComponentProps, useCallback, useMemo, useState } from 'react';
+import {
+  ComponentProps,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from 'react';
 import {
   View,
   ViewStyle,
@@ -142,7 +148,6 @@ export function NotebookPost({
               post={post}
               showDate={showDate}
               showAuthor={showAuthor && viewMode !== 'activity'}
-              size={size}
             />
 
             {viewMode !== 'activity' && (
@@ -212,14 +217,13 @@ function NotebookPostHeader({
   showDate,
   showAuthor,
   post,
-  size,
   ...props
 }: {
   showAuthor?: boolean;
   showDate?: boolean;
   post: db.Post;
-  size?: '$l' | '$s' | '$xs';
 } & ComponentProps<typeof NotebookPostHeaderFrame>) {
+  const { size } = useContext(NotebookPostContext);
   const formattedDate = useMemo(() => {
     return makePrettyShortDate(new Date(post.receivedAt));
   }, [post.receivedAt]);
@@ -305,7 +309,7 @@ const NotebookContentRenderer = createContentRenderer({
   },
 });
 
-const NotebookPostContext = createStyledContext<{ size: '$l' | '$s' }>({
+const NotebookPostContext = createStyledContext<{ size: '$l' | '$s' | '$xs' }>({
   size: '$l',
 });
 
@@ -359,7 +363,9 @@ export const NotebookPostTitle = styled(Text, {
   size: '$title/l',
   variants: {
     size: {
-      $s: '$label/2xl',
+      $s: { size: '$label/2xl' },
+      $l: { size: '$title/l' },
+      $xs: { size: '$label/xl' },
     },
   } as const,
 });

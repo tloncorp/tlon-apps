@@ -1,8 +1,10 @@
 import { expect, test } from 'vitest';
 
+import { v0PeersToClientProfiles } from '../api';
 import { toClientGroups } from '../api/groupsApi';
 import * as schema from '../db/schema';
 import { syncInitData } from '../store/sync';
+import contactsResponse from '../test/contacts.json';
 import groupsResponse from '../test/groups.json';
 import {
   getClient,
@@ -262,6 +264,36 @@ test('update channel: cleared out reader roles with existing roles', async () =>
     throw new Error('Channel not found after update');
   }
   expect(updatedChannel.readerRoles).toEqual([]);
+});
+
+test('inserts contacts without overriding block data', async () => {
+  // setup
+  setScryOutputs([initResponse]);
+  await syncInitData();
+
+  const blocks = [
+    '~nocsyx-lassul',
+    '~ravmel-ropdyl',
+    '~fonrym-radfur-nocsyx-lassul',
+  ];
+  const blockedUsers = await queries.getBlockedUsers();
+  expect(blockedUsers.map((b) => b.id)).toEqual(blocks);
+
+  const contacts = v0PeersToClientProfiles(contactsResponse);
+  // nocsyx and ravmel are in contacts, but blocked
+  expect(
+    contacts.filter(
+      (c) => c.id === '~nocsyx-lassul' || c.id === '~ravmel-ropdyl'
+    )
+  ).toBeTruthy();
+  // fonrym is blocked, but not in contacts
+  expect(
+    contacts.find((c) => c.id === '~fonrym-radfur-nocsyx-lassul')
+  ).toBeFalsy();
+  // insert contacts
+  await queries.insertContacts(contacts);
+  const newBlockedUsers = await queries.getBlockedUsers();
+  expect(newBlockedUsers.map((b) => b.id)).toEqual(blocks);
 });
 
 const refDate = Date.now();
