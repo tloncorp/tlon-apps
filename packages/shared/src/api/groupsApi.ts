@@ -1673,11 +1673,6 @@ function toClientChannel({
     roleId,
   }));
 
-  const writerRoles = (channel.writers ?? []).map((roleId) => ({
-    channelId: id,
-    roleId,
-  }));
-
   const currentUserId = getCurrentUserId();
   const { host: hostUserId } = parseGroupChannelId(id);
 
@@ -1692,7 +1687,6 @@ function toClientChannel({
     contentConfiguration: channelContentConfiguration,
     currentUserIsHost: hostUserId === currentUserId,
     readerRoles,
-    writerRoles,
   };
 }
 

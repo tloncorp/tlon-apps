@@ -13577,7 +13577,7 @@
         "heap/~nibset-napwyn/bulletin-board-53": {
           "join": false,
           "added": 1681835507711,
-          "readers": [],
+          "readers": ["admin"],
           "zone": "zks3gi",
           "meta": {
             "image": "",

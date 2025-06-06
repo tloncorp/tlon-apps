@@ -34,7 +34,6 @@ export interface GroupChannel {
   meta: GroupMeta;
   zone: Zone;
   readers: string[];
-  writers: string[];
   join: boolean;
 }
 

@@ -1245,19 +1245,28 @@ export const insertChannelPerms = createWriteQuery(
   'insertChannelPerms',
   async (channelsInit: ChannelInit[], ctx: QueryCtx) => {
     const writers = channelsInit.flatMap((chanInit) =>
-      chanInit.writers.map((writer) => ({
+      (chanInit.writers || []).map((writer) => ({
         channelId: chanInit.channelId,
         roleId: writer,
       }))
     );
 
     const readers = channelsInit.flatMap((chanInit) =>
-      chanInit.readers.map((reader) => ({
+      (chanInit.readers || []).map((reader) => ({
         channelId: chanInit.channelId,
         roleId: reader,
       }))
     );
 
+    // clear out existing readers for these channels
+    await ctx.db.delete($channelReaders).where(
+      inArray(
+        $channelReaders.channelId,
+        channelsInit.map((c) => c.channelId)
+      )
+    );
+
+    // insert any new readers
     if (readers.length > 0) {
       await ctx.db
         .insert($channelReaders)
@@ -1268,6 +1277,15 @@ export const insertChannelPerms = createWriteQuery(
         });
     }
 
+    // clear out existing writers for these channels
+    await ctx.db.delete($channelWriters).where(
+      inArray(
+        $channelWriters.channelId,
+        channelsInit.map((c) => c.channelId)
+      )
+    );
+
+    // insert any new writers
     if (writers.length > 0) {
       await ctx.db
         .insert($channelWriters)
@@ -1281,6 +1299,8 @@ export const insertChannelPerms = createWriteQuery(
     await ctx.db.transaction(async (tx) => {
       await Promise.all(
         channelsInit.map(async (chanInit) => {
+          if (!chanInit.order) return;
+
           await tx
             .update($channels)
             .set({ order: chanInit.order })
@@ -2082,44 +2102,18 @@ export const updateChannel = createWriteQuery(
     logger.log('updateChannel', update.id, update);
 
     return withTransactionCtx(ctx, async (txCtx) => {
-      if (update.writerRoles && update.writerRoles.length > 0) {
-        logger.log('updateChannel writerRoles', update.writerRoles);
-        // delete all existing writer roles
-        await txCtx.db
-          .delete($channelWriters)
-          .where(eq($channelWriters.channelId, update.id));
-        logger.log('updateChannel writerRoles deleted existing writer roles');
-
-        const writerValues = update.writerRoles.map((role) => ({
-          channelId: update.id,
-          roleId: role.roleId as string, // Ensure roleId is treated as string
-        }));
-        logger.log(
-          'updateChannel writerRoles inserting new writer roles',
-          writerValues
-        );
-        await txCtx.db.insert($channelWriters).values(writerValues);
-        logger.log('updateChannel writerRoles inserted new writer roles');
-      }
-
-      if (update.readerRoles && update.readerRoles.length > 0) {
-        // delete all existing reader roles
-        await txCtx.db
-          .delete($channelReaders)
-          .where(eq($channelReaders.channelId, update.id));
-        logger.log('updateChannel readerRoles deleted existing reader roles');
-
-        const readerValues = update.readerRoles.map((role) => ({
-          channelId: update.id,
-          roleId: role.roleId as string, // Ensure roleId is treated as string
-        }));
-        logger.log(
-          'updateChannel readerRoles inserting new reader roles',
-          readerValues
-        );
-        await txCtx.db.insert($channelReaders).values(readerValues);
-        logger.log('updateChannel readerRoles inserted new reader roles');
-      }
+      await insertChannelPerms(
+        [
+          {
+            channelId: update.id,
+            writers:
+              update.writerRoles?.map((role) => role.roleId as string) || [],
+            readers:
+              update.readerRoles?.map((role) => role.roleId as string) || [],
+          },
+        ],
+        txCtx
+      );
 
       return txCtx.db
         .update($channels)
