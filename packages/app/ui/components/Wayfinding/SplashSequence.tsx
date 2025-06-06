@@ -31,7 +31,7 @@ import {
 } from 'tamagui';
 
 import { useContactPermissions } from '../../../hooks/useContactPermissions';
-import { useActiveTheme } from '../../../provider';
+import { useActiveTheme, useIsThemeDark } from '../../../provider';
 import { useStore } from '../../contexts';
 import { ListItem } from '../ListItem';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
@@ -135,8 +135,7 @@ const SplashButton = ({
 
 export function WelcomePane(props: { onActionPress: () => void }) {
   const insets = useSafeAreaInsets();
-  const activeTheme = useActiveTheme();
-  const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+  const themeIsDark = useIsThemeDark();
 
   return (
     <YStack
@@ -153,10 +152,10 @@ export function WelcomePane(props: { onActionPress: () => void }) {
             resizeMode="contain"
             source={
               isWeb
-                ? isDark
+                ? themeIsDark
                   ? `./sourdough-starter-dark.png`
                   : `./sourdough-starter.png`
-                : isDark
+                : themeIsDark
                   ? require(`../../assets/raster/sourdough-starter-dark.png`)
                   : require(`../../assets/raster/sourdough-starter.png`)
             }
@@ -182,8 +181,7 @@ export function WelcomePane(props: { onActionPress: () => void }) {
 
 export function GroupsPane(props: { onActionPress: () => void }) {
   const insets = useSafeAreaInsets();
-  const activeTheme = useActiveTheme();
-  const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+  const isDark = useIsThemeDark();
 
   return (
     <YStack
@@ -539,8 +537,7 @@ function PrivacyLevelsDisplay() {
 }
 
 const InviteFriendsDisplay = () => {
-  const activeTheme = useActiveTheme();
-  const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+  const themeIsDark = useIsThemeDark();
   const deviceIsTinyHeight = useMemo(() => {
     const { height } = Dimensions.get('window');
     return height < 800;
@@ -567,10 +564,10 @@ const InviteFriendsDisplay = () => {
             resizeMode="contain"
             source={
               isWeb
-                ? isDark
+                ? themeIsDark
                   ? `./tlon-ids-dark.png`
                   : `./tlon-ids.png`
-                : isDark
+                : themeIsDark
                   ? require(`../../assets/raster/tlon-ids-dark.png`)
                   : require(`../../assets/raster/tlon-ids.png`)
             }

@@ -3,8 +3,6 @@ import { useReactNavigationDevTools } from '@dev-plugins/react-navigation';
 import { useReactQueryDevTools } from '@dev-plugins/react-query';
 import NetInfo from '@react-native-community/netinfo';
 import {
-  DarkTheme,
-  DefaultTheme,
   NavigationContainer,
   NavigationContainerRefWithCurrent,
   useNavigationContainerRef,
@@ -13,9 +11,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
-import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { unregisterBackgroundSyncTask } from '@tloncorp/app/lib/backgroundSync';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
+import { useIsThemeDark } from '@tloncorp/app/provider';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
   LoadingSpinner,
@@ -40,7 +38,6 @@ unregisterBackgroundSyncTask();
 
 // Android notification tap handler passes initial params here
 const App = () => {
-  const isDarkMode = useIsDarkMode();
   const {
     isLoading,
     isAuthenticated,
@@ -49,6 +46,8 @@ const App = () => {
   } = useShip();
   const [connected, setConnected] = useState(true);
   const signupContext = useSignupContext();
+
+  const isDarkTheme = useIsThemeDark();
 
   const finishingSelfHostedLogin = db.finishingSelfHostedLogin.useValue();
   const haveHostedLogin = db.haveHostedLogin.useValue();
@@ -126,25 +125,21 @@ const App = () => {
         </View>
       )}
       <StatusBar
-        backgroundColor={isDarkMode ? 'black' : 'white'}
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+        backgroundColor={isDarkTheme ? 'black' : 'white'}
+        barStyle={isDarkTheme ? 'light-content' : 'dark-content'}
       />
     </View>
   );
 };
 
 export default function ConnectedApp() {
-  const isDarkMode = useIsDarkMode();
   const navigationContainerRef = useNavigationContainerRef();
   const migrationState = useMigrations();
 
   return (
     <ErrorBoundary>
       <FeatureFlagConnectedInstrumentationProvider>
-        <NavigationContainer
-          theme={isDarkMode ? DarkTheme : DefaultTheme}
-          ref={navigationContainerRef}
-        >
+        <NavigationContainer ref={navigationContainerRef}>
           <BaseProviderStack migrationState={migrationState}>
             <BranchProvider>
               <GestureHandlerRootView style={{ flex: 1 }}>
