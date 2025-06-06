@@ -1375,7 +1375,7 @@
         ~
       =/  =dock  [our.bowl %channels]
       =/  action=a-channels:d  [%channel nes %leave ~]
-      =/  =cage  channel-action+!>(action)
+      =/  =cage  channel-action-1+!>(action)
       =/  =wire  (snoc go-area %leave-channels)
       `[%pass wire %agent dock %poke cage]
     ::
@@ -1390,7 +1390,7 @@
         ~
       =/  =dock  [our.bowl %channels]
       =/  action=a-channels:d  [%channel nes %join flag]
-      =/  =cage  ['channel-action' !>(action)]
+      =/  =cage  channel-action-1+!>(action)
       =/  =wire  (snoc go-area %join-channels)
       `[%pass wire %agent dock %poke cage]
     ::

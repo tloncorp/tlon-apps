@@ -77,14 +77,14 @@ const ReferenceComponent = ReferenceFrame.styleable<{
           />
         ) : isError ? (
           <ReferenceSkeleton
-            message={errorMessage || 'Error loading content'}
+            message="Content not available"
             messageType="error"
             {...props}
           />
         ) : !hasData ? (
           <ReferenceSkeleton
             messageType="not-found"
-            message="This content could not be found"
+            message="Content not available"
             {...props}
           />
         ) : null}

@@ -12,7 +12,7 @@ import { Button } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
-import { truncate } from 'lodash';
+import { now, truncate } from 'lodash';
 import {
   ComponentProps,
   PropsWithChildren,
@@ -75,6 +75,7 @@ export function GalleryPost({
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [overFlowIsHovered, setOverFlowIsHovered] = useState(false);
+  const showHeaderFooter = showAuthor && !post.hidden && !post.isDeleted;
   const embedded = useMemo(
     () => JSONValue.asBoolean(contentRendererConfiguration?.embedded, false),
     [contentRendererConfiguration]
@@ -139,80 +140,15 @@ export function GalleryPost({
       flex={1}
     >
       <GalleryPostFrame {...props}>
+        {showHeaderFooter && <GalleryPostHeader post={post} />}
         <GalleryContentRenderer
           post={post}
           pointerEvents="none"
           size={size}
           embedded={embedded}
         />
-        {showAuthor && !post.hidden && !post.isDeleted && (
-          <>
-            <View
-              position="absolute"
-              top={0}
-              left={0}
-              right={0}
-              width="100%"
-              pointerEvents="none"
-            >
-              <XStack
-                alignItems="center"
-                justifyContent="space-between"
-                backgroundColor="$background"
-                borderBottomWidth={1}
-                borderColor="$border"
-                borderTopWidth={0}
-                padding="$l"
-                gap="$m"
-              >
-                <ContactName
-                  userId={post.authorId}
-                  showNickname
-                  size="$label/m"
-                  color="$tertiaryText"
-                />
-                <Text size="$label/m" color="$tertiaryText">
-                  {makePrettyDaysSince(new Date(post.receivedAt))}
-                </Text>
-              </XStack>
-            </View>
-            <View
-              position="absolute"
-              bottom={0}
-              left={0}
-              right={0}
-              width="100%"
-              pointerEvents="none"
-            >
-              <XStack
-                alignItems="center"
-                justifyContent="space-between"
-                backgroundColor="$background"
-                borderTopWidth={1}
-                borderColor="$border"
-                gap="$xl"
-                height="$3.5xl"
-                padding="$m"
-                {...props}
-              >
-                <View pointerEvents="auto">
-                  <ReactionsDisplay post={post} minimal={true} />
-                </View>
-                {deliveryFailed ? (
-                  <Text color="$negativeActionText" size="$label/s">
-                    Tap to retry
-                  </Text>
-                ) : (
-                  <XStack alignItems="center" gap="$xs" justifyContent="center">
-                    <Text size="$label/m" color="$tertiaryText">
-                      {post.replyCount}
-                    </Text>
-                    <Icon color="$tertiaryText" size="$s" type="Messages" />
-                  </XStack>
-                )}
-              </XStack>
-            </View>
-          </>
+        {showHeaderFooter && (
+          <GalleryPostFooter post={post} deliveryFailed={deliveryFailed} />
         )}
         <SendPostRetrySheet
           open={showRetrySheet}
@@ -226,7 +162,10 @@ export function GalleryPost({
             <ChatMessageActions
               post={post}
               postActionIds={postActionIds}
-              onDismiss={() => setIsPopoverOpen(false)}
+              onDismiss={() => {
+                setIsPopoverOpen(false);
+                setIsHovered(false);
+              }}
               onOpenChange={setIsPopoverOpen}
               onReply={handlePress}
               onEdit={onPressEdit}
@@ -245,6 +184,73 @@ export function GalleryPost({
         )}
       </GalleryPostFrame>
     </Pressable>
+  );
+}
+
+export function GalleryPostHeader({ post }: { post: db.Post }) {
+  return (
+    <View width="100%" pointerEvents="none">
+      <XStack
+        alignItems="center"
+        justifyContent="space-between"
+        backgroundColor="$background"
+        borderBottomWidth={1}
+        borderColor="$border"
+        borderTopWidth={0}
+        padding="$l"
+        gap="$m"
+      >
+        <ContactName
+          userId={post.authorId}
+          showNickname
+          size="$label/m"
+          color="$tertiaryText"
+        />
+        <Text size="$label/m" color="$tertiaryText">
+          {makePrettyDaysSince(new Date(post.receivedAt))}
+        </Text>
+      </XStack>
+    </View>
+  );
+}
+
+export function GalleryPostFooter({
+  post,
+  deliveryFailed,
+  ...props
+}: { post: db.Post; deliveryFailed?: boolean } & ComponentProps<
+  typeof XStack
+>) {
+  return (
+    <View width="100%" pointerEvents="none">
+      <XStack
+        alignItems="center"
+        justifyContent="space-between"
+        backgroundColor="$background"
+        borderTopWidth={1}
+        borderColor="$border"
+        gap="$xl"
+        height="$3.5xl"
+        padding="$m"
+        {...props}
+      >
+        <View pointerEvents="auto">
+          <ReactionsDisplay post={post} minimal={true} />
+        </View>
+        {deliveryFailed ? (
+          <Text color="$negativeActionText" size="$label/s">
+            Tap to retry
+          </Text>
+        ) : (
+          <XStack alignItems="center" gap="$xs" justifyContent="center">
+            <Text size="$label/m" color="$tertiaryText">
+              {post.replyCount}
+            </Text>
+            <Icon color="$tertiaryText" size="$s" type="Messages" />
+          </XStack>
+        )}
+      </XStack>
+    </View>
   );
 }
 
@@ -274,6 +280,10 @@ export function GalleryPostDetailView({
   }, [content]);
 
   const isImagePost = useMemo(() => !!firstImage, [firstImage]);
+  const isTextPost = useMemo(() => {
+    const type = content[0]?.type;
+    return !['embed', 'video', 'image', 'link', 'reference'].includes(type);
+  }, [content]);
 
   const handlePressImage = useCallback(
     (src: string) => {
@@ -307,10 +317,14 @@ export function GalleryPostDetailView({
       <View
         // For some reason minHeight ternary isn't working unless we disable optimization here
         disableOptimization
-        borderTopWidth={1}
-        borderBottomWidth={1}
-        borderColor="$border"
-        backgroundColor="$secondaryBackground"
+        {...(isTextPost
+          ? {
+              borderTopWidth: 1,
+              borderBottomWidth: 1,
+              borderColor: '$border',
+              backgroundColor: '$secondaryBackground',
+            }
+          : {})}
         minHeight={isImagePost ? 100 : 300}
       >
         <GalleryContentRenderer
@@ -395,10 +409,7 @@ function LargePreview({
 >) {
   return (
     <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
-      <LargeContentRenderer
-        content={content.slice(0, 1)}
-        onPressImage={onPressImage}
-      />
+      <LargeContentRenderer content={content} onPressImage={onPressImage} />
     </PreviewFrame>
   );
 }
@@ -411,14 +422,13 @@ function SmallPreview({
   'content'
 >) {
   const link = useBlockLink(content);
-
   return link ? (
     <PreviewFrame {...props} previewType="link">
       <LinkPreview link={link} />
     </PreviewFrame>
   ) : (
     <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
-      <SmallContentRenderer height={'100%'} content={content.slice(0, 1)} />
+      <SmallContentRenderer height={'100%'} content={content} />
     </PreviewFrame>
   );
 }
@@ -427,7 +437,7 @@ const PreviewFrame = styled(View, {
   name: 'PostPreviewFrame',
   flex: 1,
   borderColor: '$border',
-  borderRadius: '$m',
+  borderRadius: 0,
   backgroundColor: '$background',
   overflow: 'hidden',
   variants: {
@@ -438,10 +448,7 @@ const PreviewFrame = styled(View, {
         backgroundColor: 'transparent',
       },
     },
-    previewType: (
-      type: BlockType | 'link',
-      config: { props: { embedded?: true } }
-    ) => {
+    previewType: (type: BlockType, config: { props: { embedded?: true } }) => {
       if (config.props.embedded) {
         return {};
       }
@@ -449,7 +456,6 @@ const PreviewFrame = styled(View, {
         case 'reference':
           return {
             backgroundColor: '$secondaryBackground',
-            paddingTop: '$3xl',
           };
         case 'paragraph':
         case 'list':
@@ -544,6 +550,14 @@ const LargeContentRenderer = createContentRenderer({
       height: '100%',
       ...noWrapperPadding,
     },
+    link: {
+      ...noWrapperPadding,
+      minHeight: 300,
+      renderEmbed: true,
+      imageProps: {
+        aspectRatio: 1.5,
+      },
+    },
   },
 });
 
@@ -558,6 +572,7 @@ const SmallContentRenderer = createContentRenderer({
     },
     image: {
       height: '100%',
+      borderRadius: 0,
       imageProps: {
         aspectRatio: 'unset',
         height: '100%',
@@ -580,6 +595,16 @@ const SmallContentRenderer = createContentRenderer({
       borderWidth: 0,
       contentSize: '$s',
       textProps: { size: '$mono/s' },
+      ...noWrapperPadding,
+    },
+    link: {
+      borderRadius: 0,
+      borderWidth: 0,
+      renderDescription: false,
+      imageProps: {
+        height: '66%',
+        aspectRatio: 'unset',
+      },
       ...noWrapperPadding,
     },
   },
@@ -624,7 +649,18 @@ function usePreviewContent(content: BlockData[]): BlockData[] {
       return [groupedBlocks.image[0]];
     } else if (groupedBlocks.video?.length) {
       return [groupedBlocks.video[0]];
+    } else if (groupedBlocks.link?.length) {
+      return [groupedBlocks.link[0]];
     }
-    return content;
+    return firstBlockIsPreviewable(content) ? content.slice(0, 1) : content;
   }, [content]);
+}
+
+function firstBlockIsPreviewable(content: BlockData[]): boolean {
+  return (
+    content.length > 0 &&
+    (content[0].type === 'image' ||
+      content[0].type === 'video' ||
+      content[0].type === 'reference')
+  );
 }

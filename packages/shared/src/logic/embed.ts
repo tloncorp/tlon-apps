@@ -34,6 +34,13 @@ export const trustedProviders = [
   },
 ];
 
+export function isTrustedEmbed(
+  url: string,
+  providers = trustedProviders
+): boolean {
+  return providers.some((provider) => provider.regex.test(url));
+}
+
 export async function fetchEmbed(inputUrl: string, isMobile?: boolean) {
   if (!inputUrl || !isValidUrl(inputUrl)) return null;
   const url = transformUrl(inputUrl);

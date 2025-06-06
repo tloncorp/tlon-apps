@@ -1,5 +1,5 @@
 import {
-  trustedProviders,
+  isTrustedEmbed,
   useEmbed,
   utils,
   validOembedCheck,
@@ -83,10 +83,7 @@ const EmbedContent = memo(function EmbedContent({
   const calm = useCalm();
 
   const isAudio = useMemo(() => utils.AUDIO_REGEX.test(url), [url]);
-  const isTrusted = useMemo(
-    () => trustedProviders.some((provider) => provider.regex.test(url)),
-    [url]
-  );
+  const isTrusted = useMemo(() => isTrustedEmbed(url), [url]);
 
   const ContentRenderer = createContentRenderer({
     inlineRenderers: {

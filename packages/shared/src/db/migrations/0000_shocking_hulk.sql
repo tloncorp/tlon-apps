@@ -94,6 +94,7 @@ CREATE TABLE `channels` (
 	`last_post_id` text,
 	`last_post_at` integer,
 	`is_cached_pending_channel` integer,
+	`is_new_matched_contact` integer,
 	`is_dm_invite` integer DEFAULT false,
 	`synced_at` integer,
 	`remote_updated_at` integer,
@@ -221,7 +222,7 @@ CREATE TABLE `group_rank_bans` (
 );
 --> statement-breakpoint
 CREATE TABLE `group_roles` (
-	`id` text,
+	`id` text NOT NULL,
 	`group_id` text,
 	`icon_image` text,
 	`icon_image_color` text,
@@ -305,6 +306,8 @@ CREATE TABLE `posts` (
 	`type` text NOT NULL,
 	`title` text,
 	`image` text,
+	`description` text,
+	`cover` text,
 	`content` text,
 	`received_at` integer NOT NULL,
 	`sent_at` integer NOT NULL,
@@ -356,7 +359,8 @@ CREATE TABLE `settings` (
 	`notebook_settings` text,
 	`activity_seen_timestamp` integer,
 	`completed_wayfinding_splash` integer,
-	`completed_wayfinding_tutorial` integer
+	`completed_wayfinding_tutorial` integer,
+	`disable_tlon_infra_enhancement` integer
 );
 --> statement-breakpoint
 CREATE TABLE `system_contact_sent_invites` (

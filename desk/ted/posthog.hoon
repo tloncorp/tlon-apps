@@ -27,6 +27,12 @@
 ::
 ;<  hash=@uv  bind:m  (scry:io @uv %cz q.byk.bowl ~)
 ::
+
+=/  id=@t
+  ?.  is-fake
+    (scot %p our.bowl)
+  (cat 3 'fake' (scot %p our.bowl))
+
 =/  props=$>(%o json)
   :-  %o
   %-  ~(uni by p.log-event-json)
@@ -34,10 +40,6 @@
   %-  my
   %+  weld  log-data
   ^-  log-data:l
-  =/  id=@t
-    ?.  is-fake
-      (scot %p our.bowl)
-    (cat 3 'fake' (scot %p our.bowl))
   :~  'distinct_id'^s+id
       'origin'^s+(spat origin)
       'hash'^s+(scot %uv hash)
@@ -50,8 +52,17 @@
   ?>(?=(%s -.u.event) u.event)
 =/  event=json
   %-  pairs:enjs:format
+  =/  timestamp=@t
+    %-  crip
+    =+  (yore time.log-item)
+    =*  d  (d-co:co 2)
+    "{(d y)}-{(d m)}-{(d d.t)}".
+    "T{(d h.t)}:{(d m.t)}:{(d s.t)}".
+    ".{(d ?~(f.t 0 (div (mul 100 i.f.t) 0x1.0000)))}".
+    "Z"
   :~  'api_key'^s+posthog-key
-      timestamp+(time:enjs:format time.log-item)
+      'distinct_id'^s+id
+      timestamp+s+timestamp
       event+label
       properties+props
   ==

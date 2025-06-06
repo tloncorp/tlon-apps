@@ -1,15 +1,39 @@
 ::  expose render: rendering utilities for pages & the widget
 ::
-/-  co=contacts-0
-/+  sigil
+/-  c=channels, co=contacts-0
+/+  u=channel-utils, sigil
 ::
 |%
+::  +author-contact: turn a post author into a contact profile
+::
+::    if the author is a bot, replaces nickname and avatar fields,
+::    when those are specified.
+::
+++  get-author-contact
+  |=  [=bowl:gall =author:c]
+  ^-  (unit contact-0:co)
+  =/  aco=(unit contact-0:co)
+    (get-contact:co bowl (get-author-ship:u author))
+  ?@  author  aco
+  %-  some
+  ?~  aco
+    %*  .  *contact-0:co
+      nickname  (fall nickname.author '')
+      avatar    avatar.author
+    ==
+  %_  u.aco
+    nickname  (fall nickname.author nickname.u.aco)
+    avatar    (hunt |=(* &) avatar.author avatar.u.aco)
+  ==
+::
 ++  author
   =/  link=(unit @t)  ~
-  |=  [=bowl:gall author=ship]
+  |=  [=bowl:gall post-author=author:c]
   ^-  manx
+  =/  author=@p
+    (get-author-ship:u post-author)
   =/  aco=(unit contact-0:co)
-    (get-contact:co bowl author)
+    (get-author-contact bowl post-author)
   |^  ::TODO  we should just have a bunch of manx construction helpers
       ::      for stuff like this
       ?~  link

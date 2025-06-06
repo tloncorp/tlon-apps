@@ -1,4 +1,9 @@
-import { FatalError, ReapError } from '../types';
+import {
+  FatalError,
+  ReapError,
+  SSEBadResponseError,
+  SSETimeoutError,
+} from '../types';
 import { EventSourceMessage, getBytes, getLines, getMessages } from './parse';
 
 export const EventStreamContentType = 'text/event-stream';
@@ -121,7 +126,7 @@ export function fetchEventSource(
           }),
           new Promise((_, reject) => {
             setTimeout(
-              () => reject(new Error('fetch timed out')),
+              () => reject(new SSETimeoutError('Request timed out')),
               responseTimeout
             );
           }),
@@ -135,7 +140,10 @@ export function fetchEventSource(
         }
 
         if (response.status < 200 || response.status >= 300) {
-          throw new Error(`Invalid server response: ${response.status}`);
+          throw new SSEBadResponseError(
+            'Invalid server response',
+            response.status
+          );
         }
 
         await onopen(response, isReconnect);

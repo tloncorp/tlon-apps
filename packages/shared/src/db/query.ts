@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 
 import { queryClient } from '../api';
 import { createDevLogger, escapeLog, listDebugLabel, runIfDev } from '../debug';
+import { AnalyticsEvent } from '../domain';
 import { startTrace } from '../perf';
 import * as changeListener from './changeListener';
 import { AnySqliteDatabase, AnySqliteTransaction, client } from './client';
@@ -114,20 +115,30 @@ export const createQuery = <TOptions, TReturn>(
     // Run the query, ensuring that we have a context set.
     // Will kick off a transaction if this is a write query + there's no existing context.
     return withCtxOrDefault(meta, ctxArg, async (resolvedCtx) => {
-      const result = await runQuery(resolvedCtx);
-      logger.log(meta.label + ':end', Date.now() - startTime + 'ms');
-      completeQueryTraceIfPossible();
-      // Pass pending table effects to query context
-      if (meta?.tableEffects) {
-        const effects =
-          typeof meta.tableEffects === 'function'
-            ? meta.tableEffects(options!)
-            : meta.tableEffects;
-        if (effects.length) {
-          effects.forEach((e) => resolvedCtx.pendingEffects.add(e));
+      try {
+        const result = await runQuery(resolvedCtx);
+        logger.log(meta.label + ':end', Date.now() - startTime + 'ms');
+        completeQueryTraceIfPossible();
+        // Pass pending table effects to query context
+        if (meta?.tableEffects) {
+          const effects =
+            typeof meta.tableEffects === 'function'
+              ? meta.tableEffects(options!)
+              : meta.tableEffects;
+          if (effects.length) {
+            effects.forEach((e) => resolvedCtx.pendingEffects.add(e));
+          }
         }
+        return result;
+      } catch (e) {
+        logger.trackEvent(AnalyticsEvent.ErrorDatabaseQuery, {
+          label: meta.label,
+          error: e,
+          errorMessage: e.message,
+          errorStack: e.stack,
+        });
+        throw e;
       }
-      return result;
     });
   }
   return Object.assign(wrappedQuery, {

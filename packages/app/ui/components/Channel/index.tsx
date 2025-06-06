@@ -10,6 +10,7 @@ import {
 import {
   ChannelContentConfiguration,
   isDmChannelId,
+  isGroupDmChannelId,
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
@@ -78,6 +79,7 @@ interface ChannelProps {
   goToChatDetails?: () => void;
   goToPost: (post: db.Post) => void;
   goToDm: (participants: string[]) => void;
+  goToGroupSettings: () => void;
   goToImageViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
   goToUserProfile: (userId: string) => void;
@@ -131,6 +133,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       goToPost,
       goToDm,
       goToUserProfile,
+      goToGroupSettings,
       messageSender,
       onScrollEndReached,
       onScrollStartReached,
@@ -169,6 +172,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
 
     const isChatChannel = channel ? getIsChatChannel(channel) : true;
     const isDM = isDmChannelId(channel.id);
+    const isGroupDm = isGroupDmChannelId(channel.id);
 
     const onPressGroupRef = useCallback((group: db.Group) => {
       setGroupPreview(group);
@@ -342,6 +346,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                 onPressGroupRef={onPressGroupRef}
                 onPressGoToDm={goToDm}
                 onGoToUserProfile={goToUserProfile}
+                onGoToGroupSettings={goToGroupSettings}
               >
                 <View backgroundColor={backgroundColor} flex={1}>
                   <FileDrop
@@ -425,7 +430,9 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                   ? 'read-only'
                                   : isDM
                                     ? 'dm-mismatch'
-                                    : 'channel-mismatch'
+                                    : isGroupDm
+                                      ? 'group-dm-mismatch'
+                                      : 'channel-mismatch'
                               }
                             />
                           ) : channel.contentConfiguration == null ? (
