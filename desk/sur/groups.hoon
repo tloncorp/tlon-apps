@@ -21,7 +21,7 @@
 ::  $seat: group membership (formerly $vessel)
 ::
 ::  .roles: set of roles assigned to a seat
-::  .joined: time the ship joined
+::  .joined: time the ship joined TODO rename to time
 ::
 +$  seat
   $:  roles=(set role-id)
@@ -258,6 +258,9 @@
 ::  $previews: collection of group previews
 ::
 +$  previews  (map flag preview)
+::  $preview-update: group preview update
+::
++$  preview-update  (unit preview)
 ::  $create-group: a request to create a group
 ::
 ::  .name: group name
@@ -340,16 +343,16 @@
 ::
 ::   %create: create a new group
 ::   %group: modify group state
+::   %ask: request to join a group
 ::   %join: join a group with token
-::   %ask: request entry
 ::   %leave: leave a group
 ::
 +$  c-groups
   $%  [%create =create-group]
       [%group =flag =c-group]
     ::
-      [%join =flag token=(unit token)]
       [%ask =flag story=(unit story:s)]
+      [%join =flag token=(unit token)]
     ::
       [%leave =flag]
   ==
@@ -367,6 +370,7 @@
   $%  [%privacy =privacy]
       [%ban =c-ban]
       [%token =c-token]
+      [%ask ships=(set ship) c-ask=?(%approve %deny)]
   ==
 +$  c-ban
   $%  [%set ships=(set ship) ranks=(set rank:title)]
@@ -559,9 +563,6 @@
       [%invite =invite]
       [%decline token=(unit token)]
   ==
-::  $preview-update: group preview update
-::
-+$  preview-update  (unit preview)
 ::  $init: initial group update
 ::
 +$  init  [=time =group]

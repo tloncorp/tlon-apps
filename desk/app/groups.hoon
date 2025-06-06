@@ -1240,7 +1240,15 @@
   ++  se-pass
     |%
     --
-  ::  +se-is-admin: check whether the ship has admin rights
+  ::  +se-is-joined: check if the ship has already joined the group
+  ::
+  ++  se-is-joined
+    |=  =ship
+    ^-  ?
+    ?~  seat=(~(get by seats.group) ship)  |
+    ?:  =(*@da joined.u.seat)  |
+    &
+  ::  +se-is-admin: check whethert the ship has admin rights
   ::
   ++  se-is-admin
     |=  =ship
@@ -1276,7 +1284,7 @@
       ~(tap by channels.group)
     |=  [=nest:g *]
     p.q.nest
-  ::  +se-is-member: check whether the ship is a member
+  ::  +se-is-member: check whether the ship has a seat
   ::
   ++  se-is-member  ~(has by seats.group)
   ::  +se-give-update: send an update to subscribers
@@ -1368,11 +1376,7 @@
       (se-admit src.bowl tok)
     ~|  %se-c-join-access-denied
     ?>  access
-    =/  seat=(unit seat:g)  (~(get by seats.group) src.bowl)
-    ?:  ?&  ?=(^ seat)
-            !=(*@da joined.u.seat)
-        ==
-      se-core
+    ?:  (se-is-joined src.bowl)  se-core
     (se-c-seat (sy src.bowl ~) [%add ~])
   ::  +se-c-ask: handle group ask request
   ::
@@ -1387,10 +1391,7 @@
     ^+  se-core
     ?<  (se-is-banned src.bowl)
     =/  seat=(unit seat:g)  (~(get by seats.group) src.bowl)
-    ?:  ?&  ?=(^ seat)
-            !=(*@da joined.u.seat)
-        ==
-      se-core
+    ?:  (se-is-joined src.bowl)  se-core
     =.  requests.ad  (~(put by requests.ad) src.bowl story)
     (se-update %entry %ask [%add src.bowl story])
   ::
@@ -1487,8 +1488,13 @@
       %privacy  (se-c-entry-privacy privacy.c-entry)
       %ban      (se-c-entry-ban c-ban.c-entry)
       %token    (se-c-entry-token c-token.c-entry)
+      %ask      (se-c-entry-ask [ships c-ask]:c-entry)
     ==
   ::  +se-c-entry-privacy: execute a privacy command
+  ::
+  ::TODO if a ship is on the requests list in admissions,
+  ::     and the type of the group changes to public,
+  ::     all the requesting ships are automatically granted entry.
   ::
   ++  se-c-entry-privacy
     |=  =privacy:g
@@ -1502,7 +1508,9 @@
   ::  the group, or executing any commands on the group host.
   ::
   ::TODO  if a ship is already a group member and is subsequently banned,
-  ::      it is kicked from the group.
+  ::      it is kicked from the group. if a ship is not a group member,
+  ::      but is asking to join the group, and subsequently is banned,
+  ::      he is kicked from the requests list.
   ::  
   ::  the ship and rank blacklists do not affect the group host.
   ::  it is illegal to execute any $c-ban commands that affects 
@@ -1600,6 +1608,26 @@
         (~(del by tokens.ad) token.c-token)
       (se-update [%entry %token %del token.c-token])
     ==
+  ::  +se-c-entry-ask: approve or deny an ask request
+  ::
+  ++  se-c-entry-ask
+    |=  [ships=(set ship) c-ask=?(%approve %deny)]
+    ^+  se-core
+    ?-    c-ask
+        %approve  
+      =.  requests.ad
+        %+  roll  ~(tap in ships)
+        |=  [=ship =_requests.ad]
+        (~(del by requests) ship)
+      (se-send-invites flag ships)
+    ::
+        %deny
+      =.  requests.ad
+        %+  roll  ~(tap in ships)
+        |=  [=ship =_requests.ad]
+        (~(del by requests) ship)
+      (se-send-invites flag ships)
+    ==
   ::  +se-c-seat: execute a seat command
   ::
   ::  seats are used to manage group membership.
@@ -1655,6 +1683,7 @@
         %-  ~(rep in ships)
         |=  [=ship =_seats.group]
         (~(del by seats) ship)
+      ::TODO 
       (se-update:se-core %seat ships [%del ~])
     ::
         %add-roles
@@ -1928,7 +1957,9 @@
   ++  se-watch
     |=  =path
     ^+  se-core
+    ?<  (se-is-banned src.bowl)
     ?+    path  ~|(se-watch-bad+path !!)
+      ::XX should be removed, use the timestamped endpoint
         [%updates ship=@ ~]
       =/  ship  (slav %p i.t.path)
       ?>  =(ship src.bowl)
@@ -1961,7 +1992,7 @@
       (se-log-exclude log se-is-admin-update)
     =.  cor  (give %fact ~ group-log+!>(log))
     se-core
-  ::  +se-watch-token
+  ::  +se-watch-entry-token: ask for a personal token for a ship
   ::
   ++  se-watch-token
     |=  =ship
@@ -2006,6 +2037,7 @@
   ++  se-is-admin-update
     |=  =u-group:g
     ?+  u-group  |
+      [%entry %ask *]  &
       [%entry %token *]  &
     ==
   ::
@@ -2030,7 +2062,7 @@
       (give %fact ~ group-preview-3+!>(`preview-update:v7:g`preview-update))
     =.  cor  (give %kick ~ ~)
     se-core
-  ::  +se-preview: return the group preview
+  ::  +se-preview: the group preview
   ::
   ++  se-preview
     =,  group
@@ -3033,13 +3065,7 @@
         [%updates rest=*]
       ?>  ?=(?(%v0 %v1) ver)
       ~|(%unimplemented !!)
-    ::
-        :: [%ui ~]       ?>(?=(?(%v0 %v1) ver) go-core)
     ==
-  ::  +go-can-read: check if a ship has read permission to a channel
-  ::
-  ::XX verify that we mean to allow non-member ships to read
-  ::   from visible channels
   --
 ::  +fi-core: foreign group and invites core
 ::
@@ -3116,6 +3142,7 @@
       |=  story=(unit story:s:g)
       ^-  card
       =/  =wire  (weld fi-area /join/ask)
+      =/  =path  /server/groups/[q.flag]/entry/ask
       =/  =cage
         group-command+!>(`c-groups:g`[%ask flag story])
       [%pass wire %agent [p.flag server] %poke cage]
@@ -3168,8 +3195,12 @@
   ++  fi-join
     |=  tok=(unit token:g)
     ^+  fi-core
+    ::XX  needed? probably, but perhaps query
+    ::    negotiation status first
     :: =.  cor  (emit (initiate:neg [p.flag dap.bowl]))
     ?:  (~(has by groups) flag)  fi-core
+    ::XX why does not this work?
+    :: ?=([~ ?(%join %watch %done)] progress)
     ?:  ?&  ?=(^ progress)
             ?=(?(%join %watch %done) u.progress)
         ==
@@ -3184,7 +3215,7 @@
   ++  fi-ask
     |=  story=(unit story:s:g)
     ^+  fi-core
-    ::XX  needed?
+    ::XX  as in +fi-join, needed?
     :: =.  cor  (emit (initiate:neg [p.flag dap.bowl]))
     ?:  (~(has by groups) flag)  fi-core
     ?:  ?&  ?=(^ progress)
@@ -3237,11 +3268,20 @@
   ++  fi-invite
     |=  =invite:g
     ^+  fi-core
+    :: guard against invite spoofing
+    ?>  =(from.invite src.bowl)
     =.  invites  [invite(time now.bowl) invites]
     =/  our-preview=preview:g
       (fall preview preview.invite)
     =?  preview  (gte time.preview.invite time.our-preview)
       (some preview.invite)
+    ::  we have knocked and we have received.
+    ::  assume the invite to be the ask response from the host.
+    ::
+    ?:  ?&  ?=(^ progress)
+            ?=(%ask u.progress)
+        ==
+      (fi-join token.invite)
     =.  fi-core  (fi-activity %group-invite src.bowl)
     fi-core
   ::  +fi-decline: reject a group invitation

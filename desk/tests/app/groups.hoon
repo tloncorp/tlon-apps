@@ -1,6 +1,6 @@
 ::  groups unit tests
 ::
-/-  g=groups
+/-  g=groups, s=story
 /+  *test, *test-agent
 /+  gv=groups-ver
 /=  groups-agent  /app/groups
@@ -48,10 +48,10 @@
   (pure:m caz)
 ::
 ++  do-poke-c-group
-  |=  =c-group:g
+  |=  [src=ship =c-group:g]
   =/  m  (mare ,(list card))
   ^-  form:m
-  ;<  ~  bind:m  (set-src ~zod)
+  ;<  ~  bind:m  (set-src src)
   =/  =c-groups:g  [%group my-flag c-group]
   (do-poke group-command+!>(c-groups))
 ::
@@ -59,8 +59,7 @@
   |=  =privacy:g
   =/  m  (mare ,(list card))
   ^-  form:m
-  ;<  ~  bind:m  (set-src ~zod)
-  (do-poke group-command+!>([%group my-flag %entry %privacy privacy]))
+  (do-poke-c-group ~zod [%entry %privacy privacy])
 ::
 ++  ex-r-groups
   |=  [caz=(list card) =r-groups:v7:g]
@@ -132,13 +131,13 @@
   ::  joining a private group without a valid token fails
   ::
   ;<  *  bind:m  (do-set-privacy %private)
-  ;<  *  bind:m  (set-src ~fed)
+  ;<  ~  bind:m  (set-src ~fed)
   ;<  *  bind:m
     (ex-fail (do-poke group-command+!>([%join my-flag ~])))
   ;<  caz=(list card)  bind:m
     =/  =c-token-add:g
       [[%personal ~dev] ~ ~ |]
-    (do-poke-c-group [%entry %token %add c-token-add])
+    (do-poke-c-group ~zod [%entry %token %add c-token-add])
   ::  joining a private group with a valid token works
   ::
   ;<  *  bind:m  (set-src ~dev)
@@ -156,14 +155,25 @@
   (pure:m ~)
 ::  +test-c-groups-ask: test group entry request
 ::
-::  a user can ask to join the group, unless he has been banned.
+::  a ship can ask to join a group, unless he has been banned.
+::  an ask to a public group is automatically approved. an ask
+::  to a private group can be either approved or denied by an admin.
 ::  if a user is already a group member, the ask request is vacuous.
 ::
-:: ++  test-c-groups-ask
-::   %-  eval-mare
-::   =/  m  (mare ,~)
-::   ^-  form:m
-::   ;<  *  bind:m  do-groups-init
-::   ;<  *  bind:m  do-create-group
-
+++  test-c-groups-ask
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  do-groups-init
+  ;<  *  bind:m  do-create-group
+  ::  a ship can ask to join the group
+  ::
+  =/  =story:s
+    [inline+['a plea']~]~
+  ;<  ~  bind:m  (set-src ~dev)
+  ;<  caz=(list card)  bind:m
+    (do-poke group-command+!>([%ask my-flag `story]))
+  ;<  ~  bind:m
+    (ex-r-groups caz [my-flag %entry %ask [%add ~dev `story]])
+  (pure:m ~)
 --
