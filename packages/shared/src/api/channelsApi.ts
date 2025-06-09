@@ -199,9 +199,9 @@ export function toClientChannelsInit(
 
 export type ChannelInit = {
   channelId: string;
-  order?: string[];
-  writers?: string[];
-  readers?: string[];
+  order: string[];
+  writers: string[];
+  readers: string[];
 };
 
 export function toClientChannelInit(
