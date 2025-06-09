@@ -130,11 +130,7 @@ export const GroupListItem = ({
           <ListItem.GroupIcon model={model} />
           <ListItem.MainContent>
             <ListItem.Title>{title}</ListItem.Title>
-            {logic.isMuted(model.volumeSettings?.level, 'group') ? (
-              <ListItem.SubtitleWithIcon icon="Muted">
-                Muted
-              </ListItem.SubtitleWithIcon>
-            ) : customSubtitle ? (
+            {customSubtitle ? (
               <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
             ) : isSingleChannel ? (
               <ListItem.SubtitleWithIcon icon="ChannelMultiDM">
@@ -159,15 +155,14 @@ export const GroupListItem = ({
                 </ListItem.Subtitle>
               </>
             ) : null}
-            {logic.isMuted(
-              model.volumeSettings?.level,
-              'group'
-            ) ? null : model.lastPost ? (
+            {model.lastPost ? (
               <ListItem.PostPreview post={model.lastPost} />
-            ) : model.id.includes(domain.PersonalGroupSlugs.slug) ? (
-              <ListItem.Subtitle>Your personal group</ListItem.Subtitle>
             ) : !isPending ? (
-              <ListItem.Subtitle>No posts yet</ListItem.Subtitle>
+              model.id.includes(domain.PersonalGroupSlugs.slug) ? (
+                <ListItem.Subtitle>Your personal group</ListItem.Subtitle>
+              ) : (
+                <ListItem.Subtitle>No posts yet</ListItem.Subtitle>
+              )
             ) : null}
           </ListItem.MainContent>
 
