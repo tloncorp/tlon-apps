@@ -7,6 +7,7 @@ declare const process: {
 
 const projectId = '617bb643-5bf6-4c40-8af6-c6e9dd7e3bd0';
 const isPreview = process.env.APP_VARIANT === 'preview';
+const buildGitHash = process.env.EAS_BUILD_GIT_COMMIT_HASH || 'development';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -49,6 +50,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     branchDomain: process.env.BRANCH_DOMAIN_PROD,
     inviteServiceEndpoint: process.env.INVITE_SERVICE_ENDPOINT,
     inviteServiceIsDev: process.env.INVITE_SERVICE_IS_DEV,
+    gitHash: buildGitHash ? buildGitHash.substring(0, 7) : 'dev',
   },
   ios: {
     runtimeVersion: '4.0.2',
