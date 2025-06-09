@@ -61,7 +61,7 @@
         =/  secret=?
           ?=(%secret privacy.admissions)
         =/  =cordon:v2:g
-          (cordon:v2:admissions:v7 admissions)
+          (cordon:v2:admissions:v7 seats.group admissions)
         :*  fleet
             cabals
             zones
@@ -75,7 +75,7 @@
             flagged-content.group
         ==
       ::
-      ++  group-ui  
+      ++  group-ui
         |=  [=net:v7:g =group:v7:g]
         ^-  group-ui:v2:g
         ::XX  saga is unused by the client?
@@ -115,7 +115,7 @@
         =/  secret=?
           ?=(%secret privacy.admissions)
         =/  =cordon:v5:g
-          (cordon:v5:admissions:v7 admissions)
+          (cordon:v5:admissions:v7 seats.group admissions)
         :*  fleet
             cabals
             zones
@@ -190,14 +190,17 @@
     ++  v2
       |%
       ++  cordon
-        |=  ad=admissions:v7:g
+        |=  [seats=(map ship seat:v7:g) ad=admissions:v7:g]
         ^-  cordon:v2:g
         ?:  ?=(%public privacy.ad)
           [%open [ships ranks]:banned.ad]
-        ::TODO figure out compatible logic for
-        ::     the pending set
         :*  %shut
-          ~                      :: pending
+          ::  pending
+          %-  sy  %+  roll  ~(tap by seats)
+          |=  [[=ship =seat:v7:g] pending=(list ship)]
+          ?.  =(*@da joined.seat)  pending
+          [ship pending]
+        ::
           ~(key by requests.ad)  :: ask
         ==
       --
@@ -219,7 +222,7 @@
       |%
       ++  diff
         |^
-        |=  =r-group:v7:g
+        |=  [=r-group:v7:g seats=(map ship seat:v7:g) =admissions:v7:g]
         ^-  (list diff:v2:g)
         ?-  -.r-group
           %create   [%create (v2:group:v7 group.r-group)]~
@@ -228,7 +231,7 @@
           %role     (diff-from-role [roles r-role]:r-group)
           %channel  (diff-from-channel [nest r-channel]:r-group)
           %section  (diff-from-section [section-id r-section]:r-group)
-          %entry    (diff-from-entry r-entry.r-group)
+          %entry    (diff-from-entry r-entry.r-group seats admissions)
           %flag-content  [%flag-content [nest post-key src]:r-group]~
           %delete  [%del ~]~
         ==
@@ -251,7 +254,7 @@
           ^-  (list diff:v2:g)
           ?:  ?=(?(%add %edit %del) -.r-role)
             ?-    -.r-role
-                %add       
+                %add
               %+  turn  ~(tap in roles)
               |=  =role-id:v7:g
               [%cabal `sect:v2:g`role-id [%add meta.r-role]]
@@ -303,23 +306,19 @@
           ==
         ::
         ++  diff-from-entry
-          |=  =r-entry:v7:g
+          |=  [=r-entry:v7:g seats=(map ship seat:v7:g) =admissions:v7:g]
           ^-  (list diff:v2:g)
           ?-  -.r-entry
-              %privacy  
+              %privacy
             :_  ~
             ?-  privacy.r-entry
-              ::XX this should be improved when privacy change
-              ::   logic is worked out. the conversion function
-              ::   should probably be passed admissions structure
-              ::   to populate the full cordon.
-              ::
-              %public   [%cordon %swap [%open *ban:open:cordon:v2:g]]
-              %private  [%cordon %swap [%shut ~ ~]]
+              %public   [%cordon %swap (cordon:v2:admissions:v7 seats admissions)]
+              %private  [%cordon %swap (cordon:v2:admissions:v7 seats admissions)]
               %secret   [%secret &]
             ==
           ::
               %ban
+            ?.  ?=(%public privacy.admissions)  ~
             ?:  ?=(%set -.r-ban.r-entry)
               [%cordon %swap [%open [ships ranks]:r-ban.r-entry]]~
             :_  ~
@@ -335,10 +334,11 @@
             %token  ~
           ::
               %ask
+            ?:  ?=(%public privacy.admissions)  ~
             :_  ~
             ?-  -.r-ask.r-entry
               %add  [%cordon %shut %add-ships %ask (sy ship.r-ask.r-entry ~)]
-              %del  [%cordon %shut %del-ships %ask (sy ship.r-ask.r-entry ~)]
+              %del  [%cordon %shut %del-ships %ask ships.r-ask.r-entry]
             ==
           ==
         --
@@ -418,7 +418,7 @@
       |=  [=group:v6:g =bowl:gall]
       ^-  group:v6:g
       =.  fleet.group
-        =/  our-vessel=vessel:fleet:v6:g  
+        =/  our-vessel=vessel:fleet:v6:g
           (~(gut by fleet.group) our.bowl *vessel:fleet:v6:g)
         =/  fleet-size=@ud  ~(wyt by fleet.group)
         ?:  (lte fleet-size 15)
@@ -655,7 +655,7 @@
           |=  [ships=(set ship) =diff:fleet:v2:g]
           ^-  (list a-group:v7:g)
           :_  ~
-          :+  %seat  
+          :+  %seat
             ships
           ?-  -.diff
             %add  [%add ~]
@@ -672,7 +672,7 @@
           ^-  (list a-group:v7:g)
           :_  ~
           ^-  a-group:v7:g
-          :+  %role  
+          :+  %role
             (sy `role-id:v7:g`sect ~)
           ?-  diff
             [%add meta=data:meta]   [%add meta.diff]

@@ -483,7 +483,7 @@
   ==
 +$  u-ask
   $%  [%add =ship story=(unit story:s)]
-      [%del =ship]
+      [%del ships=(set ship)]
   ==
 +$  u-token
   $%  [%add =token meta=token-meta]
@@ -543,24 +543,25 @@
 +$  r-channel  u-channel
 +$  r-section  u-section
 ::  $a-foreigns: foreigns action
-::TODO simply to +$  a-foreign
+::  
+::  %foreign: a foreign group action
+::  %invite: receive an .invite
+::
 +$  a-foreigns
   $%  [%foreign =flag =a-foreign]
+      [%invite =invite]
   ==
 ::  $a-foreign: foreign group action
 ::
 ::  %join: join the group
 ::  %ask: ask for entry
 ::  %cancel: cancel a join or an ask in progress
-::  %invite: receive an invitation
 ::  %decline: decline an invitation
 ::
 +$  a-foreign
   $%  [%join token=(unit token)]
       [%ask story=(unit story:s)]
       [%cancel ~]
-    ::
-      [%invite =invite]
       [%decline token=(unit token)]
   ==
 ::  $init: initial group update
