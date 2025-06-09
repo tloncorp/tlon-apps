@@ -94,6 +94,9 @@ export const syncInitData = async (
       .insertChannelPerms(initData.channelPerms, queryCtx)
       .then(() => logger.crumb('inserted channel perms'));
     await db
+      .insertChannelOrder(initData.channelPerms, queryCtx)
+      .then(() => logger.crumb('inserted channel order'));
+    await db
       .setLeftGroups({ joinedGroupIds: initData.joinedGroups }, queryCtx)
       .then(() => logger.crumb('set left groups'));
     await db
