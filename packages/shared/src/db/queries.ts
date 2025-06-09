@@ -1295,7 +1295,13 @@ export const insertChannelPerms = createWriteQuery(
           set: conflictUpdateSetAll($channelWriters),
         });
     }
+  },
+  ['channelWriters', 'channels']
+);
 
+export const insertChannelOrder = createWriteQuery(
+  'insertChannelOrder',
+  async (channelsInit: ChannelInit[], ctx: QueryCtx) => {
     await ctx.db.transaction(async (tx) => {
       await Promise.all(
         channelsInit.map(async (chanInit) => {
@@ -1309,7 +1315,7 @@ export const insertChannelPerms = createWriteQuery(
       );
     });
   },
-  ['channelWriters', 'channels']
+  ['channels']
 );
 
 export const getThreadPosts = createReadQuery(
