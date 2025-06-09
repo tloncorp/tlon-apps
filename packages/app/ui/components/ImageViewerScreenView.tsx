@@ -298,10 +298,13 @@ export function ImageViewerScreenView(props: {
                 }}
                 data-testid="image"
                 style={{
+                  width: '100%',
                   height: 'auto',
-                  maxWidth: Dimensions.get('window').width,
-                  maxHeight: Dimensions.get('window').height - top,
+                  aspectRatio:
+                    Dimensions.get('window').width /
+                    (Dimensions.get('window').height - top),
                 }}
+                contentFit="contain"
               />
             </View>
           ) : (

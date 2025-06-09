@@ -19,8 +19,10 @@ import {
 
 const logger = createDevLogger('storageActions', false);
 
+export const PLACEHOLDER_ASSET_URI = 'placeholder-asset-id';
+
 export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
-  if (asset.uri === 'placeholder-image-uri') {
+  if (asset.uri === PLACEHOLDER_ASSET_URI) {
     logger.log('placeholder image, skipping upload');
     return;
   }
@@ -35,16 +37,20 @@ export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
   setUploadState(asset.uri, { status: 'uploading', localUri: asset.uri });
   try {
     logger.log('resizing asset', asset.uri);
-    const resizedAsset = await manipulateAsync(
-      asset.uri,
-      [
-        {
-          resize:
-            asset.width > asset.height ? { width: 1200 } : { height: 1200 },
-        },
-      ],
-      { compress: 0.75 }
-    );
+    let resizedAsset = asset;
+    // avoid resizing gifs
+    if (!asset.mimeType?.includes('gif')) {
+      resizedAsset = await manipulateAsync(
+        asset.uri,
+        [
+          {
+            resize:
+              asset.width > asset.height ? { width: 1200 } : { height: 1200 },
+          },
+        ],
+        { compress: 0.75 }
+      );
+    }
     const remoteUri = await performUpload(resizedAsset, isWeb);
     logger.crumb('upload succeeded');
     logger.log('final uri', remoteUri);
@@ -71,6 +77,7 @@ export const performUpload = async (
   }
 
   const file = await fetchFileFromUri(params.uri, params.height, params.width);
+  logger.log('fetched file', file);
   if (!file) {
     throw new Error('unable to fetch image from uri');
   }
@@ -78,7 +85,7 @@ export const performUpload = async (
   const contentType = file.type;
   const fileKey = `${deSig(getCurrentUserId())}/${deSig(
     formatDa(unixToDa(new Date().getTime()))
-  )}-${params.uri.split('/').pop()}`;
+  )}-${params.uri.split('/').pop()?.split('?')[0]}`;
   logger.log('asset key:', fileKey);
 
   if (hasHostingUploadCreds(config, credentials)) {
@@ -174,7 +181,16 @@ async function uploadFile(
         u8arr[n] = bstr.charCodeAt(n);
       }
       body = new Blob([u8arr], { type: mime });
+    } else {
+      // If assetUri is a file path, fetch the file
+      const response = await fetch(assetUri);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch file from ${assetUri}`);
+      }
+      body = await response.blob();
     }
+
+    logger.log('final upload params', { presignedUrl, headers });
 
     const response = await fetch(presignedUrl, {
       method: 'PUT',

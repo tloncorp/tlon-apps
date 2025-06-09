@@ -275,7 +275,10 @@ const ChatMessage = ({
           <ChatMessageActions
             post={post}
             postActionIds={postActionIds}
-            onDismiss={() => setIsPopoverOpen(false)}
+            onDismiss={() => {
+              setIsPopoverOpen(false);
+              setIsHovered(false);
+            }}
             onOpenChange={setIsPopoverOpen}
             onReply={handleRepliesPressed}
             onEdit={onPressEdit}
@@ -301,10 +304,7 @@ const WebChatImageRenderer: DefaultRendererProps['image'] = {
   alignItems: 'flex-start',
   imageProps: {
     maxWidth: 600,
-    maxHeight: 600,
-    height: 'auto',
-    width: 'auto',
-    objectFit: 'contain',
+    maxHeight: 400,
   },
 };
 
@@ -315,8 +315,20 @@ const ChatContentRenderer = createContentRenderer({
     },
     reference: {
       contentSize: '$l',
+      maxWidth: 600,
     },
     image: isWeb ? WebChatImageRenderer : undefined,
+    link: {
+      renderDescription: false,
+      renderEmbed: true,
+      maxWidth: 600,
+      imageProps: {
+        aspectRatio: 2,
+      },
+    },
+    code: {
+      maxWidth: 600,
+    },
   },
 });
 

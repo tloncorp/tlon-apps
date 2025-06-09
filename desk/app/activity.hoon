@@ -278,6 +278,23 @@
   %+  welp
   /(scot %p our.bowl)/[dude]/(scot %da now.bowl)
   path
+++  get-vessel
+  |=  [=flag:g =ship]
+  ^-  (unit vessel:fleet:g)
+  =/  base-path
+    (scry-path %groups /)
+  =>  [flag=flag ship=ship base-path=base-path vessel=vessel:fleet:g ..zuse]  ~+
+  =/  groups-running
+    .^(? %gu (weld base-path /$))
+  ?.  groups-running  ~
+  =/  group-exists
+    .^(? %gx (weld base-path /exists/(scot %p p.flag)/[q.flag]/noun))
+  ?.  group-exists  ~
+  %-  some
+  .^  vessel  %gx
+    %+  weld  base-path
+    /groups/(scot %p p.flag)/[q.flag]/fleet/(scot %p ship)/vessel/noun
+  ==
 ++  poke
   |=  [=mark =vase]
   ^+  cor
@@ -1254,9 +1271,10 @@
     ?~  post  ~
     =/  key=message-key:a
       :_  time
-      [author.u.post time]
+      [(get-author-ship:ch-utils author.u.post) time]
+    =/  vessel=(unit vessel:fleet:g)  (get-vessel group our.bowl)
     =/  mention
-      (was-mentioned:ch-utils content.u.post our.bowl)
+      (was-mentioned:ch-utils content.u.post our.bowl vessel)
     `[time %post key nest group content.u.post mention]
   =/  replies=(list [time incoming-event:a])
     %-  zing
@@ -1276,12 +1294,13 @@
     %-  some
     =/  key=message-key:a
       :_  time
-      [author.u.reply time]
+      [(get-author-ship:ch-utils author.u.reply) time]
     =/  parent=message-key:a
       :_  id-post
-      [author.u.u.post id-post]
+      [(get-author-ship:ch-utils author.u.u.post) id-post]
+    =/  vessel=(unit vessel:fleet:g)  (get-vessel group our.bowl)
     =/  mention
-      (was-mentioned:ch-utils content.u.reply our.bowl)
+      (was-mentioned:ch-utils content.u.reply our.bowl vessel)
     [time %reply key parent nest group content.u.reply mention]
   =/  init-time
     ?:  &(=(posts ~) =(replies ~))  recency.unread
@@ -1320,7 +1339,7 @@
     |=  [=time =writ:ch]
     =/  key=message-key:a  [id.writ time]
     =/  mention
-      (was-mentioned:ch-utils content.writ our.bowl)
+      (was-mentioned:ch-utils content.writ our.bowl ~)
     `[time %dm-post key whom content.writ mention]
   =/  replies=(list [time incoming-event:a])
     %-  zing
@@ -1335,7 +1354,7 @@
       (tab:on:replies:ch replies.u.writ `(sub time.key 1) count)
     |=  [=time =reply:ch]
     =/  mention
-      (was-mentioned:ch-utils content.reply our.bowl)
+      (was-mentioned:ch-utils content.reply our.bowl ~)
     [time %dm-reply key parent whom content.reply mention]
   =/  init-time
     ?:  &(=(writs ~) =(replies ~))  recency.unread

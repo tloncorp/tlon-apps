@@ -34,7 +34,7 @@ export function usePreloadedEmojis() {
   return useMemo(() => ALL_EMOJIS, []);
 }
 
-export function getNativeEmoji(shortcode: string) {
+export function getNativeEmoji(shortcode: string): string | undefined {
   const sanitizedShortcode = shortcode.replace(/^:|:$/g, '');
   try {
     return EMOJI_MAP[sanitizedShortcode]?.skins[0].native;

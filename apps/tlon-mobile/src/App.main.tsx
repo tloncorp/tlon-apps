@@ -19,7 +19,6 @@ import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
   LoadingSpinner,
-  PortalProvider,
   SplashSequence,
   Text,
   View,
