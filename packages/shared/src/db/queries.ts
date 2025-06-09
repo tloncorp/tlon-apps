@@ -1301,7 +1301,7 @@ export const insertChannelPerms = createWriteQuery(
 
 export const insertChannelOrder = createWriteQuery(
   'insertChannelOrder',
-  async (channelsInit: ChannelInit[], ctx: QueryCtx) => {
+  async (channelsInit: Array<{ order: string[] }>, ctx: QueryCtx) => {
     await ctx.db.transaction(async (tx) => {
       await Promise.all(
         channelsInit.map(async (chanInit) => {
