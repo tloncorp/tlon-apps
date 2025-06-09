@@ -73,6 +73,14 @@ export const usePins = (
   });
 };
 
+export const useSettings = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['settings', deps],
+    queryFn: () => db.getSettings(),
+  });
+};
+
 export const useCalmSettings = () => {
   const deps = useKeyFromQueryDeps(db.getSettings);
   return useQuery({

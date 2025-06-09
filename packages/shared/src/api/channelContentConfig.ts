@@ -319,6 +319,10 @@ export namespace StructuredChannelDescriptionPayload {
     }
     try {
       const out = JSON.parse(encoded);
+      if (typeof out !== 'object' || !out) {
+        return {};
+      }
+
       if ('channelContentConfiguration' in out) {
         if (typeof out.channelContentConfiguration !== 'object') {
           throw new Error('Invalid configuration');

@@ -24,7 +24,7 @@ export async function loadCachedContacts(): Promise<boolean> {
       return false;
     }
 
-    const contacts = JSON.parse(contactsValue);
+    const contacts = JSON.parse(contactsValue) as db.Contact[];
     const lastUpdated = new Date(lastUpdatedValue).getTime();
 
     if (Date.now() - lastUpdated > TWO_DAYS) {

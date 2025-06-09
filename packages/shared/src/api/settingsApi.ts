@@ -27,6 +27,7 @@ function getBucket(key: string): string {
     case 'activitySeenTimestamp':
     case 'completedWayfindingSplash':
     case 'completedWayfindingTutorial':
+    case 'disableTlonInfraEnhancement':
       return 'groups';
     case 'disableAvatars':
     case 'disableNicknames':
@@ -113,6 +114,8 @@ export const toClientSettings = (
       settings.desk.groups?.completedWayfindingSplash ?? false,
     completedWayfindingTutorial:
       settings.desk.groups?.completedWayfindingTutorial ?? false,
+    disableTlonInfraEnhancement:
+      settings.desk.groups?.disableTlonInfraEnhancement ?? false,
   };
 };
 

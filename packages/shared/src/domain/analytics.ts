@@ -127,6 +127,7 @@ export enum AnalyticsEvent {
   ActionContactBookPermDenied = 'Contact Book Permission Denied',
   ActionContactBookInviteShown = 'Contact Book Invite Shown',
   ActionContactBookInviteSent = 'Contact Book Invite Sent',
+  FetchLinkMetadata = 'Fetched Link Metadata',
   ActionCalmSettingsUpdate = 'Calm Settings Updated',
   ActionThemeUpdate = 'Theme Setting Updated',
   DebugSystemContacts = 'System Contacts Debug',
@@ -150,6 +151,7 @@ export enum AnalyticsEvent {
   ErrorCalmSettingsUpdate = 'Error Updating Calm Settings',
   ErrorThemeUpdate = 'Error Updating Theme Setting',
   ErrorApi = 'API Error',
+  ErrorFetchLinkMetadata = 'Error Fetching Link Metadata',
 }
 
 export interface AnalyticsDigest {
