@@ -199,9 +199,9 @@ export function toClientChannelsInit(
 
 export type ChannelInit = {
   channelId: string;
-  order: string[];
-  writers: string[];
-  readers: string[];
+  order?: string[];
+  writers?: string[];
+  readers?: string[];
 };
 
 export function toClientChannelInit(
@@ -213,7 +213,7 @@ export function toClientChannelInit(
     channelId: id,
     writers: channel.perms.writers ?? [],
     readers,
-    order: channel.order.map(x => getCanonicalPostId(x)),
+    order: channel.order.map((x) => getCanonicalPostId(x)),
   };
 }
 
