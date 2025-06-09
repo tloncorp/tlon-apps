@@ -1243,7 +1243,7 @@ export const getFlaggedPosts = createReadQuery(
 
 export const insertChannelPerms = createWriteQuery(
   'insertChannelPerms',
-  async (channelsInit: ChannelInit[], ctx: QueryCtx) => {
+  async (channelsInit: Omit<ChannelInit, 'order'>[], ctx: QueryCtx) => {
     const writers = channelsInit.flatMap((chanInit) =>
       (chanInit.writers || []).map((writer) => ({
         channelId: chanInit.channelId,
@@ -1301,7 +1301,10 @@ export const insertChannelPerms = createWriteQuery(
 
 export const insertChannelOrder = createWriteQuery(
   'insertChannelOrder',
-  async (channelsInit: Array<{ order: string[] }>, ctx: QueryCtx) => {
+  async (
+    channelsInit: Pick<ChannelInit, 'channelId' | 'order'>[],
+    ctx: QueryCtx
+  ) => {
     await ctx.db.transaction(async (tx) => {
       await Promise.all(
         channelsInit.map(async (chanInit) => {
