@@ -1,3 +1,4 @@
+# Note, this test is currently disabled. It's been replaced by a playwright test.
 appId: io.tlon.groups
 ---
 - runFlow: subflows/launch.yaml
