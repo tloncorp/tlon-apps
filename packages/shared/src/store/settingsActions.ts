@@ -166,3 +166,22 @@ export async function updateDisableTlonInfraEnhancement(disabled: boolean) {
     await db.insertSettings({ disableTlonInfraEnhancement: oldValue });
   }
 }
+
+export async function updateLogActivity(value: boolean) {
+  const existing = await db.getSettings();
+  const oldValue = existing?.logActivity;
+
+  try {
+    // optimistic update
+    await db.insertSettings({ logActivity: value });
+    await setSetting('logActivity', value);
+  } catch (e) {
+    logger.trackError('Error updating log activity setting', {
+      value,
+      severity: AnalyticsSeverity.Medium,
+      errorMessage: e.message,
+      errorStack: e.stack,
+    });
+    await db.insertSettings({ logActivity: oldValue });
+  }
+}

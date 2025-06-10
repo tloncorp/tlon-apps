@@ -656,9 +656,7 @@ function RoutedApp() {
   const [userThemeColor, setUserThemeColor] = useState('#ffffff');
   const showDevTools = useShowDevTools();
   const isStandAlone = useIsStandaloneMode();
-  const logActivity = useLogActivity();
   const posthog = usePostHog();
-  const analyticsId = useAnalyticsId();
   const body = document.querySelector('body');
   const colorSchemeFromNative =
     window.nativeOptions?.colorScheme ?? window.colorscheme;

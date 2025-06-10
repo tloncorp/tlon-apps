@@ -1,10 +1,15 @@
-import { AnalyticsEvent, useCurrentSession } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  useCurrentSession,
+  useLogActivity,
+} from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import {
   didInitializeTelemetry,
   hasClearedLegacyWebTelemetry,
   lastAnonymousAppOpenAt,
 } from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect } from 'react';
 import { isWeb } from 'tamagui';
 
@@ -29,12 +34,41 @@ export function useTelemetry(): TelemetryClient {
   const posthog = usePosthog();
   const session = useCurrentSession();
   const currentUserId = useCurrentUserId();
-  const telemetryInitialized = didInitializeTelemetry.useStorageItem();
+  const { data: logActivity, isLoading } = useLogActivity();
+  const telemetryStorage = didInitializeTelemetry.useStorageItem();
+  const telemetryInitialized =
+    telemetryStorage.value && !telemetryStorage.isLoading;
+  const ready =
+    posthog &&
+    !isLoading &&
+    !telemetryStorage.isLoading &&
+    session?.phase === 'ready';
+  const shouldInitialize = ready && !telemetryInitialized;
   const clearConfig = useClearTelemetryConfig();
+  const optedOut =
+    (typeof logActivity !== 'undefined' && !logActivity) ||
+    posthog?.getIsOptedOut();
+
+  console.log({
+    ready,
+    isLoading,
+    telLoading: telemetryStorage.isLoading,
+    shouldInitialize,
+    telemetryInitialized,
+    optedOut,
+    logActivity,
+    startTime: session?.startTime,
+  });
 
   const setDisabled = useCallback(
     async (shouldDisable: boolean) => {
       const isHosted = api.getCurrentUserIsHosted();
+      debugger;
+
+      // make sure we update settings to reflect, in case we're missing
+      // the logActivity setting
+      store.updateLogActivity(!shouldDisable);
+
       if (shouldDisable) {
         posthog?.optIn();
         posthog?.capture('Telemetry disabled', {
@@ -67,7 +101,7 @@ export function useTelemetry(): TelemetryClient {
       eventId: string;
       properties?: Record<string, any>;
     }) => {
-      if (posthog?.getIsOptedOut()) {
+      if (optedOut) {
         posthog?.optIn();
         posthog?.capture(eventId, properties);
         await posthog?.flush();
@@ -76,7 +110,7 @@ export function useTelemetry(): TelemetryClient {
         posthog?.capture(eventId, properties);
       }
     },
-    [posthog]
+    [posthog, optedOut]
   );
 
   const captureAppActive = useCallback(
@@ -85,7 +119,7 @@ export function useTelemetry(): TelemetryClient {
         platform && platform === 'web'
           ? AnalyticsEvent.WebAppOpened
           : AnalyticsEvent.AppActive;
-      if (!posthog.getIsOptedOut()) {
+      if (!optedOut) {
         posthog.capture(eventId, { isHostedUser });
       } else {
         const lastAnonymousOpen = await lastAnonymousAppOpenAt.getValue();
@@ -99,12 +133,13 @@ export function useTelemetry(): TelemetryClient {
         }
       }
     },
-    [posthog, captureMandatoryEvent]
+    [posthog, optedOut, captureMandatoryEvent]
   );
 
   useEffect(() => {
     async function initializeTelemetry() {
       const isHosted = api.getCurrentUserIsHosted();
+      debugger;
 
       // Reset bad telemetry config for web users who
       // were on pre-release TM-alpha
@@ -124,30 +159,34 @@ export function useTelemetry(): TelemetryClient {
       const isInitialized = await didInitializeTelemetry.getValue();
       if (isInitialized) {
         return;
-      } else {
-        posthog?.capture('Initializing telemetry');
       }
 
-      posthog?.identify(currentUserId, {
-        isHostedUser: true,
-        userId: currentUserId,
-      });
-      setDisabled(posthog.getIsOptedOut());
-      telemetryInitialized.setValue(true);
+      posthog?.capture('Initializing telemetry');
+      setDisabled(optedOut);
+      telemetryStorage.setValue(true);
     }
 
-    if (posthog && session?.startTime) {
+    if (shouldInitialize) {
       initializeTelemetry();
     }
   }, [
-    captureMandatoryEvent,
-    clearConfig,
-    currentUserId,
     posthog,
-    session?.startTime,
+    optedOut,
+    currentUserId,
+    shouldInitialize,
+    telemetryStorage,
+    clearConfig,
     setDisabled,
-    telemetryInitialized,
+    captureMandatoryEvent,
   ]);
+
+  useEffect(() => {
+    // if we hear about a change to the logActivity setting after
+    // initializing, we should update the state of posthog
+    if (telemetryInitialized && ready) {
+      setDisabled(optedOut);
+    }
+  }, [ready, optedOut, telemetryInitialized, setDisabled]);
 
   return {
     getIsOptedOut: posthog.getIsOptedOut,

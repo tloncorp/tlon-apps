@@ -1,7 +1,6 @@
 import * as db from '../db';
-import { SETTINGS_SINGLETON_KEY } from '../db/schema';
 import * as ub from '../urbit';
-import { getCurrentUserId, poke, scry, subscribe } from './urbit';
+import { poke, scry, subscribe } from './urbit';
 
 export function getMessagesFilter(
   value: string | null | undefined

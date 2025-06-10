@@ -622,3 +622,14 @@ export const useThemeSettings = () => {
     },
   });
 };
+
+export const useLogActivity = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['logActivity', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings();
+      return settings?.logActivity ?? false;
+    },
+  });
+};
