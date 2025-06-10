@@ -1,6 +1,11 @@
 import EmojiData, { EmojiMartData } from '@emoji-mart/data';
+import { createDevLogger } from '@tloncorp/shared';
 import Fuse from 'fuse.js';
 import { useMemo } from 'react';
+
+import { isEmoji } from './utils';
+
+const logger = createDevLogger('EmojiData', false);
 
 export type EmojiObject = {
   id: string;
@@ -34,12 +39,26 @@ export function usePreloadedEmojis() {
   return useMemo(() => ALL_EMOJIS, []);
 }
 
-export function getNativeEmoji(shortcode: string): string | undefined {
-  const sanitizedShortcode = shortcode.replace(/^:|:$/g, '');
+export function getNativeEmoji(input: string): string | undefined {
+  // if it's already a raw emoji, return it directly
+  if (isEmoji(input)) {
+    return input;
+  }
+
+  // otherwise parse it as a shortcode
+  const sanitizedShortcode = input.replace(/^:|:$/g, '');
   try {
-    return EMOJI_MAP[sanitizedShortcode]?.skins[0].native;
+    const resultEmoji = EMOJI_MAP[sanitizedShortcode]?.skins[0].native;
+    if (!resultEmoji) {
+      throw new Error('Not found in emoji map');
+    }
+    return resultEmoji;
   } catch (e) {
-    console.error(`Parsing emoji shortcode ${shortcode} failed: ${e}`);
+    console.error(`Parsing emoji shortcode ${input} failed: ${e}`);
+    logger.trackError('Error parsing emoji shortcode', {
+      input,
+      error: e.toString(),
+    });
     return '🛑';
   }
 }
