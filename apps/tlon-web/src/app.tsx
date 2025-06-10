@@ -1,16 +1,10 @@
 // Copyright 2025, Tlon Corporation
-import {
-  DarkTheme,
-  DefaultTheme,
-  NavigationContainer,
-  Route,
-} from '@react-navigation/native';
+import { NavigationContainer, Route } from '@react-navigation/native';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import useDesktopNotifications from '@tloncorp/app/hooks/useDesktopNotifications';
 import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
-import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useRenderCount } from '@tloncorp/app/hooks/useRenderCount';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
 import { BasePathNavigator } from '@tloncorp/app/navigation/BasePathNavigator';
@@ -18,6 +12,7 @@ import {
   getDesktopLinkingConfig,
   getMobileLinkingConfig,
 } from '@tloncorp/app/navigation/linking';
+import { useIsThemeDark } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
@@ -30,6 +25,7 @@ import {
   AnalyticsEvent,
   AnalyticsSeverity,
   getAuthInfo,
+  syncSettings,
 } from '@tloncorp/shared';
 import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -46,14 +42,13 @@ import React, {
 } from 'react';
 import { Helmet } from 'react-helmet';
 
-import EyrieMenu from '@/eyrie/EyrieMenu';
 import useAppUpdates from '@/logic/useAppUpdates';
 import useErrorHandler from '@/logic/useErrorHandler';
 import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
-import { useIsDark, useIsMobile } from '@/logic/useMedia';
+import { useIsMobile } from '@/logic/useMedia';
 import { preSig } from '@/logic/utils';
 import { toggleDevTools, useLocalState, useShowDevTools } from '@/state/local';
-import { useAnalyticsId, useLogActivity, useTheme } from '@/state/settings';
+import { useAnalyticsId, useLogActivity } from '@/state/settings';
 
 import { DesktopLoginScreen } from './components/DesktopLoginScreen';
 import { isElectron } from './electron-bridge';
@@ -163,14 +158,6 @@ function AppRoutes() {
   }, [data?.length, isRefetching, isFetching, refetch]);
 
   const isMobile = useIsMobile();
-  const isDarkMode = useIsDarkMode();
-  const theme = useMemo(() => {
-    if (isDarkMode) {
-      return DarkTheme;
-    }
-    return DefaultTheme;
-  }, [isDarkMode]);
-
   useRenderCount('AppRoutes');
 
   const handleStateChangeMobile = useCallback((state: any) => {
@@ -305,7 +292,6 @@ function AppRoutes() {
         {isMobile ? (
           <NavigationContainer
             linking={mobileLinkingConfig}
-            theme={theme}
             onStateChange={handleStateChangeMobile}
             documentTitle={{
               enabled: true,
@@ -317,7 +303,6 @@ function AppRoutes() {
         ) : (
           <NavigationContainer
             linking={desktopLinkingConfig}
-            theme={theme}
             onStateChange={handleStateChangeDesktop}
             documentTitle={{
               enabled: true,
@@ -429,6 +414,8 @@ function ConnectedWebApp() {
       if (!hasSyncedRef.current) {
         // Web doesn't persist database, so headsSyncedAt is misleading
         await db.headsSyncedAt.resetValue();
+        // Explicitly sync settings early in the initialization process
+        await syncSettings();
         sync.syncStart(false);
         hasSyncedRef.current = true;
         telemetry.captureAppActive('web');
@@ -543,7 +530,6 @@ function ConnectedWebApp() {
 
 const App = React.memo(function AppComponent() {
   const handleError = useErrorHandler();
-  const isDarkMode = useIsDark();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [authParams, setAuthParams] = useState<{
@@ -588,9 +574,7 @@ const App = React.memo(function AppComponent() {
 
   const migrationState = useMigrations();
 
-  const defaultTheme = useMemo(() => {
-    return isDarkMode ? 'dark' : 'light';
-  }, [isDarkMode]);
+  const isDarkTheme = useIsThemeDark();
 
   return (
     <div
@@ -603,7 +587,7 @@ const App = React.memo(function AppComponent() {
     >
       <BaseProviderStack
         migrationState={migrationState}
-        tamaguiState={{ defaultTheme }}
+        tamaguiState={{ defaultTheme: isDarkTheme ? 'dark' : 'light' }}
       >
         {isElectron() ? (
           isLoading ? (
@@ -653,18 +637,12 @@ const App = React.memo(function AppComponent() {
 });
 
 function RoutedApp() {
-  const [userThemeColor, setUserThemeColor] = useState('#ffffff');
   const showDevTools = useShowDevTools();
   const isStandAlone = useIsStandaloneMode();
   const logActivity = useLogActivity();
   const posthog = usePostHog();
   const analyticsId = useAnalyticsId();
   const body = document.querySelector('body');
-  const colorSchemeFromNative =
-    window.nativeOptions?.colorScheme ?? window.colorscheme;
-
-  const theme = useTheme();
-  const isDarkMode = useIsDark();
 
   useEffect(() => {
     const onFocus = () => {
@@ -688,22 +666,6 @@ function RoutedApp() {
   }, []);
 
   useEffect(() => {
-    if (
-      (isDarkMode && theme === 'auto') ||
-      theme === 'dark' ||
-      colorSchemeFromNative === 'dark'
-    ) {
-      document.body.classList.add('dark');
-      useLocalState.setState({ currentTheme: 'dark' });
-      setUserThemeColor('#000000');
-    } else {
-      document.body.classList.remove('dark');
-      useLocalState.setState({ currentTheme: 'light' });
-      setUserThemeColor('#ffffff');
-    }
-  }, [isDarkMode, theme, colorSchemeFromNative]);
-
-  useEffect(() => {
     if (isStandAlone) {
       // this is necessary for the desktop PWA to not have extra padding at the bottom.
       body?.style.setProperty('padding-bottom', '0px');
@@ -722,7 +684,6 @@ function RoutedApp() {
     <>
       <Helmet>
         <title>Tlon</title>
-        <meta name="theme-color" content={userThemeColor} />
       </Helmet>
       <App />
       {showDevTools && (
