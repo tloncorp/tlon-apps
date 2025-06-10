@@ -748,11 +748,65 @@
 ::
 ++  peek
   |=  =(pole knot)
+  ~>  %bout.[0 'channels peek']
   ^-  (unit (unit cage))
   ?>  ?=(^ pole)
   =?  +.pole  !?=([?(%v0 %v1 %v2 %v3 %v4) *] +.pole)
     [%v0 +.pole]
   ?+    pole  [~ ~]
+      [%x %v2 %changes since=@ rest=*]
+    =+  since=(slav %da since.pole)
+    =/  changes=(map nest:c (unit v-posts:c))
+      ~>  %bout.[0 'backlog trawling all']
+      %-  ~(run by v-channels)
+      |=  ch=v-channel:c
+      ^-  (unit v-posts:c)
+      :: ~&  [pry=(pry:updated-on:c last-updated.ch) ram=(ram:updated-on:c last-updated.ch) since=since]
+      ?:  (gte since key:(fall (ram:updated-on:c last-updated.ch) [key=since ~]))
+        ~
+      %-  some
+      :: ~&  ram=(ram:updated-on:c last-updated.ch)
+      =/  updated  (tap:updated-on:c (lot:updated-on:c last-updated.ch `since ~))
+      ?~  posts.ch  ~
+      :: ~>  %bout.[0 'backlog trawling loops']
+      ::NOTE  slightly faster than +put-ing continuously
+      =-  (gas:on-v-posts:c ~ -)
+      %+  roll  updated
+      |=  [[@da changed=id-post:c] out=(list [id-post:c (unit v-post:c)])]
+      ?~  post=(get:on-v-posts:c posts.ch changed)
+        out
+      [[changed u.post] out]
+    ?+  rest.pole  [~ ~]
+        ~
+      ~>  %bout.[0 'backlog unversioning all']
+      ``noun+!>((~(run by changes) (curr bind uv-posts-2:utils)))
+    ::
+        ~
+      ::TODO  proper mark?
+      :^  ~  ~  %json
+      !>  ^-  json
+      ~>  %bout.[0 'backlog unversioning & serializing']
+      %-  pairs:enjs:format
+      =,  enjs:channel-json
+      ::REVIEW  turn seems slightly faster than murn,
+      ::        even if that means we produce bigger json
+      %+  turn  ~(tap by changes)
+      |=  [=nest:c posts=(unit v-posts:c)]
+      :-  (nest-cord nest)
+      ?~  posts  ~
+      (^posts (uv-posts-2:utils u.posts))
+    ::
+        [%count ~]
+      :^  ~  ~  %json
+      !>  ^-  json
+      %-  numb:enjs:format
+      :: !>  ^-  @ud
+      %-  ~(rep by changes)
+      |=  [[* p=(unit v-posts:c)] sum=@ud]
+      %+  add  sum
+      ?~(p 0 (wyt:on-v-posts:c u.p))
+    ==
+  ::
       [%x ?(%v0 %v1) %channels ~]   ``channels+!>((uv-channels-1:utils v-channels))
     ::
         [%x %v2 %channels full=?(~ [%full ~])]
