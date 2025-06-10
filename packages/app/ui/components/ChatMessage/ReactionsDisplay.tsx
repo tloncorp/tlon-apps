@@ -51,7 +51,12 @@ export function ReactionsDisplay({
         store.addPostReaction(post, value, currentUserId);
       }
     },
-    [currentUserId, post, reactionDetails.self.didReact]
+    [
+      currentUserId,
+      post,
+      reactionDetails.self.didReact,
+      reactionDetails.self.value,
+    ]
   );
 
   const firstThreeReactionUsers = useCallback(
