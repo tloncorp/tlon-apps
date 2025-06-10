@@ -1,6 +1,6 @@
 import {
   ConnectionState,
-  ConnectionStatus,
+  ConnectionStatus as ConnectionStatusType,
   checkConnectionStatus,
   getLastConnectionStatus,
 } from '@tloncorp/shared/api';
@@ -14,7 +14,7 @@ import { ListItem } from './ListItem/ListItem';
 export interface ConnectionStatusProps {
   contactId: string;
   autoCheck?: boolean;
-  mockStatus?: ConnectionStatus;
+  mockStatus?: ConnectionStatusType;
   onPress?: () => void;
 }
 
@@ -111,18 +111,18 @@ export const getStatusLabels = (
   }
 };
 
-export const ConnectionStatusComponent = ({
+export const ConnectionStatus = ({
   contactId,
   autoCheck = true,
   mockStatus,
   onPress,
 }: ConnectionStatusProps) => {
   const [connectionStatus, setConnectionStatus] =
-    useState<ConnectionStatus | null>(mockStatus ?? null);
+    useState<ConnectionStatusType | null>(mockStatus ?? null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadMockData = useCallback((mockStatus: ConnectionStatus) => {
+  const loadMockData = useCallback((mockStatus: ConnectionStatusType) => {
     setConnectionStatus(mockStatus);
     setLoading(!mockStatus.complete);
     setError(null);
@@ -159,7 +159,7 @@ export const ConnectionStatusComponent = ({
     try {
       setLoading(true);
       setError(null);
-      await checkConnectionStatus(contactId, (status: ConnectionStatus) => {
+      await checkConnectionStatus(contactId, (status: ConnectionStatusType) => {
         setConnectionStatus(status);
         if (status.complete) {
           setLoading(false);
@@ -230,4 +230,4 @@ export const ConnectionStatusComponent = ({
   );
 };
 
-export default ConnectionStatusComponent;
+export default ConnectionStatus;

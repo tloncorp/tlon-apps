@@ -1,4 +1,9 @@
-import { configurationFromChannel } from '@tloncorp/shared';
+import {
+  configurationFromChannel,
+  isDmChannelId,
+  isGroupDmChannelId,
+} from '@tloncorp/shared';
+import { getCurrentUserId } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import { useMemberRoles } from '@tloncorp/shared/store';
 import type { IconType } from '@tloncorp/ui';
@@ -224,4 +229,25 @@ export function getChannelTypeIcon(type: db.Channel['type']): IconType {
 
 export function hasNickname(contact: db.Contact | null | undefined): boolean {
   return 'nickname' in (contact ?? {}) && (contact?.nickname?.length ?? 0) > 0;
+}
+
+export function getChannelHost(
+  channel: db.Channel,
+  currentUserId: string
+): string {
+  if (isGroupDmChannelId(channel.id)) {
+    return currentUserId;
+  }
+
+  if (isDmChannelId(channel.id)) {
+    return channel.id;
+  }
+
+  const parts = channel.id.split('/');
+  if (parts.length < 3) {
+    throw new Error(
+      `Invalid channel ID format: ${channel.id}. Expected format: 'type/host/channelId'.`
+    );
+  }
+  return parts[1];
 }
