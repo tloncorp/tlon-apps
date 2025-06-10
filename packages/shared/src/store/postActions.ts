@@ -442,7 +442,7 @@ export async function reportPost({
 
 export async function addPostReaction(
   post: db.Post,
-  shortCode: string,
+  emoji: string,
   currentUserId: string
 ) {
   const channel = await db.getChannel({ id: post.channelId });
@@ -455,20 +455,18 @@ export async function addPostReaction(
     AnalyticsEvent.ActionReact,
     logic.getModelAnalytics({ post, channel, group })
   );
-  const formattedShortcode = shortCode.replace(/^(?!:)(.*)$(?<!:)/, ':$1:');
 
   // optimistic update
+  await db.deletePostReaction({ postId: post.id, contactId: currentUserId });
   await db.insertPostReactions({
-    reactions: [
-      { postId: post.id, value: formattedShortcode, contactId: currentUserId },
-    ],
+    reactions: [{ postId: post.id, value: emoji, contactId: currentUserId }],
   });
 
   try {
     await api.addReaction({
       channelId: post.channelId,
       postId: post.id,
-      shortCode: formattedShortcode,
+      emoji,
       our: currentUserId,
       postAuthor: post.authorId,
     });

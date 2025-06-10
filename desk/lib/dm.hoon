@@ -1,5 +1,6 @@
-/-  c=chat, d=channels
-/+  mp=mop-extensions
+/-  c=chat, d=channels, meta
+/-  old-3=chat-3
+/+  mp=mop-extensions, cu=channel-utils
 |_  pac=pact:c
 ++  mope  ((mp time writ:c) lte)
 ++  gas
@@ -84,7 +85,7 @@
     ?:  (has:on:writs:c wit.pac now)
       $(now `@da`(add now ^~((div ~s1 (bex 16)))))
     =.  wit.pac
-      (put:on:writs:c wit.pac now seal [memo.del %chat kind.del])
+      (put:on:writs:c wit.pac now seal essay.del)
     pac(dex (~(put by dex.pac) id now))
   ::
       %del
@@ -100,14 +101,18 @@
     |=  =writ:c
     =/  [=pact:c =replies:c]  (reduce-reply replies.writ now id [id delta]:del)
     :-  pact
-    %=  writ
-      replies       replies
-      reply-count.meta  (wyt:on:replies:c replies)
-      last-reply.meta   (biff (ram:on:replies:c replies) |=([=time *] `time))
+    %=    writ
+      replies  replies
+      ::
+        reply-count.reply-meta
+      (wyt:on:replies:c replies)
+      ::
+        last-reply.reply-meta
+      (biff (ram:on:replies:c replies) |=([=time *] `time))
     ::
-        last-repliers.meta
-      ^-  (set ship)
-      =|  repliers=(set ship)
+        last-repliers.reply-meta
+      ^-  (set author:c)
+      =|  repliers=(set author:c)
       =/  entries=(list [time reply:c])  (bap:on:replies:c replies)
       |-
       ?:  |(=(~ entries) =(3 ~(wyt in repliers)))
@@ -122,13 +127,13 @@
     %+  jab  id
     |=  =writ:c
     :-  pac
-    writ(reacts (~(put by reacts.writ) [ship react]:del))
+    writ(reacts (~(put by reacts.writ) [author react]:del))
   ::
       %del-react
     %+  jab  id
     |=  =writ:c
     :-  pac
-    writ(reacts (~(del by reacts.writ) ship.del))
+    writ(reacts (~(del by reacts.writ) author.del))
   ==
 ::
 ++  reduce-reply
@@ -157,13 +162,13 @@
     :-  pac
     %^  jab-reply  id  replies
     |=  =reply:c
-    reply(reacts (~(put by reacts.reply) [ship react]:delta))
+    reply(reacts (~(put by reacts.reply) [author react]:delta))
   ::
       %del-react
     :-  pac
     %^  jab-reply  id  replies
     |=  =reply:c
-    reply(reacts (~(del by reacts.reply) ship.delta))
+    reply(reacts (~(del by reacts.reply) author.delta))
   ==
 ::
 ++  get-reply
@@ -177,10 +182,144 @@
   ^+  replies
   ?~  v=(get-reply id replies)  replies
   (put:on:replies:c replies time.u.v (fun reply.u.v))
+++  old-reply-3
+  |=  =reply:c
+  ^-  reply:old-3
+  %=  reply
+    reacts  (reacts-1:cu reacts.reply)
+    ::  memo
+    +  (memo-1:cu +.reply)
+  ==
+++  old-writ-3
+  |=  =writ:c
+  ^-  writ:old-3
+  %=    writ
+    reacts  (reacts-1:cu reacts.writ)
+    author  (author-1:cu author.writ)
+    reply-meta  (reply-meta-1:cu reply-meta.writ)
+    ::  essay
+    +  =-  ?>(?=([%chat kind:old-3] kind-data.-) -)
+       (essay-1:cu +.writ)
+  ::
+      replies
+    ^-  replies:old-3
+    (run:on:replies:c replies.writ old-reply-3)
+  ==
+++  old-action-club-3
+  |=  =action:club:c
+  ^-  action:club:old-3
+  =*  delta  q.q.action
+  ?:  ?=(%writ -.delta)
+    action(diff.q.q (old-diff-writs-3 diff.delta))
+  action
+++  old-diff-writs-3
+  |=  =diff:writs:c
+  ^-  diff:writs:old-3
+  =*  delta  q.diff
+  %=  diff  q
+    ?-  -.delta
+    ::
+        %add
+      :*  %add
+          (memo-1:cu -.essay.delta)
+          ?:(=(/chat-notice kind.essay.delta) [%notice ~] ~)
+          time.delta
+      ==
+    ::
+      %del  delta
+    ::
+        %reply
+      %=  delta
+        meta  (bind meta.delta reply-meta-1:cu)
+        delta  (old-delta-replies-3 delta.delta)
+      ==
+    ::
+        %add-react
+      %=  delta
+        author  (get-author-ship:cu author.delta)
+        react   (need (react-1:cu react.delta))
+      ==
+    ::
+        %del-react
+      delta(author (get-author-ship:cu author.delta))
+    ==
+  ==
+::
+++  old-response-delta-replies-3
+  |=  =response-delta:replies:c
+  ^-  response-delta:replies:old-3
+  ?-    -.response-delta
+    %add  response-delta(memo (memo-1:cu memo.response-delta))
+  ::
+    %del  [%del ~]
+  ::
+      %add-react
+    %=  response-delta
+      author  (get-author-ship:cu author.response-delta)
+      react  (need (react-1:cu react.response-delta))
+    ==
+  ::
+      %del-react
+    response-delta(author (get-author-ship:cu author.response-delta))
+  ==
+::
+++  old-delta-replies-3
+  |=  =delta:replies:c
+  ^-  delta:replies:old-3
+  ?-    -.delta
+    %add  delta(memo (memo-1:cu memo.delta))
+  ::
+    %del  [%del ~]
+  ::
+      %add-react
+    %=  delta
+      author  (get-author-ship:cu author.delta)
+      react  (need (react-1:cu react.delta))
+    ==
+  ::
+    %del-react  delta(author (get-author-ship:cu author.delta))
+  ==
+++  old-response-writs-3
+  |=  =response:writs:c
+  ^-  response:writs:old-3
+  =*  r-delta  response.response
+  %=  response  response
+    ?-    -.r-delta
+        %add
+      :*  %add
+          (memo-1:cu -.essay.r-delta)
+          time.r-delta
+      ==
+    ::
+      %del  [%del ~]
+    ::
+        %reply
+      %=  r-delta
+        meta  (bind meta.r-delta reply-meta-1:cu)
+        delta  (old-response-delta-replies-3 delta.r-delta)
+      ==
+    ::
+        %add-react
+      %=  r-delta
+        author  (get-author-ship:cu author.r-delta)
+        react  (need (react-1:cu react.r-delta))
+      ==
+        %del-react
+      r-delta(author (get-author-ship:cu author.r-delta))
+    ==
+  ==
+++  old-paged-writs-3
+  |=  =paged-writs:c
+  ^-  paged-writs:old-3
+  %=  paged-writs  writs
+    (run:on:writs:c writs.paged-writs old-writ-3)
+  ==
 ++  give-paged-writs
-  |=  [mode=?(%light %heavy) ls=(list [time writ:c])]
+  |=  [mode=?(%light %heavy) ver=?(%v0 %v1) ls=(list [time writ:c])]
   ^-  (unit (unit cage))
-  =;  p=paged-writs:c  ``chat-paged-writs+!>(p)
+  =;  p=paged-writs:c
+    ?:  ?=(%v1 ver)  ``chat-paged-writs-1+!>(p)
+  ``chat-paged-writs+!>((old-paged-writs-3 p))
   =/  =writs:c
     %+  gas:on:writs:c  *writs:c
     ?:  =(%heavy mode)  ls
@@ -200,7 +339,7 @@
   ==
 ::
 ++  get-around
-  |=  [mode=?(%light %heavy) =time count=@ud]
+  |=  [mode=?(%light %heavy) ver=?(%v0 %v1) =time count=@ud]
   ^-  (unit (unit cage))
   =/  older  (bat:mope wit.pac `time count)
   =/  newer  (tab:on:writs:c wit.pac `time count)
@@ -209,9 +348,9 @@
     ?~  writ
       (welp older newer)
     (welp (snoc older [time u.writ]) newer)
-  (give-paged-writs mode writs)
+  (give-paged-writs mode ver writs)
 ++  peek
-  |=  [care=@tas =(pole knot)]
+  |=  [care=@tas ver=?(%v0 %v1) =(pole knot)]
   ^-  (unit (unit cage))
   =*  on   on:writs:c
   ?+    pole  [~ ~]
@@ -219,24 +358,24 @@
       [%newest count=@ mode=?(%light %heavy) ~]
     =/  count  (slav %ud count.pole)
     =/  writs  (top:mope wit.pac count)
-    (give-paged-writs mode.pole writs)
+    (give-paged-writs mode.pole ver writs)
   ::
       [%older start=@ count=@ mode=?(%light %heavy) ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
     =/  writs  (bat:mope wit.pac `start count)
-    (give-paged-writs mode.pole writs)
+    (give-paged-writs mode.pole ver writs)
   ::
       [%newer start=@ count=@ mode=?(%light %heavy) ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
     =/  writs  (tab:on wit.pac `start count)
-    (give-paged-writs mode.pole writs)
+    (give-paged-writs mode.pole ver writs)
   ::
       [%around time=@ count=@ mode=?(%light %heavy) ~]
     =/  time    (slav %ud time.pole)
     =/  count   (slav %ud count.pole)
-    (get-around mode.pole time count)
+    (get-around mode.pole ver time count)
   ::
       [%around ship=@ time=@ count=@ mode=?(%light %heavy) ~]
     =/  ship    (slav %p ship.pole)
@@ -244,13 +383,15 @@
     =/  count   (slav %ud count.pole)
     =/  entry   (get ship `@da`time)
     ?~  entry  ``chat-paged-writs+!>(*paged-writs:c)
-    (get-around mode.pole time.u.entry count)
+    (get-around mode.pole ver time.u.entry count)
   ::
       [%writ %id ship=@ time=@ ~]
     =/  ship  (slav %p ship.pole)
     =/  time  (slav %ud time.pole)
     ?.  ?=(%u care)
-      ``writ+!>(writ:(got ship `@da`time))
+      =/  =writ:c  writ:(got ship `@da`time)
+      ?:  ?=(%v1 ver)  ``chat-writ-1+!>(writ)
+      ``writ+!>((old-writ-3 writ))
     ``loob+!>(?~((get ship `@da`time) | &))
   ==
 ::
@@ -379,7 +520,7 @@
   ++  match-writ-mention
     |=  [nedl=ship =writ:c]
     ^-  ?
-    ?:  ?=([%notice ~] kind.writ)  |
+    ?:  ?=([%chat %notice ~] kind.writ)  |
     (match-story-mention nedl content.writ)
   ::
   ++  match-story-mention
@@ -396,7 +537,7 @@
   ::
   ++  match-writ-text
     |=  [nedl=@t =writ:c]
-    ?:  ?=([%notice ~] kind.writ)  |
+    ?:  ?=([%chat %notice ~] kind.writ)  |
     (match-story-text nedl content.writ)
   ::
   ++  match-story-text

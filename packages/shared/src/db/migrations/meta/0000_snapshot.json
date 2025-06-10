@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "b9a059c1-4fcf-405b-8606-017a65985c77",
+  "id": "a68475ec-675b-408f-9f4e-b3fc685bd25e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -1493,7 +1493,7 @@
           "name": "id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "group_id": {
@@ -2029,6 +2029,20 @@
           "notNull": false,
           "autoincrement": false
         },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cover": {
+          "name": "cover",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "content": {
           "name": "content",
           "type": "text",
@@ -2384,6 +2398,13 @@
         },
         "completed_wayfinding_tutorial": {
           "name": "completed_wayfinding_tutorial",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "disable_tlon_infra_enhancement": {
+          "name": "disable_tlon_infra_enhancement",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,

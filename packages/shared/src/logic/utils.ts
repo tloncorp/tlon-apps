@@ -14,6 +14,7 @@ import {
 import * as db from '../db';
 import * as domain from '../domain';
 import * as ub from '../urbit';
+import { Stringified } from '../utils';
 
 export { isDmChannelId, isGroupChannelId, isGroupDmChannelId };
 
@@ -335,7 +336,7 @@ export function extractBlocksFromContent(story: api.PostContent): ub.Block[] {
 }
 
 export const extractContentTypes = (
-  content: string | api.PostContent
+  content: Stringified<api.PostContent> | api.PostContent
 ): {
   inlines: ub.Inline[];
   references: api.ContentReference[];
@@ -359,7 +360,7 @@ export const extractContentTypesFromPost = (
   story: api.PostContent;
 } => {
   const { inlines, references, blocks, story } = extractContentTypes(
-    post.content as string
+    post.content as Stringified<api.PostContent>
   );
 
   return { inlines, references, blocks, story };
@@ -379,6 +380,35 @@ export const isImagePost = (post: db.Post) => {
   const { blocks } = extractContentTypesFromPost(post);
   return blocks.length === 1 && blocks.some((b) => 'image' in b);
 };
+
+export const isRichLinkPost = (post: db.Post) => {
+  const { blocks } = extractContentTypesFromPost(post);
+  return blocks.length === 1 && blocks.some((b) => 'link' in b);
+};
+
+export function getRichLinkMetadata(block: ub.Block):
+  | {
+      url: string;
+      title?: string;
+      description?: string;
+      image?: string;
+    }
+  | undefined {
+  if (!('link' in block)) {
+    return undefined;
+  }
+  const { link } = block;
+  const {
+    url,
+    meta: { title, description, image },
+  } = link;
+  return {
+    url,
+    title,
+    description,
+    image,
+  };
+}
 
 export const findFirstImageBlock = (blocks: ub.Block[]): ub.Image | null => {
   return blocks.find((b) => 'image' in b) as ub.Image;
@@ -638,4 +668,8 @@ export function getModelAnalytics({
   }
 
   return details;
+}
+
+export function escapeRegExp(text: string): string {
+  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
 }

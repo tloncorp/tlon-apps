@@ -339,6 +339,15 @@ export default function ChannelScreen(props: Props) {
     [props.navigation]
   );
 
+  const handleGoToGroupSettings = useCallback(() => {
+    if (group) {
+      props.navigation.navigate('GroupSettings', {
+        screen: 'GroupMembers',
+        params: { groupId: group.id },
+      });
+    }
+  }, [group, props.navigation]);
+
   const channelRef = useRef<React.ElementRef<typeof Channel>>(null);
   const handleConfigureChannel = useCallback(() => {
     if (channelRef.current) {
@@ -383,6 +392,7 @@ export default function ChannelScreen(props: Props) {
           goToSearch={navigateToSearch}
           goToDm={handleGoToDm}
           goToUserProfile={handleGoToUserProfile}
+          goToGroupSettings={handleGoToGroupSettings}
           onScrollEndReached={loadOlder}
           onScrollStartReached={loadNewer}
           onPressRef={navigateToRef}
