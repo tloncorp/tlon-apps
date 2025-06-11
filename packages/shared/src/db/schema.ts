@@ -971,6 +971,7 @@ export const posts = sqliteTable(
     lastEditContent: text('last_edit_content', { mode: 'json' }),
     lastEditTitle: text('last_edit_title'),
     lastEditImage: text('last_edit_image'),
+    sequenceNum: integer('sequence_number'),
     /**
      * If `syncedAt` is null, it indicates that the post is unconfirmed by sync.
      */

@@ -330,6 +330,7 @@ CREATE TABLE `posts` (
 	`last_edit_content` text,
 	`last_edit_title` text,
 	`last_edit_image` text,
+	`sequence_number` integer,
 	`synced_at` integer,
 	`backend_time` text
 );

@@ -60,6 +60,7 @@ const mockCurios: Posts = {
         lastRepliers: [],
       },
       reacts: {},
+      seq: '1',
     },
     essay: {
       kind: '/heap',
@@ -89,6 +90,7 @@ const mockCurios: Posts = {
         lastRepliers: [],
       },
       reacts: {},
+      seq: '2',
     },
     essay: {
       kind: '/heap',
@@ -118,6 +120,7 @@ const mockCurios: Posts = {
         lastRepliers: [],
       },
       reacts: {},
+      seq: '3',
     },
     essay: {
       kind: '/heap',
@@ -147,6 +150,7 @@ const mockCurios: Posts = {
         lastRepliers: [],
       },
       reacts: {},
+      seq: '4',
     },
     essay: {
       kind: '/heap',
@@ -173,6 +177,7 @@ const mockCurios: Posts = {
         lastRepliers: [],
       },
       reacts: {},
+      seq: '5',
     },
     essay: {
       kind: '/heap',

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a68475ec-675b-408f-9f4e-b3fc685bd25e",
+  "id": "d1d077b0-d7df-4983-adc5-01b82c375791",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2187,6 +2187,13 @@
         "last_edit_image": {
           "name": "last_edit_image",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "sequence_number": {
+          "name": "sequence_number",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false

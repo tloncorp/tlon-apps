@@ -896,11 +896,18 @@ export function toPostData(
     },
   ];
 
+  // top level posts will have a sequence number, but replies will not
+  let sequenceNum = null;
+  if ('seq' in post.seal) {
+    sequenceNum = Number(post.seal.seq);
+  }
+
   return {
     id,
     channelId,
     type,
     backendTime,
+    sequenceNum,
     // Kind data will override
     title: post.essay.meta?.title ?? '',
     image: post.essay.meta?.image ?? '',
