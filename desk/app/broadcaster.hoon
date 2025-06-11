@@ -5,7 +5,7 @@
     dbug, verb
 ::
 |%
-+$  versioned-state  $%(current-state state:v0)
++$  versioned-state  $%(current-state state-0)
 +$  current-state
   $:  %1
       cohorts=(map @t cohort)
@@ -32,13 +32,13 @@
   $%  action
   ==
 ::
-++  v0
-  |%
-  +$  state
++$  state-0
     $:  %0
-        cohorts=(map @t cohort)
+        cohorts=(map @t cohort:v0)
     ==
   ::
+++  v0
+  |%
   +$  cohort
     $:  targets=(set ship)
         logging=(list relive)
@@ -72,7 +72,7 @@
   ?>  ?=(%1 -.old)
   [~ this(state old)]
   ++  state-0-to-1
-    |=  old=state:v0
+    |=  old=state-0
     ^-  current-state
     [%1 (cohorts-0-to-1 cohorts.old)]
   ++  cohorts-0-to-1
