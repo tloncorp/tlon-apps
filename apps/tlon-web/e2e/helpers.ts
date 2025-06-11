@@ -62,6 +62,7 @@ export async function fillFormField(
     await page.getByTestId(testId).fill('');
   }
   await page.fill(`[data-testid="${testId}"]`, value);
+  await expect(page.getByTestId(testId)).toHaveValue(value);
 }
 
 // New helper functions to extract common patterns
