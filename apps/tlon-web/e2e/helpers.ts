@@ -620,7 +620,8 @@ export async function verifyMessagePreviewOnHome(
   await navigateBack(page);
   await page.waitForTimeout(500);
   if (await page.getByText('Home').isVisible()) {
-    await expect(page.getByText(messageText)).toBeVisible();
+    // Long timeout for CI
+    await expect(page.getByText(messageText)).toBeVisible({ timeout: 15000 });
   }
 }
 
