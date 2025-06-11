@@ -42,11 +42,21 @@ export function ReactionsDisplay({
   const handleModifyYourReaction = useCallback(
     (value: string) => {
       triggerHaptic('baseButtonClick');
-      reactionDetails.self.didReact
-        ? store.removePostReaction(post, currentUserId)
-        : store.addPostReaction(post, value, currentUserId);
+      if (
+        reactionDetails.self.didReact &&
+        reactionDetails.self.value === value
+      ) {
+        store.removePostReaction(post, currentUserId);
+      } else {
+        store.addPostReaction(post, value, currentUserId);
+      }
     },
-    [currentUserId, post, reactionDetails.self.didReact]
+    [
+      currentUserId,
+      post,
+      reactionDetails.self.didReact,
+      reactionDetails.self.value,
+    ]
   );
 
   const firstThreeReactionUsers = useCallback(
@@ -88,7 +98,7 @@ export function ReactionsDisplay({
                   >
                     <SizableEmoji
                       key={reaction.value}
-                      shortCode={reaction.value}
+                      emojiInput={reaction.value}
                       fontSize="$s"
                     />
                   </XStack>
@@ -158,7 +168,7 @@ export function ReactionsDisplay({
                   >
                     <SizableEmoji
                       key={reaction.value}
-                      shortCode={reaction.value}
+                      emojiInput={reaction.value}
                       fontSize="$s"
                     />
                     {reaction.count > 0 && (
