@@ -1,0 +1,6 @@
+baseURL: https://docs.tlon.io/
+languageCode: en-us
+title: Tlon Messenger Docs
+theme: book
+params:
+  BookSection: '*' 

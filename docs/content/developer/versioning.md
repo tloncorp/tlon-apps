@@ -1,4 +1,9 @@
-# Versioning
+---
+title: Agent versioning
+weight: "40"
+---
+
+# Agent versioning
 
 ## Introduction 
 To preserve the state across program and type changes, gall

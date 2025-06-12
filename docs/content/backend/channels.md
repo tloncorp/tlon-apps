@@ -1,3 +1,9 @@
+---
+title: Channels
+menus:
+  - main
+---
+
 # Channels
 ## Table of Contents
  - [Introduction](#introduction)
