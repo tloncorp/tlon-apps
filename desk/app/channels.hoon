@@ -2415,6 +2415,39 @@
         %v3  give-posts-3
       ==
     ::
+        [%range start=@ end=@ mode=?(%outline %post) ~]
+      ::TODO  support @da format in path for id (or timestamp) ranges?
+      =/  start=@ud
+        ?:  =(%$ start.pole)  1
+        (slav %ud start.pole)
+      =/  end=@ud
+        ?:  =(%$ end.pole)  (wyt:on posts.channel)  ::TODO  better end
+        (slav %ud end.pole)
+      %-  ?-  version
+            %v1  give-posts-1
+            %v2  give-posts-2
+            %v3  give-posts-3
+          ==
+      :-  mode.pole
+      ::  queries near end more common, so we make a newest-first list,
+      ::  and walk it "backwards" until we extract our desired range
+      ::
+      =/  posts=(list [id-post:c p=(unit v-post:c)])
+        (bap:on posts.channel)
+      =|  out=(list [id-post:c (unit v-post:c)])
+      =/  in=?  |
+      |-
+      ?~  posts  ~
+      ?~  p.i.posts
+        ?.  in  $(posts t.posts)
+        $(posts t.posts, out [i.posts out])
+      ?:  (gth seq.u.p.i.posts end)
+        $(posts t.posts)
+      ?:  (lth seq.u.p.i.posts start)
+        ~  ::  done
+      :-  i.posts
+      $(posts t.posts, in &)
+    ::
         [%changes start=@ end=@ after=@ ~]
       =/  start=id-post:c
         ?^  tim=(slaw %da start.pole)  u.tim
