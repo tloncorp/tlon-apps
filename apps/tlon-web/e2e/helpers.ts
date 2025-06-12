@@ -618,11 +618,12 @@ export async function verifyMessagePreviewOnHome(
   messageText: string
 ) {
   await navigateBack(page);
-  await page.waitForTimeout(500);
-  if (await page.getByText('Home').isVisible()) {
-    // Long timeout for CI
-    await expect(page.getByText(messageText)).toBeVisible({ timeout: 15000 });
-  }
+
+  // Wait for Home to actually appear (don't just check if it's immediately visible)
+  await expect(page.getByText('Home')).toBeVisible({ timeout: 10000 });
+
+  // Now look for the message with a long timeout for CI
+  await expect(page.getByText(messageText)).toBeVisible({ timeout: 15000 });
 }
 
 /**
