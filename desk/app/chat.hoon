@@ -260,25 +260,7 @@
   ++  pact-7-to-8
     |=  =pact:three
     ^-   pact:four
-    pact(wit (run:on:writs:three wit.pact writ-7-to-8))
-  ++  writ-7-to-8
-    |=  =writ:three
-    ^-  writ:four
-    %=  writ
-      reacts  (~(run by reacts.writ) react-7-to-8:utils)
-      replies  (run:on:replies:three replies.writ reply-7-to-8)
-      :: essay
-      +  =-  ?>(?=([%chat *] kind.-) -)
-         (essay-7-to-8:utils +.writ)
-    ==
-  ++  reply-7-to-8
-    |=  =reply:three
-    ^-  reply:four
-    %=  reply
-      reacts  (~(run by reacts.reply) react-7-to-8:utils)
-      ::  memo
-      +  (memo-7-to-8:utils +.reply)
-    ==
+    pact(wit (run:on:writs:three wit.pact writ-7-to-8:pac))
   ::
   ++  state-6-to-7
     |=  state-6

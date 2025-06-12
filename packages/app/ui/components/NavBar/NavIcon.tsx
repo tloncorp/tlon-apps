@@ -53,6 +53,7 @@ export function AvatarNavIcon({
 }
 
 export default function NavIcon({
+  testID,
   type,
   activeType,
   isActive,
@@ -61,6 +62,7 @@ export default function NavIcon({
   backgroundColor,
   shouldShowUnreads = true,
 }: {
+  testID?: string;
   type: IconType;
   activeType?: IconType;
   isActive: boolean;
@@ -80,6 +82,7 @@ export default function NavIcon({
       };
   return (
     <Pressable
+      testID={testID}
       alignItems="center"
       flex={1}
       onPress={onPress}

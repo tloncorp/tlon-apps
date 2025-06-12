@@ -528,7 +528,13 @@ const ActionSheetMainContent = styled(YStack, {
   height: '$4xl',
 });
 
-function ActionSheetAction({ action }: { action: Action }) {
+function ActionSheetAction({
+  action,
+  testID,
+}: {
+  action: Action;
+  testID?: string;
+}) {
   const isWindowNarrow = useIsWindowNarrow();
   const accent: Accent = useContext(ActionSheetActionGroupContext).accent;
   return action.render ? (
@@ -544,6 +550,7 @@ function ActionSheetAction({ action }: { action: Action }) {
       }
       onPress={accent !== 'disabled' ? action.action : undefined}
       height={isWindowNarrow ? undefined : '$4xl'}
+      testID={testID}
     >
       {action.startIcon &&
         resolveIcon(action.startIcon, action.accent ?? accent)}
@@ -664,7 +671,11 @@ export const SimpleActionGroupList = ({
     return (
       <ActionSheet.ActionGroup key={i} accent={group.accent}>
         {group.actions.map((action, index) => (
-          <ActionSheet.Action key={index} action={action} />
+          <ActionSheet.Action
+            key={index}
+            action={action}
+            testID={`ActionSheetAction-${action.title}`}
+          />
         ))}
       </ActionSheet.ActionGroup>
     );
