@@ -18,7 +18,7 @@ import { TelemetryClient } from '../types/telemetry';
 import { useCurrentUserId } from './useCurrentUser';
 import { usePosthog } from './usePosthog';
 
-const logger = createDevLogger('useTelemetry', true);
+const logger = createDevLogger('useTelemetry', false);
 
 export function useClearTelemetryConfig() {
   const posthog = usePosthog();

@@ -176,7 +176,7 @@ export async function updateEnableTelemetry(value: boolean) {
     await db.insertSettings({ enableTelemetry: value });
     await setSetting('enableTelemetry', value);
   } catch (e) {
-    logger.trackError('Error updating log activity setting', {
+    logger.trackError('Error updating telemetry setting', {
       value,
       severity: AnalyticsSeverity.Medium,
       errorMessage: e.message,
