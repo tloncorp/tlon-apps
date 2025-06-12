@@ -14,8 +14,8 @@
 |%
 +$  card  card:agent:gall
 ::
-+$  state-0
-  $:  %0
++$  state-1
+  $:  %1
       cache=(map @t response)  ::  cached results
       await=(jug @t @ta)       ::  pending, w/ response targets
   ==
@@ -30,7 +30,7 @@
 ::
 +$  data
   $%  [%page meta=(jar @t entry:mg)]
-      [%file mime=@t]
+      [%file mime=@t size=(unit @ud)]
   ==
 ::
 +$  response
@@ -72,6 +72,7 @@
             %file
           :~  'type'^s+'file'
               'mime'^s+mime.dat.wat
+              'size'^?~(size.dat.wat ~ (numb u.size.dat.wat))
           ==
         ::
             %page
@@ -156,7 +157,11 @@
   ::  non-html
   ::
   ?.  =('text/html' (end 3^9 content-type))
-    [| %200 %file content-type]  ::TODO  (get-header:http 'content-length')
+    =;  size=(unit @ud)
+      [| %200 %file content-type size]
+    %+  biff
+      (get-header:http 'content-length' headers)
+    (curr rush dum:ag)
   ?~  dat
     [| %bad 'no response body']
   ::  extract the head section
@@ -257,7 +262,7 @@
   --
 --
 ::
-=|  state-0
+=|  state-1
 =*  state  -
 ::
 =+  log=l
@@ -279,11 +284,15 @@
 ::
 ++  on-load
   |=  ole=vase
-  ^-  (quip card _this)
-  =+  old=!<(state-0 ole)
-  =.  state  old
-  =.  cache  ~
-  [~ this]
+  |^  ^-  (quip card _this)
+      =+  old=!<(state-any ole)
+      =?  old  ?=(%0 -.old)  *state-1
+      ?>  ?=(%1 -.old)
+      =.  state  old
+      =.  cache  ~
+      [~ this]
+  +$  state-any  $%([%0 *] state-1)
+  --
 ::
 ++  on-poke
   |=  [=mark =vase]
