@@ -26,8 +26,7 @@ test('should test app settings', async ({ page }) => {
   await expect(page.getByText('Privacy Settings')).toBeVisible();
   await page.getByText('Theme').click();
   await expect(page.getByText('Theme').first()).toBeVisible();
-  //   await page.getByText('App info').click();
-  // App info page is crashing! TODO: fix it.
+  await page.getByText('App info').click();
   await page.getByText('Report a bug').click();
   await expect(page.getByText('Report a bug').first()).toBeVisible();
   await page.getByText('Experimental features').click();
