@@ -3,6 +3,7 @@ import { Poke } from '@urbit/http-api';
 import * as db from '../db';
 import { GroupPrivacy } from '../db/schema';
 import { createDevLogger } from '../debug';
+import * as domain from '../domain';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
 import type * as ub from '../urbit';
 import {
@@ -1516,6 +1517,8 @@ export function toClientGroup(
     haveRequestedInvite: isJoined ? false : undefined,
     currentUserIsMember: isJoined,
     currentUserIsHost: hostUserId === currentUserId,
+    isPersonalGroup:
+      id === `${currentUserId}/${domain.PersonalGroupSlugs.slug}`,
     joinStatus: groupIsSyncing(group) ? 'joining' : undefined,
     hostUserId,
     flaggedPosts,

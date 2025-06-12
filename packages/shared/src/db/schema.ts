@@ -432,6 +432,7 @@ export const groups = sqliteTable('groups', {
   currentUserIsHost: boolean('current_user_is_host').notNull(),
   hostUserId: text('host_user_id').notNull(),
   isNew: boolean('is_new'),
+  isPersonalGroup: boolean('is_personal_group').default(false),
   joinStatus: text('join_status').$type<GroupJoinStatus>(),
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
