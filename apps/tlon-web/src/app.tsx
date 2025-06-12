@@ -53,7 +53,7 @@ import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
 import { useIsDark, useIsMobile } from '@/logic/useMedia';
 import { preSig } from '@/logic/utils';
 import { toggleDevTools, useLocalState, useShowDevTools } from '@/state/local';
-import { useAnalyticsId, useLogActivity, useTheme } from '@/state/settings';
+import { useTheme } from '@/state/settings';
 
 import { DesktopLoginScreen } from './components/DesktopLoginScreen';
 import { isElectron } from './electron-bridge';

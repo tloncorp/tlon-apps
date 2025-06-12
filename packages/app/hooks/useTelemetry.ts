@@ -2,7 +2,7 @@ import {
   AnalyticsEvent,
   createDevLogger,
   useCurrentSession,
-  useLogActivity,
+  useTelemetryEnabled,
 } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import {
@@ -38,7 +38,7 @@ export function useTelemetry(): TelemetryClient {
   const posthog = usePosthog();
   const session = useCurrentSession();
   const currentUserId = useCurrentUserId();
-  const { data: logActivity, isLoading } = useLogActivity();
+  const { data: telemetryEnabled, isLoading } = useTelemetryEnabled();
   const telemetryStorage = didInitializeTelemetry.useStorageItem();
   const telemetryInitialized =
     telemetryStorage.value && !telemetryStorage.isLoading;
@@ -50,7 +50,7 @@ export function useTelemetry(): TelemetryClient {
   const shouldInitialize = ready && !telemetryInitialized;
   const clearConfig = useClearTelemetryConfig();
   const optedOut =
-    (typeof logActivity !== 'undefined' && !logActivity) ||
+    (typeof telemetryEnabled !== 'undefined' && !telemetryEnabled) ||
     posthog?.getIsOptedOut();
 
   logger.log({
@@ -60,7 +60,7 @@ export function useTelemetry(): TelemetryClient {
     shouldInitialize,
     telemetryInitialized,
     optedOut,
-    logActivity,
+    logActivity: telemetryEnabled,
     startTime: session?.startTime,
   });
 
@@ -71,7 +71,7 @@ export function useTelemetry(): TelemetryClient {
       logger.log('Updating telemetry setting');
       // make sure we update settings to reflect, in case we're missing
       // the logActivity setting
-      store.updateLogActivity(!shouldDisable);
+      store.updateEnableTelemetry(!shouldDisable);
 
       if (shouldDisable) {
         logger.log('Disabling telemetry');
@@ -195,7 +195,7 @@ export function useTelemetry(): TelemetryClient {
   ]);
 
   useEffect(() => {
-    // if we hear about a change to the logActivity setting after
+    // if we hear about a change to the enableTelemetry setting after
     // initializing, we should update the state of posthog
     if (telemetryInitialized && ready) {
       setDisabled(optedOut);

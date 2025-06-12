@@ -99,7 +99,9 @@ export const toClientSettings = (
     sideBarSort: toClientSidebarSort(settings.desk.groups?.sideBarSort),
     groupSideBarSort: settings.desk.groups?.groupSideBarSort,
     showActivityMessage: settings.desk.groups?.showActivityMessage,
-    logActivity: settings.desk.groups?.logActivity,
+    enableTelemetry:
+      settings.desk.groups?.enableTelemetry ||
+      settings.desk.groups?.logActivity,
     analyticsId: settings.desk.groups?.analyticsId,
     seenWelcomeCard: settings.desk.groups?.seenWelcomeCard,
     newGroupFlags: settings.desk.groups?.newGroupFlags,

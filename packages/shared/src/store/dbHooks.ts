@@ -623,13 +623,13 @@ export const useThemeSettings = () => {
   });
 };
 
-export const useLogActivity = () => {
+export const useTelemetryEnabled = () => {
   const deps = useKeyFromQueryDeps(db.getSettings);
   return useQuery({
-    queryKey: ['logActivity', deps],
+    queryKey: ['enableTelemetry', deps],
     queryFn: async () => {
       const settings = await db.getSettings();
-      return settings?.logActivity ?? false;
+      return settings?.enableTelemetry ?? false;
     },
   });
 };

@@ -167,14 +167,14 @@ export async function updateDisableTlonInfraEnhancement(disabled: boolean) {
   }
 }
 
-export async function updateLogActivity(value: boolean) {
+export async function updateEnableTelemetry(value: boolean) {
   const existing = await db.getSettings();
-  const oldValue = existing?.logActivity;
+  const oldValue = existing?.enableTelemetry;
 
   try {
     // optimistic update
-    await db.insertSettings({ logActivity: value });
-    await setSetting('logActivity', value);
+    await db.insertSettings({ enableTelemetry: value });
+    await setSetting('enableTelemetry', value);
   } catch (e) {
     logger.trackError('Error updating log activity setting', {
       value,
@@ -182,6 +182,6 @@ export async function updateLogActivity(value: boolean) {
       errorMessage: e.message,
       errorStack: e.stack,
     });
-    await db.insertSettings({ logActivity: oldValue });
+    await db.insertSettings({ enableTelemetry: oldValue });
   }
 }

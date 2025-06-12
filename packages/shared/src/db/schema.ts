@@ -43,7 +43,7 @@ export const settings = sqliteTable('settings', {
   >(),
   groupSideBarSort: text('group_side_bar_sort', { mode: 'json' }),
   showActivityMessage: boolean('show_activity_message'),
-  logActivity: boolean('log_activity'),
+  enableTelemetry: boolean('enableTelemetry'),
   analyticsId: text('analytics_id'),
   seenWelcomeCard: boolean('seen_welcome_card'),
   newGroupFlags: text('new_group_flags', { mode: 'json' }),
