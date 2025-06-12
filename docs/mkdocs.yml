@@ -1,0 +1,14 @@
+site_name: Tlon Messenger 
+theme: readthedocs
+nav:
+  - Tlon Messenger: index.md
+  - Backend Documentation: ./backend/index.md
+  - API Reference: ./api/index.md
+  - Plugins Guide: ./plugins/index.md
+  - Developer Guide:
+    - Introduction: ./devs/index.md
+    - Documentation:  ./devs/documentation.md
+    - Versioning: ./devs/versioned-types.md
+    - Logging and Error Handling: ./devs/logging-and-error-handling.md
+    - Application Marks: ./devs/application-marks.md
+
