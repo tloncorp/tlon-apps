@@ -10,7 +10,6 @@ import {
   deleteChannel,
   deleteGroup,
   editChannel,
-  fillFormField,
   navigateBack,
   navigateToHomeAndVerifyGroup,
   openGroupSettings,
@@ -164,7 +163,9 @@ test('should handle complete group lifecycle with settings management', async ({
   );
 
   await page.getByText('Group info').click();
+  await page.waitForTimeout(500);
   await page.getByTestId('GroupChannels').click();
+  await page.waitForTimeout(500);
   await expect(
     page.getByText('Testing channel renaming').first()
   ).toBeVisible();

@@ -337,6 +337,7 @@ export async function verifyElementCount(
   containerTestId: string,
   expectedCount: number
 ) {
+  await page.waitForTimeout(500);
   await expect(
     page
       .getByTestId(containerTestId)
