@@ -1,24 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import {
-  cleanupExistingGroup,
-  clickThroughWelcome,
-  createChannel,
-  createChannelSection,
-  createGroup,
-  createRole,
-  deleteChannel,
-  deleteGroup,
-  editChannel,
-  navigateBack,
-  navigateToHomeAndVerifyGroup,
-  openGroupSettings,
-  setGroupNotifications,
-  setGroupPrivacy,
-  toggleChatPin,
-  verifyElementCount,
-  waitForElementAndAct,
-} from './helpers';
+import * as helpers from './helpers';
 import shipManifest from './shipManifest.json';
 
 // const busUrl = `${shipManifest['~bus'].webUrl}/apps/groups/`;
@@ -30,15 +12,15 @@ test('should handle complete group lifecycle with settings management', async ({
   page,
 }) => {
   await page.goto(zodUrl);
-  await clickThroughWelcome(page);
+  await helpers.clickThroughWelcome(page);
 
   await expect(page.getByText('Home')).toBeVisible();
 
   // Clean up any existing group
-  await cleanupExistingGroup(page);
+  await helpers.cleanupExistingGroup(page);
 
   // Create a new group
-  await createGroup(page);
+  await helpers.createGroup(page);
 
   // Handle welcome message if present
   if (await page.getByText('Untitled group').first().isVisible()) {
@@ -46,7 +28,7 @@ test('should handle complete group lifecycle with settings management', async ({
   }
 
   // Navigate back to Home and verify group creation
-  await navigateBack(page);
+  await helpers.navigateBack(page);
   if (await page.getByText('Home').isVisible()) {
     await expect(page.getByText('Untitled group').first()).toBeVisible();
     await page.getByText('Untitled group').first().click();
@@ -54,42 +36,42 @@ test('should handle complete group lifecycle with settings management', async ({
   }
 
   // Open group settings
-  await openGroupSettings(page);
+  await helpers.openGroupSettings(page);
   await expect(page.getByText('Group info')).toBeVisible();
 
   // Test pin/unpin functionality
-  const pinStatus = await toggleChatPin(page);
+  const pinStatus = await helpers.toggleChatPin(page);
 
   // Navigate back to check pinned status
   if (pinStatus) {
-    await navigateToHomeAndVerifyGroup(page, pinStatus);
+    await helpers.navigateToHomeAndVerifyGroup(page, pinStatus);
   }
 
   // Return to group settings and toggle pin again
   await page.getByText('Untitled group').first().click();
-  await openGroupSettings(page);
-  const unpinStatus = await toggleChatPin(page);
+  await helpers.openGroupSettings(page);
+  const unpinStatus = await helpers.toggleChatPin(page);
 
   // Navigate back to check unpinned status
   if (unpinStatus) {
-    await navigateToHomeAndVerifyGroup(page, unpinStatus);
+    await helpers.navigateToHomeAndVerifyGroup(page, unpinStatus);
   }
 
   // Return to group settings for remaining tests
   await page.getByText('Untitled group').first().click();
-  await openGroupSettings(page);
+  await helpers.openGroupSettings(page);
   await expect(page.getByText('Group info')).toBeVisible();
 
   // Test reference copying
   await page.getByText('Reference').click();
   // Check for copy confirmation (optional)
-  await waitForElementAndAct(page, 'Copied', async () => {
+  await helpers.waitForElementAndAct(page, 'Copied', async () => {
     await expect(page.getByText('Copied')).toBeVisible();
   });
 
   // Test privacy settings
-  await setGroupPrivacy(page, true);
-  await navigateBack(page);
+  await helpers.setGroupPrivacy(page, true);
+  await helpers.navigateBack(page);
   await expect(page.getByText('Private group with 1 member')).toBeVisible();
   await expect(
     page.getByTestId('GroupPrivacy').getByText('Private')
@@ -109,10 +91,10 @@ test('should handle complete group lifecycle with settings management', async ({
   await page.getByText('Save').click();
 
   // Create new role
-  await createRole(page, 'Testing role', 'Description for test role');
+  await helpers.createRole(page, 'Testing role', 'Description for test role');
 
-  await navigateBack(page);
-  await verifyElementCount(page, 'GroupRoles', 2);
+  await helpers.navigateBack(page);
+  await helpers.verifyElementCount(page, 'GroupRoles', 2);
 
   // Test channel management
   await page.getByTestId('GroupChannels').getByText('Channels').click();
@@ -125,11 +107,11 @@ test('should handle complete group lifecycle with settings management', async ({
   ).toBeVisible();
 
   // Create new channel
-  await createChannel(page, 'Second chat channel');
+  await helpers.createChannel(page, 'Second chat channel');
 
-  await navigateBack(page);
+  await helpers.navigateBack(page);
   await page.waitForTimeout(500);
-  await verifyElementCount(page, 'GroupChannels', 2);
+  await helpers.verifyElementCount(page, 'GroupChannels', 2);
 
   // Test channel reordering
   // TODO: figure out why this is flaky
@@ -155,7 +137,7 @@ test('should handle complete group lifecycle with settings management', async ({
 
   // Edit channel
   await page.getByTestId('GroupChannels').click();
-  await editChannel(
+  await helpers.editChannel(
     page,
     'Second chat channel',
     'Testing channel renaming',
@@ -171,13 +153,13 @@ test('should handle complete group lifecycle with settings management', async ({
   ).toBeVisible();
 
   // Create channel section
-  await createChannelSection(page, 'Testing section');
+  await helpers.createChannelSection(page, 'Testing section');
 
-  await navigateBack(page);
+  await helpers.navigateBack(page);
 
   // Test notification settings
-  await setGroupNotifications(page, 'All activity');
-  await navigateBack(page, 1);
+  await helpers.setGroupNotifications(page, 'All activity');
+  await helpers.navigateBack(page, 1);
   await expect(
     page.getByTestId('GroupNotifications').getByText('All activity')
   ).toBeVisible();
@@ -203,16 +185,16 @@ test('should handle complete group lifecycle with settings management', async ({
   // Delete channel and verify count update
   await page.waitForTimeout(2000);
   await page.getByTestId('GroupChannels').click();
-  await deleteChannel(page, 'Testing channel renaming');
+  await helpers.deleteChannel(page, 'Testing channel renaming');
 
   await expect(page.getByText('Manage channels')).toBeVisible();
   await expect(
     page.getByTestId('ChannelItem-Testing channel renaming-1')
   ).not.toBeVisible();
 
-  await navigateBack(page);
-  await verifyElementCount(page, 'GroupChannels', 1);
+  await helpers.navigateBack(page);
+  await helpers.verifyElementCount(page, 'GroupChannels', 1);
 
   // Delete group
-  await deleteGroup(page);
+  await helpers.deleteGroup(page);
 });

@@ -1,19 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import {
-  assignRoleToMember,
-  cleanupExistingGroup,
-  clickThroughWelcome,
-  createGroup,
-  createRole,
-  deleteGroup,
-  fillFormField,
-  navigateBack,
-  openGroupSettings,
-  setChannelPermissions,
-  unassignRoleFromMember,
-  verifyElementCount,
-} from './helpers';
+import * as helpers from './helpers';
 import shipManifest from './shipManifest.json';
 
 const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
@@ -24,15 +11,15 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   page,
 }) => {
   await page.goto(zodUrl);
-  await clickThroughWelcome(page);
+  await helpers.clickThroughWelcome(page);
 
   await expect(page.getByText('Home')).toBeVisible();
 
   // Clean up any existing "Untitled group"
-  await cleanupExistingGroup(page);
+  await helpers.cleanupExistingGroup(page);
 
   // Create a new group
-  await createGroup(page);
+  await helpers.createGroup(page);
 
   // Handle welcome message if present
   if (await page.getByText('Welcome to your group!').isVisible()) {
@@ -41,9 +28,9 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
 
   // Navigate back to Home and verify group creation
   if (await page.getByTestId('HeaderBackButton').first().isVisible()) {
-    await navigateBack(page);
+    await helpers.navigateBack(page);
   } else {
-    await navigateBack(page, 1);
+    await helpers.navigateBack(page, 1);
   }
 
   if (await page.getByText('Home').isVisible()) {
@@ -53,16 +40,16 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   }
 
   // Open group settings and navigate to Roles
-  await openGroupSettings(page);
+  await helpers.openGroupSettings(page);
   await expect(page.getByText('Group info')).toBeVisible();
   await page.getByTestId('GroupRoles').click();
 
   // Create a new role and check that the count label updates
-  await createRole(page, 'Testing role', 'Description for test role');
+  await helpers.createRole(page, 'Testing role', 'Description for test role');
 
-  await navigateBack(page);
+  await helpers.navigateBack(page);
   // Verify role count is now 2 (Admin + Testing role)
-  await verifyElementCount(page, 'GroupRoles', 2);
+  await helpers.verifyElementCount(page, 'GroupRoles', 2);
 
   // Assign role to a user (member)
   await page.waitForTimeout(2000);
@@ -70,13 +57,13 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await expect(page.getByText('Members', { exact: true })).toBeVisible();
 
   // Find and click on the first member row (should be under Admin)
-  await assignRoleToMember(page, 'Testing role');
+  await helpers.assignRoleToMember(page, 'Testing role');
 
   // Verify the member is now under "Testing role" section
   await expect(page.getByText('Testing role')).toBeVisible();
   await expect(page.getByTestId('MemberRow').nth(1)).toBeVisible();
 
-  await navigateBack(page);
+  await helpers.navigateBack(page);
 
   // Change channel permissions to use the role
   await page.getByTestId('GroupChannels').click();
@@ -87,7 +74,7 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await expect(page.getByText('Edit channel')).toBeVisible();
 
   // Set channel permissions
-  await setChannelPermissions(page, ['Testing role'], ['Testing role']);
+  await helpers.setChannelPermissions(page, ['Testing role'], ['Testing role']);
 
   // Verify "Testing role" appears under Readers
   await expect(
@@ -132,7 +119,7 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await expect(page.getByText('Edit role')).toBeVisible();
 
   // Clear and rename the role
-  await fillFormField(page, 'RoleTitleInput', 'Renamed role', true);
+  await helpers.fillFormField(page, 'RoleTitleInput', 'Renamed role', true);
 
   await page.getByText('Save').click();
   await page.waitForTimeout(2000);
@@ -144,12 +131,12 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await page.getByTestId('GroupMembers').click();
 
   // Find member under "Renamed role" and remove the role
-  await unassignRoleFromMember(page, 'Renamed role', 1);
+  await helpers.unassignRoleFromMember(page, 'Renamed role', 1);
 
   // Verify member is back under Admin section
   await expect(page.getByTestId('MemberRow').nth(0)).toBeVisible();
 
-  await navigateBack(page);
+  await helpers.navigateBack(page);
 
   // Remove role from channel permissions
   await page.getByTestId('GroupChannels').click();
@@ -178,11 +165,11 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await page.getByText('Save').click();
 
   // Navigate back with complex fallback logic
-  await navigateBack(page);
+  await helpers.navigateBack(page);
 
   // Delete the role (should now be possible)
   await page.waitForTimeout(300);
-  await openGroupSettings(page);
+  await helpers.openGroupSettings(page);
   await page.waitForTimeout(300);
   await expect(page.getByText('Roles')).toBeVisible();
   await page.getByTestId('GroupRoles').click();
@@ -197,13 +184,13 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   // Verify role is deleted
   await expect(page.getByText('Renamed role')).not.toBeVisible();
 
-  await navigateBack(page);
+  await helpers.navigateBack(page);
 
   // Verify role count is back to 1
-  await verifyElementCount(page, 'GroupRoles', 1);
+  await helpers.verifyElementCount(page, 'GroupRoles', 1);
 
   // Delete the group
-  await deleteGroup(page);
+  await helpers.deleteGroup(page);
 
   // Verify we're back at Home and group is deleted
   await expect(page.getByText('Home')).toBeVisible();

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { clickThroughWelcome } from './helpers';
+import * as helpers from './helpers';
 import shipManifest from './shipManifest.json';
 
 const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
@@ -9,7 +9,7 @@ test.use({ storageState: shipManifest['~zod'].authFile });
 
 test('should test app settings', async ({ page }) => {
   await page.goto(zodUrl);
-  await clickThroughWelcome(page);
+  await helpers.clickThroughWelcome(page);
   await page.evaluate(() => {
     window.toggleDevTools();
   });

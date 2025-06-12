@@ -1,13 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import {
-  cleanupExistingGroup,
-  clickThroughWelcome,
-  createGroup,
-  deleteGroup,
-  navigateBack,
-  openGroupSettings,
-} from './helpers';
+import * as helpers from './helpers';
 import shipManifest from './shipManifest.json';
 
 const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
@@ -17,19 +10,19 @@ test.use({ storageState: shipManifest['~zod'].authFile });
 test('should create, verify, and delete a group', async ({ page }) => {
   // Launch and login
   await page.goto(zodUrl);
-  await clickThroughWelcome(page);
+  await helpers.clickThroughWelcome(page);
 
   // Assert that we're on the Home page
   await expect(page.getByText('Home')).toBeVisible();
 
   // Clean up any existing group
-  await cleanupExistingGroup(page);
+  await helpers.cleanupExistingGroup(page);
 
   // Create a new group (this handles the entire creation flow)
-  await createGroup(page);
+  await helpers.createGroup(page);
 
   // Navigate back to Home and verify group creation
-  await navigateBack(page);
+  await helpers.navigateBack(page);
   if (await page.getByText('Home').isVisible()) {
     await expect(page.getByText('Untitled group')).toBeVisible();
     await page.getByText('Untitled group').click();
@@ -37,7 +30,7 @@ test('should create, verify, and delete a group', async ({ page }) => {
   }
 
   // Open the overflow menu and access group settings
-  await openGroupSettings(page);
+  await helpers.openGroupSettings(page);
 
   // Verify group status (check for any group with 1 member text pattern)
   const groupStatusText = page.locator('text=/.*group with 1 member/');
@@ -47,7 +40,7 @@ test('should create, verify, and delete a group', async ({ page }) => {
   await expect(page.getByText('Group info')).toBeVisible();
 
   // Delete the group (this handles the entire deletion flow)
-  await deleteGroup(page);
+  await helpers.deleteGroup(page);
 
   // Verify we're back at Home and group is deleted
   await expect(page.getByText('Home')).toBeVisible();

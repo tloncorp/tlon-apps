@@ -1,16 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import {
-  changeGroupDescription,
-  changeGroupIcon,
-  changeGroupName,
-  cleanupExistingGroup,
-  clickThroughWelcome,
-  createGroup,
-  deleteGroup,
-  navigateBack,
-  openGroupCustomization,
-} from './helpers';
+import * as helpers from './helpers';
 import shipManifest from './shipManifest.json';
 
 const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
@@ -20,19 +10,19 @@ test.use({ storageState: shipManifest['~zod'].authFile });
 test('should customize group name, icon, and description', async ({ page }) => {
   // Launch and login
   await page.goto(zodUrl);
-  await clickThroughWelcome(page);
+  await helpers.clickThroughWelcome(page);
 
   // Assert that we're on the Home page
   await expect(page.getByText('Home')).toBeVisible();
 
   // Clean up any existing group
-  await cleanupExistingGroup(page);
+  await helpers.cleanupExistingGroup(page);
 
   // Create a new group
-  await createGroup(page);
+  await helpers.createGroup(page);
 
   // Navigate back to Home and verify group creation
-  await navigateBack(page);
+  await helpers.navigateBack(page);
   if (await page.getByText('Home').isVisible()) {
     await expect(page.getByText('Untitled group')).toBeVisible();
     await page.getByText('Untitled group').click();
@@ -40,31 +30,31 @@ test('should customize group name, icon, and description', async ({ page }) => {
   }
 
   // Open the Customize group screen
-  await openGroupCustomization(page);
+  await helpers.openGroupCustomization(page);
 
   // Change the group name
-  await changeGroupName(page, 'My Group');
+  await helpers.changeGroupName(page, 'My Group');
 
   // Navigate back and verify name change on Home screen
-  await navigateBack(page);
+  await helpers.navigateBack(page);
   if (await page.getByText('Home').isVisible()) {
     await expect(page.getByText('My Group')).toBeVisible();
     await page.getByText('My Group').click();
   }
 
   // Change the group icon/picture
-  await openGroupCustomization(page);
-  await changeGroupIcon(page); // No image path provided, so it will just test the interface
+  await helpers.openGroupCustomization(page);
+  await helpers.changeGroupIcon(page); // No image path provided, so it will just test the interface
 
   // close the modal
   // not clear why we need to click the first one, but it works
   await page.getByTestId('AttachmentSheetCloseButton').first().click();
 
   // Change the group description
-  await changeGroupDescription(page, 'This is a test group');
+  await helpers.changeGroupDescription(page, 'This is a test group');
 
   // Verify the description was saved (optional check)
-  await openGroupCustomization(page);
+  await helpers.openGroupCustomization(page);
   const descriptionField = page.getByTestId('GroupDescriptionInput');
   if (await descriptionField.isVisible()) {
     await expect(descriptionField).toHaveValue('This is a test group');
@@ -72,7 +62,7 @@ test('should customize group name, icon, and description', async ({ page }) => {
   await page.getByText('Cancel').click();
 
   // Delete the group and clean up
-  await deleteGroup(page, 'My Group');
+  await helpers.deleteGroup(page, 'My Group');
 
   // Verify we're back at Home and the renamed group is deleted
   await expect(page.getByText('Home')).toBeVisible();
