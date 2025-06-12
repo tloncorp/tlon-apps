@@ -27,6 +27,7 @@ function getBucket(key: string): string {
     case 'completedWayfindingSplash':
     case 'completedWayfindingTutorial':
     case 'disableTlonInfraEnhancement':
+    case 'enableTelemetry':
       return 'groups';
     case 'disableAvatars':
     case 'disableNicknames':
