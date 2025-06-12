@@ -50,12 +50,14 @@ export function useTelemetry(): TelemetryClient {
   const clearConfig = useClearTelemetryConfig();
   const telemetryEnabled = settings?.enableTelemetry;
   const optedOut = useMemo(() => {
+    const isHosted = api.getCurrentUserIsHosted();
+    const defaultToOptedOut = !isHosted;
     if (telemetryEnabled !== undefined && telemetryEnabled !== null) {
       return !telemetryEnabled;
     }
 
     // fallback for those without any telemetry setting
-    return posthog?.getIsOptedOut() ?? true;
+    return posthog?.getIsOptedOut() ?? defaultToOptedOut;
   }, [posthog, telemetryEnabled]);
 
   logger.log({
@@ -229,7 +231,7 @@ export function useTelemetry(): TelemetryClient {
     if (telemetryInitialized && ready && optedOut !== posthog.getIsOptedOut()) {
       setDisabled(optedOut, false);
     }
-  }, [ready, optedOut, telemetryInitialized, setDisabled]);
+  }, [ready, optedOut, telemetryInitialized, setDisabled, posthog]);
 
   return {
     getIsOptedOut: posthog.getIsOptedOut,
