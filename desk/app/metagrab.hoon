@@ -397,13 +397,13 @@
       ~&  [dap.bowl %strange-iris-progress-response]
       [%cancel ~]
     ::  we might get a %cancel if the runtime was restarted during our
-    ::  request. simply retry.
+    ::  request. it's unlikely but possible that we are somehow the cause
+    ::  of the runtime restart. in an abundance of caution, drop the request.
+    ::  (inbound requests _should_ have gotten closed during restart, anyway.)
     ::
     ?:  ?=(%cancel -.res)
-      ::REVIEW  this can become a source of retry loops.
-      ::        should we just serve a 500 in these cases?
-      ::        incoming connections will have gotten killed anyway...
-      [[(fetch met url uas) ~] this]
+      :-  (give-response (~(get ju await) url) now.bowl %bad 'cancelled')
+      this(await (~(del by await) url))
     ::
     ?>  ?=(%finished -.res)
     =*  cod  status-code.response-header.res
