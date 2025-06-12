@@ -2,7 +2,6 @@ import {
   AnalyticsEvent,
   createDevLogger,
   useCurrentSession,
-  useTelemetryEnabled,
 } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import {
@@ -11,7 +10,7 @@ import {
   lastAnonymousAppOpenAt,
 } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { isWeb } from 'tamagui';
 
 import { TelemetryClient } from '../types/telemetry';
@@ -38,7 +37,7 @@ export function useTelemetry(): TelemetryClient {
   const posthog = usePosthog();
   const session = useCurrentSession();
   const currentUserId = useCurrentUserId();
-  const { data: telemetryEnabled, isLoading } = useTelemetryEnabled();
+  const { data: settings, isLoading } = store.useTelemetrySettings();
   const telemetryStorage = didInitializeTelemetry.useStorageItem();
   const telemetryInitialized =
     telemetryStorage.value && !telemetryStorage.isLoading;
@@ -49,30 +48,34 @@ export function useTelemetry(): TelemetryClient {
     session?.phase === 'ready';
   const shouldInitialize = ready && !telemetryInitialized;
   const clearConfig = useClearTelemetryConfig();
-  const optedOut =
-    (typeof telemetryEnabled !== 'undefined' && !telemetryEnabled) ||
-    posthog?.getIsOptedOut();
+  const telemetryEnabled = settings?.enableTelemetry;
+  const optedOut = useMemo(() => {
+    if (telemetryEnabled !== undefined && telemetryEnabled !== null) {
+      return !telemetryEnabled;
+    }
+
+    // fallback for those without any telemetry setting
+    return posthog?.getIsOptedOut() ?? true;
+  }, [posthog, telemetryEnabled]);
 
   logger.log({
     ready,
+    optedOut,
+    posthogOptedOut: posthog?.getIsOptedOut(),
     isLoading,
     telLoading: telemetryStorage.isLoading,
     shouldInitialize,
     telemetryInitialized,
-    optedOut,
-    logActivity: telemetryEnabled,
+    telemetryEnabled,
+    settings,
     startTime: session?.startTime,
   });
 
   const setDisabled = useCallback(
-    async (shouldDisable: boolean) => {
+    async (shouldDisable: boolean, updateSettings = true) => {
       const isHosted = api.getCurrentUserIsHosted();
 
       logger.log('Updating telemetry setting');
-      // make sure we update settings to reflect, in case we're missing
-      // the logActivity setting
-      store.updateEnableTelemetry(!shouldDisable);
-
       if (shouldDisable) {
         logger.log('Disabling telemetry');
         posthog?.optIn();
@@ -94,6 +97,12 @@ export function useTelemetry(): TelemetryClient {
           isHostedUser: isHostedUser(isHosted),
         });
         posthog?.capture('$set', { $set: { telemetryDisabled: false } });
+      }
+
+      if (updateSettings) {
+        // make sure we update settings to reflect, in case we're missing
+        // the telemetry setting
+        store.updateEnableTelemetry(!shouldDisable);
       }
     },
     [currentUserId, posthog]
@@ -195,10 +204,30 @@ export function useTelemetry(): TelemetryClient {
   ]);
 
   useEffect(() => {
+    // explicitly set the enableTelemetry setting if it's not present
+    if (
+      settings &&
+      (settings.enableTelemetry === undefined ||
+        settings.enableTelemetry === null) &&
+      ready
+    ) {
+      if (settings.logActivity !== undefined && settings.logActivity !== null) {
+        logger.log('Updating telemetry setting from logActivity');
+        store.updateEnableTelemetry(settings.logActivity);
+      } else {
+        logger.log('Updating telemetry setting from posthog');
+        // if we don't have a logActivity setting, use posthog's default
+        // value for enableTelemetry
+        store.updateEnableTelemetry(!(posthog.getIsOptedOut() ?? true));
+      }
+    }
+  }, [ready, settings, posthog]);
+
+  useEffect(() => {
     // if we hear about a change to the enableTelemetry setting after
-    // initializing, we should update the state of posthog
-    if (telemetryInitialized && ready) {
-      setDisabled(optedOut);
+    // initializing and we're not synced, we should update the state of posthog
+    if (telemetryInitialized && ready && optedOut !== posthog.getIsOptedOut()) {
+      setDisabled(optedOut, false);
     }
   }, [ready, optedOut, telemetryInitialized, setDisabled]);
 

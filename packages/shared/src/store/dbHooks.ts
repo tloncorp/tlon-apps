@@ -633,3 +633,17 @@ export const useTelemetryEnabled = () => {
     },
   });
 };
+
+export const useTelemetrySettings = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['telemetrySettings', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings();
+      return {
+        enableTelemetry: settings?.enableTelemetry,
+        logActivity: settings?.logActivity,
+      };
+    },
+  });
+};
