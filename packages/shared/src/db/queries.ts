@@ -2499,6 +2499,24 @@ export type GetChannelPostsOptions = {
   cursor?: string;
 };
 
+export type GetPostsOptions = {
+  channelId: string;
+  count?: number;
+  mode: 'newest' | 'older' | 'newer' | 'around';
+  cursorSequenceNum?: number;
+};
+export const getSequencedChannelPosts = createReadQuery(
+  'getSequencedChannelPosts',
+  async (options: GetPostsOptions, ctx: QueryCtx) => {
+    if (options.mode !== 'newest' && !options.cursorSequenceNum) {
+      throw new Error(
+        'cursorSequenceNum is required for mode other than newest'
+      );
+    }
+  },
+  ['posts']
+);
+
 export const getChannelPosts = createReadQuery(
   'getChannelPosts',
   async (
