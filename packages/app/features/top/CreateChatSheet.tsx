@@ -3,7 +3,9 @@ import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
   ComponentProps,
+  cloneElement,
   forwardRef,
+  isValidElement,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -24,6 +26,7 @@ import {
   GroupPreviewAction,
   GroupPreviewPane,
   LoadingSpinner,
+  Pressable,
   SimpleActionSheet,
   Text,
   TextInput,
@@ -363,7 +366,13 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       allowFlip
       offset={-12}
     >
-      <Popover.Trigger asChild>{trigger}</Popover.Trigger>
+      <Popover.Trigger
+        role="button"
+        data-testid="CreateChatSheetTrigger"
+        asChild
+      >
+        {trigger}
+      </Popover.Trigger>
       <Popover.Content
         elevate
         zIndex={1000000}

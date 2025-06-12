@@ -2111,18 +2111,18 @@ export const updateChannel = createWriteQuery(
     logger.log('updateChannel', update.id, update);
 
     return withTransactionCtx(ctx, async (txCtx) => {
-      await insertChannelPerms(
-        [
-          {
-            channelId: update.id,
-            writers:
-              update.writerRoles?.map((role) => role.roleId as string) || [],
-            readers:
-              update.readerRoles?.map((role) => role.roleId as string) || [],
-          },
-        ],
-        txCtx
-      );
+      if (update.writerRoles && update.readerRoles) {
+        await insertChannelPerms(
+          [
+            {
+              channelId: update.id,
+              writers: update.writerRoles?.map((role) => role.roleId as string),
+              readers: update.readerRoles?.map((role) => role.roleId as string),
+            },
+          ],
+          txCtx
+        );
+      }
 
       return txCtx.db
         .update($channels)
