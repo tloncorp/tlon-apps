@@ -17,7 +17,7 @@ import {
   sendThreadReply,
   startThread,
   threadQuoteReply,
-  verifyMessagePreviewOnHome,
+  verifyMessagePreview,
 } from './helpers';
 import shipManifest from './shipManifest.json';
 
@@ -53,11 +53,8 @@ test('should test comprehensive thread functionality', async ({ page }) => {
   // Send a message in the General channel
   await sendMessage(page, 'Hello, world!');
 
-  // Navigate back to Home and verify message preview is visible
-  await verifyMessagePreviewOnHome(page, 'Hello, world!');
-
-  // Navigate back into the group
-  await page.getByText('Untitled group').click();
+  // Verify message preview is visible
+  await verifyMessagePreview(page, 'Hello, world!', false, 'General');
 
   // Start a thread from the message
   await startThread(page, 'Hello, world!');

@@ -613,15 +613,22 @@ export async function editMessage(
 /**
  * Verifies message preview on Home screen
  */
-export async function verifyMessagePreviewOnHome(
+export async function verifyMessagePreview(
   page: Page,
-  messageText: string
+  messageText: string,
+  isDM = false,
+  channelTitle: string
 ) {
-  await navigateBack(page);
-
-  await expect(page.getByText('Home')).toBeVisible({ timeout: 20000 });
-
-  await expect(page.getByText(messageText)).toBeVisible({ timeout: 30000 });
+  await page.waitForTimeout(500);
+  if (!isDM) {
+    await expect(
+      page.getByTestId(`ChannelListItem-${channelTitle}`).getByText(messageText)
+    ).toBeVisible({ timeout: 15000 });
+  } else {
+    await expect(
+      page.getByTestId(`ChannelListItem-${channelTitle}`).getByText(messageText)
+    ).toBeVisible({ timeout: 15000 });
+  }
 }
 
 /**

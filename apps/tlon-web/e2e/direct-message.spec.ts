@@ -14,6 +14,7 @@ import {
   sendMessage,
   sendThreadReply,
   startThread,
+  verifyMessagePreview,
 } from './helpers';
 import shipManifest from './shipManifest.json';
 
@@ -48,9 +49,8 @@ test('should test comprehensive direct message functionality', async ({
     await navigateBack(page);
   }
 
-  await expect(
-    page.getByTestId('ChatListItem-~bus-unpinned').getByText('Hello, ~bus!')
-  ).toBeVisible();
+  // Verify message preview is visible
+  await verifyMessagePreview(page, 'Hello, ~bus!', true, '~bus');
 
   // Start a thread from the message
   await startThread(page, 'Hello, ~bus!');
