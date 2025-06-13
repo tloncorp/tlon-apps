@@ -258,6 +258,7 @@ CREATE TABLE `groups` (
 	`current_user_is_host` integer NOT NULL,
 	`host_user_id` text NOT NULL,
 	`is_new` integer,
+	`is_personal_group` integer DEFAULT false,
 	`join_status` text,
 	`last_post_id` text,
 	`last_post_at` integer,
