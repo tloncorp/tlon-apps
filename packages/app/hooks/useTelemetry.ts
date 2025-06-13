@@ -229,10 +229,14 @@ export function useTelemetry(): TelemetryClient {
   }, [ready, settings, posthog]);
 
   useEffect(() => {
+    if (!ready || !telemetryInitialized) {
+      return;
+    }
+
     // if we hear about a change to the enableTelemetry setting after
     // initializing and we're not synced, we should update the state of posthog
     const optedOut = getIsOptedOut();
-    if (telemetryInitialized && ready && optedOut !== posthog.getIsOptedOut()) {
+    if (optedOut !== posthog.getIsOptedOut()) {
       setDisabled(optedOut, false);
     }
   }, [
