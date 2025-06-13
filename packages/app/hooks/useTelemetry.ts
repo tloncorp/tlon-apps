@@ -10,7 +10,7 @@ import {
   lastAnonymousAppOpenAt,
 } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect } from 'react';
 import { isWeb } from 'tamagui';
 
 import { TelemetryClient } from '../types/telemetry';
@@ -49,7 +49,8 @@ export function useTelemetry(): TelemetryClient {
   const shouldInitialize = ready && !telemetryInitialized;
   const clearConfig = useClearTelemetryConfig();
   const telemetryEnabled = settings?.enableTelemetry;
-  const optedOut = useMemo(() => {
+
+  const getIsOptedOut = useCallback(async () => {
     const isHosted = api.getCurrentUserIsHosted();
     const defaultToOptedOut = !isHosted;
     if (telemetryEnabled !== undefined && telemetryEnabled !== null) {
@@ -62,7 +63,6 @@ export function useTelemetry(): TelemetryClient {
 
   logger.log({
     ready,
-    optedOut,
     posthogOptedOut: posthog?.getIsOptedOut(),
     isLoading,
     telLoading: telemetryStorage.isLoading,
@@ -122,6 +122,7 @@ export function useTelemetry(): TelemetryClient {
         `Capturing mandatory event ${eventId} with properties:`,
         properties
       );
+      const optedOut = await getIsOptedOut();
       if (optedOut) {
         posthog?.optIn();
         posthog?.capture(eventId, properties);
@@ -131,7 +132,7 @@ export function useTelemetry(): TelemetryClient {
         posthog?.capture(eventId, properties);
       }
     },
-    [posthog, optedOut]
+    [posthog, getIsOptedOut]
   );
 
   const captureAppActive = useCallback(
@@ -141,6 +142,7 @@ export function useTelemetry(): TelemetryClient {
           ? AnalyticsEvent.WebAppOpened
           : AnalyticsEvent.AppActive;
       logger.log(`Capturing app active event: ${eventId}`);
+      const optedOut = await getIsOptedOut();
       if (!optedOut) {
         posthog.capture(eventId, { isHostedUser });
       } else {
@@ -155,7 +157,7 @@ export function useTelemetry(): TelemetryClient {
         }
       }
     },
-    [posthog, optedOut, captureMandatoryEvent]
+    [posthog, getIsOptedOut, captureMandatoryEvent]
   );
 
   useEffect(() => {
@@ -187,6 +189,7 @@ export function useTelemetry(): TelemetryClient {
 
       logger.log('Initializing telemetry');
       posthog?.capture('Initializing telemetry');
+      const optedOut = await getIsOptedOut();
       setDisabled(optedOut);
       telemetryStorage.setValue(true);
     }
@@ -196,7 +199,7 @@ export function useTelemetry(): TelemetryClient {
     }
   }, [
     posthog,
-    optedOut,
+    getIsOptedOut,
     currentUserId,
     shouldInitialize,
     telemetryStorage,
@@ -228,10 +231,25 @@ export function useTelemetry(): TelemetryClient {
   useEffect(() => {
     // if we hear about a change to the enableTelemetry setting after
     // initializing and we're not synced, we should update the state of posthog
-    if (telemetryInitialized && ready && optedOut !== posthog.getIsOptedOut()) {
-      setDisabled(optedOut, false);
+    async function runEffect() {
+      const optedOut = await getIsOptedOut();
+      if (
+        telemetryInitialized &&
+        ready &&
+        optedOut !== posthog.getIsOptedOut()
+      ) {
+        setDisabled(optedOut, false);
+      }
     }
-  }, [ready, optedOut, telemetryInitialized, setDisabled, posthog]);
+    runEffect();
+  }, [
+    ready,
+    telemetryEnabled,
+    telemetryInitialized,
+    setDisabled,
+    posthog,
+    getIsOptedOut,
+  ]);
 
   return {
     getIsOptedOut: posthog.getIsOptedOut,
