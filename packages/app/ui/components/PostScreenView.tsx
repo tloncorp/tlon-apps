@@ -382,17 +382,10 @@ function SinglePostView({
     draftKey: store.draftKeyFor.thread({ parentPostId: parentPost.id }),
   });
 
-  // for the unread thread divider, we care about the unread state when you enter but don't want it to update over
-  // time
-  const [initialThreadUnread, setInitialThreadUnread] =
-    useState<db.ThreadUnreadState | null>(null);
-  useEffect(() => {
-    async function initializeChannelUnread() {
-      const unread = await db.getThreadUnreadState({ parentId: parentPost.id });
-      setInitialThreadUnread(unread ?? null);
-    }
-    initializeChannelUnread();
-  }, [parentPost.id]);
+  const { data: threadUnread } = store.useThreadUnread({
+    parentId: parentPost.id,
+    channelId: channel.id,
+  });
 
   const { data: threadPosts } = store.useThreadPosts({
     postId: parentPost.id,
@@ -485,7 +478,7 @@ function SinglePostView({
         <DetailView
           post={parentPost}
           channel={channel}
-          initialPostUnread={initialThreadUnread}
+          postUnread={threadUnread}
           onPressImage={handleGoToImage}
           editingPost={editingPost}
           setEditingPost={setEditingPost}

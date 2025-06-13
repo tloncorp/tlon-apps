@@ -12,7 +12,7 @@ import { NotebookPostDetailView } from './NotebookPost/NotebookPost';
 export interface DetailViewProps {
   post: db.Post;
   channel: db.Channel;
-  initialPostUnread?: db.ThreadUnreadState | null;
+  postUnread?: db.ThreadUnreadState | null;
   children?: JSX.Element;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
@@ -30,7 +30,7 @@ export interface DetailViewProps {
 export const DetailView = ({
   post,
   channel,
-  initialPostUnread,
+  postUnread,
   editingPost,
   setEditingPost,
   posts,
@@ -86,12 +86,10 @@ export const DetailView = ({
           onPressRetry={onPressRetry}
           onPressDelete={onPressDelete}
           firstUnreadId={
-            initialPostUnread?.count ?? 0 > 0
-              ? initialPostUnread?.firstUnreadPostId
-              : null
+            postUnread?.count ?? 0 > 0 ? postUnread?.firstUnreadPostId : null
           }
           renderEmptyComponent={RepliesEmptyComponent}
-          unreadCount={initialPostUnread?.count ?? 0}
+          unreadCount={postUnread?.count ?? 0}
           activeMessage={activeMessage}
           setActiveMessage={setActiveMessage}
         />
@@ -101,7 +99,7 @@ export const DetailView = ({
     containingProperties,
     activeMessage,
     editingPost,
-    initialPostUnread,
+    postUnread,
     isChat,
     onPressDelete,
     onPressImage,

@@ -67,7 +67,7 @@ const useApp = () => {};
 
 interface ChannelProps {
   channel: db.Channel;
-  initialChannelUnread?: db.ChannelUnread | null;
+  channelUnread?: db.ChannelUnread | null;
   selectedPostId?: string | null;
   posts: db.Post[] | null;
   group: db.Group | null;
@@ -118,7 +118,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
   function Channel(
     {
       channel,
-      initialChannelUnread,
+      channelUnread,
       posts,
       selectedPostId,
       group,
@@ -393,7 +393,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                     goToPost,
                                     hasNewerPosts,
                                     hasOlderPosts,
-                                    initialChannelUnread,
+                                    channelUnread,
                                     isLoadingPosts: isLoadingPosts ?? false,
                                     loadPostsError,
                                     onPressDelete,

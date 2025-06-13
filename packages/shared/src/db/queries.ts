@@ -1338,11 +1338,17 @@ export const getThreadPosts = createReadQuery(
 
 export const getThreadUnreadState = createReadQuery(
   'getThreadUnreadState',
-  ({ parentId }: { parentId: string }, ctx: QueryCtx) => {
+  (
+    { parentId, channelId }: { parentId: string; channelId: string },
+    ctx: QueryCtx
+  ) => {
     if (!parentId) return Promise.resolve(null);
 
     return ctx.db.query.threadUnreads.findFirst({
-      where: eq($threadUnreads.threadId, parentId),
+      where: and(
+        eq($threadUnreads.threadId, parentId),
+        eq($threadUnreads.channelId, channelId)
+      ),
     });
   },
   ['posts']

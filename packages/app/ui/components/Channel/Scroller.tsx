@@ -771,6 +771,8 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
   const isIndexEqual = prev.index === next.index;
 
   const areOtherPropsEqual =
+    prev.showUnreadDivider === next.showUnreadDivider &&
+    prev.unreadCount === next.unreadCount &&
     prev.showAuthor === next.showAuthor &&
     prev.showReplies === next.showReplies &&
     prev.onPressReplies === next.onPressReplies &&

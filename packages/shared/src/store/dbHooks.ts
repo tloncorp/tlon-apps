@@ -169,6 +169,28 @@ export const useUnreadsCountWithoutMuted = () => {
   });
 };
 
+export const useChannelUnread = (channelId: string) => {
+  const deps = useKeyFromQueryDeps(db.getChannelUnread);
+  return useQuery({
+    queryKey: [['channelUnread', channelId], deps],
+    queryFn: () => db.getChannelUnread({ channelId }),
+  });
+};
+
+export const useThreadUnread = ({
+  parentId,
+  channelId,
+}: {
+  parentId: string;
+  channelId: string;
+}) => {
+  const deps = useKeyFromQueryDeps(db.getThreadUnreadState);
+  return useQuery({
+    queryKey: [['threadUnread', { parentId, channelId }], deps],
+    queryFn: () => db.getThreadUnreadState({ parentId, channelId }),
+  });
+};
+
 export const useGroupVolumeLevel = (groupId: string) => {
   const deps = useKeyFromQueryDeps(db.getGroupVolumeSetting);
   return useQuery({

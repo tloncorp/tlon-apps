@@ -1,4 +1,4 @@
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   configurationFromChannel,
@@ -15,7 +15,13 @@ import {
   usePostWithRelations,
 } from '@tloncorp/shared/store';
 import { Story } from '@tloncorp/shared/urbit';
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
@@ -115,17 +121,41 @@ export default function ChannelScreen(props: Props) {
 
   // for the unread channel divider, we care about the unread state when you enter but don't want it to update over
   // time
-  const [initialChannelUnread, setInitialChannelUnread] =
-    React.useState<db.ChannelUnread | null>(null);
-  const [unreadDidInitialize, setUnreadDidInitialize] = React.useState(false);
+  // const [initialChannelUnread, setInitialChannelUnread] =
+  //   React.useState<db.ChannelUnread | null>(null);
+  // const [unreadDidInitialize, setUnreadDidInitialize] = React.useState(false);
+  // useEffect(() => {
+  //   async function initializeChannelUnread() {
+  //     const unread = await db.getChannelUnread({ channelId: currentChannelId });
+  //     setInitialChannelUnread(unread ?? null);
+  //     setUnreadDidInitialize(true);
+  //   }
+  //   initializeChannelUnread();
+  // }, [currentChannelId]);
+  const [lastChannelUnread, setLastChannelUnread] =
+    useState<db.ChannelUnread | null>(null);
+  const { data: channelUnread, isLoading: isLoadingChannelUnread } =
+    store.useChannelUnread(currentChannelId);
+  const channelUnreadInitialized =
+    channelUnread !== undefined && !isLoadingChannelUnread;
+
   useEffect(() => {
-    async function initializeChannelUnread() {
-      const unread = await db.getChannelUnread({ channelId: currentChannelId });
-      setInitialChannelUnread(unread ?? null);
-      setUnreadDidInitialize(true);
+    if (channelUnread && channelUnread.countWithoutThreads !== 0) {
+      setLastChannelUnread(channelUnread);
     }
-    initializeChannelUnread();
-  }, [currentChannelId]);
+  }, [channelUnread]);
+  console.log('channel unread', channelUnread, lastChannelUnread);
+
+  const isFocused = useIsFocused();
+  useEffect(() => {
+    if (
+      !isFocused &&
+      lastChannelUnread &&
+      channelUnread?.countWithoutThreads === 0
+    ) {
+      setLastChannelUnread(null);
+    }
+  }, [isFocused, lastChannelUnread, channelUnread?.countWithoutThreads]);
 
   const { navigateToImage, navigateToPost, navigateToRef, navigateToSearch } =
     useChannelNavigation({ channelId: currentChannelId });
@@ -148,14 +178,14 @@ export default function ChannelScreen(props: Props) {
       return undefined;
     }
     const firstUnreadId =
-      initialChannelUnread &&
-      (initialChannelUnread.countWithoutThreads ?? 0) > 0 &&
-      initialChannelUnread?.firstUnreadPostId;
+      lastChannelUnread &&
+      (lastChannelUnread.countWithoutThreads ?? 0) > 0 &&
+      lastChannelUnread?.firstUnreadPostId;
     return selectedPostId || firstUnreadId;
     // We only want this to rerun when the channel is loaded for the first time OR if
     // the selected post route param changes
     // eslint-disable-next-line
-  }, [!!channel, initialChannelUnread, selectedPostId]);
+  }, [!!channel, lastChannelUnread, selectedPostId]);
 
   useEffect(() => {
     if (channel?.id) {
@@ -213,12 +243,12 @@ export default function ChannelScreen(props: Props) {
     if (
       !postsQuery.isFetching &&
       postsQuery.hasNextPage &&
-      unreadDidInitialize &&
+      channelUnreadInitialized &&
       (!posts || posts.length < ENOUGH_POSTS_TO_FILL_SCREEN)
     ) {
       loadOlder();
     }
-  }, [postsQuery, posts, loadOlder, unreadDidInitialize]);
+  }, [postsQuery, posts, loadOlder, channelUnreadInitialized]);
 
   const filteredPosts = useMemo(
     () =>
@@ -374,9 +404,7 @@ export default function ChannelScreen(props: Props) {
           key={currentChannelId}
           ref={channelRef}
           channel={channel}
-          initialChannelUnread={
-            clearedCursor ? undefined : initialChannelUnread
-          }
+          channelUnread={clearedCursor ? undefined : lastChannelUnread}
           isLoadingPosts={isLoadingPosts}
           loadPostsError={postsQuery.error}
           hasNewerPosts={postsQuery.hasPreviousPage}

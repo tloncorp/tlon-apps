@@ -77,12 +77,12 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
 
       if (collectionLayout.enableUnreadAnchor) {
         if (
-          ctx.initialChannelUnread?.countWithoutThreads &&
-          ctx.initialChannelUnread.firstUnreadPostId
+          ctx.channelUnread?.countWithoutThreads &&
+          ctx.channelUnread.firstUnreadPostId
         ) {
           return {
             type: 'unread',
-            postId: ctx.initialChannelUnread.firstUnreadPostId,
+            postId: ctx.channelUnread.firstUnreadPostId,
           };
         }
       }
@@ -91,7 +91,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
     }, [
       collectionLayout.enableUnreadAnchor,
       ctx.selectedPostId,
-      ctx.initialChannelUnread,
+      ctx.channelUnread,
     ]);
 
     return (
@@ -109,11 +109,11 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
         channel={ctx.channel}
         collectionLayoutType={collectionLayoutType}
         firstUnreadId={
-          ctx.initialChannelUnread?.countWithoutThreads ?? 0 > 0
-            ? ctx.initialChannelUnread?.firstUnreadPostId
+          ctx.channelUnread?.countWithoutThreads ?? 0 > 0
+            ? ctx.channelUnread?.firstUnreadPostId
             : null
         }
-        unreadCount={ctx.initialChannelUnread?.countWithoutThreads ?? 0}
+        unreadCount={ctx.channelUnread?.countWithoutThreads ?? 0}
         onPressPost={canDrillIntoPost ? ctx.goToPost : undefined}
         onPressReplies={ctx.goToPost}
         onPressImage={ctx.goToImageViewer}
