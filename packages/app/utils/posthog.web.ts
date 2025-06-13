@@ -2,7 +2,7 @@ import { useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import posthog, { Properties } from 'posthog-js';
 
-import { POST_HOG_API_KEY, POST_HOG_IN_DEV } from '../constants';
+import { POST_HOG_API_KEY } from '../constants';
 
 export const EVENT_PRIVACY_MASK: Properties = {
   // The following default properties stop PostHog from auto-logging the URL,

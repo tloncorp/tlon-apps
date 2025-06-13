@@ -18,6 +18,7 @@ const ChatMessageInputFixture = () => {
           send={async () => {}}
           channelId="channel-id"
           groupMembers={group.members ?? []}
+          groupRoles={group.roles ?? []}
           getDraft={async () => ({})}
           storeDraft={async () => {}}
           clearDraft={async () => {}}
@@ -41,6 +42,7 @@ const NotebookInputFixture = () => {
           send={async () => {}}
           channelId="channel-id"
           groupMembers={group.members ?? []}
+          groupRoles={group.roles ?? []}
           getDraft={async () => ({})}
           storeDraft={async () => {}}
           clearDraft={async () => {}}

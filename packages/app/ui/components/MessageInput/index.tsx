@@ -64,6 +64,10 @@ import {
   UploadedImageAttachment,
   useAttachmentContext,
 } from '../../contexts/attachment';
+import {
+  createMentionOptions,
+  useMentions,
+} from '../BareChatInput/useMentions';
 import { AttachmentPreviewList } from './AttachmentPreviewList';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
 import { processReferenceAndUpdateEditor } from './helpers';
@@ -122,6 +126,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       send,
       channelId,
       groupMembers,
+      groupRoles,
       storeDraft,
       clearDraft,
       getDraft,
@@ -190,8 +195,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     ]);
     const [bigInputHeight, setBigInputHeight] = useState(bigInputHeightBasic);
     const [maxInputHeight, setMaxInputHeight] = useState(maxInputHeightBasic);
-    const [mentionText, setMentionText] = useState<string>();
-    const [showMentionPopup, setShowMentionPopup] = useState(false);
 
     const {
       attachments,
@@ -427,32 +430,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       );
 
       const json = (await editor.getJSON()) as JSONContent;
-      const inlines = (
-        tiptap
-          .JSONToInlines(json)
-          .filter(
-            (c) =>
-              typeof c === 'string' || (typeof c === 'object' && isInline(c))
-          ) as Inline[]
-      ).filter((inline) => inline !== null) as Inline[];
-      // find the first mention in the inlines without refs
-      const mentionInline = inlines.find(
-        (inline) => typeof inline === 'string' && inline.match(/\B[~@]/)
-      ) as string | undefined;
-      // extract the mention text from the mention inline
-      const mentionTextFromInline = mentionInline
-        ? mentionInline.slice((mentionInline.match(/\B[~@]/)?.index ?? -1) + 1)
-        : null;
-      if (mentionTextFromInline !== null) {
-        messageInputLogger.log('Mention text', mentionTextFromInline);
-        // if we have a mention text, we show the mention popup
-        setShowMentionPopup(true);
-        setMentionText(mentionTextFromInline);
-      } else {
-        setShowMentionPopup(false);
-        setMentionText('');
-      }
-
       messageInputLogger.log('Storing draft', json);
 
       if (
@@ -549,86 +526,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         }
       },
       [branchDomain, branchKey, addAttachment, editor]
-    );
-
-    const onSelectMention = useCallback(
-      async (contact: db.Contact) => {
-        messageInputLogger.log('Selected mention', contact);
-        const json = await editor.getJSON();
-        const inlines = tiptap.JSONToInlines(json);
-
-        let textBeforeSig = '';
-        let textBeforeAt = '';
-
-        const newInlines = inlines.map((inline) => {
-          if (typeof inline === 'string') {
-            if (inline.match(`~`)) {
-              textBeforeSig = inline.split('~')[0];
-
-              return {
-                ship: contact.id,
-              };
-            }
-
-            if (inline.match(`@`)) {
-              textBeforeAt = inline.split('@')[0];
-              return {
-                ship: contact.id,
-              };
-            }
-
-            return inline;
-          }
-          return inline;
-        });
-
-        if (textBeforeSig) {
-          const indexOfMention = newInlines.findIndex(
-            (inline) =>
-              typeof inline === 'object' &&
-              'ship' in inline &&
-              inline.ship === contact.id
-          );
-
-          newInlines.splice(indexOfMention, 0, textBeforeSig);
-        }
-
-        if (textBeforeAt) {
-          const indexOfMention = newInlines.findIndex(
-            (inline) =>
-              typeof inline === 'object' &&
-              'ship' in inline &&
-              inline.ship === contact.id
-          );
-
-          newInlines.splice(indexOfMention, 0, textBeforeAt);
-        }
-
-        const newStory = constructStory(newInlines);
-
-        const newJson = tiptap.diaryMixedToJSON(newStory);
-
-        // insert empty text node after mention
-        newJson.content?.map((node) => {
-          const containsMention = node.content?.some(
-            (n) => n.type === 'mention'
-          );
-          if (containsMention) {
-            node.content?.push({
-              type: 'text',
-              text: ' ',
-            });
-          }
-        });
-
-        messageInputLogger.log('onSelectMention, setting new content', newJson);
-        // @ts-expect-error setContent does accept JSONContent
-        editor.setContent(newJson);
-        storeDraft(newJson, draftType);
-        setMentionText('');
-        setShowMentionPopup(false);
-      },
-      [editor, storeDraft, draftType]
     );
 
     const sendMessage = useCallback(
@@ -985,9 +882,8 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         onPressEdit={handleEdit}
         containerHeight={containerHeight}
         sendError={sendError}
-        mentionText={mentionText}
-        groupMembers={groupMembers}
-        onSelectMention={onSelectMention}
+        mentionOptions={[]}
+        onSelectMention={() => {}}
         isEditing={!!editingPost}
         cancelEditing={handleCancelEditing}
         showAttachmentButton={showAttachmentButton}

@@ -208,7 +208,6 @@ const mockGroupOne: Group = {
       added: 1657774188151,
       join: false,
       readers: [],
-      writers: [],
       zone: 'default',
     },
   },
@@ -275,7 +274,6 @@ const mockGroupTwo: Group = {
       added: 1657774188151,
       join: true,
       readers: [],
-      writers: [],
       zone: 'default',
     },
     'heap/~zod/testHeap': {
@@ -288,7 +286,6 @@ const mockGroupTwo: Group = {
       added: 1657774188151,
       join: true,
       readers: [],
-      writers: [],
       zone: 'default',
     },
   },

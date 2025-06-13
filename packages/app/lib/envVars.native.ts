@@ -45,6 +45,7 @@ export const BRANCH_DOMAIN = envVars.branchDomain ?? '';
 export const INVITE_SERVICE_ENDPOINT = envVars.inviteServiceEndpoint ?? '';
 export const INVITE_SERVICE_IS_DEV =
   envVars.inviteServiceIsDev === 'true' ? true : undefined;
+export const GIT_HASH = envVars.gitHash ?? 'unknown';
 
 export const ENV_VARS = {
   DEV_SHIP_URL,
@@ -74,4 +75,5 @@ export const ENV_VARS = {
   BRANCH_DOMAIN,
   INVITE_SERVICE_ENDPOINT,
   INVITE_SERVICE_IS_DEV,
+  GIT_HASH,
 };

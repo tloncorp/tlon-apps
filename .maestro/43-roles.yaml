@@ -1,3 +1,4 @@
+# Note, this test is currently disabled. It's been replaced by a playwright test.
 appId: io.tlon.groups
 ---
 - runFlow: subflows/launch.yaml
@@ -7,7 +8,7 @@ appId: io.tlon.groups
 - tapOn:
     id: 'CreateGroupButton'
 # Assert that the sheet pops
-- assertVisible: 'Create customizable group chat'
+- assertVisible: 'Create a customizable group chat'
 - tapOn: 'New group'
 # Assert that the contacts sheet pops
 - assertVisible: 'Select contacts to invite'
@@ -15,7 +16,7 @@ appId: io.tlon.groups
 - tapOn: 'Create group'
 - runFlow:
     when:
-      visible: 'General'
+      visible: 'Untitled group'
     commands:
       - assertVisible: 'Welcome to your group!'
 # Navigate back to Home and assert that the group is created
@@ -27,7 +28,7 @@ appId: io.tlon.groups
     commands:
       - assertVisible: 'Untitled group'
       - tapOn: 'Untitled group'
-      - assertVisible: 'General'
+      - assertVisible: 'Untitled group'
 # Open the overflow menu from the channel header and navigate to the Roles screen
 - tapOn:
     id: 'ChannelHeaderOverflowMenuButton'
@@ -40,7 +41,6 @@ appId: io.tlon.groups
 - assertVisible: 'Add role'
 - tapOn: 'Role title'
 - inputText: 'Testing role'
-- tapOn: 'Role description'
 - tapOn: 'Role description'
 - inputText: 'Description for test role'
 - tapOn: 'Save'
@@ -108,7 +108,7 @@ appId: io.tlon.groups
 # Rename the role
 - tapOn: 'Testing role'
 - assertVisible: 'Edit role'
-- doubleTapOn:
+- longPressOn:
     id: 'RoleTitleInput'
 - runFlow:
     when:
@@ -116,7 +116,11 @@ appId: io.tlon.groups
     commands:
       - tapOn: 'Select All'
 - eraseText
-- inputText: 'Renamed role'
+- runFlow:
+    file: 'input-text.yaml'
+    env:
+      INPUT_TEXT: 'Renamed role'
+- tapOn: 'This role is currently used in the following channels:'
 - tapOn: 'Save'
 - waitForAnimationToEnd:
     timeout: 5000

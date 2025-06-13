@@ -1,3 +1,4 @@
+# Note, this test is currently disabled. It's been replaced by a playwright test.
 appId: io.tlon.groups
 ---
 - runFlow: subflows/launch.yaml
@@ -7,7 +8,7 @@ appId: io.tlon.groups
 - tapOn:
     id: 'CreateGroupButton'
 # Assert that the sheet pops
-- assertVisible: 'Create customizable group chat'
+- assertVisible: 'Create a customizable group chat'
 - tapOn: 'New group'
 # Assert that the contacts sheet pops
 - assertVisible: 'Select contacts to invite'
@@ -15,7 +16,7 @@ appId: io.tlon.groups
 - tapOn: 'Create group'
 - runFlow:
     when:
-      visible: 'General'
+      visible: 'Untitled group'
     commands:
       - assertVisible: 'Welcome to your group!'
 # Navigate back to Home and assert that the group is created
@@ -27,7 +28,7 @@ appId: io.tlon.groups
     commands:
       - assertVisible: 'Untitled group'
       - tapOn: 'Untitled group'
-      - assertVisible: 'General'
+      - assertVisible: 'Untitled group'
 # Open the overflow menu from the channel header and delete the group
 - tapOn:
     id: 'ChannelHeaderOverflowMenuButton'

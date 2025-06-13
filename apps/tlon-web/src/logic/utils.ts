@@ -1,10 +1,6 @@
-import { MessageKey } from '@tloncorp/shared/urbit/activity';
 import {
   CacheId,
   ChatStory,
-  Cite,
-  Listing,
-  Post,
   Story,
   Verse,
   VerseBlock,
@@ -12,8 +8,10 @@ import {
 } from '@tloncorp/shared/urbit/channel';
 import {
   Bold,
+  Cite,
   Inline,
   Italics,
+  Listing,
   Strikethrough,
 } from '@tloncorp/shared/urbit/content';
 import {

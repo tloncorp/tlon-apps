@@ -3,7 +3,7 @@
   "version": "5.7.0",
   "private": true,
   "scripts": {
-    "build": "tsc && vite build",
+    "build": "vite build",
     "build:mock": "tsc && vite build --mode staging",
     "build:profile": "tsc && vite build --mode profile",
     "build:electron": "tsc && vite build --mode electron",
@@ -23,7 +23,17 @@
     "serve": "vite preview",
     "serve-sw": "vite preview --mode sw",
     "tsc": "tsc --noEmit",
-    "cosmos": "cosmos"
+    "cosmos": "cosmos",
+    "rube": "tsc --isolatedModules --skipLibCheck ./rube/index.ts --outDir ./rube/dist && node ./rube/dist/index.js",
+    "e2e": "pnpm rube",
+    "e2e:debug": "cross-env DEBUG_PLAYWRIGHT=true pnpm e2e",
+    "e2e:debug:zod": "cross-env DEBUG_PLAYWRIGHT=true SHIP_NAME=zod pnpm e2e",
+    "e2e:debug:bus": "cross-env DEBUG_PLAYWRIGHT=true SHIP_NAME=bus pnpm e2e",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:headed": "playwright test --headed",
+    "e2e:codegen": "playwright codegen"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
@@ -117,7 +127,7 @@
   "devDependencies": {
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
     "@faker-js/faker": "^8.4.1",
-    "@playwright/test": "^1.33.0",
+    "@playwright/test": "^1.52.0",
     "@testing-library/jest-dom": "^5.16.4",
     "@testing-library/react": "^14.0.0",
     "@testing-library/user-event": "^14.2.0",

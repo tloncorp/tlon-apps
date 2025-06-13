@@ -172,7 +172,11 @@ export function WelcomePane(props: { onActionPress: () => void }) {
         </View>
       </YStack>
       <XStack width="100%" justifyContent="center" marginTop="$2xl">
-        <SplashButton onPress={props.onActionPress} marginHorizontal="$2xl">
+        <SplashButton
+          data-testid="lets-get-started"
+          onPress={props.onActionPress}
+          marginHorizontal="$2xl"
+        >
           Let's get started
         </SplashButton>
       </XStack>
@@ -221,6 +225,7 @@ export function GroupsPane(props: { onActionPress: () => void }) {
       </YStack>
       <XStack width="100%" justifyContent="center" marginTop="$2xl">
         <SplashButton
+          data-testid="got-it"
           marginTop="$l"
           onPress={props.onActionPress}
           marginHorizontal={isWeb ? '$4xl' : '$2xl'}
@@ -271,6 +276,7 @@ export function ChannelsPane(props: { onActionPress: () => void }) {
       </YStack>
       <XStack width="100%" justifyContent="center" marginTop="$2xl">
         <SplashButton
+          data-testid="one-quick-thing"
           marginTop="$l"
           onPress={props.onActionPress}
           marginHorizontal="$2xl"
@@ -315,6 +321,7 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
         </YStack>
         <XStack width="100%" justifyContent="center" marginTop="$2xl">
           <SplashButton
+            data-testid="invite-friends"
             marginTop="$l"
             onPress={props.onActionPress}
             marginHorizontal="$2xl"
@@ -438,6 +445,7 @@ export function InvitePane(props: { onActionPress: () => void }) {
           paddingHorizontal={isWeb ? 'unset' : '$2xl'}
         >
           <SplashButton
+            data-testid="connect-contact-book"
             marginTop="$l"
             onPress={handleAction}
             marginHorizontal={isWeb ? '$2xl' : 'unset'}

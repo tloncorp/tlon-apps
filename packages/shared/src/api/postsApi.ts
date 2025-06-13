@@ -55,7 +55,7 @@ export function chatAction(
   if (whomIsDm(whom)) {
     const action: Poke<DmAction> = {
       app: 'chat',
-      mark: 'chat-dm-action',
+      mark: 'chat-dm-action-1',
       json: {
         ship: whom,
         diff: {
@@ -70,7 +70,7 @@ export function chatAction(
   const diff: WritDiff = { id, delta };
   const action: Poke<ClubAction> = {
     app: 'chat',
-    mark: 'chat-club-action-0',
+    mark: 'chat-club-action-1',
     json: {
       id: whom,
       diff: {
@@ -150,19 +150,21 @@ export const sendPost = async ({
   if (channelType === 'dm' || channelType === 'groupDm') {
     const delta: WritDeltaAdd = {
       add: {
-        memo: {
+        essay: {
           content,
           sent: sentAt,
           author: authorId,
+          kind: '/chat',
+          meta: null,
+          blob: null,
         },
-        kind: null,
         time: null,
       },
     };
 
     const action = chatAction(
       channelId,
-      `${delta.add.memo.author}/${formatUd(unixToDa(delta.add.memo.sent).toString())}`,
+      `${delta.add.essay.author}/${formatUd(unixToDa(delta.add.essay.sent).toString())}`,
       delta
     );
     await poke(action);
@@ -174,14 +176,21 @@ export const sendPost = async ({
     authorId,
     sentAt,
     channelType,
-    metadata,
+    metadata: metadata
+      ? {
+          title: metadata.title || '',
+          image: metadata.image || '',
+          description: metadata.description || '',
+          cover: metadata.cover || '',
+        }
+      : undefined,
   });
 
-  await poke(
-    channelPostAction(channelId, {
-      add: essay,
-    })
-  );
+  const action = channelPostAction(channelId, {
+    add: essay,
+  });
+
+  await poke(action);
   logger.log('post sent', { channelId, authorId, sentAt, content });
 };
 
@@ -244,7 +253,14 @@ export const editPost = async ({
     authorId,
     sentAt,
     channelType,
-    metadata,
+    metadata: metadata
+      ? {
+          title: metadata.title || '',
+          image: metadata.image || '',
+          description: metadata.description || '',
+          cover: metadata.cover || '',
+        }
+      : undefined,
   });
 
   const action = channelPostAction(channelId, {
@@ -341,9 +357,9 @@ export const getChannelPosts = async ({
   const app = type === 'channel' ? 'channels' : 'chat';
   const path = formatScryPath(
     ...[
-      type === 'dm' ? 'dm' : null,
-      type === 'club' ? 'club' : null,
-      type === 'channel' ? 'v1' : null,
+      type === 'dm' ? 'v1/dm' : null,
+      type === 'club' ? 'v1/club' : null,
+      type === 'channel' ? 'v3' : null,
     ],
     channelId,
     type === 'channel' ? 'posts' : 'writs',
@@ -436,13 +452,13 @@ export const getChangedPosts = async ({
 export async function addReaction({
   channelId,
   postId,
-  shortCode,
+  emoji,
   our,
   postAuthor,
 }: {
   channelId: string;
   postId: string;
-  shortCode: string;
+  emoji: string;
   our: string;
   postAuthor: string;
 }) {
@@ -453,15 +469,15 @@ export async function addReaction({
     if (isDmChannelId(channelId)) {
       await poke({
         app: 'chat',
-        mark: 'chat-dm-action',
+        mark: 'chat-dm-action-1',
         json: {
           ship: channelId,
           diff: {
-            id: `${channelId}/${postId}`,
+            id: `${postAuthor}/${postId}`,
             delta: {
               'add-react': {
-                react: shortCode,
-                ship: our,
+                react: emoji,
+                author: our,
               },
             },
           },
@@ -471,7 +487,7 @@ export async function addReaction({
     } else {
       await poke({
         app: 'chat',
-        mark: 'chat-club-action-0',
+        mark: 'chat-club-action-1',
         json: {
           id: channelId,
           diff: {
@@ -480,8 +496,8 @@ export async function addReaction({
               writ: {
                 delta: {
                   'add-react': {
-                    react: shortCode,
-                    ship: our,
+                    react: emoji,
+                    author: our,
                   },
                 },
                 id: `${postAuthor}/${postId}`,
@@ -494,24 +510,17 @@ export async function addReaction({
     }
   }
 
-  await poke({
-    app: 'channels',
-    mark: 'channel-action',
-    json: {
-      channel: {
-        nest: channelId,
-        action: {
-          post: {
-            'add-react': {
-              id: postId,
-              react: shortCode,
-              ship: our,
-            },
-          },
+  await poke(
+    channelAction(channelId, {
+      post: {
+        'add-react': {
+          id: postId,
+          react: emoji,
+          ship: our,
         },
       },
-    },
-  });
+    })
+  );
 }
 
 export async function removeReaction({
@@ -532,7 +541,7 @@ export async function removeReaction({
     if (isDmChannelId(channelId)) {
       return poke({
         app: 'chat',
-        mark: 'chat-dm-action',
+        mark: 'chat-dm-action-1',
         json: {
           ship: channelId,
           diff: {
@@ -546,7 +555,7 @@ export async function removeReaction({
     } else {
       return poke({
         app: 'chat',
-        mark: 'chat-club-action-0',
+        mark: 'chat-club-action-1',
         json: {
           id: channelId,
           diff: {
@@ -565,30 +574,23 @@ export async function removeReaction({
     }
   }
 
-  return await poke({
-    app: 'channels',
-    mark: 'channel-action',
-    json: {
-      channel: {
-        nest: channelId,
-        action: {
-          post: {
-            'del-react': {
-              id: postId,
-              ship: our,
-            },
-          },
+  return await poke(
+    channelAction(channelId, {
+      post: {
+        'del-react': {
+          id: postId,
+          ship: our,
         },
       },
-    },
-  });
+    })
+  );
 }
 
 export async function showPost(post: db.Post) {
   if (isGroupChannelId(post.channelId)) {
     const action = {
       app: 'channels',
-      mark: 'channel-action',
+      mark: 'channel-action-1',
       json: {
         'toggle-post': {
           show: post.id,
@@ -616,7 +618,7 @@ export async function hidePost(post: db.Post) {
   if (isGroupChannelId(post.channelId)) {
     const action = {
       app: 'channels',
-      mark: 'channel-action',
+      mark: 'channel-action-1',
       json: {
         'toggle-post': {
           hide: post.id,
@@ -746,13 +748,13 @@ export const getPostWithReplies = async ({
 
   if (isDmChannelId(channelId)) {
     app = 'chat';
-    path = `/dm/${channelId}/writs/writ/id/${authorId}/${postId}`;
+    path = `/v1/dm/${channelId}/writs/writ/id/${authorId}/${postId}`;
   } else if (isGroupDmChannelId(channelId)) {
     app = 'chat';
-    path = `/club/${channelId}/writs/writ/id/${authorId}/${postId}`;
+    path = `/v1/club/${channelId}/writs/writ/id/${authorId}/${postId}`;
   } else if (isGroupChannelId(channelId)) {
     app = 'channels';
-    path = `/v1/${channelId}/posts/post/${postId}`;
+    path = `/v3/${channelId}/posts/post/${postId}`;
   } else {
     throw new Error('invalid channel id');
   }
@@ -762,7 +764,8 @@ export const getPostWithReplies = async ({
     path,
   });
 
-  return toPostData(channelId, post);
+  const postData = toPostData(channelId, post);
+  return postData;
 };
 
 export interface DeletedPost {
@@ -853,9 +856,7 @@ export function toPostData(
     }
   };
   const type = getPostType(post);
-  const kindData = post?.essay['kind-data'];
   const [content, flags] = toPostContent(post?.essay.content);
-  const metadata = parseKindData(kindData);
   const id = getCanonicalPostId(post.seal.id);
   const backendTime =
     post.seal && 'time' in post.seal
@@ -901,8 +902,10 @@ export function toPostData(
     type,
     backendTime,
     // Kind data will override
-    title: metadata?.title ?? '',
-    image: metadata?.image ?? '',
+    title: post.essay.meta?.title ?? '',
+    image: post.essay.meta?.image ?? '',
+    description: post.essay.meta?.description ?? '',
+    cover: post.essay.meta?.cover ?? '',
     authorId: post.essay.author,
     isEdited: 'revision' in post && post.revision !== '0',
     content: galleryImageLink
@@ -1111,13 +1114,7 @@ function parseKindData(kindData?: ub.KindData): db.PostMetadata | undefined {
 }
 
 function isNotice(post: ub.Post | ub.PostDataResponse | null) {
-  const kindData = post?.essay['kind-data'];
-  return (
-    kindData &&
-    isChatData(kindData) &&
-    kindData.chat &&
-    'notice' in kindData.chat
-  );
+  return post?.essay.kind === '/chat/notice';
 }
 
 function isChatData(data: KindData): data is KindDataChat {
@@ -1126,7 +1123,7 @@ function isChatData(data: KindData): data is KindDataChat {
 
 export function getContentImages(postId: string, content?: ub.Story | null) {
   return (content || []).reduce<db.PostImage[]>((memo, story) => {
-    if (ub.isBlock(story) && ub.isImage(story.block)) {
+    if (ub.isBlockVerse(story) && ub.isImage(story.block)) {
       memo.push({ ...story.block.image, postId });
     }
     return memo;
@@ -1134,16 +1131,18 @@ export function getContentImages(postId: string, content?: ub.Story | null) {
 }
 
 export function toReactionsData(
-  reacts: Record<string, string>,
+  reacts: Record<string, ub.React>,
   postId: string
 ): db.Reaction[] {
-  return Object.entries(reacts).map(([name, reaction]) => {
-    return {
-      contactId: name,
-      postId,
-      value: reaction,
-    };
-  });
+  return Object.entries(reacts)
+    .filter(([, r]) => typeof r === 'string')
+    .map(([name, reaction]) => {
+      return {
+        contactId: name,
+        postId,
+        value: reaction as string,
+      };
+    });
 }
 
 function formatCursor(cursor: Cursor) {

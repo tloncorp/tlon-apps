@@ -142,7 +142,7 @@ function PostScreenContent({
       parentPost={post}
       channel={channel}
       goBack={handleGoBack}
-      groupMembers={group?.members ?? []}
+      group={group}
       handleGoToImage={navigateToImage}
       onPressDelete={handleDeletePost}
       onPressRetry={handleRetrySend}

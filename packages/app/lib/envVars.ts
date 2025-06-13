@@ -30,6 +30,7 @@ const envVars = {
   branchDomain: env.VITE_BRANCH_DOMAIN_PROD,
   inviteServiceEndpoint: env.VITE_INVITE_SERVICE_ENDPOINT,
   inviteServiceIsDev: env.VITE_INVITE_SERVICE_IS_DEV,
+  gitHash: env.VITE_GIT_HASH,
 } as Record<string, string | undefined>;
 
 export const DEV_SHIP_URL = envVars.devShipUrl ?? '';
@@ -69,6 +70,7 @@ export const BRANCH_DOMAIN = envVars.branchDomain ?? 'join.tlon.io';
 export const INVITE_SERVICE_ENDPOINT = envVars.inviteServiceEndpoint ?? '';
 export const INVITE_SERVICE_IS_DEV =
   envVars.inviteServiceIsDev === 'true' ? true : undefined;
+export const GIT_HASH = envVars.gitHash ?? 'unknown';
 
 export const ENV_VARS = {
   DEV_SHIP_URL,
@@ -99,4 +101,5 @@ export const ENV_VARS = {
   BRANCH_DOMAIN,
   INVITE_SERVICE_ENDPOINT,
   INVITE_SERVICE_IS_DEV,
+  GIT_HASH,
 };

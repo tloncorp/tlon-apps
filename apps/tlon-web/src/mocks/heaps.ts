@@ -3,6 +3,7 @@ import {
   ScryHandler,
   SubscriptionHandler,
 } from '@tloncorp/mock-http-api';
+import { DraftInputId, PostContentRendererId } from '@tloncorp/shared';
 import { Channels, Perm, Posts } from '@tloncorp/shared/urbit/channel';
 import { subMinutes } from 'date-fns';
 
@@ -13,12 +14,34 @@ const mockPerms: Perm = {
   group: '~zod/test',
 };
 
+const emptyMeta = {
+  title: '',
+  description: '',
+  image: '',
+  cover: '',
+};
+
 const mockStash: Channels = {
   'heap/~zod/testHeap': {
     perms: mockPerms,
     view: 'grid',
     order: [],
     sort: 'time',
+    meta: {
+      version: 1,
+      postInput: {
+        type: DraftInputId.gallery,
+        postType: 'tlon.r0.post.gallery',
+        configuration: {},
+      },
+      postCollectionRenderer: {
+        id: PostContentRendererId.gallery,
+        configuration: {},
+      },
+      defaultContentRenderer: {
+        rendererId: PostContentRendererId.gallery,
+      },
+    },
     pending: {
       posts: {},
       replies: {},
@@ -39,8 +62,11 @@ const mockCurios: Posts = {
       reacts: {},
     },
     essay: {
-      'kind-data': {
-        heap: 'House rendering',
+      kind: '/heap',
+      blob: null,
+      meta: {
+        ...emptyMeta,
+        title: 'House rendering',
       },
       content: [
         {
@@ -65,8 +91,11 @@ const mockCurios: Posts = {
       reacts: {},
     },
     essay: {
-      'kind-data': {
-        heap: 'Description of a Martini',
+      kind: '/heap',
+      blob: null,
+      meta: {
+        ...emptyMeta,
+        title: 'Description of a Martini',
       },
       content: [
         {
@@ -91,8 +120,11 @@ const mockCurios: Posts = {
       reacts: {},
     },
     essay: {
-      'kind-data': {
-        heap: 'House rendering',
+      kind: '/heap',
+      blob: null,
+      meta: {
+        ...emptyMeta,
+        title: 'House rendering',
       },
       content: [
         {
@@ -117,9 +149,9 @@ const mockCurios: Posts = {
       reacts: {},
     },
     essay: {
-      'kind-data': {
-        heap: '',
-      },
+      kind: '/heap',
+      blob: null,
+      meta: emptyMeta,
       content: [
         {
           inline: [
@@ -143,8 +175,11 @@ const mockCurios: Posts = {
       reacts: {},
     },
     essay: {
-      'kind-data': {
-        heap: 'One Thing About Me',
+      kind: '/heap',
+      blob: null,
+      meta: {
+        ...emptyMeta,
+        title: 'One Thing About Me',
       },
       content: [
         {

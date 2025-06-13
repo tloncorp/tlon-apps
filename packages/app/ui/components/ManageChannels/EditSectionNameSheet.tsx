@@ -47,6 +47,7 @@ export function EditSectionNameSheet({
             rules={{ required: 'Section name is required' }}
             inputProps={{
               placeholder: 'e.g. Important channels',
+              testID: 'SectionNameInput',
             }}
           />
         </ActionSheet.FormBlock>

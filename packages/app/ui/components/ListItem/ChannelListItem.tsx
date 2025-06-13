@@ -140,7 +140,15 @@ export function ChannelListItem({
         onHoverIn={handleHoverIn}
         onHoverOut={handleHoverOut}
       >
-        <ListItem onLayout={onLayout} {...props}>
+        <ListItem
+          onLayout={onLayout}
+          {...props}
+          testID={
+            model.type === 'dm' || model.type === 'groupDm'
+              ? `ChannelListItem-${model.id}`
+              : `ChannelListItem-${model.title}`
+          }
+        >
           <ListItem.ChannelIcon
             model={model}
             useTypeIcon={useTypeIcon}

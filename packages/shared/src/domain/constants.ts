@@ -28,6 +28,7 @@ interface Constants {
   BRANCH_DOMAIN: string;
   INVITE_SERVICE_ENDPOINT: string;
   INVITE_SERVICE_IS_DEV: boolean;
+  GIT_HASH: string;
 }
 
 export function getConstants(): Constants {

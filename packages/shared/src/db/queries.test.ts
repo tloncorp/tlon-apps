@@ -1,8 +1,10 @@
 import { expect, test } from 'vitest';
 
+import { v0PeersToClientProfiles } from '../api';
 import { toClientGroups } from '../api/groupsApi';
 import * as schema from '../db/schema';
 import { syncInitData } from '../store/sync';
+import contactsResponse from '../test/contacts.json';
 import groupsResponse from '../test/groups.json';
 import {
   getClient,
@@ -63,6 +65,241 @@ test('uses init data to get chat list', async () => {
     '~barmyl-sigted/network-being',
     '~salfer-biswed/gamers',
   ]);
+});
+
+test('update channel: new writer roles with existing writer roles', async () => {
+  //setup
+  setScryOutputs([initResponse]);
+  await syncInitData();
+
+  const channelId = 'diary/~nibset-napwyn/getting-started';
+  const existingChannel = await queries.getChannel({
+    id: channelId,
+    includeWriters: true,
+  });
+
+  expect(existingChannel?.writerRoles.map((r) => r.roleId)).toEqual(['admin']);
+  await queries.updateChannel({
+    id: channelId,
+    writerRoles: [
+      {
+        channelId,
+        roleId: 'admin',
+      },
+      { channelId, roleId: 'writer' },
+    ],
+    readerRoles: [],
+  });
+
+  const updatedChannel = await queries.getChannel({
+    id: channelId,
+    includeWriters: true,
+  });
+  expect(updatedChannel?.writerRoles.map((r) => r.roleId)).toEqual([
+    'admin',
+    'writer',
+  ]);
+});
+
+test('update channel: new writer roles with no existing writer roles', async () => {
+  //setup
+  setScryOutputs([initResponse]);
+  await syncInitData();
+
+  const channelId = 'chat/~nibset-napwyn/intros';
+  const existingChannel = await queries.getChannel({
+    id: channelId,
+    includeWriters: true,
+  });
+
+  expect(existingChannel?.writerRoles).toEqual([]);
+  await queries.updateChannel({
+    id: channelId,
+    writerRoles: [{ channelId, roleId: 'writer' }],
+    readerRoles: [],
+  });
+
+  const updatedChannel = await queries.getChannel({
+    id: channelId,
+    includeWriters: true,
+  });
+  expect(updatedChannel?.writerRoles.map((r) => r.roleId)).toEqual(['writer']);
+});
+
+test('update channel: cleared out writer roles with existing roles', async () => {
+  //setup
+  setScryOutputs([initResponse]);
+  await syncInitData();
+  const channelId = 'diary/~nibset-napwyn/getting-started';
+  const existingChannel = await queries.getChannel({
+    id: channelId,
+    includeWriters: true,
+  });
+  expect(existingChannel?.writerRoles.map((r) => r.roleId)).toEqual(['admin']);
+  await queries.updateChannel({
+    id: channelId,
+    writerRoles: [],
+    readerRoles: [],
+  });
+  const updatedChannel = await queries.getChannel({
+    id: channelId,
+    includeWriters: true,
+  });
+  expect(updatedChannel?.writerRoles).toEqual([]);
+});
+
+test('update channel: new reader roles with existing reader roles', async () => {
+  //setup
+  setScryOutputs([initResponse]);
+  await syncInitData();
+  const channelId = 'heap/~nibset-napwyn/bulletin-board-53';
+  const group = await queries.getGroup({
+    id: '~nibset-napwyn/tlon',
+    includeUnjoinedChannels: true,
+  });
+
+  if (!group) {
+    throw new Error('Group not found');
+  }
+  console.log(
+    'group channels',
+    group.channels.map((c) => c.id)
+  );
+  const existingChannel = group.channels.find((c) => c.id === channelId);
+  if (!existingChannel) {
+    throw new Error('Channel not found');
+  }
+  expect(existingChannel.readerRoles.map((r) => r.roleId)).toEqual(['admin']);
+
+  await queries.updateChannel({
+    id: channelId,
+    readerRoles: [
+      {
+        channelId,
+        roleId: 'admin',
+      },
+      { channelId, roleId: 'reader' },
+    ],
+    writerRoles: [],
+  });
+
+  const updatedGroup = await queries.getGroup({
+    id: '~nibset-napwyn/tlon',
+    includeUnjoinedChannels: true,
+  });
+  if (!updatedGroup) {
+    throw new Error('Group not found after update');
+  }
+  const updatedChannel = updatedGroup.channels.find((c) => c.id === channelId);
+  if (!updatedChannel) {
+    throw new Error('Channel not found after update');
+  }
+  expect(updatedChannel.readerRoles.map((r) => r.roleId)).toEqual([
+    'admin',
+    'reader',
+  ]);
+});
+
+test('update channel: new reader roles with no existing reader roles', async () => {
+  //setup
+  setScryOutputs([initResponse]);
+  await syncInitData();
+  const channelId = 'chat/~nibset-napwyn/intros';
+  const group = await queries.getGroup({
+    id: '~nibset-napwyn/tlon',
+    includeUnjoinedChannels: true,
+  });
+  if (!group) {
+    throw new Error('Group not found');
+  }
+  const existingChannel = group.channels.find((c) => c.id === channelId);
+  if (!existingChannel) {
+    throw new Error('Channel not found');
+  }
+  expect(existingChannel.readerRoles).toEqual([]);
+  await queries.updateChannel({
+    id: channelId,
+    readerRoles: [{ channelId, roleId: 'reader' }],
+    writerRoles: [],
+  });
+  const updatedGroup = await queries.getGroup({
+    id: '~nibset-napwyn/tlon',
+    includeUnjoinedChannels: true,
+  });
+  if (!updatedGroup) {
+    throw new Error('Group not found after update');
+  }
+  const updatedChannel = updatedGroup.channels.find((c) => c.id === channelId);
+  if (!updatedChannel) {
+    throw new Error('Channel not found after update');
+  }
+  expect(updatedChannel.readerRoles.map((r) => r.roleId)).toEqual(['reader']);
+});
+
+test('update channel: cleared out reader roles with existing roles', async () => {
+  //setup
+  setScryOutputs([initResponse]);
+  await syncInitData();
+  const channelId = 'heap/~nibset-napwyn/bulletin-board-53';
+  const group = await queries.getGroup({
+    id: '~nibset-napwyn/tlon',
+    includeUnjoinedChannels: true,
+  });
+  if (!group) {
+    throw new Error('Group not found');
+  }
+  const existingChannel = group.channels.find((c) => c.id === channelId);
+  if (!existingChannel) {
+    throw new Error('Channel not found');
+  }
+  expect(existingChannel.readerRoles.map((r) => r.roleId)).toEqual(['admin']);
+  await queries.updateChannel({
+    id: channelId,
+    readerRoles: [],
+    writerRoles: [],
+  });
+  const updatedGroup = await queries.getGroup({
+    id: '~nibset-napwyn/tlon',
+    includeUnjoinedChannels: true,
+  });
+  if (!updatedGroup) {
+    throw new Error('Group not found after update');
+  }
+  const updatedChannel = updatedGroup.channels.find((c) => c.id === channelId);
+  if (!updatedChannel) {
+    throw new Error('Channel not found after update');
+  }
+  expect(updatedChannel.readerRoles).toEqual([]);
+});
+
+test('inserts contacts without overriding block data', async () => {
+  // setup
+  setScryOutputs([initResponse]);
+  await syncInitData();
+
+  const blocks = [
+    '~nocsyx-lassul',
+    '~ravmel-ropdyl',
+    '~fonrym-radfur-nocsyx-lassul',
+  ];
+  const blockedUsers = await queries.getBlockedUsers();
+  expect(blockedUsers.map((b) => b.id)).toEqual(blocks);
+
+  const contacts = v0PeersToClientProfiles(contactsResponse);
+  // nocsyx and ravmel are in contacts, but blocked
+  expect(
+    contacts.filter(
+      (c) => c.id === '~nocsyx-lassul' || c.id === '~ravmel-ropdyl'
+    )
+  ).toBeTruthy();
+  // fonrym is blocked, but not in contacts
+  expect(
+    contacts.find((c) => c.id === '~fonrym-radfur-nocsyx-lassul')
+  ).toBeFalsy();
+  // insert contacts
+  await queries.insertContacts(contacts);
+  const newBlockedUsers = await queries.getBlockedUsers();
+  expect(newBlockedUsers.map((b) => b.id)).toEqual(blocks);
 });
 
 const refDate = Date.now();

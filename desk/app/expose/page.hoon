@@ -10,12 +10,14 @@
 ++  render
   |=  [=bowl:gall =nest:g:c msg=post:d]
   ^-  (unit manx)
+  =/  author=@p
+    (get-author-ship:u author.msg)
   =/  aco=(unit contact-0:co)
-    (get-contact:co bowl author.msg)
+    (get-author-contact:r bowl author.msg)
   ::
   ::TODO  if we render replies then we can "unroll" whole chat threads too (:
-  |^  ?-  -.kind-data.msg
-          %chat
+  |^  ?+  kind.msg  ~
+          [%chat *]
         =/  title=tape
           (trip (rap 3 (turn (first-inline:u content.msg) flatten-inline:u)))
         %-  some
@@ -25,24 +27,26 @@
           (story:en-manx:u content.msg)
         ==
       ::
-          %diary
-        =*  kd  kind-data.msg
-        =/  title=tape  (trip title.kd)
+          [%diary *]
+        =/  [title=@t image=@t]
+          ?~  meta.msg  ['' '']
+          [title image]:u.meta.msg
+        =+  title=(trip title)
         %-  some
         %:  build  "diary"
-          (heads title ?:(=('' image.kd) ~ `image.kd))
+          (heads title ?:(=('' image) ~ `image))
         ::
-          ?:  =('' image.kd)  (prelude `title)
-          :-  ;img.cover@"{(trip image.kd)}"(alt "Cover image");
+          ?:  =('' image)  (prelude `title)
+          :-  ;img.cover@"{(trip image)}"(alt "Cover image");
           (prelude `title)
         ::
           (story:en-manx:u content.msg)
         ==
       ::
-          %heap
+          [%heap *]
         =/  title=tape
-          ?:  &(?=(^ title.kind-data.msg) !=('' u.title.kind-data.msg))
-            (trip u.title.kind-data.msg)
+          ?^  meta.msg
+            (trip title.u.meta.msg)
           ::NOTE  could flatten the first-inline, but we don't. showing that
           ::      as both h1 and content is strange
           ""
@@ -92,7 +96,7 @@
       ;meta(property "twitter:title", content title);
       ;meta(property "og:site_name", content "Tlon");
       ;meta(property "og:type", content "article");
-      ;meta(property "og:article:author:username", content (scow %p author.msg));
+      ;meta(property "og:article:author:username", content (scow %p author));
     ::
       ;*  ?~  img
           :_  ~
@@ -124,8 +128,8 @@
     =/  main=manx
       ;div.author-row
         ;+  =;  link=(unit @t)
-              (%*(. author:r link link) bowl author.msg)
-            ?.  =(our.bowl author.msg)  ~
+              (%*(. author:r link link) bowl author)
+            ?.  =(our.bowl author)  ~
             ?.  .^(? %gu /(scot %p our.bowl)/profile/(scot %da now.bowl)/$)  ~
             `'/profile'
         ;+  (datetime:r sent.msg)

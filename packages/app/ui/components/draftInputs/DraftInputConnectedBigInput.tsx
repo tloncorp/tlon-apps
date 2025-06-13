@@ -50,6 +50,7 @@ export function DraftInputConnectedBigInput({
         }
         channelId={channel.id}
         groupMembers={group?.members ?? []}
+        groupRoles={group?.roles ?? []}
         shouldBlur={shouldBlur}
         setShouldBlur={setShouldBlur}
         send={send}

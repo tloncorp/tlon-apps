@@ -60,6 +60,7 @@
     "browser-or-node": "^3.0.0",
     "exponential-backoff": "^3.1.1",
     "sorted-btree": "^1.8.1",
+    "validator": "^13.7.0",
     "uuid": "^9.0.0"
   },
   "devDependencies": {

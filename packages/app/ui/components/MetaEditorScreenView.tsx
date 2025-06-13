@@ -103,7 +103,10 @@ export function MetaEditorScreenView({
               name="title"
               label="Name"
               control={control}
-              inputProps={{ placeholder: capitalize(label) + ' name' }}
+              inputProps={{
+                placeholder: capitalize(label) + ' name',
+                testID: 'GroupTitleInput',
+              }}
               rules={{
                 maxLength: {
                   value: 30,
@@ -133,6 +136,7 @@ export function MetaEditorScreenView({
               inputProps={{
                 placeholder: `About this ${label}`,
                 numberOfLines: 5,
+                testID: 'GroupDescriptionInput',
                 multiline: true,
               }}
               rules={{

@@ -1,6 +1,6 @@
-/-  d=channels
+/-  c=channels
 /+  j=channel-json
-|_  =scam:d
+|_  =scam:v7:old:c
 ++  grad  %noun
 ++  grow
   |%
@@ -9,11 +9,11 @@
     =,  enjs:format
     %-  pairs
     :~  'last'^?~(last.scam ~ (id:enjs:j u.last.scam))
-        'scan'^a+(turn scan.scam reference:enjs:j)
+        'scan'^a+(turn scan.scam reference:v7:enjs:j)
     ==
   --
 ++  grab
   |%
-  +$  noun  scam:d
+  +$  noun  scam:v7:old:c
   --
 --

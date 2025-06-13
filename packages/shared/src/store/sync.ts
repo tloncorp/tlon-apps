@@ -94,6 +94,9 @@ export const syncInitData = async (
       .insertChannelPerms(initData.channelPerms, queryCtx)
       .then(() => logger.crumb('inserted channel perms'));
     await db
+      .insertChannelOrder(initData.channelPerms, queryCtx)
+      .then(() => logger.crumb('inserted channel order'));
+    await db
       .setLeftGroups({ joinedGroupIds: initData.joinedGroups }, queryCtx)
       .then(() => logger.crumb('set left groups'));
     await db
@@ -1547,6 +1550,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     return;
   }
   isSyncing = true;
+  updateSession({ phase: 'high' });
 
   const startTime = Date.now();
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
@@ -1630,6 +1634,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       });
     }
 
+    updateSession({ phase: 'low' });
     const lowPriorityPromises = [
       alreadySubscribed
         ? Promise.resolve()
@@ -1660,9 +1665,6 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       syncAppInfo({ priority: SyncPriority.Low }).then(() => {
         logger.crumb(`finished syncing app info`);
       }),
-      syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
-        logger.crumb(`finished channel predictive sync`);
-      }),
       syncSystemContacts({ priority: SyncPriority.Low }).then(() => {
         logger.crumb(`finished syncing system contacts`);
       }),
@@ -1682,10 +1684,18 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         });
       });
 
+    updateSession({ phase: 'ready' });
+
+    // fire off relevant channel posts sync, but don't wait for it
+    syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
+      logger.crumb(`finished channel predictive sync`);
+    });
+
     // post sync initialization work
     await verifyUserInviteLink();
     db.userHasCompletedFirstSync.setValue(true);
   } finally {
+    updateSession({ phase: 'ready' });
     isSyncing = false;
   }
 };

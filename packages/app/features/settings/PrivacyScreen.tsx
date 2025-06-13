@@ -23,31 +23,36 @@ interface PrivacyState {
   phoneDiscoverable: boolean;
   disableNicknames: boolean;
   disableAvatars: boolean;
+  disableTlonInfraEnhancement: boolean;
 }
 
 export function PrivacySettingsScreen(props: Props) {
   const store = useStore();
   const phoneAttest = store.useCurrentUserPhoneAttestation();
   const telemetry = useTelemetry();
-  const { data: calmSettings } = store.useCalmSettings();
+  const { data: settings } = store.useSettings();
 
   const [state, setState] = useState<PrivacyState>({
     phoneDiscoverable: parsePhoneDiscoverability(phoneAttest),
-    telemetryDisabled: telemetry.getIsOptedOut(),
-    disableNicknames: calmSettings?.disableNicknames ?? false,
-    disableAvatars: calmSettings?.disableAvatars ?? false,
+    telemetryDisabled: !(settings?.enableTelemetry ?? false),
+    disableNicknames: settings?.disableNicknames ?? false,
+    disableAvatars: settings?.disableAvatars ?? false,
+    disableTlonInfraEnhancement: settings?.disableTlonInfraEnhancement ?? false,
   });
 
-  // Update state when calm settings change
+  // Update state when settings change
   useEffect(() => {
-    if (calmSettings) {
+    if (settings) {
       setState((prev) => ({
         ...prev,
-        disableNicknames: calmSettings.disableNicknames ?? false,
-        disableAvatars: calmSettings.disableAvatars ?? false,
+        disableNicknames: settings.disableNicknames ?? false,
+        disableAvatars: settings.disableAvatars ?? false,
+        disableTlonInfraEnhancement:
+          settings.disableTlonInfraEnhancement ?? false,
+        telemetryDisabled: !(settings.enableTelemetry ?? false),
       }));
     }
-  }, [calmSettings]);
+  }, [settings]);
 
   useEffect(() => {
     if (phoneAttest) {
@@ -106,6 +111,17 @@ export function PrivacySettingsScreen(props: Props) {
     }
   }, [state.disableAvatars, store]);
 
+  const toggleDisableTlonInfraEnhancement = useCallback(async () => {
+    const nextValue = !state.disableTlonInfraEnhancement;
+    setState((prev) => ({ ...prev, disableTlonInfraEnhancement: nextValue }));
+    try {
+      await store.updateDisableTlonInfraEnhancement(nextValue);
+    } catch (e) {
+      triggerHaptic('error');
+      setState((prev) => ({ ...prev, disableAvatars: !nextValue }));
+    }
+  }, [state.disableTlonInfraEnhancement, store]);
+
   return (
     <View flex={1} backgroundColor="$background">
       <ScreenHeader
@@ -148,6 +164,22 @@ export function PrivacySettingsScreen(props: Props) {
             </Text>
           </YStack>
         )}
+
+        <YStack paddingHorizontal="$l" paddingTop="$2xl" gap="$xl">
+          <XStack justifyContent="space-between" alignItems="center">
+            <SizableText flexShrink={1}>Disable Tlon helpers</SizableText>
+            <Switch
+              style={{ flexShrink: 0 }}
+              value={state.disableTlonInfraEnhancement}
+              onValueChange={toggleDisableTlonInfraEnhancement}
+            ></Switch>
+          </XStack>
+          <Text size="$label/s" color="$secondaryText">
+            Your ship will always attempt to generate rich link previews
+            locally. If disabled, the app will avoid making backup requests to
+            Tlon's service if local generation fails.
+          </Text>
+        </YStack>
 
         <YStack paddingHorizontal="$l" paddingTop="$2xl" gap="$xl">
           <XStack justifyContent="space-between" alignItems="center">

@@ -34,6 +34,7 @@ export async function scaffoldPersonalGroup() {
       title: PersonalGroupKeys.groupName,
       iconImage: groupIconUrl,
       currentUserIsMember: true,
+      isPersonalGroup: true,
       hostUserId: currentUserId,
       currentUserIsHost: true,
       privacy: 'secret',

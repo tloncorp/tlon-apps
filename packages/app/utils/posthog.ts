@@ -3,7 +3,7 @@ import { useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import PostHog from 'posthog-react-native';
 
-import { POST_HOG_API_KEY } from '../constants';
+import { GIT_HASH, POST_HOG_API_KEY } from '../constants';
 
 export type OnboardingProperties = {
   actionName: string;
@@ -34,6 +34,9 @@ posthogAsync?.then((client) => {
   posthog = client;
   crashlytics().setAttribute('analyticsId', client.getDistinctId());
   useDebugStore.getState().initializeErrorLogger(client);
+  posthog?.register({
+    gitHash: GIT_HASH,
+  });
 });
 
 const capture = (event: string, properties?: { [key: string]: any }) => {

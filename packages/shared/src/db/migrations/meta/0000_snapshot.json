@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "5d647bb5-bb38-4cd4-a491-d5e0d5731f93",
+  "id": "0f17c271-e1e5-49ef-aae0-666c3b66c643",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -1493,7 +1493,7 @@
           "name": "id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "group_id": {
@@ -1719,6 +1719,14 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "is_personal_group": {
+          "name": "is_personal_group",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": false
         },
         "join_status": {
           "name": "join_status",
@@ -2029,6 +2037,20 @@
           "notNull": false,
           "autoincrement": false
         },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cover": {
+          "name": "cover",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "content": {
           "name": "content",
           "type": "text",
@@ -2312,6 +2334,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "enable_telemetry": {
+          "name": "enable_telemetry",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "analytics_id": {
           "name": "analytics_id",
           "type": "text",
@@ -2384,6 +2413,13 @@
         },
         "completed_wayfinding_tutorial": {
           "name": "completed_wayfinding_tutorial",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "disable_tlon_infra_enhancement": {
+          "name": "disable_tlon_infra_enhancement",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,

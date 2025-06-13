@@ -138,6 +138,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
       <YStack gap="$xl" marginTop="auto" alignItems="center">
         <NavIcon
           type="Settings"
+          testID="SettingsNavIcon"
           isActive={isRouteActive('Settings')}
           shouldShowUnreads={false}
           onPress={() => {

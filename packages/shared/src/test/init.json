@@ -11570,7 +11570,11 @@
       }
     },
     "invited": [],
-    "blocked": [],
+    "blocked": [
+      "~nocsyx-lassul",
+      "~ravmel-ropdyl",
+      "~fonrym-radfur-nocsyx-lassul"
+    ],
     "blocked-by": []
   },
   "pins": ["0v4.00000.qd6oi.a3f6t.5sd9v.fjmp2"],
@@ -13573,7 +13577,7 @@
         "heap/~nibset-napwyn/bulletin-board-53": {
           "join": false,
           "added": 1681835507711,
-          "readers": [],
+          "readers": ["admin"],
           "zone": "zks3gi",
           "meta": {
             "image": "",
