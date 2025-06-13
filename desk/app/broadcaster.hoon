@@ -157,7 +157,7 @@
       :-  who
       :-  [our now]:bowl
       [%add essay ~]
-    [%pass wire %agent [our.bowl %chat] %poke %chat-dm-action !>(action)]
+    [%pass wire %agent [our.bowl %chat] %poke %chat-dm-action-1 !>(action)]
   ::
       %delete
     =/  =cohort
@@ -175,7 +175,7 @@
       /delete/(scot %t cohort.action)/(scot %da time-id.action)/(scot %p who)
     =/  =id:c         [our.bowl time-id.action]
     =/  =action:dm:c  [who id %del ~]
-    [%pass wire %agent [our.bowl %chat] %poke %chat-dm-action !>(action)]
+    [%pass wire %agent [our.bowl %chat] %poke %chat-dm-action-1 !>(action)]
   ==
 ::
 ++  on-agent
