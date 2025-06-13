@@ -166,3 +166,22 @@ export async function updateDisableTlonInfraEnhancement(disabled: boolean) {
     await db.insertSettings({ disableTlonInfraEnhancement: oldValue });
   }
 }
+
+export async function updateEnableTelemetry(value: boolean) {
+  const existing = await db.getSettings();
+  const oldValue = existing?.enableTelemetry;
+
+  try {
+    // optimistic update
+    await db.insertSettings({ enableTelemetry: value });
+    await setSetting('enableTelemetry', value);
+  } catch (e) {
+    logger.trackError('Error updating telemetry setting', {
+      value,
+      severity: AnalyticsSeverity.Medium,
+      errorMessage: e.message,
+      errorStack: e.stack,
+    });
+    await db.insertSettings({ enableTelemetry: oldValue });
+  }
+}

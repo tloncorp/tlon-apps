@@ -59,7 +59,8 @@ export type GroupsSettings = {
   groupSideBarSort?: Stringified<GroupSideBarSort>;
   hasBeenUsed?: boolean;
   showActivityMessage?: boolean;
-  logActivity?: boolean;
+  enableTelemetry?: boolean;
+  logActivity?: boolean; // Deprecated, use enableTelemetry
   analyticsId?: string;
   seenWelcomeCard?: boolean;
   newGroupFlags: string[];

@@ -6,7 +6,6 @@ export * from './contactsApi';
 export * from './groupsApi';
 export * from './landscapeApi';
 export * from './postsApi';
-export * from './userApi';
 export * from './urbit';
 export * from './postsApi';
 export * from '../store/reactQuery';

@@ -9,7 +9,7 @@
 // This was most likely caused by a recent dependency change.
 import regeneratorRuntime from '@babel/runtime/regenerator';
 import { EditorView } from '@tiptap/pm/view';
-import { ENABLED_LOGGERS, POST_HOG_IN_DEV } from '@tloncorp/app/constants';
+import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
 import { loadConstants } from '@tloncorp/app/lib/constants';
 import {
   AnalyticsEvent,

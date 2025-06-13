@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "c14a3785-4d57-47f6-a57c-d83610aee90a",
+  "id": "0f17c271-e1e5-49ef-aae0-666c3b66c643",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2329,6 +2329,13 @@
         },
         "log_activity": {
           "name": "log_activity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "enable_telemetry": {
+          "name": "enable_telemetry",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
