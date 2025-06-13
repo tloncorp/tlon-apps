@@ -121,9 +121,13 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
   }
 
   function useStorageItem() {
-    const value = useValue();
+    const { data: value, isLoading } = useQuery({
+      queryKey: [key],
+      queryFn: () => getValue(),
+    });
     return {
-      value,
+      value: value === undefined ? defaultValue : value,
+      isLoading,
       setValue,
       resetValue,
     };

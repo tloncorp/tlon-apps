@@ -350,6 +350,7 @@ CREATE TABLE `settings` (
 	`group_side_bar_sort` text,
 	`show_activity_message` integer,
 	`log_activity` integer,
+	`enable_telemetry` integer,
 	`analytics_id` text,
 	`seen_welcome_card` integer,
 	`new_group_flags` text,
