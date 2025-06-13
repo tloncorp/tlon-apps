@@ -50,7 +50,7 @@ export function useTelemetry(): TelemetryClient {
   const clearConfig = useClearTelemetryConfig();
   const telemetryEnabled = settings?.enableTelemetry;
 
-  const getIsOptedOut = useCallback(async () => {
+  const getIsOptedOut = useCallback(() => {
     const isHosted = api.getCurrentUserIsHosted();
     const defaultToOptedOut = !isHosted;
     if (telemetryEnabled !== undefined && telemetryEnabled !== null) {
@@ -122,7 +122,7 @@ export function useTelemetry(): TelemetryClient {
         `Capturing mandatory event ${eventId} with properties:`,
         properties
       );
-      const optedOut = await getIsOptedOut();
+      const optedOut = getIsOptedOut();
       if (optedOut) {
         posthog?.optIn();
         posthog?.capture(eventId, properties);
@@ -142,7 +142,7 @@ export function useTelemetry(): TelemetryClient {
           ? AnalyticsEvent.WebAppOpened
           : AnalyticsEvent.AppActive;
       logger.log(`Capturing app active event: ${eventId}`);
-      const optedOut = await getIsOptedOut();
+      const optedOut = getIsOptedOut();
       if (!optedOut) {
         posthog.capture(eventId, { isHostedUser });
       } else {
@@ -189,7 +189,7 @@ export function useTelemetry(): TelemetryClient {
 
       logger.log('Initializing telemetry');
       posthog?.capture('Initializing telemetry');
-      const optedOut = await getIsOptedOut();
+      const optedOut = getIsOptedOut();
       setDisabled(optedOut);
       telemetryStorage.setValue(true);
     }
@@ -231,17 +231,10 @@ export function useTelemetry(): TelemetryClient {
   useEffect(() => {
     // if we hear about a change to the enableTelemetry setting after
     // initializing and we're not synced, we should update the state of posthog
-    async function runEffect() {
-      const optedOut = await getIsOptedOut();
-      if (
-        telemetryInitialized &&
-        ready &&
-        optedOut !== posthog.getIsOptedOut()
-      ) {
-        setDisabled(optedOut, false);
-      }
+    const optedOut = getIsOptedOut();
+    if (telemetryInitialized && ready && optedOut !== posthog.getIsOptedOut()) {
+      setDisabled(optedOut, false);
     }
-    runEffect();
   }, [
     ready,
     telemetryEnabled,
@@ -252,7 +245,7 @@ export function useTelemetry(): TelemetryClient {
   ]);
 
   return {
-    getIsOptedOut: posthog.getIsOptedOut,
+    getIsOptedOut,
     optIn: posthog.optIn,
     optOut: posthog.optOut,
     identify: posthog.identify,
