@@ -66,17 +66,15 @@ export const useChannelContext = ({
     [channelId, isDM]
   );
 
-  const negotiationStatus = useNegotiate(
-    channelHost,
-    isDM ? 'chat' : 'channels',
-    isDM ? 'chat' : 'channels-server'
-  );
+  const app = isDM || isGroupDm ? 'chat' : 'channels';
+  const agent = isDM || isGroupDm ? 'chat' : 'channels-server';
+  const negotiationStatus = useNegotiate(channelHost, app, agent);
   const multiNegotiationStatus = useNegotiateMulti(
     channelQuery.data
       ? (channelQuery.data.members || []).map((m) => m.contactId)
       : [],
-    isDM ? 'chat' : 'channels',
-    isDM ? 'chat' : 'channels-server'
+    app,
+    agent
   );
 
   // Draft

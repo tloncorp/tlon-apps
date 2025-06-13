@@ -593,4 +593,22 @@
       dat
     (add dat 32)
   --
+++  writ-7-to-8
+  |=  =writ:old-3
+  ^-  writ:c
+  %=  writ
+    reacts  (~(run by reacts.writ) react-7-to-8:cu)
+    replies  (run:on:replies:old-3 replies.writ reply-7-to-8)
+    :: essay
+    +  =-  ?>(?=([%chat *] kind.-) -)
+        (essay-7-to-8:cu +.writ)
+  ==
+++  reply-7-to-8
+  |=  =reply:old-3
+  ^-  reply:c
+  %=  reply
+    reacts  (~(run by reacts.reply) react-7-to-8:cu)
+    ::  memo
+    +  (memo-7-to-8:cu +.reply)
+  ==
 --
