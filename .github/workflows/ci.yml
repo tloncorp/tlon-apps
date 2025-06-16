@@ -19,9 +19,6 @@ jobs:
             - recursive: true
               args: [--frozen-lockfile]
 
-      - name: Build packages
-        run: pnpm build:all
-
       - name: Run Lint
         run: pnpm -r lint
 
@@ -30,6 +27,9 @@ jobs:
 
       - name: Run Tests
         run: pnpm test:ci
+
+      - name: Build packages
+        run: pnpm build:all
 
       - name: Get Playwright version
         id: playwright-version
