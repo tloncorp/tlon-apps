@@ -24,8 +24,17 @@ export type PostListComponent = React.ForwardRefExoticComponent<{
   contentContainerStyle?: StyleProp<ViewStyle>;
   hasNewerPosts?: boolean;
   inverted?: boolean;
+  // This should take precedence over the `collectionLayoutType`'s intrinsic column count
+  numColumns: number;
   onEndReached?: () => void;
   onInitialScrollCompleted?: () => void;
+  /**
+   * Called once each time the list is scrolled to the start. This is different
+   * from `onStartReached` which prevents itself from firing until the scroll's
+   * content height has changed.
+   */
+  onScrolledToBottom?: () => void;
+  onScrolledAwayFromBottom?: () => void;
   onStartReached?: () => void;
   postsWithNeighbors: PostWithNeighbors[];
   ref: React.Ref<PostListMethods>;
@@ -36,15 +45,4 @@ export type PostListComponent = React.ForwardRefExoticComponent<{
   }) => React.ReactNode;
   scrollEnabled?: boolean;
   style?: StyleProp<ViewStyle>;
-
-  // This should take precedence over the `collectionLayoutType`'s intrinsic column count
-  numColumns: number;
-
-  /**
-   * Called once each time the list is scrolled to the start. This is different
-   * from `onStartReached` which prevents itself from firing until the scroll's
-   * content height has changed.
-   */
-  onScrolledToBottom?: () => void;
-  onScrolledAwayFromBottom?: () => void;
 }>;
