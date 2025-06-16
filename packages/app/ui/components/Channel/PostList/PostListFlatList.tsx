@@ -89,7 +89,7 @@ export const PostList: PostListComponent = React.forwardRef(
       } else {
         onScrolledAwayFromBottom?.();
       }
-    }, [isAtBottom]);
+    }, [onScrolledToBottom, onScrolledAwayFromBottom, isAtBottom]);
 
     const renderItemWithExtraProps = React.useCallback<typeof renderItem>(
       ({ item, index }) =>
@@ -100,7 +100,7 @@ export const PostList: PostListComponent = React.forwardRef(
           },
           index,
         }),
-      []
+      [anchorScrollLockScrollerItemProps, renderItem]
     );
 
     React.useImperativeHandle(
@@ -163,3 +163,4 @@ export const PostList: PostListComponent = React.forwardRef(
     );
   }
 );
+PostList.displayName = 'PostListFlatList';
