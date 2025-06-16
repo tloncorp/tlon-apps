@@ -119,19 +119,6 @@ export default function ChannelScreen(props: Props) {
     }
   }, [channelIsPending, channelId]);
 
-  // for the unread channel divider, we care about the unread state when you enter but don't want it to update over
-  // time
-  // const [initialChannelUnread, setInitialChannelUnread] =
-  //   React.useState<db.ChannelUnread | null>(null);
-  // const [unreadDidInitialize, setUnreadDidInitialize] = React.useState(false);
-  // useEffect(() => {
-  //   async function initializeChannelUnread() {
-  //     const unread = await db.getChannelUnread({ channelId: currentChannelId });
-  //     setInitialChannelUnread(unread ?? null);
-  //     setUnreadDidInitialize(true);
-  //   }
-  //   initializeChannelUnread();
-  // }, [currentChannelId]);
   const [lastChannelUnread, setLastChannelUnread] =
     useState<db.ChannelUnread | null>(null);
   const { data: channelUnread, isLoading: isLoadingChannelUnread } =
@@ -148,13 +135,30 @@ export default function ChannelScreen(props: Props) {
 
   const isFocused = useIsFocused();
   useEffect(() => {
+    let timeout = null as NodeJS.Timeout | null;
+    // if the channel receives new unreads, cancel the clearing of lastChannelUnread
+    // so that we don't clear the marker for new unreads
+    if (timeout && (channelUnread?.countWithoutThreads || 0) > 0) {
+      clearTimeout(timeout);
+      timeout = null;
+    }
+
+    // if the channel is in the background, we have a lastChannelUnread
+    // and the countWithoutThreads is 0, we clear the lastChannelUnread after 10 seconds
+    // to avoid showing stale unreads when the user comes back to the channel
     if (
       !isFocused &&
       lastChannelUnread &&
       channelUnread?.countWithoutThreads === 0
     ) {
-      setLastChannelUnread(null);
+      timeout = setTimeout(() => setLastChannelUnread(null), 10_000);
     }
+
+    return () => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    };
   }, [isFocused, lastChannelUnread, channelUnread?.countWithoutThreads]);
 
   const { navigateToImage, navigateToPost, navigateToRef, navigateToSearch } =
@@ -299,9 +303,15 @@ export default function ChannelScreen(props: Props) {
 
       if (post.editStatus === 'failed' && post.lastEditContent) {
         const postFromDb = await db.getPost({ postId: post.id });
-        let metadata: db.PostMetadata | undefined;
+        let metadata: db.PostMetadata = {
+          title: '',
+          image: '',
+          description: '',
+          cover: '',
+        };
         if (post.lastEditTitle) {
           metadata = {
+            ...metadata,
             title: post.lastEditTitle ?? undefined,
           };
         }
