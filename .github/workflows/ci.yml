@@ -22,6 +22,9 @@ jobs:
       - name: Run Lint
         run: pnpm -r lint
 
+      - name: Build editor package (allows us to run type checks)
+        run: pnpm build:editor
+
       - name: Check Types
         run: pnpm -r tsc
 
