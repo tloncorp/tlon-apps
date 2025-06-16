@@ -143,6 +143,8 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
             style={{
               display: 'flex',
               minHeight: '100%',
+              flexDirection: 'column',
+              justifyContent: 'stretch',
             }}
           >
             <View
