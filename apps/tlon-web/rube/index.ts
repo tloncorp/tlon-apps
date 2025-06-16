@@ -39,6 +39,7 @@ interface Ship {
   webUrl: string;
   savePath: string;
   extractPath: string;
+  skipCommit: boolean;
 }
 
 function getShips(): Record<string, Ship> {
@@ -427,7 +428,7 @@ const commitDesks = async () => {
   console.log('Committing desks on fake ships');
 
   for (const ship of Object.values(ships) as Ship[]) {
-    if (targetShip && targetShip !== ship.ship) {
+    if ((targetShip && targetShip !== ship.ship) || ship.skipCommit === true) {
       continue;
     }
 
@@ -526,7 +527,10 @@ const shipsAreReadyForTests = async () => {
   const shipsArray = Object.values(ships);
   const results = await Promise.all(
     shipsArray.map(async (ship: Ship) => {
-      if (targetShip && targetShip !== ship.ship) {
+      if (
+        (targetShip && targetShip !== ship.ship) ||
+        ship.skipCommit === true
+      ) {
         return true;
       }
 
@@ -537,7 +541,10 @@ const shipsAreReadyForTests = async () => {
 
       const json = JSON.parse(response);
 
-      if (json.groups.hash !== startHashes[ship.ship].groups) {
+      if (
+        json.groups.hash !== startHashes[ship.ship].groups &&
+        ship.skipCommit === false
+      ) {
         console.log(`~${ship.ship} is ready`, {
           groups: json.groups.hash,
         });
