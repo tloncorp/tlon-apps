@@ -43,7 +43,9 @@ export const settings = sqliteTable('settings', {
   >(),
   groupSideBarSort: text('group_side_bar_sort', { mode: 'json' }),
   showActivityMessage: boolean('show_activity_message'),
+  // DEPRECATED: use `enableTelemetry` instead, retained for setting migration
   logActivity: boolean('log_activity'),
+  enableTelemetry: boolean('enable_telemetry'),
   analyticsId: text('analytics_id'),
   seenWelcomeCard: boolean('seen_welcome_card'),
   newGroupFlags: text('new_group_flags', { mode: 'json' }),
@@ -432,6 +434,7 @@ export const groups = sqliteTable('groups', {
   currentUserIsHost: boolean('current_user_is_host').notNull(),
   hostUserId: text('host_user_id').notNull(),
   isNew: boolean('is_new'),
+  isPersonalGroup: boolean('is_personal_group').default(false),
   joinStatus: text('join_status').$type<GroupJoinStatus>(),
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
@@ -886,6 +889,10 @@ export const channels = sqliteTable(
     contentConfiguration: text('content_configuration', {
       mode: 'json',
     }).$type<ChannelContentConfiguration>(),
+
+    order: text('posts_order', {
+      mode: 'json',
+    }).$type<string[]>(),
   },
   (table) => ({
     lastPostIdIndex: index('last_post_id').on(table.lastPostId),

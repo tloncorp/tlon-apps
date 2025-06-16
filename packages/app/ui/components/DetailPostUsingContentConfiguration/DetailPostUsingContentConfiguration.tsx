@@ -35,7 +35,6 @@ export function DetailPostView({
   const channelCtx = useChannelContext({
     channelId: channel.id,
     draftKey: post.id,
-    isChannelSwitcherEnabled: false,
   });
   const listRef = useRef<FlatList<ListItem>>(null);
   // use boolean coercion to also check if post.title is empty string
@@ -99,7 +98,6 @@ export function DetailPostView({
           showSearchButton={false}
           // showSpinner={isLoadingPosts}
           post={post}
-          mode="default"
         />
         <FlatList
           ref={listRef}

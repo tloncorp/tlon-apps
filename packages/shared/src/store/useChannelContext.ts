@@ -12,13 +12,9 @@ import { usePostDraftCallbacks } from './usePostDraftCallbacks';
 export const useChannelContext = ({
   channelId,
   draftKey,
-  isChannelSwitcherEnabled,
 }: {
   channelId: string;
   draftKey: string;
-
-  // need to populate this from feature flags :(
-  isChannelSwitcherEnabled: boolean;
 }) => {
   const channelQuery = dbHooks.useChannel({
     id: channelId,
@@ -70,17 +66,15 @@ export const useChannelContext = ({
     [channelId, isDM]
   );
 
-  const negotiationStatus = useNegotiate(
-    channelHost,
-    isDM ? 'chat' : 'channels',
-    isDM ? 'chat' : 'channels-server'
-  );
+  const app = isDM || isGroupDm ? 'chat' : 'channels';
+  const agent = isDM || isGroupDm ? 'chat' : 'channels-server';
+  const negotiationStatus = useNegotiate(channelHost, app, agent);
   const multiNegotiationStatus = useNegotiateMulti(
     channelQuery.data
       ? (channelQuery.data.members || []).map((m) => m.contactId)
       : [],
-    isDM ? 'chat' : 'channels',
-    isDM ? 'chat' : 'channels-server'
+    app,
+    agent
   );
 
   // Draft
@@ -98,6 +92,5 @@ export const useChannelContext = ({
     editPost,
     channel: channelQuery.data ?? null,
     group: groupQuery.data ?? null,
-    headerMode: isChannelSwitcherEnabled ? 'next' : 'default',
   } as const;
 };

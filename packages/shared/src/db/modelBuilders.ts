@@ -112,7 +112,10 @@ export function assemblePostFromActivityEvent(event: db.ActivityEvent) {
     sentAt: event.timestamp,
     receivedAt: event.timestamp,
     content: JSON.stringify(postContent),
-    textContent: ub.getTextContent(event.content as ub.Story),
+    textContent: logic.getTextContent(
+      event.content as ub.Story,
+      logic.PlaintextPreviewConfig.inlineConfig
+    ),
     images: api.getContentImages(event.id, event.content as ub.Story),
     reactions: [],
     replies: [],
@@ -158,7 +161,10 @@ export function buildPendingPost({
     title: metadata?.title ?? '',
     image: metadata?.image ?? '',
     content: JSON.stringify(postContent),
-    textContent: ub.getTextContent(content),
+    textContent: logic.getTextContent(
+      postContent,
+      logic.PlaintextPreviewConfig.inlineConfig
+    ),
     images: api.getContentImages(id, content),
     reactions: [],
     replies: [],
@@ -255,6 +261,7 @@ export function buildChannel(
     | 'lastViewedAt'
     | 'members'
     | 'postCount'
+    | 'order'
     | 'remoteUpdatedAt'
     | 'syncedAt'
     | 'title'
@@ -282,6 +289,7 @@ export function buildChannel(
     lastViewedAt: null,
     members: [],
     postCount: null,
+    order: null,
     remoteUpdatedAt: null,
     syncedAt: null,
     title: '',

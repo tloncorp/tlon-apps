@@ -153,9 +153,14 @@ const ChatMessage = ({
   // }, [post.sentAt]);
 
   if (post.isDeleted) {
-    return <ErrorMessage message="Message deleted" />;
+    return <ErrorMessage testID="MessageDeleted" message="Message deleted" />;
   } else if (post.hidden) {
-    return <ErrorMessage message="Message hidden or flagged" />;
+    return (
+      <ErrorMessage
+        testID="MessageHidden"
+        message="Message hidden or flagged"
+      />
+    );
   }
 
   const shouldRenderReplies =
@@ -235,7 +240,7 @@ const ChatMessage = ({
           </Pressable>
         ) : null}
 
-        <View paddingLeft={!isNotice && '$4xl'}>
+        <View paddingLeft={!isNotice ? '$4xl' : undefined}>
           <ChatContentRenderer
             content={post.editStatus === 'failed' ? lastEditContent : content}
             isNotice={post.type === 'notice'}
@@ -289,6 +294,7 @@ const ChatMessage = ({
                 backgroundColor="transparent"
                 borderWidth="unset"
                 size="$l"
+                testID="MessageActionsTrigger"
               >
                 <Icon type="Overflow" />
               </Button>
@@ -332,13 +338,20 @@ const ChatContentRenderer = createContentRenderer({
   },
 });
 
-function ErrorMessage({ message }: { message: string }) {
+function ErrorMessage({
+  message,
+  testID,
+}: {
+  message: string;
+  testID?: string;
+}) {
   return (
     <XStack
       gap="$s"
       paddingVertical="$xl"
       justifyContent={'center'}
       alignItems={'center'}
+      testID={testID}
     >
       <Icon size="$s" type="Placeholder" color="$tertiaryText" />
       <Text size="$label/m" color="$tertiaryText">

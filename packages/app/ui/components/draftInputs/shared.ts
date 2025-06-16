@@ -48,7 +48,6 @@ export interface DraftInputContext {
   editingPost?: db.Post;
   getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent | null>;
   group: db.Group | null;
-  headerMode: 'default' | 'next';
 
   /**
    * Called when the draft input takes over the entire screen.

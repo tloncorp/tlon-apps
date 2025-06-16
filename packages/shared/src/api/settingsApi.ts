@@ -1,7 +1,6 @@
 import * as db from '../db';
-import { SETTINGS_SINGLETON_KEY } from '../db/schema';
 import * as ub from '../urbit';
-import { getCurrentUserId, poke, scry, subscribe } from './urbit';
+import { poke, scry, subscribe } from './urbit';
 
 export function getMessagesFilter(
   value: string | null | undefined
@@ -28,6 +27,7 @@ function getBucket(key: string): string {
     case 'completedWayfindingSplash':
     case 'completedWayfindingTutorial':
     case 'disableTlonInfraEnhancement':
+    case 'enableTelemetry':
       return 'groups';
     case 'disableAvatars':
     case 'disableNicknames':
@@ -100,6 +100,8 @@ export const toClientSettings = (
     sideBarSort: toClientSidebarSort(settings.desk.groups?.sideBarSort),
     groupSideBarSort: settings.desk.groups?.groupSideBarSort,
     showActivityMessage: settings.desk.groups?.showActivityMessage,
+    enableTelemetry: settings.desk.groups?.enableTelemetry,
+    // DEPRECATED: use enableTelemetry instead, this is kept for settings migration
     logActivity: settings.desk.groups?.logActivity,
     analyticsId: settings.desk.groups?.analyticsId,
     seenWelcomeCard: settings.desk.groups?.seenWelcomeCard,

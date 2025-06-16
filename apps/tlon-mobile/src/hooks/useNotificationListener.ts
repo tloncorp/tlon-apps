@@ -1,7 +1,6 @@
 import crashlytics from '@react-native-firebase/crashlytics';
 import type { NavigationProp } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
-import { useFeatureFlag } from '@tloncorp/app/lib/featureFlags';
 import { connectNotifications } from '@tloncorp/app/lib/notifications';
 import { RootStackParamList } from '@tloncorp/app/navigation/types';
 import {
@@ -19,12 +18,12 @@ import {
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
+import * as ub from '@tloncorp/shared/urbit';
 import {
   ActivityIncomingEvent,
   whomIsDm,
   whomIsMultiDm,
 } from '@tloncorp/shared/urbit';
-import * as ub from '@tloncorp/shared/urbit';
 import { Notification, useLastNotificationResponse } from 'expo-notifications';
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
@@ -169,7 +168,6 @@ function payloadFromNotification(
 export default function useNotificationListener() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const isTlonEmployee = db.isTlonEmployee.useValue();
-  const [channelSwitcherEnabled] = useFeatureFlag('channelSwitcher');
 
   const [notifToProcess, setNotifToProcess] =
     useState<MinimalNotificationData | null>(null);
@@ -318,11 +316,5 @@ export default function useNotificationListener() {
         }
       })();
     }
-  }, [
-    notifToProcess,
-    navigation,
-    isTlonEmployee,
-    channelSwitcherEnabled,
-    isDesktop,
-  ]);
+  }, [notifToProcess, navigation, isTlonEmployee, isDesktop]);
 }

@@ -77,7 +77,10 @@ const EmbedContent = memo(function EmbedContent({
   url,
   content,
 }: EmbedContentProps) {
-  const { embed } = useEmbed(url);
+  const { embed } = useEmbed(
+    url,
+    Platform.OS === 'android' || Platform.OS === 'ios'
+  );
   const isValidWithHtml = validOembedCheck(embed, url);
   const isValidWithoutHtml = embed && embed.title && embed.author_name;
   const calm = useCalm();

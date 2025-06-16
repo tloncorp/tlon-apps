@@ -1,10 +1,7 @@
 import { extractContentTypesFromPost } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { constructStory } from '@tloncorp/shared/urbit';
-import { Block } from '@tloncorp/shared/urbit';
-import { FloatingActionButton } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
+import { Block, constructStory } from '@tloncorp/shared/urbit';
 import { ParentAgnosticKeyboardAvoidingView } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import {
@@ -43,7 +40,6 @@ export function GalleryInput({
     onPresentationModeChange,
     send,
     storeDraft,
-    headerMode,
     editPost,
     setEditingPost,
   } = draftInputContext;
@@ -429,22 +425,6 @@ export function GalleryInput({
           setShowBigInput={(open) => setRoute(open ? 'text' : 'gallery')}
           overrideChannelType="gallery"
         />
-      )}
-
-      {/* Floating action button - only shown in normal gallery view */}
-      {headerMode === 'next' && route === 'gallery' && (
-        <View
-          position="absolute"
-          bottom={safeAreaInsets.bottom}
-          flex={1}
-          width="100%"
-          alignItems="center"
-        >
-          <FloatingActionButton
-            onPress={() => setRoute('add-post')}
-            icon={<Icon type="Add" size={'$m'} />}
-          />
-        </View>
       )}
 
       {/* Image preview and caption input - shown for both new image posts and editing image gallery posts */}

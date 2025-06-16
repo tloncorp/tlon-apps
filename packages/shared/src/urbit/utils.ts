@@ -1,5 +1,4 @@
-import { formatUd, formatUv, isValidPatp, unixToDa } from '@urbit/aura';
-import { useMemo } from 'react';
+import { formatUv, isValidPatp, unixToDa } from '@urbit/aura';
 
 import { ContentReference, PostContent } from '../api';
 import { ChannelType } from '../db';
@@ -314,17 +313,6 @@ export function whomIsFlag(whom: string): boolean {
   return (
     /^~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) && isValidPatp(whom.split('/')[0])
   );
-}
-
-export function whomIsNest(whom: string): boolean {
-  return (
-    /^[a-z]+\/~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) &&
-    isValidPatp(whom.split('/')[1])
-  );
-}
-
-export function useIsDmOrMultiDm(whom: string) {
-  return useMemo(() => whomIsDm(whom) || whomIsMultiDm(whom), [whom]);
 }
 
 export function createMultiDmId(seed = Date.now()) {

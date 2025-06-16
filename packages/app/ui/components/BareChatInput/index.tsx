@@ -621,7 +621,10 @@ export default function BareChatInput({
 
   // Check if editor is empty
   useEffect(() => {
-    setEditorIsEmpty(controlledText === '' && attachments.length === 0);
+    setEditorIsEmpty(
+      (controlledText === '' || controlledText.trim() === '') &&
+        attachments.length === 0
+    );
   }, [controlledText, attachments]);
 
   const adjustInputHeightProgrammatically = useCallback(() => {
@@ -898,6 +901,7 @@ export default function BareChatInput({
       >
         {showInlineAttachments && <AttachmentPreviewList />}
         <TextInput
+          testID="MessageInput"
           ref={inputRef}
           value={isWeb ? controlledText : undefined}
           onChangeText={handleTextChange}

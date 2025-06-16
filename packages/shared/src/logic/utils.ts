@@ -56,6 +56,19 @@ export function getFlagParts(flag: string) {
   };
 }
 
+export function getNestParts(nest: string) {
+  const parts = nest.split('/');
+  if (parts.length !== 3) {
+    throw new Error(`Invalid nest format: ${nest}`);
+  }
+
+  return {
+    type: parts[0],
+    ship: parts[1],
+    name: parts[2],
+  };
+}
+
 export function getPrettyAppName(kind: 'chat' | 'diary' | 'heap') {
   switch (kind) {
     case 'chat':
@@ -71,12 +84,24 @@ export async function jsonFetch<T>(
   info: RequestInfo,
   init?: RequestInit
 ): Promise<T> {
-  const res = await fetch(info, init);
-  if (!res.ok) {
-    throw new Error('Bad Fetch Response');
+  try {
+    const res = await fetch(info, init);
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
+
+    const data = await res.json();
+    return data as T;
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error('jsonFetch error:', error.message);
+      throw error;
+    } else {
+      console.error('jsonFetch unknown error:', error);
+      throw new Error('Unknown error occurred during fetch');
+    }
   }
-  const data = await res.json();
-  return data as T;
 }
 
 const isFacebookGraphDependent = (url: string) => {
@@ -593,6 +618,26 @@ export function simpleHash(input: string) {
   return Math.abs(hash).toString(36);
 }
 
+const wayfindingGroup = domain.PersonalGroupSlugs;
+function isWayfindingChannel(id: string | null | undefined): boolean {
+  if (!id) return false;
+  if (isDmChannelId(id)) return false;
+  if (isGroupDmChannelId(id)) return false;
+
+  const channelParts = getNestParts(id);
+  return [
+    wayfindingGroup.chatSlug,
+    wayfindingGroup.collectionSlug,
+    wayfindingGroup.notebookSlug,
+  ].includes(channelParts.name);
+}
+
+function isWayfindingGroup(id: string | null | undefined): boolean {
+  if (!id) return false;
+  const groupParts = getFlagParts(id);
+  return groupParts.name === wayfindingGroup.slug;
+}
+
 export function getModelAnalytics({
   post,
   group,
@@ -602,21 +647,17 @@ export function getModelAnalytics({
   group?: Partial<db.Group> | null;
   channel?: Partial<db.Channel> | null;
 }) {
-  const wayfindingGroup = domain.PersonalGroupSlugs;
   const details: Record<string, string | boolean | null> = {};
 
-  const isWayfindingGroup = group?.id;
-  const isWayfindingChannel = [
-    wayfindingGroup.chatSlug,
-    wayfindingGroup.collectionSlug,
-    wayfindingGroup.notebookSlug,
-  ].includes(channel?.id ?? '');
+  const isWayfindingGroupId = isWayfindingGroup(group?.id);
+  const channelId = channel?.id || post?.channelId;
+  const isWayfindingChannelId = isWayfindingChannel(channelId);
 
-  if (isWayfindingGroup || isWayfindingChannel) {
+  if (isWayfindingGroupId || isWayfindingChannelId) {
     details.isPersonalGroup = true;
   }
 
-  const isTlonTeamDM = channel?.id === '~wittyr-witbes'; // Tlon Team node
+  const isTlonTeamDM = channelId === '~wittyr-witbes'; // Tlon Team node
   if (isTlonTeamDM) {
     details.isTlonTeamDM = true;
   }
@@ -626,7 +667,7 @@ export function getModelAnalytics({
   // 2. it's the Tlon Team DM
   const getMaskedId = (id: string | null | undefined) => {
     if (!id) return null;
-    if (isWayfindingGroup || isWayfindingChannel) {
+    if (isWayfindingGroupId || isWayfindingChannelId) {
       return id;
     }
 

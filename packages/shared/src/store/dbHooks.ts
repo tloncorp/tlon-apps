@@ -512,14 +512,15 @@ export const usePostWithThreadUnreads = (options: { id: string }) => {
 };
 
 export const usePostWithRelations = (
-  options: { id: string },
+  options: { id: string } | null,
   initialData?: db.Post
 ) => {
   return useQuery({
-    queryKey: ['post', options.id],
+    enabled: options != null,
+    queryKey: ['post', options?.id],
     staleTime: Infinity,
     ...(initialData ? { initialData } : {}),
-    queryFn: () => db.getPostWithRelations(options),
+    queryFn: () => (options == null ? null : db.getPostWithRelations(options)),
   });
 };
 
@@ -618,6 +619,31 @@ export const useThemeSettings = () => {
     queryFn: async () => {
       const settings = await db.getSettings();
       return settings?.theme || null;
+    },
+  });
+};
+
+export const useTelemetryEnabled = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['enableTelemetry', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings();
+      return settings?.enableTelemetry ?? false;
+    },
+  });
+};
+
+export const useTelemetrySettings = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['telemetrySettings', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings();
+      return {
+        enableTelemetry: settings?.enableTelemetry,
+        logActivity: settings?.logActivity,
+      };
     },
   });
 };

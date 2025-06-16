@@ -4,10 +4,11 @@ import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCopy } from '@tloncorp/ui';
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
 
+import { useRenderCount } from '../../../../hooks/useRenderCount';
 import { useChannelContext, useCurrentUserId } from '../../../contexts';
 import { Attachment, useAttachmentContext } from '../../../contexts/attachment';
 import { triggerHaptic, useIsAdmin } from '../../../utils';
@@ -47,7 +48,7 @@ export default function MessageActions({
   );
 }
 
-function ConnectedAction({
+const ConnectedAction = memo(function ConnectedAction({
   actionId,
   dismiss,
   last,
@@ -117,6 +118,8 @@ function ConnectedAction({
     currentUserIsAdmin,
   ]);
 
+  useRenderCount(`MessageAction-${actionId}`);
+
   if (!visible) {
     return null;
   }
@@ -149,7 +152,7 @@ function ConnectedAction({
       {label}
     </ActionList.Action>
   );
-}
+});
 
 function CopyJsonAction({ post }: { post: db.Post }) {
   const jsonString = useMemo(() => {
