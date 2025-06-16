@@ -24,6 +24,11 @@ export interface QueryMeta<TOptions> {
    * query, changes to these tables should trigger a re-fetch)
    */
   tableDependencies: TableParam<TOptions>;
+
+  /**
+   * Used to indicate whether this query is running within a transaction.
+   */
+  inTransaction?: boolean;
 }
 
 export interface QueryCtx {
@@ -216,8 +221,7 @@ export async function withCtxOrDefault<T>(
 const pendingTransactions: (() => Promise<any>)[] = [];
 let isRunning = false;
 
-const enqueueTransaction = async (fn: () => Promise<any>) => {
-  pendingTransactions.push(fn);
+async function runTransactions() {
   if (!isRunning) {
     isRunning = true;
     while (pendingTransactions.length) {
@@ -227,6 +231,11 @@ const enqueueTransaction = async (fn: () => Promise<any>) => {
     }
     isRunning = false;
   }
+}
+
+const enqueueTransaction = async (fn: () => Promise<any>) => {
+  pendingTransactions.push(fn);
+  runTransactions();
 };
 
 const txLogger = createDevLogger('tx', false);
@@ -243,21 +252,48 @@ export async function withTransactionCtx<T>(
   return new Promise((resolve, reject) =>
     enqueueTransaction(async () => {
       txLogger.log(ctx.meta.label, 'tx:handler');
+
       try {
-        await ctx.db.run(sql`BEGIN`);
-        txLogger.log(ctx.meta.label, 'tx:begin');
+        if (ctx.meta.inTransaction) {
+          // If we're already in a transaction, just run the handler
+          txLogger.log(ctx.meta.label, 'tx:already-in');
+          const result = await handler(ctx);
+          txLogger.log(ctx.meta.label, 'tx:run');
+          resolve(result);
+          return result;
+        } else {
+          // Otherwise, start a new transaction
+          await ctx.db.run(sql`BEGIN`);
+          ctx.meta.inTransaction = true;
+          txLogger.log(ctx.meta.label, 'tx:begin');
 
-        const result = await handler(ctx);
-        txLogger.log(ctx.meta.label, 'tx:run');
+          const result = await handler(ctx);
+          txLogger.log(ctx.meta.label, 'tx:run');
 
-        await ctx.db.run(sql`COMMIT`);
-        resolve(result);
-        txLogger.log(ctx.meta.label, 'tx:commit');
-        return result;
+          await ctx.db.run(sql`COMMIT`);
+          ctx.meta.inTransaction = false;
+          txLogger.log(ctx.meta.label, 'tx:commit');
+          resolve(result);
+          return result;
+        }
       } catch (e) {
-        txLogger.log('tx:error', e);
-        reject(e);
-        await ctx.db.run(sql`ROLLBACK`);
+        try {
+          txLogger.log('tx:error', e);
+          txLogger.trackError('transaction error', {
+            label: ctx.meta.label,
+            errorMessage: e.message,
+            errorStack: e.stack,
+          });
+          reject(e);
+          await ctx.db.run(sql`ROLLBACK`);
+          ctx.meta.inTransaction = false;
+        } catch (e) {
+          txLogger.trackError('failed to handle transaction error', {
+            label: ctx.meta.label,
+            errorMessage: e.message,
+            errorStack: e.stack,
+          });
+        }
       }
     })
   );
