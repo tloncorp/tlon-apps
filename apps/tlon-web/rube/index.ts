@@ -667,12 +667,15 @@ const runPlaywrightTests = async () => {
 
 const cleanupSpawnedProcesses = async () => {
   console.log('Cleaning up spawned processes...');
-  for (const proc of spawnedProcesses) {
+  const killPromises = spawnedProcesses.map((proc) => {
     if (!proc.killed) {
       console.log(`Killing process PID: ${proc.pid}`);
       proc.kill();
+      return new Promise((resolve) => proc.on('close', resolve));
     }
-  }
+    return Promise.resolve();
+  });
+  await Promise.all(killPromises);
   await killExistingUrbitProcesses();
   await killExistingViteDevServerProcesses();
   console.log('Cleanup complete.');
@@ -684,12 +687,12 @@ process.on('exit', () => {
 process.on('SIGINT', async () => {
   await cleanupSpawnedProcesses();
   console.log('SIGINT cleanup finished.');
-  // Do not call process.exit() here; let the process exit naturally.
+  process.exit(0);
 });
 process.on('SIGTERM', async () => {
   await cleanupSpawnedProcesses();
   console.log('SIGTERM cleanup finished.');
-  // Do not call process.exit() here; let the process exit naturally.
+  process.exit(0);
 });
 process.on('uncaughtException', async (err) => {
   console.error('Uncaught exception:', err);
