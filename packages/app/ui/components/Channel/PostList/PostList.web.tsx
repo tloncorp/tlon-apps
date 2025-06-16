@@ -140,7 +140,7 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
     });
 
     React.useEffect(() => {
-      if (scrollBoundaries.isAtBottom) {
+      if (scrollBoundaries.isNearBottom) {
         onScrolledToBottom?.();
       } else {
         onScrolledAwayFromBottom?.();
@@ -148,13 +148,13 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
     }, [
       onScrolledAwayFromBottom,
       onScrolledToBottom,
-      scrollBoundaries.isAtBottom,
+      scrollBoundaries.isNearBottom,
       inverted,
     ]);
 
     const isAtStart = inverted
-      ? scrollBoundaries.isAtBottom
-      : scrollBoundaries.isAtTop;
+      ? scrollBoundaries.isNearBottom
+      : scrollBoundaries.isNearTop;
     React.useEffect(() => {
       setShouldStickToScrollStart(!hasNewerPosts && isAtStart);
     }, [setShouldStickToScrollStart, isAtStart, hasNewerPosts]);
@@ -263,24 +263,24 @@ function PostListItem({
   );
 }
 
-function isElementScrolledToTop(
+function isElementScrolledNearTop(
   element: HTMLElement,
   boundaryRatio: number
 ): boolean {
   const distanceFromTop = element.scrollTop;
   const viewportHeight = element.clientHeight;
-  const isAtTop = distanceFromTop / viewportHeight <= boundaryRatio;
-  return isAtTop;
+  const isNearTop = distanceFromTop / viewportHeight <= boundaryRatio;
+  return isNearTop;
 }
-function isElementScrolledToBottom(
+function isElementScrolledNearBottom(
   element: HTMLElement,
   boundaryRatio: number
 ): boolean {
   const distanceFromBottom =
     element.scrollHeight - (element.scrollTop + element.clientHeight);
   const viewportHeight = element.clientHeight;
-  const isAtBottom = distanceFromBottom / viewportHeight <= boundaryRatio;
-  return isAtBottom;
+  const isNearBottom = distanceFromBottom / viewportHeight <= boundaryRatio;
+  return isNearBottom;
 }
 
 function useScrollBoundaries(
@@ -289,17 +289,19 @@ function useScrollBoundaries(
     boundaryRatio,
   }: {
     /**
-     * Max ratio of (distance to boundary) / (viewport height) that will be considered "at boundary".
-     * e.g. `boundaryRatio: 0.5` means that `isAtTop` will be true once we're a half screen from the top of the scroll.
+     * Max ratio of (distance to boundary) / (viewport height) that will be considered "near boundary".
+     * e.g. `boundaryRatio: 0.5` means that `isNearTop` will be true once we're a half screen from the top of the scroll.
      */
     boundaryRatio: number;
   }
 ) {
-  const [isAtTop, setIsAtTop] = React.useState(() =>
-    element == null ? false : isElementScrolledToTop(element, boundaryRatio)
+  const [isNearTop, setIsNearTop] = React.useState(() =>
+    element == null ? false : isElementScrolledNearTop(element, boundaryRatio)
   );
-  const [isAtBottom, setIsAtBottom] = React.useState(() =>
-    element == null ? false : isElementScrolledToBottom(element, boundaryRatio)
+  const [isNearBottom, setIsNearBottom] = React.useState(() =>
+    element == null
+      ? false
+      : isElementScrolledNearBottom(element, boundaryRatio)
   );
 
   React.useEffect(() => {
@@ -308,8 +310,8 @@ function useScrollBoundaries(
     }
 
     const handleScroll = () => {
-      setIsAtTop(isElementScrolledToTop(element, boundaryRatio));
-      setIsAtBottom(isElementScrolledToBottom(element, boundaryRatio));
+      setIsNearTop(isElementScrolledNearTop(element, boundaryRatio));
+      setIsNearBottom(isElementScrolledNearBottom(element, boundaryRatio));
     };
     element.addEventListener('scroll', handleScroll);
     handleScroll();
@@ -319,8 +321,8 @@ function useScrollBoundaries(
   }, [element, boundaryRatio]);
 
   return {
-    isAtTop,
-    isAtBottom,
+    isNearTop,
+    isNearBottom,
   };
 }
 
@@ -485,6 +487,11 @@ function useScrollToAnchorOnMount({
   }, [scrollerRef, anchor, inverted, onScrollCompleted]);
 }
 
+/**
+ * Calls appropriate callback when approaching boundary. Guards against
+ * calling a callback twice for the same content size (i.e. only asks for more
+ * content after the content has changed).
+ */
 function useBoundaryCallbacks({
   scrollerRef,
   scrollBoundaries,
@@ -493,8 +500,8 @@ function useBoundaryCallbacks({
 }: {
   scrollerRef: React.RefObject<HTMLElement | null>;
   scrollBoundaries: {
-    isAtTop: boolean;
-    isAtBottom: boolean;
+    isNearTop: boolean;
+    isNearBottom: boolean;
   };
   onTopReached?: () => void;
   onBottomReached?: () => void;
@@ -510,11 +517,11 @@ function useBoundaryCallbacks({
     if (lastInvocationScrollHeight.current.top === scroller.scrollHeight) {
       return;
     }
-    if (scrollBoundaries.isAtTop) {
+    if (scrollBoundaries.isNearTop) {
       lastInvocationScrollHeight.current.top = scroller.scrollHeight;
       onTopReached?.();
     }
-  }, [scrollBoundaries.isAtTop, onTopReached, scrollerRef]);
+  }, [scrollBoundaries.isNearTop, onTopReached, scrollerRef]);
   React.useEffect(() => {
     const scroller = scrollerRef.current;
     if (!scroller) {
@@ -523,11 +530,11 @@ function useBoundaryCallbacks({
     if (lastInvocationScrollHeight.current.bottom === scroller.scrollHeight) {
       return;
     }
-    if (scrollBoundaries.isAtBottom) {
+    if (scrollBoundaries.isNearBottom) {
       lastInvocationScrollHeight.current.bottom = scroller.scrollHeight;
       onBottomReached?.();
     }
-  }, [scrollBoundaries.isAtBottom, onBottomReached, scrollerRef]);
+  }, [scrollBoundaries.isNearBottom, onBottomReached, scrollerRef]);
 }
 
 function isPrefixEquivalent<T>(
