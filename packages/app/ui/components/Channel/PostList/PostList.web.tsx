@@ -1,3 +1,8 @@
+import {
+  IntersectionObserverProvider,
+  useIntersectionObserverContext,
+} from '@tloncorp/shared/utils';
+import { isEqual, min } from 'lodash';
 import * as React from 'react';
 import { View } from 'react-native';
 
@@ -15,6 +20,15 @@ export const PostList: PostListComponent = React.forwardRef((props, ref) => {
 PostList.displayName = 'PostList';
 
 const PostListSingleColumn: PostListComponent = React.forwardRef(
+  (props, forwardedRef) => (
+    <IntersectionObserverProvider>
+      <_PostListSingleColumn {...props} ref={forwardedRef} />
+    </IntersectionObserverProvider>
+  )
+);
+PostListSingleColumn.displayName = 'PostListSingleColumn';
+
+const _PostListSingleColumn: PostListComponent = React.forwardRef(
   (
     {
       anchor,
@@ -45,6 +59,27 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
       () => (inverted ? [...postsWithNeighbors].reverse() : postsWithNeighbors),
       [inverted, postsWithNeighbors]
     );
+    const { intersectingSet, setRoot } = useIntersectionObserverContext();
+    React.useEffect(() => {
+      setRoot(scrollerRef.current);
+    }, [setRoot]);
+
+    const minVisibleIndex = React.useMemo(
+      () =>
+        min(
+          Array.from(intersectingSet).flatMap((x) => {
+            if (!(x instanceof HTMLElement)) {
+              return [];
+            }
+            const index = parseInt(x.dataset.itemindex ?? '');
+            if (isNaN(index)) {
+              return [];
+            }
+            return index;
+          })
+        ),
+      [intersectingSet]
+    );
 
     useScrollToAnchorOnMount({
       anchor,
@@ -63,14 +98,34 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
       inverted,
       scrollerContentsKey: orderedData,
       needsAnchoring: React.useCallback(
-        (prev: PostWithNeighbors[], next: PostWithNeighbors[]) =>
-          // HACK: This check _should_ return true whenever posts are inserted
-          // above the viewport (pushing the viewport down).This check skips the
-          // hard work: internally, we only manually anchor when the scroll
-          // position is at the top, so we know that a change of posts above the
-          // previous first post will require manual anchoring.
-          prev.at(0)?.post.id !== next.at(0)?.post.id,
-        []
+        (
+          prev: PostWithNeighbors[],
+          next: PostWithNeighbors[],
+          scrollTop: number
+        ) => {
+          // https://caniuse.com/css-overflow-anchor
+          const supportsScrollAnchoring = CSS.supports(
+            'overflow-anchor',
+            'auto'
+          );
+
+          if (supportsScrollAnchoring) {
+            // If the browser natively implements scroll anchoring, use that
+            // implementation whenever possible. The case that browser-based
+            // scroll anchoring doesn't cover is when the user is already scrolled
+            // all the way to the top and more content loads in at the top (e.g.
+            // backfilling): in this case, we need to manually anchor the scroll.
+            return (
+              scrollTop === 0 && prev.at(0)?.post.id !== next.at(0)?.post.id
+            );
+          } else {
+            // If native scroll anchoring isn't available, manually anchor
+            // scroll whenever the content above the viewport changes.
+            const prefixLength = (minVisibleIndex ?? 0) + 1;
+            return !isPrefixEquivalent(prev, next, prefixLength, isEqual);
+          }
+        },
+        [minVisibleIndex]
       ),
     });
 
@@ -158,9 +213,9 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
               ]}
             >
               {orderedData.map((item, index) => (
-                <div key={item.post.id} data-postid={item.post.id}>
+                <PostListItem key={item.post.id} item={item} index={index}>
                   {renderItem({ item, index })}
-                </div>
+                </PostListItem>
               ))}
 
               {orderedData.length === 0 && (
@@ -173,7 +228,40 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
     );
   }
 );
-PostListSingleColumn.displayName = 'PostListSingleColumn';
+_PostListSingleColumn.displayName = 'InternalPostListSingleColumn';
+
+function PostListItem({
+  item,
+  index,
+  children,
+}: React.PropsWithChildren<{
+  item: PostWithNeighbors;
+  index: number;
+}>) {
+  const { observe } = useIntersectionObserverContext();
+  // use `useState` to make sure we trigger the `observe()` effect on change
+  const [ref, setRef] = React.useState<React.ElementRef<'div'> | null>(null);
+
+  // register / unregister this element with the visibility tracker
+  React.useEffect(() => {
+    if (ref == null) {
+      return;
+    }
+    const { unobserve } = observe(ref);
+    return () => unobserve();
+  }, [ref, observe]);
+
+  return (
+    <div
+      ref={setRef}
+      data-postid={item.post.id}
+      // Used when determining minVisibleIndex
+      data-itemindex={index}
+    >
+      {children}
+    </div>
+  );
+}
 
 function isElementScrolledToTop(
   element: HTMLElement,
@@ -248,16 +336,15 @@ function useManualScrollAnchoring<Data>({
   inverted: boolean;
   /** This value must change when the scroll height of the scroller changes */
   scrollerContentsKey: Data;
-  needsAnchoring: (prevKey: Data, nextKey: Data) => boolean;
+  needsAnchoring: (
+    prevKey: Data,
+    nextKey: Data,
+    /** Scroll offset of anchoring scroll element */
+    scrollTop: number
+  ) => boolean;
 }) {
+  // Since `Data` could be a nullable type, use an ad-hoc box type to track optionality
   const prevKey = React.useRef<[Data] | null>(null);
-  const needsAnchor = React.useMemo(() => {
-    if (prevKey.current != null) {
-      return checkNeedsAnchor(prevKey.current[0], scrollerContentsKey);
-    } else {
-      return false;
-    }
-  }, [scrollerContentsKey, checkNeedsAnchor]);
 
   const [queuedScrollAnchorPayload, setQueuedScrollAnchorPayload] =
     React.useState<{
@@ -265,6 +352,7 @@ function useManualScrollAnchoring<Data>({
     } | null>(null);
 
   const scrollHeightRef = React.useRef<number | null>(null);
+
   const resizeObserver = React.useMemo(
     () =>
       new ResizeObserver((entries) => {
@@ -282,29 +370,26 @@ function useManualScrollAnchoring<Data>({
   );
 
   React.useLayoutEffect(() => {
-    if (!needsAnchor) {
-      return;
-    }
-
     const scroller = scrollerRef.current;
-    if (scroller == null) {
+    if (
+      scrollHeightRef.current == null ||
+      prevKey.current == null ||
+      scroller == null
+    ) {
       return;
     }
-    const scrollOffsetBeforeLoad = scroller.scrollTop;
-
-    if (scrollOffsetBeforeLoad !== 0) {
-      // We only handle scroll anchoring when the scroll position is not at the top (since browser-native scroll anchoring handles the other cases better).
-      return;
-    }
-    // TODO: This check is incomplete - we also need to check if the inserted content is above the scroll viewport
-
-    if (scrollHeightRef.current == null) {
+    const needsAnchor = checkNeedsAnchor(
+      prevKey.current[0],
+      scrollerContentsKey,
+      scroller.scrollTop
+    );
+    if (!needsAnchor) {
       return;
     }
     setQueuedScrollAnchorPayload({
       previousScrollHeight: scrollHeightRef.current,
     });
-  }, [scrollerRef, scrollerContentsKey, inverted, needsAnchor]);
+  }, [checkNeedsAnchor, scrollerRef, scrollerContentsKey, inverted]);
 
   React.useLayoutEffect(() => {
     if (queuedScrollAnchorPayload == null) {
@@ -443,4 +528,18 @@ function useBoundaryCallbacks({
       onBottomReached?.();
     }
   }, [scrollBoundaries.isAtBottom, onBottomReached, scrollerRef]);
+}
+
+function isPrefixEquivalent<T>(
+  xs: T[],
+  ys: T[],
+  prefixLength: number,
+  isEqual: (a: T, b: T) => boolean
+): boolean {
+  for (let i = 0; i < prefixLength; i++) {
+    if (!isEqual(xs[i], ys[i])) {
+      return false;
+    }
+  }
+  return true;
 }
