@@ -189,6 +189,7 @@ export async function createChannel(
   }
 
   await page.getByText('Create channel').click();
+  await page.waitForTimeout(1000);
 }
 
 /**
