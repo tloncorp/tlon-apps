@@ -31,12 +31,15 @@ export const PostList: PostListComponent = React.forwardRef(
       renderItem,
       renderEmptyComponent,
       onStartReached,
+      onStartReachedThreshold,
       onEndReached,
+      onEndReachedThreshold,
       anchor,
       hasNewerPosts,
       collectionLayoutType,
       onInitialScrollCompleted,
       onScrolledToBottom,
+      onScrolledToBottomThreshold = 1,
       onScrolledAwayFromBottom,
     },
     forwardedRef
@@ -82,7 +85,9 @@ export const PostList: PostListComponent = React.forwardRef(
       }
     }, [readyToDisplayPosts, onInitialScrollCompleted]);
 
-    const { onScroll: handleScroll, isAtBottom } = useScrollDirectionTracker();
+    const { onScroll: handleScroll, isAtBottom } = useScrollDirectionTracker({
+      atBottomThreshold: onScrolledToBottomThreshold,
+    });
     React.useEffect(() => {
       if (isAtBottom) {
         onScrolledToBottom?.();
@@ -152,9 +157,9 @@ export const PostList: PostListComponent = React.forwardRef(
         numColumns={numColumns}
         style={[style, readyToDisplayPosts ? null : { opacity: 0 }]}
         onEndReached={onEndReached}
-        onEndReachedThreshold={1}
+        onEndReachedThreshold={onEndReachedThreshold}
         onStartReached={onStartReached}
-        onStartReachedThreshold={1}
+        onStartReachedThreshold={onStartReachedThreshold}
         scrollIndicatorInsets={scrollIndicatorInsets}
         automaticallyAdjustsScrollIndicatorInsets={false}
         onScroll={handleScroll}

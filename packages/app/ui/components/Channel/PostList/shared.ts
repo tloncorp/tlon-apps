@@ -27,6 +27,7 @@ export type PostListComponent = React.ForwardRefExoticComponent<{
   // This should take precedence over the `collectionLayoutType`'s intrinsic column count
   numColumns: number;
   onEndReached?: () => void;
+  onEndReachedThreshold?: number;
   onInitialScrollCompleted?: () => void;
   /**
    * Called once each time the list is scrolled to the start. This is different
@@ -34,8 +35,16 @@ export type PostListComponent = React.ForwardRefExoticComponent<{
    * content height has changed.
    */
   onScrolledToBottom?: () => void;
+  /**
+   * Ratio of viewport height to distance from bottom for triggering
+   * `onScrolledToBottomThreshold` and `onScrolledAwayFromBottomThreshold`.
+   * On native, viewport height is the screen height; on web, it is the scroll viewport.
+   * @default 0
+   */
+  onScrolledToBottomThreshold?: number;
   onScrolledAwayFromBottom?: () => void;
   onStartReached?: () => void;
+  onStartReachedThreshold?: number;
   postsWithNeighbors: PostWithNeighbors[];
   ref: React.Ref<PostListMethods>;
   renderEmptyComponent?: () => JSX.Element;

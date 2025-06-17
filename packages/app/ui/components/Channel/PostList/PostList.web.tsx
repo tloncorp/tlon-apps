@@ -1,3 +1,4 @@
+import { useMutableCallback } from '@tloncorp/shared';
 import {
   IntersectionObserverProvider,
   useIntersectionObserverContext,
@@ -40,10 +41,13 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
       inverted = false,
       // numColumns,
       onEndReached,
+      onEndReachedThreshold = 1,
       onInitialScrollCompleted,
       onScrolledToBottom,
+      onScrolledToBottomThreshold = 1,
       onScrolledAwayFromBottom,
       onStartReached,
+      onStartReachedThreshold = 1,
       postsWithNeighbors,
       renderEmptyComponent,
       renderItem,
@@ -129,21 +133,22 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
       ),
     });
 
-    const scrollBoundaries = useScrollBoundaries(scrollerRef.current, {
-      boundaryRatio: 0.2,
-    });
     useBoundaryCallbacks({
-      onTopReached: inverted ? onEndReached : onStartReached,
-      onBottomReached: inverted ? onStartReached : onEndReached,
-      scrollerRef,
-      scrollBoundaries,
+      element: scrollerRef.current,
+      inverted,
+      onEndReached,
+      onEndReachedThreshold,
+      onStartReached,
+      onStartReachedThreshold,
+      getScrollerContentKey: React.useCallback(
+        () => scrollerRef.current?.scrollHeight,
+        [scrollerRef]
+      ),
     });
 
-    // LEGACY: `onScrolledToBottom` is used to show/hide the "go to bottom"
-    // button, which has historically used a 1-screen margin.
     const insideScrolledToBottomBoundary = useScrollBoundary(
       scrollerRef.current,
-      { boundaryRatio: 1, side: 'bottom' }
+      { boundaryRatio: onScrolledToBottomThreshold, side: 'bottom' }
     );
     React.useEffect(() => {
       if (insideScrolledToBottomBoundary) {
@@ -157,9 +162,10 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
       insideScrolledToBottomBoundary,
     ]);
 
-    const isAtStart = inverted
-      ? scrollBoundaries.isAtBottom
-      : scrollBoundaries.isAtTop;
+    const isAtStart = useScrollBoundary(scrollerRef.current, {
+      boundaryRatio: 0,
+      side: inverted ? 'bottom' : 'top',
+    });
     React.useEffect(() => {
       setShouldStickToScrollStart(!hasNewerPosts && isAtStart);
     }, [setShouldStickToScrollStart, isAtStart, hasNewerPosts]);
@@ -322,40 +328,6 @@ function useScrollBoundary(
     };
   }, [element, boundaryRatio, checkInsideBoundary]);
   return insideBoundary;
-}
-
-function useScrollBoundaries(
-  element: HTMLElement | null,
-  {
-    boundaryRatio,
-  }: {
-    /**
-     * Max ratio of (distance to boundary) / (viewport height) that will be considered "near boundary".
-     * e.g. `boundaryRatio: 0.5` means that `isNearTop` will be true once we're a half screen from the top of the scroll.
-     */
-    boundaryRatio: number;
-  }
-) {
-  const isNearTop = useScrollBoundary(element, { boundaryRatio, side: 'top' });
-  const isAtTop = useScrollBoundary(element, { boundaryRatio: 0, side: 'top' });
-  const isNearBottom = useScrollBoundary(element, {
-    boundaryRatio,
-    side: 'bottom',
-  });
-  const isAtBottom = useScrollBoundary(element, {
-    boundaryRatio: 0,
-    side: 'bottom',
-  });
-
-  return React.useMemo(
-    () => ({
-      isNearTop,
-      isNearBottom,
-      isAtTop,
-      isAtBottom,
-    }),
-    [isNearTop, isNearBottom, isAtTop, isAtBottom]
-  );
 }
 
 function useManualScrollAnchoring<Data>({
@@ -525,48 +497,50 @@ function useScrollToAnchorOnMount({
  * content after the content has changed).
  */
 function useBoundaryCallbacks({
-  scrollerRef,
-  scrollBoundaries,
-  onTopReached,
-  onBottomReached,
+  element,
+  inverted,
+  onEndReached,
+  onEndReachedThreshold,
+  onStartReached,
+  onStartReachedThreshold,
+  getScrollerContentKey,
 }: {
-  scrollerRef: React.RefObject<HTMLElement | null>;
-  scrollBoundaries: {
-    isNearTop: boolean;
-    isNearBottom: boolean;
-  };
-  onTopReached?: () => void;
-  onBottomReached?: () => void;
+  element: HTMLElement | null;
+  inverted: boolean;
+  onEndReached?: () => void;
+  onEndReachedThreshold: number;
+  onStartReached?: () => void;
+  onStartReachedThreshold: number;
+  /**
+   * Output should change when the content of the scroller changes.
+   */
+  getScrollerContentKey: () => unknown;
 }) {
-  const lastInvocationScrollHeight = React.useRef<
-    Partial<Record<'top' | 'bottom', number>>
-  >({});
+  const onStartReachedGuarded = useMutableCallback(
+    useDeduplicateInvocationBy(getScrollerContentKey, onStartReached ?? null)
+  );
+  const reachedStart = useScrollBoundary(element, {
+    boundaryRatio: onStartReachedThreshold,
+    side: inverted ? 'bottom' : 'top',
+  });
   React.useEffect(() => {
-    const scroller = scrollerRef.current;
-    if (!scroller) {
-      return;
+    if (reachedStart) {
+      onStartReachedGuarded?.();
     }
-    if (lastInvocationScrollHeight.current.top === scroller.scrollHeight) {
-      return;
-    }
-    if (scrollBoundaries.isNearTop) {
-      lastInvocationScrollHeight.current.top = scroller.scrollHeight;
-      onTopReached?.();
-    }
-  }, [scrollBoundaries.isNearTop, onTopReached, scrollerRef]);
+  }, [reachedStart, onStartReachedGuarded]);
+
+  const onEndReachedGuarded = useMutableCallback(
+    useDeduplicateInvocationBy(getScrollerContentKey, onEndReached ?? null)
+  );
+  const reachedEnd = useScrollBoundary(element, {
+    boundaryRatio: onEndReachedThreshold,
+    side: inverted ? 'top' : 'bottom',
+  });
   React.useEffect(() => {
-    const scroller = scrollerRef.current;
-    if (!scroller) {
-      return;
+    if (reachedEnd) {
+      onEndReachedGuarded?.();
     }
-    if (lastInvocationScrollHeight.current.bottom === scroller.scrollHeight) {
-      return;
-    }
-    if (scrollBoundaries.isNearBottom) {
-      lastInvocationScrollHeight.current.bottom = scroller.scrollHeight;
-      onBottomReached?.();
-    }
-  }, [scrollBoundaries.isNearBottom, onBottomReached, scrollerRef]);
+  }, [reachedEnd, onEndReachedGuarded]);
 }
 
 function isPrefixEquivalent<T>(
@@ -581,4 +555,36 @@ function isPrefixEquivalent<T>(
     }
   }
   return true;
+}
+
+/**
+ * Given a key getter and an action, returns a function that samples the key
+ * getter whenever the action is invoked, and only runs the action if the key
+ * has changed since the last invocation.
+ *
+ * ```ts
+ * // `throttled` will only be run at max once per second
+ * const throttled = useDeduplicateInvocationBy(
+ *   () => Math.floor(Date.now() / 1000),
+ *   doSomething
+ * )
+ * ```
+ */
+function useDeduplicateInvocationBy<Key>(
+  getKey: () => Key,
+  callback: ((key: Key) => void) | null
+): () => boolean {
+  const lastKeyRef = React.useRef<Key | null>(getKey());
+  return React.useCallback(() => {
+    if (callback == null) {
+      return false;
+    }
+    const key = getKey();
+    if (lastKeyRef.current === key) {
+      return false; // Callback already called for this key
+    }
+    lastKeyRef.current = key;
+    callback?.(key);
+    return true; // Callback successfully called
+  }, [getKey, callback]);
 }
