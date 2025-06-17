@@ -73,10 +73,6 @@ export const PostList: PostListComponent = React.forwardRef(
         collectionLayout.shouldMaintainVisibleContentPosition,
       collectionLayoutType,
       columnsCount: numColumns,
-
-      // TODO(david): Check if this is still needed
-      // isScrollingToBottom: hasPressedGoToBottom,
-      isScrollingToBottom: false,
     });
 
     React.useEffect(() => {
