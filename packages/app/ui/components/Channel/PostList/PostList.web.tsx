@@ -72,16 +72,9 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
     const minVisibleIndex = React.useMemo(
       () =>
         min(
-          Array.from(intersectingSet).flatMap((x) => {
-            if (!(x instanceof HTMLElement)) {
-              return [];
-            }
-            const index = parseInt(x.dataset.itemindex ?? '');
-            if (isNaN(index)) {
-              return [];
-            }
-            return index;
-          })
+          Array.from(intersectingSet).flatMap(
+            (x) => getItemIndexFromPostListItem(x) ?? []
+          )
         ),
       [intersectingSet]
     );
@@ -265,6 +258,15 @@ function PostListItem({
       {children}
     </div>
   );
+}
+
+/** Extracts data-itemindex from a PostListItem DOM element */
+function getItemIndexFromPostListItem(element: Element): number | null {
+  if (!(element instanceof HTMLElement)) {
+    return null;
+  }
+  const index = parseInt(element.dataset.itemindex ?? '');
+  return isNaN(index) ? null : index;
 }
 
 function isElementScrolledNearTop(
