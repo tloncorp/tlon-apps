@@ -156,18 +156,12 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
       insideScrolledToBottomBoundary,
     ]);
 
-    const [isAtStart] = useScrollBoundary(scrollerRef.current, {
-      boundaryRatio: 0,
-      side: inverted ? 'bottom' : 'top',
-    });
-    const { setShouldStickToScrollStart } = useStickToScrollStart({
+    useStickToScrollStart({
       scrollerContentsKey: orderedData,
       scrollerRef,
       inverted,
+      hasNewerPosts,
     });
-    React.useEffect(() => {
-      setShouldStickToScrollStart(!hasNewerPosts && isAtStart);
-    }, [setShouldStickToScrollStart, isAtStart, hasNewerPosts]);
 
     React.useImperativeHandle(forwardedRef, () => ({
       scrollToStart: ({ animated = true }) => {
@@ -446,31 +440,32 @@ function useStickToScrollStart({
   inverted,
   scrollerContentsKey,
   scrollerRef,
+  hasNewerPosts,
 }: {
   inverted: boolean;
   /** This value must change when the scroll height of the scroller changes */
   scrollerContentsKey: unknown;
-
   scrollerRef: React.RefObject<HTMLDivElement>;
-}): { setShouldStickToScrollStart: (shouldStick: boolean) => void } {
+  hasNewerPosts: boolean;
+}) {
   const shouldStickToStartRef = React.useRef(false);
 
+  const [isAtStart] = useScrollBoundary(scrollerRef.current, {
+    boundaryRatio: 0,
+    side: inverted ? 'bottom' : 'top',
+  });
+
   React.useEffect(() => {
-    if (!shouldStickToStartRef.current) {
-      return;
-    }
+    shouldStickToStartRef.current = !hasNewerPosts && isAtStart;
+  }, [isAtStart, hasNewerPosts]);
+
+  React.useEffect(() => {
     const scroller = scrollerRef.current;
-    if (!scroller) {
+    if (!shouldStickToStartRef.current || scroller == null) {
       return;
     }
     scroller.scrollTo({ top: inverted ? scroller.scrollHeight : 0 });
   }, [scrollerRef, scrollerContentsKey, inverted]);
-
-  return {
-    setShouldStickToScrollStart: React.useCallback((shouldStick: boolean) => {
-      shouldStickToStartRef.current = shouldStick;
-    }, []),
-  };
 }
 
 function useScrollToAnchorOnMount({
