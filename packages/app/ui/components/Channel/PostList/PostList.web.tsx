@@ -137,13 +137,10 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
       onEndReachedThreshold,
       onStartReached,
       onStartReachedThreshold,
-      getScrollerContentKey: React.useCallback(
-        () => scrollerRef.current?.scrollHeight,
-        [scrollerRef]
-      ),
+      scrollerContentKey: orderedData,
     });
 
-    const insideScrolledToBottomBoundary = useScrollBoundary(
+    const [insideScrolledToBottomBoundary] = useScrollBoundary(
       scrollerRef.current,
       { boundaryRatio: onScrolledToBottomThreshold, side: 'bottom' }
     );
@@ -159,7 +156,7 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
       insideScrolledToBottomBoundary,
     ]);
 
-    const isAtStart = useScrollBoundary(scrollerRef.current, {
+    const [isAtStart] = useScrollBoundary(scrollerRef.current, {
       boundaryRatio: 0,
       side: inverted ? 'bottom' : 'top',
     });
@@ -297,8 +294,35 @@ function isElementScrolledNearBottom(
 }
 
 /**
- * Returns `true` if `element` is scrolled within
- * `boundaryRatio * element.clientHeight` of `side`, else false.
+ * Returns a tuple of:
+ * 0. a boolean which is true if `element` is scrolled within
+ *    `boundaryRatio * element.clientHeight` of `side`, else false
+ * 1. a function that can be used to get the current value of (0), in case it
+ *    has changed since last render
+ *
+ * ```ts
+ * const [isNearTop, checkIsNearTop] = useScrollBoundary(
+ *   scroller,
+ *   { boundaryRatio: 0.2, side: 'top' }
+ * );
+ *
+ * React.useEffect(() => {
+ *   // using `checkIsNearTop()` here avoids running the effect if the scroll
+ *   // position has changed since the effect was enqueued
+ *   if (checkIsNearTop()) {
+ *     // do something
+ *   }
+ * }, [
+ *   // it's still necessary to include `isNearTop` in the dependency array
+ *   // since `checkIsNearTop` doesn't change identity when `isNearTop` does
+ *   isNearTop,
+ *   checkIsNearTop
+ * ]);
+ * ```
+ *
+ * Without using the `checkIsNearTop` function, hooks triggering on
+ * `isNearTop` that change the scroll contents are likely to incorrectly
+ * double-trigger.
  */
 function useScrollBoundary(
   element: HTMLElement | null,
@@ -314,17 +338,24 @@ function useScrollBoundary(
     side: 'top' | 'bottom';
   }
 ) {
-  const checkInsideBoundary =
-    side === 'top' ? isElementScrolledNearTop : isElementScrolledNearBottom;
-  const [insideBoundary, setInsideBoundary] = React.useState(() =>
-    element == null ? false : checkInsideBoundary(element, boundaryRatio)
+  const checkInsideBoundary = React.useCallback(() => {
+    if (element == null) {
+      return null;
+    }
+    const check =
+      side === 'top' ? isElementScrolledNearTop : isElementScrolledNearBottom;
+    return check(element, boundaryRatio);
+  }, [element, side, boundaryRatio]);
+
+  const [insideBoundary, setInsideBoundary] = React.useState(
+    () => checkInsideBoundary() ?? false
   );
   React.useEffect(() => {
     if (element == null) {
       return;
     }
     const handleScroll = () => {
-      setInsideBoundary(checkInsideBoundary(element, boundaryRatio));
+      setInsideBoundary(checkInsideBoundary() ?? false);
     };
     element.addEventListener('scroll', handleScroll);
     handleScroll();
@@ -332,7 +363,7 @@ function useScrollBoundary(
       element.removeEventListener('scroll', handleScroll);
     };
   }, [element, boundaryRatio, checkInsideBoundary]);
-  return insideBoundary;
+  return [insideBoundary, checkInsideBoundary] as const;
 }
 
 function useManualScrollAnchoring<Data>({
@@ -494,7 +525,7 @@ function useBoundaryCallbacks({
   onEndReachedThreshold,
   onStartReached,
   onStartReachedThreshold,
-  getScrollerContentKey,
+  scrollerContentKey,
 }: {
   element: HTMLElement | null;
   inverted: boolean;
@@ -503,35 +534,66 @@ function useBoundaryCallbacks({
   onStartReached?: () => void;
   onStartReachedThreshold: number;
   /**
-   * Output should change when the content of the scroller changes.
+   * should change when the content of the scroller changes.
    */
-  getScrollerContentKey: () => unknown;
+  scrollerContentKey: unknown;
 }) {
   const onStartReachedGuarded = useMutableCallback(
-    useDeduplicateInvocationBy(getScrollerContentKey, onStartReached ?? null)
+    useDeduplicateInvocationBy(
+      () => scrollerContentKey,
+      isEqual,
+      onStartReached ?? null
+    )
   );
-  const reachedStart = useScrollBoundary(element, {
+  const [reachedStart, getReachedStart] = useScrollBoundary(element, {
     boundaryRatio: onStartReachedThreshold,
     side: inverted ? 'bottom' : 'top',
   });
   React.useEffect(() => {
-    if (reachedStart) {
+    if (getReachedStart() ?? false) {
       onStartReachedGuarded?.();
     }
-  }, [reachedStart, onStartReachedGuarded]);
+  }, [
+    getReachedStart,
+    reachedStart,
+    onStartReachedGuarded,
+
+    // Perhaps surprisingly, we do want to trigger on `scrollerContentKey` to
+    // handle the first few page loads. Without this dep, the following situation
+    // can occur:
+    // 1. List opens on a tall viewport, so that we immediately trigger an
+    //   `onStartReached` (based on scroll position) to load more content
+    // 2. More content is added to the scroll, increasing its content height -
+    //   but even with the new content, there's not enough height for the
+    //   viewport to scroll "away" from start (i.e. `scrollHeight <
+    //   viewportHeight * (1 + onStartReachedThreshold)`)
+    // 3. No matter how the user scrolls, `reachedStart` will always be true,
+    //   so `onStartReachedGuarded` will never be called again
+    scrollerContentKey,
+  ]);
 
   const onEndReachedGuarded = useMutableCallback(
-    useDeduplicateInvocationBy(getScrollerContentKey, onEndReached ?? null)
+    useDeduplicateInvocationBy(
+      () => scrollerContentKey,
+      isEqual,
+      onEndReached ?? null
+    )
   );
-  const reachedEnd = useScrollBoundary(element, {
+  const [reachedEnd, getReachedEnd] = useScrollBoundary(element, {
     boundaryRatio: onEndReachedThreshold,
     side: inverted ? 'top' : 'bottom',
   });
   React.useEffect(() => {
-    if (reachedEnd) {
+    if (getReachedEnd() ?? false) {
       onEndReachedGuarded?.();
     }
-  }, [reachedEnd, onEndReachedGuarded]);
+  }, [
+    getReachedEnd,
+    reachedEnd,
+    onEndReachedGuarded,
+    // this is needed - see comment in in corresponding "reached start" code above
+    scrollerContentKey,
+  ]);
 }
 
 /**
@@ -570,19 +632,20 @@ function isPrefixEquivalent<T>(
  */
 function useDeduplicateInvocationBy<Key>(
   getKey: () => Key,
+  shouldSkip: (prev: Key, curr: Key) => boolean,
   callback: ((key: Key) => void) | null
 ): () => boolean {
-  const lastKeyRef = React.useRef<Key | null>(getKey());
+  const lastKeyRef = React.useRef<[Key] | null>(null);
   return React.useCallback(() => {
     if (callback == null) {
       return false;
     }
     const key = getKey();
-    if (lastKeyRef.current === key) {
+    if (lastKeyRef.current != null && shouldSkip(lastKeyRef.current[0], key)) {
       return false; // Callback already called for this key
     }
-    lastKeyRef.current = key;
+    lastKeyRef.current = [key];
     callback?.(key);
     return true; // Callback successfully called
-  }, [getKey, callback]);
+  }, [getKey, callback, shouldSkip]);
 }
