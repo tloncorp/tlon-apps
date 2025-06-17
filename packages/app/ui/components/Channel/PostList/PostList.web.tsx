@@ -15,6 +15,7 @@ export const PostList: PostListComponent = React.forwardRef((props, ref) => {
   if (props.numColumns === 1) {
     return <PostListSingleColumn {...props} ref={ref} />;
   } else {
+    // Use the native implementation for multi-column lists
     return <PostListNative {...props} ref={ref} />;
   }
 });
@@ -59,14 +60,14 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
     const scrollerRef = React.useRef<HTMLDivElement | null>(null);
     const scrollerContentContainerRef = React.useRef<HTMLDivElement>(null);
 
+    const { intersectingSet, setRoot } = useIntersectionObserverContext();
+    // Immediately set the contextual intersection observer root to the scroller
+    React.useEffect(() => setRoot(scrollerRef.current), [setRoot]);
+
     const orderedData = React.useMemo(
       () => (inverted ? [...postsWithNeighbors].reverse() : postsWithNeighbors),
       [inverted, postsWithNeighbors]
     );
-    const { intersectingSet, setRoot } = useIntersectionObserverContext();
-    React.useEffect(() => {
-      setRoot(scrollerRef.current);
-    }, [setRoot]);
 
     const minVisibleIndex = React.useMemo(
       () =>
@@ -91,11 +92,7 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
       inverted,
       onScrollCompleted: onInitialScrollCompleted,
     });
-    const { setShouldStickToScrollStart } = useStickToScrollStart({
-      scrollerContentsKey: orderedData,
-      scrollerRef,
-      inverted,
-    });
+
     useManualScrollAnchoring({
       scrollerRef,
       scrollerContentContainerRef,
@@ -165,6 +162,11 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
     const isAtStart = useScrollBoundary(scrollerRef.current, {
       boundaryRatio: 0,
       side: inverted ? 'bottom' : 'top',
+    });
+    const { setShouldStickToScrollStart } = useStickToScrollStart({
+      scrollerContentsKey: orderedData,
+      scrollerRef,
+      inverted,
     });
     React.useEffect(() => {
       setShouldStickToScrollStart(!hasNewerPosts && isAtStart);
@@ -294,6 +296,10 @@ function isElementScrolledNearBottom(
   return isNearBottom;
 }
 
+/**
+ * Returns `true` if `element` is scrolled within
+ * `boundaryRatio * element.clientHeight` of `side`, else false.
+ */
 function useScrollBoundary(
   element: HTMLElement | null,
   {
@@ -317,7 +323,6 @@ function useScrollBoundary(
     if (element == null) {
       return;
     }
-
     const handleScroll = () => {
       setInsideBoundary(checkInsideBoundary(element, boundaryRatio));
     };
@@ -351,14 +356,11 @@ function useManualScrollAnchoring<Data>({
 }) {
   // Since `Data` could be a nullable type, use an ad-hoc box type to track optionality
   const prevKey = React.useRef<[Data] | null>(null);
-
-  const [queuedScrollAnchorPayload, setQueuedScrollAnchorPayload] =
-    React.useState<{
-      previousScrollHeight: number;
-    } | null>(null);
-
   const scrollHeightRef = React.useRef<number | null>(null);
 
+  // Observe changes to the scroll content height (so we have a "previous height").
+  // Note that this assumes that `ResizeObserver`'s callback is called _after_
+  // the `useLayoutEffect` below (see `scrollHeightChange`)
   const resizeObserver = React.useMemo(
     () =>
       new ResizeObserver((entries) => {
@@ -370,11 +372,13 @@ function useManualScrollAnchoring<Data>({
       }),
     [scrollerContentContainerRef]
   );
-  React.useLayoutEffect(
+  React.useEffect(
     () => resizeObserver.observe(scrollerContentContainerRef.current!),
     [resizeObserver, scrollerContentContainerRef]
   );
 
+  // Check if we need to apply manual anchor and do so.
+  // `useLayoutEffect` prevents a flash when scroll height changes
   React.useLayoutEffect(() => {
     const scroller = scrollerRef.current;
     if (
@@ -392,29 +396,16 @@ function useManualScrollAnchoring<Data>({
     if (!needsAnchor) {
       return;
     }
-    setQueuedScrollAnchorPayload({
-      previousScrollHeight: scrollHeightRef.current,
-    });
-  }, [checkNeedsAnchor, scrollerRef, scrollerContentsKey, inverted]);
-
-  React.useLayoutEffect(() => {
-    if (queuedScrollAnchorPayload == null) {
-      return;
-    }
-    const scroller = scrollerRef.current;
-    if (scroller == null) {
-      return;
-    }
-    const scrollHeightChange =
-      scroller.scrollHeight - queuedScrollAnchorPayload.previousScrollHeight;
+    const previousScrollHeight = scrollHeightRef.current;
+    const scrollHeightChange = scroller.scrollHeight - previousScrollHeight;
     if (scrollHeightChange === 0) {
       return;
     }
     const scrollOffset = scroller.scrollTop + scrollHeightChange;
     scroller.scrollTo({ top: scrollOffset, behavior: 'instant' });
-    setQueuedScrollAnchorPayload(null);
-  }, [scrollerRef, queuedScrollAnchorPayload]);
+  }, [checkNeedsAnchor, scrollerRef, scrollerContentsKey, inverted]);
 
+  // Keep track of the previous contents key so we can pass it to `needsAnchoring`
   React.useEffect(() => {
     prevKey.current = [scrollerContentsKey];
   }, [scrollerContentsKey]);
@@ -543,6 +534,11 @@ function useBoundaryCallbacks({
   }, [reachedEnd, onEndReachedGuarded]);
 }
 
+/**
+ * Returns true if `xs.slice(0, prefixLength)` is equivalent to
+ * `ys.slice(0, prefixLength)` using the provided equality function (short
+ * circuiting if not equal).
+ */
 function isPrefixEquivalent<T>(
   xs: T[],
   ys: T[],
@@ -561,6 +557,8 @@ function isPrefixEquivalent<T>(
  * Given a key getter and an action, returns a function that samples the key
  * getter whenever the action is invoked, and only runs the action if the key
  * has changed since the last invocation.
+ * Returned callback returns true if the action was successfully called, or
+ * false if it was deduplicated.
  *
  * ```ts
  * // `throttled` will only be run at max once per second
