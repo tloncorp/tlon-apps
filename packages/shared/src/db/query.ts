@@ -26,9 +26,9 @@ export interface QueryMeta<TOptions> {
   tableDependencies: TableParam<TOptions>;
 
   /**
-   * Used to indicate whether this query is running within a transaction.
+   * Used to indicate nested transaction context
    */
-  inTransaction?: boolean;
+  rootTransaction?: string | null;
 }
 
 export interface QueryCtx {
@@ -249,54 +249,69 @@ export async function withTransactionCtx<T>(
   handler: (ctx: QueryCtx) => Promise<T>
 ): Promise<T> {
   txLogger.log(ctx.meta.label, 'tx:enqueue');
-  return new Promise((resolve, reject) =>
+
+  // If we're already in a transaction, run the handler directly
+  if (ctx.meta.rootTransaction) {
+    txLogger.log(ctx.meta.label, 'tx:already-in');
+    try {
+      txLogger.trackEvent('running nested transaction', {
+        isNested: true,
+        rootTransactionLabel: ctx.meta.rootTransaction,
+        label: ctx.meta.label,
+      });
+      const result = await handler(ctx);
+      txLogger.log(ctx.meta.label, 'tx:run');
+      return result;
+    } catch (e) {
+      txLogger.log(ctx.meta.label, 'tx:error', e);
+      txLogger.trackError('transaction error', {
+        isNested: true,
+        rootTransactionLabel: ctx.meta.rootTransaction,
+        label: ctx.meta.label,
+        errorMessage: e.message,
+        errorStack: e.stack,
+      });
+      throw e;
+    }
+  }
+
+  // Otherwise, start a new transaction
+  return new Promise((resolve, reject) => {
     enqueueTransaction(async () => {
       txLogger.log(ctx.meta.label, 'tx:handler');
 
       try {
-        if (ctx.meta.inTransaction) {
-          // If we're already in a transaction, just run the handler
-          txLogger.log(ctx.meta.label, 'tx:already-in');
-          const result = await handler(ctx);
-          txLogger.log(ctx.meta.label, 'tx:run');
-          resolve(result);
-          return result;
-        } else {
-          // Otherwise, start a new transaction
-          await ctx.db.run(sql`BEGIN`);
-          ctx.meta.inTransaction = true;
-          txLogger.log(ctx.meta.label, 'tx:begin');
+        await ctx.db.run(sql`BEGIN`);
+        ctx.meta.rootTransaction = ctx.meta.label;
+        txLogger.log(ctx.meta.label, 'tx:begin');
 
-          const result = await handler(ctx);
-          txLogger.log(ctx.meta.label, 'tx:run');
+        const result = await handler(ctx);
+        txLogger.log(ctx.meta.label, 'tx:run');
 
-          await ctx.db.run(sql`COMMIT`);
-          ctx.meta.inTransaction = false;
-          txLogger.log(ctx.meta.label, 'tx:commit');
-          resolve(result);
-          return result;
-        }
+        await ctx.db.run(sql`COMMIT`);
+        ctx.meta.rootTransaction = null;
+        txLogger.log(ctx.meta.label, 'tx:commit');
+        resolve(result);
+        return result;
       } catch (e) {
-        try {
-          txLogger.log('tx:error', e);
-          txLogger.trackError('transaction error', {
+        txLogger.log('tx:error', e);
+        txLogger.trackError('DB Transaction Error', {
+          label: ctx.meta.label,
+          errorMessage: e.message,
+          errorStack: e.stack,
+        });
+        await ctx.db.run(sql`ROLLBACK`).catch((e) =>
+          txLogger.trackError('DB Transaction Rollback Error', {
             label: ctx.meta.label,
             errorMessage: e.message,
             errorStack: e.stack,
-          });
-          reject(e);
-          await ctx.db.run(sql`ROLLBACK`);
-          ctx.meta.inTransaction = false;
-        } catch (e) {
-          txLogger.trackError('failed to handle transaction error', {
-            label: ctx.meta.label,
-            errorMessage: e.message,
-            errorStack: e.stack,
-          });
-        }
+          })
+        );
+        ctx.meta.rootTransaction = null;
+        reject(e);
       }
-    })
-  );
+    });
+  });
 }
 
 function setsOverlap(setA: Set<unknown>, setB: Set<unknown>) {
