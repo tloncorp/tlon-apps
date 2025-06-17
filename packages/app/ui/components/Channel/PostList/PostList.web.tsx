@@ -139,8 +139,14 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
       scrollBoundaries,
     });
 
+    // LEGACY: `onScrolledToBottom` is used to show/hide the "go to bottom"
+    // button, which has historically used a 1-screen margin.
+    const insideScrolledToBottomBoundary = useScrollBoundary(
+      scrollerRef.current,
+      { boundaryRatio: 1, side: 'bottom' }
+    );
     React.useEffect(() => {
-      if (scrollBoundaries.isNearBottom) {
+      if (insideScrolledToBottomBoundary) {
         onScrolledToBottom?.();
       } else {
         onScrolledAwayFromBottom?.();
@@ -148,13 +154,12 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
     }, [
       onScrolledAwayFromBottom,
       onScrolledToBottom,
-      scrollBoundaries.isNearBottom,
-      inverted,
+      insideScrolledToBottomBoundary,
     ]);
 
     const isAtStart = inverted
-      ? scrollBoundaries.isNearBottom
-      : scrollBoundaries.isNearTop;
+      ? scrollBoundaries.isAtBottom
+      : scrollBoundaries.isAtTop;
     React.useEffect(() => {
       setShouldStickToScrollStart(!hasNewerPosts && isAtStart);
     }, [setShouldStickToScrollStart, isAtStart, hasNewerPosts]);
@@ -283,6 +288,42 @@ function isElementScrolledNearBottom(
   return isNearBottom;
 }
 
+function useScrollBoundary(
+  element: HTMLElement | null,
+  {
+    boundaryRatio,
+    side,
+  }: {
+    /**
+     * Max ratio of (distance to boundary) / (viewport height) that will be considered "near boundary".
+     * e.g. `boundaryRatio: 0.5` means that `isNearTop` will be true once we're a half screen from the top of the scroll.
+     */
+    boundaryRatio: number;
+    side: 'top' | 'bottom';
+  }
+) {
+  const checkInsideBoundary =
+    side === 'top' ? isElementScrolledNearTop : isElementScrolledNearBottom;
+  const [insideBoundary, setInsideBoundary] = React.useState(() =>
+    element == null ? false : checkInsideBoundary(element, boundaryRatio)
+  );
+  React.useEffect(() => {
+    if (element == null) {
+      return;
+    }
+
+    const handleScroll = () => {
+      setInsideBoundary(checkInsideBoundary(element, boundaryRatio));
+    };
+    element.addEventListener('scroll', handleScroll);
+    handleScroll();
+    return () => {
+      element.removeEventListener('scroll', handleScroll);
+    };
+  }, [element, boundaryRatio, checkInsideBoundary]);
+  return insideBoundary;
+}
+
 function useScrollBoundaries(
   element: HTMLElement | null,
   {
@@ -295,35 +336,26 @@ function useScrollBoundaries(
     boundaryRatio: number;
   }
 ) {
-  const [isNearTop, setIsNearTop] = React.useState(() =>
-    element == null ? false : isElementScrolledNearTop(element, boundaryRatio)
+  const isNearTop = useScrollBoundary(element, { boundaryRatio, side: 'top' });
+  const isAtTop = useScrollBoundary(element, { boundaryRatio: 0, side: 'top' });
+  const isNearBottom = useScrollBoundary(element, {
+    boundaryRatio,
+    side: 'bottom',
+  });
+  const isAtBottom = useScrollBoundary(element, {
+    boundaryRatio: 0,
+    side: 'bottom',
+  });
+
+  return React.useMemo(
+    () => ({
+      isNearTop,
+      isNearBottom,
+      isAtTop,
+      isAtBottom,
+    }),
+    [isNearTop, isNearBottom, isAtTop, isAtBottom]
   );
-  const [isNearBottom, setIsNearBottom] = React.useState(() =>
-    element == null
-      ? false
-      : isElementScrolledNearBottom(element, boundaryRatio)
-  );
-
-  React.useEffect(() => {
-    if (element == null) {
-      return;
-    }
-
-    const handleScroll = () => {
-      setIsNearTop(isElementScrolledNearTop(element, boundaryRatio));
-      setIsNearBottom(isElementScrolledNearBottom(element, boundaryRatio));
-    };
-    element.addEventListener('scroll', handleScroll);
-    handleScroll();
-    return () => {
-      element.removeEventListener('scroll', handleScroll);
-    };
-  }, [element, boundaryRatio]);
-
-  return {
-    isNearTop,
-    isNearBottom,
-  };
 }
 
 function useManualScrollAnchoring<Data>({
