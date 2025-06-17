@@ -346,11 +346,12 @@
     %+  turn  ls
     |=  [=time =writ:c]
     [time writ(replies *replies:c)]
-  ::TODO  handle =(~ ls) case
   =/  newer=(unit time)
+    ?:  =(~ ls)  ~
     =/  more  (tab:on:writs:c wit.pac `-:(rear ls) 1)
     ?~(more ~ `key:(head more))
   =/  older=(unit time)
+    ?:  =(~ ls)  ~
     =/  more  (bat:mope wit.pac `-:(head ls) 1)
     ?~(more ~ `key:(head more))
   :*  writs
