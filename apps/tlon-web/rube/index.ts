@@ -412,7 +412,7 @@ const mountDesks = async () => {
   console.log('Mounting desks on fake ships');
 
   for (const ship of Object.values(ships) as Ship[]) {
-    if (targetShip && targetShip !== ship.ship) {
+    if ((targetShip && targetShip !== ship.ship) || ship.skipCommit === true) {
       continue;
     }
 
