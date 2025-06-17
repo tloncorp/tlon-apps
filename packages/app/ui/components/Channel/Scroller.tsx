@@ -474,10 +474,13 @@ const Scroller = forwardRef(
             key={channel.type + '-' + columns}
             numColumns={columns}
             onEndReached={handleEndReached}
+            onEndReachedThreshold={1}
             onInitialScrollCompleted={() => setReadyToDisplayPosts(true)}
             onScrolledAwayFromBottom={onScrolledAwayFromBottom}
             onScrolledToBottom={onScrolledToBottom}
+            onScrolledToBottomThreshold={1}
             onStartReached={handleStartReached}
+            onStartReachedThreshold={1}
             postsWithNeighbors={postsWithNeighbors}
             ref={listRef}
             renderEmptyComponent={renderEmptyComponent}
