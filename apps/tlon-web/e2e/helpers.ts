@@ -657,6 +657,7 @@ export async function createDirectMessage(page: Page, contactId: string) {
  * Leaves a direct message
  */
 export async function leaveDM(page: Page, contactId: string) {
+  await page.getByTestId('HomeNavIcon').click();
   await page.getByText(contactId, { exact: true }).first().click();
   await page.waitForTimeout(500);
   await page.getByTestId('ChannelOptionsSheetTrigger').first().click();
