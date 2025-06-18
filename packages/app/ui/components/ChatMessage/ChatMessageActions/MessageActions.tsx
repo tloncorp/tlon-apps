@@ -308,7 +308,7 @@ export function useDisplaySpecForChannelActionId(
         return { label: isMuted ? 'Unmute thread' : 'Mute thread' };
 
       case 'quote':
-        return { label: 'Reply' };
+        return { label: 'Quote' };
 
       case 'report':
         return {
@@ -318,8 +318,8 @@ export function useDisplaySpecForChannelActionId(
       case 'startThread':
         return {
           label: ['dm', 'groupDm', 'chat'].includes(channel?.type)
-            ? 'Start thread'
-            : 'Comment on post',
+            ? 'Reply'
+            : 'Comment',
         };
 
       case 'forward':
