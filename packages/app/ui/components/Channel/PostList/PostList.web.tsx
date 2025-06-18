@@ -7,12 +7,15 @@ import { isEqual, min } from 'lodash';
 import * as React from 'react';
 import { View } from 'react-native';
 
+import { useFeatureFlag } from '../../../../lib/featureFlags';
 import { ScrollAnchor } from '../Scroller';
 import { PostList as PostListNative } from './PostListFlatList';
 import { PostListComponent, PostWithNeighbors } from './shared';
 
 export const PostList: PostListComponent = React.forwardRef((props, ref) => {
-  if (props.numColumns === 1) {
+  const [webScrollerEnabled] = useFeatureFlag('webScroller');
+
+  if (webScrollerEnabled && props.numColumns === 1) {
     return <PostListSingleColumn {...props} ref={ref} />;
   } else {
     // Use the native implementation for multi-column lists
