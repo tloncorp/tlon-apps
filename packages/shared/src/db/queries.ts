@@ -2622,7 +2622,7 @@ export const getSequencedChannelPosts = createReadQuery(
       }
 
       seqLogger.log(
-        `found ${contiguousOlderPosts.length} contiguous posts from newest`,
+        `found ${contiguousOlderPosts.length} contiguous older posts from ${options.cursorSequenceNum}`,
         contiguousOlderPosts
       );
 
@@ -2675,7 +2675,7 @@ export const getSequencedChannelPosts = createReadQuery(
       }
 
       seqLogger.log(
-        `found ${contiguousNewerPosts.length} contiguous posts from newest`,
+        `found ${contiguousNewerPosts.length} contiguous newer posts from ${options.cursorSequenceNum}`,
         contiguousNewerPosts
       );
 
