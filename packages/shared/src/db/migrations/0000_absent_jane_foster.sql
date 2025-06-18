@@ -258,6 +258,7 @@ CREATE TABLE `groups` (
 	`current_user_is_host` integer NOT NULL,
 	`host_user_id` text NOT NULL,
 	`is_new` integer,
+	`is_personal_group` integer DEFAULT false,
 	`join_status` text,
 	`last_post_id` text,
 	`last_post_at` integer,
@@ -288,16 +289,6 @@ CREATE TABLE `post_reactions` (
 	FOREIGN KEY (`post_id`) REFERENCES `posts`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `post_windows` (
-	`channel_id` text NOT NULL,
-	`oldest_post_id` text NOT NULL,
-	`newest_post_id` text NOT NULL,
-	PRIMARY KEY(`channel_id`, `oldest_post_id`, `newest_post_id`)
-);
---> statement-breakpoint
-CREATE INDEX `channel_id` ON `post_windows` (`channel_id`);--> statement-breakpoint
-CREATE INDEX `channel_oldest_post` ON `post_windows` (`channel_id`,`oldest_post_id`);--> statement-breakpoint
-CREATE INDEX `channel_newest_post` ON `post_windows` (`channel_id`,`newest_post_id`);--> statement-breakpoint
 CREATE TABLE `posts` (
 	`id` text PRIMARY KEY NOT NULL,
 	`author_id` text NOT NULL,
@@ -351,6 +342,7 @@ CREATE TABLE `settings` (
 	`group_side_bar_sort` text,
 	`show_activity_message` integer,
 	`log_activity` integer,
+	`enable_telemetry` integer,
 	`analytics_id` text,
 	`seen_welcome_card` integer,
 	`new_group_flags` text,

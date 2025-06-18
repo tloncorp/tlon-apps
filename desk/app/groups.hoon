@@ -1097,7 +1097,8 @@
     (watch-channels &)
   ::
       %fact
-    =+  !<(=r-channels:d q.cage.sign)
+    ?.  =(%channel-response-2 p.cage.sign)  cor
+    =+  !<(=r-channels:v7:old:d q.cage.sign)
     =*  rc  r-channel.r-channels
     ?+    -.rc  cor
         %create

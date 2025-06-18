@@ -1303,12 +1303,12 @@ export const insertChannelOrder = createWriteQuery(
     channelsInit: Pick<ChannelInit, 'channelId' | 'order'>[],
     ctx: QueryCtx
   ) => {
-    await ctx.db.transaction(async (tx) => {
+    await withTransactionCtx(ctx, async (txc) => {
       await Promise.all(
         channelsInit.map(async (chanInit) => {
           if (!chanInit.order) return;
 
-          await tx
+          await txc.db
             .update($channels)
             .set({ order: chanInit.order })
             .where(eq($channels.id, chanInit.channelId));
@@ -2109,18 +2109,18 @@ export const updateChannel = createWriteQuery(
     logger.log('updateChannel', update.id, update);
 
     return withTransactionCtx(ctx, async (txCtx) => {
-      await insertChannelPerms(
-        [
-          {
-            channelId: update.id,
-            writers:
-              update.writerRoles?.map((role) => role.roleId as string) || [],
-            readers:
-              update.readerRoles?.map((role) => role.roleId as string) || [],
-          },
-        ],
-        txCtx
-      );
+      if (update.writerRoles && update.readerRoles) {
+        await insertChannelPerms(
+          [
+            {
+              channelId: update.id,
+              writers: update.writerRoles?.map((role) => role.roleId as string),
+              readers: update.readerRoles?.map((role) => role.roleId as string),
+            },
+          ],
+          txCtx
+        );
+      }
 
       return txCtx.db
         .update($channels)

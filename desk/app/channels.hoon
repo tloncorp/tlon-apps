@@ -926,7 +926,7 @@
       [%x %v2 %channels full=?(~ [%full ~])]
     ``channels-2+!>(`channels:v1:old:c`(uv-channels:utils v-channels ?=(^ full.pole)))
     ::
-      [%x %v3 %channels ~]
+      [%x %v3 %v-channels ~]
     ``channels-3+!>(v-channels)
     ::
       [%x %v3 %channels full=?(~ [%full ~])]

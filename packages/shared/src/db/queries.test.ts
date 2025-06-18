@@ -88,6 +88,7 @@ test('update channel: new writer roles with existing writer roles', async () => 
       },
       { channelId, roleId: 'writer' },
     ],
+    readerRoles: [],
   });
 
   const updatedChannel = await queries.getChannel({
@@ -115,6 +116,7 @@ test('update channel: new writer roles with no existing writer roles', async () 
   await queries.updateChannel({
     id: channelId,
     writerRoles: [{ channelId, roleId: 'writer' }],
+    readerRoles: [],
   });
 
   const updatedChannel = await queries.getChannel({
@@ -137,6 +139,7 @@ test('update channel: cleared out writer roles with existing roles', async () =>
   await queries.updateChannel({
     id: channelId,
     writerRoles: [],
+    readerRoles: [],
   });
   const updatedChannel = await queries.getChannel({
     id: channelId,
@@ -177,6 +180,7 @@ test('update channel: new reader roles with existing reader roles', async () => 
       },
       { channelId, roleId: 'reader' },
     ],
+    writerRoles: [],
   });
 
   const updatedGroup = await queries.getGroup({
@@ -216,6 +220,7 @@ test('update channel: new reader roles with no existing reader roles', async () 
   await queries.updateChannel({
     id: channelId,
     readerRoles: [{ channelId, roleId: 'reader' }],
+    writerRoles: [],
   });
   const updatedGroup = await queries.getGroup({
     id: '~nibset-napwyn/tlon',
@@ -251,6 +256,7 @@ test('update channel: cleared out reader roles with existing roles', async () =>
   await queries.updateChannel({
     id: channelId,
     readerRoles: [],
+    writerRoles: [],
   });
   const updatedGroup = await queries.getGroup({
     id: '~nibset-napwyn/tlon',

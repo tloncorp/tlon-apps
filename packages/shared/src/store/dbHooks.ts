@@ -622,3 +622,28 @@ export const useThemeSettings = () => {
     },
   });
 };
+
+export const useTelemetryEnabled = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['enableTelemetry', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings();
+      return settings?.enableTelemetry ?? false;
+    },
+  });
+};
+
+export const useTelemetrySettings = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['telemetrySettings', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings();
+      return {
+        enableTelemetry: settings?.enableTelemetry,
+        logActivity: settings?.logActivity,
+      };
+    },
+  });
+};

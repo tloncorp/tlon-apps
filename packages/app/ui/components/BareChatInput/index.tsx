@@ -901,6 +901,7 @@ export default function BareChatInput({
       >
         {showInlineAttachments && <AttachmentPreviewList />}
         <TextInput
+          testID="MessageInput"
           ref={inputRef}
           value={isWeb ? controlledText : undefined}
           onChangeText={handleTextChange}
