@@ -15,9 +15,6 @@ function getPostId({ post }: PostWithNeighbors) {
   return post.id;
 }
 
-// remove me
-const INITIAL_POSTS_PER_PAGE = 30;
-
 export const PostList: PostListComponent = React.forwardRef(
   (
     {
@@ -147,7 +144,6 @@ export const PostList: PostListComponent = React.forwardRef(
           // list is empty instead of adversarily transforming the empty component.
           (postsWithNeighbors?.length || 0) === 0 ? false : inverted
         }
-        initialNumToRender={INITIAL_POSTS_PER_PAGE}
         maxToRenderPerBatch={8}
         windowSize={8}
         numColumns={numColumns}

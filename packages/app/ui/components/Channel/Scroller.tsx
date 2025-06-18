@@ -59,8 +59,6 @@ interface PostWithNeighbors {
 
 const logger = createDevLogger('scroller', false);
 
-export const INITIAL_POSTS_PER_PAGE = 30;
-
 export type ScrollAnchor = {
   type: 'unread' | 'selected';
   postId: string;
@@ -71,7 +69,6 @@ export type ScrollAnchor = {
  * - Posts and unread state should be be loaded before the scroller is rendered
  * - Posts should be sorted in descending order
  * - If we're scrolling to an anchor, that anchor should be in the first page of posts
- * - The size of the first page of posts should match `initialNumToRender` here.
  */
 const Scroller = forwardRef(
   (
