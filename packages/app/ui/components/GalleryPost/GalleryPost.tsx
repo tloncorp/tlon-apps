@@ -181,6 +181,7 @@ export function GalleryPost({
               onOpenChange={setIsPopoverOpen}
               onReply={handlePress}
               onEdit={onPressEdit}
+              mode="await-trigger"
               trigger={
                 <Button
                   borderWidth="unset"
