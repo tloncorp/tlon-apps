@@ -226,7 +226,7 @@ const Scroller = forwardRef(
       return {
         backgroundColor: theme.background.val,
       };
-    }, [theme.background.val, postsWithNeighbors]);
+    }, [theme.background.val]);
 
     const listRenderItem: ListRenderItem<PostWithNeighbors> = useCallback(
       ({
@@ -546,10 +546,6 @@ const Scroller = forwardRef(
 Scroller.displayName = 'Scroller';
 
 export default React.memo(Scroller);
-
-function getPostId({ post }: PostWithNeighbors) {
-  return post.id;
-}
 
 // Create empty post object to avoid recreating it on every render
 const EMPTY_POST: db.Post = {
