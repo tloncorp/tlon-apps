@@ -93,11 +93,19 @@ export async function waitForElementAndAct(
 /**
  * Handles cleanup of existing "Untitled group" if present
  */
-export async function cleanupExistingGroup(page: Page) {
-  if (await page.getByText('Untitled group').first().isVisible()) {
-    await page.getByText('Untitled group').first().click();
+export async function cleanupExistingGroup(page: Page, groupName?: string) {
+  if (
+    await page
+      .getByText(groupName || 'Untitled group')
+      .first()
+      .isVisible()
+  ) {
+    await page
+      .getByText(groupName || 'Untitled group')
+      .first()
+      .click();
     await openGroupSettings(page);
-    await deleteGroup(page);
+    await deleteGroup(page, groupName);
   }
 }
 
