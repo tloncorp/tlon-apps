@@ -518,6 +518,7 @@ const Scroller = forwardRef(
                 setViewReactionsPost(post);
                 setActiveMessage(null);
               }}
+              mode="immediate"
             />
           </Modal>
         )}
