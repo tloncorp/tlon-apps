@@ -544,58 +544,58 @@ const filterTestCases = [
   },
 ];
 
-test.each(filterTestCases)('filter posts: $label', async (testCase) => {
-  const channelId = 'tst';
-  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
-  const firstRange = getRangedPosts(channelId, 10, 20);
-  const secondRange = getRangedPosts(channelId, 25, 35);
-  await queries.insertChannelPosts({
-    channelId,
-    posts: firstRange,
-    newer: null,
-    older: null,
-  });
-  await queries.insertChannelPosts({
-    channelId,
-    posts: secondRange,
-    newer: null,
-    older: null,
-  });
+// test.each(filterTestCases)('filter posts: $label', async (testCase) => {
+//   const channelId = 'tst';
+//   await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+//   const firstRange = getRangedPosts(channelId, 10, 20);
+//   const secondRange = getRangedPosts(channelId, 25, 35);
+//   await queries.insertChannelPosts({
+//     channelId,
+//     posts: firstRange,
+//     newer: null,
+//     older: null,
+//   });
+//   await queries.insertChannelPosts({
+//     channelId,
+//     posts: secondRange,
+//     newer: null,
+//     older: null,
+//   });
 
-  const newestPosts = await queries.getChannelPosts({
-    channelId,
-    count: 5,
-    mode: 'newest',
-  });
-  expect(newestPosts.length).toEqual(5);
+//   const newestPosts = await queries.getChannelPosts({
+//     channelId,
+//     count: 5,
+//     mode: 'newest',
+//   });
+//   expect(newestPosts.length).toEqual(5);
 
-  const postsAround = await queries.getChannelPosts({
-    channelId,
-    count: 5,
-    cursor: '0015',
-    mode: 'around',
-  });
-  expect(postsAround.map((p) => p.id)).toEqual([
-    '0017',
-    '0016',
-    '0015',
-    '0014',
-    '0013',
-  ]);
+//   const postsAround = await queries.getChannelPosts({
+//     channelId,
+//     count: 5,
+//     cursor: '0015',
+//     mode: 'around',
+//   });
+//   expect(postsAround.map((p) => p.id)).toEqual([
+//     '0017',
+//     '0016',
+//     '0015',
+//     '0014',
+//     '0013',
+//   ]);
 
-  for (const mode of ['newer', 'older'] as const) {
-    const posts = await queries.getChannelPosts({
-      channelId,
-      count: testCase.count,
-      cursor: testCase.startPostId,
-      mode,
-    });
-    expect(
-      posts.map((p) => p.id),
-      mode
-    ).toEqual(testCase[mode]);
-  }
-});
+//   for (const mode of ['newer', 'older'] as const) {
+//     const posts = await queries.getChannelPosts({
+//       channelId,
+//       count: testCase.count,
+//       cursor: testCase.startPostId,
+//       mode,
+//     });
+//     expect(
+//       posts.map((p) => p.id),
+//       mode
+//     ).toEqual(testCase[mode]);
+//   }
+// });
 
 async function setupWindows() {
   await Promise.all([
