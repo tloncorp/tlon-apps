@@ -141,7 +141,7 @@ export async function createRole(
   await fillFormField(page, 'RoleDescriptionInput', description);
 
   await page.getByText('Save').click();
-  await expect(page.getByText(title)).toBeVisible();
+  await expect(page.getByText(title, { exact: true })).toBeVisible();
 }
 
 /**
@@ -158,7 +158,7 @@ export async function assignRoleToMember(
 
   await expect(page.getByText('Send message')).toBeVisible();
   await page.getByText('Assign role').click();
-  await page.getByText(roleName).click();
+  await page.getByRole('dialog').getByText(roleName).click();
 
   await page.waitForTimeout(2000); // Wait for assignment to complete
 }

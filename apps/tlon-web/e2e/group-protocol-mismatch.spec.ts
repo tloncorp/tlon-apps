@@ -29,6 +29,7 @@ test('should invite ~bus to a group and test protocol mismatch', async ({
     });
 
     // Clean up any existing group on zod
+    await helpers.cleanupExistingGroup(zodPage);
     await helpers.cleanupExistingGroup(zodPage, '~bus, ~zod');
 
     // Create a new group on zod
