@@ -51,7 +51,7 @@ export type PostListComponent = React.ForwardRefExoticComponent<{
   renderItem: (opts: {
     item: PostWithNeighbors;
     index: number;
-  }) => React.ReactNode;
+  }) => React.ReactElement | null;
   scrollEnabled?: boolean;
   style?: StyleProp<ViewStyle>;
 }>;
