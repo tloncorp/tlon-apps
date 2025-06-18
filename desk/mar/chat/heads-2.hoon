@@ -1,11 +1,11 @@
-/-  c=chat-4
+/-  c=chat
 /+  j=chat-json
 |_  =chat-heads:c
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  chat-heads
-  ++  json  (chat-heads:v8:enjs:j chat-heads)
+  ++  json  (chat-heads:enjs:j chat-heads)
   --
 ++  grab
   |%
