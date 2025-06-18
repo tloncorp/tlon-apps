@@ -371,6 +371,7 @@ export const getChannelPosts = async ({
       type !== 'channel' ? (includeReplies ? 'heavy' : 'light') : null,
     ]
   );
+
   const response = await with404Handler(
     scry<ub.PagedWrits>({
       app,
@@ -378,7 +379,21 @@ export const getChannelPosts = async ({
     }),
     { posts: [] }
   );
-  return toPagedPostsData(channelId, response);
+  const posts = toPagedPostsData(channelId, response);
+
+  let withSeq = 0;
+  let withoutSeq = 0;
+  for (const post of posts.posts) {
+    if (post.sequenceNum) {
+      withSeq++;
+    } else {
+      withoutSeq++;
+    }
+  }
+
+  console.log(`bl: got posts`, { path, withSeq, withoutSeq });
+
+  return posts;
 };
 
 export type PostWithUpdateTime = {

@@ -15,7 +15,7 @@ import { useCurrentSession } from './session';
 import * as sync from './sync';
 import { SyncPriority } from './syncQueue';
 
-const postsLogger = createDevLogger('useChannelPosts', false);
+const postsLogger = createDevLogger('useChannelPosts', true);
 
 type PostQueryPage = {
   posts: db.Post[];
@@ -98,7 +98,21 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
           abortSignal: abortControllerRef.current?.signal,
         });
       }
-      const cached = await db.getChannelPosts(queryOptions);
+      // const cached = await db.getChannelPosts(queryOptions);
+      let cached: db.Post[] = [];
+      if (queryOptions.mode === 'newest') {
+        cached = await db.getSequencedChannelPosts(queryOptions);
+      } else if (queryOptions.cursor) {
+        const cursorPost = await db.getPost({ postId: queryOptions.cursor });
+        console.log('bl: have cursor post', { cursorPost });
+        if (cursorPost) {
+          cached = await db.getSequencedChannelPosts({
+            ...queryOptions,
+            cursorSequenceNum: cursorPost.sequenceNum!,
+          });
+        }
+      }
+
       if (cached?.length) {
         postsLogger.log('returning', cached.length, 'posts from db');
         return { posts: cached, canFetchNewerPosts: true };
@@ -116,7 +130,19 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
         }
       );
       postsLogger.log('loaded', res.posts?.length, 'posts from api', { res });
-      const secondResult = await db.getChannelPosts(queryOptions);
+      let secondResult: db.Post[] = [];
+      if (queryOptions.mode === 'newest') {
+        secondResult = await db.getSequencedChannelPosts(queryOptions);
+      } else if (queryOptions.cursor) {
+        const cursorPost = await db.getPost({ postId: queryOptions.cursor });
+        console.log('bl: have cursor post', { cursorPost });
+        if (cursorPost) {
+          secondResult = await db.getSequencedChannelPosts({
+            ...queryOptions,
+            cursorSequenceNum: cursorPost.sequenceNum!,
+          });
+        }
+      }
       postsLogger.log(
         'returning',
         secondResult?.length,

@@ -1846,7 +1846,7 @@ async function stepFillChannelGap({
     count: 30,
   } as const;
 
-  const syncParams: api.GetChannelPostsOptions = await (async () => {
+  const syncParams: api.GetChannelPostsOptions | null = await (async () => {
     const unread = await db.getChannelUnread({ channelId });
     const unreadPostId = unread?.firstUnreadPostId;
     if (unreadPostId == null) {
@@ -1857,11 +1857,11 @@ async function stepFillChannelGap({
       };
     }
 
-    const mainWindow = await db.getPostWindow({
+    const backfillInfo = await db.checkUnreadChannelBackfill({
       channelId,
       postId: unreadPostId,
     });
-    if (mainWindow == null) {
+    if (backfillInfo == null) {
       // unread is outside a window - we want to show the unread to the user,
       // so start fetching around the unread.
       return {
@@ -1871,13 +1871,22 @@ async function stepFillChannelGap({
       };
     }
 
+    // if we already have a large set of posts after the unread, don't backfill more
+    if (backfillInfo.numberContiguous > 100) {
+      return null;
+    }
+
     // we know what window we want to grow - fetch newer posts
     return {
       ...baseSyncParams,
       mode: 'newer' as const,
-      cursor: mainWindow.newestPostId,
+      cursor: backfillInfo.newestContiguousPostId,
     };
   })();
+
+  if (syncParams == null) {
+    return null;
+  }
 
   const resp = await syncPosts(syncParams, syncCtx);
   return { fetchedPosts: resp.posts };
