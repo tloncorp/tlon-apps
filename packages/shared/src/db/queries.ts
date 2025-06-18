@@ -3070,7 +3070,7 @@ export const insertChannelPosts = createWriteQuery(
       // }
     });
   },
-  ['posts', 'postWindows']
+  ['posts']
 );
 
 export const insertLatestPosts = createWriteQuery(

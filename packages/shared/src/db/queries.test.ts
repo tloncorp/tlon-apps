@@ -431,118 +431,118 @@ const testCases: {
   },
 ];
 
-let sentTime = Date.now();
+// let sentTime = Date.now();
 
-function insertPostsForWindow(
-  window: PostWindow & { older?: string; newer?: string }
-) {
-  console.log(`Inserting posts for window: ${JSON.stringify(window)}`);
-  return queries.insertChannelPosts({
-    channelId: window.channelId,
-    older: window.older,
-    newer: window.newer,
-    posts: [
-      {
-        id: window.oldestPostId,
-        type: 'chat',
-        channelId: window.channelId,
-        authorId: 'test',
-        receivedAt: 0,
-        sentAt: sentTime++,
-        syncedAt: 0,
-      },
-      {
-        id: window.newestPostId,
-        type: 'chat',
-        channelId: window.channelId,
-        authorId: 'test',
-        receivedAt: 0,
-        sentAt: sentTime++,
-        syncedAt: 0,
-      },
-    ],
-  });
-}
+// function insertPostsForWindow(
+//   window: PostWindow & { older?: string; newer?: string }
+// ) {
+//   console.log(`Inserting posts for window: ${JSON.stringify(window)}`);
+//   return queries.insertChannelPosts({
+//     channelId: window.channelId,
+//     older: window.older,
+//     newer: window.newer,
+//     posts: [
+//       {
+//         id: window.oldestPostId,
+//         type: 'chat',
+//         channelId: window.channelId,
+//         authorId: 'test',
+//         receivedAt: 0,
+//         sentAt: sentTime++,
+//         syncedAt: 0,
+//       },
+//       {
+//         id: window.newestPostId,
+//         type: 'chat',
+//         channelId: window.channelId,
+//         authorId: 'test',
+//         receivedAt: 0,
+//         sentAt: sentTime++,
+//         syncedAt: 0,
+//       },
+//     ],
+//   });
+// }
 
-function getPostWindows({ channelId }: { channelId: string }) {
-  return getClient()?.query.postWindows.findMany({
-    where: (table, { eq }) =>
-      channelId ? eq(schema.postWindows.channelId, channelId) : undefined,
-    orderBy: (table, { asc }) => asc(schema.postWindows.oldestPostId),
-  });
-}
+// function getPostWindows({ channelId }: { channelId: string }) {
+//   return getClient()?.query.postWindows.findMany({
+//     where: (table, { eq }) =>
+//       channelId ? eq(schema.postWindows.channelId, channelId) : undefined,
+//     orderBy: (table, { asc }) => asc(schema.postWindows.oldestPostId),
+//   });
+// }
 
-test.each(testCases)('insert window: $label', async ({ window, expected }) => {
-  await setupWindows();
-  await insertPostsForWindow(window);
-  const windows = await getPostWindows({ channelId: window.channelId });
-  expect(windows).toEqual(
-    expected.map((w) => ({
-      channelId: w.channelId,
-      oldestPostId: w.oldestPostId,
-      newestPostId: w.newestPostId,
-    }))
-  );
-});
+// test.each(testCases)('insert window: $label', async ({ window, expected }) => {
+//   await setupWindows();
+//   await insertPostsForWindow(window);
+//   const windows = await getPostWindows({ channelId: window.channelId });
+//   expect(windows).toEqual(
+//     expected.map((w) => ({
+//       channelId: w.channelId,
+//       oldestPostId: w.oldestPostId,
+//       newestPostId: w.newestPostId,
+//     }))
+//   );
+// });
 
-const filterTestCases = [
-  {
-    label: 'before first window',
-    startPostId: '0005',
-    count: 5,
-    newer: [],
-    older: [],
-  },
-  {
-    label: 'within first window',
-    startPostId: '0010',
-    count: 5,
-    newer: ['0015', '0014', '0013', '0012', '0011'],
-    older: [],
-  },
-  {
-    label: 'to exact end of first window',
-    startPostId: '0014',
-    count: 5,
-    newer: ['0019', '0018', '0017', '0016', '0015'],
-    older: ['0013', '0012', '0011', '0010'],
-  },
-  {
-    label: 'past end of first window',
-    startPostId: '0017',
-    count: 5,
-    newer: ['0019', '0018'],
-    older: ['0016', '0015', '0014', '0013', '0012'],
-  },
-  {
-    label: 'into second window',
-    startPostId: '0021',
-    count: 5,
-    newer: [],
-    older: [],
-  },
-  {
-    label: 'within second window',
-    startPostId: '0025',
-    count: 5,
-    newer: ['0030', '0029', '0028', '0027', '0026'],
-    older: [],
-  },
-  {
-    label: 'outside of any window',
-    startPostId: '0040',
-    count: 5,
-    newer: [],
-    older: [],
-  },
-  {
-    label: 'before first window, into first window',
-    startPostId: '0005',
-    count: 5,
-    newer: [],
-    older: [],
-  },
-];
+// const filterTestCases = [
+//   {
+//     label: 'before first window',
+//     startPostId: '0005',
+//     count: 5,
+//     newer: [],
+//     older: [],
+//   },
+//   {
+//     label: 'within first window',
+//     startPostId: '0010',
+//     count: 5,
+//     newer: ['0015', '0014', '0013', '0012', '0011'],
+//     older: [],
+//   },
+//   {
+//     label: 'to exact end of first window',
+//     startPostId: '0014',
+//     count: 5,
+//     newer: ['0019', '0018', '0017', '0016', '0015'],
+//     older: ['0013', '0012', '0011', '0010'],
+//   },
+//   {
+//     label: 'past end of first window',
+//     startPostId: '0017',
+//     count: 5,
+//     newer: ['0019', '0018'],
+//     older: ['0016', '0015', '0014', '0013', '0012'],
+//   },
+//   {
+//     label: 'into second window',
+//     startPostId: '0021',
+//     count: 5,
+//     newer: [],
+//     older: [],
+//   },
+//   {
+//     label: 'within second window',
+//     startPostId: '0025',
+//     count: 5,
+//     newer: ['0030', '0029', '0028', '0027', '0026'],
+//     older: [],
+//   },
+//   {
+//     label: 'outside of any window',
+//     startPostId: '0040',
+//     count: 5,
+//     newer: [],
+//     older: [],
+//   },
+//   {
+//     label: 'before first window, into first window',
+//     startPostId: '0005',
+//     count: 5,
+//     newer: [],
+//     older: [],
+//   },
+// ];
 
 // test.each(filterTestCases)('filter posts: $label', async (testCase) => {
 //   const channelId = 'tst';
@@ -597,13 +597,13 @@ const filterTestCases = [
 //   }
 // });
 
-async function setupWindows() {
-  await Promise.all([
-    queries.insertChannels([{ id: 'tst', type: 'chat' }]),
-    insertPostsForWindow(windowA),
-    insertPostsForWindow(windowB),
-  ]);
-}
+// async function setupWindows() {
+//   await Promise.all([
+//     queries.insertChannels([{ id: 'tst', type: 'chat' }]),
+//     insertPostsForWindow(windowA),
+//     insertPostsForWindow(windowB),
+//   ]);
+// }
 
 function getRangedPosts(channelId: string, start: number, end: number): Post[] {
   const posts: Post[] = [];
