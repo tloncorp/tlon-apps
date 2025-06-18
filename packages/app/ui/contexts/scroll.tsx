@@ -34,6 +34,7 @@ export const useScrollDirectionTracker = ({
 } = {}) => {
   const [scrollValue] = useScrollContext();
   const previousScrollValue = useSharedValue(0);
+  const previousAtBottom = useSharedValue(true);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const viewportHeight = useViewportHeight();
 
@@ -64,7 +65,10 @@ export const useScrollDirectionTracker = ({
 
       const atBottom = y <= AT_BOTTOM_THRESHOLD;
 
-      runOnJS(setIsAtBottom)(atBottom);
+      if (previousAtBottom.value !== atBottom) {
+        previousAtBottom.value = atBottom;
+        runOnJS(setIsAtBottom)(atBottom);
+      }
     }),
     isAtBottom,
   };
