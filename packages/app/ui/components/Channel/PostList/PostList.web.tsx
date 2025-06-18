@@ -257,6 +257,11 @@ function PostListItem({
       data-postid={item.post.id}
       // Used when determining minVisibleIndex
       data-itemindex={index}
+      style={{
+        // Without this, our ChatMessageActions trigger button can add to the
+        // scroll height, causing jumps to scroll height on message hover.
+        contain: 'layout',
+      }}
     >
       {children}
     </div>
