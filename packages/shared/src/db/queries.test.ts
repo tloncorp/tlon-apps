@@ -14,7 +14,7 @@ import {
 import initResponse from '../test/init.json';
 import type * as ub from '../urbit/groups';
 import * as queries from './queries';
-import { Post, PostWindow } from './types';
+import { Post } from './types';
 
 const groupsData = toClientGroups(
   groupsResponse as unknown as Record<string, ub.Group>,
@@ -368,74 +368,74 @@ const windowCoveringAll = {
   older: undefined,
 };
 
-const testCases: {
-  label: string;
-  window: PostWindow;
-  expected: PostWindow[];
-}[] = [
-  {
-    label: 'two identical windows',
-    window: windowA,
-    expected: [windowA, windowB],
-  },
-  {
-    label: 'before A',
-    window: windowBefore,
-    expected: [windowBefore, windowA, windowB],
-  },
-  {
-    label: 'contiguous with A',
-    window: windowImmediatelyBeforeA,
-    expected: [
-      {
-        channelId: 'tst',
-        oldestPostId: windowImmediatelyBeforeA.oldestPostId,
-        newestPostId: windowA.newestPostId,
-      },
-      windowB,
-    ],
-  },
-  {
-    label: 'intersecting A (before)',
-    window: windowIntersectingA,
-    expected: [
-      {
-        channelId: 'tst',
-        oldestPostId: windowIntersectingA.oldestPostId,
-        newestPostId: windowA.newestPostId,
-      },
-      windowB,
-    ],
-  },
-  {
-    label: 'fill gap between A and B',
-    window: windowFillingGap,
-    expected: [
-      {
-        channelId: 'tst',
-        oldestPostId: windowA.oldestPostId,
-        newestPostId: windowB.newestPostId,
-      },
-    ],
-  },
-  {
-    label: 'intersecting B (after)',
-    window: windowIntersectingB,
-    expected: [
-      windowA,
-      {
-        channelId: 'tst',
-        oldestPostId: windowB.oldestPostId,
-        newestPostId: windowIntersectingB.newestPostId,
-      },
-    ],
-  },
-  {
-    label: 'covering all',
-    window: windowCoveringAll,
-    expected: [windowCoveringAll],
-  },
-];
+// const testCases: {
+//   label: string;
+//   window: PostWindow;
+//   expected: PostWindow[];
+// }[] = [
+//   {
+//     label: 'two identical windows',
+//     window: windowA,
+//     expected: [windowA, windowB],
+//   },
+//   {
+//     label: 'before A',
+//     window: windowBefore,
+//     expected: [windowBefore, windowA, windowB],
+//   },
+//   {
+//     label: 'contiguous with A',
+//     window: windowImmediatelyBeforeA,
+//     expected: [
+//       {
+//         channelId: 'tst',
+//         oldestPostId: windowImmediatelyBeforeA.oldestPostId,
+//         newestPostId: windowA.newestPostId,
+//       },
+//       windowB,
+//     ],
+//   },
+//   {
+//     label: 'intersecting A (before)',
+//     window: windowIntersectingA,
+//     expected: [
+//       {
+//         channelId: 'tst',
+//         oldestPostId: windowIntersectingA.oldestPostId,
+//         newestPostId: windowA.newestPostId,
+//       },
+//       windowB,
+//     ],
+//   },
+//   {
+//     label: 'fill gap between A and B',
+//     window: windowFillingGap,
+//     expected: [
+//       {
+//         channelId: 'tst',
+//         oldestPostId: windowA.oldestPostId,
+//         newestPostId: windowB.newestPostId,
+//       },
+//     ],
+//   },
+//   {
+//     label: 'intersecting B (after)',
+//     window: windowIntersectingB,
+//     expected: [
+//       windowA,
+//       {
+//         channelId: 'tst',
+//         oldestPostId: windowB.oldestPostId,
+//         newestPostId: windowIntersectingB.newestPostId,
+//       },
+//     ],
+//   },
+//   {
+//     label: 'covering all',
+//     window: windowCoveringAll,
+//     expected: [windowCoveringAll],
+//   },
+// ];
 
 // let sentTime = Date.now();
 

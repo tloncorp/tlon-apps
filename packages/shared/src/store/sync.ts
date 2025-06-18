@@ -486,7 +486,6 @@ export async function syncPostReference(options: {
   // event.
   const response = await api.getPostReference(options);
   await db.insertChannelPosts({
-    channelId: options.channelId,
     posts: [response],
   });
 }
@@ -506,7 +505,6 @@ export async function syncUpdatedPosts(
 
   // ignore cursors since we're always fetching from old posts we have
   await db.insertChannelPosts({
-    channelId: options.channelId,
     posts: response.posts,
   });
 
@@ -538,7 +536,6 @@ export async function syncThreadPosts(
   );
   logger.log('got thread posts from api', response);
   await db.insertChannelPosts({
-    channelId,
     posts: [response, ...(response.replies ?? [])],
   });
 }
@@ -1196,7 +1193,6 @@ export const handleChannelsUpdate = async (
     case 'initialPostsOnChannelJoin':
       await db.insertChannelPosts(
         {
-          channelId: update.channelId,
           posts: update.posts,
         },
         ctx
@@ -1298,7 +1294,6 @@ export async function handleAddPost(
     }
     await db.insertChannelPosts(
       {
-        channelId: post.channelId,
         posts: [post],
       },
       ctx
@@ -1309,9 +1304,7 @@ export async function handleAddPost(
     updateChannelCursor(post.channelId, post.id);
     await db.insertChannelPosts(
       {
-        channelId: post.channelId,
         posts: [post],
-        older,
       },
       ctx
     );
@@ -1331,10 +1324,7 @@ export async function syncPosts(
   );
   if (response.posts.length) {
     await db.insertChannelPosts({
-      channelId: options.channelId,
       posts: response.posts,
-      newer: response.newer,
-      older: response.older,
     });
   }
 

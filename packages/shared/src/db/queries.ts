@@ -2454,7 +2454,7 @@ export const setLeftGroups = createWriteQuery(
 );
 
 export const checkUnreadChannelBackfill = createReadQuery(
-  'getPostWindow',
+  'checkUnreadChannelBackfill',
   async (
     {
       channelId,
@@ -2509,43 +2509,6 @@ export const checkUnreadChannelBackfill = createReadQuery(
   },
   ['posts']
 );
-
-// export const getPostWindow = createReadQuery(
-//   'getPostWindow',
-//   async (
-//     {
-//       channelId,
-//       postId,
-//     }: {
-//       channelId: string;
-//       /**
-//        * Find window containing this post ID.
-//        * If omitted, returns window with newest post.
-//        */
-//       postId: string | null;
-//     },
-//     ctx: QueryCtx
-//   ) => {
-//     // Find the window (set of contiguous posts) that this cursor belongs to.
-//     // These are the posts that we can return safely without gaps and without hitting the api.
-//     return await ctx.db.query.postWindows.findFirst({
-//       where: and(
-//         // For this channel
-//         eq($postWindows.channelId, channelId),
-
-//         // window.oldest <= postId <= window.newest
-//         postId ? gte($postWindows.newestPostId, postId) : undefined,
-//         postId ? lte($postWindows.oldestPostId, postId) : undefined
-//       ),
-//       orderBy: [desc($postWindows.newestPostId)],
-//       columns: {
-//         oldestPostId: true,
-//         newestPostId: true,
-//       },
-//     });
-//   },
-//   ['postWindows']
-// );
 
 export type GetChannelPostsOptions = {
   channelId: string;
@@ -2800,142 +2763,6 @@ export const getSequencedChannelPosts = createReadQuery(
   ['posts']
 );
 
-// export const getChannelPosts = createReadQuery(
-//   'getChannelPosts',
-//   async (
-//     { channelId, cursor, mode, count = 50 }: GetChannelPostsOptions,
-//     ctx: QueryCtx
-//   ): Promise<Post[]> => {
-//     // Find the window (set of contiguous posts) that this cursor belongs to.
-//     // These are the posts that we can return safely without gaps and without hitting the api.
-//     const window = await getPostWindow(
-//       { channelId, postId: cursor ?? null },
-//       ctx
-//     );
-//     // If the cursor isn't part of any window, we return an empty array.
-//     if (!window) {
-//       return [];
-//     }
-
-//     const relationConfig = {
-//       author: true,
-//       reactions: {
-//         with: {
-//           contact: true,
-//         },
-//       },
-//       threadUnread: true,
-//       volumeSettings: true,
-//     } as const;
-
-//     if (mode === 'newer' || mode === 'newest' || mode === 'older') {
-//       // Simple case: just grab a set of posts from either side of the cursor.
-//       const posts = await ctx.db.query.posts.findMany({
-//         where: and(
-//           // From this channel
-//           eq($posts.channelId, channelId),
-//           // Not a reply
-//           not(eq($posts.type, 'reply')),
-//           // In the target window
-//           gte($posts.id, window.oldestPostId),
-//           lte($posts.id, window.newestPostId),
-//           // Depending on mode, either older or newer than cursor. If mode is
-//           // `newest`, we don't need to filter by cursor.
-//           cursor && mode === 'older' ? lt($posts.id, cursor) : undefined,
-//           cursor && mode === 'newer' ? gt($posts.id, cursor) : undefined
-//         ),
-//         with: relationConfig,
-//         // If newer, we have to ensure that these are the newer posts directly following the cursor
-//         orderBy: [mode === 'newer' ? asc($posts.id) : desc($posts.id)],
-//         limit: count,
-//       });
-//       // We always want to return posts newest-first
-//       if (mode === 'newer') {
-//         posts.reverse();
-//       }
-//       return posts;
-//     } else if (mode === 'around') {
-//       if (!cursor) {
-//         throw new Error('missing cursor');
-//       }
-
-//       // It's a bit more complicated to get posts around a cursor. Basic process is:
-//       // - Start with a query for all posts in the window, selecting
-//       //   row_number() to track their position within the window.
-//       // - Find the row number of the cursor post within this window.
-//       // - Find min row and max row by offsetting the cursor row by half the
-//       //   count in each direction.
-//       // - Grab post ids from the window query where row number is between min and max.
-
-//       // Get all posts in the window
-//       const $windowQuery = ctx.db
-//         .select({
-//           id: $posts.id,
-//           rowNumber: sql`row_number() OVER (ORDER BY ${$posts.id})`
-//             .mapWith(Number)
-//             .as('rowNumber'),
-//         })
-//         .from($posts)
-//         .where(
-//           and(
-//             eq($posts.channelId, channelId),
-//             not(eq($posts.type, 'reply')),
-//             gte($posts.id, window.oldestPostId),
-//             lte($posts.id, window.newestPostId)
-//           )
-//         )
-//         .as('posts');
-
-//       // Get the row number of the cursor post
-//       const position = await ctx.db
-//         .select({
-//           // finds the highest row number for posts with IDs less than or equal to the cursor.
-//           // If the cursor posts, exists, it will be the row number of that post.
-//           index:
-//             sql`coalesce(max(case when ${$windowQuery.id} <= ${cursor} then ${$windowQuery.rowNumber} end), 0)`
-//               .mapWith(Number)
-//               .as('index'),
-//         })
-//         .from($windowQuery)
-//         .get();
-
-//       if (!position) {
-//         return [];
-//       }
-
-//       // Calculate min and max rows
-//       const itemsBefore = Math.floor((count - 1) / 2);
-//       const itemsAfter = Math.ceil((count - 1) / 2);
-//       const startRow = position.index - itemsBefore;
-//       const endRow = position.index + itemsAfter;
-
-//       // Actually grab posts
-//       return await ctx.db.query.posts.findMany({
-//         where: inArray(
-//           $posts.id,
-//           ctx.db
-//             .select({
-//               id: $windowQuery.id,
-//             })
-//             .from($windowQuery)
-//             .where(
-//               and(
-//                 gte($windowQuery.rowNumber, startRow),
-//                 lte($windowQuery.rowNumber, endRow)
-//               )
-//             )
-//         ),
-//         with: relationConfig,
-//         orderBy: [desc($posts.id)],
-//         limit: count,
-//       });
-//     } else {
-//       throw new Error('invalid mode');
-//     }
-//   },
-//   ['posts']
-// );
-
 export const getPostsByStatus = createReadQuery(
   'getPostsByStatus',
   async (
@@ -3029,15 +2856,9 @@ export const insertChannelPosts = createWriteQuery(
   'insertChannelPosts',
   async (
     {
-      channelId,
       posts,
-      newer,
-      older,
     }: {
-      channelId: string;
       posts: Post[];
-      newer?: string | null;
-      older?: string | null;
     },
     ctx: QueryCtx
   ) => {
@@ -3051,23 +2872,6 @@ export const insertChannelPosts = createWriteQuery(
       );
       await insertPosts(posts, txCtx);
       logger.log('inserted posts');
-      // If these are non-reply posts, update group + channel last post as well as post windows.
-      const topLevelPosts = posts.filter((p) => p.type !== 'reply');
-
-      // BL TODO: remove
-      // if (topLevelPosts.length) {
-      //   logger.log('updating post windows');
-      //   await updatePostWindows(
-      //     {
-      //       channelId,
-      //       newPosts: topLevelPosts,
-      //       newer,
-      //       older,
-      //     },
-      //     txCtx
-      //   );
-      //   logger.log('updated windows');
-      // }
     });
   },
   ['posts']
@@ -3085,13 +2889,6 @@ export const insertLatestPosts = createWriteQuery(
         posts.map((p) => p.channelId)
       );
       await insertPosts(posts, txCtx);
-      const postUpdates = posts.map((post) => ({
-        channelId: post.channelId,
-        newPosts: [post],
-      }));
-
-      // BL TODO: remove
-      // await Promise.all(postUpdates.map((p) => updatePostWindows(p, txCtx)));
     });
   },
   ['posts']
@@ -3286,79 +3083,6 @@ async function clearMatchedPendingPosts(posts: Post[], ctx: QueryCtx) {
     )
     .returning({ id: $posts.id });
 }
-
-// async function updatePostWindows(
-//   {
-//     channelId,
-//     newPosts,
-//     newer,
-//     older,
-//   }: {
-//     channelId: string;
-//     newPosts: Post[];
-//     newer?: string | null;
-//     older?: string | null;
-//   },
-//   ctx: QueryCtx
-// ) {
-//   // Create candidate window based on input
-//   const window = {
-//     channelId,
-//     newestPostId: newPosts[newPosts.length - 1].id,
-//     oldestPostId: newPosts[0].id,
-//   };
-
-//   const referenceWindow = {
-//     channelId,
-//     newestPostId: newer || window.newestPostId,
-//     oldestPostId: older || window.oldestPostId,
-//   };
-
-//   // Calculate min and max post id of windows that overlap with this one
-//   const { oldestId, newestId } = (
-//     await ctx.db
-//       .select({
-//         oldestId: min($postWindows.oldestPostId),
-//         newestId: max($postWindows.newestPostId),
-//       })
-//       .from($postWindows)
-//       .where(overlapsWindow(referenceWindow))
-//   )[0];
-
-//   logger.log(
-//     'deleting intersecting windows',
-//     referenceWindow,
-//     oldestId,
-//     newestId
-//   );
-//   // Delete intersecting windows.
-//   await ctx.db.delete($postWindows).where(overlapsWindow(referenceWindow));
-
-//   // Calculate final range of merged windows by intersecting existing min and
-//   // max with candidate window.
-//   const resolvedStart =
-//     oldestId && oldestId < window.oldestPostId ? oldestId : window.oldestPostId;
-//   const resolvedEnd =
-//     newestId && newestId > window.newestPostId ? newestId : window.newestPostId;
-
-//   const finalWindow = {
-//     channelId: window.channelId,
-//     oldestPostId: resolvedStart,
-//     newestPostId: resolvedEnd,
-//   };
-
-//   logger.log('inserting final window', finalWindow);
-//   // Insert final window.
-//   await ctx.db.insert($postWindows).values(finalWindow).onConflictDoNothing();
-// }
-
-// function overlapsWindow(window: PostWindow) {
-//   return and(
-//     eq($postWindows.channelId, window.channelId),
-//     lte($postWindows.oldestPostId, window.newestPostId),
-//     gte($postWindows.newestPostId, window.oldestPostId)
-//   );
-// }
 
 export const updatePost = createWriteQuery(
   'updateChannelPost',
