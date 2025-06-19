@@ -428,7 +428,7 @@ export function HeaderBlock({
   ...props
 }: { block: cn.HeaderBlockData } & ComponentProps<typeof HeaderText>) {
   return (
-    <HeaderText tag={block.level} {...props}>
+    <HeaderText level={block.level} {...props}>
       {block.children.map((con, i) => (
         <InlineRenderer key={`${con}-${i}`} inline={con} />
       ))}
@@ -438,7 +438,7 @@ export function HeaderBlock({
 
 export const HeaderText = styled(Text, {
   variants: {
-    tag: {
+    level: {
       h1: {
         fontSize: 24,
         fontWeight: 'bold',
