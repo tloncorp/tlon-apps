@@ -169,16 +169,16 @@ export function list(
   };
 }
 
-export const makePost = (
+export function makePost(
   contact: db.Contact,
   content: PostContent,
-  extra?: any
-) => {
+  extra?: object
+): db.Post {
   const post = createFakePost('chat', JSON.stringify(content));
   post.authorId = contact.id;
   post.author = contact;
   return { ...post, reactions: [], ...extra };
-};
+}
 export const exampleContacts = {
   eleanor: { nickname: 'eleanor', id: randomContactId() },
   mark: { nickname: 'mark', id: randomContactId() },
