@@ -466,6 +466,7 @@ export const HeaderText = styled(Text, {
     },
   } as const,
 });
+HeaderText.displayName = 'HeaderText';
 
 export function EmbedBlock({
   block,
