@@ -432,7 +432,7 @@ export async function longPressMessage(page: Page, messageText: string) {
  */
 export async function startThread(page: Page, messageText: string) {
   await longPressMessage(page, messageText);
-  await page.getByText('Start thread').click();
+  await page.getByText('Reply').click();
   await page.waitForTimeout(500);
   await expect(page.getByRole('textbox', { name: 'Reply' })).toBeVisible();
 }
@@ -491,7 +491,7 @@ export async function quoteReply(
   isDM = false
 ) {
   await longPressMessage(page, originalMessage);
-  await page.getByText('Reply', { exact: true }).click();
+  await page.getByText('Quote', { exact: true }).click();
 
   // Verify quote interface appears
   if (!isDM) {
@@ -526,7 +526,7 @@ export async function threadQuoteReply(
   await page.waitForTimeout(500);
   await page.getByTestId('MessageActionsTrigger').click();
   await page.waitForTimeout(500);
-  await page.getByText('Reply', { exact: true }).click();
+  await page.getByText('Quote', { exact: true }).click();
 
   // Verify quote interface appears
   await expect(page.getByText('Chat Post')).toBeVisible();

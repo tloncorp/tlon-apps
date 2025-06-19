@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "11e92937-e56c-4922-930a-c32b5fdbd774",
+  "id": "0f17c271-e1e5-49ef-aae0-666c3b66c643",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -1719,6 +1719,14 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "is_personal_group": {
+          "name": "is_personal_group",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": false
         },
         "join_status": {
           "name": "join_status",
