@@ -306,7 +306,7 @@ export function NotebookPostDetailView({ post }: { post: db.Post }) {
 
 const NotebookLineBreak = () => `\n\n`;
 
-const NotebookContentRenderer = createContentRenderer({
+export const NotebookContentRenderer = createContentRenderer({
   inlineRenderers: {
     lineBreak: NotebookLineBreak,
   },

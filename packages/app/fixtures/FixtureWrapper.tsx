@@ -1,7 +1,8 @@
 // tamagui-ignore
 import { NavigationContainer } from '@react-navigation/native';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared';
-import type { PropsWithChildren } from 'react';
+import { internalConfigureClient } from '@tloncorp/shared/api';
+import { type PropsWithChildren, useEffect, useState } from 'react';
 import { useFixtureSelect } from 'react-cosmos/client';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,11 +28,26 @@ type FixtureWrapperProps = PropsWithChildren<{
   safeArea?: boolean;
 }>;
 
+function MockedUrbitClientProvider({ children }: PropsWithChildren<object>) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    internalConfigureClient({
+      shipName: 'zod',
+      shipUrl: 'whitehouse.com',
+    });
+    setReady(true);
+  }, []);
+
+  return <>{ready ? children : null}</>;
+}
+
 export const FixtureWrapper = (props: FixtureWrapperProps) => {
   return (
     <ToastProvider>
       <NavigationContainer>
-        <InnerWrapper {...props} />
+        <MockedUrbitClientProvider>
+          <InnerWrapper {...props} />
+        </MockedUrbitClientProvider>
       </NavigationContainer>
     </ToastProvider>
   );
