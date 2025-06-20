@@ -11,8 +11,7 @@ import {
 } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform } from 'react-native';
-import { TouchableOpacity } from 'react-native-gesture-handler';
+import { KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Input, XStack, getTokenValue, useTheme } from 'tamagui';
 
