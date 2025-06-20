@@ -440,6 +440,9 @@ const Scroller = forwardRef(
     const onScrolledAwayFromBottom = useCallback(() => {
       setIsAtBottom(false);
     }, []);
+    const onInitialScrollCompleted = useCallback(() => {
+      setReadyToDisplayPosts(true);
+    }, []);
 
     return (
       <View flex={1}>
@@ -472,7 +475,7 @@ const Scroller = forwardRef(
             numColumns={columns}
             onEndReached={handleEndReached}
             onEndReachedThreshold={1}
-            onInitialScrollCompleted={() => setReadyToDisplayPosts(true)}
+            onInitialScrollCompleted={onInitialScrollCompleted}
             onScrolledAwayFromBottom={onScrolledAwayFromBottom}
             onScrolledToBottom={onScrolledToBottom}
             onScrolledToBottomThreshold={1}
