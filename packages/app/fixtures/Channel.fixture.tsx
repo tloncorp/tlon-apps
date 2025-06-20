@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   useChannelPreview,
   useGroupPreview,
+  useMutableCallback,
   usePostWithRelations,
 } from '@tloncorp/shared';
 import {
@@ -32,6 +33,7 @@ import {
   tlonLocalGettingStarted,
   tlonLocalIntros,
 } from './fakeData';
+import { useFixtureFeatureFlag } from './useFixtureFeatureFlag';
 
 const posts = createFakePosts(100);
 const notebookPosts = createFakePosts(5, 'note');
@@ -58,6 +60,8 @@ function noopProps<T extends object>() {
 const ChannelFixtureWrapper = ({
   children,
 }: PropsWithChildren<{ theme?: 'light' | 'dark' }>) => {
+  useFixtureFeatureFlag('webScroller');
+
   return (
     <AppDataContextProvider contacts={initialContacts}>
       <FixtureWrapper fillWidth fillHeight>
