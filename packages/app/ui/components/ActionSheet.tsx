@@ -13,11 +13,12 @@ import {
   useMemo,
   useRef,
 } from 'react';
-import { Modal, useWindowDimensions } from 'react-native';
+import { Modal, Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Dialog,
   Popover,
+  ScrollView,
   SheetProps,
   View,
   VisuallyHidden,
@@ -292,12 +293,19 @@ const ActionSheetContent = YStack.styleable((props, ref) => {
   return <YStack {...contentStyle} {...props} ref={ref} />;
 });
 
+// On Android + tamagui@1.26.12, `Sheet.ScrollView` breaks press handlers after
+// any amount of scrolling, so we use a base scrollview instead. In theory, this
+// means that the transition between scrolling to the top of the scrollview and
+// swiping the sheet down may not be handled as well.
+const SheetScrollView =
+  Platform.OS === 'android' ? ScrollView : Sheet.ScrollView;
+
 const ActionSheetScrollableContent = ({
   ...props
 }: ComponentProps<typeof Sheet.ScrollView>) => {
   const contentStyle = useContentStyle();
   return (
-    <Sheet.ScrollView
+    <SheetScrollView
       flex={1}
       alwaysBounceVertical={false}
       automaticallyAdjustsScrollIndicatorInsets={false}
