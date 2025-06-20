@@ -1345,7 +1345,7 @@ export const getThreadUnreadState = createReadQuery(
       where: eq($threadUnreads.threadId, parentId),
     });
   },
-  ['posts']
+  ['threadUnreads']
 );
 
 export const getAllGroupRoles = createReadQuery(
