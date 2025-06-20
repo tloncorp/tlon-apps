@@ -1,11 +1,11 @@
 import * as React from 'react';
 
 export const IntersectionObserverContext = React.createContext<{
-  intersectingSet: Set<Element>;
+  intersectingSetRef: { current: Set<Element> };
   observe: (e: Element) => { unobserve: () => void };
   setRoot: (e: Element | null) => void;
 }>({
-  intersectingSet: new Set(),
+  intersectingSetRef: { current: new Set() },
   observe: () => {
     console.warn('Use an IntersectionObserverContext');
     return { unobserve: () => {} };
@@ -19,13 +19,13 @@ export function IntersectionObserverProvider({
   children,
 }: React.PropsWithChildren<object>) {
   const [root, setRoot] = React.useState<Element | null>(null);
-  const { observe, intersectingSet } = useCollectionIntersectionTracking({
+  const { observe, intersectingSetRef } = useCollectionIntersectionTracking({
     root,
   });
 
   return (
     <IntersectionObserverContext.Provider
-      value={{ setRoot, observe, intersectingSet }}
+      value={{ setRoot, observe, intersectingSetRef }}
     >
       {children}
     </IntersectionObserverContext.Provider>
@@ -41,24 +41,19 @@ export function useCollectionIntersectionTracking({
 }: {
   root: Element | null;
 }) {
-  const [intersectingSet, setIntersectingSet] = React.useState<Set<Element>>(
-    new Set()
-  );
+  const intersectingSetRef = React.useRef<Set<Element>>(new Set());
   const observedSet = React.useRef<Set<Element>>(new Set());
   const intersectionObserver = React.useMemo(
     () =>
       new IntersectionObserver(
         (entries) => {
-          setIntersectingSet((prev) => {
-            const next = new Set(prev);
-            entries.forEach((entry) => {
-              if (entry.isIntersecting) {
-                next.add(entry.target);
-              } else {
-                next.delete(entry.target);
-              }
-            });
-            return next;
+          const next = intersectingSetRef.current;
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              next.add(entry.target);
+            } else {
+              next.delete(entry.target);
+            }
           });
         },
         { root }
@@ -82,19 +77,14 @@ export function useCollectionIntersectionTracking({
           unobserve: () => {
             intersectionObserver.unobserve(element);
             observedSet.current.delete(element);
-            setIntersectingSet((prev) => {
-              let out = prev;
-              if (prev.has(element)) {
-                out = new Set(prev);
-                out.delete(element);
-              }
-              return out;
-            });
+            if (intersectingSetRef.current.has(element)) {
+              intersectingSetRef.current.delete(element);
+            }
           },
         };
       },
       [intersectionObserver]
     ),
-    intersectingSet,
+    intersectingSetRef,
   };
 }

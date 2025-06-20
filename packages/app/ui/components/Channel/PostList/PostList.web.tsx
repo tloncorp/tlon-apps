@@ -63,7 +63,7 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
     const scrollerRef = React.useRef<HTMLDivElement | null>(null);
     const scrollerContentContainerRef = React.useRef<HTMLDivElement>(null);
 
-    const { intersectingSet, setRoot } = useIntersectionObserverContext();
+    const { intersectingSetRef, setRoot } = useIntersectionObserverContext();
     // Immediately set the contextual intersection observer root to the scroller
     React.useEffect(() => setRoot(scrollerRef.current), [setRoot]);
 
@@ -72,14 +72,14 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
       [inverted, postsWithNeighbors]
     );
 
-    const minVisibleIndex = React.useMemo(
+    const getMinVisibleIndex = React.useCallback(
       () =>
         min(
-          Array.from(intersectingSet).flatMap(
+          Array.from(intersectingSetRef.current).flatMap(
             (x) => getItemIndexFromPostListItem(x) ?? []
           )
         ),
-      [intersectingSet]
+      [intersectingSetRef]
     );
 
     useScrollToAnchorOnMount({
@@ -118,11 +118,11 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
           } else {
             // If native scroll anchoring isn't available, manually anchor
             // scroll whenever the content above the viewport changes.
-            const prefixLength = (minVisibleIndex ?? 0) + 1;
+            const prefixLength = (getMinVisibleIndex() ?? 0) + 1;
             return !isPrefixEquivalent(prev, next, prefixLength, isEqual);
           }
         },
-        [minVisibleIndex]
+        [getMinVisibleIndex]
       ),
     });
 
