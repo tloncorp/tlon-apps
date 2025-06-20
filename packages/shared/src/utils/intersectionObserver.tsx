@@ -74,24 +74,27 @@ export function useCollectionIntersectionTracking({
   }, [intersectionObserver]);
 
   return {
-    observe: (element: Element) => {
-      intersectionObserver.observe(element);
-      observedSet.current.add(element);
-      return {
-        unobserve: () => {
-          intersectionObserver.unobserve(element);
-          observedSet.current.delete(element);
-          setIntersectingSet((prev) => {
-            let out = prev;
-            if (prev.has(element)) {
-              out = new Set(prev);
-              out.delete(element);
-            }
-            return out;
-          });
-        },
-      };
-    },
+    observe: React.useCallback(
+      (element: Element) => {
+        intersectionObserver.observe(element);
+        observedSet.current.add(element);
+        return {
+          unobserve: () => {
+            intersectionObserver.unobserve(element);
+            observedSet.current.delete(element);
+            setIntersectingSet((prev) => {
+              let out = prev;
+              if (prev.has(element)) {
+                out = new Set(prev);
+                out.delete(element);
+              }
+              return out;
+            });
+          },
+        };
+      },
+      [intersectionObserver]
+    ),
     intersectingSet,
   };
 }
