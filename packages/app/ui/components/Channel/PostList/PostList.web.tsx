@@ -12,6 +12,8 @@ import { ScrollAnchor } from '../Scroller';
 import { PostList as PostListNative } from './PostListFlatList';
 import { PostListComponent, PostWithNeighbors } from './shared';
 
+const FORCE_MANUAL_SCROLL_ANCHORING: boolean = false;
+
 export const PostList: PostListComponent = React.forwardRef((props, ref) => {
   const [webScrollerEnabled] = useFeatureFlag('webScroller');
 
@@ -101,10 +103,9 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
           scrollTop: number
         ) => {
           // https://caniuse.com/css-overflow-anchor
-          const supportsScrollAnchoring = CSS.supports(
-            'overflow-anchor',
-            'auto'
-          );
+          const supportsScrollAnchoring = FORCE_MANUAL_SCROLL_ANCHORING
+            ? false
+            : CSS.supports('overflow-anchor', 'auto');
 
           if (supportsScrollAnchoring) {
             // If the browser natively implements scroll anchoring, use that
@@ -191,6 +192,7 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
           style={{
             flex: 1,
             overflowY: scrollEnabled ? 'auto' : 'hidden',
+            overflowAnchor: FORCE_MANUAL_SCROLL_ANCHORING ? 'none' : undefined,
           }}
         >
           <div
