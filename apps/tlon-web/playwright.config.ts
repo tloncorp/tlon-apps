@@ -5,6 +5,15 @@ import shipManifest from './e2e/shipManifest.json';
 /**
  * @see https://playwright.dev/docs/test-configuration
  */
+const webServers = Object.entries(shipManifest).map(
+  ([key, ship]: [string, any]) => ({
+    command: `cross-env SHIP_URL=${ship.url} pnpm dev-no-ssl`,
+    url: `${ship.webUrl}/apps/groups/`,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120 * 1000,
+  })
+);
+
 export default defineConfig({
   testDir: './e2e',
 
@@ -93,20 +102,5 @@ export default defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  webServer: [
-    {
-      command: `cross-env SHIP_URL=${
-        (shipManifest as Record<string, any>)['~zod'].url
-      } pnpm dev-no-ssl`,
-      url: 'http://localhost:3000/apps/groups/',
-      reuseExistingServer: !process.env.CI,
-      timeout: 120 * 1000,
-    },
-    {
-      command: `cross-env SHIP_URL=${
-        (shipManifest as Record<string, any>)['~bus'].url
-      } E2E_PORT_3001=true npm run dev-no-ssl`,
-      url: 'http://localhost:3001/apps/groups/',
-    },
-  ],
+  webServer: webServers,
 });

@@ -30,6 +30,7 @@ export function ReadOnlyNotice({
         backgroundColor="$background"
         borderTopWidth={1}
         borderTopColor="$border"
+        testID={`read-only-notice-${type}`}
       >
         <View flexDirection="row" alignItems="center" gap="$m">
           <Icon type="Info" size="$s" color="$tertiaryText" />

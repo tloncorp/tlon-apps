@@ -17,6 +17,7 @@ test('should create, verify, and delete a group', async ({ page }) => {
 
   // Clean up any existing group
   await helpers.cleanupExistingGroup(page);
+  await helpers.cleanupExistingGroup(page, '~ten, ~zod');
 
   // Create a new group (this handles the entire creation flow)
   await helpers.createGroup(page);
