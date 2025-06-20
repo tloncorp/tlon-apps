@@ -1,5 +1,4 @@
 /-  g=groups
-/+  j=groups-json
 |_  =update:g
 ++  grad  %noun
 ++  grow

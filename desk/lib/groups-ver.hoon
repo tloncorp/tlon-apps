@@ -321,6 +321,8 @@
             ?.  ?=(%public privacy.admissions)  ~
             ?:  ?=(%set -.r-ban.r-entry)
               [%cordon %swap [%open [ships ranks]:r-ban.r-entry]]~
+            ::  public group
+            ::
             :_  ~
             :+  %cordon
               %open
@@ -726,6 +728,7 @@
             ==
           ::
               %shut
+            ::  conversion implemented in +poke in /app/groups
             ~|(%a-group-from-cordon-shut-unsupported !!)
           ::
               %swap

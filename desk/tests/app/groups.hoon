@@ -16,8 +16,9 @@
   ?.  ?=(^ u.peek)  |+~['unexpected empty result at scry path' (spat path)]
   &+[u.u.peek s]
 ::
-++  dap  %groups-test
+++  my-agent  %groups-test
 ++  my-flag  `flag:g`[~zod %my-test-group]
+++  my-area  `path`/groups/~zod/my-test-group
 ::
 ++  my-scry-gate
   |=  =path
@@ -30,7 +31,7 @@
   =/  m  (mare ,(list card))
   ^-  form:m
   ;<  ~  bind:m  (set-scry-gate my-scry-gate)
-  (do-init dap groups-agent)
+  (do-init my-agent groups-agent)
 ::
 ++  do-create-group
   =/  m  (mare ,(list card))
@@ -43,7 +44,7 @@
         ~      ::  guests
     ==
   ;<  ~  bind:m  (set-src ~zod)
-  ;<  ~  bind:m  (wait ~h1)
+  ;<  ~  bind:m  (wait ~h1)  :: prevent default creation time
   ;<  caz=(list card)  bind:m  (do-poke group-command+!>([%create create-group]))
   (pure:m caz)
 ::
@@ -62,20 +63,66 @@
   (do-poke-c-group ~zod [%entry %privacy privacy])
 ::
 ++  ex-r-groups
-  |=  [caz=(list card) =r-groups:v7:g]
+  |=  [caz=(list card) rs-groups=(list r-groups:v7:g)]
   =/  m  (mare ,~)
   ^-  form:m
   ;<  =bowl:gall  bind:m  get-bowl
+  ;<  peek=cage  bind:m  (get-full-peek /x/v2/groups/~zod/my-test-group)
+  =+  !<(=group:g q.peek)
   =/  actions-2=(list action:v2:g)
-    %+  turn  (diff:v2:r-group:v7:gv r-group.r-groups)
+    %-  zing
+    %+  turn  rs-groups
+    |=  =r-groups:v7:g
+    %+  turn
+      (diff:v2:r-group:v7:gv r-group.r-groups [seats admissions]:group)
     |=  =diff:v2:g
     [flag.r-groups now.bowl diff]
   %+  ex-cards  caz
-  :-  %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
-      group-response-1+!>(r-groups)
+  %+  welp
+    %+  turn  rs-groups
+    |=  =r-groups:v7:g
+    %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
+    group-response-1+!>(r-groups)
   %+  turn  actions-2
   |=  =action:v2:g
   (ex-fact ~[/groups/ui] group-action-3+!>(action))
+::
+++  ex-cards-r-groups
+  |=  $:  caz=(list card)
+          exes=(list (each $-(card tang) r-groups:v7:g))
+      ==
+  =/  m  (mare ,~)
+  ^-  form:m
+  ::  extract group - it is needed for facts down-conversion
+  ::
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  peek=cage  bind:m  (get-full-peek /x/v2/groups/~zod/my-test-group)
+  =+  !<(=group:g q.peek)
+  ::  assemble expected
+  ::
+  %+  ex-cards  caz
+  %-  flop
+  %+  roll  exes
+  |=  [exe=(each $-(card tang) r-groups:v7:g) out=(list $-(card tang))]
+  ?:  ?=(%& -.exe)
+    ::  expected card
+    ::
+    [p.exe out]
+  ::  expected r-groups
+  ::
+  =*  r-groups  p.exe
+  =/  actions-2=(list action:v2:g)
+    %+  turn
+      (diff:v2:r-group:v7:gv r-group.r-groups [seats admissions]:group)
+    |=  =diff:v2:g
+    [flag.r-groups now.bowl diff]
+  %+  welp
+    %+  turn  actions-2
+    |=  =action:v2:g
+    (ex-fact ~[/groups/ui] group-action-3+!>(action))
+  :-  %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
+      group-response-1+!>(r-groups)
+  out
 ::  +test-c-groups-create: test group creation
 ::
 ::  group can be created. double creation is prohibited.
@@ -88,11 +135,11 @@
   ;<  caz=(list card)  bind:m  do-create-group
   ;<  peek=cage  bind:m  (get-full-peek /x/v2/groups/~zod/my-test-group)
   =+  !<(=group:g q.peek)
-  :: ;<  ~  bind:m  (ex-r-groups caz [my-flag %create group])
+  ;<  ~  bind:m  (ex-r-groups caz [my-flag %create group]~)
   (ex-fail do-create-group)
 ::  +test-c-join-public: test public group join
 ::
-::  a ship can join a public group without token. 
+::  a ship can join a public group without token.
 ::  re-joining a public group is a valid, albeit vacuous, operation.
 ::
 ++  test-c-groups-join-public
@@ -108,8 +155,8 @@
   ;<  =bowl:gall  bind:m  get-bowl
   ;<  caz=(list card)  bind:m  (do-poke group-command+!>([%join my-flag ~]))
   =/  =seat:v7:g  [~ now.bowl]
-  ;<  ~  bind:m  
-    (ex-r-groups caz [my-flag %seat (sy ~dev ~) [%add seat]])
+  ;<  ~  bind:m
+    (ex-r-groups caz [my-flag %seat (sy ~dev ~) [%add seat]]~)
   ::  re-joining is a vacuous operation
   ::
   ;<  *  bind:m  (set-src ~dev)
@@ -137,6 +184,9 @@
   ;<  caz=(list card)  bind:m
     =/  =c-token-add:g
       [[%personal ~dev] ~ ~ |]
+    ::  the token generated is going to be 0v0, as we haven't
+    ::  set entropy.
+    ::
     (do-poke-c-group ~zod [%entry %token %add c-token-add])
   ::  joining a private group with a valid token works
   ::
@@ -145,35 +195,163 @@
     (do-poke group-command+!>([%join my-flag `0v0]))
   ;<  =bowl  bind:m  get-bowl
   =/  =seat:v7:g  [~ now.bowl]
-  ;<  ~  bind:m  
-    (ex-r-groups caz [my-flag %seat (sy ~dev ~) [%add seat]])
-  ::  re-joining the group with used token fails
+  ;<  ~  bind:m
+    (ex-r-groups caz [my-flag %seat (sy ~dev ~) [%add seat]]~)
+  ::  trying to reuse the token fails
   ::
   ;<  *  bind:m  (set-src ~dev)
   ;<  caz=(list card)  bind:m
     (ex-fail (do-poke group-command+!>([%join my-flag `0v0])))
   (pure:m ~)
-::  +test-c-groups-ask: test group entry request
+::  +test-c-groups-ask-public: test public group ask request
 ::
 ::  a ship can ask to join a group, unless he has been banned.
-::  an ask to a public group is automatically approved. an ask
-::  to a private group can be either approved or denied by an admin.
-::  if a user is already a group member, the ask request is vacuous.
+::  an ask to a public group is automatically approved.
 ::
-++  test-c-groups-ask
+++  test-c-groups-ask-public
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  *  bind:m  do-groups-init
   ;<  *  bind:m  do-create-group
-  ::  a ship can ask to join the group
+  ;<  *  bind:m  (do-set-privacy %public)
+  =/  =story:s
+    [inline+['an appeal to host']~]~
+  ;<  ~  bind:m  (set-src ~dev)
+  ::  a ship can ask to join a public group: it first pokes, then
+  ::  watches for the incoming token
+  ::
+  ;<  *  bind:m
+    (do-poke group-command+!>([%ask my-flag `story]))
+  ::  one man's path is another man's wire
+  =/  ask-path=path  (weld `path`[%server my-area] /ask/~dev)
+  ;<  caz=(list card)  bind:m
+    (do-watch ask-path)
+  ::  the request is immediately approved and an (empty) invite
+  ::  token is sent.
+  ::
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (ex-fact ~ group-token+!>(~))
+        (ex-card [%give %kick ~ ~])
+    ==
+  ::  a banned ship can't ask to join the group
+  ::
+  ;<  *  bind:m  (do-poke-c-group ~zod [%entry %ban %add-ships (sy ~fed ~)])
+  ;<  ~  bind:m  (set-src ~fed)
+  ;<  ~  bind:m
+    (ex-fail (do-poke group-command+!>([%ask my-flag `story])))
+  ;<  ~  bind:m
+    (ex-fail (do-watch ask-path))
+  (pure:m ~)
+::  +test-c-groups-ask-private: test private group ask request
+::
+::  an ask to a private group can be either approved or denied by an admin.
+::
+++  test-c-groups-ask-private
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  do-groups-init
+  ;<  *  bind:m  do-create-group
+  ::  a ship can ask to join the group. the request is recorded and
+  ::  broadcasted, but no gifts are emitted.
   ::
   =/  =story:s
-    [inline+['a plea']~]~
+    [inline+['an appeal to host']~]~
   ;<  ~  bind:m  (set-src ~dev)
+  =/  ask-path=path  (weld `path`[%server my-area] /ask/~dev)
   ;<  caz=(list card)  bind:m
     (do-poke group-command+!>([%ask my-flag `story]))
+  ;<  *  bind:m
+    (do-watch ask-path)
   ;<  ~  bind:m
-    (ex-r-groups caz [my-flag %entry %ask [%add ~dev `story]])
+    (ex-r-groups caz [my-flag %entry %ask [%add ~dev `story]]~)
+  ;<  peek=cage  bind:m  (get-full-peek /x/v2/groups/~zod/my-test-group)
+  =+  !<(=group:g q.peek)
+  ?>  =(`story (~(got by requests.admissions.group) ~dev))
+  ::  an admin can approve or deny the request
+  ::
+  ;<  *  bind:m  (set-src ~zod)
+  ;<  caz=(list card)  bind:m
+    (do-poke group-command+!>([%group my-flag %entry %ask (sy ~dev ~) %approve]))
+  ~&  len-cards+(lent caz)
+  ::  when a request is approved, the host generates a new token and
+  ::  sends it to the requester. the request is then deleted from the
+  ::  record.
+  ::
+  ;<  ~  bind:m
+    %+  ex-cards-r-groups  caz
+    :~  |+[my-flag %entry %token [%add 0v0 [personal+~dev (add *@da ~d365.h1) ~]]]
+        &+(ex-card [%give %fact ~[ask-path] group-token+!>(`(unit token:g)``0v0)])
+        &+(ex-card [%give %kick ~[ask-path] ~])
+        |+[my-flag %entry %ask %del (sy ~dev ~)]
+    ==
+  ::  an ask request originating from a banned ship fails
+  ::
+  ;<  *  bind:m  (do-poke-c-group ~zod [%entry %ban %add-ships (sy ~fed ~)])
+  ;<  ~  bind:m  (set-src ~fed)
+  ;<  ~  bind:m
+    (ex-fail (do-poke group-command+!>([%ask my-flag `story])))
+  (pure:m ~)
+::  +test-c-groups-leave: test group leave
+::
+::  if a ship is a group member, she can issue a %leave poke.
+::  the group host then deletes her seat.
+::
+::  if a ship is asking to join the group, she can rescind this request
+::  by issuing a %leave poke. the group host then deletes the request
+::  and kicks the ask subscription.
+::
+++  test-c-groups-leave
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  do-groups-init
+  ;<  *  bind:m  do-create-group
+  ::  a ship can join a public group without a token
+  ::
+  ;<  caz=(list card)  bind:m  (do-set-privacy %public)
+  ;<  ~  bind:m  (set-src ~dev)
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  caz=(list card)  bind:m  (do-poke group-command+!>([%join my-flag ~]))
+  =/  =seat:v7:g  [~ now.bowl]
+  ;<  ~  bind:m
+    (ex-r-groups caz [my-flag %seat (sy ~dev ~) [%add seat]]~)
+  ::  leaving the group then deletes the seat
+  ::
+  ;<  *  bind:m  (set-src ~dev)
+  ;<  caz=(list card)  bind:m
+    (do-poke group-command+!>([%leave my-flag]))
+  ;<  ~  bind:m
+    (ex-r-groups caz [my-flag %seat (sy ~dev ~) [%del ~]]~)
+  ::  a ship can ask to join the private group. the request is recorded and
+  ::  broadcasted, but no gifts are emitted.
+  ::
+  ;<  *  bind:m  (do-set-privacy %private)
+  =/  =story:s
+    [inline+['an appeal to host']~]~
+  ;<  ~  bind:m  (set-src ~dev)
+  =/  ask-path=path  (weld `path`[%server my-area] /ask/~dev)
+  ;<  caz=(list card)  bind:m
+    (do-poke group-command+!>([%ask my-flag `story]))
+  ;<  *  bind:m
+    (do-watch ask-path)
+  ;<  ~  bind:m
+    (ex-r-groups caz [my-flag %entry %ask [%add ~dev `story]]~)
+  ;<  peek=cage  bind:m  (get-full-peek /x/v2/groups/~zod/my-test-group)
+  =+  !<(=group:g q.peek)
+  ?>  =(`story (~(got by requests.admissions.group) ~dev))
+  ::  a ship can rescind the ask request by issuing a leave poke.
+  ::  the group host delets the request and kicks the subscription.
+  ::
+  ;<  *  bind:m  (set-src ~dev)
+  ;<  caz=(list card)  bind:m
+    (do-poke group-command+!>([%leave my-flag]))
+  ;<  ~  bind:m
+    %+  ex-cards-r-groups  caz
+    :~  |+[my-flag %entry %ask %del (sy ~dev ~)]
+        &+(ex-card [%give %kick ~[ask-path] ~])
+    ==
   (pure:m ~)
 --
