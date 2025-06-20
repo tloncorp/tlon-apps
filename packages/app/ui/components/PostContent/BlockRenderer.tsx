@@ -428,7 +428,7 @@ export function HeaderBlock({
   ...props
 }: { block: cn.HeaderBlockData } & ComponentProps<typeof HeaderText>) {
   return (
-    <HeaderText level={block.level} {...props}>
+    <HeaderText tag={block.level} level={block.level} {...props}>
       {block.children.map((con, i) => (
         <InlineRenderer key={`${con}-${i}`} inline={con} />
       ))}
