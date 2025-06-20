@@ -437,8 +437,7 @@ function useManualScrollAnchoring<Data>({
     if (scrollHeightChange === 0) {
       return;
     }
-    const scrollOffset = scroller.scrollTop + scrollHeightChange;
-    scroller.scrollTo({ top: scrollOffset, behavior: 'instant' });
+    scroller.scrollBy({ top: scrollHeightChange, behavior: 'instant' });
   }, [checkNeedsAnchor, scrollerRef, scrollerContentsKey, inverted]);
 
   // Keep track of the previous contents key so we can pass it to `needsAnchoring`
