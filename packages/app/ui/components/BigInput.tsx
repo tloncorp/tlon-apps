@@ -63,15 +63,28 @@ export function BigInput({
   const [isEmpty, setIsEmpty] = useState(true);
   const { attachments, clearAttachments } = useAttachmentContext();
 
+  const editingPostContent = useMemo(
+    () => editingPost?.content,
+    [editingPost?.id, editingPost?.content]
+  );
+
+  const currentValuesRef = useRef({
+    title,
+    imageUri,
+    editingPost,
+    attachments,
+  });
+
   const handleEditorContentChanged = useCallback(
     (content?: object) => {
+      const { attachments } = currentValuesRef.current;
       const hasAttachmentsAndIsGallery =
         attachments.length > 0 && channelType === 'gallery';
       const nextIsEmpty =
         contentIsEmpty(content) && !hasAttachmentsAndIsGallery;
       logger.log('Content empty check:', nextIsEmpty);
-      if (content && editingPost?.content) {
-        const originalContent = editingPost.content as { story: any };
+      if (content && editingPostContent) {
+        const originalContent = editingPostContent as { story: any };
         const inlines = tiptap.JSONToInlines(content);
         const story = constructStory(inlines);
         const hasChanges =
@@ -84,13 +97,24 @@ export function BigInput({
       }
       setIsEmpty(nextIsEmpty);
     },
-    [editingPost?.content, attachments, channelType]
+    [editingPostContent, channelType]
   );
+
+  // Update ref values on each render
+  useEffect(() => {
+    currentValuesRef.current = {
+      title,
+      imageUri,
+      editingPost,
+      attachments,
+    };
+    handleSendRef.current = handleSend;
+  });
 
   useEffect(() => {
     setHasTitleChanges(title !== editingPost?.title);
     setHasImageChanges(imageUri !== editingPost?.image);
-  }, [title, imageUri, editingPost]);
+  }, [title, imageUri, editingPost?.title, editingPost?.image]);
 
   // Determine if the post/save button should be enabled - with direct content check
   useEffect(() => {
@@ -106,7 +130,7 @@ export function BigInput({
     }
     setIsButtonEnabled(enabled);
   }, [
-    editingPost,
+    !!editingPost,
     hasContentChanges,
     hasTitleChanges,
     hasImageChanges,
@@ -119,11 +143,18 @@ export function BigInput({
   const handleSend = useCallback(async () => {
     if (!editorRef.current?.editor) return;
 
+    const {
+      title: currentTitle,
+      imageUri: currentImageUri,
+      editingPost: currentEditingPost,
+      attachments: currentAttachments,
+    } = currentValuesRef.current;
+
     const json = await editorRef.current.editor.getJSON();
     const inlines = tiptap.JSONToInlines(json);
     const story = constructStory(inlines);
 
-    const blocks = attachments.flatMap((attachment): Block[] => {
+    const blocks = currentAttachments.flatMap((attachment): Block[] => {
       if (channelType === 'notebook') {
         return [];
       }
@@ -145,13 +176,13 @@ export function BigInput({
     // Create metadata for notebook posts with title and image
     const metadata: Record<string, any> = {};
     if (channelType === 'notebook') {
-      if (title) {
-        metadata.title = title;
+      if (currentTitle) {
+        metadata.title = currentTitle;
       }
 
       // Always include image field for notebooks, even if null
       // This ensures we can clear an image by setting it to null
-      metadata.image = imageUri;
+      metadata.image = currentImageUri;
     }
 
     try {
@@ -159,9 +190,9 @@ export function BigInput({
       const currentChannelType = channelType;
       const isGalleryText = currentChannelType === 'gallery';
 
-      if (editingPost && editPost) {
+      if (currentEditingPost && editPost) {
         // If we're editing, use editPost with the correct parameters
-        await editPost(editingPost, story, undefined, metadata);
+        await editPost(currentEditingPost, story, undefined, metadata);
       } else {
         // If it's a new post, use send
         await send(story, channelId, metadata);
@@ -188,7 +219,7 @@ export function BigInput({
       }
 
       // Clear the draft after successful save for all channel types
-      if (!editingPost && props.clearDraft) {
+      if (!currentEditingPost && props.clearDraft) {
         try {
           logger.log(
             `Clearing draft for ${isGalleryText ? 'gallery text' : currentChannelType}`
@@ -222,31 +253,32 @@ export function BigInput({
     send,
     editPost,
     channelId,
-    title,
-    imageUri,
     channelType,
     setShowBigInput,
-    editingPost,
-    props.clearDraft,
-    setShowFormatMenu,
     clearAttachments,
-    attachments,
+    props.clearDraft,
   ]);
 
-  // Register the "Post" button in the header
+  const handleSendRef = useRef(() => {});
+
+  const stableHandleSend = useCallback(() => {
+    handleSendRef.current();
+  }, []);
+
+  // Register the "Post" button in the header with stable callback
   useRegisterChannelHeaderItem(
     useMemo(
       () => (
         <ScreenHeader.TextButton
           key="big-input-post"
-          onPress={handleSend}
+          onPress={stableHandleSend}
           testID="BigInputPostButton"
           disabled={!isButtonEnabled}
         >
           {editingPost ? 'Save' : 'Post'}
         </ScreenHeader.TextButton>
       ),
-      [handleSend, editingPost, isButtonEnabled]
+      [stableHandleSend, !!editingPost, isButtonEnabled]
     )
   );
 
