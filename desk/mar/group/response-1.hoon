@@ -1,6 +1,6 @@
-/-  g=groups
+/-  gv=groups-ver
 /+  j=channel-groups
-|_  =r-groups:v7:g
+|_  =r-groups:v7:gv
 ++  grad  %noun
 ++  grow
   |%
@@ -9,7 +9,7 @@
   --
 ++  grab
   |%
-  ++  noun  r-groups:v7:g
+  ++  noun  r-groups:v7:gv
 
   --
 --

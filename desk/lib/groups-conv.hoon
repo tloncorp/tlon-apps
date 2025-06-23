@@ -1,8 +1,9 @@
-::  groups-vegg: groups type conversions
+::  groups-conv: groups types conversions
 ::
-/-  g=groups, meta
+/-  gv=groups-ver, meta
 /+  neg=negotiate
 ::
+=,  gv
 |%
 ++  v7
   |%
@@ -11,20 +12,20 @@
     =>
       |%
       ++  drop-seats
-        |=  [=group:v7:g our=ship]
-        ^-  group:v7:g
+        |=  [=group:v7:gv our=ship]
+        ^-  group:v7:gv
         =.  seats.group
-          =/  our-seat=seat:v7:g
-            (~(gut by seats.group) our *seat:v7:g)
+          =/  our-seat=seat:v7:gv
+            (~(gut by seats.group) our *seat:v7:gv)
           =/  seats-number=@ud  ~(wyt by seats.group)
           ?:  (lte seats-number 15)
             seats.group  :: keep all members if 15 or fewer
-          =/  other-ships=(list [ship seat:v7:g])
+          =/  other-ships=(list [ship seat:v7:gv])
             ~(tap by (~(del by seats.group) our))
-          =/  keep-ships=(list [ship seat:v7:g])
+          =/  keep-ships=(list [ship seat:v7:gv])
             :-  [our our-seat]
             (scag 14 other-ships)  :: take first 14 other ships
-          (~(gas by *(map ship seat:v7:g)) keep-ships)
+          (~(gas by *(map ship seat:v7:gv)) keep-ships)
         group
       --
     |%
@@ -32,35 +33,35 @@
       =<  group
       |%
       ++  group
-        |=  =group:v7:g
-        ^-  group:v2:g
-        =/  =fleet:v2:g
+        |=  =group:v7:gv
+        ^-  group:v2:gv
+        =/  =fleet:v2:gv
           (~(run by seats.group) vessel:v2:seat)
-        =/  cabals=(map sect:v2:g cabal:v2:g)
+        =/  cabals=(map sect:v2:gv cabal:v2:gv)
           %-  malt
           %+  turn  ~(tap by roles.group)
-          |=  [=role-id:v7:g =role:v7:g]
-          :-  `sect:v2:g`role-id
-          `cabal:v2:g`[meta.role ~]
-        =/  zones=(map zone:v2:g realm:zone:v2:g)
+          |=  [=role-id:v7:gv =role:v7:gv]
+          :-  `sect:v2:gv`role-id
+          `cabal:v2:gv`[meta.role ~]
+        =/  zones=(map zone:v2:gv realm:zone:v2:gv)
           %-  malt
           %+  turn  ~(tap by sections.group)
-          |=  [=section-id:v7:g =section:v7:g]
-          :-  `zone:v2:g`section-id
-          ^-  realm:zone:v2:g
+          |=  [=section-id:v7:gv =section:v7:gv]
+          :-  `zone:v2:gv`section-id
+          ^-  realm:zone:v2:gv
           [meta.section order.section]
-        =/  zone-ord=(list zone:v2:g)
+        =/  zone-ord=(list zone:v2:gv)
           %+  turn  section-order.group
-          |=(section-id:v7:g `zone:v2:g`+<)
-        =/  =bloc:v2:g
+          |=(section-id:v7:gv `zone:v2:gv`+<)
+        =/  =bloc:v2:gv
           %-  ~(run in admins.group)
-          |=(role-id:v7:g `sect:v2:g`+<)
-        =/  =channels:channel:v2:g
+          |=(role-id:v7:gv `sect:v2:gv`+<)
+        =/  =channels:channel:v2:gv
           (~(run by channels.group) v2:channel:v7)
         =*  admissions  admissions.group
         =/  secret=?
           ?=(%secret privacy.admissions)
-        =/  =cordon:v2:g
+        =/  =cordon:v2:gv
           (cordon:v2:admissions:v7 seats.group admissions)
         :*  fleet
             cabals
@@ -76,8 +77,8 @@
         ==
       ::
       ++  group-ui
-        |=  [=net:v7:g =group:v7:g]
-        ^-  group-ui:v2:g
+        |=  [=net:v7:gv =group:v7:gv]
+        ^-  group-ui:v2:gv
         ::XX  saga is unused by the client?
         :_  ~
         (v2:group:v7 group)
@@ -86,35 +87,35 @@
       =<  group
       |%
       ++  group
-        |=  =group:v7:g
-        ^-  group:v5:g
-        =/  =fleet:v5:g
+        |=  =group:v7:gv
+        ^-  group:v5:gv
+        =/  =fleet:v5:gv
           (~(run by seats.group) vessel:v5:seat)
-        =/  cabals=(map sect:v5:g cabal:v5:g)
+        =/  cabals=(map sect:v5:gv cabal:v5:gv)
           %-  malt
           %+  turn  ~(tap by roles.group)
-          |=  [=role-id:v7:g =role:v7:g]
-          :-  `sect:v5:g`role-id
-          `cabal:v5:g`[meta.role ~]
-        =/  zones=(map zone:v5:g realm:zone:v5:g)
+          |=  [=role-id:v7:gv =role:v7:gv]
+          :-  `sect:v5:gv`role-id
+          `cabal:v5:gv`[meta.role ~]
+        =/  zones=(map zone:v5:gv realm:zone:v5:gv)
           %-  malt
           %+  turn  ~(tap by sections.group)
-          |=  [=section-id:v7:g =section:v7:g]
-          :-  `zone:v5:g`section-id
-          ^-  realm:zone:v5:g
+          |=  [=section-id:v7:gv =section:v7:gv]
+          :-  `zone:v5:gv`section-id
+          ^-  realm:zone:v5:gv
           [meta.section order.section]
-        =/  zone-ord=(list zone:v5:g)
+        =/  zone-ord=(list zone:v5:gv)
           %+  turn  section-order.group
-          |=(section-id:v7:g `zone:v5:g`+<)
-        =/  =bloc:v5:g
+          |=(section-id:v7:gv `zone:v5:gv`+<)
+        =/  =bloc:v5:gv
           %-  ~(run in admins.group)
-          |=(role-id:v7:g `sect:v5:g`+<)
-        =/  =channels:channel:v5:g
+          |=(role-id:v7:gv `sect:v5:gv`+<)
+        =/  =channels:channel:v5:gv
           (~(run by channels.group) v5:channel:v7)
         =*  admissions  admissions.group
         =/  secret=?
           ?=(%secret privacy.admissions)
-        =/  =cordon:v5:g
+        =/  =cordon:v5:gv
           (cordon:v5:admissions:v7 seats.group admissions)
         :*  fleet
             cabals
@@ -130,8 +131,8 @@
             flagged-content.group
         ==
       ++  group-ui
-        |=  [=net:v7:g =group:v7:g]
-        ^-  group-ui:v5:g
+        |=  [=net:v7:gv =group:v7:gv]
+        ^-  group-ui:v5:gv
         =/  init=?
           ?:  ?=(%pub -.net)  &
           !=(time.net *@da)
@@ -142,8 +143,8 @@
       --
     ::
     ++  group-ui
-      |=  [=net:v7:g =group:v7:g]
-      ^-  group-ui:v7:g
+      |=  [=net:v7:gv =group:v7:gv]
+      ^-  group-ui:v7:gv
       =/  init=?
         ?:  ?=(%pub -.net)  &
         !=(time.net *@da)
@@ -160,12 +161,12 @@
     ++  v0
       |%
       ++  vessel
-        |=  =seat:v7:g
-        ^-  vessel:fleet:v0:g
+        |=  =seat:v7:gv
+        ^-  vessel:fleet:v0:gv
         :_  joined.seat
         %-  ~(run in roles.seat)
-        |=  =role-id:v7:g
-        `sect:v0:g`role-id
+        |=  =role-id:v7:gv
+        `sect:v0:gv`role-id
       --
     --
   ::
@@ -174,13 +175,13 @@
     ++  v5  v2
     ++  v2  v0
     ++  v0
-      |=  channel:v7:g
-      ^-  channel:v0:g
+      |=  channel:v7:gv
+      ^-  channel:v0:gv
       :*  meta
           added
-          `zone:v0:g`section
+          `zone:v0:gv`section
           join
-          (~(run in readers) |=(role-id:v7:g `sect:v0:g`+<))
+          (~(run in readers) |=(role-id:v7:gv `sect:v0:gv`+<))
       ==
     --
   ::
@@ -190,14 +191,14 @@
     ++  v2
       |%
       ++  cordon
-        |=  [seats=(map ship seat:v7:g) ad=admissions:v7:g]
-        ^-  cordon:v2:g
+        |=  [seats=(map ship seat:v7:gv) ad=admissions:v7:gv]
+        ^-  cordon:v2:gv
         ?:  ?=(%public privacy.ad)
           [%open [ships ranks]:banned.ad]
         :*  %shut
           ::  pending
           %-  sy  %+  roll  ~(tap by seats)
-          |=  [[=ship =seat:v7:g] pending=(list ship)]
+          |=  [[=ship =seat:v7:gv] pending=(list ship)]
           ?.  =(*@da joined.seat)  pending
           [ship pending]
         ::
@@ -209,10 +210,10 @@
   ++  log
     |%
     ++  v2
-      |=  =log:v7:g
+      |=  =log:v7:gv
       ~|(%not-implemented !!)
     ++  v5
-      |=  =log:v7:g
+      |=  =log:v7:gv
       ~|(%not-implemented !!)
     --
   ::
@@ -222,8 +223,8 @@
       |%
       ++  diff
         |^
-        |=  [=r-group:v7:g seats=(map ship seat:v7:g) =admissions:v7:g]
-        ^-  (list diff:v2:g)
+        |=  [=r-group:v7:gv seats=(map ship seat:v7:gv) =admissions:v7:gv]
+        ^-  (list diff:v2:gv)
         ?-  -.r-group
           %create   [%create (v2:group:v7 group.r-group)]~
           %meta     [%meta meta.r-group]~
@@ -237,8 +238,8 @@
         ==
         ::
         ++  diff-from-seat
-          |=  [ships=(set ship) =r-seat:v7:g]
-          ^-  (list diff:v2:g)
+          |=  [ships=(set ship) =r-seat:v7:gv]
+          ^-  (list diff:v2:gv)
           :_  ~
           :+  %fleet
             ships
@@ -250,24 +251,24 @@
           ==
         ::
         ++  diff-from-role
-          |=  [roles=(set role-id:v7:g) =r-role:v7:g]
-          ^-  (list diff:v2:g)
+          |=  [roles=(set role-id:v7:gv) =r-role:v7:gv]
+          ^-  (list diff:v2:gv)
           ?:  ?=(?(%add %edit %del) -.r-role)
             ?-    -.r-role
                 %add
               %+  turn  ~(tap in roles)
-              |=  =role-id:v7:g
-              [%cabal `sect:v2:g`role-id [%add meta.r-role]]
+              |=  =role-id:v7:gv
+              [%cabal `sect:v2:gv`role-id [%add meta.r-role]]
             ::
                 %edit
               %+  turn  ~(tap in roles)
-              |=  =role-id:v7:g
-              [%cabal `sect:v2:g`role-id [%edit meta.r-role]]
+              |=  =role-id:v7:gv
+              [%cabal `sect:v2:gv`role-id [%edit meta.r-role]]
             ::
                 %del
               %+  turn  ~(tap in roles)
-              |=  =role-id:v7:g
-              [%cabal `sect:v2:g`role-id [%del ~]]
+              |=  =role-id:v7:gv
+              [%cabal `sect:v2:gv`role-id [%del ~]]
             ==
           :_  ~
           :-  %bloc
@@ -277,8 +278,8 @@
           ==
         ::
         ++  diff-from-channel
-          |=  [=nest:v7:g =r-channel:v7:g]
-          ^-  (list diff:v2:g)
+          |=  [=nest:v7:gv =r-channel:v7:gv]
+          ^-  (list diff:v2:gv)
           :_  ~
           :+  %channel
             nest
@@ -288,15 +289,15 @@
             %del          [%del ~]
             %add-readers  [%add-sects (sects:v2:roles:v7 roles.r-channel)]
             %del-readers  [%del-sects (sects:v2:roles:v7 roles.r-channel)]
-            %section      [%zone `zone:v2:g`section.r-channel]
+            %section      [%zone `zone:v2:gv`section.r-channel]
           ==
         ::
         ++  diff-from-section
-          |=  [=section-id:v7:g =r-section:v7:g]
-          ^-  (list diff:v2:g)
+          |=  [=section-id:v7:gv =r-section:v7:gv]
+          ^-  (list diff:v2:gv)
           :_  ~
           :+  %zone
-            `zone:v2:g`section-id
+            `zone:v2:gv`section-id
           ?-  -.r-section
             %add        [%add meta.r-section]
             %edit       [%edit meta.r-section]
@@ -306,8 +307,8 @@
           ==
         ::
         ++  diff-from-entry
-          |=  [=r-entry:v7:g seats=(map ship seat:v7:g) =admissions:v7:g]
-          ^-  (list diff:v2:g)
+          |=  [=r-entry:v7:gv seats=(map ship seat:v7:gv) =admissions:v7:gv]
+          ^-  (list diff:v2:gv)
           ?-  -.r-entry
               %privacy
             :_  ~
@@ -351,9 +352,9 @@
     ++  v2
       |%
       ++  sects
-        |=  roles=(set role-id:v7:g)
-        ^-  (set sect:v2:g)
-        (~(run in roles) |=(role-id:v7:g `sect:v2:g`+<))
+        |=  roles=(set role-id:v7:gv)
+        ^-  (set sect:v2:gv)
+        (~(run in roles) |=(role-id:v7:gv `sect:v2:gv`+<))
       --
     --
   ++  foreign
@@ -361,8 +362,8 @@
     ++  v2
       |%
       ++  gang
-        |=  foreign:v7:g
-        ^-  gang:v2:g
+        |=  foreign:v7:gv
+        ^-  gang:v2:gv
         :*  ?~(progress ~ `(claim:v2:progress:v7 u.progress))
             (bind preview v2:preview:v7)
             ::
@@ -376,8 +377,8 @@
     ++  v2
       |%
       ++  claim
-        |=  =progress:v7:g
-        ^-  claim:v2:g
+        |=  =progress:v7:gv
+        ^-  claim:v2:gv
         :-  |
         ?-  progress
           %ask    %knocking
@@ -391,9 +392,9 @@
   ++  preview
     |%
     ++  v2
-      |=  preview:v7:g
-      ^-  preview:v2:g
-      =/  =cordon:v2:g
+      |=  preview:v7:gv
+      ^-  preview:v2:gv
+      =/  =cordon:v2:gv
         ?:  ?=(%public privacy)
           [%open ~ ~]
         [%shut ~ ~]
@@ -407,8 +408,8 @@
   ++  invite
     |%
     ++  v2
-      |=  invite:v7:g
-      ^-  invite:v2:g
+      |=  invite:v7:gv
+      ^-  invite:v2:gv
       [flag from]
     --
   --
@@ -417,20 +418,20 @@
   =>
     |%
     ++  drop-fleet
-      |=  [=group:v6:g =bowl:gall]
-      ^-  group:v6:g
+      |=  [=group:v6:gv =bowl:gall]
+      ^-  group:v6:gv
       =.  fleet.group
-        =/  our-vessel=vessel:fleet:v6:g
-          (~(gut by fleet.group) our.bowl *vessel:fleet:v6:g)
+        =/  our-vessel=vessel:fleet:v6:gv
+          (~(gut by fleet.group) our.bowl *vessel:fleet:v6:gv)
         =/  fleet-size=@ud  ~(wyt by fleet.group)
         ?:  (lte fleet-size 15)
           fleet.group  :: keep all members if 15 or fewer
-        =/  other-ships=(list [ship vessel:fleet:v6:g])
+        =/  other-ships=(list [ship vessel:fleet:v6:gv])
           ~(tap by (~(del by fleet.group) our.bowl))
-        =/  keep-ships=(list [ship vessel:fleet:v6:g])
+        =/  keep-ships=(list [ship vessel:fleet:v6:gv])
           :-  [our.bowl our-vessel]
           (scag 14 other-ships)  :: take first 14 other ships
-        (~(gas by *fleet:v6:g) keep-ships)
+        (~(gas by *fleet:v6:gv) keep-ships)
       group
     --
   |%
@@ -438,37 +439,37 @@
   ++  claim
     |%
     ++  v2
-      |=  =claim:v6:g
-      ^-  claim:v2:g
+      |=  =claim:v6:gv
+      ^-  claim:v2:gv
       claim
     --
   ::
   ++  preview
     |%
     ++  v2
-      |=  preview:v6:g
-      ^-  preview:v2:g
+      |=  preview:v6:gv
+      ^-  preview:v2:gv
       [flag meta cordon time secret]
     --
   ++  gang
     |%
     ++  v2
-      |=  gang:v6:g
-      ^-  gang:v2:g
+      |=  gang:v6:gv
+      ^-  gang:v2:gv
       :*  (bind cam v2:claim)
           (bind pev v2:preview)
           vit
       ==
     ++  v5
-      |=  gang:v6:g
-      ^-  gang:v5:g
+      |=  gang:v6:gv
+      ^-  gang:v5:gv
       [cam pev vit]
     --
   ++  group
     |%
     ++  v2
-      |=  group:v6:g
-      ^-  group:v2:g
+      |=  group:v6:gv
+      ^-  group:v2:gv
       :*  fleet
           cabals
           zones
@@ -485,8 +486,8 @@
   ++  groups-ui
     |%
     ++  v5
-      |=  [=net:v6:g =group:v6:g =bowl:gall]
-      ^-  group-ui:v5:g
+      |=  [=net:v6:gv =group:v6:gv =bowl:gall]
+      ^-  group-ui:v5:gv
       :*  (drop-fleet group bowl)
           ::  init
           ?:(?=(%pub -.net) & load.net)
@@ -497,8 +498,8 @@
   ++  group-ui
     |%
     ++  v5
-      |=  [=net:v6:g =group:v6:g]
-      ^-  group-ui:v5:g
+      |=  [=net:v6:gv =group:v6:gv]
+      ^-  group-ui:v5:gv
       ::XX why we drop the fleet in groups-ui
       ::   but group-ui does not?
       ::
@@ -509,8 +510,8 @@
           ~(wyt by fleet.group)
       ==
     ++  v2
-      |=  [=flag:g =net:v6:g =group:v6:g =status:neg]
-      ^-  group-ui:v2:g
+      |=  [=flag:gv =net:v6:gv =group:v6:gv =status:neg]
+      ^-  group-ui:v2:gv
       :-  (v2:^group group)
       ?.  ?=(%sub -.net)  ~
       ?+  status  ~
@@ -518,8 +519,8 @@
         %clash  `[%lev ~]
       ==
     ++  v0
-      |=  [=flag:g =net:v6:g =group:v6:g =status:neg]
-      ^-  group-ui:v0:g
+      |=  [=flag:gv =net:v6:gv =group:v6:gv =status:neg]
+      ^-  group-ui:v0:gv
       :_  ?.  ?=(%sub -.net)  ~
           ?+  status  ~
             %match  `[%chi ~]
@@ -541,16 +542,16 @@
   ++  log
     |%
     ++  v2
-      |=  =log:v6:g
-      ^-  log:v2:g
-      (run:log-on:v6:g log v2:diff)
+      |=  =log:v6:gv
+      ^-  log:v2:gv
+      (run:log-on:v6:gv log v2:diff)
     --
   ::
   ++  diff
     |%
     ++  v2
-      |=  =diff:v6:g
-      ^-  diff:v2:g
+      |=  =diff:v6:gv
+      ^-  diff:v2:gv
       ?.  ?=(%create -.diff)  diff
       diff(p (v2:group p.diff))
     --
@@ -562,8 +563,8 @@
   ++  gang
     |%
     ++  v6
-      |=  gang:v5:g
-      ^-  gang:v6:g
+      |=  gang:v5:gv
+      ^-  gang:v6:gv
       [cam pev vit ~]
     --
   --
@@ -574,8 +575,8 @@
   ++  group
     |%
     ++  v5
-      |=  group:v2:g
-      ^-  group:v5:g
+      |=  group:v2:gv
+      ^-  group:v5:gv
       :*  fleet
           cabals
           zones
@@ -593,39 +594,39 @@
   ++  net-group
     |%
     ++  v5
-      |=  [net-2=net:v2:g group-2=group:v2:g]
+      |=  [net-2=net:v2:gv group-2=group:v2:gv]
       [(v5:net net-2) (v5:group group-2)]
     --
   ++  net
     |%
     ++  v5
-      |=  net-2=net:v2:g
-      ^-  net:v5:g
+      |=  net-2=net:v2:gv
+      ^-  net:v5:gv
       ?:  ?=(%sub -.net-2)
         [%sub p.net-2 load.net-2]
-      [%pub (run:log-on:v2:g p.net-2 v5:diff)]
+      [%pub (run:log-on:v2:gv p.net-2 v5:diff)]
     --
   ++  gang
     |%
     ++  v5
-      |=  gang:v2:g
-      ^-  gang:v5:g
+      |=  gang:v2:gv
+      ^-  gang:v5:gv
       [(bind cam v5:claim) (bind pev v5:preview) vit]
     --
   ::
   ++  preview
     |%
     ++  v5
-      |=  preview:v2:g
-      ^-  preview:v5:g
+      |=  preview:v2:gv
+      ^-  preview:v5:gv
       [flag meta cordon time secret 0]
     --
   ::
   ++  claim
     |%
     ++  v5
-      |=  claim:v2:g
-      ^-  claim:v5:g
+      |=  claim:v2:gv
+      ^-  claim:v5:gv
       ::  there is no trace of %done ever being used
       ::  since the earliest recorded version of %groups.
       ::  thus we are free to treat such claims as an %error.
@@ -640,8 +641,8 @@
       |%
       ++  a-group
         |^
-        |=  =diff:v2:g
-        ^-  (list a-group:v7:g)
+        |=  =diff:v2:gv
+        ^-  (list a-group:v7:gv)
         ?+  -.diff  ~|(a-group-bad-diff+-.diff !!)
           %fleet    (a-group-from-fleet [p q]:diff)
           %cabal    (a-group-from-cabal [p q]:diff)
@@ -654,8 +655,8 @@
         ==
         ::
         ++  a-group-from-fleet
-          |=  [ships=(set ship) =diff:fleet:v2:g]
-          ^-  (list a-group:v7:g)
+          |=  [ships=(set ship) =diff:fleet:v2:gv]
+          ^-  (list a-group:v7:gv)
           :_  ~
           :+  %seat
             ships
@@ -670,20 +671,20 @@
             [%del-roles (roles-from-sects sects.diff)]
           ==
         ++  a-group-from-cabal
-          |=  [=sect:v2:g =diff:cabal:v2:g]
-          ^-  (list a-group:v7:g)
+          |=  [=sect:v2:gv =diff:cabal:v2:gv]
+          ^-  (list a-group:v7:gv)
           :_  ~
-          ^-  a-group:v7:g
+          ^-  a-group:v7:gv
           :+  %role
-            (sy `role-id:v7:g`sect ~)
+            (sy `role-id:v7:gv`sect ~)
           ?-  diff
             [%add meta=data:meta]   [%add meta.diff]
             [%edit meta=data:meta]  [%edit meta.diff]
             [%del ~]                [%del ~]
           ==
         ++  a-group-from-channel
-          |=  [=nest:v2:g =diff:channel:v2:g]
-          ^-  (list a-group:v7:g)
+          |=  [=nest:v2:gv =diff:channel:v2:gv]
+          ^-  (list a-group:v7:gv)
           :_  ~
           :+  %channel  nest
           ?-    -.diff
@@ -697,16 +698,16 @@
               %del-sects
             [%del-readers (roles-from-sects sects.diff)]
           ::
-            %zone  [%section `section-id:v7:g`zone.diff]
+            %zone  [%section `section-id:v7:gv`zone.diff]
             %join  ~|(%a-group-from-channel-join !!)
           ==
         ++  roles-from-sects
-          |=  sects=(set sect:v2:g)
-          ^-  (set role-id:v7:g)
-          (~(run in sects) |=(sect:v2:g `role-id:v7:g`+<))
+          |=  sects=(set sect:v2:gv)
+          ^-  (set role-id:v7:gv)
+          (~(run in sects) |=(sect:v2:gv `role-id:v7:gv`+<))
         ++  a-group-from-bloc
-          |=  =diff:bloc:v2:g
-          ^-  (list a-group:v7:g)
+          |=  =diff:bloc:v2:gv
+          ^-  (list a-group:v7:gv)
           :_  ~
           ?-    -.diff
               %add
@@ -716,8 +717,8 @@
             [%role (roles-from-sects p.diff) %del-admin ~]
           ==
         ++  a-group-from-cordon
-          |=  =diff:cordon:v2:g
-          ^-  (list a-group:v7:g)
+          |=  =diff:cordon:v2:gv
+          ^-  (list a-group:v7:gv)
           ?-    -.diff
               %open
             ?-  -.p.diff
@@ -751,10 +752,10 @@
             ==
           ==
         ++  a-group-from-zone
-          |=  [=zone:v2:g =delta:zone:v2:g]
-          ^-  (list a-group:v7:g)
+          |=  [=zone:v2:gv =delta:zone:v2:gv]
+          ^-  (list a-group:v7:gv)
           :_  ~
-          :+  %section  `section-id:v7:g`zone
+          :+  %section  `section-id:v7:gv`zone
           ?-  -.delta
             %add   [%add meta.delta]
             %edit  [%edit meta.delta]
@@ -765,8 +766,8 @@
         --
       --
     ++  v5
-      |=  =diff:v2:g
-      ^-  diff:v5:g
+      |=  =diff:v2:gv
+      ^-  diff:v5:gv
       ?.  ?=(%create -.diff)  diff
       diff(p (v5:group p.diff))
     --
@@ -776,11 +777,11 @@
   ++  groups
     |%
     ++  v2
-      |=  groups=net-groups:v0:g
-      =*  v2  v2:g
+      |=  groups=net-groups:v0:gv
+      =*  v2  v2:gv
       ^-  net-groups:v2
       %-  ~(run by groups)
-      |=  [=net:v0:g gr=group:v0:g]
+      |=  [=net:v0:gv gr=group:v0:gv]
       ^-  [net:v2 group:v2]
       :_  (v2:group gr)
       ?-  -.net
@@ -789,8 +790,8 @@
         :-  %pub
         %+  gas:log-on:v2  *log:v2
         %+  turn
-          (tap:log-on:v0:g p.net)
-        |=  [t=time =diff:v0:g]
+          (tap:log-on:v0:gv p.net)
+        |=  [t=time =diff:v0:gv]
         ^-  [time diff:v2]
         :-  t
         ?+  -.diff  diff
@@ -801,9 +802,9 @@
   ++  group
     |%
     ++  v2
-      |=  group:v0:g
-      ^-  group:v2:g
-      %*  .  *group:v2:g
+      |=  group:v0:gv
+      ^-  group:v2:gv
+      %*  .  *group:v2:gv
         fleet       fleet
         cabals      cabals
         zones       zones
@@ -822,16 +823,16 @@
     ++  v7
       |%
       ++  create-group
-        |=  create:v2:g
-        ^-  create-group:v7:g
+        |=  create:v2:gv
+        ^-  create-group:v7:gv
         =/  meta=data:meta
           [title description image cover]
         ?>  ?=(?(%open %shut) -.cordon)
-        =/  =privacy:v7:g
+        =/  =privacy:v7:gv
           ?:  ?=(%open -.cordon)  %public
           ?.  secret  %private
           %secret
-        =/  =banned:v7:g
+        =/  =banned:v7:gv
           ?:  ?=(%shut -.cordon)  [~ ~]
           [ships ranks]:ban.cordon
         :*  name
@@ -845,12 +846,12 @@
   ++  channel
     |%
     ++  v7
-      |=  channel:v0:g
-      ^-  channel:v7:g
+      |=  channel:v0:gv
+      ^-  channel:v7:gv
       :*  meta
           added
-          `section-id:v7:g`zone
-          (~(run in readers) |=(sect:v0:g `role-id:v7:g`+<))
+          `section-id:v7:gv`zone
+          (~(run in readers) |=(sect:v0:gv `role-id:v7:gv`+<))
           join
       ==
     --

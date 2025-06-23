@@ -1,6 +1,6 @@
-/-  g=groups
+/-  gv=groups-ver
 /+  j=groups-json
-|_  =flag:g
+|_  =flag:gv
 ++  grad  %noun
 ++  grow
   |%
@@ -9,7 +9,7 @@
   --
 ++  grab
   |%
-  ++  noun  flag:g
+  ++  noun  flag:gv
   ++  json  flag:dejs:j
   --
 --

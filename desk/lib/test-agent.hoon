@@ -29,6 +29,7 @@
 ::
 =/  drop-verb=?  &
 ::
+^?
 |%
 ::  voodoo basics
 ::
@@ -448,5 +449,4 @@
   ^-  form:m
   ;<  res=(unit (unit cage))  bind:m  (get-peek path)
   (ex-equal q:(need (need res)) vase)
-::
 --

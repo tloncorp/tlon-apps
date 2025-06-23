@@ -1,5 +1,5 @@
-/-  g=groups
-|_  =update:g
+/-  gv=groups-ver
+|_  =update:gv
 ++  grad  %noun
 ++  grow
   |%
@@ -7,6 +7,6 @@
   --
 ++  grab
   |%
-  ++  noun  update:g
+  ++  noun  update:gv
   --
 --

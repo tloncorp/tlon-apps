@@ -1,4 +1,4 @@
-/-  a=activity, c=channels, h=hark
+/-  a=activity, c=channels, gv=groups-ver, h=hark
 /+  cu=channel-utils
 ::
 |%
@@ -128,7 +128,7 @@
             ==
           ::
               %group-invite
-            =+  .^(=gangs:v2:g:a %gx /(scot %p our)/groups/(scot %da now)/gangs/noun)
+            =+  .^(=gangs:v2:gv %gx /(scot %p our)/groups/(scot %da now)/gangs/noun)
             :~  [%ship ship.event]
                 ' sent you an invite to '
                 ?~  gang=(~(get by gangs) group.event)  'a group'
@@ -172,9 +172,9 @@
               %+  join  ', '
               %+  turn
                 ~(tap in roles.event)
-              |=  =sect:v0:g:a
-              ?.  (~(has by roles.group) `role-id:g:a`sect)  sect
-              =/  role  (~(got by roles.group) `role-id:g:a`sect)
+              |=  =sect:v0:gv
+              ?.  (~(has by roles.group) `role-id:v7:gv`sect)  sect
+              =/  role  (~(got by roles.group) `role-id:v7:gv`sect)
               title.meta.role
             ==
           ::

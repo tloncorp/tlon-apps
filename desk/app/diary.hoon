@@ -1,4 +1,4 @@
-/-  d=diary, g=groups, ha=hark, channels, c2=chat-2, s=story
+/-  d=diary, gv=groups-ver, ha=hark, channels, c2=chat-2, s=story
 /-  meta
 /-  e=epic
 /+  default-agent, verb, dbug
@@ -145,7 +145,7 @@
       cor
     =+  !<(=epic:e q.cage.sign)
     %+  roll  ~(tap by shelf)
-    |=  [[=flag:g =diary:d] out=_cor]
+    |=  [[=flag:gv =diary:d] out=_cor]
     ?.  =(src.bowl p.flag)
       out
     di-abet:(di-take-epic:(di-abed:di-core:out flag) epic)
@@ -168,7 +168,7 @@
       %flag
     =+  !<(f=flag:d vase)
     ?<  =(our.bowl p.f)
-    (join [*flag:g f])
+    (join [*flag:gv f])
   ::
       %channel-join
     =+  !<(j=join:d vase)
@@ -187,23 +187,23 @@
   ::
       %leave-old-channels
     =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/groups
-    =/  groups  .^(groups:v2:g %gx groups-path)
+    =/  groups  .^(groups:v2:gv %gx groups-path)
     =/  diary-flags-from-groups
       %+  turn  ~(tap by groups)
-      |=  [group-flag=flag:g group=group:v2:g]
+      |=  [group-flag=flag:gv group=group:v2:gv]
       %+  turn
         %+  skim  ~(tap by channels.group)
-        |=  [=nest:g *]
+        |=  [=nest:gv *]
         ?:(=(%diary p.nest) %.y %.n)
-      |=  [=nest:g *]
+      |=  [=nest:gv *]
       q.nest
     =/  diaries-without-groups
       %+  skim  ~(tap by shelf)
-      |=  [=flag:g *]
+      |=  [=flag:gv *]
       ?:(=((find [flag]~ (zing diary-flags-from-groups)) ~) %.y %.n)
     %+  roll
       diaries-without-groups
-    |=  [[=flag:g *] core=_cor]
+    |=  [[=flag:gv *] core=_cor]
     di-abet:di-leave:(di-abed:di-core:core flag)
   ::
       %recheck-all-perms
@@ -280,7 +280,7 @@
     ::  group.
     ::
     ++  groups
-      .^  groups:v2:g
+      .^  groups:v2:gv
         %gx
         /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/groups
       ==
@@ -397,11 +397,11 @@
     ::
         %fact
       ?.  ?=(%group-action-3 p.cage.sign)  cor
-      (take-groups !<(=action:v2:g q.cage.sign))
+      (take-groups !<(=action:v2:gv q.cage.sign))
     ==
   ==
 ++  take-groups
-  |=  =action:v2:g
+  |=  =action:v2:gv
   =/  affected=(list flag:d)
     %+  murn  ~(tap by shelf)
     |=  [=flag:d =diary:d]
@@ -427,13 +427,13 @@
     [%channel * %add-sects *]  (recheck-perms affected ~)
   ::
       [%cabal * %del *]
-    =/  =sect:v0:g  (slav %tas p.diff)
+    =/  =sect:v0:gv  (slav %tas p.diff)
     %+  recheck-perms  affected
-    (~(gas in *(set sect:v0:g)) ~[p.diff])
+    (~(gas in *(set sect:v0:gv)) ~[p.diff])
   ==
 ::
 ++  recheck-perms
-  |=  [affected=(list flag:d) sects=(set sect:v0:g)]
+  |=  [affected=(list flag:d) sects=(set sect:v0:gv)]
   ~&  "%diary recheck permissions for {<affected>}"
   %+  roll  affected
   |=  [=flag:d co=_cor]
@@ -748,7 +748,7 @@
     |=  [rest=path con=(list content:ha) but=(unit button:ha) lnk=path]
     ^-  new-yarn:ha
     =*  group  group.perm.diary
-    =/  =nest:g  [dap.bowl flag]
+    =/  =nest:gv  [dap.bowl flag]
     =/  rope  [`group `nest q.byk.bowl (welp /(scot %p p.flag)/[q.flag] rest)]
     =/  link
       (welp /groups/(scot %p p.group)/[q.group]/channels/diary/(scot %p p.flag)/[q.flag] ?~(lnk rest lnk))
@@ -834,7 +834,7 @@
   ++  di-pass
     |%
     ++  poke-group
-      |=  [=term =action:v6:g]
+      |=  [=term =action:v6:gv]
       ^+  di-core
       =/  =dock      [our.bowl %groups]
       =/  =wire      (snoc di-area term)
@@ -843,10 +843,10 @@
       di-core
     ::
     ++  create-channel
-      |=  [=term group=flag:g =channel:v6:g]
+      |=  [=term group=flag:gv =channel:v6:gv]
       ^+  di-core
       %+  poke-group  term
-      ^-  action:v6:g
+      ^-  action:v6:gv
       :+  group  now.bowl
       [%channel [dap.bowl flag] %add channel]
     ::
@@ -899,7 +899,7 @@
     di(cor (emit %give %kick ~[path] `ship))
   ::
   ++  di-recheck
-    |=  sects=(set sect:v0:g)
+    |=  sects=(set sect:v0:gv)
     ::  if we have sects, we need to delete them from writers
     =?  cor  &(!=(sects ~) =(p.flag our.bowl))
       =/  =cage  [act:mar:d !>([flag now.bowl %del-sects sects])]
@@ -982,7 +982,7 @@
     =/  =path
       %+  welp  di-groups-scry
       /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-write/(scot %p src.bowl)/noun
-    =+  .^(write=(unit [bloc=? sects=(set sect:v0:g)]) %gx path)
+    =+  .^(write=(unit [bloc=? sects=(set sect:v0:gv)]) %gx path)
     ?~  write  |
     =/  perms  (need write)
     ?:  |(bloc.perms =(~ writers.perm.diary))  &

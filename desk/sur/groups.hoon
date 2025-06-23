@@ -1,13 +1,12 @@
-/-  meta, ver=groups-ver, e=epic, s=story
+/-  meta, e=epic, s=story
 |%
+::  +okay: protocol version, defunct
+++  okay  `epic:e`4
 ::  $flag: id for a group
 ::
 +$  flag  (pair ship term)
 ::
 ::  $nest: id for a channel, {app}/{ship}/{name}
-::TODO with custom channels, should $nest in %channels
-::     should be relaxed
-::
 +$  nest  (pair term flag)
 ::  $section-id: section id
 ::
@@ -572,17 +571,4 @@
 +$  log  ((mop time u-group) lte)
 ::
 ++  log-on  ((on time u-group) lte)
-::  +okay: protocol version, defunct
-::
-++  okay  `epic:e`4
-::
-::  version
-::
-++  v7  .
-::XX remove these?
-++  v6  v6:ver
-++  v5  v5:ver
-++  v2  v2:ver
-++  v0  v0:ver
-::
 --

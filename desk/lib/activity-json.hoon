@@ -1,4 +1,4 @@
-/-  a=activity, g=groups, c=chat
+/-  a=activity, gv=groups-ver, c=chat
 /+  gj=groups-json, cj=channel-json, dj=contacts-json-1,
     sj=story-json
 =*  z  ..zuse
@@ -247,7 +247,7 @@
       %-  pairs
       :~  group/(flag:enjs:gj group.e)
           ship+(ship ship.e)
-          roles+a+(turn ~(tap in roles.e) |=(role=sect:v0:g s+role))
+          roles+a+(turn ~(tap in roles.e) |=(role=sect:v0:gv s+role))
       ==
     ::
         %contact

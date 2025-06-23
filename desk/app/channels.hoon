@@ -8,7 +8,7 @@
 ::    note: all subscriptions are handled by the subscriber library so
 ::    we can have resubscribe loop protection.
 ::
-/-  c=channels, g=groups, ha=hark, activity, story
+/-  c=channels, g=groups, gv=groups-ver, ha=hark, activity, story
 /-  meta
 /+  default-agent, verb, dbug, sparse, neg=negotiate, imp=import-aid, logs
 ::XX keep s=story, sub=subscriber?
@@ -698,7 +698,7 @@
       ((slog tank u.p.sign) cor)
     ::
         %fact
-      (take-groups !<(=r-groups:v7:g q.cage.sign))
+      (take-groups !<(=r-groups:v7:gv q.cage.sign))
     ==
   ::
       [%migrate ~]
@@ -726,7 +726,7 @@
 ::  +take-groups: process group update
 ::
 ++  take-groups
-  |=  =r-groups:v7:g
+  |=  =r-groups:v7:gv
   =*  flag  flag.r-groups
   =/  affected=(list nest:c)
     %+  murn  ~(tap by v-channels)
@@ -746,7 +746,7 @@
   ==
 ::
 ++  recheck-perms
-  |=  [affected=(list nest:c) sects=(set sect:v0:g)]
+  |=  [affected=(list nest:c) sects=(set sect:v0:gv)]
   ~&  "%channel recheck permissions for {<affected>}"
   %+  roll  affected
   |=  [=nest:c co=_cor]
@@ -2410,7 +2410,7 @@
   ::  need to change anything
   ::
   ++  ca-recheck
-    |=  sects=(set sect:v0:g)
+    |=  sects=(set sect:v0:gv)
     =/  =flag:g  group.perm.perm.channel
     =/  exists-path
       (scry-path %groups /groups/(scot %p p.flag)/[q.flag]/noun)
@@ -2419,7 +2419,7 @@
     =/  =path
       %+  scry-path  %groups
       /groups/(scot %p p.flag)/[q.flag]/v2/group-ui-1
-    =+  .^(group=group-ui:v5:g %gx path)
+    =+  .^(group=group-ui:v5:gv %gx path)
     ?.  (~(has by channels.group) nest)  ca-core
     ::  toggle the volume based on permissions
     =/  =source:activity  [%channel nest flag]

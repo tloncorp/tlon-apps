@@ -1,4 +1,4 @@
-/-  *channels, g=groups, a=activity, ch=chat, co=contacts, m=meta
+/-  *channels, g=groups, gv=groups-ver, a=activity, ch=chat, co=contacts, m=meta
 |%
 ::  $id-hook: a unique identifier for a hook
 +$  id-hook  @uv
@@ -87,7 +87,7 @@
 ::
 +$  bowl
   $:  channel=(unit [=nest v-channel])
-      group=(unit group-ui:v2:g)
+      group=(unit group-ui:v2:gv)
       channels=v-channels
       =hook
       =config

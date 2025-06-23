@@ -6,11 +6,11 @@
 ::  rather achieves this separation with two distinct cores:
 ::  the server core +se-core and client core +go-core.
 ::
-/-  g=groups, c=chat, d=channels,
+/-  g=groups, gv=groups-ver, c=chat, d=channels,
     activity
 /-  meta
 /+  default-agent, verb, dbug
-/+  gv=groups-ver, v=volume, s=subscriber, imp=import-aid, logs,
+/+  gc=groups-conv, v=volume, s=subscriber, imp=import-aid, logs,
     t=contacts
 /+  of
 /+  neg=negotiate
@@ -36,8 +36,8 @@
   +$  card  card:agent:gall
   +$  current-state
     $:  %7
-        groups=net-groups:v7:g
-        =foreigns:v7:g
+        groups=net-groups:v7:gv
+        =foreigns:v7:gv
         =volume:v
         =^subs:s
         =pimp:imp
@@ -147,7 +147,7 @@
     ==
     ::
         %group-command
-      =+  !<(=c-groups:v7:g vase)
+      =+  !<(=c-groups:v7:gv vase)
       ?-    -.c-groups
           %create
         =/  =flag:g  [our.bowl name.create-group.c-groups]
@@ -173,7 +173,7 @@
       ==
     ::
         %group-action-4
-      =+  !<(=a-groups:v7:g vase)
+      =+  !<(=a-groups:v7:gv vase)
       ?-    -.a-groups
           %group
         =/  group-core  (go-abed:go-core flag.a-groups)
@@ -190,7 +190,7 @@
     ::
         ::  deprecated
         %group-action-3
-      =+  !<(=action:v2:g vase)
+      =+  !<(=action:v2:gv vase)
       ~&  group-action-3+action
       =*  flag  p.action
       =*  diff  q.q.action
@@ -200,17 +200,17 @@
           [%group flag [%delete ~]]
         $(+< group-command+!>(c-groups))
       ?:  ?=(%secret -.diff)
-        =/  =group:v7:g  +:(~(got by groups) flag)
+        =/  =group:v7:gv  +:(~(got by groups) flag)
         ?:  p.diff
           ::  enable group secrecy
           ::
-          =/  =a-groups:v7:g  [%group flag [%entry %privacy %secret]]
+          =/  =a-groups:v7:gv  [%group flag [%entry %privacy %secret]]
           $(+< group-action-4+!>(a-groups))
         ::  disable group secrecy
         ::
         ?:  ?=(?(%public %private) privacy.admissions.group)  cor
         ::  group is secret, make it private
-        =/  =a-groups:v7:g  [%group flag [%entry %privacy %private]]
+        =/  =a-groups:v7:gv  [%group flag [%entry %privacy %private]]
         $(+< group-action-4+!>(a-groups))
       ::  translate the shut cordon poke:
       ::  1. pending operations translate into appropiate seat commands.
@@ -224,36 +224,36 @@
               %ask
             ::  enforce
             ?>  =(q.cordon-diff (silt our.bowl ~))
-            =/  =a-foreigns:v7:g
+            =/  =a-foreigns:v7:gv
               [%foreign flag %ask ~]
             $(+< group-foreign-1+!>(a-foreigns))
           ::
               %pending
-            =/  =a-group:v7:g
+            =/  =a-group:v7:gv
               [%seat q.cordon-diff %add ~]
-            $(+< group-action-4+!>(`a-groups:v7:g`[%group flag a-group]))
+            $(+< group-action-4+!>(`a-groups:v7:gv`[%group flag a-group]))
           ==
         ::
             %del-ships
           ?-    p.cordon-diff
               %ask
             ?>  =(q.cordon-diff (silt our.bowl ~))
-            =/  =a-foreigns:v7:g
+            =/  =a-foreigns:v7:gv
               [%foreign flag %cancel ~]
             $(+< group-foreign-1+!>(a-foreigns))
           ::
               %pending
-            =/  =a-group:v7:g
+            =/  =a-group:v7:gv
               [%seat q.cordon-diff %del ~]
-            $(+< group-action-4+!>(`a-groups:v7:g`[%group flag a-group]))
+            $(+< group-action-4+!>(`a-groups:v7:gv`[%group flag a-group]))
           ==
         ==
-      =/  a-group-list=(list a-group:v7:g)
-        (a-group:v7:diff:v2:gv diff)
+      =/  a-group-list=(list a-group:v7:gv)
+        (a-group:v7:diff:v2:gc diff)
       ?:  =(~ a-group-list)  cor
       %+  roll  a-group-list
-      |=  [=a-group:v7:g =_cor]
-      =/  =a-groups:v7:g  [%group flag a-group]
+      |=  [=a-group:v7:gv =_cor]
+      =/  =a-groups:v7:gv  [%group flag a-group]
       ^$(+< group-action-4+!>(a-groups))
     ::
         ::  deprecated
@@ -266,7 +266,7 @@
     ::  foreign groups interface
     ::
         %group-foreign-action-1
-      =+  !<(=a-foreigns:v7:g vase)
+      =+  !<(=a-foreigns:v7:gv vase)
       ~&  group-foreign-action-1+a-foreigns
       ?-    -.a-foreigns
           %foreign
@@ -283,9 +283,9 @@
     ::
         %group-join
       ?>  from-self
-      =+  !<(=join:v0:g vase)
+      =+  !<(=join:v0:gv vase)
       ~|  f=flag.join
-      =/  =foreign:v7:g  (~(got by foreigns) flag.join)
+      =/  =foreign:v7:gv  (~(got by foreigns) flag.join)
       =/  tok=(unit token:g)
         ?~  invites.foreign  ~
         token.i.invites.foreign
@@ -294,14 +294,14 @@
         %group-knock
       ?>  from-self
       =+  !<(=flag:g vase)
-      =/  =a-foreigns:v7:g
+      =/  =a-foreigns:v7:gv
         [%foreign flag %ask ~]
       $(+< foreign-action-1+!>(a-foreigns))
     ::
         %group-rescind
       ?>  from-self
       =+  !<(=flag:g vase)
-      =/  =a-foreigns:v7:g
+      =/  =a-foreigns:v7:gv
         [%foreign flag %cancel ~]
       $(+< foreign-action-1+!>(a-foreigns))
     ::
@@ -311,7 +311,7 @@
       fi-abet:fi-cancel:(fi-abed:fi-core flag)
     ::
         %group-invite
-      =+  !<(invite-0=invite:v0:g vase)
+      =+  !<(invite-0=invite:v0:gv vase)
       ?:  =(q.invite-0 our.bowl)
         ::  invitee, deprecated
         ::
@@ -320,19 +320,19 @@
       ::
       ?>  (~(has by groups) p.invite-0)
       ~&  group-invite+invite-0
-      =/  =a-invite:v7:g  [q.invite-0 ~ ~]
-      $(+< group-action-4+!>(`a-groups:v7:g`[%invite p.invite-0 a-invite]))
+      =/  =a-invite:v7:gv  [q.invite-0 ~ ~]
+      $(+< group-action-4+!>(`a-groups:v7:gv`[%invite p.invite-0 a-invite]))
     ::
         %invite-decline
       =+  !<(=flag:g vase)
       ?>  from-self
       ~|  f=flag
-      =/  =foreign:v7:g  (~(got by foreigns) flag)
+      =/  =foreign:v7:gv  (~(got by foreigns) flag)
       ::  backward compatibility: decline all invites
       ::
       %+  roll  invites.foreign
       |=  [=invite:g =_cor]
-      =/  =a-foreigns:v7:g
+      =/  =a-foreigns:v7:gv
         [%foreign flag %decline token.invite]
       (poke:cor group-foreign-action-1+!>(a-foreigns))
     ::
@@ -479,7 +479,7 @@
       ^-  card
       =/  wire  /groups
       =/  dock  [our.bowl dap.bowl]
-      =/  =c-groups:v7:g  [%group flag [%channel nest %del-readers readers.channel]]
+      =/  =c-groups:v7:gv  [%group flag [%channel nest %del-readers readers.channel]]
       =/  cage  group-command-7+!>(c-groups)
       [%pass wire %agent dock %poke cage]
     ^-  card
@@ -542,14 +542,14 @@
     ==
   +$  state-0
     $:  %0
-        groups=net-groups:v0:g
-        xeno=gangs:v0:g
+        groups=net-groups:v0:gv
+        xeno=gangs:v0:gv
         shoal=(map flag:g dude:gall)
     ==
   ::
   +$  state-1
     $:  %1
-      groups=net-groups:v0:g
+      groups=net-groups:v0:gv
       ::
         $=  volume
         $:  base=level:v
@@ -557,14 +557,14 @@
             chan=(map nest:g level:v)  ::  override per channel
         ==
       ::
-        xeno=gangs:v0:g
+        xeno=gangs:v0:gv
         ::  graph -> agent
         shoal=(map flag:g dude:gall)
     ==
   ::
   +$  state-2
     $:  %2
-        groups=net-groups:v2:g
+        groups=net-groups:v2:gv
       ::
         $=  volume
         $:  base=level:v
@@ -572,16 +572,16 @@
             chan=(map nest:g level:v)  ::  override per channel
         ==
       ::
-        xeno=gangs:v2:g
+        xeno=gangs:v2:gv
         ::  graph -> agent
         shoal=(map flag:g dude:gall)
     ==
   ::
   +$  state-3
     $:  %3
-        groups=net-groups:v2:g
+        groups=net-groups:v2:gv
         =volume:v
-        xeno=gangs:v2:g
+        xeno=gangs:v2:gv
         ::  graph -> agent
         shoal=(map flag:g dude:gall)
         =^subs:s
@@ -589,9 +589,9 @@
   ::
   +$  state-4
     $:  %4
-        groups=net-groups:v2:g
+        groups=net-groups:v2:gv
         =volume:v
-        xeno=gangs:v2:g
+        xeno=gangs:v2:gv
         ::  graph -> agent
         shoal=(map flag:g dude:gall)
         =^subs:s
@@ -600,9 +600,9 @@
   ::
   +$  state-5
     $:  %5
-        groups=net-groups:v5:g
+        groups=net-groups:v5:gv
         =volume:v
-        xeno=gangs:v5:g
+        xeno=gangs:v5:gv
         ::  graph -> agent
         shoal=(map flag:g dude:gall)
         =^subs:s
@@ -611,9 +611,9 @@
   ::
   +$  state-6
     $:  %6
-        groups=net-groups:v6:g
+        groups=net-groups:v6:gv
         =volume:v
-        xeno=gangs:v6:g
+        xeno=gangs:v6:gv
         =^subs:s
         =pimp:imp
     ==
@@ -628,7 +628,7 @@
   ++  state-1-to-2
     |=  state-1
     ^-  state-2
-    [%2 (v2:groups:v0:gv groups) volume xeno shoal]
+    [%2 (v2:groups:v0:gc groups) volume xeno shoal]
   ::
   ++  state-2-to-3
     |=  state-2
@@ -644,9 +644,9 @@
     |=  state-4
     ^-  state-5
     :*  %5
-        (~(run by groups) v5:net-group:v2:gv)
+        (~(run by groups) v5:net-group:v2:gc)
         volume
-        (~(run by xeno) v5:gang:v2:gv)
+        (~(run by xeno) v5:gang:v2:gc)
         shoal
         subs
         ~
@@ -658,7 +658,7 @@
     :*  %6
         groups
         volume
-        (~(run by xeno) v6:gang:v5:gv)
+        (~(run by xeno) v6:gang:v5:gc)
         subs
         ~
     ==
@@ -702,7 +702,7 @@
     ?>  =(our.bowl ship)
     ?:  (~(has by groups) our.bowl name.pole)
       se-abet:(se-watch:(se-abed:se-core [our.bowl name.pole]) /preview)
-    =/  =preview-update:v7:g  ~
+    =/  =preview-update:v7:gv  ~
     =.  cor
       (emit %give %fact ~ group-preview-3+!>(preview-update))
     (emit %give %kick ~ ~)
@@ -759,18 +759,18 @@
   ::
       ::  deprecated
       [%x %init %v1 ~]
-      =/  net-groups-7=net-groups:v7:g
+      =/  net-groups-7=net-groups:v7:gv
         %-  ~(run by groups)
-        |=  [=net:v7:g =group:v7:g]
+        |=  [=net:v7:gv =group:v7:gv]
         :-  net
-        (drop-seats:group:v7:gv group our.bowl)
-      =/  groups-light-ui-2  (~(run by net-groups-7) group-ui:v2:group:v7:gv)
+        (drop-seats:group:v7:gc group our.bowl)
+      =/  groups-light-ui-2  (~(run by net-groups-7) group-ui:v2:group:v7:gc)
       ::  we filter out foreigns which are %done,
       ::  since completed gangs are removed after
       ::  the group join in old groups.
       ::
       =/  gangs-2
-        %-  ~(gas by *(map flag:g gang:v2:g))
+        %-  ~(gas by *(map flag:g gang:v2:gv))
         %+  murn  ~(tap by foreigns)
         |=  [=flag:g =foreign:g]
         ?:  ?&  ?=(^ progress.foreign)
@@ -779,34 +779,34 @@
           ~
         %-  some
         :-  flag
-        (gang:v2:foreign:v7:gv foreign)
+        (gang:v2:foreign:v7:gc foreign)
     ``noun+!>([groups-light-ui-2 gangs-2])
   ::
        [%x ver=?(%v0 %v1 %v2) %groups ~]
-    =/  groups-7=groups:v7:g  (~(run by groups) tail)
+    =/  groups-7=groups:v7:gv  (~(run by groups) tail)
     ?-    ver.pole
-        %v0  ``groups+!>((~(run by groups-7) v2:group:v7:gv))
-        %v1  ``groups-1+!>((~(run by groups-7) v5:group:v7:gv))
+        %v0  ``groups+!>((~(run by groups-7) v2:group:v7:gc))
+        %v1  ``groups-1+!>((~(run by groups-7) v5:group:v7:gc))
         %v2  ``groups-2+!>(groups-7)
     ==
   ::
       [%x ver=?(%v0 %v1 %v2) %light %groups ~]
-    =/  groups-7=groups:v7:g
+    =/  groups-7=groups:v7:gv
       %-  ~(run by groups)
-      |=  [=net:v7:g =group:v7:g]
-      (drop-seats:group:v7:gv group our.bowl)
+      |=  [=net:v7:gv =group:v7:gv]
+      (drop-seats:group:v7:gc group our.bowl)
     ?-    ver.pole
-        %v0  ``groups+!>((~(run by groups-7) v2:group:v7:gv))
-        %v1  ``groups-1+!>((~(run by groups-7) v5:group:v7:gv))
+        %v0  ``groups+!>((~(run by groups-7) v2:group:v7:gc))
+        %v1  ``groups-1+!>((~(run by groups-7) v5:group:v7:gc))
         %v2  ``groups-2+!>(groups-7)
     ==
   ::
       [%x ver=?(%v0 %v1 %v2) %ui %groups ~]
-    =/  net-groups-7=net-groups:v7:g  groups
+    =/  net-groups-7=net-groups:v7:gv  groups
     ?-    ver.pole
-        %v0  ``groups-ui+!>((~(run by net-groups-7) group-ui:v2:group:v7:gv))
-        %v1  ``groups-ui-1+!>((~(run by net-groups-7) group-ui:v5:group:v7:gv))
-        %v2  ``groups-ui-2+!>((~(run by net-groups-7) group-ui:group:v7:gv))
+        %v0  ``groups-ui+!>((~(run by net-groups-7) group-ui:v2:group:v7:gc))
+        %v1  ``groups-ui-1+!>((~(run by net-groups-7) group-ui:v5:group:v7:gc))
+        %v2  ``groups-ui-2+!>((~(run by net-groups-7) group-ui:group:v7:gc))
     ==
   ::
     ::  deprecated
@@ -823,13 +823,13 @@
       (go-peek:(go-abed:go-core ship name.pole) ver.pole rest.pole)
     ?-    ver.pole
         %v0
-      ``group+!>((v2:group:v7:gv +.u.net-group))
+      ``group+!>((v2:group:v7:gc +.u.net-group))
     ::
         %v1
-      ``group-1+!>((v5:group:v7:gv +.u.net-group))
+      ``group-1+!>((v5:group:v7:gc +.u.net-group))
     ::
         %v2
-      ``group-2+!>(`group:v7:g`+.u.net-group)
+      ``group-2+!>(`group:v7:gv`+.u.net-group)
     ==
   ::
       [%x ver=?(%v0 %v1 %v2) %ui %groups ship=@ name=@ rest=*]
@@ -844,13 +844,13 @@
       ~|(peek-bad-path+pole !!)
     ?-    ver.pole
         %v0
-      ``group-ui+!>((group-ui:v2:group:v7:gv u.net-group))
+      ``group-ui+!>((group-ui:v2:group:v7:gc u.net-group))
     ::
         %v1
-      ``group-ui-1+!>((group-ui:v5:group:v7:gv u.net-group))
+      ``group-ui-1+!>((group-ui:v5:group:v7:gc u.net-group))
     ::
         %v2
-      ``group-ui-2+!>((group-ui:group:v7:gv u.net-group))
+      ``group-ui-2+!>((group-ui:group:v7:gc u.net-group))
     ==
   ::
       ::  deprecated
@@ -862,13 +862,13 @@
     ``noun+!>((~(has by groups) [ship name.pole]))
   ::
       [%x ver=?(%v1) %foreigns ~]
-    ``foreigns-1+!>(`foreigns:v7:g`foreigns)
+    ``foreigns-1+!>(`foreigns:v7:gv`foreigns)
   ::
       [%x ver=?(%v1) %foreigns ship=@ name=@ ~]
     =+  ship=(slav %p ship.pole)
     =/  =flag:g  [ship name.pole]
     ?~  far=(~(get by foreigns) flag)  [~ ~]
-    ``foreign-1+!>(`foreign:v7:g`u.far)
+    ``foreign-1+!>(`foreign:v7:gv`u.far)
   ::
       ::  deprecated, update /lib/notify
       [%x %gangs ~]
@@ -876,7 +876,7 @@
      :: since completed gangs were removed in old groups.
      ::
     =/  gangs-2
-      %-  ~(gas by *(map flag:g gang:v2:g))
+      %-  ~(gas by *(map flag:g gang:v2:gv))
       %+  murn  ~(tap by foreigns)
       |=  [=flag:g =foreign:g]
       ?:  ?&  ?=(^ progress.foreign)
@@ -885,7 +885,7 @@
         ~
       %-  some
       :-  flag
-      (gang:v2:foreign:v7:gv foreign)
+      (gang:v2:foreign:v7:gc foreign)
     ``gangs+!>(gangs-2)
   ::
       [%x %volume ~]
@@ -1045,14 +1045,14 @@
       (~(got by channels.group) nest)
     $(gs t.gs)
   ::TODO migrate to new types
-  =/  =preview:channel:v2:g
+  =/  =preview:channel:v2:gv
     =,  group
     =*  ad  admissions
     =/  secret=?  ?=(%secret privacy.ad)
-    =/  preview-2=preview:v2:g
+    =/  preview-2=preview:v2:gv
       :*  flag
           meta
-          (cordon:v2:admissions:v7:gv seats ad)
+          (cordon:v2:admissions:v7:gc seats ad)
           now.bowl
           secret
       ==
@@ -1079,7 +1079,7 @@
   ::
       %fact
     ?>  =(%channel-preview p.cage.sign)
-    =+  !<(=preview:channel:v2:g q.cage.sign)
+    =+  !<(=preview:channel:v2:gv q.cage.sign)
     =.  cor  (emit %give %fact ~[wire] cage.sign)
     (emit %give %kick ~[wire] ~)
   ==
@@ -1095,6 +1095,7 @@
     (watch-channels &)
   ::
       %fact
+    ::TODO handle this properly during merge with develop
     =+  !<(=r-channels:d q.cage.sign)
     =*  rc  r-channel.r-channels
     ?+    -.rc  cor
@@ -1403,16 +1404,17 @@
     (se-update %entry %ask [%add src.bowl story])
   ::  +se-c-leave: handle a group leave request
   ::
-  ::  a client is in some way registered by the group host
+  ::  a client is considered registered by the group host
   ::  in the following cases:
-  ::  (1) he is already in the group,
-  ::  (2) he is in the process of joining the group and has a registered seat,
+  ::  (1) he has already joined group,
+  ::  (2) he is in the process of joining the group and has registered a seat,
   ::  (3) he has issued a group ask request.
   ::
   ::  if the client then wishes to forfeit that registration,
   ::  he can issue a group leave request. the group host then:
   ::  1. deletes the client's seat and kicks
-  ::     any outstanding group subscriptions.
+  ::     any outstanding group subscriptions. 
+  ::     (this is handled in +se-c-seat.)
   ::  2. deletes the client's ask request and kicks
   ::     any outstanding ask subscriptions.
   ::
@@ -1823,7 +1825,7 @@
             ~  ::  note
             se-preview
         ==
-    =/  =a-foreigns:v7:g
+    =/  =a-foreigns:v7:gv
       [%invite invite]
     =/  cage  foreign-action-1+!>(a-foreigns)
     ::XX modifying cor here does not work, even though we
@@ -1904,7 +1906,7 @@
         ::  unsupported channel
         ?.  ?=(?(%chat %heap %diary) p.nest)  next
         =/  cmd=c-channels:d
-          [%channel nest %del-writers (sects:v2:roles:v7:gv roles)]
+          [%channel nest %del-writers (sects:v2:roles:v7:gc roles)]
         =/  cage  channel-command+!>(cmd)
         =/  dock  [p.q.nest %channels-server]
         =.  se-core  (emit %pass /channels/perms %agent dock %poke cage)
@@ -2110,11 +2112,11 @@
       =.  se-core  (emit %give %fact ~ cage)
       (emit %give %kick ~ ~)
     :-  %group-previews-1
-    !>  ^-  previews:v7:g
-    %-  ~(gas by *previews:v7:g)
+    !>  ^-  previews:v7:gv
+    %-  ~(gas by *previews:v7:gv)
     %+  murn  ~(tap by groups)
     |=  [=flag:g =net:g =group:g]
-    ^-  (unit [flag:g preview:v7:g])
+    ^-  (unit [flag:g preview:v7:gv])
     ?.  &(=(our.bowl p.flag) !?=(%secret privacy.admissions.group))
       ~
     `[flag se-preview]
@@ -2144,7 +2146,7 @@
       ?.  allow  ~
       `se-preview
     =.  se-core
-      (give %fact ~ group-preview-3+!>(`preview-update:v7:g`preview-update))
+      (give %fact ~ group-preview-3+!>(`preview-update:v7:gv`preview-update))
     (give %kick ~ ~)
   ::  +se-preview: the group preview
   ::
@@ -2245,7 +2247,7 @@
         %ask   [%group-ask ^flag ship]
         %join  [%group-join ^flag ship]
         %kick  [%group-kick ^flag ship]
-        %role  [%group-role ^flag ship (~(run in roles) |=(=role-id:g `sect:v0:g`role-id))]
+        %role  [%group-role ^flag ship (~(run in roles) |=(=role-id:g `sect:v0:gv`role-id))]
         %flag-post  [%flag-post key nest group]
         %flag-reply  [%flag-reply key parent nest group]
       ==
@@ -2387,7 +2389,7 @@
   ::  +go-preview: generate the preview of the group
   ::
   ++  go-preview
-    ^-  preview:v7:g
+    ^-  preview:v7:gv
     :*  flag
         meta.group
         now.bowl
@@ -2409,7 +2411,7 @@
     =/  =wire
       %+  weld  go-area
       /invite/(scot %p ship.a-invite)
-    =/  =invite:v7:g
+    =/  =invite:v7:gv
       :*  flag
           now.bowl
           our.bowl
@@ -2421,7 +2423,7 @@
       (~(put by invited.ad) ship.a-invite [now.bowl token.a-invite])
     =.  cor
       =/  =cage
-        group-foreign-action-1+!>(`a-foreigns:v7:g`[%invite invite])
+        group-foreign-action-1+!>(`a-foreigns:v7:gv`[%invite invite])
       ~&  go-invite+ship.a-invite
       %^  emit  %pass  wire
       [%agent [ship.a-invite dap.bowl] %poke cage]
@@ -2864,7 +2866,7 @@
         ::  unsupported channel
         ?.  ?=(?(%chat %heap %diary) p.nest)  next
         =/  cmd=c-channels:d
-          [%channel nest %del-writers (sects:v2:roles:v7:gv roles)]
+          [%channel nest %del-writers (sects:v2:roles:v7:gc roles)]
         =/  cage  channel-command+!>(cmd)
         =/  dock  [p.q.nest %channels-server]
         =.  cor  (emit %pass /channels/perms %agent dock %poke cage)
@@ -3090,17 +3092,17 @@
     ~&  go-response+r-group
     ::  v1 response
     ::
-    =/  r-groups-7=r-groups:v7:g  [flag r-group]
+    =/  r-groups-7=r-groups:v7:gv  [flag r-group]
     =/  v1-paths  ~[/v1/groups [%v1 go-area]]
     =.  cor  (give %fact v1-paths group-response-1+!>(r-groups-7))
     ::  v0 backcompat
     ::
-    =/  diffs-2=(list diff:v2:g)
-      (diff:v2:r-group:v7:gv r-group [seats admissions]:group)
+    =/  diffs-2=(list diff:v2:gv)
+      (diff:v2:r-group:v7:gc r-group [seats admissions]:group)
     =.  cor
       %+  roll  diffs-2
-      |=  [=diff:v2:g =_cor]
-      =/  action-2=action:v2:g  [flag now.bowl diff]
+      |=  [=diff:v2:gv =_cor]
+      =/  action-2=action:v2:gv  [flag now.bowl diff]
       (give:cor %fact ~[/groups/ui] group-action-3+!>(action-2))
     go-core
   ::  +go-peek: handle group scry request
@@ -3126,6 +3128,7 @@
     ::
         [%seats ship=@ ~]
       =+  ship=(slav %p ship.pole)
+      ::XX should probably use get and return empty scry result
       ``noun+!>((~(got by seats.group) ship))
     ::
         [%seats ship=@ %is-admin ~]
@@ -3221,7 +3224,7 @@
   ++  fi-give-update
     =/  foreigns  (~(put by foreigns) flag +<+)
     =/  gangs-2
-      (~(run by foreigns) gang:v2:foreign:v7:gv)
+      (~(run by foreigns) gang:v2:foreign:v7:gc)
     =.  cor  (give %fact ~[/gangs/updates] gangs+!>(gangs-2))
 
     fi-core
@@ -3529,7 +3532,7 @@
       ::
           %fact
         ?>  ?=(%group-preview-3 p.cage.sign)
-        =+  !<(=preview-update:v7:g q.cage.sign)
+        =+  !<(=preview-update:v7:gv q.cage.sign)
         ::TODO do we want to notify the client about unavailable previews?
         ::     we should check in what circumstances does the client
         ::     request for a preview.
@@ -3542,7 +3545,7 @@
             %-  emil
             :~  :: v0
                 ::
-                [%give %fact ~[path-0] group-preview+!>((v2:preview:v7:gv u.preview))]
+                [%give %fact ~[path-0] group-preview+!>((v2:preview:v7:gc u.preview))]
                 [%give %kick ~[path-0] ~]
             ==
           %-  emil
@@ -3550,7 +3553,7 @@
               ::
               :^  %give  %fact
                 ~[path-1]
-              group-preview-3+!>(`preview-update:v7:g`preview-update)
+              group-preview-3+!>(`preview-update:v7:gv`preview-update)
               [%give %kick ~[path-1] ~]
           ==
         fi-core
@@ -3571,22 +3574,22 @@
     ::
         %fact
       ?>  ?=(%group-previews-1 p.cage.sign)
-      =+  !<(=previews:v7:g q.cage.sign)
+      =+  !<(=previews:v7:gv q.cage.sign)
       ::  v1
       ::
       =/  path-1  /v1/foreigns/index/(scot %p ship)
       =.  cor  %-  emil
         :~  :^  %give  %fact
               ~[path-1]
-            group-previews-1+!>(`previews:v7:g`previews)
+            group-previews-1+!>(`previews:v7:gv`previews)
           ::
             [%give %kick ~[path-1] ~]
         ==
       ::  v0
       ::
       =/  path-0  /gangs/index/(scot %p ship)
-      =/  previews-2=previews:v2:g
-        (~(run by previews) v2:preview:v7:gv)
+      =/  previews-2=previews:v2:gv
+        (~(run by previews) v2:preview:v7:gc)
       =.  cor  %-  emil
         :~  :^  %give  %fact
               ~[path-0]

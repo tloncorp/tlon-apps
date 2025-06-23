@@ -2,7 +2,7 @@
 ::
 ::    this is the server-side from which /app/channels gets its data.
 ::
-/-  c=channels, g=groups, h=hooks, m=meta
+/-  c=channels, g=groups, gv=groups-ver, h=hooks, m=meta
 /+  utils=channel-utils, imp=import-aid
 /+  default-agent, verb, dbug, neg=negotiate, logs
 /+  hj=hooks-json
@@ -523,7 +523,7 @@
       ((slog tank u.p.sign) cor)
     ::
         %fact
-      (take-groups !<(r-groups:v7:g q.cage.sign))
+      (take-groups !<(r-groups:v7:gv q.cage.sign))
     ==
   ::
       [%migrate ~]
@@ -570,7 +570,7 @@
 ::  +take-groups: process group update
 ::  
 ++  take-groups
-  |=  =r-groups:v7:g
+  |=  =r-groups:v7:gv
   =*  flag  flag.r-groups
   =/  affected=(list nest:c)
     %+  murn  ~(tap by v-channels)
@@ -599,7 +599,7 @@
   ==
 ::
 ++  recheck-perms
-  |=  [affected=(list nest:c) sects=(set role-id:v7:g)]
+  |=  [affected=(list nest:c) sects=(set role-id:v7:gv)]
   ~&  "%channel-server recheck permissions for {<affected>}"
   %+  roll  affected
   |=  [=nest:c co=_cor]
@@ -680,10 +680,10 @@
       =/  =path  /[kind.nest]/[name.nest]/create
       =.  ca-core  (give %fact ~[path] cage)
       (give %kick ~[path] ~)
-    =/  =channel:v2:g
+    =/  =channel:v2:gv
       :-  [title description '' '']:new
       [now.bowl %default | readers.new]
-    =/  =action:v2:g
+    =/  =action:v2:gv
       [group.new now.bowl %channel nest %add channel]
     =/  =dock    [p.group.new %groups]
     =/  =wire    (snoc ca-area %create)
@@ -694,7 +694,7 @@
     ++  can-nest
       ^-  ?
       =/  groups
-        .^  groups:v5:g
+        .^  groups:v5:gv
           %gx
           /(scot %p our.bowl)/groups/(scot %da now.bowl)/v1/groups/groups-1
         ==
@@ -996,7 +996,7 @@
     (emit:ca %give %kick ~[path] `ship)
   ::
   ++  ca-recheck
-    |=  sects=(set sect:v0:g)
+    |=  sects=(set sect:v0:gv)
     ::  if we have sects, we need to delete them from writers
     =?  ca-core  !=(sects ~)
       =/  =c-channels:c  [%channel nest %del-writers sects]
@@ -1026,14 +1026,14 @@
 ++  get-hook-bowl
   |=  [channel=(unit [nest:c v-channel:c]) =config:h]
   ^-  bowl:h
-  =/  group=(unit group-ui:v2:g)
+  =/  group=(unit group-ui:v2:gv)
     ?~  channel  ~
     =*  flag  group.perm.perm.+.u.channel
     %-  some
-    ?.  .^(? %gu (scry-path %groups /$))  *group-ui:v2:g
+    ?.  .^(? %gu (scry-path %groups /$))  *group-ui:v2:gv
     ?.  .^(? %gu (scry-path %groups /groups/(scot %p p.flag)/[q.flag]))
-      *group-ui:v2:g
-    .^(group-ui:v2:g %gx (scry-path %groups /groups/(scot %p p.flag)/[q.flag]/v1/group-ui))
+      *group-ui:v2:gv
+    .^(group-ui:v2:gv %gx (scry-path %groups /groups/(scot %p p.flag)/[q.flag]/v1/group-ui))
   :*  channel
       group
       v-channels

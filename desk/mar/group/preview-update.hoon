@@ -1,5 +1,5 @@
-/-  g=groups
-|_  =preview-update:g
+/-  gv=groups-ver
+|_  =preview-update:gv
 ++  grad  %noun
 ++  grow
   |%
@@ -7,6 +7,6 @@
   --
 ++  grab
   |%
-  ++  noun  preview-response:g
+  ++  noun  preview-response:gv
   --
 --

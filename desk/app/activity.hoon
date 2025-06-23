@@ -39,7 +39,7 @@
 ::    the children and save ourselves from having to do extra work.
 ::
 ::
-/-  a=activity, c=channels, ch=chat, g=groups
+/-  a=activity, c=channels, ch=chat, gv=groups-ver
 /+  *activity, ch-utils=channel-utils, v=volume, aj=activity-json,
     imp=import-aid
 /+  default-agent, verb, dbug, logs
@@ -507,7 +507,7 @@
     ``activity-summary-4+!>(activity)
   ::
       [%x %v4 %activity %threads host=@ group=@ kind=?(%chat %heap %diary) ship=@ name=@ ~]
-    =/  =flag:g  [(slav %p host.pole) group.pole]
+    =/  =flag:gv  [(slav %p host.pole) group.pole]
     =/  =nest:c  [kind.pole (slav %p ship.pole) name.pole]
     =/  =source:a  [%channel nest flag]
     =/  sum  (~(got by activity) source)
@@ -1199,7 +1199,7 @@
   =/  soft  (~(got by old-volumes:a) %soft)
   ::  bail early if we've set something other than the old default
   ?.  =(soft base-volume)  cor
-  =+  .^(=groups-ui:v2:g %gx (scry-path %groups /groups/light/v1/noun))
+  =+  .^(=groups-ui:v2:gv %gx (scry-path %groups /groups/light/v1/noun))
   =/  groups  ~(tap by groups-ui)
   ::  iterate through all groups and set volume to old default
   |-
@@ -1209,7 +1209,7 @@
       (~(put by volume-settings) [%base ~] default-volumes:a)
     cor
   =*  next  $(groups t.groups)
-  =/  [=flag:g group=group-ui:v2:g]  i.groups
+  =/  [=flag:gv group=group-ui:v2:gv]  i.groups
   ?:  (~(has by volume-settings) [%group flag])  next
   =.  volume-settings  (~(put by volume-settings) [%group flag] soft)
   next
@@ -1348,7 +1348,7 @@
   =+  .^(=volume:v %gx (scry-path %groups /volume/all/noun))
   ::  set all existing channels to old default since new default is different
   =^  checkers  cor
-    =/  checkers=(map flag:g $-([ship nest:g] ?))  ~
+    =/  checkers=(map flag:gv $-([ship nest:gv] ?))  ~
     =/  entries  ~(tap by channels)
     |-
     ?~  entries  [checkers cor]
@@ -1361,8 +1361,8 @@
       =/  =path
         %+  scry-path  %groups
         /groups/(scot %p p.group)/[q.group]/can-read/noun
-      =/  test=$-([ship nest:g] ?)
-        =>  [path=path nest=nest:g ..zuse]  ~+
+      =/  test=$-([ship nest:gv] ?)
+        =>  [path=path nest=nest:gv ..zuse]  ~+
         .^($-([ship nest] ?) %gx path)
       [test (~(put by checkers) group test)]
     =.  cor
@@ -1382,7 +1382,7 @@
     =/  entries  ~(tap by chan.volume)
     |-
     ?~  entries  cor
-    =/  [=nest:g =level:v]  i.entries
+    =/  [=nest:gv =level:v]  i.entries
     =*  next  $(entries t.entries)
     ?.  ?=(?(%chat %diary %heap) -.nest)  next
     =/  channel  (~(get by channels) nest)

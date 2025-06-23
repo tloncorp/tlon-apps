@@ -1,4 +1,4 @@
-/-  c=channels, g=groups, ci=cite, s=story, h=hooks
+/-  c=channels, gv=groups-ver, ci=cite, s=story, h=hooks
 ::  convert a post to a preview for a "said" response
 ::
 |%
@@ -375,7 +375,7 @@
   =.  replyers  (~(put in replyers) author.u.reply)
   $(entries +.entries)
 ++  perms
-  |_  [our=@p now=@da =nest:c group=flag:g]
+  |_  [our=@p now=@da =nest:c group=flag:gv]
   ++  our-host  =(our ship.nest)
   ++  groups-scry
     ^-  path
@@ -403,14 +403,14 @@
     .^(read=? %gx path)
   ::
   ++  can-write
-    |=  [her=ship writers=(set role-id:v7:g)]
+    |=  [her=ship writers=(set role-id:v7:gv)]
     ?:  =(ship.nest her)  ~&(%write-ok &)
     =/  =path
       %+  welp  groups-scry
       :+  %channels
         kind.nest
       /(scot %p ship.nest)/[name.nest]/can-write/(scot %p her)/noun
-    =+  .^(write=(unit [admin=? roles=(set role-id:v7:g)]) %gx path)
+    =+  .^(write=(unit [admin=? roles=(set role-id:v7:gv)]) %gx path)
     ?~  write  |
     =/  perms  (need write)
     ?:  |(admin.perms =(~ writers))  ~&(%write-ok &)
@@ -421,7 +421,7 @@
   |%
   ++  grab-post
     |=  [=bowl:gall ref=cite:ci]
-    ^-  (unit [=nest:g =post:c])
+    ^-  (unit [=nest:gv =post:c])
     ?.  ?=(%chan -.ref)
       ~
     ::TODO  the whole "deconstruct the ref path" situation is horrendous
@@ -440,7 +440,7 @@
     ==
   ::
   ++  from-post
-    |=  [=nest:g =id-post:c =kind-data:c]
+    |=  [=nest:c =id-post:c =kind-data:c]
     ^-  cite:ci
     =/  kind
       ?-  -.kind-data

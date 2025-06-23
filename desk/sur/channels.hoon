@@ -15,7 +15,7 @@
 ::    commands _may_ become updates,
 ::    updates _may_ become responses.
 ::
-/-  g=groups, c=cite, s=story
+/-  g=groups, gv=groups-ver, c=cite, s=story
 /+  mp=mop-extensions
 |%
 +|  %ancients
@@ -198,7 +198,7 @@
 ::  pointer back to the group it belongs to.
 ::
 +$  perm
-  $:  writers=(set sect:v0:g)
+  $:  writers=(set sect:v0:gv)
       group=flag:g
   ==
 ::
@@ -221,8 +221,8 @@
       group=flag:g
       title=cord
       description=cord
-      readers=(set sect:v0:g)
-      writers=(set sect:v0:g)
+      readers=(set sect:v0:gv)
+      writers=(set sect:v0:gv)
   ==
 ::  $outline: abridged $post
 ::    .replies: number of comments
@@ -297,8 +297,8 @@
       [%view =view]
       [%sort =sort]
       [%order order=arranged-posts]
-      [%add-writers sects=(set sect:v0:g)]
-      [%del-writers sects=(set sect:v0:g)]
+      [%add-writers sects=(set sect:v0:gv)]
+      [%del-writers sects=(set sect:v0:gv)]
   ==
 ::
 +$  c-post

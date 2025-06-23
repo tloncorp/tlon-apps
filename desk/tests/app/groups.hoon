@@ -1,6 +1,6 @@
 ::  groups unit tests
 ::
-/-  g=groups, s=story
+/-  g=groups, meta, s=story
 /+  *test, *test-agent
 /+  gv=groups-ver
 /=  groups-agent  /app/groups
@@ -34,12 +34,13 @@
   (do-init my-agent groups-agent)
 ::
 ++  do-create-group
+  |=  =privacy:g
   =/  m  (mare ,(list card))
   ^-  form:m
   =/  =create-group:g
     :*  %my-test-group
         ['My Test Group' 'A testing group' '' '']
-        %secret
+        privacy
         [~ ~]  ::  banned
         ~      ::  guests
     ==
@@ -61,6 +62,15 @@
   =/  m  (mare ,(list card))
   ^-  form:m
   (do-poke-c-group ~zod [%entry %privacy privacy])
+::
+++  do-join-group
+  |=  =ship
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  ;<  ~  bind:m  (set-src ship)
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  caz=(list card)  bind:m  (do-poke group-command+!>([%join my-flag ~]))
+  (pure:m caz)
 ::
 ++  ex-r-groups
   |=  [caz=(list card) rs-groups=(list r-groups:v7:g)]
@@ -132,11 +142,11 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  *  bind:m  do-groups-init
-  ;<  caz=(list card)  bind:m  do-create-group
+  ;<  caz=(list card)  bind:m  (do-create-group %secret)
   ;<  peek=cage  bind:m  (get-full-peek /x/v2/groups/~zod/my-test-group)
   =+  !<(=group:g q.peek)
   ;<  ~  bind:m  (ex-r-groups caz [my-flag %create group]~)
-  (ex-fail do-create-group)
+  (ex-fail (do-create-group %secret))
 ::  +test-c-join-public: test public group join
 ::
 ::  a ship can join a public group without token.
@@ -147,10 +157,9 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  *  bind:m  do-groups-init
-  ;<  *  bind:m  do-create-group
+  ;<  *  bind:m  (do-create-group %public)
   ::  a ship can join a public group without a token
   ::
-  ;<  caz=(list card)  bind:m  (do-set-privacy %public)
   ;<  ~  bind:m  (set-src ~dev)
   ;<  =bowl:gall  bind:m  get-bowl
   ;<  caz=(list card)  bind:m  (do-poke group-command+!>([%join my-flag ~]))
@@ -174,10 +183,9 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  *  bind:m  do-groups-init
-  ;<  *  bind:m  do-create-group
+  ;<  *  bind:m  (do-create-group %private)
   ::  joining a private group without a valid token fails
   ::
-  ;<  *  bind:m  (do-set-privacy %private)
   ;<  ~  bind:m  (set-src ~fed)
   ;<  *  bind:m
     (ex-fail (do-poke group-command+!>([%join my-flag ~])))
@@ -213,8 +221,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  *  bind:m  do-groups-init
-  ;<  *  bind:m  do-create-group
-  ;<  *  bind:m  (do-set-privacy %public)
+  ;<  *  bind:m  (do-create-group %public)
   =/  =story:s
     [inline+['an appeal to host']~]~
   ;<  ~  bind:m  (set-src ~dev)
@@ -253,7 +260,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  *  bind:m  do-groups-init
-  ;<  *  bind:m  do-create-group
+  ;<  *  bind:m  (do-create-group %private)
   ::  a ship can ask to join the group. the request is recorded and
   ::  broadcasted, but no gifts are emitted.
   ::
@@ -294,7 +301,7 @@
   ;<  ~  bind:m
     (ex-fail (do-poke group-command+!>([%ask my-flag `story])))
   (pure:m ~)
-::  +test-c-groups-leave: test group leave
+::  +test-c-groups-leave: test group leave poke
 ::
 ::  if a ship is a group member, she can issue a %leave poke.
 ::  the group host then deletes her seat.
@@ -308,10 +315,9 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  *  bind:m  do-groups-init
-  ;<  *  bind:m  do-create-group
+  ;<  *  bind:m  (do-create-group %public)
   ::  a ship can join a public group without a token
   ::
-  ;<  caz=(list card)  bind:m  (do-set-privacy %public)
   ;<  ~  bind:m  (set-src ~dev)
   ;<  =bowl:gall  bind:m  get-bowl
   ;<  caz=(list card)  bind:m  (do-poke group-command+!>([%join my-flag ~]))
@@ -353,5 +359,34 @@
     :~  |+[my-flag %entry %ask %del (sy ~dev ~)]
         &+(ex-card [%give %kick ~[ask-path] ~])
     ==
+  (pure:m ~)
+::  +test-c-group-meta: test group meta update
+::  
+::  group meta data can only be updated by an admin.
+::
+++  test-c-group-meta
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  do-groups-init
+  ;<  *  bind:m  (do-create-group %public)
+  ::  update the group meta data as the host
+  ::
+  =/  meta=data:meta
+    ['New Title' 'New description' '' '']
+  ;<  caz=(list card)  bind:m
+    (do-poke-c-group ~zod [%meta meta])
+  ;<  peek=cage  bind:m  (get-full-peek /x/v2/groups/~zod/my-test-group)
+  =+  !<(=group:g q.peek)
+  ;<  ~  bind:m
+    (ex-equal !>(meta.group) !>(meta))
+  ;<  ~  bind:m
+    (ex-r-groups caz [my-flag %meta meta]~)
+  ::  non-admin members can't update metadata
+  ::
+  ;<  *  bind:m  (do-join-group ~dev)
+  ;<  ~  bind:m  (ex-fail (do-poke-c-group ~dev [%meta meta]))
+  ::  non-members can't update metadata
+  ;<  ~  bind:m  (ex-fail (do-poke-c-group ~fed [%meta meta]))
   (pure:m ~)
 --

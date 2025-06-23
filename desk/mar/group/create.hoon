@@ -1,6 +1,6 @@
-/-  g=groups
+/-  gv=groups-ver
 /+  j=groups-json
-|_  =create:g
+|_  =create:gv
 ++  grad  %noun
 ++  grow
   |%
@@ -8,7 +8,7 @@
   --
 ++  grab
   |%
-  ++  noun  create:g
+  ++  noun  create:gv
   ++  json  create:dejs:j
   --
 --
