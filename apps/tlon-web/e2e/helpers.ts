@@ -24,6 +24,18 @@ export async function createGroup(page: Page) {
   }
 }
 
+export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
+  await page.getByTestId('GroupOptionsSheetTrigger').first().click();
+  await page.getByText('Invite people').click();
+
+  for (const memberId of memberIds) {
+    await page.getByPlaceholder('Filter by nickname').fill(memberId);
+    await page.getByTestId('ContactRow').first().click();
+  }
+
+  await page.getByText('continue').click();
+}
+
 export async function deleteGroup(page: Page, groupName?: string) {
   await page.getByTestId('GroupLeaveAction-Delete group').click();
   await expect(
