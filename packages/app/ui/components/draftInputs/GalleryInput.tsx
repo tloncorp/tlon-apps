@@ -413,6 +413,10 @@ export function GalleryInput({
     ]
   );
 
+  const setShowBigInput = useCallback((open: boolean) => {
+    setRoute(open ? 'text' : 'gallery');
+  }, []);
+
   return (
     <>
       {/* Big input for editing text gallery posts */}
@@ -422,7 +426,7 @@ export function GalleryInput({
             ...draftInputContext,
             editingPost,
           }}
-          setShowBigInput={(open) => setRoute(open ? 'text' : 'gallery')}
+          setShowBigInput={setShowBigInput}
           overrideChannelType="gallery"
         />
       )}
