@@ -415,9 +415,15 @@ function useManualScrollAnchoring<Data>({
     [resizeObserver, scrollerContentContainerRef]
   );
 
+  const minVisibleOffsetRef = React.useRef<number | null>(null);
+
   // Check if we need to apply manual anchor and do so.
   // `useLayoutEffect` prevents a flash when scroll height changes
-  React.useLayoutEffect(() => {
+  // React.useLayoutEffect(() => {
+  React.useEffect(() => {
+    const performEffect = (cb: () => void) => {
+      cb();
+    };
     const scroller = scrollerRef.current;
     if (
       scrollHeightRef.current == null ||
@@ -436,10 +442,43 @@ function useManualScrollAnchoring<Data>({
     }
     const previousScrollHeight = scrollHeightRef.current;
     const scrollHeightChange = scroller.scrollHeight - previousScrollHeight;
+
+    // const anchorDiff = (() => {
+    //   // HACK: only works for scrolling up
+    //   const lowestItem =
+    //     scrollerContentContainerRef.current?.firstElementChild
+    //       ?.firstElementChild;
+    //   if (!lowestItem) {
+    //     return;
+    //   }
+    //   let out: number | null = null;
+    //   if (minVisibleOffsetRef.current != null) {
+    //     console.log(
+    //       'change',
+    //       lowestItem.scrollTop,
+    //       minVisibleOffsetRef.current,
+    //       lowestItem
+    //     );
+    //     out = lowestItem.scrollTop - minVisibleOffsetRef.current;
+    //   }
+    //   minVisibleOffsetRef.current = lowestItem.scrollTop;
+    //   return out;
+    // })();
+    // console.log({
+    //   anchorDiff,
+    //   scrollHeightChange,
+    //   equal: anchorDiff === scrollHeightChange,
+    // });
+
     if (scrollHeightChange === 0) {
       return;
     }
+
+    // TODO: This is causing a flash on Safari??
+    console.log('manual scrollBy', scrollHeightChange);
+    // requestAnimationFrame(() =>
     scroller.scrollBy({ top: scrollHeightChange, behavior: 'instant' });
+    // );
   }, [checkNeedsAnchor, scrollerRef, scrollerContentsKey, inverted]);
 
   // Keep track of the previous contents key so we can pass it to `needsAnchoring`
@@ -680,5 +719,6 @@ function useDeduplicateInvocationBy<Key>(
   out.resetDeduplicateInvocation = React.useCallback((key: Key) => {
     lastKeyRef.current = [key];
   }, []);
+  // @ts-ignore
   return out;
 }
