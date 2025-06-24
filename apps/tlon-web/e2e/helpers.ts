@@ -181,19 +181,22 @@ export async function unassignRoleFromMember(
 }
 
 /**
- * Creates a new channel with title and optional description
+ * Creates a new channel with title and type
  */
 export async function createChannel(
   page: Page,
   title: string,
-  description?: string
+  type: 'chat' | 'notebook' | 'gallery' = 'chat'
 ) {
   await page.getByText('New Channel').click();
   await expect(page.getByText('Create a new channel')).toBeVisible();
 
   await fillFormField(page, 'ChannelTitleInput', title);
-  if (description) {
-    await fillFormField(page, 'ChannelDescriptionInput', description);
+
+  if (type === 'notebook') {
+    await page.getByText('Notebook', { exact: true }).click();
+  } else if (type === 'gallery') {
+    await page.getByText('Gallery', { exact: true }).click();
   }
 
   await page.getByText('Create channel').click();
@@ -403,6 +406,31 @@ export async function changeGroupIcon(page: Page, imagePath?: string) {
   }
 }
 
+// Notebook-related helper functions
+
+/**
+ * Creates a new notebook post
+ */
+export async function createNotebookPost(
+  page: Page,
+  title: string,
+  content: string
+) {
+  await page.getByTestId('AddNotebookPost').click();
+  await page.getByRole('textbox', { name: 'New Title' }).click();
+  await page.getByRole('textbox', { name: 'New Title' }).fill(title);
+  await page.locator('iframe').contentFrame().getByRole('paragraph').click();
+  await page
+    .locator('iframe')
+    .contentFrame()
+    .locator('div')
+    .nth(2)
+    .fill(content);
+  await page.getByTestId('BigInputPostButton').click();
+  await page.waitForTimeout(500);
+  await expect(page.getByText(title)).toBeVisible();
+}
+
 // Chat-related helper functions
 
 /**
@@ -421,7 +449,7 @@ export async function sendMessage(page: Page, message: string) {
  */
 export async function longPressMessage(page: Page, messageText: string) {
   // Not really a longpress since this is web.
-  await page.getByText(messageText).first().click();
+  await page.getByText(messageText).first().hover();
   await page.waitForTimeout(1000);
   await page.getByTestId('MessageActionsTrigger').click();
   await page.waitForTimeout(500);
