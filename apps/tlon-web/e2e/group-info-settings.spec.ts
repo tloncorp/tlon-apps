@@ -18,6 +18,7 @@ test('should handle complete group lifecycle with settings management', async ({
 
   // Clean up any existing group
   await helpers.cleanupExistingGroup(page);
+  await helpers.cleanupExistingGroup(page, '~ten, ~zod');
 
   // Create a new group
   await helpers.createGroup(page);
