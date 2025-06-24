@@ -20,6 +20,7 @@ test('should test comprehensive chat functionality', async ({ page }) => {
 
   // Clean up any existing group
   await helpers.cleanupExistingGroup(page);
+  await helpers.cleanupExistingGroup(page, '~ten, ~zod');
 
   // Create a new group
   await helpers.createGroup(page);
