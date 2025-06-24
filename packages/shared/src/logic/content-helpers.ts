@@ -103,7 +103,8 @@ interface Line {
 }
 
 const processLine = (line: Line): JSONContent => {
-  const { text, mentions } = line;
+  const { text: rawText, mentions } = line;
+  const text = rawText.trim();
   const parsedContent: JSONContent[] = [];
   let isBolding = false;
   let isItalicizing = false;
@@ -318,7 +319,7 @@ export function textAndMentionsToContent(
       (mention) => mention.start >= absoluteStart && mention.end < absoluteEnd
     );
     normalizedLines.push({
-      text: line.trimEnd(),
+      text: line,
       mentions: found.map((mention) => ({
         ...mention,
         start: mention.start - absoluteStart,
