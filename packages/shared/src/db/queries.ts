@@ -3296,7 +3296,7 @@ export const getPostWithRelations = createReadQuery(
       })
       .then(returnNullIfUndefined);
   },
-  ['posts', 'threadUnreads', 'volumeSettings']
+  ['posts', 'postReactions', 'threadUnreads', 'volumeSettings']
 );
 
 export const getPersonalGroup = createReadQuery(

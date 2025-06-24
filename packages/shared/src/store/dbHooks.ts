@@ -315,7 +315,7 @@ export const useLiveUnread = (
 
 export const useGroups = (options: db.GetGroupsOptions) => {
   return useQuery({
-    queryKey: ['groups', useKeyFromQueryDeps(db.getGroups)],
+    queryKey: ['groups', useKeyFromQueryDeps(db.getGroups, options)],
     queryFn: () => db.getGroups(options).then((r) => r ?? null),
   });
 };

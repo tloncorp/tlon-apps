@@ -421,7 +421,7 @@ export async function sendMessage(page: Page, message: string) {
  */
 export async function longPressMessage(page: Page, messageText: string) {
   // Not really a longpress since this is web.
-  await page.getByText(messageText).first().click();
+  await page.getByText(messageText).first().hover();
   await page.waitForTimeout(1000);
   await page.getByTestId('MessageActionsTrigger').click();
   await page.waitForTimeout(500);
@@ -477,8 +477,9 @@ export async function reactToMessage(
  * Removes a reaction from a message
  */
 export async function removeReaction(page: Page, emoji: string = '👍') {
-  await page.getByTestId('ReactionDisplay').click();
-  await expect(page.getByText(emoji)).not.toBeVisible();
+  const reactionButton = page.getByText(emoji);
+  await reactionButton.click();
+  await expect(reactionButton).not.toBeVisible();
 }
 
 /**
