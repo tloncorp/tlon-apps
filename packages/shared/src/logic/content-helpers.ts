@@ -318,7 +318,7 @@ export function textAndMentionsToContent(
       (mention) => mention.start >= absoluteStart && mention.end < absoluteEnd
     );
     normalizedLines.push({
-      text: line.trim(),
+      text: line.trimEnd(),
       mentions: found.map((mention) => ({
         ...mention,
         start: mention.start - absoluteStart,
