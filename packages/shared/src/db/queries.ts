@@ -1305,12 +1305,12 @@ export const insertChannelOrder = createWriteQuery(
     channelsInit: Pick<ChannelInit, 'channelId' | 'order'>[],
     ctx: QueryCtx
   ) => {
-    await ctx.db.transaction(async (tx) => {
+    await withTransactionCtx(ctx, async (txc) => {
       await Promise.all(
         channelsInit.map(async (chanInit) => {
           if (!chanInit.order) return;
 
-          await tx
+          await txc.db
             .update($channels)
             .set({ order: chanInit.order })
             .where(eq($channels.id, chanInit.channelId));

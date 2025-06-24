@@ -93,11 +93,19 @@ export async function waitForElementAndAct(
 /**
  * Handles cleanup of existing "Untitled group" if present
  */
-export async function cleanupExistingGroup(page: Page) {
-  if (await page.getByText('Untitled group').first().isVisible()) {
-    await page.getByText('Untitled group').first().click();
+export async function cleanupExistingGroup(page: Page, groupName?: string) {
+  if (
+    await page
+      .getByText(groupName || 'Untitled group')
+      .first()
+      .isVisible()
+  ) {
+    await page
+      .getByText(groupName || 'Untitled group')
+      .first()
+      .click();
     await openGroupSettings(page);
-    await deleteGroup(page);
+    await deleteGroup(page, groupName);
   }
 }
 
@@ -133,7 +141,7 @@ export async function createRole(
   await fillFormField(page, 'RoleDescriptionInput', description);
 
   await page.getByText('Save').click();
-  await expect(page.getByText(title)).toBeVisible();
+  await expect(page.getByText(title, { exact: true })).toBeVisible();
 }
 
 /**
@@ -150,7 +158,7 @@ export async function assignRoleToMember(
 
   await expect(page.getByText('Send message')).toBeVisible();
   await page.getByText('Assign role').click();
-  await page.getByText(roleName).click();
+  await page.getByRole('dialog').getByText(roleName).click();
 
   await page.waitForTimeout(2000); // Wait for assignment to complete
 }
@@ -189,6 +197,7 @@ export async function createChannel(
   }
 
   await page.getByText('Create channel').click();
+  await page.waitForTimeout(1000);
 }
 
 /**
@@ -423,7 +432,7 @@ export async function longPressMessage(page: Page, messageText: string) {
  */
 export async function startThread(page: Page, messageText: string) {
   await longPressMessage(page, messageText);
-  await page.getByText('Start thread').click();
+  await page.getByText('Reply').click();
   await page.waitForTimeout(500);
   await expect(page.getByRole('textbox', { name: 'Reply' })).toBeVisible();
 }
@@ -482,7 +491,7 @@ export async function quoteReply(
   isDM = false
 ) {
   await longPressMessage(page, originalMessage);
-  await page.getByText('Reply', { exact: true }).click();
+  await page.getByText('Quote', { exact: true }).click();
 
   // Verify quote interface appears
   if (!isDM) {
@@ -517,7 +526,7 @@ export async function threadQuoteReply(
   await page.waitForTimeout(500);
   await page.getByTestId('MessageActionsTrigger').click();
   await page.waitForTimeout(500);
-  await page.getByText('Reply', { exact: true }).click();
+  await page.getByText('Quote', { exact: true }).click();
 
   // Verify quote interface appears
   await expect(page.getByText('Chat Post')).toBeVisible();
@@ -657,6 +666,7 @@ export async function createDirectMessage(page: Page, contactId: string) {
  * Leaves a direct message
  */
 export async function leaveDM(page: Page, contactId: string) {
+  await page.getByTestId('HomeNavIcon').click();
   await page.getByText(contactId, { exact: true }).first().click();
   await page.waitForTimeout(500);
   await page.getByTestId('ChannelOptionsSheetTrigger').first().click();
