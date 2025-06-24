@@ -520,10 +520,17 @@ function useScrollToAnchorOnMount({
   }, [scrollerRef, anchor, inverted, onScrollCompleted]);
 }
 
+// Pass this to useDeduplicateInvocationBy().resetDeduplicateInvocation() to
+// force the next invocation of the guarded callback to be called.
+const KEY_TO_PASSTHROUGH_NEXT_INVOCATION = Symbol();
+
 /**
  * Calls appropriate callback when approaching boundary. Guards against
  * calling a callback twice for the same content size (i.e. only asks for more
  * content after the content has changed).
+ *
+ * Here's RN's implementation of this logic:
+ * https://github.com/facebook/react-native/blob/18f4db44ef109668dc1e59180dd4ed8bf275e6f5/packages/virtualized-lists/Lists/VirtualizedList.js#L1519
  */
 function useBoundaryCallbacks({
   element,
@@ -545,12 +552,10 @@ function useBoundaryCallbacks({
    */
   scrollerContentKey: unknown;
 }) {
-  const onStartReachedGuarded = useMutableCallback(
-    useDeduplicateInvocationBy(
-      () => scrollerContentKey,
-      isEqual,
-      onStartReached ?? null
-    )
+  const onStartReachedGuarded = useDeduplicateInvocationBy(
+    () => scrollerContentKey,
+    isEqual,
+    onStartReached ?? null
   );
   const [reachedStart, getReachedStart] = useScrollBoundary(element, {
     boundaryRatio: onStartReachedThreshold,
@@ -559,6 +564,13 @@ function useBoundaryCallbacks({
   React.useEffect(() => {
     if (getReachedStart() ?? false) {
       onStartReachedGuarded?.();
+    } else {
+      // If user scrolled away from the boundary, make sure we always allow the
+      // next invocation (i.e. we never skip it).
+      // https://github.com/facebook/react-native/blob/18f4db44ef109668dc1e59180dd4ed8bf275e6f5/packages/virtualized-lists/Lists/VirtualizedList.js#L1598-L1605
+      onStartReachedGuarded.resetDeduplicateInvocation(
+        KEY_TO_PASSTHROUGH_NEXT_INVOCATION
+      );
     }
   }, [
     getReachedStart,
@@ -579,12 +591,10 @@ function useBoundaryCallbacks({
     scrollerContentKey,
   ]);
 
-  const onEndReachedGuarded = useMutableCallback(
-    useDeduplicateInvocationBy(
-      () => scrollerContentKey,
-      isEqual,
-      onEndReached ?? null
-    )
+  const onEndReachedGuarded = useDeduplicateInvocationBy(
+    () => scrollerContentKey,
+    isEqual,
+    onEndReached ?? null
   );
   const [reachedEnd, getReachedEnd] = useScrollBoundary(element, {
     boundaryRatio: onEndReachedThreshold,
@@ -593,6 +603,12 @@ function useBoundaryCallbacks({
   React.useEffect(() => {
     if (getReachedEnd() ?? false) {
       onEndReachedGuarded?.();
+    } else {
+      // If user scrolled away from the boundary, make sure we always allow the
+      // next invocation (i.e. we never skip it).
+      onEndReachedGuarded.resetDeduplicateInvocation(
+        KEY_TO_PASSTHROUGH_NEXT_INVOCATION
+      );
     }
   }, [
     getReachedEnd,
@@ -641,18 +657,28 @@ function useDeduplicateInvocationBy<Key>(
   getKey: () => Key,
   shouldSkip: (prev: Key, curr: Key) => boolean,
   callback: ((key: Key) => void) | null
-): () => boolean {
+): (() => boolean) & { resetDeduplicateInvocation: (key: Key) => void } {
   const lastKeyRef = React.useRef<[Key] | null>(null);
-  return React.useCallback(() => {
-    if (callback == null) {
-      return false;
-    }
-    const key = getKey();
-    if (lastKeyRef.current != null && shouldSkip(lastKeyRef.current[0], key)) {
-      return false; // Callback already called for this key
-    }
+  const out = useMutableCallback(
+    React.useCallback(() => {
+      if (callback == null) {
+        return false;
+      }
+      const key = getKey();
+      if (
+        lastKeyRef.current != null &&
+        shouldSkip(lastKeyRef.current[0], key)
+      ) {
+        return false; // Callback already called for this key
+      }
+      lastKeyRef.current = [key];
+      callback?.(key);
+      return true; // Callback successfully called
+    }, [getKey, callback, shouldSkip])
+  );
+  // @ts-ignore
+  out.resetDeduplicateInvocation = React.useCallback((key: Key) => {
     lastKeyRef.current = [key];
-    callback?.(key);
-    return true; // Callback successfully called
-  }, [getKey, callback, shouldSkip]);
+  }, []);
+  return out;
 }
