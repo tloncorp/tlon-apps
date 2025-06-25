@@ -351,6 +351,7 @@ export function GalleryInput({
               key="gallery"
               type="Add"
               onPress={handleAdd}
+              testID="AddGalleryPost"
             />
             <Notices.CollectionInputTooltip channelId={channel.id} />
           </>

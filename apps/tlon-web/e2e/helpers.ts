@@ -431,6 +431,26 @@ export async function createNotebookPost(
   await expect(page.getByText(title)).toBeVisible();
 }
 
+// Gallery-related helper functions
+
+/**
+ * Creates a new gallery post
+ */
+export async function createGalleryPost(page: Page, content: string) {
+  await page.getByTestId('AddGalleryPost').click();
+  await page.getByTestId('AddGalleryPostText').click();
+  await page.locator('iframe').contentFrame().getByRole('paragraph').click();
+  await page
+    .locator('iframe')
+    .contentFrame()
+    .locator('div')
+    .nth(2)
+    .fill(content);
+  await page.getByTestId('BigInputPostButton').click();
+  await page.waitForTimeout(500);
+  await expect(page.getByText(content).first()).toBeVisible();
+}
+
 // Chat-related helper functions
 
 /**
@@ -449,7 +469,7 @@ export async function sendMessage(page: Page, message: string) {
  */
 export async function longPressMessage(page: Page, messageText: string) {
   // Not really a longpress since this is web.
-  await page.getByText(messageText).first().hover();
+  await page.getByText(messageText).first().hover({ force: true });
   await page.waitForTimeout(1000);
   await page.getByTestId('MessageActionsTrigger').click();
   await page.waitForTimeout(500);
