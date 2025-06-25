@@ -15,7 +15,13 @@ import {
   usePostWithRelations,
 } from '@tloncorp/shared/store';
 import { Story } from '@tloncorp/shared/urbit';
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
@@ -26,7 +32,9 @@ import {
   Channel,
   ChatOptionsProvider,
   INITIAL_POSTS_PER_PAGE,
+  InviteUsersSheet,
   useCurrentUserId,
+  useIsWindowNarrow,
 } from '../../ui';
 
 const logger = createDevLogger('ChannelScreen', false);
@@ -40,6 +48,7 @@ export default function ChannelScreen(props: Props) {
     startDraft: false,
   };
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
+  const isWindowNarrow = useIsWindowNarrow();
 
   useEffect(() => {
     setCurrentChannelId(channelId);
@@ -328,6 +337,17 @@ export default function ChannelScreen(props: Props) {
     }
   }, [channel?.type, channel?.id, channel?.groupId]);
 
+  const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>();
+  const handlePressInvite = useCallback((groupId: string) => {
+    setInviteSheetGroup(groupId);
+  }, []);
+
+  const handleInviteSheetOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setInviteSheetGroup(null);
+    }
+  }, []);
+
   const canUpload = useCanUpload();
 
   const chatOptionsNavProps = useChatSettingsNavigation();
@@ -368,6 +388,7 @@ export default function ChannelScreen(props: Props) {
       useGroup={store.useGroup}
       onPressConfigureChannel={handleConfigureChannel}
       {...chatOptionsNavProps}
+      onPressInvite={handlePressInvite}
     >
       <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
         <Channel
@@ -415,6 +436,14 @@ export default function ChannelScreen(props: Props) {
           startDraft={startDraft}
           onPressScrollToBottom={handleScrollToBottom}
         />
+        {!isWindowNarrow && (
+          <InviteUsersSheet
+            open={!!inviteSheetGroup}
+            onOpenChange={handleInviteSheetOpenChange}
+            groupId={inviteSheetGroup ?? undefined}
+            onInviteComplete={() => setInviteSheetGroup(null)}
+          />
+        )}
       </AttachmentProvider>
     </ChatOptionsProvider>
   );
