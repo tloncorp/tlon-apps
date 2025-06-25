@@ -17,7 +17,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %8
+    $:  %9
         =v-channels:c
         =hooks:h
         =pimp:imp
@@ -107,12 +107,17 @@
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
   =?  old  ?=(%6 -.old)  (state-6-to-7 old)
   =?  old  ?=(%7 -.old)  (state-7-to-8 old)
-  ?>  ?=(%8 -.old)
+  =^  moz-8=(list card)  old
+    ?.  ?=(%8 -.old)  [~ old]
+    (state-8-to-9 old)
+  =.  cor  (emil moz-8)
+  ?>  ?=(%9 -.old)
   =.  state  old
   inflate-io
   ::
   +$  versioned-state
-    $%  state-8
+    $%  state-9
+        state-8
         state-7
         state-6
         state-5
@@ -122,7 +127,13 @@
         state-1
         state-0
     ==
-  +$  state-8  current-state
+  +$  state-9  current-state
+  +$  state-8
+    $:  %8
+        =v-channels:c
+        =hooks:h
+        =pimp:imp
+    ==
   +$  state-7
     $:  %7
         =v-channels:v7:old:c
@@ -134,6 +145,29 @@
       =v-channels:v7:old:c
       =pimp:imp
     ==
+  ++  state-8-to-9
+    |=  s=state-8
+    ^-  (quip card state-9)
+    =-  [caz s(- %9, v-channels chans)]
+    %+  roll  ~(tap by v-channels.s)
+    |=  $:  [k=nest:c v=v-channel:c]
+            [caz=(list card) chans=v-channels:c]
+        ==
+    ^+  [caz chans]
+    =-  [(weld coz caz) (~(put by chans) k chan)]
+    %+  roll  (tap:log-on:c log.v)
+    |=  $:  [t=time u=u-channel:c]
+            [coz=(list card) chan=_v]
+        ==
+    ?.  ?=([%post * %set ~] u)  [coz chan]
+    ~?  ?=([~ ~ *] (get:on-v-posts:c posts.chan id.u))
+      %strange-existing-deleted-posts
+    :-  :_  coz
+        =/  paths=(list path)
+          ~(ca-subscription-paths ca-core k chan |)
+        [%give %fact paths %channel-update !>(`update:c`[t u])]
+    =-  chan(posts -)
+    (put:on-v-posts:c posts.chan id.u ~)
   ++  state-7-to-8
     |=  s=state-7
     ^-  state-8
