@@ -94,12 +94,11 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
     useManualScrollAnchoring({
       scrollerRef,
       scrollerContentContainerRef,
-      inverted,
       scrollerContentsKey: orderedData,
       needsAnchoring: React.useCallback(
         (
-          prev: PostWithNeighbors[],
-          next: PostWithNeighbors[],
+          prev: typeof orderedData,
+          next: typeof orderedData,
           scrollTop: number
         ) => {
           // https://caniuse.com/css-overflow-anchor
@@ -117,8 +116,25 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
               scrollTop === 0 && prev.at(0)?.post.id !== next.at(0)?.post.id
             );
           } else {
+            // TODO: it'd be real nice to handle posts changing height!
+            //
+            // if (
+            //   prev.length === next.length &&
+            //   isPrefixEquivalent(prev, next, prev.length, isEqual)
+            // ) {
+            //   // If the previous and next data are equivalent, assume that
+            //   // we're change height of a post above the viewport. This is as
+            //   // likely as changing height of post below viewport, but idk,
+            //   // seems like this assumption is a slightly better UX.
+            //   return true;
+            // }
+
             // If native scroll anchoring isn't available, manually anchor
             // scroll whenever the content above the viewport changes.
+            //
+            // This does not account for changes in *view content*, just data
+            // content - so e.g. images loading after a second will not trigger
+            // a scroll anchor, and will push the scroll down.
             const prefixLength = (getMinVisibleIndex() ?? 0) + 1;
             return !isPrefixEquivalent(prev, next, prefixLength, isEqual);
           }
@@ -373,16 +389,110 @@ function useScrollBoundary(
   return [insideBoundary, checkInsideBoundary] as const;
 }
 
+class ManualScrollAnchorCoordinator<ContentKey> {
+  private resizeObserver: ResizeObserver | null = null;
+  private previousScrollHeight: number | null = null;
+
+  /**
+   * Value of content key when scroll offset was last applied.
+   * Since `null` could be a valid `ContentKey` value, use an ad-hoc box type - null is empty.
+   */
+  private previousKey: [ContentKey] | null = null;
+  private currentKey: [ContentKey] | null = null;
+
+  constructor(
+    public scroller?: HTMLElement,
+    public contentContainer?: HTMLElement,
+    public checkNeedsAnchor?: (
+      prevKey: ContentKey,
+      nextKey: ContentKey,
+      /** Scroll offset of anchoring scroll element */
+      scrollTop: number
+    ) => boolean
+  ) {}
+
+  setContentKey(contentKey: ContentKey) {
+    this.currentKey = [contentKey];
+  }
+
+  install() {
+    if (this.contentContainer == null) {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.target === this.contentContainer) {
+          this.checkAndApplyScrollOffset();
+        }
+      }
+    });
+    resizeObserver.observe(this.contentContainer);
+
+    this.resizeObserver = resizeObserver;
+  }
+
+  uninstall() {
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
+    this.previousScrollHeight = null;
+    this.previousKey = null;
+  }
+
+  private checkAndApplyScrollOffset() {
+    if (this.contentContainer == null) {
+      return;
+    }
+
+    const previousScrollHeight = this.previousScrollHeight;
+    const currentScrollHeight = this.contentContainer.scrollHeight;
+    this.previousScrollHeight = currentScrollHeight;
+
+    const previousKey = this.previousKey;
+    const currentKey = this.currentKey;
+    this.previousKey = currentKey;
+
+    if (
+      previousScrollHeight == null ||
+      previousKey == null ||
+      currentKey == null ||
+      this.scroller == null ||
+      this.checkNeedsAnchor == null
+    ) {
+      return;
+    }
+
+    const needsAnchor = this.checkNeedsAnchor(
+      previousKey[0],
+      currentKey[0],
+      this.scroller.scrollTop
+    );
+
+    if (!needsAnchor) {
+      return;
+    }
+
+    const scrollHeightChange =
+      this.scroller.scrollHeight - previousScrollHeight;
+
+    if (scrollHeightChange === 0) {
+      return;
+    }
+
+    this.scroller.scrollBy({ top: scrollHeightChange, behavior: 'instant' });
+  }
+}
+
 function useManualScrollAnchoring<Data>({
   scrollerRef,
   scrollerContentContainerRef,
-  inverted,
   scrollerContentsKey,
   needsAnchoring: checkNeedsAnchor,
 }: {
   scrollerRef: React.RefObject<HTMLDivElement>;
   scrollerContentContainerRef: React.RefObject<HTMLDivElement>;
-  inverted: boolean;
   /** This value must change when the scroll height of the scroller changes */
   scrollerContentsKey: Data;
   needsAnchoring: (
@@ -392,99 +502,23 @@ function useManualScrollAnchoring<Data>({
     scrollTop: number
   ) => boolean;
 }) {
-  // Since `Data` could be a nullable type, use an ad-hoc box type to track optionality
-  const prevKey = React.useRef<[Data] | null>(null);
-  const scrollHeightRef = React.useRef<number | null>(null);
-
-  // Observe changes to the scroll content height (so we have a "previous height").
-  // Note that this assumes that `ResizeObserver`'s callback is called _after_
-  // the `useLayoutEffect` below (see `scrollHeightChange`)
-  const resizeObserver = React.useMemo(
-    () =>
-      new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          if (entry.target === scrollerContentContainerRef.current) {
-            scrollHeightRef.current = entry.contentRect.height;
-          }
-        }
-      }),
-    [scrollerContentContainerRef]
-  );
-  React.useEffect(
-    () => resizeObserver.observe(scrollerContentContainerRef.current!),
-    [resizeObserver, scrollerContentContainerRef]
+  const coordinator = React.useRef(
+    new ManualScrollAnchorCoordinator<Data>(
+      scrollerRef.current!,
+      scrollerContentContainerRef.current!,
+      checkNeedsAnchor
+    )
   );
 
-  const minVisibleOffsetRef = React.useRef<number | null>(null);
-
-  // Check if we need to apply manual anchor and do so.
-  // `useLayoutEffect` prevents a flash when scroll height changes
-  // React.useLayoutEffect(() => {
   React.useEffect(() => {
-    const performEffect = (cb: () => void) => {
-      cb();
-    };
-    const scroller = scrollerRef.current;
-    if (
-      scrollHeightRef.current == null ||
-      prevKey.current == null ||
-      scroller == null
-    ) {
-      return;
-    }
-    const needsAnchor = checkNeedsAnchor(
-      prevKey.current[0],
-      scrollerContentsKey,
-      scroller.scrollTop
-    );
-    if (!needsAnchor) {
-      return;
-    }
-    const previousScrollHeight = scrollHeightRef.current;
-    const scrollHeightChange = scroller.scrollHeight - previousScrollHeight;
+    const coord = coordinator.current;
+    coord.scroller = scrollerRef.current ?? undefined;
+    coord.contentContainer = scrollerContentContainerRef.current ?? undefined;
+    coord.install();
+    return () => coord.uninstall();
+  }, [scrollerContentContainerRef, scrollerRef]);
 
-    // const anchorDiff = (() => {
-    //   // HACK: only works for scrolling up
-    //   const lowestItem =
-    //     scrollerContentContainerRef.current?.firstElementChild
-    //       ?.firstElementChild;
-    //   if (!lowestItem) {
-    //     return;
-    //   }
-    //   let out: number | null = null;
-    //   if (minVisibleOffsetRef.current != null) {
-    //     console.log(
-    //       'change',
-    //       lowestItem.scrollTop,
-    //       minVisibleOffsetRef.current,
-    //       lowestItem
-    //     );
-    //     out = lowestItem.scrollTop - minVisibleOffsetRef.current;
-    //   }
-    //   minVisibleOffsetRef.current = lowestItem.scrollTop;
-    //   return out;
-    // })();
-    // console.log({
-    //   anchorDiff,
-    //   scrollHeightChange,
-    //   equal: anchorDiff === scrollHeightChange,
-    // });
-
-    if (scrollHeightChange === 0) {
-      return;
-    }
-
-    // TODO: This is causing a flash on Safari??
-    console.log('manual scrollBy', scrollHeightChange);
-    // requestAnimationFrame(() =>
-    scroller.scrollBy({ top: scrollHeightChange, behavior: 'instant' });
-    // );
-  }, [checkNeedsAnchor, scrollerRef, scrollerContentsKey, inverted]);
-
-  // Keep track of the previous contents key so we can pass it to `needsAnchoring`
-  React.useEffect(() => {
-    prevKey.current = [scrollerContentsKey];
-  }, [scrollerContentsKey]);
+  coordinator.current?.setContentKey(scrollerContentsKey);
 }
 
 function useStickToScrollStart({
