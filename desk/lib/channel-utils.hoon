@@ -397,10 +397,11 @@
     ?:  =(our her)  &
     =/  =path
       %+  welp  groups-scry
-      :+  %channels
-        kind.nest
-      /(scot %p ship.nest)/[name.nest]/can-read/(scot %p her)/noun
-    .^(read=? %gx path)
+      /channels/can-read/noun
+    =/  test=$-([ship nest:gv] ?)
+      =>  [path=path nest=nest:gv ..zuse]  ~+
+      .^($-([ship nest] ?) %gx path)
+    (test her nest)
   ::
   ++  can-write
     |=  [her=ship writers=(set role-id:v7:gv)]

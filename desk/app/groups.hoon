@@ -120,7 +120,34 @@
   %-  emit
   =/  =cage  [%activity-action !>(`action:activity`action)]
   [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
+::  |l: logging core
 ::
+++  l
+  |_  flow=(unit @t)
+  ++  fail
+    |=  [desc=term trace=tang]
+    =/  =card
+      (~(fail logs our.bowl /logs) desc trace deez)
+    |*  etc=*
+    =.  cor  (emit card)
+    etc
+  ::
+  ++  tell
+    |=  [vol=volume:logs =echo:logs]
+    =/  =card
+      (~(tell logs our.bowl /logs) vol echo deez)
+    |*  etc=*
+    =.  cor  (emit card)
+    etc
+  ::  +deez: log message details
+  ::
+  ++  deez
+    ^-  (list (pair @t json))
+    =;  l=(list (unit (pair @t json)))
+      (murn l same)
+    :~  ?~(flow ~ `%flow^s+u.flow)
+    ==
+  --
 ++  poke
   |=  [=mark =vase]
   ~&  groups-poke+[mark src.bowl]
@@ -1165,10 +1192,9 @@
     =/  groups=(set $>(%flag value:t))
       (~(gos cy:t con.update) groups+%flag)
     ?:  =(~ groups)  cor  ::TMI
-    %-  emil  %-  zing
-    %+  turn  ~(tap in groups)
-    |=  val=$>(%flag value:t)
-    preview:fi-pass:(fi-abed:fi-core p.val)
+    %+  roll  ~(tap in groups)
+    |=  [val=$>(%flag value:t) =_cor]
+    fi-abet:(fi-watch:(fi-abed:fi-core:cor p.val) /preview)
   ==
 ::
 ++  from-self  =(our src):bowl
@@ -1413,7 +1439,7 @@
   ::  if the client then wishes to forfeit that registration,
   ::  he can issue a group leave request. the group host then:
   ::  1. deletes the client's seat and kicks
-  ::     any outstanding group subscriptions. 
+  ::     any outstanding group subscriptions.
   ::     (this is handled in +se-c-seat.)
   ::  2. deletes the client's ask request and kicks
   ::     any outstanding ask subscriptions.
@@ -2066,6 +2092,8 @@
     ^+  se-core
     ?<  (se-is-banned src.bowl)
     ?+    path  ~|(se-watch-bad+path !!)
+        ::  receive updates since .after time
+        ::
         [%updates ship=@ after=@ ~]
       =/  ship   (slav %p i.t.path)
       =/  after  (slav %da i.t.t.path)
@@ -2073,15 +2101,22 @@
       ?>  (se-is-member src.bowl)
       (se-watch-updates ship after)
     ::
+      ::  fetch group preview
+      ::
       [%preview rest=*]  (se-watch-preview t.path)
     ::
+        ::  request token for a ship
+        ::
         [%token ship=@ ~]
       =+  ship=(slav %p i.t.path)
       ?>  (se-is-admin src.bowl)
       (se-watch-token ship)
     ::
+        ::  ask for access token
+        ::
         [%ask ship=@ ~]
       =+  ship=(slav %p i.t.path)
+      ?>  =(ship src.bowl)
       (se-watch-ask ship)
     ==
   ::
@@ -2370,7 +2405,7 @@
     =.  cor
       (emit %pass wire %agent [p.flag server] %poke group-command+!>([%join flag token]))
     go-core
-  ::  +go-leave: leave a group and cancel all channel subscriptions
+  ::  +go-leave: leave the group and cancel all channel subscriptions
   ::
   ++  go-leave
     |=  send-leave=?
@@ -2384,7 +2419,6 @@
     =/  channels  ~(tap in ~(key by channels.group))
     =.  cor  (emil (leave-channels:go-pass channels))
     =?  cor  send-leave  (emit leave-group:go-pass)
-    ::
     go-core(gone &)
   ::  +go-preview: generate the preview of the group
   ::
@@ -2522,19 +2556,13 @@
       %kick  (go-safe-sub &)
     ::
         %watch-ack
-      ~&  go-take-update+%watch-ack
+      =+  log=~(. l `'group-join')
       =?  cor  (~(has by foreigns) flag)
         fi-abet:(fi-watched:(fi-abed:fi-core flag) p.sign)
-      ::TODO think about this failure mode: we obtained a seat
-      ::     in the group, but we could not establish a subscription.
-      ::     this means the host rejected us, and we should probably
-      ::     exit and clean up the group.
-      ::
-      %.  go-core
-      ?~  p.sign  same
-      ::TODO  log, and consider threading error back
-      ::      into foreigns for client use.
-      (slog leaf/"Failed subscription" u.p.sign)
+      ?^  p.sign
+        %-  (fail:log %watch-ack 'group watch failed' u.p.sign)
+        (go-leave &)
+      go-core
     ::
         %fact
       =*  cage  cage.sign
@@ -3133,11 +3161,11 @@
     ::
         [%seats ship=@ %is-admin ~]
       =+  ship=(slav %p ship.pole)
-      ``noun+!>((go-is-admin ship))
+      ``loob+!>((go-is-admin ship))
     ::
         [%seats ship=@ %is-banned ~]
       =+  ship=(slav %p ship.pole)
-      ``noun+!>((go-is-banned ship))
+      ``loob+!>((go-is-banned ship))
     ::
       ::
       ::  channels queries
@@ -3146,18 +3174,14 @@
       =/  =nest:g  [app.pole (slav %p ship.pole) name.pole]
       ?+    rest.pole  [~ ~]
           [%can-read ship=@ ~]
-        ::TODO maybe %loob mark, here and elseweher
         ?~  channel=(~(get by channels.group) nest)
-          ``noun+!>(|)
+          ``loob+!>(|)
         =+  ship=(slav %p ship.rest.pole)
-        ::TODO this was producing a gate for a reason (channels agent
-        ::     perm recheck perf)
-        ``noun+!>((go-can-read ship u.channel))
+        ``loob+!>((go-can-read ship u.channel))
         ::
           [%can-write ship=@ ~]
         =+  ship=(slav %p ship.rest.pole)
         ^-  (unit (unit cage))
-        :: =-  ``noun+!>(-)
         ?~  seat=(~(get by seats.group) ship)  [~ ~]
         ?:  (go-is-banned ship)  [~ ~]
         =-  ``noun+!>(-)
@@ -3165,6 +3189,13 @@
         :-  admin=(go-is-admin ship)
         roles=roles.u.seat
       ==
+    ::
+        [%channels %can-read ~]
+      =-  ``noun+!>(-)
+      !>  ^-  $-([ship nest:g] ?)
+      |=  [=ship =nest:g]
+      ?~  chan=(~(get by channels.group) nest)  |
+      (go-can-read ship u.chan)
     ::
       ::
       ::  admissions queries
@@ -3205,7 +3236,7 @@
     |=  f=flag:g
     ^+  fi-core
     ~|  flag=f
-    =/  far=foreign:g  (~(gut by foreigns) f [~ ~ ~ ~])
+    =/  far=foreign:g  (~(gut by foreigns) f [~ ~ ~ ~ ~])
     fi-core(flag f, +<+ far)
   ::  +fi-abet: final
   ::
@@ -3240,8 +3271,10 @@
     fi-core
   ::  +fi-area: foreign base path
   ++  fi-area  `path`/foreigns/(scot %p p.flag)/[q.flag]
-  ::  +fi-server-path: group server base path
+  ::  +fi-server-path: groups server base path
   ++  fi-server-path  `path`/server/groups/(scot %p p.flag)/[q.flag]
+  ::  +fi-preview-path: groups server preview path
+  ++  fi-preview-path  `path`/server/groups/(scot %p p.flag)/[q.flag]/preview
   ::  +fi-pass: cards core
   ::
   ++  fi-pass
@@ -3271,17 +3304,10 @@
           [%pass wire %agent [p.flag server] %watch path]
       ==
     ::
-    ++  preview
-      ^-  (list card)
-      =/  =wire
-        (welp fi-area /preview)
-      =/  =dock  [p.flag dap.bowl]
-      =/  =path  (weld fi-server-path /preview)
-      =/  watch  [%pass wire %agent dock %watch path]
-      ::  clean up the old sub before watching again
-      :~  [%pass wire %agent dock %leave ~]
-          watch
-      ==
+    ++  leave-ask
+      ^-  card
+      =/  =wire  (weld fi-area /join/ask)
+      [%pass wire %agent [p.flag server] %leave ~]
     ::
     ++  get-index
       |=  =ship
@@ -3319,6 +3345,9 @@
     ::      but it won't be possible to restart the subscription
     ::
     ?:  (~(has by groups) flag)  fi-core
+    ::  leave the ask subscription in case it has not yet closed
+    =?  cor  ?=([~ %ask] progress)
+      (emit leave-ask:fi-pass)
     ?:  ?&  ?=(^ progress)
             ?=(?(%join %watch %done) u.progress)
         ==
@@ -3367,24 +3396,29 @@
     =+  pro=progress  ::TMI
     ?:  ?=(~ pro)  fi-core
     ?-    u.pro
-        ?(%ask %join)
+        %ask
+      =.  cor  (emit leave-ask:fi-pass)
+      =.  progress  ~
+      fi-core
+    ::
+        %join
       =.  cor  (emit leave-group:fi-pass)
       =.  progress  ~
       fi-core
     ::
-          %watch
-        ::XX  make sure this is the logic we want
-        =.  cor  go-abet:(go-leave:(go-abed:go-core flag) &)
-        =.  progress  ~
-        fi-core
+        %watch
+      ::XX  make sure this is the logic we want
+      =.  cor  go-abet:(go-leave:(go-abed:go-core flag) &)
+      =.  progress  ~
+      fi-core
     ::
-          %error
-        =.  progress  ~
-        fi-core
+        %error
+      =.  progress  ~
+      fi-core
     ::
-        ::TODO should never be hit as long as we delete
-        ::     foreigns on done. log because it is unexpected.
-        %done  fi-core
+      ::TODO should never be hit as long as we delete
+      ::     foreigns on done. log because it is unexpected.
+      %done  fi-core
     ==
   ::  +fi-invite: receive a group invitation
   ::
@@ -3430,9 +3464,22 @@
     ?+    pole  ~|(bad-fi-watch+pole !!)
     ::
         [%preview ~]
-      =.  cor  (emil preview:fi-pass)
-      fi-core
+      =.  lookup  `%preview
+      (fi-safe-preview |)
     ==
+  ::  +fi-safe-preview: safely subscribe for a group preview
+  ::
+  ++  fi-safe-preview
+    |=  delay=?
+    ^+  fi-core
+    =/  =wire  (weld fi-area /preview)
+    =/  =dock  [p.flag dap.bowl]
+    =^  caz=(list card)  subs
+      (~(unsubscribe s [subs bowl]) wire dock)
+    :: =?  cor  ?=(^ caz)  (emil caz)
+    =.  cor  %.  delay
+      (safe-watch (weld fi-area /preview) [p.flag dap.bowl] fi-preview-path)
+    fi-core
   ::  +fi-watch-index: handle index watch request
   ::
   ++  fi-watch-index
@@ -3465,14 +3512,15 @@
       %-  (slog u.p.sign)
       fi-core
     ::
-        ::  poked the host to join with .token
+        ::  poked with token to join the group
         ::
         [%join token=@ ~]
+      =+  log=~(. l `'group-join')
       ?>  ?=(%poke-ack -.sign)
-      ::  we weren't trying to join, ignore
+      ::  we aren't joining anymore, ignore
       ?.  &(?=(^ progress) =(%join u.progress))  fi-core
       ?^  p.sign
-        %-  (slog u.p.sign)
+        %-  (tell:log %warn 'group join with token failed' u.p.sign)
         =.  progress  `%error
         fi-core
       =.  progress  `%watch
@@ -3487,27 +3535,26 @@
         ::  asked to join the group
         ::
         [%join %ask ~]
+      =+  log=~(. l `'group-join')
       ?.  &(?=(^ progress) =(%ask u.progress))
         ::  we aren't asking anymore, ignore
         fi-core
       ?-    -.sign
           %poke-ack
         ?^  p.sign
-          %-  (slog u.p.sign)
+          %-  (tell:log %warn 'group ask failed' u.p.sign)
           =.  progress  `%error
           fi-core
         fi-core
       ::
           %kick
-        ::  a kick from the host indicates a rejection
-        ::
-        ::XX log this
+        %-  (tell:log %warn 'group ask kicked' ~)
         =.  progress  `%error
         fi-core
       ::
           %watch-ack
         ?^  p.sign
-          %-  (slog u.p.sign)
+          %-  (fail:log %watch-ack 'group ask watch' u.p.sign)
           =.  progress  `%error
           fi-core
         fi-core
@@ -3521,26 +3568,35 @@
         ::  requested a group preview
         ::
         [%preview ~]
-      ?+    -.sign  ~|(bad-fi-agent-preview+[pole -.sign] !!)
-      ::
-        %kick  fi-core  :: single-shot subscription
+      =+  log=~(. l `'group-preview')
+      ?+    -.sign  ~|(fi-agent-bad-preview+[pole -.sign] !!)
+          %kick
+        ?~  lookup
+          %-  (tell:log %warn 'unexpected preview kick' ~)
+          fi-core
+        ?:  ?=(%preview u.lookup)
+          %-  (tell:log %info 'retrying preview after kick' ~)
+          (fi-safe-preview &)
+        fi-core
       ::
           %watch-ack
+        =+  lok=lookup
+        ?>  ?=([~ %preview] lok)
         ?~  p.sign  fi-core
-        %-  (slog u.p.sign)
+        =.  lookup  `%error
+        %-  (fail:log 'watch-ack' 'group preview watch' u.p.sign)
         fi-core
       ::
           %fact
         ?>  ?=(%group-preview-3 p.cage.sign)
         =+  !<(=preview-update:v7:gv q.cage.sign)
-        ::TODO do we want to notify the client about unavailable previews?
-        ::     we should check in what circumstances does the client
-        ::     request for a preview.
-        ::
+        =+  lok=lookup
+        ?>  ?=([~ %preview] lok)
+        =.  lookup  `%done
         =.  preview  preview-update
         =.  cor
           =/  path-0  /gangs/(scot %p p.flag)/[q.flag]/preview
-          =/  path-1  (snoc fi-area %preview)
+          =/  path-1  [%v1 (snoc fi-area %preview)]
           =?  cor  ?=(^ preview)
             %-  emil
             :~  :: v0
@@ -3558,6 +3614,11 @@
           ==
         fi-core
       ==
+    ::
+        :: command poke
+        [%command *]
+      ?>  ?=(%poke-ack -.sign)
+      fi-core
     ==
   ::  +fi-take-index: receive ship index
   ::

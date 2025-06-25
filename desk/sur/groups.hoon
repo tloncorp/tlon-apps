@@ -159,15 +159,23 @@
 ::  %error: error occured
 ::
 +$  progress  ?(%ask %join %watch %done %error)
+::  $lookup: preview in progress
+::
+::  %preview: waiting for preview
+::  %done: preview update received
+::  %error: error occured
+::
++$  lookup  ?(%preview %done %error)
 ::  $foreign: view of a foreign group
 ::
 ::  .invites: received invites
-::  .preview: group preview
+::  .preview: preview result - unavailable or preview
 ::  .progress: join in progress
 ::  .token: join token
 ::
 +$  foreign
   $:  invites=(list invite)
+      lookup=(unit lookup)
       preview=(unit preview)
       progress=(unit progress)
       token=(unit token)
