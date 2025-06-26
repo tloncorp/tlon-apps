@@ -107,6 +107,12 @@
         =.  msg  'target not parseable'
         bad-req
       =.  url.request  u.target
+      =.  header-list.request
+        ::  delete cookies from the original request,
+        ::  don't want to leak these
+        ::
+        %+  skip  header-list.request
+        |=([k=@t @t] =('cookie' k))
       [[(fetch [id secure] request)]~ this]
     ==
   ==
