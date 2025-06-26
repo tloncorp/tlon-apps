@@ -116,18 +116,17 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
               scrollTop === 0 && prev.at(0)?.post.id !== next.at(0)?.post.id
             );
           } else {
-            // TODO: it'd be real nice to handle posts changing height!
-            //
-            // if (
-            //   prev.length === next.length &&
-            //   isPrefixEquivalent(prev, next, prev.length, isEqual)
-            // ) {
-            //   // If the previous and next data are equivalent, assume that
-            //   // we're change height of a post above the viewport. This is as
-            //   // likely as changing height of post below viewport, but idk,
-            //   // seems like this assumption is a slightly better UX.
-            //   return true;
-            // }
+            if (
+              prev.length === next.length &&
+              isPrefixEquivalent(prev, next, prev.length, isEqual)
+            ) {
+              // If the previous and next data are equivalent, assume that
+              // we're change height of a post above the viewport.
+              //
+              // This means we're also unnecessarily triggering scroll
+              // anchoring when something below the viewport changes height.
+              return true;
+            }
 
             // If native scroll anchoring isn't available, manually anchor
             // scroll whenever the content above the viewport changes.
@@ -141,6 +140,27 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
         },
         [getMinVisibleIndex]
       ),
+
+      getAnchorItem: React.useCallback(() => {
+        // TODO: theoretically we could use `getMinVisibleIndex` here, but in
+        // practice, it does not get updated quickly enough at initial load.
+        // Instead, do a manual search for the first fully visible item.
+        const items = Array.from(
+          scrollerContentContainerRef.current!.firstElementChild!.children,
+          (x) => x as HTMLElement
+        );
+        items.sort((a, b) => a.offsetTop - b.offsetTop);
+        const minFullyVisible = items.find(
+          (x) => x.offsetTop >= scrollerRef.current!.scrollTop
+        );
+        if (minFullyVisible == null) {
+          return null;
+        }
+        return {
+          offset: minFullyVisible.offsetTop,
+          key: minFullyVisible.dataset.postid!,
+        };
+      }, []),
     });
 
     useBoundaryCallbacks({
@@ -389,9 +409,8 @@ function useScrollBoundary(
   return [insideBoundary, checkInsideBoundary] as const;
 }
 
-class ManualScrollAnchorCoordinator<ContentKey> {
+class ManualScrollAnchorCoordinator<ContentKey, ItemKey> {
   private resizeObserver: ResizeObserver | null = null;
-  private previousScrollHeight: number | null = null;
 
   /**
    * Value of content key when scroll offset was last applied.
@@ -400,15 +419,26 @@ class ManualScrollAnchorCoordinator<ContentKey> {
   private previousKey: [ContentKey] | null = null;
   private currentKey: [ContentKey] | null = null;
 
+  private anchorItem: { offset: number; key: ItemKey } | null = null;
+
   constructor(
-    public scroller?: HTMLElement,
-    public contentContainer?: HTMLElement,
-    public checkNeedsAnchor?: (
+    public scroller: HTMLElement,
+    public contentContainer: HTMLElement,
+    public checkNeedsAnchor: (
       prevKey: ContentKey,
       nextKey: ContentKey,
       /** Scroll offset of anchoring scroll element */
       scrollTop: number
-    ) => boolean
+    ) => boolean,
+
+    /** Return info about a list item that should maintain its visible position
+     * in case of a scroll height change (ideally the currently "most visible" item). */
+    public getAnchorItem: () => {
+      /** How far from the top of the scroll (i.e. `offsetTop`) is this item? */
+      offset: number;
+      key: ItemKey;
+    } | null,
+    public getItemOffsetAtKey: (key: ItemKey) => number | null
   ) {}
 
   setContentKey(contentKey: ContentKey) {
@@ -430,6 +460,8 @@ class ManualScrollAnchorCoordinator<ContentKey> {
     resizeObserver.observe(this.contentContainer);
 
     this.resizeObserver = resizeObserver;
+
+    this.updateAnchorItem();
   }
 
   uninstall() {
@@ -437,25 +469,19 @@ class ManualScrollAnchorCoordinator<ContentKey> {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
     }
-    this.previousScrollHeight = null;
     this.previousKey = null;
   }
 
+  private updateAnchorItem(): void {
+    this.anchorItem = this.getAnchorItem();
+  }
+
   private checkAndApplyScrollOffset() {
-    if (this.contentContainer == null) {
-      return;
-    }
-
-    const previousScrollHeight = this.previousScrollHeight;
-    const currentScrollHeight = this.contentContainer.scrollHeight;
-    this.previousScrollHeight = currentScrollHeight;
-
     const previousKey = this.previousKey;
     const currentKey = this.currentKey;
     this.previousKey = currentKey;
 
     if (
-      previousScrollHeight == null ||
       previousKey == null ||
       currentKey == null ||
       this.scroller == null ||
@@ -470,18 +496,32 @@ class ManualScrollAnchorCoordinator<ContentKey> {
       this.scroller.scrollTop
     );
 
-    if (!needsAnchor) {
-      return;
+    if (needsAnchor) {
+      // To determine the scroll offset to apply, we'll find the change in
+      // position of the `anchorItem` that we recorded on the last pass of
+      // `checkAndApplyScrollOffset`. Scrolling by that amount should make
+      // `anchorItem` maintain its position w.r.t. the viewport.
+      const prevAnchorItem = this.anchorItem;
+
+      if (prevAnchorItem != null) {
+        // y-position of the previously-stored anchor item
+        const prevAnchorCurrentOffset = this.getItemOffsetAtKey(
+          prevAnchorItem.key
+        );
+        if (prevAnchorCurrentOffset != null) {
+          const scrollHeightChange =
+            prevAnchorCurrentOffset - prevAnchorItem.offset;
+
+          this.scroller.scrollBy({
+            top: scrollHeightChange,
+            behavior: 'instant',
+          });
+        }
+      }
     }
 
-    const scrollHeightChange =
-      this.scroller.scrollHeight - previousScrollHeight;
-
-    if (scrollHeightChange === 0) {
-      return;
-    }
-
-    this.scroller.scrollBy({ top: scrollHeightChange, behavior: 'instant' });
+    // Store info about an anchor item that we'll use on next manual anchor.
+    this.updateAnchorItem();
   }
 }
 
@@ -490,6 +530,7 @@ function useManualScrollAnchoring<Data>({
   scrollerContentContainerRef,
   scrollerContentsKey,
   needsAnchoring: checkNeedsAnchor,
+  getAnchorItem,
 }: {
   scrollerRef: React.RefObject<HTMLDivElement>;
   scrollerContentContainerRef: React.RefObject<HTMLDivElement>;
@@ -501,19 +542,31 @@ function useManualScrollAnchoring<Data>({
     /** Scroll offset of anchoring scroll element */
     scrollTop: number
   ) => boolean;
+  /** See `ManualScrollAnchorCoordinator.getAnchorItem` */
+  getAnchorItem: () => { offset: number; key: string } | null;
 }) {
   const coordinator = React.useRef(
-    new ManualScrollAnchorCoordinator<Data>(
+    new ManualScrollAnchorCoordinator(
       scrollerRef.current!,
       scrollerContentContainerRef.current!,
-      checkNeedsAnchor
+      checkNeedsAnchor,
+      getAnchorItem,
+      (key) => {
+        const item = scrollerContentContainerRef.current!.querySelector(
+          `[data-postid="${key}"]`
+        );
+        if (!(item instanceof HTMLElement)) {
+          return null;
+        }
+        return item.offsetTop;
+      }
     )
   );
 
   React.useEffect(() => {
     const coord = coordinator.current;
-    coord.scroller = scrollerRef.current ?? undefined;
-    coord.contentContainer = scrollerContentContainerRef.current ?? undefined;
+    coord.scroller = scrollerRef.current!;
+    coord.contentContainer = scrollerContentContainerRef.current!;
     coord.install();
     return () => coord.uninstall();
   }, [scrollerContentContainerRef, scrollerRef]);
