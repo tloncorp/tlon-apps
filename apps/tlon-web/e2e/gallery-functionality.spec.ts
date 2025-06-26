@@ -113,6 +113,12 @@ test('should test gallery functionality', async ({ page }) => {
     page.getByText('You have hidden or reported this post').first()
   ).toBeVisible();
 
+  // Delete the post
+  await helpers.deletePost(page, 'You have hidden or reported this post');
+  await expect(
+    page.getByText('You have hidden or reported this post').first()
+  ).not.toBeVisible();
+
   // Clean up
   await helpers.cleanupExistingGroup(page);
 });

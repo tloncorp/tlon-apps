@@ -1,7 +1,7 @@
 import { Page, expect } from '@playwright/test';
 
 export async function clickThroughWelcome(page: Page) {
-  await page.waitForTimeout(3000);
+  await page.waitForTimeout(10000);
   if (await page.getByText('Welcome to Tlon Messenger').isVisible()) {
     await page.getByTestId('lets-get-started').click();
     await page.getByTestId('got-it').click();
@@ -638,6 +638,15 @@ export async function deleteMessage(
   } else {
     await expect(page.getByText('Message deleted').first()).toBeVisible();
   }
+}
+
+/**
+ * Deletes a post
+ */
+export async function deletePost(page: Page, postText: string) {
+  await longPressMessage(page, postText);
+  await page.getByText('Delete post').click();
+  await expect(page.getByText(postText, { exact: true })).not.toBeVisible();
 }
 
 /**
