@@ -48,8 +48,30 @@ async function cleanup() {
   }
 
   // Additional cleanup - kill any remaining processes on our test ports
-  const ports = ['3000', '3001', '3002', '35453', '36963', '38473'];
-  for (const port of ports) {
+  const shipManifest = require('../../e2e/shipManifest.json');
+  const ships = Object.values(shipManifest) as Ship[];
+  const ports: string[] = [];
+
+  // Collect all ports used by ships
+  ships.forEach((ship) => {
+    // Add HTTP port (Urbit ship port)
+    ports.push(ship.httpPort);
+
+    // Extract web server port from webUrl (e.g., "http://localhost:3000" -> "3000")
+    const webUrlMatch = ship.webUrl.match(/:(\d+)$/);
+    if (webUrlMatch) {
+      ports.push(webUrlMatch[1]);
+    }
+
+    // Add loopback port if it exists
+    if (ship.loopbackPort) {
+      ports.push(ship.loopbackPort);
+    }
+  });
+
+  // Remove duplicates and kill processes on all ports
+  const uniquePorts = Array.from(new Set(ports));
+  for (const port of uniquePorts) {
     try {
       childProcess.exec(`lsof -ti:${port} | xargs kill -9 2>/dev/null || true`);
     } catch (error) {
