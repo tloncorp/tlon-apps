@@ -21,6 +21,14 @@ test('should invite ~bus to a group and test protocol mismatch', async ({
   const busPage = await busContext.newPage();
 
   try {
+    // Step 0: Clean up any existing invites on ~bus
+    await busPage.goto(busUrl);
+    await helpers.clickThroughWelcome(busPage);
+    await busPage.evaluate(() => {
+      window.toggleDevTools();
+    });
+    await helpers.rejectGroupInvite(busPage);
+
     // Step 1: ~zod creates a group and invites ~bus
     await zodPage.goto(zodUrl);
     await helpers.clickThroughWelcome(zodPage);
@@ -50,11 +58,6 @@ test('should invite ~bus to a group and test protocol mismatch', async ({
     await helpers.navigateBack(zodPage);
 
     // Step 2: ~bus accepts the invite
-    await busPage.goto(busUrl);
-    await helpers.clickThroughWelcome(busPage);
-    await busPage.evaluate(() => {
-      window.toggleDevTools();
-    });
 
     // Wait for and accept the group invitation
     await expect(busPage.getByText('Group invitation')).toBeVisible();

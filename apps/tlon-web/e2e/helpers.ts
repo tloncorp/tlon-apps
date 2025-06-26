@@ -24,6 +24,28 @@ export async function createGroup(page: Page) {
   }
 }
 
+export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
+  await page.getByTestId('GroupOptionsSheetTrigger').first().click();
+  await page.getByText('Invite people').click();
+
+  for (const memberId of memberIds) {
+    await page.getByPlaceholder('Filter by nickname').fill(memberId);
+    await page.getByTestId('ContactRow').first().click();
+  }
+
+  await page.getByText('continue').click();
+}
+
+export async function rejectGroupInvite(page: Page) {
+  await expect(page.getByText('Group invitation')).toBeVisible();
+  await page.getByText('Group invitation').click();
+
+  // If there's a reject invitation button, click it
+  if (await page.getByText('Reject invite').isVisible()) {
+    await page.getByText('Reject invite').click();
+  }
+}
+
 export async function deleteGroup(page: Page, groupName?: string) {
   await page.getByTestId('GroupLeaveAction-Delete group').click();
   await expect(
@@ -525,8 +547,9 @@ export async function reactToMessage(
  * Removes a reaction from a message
  */
 export async function removeReaction(page: Page, emoji: string = '👍') {
-  await page.getByTestId('ReactionDisplay').click();
-  await expect(page.getByText(emoji)).not.toBeVisible();
+  const reactionButton = page.getByText(emoji);
+  await reactionButton.click();
+  await expect(reactionButton).not.toBeVisible();
 }
 
 /**
