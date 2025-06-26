@@ -1,3 +1,4 @@
+import { escapeRegExp } from '@tloncorp/shared';
 import { Text } from '@tloncorp/ui';
 import { ComponentProps, useMemo } from 'react';
 import { SizableText } from 'tamagui';
@@ -15,7 +16,7 @@ const NickNameWithMatch = ({
   secondary?: boolean;
 }) => {
   const matchedNickname =
-    matchText && nickname?.match(new RegExp(matchText, 'i'));
+    matchText && nickname?.match(new RegExp(escapeRegExp(matchText), 'i'));
 
   return matchedNickname && matchedNickname.index !== undefined ? (
     <>
@@ -45,7 +46,8 @@ const UserIdWithMatch = ({
   userId: string;
   matchText: string;
 }) => {
-  const matchedId = matchText && userId.match(new RegExp(matchText, 'i'));
+  const matchedId =
+    matchText && userId.match(new RegExp(escapeRegExp(matchText), 'i'));
   return matchedId && matchedId.index !== undefined ? (
     <>
       {userId.slice(0, matchedId.index)}
