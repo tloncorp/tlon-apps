@@ -113,12 +113,10 @@
 ++  submit-activity
   |=  =action:activity
   ^+  cor
-  ::XX this probably accounts for old ships, but is it still necessary?
-  ::
   ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)
     cor
   %-  emit
-  =/  =cage  [%activity-action !>(`action:activity`action)]
+  =/  =cage  activity-action+!>(`action:activity`action)
   [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
 ::  |l: logging core
 ::
@@ -155,7 +153,6 @@
   ?+    mark  ~|(bad-mark+mark !!)
       %noun
     ?+    q.vase  !!
-      %reset-all-perms  reset-all-perms
     ::XX review is this necessary
       ::   [%group-wake flag:g]
       :: =+  ;;(=flag:g +.q.vase)
@@ -323,14 +320,14 @@
       =+  !<(=flag:g vase)
       =/  =a-foreigns:v7:gv
         [%foreign flag %ask ~]
-      $(+< foreign-action-1+!>(a-foreigns))
+      $(+< group-foreign-1+!>(a-foreigns))
     ::
         %group-rescind
       ?>  from-self
       =+  !<(=flag:g vase)
       =/  =a-foreigns:v7:gv
         [%foreign flag %cancel ~]
-      $(+< foreign-action-1+!>(a-foreigns))
+      $(+< group-foreign-1+!>(a-foreigns))
     ::
         %group-cancel
       =+  !<(=flag:g vase)
@@ -361,7 +358,7 @@
       |=  [=invite:g =_cor]
       =/  =a-foreigns:v7:gv
         [%foreign flag %decline token.invite]
-      (poke:cor group-foreign-action-1+!>(a-foreigns))
+      (poke:cor group-foreign-1+!>(a-foreigns))
     ::
   ::
   ::
@@ -373,18 +370,15 @@
       :: ?~  g=(~(get by groups) flag)
       ::   cor
       :: go-abet:(go-safe-sub:(go-abed:group-core:cor flag) |)
-    ::
-    ::XX this is quite unreadable. what is going on here?
-    ::  XX verify this is in use. if so,
-    ::  introduce a standalone command to do this
-    ::   %reset-all-perms  reset-all-perms
-    ::   ::XX verify this is used at all
-    ::   %reset-group-perms
-    :: =+  !<(=flag:g vase)
-    :: =/  val  (~(get by groups) flag)
-    :: ?~  val
-    ::   cor
-    :: ((reset-group-perms cor) [flag u.val] cor)
+  ::
+    %reset-all-perms  reset-all-perms
+  ::
+      %reset-group-perms
+    =+  !<(=flag:g vase)
+    =/  val  (~(get by groups) flag)
+    ?~  val
+      cor
+    ((reset-group-perms cor) [flag u.val] cor)
   ::
       %volume-set
     ?>  =(our src):bowl
@@ -494,8 +488,7 @@
   |=  [[=flag:g [=net:g =group:g]] cr=_core]
   ?.  =(our.bowl p.flag)  cr
   (~(rep by channels.group) (reset-channel-perms flag cr))
-::TODO examine whether this should execute in the client
-::     component or in the server component
+::
 ++  reset-channel-perms
   |=  [=flag:g cr=_cor]
   |=  [[=nest:g =channel:g] core=_cr]
@@ -506,17 +499,16 @@
       ^-  card
       =/  wire  /groups
       =/  dock  [our.bowl dap.bowl]
-      =/  =c-groups:v7:gv  [%group flag [%channel nest %del-readers readers.channel]]
-      =/  cage  group-command-7+!>(c-groups)
+      =/  =c-groups:g  [%group flag [%channel nest %del-readers readers.channel]]
+      =/  cage  group-command+!>(c-groups)
       [%pass wire %agent dock %poke cage]
     ^-  card
     =/  =path  (welp (channels-scry nest) /perm/noun)
     =/  perms  .^(perm:d %gx path)
-    ::TODO version channel commands
     =/  =c-channels:d  [%channel nest %del-writers writers.perms]
     =/  =wire  /diary
     =/  =dock  [our.bowl %channels-server]
-    =/  =cage  [%channel-command !>(c-channels)]
+    =/  =cage  channel-command+!>(c-channels)
     [%pass wire %agent dock %poke cage]
   core
 ::  +init: initialize agent
@@ -897,7 +889,9 @@
     ?~  far=(~(get by foreigns) flag)  [~ ~]
     ``foreign-1+!>(`foreign:v7:gv`u.far)
   ::
-      ::  deprecated, update /lib/notify
+      ::TODO deprecated. update /lib/notify.hoon to use 
+      ::     foreigns api, then remove this path.
+      ::
       [%x %gangs ~]
      :: we filter out foreigns which are %done,
      :: since completed gangs were removed in old groups.
@@ -1049,7 +1043,6 @@
     (~(subscribe s [subs bowl]) wire dock path delay)
   (emil caz)
 ::  +watch-chan: handle channel preview request
-::TODO this would be located better under +go-core
 ::
 ++  watch-chan
   |=  =nest:g
@@ -1853,7 +1846,7 @@
         ==
     =/  =a-foreigns:v7:gv
       [%invite invite]
-    =/  cage  foreign-action-1+!>(a-foreigns)
+    =/  cage  group-foreign-1+!>(a-foreigns)
     ::XX modifying cor here does not work, even though we
     ::   exposed the namespace with tiscom above.
     ::
@@ -2351,7 +2344,7 @@
       ?.  ?=(?(%chat %diary %heap) p.nes)
         ~
       =/  =dock  [our.bowl %channels]
-      ::XX version channels types
+      ::TODO use versioned channel api
       =/  action=a-channels:d  [%channel nes %leave ~]
       =/  =cage  channel-action+!>(action)
       =/  =wire  (snoc go-area %leave-channels)
@@ -2367,7 +2360,7 @@
       ?.  ?=(?(%chat %diary %heap) p.nes)
         ~
       =/  =dock  [our.bowl %channels]
-      ::XX version channels types
+      ::TODO use version channels types
       =/  action=a-channels:d  [%channel nes %join flag]
       =/  =cage  channel-action+!>(action)
       =/  =wire  (snoc go-area %join-channels)
@@ -2390,20 +2383,10 @@
     |=  delay=?
     ^+  go-core
     ?>  ?=(%sub -.net)
-    ::TODO use the last heard time from logs
     =.  cor
       %.  delay
       %^  safe-watch  go-sub-wire  [p.flag server]
       (weld go-server-path /updates/(scot %p our.bowl)/(scot %da time.net))
-    go-core
-  ::  +go-join: join a group
-  ::
-  ++  go-join
-    |=  [=flag:g =token:g]
-    ^+  go-core
-    =/  =wire  (weld go-area(flag flag) /join)
-    =.  cor
-      (emit %pass wire %agent [p.flag server] %poke group-command+!>([%join flag token]))
     go-core
   ::  +go-leave: leave the group and cancel all channel subscriptions
   ::
@@ -2434,6 +2417,8 @@
   ::
   ++  go-a-invite
     |=  =a-invite:g
+    ?:  =(ship.a-invite src.bowl)  
+      go-core
     ?:  &(?=(~ token.a-invite) !?=(%public privacy.ad))
       ::  if we don't have a suitable token for a non-public group,
       ::  we are going to request it
@@ -2457,8 +2442,7 @@
       (~(put by invited.ad) ship.a-invite [now.bowl token.a-invite])
     =.  cor
       =/  =cage
-        group-foreign-action-1+!>(`a-foreigns:v7:gv`[%invite invite])
-      ~&  go-invite+ship.a-invite
+        group-foreign-1+!>(`a-foreigns:v7:gv`[%invite invite])
       %^  emit  %pass  wire
       [%agent [ship.a-invite dap.bowl] %poke cage]
     go-core
@@ -2478,7 +2462,7 @@
     ^+  go-core
     ?>  from-self
     =/  =^wire  (weld go-area wire)
-    =/  =cage  group-command+!>([%group flag c-group])
+    =/  =cage  group-command+!>(`c-groups:g`[%group flag c-group])
     =.  cor  (emit %pass wire %agent [p.flag server] %poke cage)
     go-core
   ::
@@ -2893,9 +2877,9 @@
         ?.  has  next
         ::  unsupported channel
         ?.  ?=(?(%chat %heap %diary) p.nest)  next
-        =/  cmd=c-channels:d
+        =/  =c-channels:d
           [%channel nest %del-writers (sects:v2:roles:v7:gc roles)]
-        =/  cage  channel-command+!>(cmd)
+        =/  cage  channel-command+!>(c-channels)
         =/  dock  [p.q.nest %channels-server]
         =.  cor  (emit %pass /channels/perms %agent dock %poke cage)
         next
@@ -3142,7 +3126,7 @@
     ::TODO some of these should be versioned, at least
     ::     those used by the client.
     ::
-    ?+    pole  ~|(bad-go-peek+pole !!)
+    ?+    pole  ~|(go-peek-bad+pole !!)
     ::
       ::  local preview
       [%preview ~]
@@ -3257,7 +3241,6 @@
     =/  gangs-2
       (~(run by foreigns) gang:v2:foreign:v7:gc)
     =.  cor  (give %fact ~[/gangs/updates] gangs+!>(gangs-2))
-
     fi-core
   ::
   ++  fi-activity
@@ -3407,7 +3390,6 @@
       fi-core
     ::
         %watch
-      ::XX  make sure this is the logic we want
       =.  cor  go-abet:(go-leave:(go-abed:go-core flag) &)
       =.  progress  ~
       fi-core
@@ -3416,9 +3398,11 @@
       =.  progress  ~
       fi-core
     ::
-      ::TODO should never be hit as long as we delete
-      ::     foreigns on done. log because it is unexpected.
-      %done  fi-core
+        ::NB  should never be hit as long as we delete
+        ::    foreigns on done.
+        %done
+      %-  (tell:l %warn 'cancel invoked on a %done foreign group' ~)
+      fi-core
     ==
   ::  +fi-invite: receive a group invitation
   ::
