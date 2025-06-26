@@ -124,6 +124,8 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
       }, []),
     });
 
+    const scrollHeight =
+      useTrackContentRect(scrollerContentContainerRef.current)?.height ?? 0;
     useBoundaryCallbacks({
       element: scrollerRef.current,
       inverted,
@@ -131,7 +133,7 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
       onEndReachedThreshold,
       onStartReached,
       onStartReachedThreshold,
-      scrollerContentKey: orderedData,
+      scrollerContentKey: scrollHeight,
     });
 
     const [insideScrolledToBottomBoundary] = useScrollBoundary(
@@ -728,4 +730,28 @@ function useDeduplicateInvocationBy<Key>(
     lastKeyRef.current = [key];
   }, []);
   return out;
+}
+
+function useTrackContentRect(element: HTMLElement | null) {
+  const [contentRect, setContentRect] = React.useState<DOMRectReadOnly | null>(
+    null
+  );
+  const resizeObserver = React.useMemo(
+    () =>
+      new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.target === element) {
+            setContentRect(entry.contentRect);
+          }
+        }
+      }),
+    [element]
+  );
+  React.useEffect(() => {
+    if (element) {
+      resizeObserver.observe(element);
+      return () => resizeObserver.unobserve(element);
+    }
+  }, [resizeObserver, element]);
+  return contentRect;
 }
