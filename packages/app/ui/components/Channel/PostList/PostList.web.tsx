@@ -704,7 +704,10 @@ function useDeduplicateInvocationBy<Key>(
   callback: ((key: Key) => void) | null
 ): (() => boolean) & { resetDeduplicateInvocation: (key: Key) => void } {
   const lastKeyRef = React.useRef<[Key] | null>(null);
-  const out = useMutableCallback(
+  // @ts-expect-error - resetDeduplicateInvocation is added below; idk how to do this in one step
+  const out: (() => boolean) & {
+    resetDeduplicateInvocation: (key: Key) => void;
+  } = useMutableCallback(
     React.useCallback(() => {
       if (callback == null) {
         return false;
@@ -721,10 +724,8 @@ function useDeduplicateInvocationBy<Key>(
       return true; // Callback successfully called
     }, [getKey, callback, shouldSkip])
   );
-  // @ts-ignore
   out.resetDeduplicateInvocation = React.useCallback((key: Key) => {
     lastKeyRef.current = [key];
   }, []);
-  // @ts-ignore
   return out;
 }
