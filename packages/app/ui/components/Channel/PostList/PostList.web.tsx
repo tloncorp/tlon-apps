@@ -1,9 +1,5 @@
 import { useMutableCallback } from '@tloncorp/shared';
-import {
-  IntersectionObserverProvider,
-  useIntersectionObserverContext,
-} from '@tloncorp/shared/utils';
-import { isEqual, min } from 'lodash';
+import { isEqual } from 'lodash';
 import * as React from 'react';
 import { View } from 'react-native';
 
@@ -27,15 +23,6 @@ export const PostList: PostListComponent = React.forwardRef((props, ref) => {
 PostList.displayName = 'PostList';
 
 const PostListSingleColumn: PostListComponent = React.forwardRef(
-  (props, forwardedRef) => (
-    <IntersectionObserverProvider>
-      <_PostListSingleColumn {...props} ref={forwardedRef} />
-    </IntersectionObserverProvider>
-  )
-);
-PostListSingleColumn.displayName = 'PostListSingleColumn';
-
-const _PostListSingleColumn: PostListComponent = React.forwardRef(
   (
     {
       anchor,
@@ -65,23 +52,9 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
     const scrollerRef = React.useRef<HTMLDivElement | null>(null);
     const scrollerContentContainerRef = React.useRef<HTMLDivElement>(null);
 
-    const { intersectingSetRef, setRoot } = useIntersectionObserverContext();
-    // Immediately set the contextual intersection observer root to the scroller
-    React.useEffect(() => setRoot(scrollerRef.current), [setRoot]);
-
     const orderedData = React.useMemo(
       () => (inverted ? [...postsWithNeighbors].reverse() : postsWithNeighbors),
       [inverted, postsWithNeighbors]
-    );
-
-    const getMinVisibleIndex = React.useCallback(
-      () =>
-        min(
-          Array.from(intersectingSetRef.current).flatMap(
-            (x) => getItemIndexFromPostListItem(x) ?? []
-          )
-        ),
-      [intersectingSetRef]
     );
 
     useScrollToAnchorOnMount({
@@ -116,29 +89,17 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
               scrollTop === 0 && prev.at(0)?.post.id !== next.at(0)?.post.id
             );
           } else {
-            if (
-              prev.length === next.length &&
-              isPrefixEquivalent(prev, next, prev.length, isEqual)
-            ) {
-              // If the previous and next data are equivalent, assume that
-              // we're change height of a post above the viewport.
-              //
-              // This means we're also unnecessarily triggering scroll
-              // anchoring when something below the viewport changes height.
-              return true;
-            }
-
             // If native scroll anchoring isn't available, manually anchor
-            // scroll whenever the content above the viewport changes.
+            // scroll every time the scroll height changes.
             //
-            // This does not account for changes in *view content*, just data
-            // content - so e.g. images loading after a second will not trigger
-            // a scroll anchor, and will push the scroll down.
-            const prefixLength = (getMinVisibleIndex() ?? 0) + 1;
-            return !isPrefixEquivalent(prev, next, prefixLength, isEqual);
+            // We still only want to change scroll position when content above
+            // the viewport changed (pushing content down) - we avoid jumping
+            // in other cases by referencing a visible "anchor item", using the
+            // below `getAnchorItem`.
+            return true;
           }
         },
-        [getMinVisibleIndex]
+        []
       ),
 
       getAnchorItem: React.useCallback(() => {
@@ -267,7 +228,7 @@ const _PostListSingleColumn: PostListComponent = React.forwardRef(
     );
   }
 );
-_PostListSingleColumn.displayName = 'InternalPostListSingleColumn';
+PostListSingleColumn.displayName = 'PostListSingleColumn';
 
 function PostListItem({
   item,
@@ -277,22 +238,8 @@ function PostListItem({
   item: PostWithNeighbors;
   index: number;
 }>) {
-  const { observe } = useIntersectionObserverContext();
-  // use `useState` to make sure we trigger the `observe()` effect on change
-  const [ref, setRef] = React.useState<React.ElementRef<'div'> | null>(null);
-
-  // register / unregister this element with the visibility tracker
-  React.useEffect(() => {
-    if (ref == null) {
-      return;
-    }
-    const { unobserve } = observe(ref);
-    return () => unobserve();
-  }, [ref, observe]);
-
   return (
     <div
-      ref={setRef}
       data-postid={item.post.id}
       // Used when determining minVisibleIndex
       data-itemindex={index}
@@ -305,15 +252,6 @@ function PostListItem({
       {children}
     </div>
   );
-}
-
-/** Extracts data-itemindex from a PostListItem DOM element */
-function getItemIndexFromPostListItem(element: Element): number | null {
-  if (!(element instanceof HTMLElement)) {
-    return null;
-  }
-  const index = parseInt(element.dataset.itemindex ?? '');
-  return isNaN(index) ? null : index;
 }
 
 function isElementScrolledNearTop(
@@ -743,25 +681,6 @@ function useBoundaryCallbacks({
     // this is needed - see comment in in corresponding "reached start" code above
     scrollerContentKey,
   ]);
-}
-
-/**
- * Returns true if `xs.slice(0, prefixLength)` is equivalent to
- * `ys.slice(0, prefixLength)` using the provided equality function (short
- * circuiting if not equal).
- */
-function isPrefixEquivalent<T>(
-  xs: T[],
-  ys: T[],
-  prefixLength: number,
-  isEqual: (a: T, b: T) => boolean
-): boolean {
-  for (let i = 0; i < prefixLength; i++) {
-    if (!isEqual(xs[i], ys[i])) {
-      return false;
-    }
-  }
-  return true;
 }
 
 /**
