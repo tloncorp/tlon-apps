@@ -5,8 +5,6 @@ import { AppInvite, getBranchLinkMeta, isLureMeta } from './branch';
 
 export async function getReferenceFromDeeplink({
   deepLink,
-  branchKey,
-  branchDomain,
 }: {
   deepLink: string;
   branchKey: string;
@@ -14,8 +12,6 @@ export async function getReferenceFromDeeplink({
 }): Promise<{ reference: ContentReference; path: string } | null> {
   const linkMeta = await getInviteLinkMeta({
     inviteLink: deepLink,
-    branchKey,
-    branchDomain,
   });
 
   if (linkMeta && typeof linkMeta === 'object') {
@@ -52,18 +48,19 @@ interface ProviderMetadataResponse {
 
 export async function getInviteLinkMeta({
   inviteLink,
-  branchDomain,
-  branchKey,
 }: {
   inviteLink: string;
-  branchDomain: string;
-  branchKey: string;
 }): Promise<AppInvite | null> {
-  const token = extractTokenFromInviteLink(inviteLink, branchDomain);
+  const token = extractTokenFromInviteLink(inviteLink);
   if (!token) {
     return null;
   }
 
+  return getMetadataFromInviteToken(token);
+}
+
+export async function getMetadataFromInviteToken(token: string) {
+  const env = getConstants();
   const providerResponse = await fetch(
     `https://loshut-lonreg.tlon.network/lure/${token}/metadata`
   );
@@ -98,7 +95,10 @@ export async function getInviteLinkMeta({
   // some links might not have everything, try to extend with branch (fine if fails)
   if (!metadata.inviterNickname) {
     try {
-      const branchMeta = await getBranchLinkMeta(inviteLink, branchKey);
+      const branchMeta = await getBranchLinkMeta(
+        `${env.BRANCH_DOMAIN}/${token}`,
+        env.BRANCH_KEY
+      );
       if (branchMeta) {
         if (branchMeta.inviterNickname && !metadata.inviterNickname) {
           metadata.inviterNickname = branchMeta.inviterNickname;
@@ -121,15 +121,10 @@ export function createInviteLinkRegex(branchDomain: string) {
   );
 }
 
-export function extractTokenFromInviteLink(
-  url: string,
-  branchDomain?: string
-): string | null {
+export function extractTokenFromInviteLink(url: string): string | null {
   const env = getConstants();
   if (!url) return null;
-  const INVITE_LINK_REGEX = createInviteLinkRegex(
-    branchDomain ?? env.BRANCH_DOMAIN
-  );
+  const INVITE_LINK_REGEX = createInviteLinkRegex(env.BRANCH_DOMAIN);
   const match = url.trim().match(INVITE_LINK_REGEX);
 
   if (match) {

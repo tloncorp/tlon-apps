@@ -6,6 +6,7 @@ import { LoadingSpinner } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { YStack } from 'tamagui';
 
+import { useStore } from '../contexts';
 import { triggerHaptic, useGroupTitle } from '../utils';
 import {
   ActionGroup,
@@ -23,6 +24,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   onActionComplete: (action: GroupPreviewAction, group: db.Group) => void;
   group?: db.Group;
+  groupId?: string;
 }
 
 interface JoinStatus {
@@ -40,8 +42,15 @@ function GroupPreviewSheetComponent({
   open,
   onOpenChange,
   group,
+  groupId,
   onActionComplete,
 }: Props) {
+  const store = useStore();
+  const { data: groupPreview } = store.useGroupPreview(
+    !group && groupId ? groupId : ''
+  );
+  const groupToUse = group || groupPreview;
+
   useEffect(() => {
     if (open) {
       triggerHaptic('sheetOpen');
@@ -62,9 +71,12 @@ function GroupPreviewSheetComponent({
 
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>
-      {group ? (
+      {groupToUse ? (
         <ActionSheet.Content>
-          <GroupPreviewPane group={group} onActionComplete={actionHandler} />
+          <GroupPreviewPane
+            group={groupToUse}
+            onActionComplete={actionHandler}
+          />
         </ActionSheet.Content>
       ) : (
         <LoadingSpinner />

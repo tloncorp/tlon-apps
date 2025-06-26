@@ -1,4 +1,8 @@
-import { createDevLogger } from '@tloncorp/shared';
+import {
+  AppInvite,
+  createDevLogger,
+  getMetadataFromInviteToken,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Text } from '@tloncorp/ui';
@@ -39,6 +43,7 @@ interface Props {
 
 export const HomeSidebar = memo(
   ({ previewGroupId, focusedChannelId }: Props) => {
+    const invite = useInvite();
     const screenTitle = 'Home';
     const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>();
 
@@ -133,11 +138,15 @@ export const HomeSidebar = memo(
       createChatSheetRef.current?.open();
     }, []);
 
-    const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
-      if (!open) {
-        setSelectedGroupId(null);
-      }
-    }, []);
+    const handleGroupPreviewSheetOpenChange = useCallback(
+      (open: boolean) => {
+        if (!open) {
+          setSelectedGroupId(null);
+          invite.clearInvite();
+        }
+      },
+      [invite]
+    );
 
     const handleInviteSheetOpenChange = useCallback((open: boolean) => {
       if (!open) {
@@ -236,9 +245,10 @@ export const HomeSidebar = memo(
                 <ChatList data={displayData} onPressItem={onPressChat} />
               )}
               <GroupPreviewSheet
-                open={!!selectedGroup}
+                open={!!selectedGroup || !!invite.invitedGroupId}
                 onOpenChange={handleGroupPreviewSheetOpenChange}
                 group={selectedGroup ?? undefined}
+                groupId={invite.invitedGroupId ?? undefined}
                 onActionComplete={handleGroupAction}
               />
               <InviteUsersSheet
@@ -257,3 +267,66 @@ export const HomeSidebar = memo(
 );
 
 HomeSidebar.displayName = 'HomeSidebar';
+
+function useInvite(): {
+  invitedGroupId: string | null;
+  clearInvite: () => void;
+} {
+  // check for an invite token via URL params
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [invitedGroupId, setInvitedGroupId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const inviteIdParam = urlParams.get('inviteToken');
+
+    if (inviteIdParam) {
+      setInviteToken(inviteIdParam);
+      console.log('Received invite ID:', inviteIdParam);
+      // Handle your invite logic here
+    }
+  }, []);
+
+  // if we have an invite token, fetch the group meta
+  useEffect(() => {
+    async function runEffect() {
+      if (inviteToken) {
+        try {
+          // const meta = await getMetadataFromInviteToken(inviteToken);
+          // TODO: CORS blocked, stub response for now
+          const meta: AppInvite = {
+            id: inviteToken,
+            shouldAutoJoin: false,
+            inviteType: 'group',
+            invitedGroupId: '~latter-bolden/woodshop',
+            invitedGroupTitle: 'Woodworking',
+            invitedGroupDescription: '',
+            invitedGroupIconImageUrl:
+              'https://d2w9rnfcy7mm78.cloudfront.net/14799493/original_7233e314e578f5e5418aa2f3ba901fd1.jpg?1642716676?bc=0',
+            inviterUserId: '~latter-bolden',
+            inviterNickname: 'brian',
+          };
+          if (meta.invitedGroupId) {
+            setInvitedGroupId(meta.invitedGroupId);
+            setInviteToken(null);
+            console.log('Fetched group metadata:', meta);
+          }
+        } catch (error) {
+          console.error('bl: Failed to get metadata from invite token', error);
+        }
+      }
+    }
+
+    runEffect();
+  }, [inviteToken]);
+
+  const clearInvite = useCallback(() => {
+    setInviteToken(null);
+    setInvitedGroupId(null);
+  }, []);
+
+  return {
+    invitedGroupId,
+    clearInvite,
+  };
+}
