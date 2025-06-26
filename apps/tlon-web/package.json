@@ -29,7 +29,8 @@
     "e2e:debug": "cross-env DEBUG_PLAYWRIGHT=true pnpm e2e",
     "e2e:ui": "playwright test --ui",
     "e2e:headed": "playwright test --headed",
-    "e2e:codegen": "playwright codegen"
+    "e2e:codegen": "playwright codegen",
+    "e2e:test": "tsc --isolatedModules --skipLibCheck ./rube/run-single-test.ts --outDir ./rube/dist && node ./rube/dist/run-single-test.js"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [

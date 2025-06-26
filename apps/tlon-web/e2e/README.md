@@ -6,7 +6,8 @@ This directory contains end-to-end tests for the Tlon web app using Playwright. 
 
 -   First run: `pnpm e2e` (downloads ships, ~15 min)
 -   Development: `pnpm e2e:ui` (interactive debugging)
--   Single test: `npx playwright test filename.spec.ts`
+-   Single test: `pnpm e2e:test filename.spec.ts` (automatic ship management)
+-   Single test (manual): `npx playwright test filename.spec.ts` (requires running ships)
 -   View results: `npx playwright show-report`
 
 ## Overview
@@ -100,6 +101,9 @@ The testing environment uses three pre-configured Urbit ships:
 # Run all tests with full setup
 pnpm e2e
 
+# Run a single test with automatic ship management
+pnpm e2e:test chat-functionality.spec.ts
+
 # Run tests with playwright debug UI
 pnpm e2e:debug
 
@@ -116,9 +120,12 @@ pnpm e2e:codegen
 ### Advanced Usage
 
 ```bash
-# Run specific test file
+# Run specific test file (requires manual ship setup)
 npx playwright test chat-functionality.spec.ts
 # Note: you must have all three test ships running on your machine in order to run any tests, and you cannot have any vite servers running
+
+# Run specific test file with automatic ship management (recommended for development)
+pnpm e2e:test chat-functionality.spec.ts
 
 # Run tests matching pattern
 npx playwright test --grep "group"
@@ -189,6 +196,22 @@ The `helpers.ts` file provides numerous utility functions:
 -   `CI`: Enables CI-specific configurations
 
 ## Development Workflow
+
+### Running Individual Tests
+
+For development convenience, use the automated single-test runner:
+
+```bash
+# This will automatically:
+# 1. Boot all three ships (zod, bus, ten) without running tests
+# 2. Start the web servers
+# 3. Wait for everything to be ready
+# 4. Run your specific test only
+# 5. Clean up all processes when done
+pnpm e2e:test notebook-functionality.spec.ts
+```
+
+The script (located at `rube/run-single-test.ts`) uses a modified version of rube that stops before running the full test suite, then executes only your specific test. This handles all the orchestration for you, so you don't need to manually start ships or remember to clean up afterwards. This is especially useful when iterating on a single test during development.
 
 ### Adding New Tests
 
@@ -273,12 +296,12 @@ When adding new test scenarios:
 -   Tests run on every pull request via `.github/workflows/ci.yml`
 -   Playwright browsers are cached, but ship piers are **not cached** (due to current issues)
 -   Each CI run downloads fresh ship images (~1.5GB total)
--   Full CI run including setup takes approximately 10-15 minutes
+-   Full CI run including setup takes approximately 7-10 minutes
 
 ### CI-Specific Behavior
 
 -   `CI=true` environment variable enables CI-specific configurations
--   Ships download fresh on each run (no state persistence between CI runs)
+-   Ships download fresh on each run (no state persistence between CI runs, or _any_ **rube** runs)
 -   Playwright runs in headless mode only
 -   HTML reports are uploaded as GitHub artifacts with 30-day retention
 
@@ -292,7 +315,7 @@ npx playwright show-report /path/to/downloaded/playwright-report
 
 ## Performance Considerations
 
--   Full test suite takes approximately 10-15 minutes
+-   Full test suite takes approximately 7-10 minutes
 -   Each ship requires ~500MB disk space + memory for Urbit process
 -   Tests run sequentially to avoid state conflicts
 -   Consider running subset of tests (or a single test) during development
