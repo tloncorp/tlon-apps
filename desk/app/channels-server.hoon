@@ -107,10 +107,10 @@
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
   =?  old  ?=(%6 -.old)  (state-6-to-7 old)
   =?  old  ?=(%7 -.old)  (state-7-to-8 old)
-  =^  moz-8=(list card)  old
+  =^  caz-8=(list card)  old
     ?.  ?=(%8 -.old)  [~ old]
     (state-8-to-9 old)
-  =.  cor  (emil moz-8)
+  =.  cor  (emil caz-8)
   ?>  ?=(%9 -.old)
   =.  state  old
   inflate-io
@@ -363,11 +363,25 @@
       %noun
     ?+  q.vase  !!
         %pimp-ready
+      ?>  =(our src):bowl
       ?-  pimp
         ~         cor(pimp `&+~)
         [~ %& *]  cor
         [~ %| *]  (run-import p.u.pimp)
       ==
+    ::
+        [%send-sequence-numbers *]
+      =+  !<([%send-sequence-numbers =nest:c] vase)
+      ?~  can=(~(get by v-channels) nest)  cor
+      =;  =cage
+        (emit [%pass /numbers %agent [src.bowl %channels] %poke cage])
+      :-  %noun
+      !>  :+  %sequence-numbers
+        nest
+      ^-  (list [id-post:c @ud])
+      %+  murn  (tap:on-v-posts:c posts.u.can)
+      |=  [i=id-post:c p=(unit v-post:c)]
+      ?~(p ~ (some [i seq.u.p]))
     ==
   ::
       %channel-command
@@ -545,9 +559,10 @@
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
   ?+    pole  ~|(bad-agent-wire+pole !!)
-    [%logs ~]  cor
-    [%pimp ~]  cor
-    [%wake ~]  cor
+    [%logs ~]     cor
+    [%pimp ~]     cor
+    [%wake ~]     cor
+    [%numbers ~]  cor
   ::
       [=kind:c *]
     ?+    -.sign  !!

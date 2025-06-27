@@ -32,7 +32,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %8
+    $:  %9
         =v-channels:c
         voc=(map [nest:c plan:c] (unit said:c))
         hidden-posts=(set id-post:c)
@@ -139,12 +139,26 @@
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
   =?  old  ?=(%6 -.old)  (state-6-to-7 old)
   =?  old  ?=(%7 -.old)  (state-7-to-8 old)
-  ?>  ?=(%8 -.old)
+  =^  caz-8=(list card)  old
+    ?.  ?=(%8 -.old)  [~ old]
+    :_  old(- %9)
+    %+  turn  ~(tap in ~(key by v-channels.old))
+    |=  =nest:c
+    ^-  card
+    :+  %pass
+      /numbers/[kind.nest]/(scot %p ship.nest)/[name.nest]
+    ::  slightly staggered to spread load. might not be strictly necessary
+    ::  for this, but good practice.
+    ::
+    [%arvo %b %wait (add now.bowl (~(rad og (sham our.bowl nest)) ~m15))]
+  =.  cor  (emil caz-8)
+  ?>  ?=(%9 -.old)
   =.  state  old
   inflate-io
   ::
   +$  versioned-state
-    $%  state-8
+    $%  state-9
+        state-8
         state-7
         state-6
         state-5
@@ -154,7 +168,20 @@
         state-1
         state-0
     ==
-  +$  state-8  current-state
+  +$  state-9  current-state
+  +$  state-8
+    $:  %8
+        =v-channels:c
+        voc=(map [nest:c plan:c] (unit said:c))
+        hidden-posts=(set id-post:c)
+      ::
+        ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
+        ::
+        pending-ref-edits=(jug ship [=kind:c name=term])
+        :: delayed resubscribes
+        =^subs:s
+        =pimp:imp
+    ==
   +$  state-7
     $:  %7
         =v-channels:v7:old:c
@@ -488,11 +515,28 @@
       ca-abet:(ca-safe-sub:(ca-abed:ca-core nest) |)
     ::
         %pimp-ready
+      ?>  =(our src):bowl
       ?-  pimp
         ~         cor(pimp `&+~)
         [~ %& *]  cor
         [~ %| *]  (run-import p.u.pimp)
       ==
+    ::
+        [%sequence-numbers * *]
+      =+  !<([%sequence-numbers =nest:c seqs=(list [id=id-post:c seq=@ud])] vase)
+      ?>  =(src.bowl ship.nest)
+      ?.  (~(has by v-channels) nest)  cor
+      =.  v-channels
+        %+  ~(jab by v-channels)  nest
+        |=  channel=v-channel:c
+        ?~  seqs  channel
+        =*  next  $(seqs t.seqs)
+        ?~  p=(get:on-v-posts:c posts.channel id.i.seqs)  next
+        ?~  u.p  next
+        =.  posts.channel
+          (put:on-v-posts:c posts.channel id.i.seqs u.p(seq.u seq.i.seqs))
+        next
+      cor
     ==
   ::
     :: TODO: add transfer/import channels
@@ -815,7 +859,19 @@
       ~          cor
       [%pimp ~]  cor
       [%logs ~]  cor
+  ::
+      [%numbers *]
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign
+      ::  they accepted, we will receive the sequence numbers
+      ::
+      cor
+    ::  they refused, we will retry again later
     ::
+    =/  stagger=@dr
+      (~(rad og (sham our.bowl pole)) ~m15)
+    (emit [%pass pole %arvo %b %wait :(add now.bowl ~h1 stagger)])
+  ::
       [%hark ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  cor
@@ -995,6 +1051,13 @@
     =^  caz=(list card)  subs
       (~(handle-wakeup s [subs bowl]) pole)
     (emil caz)
+  ::
+      [%numbers kind=?(%chat %diary %heap) ship=@ name=@ ~]
+    =/  host=ship  (slav %p ship.pole)
+    =/  =nest:c    [kind.pole host name.pole]
+    %-  emit
+    =/  =cage  [%noun !>([%send-sequence-numbers nest])]
+    [%pass pole %agent [host %channels-server] %poke cage]
   ==
 ::
 ++  unreads
