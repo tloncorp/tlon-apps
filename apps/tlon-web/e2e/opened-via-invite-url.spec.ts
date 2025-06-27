@@ -67,30 +67,30 @@ test.only('should generate an invite link and view that invite from another ship
     expect(token).toBeDefined();
 
     // mock the provider response
-    await tenPage.route(
-      `https://loshut-lonreg.tlon.network/lure/${token}/metadata`,
-      async (route) => {
-        console.log(`bl: route HIT!`);
-        const json = {
-          fields: {
-            'bite-type': '2',
-            invitedGroupId,
-            image: '',
-            title: 'Invite Test',
-            cover: '',
-            description: '',
-            inviterNickname: '',
-            group: invitedGroupId,
-            inviter: '~zod',
-            inviterUserId: '~zod',
-            inviterColor: '#C4E814',
-            inviterAvatarImage: '',
-          },
-          tag: 'groups-0',
-        };
-        await route.fulfill({ json });
-      }
-    );
+    // await tenPage.route(
+    //   `https://loshut-lonreg.tlon.network/lure/${token}/metadata`,
+    //   async (route) => {
+    //     console.log(`bl: route HIT!`);
+    //     const json = {
+    //       fields: {
+    //         'bite-type': '2',
+    //         invitedGroupId,
+    //         image: '',
+    //         title: 'Invite Test',
+    //         cover: '',
+    //         description: '',
+    //         inviterNickname: '',
+    //         group: invitedGroupId,
+    //         inviter: '~zod',
+    //         inviterUserId: '~zod',
+    //         inviterColor: '#C4E814',
+    //         inviterAvatarImage: '',
+    //       },
+    //       tag: 'groups-0',
+    //     };
+    //     await route.fulfill({ json });
+    //   }
+    // );
 
     // Initialize the other ship
     const tenUrl = `${shipManifest['~ten'].webUrl}/apps/groups/`;

@@ -991,6 +991,8 @@ export class Urbit {
     const response = await this.fetchFn(`${this.url}${path}`, requestOptions);
     signal?.cleanup();
 
+    console.log(`got Urbit request response`, response);
+
     // Handle response
     if (!response.ok) {
       return Promise.reject(response);

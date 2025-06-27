@@ -19,6 +19,7 @@ export async function proxyRequest<T>(
       requestOptions,
       timeout
     );
+    logger.log('proxy request result', result);
     return result;
   } catch (e) {
     console.log('bl: proxy request failed', e);

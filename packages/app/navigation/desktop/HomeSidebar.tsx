@@ -278,6 +278,8 @@ function useInvite() {
         return;
       }
 
+      console.log(`bl: Received invite token:`, inviteToken);
+
       const meta = await getMetadataFromInviteToken(inviteToken);
       console.log('bl: invite meta', meta);
       if (!meta) {

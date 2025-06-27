@@ -1,4 +1,4 @@
-import { ContentReference } from '../api';
+import { ContentReference, proxyRequest } from '../api';
 import { getConstants } from '../domain';
 import { citeToPath } from '../urbit';
 import { AppInvite, getBranchLinkMeta, isLureMeta } from './branch';
@@ -61,15 +61,38 @@ export async function getInviteLinkMeta({
 
 export async function getMetadataFromInviteToken(token: string) {
   const env = getConstants();
-  const providerResponse = await fetch(
+  console.log(
+    `bl: attempting to fetch token metadata`,
     `${env.INVITE_PROVIDER}/lure/${token}/metadata`
   );
-  if (!providerResponse.ok) {
+
+  const providerResponse = await fetch(
+    `${env.INVITE_PROVIDER}/lure/${token}/metadata`,
+    {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-cache',
+      redirect: 'follow',
+      referrerPolicy: 'no-referrer',
+    }
+  ).catch((e) => console.error('failed to fetch invite metadata', e));
+  if (!providerResponse?.ok) {
     return null;
   }
 
+  const text = await providerResponse.text();
+  console.log(`bl: got provider response ${providerResponse.status}`, text);
+
   // fetch invite link metadata from lure provider
   const responseMeta: ProviderMetadataResponse = await providerResponse.json();
+
+  // const result = await proxyRequest<ProviderMetadataResponse>(
+  //   `${env.INVITE_PROVIDER}/lure/${token}/metadata`,
+  //   { method: 'GET', headers: { 'Content-Type': 'application/json' } }
+  // );
+
+  // // // fetch invite link metadata from lure provider
+  // const responseMeta: ProviderMetadataResponse = result;
   if (
     !responseMeta.fields ||
     !responseMeta.fields.group ||
