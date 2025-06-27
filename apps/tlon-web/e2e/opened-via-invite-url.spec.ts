@@ -30,6 +30,8 @@ test.only('should generate an invite link and view that invite from another ship
       window.toggleDevTools();
     });
 
+    await helpers.cleanupExistingGroup(zodPage, 'Invite Test');
+
     // Create a new group, get it's ID, give it a name
     await helpers.createGroup(zodPage);
     await helpers.navigateBack(zodPage);
@@ -39,6 +41,12 @@ test.only('should generate an invite link and view that invite from another ship
       await expect(zodPage.getByText('Untitled group').first()).toBeVisible();
     }
 
+    await helpers.openGroupCustomization(zodPage);
+    await helpers.changeGroupName(zodPage, 'Invite Test');
+
+    await helpers.openGroupSettings(zodPage);
+    await helpers.setGroupPrivacy(zodPage, false);
+
     await helpers.openGroupSettings(zodPage);
     await zodPage.getByText('Reference').click();
     const referenceText: string = await zodPage.evaluate(
@@ -47,10 +55,6 @@ test.only('should generate an invite link and view that invite from another ship
     const invitedGroupId = `~zod/${referenceText.split('/').pop()}`;
     console.log('bl: referenceText', referenceText);
     await helpers.navigateBack(zodPage);
-
-    await zodPage.waitForTimeout(2000);
-    await helpers.openGroupCustomization(zodPage);
-    await helpers.changeGroupName(zodPage, 'Invite Test');
 
     // Confirm it generated an invite link for the group
     await zodPage.waitForTimeout(4000);
@@ -66,6 +70,7 @@ test.only('should generate an invite link and view that invite from another ship
     await tenPage.route(
       `https://loshut-lonreg.tlon.network/lure/${token}/metadata`,
       async (route) => {
+        console.log(`bl: route HIT!`);
         const json = {
           fields: {
             'bite-type': '2',
@@ -97,15 +102,14 @@ test.only('should generate an invite link and view that invite from another ship
     });
 
     // Confirm visiting an invite link works
-    const tenInviteUrl = `${shipManifest['~ten'].webUrl}/apps/groups/?inviteToken=${token}`;
+    const tenInviteUrl = `${shipManifest['~ten'].webUrl}/apps/groups/Home?inviteToken=${token}`;
     await tenPage.goto(tenInviteUrl);
     await tenPage.waitForTimeout(10000);
-    expect(tenPage.getByText('Invite Test')).toBeVisible();
+    await tenPage.getByText('Invite Test').click();
   } finally {
     // Clean up - delete the group from zod's side
     try {
       await helpers.cleanupExistingGroup(zodPage, 'Invite Test');
-      await helpers.cleanupExistingGroup(zodPage);
     } catch (error) {
       console.log('Cleanup failed:', error);
     }

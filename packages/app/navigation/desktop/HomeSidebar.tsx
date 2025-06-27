@@ -32,7 +32,7 @@ import {
 } from '../../ui';
 import { SplashModal } from '../../ui/components/Wayfinding/SplashModal';
 import { identifyTlonEmployee } from '../../utils/posthog';
-import { useRootNavigation } from '../utils';
+import { useRootNavigation, useTypedReset } from '../utils';
 
 const logger = createDevLogger('HomeSidebar', false);
 
@@ -272,6 +272,7 @@ function useInvite(): {
   invitedGroupId: string | null;
   clearInvite: () => void;
 } {
+  const reset = useTypedReset();
   // check for an invite token via URL params
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [invitedGroupId, setInvitedGroupId] = useState<string | null>(null);
@@ -292,25 +293,40 @@ function useInvite(): {
     async function runEffect() {
       if (inviteToken) {
         try {
-          // const meta = await getMetadataFromInviteToken(inviteToken);
-          // TODO: CORS blocked, stub response for now
-          const meta: AppInvite = {
-            id: inviteToken,
-            shouldAutoJoin: false,
-            inviteType: 'group',
-            invitedGroupId: '~latter-bolden/woodshop',
-            invitedGroupTitle: 'Woodworking',
-            invitedGroupDescription: '',
-            invitedGroupIconImageUrl:
-              'https://d2w9rnfcy7mm78.cloudfront.net/14799493/original_7233e314e578f5e5418aa2f3ba901fd1.jpg?1642716676?bc=0',
-            inviterUserId: '~latter-bolden',
-            inviterNickname: 'brian',
-          };
-          if (meta.invitedGroupId) {
-            setInvitedGroupId(meta.invitedGroupId);
-            setInviteToken(null);
-            console.log('Fetched group metadata:', meta);
+          const meta = await getMetadataFromInviteToken(inviteToken);
+          console.log('bl: invite meta', meta);
+          setInviteToken(null);
+
+          if (!meta) {
+            return;
           }
+
+          if (meta.invitedGroupId) {
+            console.log(`bl: invitedGroupId`, meta.invitedGroupId);
+            store.redeemInviteIfNeeded(meta);
+            const previewGroupId = meta.invitedGroupId || meta.group;
+            if (previewGroupId) {
+              reset([
+                {
+                  name: 'ChatList',
+                  params: { previewGroupId },
+                },
+              ]);
+            }
+          }
+          // TODO: CORS blocked, stub response for now
+          // const meta: AppInvite = {
+          //   id: inviteToken,
+          //   shouldAutoJoin: false,
+          //   inviteType: 'group',
+          //   invitedGroupId: '~latter-bolden/woodshop',
+          //   invitedGroupTitle: 'Woodworking',
+          //   invitedGroupDescription: '',
+          //   invitedGroupIconImageUrl:
+          //     'https://d2w9rnfcy7mm78.cloudfront.net/14799493/original_7233e314e578f5e5418aa2f3ba901fd1.jpg?1642716676?bc=0',
+          //   inviterUserId: '~latter-bolden',
+          //   inviterNickname: 'brian',
+          // };
         } catch (error) {
           console.error('bl: Failed to get metadata from invite token', error);
         }
@@ -318,7 +334,7 @@ function useInvite(): {
     }
 
     runEffect();
-  }, [inviteToken]);
+  }, [inviteToken, reset]);
 
   const clearInvite = useCallback(() => {
     setInviteToken(null);
