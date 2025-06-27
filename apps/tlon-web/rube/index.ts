@@ -28,7 +28,7 @@ const manifestPath = path.join(
 );
 const shipManifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 
-interface Ship {
+export interface Ship {
   authFile: string;
   downloadUrl: string;
   url: string;
@@ -723,6 +723,21 @@ const main = async () => {
     await getStartHashes();
     await copyDesks();
     await commitDesks();
+
+    // Check if we should skip running tests (for single test runner)
+    if (process.env.SKIP_TESTS === 'true') {
+      console.log(
+        '✅ Ship setup complete! Skipping test execution as requested.'
+      );
+      console.log('SHIP_SETUP_COMPLETE');
+      // Keep the process running so ships stay alive
+      console.log('Ships and web servers are ready. Press Ctrl+C to stop.');
+
+      // Keep the process alive by waiting indefinitely
+      await new Promise(() => {}); // This will never resolve
+      return;
+    }
+
     await runPlaywrightTests();
 
     console.timeEnd('Total Script Execution');

@@ -44,6 +44,7 @@ export type Action = {
   endIcon?: IconType | ReactElement;
   startIcon?: IconType | ReactElement;
   accent?: Accent;
+  testID?: string;
 };
 
 export type ActionRenderProps = {
@@ -662,7 +663,11 @@ export const SimpleActionSheet = ({
       <ActionSheet.Content>
         <ActionSheet.ActionGroup accent={accent ?? 'neutral'}>
           {actions.map((action, index) => (
-            <ActionSheet.Action key={index} action={action} />
+            <ActionSheet.Action
+              key={index}
+              action={action}
+              testID={action.testID}
+            />
           ))}
         </ActionSheet.ActionGroup>
       </ActionSheet.Content>
