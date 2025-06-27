@@ -376,8 +376,8 @@
       =;  =cage
         (emit [%pass /numbers %agent [src.bowl %channels] %poke cage])
       :-  %noun
-      !>  :+  %sequence-numbers
-        nest
+      !>  :^  %sequence-numbers  nest
+        count.u.can
       ^-  (list [id-post:c @ud])
       %+  murn  (tap:on-v-posts:c posts.u.can)
       |=  [i=id-post:c p=(unit v-post:c)]

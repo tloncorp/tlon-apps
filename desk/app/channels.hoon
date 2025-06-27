@@ -522,13 +522,15 @@
         [~ %| *]  (run-import p.u.pimp)
       ==
     ::
-        [%sequence-numbers * *]
-      =+  !<([%sequence-numbers =nest:c seqs=(list [id=id-post:c seq=@ud])] vase)
+        [%sequence-numbers * @ *]
+      =+  !<([%sequence-numbers =nest:c count=@ud seqs=(list [id=id-post:c seq=@ud])] vase)
       ?>  =(src.bowl ship.nest)
       ?.  (~(has by v-channels) nest)  cor
       =.  v-channels
         %+  ~(jab by v-channels)  nest
         |=  channel=v-channel:c
+        =.  count.channel  count
+        |-
         ?~  seqs  channel
         =*  next  $(seqs t.seqs)
         ?~  p=(get:on-v-posts:c posts.channel id.i.seqs)  next
@@ -1612,7 +1614,7 @@
     =/  old  posts.channel
     =.  posts.channel
       ((uno:mo-v-posts:c posts.channel posts.chk) ca-apply-unit-post)
-    =.  count.channel  ~(wyt by posts.channel)
+    =.  count.channel  count.chk
     =?  ca-core  &(send !=(old posts.channel))
       %+  ca-response  %posts
       %+  gas:on-posts:c  *posts:c
@@ -1730,7 +1732,7 @@
           (on-post:ca-hark id-post u.post.u-post)
         =.  posts.channel  (put:on-v-posts:c posts.channel id-post post.u-post)
         =?  count.channel  ?=(^ post.u-post)
-          +(count.channel)
+          (max count.channel seq.u.post.u-post)
         =?  pending.channel  ?=(^ post.u-post)
           =/  client-id  [author sent]:u.post.u-post
           pending.channel(posts (~(del by posts.pending.channel) client-id))
