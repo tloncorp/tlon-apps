@@ -1,4 +1,5 @@
 import {
+  BlockData,
   extractContentTypesFromPost,
   getRichLinkMetadata,
   isRichLinkPost,
@@ -23,7 +24,6 @@ import {
   FormFrame,
 } from '../Form';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
-import { BlockData } from '../PostContent/contentUtils';
 import { ScreenHeader } from '../ScreenHeader';
 
 export type LinkInputSaveParams = {

@@ -9,32 +9,27 @@ import {
   NavigationContainerRefWithCurrent,
   useNavigationContainerRef,
 } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
-import { ShipProvider, useShip } from '@tloncorp/app/contexts/ship';
+import { useShip } from '@tloncorp/app/contexts/ship';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { unregisterBackgroundSyncTask } from '@tloncorp/app/lib/backgroundSync';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
-import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
+import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
   LoadingSpinner,
-  PortalProvider,
   SplashSequence,
-  StoreProvider,
   Text,
   View,
   usePreloadedEmojis,
 } from '@tloncorp/app/ui';
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
-import { posthogAsync } from '@tloncorp/app/utils/posthog';
-import { QueryClientProvider, queryClient } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
-import { PostHogProvider } from 'posthog-react-native';
-import type { PropsWithChildren } from 'react';
+import { setBadgeCountAsync } from 'expo-notifications';
 import { useEffect, useMemo, useState } from 'react';
 import { StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { OnboardingStack } from './OnboardingStack';
 import AuthenticatedApp from './components/AuthenticatedApp';
@@ -101,6 +96,8 @@ const App = () => {
     return showAuthenticatedApp && needsSplashSequence;
   }, [showAuthenticatedApp, needsSplashSequence]);
 
+  useClearAppBadgeUnconditionally();
+
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">
       {connected ? (
@@ -135,70 +132,32 @@ const App = () => {
   );
 };
 
-function MigrationCheck({ children }: PropsWithChildren) {
-  const { success, error } = useMigrations();
-  if (!success && !error) {
-    return null;
-  }
-  if (error) {
-    throw error;
-  }
-  return <>{children}</>;
-}
-
 export default function ConnectedApp() {
   const isDarkMode = useIsDarkMode();
   const navigationContainerRef = useNavigationContainerRef();
+  const migrationState = useMigrations();
 
   return (
     <ErrorBoundary>
       <FeatureFlagConnectedInstrumentationProvider>
-        <QueryClientProvider client={queryClient}>
-          <TamaguiProvider>
-            <ShipProvider>
-              <NavigationContainer
-                theme={isDarkMode ? DarkTheme : DefaultTheme}
-                ref={navigationContainerRef}
-              >
-                <StoreProvider>
-                  <BranchProvider>
-                    <PostHogProvider
-                      client={posthogAsync}
-                      autocapture={{
-                        captureTouches: false,
-                      }}
-                      options={{
-                        enable:
-                          process.env.NODE_ENV !== 'test' ||
-                          !!process.env.POST_HOG_IN_DEV,
-                      }}
-                    >
-                      <GestureHandlerRootView style={{ flex: 1 }}>
-                        <SafeAreaProvider>
-                          <MigrationCheck>
-                            <SignupProvider>
-                              <PortalProvider>
-                                <App />
-                              </PortalProvider>
+        <NavigationContainer
+          theme={isDarkMode ? DarkTheme : DefaultTheme}
+          ref={navigationContainerRef}
+        >
+          <BaseProviderStack migrationState={migrationState}>
+            <BranchProvider>
+              <GestureHandlerRootView style={{ flex: 1 }}>
+                <SignupProvider>
+                  <App />
 
-                              {__DEV__ && (
-                                <DevTools
-                                  navigationContainerRef={
-                                    navigationContainerRef
-                                  }
-                                />
-                              )}
-                            </SignupProvider>
-                          </MigrationCheck>
-                        </SafeAreaProvider>
-                      </GestureHandlerRootView>
-                    </PostHogProvider>
-                  </BranchProvider>
-                </StoreProvider>
-              </NavigationContainer>
-            </ShipProvider>
-          </TamaguiProvider>
-        </QueryClientProvider>
+                  {__DEV__ && (
+                    <DevTools navigationContainerRef={navigationContainerRef} />
+                  )}
+                </SignupProvider>
+              </GestureHandlerRootView>
+            </BranchProvider>
+          </BaseProviderStack>
+        </NavigationContainer>
       </FeatureFlagConnectedInstrumentationProvider>
     </ErrorBoundary>
   );
@@ -211,8 +170,17 @@ const DevTools = ({
 }: {
   navigationContainerRef: NavigationContainerRefWithCurrent<any>;
 }) => {
+  const queryClient = useQueryClient();
   useAsyncStorageDevTools();
   useReactQueryDevTools(queryClient);
   useReactNavigationDevTools(navigationContainerRef);
   return null;
 };
+
+function useClearAppBadgeUnconditionally() {
+  useEffect(() => {
+    setBadgeCountAsync(0).catch((err) => {
+      console.error('Failed to set badge count', err);
+    });
+  }, []);
+}

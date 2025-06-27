@@ -8,6 +8,12 @@ import {
   makePrettyShortDate,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import {
+  BlockData,
+  BlockFromType,
+  BlockType,
+  PostContent,
+} from '@tloncorp/shared/logic';
 import { Button } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
@@ -32,13 +38,7 @@ import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import ContactName from '../ContactName';
 import { useBoundHandler } from '../ListItem/listItemUtils';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
-import {
-  BlockData,
-  BlockFromType,
-  BlockType,
-  PostContent,
-  usePostContent,
-} from '../PostContent/contentUtils';
+import { usePostContent } from '../PostContent/contentUtils';
 import { SendPostRetrySheet } from '../SendPostRetrySheet';
 
 const GalleryPostFrame = styled(View, {
@@ -130,6 +130,18 @@ export function GalleryPost({
   if (post.isDeleted) {
     return null;
   }
+
+  // we need to filter out props that are not supported by the GalleryPostFrame
+  const {
+    onShowEmojiPicker: _onShowEmojiPicker,
+    onPressImage: _onPressImage,
+    editPost: _editPost,
+    isHighlighted: _isHighlighted,
+    showReplies: _showReplies,
+    setViewReactionsPost: _setViewReactionsPost,
+    onPressReplies: _onPressReplies,
+    ...rest
+  } = props;
 
   return (
     <Pressable
@@ -342,7 +354,7 @@ export function GalleryPostDetailView({
           showSentAt={true}
         />
 
-        {post.title && <Text size="$body">{post.title}</Text>}
+        {post.title ? <Text size="$body">{post.title}</Text> : null}
 
         {isImagePost && (
           <CaptionContentRenderer content={contentWithoutImage} />

@@ -1,4 +1,5 @@
 import { isTrustedEmbed, trustedProviders } from '@tloncorp/shared';
+import type * as cn from '@tloncorp/shared/logic';
 import { Icon, Image, Pressable, Text, useCopy } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
 import React, {
@@ -24,11 +25,11 @@ import { VideoEmbed } from '../Embed';
 import EmbedContent from '../Embed/EmbedContent';
 import { HighlightedCode } from '../HighlightedCode';
 import { InlineRenderer } from './InlineRenderer';
-import * as cn from './contentUtils';
+import { ContentContext, useContentContext } from './contentUtils';
 
 export const BlockWrapper = styled(View, {
   name: 'ContentBlock',
-  context: cn.ContentContext,
+  context: ContentContext,
   padding: '$l',
   variants: {
     isNotice: {
@@ -124,7 +125,7 @@ function TextContent(props: ComponentProps<typeof LineText>) {
 export const LineText = styled(Text, {
   color: '$primaryText',
   size: '$body',
-  context: cn.ContentContext,
+  context: ContentContext,
   userSelect: 'text',
   cursor: 'text',
   variants: {
@@ -325,7 +326,7 @@ export function ImageBlock({
   block: cn.ImageBlockData;
   imageProps?: ComponentProps<typeof ContentImage>;
 } & ComponentProps<typeof View>) {
-  const { onPressImage, onLongPress } = cn.useContentContext();
+  const { onPressImage, onLongPress } = useContentContext();
   const [dimensions, setDimensions] = useState({
     width: block.width || null,
     height: block.height || null,
@@ -381,7 +382,7 @@ export function ImageBlock({
 
 const ContentImage = styled(Image, {
   name: 'ContentImage',
-  context: cn.ContentContext,
+  context: ContentContext,
   width: '100%',
   aspectRatio: 1,
   backgroundColor: '$secondaryBackground',
@@ -427,7 +428,7 @@ export function HeaderBlock({
   ...props
 }: { block: cn.HeaderBlockData } & ComponentProps<typeof HeaderText>) {
   return (
-    <HeaderText tag={block.level} {...props}>
+    <HeaderText tag={block.level} level={block.level} {...props}>
       {block.children.map((con, i) => (
         <InlineRenderer key={`${con}-${i}`} inline={con} />
       ))}
@@ -437,7 +438,7 @@ export function HeaderBlock({
 
 export const HeaderText = styled(Text, {
   variants: {
-    tag: {
+    level: {
       h1: {
         fontSize: 24,
         fontWeight: 'bold',
@@ -465,6 +466,7 @@ export const HeaderText = styled(Text, {
     },
   } as const,
 });
+HeaderText.displayName = 'HeaderText';
 
 export function EmbedBlock({
   block,

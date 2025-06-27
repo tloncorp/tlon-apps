@@ -1,3 +1,13 @@
+import {
+  GroupMentionInlineData,
+  InlineData,
+  InlineFromType,
+  LinkInlineData,
+  MentionInlineData,
+  StyleInlineData,
+  TaskInlineData,
+  TextInlineData,
+} from '@tloncorp/shared/logic';
 import { RawText, Text } from '@tloncorp/ui';
 import React, {
   PropsWithChildren,
@@ -11,16 +21,6 @@ import { ColorTokens, styled } from 'tamagui';
 import { useChannelContext, useNavigation, useRequests } from '../../contexts';
 import { ALL_MENTION_ID } from '../BareChatInput/useMentions';
 import { useContactName } from '../ContactNameV2';
-import {
-  GroupMentionInlineData,
-  InlineData,
-  InlineFromType,
-  LinkInlineData,
-  MentionInlineData,
-  StyleInlineData,
-  TaskInlineData,
-  TextInlineData,
-} from './contentUtils';
 
 export const CodeText = styled(Text, {
   name: 'CodeText',

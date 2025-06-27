@@ -76,7 +76,6 @@ export default {
           parentPost={null}
           channel={tlonLocalBulletinBoard}
           group={group}
-          headerMode="default"
           onGroupAction={() => {}}
           goToDm={() => {}}
         />
@@ -147,7 +146,6 @@ export default {
         editingPost: undefined,
         setEditingPost: fail,
         editPost: fail,
-        headerMode: 'default',
       }));
     }, [data.channel]);
 
@@ -179,7 +177,6 @@ export default {
                 setEditingPost: undefined,
                 editPost: noop,
                 negotiationMatch: true,
-                headerMode: 'default',
                 onPressRetry: undefined,
                 onPressDelete: noop,
               },

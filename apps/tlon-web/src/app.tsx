@@ -6,7 +6,6 @@ import {
   Route,
 } from '@react-navigation/native';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
-import { ShipProvider } from '@tloncorp/app/contexts/ship';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import useDesktopNotifications from '@tloncorp/app/hooks/useDesktopNotifications';
@@ -19,12 +18,11 @@ import {
   getDesktopLinkingConfig,
   getMobileLinkingConfig,
 } from '@tloncorp/app/navigation/linking';
-import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
+import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
   ForwardPostSheetProvider,
   LoadingSpinner,
-  StoreProvider,
   Text,
   View,
 } from '@tloncorp/app/ui';
@@ -40,7 +38,6 @@ import * as store from '@tloncorp/shared/store';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, {
-  PropsWithChildren,
   useCallback,
   useEffect,
   useMemo,
@@ -48,7 +45,6 @@ import React, {
   useState,
 } from 'react';
 import { Helmet } from 'react-helmet';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import EyrieMenu from '@/eyrie/EyrieMenu';
 import useAppUpdates from '@/logic/useAppUpdates';
@@ -57,7 +53,7 @@ import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
 import { useIsDark, useIsMobile } from '@/logic/useMedia';
 import { preSig } from '@/logic/utils';
 import { toggleDevTools, useLocalState, useShowDevTools } from '@/state/local';
-import { useAnalyticsId, useLogActivity, useTheme } from '@/state/settings';
+import { useTheme } from '@/state/settings';
 
 import { DesktopLoginScreen } from './components/DesktopLoginScreen';
 import { isElectron } from './electron-bridge';
@@ -336,17 +332,6 @@ function AppRoutes() {
   );
 }
 
-function MigrationCheck({ children }: PropsWithChildren) {
-  const { success, error } = useMigrations();
-  if (!success && !error) {
-    return null;
-  }
-  if (error) {
-    throw error;
-  }
-  return <>{children}</>;
-}
-
 function ConnectedDesktopApp({
   ship,
   shipUrl,
@@ -601,64 +586,68 @@ const App = React.memo(function AppComponent() {
     }
   }, []);
 
+  const migrationState = useMigrations();
+
+  const defaultTheme = useMemo(() => {
+    return isDarkMode ? 'dark' : 'light';
+  }, [isDarkMode]);
+
   return (
-    <div className="flex h-full w-full flex-col">
-      <ShipProvider>
-        <MigrationCheck>
-          <SafeAreaProvider>
-            <TamaguiProvider defaultTheme={isDarkMode ? 'dark' : 'light'}>
-              <StoreProvider>
-                {isElectron() ? (
-                  isLoading ? (
-                    <View
-                      height="100%"
-                      width="100%"
-                      justifyContent="center"
-                      alignItems="center"
-                      backgroundColor="$secondaryBackground"
-                    >
-                      <View
-                        backgroundColor="$background"
-                        padding="$xl"
-                        borderRadius="$l"
-                        aspectRatio={1}
-                        alignItems="center"
-                        justifyContent="center"
-                        borderWidth={1}
-                        borderColor="$border"
-                      >
-                        <LoadingSpinner color="$primaryText" />
-                        <Text
-                          color="$primaryText"
-                          marginTop="$xl"
-                          fontSize="$s"
-                        >
-                          Loading saved credentials&hellip;
-                        </Text>
-                      </View>
-                    </View>
-                  ) : isAuthenticated && authParams ? (
-                    <ConnectedDesktopApp
-                      ship={authParams.ship}
-                      shipUrl={authParams.shipUrl}
-                      authCookie={authParams.authCookie}
-                    />
-                  ) : (
-                    <DesktopLoginScreen
-                      onLoginSuccess={(params) => {
-                        setAuthParams(params);
-                        setIsAuthenticated(true);
-                      }}
-                    />
-                  )
-                ) : (
-                  <ConnectedWebApp />
-                )}
-              </StoreProvider>
-            </TamaguiProvider>
-          </SafeAreaProvider>
-        </MigrationCheck>
-      </ShipProvider>
+    <div
+      style={{
+        display: 'flex',
+        height: '100%',
+        width: '100%',
+        flexDirection: 'column',
+      }}
+    >
+      <BaseProviderStack
+        migrationState={migrationState}
+        tamaguiState={{ defaultTheme }}
+      >
+        {isElectron() ? (
+          isLoading ? (
+            <View
+              height="100%"
+              width="100%"
+              justifyContent="center"
+              alignItems="center"
+              backgroundColor="$secondaryBackground"
+            >
+              <View
+                backgroundColor="$background"
+                padding="$xl"
+                borderRadius="$l"
+                aspectRatio={1}
+                alignItems="center"
+                justifyContent="center"
+                borderWidth={1}
+                borderColor="$border"
+              >
+                <LoadingSpinner color="$primaryText" />
+                <Text color="$primaryText" marginTop="$xl" fontSize="$s">
+                  Loading saved credentials&hellip;
+                </Text>
+              </View>
+            </View>
+          ) : isAuthenticated && authParams ? (
+            <ConnectedDesktopApp
+              ship={authParams.ship}
+              shipUrl={authParams.shipUrl}
+              authCookie={authParams.authCookie}
+            />
+          ) : (
+            <DesktopLoginScreen
+              onLoginSuccess={(params) => {
+                setAuthParams(params);
+                setIsAuthenticated(true);
+              }}
+            />
+          )
+        ) : (
+          <ConnectedWebApp />
+        )}
+      </BaseProviderStack>
     </div>
   );
 });
@@ -667,9 +656,7 @@ function RoutedApp() {
   const [userThemeColor, setUserThemeColor] = useState('#ffffff');
   const showDevTools = useShowDevTools();
   const isStandAlone = useIsStandaloneMode();
-  const logActivity = useLogActivity();
   const posthog = usePostHog();
-  const analyticsId = useAnalyticsId();
   const body = document.querySelector('body');
   const colorSchemeFromNative =
     window.nativeOptions?.colorScheme ?? window.colorscheme;
@@ -741,9 +728,6 @@ function RoutedApp() {
           <React.Suspense fallback={null}>
             <ReactQueryDevtoolsProduction />
           </React.Suspense>
-          <div className="fixed bottom-4 right-4">
-            <EyrieMenu />
-          </div>
         </>
       )}
     </>

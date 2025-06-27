@@ -100,6 +100,7 @@ CREATE TABLE `channels` (
 	`remote_updated_at` integer,
 	`last_viewed_at` integer,
 	`content_configuration` text,
+	`posts_order` text,
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
@@ -257,6 +258,7 @@ CREATE TABLE `groups` (
 	`current_user_is_host` integer NOT NULL,
 	`host_user_id` text NOT NULL,
 	`is_new` integer,
+	`is_personal_group` integer DEFAULT false,
 	`join_status` text,
 	`last_post_id` text,
 	`last_post_at` integer,
@@ -349,6 +351,7 @@ CREATE TABLE `settings` (
 	`group_side_bar_sort` text,
 	`show_activity_message` integer,
 	`log_activity` integer,
+	`enable_telemetry` integer,
 	`analytics_id` text,
 	`seen_welcome_card` integer,
 	`new_group_flags` text,
