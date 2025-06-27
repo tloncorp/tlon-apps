@@ -81,7 +81,7 @@ export function ReactionsDisplay({
     const remainingCount = reactionDetails.list.length - 2;
 
     return (
-      <Pressable onPress={() => handleOpenReactions(post)}>
+      <Pressable onPress={() => handleOpenReactions(post)} cursor="default">
         <XStack gap="$2xs" alignItems="center">
           {displayedReactions.map((reaction) => (
             <Pressable
@@ -130,6 +130,7 @@ export function ReactionsDisplay({
       <Pressable
         borderRadius="$m"
         onLongPress={() => handleOpenReactions(post)}
+        cursor="default"
       >
         <XStack borderRadius="$m" gap="$xs" flexWrap="wrap">
           {reactionDetails.list.map((reaction) => (
