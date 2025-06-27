@@ -13,6 +13,7 @@ import androidx.core.app.NotificationCompat.MessagingStyle
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
 import com.android.volley.VolleyError
+import com.google.firebase.messaging.RemoteMessage
 import io.tlon.landscape.MainActivity
 import io.tlon.landscape.api.TalkApi
 import io.tlon.landscape.api.TalkObjectCallback
@@ -40,7 +41,7 @@ private fun logNotificationEvent(eventName: String, properties: Map<String, Any>
     }
 }
 
-suspend fun processNotification(context: Context, uid: String, originalPayload: Bundle? = null) {
+suspend fun processNotification(context: Context, uid: String, originalPayload: RemoteMessage? = null) {
     val api = TalkApi(context)
     var activityEvent: JSONObject? = null
 
@@ -194,7 +195,7 @@ private fun showRichNotification(context: Context, uid: String, preview: Activit
 private fun showFallbackNotification(
     context: Context,
     uid: String,
-    originalPayload: Bundle?,
+    originalPayload: RemoteMessage?,
     reason: String,
     activityEvent: JSONObject? = null
 ) {
@@ -208,17 +209,18 @@ private fun showFallbackNotification(
         return
     }
 
+    val bundle = originalPayload?.toBasicBundle();
     val id = UvParser.getIntCompatibleFromUv(uid)
 
     // Extract basic info from original payload or use defaults
-    val title = originalPayload?.getString("title") ?: "New message"
-    val body = originalPayload?.getString("body") ?: "You have a new message"
+    val title = bundle?.getString("title") ?: "New message"
+    val body = bundle?.getString("body") ?: "You have a new message"
 
     val extras = Bundle()
     if (activityEvent != null) {
         extras.putString("activityEventJsonString", activityEvent.toString())
     } else if (originalPayload != null) {
-        extras.putAll(originalPayload)
+        extras.putAll(bundle)
     }
     extras.putString("fallbackReason", reason)
 
@@ -258,5 +260,26 @@ private fun showFallbackNotification(
     }
 }
 
-fun processNotificationBlocking(context: Context, uid: String, originalPayload: Bundle? = null) =
+fun RemoteMessage.toBasicBundle(): Bundle {
+    val bundle = Bundle()
+
+    // Prioritize notification fields, fall back to data fields
+    val title = notification?.title ?: data["title"]
+    val body = notification?.body ?: data["body"]
+
+    title?.let { bundle.putString("title", it) }
+    body?.let { bundle.putString("body", it) }
+
+    // Add essential identifiers
+    messageId?.let { bundle.putString("message_id", it) }
+
+    // Add any custom data that might be needed for processing
+    data.forEach { (key, value) ->
+        bundle.putString(key, value)
+    }
+
+    return bundle
+}
+
+fun processNotificationBlocking(context: Context, uid: String, originalPayload: RemoteMessage? = null) =
     runBlocking { processNotification(context, uid, originalPayload) }
