@@ -21,11 +21,17 @@ import io.tlon.landscape.storage.SecureStorage;
 
 import io.branch.rnbranch.RNBranchModule;
 
+import com.posthog.android.PostHogAndroid;
+import com.posthog.android.PostHogAndroidConfig;
+
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.List;
 
 public class MainApplication extends Application implements ReactApplication {
+
+  public static final String POSTHOG_API_KEY = "phc_GyI5iD7kM6RRbb1hIU0fiGmTCh4ha44hthJYJ7a89td";
+  public static final String POSTHOG_HOST = "https://eu.i.posthog.com";
 
   private final ReactNativeHost mReactNativeHost =
     new ReactNativeHostWrapper(this, new DefaultReactNativeHost(this) {
@@ -82,11 +88,17 @@ public class MainApplication extends Application implements ReactApplication {
 
     TalkNotificationManager.createNotificationChannel(this);
 
+    PostHogAndroidConfig config = new PostHogAndroidConfig(
+        POSTHOG_API_KEY,
+        POSTHOG_HOST
+    );
+    PostHogAndroid.Companion.setup(this, config);
+
     // Branch logging for debugging
     if (BuildConfig.DEBUG) {
       RNBranchModule.enableLogging();
     }
-    
+
     RNBranchModule.getAutoInstance(this);
   }
 
