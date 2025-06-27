@@ -60,8 +60,6 @@ import { DraftInputView } from './DraftInputView';
 import { PostView } from './PostView';
 import { ReadOnlyNotice } from './ReadOnlyNotice';
 
-export { INITIAL_POSTS_PER_PAGE } from './Scroller';
-
 //TODO implement usePost and useChannel
 const useApp = () => {};
 
