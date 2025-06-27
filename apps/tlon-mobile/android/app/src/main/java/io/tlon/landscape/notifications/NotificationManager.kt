@@ -82,24 +82,12 @@ suspend fun processNotification(context: Context, uid: String, originalPayload: 
     }
 
     if (preview == null) {
-        logNotificationEvent("notification_preview_null", mapOf(
-            "uid" to uid
-        ))
+        logNotificationEvent(
+            "notification_preview_null", mapOf(
+                "uid" to uid
+            )
+        )
         showFallbackNotification(context, uid, originalPayload, "Preview is null", activityEvent)
-        return
-    }
-
-    // Check permissions before proceeding
-    if (ActivityCompat.checkSelfPermission(
-            context,
-            Manifest.permission.POST_NOTIFICATIONS
-        ) != PackageManager.PERMISSION_GRANTED
-    ) {
-        logNotificationEvent("notification_permission_denied", mapOf(
-            "uid" to uid
-        ))
-        // Could still show fallback, but permissions are required
-        Log.w("NotificationManager", "No notification permission for uid: $uid")
         return
     }
 
@@ -187,6 +175,20 @@ private fun showRichNotification(context: Context, uid: String, preview: Activit
         }
         notifStyle.addMessage(incomingMessage)
         builder.setStyle(notifStyle)
+    }
+
+    // Check permissions before proceeding
+    if (ActivityCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) != PackageManager.PERMISSION_GRANTED
+    ) {
+        logNotificationEvent("notification_permission_denied", mapOf(
+            "uid" to uid
+        ))
+        // Could still show fallback, but permissions are required
+        Log.w("NotificationManager", "No notification permission for uid: $uid")
+        return
     }
 
     NotificationManagerCompat.from(context).notify(preview.groupingKey?.hashCode() ?: id, builder.build())
