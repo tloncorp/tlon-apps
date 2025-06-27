@@ -3,6 +3,7 @@
 const env = import.meta.env;
 const envVars = {
   devShipUrl: env.VITE_SHIP_URL,
+  inviteProvider: env.VITE_INVITE_PROVIDER,
   notifyProvider: env.VITE_NOTIFY_PROVIDER,
   notifyService: env.VITE_NOTIFY_SERVICE,
   postHogApiKey: env.VITE_POST_HOG_API_KEY,
@@ -34,6 +35,8 @@ const envVars = {
 } as Record<string, string | undefined>;
 
 export const DEV_SHIP_URL = envVars.devShipUrl ?? '';
+export const INVITE_PROVIDER =
+  envVars.inviteProvider ?? 'https://loshut-lonreg.tlon.network';
 export const NOTIFY_PROVIDER = envVars.notifyProvider ?? 'rivfur-livmet';
 export const NOTIFY_SERVICE = envVars.notifyService ?? 'groups-native';
 export const POST_HOG_API_KEY = envVars.postHogApiKey ?? '';
@@ -74,6 +77,7 @@ export const GIT_HASH = envVars.gitHash ?? 'unknown';
 
 export const ENV_VARS = {
   DEV_SHIP_URL,
+  INVITE_PROVIDER,
   NOTIFY_PROVIDER,
   NOTIFY_SERVICE,
   POST_HOG_API_KEY,

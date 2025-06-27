@@ -62,7 +62,7 @@ export async function getInviteLinkMeta({
 export async function getMetadataFromInviteToken(token: string) {
   const env = getConstants();
   const providerResponse = await fetch(
-    `https://loshut-lonreg.tlon.network/lure/${token}/metadata`
+    `${env.INVITE_PROVIDER}/lure/${token}/metadata`
   );
   if (!providerResponse.ok) {
     return null;
