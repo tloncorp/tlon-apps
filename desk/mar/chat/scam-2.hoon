@@ -1,4 +1,4 @@
-/-  c=chat-4
+/-  c=chat
 /+  j=chat-json
 |_  =scam:c
 ++  grad  %noun
@@ -8,8 +8,8 @@
   ++  json
     =,  enjs:format
     %-  pairs
-    :~  'last'^?~(last.scam ~ (time-id:v8:enjs:j u.last.scam))
-        'scan'^a+(turn scan.scam reference:v8:enjs:j)
+    :~  'last'^?~(last.scam ~ (time-id:enjs:j u.last.scam))
+        'scan'^a+(turn scan.scam reference:enjs:j)
     ==
   --
 ++  grab
