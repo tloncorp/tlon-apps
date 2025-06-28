@@ -1,4 +1,4 @@
-import { createDevLogger, getMetadataFromInviteToken } from '@tloncorp/shared';
+import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Text } from '@tloncorp/ui';
@@ -13,6 +13,7 @@ import {
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useFilteredChats } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
+import { useInviteParam } from '../../hooks/useInviteParam';
 import { useRenderCount } from '../../hooks/useRenderCount';
 import { useResolvedChats } from '../../hooks/useResolvedChats';
 import {
@@ -28,7 +29,7 @@ import {
 } from '../../ui';
 import { SplashModal } from '../../ui/components/Wayfinding/SplashModal';
 import { identifyTlonEmployee } from '../../utils/posthog';
-import { useRootNavigation, useTypedReset } from '../utils';
+import { useRootNavigation } from '../utils';
 
 const logger = createDevLogger('HomeSidebar', false);
 
@@ -39,7 +40,6 @@ interface Props {
 
 export const HomeSidebar = memo(
   ({ previewGroupId, focusedChannelId }: Props) => {
-    useInvite();
     const screenTitle = 'Home';
     const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>();
 
@@ -181,6 +181,8 @@ export const HomeSidebar = memo(
       activeTab: 'home',
     });
 
+    useInviteParam();
+
     useRenderCount('HomeSidebar');
 
     return (
@@ -258,37 +260,3 @@ export const HomeSidebar = memo(
 );
 
 HomeSidebar.displayName = 'HomeSidebar';
-
-function useInvite() {
-  const reset = useTypedReset();
-  // check for an invite token via URL params
-  // const [inviteToken, setInviteToken] = useState<string | null>(null);
-  // const [invitedGroupId, setInvitedGroupId] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function runEffect() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const inviteToken = urlParams.get('inviteToken');
-
-      if (!inviteToken) {
-        return;
-      }
-
-      console.log(`bl: Received invite token:`, inviteToken);
-
-      const meta = await getMetadataFromInviteToken(inviteToken);
-      console.log('bl: invite meta', meta);
-      if (!meta) {
-        return;
-      }
-
-      if (meta.invitedGroupId) {
-        setTimeout(() => {
-          store.redeemInviteIfNeeded(meta);
-        }, 3000);
-      }
-    }
-
-    runEffect();
-  }, []);
-}

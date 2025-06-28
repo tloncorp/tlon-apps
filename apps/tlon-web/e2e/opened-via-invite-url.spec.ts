@@ -66,32 +66,6 @@ test.only('should generate an invite link and view that invite from another ship
     const token = clipboardText.split('/').pop();
     expect(token).toBeDefined();
 
-    // mock the provider response
-    // await tenPage.route(
-    //   `https://loshut-lonreg.tlon.network/lure/${token}/metadata`,
-    //   async (route) => {
-    //     console.log(`bl: route HIT!`);
-    //     const json = {
-    //       fields: {
-    //         'bite-type': '2',
-    //         invitedGroupId,
-    //         image: '',
-    //         title: 'Invite Test',
-    //         cover: '',
-    //         description: '',
-    //         inviterNickname: '',
-    //         group: invitedGroupId,
-    //         inviter: '~zod',
-    //         inviterUserId: '~zod',
-    //         inviterColor: '#C4E814',
-    //         inviterAvatarImage: '',
-    //       },
-    //       tag: 'groups-0',
-    //     };
-    //     await route.fulfill({ json });
-    //   }
-    // );
-
     // Initialize the other ship
     const tenUrl = `${shipManifest['~ten'].webUrl}/apps/groups/`;
     await tenPage.goto(tenUrl);
@@ -101,10 +75,10 @@ test.only('should generate an invite link and view that invite from another ship
       window.toggleDevTools();
     });
 
-    // Confirm visiting an invite link works
+    // Confirm opening via an invite link joins the group
     const tenInviteUrl = `${shipManifest['~ten'].webUrl}/apps/groups/Home?inviteToken=${token}`;
     await tenPage.goto(tenInviteUrl);
-    await tenPage.waitForTimeout(10000);
+    await tenPage.waitForTimeout(5000);
     await tenPage.getByText('Invite Test').click();
   } finally {
     // Clean up - delete the group from zod's side

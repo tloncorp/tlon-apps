@@ -1,7 +1,10 @@
 import { ContentReference, proxyRequest } from '../api';
+import { createDevLogger } from '../debug';
 import { getConstants } from '../domain';
 import { citeToPath } from '../urbit';
 import { AppInvite, getBranchLinkMeta, isLureMeta } from './branch';
+
+const logger = createDevLogger('deeplinks', false);
 
 export async function getReferenceFromDeeplink({
   deepLink,
@@ -61,45 +64,47 @@ export async function getInviteLinkMeta({
 
 export async function getMetadataFromInviteToken(token: string) {
   const env = getConstants();
-  console.log(
-    `bl: attempting to fetch token metadata`,
-    `${env.INVITE_PROVIDER}/lure/${token}/metadata`
-  );
+  logger.log('getting metadata for invite token', {
+    token,
+    inviteProvider: env.INVITE_PROVIDER,
+  });
 
-  const providerResponse = await fetch(
-    `${env.INVITE_PROVIDER}/lure/${token}/metadata`,
-    {
-      method: 'GET',
-      // hack: make browser do "simple request" that doesn't require OPTIONS preflight
-      headers: { 'Content-Type': 'text/plain' },
-    }
-  ).catch((e) => console.error('failed to fetch invite metadata', e));
+  let providerResponse = null;
+  try {
+    providerResponse = await fetch(
+      `${env.INVITE_PROVIDER}/lure/${token}/metadata`,
+      {
+        method: 'GET',
+        // hack: make browser do "simple request" that doesn't require OPTIONS preflight
+        headers: { 'Content-Type': 'text/plain' },
+      }
+    );
+  } catch (e) {
+    logger.trackError('failed to fetch invite metadata', {
+      inviteToken: token,
+      errorMessage: e.toString(),
+    });
+  }
   if (!providerResponse?.ok) {
     return null;
   }
 
-  const text = await providerResponse.text();
-  console.log(`bl: got provider response ${providerResponse.status}`, text);
-
   let responseMeta: ProviderMetadataResponse | null = null;
   try {
+    const text = await providerResponse.text();
+    logger.log(`provider response for token ${token}`, {
+      status: providerResponse.status,
+      text,
+    });
     responseMeta = JSON.parse(text) as ProviderMetadataResponse;
   } catch (e) {
-    console.error(
-      'Failed to parse provider metadata response as JSON',
-      e,
-      text
-    );
+    logger.trackError('failed to parse provider response', {
+      inviteToken: token,
+      errorMessage: e.toString(),
+    });
     return null;
   }
 
-  // const result = await proxyRequest<ProviderMetadataResponse>(
-  //   `${env.INVITE_PROVIDER}/lure/${token}/metadata`,
-  //   { method: 'GET', headers: { 'Content-Type': 'application/json' } }
-  // );
-
-  // // // fetch invite link metadata from lure provider
-  // const responseMeta: ProviderMetadataResponse = result;
   if (
     !responseMeta.fields ||
     !responseMeta.fields.group ||
@@ -141,6 +146,10 @@ export async function getMetadataFromInviteToken(token: string) {
       console.error('Failed to fetch branch metadata. Ignoring', e);
     }
   }
+
+  logger.trackEvent('successfully fetched invite metadata', {
+    inviteToken: token,
+  });
 
   return metadata;
 }
