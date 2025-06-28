@@ -49,7 +49,7 @@ test('textAndMentionsToContent: multiline mentions', () => {
 });
 
 test('textAndMentionsToContent: code blocks without mentions', () => {
-  const text = 'This is a code block:\n```\nconst x = 42;\n```';
+  const text = 'This is a code block:\n```\n  const x = 42;\n```';
   const mentions: Mention[] = [];
 
   const result = textAndMentionsToContent(text, mentions);
@@ -74,7 +74,7 @@ test('textAndMentionsToContent: code blocks without mentions', () => {
         content: [
           {
             type: 'text',
-            text: 'const x = 42;',
+            text: '  const x = 42;',
           },
         ],
       },
