@@ -70,10 +70,8 @@ export async function getMetadataFromInviteToken(token: string) {
     `${env.INVITE_PROVIDER}/lure/${token}/metadata`,
     {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-      cache: 'no-cache',
-      redirect: 'follow',
-      referrerPolicy: 'no-referrer',
+      // hack: make browser do "simple request" that doesn't require OPTIONS preflight
+      headers: { 'Content-Type': 'text/plain' },
     }
   ).catch((e) => console.error('failed to fetch invite metadata', e));
   if (!providerResponse?.ok) {
@@ -83,8 +81,17 @@ export async function getMetadataFromInviteToken(token: string) {
   const text = await providerResponse.text();
   console.log(`bl: got provider response ${providerResponse.status}`, text);
 
-  // fetch invite link metadata from lure provider
-  const responseMeta: ProviderMetadataResponse = await providerResponse.json();
+  let responseMeta: ProviderMetadataResponse | null = null;
+  try {
+    responseMeta = JSON.parse(text) as ProviderMetadataResponse;
+  } catch (e) {
+    console.error(
+      'Failed to parse provider metadata response as JSON',
+      e,
+      text
+    );
+    return null;
+  }
 
   // const result = await proxyRequest<ProviderMetadataResponse>(
   //   `${env.INVITE_PROVIDER}/lure/${token}/metadata`,

@@ -12,7 +12,11 @@ export async function proxyRequest<T>(
   timeout: number = 15_000
 ): Promise<T> {
   const encodedUrl = formatUw(Atom.fromCord(url).number);
-  logger.log('sending proxy request', { url, requestOptions, timeout });
+  logger.log('sending proxy request', {
+    url,
+    requestOptions,
+    timeout,
+  });
   try {
     const result: T = await request<T>(
       `/apps/groups/~/proxy/${encodedUrl}`,

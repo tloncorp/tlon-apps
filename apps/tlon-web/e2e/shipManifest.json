@@ -34,13 +34,13 @@
   },
   "~mug": {
     "authFile": "e2e/.auth/mug.json",
-    "downloadUrl": "https://storage.googleapis.com/tlon-messenger-public-assets/e2e-nodes/rube-mug2.tgz",
+    "downloadUrl": "https://storage.googleapis.com/tlon-messenger-public-assets/e2e-nodes/rube-mug3.tgz",
     "url": "http://localhost:39983",
     "ship": "mug",
     "code": "ravsut-bolryd-hapsum-pastul",
     "httpPort": "39983",
     "loopbackPort": "",
     "webUrl": "http://localhost:3003",
-    "skipCommit": false
+    "skipCommit": true
   }
 }

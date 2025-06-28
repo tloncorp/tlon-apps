@@ -973,25 +973,31 @@ export class Urbit {
       ...options,
       // Merge headers properly
       headers: {
-        ...this.fetchOptions.headers,
-        ...(options.headers || {}),
+        // ...this.fetchOptions.headers,
+        // ...(options.headers || {}),
+        'Content-Type': 'application/json',
       },
       signal,
     };
 
     // If we're in a Node.js environment, add the cookie for authentication
-    if (!isBrowser && this.cookie) {
-      requestOptions.headers = {
-        ...requestOptions.headers,
-        Cookie: this.cookie,
-      };
-    }
+    // if (!isBrowser && this.cookie) {
+    //   requestOptions.headers = {
+    //     ...requestOptions.headers,
+    //     Cookie: this.cookie,
+    //   };
+    // }
 
     // Make the request
     const response = await this.fetchFn(`${this.url}${path}`, requestOptions);
     signal?.cleanup();
 
-    console.log(`got Urbit request response`, response);
+    const text = await response.text();
+
+    console.log(`got Urbit request response`, {
+      status: response.status,
+      text,
+    });
 
     // Handle response
     if (!response.ok) {

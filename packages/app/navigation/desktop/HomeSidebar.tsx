@@ -1,8 +1,4 @@
-import {
-  AppInvite,
-  createDevLogger,
-  getMetadataFromInviteToken,
-} from '@tloncorp/shared';
+import { createDevLogger, getMetadataFromInviteToken } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Text } from '@tloncorp/ui';
@@ -295,73 +291,4 @@ function useInvite() {
 
     runEffect();
   }, []);
-
-  // useEffect(() => {
-  //   const urlParams = new URLSearchParams(window.location.search);
-  //   const inviteIdParam = urlParams.get('inviteToken');
-
-  //   if (inviteIdParam) {
-  //     setInviteToken(inviteIdParam);
-  //     console.log('Received invite ID:', inviteIdParam);
-  //     // Handle your invite logic here
-  //   }
-  // }, []);
-
-  // // if we have an invite token, fetch the group meta
-  // useEffect(() => {
-  //   async function runEffect() {
-  //     if (inviteToken) {
-  //       try {
-  //         const meta = await getMetadataFromInviteToken(inviteToken);
-  //         console.log('bl: invite meta', meta);
-  //         setInviteToken(null);
-
-  //         if (!meta) {
-  //           return;
-  //         }
-
-  //         if (meta.invitedGroupId) {
-  //           console.log(`bl: invitedGroupId`, meta.invitedGroupId);
-  //           store.redeemInviteIfNeeded(meta);
-  //           const previewGroupId = meta.invitedGroupId || meta.group;
-  //           if (previewGroupId) {
-  //             reset([
-  //               {
-  //                 name: 'ChatList',
-  //                 params: { previewGroupId },
-  //               },
-  //             ]);
-  //           }
-  //         }
-  //         // TODO: CORS blocked, stub response for now
-  //         // const meta: AppInvite = {
-  //         //   id: inviteToken,
-  //         //   shouldAutoJoin: false,
-  //         //   inviteType: 'group',
-  //         //   invitedGroupId: '~latter-bolden/woodshop',
-  //         //   invitedGroupTitle: 'Woodworking',
-  //         //   invitedGroupDescription: '',
-  //         //   invitedGroupIconImageUrl:
-  //         //     'https://d2w9rnfcy7mm78.cloudfront.net/14799493/original_7233e314e578f5e5418aa2f3ba901fd1.jpg?1642716676?bc=0',
-  //         //   inviterUserId: '~latter-bolden',
-  //         //   inviterNickname: 'brian',
-  //         // };
-  //       } catch (error) {
-  //         console.error('bl: Failed to get metadata from invite token', error);
-  //       }
-  //     }
-  //   }
-
-  //   runEffect();
-  // }, [inviteToken, reset]);
-
-  // const clearInvite = useCallback(() => {
-  //   // setInviteToken(null);
-  //   // setInvitedGroupId(null);
-  // }, []);
-
-  // return {
-  //   invitedGroupId: '',
-  //   clearInvite,
-  // };
 }
