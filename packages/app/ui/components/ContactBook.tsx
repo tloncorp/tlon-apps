@@ -23,6 +23,7 @@ import { ContactRow } from './ContactRow';
 import { SearchBar } from './SearchBar';
 
 export function ContactBook({
+  autoFocus = false,
   searchable = false,
   searchPlaceholder = '',
   onSelect,
@@ -35,6 +36,7 @@ export function ContactBook({
   height,
   width,
 }: {
+  autoFocus?: boolean;
   immutableIds?: string[];
   searchPlaceholder?: string;
   searchable?: boolean;
@@ -191,6 +193,7 @@ export function ContactBook({
               autoCapitalize: 'none',
               autoComplete: 'off',
               flex: 1,
+              autoFocus,
             }}
           />
         </XStack>
