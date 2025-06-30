@@ -130,6 +130,12 @@ export const HomeSidebar = memo(
       [navigateToGroup, navigateToChannel]
     );
 
+    useEffect(() => {
+      if (previewGroupId) {
+        setSelectedGroupId(previewGroupId);
+      }
+    }, [previewGroupId]);
+
     const handlePressAddChat = useCallback(() => {
       createChatSheetRef.current?.open();
     }, []);

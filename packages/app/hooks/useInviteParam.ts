@@ -1,3 +1,5 @@
+import { DrawerNavigationProp } from '@react-navigation/drawer';
+import { useNavigation } from '@react-navigation/native';
 import {
   createDevLogger,
   getMetadataFromInviteToken,
@@ -5,14 +7,15 @@ import {
 } from '@tloncorp/shared';
 import { useEffect } from 'react';
 
-import { useTypedReset } from '../navigation/utils';
+import { ActualRootDrawerParamList } from '../navigation/types';
 import { useStore } from '../ui';
 
-const logger = createDevLogger('useInviteParam', false);
+const logger = createDevLogger('useInviteParam', true);
 
 export function useInviteParam() {
   const store = useStore();
-  const reset = useTypedReset();
+  const navigation =
+    useNavigation<DrawerNavigationProp<ActualRootDrawerParamList>>();
 
   useEffect(() => {
     async function runEffect() {
@@ -35,16 +38,35 @@ export function useInviteParam() {
       logger.trackEvent('found metadata for invite token', { inviteToken });
 
       if (meta.invitedGroupId) {
-        withRetry(() => store.redeemInviteIfNeeded(meta), {
+        await withRetry(() => store.redeemInviteIfNeeded(meta), {
           numOfAttempts: 3,
           maxDelay: 500,
         });
+
+        try {
+          logger.log('attempting to navigate to group', meta.invitedGroupId);
+          navigation.jumpTo('Home', {
+            screen: 'ChatList',
+            params: { previewGroupId: meta.invitedGroupId },
+          });
+        } catch (e) {
+          logger.error('failed to navigate to group', e);
+        }
       }
       if (meta.inviteType === 'user' && meta.inviterUserId) {
         store.addContact(meta.inviterUserId);
+        try {
+          logger.log('attempting to navigate to user', meta.inviterUserId);
+          navigation.jumpTo('Contacts', {
+            screen: 'UserProfile',
+            params: { userId: meta.inviterUserId },
+          });
+        } catch (e) {
+          logger.error('failed to navigate to group', e);
+        }
       }
     }
 
     runEffect();
-  }, [store]);
+  }, [navigation, store]);
 }

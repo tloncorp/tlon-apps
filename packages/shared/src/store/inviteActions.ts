@@ -157,7 +157,6 @@ export async function createGroupInviteLink(groupId: string) {
 }
 
 export async function redeemInviteIfNeeded(invite: logic.AppInvite) {
-  console.log(`bl: redeemInviteIfNeeded`, { invite });
   const constants = getConstants();
   const currentUserId = api.getCurrentUserId();
   if (invite.inviteType && invite.inviteType === 'user') {
@@ -184,6 +183,10 @@ export async function redeemInviteIfNeeded(invite: logic.AppInvite) {
   const shouldRedeem = !isJoined && !haveInvite;
 
   if (shouldRedeem) {
+    logger.trackEvent(AnalyticsEvent.InviteDebug, {
+      context: 'attempting to bite lure',
+      inviteId: invite.id,
+    });
     try {
       const endpoint = `${constants.INVITE_PROVIDER}/lure/${invite.id}`;
       const options = {
@@ -193,20 +196,20 @@ export async function redeemInviteIfNeeded(invite: logic.AppInvite) {
         },
         body: `ship=%7E${desig(currentUserId)}`,
       };
-      console.log(`bl: proxied executing invite request`, {
-        endpoint,
-        options,
-      });
 
-      // TODO: dumb-proxy can't handle body's, so fire and forget for now
+      // TODO: dumb-proxy doesn't accept a body, so fire and forget for now
       // await api.proxyRequest(endpoint, options);
+
       try {
         await fetch(endpoint, options);
       } catch (e) {
-        console.log('lure bite failed', e);
+        logger.trackError(AnalyticsEvent.InviteError, {
+          context: 'failed to bite lure',
+          inviteId: invite.id,
+          errorMessage: e.message,
+        });
+        return;
       }
-      console.log(`bl: invite request executed successfully`);
-
       logger.trackEvent(AnalyticsEvent.InviteDebug, {
         context: 'Success, bit invite deeplink lure while logged in',
         lure: invite.id,

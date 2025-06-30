@@ -24,7 +24,6 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   onActionComplete: (action: GroupPreviewAction, group: db.Group) => void;
   group?: db.Group;
-  groupId?: string;
 }
 
 interface JoinStatus {
@@ -42,15 +41,8 @@ function GroupPreviewSheetComponent({
   open,
   onOpenChange,
   group,
-  groupId,
   onActionComplete,
 }: Props) {
-  const store = useStore();
-  const { data: groupPreview } = store.useGroupPreview(
-    !group && groupId ? groupId : ''
-  );
-  const groupToUse = group || groupPreview;
-
   useEffect(() => {
     if (open) {
       triggerHaptic('sheetOpen');
@@ -71,12 +63,9 @@ function GroupPreviewSheetComponent({
 
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>
-      {groupToUse ? (
+      {group ? (
         <ActionSheet.Content>
-          <GroupPreviewPane
-            group={groupToUse}
-            onActionComplete={actionHandler}
-          />
+          <GroupPreviewPane group={group} onActionComplete={actionHandler} />
         </ActionSheet.Content>
       ) : (
         <LoadingSpinner />

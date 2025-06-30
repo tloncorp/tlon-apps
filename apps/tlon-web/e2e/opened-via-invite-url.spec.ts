@@ -7,7 +7,7 @@ const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
 
 test.use({ permissions: ['clipboard-write', 'clipboard-read'] });
 
-test.only('should generate an invite link and view that invite from another ship', async ({
+test('should generate an invite link and be able to redem group/personal invites', async ({
   browser,
 }) => {
   // Create two browser contexts - one for ~zod (group creator) and one for ~ten (invitee)
@@ -49,11 +49,6 @@ test.only('should generate an invite link and view that invite from another ship
 
     await helpers.openGroupSettings(zodPage);
     await zodPage.getByText('Reference').click();
-    const referenceText: string = await zodPage.evaluate(
-      'navigator.clipboard.readText()'
-    );
-    const invitedGroupId = `~zod/${referenceText.split('/').pop()}`;
-    console.log('bl: referenceText', referenceText);
     await helpers.navigateBack(zodPage);
 
     // Confirm it generated an invite link for the group
@@ -75,11 +70,18 @@ test.only('should generate an invite link and view that invite from another ship
       window.toggleDevTools();
     });
 
-    // Confirm opening via an invite link joins the group
+    // Confirm you receive an group invite after clicking a group invite link
     const tenInviteUrl = `${shipManifest['~ten'].webUrl}/apps/groups/Home?inviteToken=${token}`;
     await tenPage.goto(tenInviteUrl);
-    await tenPage.waitForTimeout(5000);
-    await tenPage.getByText('Invite Test').click();
+    await tenPage.waitForTimeout(3000);
+    await expect(tenPage.getByText('Accept invite')).toBeVisible();
+
+    // Confirm you open the contact profile after clicking a user invite link
+    const busPersonalInviteToken = '0v4.u1ijr.399a5.j472m.2nj24.c5q9k';
+    const tenUserInviteUrl = `${shipManifest['~ten'].webUrl}/apps/groups/Home?inviteToken=${busPersonalInviteToken}`;
+    await tenPage.goto(tenUserInviteUrl);
+    await tenPage.waitForTimeout(3000);
+    await expect(tenPage.getByText('Remove contact')).toBeVisible();
   } finally {
     // Clean up - delete the group from zod's side
     try {

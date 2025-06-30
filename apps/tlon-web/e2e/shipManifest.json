@@ -12,7 +12,7 @@
   },
   "~bus": {
     "authFile": "e2e/.auth/bus.json",
-    "downloadUrl": "https://storage.googleapis.com/tlon-messenger-public-assets/e2e-nodes/rube-bus10.tgz",
+    "downloadUrl": "https://storage.googleapis.com/tlon-messenger-public-assets/e2e-nodes/rube-bus11.tgz",
     "url": "http://localhost:36963",
     "ship": "bus",
     "code": "riddec-bicrym-ridlev-pocsef",
@@ -34,7 +34,7 @@
   },
   "~mug": {
     "authFile": "e2e/.auth/mug.json",
-    "downloadUrl": "https://storage.googleapis.com/tlon-messenger-public-assets/e2e-nodes/rube-mug2.tgz",
+    "downloadUrl": "https://storage.googleapis.com/tlon-messenger-public-assets/e2e-nodes/rube-mug4.tgz",
     "url": "http://localhost:39983",
     "ship": "mug",
     "code": "ravsut-bolryd-hapsum-pastul",
