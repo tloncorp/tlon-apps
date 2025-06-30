@@ -197,10 +197,8 @@ export async function redeemInviteIfNeeded(invite: logic.AppInvite) {
         body: `ship=%7E${desig(currentUserId)}`,
       };
 
-      // TODO: dumb-proxy doesn't accept a body, so fire and forget for now
-      // await api.proxyRequest(endpoint, options);
-
       try {
+        // TODO: CORS doesn't work right now for POST, so we can't actually handle this response.
         await fetch(endpoint, options);
       } catch (e) {
         logger.trackError(AnalyticsEvent.InviteError, {

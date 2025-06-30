@@ -22,4 +22,3 @@ export * from './hostingApi';
 export * from './apiUtils';
 export * from './systemContactsApi';
 export * from './metagrabApi';
-export * from './proxyApi';
