@@ -45,7 +45,9 @@ export const BasePathNavigator = memo(({ isMobile }: { isMobile: boolean }) => {
   const navStateRoutes = useNavigationState((state) => state?.routes);
   const currentRoute = useMemo(
     () =>
-      navStateIndex && navStateRoutes ? navStateRoutes[navStateIndex] : null,
+      navStateIndex != null && navStateRoutes
+        ? navStateRoutes[navStateIndex]
+        : null,
     [navStateIndex, navStateRoutes]
   );
   const rootState = useMemo(() => currentRoute?.state, [currentRoute]);
@@ -54,7 +56,7 @@ export const BasePathNavigator = memo(({ isMobile }: { isMobile: boolean }) => {
   const lastWasMobile = useRef(isMobile);
 
   const currentScreenAndParams = useMemo(() => {
-    if (!rootStateIndex || !rootStateRoutes) {
+    if (rootStateIndex == null || !rootStateRoutes) {
       return undefined;
     }
     if (isMobile !== lastWasMobile.current) {
