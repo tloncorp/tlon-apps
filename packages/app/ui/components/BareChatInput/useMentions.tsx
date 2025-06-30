@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query';
 import { escapeRegExp, isValidPatp } from '@tloncorp/shared';
 import { ALL_MENTION_ID as allID } from '@tloncorp/shared';
 import { getCurrentUserId } from '@tloncorp/shared/api';
@@ -22,6 +23,7 @@ export interface MentionOption {
   title?: string | null;
   subtitle?: string | null;
   priority: number;
+  contact?: db.Contact;
 }
 
 export function getMentionPriority(member: db.ChatMember): number {
@@ -75,7 +77,7 @@ export function createMentionOptions(
   return [all, ...members, ...roles].sort((a, b) => a.priority - b.priority);
 }
 
-export const useMentions = ({ options }: { options: MentionOption[] }) => {
+export const useMentions = ({ chatId }: { chatId: string }) => {
   const [isMentionModeActive, setIsMentionModeActive] = useState(false);
   const [mentionStartIndex, setMentionStartIndex] = useState<number | null>(
     null
@@ -87,13 +89,48 @@ export const useMentions = ({ options }: { options: MentionOption[] }) => {
     number | null
   >(null);
 
-  const validOptions = useMemo(() => {
-    return options.filter((option) => {
-      const pattern = new RegExp(escapeRegExp(mentionSearchText), 'i');
+  const { data: mentionCandidates = [] } = useQuery({
+    queryKey: ['mentionCandidates', chatId, mentionSearchText],
+    queryFn: () =>
+      db.getMentionCandidates({ chatId, query: mentionSearchText }),
+    enabled: isMentionModeActive && mentionSearchText.trim().length > 0,
+  });
 
-      return option.title?.match(pattern) || option.subtitle?.match(pattern);
-    });
-  }, [options, mentionSearchText]);
+  const validOptions = useMemo(() => {
+    const options: MentionOption[] = mentionCandidates.map((candidate) => ({
+      id: candidate.id,
+      title: candidate.priority_order + (candidate.nickname || candidate.id),
+      subtitle: formatUserId(candidate.id, true)?.display,
+      type: 'contact' as const,
+      priority: candidate.priority_order,
+      contact: {
+        id: candidate.id,
+        nickname: candidate.nickname,
+        avatarImage: candidate.avatarImage,
+        bio: candidate.bio,
+        status: candidate.status,
+        color: candidate.color,
+      } as db.Contact,
+    }));
+
+    // Add "All" option if we have a search term
+    if (isMentionModeActive && mentionSearchText.trim().length > 0) {
+      const allOption: MentionOption = {
+        id: ALL_MENTION_ID,
+        title: 'All',
+        subtitle: 'All members in this channel',
+        type: 'group',
+        priority: 0,
+      };
+
+      // Only include "All" if it matches the search
+      if ('all'.includes(mentionSearchText.toLowerCase())) {
+        options.unshift(allOption);
+      }
+    }
+
+    return options.sort((a, b) => a.priority - b.priority);
+  }, [mentionCandidates, isMentionModeActive, mentionSearchText]);
 
   const hasMentionCandidates = useMemo(() => {
     return validOptions.length > 0;
