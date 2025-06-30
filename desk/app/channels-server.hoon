@@ -408,7 +408,7 @@
   |=  =egg-any:gall
   =.  pimp  ~
   ?-  -.egg-any
-      ?(%15 %16)
+      ?(%15 %16 %17)
     ?.  ?=(%live +<.egg-any)
       ~&  [dap.bowl %egg-any-not-live]
       cor
