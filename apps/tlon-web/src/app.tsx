@@ -510,7 +510,6 @@ function ConnectedWebApp() {
   ]);
 
   useRenderCount('ConnectedWebApp');
-  // useInviteParam();
 
   if (!dbIsLoaded) {
     return (
