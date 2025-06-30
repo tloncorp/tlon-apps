@@ -75,6 +75,8 @@ const ConnectedAction = memo(function ConnectedAction({
   const { label } = useDisplaySpecForChannelActionId(actionId, {
     post,
     channel,
+    currentUserId,
+    currentUserIsAdmin,
   });
   const action = useMemo(
     () => ChannelAction.staticSpecForId(actionId),
@@ -267,9 +269,13 @@ export function useDisplaySpecForChannelActionId(
   {
     post,
     channel,
+    currentUserId,
+    currentUserIsAdmin,
   }: {
     post: db.Post;
     channel: db.Channel;
+    currentUserId: string;
+    currentUserIsAdmin: boolean;
   }
 ): {
   label: string;
@@ -295,11 +301,25 @@ export function useDisplaySpecForChannelActionId(
         return { label: 'Copy message text' };
 
       case 'delete':
+        if (post.authorId !== currentUserId && currentUserIsAdmin) {
+          return {
+            label:
+              'Admin: ' +
+              (postTerm === 'message' ? 'Delete message' : 'Delete post'),
+          };
+        }
         return {
           label: postTerm === 'message' ? 'Delete message' : 'Delete post',
         };
 
       case 'edit':
+        if (post.authorId !== currentUserId && currentUserIsAdmin) {
+          return {
+            label:
+              'Admin: ' +
+              (postTerm === 'message' ? 'Edit message' : 'Edit post'),
+          };
+        }
         return {
           label: postTerm === 'message' ? 'Edit message' : 'Edit post',
         };
@@ -334,5 +354,14 @@ export function useDisplaySpecForChannelActionId(
         return { label: post.hidden ? showMsg : hideMsg };
       }
     }
-  }, [channel?.type, isMuted, post.hidden, id, postTerm]);
+  }, [
+    id,
+    postTerm,
+    post.authorId,
+    post.hidden,
+    currentUserId,
+    currentUserIsAdmin,
+    isMuted,
+    channel?.type,
+  ]);
 }
