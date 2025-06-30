@@ -128,20 +128,20 @@
             ==
           ::
               %group-invite
-            =+  .^(=gangs:v2:gv %gx /(scot %p our)/groups/(scot %da now)/gangs/noun)
+            =+  .^(=foreigns:v7:gv %gx /(scot %p our)/groups/(scot %da now)/v1/foreigns/noun)
             :~  [%ship ship.event]
                 ' sent you an invite to '
-                ?~  gang=(~(get by gangs) group.event)  'a group'
-                ?~  pev.u.gang  'a group'
-                [%emph title.meta.u.pev.u.gang]
+                ?~  foreign=(~(get by foreigns) group.event)  'a group'
+                ?~  preview.u.foreign  'a group'
+                [%emph title.meta.u.preview.u.foreign]
             ==
           ::
               ?(%group-ask %group-join %group-kick %group-role)
-            =+  .^  =group:g:a  %gx
+            =+  .^  =group:v7:gv  %gx
                   (scot %p our)
                   %groups
                   (scot %da now)
-                  /groups/(scot %p p.group.event)/[q.group.event]/group
+                  /v2/groups/(scot %p p.group.event)/[q.group.event]/noun
                 ==
             ?-  -<.event
                 %group-ask

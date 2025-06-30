@@ -165,6 +165,9 @@
 ::  %done: preview update received
 ::  %error: error occured
 ::
+::  1. build a general one-shot subscription library with auto retry.
+::  2. use a remote scry!
+::
 +$  lookup  ?(%preview %done %error)
 ::  $foreign: view of a foreign group
 ::
@@ -274,14 +277,14 @@
 ::  .meta: group meteadata
 ::  .privacy: admission privacy
 ::  .banned: admission restrictions
-::  .guests: list of ships to invite
+::  .members: group members and their roles
 ::
 +$  create-group
   $:  name=term
       meta=data:meta
       =privacy
       =banned
-      guests=(set ship)
+      members=(jug ship role-id)
   ==
 ::XX use $plan from channels
 +$  post-key  [post=time reply=(unit time)]
@@ -364,6 +367,17 @@
     ::
       [%leave =flag]
   ==
+::  $c-group: group command
+::
+::  %meta: update the metadata
+::  %entry: update the entry policy
+::  %seat: update seats
+::  %role: update roles
+::  %update: update a channel
+::  %section: update a section
+::  %flag-content: flag a post
+::  %delete: delete the group
+::
 +$  c-group
   $%  [%meta meta=data:meta]
       [%entry =c-entry]

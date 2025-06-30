@@ -216,7 +216,7 @@
     $:  %3
         v-channels=(map nest:c v-channel-2)
         voc=(map [nest:c plan:c] (unit said:c))
-        pins=(list nest:c)  ::TODO  vestigial, in groups-ui now, remove me
+        pins=(list nest:c) 
         hidden-posts=(set id-post:c)
       ::
         ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
@@ -230,7 +230,7 @@
     $:  %2
         v-channels=(map nest:c v-channel-2)
         voc=(map [nest:c plan:c] (unit said:c))
-        pins=(list nest:c)  ::TODO  vestigial, in groups-ui now, remove me
+        pins=(list nest:c)
         hidden-posts=(set id-post:c)
       ::
         ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
@@ -735,9 +735,9 @@
     `nest
   =*  r-group  r-group.r-groups
   ?+    r-group  cor
-      [%seat * %add-roles *]     (recheck-perms affected ~)
-      [%seat * %del-roles *]     (recheck-perms affected ~)
-      [%channel * %edit *]       (recheck-perms affected ~)
+      [%seat * %add-roles *]       (recheck-perms affected ~)
+      [%seat * %del-roles *]       (recheck-perms affected ~)
+      [%channel * %edit *]         (recheck-perms affected ~)
       [%channel * %add-readers *]  (recheck-perms affected ~)
       [%channel * %del-readers *]  (recheck-perms affected ~)
   ::
@@ -2413,13 +2413,13 @@
     |=  sects=(set sect:v0:gv)
     =/  =flag:g  group.perm.perm.channel
     =/  exists-path
-      (scry-path %groups /groups/(scot %p p.flag)/[q.flag]/noun)
+      (scry-path %groups /groups/(scot %p p.flag)/[q.flag])
     =+  .^(exists=? %gu exists-path)
     ?.  exists  ca-core
     =/  =path
       %+  scry-path  %groups
-      /groups/(scot %p p.flag)/[q.flag]/v2/group-ui-1
-    =+  .^(group=group-ui:v5:gv %gx path)
+      /v2/groups/(scot %p p.flag)/[q.flag]/noun
+    =+  .^(group=group:v7:gv %gx path)
     ?.  (~(has by channels.group) nest)  ca-core
     ::  toggle the volume based on permissions
     =/  =source:activity  [%channel nest flag]

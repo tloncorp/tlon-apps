@@ -839,7 +839,7 @@
             meta
             privacy
             banned
-            ~(key by members)  ::  guests
+            members
         ==
       --
     --

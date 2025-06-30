@@ -176,7 +176,6 @@
           %create
         =/  =flag:g  [our.bowl name.create-group.c-groups]
         ?<  (~(has by groups) flag)
-        ?>  from-self
         se-abet:(se-c-create:se-core flag create-group.c-groups)
       ::
           %group
@@ -215,7 +214,6 @@
         ::  deprecated
         %group-action-3
       =+  !<(=action:v2:gv vase)
-      ~&  group-action-3+action
       =*  flag  p.action
       =*  diff  q.q.action
       ?:  ?=(%del -.diff)
@@ -291,7 +289,6 @@
     ::
         %group-foreign-action-1
       =+  !<(=a-foreigns:v7:gv vase)
-      ~&  group-foreign-action-1+a-foreigns
       ?-    -.a-foreigns
           %foreign
         =/  foreign-core  (fi-abed:fi-core flag.a-foreigns)
@@ -303,7 +300,6 @@
       ==
     ::
     ::  deprecated gang interface
-    ::
     ::
         %group-join
       ?>  from-self
@@ -359,17 +355,6 @@
       =/  =a-foreigns:v7:gv
         [%foreign flag %decline token.invite]
       (poke:cor group-foreign-1+!>(a-foreigns))
-    ::
-  ::
-  ::
-      ::XX is this used for anything important?
-      ::   [%group-wake flag:g]
-      :: =+  ;;(=flag:g +.q.vase)
-      :: ?.  |(=(our src):bowl =(p.flag src.bowl))
-      ::   cor
-      :: ?~  g=(~(get by groups) flag)
-      ::   cor
-      :: go-abet:(go-safe-sub:(go-abed:group-core:cor flag) |)
   ::
     %reset-all-perms  reset-all-perms
   ::
@@ -410,8 +395,17 @@
                 cor(pimp `|+egg-any)
     ==
   ::
+      ::XX is this used for anything important?
+      ::   [%group-wake flag:g]
+      :: =+  ;;(=flag:g +.q.vase)
+      :: ?.  |(=(our src):bowl =(p.flag src.bowl))
+      ::   cor
+      :: ?~  g=(~(get by groups) flag)
+      ::   cor
+      :: go-abet:(go-safe-sub:(go-abed:group-core:cor flag) |)
+  ::
       %handle-http-request
-    ::  we may (in some Tlon hosting circumstances) have been bound to serve
+    ::  we may (in some hosting circumstances) have been bound to serve
     ::  on the root path, making us act as a catch-all for http requests.
     ::  handle all requests that hit us by redirecting back into the web app.
     ::
@@ -733,10 +727,10 @@
     ::  client paths
     ::
   ::
-    [%v1 %groups ~]  cor
+    [%v1 %groups ~]  ?>(from-self cor)
   ::
     ::  deprecated
-    [%groups %ui ~]  cor
+    [%groups %ui ~]  ?>(from-self cor)
   ::
       [%v1 %foreigns ship=@ name=@ rest=*]
     =+  ship=(slav %p ship.pole)
@@ -748,14 +742,16 @@
   ::
       ::  deprecated
       [%gangs ship=@ name=@ %preview ~]
+    ?>  from-self
     $(pole /v1/foreigns/[ship.pole]/[name.pole]/preview)
   ::
       ::  deprecated
       [%gangs %index ship=@ ~]
+    ?>  from-self
     $(pole /v1/foreigns/index/[ship.pole])
   ::
     ::  deprecated
-    [%gangs %updates ~]  cor
+    [%gangs %updates ~]  ?>(from-self cor)
   ::
      ::TODO  rename to channels in the new API
      [%chan app=@ ship=@ name=@ rest=*]
@@ -1326,13 +1322,13 @@
       ?:  (se-is-admin-update u-group.update)
         se-admin-subscription-paths
       se-subscription-paths
-    ?:  =(~ paths)
-      se-core
+    ?:  =(~ paths)  se-core
     (give %fact paths group-update+!>(update))
   ::  +se-c-create: create a group
   ::
   ++  se-c-create
     |=  [=flag:g create=create-group:g]
+    ?>  from-self
     ?>  ((sane %tas) name.create)
     =/  =flag:g  [our.bowl name.create]
     =/  =admissions:g
@@ -1372,10 +1368,25 @@
     =.  joined.seat  now.bowl
     =.  roles.seat  (~(put in roles.seat) %admin)
     =.  seats.group  (~(put by seats.group) our.bowl seat)
-    =.  groups  (~(put by groups) flag [%pub *log:g] group)
-    ::TODO invite all the ships on the guest list.
+    ::  populate group members and their roles
     ::
-    (se-update:(se-abed flag) [%create group])
+    =.  group
+      %+  roll  ~(tap by members.create)
+      |=  [[=ship roles=(set role-id:g)] =_group]
+      =/  =seat:g  (~(gut by seats.group) ship *seat:g)
+      =.  joined.seat  now.bowl
+      =.  roles.seat  roles
+      =.  seats.group  (~(put by seats.group) ship seat)
+      =.  roles.group  
+        %-  ~(gas by roles.group)
+        %+  turn  ~(tap in roles)
+        |=  =role-id:g
+        [role-id *role:g]
+      group
+    =.  groups  (~(put by groups) flag [%pub *log:g] group)
+    =+  se-core=(se-abed flag)
+    =.  se-core  (se-update:se-core [%create group])
+    (se-send-invites:se-core ~(key by members.create))
   ::  +se-c-delete: delete the group
   ::
   ++  se-c-delete
@@ -1394,6 +1405,7 @@
   ++  se-c-join
     |=  tok=(unit token:g)
     ^+  se-core
+    ?<  (se-is-banned src.bowl)
     =^  access=?  ad
       (se-admit src.bowl tok)
     ~|  %se-c-join-access-denied
@@ -1413,7 +1425,8 @@
     |=  story=(unit story:s:g) ::XX something is messed up with story imports
     ^+  se-core
     ?<  (se-is-banned src.bowl)
-    ?:  (se-is-joined src.bowl)  se-core
+    ?:  (se-is-joined src.bowl)  
+      se-core
     ?:  ?=(%public privacy.ad)
       ::  public group: wait until we receive the ask watch
       se-core
@@ -1439,6 +1452,7 @@
   ::
   ++  se-c-leave
     ^+  se-core
+    ?<  (se-is-banned src.bowl)
     ?:  (~(has by seats.group) src.bowl)
       (se-c-seat (sy src.bowl ~) [%del ~])
     ?:  (~(has by requests.ad) src.bowl)
@@ -1704,7 +1718,7 @@
         =.  se-core
           (give:se-core %fact ~[path] cage)
         (give:se-core %kick ~[path] ~)
-      (se-update:se-core [%entry %ask %del reqs])
+      (se-update [%entry %ask %del reqs])
     ::
         %deny
       =/  reqs=(set ship)
@@ -1718,13 +1732,13 @@
         =.  se-core
           (give:se-core %kick ~[(weld se-area /ask/(scot %p ship))] ~)
         se-core
-      (se-update:se-core [%entry %ask %del reqs])
+      (se-update [%entry %ask %del reqs])
     ==
   ::  +se-c-seat: execute a seat command
   ::
   ::  seats are used to manage group membership.
-  ::  a seat can be created in two ways: when a user joins
-  ::  the group, and when group members are manually added
+  ::  seats can be created in two ways: when a user joins
+  ::  the group or when group members are manually added
   ::  by a group admin.
   ::
   ::  the case of a user join can be detected by verifying
@@ -1763,7 +1777,7 @@
         (se-update:se-core %seat (sy ship ~) [%add seat])
       ::  send invites to manually added ships
       ::
-      =?  se-core  !user-join  (se-send-invites flag ships)
+      =?  se-core  !user-join  (se-send-invites ships)
       se-core
     ::
         %del
@@ -1820,7 +1834,7 @@
   ::  +se-send-invites: invite ships
   ::
   ++  se-send-invites
-    |=  [=flag:g ships=(set ship)]
+    |=  ships=(set ship)
     ^+  se-core
     %+  roll  ~(tap in ships)
     |=  [=ship =_se-core]
@@ -1828,14 +1842,12 @@
     =*  acc  +<+
     =,  se-core
     =/  =wire  (weld se-area /invite/(scot %p her))
-    ~&  inviting+her
     =^  tok=(unit token:g)  acc
       ?:  ?=(%public privacy.ad)
         ::XX  returning just a unit compiles,
         ::    uncovering a compiler bug!
         [~ acc]
       (se-c-entry-token [%add personal+her ~ ~ |])
-    ~&  inviting-2+her
     =/  =invite:g
         :*  flag
             now.bowl
@@ -2136,6 +2148,7 @@
   ::
   ++  se-watch-index
     ^+  se-core
+    ?<  (se-is-banned src.bowl)
     =;  =cage
       =.  se-core  (emit %give %fact ~ cage)
       (emit %give %kick ~ ~)
@@ -2393,6 +2406,7 @@
   ++  go-leave
     |=  send-leave=?
     ^+  go-core
+    ?>  from-self
     =.  cor
       (submit-activity [%del %group flag])
     ::NOTE  we leave all channels, not just those that
@@ -2417,6 +2431,7 @@
   ::
   ++  go-a-invite
     |=  =a-invite:g
+    ?>  from-self
     ?:  =(ship.a-invite src.bowl)  
       go-core
     ?:  &(?=(~ token.a-invite) !?=(%public privacy.ad))
@@ -2451,7 +2466,6 @@
   ::
   ++  go-a-group
     |=  =a-group:g
-    ~&  go-a-group+-.a-group
     ^+  go-core
     ?>  from-self
     (go-send-command /command `c-group:g`a-group)
@@ -3308,7 +3322,6 @@
   ++  fi-a-foreign
     |=  =a-foreign:g
     ^+  fi-core
-    ~&  fi-a-foreign+-.a-foreign
     ?>  from-self
     ?-  -.a-foreign
       %join     (fi-join token.a-foreign)
@@ -3443,7 +3456,7 @@
   ::
   ++  fi-watch
     |=  =(pole knot)
-    ~&  fi-watch+pole
+    ?>  from-self
     ^+  fi-core
     ?+    pole  ~|(bad-fi-watch+pole !!)
     ::
@@ -3469,6 +3482,7 @@
   ++  fi-watch-index
     |=  [ver=?(%v0 %v1) =ship]
     ^+  fi-core
+    ?>  from-self
     =.  cor  (emil (get-index:fi-pass ship))
     fi-core
   ::TODO unfortunate inherintance from old groups:

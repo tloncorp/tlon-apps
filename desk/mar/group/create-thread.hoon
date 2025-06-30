@@ -4,15 +4,15 @@
   =,  dejs:format
   |%
   ++  create-group
-    ^-  $-(json create-group:gvt)
+    ^-  $-(json create-group:gt)
     %-  ot
-    :~  'groupId'^flag:dejs:gvj
+    :~  'groupId'^flag:dejs:gj
         'meta'^meta
-        'guestList'^(as ship:dejs:gvj)
+        'guestList'^(as ship:dejs:gj)
         'channels'^(ar create-channel)
     ==
   ++  create-channel
-    ^-  $-(json create-channel:gvt)
+    ^-  $-(json create-channel:gt)
     %-  ot
     :~  'channelId'^nest:dejs:cj
         'meta'^meta
@@ -26,7 +26,7 @@
         'cover'^(uf '' so)
     ==
   --
-|_  =create-group:gvt
+|_  =create-group:gt
 ++  grad  %noun
 ++  grow
   |%
@@ -34,7 +34,7 @@
   --
 ++  grab
   |%
-  ++  noun  create-group:gvt
+  ++  noun  create-group:gt
   ++  json  ^create-group
   --
 --

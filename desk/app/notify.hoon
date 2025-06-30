@@ -594,7 +594,7 @@
           (scot %p our.bowl)
           %groups
           (scot %da now.bowl)
-          /groups/(scot %p entity.i.gs)/[name.i.gs]/fleet/ships/ships
+          /groups/(scot %p entity.i.gs)/[name.i.gs]/seats/ships/noun
         ==
     ?:  (~(has in members) who)
       %.y

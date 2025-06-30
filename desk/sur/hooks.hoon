@@ -85,9 +85,11 @@
 ::    .src: the ship that triggered the hook
 ::    .eny: entropy for random number generation or key derivation
 ::
+::TODO  this type should source versioned types from other
+::      agents.
 +$  bowl
   $:  channel=(unit [=nest v-channel])
-      group=(unit group-ui:v2:gv)
+      group=(unit group:v7:gv)
       channels=v-channels
       =hook
       =config
@@ -168,7 +170,7 @@
 ::           up the same hook at a later time.
 +$  effect
   $%  [%channels =a-channels]
-      [%groups =a-groups:g]
+      [%groups =a-groups:v7:gv]
       [%activity =action:a]
       [%dm =action:dm:ch]
       [%club =action:club:ch]

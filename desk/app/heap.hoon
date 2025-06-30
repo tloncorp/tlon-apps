@@ -87,7 +87,7 @@
 ::
 ++  watch-groups
   ^+  cor
-  (emit %pass /groups %agent [our.bowl %groups] %watch /groups)
+  (emit %pass /groups %agent [our.bowl %groups] %watch /v1/groups)
 ::
 ++  poke
   |=  [=mark =vase]
@@ -115,11 +115,11 @@
     (toggle-curio toggle)
   ::
       %leave-old-channels
-    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/groups
-    =/  groups  .^(groups:v2:gv %gx groups-path)
+    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/noun
+    =/  groups  .^(groups:v7:gv %gx groups-path)
     =/  heap-flags-from-groups
       %+  turn  ~(tap by groups)
-      |=  [group-flag=flag:gv group=group:v2:gv]
+      |=  [group-flag=flag:gv group=group:v7:gv]
       %+  turn
         %+  skim  ~(tap by channels.group)
         |=  [=nest:gv *]
@@ -197,13 +197,13 @@
     ++  can-nest
       ^-  ?
       =/  gop  (~(got by groups) group.req)
-      %-  ~(any in bloc.gop)
-      ~(has in sects:(~(got by fleet.gop) our.bowl))
+      %-  ~(any in admins.gop)
+      ~(has in roles:(~(got by seats.gop) our.bowl))
     ::
     ++  groups
-      .^  groups:v2:gv
+      .^  groups:v7:gv
         %gx
-        /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/groups
+        /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/noun
       ==
     --
   --
@@ -354,8 +354,8 @@
       (slog tank u.p.sign)
     ::
         %fact
-      ?.  =(%group-action-3 p.cage.sign)  cor
-      (take-groups !<(=action:v2:gv q.cage.sign))
+      ?.  =(%group-response-1 p.cage.sign)  cor
+      (take-groups !<(=r-groups:v7:gv q.cage.sign))
     ==
   ==
 ++  watch-epic
@@ -396,35 +396,33 @@
   ==
 ::
 ++  take-groups
-  |=  =action:v2:gv
+  |=  =r-groups:v7:gv
   =/  affected=(list flag:h)
     %+  murn  ~(tap by stash)
     |=  [=flag:h =heap:h]
-    ?.  =(p.action group.perm.heap)  ~
+    ?.  =(flag.r-groups group.perm.heap)  ~
     `flag
-  =/  diff  q.q.action
-  ?+  diff  cor
-      [%fleet * %del ~]
+  =*  r-group  r-group.r-groups
+  ?+    r-group  cor
+      [%seat * %del ~]
     ~&  "%heap: revoke perms for {<affected>}"
     %+  roll  affected
     |=  [=flag:h co=_cor]
     ^+  cor
-    %+  roll  ~(tap in p.diff)
+    %-  ~(rep in ships.r-group)
     |=  [=ship ci=_cor]
     ^+  cor
     =/  he  (he-abed:he-core:ci flag)
     he-abet:(he-revoke:he ship)
   ::
-    [%fleet * %add-sects *]    (recheck-perms affected ~)
-    [%fleet * %del-sects *]    (recheck-perms affected ~)
-    [%channel * %edit *]       (recheck-perms affected ~)
-    [%channel * %del-sects *]  (recheck-perms affected ~)
-    [%channel * %add-sects *]  (recheck-perms affected ~)
+    [%seat * %add-roles *]       (recheck-perms affected ~)
+    [%seat * %del-roles *]       (recheck-perms affected ~)
+    [%channel * %edit *]         (recheck-perms affected ~)
+    [%channel * %add-readers *]  (recheck-perms affected ~)
+    [%channel * %del-readers *]  (recheck-perms affected ~)
   ::
-      [%cabal * %del *]
-    =/  =sect:v0:gv  (slav %tas p.diff)
-    %+  recheck-perms  affected
-    (~(gas in *(set sect:v0:gv)) ~[p.diff])
+      [%role * %del *]
+    (recheck-perms affected roles.r-group)
   ==
 ::
 ++  recheck-perms

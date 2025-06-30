@@ -168,9 +168,7 @@
     ``ui-heads+!>(`mixed-heads:u`[chan chat])
   ::
       [%x %v2 %init ~]
-    =+  .^(=groups-ui:v2:gv (scry %gx %groups /v0/ui/groups/noun))
-    ::XX backcompat
-    =/  =gangs:v2:gv  ~
+    =+  .^([=groups-ui:v2:gv =gangs:v2:gv] (scry %gx %groups /v1/init/noun))
     =+  .^([* =channels:d] (scry %gx %channels /v2/init/noun))
     =+  .^(chat=chat-0:u (scry %gx %chat /init/noun))
     =+  .^(=activity:v2:old:a (scry %gx %activity /activity/noun))

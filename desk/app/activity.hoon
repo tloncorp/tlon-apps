@@ -1199,8 +1199,8 @@
   =/  soft  (~(got by old-volumes:a) %soft)
   ::  bail early if we've set something other than the old default
   ?.  =(soft base-volume)  cor
-  =+  .^(=groups-ui:v2:gv %gx (scry-path %groups /groups/light/v1/noun))
-  =/  groups  ~(tap by groups-ui)
+  =+  .^(=groups:v7:gv %gx (scry-path %groups /v2/groups/noun))
+  =+  groups=~(tap by groups)
   ::  iterate through all groups and set volume to old default
   |-
   ?~  groups
@@ -1209,7 +1209,7 @@
       (~(put by volume-settings) [%base ~] default-volumes:a)
     cor
   =*  next  $(groups t.groups)
-  =/  [=flag:gv group=group-ui:v2:gv]  i.groups
+  =/  [=flag:gv *]  i.groups
   ?:  (~(has by volume-settings) [%group flag])  next
   =.  volume-settings  (~(put by volume-settings) [%group flag] soft)
   next
@@ -1354,13 +1354,13 @@
     ?~  entries  [checkers cor]
     =/  [=nest:c =channel:c]  i.entries
     =*  group  group.perm.channel
-    =+  .^(exists=? %gu (scry-path %groups /groups/(scot %p p.group)/[q.group]/noun))
+    =+  .^(exists=? %gu (scry-path %groups /groups/(scot %p p.group)/[q.group]))
     ?.  exists  $(entries t.entries)
     =^  can-read  checkers
       ?^  gate=(~(get by checkers) group)  [u.gate checkers]
       =/  =path
         %+  scry-path  %groups
-        /groups/(scot %p p.group)/[q.group]/can-read/noun
+        /groups/(scot %p p.group)/[q.group]/channels/can-read/noun
       =/  test=$-([ship nest:gv] ?)
         =>  [path=path nest=nest:gv ..zuse]  ~+
         .^($-([ship nest] ?) %gx path)

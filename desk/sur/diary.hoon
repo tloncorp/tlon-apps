@@ -314,8 +314,8 @@
       name=term
       title=cord
       description=cord
-      readers=(set sect:v0:gv)
-      writers=(set sect:v0:gv)
+      readers=(set role-id:v7:gv)
+      writers=(set role-id:v7:gv)
   ==
 ::
 +$  post-toggle

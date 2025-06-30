@@ -571,11 +571,10 @@
 ::  
 ++  take-groups
   |=  =r-groups:v7:gv
-  =*  flag  flag.r-groups
   =/  affected=(list nest:c)
     %+  murn  ~(tap by v-channels)
     |=  [=nest:c channel=v-channel:c]
-    ?.  =(flag group.perm.perm.channel)  ~
+    ?.  =(flag.r-groups group.perm.perm.channel)  ~
     `nest
   =*  r-group  r-group.r-groups
   ?+    r-group  cor
@@ -689,18 +688,19 @@
     =/  =wire    (snoc ca-area %create)
     (emit %pass wire %agent dock %poke group-action-3+!>(action))
     ::
-    ::  +can-nest: does group exist, are we allowed
+    ::  +can-nest: does the group exist, are we an admin
     ::
     ++  can-nest
       ^-  ?
       =/  groups
-        .^  groups:v5:gv
+        .^  groups:v7:gv
           %gx
-          /(scot %p our.bowl)/groups/(scot %da now.bowl)/v1/groups/groups-1
+          /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/noun
         ==
-      =/  gop  (~(got by groups) group.new)
-      %-  ~(any in bloc.gop)
-      ~(has in sects:(~(got by fleet.gop) our.bowl))
+      =+  group=(~(get by groups) group.new)
+      ?~  group  |
+      =+  seat=(~(got by seats.u.group) our.bowl)
+      !=(~ (~(int in admins.u.group) roles.seat))
     --
   ::
   ++  ca-c-channel
@@ -1026,14 +1026,14 @@
 ++  get-hook-bowl
   |=  [channel=(unit [nest:c v-channel:c]) =config:h]
   ^-  bowl:h
-  =/  group=(unit group-ui:v2:gv)
+  =/  group=(unit group:v7:gv)
     ?~  channel  ~
     =*  flag  group.perm.perm.+.u.channel
     %-  some
-    ?.  .^(? %gu (scry-path %groups /$))  *group-ui:v2:gv
+    ?.  .^(? %gu (scry-path %groups /$))  *group:v7:gv
     ?.  .^(? %gu (scry-path %groups /groups/(scot %p p.flag)/[q.flag]))
-      *group-ui:v2:gv
-    .^(group-ui:v2:gv %gx (scry-path %groups /groups/(scot %p p.flag)/[q.flag]/v1/group-ui))
+      *group:v7:gv
+    .^(group:v7:gv %gx (scry-path %groups /groups/(scot %p p.flag)/[q.flag]/v2/noun))
   :*  channel
       group
       v-channels
@@ -1262,7 +1262,7 @@
     (emit [%pass /hooks/effect %agent [our.bowl %channels] %poke cage])
   ::
       %groups
-    =/  =cage  group-action-5+!>(a-groups.effect)
+    =/  =cage  group-action-4+!>(`a-groups:v7:gv`a-groups.effect)
     (emit [%pass /hooks/effect %agent [our.bowl %groups] %poke cage])
   ::
       %activity
