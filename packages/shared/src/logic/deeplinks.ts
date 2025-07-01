@@ -75,8 +75,7 @@ export async function getMetadataFromInviteToken(token: string) {
       `${env.INVITE_PROVIDER}/lure/${token}/metadata`,
       {
         method: 'GET',
-        // hack: make browser do "simple request" that doesn't require OPTIONS preflight
-        headers: { 'Content-Type': 'text/plain' },
+        headers: { 'Content-Type': 'application/json' },
       }
     );
   } catch (e) {
@@ -91,12 +90,12 @@ export async function getMetadataFromInviteToken(token: string) {
 
   let responseMeta: ProviderMetadataResponse | null = null;
   try {
-    const text = await providerResponse.text();
+    const json = await providerResponse.json();
     logger.log(`provider response for token ${token}`, {
       status: providerResponse.status,
-      text,
+      json,
     });
-    responseMeta = JSON.parse(text) as ProviderMetadataResponse;
+    responseMeta = json as ProviderMetadataResponse;
   } catch (e) {
     logger.trackError('failed to parse provider response', {
       inviteToken: token,
