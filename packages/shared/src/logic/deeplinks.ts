@@ -1,4 +1,4 @@
-import { ContentReference, proxyRequest } from '../api';
+import { ContentReference } from '../api';
 import { createDevLogger } from '../debug';
 import { getConstants } from '../domain';
 import { citeToPath } from '../urbit';
