@@ -2,7 +2,7 @@
 /-  meta
 /+  default-agent, verb, dbug
 /+  cur=curios
-/+  volume, cutils=channel-utils
+/+  volume, cutils=channel-utils, em=emojimart
 /+  epos-lib=saga
 ::  performance, keep warm
 /+  heap-json
@@ -551,7 +551,7 @@
       `[%reply u.replying.curio %edit time -.u.edit]
     ?~  command  ~
     =/  =cage
-      :-  %channel-action
+      :-  %channel-action-1
       !>(`a-channels:c`[%channel [%heap flag] %post u.command])
     `[%pass /migrate %agent [our.bowl %channels] %poke cage]
   ::
@@ -572,6 +572,7 @@
     :-  [%heap flag]
     =/  posts=v-posts:c  (convert-posts curios.heap)
     %*    .  *v-channel:c
+        count   (wyt:on-v-posts:c posts)
         posts   posts
         log     ?.(log ~ (convert-log curios.heap posts perm.heap log.heap))
         view    [1 view.heap]
@@ -597,24 +598,36 @@
       %+  ~(put by index)  u.replying.curio
       (put:on-v-replies:c old-replies time `(convert-reply time curio))
     %+  gas:on-v-posts:c  *v-posts:c
-    %+  murn  curios
-    |=  [=time =curio:h]
-    ^-  (unit [id-post:c (unit v-post:c)])
-    ?^  replying.curio  ~
+    =|  posts=(list [id-post:c (unit v-post:c)])
+    =<  posts
+    %+  roll  curios
+    |=  [[=time =curio:h] count=@ud =_posts]
+    ^+  [count posts]
+    ?^  replying.curio
+      [count posts]
     =/  replies=v-replies:c  (~(gut by index) time *v-replies:c)
-    (some time `(convert-post time curio replies))
+    =.  count  +(count)
+    :-  count
+    :_  posts
+    [time `(convert-post time count curio replies)]
   ::
   ++  convert-post
-    |=  [id=@da old=curio:h replies=v-replies:c]
+    |=  [id=@da seq=@ud old=curio:h replies=v-replies:c]
     ^-  v-post:c
-    [[id replies (convert-feels feels.old)] %0 (convert-essay +.old)]
+    =/  modified-at=@da
+      %-  ~(rep in replied.old)
+      |=  [=time mod=_id]
+      ?:((gth time mod) time mod)
+    [[id seq modified-at replies (convert-feels feels.old)] %0 (convert-essay +.old)]
   ::
   ++  convert-feels
     |=  old=(map ship feel:h)
     ^-  v-reacts:c
     %-  ~(run by old)
     |=  =feel:h
-    [%0 `feel]
+    ?~  react=(kill:em feel)
+      [%0 `[%any feel]]
+    [%0 `u.react]
   ::
   ++  convert-reply
     |=  [id=@da old=curio:h]
@@ -629,7 +642,10 @@
   ++  convert-essay
     |=  old=heart:h
     ^-  essay:c
-    [(convert-memo old) %heap title.old]
+    =/  meta=(unit data:meta)
+      ?~  title.old  ~
+      (some %*(. *data:meta title u.title.old))
+    [(convert-memo old) /heap meta ~]
   ::
   ++  convert-story
     |=  old=content:h
@@ -681,7 +697,7 @@
         ::  december migration
         %view                     [%view 0 p.diff]~
         %create
-      :-  [%create p.diff]
+      :-  [%create p.diff ~]
       %+  murn  (tap:on:curios:h q.diff)
       |=  [=^time =curio:h]
       =/  new-post  (get:on-v-posts:c posts time)

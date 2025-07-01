@@ -1,5 +1,6 @@
 import { FlashList } from '@shopify/flash-list';
-import { useIsWindowNarrow } from '@tloncorp/ui';
+import { createDevLogger } from '@tloncorp/shared';
+import { getNativeEmoji, useIsWindowNarrow } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
 import { KeyboardAvoidingView } from '@tloncorp/ui';
 import { Sheet } from '@tloncorp/ui';
@@ -21,6 +22,7 @@ import { VisuallyHidden } from 'tamagui';
 import { SearchBar } from '../SearchBar';
 
 const EMOJI_SIZE = 32;
+const logger = createDevLogger('EmojiPickerSheet', false);
 
 const MemoizedEmojiButton = React.memo(function MemoizedEmojiButtonComponent({
   item,
@@ -38,14 +40,14 @@ const MemoizedEmojiButton = React.memo(function MemoizedEmojiButtonComponent({
       justifyContent="center"
       alignItems="center"
     >
-      <SizableEmoji shortCode={item} fontSize={EMOJI_SIZE} />
+      <SizableEmoji emojiInput={item} fontSize={EMOJI_SIZE} />
     </Button>
   );
 });
 
 export function EmojiPickerSheet(
   props: ComponentProps<typeof Sheet> & {
-    onEmojiSelect: (shortCode: string) => void;
+    onEmojiSelect: (value: string) => void;
   }
 ) {
   const [scrolling, setIsScrolling] = useState(false);
@@ -79,7 +81,13 @@ export function EmojiPickerSheet(
 
   const handleEmojiSelect = useCallback(
     (shortCode: string) => {
-      onEmojiSelect(shortCode);
+      const nativeEmoji = getNativeEmoji(shortCode);
+      if (!nativeEmoji) {
+        // should never hit this, but just in case
+        logger.trackError(`No native emoji found`, { shortCode });
+        return;
+      }
+      onEmojiSelect(nativeEmoji);
       props.onOpenChange?.(false);
     },
     [onEmojiSelect, props]

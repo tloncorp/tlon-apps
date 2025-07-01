@@ -1,3 +1,5 @@
+import { Metadata } from './meta';
+
 export const allRanks = ['czar', 'king', 'duke', 'earl', 'pawn'] as const;
 export type Rank = (typeof allRanks)[number];
 
@@ -7,19 +9,9 @@ export interface ViewProps {
 
 export type PinnedGroupsResponse = string[];
 
-export interface GroupMeta {
-  title: string;
-  description: string;
-  image: string;
-  cover: string;
-}
+export type GroupMeta = Metadata;
 
-export interface OptionalGroupMeta {
-  title?: string;
-  description?: string;
-  image?: string;
-  cover?: string;
-}
+export type OptionalGroupMeta = Partial<GroupMeta>;
 
 export interface Cabal {
   meta: GroupMeta;
@@ -34,7 +26,6 @@ export interface GroupChannel {
   meta: GroupMeta;
   zone: Zone;
   readers: string[];
-  writers: string[];
   join: boolean;
 }
 

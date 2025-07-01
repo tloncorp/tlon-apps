@@ -1,7 +1,13 @@
 // tamagui-ignore
 import * as db from '@tloncorp/shared/db';
-import { Text } from '@tloncorp/ui';
+import {
+  PlaintextPreviewConfig,
+  convertContent,
+  plaintextPreviewOf,
+} from '@tloncorp/shared/logic';
+import { RawText, Text } from '@tloncorp/ui';
 import React, { PropsWithChildren } from 'react';
+import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -187,7 +193,16 @@ function ChatMessageFixtureWrapper({
   );
 }
 
-const ScrollFixture = ({ postGroups }: { postGroups: PostGroup[] }) => {
+const ScrollFixture = ({
+  postGroups,
+  plaintextPreviewConfig,
+}: {
+  postGroups: PostGroup[];
+  plaintextPreviewConfig?: {
+    enabled: boolean;
+    inline: boolean;
+  };
+}) => {
   return (
     <ChatMessageFixtureWrapper>
       {postGroups.map((p, i) => {
@@ -205,7 +220,7 @@ const ScrollFixture = ({ postGroups }: { postGroups: PostGroup[] }) => {
             ) : null}
             {p.posts.map((post, postIndex) => {
               return (
-                <React.Fragment key={post.id}>
+                <View key={post.id} style={{ position: 'relative' }}>
                   <ChatMessage
                     post={post}
                     key={post.id}
@@ -219,7 +234,30 @@ const ScrollFixture = ({ postGroups }: { postGroups: PostGroup[] }) => {
                   p.posts[postIndex + 1].type === 'notice' ? (
                     <PostBlockSeparator key={'separator-' + post.id} />
                   ) : null}
-                </React.Fragment>
+
+                  {plaintextPreviewConfig?.enabled && (
+                    <View
+                      style={[
+                        StyleSheet.absoluteFill,
+                        {
+                          background: 'hsla(0, 0%, 100%, 0.8)',
+                          outline: '1px solid black',
+                          transition: 'opacity 0.2s ease-in-out',
+                        },
+                      ]}
+                      hoverStyle={{ opacity: 0.1 }}
+                    >
+                      <RawText>
+                        {plaintextPreviewOf(
+                          convertContent(post.content),
+                          plaintextPreviewConfig.inline
+                            ? PlaintextPreviewConfig.inlineConfig
+                            : PlaintextPreviewConfig.defaultConfig
+                        )}
+                      </RawText>
+                    </View>
+                  )}
+                </View>
               );
             })}
           </React.Fragment>
@@ -271,7 +309,12 @@ const PostSpecimen = ({ label, post }: { label: string; post: db.Post }) => {
 };
 
 export default {
-  All: <ScrollFixture postGroups={scrollPosts} />,
+  All: (
+    <ScrollFixture
+      postGroups={scrollPosts}
+      plaintextPreviewConfig={{ enabled: false, inline: false }}
+    />
+  ),
   References: (
     <ScrollFixture
       postGroups={[

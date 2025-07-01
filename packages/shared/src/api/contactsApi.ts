@@ -7,7 +7,7 @@ import { parseAttestationId } from './lanyardApi';
 import * as NounParsers from './nounParsers';
 import { getCurrentUserId, poke, scry, subscribe } from './urbit';
 
-const logger = createDevLogger('contactsApi', true);
+const logger = createDevLogger('contactsApi', false);
 
 export const getContacts = async () => {
   // this is all peers we know about, with merged profile data for

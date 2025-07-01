@@ -39,6 +39,7 @@ export function ChatInput({
           send={send}
           channelId={channel.id}
           groupMembers={group?.members ?? []}
+          groupRoles={group?.roles ?? []}
           storeDraft={storeDraft}
           clearDraft={clearDraft}
           getDraft={getDraft}

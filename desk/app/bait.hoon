@@ -114,6 +114,19 @@
     ?+    method.request  (give not-found:gen:server)
       %'GET'  (get-request line)
     ::
+        %'OPTIONS'
+      %-  give
+      =;  =header-list:http
+        [[204 header-list] ~]
+      :~  :-  'access-control-allow-methods'
+          =-  (fall - '*')
+          (get-header:http 'access-control-request-method' header-list.request)
+        ::
+          :-  'access-control-allow-headers'
+          =-  (fall - '*')
+          (get-header:http 'access-control-request-headers' header-list.request)
+      ==
+    ::
         %'POST'
       ?~  body.request
         :_  (give-not-found 'body not found')
@@ -178,26 +191,30 @@
     ++  get-request
       |=  =(pole knot)
       ^-  (list card)
-      ?+  pole  (give not-found:gen:server)
+      %-  give
+      =<  %_  .  headers.response-header
+            [['access-control-allow-origin' '*'] headers.response-header]
+          ==
+      ?+  pole  not-found:gen:server
           [%bait %who ~]
-        (give (json-response:gen:server s+(scot %p our.bowl)))
+        (json-response:gen:server s+(scot %p our.bowl))
       ::
           [ship=@ name=@ %metadata ~]
         =/  token  (crip "{(trip ship.pole)}/{(trip name.pole)}")
         =/  =metadata:reel
           (~(gut by token-metadata) token *metadata:reel)
-        (give (json-response:gen:server (enjs-metadata metadata)))
+        (json-response:gen:server (enjs-metadata metadata))
       ::
           [token=@ %metadata ~]
         =/  =metadata:reel
           (~(gut by token-metadata) token.pole *metadata:reel)
-        (give (json-response:gen:server (enjs-metadata metadata)))
+        (json-response:gen:server (enjs-metadata metadata))
       ::
           [token=* ~]
         =/  token  (crip (join '/' pole))
         =/  =metadata:reel
           (~(gut by token-metadata) token *metadata:reel)
-        (give (manx-response:gen:server (landing-page metadata)))
+        (manx-response:gen:server (landing-page metadata))
       ==
     ::
     ++  give-not-found

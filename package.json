@@ -16,11 +16,14 @@
     "cosmos:native": "cosmos-native",
     "cosmos:web": "pnpm --filter 'tlon-web' cosmos",
     "cosmos": "concurrently \"pnpm run cosmos:native\" \"pnpm run cosmos:web\"",
+    "deps": "pnpm install && pnpm run deps:ios",
+    "deps:ios": "cd apps/tlon-mobile/ios && bundle install && bundle exec pod install",
     "dev:shared": "pnpm --filter '@tloncorp/shared' dev",
     "dev:android": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' android\"",
     "dev:ios": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' ios\" \"pnpm --filter '@tloncorp/ui' watch\"",
     "dev:ios:preview": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' ios:preview\" \"pnpm --filter '@tloncorp/ui' watch\"",
     "dev:desktop": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-desktop' dev\"",
+    "dev:web": "pnpm --filter 'tlon-web' dev",
     "test": "npm rebuild && pnpm run -r test run -u",
     "test:ci": "npm rebuild && pnpm run -r test run",
     "lint:all": "pnpm -r lint"
@@ -60,7 +63,8 @@
       "@likashefqet/react-native-image-zoom@4.2.0": "patches/@likashefqet__react-native-image-zoom@4.2.0.patch",
       "react-cosmos@6.1.1": "patches/react-cosmos@6.1.1.patch",
       "@10play/tentap-editor@0.5.21": "patches/@10play__tentap-editor@0.5.21.patch",
-      "drizzle-orm@0.39.3": "patches/drizzle-orm@0.39.3.patch"
+      "drizzle-orm@0.39.3": "patches/drizzle-orm@0.39.3.patch",
+      "@tamagui/sheet@1.126.12": "patches/@tamagui__sheet@1.126.12.patch"
     },
     "allowNonAppliedPatches": true,
     "overrides": {

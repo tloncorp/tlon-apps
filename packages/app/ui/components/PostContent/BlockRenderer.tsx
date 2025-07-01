@@ -1,4 +1,6 @@
-import { Image, Pressable, Text, useCopy } from '@tloncorp/ui';
+import { isTrustedEmbed, trustedProviders } from '@tloncorp/shared';
+import type * as cn from '@tloncorp/shared/logic';
+import { Icon, Image, Pressable, Text, useCopy } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
 import React, {
   ComponentProps,
@@ -8,8 +10,10 @@ import React, {
   memo,
   useCallback,
   useContext,
+  useMemo,
   useState,
 } from 'react';
+import { Linking, Platform } from 'react-native';
 import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 
 import {
@@ -21,11 +25,11 @@ import { VideoEmbed } from '../Embed';
 import EmbedContent from '../Embed/EmbedContent';
 import { HighlightedCode } from '../HighlightedCode';
 import { InlineRenderer } from './InlineRenderer';
-import * as cn from './contentUtils';
+import { ContentContext, useContentContext } from './contentUtils';
 
 export const BlockWrapper = styled(View, {
   name: 'ContentBlock',
-  context: cn.ContentContext,
+  context: ContentContext,
   padding: '$l',
   variants: {
     isNotice: {
@@ -121,7 +125,7 @@ function TextContent(props: ComponentProps<typeof LineText>) {
 export const LineText = styled(Text, {
   color: '$primaryText',
   size: '$body',
-  context: cn.ContentContext,
+  context: ContentContext,
   userSelect: 'text',
   cursor: 'text',
   variants: {
@@ -210,6 +214,100 @@ const BigEmojiText = styled(Text, {
   trimmed: true,
 });
 
+export function LinkBlock({
+  block,
+  imageProps,
+  renderDescription = true,
+  renderTitle = true,
+  renderImage = true,
+  clickable = true,
+  renderEmbed = false,
+  ...props
+}: {
+  block: cn.LinkBlockData;
+  clickable?: boolean;
+  renderDescription?: boolean;
+  renderTitle?: boolean;
+  renderImage?: boolean;
+  renderEmbed?: boolean;
+  imageProps?: ComponentProps<typeof ContentImage>;
+} & ComponentProps<typeof Reference.Frame>) {
+  const domain = useMemo(() => {
+    const url = new URL(block.url);
+    return url.hostname;
+  }, [block.url]);
+
+  const onPress = useCallback(() => {
+    if (Platform.OS === 'web') {
+      window.open(block.url, '_blank', 'noopener,noreferrer');
+    } else {
+      Linking.openURL(block.url);
+    }
+  }, [block.url]);
+
+  const embedProviders = useMemo(() => {
+    // for now, avoid showing twitter embeds on web
+    return Platform.OS === 'web'
+      ? trustedProviders.filter((tp) => tp.name !== 'Twitter')
+      : trustedProviders;
+  }, []);
+
+  if (renderEmbed && isTrustedEmbed(block.url, embedProviders)) {
+    const embedBlock: cn.EmbedBlockData = {
+      type: 'embed',
+      url: block.url,
+    };
+    return <EmbedBlock block={embedBlock} {...props} />;
+  }
+
+  return (
+    <Reference.Frame {...props} onPress={clickable ? onPress : undefined}>
+      <Reference.Header>
+        <Reference.Title>
+          <Icon type="Link" color="$tertiaryText" customSize={[12, 12]} />
+          <Reference.TitleText>{domain}</Reference.TitleText>
+        </Reference.Title>
+      </Reference.Header>
+      <Reference.Body>
+        {renderImage && block.previewImageUrl && (
+          <ContentImage
+            fallback={null}
+            source={block.previewImageUrl}
+            flex={1}
+            aspectRatio={2}
+            flexShrink={0}
+            width="100%"
+            contentFit="cover"
+            contentPosition="center"
+            {...imageProps}
+          />
+        )}
+        <YStack flex={0} padding="$xl" gap="$xl">
+          <YStack gap="$s">
+            <Text fontWeight="500" color="$secondaryText">
+              {block.siteName && block.siteName.length > 0
+                ? block.siteName
+                : domain}
+            </Text>
+            {renderTitle && (
+              <Text size="$label/m" numberOfLines={1}>
+                {block.title && block.title.length > 0
+                  ? block.title
+                  : block.url}
+              </Text>
+            )}
+          </YStack>
+          {block.description && renderDescription && (
+            <Text size="$label/s" color="$secondaryText">
+              {block.description}
+            </Text>
+          )}
+        </YStack>
+      </Reference.Body>
+    </Reference.Frame>
+  );
+}
+
 export function VideoBlock({
   block,
   ...props
@@ -228,7 +326,7 @@ export function ImageBlock({
   block: cn.ImageBlockData;
   imageProps?: ComponentProps<typeof ContentImage>;
 } & ComponentProps<typeof View>) {
-  const { onPressImage, onLongPress } = cn.useContentContext();
+  const { onPressImage, onLongPress } = useContentContext();
   const [dimensions, setDimensions] = useState({
     width: block.width || null,
     height: block.height || null,
@@ -252,34 +350,6 @@ export function ImageBlock({
 
   const shouldUseAspectRatio = imageProps?.aspectRatio !== 'unset';
 
-  if (isInsideReference) {
-    return (
-      <Pressable
-        overflow="hidden"
-        onPress={handlePress}
-        onLongPress={onLongPress}
-        {...props}
-      >
-        <ContentImage
-          source={{ uri: block.src }}
-          style={{
-            width: '100%',
-            maxHeight: 250,
-            resizeMode: 'contain',
-            ...(shouldUseAspectRatio
-              ? { aspectRatio: dimensions.aspect || 1 }
-              : {}),
-          }}
-          contentFit="contain"
-          borderRadius="$s"
-          alt={block.alt}
-          onLoad={handleImageLoaded}
-          {...imageProps}
-        />
-      </Pressable>
-    );
-  }
-
   return (
     <Pressable
       overflow="hidden"
@@ -291,11 +361,16 @@ export function ImageBlock({
         source={{
           uri: block.src,
         }}
-        style={{
-          ...(shouldUseAspectRatio
-            ? { aspectRatio: dimensions.aspect || 1 }
-            : {}),
-        }}
+        {...(shouldUseAspectRatio
+          ? { aspectRatio: dimensions.aspect || 1 }
+          : {})}
+        {...(isInsideReference
+          ? {
+              maxHeight: 250,
+              resizeMode: 'contain',
+            }
+          : {})}
+        contentFit="contain"
         borderRadius="$s"
         alt={block.alt}
         onLoad={handleImageLoaded}
@@ -307,7 +382,7 @@ export function ImageBlock({
 
 const ContentImage = styled(Image, {
   name: 'ContentImage',
-  context: cn.ContentContext,
+  context: ContentContext,
   width: '100%',
   aspectRatio: 1,
   backgroundColor: '$secondaryBackground',
@@ -353,7 +428,7 @@ export function HeaderBlock({
   ...props
 }: { block: cn.HeaderBlockData } & ComponentProps<typeof HeaderText>) {
   return (
-    <HeaderText tag={block.level} {...props}>
+    <HeaderText tag={block.level} level={block.level} {...props}>
       {block.children.map((con, i) => (
         <InlineRenderer key={`${con}-${i}`} inline={con} />
       ))}
@@ -363,7 +438,7 @@ export function HeaderBlock({
 
 export const HeaderText = styled(Text, {
   variants: {
-    tag: {
+    level: {
       h1: {
         fontSize: 24,
         fontWeight: 'bold',
@@ -391,6 +466,7 @@ export const HeaderText = styled(Text, {
     },
   } as const,
 });
+HeaderText.displayName = 'HeaderText';
 
 export function EmbedBlock({
   block,
@@ -427,6 +503,7 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   lineText: LineText,
   blockquote: BlockquoteBlock,
   paragraph: ParagraphBlock,
+  link: LinkBlock,
   image: ImageBlock,
   video: VideoBlock,
   reference: ReferenceBlock,
@@ -447,6 +524,7 @@ export type DefaultRendererProps = {
   lineText: Partial<ComponentProps<typeof LineText>>;
   blockquote: BlockSettings<typeof BlockquoteBlock>;
   paragraph: BlockSettings<typeof ParagraphBlock>;
+  link: BlockSettings<typeof LinkBlock>;
   image: BlockSettings<typeof ImageBlock>;
   video: BlockSettings<typeof VideoBlock>;
   reference: BlockSettings<typeof ReferenceBlock>;

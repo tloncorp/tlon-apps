@@ -1,6 +1,6 @@
-import { forwardPost, usePostDraftCallbacks } from '@tloncorp/shared';
+import { forwardPost } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Button } from '@tloncorp/ui';
+import { Button, useToast } from '@tloncorp/ui';
 import {
   ComponentProps,
   PropsWithChildren,
@@ -61,6 +61,7 @@ export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
       setSelectedChannel(item.channel);
     }
   }, []);
+  const showToast = useToast();
   const handleSendItem = useCallback(async () => {
     if (post && selectedChannel) {
       setIsSending(true);
@@ -68,6 +69,10 @@ export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
       try {
         await forwardPost({ postId: post.id, channelId: selectedChannel.id });
         setIsOpen(false);
+        showToast({
+          message: `Forwarded post to ${selectedChannelTitle}`,
+          duration: 1500,
+        });
       } catch (error) {
         setErrorMessage('Failed to forward post');
         setTimeout(() => setErrorMessage(null), 1500);
@@ -75,7 +80,7 @@ export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
         setIsSending(false);
       }
     }
-  }, [post, selectedChannel]);
+  }, [post, selectedChannel, selectedChannelTitle, showToast]);
 
   const insets = useSafeAreaInsets();
 

@@ -1,17 +1,14 @@
-import { useRoute } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
+import { generateSafeId } from '@tloncorp/shared/logic';
 import { useCallback, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useHandleGoBack } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
-import {
-  GroupSettingsStackParamList,
-  GroupSettingsStackRouteProp,
-} from '../../navigation/types';
-import { useRootNavigation } from '../../navigation/utils';
+import { GroupSettingsStackParamList } from '../../navigation/types';
 import {
   ActionSheet,
   Button,
@@ -29,17 +26,24 @@ import {
 type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'GroupRoles'>;
 
 export function GroupRolesScreen(props: Props) {
-  return <GroupRolesScreenView />;
+  return (
+    <GroupRolesScreenView navigation={props.navigation} route={props.route} />
+  );
 }
 
-function GroupRolesScreenView() {
-  const {
-    params: { groupId },
-  } = useRoute<GroupSettingsStackRouteProp<'GroupRoles'>>();
+type GroupRolesScreenViewProps = {
+  navigation: Props['navigation'];
+  route: Props['route'];
+};
+
+function GroupRolesScreenView({
+  navigation,
+  route,
+}: GroupRolesScreenViewProps) {
+  const { groupId, fromChatDetails } = route.params;
   const [editRole, setEditRole] = useState<db.GroupRole | null>(null);
   const [showAddRole, setShowAddRole] = useState(false);
 
-  const { navigateBack } = useRootNavigation();
   const insets = useSafeAreaInsets();
 
   const {
@@ -51,6 +55,11 @@ function GroupRolesScreenView() {
     createGroupRole,
   } = useGroupContext({
     groupId,
+  });
+
+  const handleGoBack = useHandleGoBack(navigation, {
+    groupId,
+    fromChatDetails,
   });
 
   const rolesWithMembers = useMemo(() => {
@@ -83,7 +92,7 @@ function GroupRolesScreenView() {
   const getChannelsForRole = useCallback(
     (role: db.GroupRole) => {
       return Object.entries(rolesByChannel)
-        .filter(([channelId, roles]) => roles.includes(role))
+        .filter(([_, roles]) => roles.includes(role))
         .map(([channelId]) => groupChannels.find((c) => c.id === channelId)!)
         .filter((c) => c !== undefined) as db.Channel[];
     },
@@ -97,7 +106,7 @@ function GroupRolesScreenView() {
   const handleAddRole = useCallback(
     ({ title, description }: { title: string; description: string }) => {
       createGroupRole({
-        id: title.toLowerCase().replace(/\s/g, '-'),
+        id: generateSafeId(title, 'role'),
         title,
         description,
       });
@@ -121,7 +130,7 @@ function GroupRolesScreenView() {
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader backAction={navigateBack} title={'Group Roles'} />
+      <ScreenHeader backAction={handleGoBack} title={'Group Roles'} />
       <ScrollView
         flex={1}
         contentContainerStyle={{
@@ -147,6 +156,7 @@ function GroupRolesScreenView() {
                 paddingHorizontal="$2xl"
                 backgroundColor={'$background'}
                 borderRadius="$2xl"
+                testID={`GroupRole-${role.title}`}
               >
                 <ActionSheet.MainContent>
                   <ActionSheet.ActionTitle>
@@ -344,6 +354,7 @@ function EditRoleSheet({
                   }}
                   value={value}
                   editable={role.title !== 'Admin'}
+                  testID="RoleDescriptionInput"
                 />
               </Field>
             )}
@@ -448,6 +459,7 @@ function AddRoleSheet({
                     Keyboard.dismiss();
                   }}
                   value={value}
+                  testID="RoleDescriptionInput"
                 />
               </Field>
             )}

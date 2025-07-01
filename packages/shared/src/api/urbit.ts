@@ -237,6 +237,10 @@ export async function subscribe<T>(
         // tracked pokes
         const endpointKey = printEndpoint(endpoint);
         const endpointWatchers = config.subWatchers[endpointKey];
+        logger.debug(
+          `checking for endpoint watchers on ${endpointKey}:`,
+          endpointWatchers
+        );
         if (endpointWatchers) {
           endpointWatchers.forEach((watcher) => {
             if (watcher.predicate(event, mark)) {
@@ -680,6 +684,18 @@ export async function thread<T, R = any>(params: Thread<T>): Promise<R> {
     trackDuration('error', { ...requestContext, errorMessage: err.toString() });
     throw err;
   }
+}
+
+export async function request<T>(
+  path: string,
+  options: RequestInit = {},
+  timeout?: number
+) {
+  if (!config.client) {
+    throw new Error('Cannot make request before client is initialized');
+  }
+
+  return config.client.request<T>(path, options, timeout);
 }
 
 // Remove any identifiable information from path

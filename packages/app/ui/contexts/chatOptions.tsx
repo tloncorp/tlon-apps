@@ -188,11 +188,42 @@ export const ChatOptionsProvider = ({
     syncGroup();
   }, [groupId, group]);
 
-  const togglePinned = useCallback(() => {
-    if (group && group.channels?.[0]) {
-      group.pin ? store.unpinItem(group.pin) : store.pinGroup(group);
+  const togglePinned = useCallback(async () => {
+    // Re-query to get current pin state
+    let updatedChannel = channel;
+    let updatedGroup = group;
+
+    if (chat?.type === 'channel' && channel) {
+      const channelWithPin = await db.getChannelWithRelations({
+        id: channel.id,
+      });
+      if (!channelWithPin) {
+        console.warn(`Channel ${channel.id} not found`);
+        return;
+      }
+      updatedChannel = channelWithPin;
+    } else if (chat?.type === 'group' && group) {
+      const groupWithPin = await db.getGroup({ id: group.id });
+      if (!groupWithPin) {
+        console.warn(`Group ${group.id} not found`);
+        return;
+      }
+      updatedGroup = groupWithPin;
     }
-  }, [group]);
+
+    // Use pinning logic
+    const res = logic.whichPin({
+      chat,
+      channel: updatedChannel,
+      group: updatedGroup,
+    });
+
+    await logic.doPin(res, {
+      unpinItem: store.unpinItem,
+      pinChannel: store.pinChannel,
+      pinGroup: store.pinGroup,
+    });
+  }, [chat, channel, group]);
 
   const updateVolume = useCallback(
     (level: ub.NotificationLevel | null) => {

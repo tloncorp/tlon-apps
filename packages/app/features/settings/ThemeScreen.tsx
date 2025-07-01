@@ -1,13 +1,14 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { themeSettings } from '@tloncorp/shared/db';
+import { useThemeSettings } from '@tloncorp/shared';
+import { subscribeToSettings } from '@tloncorp/shared/api';
 import { useContext, useEffect, useState } from 'react';
 import { ScrollView, YStack } from 'tamagui';
-import type { ThemeName } from 'tamagui';
 import { useTheme } from 'tamagui';
 
 import { useIsDarkMode } from '../../hooks/useIsDarkMode';
 import { RootStackParamList } from '../../navigation/types';
 import { ThemeContext, clearTheme, setTheme } from '../../provider';
+import { AppTheme } from '../../types/theme';
 import {
   ListItem,
   ListItemInputOption,
@@ -17,21 +18,19 @@ import {
   ScreenHeader,
   View,
 } from '../../ui';
+import { normalizeTheme } from '../../ui/utils/themeUtils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Theme'>;
 
 export function ThemeScreen(props: Props) {
   const theme = useTheme();
+  const { data: storedTheme, isLoading } = useThemeSettings();
   const { setActiveTheme } = useContext(ThemeContext);
   const isDarkMode = useIsDarkMode();
-  const [selectedTheme, setSelectedTheme] = useState<ThemeName | 'auto'>(
-    'auto'
-  );
-  const [loadingTheme, setLoadingTheme] = useState<ThemeName | 'auto' | null>(
-    null
-  );
+  const [selectedTheme, setSelectedTheme] = useState<AppTheme>('auto');
+  const [loadingTheme, setLoadingTheme] = useState<AppTheme | null>(null);
 
-  const themes: ListItemInputOption<ThemeName | 'auto'>[] = [
+  const themes: ListItemInputOption<AppTheme>[] = [
     {
       title: 'Auto',
       value: 'auto',
@@ -48,14 +47,16 @@ export function ThemeScreen(props: Props) {
     { title: 'Solarized', value: 'solarized' },
   ];
 
-  const handleThemeChange = async (value: ThemeName | 'auto') => {
+  const handleThemeChange = async (value: AppTheme) => {
     if (value === selectedTheme || loadingTheme) return;
 
     setLoadingTheme(value);
     try {
       if (value === 'auto') {
+        setActiveTheme(isDarkMode ? 'dark' : 'light');
         await clearTheme(setActiveTheme, isDarkMode);
       } else {
+        setActiveTheme(value);
         await setTheme(value, setActiveTheme);
       }
       setSelectedTheme(value);
@@ -65,12 +66,27 @@ export function ThemeScreen(props: Props) {
   };
 
   useEffect(() => {
-    const checkSelected = async () => {
-      const storedTheme = await themeSettings.getValue();
-      setSelectedTheme(storedTheme ?? 'auto');
-    };
-    checkSelected();
-  }, []);
+    if (!isLoading && storedTheme !== undefined) {
+      setSelectedTheme(normalizeTheme(storedTheme));
+    }
+  }, [storedTheme, isLoading]);
+
+  useEffect(() => {
+    subscribeToSettings((update) => {
+      if (update.type === 'updateSetting' && 'theme' in update.setting) {
+        const newTheme = update.setting.theme;
+        const themeValue = normalizeTheme(newTheme as AppTheme);
+
+        setSelectedTheme(themeValue);
+
+        if (themeValue === 'auto') {
+          setActiveTheme(isDarkMode ? 'dark' : 'light');
+        } else {
+          setActiveTheme(themeValue);
+        }
+      }
+    });
+  }, [isDarkMode, setActiveTheme]);
 
   return (
     <View backgroundColor={theme?.background?.val} flex={1}>

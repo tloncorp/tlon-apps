@@ -16,8 +16,10 @@ import {
 } from '../store/useActivityFetchers';
 import { createBatchHandler, createHandler } from './bufferedSubscription';
 import * as LocalCache from './cachedData';
+import { addContacts, updateContactMetadata } from './contactActions';
 import { updateChannelSections } from './groupActions';
 import { verifyUserInviteLink } from './inviteActions';
+import { discoverContacts } from './lanyardActions';
 import { useLureState } from './lure';
 import { verifyPostDelivery } from './postActions';
 import { Session, getSession, updateSession } from './session';
@@ -91,6 +93,9 @@ export const syncInitData = async (
     await db
       .insertChannelPerms(initData.channelPerms, queryCtx)
       .then(() => logger.crumb('inserted channel perms'));
+    await db
+      .insertChannelOrder(initData.channelPerms, queryCtx)
+      .then(() => logger.crumb('inserted channel order'));
     await db
       .setLeftGroups({ joinedGroupIds: initData.joinedGroups }, queryCtx)
       .then(() => logger.crumb('set left groups'));
@@ -263,6 +268,98 @@ export const syncSystemContacts = async (ctx?: SyncCtx) => {
     });
     // we throw here so that we can avoid showing the "Success" alert
     throw error;
+  }
+};
+
+export const syncContactDiscovery = async (ctx?: SyncCtx) => {
+  logger.log('syncContactDiscovery: starting');
+  const currentUserId = api.getCurrentUserId();
+  const currentUserAttestations = await db.getUserAttestations({
+    userId: currentUserId,
+  });
+  logger.log('got current user attestations', currentUserAttestations);
+  const hasPhoneAttestation = currentUserAttestations.some(
+    (attestation) => attestation.type === 'phone' && attestation.value
+  );
+  if (!hasPhoneAttestation) {
+    logger.log(
+      'syncContactDiscovery: skipping contact discovery since no phone attestation found'
+    );
+    logger.trackEvent(AnalyticsEvent.DebugSystemContacts, {
+      context: 'no phone attestation found, skipping discovery',
+    });
+    return;
+  }
+  const systemContacts = await api.getSystemContacts();
+  const phoneNumbers = systemContacts
+    .map((contact) => contact.phoneNumber)
+    .filter((phoneNumber) => phoneNumber && phoneNumber.length > 0) as string[];
+
+  if (!phoneNumbers.length) {
+    logger.log(
+      'syncContactDiscovery: skipping contact discovery since no phone numbers found'
+    );
+    logger.trackEvent(AnalyticsEvent.DebugSystemContacts, {
+      context: 'no phone numbers found, skipping discovery',
+    });
+    // this should also mean we no-op on web since we don't have any
+    // system contacts
+    return;
+  }
+
+  try {
+    const matches = (
+      await syncQueue.add('discoverContacts', ctx, () =>
+        discoverContacts(phoneNumbers)
+      )
+    ).filter((match) => match[1] !== currentUserId);
+    logger.log('syncContactDiscovery: got contact discovery matches', matches);
+
+    await db.linkSystemContacts({ matches }).catch((e) => {
+      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+        context: 'failed to link system contacts',
+        severity: AnalyticsSeverity.Critical,
+        error: e,
+      });
+    });
+    logger.log(
+      'syncContactDiscovery: inserted contact discovery matches',
+      matches
+    );
+    const contactIds = matches.map((m) => m[1]);
+    await addContacts(contactIds).catch((e) => {
+      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+        context: 'failed to add contacts',
+        severity: AnalyticsSeverity.Critical,
+        error: e,
+      });
+    });
+    logger.log('syncContactDiscovery: added contacts', contactIds);
+    const newContacts = await db.getSystemContactsBatchByContactId(contactIds);
+
+    await Promise.all(
+      newContacts
+        .filter((c) => !!c.contactId)
+        .map((contact) =>
+          updateContactMetadata(contact.contactId!, {
+            nickname:
+              `${contact.firstName || ''} ${contact.lastName || ''}`.trim(),
+          })
+        )
+    ).catch((e) => {
+      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+        context: 'failed to update contact metadata',
+        severity: AnalyticsSeverity.Critical,
+        error: e,
+      });
+    });
+  } catch (error) {
+    logger.error('error discovering contacts', error);
+    logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+      context: 'failed to discover contacts',
+      severity: AnalyticsSeverity.Critical,
+      error,
+    });
   }
 };
 
@@ -1059,6 +1156,15 @@ export const handleChannelsUpdate = async (
         ctx
       );
       break;
+    case 'updateOrder':
+      await db.updateChannel(
+        {
+          id: update.channelId,
+          order: update.order,
+        },
+        ctx
+      );
+      break;
     case 'deletePost':
       await db.markPostAsDeleted(update.postId, ctx);
       await db.updateChannel({ id: update.channelId, lastPostId: null }, ctx);
@@ -1381,16 +1487,6 @@ export const handleDiscontinuity = async () => {
 };
 
 export const handleChannelStatusChange = async (status: ChannelStatus) => {
-  // Since Eyre doesn't send a response body when opening an event
-  // source request, the reconnect request won't resolve until we get a new fact
-  // or a heartbeat. We call this method to manually trigger a fact -- anything
-  // that does so would work.
-  //
-  // Eyre issue is fixed in this PR, https://github.com/urbit/urbit/pull/7080,
-  // we should remove this hack once 410 is rolled out.
-  if (status === 'reconnecting') {
-    api.checkExistingUserInviteLink();
-  }
   updateSession({ channelStatus: status });
 
   // Trigger verification for posts marked as 'needs_verification' when connection becomes active
@@ -1444,6 +1540,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     return;
   }
   isSyncing = true;
+  updateSession({ phase: 'high' });
 
   const startTime = Date.now();
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
@@ -1527,6 +1624,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       });
     }
 
+    updateSession({ phase: 'low' });
     const lowPriorityPromises = [
       alreadySubscribed
         ? Promise.resolve()
@@ -1557,11 +1655,11 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       syncAppInfo({ priority: SyncPriority.Low }).then(() => {
         logger.crumb(`finished syncing app info`);
       }),
-      syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
-        logger.crumb(`finished channel predictive sync`);
-      }),
       syncSystemContacts({ priority: SyncPriority.Low }).then(() => {
         logger.crumb(`finished syncing system contacts`);
+      }),
+      syncContactDiscovery({ priority: SyncPriority.Low }).then(() => {
+        logger.crumb(`finished syncing contact discovery`);
       }),
     ];
 
@@ -1576,10 +1674,18 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         });
       });
 
+    updateSession({ phase: 'ready' });
+
+    // fire off relevant channel posts sync, but don't wait for it
+    syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
+      logger.crumb(`finished channel predictive sync`);
+    });
+
     // post sync initialization work
     await verifyUserInviteLink();
     db.userHasCompletedFirstSync.setValue(true);
   } finally {
+    updateSession({ phase: 'ready' });
     isSyncing = false;
   }
 };

@@ -1,5 +1,4 @@
-import { formatUd, formatUv, isValidPatp, unixToDa } from '@urbit/aura';
-import { useMemo } from 'react';
+import { formatUv, isValidPatp, unixToDa } from '@urbit/aura';
 
 import { ContentReference, PostContent } from '../api';
 import { ChannelType } from '../db';
@@ -7,7 +6,6 @@ import { GroupJoinStatus, GroupPrivacy } from '../db/schema';
 import { createDevLogger } from '../debug';
 import * as ub from './channel';
 import * as ubc from './content';
-import * as ubd from './dms';
 import * as ubg from './groups';
 
 const logger = createDevLogger('urbitUtils', false);
@@ -69,7 +67,7 @@ export function getFirstInline(content: ub.Story) {
   return inlines[0].inline;
 }
 
-export function citeToPath(cite: ub.Cite) {
+export function citeToPath(cite: ubc.Cite) {
   if ('desk' in cite) {
     return `/1/desk/${cite.desk.flag}${cite.desk.where}`;
   }
@@ -83,7 +81,7 @@ export function citeToPath(cite: ub.Cite) {
   return `/1/bait/${cite.bait.group}/${cite.bait.graph}/${cite.bait.where}`;
 }
 
-export function pathToCite(path: string): ub.Cite | undefined {
+export function pathToCite(path: string): ubc.Cite | undefined {
   const segments = path.split('/');
   if (segments.length < 3) {
     return undefined;
@@ -222,7 +220,7 @@ export function getTextContent(story?: PostContent): string | undefined {
     .map((verse) => {
       if (isReferenceVerse(verse)) {
         return '';
-      } else if (ubc.isBlock(verse)) {
+      } else if (ub.isBlockVerse(verse)) {
         return getBlockContent(verse.block);
       } else if ('inline' in verse) {
         return getInlinesContent(verse.inline);
@@ -241,10 +239,10 @@ function isReferenceVerse(
   return 'type' in verse && verse.type === 'reference';
 }
 
-export function getBlockContent(block: ub.Block) {
-  if (ub.isImage(block)) {
+export function getBlockContent(block: ubc.Block) {
+  if (ubc.isImage(block)) {
     return '(Image)';
-  } else if (ub.isCite(block)) {
+  } else if (ubc.isCite(block)) {
     return '(Reference)';
   } else if (ubc.isHeader(block)) {
     return block.header.content.map(getInlineContent);
@@ -255,7 +253,7 @@ export function getBlockContent(block: ub.Block) {
   }
 }
 
-export function getListingContent(listing: ub.Listing): string {
+export function getListingContent(listing: ubc.Listing): string {
   if (ubc.isListItem(listing)) {
     return listing.item.map(getInlineContent).join(' ');
   } else {
@@ -289,6 +287,8 @@ export function getInlineContent(inline: ubc.Inline): string {
     return '';
   } else if (ubc.isShip(inline)) {
     return inline.ship;
+  } else if (ubc.isSect(inline)) {
+    return `@${inline.sect || 'all'}`;
   } else if (ubc.isTag(inline)) {
     return inline.tag;
   } else if (ubc.isBlockReference(inline)) {
@@ -298,58 +298,6 @@ export function getInlineContent(inline: ubc.Inline): string {
   } else {
     return inline;
   }
-}
-
-function makeId(our: string) {
-  const sent = Date.now();
-  return {
-    id: `${our}/${formatUd(unixToDa(sent))}`,
-    sent,
-  };
-}
-
-export function createMessage(
-  our: string,
-  mem: ub.PostEssay,
-  replying?: string
-): {
-  id: string;
-  cacheId: ub.CacheId;
-  delta: ubd.WritDeltaAdd | ubd.ReplyDelta;
-} {
-  const { id, sent } = makeId(our);
-  const cacheId = { author: mem.author, sent };
-  const memo: Omit<ub.PostEssay, 'kind-data'> = {
-    content: mem.content,
-    author: mem.author,
-    sent,
-  };
-
-  let delta: ubd.WritDeltaAdd | ubd.ReplyDelta;
-  if (!replying) {
-    delta = {
-      add: {
-        memo,
-        kind: null,
-        time: null,
-      },
-    };
-  } else {
-    delta = {
-      reply: {
-        id,
-        meta: null,
-        delta: {
-          add: {
-            memo,
-            time: null,
-          },
-        },
-      },
-    };
-  }
-
-  return { id, cacheId, delta };
 }
 
 export function whomIsDm(whom: string): boolean {
@@ -365,17 +313,6 @@ export function whomIsFlag(whom: string): boolean {
   return (
     /^~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) && isValidPatp(whom.split('/')[0])
   );
-}
-
-export function whomIsNest(whom: string): boolean {
-  return (
-    /^[a-z]+\/~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) &&
-    isValidPatp(whom.split('/')[1])
-  );
-}
-
-export function useIsDmOrMultiDm(whom: string) {
-  return useMemo(() => whomIsDm(whom) || whomIsMultiDm(whom), [whom]);
 }
 
 export function createMultiDmId(seed = Date.now()) {

@@ -11,8 +11,7 @@ import {
 } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform } from 'react-native';
-import { TouchableOpacity } from 'react-native-gesture-handler';
+import { KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Input, XStack, getTokenValue, useTheme } from 'tamagui';
 
@@ -62,7 +61,7 @@ export function BigInput({
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const [isEmpty, setIsEmpty] = useState(true);
-  const { attachments } = useAttachmentContext();
+  const { attachments, clearAttachments } = useAttachmentContext();
 
   const handleEditorContentChanged = useCallback(
     (content?: object) => {
@@ -180,6 +179,7 @@ export function BigInput({
       setHasImageChanges(false);
       setShowFormatMenu(false);
       setShowBigInput?.(false);
+      clearAttachments();
 
       // Clear the editor content before clearing drafts to prevent race conditions
       if (editorRef.current?.editor) {
@@ -229,6 +229,7 @@ export function BigInput({
     editingPost,
     props.clearDraft,
     setShowFormatMenu,
+    clearAttachments,
     attachments,
   ]);
 

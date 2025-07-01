@@ -1,9 +1,6 @@
-import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { Button } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
+import { Button, Icon, LoadingSpinner, Text } from '@tloncorp/ui';
 import { useMemo } from 'react';
 import { YStack, styled } from 'tamagui';
 
@@ -16,9 +13,15 @@ import WayfindingNotice from '../Wayfinding/Notices';
 export function EmptyChannelNotice({
   channel,
   userId,
+  isLoading,
+  loadPostsError,
+  onPressRetryLoad,
 }: {
   channel: db.Channel;
   userId: string;
+  isLoading: boolean;
+  loadPostsError?: Error | null;
+  onPressRetryLoad?: () => void;
 }) {
   const { onPressGroupMeta } = useChatOptions();
   const group = useGroup(channel.groupId ?? '');
@@ -53,6 +56,32 @@ export function EmptyChannelNotice({
         </Button>
         <InviteFriendsToTlonButton group={group} />
       </YStack>
+    </YStack>
+  ) : isLoading ? (
+    <YStack flex={1} alignItems="center" justifyContent="center">
+      <LoadingSpinner />
+    </YStack>
+  ) : loadPostsError ? (
+    <YStack
+      flex={1}
+      alignItems="center"
+      justifyContent="center"
+      gap="$xl"
+      paddingBottom="$2xl"
+    >
+      <YStack gap="$s" alignItems="center">
+        <Text color="$tertiaryText">Failed to load posts</Text>
+        <Text color="$tertiaryText" size="$label/s">
+          Error: {loadPostsError.message}
+        </Text>
+      </YStack>
+      <Button
+        paddingHorizontal="$xl"
+        paddingVertical="$m"
+        onPress={onPressRetryLoad}
+      >
+        <Button.Text>Retry</Button.Text>
+      </Button>
     </YStack>
   ) : (
     <YStack flex={1} justifyContent="center" alignItems="center" gap="$3xl">

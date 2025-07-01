@@ -34,6 +34,13 @@ export const trustedProviders = [
   },
 ];
 
+export function isTrustedEmbed(
+  url: string,
+  providers = trustedProviders
+): boolean {
+  return providers.some((provider) => provider.regex.test(url));
+}
+
 export async function fetchEmbed(inputUrl: string, isMobile?: boolean) {
   if (!inputUrl || !isValidUrl(inputUrl)) return null;
   const url = transformUrl(inputUrl);
@@ -66,7 +73,7 @@ export async function fetchEmbed(inputUrl: string, isMobile?: boolean) {
     return jsonFetch(`https://www.tiktok.com/oembed?url=${url}`);
   }
 
-  if (isTwitter) {
+  if (isTwitter && isMobile) {
     return jsonFetch(`https://publish.twitter.com/oembed?url=${url}`);
   }
 

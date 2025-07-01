@@ -5,12 +5,15 @@ import {
   PasteRule,
 } from '@tiptap/core';
 import { JSONContent } from '@tiptap/react';
-import { deSig } from '@urbit/aura';
+import { deSig, isValidPatp } from '@urbit/aura';
 import { isEqual, reduce } from 'lodash';
 
-import { Block, Cite, HeaderLevel, Listing, Story } from '../urbit/channel';
+import { Story } from '../urbit/channel';
+import { Block, Cite, HeaderLevel, Listing } from '../urbit/content';
 import { Inline, InlineKey, Link, Task } from '../urbit/content';
 import { citeToPath, pathToCite, preSig } from '../urbit/utils';
+
+export const ALL_MENTION_ID = '-all-';
 
 export interface HandlerParams {
   editor: Editor;
@@ -380,9 +383,15 @@ export function JSONToInlines(
     }
     case 'mention':
     case 'at-mention': {
+      const id = json.attrs?.id;
+      const ship = preSig(id);
+      if (isValidPatp(ship)) {
+        return [{ ship }];
+      }
+
       return [
         {
-          ship: preSig(json.attrs?.id),
+          sect: id === ALL_MENTION_ID ? null : id,
         },
       ];
     }
@@ -437,9 +446,9 @@ const makeLink = (link: Link['link']) => ({
   marks: [{ type: 'link', attrs: { href: link.href } }],
   text: link.content,
 });
-export const makeMention = (ship: string) => ({
+export const makeMention = (id: string) => ({
   type: 'mention',
-  attrs: { id: deSig(ship) },
+  attrs: { id },
 });
 export const makeParagraph = (content?: JSONContent[]): JSONContent => {
   const p = { type: 'paragraph' };
@@ -548,7 +557,11 @@ export const inlineToContent = (
   }
 
   if ('ship' in inline) {
-    return makeMention(inline.ship);
+    return makeMention(deSig(inline.ship));
+  }
+
+  if ('sect' in inline) {
+    return makeMention(inline.sect || ALL_MENTION_ID);
   }
 
   if ('link' in inline) {
