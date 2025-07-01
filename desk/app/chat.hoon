@@ -1502,6 +1502,7 @@
 ++  cu-core
   |_  [=id:club:c =club:c gone=_| counter=@ud]
   +*  cu-pact  ~(. pac pact.club)
+      log      ~(. logs [our.bowl /logs])
   ++  cu-core  .
   ++  cu-abet
     ::  shouldn't need cleaning, but just in case
@@ -1632,8 +1633,11 @@
   ++  cu-give-writs-diff
     |=  =diff:writs:c
     =/  =whom:c  [%club id]
-    =/  response=(unit response:writs:c)  (diff-to-response diff pact.club)
-    ?~  response  cu-core
+    =/  response=(unit response:writs:c)
+      (diff-to-response diff pact.club)
+    ?~  response
+      =.  cor  (emit (tell:log %crit ~['+diff-to-response miss (cu)'] ~))
+      cu-core
     =/  old-response-3=[whom:old-3 response:writs:old-3]
       [whom (old-response-writs-3:pac u.response)]
     =/  old-response-4=[whom:old-4 response:writs:old-4]
@@ -1984,6 +1988,7 @@
   |_  [=ship =dm:c gone=_|]
   +*  di-pact  ~(. pac pact.dm)
       di-hark  ~(. hark-dm:ch [now.bowl ship])
+      log      ~(. logs [our.bowl /logs])
   ++  di-core  .
   ++  di-abet
     =.  dms
@@ -2066,8 +2071,11 @@
   ++  di-give-writs-diff
     |=  =diff:writs:c
     =/  =whom:c  [%ship ship]
-    =/  response=(unit response:writs:c)  (diff-to-response diff pact.dm)
-    ?~  response  di-core
+    =/  response=(unit response:writs:c)
+      (diff-to-response diff pact.dm)
+    ?~  response
+      =.  cor  (emit (tell:log %crit ~['+diff-to-response miss (di)'] ~))
+      di-core
     =/  old-response-3=[whom:old-3 response:writs:old-3]
       [whom (old-response-writs-3:pac u.response)]
     =/  old-response-4=[whom:old-4 response:writs:old-4]
