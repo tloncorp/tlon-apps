@@ -1,7 +1,7 @@
 {
   "~zod": {
     "authFile": "e2e/.auth/zod.json",
-    "downloadUrl": "https://storage.googleapis.com/tlon-messenger-public-assets/e2e-nodes/rube-zod11.tgz",
+    "downloadUrl": "https://bootstrap.urbit.org/rube-zod11.tgz",
     "url": "http://localhost:35453",
     "ship": "zod",
     "code": "lidlut-tabwed-pillex-ridrup",
@@ -12,7 +12,7 @@
   },
   "~bus": {
     "authFile": "e2e/.auth/bus.json",
-    "downloadUrl": "https://storage.googleapis.com/tlon-messenger-public-assets/e2e-nodes/rube-bus11.tgz",
+    "downloadUrl": "https://bootstrap.urbit.org/rube-bus11.tgz",
     "url": "http://localhost:36963",
     "ship": "bus",
     "code": "riddec-bicrym-ridlev-pocsef",
@@ -23,7 +23,7 @@
   },
   "~ten": {
     "authFile": "e2e/.auth/ten.json",
-    "downloadUrl": "https://storage.googleapis.com/tlon-messenger-public-assets/e2e-nodes/rube-ten11.tgz",
+    "downloadUrl": "https://bootstrap.urbit.org/rube-ten11.tgz",
     "url": "http://localhost:38473",
     "ship": "ten",
     "code": "lapseg-nolmel-riswen-hopryc",
@@ -34,7 +34,7 @@
   },
   "~mug": {
     "authFile": "e2e/.auth/mug.json",
-    "downloadUrl": "https://storage.googleapis.com/tlon-messenger-public-assets/e2e-nodes/rube-mug4.tgz",
+    "downloadUrl": "https://bootstrap.urbit.org/rube-mug11.tgz",
     "url": "http://localhost:39983",
     "ship": "mug",
     "code": "ravsut-bolryd-hapsum-pastul",

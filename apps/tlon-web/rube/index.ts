@@ -572,6 +572,12 @@ const checkShipReadinessForTests = async () =>
 
       const ready = await shipsAreReadyForTests();
 
+      console.log('Checking ship readiness for tests', {
+        ready,
+        attempts,
+        maxAttempts,
+      });
+
       if (ready) {
         resolve();
       } else if (attempts < maxAttempts) {
@@ -585,7 +591,7 @@ const checkShipReadinessForTests = async () =>
   });
 
 const runPlaywrightTests = async () => {
-  await checkShipReadinessForTests();
+  // await checkShipReadinessForTests();
 
   // to do:
   // refactor this to be able to target specs individually
@@ -723,6 +729,7 @@ const main = async () => {
     await getStartHashes();
     await copyDesks();
     await commitDesks();
+    await checkShipReadinessForTests();
 
     // Check if we should skip running tests (for single test runner)
     if (process.env.SKIP_TESTS === 'true') {
