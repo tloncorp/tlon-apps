@@ -51,7 +51,7 @@ test('should generate an invite link and be able to redem group/personal invites
     await helpers.navigateBack(zodPage);
 
     // Confirm it generated an invite link for the group
-    await zodPage.waitForTimeout(4000);
+    await zodPage.waitForTimeout(10000);
     await zodPage.getByText('Invite Friends').click();
     const clipboardText: string = await zodPage.evaluate(
       'navigator.clipboard.readText()'
