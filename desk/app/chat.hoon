@@ -630,10 +630,10 @@
         cor
       =/  bak=_cor
         (load -:!>(*[versioned-state:load @ud]) q.old-state.egg-any)
-      ::  restore previous data, doing a "deep merge" where possible
-      ::NOTE  as written, this may result in duplicate sequence numbers
-      ::TODO  should go over wit.pact.hav and bump all version numbers by the
-      ::      num.pact.hav
+      ::  restore previous data, doing a "deep merge" where possible.
+      ::  in doing so we must take care around sequence numbers.
+      ::  to keep that logic simple, we merge the message lists and
+      ::  re-number all the messages in sequence.
       ::
       =.  dms
         %+  roll  ~(tap by dms:bak)
@@ -642,8 +642,15 @@
         ?.  (~(has by dms) ship)
           dm
         =/  hav  (~(got by dms) ship)
-        :*  :+  (max num.pact.dm num.pact.hav)
+        =/  [num=@ud wit=writs:c]
+          %^  (dip:on:writs:c ,@ud)
               (uni:on:writs:c wit.pact.dm wit.pact.hav)
+            0
+          |=  [n=@ud k=time v=writ:c]
+          ^-  [(unit writ:c) ? @ud]
+          [`v(seq +(n)) | +(n)]
+        :*  :+  num
+              wit
             (~(uni by dex.pact.dm) dex.pact.hav)
           ::
             remark.hav

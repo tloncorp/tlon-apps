@@ -75,7 +75,7 @@
 ::  $pact: a double indexed map of chat messages, id -> time -> message
 ::
 +$  pact
-  $:  num=@ud  ::  number of msgs, for sequence nr generation
+  $:  num=@ud  ::  number of msgs, highest nr msg, for sequence nr generation
       wit=writs
       dex=index
   ==
