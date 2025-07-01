@@ -591,7 +591,7 @@ const checkShipReadinessForTests = async () =>
   });
 
 const runPlaywrightTests = async () => {
-  // await checkShipReadinessForTests();
+  await checkShipReadinessForTests();
 
   // to do:
   // refactor this to be able to target specs individually
