@@ -129,12 +129,12 @@
     ::
         %'POST'
       ?~  body.request
-        :_  (give-not-found 'body not found')
+        :_  (give (not-found 'body not found'))
         %^  tell:log  %crit
           ~['POST body not found']
         ~['event'^s+'Lure POST Fail' 'flow'^s+'lure']
       ?.  =('ship=%7E' (end [3 8] q.u.body.request))
-        :_  (give-not-found 'ship not found in body')
+        :_  (give (not-found 'ship not found in body'))
         %^  tell:log  %crit
           ~['ship not found in POST body']
         ~['event'^s+'Lure POST Fail' 'flow'^s+'lure']
@@ -157,11 +157,11 @@
         --
       =;  [bite=(unit bite:reel) inviter=(unit ship)]
         ?~  bite
-          :_  (give-not-found 'invite token not found')
+          :_  (give (not-found 'invite token not found'))
           %^  lure-log  %crit  'Invite Token Missing'
           ~[leaf+"invite token {<token>} not found"]
         ?~  inviter
-          :_  (give-not-found 'inviter not found')
+          :_  (give (not-found 'inviter not found'))
           %^  lure-log  %crit  'Inviter Not Found'
           ~['inviter not found']
         ^-  (list card)
@@ -192,9 +192,6 @@
       |=  =(pole knot)
       ^-  (list card)
       %-  give
-      =<  %_  .  headers.response-header
-            [['access-control-allow-origin' '*'] headers.response-header]
-          ==
       ?+  pole  not-found:gen:server
           [%bait %who ~]
         (json-response:gen:server s+(scot %p our.bowl))
@@ -217,12 +214,18 @@
         (manx-response:gen:server (landing-page metadata))
       ==
     ::
-    ++  give-not-found
+    ++  allow
+      |=  simple-payload:http
+      ^-  simple-payload:http
+      :_  data
+      :-  status-code.response-header
+      [['access-control-allow-origin' '*'] headers.response-header]
+    ++  not-found
       |=  body=cord
-      (give [[404 ~] `(as-octs:mimes:html body)])
+      [[404 ~] `(as-octs:mimes:html body)]
     ++  give
       |=  =simple-payload:http
-      (give-simple-payload:app:server id simple-payload)
+      (give-simple-payload:app:server id (allow simple-payload))
     --
       %bait-describe
     =+  !<([=nonce:reel =metadata:reel] vase)
