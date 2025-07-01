@@ -19,8 +19,8 @@
   ==
 ::  $seat: group membership (formerly $vessel)
 ::
-::  .roles: set of roles assigned to a seat
-::  .joined: time the ship joined TODO rename to time
+::  .roles: the set of roles assigned to a seat
+::  .joined: the time a ship has joined
 ::
 +$  seat
   $:  roles=(set role-id)

@@ -1,6 +1,6 @@
 ::  groups-conv: groups types conversions
 ::
-/-  gv=groups-ver, meta
+/-  gv=groups-ver, meta, epic
 /+  neg=negotiate
 ::
 =,  gv
@@ -77,11 +77,16 @@
         ==
       ::
       ++  group-ui
-        |=  [=net:v7:gv =group:v7:gv]
+        |=  [=status:neg =net:v7:gv =group:v7:gv]
         ^-  group-ui:v2:gv
-        ::XX  saga is unused by the client?
-        :_  ~
-        (v2:group:v7 group)
+        ?.  ?=(%sub -.net)
+          [(v2:group:v7 group) `[%chi ~]]
+        =/  saga=(unit saga:e)
+          ?+  status  ~
+            %match  `[%chi ~]
+            %clash  `[%lev ~]
+          ==
+        [(v2:group:v7 group) saga]
       --
     ++  v5
       =<  group

@@ -784,7 +784,12 @@
         |=  [=net:v7:gv =group:v7:gv]
         :-  net
         (drop-seats:group:v7:gc group our.bowl)
-      =/  groups-light-ui-2  (~(run by net-groups-7) group-ui:v2:group:v7:gc)
+      =/  groups-light-ui-2
+        %-  ~(urn by net-groups-7)
+        |=  [=flag:g =net:v7:gv =group:v7:gv]
+        =/  =status:neg
+          (read-status:neg bowl [p.flag %groups])
+        (group-ui:v2:group:v7:gc status net group)
       ::  we filter out foreigns which are %done,
       ::  since completed gangs are removed after
       ::  the group join in old groups.
@@ -824,9 +829,16 @@
       [%x ver=?(%v0 %v1 %v2) %ui %groups ~]
     =/  net-groups-7=net-groups:v7:gv  groups
     ?-    ver.pole
-        %v0  ``groups-ui+!>((~(run by net-groups-7) group-ui:v2:group:v7:gc))
-        %v1  ``groups-ui-1+!>((~(run by net-groups-7) group-ui:v5:group:v7:gc))
-        %v2  ``groups-ui-2+!>((~(run by net-groups-7) group-ui:group:v7:gc))
+        %v0
+      =-  ``groups-ui+!>(-)
+      %-  ~(urn by net-groups-7)
+      |=  [=flag:g =net:v7:gv =group:v7:gv]
+      =/  =status:neg
+        (read-status:neg bowl [p.flag %groups])
+      (group-ui:v2:group:v7:gc status net group)
+    ::
+      %v1  ``groups-ui-1+!>((~(run by net-groups-7) group-ui:v5:group:v7:gc))
+      %v2  ``groups-ui-2+!>((~(run by net-groups-7) group-ui:group:v7:gc))
     ==
   ::
     ::  deprecated
@@ -854,7 +866,7 @@
   ::
       [%x ver=?(%v0 %v1 %v2) %ui %groups ship=@ name=@ rest=*]
     =+  ship=(slav %p ship.pole)
-    =*  flag  [ship name.pole]
+    =/  =flag:g  [ship name.pole]
     =+  net-group=(~(get by groups) flag)
     ?~  net-group  [~ ~]
     ?.  ?=(~ rest.pole)
@@ -864,7 +876,9 @@
       ~|(peek-bad-path+pole !!)
     ?-    ver.pole
         %v0
-      ``group-ui+!>((group-ui:v2:group:v7:gc u.net-group))
+      =/  =status:neg
+        (read-status:neg bowl [p.flag %groups])
+      ``group-ui+!>((group-ui:v2:group:v7:gc status u.net-group))
     ::
         %v1
       ``group-ui-1+!>((group-ui:v5:group:v7:gc u.net-group))
@@ -890,7 +904,7 @@
     ?~  far=(~(get by foreigns) flag)  [~ ~]
     ``foreign-1+!>(`foreign:v7:gv`u.far)
   ::
-      ::TODO deprecated. update /lib/notify.hoon to use 
+      ::TODO deprecated. update /lib/notify.hoon to use
       ::     foreigns api, then remove this path.
       ::
       [%x %gangs ~]
@@ -1378,7 +1392,7 @@
       =.  joined.seat  now.bowl
       =.  roles.seat  roles
       =.  seats.group  (~(put by seats.group) ship seat)
-      =.  roles.group  
+      =.  roles.group
         %-  ~(gas by roles.group)
         %+  turn  ~(tap in roles)
         |=  =role-id:g
@@ -1428,7 +1442,7 @@
     !.  ::  prevent secret group discovery
     ?<  (se-is-banned src.bowl)
     ?<  ?=(%secret privacy.ad)
-    ?:  (se-is-joined src.bowl)  
+    ?:  (se-is-joined src.bowl)
       se-core
     ?:  ?=(%public privacy.ad)
       ::  public group: wait until we receive the ask watch
@@ -2435,7 +2449,7 @@
   ++  go-a-invite
     |=  =a-invite:g
     ?>  from-self
-    ?:  =(ship.a-invite src.bowl)  
+    ?:  =(ship.a-invite src.bowl)
       go-core
     ?:  &(?=(~ token.a-invite) !?=(%public privacy.ad))
       ::  if we don't have a suitable token for a non-public group,
