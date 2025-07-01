@@ -33,6 +33,7 @@
 ::  $seal: the id of a chat and its meta-responses
 ::
 ::    id: the id of the message
+::    seq: sequence number (first msg is 1, there is no 0th msg)
 ::    time: the time the message was received
 ::    replies: set of replies to a message
 ::    reacts: reactions to a message
@@ -75,7 +76,7 @@
 ::  $pact: a double indexed map of chat messages, id -> time -> message
 ::
 +$  pact
-  $:  num=@ud  ::  number of msgs, highest nr msg, for sequence nr generation
+  $:  num=@ud  ::  number of msgs/highest nr msg, for sequence nr generation
       wit=writs
       dex=index
   ==

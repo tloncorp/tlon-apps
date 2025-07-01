@@ -415,15 +415,14 @@
     =/  end=@ud
       ?:  =(%$ end.pole)  num.pac
       (slav %ud end.pole)
-    %-  give-paged-writs
-    :+  mode.pole
+    %^    give-paged-writs
+        mode.pole
       ver
     ::  queries near end more common, so we make a newest-first list,
     ::  and walk it "backwards" until we extract our desired range
     ::
     =/  wits=(list [time p=writ:c])
       (bap:on:writs:c wit.pac)
-    =|  out=(list [time writ:c])
     |-
     ?~  wits  ~
     ?:  (gth seq.p.i.wits end)

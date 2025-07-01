@@ -1533,8 +1533,8 @@
   ++  cu-area-old-1  `wire`/v1/club/(scot %uv id)
   ++  cu-area-writs-old-1  `wire`/v1/club/(scot %uv id)/writs
   ::
-  ++  cu-area-old  `wire`/club/(scot %uv id)
-  ++  cu-area-writs-old  `wire`/club/(scot %uv id)/writs
+  ++  cu-area-old-0  `wire`/club/(scot %uv id)
+  ++  cu-area-writs-old-0  `wire`/club/(scot %uv id)/writs
   ::
   ++  cu-uid
     =/  uid  `@uv`(shax (jam ['clubs' (add counter eny.bowl)]))
@@ -1645,7 +1645,7 @@
     =/  new-response=[whom:c response:writs:c]  [whom u.response]
     =.  cor
       =/  cage  writ-response+!>(old-response-3)
-      (emit %give %fact ~[/ cu-area-old cu-area-writs-old] cage)
+      (emit %give %fact ~[/ cu-area-old-0 cu-area-writs-old-0] cage)
     =.  cor
       =/  cage  writ-response+!>(old-response-4)
       (emit %give %fact ~[/v1 cu-area-old-1 cu-area-writs-old-1] cage)
@@ -2021,8 +2021,8 @@
   ++  di-area-old-1  `path`/v1/dm/(scot %p ship)
   ++  di-area-writs-old-1  `path`/v1/dm/(scot %p ship)/writs
   ::
-  ++  di-area-old  `path`/dm/(scot %p ship)
-  ++  di-area-writs-old  `path`/dm/(scot %p ship)/writs
+  ++  di-area-old-0  `path`/dm/(scot %p ship)
+  ++  di-area-writs-old-0  `path`/dm/(scot %p ship)/writs
   ::
   ++  di-activity
     |=  $:  $=  concern
@@ -2084,7 +2084,7 @@
     =.  cor
       =/  =cage
         writ-response+!>(old-response-3)
-      (emit %give %fact ~[/ di-area-old di-area-writs-old] cage)
+      (emit %give %fact ~[/ di-area-old-0 di-area-writs-old-0] cage)
     =.  cor
       =/  =cage  writ-response-1+!>(new-response)
       (emit %give %fact ~[/v1 di-area-old-1 di-area-writs-old-1] cage)
