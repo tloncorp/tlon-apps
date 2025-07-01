@@ -114,6 +114,19 @@
     ?+    method.request  (give not-found:gen:server)
       %'GET'  (get-request line)
     ::
+        %'OPTIONS'
+      %-  give
+      =;  =header-list:http
+        [[204 header-list] ~]
+      :~  :-  'access-control-allow-methods'
+          =-  (fall - '*')
+          (get-header:http 'access-control-request-method' header-list.request)
+        ::
+          :-  'access-control-allow-headers'
+          =-  (fall - '*')
+          (get-header:http 'access-control-request-headers' header-list.request)
+      ==
+    ::
         %'POST'
       ?~  body.request
         :_  (give-not-found 'body not found')
