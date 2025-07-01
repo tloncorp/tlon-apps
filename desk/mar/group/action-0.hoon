@@ -1,6 +1,6 @@
 /-  gv=groups-ver
 /+  j=groups-json
-|_  =action:v2:ver:gv
+|_  =action:v2:gv
 ++  grad  %noun
 ++  grow
   |%

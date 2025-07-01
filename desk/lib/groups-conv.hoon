@@ -827,6 +827,7 @@
         ^-  create-group:v7:gv
         =/  meta=data:meta
           [title description image cover]
+        ~|  %afar-cordon-not-supported
         ?>  ?=(?(%open %shut) -.cordon)
         =/  =privacy:v7:gv
           ?:  ?=(%open -.cordon)  %public

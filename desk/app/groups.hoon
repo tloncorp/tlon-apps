@@ -236,7 +236,7 @@
         $(+< group-action-4+!>(a-groups))
       ::  translate the shut cordon poke:
       ::  1. pending operations translate into appropiate seat commands.
-      ::  2. ask operations translate into foreign ask actionts.
+      ::  2. ask operations translate into foreign ask actions.
       ::
       ?:  ?=([%cordon %shut *] diff)
         =*  cordon-diff  p.p.diff
@@ -244,7 +244,6 @@
             %add-ships
           ?-    p.cordon-diff
               %ask
-            ::  enforce
             ?>  =(q.cordon-diff (silt our.bowl ~))
             =/  =a-foreigns:v7:gv
               [%foreign flag %ask ~]
@@ -259,10 +258,17 @@
             %del-ships
           ?-    p.cordon-diff
               %ask
-            ?>  =(q.cordon-diff (silt our.bowl ~))
-            =/  =a-foreigns:v7:gv
+            ?:  =(q.cordon-diff (silt our.bowl ~))
+              ::  client: cancel our own ask request
+              ::
+              =/  =a-foreigns:v7:gv
               [%foreign flag %cancel ~]
-            $(+< group-foreign-1+!>(a-foreigns))
+              $(+< group-foreign-1+!>(a-foreigns))
+            ::  admin: deny ask requests
+            ::
+            =/  =a-group:v7:gv
+              [%entry %ask q.cordon-diff %deny]
+            $(+< group-action-4+!>([%group flag a-group]))
           ::
               %pending
             =/  =a-group:v7:gv
@@ -287,7 +293,7 @@
     ::
     ::  foreign groups interface
     ::
-        %group-foreign-action-1
+        %group-foreign-1
       =+  !<(=a-foreigns:v7:gv vase)
       ?-    -.a-foreigns
           %foreign
@@ -339,7 +345,6 @@
       :: inviter
       ::
       ?>  (~(has by groups) p.invite-0)
-      ~&  group-invite+invite-0
       =/  =a-invite:v7:gv  [q.invite-0 ~ ~]
       $(+< group-action-4+!>(`a-groups:v7:gv`[%invite p.invite-0 a-invite]))
     ::
@@ -956,16 +961,12 @@
   ::
       [%groups ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
-    ::  ignore kicks for groups we already left
+    ::  ignore responses after we have left the group
     ::
-    ?:  ?&  ?=(%kick -.sign)
-            !(~(has by groups) ship name.pole)
-        ==
-      cor
-    ::  ignore leave command acks for groups
-    ::  we already left
-    ::
-    ?:  ?&  ?=([%command %leave ~] rest.pole)
+    ?:  ?&  ?|  ?=(%kick -.sign)
+                ?=([%command %leave ~] rest.pole)
+                ?=([%leave-channels ~] rest.pole)
+            ==
             !(~(has by groups) ship name.pole)
         ==
       cor
@@ -1424,7 +1425,9 @@
   ++  se-c-ask
     |=  story=(unit story:s:g) ::XX something is messed up with story imports
     ^+  se-core
+    !.  ::  prevent secret group discovery
     ?<  (se-is-banned src.bowl)
+    ?<  ?=(%secret privacy.ad)
     ?:  (se-is-joined src.bowl)  
       se-core
     ?:  ?=(%public privacy.ad)
@@ -3293,7 +3296,7 @@
     ++  ask
       |=  story=(unit story:s:g)
       ^-  (list card)
-      =/  =wire  (weld fi-area /join/ask)
+      =/  =wire  (weld fi-area /ask)
       =/  =path  (weld fi-server-path /ask)
       =/  =cage
         group-command+!>(`c-groups:g`[%ask flag story])
@@ -3532,7 +3535,7 @@
     ::
         ::  asked to join the group
         ::
-        [%join %ask ~]
+        [%ask ~]
       =+  log=~(. l `'group-join')
       ?.  &(?=(^ progress) =(%ask u.progress))
         ::  we aren't asking anymore, ignore
@@ -3615,7 +3618,10 @@
     ::
         :: command poke
         [%command *]
+      =+  log=~(. l `'foreign-group-command')
       ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  fi-core
+      %-  (fail:log 'poke-ack' 'foreign group command' u.p.sign)
       fi-core
     ==
   ::  +fi-take-index: receive ship index

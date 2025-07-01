@@ -564,7 +564,7 @@
 +$  r-role  u-role
 +$  r-channel  u-channel
 +$  r-section  u-section
-::  $a-foreigns: foreigns action
+::  $a-foreigns: foreign action
 ::
 ::  %foreign: a foreign group action
 ::  %invite: receive an .invite

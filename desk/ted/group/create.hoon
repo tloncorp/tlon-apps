@@ -26,6 +26,7 @@
 ;<  =bowl:spider  bind:m  get-bowl:io
 ?>  =(p.group-id.create our.bowl)
 ~&  %thread-run
+::
 ;<  exists=?  bind:m
   (scry:io ? /gu/groups/groups/(scot %p p.group-id.create)/[q.group-id.create])
 ~&  group+[group-id.create exists=exists]
