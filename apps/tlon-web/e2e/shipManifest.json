@@ -1,7 +1,7 @@
 {
   "~zod": {
     "authFile": "e2e/.auth/zod.json",
-    "downloadUrl": "https://bootstrap.urbit.org/rube-zod10.tgz",
+    "downloadUrl": "https://bootstrap.urbit.org/rube-zod13.tgz",
     "url": "http://localhost:35453",
     "ship": "zod",
     "code": "lidlut-tabwed-pillex-ridrup",
@@ -13,7 +13,7 @@
   },
   "~bus": {
     "authFile": "e2e/.auth/bus.json",
-    "downloadUrl": "https://bootstrap.urbit.org/rube-bus9.tgz",
+    "downloadUrl": "https://bootstrap.urbit.org/rube-bus11.tgz",
     "url": "http://localhost:36963",
     "ship": "bus",
     "code": "riddec-bicrym-ridlev-pocsef",
@@ -25,7 +25,7 @@
   },
   "~ten": {
     "authFile": "e2e/.auth/ten.json",
-    "downloadUrl": "https://bootstrap.urbit.org/rube-ten10.tgz",
+    "downloadUrl": "https://bootstrap.urbit.org/rube-ten13.tgz",
     "url": "http://localhost:38473",
     "ship": "ten",
     "code": "lapseg-nolmel-riswen-hopryc",
@@ -45,6 +45,6 @@
     "loopbackPort": "",
     "webUrl": "http://localhost:3003",
     "skipCommit": false,
-    "skipSetup": true
+    "skipSetup": false
   }
 }
