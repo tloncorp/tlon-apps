@@ -8,7 +8,8 @@
     "httpPort": "35453",
     "loopbackPort": "",
     "webUrl": "http://localhost:3000",
-    "skipCommit": false
+    "skipCommit": false,
+    "skipSetup": false
   },
   "~bus": {
     "authFile": "e2e/.auth/bus.json",
@@ -19,7 +20,8 @@
     "httpPort": "36963",
     "loopbackPort": "",
     "webUrl": "http://localhost:3001",
-    "skipCommit": true
+    "skipCommit": true,
+    "skipSetup": false
   },
   "~ten": {
     "authFile": "e2e/.auth/ten.json",
@@ -30,6 +32,19 @@
     "httpPort": "38473",
     "loopbackPort": "",
     "webUrl": "http://localhost:3002",
-    "skipCommit": false
+    "skipCommit": false,
+    "skipSetup": false
+  },
+  "~mug": {
+    "authFile": "e2e/.auth/mug.json",
+    "downloadUrl": "https://bootstrap.urbit.org/rube-mug13.tgz",
+    "url": "http://localhost:39983",
+    "ship": "mug",
+    "code": "ravsut-bolryd-hapsum-pastul",
+    "httpPort": "39983",
+    "loopbackPort": "",
+    "webUrl": "http://localhost:3003",
+    "skipCommit": false,
+    "skipSetup": true
   }
 }

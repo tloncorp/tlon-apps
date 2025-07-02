@@ -58,7 +58,6 @@ export function NotebookPost({
   const [showRetrySheet, setShowRetrySheet] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const [overFlowIsHovered, setOverFlowIsHovered] = useState(false);
   const channel = useChannelContext();
   const postActionIds = useMemo(
     () => ChannelAction.channelActionIdsFor({ channel }),
@@ -105,12 +104,9 @@ export function NotebookPost({
     setIsHovered(false);
   }, []);
 
-  const onOverflowHoverIn = useCallback(() => {
-    setOverFlowIsHovered(true);
-  }, []);
-
-  const onOverflowHoverOut = useCallback(() => {
-    setOverFlowIsHovered(false);
+  const handleOverflowPress = useCallback((e: any) => {
+    // Stop propagation to prevent parent onPress from firing
+    e.stopPropagation();
   }, []);
 
   if (!post || post.isDeleted) {
@@ -120,7 +116,7 @@ export function NotebookPost({
   const hasReplies = post.replyCount && post.replyTime && post.replyContactIds;
   return (
     <Pressable
-      onPress={overFlowIsHovered || isPopoverOpen ? undefined : handlePress}
+      onPress={handlePress}
       onHoverIn={onHoverIn}
       onHoverOut={onHoverOut}
       onLongPress={handleLongPress}
@@ -139,7 +135,7 @@ export function NotebookPost({
             alignItems="center"
           >
             <Text color="$tertiaryText" size="$body">
-              You have hidden this post.
+              You have hidden or reported this post.
             </Text>
           </XStack>
         ) : (
@@ -148,6 +144,7 @@ export function NotebookPost({
               post={post}
               showDate={showDate}
               showAuthor={showAuthor && viewMode !== 'activity'}
+              testID="NotebookPostHeader"
             />
 
             {viewMode !== 'activity' && (
@@ -156,6 +153,7 @@ export function NotebookPost({
                 color="$secondaryText"
                 numberOfLines={3}
                 paddingBottom={showReplies && hasReplies ? 0 : '$m'}
+                testID="NotebookPostContentSummary"
               >
                 {post.textContent}
               </Text>
@@ -179,7 +177,12 @@ export function NotebookPost({
           </XStack>
         ) : null}
         {!hideOverflowMenu && (isPopoverOpen || isHovered) && (
-          <View position="absolute" top={12} right={12}>
+          <Pressable
+            position="absolute"
+            top={12}
+            right={12}
+            onPress={handleOverflowPress}
+          >
             <ChatMessageActions
               post={post}
               postActionIds={postActionIds}
@@ -195,14 +198,14 @@ export function NotebookPost({
                   backgroundColor="transparent"
                   borderWidth="unset"
                   size="$l"
-                  onHoverIn={onOverflowHoverIn}
-                  onHoverOut={onOverflowHoverOut}
+                  onPress={handleOverflowPress}
+                  testID="MessageActionsTrigger"
                 >
                   <Icon type="Overflow" />
                 </Button>
               }
             />
-          </View>
+          </Pressable>
         )}
       </NotebookPostFrame>
       <SendPostRetrySheet
@@ -289,11 +292,13 @@ export function NotebookPostDetailView({ post }: { post: db.Post }) {
         paddingBottom={'$2xl'}
         borderBottomWidth={1}
         borderBottomColor="$border"
+        testID="NotebookPostHeaderDetailView"
       />
       <NotebookContentRenderer
         marginTop="$-l"
         marginHorizontal="$-l"
         paddingHorizontal="$xl"
+        testID="NotebookPostContent"
         content={
           post.editStatus === 'failed' || post.editStatus === 'pending'
             ? lastEditContent

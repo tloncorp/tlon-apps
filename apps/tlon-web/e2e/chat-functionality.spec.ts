@@ -24,13 +24,16 @@ test('should test comprehensive chat functionality', async ({ page }) => {
 
   // Create a new group
   await helpers.createGroup(page);
+  const groupName = '~bus, ~zod';
+
+  await helpers.inviteMembersToGroup(page, ['bus']);
 
   // Navigate back to Home and verify group creation
   await helpers.navigateBack(page);
   if (await page.getByText('Home').isVisible()) {
-    await expect(page.getByText('Untitled group')).toBeVisible();
-    await page.getByText('Untitled group').click();
-    await expect(page.getByText('Untitled group').first()).toBeVisible();
+    await expect(page.getByText(groupName)).toBeVisible();
+    await page.getByText(groupName).click();
+    await expect(page.getByText(groupName).first()).toBeVisible();
   }
 
   // Send a message in the General channel
@@ -68,9 +71,9 @@ test('should test comprehensive chat functionality', async ({ page }) => {
   // Navigate away and back to work around potential bug mentioned in Maestro test
   await helpers.navigateBack(page);
   if (await page.getByText('Home').isVisible()) {
-    await expect(page.getByText('Untitled group')).toBeVisible();
-    await page.getByText('Untitled group').click();
-    await expect(page.getByText('Untitled group').first()).toBeVisible();
+    await expect(page.getByText(groupName)).toBeVisible();
+    await page.getByText(groupName).click();
+    await expect(page.getByText(groupName).first()).toBeVisible();
   }
 
   // Report the message
@@ -88,11 +91,35 @@ test('should test comprehensive chat functionality', async ({ page }) => {
   await helpers.sendMessage(page, 'Edit this message');
   await helpers.editMessage(page, 'Edit this message', 'Edited message');
 
+  // Mention a user in a message
+  await page.getByTestId('MessageInput').click();
+  await page.fill('[data-testid="MessageInput"]', 'mentioning @bus');
+  await page.getByTestId('~bus-contact').click();
+  await page.getByTestId('MessageInputSendButton').click();
+  // Wait for message to appear
+  await expect(page.getByText('mentioning ~bus')).toBeVisible();
+
+  // Mention all in a message
+  await page.getByTestId('MessageInput').click();
+  await page.fill('[data-testid="MessageInput"]', 'mentioning @all');
+  await page.getByTestId('-all--group').click();
+  await page.getByTestId('MessageInputSendButton').click();
+  // Wait for message to appear
+  await expect(page.getByText('mentioning @all')).toBeVisible();
+
+  // Mention a role in a message
+  await page.getByTestId('MessageInput').click();
+  await page.fill('[data-testid="MessageInput"]', 'mentioning @admin');
+  await page.getByTestId('admin-group').click();
+  await page.getByTestId('MessageInputSendButton').click();
+  // Wait for message to appear
+  await expect(page.getByText('mentioning @admin')).toBeVisible();
+
   // Delete the group and clean up
   await helpers.openGroupSettings(page);
-  await helpers.deleteGroup(page);
+  await helpers.deleteGroup(page, groupName);
 
   // Verify we're back at Home and group is deleted
   await expect(page.getByText('Home')).toBeVisible();
-  await expect(page.getByText('Untitled group')).not.toBeVisible();
+  await expect(page.getByText(groupName)).not.toBeVisible();
 });
