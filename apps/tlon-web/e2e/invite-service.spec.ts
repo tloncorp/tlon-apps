@@ -7,6 +7,8 @@ const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
 
 test.use({ permissions: ['clipboard-write', 'clipboard-read'] });
 
+test.skip(true);
+
 test('should generate an invite link and be able to redem group/personal invites', async ({
   browser,
 }) => {

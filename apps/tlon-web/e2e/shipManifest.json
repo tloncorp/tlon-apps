@@ -1,36 +1,39 @@
 {
   "~zod": {
     "authFile": "e2e/.auth/zod.json",
-    "downloadUrl": "https://bootstrap.urbit.org/rube-zod13.tgz",
+    "downloadUrl": "https://bootstrap.urbit.org/rube-zod10.tgz",
     "url": "http://localhost:35453",
     "ship": "zod",
     "code": "lidlut-tabwed-pillex-ridrup",
     "httpPort": "35453",
     "loopbackPort": "",
     "webUrl": "http://localhost:3000",
-    "skipCommit": false
+    "skipCommit": false,
+    "skipSetup": false
   },
   "~bus": {
     "authFile": "e2e/.auth/bus.json",
-    "downloadUrl": "https://bootstrap.urbit.org/rube-bus11.tgz",
+    "downloadUrl": "https://bootstrap.urbit.org/rube-bus9.tgz",
     "url": "http://localhost:36963",
     "ship": "bus",
     "code": "riddec-bicrym-ridlev-pocsef",
     "httpPort": "36963",
     "loopbackPort": "",
     "webUrl": "http://localhost:3001",
-    "skipCommit": true
+    "skipCommit": true,
+    "skipSetup": false
   },
   "~ten": {
     "authFile": "e2e/.auth/ten.json",
-    "downloadUrl": "https://bootstrap.urbit.org/rube-ten13.tgz",
+    "downloadUrl": "https://bootstrap.urbit.org/rube-ten10.tgz",
     "url": "http://localhost:38473",
     "ship": "ten",
     "code": "lapseg-nolmel-riswen-hopryc",
     "httpPort": "38473",
     "loopbackPort": "",
     "webUrl": "http://localhost:3002",
-    "skipCommit": false
+    "skipCommit": false,
+    "skipSetup": false
   },
   "~mug": {
     "authFile": "e2e/.auth/mug.json",
@@ -41,6 +44,7 @@
     "httpPort": "39983",
     "loopbackPort": "",
     "webUrl": "http://localhost:3003",
-    "skipCommit": false
+    "skipCommit": false,
+    "skipSetup": true
   }
 }

@@ -40,22 +40,31 @@ export interface Ship {
   savePath: string;
   extractPath: string;
   skipCommit: boolean;
+  skipSetup: boolean;
 }
 
 function getShips(): Record<string, Ship> {
   return Object.fromEntries(
-    Object.entries(shipManifest).map(([, value]) => {
-      const v = value as Omit<Ship, 'savePath' | 'extractPath'>;
-      const ship = v.ship;
-      return [
-        ship,
-        {
-          ...v,
-          savePath: path.join(__dirname, v.downloadUrl.split('/').pop() || ''),
-          extractPath: path.join(__dirname, ship),
-        },
-      ];
-    })
+    Object.entries(shipManifest)
+      .filter(([, value]) => {
+        const v = value as Ship;
+        return !v.skipSetup;
+      })
+      .map(([, value]) => {
+        const v = value as Ship;
+        const ship = v.ship;
+        return [
+          ship,
+          {
+            ...v,
+            savePath: path.join(
+              __dirname,
+              v.downloadUrl.split('/').pop() || ''
+            ),
+            extractPath: path.join(__dirname, ship),
+          },
+        ];
+      })
   );
 }
 
@@ -572,12 +581,6 @@ const checkShipReadinessForTests = async () =>
 
       const ready = await shipsAreReadyForTests();
 
-      console.log('Checking ship readiness for tests', {
-        ready,
-        attempts,
-        maxAttempts,
-      });
-
       if (ready) {
         resolve();
       } else if (attempts < maxAttempts) {
@@ -600,7 +603,7 @@ const runPlaywrightTests = async () => {
   const runTestForShip = (ship: ShipName) =>
     new Promise<void>((resolve, reject) => {
       console.log(`Running tests for ${ship}`);
-      const playwrightArgs = ['playwright', 'test', '--workers=1', '--ui'];
+      const playwrightArgs = ['playwright', 'test', '--workers=1'];
 
       if (process.env.DEBUG_PLAYWRIGHT) {
         playwrightArgs.push('--debug');

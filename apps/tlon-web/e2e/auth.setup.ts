@@ -3,6 +3,10 @@ import { test as setup } from '@playwright/test';
 import shipManifest from './shipManifest.json';
 
 Object.entries(shipManifest).forEach(([key, ship]) => {
+  if (ship.skipSetup) {
+    return;
+  }
+
   setup(`authenticate ${ship.ship}`, async ({ page }) => {
     await page.goto(`${ship.webUrl}/~/login`);
     await page.getByPlaceholder('sampel-ticlyt-migfun-falmel').fill(ship.code);
