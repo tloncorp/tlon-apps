@@ -24,7 +24,7 @@ public class TalkMessagingService extends FirebaseMessagingService {
         if (remoteMessage.getData().size() > 0) {
             Map<String, String> data = remoteMessage.getData();
             if (Objects.equals(data.get("action"), "notify")) {
-                NotificationManagerKt.processNotificationBlocking(this, data.get("uid"));
+                NotificationManagerKt.processNotificationBlocking(this, data.get("uid"), remoteMessage);
             }
         }
     }
