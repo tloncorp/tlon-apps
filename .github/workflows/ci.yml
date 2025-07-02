@@ -73,7 +73,7 @@ jobs:
         run: pnpm e2e
         working-directory: ./apps/tlon-web
         env:
-          INVITE_PROVIDER: http://localhost:39983
+          VITE_INVITE_PROVIDER: http://localhost:39983
 
       - uses: actions/upload-artifact@v4
         if: always()
