@@ -384,6 +384,7 @@ export const useGroupPreview = (groupId: string) => {
     queryKey: [['groupPreview', groupId], deps],
     refetchOnReconnect: false,
     refetchOnMount: false,
+    enabled: !!groupId,
     queryFn: async () => {
       const [preview] = await syncGroupPreviews([groupId]);
       return preview;
