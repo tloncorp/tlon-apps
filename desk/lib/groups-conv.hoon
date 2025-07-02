@@ -400,6 +400,9 @@
       |=  preview:v7:gv
       ^-  preview:v2:gv
       =/  =cordon:v2:gv
+        ::TODO make sure the client does not
+        ::     rely on preview cordon values.
+        ::
         ?:  ?=(%public privacy)
           [%open ~ ~]
         [%shut ~ ~]
@@ -408,6 +411,16 @@
           cordon
           time
           ?=(%secret privacy)
+      ==
+    --
+  ++  channel-preview
+    |%
+    ++  v2
+      |=  channel-preview:v7:gv
+      ^-  preview:channel:v2:gv
+      :*  nest
+          meta
+          (v2:^preview preview)
       ==
     --
   ++  invite

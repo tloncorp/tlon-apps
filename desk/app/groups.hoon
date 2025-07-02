@@ -37,6 +37,7 @@
   +$  current-state
     $:  %7
         groups=net-groups:v7:gv
+        =channels-index:v7:gv
         =foreigns:v7:gv
         =volume:v
         =^subs:s
@@ -148,7 +149,6 @@
   --
 ++  poke
   |=  [=mark =vase]
-  ~&  groups-poke+[mark src.bowl]
   ^+  cor
   ?+    mark  ~|(bad-mark+mark !!)
       %noun
@@ -161,7 +161,7 @@
       :: ?~  g=(~(get by groups) flag)
       ::   cor
       :: go-abet:(go-safe-sub:(go-abed:group-core:cor flag) |)
-    ::XX review, what is going on here?
+    ::
         %pimp-ready
       ?-  pimp
         ~         cor(pimp `&+~)
@@ -734,6 +734,18 @@
   ::
     [%v1 %groups ~]  ?>(from-self cor)
   ::
+      [ver=?(%v0 %v1) %channels app=@ ship=@ name=@ rest=*]
+    ?>  from-self
+    =/  ship=@p  (slav %p ship.pole)
+    =/  =nest:g  [app.pole ship name.pole]
+    =/  =flag:g  (~(got by channels-index) nest)
+    go-abet:(go-watch:(go-abed:go-core flag) ver.pole +.pole)
+  ::
+      ::  deprecated
+      [%chan app=@ ship=@ name=@ rest=*]
+    ?>  ?=(~ rest.pole)
+    $(pole [%v0 %channels app ship name %preview rest]:pole)
+  ::
     ::  deprecated
     [%groups %ui ~]  ?>(from-self cor)
   ::
@@ -757,12 +769,6 @@
   ::
     ::  deprecated
     [%gangs %updates ~]  ?>(from-self cor)
-  ::
-     ::TODO  rename to channels in the new API
-     [%chan app=@ ship=@ name=@ rest=*]
-    =/  ship=@p  (slav %p ship.pole)
-    =/  =nest:g  [app.pole ship name.pole]
-    (watch-chan nest)
   ::
     :: deprecated
     [%epic ~]  (give %fact ~ epic+!>(okay:g))
@@ -1724,14 +1730,12 @@
       =.  se-core
         %+  roll  ~(tap in reqs)
         |=  [=ship =_se-core]
-        ::XX broken tiscom strikes again
         =.  requests.admissions.group.se-core
           (~(del by requests.admissions.group.se-core) ship)
         =^  tok=(unit token:g)  se-core
           (se-c-entry-token:se-core %add [personal+ship ~ ~ |])
         =/  =cage  group-token+!>(tok)
         =/  =path  (weld se-area /ask/(scot %p ship))
-        ~&  se-c-entry-ask-approve+ship
         =.  se-core
           (give:se-core %fact ~[path] cage)
         (give:se-core %kick ~[path] ~)
@@ -1976,13 +1980,14 @@
     ^+  se-core
     =*  by-ch  ~(. by channels.group)
     =*  chan  channel.c-channel
-    ~&  se-c-chanel+[c-channel ~(key by channels.group)]
     ?<  &(?=(%add -.c-channel) (has:by-ch nest))
     ?-    -.c-channel
         %add
       =.  added.chan  now.bowl
       =.  sections.group  (se-section-add-channel nest chan)
       =.  channels.group  (put:by-ch nest chan)
+      =.  channels-index
+        (~(put by channels-index) nest flag)
       (se-update %channel nest [%add chan])
     ::
         %edit
@@ -1998,6 +2003,8 @@
         %+  ~(jab by sections.group)  section.channel
         |=(=section:g section(order (~(del of order.section) nest)))
       =.  channels.group  (del:by-ch nest)
+      =.  channels-index
+        (~(del by channels-index) nest)
       (se-update %channel nest [%del ~])
     ::
         %add-readers
@@ -2395,6 +2402,20 @@
       =/  =cage  channel-action+!>(action)
       =/  =wire  (snoc go-area %join-channels)
       `[%pass wire %agent dock %poke cage]
+    ::
+    ++  preview-channel
+      |=  =nest:g
+      ^-  (list card)
+      =*  ship  p.q.nest
+      =/  =wire  
+        %+  weld  go-area
+        /channels/[p.nest]/(scot %p ship)/[q.q.nest]/preview
+      =/  =dock  [ship %groups]
+      =/  =path
+        /v1/channels/[p.nest]/(scot %p ship)/[q.q.nest]/preview
+      :~  [%pass wire %agent dock %leave ~]
+          [%pass wire %agent dock %watch path]
+      ==
     --
   ::  +go-has-sub: check if we are subscribed to the group
   ::
@@ -2496,7 +2517,55 @@
     =/  =cage  group-command+!>(`c-groups:g`[%group flag c-group])
     =.  cor  (emit %pass wire %agent [p.flag server] %poke cage)
     go-core
+  ::  +go-watch: handle group watch request
   ::
+  ++  go-watch
+    |=  [ver=?(%v0 %v1) =(pole knot)]
+    ^+  go-core
+    ?<  (go-is-banned src.bowl)
+    ?+    pole  ~|(go-bad-watch+pole !!)
+        [%channels app=@ ship=@ name=@ %preview ~]
+      =+  ship=(slav %p ship.pole)
+      =/  =nest:g  [app.pole ship name.pole]
+      ?.  =(ship.pole our.bowl)
+        ::  proxy the request to the channel host
+        =.  cor  (emil (preview-channel:go-pass nest))
+        go-core
+      =+  chan=(~(get by channels.group) nest)
+      ?~  chan  ~|(go-watch-bad-channel-preview+nest !!)
+      ::TODO verify this: if a ship has permissions to read
+      ::     a channel, this implies she can also preview a (secret) group.
+      ::
+      ?>  (go-can-read src.bowl u.chan)
+      =/  =channel-preview:v7:gv
+        :*  nest
+            meta.u.chan
+            go-preview
+        ==
+      (go-give-channel-preview channel-preview &)
+    ==
+  ::  +go-give-channel-preview: give channel preview to subscribers
+  ::
+  ++  go-give-channel-preview
+    |=  [=channel-preview:g watch=?]
+    ^+  go-core
+    =*  nest  nest.channel-preview
+    ::  v0
+    ::
+    =/  preview-2
+      (v2:channel-preview:v7:gc channel-preview)
+    =/  path-0=path  ?:  watch  ~
+      /chan/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
+    =.  cor  (emit %give %fact ~[path-0] channel-preview+!>(preview-2))
+    =?  cor  watch  (emit %give %kick ~[path-0] ~)
+    ::  v1
+    ::
+    =/  preview-7=channel-preview:v7:gv  channel-preview
+    =/  path-1=path  ?:  watch  ~
+      /v1/channels/[p.nest]/(scot %p p.q.nest)/[q.q.nest]/preview
+    =.  cor  (emit %give %fact ~[path-1] channel-preview-1+!>(preview-7))
+    =?  cor  watch  (emit %give %kick ~[path-1] ~)
+    go-core
   ++  go-agent
     |=  [=wire =sign:agent:gall]
     ^+  go-core
@@ -2508,8 +2577,7 @@
         [%command ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
-      ::XX log failure
-      %-  (slog u.p.sign)
+      %-  (fail:l %poke-ack 'failed group command' u.p.sign)
       go-core
     ::
         ::  invited a ship to the group
@@ -2517,23 +2585,20 @@
         [%invite ship=@ ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
-      ::XX log failure
-      %-  (slog u.p.sign)
+      %-  (fail:l %poke-ack 'failed to invite a ship' u.p.sign)
       go-core
     ::
         ::  requested a personal invite token for the ship
         ::
         [%invite ship=@ %token ~]
-      ::TODO good practice - include useful info in crashes
-      ::
       ~|  go-agent-bad-invite+-.sign
       ?+    -.sign  !!
         %kick       go-core  ::  single-shot watch
       ::
           %watch-ack
-        %.  go-core
-        ?~  p.sign  same
-        (slog leaf/"Failed invite token subscription" u.p.sign)
+        ?~  p.sign  go-core
+        %-  (fail:l %watch-ack 'failed invite token request' u.p.sign)
+        go-core
       ::
           %fact
         =*  cage  cage.sign
@@ -2547,16 +2612,39 @@
         ::
         [?(%join-channels %leave-channels) ~]
       ?>  ?=(%poke-ack -.sign)
-      ?~  p.sign
-        go-core
-      %.  go-core
+      ?~  p.sign  go-core
       ?-    i.wire
         ::
             %join-channels
-          (slog leaf/"Failed to join channel" u.p.sign)
+          %-  (fail:l %poke-ack 'failed to join channels' u.p.sign)
+          go-core
         ::
             %leave-channels
-          (slog leaf/"Failed to leave channel" u.p.sign)
+          %-  (fail:l %poke-ack 'failed to leave channels' u.p.sign)
+          go-core
+      ==
+    ::
+        ::  requested a channel preview
+        [%channels app=@ ship=@ name=@ %preview ~]
+      ?+    -.sign  ~|(go-agent-bad-channels+-.sign !!)
+          %kick
+        =+  ship=(slav %p i.t.t.wire)
+        =/  =nest:g  [i.t i.t.t i.t.t.t]:wire
+        =/  path-0=path
+          /chan/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
+        =/  path-1=path
+          /v1/channels/[p.nest]/(scot %p p.q.nest)/[q.q.nest]/preview
+        =.  cor  (emit %give %kick ~[path-0 path-1] ~)
+        go-core
+      ::
+          %watch-ack
+        ?~  p.sign  go-core
+        %-  (fail:l %watch-ack 'failed channel preview request' u.p.sign)
+        go-core
+      ::
+          %fact
+        =+  !<(=channel-preview:v7:gv q.cage.sign)
+        (go-give-channel-preview channel-preview |)
       ==
     ::XX enable imports
     :: [%wake ~]     go-core
@@ -2615,7 +2703,6 @@
       |=  [=nest:g =channel:g]
       ?.  (go-can-read our.bowl channel)  ~
       `nest
-    ~&  join-channels+~(tap in readable-channels)
     =.  cor
       (emil (join-channels:go-pass ~(tap in readable-channels)))
     go-core
@@ -3133,7 +3220,7 @@
     |=  =r-group:g
     ^+  go-core
     ~&  go-response+r-group
-    ::  v1 response
+    ::  v1 response, requires v7
     ::
     =/  r-groups-7=r-groups:v7:gv  [flag r-group]
     =/  v1-paths  ~[/v1/groups [%v1 go-area]]

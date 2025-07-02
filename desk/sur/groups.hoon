@@ -5,8 +5,7 @@
 ::  $flag: id for a group
 ::
 +$  flag  (pair ship term)
-::
-::  $nest: id for a channel, {app}/{ship}/{name}
+::  $nest: id for a channel
 +$  nest  (pair term flag)
 ::  $section-id: section id
 ::
@@ -65,6 +64,8 @@
       readers=(set role-id)
       join=?
   ==
+::  $channels-index: channels group ownership index
++$  channels-index  (map nest flag)
 ::  $admissions: group entry policy
 ::
 ::  .privacy: determines group visibility
@@ -153,8 +154,8 @@
 ::  $progress: group join in progress
 ::
 ::  %ask: asking for entry
-::  %join: joining with token
-::  %watch: waiting for a subscription
+::  %join: joining with a token
+::  %watch: waiting for the subscription
 ::  %done: subscribed to the group
 ::  %error: error occured
 ::
@@ -164,9 +165,6 @@
 ::  %preview: waiting for preview
 ::  %done: preview update received
 ::  %error: error occured
-::
-::  1. build a general one-shot subscription library with auto retry.
-::  2. use a remote scry!
 ::
 +$  lookup  ?(%preview %done %error)
 ::  $foreign: view of a foreign group
