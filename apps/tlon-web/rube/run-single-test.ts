@@ -6,12 +6,19 @@ import * as path from 'path';
 
 import { Ship } from './index';
 
-// Get the test file from command line arguments
-const testFile = process.argv[2];
+// Parse command line arguments
+const args = process.argv.slice(2);
+const testFile = args.find((arg) => arg.endsWith('.spec.ts'));
+const playwrightFlags = args.filter((arg) => !arg.endsWith('.spec.ts'));
 
 if (!testFile) {
-  console.error('Usage: pnpm e2e:test <test-file.spec.ts>');
-  console.error('Example: pnpm e2e:test chat-functionality.spec.ts');
+  console.error('Usage: pnpm e2e:test [flags] <test-file.spec.ts>');
+  console.error('Examples:');
+  console.error('  pnpm e2e:test chat-functionality.spec.ts');
+  console.error('  pnpm e2e:test --debug chat-functionality.spec.ts');
+  console.error('  pnpm e2e:test --headed --debug chat-functionality.spec.ts');
+  console.error('');
+  console.error('Common flags: --debug, --headed, --ui, --trace=on');
   process.exit(1);
 }
 
@@ -19,7 +26,19 @@ if (!testFile) {
 // Note: __dirname will be rube/dist when compiled, so we need to go up two levels
 const testPath = path.join(__dirname, '../../e2e', testFile);
 if (!fs.existsSync(testPath)) {
-  console.error(`Test file not found: ${testPath}`);
+  console.error(`❌ Test file not found: ${testFile}`);
+  console.error(`   Expected location: ${testPath}`);
+  console.error('');
+  console.error('Available test files:');
+  try {
+    const e2eDir = path.join(__dirname, '../../e2e');
+    const testFiles = fs
+      .readdirSync(e2eDir)
+      .filter((f) => f.endsWith('.spec.ts'));
+    testFiles.forEach((file) => console.error(`   - ${file}`));
+  } catch {
+    console.error('   (Could not list available files)');
+  }
   process.exit(1);
 }
 
@@ -83,7 +102,7 @@ async function cleanup() {
 }
 
 async function waitForReadiness() {
-  console.log('⏳ Waiting for Urbit ships to be ready...');
+  console.log('🔍 Checking Urbit ship readiness');
 
   // Import ship manifest to get Urbit ship URLs (not web server URLs)
   // Note: __dirname will be rube/dist when compiled, so we need to go up two levels
@@ -92,6 +111,7 @@ async function waitForReadiness() {
 
   const maxAttempts = 60; // 5 minutes
   let attempts = 0;
+  const startTime = Date.now();
 
   while (attempts < maxAttempts) {
     try {
@@ -105,6 +125,8 @@ async function waitForReadiness() {
       const results = await Promise.all(checks);
 
       if (results.every((ready) => ready)) {
+        // Clear the current line and show success
+        process.stdout.write('\r' + ' '.repeat(60) + '\r');
         console.log(
           '✅ All Urbit ships are ready! (Web servers will be started by Playwright)'
         );
@@ -115,7 +137,12 @@ async function waitForReadiness() {
     }
 
     attempts++;
-    process.stdout.write('.');
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    const timeoutIn = Math.floor((maxAttempts * 5 - elapsed) / 60);
+    process.stdout.write(
+      `\r   Checking ships... ${elapsed}s elapsed (timeout in ~${timeoutIn}m)`
+    );
+
     await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 5 seconds
   }
 
@@ -123,17 +150,30 @@ async function waitForReadiness() {
 }
 
 async function runTest(): Promise<void> {
-  console.log(`🧪 Running test: ${testFile}`);
+  if (!testFile) {
+    throw new Error('Test file is required');
+  }
+
+  const flagsDisplay =
+    playwrightFlags.length > 0
+      ? ` with flags: ${playwrightFlags.join(' ')}`
+      : '';
+  console.log(`🧪 Running test: ${testFile}${flagsDisplay}`);
 
   return new Promise<void>((resolve, reject) => {
-    const testProcess = childProcess.spawn(
-      'npx',
-      ['playwright', 'test', testFile, '--retries=0'],
-      {
-        stdio: 'inherit',
-        cwd: path.join(__dirname, '../..'), // Go up two levels from rube/dist
-      }
-    );
+    // Build the command arguments: playwright test [flags] testFile --retries=0
+    const args: string[] = [
+      'playwright',
+      'test',
+      ...playwrightFlags,
+      testFile,
+      '--retries=0',
+    ];
+
+    const testProcess = childProcess.spawn('npx', args, {
+      stdio: 'inherit',
+      cwd: path.join(__dirname, '../..'), // Go up two levels from rube/dist
+    } as childProcess.SpawnOptions);
 
     testProcess.on('close', (code: number | null) => {
       if (code === 0) {
@@ -203,7 +243,35 @@ async function main() {
       }
     });
 
-    // Wait for ships to be ready
+    // Wait for ships to be ready by checking setupComplete flag
+    await new Promise<void>((resolve) => {
+      let dots = 0;
+      const startTime = Date.now();
+
+      console.log('⏳ Waiting for ships to complete setup');
+
+      const checkSetup = () => {
+        if (setupComplete) {
+          // Clear the current line and print completion message
+          process.stdout.write('\r' + ' '.repeat(60) + '\r');
+          console.log('✅ Ships are set up, checking readiness...');
+          resolve();
+        } else {
+          // Show progress with dots and elapsed time
+          dots = (dots + 1) % 4;
+          const elapsed = Math.floor((Date.now() - startTime) / 1000);
+          const dotString = '.'.repeat(dots) + ' '.repeat(3 - dots);
+          const timeString = `${elapsed}s`;
+
+          process.stdout.write(
+            `\r   Setting up ships${dotString} (${timeString})`
+          );
+          setTimeout(checkSetup, 1000);
+        }
+      };
+      checkSetup();
+    });
+
     await waitForReadiness();
 
     // Run the single test

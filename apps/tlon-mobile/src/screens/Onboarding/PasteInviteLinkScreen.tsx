@@ -71,8 +71,6 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
         try {
           const appInvite = await getInviteLinkMeta({
             inviteLink: extractedLink,
-            branchDomain: BRANCH_DOMAIN,
-            branchKey: BRANCH_KEY,
           });
           if (appInvite) {
             setLure(appInvite);

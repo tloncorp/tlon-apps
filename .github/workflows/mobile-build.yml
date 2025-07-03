@@ -49,6 +49,7 @@ jobs:
         env:
           EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
           EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
+          INVITE_PROVIDER: ${{ secrets.VITE_INVITE_PROVIDER}}
           NOTIFY_PROVIDER:
             "${{ steps.vars.outputs.profile == 'preview' &&
             'binnec-dozzod-marnus' || 'rivfur-livmet' }}"
