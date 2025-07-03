@@ -400,8 +400,9 @@
       |=  preview:v7:gv
       ^-  preview:v2:gv
       =/  =cordon:v2:gv
-        ::TODO make sure the client does not
-        ::     rely on preview cordon values.
+        ::  NB: we can return default values in a cordon
+        ::      because the client only cares about the cordon
+        ::      to determine the group privacy.
         ::
         ?:  ?=(%public privacy)
           [%open ~ ~]
@@ -759,9 +760,8 @@
               ==
             ::
                 %shut
-              ::TODO find out whether we need to support
-              ::     swapping for non-empty shut cordon
-              ::
+              ~|  a-group-from-cordon-swap-bad-shut+cordon
+              ?>  &(=(~ ask.cordon) =(~ pend.cordon))
               :~  [%entry %privacy %private]
               ==
             ::
