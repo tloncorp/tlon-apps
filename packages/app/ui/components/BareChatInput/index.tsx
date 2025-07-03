@@ -315,13 +315,17 @@ export default function BareChatInput({
           const url = parsedUrl.toString();
 
           setLinkMetaLoading(true);
+          bareChatInputLogger.log('getting link metadata', { url });
           store
             .getLinkMetaWithFallback(url)
             .then((linkMetadata) => {
               // todo: handle error case with toast or similar
               if (!linkMetadata) {
+                bareChatInputLogger.error('no link metadata', { url });
                 return;
               }
+
+              bareChatInputLogger.log('link metadata', { linkMetadata });
 
               // first add the link attachment
               if (linkMetadata.type === 'page') {
