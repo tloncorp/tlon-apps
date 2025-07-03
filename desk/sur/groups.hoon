@@ -171,7 +171,7 @@
 ::
 ::  .invites: received invites
 ::  .lookup: preview in progress
-::  .preview: preview result - unavailable or preview
+::  .preview: preview result
 ::  .progress: join in progress
 ::  .token: join token
 ::

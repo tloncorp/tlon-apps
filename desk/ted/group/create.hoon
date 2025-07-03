@@ -25,11 +25,9 @@
 =*  channels  channels.create
 ;<  =bowl:spider  bind:m  get-bowl:io
 ?>  =(p.group-id.create our.bowl)
-~&  %thread-run
 ::
 ;<  exists=?  bind:m
   (scry:io ? /gu/groups/groups/(scot %p p.group-id.create)/[q.group-id.create])
-~&  group+[group-id.create exists=exists]
 ::  create the group if it does not exist
 ::
 ;<  ~  bind:m
@@ -95,19 +93,6 @@
       [group-id.create now.bowl %channel channel-id.create-channel %add channel]
     (poke:io [our.bowl %groups] group-action-3+!>(action))
   $(channels t.channels)
-::  send out group invites
-::
-;<  ~  bind:m
-  =+  guests=~(tap in guests.create)
-  |-
-  ?~  guests  (pure:n ~)
-  =/  =invite:v2:gv
-    :_  i.guests
-    [our.bowl q.group-id.create]
-  ~&  invite+i.guests
-  ;<  ~  bind:n
-    (poke:io [our.bowl %groups] group-invite+!>(invite))
-  $(guests t.guests)
 ;<  group-ui-5=group-ui:v5:gv  bind:m
   %+  scry:io  group-ui:v5:gv
   /gx/groups/v1/ui/groups/(scot %p p.group-id.create)/[q.group-id.create]/noun

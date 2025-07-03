@@ -75,7 +75,7 @@
           admissions+(^admissions admissions)
           seats+(^seats seats)
         ::
-          roles+(^roles roles)
+          roles+(roles-map roles)
           admins+a+(turn ~(tap in admins) (lead %s))
         ::
           channels+(^channels channels)
@@ -104,7 +104,7 @@
         |=  banned:v7:gv
         ^-  json
         %-  pairs
-        :~  ships+a+(turn ~(tap in ships) ship)
+        :~  ships+(^ships ships)
             ranks+a+(turn ~(tap in ranks) (lead %s))
         ==
       ++  requests
@@ -120,26 +120,29 @@
         %+  turn  ~(tap in tokens)
         |=  [=token:v7:gv meta=token-meta:v7:gv]
         [(scot %uv token) (token-meta meta)]
-      ++  token
-        |=  =token:v7:gv
-        s+(scot %uv token)
-      ++  token-meta
-        |=  token-meta:v7:gv
-        %-  pairs
-        :~  scheme+(claim-scheme scheme)
-            ::XX return time-id?
-            expiry+s+(scot %da expiry)
-            label+?~(label ~ s+u.label)
-        ==
-      ++  claim-scheme
-        |=  scheme=claim-scheme:v7:gv
-        ^-  json
-        ?-  -.scheme
-          %forever   (frond %forever ~)
-          %limited   (frond %limited (numb count.scheme))
-          %personal  (frond %personal (ship ship.scheme))
-        ==
       --
+    ++  token
+      |=  =token:v7:gv
+      s+(scot %uv token)
+    ++  token-meta
+      |=  token-meta:v7:gv
+      %-  pairs
+      :~  scheme+(claim-scheme scheme)
+          ::XX return time-id?
+          expiry+s+(scot %da expiry)
+          label+?~(label ~ s+u.label)
+      ==
+    ++  claim-scheme
+      |=  scheme=claim-scheme:v7:gv
+      ^-  json
+      ?-  -.scheme
+        %forever   (frond %forever ~)
+        %limited   (frond %limited (numb count.scheme))
+        %personal  (frond %personal (ship ship.scheme))
+      ==
+    ++  ships
+      |=  ships=(set ship.z)
+      a+(turn ~(tap in ships) ship)
     ::
     ++  seats
       |=  seats=(map ship:z seat:v7:gv)
@@ -152,11 +155,11 @@
       |=  seat:v7:gv
       ^-  json
       %-  pairs
-      :~  roles+a+(turn ~(tap in roles) (lead %s))
+      :~  roles+(^roles roles)
           joined+(time joined)
       ==
     ::
-    ++  roles
+    ++  roles-map
       |=  roles=(map role-id:v7:gv role:v7:gv)
       %-  pairs
       %+  turn  ~(tap by roles)
@@ -201,11 +204,159 @@
     ++  r-groups
       |=  =r-groups:v7:gv
       ^-  json
-      !!
+      %-  pairs
+      :~  'flag'^(flag flag.r-groups)
+          'r-group'^(r-group r-group.r-groups)
+      ==
+    ++  r-group
+      |=  =r-group:v7:gv
+      ^-  json
+      %+  frond  -.r-group
+      ?-    -.r-group
+        %create  (group group.r-group)
+        %meta    (meta meta.r-group)
+        %entry   (r-entry r-entry.r-group)
+      ::
+          %seat
+        %-  pairs
+        :~  'ships'^(ships ships.r-group)
+            'r-seat'^(r-seat r-seat.r-group)
+        ==
+      ::
+          %role
+        %-  pairs
+        :~  'roles'^(roles roles.r-group)
+            'r-role'^(r-role r-role.r-group)
+        ==
+      ::
+          %channel
+        %-  pairs
+        :~  'nest'^(nest nest.r-group)
+            'r-channel'^(r-channel r-channel.r-group)
+        ==
+      ::
+          %section
+        %-  pairs
+        :~  'section-id'^s+section-id.r-group
+            'r-section'^(r-section r-section.r-group)
+        ==
+      ::
+        %flag-content  (flag-content +.r-group)
+        %delete  ~
+      ==
+    ++  roles
+      |=  roles=(set role-id:v7:gv)
+      a+(turn ~(tap in roles) (lead %s))
+    ++  r-entry
+      |=  =r-entry:v7:gv
+      ^-  json
+      %+  frond  -.r-entry
+      ?-  -.r-entry
+        %privacy  s+privacy.r-entry
+        %ban      (r-ban r-ban.r-entry)
+        %ask      (r-ask r-ask.r-entry)
+        %token    (r-token r-token.r-entry)
+      ==
+    ++  r-ban
+      |=  =r-ban:v7:gv
+      ^-  json
+      %+  frond  -.r-ban
+      ?-    -.r-ban
+          %set
+        %-  pairs
+        :~  'ships'^(ships ships.r-ban)
+            'ranks'^(ranks ranks.r-ban)
+        ==
+      ::
+        %add-ships  (pairs 'add-ships'^(ships ships.r-ban) ~)
+        %del-ships  (pairs 'del-ships'^(ships ships.r-ban) ~)
+      ::
+        %add-ranks  (pairs 'add-ranks'^(ranks ranks.r-ban) ~)
+        %del-ranks  (pairs 'del-ranks'^(ranks ranks.r-ban) ~)
+      ==
+    ++  ranks
+      |=  ranks=(set rank:title)
+      a+(turn ~(tap in ranks) (lead %s))
+    ++  r-ask
+      |=  =r-ask:v7:gv
+      ^-  json
+      %+  frond  -.r-ask
+      ?-    -.r-ask
+          %add
+        %-  pairs
+        :~  'ship'^(ship ship.r-ask)
+            'story'^?~(s=story.r-ask ~ (story:enjs:sj u.s))
+        ==
+      ::
+        %del  (pairs 'ships'^(ships ships.r-ask) ~)
+      ==
+    ++  r-token
+      |=  =r-token:v7:gv
+      ^-  json
+      %+  frond  -.r-token
+      ?-    -.r-token
+          %add
+        %-  pairs
+        :~  'token'^(token token.r-token)
+            'meta'^(token-meta meta.r-token)
+        ==
+      ::
+        %del  (frond 'token' (token token.r-token))
+      ==
+    ++  r-seat
+      |=  =r-seat:v7:gv
+      ^-  json
+      %+  frond  -.r-seat
+      ?-  -.r-seat
+        %add  (frond 'seat' (seat seat.r-seat))
+        %del  ~
+        %add-roles  (frond 'roles' (roles roles.r-seat))
+        %del-roles  (frond 'roles' (roles roles.r-seat))
+      ==
+    ++  r-role
+      |=  =r-role:v7:gv
+      ^-  json
+      %+  frond  -.r-role
+      ?-  -.r-role
+        %add    (meta meta.r-role)
+        %edit   (meta meta.r-role)
+        %del    ~
+        %set-admin  ~
+        %del-admin  ~
+      ==
+    ++  r-channel
+      |=  =r-channel:v7:gv
+      ^-  json
+      %+  frond  -.r-channel
+      ?-  -.r-channel
+        %add   (channel channel.r-channel)
+        %edit  (channel channel.r-channel)
+        %del   ~
+        %add-readers  (roles roles.r-channel)
+        %del-readers  (roles roles.r-channel)
+        %section      s+section.r-channel
+      ==
+    ++  r-section
+      |=  =r-section:v7:gv
+      ^-  json
+      %+  frond  -.r-section
+      ^-  json
+      ?-    -.r-section
+        %add   (meta meta.r-section)
+        %edit  (meta meta.r-section)
+        %del   ~
+        %move  (frond 'idx' (numb idx.r-section))
+      ::
+          %move-nest
+        (pairs 'idx'^(numb idx.r-section) 'nest'^(nest nest.r-section) ~)
+      ==
     ++  preview-update
       |=  =preview-update:v7:gv
       ^-  json
-      !!
+      %+  frond  'preview'
+      ?~  pev=preview-update
+        ~
+      (preview u.pev)
     ++  previews
       |=  ps=previews:v7:gv
       %-  pairs
@@ -219,10 +370,6 @@
     ::   %+  turn  ~(tap by invites)
     ::   |=  [=flag:gv invites=(list invite:v7:gv)]
     ::   [(print-flag flag) a+(turn invites invite)]
-    ++  token
-      |=  =token:v7:gv
-      ^-  json
-      s+(scot %uv token)
     ++  invite
       |=  invite:v7:gv
       ^-  json
@@ -256,12 +403,12 @@
       |=  foreign:v7:gv
       ^-  json
       %-  pairs
-      :~  preview+?~(preview ~ (^preview u.preview))
-        ::
-          :-  %invites  
+      :~  :-  %invites
           ?~  invites  ~
           a+(turn invites invite)
         ::
+          lookup+?~(lookup ~ s+u.lookup)
+          preview+?~(preview ~ (^preview u.preview))
           progress+?~(progress ~ s+u.progress)
           token+?~(token ~ (^token u.token))
       ==
@@ -833,7 +980,129 @@
     ==
   ++  a-groups
     ^-  $-(json a-groups:v7:gv)
-    !!
+    %-  of
+    :~  group+(ot flag+flag a-group+a-group ~)
+        invite+(ot flag+flag a-invite+a-invite ~)
+        leave+flag
+    ==
+  ++  a-group
+    ^-  $-(json a-group:v7:gv)
+    %-  of
+    :~  meta+meta
+        entry+a-entry
+        seat+(ot ships+ships a-seat+a-seat ~)
+        role+(ot roles+roles a-role+a-role ~)
+        channel+(ot nest+nest a-channel+a-channel ~)
+        section+(ot section-id+so a-section+a-section ~)
+        flag-content+flag-content
+    ==
+  ++  ships
+    |=  =json
+    ^-  (set ship:z)
+    (sy ((ar ship) json))
+  ++  roles
+    |=  =json
+    ^-  (set role-id:v7:gv)
+    (sy ((ar role-id:v7:gv) json))
+  ++  a-invite
+    ^-  $-(json a-invite:v7:gv)
+    %-  ot
+    :~  ship+ship
+        token+(mu (se %uv))
+        note+(mu story:dejs:sj)
+    ==
+  ++  a-entry
+    ^-  $-(json c-entry:v7:gv)
+    %-  of
+    :~  privacy+(su (perk %public %private %secret ~))
+        ban+a-ban
+        token+a-token
+        ask+(ot ships+ships a-ask+(su (perk %approve %deny ~)) ~)
+    ==
+  ++  a-ban
+    ^-  $-(json c-ban:v7:gv)
+    %-  of
+    :~  set+(ot ships+ships ranks+ranks ~)
+      ::
+        add-ships+ships
+        del-ships+ships
+      ::
+        add-ranks+ranks
+        del-ranks+ranks
+    ==
+  ++  ranks
+    |=  =json
+    ^-  (set rank:title)
+    (sy ((ar rank) json))
+  ++  a-token
+    ^-  $-(json c-token:v7:gv)
+    %-  of
+    :~  add+a-token-add
+        del+token
+    ==
+  ++  token  (se %uv)
+  ++  a-token-add
+    ^-  $-(json c-token-add:v7:gv)
+    %-  ot
+    :~  scheme+claim-scheme
+        expiry+(mu (se %dr))
+        label+(mu so)
+        referral+bo
+    ==
+  ++  claim-scheme
+    ^-  $-(json claim-scheme:v7:gv)
+    %-  of
+    :~  forever+ul
+        limited+(se %ud)
+        personal+ship
+    ==
+  ++  a-seat
+    ^-  $-(json c-seat:v7:gv)
+    %-  of
+    :~  add+ul
+        del+ul
+        add-roles+roles
+        del-roles+roles
+    ==
+  ++  a-role
+    ^-  $-(json c-role:v7:gv)
+    %-  of
+    :~  add+meta
+        edit+meta
+        del+ul
+        set-admin+ul
+        del-admin+ul
+    ==
+  ++  a-channel
+    ^-  $-(json c-channel:v7:gv)
+    %-  of
+    :~  add+channel
+        edit+channel
+        del+ul
+      ::
+        add-readers+roles
+        del-readers+roles
+      ::
+        section+so
+    ==
+  ++  channel
+    ^-  $-(json channel:v7:gv)
+    %-  ot
+    :~  meta+meta
+        added+time
+        section+so
+        readers+roles
+        join+bo
+    ==
+  ++  a-section
+    ^-  $-(json c-section:v7:gv)
+    %-  of
+    :~  add+meta
+        edit+meta
+        del+ul
+        move+(se %ud)
+        move-nest+(ot nest+nest idx+(se %ud) ~)
+    ==
   ::
   ++  v6  v5
   ++  v5  v2

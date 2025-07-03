@@ -6,7 +6,7 @@
 ::  rather achieves this separation with two distinct cores:
 ::  the server core +se-core and client core +go-core.
 ::
-/-  g=groups, gv=groups-ver, c=chat, d=channels,
+/-  g=groups, gv=groups-ver, c=chat, d=channels, s=story,
     activity
 /-  meta
 /+  default-agent, verb, dbug
@@ -521,9 +521,7 @@
   =?  old  ?=(%2 -.old)  (state-2-to-3 old)
   =?  old  ?=(%3 -.old)  (state-3-to-4 old)
   ::
-  ::  v4 -> v5
-  ::
-  ::  leave all /epic subscriptions
+  ::  v4 -> v5: leave all /epic subscriptions
   ::
   =?  cor  ?=(%4 -.old)
     %+  roll  ~(tap by wex.bowl)
@@ -534,12 +532,20 @@
     =.  cor  (emil:cor caz)
     ::  force leave
     (emit:cor [%pass wire %agent dock %leave ~])
+  ::  v4 -> v5: initialize $group .active-channels
+  ::
   =?  cor  ?=(%4 -.old)
     (emit [%pass /load/active-channels %arvo %b %wait now.bowl])
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
-  =?  old  ?=(%6 -.old)  (state-6-to-7 old)
+  ::  v6 -> v7: clean up old /cast subscriptions
   ::
+  =?  cor  ?=(%6 -.old)
+    %+  roll  ~(tap by wex.bowl)
+    |=  [[[=wire =dock] *] =_cor]
+    ?.  ?=([%cast @ @ ~] wire)  cor
+    (emit:cor [%pass wire %agent dock %leave ~])
+  =?  old  ?=(%6 -.old)  (state-6-to-7 old)
   ?>  ?=(%7 -.old)
   =.  state  old
   inflate-io
@@ -1374,8 +1380,7 @@
       %+  ~(put by sections.group)  %default
       ^-  section:g
       :-  ['Sectionless' '' '' '']
-      ::XX lexical ordering
-      %+  murn  ~(tap by channels.group)
+      %+  murn  (sort ~(tap by channels.group) aor)
       |=  [=nest:g =channel:g]
       ^-  (unit nest:g)
       ?.  =(section.channel %default)
@@ -1387,6 +1392,11 @@
     =.  roles.seat  (~(put in roles.seat) %admin)
     =.  seats.group  (~(put by seats.group) our.bowl seat)
     ::  populate group members and their roles
+    ::
+    ::  TODO  this should use +se-c-seat to create new seats
+    ::        so that any new logic implemented there is also
+    ::        executed at the group creation. likewise, to populate the roles
+    ::        we should use +se-c-role.
     ::
     =.  group
       %+  roll  ~(tap by members.create)
@@ -1568,7 +1578,7 @@
     ?-  -.c-entry
       %privacy  (se-c-entry-privacy privacy.c-entry)
       %ban      (se-c-entry-ban c-ban.c-entry)
-      %token    +:(se-c-entry-token c-token.c-entry) ::XX a nicer/more general pattern?
+      %token    +:(se-c-entry-token c-token.c-entry)
       %ask      (se-c-entry-ask [ships c-ask]:c-entry)
     ==
   ::  +se-c-entry-privacy: execute a privacy command
@@ -1676,7 +1686,6 @@
   ++  se-c-entry-token
     |=  =c-token:g
     ^-  [(unit token:g) _se-core]
-    ~&  se-c-entry-token+c-token
     ?-    -.c-token
         %add
       =*  c-token-add  c-token-add.c-token
@@ -1788,7 +1797,6 @@
       =.  se-core
         %+  roll  ~(tap in ships)
         |=  [=ship =_se-core]
-        ::XX why does =, se-core not work here?
         =.  requests.admissions.group.se-core
           (~(del by requests.admissions.group.se-core) ship)
         =+  seat=(~(got by seats.group.se-core) ship)
@@ -1862,8 +1870,6 @@
     =/  =wire  (weld se-area /invite/(scot %p her))
     =^  tok=(unit token:g)  acc
       ?:  ?=(%public privacy.ad)
-        ::XX  returning just a unit compiles,
-        ::    uncovering a compiler bug!
         [~ acc]
       (se-c-entry-token [%add personal+her ~ ~ |])
     =/  =invite:g
@@ -1877,9 +1883,6 @@
     =/  =a-foreigns:v7:gv
       [%invite invite]
     =/  cage  group-foreign-1+!>(a-foreigns)
-    ::XX modifying cor here does not work, even though we
-    ::   exposed the namespace with tiscom above.
-    ::
     (emit [%pass wire %agent [her dap.bowl] %poke cage])
   ::  +se-c-role: execute a role command
   ::
@@ -3268,8 +3271,8 @@
     ::
         [%seats ship=@ ~]
       =+  ship=(slav %p ship.pole)
-      ::XX should probably use get and return empty scry result
-      ``noun+!>((~(got by seats.group) ship))
+      ?~  seat=(~(get by seats.group) ship)  [~ ~]
+      ``noun+!>(u.seat)
     ::
         [%seats ship=@ %is-admin ~]
       =+  ship=(slav %p ship.pole)
