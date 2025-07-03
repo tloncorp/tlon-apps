@@ -469,6 +469,18 @@
           replies+(replies replies.seal)
           meta+(reply-meta:enjs:dj reply-meta.seal)
       ==
+    ::
+    ++  reference
+      |=  =reference:old-4
+      %+  frond  -.reference
+      ?-    -.reference
+          %writ  (writ writ.reference)
+          %reply
+        %-  pairs
+        :~  id-note+(id id.reference)
+            reply+(reply reply.reference)
+        ==
+      ==
     --
   ::
   ++  v7
