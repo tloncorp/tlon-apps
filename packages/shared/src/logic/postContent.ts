@@ -332,14 +332,38 @@ export function convertContentSafe(
     if ('type' in verse && verse.type === 'reference') {
       blocks.push(verse);
     } else if ('block' in verse) {
-      blocks.push(convertBlock(verse.block));
+      const convertedBlock = convertBlock(verse.block);
+
+      if (convertedBlock.type === 'link') {
+        // Check if we already have an embed or link for the same URL
+        const existingIndex = blocks.findIndex(
+          (b) =>
+            (b.type === 'embed' && b.url === convertedBlock.url) ||
+            (b.type === 'link' && b.url === convertedBlock.url)
+        );
+
+        if (existingIndex !== -1) {
+          // Replace the existing block with the richer link block
+          blocks[existingIndex] = convertedBlock;
+        } else {
+          blocks.push(convertedBlock);
+        }
+      } else if (convertedBlock.type === 'embed') {
+        // Only add embed if we don't already have a link or embed for this URL
+        const hasExisting = blocks.some(
+          (b) =>
+            (b.type === 'embed' && b.url === convertedBlock.url) ||
+            (b.type === 'link' && b.url === convertedBlock.url)
+        );
+
+        if (!hasExisting) {
+          blocks.push(convertedBlock);
+        }
+      } else {
+        blocks.push(convertedBlock);
+      }
     } else if ('inline' in verse) {
-      // if we already have an embed or link block, avoid duplicating it
-      // if there's another one inline
-      const suppressInlineEmbeds = blocks.some(
-        (b) => b.type === 'embed' || b.type === 'link'
-      );
-      blocks.push(...convertTopLevelInline(verse, suppressInlineEmbeds));
+      blocks.push(...convertTopLevelInline(verse, blocks));
     } else {
       console.warn('Unhandled verse type:', { verse });
       blocks.push({
@@ -360,7 +384,7 @@ export function convertContentSafe(
 
 function convertTopLevelInline(
   verse: ub.VerseInline,
-  suppressInlineEmbeds?: boolean
+  existingBlocks: BlockData[]
 ): BlockData[] {
   const blocks: BlockData[] = [];
   let currentInlines: ub.Inline[] = [];
@@ -370,7 +394,7 @@ function convertTopLevelInline(
       // Process the inlines to extract trusted embeds and split paragraphs
       const processedBlocks = processParagraphsAndEmbeds(
         currentInlines,
-        suppressInlineEmbeds
+        existingBlocks
       );
       blocks.push(...processedBlocks);
       currentInlines = [];
@@ -417,7 +441,7 @@ function convertTopLevelInline(
 // Process inlines to extract embeds as separate blocks
 function processParagraphsAndEmbeds(
   inlines: ub.Inline[],
-  suppressInlineEmbeds?: boolean
+  existingBlocks: BlockData[]
 ): BlockData[] {
   const blocks: BlockData[] = [];
   let currentSegment: ub.Inline[] = [];
@@ -449,7 +473,14 @@ function processParagraphsAndEmbeds(
       const isEmbed = isTrustedEmbed(inline.link.href);
       const isNotFormattedText = inline.link.href === inline.link.content;
 
-      if (isEmbed && isNotFormattedText && !suppressInlineEmbeds) {
+      // Check if we already have an embed or link for this URL
+      const hasExistingForUrl = existingBlocks.some(
+        (b) =>
+          (b.type === 'embed' && b.url === inline.link.href) ||
+          (b.type === 'link' && b.url === inline.link.href)
+      );
+
+      if (isEmbed && isNotFormattedText && !hasExistingForUrl) {
         // Flush the current segment before adding the embed
         flushSegment();
 
@@ -459,10 +490,10 @@ function processParagraphsAndEmbeds(
           url: inline.link.href,
           content: inline.link.content || inline.link.href,
         });
-      } else {
-        // Not a trusted embed provider, add to normal paragraph
-        currentSegment.push(inline);
       }
+
+      // Always add the link to the current segment regardless of embed creation
+      currentSegment.push(inline);
     } else {
       // Not a link, add to normal paragraph
       currentSegment.push(inline);
