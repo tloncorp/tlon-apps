@@ -1,3 +1,5 @@
+import { useFixtureInput } from 'react-cosmos/client';
+
 import { GroupListItem, View } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 import {
@@ -7,6 +9,31 @@ import {
   groupWithNoColorOrImage,
   groupWithSvgImage,
 } from './fakeData';
+
+function ParameterizedGroupListItemFixture() {
+  const [unreadCount] = useFixtureInput('Unread Count', 512);
+  const [notify] = useFixtureInput('Notify', false);
+  const [notifyCount] = useFixtureInput('Notify Count', 0);
+
+  return (
+    <FixtureWrapper fillWidth innerBackgroundColor="$secondaryBackground">
+      <View gap="$s" paddingHorizontal="$l">
+        <GroupListItem
+          model={{
+            ...groupWithColorAndNoImage,
+            unread: {
+              groupId: groupWithColorAndNoImage.id,
+              updatedAt: Date.now(),
+              count: unreadCount,
+              notify,
+              notifyCount,
+            },
+          }}
+        />
+      </View>
+    </FixtureWrapper>
+  );
+}
 
 export default {
   basic: (
@@ -20,4 +47,5 @@ export default {
       </View>
     </FixtureWrapper>
   ),
+  'Parameterized Unread': <ParameterizedGroupListItemFixture />,
 };

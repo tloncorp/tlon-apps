@@ -204,7 +204,7 @@ const ListItemCount = ({
           <Icon type="Muted" customSize={[12, 12]} color={foregroundColor} />
         )}
         <Text size="$label/m" color={foregroundColor}>
-          {numberWithMax(count, 99)}
+          {numberWithMax(count, 256)}
         </Text>
       </ListItemCountNumber>
     </Stack>

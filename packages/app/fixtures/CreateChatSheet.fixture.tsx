@@ -7,7 +7,7 @@ export default {
   basic: (
     <FixtureWrapper>
       <AppDataContextProvider contacts={initialContacts} currentUserId="zod">
-        <CreateChatSheet defaultOpen={true} />
+        <CreateChatSheet defaultOpen={true} trigger={<button>Open</button>} />
       </AppDataContextProvider>
     </FixtureWrapper>
   ),
