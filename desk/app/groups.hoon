@@ -153,14 +153,13 @@
   ?+    mark  ~|(bad-mark+mark !!)
       %noun
     ?+    q.vase  !!
-    ::XX review is this necessary
-      ::   [%group-wake flag:g]
-      :: =+  ;;(=flag:g +.q.vase)
-      :: ?.  |(=(our src):bowl =(p.flag src.bowl))
-      ::   cor
-      :: ?~  g=(~(get by groups) flag)
-      ::   cor
-      :: go-abet:(go-safe-sub:(go-abed:group-core:cor flag) |)
+        [%group-wake flag:g]
+      =+  ;;(=flag:g +.q.vase)
+      ?.  |(=(our src):bowl =(p.flag src.bowl))
+        cor
+      ?~  g=(~(get by groups) flag)
+        cor
+      go-abet:(go-safe-sub:(go-abed:go-core flag) |)
     ::
         %pimp-ready
       ?-  pimp
@@ -400,15 +399,6 @@
                 cor(pimp `|+egg-any)
     ==
   ::
-      ::XX is this used for anything important?
-      ::   [%group-wake flag:g]
-      :: =+  ;;(=flag:g +.q.vase)
-      :: ?.  |(=(our src):bowl =(p.flag src.bowl))
-      ::   cor
-      :: ?~  g=(~(get by groups) flag)
-      ::   cor
-      :: go-abet:(go-safe-sub:(go-abed:group-core:cor flag) |)
-  ::
       %handle-http-request
     ::  we may (in some hosting circumstances) have been bound to serve
     ::  on the root path, making us act as a catch-all for http requests.
@@ -433,44 +423,51 @@
     ?.  ?=(%live +<.egg-any)
       ~&  [dap.bowl %egg-any-not-live]
       cor
-    :: =/  bak
-    ::   (load -:!>(*[versioned-state:load _okay:g]) +>.old-state.egg-any)
+    =/  bak  (load -:!>([*any-state:load ~]) +>.old-state.egg-any)
     ::  restore any previews & invites we might've had
-    ::XX this need to be migrated for tickets
-    :: =.  xeno
-    ::   %+  roll  ~(tap by xeno:bak)
-    ::   |=  [[=flag:g =gang:g] =_xeno]
-    ::   %+  ~(put by xeno)  flag
-    ::   ?.  (~(has by xeno) flag)
-    ::     gang(cam ~)
-    ::   =/  hav  (~(got by xeno) flag)
-    ::   :^    cam.hav
-    ::       ?~(pev.hav pev.gang pev.hav)
-    ::     ?~(vit.hav vit.gang vit.hav)
-    ::   ~
+    ::
+    =.  foreigns
+      %+  roll  ~(tap by foreigns:bak)
+      |=  [[=flag:g far=foreign:g] =_foreigns]
+      %+  ~(put by foreigns)  flag
+      ?.  (~(has by foreigns) flag)
+        far(lookup ~, progress ~, token ~)
+      =/  hav  (~(got by foreigns) flag)
+      ::  merge foreign:
+      ::  1. join invite lists
+      ::  2. preserve current lookup, progress and token
+      ::  3. prefer current preview
+      ::
+      :*  (weld invites.hav invites.far)
+          lookup.hav
+          ?~(preview.hav preview.far preview.hav)
+          progress.hav
+          token.hav
+      ==
     ::  restore the groups we were in, taking care to re-establish
     ::  subscriptions to the group, and to tell %channels to re-establish
     ::  its subscriptions to the groups' channels as well.
     ::
-    ::TODO rewrite, code below could be improved
-    :: =.  cor
-    ::   %+  roll  ~(tap by groups:bak)
-    ::   |=  [[=flag:g gr=[=net:g =group:g]] =_cor]
-    ::   ?:  (~(has by groups.cor) flag)
-    ::     cor
-    ::   =.  groups.cor  (~(put by groups.cor) flag gr)
-    ::   =/  gc  (go-abed:go-core:cor flag)
-    ::   =.  gc  (go-safe-sub:gc |)
-    ::   =.  cor  go-abet:gc
-    ::   =?  cor  =(p.flag our.bowl)
-    ::     (emil:cor go-wake-members:go-pass:goc)
-    ::   %-  emil:cor
-    ::   %-  join-channels:go-pass:goc
-    ::   ~(tap in ~(key by channels.group.gr))
-    :: =.  volume
-    ::   :+  base.volume:bak
-    ::     (~(uni by area.volume:bak) area.volume)
-    ::   (~(uni by chan.volume:bak) chan.volume)
+    =.  cor
+      %+  roll  ~(tap by groups:bak)
+      |=  [[=flag:g gr=[=net:g =group:g]] =_cor]
+      ?:  (~(has by groups.cor) flag)
+        cor
+      =.  groups.cor  (~(put by groups.cor) flag gr)
+      =+  goc=(go-abed:go-core:cor flag)
+      =.  goc  (go-safe-sub:goc |)
+      =.  cor  go-abet:goc
+      ::  wake our members if we are the host
+      ::
+      =?  cor  =(p.flag our.bowl)
+        (emil:cor go-wake-members:go-pass:goc)
+      %-  emil:cor
+      %-  join-channels:go-pass:goc
+      ~(tap in ~(key by channels.group.gr))
+    =.  volume
+      :+  base.volume:bak
+        (~(uni by area.volume:bak) area.volume)
+      (~(uni by chan.volume:bak) chan.volume)
     cor
   ==
 ::
@@ -2416,6 +2413,16 @@
       :~  [%pass wire %agent dock %leave ~]
           [%pass wire %agent dock %watch path]
       ==
+    ::
+    ++  go-wake-members
+      ^-  (list card)
+      %+  turn
+        ~(tap in (~(del in ~(key by seats.group)) our.bowl))
+      |=  who=ship
+      ^-  card
+      =/  =wire  (snoc go-area %wake)
+      =/  =cage  noun+!>([%group-wake flag])
+      [%pass wire %agent [who dap.bowl] %poke cage]
     --
   ::  +go-has-sub: check if we are subscribed to the group
   ::
@@ -2570,7 +2577,14 @@
     |=  [=wire =sign:agent:gall]
     ^+  go-core
     ?+    wire  ~|(go-agent-bad+wire !!)
-        [%updates ~]  (go-take-update sign)
+        ::  waked up subscribers after the import
+        [%wake ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  go-core
+      %-  (fail:l %poke-ack 'failed subscriber wake' u.p.sign)
+      go-core
+    ::
+      [%updates ~]  (go-take-update sign)
     ::
         ::  poked group host with a command
         ::
@@ -2646,10 +2660,6 @@
         =+  !<(=channel-preview:v7:gv q.cage.sign)
         (go-give-channel-preview channel-preview |)
       ==
-    ::XX enable imports
-    :: [%wake ~]     go-core
-    ::
-    ::
     ==
   ::
   ++  go-take-update
