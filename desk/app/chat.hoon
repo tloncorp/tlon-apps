@@ -76,7 +76,6 @@
           [/epic %epic ~]
           [/unreads %chat-unread-update ~]
         ::
-          [/v1 %chat-club-action-1 %writ-response ~]
           [/v1 %chat-club-action-1 %writ-response-1 ~]
           [/v1/club/$ %writ-response-1 ~]
           [/v1/clubs %chat-club-action-1 ~]
