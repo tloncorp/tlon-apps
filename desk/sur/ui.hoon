@@ -1,17 +1,8 @@
 /-  gv=groups-ver, d=channels, c=chat, a=activity
 |%
-+$  init-6
-  $:  groups=groups-ui:v5:gv
-      =gangs:v6:gv
-      channel=channel-0
-      =activity:a
-      pins=(list whom)
-      chat=chat-2
-      profile=?
-  ==
 +$  init-5
-  $:  groups=groups-ui:v5:gv
-      =gangs:v5:gv
+  $:  groups=groups-ui:v7:gv
+      =foreigns:v7:gv
       channel=channel-0
       =activity:a
       pins=(list whom)

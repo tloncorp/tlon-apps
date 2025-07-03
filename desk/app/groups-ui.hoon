@@ -217,23 +217,22 @@
           profile
       ==
     ``ui-init-4+!>(init)
-  ::XX unused, reclaim
-    ::   [%x %v5 %init ~]
-    :: =+  .^([=groups-ui:v5:gv =gangs:v5:gv] (scry %gx %groups /v2/init/noun))
-    :: =+  .^(=channel-0:u (scry %gx %channels /v3/init/noun))
-    :: =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
-    :: =+  .^(=activity:a (scry %gx %activity /v4/activity/noun))
-    :: =+  .^(profile=? (scry %gx %profile /bound/loob))
-    :: =/  init=init-5:u
-    ::   :*  groups-ui
-    ::       gangs
-    ::       channel-0
-    ::       activity
-    ::       pins
-    ::       chat
-    ::       profile
-    ::   ==
-    :: ``ui-init-5+!>(init)
+      [%x %v5 %init ~]
+    =+  .^([=groups-ui:v7:gv =foreigns:v7:gv] (scry %gx %groups /v2/init/noun))
+    =+  .^(=channel-0:u (scry %gx %channels /v3/init/noun))
+    =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
+    =+  .^(=activity:a (scry %gx %activity /v4/activity/noun))
+    =+  .^(profile=? (scry %gx %profile /bound/loob))
+    =/  init=init-5:u
+      :*  groups-ui
+          foreigns
+          channel-0
+          activity
+          pins
+          chat
+          profile
+      ==
+    ``ui-init-5+!>(init)
   ::XX unused, reclaim
     ::   [%x %v6 %init ~]
     :: =+  .^([=groups-ui:v5:gv =gangs:v6:gv] (scry %gx %groups /v3/init/noun))

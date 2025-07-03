@@ -42,7 +42,6 @@
         'image'^s+image.m
         'cover'^s+cover.m
     ==
-  ::XX deprecated?
   ++  saga
     |=  s=saga:e
     %-  frond
@@ -51,7 +50,6 @@
       %chi  'synced'^~
       %lev  'behind'^~
     ==
-  ::XX deprecated?
   ++  whom
     |=  w=whom:u
     :-  %s
@@ -86,19 +84,41 @@
         ::
           flagged-content+(^flagged-content flagged-content)
       ==
+    ++  group-ui
+      |=  =group-ui:v7:gv
+      =,  group.group-ui
+      %-  pairs
+      ^-  (list [@t json])
+      :~  meta+(^meta meta)
+        ::
+          admissions+(^admissions admissions)
+          seats+(^seats seats)
+        ::
+          roles+(roles-map roles)
+          admins+a+(turn ~(tap in admins) (lead %s))
+        ::
+          channels+(^channels channels)
+          active-channels+a+(turn ~(tap in active-channels) nest)
+        ::
+          sections+(^sections sections)
+          section-order+a+(turn section-order (lead %s))
+        ::
+          flagged-content+(^flagged-content flagged-content)
+        ::
+          init+b+init.group-ui
+          member-count+(numb member-count.group-ui)
+      ==
     ::
     ++  admissions
       |=  ad=admissions:v7:gv
       |^
-      ::XX some compiler bug prevents exposing admissions either
-      ::   in the sample above, or using tiscom below
       %-  pairs
       :~  privacy+s+privacy.ad
           banned+(banned banned.ad)
           requests+(requests requests.ad)
           tokens+(tokens tokens.ad)
           ::XX referrals
-          ::XX invited
+          invited+(invited invited.ad)
       ==
       ++  banned
         |=  banned:v7:gv
@@ -120,6 +140,13 @@
         %+  turn  ~(tap in tokens)
         |=  [=token:v7:gv meta=token-meta:v7:gv]
         [(scot %uv token) (token-meta meta)]
+      ++  invited
+        |=  invited=(map ship:z [at=@da token=(unit token:v7:gv)])
+        %-  pairs
+        %+  turn  ~(tap in invited)
+        |=  [=ship:z at=@da token=(unit token:v7:gv)]
+        :-  (scot %p ship)
+        (pairs at+s+(scot %da at) token+?~(token ~ (^token u.token)) ~)
       --
     ++  token
       |=  =token:v7:gv
@@ -128,7 +155,6 @@
       |=  token-meta:v7:gv
       %-  pairs
       :~  scheme+(claim-scheme scheme)
-          ::XX return time-id?
           expiry+s+(scot %da expiry)
           label+?~(label ~ s+u.label)
       ==
@@ -201,6 +227,14 @@
       %+  turn  ~(tap by gs)
       |=  [f=flag:gv gr=group:v7:gv]
       [(print-flag f) (group gr)]
+    ::
+    ++  groups-ui
+      |=  gs=groups-ui:v7:gv
+      %-  pairs
+      %+  turn  ~(tap by gs)
+      |=  [f=flag:gv gr=group-ui:v7:gv]
+      [(print-flag f) (group-ui gr)]
+    ::
     ++  r-groups
       |=  =r-groups:v7:gv
       ^-  json
@@ -820,13 +854,13 @@
       :~  'fleet'^(fleet fleet.gr)
           'cabals'^(cabals cabals.gr)
           'zones'^(zones zones.gr)
-          %zone-ord^a+(turn zone-ord.gr (lead %s))
+          'zone-ord'^a+(turn zone-ord.gr (lead %s))
           'channels'^(channels channels.gr)
           'bloc'^a+(turn ~(tap in bloc.gr) (lead %s))
           'cordon'^(cordon cordon.gr)
           'meta'^(meta meta.gr)
           'secret'^b+secret.gr
-          %flagged-content^(flagged-content flagged-content.gr)
+          'flagged-content'^(flagged-content flagged-content.gr)
       ==
     ::
     ++  group-ui
@@ -835,14 +869,14 @@
       :~  'fleet'^(fleet fleet.gr)
           'cabals'^(cabals cabals.gr)
           'zones'^(zones zones.gr)
-          %zone-ord^a+(turn zone-ord.gr (lead %s))
+          'zone-ord'^a+(turn zone-ord.gr (lead %s))
           'channels'^(channels channels.gr)
           'bloc'^a+(turn ~(tap in bloc.gr) (lead %s))
           'cordon'^(cordon cordon.gr)
           'meta'^(meta meta.gr)
           'secret'^b+secret.gr
           'saga'^?~(saga.gr ~ (saga u.saga.gr))
-          %flagged-content^(flagged-content flagged-content.gr)
+          'flagged-content'^(flagged-content flagged-content.gr)
       ==
     ::
     ++  groups

@@ -779,7 +779,6 @@
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
-  ~&  peek+pole
   ?+    pole  [~ ~]
   ::
     ::
@@ -788,33 +787,43 @@
   ::
       ::  deprecated
       [%x %init %v1 ~]
-      =/  net-groups-7=net-groups:v7:gv
-        %-  ~(run by groups)
-        |=  [=net:v7:gv =group:v7:gv]
-        :-  net
-        (drop-seats:group:v7:gc group our.bowl)
-      =/  groups-light-ui-2
-        %-  ~(urn by net-groups-7)
-        |=  [=flag:g =net:v7:gv =group:v7:gv]
-        =/  =status:neg
-          (read-status:neg bowl [p.flag %groups])
-        (group-ui:v2:group:v7:gc status net group)
-      ::  we filter out foreigns which are %done,
-      ::  since completed gangs are removed after
-      ::  the group join in old groups.
-      ::
-      =/  gangs-2
-        %-  ~(gas by *(map flag:g gang:v2:gv))
-        %+  murn  ~(tap by foreigns)
-        |=  [=flag:g =foreign:g]
-        ?:  ?&  ?=(^ progress.foreign)
-                ?=(%done u.progress.foreign)
-            ==
-          ~
-        %-  some
-        :-  flag
-        (gang:v2:foreign:v7:gc foreign)
+    =/  net-groups-7=net-groups:v7:gv
+      %-  ~(run by groups)
+      |=  [=net:v7:gv =group:v7:gv]
+      :-  net
+      (drop-seats:group:v7:gc group our.bowl)
+    =/  groups-light-ui-2
+      %-  ~(urn by net-groups-7)
+      |=  [=flag:g =net:v7:gv =group:v7:gv]
+      =/  =status:neg
+        (read-status:neg bowl [p.flag %groups])
+      (group-ui:v2:group:v7:gc status net group)
+    ::  we filter out foreigns which are %done,
+    ::  since completed gangs are removed after
+    ::  the group join in old groups.
+    ::
+    =/  gangs-2
+      %-  ~(gas by *(map flag:g gang:v2:gv))
+      %+  murn  ~(tap by foreigns)
+      |=  [=flag:g =foreign:g]
+      ?:  ?&  ?=(^ progress.foreign)
+              ?=(%done u.progress.foreign)
+          ==
+        ~
+      %-  some
+      :-  flag
+      (gang:v2:foreign:v7:gc foreign)
     ``noun+!>([groups-light-ui-2 gangs-2])
+  ::
+      [%x %v2 %init ~]
+    =/  groups-light-ui-7=(map flag:v7:gv group-ui:v7:gv)
+      %-  ~(urn by groups)
+      |=  [=flag:g =net:v7:gv =group:v7:gv]
+      =*  light-group  (drop-seats:group:v7:gc group our.bowl)
+      =+  (group-ui:group:v7:gc net light-group)
+      ::  recompute member count after dropping seats
+      -(member-count ~(wyt by seats.group))
+    ``noun+!>([~ `foreigns:v7:gv`foreigns])
   ::
        [%x ver=?(%v0 %v1 %v2) %groups ~]
     =/  groups-7=groups:v7:gv  (~(run by groups) tail)
