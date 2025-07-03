@@ -299,6 +299,7 @@ const ChatMessage = ({
                 <Icon type="Overflow" />
               </Button>
             }
+            mode="await-trigger"
           />
         </View>
       )}

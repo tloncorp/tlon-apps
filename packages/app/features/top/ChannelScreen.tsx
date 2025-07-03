@@ -31,7 +31,6 @@ import {
   AttachmentProvider,
   Channel,
   ChatOptionsProvider,
-  INITIAL_POSTS_PER_PAGE,
   InviteUsersSheet,
   useCurrentUserId,
   useIsWindowNarrow,
@@ -207,7 +206,7 @@ export default function ChannelScreen(props: Props) {
       ? {
           mode: 'around',
           cursor,
-          firstPageCount: INITIAL_POSTS_PER_PAGE,
+          firstPageCount: 30,
         }
       : {
           mode: 'newest',

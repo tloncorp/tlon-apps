@@ -193,6 +193,7 @@ export function NotebookPost({
               onOpenChange={setIsPopoverOpen}
               onEdit={onPressEdit}
               onReply={handlePress}
+              mode="await-trigger"
               trigger={
                 <Button
                   backgroundColor="transparent"
