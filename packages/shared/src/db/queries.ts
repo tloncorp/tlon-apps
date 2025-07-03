@@ -1345,7 +1345,7 @@ export const getThreadUnreadState = createReadQuery(
       where: eq($threadUnreads.threadId, parentId),
     });
   },
-  ['posts']
+  ['threadUnreads']
 );
 
 export const getAllGroupRoles = createReadQuery(
@@ -3296,7 +3296,7 @@ export const getPostWithRelations = createReadQuery(
       })
       .then(returnNullIfUndefined);
   },
-  ['posts', 'threadUnreads', 'volumeSettings']
+  ['posts', 'postReactions', 'threadUnreads', 'volumeSettings']
 );
 
 export const getPersonalGroup = createReadQuery(

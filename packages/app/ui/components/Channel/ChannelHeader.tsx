@@ -180,7 +180,10 @@ export function ChannelHeader({
               )
             ) : null}
             {showEditButton && (
-              <ScreenHeader.TextButton onPress={goToEdit}>
+              <ScreenHeader.TextButton
+                onPress={goToEdit}
+                testID="ChannelHeaderEditButton"
+              >
                 Edit
               </ScreenHeader.TextButton>
             )}

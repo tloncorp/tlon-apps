@@ -6,6 +6,7 @@ import { LoadingSpinner } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { YStack } from 'tamagui';
 
+import { useStore } from '../contexts';
 import { triggerHaptic, useGroupTitle } from '../utils';
 import {
   ActionGroup,
