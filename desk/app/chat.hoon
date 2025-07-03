@@ -1184,7 +1184,7 @@
       %add
     =/  time=(unit time)    (~(get by dex.pact) p.diff)
     ?~  time  ~
-    =/  writ=(unit writ:c)  (~(get by wit.pact) u.time)
+    =/  writ=(unit writ:c)  (get:on:writs:c wit.pact u.time)
     ?~  writ  ~&(%diff-to-response-miss ~)
     [%add essay.q.diff seq.u.writ u.time]
   ::
