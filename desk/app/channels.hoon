@@ -149,7 +149,7 @@
         [/x/v3/channels %channels-3]
         [/x/v3/heads %channel-heads-2]
         [/x/v3/said %noun]
-        [/x/v3/v-channels %channels-3]  ::REVIEW  shenanigans!
+        [/x/v3/v-channels %noun]
     ==
 ::
 =/  verbose  |
@@ -1060,7 +1060,7 @@
     ``channels-2+!>(`channels:v1:old:c`(uv-channels:utils v-channels ?=(^ full.pole)))
     ::
       [%x %v3 %v-channels ~]
-    ``channels-3+!>(v-channels)
+    ``noun+!>(v-channels)
     ::
       [%x %v3 %channels full=?(~ [%full ~])]
     ``channels-3+!>(`channels:c`(uv-channels-2:utils v-channels ?=(^ full.pole)))
