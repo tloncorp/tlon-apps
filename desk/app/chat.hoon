@@ -1647,10 +1647,10 @@
       =/  cage  writ-response+!>(old-response-3)
       (emit %give %fact ~[/ cu-area-old-0 cu-area-writs-old-0] cage)
     =.  cor
-      =/  cage  writ-response+!>(old-response-4)
+      =/  cage  writ-response-1+!>(old-response-4)
       (emit %give %fact ~[/v1 cu-area-old-1 cu-area-writs-old-1] cage)
     =.  cor
-      =/  =cage  writ-response-1+!>(new-response)
+      =/  =cage  writ-response-2+!>(new-response)
       (emit %give %fact ~[/v2 cu-area cu-area-writs] cage)
     cu-core
   ::
@@ -2086,7 +2086,7 @@
         writ-response+!>(old-response-3)
       (emit %give %fact ~[/ di-area-old-0 di-area-writs-old-0] cage)
     =.  cor
-      =/  =cage  writ-response-1+!>(new-response)
+      =/  =cage  writ-response-1+!>(old-response-4)
       (emit %give %fact ~[/v1 di-area-old-1 di-area-writs-old-1] cage)
     =.  cor
       =/  =cage  writ-response-2+!>(new-response)
