@@ -107,10 +107,7 @@
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
   =?  old  ?=(%6 -.old)  (state-6-to-7 old)
   =?  old  ?=(%7 -.old)  (state-7-to-8 old)
-  =^  caz-8=(list card)  old
-    ?.  ?=(%8 -.old)  [~ old]
-    (state-8-to-9 old)
-  =.  cor  (emil caz-8)
+  =?  old  ?=(%8 -.old)  (state-8-to-9 old)
   ?>  ?=(%9 -.old)
   =.  state  old
   inflate-io
@@ -147,25 +144,18 @@
     ==
   ++  state-8-to-9
     |=  s=state-8
-    ^-  (quip card state-9)
-    =-  [caz s(- %9, v-channels chans)]
-    %+  roll  ~(tap by v-channels.s)
-    |=  $:  [k=nest:c v=v-channel:c]
-            [caz=(list card) chans=v-channels:c]
-        ==
-    ^+  [caz chans]
-    =-  [(weld coz caz) (~(put by chans) k chan)]
+    ^-  state-9
+    =-  s(- %9, v-channels -)
+    %-  ~(run by v-channels.s)
+    |=  v=v-channel:c
+    ^+  v
     %+  roll  (tap:log-on:c log.v)
     |=  $:  [t=time u=u-channel:c]
-            [coz=(list card) chan=_v]
+            chan=_v
         ==
-    ?.  ?=([%post * %set ~] u)  [coz chan]
+    ?.  ?=([%post * %set ~] u)  chan
     ~?  ?=([~ ~ *] (get:on-v-posts:c posts.chan id.u))
       %strange-existing-deleted-posts
-    :-  :_  coz
-        =/  paths=(list path)
-          ~(ca-subscription-paths ca-core k chan |)
-        [%give %fact paths %channel-update !>(`update:c`[t u])]
     =-  chan(posts -)
     (put:on-v-posts:c posts.chan id.u ~)
   ++  state-7-to-8
@@ -378,10 +368,10 @@
       :-  %noun
       !>  :^  %sequence-numbers  nest
         count.u.can
-      ^-  (list [id-post:c @ud])
-      %+  murn  (tap:on-v-posts:c posts.u.can)
+      ^-  (list [id-post:c (unit @ud)])
+      %+  turn  (tap:on-v-posts:c posts.u.can)
       |=  [i=id-post:c p=(unit v-post:c)]
-      ?~(p ~ (some [i seq.u.p]))
+      [i ?~(p ~ `seq.u.p)]
     ==
   ::
       %channel-command

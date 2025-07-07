@@ -523,7 +523,7 @@
       ==
     ::
         [%sequence-numbers * @ *]
-      =+  !<([%sequence-numbers =nest:c count=@ud seqs=(list [id=id-post:c seq=@ud])] vase)
+      =+  !<([%sequence-numbers =nest:c count=@ud seqs=(list [id=id-post:c seq=(unit @ud)])] vase)
       ?>  =(src.bowl ship.nest)
       ?.  (~(has by v-channels) nest)  cor
       =.  v-channels
@@ -533,10 +533,14 @@
         |-
         ?~  seqs  channel
         =*  next  $(seqs t.seqs)
+        ?~  seq.i.seqs
+          =.  posts.channel
+            (put:on-v-posts:c posts.channel id.i.seqs ~)
+          next
         ?~  p=(get:on-v-posts:c posts.channel id.i.seqs)  next
         ?~  u.p  next
         =.  posts.channel
-          (put:on-v-posts:c posts.channel id.i.seqs u.p(seq.u seq.i.seqs))
+          (put:on-v-posts:c posts.channel id.i.seqs u.p(seq.u u.seq.i.seqs))
         next
       cor
     ==
