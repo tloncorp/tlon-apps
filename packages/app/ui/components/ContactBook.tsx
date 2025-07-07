@@ -122,17 +122,8 @@ export function ContactBook({
     [selected, immutableSet, multiSelect, handleSelect]
   );
 
-  const scrollPosition = useRef(0);
-  const handleScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      scrollPosition.current = event.nativeEvent.contentOffset.y;
-    },
-    []
-  );
   const onTouchStart = useCallback(() => {
-    if (scrollPosition.current > 0) {
-      onScrollChange?.(true);
-    }
+    onScrollChange?.(true);
   }, [onScrollChange]);
 
   const onTouchEnd = useCallback(
@@ -202,7 +193,6 @@ export function ContactBook({
           <BlockSectionList
             ListHeaderComponent={!showSearchResults ? quickActions : null}
             sections={sections}
-            onScroll={handleScroll}
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
             renderItem={renderItem}
