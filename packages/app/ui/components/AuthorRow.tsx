@@ -87,11 +87,15 @@ export function DetailViewAuthorRow({
   const shouldTruncate = showEditedIndicator || deliveryFailed;
 
   const timeDisplay = useMemo(() => {
-    if (!showSentAt) {
+    if (!showSentAt || !sent) {
       return null;
     }
     const date = new Date(sent ?? 0);
-    return utils.makePrettyTime(date);
+    if (utils.isToday(date.getTime())) {
+      return utils.makePrettyTime(date);
+    }
+    const { asString } = utils.makePrettyDayAndDateAndTime(date);
+    return asString;
   }, [showSentAt, sent]);
 
   return (
