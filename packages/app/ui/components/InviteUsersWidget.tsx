@@ -14,14 +14,17 @@ const InviteUsersWidgetComponent = ({
   group: db.Group;
   onInviteComplete: () => void;
 }) => {
+  const [loading, setLoading] = useState(false);
   const [invitees, setInvitees] = useState<string[]>([]);
 
   const handleInviteGroupMembers = useCallback(async () => {
+    setLoading(true);
     await store.inviteGroupMembers({
       groupId: group.id,
       contactIds: invitees,
     });
 
+    setLoading(false);
     onInviteComplete();
   }, [invitees, group.id, onInviteComplete]);
 
@@ -50,10 +53,12 @@ const InviteUsersWidgetComponent = ({
         <Button
           hero
           onPress={handleInviteGroupMembers}
-          disabled={invitees.length === 0}
+          disabled={invitees.length === 0 || loading}
           gap="$xl"
         >
-          <Button.Text width="auto">{buttonText}</Button.Text>
+          <Button.Text width="auto">
+            {loading ? 'Inviting...' : buttonText}
+          </Button.Text>
         </Button>
       </ActionSheet.ContentBlock>
     </>

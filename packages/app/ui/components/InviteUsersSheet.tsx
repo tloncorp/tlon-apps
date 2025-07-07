@@ -1,7 +1,7 @@
-import * as store from '@tloncorp/shared/store';
 import React, { useRef } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useStore } from '../contexts/storeContext';
 import { ActionSheet } from './ActionSheet';
 import { InviteUsersWidget } from './InviteUsersWidget';
 
@@ -18,6 +18,7 @@ const InviteUsersSheetComponent = ({
 }) => {
   const { bottom } = useSafeAreaInsets();
   const hasOpened = useRef(open);
+  const store = useStore();
   const { data: group } = store.useGroup({ id: groupId });
 
   if (!hasOpened.current && open) {
