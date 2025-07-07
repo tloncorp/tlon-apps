@@ -245,6 +245,7 @@ const ChatMessage = ({
             content={post.editStatus === 'failed' ? lastEditContent : content}
             isNotice={post.type === 'notice'}
             onPressImage={handleImagePressed}
+            onLongPress={handleLongPress}
           />
         </View>
 
