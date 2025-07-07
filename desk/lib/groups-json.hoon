@@ -352,9 +352,9 @@
       ^-  json
       %+  frond  -.r-role
       ?-  -.r-role
-        %add    (meta meta.r-role)
-        %edit   (meta meta.r-role)
-        %del    ~
+        %add        (meta meta.r-role)
+        %edit       (meta meta.r-role)
+        %del        ~
         %set-admin  ~
         %del-admin  ~
       ==
@@ -363,12 +363,13 @@
       ^-  json
       %+  frond  -.r-channel
       ?-  -.r-channel
-        %add   (channel channel.r-channel)
-        %edit  (channel channel.r-channel)
-        %del   ~
+        %add          (channel channel.r-channel)
+        %edit         (channel channel.r-channel)
+        %del          ~
         %add-readers  (roles roles.r-channel)
         %del-readers  (roles roles.r-channel)
         %section      s+section.r-channel
+        %join         b+join.r-channel
       ==
     ++  r-section
       |=  =r-section:v7:gv

@@ -295,6 +295,7 @@
             %add-readers  [%add-sects (sects:v2:roles:v7 roles.r-channel)]
             %del-readers  [%del-sects (sects:v2:roles:v7 roles.r-channel)]
             %section      [%zone `zone:v2:gv`section.r-channel]
+            %join         [%join join.r-channel]
           ==
         ::
         ++  diff-from-section
@@ -461,6 +462,15 @@
       |=  =claim:v6:gv
       ^-  claim:v2:gv
       claim
+    ++  v7
+      |=  =claim:v6:gv
+      ^-  progress:v7:gv
+      ?-  progress.claim
+        %knocking  %ask
+        %adding    %join
+        %watching  %watch
+        %error     %error
+      ==
     --
   ::
   ++  preview
@@ -469,6 +479,19 @@
       |=  preview:v6:gv
       ^-  preview:v2:gv
       [flag meta cordon time secret]
+    ++  v7
+      |=  preview:v6:gv
+      ^-  preview:v7:gv
+      =/  =privacy:v7:gv
+        ?:  ?=(%open -.cordon)  %public
+        ?:  secret  %secret
+        %private
+      :*  flag
+          meta
+          time
+          count
+          privacy
+      ==
     --
   ++  gang
     |%
@@ -483,6 +506,37 @@
       |=  gang:v6:gv
       ^-  gang:v5:gv
       [cam pev vit]
+    ++  v7
+      |=  gang:v6:gv
+      ^-  foreign:v7:gv
+      =/  invite=(unit invite:v7:gv)
+        ?~  vit  ~
+        =*  flag  p.u.vit
+        =/  =preview:v7:gv
+          ?^  pev  (v7:preview u.pev)
+          ::  generate a dummy preview, we are going to request
+          ::  a fresh preview after migration completes.
+          ::
+          :*  flag
+              *data:meta
+              *@da
+              0
+              %secret
+          ==
+        %-  some
+        :*  flag
+            *@da
+            p.flag  ::  .from, assume the host
+            ~       ::  .token
+            ~       ::  .note
+            preview
+        ==
+      :*  ?~(invite ~ ~[u.invite])
+          ~                      ::  lookup
+          (bind pev v7:preview)
+          (bind cam v7:claim)    ::  progress
+          ~                      ::  token
+      ==
     --
   ++  group
     |%
@@ -585,6 +639,274 @@
       |=  gang:v5:gv
       ^-  gang:v6:gv
       [cam pev vit ~]
+    --
+  ++  group
+    |%
+    ++  v7
+      |=  group:v5:gv
+      ^-  group:v7:gv
+      =/  =privacy:v7:gv
+        ?:  ?=(%open -.cordon)
+          %public
+        ?:  secret
+          %secret
+        %private
+      =/  =banned:v7:gv
+        ?.  ?=(%open -.cordon)  [~ ~]
+        [ships ranks]:ban.cordon
+      =|  requests=(map ship (unit story:s))
+      =?  requests  ?=(%shut -.cordon)
+        %-  ~(gas by requests)
+        %+  turn  ~(tap in ask.cordon)
+        |=  =ship
+        [ship ~]
+      =/  =admissions:v7:gv
+        :*  privacy
+            banned
+            requests
+            ~  ::  tokens
+            ~  ::  referrals
+            ~  ::  invited
+        ==
+      ::TODO manually add ships based on the shut pending list
+      ::
+      =/  seats=(map ship seat:v7:gv)
+        %-  ~(run by fleet)
+        |=  vessel:fleet:v5:gv
+        ^-  seat:v7:gv
+        :_  joined
+        (~(run in sects) |=(sect:v5:gv `role-id:v7:gv`+<))
+      =/  roles=(map role-id:v7:gv role:v7:gv)
+        %-  ~(gas by *(map role-id:v7:gv role:v7:gv))
+        %+  turn  ~(tap by cabals)
+        |=  [=sect:v5:gv =cabal:v5:gv]
+        ^-  [role-id:v7:gv role:v7:gv]
+        [sect cabal]
+      =/  =admins:v7:gv
+        %-  ~(run in bloc)
+        |=  =sect:v5:gv
+        `role-id:v7:gv`sect
+      =/  channels=(map nest:v7:gv channel:v7:gv)
+        %-  ~(run by channels)
+        |=  channel:v5:gv
+        :*  meta
+            added
+            `section-id:v7:gv`zone
+            readers
+            join
+        ==
+      =*  sections-map  (map section-id:v7:gv section:v7:gv)
+      =/  sections=sections-map
+        %-  ~(gas by *sections-map)
+        %+  turn  ~(tap by zones)
+        |=  [=zone:v5:gv =realm:zone:v5:gv]
+        :-  `section-id:v7:gv`zone
+        [met.realm ord.realm]
+      :*  meta
+        ::
+          admissions
+          seats
+        ::
+          roles
+          admins
+        ::
+          channels
+          active-channels
+        ::
+          sections
+          (turn zone-ord |=(zone:v5:gv `section-id:v7:gv`+<))
+        ::
+          flagged-content
+      ==
+    --
+  ++  net
+    |%
+    ++  v7
+      |=  =net:v5:gv
+      ^-  net:v7:gv
+      ?:  ?=(%sub -.net)  net
+      :-  %pub
+      %+  gas:log-on:v7:gv
+        *log:v7:gv
+      %-  zing
+      (turn (tap:log-on:v5:gv p.net) v7:update)
+    --
+  ++  net-group
+    |%
+    ++  v7
+      |=  [=net:v5:gv =group:v5:gv]
+      [(v7:^net net) (v7:^group group)]
+    --
+  ++  update
+    |%
+    ++  v7
+      |^
+      |=  [=time =diff:v5:gv]
+      ^-  (list update:v7:gv)
+      =*  sect-to-role-id
+        |=(sect:v5:gv `role-id:v7:gv`+<)
+      ?+    -.diff  ~|(update-7-from-diff-5-bad+-.diff !!)
+        %fleet  [time [%seat p.diff (u-seat-from-diff time q.diff)]]~
+      ::
+          %cabal
+        %-  (late ~)
+        :-  time
+        [%role (sy (sect-to-role-id p.diff) ~) (u-role-from-diff q.diff)]
+      ::
+          %channel
+        [time [%channel p.diff (u-channel-from-diff q.diff)]]~
+      ::
+          %bloc
+        %-  (late ~)
+        :-  time
+        :+  %role
+          (~(run in p.p.diff) sect-to-role-id)
+        (u-role-from-bloc-diff p.diff)
+      ::
+          %cordon
+        %+  turn  (u-entry-from-diff p.diff)
+        |=  =u-entry:v7:gv
+        [time [%entry u-entry]]
+      ::
+          %zone  
+        %-  (late ~)
+        :-  time
+        [%section `section-id:v7:gv`p.p.diff (u-section-from-diff q.p.diff)]
+      ::
+        %meta  [time [%meta p.diff]]~
+      ::
+          %secret
+        ?:  p.diff
+          [time [%entry %privacy %secret]]~
+        ::  turning off secrecy does not have a corresponding
+        ::  operation in v7 api, thus we ignore it.
+        ::  when a cordon is affected, this will also affect the
+        ::  privacy.
+        ::
+        ~
+      ::
+        %create  [time [%create (v7:group p.diff)]]~
+        %del     [time [%delete ~]]~
+      ==
+      ::  +u-seat-from-diff: upgrade $fleet diff into $seat update
+      ::
+      ::  we take care to correctly assign the joined time, which
+      ::  previously was set to now.bowl and thus different for each
+      ::  subscriber.
+      ::
+      ++  u-seat-from-diff
+        |=  [=time =diff:fleet:v5:gv]
+        ^-  u-seat:v7:gv
+        =*  sect-to-role-id
+          |=(sect:v5:gv `role-id:v7:gv`+<)
+        ?-    -.diff
+          %add  [%add `seat:v7:gv`[~ time]]
+          %del  [%del ~]
+          %add-sects  [%add-roles (~(run in sects.diff) sect-to-role-id)]
+          %del-sects  [%del-roles (~(run in sects.diff) sect-to-role-id)]
+        ==
+      ++  u-role-from-diff
+        |=  =diff:cabal:v5:gv
+        ^-  u-role:v7:gv
+        ?-  -.diff
+          %add        [%add meta.diff]
+          %edit       [%edit meta.diff]
+          %del        [%del ~]
+        ==
+      ++  u-channel-from-diff
+        |=  =diff:channel:v5:gv
+        ^-  u-channel:v7:gv
+        =*  sect-to-role-id
+          |=(sect:v5:gv `role-id:v7:gv`+<)
+        ?-  -.diff
+          %add   [%add (v7:channel channel.diff)]
+          %edit  [%edit (v7:channel channel.diff)]
+          %del   [%del ~]
+          %add-sects  [%add-readers (~(run in sects.diff) sect-to-role-id)]
+          %del-sects  [%del-readers (~(run in sects.diff) sect-to-role-id)]
+          %zone  [%section `section-id:v7:gv`zone.diff]
+          %join  [%join join.diff]
+        ==
+      ++  u-role-from-bloc-diff
+        |=  =diff:bloc:v5:gv
+        ^-  u-role:v7:gv
+        ?-  -.diff
+          %add  [%set-admin ~]
+          %del  [%del-admin ~]
+        ==
+      ++  u-entry-from-diff
+        |=  =diff:cordon:v5:gv
+        ^-  (list u-entry:v7:gv)
+        ::TODO affect group privacy.
+        ?-  -.diff
+          %open  [(u-entry-from-open-cordon-diff p.diff)]~
+          %shut  (u-entry-from-shut-cordon-diff p.diff)
+          %swap  (u-entry-from-swap-cordon-diff p.diff)
+        ==
+      ++  u-entry-from-open-cordon-diff
+        |=  =diff:open:cordon:v5:gv
+        ^-  u-entry:v7:gv
+        :-  %ban
+        ?-  -.diff
+          %add-ships  [%add-ships p.diff]
+          %del-ships  [%del-ships p.diff]
+          %add-ranks  [%add-ranks p.diff]
+          %del-ranks  [%del-ranks p.diff]
+        ==
+      ++  u-entry-from-shut-cordon-diff
+        |=  =diff:shut:cordon:v5:gv
+        ^-  (list u-entry:v7:gv)
+        ~
+        :: ?-    -.diff
+        ::     %add-ships
+        ::   ?-    p.diff
+        ::       %ask
+        ::     %+  turn  ~(tap in q.diff)
+        ::     |=(=ship [%ask %add ship ~])
+        ::   ::
+        ::     ::  there is no equivalent pending ship mechanism in v7 api.
+        ::     ::  ships can be pre-assigned a seat to the same effect.
+        ::     ::
+        ::     %pending  ~
+        ::   ==
+        :: ::
+        ::     %del-ships
+        ::   ?-    p.diff
+        ::       %ask
+        ::     [%ask %del q.diff]~
+        ::   ::
+        ::     :: no effect in v7 api, as we don't keep track of pending
+        ::     :: ships anymore. see the comment above.
+        ::     ::
+        ::     %pending  ~
+        ::   ==
+        :: ==
+      ++  u-entry-from-swap-cordon-diff
+        |=  =cordon:v5:gv
+        ^-  (list u-entry:v7:gv)
+        ~
+        :: ?+    -.cordon  ~|(%u-entry-from-swap-cordon-diff-bad-afar !!)
+        ::     %open
+        ::   [%ban %set [ships ranks]:ban.cordon]~
+        :: ::
+        ::   %shut
+        ::   ::  we don't translate the pending ship set, as
+        ::   ::  it is no longer present in v7 api.
+        ::   ::
+        ::   %+  turn  ~(tap in ask.cordon)
+        ::   |=(=ship [%ask %add ship ~])
+        :: ==
+      ++  u-section-from-diff
+        |=  =delta:zone:v5:gv
+        ^-  u-section:v7:gv
+        ?-  -.delta
+          %add       [%add meta.delta]
+          %edit      [%edit meta.delta]
+          %del       [%del ~]
+          %mov       [%move idx.delta]
+          %mov-nest  [%move-nest nest.delta idx.delta]
+        ==
+      --
     --
   --
 ::

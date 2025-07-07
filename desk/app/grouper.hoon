@@ -233,7 +233,7 @@
     %-  %^    tell
             %info  
           'Group Invite Sent'
-        ~[leaf+"{<joiner.bite>} invited to public group {<p.flag>}/{(trip q.flag)}"]
+        ~[leaf+"{<joiner.bite>} invited to group {<p.flag>}/{(trip q.flag)}"]
     =/  =a-groups:v7:gv
       =/  note=story:story
         ~[inline+~[(crip "lure invite {<token.bite>}")]]

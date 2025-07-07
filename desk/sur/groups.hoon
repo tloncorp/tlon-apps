@@ -240,7 +240,7 @@
 +$  net
   $~  [%pub ~]
   $%  [%pub =log]
-      [%sub =time]
+      [%sub =time init=_|]
   ==
 ::
 +$  groups-ui
@@ -448,6 +448,7 @@
 ::  %add-readers: add roles to readers set
 ::  %del-readers: delete roles from readers set
 ::  %section: assign the channel to a section
+::  %join: set the join flag
 ::
 +$  c-channel
   $%  [%add =channel]
@@ -458,6 +459,8 @@
       [%del-readers roles=(set role-id)]
     ::
       [%section =section-id]
+    ::
+      [%join join=_|]
   ==
 ::  $c-section: section command
 ::
@@ -530,13 +533,14 @@
       [%add-readers roles=(set role-id)]
       [%del-readers roles=(set role-id)]
       [%section section=section-id]
+      [%join join=_|]
   ==
 +$  u-section
   $%  [%add meta=data:meta]
       [%edit meta=data:meta]
       [%del ~]
       [%move idx=@ud]
-      [%move-nest idx=@ud =nest]
+      [%move-nest =nest idx=@ud]
   ==
 +$  r-groups  [=flag =r-group]
 +$  r-group

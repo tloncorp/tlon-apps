@@ -43,7 +43,6 @@
         =^subs:s
         =pimp:imp
     ==
-  ::
   --
 =|  current-state
 =*  state  -
@@ -51,7 +50,7 @@
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
-      :: log   ~(. logs [our.bowl /logs])
+      log   ~(. logs [our.bowl /logs])
       cor   ~(. +> [bowl ~])
   ++  on-init
     ^-  (quip card _this)
@@ -87,8 +86,8 @@
     |=  [=term =tang]
     ^-  (quip card _this)
     %-  (slog term tang)
-    ::TODO enable logging
-    `this
+    :_  this
+    [(fail:log term tang ~)]~
   ::
   ++  on-agent
     |=  [=wire =sign:agent:gall]
@@ -546,6 +545,11 @@
     ?.  ?=([%cast @ @ ~] wire)  cor
     (emit:cor [%pass wire %agent dock %leave ~])
   =?  old  ?=(%6 -.old)  (state-6-to-7 old)
+  ::TODO trigger subscribers to re-issue ask requests based
+  ::     on the migrated .requests.admissions list.
+  ::
+  ::TODO send out invites to all ships that have default seats.
+  ::
   ?>  ?=(%7 -.old)
   =.  state  old
   inflate-io
@@ -632,7 +636,7 @@
   ::
   +$  state-6
     $:  %6
-        groups=net-groups:v6:gv
+        groups=net-groups:v5:gv
         =volume:v
         xeno=gangs:v6:gv
         =^subs:s
@@ -687,7 +691,14 @@
   ++  state-6-to-7
     |=  state-6
     ^-  state-7
-    !!
+    :*  %7
+        (~(run by groups) v7:net-group:v5:gc)
+        ~  ::  channels-index
+        (~(run by xeno) v7:gang:v6:gc)
+        volume
+        subs
+        ~  ::  pimp
+    ==
   --
 ::
 ++  inflate-io
@@ -1608,7 +1619,7 @@
   ::  the group, or executing any commands on the group host.
   ::
   ::  the ship and rank blacklists do not affect the group host.
-  ::  it is illegal to execute any $c-ban commands that affects
+  ::  it is illegal to execute any $c-ban commands that affect
   ::  the group host in any way.
   ::
   ::  the rank blacklist does not affect admins. it is illegal
@@ -2041,8 +2052,14 @@
         %+  ~(jab by sections.group)  section.channel
         |=(=section:g section(order (~(push of order.section) nest)))
       (se-update %channel nest [%section section-id.c-channel])
+    ::
+        %join
+      =.  channels.group
+        %+  ~(jab by channels.group)  nest
+        |=  =channel:g
+        channel(join join.c-channel)
+      (se-update %channel nest [%join join.c-channel])
     ==
-  ::CONTINUE
   ::  +se-channel-del-roles: remove roles from channel readers
   ::
   ++  se-channel-del-roles
@@ -2109,7 +2126,7 @@
       =.  order.section
         (~(into of order.section) [idx nest]:c-section)
       =.  sections.group  (~(put by sections.group) section-id section)
-      (se-update %section section-id [%move-nest [idx nest]:c-section])
+      (se-update %section section-id [%move-nest [nest idx]:c-section])
     ==
   ++  se-c-flag-content
     |=  [=nest:g =post-key:g src=ship]
@@ -2702,11 +2719,11 @@
   ++  go-apply-log
     |=  =log:g
     ?~  log  go-core
-    =/  init=?  ?>(?=(%sub -.net) =(time.net *@da))
+    =/  init=?  ?>(?=(%sub -.net) init.net)  ::TMI in roll
     =.  go-core
       %+  roll  (tap:log-on:g log)
       |=  [=update:g =_go-core]
-      ::  we need to filter our past kicks upon joining
+      ::  we need to filter out our past kicks upon joining
       ::
       =*  u-group  u-group.update
       ?:  ?&  init
@@ -2716,7 +2733,9 @@
           ==
         go-core
       (go-u-group:go-core update)
-    ?.  init  go-core
+    ?:  init  go-core
+    ?>  ?=(%sub -.net)
+    =.  init.net  &
     ::  join the channels upon initial group log
     ::
     =/  readable-channels
@@ -2735,9 +2754,8 @@
     ^+  go-core
     =?  net  ?=(%sub -.net)
       ?>  (gte time.update time.net)
-      [%sub time.update]
+      [%sub time.update init.net]
     =*  u-group  u-group.update
-    ~&  go-u-group+[time.update -.u-group]
     ?-  -.u-group
       %create        (go-u-create group.u-group)
       %meta          (go-u-meta data.u-group)
@@ -3107,6 +3125,15 @@
         %+  ~(jab by sections.group)  section.channel
         |=(=section:g section(order (~(push of order.section) nest)))
       go-core
+    ::
+        %join
+      =.  go-core  (go-response %channel nest [%join join.u-channel])
+      ?:  go-our-host  go-core
+      =.  channels.group
+        %+  ~(jab by channels.group)  nest
+        |=  =channel:g
+        channel(join join.u-channel)
+      go-core
     ==
   ::  +go-channel-del-roles: remove roles from channel readers
   ::
@@ -3182,7 +3209,7 @@
     ::
         %move-nest
       =.  go-core
-        (go-response %section section-id [%move-nest [idx nest]:u-section])
+        (go-response %section section-id [%move-nest [nest idx]:u-section])
       ?:  go-our-host  go-core
       ::
       ?.  (~(has by sections.group) section-id)  go-core
@@ -3648,7 +3675,7 @@
         =.  progress  `%error
         fi-core
       =.  progress  `%watch
-      =/  =net:g  [%sub *@da]
+      =/  =net:g  [%sub *@da |]
       =|  =group:g
       =?  meta.group  ?=(^ preview)  meta.u.preview
       =.  groups  (~(put by groups) flag [net group])
