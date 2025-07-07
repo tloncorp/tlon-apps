@@ -1,3 +1,4 @@
+import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Button } from '@tloncorp/ui';
@@ -6,6 +7,8 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { ActionSheet } from './ActionSheet';
 import { ContactBook } from './ContactBook';
 import { InviteFriendsToTlonButton } from './InviteFriendsToTlonButton';
+
+const logger = createDevLogger('InviteUsersWidget', false);
 
 const InviteUsersWidgetComponent = ({
   group,
@@ -19,13 +22,21 @@ const InviteUsersWidgetComponent = ({
 
   const handleInviteGroupMembers = useCallback(async () => {
     setLoading(true);
-    await store.inviteGroupMembers({
-      groupId: group.id,
-      contactIds: invitees,
-    });
-
-    setLoading(false);
-    onInviteComplete();
+    try {
+      await store.inviteGroupMembers({
+        groupId: group.id,
+        contactIds: invitees,
+      });
+      setLoading(false);
+      onInviteComplete();
+    } catch (error) {
+      logger.trackError('Error inviting group members', {
+        errorMessage: error.message,
+        errorStack: error.stack,
+      });
+    } finally {
+      setLoading(false);
+    }
   }, [invitees, group.id, onInviteComplete]);
 
   const buttonText = useMemo(() => {
