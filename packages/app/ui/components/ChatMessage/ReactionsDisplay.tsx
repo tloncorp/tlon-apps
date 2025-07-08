@@ -59,19 +59,23 @@ export function ReactionsDisplay({
     ]
   );
 
-  const firstThreeReactionUsers = useCallback(
-    (reaction: ReactionListItem) =>
-      reaction.users
-        ? reaction.users
-            .slice(0, 3)
-            .map((user) => user.name || user.id)
-            .join(', ') +
-          (reaction.users.length > 3
-            ? ` +${reaction.users.length - 3} more`
-            : '')
-        : '',
-    []
-  );
+  const firstThreeReactionUsers = useCallback((reaction: ReactionListItem) => {
+    if (!reaction.users || reaction.users.length === 0) {
+      return '';
+    }
+
+    const userNames = reaction.users
+      .slice(0, 3)
+      .map((user) => {
+        // Defensive logic: ensure we have a valid name or fall back to id
+        const name = user.name && user.name.trim() !== '' ? user.name : user.id;
+        return name || 'Unknown'; // Final fallback if both are somehow empty
+      })
+      .join(', ');
+
+    const moreCount = reaction.users.length - 3;
+    return userNames + (moreCount > 0 ? ` +${moreCount} more` : '');
+  }, []);
 
   if (minimal) {
     if (reactionDetails.list.length === 0) {
