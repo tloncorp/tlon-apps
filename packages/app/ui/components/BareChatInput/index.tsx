@@ -315,13 +315,17 @@ export default function BareChatInput({
           const url = parsedUrl.toString();
 
           setLinkMetaLoading(true);
+          bareChatInputLogger.log('getting link metadata', { url });
           store
             .getLinkMetaWithFallback(url)
             .then((linkMetadata) => {
               // todo: handle error case with toast or similar
               if (!linkMetadata) {
+                bareChatInputLogger.error('no link metadata', { url });
                 return;
               }
+
+              bareChatInputLogger.log('link metadata', { linkMetadata });
 
               // first add the link attachment
               if (linkMetadata.type === 'page') {
@@ -781,10 +785,10 @@ export default function BareChatInput({
   }, [setEditingPost, clearDraft, clearAttachments, initialHeight]);
 
   const theme = useTheme();
-
   const placeholderTextColor = {
     placeholderTextColor: getVariableValue(theme.secondaryText),
   };
+  const inputTextColor = getVariableValue(theme.primaryText);
 
   const adjustTextInputSize = (e: any) => {
     if (!isWeb) {
@@ -924,7 +928,7 @@ export default function BareChatInput({
             fontSize: getFontSize('$m'),
             verticalAlign: 'middle',
             letterSpacing: -0.032,
-            color: getVariableValue(useTheme().primaryText),
+            color: inputTextColor,
             ...(isWeb ? placeholderTextColor : {}),
             ...(isWeb ? { outlineStyle: 'none' } : {}),
           }}

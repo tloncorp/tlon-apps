@@ -14,7 +14,7 @@ import {
 } from 'react';
 import { TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, YStack } from 'tamagui';
+import { View, YStack, useTheme } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
 import AddGalleryPost from '../AddGalleryPost';
@@ -48,6 +48,7 @@ export function GalleryInput({
   const captionInputRef = useRef<TextInput>(null);
   const { resetAttachments, waitForAttachmentUploads, attachAssets } =
     useAttachmentContext();
+  const theme = useTheme();
 
   const [route, setRoute] = useState<GalleryRoute>('gallery');
   const [canPost, setCanPost] = useState(false);
@@ -351,6 +352,7 @@ export function GalleryInput({
               key="gallery"
               type="Add"
               onPress={handleAdd}
+              testID="AddGalleryPost"
             />
             <Notices.CollectionInputTooltip channelId={channel.id} />
           </>
@@ -413,6 +415,10 @@ export function GalleryInput({
     ]
   );
 
+  const setShowBigInput = useCallback((open: boolean) => {
+    setRoute(open ? 'text' : 'gallery');
+  }, []);
+
   return (
     <>
       {/* Big input for editing text gallery posts */}
@@ -422,7 +428,7 @@ export function GalleryInput({
             ...draftInputContext,
             editingPost,
           }}
-          setShowBigInput={(open) => setRoute(open ? 'text' : 'gallery')}
+          setShowBigInput={setShowBigInput}
           overrideChannelType="gallery"
         />
       )}
@@ -458,6 +464,7 @@ export function GalleryInput({
                     padding: 0,
                     fontSize: 16,
                     maxHeight: 100,
+                    color: theme.primaryText.val,
                   }}
                 />
               </View>

@@ -2,24 +2,17 @@ import { test as setup } from '@playwright/test';
 
 import shipManifest from './shipManifest.json';
 
-setup('authenticate zod', async ({ page }) => {
-  await page.goto(`${shipManifest['~zod'].webUrl}/~/login`);
-  await page
-    .getByPlaceholder('sampel-ticlyt-migfun-falmel')
-    .fill((shipManifest as Record<string, any>)['~zod'].code);
-  await page.getByRole('button', { name: 'Continue' }).click();
-  await page.waitForURL(`${shipManifest['~zod'].webUrl}/apps/landscape/`);
-  await page.context().storageState({ path: shipManifest['~zod'].authFile });
-  await page.getByRole('link', { name: 'Tlon' }).waitFor();
-});
+Object.entries(shipManifest).forEach(([key, ship]) => {
+  if (ship.skipSetup) {
+    return;
+  }
 
-// setup('authenticate bus', async ({ page }) => {
-//   await page.goto(`${shipManifest['~bus'].webUrl}/~/login`);
-//   await page
-//     .getByPlaceholder('sampel-ticlyt-migfun-falmel')
-//     .fill((shipManifest as Record<string, any>)['~bus'].code);
-//   await page.getByRole('button', { name: 'Continue' }).click();
-//   await page.waitForURL(`${shipManifest['~bus'].webUrl}/apps/landscape/`);
-//   await page.context().storageState({ path: shipManifest['~bus'].authFile });
-//   await page.getByRole('link', { name: 'Tlon' }).waitFor();
-// });
+  setup(`authenticate ${ship.ship}`, async ({ page }) => {
+    await page.goto(`${ship.webUrl}/~/login`);
+    await page.getByPlaceholder('sampel-ticlyt-migfun-falmel').fill(ship.code);
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.waitForURL(`${ship.webUrl}/apps/landscape/`);
+    await page.context().storageState({ path: ship.authFile });
+    await page.getByRole('link', { name: 'Tlon' }).waitFor();
+  });
+});
