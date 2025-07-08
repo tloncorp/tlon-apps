@@ -1,4 +1,4 @@
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   configurationFromChannel,
@@ -31,7 +31,6 @@ import {
   AttachmentProvider,
   Channel,
   ChatOptionsProvider,
-  INITIAL_POSTS_PER_PAGE,
   InviteUsersSheet,
   useCurrentUserId,
   useIsWindowNarrow,
@@ -127,14 +126,18 @@ export default function ChannelScreen(props: Props) {
   const [initialChannelUnread, setInitialChannelUnread] =
     React.useState<db.ChannelUnread | null>(null);
   const [unreadDidInitialize, setUnreadDidInitialize] = React.useState(false);
+  const isFocused = useIsFocused();
   useEffect(() => {
     async function initializeChannelUnread() {
       const unread = await db.getChannelUnread({ channelId: currentChannelId });
       setInitialChannelUnread(unread ?? null);
       setUnreadDidInitialize(true);
     }
-    initializeChannelUnread();
-  }, [currentChannelId]);
+
+    if (isFocused) {
+      initializeChannelUnread();
+    }
+  }, [currentChannelId, isFocused]);
 
   const { navigateToImage, navigateToPost, navigateToRef, navigateToSearch } =
     useChannelNavigation({ channelId: currentChannelId });
@@ -207,7 +210,7 @@ export default function ChannelScreen(props: Props) {
       ? {
           mode: 'around',
           cursor,
-          firstPageCount: INITIAL_POSTS_PER_PAGE,
+          firstPageCount: 30,
         }
       : {
           mode: 'newest',

@@ -183,6 +183,7 @@ export function GalleryPost({
               onOpenChange={setIsPopoverOpen}
               onReply={handlePress}
               onEdit={onPressEdit}
+              mode="await-trigger"
               trigger={
                 <Button
                   borderWidth="unset"
@@ -353,6 +354,7 @@ export function GalleryPostDetailView({
       <View gap="$2xl" padding="$xl">
         <DetailViewAuthorRow
           authorId={post.authorId}
+          sent={post.sentAt}
           color="$primaryText"
           showSentAt={true}
         />
