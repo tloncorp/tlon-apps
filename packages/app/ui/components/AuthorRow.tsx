@@ -180,7 +180,7 @@ export function ChatAuthorRow({
         size="$2xl"
         contactId={authorId}
       />
-      <XStack gap="$l" alignItems="flex-end" width="100%">
+      <XStack gap="$l" alignItems="flex-end" flex={1}>
         <Text
           size="$label/2xl"
           numberOfLines={1}
