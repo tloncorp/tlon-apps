@@ -167,9 +167,7 @@ export function BigInput({
           metadata.image = attachment.uploadState.remoteUri;
         }
       } else {
-        // Always include image field for notebooks, even if null
-        // This ensures we can clear an image by setting it to null
-        metadata.image = imageUri;
+        metadata.image = null;
       }
     }
 
