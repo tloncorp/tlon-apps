@@ -70,25 +70,16 @@
 ::
 ::  .privacy: determines group visibility
 ::  .banned: ships and ranks blacklist
+::  .pending: pending ships
 ::  .requests: entry requests
 ::  .tokens: access tokens
 ::  .referrals: token attribution
 ::  .invited: invited guest list
 ::
-::  sync semantics
-::
-::  privacy    global
-::  banned     global
-::  requests   partial
-::  tokens     partial. forever and limited tokens
-::             are shared between admins, while personal
-::             tokens are shared with admins and the requesting ship.
-::  referrals  partial
-::  invited    local
-::
 +$  admissions
   $:  =privacy
       =banned
+      pending=(jug ship role-id)
       requests=(map ship (unit story:s))
       tokens=(map token token-meta)
       referrals=(jug ship token)
@@ -198,19 +189,6 @@
 ::  .sections: channel sections
 ::  .section-order: sections order
 ::  .flagged-content: flagged content
-::
-::  sync semantics
-::
-::  .meta             global
-::  .admissions       partial
-::  .seats            global
-::  .roles            global
-::  .admins           global
-::  .channels         global
-::  .active-channels  local
-::  .sections         global
-::  .section-order    global
-::  .flagged-content  global
 ::
 +$  group
   $:  meta=data:meta
@@ -391,6 +369,7 @@
   $%  [%privacy =privacy]
       [%ban =c-ban]
       [%token =c-token]
+      [%pending ships=(set ship) =c-pending]
       [%ask ships=(set ship) c-ask=?(%approve %deny)]
   ==
 +$  c-ban
@@ -401,6 +380,11 @@
     ::
       [%add-ranks ranks=(set rank:title)]
       [%del-ranks ranks=(set rank:title)]
+  ==
++$  c-pending
+  $%  [%add roles=(set role-id)]
+      [%edit roles=(set role-id)]
+      [%del ~]
   ==
 +$  c-token
   $%  [%add =c-token-add]
@@ -493,8 +477,9 @@
 +$  u-entry
   $%  [%privacy =privacy]
       [%ban =u-ban]
-      [%ask =u-ask]
       [%token =u-token]
+      [%pending =u-pending]
+      [%ask =u-ask]
   ==
 +$  u-ban
   $%  [%set ships=(set ship) ranks=(set rank:title)]
@@ -505,13 +490,18 @@
       [%add-ranks ranks=(set rank:title)]
       [%del-ranks ranks=(set rank:title)]
   ==
-+$  u-ask
-  $%  [%add =ship story=(unit story:s)]
-      [%del ships=(set ship)]
-  ==
 +$  u-token
   $%  [%add =token meta=token-meta]
       [%del =token]
+  ==
++$  u-pending
+  $%  [%add ships=(set ship) roles=(set role-id)]
+      [%edit ships=(set ship) roles=(set role-id)]
+      [%del ships=(set ship)]
+  ==
++$  u-ask
+  $%  [%add =ship story=(unit story:s)]
+      [%del ships=(set ship)]
   ==
 +$  u-role
   $%  [%add meta=data:meta]
@@ -557,14 +547,16 @@
 +$  r-entry
   $%  [%privacy =privacy]
       [%ban =r-ban]
-      [%ask =r-ask]
       [%token =r-token]
+      [%pending =r-pending]
+      [%ask =r-ask]
   ==
-+$  r-ban  u-ban
-+$  r-ask  u-ask
-+$  r-token  u-token
-+$  r-seat  u-seat
-+$  r-role  u-role
++$  r-ban      u-ban
++$  r-token    u-token
++$  r-pending  u-pending
++$  r-ask      u-ask
++$  r-seat     u-seat
++$  r-role     u-role
 +$  r-channel  u-channel
 +$  r-section  u-section
 ::  $a-foreigns: foreign action

@@ -288,8 +288,9 @@
       ?-  -.r-entry
         %privacy  s+privacy.r-entry
         %ban      (r-ban r-ban.r-entry)
-        %ask      (r-ask r-ask.r-entry)
         %token    (r-token r-token.r-entry)
+        %pending  (r-pending r-pending.r-entry)
+        %ask      (r-ask r-ask.r-entry)
       ==
     ++  r-ban
       |=  =r-ban:v7:gv
@@ -311,19 +312,6 @@
     ++  ranks
       |=  ranks=(set rank:title)
       a+(turn ~(tap in ranks) (lead %s))
-    ++  r-ask
-      |=  =r-ask:v7:gv
-      ^-  json
-      %+  frond  -.r-ask
-      ?-    -.r-ask
-          %add
-        %-  pairs
-        :~  'ship'^(ship ship.r-ask)
-            'story'^?~(s=story.r-ask ~ (story:enjs:sj u.s))
-        ==
-      ::
-        %del  (pairs 'ships'^(ships ships.r-ask) ~)
-      ==
     ++  r-token
       |=  =r-token:v7:gv
       ^-  json
@@ -336,6 +324,38 @@
         ==
       ::
         %del  (frond 'token' (token token.r-token))
+      ==
+    ++  r-pending
+      |=  =r-pending:v7:gv
+      ^-  json
+      %+  frond  -.r-pending
+      ?-    -.r-pending
+          %add
+        %-  pairs
+        :~  'ships'^(ships ships.r-pending)
+            'roles'^(roles roles.r-pending)
+        ==
+      ::
+          %edit
+        %-  pairs
+        :~  'ships'^(ships ships.r-pending)
+            'roles'^(roles roles.r-pending)
+        ==
+      ::
+        %del  (pairs 'ships'^(ships ships.r-pending) ~)
+      ==
+    ++  r-ask
+      |=  =r-ask:v7:gv
+      ^-  json
+      %+  frond  -.r-ask
+      ?-    -.r-ask
+          %add
+        %-  pairs
+        :~  'ship'^(ship ship.r-ask)
+            'story'^?~(s=story.r-ask ~ (story:enjs:sj u.s))
+        ==
+      ::
+        %del  (pairs 'ships'^(ships ships.r-ask) ~)
       ==
     ++  r-seat
       |=  =r-seat:v7:gv
@@ -1052,6 +1072,7 @@
     :~  privacy+(su (perk %public %private %secret ~))
         ban+a-ban
         token+a-token
+        pending+(ot ships+ships a-pending+a-pending ~)
         ask+(ot ships+ships a-ask+(su (perk %approve %deny ~)) ~)
     ==
   ++  a-ban
@@ -1090,6 +1111,13 @@
     :~  forever+ul
         limited+(se %ud)
         personal+ship
+    ==
+  ++  a-pending
+    ^-  $-(json c-pending:v7:gv)
+    %-  of
+    :~  add+(ot roles+roles ~)
+        edit+(ot roles+roles ~)
+        del+ul
     ==
   ++  a-seat
     ^-  $-(json c-seat:v7:gv)

@@ -342,6 +342,15 @@
           ::
             %token  ~
           ::
+              %pending
+            ?:  ?=(%public privacy.admissions)  ~
+            ?:  ?=(%edit -.r-pending.r-entry)  ~
+            :_  ~
+            ?-  -.r-pending.r-entry
+              %add  [%cordon %shut %add-ships %pending ships.r-pending.r-entry]
+              %del  [%cordon %shut %add-ships %pending ships.r-pending.r-entry]
+            ==
+          ::
               %ask
             ?:  ?=(%public privacy.admissions)  ~
             :_  ~
@@ -654,22 +663,25 @@
       =/  =banned:v7:gv
         ?.  ?=(%open -.cordon)  [~ ~]
         [ships ranks]:ban.cordon
+      =|  pending=(jug ship role-id:v7:gv)
+      =?  pending  ?=(%shut -.cordon)
+        %-  ~(gas by pending)
+        %+  turn  ~(tap in pend.cordon)
+        |=(=ship [ship ~])
       =|  requests=(map ship (unit story:s))
       =?  requests  ?=(%shut -.cordon)
         %-  ~(gas by requests)
         %+  turn  ~(tap in ask.cordon)
-        |=  =ship
-        [ship ~]
+        |=(=ship [ship ~])
       =/  =admissions:v7:gv
         :*  privacy
             banned
+            pending
             requests
             ~  ::  tokens
             ~  ::  referrals
             ~  ::  invited
         ==
-      ::TODO manually add ships based on the shut pending list
-      ::
       =/  seats=(map ship seat:v7:gv)
         %-  ~(run by fleet)
         |=  vessel:fleet:v5:gv
@@ -746,48 +758,49 @@
       =*  sect-to-role-id
         |=(sect:v5:gv `role-id:v7:gv`+<)
       ?+    -.diff  ~|(update-7-from-diff-5-bad+-.diff !!)
-        %fleet  [time [%seat p.diff (u-seat-from-diff time q.diff)]]~
+          %fleet
+        %+  u-single  time
+        [%seat p.diff (u-seat-from-diff time q.diff)]
       ::
           %cabal
-        %-  (late ~)
-        :-  time
+        %+  u-single  time
         [%role (sy (sect-to-role-id p.diff) ~) (u-role-from-diff q.diff)]
       ::
           %channel
-        [time [%channel p.diff (u-channel-from-diff q.diff)]]~
+        %+  u-single  time
+        [%channel p.diff (u-channel-from-diff q.diff)]
       ::
           %bloc
-        %-  (late ~)
-        :-  time
+        %+  u-single  time
         :+  %role
           (~(run in p.p.diff) sect-to-role-id)
         (u-role-from-bloc-diff p.diff)
       ::
           %cordon
-        %+  turn  (u-entry-from-diff p.diff)
-        |=  =u-entry:v7:gv
-        [time [%entry u-entry]]
+        %+  u-many  time
+        (turn (u-entry-from-diff p.diff) (lead %entry))
       ::
-          %zone  
-        %-  (late ~)
-        :-  time
+          %zone
+        %+  u-single  time
         [%section `section-id:v7:gv`p.p.diff (u-section-from-diff q.p.diff)]
       ::
-        %meta  [time [%meta p.diff]]~
+        %meta  (u-single time [%meta p.diff])
       ::
           %secret
         ?:  p.diff
-          [time [%entry %privacy %secret]]~
-        ::  turning off secrecy does not have a corresponding
-        ::  operation in v7 api, thus we ignore it.
-        ::  when a cordon is affected, this will also affect the
-        ::  privacy.
-        ::
-        ~
+          (u-single time [%entry %privacy %secret])
+        (u-single time [%entry %privacy %private])
       ::
-        %create  [time [%create (v7:group p.diff)]]~
-        %del     [time [%delete ~]]~
+        %create  (u-single time [%create (v7:group p.diff)])
+        %del     (u-single time [%delete ~])
       ==
+      ::
+      ++  u-single
+        |=  [=time =u-group:v7:gv]
+        [time u-group]~
+      ++  u-many
+        |=  [=time updates=(list u-group:v7:gv)]
+        (turn updates (lead time))
       ::  +u-seat-from-diff: upgrade $fleet diff into $seat update
       ::
       ::  we take care to correctly assign the joined time, which
@@ -837,65 +850,53 @@
       ++  u-entry-from-diff
         |=  =diff:cordon:v5:gv
         ^-  (list u-entry:v7:gv)
-        ::TODO affect group privacy.
         ?-  -.diff
-          %open  [(u-entry-from-open-cordon-diff p.diff)]~
+          %open  (u-entry-from-open-cordon-diff p.diff)
           %shut  (u-entry-from-shut-cordon-diff p.diff)
           %swap  (u-entry-from-swap-cordon-diff p.diff)
         ==
       ++  u-entry-from-open-cordon-diff
         |=  =diff:open:cordon:v5:gv
-        ^-  u-entry:v7:gv
-        :-  %ban
+        ^-  (list u-entry:v7:gv)
         ?-  -.diff
-          %add-ships  [%add-ships p.diff]
-          %del-ships  [%del-ships p.diff]
-          %add-ranks  [%add-ranks p.diff]
-          %del-ranks  [%del-ranks p.diff]
+          %add-ships  [%ban %add-ships p.diff]~
+          %del-ships  [%ban %del-ships p.diff]~
+          %add-ranks  [%ban %add-ranks p.diff]~
+          %del-ranks  [%ban %del-ranks p.diff]~
         ==
       ++  u-entry-from-shut-cordon-diff
         |=  =diff:shut:cordon:v5:gv
         ^-  (list u-entry:v7:gv)
-        ~
-        :: ?-    -.diff
-        ::     %add-ships
-        ::   ?-    p.diff
-        ::       %ask
-        ::     %+  turn  ~(tap in q.diff)
-        ::     |=(=ship [%ask %add ship ~])
-        ::   ::
-        ::     ::  there is no equivalent pending ship mechanism in v7 api.
-        ::     ::  ships can be pre-assigned a seat to the same effect.
-        ::     ::
-        ::     %pending  ~
-        ::   ==
-        :: ::
-        ::     %del-ships
-        ::   ?-    p.diff
-        ::       %ask
-        ::     [%ask %del q.diff]~
-        ::   ::
-        ::     :: no effect in v7 api, as we don't keep track of pending
-        ::     :: ships anymore. see the comment above.
-        ::     ::
-        ::     %pending  ~
-        ::   ==
-        :: ==
+        ?-    -.diff
+            %add-ships
+          ?-    p.diff
+              %ask
+            %+  turn  ~(tap in q.diff)
+            |=(=ship [%ask %add ship ~])
+          ::
+            %pending  [%pending %add q.diff ~]~
+          ==
+        ::
+            %del-ships
+          ?-    p.diff
+            %ask      [%ask %del q.diff]~
+            %pending  [%pending %del q.diff]~
+          ==
+        ==
       ++  u-entry-from-swap-cordon-diff
         |=  =cordon:v5:gv
         ^-  (list u-entry:v7:gv)
-        ~
-        :: ?+    -.cordon  ~|(%u-entry-from-swap-cordon-diff-bad-afar !!)
-        ::     %open
-        ::   [%ban %set [ships ranks]:ban.cordon]~
-        :: ::
-        ::   %shut
-        ::   ::  we don't translate the pending ship set, as
-        ::   ::  it is no longer present in v7 api.
-        ::   ::
-        ::   %+  turn  ~(tap in ask.cordon)
-        ::   |=(=ship [%ask %add ship ~])
-        :: ==
+        ?+    -.cordon  ~|(%u-entry-from-swap-cordon-diff-bad-afar !!)
+            %open
+          :-  [%privacy %public]
+          [%ban %set [ships ranks]:ban.cordon]~
+        ::
+            %shut
+          :-  [%privacy %private]
+          :-  [%pending %add pend.cordon ~]
+          %+  turn  ~(tap in ask.cordon)
+          |=(=ship [%ask %add ship ~])
+        ==
       ++  u-section-from-diff
         |=  =delta:zone:v5:gv
         ^-  u-section:v7:gv

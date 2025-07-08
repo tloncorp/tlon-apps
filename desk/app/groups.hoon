@@ -233,8 +233,10 @@
         =/  =a-groups:v7:gv  [%group flag [%entry %privacy %private]]
         $(+< group-action-4+!>(a-groups))
       ::  translate the shut cordon poke:
-      ::  1. pending operations translate into appropiate seat commands.
-      ::  2. ask operations translate into foreign ask actions.
+      ::  1. pending operations translate into entry pending commands.
+      ::  2. ask operations translate into foreign ask actions, if it is
+      ::     a client request, or into entry ask commands if it is an
+      ::     admin request.
       ::
       ?:  ?=([%cordon %shut *] diff)
         =*  cordon-diff  p.p.diff
@@ -249,7 +251,7 @@
           ::
               %pending
             =/  =a-group:v7:gv
-              [%seat q.cordon-diff %add ~]
+              [%entry %pending q.cordon-diff %add ~]
             $(+< group-action-4+!>(`a-groups:v7:gv`[%group flag a-group]))
           ==
         ::
@@ -270,7 +272,7 @@
           ::
               %pending
             =/  =a-group:v7:gv
-              [%seat q.cordon-diff %del ~]
+              [%entry %pending q.cordon-diff %del ~]
             $(+< group-action-4+!>(`a-groups:v7:gv`[%group flag a-group]))
           ==
         ==
@@ -1490,22 +1492,28 @@
   ::  in the following cases:
   ::  (1) he has already joined group,
   ::  (2) he is in the process of joining the group and has registered a seat,
-  ::  (3) he has issued a group ask request.
+  ::  (3) he has a record in the requests set.
+  ::  (4) he has a record in the pending set.
   ::
   ::  if the client then wishes to forfeit that registration,
   ::  he can issue a group leave request. the group host then:
   ::  1. deletes the client's seat and kicks
-  ::     any outstanding group subscriptions.
+  ::     any outstanding group subscriptions. the host
+  ::     also cleans up the pending and request records.
   ::     (this is handled in +se-c-seat.)
   ::  2. deletes the client's ask request and kicks
   ::     any outstanding ask subscriptions.
+  ::  3. delete the client's pending record.
   ::
   ++  se-c-leave
     ^+  se-core
     ?<  (se-is-banned src.bowl)
     ?:  (~(has by seats.group) src.bowl)
       (se-c-seat (sy src.bowl ~) [%del ~])
-    ?:  (~(has by requests.ad) src.bowl)
+    =?  se-core  (~(has by pending.ad) src.bowl)
+      =.  pending.ad  (~(del by pending.ad) src.bowl)
+      (se-update %entry %pending %del (sy src.bowl ~))
+    =?  se-core  (~(has by requests.ad) src.bowl)
       =.  requests.ad  (~(del by requests.ad) src.bowl)
       =.  se-core  (se-update %entry %ask %del (sy src.bowl ~))
       (give %kick ~[(weld se-area /ask/(scot %p src.bowl))] ~)
@@ -1518,6 +1526,8 @@
     =*  deny   [| ad]
     ?:  (se-is-banned ship)  deny
     ?:  &(=(~ tok) ?=(%public privacy.ad))
+      [& ad]
+    ?:  &(=(~ tok) (~(has by pending.ad) ship))
       [& ad]
     ?~  tok  deny
     ::TODO referrals
@@ -1582,8 +1592,6 @@
       (se-c-section [section-id c-section]:c-group)
     ::
         %flag-content
-      ::TODO who should be able to flag?
-      :: ?>  se-src-is-admin
       (se-c-flag-content [nest post-key src]:c-group)
     ::
         %delete
@@ -1599,13 +1607,10 @@
       %privacy  (se-c-entry-privacy privacy.c-entry)
       %ban      (se-c-entry-ban c-ban.c-entry)
       %token    +:(se-c-entry-token c-token.c-entry)
+      %pending  (se-c-entry-pending [ships c-pending]:c-entry)
       %ask      (se-c-entry-ask [ships c-ask]:c-entry)
     ==
   ::  +se-c-entry-privacy: execute a privacy command
-  ::
-  ::TODO if a ship is on the requests list in admissions,
-  ::     and the type of the group changes to public,
-  ::     all the requesting ships are automatically granted entry.
   ::
   ++  se-c-entry-privacy
     |=  =privacy:g
@@ -1700,6 +1705,8 @@
       (~(put in ships) ship)
     =?  se-core  !=(~ deny-ships)
       (se-c-entry-ask deny-ships %deny)
+    ::TODO purge banned ships from the pending set
+    ::
     se-core
   ::  +se-c-entry-token: execute an entry token command
   ::
@@ -1733,6 +1740,51 @@
         (~(del by tokens.ad) token.c-token)
       :-  ~
       (se-update [%entry %token %del token.c-token])
+    ==
+  ::  +se-c-entry-pending: add or delete ships from the pending set
+  ::
+  ::  a ship can be granted entry to the group by virtue of its record
+  ::  in the pending ships set. the pending set allows for pre-assigning
+  ::  member roles that are assigned when the ship joins the group.
+  ::
+  ::  if a ship is in the pending set, it is granted entry with an
+  ::  empty token.
+  ::
+  ::  a ship that is banned can not be added to the pending list.
+  ::
+  ++  se-c-entry-pending
+    |=  [ships=(set ship) =c-pending:g]
+    ^+  se-core
+    ?<  ?&  ?=(%add -.c-pending)
+            (~(any in ships) se-is-banned)
+        ==
+    ?-    -.c-pending
+        %add
+      =.  pending.ad
+        %+  roll  ~(tap in ships)
+        |=  [=ship =_pending.ad]
+        =/  roles=(set role-id:g)
+          (~(gut by pending) ship *(set role-id:g))
+        (~(put by pending) ship (~(uni in roles) roles.c-pending))
+      (se-update [%entry %pending %add ships roles.c-pending])
+    ::
+        %edit
+      =.  pending.ad
+        %+  roll  ~(tap in ships)
+        |=  [=ship =_pending.ad]
+        =/  roles=(unit (set role-id:g))
+          (~(get by pending) ship)
+        ::TODO consider crashing?
+        ?~  roles  pending
+        (~(put by pending) ship roles.c-pending)
+      (se-update [%entry %pending %add ships roles.c-pending])
+    ::
+        %del
+      =.  pending.ad
+        %+  roll  ~(tap in ships)
+        |=  [=ship =_pending.ad]
+        (~(del by pending) ship)
+      (se-update [%entry %pending %del ships])
     ==
   ::  +se-c-entry-ask: approve or deny a set of ask request
   ::
@@ -1792,9 +1844,10 @@
   ::  that the ship set contains only the ship originating
   ::  the request. the joined time for a user join is .now.bowl.
   ::
-  ::  group seats can also be added by a group admin. this allows,
-  ::  for instance, for pre-populating member roles ahead of time.
-  ::  seats manually added have a default joined time.
+  ::  group seats can also be added manually by a group admin. this
+  ::  is indended only as an escape hatch - pre-populating group
+  ::  members should be done using the %pending variant of $c-entry.
+  ::
   ::
   ++  se-c-seat
     |=  [ships=(set ship) =c-seat:g]
@@ -1815,11 +1868,26 @@
         %*(. (~(gut by seats.group) ship *seat:g) joined joined)
       ::
       =.  se-core
+        ::  create a ship for each seat.
+        ::
+        ::  we first delete the ship from requests.
+        ::  next, we check whether the ship has pre-assigned
+        ::  roles in .pending.ad, use those, and remove the ship
+        ::  from the pending set. finally, a new seat is created.
+        ::  the roles set of the seat is a union of existing and
+        ::  pre-assigned roles.
+        ::
         %+  roll  ~(tap in ships)
         |=  [=ship =_se-core]
-        =.  requests.admissions.group.se-core
-          (~(del by requests.admissions.group.se-core) ship)
+        =*  ad  admissions.group.se-core
+        =.  requests.ad
+          (~(del by requests.ad) ship)
+        =/  roles  (~(get by pending.ad) ship)
+        =?  pending.ad  ?=(^ roles)
+          (~(del by pending.ad) ship)
         =+  seat=(~(got by seats.group.se-core) ship)
+        =?  roles.seat  ?=(^ roles)
+          (~(uni in roles.seat) u.roles)
         (se-update:se-core %seat (sy ship ~) [%add seat])
       ::  send invites to manually added ships
       ::
@@ -1831,6 +1899,10 @@
       ?<  ?|  (~(has in ships) our.bowl)
               !=(~ (~(int in ships) se-channel-hosts))
           ==
+      ::  clean up ask and pending record
+      ::
+      =.  pending.ad   (~(del by pending.ad) ship)
+      =.  requests.ad  (~(del by requests.ad) ship)
       ::TODO if any of the ships was pending and invited,
       ::     cancel their tokens.
       ::
@@ -2433,7 +2505,7 @@
       |=  =nest:g
       ^-  (list card)
       =*  ship  p.q.nest
-      =/  =wire  
+      =/  =wire
         %+  weld  go-area
         /channels/[p.nest]/(scot %p ship)/[q.q.nest]/preview
       =/  =dock  [ship %groups]
@@ -2797,6 +2869,7 @@
       %privacy  (go-u-entry-privacy privacy.u-entry)
       %ban      (go-u-entry-ban u-ban.u-entry)
       %token    (go-u-entry-token u-token.u-entry)
+      %pending  (go-u-entry-pending u-pending.u-entry)
       %ask      (go-u-entry-ask u-ask.u-entry)
     ==
   ::  +go-u-entry-privacy: apply privacy update
@@ -2844,27 +2917,6 @@
         (~(dif in ranks.banned) ranks.u-ban)
       go-core
     ==
-  ::  +go-u-entry-ask: apply entry requests update
-  ::
-  ++  go-u-entry-ask
-    |=  =u-ask:g
-    ^+  go-core
-    =.  go-core  (go-response [%entry %ask u-ask])
-    =?  go-core  ?=(%add -.u-ask)
-      (go-activity %ask ship.u-ask)
-    ?:  go-our-host  go-core
-    ?-    -.u-ask
-        %add
-      =.  requests.ad  (~(put by requests.ad) [ship story]:u-ask)
-      go-core
-    ::
-        %del
-      =.  requests.ad
-        %+  roll  ~(tap in ships.u-ask)
-        |=  [=ship =_requests.ad]
-        (~(del by requests.ad) ship)
-      go-core
-    ==
   ::  +go-u-entry-token: apply entry token update
   ::
   ++  go-u-entry-token
@@ -2885,6 +2937,62 @@
       ::
       ?>  (~(has by tokens.ad) token.u-token)
       =.  tokens.ad  (~(del by tokens.ad) token.u-token)
+      go-core
+    ==
+  ::  +go-u-entry-pending: apply entry pending update
+  ::
+  ++  go-u-entry-pending
+    |=  =u-pending:g
+    ^+  go-core
+    =.  go-core  (go-response [%entry %pending u-pending])
+    ?:  go-our-host  go-core
+    ?-    -.u-pending
+        %add
+      =.  pending.ad
+        %+  roll  ~(tap in ships.u-pending)
+        |=  [=ship =_pending.ad]
+        =/  roles=(set role-id:g)
+          (~(gut by pending) ship *(set role-id:g))
+        (~(put by pending) ship (~(uni in roles) roles.u-pending))
+      go-core
+    ::
+        %edit
+      =.  pending.ad
+        %+  roll  ~(tap in ships.u-pending)
+        |=  [=ship =_pending.ad]
+        =/  roles=(unit (set role-id:g))
+          (~(get by pending) ship)
+        ::TODO consider crashing?
+        ?~  roles  pending
+        (~(put by pending) ship roles.u-pending)
+      go-core
+    ::
+        %del
+      =.  pending.ad
+        %+  roll  ~(tap in ships.u-pending)
+        |=  [=ship =_pending.ad]
+        (~(del by pending) ship)
+      go-core
+    ==
+  ::  +go-u-entry-ask: apply entry requests update
+  ::
+  ++  go-u-entry-ask
+    |=  =u-ask:g
+    ^+  go-core
+    =.  go-core  (go-response [%entry %ask u-ask])
+    =?  go-core  ?=(%add -.u-ask)
+      (go-activity %ask ship.u-ask)
+    ?:  go-our-host  go-core
+    ?-    -.u-ask
+        %add
+      =.  requests.ad  (~(put by requests.ad) [ship story]:u-ask)
+      go-core
+    ::
+        %del
+      =.  requests.ad
+        %+  roll  ~(tap in ships.u-ask)
+        |=  [=ship =_requests.ad]
+        (~(del by requests.ad) ship)
       go-core
     ==
   ::  +go-u-seat: apply seat update
