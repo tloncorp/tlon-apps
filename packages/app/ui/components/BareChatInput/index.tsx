@@ -273,6 +273,8 @@ export default function BareChatInput({
 
   const [isSending, setIsSending] = useState(false);
   const [linkMetaLoading, setLinkMetaLoading] = useState(false);
+  // Track current input session to cancel stale link previews
+  const inputSessionRef = useRef(0);
   const disableSend = useMemo(() => {
     return editorIsEmpty || isSending;
   }, [editorIsEmpty, isSending]);
@@ -331,12 +333,22 @@ export default function BareChatInput({
           parsedUrl.hash = '';
           const url = parsedUrl.toString();
 
+          // Capture current session to check if request is still valid later
+          const currentSession = inputSessionRef.current;
           setLinkMetaLoading(true);
           bareChatInputLogger.log('getting link metadata', { url });
 
           store
             .getLinkMetaWithFallback(url)
             .then((linkMetadata) => {
+              // Check if this request is still valid (message hasn't been sent)
+              if (currentSession !== inputSessionRef.current) {
+                bareChatInputLogger.log('ignoring stale link metadata', {
+                  url,
+                });
+                return;
+              }
+
               // todo: handle error case with toast or similar
               if (!linkMetadata) {
                 bareChatInputLogger.error('no link metadata', { url });
@@ -370,7 +382,10 @@ export default function BareChatInput({
               }
             })
             .finally(() => {
-              setLinkMetaLoading(false);
+              // Only clear loading if this is still the current session
+              if (currentSession === inputSessionRef.current) {
+                setLinkMetaLoading(false);
+              }
             });
         }
       }
@@ -543,6 +558,10 @@ export default function BareChatInput({
       }
 
       try {
+        // Cancel any pending link preview requests
+        inputSessionRef.current += 1;
+        setLinkMetaLoading(false);
+
         setControlledText('');
         bareChatInputLogger.log('clearing attachments');
         clearAttachments();
@@ -796,6 +815,10 @@ export default function BareChatInput({
   }, [needsHeightAdjustmentAfterLoad, adjustInputHeightProgrammatically]);
 
   const handleCancelEditing = useCallback(() => {
+    // Cancel any pending link preview requests
+    inputSessionRef.current += 1;
+    setLinkMetaLoading(false);
+
     setEditingPost?.(undefined);
     setHasSetInitialContent(false);
     setControlledText('');
