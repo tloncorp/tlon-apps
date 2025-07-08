@@ -26,20 +26,9 @@ import java.util.Date
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
-import com.posthog.PostHog
 
 const val MAX_CACHED_CONVERSATION_LENGTH = 15
 val notificationMessagesCache = HashMap<String, Array<NotificationCompat.MessagingStyle.Message>>();
-
-// PostHog logging helper
-private fun logNotificationEvent(eventName: String, properties: Map<String, Any>? = emptyMap()) {
-    try {
-        // Replace with your actual PostHog client initialization
-        PostHog.capture(event = eventName, properties = properties)
-    } catch (e: Exception) {
-        Log.e("NotificationManager", "Failed to log to PostHog", e)
-    }
-}
 
 suspend fun processNotification(context: Context, uid: String, originalPayload: RemoteMessage? = null) {
     val api = TalkApi(context)
@@ -53,7 +42,7 @@ suspend fun processNotification(context: Context, uid: String, originalPayload: 
             })
         }
     } catch (e: Exception) {
-        logNotificationEvent("notification_api_fetch_failed", mapOf(
+        NotificationLogger.logNotificationEvent("notification_api_fetch_failed", mapOf(
             "uid" to uid,
             "error" to e.message.orEmpty()
         ))
@@ -63,7 +52,7 @@ suspend fun processNotification(context: Context, uid: String, originalPayload: 
     }
 
     if (activityEvent == null) {
-        logNotificationEvent("notification_activity_event_null", mapOf(
+        NotificationLogger.logNotificationEvent("notification_activity_event_null", mapOf(
             "uid" to uid
         ))
         showFallbackNotification(context, uid, originalPayload, "No activity event")
@@ -73,7 +62,7 @@ suspend fun processNotification(context: Context, uid: String, originalPayload: 
     val preview = try {
         renderPreview(context, activityEvent.toString())
     } catch (e: Exception) {
-        logNotificationEvent("notification_preview_render_failed", mapOf(
+        NotificationLogger.logNotificationEvent("notification_preview_render_failed", mapOf(
             "uid" to uid,
             "error" to e.message.orEmpty()
         ))
@@ -82,7 +71,7 @@ suspend fun processNotification(context: Context, uid: String, originalPayload: 
     }
 
     if (preview == null) {
-        logNotificationEvent(
+        NotificationLogger.logNotificationEvent(
             "notification_preview_null", mapOf(
                 "uid" to uid
             )
@@ -94,13 +83,13 @@ suspend fun processNotification(context: Context, uid: String, originalPayload: 
     try {
         // Proceed with rich notification
         showRichNotification(context, uid, preview, activityEvent)
-        logNotificationEvent("notification_delivered_rich", mapOf(
+        NotificationLogger.logNotificationEvent("notification_delivered_rich", mapOf(
             "uid" to uid,
             "title" to (preview.title ?: ""),
             "isGroup" to (preview.messagingMetadata?.isGroupConversation?.toString() ?: "false")
         ))
     } catch (e: Exception) {
-        logNotificationEvent("notification_rich_display_failed", mapOf(
+        NotificationLogger.logNotificationEvent("notification_rich_display_failed", mapOf(
             "uid" to uid,
             "error" to e.message.orEmpty()
         ))
@@ -183,7 +172,7 @@ private fun showRichNotification(context: Context, uid: String, preview: Activit
             Manifest.permission.POST_NOTIFICATIONS
         ) != PackageManager.PERMISSION_GRANTED
     ) {
-        logNotificationEvent("notification_permission_denied", mapOf(
+        NotificationLogger.logNotificationEvent("notification_permission_denied", mapOf(
             "uid" to uid
         ))
         // Could still show fallback, but permissions are required
@@ -247,13 +236,13 @@ private fun showFallbackNotification(
 
     try {
         NotificationManagerCompat.from(context).notify(id, builder.build())
-        logNotificationEvent("notification_delivered_fallback", mapOf(
+        NotificationLogger.logNotificationEvent("notification_delivered_fallback", mapOf(
             "uid" to uid,
             "reason" to reason
         ))
         Log.i("NotificationManager", "Showed fallback notification for uid: $uid, reason: $reason")
     } catch (e: Exception) {
-        logNotificationEvent("notification_fallback_failed", mapOf(
+        NotificationLogger.logNotificationEvent("notification_fallback_failed", mapOf(
             "uid" to uid,
             "reason" to reason,
             "error" to e.message.orEmpty()
