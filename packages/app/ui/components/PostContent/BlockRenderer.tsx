@@ -31,6 +31,7 @@ export const BlockWrapper = styled(View, {
   name: 'ContentBlock',
   context: ContentContext,
   padding: '$l',
+  cursor: 'default',
   variants: {
     isNotice: {
       true: {
