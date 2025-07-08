@@ -3,8 +3,6 @@ import { createDevLogger } from '@tloncorp/shared';
 import Fuse from 'fuse.js';
 import { useMemo } from 'react';
 
-import { isEmoji } from './utils';
-
 const logger = createDevLogger('EmojiData', false);
 
 export type EmojiObject = {
@@ -40,21 +38,24 @@ export function usePreloadedEmojis() {
 }
 
 export function getNativeEmoji(input: string): string | undefined {
-  // if it's already a raw emoji, return it directly
-  if (isEmoji(input)) {
-    return input;
-  }
-
-  // otherwise parse it as a shortcode
-  const sanitizedShortcode = input.replace(/^:|:$/g, '');
   try {
-    const resultEmoji = EMOJI_MAP[sanitizedShortcode]?.skins[0].native;
-    if (!resultEmoji) {
-      throw new Error('Not found in emoji map');
+    // if it's a shortcode, transform it to a native emoji
+    const sanitizedShortcode = input.replace(/^:|:$/g, '');
+    const shortcodeEmoji = EMOJI_MAP[sanitizedShortcode]?.skins[0].native;
+    if (shortcodeEmoji) {
+      return shortcodeEmoji;
     }
-    return resultEmoji;
+
+    // otherwise just make sure it's vaguely "emoji shaped" (i.e. not long text)
+    const fancyCharCount = Array.from(
+      input.split(/[\ufe00-\ufe0f]/).join('')
+    ).length;
+    const conservativeEmojiMaxLength = 4;
+    if (fancyCharCount > conservativeEmojiMaxLength) {
+      throw new Error('Invalid non-shortcode emoji input');
+    }
+    return input;
   } catch (e) {
-    console.error(`Parsing emoji shortcode ${input} failed: ${e}`);
     logger.trackError('Error parsing emoji shortcode', {
       input,
       error: e.toString(),

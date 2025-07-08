@@ -10,6 +10,7 @@ import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitCl
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import useDesktopNotifications from '@tloncorp/app/hooks/useDesktopNotifications';
 import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
+import { useInviteParam } from '@tloncorp/app/hooks/useInviteParam';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useRenderCount } from '@tloncorp/app/hooks/useRenderCount';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
@@ -154,13 +155,6 @@ function AppRoutes() {
   const { data: groupData } = store.useGroup({
     id: groupId,
   });
-  const { data, refetch, isRefetching, isFetching } = contactsQuery;
-
-  useEffect(() => {
-    if (data?.length === 0 && !isRefetching && !isFetching) {
-      refetch();
-    }
-  }, [data?.length, isRefetching, isFetching, refetch]);
 
   const isMobile = useIsMobile();
   const isDarkMode = useIsDarkMode();

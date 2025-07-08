@@ -188,6 +188,7 @@ export function ExceptionsDisplay({
                 />
               }
               paddingVertical="$s"
+              disableOptions
             />
           );
         })}
@@ -210,6 +211,7 @@ export function ExceptionsDisplay({
                 />
               }
               paddingVertical="$s"
+              disableOptions
             />
           );
         })}
