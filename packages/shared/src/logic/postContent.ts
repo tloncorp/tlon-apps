@@ -162,6 +162,24 @@ export type BlockFromType<T extends BlockType> = Extract<
 
 export type PostContent = BlockData[];
 
+export function findExistingBlockByUrl(
+  blocks: BlockData[],
+  url: string
+): number {
+  return blocks.findIndex(
+    (b) =>
+      (b.type === 'embed' && b.url === url) ||
+      (b.type === 'link' && b.url === url)
+  );
+}
+
+export function hasExistingBlockByUrl(
+  blocks: BlockData[],
+  url: string
+): boolean {
+  return findExistingBlockByUrl(blocks, url) !== -1;
+}
+
 export interface PlaintextPreviewConfig {
   blockSeparator: string;
   includeLinebreaks: boolean;
@@ -336,25 +354,19 @@ export function convertContentSafe(
 
       if (convertedBlock.type === 'link') {
         // Check if we already have an embed or link for the same URL
-        const existingIndex = blocks.findIndex(
-          (b) =>
-            (b.type === 'embed' && b.url === convertedBlock.url) ||
-            (b.type === 'link' && b.url === convertedBlock.url)
+        const existingIndex = findExistingBlockByUrl(
+          blocks,
+          convertedBlock.url
         );
 
         if (existingIndex !== -1) {
-          // Replace the existing block with the richer link block
           blocks[existingIndex] = convertedBlock;
         } else {
           blocks.push(convertedBlock);
         }
       } else if (convertedBlock.type === 'embed') {
         // Only add embed if we don't already have a link or embed for this URL
-        const hasExisting = blocks.some(
-          (b) =>
-            (b.type === 'embed' && b.url === convertedBlock.url) ||
-            (b.type === 'link' && b.url === convertedBlock.url)
-        );
+        const hasExisting = hasExistingBlockByUrl(blocks, convertedBlock.url);
 
         if (!hasExisting) {
           blocks.push(convertedBlock);
@@ -474,10 +486,9 @@ function processParagraphsAndEmbeds(
       const isNotFormattedText = inline.link.href === inline.link.content;
 
       // Check if we already have an embed or link for this URL
-      const hasExistingForUrl = existingBlocks.some(
-        (b) =>
-          (b.type === 'embed' && b.url === inline.link.href) ||
-          (b.type === 'link' && b.url === inline.link.href)
+      const hasExistingForUrl = hasExistingBlockByUrl(
+        existingBlocks,
+        inline.link.href
       );
 
       if (isEmbed && isNotFormattedText && !hasExistingForUrl) {
