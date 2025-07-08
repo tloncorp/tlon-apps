@@ -4,7 +4,6 @@ import {
   createDevLogger,
   diaryMixedToJSON,
   extractContentTypesFromPost,
-  isTrustedEmbed,
 } from '@tloncorp/shared';
 import {
   contentReferenceToCite,
@@ -19,7 +18,7 @@ import {
   constructStory,
   pathToCite,
 } from '@tloncorp/shared/urbit';
-import { useGlobalSearch } from '@tloncorp/ui';
+import { LoadingSpinner, useGlobalSearch } from '@tloncorp/ui';
 import { RawText, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, TextInput } from 'react-native';
@@ -184,6 +183,24 @@ function TextWithMentions({
   return <>{textParts}</>;
 }
 
+function LinkPreviewLoading() {
+  return (
+    <View
+      backgroundColor="$secondaryBackground"
+      padding="$m"
+      margin="$m"
+      borderRadius="$m"
+      alignItems="center"
+      justifyContent="center"
+      width={240}
+      height={200}
+      overflow="hidden"
+    >
+      <LoadingSpinner color="$primaryText" size="small" />
+    </View>
+  );
+}
+
 export default function BareChatInput({
   shouldBlur,
   setShouldBlur,
@@ -257,8 +274,8 @@ export default function BareChatInput({
   const [isSending, setIsSending] = useState(false);
   const [linkMetaLoading, setLinkMetaLoading] = useState(false);
   const disableSend = useMemo(() => {
-    return editorIsEmpty || isSending || linkMetaLoading;
-  }, [editorIsEmpty, isSending, linkMetaLoading]);
+    return editorIsEmpty || isSending;
+  }, [editorIsEmpty, isSending]);
 
   const processReferences = useCallback(
     (text: string): string => {
@@ -316,6 +333,7 @@ export default function BareChatInput({
 
           setLinkMetaLoading(true);
           bareChatInputLogger.log('getting link metadata', { url });
+
           store
             .getLinkMetaWithFallback(url)
             .then((linkMetadata) => {
@@ -351,7 +369,9 @@ export default function BareChatInput({
                 }
               }
             })
-            .finally(() => setLinkMetaLoading(false));
+            .finally(() => {
+              setLinkMetaLoading(false);
+            });
         }
       }
 
@@ -903,6 +923,7 @@ export default function BareChatInput({
         maxHeight={maxInputHeight}
         justifyContent="center"
       >
+        {linkMetaLoading && <LinkPreviewLoading />}
         {showInlineAttachments && <AttachmentPreviewList />}
         <TextInput
           testID="MessageInput"
