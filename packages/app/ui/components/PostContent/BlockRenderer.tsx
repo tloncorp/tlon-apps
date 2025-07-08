@@ -115,11 +115,15 @@ export const LineRenderer = memo(function LineRendererComponent({
 });
 
 function TextContent(props: ComponentProps<typeof LineText>) {
+  const context = useContentContext();
   const TextComponent =
     useContext(BlockRendererContext)?.renderers?.lineText ?? LineText;
   const defaultProps =
     useContext(BlockRendererContext)?.settings?.lineText ?? {};
-  return <TextComponent {...defaultProps} {...props} />;
+
+  return (
+    <TextComponent {...defaultProps} {...props} isNotice={context.isNotice} />
+  );
 }
 
 export const LineText = styled(Text, {
