@@ -19,7 +19,6 @@
 /%  m-chat-heads           %chat-heads
 /%  m-chat-heads-1         %chat-heads-1
 /%  m-chat-paged-writs     %chat-paged-writs
-/%  m-chat-pins            %chat-pins
 /%  m-chat-scam            %chat-scam
 /%  m-chat-scam-1          %chat-scam-1
 /%  m-chat-scan            %chat-scan
@@ -48,7 +47,6 @@
             :+  %chat-heads           &  -:!>(*vale:m-chat-heads)
             :+  %chat-heads-1         &  -:!>(*vale:m-chat-heads-1)
             :+  %chat-paged-writs     &  -:!>(*vale:m-chat-paged-writs)
-            :+  %chat-pins            &  -:!>(*vale:m-chat-pins)
             :+  %chat-scam            &  -:!>(*vale:m-chat-scam)
             :+  %chat-scam-1          &  -:!>(*vale:m-chat-scam-1)
             :+  %chat-scan            &  -:!>(*vale:m-chat-scan)
@@ -98,7 +96,6 @@
         [/x/hidden-messages %hidden-messages]
         [/x/init %noun]
         [/x/old %noun]
-        [/x/pins %chat-pins]
         [/x/unreads %chat-unreads]
       ::
         [/x/v1/club/$/writs %chat-paged-writs]
@@ -915,8 +912,6 @@
     [%x %old ~]  ``noun+!>(old-chats)  ::  legacy data, for migration use
   ::
     [%x %clubs ~]  ``clubs+!>((~(run by clubs) |=(=club:c crew.club)))
-  ::
-    [%x %pins ~]  ``chat-pins+!>(pins)
   ::
     [%x %blocked ~]  ``ships+!>(blocked)
   ::
