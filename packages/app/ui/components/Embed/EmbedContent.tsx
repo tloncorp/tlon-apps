@@ -69,13 +69,13 @@ GenericEmbed.displayName = 'GenericEmbed';
 interface EmbedContentProps {
   url: string;
   content?: string;
-  onRenderDecision?: (willRender: boolean) => void;
+  renderWrapper: (children: React.ReactNode) => React.ReactNode;
 }
 
 const EmbedContent = memo(function EmbedContent({
   url,
   content,
-  onRenderDecision,
+  renderWrapper,
 }: EmbedContentProps) {
   const { embed } = useEmbed(
     url,
@@ -105,8 +105,8 @@ const EmbedContent = memo(function EmbedContent({
 
   if (!calm.disableRemoteContent) {
     if (isAudio) {
-      onRenderDecision?.(true);
-      return <AudioEmbed url={url} />;
+      const content = <AudioEmbed url={url} />;
+      return renderWrapper(content);
     }
 
     if (isTrusted) {
@@ -120,8 +120,7 @@ const EmbedContent = memo(function EmbedContent({
         const providerConfig = getProviderConfig(provider);
 
         if (providerConfig) {
-          onRenderDecision?.(true);
-          return (
+          const content = (
             <EmbedWebView
               url={embedUrl ?? url}
               provider={providerConfig}
@@ -129,13 +128,13 @@ const EmbedContent = memo(function EmbedContent({
               onError={onEmbedError}
             />
           );
+          return renderWrapper(content);
         }
       }
 
       if (isValidWithoutHtml) {
         const { title, provider_name: provider, author_name: author } = embed;
-        onRenderDecision?.(true);
-        return (
+        const content = (
           <GenericEmbed
             provider={provider}
             title={title}
@@ -145,15 +144,14 @@ const EmbedContent = memo(function EmbedContent({
             openLink={openLink}
           />
         );
+        return renderWrapper(content);
       }
 
-      onRenderDecision?.(false);
-      return null;
+      return renderWrapper(null);
     }
   }
 
-  onRenderDecision?.(false);
-  return null;
+  return renderWrapper(null);
 });
 
 export default EmbedContent;

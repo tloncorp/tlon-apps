@@ -482,9 +482,17 @@ export function EmbedBlock({
   }
 
   return (
-    <View width="100%" {...props}>
-      <EmbedContent url={block.url} content={block.content} />
-    </View>
+    <EmbedContent
+      url={block.url}
+      content={block.content}
+      renderWrapper={(children) =>
+        children ? (
+          <View width="100%" {...props}>
+            {children}
+          </View>
+        ) : null
+      }
+    />
   );
 }
 
@@ -569,18 +577,23 @@ export function BlockRenderer({ block }: { block: cn.BlockData }) {
     defaultProps?.[block.type] ?? {};
   const defaultPropsForBlockWrapper = defaultProps?.blockWrapper;
 
-  // Special handling for embed blocks - use callback to determine if wrapper should render
+  // Special handling for embed blocks - let EmbedContent decide if wrapper should render
   if (block.type === 'embed') {
     return (
-      <ConditionalEmbedWrapper
-        wrapper={Wrapper}
-        wrapperProps={{
-          ...defaultPropsForBlockWrapper,
-          ...wrapperProps,
-          block,
-        }}
+      <EmbedContent
         url={block.url}
         content={block.content}
+        renderWrapper={(children) =>
+          children ? (
+            <Wrapper
+              {...defaultPropsForBlockWrapper}
+              {...wrapperProps}
+              block={block}
+            >
+              {children}
+            </Wrapper>
+          ) : null
+        }
       />
     );
   }
@@ -590,38 +603,4 @@ export function BlockRenderer({ block }: { block: cn.BlockData }) {
       <Renderer {...defaultPropsForBlock} block={block} />
     </Wrapper>
   );
-}
-
-function ConditionalEmbedWrapper({
-  wrapper: Wrapper,
-  wrapperProps,
-  url,
-  content,
-  ...embedProps
-}: {
-  wrapper: React.ComponentType<any>;
-  wrapperProps: any;
-  url: string;
-  content?: string;
-} & ComponentProps<typeof EmbedContent>) {
-  const [shouldRender, setShouldRender] = useState(true);
-
-  const handleRenderDecision = useCallback((willRender: boolean) => {
-    setShouldRender(willRender);
-  }, []);
-
-  const embedContent = (
-    <EmbedContent
-      url={url}
-      content={content}
-      onRenderDecision={handleRenderDecision}
-      {...embedProps}
-    />
-  );
-
-  if (!shouldRender) {
-    return null;
-  }
-
-  return <Wrapper {...wrapperProps}>{embedContent}</Wrapper>;
 }
