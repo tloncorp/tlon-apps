@@ -57,6 +57,7 @@ export function BigInput({
   const [hasImageChanges, setHasImageChanges] = useState(false);
   const [showFormatMenu, setShowFormatMenu] = useState(!isWindowNarrow);
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const editorRef = useRef<{ editor: TlonEditorBridge | null }>(null);
   const insets = useSafeAreaInsets();
   const theme = useTheme();
@@ -117,6 +118,7 @@ export function BigInput({
 
   // Handle sending/editing the post
   const handleSend = useCallback(async () => {
+    setIsSending(true);
     if (!editorRef.current?.editor) return;
 
     const json = await editorRef.current.editor.getJSON();
@@ -149,9 +151,24 @@ export function BigInput({
         metadata.title = title;
       }
 
-      // Always include image field for notebooks, even if null
-      // This ensures we can clear an image by setting it to null
-      metadata.image = imageUri;
+      if (imageUri) {
+        const attachment = attachments.find(
+          (attachment) =>
+            attachment.type === 'image' &&
+            attachment.uploadState?.status === 'success' &&
+            attachment.file?.uri === imageUri
+        );
+        if (
+          attachment &&
+          attachment.type === 'image' &&
+          attachment.uploadState &&
+          'remoteUri' in attachment.uploadState
+        ) {
+          metadata.image = attachment.uploadState.remoteUri;
+        }
+      } else {
+        metadata.image = null;
+      }
     }
 
     try {
@@ -217,6 +234,8 @@ export function BigInput({
     } catch (error) {
       logger.error('Failed to save post:', error);
       // Don't clear draft if save failed
+    } finally {
+      setIsSending(false);
     }
   }, [
     send,
@@ -231,6 +250,7 @@ export function BigInput({
     setShowFormatMenu,
     clearAttachments,
     attachments,
+    isSending,
   ]);
 
   // Register the "Post" button in the header
@@ -241,12 +261,12 @@ export function BigInput({
           key="big-input-post"
           onPress={handleSend}
           testID="BigInputPostButton"
-          disabled={!isButtonEnabled}
+          disabled={!isButtonEnabled || isSending}
         >
           {editingPost ? 'Save' : 'Post'}
         </ScreenHeader.TextButton>
       ),
-      [handleSend, editingPost, isButtonEnabled]
+      [handleSend, editingPost, isButtonEnabled, isSending]
     )
   );
 
