@@ -47,7 +47,7 @@
   =/  last-post-time  (add now.bw 1)
   =/  last-post=v-post:c
     :-  [last-post-time 1 last-post-time ~ ~]
-    [0 [[~ ~dev last-post-time] %chat ~]]
+    [0 [[~ ~dev last-post-time] /chat ~ ~]]
   =/  posts=v-posts:c
     (gas:on-v-posts:c *v-posts:c ~[[last-post-time `last-post]])
   =/  checkpoint  *u-checkpoint:c
