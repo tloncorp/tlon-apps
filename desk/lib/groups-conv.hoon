@@ -668,11 +668,11 @@
         %-  ~(gas by pending)
         %+  turn  ~(tap in pend.cordon)
         |=(=ship [ship ~])
+      ::NB  we don't migrate the ask set because
+      ::    they need to be re-issued by the subscribers
+      ::    to work.
+      ::
       =|  requests=(map ship (unit story:s))
-      =?  requests  ?=(%shut -.cordon)
-        %-  ~(gas by requests)
-        %+  turn  ~(tap in ask.cordon)
-        |=(=ship [ship ~])
       =/  =admissions:v7:gv
         :*  privacy
             banned
@@ -810,14 +810,14 @@
       ++  u-seat-from-diff
         |=  [=time =diff:fleet:v5:gv]
         ^-  u-seat:v7:gv
-        =*  sect-to-role-id
-          |=(sect:v5:gv `role-id:v7:gv`+<)
         ?-    -.diff
           %add  [%add `seat:v7:gv`[~ time]]
           %del  [%del ~]
           %add-sects  [%add-roles (~(run in sects.diff) sect-to-role-id)]
           %del-sects  [%del-roles (~(run in sects.diff) sect-to-role-id)]
         ==
+      ++  sect-to-role-id
+        |=(sect:v5:gv `role-id:v7:gv`+<)
       ++  u-role-from-diff
         |=  =diff:cabal:v5:gv
         ^-  u-role:v7:gv
@@ -829,8 +829,6 @@
       ++  u-channel-from-diff
         |=  =diff:channel:v5:gv
         ^-  u-channel:v7:gv
-        =*  sect-to-role-id
-          |=(sect:v5:gv `role-id:v7:gv`+<)
         ?-  -.diff
           %add   [%add (v7:channel channel.diff)]
           %edit  [%edit (v7:channel channel.diff)]

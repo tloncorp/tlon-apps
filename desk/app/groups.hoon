@@ -244,6 +244,7 @@
             %add-ships
           ?-    p.cordon-diff
               %ask
+            ::  only allow client ask requests
             ?>  =(q.cordon-diff (silt our.bowl ~))
             =/  =a-foreigns:v7:gv
               [%foreign flag %ask ~]
@@ -539,19 +540,9 @@
     (emit [%pass /load/active-channels %arvo %b %wait now.bowl])
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
-  ::  v6 -> v7: clean up old /cast subscriptions
-  ::
-  =?  cor  ?=(%6 -.old)
-    %+  roll  ~(tap by wex.bowl)
-    |=  [[[=wire =dock] *] =_cor]
-    ?.  ?=([%cast @ @ ~] wire)  cor
-    (emit:cor [%pass wire %agent dock %leave ~])
-  =?  old  ?=(%6 -.old)  (state-6-to-7 old)
-  ::TODO trigger subscribers to re-issue ask requests based
-  ::     on the migrated .requests.admissions list.
-  ::
-  ::TODO send out invites to all ships that have default seats.
-  ::
+  =^  caz-6-to-7=(list card)  old
+    ?.  ?=(%6 -.old)  [~ old]
+    (state-6-to-7 old)
   ?>  ?=(%7 -.old)
   =.  state  old
   inflate-io
@@ -692,10 +683,33 @@
   ::
   ++  state-6-to-7
     |=  state-6
-    ^-  state-7
+    ^-  (quip card state-7)
+    ::  clean up old /cast subscriptions
+    ::
+    =|  caz=(list card)
+    =.  caz
+      %+  roll  ~(tap by wex.bowl)
+      |=  [[[=wire =dock] *] =_caz]
+      ?.  ?=([%cast @ @ ~] wire)  caz
+      :_  caz
+      [%pass wire %agent dock %leave ~]
+    ::  schedule foreigns and admissions migration
+    ::
+    =.  caz
+      :-  [%pass /load/v7/foreigns %arvo %b %wait now.bowl]
+      :-  [%pass /load/v7/admissions %arvo %b %wait now.bowl]
+      caz
+    =/  channels-index=(map nest:g flag:g)
+      %-  ~(gas by *(map nest:g flag:g))
+      %-  zing
+      %+  turn  ~(tap by groups)
+      |=  [=flag:g [* =group:v6:gv]]
+      ^-  (list [nest:g flag:g])
+      (turn ~(tap in ~(key by channels.group)) (late flag))
+    :-  caz
     :*  %7
         (~(run by groups) v7:net-group:v5:gc)
-        ~  ::  channels-index
+        channels-index
         (~(run by xeno) v7:gang:v6:gc)
         volume
         subs
@@ -1056,6 +1070,9 @@
       (~(handle-wakeup s [subs bowl]) pole)
     (emil caz)
   ::
+      :: v4 -> v5
+      :: initialize .active-channels in $group
+      ::
       [%load %active-channels ~]
     ::
     =.  groups
@@ -1071,6 +1088,65 @@
         .^(? %gu (channels-scry nest))
       ==
     cor
+  ::
+      ::  v6 -> v7
+      ::  migrate foreigns
+      [%load %v7 %foreigns ~]
+    ::  refresh preview for each foreign group
+    ::
+    =.  cor
+      %+  roll  ~(tap in ~(key by foreigns))
+      |=  [=flag:g =_cor]
+      =/  fc  (fi-abed:fi-core:cor flag)
+      fi-abet:(fi-safe-preview:fc |)
+    ::  for each group join in progress:
+    ::
+    ::  %ask: we have requested an entry, repeat the request
+    ::  %join: we have asked to join the group, repeat the request
+    ::         if an invitation is present. otherwise set progress
+    ::         to error
+    ::  %watch: we have issue a watch to the group. there should already
+    ::          be a group entry. if there is, resubscribe. if there is
+    ::          not, set error.
+    ::  %done: do nothing.
+    ::  %error: do nothing.
+    ::
+    %+  roll  ~(tap by foreigns)
+    |=  [[=flag:g far=foreign:g] =_cor]
+    ?~  progress.far  cor
+    ?:  ?=(?(%done %error) u.progress.far)  cor
+    =/  fc  fi-cancel:(fi-abed:fi-core:cor flag)
+    =<  fi-abet
+    ?-    u.progress.far
+      %ask  (fi-ask:fc ~)
+    ::
+        %join
+      ?~  invites.far  fi-error:fc
+      (fi-join:fc token.i.invites.far)
+    ::
+        %watch
+      ?.  (~(has by groups) flag)
+        ::  group is not found
+        fi-error:fc
+      =.  cor
+        go-abet:(go-safe-sub:(go-abed:go-core:cor flag) |)
+      ::NB  cor has changed, we need to resolve +fi-core anew
+      (fi-abed:fi-core:cor flag)
+    ==
+  ::
+      ::  v6 -> v7
+      ::  migrate $group
+      ::
+      [%load %v7 %admissions ~]
+    ::  host: send invites to each ship on the pending list in
+    ::  .admissions.$group.
+    ::
+    %+  roll  ~(tap by groups)
+    |=  [[=flag:g [=net:g =group:g]] =_cor]
+    ?.  ?=(%pub -.net)  cor
+    =<  se-abet
+    %-  se-send-invites:(se-abed:se-core flag)
+    ~(key by pending.admissions.group)
   ==
 ::
 ::  does not overwite if wire and dock exist.  maybe it should
@@ -1298,7 +1374,6 @@
       $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
     =/  =update:g  [time u-group]
     =.  log  (put:log-on:g log update)
-    ~&  se-update+u-group
     (se-give-update update)
   ::  +se-pass: server cards core
   ::
@@ -1766,6 +1841,7 @@
         =/  roles=(set role-id:g)
           (~(gut by pending) ship *(set role-id:g))
         (~(put by pending) ship (~(uni in roles) roles.c-pending))
+      =.  se-core  (se-send-invites ships)
       (se-update [%entry %pending %add ships roles.c-pending])
     ::
         %edit
@@ -1954,6 +2030,7 @@
   ++  se-send-invites
     |=  ships=(set ship)
     ^+  se-core
+    ::TODO record each invited ship in .invited.ad?
     %+  roll  ~(tap in ships)
     |=  [=ship =_se-core]
     =*  her  +<-
@@ -2250,7 +2327,6 @@
   ++  se-watch-updates
     |=  [=ship =@da]
     ^+  se-core
-    ~&  se-watch-updates+[ship da]
     =/  =log:g  (lot:log-on:g log `da ~)
     ::  filter out admin updates
     ::
@@ -2288,8 +2364,9 @@
   ++  se-is-admin-update
     |=  =u-group:g
     ?+  u-group  |
-      [%entry %ask *]  &
-      [%entry %token *]  &
+      [%entry %token *]    &
+      [%entry %pending *]  &
+      [%entry %ask *]      &
     ==
   ::
   ++  se-watch-preview
@@ -2780,7 +2857,6 @@
     ::
         %fact
       =*  cage  cage.sign
-      ~&  go-take-fact+p.cage
       ?+  p.cage  ~|(go-take-update-bad-fact+p.cage !!)
         %group-log     (go-apply-log !<(log:g q.cage))
         %group-update  (go-u-group !<(update:g q.cage))
@@ -3000,7 +3076,6 @@
   ++  go-u-seat
     |=  [ships=(set ship) =u-seat:g]
     ^+  go-core
-    ~&  go-u-seat+u-seat
     ?-    -.u-seat
         %add
       =.  go-core  (go-response %seat ships [%add seat.u-seat])
@@ -3376,7 +3451,6 @@
   ++  go-response
     |=  =r-group:g
     ^+  go-core
-    ~&  go-response+r-group
     ::  v1 response, requires v7
     ::
     =/  r-groups-7=r-groups:v7:gv  [flag r-group]
@@ -3397,7 +3471,6 @@
   ++  go-peek
     |=  [ver=?(%v0 %v1 %v2) =(pole knot)]
     ^-  (unit (unit cage))
-    ~&  go-peek+[ver pole]
     ::TODO some of these should be versioned, at least
     ::     those used by the client.
     ::
@@ -3646,6 +3719,13 @@
       fi-core
     =.  progress  `%done
     fi-core
+  ::  +fi-error: end a foreign sequence with an error
+  ::  TODO log based on progress
+  ::
+  ++  fi-error
+    ^+  fi-core
+    =.  progress  `%error
+    fi-core
   ::  +fi-cancel: cancel a group join in progress
   ::
   ++  fi-cancel
@@ -3693,15 +3773,6 @@
       ?:  (gte time.preview.invite time.u.preview)
         `preview.invite
       preview
-    ::  we have knocked and we have received.
-    ::  assume an invite from the host to be the ask response
-    ::  from the host.
-    ::
-    ?:  ?&  ?=(^ progress)
-            ?=(%ask u.progress)
-            =(src.bowl p.flag)
-        ==
-      (fi-join token.invite)
     =.  fi-core  (fi-activity %group-invite src.bowl)
     fi-core
   ::  +fi-decline: reject a group invitation
@@ -3734,7 +3805,6 @@
     =/  =dock  [p.flag dap.bowl]
     =^  caz=(list card)  subs
       (~(unsubscribe s [subs bowl]) wire dock)
-    :: =?  cor  ?=(^ caz)  (emil caz)
     =.  cor  %.  delay
       (safe-watch (weld fi-area /preview) [p.flag dap.bowl] fi-preview-path)
     fi-core
@@ -3758,7 +3828,6 @@
   ++  fi-agent
     |=  [=(pole knot) =sign:agent:gall]
     ^+  fi-core
-    ~&  fi-agent+pole
     ?+    pole  ~|(fi-agent-bad+pole !!)
     ::
         ::  sent an invite to .ship with .token
