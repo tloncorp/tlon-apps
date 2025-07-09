@@ -22,9 +22,9 @@ jobs:
       - name: Bump
         run: |
           sed -i "s/version+\[.*]/version+[${{ github.event.inputs.version }}]/" desk/desk.docket-0
-          sed -i "s/version+\[.*]/version+[${{ github.event.inputs.version }}]/" talk/desk.docket-0
       - name: Commit
         uses: EndBug/add-and-commit@v9
         with:
-          add: '-A'
-          message: 'version bump: ${{ github.event.inputs.version }} [skip actions]'
+          add: "-A"
+          message:
+            "version bump: ${{ github.event.inputs.version }} [skip actions]"
