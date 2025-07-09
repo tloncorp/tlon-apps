@@ -90,6 +90,7 @@ export function useAnchorScrollLock({
 
       if (
         !userHasScrolled &&
+        !didScrollToAnchor &&
         post.id === anchor?.postId &&
         flatListRef.current &&
         anchor?.postId === currentAnchorId.current &&

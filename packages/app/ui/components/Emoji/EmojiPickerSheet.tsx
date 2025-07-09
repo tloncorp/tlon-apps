@@ -1,23 +1,24 @@
 import { FlashList } from '@shopify/flash-list';
 import { createDevLogger } from '@tloncorp/shared';
-import { getNativeEmoji, useIsWindowNarrow } from '@tloncorp/ui';
-import { Button } from '@tloncorp/ui';
-import { KeyboardAvoidingView } from '@tloncorp/ui';
-import { Sheet } from '@tloncorp/ui';
-import { SizableEmoji } from '@tloncorp/ui';
-import { searchEmojis, usePreloadedEmojis } from '@tloncorp/ui';
-import { ComponentProps, useCallback, useMemo, useRef, useState } from 'react';
-import React from 'react';
 import {
-  FlatList,
-  Keyboard,
-  Modal,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-} from 'react-native';
-import { View } from 'tamagui';
-import { Dialog } from 'tamagui';
-import { VisuallyHidden } from 'tamagui';
+  Button,
+  KeyboardAvoidingView,
+  Sheet,
+  SizableEmoji,
+  getNativeEmoji,
+  searchEmojis,
+  useIsWindowNarrow,
+  usePreloadedEmojis,
+} from '@tloncorp/ui';
+import React, {
+  ComponentProps,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { FlatList, Keyboard, Modal } from 'react-native';
+import { Dialog, View, VisuallyHidden } from 'tamagui';
 
 import { SearchBar } from '../SearchBar';
 
@@ -93,17 +94,8 @@ export function EmojiPickerSheet(
     [onEmojiSelect, props]
   );
 
-  const scrollPosition = useRef(0);
-  const handleScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      scrollPosition.current = event.nativeEvent.contentOffset.y;
-    },
-    []
-  );
   const onTouchStart = useCallback(() => {
-    if (scrollPosition.current > 0) {
-      setIsScrolling(true);
-    }
+    setIsScrolling(true);
   }, []);
   const onTouchEnd = useCallback(() => setIsScrolling(false), []);
 
@@ -155,7 +147,6 @@ export function EmojiPickerSheet(
               />
             </View>
             <FlashList
-              onScroll={handleScroll}
               onTouchStart={onTouchStart}
               onTouchEnd={onTouchEnd}
               data={listData}
@@ -205,7 +196,6 @@ export function EmojiPickerSheet(
                 style={{ width: '100%' }}
                 horizontal={false}
                 contentContainerStyle={{ flexGrow: 1 }}
-                onScroll={handleScroll}
                 onTouchStart={onTouchStart}
                 onTouchEnd={onTouchEnd}
                 data={listData}
