@@ -4,49 +4,8 @@
 ::
 /-  c=channels, g=groups, h=hooks, m=meta
 /+  utils=channel-utils, imp=import-aid
-/+  default-agent, verb, dbug,
-    neg=negotiate, discipline, logs
+/+  default-agent, verb, dbug, neg=negotiate, logs
 /+  hj=hooks-json
-::
-/%  m-channel-checkpoint    %channel-checkpoint
-/%  m-channel-denied        %channel-denied
-/%  m-channel-logs          %channel-logs
-/%  m-channel-said-1        %channel-said-1
-/%  m-channel-update        %channel-update
-/%  m-hook-channel-preview  %hook-channel-preview
-/%  m-hook-full             %hook-full
-/%  m-hook-response-0       %hook-response-0
-/%  m-hook-template         %hook-template
-::
-%-  %-  discipline
-    :+  ::  marks
-        ::
-        :~  :+  %channel-checkpoint    |  -:!>(*vale:m-channel-checkpoint)
-            :+  %channel-denied        |  -:!>(*vale:m-channel-denied)
-            :+  %channel-logs          |  -:!>(*vale:m-channel-logs)
-            :+  %channel-said-1        |  -:!>(*vale:m-channel-said-1)
-            :+  %channel-update        |  -:!>(*vale:m-channel-update)
-            :+  %hook-channel-preview  |  -:!>(*vale:m-hook-channel-preview)
-            :+  %hook-full             |  -:!>(*vale:m-hook-full)
-            :+  %hook-response-0       |  -:!>(*vale:m-hook-response-0)
-            :+  %hook-template         |  -:!>(*vale:m-hook-template)
-        ==
-      ::  facts
-      ::
-      :~  [/$/$/checkpoint %channel-checkpoint ~]
-          [/$/$/create %channel-update ~]
-          [/$/$/updates %channel-update %channel-logs ~]
-          [/said %channel-said-1 %channel-denied ~]
-        ::
-          [/v0/hooks %hook-response-0 ~]
-          [/v0/hooks/full %hook-full ~]
-          [/v0/hooks/preview %hook-channel-preview ~]
-          [/v0/hooks/template %hook-template ~]
-      ==
-    ::  scries
-    ::
-    :~  [/x/v0/hooks %hook-full]
-    ==
 ::
 %-  %-  agent:neg
     [| [~.channels^%2 ~ ~] ~]

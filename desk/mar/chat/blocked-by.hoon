@@ -9,6 +9,6 @@
   --
 ++  grab
   |%
-  ++  noun  ship:c
+  ++  noun  ship
   --
 --
