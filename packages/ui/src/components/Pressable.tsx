@@ -91,9 +91,6 @@ export default function Pressable({
     );
   }
 
-  if ('cursor' in stackProps) {
-    console.log(stackProps);
-  }
   return (
     <StackComponent
       {...stackProps}
