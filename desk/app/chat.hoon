@@ -535,10 +535,6 @@
     =+  !<(=rsvp:dm:c vase)
     di-abet:(di-rsvp:(di-abed:di-core ship.rsvp) ok.rsvp)
   ::
-      %chat-pins
-    =+  !<(ps=(list whom:c) vase)
-    (pin ps)
-  ::
       %chat-blocked
     ?<  from-self
     (has-blocked src.bowl)
