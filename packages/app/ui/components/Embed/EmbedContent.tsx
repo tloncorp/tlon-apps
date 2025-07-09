@@ -10,8 +10,6 @@ import { Linking, Platform } from 'react-native';
 
 import { useCalm } from '../../contexts';
 import { AudioEmbed } from '../Embed';
-import { createContentRenderer } from '../PostContent';
-import { InlineLink } from '../PostContent/InlineRenderer';
 import { Embed } from './Embed';
 import { EmbedWebView } from './EmbedWebView';
 import { getProviderConfig } from './providers';
@@ -71,11 +69,13 @@ GenericEmbed.displayName = 'GenericEmbed';
 interface EmbedContentProps {
   url: string;
   content?: string;
+  onRenderDecision?: (willRender: boolean) => void;
 }
 
 const EmbedContent = memo(function EmbedContent({
   url,
   content,
+  onRenderDecision,
 }: EmbedContentProps) {
   const { embed } = useEmbed(
     url,
@@ -87,12 +87,6 @@ const EmbedContent = memo(function EmbedContent({
 
   const isAudio = useMemo(() => utils.AUDIO_REGEX.test(url), [url]);
   const isTrusted = useMemo(() => isTrustedEmbed(url), [url]);
-
-  const ContentRenderer = createContentRenderer({
-    inlineRenderers: {
-      link: InlineLink,
-    },
-  });
 
   const openLink = useCallback(async () => {
     if (Platform.OS === 'web') {
@@ -111,6 +105,7 @@ const EmbedContent = memo(function EmbedContent({
 
   if (!calm.disableRemoteContent) {
     if (isAudio) {
+      onRenderDecision?.(true);
       return <AudioEmbed url={url} />;
     }
 
@@ -125,6 +120,7 @@ const EmbedContent = memo(function EmbedContent({
         const providerConfig = getProviderConfig(provider);
 
         if (providerConfig) {
+          onRenderDecision?.(true);
           return (
             <EmbedWebView
               url={embedUrl ?? url}
@@ -138,6 +134,7 @@ const EmbedContent = memo(function EmbedContent({
 
       if (isValidWithoutHtml) {
         const { title, provider_name: provider, author_name: author } = embed;
+        onRenderDecision?.(true);
         return (
           <GenericEmbed
             provider={provider}
@@ -150,31 +147,13 @@ const EmbedContent = memo(function EmbedContent({
         );
       }
 
-      return (
-        <ContentRenderer
-          padding={0}
-          margin="$-l"
-          content={[
-            {
-              type: 'paragraph',
-              content: [{ type: 'link', text: content ?? '', href: url }],
-            },
-          ]}
-        />
-      );
+      onRenderDecision?.(false);
+      return null;
     }
   }
 
-  return (
-    <ContentRenderer
-      content={[
-        {
-          type: 'paragraph',
-          content: [{ type: 'link', text: content ?? '', href: url }],
-        },
-      ]}
-    />
-  );
+  onRenderDecision?.(false);
+  return null;
 });
 
 export default EmbedContent;

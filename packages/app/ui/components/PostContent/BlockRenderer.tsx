@@ -568,9 +568,60 @@ export function BlockRenderer({ block }: { block: cn.BlockData }) {
   const { wrapperProps, ...defaultPropsForBlock } =
     defaultProps?.[block.type] ?? {};
   const defaultPropsForBlockWrapper = defaultProps?.blockWrapper;
+
+  // Special handling for embed blocks - use callback to determine if wrapper should render
+  if (block.type === 'embed') {
+    return (
+      <ConditionalEmbedWrapper
+        wrapper={Wrapper}
+        wrapperProps={{
+          ...defaultPropsForBlockWrapper,
+          ...wrapperProps,
+          block,
+        }}
+        url={block.url}
+        content={block.content}
+      />
+    );
+  }
+
   return (
     <Wrapper {...defaultPropsForBlockWrapper} {...wrapperProps} block={block}>
       <Renderer {...defaultPropsForBlock} block={block} />
     </Wrapper>
   );
+}
+
+function ConditionalEmbedWrapper({
+  wrapper: Wrapper,
+  wrapperProps,
+  url,
+  content,
+  ...embedProps
+}: {
+  wrapper: React.ComponentType<any>;
+  wrapperProps: any;
+  url: string;
+  content?: string;
+} & ComponentProps<typeof EmbedContent>) {
+  const [shouldRender, setShouldRender] = useState(true);
+
+  const handleRenderDecision = useCallback((willRender: boolean) => {
+    setShouldRender(willRender);
+  }, []);
+
+  const embedContent = (
+    <EmbedContent
+      url={url}
+      content={content}
+      onRenderDecision={handleRenderDecision}
+      {...embedProps}
+    />
+  );
+
+  if (!shouldRender) {
+    return null;
+  }
+
+  return <Wrapper {...wrapperProps}>{embedContent}</Wrapper>;
 }
