@@ -6,9 +6,11 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.posthog.android.PostHogAndroid
 import com.posthog.android.PostHogAndroidConfig
-import com.posthog.PostHog
-import io.tlon.landscape.BuildConfig
+import org.json.JSONObject
+import expo.modules.constants.ConstantsService
 import io.tlon.landscape.notifications.processNotificationBlocking
+
+private const val TALK_MESSAGING_SERVICE = "talk-messaging-service"
 
 @SuppressLint("MissingFirebaseInstanceTokenRefresh")
 class TalkMessagingService : FirebaseMessagingService() {
@@ -26,19 +28,24 @@ class TalkMessagingService : FirebaseMessagingService() {
         synchronized(initLock) {
             if (!isPostHogInitialized) {
                 try {
-                    if (BuildConfig.POSTHOG_API_KEY.isBlank()) {
-                        Log.w("FirebaseService", "PostHog API key is empty, skipping initialization")
+                    val cs = ConstantsService(this)
+                    val constants = JSONObject(cs.constants["manifest"] as String);
+                    Log.d(TALK_MESSAGING_SERVICE, constants.toString())
+                    val key = constants.getJSONObject("extra").getString("postHogApiKey");
+                    Log.d(TALK_MESSAGING_SERVICE, key)
+                    if (key.isNullOrEmpty()) {
+                        Log.w(TALK_MESSAGING_SERVICE, "PostHog API key is empty, skipping initialization")
                         return
                     }
                     val config = PostHogAndroidConfig(
-                        apiKey = BuildConfig.POSTHOG_API_KEY,
-                        host = BuildConfig.POSTHOG_HOST
+                        apiKey = key,
+                        host = "https://eu.i.posthog.com"
                     )
                     PostHogAndroid.setup(applicationContext, config)
                     isPostHogInitialized = true
-                    Log.d("FirebaseService", "PostHog initialized in service")
+                    Log.d(TALK_MESSAGING_SERVICE, "PostHog initialized in service")
                 } catch (e: Exception) {
-                    Log.e("FirebaseService", "Failed to initialize PostHog in service", e)
+                    Log.e(TALK_MESSAGING_SERVICE, "Failed to initialize PostHog in service", e)
                 }
             }
         }
@@ -46,6 +53,7 @@ class TalkMessagingService : FirebaseMessagingService() {
 
     override fun onCreate() {
         super.onCreate()
+        Log.d(TALK_MESSAGING_SERVICE, "service initialized!")
         ensurePostHogInitialized()
     }
 
