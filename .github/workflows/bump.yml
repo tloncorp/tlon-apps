@@ -19,6 +19,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.inputs.tag }}
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
       - name: Bump
         run: |
           sed -i "s/version+\[.*]/version+[${{ github.event.inputs.version }}]/" desk/desk.docket-0
