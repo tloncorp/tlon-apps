@@ -586,6 +586,7 @@ export const getCompositeGroups = (
 export interface RetryConfig {
   startingDelay?: number;
   numOfAttempts?: number;
+  maxDelay?: number;
 }
 
 export const withRetry = <T>(fn: () => Promise<T>, config?: RetryConfig) => {
@@ -593,6 +594,7 @@ export const withRetry = <T>(fn: () => Promise<T>, config?: RetryConfig) => {
     delayFirstAttempt: false,
     startingDelay: config?.startingDelay ?? 1000,
     numOfAttempts: config?.numOfAttempts ?? 4,
+    maxDelay: config?.maxDelay,
   });
 };
 

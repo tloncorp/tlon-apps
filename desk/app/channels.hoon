@@ -10,14 +10,147 @@
 ::
 /-  c=channels, g=groups, ha=hark, activity
 /-  meta
-/+  default-agent, verb, dbug, sparse, neg=negotiate, imp=import-aid, logs
+/+  default-agent, verb, dbug,
+    neg=negotiate, discipline, logs,
+    sparse, imp=import-aid
 /+  utils=channel-utils, volume, s=subscriber, em=emojimart
 ::  performance, keep warm
 /+  channel-json
 ::
-::  compile all marks
-::XX  /~ rune is broken, see urbit issue #5242
-:: /~  marks  *  /mar/channel
+/%  m-channel-heads           %channel-heads
+/%  m-channel-heads-2         %channel-heads-2
+/%  m-channel-perm            %channel-perm
+/%  m-channel-post            %channel-post
+/%  m-channel-post-2          %channel-post-2
+/%  m-channel-post-3          %channel-post-3
+/%  m-channel-posts           %channel-posts
+/%  m-channel-posts-2         %channel-posts-2
+/%  m-channel-posts-3         %channel-posts-3
+/%  m-channel-replies         %channel-replies
+/%  m-channel-replies-2       %channel-replies-2
+/%  m-channel-replies-3       %channel-replies-3
+/%  m-channel-reply           %channel-reply
+/%  m-channel-reply-2         %channel-reply-2
+/%  m-channel-response        %channel-response
+/%  m-channel-response-2      %channel-response-2
+/%  m-channel-response-3      %channel-response-3
+/%  m-channel-said            %channel-said
+/%  m-channel-said-1          %channel-said-1
+/%  m-channel-scan            %channel-scan
+/%  m-channel-simple-post     %channel-simple-post
+/%  m-channel-simple-posts    %channel-simple-posts
+::NOTE  these fail to build with /%, but can be built from dojo just fine.
+::      presuming a mark filepath resolution bug in clay...
+:: /%  m-channel-simple-replies  %channel-simple-replies
+:: /%  m-channel-simple-reply    %channel-simple-reply
+/%  m-channel-unread-update   %channel-unread-update
+/%  m-channel-unreads         %channel-unreads
+/%  m-channels                %channels
+/%  m-channels-2              %channels-2
+/%  m-channels-3              %channels-3
+/%  m-hidden-posts            %hidden-posts
+/%  m-hook-channel-preview    %hook-channel-preview
+/%  m-toggle-post             %toggle-post
+::
+%-  %-  discipline
+    :+  ::  marks
+        ::
+        :~  :+  %channel-heads           &  -:!>(*vale:m-channel-heads)
+            :+  %channel-heads-2         &  -:!>(*vale:m-channel-heads-2)
+            :+  %channel-perm            &  -:!>(*vale:m-channel-perm)
+            :+  %channel-post            &  -:!>(*vale:m-channel-post)
+            :+  %channel-post-2          &  -:!>(*vale:m-channel-post-2)
+            :+  %channel-post-3          &  -:!>(*vale:m-channel-post-3)
+            :+  %channel-posts           &  -:!>(*vale:m-channel-posts)
+            :+  %channel-posts-2         &  -:!>(*vale:m-channel-posts-2)
+            :+  %channel-posts-3         &  -:!>(*vale:m-channel-posts-3)
+            :+  %channel-replies         &  -:!>(*vale:m-channel-replies)
+            :+  %channel-replies-2       &  -:!>(*vale:m-channel-replies-2)
+            :+  %channel-replies-3       &  -:!>(*vale:m-channel-replies-3)
+            :+  %channel-reply           &  -:!>(*vale:m-channel-reply)
+            :+  %channel-reply-2         &  -:!>(*vale:m-channel-reply-2)
+            :+  %channel-response        &  -:!>(*vale:m-channel-response)
+            :+  %channel-response-2      &  -:!>(*vale:m-channel-response-2)
+            :+  %channel-response-3      &  -:!>(*vale:m-channel-response-3)
+            :+  %channel-said            &  -:!>(*vale:m-channel-said)
+            :+  %channel-said-1          &  -:!>(*vale:m-channel-said-1)
+            :+  %channel-scan            &  -:!>(*vale:m-channel-scan)
+            :+  %channel-simple-post     &  -:!>(*vale:m-channel-simple-post)
+            :+  %channel-simple-posts    &  -:!>(*vale:m-channel-simple-posts)
+            :: :+  %channel-simple-replies  &  -:!>(*vale:m-channel-simple-replies)
+            :: :+  %channel-simple-reply    &  -:!>(*vale:m-channel-simple-reply)
+            :+  %channel-unread-update   &  -:!>(*vale:m-channel-unread-update)
+            :+  %channel-unreads         &  -:!>(*vale:m-channel-unreads)
+            :+  %channels                &  -:!>(*vale:m-channels)
+            :+  %channels-2              &  -:!>(*vale:m-channels-2)
+            :+  %channels-3              &  -:!>(*vale:m-channels-3)
+            :+  %hidden-posts            &  -:!>(*vale:m-hidden-posts)
+            :+  %hook-channel-preview    &  -:!>(*vale:m-hook-channel-preview)
+            :+  %toggle-post             &  -:!>(*vale:m-toggle-post)
+        ==
+      ::  facts
+      ::
+      :~  [/ %channel-response %toggle-post ~]
+          [/said %channel-said ~]
+          [/unreads %channel-unread-update ~]
+        ::
+          [/v0 %channel-response ~]
+          [/v0/said %channel-said ~]
+          [/v0/unreads %channel-unread-update ~]
+        ::
+          [/v1 %channel-response-2 ~]
+          [/v1/hooks/preview %hook-channel-preview ~]  ::REVIEW
+          [/v1/said %channel-said ~]
+          [/v1/unreads %channel-unread-update ~]
+        ::
+          [/v2 %channel-response-3 ~]
+          [/v2/said %channel-said-1 ~]
+        ::
+          [/v3/said %channel-said-1 ~]
+      ==
+    ::  scries
+    ::
+    :~  [/x/$/$/$/perm %channel-perm]
+        [/x/$/$/$/posts %channel-posts]
+        [/x/$/$/$/search %channel-scan]
+        [/x/$/init %noun]
+        [/x/channels %channels]
+        [/x/init %noun]
+        [/x/pins %channel-pins]
+        [/x/unreads %channel-unreads]
+      ::
+        [/x/v0/$/$/$/posts %channel-simple-posts]
+        [/x/v0/$/$/$/posts/post %channel-simple-post]
+        [/x/v0/$/$/$/posts/post/id/$/replies %channel-simple-replies]
+        [/x/v0/$/$/$/posts/post/id/$/replies/reply %channel-simple-reply]
+        [/x/v0/channels %channels]
+        [/x/v0/hidden-posts %hidden-posts]
+        [/x/v0/unreads %channel-unreads]
+      ::
+        [/x/v1/$/$/$/posts %channel-posts]
+        [/x/v1/$/$/$/posts/post %channel-post]
+        [/x/v1/$/$/$/posts/post/id/$/replies %channel-replies]
+        [/x/v1/$/$/$/posts/post/id/$/replies/reply %channel-reply]
+        [/x/v1/channels %channels]
+        [/x/v1/hidden-posts %hidden-posts]
+        [/x/v1/unreads %channel-unreads]
+      ::
+        [/x/v2/$/$/$/posts %channel-posts-2]
+        [/x/v2/$/$/$/posts/post %channel-post-2]
+        [/x/v2/$/$/$/posts/post/id/$/replies %channel-replies-2]
+        [/x/v2/$/$/$/posts/post/id/$/replies/reply %channel-reply]
+        [/x/v2/channels %channels-2]
+        [/x/v2/heads %channel-heads]
+      ::
+        [/x/v3/$/$/$/posts %channel-posts-3]
+        [/x/v3/$/$/$/posts/post %channel-post-3]
+        [/x/v3/$/$/$/posts/post/id/$/replies %channel-replies-3]
+        [/x/v3/$/$/$/posts/post/id/$/replies/reply %channel-reply-2]
+        [/x/v3/channels %channels-3]
+        [/x/v3/heads %channel-heads-2]
+        [/x/v3/said %noun]
+        [/x/v3/v-channels %noun]
+    ==
 ::
 =/  verbose  |
 %-  %-  agent:neg
@@ -989,7 +1122,7 @@
     ``channels-2+!>(`channels:v1:old:c`(uv-channels:utils v-channels ?=(^ full.pole)))
     ::
       [%x %v3 %v-channels ~]
-    ``channels-3+!>(v-channels)
+    ``noun+!>(v-channels)
     ::
       [%x %v3 %channels full=?(~ [%full ~])]
     ``channels-3+!>(`channels:c`(uv-channels-2:utils v-channels ?=(^ full.pole)))

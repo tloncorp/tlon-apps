@@ -74,7 +74,6 @@ export function GalleryPost({
   const [showRetrySheet, setShowRetrySheet] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const [overFlowIsHovered, setOverFlowIsHovered] = useState(false);
   const showHeaderFooter = showAuthor && !post.hidden && !post.isDeleted;
   const embedded = useMemo(
     () => JSONValue.asBoolean(contentRendererConfiguration?.embedded, false),
@@ -119,12 +118,9 @@ export function GalleryPost({
     setIsHovered(false);
   }, []);
 
-  const onOverflowHoverIn = useCallback(() => {
-    setOverFlowIsHovered(true);
-  }, []);
-
-  const onOverflowHoverOut = useCallback(() => {
-    setOverFlowIsHovered(false);
+  const handleOverflowPress = useCallback((e: any) => {
+    // Stop propagation to prevent parent onPress from firing
+    e.stopPropagation();
   }, []);
 
   if (post.isDeleted) {
@@ -145,7 +141,7 @@ export function GalleryPost({
 
   return (
     <Pressable
-      onPress={overFlowIsHovered || isPopoverOpen ? undefined : handlePress}
+      onPress={handlePress}
       onLongPress={handleLongPress}
       onHoverIn={onHoverIn}
       onHoverOut={onHoverOut}
@@ -154,6 +150,7 @@ export function GalleryPost({
       <GalleryPostFrame {...props}>
         {showHeaderFooter && <GalleryPostHeader post={post} />}
         <GalleryContentRenderer
+          testID="GalleryPostContentPreview"
           post={post}
           pointerEvents="none"
           size={size}
@@ -170,7 +167,12 @@ export function GalleryPost({
           onPressRetry={handleRetryPressed}
         />
         {!hideOverflowMenu && (isPopoverOpen || isHovered) && (
-          <View position="absolute" top={36} right={4}>
+          <Pressable
+            position="absolute"
+            top={36}
+            right={4}
+            onPress={handleOverflowPress}
+          >
             <ChatMessageActions
               post={post}
               postActionIds={postActionIds}
@@ -181,18 +183,19 @@ export function GalleryPost({
               onOpenChange={setIsPopoverOpen}
               onReply={handlePress}
               onEdit={onPressEdit}
+              mode="await-trigger"
               trigger={
                 <Button
                   borderWidth="unset"
                   size="$xs"
-                  onHoverIn={onOverflowHoverIn}
-                  onHoverOut={onOverflowHoverOut}
+                  onPress={handleOverflowPress}
+                  testID="MessageActionsTrigger"
                 >
                   <Icon type="Overflow" />
                 </Button>
               }
             />
-          </View>
+          </Pressable>
         )}
       </GalleryPostFrame>
     </Pressable>
@@ -344,12 +347,14 @@ export function GalleryPostDetailView({
           post={post}
           size="$l"
           onPressImage={handlePressImage}
+          testID="GalleryPostContent"
         />
       </View>
 
       <View gap="$2xl" padding="$xl">
         <DetailViewAuthorRow
           authorId={post.authorId}
+          sent={post.sentAt}
           color="$primaryText"
           showSentAt={true}
         />
@@ -398,7 +403,7 @@ export function GalleryContentRenderer({
 
   if (post.hidden) {
     return (
-      <ErrorPlaceholder>You have hidden or flagged this post</ErrorPlaceholder>
+      <ErrorPlaceholder>You have hidden or reported this post</ErrorPlaceholder>
     );
   } else if (post.isDeleted) {
     return <ErrorPlaceholder>This post has been deleted</ErrorPlaceholder>;
