@@ -437,8 +437,11 @@
     =/  time  (slav %ud time.pole)
     ?.  ?=(%u care)
       =/  =writ:c  writ:(got ship `@da`time)
-      ?:  ?=(%v1 ver)  ``chat-writ-1+!>(writ)
-      ``writ+!>((old-writ-3 writ))
+      ?-  ver
+        %v0  ``writ+!>((old-writ-3 writ))
+        %v1  ``chat-writ-1+!>((old-writ-4 writ))
+        %v2  ``chat-writ-2+!>(writ)
+      ==
     ``loob+!>(?~((get ship `@da`time) | &))
   ==
 ::

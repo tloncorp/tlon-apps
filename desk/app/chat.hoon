@@ -22,13 +22,16 @@
 /%  m-chat-pins            %chat-pins
 /%  m-chat-scam            %chat-scam
 /%  m-chat-scam-1          %chat-scam-1
+/%  m-chat-scam-2          %chat-scam-2
 /%  m-chat-scan            %chat-scan
 /%  m-chat-scan-1          %chat-scan-1
+/%  m-chat-scan-2          %chat-scan-2
 /%  m-chat-toggle-message  %chat-toggle-message
 /%  m-chat-unblocked-by    %chat-unblocked-by
 /%  m-chat-unread-update   %chat-unread-update
 /%  m-chat-unreads         %chat-unreads
 /%  m-chat-writ-1          %chat-writ-1
+/%  m-chat-writ-2          %chat-writ-2
 /%  m-clubs                %clubs
 /%  m-epic                 %epic
 /%  m-hidden-messages      %hidden-messages
@@ -36,6 +39,7 @@
 /%  m-writ                 %writ
 /%  m-writ-response        %writ-response
 /%  m-writ-response-1      %writ-response-1
+/%  m-writ-response-2      %writ-response-2
 ::
 /*  desk-bill  %bill  /desk/bill  ::  keep warm
 ::
@@ -51,13 +55,16 @@
             :+  %chat-pins            &  -:!>(*vale:m-chat-pins)
             :+  %chat-scam            &  -:!>(*vale:m-chat-scam)
             :+  %chat-scam-1          &  -:!>(*vale:m-chat-scam-1)
+            :+  %chat-scam-2          &  -:!>(*vale:m-chat-scam-2)
             :+  %chat-scan            &  -:!>(*vale:m-chat-scan)
             :+  %chat-scan-1          &  -:!>(*vale:m-chat-scan-1)
+            :+  %chat-scan-2          &  -:!>(*vale:m-chat-scan-2)
             :+  %chat-toggle-message  &  -:!>(*vale:m-chat-toggle-message)
             :+  %chat-unblocked-by    &  -:!>(*vale:m-chat-unblocked-by)
             :+  %chat-unread-update   &  -:!>(*vale:m-chat-unread-update)
             :+  %chat-unreads         &  -:!>(*vale:m-chat-unreads)
             :+  %chat-writ-1          &  -:!>(*vale:m-chat-writ-1)
+            :+  %chat-writ-2          &  -:!>(*vale:m-chat-writ-2)
             :+  %clubs                &  -:!>(*vale:m-clubs)
             :+  %epic                 &  -:!>(*vale:m-epic)
             :+  %hidden-messages      &  -:!>(*vale:m-hidden-messages)
@@ -65,6 +72,7 @@
             :+  %writ                 &  -:!>(*vale:m-writ)
             :+  %writ-response        &  -:!>(*vale:m-writ-response)
             :+  %writ-response-1      &  -:!>(*vale:m-writ-response-1)
+            :+  %writ-response-2      &  -:!>(*vale:m-writ-response-2)
         ==
       ::  facts
       ::
@@ -80,6 +88,11 @@
           [/v1/club/$ %writ-response-1 ~]
           [/v1/clubs %chat-club-action-1 ~]
           [/v1/dm/$ %writ-response-1 ~]
+        ::
+          [/v2 %chat-club-action-1 %writ-response-2 ~]
+          [/v2/club/$ %writ-response-2 ~]
+          [/v2/clubs %chat-club-action-1 ~]
+          [/v2/dm/$ %writ-response-2 ~]
       ==
     ::  scries
     ::
@@ -101,7 +114,9 @@
         [/x/pins %chat-pins]
         [/x/unreads %chat-unreads]
       ::
-        [/x/v1/club/$/writs %chat-paged-writs]
+        [/x/v1/club/$/search %chat-scan-1]
+        [/x/v1/club/$/search/bounded %chat-scam-1]
+        [/x/v1/club/$/writs %chat-paged-writs-1]
         [/x/v1/club/$/writs/writ %chat-writ-1]
         [/x/v1/dm/$/search %chat-scan-1]
         [/x/v1/dm/$/search/bounded %chat-scam-1]
@@ -109,6 +124,16 @@
         [/x/v1/dm/$/writs/writ %chat-writ-1]
         [/x/v1/heads %chat-heads-1]
         [/x/v1/init %noun]
+      ::
+        [/x/v2/club/$/search %chat-scan-2]
+        [/x/v2/club/$/search/bounded %chat-scam-2]
+        [/x/v2/club/$/writs %chat-paged-writs-2]
+        [/x/v2/club/$/writs/writ %chat-writ-2]
+        [/x/v2/dm/$/search %chat-scan-2]
+        [/x/v2/dm/$/search/bounded %chat-scam-2]
+        [/x/v2/dm/$/writs %chat-paged-writs-2]
+        [/x/v2/dm/$/writs/writ %chat-writ-2]
+        [/x/v2/heads %chat-heads-2]
     ==
 ::
 %-  %-  agent:neg
