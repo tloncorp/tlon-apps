@@ -126,13 +126,14 @@ export function assemblePostFromActivityEvent(event: db.ActivityEvent) {
   return post;
 }
 
-export function buildPendingPost({
+export function buildPost({
   authorId,
   author,
   channel,
   content,
   metadata,
   parentId,
+  deliveryStatus = 'pending',
 }: {
   authorId: string;
   author?: types.Contact | null;
@@ -140,6 +141,7 @@ export function buildPendingPost({
   content: ub.Story;
   metadata?: db.PostMetadata;
   parentId?: string;
+  deliveryStatus?: db.PostDeliveryStatus;
 }): types.Post {
   const sentAt = Date.now();
   const id = getCanonicalPostId(unixToDa(sentAt).toString());
@@ -172,7 +174,7 @@ export function buildPendingPost({
     replyCount: 0,
     hidden: false,
     parentId,
-    deliveryStatus: 'pending',
+    deliveryStatus,
     syncedAt: Date.now(),
     ...postFlags,
   };
