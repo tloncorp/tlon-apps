@@ -193,8 +193,6 @@ private fun showFallbackNotification(
     val extras = Bundle()
     if (activityEvent != null) {
         extras.putString("activityEventJsonString", activityEvent.toString())
-    } else if (originalPayload != null) {
-        extras.putAll(bundle)
     }
     extras.putString("fallbackReason", reason)
 
