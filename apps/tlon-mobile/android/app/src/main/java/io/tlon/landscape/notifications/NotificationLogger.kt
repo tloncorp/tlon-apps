@@ -18,6 +18,7 @@ object NotificationLogger {
     private fun log(eventName: String, properties: Map<String, Any> = emptyMap()) {
         try {
             PostHog.capture(eventName, properties = properties)
+            Log.i("PostHog", "Event captured: $eventName, $properties")
         } catch (e: Exception) {
             Log.d("PostHogFallback", "Event: $eventName, Properties: $properties, Error: ${e.message}")
         }
