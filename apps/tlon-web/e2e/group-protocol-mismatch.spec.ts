@@ -50,6 +50,7 @@ test('should invite ~bus to a group and test protocol mismatch', async ({
     await zodPage.getByText('Invite people').click();
     await expect(zodPage.getByText('Select people to invite')).toBeVisible();
     await zodPage.getByPlaceholder('Filter by nickname, @p').fill('~bus');
+    await zodPage.waitForTimeout(2000);
     await zodPage.getByTestId('ContactRow').first().click();
     await zodPage.getByText('Invite 1 and continue').click();
 
@@ -60,6 +61,8 @@ test('should invite ~bus to a group and test protocol mismatch', async ({
     // Step 2: ~bus accepts the invite
 
     // Wait for and accept the group invitation
+    await zodPage.waitForTimeout(5000);
+    await busPage.waitForTimeout(5000);
     await expect(busPage.getByText('Group invitation')).toBeVisible();
     await busPage.getByText('Group invitation').click();
 
