@@ -110,6 +110,8 @@ export interface Scry {
   app: GallAgent;
   /** {@inheritDoc Path} */
   path: Path;
+  /** {@inheritDoc Timeout} */
+  timeout?: number;
 }
 
 /**
@@ -143,6 +145,8 @@ export interface Thread<Action> {
    * Data of the input vase
    */
   body: Action;
+
+  timeout?: number;
 }
 
 export type Action = 'poke' | 'subscribe' | 'ack' | 'unsubscribe' | 'delete';
@@ -236,3 +240,15 @@ export class FatalError extends Error {}
 export class ReapError extends Error {}
 
 export class AuthError extends Error {}
+
+export class SSETimeoutError extends Error {}
+
+export class SSEBadResponseError extends Error {
+  public status: number;
+  public text?: string;
+  constructor(message: string, status: number, text?: string) {
+    super(message);
+    this.status = status;
+    this.text = text;
+  }
+}

@@ -169,16 +169,16 @@ export function list(
   };
 }
 
-export const makePost = (
+export function makePost(
   contact: db.Contact,
   content: PostContent,
-  extra?: any
-) => {
+  extra?: object
+): db.Post {
   const post = createFakePost('chat', JSON.stringify(content));
   post.authorId = contact.id;
   post.author = contact;
   return { ...post, reactions: [], ...extra };
-};
+}
 export const exampleContacts = {
   eleanor: { nickname: 'eleanor', id: randomContactId() },
   mark: { nickname: 'mark', id: randomContactId() },
@@ -199,7 +199,7 @@ export const exampleContacts = {
 
 export const postWithImage = makePost(
   exampleContacts.eleanor,
-  [block.randomImage(317 * 2, 251 * 2)],
+  [block.randomImage(317 * 2, 251 * 2), verse.inline('Check out this image!')],
   {
     replyCount: 56,
     reactions: createFakeReactions({ count: 5, minTotal: 1, maxTotal: 5 }),
@@ -260,6 +260,9 @@ p.kyz
   { replyCount: 0 }
 );
 export const postWithList = makePost(exampleContacts.hooncell, [
+  verse.inline(
+    'This is a list. It has a few items, and some of them are long.'
+  ),
   block.list(
     'ordered',
     ['helo my list!'],
@@ -527,6 +530,7 @@ export const postWithVideo = makePost(exampleContacts.emotive, [
     src: 'https://storage.googleapis.com/tlon-prod-memex-assets/solfer-magfed/solfer-magfed/2024.8.28..21.6.48..978d.4fdf.3b64.05a1-Screen-Recording-2024-08-02-at-9.13.37 AM.mov',
     height: 1660,
   }),
+  verse.inline('Check out this video!'),
 ]);
 
 export const postWithDeleted = makePost(exampleContacts.eleanor, [], {
@@ -543,6 +547,80 @@ export const postWithEmoji = makePost(exampleContacts.emotive, [
 
 export const postWithSingleEmoji = makePost(exampleContacts.emotive, [
   verse.inline('🙏', inline.break()),
+]);
+
+export const postWithEverything = makePost(exampleContacts.mark, [
+  block.header('h1', inline.text('All Features Test')),
+  verse.inline(
+    'This post demonstrates ',
+    inline.bold('bold'),
+    ', ',
+    inline.italics('italics'),
+    ', ',
+    inline.strikethrough('strikethrough'),
+    ', ',
+    inline.inlineCode('inline code'),
+    ', ',
+    inline.link('https://example.com', 'a link'),
+    ', and a mention: ',
+    inline.ship('~fabled-faster'),
+    '.'
+  ),
+  verse.inline(
+    inline.blockquote(
+      'We are shaped by our thoughts; we become what we think. When the mind is pure, joy follows like a shadow that never leaves.'
+    )
+  ),
+  block.code('console.log("Hello, world!");', 'js'),
+  block.randomImage(640, 480),
+  block.rule(),
+  block.header('h2', inline.text('Lists')),
+  block.list(
+    'unordered',
+    [inline.text('Here’s an unordered list:')],
+    [
+      listItem.basic(inline.text('Item one')),
+      listItem.basic(inline.text('Item two')),
+      list(
+        'ordered',
+        [inline.text('Nested ordered list')],
+        [
+          listItem.basic(inline.text('Sub-item one')),
+          listItem.basic(inline.text('Sub-item two')),
+        ]
+      ),
+    ]
+  ),
+  block.list(
+    'tasklist',
+    [inline.text('Tasks')],
+    [
+      { item: [listItem.task(true, inline.text('Do thing one'))] },
+      { item: [listItem.task(false, inline.text('Do thing two'))] },
+    ]
+  ),
+  block.header('h3', inline.text('References')),
+  verse.block({
+    cite: {
+      chan: {
+        nest: tlonLocalIntros.id,
+        where: referencedChatPost.id,
+      },
+    },
+  }),
+  verse.block({
+    cite: {
+      group: group.id,
+    },
+  }),
+  verse.block({
+    cite: {
+      desk: {
+        flag: 'diary',
+        where: '~zod',
+      },
+    },
+  }),
 ]);
 
 export const postsByType = {
@@ -591,6 +669,7 @@ const postsMap: Record<string, db.Post> = Object.fromEntries(
     postWithHidden,
     postWithEmoji,
     postWithSingleEmoji,
+    postWithEverything,
   ].map((p) => [p.id, p])
 );
 

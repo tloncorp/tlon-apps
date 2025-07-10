@@ -73,6 +73,14 @@ export const usePins = (
   });
 };
 
+export const useSettings = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['settings', deps],
+    queryFn: () => db.getSettings(),
+  });
+};
+
 export const useCalmSettings = () => {
   const deps = useKeyFromQueryDeps(db.getSettings);
   return useQuery({
@@ -307,7 +315,7 @@ export const useLiveUnread = (
 
 export const useGroups = (options: db.GetGroupsOptions) => {
   return useQuery({
-    queryKey: ['groups'],
+    queryKey: ['groups', useKeyFromQueryDeps(db.getGroups, options)],
     queryFn: () => db.getGroups(options).then((r) => r ?? null),
   });
 };
@@ -345,7 +353,10 @@ export const useJoinedGroupsCount = () => {
 
 export const useGroupByChannel = (channelId: string) => {
   return useQuery({
-    queryKey: [['group', channelId]],
+    queryKey: [
+      ['group', channelId],
+      useKeyFromQueryDeps(db.getGroupByChannel, channelId),
+    ],
     queryFn: () => db.getGroupByChannel(channelId).then((r) => r ?? null),
   });
 };
@@ -368,10 +379,12 @@ export const useMemberRoles = (chatId: string, userId: string) => {
 };
 
 export const useGroupPreview = (groupId: string) => {
+  const deps = useKeyFromQueryDeps(db.getGroup, groupId);
   return useQuery({
-    queryKey: ['groupPreview', groupId],
+    queryKey: [['groupPreview', groupId], deps],
     refetchOnReconnect: false,
     refetchOnMount: false,
+    enabled: !!groupId,
     queryFn: async () => {
       const [preview] = await syncGroupPreviews([groupId]);
       return preview;
@@ -412,8 +425,9 @@ export const useSuggestedContacts = () => {
 };
 
 export const useChannelPreview = ({ id }: { id: string }) => {
+  const deps = useKeyFromQueryDeps(db.getChannelWithRelations, id);
   return useQuery({
-    queryKey: ['channelPreview', id],
+    queryKey: [['channelPreview', id], deps],
     refetchOnReconnect: false,
     refetchOnMount: false,
     queryFn: async () => {
@@ -432,8 +446,9 @@ export const usePostReference = ({
   postId: string;
   replyId?: string;
 }) => {
+  const deps = useKeyFromQueryDeps(db.getPostWithRelations, postId);
   const postQuery = useQuery({
-    queryKey: ['postReference', postId],
+    queryKey: [['postReference', postId], deps],
     queryFn: async () => {
       const post = await db.getPostWithRelations({ id: postId });
       if (post) {
@@ -470,8 +485,12 @@ export const useChannelSearchResults = (
   channelId: string,
   postIds: string[]
 ) => {
+  const deps = useKeyFromQueryDeps(db.getChannelSearchResults, {
+    channelId,
+    postIds,
+  });
   return useQuery({
-    queryKey: [['channelSearchResults', channelId, postIds]],
+    queryKey: [['channelSearchResults', channelId, postIds], deps],
     queryFn: () => db.getChannelSearchResults({ channelId, postIds }),
   });
 };
@@ -504,14 +523,16 @@ export const usePostWithThreadUnreads = (options: { id: string }) => {
 };
 
 export const usePostWithRelations = (
-  options: { id: string },
+  options: { id: string } | null,
   initialData?: db.Post
 ) => {
+  const deps = useKeyFromQueryDeps(db.getPostWithRelations, options?.id);
   return useQuery({
-    queryKey: ['post', options.id],
+    enabled: options != null,
+    queryKey: [['post', options?.id], deps],
     staleTime: Infinity,
     ...(initialData ? { initialData } : {}),
-    queryFn: () => db.getPostWithRelations(options),
+    queryFn: () => (options == null ? null : db.getPostWithRelations(options)),
   });
 };
 
@@ -601,4 +622,40 @@ export const useShowNotebookAddTooltip = (channelId: string) => {
     return logic.isPersonalNotebookChannel(channelId);
   }, [channelId]);
   return isCorrectChan && !wayfindingProgress.tappedAddNote;
+};
+
+export const useThemeSettings = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['themeSettings', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings();
+      return settings?.theme || null;
+    },
+  });
+};
+
+export const useTelemetryEnabled = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['enableTelemetry', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings();
+      return settings?.enableTelemetry ?? false;
+    },
+  });
+};
+
+export const useTelemetrySettings = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['telemetrySettings', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings();
+      return {
+        enableTelemetry: settings?.enableTelemetry,
+        logActivity: settings?.logActivity,
+      };
+    },
+  });
 };

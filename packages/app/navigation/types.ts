@@ -103,6 +103,14 @@ export type RootDrawerParamList = {
   Messages: NavigatorScreenParams<HomeDrawerParamList>;
 } & Pick<RootStackParamList, 'Activity' | 'Contacts' | 'Settings'>;
 
+// hack: adding the true contacts types causes lots of tsc failures that need
+// resolving. Added to support navigating deeply within the contacts drawer
+export type ActualRootDrawerParamList = {
+  Home: NavigatorScreenParams<HomeDrawerParamList>;
+  Messages: NavigatorScreenParams<HomeDrawerParamList>;
+  Contacts: NavigatorScreenParams<ProfileDrawerParamList>;
+} & Pick<RootStackParamList, 'Activity' | 'Settings'>;
+
 export type CombinedParamList = RootStackParamList & RootDrawerParamList;
 
 export type HomeDrawerParamList = Pick<
@@ -168,21 +176,32 @@ export type GroupSettingsStackParamList = {
   EditChannel: {
     channelId: string;
     groupId: string;
+    fromChatDetails?: boolean;
   };
   GroupMeta: {
     groupId: string;
     fromBlankChannel?: boolean;
+    fromChatDetails?: boolean;
   };
   GroupMembers: {
     groupId: string;
+    fromChatDetails?: boolean;
   };
   ManageChannels: {
     groupId: string;
+    fromChatDetails?: boolean;
   };
   Privacy: {
     groupId: string;
+    fromChatDetails?: boolean;
   };
   GroupRoles: {
     groupId: string;
+    fromChatDetails?: boolean;
+  };
+  ChatVolume: {
+    chatType: 'group' | 'channel';
+    chatId: string;
+    fromChatDetails?: boolean;
   };
 };

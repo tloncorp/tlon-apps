@@ -1,5 +1,5 @@
 ::
-/-  *notify, resource, a=activity, c=channels, h=hark
+/-  *notify, resource, a=activity, c=channels, h=hark, meta
 /+  cu=channel-utils, n=notify, default-agent, verb, dbug, agentio
 /$  activity-event-to-json  %activity-event  %json
 /$  hark-yarn-to-json       %hark-yarn       %json
@@ -385,13 +385,13 @@
           (add accumulator (lent ~(tap by clients.provider-entry)))
       ~&  ['total clients on all providers' total-clients]
       =/  story=story:c  [[%inline [[%bold ['BotPoast: ' ~]] 'Daily ' [%inline-code '%notify'] ' provider check-in. Total providers: ' [%bold [(scot %u total-providers) ~]] ', total clients: ' [%bold [(scot %u total-clients) ~]] '.' ~]]~]
-      =/  essay=essay:c  [[story our.bowl now.bowl] [%chat ~]]
+      =/  essay=essay:c  [[story our.bowl now.bowl] /chat ~ ~]
       =/  nest=nest:c  [%chat ~bitpyx-dildus %interface]
       =/  channel-action=a-channels:c  [%channel nest [%post [%add essay]]]
       =/  new-timer  (add now daily-stats-interval)
       =.  last-timer  new-timer
       :_  state
-      :~  [(poke:pass [our.bowl %channels] %channel-action !>(channel-action))]
+      :~  [(poke:pass [our.bowl %channels] %channel-action-1 !>(channel-action))]
           [(~(wait pass:io /daily-timer) new-timer)]
       ==
     --

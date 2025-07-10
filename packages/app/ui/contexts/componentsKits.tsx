@@ -78,6 +78,7 @@ export type MinimalRenderItemProps = {
   editPost?: (post: db.Post, content: Story) => Promise<void>;
   onPressRetry?: (post: db.Post) => void;
   onPressDelete?: (post: db.Post) => void;
+  onShowEmojiPicker?: () => void;
   isHighlighted?: boolean;
   contentRendererConfiguration?: Record<string, unknown>;
 };

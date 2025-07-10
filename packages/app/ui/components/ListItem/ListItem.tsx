@@ -176,10 +176,14 @@ const ListItemCount = ({
   notified,
   muted,
   count,
+  opacity = 1,
   ...rest
-}: { notified: boolean; muted?: boolean; count: number } & ComponentProps<
-  typeof Stack
->) => {
+}: {
+  notified: boolean;
+  muted?: boolean;
+  count: number;
+  opacity?: number;
+} & ComponentProps<typeof Stack>) => {
   const theme = useTheme();
   const foregroundColor = getVariableValue(
     notified ? theme.positiveActionText : theme.secondaryText
@@ -189,6 +193,7 @@ const ListItemCount = ({
   );
   return (
     <Stack
+      opacity={opacity}
       paddingHorizontal={'$m'}
       backgroundColor={count < 1 ? undefined : backgroundColor}
       borderRadius="$l"
@@ -199,7 +204,7 @@ const ListItemCount = ({
           <Icon type="Muted" customSize={[12, 12]} color={foregroundColor} />
         )}
         <Text size="$label/m" color={foregroundColor}>
-          {numberWithMax(count, 99)}
+          {numberWithMax(count, 256)}
         </Text>
       </ListItemCountNumber>
     </Stack>

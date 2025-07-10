@@ -1,4 +1,5 @@
 import { ContentReference } from '@tloncorp/shared/api';
+import * as domain from '@tloncorp/shared/domain';
 import {
   UploadState,
   useUploadStates,
@@ -42,11 +43,16 @@ export type TextAttachment = {
   text: string;
 };
 
-export type Attachment = ReferenceAttachment | ImageAttachment | TextAttachment;
+export type Attachment =
+  | ReferenceAttachment
+  | ImageAttachment
+  | TextAttachment
+  | domain.LinkAttachment;
 export type FinalizedAttachment =
   | ReferenceAttachment
   | UploadedImageAttachment
-  | TextAttachment;
+  | TextAttachment
+  | domain.LinkAttachment;
 
 export type AttachmentState = {
   attachments: Attachment[];

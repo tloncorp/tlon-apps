@@ -59,7 +59,6 @@ export function ChatListScreenView({
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
-  const [screenTitle, setScreenTitle] = useState('Home');
   const personalInvite = db.personalInviteLink.useValue();
   const viewedPersonalInvite = db.hasViewedPersonalInvite.useValue();
   const { isOpen, setIsOpen } = useGlobalSearch();
@@ -205,16 +204,6 @@ export function ChatListScreenView({
     }
   }, [isTlonEmployee]);
 
-  useEffect(() => {
-    if (activeTab === 'home') {
-      setScreenTitle('Home');
-    } else if (activeTab === 'groups') {
-      setScreenTitle('Groups');
-    } else if (activeTab === 'messages') {
-      setScreenTitle('Messages');
-    }
-  }, [activeTab]);
-
   const [searchQuery, setSearchQuery] = useState('');
 
   const isWindowNarrow = useIsWindowNarrow();
@@ -275,7 +264,7 @@ export function ChatListScreenView({
         <NavigationProvider focusedChannelId={focusedChannelId}>
           <View userSelect="none" flex={1}>
             <ScreenHeader
-              title={notReadyMessage ?? screenTitle}
+              title={notReadyMessage ?? 'Home'}
               leftControls={
                 personalInvite ? (
                   <ScreenHeader.IconButton
@@ -295,7 +284,7 @@ export function ChatListScreenView({
                     <ScreenHeader.IconButton
                       type="Add"
                       onPress={handlePressAddChat}
-                      testID="CreateGroupButton"
+                      testID="CreateChatSheetTrigger"
                     />
                   ) : (
                     <CreateChatSheet

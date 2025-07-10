@@ -1,3 +1,5 @@
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
@@ -26,7 +28,9 @@ import {
   useWindowDimensions,
 } from 'tamagui';
 
-import { useContact, useCurrentUserId, useNavigation } from '../contexts';
+import { RootStackParamList } from '../../navigation/types';
+import { useNavigation as useContextNavigation } from '../contexts';
+import { useContact, useCurrentUserId } from '../contexts';
 import { useGroupTitle } from '../utils';
 import { ContactAvatar, GroupAvatar } from './Avatar';
 import { ContactName } from './ContactNameV2';
@@ -358,20 +362,32 @@ function GroupBlock({
 
 function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
   const { didCopy, doCopy } = useCopy(props.userId);
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const contact = useContact(props.userId);
 
   const handleCopy = useCallback(() => {
     doCopy();
     triggerHaptic('success');
   }, [doCopy]);
 
+  const handleAvatarPress = useCallback(() => {
+    if (contact?.avatarImage) {
+      navigation.navigate('ImageViewer', { uri: contact.avatarImage });
+      triggerHaptic('baseButtonClick');
+    }
+  }, [navigation, contact?.avatarImage]);
+
   const primaryNameProps = props.hasNickname
     ? { mode: 'nickname' as const, color: '$primaryText' }
     : { mode: 'contactId' as const };
 
   return (
-    <Pressable width="100%" onPress={handleCopy}>
-      <XStack alignItems="center" padding="$l" gap="$xl" width={'100%'}>
+    <XStack alignItems="center" padding="$l" gap="$xl" width={'100%'}>
+      <Pressable onPress={handleAvatarPress}>
         <ContactAvatar contactId={props.userId} size="$5xl" />
+      </Pressable>
+      <Pressable width="100%" onPress={handleCopy}>
         <YStack flex={1} justifyContent="center">
           <ContactName
             contactId={props.userId}
@@ -379,6 +395,7 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
             lineHeight={32}
             maxWidth="100%"
             numberOfLines={1}
+            color="$primaryText"
             {...primaryNameProps}
           />
           {(props.hasNickname || didCopy) && (
@@ -408,13 +425,15 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
             </XStack>
           )}
         </YStack>
-      </XStack>
-    </Pressable>
+      </Pressable>
+    </XStack>
   );
 }
 
 function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
-  const navContext = useNavigation();
+  const navContext = useContextNavigation();
+  const queryClient = store.queryClient;
+
   const handleMessageUser = useCallback(() => {
     if (!navContext.onPressGoToDm) {
       console.warn('Navigation context missing onPressGoToDm handler');
@@ -432,13 +451,16 @@ function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
     }
   }, [navContext, props.userId, props.contact?.isBlocked]);
 
-  const handleBlock = useCallback(() => {
+  const handleBlock = useCallback(async () => {
     if (props.contact && props.contact.isBlocked) {
-      store.unblockUser(props.userId);
+      await store.unblockUser(props.userId);
     } else {
-      store.blockUser(props.userId);
+      await store.blockUser(props.userId);
     }
-  }, [props]);
+    queryClient.invalidateQueries({
+      queryKey: [['contact', props.userId]],
+    });
+  }, [props, queryClient]);
 
   const handleToggleContact = useCallback(() => {
     if (props.contact && props.contact.isContact) {

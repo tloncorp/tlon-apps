@@ -1,0 +1,19 @@
+diff --git a/dist/esm/SheetScrollView.mjs b/dist/esm/SheetScrollView.mjs
+index 38b69f2456514e743d41ae6f953a8044f286323e..339d95d46b3e935808fe836614d5b8a5f1426c04 100644
+--- a/dist/esm/SheetScrollView.mjs
++++ b/dist/esm/SheetScrollView.mjs
+@@ -26,8 +26,12 @@ const SHEET_SCROLL_VIEW_NAME = "SheetScrollView",
+         isScrolling: !1,
+         isDragging: !1
+       });
+-    useEffect(() => (setHasScrollView(!0), () => {
+-      setHasScrollView(!1);
++    // we need to check if we have `setHasScrollView` because we may be rendering
++    // this component outside of a sheet context (like in our Popovers)
++    useEffect(() => (setHasScrollView ? setHasScrollView(!0) : undefined, () => {
++      if (setHasScrollView) {
++        setHasScrollView(!1);
++      }
+     }), []);
+     const release = () => {
+         if (!state.current.isDragging) return;

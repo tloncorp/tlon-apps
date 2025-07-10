@@ -18,7 +18,7 @@ import {
   constructStory,
   pathToCite,
 } from '@tloncorp/shared/urbit';
-import { useGlobalSearch } from '@tloncorp/ui';
+import { LoadingSpinner, useGlobalSearch } from '@tloncorp/ui';
 import { RawText, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, TextInput } from 'react-native';
@@ -49,7 +49,11 @@ import {
   MessageInputProps,
 } from '../MessageInput/MessageInputBase';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
-import { useMentions } from './useMentions';
+import {
+  MentionOption,
+  createMentionOptions,
+  useMentions,
+} from './useMentions';
 
 const bareChatInputLogger = createDevLogger('bareChatInput', false);
 
@@ -179,12 +183,31 @@ function TextWithMentions({
   return <>{textParts}</>;
 }
 
+function LinkPreviewLoading() {
+  return (
+    <View
+      backgroundColor="$secondaryBackground"
+      padding="$m"
+      margin="$m"
+      borderRadius="$m"
+      alignItems="center"
+      justifyContent="center"
+      width={240}
+      height={200}
+      overflow="hidden"
+    >
+      <LoadingSpinner color="$primaryText" size="small" />
+    </View>
+  );
+}
+
 export default function BareChatInput({
   shouldBlur,
   setShouldBlur,
   send,
   channelId,
   groupMembers,
+  groupRoles,
   storeDraft,
   clearDraft,
   getDraft,
@@ -228,22 +251,33 @@ export default function BareChatInput({
   const [hasAutoFocused, setHasAutoFocused] = useState(false);
   const [needsHeightAdjustmentAfterLoad, setNeedsHeightAdjustmentAfterLoad] =
     useState(false);
-  const [isSending, setIsSending] = useState(false);
+  const options = useMemo(() => {
+    return createMentionOptions(groupMembers, groupRoles);
+  }, [groupMembers, groupRoles]);
+
   const {
+    mentions,
+    validOptions,
+    mentionSearchText,
+    isMentionModeActive,
+    hasMentionCandidates,
+    setMentions,
     handleMention,
     handleSelectMention,
-    mentionSearchText,
-    mentions,
-    setMentions,
-    isMentionModeActive,
     handleMentionEscape,
-    hasMentionCandidates,
-    setHasMentionCandidates,
-  } = useMentions();
+  } = useMentions({ options });
   const maxInputHeight = useKeyboardHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
 
   usePasteHandler(addAttachment);
+
+  const [isSending, setIsSending] = useState(false);
+  const [linkMetaLoading, setLinkMetaLoading] = useState(false);
+  // Track current input session to cancel stale link previews
+  const inputSessionRef = useRef(0);
+  const disableSend = useMemo(() => {
+    return editorIsEmpty || isSending;
+  }, [editorIsEmpty, isSending]);
 
   const processReferences = useCallback(
     (text: string): string => {
@@ -286,6 +320,76 @@ export default function BareChatInput({
 
       bareChatInputLogger.log('text change', newText);
 
+      const pastedSomething = newText.length > oldText.length + 10;
+      if (pastedSomething) {
+        const addedText = newText.substring(oldText.length);
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        const matches = addedText.match(urlRegex);
+
+        if (matches && matches.length > 0) {
+          // Found a URL in what appears to be pasted text
+          const urlMatch = matches[0];
+          const parsedUrl = new URL(urlMatch);
+          parsedUrl.hash = '';
+          const url = parsedUrl.toString();
+
+          // Capture current session to check if request is still valid later
+          const currentSession = inputSessionRef.current;
+          setLinkMetaLoading(true);
+          bareChatInputLogger.log('getting link metadata', { url });
+
+          store
+            .getLinkMetaWithFallback(url)
+            .then((linkMetadata) => {
+              // Check if this request is still valid (message hasn't been sent)
+              if (currentSession !== inputSessionRef.current) {
+                bareChatInputLogger.log('ignoring stale link metadata', {
+                  url,
+                });
+                return;
+              }
+
+              // todo: handle error case with toast or similar
+              if (!linkMetadata) {
+                bareChatInputLogger.error('no link metadata', { url });
+                return;
+              }
+
+              bareChatInputLogger.log('link metadata', { linkMetadata });
+
+              // first add the link attachment
+              if (linkMetadata.type === 'page') {
+                const { type, ...rest } = linkMetadata;
+                addAttachment({
+                  type: 'link',
+                  resourceType: type,
+                  ...rest,
+                });
+              }
+
+              if (linkMetadata.type === 'file') {
+                if (linkMetadata.isImage) {
+                  addAttachment({
+                    type: 'image',
+                    file: {
+                      uri: url,
+                      height: 300,
+                      width: 300,
+                      mimeType: linkMetadata.mime,
+                    },
+                  });
+                }
+              }
+            })
+            .finally(() => {
+              // Only clear loading if this is still the current session
+              if (currentSession === inputSessionRef.current) {
+                setLinkMetaLoading(false);
+              }
+            });
+        }
+      }
+
       // Only process references if the text contains a reference and hasn't been processed before.
       // This check prevents infinite loops on native platforms where we manually update
       // the input's text value using setNativeProps after processing references.
@@ -319,12 +423,20 @@ export default function BareChatInput({
         storeDraft(jsonContent);
       }
     },
-    [controlledText, processReferences, storeDraft, handleMention, mentions]
+    [
+      controlledText,
+      store,
+      addAttachment,
+      processReferences,
+      handleMention,
+      mentions,
+      storeDraft,
+    ]
   );
 
   const onMentionSelect = useCallback(
-    (contact: db.Contact) => {
-      const newText = handleSelectMention(contact, controlledText);
+    (option: MentionOption) => {
+      const newText = handleSelectMention(option, controlledText);
 
       if (!newText) {
         return;
@@ -406,6 +518,18 @@ export default function BareChatInput({
               ];
             }
 
+            if (attachment.type === 'link') {
+              const { url, type, resourceType, ...meta } = attachment;
+              return [
+                {
+                  link: {
+                    url,
+                    meta,
+                  },
+                },
+              ];
+            }
+
             return [];
           });
 
@@ -434,6 +558,10 @@ export default function BareChatInput({
       }
 
       try {
+        // Cancel any pending link preview requests
+        inputSessionRef.current += 1;
+        setLinkMetaLoading(false);
+
         setControlledText('');
         bareChatInputLogger.log('clearing attachments');
         clearAttachments();
@@ -536,7 +664,10 @@ export default function BareChatInput({
 
   // Check if editor is empty
   useEffect(() => {
-    setEditorIsEmpty(controlledText === '' && attachments.length === 0);
+    setEditorIsEmpty(
+      (controlledText === '' || controlledText.trim() === '') &&
+        attachments.length === 0
+    );
   }, [controlledText, attachments]);
 
   const adjustInputHeightProgrammatically = useCallback(() => {
@@ -684,6 +815,10 @@ export default function BareChatInput({
   }, [needsHeightAdjustmentAfterLoad, adjustInputHeightProgrammatically]);
 
   const handleCancelEditing = useCallback(() => {
+    // Cancel any pending link preview requests
+    inputSessionRef.current += 1;
+    setLinkMetaLoading(false);
+
     setEditingPost?.(undefined);
     setHasSetInitialContent(false);
     setControlledText('');
@@ -693,10 +828,10 @@ export default function BareChatInput({
   }, [setEditingPost, clearDraft, clearAttachments, initialHeight]);
 
   const theme = useTheme();
-
   const placeholderTextColor = {
     placeholderTextColor: getVariableValue(theme.secondaryText),
   };
+  const inputTextColor = getVariableValue(theme.primaryText);
 
   const adjustTextInputSize = (e: any) => {
     if (!isWeb) {
@@ -764,7 +899,7 @@ export default function BareChatInput({
           mentionRef.current?.handleMentionKey('Enter');
         } else if (editingPost) {
           handleEdit();
-        } else {
+        } else if (!disableSend) {
           handleSend();
         }
       }
@@ -772,11 +907,12 @@ export default function BareChatInput({
     [
       isMentionModeActive,
       setIsOpen,
-      editingPost,
-      handleEdit,
-      handleSend,
       handleMentionEscape,
       hasMentionCandidates,
+      editingPost,
+      disableSend,
+      handleEdit,
+      handleSend,
     ]
   );
 
@@ -785,17 +921,16 @@ export default function BareChatInput({
       onPressSend={handleSend}
       setShouldBlur={setShouldBlur}
       containerHeight={48}
-      disableSend={editorIsEmpty || isSending}
+      disableSend={disableSend}
       isSending={isSending}
       sendError={sendError}
-      isMentionModeActive={isMentionModeActive}
       showWayfindingTooltip={showWayfindingTooltip}
+      isMentionModeActive={isMentionModeActive}
       mentionText={mentionSearchText}
+      mentionOptions={validOptions}
       mentionRef={mentionRef}
-      setHasMentionCandidates={setHasMentionCandidates}
-      showAttachmentButton={showAttachmentButton}
-      groupMembers={groupMembers}
       onSelectMention={onMentionSelect}
+      showAttachmentButton={showAttachmentButton}
       isEditing={!!editingPost}
       cancelEditing={handleCancelEditing}
       onPressEdit={handleEdit}
@@ -811,8 +946,10 @@ export default function BareChatInput({
         maxHeight={maxInputHeight}
         justifyContent="center"
       >
+        {linkMetaLoading && <LinkPreviewLoading />}
         {showInlineAttachments && <AttachmentPreviewList />}
         <TextInput
+          testID="MessageInput"
           ref={inputRef}
           value={isWeb ? controlledText : undefined}
           onChangeText={handleTextChange}
@@ -835,7 +972,7 @@ export default function BareChatInput({
             fontSize: getFontSize('$m'),
             verticalAlign: 'middle',
             letterSpacing: -0.032,
-            color: getVariableValue(useTheme().primaryText),
+            color: inputTextColor,
             ...(isWeb ? placeholderTextColor : {}),
             ...(isWeb ? { outlineStyle: 'none' } : {}),
           }}

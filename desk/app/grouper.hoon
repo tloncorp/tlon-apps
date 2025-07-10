@@ -192,9 +192,11 @@
     =/  =id:c  [our now]:bowl
     =/  =memo:ch
       [~[[%inline ~[[%ship joiner.bite] ' has joined the network']]] id]
+    =/  =essay:c
+      [memo [%chat /notice] ~ ~]
     =/  =action:dm:c
       :-  joiner.bite
-      [id %add memo [%notice ~] ~]
+      [id %add essay ~]
     %-  %^    tell
             %info
           'DM Invite Sent'

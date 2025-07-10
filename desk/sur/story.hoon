@@ -33,7 +33,12 @@
       [%listing p=listing]
       [%rule ~]
       [%code code=cord lang=cord]
+      [%link url=@t meta=(map ?(link-meta-key @t) @t)]
   ==
+::  $link-meta-key: known-good %link $block meta keys
+::
++$  link-meta-key
+  ?(%title %description %image %site-name %site-icon)
 ::  $inline: content that flows within a paragraph
 ::
 ::    @t: plain text
@@ -57,10 +62,50 @@
       [%inline-code p=cord]
       [%code p=cord]
       [%ship p=ship]
+      [%role p=?(~ role-id)]
       [%block p=@ud q=cord]
       [%tag p=cord]
       [%link p=cord q=cord]
       [%task p=?(%.y %.n) q=(list inline)]
       [%break ~]
   ==
++$  role-id  term
+++  ver
+  |%
+  ++  v0
+    |% 
+    +$  story  (list verse)
+    +$  verse
+      $%  [%block p=block]
+          [%inline p=(list inline)]
+      ==
+    +$  listing
+      $%  [%list p=?(%ordered %unordered %tasklist) q=(list listing) r=(list inline)]
+          [%item p=(list inline)]
+      ==
+    +$  block
+      $%  [%image src=cord height=@ud width=@ud alt=cord]
+          [%cite =cite:c]
+          [%header p=?(%h1 %h2 %h3 %h4 %h5 %h6) q=(list inline)]
+          [%listing p=listing]
+          [%rule ~]
+          [%code code=cord lang=cord]
+      ==
+    +$  inline
+      $@  @t
+      $%  [%italics p=(list inline)]
+          [%bold p=(list inline)]
+          [%strike p=(list inline)]
+          [%blockquote p=(list inline)]
+          [%inline-code p=cord]
+          [%code p=cord]
+          [%ship p=ship]
+          [%block p=@ud q=cord]
+          [%tag p=cord]
+          [%link p=cord q=cord]
+          [%task p=?(%.y %.n) q=(list inline)]
+          [%break ~]
+      ==
+    --
+  --
 --

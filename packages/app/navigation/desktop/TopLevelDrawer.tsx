@@ -56,6 +56,13 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
 
   const restoreHomeState = useCallback(() => {
     try {
+      const currentScreenIsHome = isRouteActive('Home');
+      if (currentScreenIsHome) {
+        // If already on Home, just reset navigation state
+        props.navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+        return;
+      }
+
       if (lastHomeStateRef.current) {
         props.navigation.reset(lastHomeStateRef.current);
       } else {
@@ -67,7 +74,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
       // Fallback to default state if restoration fails
       props.navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
     }
-  }, [props.navigation]);
+  }, [props.navigation, isRouteActive]);
 
   return (
     <YStack flex={1} paddingVertical="$l">
@@ -80,6 +87,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           // intentionally leave undotted for now
           shouldShowUnreads={false}
           onPress={restoreHomeState}
+          testID="HomeNavIcon"
         />
         <NavIcon
           type="Messages"
@@ -131,6 +139,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
       <YStack gap="$xl" marginTop="auto" alignItems="center">
         <NavIcon
           type="Settings"
+          testID="SettingsNavIcon"
           isActive={isRouteActive('Settings')}
           shouldShowUnreads={false}
           onPress={() => {

@@ -1,10 +1,6 @@
-import { MessageKey } from '@tloncorp/shared/urbit/activity';
 import {
   CacheId,
   ChatStory,
-  Cite,
-  Listing,
-  Post,
   Story,
   Verse,
   VerseBlock,
@@ -12,8 +8,10 @@ import {
 } from '@tloncorp/shared/urbit/channel';
 import {
   Bold,
+  Cite,
   Inline,
   Italics,
+  Listing,
   Strikethrough,
 } from '@tloncorp/shared/urbit/content';
 import {
@@ -40,7 +38,6 @@ import anyAscii from 'any-ascii';
 import bigInt, { BigInteger } from 'big-integer';
 import { hsla, parseToHsla, parseToRgba } from 'color2k';
 import { differenceInDays, endOfToday, format } from 'date-fns';
-import emojiRegex from 'emoji-regex';
 import _ from 'lodash';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import ob from 'urbit-ob';
@@ -769,18 +766,6 @@ export function getAppName(
   }
 
   return app.title || app.desk;
-}
-
-export function isSingleEmoji(input: string): boolean {
-  const regex = emojiRegex();
-  const matches = input.match(regex);
-
-  return (
-    (matches &&
-      matches.length === 1 &&
-      matches.length === _.split(input, '').length) ??
-    false
-  );
 }
 
 export function initializeMap<T>(items: Record<string, T>) {

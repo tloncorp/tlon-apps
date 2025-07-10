@@ -33,6 +33,8 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
       - name: Setup PNPM
         uses: pnpm/action-setup@v3
+      - name: Setup jq
+        uses: dcarbone/install-jq-action@v3
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Create build vars
@@ -47,9 +49,35 @@ jobs:
         env:
           EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
           EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
+          INVITE_PROVIDER: ${{ secrets.VITE_INVITE_PROVIDER}}
           NOTIFY_PROVIDER:
             "${{ steps.vars.outputs.profile == 'preview' &&
             'binnec-dozzod-marnus' || 'rivfur-livmet' }}"
           NOTIFY_SERVICE:
             "${{ steps.vars.outputs.profile == 'preview' &&
             'tlon-preview-release' || 'groups-native' }}"
+      - name: Extract version and build numbers
+        id: version_info
+        working-directory: ./apps/tlon-mobile
+        run: |
+          CONFIG=$(eas build:version:get --profile preview --json --non-interactive --platform all)
+          ANDROID_BUILD=$(echo "$CONFIG" | jq -r '.versionCode')
+          IOS_BUILD=$(echo "$CONFIG" | jq -r '.buildNumber')
+          echo "android_build=$ANDROID_BUILD" >> $GITHUB_OUTPUT
+          echo "ios_build=$IOS_BUILD" >> $GITHUB_OUTPUT
+      - name: Create git tags
+        run: |
+          PROFILE=${{ steps.vars.outputs.profile }}
+          PLATFORM="${{ inputs.platform || 'all' }}"
+
+          if [ "$PLATFORM" = "all" ] || [ "$PLATFORM" = "android" ]; then
+            ANDROID_BUILD=${{ steps.version_info.outputs.android_build }}
+            git tag -f "android-${PROFILE}-${ANDROID_BUILD}"
+          fi
+
+          if [ "$PLATFORM" = "all" ] || [ "$PLATFORM" = "ios" ]; then
+            IOS_BUILD=${{ steps.version_info.outputs.ios_build }}
+            git tag -f "ios-${PROFILE}-${IOS_BUILD}"
+          fi
+
+          git push origin --tags --force

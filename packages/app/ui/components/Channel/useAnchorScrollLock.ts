@@ -23,7 +23,6 @@ export function useAnchorScrollLock({
   anchor,
   hasNewerPosts,
   shouldMaintainVisibleContentPosition,
-  isScrollingToBottom,
   collectionLayoutType,
   columnsCount,
 }: {
@@ -32,16 +31,27 @@ export function useAnchorScrollLock({
   anchor: ScrollAnchor | null | undefined;
   hasNewerPosts?: boolean;
   shouldMaintainVisibleContentPosition: boolean;
-  isScrollingToBottom: boolean;
   collectionLayoutType: string;
   columnsCount: number;
 }) {
   const [userHasScrolled, setUserHasScrolled] = useState(false);
   const [didAnchorSearchTimeout, setDidAnchorSearchTimeout] = useState(false);
+  const [didScrollToAnchor, setDidScrollToAnchor] = useState(false);
   const currentAnchorId = useRef<string | undefined>(anchor?.postId);
   const renderedPostsRef = useRef(new Set<string>());
   const isScrollAttemptActiveRef = useRef(false);
-  const readyToDisplayPosts = !anchor?.postId || didAnchorSearchTimeout;
+  const readyToDisplayPosts =
+    !anchor?.postId || didAnchorSearchTimeout || didScrollToAnchor;
+
+  const showPostsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  useEffect(() => {
+    if (posts?.length && !showPostsTimeoutRef.current && !readyToDisplayPosts) {
+      showPostsTimeoutRef.current = setTimeout(() => {
+        logger.log('posts are ready for display');
+        setDidAnchorSearchTimeout(true);
+      }, 2000);
+    }
+  }, [posts?.length, didAnchorSearchTimeout, readyToDisplayPosts]);
 
   // Find the index of the anchor post in the posts array
   const anchorIndex = useMemo(() => {
@@ -80,6 +90,7 @@ export function useAnchorScrollLock({
 
       if (
         !userHasScrolled &&
+        !didScrollToAnchor &&
         post.id === anchor?.postId &&
         flatListRef.current &&
         anchor?.postId === currentAnchorId.current &&
@@ -116,6 +127,7 @@ export function useAnchorScrollLock({
         } catch (e) {
           logger.error('error scrolling to anchor post', e);
         } finally {
+          setDidScrollToAnchor(true);
           isScrollAttemptActiveRef.current = false;
         }
       }
@@ -159,16 +171,6 @@ export function useAnchorScrollLock({
       renderedPostsRef.current.clear();
     }
   }, [anchor?.postId]);
-
-  // Reset states when explicitly scrolling to bottom
-  useEffect(() => {
-    if (isScrollingToBottom) {
-      logger.log('scrolling to bottom');
-      setUserHasScrolled(false);
-      setDidAnchorSearchTimeout(false);
-      renderedPostsRef.current.clear();
-    }
-  }, [isScrollingToBottom]);
 
   return {
     readyToDisplayPosts,

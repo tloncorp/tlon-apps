@@ -17,7 +17,7 @@ import { ColorTokens, isWeb } from 'tamagui';
 import { useCurrentUserId, useInviteService } from '../contexts';
 import { useIsAdmin } from '../utils';
 
-const logger = createDevLogger('InviteButton', true);
+const logger = createDevLogger('InviteButton', false);
 
 export function InviteFriendsToTlonButton({
   group,

@@ -75,8 +75,7 @@ export default {
           setEditingPost={() => {}}
           parentPost={null}
           channel={tlonLocalBulletinBoard}
-          groupMembers={group.members ?? []}
-          headerMode="default"
+          group={group}
           onGroupAction={() => {}}
           goToDm={() => {}}
         />
@@ -147,7 +146,6 @@ export default {
         editingPost: undefined,
         setEditingPost: fail,
         editPost: fail,
-        headerMode: 'default',
       }));
     }, [data.channel]);
 
@@ -174,13 +172,11 @@ export default {
               fetchNewerPage,
               fetchOlderPage,
               channelContext: {
-                group: data.channel.group,
-                groupMembers: data.channel.group?.members ?? [],
+                group: data.channel.group || null,
                 editingPost: undefined,
                 setEditingPost: undefined,
                 editPost: noop,
                 negotiationMatch: true,
-                headerMode: 'default',
                 onPressRetry: undefined,
                 onPressDelete: noop,
               },

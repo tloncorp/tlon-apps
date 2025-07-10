@@ -57,7 +57,8 @@ export function ChannelListItem({
       <Button
         backgroundColor="transparent"
         borderWidth="unset"
-        paddingHorizontal={0}
+        paddingLeft={0}
+        paddingRight="$s"
         marginHorizontal="$-m"
         minimal
         onPress={(e) => {
@@ -139,7 +140,15 @@ export function ChannelListItem({
         onHoverIn={handleHoverIn}
         onHoverOut={handleHoverOut}
       >
-        <ListItem onLayout={onLayout} {...props}>
+        <ListItem
+          onLayout={onLayout}
+          {...props}
+          testID={
+            model.type === 'dm' || model.type === 'groupDm'
+              ? `ChannelListItem-${model.id}`
+              : `ChannelListItem-${model.title}`
+          }
+        >
           <ListItem.ChannelIcon
             model={model}
             useTypeIcon={useTypeIcon}
@@ -175,6 +184,7 @@ export function ChannelListItem({
                 <Badge text="Invite" />
               ) : (
                 <ListItem.Count
+                  opacity={isHovered ? 0 : 1}
                   notified={notified}
                   count={unreadCount}
                   muted={logic.isMuted(model.volumeSettings?.level, 'channel')}

@@ -1,36 +1,40 @@
 import { ImagePickerAsset } from 'expo-image-picker';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 
-import { SimpleActionSheet } from './ActionSheet';
+import { Action, SimpleActionSheet } from './ActionSheet';
 import AttachmentSheet from './AttachmentSheet';
+import { GalleryRoute } from './draftInputs/shared';
 
 export default function AddGalleryPost({
-  showAddGalleryPost,
-  setShowAddGalleryPost,
-  setShowGalleryInput,
+  route,
+  setRoute,
   onSetImage,
 }: {
-  showAddGalleryPost: boolean;
-  setShowAddGalleryPost: (show: boolean) => void;
-  setShowGalleryInput: (show: boolean) => void;
+  route: GalleryRoute;
+  setRoute: (route: GalleryRoute) => void;
   onSetImage: (assets: ImagePickerAsset[]) => void;
 }) {
-  const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
-
-  const actions = [
+  const actions: Action[] = [
     {
       title: 'Image',
       action: () => {
-        setShowAddGalleryPost(false);
-        setShowAttachmentSheet(true);
+        setRoute('add-attachment');
       },
+      testID: 'AddGalleryPostImage',
     },
     {
       title: 'Text',
       action: () => {
-        setShowAddGalleryPost(false);
-        setShowGalleryInput(true);
+        setRoute('text');
       },
+      testID: 'AddGalleryPostText',
+    },
+    {
+      title: 'Link',
+      action: () => {
+        setRoute('link');
+      },
+      testID: 'AddGalleryPostLink',
     },
   ];
 
@@ -41,16 +45,25 @@ export default function AddGalleryPost({
     [onSetImage]
   );
 
+  const onClose = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        setRoute('gallery');
+      }
+    },
+    [setRoute]
+  );
+
   return (
     <>
       <SimpleActionSheet
-        open={showAddGalleryPost}
-        onOpenChange={setShowAddGalleryPost}
+        open={route === 'add-post'}
+        onOpenChange={onClose}
         actions={actions}
       />
       <AttachmentSheet
-        isOpen={showAttachmentSheet}
-        onOpenChange={setShowAttachmentSheet}
+        isOpen={route === 'add-attachment'}
+        onOpenChange={onClose}
         onAttach={handleImageSet}
       />
     </>

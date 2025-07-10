@@ -1,5 +1,6 @@
+import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { useIsWindowNarrow } from '@tloncorp/ui';
+import { getNativeEmoji, useIsWindowNarrow } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
 import { SizableEmoji } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
@@ -10,6 +11,8 @@ import { useCurrentUserId } from '../../../contexts';
 import useOnEmojiSelect from '../../../hooks/useOnEmojiSelect';
 import { ReactionDetails, useReactionDetails } from '../../../utils/postUtils';
 import { EmojiPickerSheet } from '../../Emoji/EmojiPickerSheet';
+
+const logger = createDevLogger('EmojiToolbar', false);
 
 export function EmojiToolbar({
   post,
@@ -26,6 +29,18 @@ export function EmojiToolbar({
   const isWindowNarrow = useIsWindowNarrow();
 
   const handlePress = useOnEmojiSelect(post, onDismiss);
+
+  const handleToolbarPress = useCallback(
+    (shortCode: string) => {
+      const nativeEmoji = getNativeEmoji(shortCode);
+      if (!nativeEmoji) {
+        logger.trackError(`No native emoji found`, { shortCode });
+        return;
+      }
+      handlePress(nativeEmoji);
+    },
+    [handlePress]
+  );
 
   const lastShortCode =
     details.self.didReact &&
@@ -56,25 +71,25 @@ export function EmojiToolbar({
         <EmojiToolbarButton
           details={details}
           shortCode="+1"
-          handlePress={handlePress}
+          handlePress={handleToolbarPress}
           testID="EmojiToolbarButton-thumb"
         />
         <EmojiToolbarButton
           details={details}
           shortCode="heart"
-          handlePress={handlePress}
+          handlePress={handleToolbarPress}
           testID="EmojiToolbarButton-heart"
         />
         <EmojiToolbarButton
           details={details}
           shortCode="laughing"
-          handlePress={handlePress}
+          handlePress={handleToolbarPress}
           testID="EmojiToolbarButton-laughing"
         />
         <EmojiToolbarButton
           details={details}
           shortCode={lastShortCode}
-          handlePress={handlePress}
+          handlePress={handleToolbarPress}
           testID="EmojiToolbarButton-last"
         />
         <Button padding="$xs" borderWidth={0} onPress={handleSheetOpen}>
@@ -113,7 +128,7 @@ function EmojiToolbarButton({
       onPress={() => handlePress(shortCode)}
       testID={testID}
     >
-      <SizableEmoji shortCode={shortCode} fontSize={32} />
+      <SizableEmoji emojiInput={shortCode} fontSize={32} />
     </Button>
   );
 }

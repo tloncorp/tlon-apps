@@ -534,9 +534,9 @@
 				D7E4C46ADA2E9064B798F356 /* ExpoModulesProviders */,
 				9D6B23EFDEDD5888235A22BB /* PrivacyInfo.xcprivacy */,
 			);
-			indentWidth = 2;
+			indentWidth = 4;
 			sourceTree = "<group>";
-			tabWidth = 2;
+			tabWidth = 4;
 			usesTabs = 0;
 		};
 		83CBBA001A601CBA00E9B192 /* Products */ = {
@@ -1484,7 +1484,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.5.0;
+				MARKETING_VERSION = 6.1.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1522,7 +1522,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.5.0;
+				MARKETING_VERSION = 6.1.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1746,7 +1746,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.5.0;
+				MARKETING_VERSION = 6.1.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1789,7 +1789,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.5.0;
+				MARKETING_VERSION = 6.1.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",

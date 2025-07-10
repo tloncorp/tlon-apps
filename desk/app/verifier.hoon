@@ -22,6 +22,7 @@
 /-  verifier
 /+  hu=http-utils, logs,
     dbug, verb, negotiate
+/=  display  /app/verifier/display
 =,  (verifier)
 ::
 %-  %-  agent:negotiate
@@ -31,7 +32,7 @@
 ::
 =>
 |%
-+$  state-0  [%0 state]
++$  state-1  [%1 state]
 +$  card     card:agent:gall
 ::
 ++  attempt-timeout  ~h1
@@ -467,40 +468,9 @@
     %+  lien  ~(tap in src)
     |=(i=identifier =(-.i -.id))
   ==
-::
-++  display
-  |=  [full=? tat=attestation]
-  ^-  octs
-  %-  as-octs:mimes:html
-  %+  rap  3
-  :~  'verified that '
-      (scot %p for.dat.half.tat)
-      ' has '
-    ::
-      ?.  full
-        ?-  kind.dat.half.tat
-          %dummy    'a dummy identifier'
-          %urbit    'another urbit'
-          %phone    'a phone number'
-          %twitter  'an x.com account'
-          %website  'a website'
-        ==
-      =*  id  id.dat.full.tat
-      ?-  -.id.dat.full.tat
-        %dummy    (cat 3 'dummy id ' +.id)
-        %urbit    (cat 3 'control over ' (scot %p +.id))
-        %phone    (cat 3 'phone nr ' +.id)
-        %twitter  (cat 3 'x.com account @' +.id)
-        %website  (cat 3 'control over ' (en-turf:html +.id))
-      ==
-    ::
-      ' on '
-      =*  when  when.dat.half.tat
-      (scot %da (sub when (mod when ~d1)))
-  ==
 --
 ::
-=|  state-0
+=|  state-1
 =*  state  -
 ::
 =+  log=l
@@ -520,8 +490,38 @@
 ::
 ++  on-load
   |=  ole=vase
-  ^-  (quip card _this)
-  [~ this(state !<(state-0 ole))]
+  |^  ^-  (quip card _this)
+      =/  old=state-any  !<(state-any ole)
+      =?  old  ?=(%0 -.old)  (state-0-to-1 old)
+      ?>  ?=(%1 -.old)
+      =.  state  old
+      ::  we always send an endpoint update, to trigger lanyard clients
+      ::  to send us their invite links if necessary
+      ::
+      [[(give-endpoint domain)]~ this]
+  ::
+  +$  state-any  $%(state-0 state-1)
+  ::
+  +$  state-0
+    $:  %0
+        records=(map identifier record)
+        owners=(jug ship identifier)
+        attested=(map @ux identifier)
+        lookups=(map @ identifier)
+        reverse=(jug identifier @)
+      ::
+        limits=[solo=(map @p allowance) pool=_allowance:pool:rates]
+      ::
+        ::NOTE  basic auth only needed for staging api key
+        phone-api=[base=@t key=@t basic=(unit [user=@t pass=@t])]
+        twitter-api=[bearer=@t]
+        domain=(unit @t)  ::  as 'https://example.org:123/verifier'
+    ==
+  ++  state-0-to-1
+    |=  s=state-0
+    ^-  state-1
+    s(- %1, domain [domain.s invites=~])
+  --
 ::
 ++  on-poke
   |=  [=mark =vase]
@@ -717,6 +717,12 @@
             (req-challenge:website +.id)
         ==
       ==
+    ::
+        %invite
+      =-  [~ this(invites -)]
+      ?~  url.cmd
+        (~(del by invites) src.bowl)
+      (~(put by invites) src.bowl u.url.cmd)
     ==
   ::
       %verifier-host-command
@@ -740,6 +746,7 @@
     ==
   ::
       %verifier-user-query
+    =.  for.log  `src.bowl
     =+  !<(qer=user-query vase)
     =;  [res=result:query-result nu=_state]
       =.  state  nu
@@ -860,10 +867,11 @@
       ?~  aid=(~(get by attested) u.sig)  fof
       ?~  rec=(~(get by records) u.aid)   fof
       ?.  ?=(%done -.status.u.rec)        fof
+      =/  url  (~(get by invites) for.u.rec)
       ?:  =(sig.half.status.u.rec u.sig)
-        [(spout:hu id [200 ~] `(display | +.status.u.rec)) this]
+        [(spout:hu id [200 ~] `(display url | +.status.u.rec)) this]
       ?:  =(sig.full.status.u.rec u.sig)
-        [(spout:hu id [200 ~] `(display & +.status.u.rec)) this]
+        [(spout:hu id [200 ~] `(display url & +.status.u.rec)) this]
       ::  if we make it into this branch our bookkeeping is bad
       ::
       ~&  [dap.bowl %no-such-sig sig=`@uw`u.sig in=u.aid]
@@ -877,7 +885,8 @@
       ?~  aid=(~(get by lookups) u.num)  fof
       ?~  rec=(~(get by records) u.aid)  fof
       ?.  ?=(%done -.status.u.rec)       fof
-      [(spout:hu id [200 ~] `(display & +.status.u.rec)) this]
+      =/  url  (~(get by invites) for.u.rec)
+      [(spout:hu id [200 ~] `(display url & +.status.u.rec)) this]
     ==
   ==
 ::
@@ -1081,6 +1090,12 @@
     ::
     =/  result
       (parse-post:twitter [handle nonce.u.pre.status] +.res)
+    %-  %+  tell:l  %info
+        :~  (cat 3 'twitter api response: %' ?@(result result -.result))
+            (cat 3 'status code: ' (crip (a-co:co status-code.response-header.res)))
+            ?~  full-file.res  'no body'
+            q.data.u.full-file.res
+        ==
     ::
     =*  abort
       %-  (tell:l %warn (cat 3 'twitter verification aborted with result %' result) ~)

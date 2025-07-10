@@ -24,4 +24,6 @@ export * from './hostingActions';
 export * from './lanyardActions';
 export * from './settingsActions';
 export * from './systemContactActions';
+export * from './blockingActions';
+export * from './metagrabActions';
 export { useChannelContext } from './useChannelContext';

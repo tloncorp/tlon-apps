@@ -1159,8 +1159,8 @@
     (watch-channels &)
   ::
       %fact
-    ::TODO handle this properly during merge with develop
-    =+  !<(=r-channels:d q.cage.sign)
+    ?.  =(%channel-response-2 p.cage.sign)  cor
+    =+  !<(=r-channels:v7:old:d q.cage.sign)
     =*  rc  r-channel.r-channels
     ?+    -.rc  cor
         %create
@@ -2484,7 +2484,7 @@
       =/  =dock  [our.bowl %channels]
       ::TODO use versioned channel api
       =/  action=a-channels:d  [%channel nes %leave ~]
-      =/  =cage  channel-action+!>(action)
+      =/  =cage  channel-action-1+!>(action)
       =/  =wire  (snoc go-area %leave-channels)
       `[%pass wire %agent dock %poke cage]
     ::
@@ -2500,7 +2500,7 @@
       =/  =dock  [our.bowl %channels]
       ::TODO use version channels types
       =/  action=a-channels:d  [%channel nes %join flag]
-      =/  =cage  channel-action+!>(action)
+      =/  =cage  channel-action-1+!>(action)
       =/  =wire  (snoc go-area %join-channels)
       `[%pass wire %agent dock %poke cage]
     ::

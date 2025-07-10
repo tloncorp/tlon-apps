@@ -23,7 +23,6 @@ export interface DetailViewProps {
   onPressDelete: (post: db.Post) => void;
   setActiveMessage: (post: db.Post | null) => void;
   activeMessage: db.Post | null;
-  headerMode: 'default' | 'next';
   editorIsFocused: boolean;
   flatListRef?: React.RefObject<FlatList>;
 }
@@ -40,7 +39,6 @@ export const DetailView = ({
   onPressDelete,
   setActiveMessage,
   activeMessage,
-  headerMode,
   editorIsFocused,
   flatListRef,
 }: DetailViewProps) => {
@@ -96,7 +94,6 @@ export const DetailView = ({
           unreadCount={initialPostUnread?.count ?? 0}
           activeMessage={activeMessage}
           setActiveMessage={setActiveMessage}
-          headerMode={headerMode}
         />
       </View>
     );
@@ -112,7 +109,6 @@ export const DetailView = ({
     resolvedPosts,
     setActiveMessage,
     setEditingPost,
-    headerMode,
     channel,
   ]);
 

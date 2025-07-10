@@ -1,17 +1,18 @@
 import { storage } from '@tloncorp/shared/db';
 import { featureFlags as mirrorFeatureFlags } from '@tloncorp/shared/logic';
+import { useMutableCallback } from '@tloncorp/shared/logic';
 import { mapValues } from 'lodash';
 import create from 'zustand';
 
 // Add new feature flags here:
 export const featureMeta = {
-  channelSwitcher: {
-    default: false,
-    label: 'Experimental channel switcher',
-  },
   instrumentationEnabled: {
     default: false,
     label: 'Enable collecting and reporting performance data',
+  },
+  webScroller: {
+    default: false,
+    label: 'Use web-native scroll implementation for chats',
   },
   customChannelCreation: {
     default: false,
@@ -54,8 +55,10 @@ export function useFeatureFlag(
   name: FeatureName
 ): readonly [value: boolean, setEnabled: (enabled: boolean) => void] {
   const enabled = useFeatureFlagStore((state) => state.flags[name]);
-  const setEnabled = useFeatureFlagStore(
-    (s) => (enabled: boolean) => s.setEnabled(name, enabled)
+  const setEnabled = useMutableCallback(
+    useFeatureFlagStore(
+      (s) => (enabled: boolean) => s.setEnabled(name, enabled)
+    )
   );
   return [enabled, setEnabled];
 }

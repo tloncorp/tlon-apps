@@ -17,19 +17,9 @@ import { useHandleLogout } from './useHandleLogout';
 
 initializePolyfills();
 
-let abortController = new AbortController();
-
 const clientLogger = createDevLogger('configure client', true);
 
 const apiFetch: typeof fetch = (input, { ...init } = {}) => {
-  // Wire our injected AbortController up to the one passed in by the client.
-  if (init.signal) {
-    init.signal.onabort = () => {
-      abortController.abort();
-      abortController = new AbortController();
-    };
-  }
-
   const headers: any = { ...init.headers };
   // The urbit client is inconsistent about sending cookies, sometimes causing
   // the server to send back a new, anonymous, cookie, which is sent on all
@@ -43,7 +33,6 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
     headers,
     // Avoid setting credentials method for same reason as above.
     credentials: undefined,
-    signal: abortController.signal,
   };
   const containsEventStream = headers['accept'] === 'text/event-stream';
   return containsEventStream

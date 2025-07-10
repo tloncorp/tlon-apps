@@ -2,6 +2,7 @@ import { QueryKey, useQuery } from '@tanstack/react-query';
 
 import { queryClient } from '../api';
 import { createDevLogger } from '../debug';
+import { Stringified } from '../utils';
 import { getStorageMethods } from './getStorageMethods';
 
 const logger = createDevLogger('keyValueStore', false);
@@ -61,7 +62,7 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
         typeof deserializedValue === 'object' &&
         'rawData' in deserializedValue
       ) {
-        return deserializedValue.rawData;
+        return deserializedValue.rawData as T;
       }
       return deserializedValue;
     } catch (e) {
@@ -112,14 +113,21 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
   };
 
   function useValue() {
-    const { data: value } = useQuery({ queryKey: [key], queryFn: () => getValue() });
+    const { data: value } = useQuery({
+      queryKey: [key],
+      queryFn: () => getValue(),
+    });
     return value === undefined ? defaultValue : value;
   }
 
   function useStorageItem() {
-    const value = useValue();
+    const { data: value, isLoading } = useQuery({
+      queryKey: [key],
+      queryFn: () => getValue(),
+    });
     return {
-      value,
+      value: value === undefined ? defaultValue : value,
+      isLoading,
       setValue,
       resetValue,
     };

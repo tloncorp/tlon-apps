@@ -24,9 +24,14 @@ export interface QueryResponseEvent {
 }
 
 export interface WhoseBulkResponseEvent {
-  result: {
-    'next-salt': string;
-    result: Record<string, string | null>;
+  query: {
+    nonce: string;
+    result:
+      | {
+          'next-salt': string;
+          results: Record<string, string | null>;
+        }
+      | 'rate limited';
   };
 }
 

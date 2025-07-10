@@ -32,7 +32,6 @@ import {
 import * as utils from '../utils';
 import BareChatInput from './BareChatInput';
 import { BigInput } from './BigInput';
-import { ChannelFooter } from './Channel/ChannelFooter';
 import {
   ChannelHeader,
   ChannelHeaderItemsProvider,
@@ -57,8 +56,7 @@ const FocusedPostContext = createContext<{
 );
 
 interface ChannelContext {
-  group?: db.Group | null;
-  groupMembers: db.ChatMember[];
+  group: db.Group | null;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost: (
@@ -68,16 +66,15 @@ interface ChannelContext {
     metadata?: db.PostMetadata
   ) => Promise<void>;
   negotiationMatch: boolean;
-  headerMode: 'default' | 'next';
   onPressRetry?: (post: db.Post) => Promise<void>;
   onPressDelete: (post: db.Post) => void;
 }
 
 export function PostScreenView({
   channel,
+  group,
   parentPost,
   goBack,
-  groupMembers,
   handleGoToImage,
   handleGoToUserProfile,
   editingPost,
@@ -88,7 +85,6 @@ export function PostScreenView({
   onGroupAction,
   goToDm,
   negotiationMatch,
-  headerMode,
 }: {
   channel: db.Channel;
   parentPost: db.Post | null;
@@ -98,6 +94,8 @@ export function PostScreenView({
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   goToDm: (participants: string[]) => void;
 } & ChannelContext) {
+  const groupMembers = group?.members ?? [];
+  const groupRoles = group?.roles ?? [];
   const isWindowNarrow = utils.useIsWindowNarrow();
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = utils.useIsAdmin(
@@ -223,7 +221,6 @@ export function PostScreenView({
                   <ConnectedHeader
                     channel={channel}
                     goBack={handleGoBack}
-                    mode={headerMode}
                     showEditButton={showEdit}
                     goToEdit={handleEditPress}
                   />
@@ -235,9 +232,8 @@ export function PostScreenView({
                           editPost,
                           editingPost,
                           goBack,
-                          groupMembers,
+                          group,
                           handleGoToImage,
-                          headerMode,
                           negotiationMatch,
                           onPressDelete,
                           onPressRetry,
@@ -254,8 +250,7 @@ export function PostScreenView({
                         channelContext={{
                           editPost,
                           editingPost,
-                          groupMembers,
-                          headerMode,
+                          group,
                           negotiationMatch,
                           onPressDelete,
                           onPressRetry,
@@ -350,12 +345,11 @@ function useMarkThreadAsReadEffect(
 
 function SinglePostView({
   channel,
+  group,
   editPost,
   editingPost,
   goBack,
-  groupMembers,
   handleGoToImage,
-  headerMode,
   negotiationMatch,
   onPressDelete,
   onPressRetry,
@@ -371,16 +365,16 @@ function SinglePostView({
   ) => Promise<void>;
   editingPost?: db.Post;
   goBack?: () => void;
-  group?: db.Group | null;
-  groupMembers: db.ChatMember[];
+  group: db.Group | null;
   handleGoToImage?: (post: db.Post, uri?: string) => void;
-  headerMode: 'default' | 'next';
   negotiationMatch: boolean;
   onPressDelete: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => Promise<void>;
   parentPost: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
 }) {
+  const groupMembers = group?.members ?? [];
+  const groupRoles = group?.roles ?? [];
   const store = useStore();
   const { focusedPost } = useContext(FocusedPostContext);
   const isFocusedPost = focusedPost?.id === parentPost.id;
@@ -501,7 +495,6 @@ function SinglePostView({
           goBack={goBack}
           activeMessage={activeMessage}
           setActiveMessage={setActiveMessage}
-          headerMode={headerMode}
           editorIsFocused={false}
         />
       ) : null}
@@ -518,6 +511,7 @@ function SinglePostView({
               send={sendReply}
               channelId={channel.id}
               groupMembers={groupMembers}
+              groupRoles={groupRoles}
               {...bareInputDraftProps}
               editingPost={editingPost}
               setEditingPost={setEditingPost}
@@ -573,16 +567,10 @@ function SinglePostView({
             storeDraft={storeDraft}
             clearDraft={clearDraft}
             groupMembers={groupMembers}
+            groupRoles={groupRoles}
           />
         </View>
       ) : null}
-      {headerMode === 'next' && (
-        <ChannelFooter
-          showSearchButton={false}
-          title={'Thread: ' + channel.title}
-          goBack={goBack}
-        />
-      )}
     </YStack>
   );
 }
@@ -710,6 +698,7 @@ export function PresentationalCarouselPostScreenContent({
           initialNumToRender: 3,
           maxToRenderPerBatch: 3,
           windowSize: 3,
+          keyboardShouldPersistTaps: 'handled',
         }}
       >
         {carouselChildren}
