@@ -94,11 +94,11 @@
           [/said %channel-said ~]
           [/unreads %channel-unread-update ~]
         ::
-          [/v0 %channel-response ~]
+          [/v0 %channel-response %toggle-post ~]
           [/v0/said %channel-said ~]
           [/v0/unreads %channel-unread-update ~]
         ::
-          [/v1 %channel-response-2 ~]
+          [/v1 %channel-response-2 %toggle-post ~]
           [/v1/hooks/preview %hook-channel-preview ~]  ::REVIEW
           [/v1/said %channel-said ~]
           [/v1/unreads %channel-unread-update ~]

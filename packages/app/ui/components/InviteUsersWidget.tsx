@@ -13,9 +13,11 @@ const logger = createDevLogger('InviteUsersWidget', false);
 const InviteUsersWidgetComponent = ({
   group,
   onInviteComplete,
+  onScrollChange,
 }: {
   group: db.Group;
   onInviteComplete: () => void;
+  onScrollChange?: (scrolling: boolean) => void;
 }) => {
   const [loading, setLoading] = useState(false);
   const [invitees, setInvitees] = useState<string[]>([]);
@@ -58,6 +60,7 @@ const InviteUsersWidgetComponent = ({
           searchable
           searchPlaceholder="Filter by nickname, @p"
           onSelectedChange={setInvitees}
+          onScrollChange={onScrollChange}
         />
       </ActionSheet.ContentBlock>
       <ActionSheet.ContentBlock>
