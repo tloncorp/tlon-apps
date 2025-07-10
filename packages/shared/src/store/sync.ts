@@ -21,7 +21,7 @@ import { updateChannelSections } from './groupActions';
 import { verifyUserInviteLink } from './inviteActions';
 import { discoverContacts } from './lanyardActions';
 import { useLureState } from './lure';
-import { verifyPostDelivery } from './postActions';
+import { resendPendingPosts, verifyPostDelivery } from './postActions';
 import { Session, getSession, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
@@ -1429,7 +1429,7 @@ export async function syncChannelWithBackoff({
   channelId: string;
 }): Promise<boolean> {
   async function isStillPending() {
-    return (await db.getPendingPosts(channelId)).length > 0;
+    return (await db.getPendingPosts({ channelId })).length > 0;
   }
 
   const checkDelivered = async () => {
@@ -1676,6 +1676,8 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       });
 
     updateSession({ phase: 'ready' });
+
+    resendPendingPosts();
 
     // fire off relevant channel posts sync, but don't wait for it
     syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {

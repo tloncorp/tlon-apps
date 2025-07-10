@@ -34,7 +34,7 @@ export function setSession(newSession: Session) {
   triggerSessionListeners();
 }
 
-function subscribeToSession(listener: SessionListener) {
+export function subscribeToSession(listener: SessionListener) {
   sessionListeners.push(listener);
   return () => {
     sessionListeners.splice(sessionListeners.indexOf(listener), 1);

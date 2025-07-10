@@ -6,13 +6,28 @@ import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import * as urbit from '../urbit';
+import { sessionActionQueue } from './SessionActionQueue';
 import * as sync from './sync';
 import {
   deleteFromChannelPosts,
   rollbackDeletedChannelPost,
 } from './useChannelPosts';
 
-const logger = createDevLogger('postActions', false);
+export const logger = createDevLogger('postActions', false);
+
+export async function resendPendingPosts() {
+  const enqueuedPosts = await db.getEnqueuedPosts();
+  for (const post of enqueuedPosts) {
+    if (post.channel) {
+      await retrySendPost({
+        post,
+        channel: post.channel,
+      });
+    } else {
+      logger.warn('missing post channel', post.channelId);
+    }
+  }
+}
 
 export async function sendPost({
   channel,
@@ -52,12 +67,13 @@ export async function sendPost({
   logger.crumb('get author');
   const author = await db.getContact({ id: authorId });
   logger.crumb('build pending post');
-  const cachePost = db.buildPendingPost({
+  const cachePost = db.buildPost({
     authorId,
     author,
     channel,
     content,
     metadata,
+    deliveryStatus: 'enqueued',
   });
 
   let group: null | db.Group = null;
@@ -74,12 +90,15 @@ export async function sendPost({
   logger.crumb('done optimistic update');
   try {
     logger.crumb('sending post to backend');
-    await api.sendPost({
-      channelId: channel.id,
-      authorId,
-      content,
-      metadata: metadata,
-      sentAt: cachePost.sentAt,
+    await sessionActionQueue.add(async () => {
+      await db.updatePost({ id: cachePost.id, deliveryStatus: 'pending' });
+      return api.sendPost({
+        channelId: channel.id,
+        authorId,
+        content,
+        metadata: metadata,
+        sentAt: cachePost.sentAt,
+      });
     });
     logger.crumb('sent post to backend, syncing channel message delivery');
     sync.syncChannelMessageDelivery({ channelId: channel.id });
@@ -132,7 +151,7 @@ export async function retrySendPost({
     AnalyticsEvent.ActionSendPostRetry,
     logic.getModelAnalytics({ post, channel })
   );
-  if (post.deliveryStatus !== 'failed') {
+  if (post.deliveryStatus !== 'failed' && post.deliveryStatus !== 'enqueued') {
     console.error('Tried to retry send on non-failed post', post);
     return;
   }
@@ -151,7 +170,7 @@ export async function retrySendPost({
   }
 
   // optimistic update
-  await db.updatePost({ id: post.id, deliveryStatus: 'pending' });
+  await db.updatePost({ id: post.id, deliveryStatus: 'enqueued' });
 
   const content = JSON.parse(post.content as string) as PostContent;
   const story = toUrbitStory(content);
@@ -159,18 +178,21 @@ export async function retrySendPost({
   logger.log('retrySendPost: sending post', { post, story });
 
   try {
-    await api.sendPost({
-      channelId: post.channelId,
-      authorId: post.authorId,
-      content: story,
-      metadata:
-        post.image || post.title
-          ? {
-              title: post.title,
-              image: post.image,
-            }
-          : undefined,
-      sentAt: post.sentAt,
+    await sessionActionQueue.add(async () => {
+      await db.updatePost({ id: post.id, deliveryStatus: 'pending' });
+      return api.sendPost({
+        channelId: post.channelId,
+        authorId: post.authorId,
+        content: story,
+        metadata:
+          post.image || post.title
+            ? {
+                title: post.title,
+                image: post.image,
+              }
+            : undefined,
+        sentAt: post.sentAt,
+      });
     });
     await sync.syncChannelMessageDelivery({ channelId: post.channelId });
   } catch (e) {
@@ -243,7 +265,7 @@ export async function editPost({
   await db.updatePost({
     id: post.id,
     content: JSON.stringify(contentForDb),
-    editStatus: 'pending',
+    editStatus: 'enqueued',
     lastEditContent: JSON.stringify(contentForDb),
     lastEditTitle: metadata?.title,
     lastEditImage: metadata?.image,
@@ -252,14 +274,17 @@ export async function editPost({
   logger.log('editPost optimistic update done');
 
   try {
-    await api.editPost({
-      channelId: post.channelId,
-      postId: post.id,
-      authorId: post.authorId,
-      sentAt: post.sentAt,
-      content,
-      metadata,
-      parentId,
+    await sessionActionQueue.add(async () => {
+      await db.updatePost({ id: post.id, editStatus: 'pending' });
+      return api.editPost({
+        channelId: post.channelId,
+        postId: post.id,
+        authorId: post.authorId,
+        sentAt: post.sentAt,
+        content,
+        metadata,
+        parentId,
+      });
     });
     logger.log('editPost api call done');
     await db.updatePost({
@@ -301,12 +326,13 @@ export async function sendReply({
   // optimistic update
   // TODO: make author available more efficiently
   const author = await db.getContact({ id: authorId });
-  const cachePost = db.buildPendingPost({
+  const cachePost = db.buildPost({
     authorId,
     author,
     channel: channel,
     content,
     parentId,
+    deliveryStatus: 'enqueued',
   });
   await db.insertChannelPosts({ channelId: channel.id, posts: [cachePost] });
   await db.addReplyToPost({
@@ -327,14 +353,16 @@ export async function sendReply({
 
   try {
     logger.crumb('sending reply to backend');
-    api.sendReply({
-      channelId: channel.id,
-      parentId,
-      parentAuthor,
-      authorId,
-      content,
-      sentAt: cachePost.sentAt,
-    });
+    sessionActionQueue.add(() =>
+      api.sendReply({
+        channelId: channel.id,
+        parentId,
+        parentAuthor,
+        authorId,
+        content,
+        sentAt: cachePost.sentAt,
+      })
+    );
     sync.syncChannelMessageDelivery({ channelId: channel.id });
   } catch (e) {
     logger.crumb('failed to send reply');
@@ -355,7 +383,7 @@ export async function hidePost({ post }: { post: db.Post }) {
   await db.updatePost({ id: post.id, hidden: true });
 
   try {
-    await api.hidePost(post);
+    await sessionActionQueue.add(() => api.hidePost(post));
   } catch (e) {
     console.error('Failed to hide post', e);
 
@@ -369,7 +397,7 @@ export async function showPost({ post }: { post: db.Post }) {
   await db.updatePost({ id: post.id, hidden: false });
 
   try {
-    await api.showPost(post);
+    await sessionActionQueue.add(() => api.showPost(post));
   } catch (e) {
     console.error('Failed to show post', e);
 
@@ -389,11 +417,14 @@ export async function deletePost({ post }: { post: db.Post }) {
   // optimistic update
   deleteFromChannelPosts(post);
   await db.markPostAsDeleted(post.id);
-  await db.updatePost({ id: post.id, deleteStatus: 'pending' });
+  await db.updatePost({ id: post.id, deleteStatus: 'enqueued' });
   await db.updateChannel({ id: post.channelId, lastPostId: null });
 
   try {
-    await api.deletePost(post.channelId, post.id, post.authorId);
+    await db.updatePost({ id: post.id, deleteStatus: 'pending' });
+    await sessionActionQueue.add(() =>
+      api.deletePost(post.channelId, post.id, post.authorId)
+    );
     await db.updatePost({ id: post.id, deleteStatus: 'sent' });
   } catch (e) {
     console.error('Failed to delete post', e);
@@ -428,9 +459,11 @@ export async function reportPost({
 
   // optimistic update
   await db.updatePost({ id: post.id, hidden: true });
-
+  const groupId = post.groupId;
   try {
-    await api.reportPost(userId, post.groupId, post.channelId, post);
+    await sessionActionQueue.add(() =>
+      api.reportPost(userId, groupId, post.channelId, post)
+    );
     await hidePost({ post });
   } catch (e) {
     console.error('Failed to report post', e);
@@ -463,13 +496,15 @@ export async function addPostReaction(
   });
 
   try {
-    await api.addReaction({
-      channelId: post.channelId,
-      postId: post.id,
-      emoji,
-      our: currentUserId,
-      postAuthor: post.authorId,
-    });
+    await sessionActionQueue.add(() =>
+      api.addReaction({
+        channelId: post.channelId,
+        postId: post.id,
+        emoji,
+        our: currentUserId,
+        postAuthor: post.authorId,
+      })
+    );
   } catch (e) {
     console.error('Failed to add post reaction', e);
     logger.trackEvent(AnalyticsEvent.ErrorReact, {
@@ -551,12 +586,14 @@ export async function removePostReaction(post: db.Post, currentUserId: string) {
   await db.deletePostReaction({ postId: post.id, contactId: currentUserId });
 
   try {
-    await api.removeReaction({
-      channelId: post.channelId,
-      postId: post.id,
-      our: currentUserId,
-      postAuthor: post.authorId,
-    });
+    await sessionActionQueue.add(() =>
+      api.removeReaction({
+        channelId: post.channelId,
+        postId: post.id,
+        our: currentUserId,
+        postAuthor: post.authorId,
+      })
+    );
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.ErrorUnreact, {
       errorMessage: e.message,

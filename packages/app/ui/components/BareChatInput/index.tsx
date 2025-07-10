@@ -13,6 +13,7 @@ import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import {
   Block,
+  Inline,
   Story,
   citeToPath,
   constructStory,
@@ -20,6 +21,7 @@ import {
 } from '@tloncorp/shared/urbit';
 import { LoadingSpinner, useGlobalSearch } from '@tloncorp/ui';
 import { RawText, Text } from '@tloncorp/ui';
+import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,6 +38,7 @@ import { View } from 'tamagui';
 
 import {
   Attachment,
+  FinalizedAttachment,
   TextAttachment,
   UploadedImageAttachment,
   useAttachmentContext,
@@ -271,13 +274,10 @@ export default function BareChatInput({
 
   usePasteHandler(addAttachment);
 
-  const [isSending, setIsSending] = useState(false);
   const [linkMetaLoading, setLinkMetaLoading] = useState(false);
   // Track current input session to cancel stale link previews
   const inputSessionRef = useRef(0);
-  const disableSend = useMemo(() => {
-    return editorIsEmpty || isSending;
-  }, [editorIsEmpty, isSending]);
+  const disableSend = editorIsEmpty;
 
   const processReferences = useCallback(
     (text: string): string => {
@@ -470,92 +470,22 @@ export default function BareChatInput({
     async (isEdit?: boolean) => {
       const jsonContent = textAndMentionsToContent(controlledText, mentions);
       const inlines = JSONToInlines(jsonContent);
-      const story = constructStory(inlines);
-      const metadata: db.PostMetadata = {};
-
+      let attachments: FinalizedAttachment[];
       try {
-        const finalAttachments = await waitForAttachmentUploads();
-
-        const blocks = finalAttachments
-          .filter((attachment) => attachment.type !== 'text')
-          .flatMap((attachment): Block[] => {
-            if (attachment.type === 'reference') {
-              const cite = pathToCite(attachment.path);
-              return cite ? [{ cite }] : [];
-            }
-            if (
-              attachment.type === 'image' &&
-              (!image || attachment.file.uri !== image?.uri)
-            ) {
-              return [
-                {
-                  image: {
-                    src: attachment.uploadState.remoteUri,
-                    height: attachment.file.height,
-                    width: attachment.file.width,
-                    alt: 'image',
-                  },
-                },
-              ];
-            }
-
-            if (
-              image &&
-              attachment.type === 'image' &&
-              attachment.file.uri === image?.uri &&
-              isEdit &&
-              channelType === 'gallery'
-            ) {
-              return [
-                {
-                  image: {
-                    src: image.uri,
-                    height: image.height,
-                    width: image.width,
-                    alt: 'image',
-                  },
-                },
-              ];
-            }
-
-            if (attachment.type === 'link') {
-              const { url, type, resourceType, ...meta } = attachment;
-              return [
-                {
-                  link: {
-                    url,
-                    meta,
-                  },
-                },
-              ];
-            }
-
-            return [];
-          });
-
-        if (blocks && blocks.length > 0) {
-          if (channelType === 'chat') {
-            story.unshift(...blocks.map((block) => ({ block })));
-          } else {
-            story.push(...blocks.map((block) => ({ block })));
-          }
-        }
-
-        if (image) {
-          const attachment = finalAttachments.find(
-            (a): a is UploadedImageAttachment =>
-              a.type === 'image' && a.file.uri === image.uri
-          );
-          if (!attachment) {
-            throw new Error('unable to attach image');
-          }
-          metadata['image'] = attachment.uploadState.remoteUri;
-        }
+        attachments = await waitForAttachmentUploads();
       } catch (e) {
         bareChatInputLogger.error('Error processing attachments', e);
         setSendError(true);
         return;
       }
+
+      const { story, metadata } = toPostData({
+        inlines,
+        attachments,
+        image,
+        isEdit,
+        channelType,
+      });
 
       try {
         // Cancel any pending link preview requests
@@ -617,13 +547,11 @@ export default function BareChatInput({
   const runSendMessage = useCallback(
     async (isEdit: boolean) => {
       try {
-        setIsSending(true);
         await sendMessage(isEdit);
       } catch (e) {
         bareChatInputLogger.trackError('failed to send', e);
         setSendError(true);
       } finally {
-        setIsSending(false);
         setTimeout(() => {
           // allow some time for send errors to be displayed
           // before clearing the error state
@@ -930,7 +858,6 @@ export default function BareChatInput({
       setShouldBlur={setShouldBlur}
       containerHeight={48}
       disableSend={disableSend}
-      isSending={isSending}
       sendError={sendError}
       showWayfindingTooltip={showWayfindingTooltip}
       isMentionModeActive={isMentionModeActive}
@@ -1016,4 +943,99 @@ export default function BareChatInput({
       </YStack>
     </MessageInputContainer>
   );
+}
+
+function toPostData({
+  attachments,
+  inlines,
+  image,
+  channelType,
+  isEdit,
+}: {
+  inlines: (Inline | Block)[];
+  attachments: FinalizedAttachment[];
+  image?: ImagePickerAsset;
+  channelType: db.ChannelType;
+  isEdit?: boolean;
+}): { story: Story; metadata: db.PostMetadata } {
+  const blocks = attachments
+    .filter((attachment) => attachment.type !== 'text')
+    .flatMap((attachment): Block[] => {
+      if (attachment.type === 'reference') {
+        const cite = pathToCite(attachment.path);
+        return cite ? [{ cite }] : [];
+      }
+      if (
+        attachment.type === 'image' &&
+        (!image || attachment.file.uri !== image?.uri)
+      ) {
+        return [
+          {
+            image: {
+              src: attachment.uploadState.remoteUri,
+              height: attachment.file.height,
+              width: attachment.file.width,
+              alt: 'image',
+            },
+          },
+        ];
+      }
+
+      if (
+        image &&
+        attachment.type === 'image' &&
+        attachment.file.uri === image?.uri &&
+        isEdit &&
+        channelType === 'gallery'
+      ) {
+        return [
+          {
+            image: {
+              src: image.uri,
+              height: image.height,
+              width: image.width,
+              alt: 'image',
+            },
+          },
+        ];
+      }
+
+      if (attachment.type === 'link') {
+        const { url, type, resourceType, ...meta } = attachment;
+        return [
+          {
+            link: {
+              url,
+              meta,
+            },
+          },
+        ];
+      }
+
+      return [];
+    });
+
+  const story = constructStory(inlines);
+  const metadata: db.PostMetadata = {};
+
+  if (blocks && blocks.length > 0) {
+    if (channelType === 'chat') {
+      story.unshift(...blocks.map((block) => ({ block })));
+    } else {
+      story.push(...blocks.map((block) => ({ block })));
+    }
+  }
+
+  if (image) {
+    const attachment = attachments.find(
+      (a): a is UploadedImageAttachment =>
+        a.type === 'image' && a.file.uri === image.uri
+    );
+    if (!attachment) {
+      throw new Error('unable to attach image');
+    }
+    metadata['image'] = attachment.uploadState.remoteUri;
+  }
+
+  return { story, metadata };
 }
