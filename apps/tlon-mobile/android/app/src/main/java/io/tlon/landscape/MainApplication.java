@@ -21,9 +21,6 @@ import io.tlon.landscape.storage.SecureStorage;
 
 import io.branch.rnbranch.RNBranchModule;
 
-import com.posthog.android.PostHogAndroid;
-import com.posthog.android.PostHogAndroidConfig;
-
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.List;
