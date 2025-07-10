@@ -58,7 +58,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %8
+    $:  %9
         =v-channels:c
         =hooks:h
         =pimp:imp
@@ -148,12 +148,14 @@
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
   =?  old  ?=(%6 -.old)  (state-6-to-7 old)
   =?  old  ?=(%7 -.old)  (state-7-to-8 old)
-  ?>  ?=(%8 -.old)
+  =?  old  ?=(%8 -.old)  (state-8-to-9 old)
+  ?>  ?=(%9 -.old)
   =.  state  old
   inflate-io
   ::
   +$  versioned-state
-    $%  state-8
+    $%  state-9
+        state-8
         state-7
         state-6
         state-5
@@ -163,7 +165,13 @@
         state-1
         state-0
     ==
-  +$  state-8  current-state
+  +$  state-9  current-state
+  +$  state-8
+    $:  %8
+        =v-channels:c
+        =hooks:h
+        =pimp:imp
+    ==
   +$  state-7
     $:  %7
         =v-channels:v7:old:c
@@ -175,6 +183,22 @@
       =v-channels:v7:old:c
       =pimp:imp
     ==
+  ++  state-8-to-9
+    |=  s=state-8
+    ^-  state-9
+    =-  s(- %9, v-channels -)
+    %-  ~(run by v-channels.s)
+    |=  v=v-channel:c
+    ^+  v
+    %+  roll  (tap:log-on:c log.v)
+    |=  $:  [t=time u=u-channel:c]
+            chan=_v
+        ==
+    ?.  ?=([%post * %set ~] u)  chan
+    ~?  ?=([~ ~ *] (get:on-v-posts:c posts.chan id.u))
+      %strange-existing-deleted-posts
+    =-  chan(posts -)
+    (put:on-v-posts:c posts.chan id.u ~)
   ++  state-7-to-8
     |=  s=state-7
     ^-  state-8
@@ -370,11 +394,25 @@
       %noun
     ?+  q.vase  !!
         %pimp-ready
+      ?>  =(our src):bowl
       ?-  pimp
         ~         cor(pimp `&+~)
         [~ %& *]  cor
         [~ %| *]  (run-import p.u.pimp)
       ==
+    ::
+        [%send-sequence-numbers *]
+      =+  !<([%send-sequence-numbers =nest:c] vase)
+      ?~  can=(~(get by v-channels) nest)  cor
+      =;  =cage
+        (emit [%pass /numbers %agent [src.bowl %channels] %poke cage])
+      :-  %noun
+      !>  :^  %sequence-numbers  nest
+        count.u.can
+      ^-  (list [id-post:c (unit @ud)])
+      %+  turn  (tap:on-v-posts:c posts.u.can)
+      |=  [i=id-post:c p=(unit v-post:c)]
+      [i ?~(p ~ `seq.u.p)]
     ==
   ::
       %channel-command
@@ -552,9 +590,10 @@
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
   ?+    pole  ~|(bad-agent-wire+pole !!)
-    [%logs ~]  cor
-    [%pimp ~]  cor
-    [%wake ~]  cor
+    [%logs ~]     cor
+    [%pimp ~]     cor
+    [%wake ~]     cor
+    [%numbers ~]  cor
   ::
       [=kind:c *]
     ?+    -.sign  !!
