@@ -30,6 +30,7 @@ export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
 
   for (const memberId of memberIds) {
     await page.getByPlaceholder('Filter by nickname').fill(memberId);
+    await page.waitForTimeout(2000);
     await page.getByTestId('ContactRow').first().click();
   }
 
@@ -732,6 +733,7 @@ export async function createDirectMessage(page: Page, contactId: string) {
   await expect(page.getByText('Select a contact to chat with')).toBeVisible();
   await page.getByPlaceholder('Filter by nickname or id').click();
   await page.getByPlaceholder('Filter by nickname or id').fill(contactId);
+  await page.waitForTimeout(2000);
   await page.getByTestId('ContactRow').first().click();
 
   // Wait for DM to open
