@@ -2530,6 +2530,7 @@ export const getSequencedChannelPosts = createReadQuery(
   'getSequencedChannelPosts',
   async (options: GetPostsOptions, ctx: QueryCtx): Promise<Post[]> => {
     seqLogger.log('getting sequenced channel posts', options);
+    const count = options.count || 50;
     if (options.mode !== 'newest' && !options.cursorSequenceNum) {
       throw new Error(
         'cursorSequenceNum is required for mode other than newest'
@@ -2544,7 +2545,7 @@ export const getSequencedChannelPosts = createReadQuery(
           not(eq($posts.type, 'reply'))
         ),
         orderBy: [desc($posts.sequenceNum)],
-        limit: options.count ? options.count * 2 : 50,
+        limit: count,
       });
       seqLogger.log(`grabbed newest ${dbPosts.length} db posts`, dbPosts);
 
@@ -2573,7 +2574,7 @@ export const getSequencedChannelPosts = createReadQuery(
         newestContiguousPosts
       );
 
-      return newestContiguousPosts;
+      return newestContiguousPosts.slice(0, count);
     }
 
     // mode: older
@@ -2585,7 +2586,7 @@ export const getSequencedChannelPosts = createReadQuery(
           lt($posts.sequenceNum, options.cursorSequenceNum)
         ),
         orderBy: [desc($posts.sequenceNum)],
-        limit: options.count || 50,
+        limit: count,
       });
       seqLogger.log(
         `grabbed ${dbPosts.length} db posts older than ${options.cursorSequenceNum}`,
@@ -2617,7 +2618,7 @@ export const getSequencedChannelPosts = createReadQuery(
         if (post.sequenceNum !== seq - 1) {
           break;
         }
-        contiguousOlderPosts.push(post);
+        contiguousOlderPosts.unshift(post);
         seq--;
       }
 
@@ -2638,7 +2639,7 @@ export const getSequencedChannelPosts = createReadQuery(
           gt($posts.sequenceNum, options.cursorSequenceNum)
         ),
         orderBy: [asc($posts.sequenceNum)],
-        limit: options.count || 50,
+        limit: count,
       });
       seqLogger.log(
         `grabbed ${dbPosts.length} db posts newer than ${options.cursorSequenceNum}`,
@@ -2684,7 +2685,7 @@ export const getSequencedChannelPosts = createReadQuery(
 
     // mode: around
     if (options.mode === 'around' && options.cursorSequenceNum) {
-      const halfWindow = Math.ceil((options.count || 50) / 2);
+      const halfWindow = Math.ceil(count / 2);
       const upperBound = options.cursorSequenceNum + halfWindow;
       const lowerBound = Math.max(options.cursorSequenceNum - halfWindow, 0);
 
@@ -2718,7 +2719,7 @@ export const getSequencedChannelPosts = createReadQuery(
       }
 
       // Get posts newer than the cursor (they come before cursor in desc order)
-      const newerCandidates = dbPosts.slice(0, cursorIndex);
+      const newerCandidates = dbPosts.slice(0, cursorIndex).reverse();
       const contiguousNewerPosts: Post[] = [];
 
       // Build contiguous newer posts (working backwards from cursor + 1)
@@ -2745,10 +2746,16 @@ export const getSequencedChannelPosts = createReadQuery(
         expectedSeq--;
       }
 
+      const newerToTake = Math.min(contiguousNewerPosts.length, halfWindow);
+      const olderToTake = Math.min(
+        contiguousOlderPosts.length,
+        count - 1 - newerToTake
+      );
+
       const aroundPosts = [
-        ...contiguousNewerPosts.reverse(), // Reverse because we want newest first
+        ...contiguousNewerPosts.slice(0, newerToTake).reverse(),
         dbPosts[cursorIndex],
-        ...contiguousOlderPosts,
+        ...contiguousOlderPosts.slice(0, olderToTake),
       ];
 
       seqLogger.log(
