@@ -1,6 +1,7 @@
 package io.tlon.landscape.notifications
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -30,7 +31,25 @@ import kotlin.coroutines.suspendCoroutine
 const val MAX_CACHED_CONVERSATION_LENGTH = 15
 val notificationMessagesCache = HashMap<String, Array<NotificationCompat.MessagingStyle.Message>>();
 
+private const val NOTIFICATION_MANAGER = "NotificationManager"
+
 suspend fun processNotification(context: Context, uid: String, originalPayload: RemoteMessage? = null) {
+    // Check permissions
+    if (ActivityCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) != PackageManager.PERMISSION_GRANTED
+    ) {
+        NotificationLogger.logError(
+            getLogPayload(
+                uid,
+                "Lacking notification permissions"
+            )
+        )
+        Log.w(NOTIFICATION_MANAGER, "Cannot show notification - no permission")
+        return
+    }
+
     val api = TalkApi(context)
     var activityEvent: JSONObject? = null
 
@@ -42,61 +61,48 @@ suspend fun processNotification(context: Context, uid: String, originalPayload: 
             })
         }
     } catch (e: Exception) {
-        NotificationLogger.logNotificationEvent("notification_api_fetch_failed", mapOf(
-            "uid" to uid,
-            "error" to e.message.orEmpty()
-        ))
+        val message = "Activity event fetch failed"
+        NotificationLogger.logError(getLogPayload(uid, message, e))
         // Fall back to basic notification with original payload
-        showFallbackNotification(context, uid, originalPayload, "API fetch failed")
+        showFallbackNotification(context, uid, originalPayload, message)
         return
     }
 
     if (activityEvent == null) {
-        NotificationLogger.logNotificationEvent("notification_activity_event_null", mapOf(
-            "uid" to uid
-        ))
-        showFallbackNotification(context, uid, originalPayload, "No activity event")
+        val message = "Activity event missing";
+        NotificationLogger.logError(getLogPayload(uid, message))
+        showFallbackNotification(context, uid, originalPayload, message)
         return
     }
 
     val preview = try {
         renderPreview(context, activityEvent.toString())
     } catch (e: Exception) {
-        NotificationLogger.logNotificationEvent("notification_preview_render_failed", mapOf(
-            "uid" to uid,
-            "error" to e.message.orEmpty()
-        ))
-        showFallbackNotification(context, uid, originalPayload, "Preview render failed", activityEvent)
+        val message = "Preview render failed"
+        NotificationLogger.logError(getLogPayload(uid, message, e))
+        showFallbackNotification(context, uid, originalPayload, message, activityEvent)
         return
     }
 
     if (preview == null) {
-        NotificationLogger.logNotificationEvent(
-            "notification_preview_null", mapOf(
-                "uid" to uid
-            )
-        )
-        showFallbackNotification(context, uid, originalPayload, "Preview is null", activityEvent)
+        val message = "Preview is null"
+        NotificationLogger.logError(getLogPayload(uid, message))
+        showFallbackNotification(context, uid, originalPayload, message, activityEvent)
         return
     }
 
     try {
         // Proceed with rich notification
         showRichNotification(context, uid, preview, activityEvent)
-        NotificationLogger.logNotificationEvent("notification_delivered_rich", mapOf(
-            "uid" to uid,
-            "title" to (preview.title ?: ""),
-            "isGroup" to (preview.messagingMetadata?.isGroupConversation?.toString() ?: "false")
-        ))
+        NotificationLogger.logDelivery(mapOf("uid" to uid, "message" to "Rich notification delivered"))
     } catch (e: Exception) {
-        NotificationLogger.logNotificationEvent("notification_rich_display_failed", mapOf(
-            "uid" to uid,
-            "error" to e.message.orEmpty()
-        ))
-        showFallbackNotification(context, uid, originalPayload, "Rich notification failed", activityEvent)
+        val message = "Rich notification display failed"
+        NotificationLogger.logError(getLogPayload(uid, message, e))
+        showFallbackNotification(context, uid, originalPayload, message, activityEvent)
     }
 }
 
+@SuppressLint("MissingPermission")
 private fun showRichNotification(context: Context, uid: String, preview: ActivityEventPreview, activityEvent: JSONObject) {
     val extras = Bundle()
     extras.putString("activityEventJsonString", activityEvent.toString())
@@ -107,7 +113,7 @@ private fun showRichNotification(context: Context, uid: String, preview: Activit
     val text = preview.body
     val isGroupConversation = preview.messagingMetadata?.isGroupConversation ?: false
 
-    Log.d("NotificationManager", "sendNotification: $id $title $text $isGroupConversation")
+    Log.d(NOTIFICATION_MANAGER, "sendNotification: $id $title $text $isGroupConversation")
 
     val tapIntent = Intent(context, MainActivity::class.java)
     tapIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -166,23 +172,10 @@ private fun showRichNotification(context: Context, uid: String, preview: Activit
         builder.setStyle(notifStyle)
     }
 
-    // Check permissions before proceeding
-    if (ActivityCompat.checkSelfPermission(
-            context,
-            Manifest.permission.POST_NOTIFICATIONS
-        ) != PackageManager.PERMISSION_GRANTED
-    ) {
-        NotificationLogger.logNotificationEvent("notification_permission_denied", mapOf(
-            "uid" to uid
-        ))
-        // Could still show fallback, but permissions are required
-        Log.w("NotificationManager", "No notification permission for uid: $uid")
-        return
-    }
-
     NotificationManagerCompat.from(context).notify(preview.groupingKey?.hashCode() ?: id, builder.build())
 }
 
+@SuppressLint("MissingPermission")
 private fun showFallbackNotification(
     context: Context,
     uid: String,
@@ -190,16 +183,6 @@ private fun showFallbackNotification(
     reason: String,
     activityEvent: JSONObject? = null
 ) {
-    // Check permissions
-    if (ActivityCompat.checkSelfPermission(
-            context,
-            Manifest.permission.POST_NOTIFICATIONS
-        ) != PackageManager.PERMISSION_GRANTED
-    ) {
-        Log.w("NotificationManager", "Cannot show fallback notification - no permission")
-        return
-    }
-
     val bundle = originalPayload?.toBasicBundle();
     val id = UvParser.getIntCompatibleFromUv(uid)
 
@@ -236,19 +219,27 @@ private fun showFallbackNotification(
 
     try {
         NotificationManagerCompat.from(context).notify(id, builder.build())
-        NotificationLogger.logNotificationEvent("notification_delivered_fallback", mapOf(
+        NotificationLogger.logDelivery(mapOf(
             "uid" to uid,
-            "reason" to reason
+            "message" to "Fallback notification delivered"
         ))
-        Log.i("NotificationManager", "Showed fallback notification for uid: $uid, reason: $reason")
+        Log.i(NOTIFICATION_MANAGER, "Showed fallback notification for uid: $uid, reason: $reason")
     } catch (e: Exception) {
-        NotificationLogger.logNotificationEvent("notification_fallback_failed", mapOf(
-            "uid" to uid,
-            "reason" to reason,
-            "error" to e.message.orEmpty()
-        ))
-        Log.e("NotificationManager", "Failed to show fallback notification", e)
+        val message = "Failed to display fallback notification"
+        NotificationLogger.logError(getLogPayload(uid, message, e))
+        Log.e(NOTIFICATION_MANAGER, message, e)
     }
+}
+
+private fun getLogPayload(uid: String, message: String, e: Exception? = null): Map<String, String> {
+    val payload = mutableMapOf("uid" to uid, "message" to message);
+    if (e != null) {
+        payload["errorMessage"] = e.message.orEmpty()
+        payload["errorStack"] = e.stackTrace.toString()
+        payload["errorType"] = e.cause.toString()
+    }
+
+    return payload;
 }
 
 fun RemoteMessage.toBasicBundle(): Bundle {

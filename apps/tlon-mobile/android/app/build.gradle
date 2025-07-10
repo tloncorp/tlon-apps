@@ -122,10 +122,6 @@ android {
         compileSdk rootProject.ext.compileSdkVersion
         versionCode 108
         versionName "6.0.0"
-        
-        // PostHog configuration from environment variables
-        buildConfigField("String", "POSTHOG_API_KEY", "\"${findProperty('posthog.apiKey') ?: ''}\"")
-        buildConfigField("String", "POSTHOG_HOST", "\"${findProperty('posthog.host') ?: 'https://eu.i.posthog.com'}\"")
     }
     signingConfigs {
         debug {
