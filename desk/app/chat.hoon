@@ -1,5 +1,5 @@
 /-  c=chat, d=channels, g=groups, u=ui, e=epic, activity, meta
-/-  old-3=chat-3, old-2=chat-2
+/-  old-4=chat-4, old-3=chat-3, old-2=chat-2
 /-  ha=hark
 /-  contacts-0
 /+  default-agent, verb-lib=verb, dbug,
@@ -21,13 +21,16 @@
 /%  m-chat-paged-writs     %chat-paged-writs
 /%  m-chat-scam            %chat-scam
 /%  m-chat-scam-1          %chat-scam-1
+/%  m-chat-scam-2          %chat-scam-2
 /%  m-chat-scan            %chat-scan
 /%  m-chat-scan-1          %chat-scan-1
+/%  m-chat-scan-2          %chat-scan-2
 /%  m-chat-toggle-message  %chat-toggle-message
 /%  m-chat-unblocked-by    %chat-unblocked-by
 /%  m-chat-unread-update   %chat-unread-update
 /%  m-chat-unreads         %chat-unreads
 /%  m-chat-writ-1          %chat-writ-1
+/%  m-chat-writ-2          %chat-writ-2
 /%  m-clubs                %clubs
 /%  m-epic                 %epic
 /%  m-hidden-messages      %hidden-messages
@@ -35,6 +38,7 @@
 /%  m-writ                 %writ
 /%  m-writ-response        %writ-response
 /%  m-writ-response-1      %writ-response-1
+/%  m-writ-response-2      %writ-response-2
 ::
 /*  desk-bill  %bill  /desk/bill  ::  keep warm
 ::
@@ -49,13 +53,16 @@
             :+  %chat-paged-writs     &  -:!>(*vale:m-chat-paged-writs)
             :+  %chat-scam            &  -:!>(*vale:m-chat-scam)
             :+  %chat-scam-1          &  -:!>(*vale:m-chat-scam-1)
+            :+  %chat-scam-2          &  -:!>(*vale:m-chat-scam-2)
             :+  %chat-scan            &  -:!>(*vale:m-chat-scan)
             :+  %chat-scan-1          &  -:!>(*vale:m-chat-scan-1)
+            :+  %chat-scan-2          &  -:!>(*vale:m-chat-scan-2)
             :+  %chat-toggle-message  &  -:!>(*vale:m-chat-toggle-message)
             :+  %chat-unblocked-by    &  -:!>(*vale:m-chat-unblocked-by)
             :+  %chat-unread-update   &  -:!>(*vale:m-chat-unread-update)
             :+  %chat-unreads         &  -:!>(*vale:m-chat-unreads)
             :+  %chat-writ-1          &  -:!>(*vale:m-chat-writ-1)
+            :+  %chat-writ-2          &  -:!>(*vale:m-chat-writ-2)
             :+  %clubs                &  -:!>(*vale:m-clubs)
             :+  %epic                 &  -:!>(*vale:m-epic)
             :+  %hidden-messages      &  -:!>(*vale:m-hidden-messages)
@@ -63,6 +70,7 @@
             :+  %writ                 &  -:!>(*vale:m-writ)
             :+  %writ-response        &  -:!>(*vale:m-writ-response)
             :+  %writ-response-1      &  -:!>(*vale:m-writ-response-1)
+            :+  %writ-response-2      &  -:!>(*vale:m-writ-response-2)
         ==
       ::  facts
       ::
@@ -78,6 +86,11 @@
           [/v1/club/$ %writ-response-1 ~]
           [/v1/clubs %chat-club-action-1 ~]
           [/v1/dm/$ %writ-response-1 ~]
+        ::
+          [/v2 %chat-club-action-1 %writ-response-2 ~]
+          [/v2/club/$ %writ-response-2 ~]
+          [/v2/clubs %chat-club-action-1 ~]
+          [/v2/dm/$ %writ-response-2 ~]
       ==
     ::  scries
     ::
@@ -98,7 +111,9 @@
         [/x/old %noun]
         [/x/unreads %chat-unreads]
       ::
-        [/x/v1/club/$/writs %chat-paged-writs]
+        [/x/v1/club/$/search %chat-scan-1]
+        [/x/v1/club/$/search/bounded %chat-scam-1]
+        [/x/v1/club/$/writs %chat-paged-writs-1]
         [/x/v1/club/$/writs/writ %chat-writ-1]
         [/x/v1/dm/$/search %chat-scan-1]
         [/x/v1/dm/$/search/bounded %chat-scam-1]
@@ -106,6 +121,16 @@
         [/x/v1/dm/$/writs/writ %chat-writ-1]
         [/x/v1/heads %chat-heads-1]
         [/x/v1/init %noun]
+      ::
+        [/x/v2/club/$/search %chat-scan-2]
+        [/x/v2/club/$/search/bounded %chat-scam-2]
+        [/x/v2/club/$/writs %chat-paged-writs-2]
+        [/x/v2/club/$/writs/writ %chat-writ-2]
+        [/x/v2/dm/$/search %chat-scan-2]
+        [/x/v2/dm/$/search/bounded %chat-scam-2]
+        [/x/v2/dm/$/writs %chat-paged-writs-2]
+        [/x/v2/dm/$/writs/writ %chat-writ-2]
+        [/x/v2/heads %chat-heads-2]
     ==
 ::
 %-  %-  agent:neg
@@ -128,7 +153,7 @@
     ==
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   +$  current-state
-    $:  %8
+    $:  %9
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
         pins=(list whom:c)
@@ -225,11 +250,13 @@
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
   =?  old  ?=(%6 -.old)  (state-6-to-7 old)
   =?  old  ?=(%7 -.old)  (state-7-to-8 old)
-  ?>  ?=(%8 -.old)
+  =?  old  ?=(%8 -.old)  (state-8-to-9 old)
+  ?>  ?=(%9 -.old)
   (emil(state old) (drop load:epos))
   ::
   +$  versioned-state
-    $%  state-8
+    $%  state-9
+        state-8
         state-7
         state-6
         state-5
@@ -325,11 +352,63 @@
         old-chats=(map flag:old-2 chat:old-2)  :: for migration
         old-pins=(list whom:old-2)
     ==
-  +$  state-8  current-state
+  +$  state-8
+    $:  %8
+        dms=(map ship dm:four)
+        clubs=(map id:club:four club:four)
+        pins=(list whom:four)
+        sends=(map whom:four (qeu sent-id))
+        blocked=(set ship)
+        blocked-by=(set ship)
+        hidden-messages=(set id:four)
+        old-chats=(map flag:old-2 chat:old-2)  :: for migration
+        old-pins=(list whom:old-2)
+    ==
+  +$  state-9  current-state
   ::
   ++  two      old-2
   ++  three    old-3
-  ++  four     c
+  ++  four     old-4
+  ++  five     c
+  ::
+  ++  state-8-to-9
+    |=  state-8
+    ^-  state-9
+    :*  %9
+        (~(run by dms) dm-8-to-9)
+        (~(run by clubs) club-8-to-9)
+        pins
+        sends
+        blocked
+        blocked-by
+        hidden-messages
+        old-chats
+        old-pins
+    ==
+  ++  club-8-to-9
+    |=  =club:four
+    ^-  club:five
+    club(pact (pact-8-to-9 pact.club))
+  ++  dm-8-to-9
+    |=  =dm:four
+    ^-  dm:five
+    dm(pact (pact-8-to-9 pact.dm))
+  ++  pact-8-to-9
+    |=  =pact:four
+    ^-  pact:five
+    =;  [num=@ud writs=(list [time writ:five])]
+      [num (gas:on:writs:five ~ writs) dex.pact]
+    %+  roll  (tap:on:writs:four wit.pact)
+    |=  [[=time =writ:four] num=@ud writs=(list [time writ:five])]
+    ^+  [num writs]
+    =.  num  +(num)
+    :-  num
+    [[time (writ-8-to-9 num writ)] writs]
+  ++  writ-8-to-9
+    |=  [seq=@ud =writ:old-4]
+    ^-  writ:c
+    =,  -.writ
+    [[id seq time reacts replies reply-meta] +.writ]
   ::
   ++  state-7-to-8
     |=  state-7
@@ -668,7 +747,10 @@
         cor
       =/  bak=_cor
         (load -:!>(*[versioned-state:load @ud]) q.old-state.egg-any)
-      ::  restore previous data, doing a "deep merge" where possible
+      ::  restore previous data, doing a "deep merge" where possible.
+      ::  in doing so we must take care around sequence numbers.
+      ::  to keep that logic simple, we merge the message lists and
+      ::  re-number all the messages in sequence.
       ::
       =.  dms
         %+  roll  ~(tap by dms:bak)
@@ -677,7 +759,15 @@
         ?.  (~(has by dms) ship)
           dm
         =/  hav  (~(got by dms) ship)
-        :*  :-  (uni:on:writs:c wit.pact.dm wit.pact.hav)
+        =/  [num=@ud wit=writs:c]
+          %^  (dip:on:writs:c ,@ud)
+              (uni:on:writs:c wit.pact.dm wit.pact.hav)
+            0
+          |=  [n=@ud k=time v=writ:c]
+          ^-  [(unit writ:c) ? @ud]
+          [`v(seq +(n)) | +(n)]
+        :*  :+  num
+              wit
             (~(uni by dex.pact.dm) dex.pact.hav)
           ::
             remark.hav
@@ -694,7 +784,8 @@
         :*  (~(uni in heard.club) heard.hav)
             remark.hav
           ::
-            :-  (uni:on:writs:c wit.pact.club wit.pact.hav)
+            :+  (max num.pact.club num.pact.hav)
+              (uni:on:writs:c wit.pact.club wit.pact.hav)
             (~(uni by dex.pact.club) dex.pact.hav)
           ::
             crew.hav
@@ -809,7 +900,7 @@
   ::  catch-all
   ::
       ~  ?>(from-self cor)
-      [%v1 ~]  ?>(from-self cor)
+      [?(%v1 %v2) ~]  ?>(from-self cor)
   ::
       [%clubs ~]  ?>(from-self cor)
       [%v1 %clubs ~]  ?>(from-self cor)
@@ -821,17 +912,17 @@
     =/  =ship  (slav %p ship.pole)
     di-abet:(di-watch:(di-abed:di-core ship) %v0 rest.pole)
   ::
-      [%v1 %dm ship=@ rest=*]
+      [ver=?(%v1 %v2) %dm ship=@ rest=*]
     =/  =ship  (slav %p ship.pole)
-    di-abet:(di-watch:(di-abed:di-core ship) %v1 rest.pole)
+    di-abet:(di-watch:(di-abed:di-core ship) ver.pole rest.pole)
   ::
       [%club id=@ rest=*]
     =/  =id:club:c  (slav %uv id.pole)
     cu-abet:(cu-watch:(cu-abed id) %v0 rest.pole)
   ::
-      [%v1 %club id=@ rest=*]
+      [ver=?(%v1 %v2) %club id=@ rest=*]
     =/  =id:club:c  (slav %uv id.pole)
-    cu-abet:(cu-watch:(cu-abed id) %v1 rest.pole)
+    cu-abet:(cu-watch:(cu-abed id) ver.pole rest.pole)
   ::
       [%epic ~]
     (give %fact ~ epic+!>(okay))
@@ -944,13 +1035,16 @@
     :^  ~  ~  %chat-heads
     !>((old-heads-3 (heads since)))
   ::
-      [%x %v1 %heads ?(~ [@ ~])]
+      [%x ?(%v1 %v2) %heads ?(~ [@ ~])]
+    =*  ver  i.t.path
     =/  since=(unit time)
       ?~  t.t.t.path  ~
       ?^  tim=(slaw %da i.t.t.t.path)  `u.tim
       `(slav %ud i.t.t.t.path)
-    :^  ~  ~  %chat-heads-1
-    !>(`chat-heads:c`(heads since))
+    ?-  ver
+      %v1  ``[%chat-heads-1 !>(`chat-heads:old-4`(old-heads-4 (heads since)))]
+      %v2  ``[%chat-heads-2 !>(`chat-heads:c`(heads since))]
+    ==
   ::
       [%x %dm ~]
     ``ships+!>(~(key by accepted-dms))
@@ -965,15 +1059,15 @@
     =/  =ship  (slav %p i.t.t.path)
     (di-peek:(di-abed:di-core ship) %x %v0 t.t.t.path)
   ::
-      [%x %v1 %dm @ *]
+      [%x ?(%v1 %v2) %dm @ *]
     =/  =ship  (slav %p i.t.t.t.path)
-    (di-peek:(di-abed:di-core ship) %x %v1 t.t.t.t.path)
+    (di-peek:(di-abed:di-core ship) %x i.t.path t.t.t.t.path)
   ::
       [%x %club @ *]
     (cu-peek:(cu-abed (slav %uv i.t.t.path)) %x %v0 t.t.t.path)
   ::
-      [%x %v1 %club @ *]
-    (cu-peek:(cu-abed (slav %uv i.t.t.t.path)) %x %v1 t.t.t.t.path)
+      [%x ?(%v1 %v2) %club @ *]
+    (cu-peek:(cu-abed (slav %uv i.t.t.t.path)) %x i.t.path t.t.t.t.path)
   ::
       [%u %dm @ *]
     =/  =ship  (slav %p i.t.t.path)
@@ -1018,6 +1112,25 @@
   ?~  latest  [whom recency ~]
   :-  whom  :-  recency
   (some (old-writ-3 u.latest))
+++  old-scan-4
+  |=  =scan:c
+  ^-  scan:old-4
+  %+  turn  scan
+  |=  ref=reference:c
+  ^-  reference:old-4
+  ?+  -.ref  ref
+    %writ  writ+(old-writ-4:pac writ.ref)
+  ==
+++  old-scam-4
+  |=  =scam:c
+  ^-  scam:old-4
+  scam(scan (old-scan-4 scan.scam))
+++  old-heads-4
+  |=  heads=chat-heads:c
+  ^-  chat-heads:old-4
+  %+  turn  heads
+  |=  [=whom:c recency=time latest=(unit writ:c)]
+  [whom recency (bind latest old-writ-4:pac)]
 ++  heads
   |=  since=(unit time)
   ^-  chat-heads:c
@@ -1184,9 +1297,11 @@
     `[p.diff delta]
   ?+  -.q.diff  q.diff
       %add
-    =/  time=(unit time)  (~(get by dex.pact) p.diff)
+    =/  time=(unit time)    (~(get by dex.pact) p.diff)
     ?~  time  ~
-    [%add essay.q.diff u.time]
+    =/  writ=(unit writ:c)  (get:on:writs:c wit.pact u.time)
+    ?~  writ  ~&(%diff-to-response-miss ~)
+    [%add essay.q.diff seq.u.writ u.time]
   ::
       %reply
     =;  delta=?(~ response-delta:replies:c)
@@ -1502,6 +1617,7 @@
 ++  cu-core
   |_  [=id:club:c =club:c gone=_| counter=@ud]
   +*  cu-pact  ~(. pac pact.club)
+      log      ~(. logs [our.bowl /logs])
   ++  cu-core  .
   ++  cu-abet
     ::  shouldn't need cleaning, but just in case
@@ -1526,11 +1642,14 @@
   ++  cu-circle
     (~(uni in team.crew.club) hive.crew.club)
   ::
-  ++  cu-area  `wire`/v1/club/(scot %uv id)
-  ++  cu-area-writs  `wire`/v1/club/(scot %uv id)/writs
+  ++  cu-area  `wire`/v2/club/(scot %uv id)
+  ++  cu-area-writs  `wire`/v2/club/(scot %uv id)/writs
   ::
-  ++  cu-area-old  `wire`/club/(scot %uv id)
-  ++  cu-area-writs-old  `wire`/club/(scot %uv id)/writs
+  ++  cu-area-old-1  `wire`/v1/club/(scot %uv id)
+  ++  cu-area-writs-old-1  `wire`/v1/club/(scot %uv id)/writs
+  ::
+  ++  cu-area-old-0  `wire`/club/(scot %uv id)
+  ++  cu-area-writs-old-0  `wire`/club/(scot %uv id)/writs
   ::
   ++  cu-uid
     =/  uid  `@uv`(shax (jam ['clubs' (add counter eny.bowl)]))
@@ -1623,23 +1742,31 @@
       (emit %give %fact ~[/ /clubs] cage)
     =.  cor
       =/  cage  chat-club-action-1+!>(action)
-      (emit %give %fact ~[/v1 /v1/clubs] cage)
+      (emit %give %fact ~[/v1 /v1/clubs /v2 /v2/clubs] cage)
     cu-core
   ::
   ++  cu-give-writs-diff
     |=  =diff:writs:c
     =/  =whom:c  [%club id]
-    =/  response=(unit response:writs:c)  (diff-to-response diff pact.club)
-    ?~  response  cu-core
+    =/  response=(unit response:writs:c)
+      (diff-to-response diff pact.club)
+    ?~  response
+      =.  cor  (emit (tell:log %crit ~['+diff-to-response miss (cu)'] ~))
+      cu-core
     =/  old-response-3=[whom:old-3 response:writs:old-3]
       [whom (old-response-writs-3:pac u.response)]
+    =/  old-response-4=[whom:old-4 response:writs:old-4]
+      [whom (old-response-writs-4:pac u.response)]
     =/  new-response=[whom:c response:writs:c]  [whom u.response]
     =.  cor
       =/  cage  writ-response+!>(old-response-3)
-      (emit %give %fact ~[/ cu-area-old cu-area-writs-old] cage)
+      (emit %give %fact ~[/ cu-area-old-0 cu-area-writs-old-0] cage)
     =.  cor
-      =/  =cage  writ-response-1+!>(new-response)
-      (emit %give %fact ~[/v1 cu-area cu-area-writs] cage)
+      =/  cage  writ-response-1+!>(old-response-4)
+      (emit %give %fact ~[/v1 cu-area-old-1 cu-area-writs-old-1] cage)
+    =.  cor
+      =/  =cage  writ-response-2+!>(new-response)
+      (emit %give %fact ~[/v2 cu-area cu-area-writs] cage)
     cu-core
   ::
   ++  cu-diff
@@ -1808,7 +1935,7 @@
     cu-core
   ::
   ++  cu-peek
-    |=  [care=@tas ver=?(%v0 %v1) =(pole knot)]
+    |=  [care=@tas ver=?(%v0 %v1 %v2) =(pole knot)]
     ^-  (unit (unit cage))
     ?+  pole  [~ ~]
       [%writs rest=*]  (peek:cu-pact care ver rest.pole)
@@ -1817,8 +1944,11 @@
         [%search %bounded kind=?(%text %mention) from=@ tries=@ nedl=@ ~]
       :+  ~  ~
       =;  =scam:c
-        ?:  ?=(%v1 ver)  chat-scam-1+!>(scam)
-        chat-scam+!>((old-scam-3 scam))
+        ?-  ver
+          %v0  chat-scam+!>((old-scam-3 scam))
+          %v1  chat-scam-1+!>((old-scam-4 scam))
+          %v2  chat-scam-2+!>(scam)
+        ==
       %^    ?-  kind.pole
               %text     text:tries-bound:search:cu-pact
               %mention  mention:tries-bound:search:cu-pact
@@ -1834,8 +1964,11 @@
         [%search %text skip=@ count=@ nedl=@ ~]
       :+  ~  ~
       =;  =scan:c
-        ?:  ?=(%v1 ver)  chat-scan-1+!>(scan)
-        chat-scan+!>((old-scan-3 scan))
+        ?-  ver
+          %v0  chat-scan+!>((old-scan-3 scan))
+          %v1  chat-scan-1+!>((old-scan-4 scan))
+          %v2  chat-scan-2+!>(scan)
+        ==
       %^    text:hits-bound:search:cu-pact
           (slav %ud skip.pole)
         (slav %ud count.pole)
@@ -1844,8 +1977,11 @@
         [%search %mention skip=@ count=@ nedl=@ ~]
       :+  ~  ~
       =;  =scan:c
-        ?:  ?=(%v1 ver)  chat-scan-1+!>(scan)
-        chat-scan+!>((old-scan-3 scan))
+        ?-  ver
+          %v0  chat-scan+!>((old-scan-3 scan))
+          %v1  chat-scan-1+!>((old-scan-4 scan))
+          %v2  chat-scan-2+!>(scan)
+        ==
       %^    mention:hits-bound:search:cu-pact
           (slav %ud skip.pole)
         (slav %ud count.pole)
@@ -1853,7 +1989,7 @@
     ==
   ::
   ++  cu-watch
-    |=  [ver=?(%v0 %v1) =path]
+    |=  [ver=?(%v0 %v1 %v2) =path]
     ^+  cu-core
     ?>  =(src our):bowl
     ?+  path  !!
@@ -1967,6 +2103,7 @@
   |_  [=ship =dm:c gone=_|]
   +*  di-pact  ~(. pac pact.dm)
       di-hark  ~(. hark-dm:ch [now.bowl ship])
+      log      ~(. logs [our.bowl /logs])
   ++  di-core  .
   ++  di-abet
     =.  dms
@@ -1993,11 +2130,14 @@
     ?:  &(!=(s our.bowl) =(src our):bowl)  di-core
     (di-activity [%invite ~] *story:d &)
   ::
-  ++  di-area  `path`/v1/dm/(scot %p ship)
-  ++  di-area-writs  `path`/v1/dm/(scot %p ship)/writs
+  ++  di-area  `path`/v2/dm/(scot %p ship)
+  ++  di-area-writs  `path`/v2/dm/(scot %p ship)/writs
   ::
-  ++  di-area-old  `path`/dm/(scot %p ship)
-  ++  di-area-writs-old  `path`/dm/(scot %p ship)/writs
+  ++  di-area-old-1  `path`/v1/dm/(scot %p ship)
+  ++  di-area-writs-old-1  `path`/v1/dm/(scot %p ship)/writs
+  ::
+  ++  di-area-old-0  `path`/dm/(scot %p ship)
+  ++  di-area-writs-old-0  `path`/dm/(scot %p ship)/writs
   ::
   ++  di-activity
     |=  $:  $=  concern
@@ -2046,18 +2186,26 @@
   ++  di-give-writs-diff
     |=  =diff:writs:c
     =/  =whom:c  [%ship ship]
-    =/  response=(unit response:writs:c)  (diff-to-response diff pact.dm)
-    ?~  response  di-core
+    =/  response=(unit response:writs:c)
+      (diff-to-response diff pact.dm)
+    ?~  response
+      =.  cor  (emit (tell:log %crit ~['+diff-to-response miss (di)'] ~))
+      di-core
     =/  old-response-3=[whom:old-3 response:writs:old-3]
       [whom (old-response-writs-3:pac u.response)]
+    =/  old-response-4=[whom:old-4 response:writs:old-4]
+      [whom (old-response-writs-4:pac u.response)]
     =/  new-response=[whom:c response:writs:c]  [whom u.response]
     =.  cor
       =/  =cage
         writ-response+!>(old-response-3)
-      (emit %give %fact ~[/ di-area-old di-area-writs-old] cage)
+      (emit %give %fact ~[/ di-area-old-0 di-area-writs-old-0] cage)
     =.  cor
-      =/  =cage  writ-response-1+!>(new-response)
-      (emit %give %fact ~[/v1 di-area di-area-writs] cage)
+      =/  =cage  writ-response-1+!>(old-response-4)
+      (emit %give %fact ~[/v1 di-area-old-1 di-area-writs-old-1] cage)
+    =.  cor
+      =/  =cage  writ-response-2+!>(new-response)
+      (emit %give %fact ~[/v2 di-area di-area-writs] cage)
     di-core
   ::
   ++  di-ingest-diff
@@ -2161,7 +2309,7 @@
     (di-post-notice ' joined the chat')
   ::
   ++  di-watch
-    |=  [ver=?(%v0 %v1) =path]
+    |=  [ver=?(%v0 %v1 %v2) =path]
     ^+  di-core
     ?>  =(src.bowl our.bowl)
     ?+  path  !!
@@ -2266,7 +2414,7 @@
     ==
   ::
   ++  di-peek
-    |=  [care=@tas ver=?(%v0 %v1) =(pole knot)]
+    |=  [care=@tas ver=?(%v0 %v1 %v2) =(pole knot)]
     ^-  (unit (unit cage))
     ?+    pole  [~ ~]
         [%writs rest=*]
@@ -2275,8 +2423,11 @@
         [%search %bounded kind=?(%text %mention) from=@ tries=@ nedl=@ ~]
       =;  =scam:c
         :+  ~  ~
-        ?:  ?=(%v1 ver)  chat-scam-1+!>(scam)
-        chat-scam+!>((old-scam-3 scam))
+        ?-  ver
+          %v0  chat-scam+!>((old-scam-3 scam))
+          %v1  chat-scam-1+!>((old-scam-4 scam))
+          %v2  chat-scam-2+!>(scam)
+        ==
       %^    ?-  kind.pole
               %text     text:tries-bound:search:di-pact
               %mention  mention:tries-bound:search:di-pact
@@ -2292,8 +2443,11 @@
         [%search %text skip=@ count=@ nedl=@ ~]
       =;  =scan:c
         :+  ~  ~
-        ?:  ?=(%v1 ver)  chat-scan-1+!>(scan)
-        chat-scan+!>((old-scan-3 scan))
+        ?-  ver
+          %v0  chat-scan+!>((old-scan-3 scan))
+          %v1  chat-scan-1+!>((old-scan-4 scan))
+          %v2  chat-scan-2+!>(scan)
+        ==
       %^    text:hits-bound:search:di-pact
           (slav %ud skip.pole)
         (slav %ud count.pole)
@@ -2302,8 +2456,11 @@
         [%search %mention skip=@ count=@ nedl=@ ~]
       =;  =scan:c
         :+  ~  ~
-        ?:  ?=(%v1 ver)  chat-scan-1+!>(scan)
-        chat-scan+!>((old-scan-3 scan))
+        ?-  ver
+          %v0  chat-scan+!>((old-scan-3 scan))
+          %v1  chat-scan-1+!>((old-scan-4 scan))
+          %v2  chat-scan-2+!>(scan)
+        ==
       %^    mention:hits-bound:search:di-pact
           (slav %ud skip.pole)
         (slav %ud count.pole)
