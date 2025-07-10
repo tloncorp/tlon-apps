@@ -238,7 +238,7 @@
           %channel  (diff-from-channel [nest r-channel]:r-group)
           %section  (diff-from-section [section-id r-section]:r-group)
           %entry    (diff-from-entry r-entry.r-group seats admissions)
-          %flag-content  [%flag-content [nest post-key src]:r-group]~
+          %flag-content  [%flag-content [nest plan src]:r-group]~
           %delete  [%del ~]~
         ==
         ::
@@ -694,6 +694,7 @@
         |=  [=sect:v5:gv =cabal:v5:gv]
         ^-  [role-id:v7:gv role:v7:gv]
         [sect cabal]
+      ::XX straight cast
       =/  =admins:v7:gv
         %-  ~(run in bloc)
         |=  =sect:v5:gv
@@ -726,6 +727,7 @@
           active-channels
         ::
           sections
+          ::XX straight cast
           (turn zone-ord |=(zone:v5:gv `section-id:v7:gv`+<))
         ::
           flagged-content

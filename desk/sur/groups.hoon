@@ -263,13 +263,15 @@
       =banned
       members=(jug ship role-id)
   ==
-::XX use $plan from channels
-+$  post-key  [post=time reply=(unit time)]
+::  $plan: index into channel state
+::    p: Post being referred to
+::    q: Reply being referred to, if any
 ::
-+$  flaggers  (set ship)
++$  plan
+  (pair time (unit time))
 ::  $flagged-content: flagged posts and replies that need admin review
 ::
-+$  flagged-content  (map nest (map post-key flaggers))
++$  flagged-content  (map nest (jug plan ship))
 ::
 ::  %groups acur interface
 ::
@@ -314,7 +316,7 @@
       [%role roles=(set role-id) =a-role]
       [%channel =nest =a-channel]
       [%section =section-id =a-section]
-      [%flag-content =nest =post-key src=ship]
+      [%flag-content =nest =plan src=ship]
   ==
 ::  $a-invite: invite a ship
 +$  a-invite
@@ -362,7 +364,7 @@
       [%role roles=(set role-id) =c-role]
       [%channel =nest =c-channel]
       [%section =section-id =c-section]
-      [%flag-content =nest =post-key src=ship]
+      [%flag-content =nest =plan src=ship]
       [%delete ~]
   ==
 +$  c-entry
@@ -471,7 +473,7 @@
       [%role roles=(set role-id) =u-role]
       [%channel =nest =u-channel]
       [%section =section-id =u-section]
-      [%flag-content =nest =post-key src=ship]
+      [%flag-content =nest =plan src=ship]
       [%delete ~]
   ==
 +$  u-entry
@@ -541,7 +543,7 @@
       [%role roles=(set role-id) =r-role]
       [%channel =nest =r-channel]
       [%section =section-id =r-section]
-      [%flag-content =nest =post-key src=ship]
+      [%flag-content =nest =plan src=ship]
       [%delete ~]
   ==
 +$  r-entry

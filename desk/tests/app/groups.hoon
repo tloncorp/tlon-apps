@@ -160,14 +160,7 @@
   ;<  *  bind:m  (do-create-group %public)
   ::  a ship can join a public group without a token
   ::
-  :: two ships
-  :: [agent-a agent-b]
-  :: (do-poke-a group-action+!>(%join the group))
-  ::  ..agent-a produces cards
-  ::  ;<  caz-a=(list card)
-  :: ... something happens
-  ::
-  :: scry for the group you wanted to join
+  ::  scry for the group you wanted to join
   ::
   ;<  ~  bind:m  (set-src ~dev)
   ;<  =bowl:gall  bind:m  get-bowl

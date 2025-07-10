@@ -39,6 +39,7 @@
         groups=net-groups:v7:gv
         =channels-index:v7:gv
         =foreigns:v7:gv
+        ::TODO remove
         =volume:v
         =^subs:s
         =pimp:imp
@@ -175,6 +176,7 @@
         =/  =flag:g  [our.bowl name.create-group.c-groups]
         ?<  (~(has by groups) flag)
         se-abet:(se-c-create:se-core flag create-group.c-groups)
+        ::  self-join
       ::
           %group
         =/  server-core  (se-abed:se-core flag.c-groups)
@@ -726,7 +728,8 @@
   =.  cor
     %+  roll
       ~(tap by groups)
-    |=  [[=flag:g *] =_cor]
+    |=  [[=flag:g [=net:g *]] =_cor]
+    ?.  ?=(%pub -.net)  cor
     go-abet:(go-safe-sub:(go-abed:go-core:cor flag) |)
   cor
 ::
@@ -949,30 +952,13 @@
     ?~  far=(~(get by foreigns) flag)  [~ ~]
     ``foreign-1+!>(`foreign:v7:gv`u.far)
   ::
-      ::TODO deprecated. update /lib/notify.hoon to use
-      ::     foreigns api, then remove this path.
-      ::
-      [%x %gangs ~]
-     :: we filter out foreigns which are %done,
-     :: since completed gangs were removed in old groups.
-     ::
-    =/  gangs-2
-      %-  ~(gas by *(map flag:g gang:v2:gv))
-      %+  murn  ~(tap by foreigns)
-      |=  [=flag:g =foreign:g]
-      ?:  ?&  ?=(^ progress.foreign)
-              ?=(%done u.progress.foreign)
-          ==
-        ~
-      %-  some
-      :-  flag
-      (gang:v2:foreign:v7:gc foreign)
-    ``gangs+!>(gangs-2)
   ::
       [%x %volume ~]
+    ::TODO remove?
     ``volume-value+!>(base.volume)
   ::
       [%x %volume %all ~]
+    ::TODO remove?
     ``noun+!>(volume)
   ::
       [%x %volume ship=@ name=@ ~]
@@ -1011,8 +997,6 @@
       [%epic ~]  cor
       [%logs ~]  cor
       [%activity %submit *]  cor
-      ::TODO prune during the migration
-      :: [%cast ship=@ name=@ ~]  cor
   ::
       [%server %groups ship=@ name=@ rest=*]
     =+  ship=(slav %p ship.pole)
@@ -1048,10 +1032,13 @@
       [%chan app=@ ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
     =/  =nest:g  [app.pole ship name.pole]
-    (take-chan nest sign)
-  ::
-      [%channels ~]
-    (take-channels sign)
+    ?~  flag=(~(get by channels-index) nest)
+      ~|(%channel-group-not-found !!)
+    =/  =path
+      %+  weld
+        /v0/groups/(scot %p p.u.flag)/[q.u.flag]
+      `path`[%channels +.pole]
+    $(pole path)
   ::
     [%channels %perms ~]  cor
   ::
@@ -1101,10 +1088,10 @@
       fi-abet:(fi-safe-preview:fc |)
     ::  for each group join in progress:
     ::
-    ::  %ask: we have requested an entry, repeat the request
+    ::  %ask: we have requested an entry, repeat the request.
     ::  %join: we have asked to join the group, repeat the request
     ::         if an invitation is present. otherwise set progress
-    ::         to error
+    ::         to error.
     ::  %watch: we have issue a watch to the group. there should already
     ::          be a group entry. if there is, resubscribe. if there is
     ::          not, set error.
@@ -1115,7 +1102,8 @@
     |=  [[=flag:g far=foreign:g] =_cor]
     ?~  progress.far  cor
     ?:  ?=(?(%done %error) u.progress.far)  cor
-    =/  fc  fi-cancel:(fi-abed:fi-core:cor flag)
+    =*  fc  (fi-abed:fi-core:cor flag)
+    =.  cor  fi-abet:fi-cancel:fc
     =<  fi-abet
     ?-    u.progress.far
       %ask  (fi-ask:fc ~)
@@ -1131,7 +1119,7 @@
       =.  cor
         go-abet:(go-safe-sub:(go-abed:go-core:cor flag) |)
       ::NB  cor has changed, we need to resolve +fi-core anew
-      (fi-abed:fi-core:cor flag)
+      (fi-abed:fc flag)
     ==
   ::
       ::  v6 -> v7
@@ -1148,7 +1136,6 @@
     %-  se-send-invites:(se-abed:se-core flag)
     ~(key by pending.admissions.group)
   ==
-::
 ::  does not overwite if wire and dock exist.  maybe it should
 ::  leave/rewatch if the path differs?
 ::
@@ -1160,67 +1147,6 @@
   =^  caz=(list card)  subs
     (~(subscribe s [subs bowl]) wire dock path delay)
   (emil caz)
-::  +watch-chan: handle channel preview request
-::
-++  watch-chan
-  |=  =nest:g
-  ^+  cor
-  ?.  =(our.bowl p.q.nest)
-    =/  =wire  /chan/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
-    ?:  (~(has by wex.bowl) [wire p.q.nest dap.bowl])
-      cor
-    (emit [%pass wire %agent [p.q.nest dap.bowl] %watch `path`wire])
-  ::
-  =/  gs  ~(tap by groups)
-  |-
-  ?~  gs
-    ~|(no-group-found/nest !!)
-  =/  [=flag:g =net:g =group:g]  i.gs
-  ?.  (~(has by channels.group) nest)
-    $(gs t.gs)
-  ?.  %+  go-can-read:(go-abed:go-core flag)
-        src.bowl
-      (~(got by channels.group) nest)
-    $(gs t.gs)
-  ::TODO migrate to new types
-  =/  =preview:channel:v2:gv
-    =,  group
-    =*  ad  admissions
-    =/  secret=?  ?=(%secret privacy.ad)
-    =/  preview-2=preview:v2:gv
-      :*  flag
-          meta
-          (cordon:v2:admissions:v7:gc seats ad)
-          now.bowl
-          secret
-      ==
-    :*  nest
-        meta:(~(got by channels.group) nest)
-        preview-2
-    ==
-  =.  cor  (emit %give %fact ~ channel-preview+!>(preview))
-  (emit %give %kick ~ ~)
-::
-++  take-chan
-  |=  [=nest:g =sign:agent:gall]
-  =/  =wire  =,(nest /chan/[p]/(scot %p p.q)/[q.q])
-  ^+  cor
-  ?+    -.sign  ~|(bad-chan-take/[-.sign nest] !!)
-      %kick
-    (emit %give %kick ~[wire] ~)
-  ::
-      %watch-ack
-    ?~  p.sign  cor
-    :: TODO: propagate upwards
-    %-  (slog leaf/"Failed to fetch group" u.p.sign)
-    cor
-  ::
-      %fact
-    ?>  =(%channel-preview p.cage.sign)
-    =+  !<(=preview:channel:v2:gv q.cage.sign)
-    =.  cor  (emit %give %fact ~[wire] cage.sign)
-    (emit %give %kick ~[wire] ~)
-  ==
 ::
 ++  watch-channels
   (safe-watch /channels [our.bowl %channels] /v1)
@@ -1258,12 +1184,13 @@
           (~(put in active-channels.group) nest.r-channels)
         ==
       ==
-    ::
-    ::NOTE  this is inefficient, but %leave, unlike %join and %create,
+    ::TODO  this is inefficient, but %leave, unlike %join and %create,
     ::      does not carry group information. thus, we have
     ::      to comb through our groups to find matches.
     ::      there is at least one other place where this happens,
     ::      so it might be worth doing something about it.
+    ::
+    ::      use channels-index.
     ::
         %leave
       %_  cor  groups
@@ -1283,7 +1210,6 @@
   ==
 ::
 ++  watch-contacts
-  ::TODO update for new %contacts endpoint
   (safe-watch /contacts [our.bowl %contacts] /v1/news)
 ::  +take-contacts: get favourite group previews for a contact
 ::
@@ -1361,7 +1287,8 @@
     =/  rest=^path  (slag 4 path)
     ?.  ?=([ship=@ *] rest)  |
     =/  ship  (slav %p i.rest)
-    (~(has in admins.group) ship)
+    ::XX cache this with ~+?
+    (se-is-admin ship)
   ::  +se-update: record and send group update
   ::
   ++  se-update
@@ -1530,6 +1457,7 @@
   ++  se-c-join
     |=  tok=(unit token:g)
     ^+  se-core
+    ::XX  se-is-banned should be at top level.
     ?<  (se-is-banned src.bowl)
     =^  access=?  ad
       (se-admit src.bowl tok)
@@ -1667,7 +1595,7 @@
       (se-c-section [section-id c-section]:c-group)
     ::
         %flag-content
-      (se-c-flag-content [nest post-key src]:c-group)
+      (se-c-flag-content [nest plan src]:c-group)
     ::
         %delete
       ?>  from-self
@@ -1699,11 +1627,11 @@
   ::  the group, or executing any commands on the group host.
   ::
   ::  the ship and rank blacklists do not affect the group host.
-  ::  it is illegal to execute any $c-ban commands that affect
+  ::  it is illegal to execute any $c-ban commands that affects
   ::  the group host in any way.
   ::
   ::  the rank blacklist does not affect admins. it is illegal
-  ::  for an admin to execute a $c-ban command that affect
+  ::  for an admin to execute a $c-ban command that affects
   ::  another admin ship.
   ::
   ::
@@ -1733,13 +1661,13 @@
         %set
       =.  ships.banned  ships.c-ban
       =.  ranks.banned  ranks.c-ban
-      =.  se-core  se-check-banned
+      =.  se-core  se-enforce-banned
       (se-update [%entry %ban %set [ships ranks]:c-ban])
     ::
         %add-ships
       =.  ships.banned
         (~(uni in ships.banned) ships.c-ban)
-      =.  se-core  se-check-banned
+      =.  se-core  se-enforce-banned
       (se-update [%entry %ban %add-ships ships.c-ban])
     ::
         %del-ships
@@ -1750,7 +1678,7 @@
         %add-ranks
       =.  ranks.banned
         (~(uni in ranks.banned) ranks.c-ban)
-      =.  se-core  se-check-banned
+      =.  se-core  se-enforce-banned
       (se-update [%entry %ban %add-ranks ranks.c-ban])
     ::
         %del-ranks
@@ -1758,9 +1686,9 @@
         (~(dif in ranks.banned) ranks.c-ban)
       (se-update [%entry %ban %del-ranks ranks.c-ban])
     ==
-  ::  +se-check-banned: enforce bans in group seats and requests
+  ::  +se-enforce-banned: enforce bans in group seats and requests
   ::
-  ++  se-check-banned
+  ++  se-enforce-banned
     ^+  se-core
     ::  delete banned members
     ::
@@ -1850,7 +1778,6 @@
         |=  [=ship =_pending.ad]
         =/  roles=(unit (set role-id:g))
           (~(get by pending) ship)
-        ::TODO consider crashing?
         ?~  roles  pending
         (~(put by pending) ship roles.c-pending)
       (se-update [%entry %pending %add ships roles.c-pending])
@@ -1944,7 +1871,7 @@
         %*(. (~(gut by seats.group) ship *seat:g) joined joined)
       ::
       =.  se-core
-        ::  create a ship for each seat.
+        ::  create a seat for each ship.
         ::
         ::  we first delete the ship from requests.
         ::  next, we check whether the ship has pre-assigned
@@ -1956,6 +1883,7 @@
         %+  roll  ~(tap in ships)
         |=  [=ship =_se-core]
         =*  ad  admissions.group.se-core
+        ::TODO kick the user from subscriptions
         =.  requests.ad
           (~(del by requests.ad) ship)
         =/  roles  (~(get by pending.ad) ship)
@@ -1978,6 +1906,7 @@
       ::  clean up ask and pending record
       ::
       =.  pending.ad   (~(del by pending.ad) ship)
+      ::TODO kick from subscriptions
       =.  requests.ad  (~(del by requests.ad) ship)
       ::TODO if any of the ships was pending and invited,
       ::     cancel their tokens.
@@ -2098,14 +2027,14 @@
       (se-update %role roles [%edit meta.c-role])
     ::
         %del
-        =.  roles.group
-          %-  ~(rep in roles)
-          |=  [=role-id:g =_roles.group]
-          (~(del by roles) role-id)
-        =.  seats.group
-          %-  ~(urn by seats.group)
-          |=  [* =seat:g]
-          seat(roles (~(dif in roles.seat) roles))
+      =.  roles.group
+        %-  ~(rep in roles)
+        |=  [=role-id:g =_roles.group]
+        (~(del by roles) role-id)
+      =.  seats.group
+        %-  ~(urn by seats.group)
+        |=  [* =seat:g]
+        seat(roles (~(dif in roles.seat) roles))
       ::  remove roles from channels
       ::
       =/  channels  ~(tap by channels.group)
@@ -2278,18 +2207,15 @@
       (se-update %section section-id [%move-nest [nest idx]:c-section])
     ==
   ++  se-c-flag-content
-    |=  [=nest:g =post-key:g src=ship]
+    |=  [=nest:g =plan:g src=ship]
     ^+  se-core
-    ::TODO make flagged-content a jug
     =/  posts
-      (~(gut by flagged-content.group) nest *(map post-key:g flaggers:g))
-    =/  flaggers=(unit flaggers:g)  (~(get by posts) post-key)
+      (~(gut by flagged-content.group) nest *(jug plan:g ship))
     =/  channel-flagged
-      %+  ~(put by posts)  post-key
-      ?~  flaggers  (sy ~[src])
-      (~(put in u.flaggers) src)
-    =.  flagged-content.group  (~(put by flagged-content.group) nest channel-flagged)
-    (se-update %flag-content nest post-key src)
+      (~(put ju posts) plan src)
+    =.  flagged-content.group
+      (~(put by flagged-content.group) nest channel-flagged)
+    (se-update %flag-content nest plan src)
   ::
   ++  se-watch
     |=  =path
@@ -2780,7 +2706,7 @@
       %-  (fail:l %poke-ack 'failed to invite a ship' u.p.sign)
       go-core
     ::
-        ::  requested a personal invite token for the ship
+        ::  requested a personal invite token for a ship
         ::
         [%invite ship=@ %token ~]
       ~|  go-agent-bad-invite+-.sign
@@ -2912,7 +2838,7 @@
       %role          (go-u-role [roles u-role]:u-group)
       %channel       (go-u-channel [nest u-channel]:u-group)
       %section       (go-u-section [section-id u-section]:u-group)
-      %flag-content  (go-u-flag-content [nest post-key src]:u-group)
+      %flag-content  (go-u-flag-content [nest plan src]:u-group)
       %delete        (go-leave |)
     ==
   ::  +go-u-create: apply initial update
@@ -3406,25 +3332,22 @@
   ::  +go-u-flag-content: apply flag content update
   ::
   ++  go-u-flag-content
-    |=  [=nest:g =post-key:g src=ship]
+    |=  [=nest:g =plan:g src=ship]
     ^+  go-core
-    =.  go-core  (go-response %flag-content nest post-key src)
+    =.  go-core  (go-response %flag-content nest plan src)
     ?:  go-our-host  go-core
     ::
-    ::TODO make flagged-content a jug
     =/  posts
-      (~(gut by flagged-content.group) nest *(map post-key:g flaggers:g))
-    =/  flaggers=(unit flaggers:g)  (~(get by posts) post-key)
+      (~(gut by flagged-content.group) nest *(jug plan:g ship))
     =/  channel-flagged
-      %+  ~(put by posts)  post-key
-      ?~  flaggers  (sy ~[src])
-      (~(put in u.flaggers) src)
-    =.  flagged-content.group  (~(put by flagged-content.group) nest channel-flagged)
-    ::  do not notify about flagged content if we reported it,
-    ::  or we are not an admin.
+      (~(put ju posts) plan src)
+    =.  flagged-content.group
+      (~(put by flagged-content.group) nest channel-flagged)
+    ::  only notify about flagged contant if it has been reported
+    ::  by someone else and we are an admin
     ::
-    ?:  |(from-self !(go-is-admin our.bowl))  go-core
-    =/  new-message-id  [src post.post-key]
+    ?.  &(!from-self (go-is-admin our.bowl))  go-core
+    =/  new-message-id  [src p.plan]
     =/  kind-from-nest=kind:d
       ?:  =(p.nest %chat)  %chat
       ?:  =(p.nest %heap)  %heap
@@ -3432,16 +3355,16 @@
       ~|  "Invalid nest kind"  !!
     =/  converted-nest=nest:d  [kind-from-nest p.q.nest q.q.nest]
     =.  go-core
-       ?~  reply.post-key
+       ?~  q.plan
           %+  go-activity  %flag-post
-          :*  [new-message-id post.post-key]
+          :*  [new-message-id p.plan]
               converted-nest
               flag
           ==
-        =/  new-reply-message-id=message-id:activity  [src u.reply.post-key]
+        =/  new-reply-message-id=message-id:activity  [src u.q.plan]
         %+  go-activity  %flag-reply
-        :*  [new-reply-message-id u.reply.post-key]
-            [new-message-id post.post-key]
+        :*  [new-reply-message-id u.q.plan]
+            [new-message-id p.plan]
             converted-nest
             flag
         ==
@@ -3625,7 +3548,7 @@
       [%pass wire %agent [p.flag server] %poke cage]
     ::
     ++  ask
-      |=  story=(unit story:s:g)
+      |=  story=(unit story:s:g)  ::XX something is broken with story import
       ^-  (list card)
       =/  =wire  (weld fi-area /ask)
       =/  =path  (weld fi-server-path /ask)
@@ -3714,6 +3637,7 @@
       ::      updates.
       fi-core
     ?^  p
+      ::TODO log through logs
       %-  (slog leaf/"Failed to join" u.p)
       =.  progress  `%error
       fi-core
