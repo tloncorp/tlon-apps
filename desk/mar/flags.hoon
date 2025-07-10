@@ -5,7 +5,7 @@
 ++  grow
   |%
   ++  noun  flags
-  ++  json  `^json`a/(turn ~(tap in flags) |=(f=flag:g s/(flag:enjs:j f)))
+  ++  json  a/(turn ~(tap in flags) |=(f=flag:g (flag:enjs:j f)))
   --
 ++  grab
   |%

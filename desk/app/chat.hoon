@@ -1,4 +1,4 @@
-/-  c=chat, d=channels, g=groups, u=ui, e=epic, activity, meta
+/-  c=chat, d=channels, g=groups, u=ui, e=epic, activity, s=story, meta
 /-  old-3=chat-3, old-2=chat-2
 /-  ha=hark
 /-  contacts-0
@@ -1414,7 +1414,7 @@
       =-  (snoc - [%inline q.p.old])
       %+  turn  p.p.old
       |=  =block:t
-      ^-  verse:d
+      ^-  verse:s
       :-  %block
       ?.  ?=([%cite %chan *] block)  block
       =;  new=(unit path)
@@ -1940,21 +1940,21 @@
   (give %fact ~[/ /dm/invited] ships+!>(invites))
 ::
 ++  verses-to-inlines  ::  for backcompat
-  |=  l=(list verse:d)
+  |=  l=(list verse:s)
   ^-  (list inline:old-2)
   %-  zing
   %+  turn  l
-  |=  v=verse:d
+  |=  v=verse:s
   ^-  (list inline:old-2)
   ?-  -.v
       %block   ~
       %inline
     %+  murn  p.v
-    |=  i=inline:d
+    |=  i=inline:s
     ^-  (unit inline:old-2)
     ?@  i    `i
     ?+  -.i  `i
-      %sect        ~
+      %role        ~
       %task        ~
       %italics     `[-.i ^$(p.v p.i)]
       %bold        `[-.i ^$(p.v p.i)]

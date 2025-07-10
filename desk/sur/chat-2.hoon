@@ -1,4 +1,4 @@
-/-  g=groups
+/-  gv=groups-ver
 /-  meta
 /-  cite
 /-  e=epic
@@ -81,8 +81,8 @@
 +$  diff
   $%  [%writs p=diff:writs]
     ::
-      [%add-sects p=(set sect:g)]
-      [%del-sects p=(set sect:g)]
+      [%add-sects p=(set sect:v0:gv)]
+      [%del-sects p=(set sect:v0:gv)]
     ::
       [%create p=perm q=pact]
   ==
@@ -320,18 +320,18 @@
 ::  back to the group it belongs to.
 ::
 +$  perm
-  $:  writers=(set sect:g)
-      group=flag:g
+  $:  writers=(set sect:v0:gv)
+      group=flag:gv
   ==
 ::  $join: a group + channel flag to join a channel, group required for perms
 ::
 +$  join
-  $:  group=flag:g
-      chan=flag:g
+  $:  group=flag:gv
+      chan=flag:gv
   ==
 ::  $leave: a flag to pass for a channel leave
 ::
-+$  leave  flag:g
++$  leave  flag:gv
 ::
 ::  $create: represents a request to create a channel
 ::    
@@ -344,11 +344,11 @@
 ::    read permission is stored with the group's data.
 ::
 +$  create
-  $:  group=flag:g
+  $:  group=flag:gv
       name=term
       title=cord
       description=cord
-      readers=(set sect:g)
-      writers=(set sect:g)
+      readers=(set sect:v0:gv)
+      writers=(set sect:v0:gv)
   ==
 --

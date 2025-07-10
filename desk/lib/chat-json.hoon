@@ -1,6 +1,7 @@
 /-  c=chat, d=channels, old-3=chat-3
 /-  meta
-/+  cite=cite-json, gj=groups-json, dj=channel-json
+
+/+  cite=cite-json, gj=groups-json, dj=channel-json, sj=story-json
 |%
 ++  enjs
   =,  enjs:format
@@ -777,7 +778,7 @@
           ==
       `essay:c`[[story author time] kind meta blob]
     %-  ot
-    :~  content/story:dejs:dj
+    :~  content/story:dejs:sj
         author/author:dejs:dj
         sent/di
         :-  %kind
