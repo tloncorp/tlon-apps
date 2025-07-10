@@ -297,7 +297,10 @@ export async function inviteGroupMembers({
       await api.inviteGroupMembers({ groupId, contactIds });
     }
   } catch (e) {
-    console.error('Failed to invite group members', e);
+    logger.trackError('Failed to invite group members', {
+      errorMessage: e.message,
+      errorStack: e.stack,
+    });
     // rollback optimistic update
     await db.removeChatMembers({
       chatId: groupId,

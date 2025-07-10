@@ -2,7 +2,9 @@
 /-  old-3=chat-3, old-2=chat-2
 /-  ha=hark
 /-  contacts-0
-/+  default-agent, verb-lib=verb, dbug, neg=negotiate, em=emojimart, logs
+/+  default-agent, verb-lib=verb, dbug,
+    neg=negotiate, discipline, logs,
+    em=emojimart
 /+  pac=dm
 /+  utils=channel-utils
 /+  volume
@@ -10,7 +12,101 @@
 /+  epos-lib=saga
 ::  performance, keep warm
 /+  chat-json
-/*  desk-bill  %bill  /desk/bill
+::
+/%  m-chat-blocked-by      %chat-blocked-by
+/%  m-chat-club-action     %chat-club-action
+/%  m-chat-club-action-1   %chat-club-action-1
+/%  m-chat-heads           %chat-heads
+/%  m-chat-heads-1         %chat-heads-1
+/%  m-chat-paged-writs     %chat-paged-writs
+/%  m-chat-scam            %chat-scam
+/%  m-chat-scam-1          %chat-scam-1
+/%  m-chat-scan            %chat-scan
+/%  m-chat-scan-1          %chat-scan-1
+/%  m-chat-toggle-message  %chat-toggle-message
+/%  m-chat-unblocked-by    %chat-unblocked-by
+/%  m-chat-unread-update   %chat-unread-update
+/%  m-chat-unreads         %chat-unreads
+/%  m-chat-writ-1          %chat-writ-1
+/%  m-clubs                %clubs
+/%  m-epic                 %epic
+/%  m-hidden-messages      %hidden-messages
+/%  m-ships                %ships
+/%  m-writ                 %writ
+/%  m-writ-response        %writ-response
+/%  m-writ-response-1      %writ-response-1
+::
+/*  desk-bill  %bill  /desk/bill  ::  keep warm
+::
+%-  %-  discipline
+    :+  ::  marks
+        ::
+        :~  :+  %chat-blocked-by      &  -:!>(*vale:m-chat-blocked-by)
+            :+  %chat-club-action     &  -:!>(*vale:m-chat-club-action)
+            :+  %chat-club-action-1   &  -:!>(*vale:m-chat-club-action-1)
+            :+  %chat-heads           &  -:!>(*vale:m-chat-heads)
+            :+  %chat-heads-1         &  -:!>(*vale:m-chat-heads-1)
+            :+  %chat-paged-writs     &  -:!>(*vale:m-chat-paged-writs)
+            :+  %chat-scam            &  -:!>(*vale:m-chat-scam)
+            :+  %chat-scam-1          &  -:!>(*vale:m-chat-scam-1)
+            :+  %chat-scan            &  -:!>(*vale:m-chat-scan)
+            :+  %chat-scan-1          &  -:!>(*vale:m-chat-scan-1)
+            :+  %chat-toggle-message  &  -:!>(*vale:m-chat-toggle-message)
+            :+  %chat-unblocked-by    &  -:!>(*vale:m-chat-unblocked-by)
+            :+  %chat-unread-update   &  -:!>(*vale:m-chat-unread-update)
+            :+  %chat-unreads         &  -:!>(*vale:m-chat-unreads)
+            :+  %chat-writ-1          &  -:!>(*vale:m-chat-writ-1)
+            :+  %clubs                &  -:!>(*vale:m-clubs)
+            :+  %epic                 &  -:!>(*vale:m-epic)
+            :+  %hidden-messages      &  -:!>(*vale:m-hidden-messages)
+            :+  %ships                &  -:!>(*vale:m-ships)
+            :+  %writ                 &  -:!>(*vale:m-writ)
+            :+  %writ-response        &  -:!>(*vale:m-writ-response)
+            :+  %writ-response-1      &  -:!>(*vale:m-writ-response-1)
+        ==
+      ::  facts
+      ::
+      :~  [/ %chat-blocked-by %chat-unblocked-by %chat-toggle-message %chat-club-action %writ-response %ships ~]
+          [/club/$ %writ-response ~]
+          [/clubs %chat-club-action ~]
+          [/dm/$ %writ-response ~]
+          [/dm/invited %ships ~]
+          [/epic %epic ~]
+          [/unreads %chat-unread-update ~]
+        ::
+          [/v1 %chat-club-action-1 %writ-response-1 ~]
+          [/v1/club/$ %writ-response-1 ~]
+          [/v1/clubs %chat-club-action-1 ~]
+          [/v1/dm/$ %writ-response-1 ~]
+      ==
+    ::  scries
+    ::
+    :~  [/x/blocked %ships]
+        [/x/blocked-by %ships]
+        [/x/clubs %clubs]
+        [/x/dm %ships]
+        [/x/dm/$/search %chat-scan]
+        [/x/dm/$/search/bounded %chat-scam]
+        [/x/dm/$/writs %chat-paged-writs]
+        [/x/dm/$/writs/writ %writ]
+        [/x/dm/archive %ships]
+        [/x/dm/invited %ships]
+        [/x/full %noun]
+        [/x/heads %chat-heads]
+        [/x/hidden-messages %hidden-messages]
+        [/x/init %noun]
+        [/x/old %noun]
+        [/x/unreads %chat-unreads]
+      ::
+        [/x/v1/club/$/writs %chat-paged-writs]
+        [/x/v1/club/$/writs/writ %chat-writ-1]
+        [/x/v1/dm/$/search %chat-scan-1]
+        [/x/v1/dm/$/search/bounded %chat-scam-1]
+        [/x/v1/dm/$/writs %chat-paged-writs-1]
+        [/x/v1/dm/$/writs/writ %chat-writ-1]
+        [/x/v1/heads %chat-heads-1]
+        [/x/v1/init %noun]
+    ==
 ::
 %-  %-  agent:neg
     :+  |
@@ -439,10 +535,6 @@
     =+  !<(=rsvp:dm:c vase)
     di-abet:(di-rsvp:(di-abed:di-core ship.rsvp) ok.rsvp)
   ::
-      %chat-pins
-    =+  !<(ps=(list whom:c) vase)
-    (pin ps)
-  ::
       %chat-blocked
     ?<  from-self
     (has-blocked src.bowl)
@@ -816,8 +908,6 @@
     [%x %old ~]  ``noun+!>(old-chats)  ::  legacy data, for migration use
   ::
     [%x %clubs ~]  ``clubs+!>((~(run by clubs) |=(=club:c crew.club)))
-  ::
-    [%x %pins ~]  ``chat-pins+!>(pins)
   ::
     [%x %blocked ~]  ``ships+!>(blocked)
   ::

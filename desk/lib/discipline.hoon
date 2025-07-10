@@ -58,6 +58,7 @@
   %+  weld
     ^-  (list [path (list mark)])
     :~  [/verb ~]
+        [/~/negotiate ~]
     ==
   facts
 =.  scries
