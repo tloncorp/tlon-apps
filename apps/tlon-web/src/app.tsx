@@ -3,6 +3,7 @@ import {
   DarkTheme,
   DefaultTheme,
   NavigationContainer,
+  NavigationState,
   Route,
 } from '@react-navigation/native';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
@@ -15,9 +16,14 @@ import { useRenderCount } from '@tloncorp/app/hooks/useRenderCount';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
 import { BasePathNavigator } from '@tloncorp/app/navigation/BasePathNavigator';
 import {
+  getNavigationIntentFromState,
+  getStateFromNavigationIntent,
+} from '@tloncorp/app/navigation/intent';
+import {
   getDesktopLinkingConfig,
   getMobileLinkingConfig,
 } from '@tloncorp/app/navigation/linking';
+import { CombinedParamList } from '@tloncorp/app/navigation/types';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
@@ -296,6 +302,21 @@ function AppRoutes() {
     []
   );
 
+  const { onNavigationStateChange, initialStateRef } = useDeriveInitialNavState(
+    isMobile ? 'mobile' : 'desktop'
+  );
+
+  const platformHandleStateChange = isMobile
+    ? handleStateChangeMobile
+    : handleStateChangeDesktop;
+  const combinedStateChangeHandler = useCallback(
+    (state: NavigationState | undefined) => {
+      platformHandleStateChange(state);
+      onNavigationStateChange(state);
+    },
+    [platformHandleStateChange, onNavigationStateChange]
+  );
+
   return (
     <AppDataProvider
       webAppNeedsUpdate={needsUpdate}
@@ -305,9 +326,10 @@ function AppRoutes() {
         {isMobile ? (
           <NavigationContainer
             key="mobile"
+            initialState={initialStateRef.current.mobile}
             linking={mobileLinkingConfig}
             theme={theme}
-            onStateChange={handleStateChangeMobile}
+            onStateChange={combinedStateChangeHandler}
             documentTitle={{
               enabled: true,
               formatter: documentTitleFormatterMobile,
@@ -318,9 +340,10 @@ function AppRoutes() {
         ) : (
           <NavigationContainer
             key="desktop"
+            initialState={initialStateRef.current.desktop}
             linking={desktopLinkingConfig}
             theme={theme}
-            onStateChange={handleStateChangeDesktop}
+            onStateChange={combinedStateChangeHandler}
             documentTitle={{
               enabled: true,
               formatter: documentTitleFormatterDesktop,
@@ -737,3 +760,43 @@ function RoutedApp() {
 }
 
 export default RoutedApp;
+
+const flipNavigator = (navigatorType: 'mobile' | 'desktop') =>
+  navigatorType === 'mobile' ? 'desktop' : 'mobile';
+
+/*
+ * On every nav state change, derive a corresponding navigation `initialState`
+ * that can be passed to a `NavigationContainer`.
+ *
+ * This conversion loses any history in the navigation state - this means
+ * that `goBack` will not work directly after switching navigators. Supporting
+ * history here seems too complex, so it's just a limitation until we have a
+ * unified router.
+ */
+function useDeriveInitialNavState(navigatorType: 'mobile' | 'desktop') {
+  const initialStateRef = useRef<
+    Partial<Record<typeof navigatorType, NavigationState<CombinedParamList>>>
+  >({});
+
+  const onNavigationStateChange = useCallback(
+    (state: NavigationState<CombinedParamList> | undefined) => {
+      if (!state) {
+        initialStateRef.current = {};
+        return;
+      }
+
+      initialStateRef.current[navigatorType] = state;
+      const navIntent = getNavigationIntentFromState(state, navigatorType);
+      if (navIntent) {
+        initialStateRef.current[flipNavigator(navigatorType)] =
+          getStateFromNavigationIntent(navIntent, flipNavigator(navigatorType));
+      }
+    },
+    [navigatorType]
+  );
+
+  return {
+    onNavigationStateChange,
+    initialStateRef,
+  };
+}
