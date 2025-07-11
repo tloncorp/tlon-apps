@@ -238,9 +238,10 @@
 ++  l
   |_  flow=(unit @t)
   ++  fail
-    |=  [desc=term trace=tang]
+    |=  [desc=term =tang]
     =/  =card
-      (~(fail logs our.bowl /logs) desc trace deez)
+      (~(fail logs our.bowl /logs) desc tang deez)
+    %-  %-  %*(. slog pri 3)  [leaf+"fail" tang]
     |*  etc=*
     =.  cor  (emit card)
     etc
@@ -249,6 +250,13 @@
     |=  [vol=volume:logs =echo:logs]
     =/  =card
       (~(tell logs our.bowl /logs) vol echo deez)
+    =/  pri
+      ?-  vol
+        %info  1
+        %warn  2
+        %crit  3
+      ==
+    %-  %-  %*(. slog pri pri)  [leaf+"tell {<vol>}" echo]
     |*  etc=*
     =.  cor  (emit card)
     etc
@@ -1407,6 +1415,7 @@
   ++  se-give-update
     |=  =update:g
     ^+  se-core
+    ~&  se-give-update+update
     ::  update subscribers: either everyone
     ::  or admins only.
     ::
@@ -2603,7 +2612,6 @@
   ++  go-leave
     |=  send-leave=?
     ^+  go-core
-    ?>  from-self
     =.  cor
       (submit-activity [%del %group flag])
     ::NOTE  we leave all channels, not just those that
@@ -3427,6 +3435,7 @@
   ++  go-response
     |=  =r-group:g
     ^+  go-core
+    ~&  go-response+r-group
     ::  v1 response, requires v7
     ::
     =/  r-groups-7=r-groups:v7:gv  [flag r-group]
@@ -3666,6 +3675,7 @@
     |=  story=(unit story:s:g)
     ^+  fi-core
     =.  cor  (emit (initiate:neg [p.flag server]))
+    ~&  fi-ask+[flag story]
     ?:  (~(has by groups) flag)  fi-core
     ?:  ?&  ?=(^ progress)
             ?=(?(%ask %join %watch %done) u.progress)
@@ -3842,6 +3852,7 @@
       ?.  &(?=(^ progress) =(%ask u.progress))
         ::  we aren't asking anymore, ignore
         fi-core
+      ~&  fi-agent-ask+-.sign
       ?-    -.sign
           %poke-ack
         ?^  p.sign
