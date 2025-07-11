@@ -46,26 +46,5 @@
   |=  [our=@p now=@da]
   |=  =scope
   ^-  level
-  =;  =value
-    ::  %group or %channel scopes may give us a ~ value,
-    ::  deferring back to the user-configured default level,
-    ::  which we can scry out directly.
-    ::
-    ?~(value $(scope ~) value)
-  |^  ^-  value
-      ?.  .^(? %gu (make-beam %groups /$))
-        *level
-      =;  =spur
-        .^(value %gx (make-beam %groups %volume (snoc spur %volume-value)))
-      ?-  scope
-        ~             /
-        [%group *]    /(scot %p p.scope)/[q.scope]
-        [%channel *]  /[p.scope]/(scot %p p.q.scope)/[q.q.scope]
-      ==
-  ::
-  ++  make-beam
-    |=  [=desk =spur]
-    ^-  path
-    [(scot %p our) desk (scot %da now) spur]
-  --
+  *level
 --

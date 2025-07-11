@@ -1168,7 +1168,7 @@
     .^(? %gu (weld base-path /$))
   ?.  groups-running  ~
   =/  group-exists
-    .^(? %gx (weld base-path /exists/(scot %p p.flag)/[q.flag]/noun))
+    .^(? %gu (weld base-path /groups/(scot %p p.flag)/[q.flag]))
   ?.  group-exists  ~
   %-  some
   .^  seat  %gx

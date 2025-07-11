@@ -38,6 +38,8 @@
 /%  m-group-response-1   %group-response-1
 /%  m-group-action-3     %group-action-3
 /%  m-gangs              %gangs
+/%  m-foreign-1          %foreign-1
+/%  m-foreigns-1         %foreigns-1
 ::
 %-  %-  discipline
   :+  ::  marks
@@ -73,6 +75,9 @@
           :+  %group-action-3     &  -:!>(*vale:m-group-action-3)
         ::
           :+  %gangs              &  -:!>(*vale:m-gangs)
+        ::
+          :+  %foreign-1          &  -:!>(*vale:m-foreign-1)
+          :+  %foreigns-1         &  -:!>(*vale:m-foreigns-1)
       ==
     ::  facts
     ::
@@ -103,6 +108,9 @@
       [/x/v0/groups %groups]
       [/x/v1/groups %groups-1]
       [/x/v2/groups %groups-2]
+    ::
+      [/x/v2/groups/$/$/channels/can-read %noun]
+      [/x/v2/groups/$/$/channels/$/$/$/can-write %noun]
     ::
       [/x/v0/light/groups %groups]
       [/x/v1/light/groups %groups-1]
@@ -282,8 +290,7 @@
         =/  =flag:g  [our.bowl name.create-group.c-groups]
         ?<  (~(has by groups) flag)
         =.  cor  se-abet:(se-c-create:se-core flag create-group.c-groups)
-        :: auto join
-        fi-abet:(fi-join:(fi-abed:fi-core flag) ~)
+        go-abet:(go-safe-sub:(go-abed:go-core flag) |)
       ::
           %group
         =/  server-core  (se-abed:se-core flag.c-groups)
@@ -1003,7 +1010,7 @@
       ?:  ?=([%v1 ~] rest.pole)
         ::  deprecated
         $(pole [%x ver %ui %groups ship name ~]:pole)
-      ~|(peek-bad-path+pole !!)
+      $(pole [%x ver %groups ship name rest]:pole)
     ?-    ver.pole
         %v0
       =/  =status:neg
@@ -1215,11 +1222,11 @@
     =*  rc  r-channel.r-channels
     ?+    -.rc  cor
         %create
-      ?.  (~(has by groups) group.perm.rc)  cor
-      =+  group=(~(got by groups) group.perm.rc)
+      =*  flag  group.perm.rc
+      ?.  (~(has by groups) flag)  cor
+      =+  group=(~(got by groups) flag)
       %_  cor  groups
-        %+  ~(put by groups)
-          group.perm.rc
+        %+  ~(put by groups)  flag
         %_  group  active-channels
           (~(put in active-channels.group) nest.r-channels)
         ==
@@ -1235,28 +1242,18 @@
           (~(put in active-channels.group) nest.r-channels)
         ==
       ==
-    ::TODO  this is inefficient, but %leave, unlike %join and %create,
-    ::      does not carry group information. thus, we have
-    ::      to comb through our groups to find matches.
-    ::      there is at least one other place where this happens,
-    ::      so it might be worth doing something about it.
-    ::
-    ::      use channels-index.
     ::
         %leave
-      %_  cor  groups
-        %-  ~(run by groups)
-        |=  [=net:g =group:g]
-        ^-  [_net _group]
-        ?:  =(~ channels.group)
-          [net group]
-        ?.  (~(has by channels.group) nest.r-channels)
-          [net group]
-        :-  net
-        %_  group  active-channels
-          (~(del in active-channels.group) nest.r-channels)
+      ?~  flag=(~(get by channels-index) nest.r-channels)
+        cor
+      =+  net-group=(~(got by groups) u.flag)
+      ?>  (~(has by channels.net-group) nest.r-channels)
+      =.  groups
+        %+  ~(put by groups)  u.flag
+        %_  net-group  active-channels
+          (~(del in active-channels.net-group) nest.r-channels)
         ==
-      ==
+      cor
     ==
   ==
 ::
@@ -2586,18 +2583,20 @@
   ++  go-safe-sub
     |=  delay=?
     ^+  go-core
-    ?:  |(go-has-sub go-our-host)  go-core
+    ?:  go-has-sub  go-core
     (go-start-updates delay)
   ::  +go-start-updates: subscribe to the group for updates
   ::
   ++  go-start-updates
     |=  delay=?
     ^+  go-core
-    ?>  ?=(%sub -.net)
+    =/  sub-time=@da
+      ?:  ?=(%pub -.net)  *@da
+      time.net
     =.  cor
       %.  delay
       %^  safe-watch  go-sub-wire  [p.flag server]
-      (weld go-server-path /updates/(scot %p our.bowl)/(scot %da time.net))
+      (weld go-server-path /updates/(scot %p our.bowl)/(scot %da sub-time))
     go-core
   ::  +go-leave: leave the group and cancel all channel subscriptions
   ::
@@ -2842,23 +2841,22 @@
   ++  go-apply-log
     |=  =log:g
     ?~  log  go-core
-    =/  init=?  ?>(?=(%sub -.net) init.net)  ::TMI in roll
+    =/  init=?  ?:(?=(%sub -.net) init.net &)  ::TMI in roll
     =.  go-core
       %+  roll  (tap:log-on:g log)
       |=  [=update:g =_go-core]
-      ::  we need to filter out our past kicks upon joining
+      ::  we need to filter out our past kicks upon joining the group
       ::
-      =*  u-group  u-group.update
-      ?:  ?&  init
-              ?=(%seat -.u-group)
-              (~(has in ships.u-group) our.bowl)
-              ?=([%del ~] u-seat.u-group)
-          ==
-        go-core
+      :: =?  u-group.update  ?&  !init
+      ::                         ?=(%seat -.u-group)
+      ::                         (~(has in ships.u-group) our.bowl)
+      ::                         ?=([%del ~] u-seat.u-group)
+      ::                     ==
+      ::     u-group(ships (~(del in ships.u-group) our.bowl))
       (go-u-group:go-core update)
     ?:  init  go-core
-    ?>  ?=(%sub -.net)
-    =.  init.net  &
+    =?  net  ?=(%sub -.net)
+      [%sub time.net &]
     ::  join the channels upon initial group log
     ::
     =/  readable-channels
@@ -3083,7 +3081,13 @@
         %-  ~(rep in ships)
         |=  [=ship =_seats.group]
         (~(del by seats.group) ship)
-      =?  go-core  leave  (go-leave |)
+      ::  leave the group if our seat has been deleted, but
+      ::  only if the group has been initialized.
+      ::  otherwise any past kicks stored in the group log
+      ::  would kick us out on a subsequent rejoin.
+      ::
+      =/  init=?  ?:(?=(%sub -.net) init.net &)
+      =?  go-core  &(leave init)  (go-leave |)
       go-core
     ::
         %add-roles
@@ -3496,8 +3500,8 @@
     ::
         [%channels %can-read ~]
       =-  ``noun+!>(-)
-      !>  ^-  $-([ship nest:g] ?)
-      |=  [=ship =nest:g]
+      ^-  $-([ship nest:gv] ?)
+      |=  [=ship =nest:gv]
       ?~  chan=(~(get by channels.group) nest)  |
       (go-can-read ship u.chan)
     ::
@@ -3642,7 +3646,8 @@
     |=  tok=(unit token:g)
     ^+  fi-core
     =.  cor  (emit (initiate:neg [p.flag server]))
-    ?:  (~(has by groups) flag)  fi-core
+    =+  net-group=(~(get by groups) flag)
+    ?:  &(?=(^ net-group) ?=(%sub -<.u.net-group))  fi-core
     ::  leave the ask subscription in case it has not yet closed
     =?  cor  ?=([~ %ask] progress)
       (emit leave-ask:fi-pass)
@@ -3824,6 +3829,7 @@
       =/  =net:g  [%sub *@da |]
       =|  =group:g
       =?  meta.group  ?=(^ preview)  meta.u.preview
+      ?<  (~(has by groups) flag)
       =.  groups  (~(put by groups) flag [net group])
       =.  cor
         go-abet:(go-safe-sub:(go-abed:go-core flag) |)

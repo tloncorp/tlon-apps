@@ -730,6 +730,7 @@
     =.  nest  n
     ?:  (~(has by v-channels) n)
       %-  (slog leaf+"channel-server: create already exists: {<n>}" ~)
+      ~&  (~(got by v-channels) n)
       ca-core
     ?>  can-nest
     ?>  our-host:ca-perms
