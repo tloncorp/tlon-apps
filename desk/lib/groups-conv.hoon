@@ -201,25 +201,10 @@
         ?:  ?=(%public privacy.ad)
           [%open [ships ranks]:banned.ad]
         :*  %shut
-          ::  pending
-          %-  sy  %+  roll  ~(tap by seats)
-          |=  [[=ship =seat:v7:gv] pending=(list ship)]
-          ?.  =(*@da joined.seat)  pending
-          [ship pending]
-        ::
-          ~(key by requests.ad)  :: ask
+          ~(key by pending.ad)
+          ~(key by requests.ad)
         ==
       --
-    --
-  ::
-  ++  log
-    |%
-    ++  v2
-      |=  =log:v7:gv
-      ~|(%not-implemented !!)
-    ++  v5
-      |=  =log:v7:gv
-      ~|(%not-implemented !!)
     --
   ::
   ++  r-group

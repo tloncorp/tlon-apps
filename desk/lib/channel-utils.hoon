@@ -938,7 +938,6 @@
     =/  test=$-([ship nest:gv] ?)
       =>  [path=path nest=nest:gv ..zuse]  ~+
       .^($-([ship nest] ?) %gx path)
-    =-  ~&(can-read+- -)
     (test her nest)
   ::
   ++  can-write

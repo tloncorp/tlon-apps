@@ -115,6 +115,7 @@
       %-  pairs
       :~  privacy+s+privacy.ad
           banned+(banned banned.ad)
+          pending+(pending pending.ad)
           requests+(requests requests.ad)
           tokens+(tokens tokens.ad)
           ::XX referrals
@@ -127,6 +128,13 @@
         :~  ships+(^ships ships)
             ranks+a+(turn ~(tap in ranks) (lead %s))
         ==
+      ++  pending
+        |=  pend=(jug ship:z role-id:v7:gv)
+        %-  pairs
+        %+  turn  ~(tap by pend)
+        |=  [=ship:z roles=(set role-id:v7:gv)]
+        :-  (scot %p ship)
+        (^roles roles)
       ++  requests
         |=  reqs=(map ship:z (unit story:s))
         %-  pairs
