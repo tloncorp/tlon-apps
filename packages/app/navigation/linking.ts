@@ -69,8 +69,8 @@ export const getMobileLinkingConfig = (
           WompWomp: 'report-bug',
           AppInfo: 'app-info',
           PushNotificationSettings: 'push-notification-settings',
-          Contacts: 'Contacts',
-          Settings: 'Settings',
+          Contacts: 'contacts',
+          Settings: 'settings',
         },
       },
     },
@@ -148,9 +148,9 @@ export const getDesktopLinkingConfig = (
             },
           },
           Settings: {
-            path: 'Settings',
+            path: 'settings',
             screens: {
-              SettingsEmpty: 'SettingsEmpty',
+              SettingsEmpty: '',
             },
           },
         },

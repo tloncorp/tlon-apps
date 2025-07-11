@@ -141,9 +141,7 @@ function pathFromNavigationIntent(
       }
 
       case 'settings': {
-        // These are the paths used when visiting settings, but navigating to
-        // these paths ends up at the default route.
-        return mobileOrDesktop(`/Settings`, `/Settings/SettingsEmpty`);
+        return `/settings`;
       }
 
       case 'group-dm': {
