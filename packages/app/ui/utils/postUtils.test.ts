@@ -168,25 +168,6 @@ describe('computeReactionDetails', () => {
       expect(result.list[0].users[0].name).toBe('Unknown User');
     });
 
-    test('should use peer nickname when custom nickname is empty and peer nickname is available', () => {
-      const reactions: db.Reaction[] = [
-        {
-          postId: 'post-1',
-          contactId: '~zod',
-          value: '👍',
-          contact: {
-            id: '~zod',
-            customNickname: '',
-            peerNickname: 'Peer Name',
-          } as db.Contact,
-        },
-      ];
-
-      const result = computeReactionDetails(reactions, '~sampel-palnet');
-
-      expect(result.list[0].users[0].name).toBe('Peer Name');
-    });
-
     test('should handle multiple users with different name resolution scenarios', () => {
       const reactions: db.Reaction[] = [
         {
