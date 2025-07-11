@@ -1118,7 +1118,7 @@
     ?.  .^(? %gu (scry-path %groups /$))  *group:v7:gv
     ?.  .^(? %gu (scry-path %groups /groups/(scot %p p.flag)/[q.flag]))
       *group:v7:gv
-    .^(group:v7:gv %gx (scry-path %groups /groups/(scot %p p.flag)/[q.flag]/v2/noun))
+    .^(group:v7:gv %gx (scry-path %groups /v2/groups/(scot %p p.flag)/[q.flag]/noun))
   :*  channel
       group
       v-channels

@@ -67,7 +67,6 @@
     /[kind.channel-id]/(scot %p ship.channel-id)/[name.channel-id]
   ;<  exists=?  bind:n
     (scry:io ? (weld /gu/channels/v1 nest-path))
-  ~&  channel+[channel-id.create-channel exists=exists]
   ::  create the channel if it does not exist
   ::
   ;<  ~  bind:n

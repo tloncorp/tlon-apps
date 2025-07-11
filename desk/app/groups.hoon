@@ -98,7 +98,7 @@
   ::  scries
   ::
   :~  [/x/init/v1 %noun]
-      [/x/init/v2 %noun]
+      [/x/v2/init %noun]
     ::
       [/x/v0/groups %groups]
       [/x/v1/groups %groups-1]
@@ -112,12 +112,18 @@
       [/x/v1/ui/groups %groups-ui-1]
       [/x/v2/ui/groups %groups-ui-2]
     ::
+      [/x/v0/ui/groups/$/$ %group-ui]
+      [/x/v1/ui/groups/$/$ %group-ui-1]
+      [/x/v2/ui/groups/$/$ %group-ui-2]
+    ::
       [/x/v0/groups/$/$ %group]
       [/x/v1/groups/$/$ %group-1]
       [/x/v2/groups/$/$ %group-2]
     ::
       [/x/v1/foreigns %foreigns-1]
       [/x/v1/foreigns/$/$ %foreign-1]
+    ::
+      [/x/groups/$/$/v1 %group-ui]  ::  deprecated
   ==
 =/  verbose  |
 ::
@@ -275,8 +281,9 @@
           %create
         =/  =flag:g  [our.bowl name.create-group.c-groups]
         ?<  (~(has by groups) flag)
-        se-abet:(se-c-create:se-core flag create-group.c-groups)
-        ::  self-join
+        =.  cor  se-abet:(se-c-create:se-core flag create-group.c-groups)
+        :: auto join
+        fi-abet:(fi-join:(fi-abed:fi-core flag) ~)
       ::
           %group
         =/  server-core  (se-abed:se-core flag.c-groups)
@@ -803,7 +810,6 @@
     %+  roll
       ~(tap by groups)
     |=  [[=flag:g [=net:g *]] =_cor]
-    ?.  ?=(%pub -.net)  cor
     go-abet:(go-safe-sub:(go-abed:go-core:cor flag) |)
   cor
 ::
@@ -926,8 +932,10 @@
       =*  light-group  (drop-seats:group:v7:gc group our.bowl)
       =+  (group-ui:group:v7:gc net light-group)
       ::  recompute member count after dropping seats
+      ::TODO is this correct in other scries?
+      ::
       -(member-count ~(wyt by seats.group))
-    ``noun+!>([~ `foreigns:v7:gv`foreigns])
+    ``noun+!>([groups-light-ui-7 `foreigns:v7:gv`foreigns])
   ::
        [%x ver=?(%v0 %v1 %v2) %groups ~]
     =/  groups-7=groups:v7:gv  (~(run by groups) tail)
@@ -1015,7 +1023,7 @@
   ::
       [%u %groups ship=@ name=@ ~]
     =+  ship=(slav %p ship.pole)
-    ``noun+!>((~(has by groups) [ship name.pole]))
+    ``loob+!>((~(has by groups) [ship name.pole]))
   ::
       [%x ver=?(%v1) %foreigns ~]
     ``foreigns-1+!>(`foreigns:v7:gv`foreigns)
@@ -1073,7 +1081,7 @@
     =/  =ship  (slav %p ship.pole)
     =/  =nest:g  [app.pole ship name.pole]
     ?~  flag=(~(get by channels-index) nest)
-      ~|(%channel-group-not-found !!)
+      ~|(channel-group-not-found+nest !!)
     =/  =path
       %+  weld
         /v0/groups/(scot %p p.u.flag)/[q.u.flag]
@@ -1121,8 +1129,7 @@
       ==
     cor
   ::
-      ::  v6 -> v7
-      ::  migrate foreigns
+      ::  v6 -> v7 migrate .foreigns
       [%load %v7 %foreigns ~]
     ::  refresh preview for each foreign group
     ::
@@ -1167,8 +1174,7 @@
       (fi-abed:fc flag)
     ==
   ::
-      ::  v6 -> v7
-      ::  migrate $group
+      ::  v6 -> v7 migrate each .groups
       ::
       [%load %v7 %admissions ~]
     ::  host: send invites to each ship on the pending list in
@@ -1269,10 +1275,10 @@
     cor
   ::
       %fact
-    =+  !<(=update:t q.cage.sign)
-    ?~  con.update  cor
+    =+  !<(=response:t q.cage.sign)
+    ?.  ?=(%peer -.response)  cor
     =/  groups=(set $>(%flag value:t))
-      (~(gos cy:t con.update) groups+%flag)
+      (~(gos cy:t con.response) groups+%flag)
     ?:  =(~ groups)  cor  ::TMI
     %+  roll  ~(tap in groups)
     |=  [val=$>(%flag value:t) =_cor]
@@ -1404,10 +1410,6 @@
   ++  se-give-update
     |=  =update:g
     ^+  se-core
-    ::  update +go-core
-    ::
-    =.  cor
-      go-abet:(go-u-group:(go-abed:go-core flag) update)
     ::  update subscribers: either everyone
     ::  or admins only.
     ::
@@ -1556,7 +1558,9 @@
   ++  se-c-leave
     ^+  se-core
     ?<  (se-is-banned src.bowl)
-    ?:  (~(has by seats.group) src.bowl)
+    ::  delete the seat of the leaving member, unless he is the host
+    ::
+    ?:  &((~(has by seats.group) src.bowl) !=(p.flag src.bowl))
       (se-c-seat (sy src.bowl ~) [%del ~])
     =?  se-core  (~(has by pending.ad) src.bowl)
       =.  pending.ad  (~(del by pending.ad) src.bowl)
@@ -1572,6 +1576,7 @@
     |=  [=ship tok=(unit token:g)]
     ^-  [? _ad]
     =*  deny   [| ad]
+    ?:  =(p.flag ship)  [& ad]
     ?:  (se-is-banned ship)  deny
     ?:  &(=(~ tok) ?=(%public privacy.ad))
       [& ad]
@@ -2427,8 +2432,7 @@
       (~(put by groups) flag net group)
     ?.  gone  cor
     =.  go-core  (go-response [%delete ~])
-    =?  cor  !go-our-host  (emil leave-subs:go-pass)
-    cor
+    (emil leave-subs:go-pass)
   ::  +go-area: group base path
   ++  go-area  `path`/groups/(scot %p p.flag)/[q.flag]
   ::  go-server-path: group server base path
@@ -3638,10 +3642,6 @@
     |=  tok=(unit token:g)
     ^+  fi-core
     =.  cor  (emit (initiate:neg [p.flag server]))
-    ::TODO  fix the case of a failed group subscription.
-    ::      if a subscription failed, the group will persist,
-    ::      but it won't be possible to restart the subscription
-    ::
     ?:  (~(has by groups) flag)  fi-core
     ::  leave the ask subscription in case it has not yet closed
     =?  cor  ?=([~ %ask] progress)
