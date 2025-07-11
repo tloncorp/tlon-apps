@@ -153,9 +153,14 @@ const ChatMessage = ({
   // }, [post.sentAt]);
 
   if (post.isDeleted) {
-    return <ErrorMessage message="Message deleted" />;
+    return <ErrorMessage testID="MessageDeleted" message="Message deleted" />;
   } else if (post.hidden) {
-    return <ErrorMessage message="Message hidden or flagged" />;
+    return (
+      <ErrorMessage
+        testID="MessageHidden"
+        message="Message hidden or flagged"
+      />
+    );
   }
 
   const shouldRenderReplies =
@@ -169,7 +174,7 @@ const ChatMessage = ({
       onHoverIn={handleHoverIn}
       onHoverOut={handleHoverOut}
       pressStyle="unset"
-      cursor="none"
+      cursor="default"
     >
       <YStack
         backgroundColor={isHighlighted ? '$secondaryBackground' : undefined}
@@ -240,6 +245,7 @@ const ChatMessage = ({
             content={post.editStatus === 'failed' ? lastEditContent : content}
             isNotice={post.type === 'notice'}
             onPressImage={handleImagePressed}
+            onLongPress={handleLongPress}
           />
         </View>
 
@@ -289,10 +295,12 @@ const ChatMessage = ({
                 backgroundColor="transparent"
                 borderWidth="unset"
                 size="$l"
+                testID="MessageActionsTrigger"
               >
                 <Icon type="Overflow" />
               </Button>
             }
+            mode="await-trigger"
           />
         </View>
       )}
@@ -332,13 +340,20 @@ const ChatContentRenderer = createContentRenderer({
   },
 });
 
-function ErrorMessage({ message }: { message: string }) {
+function ErrorMessage({
+  message,
+  testID,
+}: {
+  message: string;
+  testID?: string;
+}) {
   return (
     <XStack
       gap="$s"
       paddingVertical="$xl"
       justifyContent={'center'}
       alignItems={'center'}
+      testID={testID}
     >
       <Icon size="$s" type="Placeholder" color="$tertiaryText" />
       <Text size="$label/m" color="$tertiaryText">

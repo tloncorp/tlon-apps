@@ -367,7 +367,7 @@ export const syncContacts = async (ctx?: SyncCtx, yieldWriter = false) => {
   const contacts = await syncQueue.add('contacts', ctx, () =>
     api.getContacts()
   );
-  logger.log('got contacts from api', contacts);
+  logger.log('got contacts from api', contacts.length, 'contacts');
 
   const writer = async () => {
     try {
@@ -1487,16 +1487,6 @@ export const handleDiscontinuity = async () => {
 };
 
 export const handleChannelStatusChange = async (status: ChannelStatus) => {
-  // Since Eyre doesn't send a response body when opening an event
-  // source request, the reconnect request won't resolve until we get a new fact
-  // or a heartbeat. We call this method to manually trigger a fact -- anything
-  // that does so would work.
-  //
-  // Eyre issue is fixed in this PR, https://github.com/urbit/urbit/pull/7080,
-  // we should remove this hack once 410 is rolled out.
-  if (status === 'reconnecting') {
-    api.checkExistingUserInviteLink();
-  }
   updateSession({ channelStatus: status });
 
   // Trigger verification for posts marked as 'needs_verification' when connection becomes active
@@ -1550,6 +1540,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     return;
   }
   isSyncing = true;
+  updateSession({ phase: 'high' });
 
   const startTime = Date.now();
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
@@ -1633,6 +1624,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       });
     }
 
+    updateSession({ phase: 'low' });
     const lowPriorityPromises = [
       alreadySubscribed
         ? Promise.resolve()
@@ -1663,9 +1655,6 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       syncAppInfo({ priority: SyncPriority.Low }).then(() => {
         logger.crumb(`finished syncing app info`);
       }),
-      syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
-        logger.crumb(`finished channel predictive sync`);
-      }),
       syncSystemContacts({ priority: SyncPriority.Low }).then(() => {
         logger.crumb(`finished syncing system contacts`);
       }),
@@ -1685,10 +1674,18 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         });
       });
 
+    updateSession({ phase: 'ready' });
+
+    // fire off relevant channel posts sync, but don't wait for it
+    syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
+      logger.crumb(`finished channel predictive sync`);
+    });
+
     // post sync initialization work
     await verifyUserInviteLink();
     db.userHasCompletedFirstSync.setValue(true);
   } finally {
+    updateSession({ phase: 'ready' });
     isSyncing = false;
   }
 };

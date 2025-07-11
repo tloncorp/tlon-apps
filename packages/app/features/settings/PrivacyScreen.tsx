@@ -30,34 +30,26 @@ export function PrivacySettingsScreen(props: Props) {
   const store = useStore();
   const phoneAttest = store.useCurrentUserPhoneAttestation();
   const telemetry = useTelemetry();
-  const { data: calmSettings } = store.useCalmSettings();
   const { data: settings } = store.useSettings();
 
   const [state, setState] = useState<PrivacyState>({
     phoneDiscoverable: parsePhoneDiscoverability(phoneAttest),
-    telemetryDisabled: telemetry.getIsOptedOut(),
-    disableNicknames: calmSettings?.disableNicknames ?? false,
-    disableAvatars: calmSettings?.disableAvatars ?? false,
+    telemetryDisabled: !(settings?.enableTelemetry ?? false),
+    disableNicknames: settings?.disableNicknames ?? false,
+    disableAvatars: settings?.disableAvatars ?? false,
     disableTlonInfraEnhancement: settings?.disableTlonInfraEnhancement ?? false,
   });
 
   // Update state when settings change
   useEffect(() => {
-    if (calmSettings) {
-      setState((prev) => ({
-        ...prev,
-        disableNicknames: calmSettings.disableNicknames ?? false,
-        disableAvatars: calmSettings.disableAvatars ?? false,
-      }));
-    }
-  }, [calmSettings]);
-
-  useEffect(() => {
     if (settings) {
       setState((prev) => ({
         ...prev,
+        disableNicknames: settings.disableNicknames ?? false,
+        disableAvatars: settings.disableAvatars ?? false,
         disableTlonInfraEnhancement:
           settings.disableTlonInfraEnhancement ?? false,
+        telemetryDisabled: !(settings.enableTelemetry ?? false),
       }));
     }
   }, [settings]);

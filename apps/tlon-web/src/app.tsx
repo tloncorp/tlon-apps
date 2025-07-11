@@ -10,6 +10,7 @@ import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitCl
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import useDesktopNotifications from '@tloncorp/app/hooks/useDesktopNotifications';
 import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
+import { useInviteParam } from '@tloncorp/app/hooks/useInviteParam';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useRenderCount } from '@tloncorp/app/hooks/useRenderCount';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
@@ -53,7 +54,7 @@ import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
 import { useIsDark, useIsMobile } from '@/logic/useMedia';
 import { preSig } from '@/logic/utils';
 import { toggleDevTools, useLocalState, useShowDevTools } from '@/state/local';
-import { useAnalyticsId, useLogActivity, useTheme } from '@/state/settings';
+import { useTheme } from '@/state/settings';
 
 import { DesktopLoginScreen } from './components/DesktopLoginScreen';
 import { isElectron } from './electron-bridge';
@@ -154,13 +155,6 @@ function AppRoutes() {
   const { data: groupData } = store.useGroup({
     id: groupId,
   });
-  const { data, refetch, isRefetching, isFetching } = contactsQuery;
-
-  useEffect(() => {
-    if (data?.length === 0 && !isRefetching && !isFetching) {
-      refetch();
-    }
-  }, [data?.length, isRefetching, isFetching, refetch]);
 
   const isMobile = useIsMobile();
   const isDarkMode = useIsDarkMode();
@@ -656,9 +650,7 @@ function RoutedApp() {
   const [userThemeColor, setUserThemeColor] = useState('#ffffff');
   const showDevTools = useShowDevTools();
   const isStandAlone = useIsStandaloneMode();
-  const logActivity = useLogActivity();
   const posthog = usePostHog();
-  const analyticsId = useAnalyticsId();
   const body = document.querySelector('body');
   const colorSchemeFromNative =
     window.nativeOptions?.colorScheme ?? window.colorscheme;

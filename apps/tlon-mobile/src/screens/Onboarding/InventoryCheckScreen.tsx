@@ -52,7 +52,7 @@ export const InventoryCheckScreen = ({ navigation }: Props) => {
   return (
     <View flex={1}>
       <ScreenHeader
-        title="Welcome to TM"
+        title="Welcome to Tlon"
         showSessionStatus={false}
         backAction={() => navigation.goBack()}
         isLoading={isChecking}

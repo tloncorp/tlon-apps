@@ -31,6 +31,7 @@ export const BlockWrapper = styled(View, {
   name: 'ContentBlock',
   context: ContentContext,
   padding: '$l',
+  cursor: 'default',
   variants: {
     isNotice: {
       true: {
@@ -115,11 +116,15 @@ export const LineRenderer = memo(function LineRendererComponent({
 });
 
 function TextContent(props: ComponentProps<typeof LineText>) {
+  const context = useContentContext();
   const TextComponent =
     useContext(BlockRendererContext)?.renderers?.lineText ?? LineText;
   const defaultProps =
     useContext(BlockRendererContext)?.settings?.lineText ?? {};
-  return <TextComponent {...defaultProps} {...props} />;
+
+  return (
+    <TextComponent {...defaultProps} {...props} isNotice={context.isNotice} />
+  );
 }
 
 export const LineText = styled(Text, {
@@ -428,7 +433,7 @@ export function HeaderBlock({
   ...props
 }: { block: cn.HeaderBlockData } & ComponentProps<typeof HeaderText>) {
   return (
-    <HeaderText tag={block.level} {...props}>
+    <HeaderText tag={block.level} level={block.level} {...props}>
       {block.children.map((con, i) => (
         <InlineRenderer key={`${con}-${i}`} inline={con} />
       ))}
@@ -438,7 +443,7 @@ export function HeaderBlock({
 
 export const HeaderText = styled(Text, {
   variants: {
-    tag: {
+    level: {
       h1: {
         fontSize: 24,
         fontWeight: 'bold',
@@ -466,6 +471,7 @@ export const HeaderText = styled(Text, {
     },
   } as const,
 });
+HeaderText.displayName = 'HeaderText';
 
 export function EmbedBlock({
   block,
@@ -476,9 +482,17 @@ export function EmbedBlock({
   }
 
   return (
-    <View width="100%" {...props}>
-      <EmbedContent url={block.url} content={block.content} />
-    </View>
+    <EmbedContent
+      url={block.url}
+      content={block.content}
+      renderWrapper={(children) =>
+        children ? (
+          <View width="100%" {...props}>
+            {children}
+          </View>
+        ) : null
+      }
+    />
   );
 }
 
@@ -562,6 +576,28 @@ export function BlockRenderer({ block }: { block: cn.BlockData }) {
   const { wrapperProps, ...defaultPropsForBlock } =
     defaultProps?.[block.type] ?? {};
   const defaultPropsForBlockWrapper = defaultProps?.blockWrapper;
+
+  // Special handling for embed blocks - let EmbedContent decide if wrapper should render
+  if (block.type === 'embed') {
+    return (
+      <EmbedContent
+        url={block.url}
+        content={block.content}
+        renderWrapper={(children) =>
+          children ? (
+            <Wrapper
+              {...defaultPropsForBlockWrapper}
+              {...wrapperProps}
+              block={block}
+            >
+              {children}
+            </Wrapper>
+          ) : null
+        }
+      />
+    );
+  }
+
   return (
     <Wrapper {...defaultPropsForBlockWrapper} {...wrapperProps} block={block}>
       <Renderer {...defaultPropsForBlock} block={block} />

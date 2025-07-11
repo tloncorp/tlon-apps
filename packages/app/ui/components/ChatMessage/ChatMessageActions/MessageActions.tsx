@@ -4,10 +4,11 @@ import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCopy } from '@tloncorp/ui';
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
 
+import { useRenderCount } from '../../../../hooks/useRenderCount';
 import { useChannelContext, useCurrentUserId } from '../../../contexts';
 import { Attachment, useAttachmentContext } from '../../../contexts/attachment';
 import { triggerHaptic, useIsAdmin } from '../../../utils';
@@ -47,7 +48,7 @@ export default function MessageActions({
   );
 }
 
-function ConnectedAction({
+const ConnectedAction = memo(function ConnectedAction({
   actionId,
   dismiss,
   last,
@@ -74,6 +75,8 @@ function ConnectedAction({
   const { label } = useDisplaySpecForChannelActionId(actionId, {
     post,
     channel,
+    currentUserId,
+    currentUserIsAdmin,
   });
   const action = useMemo(
     () => ChannelAction.staticSpecForId(actionId),
@@ -117,6 +120,8 @@ function ConnectedAction({
     currentUserIsAdmin,
   ]);
 
+  useRenderCount(`MessageAction-${actionId}`);
+
   if (!visible) {
     return null;
   }
@@ -149,7 +154,7 @@ function ConnectedAction({
       {label}
     </ActionList.Action>
   );
-}
+});
 
 function CopyJsonAction({ post }: { post: db.Post }) {
   const jsonString = useMemo(() => {
@@ -264,9 +269,13 @@ export function useDisplaySpecForChannelActionId(
   {
     post,
     channel,
+    currentUserId,
+    currentUserIsAdmin,
   }: {
     post: db.Post;
     channel: db.Channel;
+    currentUserId: string;
+    currentUserIsAdmin: boolean;
   }
 ): {
   label: string;
@@ -292,11 +301,25 @@ export function useDisplaySpecForChannelActionId(
         return { label: 'Copy message text' };
 
       case 'delete':
+        if (post.authorId !== currentUserId && currentUserIsAdmin) {
+          return {
+            label:
+              'Admin: ' +
+              (postTerm === 'message' ? 'Delete message' : 'Delete post'),
+          };
+        }
         return {
           label: postTerm === 'message' ? 'Delete message' : 'Delete post',
         };
 
       case 'edit':
+        if (post.authorId !== currentUserId && currentUserIsAdmin) {
+          return {
+            label:
+              'Admin: ' +
+              (postTerm === 'message' ? 'Edit message' : 'Edit post'),
+          };
+        }
         return {
           label: postTerm === 'message' ? 'Edit message' : 'Edit post',
         };
@@ -305,7 +328,7 @@ export function useDisplaySpecForChannelActionId(
         return { label: isMuted ? 'Unmute thread' : 'Mute thread' };
 
       case 'quote':
-        return { label: 'Reply' };
+        return { label: 'Quote' };
 
       case 'report':
         return {
@@ -315,8 +338,8 @@ export function useDisplaySpecForChannelActionId(
       case 'startThread':
         return {
           label: ['dm', 'groupDm', 'chat'].includes(channel?.type)
-            ? 'Start thread'
-            : 'Comment on post',
+            ? 'Reply'
+            : 'Comment',
         };
 
       case 'forward':
@@ -331,5 +354,14 @@ export function useDisplaySpecForChannelActionId(
         return { label: post.hidden ? showMsg : hideMsg };
       }
     }
-  }, [channel?.type, isMuted, post.hidden, id, postTerm]);
+  }, [
+    id,
+    postTerm,
+    post.authorId,
+    post.hidden,
+    currentUserId,
+    currentUserIsAdmin,
+    isMuted,
+    channel?.type,
+  ]);
 }

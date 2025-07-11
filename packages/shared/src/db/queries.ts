@@ -1305,12 +1305,12 @@ export const insertChannelOrder = createWriteQuery(
     channelsInit: Pick<ChannelInit, 'channelId' | 'order'>[],
     ctx: QueryCtx
   ) => {
-    await ctx.db.transaction(async (tx) => {
+    await withTransactionCtx(ctx, async (txc) => {
       await Promise.all(
         channelsInit.map(async (chanInit) => {
           if (!chanInit.order) return;
 
-          await tx
+          await txc.db
             .update($channels)
             .set({ order: chanInit.order })
             .where(eq($channels.id, chanInit.channelId));
@@ -1345,7 +1345,7 @@ export const getThreadUnreadState = createReadQuery(
       where: eq($threadUnreads.threadId, parentId),
     });
   },
-  ['posts']
+  ['threadUnreads']
 );
 
 export const getAllGroupRoles = createReadQuery(
@@ -2111,18 +2111,18 @@ export const updateChannel = createWriteQuery(
     logger.log('updateChannel', update.id, update);
 
     return withTransactionCtx(ctx, async (txCtx) => {
-      await insertChannelPerms(
-        [
-          {
-            channelId: update.id,
-            writers:
-              update.writerRoles?.map((role) => role.roleId as string) || [],
-            readers:
-              update.readerRoles?.map((role) => role.roleId as string) || [],
-          },
-        ],
-        txCtx
-      );
+      if (update.writerRoles && update.readerRoles) {
+        await insertChannelPerms(
+          [
+            {
+              channelId: update.id,
+              writers: update.writerRoles?.map((role) => role.roleId as string),
+              readers: update.readerRoles?.map((role) => role.roleId as string),
+            },
+          ],
+          txCtx
+        );
+      }
 
       return txCtx.db
         .update($channels)
@@ -3296,7 +3296,7 @@ export const getPostWithRelations = createReadQuery(
       })
       .then(returnNullIfUndefined);
   },
-  ['posts', 'threadUnreads', 'volumeSettings']
+  ['posts', 'postReactions', 'threadUnreads', 'volumeSettings']
 );
 
 export const getPersonalGroup = createReadQuery(
@@ -3714,26 +3714,36 @@ export const insertContacts = createWriteQuery(
     });
 
     await withTransactionCtx(ctx, async (txCtx) => {
-      await txCtx.db
-        .insert($contacts)
-        .values(contactsData)
-        .onConflictDoUpdate({
-          target: $contacts.id,
-          set: conflictUpdateSetAll($contacts, ['isBlocked']),
-        });
+      // Batch size to avoid SQLite variable limits
+      const BATCH_SIZE = 100;
+
+      for (let i = 0; i < contactsData.length; i += BATCH_SIZE) {
+        const batch = contactsData.slice(i, i + BATCH_SIZE);
+
+        await txCtx.db
+          .insert($contacts)
+          .values(batch)
+          .onConflictDoUpdate({
+            target: $contacts.id,
+            set: conflictUpdateSetAll($contacts, ['isBlocked']),
+          });
+      }
 
       if (targetGroups.length) {
-        await txCtx.db
-          .insert($groups)
-          .values(targetGroups)
-          .onConflictDoNothing();
+        for (let i = 0; i < targetGroups.length; i += BATCH_SIZE) {
+          const batch = targetGroups.slice(i, i + BATCH_SIZE);
+          await txCtx.db.insert($groups).values(batch).onConflictDoNothing();
+        }
       }
       // TODO: Remove stale pinned groups
       if (contactGroups.length) {
-        await txCtx.db
-          .insert($contactGroups)
-          .values(contactGroups)
-          .onConflictDoNothing();
+        for (let i = 0; i < contactGroups.length; i += BATCH_SIZE) {
+          const batch = contactGroups.slice(i, i + BATCH_SIZE);
+          await txCtx.db
+            .insert($contactGroups)
+            .values(batch)
+            .onConflictDoNothing();
+        }
       }
 
       // clear existing
@@ -3742,19 +3752,27 @@ export const insertContacts = createWriteQuery(
         .where(not(eq($attestations.contactId, currentUserId)));
 
       if (contactAttestations.length) {
-        // reset to current
-        await txCtx.db
-          .insert($attestations)
-          .values(contactAttestations.map((a) => a.attestation as Attestation))
-          .onConflictDoUpdate({
-            target: $attestations.id,
-            set: conflictUpdateSetAll($attestations),
-          });
+        const attestationsToInsert = contactAttestations.map(
+          (a) => a.attestation as Attestation
+        );
+        for (let i = 0; i < attestationsToInsert.length; i += BATCH_SIZE) {
+          const batch = attestationsToInsert.slice(i, i + BATCH_SIZE);
+          await txCtx.db
+            .insert($attestations)
+            .values(batch)
+            .onConflictDoUpdate({
+              target: $attestations.id,
+              set: conflictUpdateSetAll($attestations),
+            });
+        }
 
-        await txCtx.db
-          .insert($contactAttestations)
-          .values(contactAttestations)
-          .onConflictDoNothing();
+        for (let i = 0; i < contactAttestations.length; i += BATCH_SIZE) {
+          const batch = contactAttestations.slice(i, i + BATCH_SIZE);
+          await txCtx.db
+            .insert($contactAttestations)
+            .values(batch)
+            .onConflictDoNothing();
+        }
       }
     });
   },

@@ -4,7 +4,6 @@ import {
   createDevLogger,
   diaryMixedToJSON,
   extractContentTypesFromPost,
-  isTrustedEmbed,
 } from '@tloncorp/shared';
 import {
   contentReferenceToCite,
@@ -19,7 +18,7 @@ import {
   constructStory,
   pathToCite,
 } from '@tloncorp/shared/urbit';
-import { useGlobalSearch } from '@tloncorp/ui';
+import { LoadingSpinner, useGlobalSearch } from '@tloncorp/ui';
 import { RawText, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, TextInput } from 'react-native';
@@ -184,6 +183,24 @@ function TextWithMentions({
   return <>{textParts}</>;
 }
 
+function LinkPreviewLoading() {
+  return (
+    <View
+      backgroundColor="$secondaryBackground"
+      padding="$m"
+      margin="$m"
+      borderRadius="$m"
+      alignItems="center"
+      justifyContent="center"
+      width={240}
+      height={200}
+      overflow="hidden"
+    >
+      <LoadingSpinner color="$primaryText" size="small" />
+    </View>
+  );
+}
+
 export default function BareChatInput({
   shouldBlur,
   setShouldBlur,
@@ -256,9 +273,11 @@ export default function BareChatInput({
 
   const [isSending, setIsSending] = useState(false);
   const [linkMetaLoading, setLinkMetaLoading] = useState(false);
+  // Track current input session to cancel stale link previews
+  const inputSessionRef = useRef(0);
   const disableSend = useMemo(() => {
-    return editorIsEmpty || isSending || linkMetaLoading;
-  }, [editorIsEmpty, isSending, linkMetaLoading]);
+    return editorIsEmpty || isSending;
+  }, [editorIsEmpty, isSending]);
 
   const processReferences = useCallback(
     (text: string): string => {
@@ -314,14 +333,29 @@ export default function BareChatInput({
           parsedUrl.hash = '';
           const url = parsedUrl.toString();
 
+          // Capture current session to check if request is still valid later
+          const currentSession = inputSessionRef.current;
           setLinkMetaLoading(true);
+          bareChatInputLogger.log('getting link metadata', { url });
+
           store
             .getLinkMetaWithFallback(url)
             .then((linkMetadata) => {
-              // todo: handle error case with toast or similar
-              if (!linkMetadata) {
+              // Check if this request is still valid (message hasn't been sent)
+              if (currentSession !== inputSessionRef.current) {
+                bareChatInputLogger.log('ignoring stale link metadata', {
+                  url,
+                });
                 return;
               }
+
+              // todo: handle error case with toast or similar
+              if (!linkMetadata) {
+                bareChatInputLogger.error('no link metadata', { url });
+                return;
+              }
+
+              bareChatInputLogger.log('link metadata', { linkMetadata });
 
               // first add the link attachment
               if (linkMetadata.type === 'page') {
@@ -347,7 +381,12 @@ export default function BareChatInput({
                 }
               }
             })
-            .finally(() => setLinkMetaLoading(false));
+            .finally(() => {
+              // Only clear loading if this is still the current session
+              if (currentSession === inputSessionRef.current) {
+                setLinkMetaLoading(false);
+              }
+            });
         }
       }
 
@@ -519,6 +558,10 @@ export default function BareChatInput({
       }
 
       try {
+        // Cancel any pending link preview requests
+        inputSessionRef.current += 1;
+        setLinkMetaLoading(false);
+
         setControlledText('');
         bareChatInputLogger.log('clearing attachments');
         clearAttachments();
@@ -772,6 +815,10 @@ export default function BareChatInput({
   }, [needsHeightAdjustmentAfterLoad, adjustInputHeightProgrammatically]);
 
   const handleCancelEditing = useCallback(() => {
+    // Cancel any pending link preview requests
+    inputSessionRef.current += 1;
+    setLinkMetaLoading(false);
+
     setEditingPost?.(undefined);
     setHasSetInitialContent(false);
     setControlledText('');
@@ -781,10 +828,10 @@ export default function BareChatInput({
   }, [setEditingPost, clearDraft, clearAttachments, initialHeight]);
 
   const theme = useTheme();
-
   const placeholderTextColor = {
     placeholderTextColor: getVariableValue(theme.secondaryText),
   };
+  const inputTextColor = getVariableValue(theme.primaryText);
 
   const adjustTextInputSize = (e: any) => {
     if (!isWeb) {
@@ -899,8 +946,10 @@ export default function BareChatInput({
         maxHeight={maxInputHeight}
         justifyContent="center"
       >
+        {linkMetaLoading && <LinkPreviewLoading />}
         {showInlineAttachments && <AttachmentPreviewList />}
         <TextInput
+          testID="MessageInput"
           ref={inputRef}
           value={isWeb ? controlledText : undefined}
           onChangeText={handleTextChange}
@@ -923,7 +972,7 @@ export default function BareChatInput({
             fontSize: getFontSize('$m'),
             verticalAlign: 'middle',
             letterSpacing: -0.032,
-            color: getVariableValue(useTheme().primaryText),
+            color: inputTextColor,
             ...(isWeb ? placeholderTextColor : {}),
             ...(isWeb ? { outlineStyle: 'none' } : {}),
           }}

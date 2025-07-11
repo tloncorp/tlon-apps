@@ -698,6 +698,7 @@ export function PresentationalCarouselPostScreenContent({
           initialNumToRender: 3,
           maxToRenderPerBatch: 3,
           windowSize: 3,
+          keyboardShouldPersistTaps: 'handled',
         }}
       >
         {carouselChildren}

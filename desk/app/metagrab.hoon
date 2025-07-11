@@ -14,8 +14,8 @@
 |%
 +$  card  card:agent:gall
 ::
-+$  state-0
-  $:  %0
++$  state-1
+  $:  %1
       cache=(map @t response)  ::  cached results
       await=(jug @t @ta)       ::  pending, w/ response targets
   ==
@@ -30,7 +30,7 @@
 ::
 +$  data
   $%  [%page meta=(jar @t entry:mg)]
-      [%file mime=@t]
+      [%file mime=@t size=(unit @ud)]
   ==
 ::
 +$  response
@@ -72,6 +72,7 @@
             %file
           :~  'type'^s+'file'
               'mime'^s+mime.dat.wat
+              'size'^?~(size.dat.wat ~ (numb u.size.dat.wat))
           ==
         ::
             %page
@@ -104,17 +105,17 @@
   ==
 ::
 ++  fetch
-  |=  [url=@t uas=@t]
+  |=  [met=?(%head %get) url=@t uas=@t]
   ^-  card
   =/  =header-list:http
     :~  ['user-agent' uas]
         ['accept' '*/*']
     ==
   =/  =request:http
-    [%'GET' url header-list ~]
+    [?-(met %head %'HEAD', %get %'GET') url header-list ~]
   ::NOTE  outbound-config is actually meaningless,
   ::      iris doesn't do anything with it at present...
-  [%pass /fetch/(scot %t url) %arvo %i %request request *outbound-config:iris]
+  [%pass /fetch/(scot %t url)/(scot %t uas)/[met] %arvo %i %request request *outbound-config:iris]
 ::
 ++  extract-data
   |=  $:  url=@t
@@ -150,12 +151,19 @@
   ::
   ?:  |((lth cod 200) (gte cod 600))
     [& %bad (cat 3 'strange status code ' (scot %ud cod))]
-  ?~  dat
-    [| %bad 'no response body']
+  =/  content-type=@t
+    ?^  dat  type.u.dat
+    (fall (get-header:http 'content-type' headers) 'unknown')
   ::  non-html
   ::
-  ?.  =('text/html' (end 3^9 type.u.dat))
-    [| %200 %file type.u.dat]
+  ?.  =('text/html' (end 3^9 content-type))
+    =;  size=(unit @ud)
+      [| %200 %file content-type size]
+    %+  biff
+      (get-header:http 'content-length' headers)
+    (curr rush dum:ag)
+  ?~  dat
+    [| %bad 'no response body']
   ::  extract the head section
   ::
   =/  head=(unit @t)
@@ -254,7 +262,7 @@
   --
 --
 ::
-=|  state-0
+=|  state-1
 =*  state  -
 ::
 =+  log=l
@@ -276,11 +284,15 @@
 ::
 ++  on-load
   |=  ole=vase
-  ^-  (quip card _this)
-  =+  old=!<(state-0 ole)
-  =.  state  old
-  =.  cache  ~
-  [~ this]
+  |^  ^-  (quip card _this)
+      =+  old=!<(state-any ole)
+      =?  old  ?=(%0 -.old)  *state-1
+      ?>  ?=(%1 -.old)
+      =.  state  old
+      =.  cache  ~
+      [~ this]
+  +$  state-any  $%([%0 *] state-1)
+  --
 ::
 ++  on-poke
   |=  [=mark =vase]
@@ -290,7 +302,7 @@
       %noun
     =+  url=!<(@t vase)
     ?>  ?=(^ (de-purl:html url))
-    [[(fetch url user-agent) ~] this]
+    [[(fetch %head url user-agent) ~] this]
   ::
       %handle-http-request
     =+  !<(order:hutils vase)
@@ -340,7 +352,7 @@
           %+  fall
             (get-header:http 'user-agent' header-list.request)
           user-agent
-        [[(fetch u.target uas) ~] this]
+        [[(fetch %head u.target uas) ~] this]
       ::  we have a valid cache entry.
       ::  if it's a redirect where we know the next target,
       ::  and can make a request to that,
@@ -369,12 +381,11 @@
     %-  (slog dap.bowl 'failed to eyre-bind' ~)
     [~ this]
   ::
-      [%fetch @ ?([@ ~] ~)]
-    =/  url=@t  (slav %t i.t.wire)
+      [%fetch @ @ ?(%head %get) ~]
+    =/  url=@t   (slav %t i.t.wire)
     =.  url.log  `url
-    =/  uas=@t
-      ?~  t.t.wire  user-agent
-      (fall (slaw %t i.t.t.wire) user-agent)
+    =/  uas=@t   (fall (slaw %t i.t.t.wire) user-agent)
+    =/  met      i.t.t.t.wire
     ?>  ?=([%iris %http-response *] sign)
     =*  res  client-response.sign
     ::  %progress responses are unexpected, the runtime doesn't support them
@@ -386,14 +397,31 @@
       ~&  [dap.bowl %strange-iris-progress-response]
       [%cancel ~]
     ::  we might get a %cancel if the runtime was restarted during our
-    ::  request. simply retry.
+    ::  request. it's unlikely but possible that we are somehow the cause
+    ::  of the runtime restart. in an abundance of caution, drop the request.
+    ::  (inbound requests _should_ have gotten closed during restart, anyway.)
     ::
     ?:  ?=(%cancel -.res)
-      [[(fetch url uas) ~] this]
+      :-  (give-response (~(get ju await) url) now.bowl %bad 'cancelled')
+      this(await (~(del by await) url))
     ::
     ?>  ?=(%finished -.res)
     =*  cod  status-code.response-header.res
     ?.  &((gte cod 300) (lth cod 400))
+      ::  if this was a head request,
+      ::  and the response would be an html page,
+      ::  fetch it in full
+      ::
+      ?:  ?&  ?=(%head met)
+            ::
+              .=  `'text/html'
+              %+  bind
+                (get-header:http 'content-type' headers.response-header.res)
+              (cury end 3^9)
+          ==
+        [[(fetch %get url uas) ~] this]
+      ::  otherwise, this is the most we'll fetch, now process the data
+      ::
       =/  [report=? =result]
         (extract-data url [response-header full-file]:res)
       %-  ?.  report  same
@@ -432,7 +460,7 @@
         ==
       ::  no valid cache entry, start a new fetch
       ::
-      [[(fetch u.nex uas)]~ this]
+      [[(fetch %head u.nex uas)]~ this]
     ::TODO  detect redirect loops
     ::  we have a valid cache entry.
     ::  if it's a redirect where we know the next target,
