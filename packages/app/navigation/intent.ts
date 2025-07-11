@@ -28,10 +28,10 @@ export type NavigationIntent =
       { groupId: string; channelId: string; selectedPostId?: string }
     >;
 
-type ResultState = Exclude<ReturnType<typeof getStateFromPath>, undefined>;
-
 export function getNavigationIntentFromState(
-  state: ResultState,
+  state:
+    | NavigationState<CombinedParamList>
+    | PartialState<NavigationState<CombinedParamList>>,
   _navigatorType: 'mobile' | 'desktop'
 ): NavigationIntent {
   function getNavigationIntentFromRoute(

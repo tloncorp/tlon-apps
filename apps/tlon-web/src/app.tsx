@@ -4,6 +4,7 @@ import {
   DefaultTheme,
   NavigationContainer,
   NavigationState,
+  PartialState,
   Route,
 } from '@react-navigation/native';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
@@ -310,7 +311,7 @@ function AppRoutes() {
     ? handleStateChangeMobile
     : handleStateChangeDesktop;
   const combinedStateChangeHandler = useCallback(
-    (state: NavigationState | undefined) => {
+    (state: NavigationState<CombinedParamList> | undefined) => {
       platformHandleStateChange(state);
       onNavigationStateChange(state);
     },
@@ -775,7 +776,13 @@ const flipNavigator = (navigatorType: 'mobile' | 'desktop') =>
  */
 function useDeriveInitialNavState(navigatorType: 'mobile' | 'desktop') {
   const initialStateRef = useRef<
-    Partial<Record<typeof navigatorType, NavigationState<CombinedParamList>>>
+    Partial<
+      Record<
+        typeof navigatorType,
+        | NavigationState<CombinedParamList>
+        | PartialState<NavigationState<CombinedParamList>>
+      >
+    >
   >({});
 
   const onNavigationStateChange = useCallback(
@@ -789,7 +796,10 @@ function useDeriveInitialNavState(navigatorType: 'mobile' | 'desktop') {
       const navIntent = getNavigationIntentFromState(state, navigatorType);
       if (navIntent) {
         initialStateRef.current[flipNavigator(navigatorType)] =
-          getStateFromNavigationIntent(navIntent, flipNavigator(navigatorType));
+          getStateFromNavigationIntent(
+            navIntent,
+            flipNavigator(navigatorType)
+          ) ?? undefined;
       }
     },
     [navigatorType]
