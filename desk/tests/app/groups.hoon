@@ -1,8 +1,8 @@
 ::  groups unit tests
 ::
-/-  g=groups, meta, s=story
+/-  g=groups, gv=groups-ver, meta, s=story
 /+  *test, *test-agent
-/+  gv=groups-ver
+/+  gc=groups-conv
 /=  groups-agent  /app/groups
 |%
 ++  get-full-peek
@@ -47,6 +47,8 @@
   ;<  ~  bind:m  (set-src ~zod)
   ;<  ~  bind:m  (wait ~h1)  :: prevent default creation time
   ;<  caz=(list card)  bind:m  (do-poke group-command+!>([%create create-group]))
+  ::  self-join
+  ;<  *  bind:m  (do-watch (weld `path`[%server my-area] /updates/~zod/(scot %da *@da)))
   (pure:m caz)
 ::
 ++  do-poke-c-group
@@ -72,67 +74,68 @@
   ;<  caz=(list card)  bind:m  (do-poke group-command+!>([%join my-flag ~]))
   (pure:m caz)
 ::
-++  ex-r-groups
-  |=  [caz=(list card) rs-groups=(list r-groups:v7:g)]
-  =/  m  (mare ,~)
-  ^-  form:m
-  ;<  =bowl:gall  bind:m  get-bowl
-  ;<  peek=cage  bind:m  (get-full-peek /x/v2/groups/~zod/my-test-group)
-  =+  !<(=group:g q.peek)
-  =/  actions-2=(list action:v2:g)
-    %-  zing
-    %+  turn  rs-groups
-    |=  =r-groups:v7:g
-    %+  turn
-      (diff:v2:r-group:v7:gv r-group.r-groups [seats admissions]:group)
-    |=  =diff:v2:g
-    [flag.r-groups now.bowl diff]
-  %+  ex-cards  caz
-  %+  welp
-    %+  turn  rs-groups
-    |=  =r-groups:v7:g
-    %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
-    group-response-1+!>(r-groups)
-  %+  turn  actions-2
-  |=  =action:v2:g
-  (ex-fact ~[/groups/ui] group-action-3+!>(action))
+:: ++  ex-r-groups
+::   |=  [caz=(list card) rs-groups=(list r-groups:v7:gv)]
+::   =/  m  (mare ,~)
+::   ^-  form:m
+::   ;<  =bowl:gall  bind:m  get-bowl
+::   ;<  peek=cage  bind:m  (get-full-peek /x/v2/groups/~zod/my-test-group)
+::   =+  !<(=group:g q.peek)
+::   =/  actions-2=(list action:v2:gv)
+::     %-  zing
+::     %+  turn  rs-groups
+::     |=  =r-groups:v7:gv
+::     %+  turn
+::       (diff:v2:r-group:v7:gc r-group.r-groups [seats admissions]:group)
+::     |=  =diff:v2:gv
+::     [flag.r-groups now.bowl diff]
+::   %+  ex-cards  caz
+::   %+  welp
+::     %+  turn  rs-groups
+::     |=  =r-groups:v7:gv
+::     %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
+::     group-response-1+!>(r-groups)
+::   %+  turn  actions-2
+::   |=  =action:v2:gv
+::   (ex-fact ~[/groups/ui] group-action-3+!>(action))
+:: ::
+:: ++  ex-cards-r-groups
+::   |=  $:  caz=(list card)
+::           exes=(list (each $-(card tang) r-groups:v7:gv))
+::       ==
+::   =/  m  (mare ,~)
+::   ^-  form:m
+::   ::  extract group - it is needed for facts down-conversion
+::   ::
+::   ;<  =bowl:gall  bind:m  get-bowl
+::   ;<  peek=cage  bind:m  (get-full-peek /x/v2/groups/~zod/my-test-group)
+::   =+  !<(=group:g q.peek)
+::   ::  assemble expected
+::   ::
+::   %+  ex-cards  caz
+::   %-  flop
+::   %+  roll  exes
+::   |=  [exe=(each $-(card tang) r-groups:v7:gv) out=(list $-(card tang))]
+::   ?:  ?=(%& -.exe)
+::     ::  expected card
+::     ::
+::     [p.exe out]
+::   ::  expected r-groups
+::   ::
+::   =*  r-groups  p.exe
+::   =/  actions-2=(list action:v2:gv)
+::     %+  turn
+::       (diff:v2:r-group:v7:gc r-group.r-groups [seats admissions]:group)
+::     |=  =diff:v2:gv
+::     [flag.r-groups now.bowl diff]
+::   %+  welp
+::     %+  turn  actions-2
+::     |=  =action:v2:gv
+::     (ex-fact ~[/groups/ui] group-action-3+!>(action))
+::   :-  %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
+::       group-response-1+!>(r-groups)
+::   out
 ::
-++  ex-cards-r-groups
-  |=  $:  caz=(list card)
-          exes=(list (each $-(card tang) r-groups:v7:g))
-      ==
-  =/  m  (mare ,~)
-  ^-  form:m
-  ::  extract group - it is needed for facts down-conversion
-  ::
-  ;<  =bowl:gall  bind:m  get-bowl
-  ;<  peek=cage  bind:m  (get-full-peek /x/v2/groups/~zod/my-test-group)
-  =+  !<(=group:g q.peek)
-  ::  assemble expected
-  ::
-  %+  ex-cards  caz
-  %-  flop
-  %+  roll  exes
-  |=  [exe=(each $-(card tang) r-groups:v7:g) out=(list $-(card tang))]
-  ?:  ?=(%& -.exe)
-    ::  expected card
-    ::
-    [p.exe out]
-  ::  expected r-groups
-  ::
-  =*  r-groups  p.exe
-  =/  actions-2=(list action:v2:g)
-    %+  turn
-      (diff:v2:r-group:v7:gv r-group.r-groups [seats admissions]:group)
-    |=  =diff:v2:g
-    [flag.r-groups now.bowl diff]
-  %+  welp
-    %+  turn  actions-2
-    |=  =action:v2:g
-    (ex-fact ~[/groups/ui] group-action-3+!>(action))
-  :-  %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
-      group-response-1+!>(r-groups)
-  out
 ::  +test-c-groups-create: test group creation
 ::
 ::  group can be created. double creation is prohibited.
@@ -165,7 +168,7 @@
   ;<  ~  bind:m  (set-src ~dev)
   ;<  =bowl:gall  bind:m  get-bowl
   ;<  caz=(list card)  bind:m  (do-poke group-command+!>([%join my-flag ~]))
-  =/  =seat:v7:g  [~ now.bowl]
+  =/  =seat:v7:gv  [~ now.bowl]
   ;<  ~  bind:m
     (ex-r-groups caz [my-flag %seat (sy ~dev ~) [%add seat]]~)
   ::  re-joining is a vacuous operation
@@ -204,7 +207,7 @@
   ;<  caz=(list card)  bind:m
     (do-poke group-command+!>([%join my-flag `0v0]))
   ;<  =bowl  bind:m  get-bowl
-  =/  =seat:v7:g  [~ now.bowl]
+  =/  =seat:v7:gv  [~ now.bowl]
   ;<  ~  bind:m
     (ex-r-groups caz [my-flag %seat (sy ~dev ~) [%add seat]]~)
   ::  trying to reuse the token fails
@@ -323,7 +326,7 @@
   ;<  ~  bind:m  (set-src ~dev)
   ;<  =bowl:gall  bind:m  get-bowl
   ;<  caz=(list card)  bind:m  (do-poke group-command+!>([%join my-flag ~]))
-  =/  =seat:v7:g  [~ now.bowl]
+  =/  =seat:v7:gv  [~ now.bowl]
   ;<  ~  bind:m
     (ex-r-groups caz [my-flag %seat (sy ~dev ~) [%add seat]]~)
   ::  leaving the group then deletes the seat
