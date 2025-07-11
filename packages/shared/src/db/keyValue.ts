@@ -191,14 +191,6 @@ export const channelSortPreference = createStorageItem<ChannelSortPreference>({
   defaultValue: 'recency',
 });
 
-export const lastScreen = createStorageItem<{
-  name: string;
-  params: any;
-} | null>({
-  key: 'lastScreen',
-  defaultValue: null,
-});
-
 export const invitation = createStorageItem<Lure | null>({
   key: 'lure',
   defaultValue: null,
