@@ -90,6 +90,7 @@ export const getDesktopLinkingConfig = (
           Activity: 'activity',
           Contacts: 'contacts',
           Home: {
+            path: '',
             screens: {
               ChatList: '',
               GroupChannels: 'group/:groupId',
