@@ -195,7 +195,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
 
   const rawPosts = useMemo<db.Post[] | null>(() => {
     const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? null;
-    if (!newPosts.length || query.hasPreviousPage) {
+    if (!newPosts.length) {
       return queryPosts;
     }
     const newestQueryPostId = queryPosts?.[0]?.id;
@@ -214,7 +214,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
         (p) => !newerPosts.some((newer) => newer.sentAt === p.sentAt)
       ) ?? [];
     return newestQueryPostId ? [...newerPosts, ...dedupedQueryPosts] : newPosts;
-  }, [query.data, query.hasPreviousPage, newPosts]);
+  }, [query.data, newPosts]);
 
   const deletedPosts = useDeletedPosts(options.channelId);
   const rawPostsWithDeleteFilterApplied = useMemo(() => {
