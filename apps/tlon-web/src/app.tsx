@@ -304,6 +304,7 @@ function AppRoutes() {
       <ForwardPostSheetProvider>
         {isMobile ? (
           <NavigationContainer
+            key="mobile"
             linking={mobileLinkingConfig}
             theme={theme}
             onStateChange={handleStateChangeMobile}
@@ -316,6 +317,7 @@ function AppRoutes() {
           </NavigationContainer>
         ) : (
           <NavigationContainer
+            key="desktop"
             linking={desktopLinkingConfig}
             theme={theme}
             onStateChange={handleStateChangeDesktop}
