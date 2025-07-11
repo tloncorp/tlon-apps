@@ -289,7 +289,7 @@
     .^(? %gu (weld base-path /$))
   ?.  groups-running  ~
   =/  group-exists
-    .^(? %gx (weld base-path /exists/(scot %p p.flag)/[q.flag]/noun))
+    .^(? %gu (weld base-path /groups/(scot %p p.flag)/[q.flag]))
   ?.  group-exists  ~
   %-  some
   .^  seat  %gx
@@ -1364,7 +1364,6 @@
   (welp writs replies)
 ++  set-volumes
   |=  =channels:c
-  =+  .^(=volume:v %gx (scry-path %groups /volume/all/noun))
   ::  set all existing channels to old default since new default is different
   =^  checkers  cor
     =/  checkers=(map flag:gv $-([ship nest:gv] ?))  ~
@@ -1385,8 +1384,6 @@
         .^($-([ship nest] ?) %gx path)
       [test (~(put by checkers) group test)]
     =.  cor
-      ::  don't set channel default if group above it has setting
-      ?:  (~(has by area.volume) group)  cor
       %+  adjust  [%channel nest group]
       ?:  (can-read our.bowl nest)  `(my [%post & |] ~)
       `mute:a
@@ -1394,31 +1391,6 @@
   ::  set any overrides from previous volume settings
   =.  cor
     %+  adjust  [%base ~]
-    ::  use new default since we set all channels to old default
-    ?:  =(%soft base.volume)  `default-volumes:a
-    `(~(got by old-volumes:a) base.volume)
-  =.  cor
-    =/  entries  ~(tap by chan.volume)
-    |-
-    ?~  entries  cor
-    =/  [=nest:gv =level:v]  i.entries
-    =*  next  $(entries t.entries)
-    ?.  ?=(?(%chat %diary %heap) -.nest)  next
-    =/  channel  (~(get by channels) nest)
-    ?~  channel  next
-    ?~  can-read=(~(get by checkers) group.perm.u.channel)  next
-    ::  don't override previously set mute from channel migration
-    ?.  (u.can-read our.bowl nest)  next
-    =.  cor
-      %+  adjust  [%channel nest group.perm.u.channel]
-      `(~(got by old-volumes:a) level)
-    next
-  =/  entries  ~(tap by area.volume)
-  |-
-  ?~  entries  cor
-  =*  head  i.entries
-  =.  cor
-    %+  adjust  [%group -.head]
-    `(~(got by old-volumes:a) +.head)
-  $(entries t.entries)
+    `default-volumes:a
+  cor
 --

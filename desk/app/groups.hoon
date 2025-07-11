@@ -137,8 +137,6 @@
         groups=net-groups:v7:gv
         =channels-index:v7:gv
         =foreigns:v7:gv
-        ::TODO remove
-        =volume:v
         =^subs:s
         =pimp:imp
     ==
@@ -471,27 +469,6 @@
       cor
     ((reset-group-perms cor) [flag u.val] cor)
   ::
-      %volume-set
-    ?>  =(our src):bowl
-    =+  !<([=scope:v =value:v] vase)
-    ?-  scope
-        ~
-      ?<  ?=(~ value)
-      cor(base.volume value)
-    ::
-        [%group *]
-      =-  cor(area.volume -)
-      ?~  value
-        (~(del by area.volume) +.scope)
-      (~(put by area.volume) +.scope value)
-    ::
-        [%channel *]
-      =-  cor(chan.volume -)
-      ?~  value
-        (~(del by chan.volume) +.scope)
-      (~(put by chan.volume) +.scope value)
-    ==
-  ::
       %egg-any
     =+  !<(=egg-any:gall vase)
     ?-  pimp
@@ -566,10 +543,6 @@
       %-  emil:cor
       %-  join-channels:go-pass:goc
       ~(tap in ~(key by channels.group.gr))
-    =.  volume
-      :+  base.volume:bak
-        (~(uni by area.volume:bak) area.volume)
-      (~(uni by chan.volume:bak) chan.volume)
     cor
   ==
 ::
@@ -811,7 +784,6 @@
         (~(run by groups) v7:net-group:v5:gc)
         channels-index
         (~(run by xeno) v7:gang:v6:gc)
-        volume
         subs
         ~  ::  pimp
     ==
@@ -1049,41 +1021,6 @@
     =/  =flag:g  [ship name.pole]
     ?~  far=(~(get by foreigns) flag)  [~ ~]
     ``foreign-1+!>(`foreign:v7:gv`u.far)
-  ::
-  ::
-      [%x %volume ~]
-    ::TODO remove?
-    ``volume-value+!>(base.volume)
-  ::
-      [%x %volume %all ~]
-    ::TODO remove?
-    ``noun+!>(volume)
-  ::
-      [%x %volume ship=@ name=@ ~]
-    =/  ship  (slav %p ship.pole)
-    :^  ~  ~  %volume-value
-    !>  ^-  value:v
-    %-  ~(gut by area.volume)
-    [[(slav %p ship.pole) name.pole] ~]
-  ::
-      [%x %volume app=@ ship=@ name=@ ~]
-    =/  =ship    (slav %p ship.pole)
-    =/  =nest:g  [app.pole ship name.pole]
-    :^  ~  ~  %volume-value
-    !>  ^-  value:v
-    ?^  vol=(~(get by chan.volume) nest)
-      u.vol
-    ::NOTE  searching through all groups like this is... inefficient,
-    ::      but the alternative is depending on the dude knowing what
-    ::      group the nest belongs to and scrying that out of it...
-    ::
-    =/  groups=(list [=flag:g net:g group:g])
-      ~(tap by groups)
-    |-
-    ?~  groups  ~
-    ?.  (~(has by channels.i.groups) nest)
-      $(groups t.groups)
-    (~(gut by area.volume) flag.i.groups ~)
   ==
 ::
 ++  agent
