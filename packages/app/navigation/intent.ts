@@ -134,18 +134,18 @@ function pathFromNavigationIntent(
     switch (intent.feature) {
       case 'dm': {
         return mobileOrDesktop(
-          uri`/dm/${intent.params.channelId}/undefined`,
+          uri`/dm/${intent.params.channelId}/${intent.params.selectedPostId ?? ''}`,
           uri`/dm/${intent.params.channelId}`
         );
       }
 
       case 'channel-list': {
-        return mobileOrDesktop('/ChatList', '/Home');
+        return mobileOrDesktop('/ChatList', '/');
       }
 
       case 'channel': {
         return mobileOrDesktop(
-          uri`/group/${intent.params.groupId}/channel/${intent.params.channelId}`,
+          uri`/group/${intent.params.groupId}/channel/${intent.params.channelId}/${intent.params.selectedPostId ?? ''}`,
           uri`/group/${intent.params.groupId}/channel/${intent.params.channelId}`
         );
       }
@@ -156,7 +156,7 @@ function pathFromNavigationIntent(
 
       case 'group-dm': {
         return mobileOrDesktop(
-          uri`/group-dm/${intent.params.channelId}/undefined`,
+          uri`/group-dm/${intent.params.channelId}/${intent.params.selectedPostId ?? ''}`,
           uri`/group-dm/${intent.params.channelId}`
         );
       }
