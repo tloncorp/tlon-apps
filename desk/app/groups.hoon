@@ -57,6 +57,7 @@
           :+  %group-preview      &  -:!>(*vale:m-group-preview)
           :+  %group-preview      &  -:!>(*vale:m-group-preview)
           :+  %group-preview-3    &  -:!>(*vale:m-group-preview-3)
+        ::
           :+  %group-previews     &  -:!>(*vale:m-group-previews)
           :+  %group-previews-1   &  -:!>(*vale:m-group-previews-1)
         ::
@@ -96,7 +97,10 @@
     ==
   ::  scries
   ::
-  :~  [/x/v0/groups %groups]
+  :~  [/x/init/v1 %noun]
+      [/x/init/v2 %noun]
+    ::
+      [/x/v0/groups %groups]
       [/x/v1/groups %groups-1]
       [/x/v2/groups %groups-2]
     ::

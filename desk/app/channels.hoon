@@ -2848,7 +2848,7 @@
         ?(%code %inline-code)                  $(inline p.inline)
         %ship                                  $(inline (scot %p p.inline))
       ::
-          %role
+          %sect
         ?~  p.inline  $(inline '@all')
         $(inline (cat 3 '@' p.inline))
       ::

@@ -45,12 +45,15 @@
 ::    %italics: italic text
 ::    %bold: bold text
 ::    %strike: strikethrough text
-::    %inline-code: code formatting for small snippets
 ::    %blockquote: blockquote surrounded content
-::    %block: link/reference to blocks
+::    %inline-code: code formatting for small snippets
 ::    %code: code formatting for large snippets
+::    %ship: identity
+::    %role: member role
+::    %block: link/reference to blocks
 ::    %tag: tag gets special signifier
 ::    %link: link to a URL with a face
+::    %task: a todo list
 ::    %break: line break
 ::
 +$  inline  $+  channel-inline
@@ -62,14 +65,14 @@
       [%inline-code p=cord]
       [%code p=cord]
       [%ship p=ship]
-      [%role p=?(~ role-id)]
+      [%sect p=?(~ sect)]
       [%block p=@ud q=cord]
       [%tag p=cord]
       [%link p=cord q=cord]
       [%task p=?(%.y %.n) q=(list inline)]
       [%break ~]
   ==
-+$  role-id  term
++$  sect  term
 ++  ver
   |%
   ++  v0

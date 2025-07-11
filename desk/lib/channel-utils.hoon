@@ -484,7 +484,7 @@
       %task
     inline(q (turn q.inline inline-1))
   ::
-      %role
+      %sect
     (cat 3 '@' ?~(p.inline 'all' p.inline))
   ==
 ::
@@ -763,10 +763,10 @@
   ?+  -.inline  |
     %ship  =(who p.inline)
   ::
-      %role
+      %sect
     ?~  p.inline  &
     ?~  seat  |
-    (~(has in roles.u.seat) p.inline)
+    (~(has in roles.u.seat) `role-id:v7:gv`p.inline)
   ==
 ::
 ++  flatten
@@ -796,7 +796,7 @@
         ?(%italics %bold %strike %blockquote)
       (flatten [%inline p.c]~)
     ::
-        %role
+        %sect
       ?~  p.c  '@all'
       (cat 3 '@' (scot %tas p.c))
     ==
@@ -1010,7 +1010,7 @@
     ?(%italics %bold %strike %blockquote)  (rap 3 (turn p.i flatten-inline))
     ?(%inline-code %code %tag)  p.i
     %ship   (scot %p p.i)
-    %role   ?~(p.i '@all' (cat 3 '@' p.i))
+    %sect   ?~(p.i '@all' (cat 3 '@' p.i))
     %block  q.i
     %link   q.i
     %task   (rap 3 (turn q.i flatten-inline))
@@ -1203,9 +1203,9 @@
         %ship
       ;span.ship:"{(scow %p p.inline)}"
     ::
-        %role
-      ?~  p.inline  ;span.role:"@all"
-      ;span.role:"@{<p.inline>}"
+        %sect
+      ?~  p.inline  ;span.sect:"@all"
+      ;span.sect:"@{<p.inline>}"
     ::
         %block
       ;span.block:"[block xx]"
