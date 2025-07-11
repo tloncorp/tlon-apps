@@ -357,8 +357,8 @@ export const getChannelPosts = async ({
   const app = type === 'channel' ? 'channels' : 'chat';
   const path = formatScryPath(
     ...[
-      type === 'dm' ? 'v1/dm' : null,
-      type === 'club' ? 'v1/club' : null,
+      type === 'dm' ? 'v2/dm' : null,
+      type === 'club' ? 'v2/club' : null,
       type === 'channel' ? 'v3' : null,
     ],
     channelId,
@@ -371,6 +371,7 @@ export const getChannelPosts = async ({
       type !== 'channel' ? (includeReplies ? 'heavy' : 'light') : null,
     ]
   );
+
   const response = await with404Handler(
     scry<ub.PagedWrits>({
       app,
@@ -378,7 +379,21 @@ export const getChannelPosts = async ({
     }),
     { posts: [] }
   );
-  return toPagedPostsData(channelId, response);
+  const posts = toPagedPostsData(channelId, response);
+
+  let withSeq = 0;
+  let withoutSeq = 0;
+  for (const post of posts.posts) {
+    if (post.sequenceNum) {
+      withSeq++;
+    } else {
+      withoutSeq++;
+    }
+  }
+
+  console.log(`bl: got posts`, { path, withSeq, withoutSeq });
+
+  return posts;
 };
 
 export type PostWithUpdateTime = {
@@ -748,10 +763,10 @@ export const getPostWithReplies = async ({
 
   if (isDmChannelId(channelId)) {
     app = 'chat';
-    path = `/v1/dm/${channelId}/writs/writ/id/${authorId}/${postId}`;
+    path = `/v2/dm/${channelId}/writs/writ/id/${authorId}/${postId}`;
   } else if (isGroupDmChannelId(channelId)) {
     app = 'chat';
-    path = `/v1/club/${channelId}/writs/writ/id/${authorId}/${postId}`;
+    path = `/v2/club/${channelId}/writs/writ/id/${authorId}/${postId}`;
   } else if (isGroupChannelId(channelId)) {
     app = 'channels';
     path = `/v3/${channelId}/posts/post/${postId}`;
@@ -896,11 +911,18 @@ export function toPostData(
     },
   ];
 
+  // top level posts will have a sequence number, but replies will not
+  let sequenceNum = null;
+  if ('seq' in post.seal) {
+    sequenceNum = Number(post.seal.seq);
+  }
+
   return {
     id,
     channelId,
     type,
     backendTime,
+    sequenceNum,
     // Kind data will override
     title: post.essay.meta?.title ?? '',
     image: post.essay.meta?.image ?? '',

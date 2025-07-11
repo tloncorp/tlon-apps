@@ -15,7 +15,7 @@ import { useCurrentSession } from './session';
 import * as sync from './sync';
 import { SyncPriority } from './syncQueue';
 
-const postsLogger = createDevLogger('useChannelPosts', false);
+const postsLogger = createDevLogger('useChannelPosts', true);
 
 type PostQueryPage = {
   posts: db.Post[];
@@ -86,19 +86,46 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     retryDelay: () => 500,
     queryFn: async (ctx): Promise<PostQueryPage> => {
       const queryOptions = ctx.pageParam || options;
+
+      let cursorPost = null;
+      if (queryOptions.cursor) {
+        cursorPost = await db.getPost({ postId: queryOptions.cursor });
+      }
+
+      console.log(
+        `ql: query fn running ${queryOptions.mode}:${cursorPost?.sequenceNum ?? queryOptions.cursor}`,
+        ctx.pageParam
+      );
       postsLogger.log('loading posts', { queryOptions, options });
       // We should figure out why this is necessary.
       if (
         queryOptions &&
-        queryOptions.mode === 'newest' &&
-        !options.hasCachedNewest
+        queryOptions.mode === 'newest'
+        // TODO: uncomment this out once all messages have sequence numbers. For now heads is missing them,
+        // so we always force fetch newest posts from api
+        // && !options.hasCachedNewest
       ) {
         await sync.syncPosts(queryOptions, {
           priority: SyncPriority.High,
           abortSignal: abortControllerRef.current?.signal,
         });
+        console.log(`bl: synced newest posts for ${queryOptions.channelId}`);
       }
-      const cached = await db.getChannelPosts(queryOptions);
+      // const cached = await db.getChannelPosts(queryOptions);
+      let cached: db.Post[] = [];
+      if (queryOptions.mode === 'newest') {
+        cached = await db.getSequencedChannelPosts(queryOptions);
+      } else if (queryOptions.cursor) {
+        const cursorPost = await db.getPost({ postId: queryOptions.cursor });
+        console.log('bl: have cursor post', { cursorPost });
+        if (cursorPost) {
+          cached = await db.getSequencedChannelPosts({
+            ...queryOptions,
+            cursorSequenceNum: cursorPost.sequenceNum!,
+          });
+        }
+      }
+
       if (cached?.length) {
         postsLogger.log('returning', cached.length, 'posts from db');
         return { posts: cached, canFetchNewerPosts: true };
@@ -116,7 +143,19 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
         }
       );
       postsLogger.log('loaded', res.posts?.length, 'posts from api', { res });
-      const secondResult = await db.getChannelPosts(queryOptions);
+      let secondResult: db.Post[] = [];
+      if (queryOptions.mode === 'newest') {
+        secondResult = await db.getSequencedChannelPosts(queryOptions);
+      } else if (queryOptions.cursor) {
+        const cursorPost = await db.getPost({ postId: queryOptions.cursor });
+        console.log('bl: have cursor post', { cursorPost });
+        if (cursorPost) {
+          secondResult = await db.getSequencedChannelPosts({
+            ...queryOptions,
+            cursorSequenceNum: cursorPost.sequenceNum!,
+          });
+        }
+      }
       postsLogger.log(
         'returning',
         secondResult?.length,
@@ -148,10 +187,31 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
           return undefined;
         }
       }
+
+      let oldestSequencedPost = null;
+      for (const post of lastPage.posts) {
+        if (
+          post.sequenceNum !== null &&
+          post.sequenceNum !== undefined &&
+          post.sequenceNum <
+            (oldestSequencedPost ? oldestSequencedPost.sequenceNum! : Infinity)
+        ) {
+          oldestSequencedPost = post;
+        }
+      }
+
+      // check if we're at the beginning of the channel
+      if (oldestSequencedPost && oldestSequencedPost.sequenceNum === 0) {
+        return undefined;
+      }
+
+      const primaryCursor = oldestSequencedPost?.id;
+      const fallbackCursor = lastPage.posts.at(-1)?.id;
+
       return {
         ...options,
         mode: 'older',
-        cursor: lastPage.posts.at(-1)?.id,
+        cursor: primaryCursor ?? fallbackCursor,
       };
     },
     getPreviousPageParam: (

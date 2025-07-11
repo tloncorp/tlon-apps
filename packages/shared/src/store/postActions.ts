@@ -308,7 +308,7 @@ export async function sendReply({
     content,
     parentId,
   });
-  await db.insertChannelPosts({ channelId: channel.id, posts: [cachePost] });
+  await db.insertChannelPosts({ posts: [cachePost] });
   await db.addReplyToPost({
     parentId,
     replyAuthor: cachePost.authorId,

@@ -289,16 +289,6 @@ CREATE TABLE `post_reactions` (
 	FOREIGN KEY (`post_id`) REFERENCES `posts`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `post_windows` (
-	`channel_id` text NOT NULL,
-	`oldest_post_id` text NOT NULL,
-	`newest_post_id` text NOT NULL,
-	PRIMARY KEY(`channel_id`, `oldest_post_id`, `newest_post_id`)
-);
---> statement-breakpoint
-CREATE INDEX `channel_id` ON `post_windows` (`channel_id`);--> statement-breakpoint
-CREATE INDEX `channel_oldest_post` ON `post_windows` (`channel_id`,`oldest_post_id`);--> statement-breakpoint
-CREATE INDEX `channel_newest_post` ON `post_windows` (`channel_id`,`newest_post_id`);--> statement-breakpoint
 CREATE TABLE `posts` (
 	`id` text PRIMARY KEY NOT NULL,
 	`author_id` text NOT NULL,
@@ -331,6 +321,7 @@ CREATE TABLE `posts` (
 	`last_edit_content` text,
 	`last_edit_title` text,
 	`last_edit_image` text,
+	`sequence_number` integer,
 	`synced_at` integer,
 	`backend_time` text
 );
