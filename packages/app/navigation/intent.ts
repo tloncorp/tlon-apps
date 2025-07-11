@@ -111,6 +111,17 @@ export function getNavigationIntentFromState(
   return findMatchDepthfirst(state) ?? { feature: 'unknown' };
 }
 
+/** Acts like a normal template literal, but all interpolations are URI-encoded. */
+function uri(
+  strings: TemplateStringsArray,
+  ...values: (string | number | boolean)[]
+): string {
+  return strings.reduce((result, str, i) => {
+    const value = i < values.length ? encodeURIComponent(values[i]) : '';
+    return result + str + value;
+  }, '');
+}
+
 function pathFromNavigationIntent(
   intent: NavigationIntent,
   navigatorType: 'mobile' | 'desktop'
@@ -118,14 +129,13 @@ function pathFromNavigationIntent(
   const mobileOrDesktop = <T>(mobileOption: T, desktopOption: T) =>
     navigatorType === 'mobile' ? mobileOption : desktopOption;
 
-  // TODO: Encode params
   // it feels like there should be utilities to actually use the linking config here instead of hoping they match...
   const withoutPrefix = (() => {
     switch (intent.feature) {
       case 'dm': {
         return mobileOrDesktop(
-          `/dm/${intent.params.channelId}/undefined`,
-          `/dm/${intent.params.channelId}`
+          uri`/dm/${intent.params.channelId}/undefined`,
+          uri`/dm/${intent.params.channelId}`
         );
       }
 
@@ -135,8 +145,8 @@ function pathFromNavigationIntent(
 
       case 'channel': {
         return mobileOrDesktop(
-          `/group/${intent.params.groupId}/channel/${intent.params.channelId}`,
-          `/group/${intent.params.groupId}/channel/${intent.params.channelId}`
+          uri`/group/${intent.params.groupId}/channel/${intent.params.channelId}`,
+          uri`/group/${intent.params.groupId}/channel/${intent.params.channelId}`
         );
       }
 
@@ -146,8 +156,8 @@ function pathFromNavigationIntent(
 
       case 'group-dm': {
         return mobileOrDesktop(
-          `/group-dm/${intent.params.channelId}/undefined`,
-          `/group-dm/${intent.params.channelId}`
+          uri`/group-dm/${intent.params.channelId}/undefined`,
+          uri`/group-dm/${intent.params.channelId}`
         );
       }
 
