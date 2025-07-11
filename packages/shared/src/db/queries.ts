@@ -1328,7 +1328,11 @@ export const getThreadPosts = createReadQuery(
       where: eq($posts.parentId, parentId),
       with: {
         author: true,
-        reactions: true,
+        reactions: {
+          with: {
+            contact: true,
+          },
+        },
       },
       orderBy: [desc($posts.receivedAt)],
     });
@@ -2667,7 +2671,11 @@ export const getChannelPostsAround = createReadQuery(
       where: eq($posts.id, postId),
       with: {
         author: true,
-        reactions: true,
+        reactions: {
+          with: {
+            contact: true,
+          },
+        },
       },
     });
 
@@ -2684,7 +2692,11 @@ export const getChannelPostsAround = createReadQuery(
       limit: 25,
       with: {
         author: true,
-        reactions: true,
+        reactions: {
+          with: {
+            contact: true,
+          },
+        },
       },
     });
 
@@ -2695,7 +2707,11 @@ export const getChannelPostsAround = createReadQuery(
       limit: 25,
       with: {
         author: true,
-        reactions: true,
+        reactions: {
+          with: {
+            contact: true,
+          },
+        },
       },
     });
 
@@ -2717,7 +2733,11 @@ export const getChannelSearchResults = createReadQuery(
       orderBy: [desc($posts.receivedAt)],
       with: {
         author: true,
-        reactions: true,
+        reactions: {
+          with: {
+            contact: true,
+          },
+        },
       },
     });
   },
@@ -3289,7 +3309,11 @@ export const getPostWithRelations = createReadQuery(
         where: eq($posts.id, id),
         with: {
           author: true,
-          reactions: true,
+          reactions: {
+            with: {
+              contact: true,
+            },
+          },
           threadUnread: true,
           volumeSettings: true,
         },
