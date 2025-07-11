@@ -155,7 +155,7 @@
 =/  verbose  |
 %-  %-  agent:neg
     :+  notify=&
-      ~
+      [~.channels^%2 ~ ~]
     %-  my
     :~  %groups^[~.groups^%1 ~ ~]
         %channels-server^[~.channels^%2 ~ ~]

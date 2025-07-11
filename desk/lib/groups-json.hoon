@@ -445,6 +445,13 @@
           member-count+(numb member-count)
           privacy+s+privacy
       ==
+    ++  channel-preview
+      |=  p=channel-preview:v7:gv
+      %-  pairs
+      :~  nest+(nest nest.p)
+          meta+(meta meta.p)
+          group+(preview preview.p)
+      ==
     ::
     ++  foreigns
       |=  =foreigns:v7:gv

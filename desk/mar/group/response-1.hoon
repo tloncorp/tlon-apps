@@ -1,5 +1,5 @@
 /-  gv=groups-ver
-/+  j=channel-groups
+/+  j=groups-json
 |_  =r-groups:v7:gv
 ++  grad  %noun
 ++  grow

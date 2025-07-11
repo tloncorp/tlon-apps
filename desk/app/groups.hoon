@@ -13,10 +13,108 @@
 /+  gc=groups-conv, v=volume, s=subscriber, imp=import-aid, logs,
     t=contacts
 /+  of
-/+  neg=negotiate
+/+  neg=negotiate, discipline
 ::  performance, keep warm
 /+  groups-json
-/*  desk-bill  %bill  /desk/bill
+::
+/%  m-group              %group
+/%  m-group-1            %group-1
+/%  m-group-2            %group-2
+/%  m-groups             %groups
+/%  m-groups-1           %groups-1
+/%  m-groups-2           %groups-2
+/%  m-groups-ui          %groups-ui
+/%  m-groups-ui-1        %groups-ui-1
+/%  m-groups-ui-2        %groups-ui-2
+/%  m-group-preview      %group-preview
+/%  m-group-preview-3    %group-preview-3
+/%  m-group-previews     %group-previews
+/%  m-group-previews-1   %group-previews-1
+/%  m-group-update       %group-update
+/%  m-group-log          %group-log
+/%  m-group-token        %group-token
+/%  m-channel-preview    %channel-preview
+/%  m-channel-preview-1  %channel-preview-1
+/%  m-group-response-1   %group-response-1
+/%  m-group-action-3     %group-action-3
+/%  m-gangs              %gangs
+::
+%-  %-  discipline
+  :+  ::  marks
+      ::
+      :~  :+  %group              &  -:!>(*vale:m-group)
+          :+  %group-1            &  -:!>(*vale:m-group-1)
+          :+  %group-2            &  -:!>(*vale:m-group-2)
+        ::
+          :+  %groups             &  -:!>(*vale:m-groups)
+          :+  %groups-1           &  -:!>(*vale:m-groups-1)
+          :+  %groups-2           &  -:!>(*vale:m-groups-2)
+        ::
+          :+  %groups-ui          &  -:!>(*vale:m-groups-ui)
+          :+  %groups-ui-1        &  -:!>(*vale:m-groups-ui-1)
+          :+  %groups-ui-2        &  -:!>(*vale:m-groups-ui-2)
+        ::
+          :+  %group-preview      &  -:!>(*vale:m-group-preview)
+          :+  %group-preview      &  -:!>(*vale:m-group-preview)
+          :+  %group-preview-3    &  -:!>(*vale:m-group-preview-3)
+          :+  %group-previews     &  -:!>(*vale:m-group-previews)
+          :+  %group-previews-1   &  -:!>(*vale:m-group-previews-1)
+        ::
+          :+  %group-update       &  -:!>(*vale:m-group-update)
+          :+  %group-log          &  -:!>(*vale:m-group-log)
+        ::
+          :+  %group-token        &  -:!>(*vale:m-group-token)
+        ::
+          :+  %channel-preview    &  -:!>(*vale:m-channel-preview)
+          :+  %channel-preview-1  &  -:!>(*vale:m-channel-preview-1)
+        ::
+          :+  %group-response-1   &  -:!>(*vale:m-group-response-1)
+          :+  %group-action-3     &  -:!>(*vale:m-group-action-3)
+        ::
+          :+  %gangs              &  -:!>(*vale:m-gangs)
+      ==
+    ::  facts
+    ::
+    :~  [/server/groups/$/$/updates/$/$ %group-update %group-log ~]
+        [/server/groups/$/$/token/$ %group-token ~]
+        [/server/groups/$/$/ask/$ %group-token ~]
+        [/server/groups/$/$/preview %group-preview-3 ~]
+        [/server/groups/index %group-previews-1 ~]
+      ::
+        [/v1/groups %group-response-1 ~]
+        [/groups/ui %group-action-3 ~]
+      ::
+        [/chan/$/$/$ %channel-preview ~]
+        [/v1/channels/$/$/$/preview %channel-preview-1 ~]
+      ::
+        [/gangs/index/$ %group-previews ~]
+        [/gangs/updates %gangs ~]
+        [/gangs/$/$/preview %group-preview ~]
+      ::
+        [/v1/foreigns/$/$/preview %group-preview-3 ~]
+        [/v1/foreigns/index/$ %group-previews-1 ~]
+    ==
+  ::  scries
+  ::
+  :~  [/x/v0/groups %groups]
+      [/x/v1/groups %groups-1]
+      [/x/v2/groups %groups-2]
+    ::
+      [/x/v0/light/groups %groups]
+      [/x/v1/light/groups %groups-1]
+      [/x/v2/light/groups %groups-2]
+    ::
+      [/x/v0/ui/groups %groups-ui]
+      [/x/v1/ui/groups %groups-ui-1]
+      [/x/v2/ui/groups %groups-ui-2]
+    ::
+      [/x/v0/groups/$/$ %group]
+      [/x/v1/groups/$/$ %group-1]
+      [/x/v2/groups/$/$ %group-2]
+    ::
+      [/x/v1/foreigns %foreigns-1]
+      [/x/v1/foreigns/$/$ %foreign-1]
+  ==
 =/  verbose  |
 ::
 %-  %-  agent:neg
@@ -24,8 +122,8 @@
       [~.groups^%1 ~ ~]
     %-  my
     :~  %groups^[~.groups^%1 ~ ~]
-        %channels^[~.channels^%1 ~ ~]
-        %channels-server^[~.channels^%1 ~ ~]
+        %channels^[~.channels^%2 ~ ~]
+        %channels-server^[~.channels^%2 ~ ~]
     ==
 %-  agent:dbug
 %+  verb  |
@@ -506,7 +604,7 @@
     =/  =path  (welp (channels-scry nest) /perm/noun)
     =/  perms  .^(perm:d %gx path)
     =/  =c-channels:d  [%channel nest %del-writers writers.perms]
-    =/  =wire  /diary
+    =/  =wire  /channels/command
     =/  =dock  [our.bowl %channels-server]
     =/  =cage  channel-command+!>(c-channels)
     [%pass wire %agent dock %poke cage]
@@ -996,6 +1094,7 @@
       ~   cor
       [%epic ~]  cor
       [%logs ~]  cor
+      [%groups ~]  cor
       [%activity %submit *]  cor
   ::
       [%server %groups ship=@ name=@ rest=*]
@@ -1039,6 +1138,11 @@
         /v0/groups/(scot %p p.u.flag)/[q.u.flag]
       `path`[%channels +.pole]
     $(pole path)
+  ::
+      [%channels ~]
+    (take-channels sign)
+  ::
+    [%channels %command ~]  cor
   ::
     [%channels %perms ~]  cor
   ::
