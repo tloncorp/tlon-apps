@@ -1667,9 +1667,9 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     updateSession({ phase: 'ready' });
 
     // fire off relevant channel posts sync, but don't wait for it
-    syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
-      logger.crumb(`finished channel predictive sync`);
-    });
+    // syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
+    //   logger.crumb(`finished channel predictive sync`);
+    // });
 
     // post sync initialization work
     await verifyUserInviteLink();
