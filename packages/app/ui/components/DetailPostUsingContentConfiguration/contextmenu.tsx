@@ -59,6 +59,7 @@ export function usePostContextMenu(opts: {
             onReply={performActionAndDismissCallback('startThread')}
             onEdit={performActionAndDismissCallback('edit')}
             onViewReactions={performActionAndDismissCallback('viewReactions')}
+            mode="immediate"
           />
         )}
       </Modal>

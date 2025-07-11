@@ -104,7 +104,13 @@ pnpm e2e
 # Run a single test with automatic ship management
 pnpm e2e:test chat-functionality.spec.ts
 
-# Run tests with playwright debug UI
+# Run a single test in debug mode
+pnpm e2e:test --debug chat-functionality.spec.ts
+
+# Run a single test with multiple flags
+pnpm e2e:test --headed --debug chat-functionality.spec.ts
+
+# Run tests with playwright debug UI (full test suite)
 pnpm e2e:debug
 
 # Open Playwright UI for interactive testing
@@ -209,6 +215,11 @@ For development convenience, use the automated single-test runner:
 # 4. Run your specific test only
 # 5. Clean up all processes when done
 pnpm e2e:test notebook-functionality.spec.ts
+
+# For debugging individual tests:
+pnpm e2e:test --debug notebook-functionality.spec.ts
+pnpm e2e:test --headed notebook-functionality.spec.ts
+pnpm e2e:test --ui notebook-functionality.spec.ts
 ```
 
 The script (located at `rube/run-single-test.ts`) uses a modified version of rube that stops before running the full test suite, then executes only your specific test. This handles all the orchestration for you, so you don't need to manually start ships or remember to clean up afterwards. This is especially useful when iterating on a single test during development.

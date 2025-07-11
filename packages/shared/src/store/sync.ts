@@ -367,7 +367,7 @@ export const syncContacts = async (ctx?: SyncCtx, yieldWriter = false) => {
   const contacts = await syncQueue.add('contacts', ctx, () =>
     api.getContacts()
   );
-  logger.log('got contacts from api', contacts);
+  logger.log('got contacts from api', contacts.length, 'contacts');
 
   const writer = async () => {
     try {
