@@ -86,7 +86,7 @@ public class MainApplication extends Application implements ReactApplication {
     if (BuildConfig.DEBUG) {
       RNBranchModule.enableLogging();
     }
-    
+
     RNBranchModule.getAutoInstance(this);
   }
 
