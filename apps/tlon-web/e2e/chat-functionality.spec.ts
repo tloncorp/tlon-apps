@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, Browser } from '@playwright/test';
 
 import * as helpers from './helpers';
 import shipManifest from './shipManifest.json';
@@ -7,7 +7,7 @@ const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
 
 test.use({ storageState: shipManifest['~zod'].authFile });
 
-test('should test comprehensive chat functionality', async ({ page }) => {
+test('should test comprehensive chat functionality', async ({ page, browser }) => {
   // Launch and login
   await page.goto(zodUrl);
   await helpers.clickThroughWelcome(page);
@@ -24,15 +24,15 @@ test('should test comprehensive chat functionality', async ({ page }) => {
 
   // Create a new group
   await helpers.createGroup(page);
-  const groupName = '~bus, ~zod';
+  const groupName = '~ten, ~zod';
 
-  await helpers.inviteMembersToGroup(page, ['bus']);
+  await helpers.inviteMembersToGroup(page, ['ten']);
 
   // Navigate back to Home and verify group creation
   await helpers.navigateBack(page);
   if (await page.getByText('Home').isVisible()) {
-    await expect(page.getByText(groupName)).toBeVisible();
-    await page.getByText(groupName).click();
+    await expect(page.getByText(groupName).first()).toBeVisible();
+    await page.getByText(groupName).first().click();
     await expect(page.getByText(groupName).first()).toBeVisible();
   }
 
@@ -61,9 +61,51 @@ test('should test comprehensive chat functionality', async ({ page }) => {
   // Quote reply to the message
   await helpers.quoteReply(page, 'Hello, world!', 'Quote reply');
 
-  // Send a message and hide it
+  // Send a message as ~zod
   await helpers.sendMessage(page, 'Hide this message');
-  await helpers.hideMessage(page, 'Hide this message');
+
+  // Switch to ~ten to navigate to chat and hide the message
+  const tenContext = await browser.newContext({ storageState: shipManifest['~ten'].authFile });
+  const tenPage = await tenContext.newPage();
+  const tenUrl = `${shipManifest['~ten'].webUrl}/apps/groups/`;
+  
+  await tenPage.goto(tenUrl);
+  await helpers.clickThroughWelcome(tenPage);
+  
+  // Navigate to the group as ~ten
+  await expect(tenPage.getByText('Home')).toBeVisible();
+  
+  // Wait for the group invitation and accept it
+  await tenPage.waitForTimeout(3000);
+  await expect(tenPage.getByText('Group invitation')).toBeVisible();
+  await tenPage.getByText('Group invitation').click();
+  
+  // Accept the invitation
+  if (await tenPage.getByText('Accept invite').isVisible()) {
+    await tenPage.getByText('Accept invite').click();
+  }
+  
+  // Wait for joining process and go to group
+  await tenPage.waitForSelector('text=Joining, please wait...');
+  await tenPage.waitForSelector('text=Go to group', { state: 'visible' });
+  
+  if (await tenPage.getByText('Go to group').isVisible()) {
+    await tenPage.getByText('Go to group').click();
+  } else {
+    await tenPage.getByText(groupName).first().click();
+  }
+  
+  await expect(tenPage.getByText(groupName).first()).toBeVisible();
+
+  // Open the General channel
+  await tenPage.waitForSelector('text=General');
+  await tenPage.getByText('General').click();
+  
+  // Hide the message that ~zod sent
+  await helpers.hideMessage(tenPage, 'Hide this message');
+  
+  // Clean up ~ten context
+  await tenContext.close();
 
   // Send a message and report it
   await helpers.sendMessage(page, 'Report this message');
@@ -71,8 +113,8 @@ test('should test comprehensive chat functionality', async ({ page }) => {
   // Navigate away and back to work around potential bug mentioned in Maestro test
   await helpers.navigateBack(page);
   if (await page.getByText('Home').isVisible()) {
-    await expect(page.getByText(groupName)).toBeVisible();
-    await page.getByText(groupName).click();
+    await expect(page.getByText(groupName).first()).toBeVisible();
+    await page.getByText(groupName).first().click();
     await expect(page.getByText(groupName).first()).toBeVisible();
   }
 
@@ -93,11 +135,11 @@ test('should test comprehensive chat functionality', async ({ page }) => {
 
   // Mention a user in a message
   await page.getByTestId('MessageInput').click();
-  await page.fill('[data-testid="MessageInput"]', 'mentioning @bus');
-  await page.getByTestId('~bus-contact').click();
+  await page.fill('[data-testid="MessageInput"]', 'mentioning @ten');
+  await page.getByTestId('~ten-contact').click();
   await page.getByTestId('MessageInputSendButton').click();
   // Wait for message to appear
-  await expect(page.getByText('mentioning ~bus')).toBeVisible();
+  await expect(page.getByText('mentioning ~ten')).toBeVisible();
 
   // Mention all in a message
   await page.getByTestId('MessageInput').click();
