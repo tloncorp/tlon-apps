@@ -288,7 +288,9 @@ function addPostToNewPosts(post: db.Post, newPosts: db.Post[]) {
   postsLogger.log('new posts');
   let nextPosts: db.Post[] | null = null;
   const pendingPostIndex = newPosts?.findIndex(
-    (p) => p.deliveryStatus === 'pending' && p.sentAt === post.sentAt
+    (p) =>
+      (p.deliveryStatus === 'pending' || p.deliveryStatus === 'enqueued') &&
+      p.sentAt === post.sentAt
   );
   if (pendingPostIndex !== -1) {
     nextPosts = [

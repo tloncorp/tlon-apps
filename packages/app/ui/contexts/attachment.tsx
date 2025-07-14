@@ -1,10 +1,10 @@
-import { ContentReference } from '@tloncorp/shared/api';
-import * as domain from '@tloncorp/shared/domain';
 import {
-  UploadState,
-  useUploadStates,
-  waitForUploads,
-} from '@tloncorp/shared/store';
+  Attachment,
+  FinalizedAttachment,
+  ImageAttachment,
+  UploadedImageAttachment,
+} from '@tloncorp/shared';
+import { useUploadStates, waitForUploads } from '@tloncorp/shared/store';
 import { ImagePickerAsset } from 'expo-image-picker';
 import {
   PropsWithChildren,
@@ -16,43 +16,6 @@ import {
   useState,
 } from 'react';
 import { isWeb } from 'tamagui';
-
-export type ReferenceAttachment = {
-  type: 'reference';
-  reference: ContentReference;
-  path: string;
-};
-
-export type ImageAttachment = {
-  type: 'image';
-  file: ImagePickerAsset;
-  uploadState?: UploadState;
-};
-
-export type UploadedImageAttachment = {
-  type: 'image';
-  file: ImagePickerAsset;
-  uploadState: {
-    status: 'success';
-    remoteUri: string;
-  };
-};
-
-export type TextAttachment = {
-  type: 'text';
-  text: string;
-};
-
-export type Attachment =
-  | ReferenceAttachment
-  | ImageAttachment
-  | TextAttachment
-  | domain.LinkAttachment;
-export type FinalizedAttachment =
-  | ReferenceAttachment
-  | UploadedImageAttachment
-  | TextAttachment
-  | domain.LinkAttachment;
 
 export type AttachmentState = {
   attachments: Attachment[];

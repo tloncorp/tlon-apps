@@ -77,7 +77,7 @@ interface ChannelProps {
   goToImageViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
   goToUserProfile: (userId: string) => void;
-  messageSender: (content: Story, channelId: string) => Promise<void>;
+  sendPost: (content: Story, channelId: string) => Promise<void>;
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
@@ -128,7 +128,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       goToDm,
       goToUserProfile,
       goToGroupSettings,
-      messageSender,
+      sendPost,
       onScrollEndReached,
       onScrollStartReached,
       isLoadingPosts,
@@ -238,7 +238,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
             ];
 
             // Send the post with just this image
-            await messageSender(story, channel.id);
+            await sendPost(story, channel.id);
           }
         } catch (error) {
           console.error('Error handling image drop:', error);
@@ -246,7 +246,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
           clearAttachments();
         }
       },
-      [channel, messageSender, uploadAssets, attachAssets, clearAttachments]
+      [channel, sendPost, uploadAssets, attachAssets, clearAttachments]
     );
 
     /** when `null`, input is not shown or presentation is unknown */
@@ -271,7 +271,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         getDraft,
         group,
         onPresentationModeChange: setDraftInputPresentationMode,
-        send: messageSender,
+        sendPost,
         setEditingPost,
         setShouldBlur: setInputShouldBlur,
         shouldBlur: inputShouldBlur,
@@ -285,7 +285,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         getDraft,
         group,
         inputShouldBlur,
-        messageSender,
+        sendPost,
         setEditingPost,
         storeDraft,
       ]

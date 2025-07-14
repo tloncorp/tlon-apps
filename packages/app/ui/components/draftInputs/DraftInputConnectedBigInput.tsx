@@ -31,7 +31,7 @@ export function DraftInputConnectedBigInput({
     editingPost,
     getDraft,
     group,
-    send,
+    sendPost,
     setEditingPost,
     setShouldBlur,
     shouldBlur,
@@ -53,7 +53,7 @@ export function DraftInputConnectedBigInput({
         groupRoles={group?.roles ?? []}
         shouldBlur={shouldBlur}
         setShouldBlur={setShouldBlur}
-        send={send}
+        sendPost={sendPost}
         storeDraft={storeDraft}
         clearDraft={clearDraft}
         getDraft={getDraft}

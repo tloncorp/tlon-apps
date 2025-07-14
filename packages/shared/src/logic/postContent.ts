@@ -1,4 +1,5 @@
 import * as api from '../api';
+import { ContentReference } from '../domain';
 import * as ub from '../urbit';
 import { assertNever } from '../utils';
 import { isTrustedEmbed } from './embed';
@@ -110,7 +111,7 @@ export type EmbedBlockData = {
   content?: string;
 };
 
-export type ReferenceBlockData = api.ContentReference;
+export type ReferenceBlockData = ContentReference;
 
 export type CodeBlockData = {
   type: 'code';

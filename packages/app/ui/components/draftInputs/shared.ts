@@ -59,7 +59,7 @@ export interface DraftInputContext {
   onPresentationModeChange?: (
     presentationMode: 'inline' | 'fullscreen'
   ) => void;
-  send: (
+  sendPost: (
     content: Story,
     channelId: string,
     metadata?: db.PostMetadata

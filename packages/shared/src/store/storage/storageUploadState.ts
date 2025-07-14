@@ -1,15 +1,7 @@
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
 
 import { createDevLogger } from '../../debug';
-
-export type UploadStateError = { status: 'error'; errorMessage: string };
-export type UploadStateUploading = { status: 'uploading'; localUri: string };
-export type UploadStateSuccess = { status: 'success'; remoteUri: string };
-
-export type UploadState =
-  | UploadStateError
-  | UploadStateUploading
-  | UploadStateSuccess;
+import { UploadState, UploadStateError } from '../../domain';
 
 const logger = createDevLogger('uploadState', true);
 let uploadStates: Record<string, UploadState> = {};

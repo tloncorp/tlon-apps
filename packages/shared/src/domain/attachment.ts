@@ -1,3 +1,8 @@
+import { ImagePickerAsset } from 'expo-image-picker';
+
+import { ContentReference } from './references';
+import { UploadState } from './uploads';
+
 export type LinkMetadata = PageMetadata | FileMetadata;
 
 export type LinkMetadataError =
@@ -32,3 +37,41 @@ export interface LinkAttachment extends DefaultPageMetadata {
   url: string;
   resourceType?: 'page' | 'file';
 }
+
+export type ReferenceAttachment = {
+  type: 'reference';
+  reference: ContentReference;
+  path: string;
+};
+
+export type ImageAttachment = {
+  type: 'image';
+  file: ImagePickerAsset;
+  uploadState?: UploadState;
+};
+
+export type UploadedImageAttachment = {
+  type: 'image';
+  file: ImagePickerAsset;
+  uploadState: {
+    status: 'success';
+    remoteUri: string;
+  };
+};
+
+export type TextAttachment = {
+  type: 'text';
+  text: string;
+};
+
+export type Attachment =
+  | ReferenceAttachment
+  | ImageAttachment
+  | TextAttachment
+  | LinkAttachment;
+
+export type FinalizedAttachment =
+  | ReferenceAttachment
+  | UploadedImageAttachment
+  | TextAttachment
+  | LinkAttachment;

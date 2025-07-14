@@ -25,7 +25,10 @@ export function MicInput({
     }
     try {
       const u = await performUpload({ uri: recordingUri });
-      await draftInputContext.send(audioPost(u), draftInputContext.channel.id);
+      await draftInputContext.sendPost(
+        audioPost(u),
+        draftInputContext.channel.id
+      );
     } catch (err) {
       console.error('failed upload', err);
     }

@@ -251,7 +251,7 @@ export const syncVolumeSettings = async (ctx?: SyncCtx) => {
   await db.setVolumes({ volumes: clientVolumes, deleteOthers: true });
 };
 
-export const syncSystemContacts = async (ctx?: SyncCtx) => {
+export const syncSystemContacts = async (_ctx?: SyncCtx) => {
   const systemContacts = await api.getSystemContacts();
   try {
     await db.insertSystemContacts({ systemContacts });
@@ -1429,7 +1429,7 @@ export async function syncChannelWithBackoff({
   channelId: string;
 }): Promise<boolean> {
   async function isStillPending() {
-    return (await db.getPendingPosts({ channelId })).length > 0;
+    return (await db.getPendingPosts(channelId)).length > 0;
   }
 
   const checkDelivered = async () => {

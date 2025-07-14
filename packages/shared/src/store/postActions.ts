@@ -30,16 +30,22 @@ export async function resendPendingPosts() {
 }
 
 export async function sendPost({
-  channel,
-  authorId,
+  channelId,
   content,
   metadata,
 }: {
-  channel: db.Channel;
-  authorId: string;
+  channelId: string;
   content: urbit.Story;
   metadata?: db.PostMetadata;
 }) {
+  const authorId = api.getCurrentUserId();
+
+  const channel = await db.getChannel({ id: channelId });
+  if (!channel) {
+    logger.trackError('Failed to forward post, unable to find channel');
+    return;
+  }
+
   logger.crumb('sending post', `channel type: ${channel.type}`);
   if (channel.isPendingChannel) {
     logger.trackEvent(
@@ -230,8 +236,7 @@ export async function forwardPost({
   }
 
   return sendPost({
-    channel,
-    authorId: api.getCurrentUserId(),
+    channelId,
     content: [{ block: { cite: urbitReference } }],
     metadata:
       channel.type === 'notebook'
@@ -312,19 +317,18 @@ export async function editPost({
 export async function sendReply({
   parentId,
   parentAuthor,
-  authorId,
   content,
   channel,
 }: {
   channel: db.Channel;
   parentId: string;
   parentAuthor: string;
-  authorId: string;
   content: urbit.Story;
 }) {
   logger.crumb('sending reply', channel.type);
   // optimistic update
   // TODO: make author available more efficiently
+  const authorId = api.getCurrentUserId();
   const author = await db.getContact({ id: authorId });
   const cachePost = db.buildPost({
     authorId,
@@ -353,7 +357,7 @@ export async function sendReply({
 
   try {
     logger.crumb('sending reply to backend');
-    sessionActionQueue.add(() =>
+    await sessionActionQueue.add(() =>
       api.sendReply({
         channelId: channel.id,
         parentId,

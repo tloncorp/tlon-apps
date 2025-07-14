@@ -326,12 +326,12 @@ export function extractInlinesFromContent(story: api.PostContent): ub.Inline[] {
 
 export function extractReferencesFromContent(
   story: api.PostContent
-): api.ContentReference[] {
+): domain.ContentReference[] {
   const references =
     story !== null
       ? (story.filter(
           (s) => 'type' in s && s.type == 'reference'
-        ) as api.ContentReference[])
+        ) as domain.ContentReference[])
       : [];
 
   return references;
@@ -352,7 +352,7 @@ export const extractContentTypes = (
   content: Stringified<api.PostContent> | api.PostContent
 ): {
   inlines: ub.Inline[];
-  references: api.ContentReference[];
+  references: domain.ContentReference[];
   blocks: ub.Block[];
   story: api.PostContent;
 } => {
@@ -368,7 +368,7 @@ export const extractContentTypesFromPost = (
   post: db.Post | { content: api.PostContent }
 ): {
   inlines: ub.Inline[];
-  references: api.ContentReference[];
+  references: domain.ContentReference[];
   blocks: ub.Block[];
   story: api.PostContent;
 } => {

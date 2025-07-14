@@ -28,7 +28,7 @@ import InputMentionPopup from './InputMentionPopup';
 export interface MessageInputProps {
   shouldBlur: boolean;
   setShouldBlur: (shouldBlur: boolean) => void;
-  send: (
+  sendPost: (
     content: Story,
     channelId: string,
     metadata?: db.PostMetadata

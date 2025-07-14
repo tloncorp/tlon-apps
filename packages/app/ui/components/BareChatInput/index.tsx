@@ -1,6 +1,9 @@
 import {
+  Attachment,
+  FinalizedAttachment,
   JSONToInlines,
   REF_REGEX,
+  TextAttachment,
   createDevLogger,
   diaryMixedToJSON,
   extractContentTypesFromPost,
@@ -11,39 +14,23 @@ import {
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import {
-  Block,
-  Inline,
-  Story,
-  citeToPath,
-  constructStory,
-  pathToCite,
-} from '@tloncorp/shared/urbit';
-import { LoadingSpinner, useGlobalSearch } from '@tloncorp/ui';
-import { RawText, Text } from '@tloncorp/ui';
-import { ImagePickerAsset } from 'expo-image-picker';
+import { Story, citeToPath, pathToCite } from '@tloncorp/shared/urbit';
+import { LoadingSpinner, RawText, Text, useGlobalSearch } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  View,
   YStack,
   getFontSize,
+  getTokenValue,
   getVariableValue,
+  isWeb,
   useTheme,
   useWindowDimensions,
 } from 'tamagui';
-import { getTokenValue } from 'tamagui';
-import { isWeb } from 'tamagui';
-import { View } from 'tamagui';
 
-import {
-  Attachment,
-  FinalizedAttachment,
-  TextAttachment,
-  UploadedImageAttachment,
-  useAttachmentContext,
-  useStore,
-} from '../../contexts';
+import { useAttachmentContext, useStore } from '../../contexts';
 import { MentionController } from '../MentionPopup';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
 import { AttachmentPreviewList } from '../MessageInput/AttachmentPreviewList';
@@ -207,7 +194,7 @@ function LinkPreviewLoading() {
 export default function BareChatInput({
   shouldBlur,
   setShouldBlur,
-  send,
+  sendPost,
   channelId,
   groupMembers,
   groupRoles,
@@ -479,10 +466,10 @@ export default function BareChatInput({
         return;
       }
 
-      const { story, metadata } = toPostData({
-        inlines,
+      const { story, metadata } = logic.toPostData({
+        content: inlines,
         attachments,
-        image,
+        image: image?.uri,
         isEdit,
         channelType,
       });
@@ -510,7 +497,7 @@ export default function BareChatInput({
           await editPost?.(editingPost, story, undefined, metadata);
           setEditingPost?.(undefined);
         } else {
-          await send(story, channelId, metadata);
+          await sendPost(story, channelId, metadata);
         }
       } catch (e) {
         bareChatInputLogger.error('Error sending message', e);
@@ -537,7 +524,7 @@ export default function BareChatInput({
       setEditingPost,
       image,
       channelType,
-      send,
+      sendPost,
       channelId,
       setMentions,
       initialHeight,
@@ -943,99 +930,4 @@ export default function BareChatInput({
       </YStack>
     </MessageInputContainer>
   );
-}
-
-function toPostData({
-  attachments,
-  inlines,
-  image,
-  channelType,
-  isEdit,
-}: {
-  inlines: (Inline | Block)[];
-  attachments: FinalizedAttachment[];
-  image?: ImagePickerAsset;
-  channelType: db.ChannelType;
-  isEdit?: boolean;
-}): { story: Story; metadata: db.PostMetadata } {
-  const blocks = attachments
-    .filter((attachment) => attachment.type !== 'text')
-    .flatMap((attachment): Block[] => {
-      if (attachment.type === 'reference') {
-        const cite = pathToCite(attachment.path);
-        return cite ? [{ cite }] : [];
-      }
-      if (
-        attachment.type === 'image' &&
-        (!image || attachment.file.uri !== image?.uri)
-      ) {
-        return [
-          {
-            image: {
-              src: attachment.uploadState.remoteUri,
-              height: attachment.file.height,
-              width: attachment.file.width,
-              alt: 'image',
-            },
-          },
-        ];
-      }
-
-      if (
-        image &&
-        attachment.type === 'image' &&
-        attachment.file.uri === image?.uri &&
-        isEdit &&
-        channelType === 'gallery'
-      ) {
-        return [
-          {
-            image: {
-              src: image.uri,
-              height: image.height,
-              width: image.width,
-              alt: 'image',
-            },
-          },
-        ];
-      }
-
-      if (attachment.type === 'link') {
-        const { url, type, resourceType, ...meta } = attachment;
-        return [
-          {
-            link: {
-              url,
-              meta,
-            },
-          },
-        ];
-      }
-
-      return [];
-    });
-
-  const story = constructStory(inlines);
-  const metadata: db.PostMetadata = {};
-
-  if (blocks && blocks.length > 0) {
-    if (channelType === 'chat') {
-      story.unshift(...blocks.map((block) => ({ block })));
-    } else {
-      story.push(...blocks.map((block) => ({ block })));
-    }
-  }
-
-  if (image) {
-    const attachment = attachments.find(
-      (a): a is UploadedImageAttachment =>
-        a.type === 'image' && a.file.uri === image.uri
-    );
-    if (!attachment) {
-      throw new Error('unable to attach image');
-    }
-    metadata['image'] = attachment.uploadState.remoteUri;
-  }
-
-  return { story, metadata };
 }

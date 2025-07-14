@@ -1,10 +1,10 @@
 import * as domain from '@tloncorp/shared/domain';
 import { Icon, Image, Pressable, Text } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, Spinner, View, XStack, YStack, ZStack } from 'tamagui';
 
-import { Attachment, useAttachmentContext } from '../../contexts/attachment';
+import { useAttachmentContext } from '../../contexts/attachment';
 import { ContentReferenceLoader } from '../ContentReference';
 
 export const AttachmentPreviewList = () => {
@@ -45,7 +45,7 @@ export function AttachmentPreview({
   uploading,
   error,
 }: {
-  attachment: Attachment;
+  attachment: domain.Attachment;
   uploading?: boolean;
   error?: boolean;
 }) {
@@ -134,7 +134,11 @@ export function AttachmentPreview({
   );
 }
 
-const RemoveAttachmentButton = ({ attachment }: { attachment: Attachment }) => {
+const RemoveAttachmentButton = ({
+  attachment,
+}: {
+  attachment: domain.Attachment;
+}) => {
   const { removeAttachment } = useAttachmentContext();
   const handlePress = useCallback(() => {
     removeAttachment(attachment);

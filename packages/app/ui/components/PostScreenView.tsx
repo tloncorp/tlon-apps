@@ -461,14 +461,13 @@ function SinglePostView({
   const sendReply = useCallback(
     async (content: urbit.Story) => {
       await store.sendReply({
-        authorId: currentUserId,
         content,
         channel: channel,
         parentId: parentPost.id,
         parentAuthor: parentPost.authorId,
       });
     },
-    [currentUserId, channel, parentPost, store]
+    [channel, parentPost, store]
   );
 
   const isChatLike = useMemo(
@@ -508,7 +507,7 @@ function SinglePostView({
               placeholder="Reply"
               shouldBlur={inputShouldBlur}
               setShouldBlur={setInputShouldBlur}
-              send={sendReply}
+              sendPost={sendReply}
               channelId={channel.id}
               groupMembers={groupMembers}
               groupRoles={groupRoles}
@@ -562,7 +561,7 @@ function SinglePostView({
             editPost={editPost}
             shouldBlur={inputShouldBlur}
             setShouldBlur={setInputShouldBlur}
-            send={async () => {}}
+            sendPost={async () => {}}
             getDraft={getDraft}
             storeDraft={storeDraft}
             clearDraft={clearDraft}
