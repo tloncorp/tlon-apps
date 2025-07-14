@@ -9,7 +9,6 @@
 /+  utils=channel-utils
 /+  volume
 /+  wood-lib=wood
-/+  epos-lib=saga
 ::  performance, keep warm
 /+  chat-json
 ::
@@ -227,7 +226,6 @@
   --
 |_  [=bowl:gall cards=(list card)]
 +*  wood  ~(. wood-lib [bowl wood-state])
-    epos  ~(. epos-lib [bowl %chat-update okay])
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
@@ -252,7 +250,7 @@
   =?  old  ?=(%7 -.old)  (state-7-to-8 old)
   =?  old  ?=(%8 -.old)  (state-8-to-9 old)
   ?>  ?=(%9 -.old)
-  (emil(state old) (drop load:epos))
+  cor(state old)
   ::
   +$  versioned-state
     $%  state-9
