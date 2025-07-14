@@ -624,7 +624,7 @@ export async function hideMessage(
   isDM = false
 ) {
   await longPressMessage(page, messageText);
-  await page.getByText('Hide message').click();
+  await page.getByText('Hide message', { exact: true }).click();
   if (!isDM) {
     await expect(
       page.getByText(messageText, { exact: true })
