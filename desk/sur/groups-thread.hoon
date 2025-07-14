@@ -3,7 +3,7 @@
 +$  create-group
   $:  group-id=flag:g
       meta=data:meta
-      guest-list=(set ship)
+      guests=(set ship)
       channels=(list create-channel)
   ==
 +$  create-channel

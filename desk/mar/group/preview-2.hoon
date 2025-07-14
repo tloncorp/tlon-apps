@@ -1,6 +1,6 @@
-/-  g=groups
+/-  gv=groups-ver
 /+  j=groups-json
-|_  =preview-response:v6:g
+|_  =preview-response:v6:gv
 ++  grad  %noun
 ++  grow
   |%
@@ -9,6 +9,6 @@
   --
 ++  grab
   |%
-  ++  noun  preview-response:v6:g
+  ++  noun  preview-response:v6:gv
   --
 --

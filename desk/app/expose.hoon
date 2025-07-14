@@ -52,7 +52,7 @@
     ::      remains reasonably fast. scry overhead (for contacts/profile deets)
     ::      is the slowest part, and doing all pages at once means we can
     ::      memoize and only run those scries once
-    =/  msg=(unit [=nest:g:c =post:d])
+    =/  msg=(unit [=nest:c =post:d])
       (grab-post:cite:u bowl ref)
     ?~  msg
       ::  if the message (no longer) exists in the backend store, make sure to
@@ -202,7 +202,7 @@
           %show
         =/  ref=cite:c
           (parse:c path.act)
-        =/  msg=(unit [=nest:g:c =post:d])
+        =/  msg=(unit [=nest:c =post:d])
           (grab-post:cite:u bowl ref)
         ?>  ?=(^ msg)
         =/  pag=(unit manx)
@@ -319,7 +319,7 @@
       ::REVIEW  should this handle %posts also?
       ?+  -.r-channel  [~ this]
           %post
-        =/  new=(unit $?(%del kind-data:d))
+        =/  new=(unit $?(%del kind-data:v7:old:d))
           ?+  -.r-post.r-channel  ~
               %set
             ?~  post.r-post.r-channel  `%del
