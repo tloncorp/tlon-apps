@@ -32,7 +32,6 @@ class TalkMessagingService : FirebaseMessagingService() {
                     val constants = JSONObject(cs.constants["manifest"] as String);
                     Log.d(TALK_MESSAGING_SERVICE, constants.toString())
                     val key = constants.getJSONObject("extra").getString("postHogApiKey");
-                    Log.d(TALK_MESSAGING_SERVICE, key)
                     if (key.isNullOrEmpty()) {
                         Log.w(TALK_MESSAGING_SERVICE, "PostHog API key is empty, skipping initialization")
                         return
