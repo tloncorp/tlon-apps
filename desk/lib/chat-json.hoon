@@ -1,4 +1,4 @@
-/-  c=chat, d=channels, old-3=chat-3
+/-  c=chat, d=channels, old-4=chat-4, old-3=chat-3
 /-  meta
 
 /+  cite=cite-json, gj=groups-json, dj=channel-json, sj=story-json
@@ -229,6 +229,7 @@
         %add
       %-  pairs
       :~  essay+(essay:enjs:dj essay.delta)
+          seq+(numb seq.delta)
           time+(time-id time.delta)
       ==
     ==
@@ -351,6 +352,7 @@
     |=  =seal:c
     %-  pairs
     :~  id+(id id.seal)
+        seq+(numb seq.seal)
         time+(time-id time.seal)
         reacts+(reacts:enjs:dj reacts.seal)
         replies+(replies replies.seal)
@@ -392,7 +394,98 @@
       ==
     ==
   ::
+  ++  v9  .
+  ::
+  ++  v8
+    |%
+    ++  writs-response
+      |=  [=whom:old-4 =response:writs:old-4]
+      %-  pairs
+      :~  whom/s/(^whom whom)
+          id/(id id.response)
+          response/(response-delta response.response)
+      ==
+    ::
+    ++  response-delta
+      |=  delta=response-delta:writs:old-4
+      %+  frond  -.delta
+      ?-  -.delta
+          %del       ~
+          %add-react  (add-react [author react]:delta)
+          %del-react  (author:enjs:dj author.delta)
+          %reply     (reply-response-delta +.delta)
+          %add
+        %-  pairs
+        :~  essay+(essay:enjs:dj essay.delta)
+            time+(time-id time.delta)
+        ==
+      ==
+    ::
+    ++  writ-list
+      |=  w=(list writ:old-4)
+      ^-  json
+      a+(turn w writ)
+    ::
+    ++  writs
+      |=  =writs:old-4
+      ^-  json
+      %-  pairs
+      %+  turn  (tap:on:writs:old-4 writs)
+      |=  [key=@da w=writ:old-4]
+      [(scot %ud key) (writ w)]
+    ::
+    ++  writ
+      |=  =writ:old-4
+      %-  pairs
+      :~  seal+(seal -.writ)
+          essay+(essay:enjs:dj +.writ)
+      ==
+    ::
+    ++  chat-heads
+      |=  heads=chat-heads:old-4
+      :-  %a
+      %+  turn  heads
+      |=  [=whom:old-4 recency=^time latest=(unit writ:old-4)]
+      %-  pairs
+      :~  whom+s+(^whom whom)
+          recency+(time recency)
+          latest+?~(latest ~ (writ u.latest))
+      ==
+    ::
+    ++  paged-writs
+      |=  pw=paged-writs:old-4
+      %-  pairs
+      :~  writs+(writs writs.pw)
+          newer+?~(newer.pw ~ (time-id u.newer.pw))
+          older+?~(older.pw ~ (time-id u.older.pw))
+          total+(numb total.pw)
+      ==
+    ::
+    ++  seal
+      |=  =seal:old-4
+      %-  pairs
+      :~  id+(id id.seal)
+          time+(time-id time.seal)
+          reacts+(reacts:enjs:dj reacts.seal)
+          replies+(replies replies.seal)
+          meta+(reply-meta:enjs:dj reply-meta.seal)
+      ==
+    ::
+    ++  reference
+      |=  =reference:old-4
+      %+  frond  -.reference
+      ?-    -.reference
+          %writ  (writ writ.reference)
+          %reply
+        %-  pairs
+        :~  id-note+(id id.reference)
+            reply+(reply reply.reference)
+        ==
+      ==
+    --
+  ::
   ++  v7
+    =,  v8
     |%
     ++  club-action
       |=  a=action:club:old-3

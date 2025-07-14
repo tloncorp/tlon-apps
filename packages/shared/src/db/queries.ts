@@ -1328,7 +1328,11 @@ export const getThreadPosts = createReadQuery(
       where: eq($posts.parentId, parentId),
       with: {
         author: true,
-        reactions: true,
+        reactions: {
+          with: {
+            contact: true,
+          },
+        },
       },
       orderBy: [desc($posts.receivedAt)],
     });
@@ -1388,6 +1392,7 @@ export const addChatMembers = createWriteQuery(
       chatId: string;
       contactIds: string[];
       type: 'group' | 'channel';
+      status: 'invited' | 'joined';
     },
     ctx: QueryCtx
   ) => {
@@ -1399,6 +1404,7 @@ export const addChatMembers = createWriteQuery(
             chatId,
             contactId,
             membershipType: type,
+            status: 'invited' as 'invited' | 'joined',
           }))
         )
         .onConflictDoNothing();
@@ -2667,7 +2673,11 @@ export const getChannelPostsAround = createReadQuery(
       where: eq($posts.id, postId),
       with: {
         author: true,
-        reactions: true,
+        reactions: {
+          with: {
+            contact: true,
+          },
+        },
       },
     });
 
@@ -2684,7 +2694,11 @@ export const getChannelPostsAround = createReadQuery(
       limit: 25,
       with: {
         author: true,
-        reactions: true,
+        reactions: {
+          with: {
+            contact: true,
+          },
+        },
       },
     });
 
@@ -2695,7 +2709,11 @@ export const getChannelPostsAround = createReadQuery(
       limit: 25,
       with: {
         author: true,
-        reactions: true,
+        reactions: {
+          with: {
+            contact: true,
+          },
+        },
       },
     });
 
@@ -2717,7 +2735,11 @@ export const getChannelSearchResults = createReadQuery(
       orderBy: [desc($posts.receivedAt)],
       with: {
         author: true,
-        reactions: true,
+        reactions: {
+          with: {
+            contact: true,
+          },
+        },
       },
     });
   },
@@ -3289,7 +3311,11 @@ export const getPostWithRelations = createReadQuery(
         where: eq($posts.id, id),
         with: {
           author: true,
-          reactions: true,
+          reactions: {
+            with: {
+              contact: true,
+            },
+          },
           threadUnread: true,
           volumeSettings: true,
         },

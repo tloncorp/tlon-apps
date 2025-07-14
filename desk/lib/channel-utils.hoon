@@ -1348,7 +1348,11 @@
   ::
   =.  count  +(count)
   :-  count
-  ?~  post  posts
+  ?~  post
+    ::NOTE  this used to just produce .posts as-is,
+    ::      which meant deleted msg tombstones got dropped!
+    ::      you will find logic to recover those in both channels agents.
+    (put:on-v-posts:c posts id-post ~)
   ::  insert seq and mod-at into seal
   ::
   =;  new-post=v-post:c
