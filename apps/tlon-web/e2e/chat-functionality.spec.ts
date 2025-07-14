@@ -108,8 +108,7 @@ test('should test comprehensive chat functionality', async ({ browser }) => {
   await expect(tenPage.getByText(groupName).first()).toBeVisible();
 
   // Open the General channel
-  await tenPage.waitForSelector('text=General');
-  await tenPage.getByText('General').click();
+  await helpers.navigateToChannel(tenPage, 'General');
 
   // Hide the message that ~zod sent
   await helpers.hideMessage(tenPage, 'Hide this message');

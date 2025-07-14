@@ -11,6 +11,17 @@ export async function clickThroughWelcome(page: Page) {
   }
 }
 
+export async function channelIsLoaded(page: Page) {
+  await expect(
+    page.getByTestId('ScreenHeaderTitle').getByText('Loading…')
+  ).not.toBeVisible();
+}
+
+export async function navigateToChannel(page: Page, channelName: string) {
+  await page.getByTestId(`ChannelListItem-${channelName}`).click();
+  await channelIsLoaded(page);
+}
+
 export async function createGroup(page: Page) {
   await page.getByTestId('CreateChatSheetTrigger').click();
   await page.getByText('New group').click();
@@ -492,7 +503,11 @@ export async function sendMessage(page: Page, message: string) {
  */
 export async function longPressMessage(page: Page, messageText: string) {
   // Not really a longpress since this is web.
-  await page.getByText(messageText).first().hover({ force: true });
+  await page
+    .getByTestId('ChatMessage')
+    .getByText(messageText)
+    .first()
+    .hover({ force: true });
   await page.waitForTimeout(1000);
   await page.getByTestId('MessageActionsTrigger').click();
   await page.waitForTimeout(500);
