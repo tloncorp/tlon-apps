@@ -157,9 +157,6 @@ test('test description', async ({ page }) => {
     // Navigate to app
     await page.goto(`${shipManifest['~zod'].webUrl}/apps/groups/`);
 
-    // Handle welcome flow
-    await helpers.clickThroughWelcome(page);
-
     // Test-specific logic using helpers
     await helpers.createGroup(page);
     await helpers.sendMessage(page, 'Hello world');

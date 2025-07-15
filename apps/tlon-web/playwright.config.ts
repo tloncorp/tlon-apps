@@ -7,7 +7,7 @@ import shipManifest from './e2e/shipManifest.json';
  */
 const webServers = Object.entries(shipManifest).map(
   ([key, ship]: [string, any]) => ({
-    command: `cross-env SHIP_URL=${ship.url} pnpm dev-no-ssl`,
+    command: `cross-env SHIP_URL=${ship.url} VITE_DISABLE_SPLASH_MODAL=true pnpm dev-no-ssl`,
     url: `${ship.webUrl}/apps/groups/`,
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,

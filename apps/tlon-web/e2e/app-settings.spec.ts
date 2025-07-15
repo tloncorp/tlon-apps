@@ -9,7 +9,7 @@ test.use({ storageState: shipManifest['~zod'].authFile });
 
 test('should test app settings', async ({ page }) => {
   await page.goto(zodUrl);
-  await helpers.clickThroughWelcome(page);
+  await page.waitForSelector('text=Home', { state: 'visible' });
   await page.evaluate(() => {
     window.toggleDevTools();
   });
