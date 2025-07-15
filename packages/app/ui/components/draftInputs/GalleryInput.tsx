@@ -273,7 +273,7 @@ export function GalleryInput({
         onPresentationModeChange?.('inline');
       } else {
         // Otherwise send as a new post
-        await send(story, channel.id, metadata);
+        await sendPost(story, channel.id, metadata);
         resetGalleryState();
       }
 
