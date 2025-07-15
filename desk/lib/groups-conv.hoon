@@ -509,7 +509,7 @@
         =/  =preview:v7:gv
           ?^  pev  (v7:preview u.pev)
           ::  generate a dummy preview, we are going to request
-          ::  a fresh preview after migration completes.
+          ::  a fresh preview after the migration completes.
           ::
           :*  flag
               *data:meta
@@ -653,8 +653,8 @@
         %-  ~(gas by pending)
         %+  turn  ~(tap in pend.cordon)
         |=(=ship [ship ~])
-      ::NB  we don't migrate the ask set because
-      ::    they need to be re-issued by the subscribers
+      ::NB  we don't migrate the asks because
+      ::    they need to be re-requested by the subscribers
       ::    to work.
       ::
       =|  requests=(map ship (unit story:s))

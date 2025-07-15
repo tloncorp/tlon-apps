@@ -1156,10 +1156,9 @@
     ::  for each group join in progress:
     ::
     ::  %ask: we have requested an entry, repeat the request.
-    ::  %join: we have asked to join the group, repeat the request
-    ::         if an invitation is present. otherwise set progress
-    ::         to error.
-    ::  %watch: we have issue a watch to the group. there should already
+    ::  %join: we have poked to join the group, repeat the request
+    ::         if an invitation is present. otherwise set error.
+    ::  %watch: we have issued a watch to the group. there should already
     ::          be a group entry. if there is, resubscribe. if there is
     ::          not, set error.
     ::  %done: do nothing.
@@ -1192,7 +1191,7 @@
       ::  v6 -> v7 migrate each .groups
       ::
       [%load %v7 %admissions ~]
-    ::  host: send invites to each ship on the pending list in
+    ::  host: send an invite to each ship on the pending list in
     ::  .admissions.$group.
     ::
     %+  roll  ~(tap by groups)
@@ -1254,12 +1253,14 @@
         %leave
       ?~  flag=(~(get by channels-index) nest.r-channels)
         cor
-      =+  net-group=(~(got by groups) u.flag)
-      ?>  (~(has by channels.net-group) nest.r-channels)
+      =+  net-group=(~(get by groups) u.flag)
+      ?~  net-group  cor
+      =*  group  u.net-group
+      ?>  (~(has by channels.group) nest.r-channels)
       =.  groups
         %+  ~(put by groups)  u.flag
-        %_  net-group  active-channels
-          (~(del in active-channels.net-group) nest.r-channels)
+        %_  group  active-channels
+          (~(del in active-channels.group) nest.r-channels)
         ==
       cor
     ==
@@ -1282,10 +1283,10 @@
       %fact
     =+  !<(=response:t q.cage.sign)
     ?.  ?=(%peer -.response)  cor
-    =/  groups=(set $>(%flag value:t))
-      (~(gos cy:t con.response) groups+%flag)
-    ?:  =(~ groups)  cor  ::TMI
-    %+  roll  ~(tap in groups)
+    =/  groups=(unit (set $>(%flag value:t)))
+      (~(ges cy:t con.response) groups+%flag)
+    ?:  |(?=(~ groups) =(~ u.groups))  cor  ::TMI
+    %+  roll  ~(tap in u.groups)
     |=  [val=$>(%flag value:t) =_cor]
     fi-abet:(fi-watch:(fi-abed:fi-core:cor p.val) /preview)
   ==
@@ -1586,8 +1587,12 @@
     ?:  (se-is-banned ship)  deny
     ?:  &(=(~ tok) ?=(%public privacy.ad))
       [& ad]
-    ?:  &(=(~ tok) (~(has by pending.ad) ship))
-      [& ad]
+    ::TODO this special case does not seem to be necessary.
+    ::     pending ships will receive an invitation with a personal
+    ::     token.
+    ::
+    :: ?:  &(=(~ tok) (~(has by pending.ad) ship))
+    ::   [& ad]
     ?~  tok  deny
     ::TODO referrals
     =/  meta=(unit token-meta:g)  (~(get by tokens.ad) u.tok)
@@ -1794,6 +1799,9 @@
       (se-update [%entry %token %add token token-meta])
     ::
         %del
+      ::TODO if a token we had used for inviting someone to the group
+      ::     has been revoked, we should signal to the invitee.
+      ::
       ?>  (~(has by tokens.ad) token.c-token)
       =.  tokens.ad
         (~(del by tokens.ad) token.c-token)
@@ -1822,6 +1830,9 @@
       =.  pending.ad
         %+  roll  ~(tap in ships)
         |=  [=ship =_pending.ad]
+        ::TODO  if a ship is already in .requests.ad, her
+        ::      ask request should be cleared at the same time.
+        ::
         =/  roles=(set role-id:g)
           (~(gut by pending) ship *(set role-id:g))
         (~(put by pending) ship (~(uni in roles) roles.c-pending))
@@ -2834,7 +2845,11 @@
         fi-abet:(fi-watched:(fi-abed:fi-core flag) p.sign)
       ?^  p.sign
         %-  (fail:log %watch-ack 'group watch failed' u.p.sign)
-        (go-leave &)
+        ?:  (~(has by foreigns) flag)
+          ::  join in progress, leave the group to allow re-joining
+          (go-leave &)
+        ::TODO we should probably try resubscribing with a delay
+        go-core
       go-core
     ::
         %fact
