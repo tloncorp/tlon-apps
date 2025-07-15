@@ -1,14 +1,28 @@
 package io.tlon.landscape
 
+import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Bundle
 import android.util.Log
+import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.posthog.android.PostHogAndroid
 import com.posthog.android.PostHogAndroidConfig
 import org.json.JSONObject
 import expo.modules.constants.ConstantsService
+import io.tlon.landscape.notifications.NotificationException
+import io.tlon.landscape.notifications.NotificationLogger
+import io.tlon.landscape.notifications.TalkNotificationManager
+import io.tlon.landscape.notifications.buildMessagingTappable
+import io.tlon.landscape.notifications.getLogPayload
 import io.tlon.landscape.notifications.processNotificationBlocking
+import io.tlon.landscape.notifications.toBasicBundle
+import io.tlon.landscape.utils.UvParser
 
 private const val TALK_MESSAGING_SERVICE = "talk-messaging-service"
 
@@ -62,14 +76,70 @@ class TalkMessagingService : FirebaseMessagingService() {
      * @param remoteMessage Object representing the message received from Firebase Cloud Messaging.
      */
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
-        // Check if message contains a data payload.
-        if (remoteMessage.data.isNotEmpty()) {
-            val data = remoteMessage.data
-            if (data["action"] == "notify") {
-                data["uid"]?.let { uid ->
-                    processNotificationBlocking(this, uid, remoteMessage)
+        try {
+            // Check if message contains a data payload.
+            if (remoteMessage.data.isNotEmpty()) {
+                val data = remoteMessage.data
+                if (data["action"] == "notify") {
+                    data["uid"]?.let { uid ->
+                        processNotificationBlocking(this, uid)
+                    }
                 }
             }
+        } catch (e: NotificationException) {
+            NotificationLogger.logError(e)
+            showFallbackNotification(this, e, remoteMessage)
+        }
+    }
+
+    private fun showFallbackNotification(
+        context: Context,
+        exception: NotificationException,
+        originalPayload: RemoteMessage
+    ) {
+        val uid = exception.uid
+        val id = UvParser.getIntCompatibleFromUv(uid)
+        // Check permissions
+        if (ActivityCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            NotificationLogger.logError(
+                NotificationException(uid, "Lacking notification permissions")
+            )
+            Log.w(TALK_MESSAGING_SERVICE, "Cannot show notification - no permission")
+            return
+        }
+
+        val bundle = originalPayload.toBasicBundle()
+
+        // Extract basic info from original payload or use defaults
+        val title = bundle.getString("title") ?: "New message"
+        val body = bundle.getString("body") ?: "You have a new message"
+
+        val extras = Bundle()
+        if (exception.activityEvent != null) {
+            extras.putString("activityEventJsonString", exception.activityEvent)
+        }
+        extras.putString("fallbackReason", exception.message)
+
+        val builder = NotificationCompat.Builder(context, TalkNotificationManager.CHANNEL_ID)
+            .buildMessagingTappable(context, id, extras)
+            .setContentTitle(title)
+            .setContentText(body)
+
+        try {
+            NotificationManagerCompat.from(context).notify(id, builder.build())
+            NotificationLogger.logDelivery(mapOf(
+                "uid" to uid,
+                "message" to "Fallback notification delivered"
+            ))
+            Log.i(TALK_MESSAGING_SERVICE, "Showed fallback notification for uid: $uid, reason: ${exception.message}")
+        } catch (e: Exception) {
+            val message = "Failed to display fallback notification"
+            NotificationLogger.logError(NotificationException(uid, message, null, e))
+            Log.e(TALK_MESSAGING_SERVICE, message, e)
         }
     }
 }

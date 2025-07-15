@@ -7,7 +7,8 @@ private const val NOTIFICATION_SERVICE_ERROR = "Notification Service Error"
 private const val NOTIFICATION_SERVICE_DELIVERED = "Notification Service Delivery Successful"
 
 object NotificationLogger {
-    fun logError(properties: Map<String, Any> = emptyMap()) {
+    fun logError(e: NotificationException) {
+        val properties = getLogPayload(e.uid, e.message ?: "Notification exception", e)
         log(NOTIFICATION_SERVICE_ERROR, properties = properties)
     }
 
@@ -23,4 +24,15 @@ object NotificationLogger {
             Log.d("PostHogFallback", "Event: $eventName, Properties: $properties, Error: ${e.message}")
         }
     }
+}
+
+fun getLogPayload(uid: String, message: String, e: Exception? = null): Map<String, String> {
+    val payload = mutableMapOf("uid" to uid, "message" to message);
+    if (e != null) {
+        payload["errorMessage"] = e.message.orEmpty()
+        payload["errorStack"] = e.stackTrace.toString()
+        payload["errorType"] = e.cause.toString()
+    }
+
+    return payload;
 }

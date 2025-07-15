@@ -1,7 +1,6 @@
 package io.tlon.landscape.notifications
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -33,23 +32,7 @@ val notificationMessagesCache = HashMap<String, Array<NotificationCompat.Messagi
 
 private const val NOTIFICATION_MANAGER = "NotificationManager"
 
-suspend fun processNotification(context: Context, uid: String, originalPayload: RemoteMessage? = null) {
-    // Check permissions
-    if (ActivityCompat.checkSelfPermission(
-            context,
-            Manifest.permission.POST_NOTIFICATIONS
-        ) != PackageManager.PERMISSION_GRANTED
-    ) {
-        NotificationLogger.logError(
-            getLogPayload(
-                uid,
-                "Lacking notification permissions"
-            )
-        )
-        Log.w(NOTIFICATION_MANAGER, "Cannot show notification - no permission")
-        return
-    }
-
+suspend fun processNotification(context: Context, uid: String) {
     val api = TalkApi(context)
     var activityEvent: JSONObject? = null
 
@@ -61,69 +44,56 @@ suspend fun processNotification(context: Context, uid: String, originalPayload: 
             })
         }
     } catch (e: Exception) {
-        val message = "Activity event fetch failed"
-        NotificationLogger.logError(getLogPayload(uid, message, e))
-        // Fall back to basic notification with original payload
-        showFallbackNotification(context, uid, originalPayload, message)
-        return
+        throw ActivityEventFetchFailed(uid, e);
     }
 
     if (activityEvent == null) {
-        val message = "Activity event missing";
-        NotificationLogger.logError(getLogPayload(uid, message))
-        showFallbackNotification(context, uid, originalPayload, message)
-        return
+        throw ActivityEventMissing(uid);
     }
 
+    val activityEventJSON = activityEvent.toString()
     val preview = try {
-        renderPreview(context, activityEvent.toString())
+        renderPreview(context, activityEventJSON)
     } catch (e: Exception) {
-        val message = "Preview render failed"
-        NotificationLogger.logError(getLogPayload(uid, message, e))
-        showFallbackNotification(context, uid, originalPayload, message, activityEvent)
-        return
+        throw PreviewRenderFailed(uid, activityEventJSON, e)
     }
 
     if (preview == null) {
-        val message = "Preview is null"
-        NotificationLogger.logError(getLogPayload(uid, message))
-        showFallbackNotification(context, uid, originalPayload, message, activityEvent)
-        return
+        throw PreviewEmpty(uid, activityEventJSON)
     }
 
     try {
         // Proceed with rich notification
-        showRichNotification(context, uid, preview, activityEvent)
+        val extras = Bundle()
+        extras.putString("activityEventJsonString", activityEventJSON)
+
+        showRichNotification(context, uid, preview, extras)
         NotificationLogger.logDelivery(mapOf("uid" to uid, "message" to "Rich notification delivered"))
     } catch (e: Exception) {
-        val message = "Rich notification display failed"
-        NotificationLogger.logError(getLogPayload(uid, message, e))
-        showFallbackNotification(context, uid, originalPayload, message, activityEvent)
+        throw RichNotificationDisplayFailed(uid, activityEventJSON, e);
     }
 }
 
-@SuppressLint("MissingPermission")
-private fun showRichNotification(context: Context, uid: String, preview: ActivityEventPreview, activityEvent: JSONObject) {
-    val extras = Bundle()
-    extras.putString("activityEventJsonString", activityEvent.toString())
-
+private fun showRichNotification(context: Context, uid: String, preview: ActivityEventPreview, extras: Bundle) {
     val id = UvParser.getIntCompatibleFromUv(uid)
-    val person = preview.messagingMetadata?.sender?.person
-    val title = preview.title
-    val text = preview.body
-    val isGroupConversation = preview.messagingMetadata?.isGroupConversation ?: false
+    // Check permissions
+    if (ActivityCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) != PackageManager.PERMISSION_GRANTED
+    ) {
+        NotificationLogger.logError(
+            NotificationException(
+                uid,
+                "Lacking notification permissions"
+            )
+        )
+        Log.w(NOTIFICATION_MANAGER, "Cannot show notification - no permission")
+        return
+    }
 
-    Log.d(NOTIFICATION_MANAGER, "sendNotification: $id $title $text $isGroupConversation")
-
-    val tapIntent = Intent(context, MainActivity::class.java)
-    tapIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-    tapIntent.replaceExtras(extras)
-    val tapPendingIntent = PendingIntent.getActivity(
-        context,
-        id,
-        tapIntent,
-        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-    )
+    val builder: NotificationCompat.Builder = NotificationCompat.Builder(context, TalkNotificationManager.CHANNEL_ID)
+        .buildMessagingTappable(context, id, extras)
 
     val markAsReadIntent = Intent(context, TalkBroadcastReceiver::class.java)
     markAsReadIntent.setAction(TalkBroadcastReceiver.MARK_AS_READ_ACTION)
@@ -135,22 +105,14 @@ private fun showRichNotification(context: Context, uid: String, preview: Activit
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
     )
 
+    val person = preview.messagingMetadata?.sender?.person
+    val title = preview.title
+    val text = preview.body
+    val isGroupConversation = preview.messagingMetadata?.isGroupConversation ?: false
+
+    Log.d(NOTIFICATION_MANAGER, "sendNotification: $id $title $text $isGroupConversation")
+
     val user = Person.Builder().setName(SecureStorage.getString(SecureStorage.SHIP_NAME_KEY)).build()
-    val builder: NotificationCompat.Builder =
-        NotificationCompat.Builder(context, TalkNotificationManager.CHANNEL_ID)
-            .setSmallIcon(R.drawable.notification_icon)
-            .setContentTitle(title)
-            .setContentText(text)
-            .addExtras(extras)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setContentIntent(tapPendingIntent)
-            .addAction(
-                R.drawable.ic_mark_as_read,
-                context.getString(R.string.landscape_notification_mark_as_read),
-                markAsReadPendingIntent
-            )
-            .setAutoCancel(true)
-            .setGroup(preview.groupingKey)
 
     if (person != null) {
         val notifStyle = NotificationCompat.MessagingStyle(user)
@@ -172,72 +134,16 @@ private fun showRichNotification(context: Context, uid: String, preview: Activit
         builder.setStyle(notifStyle)
     }
 
-    NotificationManagerCompat.from(context).notify(preview.groupingKey?.hashCode() ?: id, builder.build())
-}
-
-@SuppressLint("MissingPermission")
-private fun showFallbackNotification(
-    context: Context,
-    uid: String,
-    originalPayload: RemoteMessage?,
-    reason: String,
-    activityEvent: JSONObject? = null
-) {
-    val bundle = originalPayload?.toBasicBundle();
-    val id = UvParser.getIntCompatibleFromUv(uid)
-
-    // Extract basic info from original payload or use defaults
-    val title = bundle?.getString("title") ?: "New message"
-    val body = bundle?.getString("body") ?: "You have a new message"
-
-    val extras = Bundle()
-    if (activityEvent != null) {
-        extras.putString("activityEventJsonString", activityEvent.toString())
-    }
-    extras.putString("fallbackReason", reason)
-
-    val tapIntent = Intent(context, MainActivity::class.java)
-    tapIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-    tapIntent.replaceExtras(extras)
-    val tapPendingIntent = PendingIntent.getActivity(
-        context,
-        id,
-        tapIntent,
-        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-    )
-
-    val builder = NotificationCompat.Builder(context, TalkNotificationManager.CHANNEL_ID)
-        .setSmallIcon(R.drawable.notification_icon)
+    builder
         .setContentTitle(title)
-        .setContentText(body)
-        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-        .setContentIntent(tapPendingIntent)
-        .setAutoCancel(true)
-        .addExtras(extras)
-
-    try {
-        NotificationManagerCompat.from(context).notify(id, builder.build())
-        NotificationLogger.logDelivery(mapOf(
-            "uid" to uid,
-            "message" to "Fallback notification delivered"
-        ))
-        Log.i(NOTIFICATION_MANAGER, "Showed fallback notification for uid: $uid, reason: $reason")
-    } catch (e: Exception) {
-        val message = "Failed to display fallback notification"
-        NotificationLogger.logError(getLogPayload(uid, message, e))
-        Log.e(NOTIFICATION_MANAGER, message, e)
-    }
-}
-
-private fun getLogPayload(uid: String, message: String, e: Exception? = null): Map<String, String> {
-    val payload = mutableMapOf("uid" to uid, "message" to message);
-    if (e != null) {
-        payload["errorMessage"] = e.message.orEmpty()
-        payload["errorStack"] = e.stackTrace.toString()
-        payload["errorType"] = e.cause.toString()
-    }
-
-    return payload;
+        .setContentText(text)
+        .setGroup(preview.groupingKey)
+        .addAction(
+            R.drawable.ic_mark_as_read,
+            context.getString(R.string.landscape_notification_mark_as_read),
+            markAsReadPendingIntent
+        )
+    NotificationManagerCompat.from(context).notify(preview.groupingKey?.hashCode() ?: id, builder.build())
 }
 
 fun RemoteMessage.toBasicBundle(): Bundle {
@@ -261,5 +167,60 @@ fun RemoteMessage.toBasicBundle(): Bundle {
     return bundle
 }
 
-fun processNotificationBlocking(context: Context, uid: String, originalPayload: RemoteMessage? = null) =
-    runBlocking { processNotification(context, uid, originalPayload) }
+fun NotificationCompat.Builder.buildMessagingTappable(context: Context, id: Int, extras: Bundle): NotificationCompat.Builder {
+    val tapIntent = Intent(context, MainActivity::class.java)
+    tapIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+    tapIntent.replaceExtras(extras)
+    val tapPendingIntent =  PendingIntent.getActivity(
+        context,
+        id,
+        tapIntent,
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+    )
+
+    val builder =  this
+            .setSmallIcon(R.drawable.notification_icon)
+            .addExtras(extras)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setContentIntent(tapPendingIntent)
+            .setAutoCancel(true)
+
+    return builder
+}
+
+fun processNotificationBlocking(context: Context, uid: String) =
+    runBlocking { processNotification(context, uid) }
+
+open class NotificationException(
+    message: String,
+    val uid: String,
+    val activityEvent: String? = null,
+    cause: Throwable? = null
+): Exception(message, cause)
+
+class ActivityEventFetchFailed(
+    uid: String,
+    cause: Throwable? = null
+): NotificationException("Activity event fetch failed", uid, null, cause)
+
+class ActivityEventMissing(
+    uid: String,
+    cause: Throwable? = null
+): NotificationException("Activity event fetch failed", uid, null, cause)
+
+class PreviewRenderFailed(
+    uid: String,
+    activityEvent: String,
+    cause: Throwable? = null
+): NotificationException("Preview render failed", uid, activityEvent, cause)
+
+class PreviewEmpty(
+    uid: String,
+    activityEvent: String,
+): NotificationException("Preview is null", uid, activityEvent)
+
+class RichNotificationDisplayFailed(
+    uid: String,
+    activityEvent: String,
+    cause: Throwable? = null
+): NotificationException("Rich notification display failed", uid, activityEvent, cause)
