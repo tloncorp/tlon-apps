@@ -25,6 +25,14 @@ vi.mock('@react-native-community/netinfo', () => {
   };
 });
 
+vi.mock('expo-file-system', () => ({
+  uploadAsync: vi.fn(),
+}));
+
+vi.mock('expo-image-manipulator', () => ({
+  manipulateAsync: vi.fn(),
+}));
+
 vi.mock('../db/getStorageMethods', () => {
   return {
     getStorageMethods() {
@@ -44,6 +52,7 @@ export function mockUrbit() {
       ...mod,
       scry: vi.fn(),
       trackedPoke: vi.fn(),
+      poke: vi.fn(),
       getCurrentUserId: () => '~solfer-magfed',
     };
     return out;
