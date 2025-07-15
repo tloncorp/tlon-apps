@@ -1587,12 +1587,17 @@
     ?:  (se-is-banned ship)  deny
     ?:  &(=(~ tok) ?=(%public privacy.ad))
       [& ad]
-    ::TODO this special case does not seem to be necessary.
-    ::     pending ships will receive an invitation with a personal
-    ::     token.
+    ::XX  this is a special case to enable robust v6 -> v7 migration
+    ::    of private group invitations. the shut cordon pending set
+    ::    is migrated, but at the time of migration at the group host
+    ::    the recipient might not be updated yet, thus the newly minted
+    ::    invitation is going to be lost. the recipient will
+    ::    attempt to join the group with an empty token, which we allow
+    ::    here, but only if the user is in the pending set. once the migration
+    ::    sets in the network this should be removed.
     ::
-    :: ?:  &(=(~ tok) (~(has by pending.ad) ship))
-    ::   [& ad]
+    ?:  &(=(~ tok) (~(has by pending.ad) ship))
+      [& ad]
     ?~  tok  deny
     ::TODO referrals
     =/  meta=(unit token-meta:g)  (~(get by tokens.ad) u.tok)
