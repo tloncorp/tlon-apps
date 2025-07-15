@@ -76,20 +76,20 @@ class TalkMessagingService : FirebaseMessagingService() {
      * @param remoteMessage Object representing the message received from Firebase Cloud Messaging.
      */
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
-        try {
             // Check if message contains a data payload.
             if (remoteMessage.data.isNotEmpty()) {
                 val data = remoteMessage.data
                 if (data["action"] == "notify") {
-                    data["uid"]?.let { uid ->
-                        processNotificationBlocking(this, uid)
+                    try {
+                        data["uid"]?.let { uid ->
+                            processNotificationBlocking(this, uid)
+                        }
+                    } catch (e: NotificationException) {
+                        NotificationLogger.logError(e)
+                        showFallbackNotification(this, e, remoteMessage)
                     }
                 }
             }
-        } catch (e: NotificationException) {
-            NotificationLogger.logError(e)
-            showFallbackNotification(this, e, remoteMessage)
-        }
     }
 
     private fun showFallbackNotification(
