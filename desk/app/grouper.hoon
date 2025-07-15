@@ -131,7 +131,6 @@
       ?~  p.sign  `this
       %-  (slog leaf/"Poke failed {<wire>}" u.p.sign)
       `this
-    ?>  ?=([%dm ship=@ token=@ ~] wire)
     =*  joiner  i.t.wire
     =*  token  i.t.t.wire
     :_  this
