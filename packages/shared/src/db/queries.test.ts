@@ -331,8 +331,8 @@ test('sequenced posts: gets newer posts', async () => {
     count: 7,
   });
   expect(newestPosts.length).toEqual(7);
-  expect(newestPosts[0].sequenceNum).toEqual(6);
-  expect(newestPosts[6].sequenceNum).toEqual(12);
+  expect(newestPosts[0].sequenceNum).toEqual(12);
+  expect(newestPosts[6].sequenceNum).toEqual(6);
 });
 
 test('sequenced posts: gets older posts', async () => {
@@ -347,8 +347,8 @@ test('sequenced posts: gets older posts', async () => {
     count: 10,
   });
   expect(newestPosts.length).toEqual(10);
-  expect(newestPosts[0].sequenceNum).toEqual(2);
-  expect(newestPosts[9].sequenceNum).toEqual(11);
+  expect(newestPosts[0].sequenceNum).toEqual(11);
+  expect(newestPosts[9].sequenceNum).toEqual(2);
 });
 
 test('sequenced posts: gets older posts', async () => {
@@ -422,7 +422,7 @@ test('sequenced posts: respects contiguous boundary in newer mode', async () => 
     count: 10,
   });
   expect(newestPosts.length).toEqual(4);
-  expect(newestPosts[3].sequenceNum).toEqual(19);
+  expect(newestPosts[0].sequenceNum).toEqual(19);
 });
 
 function getRangedPosts(channelId: string, start: number, end: number): Post[] {

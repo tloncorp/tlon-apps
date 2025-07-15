@@ -100,29 +100,28 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
       // We should figure out why this is necessary.
       if (
         queryOptions &&
-        queryOptions.mode === 'newest'
-        // TODO: uncomment this out once all messages have sequence numbers. For now heads is missing them,
-        // so we always force fetch newest posts from api
-        // && !options.hasCachedNewest
+        queryOptions.mode === 'newest' &&
+        !options.hasCachedNewest
       ) {
         await sync.syncPosts(queryOptions, {
           priority: SyncPriority.High,
           abortSignal: abortControllerRef.current?.signal,
         });
-        console.log(`bl: synced newest posts for ${queryOptions.channelId}`);
       }
-      // const cached = await db.getChannelPosts(queryOptions);
+
       let cached: db.Post[] = [];
       if (queryOptions.mode === 'newest') {
         cached = await db.getSequencedChannelPosts(queryOptions);
       } else if (queryOptions.cursor) {
         const cursorPost = await db.getPost({ postId: queryOptions.cursor });
-        console.log('bl: have cursor post', { cursorPost });
-        if (cursorPost) {
+        if (cursorPost && cursorPost.sequenceNum) {
+          console.log(`ql: using cursor post`, cursorPost);
           cached = await db.getSequencedChannelPosts({
             ...queryOptions,
             cursorSequenceNum: cursorPost.sequenceNum!,
           });
+        } else {
+          console.log('ql: cursor post not found, syncing');
         }
       }
 
@@ -142,13 +141,14 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
           abortSignal: abortControllerRef.current?.signal,
         }
       );
-      postsLogger.log('loaded', res.posts?.length, 'posts from api', { res });
+      postsLogger.log('ql: loaded', res.posts?.length, 'posts from api', {
+        res,
+      });
       let secondResult: db.Post[] = [];
       if (queryOptions.mode === 'newest') {
         secondResult = await db.getSequencedChannelPosts(queryOptions);
       } else if (queryOptions.cursor) {
         const cursorPost = await db.getPost({ postId: queryOptions.cursor });
-        console.log('bl: have cursor post', { cursorPost });
         if (cursorPost) {
           secondResult = await db.getSequencedChannelPosts({
             ...queryOptions,
@@ -172,7 +172,8 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
       _allPages,
       lastPageParam
     ): UseChannelPostsPageParams | undefined => {
-      const lastPageIsEmpty = !lastPage.posts.at(-1)?.id;
+      const oldestPost = lastPage.posts.at(-1);
+      const lastPageIsEmpty = !oldestPost?.id;
       if (lastPageIsEmpty) {
         // If we've only tried to get newer posts + that's failed, try using the
         // same cursor to get older posts instead. This can happen when the
@@ -188,30 +189,15 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
         }
       }
 
-      let oldestSequencedPost = null;
-      for (const post of lastPage.posts) {
-        if (
-          post.sequenceNum !== null &&
-          post.sequenceNum !== undefined &&
-          post.sequenceNum <
-            (oldestSequencedPost ? oldestSequencedPost.sequenceNum! : Infinity)
-        ) {
-          oldestSequencedPost = post;
-        }
-      }
-
       // check if we're at the beginning of the channel
-      if (oldestSequencedPost && oldestSequencedPost.sequenceNum === 0) {
+      if (oldestPost && oldestPost.sequenceNum === 1) {
         return undefined;
       }
-
-      const primaryCursor = oldestSequencedPost?.id;
-      const fallbackCursor = lastPage.posts.at(-1)?.id;
 
       return {
         ...options,
         mode: 'older',
-        cursor: primaryCursor ?? fallbackCursor,
+        cursor: oldestPost?.id,
       };
     },
     getPreviousPageParam: (

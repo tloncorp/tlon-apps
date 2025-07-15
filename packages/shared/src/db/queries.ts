@@ -2618,7 +2618,7 @@ export const getSequencedChannelPosts = createReadQuery(
         if (post.sequenceNum !== seq - 1) {
           break;
         }
-        contiguousOlderPosts.unshift(post);
+        contiguousOlderPosts.push(post);
         seq--;
       }
 
@@ -2671,7 +2671,7 @@ export const getSequencedChannelPosts = createReadQuery(
         if (post.sequenceNum !== seq + 1) {
           break;
         }
-        contiguousNewerPosts.push(post);
+        contiguousNewerPosts.unshift(post);
         seq++;
       }
 
