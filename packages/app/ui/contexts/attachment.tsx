@@ -4,7 +4,11 @@ import {
   ImageAttachment,
   UploadedImageAttachment,
 } from '@tloncorp/shared';
-import { useUploadStates, waitForUploads } from '@tloncorp/shared/store';
+import {
+  finalizeAttachments,
+  useUploadStates,
+  waitForUploads,
+} from '@tloncorp/shared/store';
 import { ImagePickerAsset } from 'expo-image-picker';
 import {
   PropsWithChildren,
@@ -132,27 +136,10 @@ export const AttachmentProvider = ({
     setState(attachments);
   }, []);
 
-  const handleWaitForUploads = useCallback(async () => {
-    const assetAttachments = state.filter(
-      (a): a is ImageAttachment => a.type === 'image'
-    );
-    const completedUploads = await waitForUploads(
-      assetAttachments.map((a) => a.file.uri)
-    );
-    const finalAttachments: FinalizedAttachment[] = attachments.map((a) => {
-      if (a.type === 'image') {
-        const finalizedAttachment = {
-          ...a,
-          uploadState: completedUploads[a.file.uri],
-        };
-        assertIsUploadedAssetAttachment(finalizedAttachment);
-        return finalizedAttachment;
-      } else {
-        return a;
-      }
-    });
-    return finalAttachments;
-  }, [attachments, state]);
+  const handleWaitForUploads = useCallback(
+    () => finalizeAttachments(state),
+    [state]
+  );
 
   const handleUploadAssets = useCallback(
     async (assets: ImagePickerAsset[]): Promise<UploadedImageAttachment[]> => {
@@ -208,23 +195,6 @@ export const AttachmentProvider = ({
     </Context.Provider>
   );
 };
-
-function assertIsUploadedAssetAttachment(
-  attachment: unknown
-): asserts attachment is UploadedImageAttachment {
-  if (
-    !attachment ||
-    typeof attachment !== 'object' ||
-    !('uploadState' in attachment) ||
-    !attachment.uploadState ||
-    typeof attachment.uploadState !== 'object' ||
-    !('status' in attachment.uploadState) ||
-    attachment.uploadState.status !== 'success'
-  ) {
-    console.log(attachment);
-    throw new Error('Attachment is not an uploaded image attachment');
-  }
-}
 
 export function useMappedImageAttachments<T extends Record<string, string>>(
   map: T
