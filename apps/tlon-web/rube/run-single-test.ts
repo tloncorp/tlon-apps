@@ -107,7 +107,9 @@ async function waitForReadiness() {
   // Import ship manifest to get Urbit ship URLs (not web server URLs)
   // Note: __dirname will be rube/dist when compiled, so we need to go up two levels
   const shipManifest = require('../../e2e/shipManifest.json');
-  const shipUrls = Object.values(shipManifest).map((ship: Ship) => ship.url);
+  const shipUrls = Object.values(shipManifest)
+    .filter((ship: Ship) => !ship.skipSetup)
+    .map((ship: Ship) => ship.url);
 
   const maxAttempts = 60; // 5 minutes
   let attempts = 0;
