@@ -1,5 +1,6 @@
 import { extractContentTypesFromPost } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import { Block, constructStory } from '@tloncorp/shared/urbit';
 import { ParentAgnosticKeyboardAvoidingView } from '@tloncorp/ui';
@@ -14,7 +15,7 @@ import {
 } from 'react';
 import { TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, YStack } from 'tamagui';
+import { View, YStack, useTheme } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
 import AddGalleryPost from '../AddGalleryPost';
@@ -46,8 +47,13 @@ export function GalleryInput({
 
   const safeAreaInsets = useSafeAreaInsets();
   const captionInputRef = useRef<TextInput>(null);
-  const { resetAttachments, waitForAttachmentUploads, attachAssets } =
-    useAttachmentContext();
+  const {
+    resetAttachments,
+    waitForAttachmentUploads,
+    addAttachment,
+    attachAssets,
+  } = useAttachmentContext();
+  const theme = useTheme();
 
   const [route, setRoute] = useState<GalleryRoute>('gallery');
   const [canPost, setCanPost] = useState(false);
@@ -64,7 +70,7 @@ export function GalleryInput({
       const { blocks } = extractContentTypesFromPost(editingPost);
 
       // Check if the first block is an image - if so, it's an image gallery post
-      if (blocks.length > 0 && 'image' in blocks[0]) {
+      if (blocks.length > 0) {
         setRoute('image');
 
         // Extract caption from the post if it exists (should be in the inline content)
@@ -110,6 +116,18 @@ export function GalleryInput({
           setRoute('image');
           setCanPost(true);
         }
+
+        if ('link' in blocks[0]) {
+          const linkBlock = blocks[0].link as { url: string };
+          console.log('linkBlock', linkBlock);
+          const mockAttachment: domain.LinkAttachment = {
+            type: 'link' as const,
+            url: linkBlock.url,
+          };
+          addAttachment(mockAttachment);
+          setRoute('link');
+          setCanPost(true);
+        }
       } else {
         // If not an image post, use the BigInput for editing text gallery posts
         setRoute('text');
@@ -119,7 +137,7 @@ export function GalleryInput({
       // Default to BigInput if we can't determine the type
       setRoute('link');
     }
-  }, [editingPost, storeDraft, attachAssets]);
+  }, [editingPost, storeDraft, attachAssets, addAttachment]);
 
   // Reset all gallery-related state
   const resetGalleryState = useCallback(() => {
@@ -463,6 +481,7 @@ export function GalleryInput({
                     padding: 0,
                     fontSize: 16,
                     maxHeight: 100,
+                    color: theme.primaryText.val,
                   }}
                 />
               </View>

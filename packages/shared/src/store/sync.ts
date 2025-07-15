@@ -367,7 +367,7 @@ export const syncContacts = async (ctx?: SyncCtx, yieldWriter = false) => {
   const contacts = await syncQueue.add('contacts', ctx, () =>
     api.getContacts()
   );
-  logger.log('got contacts from api', contacts);
+  logger.log('got contacts from api', contacts.length, 'contacts');
 
   const writer = async () => {
     try {
@@ -791,6 +791,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
           chatId: update.groupId,
           contactIds: update.ships,
           type: 'group',
+          status: 'joined',
         },
         ctx
       );

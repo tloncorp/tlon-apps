@@ -155,13 +155,6 @@ function AppRoutes() {
   const { data: groupData } = store.useGroup({
     id: groupId,
   });
-  const { data, refetch, isRefetching, isFetching } = contactsQuery;
-
-  useEffect(() => {
-    if (data?.length === 0 && !isRefetching && !isFetching) {
-      refetch();
-    }
-  }, [data?.length, isRefetching, isFetching, refetch]);
 
   const isMobile = useIsMobile();
   const isDarkMode = useIsDarkMode();

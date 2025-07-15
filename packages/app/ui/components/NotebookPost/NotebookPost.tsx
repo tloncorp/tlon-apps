@@ -179,6 +179,7 @@ export function NotebookPost({
         {!hideOverflowMenu && (isPopoverOpen || isHovered) && (
           <Pressable
             position="absolute"
+            zIndex={1000}
             top={12}
             right={12}
             onPress={handleOverflowPress}
@@ -193,9 +194,10 @@ export function NotebookPost({
               onOpenChange={setIsPopoverOpen}
               onEdit={onPressEdit}
               onReply={handlePress}
+              mode="await-trigger"
               trigger={
                 <Button
-                  backgroundColor="transparent"
+                  backgroundColor="$secondaryBackground"
                   borderWidth="unset"
                   size="$l"
                   onPress={handleOverflowPress}

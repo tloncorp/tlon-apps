@@ -31,6 +31,7 @@ export const BlockWrapper = styled(View, {
   name: 'ContentBlock',
   context: ContentContext,
   padding: '$l',
+  cursor: 'default',
   variants: {
     isNotice: {
       true: {
@@ -115,11 +116,15 @@ export const LineRenderer = memo(function LineRendererComponent({
 });
 
 function TextContent(props: ComponentProps<typeof LineText>) {
+  const context = useContentContext();
   const TextComponent =
     useContext(BlockRendererContext)?.renderers?.lineText ?? LineText;
   const defaultProps =
     useContext(BlockRendererContext)?.settings?.lineText ?? {};
-  return <TextComponent {...defaultProps} {...props} />;
+
+  return (
+    <TextComponent {...defaultProps} {...props} isNotice={context.isNotice} />
+  );
 }
 
 export const LineText = styled(Text, {
@@ -477,9 +482,17 @@ export function EmbedBlock({
   }
 
   return (
-    <View width="100%" {...props}>
-      <EmbedContent url={block.url} content={block.content} />
-    </View>
+    <EmbedContent
+      url={block.url}
+      content={block.content}
+      renderWrapper={(children) =>
+        children ? (
+          <View width="100%" {...props}>
+            {children}
+          </View>
+        ) : null
+      }
+    />
   );
 }
 
@@ -563,6 +576,28 @@ export function BlockRenderer({ block }: { block: cn.BlockData }) {
   const { wrapperProps, ...defaultPropsForBlock } =
     defaultProps?.[block.type] ?? {};
   const defaultPropsForBlockWrapper = defaultProps?.blockWrapper;
+
+  // Special handling for embed blocks - let EmbedContent decide if wrapper should render
+  if (block.type === 'embed') {
+    return (
+      <EmbedContent
+        url={block.url}
+        content={block.content}
+        renderWrapper={(children) =>
+          children ? (
+            <Wrapper
+              {...defaultPropsForBlockWrapper}
+              {...wrapperProps}
+              block={block}
+            >
+              {children}
+            </Wrapper>
+          ) : null
+        }
+      />
+    );
+  }
+
   return (
     <Wrapper {...defaultPropsForBlockWrapper} {...wrapperProps} block={block}>
       <Renderer {...defaultPropsForBlock} block={block} />

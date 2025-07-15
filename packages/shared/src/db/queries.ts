@@ -1328,7 +1328,11 @@ export const getThreadPosts = createReadQuery(
       where: eq($posts.parentId, parentId),
       with: {
         author: true,
-        reactions: true,
+        reactions: {
+          with: {
+            contact: true,
+          },
+        },
       },
       orderBy: [desc($posts.receivedAt)],
     });
@@ -1388,6 +1392,7 @@ export const addChatMembers = createWriteQuery(
       chatId: string;
       contactIds: string[];
       type: 'group' | 'channel';
+      status: 'invited' | 'joined';
     },
     ctx: QueryCtx
   ) => {
@@ -1399,6 +1404,7 @@ export const addChatMembers = createWriteQuery(
             chatId,
             contactId,
             membershipType: type,
+            status: 'invited' as 'invited' | 'joined',
           }))
         )
         .onConflictDoNothing();
@@ -2667,7 +2673,11 @@ export const getChannelPostsAround = createReadQuery(
       where: eq($posts.id, postId),
       with: {
         author: true,
-        reactions: true,
+        reactions: {
+          with: {
+            contact: true,
+          },
+        },
       },
     });
 
@@ -2684,7 +2694,11 @@ export const getChannelPostsAround = createReadQuery(
       limit: 25,
       with: {
         author: true,
-        reactions: true,
+        reactions: {
+          with: {
+            contact: true,
+          },
+        },
       },
     });
 
@@ -2695,7 +2709,11 @@ export const getChannelPostsAround = createReadQuery(
       limit: 25,
       with: {
         author: true,
-        reactions: true,
+        reactions: {
+          with: {
+            contact: true,
+          },
+        },
       },
     });
 
@@ -2717,7 +2735,11 @@ export const getChannelSearchResults = createReadQuery(
       orderBy: [desc($posts.receivedAt)],
       with: {
         author: true,
-        reactions: true,
+        reactions: {
+          with: {
+            contact: true,
+          },
+        },
       },
     });
   },
@@ -3289,7 +3311,11 @@ export const getPostWithRelations = createReadQuery(
         where: eq($posts.id, id),
         with: {
           author: true,
-          reactions: true,
+          reactions: {
+            with: {
+              contact: true,
+            },
+          },
           threadUnread: true,
           volumeSettings: true,
         },
@@ -3714,26 +3740,36 @@ export const insertContacts = createWriteQuery(
     });
 
     await withTransactionCtx(ctx, async (txCtx) => {
-      await txCtx.db
-        .insert($contacts)
-        .values(contactsData)
-        .onConflictDoUpdate({
-          target: $contacts.id,
-          set: conflictUpdateSetAll($contacts, ['isBlocked']),
-        });
+      // Batch size to avoid SQLite variable limits
+      const BATCH_SIZE = 100;
+
+      for (let i = 0; i < contactsData.length; i += BATCH_SIZE) {
+        const batch = contactsData.slice(i, i + BATCH_SIZE);
+
+        await txCtx.db
+          .insert($contacts)
+          .values(batch)
+          .onConflictDoUpdate({
+            target: $contacts.id,
+            set: conflictUpdateSetAll($contacts, ['isBlocked']),
+          });
+      }
 
       if (targetGroups.length) {
-        await txCtx.db
-          .insert($groups)
-          .values(targetGroups)
-          .onConflictDoNothing();
+        for (let i = 0; i < targetGroups.length; i += BATCH_SIZE) {
+          const batch = targetGroups.slice(i, i + BATCH_SIZE);
+          await txCtx.db.insert($groups).values(batch).onConflictDoNothing();
+        }
       }
       // TODO: Remove stale pinned groups
       if (contactGroups.length) {
-        await txCtx.db
-          .insert($contactGroups)
-          .values(contactGroups)
-          .onConflictDoNothing();
+        for (let i = 0; i < contactGroups.length; i += BATCH_SIZE) {
+          const batch = contactGroups.slice(i, i + BATCH_SIZE);
+          await txCtx.db
+            .insert($contactGroups)
+            .values(batch)
+            .onConflictDoNothing();
+        }
       }
 
       // clear existing
@@ -3742,19 +3778,27 @@ export const insertContacts = createWriteQuery(
         .where(not(eq($attestations.contactId, currentUserId)));
 
       if (contactAttestations.length) {
-        // reset to current
-        await txCtx.db
-          .insert($attestations)
-          .values(contactAttestations.map((a) => a.attestation as Attestation))
-          .onConflictDoUpdate({
-            target: $attestations.id,
-            set: conflictUpdateSetAll($attestations),
-          });
+        const attestationsToInsert = contactAttestations.map(
+          (a) => a.attestation as Attestation
+        );
+        for (let i = 0; i < attestationsToInsert.length; i += BATCH_SIZE) {
+          const batch = attestationsToInsert.slice(i, i + BATCH_SIZE);
+          await txCtx.db
+            .insert($attestations)
+            .values(batch)
+            .onConflictDoUpdate({
+              target: $attestations.id,
+              set: conflictUpdateSetAll($attestations),
+            });
+        }
 
-        await txCtx.db
-          .insert($contactAttestations)
-          .values(contactAttestations)
-          .onConflictDoNothing();
+        for (let i = 0; i < contactAttestations.length; i += BATCH_SIZE) {
+          const batch = contactAttestations.slice(i, i + BATCH_SIZE);
+          await txCtx.db
+            .insert($contactAttestations)
+            .values(batch)
+            .onConflictDoNothing();
+        }
       }
     });
   },

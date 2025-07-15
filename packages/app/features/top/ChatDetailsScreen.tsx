@@ -447,7 +447,8 @@ function ChatMembersList({
   canInvite: boolean;
   canManage: boolean;
 }) {
-  const memberCount = members?.length ?? 0;
+  const joinedMembers = members?.filter((m) => m.status === 'joined');
+  const memberCount = joinedMembers?.length ?? 0;
   const { onPressGroupMembers, onPressChannelMembers, onPressInvite } =
     useChatOptions();
 
@@ -488,18 +489,20 @@ function ChatMembersList({
             </XStack>
           </Pressable>
         ) : null}
-        {members?.slice(0, maxMembersToDisplay).map((member: db.ChatMember) => {
-          return (
-            <ContactListItem
-              size="$3xl"
-              height="auto"
-              padding={0}
-              showNickname
-              key={member.contactId}
-              contactId={member.contactId}
-            />
-          );
-        })}
+        {joinedMembers
+          ?.slice(0, maxMembersToDisplay)
+          .map((member: db.ChatMember) => {
+            return (
+              <ContactListItem
+                size="$3xl"
+                height="auto"
+                padding={0}
+                showNickname
+                key={member.contactId}
+                contactId={member.contactId}
+              />
+            );
+          })}
         {(memberCount > maxMembersToDisplay || canInvite) && (
           <Pressable onPress={handlePressSeeAllMembers}>
             <XStack
