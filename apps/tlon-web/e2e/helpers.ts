@@ -1,16 +1,5 @@
 import { Page, expect } from '@playwright/test';
 
-export async function clickThroughWelcome(page: Page) {
-  await page.waitForTimeout(10000);
-  if (await page.getByText('Welcome to Tlon Messenger').isVisible()) {
-    await page.getByTestId('lets-get-started').click();
-    await page.getByTestId('got-it').click();
-    await page.getByTestId('one-quick-thing').click();
-    await page.getByTestId('invite-friends').click();
-    await page.getByTestId('connect-contact-book').click();
-  }
-}
-
 export async function channelIsLoaded(page: Page) {
   await expect(
     page.getByTestId('ScreenHeaderTitle').getByText('Loading…')
@@ -35,9 +24,21 @@ export async function createGroup(page: Page) {
   }
 }
 
+export async function leaveGroup(page: Page, groupName: string) {
+  await page.getByTestId('HomeNavIcon').click();
+  if (await page.getByText(groupName).first().isVisible()) {
+    await page.getByText(groupName).first().click();
+    await page.getByTestId('GroupOptionsSheetTrigger').first().click();
+    await expect(page.getByText('Group info & settings')).toBeVisible();
+    await page.getByText('Group info & settings').click();
+    await page.waitForSelector('text=Group Info');
+    await page.getByText('Leave group').click();
+  }
+}
+
 export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
   await page.getByTestId('GroupOptionsSheetTrigger').first().click();
-  await page.getByText('Invite people').click();
+  await page.getByTestId('ActionSheetAction-Invite people').first().click();
 
   for (const memberId of memberIds) {
     await page.getByPlaceholder('Filter by nickname').fill(memberId);
@@ -49,8 +50,9 @@ export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
 }
 
 export async function rejectGroupInvite(page: Page) {
-  await expect(page.getByText('Group invitation')).toBeVisible();
-  await page.getByText('Group invitation').click();
+  if (await page.getByText('Group invitation').isVisible()) {
+    await page.getByText('Group invitation').click();
+  }
 
   // If there's a reject invitation button, click it
   if (await page.getByText('Reject invite').isVisible()) {
@@ -493,8 +495,10 @@ export async function createGalleryPost(page: Page, content: string) {
 export async function sendMessage(page: Page, message: string) {
   await page.getByTestId('MessageInput').click();
   await page.fill('[data-testid="MessageInput"]', message);
-  await page.getByTestId('MessageInputSendButton').click();
+  await page.waitForTimeout(1500);
+  await page.getByTestId('MessageInputSendButton').click({ force: true });
   // Wait for message to appear
+  await page.waitForTimeout(500);
   await expect(page.getByText(message, { exact: true }).first()).toBeVisible();
 }
 
@@ -504,7 +508,7 @@ export async function sendMessage(page: Page, message: string) {
 export async function longPressMessage(page: Page, messageText: string) {
   // Not really a longpress since this is web.
   await page
-    .getByTestId('ChatMessage')
+    .getByTestId('Post')
     .getByText(messageText)
     .first()
     .hover({ force: true });

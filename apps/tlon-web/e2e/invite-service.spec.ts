@@ -26,7 +26,7 @@ test('should generate an invite link and be able to redem group/personal invites
   try {
     // Step 1: ~zod creates a group and makes various changes
     await zodPage.goto(zodUrl);
-    await helpers.clickThroughWelcome(zodPage);
+    await zodPage.waitForSelector('text=Home', { state: 'visible' });
     await zodPage.evaluate(() => {
       window.toggleDevTools();
     });
@@ -65,7 +65,7 @@ test('should generate an invite link and be able to redem group/personal invites
     // Initialize the other ship
     const tenUrl = `${shipManifest['~ten'].webUrl}/apps/groups/`;
     await tenPage.goto(tenUrl);
-    await helpers.clickThroughWelcome(tenPage);
+    await tenPage.waitForSelector('text=Home', { state: 'visible' });
     await tenPage.evaluate(() => {
       window.toggleDevTools();
     });

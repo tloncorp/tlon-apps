@@ -23,7 +23,7 @@ test('should invite ~bus to a group and test protocol mismatch', async ({
   try {
     // Step 0: Clean up any existing invites on ~bus
     await busPage.goto(busUrl);
-    await helpers.clickThroughWelcome(busPage);
+    await busPage.waitForSelector('text=Home', { state: 'visible' });
     await busPage.evaluate(() => {
       window.toggleDevTools();
     });
@@ -31,7 +31,7 @@ test('should invite ~bus to a group and test protocol mismatch', async ({
 
     // Step 1: ~zod creates a group and invites ~bus
     await zodPage.goto(zodUrl);
-    await helpers.clickThroughWelcome(zodPage);
+    await zodPage.waitForSelector('text=Home', { state: 'visible' });
     await zodPage.evaluate(() => {
       window.toggleDevTools();
     });

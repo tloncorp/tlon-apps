@@ -19,7 +19,7 @@ test('should test comprehensive chat functionality', async ({ browser }) => {
   const tenPage = await tenContext.newPage();
   // Launch and login
   await zodPage.goto(zodUrl);
-  await helpers.clickThroughWelcome(zodPage);
+  await zodPage.waitForSelector('text=Home', { state: 'visible' });
   await zodPage.evaluate(() => {
     window.toggleDevTools();
   });
@@ -80,7 +80,7 @@ test('should test comprehensive chat functionality', async ({ browser }) => {
 
   // Switch to ~ten to navigate to chat and hide the message
   await tenPage.goto(tenUrl);
-  await helpers.clickThroughWelcome(tenPage);
+  await tenPage.waitForSelector('text=Home', { state: 'visible' });
 
   // Navigate to the group as ~ten
   await expect(tenPage.getByText('Home')).toBeVisible();
