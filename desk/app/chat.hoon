@@ -1046,6 +1046,46 @@
       %v2  ``[%chat-heads-2 !>(`chat-heads:c`(heads since))]
     ==
   ::
+      [%x %v2 %changes since=@ rest=*]
+    =+  since=(slav %da i.t.t.t.path)
+    =/  changes=(map whom:c (unit writs:c))
+      %-  ~(gas by *(map whom:c (unit writs:c)))
+      %+  weld
+        %+  turn  ~(tap by dms)
+        |=  [who=ship =dm:c]
+        ^-  [whom:c (unit writs:c)]
+        :-  [%ship who]
+        =-  ?~(- ~ `-)
+        (lot:on:writs:c wit.pact.dm `since ~)
+      %+  turn  ~(tap by clubs)
+      |=  [=id:club:c =club:c]
+      ^-  [whom:c (unit writs:c)]
+      :-  [%club id]
+      =-  ?~(- ~ `-)
+      (lot:on:writs:c wit.pact.club `since ~)
+    ::TODO  proper marks?
+    ?+  t.t.t.t.path  [~ ~]
+        ~
+      :^  ~  ~  %json
+      !>  ^-  json
+      %-  pairs:enjs:format
+      =,  enjs:chat-json
+      %+  turn  ~(tap by changes)
+      |=  [=whom:c writs=(unit writs:c)]
+      ^-  [@t json]
+      :-  (^whom whom)
+      ?~(writs ~ (^writs u.writs))
+    ::
+        [%count ~]
+      :^  ~  ~  %json
+      !>  ^-  json
+      %-  numb:enjs:format
+      %-  ~(rep by changes)
+      |=  [[* w=(unit writs:c)] sum=@ud]
+      %+  add  sum
+      ?~(w 0 (wyt:on:writs:c u.w))
+    ==
+  ::
       [%x %dm ~]
     ``ships+!>(~(key by accepted-dms))
   ::
