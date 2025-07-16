@@ -52,10 +52,12 @@ export async function sendPost({
   logger.crumb('get author');
   const author = await db.getContact({ id: authorId });
   logger.crumb('build pending post');
+  const nextSeq = await db.getNextSequenceNumber({ channelId: channel.id });
   const cachePost = db.buildPendingPost({
     authorId,
     author,
     channel,
+    sequenceNum: nextSeq, // placeholder, this will be overwritten by the server
     content,
     metadata,
   });
@@ -305,6 +307,7 @@ export async function sendReply({
     authorId,
     author,
     channel: channel,
+    sequenceNum: null, // replies do not have sequence numbers
     content,
     parentId,
   });

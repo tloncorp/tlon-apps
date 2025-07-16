@@ -2532,6 +2532,32 @@ export type GetPostsOptions = {
 
 const seqLogger = createDevLogger('seqPosts', true);
 
+export const getNextSequenceNumber = createReadQuery(
+  'getNextSequenceNumber',
+  async (options: { channelId: string }, ctx: QueryCtx): Promise<number> => {
+    const channel = await ctx.db.query.channels.findFirst({
+      where: eq($channels.id, options.channelId),
+      with: {
+        lastPost: true,
+      },
+    });
+
+    const nextSeq = channel?.lastPost?.sequenceNum ?? Infinity;
+    seqLogger.log(
+      `got next sequence number (${nextSeq}) for channel`,
+      options.channelId
+    );
+
+    if (nextSeq === Infinity) {
+      // we sync latest posts for all channels, so this shouldn't happen
+      logger.trackError('Optimistic sequence number fallback hit');
+    }
+
+    return nextSeq + 1;
+  },
+  ['channels', 'posts']
+);
+
 export const getSequencedChannelPosts = createReadQuery(
   'getSequencedChannelPosts',
   async (options: GetPostsOptions, ctx: QueryCtx): Promise<Post[]> => {
