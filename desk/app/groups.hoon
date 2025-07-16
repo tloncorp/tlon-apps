@@ -642,10 +642,10 @@
   =^  caz-6-to-7=(list card)  old
     ?.  ?=(%6 -.old)  [~ old]
     (state-6-to-7 old)
+  =?  cor  !=(~ caz-6-to-7)  (emil caz-6-to-7)
   ?>  ?=(%7 -.old)
   =.  state  old
   inflate-io
-  ::
   ::
   +$  any-state
     $%  state-7
@@ -1416,7 +1416,6 @@
   ++  se-give-update
     |=  =update:g
     ^+  se-core
-    ~&  se-give-update+update
     ::  update subscribers: either everyone
     ::  or admins only.
     ::
@@ -1589,10 +1588,10 @@
       [& ad]
     ::XX  this is a special case to enable robust v6 -> v7 migration
     ::    of private group invitations. the shut cordon pending set
-    ::    is migrated, but at the time of migration at the group host
-    ::    the recipient might not be updated yet, thus the newly minted
+    ::    is migrated, but at the time of migration of the group host
+    ::    the recipient might not have updated yet, thus the newly minted
     ::    invitation is going to be lost. the recipient will
-    ::    attempt to join the group with an empty token, which we allow
+    ::    subsequently attempt to join the group with an empty token, which we allow
     ::    here, but only if the user is in the pending set. once the migration
     ::    sets in the network this should be removed.
     ::
@@ -1819,8 +1818,14 @@
   ::  in the pending ships set. the pending set allows for pre-assigning
   ::  member roles that are assigned when the ship joins the group.
   ::
-  ::  if a ship is in the pending set, it is granted entry with an
-  ::  empty token.
+  ::  currently, if a ship is in the pending set, it is granted entry with an
+  ::  empty token - see the logic and comment in +se-admit. this is to
+  ::  enable better compatibility with old groups.
+  ::
+  ::  if a ship is added to the pending list but is already recorded
+  ::  in the requests list, her request is first approved. nonetheless,
+  ::  we still send an invitation to be robust against requesters losing
+  ::  the ask subscription. TODO is that even possible?
   ::
   ::  a ship that is banned can not be added to the pending list.
   ::
@@ -1832,15 +1837,16 @@
         ==
     ?-    -.c-pending
         %add
-      =.  pending.ad
+      =.  ad
         %+  roll  ~(tap in ships)
-        |=  [=ship =_pending.ad]
-        ::TODO  if a ship is already in .requests.ad, her
-        ::      ask request should be cleared at the same time.
-        ::
+        |=  [=ship =_ad]
         =/  roles=(set role-id:g)
-          (~(gut by pending) ship *(set role-id:g))
-        (~(put by pending) ship (~(uni in roles) roles.c-pending))
+          (~(gut by pending.ad) ship *(set role-id:g))
+        =.  pending.ad
+          (~(put by pending.ad) ship (~(uni in roles) roles.c-pending))
+        ad
+      ::  approve outstanding ask requests for pending ships
+      =.  se-core  (se-c-entry-ask ships %approve)
       =.  se-core  (se-send-invites ships)
       (se-update [%entry %pending %add ships roles.c-pending])
     ::
@@ -3455,7 +3461,6 @@
   ++  go-response
     |=  =r-group:g
     ^+  go-core
-    ~&  go-response+r-group
     ::  v1 response, requires v7
     ::
     =/  r-groups-7=r-groups:v7:gv  [flag r-group]
@@ -3579,6 +3584,8 @@
   ::
   ++  fi-abet
     ^+  cor
+    ::  do not track hosted groups
+    ?:  =(p.flag our.bowl)  cor
     =.  foreigns  (~(put by foreigns) flag +<+)
     ::TODO figure out the foreign lifetime logic after designining
     ::     new endpoints for the client
@@ -3695,7 +3702,6 @@
     |=  story=(unit story:s:g)
     ^+  fi-core
     =.  cor  (emit (initiate:neg [p.flag server]))
-    ~&  fi-ask+[flag story]
     ?:  (~(has by groups) flag)  fi-core
     ?:  ?&  ?=(^ progress)
             ?=(?(%ask %join %watch %done) u.progress)
@@ -3805,10 +3811,12 @@
   ++  fi-safe-preview
     |=  delay=?
     ^+  fi-core
+    =.  lookup  `%preview
     =/  =wire  (weld fi-area /preview)
     =/  =dock  [p.flag dap.bowl]
     =^  caz=(list card)  subs
       (~(unsubscribe s [subs bowl]) wire dock)
+    =.  cor  (emil caz)
     =.  cor  %.  delay
       (safe-watch (weld fi-area /preview) [p.flag dap.bowl] fi-preview-path)
     fi-core
@@ -3872,7 +3880,6 @@
       ?.  &(?=(^ progress) =(%ask u.progress))
         ::  we aren't asking anymore, ignore
         fi-core
-      ~&  fi-agent-ask+-.sign
       ?-    -.sign
           %poke-ack
         ?^  p.sign
