@@ -1,11 +1,7 @@
 import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
-import { useCallback, useMemo, useRef, useState } from 'react';
-import {
-  FlatList,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-} from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { FlatList } from 'react-native';
 import { View } from 'tamagui';
 
 import { triggerHaptic } from '../../utils';
@@ -60,17 +56,8 @@ export function ViewReactionsPane({
     setCurrentTab(newTab);
   }, []);
 
-  const scrollPosition = useRef(0);
-  const handleScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      scrollPosition.current = event.nativeEvent.contentOffset.y;
-    },
-    []
-  );
   const onTouchStart = useCallback(() => {
-    if (scrollPosition.current > 0) {
-      setIsScrolling?.(true);
-    }
+    setIsScrolling?.(true);
   }, [setIsScrolling]);
   const onTouchEnd = useCallback(
     () => setIsScrolling?.(false),
@@ -111,7 +98,6 @@ export function ViewReactionsPane({
               data={tabData}
               renderItem={({ item }) => renderItem({ reaction: item })}
               keyExtractor={(item) => item.userId + item.value}
-              onScroll={handleScroll}
               onTouchStart={onTouchStart}
               onTouchEnd={onTouchEnd}
             />

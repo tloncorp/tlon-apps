@@ -23,7 +23,7 @@ test('should show group info, channel, and role changes to invited user', async 
   try {
     // Step 1: ~zod creates a group and makes various changes
     await zodPage.goto(zodUrl);
-    await helpers.clickThroughWelcome(zodPage);
+    await zodPage.waitForSelector('text=Home', { state: 'visible' });
     await zodPage.evaluate(() => {
       window.toggleDevTools();
     });
@@ -84,7 +84,7 @@ test('should show group info, channel, and role changes to invited user', async 
 
     // Step 3: ~ten accepts the invite
     await tenPage.goto(tenUrl);
-    await helpers.clickThroughWelcome(tenPage);
+    await tenPage.waitForSelector('text=Home', { state: 'visible' });
     await tenPage.evaluate(() => {
       window.toggleDevTools();
     });

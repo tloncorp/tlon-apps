@@ -764,6 +764,14 @@ export default function BareChatInput({
                   },
                 });
               }
+              if ('link' in b) {
+                attachments.push({
+                  type: 'link',
+                  url: b.link.url,
+                  resourceType: 'page',
+                  ...b.link.meta,
+                });
+              }
             });
 
             resetAttachments(attachments);

@@ -10,7 +10,7 @@ test.use({ storageState: shipManifest['~zod'].authFile });
 test('should create, verify, and delete a group', async ({ page }) => {
   // Launch and login
   await page.goto(zodUrl);
-  await helpers.clickThroughWelcome(page);
+  await page.waitForSelector('text=Home', { state: 'visible' });
 
   // Assert that we're on the Home page
   await expect(page.getByText('Home')).toBeVisible();

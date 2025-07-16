@@ -788,6 +788,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
           chatId: update.groupId,
           contactIds: update.ships,
           type: 'group',
+          status: 'joined',
         },
         ctx
       );

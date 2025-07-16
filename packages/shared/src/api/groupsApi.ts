@@ -1497,6 +1497,45 @@ export function toClientGroup(
         }))
       : [];
 
+  const invitedMembers: db.ChatMember[] =
+    group.cordon && 'shut' in group.cordon
+      ? group.cordon.shut.pending
+          // filter out members who have already joined
+          // for some reason, joined members can get stuck in the pending list on the server
+          .filter((pending) => !group.fleet[pending])
+          .map((pending) => ({
+            membershipType: 'group',
+            contactId: pending,
+            chatId: id,
+            roles: [],
+            status: 'invited',
+            joinedAt: null,
+          }))
+      : [];
+
+  const members: db.ChatMember[] = Object.entries(group.fleet)
+    .map(([userId, vessel]) => {
+      return toClientGroupMember({
+        groupId: id,
+        contactId: userId,
+        vessel: vessel,
+        status: 'joined',
+      });
+    })
+    .concat(
+      invitedMembers.map((m) => {
+        return toClientGroupMember({
+          groupId: id,
+          contactId: m.contactId,
+          vessel: {
+            sects: [],
+            joined: 0,
+          },
+          status: 'invited',
+        });
+      })
+    );
+
   logger.log('joinRequests', joinRequests);
 
   const roles = Object.entries(group.cabals ?? {}).map(([roleId, role]) => {
@@ -1546,13 +1585,7 @@ export function toClientGroup(
         return data;
       })
       .filter((s): s is db.GroupNavSection => !!s),
-    members: Object.entries(group.fleet).map(([userId, vessel]) => {
-      return toClientGroupMember({
-        groupId: id,
-        contactId: userId,
-        vessel: vessel,
-      });
-    }),
+    members,
     bannedMembers,
     joinRequests,
     channels: group.channels
@@ -1721,10 +1754,12 @@ function toClientGroupMember({
   groupId,
   contactId,
   vessel,
+  status,
 }: {
   groupId: string;
   contactId: string;
   vessel: { sects: string[]; joined: number };
+  status: 'invited' | 'joined';
 }): db.ChatMember {
   return {
     membershipType: 'group',
@@ -1735,6 +1770,7 @@ function toClientGroupMember({
       contactId,
       roleId,
     })),
+    status,
     joinedAt: vessel.joined,
   };
 }
