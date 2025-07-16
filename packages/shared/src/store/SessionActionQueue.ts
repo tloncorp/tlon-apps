@@ -10,6 +10,8 @@ class SessionActionQueue {
     reject: (err: unknown) => void;
   }[] = [];
 
+  private currentTaskResult: Promise<unknown> | null = null;
+
   constructor() {
     this.setConnectedFromSession(getSession());
     subscribeToSession((session) => {
@@ -39,6 +41,11 @@ class SessionActionQueue {
   }
 
   flushPending() {
+    if (this.currentTaskResult != null) {
+      logger.log('queue is already processing, skipping flush');
+      return;
+    }
+
     if (this.connected) {
       this.processQueue();
     } else {
@@ -48,9 +55,22 @@ class SessionActionQueue {
 
   async processQueue() {
     while (this.pendingOperations.length > 0) {
+      if (this.currentTaskResult != null) {
+        await this.currentTaskResult;
+      }
       const operation = this.pendingOperations.shift();
       if (operation) {
-        operation.action().then(operation.resolve).catch(operation.reject);
+        const promise = operation.action();
+        this.currentTaskResult = promise;
+
+        // awaiting here means that we're forced to run tasks serially
+        try {
+          operation.resolve(await promise);
+        } catch (e) {
+          operation.reject(e);
+        } finally {
+          this.currentTaskResult = null;
+        }
       }
     }
   }
