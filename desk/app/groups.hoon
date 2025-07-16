@@ -854,7 +854,7 @@
     (emit %give %kick ~ ~)
   ::
       [%server %groups %index ~]
-    se-abet:se-watch-index:se-core
+    cor:se-watch-index:se-core
   ::
     ::
     ::  client paths
@@ -877,13 +877,13 @@
     ::  deprecated
     [%groups %ui ~]  ?>(from-self cor)
   ::
-      [%v1 %foreigns ship=@ name=@ rest=*]
-    =+  ship=(slav %p ship.pole)
-    fi-abet:(fi-watch:(fi-abed:fi-core ship name.pole) %v1 rest.pole)
-  ::
       [%v1 %foreigns %index ship=@ ~]
     =+  ship=(slav %p ship.pole)
     fi-abet:(fi-watch-index:fi-core %v1 ship)
+  ::
+      [%v1 %foreigns ship=@ name=@ rest=*]
+    =+  ship=(slav %p ship.pole)
+    fi-abet:(fi-watch:(fi-abed:fi-core ship name.pole) %v1 rest.pole)
   ::
       ::  deprecated
       [%gangs ship=@ name=@ %preview ~]
@@ -1078,6 +1078,10 @@
       cor
     go-abet:(go-agent:(go-abed:go-core ship name.pole) rest.pole sign)
   ::
+      [%foreigns %index ship=@ ~]
+    =+  ship=(slav %p ship.pole)
+    fi-abet:(fi-take-index:fi-core ship sign)
+  ::
       [%foreigns ship=@ name=@ rest=*]
     =/  ship  (slav %p ship.pole)
     ?:  ?&  ?=(%kick -.sign)
@@ -1087,10 +1091,6 @@
       ::
       cor
     fi-abet:(fi-agent:(fi-abed:fi-core ship name.pole) rest.pole sign)
-  ::
-      [%foreigns %index ship=@ ~]
-    =+  ship=(slav %p ship.pole)
-    fi-abet:(fi-take-index:fi-core ship sign)
   ::
       [%chan app=@ ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
@@ -2356,7 +2356,7 @@
     ^-  (unit [flag:g preview:v7:gv])
     ?.  &(=(our.bowl p.flag) !?=(%secret privacy.admissions.group))
       ~
-    `[flag se-preview]
+    `[flag se-preview:(se-abed flag)]
   ::  +se-is-admin-u-group: check if group update is restricted
   ::
   ++  se-is-admin-update
