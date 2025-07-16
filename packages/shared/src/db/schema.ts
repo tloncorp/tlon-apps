@@ -9,6 +9,7 @@ import {
 } from 'drizzle-orm/sqlite-core';
 
 import { ChannelContentConfiguration } from '../api';
+import { ChannelType } from '../domain/channel';
 import { ExtendedEventType, NotificationLevel, Rank } from '../urbit';
 
 const boolean = (name: string) => {
@@ -845,8 +846,6 @@ export const volumeSettings = sqliteTable('volume_settings', {
     .notNull(),
   level: text('level').$type<NotificationLevel>().notNull(),
 });
-
-export type ChannelType = 'chat' | 'notebook' | 'gallery' | 'dm' | 'groupDm';
 
 export const channels = sqliteTable(
   'channels',

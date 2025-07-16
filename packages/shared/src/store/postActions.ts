@@ -4,9 +4,11 @@ import { PostContent, toUrbitStory } from '../api/postsApi';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
+import type * as domain from '../domain';
 import * as logic from '../logic';
 import * as urbit from '../urbit';
 import { sessionActionQueue } from './SessionActionQueue';
+import { finalizeAttachments, finalizeAttachmentsLocal } from './storage';
 import * as sync from './sync';
 import {
   deleteFromChannelPosts,
@@ -29,15 +31,59 @@ export async function resendPendingPosts() {
   }
 }
 
+export async function finalizePostDraft(
+  draft: domain.PostDataDraftParent
+): Promise<domain.PostDataFinalizedParent>;
+export async function finalizePostDraft(
+  draft: domain.PostDataDraftEdit
+): Promise<domain.PostDataFinalizedEdit>;
+export async function finalizePostDraft(
+  draft: domain.PostDataDraft
+): Promise<domain.PostDataFinalized> {
+  const { story, metadata } = logic.toPostData({
+    ...draft,
+    attachments: await finalizeAttachments(draft.attachments),
+  });
+
+  const finalizedBase = {
+    channelId: draft.channelId,
+    content: story,
+    metadata,
+  };
+
+  if (draft.isEdit) {
+    return {
+      ...finalizedBase,
+      isEdit: true,
+      parentId: draft.parentId,
+    } satisfies domain.PostDataFinalizedEdit;
+  } else {
+    return finalizedBase satisfies domain.PostDataFinalizedParent;
+  }
+}
+
+export async function finalizeAndSendPost({
+  channelId,
+  ...draft
+}: domain.PostDataDraft): Promise<domain.PostDataFinalized> {
+  const { story, metadata } = logic.toPostData({
+    ...draft,
+    attachments: await finalizeAttachments(draft.attachments),
+  });
+  const finalizedPost = {
+    channelId,
+    content: story,
+    metadata,
+  };
+  await sendPost(finalizedPost);
+  return finalizedPost;
+}
+
 export async function sendPost({
   channelId,
   content,
   metadata,
-}: {
-  channelId: string;
-  content: urbit.Story;
-  metadata?: db.PostMetadata;
-}) {
+}: domain.PostDataFinalizedParent) {
   const authorId = api.getCurrentUserId();
 
   const channel = await db.getChannel({ id: channelId });

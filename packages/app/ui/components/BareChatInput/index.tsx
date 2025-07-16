@@ -1,18 +1,20 @@
 import {
   Attachment,
-  FinalizedAttachment,
   JSONToInlines,
   REF_REGEX,
   TextAttachment,
   createDevLogger,
   diaryMixedToJSON,
   extractContentTypesFromPost,
+  finalizeAndSendPost,
+  finalizePostDraft,
 } from '@tloncorp/shared';
 import {
   contentReferenceToCite,
   toContentReference,
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import type * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import { Story, citeToPath, pathToCite } from '@tloncorp/shared/urbit';
 import { LoadingSpinner, RawText, Text, useGlobalSearch } from '@tloncorp/ui';
@@ -194,7 +196,6 @@ function LinkPreviewLoading() {
 export default function BareChatInput({
   shouldBlur,
   setShouldBlur,
-  sendPost,
   channelId,
   groupMembers,
   groupRoles,
@@ -231,7 +232,6 @@ export default function BareChatInput({
     clearAttachments,
     resetAttachments,
     removeAttachment,
-    waitForAttachmentUploads,
   } = useAttachmentContext();
   const [controlledText, setControlledText] = useState('');
   const [inputHeight, setInputHeight] = useState(initialHeight);
@@ -457,47 +457,54 @@ export default function BareChatInput({
     async (isEdit?: boolean) => {
       const jsonContent = textAndMentionsToContent(controlledText, mentions);
       const inlines = JSONToInlines(jsonContent);
-      let attachments: FinalizedAttachment[];
+
+      const draft: domain.PostDataDraft = (() => {
+        const draftBase = {
+          channelId,
+          content: inlines,
+          attachments,
+          image: image?.uri,
+          channelType,
+        };
+        if (isEdit) {
+          return {
+            ...draftBase,
+            isEdit,
+            parentId: isEdit ? editingPost?.id : undefined,
+          };
+        } else {
+          return draftBase;
+        }
+      })();
+
+      // Cancel any pending link preview requests
+      inputSessionRef.current += 1;
+      setLinkMetaLoading(false);
+
+      setControlledText('');
+      bareChatInputLogger.log('clearing attachments');
+      clearAttachments();
+      bareChatInputLogger.log('resetting input height');
+      setInputHeight(initialHeight);
+
+      // we want to log this
+      let story: Story | null = null;
+
       try {
-        attachments = await waitForAttachmentUploads();
-      } catch (e) {
-        bareChatInputLogger.error('Error processing attachments', e);
-        setSendError(true);
-        return;
-      }
+        if (draft.isEdit && editingPost) {
+          const finalizedEdit = await finalizePostDraft(draft);
+          story = finalizedEdit.content;
 
-      const { story, metadata } = logic.toPostData({
-        content: inlines,
-        attachments,
-        image: image?.uri,
-        isEdit,
-        channelType,
-      });
-
-      try {
-        // Cancel any pending link preview requests
-        inputSessionRef.current += 1;
-        setLinkMetaLoading(false);
-
-        setControlledText('');
-        bareChatInputLogger.log('clearing attachments');
-        clearAttachments();
-        bareChatInputLogger.log('resetting input height');
-        setInputHeight(initialHeight);
-
-        if (isEdit && editingPost) {
-          if (editingPost.parentId) {
-            await editPost?.(
-              editingPost,
-              story,
-              editingPost.parentId,
-              metadata
-            );
-          }
-          await editPost?.(editingPost, story, undefined, metadata);
+          await editPost?.(
+            editingPost,
+            finalizedEdit.content,
+            finalizedEdit.parentId,
+            finalizedEdit.metadata
+          );
           setEditingPost?.(undefined);
         } else {
-          await sendPost(story, channelId, metadata);
+          const finalizedPost = await finalizeAndSendPost(draft);
+          story = finalizedPost.content;
         }
       } catch (e) {
         bareChatInputLogger.error('Error sending message', e);
@@ -513,10 +520,10 @@ export default function BareChatInput({
       }
     },
     [
+      attachments,
       onSend,
       mentions,
       controlledText,
-      waitForAttachmentUploads,
       editingPost,
       clearAttachments,
       clearDraft,
@@ -524,7 +531,6 @@ export default function BareChatInput({
       setEditingPost,
       image,
       channelType,
-      sendPost,
       channelId,
       setMentions,
       initialHeight,
