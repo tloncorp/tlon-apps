@@ -1,28 +1,14 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
 
 import * as helpers from './helpers';
-import shipManifest from './shipManifest.json';
+import { test } from './test-fixtures';
 
-const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
-const tenUrl = `${shipManifest['~ten'].webUrl}/apps/groups/`;
-
-test.use({ storageState: shipManifest['~zod'].authFile });
-
-test('should test comprehensive chat functionality', async ({ browser }) => {
-  const zodContext = await browser.newContext({
-    storageState: shipManifest['~zod'].authFile,
-  });
-  const tenContext = await browser.newContext({
-    storageState: shipManifest['~ten'].authFile,
-  });
-  const zodPage = await zodContext.newPage();
-  const tenPage = await tenContext.newPage();
-  // Launch and login
-  await zodPage.goto(zodUrl);
-  await zodPage.waitForSelector('text=Home', { state: 'visible' });
-  await zodPage.evaluate(() => {
-    window.toggleDevTools();
-  });
+test('should test comprehensive chat functionality', async ({
+  zodSetup,
+  tenSetup,
+}) => {
+  const zodPage = zodSetup.page;
+  const tenPage = tenSetup.page;
 
   // Assert that we're on the Home page
   await expect(zodPage.getByText('Home')).toBeVisible();
@@ -78,10 +64,6 @@ test('should test comprehensive chat functionality', async ({ browser }) => {
   // Send a message as ~zod
   await helpers.sendMessage(zodPage, 'Hide this message');
 
-  // Switch to ~ten to navigate to chat and hide the message
-  await tenPage.goto(tenUrl);
-  await tenPage.waitForSelector('text=Home', { state: 'visible' });
-
   // Navigate to the group as ~ten
   await expect(tenPage.getByText('Home')).toBeVisible();
 
@@ -112,9 +94,6 @@ test('should test comprehensive chat functionality', async ({ browser }) => {
 
   // Hide the message that ~zod sent
   await helpers.hideMessage(tenPage, 'Hide this message');
-
-  // Clean up ~ten context
-  await tenContext.close();
 
   // Send a message and report it
   await helpers.sendMessage(zodPage, 'Report this message');
@@ -164,7 +143,10 @@ test('should test comprehensive chat functionality', async ({ browser }) => {
   await zodPage.getByTestId('admin-group').click();
   await zodPage.getByTestId('MessageInputSendButton').click();
   // Wait for message to appear
-  await expect(zodPage.getByText('mentioning @admin')).toBeVisible();
+  await zodPage.waitForTimeout(1000);
+  await expect(
+    zodPage.getByTestId('Post').getByText('mentioning @admin')
+  ).toBeVisible();
 
   // Delete the group and clean up
   await helpers.openGroupSettings(zodPage);

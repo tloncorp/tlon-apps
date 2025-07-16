@@ -1,18 +1,10 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
 
 import * as helpers from './helpers';
-import shipManifest from './shipManifest.json';
+import { test } from './test-fixtures';
 
-const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
-
-test.use({ storageState: shipManifest['~zod'].authFile });
-
-test('should test direct message protocol mismatch', async ({ page }) => {
-  await page.goto(zodUrl);
-  await page.waitForSelector('text=Home', { state: 'visible' });
-  await page.evaluate(() => {
-    window.toggleDevTools();
-  });
+test('should test direct message protocol mismatch', async ({ zodPage }) => {
+  const page = zodPage;
 
   await helpers.createDirectMessage(page, '~bus');
 

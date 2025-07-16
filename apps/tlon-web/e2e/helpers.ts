@@ -19,7 +19,7 @@ export async function createGroup(page: Page) {
 
   await page.waitForTimeout(2000);
 
-  if (await page.getByText('Untitled group').first().isVisible()) {
+  if (await page.getByTestId('ChannelHeaderTitle').isVisible()) {
     await expect(page.getByText('Welcome to your group!')).toBeVisible();
   }
 }
@@ -36,8 +36,22 @@ export async function leaveGroup(page: Page, groupName: string) {
   }
 }
 
+export async function openGroupOptionsSheet(page: Page) {
+  if (await page.getByTestId('GroupOptionsSheetTrigger').first().isVisible()) {
+    await page
+      .getByTestId('GroupOptionsSheetTrigger')
+      .first()
+      .click({ force: true });
+  } else {
+    await page
+      .getByTestId('GroupOptionsSheetTrigger')
+      .nth(1)
+      .click({ force: true });
+  }
+}
+
 export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
-  await page.getByTestId('GroupOptionsSheetTrigger').first().click();
+  await openGroupOptionsSheet(page);
   await page.getByTestId('ActionSheetAction-Invite people').first().click();
 
   for (const memberId of memberIds) {
@@ -483,7 +497,7 @@ export async function createGalleryPost(page: Page, content: string) {
     .nth(2)
     .fill(content);
   await page.getByTestId('BigInputPostButton').click();
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(1500);
   await expect(page.getByText(content).first()).toBeVisible();
 }
 
@@ -768,7 +782,7 @@ export async function createDirectMessage(page: Page, contactId: string) {
  */
 export async function leaveDM(page: Page, contactId: string) {
   await page.getByTestId('HomeNavIcon').click();
-  await page.getByText(contactId, { exact: true }).first().click();
+  await page.getByTestId(`ChannelListItem-${contactId}`).first().click();
   await page.waitForTimeout(500);
   await page.getByTestId('ChannelOptionsSheetTrigger').first().click();
   await page.waitForTimeout(500);
@@ -777,7 +791,9 @@ export async function leaveDM(page: Page, contactId: string) {
   // without this reload we'll still see previous messages in the DM
   // TODO: figure out why this is happening
   await page.reload();
-  await expect(page.getByText(contactId, { exact: true })).not.toBeVisible();
+  await expect(
+    page.getByTestId(`ChannelListItem-${contactId}`)
+  ).not.toBeVisible();
 }
 
 /**

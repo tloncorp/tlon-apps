@@ -1,17 +1,12 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
 
 import * as helpers from './helpers';
-import shipManifest from './shipManifest.json';
-
-const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
-
-test.use({ storageState: shipManifest['~zod'].authFile });
+import { test } from './test-fixtures';
 
 test('should manage roles lifecycle: create, assign, modify permissions, rename, and delete', async ({
-  page,
+  zodPage,
 }) => {
-  await page.goto(zodUrl);
-  await page.waitForSelector('text=Home', { state: 'visible' });
+  const page = zodPage;
 
   await expect(page.getByText('Home')).toBeVisible();
 
