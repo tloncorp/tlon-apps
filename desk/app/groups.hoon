@@ -3633,7 +3633,7 @@
       |=  story=(unit story:s:g)  ::XX something is broken with story import
       ^-  (list card)
       =/  =wire  (weld fi-area /ask)
-      =/  =path  (weld fi-server-path /ask)
+      =/  =path  (weld fi-server-path /ask/(scot %p our.bowl))
       =/  =cage
         group-command+!>(`c-groups:g`[%ask flag story])
       :~  [%pass wire %agent [p.flag server] %poke cage]
