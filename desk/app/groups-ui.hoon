@@ -255,6 +255,21 @@
           profile
       ==
     ``ui-init-6+!>(init)
+  ::
+      [%x %v6 %changes since=@ rest=*]
+    ~>  %bout.[0 'groups-ui change scry']
+    =;  j=json
+      ``json+!>(j)
+    %-  pairs:enjs:format
+    :~  :-  'channels'
+        .^(json (scry %gx %channels %v3 %changes since.pole (snoc rest.pole %json)))
+      ::
+        :-  'chat'
+        .^(json (scry %gx %chat %v2 %changes since.pole (snoc rest.pole %json)))
+      ::
+        :-  'groups'
+        .^(json (scry %gx %groups %v3 %changes since.pole (snoc rest.pole %json)))
+    ==
   ==
 ::
 ++  poke
