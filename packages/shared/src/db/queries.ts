@@ -3300,7 +3300,7 @@ export const getPendingPosts = createReadQuery(
       ),
     });
   },
-  []
+  ['posts']
 );
 
 export const getEnqueuedPosts = createReadQuery(
@@ -3313,7 +3313,7 @@ export const getEnqueuedPosts = createReadQuery(
       },
     });
   },
-  []
+  ['posts']
 );
 
 export const getPostWithRelations = createReadQuery(
