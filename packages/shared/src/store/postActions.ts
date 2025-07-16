@@ -62,28 +62,63 @@ export async function finalizePostDraft(
   }
 }
 
-export async function finalizeAndSendPost({
-  channelId,
-  ...draft
-}: domain.PostDataDraft): Promise<domain.PostDataFinalized> {
+export function finalizePostDraftUsingLocalAttachments(
+  draft: domain.PostDataDraftParent
+): domain.PostDataFinalizedParent;
+export function finalizePostDraftUsingLocalAttachments(
+  draft: domain.PostDataDraftEdit
+): domain.PostDataFinalizedEdit;
+export function finalizePostDraftUsingLocalAttachments(
+  draft: domain.PostDataDraft
+): domain.PostDataFinalized {
   const { story, metadata } = logic.toPostData({
     ...draft,
-    attachments: await finalizeAttachments(draft.attachments),
+    attachments: finalizeAttachmentsLocal(draft.attachments),
   });
-  const finalizedPost = {
-    channelId,
+  const finalizedBase = {
+    channelId: draft.channelId,
     content: story,
     metadata,
   };
-  await sendPost(finalizedPost);
-  return finalizedPost;
+  if (draft.isEdit) {
+    return {
+      ...finalizedBase,
+      isEdit: true,
+      parentId: draft.parentId,
+    } satisfies domain.PostDataFinalizedEdit;
+  } else {
+    return finalizedBase satisfies domain.PostDataFinalizedParent;
+  }
 }
 
-export async function sendPost({
+export async function finalizeAndSendPost(
+  draft: domain.PostDataDraftParent
+): Promise<void> {
+  await _sendPost({
+    channelId: draft.channelId,
+    buildOptimisticPostData: () =>
+      finalizePostDraftUsingLocalAttachments(draft),
+    buildFinalizedPostData: () => finalizePostDraft(draft),
+  });
+}
+
+export async function sendPost(postData: domain.PostDataFinalizedParent) {
+  return await _sendPost({
+    channelId: postData.channelId,
+    buildOptimisticPostData: () => postData,
+    buildFinalizedPostData: async () => postData,
+  });
+}
+
+async function _sendPost({
+  buildFinalizedPostData,
+  buildOptimisticPostData,
   channelId,
-  content,
-  metadata,
-}: domain.PostDataFinalizedParent) {
+}: {
+  buildFinalizedPostData: () => Promise<domain.PostDataFinalizedParent>;
+  buildOptimisticPostData: () => domain.PostDataFinalizedParent;
+  channelId: string;
+}) {
   const authorId = api.getCurrentUserId();
 
   const channel = await db.getChannel({ id: channelId });
@@ -119,12 +154,13 @@ export async function sendPost({
   logger.crumb('get author');
   const author = await db.getContact({ id: authorId });
   logger.crumb('build pending post');
+  const optimisticPostData = buildOptimisticPostData();
   const cachePost = db.buildPost({
     authorId,
     author,
     channel,
-    content,
-    metadata,
+    content: optimisticPostData.content,
+    metadata: optimisticPostData.metadata,
     deliveryStatus: 'enqueued',
   });
 
@@ -143,12 +179,21 @@ export async function sendPost({
   try {
     logger.crumb('sending post to backend');
     await sessionActionQueue.add(async () => {
-      await db.updatePost({ id: cachePost.id, deliveryStatus: 'pending' });
+      const finalizedPostData = await buildFinalizedPostData();
+      await db.updatePost({
+        id: cachePost.id,
+        ...db.buildPostUpdate({
+          id: cachePost.id,
+          content: finalizedPostData.content,
+          metadata: finalizedPostData.metadata,
+          deliveryStatus: 'pending',
+        }),
+      });
       return api.sendPost({
         channelId: channel.id,
         authorId,
-        content,
-        metadata: metadata,
+        content: finalizedPostData.content,
+        metadata: finalizedPostData.metadata,
         sentAt: cachePost.sentAt,
       });
     });

@@ -503,8 +503,11 @@ export default function BareChatInput({
           );
           setEditingPost?.(undefined);
         } else {
-          const finalizedPost = await finalizeAndSendPost(draft);
-          story = finalizedPost.content;
+          await finalizeAndSendPost(draft);
+
+          // TODO: not returning the content anymore, can re-add if this is needed
+          // const finalizedPost = await finalizeAndSendPost(draft);
+          // story = finalizedPost.content;
         }
       } catch (e) {
         bareChatInputLogger.error('Error sending message', e);

@@ -50,6 +50,21 @@ const isImageAttachment = (a: Attachment): a is ImageAttachment =>
   a.type === 'image';
 const requiresUpload = isImageAttachment;
 
+export function finalizeAttachmentsLocal(
+  attachments: Attachment[]
+): FinalizedAttachment[] {
+  return attachments.map((attachment) => {
+    if (requiresUpload(attachment)) {
+      return buildFinalizedImageAttachment(attachment, {
+        status: 'success',
+        remoteUri: attachment.file.uri,
+      });
+    } else {
+      return attachment;
+    }
+  });
+}
+
 export async function finalizeAttachments(
   attachments: Attachment[]
 ): Promise<FinalizedAttachment[]> {
