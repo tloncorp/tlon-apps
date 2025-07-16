@@ -30,7 +30,11 @@ vi.mock('expo-file-system', () => ({
 }));
 
 vi.mock('expo-image-manipulator', () => ({
-  manipulateAsync: vi.fn(),
+  manipulateAsync: vi.fn().mockResolvedValue({
+    uri: 'manipulated-image-uri',
+    width: 1,
+    height: 1,
+  }),
 }));
 
 vi.mock('../db/getStorageMethods', () => {
@@ -42,6 +46,13 @@ vi.mock('../db/getStorageMethods', () => {
         removeItem(key: string, value: any) {},
       };
     },
+  };
+});
+
+vi.mock('../store/storage', async (importOriginal) => {
+  return {
+    ...((await importOriginal()) as Record<string, unknown>),
+    uploadAsset: vi.fn().mockResolvedValue(undefined),
   };
 });
 
