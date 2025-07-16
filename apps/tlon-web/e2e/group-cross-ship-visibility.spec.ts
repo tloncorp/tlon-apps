@@ -11,11 +11,6 @@ test('should show group info, channel, and role changes to invited user', async 
   const tenPage = tenSetup.page;
 
   // Step 1: ~zod creates a group and makes various changes
-  // Clean up any existing group on zod
-  await helpers.cleanupExistingGroup(zodPage, 'Test Group');
-  await helpers.cleanupExistingGroup(zodPage, '~ten, ~zod');
-  await helpers.cleanupExistingGroup(zodPage);
-
   // Create a new group on zod
   await helpers.createGroup(zodPage);
 
@@ -56,7 +51,8 @@ test('should show group info, channel, and role changes to invited user', async 
   await zodPage.getByText('Invite people').click();
   await expect(zodPage.getByText('Select people to invite')).toBeVisible();
   await zodPage.getByPlaceholder('Filter by nickname, @p').fill('~ten');
-  await zodPage.getByTestId('ContactRow').first().click();
+  await zodPage.waitForTimeout(1000);
+  await zodPage.getByTestId('ContactRow').getByText('~ten').first().click();
   await zodPage.getByText('Invite 1 and continue').click();
   await zodPage.waitForTimeout(1000);
 
@@ -65,6 +61,7 @@ test('should show group info, channel, and role changes to invited user', async 
 
   // Step 3: ~ten accepts the invite
   // Wait for and accept the group invitation
+  await tenPage.waitForTimeout(1000);
   await expect(tenPage.getByText('Group invitation')).toBeVisible();
   await tenPage.getByText('Group invitation').click();
 
@@ -147,13 +144,4 @@ test('should show group info, channel, and role changes to invited user', async 
   await expect(
     tenPage.getByTestId('ChannelListItem-Real-time Channel')
   ).toBeVisible();
-
-  // Clean up - delete the group from zod's side
-  try {
-    await helpers.cleanupExistingGroup(zodPage, 'Test Group');
-    await helpers.cleanupExistingGroup(zodPage, '~ten, ~zod');
-    await helpers.cleanupExistingGroup(zodPage);
-  } catch (error) {
-    console.log('Cleanup failed:', error);
-  }
 });

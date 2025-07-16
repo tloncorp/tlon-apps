@@ -21,6 +21,12 @@ export async function createGroup(page: Page) {
 
   if (await page.getByTestId('ChannelHeaderTitle').isVisible()) {
     await expect(page.getByText('Welcome to your group!')).toBeVisible();
+  } else {
+    await page.getByTestId('HomeNavIcon').click();
+    await page.getByTestId('ChatListItem-Untitled group-unpinned').click();
+    await page.waitForTimeout(1000);
+    await expect(page.getByTestId('ChannelHeaderTitle')).toBeVisible();
+    await expect(page.getByText('Welcome to your group!')).toBeVisible();
   }
 }
 
@@ -28,9 +34,7 @@ export async function leaveGroup(page: Page, groupName: string) {
   await page.getByTestId('HomeNavIcon').click();
   if (await page.getByText(groupName).first().isVisible()) {
     await page.getByText(groupName).first().click();
-    await page.getByTestId('GroupOptionsSheetTrigger').first().click();
-    await expect(page.getByText('Group info & settings')).toBeVisible();
-    await page.getByText('Group info & settings').click();
+    await openGroupSettings(page);
     await page.waitForSelector('text=Group Info');
     await page.getByText('Leave group').click();
   }
@@ -84,7 +88,7 @@ export async function deleteGroup(page: Page, groupName?: string) {
 }
 
 export async function openGroupSettings(page: Page) {
-  await page.getByTestId('GroupOptionsSheetTrigger').first().click();
+  await openGroupOptionsSheet(page);
   await expect(page.getByText('Group info & settings')).toBeVisible();
   await page.getByText('Group info & settings').click();
 }

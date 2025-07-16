@@ -1,11 +1,7 @@
 import { expect } from '@playwright/test';
 
 import * as helpers from './helpers';
-import shipManifest from './shipManifest.json';
 import { test } from './test-fixtures';
-
-// const busUrl = `${shipManifest['~bus'].webUrl}/apps/groups/`;
-const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
 
 test('should handle complete group lifecycle with settings management', async ({
   zodPage,

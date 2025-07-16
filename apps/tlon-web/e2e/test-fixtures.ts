@@ -16,7 +16,6 @@ const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
 const tenUrl = `${shipManifest['~ten'].webUrl}/apps/groups/`;
 const busUrl = `${shipManifest['~bus'].webUrl}/apps/groups/`;
 
-// Helper function for common cleanup logic
 async function performCleanup(page: Page, shipName: string) {
   try {
     await page.getByTestId('HomeNavIcon').click();
@@ -30,6 +29,7 @@ async function performCleanup(page: Page, shipName: string) {
       await helpers.cleanupExistingGroup(page, '~ten, ~zod');
       await helpers.cleanupExistingGroup(page, '~bus, ~zod');
       await helpers.cleanupExistingGroup(page);
+      await helpers.cleanupExistingGroup(page, 'Test Group');
     } else if (shipName === 'ten') {
       if (await page.getByTestId('ChannelListItem-~zod').isVisible()) {
         await helpers.leaveDM(page, '~zod');
@@ -64,10 +64,10 @@ export const test = base.extend<TestFixtures>({
       window.toggleDevTools();
     });
 
+    await performCleanup(page, 'zod');
+
     await use({ context, page });
 
-    // Cleanup happens automatically here - no need for manual checks
-    // Playwright handles the cleanup even if tests fail
     await performCleanup(page, 'zod');
   },
 
@@ -83,9 +83,10 @@ export const test = base.extend<TestFixtures>({
       window.toggleDevTools();
     });
 
+    await performCleanup(page, 'ten');
+
     await use({ context, page });
 
-    // Cleanup happens automatically here
     await performCleanup(page, 'ten');
   },
 
@@ -101,25 +102,23 @@ export const test = base.extend<TestFixtures>({
       window.toggleDevTools();
     });
 
+    await performCleanup(page, 'bus');
+
     await use({ context, page });
 
-    // Cleanup happens automatically here
     await performCleanup(page, 'bus');
   },
 
   zodPage: async ({ zodSetup }, use) => {
     await use(zodSetup.page);
-    // No explicit cleanup needed - Playwright handles page cleanup automatically
   },
 
   tenPage: async ({ tenSetup }, use) => {
     await use(tenSetup.page);
-    // No explicit cleanup needed - Playwright handles page cleanup automatically
   },
 
   busPage: async ({ busSetup }, use) => {
     await use(busSetup.page);
-    // No explicit cleanup needed - Playwright handles page cleanup automatically
   },
 });
 
