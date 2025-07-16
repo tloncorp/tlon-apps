@@ -769,6 +769,29 @@
     [%x %v2 %init ~]  ``noun+!>([groups-light-ui-5 xeno-5])
     [%x %v3 %init ~]  ``noun+!>([groups-light-ui-5 xeno-6])
   ::
+      [%x %v3 %changes since=@ rest=*]
+    =+  since=(slav %da since.pole)
+    =/  changes=(list [flag:v6:g group-ui:v6:g])
+      %+  murn  ~(tap in groups)
+      |=  [=flag:g =net:g =group:g]
+      ^-  (unit [flag:v6:g group-ui:v6:g])
+      =/  fresh=?
+        %+  lth  since
+        ?-  -.net
+          %sub  p.net
+          %pub  key:(fall (ram:log-on:g p.net) [key=now.bowl ~])
+        ==
+      ?.  fresh  ~
+      (some flag (to-group-ui-5 net (drop-fleet group)))
+    :^  ~  ~  %json
+    !>  ^-  json
+    :-  %a
+    %+  turn  changes
+    |=  [=flag:v6:g =group-ui:v6:g]
+    =+  ui=(group-ui:v6:enjs:groups-json group-ui)
+    ?>  ?=([%o *] ui)
+    ui(p (~(put by p.ui) 'flag' s+(flag:v6:enjs:groups-json flag)))
+  ::
     [%x %groups %light ~]  ``groups+!>(groups-light-2)
     [%x %groups %light %v0 ~]  ``groups-ui-v0+!>(groups-light-ui-v0)
     [%x %groups %light %v1 ~]  ``groups-ui+!>(groups-light-ui-2)
