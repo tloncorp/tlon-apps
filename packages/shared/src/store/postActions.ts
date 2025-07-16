@@ -138,7 +138,7 @@ export async function sendPost({
   );
 
   logger.crumb('insert channel posts');
-  sync.handleAddPost(cachePost);
+  await sync.handleAddPost(cachePost);
   logger.crumb('done optimistic update');
   try {
     logger.crumb('sending post to backend');
