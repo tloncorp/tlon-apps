@@ -298,7 +298,7 @@
         =/  =flag:g  [our.bowl name.create-group.c-groups]
         ?<  (~(has by groups) flag)
         =.  cor  se-abet:(se-c-create:se-core flag create-group.c-groups)
-        go-abet:(go-safe-sub:(go-abed:go-core flag) |)
+        fi-abet:(fi-join:(fi-abed:fi-core flag) ~)
       ::
           %group
         =/  server-core  (se-abed:se-core flag.c-groups)
@@ -3684,8 +3684,8 @@
     ^+  fi-core
     =.  cor  (emit (initiate:neg [p.flag server]))
     =+  net-group=(~(get by groups) flag)
-    ?:  &(?=(^ net-group) ?=(%sub -<.u.net-group))  fi-core
     ::  leave the ask subscription in case it has not yet closed
+    ::
     =?  cor  ?=([~ %ask] progress)
       (emit leave-ask:fi-pass)
     ?:  ?&  ?=(^ progress)
@@ -3865,6 +3865,13 @@
         =.  progress  `%error
         fi-core
       =.  progress  `%watch
+      ?:  (~(has by groups) flag)
+        ::  accomodate rejoin, useful particularly for joining
+        ::  a self-hosted group.
+        ::
+        =.  cor
+          go-abet:(go-safe-sub:(go-abed:go-core flag) |)
+        fi-core
       =/  =net:g  [%sub *@da |]
       =|  =group:g
       =?  meta.group  ?=(^ preview)  meta.u.preview
