@@ -24,6 +24,15 @@ export type NavigationIntent =
     >
   | BuildNavigationIntent<'dm', { channelId: string; selectedPostId?: string }>
   | BuildNavigationIntent<
+      'post',
+      {
+        groupId: string;
+        channelId: string;
+        rootPostId: string;
+        authorId: string;
+      }
+    >
+  | BuildNavigationIntent<
       'channel',
       { groupId: string; channelId: string; selectedPostId?: string }
     >;
@@ -76,6 +85,17 @@ export function getNavigationIntentFromState(
             channelId: getChannelId(route),
             groupId: getGroupId(route),
             selectedPostId: getSelectedPostId(route),
+          },
+        };
+
+      case 'Post':
+        return {
+          feature: 'post',
+          params: {
+            authorId: getAuthorId(route),
+            channelId: getChannelId(route),
+            groupId: getGroupId(route),
+            rootPostId: getPostId(route),
           },
         };
 
@@ -161,6 +181,13 @@ function pathFromNavigationIntent(
         );
       }
 
+      case 'post': {
+        return mobileOrDesktop(
+          uri`/group/${intent.params.groupId}/channel/${intent.params.channelId}/post/${intent.params.authorId}/${intent.params.rootPostId}`,
+          uri`/group/${intent.params.groupId}/channel/${intent.params.channelId}/post/${intent.params.authorId}/${intent.params.rootPostId}`
+        );
+      }
+
       case 'unknown': {
         return null;
       }
@@ -187,8 +214,14 @@ export function getStateFromNavigationIntent(
 }
 
 // stubs to be replaced by https://github.com/tloncorp/tlon-apps/pull/4803
+function getAuthorId(route: any): string {
+  return getParamValue<string>(route, 'authorId') ?? '';
+}
 function getChannelId(route: any): string {
   return getParamValue<string>(route, 'channelId') ?? '';
+}
+function getPostId(route: any): string {
+  return getParamValue<string>(route, 'postId') ?? '';
 }
 function getGroupId(route: any): string {
   return getParamValue<string>(route, 'groupId') ?? '';
