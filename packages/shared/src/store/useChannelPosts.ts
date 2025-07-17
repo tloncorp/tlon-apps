@@ -49,9 +49,43 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   const { enabled, firstPageCount, ...pageParam } = options;
 
   const queryKey = useMemo(
-    () => [['channelPosts', options.channelId, options.cursor, mountTime]],
-    [options.channelId, options.cursor, mountTime]
+    () => [
+      [
+        'channelPosts',
+        options.channelId,
+        options.cursor,
+        options.filterDeleted,
+        options.hasCachedNewest,
+        mountTime,
+      ],
+    ],
+    [
+      options.channelId,
+      options.cursor,
+      options.filterDeleted,
+      options.hasCachedNewest,
+      mountTime,
+    ]
   );
+
+  // useEffect(() => {
+  //   console.log(`bl:qk query key changed`, queryKey);
+  // }, [queryKey]);
+
+  const initialPageParam = useMemo(() => {
+    return {
+      count: options.firstPageCount,
+      channelId: options.channelId,
+      cursor: options.cursor,
+      mode: options.mode ?? 'newest',
+      filterDeleted: options.filterDeleted ?? false,
+      hasCachedNewest: options.hasCachedNewest ?? false,
+    } as UseChannelPostsPageParams;
+  }, [options]);
+
+  // useEffect(() => {
+  //   console.log(`bl:qk initial page param change`, initialPageParam);
+  // }, [initialPageParam]);
 
   const abortControllerRef = useRef<AbortController | null>(
     new AbortController()
@@ -68,10 +102,14 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
 
   const query = useInfiniteQuery({
     enabled,
-    initialPageParam: {
-      ...pageParam,
-      count: firstPageCount,
-    } as UseChannelPostsPageParams,
+    initialPageParam,
+    // initialPageParam: {
+    //   channelId: 'chat/~zod/vm72742',
+    //   count: 50,
+    //   filterDeleted: false,
+    //   hasCachedNewest: true,
+    //   mode: 'newest',
+    // } as UseChannelPostsPageParams,
     refetchOnMount: false,
     retry(failureCount, error) {
       postsLogger.trackError('failed to load posts', {
@@ -127,7 +165,11 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
 
       if (cached?.length) {
         postsLogger.log('returning', cached.length, 'posts from db');
-        return { posts: cached, canFetchNewerPosts: true };
+        return {
+          posts: cached,
+          canFetchNewerPosts:
+            queryOptions.mode !== 'newest' || !options.hasCachedNewest,
+        };
       }
 
       postsLogger.log('no posts found in database, loading from api...');
@@ -159,7 +201,13 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
       postsLogger.log(
         'returning',
         secondResult?.length,
-        'posts from db after syncing from api'
+        'posts from db after syncing from api',
+        {
+          mode: queryOptions.mode,
+          numPostsFetched: res.posts?.length,
+          canFetchNewerPosts: res.newer != null,
+          resNewer: res.newer,
+        }
       );
       return {
         posts: secondResult ?? [],
@@ -209,6 +257,11 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
       // page order for allPages should be newest -> oldest
       // but apparently on channels with less than 50 posts, the order is reversed (on web only)
       const hasReachedNewest = allPages.some((p) => !p.canFetchNewerPosts);
+      console.log(
+        `has reached newest?`,
+        hasReachedNewest,
+        allPages.map((p) => p.canFetchNewerPosts)
+      );
 
       if (hasReachedNewest) {
         return undefined;
@@ -222,11 +275,24 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     },
   });
 
+  // useEffect(() => {
+  //   if (
+  //     !query.isFetching &&
+  //     query.hasPreviousPage &&
+  //     query.data?.pages.length === 1
+  //   ) {
+  //     query.fetchPreviousPage();
+  //   }
+  // }, [query]);
+
+  console.log(`bl: curr query`, query);
+
   // When we get a new post from the listener, add it to the pending list
   // and attempt to update query data.
   const [newPosts, setNewPosts] = useState<db.Post[]>([]);
   const handleNewPost = useCallback(
     (post: db.Post) => {
+      console.log(`bl: received new post in listener`, post);
       if (post.channelId === options.channelId) {
         setNewPosts((posts) => addPostToNewPosts(post, posts));
       }
@@ -241,13 +307,27 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
 
   const rawPosts = useMemo<db.Post[] | null>(() => {
     const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? null;
+    console.log(`bl:q assembling raw posts`, {
+      queryPosts,
+      newPosts,
+      pages: query.data?.pages,
+    });
     if (!newPosts.length || query.hasPreviousPage) {
+      console.log(`bl:q not at newest, hiding new posts`);
       return queryPosts;
+    } else {
+      console.log(`bl:q at newest, showing new posts`, newPosts);
     }
     const newestQueryPostId = queryPosts?.[0]?.id;
     const newerPosts = newPosts.filter(
       (p) => !newestQueryPostId || p.id > newestQueryPostId
     );
+
+    // console.log('bl: newer debug', {
+    //   raw: newPosts,
+    //   newestQueryPostId,
+    //   resolved: newerPosts,
+    // });
     // Deduping is necessary because the query data may not have been updated
     // at this point and we may have already added the post.
     // This is most likely to happen in bad network conditions or when the
@@ -285,6 +365,8 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   const { loadOlder, loadNewer } = useLoadActionsWithPendingHandlers(query);
 
   useTrackReady(posts, query, options.channelId);
+
+  console.log(`bl: ${posts?.length} posts`, posts);
 
   return useMemo(
     () => ({ posts, query, loadOlder, loadNewer, isLoading }),

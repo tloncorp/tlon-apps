@@ -6,7 +6,7 @@ import shipManifest from './shipManifest.json';
 const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
 const busUrl = `${shipManifest['~bus'].webUrl}/apps/groups/`;
 
-test('should invite ~bus to a group and test protocol mismatch', async ({
+test.only('should invite ~bus to a group and test protocol mismatch', async ({
   browser,
 }) => {
   // Create two browser contexts - one for ~zod (group creator) and one for ~bus (invitee)

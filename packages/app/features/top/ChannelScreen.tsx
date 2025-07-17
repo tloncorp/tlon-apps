@@ -206,6 +206,8 @@ export default function ChannelScreen(props: Props) {
     count: 15,
     hasCachedNewest,
     filterDeleted: !channelConfiguration?.includeDeletedPosts,
+    // filterDeleted: false,
+    // hasCachedNewest: true,
     ...(cursor && !clearedCursor
       ? {
           mode: 'around',

@@ -242,15 +242,15 @@ const ChatMessage = ({
         ) : null}
 
         <View paddingLeft={!isNotice ? '$4xl' : undefined}>
-          {/* <ChatContentRenderer
+          <ChatContentRenderer
             content={post.editStatus === 'failed' ? lastEditContent : content}
             isNotice={post.type === 'notice'}
             onPressImage={handleImagePressed}
             onLongPress={handleLongPress}
-          /> */}
-          <Text color="$green" size="$body" padding="$xl">
+          />
+          {/* <Text color="$green" size="$body" padding="$xl">
             {post.sequenceNum}
-          </Text>
+          </Text> */}
         </View>
 
         {post.reactions && post.reactions.length > 0 && (
