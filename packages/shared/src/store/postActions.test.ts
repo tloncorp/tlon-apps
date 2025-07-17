@@ -95,11 +95,10 @@ describe('sendPost', () => {
 
     let failPoke: (reason?: unknown) => void = () => {};
     const mockedPoke = vi.mocked(poke).mockImplementation(async (payload) => {
-      // ensure we're looking at the correct poke
-      expect(payload).toMatchObject({
-        app: 'chat',
-        mark: 'chat-dm-action-1',
-      });
+      if (payload.app !== 'chat' || payload.mark !== 'chat-dm-action-1') {
+        // probably safe to just return here, but raising an error for now in caution
+        throw new Error('Unrecognized poke');
+      }
       // hang until manually rejecting via `failPoke()`
       await new Promise((_, reject) => {
         failPoke = reject;
@@ -346,7 +345,7 @@ describe('finalizeAndSendPost', () => {
     await vi.runOnlyPendingTimersAsync();
 
     // find IDs of the posts we just sent
-    const latestPostsFromDb = (await fetchLatestPostsFromDb(2))!;
+    const latestPostsFromDb = (await fetchLatestPostsFromDb(postData.length))!;
     postData.forEach((pd) => {
       pd.id =
         latestPostsFromDb.find(
@@ -412,6 +411,88 @@ describe('finalizeAndSendPost', () => {
     expect(postData[0].latestFromDb!.sentAt).toBeLessThan(
       postData[1].latestFromDb!.sentAt
     );
+  });
+
+  // this is similar to the above test, but I was trying to model a bug that
+  // was happening in the real app
+  test('queuing multiple messages without attachments', async () => {
+    vi.useFakeTimers();
+    vi.mocked(poke).mockResolvedValue(0);
+    const postData = new Array(3).fill(undefined).map((_, index) => ({
+      message: friendlyUniqueString(),
+      attachment: index === 0 ? buildFakeImageAttachment(LOCAL_URI) : null,
+      sendPromise: null as null | Promise<void>,
+      id: null as null | string,
+      latestFromDb: null as null | db.Post,
+    }));
+
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+
+    setUploadState(postData[0].attachment!.file.uri, {
+      status: 'uploading',
+      localUri: postData[0].attachment!.file.uri,
+    });
+
+    for (const pd of postData) {
+      vi.advanceTimersByTime(1000);
+      pd.sendPromise = finalizeAndSendPost({
+        channelId: TEST_CHANNEL,
+        content: [pd.message],
+        attachments: pd.attachment ? [pd.attachment] : [],
+        channelType: 'chat',
+      });
+
+      // HACK: we want to await _some_ of the async calls in the send post
+      // method (like fetching the post's channel from DB) so that we can get
+      // to the "build optimistic post" part, but we don't want to await the
+      // entire thing, as we are manually coordinating the server response (so
+      // `await sendPromise` would hang).
+      //
+      // Using a `runOnlyPendingTimersAsync` gives us the ticks we need. If
+      // this fails, all the posts being sent here will be sent at the same
+      // time, giving them the same post ID, and code below will fail expects.
+      await vi.runOnlyPendingTimersAsync();
+    }
+    await vi.runOnlyPendingTimersAsync();
+
+    // find IDs of the posts we just sent
+    const latestPostsFromDb = (await fetchLatestPostsFromDb(postData.length))!;
+    postData.forEach((pd) => {
+      pd.id =
+        latestPostsFromDb.find(
+          (p) => typeof p.content === 'string' && p.content.includes(pd.message)
+        )?.id ?? null;
+      expect(pd.id).toBeTruthy();
+    });
+
+    for (const pd of postData) {
+      const post = await fetchPost(pd.id!);
+      if (post == null) {
+        throw new Error('Missing post in DB');
+      }
+      pd.latestFromDb = post;
+    }
+
+    // check that sentAt is correctly ordered
+    expect(postData[0].latestFromDb!.sentAt).toBeLessThan(
+      postData[1].latestFromDb!.sentAt
+    );
+    expect(postData[1].latestFromDb!.sentAt).toBeLessThan(
+      postData[2].latestFromDb!.sentAt
+    );
+
+    setUploadState(postData[0].attachment!.file.uri, {
+      status: 'success',
+      remoteUri: REMOTE_URI,
+    });
+    await vi.runOnlyPendingTimersAsync();
+
+    // check that pokes happen in order of sending
+    expect(
+      vi.mocked(poke).mock.calls.map((params) => JSON.stringify(params[0].json))
+    ).toMatchObject(postData.map((pd) => expect.stringContaining(pd.message)));
+
+    await Promise.all(postData.map((pd) => pd.sendPromise!));
   });
 });
 
