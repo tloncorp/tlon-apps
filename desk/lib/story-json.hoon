@@ -1,5 +1,6 @@
 /-  s=story
 /+  cj=cite-json
+=*  z  ..zuse
 |%
 ++  enjs
   =,  enjs:format
@@ -102,6 +103,8 @@
 ++  dejs
   =,  dejs:format
   |%
+  ++  ship  `$-(json ship:z)`(su ship-rule)
+  ++  ship-rule  ;~(pfix sig fed:ag)
   ::
   ++  story  (ar verse)
   ::

@@ -793,6 +793,8 @@
       ?.  ?=([%cast @ @ ~] wire)  caz
       :_  caz
       [%pass wire %agent dock %leave ~]
+    ::XX  clean up old /contact subscription
+    ::
     ::  schedule foreigns and admissions migration
     ::
     =.  caz
@@ -2166,7 +2168,11 @@
     ^+  se-core
     =*  by-ch  ~(. by channels.group)
     =*  chan  channel.c-channel
-    ?<  &(?=(%add -.c-channel) (has:by-ch nest))
+    ::TODO the client should stop trying to add duplicate channels.
+    ::     this should be an assertion, but is currently triggered on
+    ::     wayfinding group creation.
+    ::
+    ?:  &(?=(%add -.c-channel) (has:by-ch nest))  se-core
     ?-    -.c-channel
         %add
       =.  added.chan  now.bowl
