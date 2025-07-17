@@ -252,11 +252,12 @@
       (~(tell logs our.bowl /logs) vol echo deez)
     =/  pri
       ?-  vol
+        %dbug  0
         %info  1
         %warn  2
         %crit  3
       ==
-    %-  %-  %*(. slog pri pri)  [leaf+"tell {<vol>}" echo]
+    %-  %-  %*(. slog pri pri)  echo
     |*  etc=*
     =.  cor  (emit card)
     etc
@@ -825,6 +826,8 @@
     %+  roll
       ~(tap by groups)
     |=  [[=flag:g [=net:g *]] =_cor]
+    ::  only resubscribe to remote groups
+    ?:  ?=(%pub -.net)  cor
     go-abet:(go-safe-sub:(go-abed:go-core:cor flag) |)
   cor
 ::
@@ -1069,11 +1072,13 @@
     =/  =ship  (slav %p ship.pole)
     ::  ignore responses after we have left the group
     ::
-    ?:  ?&  ?|  ?=(%kick -.sign)
+    ?:  ?&  !(~(has by groups) ship name.pole)
+            ?|  ?=(%kick -.sign)
+                ?=(%fact -.sign)
                 ?=([%command %leave ~] rest.pole)
                 ?=([%leave-channels ~] rest.pole)
             ==
-            !(~(has by groups) ship name.pole)
+
         ==
       cor
     go-abet:(go-agent:(go-abed:go-core ship name.pole) rest.pole sign)
@@ -1495,6 +1500,11 @@
   ::  +se-c-delete: delete the group
   ::
   ++  se-c-delete
+    ^+  se-core
+    =.  channels-index
+      %+  roll  ~(tap in ~(key by channels.group))
+      |=  [=nest:g =_channels-index]
+      (~(del by channels-index) nest)
     se-core(gone &)
   ::  +se-join: handle group join request
   ::
@@ -2615,7 +2625,9 @@
   ++  go-safe-sub
     |=  delay=?
     ^+  go-core
+    =+  log=~(. l `'group-join')
     ?:  go-has-sub  go-core
+    %-  (tell:log %dbug leaf+"+go-safe-sub subscribing to {<flag>}" ~)
     (go-start-updates delay)
   ::  +go-start-updates: subscribe to the group for updates
   ::
@@ -2630,7 +2642,7 @@
       %^  safe-watch  go-sub-wire  [p.flag server]
       (weld go-server-path /updates/(scot %p our.bowl)/(scot %da sub-time))
     go-core
-  ::  +go-leave: leave the group and cancel all channel subscriptions
+  ::  +go-leave: leave the group and all channel subscriptions
   ::
   ++  go-leave
     |=  send-leave=?
@@ -2696,7 +2708,7 @@
     |=  =a-group:g
     ^+  go-core
     ?>  from-self
-    (go-send-command /command `c-group:g`a-group)
+    (go-send-command /command/[-.a-group] `c-group:g`a-group)
   ::  +go-send-command:  send command to the group host
   ::
   ++  go-send-command
@@ -2760,7 +2772,8 @@
     |=  [=wire =sign:agent:gall]
     ^+  go-core
     ?+    wire  ~|(go-agent-bad+wire !!)
-        ::  waked up subscribers after the import
+        ::  waked up subscribers after an import
+        ::
         [%wake ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
@@ -2771,10 +2784,10 @@
     ::
         ::  poked group host with a command
         ::
-        [%command ~]
+        [%command cmd=@t ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
-      %-  (fail:l %poke-ack 'failed group command' u.p.sign)
+      %-  (fail:l %poke-ack leaf+"group command {<cmd.i.t.wire>} failed" u.p.sign)
       go-core
     ::
         ::  invited a ship to the group
@@ -2876,20 +2889,10 @@
   ++  go-apply-log
     |=  =log:g
     ?~  log  go-core
-    =/  init=?  ?:(?=(%sub -.net) init.net &)  ::TMI in roll
     =.  go-core
       %+  roll  (tap:log-on:g log)
       |=  [=update:g =_go-core]
-      ::  we need to filter out our past kicks upon joining the group
-      ::
-      :: =?  u-group.update  ?&  !init
-      ::                         ?=(%seat -.u-group)
-      ::                         (~(has in ships.u-group) our.bowl)
-      ::                         ?=([%del ~] u-seat.u-group)
-      ::                     ==
-      ::     u-group(ships (~(del in ships.u-group) our.bowl))
       (go-u-group:go-core update)
-    ?:  init  go-core
     =?  net  ?=(%sub -.net)
       [%sub time.net &]
     ::  join the channels upon initial group log
@@ -3117,7 +3120,7 @@
         |=  [=ship =_seats.group]
         (~(del by seats.group) ship)
       ::  leave the group if our seat has been deleted, but
-      ::  only if the group has been initialized.
+      ::  only if the group has been already initialized.
       ::  otherwise any past kicks stored in the group log
       ::  would kick us out on a subsequent rejoin.
       ::
@@ -3585,8 +3588,6 @@
   ::
   ++  fi-abet
     ^+  cor
-    ::  do not track hosted groups
-    ?:  =(p.flag our.bowl)  cor
     =.  foreigns  (~(put by foreigns) flag +<+)
     ::TODO figure out the foreign lifetime logic after designining
     ::     new endpoints for the client
@@ -3682,6 +3683,7 @@
   ++  fi-join
     |=  tok=(unit token:g)
     ^+  fi-core
+    =+  log=~(. l `%group-join)
     =.  cor  (emit (initiate:neg [p.flag server]))
     =+  net-group=(~(get by groups) flag)
     ::  leave the ask subscription in case it has not yet closed
@@ -3695,6 +3697,7 @@
       fi-core
     =.  progress  `%join
     =.  token  tok
+    %-  (tell:log %dbug leaf+"+fi-join with token {<tok>}" ~)
     =.  cor  (emit (join:fi-pass tok))
     fi-core
   ::  +fi-ask: ask to join the group
@@ -3718,16 +3721,17 @@
   ++  fi-watched
     |=  p=(unit tang)
     ^+  fi-core
+    =+  l=~(. l `'group-join')
     ?~  progress
       ::NOTE  the $foreign in state might be "stale", if it's no longer
       ::      tracking progress it's safe for it to ignore $group subscription
       ::      updates.
       fi-core
     ?^  p
-      ::TODO log through logs
-      %-  (slog leaf/"Failed to join" u.p)
+      %-  (fail:l %watch-ack leaf+"failed to join the group {<flag>}" ~)
       =.  progress  `%error
       fi-core
+    %-  (tell:l %dbug leaf+"group {<flag>} joined successfully" ~)
     =.  progress  `%done
     fi-core
   ::  +fi-error: end a foreign sequence with an error
