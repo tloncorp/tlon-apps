@@ -18,6 +18,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, YStack } from 'tamagui';
 
@@ -110,7 +111,7 @@ export function PostScreenView({
   const [focusedPost, setFocusedPost] = useState<db.Post | null>(parentPost);
 
   const mode: 'single' | 'carousel' = useMemo(() => {
-    if (!isWindowNarrow) {
+    if (Platform.OS === 'web' || !isWindowNarrow) {
       return 'single';
     }
 
