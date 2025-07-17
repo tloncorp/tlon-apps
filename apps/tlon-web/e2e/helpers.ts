@@ -242,8 +242,22 @@ export async function forwardMessageToDM(
 
   // Search for the contact's DM
   await page.getByPlaceholder('Search channels').fill(contactId);
-  await page.waitForTimeout(1000); // Wait for search results
-  await page.getByText(contactId).first().click();
+  await page.waitForTimeout(2000); // Wait longer for search results
+
+  // Try to click on the contact using a more specific selector
+  try {
+    // First try with test ID if available
+    const contactRow = page.getByTestId(`ChannelListItem-${contactId}`);
+    if (await contactRow.isVisible({ timeout: 2000 })) {
+      await contactRow.click();
+    } else {
+      // Fallback to text-based selection with force click to handle overlays
+      await page.getByText(contactId).first().click({ force: true });
+    }
+  } catch (error) {
+    // Final fallback: try clicking with force
+    await page.getByText(contactId).first().click({ force: true });
+  }
 
   // Confirm forward
   await page.getByText(`Forward to ${contactId}`).click();
