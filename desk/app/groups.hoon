@@ -252,11 +252,12 @@
       (~(tell logs our.bowl /logs) vol echo deez)
     =/  pri
       ?-  vol
+        %dbug  0
         %info  1
         %warn  2
         %crit  3
       ==
-    %-  %-  %*(. slog pri pri)  [leaf+"tell {<vol>}" echo]
+    %-  %-  %*(. slog pri pri)  echo
     |*  etc=*
     =.  cor  (emit card)
     etc
@@ -298,7 +299,7 @@
         =/  =flag:g  [our.bowl name.create-group.c-groups]
         ?<  (~(has by groups) flag)
         =.  cor  se-abet:(se-c-create:se-core flag create-group.c-groups)
-        go-abet:(go-safe-sub:(go-abed:go-core flag) |)
+        fi-abet:(fi-join:(fi-abed:fi-core flag) ~)
       ::
           %group
         =/  server-core  (se-abed:se-core flag.c-groups)
@@ -642,10 +643,10 @@
   =^  caz-6-to-7=(list card)  old
     ?.  ?=(%6 -.old)  [~ old]
     (state-6-to-7 old)
+  =?  cor  !=(~ caz-6-to-7)  (emil caz-6-to-7)
   ?>  ?=(%7 -.old)
   =.  state  old
   inflate-io
-  ::
   ::
   +$  any-state
     $%  state-7
@@ -825,6 +826,8 @@
     %+  roll
       ~(tap by groups)
     |=  [[=flag:g [=net:g *]] =_cor]
+    ::  only resubscribe to remote groups
+    ?:  ?=(%pub -.net)  cor
     go-abet:(go-safe-sub:(go-abed:go-core:cor flag) |)
   cor
 ::
@@ -1069,11 +1072,13 @@
     =/  =ship  (slav %p ship.pole)
     ::  ignore responses after we have left the group
     ::
-    ?:  ?&  ?|  ?=(%kick -.sign)
+    ?:  ?&  !(~(has by groups) ship name.pole)
+            ?|  ?=(%kick -.sign)
+                ?=(%fact -.sign)
                 ?=([%command %leave ~] rest.pole)
                 ?=([%leave-channels ~] rest.pole)
             ==
-            !(~(has by groups) ship name.pole)
+
         ==
       cor
     go-abet:(go-agent:(go-abed:go-core ship name.pole) rest.pole sign)
@@ -1416,7 +1421,6 @@
   ++  se-give-update
     |=  =update:g
     ^+  se-core
-    ~&  se-give-update+update
     ::  update subscribers: either everyone
     ::  or admins only.
     ::
@@ -1496,6 +1500,11 @@
   ::  +se-c-delete: delete the group
   ::
   ++  se-c-delete
+    ^+  se-core
+    =.  channels-index
+      %+  roll  ~(tap in ~(key by channels.group))
+      |=  [=nest:g =_channels-index]
+      (~(del by channels-index) nest)
     se-core(gone &)
   ::  +se-join: handle group join request
   ::
@@ -1589,10 +1598,10 @@
       [& ad]
     ::XX  this is a special case to enable robust v6 -> v7 migration
     ::    of private group invitations. the shut cordon pending set
-    ::    is migrated, but at the time of migration at the group host
-    ::    the recipient might not be updated yet, thus the newly minted
+    ::    is migrated, but at the time of migration of the group host
+    ::    the recipient might not have updated yet, thus the newly minted
     ::    invitation is going to be lost. the recipient will
-    ::    attempt to join the group with an empty token, which we allow
+    ::    subsequently attempt to join the group with an empty token, which we allow
     ::    here, but only if the user is in the pending set. once the migration
     ::    sets in the network this should be removed.
     ::
@@ -1819,8 +1828,14 @@
   ::  in the pending ships set. the pending set allows for pre-assigning
   ::  member roles that are assigned when the ship joins the group.
   ::
-  ::  if a ship is in the pending set, it is granted entry with an
-  ::  empty token.
+  ::  currently, if a ship is in the pending set, it is granted entry with an
+  ::  empty token - see the logic and comment in +se-admit. this is to
+  ::  enable better compatibility with old groups.
+  ::
+  ::  if a ship is added to the pending list but is already recorded
+  ::  in the requests list, her request is first approved. nonetheless,
+  ::  we still send an invitation to be robust against requesters losing
+  ::  the ask subscription. TODO is that even possible?
   ::
   ::  a ship that is banned can not be added to the pending list.
   ::
@@ -1832,15 +1847,16 @@
         ==
     ?-    -.c-pending
         %add
-      =.  pending.ad
+      =.  ad
         %+  roll  ~(tap in ships)
-        |=  [=ship =_pending.ad]
-        ::TODO  if a ship is already in .requests.ad, her
-        ::      ask request should be cleared at the same time.
-        ::
+        |=  [=ship =_ad]
         =/  roles=(set role-id:g)
-          (~(gut by pending) ship *(set role-id:g))
-        (~(put by pending) ship (~(uni in roles) roles.c-pending))
+          (~(gut by pending.ad) ship *(set role-id:g))
+        =.  pending.ad
+          (~(put by pending.ad) ship (~(uni in roles) roles.c-pending))
+        ad
+      ::  approve outstanding ask requests for pending ships
+      =.  se-core  (se-c-entry-ask ships %approve)
       =.  se-core  (se-send-invites ships)
       (se-update [%entry %pending %add ships roles.c-pending])
     ::
@@ -2450,6 +2466,7 @@
     ^+  cor
     =.  groups
       ?:  gone
+        ?:  go-our-host  groups
         (~(del by groups) flag)
       (~(put by groups) flag net group)
     ?.  gone  cor
@@ -2608,7 +2625,9 @@
   ++  go-safe-sub
     |=  delay=?
     ^+  go-core
+    =+  log=~(. l `'group-join')
     ?:  go-has-sub  go-core
+    %-  (tell:log %dbug leaf+"+go-safe-sub subscribing to {<flag>}" ~)
     (go-start-updates delay)
   ::  +go-start-updates: subscribe to the group for updates
   ::
@@ -2623,7 +2642,7 @@
       %^  safe-watch  go-sub-wire  [p.flag server]
       (weld go-server-path /updates/(scot %p our.bowl)/(scot %da sub-time))
     go-core
-  ::  +go-leave: leave the group and cancel all channel subscriptions
+  ::  +go-leave: leave the group and all channel subscriptions
   ::
   ++  go-leave
     |=  send-leave=?
@@ -2689,7 +2708,7 @@
     |=  =a-group:g
     ^+  go-core
     ?>  from-self
-    (go-send-command /command `c-group:g`a-group)
+    (go-send-command /command/[-.a-group] `c-group:g`a-group)
   ::  +go-send-command:  send command to the group host
   ::
   ++  go-send-command
@@ -2753,7 +2772,8 @@
     |=  [=wire =sign:agent:gall]
     ^+  go-core
     ?+    wire  ~|(go-agent-bad+wire !!)
-        ::  waked up subscribers after the import
+        ::  waked up subscribers after an import
+        ::
         [%wake ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
@@ -2764,10 +2784,10 @@
     ::
         ::  poked group host with a command
         ::
-        [%command ~]
+        [%command cmd=@t ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
-      %-  (fail:l %poke-ack 'failed group command' u.p.sign)
+      %-  (fail:l %poke-ack leaf+"group command {<cmd.i.t.wire>} failed" u.p.sign)
       go-core
     ::
         ::  invited a ship to the group
@@ -2869,20 +2889,10 @@
   ++  go-apply-log
     |=  =log:g
     ?~  log  go-core
-    =/  init=?  ?:(?=(%sub -.net) init.net &)  ::TMI in roll
     =.  go-core
       %+  roll  (tap:log-on:g log)
       |=  [=update:g =_go-core]
-      ::  we need to filter out our past kicks upon joining the group
-      ::
-      :: =?  u-group.update  ?&  !init
-      ::                         ?=(%seat -.u-group)
-      ::                         (~(has in ships.u-group) our.bowl)
-      ::                         ?=([%del ~] u-seat.u-group)
-      ::                     ==
-      ::     u-group(ships (~(del in ships.u-group) our.bowl))
       (go-u-group:go-core update)
-    ?:  init  go-core
     =?  net  ?=(%sub -.net)
       [%sub time.net &]
     ::  join the channels upon initial group log
@@ -3110,7 +3120,7 @@
         |=  [=ship =_seats.group]
         (~(del by seats.group) ship)
       ::  leave the group if our seat has been deleted, but
-      ::  only if the group has been initialized.
+      ::  only if the group has been already initialized.
       ::  otherwise any past kicks stored in the group log
       ::  would kick us out on a subsequent rejoin.
       ::
@@ -3456,7 +3466,6 @@
   ++  go-response
     |=  =r-group:g
     ^+  go-core
-    ~&  go-response+r-group
     ::  v1 response, requires v7
     ::
     =/  r-groups-7=r-groups:v7:gv  [flag r-group]
@@ -3675,10 +3684,11 @@
   ++  fi-join
     |=  tok=(unit token:g)
     ^+  fi-core
+    =+  log=~(. l `%group-join)
     =.  cor  (emit (initiate:neg [p.flag server]))
     =+  net-group=(~(get by groups) flag)
-    ?:  &(?=(^ net-group) ?=(%sub -<.u.net-group))  fi-core
     ::  leave the ask subscription in case it has not yet closed
+    ::
     =?  cor  ?=([~ %ask] progress)
       (emit leave-ask:fi-pass)
     ?:  ?&  ?=(^ progress)
@@ -3688,6 +3698,7 @@
       fi-core
     =.  progress  `%join
     =.  token  tok
+    %-  (tell:log %dbug leaf+"+fi-join with token {<tok>}" ~)
     =.  cor  (emit (join:fi-pass tok))
     fi-core
   ::  +fi-ask: ask to join the group
@@ -3696,7 +3707,6 @@
     |=  story=(unit story:s:g)
     ^+  fi-core
     =.  cor  (emit (initiate:neg [p.flag server]))
-    ~&  fi-ask+[flag story]
     ?:  (~(has by groups) flag)  fi-core
     ?:  ?&  ?=(^ progress)
             ?=(?(%ask %join %watch %done) u.progress)
@@ -3712,16 +3722,17 @@
   ++  fi-watched
     |=  p=(unit tang)
     ^+  fi-core
+    =+  l=~(. l `'group-join')
     ?~  progress
       ::NOTE  the $foreign in state might be "stale", if it's no longer
       ::      tracking progress it's safe for it to ignore $group subscription
       ::      updates.
       fi-core
     ?^  p
-      ::TODO log through logs
-      %-  (slog leaf/"Failed to join" u.p)
+      %-  (fail:l %watch-ack leaf+"failed to join the group {<flag>}" ~)
       =.  progress  `%error
       fi-core
+    %-  (tell:l %dbug leaf+"group {<flag>} joined successfully" ~)
     =.  progress  `%done
     fi-core
   ::  +fi-error: end a foreign sequence with an error
@@ -3806,10 +3817,12 @@
   ++  fi-safe-preview
     |=  delay=?
     ^+  fi-core
+    =.  lookup  `%preview
     =/  =wire  (weld fi-area /preview)
     =/  =dock  [p.flag dap.bowl]
     =^  caz=(list card)  subs
       (~(unsubscribe s [subs bowl]) wire dock)
+    =.  cor  (emil caz)
     =.  cor  %.  delay
       (safe-watch (weld fi-area /preview) [p.flag dap.bowl] fi-preview-path)
     fi-core
@@ -3857,6 +3870,13 @@
         =.  progress  `%error
         fi-core
       =.  progress  `%watch
+      ?:  (~(has by groups) flag)
+        ::  accomodate rejoin, useful particularly for joining
+        ::  a self-hosted group.
+        ::
+        =.  cor
+          go-abet:(go-safe-sub:(go-abed:go-core flag) |)
+        fi-core
       =/  =net:g  [%sub *@da |]
       =|  =group:g
       =?  meta.group  ?=(^ preview)  meta.u.preview
@@ -3873,7 +3893,6 @@
       ?.  &(?=(^ progress) =(%ask u.progress))
         ::  we aren't asking anymore, ignore
         fi-core
-      ~&  fi-agent-ask+-.sign
       ?-    -.sign
           %poke-ack
         ?^  p.sign
