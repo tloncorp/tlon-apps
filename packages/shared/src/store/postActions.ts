@@ -177,9 +177,11 @@ async function _sendPost({
   await sync.handleAddPost(cachePost);
   logger.crumb('done optimistic update');
   try {
-    logger.crumb('sending post to backend');
+    logger.crumb('enqueuing sending post to backend');
     await sessionActionQueue.add(async () => {
+      logger.crumb('finalizing post');
       const finalizedPostData = await buildFinalizedPostData();
+      logger.crumb('updating post in db with finalized data');
       await db.updatePost({
         id: cachePost.id,
         ...db.buildPostUpdate({
@@ -189,6 +191,7 @@ async function _sendPost({
           deliveryStatus: 'pending',
         }),
       });
+      logger.crumb('sending post to API');
       return api.sendPost({
         channelId: channel.id,
         authorId,
@@ -208,7 +211,7 @@ async function _sendPost({
       errorDetails: JSON.stringify(e, Object.getOwnPropertyNames(e)),
     });
     logger.crumb('failed to send post');
-    console.error('Failed to send post', {
+    logger.error('Failed to send post', {
       message: e.message,
       type: e.constructor?.name,
       stack: e.stack,
