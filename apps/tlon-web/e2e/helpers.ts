@@ -37,8 +37,14 @@ export async function leaveGroup(page: Page, groupName: string) {
 }
 
 export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
-  await page.getByTestId('GroupOptionsSheetTrigger').first().click();
-  await page.getByTestId('ActionSheetAction-Invite people').first().click();
+  // If we're on the group info page, use the Invite People button there
+  if (await page.getByText('Invite People').isVisible()) {
+    await page.getByText('Invite People').click();
+  } else {
+    // Otherwise, use the options sheet trigger on the main group page
+    await page.getByTestId('GroupOptionsSheetTrigger').first().click();
+    await page.getByTestId('ActionSheetAction-Invite people').first().click();
+  }
 
   for (const memberId of memberIds) {
     await page.getByPlaceholder('Filter by nickname').fill(memberId);
