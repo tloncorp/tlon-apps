@@ -26,6 +26,7 @@ test('should test comprehensive chat functionality', async ({
   // Navigate back to Home and verify group creation
   await helpers.navigateBack(zodPage);
   if (await zodPage.getByText('Home').isVisible()) {
+    await zodPage.waitForTimeout(1000);
     await expect(zodPage.getByText(groupName).first()).toBeVisible();
     await zodPage.getByText(groupName).first().click();
     await expect(zodPage.getByText(groupName).first()).toBeVisible();
@@ -127,7 +128,9 @@ test('should test comprehensive chat functionality', async ({
   await zodPage.getByTestId('~ten-contact').click();
   await zodPage.getByTestId('MessageInputSendButton').click();
   // Wait for message to appear
-  await expect(zodPage.getByText('mentioning ~ten')).toBeVisible();
+  await expect(
+    zodPage.getByTestId('Post').getByText('mentioning ~ten')
+  ).toBeVisible();
 
   // Mention all in a message
   await zodPage.getByTestId('MessageInput').click();
@@ -135,7 +138,9 @@ test('should test comprehensive chat functionality', async ({
   await zodPage.getByTestId('-all--group').click();
   await zodPage.getByTestId('MessageInputSendButton').click();
   // Wait for message to appear
-  await expect(zodPage.getByText('mentioning @all')).toBeVisible();
+  await expect(
+    zodPage.getByTestId('Post').getByText('mentioning @all')
+  ).toBeVisible();
 
   // Mention a role in a message
   await zodPage.getByTestId('MessageInput').click();

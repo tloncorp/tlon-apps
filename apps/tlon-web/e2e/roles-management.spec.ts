@@ -140,6 +140,7 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   // Remove "Renamed role" from readers
   await page.getByTestId('ReaderRoleSelector').click();
   await page.getByRole('dialog').getByText('Renamed role').click(); // This should unselect it
+  await page.waitForTimeout(500);
 
   // Verify "Renamed role" is no longer under Readers or Writers
   await expect(
@@ -149,6 +150,7 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
       .filter({ hasText: 'AdminRenamed role' })
       .first()
   ).not.toBeVisible();
+  await page.waitForTimeout(500);
   await expect(
     page
       .getByTestId('WriterRoleSelector')

@@ -4,11 +4,13 @@ This directory contains end-to-end tests for the Tlon web app using Playwright. 
 
 ## Quick Reference
 
--   First run: `pnpm e2e` (downloads ships, ~15 min)
+-   Full suite: `pnpm e2e` (first run downloads ships, ~15 min)
+-   Full suite with explicit extraction: `pnpm e2e:force` (makes sure piers are blown away and rebuilt)
 -   Development: `pnpm e2e:ui` (interactive debugging)
 -   Single test: `pnpm e2e:test filename.spec.ts` (automatic ship management)
 -   Single test (manual): `npx playwright test filename.spec.ts` (requires running ships)
 -   View results: `npx playwright show-report`
+-   If you have an issue with a run, try it again with `force`.
 
 ## Overview
 
@@ -133,6 +135,12 @@ npx playwright test chat-functionality.spec.ts
 # Run specific test file with automatic ship management (recommended for development)
 pnpm e2e:test chat-functionality.spec.ts
 
+# Force re-extraction of all ships (useful for clean slate testing)
+pnpm e2e:force
+
+# Force re-extraction with single test
+pnpm e2e:test:force chat-functionality.spec.ts
+
 # Run tests matching pattern
 npx playwright test --grep "group"
 
@@ -197,6 +205,7 @@ The `helpers.ts` file provides numerous utility functions:
 -   `SHIP_NAME`: Target specific ship for testing (zod, bus, ten)
 -   `DEBUG_PLAYWRIGHT`: Enable debug output
 -   `CI`: Enables CI-specific configurations
+-   `FORCE_EXTRACTION`: Set to 'true' to bypass ship extraction checks and force re-extraction of all ships
 
 ## Development Workflow
 
@@ -254,6 +263,7 @@ The Rube system automatically:
 2. **Ship download failures**: Check internet connection and bootstrap.urbit.org availability
 3. **Authentication failures**: Delete `.auth/` directory and re-run tests
 4. **Timeout errors**: Increase timeout in configuration or check ship readiness
+5. **Corrupted ship state**: Use `FORCE_EXTRACTION=true` to force clean re-extraction of all ships
 
 ### Logs and Debugging
 
@@ -327,3 +337,13 @@ npx playwright show-report /path/to/downloaded/playwright-report
 -   Each ship requires ~500MB disk space + memory for Urbit process
 -   Tests run sequentially to avoid state conflicts
 -   Consider running subset of tests (or a single test) during development
+
+### Optimized Ship and Desk Management
+
+The testing infrastructure now includes optimizations to reduce setup time:
+
+-   **Ship Extraction**: Ships are only re-extracted if their directory doesn't exist or is invalid
+-   **Desk Diffing**: Backend code (`/desk` directory) is only copied and committed if there are actual changes
+-   **Selective Updates**: Only ships with desk changes go through the mount/commit process
+
+This significantly reduces setup time when running individual tests repeatedly during development, as unchanged ships skip the expensive extraction and commit operations.

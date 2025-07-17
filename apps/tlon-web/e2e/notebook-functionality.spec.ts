@@ -26,6 +26,7 @@ test('should test notebook functionality', async ({ zodSetup, tenSetup }) => {
   await helpers.navigateBack(zodPage);
 
   if (await zodPage.getByText('Home').isVisible()) {
+    await zodPage.waitForTimeout(1000);
     await expect(zodPage.getByText(groupName).first()).toBeVisible();
     await zodPage.getByText(groupName).first().click();
     await expect(zodPage.getByText(groupName).first()).toBeVisible();

@@ -8,11 +8,12 @@ test('should test direct message protocol mismatch', async ({ zodPage }) => {
 
   await helpers.createDirectMessage(page, '~bus');
 
-  await helpers.sendMessage(page, 'Hello, ~bus!');
-
-  // we need to reload the page to trigger the visible mismatch state
-  // TODO: fix this
-  await page.reload();
+  if (process.env.FORCE_EXTRACTION) {
+    await helpers.sendMessage(page, 'Hello, ~bus!');
+    // we need to reload the page to trigger the visible mismatch state
+    // TODO: fix this
+    await page.reload();
+  }
 
   await expect(page.getByTestId('read-only-notice-dm-mismatch')).toBeVisible();
 

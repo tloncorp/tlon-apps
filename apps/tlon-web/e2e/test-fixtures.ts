@@ -63,6 +63,7 @@ export const test = base.extend<TestFixtures>({
     await page.evaluate(() => {
       window.toggleDevTools();
     });
+    await page.waitForTimeout(1000);
 
     await performCleanup(page, 'zod');
 
@@ -82,7 +83,7 @@ export const test = base.extend<TestFixtures>({
     await page.evaluate(() => {
       window.toggleDevTools();
     });
-
+    await page.waitForTimeout(1000);
     await performCleanup(page, 'ten');
 
     await use({ context, page });
@@ -102,6 +103,7 @@ export const test = base.extend<TestFixtures>({
       window.toggleDevTools();
     });
 
+    await page.waitForTimeout(1000);
     await performCleanup(page, 'bus');
 
     await use({ context, page });

@@ -47,6 +47,7 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
     .getByText('Test Gallery Post Content')
     .first()
     .click({ force: true });
+  await zodPage.waitForTimeout(2000);
   await expect(
     zodPage
       .getByTestId('GalleryPostContent')

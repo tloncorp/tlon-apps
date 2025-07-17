@@ -24,7 +24,7 @@ export async function createGroup(page: Page) {
   } else {
     await page.getByTestId('HomeNavIcon').click();
     await page.getByTestId('ChatListItem-Untitled group-unpinned').click();
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(2000);
     await expect(page.getByTestId('ChannelHeaderTitle')).toBeVisible();
     await expect(page.getByText('Welcome to your group!')).toBeVisible();
   }
@@ -473,6 +473,7 @@ export async function createNotebookPost(
   await page.getByTestId('AddNotebookPost').click();
   await page.getByRole('textbox', { name: 'New Title' }).click();
   await page.getByRole('textbox', { name: 'New Title' }).fill(title);
+  await page.waitForTimeout(500);
   await page.locator('iframe').contentFrame().getByRole('paragraph').click();
   await page
     .locator('iframe')
@@ -480,6 +481,7 @@ export async function createNotebookPost(
     .locator('div')
     .nth(2)
     .fill(content);
+  await page.waitForTimeout(500);
   await page.getByTestId('BigInputPostButton').click();
   await page.waitForTimeout(500);
   await expect(page.getByText(title)).toBeVisible();
@@ -516,8 +518,11 @@ export async function sendMessage(page: Page, message: string) {
   await page.waitForTimeout(1500);
   await page.getByTestId('MessageInputSendButton').click({ force: true });
   // Wait for message to appear
-  await page.waitForTimeout(500);
-  await expect(page.getByText(message, { exact: true }).first()).toBeVisible();
+  await page.waitForTimeout(1000);
+  await expect(
+    page.getByTestId('Post').getByText(message, { exact: true }).first()
+  ).toBeVisible();
+  await page.waitForTimeout(1000);
 }
 
 /**
@@ -556,6 +561,7 @@ export async function sendThreadReply(page: Page, replyText: string) {
     .getByTestId('MessageInputSendButton')
     .click();
   await expect(page.getByText(replyText, { exact: true })).toBeVisible();
+  await page.waitForTimeout(1000);
 }
 
 /**
