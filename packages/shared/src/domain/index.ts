@@ -1,7 +1,6 @@
 export * from './analytics';
 export * from './attachment';
 export * from './attestations';
-export * from './channel';
 export * from './constants';
 export * from './hosting';
 export * from './invite.types';

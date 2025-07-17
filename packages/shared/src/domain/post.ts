@@ -1,7 +1,7 @@
+import type { ChannelType } from '../db/schema';
 import type { PostMetadata } from '../db/types';
 import { Block, Inline, Story } from '../urbit';
 import { Attachment } from './attachment';
-import { ChannelType } from './channel';
 
 interface _PostDataDraftBase {
   channelId: string;
