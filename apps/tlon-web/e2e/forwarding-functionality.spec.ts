@@ -43,8 +43,11 @@ test('Forward chat message from group channel to DM - verify toast and reference
       timeout: 10000,
     });
     await zodPage.getByText(groupName).first().click();
-    await zodPage.waitForTimeout(1000);
-    await expect(zodPage.getByText(groupName).first()).toBeVisible();
+    
+    // Wait for group to load by checking for group header
+    await expect(zodPage.getByText(groupName).first()).toBeVisible({
+      timeout: 5000,
+    });
   }
 
   // Test message content
@@ -57,18 +60,7 @@ test('Forward chat message from group channel to DM - verify toast and reference
   await expect(zodPage.getByText(testMessage)).toBeVisible();
 
   // Step 2: ~zod forwards the message to DM with ~ten
-  await helpers.longPressMessage(zodPage, testMessage);
-  await zodPage.getByText('Forward', { exact: true }).click();
-
-  // Verify forward sheet opened
-  await expect(zodPage.getByText('Forward to channel')).toBeVisible();
-
-  // Search for ~ten's DM
-  await zodPage.getByPlaceholder('Search channels').fill('~ten');
-  await zodPage.getByText('~ten').click();
-
-  // Confirm forward
-  await zodPage.getByText('Forward to ~ten').click();
+  await helpers.forwardMessageToDM(zodPage, testMessage, '~ten');
 
   // Step 3: Verify toast appears on ~zod's screen
   await expect(zodPage.getByTestId('ToastMessage')).toBeVisible();
@@ -152,8 +144,11 @@ test('Forward notebook post from group to DM - verify toast and reference', asyn
       timeout: 10000,
     });
     await zodPage.getByText(groupName).first().click();
-    await zodPage.waitForTimeout(1000);
-    await expect(zodPage.getByText(groupName).first()).toBeVisible();
+    
+    // Wait for group to load by checking for group header
+    await expect(zodPage.getByText(groupName).first()).toBeVisible({
+      timeout: 5000,
+    });
   }
 
   // Create notebook channel
@@ -179,13 +174,7 @@ test('Forward notebook post from group to DM - verify toast and reference', asyn
   await expect(zodPage.getByText(notebookTitle)).toBeVisible();
 
   // Step 2: Forward notebook post to DM
-  await helpers.longPressMessage(zodPage, notebookTitle);
-  await zodPage.getByText('Forward', { exact: true }).click();
-
-  // Select DM with ~ten
-  await zodPage.getByPlaceholder('Search channels').fill('~ten');
-  await zodPage.getByText('~ten').click();
-  await zodPage.getByText('Forward to ~ten').click();
+  await helpers.forwardMessageToDM(zodPage, notebookTitle, '~ten');
 
   // Step 3: Verify success toast
   await expect(zodPage.getByTestId('ToastMessage')).toBeVisible();
@@ -267,8 +256,11 @@ test('Forward message with reactions and thread replies - verify complete contex
       timeout: 10000,
     });
     await zodPage.getByText(groupName).first().click();
-    await zodPage.waitForTimeout(1000);
-    await expect(zodPage.getByText(groupName).first()).toBeVisible();
+    
+    // Wait for group to load by checking for group header
+    await expect(zodPage.getByText(groupName).first()).toBeVisible({
+      timeout: 5000,
+    });
   }
 
   // Test message with additional context
@@ -292,13 +284,7 @@ test('Forward message with reactions and thread replies - verify complete contex
   await expect(zodPage.getByText('1 reply')).toBeVisible();
 
   // Step 4: Forward the original message
-  await helpers.longPressMessage(zodPage, testMessage);
-  await zodPage.getByText('Forward', { exact: true }).click();
-
-  // Select DM with ~ten
-  await zodPage.getByPlaceholder('Search channels').fill('~ten');
-  await zodPage.getByText('~ten').click();
-  await zodPage.getByText('Forward to ~ten').click();
+  await helpers.forwardMessageToDM(zodPage, testMessage, '~ten');
 
   // Step 5: Verify success toast
   await expect(zodPage.getByTestId('ToastMessage')).toBeVisible();
@@ -384,8 +370,11 @@ test('Forward message - test toast auto-dismiss and manual dismiss', async ({
       timeout: 10000,
     });
     await zodPage.getByText(groupName).first().click();
-    await zodPage.waitForTimeout(1000);
-    await expect(zodPage.getByText(groupName).first()).toBeVisible();
+    
+    // Wait for group to load by checking for group header
+    await expect(zodPage.getByText(groupName).first()).toBeVisible({
+      timeout: 5000,
+    });
   }
 
   const testMessage = 'Message to test toast behavior';
@@ -394,11 +383,7 @@ test('Forward message - test toast auto-dismiss and manual dismiss', async ({
   await helpers.sendMessage(zodPage, testMessage);
 
   // Step 2: Forward message
-  await helpers.longPressMessage(zodPage, testMessage);
-  await zodPage.getByText('Forward', { exact: true }).click();
-  await zodPage.getByPlaceholder('Search channels').fill('~ten');
-  await zodPage.getByText('~ten').click();
-  await zodPage.getByText('Forward to ~ten').click();
+  await helpers.forwardMessageToDM(zodPage, testMessage, '~ten');
 
   // Step 3: Verify toast appears
   await expect(zodPage.getByTestId('ToastMessage')).toBeVisible();
@@ -408,11 +393,7 @@ test('Forward message - test toast auto-dismiss and manual dismiss', async ({
   await expect(zodPage.getByTestId('ToastMessage')).not.toBeVisible();
 
   // Step 5: Forward again to test auto-dismiss
-  await helpers.longPressMessage(zodPage, testMessage);
-  await zodPage.getByText('Forward', { exact: true }).click();
-  await zodPage.getByPlaceholder('Search channels').fill('~ten');
-  await zodPage.getByText('~ten').click();
-  await zodPage.getByText('Forward to ~ten').click();
+  await helpers.forwardMessageToDM(zodPage, testMessage, '~ten');
 
   // Verify toast appears again
   await expect(zodPage.getByTestId('ToastMessage')).toBeVisible();

@@ -227,6 +227,29 @@ export async function navigateToHome(page: Page) {
 }
 
 /**
+ * Forwards a message to a specific contact via DM
+ */
+export async function forwardMessageToDM(
+  page: Page,
+  messageText: string,
+  contactId: string
+) {
+  await longPressMessage(page, messageText);
+  await page.getByText('Forward', { exact: true }).click();
+
+  // Verify forward sheet opened
+  await expect(page.getByText('Forward to channel')).toBeVisible();
+
+  // Search for the contact's DM
+  await page.getByPlaceholder('Search channels').fill(contactId);
+  await page.waitForTimeout(1000); // Wait for search results
+  await page.getByText(contactId).first().click();
+
+  // Confirm forward
+  await page.getByText(`Forward to ${contactId}`).click();
+}
+
+/**
  * Creates a new role with title and description
  */
 export async function createRole(
