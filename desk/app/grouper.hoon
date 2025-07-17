@@ -155,9 +155,33 @@
         %poke-ack
       `this(outstanding-pokes (~(del in outstanding-pokes) [src.bowl i.t.t.wire]))
     ==
-  ?-    -.sign
-    %poke-ack   `this
-    %watch-ack  `this
+  ?-  -.sign
+      %poke-ack
+    ?.  ?=([%dm ship=@ token=@ ~] wire)
+      ?~  p.sign  `this
+      %-  (slog leaf/"Poke failed {<wire>}" u.p.sign)
+      `this
+    =*  joiner  i.t.wire
+    =*  token  i.t.t.wire
+    :_  this
+    :_  ~
+    ?~  p.sign
+      %^  tell:log  %info
+        ~[leaf+"{<joiner>} invited to DM"]
+      :~  'event'^s+'DM Invite Sent'
+          'flow'^s+'lure'
+          'lure-id'^s+token
+          'lure-joiner'^s+joiner
+      ==
+    %^  tell:log  %crit
+      u.p.sign
+    :~  'event'^s+'DM Invite Fail'
+        'flow'^s+'lure'
+        'lure-id'^s+token
+        'lure-joiner'^s+joiner
+    ==
+  ::
+      %watch-ack  `this
   ::
       %kick
     :_  this
@@ -180,6 +204,7 @@
           echo
         ~['event'^s+event]
       --
+<<<<<<< HEAD
     =*  dm-event  'DM Invite Fail'
     ?~  inviter=(~(get by fields.metadata.bite) 'inviter')
       %-  (tell %crit dm-event 'inviter field missing in lure bite' ~)
@@ -204,6 +229,29 @@
     =|  caz=(list card)
     =/  =cage  chat-dm-action+!>(`action:dm:c`action)
     =.  caz  :_(caz [%pass wir %agent dock %poke cage])
+=======
+    :_  this
+    =;  caz=(list card)
+      =*  dm-event  'DM Invite Fail'
+      ?~  inviter=(~(get by fields.metadata.bite) 'inviter')
+        :_  ~
+        %^  lure-log  %crit  dm-event
+        ~['inviter field missing in lure bite']
+      ?.  =((slav %p u.inviter) our.bowl)
+        :_  ~
+        %^  lure-log  %crit  dm-event
+        ~[leaf+"inviter {<u.inviter>} is foreign"]
+      =/  wir=^wire  /dm/(scot %p joiner.bite)/[token.bite]
+      =/  =dock  [our.bowl %chat]
+      =/  =id:c  [our now]:bowl
+      =/  =memo:ch
+        [~[[%inline ~[[%ship joiner.bite] ' has joined the network']]] id]
+      =/  =action:dm:c
+        :-  joiner.bite
+        [id %add %*(. *essay:ch - memo, kind [%chat %notice ~]) ~]
+      =/  =cage  chat-dm-action-1+!>(`action:dm:c`action)
+      (snoc caz [%pass wir %agent dock %poke cage])
+>>>>>>> develop
     ::
     =+  invite-type=(~(get by fields.metadata.bite) 'inviteType')
     ::
