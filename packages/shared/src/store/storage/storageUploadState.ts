@@ -10,7 +10,7 @@ import {
   UploadedImageAttachment,
 } from '../../domain';
 
-const logger = createDevLogger('uploadState', true);
+const logger = createDevLogger('uploadState', false);
 let uploadStates: Record<string, UploadState> = {};
 
 export type UploadStateListener = (state: UploadState) => void;
