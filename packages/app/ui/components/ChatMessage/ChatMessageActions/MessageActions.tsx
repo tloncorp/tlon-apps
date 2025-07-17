@@ -106,6 +106,9 @@ const ConnectedAction = memo(function ConnectedAction({
         return post.authorId === currentUserId || currentUserIsAdmin;
       case 'viewReactions':
         return (post.reactions?.length ?? 0) > 0;
+      case 'visibility':
+        // prevent users from hiding their own posts
+        return post.authorId !== currentUserId;
       default:
         return true;
     }

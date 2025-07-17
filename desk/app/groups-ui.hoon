@@ -169,7 +169,7 @@
   ::
       [%x %v2 %heads since=?(~ [u=@ ~])]
     =+  .^(chan=channel-heads:d (scry %gx %channels %v3 %heads (snoc since.pole %channel-heads-2)))
-    =+  .^(chat=chat-heads:c (scry %gx %chat %v1 %heads (snoc since.pole %chat-heads-1)))
+    =+  .^(chat=chat-heads:c (scry %gx %chat %v2 %heads (snoc since.pole %chat-heads-2)))
     ``ui-heads-2+!>(`mixed-heads-2:u`[chan chat])
   ::
       [%x %v2 %init ~]

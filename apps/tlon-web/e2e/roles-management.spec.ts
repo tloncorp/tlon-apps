@@ -11,7 +11,7 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   page,
 }) => {
   await page.goto(zodUrl);
-  await helpers.clickThroughWelcome(page);
+  await page.waitForSelector('text=Home', { state: 'visible' });
 
   await expect(page.getByText('Home')).toBeVisible();
 

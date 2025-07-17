@@ -146,6 +146,7 @@ export function GalleryPost({
       onHoverIn={onHoverIn}
       onHoverOut={onHoverOut}
       flex={1}
+      testID="Post"
     >
       <GalleryPostFrame {...props}>
         {showHeaderFooter && <GalleryPostHeader post={post} />}
