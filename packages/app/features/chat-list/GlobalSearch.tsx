@@ -3,9 +3,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { NativeSyntheticEvent, TextInputKeyPressEventData } from 'react-native';
 
 import {
-  Text,
   TextInput,
   TextInputRef,
+  TlonText,
   View,
   XStack,
   YStack,
@@ -145,6 +145,8 @@ export function GlobalSearch({
         width="90%"
         maxWidth={600}
         gap="$l"
+        borderWidth="$2xs"
+        borderColor={'$activeBorder'}
       >
         <TextInput
           ref={inputRef}
@@ -173,49 +175,38 @@ export function GlobalSearch({
               onPressItem={onPressItem}
             />
           )}
-          {searchQuery !== '' && (
-            <Text color="$gray11" textAlign="center" fontFamily="$body">
-              Press enter to select a result
-            </Text>
-          )}
         </YStack>
 
-        <XStack
-          justifyContent="center"
-          gap="$m"
-          paddingTop="$xs"
-          borderTopWidth={1}
-          borderColor="$gray3"
-        >
+        <XStack justifyContent="center" gap="$l" paddingTop="$xs">
           <XStack gap="$xs" alignItems="center">
-            <Text color="$primaryText" fontFamily="$body">
+            <TlonText.Text size="$label/s" color="$primaryText">
               ↑↓
-            </Text>
-            <Text color="$secondaryText" fontFamily="$body">
+            </TlonText.Text>
+            <TlonText.Text size="$label/s" color="$secondaryText">
               to navigate
-            </Text>
+            </TlonText.Text>
           </XStack>
           <XStack gap="$xs" alignItems="center">
-            <Text color="$primaryText" fontFamily="$body">
+            <TlonText.Text size="$label/s" color="$primaryText">
               enter
-            </Text>
-            <Text color="$secondaryText" fontFamily="$body">
+            </TlonText.Text>
+            <TlonText.Text size="$label/s" color="$secondaryText">
               to select
-            </Text>
+            </TlonText.Text>
           </XStack>
           <XStack gap="$xs" alignItems="center">
-            <Text color="$primaryText" fontFamily="$body">
+            <TlonText.Text size="$label/s" color="$primaryText">
               esc
-            </Text>
-            <Text color="$secondaryText" fontFamily="$body">
+            </TlonText.Text>
+            <TlonText.Text size="$label/s" color="$secondaryText">
               or
-            </Text>
-            <Text color="$primaryText" fontFamily="$body">
+            </TlonText.Text>
+            <TlonText.Text size="$label/s" color="$primaryText">
               {navigator.platform.includes('Mac') ? '⌘K' : 'Ctrl+K'}
-            </Text>
-            <Text color="$secondaryText" fontFamily="$body">
+            </TlonText.Text>
+            <TlonText.Text size="$label/s" color="$secondaryText">
               to close
-            </Text>
+            </TlonText.Text>
           </XStack>
         </XStack>
       </YStack>
