@@ -3262,6 +3262,7 @@
       ::
       =.  sections.group  (go-section-add-channel nest chan)
       =.  channels.group  (put:by-ch nest chan)
+      =.  cor  (emil (join-channels:go-pass nest ~))
       go-core
     ::
         %edit
