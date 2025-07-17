@@ -6,7 +6,6 @@ import {
   createDevLogger,
   diaryMixedToJSON,
   extractContentTypesFromPost,
-  finalizeAndSendPost,
   finalizePostDraft,
 } from '@tloncorp/shared';
 import {
@@ -217,6 +216,7 @@ export default function BareChatInput({
   goBack,
   shouldAutoFocus,
   showWayfindingTooltip,
+  sendPostFromDraft,
 }: MessageInputProps) {
   const { bottom, top } = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -487,43 +487,26 @@ export default function BareChatInput({
       bareChatInputLogger.log('resetting input height');
       setInputHeight(initialHeight);
 
-      // we want to log this
-      let story: Story | null = null;
-
       try {
-        if (draft.isEdit) {
-          if (editingPost) {
-            const finalizedEdit = await finalizePostDraft(draft);
-            story = finalizedEdit.content;
+        if (draft.isEdit && editingPost) {
+          const finalizedEdit = await finalizePostDraft(draft);
 
-            await editPost?.(
-              editingPost,
-              finalizedEdit.content,
-              finalizedEdit.parentId,
-              finalizedEdit.metadata
-            );
-            setEditingPost?.(undefined);
-          } else {
-            // Treat edit without a parent as a new post
-            await finalizeAndSendPost({
-              ...draft,
-              isEdit: false,
-              parentId: undefined,
-            });
-          }
+          await editPost?.(
+            editingPost,
+            finalizedEdit.content,
+            finalizedEdit.parentId,
+            finalizedEdit.metadata
+          );
+          setEditingPost?.(undefined);
         } else {
-          await finalizeAndSendPost(draft);
-
-          // TODO: not returning the content anymore, can re-add if this is needed
-          // const finalizedPost = await finalizeAndSendPost(draft);
-          // story = finalizedPost.content;
+          await sendPostFromDraft(draft);
         }
       } catch (e) {
         bareChatInputLogger.error('Error sending message', e);
         setSendError(true);
       } finally {
         onSend?.();
-        bareChatInputLogger.log('sent message', story);
+        bareChatInputLogger.log('sent message');
         setMentions([]);
         bareChatInputLogger.log('clearing draft');
         await clearDraft();
@@ -532,6 +515,7 @@ export default function BareChatInput({
       }
     },
     [
+      sendPostFromDraft,
       attachments,
       onSend,
       mentions,

@@ -79,6 +79,10 @@ export function DetailPostView({
         await sendReply(content);
         listRef.current?.scrollToEnd();
       },
+      sendPostFromDraft: async (draft) => {
+        await store.finalizeAndSendPost(draft);
+        listRef.current?.scrollToEnd();
+      },
       setShouldBlur: setInputShouldBlur,
       shouldBlur: inputShouldBlur,
 

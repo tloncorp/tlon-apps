@@ -16,6 +16,7 @@ const ChatMessageInputFixture = () => {
           shouldBlur={inputShouldBlur}
           setShouldBlur={setInputShouldBlur}
           sendPost={async () => {}}
+          sendPostFromDraft={async () => {}}
           channelId="channel-id"
           groupMembers={group.members ?? []}
           groupRoles={group.roles ?? []}
@@ -40,6 +41,7 @@ const NotebookInputFixture = () => {
           shouldBlur={inputShouldBlur}
           setShouldBlur={setInputShouldBlur}
           sendPost={async () => {}}
+          sendPostFromDraft={async () => {}}
           channelId="channel-id"
           groupMembers={group.members ?? []}
           groupRoles={group.roles ?? []}

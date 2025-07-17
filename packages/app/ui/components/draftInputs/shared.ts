@@ -1,5 +1,6 @@
 import { JSONValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import type * as domain from '@tloncorp/shared/domain';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { Dispatch, SetStateAction } from 'react';
 
@@ -64,6 +65,7 @@ export interface DraftInputContext {
     channelId: string,
     metadata?: db.PostMetadata
   ) => Promise<void>;
+  sendPostFromDraft: (draft: domain.PostDataDraft) => Promise<void>;
   setEditingPost?: (update: db.Post | undefined) => void;
   setShouldBlur: Dispatch<SetStateAction<boolean>>;
   shouldBlur: boolean;

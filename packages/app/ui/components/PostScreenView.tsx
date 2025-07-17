@@ -4,6 +4,7 @@ import {
   useDebouncedValue,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import type * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import * as urbit from '@tloncorp/shared/urbit';
 import { Story } from '@tloncorp/shared/urbit';
@@ -470,6 +471,19 @@ function SinglePostView({
     [channel, parentPost, store]
   );
 
+  const sendReplyFromDraft = useCallback(
+    async (draft: domain.PostDataDraftParent) => {
+      const finalized = await store.finalizePostDraft(draft);
+      await store.sendReply({
+        content: finalized.content,
+        channel: channel,
+        parentId: parentPost.id,
+        parentAuthor: parentPost.authorId,
+      });
+    },
+    [channel, parentPost, store]
+  );
+
   const isChatLike = useMemo(
     () =>
       channel.type === 'chat' ||
@@ -508,6 +522,7 @@ function SinglePostView({
               shouldBlur={inputShouldBlur}
               setShouldBlur={setInputShouldBlur}
               sendPost={sendReply}
+              sendPostFromDraft={sendReplyFromDraft}
               channelId={channel.id}
               groupMembers={groupMembers}
               groupRoles={groupRoles}
@@ -562,6 +577,7 @@ function SinglePostView({
             shouldBlur={inputShouldBlur}
             setShouldBlur={setInputShouldBlur}
             sendPost={async () => {}}
+            sendPostFromDraft={async () => {}}
             getDraft={getDraft}
             storeDraft={storeDraft}
             clearDraft={clearDraft}

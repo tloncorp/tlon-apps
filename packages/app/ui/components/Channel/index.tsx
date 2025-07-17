@@ -7,6 +7,7 @@ import {
   usePostReference as usePostReferenceHook,
   usePostWithRelations,
 } from '@tloncorp/shared';
+import { finalizeAndSendPost } from '@tloncorp/shared';
 import {
   ChannelContentConfiguration,
   isDmChannelId,
@@ -272,6 +273,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         group,
         onPresentationModeChange: setDraftInputPresentationMode,
         sendPost,
+        sendPostFromDraft: finalizeAndSendPost,
         setEditingPost,
         setShouldBlur: setInputShouldBlur,
         shouldBlur: inputShouldBlur,
