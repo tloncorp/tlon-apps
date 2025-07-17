@@ -23,7 +23,7 @@ test('should test comprehensive direct message functionality between ~zod and ~t
   try {
     // Step 1: ~zod initiates and sets up
     await zodPage.goto(zodUrl);
-    await helpers.clickThroughWelcome(zodPage);
+    await zodPage.waitForSelector('text=Home', { state: 'visible' });
     await zodPage.evaluate(() => {
       window.toggleDevTools();
     });
@@ -38,7 +38,7 @@ test('should test comprehensive direct message functionality between ~zod and ~t
 
     // Step 2: ~ten sets up and navigates
     await tenPage.goto(tenUrl);
-    await helpers.clickThroughWelcome(tenPage);
+    await tenPage.waitForSelector('text=Home', { state: 'visible' });
     await tenPage.evaluate(() => {
       window.toggleDevTools();
     });
@@ -108,7 +108,7 @@ test('should test comprehensive direct message functionality between ~zod and ~t
     await helpers.quoteReply(zodPage, 'Hello, ~ten!', 'Quote reply', true);
 
     // Send a message and hide it
-    await helpers.sendMessage(zodPage, 'Hide this message');
+    await helpers.sendMessage(tenPage, 'Hide this message');
     await helpers.hideMessage(zodPage, 'Hide this message', true);
 
     // Send a message and delete it

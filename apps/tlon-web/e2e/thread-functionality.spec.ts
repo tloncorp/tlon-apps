@@ -10,7 +10,7 @@ test.use({ storageState: shipManifest['~zod'].authFile });
 test('should test comprehensive thread functionality', async ({ page }) => {
   // Launch and login
   await page.goto(zodUrl);
-  await helpers.clickThroughWelcome(page);
+  await page.waitForSelector('text=Home', { state: 'visible' });
   await page.evaluate(() => {
     window.toggleDevTools();
   });
@@ -57,10 +57,6 @@ test('should test comprehensive thread functionality', async ({ page }) => {
 
   // Quote-reply within the thread context
   await helpers.threadQuoteReply(page, 'Thread reply', 'Quote reply');
-
-  // Send a message and hide it (in thread)
-  await helpers.sendThreadReply(page, 'Hide this reply');
-  await helpers.hideMessage(page, 'Hide this reply');
 
   // Send a message and report it (in thread)
   await helpers.sendThreadReply(page, 'Report this reply');

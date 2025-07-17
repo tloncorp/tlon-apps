@@ -1157,10 +1157,10 @@
     cor
   ::
       %fact
-    =+  !<(=update-0:tac q.cage.sign)
-    ?~  con.update-0  cor
+    =+  !<(=news-0:tac q.cage.sign)
+    ?~  con.news-0  cor
     %-  emil
-    %+  turn  ~(tap in groups.con.update-0)
+    %+  turn  ~(tap in groups.con.news-0)
     |=  =flag:g
     [%pass /gangs/(scot %p p.flag)/[q.flag]/preview %agent [p.flag dap.bowl] %watch /v1/groups/(scot %p p.flag)/[q.flag]/preview]
   ==

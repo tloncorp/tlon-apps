@@ -12,7 +12,7 @@ test('should handle complete group lifecycle with settings management', async ({
   page,
 }) => {
   await page.goto(zodUrl);
-  await helpers.clickThroughWelcome(page);
+  await page.waitForSelector('text=Home', { state: 'visible' });
 
   await expect(page.getByText('Home')).toBeVisible();
 
