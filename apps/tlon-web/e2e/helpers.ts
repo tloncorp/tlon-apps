@@ -65,6 +65,7 @@ export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
   }
 
   await page.getByText('continue').click();
+  await page.waitForTimeout(2000);
 }
 
 export async function rejectGroupInvite(page: Page) {
