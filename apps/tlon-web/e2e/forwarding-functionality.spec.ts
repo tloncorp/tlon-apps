@@ -34,8 +34,7 @@ test('Forward chat message from group channel to DM - verify toast and reference
   await helpers.inviteMembersToGroup(zodPage, ['ten']);
 
   // Navigate back to the main channel view after inviting members
-  await helpers.navigateBack(zodPage);
-  await helpers.navigateBack(zodPage);
+  await helpers.navigateToHome(zodPage);
 
   if (await zodPage.getByText('Home').isVisible()) {
     // Wait for the group name to update after member invitation
@@ -144,8 +143,7 @@ test('Forward notebook post from group to DM - verify toast and reference', asyn
   await helpers.inviteMembersToGroup(zodPage, ['ten']);
 
   // Navigate back to the main channel view after inviting members
-  await helpers.navigateBack(zodPage);
-  await helpers.navigateBack(zodPage);
+  await helpers.navigateToHome(zodPage);
 
   if (await zodPage.getByText('Home').isVisible()) {
     // Wait for the group name to update after member invitation
@@ -260,8 +258,7 @@ test('Forward message with reactions and thread replies - verify complete contex
   await helpers.inviteMembersToGroup(zodPage, ['ten']);
 
   // Navigate back to the main channel view after inviting members
-  await helpers.navigateBack(zodPage);
-  await helpers.navigateBack(zodPage);
+  await helpers.navigateToHome(zodPage);
 
   if (await zodPage.getByText('Home').isVisible()) {
     // Wait for the group name to update after member invitation
@@ -378,8 +375,7 @@ test('Forward message - test toast auto-dismiss and manual dismiss', async ({
   await helpers.inviteMembersToGroup(zodPage, ['ten']);
 
   // Navigate back to the main channel view after inviting members
-  await helpers.navigateBack(zodPage);
-  await helpers.navigateBack(zodPage);
+  await helpers.navigateToHome(zodPage);
 
   if (await zodPage.getByText('Home').isVisible()) {
     // Wait for the group name to update after member invitation

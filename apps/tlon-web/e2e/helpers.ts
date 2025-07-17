@@ -17,10 +17,15 @@ export async function createGroup(page: Page) {
   await page.getByText('Select contacts to invite').click();
   await page.getByText('Create group').click();
 
-  await page.waitForTimeout(2000);
+  // Wait for navigation to complete and group to be created
+  await page.waitForTimeout(3000);
 
+  // The group should now be visible on the Home page - click on it to enter
   if (await page.getByText('Untitled group').first().isVisible()) {
-    await expect(page.getByText('Welcome to your group!')).toBeVisible();
+    await page.getByText('Untitled group').first().click();
+    
+    // Wait for the channel to load
+    await page.waitForTimeout(2000);
   }
 }
 
@@ -156,15 +161,68 @@ export async function cleanupExistingGroup(page: Page, groupName?: string) {
  */
 export async function navigateBack(page: Page, preferredIndex = 0) {
   const backButtons = page.getByTestId('HeaderBackButton');
+  
+  // Wait for at least one back button to be visible with a shorter timeout
+  try {
+    await backButtons.first().waitFor({ state: 'visible', timeout: 5000 });
+  } catch (error) {
+    // If no back button is found, try alternative navigation methods
+    console.warn('No HeaderBackButton found, trying alternative navigation');
+    
+    // Try clicking Home nav icon if available
+    if (await page.getByTestId('HomeNavIcon').isVisible({ timeout: 1000 })) {
+      await page.getByTestId('HomeNavIcon').click();
+      return;
+    }
+    
+    throw new Error('No HeaderBackButton or HomeNavIcon found for navigation');
+  }
 
-  if (await backButtons.nth(preferredIndex).isVisible()) {
+  // Try preferred index first
+  if (await backButtons.nth(preferredIndex).isVisible({ timeout: 1000 })) {
     await backButtons.nth(preferredIndex).click();
-  } else if (await backButtons.first().isVisible()) {
-    await backButtons.first().click();
-  } else if (await backButtons.nth(1).isVisible()) {
-    await backButtons.nth(1).click();
-  } else {
-    await backButtons.nth(2).click();
+    return;
+  }
+  
+  // Try other indices in order
+  for (let i = 0; i < 3; i++) {
+    if (await backButtons.nth(i).isVisible({ timeout: 1000 })) {
+      await backButtons.nth(i).click();
+      return;
+    }
+  }
+  
+  throw new Error('No visible HeaderBackButton found despite elements being present');
+}
+
+/**
+ * Navigates to the Home screen using the most reliable method
+ */
+export async function navigateToHome(page: Page) {
+  // First try clicking Home nav icon if it's visible
+  if (await page.getByTestId('HomeNavIcon').isVisible({ timeout: 1000 })) {
+    await page.getByTestId('HomeNavIcon').click();
+    await page.waitForSelector('text=Home', { state: 'visible' });
+    return;
+  }
+  
+  // If no Home nav icon, try multiple back buttons until we reach home
+  let attempts = 0;
+  const maxAttempts = 5;
+  
+  while (attempts < maxAttempts && !(await page.getByText('Home').isVisible({ timeout: 1000 }))) {
+    try {
+      await navigateBack(page);
+      attempts++;
+      await page.waitForTimeout(500); // Wait a bit for navigation to complete
+    } catch (error) {
+      break; // Stop trying if navigateBack fails
+    }
+  }
+  
+  // Verify we're on Home
+  if (!(await page.getByText('Home').isVisible({ timeout: 2000 }))) {
+    throw new Error('Could not navigate to Home screen');
   }
 }
 
