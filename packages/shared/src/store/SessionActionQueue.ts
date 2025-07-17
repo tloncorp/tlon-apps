@@ -33,7 +33,7 @@ class SessionActionQueue {
         resolve,
         reject,
       };
-      this.pendingOperations.unshift(operation);
+      this.pendingOperations.push(operation);
       if (this.pendingOperations.length === 1) {
         queueMicrotask(() => this.flushPending());
       }
