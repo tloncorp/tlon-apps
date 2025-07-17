@@ -2456,6 +2456,7 @@
     ^+  cor
     =.  groups
       ?:  gone
+        ?:  go-our-host  groups
         (~(del by groups) flag)
       (~(put by groups) flag net group)
     ?.  gone  cor
