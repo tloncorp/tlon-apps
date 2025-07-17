@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+
 import * as helpers from './helpers';
 import shipManifest from './shipManifest.json';
 import { test } from './test-fixtures';
@@ -6,17 +7,20 @@ import { test } from './test-fixtures';
 const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
 const tenUrl = `${shipManifest['~ten'].webUrl}/apps/groups/`;
 
-test('Forward chat message from group channel to DM - verify toast and reference message', async ({ zodSetup, tenSetup }) => {
+test('Forward chat message from group channel to DM - verify toast and reference message', async ({
+  zodSetup,
+  tenSetup,
+}) => {
   const zodPage = zodSetup.page;
   const tenPage = tenSetup.page;
-  
+
   // Assert that we're on the Home page
   await expect(zodPage.getByText('Home')).toBeVisible();
 
   // Clean up any existing groups and DMs
   await helpers.cleanupExistingGroup(zodPage, 'Forwarding Test Group');
   await helpers.cleanupExistingGroup(zodPage, '~ten, ~zod');
-  
+
   // Clean up any existing DM with ~ten
   if (await zodPage.getByText('~ten', { exact: true }).isVisible()) {
     await helpers.leaveDM(zodPage, '~ten');
@@ -36,7 +40,9 @@ test('Forward chat message from group channel to DM - verify toast and reference
   if (await zodPage.getByText('Home').isVisible()) {
     // Wait for the group name to update after member invitation
     await zodPage.waitForTimeout(3000);
-    await expect(zodPage.getByText(groupName).first()).toBeVisible({ timeout: 10000 });
+    await expect(zodPage.getByText(groupName).first()).toBeVisible({
+      timeout: 10000,
+    });
     await zodPage.getByText(groupName).first().click();
     await zodPage.waitForTimeout(1000);
     await expect(zodPage.getByText(groupName).first()).toBeVisible();
@@ -44,39 +50,39 @@ test('Forward chat message from group channel to DM - verify toast and reference
 
   // Test message content
   const testMessage = 'This is a test chat message to forward to DM';
-  
+
   // Step 1: ~zod sends message in group channel
   await helpers.sendMessage(zodPage, testMessage);
-  
+
   // Verify message is visible
   await expect(zodPage.getByText(testMessage)).toBeVisible();
 
   // Step 2: ~zod forwards the message to DM with ~ten
   await helpers.longPressMessage(zodPage, testMessage);
   await zodPage.getByText('Forward', { exact: true }).click();
-  
+
   // Verify forward sheet opened
   await expect(zodPage.getByText('Forward to channel')).toBeVisible();
-  
+
   // Search for ~ten's DM
   await zodPage.getByPlaceholder('Search channels').fill('~ten');
   await zodPage.getByText('~ten').click();
-  
+
   // Confirm forward
   await zodPage.getByText('Forward to ~ten').click();
-  
+
   // Step 3: Verify toast appears on ~zod's screen
   await expect(zodPage.getByTestId('ToastMessage')).toBeVisible();
   await expect(zodPage.getByText('Forwarded post to ~ten')).toBeVisible();
-  
+
   // Wait for toast to disappear or dismiss it
   await zodPage.getByTestId('ToastMessage').click(); // Tap to dismiss
   await expect(zodPage.getByTestId('ToastMessage')).not.toBeVisible();
-  
+
   // Step 4: Setup ~ten to check DM
   await tenPage.goto(tenUrl);
   await tenPage.waitForSelector('text=Home', { state: 'visible' });
-  
+
   // Navigate to the group as ~ten and accept invitation
   await expect(tenPage.getByText('Home')).toBeVisible();
 
@@ -101,26 +107,25 @@ test('Forward chat message from group channel to DM - verify toast and reference
   }
 
   await expect(tenPage.getByText(groupName).first()).toBeVisible();
-  
+
   // Navigate to DM with ~zod to check forwarded message
   await expect(tenPage.getByTestId('ChannelListItem-~zod')).toBeVisible();
   await tenPage.getByTestId('ChannelListItem-~zod').click();
-  
+
   await tenPage.waitForTimeout(1000);
-  
+
   // Step 5: ~ten verifies forwarded message appears as a reference/citation
   await expect(tenPage.getByText(testMessage)).toBeVisible();
-  
+
   // Verify it shows as a forwarded/referenced message
-  // Look for reference structure: header with "Chat Post" text and reference content
   await expect(tenPage.getByText('Chat Post')).toBeVisible();
-  
-  // Alternatively, look for the forwarded message in a contained reference format
-  // (the forwarded content should appear differently than a direct message)
   await expect(tenPage.locator('text=' + testMessage).first()).toBeVisible();
 });
 
-test('Forward notebook post from group to DM - verify toast and reference', async ({ zodSetup, tenSetup }) => {
+test('Forward notebook post from group to DM - verify toast and reference', async ({
+  zodSetup,
+  tenSetup,
+}) => {
   const zodPage = zodSetup.page;
   const tenPage = tenSetup.page;
 
@@ -145,7 +150,9 @@ test('Forward notebook post from group to DM - verify toast and reference', asyn
   if (await zodPage.getByText('Home').isVisible()) {
     // Wait for the group name to update after member invitation
     await zodPage.waitForTimeout(3000);
-    await expect(zodPage.getByText(groupName).first()).toBeVisible({ timeout: 10000 });
+    await expect(zodPage.getByText(groupName).first()).toBeVisible({
+      timeout: 10000,
+    });
     await zodPage.getByText(groupName).first().click();
     await zodPage.waitForTimeout(1000);
     await expect(zodPage.getByText(groupName).first()).toBeVisible();
@@ -164,7 +171,8 @@ test('Forward notebook post from group to DM - verify toast and reference', asyn
 
   // Test notebook content
   const notebookTitle = 'Test Notebook Post Title';
-  const notebookContent = 'This is a detailed notebook post that will be forwarded to a DM conversation.';
+  const notebookContent =
+    'This is a detailed notebook post that will be forwarded to a DM conversation.';
 
   // Step 1: ~zod creates notebook post
   await helpers.createNotebookPost(zodPage, notebookTitle, notebookContent);
@@ -231,7 +239,10 @@ test('Forward notebook post from group to DM - verify toast and reference', asyn
   await expect(tenPage.getByText('Notebook Post')).toBeVisible();
 });
 
-test('Forward message with reactions and thread replies - verify complete context', async ({ zodSetup, tenSetup }) => {
+test('Forward message with reactions and thread replies - verify complete context', async ({
+  zodSetup,
+  tenSetup,
+}) => {
   const zodPage = zodSetup.page;
   const tenPage = tenSetup.page;
 
@@ -255,7 +266,9 @@ test('Forward message with reactions and thread replies - verify complete contex
   if (await zodPage.getByText('Home').isVisible()) {
     // Wait for the group name to update after member invitation
     await zodPage.waitForTimeout(3000);
-    await expect(zodPage.getByText(groupName).first()).toBeVisible({ timeout: 10000 });
+    await expect(zodPage.getByText(groupName).first()).toBeVisible({
+      timeout: 10000,
+    });
     await zodPage.getByText(groupName).first().click();
     await zodPage.waitForTimeout(1000);
     await expect(zodPage.getByText(groupName).first()).toBeVisible();
@@ -339,19 +352,15 @@ test('Forward message with reactions and thread replies - verify complete contex
   await expect(tenPage.getByText('Chat Post')).toBeVisible();
 
   // Check if the reference content is clickable and shows context
-  // Note: The exact UI behavior for viewing reactions/threads on forwarded messages
-  // may vary depending on implementation details
   const referenceElement = tenPage.locator('text=' + testMessage).first();
   await expect(referenceElement).toBeVisible();
-  
-  // Try to click on the reference to see if it shows additional context
   await referenceElement.click();
-  
-  // The reaction and thread context may be visible in the reference or in a modal/expanded view
-  // This would need to be verified based on actual UI behavior
 });
 
-test('Forward message - test toast auto-dismiss and manual dismiss', async ({ zodSetup, tenSetup }) => {
+test('Forward message - test toast auto-dismiss and manual dismiss', async ({
+  zodSetup,
+  tenSetup,
+}) => {
   const zodPage = zodSetup.page;
   const tenPage = tenSetup.page;
 
@@ -375,7 +384,9 @@ test('Forward message - test toast auto-dismiss and manual dismiss', async ({ zo
   if (await zodPage.getByText('Home').isVisible()) {
     // Wait for the group name to update after member invitation
     await zodPage.waitForTimeout(3000);
-    await expect(zodPage.getByText(groupName).first()).toBeVisible({ timeout: 10000 });
+    await expect(zodPage.getByText(groupName).first()).toBeVisible({
+      timeout: 10000,
+    });
     await zodPage.getByText(groupName).first().click();
     await zodPage.waitForTimeout(1000);
     await expect(zodPage.getByText(groupName).first()).toBeVisible();
