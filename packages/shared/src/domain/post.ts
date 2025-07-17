@@ -17,7 +17,7 @@ export interface PostDataDraftParent extends _PostDataDraftBase {
 }
 export interface PostDataDraftEdit extends _PostDataDraftBase {
   isEdit: true;
-  parentId?: string;
+  parentId: string;
 }
 
 /**

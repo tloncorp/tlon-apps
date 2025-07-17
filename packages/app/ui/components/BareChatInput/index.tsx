@@ -466,11 +466,11 @@ export default function BareChatInput({
           image: image?.uri,
           channelType,
         };
-        if (isEdit) {
+        if (isEdit && editingPost?.id) {
           return {
             ...draftBase,
             isEdit,
-            parentId: isEdit ? editingPost?.id : undefined,
+            parentId: editingPost.id,
           };
         } else {
           return draftBase;

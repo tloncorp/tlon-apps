@@ -92,14 +92,28 @@ export function finalizePostDraftUsingLocalAttachments(
 }
 
 export async function finalizeAndSendPost(
-  draft: domain.PostDataDraftParent
+  draft: domain.PostDataDraft
 ): Promise<void> {
-  await _sendPost({
-    channelId: draft.channelId,
-    buildOptimisticPostData: () =>
-      finalizePostDraftUsingLocalAttachments(draft),
-    buildFinalizedPostData: () => finalizePostDraft(draft),
-  });
+  if (draft.isEdit) {
+    const parentPost = await db.getPost({ postId: draft.parentId });
+    if (parentPost == null) {
+      throw new Error('attempted to edit post without parent');
+    }
+    const finalizedDraft = await finalizePostDraft(draft);
+    await editPost({
+      post: parentPost,
+      parentId: finalizedDraft.parentId,
+      content: finalizedDraft.content,
+      metadata: finalizedDraft.metadata,
+    });
+  } else {
+    await _sendPost({
+      channelId: draft.channelId,
+      buildOptimisticPostData: () =>
+        finalizePostDraftUsingLocalAttachments(draft),
+      buildFinalizedPostData: () => finalizePostDraft(draft),
+    });
+  }
 }
 
 export async function sendPost(postData: domain.PostDataFinalizedParent) {
