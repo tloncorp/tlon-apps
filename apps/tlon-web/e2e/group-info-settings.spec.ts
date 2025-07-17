@@ -63,12 +63,28 @@ test('should handle complete group lifecycle with settings management', async ({
   await helpers.openGroupSettings(page);
   await expect(page.getByText('Group info')).toBeVisible();
 
-  // Test reference copying
-  await page.getByText('Reference').click();
-  // Check for copy confirmation (optional)
-  await helpers.waitForElementAndAct(page, 'Copied', async () => {
-    await expect(page.getByText('Copied')).toBeVisible();
-  });
+  // Test group forwarding
+  await page.getByText('Forward').click();
+
+  // Verify forward sheet opened
+  await expect(page.getByText('Forward group')).toBeVisible();
+
+  // Search for ~ten channel
+  await page.getByPlaceholder('Search channels').fill('Your Group');
+  await page.getByText('Chat').click();
+
+  // Confirm forward
+  await page.getByText('Forward to Chat').click();
+
+  // Wait for the forward action to complete
+  await page.waitForTimeout(1000);
+
+  // Assert that the toast appeared using the text content
+  const toastText = page.getByText('Forwarded group to Chat');
+  await expect(toastText).toBeVisible({ timeout: 5000 });
+
+  // Wait for toast to auto-dismiss (1500ms duration as per implementation)
+  await page.waitForTimeout(2000);
 
   // Test privacy settings
   await helpers.setGroupPrivacy(page, true);
