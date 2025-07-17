@@ -491,17 +491,26 @@ export default function BareChatInput({
       let story: Story | null = null;
 
       try {
-        if (draft.isEdit && editingPost) {
-          const finalizedEdit = await finalizePostDraft(draft);
-          story = finalizedEdit.content;
+        if (draft.isEdit) {
+          if (editingPost) {
+            const finalizedEdit = await finalizePostDraft(draft);
+            story = finalizedEdit.content;
 
-          await editPost?.(
-            editingPost,
-            finalizedEdit.content,
-            finalizedEdit.parentId,
-            finalizedEdit.metadata
-          );
-          setEditingPost?.(undefined);
+            await editPost?.(
+              editingPost,
+              finalizedEdit.content,
+              finalizedEdit.parentId,
+              finalizedEdit.metadata
+            );
+            setEditingPost?.(undefined);
+          } else {
+            // Treat edit without a parent as a new post
+            await finalizeAndSendPost({
+              ...draft,
+              isEdit: false,
+              parentId: undefined,
+            });
+          }
         } else {
           await finalizeAndSendPost(draft);
 
