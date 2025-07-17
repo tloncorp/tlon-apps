@@ -1428,9 +1428,9 @@
           `[%channel nest group.perm.perm.channel]
         =/  id  id.c-post.a-channel
         =/  post  (got:on-v-posts:c posts.channel id)
-        ?~  post  ~
+        ?:  ?=(%| -.post)  ~
         =/  =message-key:activity
-          [[(get-author-ship:utils author.u.post) id] id]
+          [[(get-author-ship:utils author.post) id] id]
         `[%thread [message-key nest group.perm.perm.channel]]
       =?  ca-core  ?=(^ source)  (send:ca-activity [%bump u.source] ~)
       (ca-send-command [%channel nest a-channel])
@@ -1516,16 +1516,16 @@
             =/  memo  memo.c-reply.rest
             =/  post  (get:on-v-posts:c posts.channel id.rest)
             ?~  post  [pending ca-core]
-            ?~  u.post  [pending ca-core]
+            ?:  ?=(%| -.u.post)  [pending ca-core]
             =/  client-id
               [(get-author-ship:utils author.memo) sent.memo]
             =/  new-replies
               (~(put by replies.pending) [id.rest client-id] memo)
-            =/  old  (get-reply-meta:utils u.u.post)
+            =/  old  (get-reply-meta:utils u.post)
             =/  meta
               %=  old
                 reply-count    +(reply-count.old)
-                last-repliers  (get-last-repliers:utils u.u.post `our.bowl)
+                last-repliers  (get-last-repliers:utils u.post `our.bowl)
                 last-reply     `now.bowl
               ==
             :-  [posts.pending new-replies]
@@ -1585,10 +1585,10 @@
       ::  pinned, because its kind appears in the reference path...
       ::
       ?~  post=(get:on-v-posts:c posts.channel p.plan)  |
-      ?~  u.post  |
+      ?:  ?=(%| -.u.post)  |
       ?.  .^(? %gu (scry-path %expose /$))  |
       =/  =cite:ci:utils
-        (from-post:cite:utils nest p.plan kind.u.u.post)
+        (from-post:cite:utils nest p.plan kind.u.post)
       .^(? %gu (scry-path %expose [%show (print:ci:utils cite)]))
     (give %kick ~ ~)
   ::
@@ -1757,12 +1757,13 @@
       %+  gas:on-posts:c  *posts:c
       %+  murn  (turn (tap:on-v-posts:c posts.chk) head)
       |=  id=id-post:c
-      ^-  (unit [id-post:c (unit post:c)])
+      ^-  (unit [id-post:c (may post:c)])
       =/  post  (got:on-v-posts:c posts.channel id)
       =/  old   (get:on-v-posts:c old id)
       ?:  =(old `post)  ~
-      ?~  post  (some [id ~])
-      (some [id `(uv-post-2:utils u.post)])
+      %+  some  id
+      ?:  ?=(%| post)  post
+      &+(uv-post-2:utils +.post)
     ca-core
   ::
   ++  ca-sync-backlog
@@ -1851,7 +1852,9 @@
     |=  [=id-post:c =u-post:c]
     ^+  ca-core
     =/  post  (get:on-v-posts:c posts.channel id-post)
-    ?:  ?=([~ ~] post)  ca-core
+    ::  never update already-deleted posts
+    ::
+    ?:  ?=([~ %| *] post)  ca-core
     ?:  ?=(%set -.u-post)
       =?  recency.remark.channel  ?=(^ post.u-post)
         (max recency.remark.channel id-post)
@@ -1861,32 +1864,40 @@
         ::  we don't send an activity event for edits or deletes
         (on-post:ca-activity u.post.u-post)
       ?~  post
-        =/  post=(unit post:c)  (bind post.u-post uv-post-2:utils)
-        =?  ca-core  ?=(^ post.u-post)
-          (ca-heed ~[author.u.post.u-post])
-        =?  ca-core  ?=(^ post.u-post)
+        =/  post=(may post:c)
+          ?-  -.post.u-post
+            %&  &+(uv-post-2:utils +.post.u-post)
+            %|  post.u-post
+          ==
+        =?  ca-core  ?=(%& -.post.u-post)
+          (ca-heed ~[author.post.u-post])
+        =?  ca-core  ?=(%& -.post.u-post)
           ::TODO  what about the "mention was added during edit" case?
-          (on-post:ca-hark id-post u.post.u-post)
+          (on-post:ca-hark id-post +.post.u-post)
         =.  posts.channel  (put:on-v-posts:c posts.channel id-post post.u-post)
-        =?  count.channel  ?=(^ post.u-post)
-          (max count.channel seq.u.post.u-post)
-        =?  pending.channel  ?=(^ post.u-post)
-          =/  client-id  [author sent]:u.post.u-post
+        =.  count.channel
+          %+  max  count.channel
+          ?-  -.post.u-post
+            %&  seq.post.u-post
+            %|  seq.post.u-post
+          ==
+        =?  pending.channel  ?=(%& -.post.u-post)
+          =/  client-id  [author sent]:post.u-post
           pending.channel(posts (~(del by posts.pending.channel) client-id))
         (ca-response %post id-post %set post)
       ::
-      ?~  post.u-post
-        =.  ca-core  (on-post-delete:ca-activity u.u.post)
-        =.  posts.channel  (put:on-v-posts:c posts.channel id-post ~)
-        (ca-response %post id-post %set ~)
+      ?:  ?=(%| -.post.u-post)
+        =.  ca-core  (on-post-delete:ca-activity +.u.post)
+        =.  posts.channel  (put:on-v-posts:c posts.channel id-post post.u-post)
+        (ca-response %post id-post %set post.u-post)
       ::
       =.  ca-core  (ca-heed ~[author.u.post.u-post])
-      =*  old  u.u.post
-      =*  new  u.post.u-post
+      =*  old  +.u.post
+      =*  new  +.post.u-post
       =/  merged  (ca-apply-post id-post old new)
       ?:  =(merged old)  ca-core
-      =.  posts.channel  (put:on-v-posts:c posts.channel id-post `merged)
-      (ca-response %post id-post %set `(uv-post-2:utils merged))
+      =.  posts.channel  (put:on-v-posts:c posts.channel id-post &+merged)
+      (ca-response %post id-post %set &+(uv-post-2:utils merged))
     ::
     ?~  post
       =.  diffs.future.channel
@@ -1935,40 +1946,42 @@
     ^+  ca-core
     |^
     =/  reply  (get:on-v-replies:c replies.post id-reply)
-    ?:  ?=([~ ~] reply)  ca-core
+    ::  never update already-deleted replies
+    ::
+    ?:  ?=([~ %| *] reply)  ca-core
     ?:  ?=(%set -.u-reply)
       ?~  reply
-        =/  reply=(unit reply:c)
-          ?~  reply.u-reply  ~
-          `(uv-reply-2:utils id-post u.reply.u-reply)
-        =?  ca-core  ?=(^ reply.u-reply)
-          (on-reply:ca-hark id-post post u.reply.u-reply)
-        =?  ca-core  ?=(^ reply.u-reply)
-          (on-reply:ca-activity post u.reply.u-reply)
-        =?  pending.channel  ?=(^ reply.u-reply)
-          =/  memo  +.+.u.reply.u-reply
+        =/  reply=(may reply:c)
+          ?:  ?=(%| -.reply.u-reply)  ~
+          &+(uv-reply-2:utils id-post +.reply.u-reply)
+        =?  ca-core  ?=(%& -.reply.u-reply)
+          (on-reply:ca-hark id-post post +.reply.u-reply)
+        =?  ca-core  ?=(%& -.reply.u-reply)
+          (on-reply:ca-activity post +.reply.u-reply)
+        =?  pending.channel  ?=(%& -.reply.u-reply)
+          =/  memo  +>+.reply.u-reply
           =/  client-id  [author sent]:memo
           =/  new-replies  (~(del by replies.pending.channel) [id-post client-id])
           pending.channel(replies new-replies)
         (put-reply reply.u-reply %set reply)
       ::
-      ?~  reply.u-reply
+      ?:  ?=(%| -.reply.u-reply)
         =.  ca-core
-          (on-reply-delete:ca-activity post u.u.reply)
-        (put-reply ~ %set ~)
+          (on-reply-delete:ca-activity post +.u.reply)
+        (put-reply ~ %set reply.u-reply)
       ::
-      =*  old  u.u.reply
-      =*  new  u.reply.u-reply
+      =*  old  +.u.reply
+      =*  new  +.reply.u-reply
       =/  merged  (need (ca-apply-reply id-reply `old `new))
       ?:  =(merged old)  ca-core
       =.  ca-core  (ca-heed ~[author.new])
-      (put-reply `merged %set `(uv-reply-2:utils id-post merged))
+      (put-reply `merged %set &+(uv-reply-2:utils id-post merged))
     ::
     ?~  reply  ca-core
-    =.  ca-core  (ca-heed ~(tap in ~(key by reacts.u.u.reply)))
-    =/  merged  (ca-apply-reacts reacts.u.u.reply reacts.u-reply)
-    ?:  =(merged reacts.u.u.reply)  ca-core
-    (put-reply `u.u.reply(reacts merged) %reacts (uv-reacts-2:utils merged))
+    =.  ca-core  (ca-heed ~(tap in ~(key by reacts.u.reply)))
+    =/  merged  (ca-apply-reacts reacts.u.reply reacts.u-reply)
+    ?:  =(merged reacts.u.reply)  ca-core
+    (put-reply `+.u.reply(reacts merged) %reacts (uv-reacts-2:utils merged))
     ::
     ::  put a reply into a post by id
     ::
@@ -1977,7 +1990,7 @@
       ^+  ca-core
       =/  post  (get:on-v-posts:c posts.channel id-post)
       ?~  post  ca-core
-      ?~  u.post  ca-core
+      ?:  ?=(%| -.u.post)  ca-core
       =?  recency.remark.channel  ?=(^ reply)
         (max recency.remark.channel id-reply)
       =?  unread-threads.remark.channel
@@ -1986,9 +1999,9 @@
               (gth id-reply last-read.remark.channel)
           ==
         (~(put in unread-threads.remark.channel) id-post)
-      =.  replies.u.u.post  (put:on-v-replies:c replies.u.u.post id-reply reply)
-      =.  posts.channel  (put:on-v-posts:c posts.channel id-post `u.u.post)
-      =/  meta=reply-meta:c  (get-reply-meta:utils u.u.post)
+      =.  replies.u.post  (put:on-v-replies:c replies.u.post id-reply reply)
+      =.  posts.channel  (put:on-v-posts:c posts.channel id-post u.post)
+      =/  meta=reply-meta:c  (get-reply-meta:utils u.post)
       (ca-response %post id-post %reply id-reply meta r-reply)
     --
   ::
@@ -2330,8 +2343,8 @@
       :^  ~  ~  %noun  !>
       =/  post  (get:on-v-posts:c posts.channel post-id)
       ?~  post  ~
-      ?~  u.post  ~
-      ?.  (has:on-v-replies:c replies.u.u.post reply-id)  ~
+      ?:  ?=(%| -.u.post)  ~
+      ?.  (has:on-v-replies:c replies.u.post reply-id)  ~
       `(ca-rope kind.nest post-id `reply-id)
     ::
         [%search %bounded kind=?(%text %mention) from=@ tries=@ nedl=@ ~]
@@ -2500,14 +2513,14 @@
       =/  time  (slav %ud time.pole)
       =/  post  (get:on posts.channel time)
       ?~  post  ~
-      ?~  u.post  `~
+      ?:  ?=(%| -.u.post)  `~
       ``channel-simple-post+!>((suv-post:utils u.u.post))
     ::
         [%post %id time=@ %replies rest=*]
       =/  time  (slav %ud time.pole)
       =/  post  (get:on posts.channel `@da`time)
       ?~  post  ~
-      ?~  u.post  `~
+      ?:  ?=(%| -.u.post)  `~
       (ca-peek-replies-0 id.u.u.post replies.u.u.post rest.pole)
     ==
   ::
@@ -2631,19 +2644,19 @@
       =/  time  (slav %ud time.pole)
       =/  post  (get:on posts.channel time)
       ?~  post  ~
-      ?~  u.post  `~
+      ?:  ?=(%| -.u.post)  `~
       ?-  version
-        %v1  ``channel-post+!>((uv-post:utils u.u.post))
-        %v2  ``channel-post-2+!>((uv-post-1:utils u.u.post))
-        %v3  ``channel-post-3+!>((uv-post-2:utils u.u.post))
+        %v1  ``channel-post+!>((uv-post:utils +.u.post))
+        %v2  ``channel-post-2+!>((uv-post-1:utils +.u.post))
+        %v3  ``channel-post-3+!>((uv-post-2:utils +.u.post))
       ==
     ::
         [%post %id time=@ %replies rest=*]
       =/  time  (slav %ud time.pole)
       =/  post  (get:on posts.channel `@da`time)
       ?~  post  ~
-      ?~  u.post  `~
-      (ca-peek-replies id.u.u.post replies.u.u.post rest.pole version)
+      ?:  ?=(%| +.u.post)  `~
+      (ca-peek-replies id.u.post replies.u.post rest.pole version)
     ==
   ::
   ++  ca-peek-replies-0
@@ -2777,24 +2790,24 @@
       ?:  =(0 tries.s)  s
       ::
       =.  scan.s
-        ?~  val.n.posts  scan.s
-        ?.  (match u.val.n.posts match-type)  scan.s
+        ?:  ?=(%|  -.val.n.posts)  scan.s
+        ?.  (match +.val.n.posts match-type)  scan.s
         :_  scan.s
         [%post `simple-post:c`(suv-post-without-replies-2:utils u.val.n.posts)]
       ::
       =.  scan.s
-        ?~  val.n.posts  scan.s
-        =*  id-post  id.u.val.n.posts
-        =*  replies  replies.u.val.n.posts
+        ?:  ?=(%| -.val.n.posts)  scan.s
+        =*  id-post  id.val.n.posts
+        =*  replies  replies.val.n.posts
         |-  ^+  scan.s
         ?~  replies  scan.s
         =.  scan.s  $(replies r.replies)
         ::
         =.  scan.s
-          ?~  val.n.replies  scan.s
-          ?.  (match-reply u.val.n.replies match-type)  scan.s
+          ?:  ?=(%| -.val.n.replies)  scan.s
+          ?.  (match-reply +.val.n.replies match-type)  scan.s
           :_  scan.s
-          [%reply id-post (suv-reply-2:utils id-post u.val.n.replies)]
+          [%reply id-post (suv-reply-2:utils id-post +.val.n.replies)]
         ::
         $(replies l.replies)
       ::
@@ -2818,16 +2831,16 @@
       ?:  =(0 len.s)  s
       ::
       =.  s
-        ?~  val.n.posts  s
-        ?.  (match u.val.n.posts match-type)  s
+        ?:  ?=(%| -.val.n.posts)  s
+        ?.  (match +.val.n.posts match-type)  s
         ?:  (gth skip.s 0)
           s(skip (dec skip.s))
-        =/  res  [%post (suv-post-without-replies-2:utils u.val.n.posts)]
+        =/  res  [%post (suv-post-without-replies-2:utils +.val.n.posts)]
         s(len (dec len.s), scan [res scan.s])
       ::
       =.  s
-        ?~  val.n.posts  s
-        (scour-replys s id.u.val.n.posts replies.u.val.n.posts match-type)
+        ?:  ?=(%| -.val.n.posts)  s
+        (scour-replys s id.val.n.posts replies.val.n.posts match-type)
       ::
       $(posts l.posts)
     ::
