@@ -1,7 +1,11 @@
-import { ContentReference } from '@tloncorp/shared/api';
-import * as domain from '@tloncorp/shared/domain';
 import {
-  UploadState,
+  Attachment,
+  FinalizedAttachment,
+  ImageAttachment,
+  UploadedImageAttachment,
+} from '@tloncorp/shared';
+import {
+  finalizeAttachments,
   useUploadStates,
   waitForUploads,
 } from '@tloncorp/shared/store';
@@ -16,43 +20,6 @@ import {
   useState,
 } from 'react';
 import { isWeb } from 'tamagui';
-
-export type ReferenceAttachment = {
-  type: 'reference';
-  reference: ContentReference;
-  path: string;
-};
-
-export type ImageAttachment = {
-  type: 'image';
-  file: ImagePickerAsset;
-  uploadState?: UploadState;
-};
-
-export type UploadedImageAttachment = {
-  type: 'image';
-  file: ImagePickerAsset;
-  uploadState: {
-    status: 'success';
-    remoteUri: string;
-  };
-};
-
-export type TextAttachment = {
-  type: 'text';
-  text: string;
-};
-
-export type Attachment =
-  | ReferenceAttachment
-  | ImageAttachment
-  | TextAttachment
-  | domain.LinkAttachment;
-export type FinalizedAttachment =
-  | ReferenceAttachment
-  | UploadedImageAttachment
-  | TextAttachment
-  | domain.LinkAttachment;
 
 export type AttachmentState = {
   attachments: Attachment[];
@@ -169,27 +136,10 @@ export const AttachmentProvider = ({
     setState(attachments);
   }, []);
 
-  const handleWaitForUploads = useCallback(async () => {
-    const assetAttachments = state.filter(
-      (a): a is ImageAttachment => a.type === 'image'
-    );
-    const completedUploads = await waitForUploads(
-      assetAttachments.map((a) => a.file.uri)
-    );
-    const finalAttachments: FinalizedAttachment[] = attachments.map((a) => {
-      if (a.type === 'image') {
-        const finalizedAttachment = {
-          ...a,
-          uploadState: completedUploads[a.file.uri],
-        };
-        assertIsUploadedAssetAttachment(finalizedAttachment);
-        return finalizedAttachment;
-      } else {
-        return a;
-      }
-    });
-    return finalAttachments;
-  }, [attachments, state]);
+  const handleWaitForUploads = useCallback(
+    () => finalizeAttachments(state),
+    [state]
+  );
 
   const handleUploadAssets = useCallback(
     async (assets: ImagePickerAsset[]): Promise<UploadedImageAttachment[]> => {
@@ -245,23 +195,6 @@ export const AttachmentProvider = ({
     </Context.Provider>
   );
 };
-
-function assertIsUploadedAssetAttachment(
-  attachment: unknown
-): asserts attachment is UploadedImageAttachment {
-  if (
-    !attachment ||
-    typeof attachment !== 'object' ||
-    !('uploadState' in attachment) ||
-    !attachment.uploadState ||
-    typeof attachment.uploadState !== 'object' ||
-    !('status' in attachment.uploadState) ||
-    attachment.uploadState.status !== 'success'
-  ) {
-    console.log(attachment);
-    throw new Error('Attachment is not an uploaded image attachment');
-  }
-}
 
 export function useMappedImageAttachments<T extends Record<string, string>>(
   map: T

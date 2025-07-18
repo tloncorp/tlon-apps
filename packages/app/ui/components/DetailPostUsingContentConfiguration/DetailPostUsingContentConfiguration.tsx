@@ -75,8 +75,12 @@ export function DetailPostView({
   const draftInputContext = useMemo((): DraftInputContext => {
     return {
       // TODO: pass draft configuration values?
-      send: async (content) => {
+      sendPost: async (content) => {
         await sendReply(content);
+        listRef.current?.scrollToEnd();
+      },
+      sendPostFromDraft: async (draft) => {
+        await store.finalizeAndSendPost(draft);
         listRef.current?.scrollToEnd();
       },
       setShouldBlur: setInputShouldBlur,
@@ -160,24 +164,19 @@ function useSendReplyCallback(
     channel: db.Channel;
   } | null
 ) {
-  const currentUserId = useCurrentUserId();
   return useCallback(
     async (content: Story) => {
       if (opts == null) {
         throw new Error('Attempted to send reply without parent post');
       }
       const { parent, channel } = opts;
-      if (currentUserId == null) {
-        throw new Error('Attempted to send reply without current user id');
-      }
       await store.sendReply({
-        authorId: currentUserId,
         content,
         channel,
         parentId: parent.id,
         parentAuthor: parent.authorId,
       });
     },
-    [currentUserId, opts]
+    [opts]
   );
 }

@@ -39,7 +39,7 @@ export function GalleryInput({
     editingPost,
     getDraft,
     onPresentationModeChange,
-    send,
+    sendPost,
     storeDraft,
     editPost,
     setEditingPost,
@@ -273,7 +273,7 @@ export function GalleryInput({
         onPresentationModeChange?.('inline');
       } else {
         // Otherwise send as a new post
-        await send(story, channel.id, metadata);
+        await sendPost(story, channel.id, metadata);
         resetGalleryState();
       }
 
@@ -286,7 +286,7 @@ export function GalleryInput({
   }, [
     caption,
     isPosting,
-    send,
+    sendPost,
     channel.id,
     waitForAttachmentUploads,
     resetGalleryState,
@@ -335,7 +335,7 @@ export function GalleryInput({
           onPresentationModeChange?.('inline');
         } else {
           // Otherwise send as a new post
-          await send(story, channel.id, meta);
+          await sendPost(story, channel.id, meta);
           resetGalleryState();
         }
 
@@ -354,7 +354,7 @@ export function GalleryInput({
       resetGalleryState,
       setEditingPost,
       onPresentationModeChange,
-      send,
+      sendPost,
       channel.id,
     ]
   );

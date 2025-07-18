@@ -1,6 +1,11 @@
-import { createDevLogger, tiptap } from '@tloncorp/shared';
+import {
+  FinalizedAttachment,
+  createDevLogger,
+  tiptap,
+  toPostData,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Block, constructStory, pathToCite } from '@tloncorp/shared/urbit';
+import { constructStory } from '@tloncorp/shared/urbit';
 import {
   Button,
   Icon,
@@ -27,7 +32,7 @@ import { ScreenHeader } from './ScreenHeader';
 const logger = createDevLogger('BigInput', false);
 
 export function BigInput({
-  send,
+  sendPost,
   editPost,
   channelId,
   channelType,
@@ -62,7 +67,8 @@ export function BigInput({
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const [isEmpty, setIsEmpty] = useState(true);
-  const { attachments, clearAttachments } = useAttachmentContext();
+  const { attachments, clearAttachments, waitForAttachmentUploads } =
+    useAttachmentContext();
 
   const handleEditorContentChanged = useCallback(
     (content?: object) => {
@@ -123,65 +129,33 @@ export function BigInput({
 
     const json = await editorRef.current.editor.getJSON();
     const inlines = tiptap.JSONToInlines(json);
-    const story = constructStory(inlines);
+    let finalizedAttachments: FinalizedAttachment[];
+    try {
+      finalizedAttachments = await waitForAttachmentUploads();
+    } catch (e) {
+      logger.error('Error processing attachments', e);
+      return;
+    }
 
-    const blocks = attachments.flatMap((attachment): Block[] => {
-      if (channelType === 'notebook') {
-        return [];
-      }
-      if (attachment.type === 'reference') {
-        const cite = pathToCite(attachment.path);
-        return cite ? [{ cite }] : [];
-      }
-      return [];
+    const { story, metadata } = toPostData({
+      content: inlines,
+      title,
+      image: imageUri ?? undefined,
+      attachments: finalizedAttachments,
+      channelType,
+      isEdit: !!editingPost,
     });
-
-    if (blocks && blocks.length > 0) {
-      if (channelType === 'chat') {
-        story.unshift(...blocks.map((block) => ({ block })));
-      } else {
-        story.push(...blocks.map((block) => ({ block })));
-      }
-    }
-
-    // Create metadata for notebook posts with title and image
-    const metadata: Record<string, any> = {};
-    if (channelType === 'notebook') {
-      if (title) {
-        metadata.title = title;
-      }
-
-      if (imageUri) {
-        const attachment = attachments.find(
-          (attachment) =>
-            attachment.type === 'image' &&
-            attachment.uploadState?.status === 'success' &&
-            attachment.file?.uri === imageUri
-        );
-        if (
-          attachment &&
-          attachment.type === 'image' &&
-          attachment.uploadState &&
-          'remoteUri' in attachment.uploadState
-        ) {
-          metadata.image = attachment.uploadState.remoteUri;
-        }
-      } else {
-        metadata.image = null;
-      }
-    }
 
     try {
       // Store the channel type for later use after async operations
       const currentChannelType = channelType;
-      const isGalleryText = currentChannelType === 'gallery';
 
       if (editingPost && editPost) {
         // If we're editing, use editPost with the correct parameters
         await editPost(editingPost, story, undefined, metadata);
       } else {
         // If it's a new post, use send
-        await send(story, channelId, metadata);
+        await sendPost(story, channelId, metadata);
       }
 
       logger.log(
@@ -203,6 +177,8 @@ export function BigInput({
         logger.log('Clearing editor content after save');
         editorRef.current.editor.setContent('');
       }
+
+      const isGalleryText = currentChannelType === 'gallery';
 
       // Clear the draft after successful save for all channel types
       if (!editingPost && props.clearDraft) {
@@ -238,7 +214,7 @@ export function BigInput({
       setIsSending(false);
     }
   }, [
-    send,
+    sendPost,
     editPost,
     channelId,
     title,
@@ -371,7 +347,7 @@ export function BigInput({
             )}
           <MessageInput
             ref={editorRef}
-            send={handleSend}
+            sendPost={handleSend}
             channelId={channelId}
             channelType={channelType}
             editingPost={editingPost}

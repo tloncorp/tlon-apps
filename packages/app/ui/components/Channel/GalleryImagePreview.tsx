@@ -1,10 +1,8 @@
+import { ImageAttachment } from '@tloncorp/shared';
 import { ImageBackground } from 'react-native';
 import { Spinner, View, XStack } from 'tamagui';
 
-import {
-  ImageAttachment,
-  useAttachmentContext,
-} from '../../contexts/attachment';
+import { useAttachmentContext } from '../../contexts/attachment';
 
 function GalleryImagePreview() {
   const { attachments } = useAttachmentContext();

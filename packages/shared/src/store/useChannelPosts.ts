@@ -195,7 +195,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
 
   const rawPosts = useMemo<db.Post[] | null>(() => {
     const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? null;
-    if (!newPosts.length || query.hasPreviousPage) {
+    if (!newPosts.length) {
       return queryPosts;
     }
     const newestQueryPostId = queryPosts?.[0]?.id;
@@ -214,7 +214,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
         (p) => !newerPosts.some((newer) => newer.sentAt === p.sentAt)
       ) ?? [];
     return newestQueryPostId ? [...newerPosts, ...dedupedQueryPosts] : newPosts;
-  }, [query.data, query.hasPreviousPage, newPosts]);
+  }, [query.data, newPosts]);
 
   const deletedPosts = useDeletedPosts(options.channelId);
   const rawPostsWithDeleteFilterApplied = useMemo(() => {
@@ -286,9 +286,11 @@ function useTrackReady(
  */
 function addPostToNewPosts(post: db.Post, newPosts: db.Post[]) {
   postsLogger.log('new posts');
-  let nextPosts: db.Post[] | null = null;
+  let nextPosts: db.Post[] = [post, ...newPosts];
   const pendingPostIndex = newPosts?.findIndex(
-    (p) => p.deliveryStatus === 'pending' && p.sentAt === post.sentAt
+    (p) =>
+      (p.deliveryStatus === 'pending' || p.deliveryStatus === 'enqueued') &&
+      p.sentAt === post.sentAt
   );
   if (pendingPostIndex !== -1) {
     nextPosts = [
@@ -309,8 +311,16 @@ function addPostToNewPosts(post: db.Post, newPosts: db.Post[]) {
 
   postsLogger.log('processsed pending existing');
 
-  const finalPosts = (nextPosts ? nextPosts : [post, ...newPosts]).sort(
-    (a, b) => b.receivedAt - a.receivedAt
+  // When sorting these posts, ideally we'd use `receivedAt`, since that is
+  // more representative of everyone's view of the timeline (e.g. if one of
+  // your posts took a long time to send).
+  // But if we have some posts that are in-flight, we want to sort by
+  // `sentAt` so that the in-flight posts' order stays stable.
+  const hasUnsentPost = nextPosts?.some((x) => x.deliveryStatus != null);
+  const finalPosts = nextPosts.sort(
+    hasUnsentPost
+      ? (a, b) => b.sentAt - a.sentAt
+      : (a, b) => b.receivedAt - a.receivedAt
   );
   postsLogger.log('calculated final');
   return finalPosts;
