@@ -28,7 +28,7 @@ export function GroupMembersScreenView({
   onPressUnban,
   onPressAcceptJoinRequest,
   onPressRejectJoinRequest,
-  onPressGoToDm,
+  onPressGoToProfile,
   onPressAssignRole,
   onPressRemoveRole,
 }: {
@@ -45,7 +45,7 @@ export function GroupMembersScreenView({
   onPressUnban: (contactId: string) => void;
   onPressAcceptJoinRequest: (contactId: string) => void;
   onPressRejectJoinRequest: (contactId: string) => void;
-  onPressGoToDm: (contactId: string) => void;
+  onPressGoToProfile: (contactId: string) => void;
   onPressAssignRole: (contactId: string, roleId: string) => void;
   onPressRemoveRole: (contactId: string, roleId: string) => void;
 }) {
@@ -241,7 +241,10 @@ export function GroupMembersScreenView({
           onPressKick={() => onPressKick(selectedContact)}
           onPressBan={() => onPressBan(selectedContact)}
           onPressUnban={() => onPressUnban(selectedContact)}
-          onPressGoToDm={() => onPressGoToDm(selectedContact)}
+          onPressGoToProfile={() => {
+            setSelectedContact(null);
+            onPressGoToProfile(selectedContact);
+          }}
           onPressAsignRole={(roleId: string) =>
             onPressAssignRole(selectedContact, roleId)
           }
@@ -265,6 +268,10 @@ export function GroupMembersScreenView({
           }}
           onPressAccept={() => onPressAcceptJoinRequest(selectedContact)}
           onPressReject={() => onPressRejectJoinRequest(selectedContact)}
+          onPressGoToProfile={() => {
+            setSelectedContact(null);
+            onPressGoToProfile(selectedContact);
+          }}
         />
       )}
     </>
