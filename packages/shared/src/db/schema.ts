@@ -974,6 +974,7 @@ export const posts = sqliteTable(
     lastEditContent: text('last_edit_content', { mode: 'json' }),
     lastEditTitle: text('last_edit_title'),
     lastEditImage: text('last_edit_image'),
+    sequenceNum: integer('sequence_number'),
     /**
      * If `syncedAt` is null, it indicates that the post is unconfirmed by sync.
      */
@@ -1072,28 +1073,3 @@ export const postReactionsRelations = relations(postReactions, ({ one }) => ({
     references: [contacts.id],
   }),
 }));
-
-export const postWindows = sqliteTable(
-  'post_windows',
-  {
-    channelId: text('channel_id').notNull(),
-    oldestPostId: text('oldest_post_id').notNull(),
-    newestPostId: text('newest_post_id').notNull(),
-  },
-  (table) => {
-    return {
-      pk: primaryKey({
-        columns: [table.channelId, table.oldestPostId, table.newestPostId],
-      }),
-      channelIdIndex: index('channel_id').on(table.channelId),
-      channelOldestPostIndex: index('channel_oldest_post').on(
-        table.channelId,
-        table.oldestPostId
-      ),
-      channelNewestPostIndex: index('channel_newest_post').on(
-        table.channelId,
-        table.newestPostId
-      ),
-    };
-  }
-);

@@ -248,6 +248,9 @@ const ChatMessage = ({
             onPressImage={handleImagePressed}
             onLongPress={handleLongPress}
           />
+          {/* <Text color="$green" size="$body" padding="$xl">
+            {post.sequenceNum}
+          </Text> */}
         </View>
 
         {post.reactions && post.reactions.length > 0 && (

@@ -168,24 +168,29 @@ export const syncLatestPosts = async (
   queryCtx?: QueryCtx,
   yieldWriter?: boolean
 ): Promise<() => Promise<void>> => {
-  const syncedAt = await db.headsSyncedAt.getValue();
-  const result = await syncQueue.add('latestPosts', ctx, () =>
-    api.getLatestPosts({
-      afterCursor: new Date(syncedAt),
-    })
-  );
-  logger.crumb('got latest posts from api');
-  const allPosts = result.map((p) => p.latestPost);
-  const writer = async (): Promise<void> => {
-    allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
-    await db.insertLatestPosts(allPosts, queryCtx);
-    await db.headsSyncedAt.setValue(Date.now());
-  };
+  try {
+    const syncedAt = await db.headsSyncedAt.getValue();
+    const result = await syncQueue.add('latestPosts', ctx, () =>
+      api.getLatestPosts({
+        afterCursor: new Date(syncedAt),
+      })
+    );
+    logger.crumb('got latest posts from api');
+    const allPosts = result.map((p) => p.latestPost);
+    const writer = async (): Promise<void> => {
+      allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
+      await db.insertLatestPosts(allPosts, queryCtx);
+      await db.headsSyncedAt.setValue(Date.now());
+    };
 
-  if (yieldWriter) {
-    return writer;
-  } else {
-    await writer();
+    if (yieldWriter) {
+      return writer;
+    } else {
+      await writer();
+      return () => Promise.resolve();
+    }
+  } catch (e) {
+    logger.trackError('failed to sync latest posts');
     return () => Promise.resolve();
   }
 };
@@ -486,7 +491,6 @@ export async function syncPostReference(options: {
   // event.
   const response = await api.getPostReference(options);
   await db.insertChannelPosts({
-    channelId: options.channelId,
     posts: [response],
   });
 }
@@ -506,7 +510,6 @@ export async function syncUpdatedPosts(
 
   // ignore cursors since we're always fetching from old posts we have
   await db.insertChannelPosts({
-    channelId: options.channelId,
     posts: response.posts,
   });
 
@@ -538,7 +541,6 @@ export async function syncThreadPosts(
   );
   logger.log('got thread posts from api', response);
   await db.insertChannelPosts({
-    channelId,
     posts: [response, ...(response.replies ?? [])],
   });
 }
@@ -1197,7 +1199,6 @@ export const handleChannelsUpdate = async (
     case 'initialPostsOnChannelJoin':
       await db.insertChannelPosts(
         {
-          channelId: update.channelId,
           posts: update.posts,
         },
         ctx
@@ -1299,7 +1300,6 @@ export async function handleAddPost(
     }
     await db.insertChannelPosts(
       {
-        channelId: post.channelId,
         posts: [post],
       },
       ctx
@@ -1310,9 +1310,7 @@ export async function handleAddPost(
     updateChannelCursor(post.channelId, post.id);
     await db.insertChannelPosts(
       {
-        channelId: post.channelId,
         posts: [post],
-        older,
       },
       ctx
     );
@@ -1332,10 +1330,7 @@ export async function syncPosts(
   );
   if (response.posts.length) {
     await db.insertChannelPosts({
-      channelId: options.channelId,
       posts: response.posts,
-      newer: response.newer,
-      older: response.older,
     });
   }
 
@@ -1678,9 +1673,9 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     updateSession({ phase: 'ready' });
 
     // fire off relevant channel posts sync, but don't wait for it
-    syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
-      logger.crumb(`finished channel predictive sync`);
-    });
+    // syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
+    //   logger.crumb(`finished channel predictive sync`);
+    // });
 
     // post sync initialization work
     await verifyUserInviteLink();
@@ -1844,7 +1839,7 @@ async function stepFillChannelGap({
     count: 30,
   } as const;
 
-  const syncParams: api.GetChannelPostsOptions = await (async () => {
+  const syncParams: api.GetChannelPostsOptions | null = await (async () => {
     const unread = await db.getChannelUnread({ channelId });
     const unreadPostId = unread?.firstUnreadPostId;
     if (unreadPostId == null) {
@@ -1855,11 +1850,11 @@ async function stepFillChannelGap({
       };
     }
 
-    const mainWindow = await db.getPostWindow({
+    const backfillInfo = await db.checkUnreadChannelBackfill({
       channelId,
       postId: unreadPostId,
     });
-    if (mainWindow == null) {
+    if (backfillInfo == null) {
       // unread is outside a window - we want to show the unread to the user,
       // so start fetching around the unread.
       return {
@@ -1869,13 +1864,22 @@ async function stepFillChannelGap({
       };
     }
 
+    // if we already have a large set of posts after the unread, don't backfill more
+    if (backfillInfo.numberContiguous > 100) {
+      return null;
+    }
+
     // we know what window we want to grow - fetch newer posts
     return {
       ...baseSyncParams,
       mode: 'newer' as const,
-      cursor: mainWindow.newestPostId,
+      cursor: backfillInfo.newestContiguousPostId,
     };
   })();
+
+  if (syncParams == null) {
+    return null;
+  }
 
   const resp = await syncPosts(syncParams, syncCtx);
   return { fetchedPosts: resp.posts };
