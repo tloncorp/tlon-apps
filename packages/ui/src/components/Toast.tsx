@@ -161,6 +161,7 @@ function ToastView({
       <ToastBox
         backgroundColor={'$systemNoticeBackground'}
         marginBottom={(insets.bottom + getTokenValue('$2xl', 'size')) as number}
+        testID="ToastMessage"
       >
         <ToastText>{message}</ToastText>
       </ToastBox>
