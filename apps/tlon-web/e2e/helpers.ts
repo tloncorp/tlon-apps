@@ -211,7 +211,7 @@ export async function assignRoleToMember(
   await expect(memberRow).toBeVisible();
   await memberRow.click();
 
-  await expect(page.getByText('Send message')).toBeVisible();
+  await expect(page.getByText('Assign role')).toBeVisible();
   await page.getByText('Assign role').click();
   await page.getByRole('dialog').getByText(roleName).click();
 
