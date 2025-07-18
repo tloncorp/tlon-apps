@@ -92,7 +92,7 @@
     |=  =r-post:c
     %+  frond  -.r-post
     ?-  -.r-post
-      %set    ?~(post.r-post ~ (post u.post.r-post))
+      %set    ?:(?=(%| -.post.r-post) (tombstone +.post.r-post) (post +.post.r-post))
       %reacts  (reacts reacts.r-post)
       %essay  (essay essay.r-post)
     ::
@@ -108,7 +108,7 @@
     |=  r-post=r-simple-post:c
     %+  frond  -.r-post
     ?-  -.r-post
-      %set    ?~(post.r-post ~ (simple-post u.post.r-post))
+      %set    ?:(?=(%| -.post.r-post) (tombstone +.post.r-post) (simple-post +.post.r-post))
       %reacts  (reacts reacts.r-post)
       %essay  (essay essay.r-post)
     ::
@@ -124,7 +124,7 @@
     |=  =r-reply:c
     %+  frond  -.r-reply
     ?-  -.r-reply
-      %set    ?~(reply.r-reply ~ (reply u.reply.r-reply))
+      %set    ?:(?=(%| -.reply.r-reply) (tombstone +.reply.r-reply) (reply +.reply.r-reply))
       %reacts  (reacts reacts.r-reply)
     ==
   ::
@@ -132,7 +132,7 @@
     |=  r-reply=r-simple-reply:c
     %+  frond  -.r-reply
     ?-  -.r-reply
-      %set    ?~(reply.r-reply ~ (simple-reply u.reply.r-reply))
+      %set    ?:(?=(%| -.reply.r-reply) (tombstone +.reply.r-reply) (simple-reply +.reply.r-reply))
       %reacts  (reacts reacts.r-reply)
     ==
   ::
@@ -188,8 +188,8 @@
     |=  =posts:c
     %-  pairs
     %+  turn  (tap:on-posts:c posts)
-    |=  [id=id-post:c post=(unit post:c)]
-    [(scot %ud id) ?~(post ~ (^post u.post))]
+    |=  [id=id-post:c post=(may:c post:c)]
+    [(scot %ud id) ?:(?=(%| -.post) (tombstone +.post) (^post +.post))]
   ::
   ++  post
     |=  [=seal:c [rev=@ud =essay:c]]
@@ -199,12 +199,20 @@
         essay+(^essay essay)
         type+s+%post
     ==
+  ++  tombstone
+    |=  t=tombstone:c
+    %-  pairs
+    :~  id+(id id.t)
+        author+(author author.t)
+        seq+(numb seq.t)
+        deleted-at+(time del-at.t)
+    ==
   ++  simple-posts
     |=  posts=simple-posts:c
     %-  pairs
     %+  turn  (tap:on-simple-posts:c posts)
-    |=  [id=id-post:c post=(unit simple-post:c)]
-    [(scot %ud id) ?~(post ~ (simple-post u.post))]
+    |=  [id=id-post:c post=(may:c simple-post:c)]
+    [(scot %ud id) ?:(?=(%| -.post) (tombstone +.post) (simple-post +.post))]
   ::
   ++  simple-post
     |=  [seal=simple-seal:c =essay:c]
@@ -218,8 +226,8 @@
     |=  =replies:c
     %-  pairs
     %+  turn  (tap:on-replies:c replies)
-    |=  [t=@da reply=(unit reply:c)]
-    [(scot %ud t) ?~(reply ~ (^reply u.reply))]
+    |=  [t=@da reply=(may:c reply:c)]
+    [(scot %ud t) ?:(?=(%| -.reply) (tombstone +.reply) (^reply +.reply))]
   ::
   ++  simple-replies
     |=  replies=simple-replies:c
@@ -638,6 +646,54 @@
   ::
   +|  %old
   ::
+  ++  v8
+    |%
+    ++  said
+      |=  s=said:v8:old:c
+      %-  pairs
+      :~  nest+(nest p.s)
+          reference+(reference q.s)
+      ==
+    ++  reference
+      |=  =reference:v8:old:c
+      %+  frond  -.reference
+      ?-    -.reference
+          %post  (simple-post post.reference)
+      ::
+          %reply
+        %-  pairs
+        :~  id-post+(id id-post.reference)
+            reply+(simple-reply reply.reference)
+        ==
+      ==
+    ++  simple-post
+      |=  sp=simple-post:v8:old:c
+      %-  pairs
+      :~  seal+(simple-seal -.sp)
+          essay+(essay +.sp)
+          type+s+%post
+      ==
+    ++  simple-seal
+      |=  seal=simple-seal:v8:old:c
+      %-  pairs
+      :~  id+(id id.seal)
+          reacts+(reacts reacts.seal)
+          replies+(simple-replies replies.seal)
+          meta+(reply-meta reply-meta.seal)
+      ==
+    ++  simple-replies
+      |=  replies=simple-replies:v8:old:c
+      %-  pairs
+      %+  turn  (tap:on-simple-replies:v8:old:c replies)
+      |=  [t=@da reply=simple-reply:c]
+      [(scot %ud t) (simple-reply reply)]
+    ++  simple-reply
+      |=  reply=simple-reply:v8:old:c
+      %-  pairs
+      :~  seal+(reply-seal -.reply)
+          memo+(memo +.reply)
+      ==
+    --
   ++  v7
     |%
     ::
@@ -683,6 +739,14 @@
             r-reply+(r-reply r-reply.r-post)
             meta+(reply-meta reply-meta.r-post)
         ==
+      ==
+    ::
+    ++  r-reply
+      |=  =r-reply:v7:old:c
+      %+  frond  -.r-reply
+      ?-  -.r-reply
+        %set    ?~(reply.r-reply ~ (reply u.reply.r-reply))
+        %reacts  (reacts reacts.r-reply)
       ==
     ::
     ++  pending-msgs
@@ -1060,7 +1124,7 @@
       %-  pairs
       :~  id+(id id.seal)
           reacts+(reacts reacts.seal)
-          replies+(replies replies.seal)
+          replies+(replies:v7 replies.seal)
           meta+(reply-meta reply-meta.seal)
       ==
     --

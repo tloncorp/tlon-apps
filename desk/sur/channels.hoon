@@ -615,6 +615,13 @@
             =last-updated
         ==
       --
+    +$  v-seal
+      $:  id=id-post
+          seq=@ud
+          mod-at=@da
+          replies=v-replies
+          reacts=v-reacts
+      ==
     +$  v-post      [v-seal (rev essay)]
     +$  v-posts     ((mop id-post (unit v-post)) lte)
     ++  on-v-posts  ((on id-post (unit v-post)) lte)
@@ -642,6 +649,15 @@
             pending=pending-messages
         ==
       --
+    +$  seal
+      $:  id=id-post
+          seq=@ud
+          mod-at=@da
+          =reacts
+          =replies
+          =reply-meta
+      ==
+    +$  post  [seal [rev=@ud essay]]
     +$  posts  ((mop id-post (unit post)) lte)
     +$  simple-posts  ((mop id-post (unit simple-post)) lte)
     +$  replies     ((mop id-reply (unit reply)) lte)
@@ -681,6 +697,10 @@
           [%reacts reacts=v-reacts]
           [%essay (rev =essay)]
           [%reply id=id-reply =u-reply]
+      ==
+    +$  u-reply
+      $%  [%set reply=(unit v-reply)]
+          [%reacts reacts=v-reacts]
       ==
     +$  r-channels  [=nest =r-channel]
     +$  r-channel
@@ -969,6 +989,7 @@
     +$  reply-seal  [id=id-reply parent-id=id-post =reacts]
     ++  on-simple-posts    ((on id-post (unit simple-post)) lte)
     ++  on-replies  ((on id-reply (unit reply)) lte)
+    +$  v-replies  ((mop id-reply (unit v-reply)) lte)
     ++  on-v-replies  ((on id-reply (unit v-reply)) lte)
     ++  on-simple-replies  ((on id-reply simple-reply) lte)
     +$  simple-post  [simple-seal essay]

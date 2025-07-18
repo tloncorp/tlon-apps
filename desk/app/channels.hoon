@@ -2790,7 +2790,7 @@
       ?:  =(0 tries.s)  s
       ::
       =.  scan.s
-        ?:  ?=(%|  -.val.n.posts)  scan.s
+        ?:  ?=(%| -.val.n.posts)  scan.s
         ?.  (match +.val.n.posts match-type)  scan.s
         :_  scan.s
         [%post `simple-post:c`(suv-post-without-replies-2:utils u.val.n.posts)]
