@@ -1,20 +1,11 @@
 import { expect } from '@playwright/test';
 
 import * as helpers from './helpers';
-import shipManifest from './shipManifest.json';
 import { test } from './test-fixtures';
-
-const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
-const tenUrl = `${shipManifest['~ten'].webUrl}/apps/groups/`;
 
 test('should test notebook functionality', async ({ zodSetup, tenSetup }) => {
   const zodPage = zodSetup.page;
   const tenPage = tenSetup.page;
-
-  // Launch and login as ~zod
-  await zodPage.goto(zodUrl);
-  // wait for the page to load
-  await zodPage.waitForSelector('text=Home', { state: 'visible' });
 
   // Assert that we're on the Home page
   await expect(zodPage.getByText('Home')).toBeVisible();
@@ -35,6 +26,7 @@ test('should test notebook functionality', async ({ zodSetup, tenSetup }) => {
   await helpers.navigateBack(zodPage);
 
   if (await zodPage.getByText('Home').isVisible()) {
+    await zodPage.waitForTimeout(1000);
     await expect(zodPage.getByText(groupName).first()).toBeVisible();
     await zodPage.getByText(groupName).first().click();
     await expect(zodPage.getByText(groupName).first()).toBeVisible();
@@ -101,10 +93,6 @@ test('should test notebook functionality', async ({ zodSetup, tenSetup }) => {
 
   // Navigate back to the channel
   await helpers.navigateBack(zodPage);
-
-  // Switch to ~ten to navigate to the notebook and hide the post
-  await tenPage.goto(tenUrl);
-  await tenPage.waitForSelector('text=Home', { state: 'visible' });
 
   // Navigate to the group as ~ten
   await expect(tenPage.getByText('Home')).toBeVisible();

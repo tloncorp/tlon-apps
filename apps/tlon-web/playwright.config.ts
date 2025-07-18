@@ -17,7 +17,7 @@ const webServers = Object.entries(shipManifest).map(
 export default defineConfig({
   testDir: './e2e',
 
-  timeout: 120 * 1000,
+  timeout: process.env.CI ? 120 * 1000 : 60 * 1000,
 
   /* Run tests in files in parallel */
   fullyParallel: false,

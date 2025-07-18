@@ -1,18 +1,12 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
 
 import * as helpers from './helpers';
-import shipManifest from './shipManifest.json';
-
-// const busUrl = `${shipManifest['~bus'].webUrl}/apps/groups/`;
-const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
-
-test.use({ storageState: shipManifest['~zod'].authFile });
+import { test } from './test-fixtures';
 
 test('should handle complete group lifecycle with settings management', async ({
-  page,
+  zodPage,
 }) => {
-  await page.goto(zodUrl);
-  await page.waitForSelector('text=Home', { state: 'visible' });
+  const page = zodPage;
 
   await expect(page.getByText('Home')).toBeVisible();
 
