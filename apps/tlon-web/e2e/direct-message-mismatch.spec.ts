@@ -8,7 +8,7 @@ test('should test direct message protocol mismatch', async ({ zodPage }) => {
 
   await helpers.createDirectMessage(page, '~bus');
 
-  if (process.env.FORCE_EXTRACTION) {
+  if (await zodPage.getByTestId('MessageInput').isVisible()) {
     await helpers.sendMessage(page, 'Hello, ~bus!');
     // we need to reload the page to trigger the visible mismatch state
     // TODO: fix this
@@ -16,7 +16,4 @@ test('should test direct message protocol mismatch', async ({ zodPage }) => {
   }
 
   await expect(page.getByTestId('read-only-notice-dm-mismatch')).toBeVisible();
-
-  // we can't leave the DM when it's in a mismatch state. bug?
-  //   await helpers.leaveDM(page, '~bus');
 });

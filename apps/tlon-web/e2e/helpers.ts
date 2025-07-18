@@ -474,7 +474,7 @@ export async function createNotebookPost(
   await page.getByTestId('AddNotebookPost').click();
   await page.getByRole('textbox', { name: 'New Title' }).click();
   await page.getByRole('textbox', { name: 'New Title' }).fill(title);
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(1500);
   await page.locator('iframe').contentFrame().getByRole('paragraph').click();
   await page
     .locator('iframe')

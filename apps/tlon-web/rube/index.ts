@@ -452,6 +452,7 @@ const mountDesks = async () => {
       continue;
     }
 
+    console.log(`Mounting groups on ${ship.ship}`);
     await hoodCommand(
       ship.ship as ShipName,
       `mount %groups`,
@@ -486,6 +487,42 @@ const commitDesks = async (shipsNeedingUpdates: string[]) => {
       );
     }
   }
+};
+
+const nukeStateOnShips = async () => {
+  for (const ship of Object.values(ships) as Ship[]) {
+    if (targetShip && targetShip !== ship.ship) {
+      continue;
+    }
+
+    try {
+      console.log(`Nuking state on ${ship.ship}`);
+      await hoodCommand(
+        ship.ship as ShipName,
+        'nuke %groups, =desk &, =hard &',
+        ship.loopbackPort
+      );
+    } catch (e) {
+      console.error(`Error nuking state on ${ship.ship}:`, e);
+    }
+
+    // Give the nuke command time to complete
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    try {
+      console.log(`Reviving groups on ${ship.ship}`);
+      await hoodCommand(
+        ship.ship as ShipName,
+        'revive %groups',
+        ship.loopbackPort
+      );
+    } catch (e) {
+      console.error(`Error reviving groups on ${ship.ship}:`, e);
+    }
+  }
+
+  // Wait for revive to complete
+  await new Promise((resolve) => setTimeout(resolve, 3000));
 };
 
 const login = async () => {
@@ -913,6 +950,9 @@ const main = async () => {
 
     // Commit changes so Urbit reads our updates and updates its internal state
     await commitDesks(shipsNeedingUpdates);
+    if (!process.env.FORCE_EXTRACTION) {
+      await nukeStateOnShips();
+    }
     await checkShipReadinessForTests(shipsNeedingUpdates);
 
     // Check if we should skip running tests (for single test runner)
