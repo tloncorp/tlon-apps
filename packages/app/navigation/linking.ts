@@ -26,6 +26,7 @@ export const getMobileLinkingConfig = (
             path: 'group/:groupId/channel/:channelId/:selectedPostId?',
             parse: parsePathParams('channelId', 'groupId', 'selectedPostId'),
           },
+          ChatList: 'ChatList',
           ChannelSearch: { path: 'channel/:channelId/search' },
           Post: postScreenConfig(mode),
           ImageViewer: 'image-viewer/:postId',
@@ -68,6 +69,8 @@ export const getMobileLinkingConfig = (
           WompWomp: 'report-bug',
           AppInfo: 'app-info',
           PushNotificationSettings: 'push-notification-settings',
+          Contacts: 'contacts',
+          Settings: 'settings',
         },
       },
     },
@@ -87,6 +90,7 @@ export const getDesktopLinkingConfig = (
           Activity: 'activity',
           Contacts: 'contacts',
           Home: {
+            path: '',
             screens: {
               ChatList: '',
               GroupChannels: 'group/:groupId',
@@ -142,6 +146,12 @@ export const getDesktopLinkingConfig = (
                   ImageViewer: {},
                 },
               },
+            },
+          },
+          Settings: {
+            path: 'settings',
+            screens: {
+              SettingsEmpty: '',
             },
           },
         },
