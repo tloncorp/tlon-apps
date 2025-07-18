@@ -168,24 +168,29 @@ export const syncLatestPosts = async (
   queryCtx?: QueryCtx,
   yieldWriter?: boolean
 ): Promise<() => Promise<void>> => {
-  const syncedAt = await db.headsSyncedAt.getValue();
-  const result = await syncQueue.add('latestPosts', ctx, () =>
-    api.getLatestPosts({
-      afterCursor: new Date(syncedAt),
-    })
-  );
-  logger.crumb('got latest posts from api');
-  const allPosts = result.map((p) => p.latestPost);
-  const writer = async (): Promise<void> => {
-    allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
-    await db.insertLatestPosts(allPosts, queryCtx);
-    await db.headsSyncedAt.setValue(Date.now());
-  };
+  try {
+    const syncedAt = await db.headsSyncedAt.getValue();
+    const result = await syncQueue.add('latestPosts', ctx, () =>
+      api.getLatestPosts({
+        afterCursor: new Date(syncedAt),
+      })
+    );
+    logger.crumb('got latest posts from api');
+    const allPosts = result.map((p) => p.latestPost);
+    const writer = async (): Promise<void> => {
+      allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
+      await db.insertLatestPosts(allPosts, queryCtx);
+      await db.headsSyncedAt.setValue(Date.now());
+    };
 
-  if (yieldWriter) {
-    return writer;
-  } else {
-    await writer();
+    if (yieldWriter) {
+      return writer;
+    } else {
+      await writer();
+      return () => Promise.resolve();
+    }
+  } catch (e) {
+    logger.trackError('failed to sync latest posts');
     return () => Promise.resolve();
   }
 };

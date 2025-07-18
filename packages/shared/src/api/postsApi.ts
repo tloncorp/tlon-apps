@@ -411,24 +411,29 @@ export const getLatestPosts = async ({
   afterCursor?: Cursor;
   count?: number;
 }): Promise<GetLatestPostsResponse> => {
-  const { channels, dms } = await scry<ub.CombinedHeads>({
-    app: 'groups-ui',
-    path: formatScryPath(
-      'v2/heads',
-      afterCursor ? formatCursor(afterCursor) : null,
-      count
-    ),
-  });
+  try {
+    const { channels, dms } = await scry<ub.CombinedHeads>({
+      app: 'groups-ui',
+      path: formatScryPath(
+        'v2/heads',
+        afterCursor ? formatCursor(afterCursor) : null,
+        count
+      ),
+    });
 
-  return [...channels, ...dms].map((head) => {
-    const channelId = 'nest' in head ? head.nest : head.whom;
-    const latestPost = toPostData(channelId, head.latest);
-    return {
-      channelId: channelId,
-      updatedAt: head.recency,
-      latestPost,
-    };
-  });
+    return [...channels, ...dms].map((head) => {
+      const channelId = 'nest' in head ? head.nest : head.whom;
+      const latestPost = toPostData(channelId, head.latest);
+      return {
+        channelId: channelId,
+        updatedAt: head.recency,
+        latestPost,
+      };
+    });
+  } catch (e) {
+    console.log('failed to sync heads');
+    return [];
+  }
 };
 
 export interface GetChangedPostsOptions {
