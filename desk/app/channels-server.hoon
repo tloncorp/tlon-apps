@@ -602,7 +602,7 @@
     ?+    -.sign  !!
         %poke-ack
       ?~  p.sign  cor
-      %-  (slog 'diary-server: poke failure' >wire< u.p.sign)
+      %-  (slog '%channels-server: poke failure' >wire< u.p.sign)
       cor
     ==
   ::
@@ -790,7 +790,7 @@
       [now.bowl %default | readers.new]
     =/  =action:v2:gv
       [group.new now.bowl %channel nest %add channel]
-    =/  =dock    [p.group.new %groups]
+    =/  =dock    [our.bowl %groups]
     =/  =wire    (snoc ca-area %create)
     (emit %pass wire %agent dock %poke group-action-3+!>(action))
     ::
