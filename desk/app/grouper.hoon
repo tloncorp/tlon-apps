@@ -163,23 +163,23 @@
       `this
     =*  joiner  i.t.wire
     =*  token  i.t.t.wire
-    :_  this
-    :_  ~
     ?~  p.sign
-      %^  tell:log  %info
-        ~[leaf+"{<joiner>} invited to DM"]
-      :~  'event'^s+'DM Invite Sent'
+      %-  %^  tell:log  %info
+          ~[leaf+"{<joiner>} invited to DM"]
+        :~  'event'^s+'DM Invite Sent'
+            'flow'^s+'lure'
+            'lure-id'^s+token
+            'lure-joiner'^s+joiner
+        ==
+      `this
+    %-  %^  tell:log  %crit
+        u.p.sign
+      :~  'event'^s+'DM Invite Fail'
           'flow'^s+'lure'
           'lure-id'^s+token
           'lure-joiner'^s+joiner
       ==
-    %^  tell:log  %crit
-      u.p.sign
-    :~  'event'^s+'DM Invite Fail'
-        'flow'^s+'lure'
-        'lure-id'^s+token
-        'lure-joiner'^s+joiner
-    ==
+    `this
   ::
       %watch-ack  `this
   ::
@@ -204,43 +204,16 @@
           echo
         ~['event'^s+event]
       --
-<<<<<<< HEAD
-    =*  dm-event  'DM Invite Fail'
-    ?~  inviter=(~(get by fields.metadata.bite) 'inviter')
-      %-  (tell %crit dm-event 'inviter field missing in lure bite' ~)
-      `this
-    ?.  =((slav %p u.inviter) our.bowl)
-      %-  (tell %crit dm-event leaf+"inviter {<u.inviter>} is foreign" ~)
-      `this
-    =/  wir=^wire  /dm/(scot %p joiner.bite)
-    =/  =dock  [our.bowl %chat]
-    =/  =id:c  [our now]:bowl
-    =/  =memo:ch
-      [~[[%inline ~[[%ship joiner.bite] ' has joined the network']]] id]
-    =/  =essay:c
-      [memo [%chat /notice] ~ ~]
-    =/  =action:dm:c
-      :-  joiner.bite
-      [id %add essay ~]
-    %-  %^    tell
-            %info
-          'DM Invite Sent'
-        ~[leaf+"{<joiner.bite>} invited to DM"]
-    =|  caz=(list card)
-    =/  =cage  chat-dm-action+!>(`action:dm:c`action)
-    =.  caz  :_(caz [%pass wir %agent dock %poke cage])
-=======
-    :_  this
-    =;  caz=(list card)
+    =^  caz=(list card)  this
       =*  dm-event  'DM Invite Fail'
       ?~  inviter=(~(get by fields.metadata.bite) 'inviter')
-        :_  ~
-        %^  lure-log  %crit  dm-event
-        ~['inviter field missing in lure bite']
+        %-  %^  tell  %crit  dm-event
+            ~['inviter field missing in lure bite']
+        `this
       ?.  =((slav %p u.inviter) our.bowl)
-        :_  ~
-        %^  lure-log  %crit  dm-event
-        ~[leaf+"inviter {<u.inviter>} is foreign"]
+        %-  %^  tell  %crit  dm-event
+            ~[leaf+"inviter {<u.inviter>} is foreign"]
+        `this
       =/  wir=^wire  /dm/(scot %p joiner.bite)/[token.bite]
       =/  =dock  [our.bowl %chat]
       =/  =id:c  [our now]:bowl
@@ -250,36 +223,36 @@
         :-  joiner.bite
         [id %add %*(. *essay:ch - memo, kind [%chat %notice ~]) ~]
       =/  =cage  chat-dm-action-1+!>(`action:dm:c`action)
-      (snoc caz [%pass wir %agent dock %poke cage])
->>>>>>> develop
+      :_  this
+      [%pass wir %agent dock %poke cage]~
     ::
     =+  invite-type=(~(get by fields.metadata.bite) 'inviteType')
     ::
     ::  don't send group invite if this is a personal bite
     ?:  &(?=(^ invite-type) =('user' u.invite-type))
-      `this
+      [caz this]
     =*  group-event  'Group Invite Fail'
     ?~  group=(~(get by fields.metadata.bite) 'group')
       %-  (tell %warn group-event 'group field missing' ~)
-      `this
+      [caz this]
     =/  =flag:gv  (flag:dejs:gj s+u.group)
     ?.  (~(has in enabled-groups) q.flag)
       %-  %^    tell
               %warn  
             group-event
           ~[leaf+"invites for group {<p.flag>}/{(trip q.flag)} not enabled"]
-      `this
+      [caz this]
     =/  prefix  /(scot %p our.bowl)/groups/(scot %da now.bowl)
     ?.  .^(? %gu (weld prefix /$))
       %-  (tell %warn group-event '%groups not running' ~)
-      `this
+      [caz this]
     =/  gnat=path  /(scot %p p.flag)/[q.flag]/noun
     ?.  .^(? %gu :(weld prefix /groups gnat))
       %-  %^    tell
               %warn  
             group-event
           ~[leaf+"group {<p.flag>}/{(trip q.flag)} missing"]
-      `this
+      [caz this]
     %-  %^    tell
             %info  
           'Group Invite Sent'
@@ -289,7 +262,8 @@
         ~[inline+~[(crip "lure invite {<token.bite>}")]]
       [%invite flag [joiner.bite ~ `note]]
     :_  this
-    :_(caz [%pass /invite %agent [our.bowl %groups] %poke group-action-4+!>(a-groups)])
+    :_  caz
+    [%pass /invite %agent [our.bowl %groups] %poke group-action-4+!>(a-groups)]
   ==
 ::
 ++  on-fail
