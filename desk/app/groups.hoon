@@ -793,8 +793,14 @@
       ?.  ?=([%cast @ @ ~] wire)  caz
       :_  caz
       [%pass wire %agent dock %leave ~]
-    ::XX  clean up old /contact subscription
+    ::  clean up old /contact subscription
     ::
+    =.  caz
+      %+  roll  ~(tap by wex.bowl)
+      |=  [[[=wire =dock] *] =_caz]
+      ?.  ?=([%contact ~] wire)  caz
+      :_  caz
+      [%pass wire %agent dock %leave ~]
     ::  schedule foreigns and admissions migration
     ::
     =.  caz
