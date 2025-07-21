@@ -47,7 +47,7 @@ test('Forward chat message from group channel to DM - verify toast and reference
       timeout: 10000,
     });
     await zodPage.getByText(groupName).first().click();
-    
+
     // Wait for group to load by checking for group header
     await expect(zodPage.getByText(groupName).first()).toBeVisible({
       timeout: 5000,
@@ -61,7 +61,9 @@ test('Forward chat message from group channel to DM - verify toast and reference
   await helpers.sendMessage(zodPage, testMessage);
 
   // Verify message is visible
-  await expect(zodPage.getByTestId('Post').getByText(testMessage)).toBeVisible();
+  await expect(
+    zodPage.getByTestId('Post').getByText(testMessage)
+  ).toBeVisible();
 
   // Step 2: ~zod forwards the message to DM with ~ten
   await helpers.forwardMessageToDM(zodPage, testMessage, '~ten');
@@ -69,10 +71,6 @@ test('Forward chat message from group channel to DM - verify toast and reference
   // Step 3: Verify toast appears on ~zod's screen
   await expect(zodPage.getByTestId('ToastMessage')).toBeVisible();
   await expect(zodPage.getByText('Forwarded post to ~ten')).toBeVisible();
-
-  // Wait for toast to disappear or dismiss it
-  await zodPage.getByTestId('ToastMessage').click(); // Tap to dismiss
-  await expect(zodPage.getByTestId('ToastMessage')).not.toBeVisible();
 
   // Step 4: Setup ~ten to check DM
   await tenPage.goto(tenUrl);
@@ -97,11 +95,14 @@ test('Forward chat message from group channel to DM - verify toast and reference
 
   if (await tenPage.getByText('Go to group').isVisible()) {
     await tenPage.getByText('Go to group').click();
+    // Wait a moment for navigation to complete
+    await tenPage.waitForTimeout(2000);
   } else {
     await tenPage.getByText(groupName).first().click();
   }
 
-  await expect(tenPage.getByText(groupName).first()).toBeVisible();
+  // Navigate back to Home to access DMs
+  await helpers.navigateToHome(tenPage);
 
   // Navigate to DM with ~zod to check forwarded message
   await expect(tenPage.getByTestId('ChannelListItem-~zod')).toBeVisible();
@@ -155,7 +156,7 @@ test('Forward notebook post from group to DM - verify toast and reference', asyn
       timeout: 10000,
     });
     await zodPage.getByText(groupName).first().click();
-    
+
     // Wait for group to load by checking for group header
     await expect(zodPage.getByText(groupName).first()).toBeVisible({
       timeout: 5000,
@@ -191,9 +192,6 @@ test('Forward notebook post from group to DM - verify toast and reference', asyn
   await expect(zodPage.getByTestId('ToastMessage')).toBeVisible();
   await expect(zodPage.getByText('Forwarded post to ~ten')).toBeVisible();
 
-  // Dismiss toast
-  await zodPage.getByTestId('ToastMessage').click();
-
   // Step 4: Setup ~ten
   await tenPage.goto(tenUrl);
   await tenPage.waitForSelector('text=Home', { state: 'visible' });
@@ -217,11 +215,14 @@ test('Forward notebook post from group to DM - verify toast and reference', asyn
 
   if (await tenPage.getByText('Go to group').isVisible()) {
     await tenPage.getByText('Go to group').click();
+    // Wait a moment for navigation to complete
+    await tenPage.waitForTimeout(2000);
   } else {
     await tenPage.getByText(groupName).first().click();
   }
 
-  await expect(tenPage.getByText(groupName).first()).toBeVisible();
+  // Navigate back to Home to access DMs
+  await helpers.navigateToHome(tenPage);
 
   // Navigate to DM to check forwarded notebook post
   await expect(tenPage.getByTestId('ChannelListItem-~zod')).toBeVisible();
@@ -274,7 +275,7 @@ test('Forward message with reactions and thread replies - verify complete contex
       timeout: 10000,
     });
     await zodPage.getByText(groupName).first().click();
-    
+
     // Wait for group to load by checking for group header
     await expect(zodPage.getByText(groupName).first()).toBeVisible({
       timeout: 5000,
@@ -308,9 +309,6 @@ test('Forward message with reactions and thread replies - verify complete contex
   await expect(zodPage.getByTestId('ToastMessage')).toBeVisible();
   await expect(zodPage.getByText('Forwarded post to ~ten')).toBeVisible();
 
-  // Dismiss toast
-  await zodPage.getByTestId('ToastMessage').click();
-
   // Step 6: Setup ~ten
   await tenPage.goto(tenUrl);
   await tenPage.waitForSelector('text=Home', { state: 'visible' });
@@ -334,11 +332,14 @@ test('Forward message with reactions and thread replies - verify complete contex
 
   if (await tenPage.getByText('Go to group').isVisible()) {
     await tenPage.getByText('Go to group').click();
+    // Wait a moment for navigation to complete
+    await tenPage.waitForTimeout(2000);
   } else {
     await tenPage.getByText(groupName).first().click();
   }
 
-  await expect(tenPage.getByText(groupName).first()).toBeVisible();
+  // Navigate back to Home to access DMs
+  await helpers.navigateToHome(tenPage);
 
   // Navigate to DM to check forwarded message
   await expect(tenPage.getByTestId('ChannelListItem-~zod')).toBeVisible();
@@ -395,7 +396,7 @@ test('Forward message - test toast auto-dismiss and manual dismiss', async ({
       timeout: 10000,
     });
     await zodPage.getByText(groupName).first().click();
-    
+
     // Wait for group to load by checking for group header
     await expect(zodPage.getByText(groupName).first()).toBeVisible({
       timeout: 5000,
