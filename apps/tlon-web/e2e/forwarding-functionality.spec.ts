@@ -416,7 +416,7 @@ test('Forward message - test toast auto-dismiss and manual dismiss', async ({
 
   // Step 4: Test manual dismiss by tapping
   await zodPage.getByTestId('ToastMessage').click();
-  await expect(zodPage.getByTestId('ToastMessage')).not.toBeVisible();
+  await expect(zodPage.getByTestId('ToastMessage')).not.toBeAttached();
 
   // Step 5: Forward again to test auto-dismiss
   await helpers.forwardMessageToDM(zodPage, testMessage, '~ten');
@@ -426,5 +426,5 @@ test('Forward message - test toast auto-dismiss and manual dismiss', async ({
 
   // Wait for auto-dismiss (1500ms duration for forward success toast)
   await zodPage.waitForTimeout(2000);
-  await expect(zodPage.getByTestId('ToastMessage')).not.toBeVisible();
+  await expect(zodPage.getByTestId('ToastMessage')).not.toBeAttached();
 });
