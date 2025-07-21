@@ -25,7 +25,7 @@ test('Forward chat message from group channel to DM - verify toast and reference
 
   // Create DM between ~zod and ~ten
   await helpers.createDirectMessage(zodPage, '~ten');
-  await helpers.navigateToHome(zodPage);
+  await zodPage.getByTestId('HomeNavIcon').click();
 
   // Create a test group
   await helpers.createGroup(zodPage);
@@ -33,14 +33,13 @@ test('Forward chat message from group channel to DM - verify toast and reference
 
   // Invite ~ten to the group
   await helpers.inviteMembersToGroup(zodPage, ['ten']);
-
   // Navigate back to the main channel view after inviting members
-  await helpers.navigateToHome(zodPage);
+  await zodPage.getByTestId('HomeNavIcon').click();
 
   if (await zodPage.getByText('Home').isVisible()) {
     // Wait for the group to be available
     await zodPage.waitForTimeout(2000);
-    
+
     // Click on the group (it stays as "Untitled group")
     await expect(zodPage.getByText(groupName).first()).toBeVisible({
       timeout: 10000,
@@ -48,7 +47,11 @@ test('Forward chat message from group channel to DM - verify toast and reference
     await zodPage.getByText(groupName).first().click();
 
     // Wait for group to load by checking for a non-loading header
-    await expect(zodPage.getByTestId('ScreenHeaderTitle').filter({ hasNotText: 'Loading…' })).toBeVisible({
+    await expect(
+      zodPage
+        .getByTestId('ScreenHeaderTitle')
+        .filter({ hasNotText: 'Loading…' })
+    ).toBeVisible({
       timeout: 5000,
     });
   }
@@ -101,7 +104,7 @@ test('Forward chat message from group channel to DM - verify toast and reference
   }
 
   // Navigate back to Home to access DMs
-  await helpers.navigateToHome(tenPage);
+  await tenPage.getByTestId('HomeNavIcon').click();
 
   // Navigate to DM with ~zod to check forwarded message
   await expect(tenPage.getByTestId('ChannelListItem-~zod')).toBeVisible();
