@@ -114,7 +114,7 @@ test('Forward chat message from group channel to DM - verify toast and reference
   await expect(tenPage.getByText(testMessage).first()).toBeVisible();
 
   // Verify it shows as a forwarded/referenced message
-  await expect(tenPage.getByText('Chat Post')).toBeVisible();
+  await expect(tenPage.getByText('Chat Post').first()).toBeVisible();
   await expect(tenPage.locator('text=' + testMessage).first()).toBeVisible();
 });
 
@@ -235,7 +235,7 @@ test('Forward notebook post from group to DM - verify toast and reference', asyn
   await expect(tenPage.getByText(notebookContent).first()).toBeVisible();
 
   // Verify it appears as a notebook reference (not a direct post)
-  await expect(tenPage.getByText('Notebook Post')).toBeVisible();
+  await expect(tenPage.getByText('Notebook Post').first()).toBeVisible();
 });
 
 test('Forward message with reactions and thread replies - verify complete context', async ({
@@ -351,7 +351,7 @@ test('Forward message with reactions and thread replies - verify complete contex
   await expect(tenPage.getByText(testMessage).first()).toBeVisible();
 
   // Verify it appears as a chat reference
-  await expect(tenPage.getByText('Chat Post')).toBeVisible();
+  await expect(tenPage.getByText('Chat Post').first()).toBeVisible();
 
   // Check if the reference content is clickable and shows context
   const referenceElement = tenPage.locator('text=' + testMessage).first();
