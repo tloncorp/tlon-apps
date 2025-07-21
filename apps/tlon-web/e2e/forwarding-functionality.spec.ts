@@ -26,6 +26,10 @@ test('Forward chat message from group channel to DM - verify toast and reference
     await helpers.leaveDM(zodPage, '~ten');
   }
 
+  // Create DM between ~zod and ~ten
+  await helpers.createDirectMessage(zodPage, '~ten');
+  await helpers.navigateToHome(zodPage);
+
   // Create a test group
   await helpers.createGroup(zodPage);
   const groupName = '~ten, ~zod';
@@ -126,6 +130,13 @@ test('Forward notebook post from group to DM - verify toast and reference', asyn
   // Clean up any existing groups
   await helpers.cleanupExistingGroup(zodPage, 'Test Group');
   await helpers.cleanupExistingGroup(zodPage, '~ten, ~zod');
+
+  // Clean up any existing DM with ~ten and create new one
+  if (await zodPage.getByText('~ten', { exact: true }).isVisible()) {
+    await helpers.leaveDM(zodPage, '~ten');
+  }
+  await helpers.createDirectMessage(zodPage, '~ten');
+  await helpers.navigateToHome(zodPage);
 
   // Create a new group
   await helpers.createGroup(zodPage);
@@ -238,6 +249,13 @@ test('Forward message with reactions and thread replies - verify complete contex
 
   // Clean up any existing groups
   await helpers.cleanupExistingGroup(zodPage, '~ten, ~zod');
+
+  // Clean up any existing DM with ~ten and create new one
+  if (await zodPage.getByText('~ten', { exact: true }).isVisible()) {
+    await helpers.leaveDM(zodPage, '~ten');
+  }
+  await helpers.createDirectMessage(zodPage, '~ten');
+  await helpers.navigateToHome(zodPage);
 
   // Create a test group
   await helpers.createGroup(zodPage);
@@ -352,6 +370,13 @@ test('Forward message - test toast auto-dismiss and manual dismiss', async ({
 
   // Clean up any existing groups
   await helpers.cleanupExistingGroup(zodPage, '~ten, ~zod');
+
+  // Clean up any existing DM with ~ten and create new one
+  if (await zodPage.getByText('~ten', { exact: true }).isVisible()) {
+    await helpers.leaveDM(zodPage, '~ten');
+  }
+  await helpers.createDirectMessage(zodPage, '~ten');
+  await helpers.navigateToHome(zodPage);
 
   // Create a test group
   await helpers.createGroup(zodPage);
