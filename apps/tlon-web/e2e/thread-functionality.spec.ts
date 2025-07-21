@@ -1,19 +1,10 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
 
 import * as helpers from './helpers';
-import shipManifest from './shipManifest.json';
+import { test } from './test-fixtures';
 
-const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
-
-test.use({ storageState: shipManifest['~zod'].authFile });
-
-test('should test comprehensive thread functionality', async ({ page }) => {
-  // Launch and login
-  await page.goto(zodUrl);
-  await page.waitForSelector('text=Home', { state: 'visible' });
-  await page.evaluate(() => {
-    window.toggleDevTools();
-  });
+test('should test comprehensive thread functionality', async ({ zodPage }) => {
+  const page = zodPage;
 
   // Assert that we're on the Home page
   await expect(page.getByText('Home')).toBeVisible();

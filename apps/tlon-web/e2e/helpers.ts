@@ -17,15 +17,16 @@ export async function createGroup(page: Page) {
   await page.getByText('Select contacts to invite').click();
   await page.getByText('Create group').click();
 
-  // Wait for navigation to complete and group to be created
-  await page.waitForTimeout(3000);
+  await page.waitForTimeout(2000);
 
-  // The group should now be visible on the Home page - click on it to enter
-  if (await page.getByText('Untitled group').first().isVisible()) {
-    await page.getByText('Untitled group').first().click();
-    
-    // Wait for the channel to load
+  if (await page.getByTestId('ChannelHeaderTitle').isVisible()) {
+    await expect(page.getByText('Welcome to your group!')).toBeVisible();
+  } else {
+    await page.getByTestId('HomeNavIcon').click();
+    await page.getByTestId('ChatListItem-Untitled group-unpinned').click();
     await page.waitForTimeout(2000);
+    await expect(page.getByTestId('ChannelHeaderTitle')).toBeVisible();
+    await expect(page.getByText('Welcome to your group!')).toBeVisible();
   }
 }
 
@@ -33,23 +34,29 @@ export async function leaveGroup(page: Page, groupName: string) {
   await page.getByTestId('HomeNavIcon').click();
   if (await page.getByText(groupName).first().isVisible()) {
     await page.getByText(groupName).first().click();
-    await page.getByTestId('GroupOptionsSheetTrigger').first().click();
-    await expect(page.getByText('Group info & settings')).toBeVisible();
-    await page.getByText('Group info & settings').click();
+    await openGroupSettings(page);
     await page.waitForSelector('text=Group Info');
     await page.getByText('Leave group').click();
   }
 }
 
-export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
-  // If we're on the group info page, use the Invite People button there
-  if (await page.getByText('Invite People').isVisible()) {
-    await page.getByText('Invite People').click();
+export async function openGroupOptionsSheet(page: Page) {
+  if (await page.getByTestId('GroupOptionsSheetTrigger').first().isVisible()) {
+    await page
+      .getByTestId('GroupOptionsSheetTrigger')
+      .first()
+      .click({ force: true });
   } else {
-    // Otherwise, use the options sheet trigger on the main group page
-    await page.getByTestId('GroupOptionsSheetTrigger').first().click();
-    await page.getByTestId('ActionSheetAction-Invite people').first().click();
+    await page
+      .getByTestId('GroupOptionsSheetTrigger')
+      .nth(1)
+      .click({ force: true });
   }
+}
+
+export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
+  await openGroupOptionsSheet(page);
+  await page.getByTestId('ActionSheetAction-Invite people').first().click();
 
   for (const memberId of memberIds) {
     await page.getByPlaceholder('Filter by nickname').fill(memberId);
@@ -58,6 +65,7 @@ export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
   }
 
   await page.getByText('continue').click();
+  await page.waitForTimeout(2000);
 }
 
 export async function rejectGroupInvite(page: Page) {
@@ -81,7 +89,7 @@ export async function deleteGroup(page: Page, groupName?: string) {
 }
 
 export async function openGroupSettings(page: Page) {
-  await page.getByTestId('GroupOptionsSheetTrigger').first().click();
+  await openGroupOptionsSheet(page);
   await expect(page.getByText('Group info & settings')).toBeVisible();
   await page.getByText('Group info & settings').click();
 }
@@ -141,17 +149,18 @@ export async function waitForElementAndAct(
  * Handles cleanup of existing "Untitled group" if present
  */
 export async function cleanupExistingGroup(page: Page, groupName?: string) {
-  try {
-    const groupText = groupName || 'Untitled group';
-    const groupElement = page.getByText(groupText).first();
-    
-    if (await groupElement.isVisible({ timeout: 3000 })) {
-      await groupElement.click({ timeout: 5000 });
-      await openGroupSettings(page);
-      await deleteGroup(page, groupName);
-    }
-  } catch (error) {
-    console.log(`Cleanup failed for group ${groupName}:`, error.message);
+  if (
+    await page
+      .getByText(groupName || 'Untitled group')
+      .first()
+      .isVisible()
+  ) {
+    await page
+      .getByText(groupName || 'Untitled group')
+      .first()
+      .click();
+    await openGroupSettings(page);
+    await deleteGroup(page, groupName);
   }
 }
 
@@ -160,106 +169,16 @@ export async function cleanupExistingGroup(page: Page, groupName?: string) {
  */
 export async function navigateBack(page: Page, preferredIndex = 0) {
   const backButtons = page.getByTestId('HeaderBackButton');
-  
-  // Wait for at least one back button to be visible with a shorter timeout
-  try {
-    await backButtons.first().waitFor({ state: 'visible', timeout: 5000 });
-  } catch (error) {
-    // If no back button is found, try alternative navigation methods
-    console.warn('No HeaderBackButton found, trying alternative navigation');
-    
-    // Try clicking Home nav icon if available
-    if (await page.getByTestId('HomeNavIcon').isVisible({ timeout: 1000 })) {
-      await page.getByTestId('HomeNavIcon').click();
-      return;
-    }
-    
-    throw new Error('No HeaderBackButton or HomeNavIcon found for navigation');
-  }
 
-  // Try preferred index first
-  if (await backButtons.nth(preferredIndex).isVisible({ timeout: 1000 })) {
+  if (await backButtons.nth(preferredIndex).isVisible()) {
     await backButtons.nth(preferredIndex).click();
-    return;
+  } else if (await backButtons.first().isVisible()) {
+    await backButtons.first().click();
+  } else if (await backButtons.nth(1).isVisible()) {
+    await backButtons.nth(1).click();
+  } else {
+    await backButtons.nth(2).click();
   }
-  
-  // Try other indices in order
-  for (let i = 0; i < 3; i++) {
-    if (await backButtons.nth(i).isVisible({ timeout: 1000 })) {
-      await backButtons.nth(i).click();
-      return;
-    }
-  }
-  
-  throw new Error('No visible HeaderBackButton found despite elements being present');
-}
-
-/**
- * Navigates to the Home screen using the most reliable method
- */
-export async function navigateToHome(page: Page) {
-  // First try clicking Home nav icon if it's visible
-  if (await page.getByTestId('HomeNavIcon').isVisible({ timeout: 1000 })) {
-    await page.getByTestId('HomeNavIcon').click();
-    await page.waitForSelector('text=Home', { state: 'visible' });
-    return;
-  }
-  
-  // If no Home nav icon, try multiple back buttons until we reach home
-  let attempts = 0;
-  const maxAttempts = 5;
-  
-  while (attempts < maxAttempts && !(await page.getByText('Home').isVisible({ timeout: 1000 }))) {
-    try {
-      await navigateBack(page);
-      attempts++;
-      await page.waitForTimeout(500); // Wait a bit for navigation to complete
-    } catch (error) {
-      break; // Stop trying if navigateBack fails
-    }
-  }
-  
-  // Verify we're on Home
-  if (!(await page.getByText('Home').isVisible({ timeout: 2000 }))) {
-    throw new Error('Could not navigate to Home screen');
-  }
-}
-
-/**
- * Forwards a message to a specific contact via DM
- */
-export async function forwardMessageToDM(
-  page: Page,
-  messageText: string,
-  contactId: string
-) {
-  await longPressMessage(page, messageText);
-  await page.getByText('Forward', { exact: true }).click();
-
-  // Verify forward sheet opened
-  await expect(page.getByText('Forward to channel')).toBeVisible();
-
-  // Search for the contact's DM
-  await page.getByPlaceholder('Search channels').fill(contactId);
-  await page.waitForTimeout(2000); // Wait longer for search results
-
-  // Try to click on the contact using a more specific selector
-  try {
-    // First try with test ID if available
-    const contactRow = page.getByTestId(`ChannelListItem-${contactId}`);
-    if (await contactRow.isVisible({ timeout: 2000 })) {
-      await contactRow.click();
-    } else {
-      // Fallback to text-based selection with force click to handle overlays
-      await page.getByText(contactId).first().click({ force: true });
-    }
-  } catch (error) {
-    // Final fallback: try clicking with force
-    await page.getByText(contactId).first().click({ force: true });
-  }
-
-  // Confirm forward
-  await page.getByText(`Forward to ${contactId}`).click();
 }
 
 /**
@@ -555,6 +474,7 @@ export async function createNotebookPost(
   await page.getByTestId('AddNotebookPost').click();
   await page.getByRole('textbox', { name: 'New Title' }).click();
   await page.getByRole('textbox', { name: 'New Title' }).fill(title);
+  await page.waitForTimeout(1500);
   await page.locator('iframe').contentFrame().getByRole('paragraph').click();
   await page
     .locator('iframe')
@@ -562,6 +482,7 @@ export async function createNotebookPost(
     .locator('div')
     .nth(2)
     .fill(content);
+  await page.waitForTimeout(500);
   await page.getByTestId('BigInputPostButton').click();
   await page.waitForTimeout(500);
   await expect(page.getByText(title)).toBeVisible();
@@ -583,7 +504,7 @@ export async function createGalleryPost(page: Page, content: string) {
     .nth(2)
     .fill(content);
   await page.getByTestId('BigInputPostButton').click();
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(1500);
   await expect(page.getByText(content).first()).toBeVisible();
 }
 
@@ -598,8 +519,11 @@ export async function sendMessage(page: Page, message: string) {
   await page.waitForTimeout(1500);
   await page.getByTestId('MessageInputSendButton').click({ force: true });
   // Wait for message to appear
-  await page.waitForTimeout(500);
-  await expect(page.getByText(message, { exact: true }).first()).toBeVisible();
+  await page.waitForTimeout(1000);
+  await expect(
+    page.getByTestId('Post').getByText(message, { exact: true }).first()
+  ).toBeVisible();
+  await page.waitForTimeout(1000);
 }
 
 /**
@@ -638,6 +562,7 @@ export async function sendThreadReply(page: Page, replyText: string) {
     .getByTestId('MessageInputSendButton')
     .click();
   await expect(page.getByText(replyText, { exact: true })).toBeVisible();
+  await page.waitForTimeout(1000);
 }
 
 /**
@@ -868,7 +793,7 @@ export async function createDirectMessage(page: Page, contactId: string) {
  */
 export async function leaveDM(page: Page, contactId: string) {
   await page.getByTestId('HomeNavIcon').click();
-  await page.getByText(contactId, { exact: true }).first().click();
+  await page.getByTestId(`ChannelListItem-${contactId}`).first().click();
   await page.waitForTimeout(500);
   await page.getByTestId('ChannelOptionsSheetTrigger').first().click();
   await page.waitForTimeout(500);
@@ -877,7 +802,9 @@ export async function leaveDM(page: Page, contactId: string) {
   // without this reload we'll still see previous messages in the DM
   // TODO: figure out why this is happening
   await page.reload();
-  await expect(page.getByText(contactId, { exact: true })).not.toBeVisible();
+  await expect(
+    page.getByTestId(`ChannelListItem-${contactId}`)
+  ).not.toBeVisible();
 }
 
 /**
