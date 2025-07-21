@@ -57,7 +57,7 @@ test('Forward chat message from group channel to DM - verify toast and reference
   await helpers.sendMessage(zodPage, testMessage);
 
   // Verify message is visible
-  await expect(zodPage.getByText(testMessage)).toBeVisible();
+  await expect(zodPage.getByTestId('Post').getByText(testMessage)).toBeVisible();
 
   // Step 2: ~zod forwards the message to DM with ~ten
   await helpers.forwardMessageToDM(zodPage, testMessage, '~ten');
@@ -106,7 +106,7 @@ test('Forward chat message from group channel to DM - verify toast and reference
   await tenPage.waitForTimeout(1000);
 
   // Step 5: ~ten verifies forwarded message appears as a reference/citation
-  await expect(tenPage.getByText(testMessage)).toBeVisible();
+  await expect(tenPage.getByText(testMessage).first()).toBeVisible();
 
   // Verify it shows as a forwarded/referenced message
   await expect(tenPage.getByText('Chat Post')).toBeVisible();
@@ -219,8 +219,8 @@ test('Forward notebook post from group to DM - verify toast and reference', asyn
   await tenPage.waitForTimeout(1000);
 
   // Step 5: ~ten verifies forwarded notebook post in DM
-  await expect(tenPage.getByText(notebookTitle)).toBeVisible();
-  await expect(tenPage.getByText(notebookContent)).toBeVisible();
+  await expect(tenPage.getByText(notebookTitle).first()).toBeVisible();
+  await expect(tenPage.getByText(notebookContent).first()).toBeVisible();
 
   // Verify it appears as a notebook reference (not a direct post)
   await expect(tenPage.getByText('Notebook Post')).toBeVisible();
@@ -329,7 +329,7 @@ test('Forward message with reactions and thread replies - verify complete contex
   await tenPage.waitForTimeout(1000);
 
   // Step 7: ~ten verifies forwarded message preserves context
-  await expect(tenPage.getByText(testMessage)).toBeVisible();
+  await expect(tenPage.getByText(testMessage).first()).toBeVisible();
 
   // Verify it appears as a chat reference
   await expect(tenPage.getByText('Chat Post')).toBeVisible();
