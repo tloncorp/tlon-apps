@@ -4,11 +4,13 @@ This directory contains end-to-end tests for the Tlon web app using Playwright. 
 
 ## Quick Reference
 
--   First run: `pnpm e2e` (downloads ships, ~15 min)
+-   Full suite: `pnpm e2e` (first run downloads ships, ~15 min; automatically nukes ship state)
+-   Full suite with explicit extraction: `pnpm e2e:force` (forces complete re-extraction of ships instead of just nuking state)
 -   Development: `pnpm e2e:ui` (interactive debugging)
 -   Single test: `pnpm e2e:test filename.spec.ts` (automatic ship management)
 -   Single test (manual): `npx playwright test filename.spec.ts` (requires running ships)
 -   View results: `npx playwright show-report`
+-   If you have an issue with a run, try it again with `force`.
 
 ## Overview
 
@@ -133,6 +135,12 @@ npx playwright test chat-functionality.spec.ts
 # Run specific test file with automatic ship management (recommended for development)
 pnpm e2e:test chat-functionality.spec.ts
 
+# Force re-extraction of all ships (useful for clean slate testing)
+pnpm e2e:force
+
+# Force re-extraction with single test
+pnpm e2e:test:force chat-functionality.spec.ts
+
 # Run tests matching pattern
 npx playwright test --grep "group"
 
@@ -156,9 +164,6 @@ test.use({ storageState: shipManifest['~zod'].authFile });
 test('test description', async ({ page }) => {
     // Navigate to app
     await page.goto(`${shipManifest['~zod'].webUrl}/apps/groups/`);
-
-    // Handle welcome flow
-    await helpers.clickThroughWelcome(page);
 
     // Test-specific logic using helpers
     await helpers.createGroup(page);
@@ -200,6 +205,7 @@ The `helpers.ts` file provides numerous utility functions:
 -   `SHIP_NAME`: Target specific ship for testing (zod, bus, ten)
 -   `DEBUG_PLAYWRIGHT`: Enable debug output
 -   `CI`: Enables CI-specific configurations
+-   `FORCE_EXTRACTION`: Set to 'true' to bypass ship extraction checks and force re-extraction of all ships
 
 ## Development Workflow
 
@@ -247,6 +253,7 @@ The Rube system automatically:
 -   Extracts and configures ship instances
 -   Boots ships with correct ports and settings
 -   Mounts and commits desk changes
+-   Nukes ship state before each run to ensure clean testing environment
 -   Manages authentication and readiness checks
 
 ## Troubleshooting
@@ -257,6 +264,7 @@ The Rube system automatically:
 2. **Ship download failures**: Check internet connection and bootstrap.urbit.org availability
 3. **Authentication failures**: Delete `.auth/` directory and re-run tests
 4. **Timeout errors**: Increase timeout in configuration or check ship readiness
+5. **Corrupted ship state**: Ship state is automatically nuked before each run. If issues persist, use `FORCE_EXTRACTION=true` to force complete re-extraction of all ships
 
 ### Logs and Debugging
 
@@ -277,11 +285,10 @@ Ship images are periodically updated. To use newer versions:
 
 ### Test Data Cleanup
 
-Tests are designed to be self-cleaning, but manual cleanup may be needed:
+Tests are designed to be self-cleaning, and ship state is automatically reset before each test run:
 
--   Remove test groups and channels
--   Clear browser storage states
--   Reset ship states if needed
+-   Remove test groups and channels (handled by test cleanup helpers)
+-   Ship state is automatically nuked before each **rube** run
 
 ## Contributing
 
@@ -296,7 +303,8 @@ When adding new test scenarios:
 ## Test Isolation
 
 -   Each test should be independent and self-cleaning
--   Ship state persists between test file runs, but is reset when **rube** restarts
+-   Ship state is automatically nuked (reset) before each **rube** run, ensuring clean state for every test suite execution
+-   When using `FORCE_EXTRACTION=true`, ships are fully re-extracted instead of just having their state nuked
 -   Tests use cleanup helpers to remove created groups/channels
 -   Authentication state is reused across tests for performance
 
@@ -312,7 +320,7 @@ When adding new test scenarios:
 ### CI-Specific Behavior
 
 -   `CI=true` environment variable enables CI-specific configurations
--   Ships download fresh on each run (no state persistence between CI runs, or _any_ **rube** runs)
+-   Ships download fresh on each run, and ship state is automatically nuked before each test execution
 -   Playwright runs in headless mode only
 -   HTML reports are uploaded as GitHub artifacts with 30-day retention
 
@@ -330,3 +338,13 @@ npx playwright show-report /path/to/downloaded/playwright-report
 -   Each ship requires ~500MB disk space + memory for Urbit process
 -   Tests run sequentially to avoid state conflicts
 -   Consider running subset of tests (or a single test) during development
+
+### Optimized Ship and Desk Management
+
+The testing infrastructure now includes optimizations to reduce setup time:
+
+-   **Ship Extraction**: Ships are only re-extracted if their directory doesn't exist or is invalid
+-   **Desk Diffing**: Backend code (`/desk` directory) is only copied and committed if there are actual changes
+-   **Selective Updates**: Only ships with desk changes go through the mount/commit process
+
+This significantly reduces setup time when running individual tests repeatedly during development, as unchanged ships skip the expensive extraction and commit operations.

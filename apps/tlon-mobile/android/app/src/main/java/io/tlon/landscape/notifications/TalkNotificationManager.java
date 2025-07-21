@@ -8,7 +8,7 @@ import io.tlon.landscape.R;
 
 public class TalkNotificationManager {
 
-    static final String CHANNEL_ID = "tlon";
+    public static final String CHANNEL_ID = "tlon";
 
     public static void createNotificationChannel(Context context) {
         CharSequence name = context.getString(R.string.landscape_notification_channel_name);

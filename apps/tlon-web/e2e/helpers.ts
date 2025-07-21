@@ -1,14 +1,14 @@
 import { Page, expect } from '@playwright/test';
 
-export async function clickThroughWelcome(page: Page) {
-  await page.waitForTimeout(10000);
-  if (await page.getByText('Welcome to Tlon Messenger').isVisible()) {
-    await page.getByTestId('lets-get-started').click();
-    await page.getByTestId('got-it').click();
-    await page.getByTestId('one-quick-thing').click();
-    await page.getByTestId('invite-friends').click();
-    await page.getByTestId('connect-contact-book').click();
-  }
+export async function channelIsLoaded(page: Page) {
+  await expect(
+    page.getByTestId('ScreenHeaderTitle').getByText('Loading…')
+  ).not.toBeVisible();
+}
+
+export async function navigateToChannel(page: Page, channelName: string) {
+  await page.getByTestId(`ChannelListItem-${channelName}`).click();
+  await channelIsLoaded(page);
 }
 
 export async function createGroup(page: Page) {
@@ -19,14 +19,44 @@ export async function createGroup(page: Page) {
 
   await page.waitForTimeout(2000);
 
-  if (await page.getByText('Untitled group').first().isVisible()) {
+  if (await page.getByTestId('ChannelHeaderTitle').isVisible()) {
+    await expect(page.getByText('Welcome to your group!')).toBeVisible();
+  } else {
+    await page.getByTestId('HomeNavIcon').click();
+    await page.getByTestId('ChatListItem-Untitled group-unpinned').click();
+    await page.waitForTimeout(2000);
+    await expect(page.getByTestId('ChannelHeaderTitle')).toBeVisible();
     await expect(page.getByText('Welcome to your group!')).toBeVisible();
   }
 }
 
+export async function leaveGroup(page: Page, groupName: string) {
+  await page.getByTestId('HomeNavIcon').click();
+  if (await page.getByText(groupName).first().isVisible()) {
+    await page.getByText(groupName).first().click();
+    await openGroupSettings(page);
+    await page.waitForSelector('text=Group Info');
+    await page.getByText('Leave group').click();
+  }
+}
+
+export async function openGroupOptionsSheet(page: Page) {
+  if (await page.getByTestId('GroupOptionsSheetTrigger').first().isVisible()) {
+    await page
+      .getByTestId('GroupOptionsSheetTrigger')
+      .first()
+      .click({ force: true });
+  } else {
+    await page
+      .getByTestId('GroupOptionsSheetTrigger')
+      .nth(1)
+      .click({ force: true });
+  }
+}
+
 export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
-  await page.getByTestId('GroupOptionsSheetTrigger').first().click();
-  await page.getByText('Invite people').click();
+  await openGroupOptionsSheet(page);
+  await page.getByTestId('ActionSheetAction-Invite people').first().click();
 
   for (const memberId of memberIds) {
     await page.getByPlaceholder('Filter by nickname').fill(memberId);
@@ -35,11 +65,13 @@ export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
   }
 
   await page.getByText('continue').click();
+  await page.waitForTimeout(2000);
 }
 
 export async function rejectGroupInvite(page: Page) {
-  await expect(page.getByText('Group invitation')).toBeVisible();
-  await page.getByText('Group invitation').click();
+  if (await page.getByText('Group invitation').isVisible()) {
+    await page.getByText('Group invitation').click();
+  }
 
   // If there's a reject invitation button, click it
   if (await page.getByText('Reject invite').isVisible()) {
@@ -57,7 +89,7 @@ export async function deleteGroup(page: Page, groupName?: string) {
 }
 
 export async function openGroupSettings(page: Page) {
-  await page.getByTestId('GroupOptionsSheetTrigger').first().click();
+  await openGroupOptionsSheet(page);
   await expect(page.getByText('Group info & settings')).toBeVisible();
   await page.getByText('Group info & settings').click();
 }
@@ -442,6 +474,7 @@ export async function createNotebookPost(
   await page.getByTestId('AddNotebookPost').click();
   await page.getByRole('textbox', { name: 'New Title' }).click();
   await page.getByRole('textbox', { name: 'New Title' }).fill(title);
+  await page.waitForTimeout(1500);
   await page.locator('iframe').contentFrame().getByRole('paragraph').click();
   await page
     .locator('iframe')
@@ -449,6 +482,7 @@ export async function createNotebookPost(
     .locator('div')
     .nth(2)
     .fill(content);
+  await page.waitForTimeout(500);
   await page.getByTestId('BigInputPostButton').click();
   await page.waitForTimeout(500);
   await expect(page.getByText(title)).toBeVisible();
@@ -470,7 +504,7 @@ export async function createGalleryPost(page: Page, content: string) {
     .nth(2)
     .fill(content);
   await page.getByTestId('BigInputPostButton').click();
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(1500);
   await expect(page.getByText(content).first()).toBeVisible();
 }
 
@@ -482,9 +516,14 @@ export async function createGalleryPost(page: Page, content: string) {
 export async function sendMessage(page: Page, message: string) {
   await page.getByTestId('MessageInput').click();
   await page.fill('[data-testid="MessageInput"]', message);
-  await page.getByTestId('MessageInputSendButton').click();
+  await page.waitForTimeout(1500);
+  await page.getByTestId('MessageInputSendButton').click({ force: true });
   // Wait for message to appear
-  await expect(page.getByText(message, { exact: true }).first()).toBeVisible();
+  await page.waitForTimeout(1000);
+  await expect(
+    page.getByTestId('Post').getByText(message, { exact: true }).first()
+  ).toBeVisible();
+  await page.waitForTimeout(1000);
 }
 
 /**
@@ -492,7 +531,11 @@ export async function sendMessage(page: Page, message: string) {
  */
 export async function longPressMessage(page: Page, messageText: string) {
   // Not really a longpress since this is web.
-  await page.getByText(messageText).first().hover({ force: true });
+  await page
+    .getByTestId('Post')
+    .getByText(messageText)
+    .first()
+    .hover({ force: true });
   await page.waitForTimeout(1000);
   await page.getByTestId('MessageActionsTrigger').click();
   await page.waitForTimeout(500);
@@ -519,6 +562,7 @@ export async function sendThreadReply(page: Page, replyText: string) {
     .getByTestId('MessageInputSendButton')
     .click();
   await expect(page.getByText(replyText, { exact: true })).toBeVisible();
+  await page.waitForTimeout(1000);
 }
 
 /**
@@ -624,7 +668,7 @@ export async function hideMessage(
   isDM = false
 ) {
   await longPressMessage(page, messageText);
-  await page.getByText('Hide message').click();
+  await page.getByText('Hide message', { exact: true }).click();
   if (!isDM) {
     await expect(
       page.getByText(messageText, { exact: true })
@@ -749,7 +793,7 @@ export async function createDirectMessage(page: Page, contactId: string) {
  */
 export async function leaveDM(page: Page, contactId: string) {
   await page.getByTestId('HomeNavIcon').click();
-  await page.getByText(contactId, { exact: true }).first().click();
+  await page.getByTestId(`ChannelListItem-${contactId}`).first().click();
   await page.waitForTimeout(500);
   await page.getByTestId('ChannelOptionsSheetTrigger').first().click();
   await page.waitForTimeout(500);
@@ -758,7 +802,9 @@ export async function leaveDM(page: Page, contactId: string) {
   // without this reload we'll still see previous messages in the DM
   // TODO: figure out why this is happening
   await page.reload();
-  await expect(page.getByText(contactId, { exact: true })).not.toBeVisible();
+  await expect(
+    page.getByTestId(`ChannelListItem-${contactId}`)
+  ).not.toBeVisible();
 }
 
 /**

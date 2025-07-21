@@ -2292,7 +2292,7 @@
   ::
   ++  di-rsvp
     |=  ok=?
-    =?  cor  =(our src):bowl
+    =?  cor  &(=(our src):bowl (can-poke:neg bowl [ship dap.bowl]))
       (emit (proxy-rsvp:di-pass ok))
     ?>  |(=(src.bowl ship) =(our src):bowl)
     ::  TODO hook into archive

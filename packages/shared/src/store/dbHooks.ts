@@ -9,6 +9,7 @@ import * as api from '../api';
 import { getMessagesFilter } from '../api';
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
+import { getConstants } from '../domain/constants';
 import * as logic from '../logic';
 import * as ub from '../urbit';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
@@ -593,6 +594,17 @@ export const useWayfindingCompletion = () => {
 export const useShowWebSplashModal = () => {
   const { data: wayfinding, isLoading } = useWayfindingCompletion();
   const { data: personalGroup } = usePersonalGroup();
+
+  // Disable splash modal during e2e tests
+  try {
+    const constants = getConstants();
+    if (constants.DISABLE_SPLASH_MODAL) {
+      return false;
+    }
+  } catch (e) {
+    // Constants not available (e.g., in test environment)
+    // Continue with normal behavior
+  }
 
   return Boolean(
     personalGroup && !isLoading && !(wayfinding?.completedSplash ?? true)
