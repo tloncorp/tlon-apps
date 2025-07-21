@@ -2221,11 +2221,11 @@
         %section
       =/  =channel:g  (got:by-ch nest)
       ?>  (~(has by sections.group) section-id.c-channel)
+      =.  sections.group
+        %+  ~(jab by sections.group)  section.channel
+        |=(=section:g section(order (~(del of order.section) nest)))
       =.  section.channel   section-id.c-channel
       =.  channels.group  (put:by-ch nest channel)
-      ::  add the channel to section in order, by first
-      ::  removing it.
-      ::
       =.  sections.group
         %+  ~(jab by sections.group)  section.channel
         |=(=section:g section(order (~(push of order.section) nest)))
