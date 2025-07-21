@@ -4005,6 +4005,12 @@
         %fact
       ?>  ?=(%group-previews-1 p.cage.sign)
       =+  !<(=previews:v7:gv q.cage.sign)
+      =.  foreigns
+        %+  roll  ~(tap by previews)
+        |=  [[=flag:gv =preview:v7:gv] =_foreigns]
+        %+  ~(jab by foreigns)  flag
+        |=  far=foreign:v7:gv
+        far(preview `preview)
       ::  v1
       ::
       =/  path-1  /v1/foreigns/index/(scot %p ship)
