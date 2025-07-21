@@ -26,15 +26,16 @@ export const test = base.extend<TestFixtures>({
 
     await use({ context, page });
 
-    // Cleanup happens automatically here - no need for manual checks
-    // Playwright handles the cleanup even if tests fail
+    // Cleanup for pier reuse
     try {
-      await helpers.cleanupExistingGroup(page, '~ten, ~zod');
+      if (!page.isClosed() && !context.closed) {
+        await page.goto(zodUrl);
+        await page.waitForSelector('text=Home', { state: 'visible', timeout: 5000 });
+        await helpers.cleanupExistingGroup(page, '~ten, ~zod');
+        await helpers.cleanupExistingGroup(page, 'Untitled group');
+      }
     } catch (error) {
-      console.log(
-        'Zod cleanup failed (expected if context was closed):',
-        error.message
-      );
+      console.log('Zod cleanup failed (expected):', error.message);
     }
   },
 
@@ -49,15 +50,16 @@ export const test = base.extend<TestFixtures>({
 
     await use({ context, page });
 
-    // Cleanup happens automatically here
+    // Cleanup for pier reuse
     try {
-      await helpers.rejectGroupInvite(page);
-      await helpers.leaveGroup(page, '~ten, ~zod');
+      if (!page.isClosed() && !context.closed) {
+        await page.goto(tenUrl);
+        await page.waitForSelector('text=Home', { state: 'visible', timeout: 5000 });
+        await helpers.rejectGroupInvite(page);
+        await helpers.leaveGroup(page, '~ten, ~zod');
+      }
     } catch (error) {
-      console.log(
-        'Ten cleanup failed (expected if context was closed):',
-        error.message
-      );
+      console.log('Ten cleanup failed (expected):', error.message);
     }
   },
 });

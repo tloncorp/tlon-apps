@@ -141,18 +141,17 @@ export async function waitForElementAndAct(
  * Handles cleanup of existing "Untitled group" if present
  */
 export async function cleanupExistingGroup(page: Page, groupName?: string) {
-  if (
-    await page
-      .getByText(groupName || 'Untitled group')
-      .first()
-      .isVisible()
-  ) {
-    await page
-      .getByText(groupName || 'Untitled group')
-      .first()
-      .click();
-    await openGroupSettings(page);
-    await deleteGroup(page, groupName);
+  try {
+    const groupText = groupName || 'Untitled group';
+    const groupElement = page.getByText(groupText).first();
+    
+    if (await groupElement.isVisible({ timeout: 3000 })) {
+      await groupElement.click({ timeout: 5000 });
+      await openGroupSettings(page);
+      await deleteGroup(page, groupName);
+    }
+  } catch (error) {
+    console.log(`Cleanup failed for group ${groupName}:`, error.message);
   }
 }
 
