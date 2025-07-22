@@ -85,6 +85,10 @@ export function AttestationPane({
     );
   }, [attestation.provingTweetId, attestation.value]);
 
+  const handleViewAccount = useCallback(() => {
+    Linking.openURL(`https://x.com/${attestation.value}`);
+  }, [attestation.value]);
+
   const handleRevoke = useCallback(async () => {
     setRevoking(true);
     try {
@@ -135,9 +139,14 @@ export function AttestationPane({
 
       <YStack marginTop="$xl" gap="$m">
         {attestation.type === 'twitter' && attestation.provingTweetId && (
-          <Button hero onPress={handleViewTweet}>
-            <Button.Text fontWeight="500">View 𝕏 Post</Button.Text>
-          </Button>
+          <>
+            <Button paddingVertical="$xl" onPress={handleViewTweet}>
+              <Button.Text fontWeight="500">View 𝕏 Post</Button.Text>
+            </Button>
+            <Button hero onPress={handleViewAccount}>
+              <Button.Text fontWeight="500">View 𝕏 Account</Button.Text>
+            </Button>
+          </>
         )}
 
         {attestation.contactId === currentUserId && (
@@ -247,8 +256,8 @@ function AttestationStatusWidget({
       backgroundColor="$secondaryBackground"
       gap="$m"
     >
-      <LoadingSpinner />
-      <Text size="$label/l">Loading</Text>
+      <LoadingSpinner color="$secondaryText" />
+      <Text size="$label/l">Loading...</Text>
     </ItemContainer>
   );
 }
@@ -262,7 +271,7 @@ function AttestationValueDisplay({
 }) {
   if (attestation.type === 'twitter') {
     return (
-      <Text size="$label/xl" fontWeight="600">
+      <Text size="$title/l">
         {attestation.value
           ? domain.twitterHandleDisplay(attestation.value)
           : 'X Account'}
@@ -273,7 +282,7 @@ function AttestationValueDisplay({
   if (attestation.type === 'phone') {
     if (attestation.contactId === currentUserId && attestation.value) {
       return (
-        <Text size="$label/xl" fontWeight="600">
+        <Text size="$title/l">
           {domain.displayablePhoneNumber(attestation.value)}
         </Text>
       );
