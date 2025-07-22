@@ -311,17 +311,31 @@ function addPostToNewPosts(post: db.Post, newPosts: db.Post[]) {
 
   postsLogger.log('processsed pending existing');
 
-  // When sorting these posts, ideally we'd use `receivedAt`, since that is
-  // more representative of everyone's view of the timeline (e.g. if one of
-  // your posts took a long time to send).
-  // But if we have some posts that are in-flight, we want to sort by
-  // `sentAt` so that the in-flight posts' order stays stable.
-  const hasUnsentPost = nextPosts?.some((x) => x.deliveryStatus != null);
-  const finalPosts = nextPosts.sort(
-    hasUnsentPost
-      ? (a, b) => b.sentAt - a.sentAt
-      : (a, b) => b.receivedAt - a.receivedAt
-  );
+  // newest posts should be at the start of the array
+  const finalPosts = nextPosts.sort((a, b) => {
+    const isUnconfirmed = (p: db.Post) =>
+      p.deliveryStatus === 'pending' || p.deliveryStatus === 'enqueued';
+
+    // reminder to self: negative value means a comes before (i.e. is newer than) b
+    switch (true) {
+      case isUnconfirmed(a) && isUnconfirmed(b):
+        return b.sentAt - a.sentAt;
+
+      case isUnconfirmed(a) && !isUnconfirmed(b):
+        // always show unconfirmed before confirmed
+        return -1;
+
+      case !isUnconfirmed(a) && isUnconfirmed(b):
+        // always show confirmed after unconfirmed
+        return 1;
+
+      case !isUnconfirmed(a) && !isUnconfirmed(b):
+        return b.receivedAt - a.receivedAt;
+
+      default:
+        throw new Error('Unexpected switch case');
+    }
+  });
   postsLogger.log('calculated final');
   return finalPosts;
 }
