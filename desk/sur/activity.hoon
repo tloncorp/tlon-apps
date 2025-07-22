@@ -1,4 +1,4 @@
-/-  c=channels, t=contacts, ch=chat, g=groups
+/-  c=channels, t=contacts, ch=chat, g=groups, gv=groups-ver, s=story
 /+  mp=mop-extensions
 |%
 +|  %collections
@@ -106,7 +106,7 @@
       [%group-join group=flag:g =ship]
       [%group-invite group=flag:g =ship]
       [%chan-init channel=nest:c group=flag:g]
-      [%group-role group=flag:g =ship roles=(set sect:g)]
+      [%group-role group=flag:g =ship roles=(set sect:v0:gv)]
       [%flag-post key=message-key channel=nest:c group=flag:g]
       [%flag-reply key=message-key parent=message-key channel=nest:c group=flag:g]
       [%contact contact-event]
@@ -116,7 +116,7 @@
   $:  key=message-key
       channel=nest:c
       group=flag:g
-      content=story:c
+      content=story:s
       mention=?
   ==
 ::
@@ -125,14 +125,14 @@
       parent=message-key
       channel=nest:c
       group=flag:g
-      content=story:c
+      content=story:s
       mention=?
   ==
 ::
 +$  dm-post-event
   $:  key=message-key
       =whom
-      content=story:c
+      content=story:s
       mention=?
   ==
 ::
@@ -140,7 +140,7 @@
   $:  key=message-key
       parent=message-key
       =whom
-      content=story:c
+      content=story:s
       mention=?
   ==
 +$  contact-event

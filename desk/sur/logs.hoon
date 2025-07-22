@@ -4,7 +4,7 @@
 ::  $echo: formatted message
 +$  echo  (list tank)
 ::  $volume: echo volume
-+$  volume  ?(%info %warn %crit)
++$  volume  ?(%dbug %info %warn %crit)
 ::  $log-event
 ::
 ::  %fail: agent failure

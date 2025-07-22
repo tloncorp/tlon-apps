@@ -1,6 +1,6 @@
-/-  g=groups
+/-  gv=groups-ver
 /+  j=groups-json
-|_  =gangs:v2:g
+|_  =gangs:v2:gv
 ++  grad  %noun
 ++  grow
   |%
@@ -9,6 +9,6 @@
   --
 ++  grab
   |%
-  ++  noun  gangs:v2:g
+  ++  noun  gangs:v2:gv
   --
 --
