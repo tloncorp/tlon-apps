@@ -4009,6 +4009,9 @@
       =.  foreigns
         %+  roll  ~(tap by previews)
         |=  [[=flag:gv =preview:v7:gv] =_foreigns]
+        ?.  (~(has by foreigns) flag)
+          =|  =foreign:v7:gv
+          (~(put by foreigns) flag foreign(preview `preview))
         %+  ~(jab by foreigns)  flag
         |=  far=foreign:v7:gv
         far(preview `preview)
