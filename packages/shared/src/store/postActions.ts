@@ -192,9 +192,15 @@ async function _sendPost({
   logger.crumb('done optimistic update');
   try {
     logger.crumb('enqueuing sending post to backend');
+
+    // Ensure uploads are started. Uploads are likely already started in UI,
+    // but may as well make sure they're started here to avoid blocking in
+    // SessionActionQueue.
+    const finalizedPostDataPromise = buildFinalizedPostData();
+
     await sessionActionQueue.add(async () => {
       logger.crumb('finalizing post');
-      const finalizedPostData = await buildFinalizedPostData();
+      const finalizedPostData = await finalizedPostDataPromise;
       logger.crumb('updating post in db with finalized data');
       await db.updatePost({
         id: cachePost.id,
