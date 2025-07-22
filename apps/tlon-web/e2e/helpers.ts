@@ -236,6 +236,43 @@ export async function unassignRoleFromMember(
 }
 
 /**
+ * Forwards a message to a specific contact via DM
+ */
+export async function forwardMessageToDM(
+  page: Page,
+  messageText: string,
+  contactId: string
+) {
+  await longPressMessage(page, messageText);
+  await page.getByText('Forward', { exact: true }).click();
+
+  // Verify forward sheet opened
+  await expect(page.getByText('Forward to channel')).toBeVisible();
+
+  // Search for the contact's DM
+  await page.getByPlaceholder('Search channels').fill(contactId);
+  await page.waitForTimeout(2000); // Wait longer for search results
+
+  // Try to click on the contact using a more specific selector
+  try {
+    // First try with test ID if available
+    const contactRow = page.getByTestId(`ChannelListItem-${contactId}`);
+    if (await contactRow.isVisible({ timeout: 2000 })) {
+      await contactRow.click();
+    } else {
+      // Fallback to text-based selection with force click to handle overlays
+      await page.getByText(contactId).first().click({ force: true });
+    }
+  } catch (error) {
+    // Final fallback: try clicking with force
+    await page.getByText(contactId).first().click({ force: true });
+  }
+
+  // Confirm forward
+  await page.getByText(`Forward to ${contactId}`).click();
+}
+
+/**
  * Creates a new channel with title and type
  */
 export async function createChannel(
