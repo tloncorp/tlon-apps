@@ -791,18 +791,10 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
           chatId: update.groupId,
           contactIds: update.ships,
           type: 'group',
-          status: 'joined',
+          joinStatus: 'joined',
         },
         ctx
       );
-      // Force sync to ensure UI reflects correct membership state. When acceptUserJoin is called,
-      // the backend sends an erroneous inviteMembersToGroup event before this addGroupMembers event.
-      // The erroneous event marks users as "invited" and updates the group's syncedAt timestamp.
-      // This causes the sync optimization (lines 560-567) to skip syncing when this correct event
-      // arrives, leaving the UI stuck showing "invited" instead of "joined". force: true bypasses
-      // the optimization to ensure fresh group data overwrites the stale state.
-      // TODO: Figure out why the backend is sending the erroneous event in the first place.
-      await syncGroup(update.groupId, undefined, { force: true });
       break;
     case 'removeGroupMembers':
       await db.removeChatMembers(
@@ -812,7 +804,6 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
         },
         ctx
       );
-      await syncGroup(update.groupId);
       break;
     case 'addRole':
       await db.addRole(
