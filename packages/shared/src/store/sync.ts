@@ -21,7 +21,7 @@ import { updateChannelSections } from './groupActions';
 import { verifyUserInviteLink } from './inviteActions';
 import { discoverContacts } from './lanyardActions';
 import { useLureState } from './lure';
-import { resendPendingPosts, verifyPostDelivery } from './postActions';
+import { failEnqueuedPosts, verifyPostDelivery } from './postActions';
 import { Session, getSession, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
@@ -1677,7 +1677,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
 
     updateSession({ phase: 'ready' });
 
-    resendPendingPosts();
+    await failEnqueuedPosts();
 
     // fire off relevant channel posts sync, but don't wait for it
     syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {

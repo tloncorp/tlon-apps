@@ -17,18 +17,13 @@ import {
 
 export const logger = createDevLogger('postActions', false);
 
-export async function resendPendingPosts() {
+export async function failEnqueuedPosts() {
   const enqueuedPosts = await db.getEnqueuedPosts();
-  for (const post of enqueuedPosts) {
-    if (post.channel) {
-      await retrySendPost({
-        post,
-        channel: post.channel,
-      });
-    } else {
-      logger.warn('missing post channel', post.channelId);
-    }
-  }
+  await Promise.all(
+    enqueuedPosts.map(async (post) => {
+      await db.updatePost({ id: post.id, deliveryStatus: 'failed' });
+    })
+  );
 }
 
 export async function finalizePostDraft(
