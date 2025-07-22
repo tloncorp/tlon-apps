@@ -57,12 +57,8 @@ test('should handle complete group lifecycle with settings management', async ({
   await helpers.openGroupSettings(page);
   await expect(page.getByText('Group info')).toBeVisible();
 
-  // Test reference copying
-  await page.getByText('Reference').click();
-  // Check for copy confirmation (optional)
-  await helpers.waitForElementAndAct(page, 'Copied', async () => {
-    await expect(page.getByText('Copied')).toBeVisible();
-  });
+  // Test forwarding group reference
+  await helpers.forwardGroupReference(page, 'Chat');
 
   // Test privacy settings
   await helpers.setGroupPrivacy(page, true);
