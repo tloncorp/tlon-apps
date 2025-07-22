@@ -1,8 +1,15 @@
 import { makePrettyDay } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
-import { Button, Icon, LoadingSpinner, Text } from '@tloncorp/ui';
+import {
+  Button,
+  Icon,
+  LoadingSpinner,
+  Text,
+  useIsWindowNarrow,
+} from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { Linking } from 'react-native';
 import { XStack, XStackProps, YStack, styled } from 'tamagui';
 
@@ -171,6 +178,15 @@ function AttestationStatusWidget({
 } & XStackProps) {
   const height = 90;
 
+  const isWindowNarrow = useIsWindowNarrow();
+  const retryVerb = useMemo(() => {
+    if (isWindowNarrow) {
+      return 'Tap';
+    } else {
+      return 'Click';
+    }
+  }, [isWindowNarrow]);
+
   if (status === 'verified') {
     return (
       <ItemContainer height={height} backgroundColor="$positiveBackground">
@@ -198,7 +214,7 @@ function AttestationStatusWidget({
             Could not Verify
           </Text>
           <Text size="$label/m" color="$secondaryText">
-            Tap to retry
+            {retryVerb} to retry
           </Text>
         </YStack>
       </ItemContainer>

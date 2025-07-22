@@ -18,6 +18,7 @@ import { Button } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import { now, truncate } from 'lodash';
 import {
   ComponentProps,
@@ -237,6 +238,15 @@ export function GalleryPostFooter({
 }: { post: db.Post; deliveryFailed?: boolean } & ComponentProps<
   typeof XStack
 >) {
+  const isWindowNarrow = useIsWindowNarrow();
+  const retryVerb = useMemo(() => {
+    if (isWindowNarrow) {
+      return 'Tap';
+    } else {
+      return 'Click';
+    }
+  }, [isWindowNarrow]);
+
   return (
     <View width="100%" pointerEvents="none">
       <XStack
@@ -255,7 +265,7 @@ export function GalleryPostFooter({
         </View>
         {deliveryFailed ? (
           <Text color="$negativeActionText" size="$label/s">
-            Tap to retry
+            {retryVerb} to retry
           </Text>
         ) : (
           <XStack alignItems="center" gap="$xs" justifyContent="center">
