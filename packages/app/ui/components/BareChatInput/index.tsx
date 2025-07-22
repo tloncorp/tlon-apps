@@ -379,6 +379,15 @@ export default function BareChatInput({
                     },
                   });
                 }
+
+                const fileType = linkMetadata.mime.split('/')[1];
+
+                addAttachment({
+                  type: 'link',
+                  url: url,
+                  title: fileType,
+                  description: fileType,
+                });
               }
             })
             .finally(() => {

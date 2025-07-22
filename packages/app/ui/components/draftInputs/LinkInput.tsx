@@ -155,9 +155,13 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
         };
       }
 
+      const fileType = data.mime.split('/')[1];
+
       return {
-        ...data,
         type: 'link',
+        url: data.url,
+        title: fileType,
+        description: fileType,
       };
     }
 
