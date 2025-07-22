@@ -156,11 +156,12 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
       }
 
       const fileType = data.mime.split('/')[1];
+      const fileName = data.url.split('/').pop();
 
       return {
         type: 'link',
         url: data.url,
-        title: fileType,
+        title: fileName,
         description: fileType,
       };
     }

@@ -381,11 +381,13 @@ export default function BareChatInput({
                 }
 
                 const fileType = linkMetadata.mime.split('/')[1];
+                const fileName = url.split('/').pop();
+                console.log('fileName', fileName);
 
                 addAttachment({
                   type: 'link',
                   url: url,
-                  title: fileType,
+                  title: fileName,
                   description: fileType,
                 });
               }
