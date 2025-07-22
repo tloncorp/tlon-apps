@@ -17,7 +17,7 @@ export async function createGroup(page: Page) {
   await page.getByText('Select contacts to invite').click();
   await page.getByText('Create group').click();
 
-  await page.waitForTimeout(8000);
+  await page.waitForTimeout(2000);
 
   if (await page.getByText('Untitled group').first().isVisible()) {
     await expect(page.getByText('Welcome to your group!')).toBeVisible();
