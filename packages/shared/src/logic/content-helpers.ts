@@ -590,7 +590,10 @@ export function toPostData({
     if (!attachment) {
       throw new Error('unable to attach image');
     }
-    metadata.image = attachment.uploadState.remoteUri;
+    metadata.image =
+      attachment.uploadState.status === 'success'
+        ? attachment.uploadState.remoteUri
+        : attachment.uploadState.localUri;
   } else {
     metadata.image = null;
   }
@@ -601,7 +604,10 @@ export function toPostData({
 function createImageBlock(attachment: UploadedImageAttachment): Block {
   return {
     image: {
-      src: attachment.uploadState.remoteUri,
+      src:
+        attachment.uploadState.status === 'success'
+          ? attachment.uploadState.remoteUri
+          : attachment.uploadState.localUri,
       height: attachment.file.height,
       width: attachment.file.width,
       alt: 'image',

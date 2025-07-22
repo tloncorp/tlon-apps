@@ -56,8 +56,8 @@ export function finalizeAttachmentsLocal(
   return attachments.map((attachment) => {
     if (requiresUpload(attachment)) {
       return buildFinalizedImageAttachment(attachment, {
-        status: 'success',
-        remoteUri: attachment.file.uri,
+        status: 'uploading',
+        localUri: attachment.file.uri,
       });
     } else {
       return attachment;
@@ -88,13 +88,18 @@ function buildFinalizedImageAttachment(
   attachment: ImageAttachment,
   uploadState: UploadState
 ): UploadedImageAttachment {
-  if (uploadState.status !== 'success') {
-    throw new Error('Attachment is not an uploaded image attachment');
+  switch (uploadState.status) {
+    case 'error':
+      throw new Error('Attachment is not an uploaded image attachment');
+
+    case 'success':
+    // fallthrough
+    case 'uploading':
+      return {
+        ...attachment,
+        uploadState,
+      };
   }
-  return {
-    ...attachment,
-    uploadState,
-  };
 }
 
 export const waitForUploads = async (keys: string[]) => {

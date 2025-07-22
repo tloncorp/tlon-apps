@@ -1,6 +1,7 @@
 import { useIsFocused } from '@react-navigation/native';
 import {
   DraftInputId,
+  UploadedImageAttachment,
   isChatChannel as getIsChatChannel,
   useChannelPreview,
   useGroupPreview,
@@ -229,7 +230,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
               {
                 block: {
                   image: {
-                    src: attachment.uploadState.remoteUri,
+                    src: UploadedImageAttachment.uri(attachment),
                     height: attachment.file.height || 0,
                     width: attachment.file.width || 0,
                     alt: 'image',

@@ -53,11 +53,20 @@ export type ImageAttachment = {
 export type UploadedImageAttachment = {
   type: 'image';
   file: ImagePickerAsset;
-  uploadState: {
-    status: 'success';
-    remoteUri: string;
-  };
+  uploadState: Extract<UploadState, { status: 'success' | 'uploading' }>;
 };
+
+// eslint-disable-next-line @typescript-eslint/no-namespace
+export namespace UploadedImageAttachment {
+  export function uri(attachment: UploadedImageAttachment): string {
+    switch (attachment.uploadState.status) {
+      case 'success':
+        return attachment.uploadState.remoteUri;
+      case 'uploading':
+        return attachment.uploadState.localUri;
+    }
+  }
+}
 
 export type TextAttachment = {
   type: 'text';
