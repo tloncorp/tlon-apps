@@ -50,6 +50,11 @@ class SessionActionQueue {
       this.isProcessing = true;
 
       while (this.pendingOperations.length > 0) {
+        if (!this.connected) {
+          logger.log('not connected, quitting queue processing');
+          return;
+        }
+
         const operation = this.pendingOperations.shift();
         if (operation) {
           const promise = operation.action();
