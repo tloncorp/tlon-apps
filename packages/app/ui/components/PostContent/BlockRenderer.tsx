@@ -1,4 +1,4 @@
-import { isTrustedEmbed, trustedProviders } from '@tloncorp/shared';
+import { isTrustedEmbed, isValidUrl, trustedProviders } from '@tloncorp/shared';
 import type * as cn from '@tloncorp/shared/logic';
 import { Icon, Image, Pressable, Text, useCopy } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
@@ -237,18 +237,28 @@ export function LinkBlock({
   renderEmbed?: boolean;
   imageProps?: ComponentProps<typeof ContentImage>;
 } & ComponentProps<typeof Reference.Frame>) {
+  const urlIsValid = useMemo(() => isValidUrl(block.url), [block.url]);
+
   const domain = useMemo(() => {
+    if (!urlIsValid) {
+      return block.url;
+    }
+
     const url = new URL(block.url);
     return url.hostname;
-  }, [block.url]);
+  }, [block.url, urlIsValid]);
 
   const onPress = useCallback(() => {
+    if (!urlIsValid) {
+      return;
+    }
+
     if (Platform.OS === 'web') {
       window.open(block.url, '_blank', 'noopener,noreferrer');
     } else {
       Linking.openURL(block.url);
     }
-  }, [block.url]);
+  }, [block.url, urlIsValid]);
 
   const embedProviders = useMemo(() => {
     // for now, avoid showing twitter embeds on web
@@ -257,12 +267,32 @@ export function LinkBlock({
       : trustedProviders;
   }, []);
 
-  if (renderEmbed && isTrustedEmbed(block.url, embedProviders)) {
+  if (renderEmbed && isTrustedEmbed(block.url, embedProviders) && urlIsValid) {
     const embedBlock: cn.EmbedBlockData = {
       type: 'embed',
       url: block.url,
     };
     return <EmbedBlock block={embedBlock} {...props} />;
+  }
+
+  if (!urlIsValid) {
+    return (
+      <Reference.Frame {...props}>
+        <Reference.Header>
+          <Reference.Title>
+            <Icon type="Link" color="$tertiaryText" customSize={[12, 12]} />
+            <Reference.TitleText>Invalid URL</Reference.TitleText>
+          </Reference.Title>
+        </Reference.Header>
+        <Reference.Body>
+          <View padding="$xl">
+            <Text size="$label/m" color="$secondaryText">
+              {block.url}
+            </Text>
+          </View>
+        </Reference.Body>
+      </Reference.Frame>
+    );
   }
 
   return (
