@@ -17,6 +17,7 @@
 ::  performance, keep warm
 /+  groups-json
 ::
+::
 /%  m-group              %group
 /%  m-group-1            %group-1
 /%  m-group-2            %group-2
@@ -1294,7 +1295,6 @@
     cor
   ::
       %fact
-<<<<<<< HEAD
     =+  !<(=response:t q.cage.sign)
     ?.  ?=(%peer -.response)  cor
     =/  groups=(unit (set $>(%flag value:t)))
@@ -1302,73 +1302,7 @@
     ?:  |(?=(~ groups) =(~ u.groups))  cor  ::TMI
     %+  roll  ~(tap in u.groups)
     |=  [val=$>(%flag value:t) =_cor]
-    fi-abet:(fi-watch:(fi-abed:fi-core:cor p.val) /preview)
-=======
-    =+  !<(=news-0:tac q.cage.sign)
-    ?~  con.news-0  cor
-    %-  emil
-    %+  turn  ~(tap in groups.con.news-0)
-    |=  =flag:g
-    [%pass /gangs/(scot %p p.flag)/[q.flag]/preview %agent [p.flag dap.bowl] %watch /v1/groups/(scot %p p.flag)/[q.flag]/preview]
-  ==
-::
-++  watch-epic
-  |=  [her=ship delay=?]
-  ^+  cor
-  =/  =wire  /epic
-  =/  =dock  [her dap.bowl]
-  ?:  (~(has by wex.bowl) [wire dock])
-    cor
-  ((subscribe wire dock wire) delay)
-::
-++  watch-chan
-  |=  =nest:g
-  ^+  cor
-  ?.  =(our.bowl p.q.nest)
-    =/  =wire  /chan/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
-    ?:  (~(has by wex.bowl) [wire p.q.nest dap.bowl])
-      cor
-    (emit [%pass wire %agent [p.q.nest dap.bowl] %watch `path`wire])
-  ::
-  =/  gs  ~(tap by groups)
-  |-
-  ?~  gs
-    ~|(no-group-found/nest !!)
-  =/  [=flag:g =net:g =group:g]  i.gs
-  ?.  (~(has by channels.group) nest)
-    $(gs t.gs)
-  ?.  (go-can-read:(go-abed:group-core flag) src.bowl (~(got by channels.group) nest))
-    $(gs t.gs)
-  =/  =preview:channel:v2:g
-    =,  group
-    :*  nest
-        meta:(~(got by channels.group) nest)
-        flag  meta  cordon  now.bowl  secret.group
-    ==
-  =.  cor  (emit %give %fact ~ channel-preview+!>(preview))
-  (emit %give %kick ~ ~)
-::
-++  take-chan
-  |=  [=nest:g =sign:agent:gall]
-  =/  =wire  =,(nest /chan/[p]/(scot %p p.q)/[q.q])
-  ^+  cor
-  ?+    -.sign  ~|(bad-chan-take/[-.sign nest] !!)
-      %watch-ack
-    ?~  p.sign  cor
-    :: TODO: propagate upwards
-    %-  (slog leaf/"Failed to fetch group" u.p.sign)
-    cor
-  ::
-      %fact
-    ?.  =(%channel-preview p.cage.sign)
-      cor
-    =+  !<(=preview:channel:v2:g q.cage.sign) :: XX: really necessary?
-    =.  cor  (emit %give %fact ~[wire] cage.sign)
-    (emit %give %kick ~[wire] ~)
-  ::
-      %kick  :: XX: better?
-    (emit %give %kick ~[wire] ~)
->>>>>>> develop
+    fi-abet:(fi-watch:(fi-abed:fi-core:cor p.val) %v1 /preview)
   ==
 ::
 ++  from-self  =(our src):bowl
@@ -3882,7 +3816,7 @@
   ::  +fi-watch: handle watch request
   ::
   ++  fi-watch
-    |=  =(pole knot)
+    |=  [ver=?(%v1) =(pole knot)]
     ?>  from-self
     ^+  fi-core
     ?+    pole  ~|(bad-fi-watch+pole !!)
