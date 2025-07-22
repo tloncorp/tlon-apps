@@ -6,6 +6,7 @@
 |=  compare=$-([key key] ?)
 ~%  %mope-core  ..zuse  ~
 |%
+++  on  ((^on key val) compare)
 ::  +uno: merge with conflict resolution function
 ::
 ++  uno
@@ -119,6 +120,38 @@
     =/  rig  main(a r.a)
     rig(a a(r a.rig))
   --
+::  +dyp: stateful complete inorder traversal w/ value mutation
+::
+::    Mutates .state on each run of .f. Traverses from left to right keys.
+::    Each run of .f can replace an item's value or delete the item.
+::
+::TODO  write tests to check if the tree order/balance is maintained even when deletions happen
+++  dyp
+  |*  [newval=mold state=mold]
+  |=  $:  a=(tree item)
+          =state
+          f=$-([state item] [(unit newval) state])
+      ==
+  |-  ^-  [_state (tree [key newval])]
+  ?~  a  [state a]
+  =^  l=(tree [=key val=newval])  state
+    ^-  [(tree [key newval]) _state]
+    [+ -]:$(a l.a)
+  =^  n=(unit [=key val=newval])  state
+    =+  (f state n.a)
+    [(bind -< (lead key.n.a)) ->]
+  =^  r=(tree [=key val=newval])  state
+    ^-  [(tree [key newval]) _state]
+    [+ -]:$(a r.a)
+  :-  state
+  ^-  (tree [key newval])
+  ?^  n  a(n u.n, l l, r r)
+  |-  ^-  (tree [key newval])
+  ?~  l  r
+  ?~  r  l
+  ?:  (mor key.n.l key.n.r)
+    l(r $(l r.l))
+  r(l $(r l.r))
 ::  +bot: produce the N leftmost elements
 ::
 ++  bot
@@ -137,6 +170,18 @@
       (items-with-remainder r.a (dec q.left-result))
     [(zing ~[p.left-result ~[n.a] p.right-result]) q.right-result]
   --
+::  +jab: transform an entry
+::
+++  jab
+  |=  [a=(tree item) b=key f=$-(val val)]
+  ^+  a
+  (put:on a b (f (got:on a b)))
+::  +jib: +jab if we can, no-op otherwise
+::
+++  jib
+  |=  [a=(tree item) b=key f=$-(val val)]
+  ?~  v=(get:on a b)  a
+  (put:on a b (f u.v))
 ::  +top: produce the N rightmost elements
 ::
 ++  top
@@ -155,4 +200,12 @@
       (items-with-remainder l.a (dec q.right-result))
     [(zing ~[p.left-result ~[n.a] p.right-result]) q.left-result]
   --
+::  +urn: apply gate to transform all values in place (w/ key arg)
+::
+++  urn
+  ~/  %run
+  |*  [a=(tree item) b=$-(item *)]
+  |-
+  ?~  a  a
+  [n=[key.n.a (b n.a)] l=$(a l.a) r=$(a r.a)]
 --
