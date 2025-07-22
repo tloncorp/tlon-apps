@@ -4,7 +4,7 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { LoadingSpinner } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { YStack } from 'tamagui';
+import { Spinner, YStack } from 'tamagui';
 
 import { useStore } from '../contexts';
 import { triggerHaptic, useGroupTitle } from '../utils';
@@ -212,19 +212,22 @@ export function getActionGroups(
       },
     ]);
   } else if (status.isJoining) {
-    return createActionGroups([
-      'neutral',
-      {
-        title: 'Joining, please wait...',
-        disabled: true,
-        accent: 'disabled',
-      },
-      {
-        title: 'Cancel join',
-        action: actions.cancelJoin,
-        accent: 'negative',
-      },
-    ]);
+    return createActionGroups(
+      [
+        'disabled',
+        {
+          title: 'Joining, please wait...',
+          disabled: true,
+        },
+      ],
+      [
+        'negative',
+        {
+          title: 'Cancel join',
+          action: actions.cancelJoin,
+        },
+      ]
+    );
   } else if (status.isErrored) {
     return createActionGroups([
       'negative',
