@@ -51,7 +51,10 @@ const isUrl = (text: string): boolean => {
   return isURL(text);
 };
 
-function areMarksEqual(marks1: any[] = [], marks2: any[] = []): boolean {
+function areMarksEqual(
+  marks1: Record<string, unknown>[] = [],
+  marks2: Record<string, unknown>[] = []
+): boolean {
   if (marks1.length !== marks2.length) return false;
   return marks1.every((mark1, i) => {
     const mark2 = marks2[i];
@@ -619,11 +622,19 @@ function createLinkBlock(attachment: LinkAttachment): Block {
   if (attachment.type !== 'link') {
     throw new Error('createLinkBlock called with non-link attachment');
   }
-  const { url, type, resourceType, ...meta } = attachment;
   return {
     link: {
-      url,
-      meta,
+      url: attachment.url,
+      meta: {
+        siteIconUrl: attachment.siteIconUrl,
+        siteName: attachment.siteName,
+        title: attachment.title,
+        author: attachment.author,
+        description: attachment.description,
+        previewImageUrl: attachment.previewImageUrl,
+        previewImageHeight: attachment.previewImageHeight,
+        previewImageWidth: attachment.previewImageWidth,
+      },
     },
   };
 }
