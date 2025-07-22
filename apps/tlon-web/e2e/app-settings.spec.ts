@@ -1,18 +1,9 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
 
-import * as helpers from './helpers';
-import shipManifest from './shipManifest.json';
+import { test } from './test-fixtures';
 
-const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
-
-test.use({ storageState: shipManifest['~zod'].authFile });
-
-test('should test app settings', async ({ page }) => {
-  await page.goto(zodUrl);
-  await page.waitForSelector('text=Home', { state: 'visible' });
-  await page.evaluate(() => {
-    window.toggleDevTools();
-  });
+test('should test app settings', async ({ zodSetup }) => {
+  const page = zodSetup.page;
 
   await expect(page.getByTestId('SettingsNavIcon')).toBeVisible();
   await page.getByTestId('SettingsNavIcon').click();
