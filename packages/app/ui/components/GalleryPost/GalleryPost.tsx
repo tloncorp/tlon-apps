@@ -19,6 +19,7 @@ import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { useIsWindowNarrow } from '@tloncorp/ui';
+import { differenceInDays } from 'date-fns';
 import { now, truncate } from 'lodash';
 import {
   ComponentProps,
@@ -224,7 +225,9 @@ export function GalleryPostHeader({ post }: { post: db.Post }) {
           color="$tertiaryText"
         />
         <Text size="$label/m" color="$tertiaryText">
-          {makePrettyDaysSince(new Date(post.receivedAt))}
+          {differenceInDays(new Date(), new Date(post.receivedAt)) > 30
+            ? makePrettyShortDate(new Date(post.receivedAt))
+            : `${makePrettyDaysSince(new Date(post.receivedAt))} ago`}
         </Text>
       </XStack>
     </View>
