@@ -1,11 +1,7 @@
 import { expect } from '@playwright/test';
 
 import * as helpers from './helpers';
-import shipManifest from './shipManifest.json';
 import { test } from './test-fixtures';
-
-const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
-const tenUrl = `${shipManifest['~ten'].webUrl}/apps/groups/`;
 
 test('Forward chat message from group channel to DM - verify toast and reference message', async ({
   zodSetup,
@@ -74,13 +70,6 @@ test('Forward chat message from group channel to DM - verify toast and reference
   await expect(zodPage.getByTestId('ToastMessage')).toBeVisible();
   await expect(zodPage.getByText('Forwarded post to ~ten')).toBeVisible();
 
-  // Step 4: Setup ~ten to check DM
-  await tenPage.goto(tenUrl);
-  await tenPage.waitForSelector('text=Home', { state: 'visible' });
-
-  // Navigate to the group as ~ten and accept invitation
-  await expect(tenPage.getByText('Home')).toBeVisible();
-
   // Wait for the group invitation and accept it
   await tenPage.waitForTimeout(3000);
   await expect(tenPage.getByText('Group invitation')).toBeVisible();
@@ -112,7 +101,7 @@ test('Forward chat message from group channel to DM - verify toast and reference
 
   await tenPage.waitForTimeout(1000);
 
-  // Step 5: ~ten verifies forwarded message appears as a reference/citation
+  // Step 4: ~ten verifies forwarded message appears as a reference/citation
   // Verify message is visible
   await expect(
     tenPage.getByTestId('Post').getByText(testMessage)
