@@ -268,9 +268,29 @@
     res
   ::
   ++  on-poke
-    |=  =cage
+    |=  [=mark =vase]
     ^-  (quip card _this)
-    =^  cards  inner  (on-poke:og cage)
+    ?.  ?&  ?=(%egg-any mark)
+            !:
+              =+  !<(=egg-any:gall vase)
+          ?&  ?=(%live +<.egg-any)
+              ?=([[%discipline *] *] q.old-state.egg-any)
+          ==  ==
+      =^  cards  inner  (on-poke:og mark vase)
+      =.  cards  (check-cards:help ~ cards)
+      [cards this]
+    ::  strip the negotiate state out of the egg,
+    ::  and pass it on to the inner agent
+    ::
+    =/  =cage  !:
+      :-  mark
+      !>  ^-  egg-any:gall
+      =+  !<(=egg-any:gall vase)
+      ?>  ?=(%live +<.egg-any)
+      %_  egg-any
+        +.old-state  (slot 3 +.old-state.egg-any)
+      ==
+    =^  cards  inner  (on-poke:og cage)  !:
     =.  cards  (check-cards:help ~ cards)
     [cards this]
   ::

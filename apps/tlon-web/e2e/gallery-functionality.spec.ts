@@ -1,29 +1,11 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
 
 import * as helpers from './helpers';
-import shipManifest from './shipManifest.json';
+import { test } from './test-fixtures';
 
-const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
-const tenUrl = `${shipManifest['~ten'].webUrl}/apps/groups/`;
-
-test.use({ storageState: shipManifest['~zod'].authFile });
-
-test('should test gallery functionality', async ({ browser }) => {
-  const zodContext = await browser.newContext({
-    storageState: shipManifest['~zod'].authFile,
-  });
-  const tenContext = await browser.newContext({
-    storageState: shipManifest['~ten'].authFile,
-  });
-  const zodPage = await zodContext.newPage();
-  const tenPage = await tenContext.newPage();
-
-  // Launch and login as ~zod
-  await zodPage.goto(zodUrl);
-  await zodPage.waitForSelector('text=Home', { state: 'visible' });
-  await zodPage.evaluate(() => {
-    window.toggleDevTools();
-  });
+test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
+  const zodPage = zodSetup.page;
+  const tenPage = tenSetup.page;
 
   // Assert that we're on the Home page
   await expect(zodPage.getByText('Home')).toBeVisible();
@@ -65,6 +47,7 @@ test('should test gallery functionality', async ({ browser }) => {
     .getByText('Test Gallery Post Content')
     .first()
     .click({ force: true });
+  await zodPage.waitForTimeout(2000);
   await expect(
     zodPage
       .getByTestId('GalleryPostContent')
@@ -100,10 +83,6 @@ test('should test gallery functionality', async ({ browser }) => {
   await expect(
     zodPage.getByTestId('GalleryPostContentPreview').getByText('Edited text...')
   ).toBeVisible();
-
-  // Switch to ~ten to navigate to the gallery and hide the post
-  await tenPage.goto(tenUrl);
-  await tenPage.waitForSelector('text=Home', { state: 'visible' });
 
   // Navigate to the group as ~ten
   await expect(tenPage.getByText('Home')).toBeVisible();
@@ -152,9 +131,6 @@ test('should test gallery functionality', async ({ browser }) => {
   await expect(
     tenPage.getByTestId('GalleryPostContentPreview').getByText('Edited text...')
   ).toBeVisible();
-
-  // Clean up ~ten context
-  await tenContext.close();
 
   // Report the post as ~zod
   await helpers.longPressMessage(zodPage, 'Edited text...');
