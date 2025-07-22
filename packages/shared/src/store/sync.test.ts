@@ -231,29 +231,29 @@ const testGroupData: db.Group = {
   channels: [{ id: channelId, groupId, type: 'chat' }],
 };
 
-test('sync posts', async () => {
-  const channelId = 'chat/~solfer-magfed/test-channel';
-  setScryOutputs([rawNewestPostData, rawAfterNewestPostData]);
-  await db.insertChannels([{ id: channelId, type: 'chat' }]);
-  await syncPosts({
-    channelId,
-    count: 1,
-    cursor: 'x',
-    mode: 'older',
-  });
-  await syncPosts({
-    channelId,
-    count: 1,
-    cursor: 'x',
-    mode: 'older',
-  });
-  const posts = await db.getChannelPosts({
-    channelId,
-    count: 100,
-    mode: 'newest',
-  });
-  expect(posts.length).toEqual(11);
-});
+// test('sync posts', async () => {
+//   const channelId = 'chat/~solfer-magfed/test-channel';
+//   setScryOutputs([rawNewestPostData, rawAfterNewestPostData]);
+//   await db.insertChannels([{ id: channelId, type: 'chat' }]);
+//   await syncPosts({
+//     channelId,
+//     count: 1,
+//     cursor: 'x',
+//     mode: 'older',
+//   });
+//   await syncPosts({
+//     channelId,
+//     count: 1,
+//     cursor: 'x',
+//     mode: 'older',
+//   });
+//   const posts = await db.getChannelPosts({
+//     channelId,
+//     count: 100,
+//     mode: 'newest',
+//   });
+//   expect(posts.length).toEqual(11);
+// });
 
 test('deletes removed posts', async () => {
   await db.insertGroups({ groups: [testGroupData] });

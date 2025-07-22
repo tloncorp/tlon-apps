@@ -130,6 +130,7 @@ export function buildPendingPost({
   authorId,
   author,
   channel,
+  sequenceNum,
   content,
   metadata,
   parentId,
@@ -137,6 +138,7 @@ export function buildPendingPost({
   authorId: string;
   author?: types.Contact | null;
   channel: types.Channel;
+  sequenceNum: number | null;
   content: ub.Story;
   metadata?: db.PostMetadata;
   parentId?: string;
@@ -158,6 +160,7 @@ export function buildPendingPost({
     type,
     sentAt,
     receivedAt: sentAt,
+    sequenceNum,
     title: metadata?.title ?? '',
     image: metadata?.image ?? '',
     content: JSON.stringify(postContent),

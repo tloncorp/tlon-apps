@@ -200,6 +200,8 @@ export function deriveFullWrit(
       lastRepliers: [],
       lastReply: null,
     },
+    // TODO: this needs to be figured out before merging
+    seq: '1',
   };
 
   return { seal, essay: delta.add.essay };
