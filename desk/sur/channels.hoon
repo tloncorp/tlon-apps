@@ -251,6 +251,7 @@
   ==
 ::  $scan: search results
 +$  scan  (list reference)
+::TODO  (may simple-*)
 +$  reference
   $%  [%post post=simple-post]
       [%reply =id-post reply=simple-reply]
@@ -329,9 +330,9 @@
   ::NOTE  not +each, avoids p= faces for better ergonomics
   $%([%& data] [%| tombstone])
 +$  tombstone
-  $:  id=id-post
+  $:  id=?(id-post id-reply)  ::NOTE  the same type, how convenient!
       =author
-      seq=@ud
+      seq=@ud  ::NOTE  0 for replies, but we may need them later™
       del-at=@da
   ==
 ::
@@ -444,7 +445,7 @@
   ==
 ::
 +$  u-reply
-  $%  [%set reply=(may v-reply)]
+  $%  [%set reply=(may v-reply)]  ::TODO  no %essay, inconsistent w/ $u-post
       [%reacts reacts=v-reacts]
   ==
 ::
@@ -532,7 +533,7 @@
         =remark
     ==
   --
-+$  channel-heads  (list [=nest recency=time latest=(unit post)])
++$  channel-heads  (list [=nest recency=time latest=(may post)])
 +$  paged-posts
   $:  =posts
       newer=(unit time)
@@ -551,7 +552,7 @@
 +$  simple-post  [simple-seal essay]
 +$  seal
   $:  id=id-post
-      seq=@ud
+      seq=@ud  ::NOTE  starts at 1, 0 indicates bad migration/broken state
       mod-at=@da
       =reacts
       =replies
@@ -559,6 +560,7 @@
   ==
 +$  simple-seal
   $:  id=id-post
+      ::TODO  put sequence nr?
       =reacts
       replies=simple-replies
       =reply-meta
@@ -630,6 +632,7 @@
     ++  on-v-replies  ((on id-reply (unit v-reply)) lte)
     ++  mo-v-replies  ((mp id-reply (unit v-reply)) lte)
     ::
+    +$  channels  (map nest channel)
     ++  channel
       |^  ,[global local]
       +$  global
@@ -657,11 +660,18 @@
           =replies
           =reply-meta
       ==
+    +$  simple-seal
+      $:  id=id-post
+          =reacts
+          replies=simple-replies
+          =reply-meta
+      ==
     +$  post  [seal [rev=@ud essay]]
     +$  posts  ((mop id-post (unit post)) lte)
+    +$  simple-post  [simple-seal essay]
     +$  simple-posts  ((mop id-post (unit simple-post)) lte)
     +$  replies     ((mop id-reply (unit reply)) lte)
-    +$  simple-replies     ((mop id-reply simple-reply) lte)
+    +$  simple-replies     ((mop id-reply simple-reply) lte)  ::REMOVEME ?
     ++  on-posts    ((on id-post (unit post)) lte)
     ++  on-simple-posts    ((on id-post (unit simple-post)) lte)
     ++  on-replies  ((on id-reply (unit reply)) lte)
@@ -669,6 +679,7 @@
     +$  log     ((mop time u-channel) lte)
     ++  log-on  ((on time u-channel) lte)
     ++  mo-log  ((mp time u-channel) lte)
+    +$  channel-heads  (list [=nest recency=time latest=(unit post)])
     +$  paged-posts
       $:  =posts
           newer=(unit time)
@@ -722,6 +733,25 @@
       $%  $<(?(%posts %post) r-channel)
           [%posts posts=simple-posts]
           [%post id=id-post r-post=r-simple-post]
+      ==
+    +$  r-post
+      $%  [%set post=(unit post)]
+          [%reply id=id-reply =reply-meta =r-reply]
+          [%reacts =reacts]
+          [%essay =essay]
+      ==
+    +$  r-reply
+      $%  [%set reply=(unit reply)]
+          [%reacts =reacts]
+      ==
+    +$  r-simple-post
+      $%  $<(?(%set %reply) r-post)
+          [%set post=(unit simple-post)]
+          [%reply id=id-reply =reply-meta r-reply=r-simple-reply]
+      ==
+    +$  r-simple-reply
+      $%  $<(%set r-reply)
+          [%set reply=(unit simple-reply)]
       ==
     --
   ++  v7

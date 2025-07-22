@@ -253,6 +253,17 @@
   ^-  [id-post:c (unit post:v7:old:c)]
   [id-post (bind (mu-v-post v-post) uv-post-without-replies-1)]
 ::
+++  uv-posts-without-replies-3
+  |=  =v-posts:c
+  ^-  posts:v9:old:c
+  %+  gas:on-posts:v9:old:c  *posts:v9:old:c
+  %+  turn  (tap:on-v-posts:c v-posts)
+  |=  [=id-post:c v-post=(may:c v-post:c)]
+  ^-  [id-post:c (may:v9:old:c post:v9:old:c)]
+  :-  id-post
+  ?:  ?=(%| -.v-post)  v-post
+  &+(uv-post-without-replies-3 +.v-post)
+::
 ++  suv-posts-without-replies
   |=  =v-posts:c
   ^-  simple-posts:v1:old:c
@@ -970,6 +981,7 @@
   ::  edits are detected through changelogs. look at the relevant log range,
   ::  and see if any update affects the latest post.
   ::NOTE  if our mops were the other way around, we could +dip:on instead
+  ::TODO  there's +dop in the mop extensions!
   ::
   =;  changed=?
     ?.(changed ~ result)
@@ -1007,6 +1019,7 @@
   ::  edits are detected through changelogs. look at the relevant log range,
   ::  and see if any update affects the latest post.
   ::NOTE  if our mops were the other way around, we could +dip:on instead
+  ::TODO  there's +dop in the mop extensions!
   ::
   =;  changed=?
     ?.(changed ~ result)
@@ -1372,6 +1385,135 @@
       q.said(reply (simple-reply-7-to-8 reply.q.said))
     ==
   ==
+::
+++  v-channels-8-to-9
+  |=  vc=v-channels:v8:old:c
+  ^-  v-channels:v9:old:c
+  %-  ~(run by vc)
+  |=  v=v-channel:v8:old:c
+  ^-  v-channel:v9:old:c
+  =/  nu-posts=v-posts:v9:old:c
+    (v-posts-8-to-9 posts.v)
+  =^  nu-log=log:v9:old:c  nu-posts
+    (log-8-to-9 log.v nu-posts)
+  ::NOTE  .future unused at the time of migration
+  v(posts nu-posts, log nu-log, future *future:v-channel:v9:old:c)
+::
+++  v-posts-8-to-9  ::NOTE  bunts tombstones! must call +log-8-to-9 afterwards!
+  |=  vp=v-posts:v8:old:c
+  ^-  v-posts:v9:old:c
+  %+  urn:mo-v-posts:v8:old:c  vp
+  |=  [=id-post:v8:old:c post=(unit v-post:v8:old:c)]
+  ^-  (may:v9:old:c v-post:v9:old:c)
+  ?~  post
+    [%| %*(. *tombstone:v9:old:c id id-post)]
+  :-  %&
+  u.post(replies (v-replies-8-to-9 replies.u.post))
+::
+++  v-replies-8-to-9
+  |=  vr=v-replies:v8:old:c
+  ^-  v-replies:v9:old:c
+  %+  urn:mo-v-replies:v8:old:c  vr
+  |=  [=id-reply:v8:old:c reply=(unit v-reply:v8:old:c)]
+  ^-  (may:v9:old:c v-reply:v9:old:c)
+  ?^  reply  [%& u.reply]
+  [%| %*(. *tombstone:v9:old:c id id-reply)]
+::
+++  log-8-to-9  ::  puts tombstone info into .vp too
+  |=  [l=log:v-channel:v8:old:c vp=v-posts:v9:old:c]
+  ^-  [log:v-channel:v9:old:c _vp]
+  |^  =+  do=(deep find-deleted-plans)
+      =<  [log=+ vp]
+      %-  (dyp:mo-log:v8:old:c u-channel:v9:old:c ,[=_vp =deets])
+      [l [vp *deets] do]
+  ::
+  +$  deets
+    (map plan:v9:old:c [=author:v9:old:c seq=@ud])
+  ::
+  ++  deep
+    |=  deletions=(set plan:v9:old:c)
+    |=  [[=_vp =deets] =time update=u-channel:v8:old:c]
+    ^-  [(unit u-channel:v9:old:c) _vp _deets]
+    ?+  update  [`update vp deets]
+        [%post * %set ^]
+      ::  creation: upgrade the update and store deets if we will care
+      ::
+      :+  %-  some
+          =;  p=v-post:v9:old:c
+            update(post.u-post &+p)
+          %=  u.post.u-post.update
+            replies  (v-replies-8-to-9 replies.u.post.u-post.update)
+          ==
+        vp
+      =/  =plan:v9:old:c  [id.update ~]
+      ?.  (~(has in deletions) plan)  deets
+      (~(put by deets) plan [author seq]:u.post.u-post.update)
+    ::
+        [%post * %set ~]
+      ::  deletion: create a proper tombstone and store it (in logs and vp)
+      ::
+      =/  =tombstone:v9:old:c
+        =/  [=author:v9:old:c seq=@ud]
+          =/  =plan:v9:old:c  [id.update ~]
+          ~?  !(~(has by deets) plan)  %log-8-to-9-seq-bunt
+          (~(gut by deets) plan *author:v9:old:c 0)
+        [id.update author seq time]
+      :+  `update(post.u-post |+tombstone)
+        (put:on-v-posts:v9:old:c vp id.update |+tombstone)
+      deets
+    ::
+        [%post * %reply * %set ^]
+      ::  creation: upgrade the update and store deets if we will care
+      ::
+      :+  `update(reply.u-reply.u-post &+u.reply.u-reply.u-post.update)
+        vp
+      =/  =plan:v9:old:c  [id.update `id.u-post.update]
+      ?.  (~(has in deletions) plan)  deets
+      ~!  u.reply.u-reply.u-post.update
+      ::NOTE  always seq=0 for replies
+      (~(put by deets) plan author.u.reply.u-reply.u-post.update 0)
+    ::
+        [%post * %reply * %set ~]
+      ::  deletion: create a proper tombstone and store it (in logs and vp)
+      ::
+      =/  =tombstone:v9:old:c
+        =/  [=author:v9:old:c seq=@ud]
+          =/  =plan:v9:old:c  [id `id.u-post]:update
+          ~?  !(~(has by deets) plan)  %log-8-to-9-seq-bunt-r
+          (~(gut by deets) plan *author:v9:old:c 0)
+        [id.u-post.update author seq time]
+      :+  `update(reply.u-reply.u-post |+tombstone)
+        %^  jib:mo-v-posts:v9:old:c  vp
+          id.update
+        |=  post=(may:v9:old:c v-post:v9:old:c)
+        ^+  post
+        ?:  ?=(%| -.post)  post
+        =-  post(replies -)
+        %^  put:on-v-replies:v9:old:c  replies.post
+          id.u-post.update
+        |+tombstone
+      deets
+    ==
+  ::
+  ++  find-deleted-plans
+    ::NOTE  no +rep:on...
+    =<  dels
+    %^  (dip:on-v-posts:v9:old:c ,dels=(set plan:v9:old:c))  vp
+      ~
+    |=  [dels=(set plan:v9:old:c) =id-post:v9:old:c post=(may:v9:old:c v-post:v9:old:c)]
+    ^-  [(unit (may:v9:old:c v-post:v9:old:c)) stop=? _dels]
+    =-  [~ | -]  ::  accumulate over everything
+    ?:  ?=(%| -.post)
+      (~(put in dels) id-post ~)
+    =<  dels
+    %^  (dip:on-v-replies:v9:old:c ,=_dels)  replies.post
+      dels
+    |=  [=_dels =id-reply:v9:old:c reply=(may:v9:old:c v-reply:v9:old:c)]
+    ^-  [(unit (may:v9:old:c v-reply:v9:old:c)) stop=? _dels]
+    =-  [~ | -]  ::  accumulate over everything
+    ?:  ?=(%& -.reply)  dels
+    (~(put in dels) id-post `id-reply)
+  --
 ::
 ++  v-channels-7-to-8
   |=  vc=v-channels:v7:old:c

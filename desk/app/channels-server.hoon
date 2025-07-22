@@ -58,7 +58,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %9
+    $:  %10
         =v-channels:c
         =hooks:h
         =pimp:imp
@@ -149,12 +149,14 @@
   =?  old  ?=(%6 -.old)  (state-6-to-7 old)
   =?  old  ?=(%7 -.old)  (state-7-to-8 old)
   =?  old  ?=(%8 -.old)  (state-8-to-9 old)
-  ?>  ?=(%9 -.old)
+  =?  old  ?=(%9 -.old)  (state-9-to-10 old)
+  ?>  ?=(%10 -.old)
   =.  state  old
   inflate-io
   ::
   +$  versioned-state
-    $%  state-9
+    $%  state-10
+        state-9
         state-8
         state-7
         state-6
@@ -165,10 +167,16 @@
         state-1
         state-0
     ==
-  +$  state-9  current-state
+  +$  state-10  current-state
+  +$  state-9
+    $:  %9
+        =v-channels:v8:old:c
+        =hooks:h
+        =pimp:imp
+    ==
   +$  state-8
     $:  %8
-        =v-channels:c
+        =v-channels:v8:old:c
         =hooks:h
         =pimp:imp
     ==
@@ -183,22 +191,26 @@
       =v-channels:v7:old:c
       =pimp:imp
     ==
+  ++  state-9-to-10
+    |=  s=state-9
+    ^-  state-10
+    s(- %10, v-channels (v-channels-8-to-9:utils v-channels.s))
   ++  state-8-to-9
     |=  s=state-8
     ^-  state-9
     =-  s(- %9, v-channels -)
     %-  ~(run by v-channels.s)
-    |=  v=v-channel:c
+    |=  v=v-channel:v8:old:c
     ^+  v
-    %+  roll  (tap:log-on:c log.v)
-    |=  $:  [t=time u=u-channel:c]
+    %+  roll  (tap:log-on:v8:old:c log.v)
+    |=  $:  [t=time u=u-channel:v8:old:c]
             chan=_v
         ==
     ?.  ?=([%post * %set ~] u)  chan
-    ~?  ?=([~ ~ *] (get:on-v-posts:c posts.chan id.u))
+    ~?  ?=([~ ~ *] (get:on-v-posts:v8:old:c posts.chan id.u))
       %strange-existing-deleted-posts
     =-  chan(posts -)
-    (put:on-v-posts:c posts.chan id.u ~)
+    (put:on-v-posts:v8:old:c posts.chan id.u ~)
   ++  state-7-to-8
     |=  s=state-7
     ^-  state-8
@@ -411,8 +423,8 @@
         count.u.can
       ^-  (list [id-post:c (unit @ud)])
       %+  turn  (tap:on-v-posts:c posts.u.can)
-      |=  [i=id-post:c p=(unit v-post:c)]
-      [i ?~(p ~ `seq.u.p)]
+      |=  [i=id-post:c p=(may:c v-post:c)]
+      [i ?-(-.p %& `seq.p, %| `seq.p)]
     ==
   ::
       %channel-command
@@ -882,17 +894,17 @@
       =.  new
         ?>  ?=([%on-post %add *] p.result)
         post.p.result
-      :-  `[%post id %set ~ new]
-      ca-core(posts.channel (put:on-v-posts:c posts.channel id ~ new))
+      :-  `[%post id %set &+new]
+      ca-core(posts.channel (put:on-v-posts:c posts.channel id &+new))
     ::
         %edit
       ?>  |(=(src.bowl author.essay.c-post) (is-admin:ca-perms src.bowl))
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  no-op
-      ?~  u.post  no-op
-      ?>  |(=(src.bowl author.u.u.post) (is-admin:ca-perms src.bowl))
+      ?:  ?=(%| -.u.post)  no-op
+      ?>  |(=(src.bowl author.u.post) (is-admin:ca-perms src.bowl))
       =^  result=(each event:h tang)  cor
-        =/  =event:h  [%on-post %edit u.u.post essay.c-post]
+        =/  =event:h  [%on-post %edit +.u.post essay.c-post]
         (run-hooks event nest 'edit blocked')
       ?:  ?=(%.n -.result)
         ((slog p.result) no-op)
@@ -900,30 +912,33 @@
         ?>  ?=([%on-post %edit *] p.result)
         essay.p.result
       ::TODO  could optimize and no-op if the edit is identical to current
-      =/  new=v-post:c  [-.u.u.post(mod-at now.bowl) +(rev.u.u.post) essay]
-      :-  `[%post id.c-post %set ~ new]
-      ca-core(posts.channel (put:on-v-posts:c posts.channel id.c-post ~ new))
+      =/  new=v-post:c  [+<.u.post(mod-at now.bowl) +(rev.u.post) essay]
+      :-  `[%post id.c-post %set &+new]
+      ca-core(posts.channel (put:on-v-posts:c posts.channel id.c-post &+new))
     ::
         %del
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
-      ?~  post  `ca-core(posts.channel (put:on-v-posts:c posts.channel id.c-post ~))
-      ?~  u.post  no-op
-      ?>  |(=(src.bowl author.u.u.post) (is-admin:ca-perms src.bowl))
+      ?~  post  no-op
+      ?:  ?=(%| -.u.post)  no-op
+      ?>  |(=(src.bowl author.u.post) (is-admin:ca-perms src.bowl))
       =^  result=(each event:h tang)  cor
-        =/  =event:h  [%on-post %del u.u.post]
+        =/  =event:h  [%on-post %del +.u.post]
         (run-hooks event nest 'delete blocked')
       ?>  =(& -.result)
-      :-  `[%post id.c-post %set ~]
-      ca-core(posts.channel (put:on-v-posts:c posts.channel id.c-post ~))
+      =/  =tombstone:c
+        =,  +.u.post
+        [id author seq now.bowl]
+      :-  `[%post id.c-post %set |+tombstone]
+      ca-core(posts.channel (put:on-v-posts:c posts.channel id.c-post |+tombstone))
     ::
         ?(%add-react %del-react)
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  no-op
-      ?~  u.post  no-op
+      ?:  ?=(%| -.u.post)  no-op
       =^  result=(each event:h tang)  cor
         =/  =event:h
           =*  post-author  (get-author-ship:utils p.c-post)
-          :*  %on-post  %react  u.u.post
+          :*  %on-post  %react  +.u.post
               ?:  ?=(%del-react -.c-post)  [post-author ~]
               [post-author `q.c-post]
           ==
@@ -936,29 +951,29 @@
           [%del-react id.c-post ship.p.result]
         [%add-react id.c-post [ship u.react]:p.result]
       =/  [update=? reacts=v-reacts:c]
-        (ca-c-react reacts.u.u.post new)
+        (ca-c-react reacts.u.post new)
       ?.  update  no-op
       :-  `[%post id.c-post %reacts reacts]
       %=  ca-core
           posts.channel
         %+  put:on-v-posts:c
           posts.channel
-        [id.c-post ~ u.u.post(reacts reacts, mod-at now.bowl)]
+        [id.c-post u.post(reacts reacts, mod-at now.bowl)]
       ==
     ::
         %reply
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  no-op
-      ?~  u.post  no-op
-      =^  update=(unit u-post:c)  replies.u.u.post
-        (ca-c-reply u.u.post c-reply.c-post)
+      ?:  ?=(%| -.u.post)  no-op
+      =^  update=(unit u-post:c)  replies.u.post
+        (ca-c-reply +.u.post c-reply.c-post)
       ?~  update  no-op
       :-  `[%post id.c-post u.update]
       %=  ca-core
           posts.channel
         %+  put:on-v-posts:c
           posts.channel
-        [id.c-post ~ u.u.post(mod-at now.bowl)]
+        [id.c-post u.post(mod-at now.bowl)]
       ==
     ==
   ::
@@ -984,16 +999,16 @@
       =.  new
         ?>  ?=([%on-reply %add *] p.result)
         reply.p.result
-      :-  `[%reply id %set ~ new]
-      (put:on-v-replies:c replies id ~ new)
+      :-  `[%reply id %set &+new]
+      (put:on-v-replies:c replies id &+new)
     ::
         %edit
       =/  reply  (get:on-v-replies:c replies id.c-reply)
       ?~  reply    `replies
-      ?~  u.reply  `replies
-      ?>  =(src.bowl author.u.u.reply)
+      ?:  ?=(%| -.u.reply)  `replies
+      ?>  =(src.bowl author.u.reply)
       =^  result=(each event:h tang)  cor
-        =/  =event:h  [%on-reply %edit parent u.u.reply memo.c-reply]
+        =/  =event:h  [%on-reply %edit parent +.u.reply memo.c-reply]
         (run-hooks event nest 'edit blocked')
       ?:  ?=(%.n -.result)
         ((slog p.result) [~ replies])
@@ -1001,29 +1016,32 @@
         ?>  ?=([%on-reply %edit *] p.result)
         memo.p.result
       ::TODO  could optimize and no-op if the edit is identical to current
-      =/  new=v-reply:c  [-.u.u.reply +(rev.u.u.reply) memo]
-      :-  `[%reply id.c-reply %set ~ new]
-      (put:on-v-replies:c replies id.c-reply ~ new)
+      =/  new=v-reply:c  [+<.u.reply +(rev.u.reply) memo]
+      :-  `[%reply id.c-reply %set &+new]
+      (put:on-v-replies:c replies id.c-reply &+new)
     ::
         %del
       =/  reply  (get:on-v-replies:c replies id.c-reply)
-      ?~  reply  `(put:on-v-replies:c replies id.c-reply ~)
-      ?~  u.reply  `replies
-      ?>  |(=(src.bowl author.u.u.reply) (is-admin:ca-perms src.bowl))
+      ?~  reply  `replies
+      ?:  ?=(%| -.u.reply)  `replies
+      ?>  |(=(src.bowl author.u.reply) (is-admin:ca-perms src.bowl))
       =^  result=(each event:h tang)  cor
-        =/  =event:h  [%on-reply %del parent u.u.reply]
+        =/  =event:h  [%on-reply %del parent +.u.reply]
         (run-hooks event nest 'delete blocked')
       ?>  =(& -.result)
-      :-  `[%reply id.c-reply %set ~]
-      (put:on-v-replies:c replies id.c-reply ~)
+      =/  =tombstone:c
+        =,  +.u.reply
+        [id author seq=0 now.bowl]
+      :-  `[%reply id.c-reply %set |+tombstone]
+      (put:on-v-replies:c replies id.c-reply |+tombstone)
     ::
         ?(%add-react %del-react)
       =/  reply  (get:on-v-replies:c replies id.c-reply)
       ?~  reply  `replies
-      ?~  u.reply  `replies
+      ?:  ?=(%| -.u.reply)  `replies
       =^  result=(each event:h tang)  cor
         =/  =event:h
-          :*  %on-reply  %react  parent  u.u.reply
+          :*  %on-reply  %react  parent  +.u.reply
               ?:  ?=(%del-react -.c-reply)  [(get-author-ship:utils p.c-reply) ~]
               [(get-author-ship:utils p.c-reply) `q.c-reply]
           ==
@@ -1035,10 +1053,10 @@
         ?~  react.p.result  [%del-react id.c-reply ship.p.result]
         [%add-react id.c-reply [ship u.react]:p.result]
       =/  [update=? reacts=v-reacts:c]
-        (ca-c-react reacts.u.u.reply new)
+        (ca-c-react reacts.u.reply new)
       ?.  update  `replies
       :-  `[%reply id.c-reply %reacts reacts]
-      (put:on-v-replies:c replies id.c-reply ~ u.u.reply(reacts reacts))
+      (put:on-v-replies:c replies id.c-reply u.reply(reacts reacts))
     ==
   ::
   ++  ca-c-react

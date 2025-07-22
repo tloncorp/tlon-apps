@@ -140,11 +140,11 @@
     |=  heads=channel-heads:c
     :-  %a
     %+  turn  heads
-    |=  [=nest:c recency=^time latest=(unit post:c)]
+    |=  [=nest:c recency=^time latest=(may:c post:c)]
     %-  pairs
     :~  nest+(^nest nest)
         recency+(time recency)
-        latest+?~(latest ~ (post u.latest))
+        latest+?-(-.latest %& (post +.latest), %| (tombstone +.latest))
     ==
   ::
   ++  paged-posts
@@ -648,6 +648,24 @@
   ::
   ++  v8
     |%
+    ++  channels
+      |=  channels=channels:v8:old:c
+      %-  pairs
+      %+  turn  ~(tap by channels)
+      |=  [n=nest:c ca=channel:v8:old:c]
+      [(nest-cord n) (channel ca)]
+    ::
+    ++  channel
+      |=  channel=channel:v8:old:c
+      %-  pairs
+      :~  posts+(posts posts.channel)
+          count+(numb count.channel)
+          order+(order order.channel)
+          view+s+view.channel
+          sort+s+sort.channel
+          perms+(perm perm.channel)
+          meta+?~(meta.channel ~ s+u.meta.channel)
+      ==
     ++  said
       |=  s=said:v8:old:c
       %-  pairs
@@ -666,6 +684,43 @@
             reply+(simple-reply reply.reference)
         ==
       ==
+    ++  posts
+      |=  =posts:v8:old:c
+      %-  pairs
+      %+  turn  (tap:on-posts:v8:old:c posts)
+      |=  [id=id-post:c post=(unit post:v8:old:c)]
+      [(scot %ud id) ?~(post ~ (^post u.post))]
+    ++  post
+      |=  [=seal:v8:old:c [rev=@ud =essay:v8:old:c]]
+      %-  pairs
+      :~  seal+(^seal seal)
+          revision+s+(scot %ud rev)
+          essay+(^essay essay)
+          type+s+%post
+      ==
+    ++  seal
+      |=  =seal:v8:old:c
+      %-  pairs
+      :~  id+(id id.seal)
+          seq+(numb seq.seal)
+          mod-at+(mod-at mod-at.seal)
+          reacts+(reacts reacts.seal)
+          replies+(replies replies.seal)
+          meta+(reply-meta reply-meta.seal)
+      ==
+    ++  replies
+      |=  =replies:v8:old:c
+      %-  pairs
+      %+  turn  (tap:on-replies:v8:old:c replies)
+      |=  [t=@da reply=(unit reply:c)]
+      [(scot %ud t) ?~(reply ~ (^reply +.reply))]
+    ::
+    ++  simple-posts
+      |=  posts=simple-posts:v8:old:c
+      %-  pairs
+      %+  turn  (tap:on-simple-posts:v8:old:c posts)
+      |=  [id=id-post:c post=(unit simple-post:v8:old:c)]
+      [(scot %ud id) ?~(post ~ (simple-post u.post))]
     ++  simple-post
       |=  sp=simple-post:v8:old:c
       %-  pairs
@@ -692,6 +747,117 @@
       %-  pairs
       :~  seal+(reply-seal -.reply)
           memo+(memo +.reply)
+      ==
+    ++  paged-posts
+      |=  pn=paged-posts:v8:old:c
+      %-  pairs
+      :~  posts+(posts posts.pn)
+          newer+?~(newer.pn ~ (id u.newer.pn))
+          older+?~(older.pn ~ (id u.older.pn))
+          total+(numb total.pn)
+      ==
+    ++  channel-heads
+      |=  heads=channel-heads:v8:old:c
+      :-  %a
+      %+  turn  heads
+      |=  [=nest:c recency=^time latest=(unit post:v8:old:c)]
+      %-  pairs
+      :~  nest+(^nest nest)
+          recency+(time recency)
+          latest+?~(latest ~ (post u.latest))
+      ==
+    ++  r-channels
+      |=  [=nest:c =r-channel:v8:old:c]
+      %-  pairs
+      :~  nest+(^nest nest)
+          response+(^r-channel r-channel)
+      ==
+    ::
+    ++  r-channel
+      |=  =r-channel:v8:old:c
+      %+  frond  -.r-channel
+      ?-  -.r-channel
+        %posts    (posts posts.r-channel)
+        %post     (pairs id+(id id.r-channel) r-post+(r-post r-post.r-channel) ~)
+        %pending  (pending r-channel)
+        %order    (order order.r-channel)
+        %view     s+view.r-channel
+        %sort     s+sort.r-channel
+        %perm     (perm perm.r-channel)
+        %meta     ?~(meta.r-channel ~ s+u.meta.r-channel)
+      ::
+        %create   (perm perm.r-channel)
+        %join     (flag group.r-channel)
+        %leave    ~
+        %read     ~
+        %read-at  s+(scot %ud time.r-channel)
+        %watch    ~
+        %unwatch  ~
+      ==
+    ++  r-post
+      |=  =r-post:v8:old:c
+      %+  frond  -.r-post
+      ?-  -.r-post
+        %set    ?~(post.r-post ~ (post u.post.r-post))
+        %reacts  (reacts reacts.r-post)
+        %essay  (essay essay.r-post)
+      ::
+          %reply
+        %-  pairs
+        :~  id+(id id.r-post)
+            r-reply+(r-reply r-reply.r-post)
+            meta+(reply-meta reply-meta.r-post)
+        ==
+      ==
+    ++  r-reply
+      |=  =r-reply:v8:old:c
+      %+  frond  -.r-reply
+      ?-  -.r-reply
+        %set    ?~(reply.r-reply ~ (reply u.reply.r-reply))
+        %reacts  (reacts reacts.r-reply)
+      ==
+    ++  r-channel-simple-post
+      |=  r-channel=r-channel-simple-post:v8:old:c
+      %+  frond  -.r-channel
+      ?-  -.r-channel
+        %posts    (simple-posts posts.r-channel)
+        %post     (pairs id+(id id.r-channel) r-post+(r-simple-post r-post.r-channel) ~)
+        %pending  (pending r-channel)
+        %order    (order order.r-channel)
+        %view     s+view.r-channel
+        %sort     s+sort.r-channel
+        %perm     (perm perm.r-channel)
+        %meta     ?~(meta.r-channel ~ s+u.meta.r-channel)
+      ::
+        %create   (perm perm.r-channel)
+        %join     (flag group.r-channel)
+        %leave    ~
+        %read     ~
+        %read-at  s+(scot %ud time.r-channel)
+        %watch    ~
+        %unwatch  ~
+      ==
+    ++  r-simple-post
+      |=  r-post=r-simple-post:v8:old:c
+      %+  frond  -.r-post
+      ?-  -.r-post
+        %set    ?~(post.r-post ~ (simple-post u.post.r-post))
+        %reacts  (reacts reacts.r-post)
+        %essay  (essay essay.r-post)
+      ::
+          %reply
+        %-  pairs
+        :~  id+(id id.r-post)
+            r-reply+(r-simple-reply r-reply.r-post)
+            meta+(reply-meta reply-meta.r-post)
+        ==
+      ==
+    ++  r-simple-reply
+      |=  r-reply=r-simple-reply:v8:old:c
+      %+  frond  -.r-reply
+      ?-  -.r-reply
+        %set    ?~(reply.r-reply ~ (simple-reply u.reply.r-reply))
+        %reacts  (reacts reacts.r-reply)
       ==
     --
   ++  v7
