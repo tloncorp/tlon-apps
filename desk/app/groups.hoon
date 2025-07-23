@@ -20,7 +20,7 @@
       [~.groups^%0 ~ ~]
     %-  my
     :~  %groups^[~.groups^%0 ~ ~]
-        %channels-server^[~.channels^%1 ~ ~]
+        %channels-server^[~.channels^%2 ~ ~]
     ==
 %-  agent:dbug
 %+  verb  |

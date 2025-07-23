@@ -6,6 +6,7 @@
 
 /* eslint no-console: 0 */
 import * as childProcess from 'child_process';
+import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as fsExtra from 'fs-extra';
 import fetch from 'node-fetch';
@@ -73,6 +74,7 @@ const SHIP_NAMES = Object.keys(ships) as Array<keyof typeof ships>;
 type ShipName = (typeof SHIP_NAMES)[number];
 
 const targetShip = process.env.SHIP_NAME;
+const forceExtraction = process.env.FORCE_EXTRACTION === 'true';
 
 const getUrbitBinaryUrlByPlatformAndArch = () => {
   const platform = os.platform();
@@ -137,25 +139,34 @@ const extractFile = async (filePath: string, extractPath: string) =>
   });
 
 const getPiers = async () => {
-  for (const { downloadUrl, savePath, extractPath, ship } of Object.values(
-    ships
-  ) as Ship[]) {
-    if (targetShip && targetShip !== ship) {
+  for (const shipConfig of Object.values(ships) as Ship[]) {
+    if (targetShip && targetShip !== shipConfig.ship) {
       continue;
     }
 
+    const { downloadUrl, savePath, extractPath, ship } = shipConfig;
+
+    // Download ship archive if it doesn't exist
     if (!fs.existsSync(savePath)) {
       await downloadFile(downloadUrl, savePath);
       console.log(`Downloaded ${ship} to ${savePath}`);
     } else {
       console.log(`Skipping download of ${ship} as it already exists`);
+    }
+
+    // Only extract if ship needs extraction or force extraction is enabled
+    if (forceExtraction || shipNeedsExtraction(shipConfig)) {
       if (fs.existsSync(extractPath)) {
         fs.rmSync(extractPath, { recursive: true });
         console.log(`Removed existing ${extractPath}`);
       }
+      await extractFile(savePath, extractPath);
+      console.log(
+        `Extracted ${ship} to ${extractPath}${forceExtraction ? ' (force extraction enabled)' : ''}`
+      );
     }
-    await extractFile(savePath, extractPath);
-    console.log(`Extracted ${ship} to ${extractPath}`);
+
+    // Always clean up existing .http.ports file if it exists
     const httpPortsFilePath = path.join(extractPath, ship, '.http.ports');
     if (fs.existsSync(httpPortsFilePath)) {
       console.log('Remove existing .http-ports file');
@@ -279,23 +290,33 @@ const bootShip = (
   });
 };
 
-const copyDesks = async () => {
+const copyDesks = async (): Promise<string[]> => {
   const groups = path.resolve(__dirname, '../../../../desk');
+  const shipsNeedingUpdates: string[] = [];
 
   for (const ship of Object.values(ships) as Ship[]) {
     if (targetShip && targetShip !== ship.ship) {
       continue;
     }
 
-    const groupsDir = path.join(ship.extractPath, ship.ship, 'groups');
+    if (needsDeskUpdate(ship)) {
+      const groupsDir = path.join(ship.extractPath, ship.ship, 'groups');
 
-    try {
-      console.log(`Copying ${groups} to ${groupsDir}`);
-      await fsExtra.copy(groups, groupsDir, { overwrite: true });
-    } catch (e) {
-      console.error('Error copying desks', e);
+      try {
+        console.log(`Copying desk changes to ${ship.ship}`);
+        await fsExtra.copy(groups, groupsDir, { overwrite: true });
+        shipsNeedingUpdates.push(ship.ship);
+      } catch (e) {
+        console.error('Error copying desks', e);
+      }
     }
   }
+
+  if (shipsNeedingUpdates.length === 0) {
+    console.log('No ships need desk updates, skipping copy');
+  }
+
+  return shipsNeedingUpdates;
 };
 
 const bootAllShips = () => {
@@ -325,13 +346,19 @@ const postToUrbit = async (
     sink,
   };
 
-  await fetch(url, {
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(payload),
   });
+
+  if (!response.ok) {
+    throw new Error(`Urbit command failed: ${response.status}`);
+  }
+
+  return response;
 };
 
 const hoodCommand = async (ship: ShipName, command: string, port: string) => {
@@ -418,35 +445,84 @@ const getPortsFromFiles = async () =>
   });
 
 const mountDesks = async () => {
-  console.log('Mounting desks on fake ships');
+  console.log('Mounting desks on all ships');
 
   for (const ship of Object.values(ships) as Ship[]) {
     if ((targetShip && targetShip !== ship.ship) || ship.skipCommit === true) {
       continue;
     }
 
+    console.log(`Mounting groups on ${ship.ship}`);
     await hoodCommand(
       ship.ship as ShipName,
       `mount %groups`,
       ship.loopbackPort
     );
   }
+
+  // Wait for mounts to complete
+  await new Promise((resolve) => setTimeout(resolve, 2000));
 };
 
-const commitDesks = async () => {
-  console.log('Committing desks on fake ships');
+const commitDesks = async (shipsNeedingUpdates: string[]) => {
+  if (shipsNeedingUpdates.length === 0) {
+    console.log('No ships need desk committing, skipping');
+    return;
+  }
+
+  console.log(
+    `Committing desks on ships that need updates: ${shipsNeedingUpdates.join(', ')}`
+  );
 
   for (const ship of Object.values(ships) as Ship[]) {
     if ((targetShip && targetShip !== ship.ship) || ship.skipCommit === true) {
       continue;
     }
 
-    await hoodCommand(
-      ship.ship as ShipName,
-      `commit %groups`,
-      ship.loopbackPort
-    );
+    if (shipsNeedingUpdates.includes(ship.ship)) {
+      await hoodCommand(
+        ship.ship as ShipName,
+        `commit %groups`,
+        ship.loopbackPort
+      );
+    }
   }
+};
+
+const nukeStateOnShips = async () => {
+  for (const ship of Object.values(ships) as Ship[]) {
+    if (targetShip && targetShip !== ship.ship) {
+      continue;
+    }
+
+    try {
+      console.log(`Nuking state on ${ship.ship}`);
+      await hoodCommand(
+        ship.ship as ShipName,
+        'nuke %groups, =desk &, =hard &',
+        ship.loopbackPort
+      );
+    } catch (e) {
+      console.error(`Error nuking state on ${ship.ship}:`, e);
+    }
+
+    // Give the nuke command time to complete
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    try {
+      console.log(`Reviving groups on ${ship.ship}`);
+      await hoodCommand(
+        ship.ship as ShipName,
+        'revive %groups',
+        ship.loopbackPort
+      );
+    } catch (e) {
+      console.error(`Error reviving groups on ${ship.ship}:`, e);
+    }
+  }
+
+  // Wait for revive to complete
+  await new Promise((resolve) => setTimeout(resolve, 3000));
 };
 
 const login = async () => {
@@ -532,7 +608,13 @@ const getStartHashes = async () => {
   }
 };
 
-const shipsAreReadyForTests = async () => {
+const shipsAreReadyForTests = async (shipsNeedingUpdates: string[]) => {
+  // If no ships needed updates, they're all ready
+  if (shipsNeedingUpdates.length === 0) {
+    console.log('No ships needed updates, all ships are ready for tests');
+    return true;
+  }
+
   const shipsArray = Object.values(ships);
   const results = await Promise.all(
     shipsArray.map(async (ship: Ship) => {
@@ -540,6 +622,12 @@ const shipsAreReadyForTests = async () => {
         (targetShip && targetShip !== ship.ship) ||
         ship.skipCommit === true
       ) {
+        return true;
+      }
+
+      // If this ship didn't need updates, it's ready
+      if (!shipsNeedingUpdates.includes(ship.ship)) {
+        console.log(`~${ship.ship} didn't need updates, ready for tests`);
         return true;
       }
 
@@ -571,7 +659,7 @@ const shipsAreReadyForTests = async () => {
   return results.every((result) => result);
 };
 
-const checkShipReadinessForTests = async () =>
+const checkShipReadinessForTests = async (shipsNeedingUpdates: string[]) =>
   new Promise<void>((resolve, reject) => {
     const maxAttempts = 10;
     let attempts = 0;
@@ -579,7 +667,7 @@ const checkShipReadinessForTests = async () =>
     const tryConnect = async () => {
       attempts += 1;
 
-      const ready = await shipsAreReadyForTests();
+      const ready = await shipsAreReadyForTests(shipsNeedingUpdates);
 
       if (ready) {
         resolve();
@@ -593,8 +681,8 @@ const checkShipReadinessForTests = async () =>
     tryConnect();
   });
 
-const runPlaywrightTests = async () => {
-  await checkShipReadinessForTests();
+const runPlaywrightTests = async (shipsNeedingUpdates: string[]) => {
+  await checkShipReadinessForTests(shipsNeedingUpdates);
 
   // to do:
   // refactor this to be able to target specs individually
@@ -710,11 +798,135 @@ process.on('uncaughtException', async (err) => {
   process.exit(1);
 });
 
+const getFileHash = (filePath: string): string => {
+  if (!fs.existsSync(filePath)) {
+    return '';
+  }
+  // Read as binary to handle all file types correctly
+  const content = fs.readFileSync(filePath);
+  return crypto
+    .createHash('md5')
+    .update(content as any)
+    .digest('hex');
+};
+
+const compareSourceToTarget = (
+  sourceDirPath: string,
+  targetDirPath: string
+): boolean => {
+  if (!fs.existsSync(sourceDirPath) || !fs.existsSync(targetDirPath)) {
+    return false;
+  }
+
+  const sourceFiles: string[] = [];
+  const walk = (dir: string, basePath: string) => {
+    const items = fs.readdirSync(dir);
+    for (const item of items) {
+      const fullPath = path.join(dir, item);
+      const stat = fs.statSync(fullPath);
+      if (stat.isDirectory()) {
+        walk(fullPath, basePath);
+      } else {
+        const relativePath = path.relative(basePath, fullPath);
+        sourceFiles.push(relativePath);
+      }
+    }
+  };
+
+  walk(sourceDirPath, sourceDirPath);
+
+  // For each file in source, check if it exists in target and has same hash
+  for (const relativeFilePath of sourceFiles) {
+    const sourceFilePath = path.join(sourceDirPath, relativeFilePath);
+    const targetFilePath = path.join(targetDirPath, relativeFilePath);
+
+    // If target file doesn't exist, directories don't match
+    if (!fs.existsSync(targetFilePath)) {
+      return false;
+    }
+
+    // If file contents don't match, directories don't match
+    const sourceHash = getFileHash(sourceFilePath);
+    const targetHash = getFileHash(targetFilePath);
+    if (sourceHash !== targetHash) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+const needsDeskUpdate = (ship: Ship): boolean => {
+  const sourceDeskPath = path.resolve(__dirname, '../../../../desk');
+  const targetGroupsPath = path.join(ship.extractPath, ship.ship, 'groups');
+
+  // If target doesn't exist, we need to update
+  if (!fs.existsSync(targetGroupsPath)) {
+    return true;
+  }
+
+  // Compare only source files (ignore generated files in target)
+  const sourcesMatch = compareSourceToTarget(sourceDeskPath, targetGroupsPath);
+
+  return !sourcesMatch;
+};
+
+const shipNeedsExtraction = (ship: Ship): boolean => {
+  const shipPath = path.join(ship.extractPath, ship.ship);
+
+  // If ship directory doesn't exist, we need to extract
+  if (!fs.existsSync(shipPath)) {
+    return true;
+  }
+
+  // Check if the ship directory looks valid (has expected structure)
+  const expectedFiles = ['.urb', '.bin', '.run', 'groups'];
+  const hasValidStructure = expectedFiles.every((file) =>
+    fs.existsSync(path.join(shipPath, file))
+  );
+
+  if (!hasValidStructure) {
+    return true;
+  }
+
+  // Check if the downloaded archive is newer than the extracted ship
+  if (fs.existsSync(ship.savePath)) {
+    const archiveStats = fs.statSync(ship.savePath);
+    const shipStats = fs.statSync(shipPath);
+
+    // If archive is newer than ship directory, we need to extract
+    if (archiveStats.mtime > shipStats.mtime) {
+      console.log(
+        `New ship version detected for ${ship.ship}, extraction needed`
+      );
+      return true;
+    }
+  }
+
+  // Check if the groups directory matches the desk directory
+  const sourceDeskPath = path.resolve(__dirname, '../../../../desk');
+  const targetGroupsPath = path.join(shipPath, 'groups');
+
+  // If groups directory doesn't exist, we need to extract
+  if (!fs.existsSync(targetGroupsPath)) {
+    return true;
+  }
+
+  // Compare only source files (ignore generated files in target)
+  const sourcesMatch = compareSourceToTarget(sourceDeskPath, targetGroupsPath);
+
+  return !sourcesMatch;
+};
+
 const main = async () => {
   console.time('Total Script Execution');
   if (targetShip && !ships[targetShip]) {
     console.error(`Invalid ship name: ${targetShip}`);
     process.exit(1);
+  }
+
+  if (forceExtraction) {
+    console.log('🚨 Force extraction enabled - all ships will be re-extracted');
   }
 
   try {
@@ -727,12 +939,21 @@ const main = async () => {
 
     await checkShipReadinessForCommands();
     await getPortsFromFiles();
-    await mountDesks();
     await login();
     await getStartHashes();
-    await copyDesks();
-    await commitDesks();
-    await checkShipReadinessForTests();
+
+    // Mount desks first so Urbit writes its current state to filesystem
+    await mountDesks();
+
+    // Copy desk changes to ships that need updates
+    const shipsNeedingUpdates = await copyDesks();
+
+    // Commit changes so Urbit reads our updates and updates its internal state
+    await commitDesks(shipsNeedingUpdates);
+    if (!process.env.FORCE_EXTRACTION) {
+      await nukeStateOnShips();
+    }
+    await checkShipReadinessForTests(shipsNeedingUpdates);
 
     // Check if we should skip running tests (for single test runner)
     if (process.env.SKIP_TESTS === 'true') {
@@ -748,7 +969,7 @@ const main = async () => {
       return;
     }
 
-    await runPlaywrightTests();
+    await runPlaywrightTests(shipsNeedingUpdates);
 
     console.timeEnd('Total Script Execution');
     process.exit(0);
