@@ -1,7 +1,7 @@
 import { parseUd } from '@urbit/aura';
 
-import { ContentReference } from '../api';
 import * as db from '../db';
+import { ContentReference } from '../domain';
 
 function formatId(id: string) {
   return parseUd(id).toString();
