@@ -32,7 +32,6 @@ import {
   Channel,
   ChatOptionsProvider,
   InviteUsersSheet,
-  useCurrentUserId,
   useIsWindowNarrow,
 } from '../../ui';
 
@@ -237,16 +236,6 @@ export default function ChannelScreen(props: Props) {
     [posts, channel]
   );
 
-  const sendPost = useCallback(
-    async (content: Story, channelId: string, metadata?: db.PostMetadata) =>
-      store.sendPost({
-        channelId,
-        content,
-        metadata,
-      }),
-    []
-  );
-
   const handleDeletePost = useCallback(
     async (post: db.Post) => {
       if (!channel) {
@@ -402,7 +391,6 @@ export default function ChannelScreen(props: Props) {
           posts={filteredPosts ?? null}
           selectedPostId={selectedPostId}
           goBack={props.navigation.goBack}
-          sendPost={sendPost}
           goToPost={navigateToPost}
           goToImageViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}

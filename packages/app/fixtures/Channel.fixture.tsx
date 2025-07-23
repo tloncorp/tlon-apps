@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query';
 import {
   useChannelPreview,
   useGroupPreview,
-  useMutableCallback,
   usePostWithRelations,
 } from '@tloncorp/shared';
 import {
@@ -40,7 +39,6 @@ const notebookPosts = createFakePosts(5, 'note');
 
 const usePostReference = ({
   postId,
-  channelId,
 }: {
   postId: string;
   channelId: string;
@@ -84,7 +82,6 @@ const baseProps: ComponentProps<typeof Channel> = {
   goToImageViewer: () => {},
   goToUserProfile: () => {},
   goToGroupSettings: () => {},
-  sendPost: async () => {},
   markRead: () => {},
   editPost: async () => {},
   onPressRef: () => {},
