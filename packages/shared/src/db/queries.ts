@@ -1296,7 +1296,7 @@ export const insertChannelPerms = createWriteQuery(
         });
     }
   },
-  ['channelWriters', 'channels']
+  ['channelWriters', 'channelReaders', 'channels']
 );
 
 export const insertChannelOrder = createWriteQuery(
@@ -2117,13 +2117,31 @@ export const updateChannel = createWriteQuery(
     logger.log('updateChannel', update.id, update);
 
     return withTransactionCtx(ctx, async (txCtx) => {
-      if (update.writerRoles && update.readerRoles) {
+      if (update.writerRoles || update.readerRoles) {
+        let writers = update.writerRoles?.map((role) => role.roleId as string);
+        let readers = update.readerRoles?.map((role) => role.roleId as string);
+
+        // If we only have one type of roles, get the existing roles for the other type
+        if (update.writerRoles && !update.readerRoles) {
+          // Only updating writers, preserve existing readers
+          const existingReaders = await txCtx.db.query.channelReaders.findMany({
+            where: eq($channelReaders.channelId, update.id),
+          });
+          readers = existingReaders.map((r) => r.roleId);
+        } else if (update.readerRoles && !update.writerRoles) {
+          // Only updating readers, preserve existing writers
+          const existingWriters = await txCtx.db.query.channelWriters.findMany({
+            where: eq($channelWriters.channelId, update.id),
+          });
+          writers = existingWriters.map((w) => w.roleId);
+        }
+
         await insertChannelPerms(
           [
             {
               channelId: update.id,
-              writers: update.writerRoles?.map((role) => role.roleId as string),
-              readers: update.readerRoles?.map((role) => role.roleId as string),
+              writers: writers || [],
+              readers: readers || [],
             },
           ],
           txCtx
