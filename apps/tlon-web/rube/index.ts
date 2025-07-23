@@ -920,6 +920,65 @@ const shipNeedsExtraction = (ship: Ship): boolean => {
   return !sourcesMatch;
 };
 
+const executeClickCommand = async (
+  ship: Ship,
+  hoonCommand: string,
+  options: { useKhan?: boolean } = {}
+): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    // Create a ship-specific wrapper script on the fly.
+    // This is the only method I've found that works reliably without
+    // running into formatting issues
+    const tempWrapperPath = path.join(
+      path.dirname(__dirname),
+      `temp-click-${ship.ship}-${Date.now()}.sh`
+    );
+
+    const clickFlags = options.useKhan ? '-k' : '';
+    const wrapperContent = `#!/bin/bash\n./click ${clickFlags} ./dist/${ship.ship}/${ship.ship} $'${hoonCommand}'\n`;
+
+    console.log(
+      `Creating temporary wrapper for ${ship.ship}: ${tempWrapperPath}`
+    );
+    fs.writeFileSync(tempWrapperPath, wrapperContent);
+    fs.chmodSync(tempWrapperPath, '755');
+
+    childProcess.exec(
+      tempWrapperPath,
+      {
+        cwd: path.dirname(__dirname),
+      },
+      (
+        error: childProcess.ExecException | null,
+        stdout: string,
+        stderr: string
+      ) => {
+        // Clean up temp wrapper
+        try {
+          fs.unlinkSync(tempWrapperPath);
+        } catch (e) {
+          console.error(`Error deleting temp wrapper for ${ship.ship}:`, e);
+        }
+
+        if (error) {
+          console.error(
+            `Click command failed for ${ship.ship}:`,
+            error.message
+          );
+          reject(error);
+          return;
+        }
+        if (stderr) {
+          console.error(`Click stderr for ${ship.ship}:`, stderr);
+        }
+        console.log(`Successfully executed click command for ${ship.ship}`);
+        console.log(`Click stdout:`, stdout);
+        resolve(stdout);
+      }
+    );
+  });
+};
+
 const setReelServiceShip = async () => {
   console.log('Setting reel service ship to ~mug on all ships');
 
@@ -938,51 +997,9 @@ const setReelServiceShip = async () => {
       // add a sleep to make sure the ship is ready
       await new Promise((resolve) => setTimeout(resolve, 5000));
 
-      // Use the working wrapper script directly (without file communication)
-      await new Promise((resolve, reject) => {
-        // Create a ship-specific wrapper script on the fly
-        const tempWrapperPath = path.join(
-          path.dirname(__dirname),
-          `temp-reel-${ship.ship}.sh`
-        );
-        const wrapperContent = `#!/bin/bash\n./click -k ./dist/${ship.ship}/${ship.ship} $'=/  m  (strand ,vase)  ;<  ~  bind:m  (poke [~${ship.ship} %reel] %reel-command !>([%set-ship ~mug]))  (pure:m !>(\\\\\\\'success\\\\\\\'))'\n`;
-
-        console.log(
-          `Creating temporary wrapper for ${ship.ship}: ${tempWrapperPath}`
-        );
-        fs.writeFileSync(tempWrapperPath, wrapperContent);
-        fs.chmodSync(tempWrapperPath, '755');
-
-        childProcess.exec(
-          tempWrapperPath,
-          {
-            cwd: path.dirname(__dirname),
-          },
-          (error: any, stdout: any, stderr: any) => {
-            // Clean up temp wrapper
-            try {
-              fs.unlinkSync(tempWrapperPath);
-            } catch (e) {
-              console.error(`Error deleting temp wrapper for ${ship.ship}:`, e);
-            }
-
-            if (error) {
-              console.error(
-                `Wrapper command failed for ${ship.ship}:`,
-                error.message
-              );
-              reject(error);
-              return;
-            }
-            if (stderr) {
-              console.error(`Wrapper stderr for ${ship.ship}:`, stderr);
-            }
-            console.log(`Successfully set reel service ship for ${ship.ship}`);
-            console.log(`Wrapper stdout:`, stdout);
-            resolve(stdout);
-          }
-        );
-      });
+      // Execute the click command using the generalized function
+      const hoonCommand = `=/  m  (strand ,vase)  ;<  ~  bind:m  (poke [~${ship.ship} %reel] %reel-command !>([%set-ship ~mug]))  (pure:m !>(\\\\\\\'success\\\\\\\'))`;
+      await executeClickCommand(ship, hoonCommand, { useKhan: true });
     } catch (e) {
       console.error(`Error setting service ship on ${ship.ship}:`, e);
     }
