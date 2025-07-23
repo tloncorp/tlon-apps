@@ -112,15 +112,13 @@ export const ForwardGroupSheetProvider = ({ children }: PropsWithChildren) => {
           ></SearchBar>
         </XStack>
 
-        {isOpen && (
-          <FilteredChatList
-            ref={chatListRef}
-            listType="channels"
-            searchQuery={query}
-            onPressItem={handleItemSelected}
-            listProps={listProps}
-          />
-        )}
+        <FilteredChatList
+          ref={chatListRef}
+          listType="channels"
+          searchQuery={query}
+          onPressItem={handleItemSelected}
+          listProps={listProps}
+        />
         {selectedChannel && (
           <YStack
             padding="$xl"

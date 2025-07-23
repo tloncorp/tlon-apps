@@ -228,38 +228,47 @@ export async function forwardGroup({
   groupId: string;
   channelId: string;
 }) {
-  logger.log('forwardGroup', { groupId, channelId });
-  logger.trackEvent(AnalyticsEvent.ActionForwardPost);
+  try {
+    logger.log('forwardGroup', { groupId, channelId });
+    logger.trackEvent(AnalyticsEvent.ActionForwardGroup);
 
-  const group = await db.getGroup({ id: groupId });
-  if (!group) {
-    logger.trackError('Failed to forward group, unable to find original');
-    return;
+    const group = await db.getGroup({ id: groupId });
+    if (!group) {
+      logger.trackError('Failed to forward group, unable to find original');
+      return;
+    }
+
+    const channel = await db.getChannel({ id: channelId });
+    if (!channel) {
+      logger.trackError('Failed to forward group, unable to find channel');
+      return;
+    }
+
+    const urbitReference = urbit.pathToCite(
+      logic.getGroupReferencePath(groupId)
+    );
+    if (!urbitReference) {
+      logger.trackError(
+        'Failed to forward group, unable to get reference path'
+      );
+      return;
+    }
+
+    return sendPost({
+      channel,
+      authorId: api.getCurrentUserId(),
+      content: [{ block: { cite: urbitReference } }],
+      metadata:
+        channel.type === 'notebook'
+          ? {
+              title: group.title ? `${group.title} group` : 'Forwarded group',
+            }
+          : undefined,
+    });
+  } catch (error) {
+    logger.trackError('Failed to forward group', error);
+    throw error;
   }
-
-  const channel = await db.getChannel({ id: channelId });
-  if (!channel) {
-    logger.trackError('Failed to forward group, unable to find channel');
-    return;
-  }
-
-  const urbitReference = urbit.pathToCite(logic.getGroupReferencePath(groupId));
-  if (!urbitReference) {
-    logger.trackError('Failed to forward group, unable to get reference path');
-    return;
-  }
-
-  return sendPost({
-    channel,
-    authorId: api.getCurrentUserId(),
-    content: [{ block: { cite: urbitReference } }],
-    metadata:
-      channel.type === 'notebook'
-        ? {
-            title: group.title ? `${group.title} group` : 'Forwarded group',
-          }
-        : undefined,
-  });
 }
 
 export async function editPost({

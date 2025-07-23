@@ -158,9 +158,6 @@ export const FilteredChatList = React.memo(
       () => ({
         backgroundColor: '$positiveBackground',
         borderColor: '$positiveBorder',
-        borderWidth: 1,
-        borderRadius: 10,
-        margin: -1,
       }),
       []
     );
@@ -183,9 +180,13 @@ export const FilteredChatList = React.memo(
               // We're rendering the ChatListItem outside of the ChatOptionsProvider, so we need to disable the options
               disableOptions
               showGroupTitle={true}
+              borderWidth={'$2xs'}
+              marginHorizontal={-1}
               {...(listItems[selectedIndex] === item
                 ? activeSelectionStyles
-                : {})}
+                : {
+                    borderColor: 'transparent',
+                  })}
             />
           );
         }
