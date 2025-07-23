@@ -935,7 +935,8 @@ const executeClickCommand = async (
     );
 
     const clickFlags = options.useKhan ? '-k' : '';
-    const wrapperContent = `#!/bin/bash\n./click ${clickFlags} ./dist/${ship.ship}/${ship.ship} $'${hoonCommand}'\n`;
+    const urbitBinary = path.join(__dirname, 'urbit_extracted', 'urbit');
+    const wrapperContent = `#!/bin/bash\n./click -b ${urbitBinary} ${clickFlags} ./dist/${ship.ship}/${ship.ship} $'${hoonCommand}'\n`;
 
     console.log(
       `Creating temporary wrapper for ${ship.ship}: ${tempWrapperPath}`
