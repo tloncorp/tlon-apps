@@ -273,6 +273,40 @@ export async function forwardMessageToDM(
 }
 
 /**
+ * Forwards a group reference to a specified channel
+ */
+export async function forwardGroupReference(
+  page: Page,
+  channelName: string
+) {
+  // Click the Forward button in group info
+  await page.getByText('Forward').click();
+
+  // Verify forward sheet opened
+  await expect(page.getByText('Forward group')).toBeVisible();
+
+  // Search for the channel
+  await page.getByPlaceholder('Search channels').fill(channelName);
+  await page.waitForTimeout(2000);
+
+  // Click on the channel in the modal (not the sidebar)
+  const channelRow = page.getByTestId(`ChannelListItem-${channelName}`);
+  await expect(channelRow).toBeVisible({ timeout: 5000 });
+  await channelRow.click();
+
+  // Wait for the confirm button to appear and become clickable
+  const confirmButton = page.getByText(`Forward to ${channelName}`);
+  await expect(confirmButton).toBeVisible({ timeout: 5000 });
+  await confirmButton.click();
+
+  // Verify toast appears
+  await expect(page.getByText('Forwarded')).toBeVisible({ timeout: 5000 });
+
+  // Verify modal closes
+  await expect(page.getByText('Forward to channel')).not.toBeVisible({ timeout: 3000 });
+}
+
+/**
  * Creates a new channel with title and type
  */
 export async function createChannel(
