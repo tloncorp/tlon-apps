@@ -13,7 +13,8 @@
 +$  cohort
   $:  targets=(set ship)
       logging=(list relive)
-      outward=(list writ:c4)  ::NOTE  invented-here fake seal?
+      :: TODO: outward is unused, remove?
+      outward=(list writ:c4)
   ==
 +$  relive
   $:  wen=@da
