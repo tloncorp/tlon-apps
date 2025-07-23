@@ -42,7 +42,7 @@
   +$  cohort
     $:  targets=(set ship)
         logging=(list relive)
-        outward=(list writ:c43)  ::NOTE  invented-here fake seal?
+        outward=(list writ:c3)  ::NOTE  invented-here fake seal?
     ==
   --
 ::
@@ -87,7 +87,7 @@
         (outward-0-to-1 outward.cohort)
     ==
   ++  outward-0-to-1
-    |=  outward=(list writ:c43)
+    |=  outward=(list writ:c3)
     ^-  (list writ:c4)
     (turn outward writ-7-to-8:dm)
   --
