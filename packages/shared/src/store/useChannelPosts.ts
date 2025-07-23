@@ -314,7 +314,9 @@ function addPostToNewPosts(post: db.Post, newPosts: db.Post[]) {
   // newest posts should be at the start of the array
   const finalPosts = nextPosts.sort((a, b) => {
     const isUnconfirmed = (p: db.Post) =>
-      p.deliveryStatus === 'pending' || p.deliveryStatus === 'enqueued';
+      p.deliveryStatus === 'pending' ||
+      p.deliveryStatus === 'enqueued' ||
+      p.deliveryStatus === 'failed';
 
     // reminder to self: negative value means a comes before (i.e. is newer than) b
     switch (true) {
