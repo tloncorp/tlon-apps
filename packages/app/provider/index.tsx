@@ -31,6 +31,50 @@ function ThemeProviderContent({
   children: React.ReactNode;
   tamaguiProps: Omit<TamaguiProviderProps, 'config'>;
 }) {
+  const [activeTheme, setActiveTheme] = useSyncedAppTheme();
+  return (
+    <ThemeContext.Provider value={{ setActiveTheme, activeTheme }}>
+      <TamaguiProvider
+        {...tamaguiProps}
+        config={config}
+        defaultTheme={activeTheme}
+      >
+        {children}
+      </TamaguiProvider>
+    </ThemeContext.Provider>
+  );
+}
+
+export const setTheme = async (
+  theme: AppTheme,
+  setActiveTheme: (theme: AppTheme) => void
+) => {
+  try {
+    setActiveTheme(theme);
+    await updateTheme(theme);
+  } catch (error) {
+    console.warn('Failed to save theme preference:', error);
+  }
+};
+
+export const clearTheme = async (
+  setActiveTheme: (theme: AppTheme) => void,
+  isDarkMode: boolean
+) => {
+  try {
+    setActiveTheme(isDarkMode ? 'dark' : 'light');
+    await updateTheme('auto');
+  } catch (error) {
+    console.warn('Failed to clear theme preference:', error);
+  }
+};
+
+export const useActiveTheme = () => {
+  const { activeTheme } = React.useContext(ThemeContext);
+  return activeTheme;
+};
+
+function useSyncedAppTheme() {
   const isDarkMode = useIsDarkMode();
   const [activeTheme, setActiveTheme] = useState<AppTheme>(
     isDarkMode ? 'dark' : 'light'
@@ -79,44 +123,5 @@ function ThemeProviderContent({
     }
   }, [isDarkMode, isLoading, storedTheme]);
 
-  return (
-    <ThemeContext.Provider value={{ setActiveTheme, activeTheme }}>
-      <TamaguiProvider
-        {...tamaguiProps}
-        config={config}
-        defaultTheme={activeTheme}
-      >
-        {children}
-      </TamaguiProvider>
-    </ThemeContext.Provider>
-  );
+  return [activeTheme, setActiveTheme] as const;
 }
-
-export const setTheme = async (
-  theme: AppTheme,
-  setActiveTheme: (theme: AppTheme) => void
-) => {
-  try {
-    setActiveTheme(theme);
-    await updateTheme(theme);
-  } catch (error) {
-    console.warn('Failed to save theme preference:', error);
-  }
-};
-
-export const clearTheme = async (
-  setActiveTheme: (theme: AppTheme) => void,
-  isDarkMode: boolean
-) => {
-  try {
-    setActiveTheme(isDarkMode ? 'dark' : 'light');
-    await updateTheme('auto');
-  } catch (error) {
-    console.warn('Failed to clear theme preference:', error);
-  }
-};
-
-export const useActiveTheme = () => {
-  const { activeTheme } = React.useContext(ThemeContext);
-  return activeTheme;
-};
