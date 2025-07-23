@@ -1,6 +1,7 @@
 import {
   AnyColumn,
   Column,
+  SQL,
   SQLWrapper,
   Subquery,
   Table,
@@ -758,6 +759,139 @@ export const getChannelsForPredictiveSync = createReadQuery(
     });
   },
   ['channels']
+);
+
+export const getMentionCandidates = createReadQuery(
+  'getMentionCandidates',
+  async (
+    { chatId, query }: { chatId: string; query: string },
+    ctx: QueryCtx
+  ) => {
+    if (!query.trim()) return [];
+
+    const searchTerm = `%${query.toLowerCase()}%`;
+    console.log('tern', searchTerm);
+
+    // First priority: Members of the specified group matching the search
+    const groupMatches = ctx.db
+      .select({
+        id: $contacts.id,
+        nickname: $contacts.nickname,
+        avatarImage: $contacts.avatarImage,
+        bio: $contacts.bio,
+        status: $contacts.status,
+        color: $contacts.color,
+        membership_type: $chatMembers.membershipType,
+        joined_at: $chatMembers.joinedAt,
+        priority_order: sql<number>`1`.as('priority_order'),
+      })
+      .from($chatMembers)
+      .innerJoin($contacts, eq($chatMembers.contactId, $contacts.id))
+      .where(
+        and(
+          eq($chatMembers.chatId, chatId),
+          or(
+            sql`LOWER(${$contacts.id}) LIKE ${searchTerm}`,
+            sql`LOWER(${$contacts.nickname}) LIKE ${searchTerm}`
+          )
+        )
+      )
+      .as('groupMatches');
+
+    // Second priority: All contacts not in the group matching the search
+    const otherContacts = ctx.db
+      .select({
+        id: $contacts.id,
+        nickname: $contacts.nickname,
+        avatarImage: $contacts.avatarImage,
+        bio: $contacts.bio,
+        status: $contacts.status,
+        color: $contacts.color,
+        membership_type: sql<'group' | 'channel' | null>`NULL`.as(
+          'membership_type'
+        ),
+        joined_at: sql<number | null>`NULL`.as('joined_at'),
+        priority_order: sql<number>`2`.as('priority_order'),
+      })
+      .from($contacts)
+      .where(
+        and(
+          or(
+            sql`LOWER(${$contacts.id}) LIKE ${searchTerm}`,
+            sql`LOWER(${$contacts.nickname}) LIKE ${searchTerm}`
+          ),
+          notInArray(
+            $contacts.id,
+            ctx.db
+              .select({ contactId: $chatMembers.contactId })
+              .from($chatMembers)
+              .where(eq($chatMembers.chatId, chatId))
+          )
+        )
+      )
+      .as('otherContacts');
+
+    // Third priority: Members from other groups matching the search
+    const otherGroupMembers = ctx.db
+      .select({
+        id: $contacts.id,
+        nickname: $contacts.nickname,
+        avatarImage: $contacts.avatarImage,
+        bio: $contacts.bio,
+        status: $contacts.status,
+        color: $contacts.color,
+        membership_type: $chatMembers.membershipType,
+        joined_at: $chatMembers.joinedAt,
+        priority_order: sql<number>`3`.as('priority_order'),
+      })
+      .from($chatMembers)
+      .innerJoin($contacts, eq($chatMembers.contactId, $contacts.id))
+      .where(
+        and(
+          not(eq($chatMembers.chatId, chatId)),
+          or(
+            sql`LOWER(${$contacts.id}) LIKE ${searchTerm}`,
+            sql`LOWER(${$contacts.nickname}) LIKE ${searchTerm}`
+          ),
+          notInArray(
+            $contacts.id,
+            ctx.db
+              .select({ contactId: $chatMembers.contactId })
+              .from($chatMembers)
+              .where(eq($chatMembers.chatId, chatId))
+          )
+        )
+      )
+      .as('otherGroupMembers');
+
+    const allResults = ctx.db
+      .select()
+      .from(otherContacts)
+      .unionAll(ctx.db.select().from(groupMatches))
+      .unionAll(ctx.db.select().from(otherGroupMembers))
+      .as('allResults');
+
+    return ctx.db
+      .select({
+        id: allResults.id,
+        nickname: allResults.nickname,
+        avatarImage: allResults.avatarImage,
+        bio: allResults.bio,
+        status: allResults.status,
+        color: allResults.color,
+        membership_type: allResults.membership_type,
+        joined_at: allResults.joined_at,
+        priority_order: allResults.priority_order,
+      })
+      .from(allResults)
+      .orderBy(
+        allResults.priority_order as unknown as SQL<number>,
+        allResults.nickname
+      )
+      .groupBy(allResults.id)
+      .limit(6);
+  },
+  ['chatMembers', 'contacts']
 );
 
 export const getChats = createReadQuery(
