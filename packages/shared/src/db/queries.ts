@@ -3300,7 +3300,20 @@ export const getPendingPosts = createReadQuery(
       ),
     });
   },
-  []
+  ['posts']
+);
+
+export const getEnqueuedPosts = createReadQuery(
+  'getEnqueuedPosts',
+  (ctx: QueryCtx) => {
+    return ctx.db.query.posts.findMany({
+      where: eq($posts.deliveryStatus, 'enqueued'),
+      with: {
+        channel: true,
+      },
+    });
+  },
+  ['posts']
 );
 
 export const getPostWithRelations = createReadQuery(
