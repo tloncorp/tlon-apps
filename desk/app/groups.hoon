@@ -815,6 +815,18 @@
       |=  [=flag:g [* =group:v6:gv]]
       ^-  (list [nest:g flag:g])
       (turn ~(tap in ~(key by channels.group)) (late flag))
+    ::  clean up stray gangs caused by invite poke response
+    ::  in old groups.
+    ::
+    =.  xeno
+      %-  my
+      %+  murn  ~(tap by xeno)
+      |=  [=flag:g =gang:v6:gv]
+      ^-  (unit (pair flag:g gang:v6:gv))
+      ?~  group=(~(get by groups) flag)
+        `[flag gang]
+      ?:  ?=(%pub -<.u.group)  ~
+      `[flag gang]
     :-  caz
     :*  %7
         (~(run by groups) v7:net-group:v5:gc)
