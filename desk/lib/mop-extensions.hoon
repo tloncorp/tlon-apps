@@ -125,7 +125,6 @@
 ::    Mutates .state on each run of .f. Traverses from left to right keys.
 ::    Each run of .f can replace an item's value or delete the item.
 ::
-::TODO  write tests to check if the tree order/balance is maintained even when deletions happen
 ++  dyp
   |*  [newval=mold state=mold]
   |=  $:  a=(tree item)
