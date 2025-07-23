@@ -287,7 +287,7 @@ function useTrackReady(
 function addPostToNewPosts(post: db.Post, newPosts: db.Post[]) {
   postsLogger.log('new posts');
   let nextPosts: db.Post[] = [post, ...newPosts];
-  const pendingPostIndex = newPosts?.findIndex(
+  const pendingPostIndex = newPosts.findIndex(
     (p) =>
       (p.deliveryStatus === 'pending' || p.deliveryStatus === 'enqueued') &&
       p.sentAt === post.sentAt
