@@ -216,14 +216,10 @@
   |=  =post:c
   ^-  simple-post:c
   :_  +>.post
-  =/  seal
-    =<  -  :: seal
-    %=  post
-      reacts   (reacts-1 reacts.post)
-      replies  (s-replies-2 replies.post)
-    ==
-  ::  remove .seq and .mod-at
-  [- |3]:seal
+  %=  -.post
+    reacts   (reacts-1 reacts.post)
+    replies  (s-replies-2 replies.post)
+  ==
 ++  suv-post
   |=  =v-post:c
   ^-  simple-post:v1:old:c
@@ -679,13 +675,13 @@
 ++  simple-post-1
   |=  post=simple-post:c
   ^-  simple-post:v7:old:c
-  %=  post
-    ::  seal
-    reply-meta  (reply-meta-1 reply-meta.post)
-    reacts      (reacts-1 reacts.post)
-    replies     (simple-replies-1 replies.post)
-    ::  essay
-    +  (essay-1 +.post)
+  :_  (essay-1 +.post)
+  ^-  simple-seal:v7:old:c
+  =,  -.post
+  :*  id
+      (reacts-1 reacts.post)
+      (simple-replies-1 replies.post)
+      (reply-meta-1 reply-meta.post)
   ==
 ::
 ++  simple-reply-1
@@ -702,14 +698,36 @@
   %+  run:on-simple-replies:c  replies
   simple-reply-1
 ::
+++  reference-1
+  |=  ref=reference:c
+  ^-  reference:v7:old:c
+  ?-  -.ref
+      %post
+    =-  ref(post -)
+    ?:  ?=(%& -.post.ref)
+      (simple-post-1 +.post.ref)
+    %*  .  *simple-post:v7:old:c
+      content  `story:v7:old:c`[%inline ['[deleted message]']~]~
+      author  ~nul
+    ==
+  ::
+      %reply
+    =-  ref(reply -)
+    ?:  ?=(%& -.reply.ref)
+      (simple-reply-1 +.reply.ref)
+    %*  .  *simple-reply:v7:old:c
+      content  `story:v7:old:c`[%inline ['[deleted reply]']~]~
+      author   ~nul
+    ==
+  ==
+::
 ++  to-said-1
   |=  =said:c
   ^-  said:v7:old:c
-  =-  said(q -)
-  ?-  -.q.said
-     %post  q.said(post (simple-post-1 post.q.said))
-     %reply  q.said(reply (simple-reply-1 reply.q.said))
-  ==
+  ::NOTE  the tombstone branches here _shouldn't_ get hit in practice,
+  ::      because we generally don't return "said" results for deleted msgs
+  ::      in the v7 api
+  said(q (reference-1 q.said))
 ::
 ++  have-plan  ::NOTE  matches +said-*
   |=  [=nest:c =plan:c posts=v-posts:c]
@@ -765,23 +783,23 @@
   ^-  cage
   =/  post=(unit (may:c v-post:c))  (get:on-v-posts:c posts p.plan)
   ?~  q.plan
-    =/  post=simple-post:c
+    =/  post=simple-post:v8:old:c
       ?~  post
-        :-  *simple-seal:c
+        :-  *simple-seal:v8:old:c
         ?-  kind.nest
           %diary  [*memo:c /diary/unknown ~ ~]
           %heap   [*memo:c /heap/unknown ~ ~]
           %chat   [*memo:c /chat/unknown ~ ~]
         ==
       ?:  ?=(%| -.u.post)
-        :-  *simple-seal:c
+        :-  *simple-seal:v8:old:c
         ?-  kind.nest
             %diary  [*memo:c /diary/deleted ~ ~]
             %heap   [*memo:c /heap/deleted ~ ~]
             %chat   [*memo:c /chat/deleted ~ ~]
         ==
       (suv-post-without-replies-2 +.u.post)
-    [%channel-said-1 !>(`said:c`[nest %post post])]
+    [%channel-said-1 !>(`said:v8:old:c`[nest %post post])]
   =/  reply=[reply-seal:v8:old:c memo:v8:old:c]
     ::XX the missing/deleted handling here is not great,
     ::   and can't be fixed in the same manner as above.
@@ -806,49 +824,38 @@
   ^-  cage
   =/  post=(unit (may:c v-post:c))  (get:on-v-posts:c posts p.plan)
   ?~  q.plan
-    =/  post=simple-post:c
+    =/  post=(may:v9:old:c simple-post:v9:old:c)
       ?~  post
-        :-  *simple-seal:c
+        :-  %&  ::TODO  should eventually just unitize $reference
+        :-  *simple-seal:v9:old:c
         ?-  kind.nest
           %diary  [*memo:c /diary/unknown ~ ~]
           %heap   [*memo:c /heap/unknown ~ ~]
           %chat   [*memo:c /chat/unknown ~ ~]
         ==
-      ?:  ?=(%| -.u.post)
-        :-  *simple-seal:c
-        ?-  kind.nest
-            %diary  [*memo:c /diary/deleted ~ ~]
-            %heap   [*memo:c /heap/deleted ~ ~]
-            %chat   [*memo:c /chat/deleted ~ ~]
-        ==
-      (suv-post-without-replies-3 +.u.post)
-    [%channel-said-2 !>(`said:c`[nest %post post])]
-  =/  reply=[reply-seal:c memo:c]
+      ?:  ?=(%| -.u.post)  u.post
+      &+(suv-post-without-replies-3 +.u.post)
+    [%channel-said-2 !>(`said:v9:old:c`[nest %post post])]
+  =/  reply=(may:v9:old:c simple-reply:v9:old:c)
     ::XX the missing/deleted handling here is not great,
     ::   and can't be fixed in the same manner as above.
     ::   it seems $reference should explicitly support
     ::   missing/deleted content
     ::
     ?~  post
-      [*reply-seal:c ~[%inline 'Comment on unknown post']~ ~nul *@da]
+      &+[*reply-seal:c ~[%inline 'Comment on unknown post']~ ~nul *@da]
     ?:  ?=(%| -.u.post)
-      [*reply-seal:c ~[%inline 'Comment on deleted post']~ ~nul *@da]
+      &+[*reply-seal:c ~[%inline 'Comment on deleted post']~ ~nul *@da]
     =/  reply=(unit (may:c v-reply:c))  (get:on-v-replies:c replies.+.u.post u.q.plan)
     ?~  reply
-      [*reply-seal:c ~[%inline 'Unknown comment']~ ~nul *@da]
-    ?:  ?=(%| -.u.reply)
-      [*reply-seal:c ~[%inline 'This comment was deleted']~ ~nul *@da]
-    (suv-reply-2 p.plan +.u.reply)
-  [%channel-said-2 !>(`said:c`[nest %reply p.plan reply])]
+      &+[*reply-seal:c ~[%inline 'Unknown comment']~ ~nul *@da]
+    ?:  ?=(%| -.u.reply)  u.reply
+    &+(suv-reply-2 p.plan +.u.reply)
+  [%channel-said-2 !>(`said:v9:old:c`[nest %reply p.plan reply])]
 ++  scan-1
   |=  =scan:c
   ^-  scan:v7:old:c
-  %+  turn  scan
-  |=  ref=reference:c
-  ?-  -.ref
-      %post   ref(post (simple-post-1 post.ref))
-      %reply  ref(reply (simple-reply-1 reply.ref))
-  ==
+  (turn scan reference-1)
 ::
 ++  scam-1
   |=  =scam:c

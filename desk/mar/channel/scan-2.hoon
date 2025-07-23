@@ -1,16 +1,16 @@
 /-  c=channels
 /+  j=channel-json
-|_  =scan:c
+|_  =scan:v8:old:c
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  scan
   ++  json
     =,  enjs:format
-    a+(turn scan reference:enjs:j)
+    a+(turn scan reference:v8:enjs:j)
   --
 ++  grab
   |%
-  +$  noun  scan:c
+  +$  noun  scan:v8:old:c
   --
 --

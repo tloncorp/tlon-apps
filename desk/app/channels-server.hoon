@@ -1169,7 +1169,7 @@
       %^  give  %fact  ~
       ?.  (can-read:ca-perms src.bowl)
         channel-denied+!>(~)
-      (said-2:utils nest plan posts.channel)
+      (said-3:utils nest plan posts.channel)
     (give %kick ~ ~)
   --
 ++  scry-path

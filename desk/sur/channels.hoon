@@ -251,10 +251,10 @@
   ==
 ::  $scan: search results
 +$  scan  (list reference)
-::TODO  (may simple-*)
+::TODO  unitize? must handle "unknown" results
 +$  reference
-  $%  [%post post=simple-post]
-      [%reply =id-post reply=simple-reply]
+  $%  [%post post=(may simple-post)]
+      [%reply =id-post reply=(may simple-reply)]
   ==
 ::  $said: used for references
 +$  said  (pair nest reference)
@@ -560,7 +560,8 @@
   ==
 +$  simple-seal
   $:  id=id-post
-      ::TODO  put sequence nr?
+      seq=@ud
+      mod-at=@da
       =reacts
       replies=simple-replies
       =reply-meta
@@ -679,6 +680,16 @@
     +$  log     ((mop time u-channel) lte)
     ++  log-on  ((on time u-channel) lte)
     ++  mo-log  ((mp time u-channel) lte)
+    +$  scam
+      $:  last=(unit id-post)  ::  last (top-level) message that was searched
+          =scan                ::  search results
+      ==
+    +$  scan  (list reference)
+    +$  reference
+      $%  [%post post=simple-post]
+          [%reply =id-post reply=simple-reply]
+      ==
+    +$  said  (pair nest reference)
     +$  channel-heads  (list [=nest recency=time latest=(unit post)])
     +$  paged-posts
       $:  =posts

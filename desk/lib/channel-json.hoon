@@ -189,7 +189,7 @@
     %-  pairs
     %+  turn  (tap:on-posts:c posts)
     |=  [id=id-post:c post=(may:c post:c)]
-    [(scot %ud id) ?:(?=(%| -.post) (tombstone +.post) (^post +.post))]
+    [(scot %ud id) (may ^post post)]
   ::
   ++  post
     |=  [=seal:c [rev=@ud =essay:c]]
@@ -206,13 +206,14 @@
         author+(author author.t)
         seq+(numb seq.t)
         deleted-at+(time del-at.t)
+        type+s+%tombstone
     ==
   ++  simple-posts
     |=  posts=simple-posts:c
     %-  pairs
     %+  turn  (tap:on-simple-posts:c posts)
     |=  [id=id-post:c post=(may:c simple-post:c)]
-    [(scot %ud id) ?:(?=(%| -.post) (tombstone +.post) (simple-post +.post))]
+    [(scot %ud id) (may simple-post +.post)]
   ::
   ++  simple-post
     |=  [seal=simple-seal:c =essay:c]
@@ -324,6 +325,13 @@
     [(client-id-string cid) (memo mem)]
   ::
   +|  %primitives
+  ::
+  ++  may
+    |*  [f=$-(* json) m=(may *)]
+    ?-  -.m
+      %&  (f +.m)
+      %|  (tombstone +.m)
+    ==
   ::
   ++  v-channel
     |=  ca=v-channel:c
