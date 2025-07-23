@@ -391,8 +391,7 @@ export async function forwardGroup({
     }
 
     return sendPost({
-      channel,
-      authorId: api.getCurrentUserId(),
+      channelId: channel.id,
       content: [{ block: { cite: urbitReference } }],
       metadata:
         channel.type === 'notebook'
