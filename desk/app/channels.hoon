@@ -285,7 +285,19 @@
     ::
     [%arvo %b %wait (add now.bowl (~(rad og (sham our.bowl nest)) ~m15))]
   =.  cor  (emil caz-8)
-  =?  old  ?=(%9 -.old)  (state-9-to-10)
+  =^  caz-9=(list card)  old
+    ?.  ?=(%9 -.old)  [~ old]
+    :_  (state-9-to-10 old)
+    %+  turn  ~(tap in ~(key by v-channels.old))
+    |=  =nest:c
+    ^-  card
+    :+  %pass
+      /tombstones/[kind.nest]/(scot %p ship.nest)/[name.nest]
+    ::  slightly staggered to spread load. might not be strictly necessary
+    ::  for this, but good practice.
+    ::
+    [%arvo %b %wait (add now.bowl (~(rad og (sham our.bowl nest)) ~m15))]
+  =.  cor  (emil caz-9)
   ?>  ?=(%10 -.old)
   =.  state  old
   inflate-io
@@ -680,7 +692,7 @@
       ==
     ::
         [%sequence-numbers * @ *]
-      =+  !<([%sequence-numbers =nest:c count=@ud seqs=(list [id=id-post:c seq=(unit @ud)])] vase)
+      =+  !<([%sequence-numbers =nest:c count=@ud seqs=(list [id=id-post:v8:old:c seq=(unit @ud)])] vase)
       ?>  =(src.bowl ship.nest)
       ?.  (~(has by v-channels) nest)  cor
       =.  v-channels
@@ -702,6 +714,23 @@
         =.  posts.channel
           (put:on-v-posts:c posts.channel id.i.seqs u.p)
         next
+      cor
+    ::
+        [%tombstones * *]
+      =+  !<([%tombstones =nest:c tombs=(list [id=id-post:v9:old:c tomb=tombstone:v9:old:c])] vase)
+      ?>  =(src.bowl ship.nest)
+      ?.  (~(has by v-channels) nest)  cor
+      =.  v-channels
+        %+  ~(jab by v-channels)  nest
+        |=  channel=v-channel:c
+        ?~  tombs  channel
+        =.  posts.channel
+          ::NOTE  this will insert deleted posts that we didn't previously know
+          ::      about, potentially resulting in a "gapped" backlog.
+          ::      you'd expect to track that in window.channel, except that's
+          ::      filled _anywhere at all_, so it's safe to ignore here too.
+          (put:on-v-posts:c posts.channel [id |+tomb]:i.tombs)
+        $(tombs t.tombs)
       cor
     ==
   ::
@@ -1026,10 +1055,10 @@
       [%pimp ~]  cor
       [%logs ~]  cor
   ::
-      [%numbers *]
+      [?(%numbers %tombstones) *]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign
-      ::  they accepted, we will receive the sequence numbers
+      ::  they accepted, we will receive the sequence numbers or tombstones
       ::
       cor
     ::  they refused, we will retry again later
@@ -1223,6 +1252,13 @@
     =/  =nest:c    [kind.pole host name.pole]
     %-  emit
     =/  =cage  [%noun !>([%send-sequence-numbers nest])]
+    [%pass pole %agent [host %channels-server] %poke cage]
+  ::
+      [%tombstones kind=?(%chat %diary %heap) ship=@ name=@ ~]
+    =/  host=ship  (slav %p ship.pole)
+    =/  =nest:c    [kind.pole host name.pole]
+    %-  emit
+    =/  =cage  [%noun !>([%send-tombstones nest])]
     [%pass pole %agent [host %channels-server] %poke cage]
   ==
 ::

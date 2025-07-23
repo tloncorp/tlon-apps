@@ -425,6 +425,19 @@
       %+  turn  (tap:on-v-posts:c posts.u.can)
       |=  [i=id-post:c p=(may:c v-post:c)]
       [i ?-(-.p %& `seq.p, %| `seq.p)]
+    ::
+        [%send-tombstones *]
+      =+  !<([%send-tombstones =nest:c] vase)
+      ?~  can=(~(get by v-channels) nest)  cor
+      =;  =cage
+        (emit [%pass /tombstones %agent [src.bowl %channels] %poke cage])
+      :-  %noun
+      !>  :+  %tombstones  nest
+      ^-  (list [id-post:v9:old:c tombstone:v9:old:c])
+      %+  murn  (tap:on-v-posts:c posts.u.can)
+      |=  [i=id-post:c p=(may:c v-post:c)]
+      ^-  (unit [id-post:v9:old:c tombstone:v9:old:c])
+      ?:(?=(%& -.p) ~ `[i +.p])
     ==
   ::
       %channel-command
@@ -602,10 +615,11 @@
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
   ?+    pole  ~|(bad-agent-wire+pole !!)
-    [%logs ~]     cor
-    [%pimp ~]     cor
-    [%wake ~]     cor
-    [%numbers ~]  cor
+    [%logs ~]        cor
+    [%pimp ~]        cor
+    [%wake ~]        cor
+    [%numbers ~]     cor
+    [%tombstones ~]  cor
   ::
       [=kind:c *]
     ?+    -.sign  !!
