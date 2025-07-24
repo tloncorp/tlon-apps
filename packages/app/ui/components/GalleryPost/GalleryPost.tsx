@@ -227,7 +227,7 @@ export function GalleryPostHeader({ post }: { post: db.Post }) {
         <Text size="$label/m" color="$tertiaryText">
           {differenceInDays(new Date(), new Date(post.receivedAt)) > 30
             ? makePrettyShortDate(new Date(post.receivedAt))
-            : `${makePrettyDaysSince(new Date(post.receivedAt))} ago`}
+            : makePrettyDaysSince(new Date(post.receivedAt))}
         </Text>
       </XStack>
     </View>
