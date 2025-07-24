@@ -155,7 +155,7 @@ export function makePrettyDaysSince(date: Date) {
     case 1:
       return 'Yesterday';
     default:
-      return `${diff}d`;
+      return `${diff}d ago`;
   }
 }
 
