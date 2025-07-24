@@ -1174,7 +1174,11 @@ export async function acceptUserJoin({
     return;
   }
 
-  if (existingGroup.members.find((member) => member.contactId === contactId)) {
+  if (
+    existingGroup.members.find(
+      (member) => member.contactId === contactId && member.status === 'joined'
+    )
+  ) {
     console.error('User already in group', groupId, contactId);
     return;
   }
