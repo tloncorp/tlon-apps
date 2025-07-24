@@ -274,7 +274,7 @@
   =?  old  ?=(%7 -.old)  (state-7-to-8 old)
   =^  caz-8=(list card)  old
     ?.  ?=(%8 -.old)  [~ old]
-    :_  old(- %9)
+    :_  (state-8-to-9 old)
     %+  turn  ~(tap in ~(key by v-channels.old))
     |=  =nest:c
     ^-  card
@@ -319,7 +319,7 @@
   +$  state-9
     $:  %9  ::NOTE  otherwise identical to state-8
         =v-channels:v8:old:c
-        voc=(map [nest:c plan:c] (unit said:c))
+        voc=(map [nest:c plan:c] (unit said:v8:old:c))
         hidden-posts=(set id-post:c)
       ::
         ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
@@ -332,7 +332,7 @@
   +$  state-8
     $:  %8
         =v-channels:v8:old:c
-        voc=(map [nest:c plan:c] (unit said:c))
+        voc=(map [nest:c plan:c] (unit said:v8:old:c))
         hidden-posts=(set id-post:c)
       ::
         ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
@@ -371,10 +371,19 @@
   ::
   ++  state-9-to-10
     |=  s=state-9
-    s(- %10, v-channels (v-channels-8-to-9:utils v-channels.s))
+    ^-  state-10
+    %=  s  -  %10
+      v-channels  (v-channels-8-to-9:utils v-channels.s)
+    ::
+        voc
+      %-  ~(run by voc.s)
+      |=  s=(unit said:v8:old:c)
+      ?~(s ~ `(said-8-to-9:utils u.s))
+    ==
   ::
   ++  state-8-to-9
     |=  s=state-8
+    ^-  state-9
     s(- %9)
   ::
   ++  state-7-to-8
@@ -1012,8 +1021,16 @@
     =/  got=(unit said:c)
       ?+  p.cage.sign  ~|(funny-mark+p.cage.sign !!)
         %channel-denied  ~
-        %channel-said    `(said-7-to-8:utils !<(=said:v7:old:c q.cage.sign))
-        %channel-said-1  `!<(=said:c q.cage.sign)
+      ::
+          %channel-said
+        %-  some
+        %-  said-8-to-9:utils
+        (said-7-to-8:utils !<(=said:v7:old:c q.cage.sign))
+      ::
+          %channel-said-1
+        `(said-8-to-9:utils !<(=said:v8:old:c q.cage.sign))
+      ::
+        %channel-said-2  `!<(=said:c q.cage.sign)
       ==
     =.  voc
       %+  ~(put by voc)  [nest plan]
@@ -2861,7 +2878,9 @@
         ?:  ?=(%| -.val.n.posts)  scan.s
         ?.  (match +.val.n.posts match-type)  scan.s
         :_  scan.s
-        [%post `simple-post:c`(suv-post-without-replies-3:utils +.val.n.posts)]
+        =/  =simple-post:c
+          (suv-post-without-replies-3:utils +.val.n.posts)
+        [%post %& simple-post]
       ::
       =.  scan.s
         ?:  ?=(%| -.val.n.posts)  scan.s
@@ -2875,7 +2894,9 @@
           ?:  ?=(%| -.val.n.replies)  scan.s
           ?.  (match-reply +.val.n.replies match-type)  scan.s
           :_  scan.s
-          [%reply id-post (suv-reply-2:utils id-post +.val.n.replies)]
+          =/  =simple-reply:c
+            (suv-reply-2:utils id-post +.val.n.replies)
+          [%reply id-post %& simple-reply]
         ::
         $(replies l.replies)
       ::
@@ -2903,7 +2924,8 @@
         ?.  (match +.val.n.posts match-type)  s
         ?:  (gth skip.s 0)
           s(skip (dec skip.s))
-        =/  res  [%post (suv-post-without-replies-3:utils +.val.n.posts)]
+        =/  res
+          [%post %& (suv-post-without-replies-3:utils +.val.n.posts)]
         s(len (dec len.s), scan [res scan.s])
       ::
       =.  s
@@ -2925,7 +2947,8 @@
         ?.  (match-reply +.val.n.replies match-type)  s
         ?:  (gth skip.s 0)
           s(skip (dec skip.s))
-        =/  res  [%reply id-post (suv-reply-2:utils id-post +.val.n.replies)]
+        =/  res
+          [%reply id-post %& (suv-reply-2:utils id-post +.val.n.replies)]
         s(len (dec len.s), scan [res scan.s])
       ::
       $(replies l.replies)

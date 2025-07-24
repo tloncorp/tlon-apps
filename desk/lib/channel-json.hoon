@@ -213,7 +213,7 @@
     %-  pairs
     %+  turn  (tap:on-simple-posts:c posts)
     |=  [id=id-post:c post=(may:c simple-post:c)]
-    [(scot %ud id) (may simple-post +.post)]
+    [(scot %ud id) (may simple-post post)]
   ::
   ++  simple-post
     |=  [seal=simple-seal:c =essay:c]
@@ -327,7 +327,8 @@
   +|  %primitives
   ::
   ++  may
-    |*  [f=$-(* json) m=(may *)]
+    |*  [f=$-(* json) m=(may:c *)]
+    ~!  m
     ?-  -.m
       %&  (f +.m)
       %|  (tombstone +.m)
@@ -636,11 +637,11 @@
     |=  =reference:c
     %+  frond  -.reference
     ?-    -.reference
-        %post  (simple-post post.reference)
+        %post  (may simple-post post.reference)
         %reply
       %-  pairs
       :~  id-post+(id id-post.reference)
-          reply+(simple-reply reply.reference)
+          reply+(may simple-reply reply.reference)
       ==
     ==
   ::

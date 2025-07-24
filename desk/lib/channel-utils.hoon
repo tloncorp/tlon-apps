@@ -1393,6 +1393,31 @@
     ==
   ==
 ::
+++  said-8-to-9
+  |=  =said:v8:old:c
+  ^-  said:v9:old:c
+  %=  said  q
+    ?-    -.q.said
+        %post
+      ^-  [%post (may:v9:old:c simple-post:v9:old:c)]
+      :: =/  replies=simple-replies:v9:old:c
+      ::   %+  run:on-simple-replies:v8:old:c
+      ::     replies.post.q.said
+      ::   simple-reply-8-to-9
+      =/  =simple-seal:v9:old:c
+        :*  id.post.q.said
+            0
+            *@da
+            reacts.post.q.said
+            replies.post.q.said
+            reply-meta.post.q.said
+        ==
+      [%post %& simple-seal +.post.q.said]
+        %reply
+      ^-  $>(%reply reference:v9:old:c)
+      [%reply id-post.q.said %& reply.q.said]
+    ==
+  ==
 ++  v-channels-8-to-9
   |=  vc=v-channels:v8:old:c
   ^-  v-channels:v9:old:c
