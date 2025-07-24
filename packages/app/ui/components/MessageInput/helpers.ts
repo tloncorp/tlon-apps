@@ -1,6 +1,7 @@
 import { EditorBridge } from '@10play/tentap-editor';
 import { Editor } from '@tiptap/react';
 import { createDevLogger, tiptap } from '@tloncorp/shared';
+import { Attachment } from '@tloncorp/shared/domain';
 import {
   Block,
   Inline,
@@ -8,8 +9,6 @@ import {
   constructStory,
   isInline,
 } from '@tloncorp/shared/urbit';
-
-import { Attachment } from '../../contexts';
 
 const logger = createDevLogger('processReference', true);
 

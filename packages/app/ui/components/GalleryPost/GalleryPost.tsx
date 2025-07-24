@@ -18,6 +18,8 @@ import { Button } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
+import { useIsWindowNarrow } from '@tloncorp/ui';
+import { differenceInDays } from 'date-fns';
 import { now, truncate } from 'lodash';
 import {
   ComponentProps,
@@ -223,7 +225,9 @@ export function GalleryPostHeader({ post }: { post: db.Post }) {
           color="$tertiaryText"
         />
         <Text size="$label/m" color="$tertiaryText">
-          {makePrettyDaysSince(new Date(post.receivedAt))}
+          {differenceInDays(new Date(), new Date(post.receivedAt)) > 30
+            ? makePrettyShortDate(new Date(post.receivedAt))
+            : `${makePrettyDaysSince(new Date(post.receivedAt))} ago`}
         </Text>
       </XStack>
     </View>
@@ -237,6 +241,15 @@ export function GalleryPostFooter({
 }: { post: db.Post; deliveryFailed?: boolean } & ComponentProps<
   typeof XStack
 >) {
+  const isWindowNarrow = useIsWindowNarrow();
+  const retryVerb = useMemo(() => {
+    if (isWindowNarrow) {
+      return 'Tap';
+    } else {
+      return 'Click';
+    }
+  }, [isWindowNarrow]);
+
   return (
     <View width="100%" pointerEvents="none">
       <XStack
@@ -255,7 +268,7 @@ export function GalleryPostFooter({
         </View>
         {deliveryFailed ? (
           <Text color="$negativeActionText" size="$label/s">
-            Tap to retry
+            {retryVerb} to retry
           </Text>
         ) : (
           <XStack alignItems="center" gap="$xs" justifyContent="center">
