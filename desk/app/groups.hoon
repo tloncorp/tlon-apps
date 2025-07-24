@@ -18,6 +18,7 @@
 /+  groups-json
 ::
 ::
+/%  m-noun               %noun
 /%  m-group              %group
 /%  m-group-1            %group-1
 /%  m-group-2            %group-2
@@ -45,7 +46,8 @@
 %-  %-  discipline
   :+  ::  marks
       ::
-      :~  :+  %group              &  -:!>(*vale:m-group)
+      :~  :+  %noun               &  -:!>(*vale:m-noun)
+          :+  %group              &  -:!>(*vale:m-group)
           :+  %group-1            &  -:!>(*vale:m-group-1)
           :+  %group-2            &  -:!>(*vale:m-group-2)
         ::
@@ -112,6 +114,7 @@
     ::
       [/x/v2/groups/$/$/channels/can-read %noun]
       [/x/v2/groups/$/$/channels/$/$/$/can-write %noun]
+      [/x/groups/$/$/seats/$ %noun]
     ::
       [/x/v0/light/groups %groups]
       [/x/v1/light/groups %groups-1]
@@ -877,8 +880,7 @@
       (emit %give %fact ~ group-preview-3+!>(preview-update))
     (emit %give %kick ~ ~)
   ::
-      [%server %groups %index ~]
-    cor:se-watch-index:se-core
+    [%server %groups %index ~]  server-watch-index
   ::
     ::
     ::  client paths
@@ -925,6 +927,25 @@
     :: deprecated
     [%epic ~]  (give %fact ~ epic+!>(okay:g))
   ==
+::  +server-watch-index: handle groups index watch request
+::
+++  server-watch-index
+  ^+  cor
+  =;  =cage
+    =.  se-core  (emit %give %fact ~ cage)
+    (emit %give %kick ~ ~)
+  :-  %group-previews-1
+  !>  ^-  previews:v7:gv
+  %-  ~(gas by *previews:v7:gv)
+  %+  murn  ~(tap by groups)
+  |=  [=flag:g =net:g =group:g]
+  ^-  (unit [flag:g preview:v7:gv])
+  ?.  &(=(our.bowl p.flag) !?=(%secret privacy.admissions.group))
+    ~
+  =/  sc  (se-abed:se-core flag)
+  ?:  (se-is-banned:sc src.bowl)  ~
+  `[flag se-preview:sc]
+::
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
@@ -1219,6 +1240,7 @@
     ::  host: send an invite to each ship on the pending list in
     ::  .admissions.$group.
     ::
+    ::
     %+  roll  ~(tap by groups)
     |=  [[=flag:g [=net:g =group:g]] =_cor]
     ?.  ?=(%pub -.net)  cor
@@ -1226,6 +1248,7 @@
     %-  se-compat-send-invites:(se-abed:se-core:cor flag)
     ~(key by pending.admissions.group)
   ::
+      ::
       ::  v6 -> v7 migrate invitations
       ::
       ::  some ships might be behind at the time of migration.
@@ -2429,23 +2452,6 @@
     %+  skip  (tap:log-on:g log)
     |=  [=time =u-group:g]
     (fit u-group)
-  ::  +se-watch-index: handle index request
-  ::
-  ++  se-watch-index
-    ^+  se-core
-    ?<  (se-is-banned src.bowl)
-    =;  =cage
-      =.  se-core  (emit %give %fact ~ cage)
-      (emit %give %kick ~ ~)
-    :-  %group-previews-1
-    !>  ^-  previews:v7:gv
-    %-  ~(gas by *previews:v7:gv)
-    %+  murn  ~(tap by groups)
-    |=  [=flag:g =net:g =group:g]
-    ^-  (unit [flag:g preview:v7:gv])
-    ?.  &(=(our.bowl p.flag) !?=(%secret privacy.admissions.group))
-      ~
-    `[flag se-preview:(se-abed flag)]
   ::  +se-is-admin-u-group: check if group update is restricted
   ::
   ++  se-is-admin-update
@@ -2455,6 +2461,7 @@
       [%entry %pending *]  &
       [%entry %ask *]      &
     ==
+  ::
   ::
   ++  se-watch-preview
     |=  =path
