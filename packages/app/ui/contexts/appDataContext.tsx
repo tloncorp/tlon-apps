@@ -102,10 +102,14 @@ export const useContact = (ship: string) => {
 
 export const useInviteService = () => {
   const context = useAppDataContext();
-  return {
+  const result = {
     endpoint: context.inviteServiceEndpoint,
     isDev: context.inviteServiceIsDev,
   };
+
+  console.log('useInviteService result:', result);
+
+  return result;
 };
 
 export const useBranchDomain = () => {
