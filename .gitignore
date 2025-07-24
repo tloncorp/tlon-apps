@@ -11,3 +11,4 @@ gha-creds-*
 .turbo
 tsconfig.tsbuildinfo
 launch.json
+expo-env.d.ts
