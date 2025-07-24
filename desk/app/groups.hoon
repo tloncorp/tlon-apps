@@ -1180,7 +1180,6 @@
       =/  fc  (fi-abed:fi-core:cor flag)
       fi-abet:(fi-safe-preview:fc |)
     ::  for each group join in progress:
-    ::
     ::  %ask: we have requested an entry, repeat the request.
     ::  %join: we have poked to join the group, repeat the request
     ::         if an invitation is present. otherwise set error.
@@ -1224,8 +1223,32 @@
     |=  [[=flag:g [=net:g =group:g]] =_cor]
     ?.  ?=(%pub -.net)  cor
     =<  se-abet
-    %-  se-send-invites:(se-abed:se-core flag)
+    %-  se-compat-send-invites:(se-abed:se-core:cor flag)
     ~(key by pending.admissions.group)
+  ::
+      ::  v6 -> v7 migrate invitations
+      ::
+      ::  some ships might be behind at the time of migration.
+      ::  we give them a chance to update and resend an invitation
+      ::
+      [%server host=@ name=@ %invite %retry ship=@ retry=@ delay=@ ~]
+    =+  host=(slav %p host.pole)
+    =+  name=name.pole
+    =/  =flag:g  [host name]
+    ?.  (~(has by groups) flag)  cor
+    =/  ship=@p    (slav %p ship.pole)
+    =/  retry=@ud  (slav %ud retry.pole)
+    =/  delay=@dr  (slav %dr delay.pole)
+    ?:  =(0 retry)  cor
+    ?:  (can-poke:neg bowl ship %groups)
+      =<  se-abet
+      (se-send-invites:(se-abed:se-core flag) (sy ship ~))
+    =.  retry  (dec retry)
+    =.  delay  (mul 2 delay)
+    =/  =wire  ^~
+      %+  weld  /server/(scot %p our.bowl)/[q.flag]
+      /invite/retry/(scot %p ship)/(scot %ud retry)/(scot %dr delay)
+    (emit [%pass wire %arvo %b %wait (add now.bowl delay)])
   ==
 ::  does not overwite if wire and dock exist.  maybe it should
 ::  leave/rewatch if the path differs?
@@ -2091,6 +2114,31 @@
       [%invite invite]
     =/  cage  group-foreign-1+!>(a-foreigns)
     (emit [%pass wire %agent [her dap.bowl] %poke cage])
+  ::  +se-compat-send-invites: send invites in compatible manner
+  ::
+  ::  if a ship is in sync, we send the invitation as usual.
+  ::  if a ship is behind, we schedule a retry with a number
+  ::  of trials and increasing delay time.
+  ::
+  ++  se-compat-send-invites
+    |=  ships=(set ship)
+    =^  ivl=(list ship)  se-core
+      %+  roll  ~(tap in ships)
+      |=  [=ship ivl=(list ship) =_se-core]
+      ?.  (can-poke:neg bowl ship %groups)
+        ::  retry after .delay, with a maximum of 3 retries
+        ::
+        =+  delay=~m45
+        =+  retry=3
+        =/  =wire  ^~
+          %+  weld  /server/(scot %p our.bowl)/[q.flag]
+          /invite/retry/(scot %p ship)/(scot %ud retry)/(scot %dr delay)
+        :-  ivl
+        (emit [%pass wire %arvo %b %wait (add now.bowl delay)])
+      :-  [ship ivl]
+      se-core
+    ?:  =(~ ivl)  se-core
+    (se-send-invites (sy ivl))
   ::  +se-c-role: execute a role command
   ::
   ::  roles determine member permissions. there are currently
@@ -2466,7 +2514,8 @@
       =+  ship=(slav %p i.t.path)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  se-core
-      %-  (slog leaf+"failed to invite ship {<ship>}" u.p.sign)
+      %-  %+  ~(tell l ~)  %crit
+          [leaf+"failed to invite ship {<ship>}" u.p.sign]
       se-core
     ==
   --
