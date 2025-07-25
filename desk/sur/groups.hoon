@@ -464,7 +464,6 @@
       [%move-nest =nest idx=@ud]
   ==
 +$  update  [=time =u-group]
-+$  u-groups  [=flag =u-group]
 +$  u-group
   $%  [%create =group]
       [%meta =data:meta]
