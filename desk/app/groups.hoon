@@ -1412,9 +1412,10 @@
     ^-  (list path)
     %+  skim  ~(tap in (~(gas in *(set path)) (turn ~(val by sup.bowl) tail)))
     |=  =path
-    ?.  =((scag 4 path) se-sub-path)  |
-    =/  rest=^path  (slag 4 path)
-    ?.  ?=([ship=@ *] rest)  |
+    =*  sub-len  ^~((lent se-sub-path))
+    ?.  =((scag sub-len path) se-sub-path)  |
+    =/  rest=^path  (slag sub-len path)
+    ?.  ?=([ship=@ time=@ ~] rest)  |
     =/  ship  (slav %p i.rest)
     ::XX cache this with ~+?
     (se-is-admin ship)
@@ -1607,11 +1608,9 @@
   ++  se-c-ask
     |=  story=(unit story:s:g) ::XX something is messed up with story imports
     ^+  se-core
-    !.  ::  prevent secret group discovery
     ?<  (se-is-banned src.bowl)
     ?<  ?=(%secret privacy.ad)
-    ?:  (se-is-joined src.bowl)
-      se-core
+    ?:  (se-is-joined src.bowl)  se-core
     ?:  ?=(%public privacy.ad)
       ::  public group: wait until we receive the ask watch
       se-core
@@ -4077,12 +4076,8 @@
       =.  foreigns
         %+  roll  ~(tap by previews)
         |=  [[=flag:gv =preview:v7:gv] =_foreigns]
-        ?.  (~(has by foreigns) flag)
-          =|  =foreign:v7:gv
-          (~(put by foreigns) flag foreign(preview `preview))
-        %+  ~(jab by foreigns)  flag
-        |=  far=foreign:v7:gv
-        far(preview `preview)
+        =+  far=(~(gut by foreigns) flag *foreign:v7:gv)
+        (~(put by foreigns) flag far(preview `preview))
       ::  v1
       ::
       =/  path-1  /v1/foreigns/index/(scot %p ship)
