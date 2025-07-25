@@ -1388,11 +1388,12 @@ export const addChatMembers = createWriteQuery(
       chatId,
       contactIds,
       type,
+      joinStatus,
     }: {
       chatId: string;
       contactIds: string[];
       type: 'group' | 'channel';
-      status: 'invited' | 'joined';
+      joinStatus: 'invited' | 'joined';
     },
     ctx: QueryCtx
   ) => {
@@ -1404,10 +1405,15 @@ export const addChatMembers = createWriteQuery(
             chatId,
             contactId,
             membershipType: type,
-            status: 'invited' as 'invited' | 'joined',
+            status: joinStatus,
           }))
         )
-        .onConflictDoNothing();
+        .onConflictDoUpdate({
+          target: [$chatMembers.chatId, $chatMembers.contactId],
+          set: {
+            status: joinStatus as 'invited' | 'joined',
+          },
+        });
     });
   },
   ['chatMembers', 'groups']

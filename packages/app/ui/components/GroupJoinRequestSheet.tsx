@@ -1,8 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import { useMemo } from 'react';
 
-import { useNavigation } from '../contexts';
-import { useCurrentUserId } from '../contexts/appDataContext';
 import { ActionSheet, createActionGroups } from './ActionSheet';
 import { ListItem } from './ListItem';
 
@@ -14,6 +12,7 @@ export function GroupJoinRequestSheet({
   open,
   onPressAccept,
   onPressReject,
+  onPressGoToProfile,
 }: {
   contact?: db.Contact;
   contactId: string;
@@ -22,11 +21,8 @@ export function GroupJoinRequestSheet({
   onOpenChange: (open: boolean) => void;
   onPressAccept: () => void;
   onPressReject: () => void;
+  onPressGoToProfile: (contactId: string) => void;
 }) {
-  const currentUserId = useCurrentUserId();
-
-  const { onPressGoToDm, onGoToUserProfile } = useNavigation();
-
   const profileActionGroup = useMemo(
     () =>
       createActionGroups([
@@ -35,36 +31,15 @@ export function GroupJoinRequestSheet({
           title: contact?.nickname ?? contactId,
           description: `View ${contact?.nickname ?? contactId}'s profile`,
           action: () => {
-            onGoToUserProfile?.(contactId);
+            onPressGoToProfile?.(contactId);
             onOpenChange(false);
           },
           startIcon: <ListItem.ContactIcon contactId={contactId} />,
           endIcon: 'ChevronRight',
         },
       ]),
-    [contact?.nickname, contactId, onGoToUserProfile, onOpenChange]
+    [contact?.nickname, contactId, onPressGoToProfile, onOpenChange]
   );
-
-  const userActionGroups = useMemo(() => {
-    return createActionGroups([
-      'neutral',
-      currentUserId !== contactId && {
-        title: 'Send message',
-        action: () => {
-          onPressGoToDm?.([contactId]);
-          onOpenChange(false);
-        },
-        endIcon: 'ChevronRight',
-      },
-      {
-        title: 'Copy ID',
-        description: contactId,
-        render: (props) => (
-          <ActionSheet.CopyAction {...props} copyText={contactId} />
-        ),
-      },
-    ]);
-  }, [contactId, currentUserId, onOpenChange, onPressGoToDm]);
 
   const adminActionGroups = useMemo(
     () =>
@@ -96,8 +71,8 @@ export function GroupJoinRequestSheet({
   );
 
   const actionGroups = useMemo(
-    () => [...profileActionGroup, ...userActionGroups, ...adminActionGroups],
-    [profileActionGroup, userActionGroups, adminActionGroups]
+    () => [...profileActionGroup, ...adminActionGroups],
+    [profileActionGroup, adminActionGroups]
   );
 
   const subtitle = `From ${

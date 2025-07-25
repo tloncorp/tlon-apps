@@ -79,10 +79,10 @@ export function ProfileSheet({
   groupIsOpen,
   userIsBanned,
   userIsInvited,
+  onPressGoToProfile,
   onPressBan,
   onPressUnban,
   onPressKick,
-  onPressGoToDm,
   onPressAsignRole,
   onPressRemoveRole,
   roles,
@@ -100,7 +100,7 @@ export function ProfileSheet({
   onPressKick?: () => void;
   onPressBan?: () => void;
   onPressUnban?: () => void;
-  onPressGoToDm?: () => void;
+  onPressGoToProfile?: () => void;
   onPressAsignRole?: (roleId: string) => void;
   onPressRemoveRole?: (roleId: string) => void;
   roles?: db.GroupRole[];
@@ -121,24 +121,8 @@ export function ProfileSheet({
   const isAdminnable = currentUserIsAdmin;
 
   const actions: ActionGroup[] = createActionGroups(
-    [
-      'neutral',
-      {
-        title: 'Send message',
-        action: () => {
-          onPressGoToDm?.();
-          onOpenChange(false);
-        },
-        endIcon: 'ChevronRight',
-      },
-      {
-        title: 'Copy user ID',
-        render: (props) => (
-          <ActionSheet.CopyAction {...props} copyText={contactId} />
-        ),
-      },
-    ],
     isAdminnable &&
+      !userIsInvited &&
       roles && [
         'neutral',
         {
@@ -195,7 +179,11 @@ export function ProfileSheet({
     <ActionSheet open={open} onOpenChange={onOpenChange}>
       <ActionSheet.ScrollableContent>
         <ActionSheet.ContentBlock>
-          <ProfileBlock height={200} contactId={contactId} />
+          <ProfileBlock
+            height={200}
+            contactId={contactId}
+            onPressGoToProfile={onPressGoToProfile}
+          />
         </ActionSheet.ContentBlock>
         <ActionSheet.SimpleActionGroupList actionGroups={actions} />
       </ActionSheet.ScrollableContent>

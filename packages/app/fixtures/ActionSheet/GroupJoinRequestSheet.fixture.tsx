@@ -13,6 +13,7 @@ export default {
         onOpenChange={() => {}}
         onPressAccept={() => {}}
         onPressReject={() => {}}
+        onPressGoToProfile={() => {}}
       />
     </AppDataContextProvider>
   ),
@@ -25,6 +26,7 @@ export default {
         onOpenChange={() => {}}
         onPressAccept={() => {}}
         onPressReject={() => {}}
+        onPressGoToProfile={() => {}}
       />
     </AppDataContextProvider>
   ),
