@@ -51,6 +51,5 @@
         <data android:scheme="https" android:host="sa96e-alternate.app.link"/>
       </intent-filter>
     </activity>
-    <activity android:name="com.facebook.react.devsupport.DevSettingsActivity" android:exported="false"/>
   </application>
 </manifest>

@@ -12,6 +12,10 @@ import { registerRootComponent } from 'expo';
 import 'expo-dev-client';
 import { useEffect } from 'react';
 import 'react-native-get-random-values';
+import {
+  ReanimatedLogLevel,
+  configureReanimatedLogger,
+} from 'react-native-reanimated';
 import { TailwindProvider } from 'tailwind-rn';
 
 import App from './src/App';
@@ -27,6 +31,12 @@ BigInt.prototype.toJSON = function () {
 setupDb();
 addCustomEnabledLoggers(ENABLED_LOGGERS);
 setStorage(AsyncStorage);
+
+// This is the default configuration
+configureReanimatedLogger({
+  level: ReanimatedLogLevel.warn,
+  strict: false,
+});
 
 function Main(props) {
   useEffect(() => {

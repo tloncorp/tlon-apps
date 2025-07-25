@@ -31,7 +31,7 @@
     "@10play/tentap-editor": "*",
     "@react-native-firebase/perf": "19.2.2",
     "expo-blur": "*",
-    "expo-notifications": "~0.27.6",
+    "expo-notifications": "~0.29.14",
     "lodash": "^4.17.21",
     "react-native-device-info": "^10.8.0",
     "tamagui": "~1.126.12",
