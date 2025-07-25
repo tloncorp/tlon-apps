@@ -2,10 +2,8 @@
 import { ConnectionState } from '@tloncorp/shared/api';
 
 import { Text, YStack } from '../ui';
-import {
-  ConnectionStatusComponent,
-  getStatusLabels,
-} from '../ui/components/ConnectionStatus';
+import { getStatusLabels } from '../ui/utils/connectionStatus';
+import { ConnectionStatusComponent } from '../ui/components/ConnectionStatus';
 import { FixtureWrapper } from './FixtureWrapper';
 
 // All possible connection states
