@@ -230,7 +230,7 @@ const syncRelevantChannelPosts = async (
   }
 };
 
-export const syncSettings = async (ctx?: SyncCtx) => {
+export const pullSettings = async (ctx?: SyncCtx) => {
   const settings = await syncQueue.add('settings', ctx, () =>
     api.getSettings()
   );
@@ -1641,7 +1641,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
             () => logger.crumb(`finished syncing contacts`)
           )
         : Promise.resolve(),
-      syncSettings({ priority: SyncPriority.Medium }).then(() =>
+      pullSettings({ priority: SyncPriority.Medium }).then(() =>
         logger.crumb(`finished syncing settings`)
       ),
       syncVolumeSettings({ priority: SyncPriority.Low }).then(() =>

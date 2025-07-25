@@ -60,7 +60,7 @@
     "@react-navigation/native-stack": "^6.9.13",
     "@shopify/flash-list": "1.6.4",
     "@shopify/react-native-skia": "1.2.3",
-    "@tamagui/react-native-media-driver": "^1.116.12",
+    "@tamagui/react-native-media-driver": "~1.126.12",
     "@tanstack/react-query": "~5.32.1",
     "@tloncorp/app": "workspace:*",
     "@tloncorp/editor": "workspace:*",

@@ -2,7 +2,7 @@ import {
   NavigationState,
   PartialState,
   getStateFromPath,
-} from '@react-navigation/native';
+} from '@react-navigation/core';
 
 import { getDesktopLinkingConfig, getMobileLinkingConfig } from './linking';
 import { CombinedParamList } from './types';

@@ -1,4 +1,4 @@
-import { getStateFromPath } from '@react-navigation/native';
+import { getStateFromPath } from '@react-navigation/core';
 import { describe, expect, test } from 'vitest';
 
 import {

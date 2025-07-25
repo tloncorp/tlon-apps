@@ -44,29 +44,31 @@ export type ChatOptionsContextValue = {
   setChat: (chat: { id: string; type: 'group' | 'channel' } | null) => void;
 } | null;
 
+const noop = () => {};
+const noopAsync = async () => {};
 const defaultValue: ChatOptionsContextValue = {
   useGroup: store.useGroup,
   group: null,
   channel: null,
-  markGroupRead: () => {},
-  markChannelRead: () => {},
-  onPressGroupMeta: () => {},
-  onPressGroupMembers: () => {},
-  onPressManageChannels: () => {},
-  onPressInvite: () => {},
-  onPressGroupPrivacy: () => {},
-  onPressRoles: () => {},
-  onPressChannelMembers: () => {},
-  onPressChannelMeta: () => {},
-  onPressChannelTemplate: () => {},
-  onPressChatDetails: () => {},
-  togglePinned: () => {},
-  leaveGroup: async () => {},
-  leaveChannel: () => {},
-  updateVolume: () => {},
-  setChannelSortPreference: () => {},
-  open: () => {},
-  setChat: () => {},
+  markGroupRead: noop,
+  markChannelRead: noop,
+  onPressGroupMeta: noop,
+  onPressGroupMembers: noop,
+  onPressManageChannels: noop,
+  onPressInvite: noop,
+  onPressGroupPrivacy: noop,
+  onPressRoles: noop,
+  onPressChannelMembers: noop,
+  onPressChannelMeta: noop,
+  onPressChannelTemplate: noop,
+  onPressChatDetails: noop,
+  togglePinned: noop,
+  leaveGroup: noopAsync,
+  leaveChannel: noop,
+  updateVolume: noop,
+  setChannelSortPreference: noop,
+  open: noop,
+  setChat: noop,
 };
 
 const ChatOptionsContext = createContext<ChatOptionsContextValue>(null);
@@ -86,16 +88,19 @@ type ChatOptionsProviderProps = {
   children: ReactNode;
   useChannel?: typeof store.useChannel;
   useGroup?: typeof store.useGroup;
-  onPressGroupMeta: (groupId: string, fromBlankChannel?: boolean) => void;
-  onPressGroupMembers: (groupId: string) => void;
-  onPressManageChannels: (groupId: string) => void;
+  onPressGroupMeta?: (groupId: string, fromBlankChannel?: boolean) => void;
+  onPressGroupMembers?: (groupId: string) => void;
+  onPressManageChannels?: (groupId: string) => void;
   onPressInvite?: (groupId: string) => void;
-  onPressGroupPrivacy: (groupId: string) => void;
-  onPressChannelMembers: (channelId: string) => void;
-  onPressChannelMeta: (channelId: string) => void;
-  onPressChannelTemplate: (channelId: string) => void;
-  onPressRoles: (groupId: string) => void;
-  onPressChatDetails: (chat: { type: 'group' | 'channel'; id: string }) => void;
+  onPressGroupPrivacy?: (groupId: string) => void;
+  onPressChannelMembers?: (channelId: string) => void;
+  onPressChannelMeta?: (channelId: string) => void;
+  onPressChannelTemplate?: (channelId: string) => void;
+  onPressRoles?: (groupId: string) => void;
+  onPressChatDetails?: (chat: {
+    type: 'group' | 'channel';
+    id: string;
+  }) => void;
   onSelectSort?: (sortBy: 'recency' | 'arranged') => void;
   onLeaveGroup?: () => void;
   onPressConfigureChannel?: () => void;
@@ -112,15 +117,15 @@ export const ChatOptionsProvider = ({
   useChannel = store.useChannel,
   useGroup = store.useGroup,
   onPressGroupMeta,
-  onPressGroupMembers,
+  onPressGroupMembers = noop,
   onPressManageChannels,
   onPressInvite,
   onPressGroupPrivacy,
   onPressChannelMembers,
   onPressChannelMeta,
-  onPressChannelTemplate,
+  onPressChannelTemplate = noop,
   onPressRoles,
-  onPressChatDetails,
+  onPressChatDetails = noop,
   onLeaveGroup: navigateOnLeave,
   onPressConfigureChannel,
 }: ChatOptionsProviderProps) => {
