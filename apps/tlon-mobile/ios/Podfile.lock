@@ -233,7 +233,7 @@ PODS:
     - ExpoModulesCore
   - ExpoBackgroundFetch (13.0.6):
     - ExpoModulesCore
-  - ExpoBattery (9.1.4):
+  - ExpoBattery (9.0.2):
     - ExpoModulesCore
   - ExpoBlur (14.0.3):
     - ExpoModulesCore
@@ -263,7 +263,7 @@ PODS:
     - ExpoModulesCore
   - ExpoKeepAwake (14.0.3):
     - ExpoModulesCore
-  - ExpoLinearGradient (14.1.5):
+  - ExpoLinearGradient (14.0.2):
     - ExpoModulesCore
   - ExpoLocalization (16.0.1):
     - ExpoModulesCore
@@ -2714,7 +2714,7 @@ SPEC CHECKSUMS:
   expo-dev-menu-interface: 00dc42302a72722fdecec3fa048de84a9133bcc4
   ExpoAsset: 0687fe05f5d051c4a34dd1f9440bd00858413cfe
   ExpoBackgroundFetch: 4973770f696e74dccc2f1b391cd04b23fbc51856
-  ExpoBattery: 2bdb40a8943dae1cbab23ccaaab09d0cc78de0ae
+  ExpoBattery: c04a49448ee6e84749df3b85e1421dac38584348
   ExpoBlur: 567af66164e3043a9a30069594aed1ddf0a88d97
   ExpoClipboard: 5250b207b6d545f4e9aac5ea3c6e61c4f16d0aed
   ExpoContacts: 95526dcc8b50a65e61d569655f4cb05edb713cbb
@@ -2726,7 +2726,7 @@ SPEC CHECKSUMS:
   ExpoImageManipulator: 43c7bb3ecccbe993054d2e9131c8dcbe54f1385b
   ExpoImagePicker: 482b2a6198b365dd18b5a0cb6d4caeec880cb8e1
   ExpoKeepAwake: 2a5f15dd4964cba8002c9a36676319a3394c85c7
-  ExpoLinearGradient: ce334cff9859da4635c1d8eff6e291b11b04ccbb
+  ExpoLinearGradient: ee9efc5acb988b911320e964fab9b4cbdeb198c4
   ExpoLocalization: e36b911e04d371c6c6624ef818e56229bf51c498
   ExpoMailComposer: 3b73ba608b6ae7d8effe64c58e25924962e3d8cc
   ExpoMediaLibrary: e76bf16d148184fc32f6302445d5d11e72ab47f5
