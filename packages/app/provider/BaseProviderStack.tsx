@@ -24,23 +24,64 @@ export function BaseProviderStack({
   children,
 }: PropsWithChildren<BaseProviderStackProps>) {
   return (
+    <GlobalProviderStack>
+      <UIProviderStack tamaguiState={tamaguiState}>
+        <AppProviderStack migrationState={migrationState}>
+          {children}
+        </AppProviderStack>
+      </UIProviderStack>
+    </GlobalProviderStack>
+  );
+}
+
+/**
+ * Providers that depend on other providers farther up the stack
+ */
+function AppProviderStack({
+  children,
+  migrationState,
+}: PropsWithChildren<{
+  migrationState: MigrationState;
+}>) {
+  return (
+    <ToastProvider>
+      <MigrationCheck {...migrationState}>{children}</MigrationCheck>
+    </ToastProvider>
+  );
+}
+
+/**
+ * Providers required by UI components, such as Tamagui and SafeArea
+ */
+function UIProviderStack({
+  tamaguiState,
+  children,
+}: PropsWithChildren<{
+  tamaguiState?: { defaultTheme?: string };
+}>) {
+  return (
+    <TamaguiProvider defaultTheme={tamaguiState?.defaultTheme}>
+      <SafeAreaProvider>
+        {/* 
+          Android mobile does not proxy portal contexts, so any providers 
+          used by portaled components must be *above* the PortalProvider
+        */}
+        <PortalProvider>{children}</PortalProvider>
+      </SafeAreaProvider>
+    </TamaguiProvider>
+  );
+}
+
+/**
+ * Global logic + providers not dependent on UI
+ */
+function GlobalProviderStack({ children }: PropsWithChildren) {
+  return (
     <QueryClientProvider client={queryClient}>
       <TelemetryProvider>
-        <TamaguiProvider defaultTheme={tamaguiState?.defaultTheme}>
-          <StoreProvider>
-            <ShipProvider>
-              <SafeAreaProvider>
-                <PortalProvider>
-                  <ToastProvider>
-                    <MigrationCheck {...migrationState}>
-                      {children}
-                    </MigrationCheck>
-                  </ToastProvider>
-                </PortalProvider>
-              </SafeAreaProvider>
-            </ShipProvider>
-          </StoreProvider>
-        </TamaguiProvider>
+        <StoreProvider>
+          <ShipProvider>{children}</ShipProvider>
+        </StoreProvider>
       </TelemetryProvider>
     </QueryClientProvider>
   );

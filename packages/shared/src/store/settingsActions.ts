@@ -147,3 +147,41 @@ export async function updateTheme(theme: AppTheme) {
     throw new Error('Failed to update theme setting');
   }
 }
+
+export async function updateDisableTlonInfraEnhancement(disabled: boolean) {
+  const existing = await db.getSettings();
+  const oldValue = existing?.disableTlonInfraEnhancement;
+
+  try {
+    // optimistic update
+    await db.insertSettings({ disableTlonInfraEnhancement: disabled });
+    await setSetting('disableTlonInfraEnhancement', disabled);
+  } catch (e) {
+    logger.trackError('Error updating disable tlon infra setting', {
+      disabled,
+      severity: AnalyticsSeverity.Medium,
+      errorMessage: e.message,
+      errorStack: e.stack,
+    });
+    await db.insertSettings({ disableTlonInfraEnhancement: oldValue });
+  }
+}
+
+export async function updateEnableTelemetry(value: boolean) {
+  const existing = await db.getSettings();
+  const oldValue = existing?.enableTelemetry;
+
+  try {
+    // optimistic update
+    await db.insertSettings({ enableTelemetry: value });
+    await setSetting('enableTelemetry', value);
+  } catch (e) {
+    logger.trackError('Error updating telemetry setting', {
+      value,
+      severity: AnalyticsSeverity.Medium,
+      errorMessage: e.message,
+      errorStack: e.stack,
+    });
+    await db.insertSettings({ enableTelemetry: oldValue });
+  }
+}

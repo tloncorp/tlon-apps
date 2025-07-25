@@ -1,13 +1,5 @@
 appId: io.tlon.groups
 ---
-- runFlow:
-    when:
-      visible: 'Welcome to TM'
-    commands:
-      - swipe:
-          direction: 'DOWN'
-      - waitForAnimationToEnd:
-          timeout: 5000
 - tapOn: 'Have an account? Log in'
 - tapOn: 'Or configure self hosted'
 # Log in
@@ -37,8 +29,3 @@ appId: io.tlon.groups
     commands:
       - tapOn: 'Not now'
 - tapOn: 'Next'
-- assertVisible: 'Welcome to TM'
-- swipe:
-    direction: 'DOWN'
-- waitForAnimationToEnd:
-    timeout: 5000

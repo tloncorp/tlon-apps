@@ -4,6 +4,7 @@ import {
   useDebouncedValue,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import type * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import * as urbit from '@tloncorp/shared/urbit';
 import { Story } from '@tloncorp/shared/urbit';
@@ -18,6 +19,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, YStack } from 'tamagui';
 
@@ -56,8 +58,7 @@ const FocusedPostContext = createContext<{
 );
 
 interface ChannelContext {
-  group?: db.Group | null;
-  groupMembers: db.ChatMember[];
+  group: db.Group | null;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   editPost: (
@@ -73,9 +74,9 @@ interface ChannelContext {
 
 export function PostScreenView({
   channel,
+  group,
   parentPost,
   goBack,
-  groupMembers,
   handleGoToImage,
   handleGoToUserProfile,
   editingPost,
@@ -95,6 +96,8 @@ export function PostScreenView({
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   goToDm: (participants: string[]) => void;
 } & ChannelContext) {
+  const groupMembers = group?.members ?? [];
+  const groupRoles = group?.roles ?? [];
   const isWindowNarrow = utils.useIsWindowNarrow();
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = utils.useIsAdmin(
@@ -109,7 +112,7 @@ export function PostScreenView({
   const [focusedPost, setFocusedPost] = useState<db.Post | null>(parentPost);
 
   const mode: 'single' | 'carousel' = useMemo(() => {
-    if (!isWindowNarrow) {
+    if (Platform.OS === 'web' || !isWindowNarrow) {
       return 'single';
     }
 
@@ -231,7 +234,7 @@ export function PostScreenView({
                           editPost,
                           editingPost,
                           goBack,
-                          groupMembers,
+                          group,
                           handleGoToImage,
                           negotiationMatch,
                           onPressDelete,
@@ -249,7 +252,7 @@ export function PostScreenView({
                         channelContext={{
                           editPost,
                           editingPost,
-                          groupMembers,
+                          group,
                           negotiationMatch,
                           onPressDelete,
                           onPressRetry,
@@ -344,10 +347,10 @@ function useMarkThreadAsReadEffect(
 
 function SinglePostView({
   channel,
+  group,
   editPost,
   editingPost,
   goBack,
-  groupMembers,
   handleGoToImage,
   negotiationMatch,
   onPressDelete,
@@ -364,8 +367,7 @@ function SinglePostView({
   ) => Promise<void>;
   editingPost?: db.Post;
   goBack?: () => void;
-  group?: db.Group | null;
-  groupMembers: db.ChatMember[];
+  group: db.Group | null;
   handleGoToImage?: (post: db.Post, uri?: string) => void;
   negotiationMatch: boolean;
   onPressDelete: (post: db.Post) => void;
@@ -373,6 +375,8 @@ function SinglePostView({
   parentPost: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
 }) {
+  const groupMembers = group?.members ?? [];
+  const groupRoles = group?.roles ?? [];
   const store = useStore();
   const { focusedPost } = useContext(FocusedPostContext);
   const isFocusedPost = focusedPost?.id === parentPost.id;
@@ -459,14 +463,26 @@ function SinglePostView({
   const sendReply = useCallback(
     async (content: urbit.Story) => {
       await store.sendReply({
-        authorId: currentUserId,
         content,
         channel: channel,
         parentId: parentPost.id,
         parentAuthor: parentPost.authorId,
       });
     },
-    [currentUserId, channel, parentPost, store]
+    [channel, parentPost, store]
+  );
+
+  const sendReplyFromDraft = useCallback(
+    async (draft: domain.PostDataDraftParent) => {
+      const finalized = await store.finalizePostDraft(draft);
+      await store.sendReply({
+        content: finalized.content,
+        channel: channel,
+        parentId: parentPost.id,
+        parentAuthor: parentPost.authorId,
+      });
+    },
+    [channel, parentPost, store]
   );
 
   const isChatLike = useMemo(
@@ -506,9 +522,11 @@ function SinglePostView({
               placeholder="Reply"
               shouldBlur={inputShouldBlur}
               setShouldBlur={setInputShouldBlur}
-              send={sendReply}
+              sendPost={sendReply}
+              sendPostFromDraft={sendReplyFromDraft}
               channelId={channel.id}
               groupMembers={groupMembers}
+              groupRoles={groupRoles}
               {...bareInputDraftProps}
               editingPost={editingPost}
               setEditingPost={setEditingPost}
@@ -559,11 +577,13 @@ function SinglePostView({
             editPost={editPost}
             shouldBlur={inputShouldBlur}
             setShouldBlur={setInputShouldBlur}
-            send={async () => {}}
+            sendPost={async () => {}}
+            sendPostFromDraft={async () => {}}
             getDraft={getDraft}
             storeDraft={storeDraft}
             clearDraft={clearDraft}
             groupMembers={groupMembers}
+            groupRoles={groupRoles}
           />
         </View>
       ) : null}
@@ -694,6 +714,7 @@ export function PresentationalCarouselPostScreenContent({
           initialNumToRender: 3,
           maxToRenderPerBatch: 3,
           windowSize: 3,
+          keyboardShouldPersistTaps: 'handled',
         }}
       >
         {carouselChildren}

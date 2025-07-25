@@ -1,12 +1,12 @@
-import { ContentReference } from '../api';
-import { getConstants } from '../domain';
+import { createDevLogger } from '../debug';
+import { ContentReference, getConstants } from '../domain';
 import { citeToPath } from '../urbit';
 import { AppInvite, getBranchLinkMeta, isLureMeta } from './branch';
 
+const logger = createDevLogger('deeplinks', false);
+
 export async function getReferenceFromDeeplink({
   deepLink,
-  branchKey,
-  branchDomain,
 }: {
   deepLink: string;
   branchKey: string;
@@ -14,8 +14,6 @@ export async function getReferenceFromDeeplink({
 }): Promise<{ reference: ContentReference; path: string } | null> {
   const linkMeta = await getInviteLinkMeta({
     inviteLink: deepLink,
-    branchKey,
-    branchDomain,
   });
 
   if (linkMeta && typeof linkMeta === 'object') {
@@ -52,27 +50,59 @@ interface ProviderMetadataResponse {
 
 export async function getInviteLinkMeta({
   inviteLink,
-  branchDomain,
-  branchKey,
 }: {
   inviteLink: string;
-  branchDomain: string;
-  branchKey: string;
 }): Promise<AppInvite | null> {
-  const token = extractTokenFromInviteLink(inviteLink, branchDomain);
+  const token = extractTokenFromInviteLink(inviteLink);
   if (!token) {
     return null;
   }
 
-  const providerResponse = await fetch(
-    `https://loshut-lonreg.tlon.network/lure/${token}/metadata`
-  );
-  if (!providerResponse.ok) {
+  return getMetadataFromInviteToken(token);
+}
+
+export async function getMetadataFromInviteToken(token: string) {
+  const env = getConstants();
+  logger.log('getting metadata for invite token', {
+    token,
+    inviteProvider: env.INVITE_PROVIDER,
+  });
+
+  let providerResponse = null;
+  try {
+    providerResponse = await fetch(
+      `${env.INVITE_PROVIDER}/lure/${token}/metadata`,
+      {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+  } catch (e) {
+    logger.trackError('failed to fetch invite metadata', {
+      inviteToken: token,
+      errorMessage: e.toString(),
+    });
+  }
+  if (!providerResponse?.ok) {
     return null;
   }
 
-  // fetch invite link metadata from lure provider
-  const responseMeta: ProviderMetadataResponse = await providerResponse.json();
+  let responseMeta: ProviderMetadataResponse | null = null;
+  try {
+    const json = await providerResponse.json();
+    logger.log(`provider response for token ${token}`, {
+      status: providerResponse.status,
+      json,
+    });
+    responseMeta = json as ProviderMetadataResponse;
+  } catch (e) {
+    logger.trackError('failed to parse provider response', {
+      inviteToken: token,
+      errorMessage: e.toString(),
+    });
+    return null;
+  }
+
   if (
     !responseMeta.fields ||
     !responseMeta.fields.group ||
@@ -98,7 +128,10 @@ export async function getInviteLinkMeta({
   // some links might not have everything, try to extend with branch (fine if fails)
   if (!metadata.inviterNickname) {
     try {
-      const branchMeta = await getBranchLinkMeta(inviteLink, branchKey);
+      const branchMeta = await getBranchLinkMeta(
+        `${env.BRANCH_DOMAIN}/${token}`,
+        env.BRANCH_KEY
+      );
       if (branchMeta) {
         if (branchMeta.inviterNickname && !metadata.inviterNickname) {
           metadata.inviterNickname = branchMeta.inviterNickname;
@@ -112,6 +145,10 @@ export async function getInviteLinkMeta({
     }
   }
 
+  logger.trackEvent('successfully fetched invite metadata', {
+    inviteToken: token,
+  });
+
   return metadata;
 }
 
@@ -121,15 +158,10 @@ export function createInviteLinkRegex(branchDomain: string) {
   );
 }
 
-export function extractTokenFromInviteLink(
-  url: string,
-  branchDomain?: string
-): string | null {
+export function extractTokenFromInviteLink(url: string): string | null {
   const env = getConstants();
   if (!url) return null;
-  const INVITE_LINK_REGEX = createInviteLinkRegex(
-    branchDomain ?? env.BRANCH_DOMAIN
-  );
+  const INVITE_LINK_REGEX = createInviteLinkRegex(env.BRANCH_DOMAIN);
   const match = url.trim().match(INVITE_LINK_REGEX);
 
   if (match) {

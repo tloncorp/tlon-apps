@@ -1,4 +1,5 @@
 import {
+  GroupMentionInlineData,
   InlineData,
   InlineFromType,
   LinkInlineData,
@@ -8,11 +9,17 @@ import {
   TextInlineData,
 } from '@tloncorp/shared/logic';
 import { RawText, Text } from '@tloncorp/ui';
-import React, { PropsWithChildren, useCallback, useContext } from 'react';
+import React, {
+  PropsWithChildren,
+  useCallback,
+  useContext,
+  useMemo,
+} from 'react';
 import { Linking, Platform } from 'react-native';
 import { ColorTokens, styled } from 'tamagui';
 
-import { useNavigation } from '../../contexts';
+import { useChannelContext, useNavigation, useRequests } from '../../contexts';
+import { ALL_MENTION_ID } from '../BareChatInput/useMentions';
 import { useContactName } from '../ContactNameV2';
 
 export const CodeText = styled(Text, {
@@ -59,6 +66,33 @@ export function InlineMention({
   return (
     <MentionText onPress={handlePress} color={'$positiveActionText'}>
       {contactName}
+    </MentionText>
+  );
+}
+
+export function InlineGroupMention({
+  inline,
+}: PropsWithChildren<{
+  inline: GroupMentionInlineData;
+}>) {
+  const { useGroup } = useRequests();
+  const channel = useChannelContext();
+  const { data: group } = useGroup(channel.groupId ?? '');
+  const { onGoToGroupSettings } = useNavigation();
+  const handlePress = useCallback(() => {
+    onGoToGroupSettings?.();
+  }, [onGoToGroupSettings]);
+
+  const prettyRole = useMemo(() => {
+    const roles = group?.roles ?? [];
+    return inline.group === ALL_MENTION_ID
+      ? 'all'
+      : roles.find((role) => role.id === inline.group)?.title || inline.group;
+  }, [group, inline.group]);
+
+  return (
+    <MentionText onPress={handlePress} color={'$positiveActionText'}>
+      @{prettyRole}
     </MentionText>
   );
 }
@@ -140,6 +174,7 @@ export const defaultInlineRenderers: InlineRendererConfig = {
   text: InlineText,
   style: InlineStyle,
   mention: InlineMention,
+  groupMention: InlineGroupMention,
   lineBreak: InlineLineBreak,
   link: InlineLink,
   task: InlineTask,

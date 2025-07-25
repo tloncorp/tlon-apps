@@ -5,7 +5,7 @@ import { SizableText, View, YStack } from 'tamagui';
 export function ReadOnlyNotice({
   type,
 }: {
-  type: 'read-only' | 'dm-mismatch' | 'channel-mismatch';
+  type: 'read-only' | 'dm-mismatch' | 'group-dm-mismatch' | 'channel-mismatch';
 }) {
   const Message =
     type === 'read-only' ? (
@@ -13,7 +13,11 @@ export function ReadOnlyNotice({
     ) : (
       <>
         Your node&apos;s version of the Tlon app doesn&apos;t match the{' '}
-        {type === 'dm-mismatch' ? 'other node.' : 'channel host.'}
+        {type === 'dm-mismatch'
+          ? 'other node.'
+          : type === 'group-dm-mismatch'
+            ? 'other nodes.'
+            : 'channel host.'}
       </>
     );
 
@@ -26,6 +30,7 @@ export function ReadOnlyNotice({
         backgroundColor="$background"
         borderTopWidth={1}
         borderTopColor="$border"
+        testID={`read-only-notice-${type}`}
       >
         <View flexDirection="row" alignItems="center" gap="$m">
           <Icon type="Info" size="$s" color="$tertiaryText" />

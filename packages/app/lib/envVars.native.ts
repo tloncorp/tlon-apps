@@ -7,6 +7,8 @@ const envVars = (Constants.expoConfig?.extra ?? {}) as Record<
 >;
 
 export const DEV_SHIP_URL = '';
+export const INVITE_PROVIDER =
+  envVars.inviteProvider ?? 'https://loshut-lonreg.tlon.network';
 export const NOTIFY_PROVIDER = envVars.notifyProvider ?? 'rivfur-livmet';
 export const NOTIFY_SERVICE = envVars.notifyService ?? 'groups-native';
 export const POST_HOG_API_KEY = envVars.postHogApiKey ?? '';
@@ -45,9 +47,11 @@ export const BRANCH_DOMAIN = envVars.branchDomain ?? '';
 export const INVITE_SERVICE_ENDPOINT = envVars.inviteServiceEndpoint ?? '';
 export const INVITE_SERVICE_IS_DEV =
   envVars.inviteServiceIsDev === 'true' ? true : undefined;
+export const GIT_HASH = envVars.gitHash ?? 'unknown';
 
 export const ENV_VARS = {
   DEV_SHIP_URL,
+  INVITE_PROVIDER,
   NOTIFY_PROVIDER,
   NOTIFY_SERVICE,
   POST_HOG_API_KEY,
@@ -74,4 +78,5 @@ export const ENV_VARS = {
   BRANCH_DOMAIN,
   INVITE_SERVICE_ENDPOINT,
   INVITE_SERVICE_IS_DEV,
+  GIT_HASH,
 };

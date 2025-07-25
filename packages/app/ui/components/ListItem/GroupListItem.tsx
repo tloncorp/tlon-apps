@@ -2,7 +2,6 @@
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import { Button, Icon, Pressable } from '@tloncorp/ui';
-import * as domain from '@tloncorp/shared/domain';
 import { View, isWeb } from 'tamagui';
 
 import { useGroupTitle } from '../../utils';
@@ -90,7 +89,6 @@ export const GroupListItem = ({
       setIsHovered(false);
     }
   };
-  const { viewedPersonalGroup } = db.wayfindingProgress.useValue();
 
   const handlePress = logic.useMutableCallback(() => {
     onPress?.(model);
@@ -102,15 +100,25 @@ export const GroupListItem = ({
 
   const isSingleChannel = model.channels?.length === 1;
 
+  const wayfindingProgress = db.wayfindingProgress.useValue();
   const shouldHighlight = useMemo(() => {
-    if (
-      model.id.includes(domain.PersonalGroupSlugs.slug) &&
-      !viewedPersonalGroup
-    ) {
-      return true;
+    if (!model.isPersonalGroup) {
+      return false;
     }
-    return false;
-  }, [model.id, viewedPersonalGroup]);
+
+    const hasCoachMarks =
+      !wayfindingProgress?.tappedAddCollection ||
+      !wayfindingProgress?.tappedAddNote ||
+      !wayfindingProgress?.tappedChatInput;
+
+    return !wayfindingProgress?.viewedPersonalGroup && hasCoachMarks;
+  }, [
+    model.isPersonalGroup,
+    wayfindingProgress?.tappedAddCollection,
+    wayfindingProgress?.tappedAddNote,
+    wayfindingProgress?.tappedChatInput,
+    wayfindingProgress?.viewedPersonalGroup,
+  ]);
 
   return (
     <View ref={containerRef}>
@@ -121,6 +129,7 @@ export const GroupListItem = ({
         hoverStyle={{ backgroundColor: '$secondaryBackground' }}
         onHoverIn={handleHoverIn}
         onHoverOut={handleHoverOut}
+        testID={`GroupListItem-${model.title || 'Untitled group'}`}
       >
         <ListItem
           {...props}
@@ -158,7 +167,7 @@ export const GroupListItem = ({
             {model.lastPost ? (
               <ListItem.PostPreview post={model.lastPost} />
             ) : !isPending ? (
-              model.id.includes(domain.PersonalGroupSlugs.slug) ? (
+              model.isPersonalGroup ? (
                 <ListItem.Subtitle>Your personal group</ListItem.Subtitle>
               ) : (
                 <ListItem.Subtitle>No posts yet</ListItem.Subtitle>

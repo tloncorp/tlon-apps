@@ -3,6 +3,7 @@ import { Poke } from '@urbit/http-api';
 import * as db from '../db';
 import { GroupPrivacy } from '../db/schema';
 import { createDevLogger } from '../debug';
+import * as domain from '../domain';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
 import type * as ub from '../urbit';
 import {
@@ -1496,6 +1497,45 @@ export function toClientGroup(
         }))
       : [];
 
+  const invitedMembers: db.ChatMember[] =
+    group.cordon && 'shut' in group.cordon
+      ? group.cordon.shut.pending
+          // filter out members who have already joined
+          // for some reason, joined members can get stuck in the pending list on the server
+          .filter((pending) => !group.fleet[pending])
+          .map((pending) => ({
+            membershipType: 'group',
+            contactId: pending,
+            chatId: id,
+            roles: [],
+            status: 'invited',
+            joinedAt: null,
+          }))
+      : [];
+
+  const members: db.ChatMember[] = Object.entries(group.fleet)
+    .map(([userId, vessel]) => {
+      return toClientGroupMember({
+        groupId: id,
+        contactId: userId,
+        vessel: vessel,
+        status: 'joined',
+      });
+    })
+    .concat(
+      invitedMembers.map((m) => {
+        return toClientGroupMember({
+          groupId: id,
+          contactId: m.contactId,
+          vessel: {
+            sects: [],
+            joined: 0,
+          },
+          status: 'invited',
+        });
+      })
+    );
+
   logger.log('joinRequests', joinRequests);
 
   const roles = Object.entries(group.cabals ?? {}).map(([roleId, role]) => {
@@ -1516,6 +1556,8 @@ export function toClientGroup(
     haveRequestedInvite: isJoined ? false : undefined,
     currentUserIsMember: isJoined,
     currentUserIsHost: hostUserId === currentUserId,
+    isPersonalGroup:
+      id === `${currentUserId}/${domain.PersonalGroupSlugs.slug}`,
     joinStatus: groupIsSyncing(group) ? 'joining' : undefined,
     hostUserId,
     flaggedPosts,
@@ -1543,13 +1585,7 @@ export function toClientGroup(
         return data;
       })
       .filter((s): s is db.GroupNavSection => !!s),
-    members: Object.entries(group.fleet).map(([userId, vessel]) => {
-      return toClientGroupMember({
-        groupId: id,
-        contactId: userId,
-        vessel: vessel,
-      });
-    }),
+    members,
     bannedMembers,
     joinRequests,
     channels: group.channels
@@ -1673,11 +1709,6 @@ function toClientChannel({
     roleId,
   }));
 
-  const writerRoles = (channel.writers ?? []).map((roleId) => ({
-    channelId: id,
-    roleId,
-  }));
-
   const currentUserId = getCurrentUserId();
   const { host: hostUserId } = parseGroupChannelId(id);
 
@@ -1692,7 +1723,6 @@ function toClientChannel({
     contentConfiguration: channelContentConfiguration,
     currentUserIsHost: hostUserId === currentUserId,
     readerRoles,
-    writerRoles,
   };
 }
 
@@ -1724,10 +1754,12 @@ function toClientGroupMember({
   groupId,
   contactId,
   vessel,
+  status,
 }: {
   groupId: string;
   contactId: string;
   vessel: { sects: string[]; joined: number };
+  status: 'invited' | 'joined';
 }): db.ChatMember {
   return {
     membershipType: 'group',
@@ -1738,6 +1770,7 @@ function toClientGroupMember({
       contactId,
       roleId,
     })),
+    status,
     joinedAt: vessel.joined,
   };
 }

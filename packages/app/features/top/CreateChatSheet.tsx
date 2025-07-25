@@ -3,7 +3,9 @@ import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
   ComponentProps,
+  cloneElement,
   forwardRef,
+  isValidElement,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -24,6 +26,7 @@ import {
   GroupPreviewAction,
   GroupPreviewPane,
   LoadingSpinner,
+  Pressable,
   SimpleActionSheet,
   Text,
   TextInput,
@@ -242,6 +245,7 @@ const CreateChatFormContent = ({
 }: CreateChatFormContentProps) => {
   const { title, subtitle } = CHAT_TYPE_CONFIG[chatType];
   const { bottom } = useSafeAreaInsets();
+  const isWindowNarrow = useIsWindowNarrow();
 
   return (
     <YStack flex={1} gap="$l" paddingBottom={bottom}>
@@ -250,6 +254,7 @@ const CreateChatFormContent = ({
         searchable
         multiSelect={chatType === 'group'}
         searchPlaceholder="Filter by nickname or id"
+        autoFocus={!isWindowNarrow}
         onSelect={onSelectDmContact}
         onSelectedChange={onSelectedChange}
         onScrollChange={(scrolling) => {
@@ -363,7 +368,13 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       allowFlip
       offset={-12}
     >
-      <Popover.Trigger asChild>{trigger}</Popover.Trigger>
+      <Popover.Trigger
+        role="button"
+        data-testid="CreateChatSheetTrigger"
+        asChild
+      >
+        {trigger}
+      </Popover.Trigger>
       <Popover.Content
         elevate
         zIndex={1000000}

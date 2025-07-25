@@ -53,7 +53,7 @@ export function StoppedNodePushSheet({
             </Button.Text>
           </Button>
           <Text size="$label/s" color="$secondaryText">
-            Feel free to close TM while your node is waking up.
+            Feel free to close the app while your node is waking up.
           </Text>
         </ActionSheet.ContentBlock>
       </ActionSheet.Content>

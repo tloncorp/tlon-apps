@@ -108,7 +108,7 @@ export function subscribeToChatUpdates(
   subscribe(
     {
       app: 'chat',
-      path: '/',
+      path: '/v1',
     },
     (event: ub.WritResponse | ub.ClubAction | string[]) => {
       logger.log('raw chat sub event', event);
@@ -175,7 +175,7 @@ export function subscribeToChatUpdates(
         return eventHandler({
           type: 'addReaction',
           postId: id,
-          userId: addReact.ship,
+          userId: addReact.author,
           react: addReact.react,
         });
       }
@@ -221,7 +221,7 @@ export function subscribeToChatUpdates(
           return eventHandler({
             type: 'addReaction',
             postId: replyId,
-            userId: addReact.ship,
+            userId: addReact.author,
             react: addReact.react,
           });
         }

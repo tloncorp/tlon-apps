@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { Post, PostMetadata } from '../db';
-import { isDmChannelId } from '../logic';
+import { isDmChannelId, isGroupDmChannelId } from '../logic';
 import type { Story } from '../urbit';
 import * as dbHooks from './dbHooks';
 import * as postActions from './postActions';
 import { SyncPriority, syncGroup } from './sync';
-import { useNegotiate } from './useNegotiation';
+import { useNegotiate, useNegotiateMulti } from './useNegotiation';
 import { usePostDraftCallbacks } from './usePostDraftCallbacks';
 
 export const useChannelContext = ({
@@ -42,10 +42,6 @@ export const useChannelContext = ({
       parentId?: string,
       metadata?: PostMetadata
     ) => {
-      if (!channelQuery.data) {
-        return;
-      }
-
       postActions.editPost({
         post,
         content,
@@ -54,20 +50,27 @@ export const useChannelContext = ({
       });
       setEditingPost(undefined);
     },
-    [channelQuery.data]
+    []
   );
 
   // Version negotiation
   const isDM = isDmChannelId(channelId);
+  const isGroupDm = isGroupDmChannelId(channelId);
+
   const channelHost = useMemo(
     () => (isDM ? channelId : channelId.split('/')[1]),
     [channelId, isDM]
   );
 
-  const negotiationStatus = useNegotiate(
-    channelHost,
-    isDM ? 'chat' : 'channels',
-    isDM ? 'chat' : 'channels-server'
+  const app = isDM || isGroupDm ? 'chat' : 'channels';
+  const agent = isDM || isGroupDm ? 'chat' : 'channels-server';
+  const negotiationStatus = useNegotiate(channelHost, app, agent);
+  const multiNegotiationStatus = useNegotiateMulti(
+    channelQuery.data
+      ? (channelQuery.data.members || []).map((m) => m.contactId)
+      : [],
+    app,
+    agent
   );
 
   // Draft
@@ -76,7 +79,7 @@ export const useChannelContext = ({
   });
 
   return {
-    negotiationStatus,
+    negotiationStatus: isGroupDm ? multiNegotiationStatus : negotiationStatus,
     getDraft,
     storeDraft,
     clearDraft,

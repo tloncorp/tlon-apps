@@ -5,7 +5,7 @@
 ++  grow
   |%
   ++  noun  channels-0
-  ++  json  (channels:enjs:j channels-0)
+  ++  json  (channels:v0:enjs:j channels-0)
   --
 ++  grab
   |%

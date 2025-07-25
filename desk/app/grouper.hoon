@@ -126,8 +126,33 @@
       `this(outstanding-pokes (~(del in outstanding-pokes) [src.bowl i.t.t.wire]))
     ==
   ?-  -.sign
-      %poke-ack   `this
+      %poke-ack
+    ?.  ?=([%dm ship=@ token=@ ~] wire)
+      ?~  p.sign  `this
+      %-  (slog leaf/"Poke failed {<wire>}" u.p.sign)
+      `this
+    =*  joiner  i.t.wire
+    =*  token  i.t.t.wire
+    :_  this
+    :_  ~
+    ?~  p.sign
+      %^  tell:log  %info
+        ~[leaf+"{<joiner>} invited to DM"]
+      :~  'event'^s+'DM Invite Sent'
+          'flow'^s+'lure'
+          'lure-id'^s+token
+          'lure-joiner'^s+joiner
+      ==
+    %^  tell:log  %crit
+      u.p.sign
+    :~  'event'^s+'DM Invite Fail'
+        'flow'^s+'lure'
+        'lure-id'^s+token
+        'lure-joiner'^s+joiner
+    ==
+  ::
       %watch-ack  `this
+  ::
       %kick
     :_  this
     ~[(bite-subscribe bowl)]
@@ -158,18 +183,16 @@
         :_  ~
         %^  lure-log  %crit  dm-event
         ~[leaf+"inviter {<u.inviter>} is foreign"]
-      =/  wir=^wire  /dm/(scot %p joiner.bite)
+      =/  wir=^wire  /dm/(scot %p joiner.bite)/[token.bite]
       =/  =dock  [our.bowl %chat]
       =/  =id:c  [our now]:bowl
       =/  =memo:ch
         [~[[%inline ~[[%ship joiner.bite] ' has joined the network']]] id]
       =/  =action:dm:c
         :-  joiner.bite
-        [id %add memo [%notice ~] ~]
-      =/  =cage  chat-dm-action+!>(`action:dm:c`action)
-      =*  dez  %^  lure-log  %info  'DM Invite Sent'
-               ~[leaf+"{<joiner.bite>} invited to DM"]
-      (snoc [dez caz] [%pass wir %agent dock %poke cage])
+        [id %add %*(. *essay:ch - memo, kind [%chat %notice ~]) ~]
+      =/  =cage  chat-dm-action-1+!>(`action:dm:c`action)
+      (snoc caz [%pass wir %agent dock %poke cage])
     ::
     =+  invite-type=(~(get by fields.metadata.bite) 'inviteType')
     ::

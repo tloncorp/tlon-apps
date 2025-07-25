@@ -33,6 +33,7 @@ function MessageActions() {
     return (
       <Modal visible={true} onDismiss={() => null}>
         <ChatMessageActions
+          mode="immediate"
           post={post}
           postActionIds={postActionIds}
           postRef={refStub}

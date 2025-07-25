@@ -147,7 +147,9 @@ export function ChannelHeader({
       <ScreenHeader
         title={
           <Pressable flex={1} onPress={goToChatDetails}>
-            <ScreenHeader.Title>{displayTitle}</ScreenHeader.Title>
+            <ScreenHeader.Title testID="ChannelHeaderTitle">
+              {displayTitle}
+            </ScreenHeader.Title>
           </Pressable>
         }
         titleWidth={titleWidth()}
@@ -168,7 +170,7 @@ export function ChannelHeader({
                 <ScreenHeader.IconButton
                   type="Overflow"
                   onPress={handlePressOverflowMenu}
-                  testID="ChannelHeaderOverflowMenuButton"
+                  testID="ChannelOptionsSheetTrigger"
                 />
               ) : (
                 <ChatOptionsSheet
@@ -180,7 +182,10 @@ export function ChannelHeader({
               )
             ) : null}
             {showEditButton && (
-              <ScreenHeader.TextButton onPress={goToEdit}>
+              <ScreenHeader.TextButton
+                onPress={goToEdit}
+                testID="ChannelHeaderEditButton"
+              >
                 Edit
               </ScreenHeader.TextButton>
             )}

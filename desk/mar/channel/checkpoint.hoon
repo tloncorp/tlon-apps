@@ -1,6 +1,5 @@
-/-  d=channels
-/+  j=channel-json
-|_  =u-checkpoint:d
+/-  c=channels
+|_  =u-checkpoint:c
 ++  grad  %noun
 ++  grow
   |%
@@ -8,6 +7,6 @@
   --
 ++  grab
   |%
-  ++  noun  u-checkpoint:d
+  ++  noun  u-checkpoint:c
   --
 --

@@ -38,8 +38,8 @@
   =/  link=tape
     (spud (print:c ref))
   =,  post.u.pon
-  ?-  -.kind-data.post.u.pon
-      %chat
+  ?+  kind.post.u.pon  ;div.exposed.fail:"kind lost: {(spud kind.post.u.pon)}"
+      [%chat *]
     ;div.exposed
       ;div.content
         ;a.chat/"/expose{link}"
@@ -53,15 +53,18 @@
       ==
     ==
   ::
-      %diary
+      [%diary *]
+    =/  [title=@t image=@t]
+      ?~  meta.post.u.pon  ['' '']
+      [title image]:u.meta.post.u.pon
     ;div.exposed
-      ;*  ?:  =('' image.kind-data)  ~
+      ;*  ?:  =('' image)  ~
           :_  ~
           ;a.diary/"/expose{link}"
-            ;img@"{(trip image.kind-data)}";
+            ;img@"{(trip image)}";
           ==
       ;a.diary/"/expose{link}"
-        ;h3:"{(trip title.kind-data)}"
+        ;h3:"{(trip title)}"
       ==
       ;div.author-row
         ;+  (author:r bowl author)
@@ -69,7 +72,7 @@
       ==
     ==
   ::
-      %heap
+      [%heap *]
     ::TODO  for the kinds of children the div.content gets for heap posts,
     ::      having an %a (grand)parent breaks the html rendering,
     ::      putting the inner divs outside/after the a.exposed

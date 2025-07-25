@@ -1,9 +1,12 @@
 import { formatUv, isValidPatp, unixToDa } from '@urbit/aura';
 
+import { PostContent } from '../api';
 import { ChannelType } from '../db';
 import { GroupJoinStatus, GroupPrivacy } from '../db/schema';
 import { createDevLogger } from '../debug';
+import { ContentReference } from '../domain';
 import * as ub from './channel';
+import * as ubc from './content';
 import * as ubg from './groups';
 
 const logger = createDevLogger('urbitUtils', false);
@@ -56,7 +59,16 @@ export function desig(ship: string): string {
   return ship.trim().replace('~', '');
 }
 
-export function citeToPath(cite: ub.Cite) {
+export function getFirstInline(content: ub.Story) {
+  const inlines = content.filter((v) => 'inline' in v) as ub.VerseInline[];
+  if (inlines.length === 0) {
+    return null;
+  }
+
+  return inlines[0].inline;
+}
+
+export function citeToPath(cite: ubc.Cite) {
   if ('desk' in cite) {
     return `/1/desk/${cite.desk.flag}${cite.desk.where}`;
   }
@@ -70,7 +82,7 @@ export function citeToPath(cite: ub.Cite) {
   return `/1/bait/${cite.bait.group}/${cite.bait.graph}/${cite.bait.where}`;
 }
 
-export function pathToCite(path: string): ub.Cite | undefined {
+export function pathToCite(path: string): ubc.Cite | undefined {
   const segments = path.split('/');
   if (segments.length < 3) {
     return undefined;
@@ -197,6 +209,95 @@ export function getChannelKindFromType(
     return 'diary';
   } else {
     return 'chat';
+  }
+}
+
+export function getTextContent(story: PostContent): string;
+export function getTextContent(story?: PostContent): string | undefined {
+  if (!story) {
+    return;
+  }
+  return story
+    .map((verse) => {
+      if (isReferenceVerse(verse)) {
+        return '';
+      } else if (ub.isBlockVerse(verse)) {
+        return getBlockContent(verse.block);
+      } else if ('inline' in verse) {
+        return getInlinesContent(verse.inline);
+      } else {
+        return '';
+      }
+    })
+    .filter((v) => !!v && v !== '')
+    .join(' ')
+    .trim();
+}
+
+function isReferenceVerse(
+  verse: ub.Verse | ContentReference
+): verse is ContentReference {
+  return 'type' in verse && verse.type === 'reference';
+}
+
+export function getBlockContent(block: ubc.Block) {
+  if (ubc.isImage(block)) {
+    return '(Image)';
+  } else if (ubc.isCite(block)) {
+    return '(Reference)';
+  } else if (ubc.isHeader(block)) {
+    return block.header.content.map(getInlineContent);
+  } else if (ubc.isCode(block)) {
+    return block.code.code;
+  } else if (ubc.isListing(block)) {
+    return getListingContent(block.listing);
+  }
+}
+
+export function getListingContent(listing: ubc.Listing): string {
+  if (ubc.isListItem(listing)) {
+    return listing.item.map(getInlineContent).join(' ');
+  } else {
+    return listing.list.items.map(getListingContent).join(' ');
+  }
+}
+
+export function getInlinesContent(inlines: ubc.Inline[]): string {
+  return inlines
+    .map(getInlineContent)
+    .filter((v) => v && v !== '')
+    .join(' ');
+}
+
+export function getInlineContent(inline: ubc.Inline): string {
+  if (ubc.isBold(inline)) {
+    return inline.bold.map(getInlineContent).join(' ');
+  } else if (ubc.isItalics(inline)) {
+    return inline.italics.map(getInlineContent).join(' ');
+  } else if (ubc.isLink(inline)) {
+    return inline.link.content;
+  } else if (ubc.isStrikethrough(inline)) {
+    return inline.strike.map(getInlineContent).join(' ');
+  } else if (ubc.isBlockquote(inline)) {
+    return inline.blockquote.map(getInlineContent).join(' ');
+  } else if (ubc.isInlineCode(inline)) {
+    return inline['inline-code'];
+  } else if (ubc.isBlockCode(inline)) {
+    return inline.code;
+  } else if (ubc.isBreak(inline)) {
+    return '';
+  } else if (ubc.isShip(inline)) {
+    return inline.ship;
+  } else if (ubc.isSect(inline)) {
+    return `@${inline.sect || 'all'}`;
+  } else if (ubc.isTag(inline)) {
+    return inline.tag;
+  } else if (ubc.isBlockReference(inline)) {
+    return inline.block.text;
+  } else if (ubc.isTask(inline)) {
+    return inline.task.content.map(getInlineContent).join(' ');
+  } else {
+    return inline;
   }
 }
 

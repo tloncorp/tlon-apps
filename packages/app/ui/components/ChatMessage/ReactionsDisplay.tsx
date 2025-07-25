@@ -42,26 +42,40 @@ export function ReactionsDisplay({
   const handleModifyYourReaction = useCallback(
     (value: string) => {
       triggerHaptic('baseButtonClick');
-      reactionDetails.self.didReact
-        ? store.removePostReaction(post, currentUserId)
-        : store.addPostReaction(post, value, currentUserId);
+      if (
+        reactionDetails.self.didReact &&
+        reactionDetails.self.value === value
+      ) {
+        store.removePostReaction(post, currentUserId);
+      } else {
+        store.addPostReaction(post, value, currentUserId);
+      }
     },
-    [currentUserId, post, reactionDetails.self.didReact]
+    [
+      currentUserId,
+      post,
+      reactionDetails.self.didReact,
+      reactionDetails.self.value,
+    ]
   );
 
-  const firstThreeReactionUsers = useCallback(
-    (reaction: ReactionListItem) =>
-      reaction.users
-        ? reaction.users
-            .slice(0, 3)
-            .map((user) => user.name || user.id)
-            .join(', ') +
-          (reaction.users.length > 3
-            ? ` +${reaction.users.length - 3} more`
-            : '')
-        : '',
-    []
-  );
+  const firstThreeReactionUsers = useCallback((reaction: ReactionListItem) => {
+    if (!reaction.users || reaction.users.length === 0) {
+      return '';
+    }
+
+    const userNames = reaction.users
+      .slice(0, 3)
+      .map((user) => {
+        // Defensive logic: ensure we have a valid name or fall back to id
+        const name = user.name && user.name.trim() !== '' ? user.name : user.id;
+        return name || 'Unknown'; // Final fallback if both are somehow empty
+      })
+      .join(', ');
+
+    const moreCount = reaction.users.length - 3;
+    return userNames + (moreCount > 0 ? ` +${moreCount} more` : '');
+  }, []);
 
   if (minimal) {
     if (reactionDetails.list.length === 0) {
@@ -71,7 +85,7 @@ export function ReactionsDisplay({
     const remainingCount = reactionDetails.list.length - 2;
 
     return (
-      <Pressable onPress={() => handleOpenReactions(post)}>
+      <Pressable onPress={() => handleOpenReactions(post)} cursor="default">
         <XStack gap="$2xs" alignItems="center">
           {displayedReactions.map((reaction) => (
             <Pressable
@@ -88,7 +102,7 @@ export function ReactionsDisplay({
                   >
                     <SizableEmoji
                       key={reaction.value}
-                      shortCode={reaction.value}
+                      emojiInput={reaction.value}
                       fontSize="$s"
                     />
                   </XStack>
@@ -120,6 +134,7 @@ export function ReactionsDisplay({
       <Pressable
         borderRadius="$m"
         onLongPress={() => handleOpenReactions(post)}
+        cursor="default"
       >
         <XStack borderRadius="$m" gap="$xs" flexWrap="wrap">
           {reactionDetails.list.map((reaction) => (
@@ -158,7 +173,7 @@ export function ReactionsDisplay({
                   >
                     <SizableEmoji
                       key={reaction.value}
-                      shortCode={reaction.value}
+                      emojiInput={reaction.value}
                       fontSize="$s"
                     />
                     {reaction.count > 0 && (

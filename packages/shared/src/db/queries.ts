@@ -1243,21 +1243,30 @@ export const getFlaggedPosts = createReadQuery(
 
 export const insertChannelPerms = createWriteQuery(
   'insertChannelPerms',
-  async (channelsInit: ChannelInit[], ctx: QueryCtx) => {
+  async (channelsInit: Omit<ChannelInit, 'order'>[], ctx: QueryCtx) => {
     const writers = channelsInit.flatMap((chanInit) =>
-      chanInit.writers.map((writer) => ({
+      (chanInit.writers || []).map((writer) => ({
         channelId: chanInit.channelId,
         roleId: writer,
       }))
     );
 
     const readers = channelsInit.flatMap((chanInit) =>
-      chanInit.readers.map((reader) => ({
+      (chanInit.readers || []).map((reader) => ({
         channelId: chanInit.channelId,
         roleId: reader,
       }))
     );
 
+    // clear out existing readers for these channels
+    await ctx.db.delete($channelReaders).where(
+      inArray(
+        $channelReaders.channelId,
+        channelsInit.map((c) => c.channelId)
+      )
+    );
+
+    // insert any new readers
     if (readers.length > 0) {
       await ctx.db
         .insert($channelReaders)
@@ -1268,6 +1277,15 @@ export const insertChannelPerms = createWriteQuery(
         });
     }
 
+    // clear out existing writers for these channels
+    await ctx.db.delete($channelWriters).where(
+      inArray(
+        $channelWriters.channelId,
+        channelsInit.map((c) => c.channelId)
+      )
+    );
+
+    // insert any new writers
     if (writers.length > 0) {
       await ctx.db
         .insert($channelWriters)
@@ -1277,11 +1295,22 @@ export const insertChannelPerms = createWriteQuery(
           set: conflictUpdateSetAll($channelWriters),
         });
     }
+  },
+  ['channelWriters', 'channelReaders', 'channels']
+);
 
-    await ctx.db.transaction(async (tx) => {
+export const insertChannelOrder = createWriteQuery(
+  'insertChannelOrder',
+  async (
+    channelsInit: Pick<ChannelInit, 'channelId' | 'order'>[],
+    ctx: QueryCtx
+  ) => {
+    await withTransactionCtx(ctx, async (txc) => {
       await Promise.all(
         channelsInit.map(async (chanInit) => {
-          await tx
+          if (!chanInit.order) return;
+
+          await txc.db
             .update($channels)
             .set({ order: chanInit.order })
             .where(eq($channels.id, chanInit.channelId));
@@ -1289,7 +1318,7 @@ export const insertChannelPerms = createWriteQuery(
       );
     });
   },
-  ['channelWriters', 'channels']
+  ['channels']
 );
 
 export const getThreadPosts = createReadQuery(
@@ -1299,7 +1328,11 @@ export const getThreadPosts = createReadQuery(
       where: eq($posts.parentId, parentId),
       with: {
         author: true,
-        reactions: true,
+        reactions: {
+          with: {
+            contact: true,
+          },
+        },
       },
       orderBy: [desc($posts.receivedAt)],
     });
@@ -1316,7 +1349,7 @@ export const getThreadUnreadState = createReadQuery(
       where: eq($threadUnreads.threadId, parentId),
     });
   },
-  ['posts']
+  ['threadUnreads']
 );
 
 export const getAllGroupRoles = createReadQuery(
@@ -1359,6 +1392,7 @@ export const addChatMembers = createWriteQuery(
       chatId: string;
       contactIds: string[];
       type: 'group' | 'channel';
+      status: 'invited' | 'joined';
     },
     ctx: QueryCtx
   ) => {
@@ -1370,6 +1404,7 @@ export const addChatMembers = createWriteQuery(
             chatId,
             contactId,
             membershipType: type,
+            status: 'invited' as 'invited' | 'joined',
           }))
         )
         .onConflictDoNothing();
@@ -2082,43 +2117,35 @@ export const updateChannel = createWriteQuery(
     logger.log('updateChannel', update.id, update);
 
     return withTransactionCtx(ctx, async (txCtx) => {
-      if (update.writerRoles && update.writerRoles.length > 0) {
-        logger.log('updateChannel writerRoles', update.writerRoles);
-        // delete all existing writer roles
-        await txCtx.db
-          .delete($channelWriters)
-          .where(eq($channelWriters.channelId, update.id));
-        logger.log('updateChannel writerRoles deleted existing writer roles');
+      if (update.writerRoles || update.readerRoles) {
+        let writers = update.writerRoles?.map((role) => role.roleId as string);
+        let readers = update.readerRoles?.map((role) => role.roleId as string);
 
-        const writerValues = update.writerRoles.map((role) => ({
-          channelId: update.id,
-          roleId: role.roleId as string, // Ensure roleId is treated as string
-        }));
-        logger.log(
-          'updateChannel writerRoles inserting new writer roles',
-          writerValues
+        // If we only have one type of roles, get the existing roles for the other type
+        if (update.writerRoles && !update.readerRoles) {
+          // Only updating writers, preserve existing readers
+          const existingReaders = await txCtx.db.query.channelReaders.findMany({
+            where: eq($channelReaders.channelId, update.id),
+          });
+          readers = existingReaders.map((r) => r.roleId);
+        } else if (update.readerRoles && !update.writerRoles) {
+          // Only updating readers, preserve existing writers
+          const existingWriters = await txCtx.db.query.channelWriters.findMany({
+            where: eq($channelWriters.channelId, update.id),
+          });
+          writers = existingWriters.map((w) => w.roleId);
+        }
+
+        await insertChannelPerms(
+          [
+            {
+              channelId: update.id,
+              writers: writers || [],
+              readers: readers || [],
+            },
+          ],
+          txCtx
         );
-        await txCtx.db.insert($channelWriters).values(writerValues);
-        logger.log('updateChannel writerRoles inserted new writer roles');
-      }
-
-      if (update.readerRoles && update.readerRoles.length > 0) {
-        // delete all existing reader roles
-        await txCtx.db
-          .delete($channelReaders)
-          .where(eq($channelReaders.channelId, update.id));
-        logger.log('updateChannel readerRoles deleted existing reader roles');
-
-        const readerValues = update.readerRoles.map((role) => ({
-          channelId: update.id,
-          roleId: role.roleId as string, // Ensure roleId is treated as string
-        }));
-        logger.log(
-          'updateChannel readerRoles inserting new reader roles',
-          readerValues
-        );
-        await txCtx.db.insert($channelReaders).values(readerValues);
-        logger.log('updateChannel readerRoles inserted new reader roles');
       }
 
       return txCtx.db
@@ -2664,7 +2691,11 @@ export const getChannelPostsAround = createReadQuery(
       where: eq($posts.id, postId),
       with: {
         author: true,
-        reactions: true,
+        reactions: {
+          with: {
+            contact: true,
+          },
+        },
       },
     });
 
@@ -2681,7 +2712,11 @@ export const getChannelPostsAround = createReadQuery(
       limit: 25,
       with: {
         author: true,
-        reactions: true,
+        reactions: {
+          with: {
+            contact: true,
+          },
+        },
       },
     });
 
@@ -2692,7 +2727,11 @@ export const getChannelPostsAround = createReadQuery(
       limit: 25,
       with: {
         author: true,
-        reactions: true,
+        reactions: {
+          with: {
+            contact: true,
+          },
+        },
       },
     });
 
@@ -2714,7 +2753,11 @@ export const getChannelSearchResults = createReadQuery(
       orderBy: [desc($posts.receivedAt)],
       with: {
         author: true,
-        reactions: true,
+        reactions: {
+          with: {
+            contact: true,
+          },
+        },
       },
     });
   },
@@ -3275,7 +3318,20 @@ export const getPendingPosts = createReadQuery(
       ),
     });
   },
-  []
+  ['posts']
+);
+
+export const getEnqueuedPosts = createReadQuery(
+  'getEnqueuedPosts',
+  (ctx: QueryCtx) => {
+    return ctx.db.query.posts.findMany({
+      where: eq($posts.deliveryStatus, 'enqueued'),
+      with: {
+        channel: true,
+      },
+    });
+  },
+  ['posts']
 );
 
 export const getPostWithRelations = createReadQuery(
@@ -3286,14 +3342,18 @@ export const getPostWithRelations = createReadQuery(
         where: eq($posts.id, id),
         with: {
           author: true,
-          reactions: true,
+          reactions: {
+            with: {
+              contact: true,
+            },
+          },
           threadUnread: true,
           volumeSettings: true,
         },
       })
       .then(returnNullIfUndefined);
   },
-  ['posts', 'threadUnreads', 'volumeSettings']
+  ['posts', 'postReactions', 'threadUnreads', 'volumeSettings']
 );
 
 export const getPersonalGroup = createReadQuery(
@@ -3711,26 +3771,36 @@ export const insertContacts = createWriteQuery(
     });
 
     await withTransactionCtx(ctx, async (txCtx) => {
-      await txCtx.db
-        .insert($contacts)
-        .values(contactsData)
-        .onConflictDoUpdate({
-          target: $contacts.id,
-          set: conflictUpdateSetAll($contacts),
-        });
+      // Batch size to avoid SQLite variable limits
+      const BATCH_SIZE = 100;
+
+      for (let i = 0; i < contactsData.length; i += BATCH_SIZE) {
+        const batch = contactsData.slice(i, i + BATCH_SIZE);
+
+        await txCtx.db
+          .insert($contacts)
+          .values(batch)
+          .onConflictDoUpdate({
+            target: $contacts.id,
+            set: conflictUpdateSetAll($contacts, ['isBlocked']),
+          });
+      }
 
       if (targetGroups.length) {
-        await txCtx.db
-          .insert($groups)
-          .values(targetGroups)
-          .onConflictDoNothing();
+        for (let i = 0; i < targetGroups.length; i += BATCH_SIZE) {
+          const batch = targetGroups.slice(i, i + BATCH_SIZE);
+          await txCtx.db.insert($groups).values(batch).onConflictDoNothing();
+        }
       }
       // TODO: Remove stale pinned groups
       if (contactGroups.length) {
-        await txCtx.db
-          .insert($contactGroups)
-          .values(contactGroups)
-          .onConflictDoNothing();
+        for (let i = 0; i < contactGroups.length; i += BATCH_SIZE) {
+          const batch = contactGroups.slice(i, i + BATCH_SIZE);
+          await txCtx.db
+            .insert($contactGroups)
+            .values(batch)
+            .onConflictDoNothing();
+        }
       }
 
       // clear existing
@@ -3739,19 +3809,27 @@ export const insertContacts = createWriteQuery(
         .where(not(eq($attestations.contactId, currentUserId)));
 
       if (contactAttestations.length) {
-        // reset to current
-        await txCtx.db
-          .insert($attestations)
-          .values(contactAttestations.map((a) => a.attestation as Attestation))
-          .onConflictDoUpdate({
-            target: $attestations.id,
-            set: conflictUpdateSetAll($attestations),
-          });
+        const attestationsToInsert = contactAttestations.map(
+          (a) => a.attestation as Attestation
+        );
+        for (let i = 0; i < attestationsToInsert.length; i += BATCH_SIZE) {
+          const batch = attestationsToInsert.slice(i, i + BATCH_SIZE);
+          await txCtx.db
+            .insert($attestations)
+            .values(batch)
+            .onConflictDoUpdate({
+              target: $attestations.id,
+              set: conflictUpdateSetAll($attestations),
+            });
+        }
 
-        await txCtx.db
-          .insert($contactAttestations)
-          .values(contactAttestations)
-          .onConflictDoNothing();
+        for (let i = 0; i < contactAttestations.length; i += BATCH_SIZE) {
+          const batch = contactAttestations.slice(i, i + BATCH_SIZE);
+          await txCtx.db
+            .insert($contactAttestations)
+            .values(batch)
+            .onConflictDoNothing();
+        }
       }
     });
   },

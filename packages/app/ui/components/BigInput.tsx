@@ -1,6 +1,11 @@
-import { createDevLogger, tiptap } from '@tloncorp/shared';
+import {
+  FinalizedAttachment,
+  createDevLogger,
+  tiptap,
+  toPostData,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Block, constructStory, pathToCite } from '@tloncorp/shared/urbit';
+import { constructStory } from '@tloncorp/shared/urbit';
 import {
   Button,
   Icon,
@@ -11,8 +16,7 @@ import {
 } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform } from 'react-native';
-import { TouchableOpacity } from 'react-native-gesture-handler';
+import { KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Input, XStack, getTokenValue, useTheme } from 'tamagui';
 
@@ -28,7 +32,7 @@ import { ScreenHeader } from './ScreenHeader';
 const logger = createDevLogger('BigInput', false);
 
 export function BigInput({
-  send,
+  sendPost,
   editPost,
   channelId,
   channelType,
@@ -58,11 +62,13 @@ export function BigInput({
   const [hasImageChanges, setHasImageChanges] = useState(false);
   const [showFormatMenu, setShowFormatMenu] = useState(!isWindowNarrow);
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const editorRef = useRef<{ editor: TlonEditorBridge | null }>(null);
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const [isEmpty, setIsEmpty] = useState(true);
-  const { attachments } = useAttachmentContext();
+  const { attachments, clearAttachments, waitForAttachmentUploads } =
+    useAttachmentContext();
 
   const handleEditorContentChanged = useCallback(
     (content?: object) => {
@@ -118,54 +124,38 @@ export function BigInput({
 
   // Handle sending/editing the post
   const handleSend = useCallback(async () => {
+    setIsSending(true);
     if (!editorRef.current?.editor) return;
 
     const json = await editorRef.current.editor.getJSON();
     const inlines = tiptap.JSONToInlines(json);
-    const story = constructStory(inlines);
+    let finalizedAttachments: FinalizedAttachment[];
+    try {
+      finalizedAttachments = await waitForAttachmentUploads();
+    } catch (e) {
+      logger.error('Error processing attachments', e);
+      return;
+    }
 
-    const blocks = attachments.flatMap((attachment): Block[] => {
-      if (channelType === 'notebook') {
-        return [];
-      }
-      if (attachment.type === 'reference') {
-        const cite = pathToCite(attachment.path);
-        return cite ? [{ cite }] : [];
-      }
-      return [];
+    const { story, metadata } = toPostData({
+      content: inlines,
+      title,
+      image: imageUri ?? undefined,
+      attachments: finalizedAttachments,
+      channelType,
+      isEdit: !!editingPost,
     });
-
-    if (blocks && blocks.length > 0) {
-      if (channelType === 'chat') {
-        story.unshift(...blocks.map((block) => ({ block })));
-      } else {
-        story.push(...blocks.map((block) => ({ block })));
-      }
-    }
-
-    // Create metadata for notebook posts with title and image
-    const metadata: Record<string, any> = {};
-    if (channelType === 'notebook') {
-      if (title) {
-        metadata.title = title;
-      }
-
-      // Always include image field for notebooks, even if null
-      // This ensures we can clear an image by setting it to null
-      metadata.image = imageUri;
-    }
 
     try {
       // Store the channel type for later use after async operations
       const currentChannelType = channelType;
-      const isGalleryText = currentChannelType === 'gallery';
 
       if (editingPost && editPost) {
         // If we're editing, use editPost with the correct parameters
         await editPost(editingPost, story, undefined, metadata);
       } else {
         // If it's a new post, use send
-        await send(story, channelId, metadata);
+        await sendPost(story, channelId, metadata);
       }
 
       logger.log(
@@ -180,12 +170,15 @@ export function BigInput({
       setHasImageChanges(false);
       setShowFormatMenu(false);
       setShowBigInput?.(false);
+      clearAttachments();
 
       // Clear the editor content before clearing drafts to prevent race conditions
       if (editorRef.current?.editor) {
         logger.log('Clearing editor content after save');
         editorRef.current.editor.setContent('');
       }
+
+      const isGalleryText = currentChannelType === 'gallery';
 
       // Clear the draft after successful save for all channel types
       if (!editingPost && props.clearDraft) {
@@ -217,9 +210,11 @@ export function BigInput({
     } catch (error) {
       logger.error('Failed to save post:', error);
       // Don't clear draft if save failed
+    } finally {
+      setIsSending(false);
     }
   }, [
-    send,
+    sendPost,
     editPost,
     channelId,
     title,
@@ -229,7 +224,9 @@ export function BigInput({
     editingPost,
     props.clearDraft,
     setShowFormatMenu,
+    clearAttachments,
     attachments,
+    isSending,
   ]);
 
   // Register the "Post" button in the header
@@ -240,12 +237,12 @@ export function BigInput({
           key="big-input-post"
           onPress={handleSend}
           testID="BigInputPostButton"
-          disabled={!isButtonEnabled}
+          disabled={!isButtonEnabled || isSending}
         >
           {editingPost ? 'Save' : 'Post'}
         </ScreenHeader.TextButton>
       ),
-      [handleSend, editingPost, isButtonEnabled]
+      [handleSend, editingPost, isButtonEnabled, isSending]
     )
   );
 
@@ -350,7 +347,7 @@ export function BigInput({
             )}
           <MessageInput
             ref={editorRef}
-            send={handleSend}
+            sendPost={handleSend}
             channelId={channelId}
             channelType={channelType}
             editingPost={editingPost}

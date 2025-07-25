@@ -1,21 +1,141 @@
-/-  c=chat, d=channels, g=groups, u=ui, e=epic, old=chat-2, activity
-/-  meta
+/-  c=chat, d=channels, g=groups, u=ui, e=epic, activity, meta
+/-  old-4=chat-4, old-3=chat-3, old-2=chat-2
 /-  ha=hark
 /-  contacts-0
-/+  default-agent, verb-lib=verb, dbug, neg=negotiate, logs
+/+  default-agent, verb-lib=verb, dbug,
+    neg=negotiate, discipline, logs,
+    em=emojimart
 /+  pac=dm
 /+  utils=channel-utils
 /+  volume
 /+  wood-lib=wood
-/+  epos-lib=saga
 ::  performance, keep warm
 /+  chat-json
-/*  desk-bill  %bill  /desk/bill
+::
+/%  m-chat-blocked-by      %chat-blocked-by
+/%  m-chat-club-action     %chat-club-action
+/%  m-chat-club-action-1   %chat-club-action-1
+/%  m-chat-heads           %chat-heads
+/%  m-chat-heads-1         %chat-heads-1
+/%  m-chat-paged-writs     %chat-paged-writs
+/%  m-chat-scam            %chat-scam
+/%  m-chat-scam-1          %chat-scam-1
+/%  m-chat-scam-2          %chat-scam-2
+/%  m-chat-scan            %chat-scan
+/%  m-chat-scan-1          %chat-scan-1
+/%  m-chat-scan-2          %chat-scan-2
+/%  m-chat-toggle-message  %chat-toggle-message
+/%  m-chat-unblocked-by    %chat-unblocked-by
+/%  m-chat-unread-update   %chat-unread-update
+/%  m-chat-unreads         %chat-unreads
+/%  m-chat-writ-1          %chat-writ-1
+/%  m-chat-writ-2          %chat-writ-2
+/%  m-clubs                %clubs
+/%  m-epic                 %epic
+/%  m-hidden-messages      %hidden-messages
+/%  m-ships                %ships
+/%  m-writ                 %writ
+/%  m-writ-response        %writ-response
+/%  m-writ-response-1      %writ-response-1
+/%  m-writ-response-2      %writ-response-2
+::
+/*  desk-bill  %bill  /desk/bill  ::  keep warm
+::
+%-  %-  discipline
+    :+  ::  marks
+        ::
+        :~  :+  %chat-blocked-by      &  -:!>(*vale:m-chat-blocked-by)
+            :+  %chat-club-action     &  -:!>(*vale:m-chat-club-action)
+            :+  %chat-club-action-1   &  -:!>(*vale:m-chat-club-action-1)
+            :+  %chat-heads           &  -:!>(*vale:m-chat-heads)
+            :+  %chat-heads-1         &  -:!>(*vale:m-chat-heads-1)
+            :+  %chat-paged-writs     &  -:!>(*vale:m-chat-paged-writs)
+            :+  %chat-scam            &  -:!>(*vale:m-chat-scam)
+            :+  %chat-scam-1          &  -:!>(*vale:m-chat-scam-1)
+            :+  %chat-scam-2          &  -:!>(*vale:m-chat-scam-2)
+            :+  %chat-scan            &  -:!>(*vale:m-chat-scan)
+            :+  %chat-scan-1          &  -:!>(*vale:m-chat-scan-1)
+            :+  %chat-scan-2          &  -:!>(*vale:m-chat-scan-2)
+            :+  %chat-toggle-message  &  -:!>(*vale:m-chat-toggle-message)
+            :+  %chat-unblocked-by    &  -:!>(*vale:m-chat-unblocked-by)
+            :+  %chat-unread-update   &  -:!>(*vale:m-chat-unread-update)
+            :+  %chat-unreads         &  -:!>(*vale:m-chat-unreads)
+            :+  %chat-writ-1          &  -:!>(*vale:m-chat-writ-1)
+            :+  %chat-writ-2          &  -:!>(*vale:m-chat-writ-2)
+            :+  %clubs                &  -:!>(*vale:m-clubs)
+            :+  %epic                 &  -:!>(*vale:m-epic)
+            :+  %hidden-messages      &  -:!>(*vale:m-hidden-messages)
+            :+  %ships                &  -:!>(*vale:m-ships)
+            :+  %writ                 &  -:!>(*vale:m-writ)
+            :+  %writ-response        &  -:!>(*vale:m-writ-response)
+            :+  %writ-response-1      &  -:!>(*vale:m-writ-response-1)
+            :+  %writ-response-2      &  -:!>(*vale:m-writ-response-2)
+        ==
+      ::  facts
+      ::
+      :~  [/ %chat-blocked-by %chat-unblocked-by %chat-toggle-message %chat-club-action %writ-response %ships ~]
+          [/club/$ %writ-response ~]
+          [/clubs %chat-club-action ~]
+          [/dm/$ %writ-response ~]
+          [/dm/invited %ships ~]
+          [/epic %epic ~]
+          [/unreads %chat-unread-update ~]
+        ::
+          [/v1 %chat-club-action-1 %writ-response-1 ~]
+          [/v1/club/$ %writ-response-1 ~]
+          [/v1/clubs %chat-club-action-1 ~]
+          [/v1/dm/$ %writ-response-1 ~]
+        ::
+          [/v2 %chat-club-action-1 %writ-response-2 ~]
+          [/v2/club/$ %writ-response-2 ~]
+          [/v2/clubs %chat-club-action-1 ~]
+          [/v2/dm/$ %writ-response-2 ~]
+      ==
+    ::  scries
+    ::
+    :~  [/x/blocked %ships]
+        [/x/blocked-by %ships]
+        [/x/clubs %clubs]
+        [/x/dm %ships]
+        [/x/dm/$/search %chat-scan]
+        [/x/dm/$/search/bounded %chat-scam]
+        [/x/dm/$/writs %chat-paged-writs]
+        [/x/dm/$/writs/writ %writ]
+        [/x/dm/archive %ships]
+        [/x/dm/invited %ships]
+        [/x/full %noun]
+        [/x/heads %chat-heads]
+        [/x/hidden-messages %hidden-messages]
+        [/x/init %noun]
+        [/x/old %noun]
+        [/x/unreads %chat-unreads]
+      ::
+        [/x/v1/club/$/search %chat-scan-1]
+        [/x/v1/club/$/search/bounded %chat-scam-1]
+        [/x/v1/club/$/writs %chat-paged-writs-1]
+        [/x/v1/club/$/writs/writ %chat-writ-1]
+        [/x/v1/dm/$/search %chat-scan-1]
+        [/x/v1/dm/$/search/bounded %chat-scam-1]
+        [/x/v1/dm/$/writs %chat-paged-writs-1]
+        [/x/v1/dm/$/writs/writ %chat-writ-1]
+        [/x/v1/heads %chat-heads-1]
+        [/x/v1/init %noun]
+      ::
+        [/x/v2/club/$/search %chat-scan-2]
+        [/x/v2/club/$/search/bounded %chat-scam-2]
+        [/x/v2/club/$/writs %chat-paged-writs-2]
+        [/x/v2/club/$/writs/writ %chat-writ-2]
+        [/x/v2/dm/$/search %chat-scan-2]
+        [/x/v2/dm/$/search/bounded %chat-scam-2]
+        [/x/v2/dm/$/writs %chat-paged-writs-2]
+        [/x/v2/dm/$/writs/writ %chat-writ-2]
+        [/x/v2/heads %chat-heads-2]
+    ==
 ::
 %-  %-  agent:neg
     :+  |
-      [~.chat-dms^%0 ~ ~]
-    [%chat^[~.chat-dms^%0 ~ ~] ~ ~]
+      [~.chat-dms^%1 ~ ~]
+    [%chat^[~.chat-dms^%1 ~ ~] ~ ~]
 %-  agent:dbug
 %+  verb-lib  |
 ::
@@ -32,7 +152,7 @@
     ==
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   +$  current-state
-    $:  %7
+    $:  %9
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
         pins=(list whom:c)
@@ -40,8 +160,8 @@
         blocked=(set ship)
         blocked-by=(set ship)
         hidden-messages=(set id:c)
-        old-chats=(map flag:old chat:old)  :: for migration
-        old-pins=(list whom:old)
+        old-chats=(map flag:old-2 chat:old-2)  :: for migration
+        old-pins=(list whom:old-2)
     ==
   +$  sent-id
     $@  time             ::  top-level msg
@@ -106,7 +226,6 @@
   --
 |_  [=bowl:gall cards=(list card)]
 +*  wood  ~(. wood-lib [bowl wood-state])
-    epos  ~(. epos-lib [bowl %chat-update okay])
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
@@ -123,17 +242,26 @@
   |^  |=  =vase
   ^+  cor
   =+  !<([old=versioned-state cool=@ud] vase)
-  |-
-  ?-  -.old
-    %2  $(old (state-2-to-3 old))
-    %3  $(old (state-3-to-4 old))
-    %4  $(old (state-4-to-5 old))
-    %5  $(old (state-5-to-6 old))
-    %6  $(old (state-6-to-7 old))
-    %7  (emil(state old) (drop load:epos))
-  ==
+  =?  old  ?=(%2 -.old)  (state-2-to-3 old)
+  =?  old  ?=(%3 -.old)  (state-3-to-4 old)
+  =?  old  ?=(%4 -.old)  (state-4-to-5 old)
+  =?  old  ?=(%5 -.old)  (state-5-to-6 old)
+  =?  old  ?=(%6 -.old)  (state-6-to-7 old)
+  =?  old  ?=(%7 -.old)  (state-7-to-8 old)
+  =?  old  ?=(%8 -.old)  (state-8-to-9 old)
+  ?>  ?=(%9 -.old)
+  cor(state old)
   ::
-  +$  versioned-state  $%(current-state state-6 state-5 state-4 state-3 state-2)
+  +$  versioned-state
+    $%  state-9
+        state-8
+        state-7
+        state-6
+        state-5
+        state-4
+        state-3
+        state-2
+    ==
   +$  state-2
     $:  %2
         chats=(map flag:two chat:two)
@@ -184,35 +312,129 @@
   +$  state-5
     $:  %5
         dms=(map ship dm-5)
-        clubs=(map id:club:c club-5)
-        pins=(list whom:c)
+        clubs=(map id:club:three club-5)
+        pins=(list whom:three)
         bad=(set ship)
         inv=(set ship)
         blocked=(set ship)
         blocked-by=(set ship)
-        hidden-messages=(set id:c)
-        old-chats=(map flag:old chat:old)  :: for migration
-        old-pins=(list whom:old)
+        hidden-messages=(set id:three)
+        old-chats=(map flag:two chat:two)  :: for migration
+        old-pins=(list whom:two)
     ==
-  +$  club-5    [heard:club:c remark=remark-5 =pact:c crew:club:c]
-  +$  dm-5      [=pact:c remark=remark-5 net:dm:c pin=_|]
+  +$  club-5    [heard:club:three remark=remark-5 =pact:three crew:club:three]
+  +$  dm-5      [=pact:three remark=remark-5 net:dm:three pin=_|]
   +$  remark-5  [last-read=time watching=_| unread-threads=(set id:c)]
   +$  state-6
     $:  %6
-        dms=(map ship dm:c)
-        clubs=(map id:club:c club:c)
-        pins=(list whom:c)
+        dms=(map ship dm:three)
+        clubs=(map id:club:three club:three)
+        pins=(list whom:three)
         bad=(set ship)
         inv=(set ship)
         blocked=(set ship)
         blocked-by=(set ship)
         hidden-messages=(set id:c)
-        old-chats=(map flag:old chat:old)  :: for migration
-        old-pins=(list whom:old)
+        old-chats=(map flag:two chat:two)  :: for migration
+        old-pins=(list whom:two)
     ==
-  +$  state-7  current-state
-  ++  two      old
-  ++  three    c
+  +$  state-7
+    $:  %7
+        dms=(map ship dm:three)
+        clubs=(map id:club:three club:three)
+        pins=(list whom:three)
+        sends=(map whom:three (qeu sent-id))
+        blocked=(set ship)
+        blocked-by=(set ship)
+        hidden-messages=(set id:three)
+        old-chats=(map flag:old-2 chat:old-2)  :: for migration
+        old-pins=(list whom:old-2)
+    ==
+  +$  state-8
+    $:  %8
+        dms=(map ship dm:four)
+        clubs=(map id:club:four club:four)
+        pins=(list whom:four)
+        sends=(map whom:four (qeu sent-id))
+        blocked=(set ship)
+        blocked-by=(set ship)
+        hidden-messages=(set id:four)
+        old-chats=(map flag:old-2 chat:old-2)  :: for migration
+        old-pins=(list whom:old-2)
+    ==
+  +$  state-9  current-state
+  ::
+  ++  two      old-2
+  ++  three    old-3
+  ++  four     old-4
+  ++  five     c
+  ::
+  ++  state-8-to-9
+    |=  state-8
+    ^-  state-9
+    :*  %9
+        (~(run by dms) dm-8-to-9)
+        (~(run by clubs) club-8-to-9)
+        pins
+        sends
+        blocked
+        blocked-by
+        hidden-messages
+        old-chats
+        old-pins
+    ==
+  ++  club-8-to-9
+    |=  =club:four
+    ^-  club:five
+    club(pact (pact-8-to-9 pact.club))
+  ++  dm-8-to-9
+    |=  =dm:four
+    ^-  dm:five
+    dm(pact (pact-8-to-9 pact.dm))
+  ++  pact-8-to-9
+    |=  =pact:four
+    ^-  pact:five
+    =;  [num=@ud writs=(list [time writ:five])]
+      [num (gas:on:writs:five ~ writs) dex.pact]
+    %+  roll  (tap:on:writs:four wit.pact)
+    |=  [[=time =writ:four] num=@ud writs=(list [time writ:five])]
+    ^+  [num writs]
+    =.  num  +(num)
+    :-  num
+    [[time (writ-8-to-9 num writ)] writs]
+  ++  writ-8-to-9
+    |=  [seq=@ud =writ:old-4]
+    ^-  writ:c
+    =,  -.writ
+    [[id seq time reacts replies reply-meta] +.writ]
+  ::
+  ++  state-7-to-8
+    |=  state-7
+    ^-  state-8
+    :*  %8
+        (~(run by dms) dm-7-to-8)
+        (~(run by clubs) club-7-to-8)
+        pins
+        sends
+        blocked
+        blocked-by
+        hidden-messages
+        old-chats
+        old-pins
+    ==
+  ++  club-7-to-8
+    |=  =club:three
+    ^-  club:four
+    club(pact (pact-7-to-8 pact.club))
+  ++  dm-7-to-8
+    |=  =dm:three
+    ^-  dm:four
+    dm(pact (pact-7-to-8 pact.dm))
+  ++  pact-7-to-8
+    |=  =pact:three
+    ^-   pact:four
+    pact(wit (run:on:writs:three wit.pact writ-7-to-8:pac))
+  ::
   ++  state-6-to-7
     |=  state-6
     ^-  state-7
@@ -224,25 +446,25 @@
   ::
   ++  dms-5-to-6
     |=  dms=(map ship dm-5)
-    ^-  (map ship dm:c)
+    ^-  (map ship dm:three)
     %-  ~(run by dms)
     |=  dm=dm-5
-    ^-  dm:c
+    ^-  dm:three
     dm(remark (remark-5-to-6 wit.pact.dm remark.dm))
   ::
   ++  clubs-5-to-6
-    |=  clubs=(map id:club:c club-5)
-    ^-  (map id:club:c club:c)
+    |=  clubs=(map id:club:three club-5)
+    ^-  (map id:club:three club:three)
     %-  ~(run by clubs)
     |=  club=club-5
-    ^-  club:c
+    ^-  club:three
     club(remark (remark-5-to-6 wit.pact.club remark.club))
   ::
   ++  remark-5-to-6
-    |=  [=writs:c remark=remark-5]
-    ^-  remark:c
+    |=  [=writs:three remark=remark-5]
+    ^-  remark:three
     :_  remark
-    ?~(tim=(ram:on:writs:c writs) *time key.u.tim)
+    ?~(tim=(ram:on:writs:three writs) *time key.u.tim)
   ::
   ++  state-4-to-5
     |=  state-4
@@ -254,7 +476,7 @@
   ::
   ++  pins-4-to-5
     |=  pins=(list whom:two)
-    ^-  (list whom:c)
+    ^-  (list whom:three)
     %+  murn  pins
     |=(w=whom:two ?:(?=(%flag -.w) ~ (some w)))
   ::
@@ -275,66 +497,66 @@
   ::
   ++  pact-4-to-5
     |=  =pact:two
-    ^-  pact:c
+    ^-  pact:three
     :_  dex.pact
     =/  writs  (tap:on:writs:two wit.pact)
-    =/  reply-index=(map @da replies:c)
+    =/  reply-index=(map @da replies:three)
       %+  roll  writs
-      |=  [[=time =writ:two] reply-index=(map @da replies:c)]
+      |=  [[=time =writ:two] reply-index=(map @da replies:three)]
       ?~  replying.writ  reply-index
-      =/  old-replies=replies:c  (~(gut by reply-index) time *replies:c)
+      =/  old-replies=replies:three  (~(gut by reply-index) time *replies:three)
       =/  reply-time  (~(get by dex.pact) u.replying.writ)
       ?~  reply-time  reply-index
       %+  ~(put by reply-index)  u.reply-time
-      (put:on:replies:c old-replies time (reply-4-to-5 u.replying.writ time writ))
-    %+  gas:on:writs:c  *writs:c
+      (put:on:replies:three old-replies time (reply-4-to-5 u.replying.writ time writ))
+    %+  gas:on:writs:three  *writs:three
     %+  murn  writs
     |=  [=time =writ:two]
-    ^-  (unit [^time writ:c])
+    ^-  (unit [^time writ:three])
     ?^  replying.writ  ~
-    =/  =replies:c  (~(gut by reply-index) time *replies:c)
+    =/  =replies:three  (~(gut by reply-index) time *replies:three)
     (some time (writ-4-to-5 time writ replies))
   ::
   ++  writ-4-to-5
-    |=  [=time old=writ:two =replies:c]
-    ^-  writ:c
-    =;  qm=reply-meta:d
+    |=  [=time old=writ:two =replies:three]
+    ^-  writ:three
+    =;  qm=reply-meta:v7:old:d
       :-  [id.old time feels.old replies qm]
       (essay-4-to-5 +.old)
     ::
     =/  last-repliers=(set ship)
       =|  repliers=(set ship)
-      =/  entries=(list [* reply:c])  (bap:on:replies:c replies)
+      =/  entries=(list [* reply:three])  (bap:on:replies:three replies)
       |-
       ?:  |(=(~ entries) =(3 ~(wyt in repliers)))
         repliers
-      =/  [* =reply:c]  -.entries
+      =/  [* =reply:three]  -.entries
       ?:  (~(has in repliers) author.reply)
         $(entries +.entries)
       (~(put in repliers) author.reply)
-    :*  (wyt:on:replies:c replies)
+    :*  (wyt:on:replies:three replies)
         last-repliers
-        (biff (ram:on:replies:c replies) |=([=^time *] `time))
+        (biff (ram:on:replies:three replies) |=([=^time *] `time))
     ==
   ::
   ++  reply-4-to-5
-    |=  [parent-id=id:c =time old=writ:two]
-    ^-  reply:c
+    |=  [parent-id=id:three =time old=writ:two]
+    ^-  reply:three
     [[id.old parent-id time feels.old] (memo-4-to-5 +.old)]
   ::
   ++  memo-4-to-5
     |=  memo:two
-    ^-  memo:d
+    ^-  memo:v7:old:d
     [(story-4-to-5 author content) author sent]
   ::
   ++  essay-4-to-5
     |=  memo:two
-    ^-  essay:c
+    ^-  essay:three
     [(memo-4-to-5 +<) %chat ?-(-.content %story ~, %notice [%notice ~])]
   ::
   ++  story-4-to-5
     |=  [=ship old=content:two]
-    ^-  story:d
+    ^-  story:v7:old:d
     ?-    -.old
         %notice  ~[%inline pfix.p.old ship+ship sfix.p.old]~
         %story
@@ -390,10 +612,6 @@
     =+  !<(=rsvp:dm:c vase)
     di-abet:(di-rsvp:(di-abed:di-core ship.rsvp) ok.rsvp)
   ::
-      %chat-pins
-    =+  !<(ps=(list whom:c) vase)
-    (pin ps)
-  ::
       %chat-blocked
     ?<  from-self
     (has-blocked src.bowl)
@@ -443,7 +661,7 @@
       %club  cu-abet:(cu-remark-diff:(cu-abed:cu-core p.p.act) q.act)
     ==
   ::
-      %chat-dm-action
+      %chat-dm-action-1
     =+  !<(=action:dm:c vase)
     ::  don't allow anyone else to proxy through us
     ?.  =(src.bowl our.bowl)
@@ -453,14 +671,14 @@
       di-abet:(di-ingest-diff:(di-abed-soft:di-core p.action) q.action)
     di-abet:(di-proxy:(di-abed-soft:di-core p.action) q.action)
   ::
-      %chat-dm-diff
+      %chat-dm-diff-1
     =+  !<(=diff:dm:c vase)
     di-abet:(di-take-counter:(di-abed-soft:di-core src.bowl) diff)
   ::
       %chat-club-create
     cu-abet:(cu-create:cu-core !<(=create:club:c vase))
   ::
-      ?(%chat-club-action %chat-club-action-0)
+      %chat-club-action-1
     =+  !<(=action:club:c vase)
     =/  cu  (cu-abed p.action)
     cu-abet:(cu-diff:cu q.action)
@@ -478,21 +696,45 @@
     trim:migrate
   ::  backwards compatibility
   ::
+  ::  v3 types
+    ::
+  ::
+      %chat-dm-action
+    =;  new=action:dm:c
+      $(mark %chat-dm-action-1, vase !>(new))
+    =+  !<(=action:dm:old-3 vase)
+    action(q (new-diff-3 q.action))
+  ::
+      %chat-dm-diff
+    =;  new=diff:dm:c
+      $(mark %chat-dm-diff-1, vase !>(new))
+    (new-diff-3 !<(=diff:dm:old-3 vase))
+  ::
+      ?(%chat-club-action %chat-club-action-0)
+    =;  new=action:club:c
+      $(mark %chat-club-action-1, vase !>(new))
+    =+  !<(=action:club:old-3 vase)
+    ?.  ?=(%writ -.q.q.action)  action
+    action(diff.q.q (new-diff-3 diff.q.q.action))
+  ::  v2 types
+  ::
+    ::
+  ::
       %dm-rsvp
-    =+  `rsvp:dm:c`!<(rsvp:dm:old vase)  ::NOTE  safety check
+    =+  `rsvp:dm:c`!<(rsvp:dm:old-2 vase)  ::NOTE  safety check
     $(mark %chat-dm-rsvp)
   ::
       %dm-diff
-    =;  new=diff:dm:c
+    =;  new=diff:dm:old-3
       $(mark %chat-dm-diff, vase !>(new))
-    (new-diff !<(=diff:dm:old vase))
+    (new-diff-2 !<(=diff:dm:old-2 vase))
   ::
       %club-action
-    =;  new=action:club:c
+    =;  new=action:club:old-3
       $(mark %chat-club-action, vase !>(new))
-    =+  !<(=action:club:old vase)
+    =+  !<(=action:club:old-2 vase)
     ?.  ?=(%writ -.q.q.action)  action
-    action(diff.q.q (new-diff diff.q.q.action))
+    action(diff.q.q (new-diff-2 diff.q.q.action))
   ::
       %egg-any
     =+  !<(=egg-any:gall vase)
@@ -503,7 +745,10 @@
         cor
       =/  bak=_cor
         (load -:!>(*[versioned-state:load @ud]) q.old-state.egg-any)
-      ::  restore previous data, doing a "deep merge" where possible
+      ::  restore previous data, doing a "deep merge" where possible.
+      ::  in doing so we must take care around sequence numbers.
+      ::  to keep that logic simple, we merge the message lists and
+      ::  re-number all the messages in sequence.
       ::
       =.  dms
         %+  roll  ~(tap by dms:bak)
@@ -512,7 +757,15 @@
         ?.  (~(has by dms) ship)
           dm
         =/  hav  (~(got by dms) ship)
-        :*  :-  (uni:on:writs:c wit.pact.dm wit.pact.hav)
+        =/  [num=@ud wit=writs:c]
+          %^  (dip:on:writs:c ,@ud)
+              (uni:on:writs:c wit.pact.dm wit.pact.hav)
+            0
+          |=  [n=@ud k=time v=writ:c]
+          ^-  [(unit writ:c) ? @ud]
+          [`v(seq +(n)) | +(n)]
+        :*  :+  num
+              wit
             (~(uni by dex.pact.dm) dex.pact.hav)
           ::
             remark.hav
@@ -529,7 +782,8 @@
         :*  (~(uni in heard.club) heard.hav)
             remark.hav
           ::
-            :-  (uni:on:writs:c wit.pact.club wit.pact.hav)
+            :+  (max num.pact.club num.pact.hav)
+              (uni:on:writs:c wit.pact.club wit.pact.hav)
             (~(uni by dex.pact.club) dex.pact.hav)
           ::
             crew.hav
@@ -547,24 +801,46 @@
     cor
   ::  backwards compatibility
   ::
-  ++  new-diff
-    |=  diff=diff:writs:old
+  ++  new-diff-3
+    |=  diff=diff:writs:old-3
     ^-  diff:writs:c
     :-  p.diff
+    ?+    -.q.diff  q.diff
+        %add
+      ^-  delta:writs:c
+      [%add [memo [%chat kind] ~ ~]:q.diff time.q.diff]
+    ::
+        %reply
+      [%reply id.q.diff meta.q.diff (new-delta-replies-3 delta.q.diff)]
+    ::
+        %add-react
+      [%add-react ship.q.diff (react-7-to-8:utils react.q.diff)]
+    ==
+  ++  new-delta-replies-3
+    |=  =delta:replies:old-3
+    ^-  delta:replies:c
+    ?:  ?=(%add-react -.delta)
+      delta(react (react-7-to-8:utils react.delta))
+    delta
+  ::
+  ++  new-diff-2
+    |=  diff=diff:writs:old-2
+    ^-  diff:writs:old-3
+    :-  p.diff
     ?-  -.q.diff
-      %add       [%add (new-memo p.q.diff) ~ ~]
+      %add       [%add (new-memo-2 p.q.diff) ~ ~]
       %del       [%del ~]
       %add-feel  [%add-react +.q.diff]
       %del-feel  [%del-react +.q.diff]
     ==
-  ++  new-memo
-    |=  memo:old
-    ^-  memo:d
+  ++  new-memo-2
+    |=  memo:old-2
+    ^-  memo:v7:old:d
     [(new-story author content) author sent]
   ::
   ++  new-story
-    |=  [=ship old=content:old]
-    ^-  story:d
+    |=  [=ship old=content:old-2]
+    ^-  story:v7:old:d
     ?-    -.old
         %notice  ~[%inline pfix.p.old ship+ship sfix.p.old]~
         %story
@@ -619,18 +895,33 @@
   |=  =(pole knot)
   ^+  cor
   ?+    pole  ~|(bad-watch-path+`path`pole !!)
-      [%clubs ~]  ?>(from-self cor)
-      [%unreads ~]  ?>(from-self cor)
+  ::  catch-all
+  ::
       ~  ?>(from-self cor)
+      [?(%v1 %v2) ~]  ?>(from-self cor)
+  ::
+      [%clubs ~]  ?>(from-self cor)
+      [%v1 %clubs ~]  ?>(from-self cor)
+
+      [%unreads ~]  ?>(from-self cor)
       [%dm %invited ~]  ?>(from-self cor)
   ::
       [%dm ship=@ rest=*]
     =/  =ship  (slav %p ship.pole)
-    di-abet:(di-watch:(di-abed:di-core ship) rest.pole)
+    di-abet:(di-watch:(di-abed:di-core ship) %v0 rest.pole)
+  ::
+      [ver=?(%v1 %v2) %dm ship=@ rest=*]
+    =/  =ship  (slav %p ship.pole)
+    di-abet:(di-watch:(di-abed:di-core ship) ver.pole rest.pole)
   ::
       [%club id=@ rest=*]
     =/  =id:club:c  (slav %uv id.pole)
-    cu-abet:(cu-watch:(cu-abed id) rest.pole)
+    cu-abet:(cu-watch:(cu-abed id) %v0 rest.pole)
+  ::
+      [ver=?(%v1 %v2) %club id=@ rest=*]
+    =/  =id:club:c  (slav %uv id.pole)
+    cu-abet:(cu-watch:(cu-abed id) ver.pole rest.pole)
+  ::
       [%epic ~]
     (give %fact ~ epic+!>(okay))
   ==
@@ -680,11 +971,11 @@
     %-  (slog leaf/"Failed to heed contact {(trip ship.pole)}" u.p.sign)
     cor
   ::
-      [%dm ship=@ rest=*]
+      [?(%v1 %v2) %dm ship=@ rest=*]
     =/  =ship  (slav %p ship.pole)
     di-abet:(di-agent:(di-abed:di-core ship) rest.pole sign)
   ::
-      [%club id=@ rest=*]
+      [?(%v1 %v2) %club id=@ rest=*]
     =/  =id:club:c  (slav %uv id.pole)
     cu-abet:(cu-agent:(cu-abed id) rest.pole sign)
   ==
@@ -706,8 +997,6 @@
     [%x %old ~]  ``noun+!>(old-chats)  ::  legacy data, for migration use
   ::
     [%x %clubs ~]  ``clubs+!>((~(run by clubs) |=(=club:c crew.club)))
-  ::
-    [%x %pins ~]  ``chat-pins+!>(pins)
   ::
     [%x %blocked ~]  ``ships+!>(blocked)
   ::
@@ -742,31 +1031,18 @@
       ?^  tim=(slaw %da i.t.t.path)  `u.tim
       `(slav %ud i.t.t.path)
     :^  ~  ~  %chat-heads
-    !>  ^-  chat-heads:c
-    %+  murn
-      %+  welp
-        (turn ~(tap by dms) |=([=@p dm:c] [ship+p pact remark]))
-      (turn ~(tap by clubs) |=([=id:club:c club:c] [club+id pact remark]))
-    |=  [=whom:c =pact:c =remark:c]
-    ^-  (unit [_whom time (unit writ:c)])
-    ::  if there is no latest post, give nothing
-    ::
-    ?~  vp=(ram:on:writs:c wit.pact)  ~
-    =*  result
-      `[whom recency.remark `val.u.vp]
-    ::  if the request is bounded, check that latest message is "in bounds"
-    ::  (and not presumably already known by the requester)
-    ::
-    ?:  ?|  ?=(~ since)
-            |((gth key.u.vp u.since) (gth recency.remark u.since))
-        ==
-      ::  latest is in range (or recency was changed), give it directly
-      ::
-      result
-    ::  unlike in channels, there is no edit or deletion, so we don't need
-    ::  to account for related edge-cases
-    ::
-    ~
+    !>((old-heads-3 (heads since)))
+  ::
+      [%x ?(%v1 %v2) %heads ?(~ [@ ~])]
+    =*  ver  i.t.path
+    =/  since=(unit time)
+      ?~  t.t.t.path  ~
+      ?^  tim=(slaw %da i.t.t.t.path)  `u.tim
+      `(slav %ud i.t.t.t.path)
+    ?-  ver
+      %v1  ``[%chat-heads-1 !>(`chat-heads:old-4`(old-heads-4 (heads since)))]
+      %v2  ``[%chat-heads-2 !>(`chat-heads:c`(heads since))]
+    ==
   ::
       [%x %dm ~]
     ``ships+!>(~(key by accepted-dms))
@@ -779,10 +1055,17 @@
   ::
       [%x %dm @ *]
     =/  =ship  (slav %p i.t.t.path)
-    (di-peek:(di-abed:di-core ship) %x t.t.t.path)
+    (di-peek:(di-abed:di-core ship) %x %v0 t.t.t.path)
+  ::
+      [%x ?(%v1 %v2) %dm @ *]
+    =/  =ship  (slav %p i.t.t.t.path)
+    (di-peek:(di-abed:di-core ship) %x i.t.path t.t.t.t.path)
   ::
       [%x %club @ *]
-    (cu-peek:(cu-abed (slav %uv i.t.t.path)) %x t.t.t.path)
+    (cu-peek:(cu-abed (slav %uv i.t.t.path)) %x %v0 t.t.t.path)
+  ::
+      [%x ?(%v1 %v2) %club @ *]
+    (cu-peek:(cu-abed (slav %uv i.t.t.t.path)) %x i.t.path t.t.t.t.path)
   ::
       [%u %dm @ *]
     =/  =ship  (slav %p i.t.t.path)
@@ -790,7 +1073,7 @@
     ?.  has
       ``loob+!>(|)
     ?~  t.t.t.path  ``loob+!>(has)
-    (di-peek:(di-abed:di-core ship) %u t.t.t.path)
+    (di-peek:(di-abed:di-core ship) %u %v0 t.t.t.path)
   ::
       [%u %club @ *]
     =/  =id:club:c  (slav %uv i.t.t.path)
@@ -798,9 +1081,81 @@
     ?.  has
       ``loob+!>(|)
     ?~  t.t.t.path  ``loob+!>(has)
-    (cu-peek:(cu-abed:cu-core id) %u t.t.t.path)
+    (cu-peek:(cu-abed:cu-core id) %u %v0 t.t.t.path)
   ::
   ==
+::
+++  old-reply-3  old-reply-3:pac
+++  old-writ-3   old-writ-3:pac
+++  old-scan-3
+  |=  =scan:c
+  ^-  scan:old-3
+  %+  turn  scan
+  |=  ref=reference:c
+  ^-  reference:old-3
+  ?-  -.ref
+    %writ  writ+(old-writ-3 writ.ref)
+    %reply  reply+[id.ref (old-reply-3 reply.ref)]
+  ==
+++  old-scam-3
+  |=  =scam:c
+  ^-  scam:old-3
+  scam(scan (old-scan-3 scan.scam))
+++  old-heads-3
+  |=  heads=chat-heads:c
+  ^-  chat-heads:old-3
+  %+  turn  heads
+  |=  [=whom:c recency=time latest=(unit writ:c)]
+  ^-  [whom:c time (unit writ:old-3)]
+  ?~  latest  [whom recency ~]
+  :-  whom  :-  recency
+  (some (old-writ-3 u.latest))
+++  old-scan-4
+  |=  =scan:c
+  ^-  scan:old-4
+  %+  turn  scan
+  |=  ref=reference:c
+  ^-  reference:old-4
+  ?+  -.ref  ref
+    %writ  writ+(old-writ-4:pac writ.ref)
+  ==
+++  old-scam-4
+  |=  =scam:c
+  ^-  scam:old-4
+  scam(scan (old-scan-4 scan.scam))
+++  old-heads-4
+  |=  heads=chat-heads:c
+  ^-  chat-heads:old-4
+  %+  turn  heads
+  |=  [=whom:c recency=time latest=(unit writ:c)]
+  [whom recency (bind latest old-writ-4:pac)]
+++  heads
+  |=  since=(unit time)
+  ^-  chat-heads:c
+  %+  murn
+    %+  welp
+      (turn ~(tap by dms) |=([=@p dm:c] [ship+p pact remark]))
+    (turn ~(tap by clubs) |=([=id:club:c club:c] [club+id pact remark]))
+  |=  [=whom:c =pact:c =remark:c]
+  ^-  (unit [_whom time (unit writ:c)])
+  ::  if there is no latest post, give nothing
+  ::
+  ?~  vp=(ram:on:writs:c wit.pact)  ~
+  =*  result
+    `[whom recency.remark `val.u.vp]
+  ::  if the request is bounded, check that latest message is "in bounds"
+  ::  (and not presumably already known by the requester)
+  ::
+  ?:  ?|  ?=(~ since)
+          |((gth key.u.vp u.since) (gth recency.remark u.since))
+      ==
+    ::  latest is in range (or recency was changed), give it directly
+    ::
+    result
+  ::  unlike in channels, there is no edit or deletion, so we don't need
+  ::  to account for related edge-cases
+  ::
+  ~
 ::
 ++  unreads
   ^-  unreads:c
@@ -885,7 +1240,27 @@
     ^-  delta:writs:c
     =/  =story:d  ~[[%inline ~[[%ship ship] text]]]
     =/  =memo:d  [story our.bowl now.bowl]
-    [%add memo notice/~ `now.bowl]
+    [%add [memo [%chat /notice] ~ ~] `now.bowl]
+::
+++  get-ship-dw
+  |=  =delta:writs:c
+  ^-  ship
+  ?>  ?=(?(%add %add-react %del-react) -.delta)
+  ?-  -.delta
+    %add  (get-author-ship:utils author.essay.delta)
+    %add-react  (get-author-ship:utils author.delta)
+    %del-react  (get-author-ship:utils author.delta)
+  ==
+::
+++  get-ship-dr
+  |=  =delta:replies:c
+  ^-  ship
+  ?>  ?=(?(%add %add-react %del-react) -.delta)
+  ?-  -.delta
+    %add  (get-author-ship:utils author.memo.delta)
+    %add-react  (get-author-ship:utils author.delta)
+    %del-react  (get-author-ship:utils author.delta)
+  ==
 ::
 ++  check-writ-ownership
   |=  diff=diff:writs:c
@@ -894,10 +1269,11 @@
   =*  should  =(her src.bowl)
   ?-  -.delta
       %reply  (check-reply-ownership delta should)
-      %add  ?.(should | =(src.bowl author.memo.delta))
+      %add  ?.  should  |
+            =(src.bowl (get-ship-dw delta))
       %del  should
-      %add-react  =(src.bowl ship.delta)
-      %del-react  =(src.bowl ship.delta)
+      %add-react  =(src.bowl (get-ship-dw delta))
+      %del-react  =(src.bowl (get-ship-dw delta))
   ==
 ::
 ++  check-reply-ownership
@@ -905,10 +1281,10 @@
   ?>  ?=(%reply -.d)
   =*  delta  delta.d
   ?-  -.delta
-      %add  ?.(should | =(src.bowl author.memo.delta))
+      %add  ?.(should | =(src.bowl (get-ship-dr delta)))
       %del  should
-      %add-react  =(src.bowl ship.delta)
-      %del-react  =(src.bowl ship.delta)
+      %add-react  =(src.bowl (get-ship-dr delta))
+      %del-react  =(src.bowl (get-ship-dr delta))
   ==
 ::
 ++  diff-to-response
@@ -919,9 +1295,11 @@
     `[p.diff delta]
   ?+  -.q.diff  q.diff
       %add
-    =/  time=(unit time)  (~(get by dex.pact) p.diff)
+    =/  time=(unit time)    (~(get by dex.pact) p.diff)
     ?~  time  ~
-    [%add memo.q.diff u.time]
+    =/  writ=(unit writ:c)  (get:on:writs:c wit.pact u.time)
+    ?~  writ  ~&(%diff-to-response-miss ~)
+    [%add essay.q.diff seq.u.writ u.time]
   ::
       %reply
     =;  delta=?(~ response-delta:replies:c)
@@ -937,7 +1315,7 @@
 ++  from-self  =(our src):bowl
 ++  migrate
   |%
-  ++  t  old
+  ++  t  old-2
   ++  server
     =/  server-channels=v-channels:d
       %+  convert-channels  &
@@ -960,15 +1338,15 @@
     $(pins t.pins)
   ::
   ++  refs
-    |=  =flag:old
+    |=  =flag:t
     ?~  old-chat=(~(get by old-chats) flag)  cor
     %-  emil
     ::  iterate over all chats and, for every message/reply authored by us,
     ::  containing a chat reference that we have (almost certainly) converted,
     ::  send the new version of the message/reply as an edit to the host.
     ::
-    %+  murn  (tap:on:writs:old wit.pact.u.old-chat)
-    |=  [=time =writ:old]
+    %+  murn  (tap:on:writs:t wit.pact.u.old-chat)
+    |=  [=time =writ:t]
     ^-  (unit card)
     ?.  =(our.bowl author.writ)  ~
     =/  edit=(unit essay:d)
@@ -977,7 +1355,7 @@
         `(convert-essay +.writ)
       ?.  ?=(%story -.content.writ)  |
       %+  lien  p.p.content.writ
-      |=  =block:old
+      |=  =block:t
       ?=([%cite %chan [%chat *] *] block)
     =/  command=(unit c-post:d)
       ?~  edit  ~
@@ -988,29 +1366,29 @@
       `[%reply u.parent-time %edit time -.u.edit]
     ?~  command  ~
     =/  =cage
-      :-  %channel-action
+      :-  %channel-action-1
       !>(`a-channels:d`[%channel [%chat flag] %post u.command])
     `[%pass /migrate %agent [our.bowl %channels] %poke cage]
   ::
   ++  trim
     =-  =.  old-chats  -  cor
-    ^-  (map flag:old chat:old)
+    ^-  (map flag:t chat:t)
     %-  ~(run by old-chats)
-    |=  old-chat=chat:old
+    |=  old-chat=chat:t
     =/  citations=(set [ship time])
       %-  sy
       ^-  (list [ship time])
       %-  zing
       ^-  (list (list [ship time]))
-      %+  murn  (tap:on:writs:old wit.pact.old-chat)
-      |=  [=time =writ:old]
+      %+  murn  (tap:on:writs:t wit.pact.old-chat)
+      |=  [=time =writ:t]
       ^-  (unit (list [ship ^time]))
       ::  return citer message and cited message
       ?.  =(our.bowl author.writ)  ~
       =/  cite-targets=(list [ship ^time])
         ?.  ?=(%story -.content.writ)  ~
         %+  murn  p.p.content.writ
-        |=  =block:old
+        |=  =block:t
         ^-  (unit [ship ^time])
         ?.  ?=([%cite %chan [%chat *] *] block)  ~
         ?.  ?=([%msg @ @ ~] wer.cite.block)  ~
@@ -1027,13 +1405,13 @@
       dex.pact
         %-  malt
         %+  murn  ~(tap by dex.pact.old-chat)
-        |=  [=id:old =time]
+        |=  [=id:t =time]
         ?.  (~(has in citations) id)  ~
         `[id time]
       wit.pact
         %-  malt
-        %+  murn  (tap:on:writs:old wit.pact.old-chat)
-        |=  [=time =writ:old]
+        %+  murn  (tap:on:writs:t wit.pact.old-chat)
+        |=  [=time =writ:t]
         ?.  (~(has in citations) id.writ)  ~
         `[time writ]
     ==
@@ -1056,6 +1434,7 @@
     :-  [%chat flag]
     =/  posts=v-posts:d  (convert-posts pact.chat)
     %*    .  *v-channel:d
+        count   (wyt:on-v-posts:d posts)
         posts   posts
         log     ?.(log ~ (convert-log pact.chat posts perm.chat log.chat))
         perm    [1 perm.chat]
@@ -1085,27 +1464,40 @@
       %+  ~(put by reply-index)  u.parent-time
       (put:on-v-replies:d old-replies time `(convert-quip time writ))
     %+  gas:on-v-posts:d  *v-posts:d
-    %+  murn  writs
-    |=  [=time =writ:t]
-    ^-  (unit [id-post:d (unit v-post:d)])
-    ?^  replying.writ  ~
+    =|  posts=(list [id-post:d (unit v-post:d)])
+    =<  posts
+    %+  roll  writs
+    |=  [[=time =writ:t] count=@ud =_posts]
+    ^+  [count posts]
+    ?^  replying.writ
+      [count posts]
     ::  this writ is a top-level message. incorporate the replies to it found
     ::  by the above code.
     ::
     =/  replies=v-replies:d  (~(gut by reply-index) time *v-replies:d)
-    (some time `(convert-post time writ replies))
+    =.  count  +(count)
+    :-  count
+    :_  posts
+    [time `(convert-post time count writ replies)]
   ::
   ++  convert-post
-    |=  [id=@da old=writ:t replies=v-replies:d]
+    |=  [id=@da seq=@ud old=writ:t replies=v-replies:d]
     ^-  v-post:d
-    [[id replies (convert-feels feels.old)] %0 (convert-essay +.old)]
+    =/  modified-at=@da
+      %-  ~(rep in replied.old)
+      |=  [[=ship =time] mod=_id]
+      ?:((gth time mod) time mod)
+    :-  [id seq modified-at replies (convert-feels feels.old)]
+    [%0 (convert-essay +.old)]
   ::
   ++  convert-feels
     |=  old=(map ship feel:t)
     ^-  v-reacts:d
     %-  ~(run by old)
-    |=  react=feel:t
-    [%0 `react]
+    |=  =feel:t
+    ?~  react=(kill:em feel)
+      [%0 `[%any feel]]
+    [%0 `u.react]
   ::
   ++  convert-quip
     |=  [id=@da old=writ:t]
@@ -1120,7 +1512,11 @@
   ++  convert-essay
     |=  old=memo:t
     ^-  essay:d
-    [(convert-memo old) %chat ?-(-.content.old %story ~, %notice [%notice ~])]
+    :*  (convert-memo old)
+        [%chat ?-(-.content.old %story ~, %notice /notice)]
+        ~
+        ~
+    ==
   ::
   ++  convert-story
     |=  [=ship old=content:t]
@@ -1172,7 +1568,7 @@
     ?-    -.diff
         ?(%add-sects %del-sects)  [%perm 0 perm]~
         %create
-      :-  [%create p.diff]
+      :-  [%create p.diff ~]
       %+  murn  (tap:on:writs:t wit.q.diff)
       |=  [=^time =writ:t]
       =/  new-post  (get:on-v-posts:d posts time)
@@ -1219,6 +1615,7 @@
 ++  cu-core
   |_  [=id:club:c =club:c gone=_| counter=@ud]
   +*  cu-pact  ~(. pac pact.club)
+      log      ~(. logs [our.bowl /logs])
   ++  cu-core  .
   ++  cu-abet
     ::  shouldn't need cleaning, but just in case
@@ -1243,8 +1640,14 @@
   ++  cu-circle
     (~(uni in team.crew.club) hive.crew.club)
   ::
-  ++  cu-area  `wire`/club/(scot %uv id)
-  ++  cu-area-writs  `wire`/club/(scot %uv id)/writs
+  ++  cu-area  `wire`/v2/club/(scot %uv id)
+  ++  cu-area-writs  `wire`/v2/club/(scot %uv id)/writs
+  ::
+  ++  cu-area-old-1  `wire`/v1/club/(scot %uv id)
+  ++  cu-area-writs-old-1  `wire`/v1/club/(scot %uv id)/writs
+  ::
+  ++  cu-area-old-0  `wire`/club/(scot %uv id)
+  ++  cu-area-writs-old-0  `wire`/club/(scot %uv id)/writs
   ::
   ++  cu-uid
     =/  uid  `@uv`(shax (jam ['clubs' (add counter eny.bowl)]))
@@ -1282,7 +1685,7 @@
         =,  p.diff.q.diff
         /(scot %uv p.diff)/(scot %p p)/(scot %ud q)
       =/  =dock  [ship dap.bowl]
-      =/  =cage  chat-club-action+!>(`action:club:c`[id diff])
+      =/  =cage  chat-club-action-1+!>(`action:club:c`[id diff])
       [%pass wire %agent dock %poke cage]
     ::
     ++  gossip
@@ -1332,21 +1735,36 @@
   ::
   ++  cu-give-action
     |=  =action:club:c
-    =/  =cage  chat-club-action+!>(action)
     =.  cor
+      =/  =cage  chat-club-action+!>((old-action-club-3:pac action))
       (emit %give %fact ~[/ /clubs] cage)
+    =.  cor
+      =/  cage  chat-club-action-1+!>(action)
+      (emit %give %fact ~[/v1 /v1/clubs /v2 /v2/clubs] cage)
     cu-core
   ::
   ++  cu-give-writs-diff
     |=  =diff:writs:c
-    =/  response=(unit response:writs:c)  (diff-to-response diff pact.club)
-    ?~  response  cu-core
+    =/  =whom:c  [%club id]
+    =/  response=(unit response:writs:c)
+      (diff-to-response diff pact.club)
+    ?~  response
+      =.  cor  (emit (tell:log %crit ~['+diff-to-response miss (cu)'] ~))
+      cu-core
+    =/  old-response-3=[whom:old-3 response:writs:old-3]
+      [whom (old-response-writs-3:pac u.response)]
+    =/  old-response-4=[whom:old-4 response:writs:old-4]
+      [whom (old-response-writs-4:pac u.response)]
+    =/  new-response=[whom:c response:writs:c]  [whom u.response]
     =.  cor
-      =/  =cage  writ-response+!>([[%club id] u.response])
-      (emit %give %fact ~[/ cu-area] cage)
+      =/  cage  writ-response+!>(old-response-3)
+      (emit %give %fact ~[/ cu-area-old-0 cu-area-writs-old-0] cage)
     =.  cor
-      =/  =cage  writ-response+!>([[%club id] u.response])
-      (emit %give %fact ~[/ cu-area-writs] cage)
+      =/  cage  writ-response-1+!>(old-response-4)
+      (emit %give %fact ~[/v1 cu-area-old-1 cu-area-writs-old-1] cage)
+    =.  cor
+      =/  =cage  writ-response-2+!>(new-response)
+      (emit %give %fact ~[/v2 cu-area cu-area-writs] cage)
     cu-core
   ::
   ++  cu-diff
@@ -1396,20 +1814,21 @@
           ?(%add-react %del-react)  (cu-give-writs-diff diff.delta)
           %add
         =.  time.q.diff.delta  (~(get by dex.pact.club) p.diff.delta)
-        =*  memo  memo.q.diff.delta
-        =?  last-read.remark.club  =(author.memo our.bowl)
+        =*  essay  essay.q.diff.delta
+        =?    last-read.remark.club
+            =((get-author-ship:utils author.essay) our.bowl)
           (add now.bowl (div ~s1 100))
         =.  recency.remark.club  now.bowl
         =.  cor  (give-unread club/id cu-unread)
         =/  concern  [%post p.diff.delta now.bowl]
-        =/  mention  (was-mentioned:utils content.memo our.bowl)
-        =.  cu-core  (cu-activity concern content.memo mention)
+        =/  mention  (was-mentioned:utils content.essay our.bowl ~)
+        =.  cu-core  (cu-activity concern content.essay mention)
         (cu-give-writs-diff diff.delta)
       ::
           %del
         =?  cu-core  ?=(^ had)
           =*  content  content.writ.u.had
-          =/  mention  (was-mentioned:utils content our.bowl)
+          =/  mention  (was-mentioned:utils content our.bowl ~)
           (cu-activity [%delete-post [id time]:writ.u.had] content mention)
         (cu-give-writs-diff diff.delta)
       ::
@@ -1417,14 +1836,14 @@
         =*  reply-id  id.q.diff.delta
         =*  delt  delta.q.diff.delta
         =/  entry=(unit [=time =writ:c])  (get:cu-pact p.diff.delta)
-        =?  meta.q.diff.delta  !=(~ entry)  `meta.writ:(need entry)
+        =?  meta.q.diff.delta  !=(~ entry)  `reply-meta.writ:(need entry)
         ?-  -.delt
             ?(%add-react %del-react)  (cu-give-writs-diff diff.delta)
         ::
             %del
           =?  cu-core  &(?=(^ entry) ?=(^ reply))
             =*  content  content.reply.u.reply
-            =/  mention  (was-mentioned:utils content our.bowl)
+            =/  mention  (was-mentioned:utils content our.bowl ~)
             =/  concern
               [%delete-reply [id time]:reply.u.reply [id time]:writ.u.entry]
             (cu-activity concern content mention)
@@ -1442,7 +1861,7 @@
           =*  op  writ.u.entry
           =/  top-con  [id time]:op
           =/  concern  [%reply [id.q.diff.delta now.bowl] top-con]
-          =/  mention  (was-mentioned:utils content.memo our.bowl)
+          =/  mention  (was-mentioned:utils content.memo our.bowl ~)
           =.  cu-core  (cu-activity concern content.memo mention)
           (cu-give-writs-diff diff.delta)
         ==
@@ -1514,15 +1933,20 @@
     cu-core
   ::
   ++  cu-peek
-    |=  [care=@tas =(pole knot)]
+    |=  [care=@tas ver=?(%v0 %v1 %v2) =(pole knot)]
     ^-  (unit (unit cage))
     ?+  pole  [~ ~]
-      [%writs rest=*]  (peek:cu-pact care rest.pole)
+      [%writs rest=*]  (peek:cu-pact care ver rest.pole)
       [%crew ~]   ``chat-club-crew+!>(crew.club)
     ::
         [%search %bounded kind=?(%text %mention) from=@ tries=@ nedl=@ ~]
-      :^  ~  ~  %chat-scam
-      !>  ^-  scam:c
+      :+  ~  ~
+      =;  =scam:c
+        ?-  ver
+          %v0  chat-scam+!>((old-scam-3 scam))
+          %v1  chat-scam-1+!>((old-scam-4 scam))
+          %v2  chat-scam-2+!>(scam)
+        ==
       %^    ?-  kind.pole
               %text     text:tries-bound:search:cu-pact
               %mention  mention:tries-bound:search:cu-pact
@@ -1536,20 +1960,26 @@
       ==
     ::
         [%search %text skip=@ count=@ nedl=@ ~]
-      %-  some
-      %-  some
-      :-  %chat-scan
-      !>  ^-  scan:c
+      :+  ~  ~
+      =;  =scan:c
+        ?-  ver
+          %v0  chat-scan+!>((old-scan-3 scan))
+          %v1  chat-scan-1+!>((old-scan-4 scan))
+          %v2  chat-scan-2+!>(scan)
+        ==
       %^    text:hits-bound:search:cu-pact
           (slav %ud skip.pole)
         (slav %ud count.pole)
       (fall (slaw %t nedl.pole) nedl.pole)
     ::
         [%search %mention skip=@ count=@ nedl=@ ~]
-      %-  some
-      %-  some
-      :-  %chat-scan
-      !>  ^-  scan:c
+      :+  ~  ~
+      =;  =scan:c
+        ?-  ver
+          %v0  chat-scan+!>((old-scan-3 scan))
+          %v1  chat-scan-1+!>((old-scan-4 scan))
+          %v2  chat-scan-2+!>(scan)
+        ==
       %^    mention:hits-bound:search:cu-pact
           (slav %ud skip.pole)
         (slav %ud count.pole)
@@ -1557,7 +1987,7 @@
     ==
   ::
   ++  cu-watch
-    |=  =path
+    |=  [ver=?(%v0 %v1 %v2) =path]
     ^+  cu-core
     ?>  =(src our):bowl
     ?+  path  !!
@@ -1597,7 +2027,7 @@
             [@ @ @ ~]
           %-  some
           :-  %club-action
-          !>  ^-  action:club:old
+          !>  ^-  action:club:old-2
           =/  =uid:club:c
             (slav %uv i.t.wire)
           =/  mid=id:c
@@ -1605,13 +2035,13 @@
           =/  msg=(unit [=time =writ:c])
             (get:cu-pact mid)
           :^  id  uid  %writ
-          ^-  diff:writs:old
+          ^-  diff:writs:old-2
           :-  mid
           ?~  msg  [%del ~]
           :-  %add
-          ^-  memo:old
+          ^-  memo:old-2
           =,  writ.u.msg
-          [~ author sent [%story ~ (verses-to-inlines content)]]
+          [~ (get-author-ship:utils author) sent [%story ~ (verses-to-inlines content)]]
         ==
       cu-core
     ==
@@ -1638,25 +2068,27 @@
 ++  give-invites
   |=  =ship
   =/  invites
-  ?:  (~(has by dms) ship)   ~(key by pending-dms)
-  (~(put in ~(key by pending-dms)) ship)
+    ?:  (~(has by dms) ship)
+      ~(key by pending-dms)
+    (~(put in ~(key by pending-dms)) ship)
   (give %fact ~[/ /dm/invited] ships+!>(invites))
 ::
 ++  verses-to-inlines  ::  for backcompat
   |=  l=(list verse:d)
-  ^-  (list inline:old)
+  ^-  (list inline:old-2)
   %-  zing
   %+  turn  l
   |=  v=verse:d
-  ^-  (list inline:old)
+  ^-  (list inline:old-2)
   ?-  -.v
       %block   ~
       %inline
     %+  murn  p.v
     |=  i=inline:d
-    ^-  (unit inline:old)
+    ^-  (unit inline:old-2)
     ?@  i    `i
     ?+  -.i  `i
+      %sect        ~
       %task        ~
       %italics     `[-.i ^$(p.v p.i)]
       %bold        `[-.i ^$(p.v p.i)]
@@ -1669,6 +2101,7 @@
   |_  [=ship =dm:c gone=_|]
   +*  di-pact  ~(. pac pact.dm)
       di-hark  ~(. hark-dm:ch [now.bowl ship])
+      log      ~(. logs [our.bowl /logs])
   ++  di-core  .
   ++  di-abet
     =.  dms
@@ -1695,8 +2128,14 @@
     ?:  &(!=(s our.bowl) =(src our):bowl)  di-core
     (di-activity [%invite ~] *story:d &)
   ::
-  ++  di-area  `path`/dm/(scot %p ship)
-  ++  di-area-writs  `path`/dm/(scot %p ship)/writs
+  ++  di-area  `path`/v2/dm/(scot %p ship)
+  ++  di-area-writs  `path`/v2/dm/(scot %p ship)/writs
+  ::
+  ++  di-area-old-1  `path`/v1/dm/(scot %p ship)
+  ++  di-area-writs-old-1  `path`/v1/dm/(scot %p ship)/writs
+  ::
+  ++  di-area-old-0  `path`/dm/(scot %p ship)
+  ++  di-area-writs-old-0  `path`/dm/(scot %p ship)/writs
   ::
   ++  di-activity
     |=  $:  $=  concern
@@ -1744,14 +2183,27 @@
   ::
   ++  di-give-writs-diff
     |=  =diff:writs:c
-    =/  response=(unit response:writs:c)  (diff-to-response diff pact.dm)
-    ?~  response  di-core
+    =/  =whom:c  [%ship ship]
+    =/  response=(unit response:writs:c)
+      (diff-to-response diff pact.dm)
+    ?~  response
+      =.  cor  (emit (tell:log %crit ~['+diff-to-response miss (di)'] ~))
+      di-core
+    =/  old-response-3=[whom:old-3 response:writs:old-3]
+      [whom (old-response-writs-3:pac u.response)]
+    =/  old-response-4=[whom:old-4 response:writs:old-4]
+      [whom (old-response-writs-4:pac u.response)]
+    =/  new-response=[whom:c response:writs:c]  [whom u.response]
     =.  cor
-      =/  =cage  writ-response+!>([[%ship ship] u.response])
-      (emit %give %fact ~[/ di-area] cage)
+      =/  =cage
+        writ-response+!>(old-response-3)
+      (emit %give %fact ~[/ di-area-old-0 di-area-writs-old-0] cage)
     =.  cor
-      =/  =cage  writ-response+!>([[%ship ship] u.response])
-      (emit %give %fact ~[/ di-area-writs] cage)
+      =/  =cage  writ-response-1+!>(old-response-4)
+      (emit %give %fact ~[/v1 di-area-old-1 di-area-writs-old-1] cage)
+    =.  cor
+      =/  =cage  writ-response-2+!>(new-response)
+      (emit %give %fact ~[/v2 di-area di-area-writs] cage)
     di-core
   ::
   ++  di-ingest-diff
@@ -1775,42 +2227,43 @@
     ::
         %add
       =.  time.q.diff  (~(get by dex.pact.dm) p.diff)
-      =*  memo  memo.q.diff
-      =?  last-read.remark.dm  =(author.memo our.bowl)
+      =*  essay  essay.q.diff
+      =?    last-read.remark.dm
+          =((get-author-ship:utils author.essay) our.bowl)
         (add now.bowl (div ~s1 100))
       =.  recency.remark.dm  now.bowl
       =?  cor  &(!=(old-unread di-unread) !=(net.dm %invited))
         (give-unread ship/ship di-unread)
       =/  concern  [%post p.diff now.bowl]
-      =/  mention  (was-mentioned:utils content.memo our.bowl)
-      =.  di-core  (di-activity concern content.memo mention)
+      =/  mention  (was-mentioned:utils content.essay our.bowl ~)
+      =.  di-core  (di-activity concern content.essay mention)
       (di-give-writs-diff diff)
     ::
         %del
       =?  di-core  ?=(^ had)
         =*  content  content.writ.u.had
-        =/  mention  (was-mentioned:utils content our.bowl)
+        =/  mention  (was-mentioned:utils content our.bowl ~)
         (di-activity [%delete-post [id time]:writ.u.had] content mention)
       (di-give-writs-diff diff)
     ::
         %reply
-      =*  delt  delta.q.diff
+      =*  delta  delta.q.diff
       =/  entry=(unit [=time =writ:c])  (get:di-pact p.diff)
-      =?  meta.q.diff  !=(~ entry)  `meta.writ:(need entry)
-      ?-  -.delt
+      =?  meta.q.diff  !=(~ entry)  `reply-meta.writ:(need entry)
+      ?-  -.delta
           ?(%add-react %del-react)  (di-give-writs-diff diff)
       ::
           %del
         =?  di-core  &(?=(^ entry) ?=(^ reply))
           =*  content  content.reply.u.reply
-          =/  mention  (was-mentioned:utils content our.bowl)
+          =/  mention  (was-mentioned:utils content our.bowl ~)
           =/  concern
             [%delete-reply [id time]:reply.u.reply [id time]:writ.u.entry]
           (di-activity concern content mention)
         (di-give-writs-diff diff)
       ::
           %add
-        =*  memo  memo.delt
+        =*  memo  memo.delta
         =?  unread-threads.remark.dm  !=(our.bowl author.memo)
             (~(put in unread-threads.remark.dm) p.diff)
         =?  last-read.remark.dm  =(author.memo our.bowl)
@@ -1821,7 +2274,7 @@
         ?~  entry  (di-give-writs-diff diff)
         =/  top-con  [id.writ.u.entry time.writ.u.entry]
         =/  concern  [%reply [id.q.diff now.bowl] top-con]
-        =/  mention  (was-mentioned:utils content.memo our.bowl)
+        =/  mention  (was-mentioned:utils content.memo our.bowl ~)
         =.  di-core  (di-activity concern content.memo mention)
         (di-give-writs-diff diff)
       ==
@@ -1839,7 +2292,7 @@
   ::
   ++  di-rsvp
     |=  ok=?
-    =?  cor  =(our src):bowl
+    =?  cor  &(=(our src):bowl (can-poke:neg bowl [ship dap.bowl]))
       (emit (proxy-rsvp:di-pass ok))
     ?>  |(=(src.bowl ship) =(our src):bowl)
     ::  TODO hook into archive
@@ -1854,7 +2307,7 @@
     (di-post-notice ' joined the chat')
   ::
   ++  di-watch
-    |=  =path
+    |=  [ver=?(%v0 %v1 %v2) =path]
     ^+  di-core
     ?>  =(src.bowl our.bowl)
     ?+  path  !!
@@ -1913,7 +2366,7 @@
         ?+  t.wire  ~
             [%rsvp @ ~]
           =/  ok=?  ;;(? (slav %f i.t.t.wire))
-          `[%dm-rsvp !>(`rsvp:dm:old`[our.bowl ok])]
+          `[%dm-rsvp !>(`rsvp:dm:old-2`[our.bowl ok])]
         ::
             [%diff ~]
           ?>  ?=(^ sent)
@@ -1928,7 +2381,7 @@
             [@ ?(~ [@ @ ~])]
           %-  some
           :-  %dm-diff
-          !>  ^-  diff:dm:old
+          !>  ^-  diff:dm:old-2
           ?~  t.t.wire
             =/  id=time  (slav %ud i.t.wire)
             :-  [our.bowl id]
@@ -1936,37 +2389,43 @@
               (get:di-pact our.bowl id)
             ?~  msg  [%del ~]
             :-  %add
-            ^-  memo:old
+            ^-  memo:old-2
             =,  writ.u.msg
-            [~ author sent [%story ~ (verses-to-inlines content)]]
+            [~ (get-author-ship:utils author) sent [%story ~ (verses-to-inlines content)]]
           =/  =id:c     [(slav %p i.t.wire) (slav %ud i.t.t.wire)]
           =/  rid=time  (slav %ud i.t.t.t.wire)
-          =/  msg=(unit memo:d)
+          =/  msg=(unit memo:v7:old:d)
             %+  biff  (get:di-pact id)
             |=  [time =writ:c]
-            ^-  (unit memo:d)
+            ^-  (unit memo:v7:old:d)
             ?~  id=(~(get by dex.pact.dm) our.bowl rid)  ~
-            (bind (get:on:replies:c replies.writ u.id) tail)
+            %+  bind  (get:on:replies:c replies.writ u.id)
+            |=(=reply:c (memo-1:utils +.reply))
           :-  [our.bowl rid]
           ?~  msg  [%del ~]
           :-  %add
-          ^-  memo:old
+          ^-  memo:old-2
           =,  u.msg
-          [~ author sent [%story ~ (verses-to-inlines content)]]
+          [~ (get-author-ship:utils author) sent [%story ~ (verses-to-inlines content)]]
         ==
       di-core
     ==
   ::
   ++  di-peek
-    |=  [care=@tas =(pole knot)]
+    |=  [care=@tas ver=?(%v0 %v1 %v2) =(pole knot)]
     ^-  (unit (unit cage))
     ?+    pole  [~ ~]
         [%writs rest=*]
-      (peek:di-pact care rest.pole)
+      (peek:di-pact care ver rest.pole)
     ::
         [%search %bounded kind=?(%text %mention) from=@ tries=@ nedl=@ ~]
-      :^  ~  ~  %chat-scam
-      !>  ^-  scam:c
+      =;  =scam:c
+        :+  ~  ~
+        ?-  ver
+          %v0  chat-scam+!>((old-scam-3 scam))
+          %v1  chat-scam-1+!>((old-scam-4 scam))
+          %v2  chat-scam-2+!>(scam)
+        ==
       %^    ?-  kind.pole
               %text     text:tries-bound:search:di-pact
               %mention  mention:tries-bound:search:di-pact
@@ -1980,20 +2439,26 @@
       ==
     ::
         [%search %text skip=@ count=@ nedl=@ ~]
-      %-  some
-      %-  some
-      :-  %chat-scan
-      !>  ^-  scan:c
+      =;  =scan:c
+        :+  ~  ~
+        ?-  ver
+          %v0  chat-scan+!>((old-scan-3 scan))
+          %v1  chat-scan-1+!>((old-scan-4 scan))
+          %v2  chat-scan-2+!>(scan)
+        ==
       %^    text:hits-bound:search:di-pact
           (slav %ud skip.pole)
         (slav %ud count.pole)
       (fall (slaw %t nedl.pole) nedl.pole)
     ::
         [%search %mention skip=@ count=@ nedl=@ ~]
-      %-  some
-      %-  some
-      :-  %chat-scan
-      !>  ^-  scan:c
+      =;  =scan:c
+        :+  ~  ~
+        ?-  ver
+          %v0  chat-scan+!>((old-scan-3 scan))
+          %v1  chat-scan-1+!>((old-scan-4 scan))
+          %v2  chat-scan-2+!>(scan)
+        ==
       %^    mention:hits-bound:search:di-pact
           (slav %ud skip.pole)
         (slav %ud count.pole)
@@ -2043,7 +2508,7 @@
       |=  =diff:dm:c
       ::NOTE  static wire important for ordering guarantees and preventing flow
       ::      proliferation, see also +di-proxy
-      (poke-them /proxy/diff chat-dm-diff+!>(diff))
+      (poke-them /proxy/diff chat-dm-diff-1+!>(diff))
     --
   --
 --

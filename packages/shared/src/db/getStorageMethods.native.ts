@@ -5,7 +5,19 @@ export function getStorageMethods(isSecure: boolean) {
   if (isSecure) {
     return {
       getItem: SecureStore.getItemAsync,
-      setItem: SecureStore.setItemAsync,
+      setItem: async (key: string, value: string) => {
+        // This deletion should be temporary -- we just want to be sure that all
+        // keys are initially set with the correct `keychainAccessible` option.
+        // see issue here: https://github.com/expo/expo/issues/23924
+        try {
+          await SecureStore.deleteItemAsync(key);
+        } catch (e) {
+          // ignore error -- we don't care if it can't be deleted because it doesn't exist
+        }
+        return SecureStore.setItemAsync(key, value, {
+          keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
+        });
+      },
       removeItem: SecureStore.deleteItemAsync,
     };
   }

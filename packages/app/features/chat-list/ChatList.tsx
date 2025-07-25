@@ -99,6 +99,7 @@ export const ChatList = React.memo(function ChatListComponent({
             onLongPress={handleLongPress}
             onLayout={handleItemLayout}
             hoverStyle={{ backgroundColor: '$secondaryBackground' }}
+            testID={`ChatListItem-${item.channel.title ?? item.channel.id}-${item.pin ? 'pinned' : 'unpinned'}`}
           />
         );
       } else if (item.type === 'group' && !item.isPending) {
@@ -109,6 +110,7 @@ export const ChatList = React.memo(function ChatListComponent({
             onLongPress={handleLongPress}
             onLayout={handleItemLayout}
             hoverStyle={{ backgroundColor: '$secondaryBackground' }}
+            testID={`ChatListItem-${item.group.title !== '' ? item.group.title : 'Untitled group'}-${item.pin ? 'pinned' : 'unpinned'}`}
           />
         );
       } else {

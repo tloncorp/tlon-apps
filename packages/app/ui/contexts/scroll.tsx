@@ -26,15 +26,16 @@ export const ScrollContext = createContext<ScrollContextTuple>(INITIAL_VALUE);
 export const useScrollContext = () => useContext(ScrollContext);
 
 export const useScrollDirectionTracker = ({
-  setIsAtBottom,
+  setIsAtBottom: setIsAtBottomProp,
   atBottomThreshold = 1, // multiple of screen/viewport height
 }: {
-  setIsAtBottom: (isAtBottom: boolean) => void;
+  setIsAtBottom?: (isAtBottom: boolean) => void;
   atBottomThreshold?: number;
-}) => {
+} = {}) => {
   const [scrollValue] = useScrollContext();
   const previousScrollValue = useSharedValue(0);
-  const isAtBottom = useSharedValue(true);
+  const previousAtBottom = useSharedValue(true);
+  const [isAtBottom, setIsAtBottom] = useState(true);
   const viewportHeight = useViewportHeight();
 
   const AT_BOTTOM_THRESHOLD = useMemo(
@@ -42,27 +43,35 @@ export const useScrollDirectionTracker = ({
     [viewportHeight, atBottomThreshold]
   );
 
-  return useAnimatedScrollHandler((event) => {
-    const { y } = event.contentOffset;
+  useEffect(() => {
+    setIsAtBottomProp?.(isAtBottom);
+  }, [isAtBottom, setIsAtBottomProp]);
 
-    if (y < 0 || y > event.contentSize.height) {
-      return;
-    }
+  return {
+    onScroll: useAnimatedScrollHandler((event) => {
+      const { y } = event.contentOffset;
 
-    scrollValue.value = clamp(
-      scrollValue.value + (y - previousScrollValue.value) / 200,
-      0,
-      1
-    );
+      if (y < 0 || y > event.contentSize.height) {
+        return;
+      }
 
-    previousScrollValue.value = y;
+      scrollValue.value = clamp(
+        scrollValue.value + (y - previousScrollValue.value) / 200,
+        0,
+        1
+      );
 
-    const atBottom = y <= AT_BOTTOM_THRESHOLD;
-    if (isAtBottom.value !== atBottom) {
-      isAtBottom.value = atBottom;
-      runOnJS(setIsAtBottom)(atBottom);
-    }
-  });
+      previousScrollValue.value = y;
+
+      const atBottom = y <= AT_BOTTOM_THRESHOLD;
+
+      if (previousAtBottom.value !== atBottom) {
+        previousAtBottom.value = atBottom;
+        runOnJS(setIsAtBottom)(atBottom);
+      }
+    }),
+    isAtBottom,
+  };
 };
 
 function useViewportHeight() {

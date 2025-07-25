@@ -1,5 +1,6 @@
 import { ThemeName } from 'tamagui';
 
+import { Stringified } from '../utils';
 import { DisplayMode, SortMode } from './channel';
 
 export type AppTheme = ThemeName | 'auto';
@@ -24,10 +25,6 @@ interface GroupSideBarSort {
     | typeof RECENT_SORT
     | typeof DEFAULT_SORT;
 }
-
-export type Stringified<T> = string & {
-  [P in keyof T]: { '_ value': T[P] };
-};
 
 interface ChannelSetting {
   flag: string;
@@ -62,7 +59,8 @@ export type GroupsSettings = {
   groupSideBarSort?: Stringified<GroupSideBarSort>;
   hasBeenUsed?: boolean;
   showActivityMessage?: boolean;
-  logActivity?: boolean;
+  enableTelemetry?: boolean;
+  logActivity?: boolean; // Deprecated, use enableTelemetry
   analyticsId?: string;
   seenWelcomeCard?: boolean;
   newGroupFlags: string[];
@@ -71,6 +69,7 @@ export type GroupsSettings = {
   activitySeenTimestamp?: number;
   completedWayfindingSplash?: boolean;
   completedWayfindingTutorial?: boolean;
+  disableTlonInfraEnhancement?: boolean;
 };
 
 export type TalkSettings = {

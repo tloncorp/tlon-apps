@@ -231,7 +231,8 @@
                              (old-scry p)
   ;<  c=(list card)  bind:m  %-  do  |=  s=state
                              %-  ~(on-load agent bowl.s)
-                             (fall vase ~(on-save agent.s bowl.s))
+                             ?^  vase  u.vase
+                             ~(on-save agent.s bowl.s)
   ;<  ~              bind:m  (set-scry-gate old-scry)
   (pure:m c)
 ::

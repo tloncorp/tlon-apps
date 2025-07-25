@@ -42,9 +42,9 @@ export const makeFakeChatWrit = (
       },
     },
     essay: {
-      'kind-data': {
-        chat: null,
-      },
+      kind: '/chat',
+      blob: null,
+      meta: null,
       author,
       sent: unix,
       content: story,
@@ -74,11 +74,9 @@ export const makeFakeChatNotice = (
       },
     },
     essay: {
-      'kind-data': {
-        chat: {
-          notice: null,
-        },
-      },
+      kind: '/chat/notice',
+      blob: null,
+      meta: null,
       author,
       sent: unix,
       content: [],

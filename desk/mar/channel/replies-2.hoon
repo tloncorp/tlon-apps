@@ -1,14 +1,14 @@
-/-  d=channels
+/-  c=channels
 /+  j=channel-json
-|_  =replies:d
+|_  =replies:v7:old:c
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  replies
-  ++  json  (replies:enjs:j replies)
+  ++  json  (replies:v7:enjs:j replies)
   --
 ++  grab
   |%
-  ++  noun  replies:d
+  ++  noun  replies:v7:old:c
   --
 --

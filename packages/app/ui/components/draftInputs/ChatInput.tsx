@@ -20,7 +20,8 @@ export function ChatInput({
     editingPost,
     getDraft,
     group,
-    send,
+    sendPost,
+    sendPostFromDraft,
     setEditingPost,
     setShouldBlur,
     shouldBlur,
@@ -36,9 +37,11 @@ export function ChatInput({
         <BareChatInput
           shouldBlur={shouldBlur}
           setShouldBlur={setShouldBlur}
-          send={send}
+          sendPost={sendPost}
+          sendPostFromDraft={sendPostFromDraft}
           channelId={channel.id}
           groupMembers={group?.members ?? []}
+          groupRoles={group?.roles ?? []}
           storeDraft={storeDraft}
           clearDraft={clearDraft}
           getDraft={getDraft}

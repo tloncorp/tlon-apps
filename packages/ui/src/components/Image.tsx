@@ -1,85 +1,37 @@
+import { PLACEHOLDER_ASSET_URI, createDevLogger } from '@tloncorp/shared';
 import { Image as BaseImage, ImageErrorEventData } from 'expo-image';
-import { ReactElement, useCallback, useState } from 'react';
-import { Platform, StyleSheet } from 'react-native';
-import { SizableText, View, styled, usePropsAndStyle } from 'tamagui';
+import { ReactElement, useCallback, useMemo, useState } from 'react';
+import { SizableText, View, styled } from 'tamagui';
+import { isDataURI, isURL } from 'validator';
 
+import { ErrorBoundary } from './ErrorBoundary';
 import { Icon } from './Icon';
 
-const DefaultImageFallback = () => (
-  <View flex={1} alignItems="center" justifyContent="center">
-    <Icon type="Placeholder" color="$tertiaryText" />
-    <SizableText color="$tertiaryText">Unable to load image</SizableText>
-  </View>
-);
+const logger = createDevLogger('Image', false);
 
-const WebImage = ({
-  source,
-  style,
-  alt,
-  onLoad,
-  onLoadEnd,
-  onError,
-  fallback,
-  ...otherProps
-}: any) => {
-  const [hasError, setHasError] = useState(false);
-
-  const handleError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    setHasError(true);
-    if (onError) {
-      onError({
-        error: new Error('Image loading failed'),
-        target: e.currentTarget,
-      });
-    }
-  };
-
-  const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    // Mimic expo-image's onLoad event structure
-    const loadEvent = {
-      source: {
-        width: e.currentTarget.naturalWidth,
-        height: e.currentTarget.naturalHeight,
-      },
-    };
-    onLoad?.(loadEvent);
-    onLoadEnd?.(loadEvent);
-  };
-
-  const [{ contentFit, ...props }, propStyles] = usePropsAndStyle(otherProps);
-
-  if (hasError && fallback) {
-    return fallback;
-  }
-
-  if (hasError) {
-    return <DefaultImageFallback />;
-  }
-
+const DefaultImageFallback = View.styleable((props, ref) => {
   return (
-    <img
-      src={source.uri}
-      alt={alt}
-      style={{
-        maxWidth: '100%',
-        height: props.height ? props.height : '100%',
-        objectFit: contentFit ? contentFit : undefined,
-        ...StyleSheet.flatten(style),
-        ...propStyles,
-      }}
-      onLoad={handleLoad}
-      onError={handleError}
+    <View
+      flex={1}
+      alignItems="center"
+      justifyContent="center"
+      ref={ref}
+      minHeight={200}
+      minWidth={200}
+      backgroundColor="$secondaryBackground"
+      borderRadius="$m"
       {...props}
-    />
+    >
+      <Icon type="Placeholder" color="$tertiaryText" />
+      <SizableText color="$tertiaryText">Unable to load image</SizableText>
+    </View>
   );
-};
+});
 
 const StyledBaseImage = styled(BaseImage, { name: 'StyledExpoImage' });
 
-export const Image = Platform.OS === 'web' ? WebImage : StyledBaseImage;
-
-export const ImageWithFallback = StyledBaseImage.styleable<{
-  fallback: ReactElement;
+export const Image = StyledBaseImage.styleable<{
+  fallback?: ReactElement | null;
 }>(
   ({ fallback, onError, ...props }, ref) => {
     const [hasErrored, setHasErrored] = useState(false);
@@ -91,19 +43,67 @@ export const ImageWithFallback = StyledBaseImage.styleable<{
       [onError]
     );
 
-    if (hasErrored && fallback) {
+    const showFallback = useMemo(() => {
+      if (isPlaceholderAsset(props.source)) {
+        return false;
+      }
+      const isValid = isValidImageSource(props.source);
+      return !isValid || hasErrored;
+    }, [props.source, hasErrored]);
+
+    if (showFallback && fallback !== undefined) {
       return fallback;
     }
 
-    if (hasErrored) {
+    if (showFallback) {
       return <DefaultImageFallback />;
     }
 
-    return <StyledBaseImage ref={ref} {...props} onError={handleError} />;
+    return (
+      <ErrorBoundary fallback={fallback ?? <DefaultImageFallback />}>
+        <StyledBaseImage ref={ref} {...props} onError={handleError} />
+      </ErrorBoundary>
+    );
   },
   {
     staticConfig: {
-      componentName: 'ImageWithFallback',
+      componentName: 'Image',
     },
   }
 );
+
+function isValidImageSource(source: any) {
+  try {
+    if (!source) return false;
+    const uri: string = typeof source === 'object' ? source.uri : source;
+    if (!uri) {
+      return false;
+    }
+
+    if (typeof uri === 'number') {
+      // this is the case for imports of bundled files (require() returns a numeric metro module ID)
+      return true;
+    }
+
+    if (
+      typeof uri === 'string' &&
+      (uri.startsWith('file:') || uri.startsWith('blob:'))
+    ) {
+      // permit file URIs
+      return true;
+    }
+
+    return isURL(uri) || isDataURI(uri);
+  } catch (e) {
+    logger.trackError('Failed to validate image source', {
+      source,
+      errorMessage: e.message,
+      errorStack: e.stack,
+    });
+  }
+  return false;
+}
+
+function isPlaceholderAsset(source: any) {
+  return typeof source === 'object' && source.uri === PLACEHOLDER_ASSET_URI;
+}

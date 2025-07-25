@@ -6,6 +6,7 @@ import { YStack } from 'tamagui';
 import { TextInput } from './Form';
 
 export function SearchBar({
+  autoFocus = false,
   placeholder,
   onChangeQuery,
   debounceTime = 300,
@@ -13,6 +14,7 @@ export function SearchBar({
   inputProps,
   ...rest
 }: {
+  autoFocus?: boolean;
   placeholder?: string;
   onChangeQuery: (query: string) => void;
   debounceTime?: number;
@@ -54,6 +56,7 @@ export function SearchBar({
         value={value}
         onChangeText={onTextChange}
         placeholder={placeholder}
+        autoFocus={autoFocus}
         rightControls={
           value !== '' || onPressCancel ? (
             <TextInput.InnerButton

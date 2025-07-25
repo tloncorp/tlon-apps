@@ -56,6 +56,7 @@ export function NotebookInput({
               key="notebook"
               type="Add"
               onPress={handleAdd}
+              testID="AddNotebookPost"
             />
             <WayfindingNotices.NotebookInputTooltip
               channelId={draftInputContext.channel.id}

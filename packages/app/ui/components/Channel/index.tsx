@@ -1,7 +1,10 @@
 import { useIsFocused } from '@react-navigation/native';
 import {
   DraftInputId,
+  UploadedImageAttachment,
+  finalizeAndSendPost,
   isChatChannel as getIsChatChannel,
+  sendPost,
   useChannelPreview,
   useGroupPreview,
   usePostReference as usePostReferenceHook,
@@ -10,6 +13,7 @@ import {
 import {
   ChannelContentConfiguration,
   isDmChannelId,
+  isGroupDmChannelId,
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
@@ -59,8 +63,6 @@ import { DraftInputView } from './DraftInputView';
 import { PostView } from './PostView';
 import { ReadOnlyNotice } from './ReadOnlyNotice';
 
-export { INITIAL_POSTS_PER_PAGE } from './Scroller';
-
 //TODO implement usePost and useChannel
 const useApp = () => {};
 
@@ -74,10 +76,10 @@ interface ChannelProps {
   goToChatDetails?: () => void;
   goToPost: (post: db.Post) => void;
   goToDm: (participants: string[]) => void;
+  goToGroupSettings: () => void;
   goToImageViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
   goToUserProfile: (userId: string) => void;
-  messageSender: (content: Story, channelId: string) => Promise<void>;
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
@@ -127,7 +129,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       goToPost,
       goToDm,
       goToUserProfile,
-      messageSender,
+      goToGroupSettings,
       onScrollEndReached,
       onScrollStartReached,
       isLoadingPosts,
@@ -167,6 +169,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
 
     const isChatChannel = channel ? getIsChatChannel(channel) : true;
     const isDM = isDmChannelId(channel.id);
+    const isGroupDm = isGroupDmChannelId(channel.id);
 
     const onPressGroupRef = useCallback((group: db.Group) => {
       setGroupPreview(group);
@@ -226,7 +229,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
               {
                 block: {
                   image: {
-                    src: attachment.uploadState.remoteUri,
+                    src: UploadedImageAttachment.uri(attachment),
                     height: attachment.file.height || 0,
                     width: attachment.file.width || 0,
                     alt: 'image',
@@ -236,7 +239,10 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
             ];
 
             // Send the post with just this image
-            await messageSender(story, channel.id);
+            await sendPost({
+              channelId: channel.id,
+              content: story,
+            });
           }
         } catch (error) {
           console.error('Error handling image drop:', error);
@@ -244,7 +250,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
           clearAttachments();
         }
       },
-      [channel, messageSender, uploadAssets, attachAssets, clearAttachments]
+      [channel, uploadAssets, attachAssets, clearAttachments]
     );
 
     /** when `null`, input is not shown or presentation is unknown */
@@ -269,7 +275,14 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         getDraft,
         group,
         onPresentationModeChange: setDraftInputPresentationMode,
-        send: messageSender,
+        sendPost: async (content, channelId, metadata) => {
+          await sendPost({
+            channelId,
+            content,
+            metadata,
+          });
+        },
+        sendPostFromDraft: finalizeAndSendPost,
         setEditingPost,
         setShouldBlur: setInputShouldBlur,
         shouldBlur: inputShouldBlur,
@@ -283,7 +296,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         getDraft,
         group,
         inputShouldBlur,
-        messageSender,
         setEditingPost,
         storeDraft,
       ]
@@ -338,6 +350,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                 onPressGroupRef={onPressGroupRef}
                 onPressGoToDm={goToDm}
                 onGoToUserProfile={goToUserProfile}
+                onGoToGroupSettings={goToGroupSettings}
               >
                 <View backgroundColor={backgroundColor} flex={1}>
                   <FileDrop
@@ -420,7 +433,9 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                   ? 'read-only'
                                   : isDM
                                     ? 'dm-mismatch'
-                                    : 'channel-mismatch'
+                                    : isGroupDm
+                                      ? 'group-dm-mismatch'
+                                      : 'channel-mismatch'
                               }
                             />
                           ) : channel.contentConfiguration == null ? (

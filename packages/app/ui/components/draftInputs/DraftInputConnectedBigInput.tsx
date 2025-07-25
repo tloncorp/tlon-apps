@@ -31,7 +31,8 @@ export function DraftInputConnectedBigInput({
     editingPost,
     getDraft,
     group,
-    send,
+    sendPost,
+    sendPostFromDraft,
     setEditingPost,
     setShouldBlur,
     shouldBlur,
@@ -50,9 +51,11 @@ export function DraftInputConnectedBigInput({
         }
         channelId={channel.id}
         groupMembers={group?.members ?? []}
+        groupRoles={group?.roles ?? []}
         shouldBlur={shouldBlur}
         setShouldBlur={setShouldBlur}
-        send={send}
+        sendPost={sendPost}
+        sendPostFromDraft={sendPostFromDraft}
         storeDraft={storeDraft}
         clearDraft={clearDraft}
         getDraft={getDraft}

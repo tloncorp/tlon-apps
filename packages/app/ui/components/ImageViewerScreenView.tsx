@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import {
   Directions,
+  FlingGesture,
   Gesture,
   GestureDetector,
 } from 'react-native-gesture-handler';
@@ -67,7 +68,7 @@ export function ImageViewerScreenView(props: {
   }
 
   const dismissGesture = Gesture.Fling()
-    .enabled(isAtMinZoom)
+    .enabled(isAtMinZoom && !isWeb)
     .direction(Directions.DOWN)
     .onEnd((_event, success) => {
       if (success) {
@@ -276,115 +277,115 @@ export function ImageViewerScreenView(props: {
   };
 
   return (
-    <ImageViewerContainer>
-      <GestureDetector gesture={dismissGesture}>
-        <ZStack
-          flex={1}
-          backgroundColor="$black"
-          paddingTop={top}
-          data-testid="image-viewer"
-        >
-          <View flex={1}>
-            {isWeb ? (
-              <Zoomable
-                ref={zoomableRef}
-                data-testid="zoomable-image"
-                style={{
-                  flex: 1,
-                  height: '100%',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-                isDoubleTapEnabled
-                isSingleTapEnabled
-                isPanEnabled
-                minScale={0.1}
-                onPinchEnd={handlePinchEnd}
-                onDoubleTap={onDoubleTap}
-                onSingleTap={onSingleTap}
-                maxPanPointers={maxPanPointers}
-              >
-                <Image
-                  source={{
-                    uri: props.uri,
-                  }}
-                  data-testid="image"
-                  style={{
-                    height: 'auto',
-                    maxWidth: Dimensions.get('window').width,
-                    maxHeight: Dimensions.get('window').height - top,
-                  }}
-                />
-              </Zoomable>
-            ) : (
-              <ImageZoom
-                ref={zoomableRef}
-                uri={props.uri}
-                style={{ flex: 1 }}
-                isDoubleTapEnabled
-                isSingleTapEnabled
-                isPanEnabled
-                width={Dimensions.get('window').width}
-                maxPanPointers={maxPanPointers}
-                minScale={0.1}
-                onPinchEnd={handlePinchEnd}
-                onDoubleTap={onDoubleTap}
-                onSingleTap={onSingleTap}
-              />
-            )}
-          </View>
-
-          {/* overlay */}
-          {showOverlay ? (
-            <YStack
-              position="absolute"
-              width="100%"
-              padding="$xl"
-              paddingTop={isWeb ? 16 : top}
+    <ImageViewerContainer dismissGesture={dismissGesture}>
+      <ZStack
+        flex={1}
+        backgroundColor="$black"
+        paddingTop={top}
+        data-testid="image-viewer"
+      >
+        <View flex={1}>
+          {isWeb ? (
+            <View
+              flex={1}
+              height="100%"
+              alignItems="center"
+              justifyContent="center"
             >
-              <XStack
-                justifyContent={isWeb ? 'flex-end' : 'space-between'}
-                gap="$m"
-              >
-                <TouchableOpacity
-                  onPress={handleDownloadImage}
-                  activeOpacity={0.8}
-                >
-                  <Stack
-                    padding="$m"
-                    backgroundColor="$darkOverlay"
-                    borderRadius="$l"
-                  >
-                    <Icon type="ArrowDown" size="$l" color="$white" />
-                  </Stack>
-                </TouchableOpacity>
+              <Image
+                source={{
+                  uri: props.uri,
+                }}
+                data-testid="image"
+                style={{
+                  width: '100%',
+                  height: 'auto',
+                  aspectRatio:
+                    Dimensions.get('window').width /
+                    (Dimensions.get('window').height - top),
+                }}
+                contentFit="contain"
+              />
+            </View>
+          ) : (
+            <ImageZoom
+              ref={zoomableRef}
+              uri={props.uri}
+              style={{ flex: 1 }}
+              isDoubleTapEnabled
+              isSingleTapEnabled
+              isPanEnabled
+              width={Dimensions.get('window').width}
+              maxPanPointers={maxPanPointers}
+              minScale={0.1}
+              onPinchEnd={handlePinchEnd}
+              onDoubleTap={onDoubleTap}
+              onSingleTap={onSingleTap}
+            />
+          )}
+        </View>
 
-                <TouchableOpacity
-                  onPress={() => props.goBack()}
-                  activeOpacity={0.8}
+        {/* overlay */}
+        {showOverlay ? (
+          <YStack
+            position="absolute"
+            width="100%"
+            padding="$xl"
+            paddingTop={isWeb ? 16 : top}
+          >
+            <XStack
+              justifyContent={isWeb ? 'flex-end' : 'space-between'}
+              gap="$m"
+            >
+              <TouchableOpacity
+                onPress={handleDownloadImage}
+                activeOpacity={0.8}
+              >
+                <Stack
+                  padding="$m"
+                  backgroundColor="$darkOverlay"
+                  borderRadius="$l"
                 >
-                  <Stack
-                    padding="$m"
-                    backgroundColor="$darkOverlay"
-                    borderRadius="$l"
-                  >
-                    <Icon type="Close" size="$l" color="$white" />
-                  </Stack>
-                </TouchableOpacity>
-              </XStack>
-            </YStack>
-          ) : null}
-        </ZStack>
-      </GestureDetector>
+                  <Icon type="ArrowDown" size="$l" color="$white" />
+                </Stack>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => props.goBack()}
+                activeOpacity={0.8}
+              >
+                <Stack
+                  padding="$m"
+                  backgroundColor="$darkOverlay"
+                  borderRadius="$l"
+                >
+                  <Icon type="Close" size="$l" color="$white" />
+                </Stack>
+              </TouchableOpacity>
+            </XStack>
+          </YStack>
+        ) : null}
+      </ZStack>
     </ImageViewerContainer>
   );
 }
 
-function ImageViewerContainer(props: PropsWithChildren) {
+function ImageViewerContainer(
+  props: PropsWithChildren<{ dismissGesture?: FlingGesture }>
+) {
   // on web, we wrap in a modal to escape the drawer navigators
   if (isWeb) {
     return <Modal animationType="none">{props.children}</Modal>;
   }
 
-  return props.children;
+  if (!props.dismissGesture) {
+    console.error('ImageViewerContainer requires a dismissGesture on mobile');
+    return null;
+  }
+
+  return (
+    <GestureDetector gesture={props.dismissGesture}>
+      {props.children}
+    </GestureDetector>
+  );
 }

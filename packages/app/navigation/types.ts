@@ -103,6 +103,14 @@ export type RootDrawerParamList = {
   Messages: NavigatorScreenParams<HomeDrawerParamList>;
 } & Pick<RootStackParamList, 'Activity' | 'Contacts' | 'Settings'>;
 
+// hack: adding the true contacts types causes lots of tsc failures that need
+// resolving. Added to support navigating deeply within the contacts drawer
+export type ActualRootDrawerParamList = {
+  Home: NavigatorScreenParams<HomeDrawerParamList>;
+  Messages: NavigatorScreenParams<HomeDrawerParamList>;
+  Contacts: NavigatorScreenParams<ProfileDrawerParamList>;
+} & Pick<RootStackParamList, 'Activity' | 'Settings'>;
+
 export type CombinedParamList = RootStackParamList & RootDrawerParamList;
 
 export type HomeDrawerParamList = Pick<

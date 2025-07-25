@@ -3,6 +3,8 @@ import {
   DarkTheme,
   DefaultTheme,
   NavigationContainer,
+  NavigationState,
+  PartialState,
   Route,
 } from '@react-navigation/native';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
@@ -10,14 +12,20 @@ import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitCl
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import useDesktopNotifications from '@tloncorp/app/hooks/useDesktopNotifications';
 import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
+import { useInviteParam } from '@tloncorp/app/hooks/useInviteParam';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useRenderCount } from '@tloncorp/app/hooks/useRenderCount';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
 import { BasePathNavigator } from '@tloncorp/app/navigation/BasePathNavigator';
 import {
+  getNavigationIntentFromState,
+  getStateFromNavigationIntent,
+} from '@tloncorp/app/navigation/intent';
+import {
   getDesktopLinkingConfig,
   getMobileLinkingConfig,
 } from '@tloncorp/app/navigation/linking';
+import { CombinedParamList } from '@tloncorp/app/navigation/types';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
@@ -53,7 +61,7 @@ import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
 import { useIsDark, useIsMobile } from '@/logic/useMedia';
 import { preSig } from '@/logic/utils';
 import { toggleDevTools, useLocalState, useShowDevTools } from '@/state/local';
-import { useAnalyticsId, useLogActivity, useTheme } from '@/state/settings';
+import { useTheme } from '@/state/settings';
 
 import { DesktopLoginScreen } from './components/DesktopLoginScreen';
 import { isElectron } from './electron-bridge';
@@ -154,13 +162,6 @@ function AppRoutes() {
   const { data: groupData } = store.useGroup({
     id: groupId,
   });
-  const { data, refetch, isRefetching, isFetching } = contactsQuery;
-
-  useEffect(() => {
-    if (data?.length === 0 && !isRefetching && !isFetching) {
-      refetch();
-    }
-  }, [data?.length, isRefetching, isFetching, refetch]);
 
   const isMobile = useIsMobile();
   const isDarkMode = useIsDarkMode();
@@ -296,6 +297,21 @@ function AppRoutes() {
     []
   );
 
+  const { onNavigationStateChange, initialStateRef } = useDeriveInitialNavState(
+    isMobile ? 'mobile' : 'desktop'
+  );
+
+  const platformHandleStateChange = isMobile
+    ? handleStateChangeMobile
+    : handleStateChangeDesktop;
+  const combinedStateChangeHandler = useCallback(
+    (state: NavigationState<CombinedParamList> | undefined) => {
+      platformHandleStateChange(state);
+      onNavigationStateChange(state);
+    },
+    [platformHandleStateChange, onNavigationStateChange]
+  );
+
   return (
     <AppDataProvider
       webAppNeedsUpdate={needsUpdate}
@@ -304,9 +320,11 @@ function AppRoutes() {
       <ForwardPostSheetProvider>
         {isMobile ? (
           <NavigationContainer
+            key="mobile"
+            initialState={initialStateRef.current.mobile}
             linking={mobileLinkingConfig}
             theme={theme}
-            onStateChange={handleStateChangeMobile}
+            onStateChange={combinedStateChangeHandler}
             documentTitle={{
               enabled: true,
               formatter: documentTitleFormatterMobile,
@@ -316,9 +334,11 @@ function AppRoutes() {
           </NavigationContainer>
         ) : (
           <NavigationContainer
+            key="desktop"
+            initialState={initialStateRef.current.desktop}
             linking={desktopLinkingConfig}
             theme={theme}
-            onStateChange={handleStateChangeDesktop}
+            onStateChange={combinedStateChangeHandler}
             documentTitle={{
               enabled: true,
               formatter: documentTitleFormatterDesktop,
@@ -656,9 +676,7 @@ function RoutedApp() {
   const [userThemeColor, setUserThemeColor] = useState('#ffffff');
   const showDevTools = useShowDevTools();
   const isStandAlone = useIsStandaloneMode();
-  const logActivity = useLogActivity();
   const posthog = usePostHog();
-  const analyticsId = useAnalyticsId();
   const body = document.querySelector('body');
   const colorSchemeFromNative =
     window.nativeOptions?.colorScheme ?? window.colorscheme;
@@ -737,3 +755,52 @@ function RoutedApp() {
 }
 
 export default RoutedApp;
+
+const flipNavigator = (navigatorType: 'mobile' | 'desktop') =>
+  navigatorType === 'mobile' ? 'desktop' : 'mobile';
+
+/*
+ * On every nav state change, derive a corresponding navigation `initialState`
+ * that can be passed to a `NavigationContainer`.
+ *
+ * This conversion loses any history in the navigation state - this means
+ * that `goBack` will not work directly after switching navigators. Supporting
+ * history here seems too complex, so it's just a limitation until we have a
+ * unified router.
+ */
+function useDeriveInitialNavState(navigatorType: 'mobile' | 'desktop') {
+  const initialStateRef = useRef<
+    Partial<
+      Record<
+        typeof navigatorType,
+        | NavigationState<CombinedParamList>
+        | PartialState<NavigationState<CombinedParamList>>
+      >
+    >
+  >({});
+
+  const onNavigationStateChange = useCallback(
+    (state: NavigationState<CombinedParamList> | undefined) => {
+      if (!state) {
+        initialStateRef.current = {};
+        return;
+      }
+
+      initialStateRef.current[navigatorType] = state;
+      const navIntent = getNavigationIntentFromState(state, navigatorType);
+      if (navIntent) {
+        initialStateRef.current[flipNavigator(navigatorType)] =
+          getStateFromNavigationIntent(
+            navIntent,
+            flipNavigator(navigatorType)
+          ) ?? undefined;
+      }
+    },
+    [navigatorType]
+  );
+
+  return {
+    onNavigationStateChange,
+    initialStateRef,
+  };
+}

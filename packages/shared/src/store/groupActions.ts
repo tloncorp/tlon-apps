@@ -34,6 +34,7 @@ export async function scaffoldPersonalGroup() {
       title: PersonalGroupKeys.groupName,
       iconImage: groupIconUrl,
       currentUserIsMember: true,
+      isPersonalGroup: true,
       hostUserId: currentUserId,
       currentUserIsHost: true,
       privacy: 'secret',
@@ -282,6 +283,7 @@ export async function inviteGroupMembers({
     chatId: groupId,
     type: 'group',
     contactIds,
+    status: 'invited',
   });
 
   logger.trackEvent(AnalyticsEvent.OnNetworkInvite, {
@@ -296,7 +298,10 @@ export async function inviteGroupMembers({
       await api.inviteGroupMembers({ groupId, contactIds });
     }
   } catch (e) {
-    console.error('Failed to invite group members', e);
+    logger.trackError('Failed to invite group members', {
+      errorMessage: e.message,
+      errorStack: e.stack,
+    });
     // rollback optimistic update
     await db.removeChatMembers({
       chatId: groupId,
@@ -1020,6 +1025,7 @@ export async function kickUserFromGroup({
       chatId: groupId,
       type: 'group',
       contactIds: [contactId],
+      status: 'joined',
     });
   }
 }
@@ -1084,6 +1090,7 @@ export async function banUserFromGroup({
       chatId: groupId,
       type: 'group',
       contactIds: [contactId],
+      status: 'joined',
     });
 
     await db.deleteGroupMemberBans({
@@ -1193,6 +1200,7 @@ export async function acceptUserJoin({
     chatId: groupId,
     type: 'group',
     contactIds: [contactId],
+    status: 'joined',
   });
 
   await db.deleteGroupJoinRequests({

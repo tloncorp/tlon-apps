@@ -43,7 +43,9 @@ export const settings = sqliteTable('settings', {
   >(),
   groupSideBarSort: text('group_side_bar_sort', { mode: 'json' }),
   showActivityMessage: boolean('show_activity_message'),
+  // DEPRECATED: use `enableTelemetry` instead, retained for setting migration
   logActivity: boolean('log_activity'),
+  enableTelemetry: boolean('enable_telemetry'),
   analyticsId: text('analytics_id'),
   seenWelcomeCard: boolean('seen_welcome_card'),
   newGroupFlags: text('new_group_flags', { mode: 'json' }),
@@ -55,6 +57,7 @@ export const settings = sqliteTable('settings', {
   activitySeenTimestamp: timestamp('activity_seen_timestamp'),
   completedWayfindingSplash: boolean('completed_wayfinding_splash'),
   completedWayfindingTutorial: boolean('completed_wayfinding_tutorial'),
+  disableTlonInfraEnhancement: boolean('disable_tlon_infra_enhancement'),
 });
 
 export const systemContacts = sqliteTable('system_contacts', {
@@ -431,6 +434,7 @@ export const groups = sqliteTable('groups', {
   currentUserIsHost: boolean('current_user_is_host').notNull(),
   hostUserId: text('host_user_id').notNull(),
   isNew: boolean('is_new'),
+  isPersonalGroup: boolean('is_personal_group').default(false),
   joinStatus: text('join_status').$type<GroupJoinStatus>(),
   lastPostId: text('last_post_id'),
   lastPostAt: timestamp('last_post_at'),
@@ -464,7 +468,7 @@ export const groupsRelations = relations(groups, ({ one, many }) => ({
 export const groupRoles = sqliteTable(
   'group_roles',
   {
-    id: text('id'),
+    id: text('id').notNull(),
     groupId: text('group_id').references(() => groups.id, {
       onDelete: 'cascade',
     }),
@@ -926,6 +930,7 @@ export const channelRelations = relations(channels, ({ one, many }) => ({
 }));
 
 export type PostDeliveryStatus =
+  | 'enqueued'
   | 'pending'
   | 'sent'
   | 'failed'
@@ -944,6 +949,8 @@ export const posts = sqliteTable(
       .notNull(),
     title: text('title'),
     image: text('image'),
+    description: text('description'),
+    cover: text('cover'),
     content: text('content', { mode: 'json' }),
     receivedAt: timestamp('received_at').notNull(),
     sentAt: timestamp('sent_at').notNull(),

@@ -4,11 +4,52 @@
 ::
 /-  c=channels, g=groups, h=hooks, m=meta
 /+  utils=channel-utils, imp=import-aid
-/+  default-agent, verb, dbug, neg=negotiate, logs
+/+  default-agent, verb, dbug,
+    neg=negotiate, discipline, logs
 /+  hj=hooks-json
 ::
+/%  m-channel-checkpoint    %channel-checkpoint
+/%  m-channel-denied        %channel-denied
+/%  m-channel-logs          %channel-logs
+/%  m-channel-said-1        %channel-said-1
+/%  m-channel-update        %channel-update
+/%  m-hook-channel-preview  %hook-channel-preview
+/%  m-hook-full             %hook-full
+/%  m-hook-response-0       %hook-response-0
+/%  m-hook-template         %hook-template
+::
+%-  %-  discipline
+    :+  ::  marks
+        ::
+        :~  :+  %channel-checkpoint    |  -:!>(*vale:m-channel-checkpoint)
+            :+  %channel-denied        |  -:!>(*vale:m-channel-denied)
+            :+  %channel-logs          |  -:!>(*vale:m-channel-logs)
+            :+  %channel-said-1        |  -:!>(*vale:m-channel-said-1)
+            :+  %channel-update        |  -:!>(*vale:m-channel-update)
+            :+  %hook-channel-preview  |  -:!>(*vale:m-hook-channel-preview)
+            :+  %hook-full             |  -:!>(*vale:m-hook-full)
+            :+  %hook-response-0       |  -:!>(*vale:m-hook-response-0)
+            :+  %hook-template         |  -:!>(*vale:m-hook-template)
+        ==
+      ::  facts
+      ::
+      :~  [/$/$/checkpoint %channel-checkpoint ~]
+          [/$/$/create %channel-update ~]
+          [/$/$/updates %channel-update %channel-logs ~]
+          [/said %channel-said-1 %channel-denied ~]
+        ::
+          [/v0/hooks %hook-response-0 ~]
+          [/v0/hooks/full %hook-full ~]
+          [/v0/hooks/preview %hook-channel-preview ~]
+          [/v0/hooks/template %hook-template ~]
+      ==
+    ::  scries
+    ::
+    :~  [/x/v0/hooks %hook-full]
+    ==
+::
 %-  %-  agent:neg
-    [| [~.channels^%1 ~ ~] ~]
+    [| [~.channels^%2 ~ ~] ~]
 %-  agent:dbug
 %+  verb  |
 ::
@@ -17,7 +58,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %7
+    $:  %9
         =v-channels:c
         =hooks:h
         =pimp:imp
@@ -106,17 +147,62 @@
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
   =?  old  ?=(%6 -.old)  (state-6-to-7 old)
-  ?>  ?=(%7 -.old)
+  =?  old  ?=(%7 -.old)  (state-7-to-8 old)
+  =?  old  ?=(%8 -.old)  (state-8-to-9 old)
+  ?>  ?=(%9 -.old)
   =.  state  old
   inflate-io
   ::
-  +$  versioned-state  $%(state-7 state-6 state-5 state-4 state-3 state-2 state-1 state-0)
-  +$  state-7  current-state
-  +$  state-6
-    $:  %6
+  +$  versioned-state
+    $%  state-9
+        state-8
+        state-7
+        state-6
+        state-5
+        state-4
+        state-3
+        state-2
+        state-1
+        state-0
+    ==
+  +$  state-9  current-state
+  +$  state-8
+    $:  %8
         =v-channels:c
+        =hooks:h
         =pimp:imp
     ==
+  +$  state-7
+    $:  %7
+        =v-channels:v7:old:c
+        =hooks:h
+        =pimp:imp
+    ==
+  +$  state-6
+    $:  %6
+      =v-channels:v7:old:c
+      =pimp:imp
+    ==
+  ++  state-8-to-9
+    |=  s=state-8
+    ^-  state-9
+    =-  s(- %9, v-channels -)
+    %-  ~(run by v-channels.s)
+    |=  v=v-channel:c
+    ^+  v
+    %+  roll  (tap:log-on:c log.v)
+    |=  $:  [t=time u=u-channel:c]
+            chan=_v
+        ==
+    ?.  ?=([%post * %set ~] u)  chan
+    ~?  ?=([~ ~ *] (get:on-v-posts:c posts.chan id.u))
+      %strange-existing-deleted-posts
+    =-  chan(posts -)
+    (put:on-v-posts:c posts.chan id.u ~)
+  ++  state-7-to-8
+    |=  s=state-7
+    ^-  state-8
+    s(- %8, v-channels (v-channels-7-to-8:utils v-channels.s))
   ++  state-6-to-7
     |=  state-6
     ^-  state-7
@@ -132,10 +218,10 @@
     [%6 (v-channels-5-to-6 v-channels) pimp]
   ++  v-channels-5-to-6
     |=  vc=v-channels:v6:old:c
-    ^-  v-channels:c
+    ^-  v-channels:v7:old:c
     %-  ~(run by vc)
     |=  v=v-channel:v6:old:c
-    ^-  v-channel:c
+    ^-  v-channel:v7:old:c
     v(pending [pending.v *last-updated:c])
   +$  state-4
     $:  %4
@@ -154,16 +240,16 @@
   ++  v-channel-2-to-3
     |=  v=v-channel-2
     ^-  v-channel:v6:old:c
-    v(future [future.v *pending-messages:c])
+    v(future [future.v *pending-messages:v7:old:c])
   ++  v-channels-2  (map nest:c v-channel-2)
   ++  v-channel-2
-    |^  ,[global:v-channel:c local]
+    |^  ,[global:v-channel:v7:old:c local]
     +$  local
       $:  =net:c
-          =log:c
+          =log:v7:old:c
           =remark:c
           =window:v-channel:c
-          =future:v-channel:c
+          =future:v-channel:v7:old:c
       ==
     --
   ::
@@ -195,23 +281,23 @@
     --
   +$  log-1           ((mop time u-channel-1) lte)
   ++  log-on-1        ((on time u-channel-1) lte)
-  +$  u-channel-1     $%  $<(%post u-channel:c)
+  +$  u-channel-1     $%  $<(%post u-channel:v7:old:c)
                           [%post id=id-post:c u-post=u-post-1]
                       ==
-  +$  u-post-1        $%  $<(?(%set %reply) u-post:c)
+  +$  u-post-1        $%  $<(?(%set %reply) u-post:v7:old:c)
                           [%set post=(unit v-post-1)]
                           [%reply id=id-reply:c u-reply=u-reply-1]
                       ==
-  +$  u-reply-1       $%  $<(%set u-reply:c)
+  +$  u-reply-1       $%  $<(%set u-reply:v7:old:c)
                           [%set reply=(unit v-reply-1)]
                       ==
   +$  v-posts-1       ((mop id-post:c (unit v-post-1)) lte)
   ++  on-v-posts-1    ((on id-post:c (unit v-post-1)) lte)
-  +$  v-post-1        [v-seal-1 (rev:c essay:c)]
-  +$  v-seal-1        [id=id-post:c replies=v-replies-1 reacts=v-reacts:c]
+  +$  v-post-1        [v-seal-1 (rev:c essay:v7:old:c)]
+  +$  v-seal-1        [id=id-post:c replies=v-replies-1 reacts=v-reacts:v7:old:c]
   +$  v-replies-1     ((mop id-reply:c (unit v-reply-1)) lte)
   ++  on-v-replies-1  ((on id-reply:c (unit v-reply-1)) lte)
-  +$  v-reply-1       [v-reply-seal:c memo:c]
+  +$  v-reply-1       [v-reply-seal:v7:old:c memo:v7:old:c]
   ++  state-1-to-2
     |=  s=state-1
     ^-  state-2
@@ -229,16 +315,16 @@
     (run:log-on-1 l u-channel-1-to-2)
   ++  u-channel-1-to-2
     |=  u=u-channel-1
-    ^-  u-channel:c
+    ^-  u-channel:v7:old:c
     ?.  ?=([%post *] u)  u
     u(u-post (u-post-1-to-2 u-post.u))
   ++  future-1-to-2
     |=  f=future:v-channel-1
-    ^-  future:v-channel:c
+    ^-  future:v-channel:v7:old:c
     f(diffs (~(run by diffs.f) |=(s=(set u-post-1) (~(run in s) u-post-1-to-2))))
   ++  u-post-1-to-2
     |=  u=u-post-1
-    ^-  u-post:c
+    ^-  u-post:v7:old:c
     ?+  u  u
       [%set ~ *]           u(u.post (v-post-1-to-2 u.post.u))
       [%reply * %set ~ *]  u(u.reply.u-reply (v-reply-1-to-2 u.reply.u-reply.u))
@@ -254,7 +340,7 @@
     %+  run:on-v-replies-1  r
     |=(r=(unit v-reply-1) ?~(r ~ `(v-reply-1-to-2 u.r)))
   ++  v-reply-1-to-2
-    |=(r=v-reply-1 `v-reply:c`[-.r 0 +.r])
+    |=(r=v-reply-1 `v-reply:v7:old:c`[-.r 0 +.r])
   ::
   ::  %0 to %1
   ::
@@ -308,11 +394,25 @@
       %noun
     ?+  q.vase  !!
         %pimp-ready
+      ?>  =(our src):bowl
       ?-  pimp
         ~         cor(pimp `&+~)
         [~ %& *]  cor
         [~ %| *]  (run-import p.u.pimp)
       ==
+    ::
+        [%send-sequence-numbers *]
+      =+  !<([%send-sequence-numbers =nest:c] vase)
+      ?~  can=(~(get by v-channels) nest)  cor
+      =;  =cage
+        (emit [%pass /numbers %agent [src.bowl %channels] %poke cage])
+      :-  %noun
+      !>  :^  %sequence-numbers  nest
+        count.u.can
+      ^-  (list [id-post:c (unit @ud)])
+      %+  turn  (tap:on-v-posts:c posts.u.can)
+      |=  [i=id-post:c p=(unit v-post:c)]
+      [i ?~(p ~ `seq.u.p)]
     ==
   ::
       %channel-command
@@ -490,9 +590,10 @@
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
   ?+    pole  ~|(bad-agent-wire+pole !!)
-    [%logs ~]  cor
-    [%pimp ~]  cor
-    [%wake ~]  cor
+    [%logs ~]     cor
+    [%pimp ~]     cor
+    [%wake ~]     cor
+    [%numbers ~]  cor
   ::
       [=kind:c *]
     ?+    -.sign  !!
@@ -626,8 +727,10 @@
   ++  ca-area  `path`/[kind.nest]/[name.nest]
   ++  ca-sub-path  `path`(weld ca-area /updates)
   ++  ca-watch-create
-    =/  =cage  [%channel-update !>([now.bowl %create perm.perm.channel])]
-    (give %fact ~[/[kind.nest]/[name.nest]/create] cage)
+    =/  =update:c  [now.bowl %create perm.perm.channel meta.meta.channel]
+    =/  =path  /[kind.nest]/[name.nest]/create
+    =/  =cage  [%channel-update !>(update)]
+    (give %fact ~[path] cage)
   ::
   ++  ca-watch-updates
     |=  =@da
@@ -671,10 +774,12 @@
     ?>  ((sane %tas) name.nest)
     =.  channel
       %*  .  *v-channel:c
+        meta  [0 meta.new]
         perm  [1 writers.new group.new]
       ==
     =.  ca-core
-      =/  =cage  [%channel-update !>([now.bowl %create perm.perm.channel])]
+      =/  =update:c  [now.bowl %create perm.perm.channel meta.meta.channel]
+      =/  =cage  [%channel-update !>(update)]
       =/  =path  /[kind.nest]/[name.nest]/create
       =.  ca-core  (give %fact ~[path] cage)
       (give %kick ~[path] ~)
@@ -724,6 +829,12 @@
       ?.  changed  ca-core
       (ca-update %order order.channel)
     ::
+        %meta
+      ?>  (is-admin:ca-perms src.bowl)
+      =^  changed  meta.channel  (next-rev:c meta.channel meta.c-channel)
+      ?.  changed  ca-core
+      (ca-update %meta meta.channel)
+    ::
         %add-writers
       ?>  (is-admin:ca-perms src.bowl)
       =/  new-writers  (~(uni in writers.perm.perm.channel) sects.c-channel)
@@ -755,13 +866,14 @@
     ?-    -.c-post
         %add
       ?>  |(=(src.bowl our.bowl) =(src.bowl author.essay.c-post))
-      ?>  =(kind.nest -.kind-data.essay.c-post)
+      ?>  =(kind.nest -.kind.essay.c-post)
       =/  id=id-post:c
         |-
         =/  post  (get:on-v-posts:c posts.channel now.bowl)
         ?~  post  now.bowl
         $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
-      =/  new=v-post:c  [[id ~ ~] 0 essay.c-post]
+      =.  count.channel  +(count.channel)
+      =/  new=v-post:c  [[id count.channel id ~ ~] 0 essay.c-post]
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-post %add new]
         (run-hooks event nest 'post blocked')
@@ -788,7 +900,7 @@
         ?>  ?=([%on-post %edit *] p.result)
         essay.p.result
       ::TODO  could optimize and no-op if the edit is identical to current
-      =/  new=v-post:c  [-.u.u.post +(rev.u.u.post) essay]
+      =/  new=v-post:c  [-.u.u.post(mod-at now.bowl) +(rev.u.u.post) essay]
       :-  `[%post id.c-post %set ~ new]
       ca-core(posts.channel (put:on-v-posts:c posts.channel id.c-post ~ new))
     ::
@@ -810,9 +922,10 @@
       ?~  u.post  no-op
       =^  result=(each event:h tang)  cor
         =/  =event:h
+          =*  post-author  (get-author-ship:utils p.c-post)
           :*  %on-post  %react  u.u.post
-              ?:  ?=(%del-react -.c-post)  [p.c-post ~]
-              [p `q]:c-post
+              ?:  ?=(%del-react -.c-post)  [post-author ~]
+              [post-author `q.c-post]
           ==
         (run-hooks event nest 'react action blocked')
       ?:  ?=(%.n -.result)
@@ -826,8 +939,11 @@
         (ca-c-react reacts.u.u.post new)
       ?.  update  no-op
       :-  `[%post id.c-post %reacts reacts]
-      %=  ca-core  posts.channel
-        (put:on-v-posts:c posts.channel id.c-post ~ u.u.post(reacts reacts))
+      %=  ca-core
+          posts.channel
+        %+  put:on-v-posts:c
+          posts.channel
+        [id.c-post ~ u.u.post(reacts reacts, mod-at now.bowl)]
       ==
     ::
         %reply
@@ -838,8 +954,11 @@
         (ca-c-reply u.u.post c-reply.c-post)
       ?~  update  no-op
       :-  `[%post id.c-post u.update]
-      %=  ca-core  posts.channel
-        (put:on-v-posts:c posts.channel id.c-post ~ u.u.post)
+      %=  ca-core
+          posts.channel
+        %+  put:on-v-posts:c
+          posts.channel
+        [id.c-post ~ u.u.post(mod-at now.bowl)]
       ==
     ==
   ::
@@ -905,8 +1024,8 @@
       =^  result=(each event:h tang)  cor
         =/  =event:h
           :*  %on-reply  %react  parent  u.u.reply
-              ?:  ?=(%del-react -.c-reply)  [p.c-reply ~]
-              [p `q]:c-reply
+              ?:  ?=(%del-react -.c-reply)  [(get-author-ship:utils p.c-reply) ~]
+              [(get-author-ship:utils p.c-reply) `q.c-reply]
           ==
         (run-hooks event nest 'delete blocked')
       ?:  ?=(%.n -.result)
@@ -925,17 +1044,22 @@
   ++  ca-c-react
     |=  [reacts=v-reacts:c =c-react:c]
     ^-  [changed=? v-reacts:c]
-    =/  =ship     ?:(?=(%add-react -.c-react) p.c-react p.c-react)
-    ?>  |(=(src.bowl our.bowl) =(src.bowl ship))
+    =/  =author:c
+      ?:  ?=(%add-react -.c-react)
+        p.c-react
+      p.c-react
+    ?>  ?|  =(src.bowl our.bowl)
+            =(src.bowl (get-author-ship:utils author))
+        ==
     =/  new-react  ?:(?=(%add-react -.c-react) `q.c-react ~)
     =/  [changed=? new-rev=@ud]
-      =/  old-react  (~(get by reacts) ship)
+      =/  old-react  (~(get by reacts) author)
       ?~  old-react  &+0
-      ?:  =(new-react +.u.old-react)
+      ?:  =(new-react old-react)
         |+rev.u.old-react
       &++(rev.u.old-react)
     ?.  changed  [| reacts]
-    &+(~(put by reacts) ship new-rev new-react)
+    &+(~(put by reacts) author new-rev new-react)
   ::
   ++  ca-update
     |=  =u-channel:c
@@ -946,6 +1070,7 @@
       ?~  reply  now.bowl
       $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
     =/  =update:c  [time u-channel]
+    ::
     =.  log.channel  (put:log-on:c log.channel update)
     (ca-give-update update)
   ::
@@ -1012,7 +1137,7 @@
       %^  give  %fact  ~
       ?.  (can-read:ca-perms src.bowl)
         channel-denied+!>(~)
-      (said:utils nest plan posts.channel)
+      (said-2:utils nest plan posts.channel)
     (give %kick ~ ~)
   --
 ++  scry-path

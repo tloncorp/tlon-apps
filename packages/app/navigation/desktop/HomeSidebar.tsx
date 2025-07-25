@@ -13,6 +13,7 @@ import {
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useFilteredChats } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
+import { useInviteParam } from '../../hooks/useInviteParam';
 import { useRenderCount } from '../../hooks/useRenderCount';
 import { useResolvedChats } from '../../hooks/useResolvedChats';
 import {
@@ -129,6 +130,12 @@ export const HomeSidebar = memo(
       [navigateToGroup, navigateToChannel]
     );
 
+    useEffect(() => {
+      if (previewGroupId) {
+        setSelectedGroupId(previewGroupId);
+      }
+    }, [previewGroupId]);
+
     const handlePressAddChat = useCallback(() => {
       createChatSheetRef.current?.open();
     }, []);
@@ -179,6 +186,8 @@ export const HomeSidebar = memo(
       searchQuery: '',
       activeTab: 'home',
     });
+
+    useInviteParam();
 
     useRenderCount('HomeSidebar');
 

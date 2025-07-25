@@ -3,6 +3,10 @@ package io.tlon.landscape;
 import android.os.Build;
 import android.os.Bundle;
 import android.content.Intent;
+import android.view.View;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.graphics.Insets;
 
 import com.facebook.react.ReactActivity;
 import com.facebook.react.ReactActivityDelegate;
@@ -22,6 +26,22 @@ public class MainActivity extends ReactActivity {
     // This is required for expo-splash-screen.
     setTheme(R.style.AppTheme);
     super.onCreate(null);
+    
+    // Handle window insets for Android API 35+
+    // ref: https://github.com/facebook/react-native/issues/49759#issuecomment-3048056660
+    if (Build.VERSION.SDK_INT >= 35) {
+        View rootView = findViewById(android.R.id.content);
+        ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
+            Insets innerPadding = insets.getInsets(WindowInsetsCompat.Type.ime());
+            rootView.setPadding(
+                innerPadding.left,
+                innerPadding.top,
+                innerPadding.right,
+                innerPadding.bottom
+            );
+            return insets;
+        });
+    }
   }
 
   /**

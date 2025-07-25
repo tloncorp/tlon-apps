@@ -6,6 +6,7 @@
     "dev": "concurrently \"tailwindcss --input input.css --output tailwind.css --no-autoprefixer --watch\" \"tailwind-rn --watch\"",
     "android": "expo run:android --variant=productionDebug",
     "android:preview": "expo run:android --variant=previewDebug",
+    "android:release": "pnpm exec expo run:android --variant=productionRelease",
     "bundler": "expo start",
     "clearcache": "expo start -c",
     "ios": "expo run:ios",

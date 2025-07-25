@@ -21,7 +21,7 @@ import { updateChannelSections } from './groupActions';
 import { verifyUserInviteLink } from './inviteActions';
 import { discoverContacts } from './lanyardActions';
 import { useLureState } from './lure';
-import { verifyPostDelivery } from './postActions';
+import { failEnqueuedPosts, verifyPostDelivery } from './postActions';
 import { Session, getSession, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
@@ -93,6 +93,9 @@ export const syncInitData = async (
     await db
       .insertChannelPerms(initData.channelPerms, queryCtx)
       .then(() => logger.crumb('inserted channel perms'));
+    await db
+      .insertChannelOrder(initData.channelPerms, queryCtx)
+      .then(() => logger.crumb('inserted channel order'));
     await db
       .setLeftGroups({ joinedGroupIds: initData.joinedGroups }, queryCtx)
       .then(() => logger.crumb('set left groups'));
@@ -248,7 +251,7 @@ export const syncVolumeSettings = async (ctx?: SyncCtx) => {
   await db.setVolumes({ volumes: clientVolumes, deleteOthers: true });
 };
 
-export const syncSystemContacts = async (ctx?: SyncCtx) => {
+export const syncSystemContacts = async (_ctx?: SyncCtx) => {
   const systemContacts = await api.getSystemContacts();
   try {
     await db.insertSystemContacts({ systemContacts });
@@ -364,7 +367,7 @@ export const syncContacts = async (ctx?: SyncCtx, yieldWriter = false) => {
   const contacts = await syncQueue.add('contacts', ctx, () =>
     api.getContacts()
   );
-  logger.log('got contacts from api', contacts);
+  logger.log('got contacts from api', contacts.length, 'contacts');
 
   const writer = async () => {
     try {
@@ -788,6 +791,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
           chatId: update.groupId,
           contactIds: update.ships,
           type: 'group',
+          status: 'joined',
         },
         ctx
       );
@@ -1484,16 +1488,6 @@ export const handleDiscontinuity = async () => {
 };
 
 export const handleChannelStatusChange = async (status: ChannelStatus) => {
-  // Since Eyre doesn't send a response body when opening an event
-  // source request, the reconnect request won't resolve until we get a new fact
-  // or a heartbeat. We call this method to manually trigger a fact -- anything
-  // that does so would work.
-  //
-  // Eyre issue is fixed in this PR, https://github.com/urbit/urbit/pull/7080,
-  // we should remove this hack once 410 is rolled out.
-  if (status === 'reconnecting') {
-    api.checkExistingUserInviteLink();
-  }
   updateSession({ channelStatus: status });
 
   // Trigger verification for posts marked as 'needs_verification' when connection becomes active
@@ -1547,6 +1541,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     return;
   }
   isSyncing = true;
+  updateSession({ phase: 'high' });
 
   const startTime = Date.now();
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
@@ -1630,6 +1625,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       });
     }
 
+    updateSession({ phase: 'low' });
     const lowPriorityPromises = [
       alreadySubscribed
         ? Promise.resolve()
@@ -1660,9 +1656,6 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       syncAppInfo({ priority: SyncPriority.Low }).then(() => {
         logger.crumb(`finished syncing app info`);
       }),
-      syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
-        logger.crumb(`finished channel predictive sync`);
-      }),
       syncSystemContacts({ priority: SyncPriority.Low }).then(() => {
         logger.crumb(`finished syncing system contacts`);
       }),
@@ -1682,10 +1675,20 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         });
       });
 
+    updateSession({ phase: 'ready' });
+
+    await failEnqueuedPosts();
+
+    // fire off relevant channel posts sync, but don't wait for it
+    syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
+      logger.crumb(`finished channel predictive sync`);
+    });
+
     // post sync initialization work
     await verifyUserInviteLink();
     db.userHasCompletedFirstSync.setValue(true);
   } finally {
+    updateSession({ phase: 'ready' });
     isSyncing = false;
   }
 };

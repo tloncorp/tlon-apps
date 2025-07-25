@@ -2,6 +2,7 @@ const TLON_NAMESPACE = 'tlonEnv';
 
 interface Constants {
   DEV_SHIP_URL: string;
+  INVITE_PROVIDER: string;
   NOTIFY_PROVIDER: string;
   NOTIFY_SERVICE: string;
   POST_HOG_API_KEY: string;
@@ -28,6 +29,8 @@ interface Constants {
   BRANCH_DOMAIN: string;
   INVITE_SERVICE_ENDPOINT: string;
   INVITE_SERVICE_IS_DEV: boolean;
+  GIT_HASH: string;
+  DISABLE_SPLASH_MODAL: boolean;
 }
 
 export function getConstants(): Constants {

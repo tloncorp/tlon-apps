@@ -1,39 +1,51 @@
 ::  broadcaster: multi-target dms
 ::
-/-  c=chat
-/+  cj=channel-json,
+/-  c=chat, ch=channels, c4=chat-4, c3=chat-3
+/+  cj=channel-json, dm,
     dbug, verb
 ::
 |%
-+$  state-0
-  $:  %0
++$  versioned-state  $%(current-state state-0)
++$  current-state
+  $:  %1
       cohorts=(map @t cohort)
   ==
-::
 +$  cohort
   $:  targets=(set ship)
       logging=(list relive)
-      outward=(list writ:c)  ::NOTE  invented-here fake seal?
+      :: TODO: outward is unused, remove?
+      outward=(list writ:c4)
   ==
-::
 +$  relive
   $:  wen=@da
   $%  [%add targets=(set ship)]
       [%del targets=(set ship)]
-      [%msg =story:d:c]
+      [%msg =story:ch]
       [%err err=@t]
   ==  ==
-::
 +$  action
   $%  [%add-cohort cohort=@t targets=(set ship)]
       [%del-cohort cohort=@t targets=(set ship)]  ::  ~ for full deletion
-      [%broadcast cohort=@t =story:d:c]
+      [%broadcast cohort=@t =story:ch]
       [%delete cohort=@t time-id=@da]
   ==
-::
-++  update
++$  update
   $%  action
   ==
+::
++$  state-0
+    $:  %0
+        cohorts=(map @t cohort:v0)
+    ==
+  ::
+++  v0
+  |%
+  +$  cohort
+    $:  targets=(set ship)
+        logging=(list relive)
+        outward=(list writ:c3)  ::NOTE  invented-here fake seal?
+    ==
+  --
 ::
 +$  card  card:agent:gall
 --
@@ -42,7 +54,7 @@
 %-  agent:dbug
 ^-  agent:gall
 ::
-=|  state-0
+=|  current-state
 =*  state  -
 ::
 |_  =bowl:gall
@@ -54,9 +66,32 @@
 ::
 ++  on-save  !>(state)
 ++  on-load
-  |=  ole=vase
+  |^  |=  ole=vase
   ^-  (quip card _this)
-  [~ this(state !<(state-0 ole))]
+  =+  !<(old=versioned-state ole)
+  =?  old  ?=(%0 -.old)  (state-0-to-1 old)
+  ?>  ?=(%1 -.old)
+  [~ this(state old)]
+  ++  state-0-to-1
+    |=  old=state-0
+    ^-  current-state
+    [%1 (cohorts-0-to-1 cohorts.old)]
+  ++  cohorts-0-to-1
+    |=  cohorts=(map @t cohort:v0)
+    ^-  (map @t cohort)
+    (~(run by cohorts) cohort-0-to-1)
+  ++  cohort-0-to-1
+    |=  cohort=cohort:v0
+    ^-  ^cohort
+    :*  targets.cohort
+        logging.cohort
+        (outward-0-to-1 outward.cohort)
+    ==
+  ++  outward-0-to-1
+    |=  outward=(list writ:c3)
+    ^-  (list writ:c4)
+    (turn outward writ-7-to-8:dm)
+  --
 ::
 ++  on-poke
   |=  [=mark =vase]
@@ -117,9 +152,13 @@
     ^-  card
     =/  =wire
       /broadcast/(scot %t cohort.action)/(scot %da now.bowl)/(scot %p who)
+    =/  =essay:c
+      [[story.action our.bowl now.bowl] [%chat /] ~ ~]
     =/  =action:dm:c
-      [who [our now]:bowl %add [story.action our.bowl now.bowl] ~ ~]
-    [%pass wire %agent [our.bowl %chat] %poke %chat-dm-action !>(action)]
+      :-  who
+      :-  [our now]:bowl
+      [%add essay ~]
+    [%pass wire %agent [our.bowl %chat] %poke %chat-dm-action-1 !>(action)]
   ::
       %delete
     =/  =cohort
@@ -137,7 +176,7 @@
       /delete/(scot %t cohort.action)/(scot %da time-id.action)/(scot %p who)
     =/  =id:c         [our.bowl time-id.action]
     =/  =action:dm:c  [who id %del ~]
-    [%pass wire %agent [our.bowl %chat] %poke %chat-dm-action !>(action)]
+    [%pass wire %agent [our.bowl %chat] %poke %chat-dm-action-1 !>(action)]
   ==
 ::
 ++  on-agent

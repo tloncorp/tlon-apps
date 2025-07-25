@@ -14,6 +14,7 @@ import {
 import * as db from '../db';
 import * as domain from '../domain';
 import * as ub from '../urbit';
+import { Stringified } from '../utils';
 
 export { isDmChannelId, isGroupChannelId, isGroupDmChannelId };
 
@@ -21,7 +22,7 @@ export const IMAGE_REGEX =
   /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.svg)(?:\?.*)?$/i;
 export const AUDIO_REGEX = /(\.mp3|\.wav|\.ogg|\.m4a)(?:\?.*)?$/i;
 export const VIDEO_REGEX = /(\.mov|\.mp4|\.ogv|\.webm)(?:\?.*)?$/i;
-export const URL_REGEX = /(https?:\/\/[^\s]+)/i;
+export const URL_REGEX = /^https?:\/\/[^\s]+$/i;
 export const PATP_REGEX = /(~[a-z0-9-]+)/i;
 export const IMAGE_URL_REGEX =
   /^(http(s?):)([/.\w\s-:]|%2*)*\.(?:jpg|img|png|gif|tiff|jpeg|webp|svg)(?:\?.*)?$/i;
@@ -52,6 +53,19 @@ export function getFlagParts(flag: string) {
   return {
     ship: parts[0],
     name: parts[1],
+  };
+}
+
+export function getNestParts(nest: string) {
+  const parts = nest.split('/');
+  if (parts.length !== 3) {
+    throw new Error(`Invalid nest format: ${nest}`);
+  }
+
+  return {
+    type: parts[0],
+    ship: parts[1],
+    name: parts[2],
   };
 }
 
@@ -141,7 +155,7 @@ export function makePrettyDaysSince(date: Date) {
     case 1:
       return 'Yesterday';
     default:
-      return `${diff}d`;
+      return `${diff}d ago`;
   }
 }
 
@@ -312,12 +326,12 @@ export function extractInlinesFromContent(story: api.PostContent): ub.Inline[] {
 
 export function extractReferencesFromContent(
   story: api.PostContent
-): api.ContentReference[] {
+): domain.ContentReference[] {
   const references =
     story !== null
       ? (story.filter(
           (s) => 'type' in s && s.type == 'reference'
-        ) as api.ContentReference[])
+        ) as domain.ContentReference[])
       : [];
 
   return references;
@@ -335,10 +349,10 @@ export function extractBlocksFromContent(story: api.PostContent): ub.Block[] {
 }
 
 export const extractContentTypes = (
-  content: string | api.PostContent
+  content: Stringified<api.PostContent> | api.PostContent
 ): {
   inlines: ub.Inline[];
-  references: api.ContentReference[];
+  references: domain.ContentReference[];
   blocks: ub.Block[];
   story: api.PostContent;
 } => {
@@ -354,12 +368,12 @@ export const extractContentTypesFromPost = (
   post: db.Post | { content: api.PostContent }
 ): {
   inlines: ub.Inline[];
-  references: api.ContentReference[];
+  references: domain.ContentReference[];
   blocks: ub.Block[];
   story: api.PostContent;
 } => {
   const { inlines, references, blocks, story } = extractContentTypes(
-    post.content as string
+    post.content as Stringified<api.PostContent>
   );
 
   return { inlines, references, blocks, story };
@@ -379,6 +393,35 @@ export const isImagePost = (post: db.Post) => {
   const { blocks } = extractContentTypesFromPost(post);
   return blocks.length === 1 && blocks.some((b) => 'image' in b);
 };
+
+export const isRichLinkPost = (post: db.Post) => {
+  const { blocks } = extractContentTypesFromPost(post);
+  return blocks.length === 1 && blocks.some((b) => 'link' in b);
+};
+
+export function getRichLinkMetadata(block: ub.Block):
+  | {
+      url: string;
+      title?: string;
+      description?: string;
+      image?: string;
+    }
+  | undefined {
+  if (!('link' in block)) {
+    return undefined;
+  }
+  const { link } = block;
+  const {
+    url,
+    meta: { title, description, image },
+  } = link;
+  return {
+    url,
+    title,
+    description,
+    image,
+  };
+}
 
 export const findFirstImageBlock = (blocks: ub.Block[]): ub.Image | null => {
   return blocks.find((b) => 'image' in b) as ub.Image;
@@ -543,6 +586,7 @@ export const getCompositeGroups = (
 export interface RetryConfig {
   startingDelay?: number;
   numOfAttempts?: number;
+  maxDelay?: number;
 }
 
 export const withRetry = <T>(fn: () => Promise<T>, config?: RetryConfig) => {
@@ -550,6 +594,7 @@ export const withRetry = <T>(fn: () => Promise<T>, config?: RetryConfig) => {
     delayFirstAttempt: false,
     startingDelay: config?.startingDelay ?? 1000,
     numOfAttempts: config?.numOfAttempts ?? 4,
+    maxDelay: config?.maxDelay,
   });
 };
 
@@ -575,6 +620,26 @@ export function simpleHash(input: string) {
   return Math.abs(hash).toString(36);
 }
 
+const wayfindingGroup = domain.PersonalGroupSlugs;
+function isWayfindingChannel(id: string | null | undefined): boolean {
+  if (!id) return false;
+  if (isDmChannelId(id)) return false;
+  if (isGroupDmChannelId(id)) return false;
+
+  const channelParts = getNestParts(id);
+  return [
+    wayfindingGroup.chatSlug,
+    wayfindingGroup.collectionSlug,
+    wayfindingGroup.notebookSlug,
+  ].includes(channelParts.name);
+}
+
+function isWayfindingGroup(id: string | null | undefined): boolean {
+  if (!id) return false;
+  const groupParts = getFlagParts(id);
+  return groupParts.name === wayfindingGroup.slug;
+}
+
 export function getModelAnalytics({
   post,
   group,
@@ -584,21 +649,17 @@ export function getModelAnalytics({
   group?: Partial<db.Group> | null;
   channel?: Partial<db.Channel> | null;
 }) {
-  const wayfindingGroup = domain.PersonalGroupSlugs;
   const details: Record<string, string | boolean | null> = {};
 
-  const isWayfindingGroup = group?.id;
-  const isWayfindingChannel = [
-    wayfindingGroup.chatSlug,
-    wayfindingGroup.collectionSlug,
-    wayfindingGroup.notebookSlug,
-  ].includes(channel?.id ?? '');
+  const isWayfindingGroupId = isWayfindingGroup(group?.id);
+  const channelId = channel?.id || post?.channelId;
+  const isWayfindingChannelId = isWayfindingChannel(channelId);
 
-  if (isWayfindingGroup || isWayfindingChannel) {
+  if (isWayfindingGroupId || isWayfindingChannelId) {
     details.isPersonalGroup = true;
   }
 
-  const isTlonTeamDM = channel?.id === '~wittyr-witbes'; // Tlon Team node
+  const isTlonTeamDM = channelId === '~wittyr-witbes'; // Tlon Team node
   if (isTlonTeamDM) {
     details.isTlonTeamDM = true;
   }
@@ -608,7 +669,7 @@ export function getModelAnalytics({
   // 2. it's the Tlon Team DM
   const getMaskedId = (id: string | null | undefined) => {
     if (!id) return null;
-    if (isWayfindingGroup || isWayfindingChannel) {
+    if (isWayfindingGroupId || isWayfindingChannelId) {
       return id;
     }
 
@@ -638,4 +699,8 @@ export function getModelAnalytics({
   }
 
   return details;
+}
+
+export function escapeRegExp(text: string): string {
+  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
 }

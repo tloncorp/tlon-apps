@@ -6,6 +6,7 @@ type State = {
   onPressGroupRef?: (group: db.Group) => void;
   onPressGoToDm?: (participants: string[]) => void;
   onGoToUserProfile?: (userId: string) => void;
+  onGoToGroupSettings?: () => void;
   focusedChannelId?: string;
 };
 
@@ -23,6 +24,9 @@ const Context = createContext<ContextValue>({
   },
   onGoToUserProfile: () => {
     console.log(`onGoToUserProfile called, but missing from context`);
+  },
+  onGoToGroupSettings: () => {
+    console.log(`onGoToGroupSettings called, but missing from context`);
   },
 });
 
@@ -42,6 +46,7 @@ export const NavigationProvider = ({
   onPressGroupRef,
   onPressGoToDm,
   onGoToUserProfile,
+  onGoToGroupSettings,
   focusedChannelId,
 }: {
   children: React.ReactNode;
@@ -49,6 +54,7 @@ export const NavigationProvider = ({
   onPressGroupRef?: (group: db.Group) => void;
   onPressGoToDm?: (participants: string[]) => void;
   onGoToUserProfile?: (userId: string) => void;
+  onGoToGroupSettings?: () => void;
   focusedChannelId?: string;
 }) => {
   const value = useMemo(
@@ -57,6 +63,7 @@ export const NavigationProvider = ({
       onPressGroupRef,
       onPressGoToDm,
       onGoToUserProfile,
+      onGoToGroupSettings,
       focusedChannelId,
     }),
     [
@@ -64,6 +71,7 @@ export const NavigationProvider = ({
       onPressGroupRef,
       onPressGoToDm,
       onGoToUserProfile,
+      onGoToGroupSettings,
       focusedChannelId,
     ]
   );

@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import { PropsWithChildren } from 'react';
-import { ScrollView } from 'react-native-gesture-handler';
+import { ScrollView } from 'react-native';
 
 import { View } from '../ui';
 import {

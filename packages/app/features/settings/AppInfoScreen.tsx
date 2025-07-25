@@ -6,9 +6,8 @@ import * as Application from 'expo-application';
 import * as Updates from 'expo-updates';
 import { useEffect, useMemo, useState } from 'react';
 import { useCallback } from 'react';
-import { Alert, Platform, Switch } from 'react-native';
+import { Alert, Platform, ScrollView, Switch } from 'react-native';
 import { getEmailClients, openComposer } from 'react-native-email-link';
-import { ScrollView } from 'react-native-gesture-handler';
 
 import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../../constants';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';

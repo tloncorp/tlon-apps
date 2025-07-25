@@ -57,6 +57,7 @@ jobs:
           EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
           NOTIFY_PROVIDER: binnec-dozzod-marnus
           NOTIFY_SERVICE: tlon-preview-release
+          INVITE_PROVIDER: ${{ secrets.VITE_INVITE_PROVIDER}}
       - name: Download iOS build
         if: matrix.platform == 'ios'
         run: |

@@ -1,7 +1,8 @@
 import * as api from '../api';
+import { ContentReference } from '../domain';
 import * as ub from '../urbit';
 import { assertNever } from '../utils';
-import { trustedProviders } from './embed';
+import { isTrustedEmbed } from './embed';
 import { VIDEO_REGEX, containsOnlyEmoji } from './utils';
 
 // Inline types
@@ -20,6 +21,11 @@ export type TextInlineData = {
 export type MentionInlineData = {
   type: 'mention';
   contactId: string;
+};
+
+export type GroupMentionInlineData = {
+  type: 'groupMention';
+  group: 'all' | string;
 };
 
 export type LineBreakInlineData = {
@@ -42,6 +48,7 @@ export type InlineData =
   | StyleInlineData
   | TextInlineData
   | MentionInlineData
+  | GroupMentionInlineData
   | LineBreakInlineData
   | LinkInlineData
   | TaskInlineData;
@@ -86,13 +93,25 @@ export type VideoBlockData = {
   alt: string;
 };
 
+export type LinkBlockData = {
+  type: 'link';
+  url: string;
+  title?: string;
+  description?: string;
+  siteName?: string;
+  siteIconUrl?: string;
+  previewImageUrl?: string;
+  previewImageWidth?: string;
+  previewImageHeight?: string;
+};
+
 export type EmbedBlockData = {
   type: 'embed';
   url: string;
   content?: string;
 };
 
-export type ReferenceBlockData = api.ContentReference;
+export type ReferenceBlockData = ContentReference;
 
 export type CodeBlockData = {
   type: 'code';
@@ -126,6 +145,7 @@ export type BlockData =
   | ParagraphBlockData
   | ImageBlockData
   | VideoBlockData
+  | LinkBlockData
   | EmbedBlockData
   | ReferenceBlockData
   | CodeBlockData
@@ -142,6 +162,24 @@ export type BlockFromType<T extends BlockType> = Extract<
 >;
 
 export type PostContent = BlockData[];
+
+export function findExistingBlockByUrl(
+  blocks: BlockData[],
+  url: string
+): number {
+  return blocks.findIndex(
+    (b) =>
+      (b.type === 'embed' && b.url === url) ||
+      (b.type === 'link' && b.url === url)
+  );
+}
+
+export function hasExistingBlockByUrl(
+  blocks: BlockData[],
+  url: string
+): boolean {
+  return findExistingBlockByUrl(blocks, url) !== -1;
+}
 
 export interface PlaintextPreviewConfig {
   blockSeparator: string;
@@ -257,6 +295,8 @@ export function plaintextPreviewOfInline(
       return inline.text;
     case 'mention':
       return inline.contactId;
+    case 'groupMention':
+      return `@${inline.group}`;
     case 'lineBreak':
       return '\n';
     case 'link':
@@ -311,9 +351,32 @@ export function convertContentSafe(
     if ('type' in verse && verse.type === 'reference') {
       blocks.push(verse);
     } else if ('block' in verse) {
-      blocks.push(convertBlock(verse.block));
+      const convertedBlock = convertBlock(verse.block);
+
+      if (convertedBlock.type === 'link') {
+        // Check if we already have an embed or link for the same URL
+        const existingIndex = findExistingBlockByUrl(
+          blocks,
+          convertedBlock.url
+        );
+
+        if (existingIndex !== -1) {
+          blocks[existingIndex] = convertedBlock;
+        } else {
+          blocks.push(convertedBlock);
+        }
+      } else if (convertedBlock.type === 'embed') {
+        // Only add embed if we don't already have a link or embed for this URL
+        const hasExisting = hasExistingBlockByUrl(blocks, convertedBlock.url);
+
+        if (!hasExisting) {
+          blocks.push(convertedBlock);
+        }
+      } else {
+        blocks.push(convertedBlock);
+      }
     } else if ('inline' in verse) {
-      blocks.push(...convertTopLevelInline(verse));
+      blocks.push(...convertTopLevelInline(verse, blocks));
     } else {
       console.warn('Unhandled verse type:', { verse });
       blocks.push({
@@ -332,14 +395,20 @@ export function convertContentSafe(
  * etc.)
  */
 
-function convertTopLevelInline(verse: ub.VerseInline): BlockData[] {
+function convertTopLevelInline(
+  verse: ub.VerseInline,
+  existingBlocks: BlockData[]
+): BlockData[] {
   const blocks: BlockData[] = [];
   let currentInlines: ub.Inline[] = [];
 
   function flushCurrentBlock() {
     if (currentInlines.length) {
       // Process the inlines to extract trusted embeds and split paragraphs
-      const processedBlocks = extractEmbedsFromInlines(currentInlines);
+      const processedBlocks = processParagraphsAndEmbeds(
+        currentInlines,
+        existingBlocks
+      );
       blocks.push(...processedBlocks);
       currentInlines = [];
     }
@@ -383,7 +452,10 @@ function convertTopLevelInline(verse: ub.VerseInline): BlockData[] {
 }
 
 // Process inlines to extract embeds as separate blocks
-function extractEmbedsFromInlines(inlines: ub.Inline[]): BlockData[] {
+function processParagraphsAndEmbeds(
+  inlines: ub.Inline[],
+  existingBlocks: BlockData[]
+): BlockData[] {
   const blocks: BlockData[] = [];
   let currentSegment: ub.Inline[] = [];
 
@@ -411,12 +483,16 @@ function extractEmbedsFromInlines(inlines: ub.Inline[]): BlockData[] {
   for (const inline of inlines) {
     // Check if this is a link that matches any of our trusted providers
     if (ub.isLink(inline)) {
-      const isTrustedEmbed = trustedProviders.some((provider) =>
-        provider.regex.test(inline.link.href)
-      );
+      const isEmbed = isTrustedEmbed(inline.link.href);
       const isNotFormattedText = inline.link.href === inline.link.content;
 
-      if (isTrustedEmbed && isNotFormattedText) {
+      // Check if we already have an embed or link for this URL
+      const hasExistingForUrl = hasExistingBlockByUrl(
+        existingBlocks,
+        inline.link.href
+      );
+
+      if (isEmbed && isNotFormattedText && !hasExistingForUrl) {
         // Flush the current segment before adding the embed
         flushSegment();
 
@@ -426,10 +502,10 @@ function extractEmbedsFromInlines(inlines: ub.Inline[]): BlockData[] {
           url: inline.link.href,
           content: inline.link.content || inline.link.href,
         });
-      } else {
-        // Not a trusted embed provider, add to normal paragraph
-        currentSegment.push(inline);
       }
+
+      // Always add the link to the current segment regardless of embed creation
+      currentSegment.push(inline);
     } else {
       // Not a link, add to normal paragraph
       currentSegment.push(inline);
@@ -493,6 +569,13 @@ function convertBlock(block: ub.Block): BlockData {
       return (
         api.toContentReference(block.cite) ?? errorMessage('Failed to parse')
       );
+    }
+    case is(block, 'link'): {
+      return {
+        ...block.link.meta,
+        type: 'link',
+        url: block.link.url,
+      };
     }
     default: {
       assertNever(block);
@@ -566,6 +649,11 @@ function convertInlineContent(inlines: ub.Inline[]): InlineData[] {
       nodes.push({
         type: 'mention',
         contactId: inline.ship,
+      });
+    } else if (ub.isSect(inline)) {
+      nodes.push({
+        type: 'groupMention',
+        group: !inline.sect ? 'all' : inline.sect,
       });
     } else if (ub.isTask(inline)) {
       nodes.push({

@@ -3,7 +3,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCopy } from '@tloncorp/ui';
+import { useCopy, useToast } from '@tloncorp/ui';
 import { triggerHaptic } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
@@ -361,7 +361,8 @@ function GroupBlock({
 }
 
 function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
-  const { didCopy, doCopy } = useCopy(props.userId);
+  const { doCopy } = useCopy(props.userId);
+  const showToast = useToast();
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const contact = useContact(props.userId);
@@ -369,7 +370,8 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
   const handleCopy = useCallback(() => {
     doCopy();
     triggerHaptic('success');
-  }, [doCopy]);
+    showToast({ message: 'Copied!', duration: 1500 });
+  }, [doCopy, showToast]);
 
   const handleAvatarPress = useCallback(() => {
     if (contact?.avatarImage) {
@@ -398,30 +400,15 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
             color="$primaryText"
             {...primaryNameProps}
           />
-          {(props.hasNickname || didCopy) && (
+          {props.hasNickname && (
             <XStack alignItems="center">
-              {didCopy ? (
-                <>
-                  <Icon
-                    type="Checkmark"
-                    customSize={[14, 14]}
-                    position="relative"
-                    top={1}
-                    color="$secondaryText"
-                  />
-                  <Text color="$secondaryText">Copied!</Text>
-                </>
-              ) : (
-                props.hasNickname && (
-                  <Text color="$secondaryText">
-                    <ContactName
-                      contactId={props.userId}
-                      mode="contactId"
-                      expandLongIds
-                    />
-                  </Text>
-                )
-              )}
+              <Text color="$secondaryText">
+                <ContactName
+                  contactId={props.userId}
+                  mode="contactId"
+                  expandLongIds
+                />
+              </Text>
             </XStack>
           )}
         </YStack>

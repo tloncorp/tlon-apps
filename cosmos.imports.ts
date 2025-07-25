@@ -20,20 +20,20 @@ import * as fixture13 from './packages/app/fixtures/Pressable.fixture';
 import * as fixture14 from './packages/app/fixtures/PostScreen.fixture';
 import * as fixture15 from './packages/app/fixtures/PostReference.fixture';
 import * as fixture16 from './packages/app/fixtures/ParentAgnosticKeyboardAvoidingView.fixture';
-import * as fixture17 from './packages/app/fixtures/MetaEditorScreen.fixture';
-import * as fixture18 from './packages/app/fixtures/MessageInput.fixture';
-import * as fixture19 from './packages/app/fixtures/MessageActions.fixture';
-import * as fixture20 from './packages/app/fixtures/InviteUsersSheet.fixture';
-import * as fixture21 from './packages/app/fixtures/Input.fixture';
-import * as fixture22 from './packages/app/fixtures/ImageViewer.fixture';
-import * as fixture23 from './packages/app/fixtures/GroupListItem.fixture';
-import * as fixture24 from './packages/app/fixtures/GalleryPost.fixture';
-import * as fixture25 from './packages/app/fixtures/Form.fixture';
-import * as fixture26 from './packages/app/fixtures/EmbedContent.fixture';
-import * as fixture27 from './packages/app/fixtures/EditProfileScreen.fixture';
-import * as fixture28 from './packages/app/fixtures/CreateChatSheet.fixture';
-import * as fixture29 from './packages/app/fixtures/ContactList.fixture';
-import * as fixture30 from './packages/app/fixtures/ConnectionStatus.fixture';
+import * as fixture17 from './packages/app/fixtures/NotebookPost.fixture';
+import * as fixture18 from './packages/app/fixtures/MetaEditorScreen.fixture';
+import * as fixture19 from './packages/app/fixtures/MessageInput.fixture';
+import * as fixture20 from './packages/app/fixtures/MessageActions.fixture';
+import * as fixture21 from './packages/app/fixtures/InviteUsersSheet.fixture';
+import * as fixture22 from './packages/app/fixtures/Input.fixture';
+import * as fixture23 from './packages/app/fixtures/ImageViewer.fixture';
+import * as fixture24 from './packages/app/fixtures/GroupListItem.fixture';
+import * as fixture25 from './packages/app/fixtures/GalleryPost.fixture';
+import * as fixture26 from './packages/app/fixtures/Form.fixture';
+import * as fixture27 from './packages/app/fixtures/EmbedContent.fixture';
+import * as fixture28 from './packages/app/fixtures/EditProfileScreen.fixture';
+import * as fixture29 from './packages/app/fixtures/CreateChatSheet.fixture';
+import * as fixture30 from './packages/app/fixtures/ContactList.fixture';
 import * as fixture31 from './packages/app/fixtures/ChatOptionsSheet.fixture';
 import * as fixture32 from './packages/app/fixtures/ChatMessage.fixture';
 import * as fixture33 from './packages/app/fixtures/ChannelHeader.fixture';
@@ -69,7 +69,7 @@ import * as decorator0 from './packages/app/fixtures/cosmos.decorator';
 import * as decorator1 from './apps/tlon-mobile/src/fixtures/cosmos.decorator';
 
 export const rendererConfig: RendererConfig = {
-  "playgroundUrl": "http://localhost:5003",
+  "playgroundUrl": "http://localhost:5001",
   "rendererUrl": null
 };
 
@@ -91,20 +91,20 @@ const fixtures = {
   'packages/app/fixtures/PostScreen.fixture.tsx': { module: fixture14 },
   'packages/app/fixtures/PostReference.fixture.tsx': { module: fixture15 },
   'packages/app/fixtures/ParentAgnosticKeyboardAvoidingView.fixture.tsx': { module: fixture16 },
-  'packages/app/fixtures/MetaEditorScreen.fixture.tsx': { module: fixture17 },
-  'packages/app/fixtures/MessageInput.fixture.tsx': { module: fixture18 },
-  'packages/app/fixtures/MessageActions.fixture.tsx': { module: fixture19 },
-  'packages/app/fixtures/InviteUsersSheet.fixture.tsx': { module: fixture20 },
-  'packages/app/fixtures/Input.fixture.tsx': { module: fixture21 },
-  'packages/app/fixtures/ImageViewer.fixture.tsx': { module: fixture22 },
-  'packages/app/fixtures/GroupListItem.fixture.tsx': { module: fixture23 },
-  'packages/app/fixtures/GalleryPost.fixture.tsx': { module: fixture24 },
-  'packages/app/fixtures/Form.fixture.tsx': { module: fixture25 },
-  'packages/app/fixtures/EmbedContent.fixture.tsx': { module: fixture26 },
-  'packages/app/fixtures/EditProfileScreen.fixture.tsx': { module: fixture27 },
-  'packages/app/fixtures/CreateChatSheet.fixture.tsx': { module: fixture28 },
-  'packages/app/fixtures/ContactList.fixture.tsx': { module: fixture29 },
-  'packages/app/fixtures/ConnectionStatus.fixture.tsx': { module: fixture30 },
+  'packages/app/fixtures/NotebookPost.fixture.tsx': { module: fixture17 },
+  'packages/app/fixtures/MetaEditorScreen.fixture.tsx': { module: fixture18 },
+  'packages/app/fixtures/MessageInput.fixture.tsx': { module: fixture19 },
+  'packages/app/fixtures/MessageActions.fixture.tsx': { module: fixture20 },
+  'packages/app/fixtures/InviteUsersSheet.fixture.tsx': { module: fixture21 },
+  'packages/app/fixtures/Input.fixture.tsx': { module: fixture22 },
+  'packages/app/fixtures/ImageViewer.fixture.tsx': { module: fixture23 },
+  'packages/app/fixtures/GroupListItem.fixture.tsx': { module: fixture24 },
+  'packages/app/fixtures/GalleryPost.fixture.tsx': { module: fixture25 },
+  'packages/app/fixtures/Form.fixture.tsx': { module: fixture26 },
+  'packages/app/fixtures/EmbedContent.fixture.tsx': { module: fixture27 },
+  'packages/app/fixtures/EditProfileScreen.fixture.tsx': { module: fixture28 },
+  'packages/app/fixtures/CreateChatSheet.fixture.tsx': { module: fixture29 },
+  'packages/app/fixtures/ContactList.fixture.tsx': { module: fixture30 },
   'packages/app/fixtures/ChatOptionsSheet.fixture.tsx': { module: fixture31 },
   'packages/app/fixtures/ChatMessage.fixture.tsx': { module: fixture32 },
   'packages/app/fixtures/ChannelHeader.fixture.tsx': { module: fixture33 },

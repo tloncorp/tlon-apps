@@ -20,7 +20,7 @@
       [~.groups^%0 ~ ~]
     %-  my
     :~  %groups^[~.groups^%0 ~ ~]
-        %channels-server^[~.channels^%1 ~ ~]
+        %channels-server^[~.channels^%2 ~ ~]
     ==
 %-  agent:dbug
 %+  verb  |
@@ -1097,7 +1097,8 @@
     (watch-channels &)
   ::
       %fact
-    =+  !<(=r-channels:d q.cage.sign)
+    ?.  =(%channel-response-2 p.cage.sign)  cor
+    =+  !<(=r-channels:v7:old:d q.cage.sign)
     =*  rc  r-channel.r-channels
     ?+    -.rc  cor
         %create
@@ -1156,10 +1157,10 @@
     cor
   ::
       %fact
-    =+  !<(=update-0:tac q.cage.sign)
-    ?~  con.update-0  cor
+    =+  !<(=news-0:tac q.cage.sign)
+    ?~  con.news-0  cor
     %-  emil
-    %+  turn  ~(tap in groups.con.update-0)
+    %+  turn  ~(tap in groups.con.news-0)
     |=  =flag:g
     [%pass /gangs/(scot %p p.flag)/[q.flag]/preview %agent [p.flag dap.bowl] %watch /v1/groups/(scot %p p.flag)/[q.flag]/preview]
   ==
@@ -1375,7 +1376,7 @@
         ~
       =/  =dock  [our.bowl %channels]
       =/  action=a-channels:d  [%channel nes %leave ~]
-      =/  =cage  channel-action+!>(action)
+      =/  =cage  channel-action-1+!>(action)
       =/  =wire  (snoc go-area %leave-channels)
       `[%pass wire %agent dock %poke cage]
     ::
@@ -1390,7 +1391,7 @@
         ~
       =/  =dock  [our.bowl %channels]
       =/  action=a-channels:d  [%channel nes %join flag]
-      =/  =cage  ['channel-action' !>(action)]
+      =/  =cage  channel-action-1+!>(action)
       =/  =wire  (snoc go-area %join-channels)
       `[%pass wire %agent dock %poke cage]
     ::
@@ -1773,6 +1774,16 @@
     |=  [=time =diff:g]
     ^+  go-core
     =.  go-core
+      ::  For channel edits, only emit update if something actually changed
+      ?:  ?&  ?=(%channel -.diff)
+              ?=(%edit -.q.diff)
+          ==
+        =/  =channel:g  (~(got by channels.group) p.diff)
+        =/  new-channel=channel:g  channel.q.diff
+        ::  Only emit update if channel data actually changed
+        ?.  =(channel new-channel)
+          (go-tell-update time diff)
+        go-core
       (go-tell-update time diff)
     =.  net
       ?:    ?=(%pub -.net)

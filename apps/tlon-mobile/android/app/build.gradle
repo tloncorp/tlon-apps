@@ -121,7 +121,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         compileSdk rootProject.ext.compileSdkVersion
         versionCode 108
-        versionName "5.5.8"
+        versionName "6.1.0"
     }
     signingConfigs {
         debug {
@@ -214,13 +214,16 @@ dependencies {
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
     implementation("androidx.security:security-crypto-ktx:1.1.0-alpha06")
     implementation("com.android.volley:volley:1.2.1")
-    implementation "com.google.firebase:firebase-messaging"
+    implementation "com.google.firebase:firebase-messaging:24.0.1"
 
 
     // Branch.io
     implementation("io.branch.sdk.android:library:5.9.0")
     implementation("com.google.android.gms:play-services-ads-identifier:18.0.1")
     implementation("androidx.browser:browser:1.7.0")
+
+    // PostHog
+    implementation("com.posthog:posthog-android:3.+")
 }
 
 apply from: new File(["node", "--print", "require.resolve('@react-native-community/cli-platform-android/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim(), "../native_modules.gradle");

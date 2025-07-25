@@ -14,13 +14,13 @@ export default function useOnEmojiSelect(
   const details = useReactionDetails(post?.reactions ?? [], currentUserId);
 
   const onEmojiSelect = useCallback(
-    async (shortCode: string) => {
+    async (value: string) => {
       if (!post) {
         return;
       }
-      details.self.didReact && details.self.value.includes(shortCode)
+      details.self.didReact && details.self.value.includes(value)
         ? store.removePostReaction(post, currentUserId)
-        : store.addPostReaction(post, shortCode, currentUserId);
+        : store.addPostReaction(post, value, currentUserId);
 
       triggerHaptic('success');
 

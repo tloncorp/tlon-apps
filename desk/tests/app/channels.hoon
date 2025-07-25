@@ -1,7 +1,21 @@
 /-  g=groups, c=channels
-/+  *test-agent
+/+  *test-agent, s=subscriber, imp=import-aid
 /=  channels-agent  /app/channels
 |%
++$  current-state
+  $:  %9
+      =v-channels:c
+      voc=(map [nest:c plan:c] (unit said:c))
+      hidden-posts=(set id-post:c)
+    ::
+      ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
+      ::
+      pending-ref-edits=(jug ship [=kind:c name=term])
+      :: delayed resubscribes
+      =^subs:s
+      =pimp:imp
+  ==
+::
 ++  dap  %channels-test
 ++  server-dap  %channels-test-server
 ++  negotiate  /~/negotiate/inner-watch/~zod/[server-dap]
@@ -12,15 +26,22 @@
 ++  the-dock  [~zod server-dap]
 ++  the-nest  [%chat ~zod %test]
 ++  the-group  [~zod %test]
+++  scry
+  |=  =(pole knot)
+  ?+  pole  !!
+    [%gu ship=@t %activity @ ~ ~]  `!>(|)
+  ==
 ++  test-checkpoint-sub
   %-  eval-mare
   =/  m  (mare ,~)
+  ;<  ~  bind:m  (set-scry-gate scry)
   ;<  *  bind:m  channel-join
   =/  retry  (weld /~/retry (weld sub-wire /checkpoint))
   (check-subscription-loop chk-wire chk-wire the-dock chk-path retry)
 ++  test-updates-sub
   %-  eval-mare
   =/  m  (mare ,~)
+  ;<  ~  bind:m  (set-scry-gate scry)
   ;<  *  bind:m  channel-join
   ::  get checkpoint and start updates
   =/  =cage  [%channel-checkpoint !>(*u-checkpoint:c)]
@@ -33,13 +54,14 @@
 ++  test-backlog-sub
   %-  eval-mare
   =/  m  (mare ,~)
+  ;<  ~  bind:m  (set-scry-gate scry)
   ;<  *  bind:m  channel-join
   ;<  bw=bowl  bind:m  get-bowl
   ::  get checkpoint and start updates
   =/  last-post-time  (add now.bw 1)
   =/  last-post=v-post:c
-    :-  [last-post-time ~ ~]
-    [0 [[~ ~dev last-post-time] %chat ~]]
+    :-  [last-post-time 1 last-post-time ~ ~]
+    [0 [[~ ~dev last-post-time] /chat ~ ~]]
   =/  posts=v-posts:c
     (gas:on-v-posts:c *v-posts:c ~[[last-post-time `last-post]])
   =/  checkpoint  *u-checkpoint:c
@@ -56,6 +78,7 @@
   |=  [sub=wire resub=wire =dock =path retry-wire=wire]
   =/  m  (mare ,~)
   ^-  form:m
+  ;<  ~  bind:m  (set-scry-gate scry)
   ;<  bw=bowl  bind:m  get-bowl
   =/  now=time  now.bw
   ::  kick & resubscribe with delay
@@ -73,6 +96,124 @@
   ::  join channel
   ;<  *  bind:m  (do-init dap channels-agent)
   ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~dev)))
-  ;<  *  bind:m  (do-poke %channel-action !>([%channel the-nest %join the-group]))
+  ;<  *  bind:m  (do-poke %channel-action-1 !>([%channel the-nest %join the-group]))
   (do-agent chk-wire the-dock %watch-ack ~)
+::
+::  migration 7->8 used to drop message tombstones.
+::  if we're in that state, we must recover them from the log.
+::
+++  test-sequence-fix
+  |^  test
+  ++  missing-key
+    ~2025.6.25..14.41.11..9300
+  ++  tombstone-key
+    ~2025.6.25..14.41.13..585b
+  ++  misnumber-key
+    ~2025.6.25..14.41.14..84fa
+  ++  sequence-fix-test-channel
+    ^-  v-channel:c
+    :-  ^-  global:v-channel:c
+        :*  ^=  posts
+            %+  gas:on-v-posts:c  ~
+            :~  :*  key=missing-key
+                    ~
+                    [id=missing-key seq=1 mod-at=~2025.6.25..14.41.11..9300 replies=~ reacts=~]
+                    rev=0
+                    :*  content=[[%inline 'one' [%break ~] ~] ~]
+                          author=~zod
+                          sent=~2025.6.25..14.41.11..9062.4dd2.f1a9.fbe7
+                    ==
+                    [kind=/chat meta=~ blob=~]
+                ==
+                :*  key=tombstone-key
+                    ~
+                ==
+                :*  key=misnumber-key
+                    ~
+                    [id=misnumber-key seq=3 mod-at=~2025.6.25..14.41.14..84fa replies=~ reacts=~]
+                    rev=0
+                    :*  content=[[%inline 'three' [%break ~] ~] ~]
+                          author=~zod
+                          sent=~2025.6.25..14.41.14..6ccc.cccc.cccc.cccc
+                    ==
+                    [kind=/chat meta=~ blob=~]
+                ==
+            ==
+          ::
+            count=3
+            *(rev:c arranged-posts:c)
+            *(rev:c view:c)
+            *(rev:c sort:c)
+            *(rev:c perm:c)
+            *(rev:c (unit @t))
+        ==
+    ^-  local:v-channel:c
+    :*  *net:c
+        *log:c
+        *remark:c
+        *window:v-channel:c
+        *future:v-channel:c
+        *pending-messages:c
+        *last-updated:c
+    ==
+  ++  test
+    %-  eval-mare
+    =/  m  (mare ,~)
+    =/  bad-state=current-state
+      =;  chans=v-channels:c
+        [%9 chans ~ ~ ~ *^subs:s *pimp:imp]
+      =/  chan=v-channel:c
+        sequence-fix-test-channel
+      ::  bad 7->8 migration in old code had dropped the tombstone
+      ::
+      =.  posts.chan
+        +:(del:on-v-posts:c posts.chan tombstone-key)
+      ::  client has partial backlog, missing the first message
+      ::
+      =.  posts.chan
+        +:(del:on-v-posts:c posts.chan missing-key)
+      ::  client has consequently misnumbered the 3rd msg as the 2nd
+      ::
+      =.  count.chan  2
+      =.  posts.chan
+        %+  put:on-v-posts:c  posts.chan
+        :-  misnumber-key
+        =+  (got:on-v-posts:c posts.chan misnumber-key)
+        ?>  ?=(^ -)
+        -(seq.u 2)
+      (~(put by *v-channels:c) *nest:c chan)
+    ::TODO  annoying, can't do +do-load directly, but it always calls
+    ::      +on-save, even if we provide a vase
+    :: ;<  *  bind:m  (do-init dap channels-agent)
+    ::  edit carefully to work around lib negotiate state.
+    ::  yes, the inner state is double-vased!
+    ::
+    :: ;<  save=vase  bind:m  get-save
+    :: =.  save  (slop (slot 2 save) !>(!>(bad-state)))
+    ;<  *  bind:m  (do-load channels-agent `!>(bad-state))
+    ;<  caz=(list card)  bind:m
+      =;  seqs=(list [id-post:c (unit @ud)])
+        (do-poke %noun !>([%sequence-numbers *nest:c 3 seqs]))
+      :~  [missing-key `1]
+          [tombstone-key ~]
+          [misnumber-key `3]
+      ==
+    ::
+    ;<  ~  bind:m  (ex-cards caz ~)
+    ;<  save=vase  bind:m  get-save
+    =/  fixed-state=current-state
+      =;  chans=v-channels:c
+        [%9 chans ~ ~ ~ *^subs:s *pimp:imp]
+      =/  chan=v-channel:c
+        sequence-fix-test-channel
+      ::  missing message will not have magically recovered,
+      ::  but everything else should've been patched up
+      ::
+      =.  posts.chan
+        +:(del:on-v-posts:c posts.chan missing-key)
+      (~(put by *v-channels:c) *nest:c chan)
+    ::  again, carefully work around lib negotiate state.
+    ::
+    (ex-equal !<(vase (slot 3 save)) !>(fixed-state))
+  --
 --

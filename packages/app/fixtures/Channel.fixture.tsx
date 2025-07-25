@@ -12,7 +12,8 @@ import type * as db from '@tloncorp/shared/db';
 import { range } from 'lodash';
 import type { ComponentProps, PropsWithChildren, SetStateAction } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, SafeAreaView, View } from 'react-native';
+import { Button, SafeAreaView, Switch, View } from 'react-native';
+import { Label, XStack, YStack } from 'tamagui';
 
 import {
   AppDataContextProvider,
@@ -31,13 +32,13 @@ import {
   tlonLocalGettingStarted,
   tlonLocalIntros,
 } from './fakeData';
+import { useFixtureFeatureFlag } from './useFixtureFeatureFlag';
 
 const posts = createFakePosts(100);
 const notebookPosts = createFakePosts(5, 'note');
 
 const usePostReference = ({
   postId,
-  channelId,
 }: {
   postId: string;
   channelId: string;
@@ -57,6 +58,8 @@ function noopProps<T extends object>() {
 const ChannelFixtureWrapper = ({
   children,
 }: PropsWithChildren<{ theme?: 'light' | 'dark' }>) => {
+  useFixtureFeatureFlag('webScroller');
+
   return (
     <AppDataContextProvider contacts={initialContacts}>
       <FixtureWrapper fillWidth fillHeight>
@@ -78,7 +81,7 @@ const baseProps: ComponentProps<typeof Channel> = {
   goToPost: () => {},
   goToImageViewer: () => {},
   goToUserProfile: () => {},
-  messageSender: async () => {},
+  goToGroupSettings: () => {},
   markRead: () => {},
   editPost: async () => {},
   onPressRef: () => {},
@@ -237,14 +240,34 @@ function FixtureToolbar({
 function ChannelWithControlledPostLoading() {
   const anchorPost = useMemo(() => createFakePost(), []);
   const { posts, loadMore, isLoading } = useSimulatedPostsQuery({
-    getPostAt: (index) => {
-      // Insert anchor post near start, but enough to warrant scroll
-      if (index === 8) {
-        return anchorPost;
-      }
-      return createFakePost();
-    },
+    getPostAt: useCallback(
+      (index: number) => {
+        // Insert anchor post near start, but enough to warrant scroll
+        if (index === 8) {
+          return anchorPost;
+        }
+        return createFakePost();
+      },
+      [anchorPost]
+    ),
   });
+
+  const [shouldLoadOnScrollBoundaries, setShouldLoadOnScrollBoundaries] =
+    useState(false);
+  const onScrollStartReached = useMemo(
+    () =>
+      shouldLoadOnScrollBoundaries
+        ? () => loadMore({ limit: 5, insertionPoint: 'start' })
+        : undefined,
+    [shouldLoadOnScrollBoundaries, loadMore]
+  );
+  const onScrollEndReached = useMemo(
+    () =>
+      shouldLoadOnScrollBoundaries
+        ? () => loadMore({ limit: 5, insertionPoint: 'end' })
+        : undefined,
+    [shouldLoadOnScrollBoundaries, loadMore]
+  );
 
   return (
     <>
@@ -259,11 +282,20 @@ function ChannelWithControlledPostLoading() {
             post: anchorPost,
           }),
           hasNewerPosts: true,
+          onScrollStartReached,
+          onScrollEndReached,
         })}
       />
       <FixtureToolbar>
         {({ doBusyWork }) => (
-          <>
+          <YStack>
+            <XStack>
+              <Label>Load on scroll boundaries</Label>
+              <Switch
+                value={shouldLoadOnScrollBoundaries}
+                onValueChange={setShouldLoadOnScrollBoundaries}
+              />
+            </XStack>
             <Button
               title="Load older"
               onPress={() =>
@@ -329,7 +361,7 @@ function ChannelWithControlledPostLoading() {
                 });
               }}
             />
-          </>
+          </YStack>
         )}
       </FixtureToolbar>
     </>

@@ -1,4 +1,4 @@
-import { POST_HOG_API_KEY, POST_HOG_IN_DEV } from '@tloncorp/app/constants';
+import { POST_HOG_API_KEY } from '@tloncorp/app/constants';
 import { useDebugStore } from '@tloncorp/shared';
 import posthog, { Properties } from 'posthog-js';
 

@@ -5,7 +5,7 @@
 ::    then visit in the browser:
 ::    /expose/that/reference/as/copied/123456789
 ::
-/-  c=cite, d=channels, co=contacts-0
+/-  c=cite, d=channels, co=contacts, ci=cite
 /+  u=channel-utils, hutils=http-utils,
     dbug, verb
 ::
@@ -13,9 +13,10 @@
 /=  widget  /app/expose/widget
 ::
 |%
-+$  state-1
-  $:  %1
++$  state-2
+  $:  %2
       open=(set cite:c)
+      eager=?
   ==
 ::
 +$  action
@@ -29,12 +30,12 @@
   |%
   ++  refresh-widget
     |=  [=bowl:gall open=(set cite:c)]
-    ^-  (list card)
+    ^-  (unit card)
     ?.  .^(? %gu /(scot %p our.bowl)/profile/(scot %da now.bowl)/$)
       ~
     =;  widget=[%0 desc=@t %marl marl]
       =/  =cage  noun+!>([%command %update-widget %groups %expose-all widget])
-      [%pass /profile/widget/all %agent [our.bowl %profile] %poke cage]~
+      `[%pass /profile/widget/all %agent [our.bowl %profile] %poke cage]
     :^  %0  'Published content'  %marl
     (render:widget bowl open)
   ::
@@ -72,14 +73,66 @@
     |=  ref=cite:c
     ^-  card
     (store:hutils (cat 3 '/expose' (spat (print:c ref))) ~)
+  ::
+  ++  inflate-contacts-profile
+    |=  $:  [our=@p now=@da]
+            open=(set cite:c)
+        ==
+    ^-  (unit card)
+    ::  if the contacts agent isn't running, that's slightly unexpected
+    ::  (but not impossible). we choose to no-op for now.
+    ::
+    ?.  .^(? %gu /(scot %p our)/contacts/(scot %da now)/$)
+      ~
+    =+  =>  [our=our now=now co=co ..lull]  ~+
+        .^(orig=contact:co %gx /(scot %p our)/contacts/(scot %da now)/v1/self/contact-1)
+    ::  build a new contact to submit
+    ::
+    =;  =contact:co
+      ?:  =(orig contact)  ~
+      =/  =action:co  [%self contact]
+      =/  =cage      [%contact-action-1 !>(action)]
+      `[%pass /contacts/set %agent [our %contacts] %poke cage]
+    %-  ~(gas by *contact:co)
+    ::  start by clearing out all our entries for a fresh start
+    ::
+    %+  weld
+      %+  turn  ~(tap by orig)
+      |=  [=term =value:co]
+      :-  term
+      ?:(=(%expose- (end 3^7 term)) ~ value)
+    ^-  (list [term value:co])
+    ::  then look at our state and inject as appropriate
+    ::
+    :_  ~
+    :-  %expose-cites
+    :-  %set
+    %-  ~(gas in *(set value:co))
+    %+  turn  ~(tap in open)
+    |=  =cite:c
+    [%text (spat (print:c cite))]
   --
+::  +sort-cite: sort by post id, newest first
+::
+++  sort-cite
+  |=  [a=cite:c b=cite:c]
+  ::  this narrowing down matches the +grab-post:cite:u logic.
+  ::  that logic is required to succeed to add a cite into .open,
+  ::  so we can get away with just sorting actual posts here.
+  ::TODO  support replies..?
+  ::
+  ?.  ?=([%chan * ?(%msg %note %curio) @ ~] a)  |
+  ?.  ?=([%chan * ?(%msg %note %curio) @ ~] b)  &
+  %+  gth
+    (rash i.t.wer.a dum:ag)
+  (rash i.t.wer.b dum:ag)
 --
 ::
 %-  agent:dbug
 %+  verb  |
 ^-  agent:gall
 ::
-=|  state-1
+=|  state-2
 =*  state  -
 |_  =bowl:gall
 +*  this  .
@@ -88,22 +141,31 @@
   :_  this
   :~  [%pass /eyre/connect %arvo %e %connect [~ /expose] dap.bowl]
       [%pass /channels %agent [our.bowl %channels] %watch /v1]
-      [%pass /contacts/news %agent [our.bowl %contacts] %watch /news]
+      [%pass /contacts/news %agent [our.bowl %contacts] %watch /v1/news]
   ==
 ::
 ++  on-save  !>(state)
 ++  on-load
   |^  |=  ole=vase
   ^-  (quip card _this)
+  =|  caz=(list card)
   =+  !<(old=versioned-state ole)
   =+  ver=-.old
   =?  old  ?=(%0 -.old)  old(- %1)
-  ?>  ?=(%1 -.old)
+  =?  caz  ?=(%1 -.old)
+    %+  weld  caz
+    ^-  (list card)
+    :~  [%pass /contacts/news %agent [our.bowl %contacts] %leave ~]
+        [%pass /contacts/news %agent [our.bowl %contacts] %watch /v1/news]
+    ==
+  =?  old  ?=(%1 -.old)  [%2 open.old &]
+  ?>  ?=(%2 -.old)
   =.  state  old
-  =/  caz=(list card)
+  =.  caz
+    %+  snoc  caz
     ::  we must defer refreshing the cache because rendering scries
     ::
-    [%pass /refresh %arvo %b %wait now.bowl]~
+    [%pass /refresh %arvo %b %wait now.bowl]
   ::  leave obsolete %contacts endpoint and connect
   ::
   =?  caz  ?=(%0 ver)
@@ -114,16 +176,14 @@
         [%pass /contacts %agent [our.bowl %conacts] %leave ~]
         [%pass /contacts/news %agent [our.bowl %contacts] %watch /news]
     ==
+  ::  always refresh the contacts profile
+  ::
+  =.  caz  (weld (drop (inflate-contacts-profile:e [our now]:bowl open)) caz)
   [caz this]
   ::
-  +$  versioned-state
-    $%  state-1
-        state-0
-    ==
-  +$  state-0
-    $:  %0
-        open=(set cite:c)
-    ==
+  +$  versioned-state  $%(state-2 state-1 state-0)
+  +$  state-1  [%1 open=(set cite:c)]
+  +$  state-0  [%0 open=(set cite:c)]
   --
 ::
 ++  on-poke
@@ -131,7 +191,11 @@
   ^-  (quip card _this)
   ?+  mark  !!
       %noun
+    ?>  =(src our):bowl
     ?+  q.vase  !!
+        [%eager eager=?]
+      [~ this(eager eager.q.vase)]
+    ::
         [?(%show %hide) *]
       =+  !<(act=action vase)
       ?-  -.act
@@ -146,7 +210,10 @@
         ?>  ?=(^ pag)
         =.  open    (~(put in open) ref)
         :_  this
-        :_  (refresh-widget:e bowl open)
+        :_  =-  (murn - same)
+            :~  (refresh-widget:e bowl open)
+                (inflate-contacts-profile:e [our now]:bowl open)
+            ==
         %+  store:hutils
           (cat 3 '/expose' (spat path.act))
         `[| %payload (paint:hutils %page u.pag)]
@@ -158,7 +225,10 @@
           [~ this]
         =.  open    (~(del in open) ref)
         :_  this
-        :_  (refresh-widget:e bowl open)
+        :_  =-  (murn - same)
+            :~  (refresh-widget:e bowl open)
+                (inflate-contacts-profile:e [our now]:bowl open)
+            ==
         %+  store:hutils
           (cat 3 '/expose' (spat path.act))
         :^  ~  |  %payload
@@ -169,6 +239,7 @@
       %json
     ::  we intentionally slum it with in-agent conversions for now
     ::
+    ?>  =(src our):bowl
     =+  !<(=json vase)
     =-  $(mark %noun, vase !>(`action`-))
     %.  json
@@ -210,13 +281,15 @@
   ~|  wire
   ?+  wire  !!
       [%eyre %connect ~]
-    ~&  >>>  [dap.bowl %failed-to-eyre-connect]
     [~ this]
   ::
       [%refresh ~]
     :_  this
     %+  weld
-      (refresh-widget:e bowl open)
+      =-  (murn - same)
+      :~  (refresh-widget:e bowl open)
+          (inflate-contacts-profile:e [our now]:bowl open)
+      ==
     (refresh-pages:e bowl ~(tap in open))
   ==
 ::
@@ -224,6 +297,12 @@
   |=  [=wire =sign:agent:gall]
   ^-  (quip card _this)
   ?+  wire  ~&([dap.bowl strange-wire=wire] [~ this])
+      [%profile %widget *]
+    ?>  ?=(%poke-ack -.sign)
+    ~?  ?=(^ p.sign)
+      [dap.bowl %nacked-by-profile]
+    [~ this]
+  ::
       [%channels ~]
     ?-  -.sign
       %poke-ack  !!
@@ -235,12 +314,12 @@
       [~ this]
     ::
         %fact
-      ?.  =(%channel-response-1 p.cage.sign)  [~ this]
-      =+  !<(r-channels:d q.cage.sign)
+      ?.  =(%channel-response-2 p.cage.sign)  [~ this]
+      =+  !<(r-channels:v7:old:d q.cage.sign)
       ::REVIEW  should this handle %posts also?
       ?+  -.r-channel  [~ this]
           %post
-        =/  new=(unit $@(%del kind-data:d))
+        =/  new=(unit $?(%del kind-data:d))
           ?+  -.r-post.r-channel  ~
               %set
             ?~  post.r-post.r-channel  `%del
@@ -255,34 +334,45 @@
           ::
           :_  this
           =/  ref=cite:c
-            (from-post:cite:u nest id.r-channel u.new)
+            ::TODO  just get newer type/use newer endpoint
+            (from-post:cite:u nest id.r-channel /[-.u.new])
           ?.  (~(has in open) ref)  ~
           %+  weld
-            (refresh-widget:e bowl open)
+            (drop (refresh-widget:e bowl open))
           (refresh-pages:e bowl ref ~)
         ::  post was deleted. if we have it, clear it out.
         ::
-        ::TODO  this won't hold up in a freeform-channels world...
-        ::      but not sure how else we'd get the msg type info for the cite.
-        =/  =kind-data:d
+        ::TODO  just get kind.u.post from newer type/endpoint
+        =/  kind=path
           ?-  -.nest
-            %chat   [%chat ~]
-            %diary  [%diary '' '']
-            %heap   [%heap ~]
+            %chat   /chat
+            %diary  /diary
+            %heap   /heap
           ==
         =/  ref=cite:c
-          (from-post:cite:u nest id.r-channel kind-data)
+          (from-post:cite:u nest id.r-channel kind)
         ?.  (~(has in open) ref)  [~ this]
         =.  open  (~(del in open) ref)
         :_  this
-        [(clear-page:e ref) (refresh-widget:e bowl open)]
+        :-  (clear-page:e ref)
+        =-  (murn - same)
+        :~  (refresh-widget:e bowl open)
+            (inflate-contacts-profile:e [our now]:bowl open)
+        ==
       ==
     ==
+  ::
+      [%contacts %prime *]
+    ::  we don't actually care what happens after we try to prime the cache,
+    ::  we just no-op and assume channels agent will kick our subscription
+    ::  once we hear back.
+    ::
+    [~ this]
   ::
       [%contacts %news ~]
     ?-  -.sign
       %poke-ack  !!
-      %kick      [[%pass /contacts/news %agent [our.bowl %contacts] %watch /news]~ this]
+      %kick      [[%pass /contacts/news %agent [our.bowl %contacts] %watch /v1/news]~ this]
     ::
         %watch-ack
       ?~  p.sign  [~ this]
@@ -290,21 +380,69 @@
       [~ this]
     ::
         %fact
-      ::  our own contact details changes. assume this affects all pages we're
-      ::  serving, refresh the cache.
-      ::  note that we don't do this kind of reactivity for contact details of
-      ::  other ships. at the extreme, reacting to that accurately in a non-
-      ::  wasteful way would require trawling all content for relevane, which
-      ::  in turn is slow. if we get to the point of wanting that to be
-      ::  fresh(er), we should just set an hourly timer that re-render the
-      ::  entire cache.
+      =+  !<(=response:co q.cage.sign)
+      ?+  -.response  [~ this]
+          %self
+        ::  our own contact details changed. assume this affects all pages
+        ::  we're serving, refresh the cache.
+        ::  note that we don't do this kind of reactivity for contact details
+        ::  of other ships. at the extreme, reacting to that accurately in a
+        ::  non-wasteful way would require trawling all content for relevance,
+        ::  which in turn is slow. if we get to the point of wanting that to be
+        ::  fresh(er), we should just set an hourly timer that re-render the
+        ::  entire cache.
+        ::
+        :_  this
+        %+  weld
+          (drop (refresh-widget:e bowl open))
+        (refresh-pages:e bowl ~(tap in open))
       ::
-      =+  !<(=news-0:co q.cage.sign)
-      ?.  =(our.bowl who.news-0)  `this
-      :_  this
-      %+  weld
-        (refresh-widget:e bowl open)
-      (refresh-pages:e bowl ~(tap in open))
+          %peer
+        ::  someone else's contact details changed. if they have any pinned
+        ::  posts, and we're eager, pre-fetch those to prime the cache.
+        ::
+        :_  this
+        ?.  eager  ~
+        ?~  piz=(~(get by con.response) %expose-cites)
+          ~
+        ?.  ?=(%set -.u.piz)  ~
+        %+  murn  ~(tap in p.u.piz)
+        |^  |=  val=value:co
+            ^-  (unit card)
+            ?~  plan=(value-to-plan val)  ~
+            =/  =path  (plan-to-path u.plan)
+            ::  if we already have a cache entry, don't do an eager
+            ::  over-the-network lookup, assume it hasn't gone stale
+            ::
+            =+  .^  cache=(unit (unit said:d))
+                  %gx  (scot %p our.bowl)  %channels  (scot %da now.bowl)
+                  %v3  %said  (snoc path %noun)
+                ==
+            ?^  cache
+              ~
+            %-  some
+            :+  %pass   [%contacts %prime path]
+            :+  %agent  [our.bowl %channels]
+            [%watch [%v3 %said (scot %p who.response) path]]
+        ::
+        ++  value-to-plan
+          |=  val=value:co
+          ^-  (unit [nest:d plan:d])
+          ?.  ?=([%text @] val)                       ~
+          ?~  pax=(rush p.val stap)                   ~
+          ?~  cit=(purse:ci u.pax)                    ~
+          ?~  pon=(ref-to-pointer:cite:u u.cit)       ~
+          ?.  ?=(?(%chat %diary %heap) p.nest.u.pon)  ~
+          pon
+        ::
+        ++  plan-to-path
+          |=  [=nest:d =plan:d]
+          ^-  path
+          :*  kind.nest  (scot %p ship.nest)  name.nest
+              %post  (scot %ud p.plan)  ?~(q.plan ~ /(scot %ud u.q.plan))
+          ==
+        --
+      ==
     ==
   ==
 ::

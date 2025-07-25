@@ -20,6 +20,7 @@ export function FormInput({
   placeholder,
   frameProps,
   areaProps,
+  testID,
 }: {
   name: string;
   label: string;
@@ -32,6 +33,7 @@ export function FormInput({
   frameProps?: ComponentProps<typeof Input>;
   areaProps?: ComponentProps<typeof Input.Area>;
   placeholder?: string;
+  testID?: string;
 }) {
   return (
     <YStack width="100%" gap="$s">
@@ -48,6 +50,7 @@ export function FormInput({
                 value={value}
                 placeholder={placeholder}
                 aria-label={label}
+                testID={testID}
                 {...areaProps}
               />
             </Input>

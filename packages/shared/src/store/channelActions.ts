@@ -77,6 +77,7 @@ export async function createChannel({
       name: channelSlug,
       title,
       description: encodedDescription ?? '',
+      meta: null,
       readers: [],
       writers: [],
     });
@@ -218,7 +219,6 @@ export async function updateChannel({
   const groupChannel: GroupChannel = {
     added: channel.addedToGroupAt ?? 0,
     readers,
-    writers,
     zone: sectionId,
     join,
     meta: {

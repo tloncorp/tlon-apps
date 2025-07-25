@@ -185,7 +185,7 @@ async function runPostSignupActions(params: {
 
   if (typeof params.telemetry !== 'undefined') {
     try {
-      await api.updateTelemetrySetting(params.telemetry);
+      await api.setSetting('enableTelemetry', params.telemetry);
       if (!params.telemetry) {
         // we give some wiggle room here before disabling telemetry to allow
         // the initial signup flow to complete before severing analytics

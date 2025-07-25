@@ -1,10 +1,5 @@
 appId: io.tlon.groups
 ---
-- assertVisible: 'Welcome to TM'
-- swipe:
-    direction: 'DOWN'
-- waitForAnimationToEnd:
-    timeout: 5000
 - tapOn: 'Have an account? Log in'
 - tapOn: 'Log in with Email'
 - tapOn:
@@ -58,9 +53,3 @@ appId: io.tlon.groups
       - extendedWaitUntil:
           notVisible: 'Notify me when.*'
           timeout: 600000 # 10 minutes
-# Dismiss welcome sheet
-- assertVisible: 'Welcome to TM'
-- swipe:
-    direction: 'DOWN'
-- waitForAnimationToEnd:
-    timeout: 5000

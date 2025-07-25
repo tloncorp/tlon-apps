@@ -15,9 +15,11 @@ const ChatMessageInputFixture = () => {
           channelType="notebook"
           shouldBlur={inputShouldBlur}
           setShouldBlur={setInputShouldBlur}
-          send={async () => {}}
+          sendPost={async () => {}}
+          sendPostFromDraft={async () => {}}
           channelId="channel-id"
           groupMembers={group.members ?? []}
+          groupRoles={group.roles ?? []}
           getDraft={async () => ({})}
           storeDraft={async () => {}}
           clearDraft={async () => {}}
@@ -38,9 +40,11 @@ const NotebookInputFixture = () => {
           channelType="notebook"
           shouldBlur={inputShouldBlur}
           setShouldBlur={setInputShouldBlur}
-          send={async () => {}}
+          sendPost={async () => {}}
+          sendPostFromDraft={async () => {}}
           channelId="channel-id"
           groupMembers={group.members ?? []}
+          groupRoles={group.roles ?? []}
           getDraft={async () => ({})}
           storeDraft={async () => {}}
           clearDraft={async () => {}}

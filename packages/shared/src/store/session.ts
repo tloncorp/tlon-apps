@@ -2,7 +2,13 @@ import { useSyncExternalStore } from 'react';
 
 import { ChannelStatus } from '../http-api';
 
-export type Session = { startTime?: number; channelStatus?: ChannelStatus };
+export type SyncPhase = 'init' | 'high' | 'low' | 'ready';
+
+export type Session = {
+  startTime?: number;
+  channelStatus?: ChannelStatus;
+  phase?: SyncPhase;
+};
 
 // Session — time when subscriptions were first initialized after which we can assume
 // all new events will be heard
@@ -28,7 +34,7 @@ export function setSession(newSession: Session) {
   triggerSessionListeners();
 }
 
-function subscribeToSession(listener: SessionListener) {
+export function subscribeToSession(listener: SessionListener) {
   sessionListeners.push(listener);
   return () => {
     sessionListeners.splice(sessionListeners.indexOf(listener), 1);

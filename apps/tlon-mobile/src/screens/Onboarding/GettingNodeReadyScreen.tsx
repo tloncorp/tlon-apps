@@ -249,8 +249,8 @@ export function GettingNodeReadyScreen({
               color="$secondaryText"
               textAlign="center"
             >
-              Feel free to close TM if this takes too long. We’ll send you a
-              notification when your node is ready.
+              Feel free to close the app if this takes too long. We’ll send you
+              a notification when your node is ready.
             </TlonText.Text>
           </YStack>
           <StoppedNodePushSheet

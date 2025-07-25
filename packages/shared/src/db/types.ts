@@ -84,7 +84,10 @@ export type PostFlags = Pick<
   | 'hasImage'
   | 'hasLink'
 >;
-export type PostMetadata = Pick<Post, 'title' | 'image'>;
+export type PostMetadata = Pick<
+  Post,
+  'title' | 'image' | 'description' | 'cover'
+>;
 export type ReplyMeta = {
   replyCount: number;
   replyTime: number | null;

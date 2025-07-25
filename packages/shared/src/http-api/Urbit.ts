@@ -950,6 +950,64 @@ export class Urbit {
   }
 
   /**
+   * Perform a standard HTTP request using the channel's authentication
+   *
+   * @param path The path to request (relative to the ship's URL)
+   * @param options Request options (method, headers, body, etc.)
+   * @returns The response from the request
+   */
+  async request<T>(
+    path: string,
+    options: RequestInit = {},
+    timeout?: number
+  ): Promise<T> {
+    // Ensure path starts with a slash if not provided
+    if (!path.startsWith('/')) {
+      path = '/' + path;
+    }
+
+    const signal = timeout ? utils.createTimeoutSignal(timeout) : undefined;
+    // Prepare request options with authentication
+    const requestOptions: RequestInit = {
+      ...this.fetchOptions,
+      ...options,
+      // Merge headers properly
+      headers: {
+        ...this.fetchOptions.headers,
+        ...(options.headers || {}),
+      },
+      signal,
+    };
+
+    // If we're in a Node.js environment, add the cookie for authentication
+    if (!isBrowser && this.cookie) {
+      requestOptions.headers = {
+        ...requestOptions.headers,
+        Cookie: this.cookie,
+      };
+    }
+
+    // Make the request
+    const response = await this.fetchFn(`${this.url}${path}`, requestOptions);
+    signal?.cleanup();
+
+    // Handle response
+    if (!response.ok) {
+      return Promise.reject(response);
+    }
+
+    // Determine response type and parse accordingly
+    const contentType = response.headers.get('content-type');
+    if (contentType?.includes('application/json')) {
+      return response.json();
+    } else if (contentType?.includes('text/')) {
+      return response.text() as unknown as T;
+    } else {
+      return response.blob() as unknown as T;
+    }
+  }
+
+  /**
    * Utility function to connect to a ship that has its *.arvo.network domain configured.
    *
    * @param name Name of the ship e.g. zod

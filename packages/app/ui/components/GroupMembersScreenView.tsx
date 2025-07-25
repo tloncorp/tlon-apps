@@ -76,9 +76,11 @@ export function GroupMembersScreenView({
     [members]
   );
 
-  const membersWithoutRoles = members.filter(
-    (m) => m.roles?.length === 0 || m.roles === null
-  );
+  const membersWithoutRoles = members
+    .filter((m) => m.status !== 'invited')
+    .filter((m) => m.roles?.length === 0 || m.roles === null);
+
+  const invitedMembers = members.filter((m) => m.status === 'invited');
 
   const bannedUserData: db.ChatMember[] = useMemo(
     () =>
@@ -123,6 +125,16 @@ export function GroupMembersScreenView({
             : []
         )
         .concat(
+          invitedMembers.length > 0
+            ? [
+                {
+                  title: 'Invited',
+                  data: invitedMembers,
+                },
+              ]
+            : []
+        )
+        .concat(
           bannedUserData.length > 0 && currentUserIsAdmin
             ? [
                 {
@@ -147,6 +159,7 @@ export function GroupMembersScreenView({
       joinRequestData,
       bannedUserData,
       membersWithoutRoles,
+      invitedMembers,
       currentUserIsAdmin,
     ]
   );
@@ -213,6 +226,9 @@ export function GroupMembersScreenView({
           groupHostId={groupHostId}
           userIsBanned={bannedUsers.some(
             (b) => b.contactId === selectedContact
+          )}
+          userIsInvited={invitedMembers.some(
+            (m) => m.contactId === selectedContact
           )}
           onOpenChange={(open) => {
             if (!open) {
