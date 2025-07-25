@@ -9,6 +9,7 @@ import {
   PropsWithChildren,
   ReactElement,
   ReactNode,
+  useCallback,
   useContext,
   useMemo,
   useRef,
@@ -546,9 +547,29 @@ function ActionSheetAction({
 }) {
   const isWindowNarrow = useIsWindowNarrow();
   const accent: Accent = useContext(ActionSheetActionGroupContext).accent;
-  return action.render ? (
-    action.render({ action })
-  ) : (
+  const pressStarted = useRef(false);
+
+  const handlePressIn = useCallback(() => {
+    pressStarted.current = true;
+  }, []);
+
+  const handlePressOut = useCallback(() => {
+    if (
+      pressStarted.current &&
+      accent !== 'disabled' &&
+      !action.disabled &&
+      action.action
+    ) {
+      action.action();
+    }
+    pressStarted.current = false;
+  }, [action, accent]);
+
+  if (action.render) {
+    return action.render({ action });
+  }
+
+  return (
     <ActionSheetActionFrame
       type={
         action.selected
@@ -557,9 +578,11 @@ function ActionSheetAction({
             ? 'disabled'
             : action.accent ?? accent
       }
-      onPress={accent !== 'disabled' ? action.action : undefined}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       height={isWindowNarrow ? undefined : '$4xl'}
       testID={testID}
+      disabled={action.disabled}
     >
       {action.startIcon &&
         resolveIcon(action.startIcon, action.accent ?? accent)}
