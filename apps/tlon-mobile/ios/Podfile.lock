@@ -299,6 +299,28 @@ PODS:
     - ExpoModulesCore
   - ExpoSMS (12.0.1):
     - ExpoModulesCore
+  - EXSplashScreen (0.27.7):
+    - DoubleConversion
+    - ExpoModulesCore
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.01.01.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Codegen
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-rendererdebug
+    - React-utils
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - Yoga
   - EXStructuredHeaders (3.8.0)
   - EXTaskManager (11.8.2):
     - ExpoModulesCore
@@ -1833,6 +1855,7 @@ DEPENDENCIES:
   - ExpoModulesCore (from `../../../node_modules/expo-modules-core`)
   - ExpoSecureStore (from `../../../node_modules/expo-secure-store/ios`)
   - ExpoSMS (from `../../../node_modules/expo-sms/ios`)
+  - EXSplashScreen (from `../../../node_modules/expo-splash-screen/ios`)
   - EXStructuredHeaders (from `../../../node_modules/expo-structured-headers/ios`)
   - EXTaskManager (from `../../../node_modules/expo-task-manager/ios`)
   - EXUpdates (from `../../../node_modules/expo-updates/ios`)
@@ -2021,6 +2044,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-secure-store/ios"
   ExpoSMS:
     :path: "../../../node_modules/expo-sms/ios"
+  EXSplashScreen:
+    :path: "../../../node_modules/expo-splash-screen/ios"
   EXStructuredHeaders:
     :path: "../../../node_modules/expo-structured-headers/ios"
   EXTaskManager:
@@ -2219,6 +2244,7 @@ SPEC CHECKSUMS:
   ExpoModulesCore: c11bcbf466b123a92eb66ab2ae9e0eaef61b7e97
   ExpoSecureStore: 6506992a9f53c94ea716c54d4a63144965945c2c
   ExpoSMS: 66d89a3c897602621bb711f3d23814cea80924fb
+  EXSplashScreen: 02d4bb2d7a6b05b4434126e01ee2e6872088f4ae
   EXStructuredHeaders: cb8d1f698e144f4c5547b4c4963e1552f5d2b457
   EXTaskManager: b515b853fd97286a25cb643978ff7fa456f3139a
   EXUpdates: ebe3c09f7f119648a7f92295ea0d8418c799cdf6
