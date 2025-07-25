@@ -12,6 +12,7 @@ import { useRootNavigation } from '../../navigation/utils';
 import {
   ActionSheet,
   ChatOptionsProvider,
+  ConnectionStatusComponent,
   ContactListItem,
   DeleteSheet,
   ForwardGroupSheetProvider,
@@ -209,7 +210,9 @@ function ChatDetailsScreenContent({
 
       <YStack gap="$l">
         {chatType === 'group' && <GroupQuickActions group={group} />}
-        {chatType === 'group' && <GroupSettings group={group} />}
+        {chatType === 'group' && (
+          <GroupSettings group={group} channel={channel ?? undefined} />
+        )}
 
         {members?.length ? (
           <ChatMembersList
@@ -282,7 +285,13 @@ function GroupLeaveActions({ group }: { group: db.Group }) {
   );
 }
 
-function GroupSettings({ group }: { group: db.Group }) {
+function GroupSettings({
+  group,
+  channel,
+}: {
+  group: db.Group;
+  channel?: db.Channel;
+}) {
   const channelCount = group.channels?.length ?? 0;
 
   const currentUserId = useCurrentUserId();
@@ -324,6 +333,18 @@ function GroupSettings({ group }: { group: db.Group }) {
         borderWidth: 0,
       }}
     >
+      {group?.hostUserId && (
+        <ConnectionStatusComponent 
+          contactId={group.hostUserId}
+          label="Connected to Group Host"
+        />
+      )}
+      {channel?.contactId && channel.contactId !== group?.hostUserId && (
+        <ConnectionStatusComponent 
+          contactId={channel.contactId}
+          label="Connected to Channel Host"
+        />
+      )}
       {currentUserIsAdmin ? (
         <Pressable onPress={handlePressGroupPrivacy}>
           <ListItem
@@ -578,4 +599,3 @@ function GroupQuickActions({ group }: { group: db.Group }) {
     </ScrollView>
   );
 }
-

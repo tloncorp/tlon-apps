@@ -1,49 +1,49 @@
-import {
-  ConnectionState,
-  ConnectionStatus,
-  checkConnectionStatus,
-  getLastConnectionStatus,
-} from '@tloncorp/shared/api';
-import { useCallback, useEffect, useState } from 'react';
+import { ConnectionState } from '@tloncorp/shared/api';
 import { Pressable } from 'react-native';
 import { Spinner } from 'tamagui';
 
+import { useConnectionStatus } from '../../features/top/useConnectionStatus';
+import { useCurrentUserId } from '../contexts';
 import { Icon, IconType } from '../utils';
 import { ListItem } from './ListItem/ListItem';
 
 export interface ConnectionStatusProps {
   contactId: string;
-  autoCheck?: boolean;
-  mockStatus?: ConnectionStatus;
   onPress?: () => void;
+  label?: string;
 }
 
 export const getStatusLabels = (
-  status: ConnectionState
+  status: ConnectionState,
+  contactId?: string,
+  label?: string
 ): { title: string; subtitle: string; icon?: IconType } => {
+  const shipName = contactId || 'peer node';
+  const connectionLabel = label || 'Connected';
+
   switch (status) {
     case 'yes':
       return {
-        title: 'Connected',
-        subtitle: 'Connected to peer node',
+        title: connectionLabel,
+        subtitle: `Connected to ${shipName}`,
         icon: 'Checkmark',
       };
     case 'crash':
       return {
         title: 'Failed',
-        subtitle: 'Status checker failed',
+        subtitle: `Status checker failed for ${shipName}`,
         icon: 'Close',
       };
     case 'no-data':
       return {
         title: 'Failed',
-        subtitle: 'No data received from status checker',
+        subtitle: `No data received from ${shipName}`,
         icon: 'Close',
       };
     case 'no-dns':
       return {
         title: 'Failed',
-        subtitle: 'DNS failed. Check your network connection',
+        subtitle: `DNS failed for ${shipName}. Check your network connection`,
         icon: 'Close',
       };
     case 'no-our-planet':
@@ -61,146 +61,87 @@ export const getStatusLabels = (
     case 'no-sponsor-hit':
       return {
         title: 'Disconnected',
-        subtitle: "No connection to peer's sponsor node",
+        subtitle: `No connection to ${shipName}'s sponsor node`,
         icon: 'Close',
       };
     case 'no-sponsor-miss':
       return {
         title: 'Disconnected',
-        subtitle: 'No connection between peer and their sponsor node',
+        subtitle: `No connection between ${shipName} and their sponsor node`,
         icon: 'Close',
       };
     case 'no-their-galaxy':
       return {
         title: 'Disconnected',
-        subtitle: "No connection to peer's root node",
+        subtitle: `No connection to ${shipName}'s root node`,
         icon: 'Close',
       };
     case 'setting-up':
       return {
         title: 'Connecting...',
-        subtitle: 'Setting up...',
+        subtitle: `Setting up connection to ${shipName}...`,
       };
     case 'trying-dns':
       return {
         title: 'Connecting...',
-        subtitle: 'Trying DNS...',
+        subtitle: `Trying DNS for ${shipName}...`,
       };
     case 'trying-local':
       return {
         title: 'Connecting...',
-        subtitle: 'Trying our node...',
+        subtitle: `Trying our node to reach ${shipName}...`,
       };
     case 'trying-target':
       return {
         title: 'Connecting...',
-        subtitle: 'Trying peer node...',
+        subtitle: `Trying to reach ${shipName}...`,
         icon: 'EyeOpen',
       };
     case 'trying-sponsor':
       return {
         title: 'Connecting...',
-        subtitle: 'Trying sponsor node(s)...',
+        subtitle: `Trying ${shipName}'s sponsor node(s)...`,
         icon: 'EyeOpen',
       };
     default:
       return {
         title: 'Connecting...',
-        subtitle: 'Connecting...',
+        subtitle: `Connecting to ${shipName}...`,
       };
   }
 };
 
 export const ConnectionStatusComponent = ({
   contactId,
-  autoCheck = true,
-  mockStatus,
   onPress,
+  label,
 }: ConnectionStatusProps) => {
-  const [connectionStatus, setConnectionStatus] =
-    useState<ConnectionStatus | null>(mockStatus ?? null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const currentUserId = useCurrentUserId();
+  const connectionStatus = useConnectionStatus(contactId);
 
-  const loadMockData = useCallback((mockStatus: ConnectionStatus) => {
-    setConnectionStatus(mockStatus);
-    setLoading(!mockStatus.complete);
-    setError(null);
-  }, []);
+  // Don't show connection status for current user
+  if (currentUserId === contactId) {
+    return null;
+  }
 
-  const loadLastStatus = useCallback(async () => {
-    // Skip API call if we have mock data
-    if (mockStatus) {
-      loadMockData(mockStatus);
-      return;
-    }
-    // Otherwise, load the last known status
-    try {
-      setLoading(true);
-      setError(null);
-      const status = await getLastConnectionStatus(contactId);
-      setConnectionStatus(status);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to load last known status'
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [contactId, mockStatus, loadMockData]);
-
-  const runCheck = useCallback(async () => {
-    // Skip API call if we have mock data
-    if (mockStatus) {
-      loadMockData(mockStatus);
-      return;
-    }
-    // Otherwise, run the check
-    try {
-      setLoading(true);
-      setError(null);
-      await checkConnectionStatus(contactId, (status: ConnectionStatus) => {
-        setConnectionStatus(status);
-        if (status.complete) {
-          setLoading(false);
-        }
-      });
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to check connection status'
-      );
-      setLoading(false);
-    }
-  }, [contactId, mockStatus, loadMockData]);
-
-  useEffect(() => {
-    // Skip API call if we have mock data
-    if (mockStatus) {
-      loadMockData(mockStatus);
-      return;
-    }
-    // Otherwise, run the check
-    if (autoCheck) {
-      runCheck();
-    } else {
-      loadLastStatus();
-    }
-  }, [autoCheck, mockStatus, runCheck, loadLastStatus, loadMockData]);
+  const loading = !connectionStatus || !connectionStatus.complete;
+  const error = null; // Hook handles errors internally
 
   return (
     <Pressable onPress={onPress} disabled={!onPress}>
-      <ListItem>
+      <ListItem paddingHorizontal={'$2xl'}>
         <ListItem.MainContent>
-          {connectionStatus && (
-            <>
-              <ListItem.Title>
-                {getStatusLabels(connectionStatus.status)?.title}
-              </ListItem.Title>
-              <ListItem.Subtitle>
-                {error ?? getStatusLabels(connectionStatus.status)?.subtitle}
-              </ListItem.Subtitle>
-            </>
-          )}
+          <ListItem.Title>
+            {connectionStatus
+              ? getStatusLabels(connectionStatus.status, contactId, label)?.title
+              : 'Checking connection...'}
+          </ListItem.Title>
+          <ListItem.Subtitle>
+            {connectionStatus
+              ? error ??
+                getStatusLabels(connectionStatus.status, contactId, label)?.subtitle
+              : `Initializing connection check to ${contactId}...`}
+          </ListItem.Subtitle>
         </ListItem.MainContent>
         {loading && (
           <ListItem.EndContent>
@@ -214,10 +155,11 @@ export const ConnectionStatusComponent = ({
         )}
         {!loading && !error && connectionStatus && (
           <ListItem.EndContent>
-            {getStatusLabels(connectionStatus.status).icon ? (
+            {getStatusLabels(connectionStatus.status, contactId, label).icon ? (
               <Icon
                 type={
-                  getStatusLabels(connectionStatus.status).icon ?? 'Placeholder'
+                  getStatusLabels(connectionStatus.status, contactId, label).icon ??
+                  'Placeholder'
                 }
               />
             ) : (

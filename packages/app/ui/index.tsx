@@ -17,6 +17,7 @@ export * from './components/ChannelSearch';
 export * from './components/ChatMessage';
 export * from './components/ChatMessage/ChatMessageActions/Component';
 export * from './components/ChatOptionsSheet';
+export * from './components/ConnectionStatus';
 export * from './components/ContactBook';
 export * from './components/ContactList';
 export { default as ContactName } from './components/ContactName';

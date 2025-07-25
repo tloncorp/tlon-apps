@@ -59,82 +59,31 @@ export default {
       <YStack gap="$2xl">
         <Text fontSize="$xl">Success States</Text>
         <YStack gap="$m">
-          {connectionStates
-            .filter((status) => status.status === 'yes')
-            .map((mockStatus, index) => {
-              return (
-                <ConnectionStatusComponent
-                  key={`success-${index}`}
-                  contactId={`~zod`}
-                  mockStatus={mockStatus}
-                  onPress={() => console.log('Pressed:', mockStatus.status)}
-                />
-              );
-            })}
+          <ConnectionStatusComponent
+            contactId={`~zod`}
+            onPress={() => console.log('Pressed: connection status')}
+          />
         </YStack>
         <Text fontSize="$xl">Connecting States</Text>
         <YStack gap="$m">
-          {connectionStates
-            .filter((status) =>
-              [
-                'setting-up',
-                'trying-dns',
-                'trying-local',
-                'trying-target',
-                'trying-sponsor',
-              ].includes(status.status)
-            )
-            .map((mockStatus, index) => {
-              return (
-                <ConnectionStatusComponent
-                  key={`progress-${index}`}
-                  contactId={`~zod`}
-                  mockStatus={mockStatus}
-                  autoCheck={true}
-                  onPress={() => console.log('Pressed:', mockStatus.status)}
-                />
-              );
-            })}
+          <ConnectionStatusComponent
+            contactId={`~sampel-palnet`}
+            onPress={() => console.log('Pressed: connection status')}
+          />
         </YStack>
         <Text fontSize="$xl">Failed States (ship-side)</Text>
         <YStack gap="$m">
-          {connectionStates
-            .filter((status) =>
-              ['crash', 'no-data', 'no-dns'].includes(status.status)
-            )
-            .map((mockStatus, index) => {
-              return (
-                <ConnectionStatusComponent
-                  key={`failed-${index}`}
-                  contactId={`~zod`}
-                  mockStatus={mockStatus}
-                  onPress={() => console.log('Pressed:', mockStatus.status)}
-                />
-              );
-            })}
+          <ConnectionStatusComponent
+            contactId={`~failed-ship`}
+            onPress={() => console.log('Pressed: connection status')}
+          />
         </YStack>
         <Text fontSize="$xl">Disconnected States (network-side)</Text>
         <YStack gap="$m">
-          {connectionStates
-            .filter((status) =>
-              [
-                'no-our-planet',
-                'no-our-galaxy',
-                'no-sponsor-hit',
-                'no-sponsor-miss',
-                'no-their-galaxy',
-              ].includes(status.status)
-            )
-            .map((mockStatus, index) => {
-              return (
-                <ConnectionStatusComponent
-                  key={`disconnected-${index}`}
-                  contactId={`~zod`}
-                  mockStatus={mockStatus}
-                  onPress={() => console.log('Pressed:', mockStatus.status)}
-                />
-              );
-            })}
+          <ConnectionStatusComponent
+            contactId={`~disconnected-ship`}
+            onPress={() => console.log('Pressed: connection status')}
+          />
         </YStack>
       </YStack>
     </FixtureWrapper>
