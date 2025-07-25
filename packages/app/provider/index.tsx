@@ -55,7 +55,6 @@ export const setTheme = async (
   theme: AppTheme,
   setActiveTheme: (theme: AppTheme) => void
 ) => {
-  console.log('setTheme', theme);
   try {
     setActiveTheme(theme);
     await store.updateTheme(theme);
@@ -103,7 +102,6 @@ function useSyncedAppTheme() {
   useEffect(() => {
     (async () => {
       try {
-        // Needs to wait for Urbit client init :(
         await store.pullSettings();
       } catch (error) {
         console.warn('Failed to load theme preference:', error);
