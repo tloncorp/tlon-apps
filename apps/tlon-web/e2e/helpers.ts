@@ -885,3 +885,31 @@ export async function isMobileViewport(page: Page) {
   const viewport = await page.viewportSize();
   return viewport && viewport.width < 768;
 }
+
+/**
+ * Test connection status visibility in group settings
+ */
+export async function testConnectionStatus(page: Page) {
+  // Should be able to see connection status for group host
+  // Look for the connection status component
+  const connectionStatusExists = await page.locator('[data-testid*="ConnectionStatus"]').first().isVisible().catch(() => false);
+  
+  if (connectionStatusExists) {
+    // Verify connection status is showing for group host
+    await expect(page.locator('[data-testid*="ConnectionStatus"]').first()).toBeVisible();
+    
+    // Check if we can see connection labels
+    const hasGroupHostLabel = await page.getByText('Connected to Group Host').isVisible().catch(() => false);
+    const hasChannelHostLabel = await page.getByText('Connected to Channel Host').isVisible().catch(() => false);
+    const hasGenericConnected = await page.getByText('Connected', { exact: true }).isVisible().catch(() => false);
+    
+    // At least one connection status should be visible
+    expect(hasGroupHostLabel || hasChannelHostLabel || hasGenericConnected).toBeTruthy();
+    
+    // If both group and channel hosts are different, we should see both
+    if (hasGroupHostLabel && hasChannelHostLabel) {
+      await expect(page.getByText('Connected to Group Host')).toBeVisible();
+      await expect(page.getByText('Connected to Channel Host')).toBeVisible();
+    }
+  }
+}

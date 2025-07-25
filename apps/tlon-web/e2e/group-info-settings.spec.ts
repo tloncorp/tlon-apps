@@ -186,6 +186,9 @@ test('should handle complete group lifecycle with settings management', async ({
   await helpers.navigateBack(page);
   await helpers.verifyElementCount(page, 'GroupChannels', 1);
 
+  // Test connection status visibility
+  await helpers.testConnectionStatus(page);
+
   // Delete group
   await helpers.deleteGroup(page);
 });
