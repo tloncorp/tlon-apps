@@ -565,9 +565,18 @@ function ActionSheetAction({
     pressStarted.current = false;
   }, [action, accent]);
 
+  const handlePress = useCallback(() => {
+    if (accent !== 'disabled' && !action.disabled && action.action) {
+      action.action();
+    }
+  }, [action, accent]);
+
   if (action.render) {
     return action.render({ action });
   }
+
+  // Use regular onPress on desktop/web where popovers work fine
+  const useAlternativePress = Platform.OS !== 'web' && isWindowNarrow;
 
   return (
     <ActionSheetActionFrame
@@ -578,8 +587,9 @@ function ActionSheetAction({
             ? 'disabled'
             : action.accent ?? accent
       }
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
+      {...(useAlternativePress
+        ? { onPressIn: handlePressIn, onPressOut: handlePressOut }
+        : { onPress: handlePress })}
       height={isWindowNarrow ? undefined : '$4xl'}
       testID={testID}
       disabled={action.disabled}
