@@ -96,10 +96,11 @@ const ConnectedAction = memo(function ConnectedAction({
         // only show mute for threads
         return post.parentId;
       case 'edit':
-        // only show edit for current user's posts OR admins of notebook posts
+        // only show edit for current user's posts
+        // OR admins for top-level notebook posts
         return (
           post.authorId === currentUserId ||
-          (channel.type === 'notebook' && currentUserIsAdmin)
+          (channel.type === 'notebook' && currentUserIsAdmin && !post.parentId)
         );
       case 'delete':
         // only show delete for current user's posts
