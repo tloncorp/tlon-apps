@@ -3,7 +3,6 @@ import { Icon, triggerHaptic } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
-import { Linking } from 'react-native';
 import { XStack, YStack } from 'tamagui';
 
 import { AttestationSheet } from '../AttestationSheet';
@@ -17,15 +16,6 @@ export function TwitterAttestDisplay(props: { attestation: db.Attestation }) {
     }
     return `@${props.attestation.value}`;
   }, [props.attestation.value]);
-
-  const handleViewTweet = useCallback(() => {
-    if (props.attestation && props.attestation.value) {
-      triggerHaptic('baseButtonClick');
-      setTimeout(() => {
-        Linking.openURL(`https://x.com/${props.attestation.value}`);
-      }, 100);
-    }
-  }, [props.attestation]);
 
   const handleShowDetails = useCallback(() => {
     triggerHaptic('sheetOpen');
@@ -42,11 +32,7 @@ export function TwitterAttestDisplay(props: { attestation: db.Attestation }) {
 
   return (
     <>
-      <Pressable
-        onPress={handleViewTweet}
-        onLongPress={handleShowDetails}
-        flex={1}
-      >
+      <Pressable onPress={handleShowDetails} flex={1}>
         <WidgetPane flex={1}>
           <WidgetPane.Title>𝕏 Account</WidgetPane.Title>
           <YStack flex={1} justifyContent="center">
@@ -83,7 +69,7 @@ export function PhoneAttestDisplay(props: { attestation: db.Attestation }) {
 
   return (
     <>
-      <Pressable onLongPress={handleShowDetails} flex={1}>
+      <Pressable onPress={handleShowDetails} flex={1}>
         <WidgetPane flex={1}>
           <WidgetPane.Title>Phone</WidgetPane.Title>
           <YStack flex={1} justifyContent="center">

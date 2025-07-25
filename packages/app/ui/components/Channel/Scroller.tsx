@@ -32,7 +32,6 @@ import React, {
   useState,
 } from 'react';
 import {
-  FlatList,
   LayoutChangeEvent,
   ListRenderItem,
   View as RNView,
@@ -40,19 +39,17 @@ import {
   ViewStyle,
   useWindowDimensions,
 } from 'react-native';
-import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, getTokens, styled, useStyle, useTheme } from 'tamagui';
 
 import { RenderItemType } from '../../contexts/componentsKits';
 import { useLivePost } from '../../contexts/requests';
-import { useScrollDirectionTracker } from '../../contexts/scroll';
 import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import { EmojiPickerSheet } from '../Emoji';
 import { ChannelDivider } from './ChannelDivider';
-import { useAnchorScrollLock } from './useAnchorScrollLock';
+import { PostList, PostListMethods } from './PostList';
 
 interface PostWithNeighbors {
   post: db.Post;
@@ -61,8 +58,6 @@ interface PostWithNeighbors {
 }
 
 const logger = createDevLogger('scroller', false);
-
-export const INITIAL_POSTS_PER_PAGE = 30;
 
 export type ScrollAnchor = {
   type: 'unread' | 'selected';
@@ -74,7 +69,6 @@ export type ScrollAnchor = {
  * - Posts and unread state should be be loaded before the scroller is rendered
  * - Posts should be sorted in descending order
  * - If we're scrolling to an anchor, that anchor should be in the first page of posts
- * - The size of the first page of posts should match `initialNumToRender` here.
  */
 const Scroller = forwardRef(
   (
@@ -173,11 +167,11 @@ const Scroller = forwardRef(
     );
     const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
-    const flatListRef = useRef<FlatList<db.Post>>(null);
+    const listRef = useRef<PostListMethods>(null);
 
     useImperativeHandle(ref, () => ({
       scrollToIndex: (params: { index: number }) =>
-        flatListRef.current?.scrollToIndex(params),
+        listRef.current?.scrollToIndex(params),
     }));
 
     const pressedGoToBottom = () => {
@@ -185,10 +179,10 @@ const Scroller = forwardRef(
       onPressScrollToBottom?.();
 
       // Only scroll if we're not loading and have a valid ref
-      if (flatListRef.current && !isLoading) {
+      if (listRef.current && !isLoading) {
         // Use a small timeout to ensure state updates have processed
         requestAnimationFrame(() => {
-          flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+          listRef.current?.scrollToStart({ animated: true });
         });
       }
     };
@@ -208,24 +202,6 @@ const Scroller = forwardRef(
       },
       [handleSetActive]
     );
-
-    const {
-      readyToDisplayPosts,
-      // setNeedsScrollToAnchor,
-      // setDidAnchorSearchTimeout,
-      scrollerItemProps: anchorScrollLockScrollerItemProps,
-      flatlistProps: anchorScrollLockFlatlistProps,
-    } = useAnchorScrollLock({
-      posts,
-      anchor,
-      flatListRef,
-      hasNewerPosts,
-      shouldMaintainVisibleContentPosition:
-        collectionLayout.shouldMaintainVisibleContentPosition,
-      isScrollingToBottom: hasPressedGoToBottom,
-      collectionLayoutType,
-      columnsCount: columns,
-    });
 
     const theme = useTheme();
 
@@ -249,14 +225,14 @@ const Scroller = forwardRef(
     const style = useMemo(() => {
       return {
         backgroundColor: theme.background.val,
-        // If we haven't loaded any posts, or have loaded posts but are
-        // attempting to find anchor post, hide scroller content
-        opacity: readyToDisplayPosts || !postsWithNeighbors?.length ? 1 : 0,
       };
-    }, [readyToDisplayPosts, theme.background.val, postsWithNeighbors]);
+    }, [theme.background.val]);
 
     const listRenderItem: ListRenderItem<PostWithNeighbors> = useCallback(
-      ({ item: { post, newer: nextItem, older: previousItem }, index }) => {
+      ({
+        item: { post, newer: nextItem, older: previousItem, ...rest },
+        index,
+      }) => {
         const isFirstPostOfDay = !isSameDay(
           post.receivedAt ?? 0,
           previousItem?.receivedAt ?? 0
@@ -313,7 +289,7 @@ const Scroller = forwardRef(
             itemWidth={itemWidth}
             columnCount={columns}
             previousPost={previousItem}
-            {...anchorScrollLockScrollerItemProps}
+            {...rest}
           />
         );
       },
@@ -323,7 +299,6 @@ const Scroller = forwardRef(
         firstUnreadId,
         renderItem,
         unreadCount,
-        anchorScrollLockScrollerItemProps,
         showReplies,
         onPressImage,
         onPressReplies,
@@ -390,6 +365,8 @@ const Scroller = forwardRef(
       onStartReached: false,
     });
 
+    const [readyToDisplayPosts, setReadyToDisplayPosts] = useState(false);
+
     // We don't want to trigger onEndReached or onStartReached until we've found
     // the anchor as additional page loads during the initial render can wreak
     // havoc on layout, but if we drop the events completely they may not get
@@ -428,14 +405,6 @@ const Scroller = forwardRef(
     }, [onStartReached, readyToDisplayPosts]);
 
     const [isAtBottom, setIsAtBottom] = useState(true);
-    const handleScroll = useScrollDirectionTracker({ setIsAtBottom });
-
-    const scrollIndicatorInsets = useMemo(() => {
-      return {
-        top: 0,
-        bottom: insets.bottom,
-      };
-    }, [insets.bottom]);
 
     const shouldShowScrollButton = useCallback(() => {
       if (!isAtBottom && hasPressedGoToBottom && !isLoading && !hasNewerPosts) {
@@ -465,6 +434,16 @@ const Scroller = forwardRef(
       setEmojiPickerOpen(false)
     );
 
+    const onScrolledToBottom = useCallback(() => {
+      setIsAtBottom(true);
+    }, []);
+    const onScrolledAwayFromBottom = useCallback(() => {
+      setIsAtBottom(false);
+    }, []);
+    const onInitialScrollCompleted = useCallback(() => {
+      setReadyToDisplayPosts(true);
+    }, []);
+
     return (
       <View flex={1}>
         {shouldShowScrollButton() && (
@@ -481,46 +460,37 @@ const Scroller = forwardRef(
             />
           </View>
         )}
-        <Animated.FlatList<PostWithNeighbors>
-          ref={flatListRef as React.RefObject<Animated.FlatList<db.Post>>}
-          // This is needed so that we can force a refresh of the list when
-          // we need to switch from 1 to 2 columns or vice versa.
-          key={channel.type + '-' + columns}
-          data={postsWithNeighbors}
-          // Disabled to prevent the user from accidentally blurring the edit
-          // input while they're typing.
-          scrollEnabled={!editingPost}
-          renderItem={listRenderItem}
-          ListEmptyComponent={renderEmptyComponent}
-          keyExtractor={getPostId}
-          keyboardDismissMode="on-drag"
-          contentContainerStyle={contentContainerStyle}
-          columnWrapperStyle={
-            // FlatList raises an error if `columnWrapperStyle` is provided
-            // with numColumns=1, even if the style is empty
-            collectionLayout.columnCount === 1 ? undefined : columnWrapperStyle
-          }
-          inverted={
-            // https://github.com/facebook/react-native/issues/21196
-            // It looks like this bug has regressed a few times - to avoid
-            // our UI breaking when the bug is fixed, disable `inverted` when
-            // list is empty instead of adversarily transforming the empty component.
-            (postsWithNeighbors?.length || 0) === 0 ? false : inverted
-          }
-          initialNumToRender={INITIAL_POSTS_PER_PAGE}
-          maxToRenderPerBatch={8}
-          windowSize={8}
-          numColumns={columns}
-          style={style}
-          onEndReached={handleEndReached}
-          onEndReachedThreshold={1}
-          onStartReached={handleStartReached}
-          onStartReachedThreshold={1}
-          onScroll={handleScroll}
-          scrollIndicatorInsets={scrollIndicatorInsets}
-          automaticallyAdjustsScrollIndicatorInsets={false}
-          {...anchorScrollLockFlatlistProps}
-        />
+        {postsWithNeighbors != null && (
+          <PostList
+            anchor={anchor}
+            channel={channel}
+            collectionLayoutType={collectionLayoutType}
+            columnWrapperStyle={columnWrapperStyle}
+            contentContainerStyle={contentContainerStyle}
+            hasNewerPosts={hasNewerPosts}
+            inverted={inverted}
+            // This is needed so that we can force a refresh of the list when
+            // we need to switch from 1 to 2 columns or vice versa.
+            key={channel.type + '-' + columns}
+            numColumns={columns}
+            onEndReached={handleEndReached}
+            onEndReachedThreshold={1}
+            onInitialScrollCompleted={onInitialScrollCompleted}
+            onScrolledAwayFromBottom={onScrolledAwayFromBottom}
+            onScrolledToBottom={onScrolledToBottom}
+            onScrolledToBottomThreshold={1}
+            onStartReached={handleStartReached}
+            onStartReachedThreshold={1}
+            postsWithNeighbors={postsWithNeighbors}
+            ref={listRef}
+            renderEmptyComponent={renderEmptyComponent}
+            renderItem={listRenderItem}
+            // Disabled to prevent the user from accidentally blurring the edit
+            // input while they're typing.
+            scrollEnabled={!editingPost}
+            style={style}
+          />
+        )}
         {activeMessage !== null && !emojiPickerOpen && (
           <Modal
             visible={activeMessage !== null && !emojiPickerOpen}
@@ -551,6 +521,7 @@ const Scroller = forwardRef(
                 setViewReactionsPost(post);
                 setActiveMessage(null);
               }}
+              mode="immediate"
             />
           </Modal>
         )}
@@ -579,10 +550,6 @@ const Scroller = forwardRef(
 Scroller.displayName = 'Scroller';
 
 export default React.memo(Scroller);
-
-function getPostId({ post }: PostWithNeighbors) {
-  return post.id;
-}
 
 // Create empty post object to avoid recreating it on every render
 const EMPTY_POST: db.Post = {
@@ -632,7 +599,7 @@ const BaseScrollerItem = ({
   index: number;
   Component: RenderItemType;
   unreadCount?: number | null;
-  onLayout: (post: db.Post, index: number, e: LayoutChangeEvent) => void;
+  onLayout?: (post: db.Post, index: number, e: LayoutChangeEvent) => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   onPressReplies?: (post: db.Post) => void;
   showReplies?: boolean;

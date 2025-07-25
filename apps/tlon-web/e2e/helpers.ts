@@ -1,14 +1,14 @@
 import { Page, expect } from '@playwright/test';
 
-export async function clickThroughWelcome(page: Page) {
-  await page.waitForTimeout(3000);
-  if (await page.getByText('Welcome to Tlon Messenger').isVisible()) {
-    await page.getByTestId('lets-get-started').click();
-    await page.getByTestId('got-it').click();
-    await page.getByTestId('one-quick-thing').click();
-    await page.getByTestId('invite-friends').click();
-    await page.getByTestId('connect-contact-book').click();
-  }
+export async function channelIsLoaded(page: Page) {
+  await expect(
+    page.getByTestId('ScreenHeaderTitle').getByText('Loading…')
+  ).not.toBeVisible();
+}
+
+export async function navigateToChannel(page: Page, channelName: string) {
+  await page.getByTestId(`ChannelListItem-${channelName}`).click();
+  await channelIsLoaded(page);
 }
 
 export async function createGroup(page: Page) {
@@ -19,8 +19,63 @@ export async function createGroup(page: Page) {
 
   await page.waitForTimeout(2000);
 
-  if (await page.getByText('Untitled group').first().isVisible()) {
+  if (await page.getByTestId('ChannelHeaderTitle').isVisible()) {
     await expect(page.getByText('Welcome to your group!')).toBeVisible();
+  } else {
+    await page.getByTestId('HomeNavIcon').click();
+    await page.getByTestId('ChatListItem-Untitled group-unpinned').click();
+    await page.waitForTimeout(2000);
+    await expect(page.getByTestId('ChannelHeaderTitle')).toBeVisible();
+    await expect(page.getByText('Welcome to your group!')).toBeVisible();
+  }
+}
+
+export async function leaveGroup(page: Page, groupName: string) {
+  await page.getByTestId('HomeNavIcon').click();
+  if (await page.getByText(groupName).first().isVisible()) {
+    await page.getByText(groupName).first().click();
+    await openGroupSettings(page);
+    await page.waitForSelector('text=Group Info');
+    await page.getByText('Leave group').click();
+  }
+}
+
+export async function openGroupOptionsSheet(page: Page) {
+  if (await page.getByTestId('GroupOptionsSheetTrigger').first().isVisible()) {
+    await page
+      .getByTestId('GroupOptionsSheetTrigger')
+      .first()
+      .click({ force: true });
+  } else {
+    await page
+      .getByTestId('GroupOptionsSheetTrigger')
+      .nth(1)
+      .click({ force: true });
+  }
+}
+
+export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
+  await openGroupOptionsSheet(page);
+  await page.getByTestId('ActionSheetAction-Invite people').first().click();
+
+  for (const memberId of memberIds) {
+    await page.getByPlaceholder('Filter by nickname').fill(memberId);
+    await page.waitForTimeout(2000);
+    await page.getByTestId('ContactRow').first().click();
+  }
+
+  await page.getByText('continue').click();
+  await page.waitForTimeout(2000);
+}
+
+export async function rejectGroupInvite(page: Page) {
+  if (await page.getByText('Group invitation').isVisible()) {
+    await page.getByText('Group invitation').click();
+  }
+
+  // If there's a reject invitation button, click it
+  if (await page.getByText('Reject invite').isVisible()) {
+    await page.getByText('Reject invite').click();
   }
 }
 
@@ -34,7 +89,7 @@ export async function deleteGroup(page: Page, groupName?: string) {
 }
 
 export async function openGroupSettings(page: Page) {
-  await page.getByTestId('GroupOptionsSheetTrigger').first().click();
+  await openGroupOptionsSheet(page);
   await expect(page.getByText('Group info & settings')).toBeVisible();
   await page.getByText('Group info & settings').click();
 }
@@ -93,11 +148,19 @@ export async function waitForElementAndAct(
 /**
  * Handles cleanup of existing "Untitled group" if present
  */
-export async function cleanupExistingGroup(page: Page) {
-  if (await page.getByText('Untitled group').first().isVisible()) {
-    await page.getByText('Untitled group').first().click();
+export async function cleanupExistingGroup(page: Page, groupName?: string) {
+  if (
+    await page
+      .getByText(groupName || 'Untitled group')
+      .first()
+      .isVisible()
+  ) {
+    await page
+      .getByText(groupName || 'Untitled group')
+      .first()
+      .click();
     await openGroupSettings(page);
-    await deleteGroup(page);
+    await deleteGroup(page, groupName);
   }
 }
 
@@ -133,7 +196,7 @@ export async function createRole(
   await fillFormField(page, 'RoleDescriptionInput', description);
 
   await page.getByText('Save').click();
-  await expect(page.getByText(title)).toBeVisible();
+  await expect(page.getByText(title, { exact: true })).toBeVisible();
 }
 
 /**
@@ -150,7 +213,7 @@ export async function assignRoleToMember(
 
   await expect(page.getByText('Send message')).toBeVisible();
   await page.getByText('Assign role').click();
-  await page.getByText(roleName).click();
+  await page.getByRole('dialog').getByText(roleName).click();
 
   await page.waitForTimeout(2000); // Wait for assignment to complete
 }
@@ -173,22 +236,97 @@ export async function unassignRoleFromMember(
 }
 
 /**
- * Creates a new channel with title and optional description
+ * Forwards a message to a specific contact via DM
+ */
+export async function forwardMessageToDM(
+  page: Page,
+  messageText: string,
+  contactId: string
+) {
+  await longPressMessage(page, messageText);
+  await page.getByText('Forward', { exact: true }).click();
+
+  // Verify forward sheet opened
+  await expect(page.getByText('Forward to channel')).toBeVisible();
+
+  // Search for the contact's DM
+  await page.getByPlaceholder('Search channels').fill(contactId);
+  await page.waitForTimeout(2000); // Wait longer for search results
+
+  // Try to click on the contact using a more specific selector
+  try {
+    // First try with test ID if available
+    const contactRow = page.getByTestId(`ChannelListItem-${contactId}`);
+    if (await contactRow.isVisible({ timeout: 2000 })) {
+      await contactRow.click();
+    } else {
+      // Fallback to text-based selection with force click to handle overlays
+      await page.getByText(contactId).first().click({ force: true });
+    }
+  } catch (error) {
+    // Final fallback: try clicking with force
+    await page.getByText(contactId).first().click({ force: true });
+  }
+
+  // Confirm forward
+  await page.getByText(`Forward to ${contactId}`).click();
+}
+
+/**
+ * Forwards a group reference to a specified channel
+ */
+export async function forwardGroupReference(
+  page: Page,
+  channelName: string
+) {
+  // Click the Forward button in group info
+  await page.getByText('Forward').click();
+
+  // Verify forward sheet opened
+  await expect(page.getByText('Forward group')).toBeVisible();
+
+  // Search for the channel
+  await page.getByPlaceholder('Search channels').fill(channelName);
+  await page.waitForTimeout(2000);
+
+  // Click on the channel in the modal (not the sidebar)
+  const channelRow = page.getByTestId(`ChannelListItem-${channelName}`);
+  await expect(channelRow).toBeVisible({ timeout: 5000 });
+  await channelRow.click();
+
+  // Wait for the confirm button to appear and become clickable
+  const confirmButton = page.getByText(`Forward to ${channelName}`);
+  await expect(confirmButton).toBeVisible({ timeout: 5000 });
+  await confirmButton.click();
+
+  // Verify toast appears
+  await expect(page.getByText('Forwarded')).toBeVisible({ timeout: 5000 });
+
+  // Verify modal closes
+  await expect(page.getByText('Forward to channel')).not.toBeVisible({ timeout: 3000 });
+}
+
+/**
+ * Creates a new channel with title and type
  */
 export async function createChannel(
   page: Page,
   title: string,
-  description?: string
+  type: 'chat' | 'notebook' | 'gallery' = 'chat'
 ) {
   await page.getByText('New Channel').click();
   await expect(page.getByText('Create a new channel')).toBeVisible();
 
   await fillFormField(page, 'ChannelTitleInput', title);
-  if (description) {
-    await fillFormField(page, 'ChannelDescriptionInput', description);
+
+  if (type === 'notebook') {
+    await page.getByText('Notebook', { exact: true }).click();
+  } else if (type === 'gallery') {
+    await page.getByText('Gallery', { exact: true }).click();
   }
 
   await page.getByText('Create channel').click();
+  await page.waitForTimeout(1000);
 }
 
 /**
@@ -394,6 +532,53 @@ export async function changeGroupIcon(page: Page, imagePath?: string) {
   }
 }
 
+// Notebook-related helper functions
+
+/**
+ * Creates a new notebook post
+ */
+export async function createNotebookPost(
+  page: Page,
+  title: string,
+  content: string
+) {
+  await page.getByTestId('AddNotebookPost').click();
+  await page.getByRole('textbox', { name: 'New Title' }).click();
+  await page.getByRole('textbox', { name: 'New Title' }).fill(title);
+  await page.waitForTimeout(1500);
+  await page.locator('iframe').contentFrame().getByRole('paragraph').click();
+  await page
+    .locator('iframe')
+    .contentFrame()
+    .locator('div')
+    .nth(2)
+    .fill(content);
+  await page.waitForTimeout(500);
+  await page.getByTestId('BigInputPostButton').click();
+  await page.waitForTimeout(500);
+  await expect(page.getByText(title)).toBeVisible();
+}
+
+// Gallery-related helper functions
+
+/**
+ * Creates a new gallery post
+ */
+export async function createGalleryPost(page: Page, content: string) {
+  await page.getByTestId('AddGalleryPost').click();
+  await page.getByTestId('AddGalleryPostText').click();
+  await page.locator('iframe').contentFrame().getByRole('paragraph').click();
+  await page
+    .locator('iframe')
+    .contentFrame()
+    .locator('div')
+    .nth(2)
+    .fill(content);
+  await page.getByTestId('BigInputPostButton').click();
+  await page.waitForTimeout(1500);
+  await expect(page.getByText(content).first()).toBeVisible();
+}
+
 // Chat-related helper functions
 
 /**
@@ -402,9 +587,14 @@ export async function changeGroupIcon(page: Page, imagePath?: string) {
 export async function sendMessage(page: Page, message: string) {
   await page.getByTestId('MessageInput').click();
   await page.fill('[data-testid="MessageInput"]', message);
-  await page.getByTestId('MessageInputSendButton').click();
+  await page.waitForTimeout(1500);
+  await page.getByTestId('MessageInputSendButton').click({ force: true });
   // Wait for message to appear
-  await expect(page.getByText(message, { exact: true }).first()).toBeVisible();
+  await page.waitForTimeout(1000);
+  await expect(
+    page.getByTestId('Post').getByText(message, { exact: true }).first()
+  ).toBeVisible();
+  await page.waitForTimeout(1000);
 }
 
 /**
@@ -412,7 +602,11 @@ export async function sendMessage(page: Page, message: string) {
  */
 export async function longPressMessage(page: Page, messageText: string) {
   // Not really a longpress since this is web.
-  await page.getByText(messageText).first().click();
+  await page
+    .getByTestId('Post')
+    .getByText(messageText)
+    .first()
+    .hover({ force: true });
   await page.waitForTimeout(1000);
   await page.getByTestId('MessageActionsTrigger').click();
   await page.waitForTimeout(500);
@@ -423,7 +617,7 @@ export async function longPressMessage(page: Page, messageText: string) {
  */
 export async function startThread(page: Page, messageText: string) {
   await longPressMessage(page, messageText);
-  await page.getByText('Start thread').click();
+  await page.getByText('Reply').click();
   await page.waitForTimeout(500);
   await expect(page.getByRole('textbox', { name: 'Reply' })).toBeVisible();
 }
@@ -439,6 +633,7 @@ export async function sendThreadReply(page: Page, replyText: string) {
     .getByTestId('MessageInputSendButton')
     .click();
   await expect(page.getByText(replyText, { exact: true })).toBeVisible();
+  await page.waitForTimeout(1000);
 }
 
 /**
@@ -468,8 +663,9 @@ export async function reactToMessage(
  * Removes a reaction from a message
  */
 export async function removeReaction(page: Page, emoji: string = '👍') {
-  await page.getByTestId('ReactionDisplay').click();
-  await expect(page.getByText(emoji)).not.toBeVisible();
+  const reactionButton = page.getByText(emoji);
+  await reactionButton.click();
+  await expect(reactionButton).not.toBeVisible();
 }
 
 /**
@@ -482,7 +678,7 @@ export async function quoteReply(
   isDM = false
 ) {
   await longPressMessage(page, originalMessage);
-  await page.getByText('Reply', { exact: true }).click();
+  await page.getByText('Quote', { exact: true }).click();
 
   // Verify quote interface appears
   if (!isDM) {
@@ -517,7 +713,7 @@ export async function threadQuoteReply(
   await page.waitForTimeout(500);
   await page.getByTestId('MessageActionsTrigger').click();
   await page.waitForTimeout(500);
-  await page.getByText('Reply', { exact: true }).click();
+  await page.getByText('Quote', { exact: true }).click();
 
   // Verify quote interface appears
   await expect(page.getByText('Chat Post')).toBeVisible();
@@ -543,7 +739,7 @@ export async function hideMessage(
   isDM = false
 ) {
   await longPressMessage(page, messageText);
-  await page.getByText('Hide message').click();
+  await page.getByText('Hide message', { exact: true }).click();
   if (!isDM) {
     await expect(
       page.getByText(messageText, { exact: true })
@@ -581,6 +777,15 @@ export async function deleteMessage(
   } else {
     await expect(page.getByText('Message deleted').first()).toBeVisible();
   }
+}
+
+/**
+ * Deletes a post
+ */
+export async function deletePost(page: Page, postText: string) {
+  await longPressMessage(page, postText);
+  await page.getByText('Delete post').click();
+  await expect(page.getByText(postText, { exact: true })).not.toBeVisible();
 }
 
 /**
@@ -643,6 +848,7 @@ export async function createDirectMessage(page: Page, contactId: string) {
   await expect(page.getByText('Select a contact to chat with')).toBeVisible();
   await page.getByPlaceholder('Filter by nickname or id').click();
   await page.getByPlaceholder('Filter by nickname or id').fill(contactId);
+  await page.waitForTimeout(2000);
   await page.getByTestId('ContactRow').first().click();
 
   // Wait for DM to open
@@ -657,7 +863,8 @@ export async function createDirectMessage(page: Page, contactId: string) {
  * Leaves a direct message
  */
 export async function leaveDM(page: Page, contactId: string) {
-  await page.getByText(contactId, { exact: true }).first().click();
+  await page.getByTestId('HomeNavIcon').click();
+  await page.getByTestId(`ChannelListItem-${contactId}`).first().click();
   await page.waitForTimeout(500);
   await page.getByTestId('ChannelOptionsSheetTrigger').first().click();
   await page.waitForTimeout(500);
@@ -666,7 +873,9 @@ export async function leaveDM(page: Page, contactId: string) {
   // without this reload we'll still see previous messages in the DM
   // TODO: figure out why this is happening
   await page.reload();
-  await expect(page.getByText(contactId, { exact: true })).not.toBeVisible();
+  await expect(
+    page.getByTestId(`ChannelListItem-${contactId}`)
+  ).not.toBeVisible();
 }
 
 /**

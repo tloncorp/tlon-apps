@@ -21,7 +21,7 @@ export function ButtonInput({
           fontWeight: 'bold',
         }}
         onPress={() => {
-          draftInputContext.send(
+          draftInputContext.sendPost(
             [{ inline: [messageText] }],
             draftInputContext.channel.id
           );

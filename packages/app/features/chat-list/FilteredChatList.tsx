@@ -154,6 +154,14 @@ export const FilteredChatList = React.memo(
       []
     );
 
+    const activeSelectionStyles = useMemo(
+      () => ({
+        backgroundColor: '$positiveBackground',
+        borderColor: '$positiveBorder',
+      }),
+      []
+    );
+
     const renderItem: ListRenderItem<ChatListItemData> = useCallback(
       ({ item }) => {
         if (isSectionHeader(item)) {
@@ -172,11 +180,13 @@ export const FilteredChatList = React.memo(
               // We're rendering the ChatListItem outside of the ChatOptionsProvider, so we need to disable the options
               disableOptions
               showGroupTitle={true}
-              backgroundColor={
-                listItems[selectedIndex] === item
-                  ? '$secondaryBackground'
-                  : undefined
-              }
+              borderWidth={'$2xs'}
+              marginHorizontal={-1}
+              {...(listItems[selectedIndex] === item
+                ? activeSelectionStyles
+                : {
+                    borderColor: 'transparent',
+                  })}
             />
           );
         }
@@ -187,6 +197,7 @@ export const FilteredChatList = React.memo(
         handleItemLayout,
         listItems,
         selectedIndex,
+        activeSelectionStyles,
       ]
     );
 

@@ -7,7 +7,8 @@ import {
 import * as api from '../api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import { AnalyticsEvent } from '../domain';
+import { AnalyticsEvent, getConstants } from '../domain';
+import * as logic from '../logic';
 import {
   checkInviteServiceLinkExists,
   createDeepLink,
@@ -16,6 +17,8 @@ import {
   getFlagParts,
   withRetry,
 } from '../logic';
+import { desig } from '../urbit';
+import { syncGroupPreviews } from './sync';
 
 const logger = createDevLogger('inviteActions', false);
 
@@ -149,6 +152,80 @@ export async function createGroupInviteLink(groupId: string) {
       context: 'reel describe failed',
       errorMessage: e.message,
       errorStack: e.stack,
+    });
+  }
+}
+
+export async function redeemInviteIfNeeded(invite: logic.AppInvite) {
+  const constants = getConstants();
+  const currentUserId = api.getCurrentUserId();
+  if (invite.inviteType && invite.inviteType === 'user') {
+    return;
+  }
+
+  const groupId = invite.invitedGroupId || invite.group;
+  if (!groupId) {
+    logger.trackEvent(AnalyticsEvent.InviteError, {
+      context: 'Invite missing group identifier',
+      inviteId: invite.id,
+    });
+    return;
+  }
+
+  const group = await db.getGroup({ id: groupId });
+
+  if (!group) {
+    syncGroupPreviews([groupId]);
+  }
+
+  const isJoined = group && group.currentUserIsMember;
+  const haveInvite = group && group.haveInvite;
+  const shouldRedeem = !isJoined && !haveInvite;
+
+  if (shouldRedeem) {
+    logger.trackEvent(AnalyticsEvent.InviteDebug, {
+      context: 'attempting to bite lure',
+      inviteId: invite.id,
+    });
+    try {
+      const endpoint = `${constants.INVITE_PROVIDER}/lure/${invite.id}`;
+      const options = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `ship=%7E${desig(currentUserId)}`,
+      };
+
+      try {
+        // TODO: CORS doesn't work right now for POST, so we can't actually handle this response.
+        await fetch(endpoint, options);
+      } catch (e) {
+        logger.trackError(AnalyticsEvent.InviteError, {
+          context: 'failed to bite lure',
+          inviteId: invite.id,
+          errorMessage: e.message,
+        });
+        return;
+      }
+      logger.trackEvent(AnalyticsEvent.InviteDebug, {
+        context: 'Success, bit invite deeplink lure while logged in',
+        lure: invite.id,
+      });
+    } catch (err) {
+      logger.trackEvent(AnalyticsEvent.InviteError, {
+        context: 'Failed to bite lure on invite deeplink while logged in',
+        lure: invite.id,
+        errorMessage: err.message,
+      });
+    }
+  } else {
+    logger.trackEvent(AnalyticsEvent.InviteDebug, {
+      context: 'Invite redemption not needed, skipping',
+      inviteId: invite.id,
+      isJoined,
+      haveInvite,
+      shouldRedeem,
     });
   }
 }

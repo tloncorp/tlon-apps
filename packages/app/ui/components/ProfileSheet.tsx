@@ -78,6 +78,7 @@ export function ProfileSheet({
   groupHostId,
   groupIsOpen,
   userIsBanned,
+  userIsInvited,
   onPressBan,
   onPressUnban,
   onPressKick,
@@ -95,6 +96,7 @@ export function ProfileSheet({
   groupHostId?: string;
   groupIsOpen?: boolean;
   userIsBanned?: boolean;
+  userIsInvited?: boolean;
   onPressKick?: () => void;
   onPressBan?: () => void;
   onPressUnban?: () => void;
@@ -160,14 +162,15 @@ export function ProfileSheet({
             />
           ),
         },
-        currentUserId !== contactId && {
-          title: 'Kick User',
-          action: () => {
-            onPressKick?.();
-            onOpenChange(false);
+        currentUserId !== contactId &&
+          !userIsInvited && {
+            title: 'Kick User',
+            action: () => {
+              onPressKick?.();
+              onOpenChange(false);
+            },
           },
-        },
-        groupIsOpen && currentUserId !== contactId
+        groupIsOpen && currentUserId !== contactId && !userIsInvited
           ? userIsBanned
             ? {
                 title: 'Unban User',

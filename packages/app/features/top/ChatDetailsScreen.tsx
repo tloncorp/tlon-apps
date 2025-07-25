@@ -1,6 +1,5 @@
 import { useRoute } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { getGroupReferencePath } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { capitalize } from 'lodash';
 import { useCallback, useMemo, useState } from 'react';
@@ -15,6 +14,7 @@ import {
   ChatOptionsProvider,
   ContactListItem,
   DeleteSheet,
+  ForwardGroupSheetProvider,
   Icon,
   InviteUsersSheet,
   ListItem,
@@ -32,8 +32,8 @@ import {
   pluralize,
   useChatOptions,
   useChatTitle,
-  useCopy,
   useCurrentUserId,
+  useForwardGroupSheet,
   useGroupTitle,
   useIsAdmin,
   useIsWindowNarrow,
@@ -56,23 +56,25 @@ export function ChatDetailsScreen(props: Props) {
   }, []);
 
   return (
-    <ChatOptionsProvider
-      key={`${chatType}-${chatId}`}
-      initialChat={{
-        type: chatType,
-        id: chatId,
-      }}
-      onPressInvite={handleInvitePressed}
-      {...useChatSettingsNavigation()}
-    >
-      <ChatDetailsScreenView />
-      <InviteUsersSheet
-        open={inviteSheetGroup !== null}
-        onOpenChange={handleInviteSheetOpenChange}
-        onInviteComplete={() => setInviteSheetGroup(null)}
-        groupId={inviteSheetGroup ?? undefined}
-      />
-    </ChatOptionsProvider>
+    <ForwardGroupSheetProvider>
+      <ChatOptionsProvider
+        key={`${chatType}-${chatId}`}
+        initialChat={{
+          type: chatType,
+          id: chatId,
+        }}
+        onPressInvite={handleInvitePressed}
+        {...useChatSettingsNavigation()}
+      >
+        <ChatDetailsScreenView />
+        <InviteUsersSheet
+          open={inviteSheetGroup !== null}
+          onOpenChange={handleInviteSheetOpenChange}
+          onInviteComplete={() => setInviteSheetGroup(null)}
+          groupId={inviteSheetGroup ?? undefined}
+        />
+      </ChatOptionsProvider>
+    </ForwardGroupSheetProvider>
   );
 }
 
@@ -447,7 +449,8 @@ function ChatMembersList({
   canInvite: boolean;
   canManage: boolean;
 }) {
-  const memberCount = members?.length ?? 0;
+  const joinedMembers = members?.filter((m) => m.status === 'joined');
+  const memberCount = joinedMembers?.length ?? 0;
   const { onPressGroupMembers, onPressChannelMembers, onPressInvite } =
     useChatOptions();
 
@@ -488,18 +491,20 @@ function ChatMembersList({
             </XStack>
           </Pressable>
         ) : null}
-        {members?.slice(0, maxMembersToDisplay).map((member: db.ChatMember) => {
-          return (
-            <ContactListItem
-              size="$3xl"
-              height="auto"
-              padding={0}
-              showNickname
-              key={member.contactId}
-              contactId={member.contactId}
-            />
-          );
-        })}
+        {joinedMembers
+          ?.slice(0, maxMembersToDisplay)
+          .map((member: db.ChatMember) => {
+            return (
+              <ContactListItem
+                size="$3xl"
+                height="auto"
+                padding={0}
+                showNickname
+                key={member.contactId}
+                contactId={member.contactId}
+              />
+            );
+          })}
         {(memberCount > maxMembersToDisplay || canInvite) && (
           <Pressable onPress={handlePressSeeAllMembers}>
             <XStack
@@ -524,12 +529,14 @@ function ChatMembersList({
 
 function GroupQuickActions({ group }: { group: db.Group }) {
   const { markGroupRead, togglePinned } = useChatOptions();
+  const forwardGroupSheet = useForwardGroupSheet();
 
   const isPinned = group?.pin;
   const canMarkRead = !(group.unread?.count === 0);
-  const groupRef = getGroupReferencePath(group.id);
 
-  const { doCopy: copyLink, didCopy: didCopyLink } = useCopy(groupRef);
+  const handleForwardGroup = useCallback(() => {
+    forwardGroupSheet.open(group);
+  }, [forwardGroupSheet, group]);
 
   const actions = useMemo(
     () =>
@@ -546,11 +553,11 @@ function GroupQuickActions({ group }: { group: db.Group }) {
           action: togglePinned,
         },
         {
-          title: didCopyLink ? 'Copied' : 'Reference',
-          action: didCopyLink ? undefined : copyLink,
+          title: 'Forward',
+          action: handleForwardGroup,
         }
       ),
-    [canMarkRead, markGroupRead, isPinned, togglePinned, didCopyLink, copyLink]
+    [canMarkRead, markGroupRead, isPinned, togglePinned, handleForwardGroup]
   );
 
   return (
@@ -571,3 +578,4 @@ function GroupQuickActions({ group }: { group: db.Group }) {
     </ScrollView>
   );
 }
+

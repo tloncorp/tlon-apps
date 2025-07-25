@@ -72,13 +72,19 @@ export async function muteThread({
   thread: db.Post;
 }) {
   const initialSettings = await db.getVolumeSetting(thread.id);
+  // if we don't have a parent post then we are the parent post
+  // note: we don't currently allow users to mute the root/parent post in the UI
+  const parentPost = await db.getPost({ postId: thread.parentId ?? thread.id });
 
   db.setVolumes({
     volumes: [{ itemId: thread.id, itemType: 'thread', level: 'soft' }],
   });
 
   try {
-    const { source } = api.getThreadSource({ channel, post: thread });
+    const { source } = api.getThreadSource({
+      channel,
+      post: parentPost ?? thread,
+    });
     const volume = ub.getVolumeMap('soft', true);
     await api.adjustVolumeSetting(source, volume);
   } catch (e) {

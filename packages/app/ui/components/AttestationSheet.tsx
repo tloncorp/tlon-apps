@@ -22,12 +22,12 @@ export function AttestationSheet(props: {
       snapPointsMode="percent"
       snapPoints={[80]}
     >
-      <ActionSheet.MainContent marginTop="$xl" justifyContent="flex-start">
+      <ActionSheet.Content paddingVertical="$2xl">
         <AttestationPane
           attestation={props.attestation}
           currentUserId={currentUserId}
         />
-      </ActionSheet.MainContent>
+      </ActionSheet.Content>
     </ActionSheet>
   );
 }

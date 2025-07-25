@@ -247,7 +247,7 @@
     |=  =seal:c
     %-  pairs
     :~  id+(id id.seal)
-        seq+(seq seq.seal)
+        seq+(numb seq.seal)
         mod-at+(mod-at mod-at.seal)
         reacts+(reacts reacts.seal)
         replies+(replies replies.seal)
@@ -330,10 +330,6 @@
   ++  id
     |=  =@da
     s+`@t`(rsh 4 (scot %ui da))
-  ::
-  ++  seq
-    |=  =@ud
-    s+`@t`(rsh 4 (scot %ui ud))
   ::
   ++  mod-at
     |=  =@da

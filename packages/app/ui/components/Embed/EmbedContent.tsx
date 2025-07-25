@@ -10,8 +10,6 @@ import { Linking, Platform } from 'react-native';
 
 import { useCalm } from '../../contexts';
 import { AudioEmbed } from '../Embed';
-import { createContentRenderer } from '../PostContent';
-import { InlineLink } from '../PostContent/InlineRenderer';
 import { Embed } from './Embed';
 import { EmbedWebView } from './EmbedWebView';
 import { getProviderConfig } from './providers';
@@ -71,11 +69,13 @@ GenericEmbed.displayName = 'GenericEmbed';
 interface EmbedContentProps {
   url: string;
   content?: string;
+  renderWrapper: (children: React.ReactNode) => React.ReactNode;
 }
 
 const EmbedContent = memo(function EmbedContent({
   url,
   content,
+  renderWrapper,
 }: EmbedContentProps) {
   const { embed } = useEmbed(
     url,
@@ -87,12 +87,6 @@ const EmbedContent = memo(function EmbedContent({
 
   const isAudio = useMemo(() => utils.AUDIO_REGEX.test(url), [url]);
   const isTrusted = useMemo(() => isTrustedEmbed(url), [url]);
-
-  const ContentRenderer = createContentRenderer({
-    inlineRenderers: {
-      link: InlineLink,
-    },
-  });
 
   const openLink = useCallback(async () => {
     if (Platform.OS === 'web') {
@@ -111,7 +105,8 @@ const EmbedContent = memo(function EmbedContent({
 
   if (!calm.disableRemoteContent) {
     if (isAudio) {
-      return <AudioEmbed url={url} />;
+      const content = <AudioEmbed url={url} />;
+      return renderWrapper(content);
     }
 
     if (isTrusted) {
@@ -125,7 +120,7 @@ const EmbedContent = memo(function EmbedContent({
         const providerConfig = getProviderConfig(provider);
 
         if (providerConfig) {
-          return (
+          const content = (
             <EmbedWebView
               url={embedUrl ?? url}
               provider={providerConfig}
@@ -133,12 +128,13 @@ const EmbedContent = memo(function EmbedContent({
               onError={onEmbedError}
             />
           );
+          return renderWrapper(content);
         }
       }
 
       if (isValidWithoutHtml) {
         const { title, provider_name: provider, author_name: author } = embed;
-        return (
+        const content = (
           <GenericEmbed
             provider={provider}
             title={title}
@@ -148,33 +144,14 @@ const EmbedContent = memo(function EmbedContent({
             openLink={openLink}
           />
         );
+        return renderWrapper(content);
       }
 
-      return (
-        <ContentRenderer
-          padding={0}
-          margin="$-l"
-          content={[
-            {
-              type: 'paragraph',
-              content: [{ type: 'link', text: content ?? '', href: url }],
-            },
-          ]}
-        />
-      );
+      return renderWrapper(null);
     }
   }
 
-  return (
-    <ContentRenderer
-      content={[
-        {
-          type: 'paragraph',
-          content: [{ type: 'link', text: content ?? '', href: url }],
-        },
-      ]}
-    />
-  );
+  return renderWrapper(null);
 });
 
 export default EmbedContent;

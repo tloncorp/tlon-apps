@@ -260,7 +260,7 @@
       `this
     =/  url  (cat 3 vic u.token)
     :_  this
-    ~[[%give %fact ~[pole] %json !>(s+url)]]
+    ~[[%give %fact ~ %json !>(s+url)]]
   ==
 ::
 ++  on-leave  on-leave:def

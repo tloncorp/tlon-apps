@@ -1,18 +1,9 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
 
-import * as helpers from './helpers';
-import shipManifest from './shipManifest.json';
+import { test } from './test-fixtures';
 
-const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
-
-test.use({ storageState: shipManifest['~zod'].authFile });
-
-test('should test profile functionality', async ({ page }) => {
-  await page.goto(zodUrl);
-  await helpers.clickThroughWelcome(page);
-  await page.evaluate(() => {
-    window.toggleDevTools();
-  });
+test('should test profile functionality', async ({ zodPage }) => {
+  const page = zodPage;
 
   await page.getByTestId('AvatarNavIcon').click();
   await expect(page.getByText('Contacts')).toBeVisible();
@@ -40,4 +31,22 @@ test('should test profile functionality', async ({ page }) => {
   await expect(page.getByText('Testing nickname').first()).toBeVisible();
   await expect(page.getByText('Testing status').first()).toBeVisible();
   await expect(page.getByText('Testing bio')).toBeVisible();
+
+  // now we clean up
+  await page.getByTestId('AvatarNavIcon').click();
+  await page.getByText('You').click();
+  await page.getByText('Edit').click();
+  await page.getByTestId('ProfileNicknameInput').click();
+  await page.getByTestId('ProfileNicknameInput').fill('');
+  await page.getByRole('textbox', { name: 'Hanging out...' }).click();
+  await page.getByRole('textbox', { name: 'Hanging out...' }).fill('');
+  await page.getByRole('textbox', { name: 'About yourself' }).click();
+  await page.getByRole('textbox', { name: 'About yourself' }).fill('');
+
+  await page.getByText('Done').click();
+  await page.getByTestId('AvatarNavIcon').click();
+  await page.getByText('You').click();
+  await expect(page.getByText('Testing nickname')).not.toBeVisible();
+  await expect(page.getByText('Testing status')).not.toBeVisible();
+  await expect(page.getByText('Testing bio')).not.toBeVisible();
 });

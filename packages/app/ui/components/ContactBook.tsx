@@ -23,6 +23,7 @@ import { ContactRow } from './ContactRow';
 import { SearchBar } from './SearchBar';
 
 export function ContactBook({
+  autoFocus = false,
   searchable = false,
   searchPlaceholder = '',
   onSelect,
@@ -35,6 +36,7 @@ export function ContactBook({
   height,
   width,
 }: {
+  autoFocus?: boolean;
   immutableIds?: string[];
   searchPlaceholder?: string;
   searchable?: boolean;
@@ -122,17 +124,8 @@ export function ContactBook({
     [selected, immutableSet, multiSelect, handleSelect]
   );
 
-  const scrollPosition = useRef(0);
-  const handleScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      scrollPosition.current = event.nativeEvent.contentOffset.y;
-    },
-    []
-  );
   const onTouchStart = useCallback(() => {
-    if (scrollPosition.current > 0) {
-      onScrollChange?.(true);
-    }
+    onScrollChange?.(true);
   }, [onScrollChange]);
 
   const onTouchEnd = useCallback(
@@ -191,6 +184,7 @@ export function ContactBook({
               autoCapitalize: 'none',
               autoComplete: 'off',
               flex: 1,
+              autoFocus,
             }}
           />
         </XStack>
@@ -202,7 +196,6 @@ export function ContactBook({
           <BlockSectionList
             ListHeaderComponent={!showSearchResults ? quickActions : null}
             sections={sections}
-            onScroll={handleScroll}
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
             renderItem={renderItem}

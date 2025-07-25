@@ -36,6 +36,7 @@ export function ChatMessageActions({
   onShowEmojiPicker,
   trigger,
   onOpenChange,
+  mode,
 }: ChatMessageActionsProps) {
   const insets = useSafeAreaInsets();
   const PADDING_THRESHOLD = 40;
@@ -48,7 +49,6 @@ export function ChatMessageActions({
   const translateY = useSharedValue(0);
   const scale = useSharedValue(0.3); // Start with a smaller scale
   const opacity = useSharedValue(0);
-  const isWindowNarrow = useIsWindowNarrow();
 
   function handleLayout(event: LayoutChangeEvent) {
     const { height, width, x, y } = event.nativeEvent.layout;
@@ -129,72 +129,75 @@ export function ChatMessageActions({
     [translateX, translateY, scale, opacity.value]
   );
 
-  if (!isWindowNarrow) {
-    return (
-      <Popover
-        onOpenChange={(open) => {
-          // Only dismiss when explicitly closed (e.g. clicking outside or trigger button)
-          if (!open) {
-            onDismiss();
-          }
-          onOpenChange?.(open);
-        }}
-        placement="top-end"
-        allowFlip
-        offset={-12}
-      >
-        <Popover.Trigger asChild>{trigger}</Popover.Trigger>
-        <Popover.Content
-          elevate
-          zIndex={1000000}
-          position="relative"
-          borderColor="$border"
-          borderWidth={1}
-          padding={1}
+  switch (mode) {
+    case 'await-trigger': {
+      return (
+        <Popover
+          onOpenChange={(open) => {
+            // Only dismiss when explicitly closed (e.g. clicking outside or trigger button)
+            if (!open) {
+              onDismiss();
+            }
+            onOpenChange?.(open);
+          }}
+          placement="top-end"
+          allowFlip
+          offset={-12}
         >
-          <YStack gap="$xs">
-            <XStack justifyContent="center">
-              <EmojiToolbar
+          <Popover.Trigger asChild>{trigger}</Popover.Trigger>
+          <Popover.Content
+            elevate
+            zIndex={1000000}
+            position="relative"
+            borderColor="$border"
+            borderWidth={1}
+            padding={1}
+          >
+            <YStack gap="$xs">
+              <XStack justifyContent="center">
+                <EmojiToolbar
+                  post={post}
+                  onDismiss={onDismiss}
+                  openExternalSheet={onShowEmojiPicker}
+                />
+              </XStack>
+              <MessageActions
                 post={post}
-                onDismiss={onDismiss}
-                openExternalSheet={onShowEmojiPicker}
+                postActionIds={postActionIds}
+                dismiss={onDismiss}
+                onReply={onReply}
+                onEdit={onEdit}
+                onViewReactions={onViewReactions}
               />
-            </XStack>
-            <MessageActions
-              post={post}
-              postActionIds={postActionIds}
-              dismiss={onDismiss}
-              onReply={onReply}
-              onEdit={onEdit}
-              onViewReactions={onViewReactions}
-            />
-          </YStack>
-        </Popover.Content>
-      </Popover>
-    );
+            </YStack>
+          </Popover.Content>
+        </Popover>
+      );
+    }
+    case 'immediate': {
+      return (
+        <Animated.View style={animatedStyles}>
+          <View
+            width={width}
+            height={height}
+            onLayout={handleLayout}
+            paddingHorizontal="$xl"
+          >
+            <YStack gap="$xs">
+              <EmojiToolbar post={post} onDismiss={onDismiss} />
+              <MessageContainer post={post} />
+              <MessageActions
+                post={post}
+                postActionIds={postActionIds}
+                dismiss={onDismiss}
+                onReply={onReply}
+                onEdit={onEdit}
+                onViewReactions={onViewReactions}
+              />
+            </YStack>
+          </View>
+        </Animated.View>
+      );
+    }
   }
-
-  return (
-    <Animated.View style={animatedStyles}>
-      <View
-        width={width}
-        height={height}
-        onLayout={handleLayout}
-        paddingHorizontal="$xl"
-      >
-        <YStack gap="$xs">
-          <EmojiToolbar post={post} onDismiss={onDismiss} />
-          <MessageContainer post={post} />
-          <MessageActions
-            post={post}
-            postActionIds={postActionIds}
-            dismiss={onDismiss}
-            onReply={onReply}
-            onEdit={onEdit}
-            onViewReactions={onViewReactions}
-          />
-        </YStack>
-      </View>
-    </Animated.View>
-  );
 }

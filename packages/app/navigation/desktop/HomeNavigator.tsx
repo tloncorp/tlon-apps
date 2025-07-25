@@ -113,6 +113,8 @@ const DrawerContent = memo((props: DrawerContentComponentProps) => {
     }
   } else if (focusedRoute.params && 'channelId' in focusedRoute.params) {
     return <HomeSidebar focusedChannelId={focusedRoute.params.channelId} />;
+  } else if (focusedRoute.params && 'previewGroupId' in focusedRoute.params) {
+    return <HomeSidebar previewGroupId={focusedRoute.params.previewGroupId} />;
   } else {
     return <HomeSidebar />;
   }

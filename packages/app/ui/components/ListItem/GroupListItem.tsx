@@ -129,6 +129,7 @@ export const GroupListItem = ({
         hoverStyle={{ backgroundColor: '$secondaryBackground' }}
         onHoverIn={handleHoverIn}
         onHoverOut={handleHoverOut}
+        testID={`GroupListItem-${model.title || 'Untitled group'}`}
       >
         <ListItem
           {...props}

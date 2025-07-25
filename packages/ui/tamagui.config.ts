@@ -340,8 +340,10 @@ export const themes = {
 };
 
 export const systemFont = createFont({
-  family:
-    'System, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  family: Platform.select({
+    web: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+    default: 'System',
+  }),
   size: {
     xs: 12,
     s: 14,

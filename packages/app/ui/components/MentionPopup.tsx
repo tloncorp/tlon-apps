@@ -37,7 +37,11 @@ function MentionOptionItem({
   const isContact = option.type === 'contact';
   const size = '$4xl';
   return (
-    <Pressable borderRadius="$xl" onPress={handlePress}>
+    <Pressable
+      borderRadius="$xl"
+      onPress={handlePress}
+      data-testid={`${option.id}-${option.type}`}
+    >
       <ListItem
         alignItems="center"
         justifyContent="flex-start"

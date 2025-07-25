@@ -31,6 +31,12 @@ export function EmptyChannelNotice({
     return logic.isDefaultPersonalChannel(channel, userId);
   }, [channel, userId]);
 
+  const messagesNoun = useMemo(() => {
+    return ['dm', 'groupDm', 'chat'].includes(channel?.type)
+      ? 'messages'
+      : 'posts';
+  }, [channel?.type]);
+
   if (isDefaultPersonalChannel) {
     return <WayfindingNotice.EmptyChannel channel={channel} />;
   }
@@ -85,7 +91,7 @@ export function EmptyChannelNotice({
     </YStack>
   ) : (
     <YStack flex={1} justifyContent="center" alignItems="center" gap="$3xl">
-      <TitleText> There are no messages... yet.</TitleText>
+      <TitleText> There are no {messagesNoun}... yet.</TitleText>
     </YStack>
   );
 }

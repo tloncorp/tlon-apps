@@ -1,73 +1,83 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
 
 import * as helpers from './helpers';
-import shipManifest from './shipManifest.json';
+import { test } from './test-fixtures';
 
-const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
-
-test.use({ storageState: shipManifest['~zod'].authFile });
-
-test('should test comprehensive direct message functionality', async ({
-  page,
+test('should test comprehensive direct message functionality between ~zod and ~ten', async ({
+  zodSetup,
+  tenSetup,
 }) => {
-  // Launch and login
-  await page.goto(zodUrl);
-  await helpers.clickThroughWelcome(page);
-  await page.evaluate(() => {
-    window.toggleDevTools();
-  });
+  const zodPage = zodSetup.page;
+  const tenPage = tenSetup.page;
 
   // Assert that we're on the Home page
-  await expect(page.getByText('Home')).toBeVisible();
+  await expect(zodPage.getByText('Home')).toBeVisible();
 
-  if (await page.getByText('~bus', { exact: true }).isVisible()) {
-    await helpers.leaveDM(page, '~bus');
+  // ~zod creates a direct message with ~ten
+  await helpers.createDirectMessage(zodPage, '~ten');
+
+  // ~zod sends the first message
+  await helpers.sendMessage(zodPage, 'Hello, ~ten!');
+
+  if (await helpers.isMobileViewport(zodPage)) {
+    await helpers.navigateBack(zodPage);
   }
 
-  // Create a direct message with ~zod
-  await helpers.createDirectMessage(page, '~bus');
+  // Verify message preview is visible on ~zod's side
+  await helpers.verifyMessagePreview(zodPage, 'Hello, ~ten!', true, '~ten');
 
-  // Send a message in the DM
-  await helpers.sendMessage(page, 'Hello, ~bus!');
+  // ~ten receives the DM and accepts it
+  await tenPage.reload();
+  await expect(tenPage.getByTestId('ChannelListItem-~zod')).toBeVisible();
+  await tenPage.getByTestId('ChannelListItem-~zod').click();
 
-  if (await helpers.isMobileViewport(page)) {
-    await helpers.navigateBack(page);
-  }
+  await tenPage.waitForTimeout(1000);
 
-  // Verify message preview is visible
-  await helpers.verifyMessagePreview(page, 'Hello, ~bus!', true, '~bus');
+  // Verify ~ten can see the message from ~zod
+  await expect(tenPage.getByText('Hello, ~ten!').first()).toBeVisible();
 
-  // Start a thread from the message
-  await helpers.startThread(page, 'Hello, ~bus!');
+  // Verify the accept/deny/block options are present
+  await expect(tenPage.getByText('Accept')).toBeVisible();
+  await expect(tenPage.getByText('Deny')).toBeVisible();
+  await expect(tenPage.getByText('Block')).toBeVisible();
+
+  // ~ten accepts the DM
+  await tenPage.getByText('Accept').click();
+
+  await tenPage.waitForTimeout(1000);
+
+  // Verify accept/deny buttons are gone after accepting
+  await expect(tenPage.getByText('Accept')).not.toBeVisible();
+  await expect(tenPage.getByText('Deny')).not.toBeVisible();
+
+  // ~ten sends a reply
+  await helpers.sendMessage(tenPage, 'Hello, ~zod!');
+  await expect(tenPage.getByText('Hello, ~zod!').first()).toBeVisible();
+
+  // Start a thread from the original message
+  await helpers.startThread(zodPage, 'Hello, ~ten!');
 
   // Send a reply in the thread
-  await helpers.sendThreadReply(page, 'Thread reply');
+  await helpers.sendThreadReply(zodPage, 'Thread reply');
 
   // Navigate back to the channel and verify thread reply count
-  await helpers.navigateBack(page);
-  await expect(page.getByText('1 reply')).toBeVisible();
+  await helpers.navigateBack(zodPage);
+  await expect(zodPage.getByText('1 reply')).toBeVisible();
 
   // React to the original message with thumb emoji
-  await helpers.reactToMessage(page, 'Hello, ~bus!', 'thumb');
+  await helpers.reactToMessage(zodPage, 'Hello, ~ten!', 'thumb');
 
   // Remove the reaction
-  await helpers.removeReaction(page, '👍');
+  await helpers.removeReaction(zodPage, '👍');
 
   // Quote reply to the message
-  await helpers.quoteReply(page, 'Hello, ~bus!', 'Quote reply', true);
+  await helpers.quoteReply(zodPage, 'Hello, ~ten!', 'Quote reply', true);
 
   // Send a message and hide it
-  await helpers.sendMessage(page, 'Hide this message');
-  await helpers.hideMessage(page, 'Hide this message', true);
+  await helpers.sendMessage(tenPage, 'Hide this message');
+  await helpers.hideMessage(zodPage, 'Hide this message', true);
 
   // Send a message and delete it
-  await helpers.sendMessage(page, 'Delete this message');
-  await helpers.deleteMessage(page, 'Delete this message', true);
-
-  // Leave the DM from the Home screen
-  await helpers.leaveDM(page, '~bus');
-
-  // Verify we're back at Home and DM is gone
-  await expect(page.getByText('Home')).toBeVisible();
-  await expect(page.getByText('~bus')).not.toBeVisible();
+  await helpers.sendMessage(zodPage, 'Delete this message');
+  await helpers.deleteMessage(zodPage, 'Delete this message', true);
 });

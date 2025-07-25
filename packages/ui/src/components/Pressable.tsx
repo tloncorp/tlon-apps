@@ -79,7 +79,7 @@ export default function Pressable({
         group
         onPress={onPressLink ?? onPress}
         onLongPress={longPressHandler}
-        cursor="pointer"
+        cursor={stackProps.cursor || 'pointer'}
         // Pressable always blocks touches from bubbling to ancestors, even if
         // no handlers are attached.
         // To allow bubbling, disable the Pressable (mixin) when no handlers
@@ -97,7 +97,7 @@ export default function Pressable({
       onPress={onPress}
       onLongPress={longPressHandler}
       disabled={!hasInteractionHandler}
-      cursor="pointer"
+      cursor={stackProps.cursor || 'pointer'}
     >
       {children}
     </StackComponent>

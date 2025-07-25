@@ -1,6 +1,6 @@
 import { utils } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Text } from '@tloncorp/ui';
+import { Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { ComponentProps, useMemo } from 'react';
 import { ColorTokens, View, XStack } from 'tamagui';
 
@@ -79,6 +79,7 @@ export function DetailViewAuthorRow({
   showSentAt?: boolean;
   sent?: number;
 } & ComponentProps<typeof XStack>) {
+  const isWindowNarrow = useIsWindowNarrow();
   const openProfile = useNavigateToProfile(authorId);
   const deliveryFailed =
     deliveryStatus === 'failed' ||
@@ -87,12 +88,24 @@ export function DetailViewAuthorRow({
   const shouldTruncate = showEditedIndicator || deliveryFailed;
 
   const timeDisplay = useMemo(() => {
-    if (!showSentAt) {
+    if (!showSentAt || !sent) {
       return null;
     }
     const date = new Date(sent ?? 0);
-    return utils.makePrettyTime(date);
+    if (utils.isToday(date.getTime())) {
+      return utils.makePrettyTime(date);
+    }
+    const { asString } = utils.makePrettyDayAndDateAndTime(date);
+    return asString;
   }, [showSentAt, sent]);
+
+  const retryVerb = useMemo(() => {
+    if (isWindowNarrow) {
+      return 'Tap';
+    } else {
+      return 'Click';
+    }
+  }, [isWindowNarrow]);
 
   return (
     <XStack
@@ -120,7 +133,7 @@ export function DetailViewAuthorRow({
       </Text>
       {deliveryFailed ? (
         <Text size="$label/m" color="$negativeActionText">
-          Tap to retry
+          {retryVerb} to retry
         </Text>
       ) : null}
       {showSentAt && (
@@ -176,7 +189,7 @@ export function ChatAuthorRow({
         size="$2xl"
         contactId={authorId}
       />
-      <XStack gap="$l" alignItems="flex-end" width="100%">
+      <XStack gap="$l" alignItems="flex-end" flex={1}>
         <Text
           size="$label/2xl"
           numberOfLines={1}

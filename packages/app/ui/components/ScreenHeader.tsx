@@ -46,6 +46,7 @@ export const ScreenHeaderComponent = ({
             title={resolvedTitle}
             color={textColor}
             titleWidth={titleWidth}
+            testID="ScreenHeaderTitle"
           />
         ) : (
           resolvedTitle

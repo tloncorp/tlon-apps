@@ -1,6 +1,20 @@
 import isURL from 'validator/lib/isURL';
 
-import { JSONContent } from '../urbit';
+import { ChannelType, PostMetadata } from '../db';
+import {
+  FinalizedAttachment,
+  LinkAttachment,
+  ReferenceAttachment,
+  UploadedImageAttachment,
+} from '../domain';
+import {
+  Block,
+  Inline,
+  JSONContent,
+  Story,
+  constructStory,
+  pathToCite,
+} from '../urbit';
 import { makeMention, makeParagraph, makeText } from './tiptap';
 
 const isBoldStart = (text: string): boolean => {
@@ -37,7 +51,10 @@ const isUrl = (text: string): boolean => {
   return isURL(text);
 };
 
-function areMarksEqual(marks1: any[] = [], marks2: any[] = []): boolean {
+function areMarksEqual(
+  marks1: Record<string, unknown>[] = [],
+  marks2: Record<string, unknown>[] = []
+): boolean {
   if (marks1.length !== marks2.length) return false;
   return marks1.every((mark1, i) => {
     const mark2 = marks2[i];
@@ -103,7 +120,8 @@ interface Line {
 }
 
 const processLine = (line: Line): JSONContent => {
-  const { text, mentions } = line;
+  const { text: rawText, mentions } = line;
+  const text = rawText.trim();
   const parsedContent: JSONContent[] = [];
   let isBolding = false;
   let isItalicizing = false;
@@ -318,7 +336,7 @@ export function textAndMentionsToContent(
       (mention) => mention.start >= absoluteStart && mention.end < absoluteEnd
     );
     normalizedLines.push({
-      text: line.trim(),
+      text: line,
       mentions: found.map((mention) => ({
         ...mention,
         start: mention.start - absoluteStart,
@@ -512,4 +530,118 @@ export function contentToTextAndMentions(jsonContent: JSONContent): {
     text: text.join(''),
     mentions,
   };
+}
+
+export function toPostData({
+  attachments,
+  content,
+  image,
+  channelType,
+  isEdit,
+  title,
+}: {
+  content: (Inline | Block)[];
+  attachments: FinalizedAttachment[];
+  channelType: ChannelType;
+  title?: string;
+  image?: string;
+  isEdit?: boolean;
+}): { story: Story; metadata: PostMetadata } {
+  const blocks = attachments
+    .filter((attachment) => attachment.type !== 'text')
+    .flatMap((attachment): Block[] => {
+      if (channelType === 'notebook') {
+        return [];
+      }
+      if (attachment.type === 'reference') {
+        const block = createReferenceBlock(attachment);
+        return block ? [block] : [];
+      }
+      if (
+        attachment.type === 'image' &&
+        (!image ||
+          attachment.file.uri !== image ||
+          (attachment.file.uri === image &&
+            isEdit &&
+            channelType === 'gallery'))
+      ) {
+        return [createImageBlock(attachment)];
+      }
+      if (attachment.type === 'link') {
+        return [createLinkBlock(attachment)];
+      }
+      return [];
+    });
+
+  const story = constructStory(content);
+
+  if (blocks && blocks.length > 0) {
+    if (channelType === 'chat') {
+      story.unshift(...blocks.map((block) => ({ block })));
+    } else {
+      story.push(...blocks.map((block) => ({ block })));
+    }
+  }
+
+  const metadata: PostMetadata = { title };
+
+  if (image) {
+    const attachment = attachments.find(
+      (a): a is UploadedImageAttachment =>
+        a.type === 'image' && a.file.uri === image
+    );
+    if (!attachment) {
+      throw new Error('unable to attach image');
+    }
+    metadata.image =
+      attachment.uploadState.status === 'success'
+        ? attachment.uploadState.remoteUri
+        : attachment.uploadState.localUri;
+  } else {
+    metadata.image = null;
+  }
+
+  return { story, metadata };
+}
+
+function createImageBlock(attachment: UploadedImageAttachment): Block {
+  return {
+    image: {
+      src:
+        attachment.uploadState.status === 'success'
+          ? attachment.uploadState.remoteUri
+          : attachment.uploadState.localUri,
+      height: attachment.file.height,
+      width: attachment.file.width,
+      alt: 'image',
+    },
+  };
+}
+
+function createLinkBlock(attachment: LinkAttachment): Block {
+  if (attachment.type !== 'link') {
+    throw new Error('createLinkBlock called with non-link attachment');
+  }
+  return {
+    link: {
+      url: attachment.url,
+      meta: {
+        siteIconUrl: attachment.siteIconUrl,
+        siteName: attachment.siteName,
+        title: attachment.title,
+        author: attachment.author,
+        description: attachment.description,
+        previewImageUrl: attachment.previewImageUrl,
+        previewImageHeight: attachment.previewImageHeight,
+        previewImageWidth: attachment.previewImageWidth,
+      },
+    },
+  };
+}
+
+function createReferenceBlock(
+  attachment: ReferenceAttachment
+): Block | undefined {
+  const cite = pathToCite(attachment.path);
+  return cite ? { cite } : undefined;
 }

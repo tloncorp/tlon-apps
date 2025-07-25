@@ -1,7 +1,8 @@
 import { faker } from '@faker-js/faker';
 import { useQuery } from '@tanstack/react-query';
-import type { ContentReference, PostContent } from '@tloncorp/shared/api';
+import type { PostContent } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import type { ContentReference } from '@tloncorp/shared/domain';
 import * as ub from '@tloncorp/shared/urbit';
 
 import {
@@ -169,16 +170,16 @@ export function list(
   };
 }
 
-export const makePost = (
+export function makePost(
   contact: db.Contact,
   content: PostContent,
-  extra?: any
-) => {
+  extra?: object
+): db.Post {
   const post = createFakePost('chat', JSON.stringify(content));
   post.authorId = contact.id;
   post.author = contact;
   return { ...post, reactions: [], ...extra };
-};
+}
 export const exampleContacts = {
   eleanor: { nickname: 'eleanor', id: randomContactId() },
   mark: { nickname: 'mark', id: randomContactId() },
@@ -549,6 +550,80 @@ export const postWithSingleEmoji = makePost(exampleContacts.emotive, [
   verse.inline('🙏', inline.break()),
 ]);
 
+export const postWithEverything = makePost(exampleContacts.mark, [
+  block.header('h1', inline.text('All Features Test')),
+  verse.inline(
+    'This post demonstrates ',
+    inline.bold('bold'),
+    ', ',
+    inline.italics('italics'),
+    ', ',
+    inline.strikethrough('strikethrough'),
+    ', ',
+    inline.inlineCode('inline code'),
+    ', ',
+    inline.link('https://example.com', 'a link'),
+    ', and a mention: ',
+    inline.ship('~fabled-faster'),
+    '.'
+  ),
+  verse.inline(
+    inline.blockquote(
+      'We are shaped by our thoughts; we become what we think. When the mind is pure, joy follows like a shadow that never leaves.'
+    )
+  ),
+  block.code('console.log("Hello, world!");', 'js'),
+  block.randomImage(640, 480),
+  block.rule(),
+  block.header('h2', inline.text('Lists')),
+  block.list(
+    'unordered',
+    [inline.text('Here’s an unordered list:')],
+    [
+      listItem.basic(inline.text('Item one')),
+      listItem.basic(inline.text('Item two')),
+      list(
+        'ordered',
+        [inline.text('Nested ordered list')],
+        [
+          listItem.basic(inline.text('Sub-item one')),
+          listItem.basic(inline.text('Sub-item two')),
+        ]
+      ),
+    ]
+  ),
+  block.list(
+    'tasklist',
+    [inline.text('Tasks')],
+    [
+      { item: [listItem.task(true, inline.text('Do thing one'))] },
+      { item: [listItem.task(false, inline.text('Do thing two'))] },
+    ]
+  ),
+  block.header('h3', inline.text('References')),
+  verse.block({
+    cite: {
+      chan: {
+        nest: tlonLocalIntros.id,
+        where: referencedChatPost.id,
+      },
+    },
+  }),
+  verse.block({
+    cite: {
+      group: group.id,
+    },
+  }),
+  verse.block({
+    cite: {
+      desk: {
+        flag: 'diary',
+        where: '~zod',
+      },
+    },
+  }),
+]);
+
 export const postsByType = {
   image: postWithImage,
   text: postWithText,
@@ -595,6 +670,7 @@ const postsMap: Record<string, db.Post> = Object.fromEntries(
     postWithHidden,
     postWithEmoji,
     postWithSingleEmoji,
+    postWithEverything,
   ].map((p) => [p.id, p])
 );
 

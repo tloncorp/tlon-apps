@@ -29,7 +29,7 @@ export function PersonalInviteSheet({
 
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange} snapPointsMode="fit">
-      <ActionSheet.SimpleHeader title="Invite Friends to TM" />
+      <ActionSheet.SimpleHeader title="Invite Friends to Tlon" />
       <ActionSheet.Content flex={1} paddingBottom={0}>
         <ActionSheet.ScrollableContent flex={1}>
           <View flex={1} paddingHorizontal={40}>

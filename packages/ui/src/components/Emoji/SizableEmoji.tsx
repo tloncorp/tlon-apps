@@ -3,7 +3,6 @@ import { FontSizeTokens, SizableTextProps, getFontSize } from 'tamagui';
 import { SizableText } from 'tamagui';
 
 import { getNativeEmoji } from './data';
-import { isEmoji } from './utils';
 
 // unclear what this should be (or how it should be calculated), but seems
 // to work?
@@ -17,13 +16,7 @@ export function SizableEmoji(
 ) {
   const { emojiInput, fontSize, ...rest } = props;
   const lineHeight = getFontSize(fontSize) + MAGIC_HEIGHT_ADJUSTMENT_CONSTANT;
-  const finalEmoji = useMemo(() => {
-    const emoji = getNativeEmoji(emojiInput);
-
-    const isDirectEmoji = isEmoji(emojiInput) && !emoji;
-
-    return isDirectEmoji ? emojiInput : emoji;
-  }, [emojiInput]);
+  const finalEmoji = useMemo(() => getNativeEmoji(emojiInput), [emojiInput]);
 
   return (
     <SizableText {...rest} lineHeight={lineHeight} fontSize={fontSize}>

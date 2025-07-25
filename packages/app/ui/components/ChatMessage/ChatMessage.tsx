@@ -174,7 +174,8 @@ const ChatMessage = ({
       onHoverIn={handleHoverIn}
       onHoverOut={handleHoverOut}
       pressStyle="unset"
-      cursor="none"
+      cursor="default"
+      testID="Post"
     >
       <YStack
         backgroundColor={isHighlighted ? '$secondaryBackground' : undefined}
@@ -245,6 +246,7 @@ const ChatMessage = ({
             content={post.editStatus === 'failed' ? lastEditContent : content}
             isNotice={post.type === 'notice'}
             onPressImage={handleImagePressed}
+            onLongPress={handleLongPress}
           />
         </View>
 
@@ -299,6 +301,7 @@ const ChatMessage = ({
                 <Icon type="Overflow" />
               </Button>
             }
+            mode="await-trigger"
           />
         </View>
       )}

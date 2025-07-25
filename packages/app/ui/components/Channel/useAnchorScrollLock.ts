@@ -23,7 +23,6 @@ export function useAnchorScrollLock({
   anchor,
   hasNewerPosts,
   shouldMaintainVisibleContentPosition,
-  isScrollingToBottom,
   collectionLayoutType,
   columnsCount,
 }: {
@@ -32,7 +31,6 @@ export function useAnchorScrollLock({
   anchor: ScrollAnchor | null | undefined;
   hasNewerPosts?: boolean;
   shouldMaintainVisibleContentPosition: boolean;
-  isScrollingToBottom: boolean;
   collectionLayoutType: string;
   columnsCount: number;
 }) {
@@ -92,6 +90,7 @@ export function useAnchorScrollLock({
 
       if (
         !userHasScrolled &&
+        !didScrollToAnchor &&
         post.id === anchor?.postId &&
         flatListRef.current &&
         anchor?.postId === currentAnchorId.current &&
@@ -172,16 +171,6 @@ export function useAnchorScrollLock({
       renderedPostsRef.current.clear();
     }
   }, [anchor?.postId]);
-
-  // Reset states when explicitly scrolling to bottom
-  useEffect(() => {
-    if (isScrollingToBottom) {
-      logger.log('scrolling to bottom');
-      setUserHasScrolled(false);
-      setDidAnchorSearchTimeout(false);
-      renderedPostsRef.current.clear();
-    }
-  }, [isScrollingToBottom]);
 
   return {
     readyToDisplayPosts,

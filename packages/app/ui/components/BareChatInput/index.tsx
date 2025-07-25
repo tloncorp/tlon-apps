@@ -1,47 +1,37 @@
 import {
+  Attachment,
   JSONToInlines,
   REF_REGEX,
+  TextAttachment,
   createDevLogger,
   diaryMixedToJSON,
   extractContentTypesFromPost,
-  isTrustedEmbed,
+  finalizePostDraft,
 } from '@tloncorp/shared';
 import {
   contentReferenceToCite,
   toContentReference,
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import type * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
-import {
-  Block,
-  Story,
-  citeToPath,
-  constructStory,
-  pathToCite,
-} from '@tloncorp/shared/urbit';
-import { useGlobalSearch } from '@tloncorp/ui';
-import { RawText, Text } from '@tloncorp/ui';
+import { Story, citeToPath, pathToCite } from '@tloncorp/shared/urbit';
+import { LoadingSpinner, RawText, Text, useGlobalSearch } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  View,
   YStack,
   getFontSize,
+  getTokenValue,
   getVariableValue,
+  isWeb,
   useTheme,
   useWindowDimensions,
 } from 'tamagui';
-import { getTokenValue } from 'tamagui';
-import { isWeb } from 'tamagui';
-import { View } from 'tamagui';
 
-import {
-  Attachment,
-  TextAttachment,
-  UploadedImageAttachment,
-  useAttachmentContext,
-  useStore,
-} from '../../contexts';
+import { useAttachmentContext, useStore } from '../../contexts';
 import { MentionController } from '../MentionPopup';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
 import { AttachmentPreviewList } from '../MessageInput/AttachmentPreviewList';
@@ -184,10 +174,27 @@ function TextWithMentions({
   return <>{textParts}</>;
 }
 
+function LinkPreviewLoading() {
+  return (
+    <View
+      backgroundColor="$secondaryBackground"
+      padding="$m"
+      margin="$m"
+      borderRadius="$m"
+      alignItems="center"
+      justifyContent="center"
+      width={240}
+      height={200}
+      overflow="hidden"
+    >
+      <LoadingSpinner color="$primaryText" size="small" />
+    </View>
+  );
+}
+
 export default function BareChatInput({
   shouldBlur,
   setShouldBlur,
-  send,
   channelId,
   groupMembers,
   groupRoles,
@@ -209,6 +216,7 @@ export default function BareChatInput({
   goBack,
   shouldAutoFocus,
   showWayfindingTooltip,
+  sendPostFromDraft,
 }: MessageInputProps) {
   const { bottom, top } = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -224,7 +232,6 @@ export default function BareChatInput({
     clearAttachments,
     resetAttachments,
     removeAttachment,
-    waitForAttachmentUploads,
   } = useAttachmentContext();
   const [controlledText, setControlledText] = useState('');
   const [inputHeight, setInputHeight] = useState(initialHeight);
@@ -254,11 +261,10 @@ export default function BareChatInput({
 
   usePasteHandler(addAttachment);
 
-  const [isSending, setIsSending] = useState(false);
   const [linkMetaLoading, setLinkMetaLoading] = useState(false);
-  const disableSend = useMemo(() => {
-    return editorIsEmpty || isSending || linkMetaLoading;
-  }, [editorIsEmpty, isSending, linkMetaLoading]);
+  // Track current input session to cancel stale link previews
+  const inputSessionRef = useRef(0);
+  const disableSend = editorIsEmpty;
 
   const processReferences = useCallback(
     (text: string): string => {
@@ -314,14 +320,29 @@ export default function BareChatInput({
           parsedUrl.hash = '';
           const url = parsedUrl.toString();
 
+          // Capture current session to check if request is still valid later
+          const currentSession = inputSessionRef.current;
           setLinkMetaLoading(true);
+          bareChatInputLogger.log('getting link metadata', { url });
+
           store
             .getLinkMetaWithFallback(url)
             .then((linkMetadata) => {
-              // todo: handle error case with toast or similar
-              if (!linkMetadata) {
+              // Check if this request is still valid (message hasn't been sent)
+              if (currentSession !== inputSessionRef.current) {
+                bareChatInputLogger.log('ignoring stale link metadata', {
+                  url,
+                });
                 return;
               }
+
+              // todo: handle error case with toast or similar
+              if (!linkMetadata) {
+                bareChatInputLogger.error('no link metadata', { url });
+                return;
+              }
+
+              bareChatInputLogger.log('link metadata', { linkMetadata });
 
               // first add the link attachment
               if (linkMetadata.type === 'page') {
@@ -345,9 +366,25 @@ export default function BareChatInput({
                     },
                   });
                 }
+
+                const fileType = linkMetadata.mime.split('/')[1];
+                const fileName = url.split('/').pop();
+                console.log('fileName', fileName);
+
+                addAttachment({
+                  type: 'link',
+                  url: url,
+                  title: fileName,
+                  description: fileType,
+                });
               }
             })
-            .finally(() => setLinkMetaLoading(false));
+            .finally(() => {
+              // Only clear loading if this is still the current session
+              if (currentSession === inputSessionRef.current) {
+                setLinkMetaLoading(false);
+              }
+            });
         }
       }
 
@@ -431,120 +468,56 @@ export default function BareChatInput({
     async (isEdit?: boolean) => {
       const jsonContent = textAndMentionsToContent(controlledText, mentions);
       const inlines = JSONToInlines(jsonContent);
-      const story = constructStory(inlines);
-      const metadata: db.PostMetadata = {};
+
+      const draft: domain.PostDataDraft = (() => {
+        const draftBase = {
+          channelId,
+          content: inlines,
+          attachments,
+          image: image?.uri,
+          channelType,
+        };
+        if (isEdit && editingPost?.id) {
+          return {
+            ...draftBase,
+            isEdit,
+            parentId: editingPost.id,
+          };
+        } else {
+          return draftBase;
+        }
+      })();
+
+      // Cancel any pending link preview requests
+      inputSessionRef.current += 1;
+      setLinkMetaLoading(false);
+
+      setControlledText('');
+      bareChatInputLogger.log('clearing attachments');
+      clearAttachments();
+      bareChatInputLogger.log('resetting input height');
+      setInputHeight(initialHeight);
 
       try {
-        const finalAttachments = await waitForAttachmentUploads();
+        if (draft.isEdit && editingPost) {
+          const finalizedEdit = await finalizePostDraft(draft);
 
-        const blocks = finalAttachments
-          .filter((attachment) => attachment.type !== 'text')
-          .flatMap((attachment): Block[] => {
-            if (attachment.type === 'reference') {
-              const cite = pathToCite(attachment.path);
-              return cite ? [{ cite }] : [];
-            }
-            if (
-              attachment.type === 'image' &&
-              (!image || attachment.file.uri !== image?.uri)
-            ) {
-              return [
-                {
-                  image: {
-                    src: attachment.uploadState.remoteUri,
-                    height: attachment.file.height,
-                    width: attachment.file.width,
-                    alt: 'image',
-                  },
-                },
-              ];
-            }
-
-            if (
-              image &&
-              attachment.type === 'image' &&
-              attachment.file.uri === image?.uri &&
-              isEdit &&
-              channelType === 'gallery'
-            ) {
-              return [
-                {
-                  image: {
-                    src: image.uri,
-                    height: image.height,
-                    width: image.width,
-                    alt: 'image',
-                  },
-                },
-              ];
-            }
-
-            if (attachment.type === 'link') {
-              const { url, type, resourceType, ...meta } = attachment;
-              return [
-                {
-                  link: {
-                    url,
-                    meta,
-                  },
-                },
-              ];
-            }
-
-            return [];
-          });
-
-        if (blocks && blocks.length > 0) {
-          if (channelType === 'chat') {
-            story.unshift(...blocks.map((block) => ({ block })));
-          } else {
-            story.push(...blocks.map((block) => ({ block })));
-          }
-        }
-
-        if (image) {
-          const attachment = finalAttachments.find(
-            (a): a is UploadedImageAttachment =>
-              a.type === 'image' && a.file.uri === image.uri
+          await editPost?.(
+            editingPost,
+            finalizedEdit.content,
+            finalizedEdit.parentId,
+            finalizedEdit.metadata
           );
-          if (!attachment) {
-            throw new Error('unable to attach image');
-          }
-          metadata['image'] = attachment.uploadState.remoteUri;
-        }
-      } catch (e) {
-        bareChatInputLogger.error('Error processing attachments', e);
-        setSendError(true);
-        return;
-      }
-
-      try {
-        setControlledText('');
-        bareChatInputLogger.log('clearing attachments');
-        clearAttachments();
-        bareChatInputLogger.log('resetting input height');
-        setInputHeight(initialHeight);
-
-        if (isEdit && editingPost) {
-          if (editingPost.parentId) {
-            await editPost?.(
-              editingPost,
-              story,
-              editingPost.parentId,
-              metadata
-            );
-          }
-          await editPost?.(editingPost, story, undefined, metadata);
           setEditingPost?.(undefined);
         } else {
-          await send(story, channelId, metadata);
+          await sendPostFromDraft(draft);
         }
       } catch (e) {
         bareChatInputLogger.error('Error sending message', e);
         setSendError(true);
       } finally {
         onSend?.();
-        bareChatInputLogger.log('sent message', story);
+        bareChatInputLogger.log('sent message');
         setMentions([]);
         bareChatInputLogger.log('clearing draft');
         await clearDraft();
@@ -553,10 +526,11 @@ export default function BareChatInput({
       }
     },
     [
+      sendPostFromDraft,
+      attachments,
       onSend,
       mentions,
       controlledText,
-      waitForAttachmentUploads,
       editingPost,
       clearAttachments,
       clearDraft,
@@ -564,7 +538,6 @@ export default function BareChatInput({
       setEditingPost,
       image,
       channelType,
-      send,
       channelId,
       setMentions,
       initialHeight,
@@ -574,13 +547,11 @@ export default function BareChatInput({
   const runSendMessage = useCallback(
     async (isEdit: boolean) => {
       try {
-        setIsSending(true);
         await sendMessage(isEdit);
       } catch (e) {
         bareChatInputLogger.trackError('failed to send', e);
         setSendError(true);
       } finally {
-        setIsSending(false);
         setTimeout(() => {
           // allow some time for send errors to be displayed
           // before clearing the error state
@@ -721,6 +692,14 @@ export default function BareChatInput({
                   },
                 });
               }
+              if ('link' in b) {
+                attachments.push({
+                  type: 'link',
+                  url: b.link.url,
+                  resourceType: 'page',
+                  ...b.link.meta,
+                });
+              }
             });
 
             resetAttachments(attachments);
@@ -772,6 +751,10 @@ export default function BareChatInput({
   }, [needsHeightAdjustmentAfterLoad, adjustInputHeightProgrammatically]);
 
   const handleCancelEditing = useCallback(() => {
+    // Cancel any pending link preview requests
+    inputSessionRef.current += 1;
+    setLinkMetaLoading(false);
+
     setEditingPost?.(undefined);
     setHasSetInitialContent(false);
     setControlledText('');
@@ -781,10 +764,10 @@ export default function BareChatInput({
   }, [setEditingPost, clearDraft, clearAttachments, initialHeight]);
 
   const theme = useTheme();
-
   const placeholderTextColor = {
     placeholderTextColor: getVariableValue(theme.secondaryText),
   };
+  const inputTextColor = getVariableValue(theme.primaryText);
 
   const adjustTextInputSize = (e: any) => {
     if (!isWeb) {
@@ -875,7 +858,6 @@ export default function BareChatInput({
       setShouldBlur={setShouldBlur}
       containerHeight={48}
       disableSend={disableSend}
-      isSending={isSending}
       sendError={sendError}
       showWayfindingTooltip={showWayfindingTooltip}
       isMentionModeActive={isMentionModeActive}
@@ -899,6 +881,7 @@ export default function BareChatInput({
         maxHeight={maxInputHeight}
         justifyContent="center"
       >
+        {linkMetaLoading && <LinkPreviewLoading />}
         {showInlineAttachments && <AttachmentPreviewList />}
         <TextInput
           testID="MessageInput"
@@ -924,7 +907,7 @@ export default function BareChatInput({
             fontSize: getFontSize('$m'),
             verticalAlign: 'middle',
             letterSpacing: -0.032,
-            color: getVariableValue(useTheme().primaryText),
+            color: inputTextColor,
             ...(isWeb ? placeholderTextColor : {}),
             ...(isWeb ? { outlineStyle: 'none' } : {}),
           }}

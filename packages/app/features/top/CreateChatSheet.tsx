@@ -245,6 +245,7 @@ const CreateChatFormContent = ({
 }: CreateChatFormContentProps) => {
   const { title, subtitle } = CHAT_TYPE_CONFIG[chatType];
   const { bottom } = useSafeAreaInsets();
+  const isWindowNarrow = useIsWindowNarrow();
 
   return (
     <YStack flex={1} gap="$l" paddingBottom={bottom}>
@@ -253,6 +254,7 @@ const CreateChatFormContent = ({
         searchable
         multiSelect={chatType === 'group'}
         searchPlaceholder="Filter by nickname or id"
+        autoFocus={!isWindowNarrow}
         onSelect={onSelectDmContact}
         onSelectedChange={onSelectedChange}
         onScrollChange={(scrolling) => {

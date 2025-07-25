@@ -1,7 +1,7 @@
 import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback } from 'react';
 
-import { SimpleActionSheet } from './ActionSheet';
+import { Action, SimpleActionSheet } from './ActionSheet';
 import AttachmentSheet from './AttachmentSheet';
 import { GalleryRoute } from './draftInputs/shared';
 
@@ -14,24 +14,27 @@ export default function AddGalleryPost({
   setRoute: (route: GalleryRoute) => void;
   onSetImage: (assets: ImagePickerAsset[]) => void;
 }) {
-  const actions = [
+  const actions: Action[] = [
     {
       title: 'Image',
       action: () => {
         setRoute('add-attachment');
       },
+      testID: 'AddGalleryPostImage',
     },
     {
       title: 'Text',
       action: () => {
         setRoute('text');
       },
+      testID: 'AddGalleryPostText',
     },
     {
       title: 'Link',
       action: () => {
         setRoute('link');
       },
+      testID: 'AddGalleryPostLink',
     },
   ];
 

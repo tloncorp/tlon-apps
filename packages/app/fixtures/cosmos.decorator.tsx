@@ -1,13 +1,15 @@
 import React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { StoreProvider, TamaguiProvider, config } from '../ui';
+import { PortalProvider, StoreProvider, TamaguiProvider, config } from '../ui';
 
 // eslint-disable-next-line
 export default ({ children }: { children: React.ReactNode }) => (
   <TamaguiProvider defaultTheme={'light'} config={config}>
     <StoreProvider stub>
-      <SafeAreaProvider>{children}</SafeAreaProvider>
+      <SafeAreaProvider>
+        <PortalProvider>{children}</PortalProvider>
+      </SafeAreaProvider>
     </StoreProvider>
   </TamaguiProvider>
 );

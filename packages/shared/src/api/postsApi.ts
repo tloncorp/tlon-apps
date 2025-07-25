@@ -3,6 +3,7 @@ import { Poke } from '@urbit/http-api';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { ContentReference } from '../domain';
 import {
   IMAGE_URL_REGEX,
   PlaintextPreviewConfig,
@@ -772,29 +773,6 @@ export interface DeletedPost {
   id: string;
   channelId: string;
 }
-
-export interface ChannelReference {
-  type: 'reference';
-  referenceType: 'channel';
-  channelId: string;
-  postId: string;
-  replyId?: string;
-}
-
-export interface GroupReference {
-  type: 'reference';
-  referenceType: 'group';
-  groupId: string;
-}
-
-export interface AppReference {
-  type: 'reference';
-  referenceType: 'app';
-  userId: string;
-  appId: string;
-}
-
-export type ContentReference = ChannelReference | GroupReference | AppReference;
 
 export function toPagedPostsData(
   channelId: string,

@@ -114,14 +114,27 @@
     ?+    method.request  (give not-found:gen:server)
       %'GET'  (get-request line)
     ::
+        %'OPTIONS'
+      %-  give
+      =;  =header-list:http
+        [[204 header-list] ~]
+      :~  :-  'access-control-allow-methods'
+          =-  (fall - '*')
+          (get-header:http 'access-control-request-method' header-list.request)
+        ::
+          :-  'access-control-allow-headers'
+          =-  (fall - '*')
+          (get-header:http 'access-control-request-headers' header-list.request)
+      ==
+    ::
         %'POST'
       ?~  body.request
-        :_  (give-not-found 'body not found')
+        :_  (give (not-found 'body not found'))
         %^  tell:log  %crit
           ~['POST body not found']
         ~['event'^s+'Lure POST Fail' 'flow'^s+'lure']
       ?.  =('ship=%7E' (end [3 8] q.u.body.request))
-        :_  (give-not-found 'ship not found in body')
+        :_  (give (not-found 'ship not found in body'))
         %^  tell:log  %crit
           ~['ship not found in POST body']
         ~['event'^s+'Lure POST Fail' 'flow'^s+'lure']
@@ -144,11 +157,11 @@
         --
       =;  [bite=(unit bite:reel) inviter=(unit ship)]
         ?~  bite
-          :_  (give-not-found 'invite token not found')
+          :_  (give (not-found 'invite token not found'))
           %^  lure-log  %crit  'Invite Token Missing'
           ~[leaf+"invite token {<token>} not found"]
         ?~  inviter
-          :_  (give-not-found 'inviter not found')
+          :_  (give (not-found 'inviter not found'))
           %^  lure-log  %crit  'Inviter Not Found'
           ~['inviter not found']
         ^-  (list card)
@@ -178,34 +191,41 @@
     ++  get-request
       |=  =(pole knot)
       ^-  (list card)
-      ?+  pole  (give not-found:gen:server)
+      %-  give
+      ?+  pole  not-found:gen:server
           [%bait %who ~]
-        (give (json-response:gen:server s+(scot %p our.bowl)))
+        (json-response:gen:server s+(scot %p our.bowl))
       ::
           [ship=@ name=@ %metadata ~]
         =/  token  (crip "{(trip ship.pole)}/{(trip name.pole)}")
         =/  =metadata:reel
           (~(gut by token-metadata) token *metadata:reel)
-        (give (json-response:gen:server (enjs-metadata metadata)))
+        (json-response:gen:server (enjs-metadata metadata))
       ::
           [token=@ %metadata ~]
         =/  =metadata:reel
           (~(gut by token-metadata) token.pole *metadata:reel)
-        (give (json-response:gen:server (enjs-metadata metadata)))
+        (json-response:gen:server (enjs-metadata metadata))
       ::
           [token=* ~]
         =/  token  (crip (join '/' pole))
         =/  =metadata:reel
           (~(gut by token-metadata) token *metadata:reel)
-        (give (manx-response:gen:server (landing-page metadata)))
+        (manx-response:gen:server (landing-page metadata))
       ==
     ::
-    ++  give-not-found
+    ++  allow
+      |=  simple-payload:http
+      ^-  simple-payload:http
+      :_  data
+      :-  status-code.response-header
+      [['access-control-allow-origin' '*'] headers.response-header]
+    ++  not-found
       |=  body=cord
-      (give [[404 ~] `(as-octs:mimes:html body)])
+      [[404 ~] `(as-octs:mimes:html body)]
     ++  give
       |=  =simple-payload:http
-      (give-simple-payload:app:server id simple-payload)
+      (give-simple-payload:app:server id (allow simple-payload))
     --
       %bait-describe
     =+  !<([=nonce:reel =metadata:reel] vase)
