@@ -1,0 +1,134 @@
+#!/bin/bash
+# ==============================================================================
+# click-format
+#
+#   Formatting helper script for click.
+#
+#   Takes a Hoon command and an optional list of Clay file dependencies (as
+#   paths or beams) and formats them as a text representation of a Hoon noun.
+#   When jammed, this noun can be passed to conn.c to execute the command on a
+#   running ship.
+#
+#   If a dependency file is passed as a beam, it will be interpreted as-is. If a
+#   dependency file is passed as a path, the default beak (i.e. [our base now])
+#   will be prepended to it.
+#
+#   The structure of a conn.c thread call looks like this:
+#
+#       [42 %fyrd [%base %hi %tape [%ship ~zod]]]
+#        1  2      3     4   5      6     7
+#
+#       1 = Unique ID for mapping results to requests
+#       2 = Command to conn.c routing the request
+#       3 = Desk in which thread lives
+#       4 = Name of thread
+#       5 = Mark for output type
+#       6 = Mark for input type
+#       7 = Input to thread as a noun
+#
+#   (1) - (6) are held constant by this client. (7) is provided by the user.
+#
+# ==============================================================================
+
+# ==========================================================
+# CONSTANTS
+# ==========================================================
+
+# Request ID
+# A client that ran many simultaneous queries would want to somehow assign these
+RID=0
+
+# Command
+# See conn.c for information about other commands and how they work
+COMMAND="%fyrd"
+
+# Desk
+# Desk in which the thread lives. All threads used by click live in '%base'.
+DESK="%base"
+
+# Threads
+# Name of thread to call. Only 'eval' and 'khan-eval' are used by click.
+EVAL_TED="%eval"
+KHAN_TED="%khan-eval"
+THREAD=$EVAL_TED
+
+# Output mark
+# Output format of thread results (always noun for click)
+MARK_OUT="%noun"
+
+# Input mark
+# Format of input to thread (always constant for click)
+MARK_IN="%ted-eval"
+
+# ==========================================================
+# VARIABLES
+# ==========================================================
+
+STATUS=0
+TED_IN=""
+
+# ==========================================================
+# FUNCTIONS
+# ==========================================================
+
+show_help() {
+    cat <<EOF
+Usage:
+    $(basename "$0") [options] <hoon> [<dependency> ...]
+
+    Format a text representation of a Hoon noun for use as input to eval threads via conn.c
+
+    options:
+        -h  Show usage info
+        -k  Format for the 'khan-eval' thread instead
+EOF
+}
+
+# ==========================================================
+# MAIN
+# ==========================================================
+
+# reset getopts
+OPTIND=1
+
+# parse options
+while getopts ":hk" OPT; do
+    case "$OPT" in
+        k)
+            THREAD=$KHAN_TED
+            ;;
+        h)
+            show_help
+            exit 0
+            ;;
+        \?)
+            echo "Invalid option: -$OPTARG" >&2
+            show_help
+            exit 1
+            ;;
+  esac
+done
+
+# skip over opts after parsing
+shift $((OPTIND-1))
+
+# check for mandatory input
+if [[ $# -lt 1 ]]; then
+    echo "ERROR: no command" >&2
+    show_help
+    exit 1
+fi
+
+# setup input page
+if [[ $# -eq 1 ]]; then
+    TED_IN="[$MARK_IN '$1']"
+else
+    TED_IN="'$1'"
+    shift
+    # Join remaining args with space, preserving internal spaces
+    DEPS_STR="$*"
+    TED_IN="[$MARK_IN [$TED_IN [$DEPS_STR ~]]]"
+fi
+
+# format command
+printf "%s\n" "[$RID $COMMAND [$DESK $THREAD $MARK_OUT $TED_IN]]"

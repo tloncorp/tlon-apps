@@ -1,0 +1,287 @@
+#!/bin/bash
+# ==============================================================================
+# click
+#
+#   Thin client for interacting with running Urbit ship via conn.c.
+#
+#   Compiles a Hoon command given as text against an optional list of
+#   dependencies and then executes it on a running ship.
+#
+#   The click-format helper script handles command formatting, whereas this
+#   script handles operational control flow. See the documentation in
+#   click-format for the details of command structure, dependency management,
+#   etc.
+#
+# ==============================================================================
+
+# ==========================================================
+# CONSTANTS
+# ==========================================================
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+SCRIPT_NAME=$(basename "$0")
+CLICK_CMD="$SCRIPT_DIR/click-format"
+
+# ==========================================================
+# PLATFORM DETECTION
+# ==========================================================
+
+# Detect platform and set appropriate netcat timeout flag
+case "$OSTYPE" in
+    darwin*|freebsd*|netbsd*)
+        # macOS, FreeBSD, and NetBSD use BSD netcat with lowercase -w
+        NC_TIMEOUT_FLAG="-w"
+        ;;
+    openbsd*)
+        # OpenBSD uses its own netcat with uppercase -W
+        NC_TIMEOUT_FLAG="-W"
+        ;;
+    *)
+        # Linux and others typically use netcat-openbsd with uppercase -W
+        NC_TIMEOUT_FLAG="-W"
+        ;;
+esac
+
+# ==========================================================
+# VARIABLES
+# ==========================================================
+
+MIN_INPUT=0
+STATUS=0
+
+EXECUTE=0
+FILTER_GOOF=0
+JAM_HEX=0
+JAM_ONLY=0
+KHAN_TED=0
+EVAL_CMD=''
+
+INPUT=''
+OUTPUT=''
+
+# ==========================================================
+# FUNCTIONS
+# ==========================================================
+
+show_help() {
+    cat >&2 <<EOF
+Usage:
+    $SCRIPT_NAME [options] <path-to-pier> <hoon> [<dependencies> ...]
+    $SCRIPT_NAME [options] -i <path-to-file> <path-to-pier> [<dependencies> ...]
+    $SCRIPT_NAME [-o|-p] -e -i <path-to-file> <path-to-pier>
+
+    Thin client for interacting with running Urbit ship via conn.c
+
+    options:
+        -b <path-to-vere>   Specify an undocked vere binary
+        -c                  Send a conn.c card to urbit ship
+        -e                  Execute jammed Hoon
+        -h                  Show usage info
+        -i <path-to-file>   Read input from file
+        -j                  Jam only
+        -k                  Execute command using "khan-eval" thread
+        -o <path-to-file>   Output to file
+        -p                  Filter failure stack traces from result and pretty-print them to stderr
+        -x                  Jam to hex
+EOF
+}
+
+full() {
+    # Use Python socket proxy on macOS for reliable connection handling
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        $CLICK_CMD "$HOON" $DEPS |
+            $EVAL_CMD eval --jam $JAM_OPTS |
+            "$SCRIPT_DIR/socket_proxy.py" "$PIER/.urb/conn.sock" |
+            $EVAL_CMD eval --cue $CUE_OPTS
+    else
+        $CLICK_CMD "$HOON" $DEPS |
+            $EVAL_CMD eval --jam $JAM_OPTS |
+            nc -U $NC_TIMEOUT_FLAG 1 "$PIER/.urb/conn.sock" |
+            $EVAL_CMD eval --cue $CUE_OPTS
+    fi
+}
+
+jam() {
+    if [[ $JAM_HEX -ne 0 ]]; then
+        JAM_OPTS=""
+    fi
+
+    $CLICK_CMD "$HOON" $DEPS | $EVAL_CMD eval --jam $JAM_OPTS
+}
+
+execute() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        "$SCRIPT_DIR/socket_proxy.py" "$PIER/.urb/conn.sock" < $INPUT |
+            $EVAL_CMD eval --cue $CUE_OPTS
+    else
+        nc -U $NC_TIMEOUT_FLAG 1 "$PIER/.urb/conn.sock" < $INPUT |
+            $EVAL_CMD eval --cue $CUE_OPTS
+    fi
+}
+
+# ==========================================================
+# MAIN
+# ==========================================================
+
+# reset getopts
+OPTIND=1
+
+# parse options
+while getopts ":b:cehi:jko:px" OPT; do
+    case "$OPT" in
+        b)
+            EVAL_CMD=$OPTARG
+            ;;
+        e)
+            EXECUTE=1
+            ;;
+        i)
+            INPUT=$OPTARG
+            ;;
+        j)
+            JAM_ONLY=1
+            ;;
+        k)
+            KHAN_TED=1
+            ;;
+        o)
+            OUTPUT=$OPTARG
+            ;;
+        p)
+            FILTER_GOOF=1
+            ;;
+        x)
+            JAM_HEX=1
+            ;;
+        c)
+            CARD=1
+            ;;
+        \?)
+            echo "Invalid option: -$OPTARG" >&2
+            STATUS=1
+            ;;
+        h)
+            show_help
+            exit 0
+            ;;
+  esac
+done
+
+# check for opt issues
+if [[ $EXECUTE -ne 0 ]]; then
+    if [[ $JAM_ONLY -ne 0 ]]; then
+        echo "Invalid option: cannot mix -e and -j" >&2
+        STATUS=1
+    fi
+
+    if [[ -z $INPUT ]]; then
+        echo "Invalid option: -e requires -i" >&2
+        STATUS=1
+    fi
+
+    if [[ $CARD -ne 0 ]]; then
+        echo "-c meaningless with -e; ignoring" >&2
+    fi
+
+    if [[ $KHAN_TED -ne 0 ]]; then
+        echo "-k meaningless with -e; ignoring" >&2
+    fi
+fi
+
+if [[ $KHAN_TED -ne 0 ]]; then
+    if [[ $CARD -ne 0 ]]; then
+        echo "-k meaningless with -c; ignoring" >&2
+    fi
+fi
+
+if [[ $JAM_ONLY -ne 0 ]]; then
+    if [[ $FILTER_GOOF -ne 0 ]]; then
+        echo "-p meaningless with -j; ignoring" >&2
+    fi
+else
+    if [[ $JAM_HEX -ne 0 ]]; then
+        echo "Invalid option: -x requires -j" >&2
+        STATUS=1
+    fi
+fi
+
+# handle errors
+if [[ $STATUS -ne 0 ]]; then
+    show_help
+    exit "$STATUS"
+fi
+
+# skip over opts after parsing
+shift $((OPTIND-1))
+
+# check for mandatory input
+if [[ -n $INPUT ]]; then
+    MIN_INPUT=1
+else
+    MIN_INPUT=2
+fi
+
+if [[ $# -lt $MIN_INPUT ]]; then
+    echo "ERROR: missing input" >&2
+    show_help
+    exit 1
+fi
+
+# read args
+if [[ -n $INPUT ]]; then
+    PIER=$1
+    shift
+
+    if [[ $EXECUTE -eq 0 ]]; then
+        # read from file, escape 's, replace newlines w/ gaps
+        # Use paste for portable line joining (works on both GNU and BSD systems)
+        HOON="$(cat $INPUT | sed "s;';\\\\';g" | paste -sd'  ' -)"
+    fi
+else
+    PIER=$1
+    HOON=$2
+    shift 2
+fi
+DEPS=$*
+
+# setup shared variables
+if [[ $KHAN_TED -ne 0 ]]; then
+    CLICK_CMD="$CLICK_CMD -k"
+elif [[ $CARD -ne 0 ]]; then
+    CLICK_CMD="echo"
+    DEPS=""
+fi
+# use docked binary
+if [[ -z $EVAL_CMD ]]; then
+  EVAL_CMD="$PIER/.run"
+fi
+JAM_OPTS="-n"
+CUE_OPTS="-n"
+TMP_OUT=$(mktemp 2>/dev/null || mktemp -t click)
+
+if [[ $JAM_ONLY -eq 0 ]]; then
+    if [[ $FILTER_GOOF -ne 0 ]]; then
+        CUE_OPTS="$CUE_OPTS -k"
+    fi
+fi
+
+# main logic
+{
+    if [[ $EXECUTE -ne 0 ]]; then
+        execute
+    elif [[ $JAM_ONLY -ne 0 ]]; then
+        jam
+    else
+        full
+    fi
+} > $TMP_OUT
+
+# route output
+if [[ -n $OUTPUT ]]; then
+    mv $TMP_OUT $OUTPUT
+else
+    cat $TMP_OUT
+fi
+
+# done
+exit 0

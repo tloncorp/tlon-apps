@@ -45,6 +45,6 @@
     "loopbackPort": "",
     "webUrl": "http://localhost:3003",
     "skipCommit": false,
-    "skipSetup": true
+    "skipSetup": false
   }
 }
