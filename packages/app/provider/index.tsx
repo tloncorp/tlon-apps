@@ -1,6 +1,4 @@
 import * as store from '@tloncorp/shared';
-import * as api from '@tloncorp/shared/api';
-import * as db from '@tloncorp/shared/db';
 import React, { useEffect, useMemo, useState } from 'react';
 import { TamaguiProvider, TamaguiProviderProps } from 'tamagui';
 
@@ -9,7 +7,7 @@ import { AppTheme } from '../types/theme';
 import { config } from '../ui';
 import { getDisplayTheme, normalizeTheme } from '../ui/utils/themeUtils';
 
-export const ThemeContext = React.createContext<{
+const ThemeContext = React.createContext<{
   activeTheme: AppTheme;
 }>({ activeTheme: 'light' });
 
@@ -69,38 +67,6 @@ function useSyncedAppTheme() {
       storedTheme == null ? 'auto' : normalizeTheme(storedTheme);
     setActiveTheme(getDisplayTheme(normalizedTheme, isDarkMode));
   }, [isLoading, storedTheme, isDarkMode]);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        await store.pullSettings();
-      } catch (error) {
-        console.warn('Failed to load theme preference:', error);
-      }
-    })();
-  }, []);
-
-  useEffect(() => {
-    api.subscribeToSettings((update) => {
-      if (update.type === 'updateSetting' && 'theme' in update.setting) {
-        const newTheme = update.setting.theme;
-        if (typeof newTheme !== 'string') {
-          return;
-        }
-        const normalizedTheme = normalizeTheme(newTheme);
-
-        // For simplicity, use the reactive DB query above to set the active
-        // theme instead of setting it here.
-        // // setActiveTheme(...);
-
-        db.themeSettings
-          .setValue(normalizedTheme === 'auto' ? null : normalizedTheme)
-          .catch((err) =>
-            console.warn('Failed to update local theme setting:', err)
-          );
-      }
-    });
-  }, []);
 
   return [activeTheme, setActiveTheme] as const;
 }
