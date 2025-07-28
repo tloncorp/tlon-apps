@@ -6,12 +6,6 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
 import { Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Portal, getTokenValue, styled } from 'tamagui';
@@ -42,7 +36,9 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
   const queueRef = useRef<Array<Toast>>([]);
   const isProcessingRef = useRef(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const animationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const animationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   const processQueue = useCallback(() => {
     if (isProcessingRef.current || queueRef.current.length === 0) return;
@@ -57,7 +53,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
       clearTimeout(timeoutRef.current);
     }
 
-    timeoutRef.current = setTimeout(() => {
+    const hideToast = () => {
       setToast((t) => ({ ...t, visible: false }));
       if (animationTimeoutRef.current) {
         clearTimeout(animationTimeoutRef.current);
@@ -66,6 +62,12 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
         isProcessingRef.current = false;
         processQueue();
       }, 300);
+    };
+
+    timeoutRef.current = setTimeout(() => {
+      requestAnimationFrame(() => {
+        hideToast();
+      });
     }, next.duration);
   }, []);
 
@@ -79,7 +81,6 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const dismissToast = useCallback(() => {
     if (toast.visible) {
-      // Clear existing timeouts
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
@@ -88,17 +89,17 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
         clearTimeout(animationTimeoutRef.current);
         animationTimeoutRef.current = null;
       }
-      
-      // Start dismiss animation
-      setToast((t) => ({ ...t, visible: false }));
-      animationTimeoutRef.current = setTimeout(() => {
-        isProcessingRef.current = false;
-        processQueue();
-      }, 300);
+
+      requestAnimationFrame(() => {
+        setToast((t) => ({ ...t, visible: false }));
+        animationTimeoutRef.current = setTimeout(() => {
+          isProcessingRef.current = false;
+          processQueue();
+        }, 300);
+      });
     }
   }, [toast.visible, processQueue]);
 
-  // Cleanup timeouts on unmount to prevent memory leaks
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {
@@ -114,9 +115,9 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
     <ToastContext.Provider value={{ showToast, dismissToast }}>
       {children}
       <Portal>
-        <ToastView 
-          visible={toast.visible} 
-          message={toast.message} 
+        <ToastView
+          visible={toast.visible}
+          message={toast.message}
           onDismiss={dismissToast}
         />
       </Portal>
@@ -132,7 +133,8 @@ export function useToast() {
 
 export function useDismissToast() {
   const ctx = useContext(ToastContext);
-  if (!ctx) throw new Error('useDismissToast must be used within a ToastProvider');
+  if (!ctx)
+    throw new Error('useDismissToast must be used within a ToastProvider');
   return ctx.dismissToast;
 }
 
@@ -147,7 +149,7 @@ const ToastBox = styled(View, {
 });
 
 const ToastText = styled(Text, {
-  color: '$positiveActionText',
+  color: '$background',
   size: '$label/m',
   textAlign: 'center',
 });
@@ -161,59 +163,36 @@ function ToastView({
   message: string;
   onDismiss: () => void;
 }) {
-  const translateY = useSharedValue(40);
-  const opacity = useSharedValue(0);
   const insets = useSafeAreaInsets();
 
-  useEffect(() => {
-    if (visible) {
-      translateY.value = withTiming(0, {
-        duration: 300,
-        easing: Easing.out(Easing.cubic),
-      });
-      opacity.value = withTiming(1, { duration: 300 });
-    } else {
-      translateY.value = withTiming(40, {
-        duration: 200,
-        easing: Easing.in(Easing.cubic),
-      });
-      opacity.value = withTiming(0, { duration: 200 });
-    }
-  }, [visible, opacity, translateY]);
-
-  const animatedStyle = useAnimatedStyle(
-    () => ({
-      transform: [{ translateY: translateY.value }],
-      opacity: opacity.value,
-    }),
-    [translateY, opacity]
-  );
+  if (!visible) {
+    return null;
+  }
 
   return (
-    <Animated.View
-      style={[
-        {
-          width: '100%',
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          alignItems: 'center',
-          pointerEvents: 'box-none',
-        },
-        animatedStyle,
-      ]}
+    <View
+      style={{
+        width: '100%',
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+        pointerEvents: 'box-none',
+      }}
       pointerEvents="box-none"
     >
-      <Pressable onPress={onDismiss} disabled={!visible}>
+      <Pressable onPress={onDismiss}>
         <ToastBox
-          backgroundColor={'$positiveBackground'}
-          marginBottom={(insets.bottom + getTokenValue('$5xl', 'size')) as number}
+          backgroundColor={'$positiveActionText'}
+          marginBottom={
+            (insets.bottom + getTokenValue('$5xl', 'size')) as number
+          }
           testID="ToastMessage"
         >
           <ToastText>{message}</ToastText>
         </ToastBox>
       </Pressable>
-    </Animated.View>
+    </View>
   );
 }
