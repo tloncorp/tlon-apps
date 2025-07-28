@@ -10,10 +10,8 @@ import { config } from '../ui';
 import { getDisplayTheme, normalizeTheme } from '../ui/utils/themeUtils';
 
 export const ThemeContext = React.createContext<{
-  /** Sets the root app theme - does not push to remote or persist to database. */
-  setActiveTheme: (theme: AppTheme) => void;
   activeTheme: AppTheme;
-}>({ setActiveTheme: () => {}, activeTheme: 'light' });
+}>({ activeTheme: 'light' });
 
 export function Provider({
   children,
@@ -31,14 +29,11 @@ function ThemeProviderContent({
   children: React.ReactNode;
   tamaguiProps: Omit<TamaguiProviderProps, 'config'>;
 }) {
-  const [activeTheme, setActiveTheme] = useSyncedAppTheme();
+  const [activeTheme] = useSyncedAppTheme();
 
   return (
     <ThemeContext.Provider
-      value={useMemo(
-        () => ({ setActiveTheme, activeTheme }),
-        [setActiveTheme, activeTheme]
-      )}
+      value={useMemo(() => ({ activeTheme }), [activeTheme])}
     >
       <TamaguiProvider
         {...tamaguiProps}
@@ -50,30 +45,6 @@ function ThemeProviderContent({
     </ThemeContext.Provider>
   );
 }
-
-export const setTheme = async (
-  theme: AppTheme,
-  setActiveTheme: (theme: AppTheme) => void
-) => {
-  try {
-    setActiveTheme(theme);
-    await store.updateTheme(theme);
-  } catch (error) {
-    console.warn('Failed to save theme preference:', error);
-  }
-};
-
-export const clearTheme = async (
-  setActiveTheme: (theme: AppTheme) => void,
-  isDarkMode: boolean
-) => {
-  try {
-    setActiveTheme(isDarkMode ? 'dark' : 'light');
-    await store.updateTheme('auto');
-  } catch (error) {
-    console.warn('Failed to clear theme preference:', error);
-  }
-};
 
 export const useActiveTheme = () => {
   const { activeTheme } = React.useContext(ThemeContext);
