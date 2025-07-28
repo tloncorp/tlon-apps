@@ -14,7 +14,7 @@ export function ReadOnlyNotice({
 }) {
   const Message =
     type === 'read-only' ? (
-      <>'This channel is read-only for you.'</>
+      <>This channel is read-only for you.</>
     ) : type === 'no-longer-read' ? (
       <>You no longer have permission to read this channel.</>
     ) : (
