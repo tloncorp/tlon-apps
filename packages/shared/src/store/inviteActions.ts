@@ -20,7 +20,7 @@ import {
 import { desig } from '../urbit';
 import { syncGroupPreviews } from './sync';
 
-const logger = createDevLogger('inviteActions', true);
+const logger = createDevLogger('inviteActions', false);
 
 export async function verifyUserInviteLink() {
   try {
@@ -186,7 +186,6 @@ export async function redeemInviteIfNeeded(invite: logic.AppInvite) {
     logger.trackEvent(AnalyticsEvent.InviteDebug, {
       context: 'attempting to bite lure',
       inviteId: invite.id,
-      endpoint: constants.INVITE_PROVIDER,
     });
     try {
       const endpoint = `${constants.INVITE_PROVIDER}/lure/${invite.id}`;

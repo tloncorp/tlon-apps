@@ -35,14 +35,6 @@ export function InviteFriendsToTlonButton({
     inviteServiceEndpoint: inviteService.endpoint,
     inviteServiceIsDev: inviteService.isDev,
   });
-
-  console.log('InviteFriendsToTlonButton state:', {
-    groupId: group?.id,
-    status,
-    shareUrl,
-    inviteServiceEndpoint: inviteService.endpoint,
-    inviteServiceIsDev: inviteService.isDev,
-  });
   const { doCopy, didCopy } = useCopy(shareUrl || '');
 
   useEffect(() => {
