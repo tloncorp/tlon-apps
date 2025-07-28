@@ -66,28 +66,33 @@ export function uid(): string {
   return str.slice(0, -1);
 }
 
-export default class EventEmitter {
-  private listeners: Record<string, ((...data: any[]) => void)[]> = {};
+type AnyEventMap = { [key: string]: (...args: any[]) => void };
 
-  on(event: string, callback: (...data: any[]) => void) {
+export default class EventEmitter<
+  EventMap extends AnyEventMap = { [key: string]: (...args: any[]) => void },
+> {
+  private listeners: Partial<{
+    [E in keyof EventMap]: Array<EventMap[E]>;
+  }> = {};
+
+  on<E extends keyof EventMap>(event: E, callback: EventMap[E]) {
     if (!(event in this.listeners)) {
       this.listeners[event] = [];
     }
 
-    this.listeners[event].push(callback);
+    this.listeners[event]!.push(callback);
 
     return this;
   }
 
-  emit(event: string, ...data: any): any {
+  emit<E extends keyof EventMap>(event: E, ...data: Parameters<EventMap[E]>) {
     if (!(event in this.listeners)) {
-      return null;
+      return;
     }
 
-    for (let i = 0; i < this.listeners[event].length; i++) {
-      const callback = this.listeners[event][i];
-
-      callback.call(this, ...data);
+    for (let i = 0; i < this.listeners[event]!.length; i++) {
+      const callback = this.listeners[event]![i];
+      callback.apply(this, data);
     }
   }
 }
