@@ -34,36 +34,12 @@ test('should generate an invite link and be able to redeem group/personal invite
   await helpers.openGroupSettings(zodPage);
   await helpers.navigateBack(zodPage);
 
-  // Confirm it generated an invite link for the group
-  // Wait for the button to show "Invite Friends" (indicating linkIsReady = true)
-  // But also add retry logic since enableGroupLinks might not be complete yet
-  let attempts = 0;
-  const maxAttempts = 6; // 30 seconds total with 5s intervals
+  await expect(zodPage.getByText('Invite Friends')).toBeVisible({
+    timeout: 2000,
+  });
 
-  while (attempts < maxAttempts) {
-    try {
-      // Wait for the button to appear with "Invite Friends" text
-      await expect(zodPage.getByText('Invite Friends')).toBeVisible({
-        timeout: 15000,
-      });
+  await zodPage.getByText('Invite Friends').click();
 
-      // Try to click - if enableGroupLinks isn't complete, this might fail
-      await zodPage.getByText('Invite Friends').click();
-
-      // If click succeeded, break out of retry loop
-      break;
-    } catch (error) {
-      attempts++;
-      if (attempts >= maxAttempts) {
-        throw error;
-      }
-
-      console.log(
-        `Invite button click attempt ${attempts} failed, retrying...`
-      );
-      await zodPage.waitForTimeout(5000); // Wait 5s before retry (matches useLure refetch interval)
-    }
-  }
   const clipboardText: string = await zodPage.evaluate(
     'navigator.clipboard.readText()'
   );
