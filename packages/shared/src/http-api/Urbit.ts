@@ -5,6 +5,7 @@ import { isBrowser } from 'browser-or-node';
 import { TimeoutError } from '../api';
 import { desig } from '../urbit';
 import * as utils from '../utils';
+import { EventEmitter } from '../utils/EventEmitter';
 import { UrbitHttpApiEvent, UrbitHttpApiEventType } from './events';
 import { EventSourceMessage, fetchEventSource } from './fetch-event-source';
 import {
@@ -26,7 +27,7 @@ import {
   Thread,
   headers,
 } from './types';
-import EventEmitter, { hexString, unpackJamBytes } from './utils';
+import { hexString, unpackJamBytes } from './utils';
 
 //TODO  move into nockjs utils
 function isNoun(a: any): a is Noun {
