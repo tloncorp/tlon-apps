@@ -1,7 +1,7 @@
 import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { SectionListHeader, useIsWindowNarrow } from '@tloncorp/ui';
+import { SectionListHeader, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { LoadingSpinner } from '@tloncorp/ui';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { LayoutChangeEvent } from 'react-native';
@@ -299,6 +299,21 @@ export const GroupChannelsScreenView = React.memo(
               paddingBottom: insets.bottom,
             }}
           />
+        ) : group && group.channels && group.channels.length === 0 ? (
+          <YStack
+            flex={1}
+            justifyContent="center"
+            alignItems="center"
+            gap="$m"
+            padding="$m"
+          >
+            <Text color="$primaryText" fontSize="$m" textAlign="center">
+              You don&apos;t have access to any channels in this group.
+            </Text>
+            <Text color="$primaryText" fontSize="$m" textAlign="center">
+              Please contact the group host to request access.
+            </Text>
+          </YStack>
         ) : (
           <YStack flex={1} justifyContent="center" alignItems="center">
             <LoadingSpinner />

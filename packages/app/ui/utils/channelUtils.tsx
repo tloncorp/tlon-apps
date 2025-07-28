@@ -172,6 +172,21 @@ export function useCanWrite(channel: db.Channel, userId: string): boolean {
   return canWrite;
 }
 
+export function useCanRead(channel: db.Channel, userId: string): boolean {
+  const readers = useMemo(
+    () => channel.readerRoles?.map((role) => role.roleId) ?? [],
+    [channel.readerRoles]
+  );
+  const memberRoles = useMemberRoles(channel.groupId ?? '', userId);
+  const canRead = useMemo(
+    () =>
+      readers.length === 0 ||
+      memberRoles.some((role) => readers.includes(role)),
+    [readers, memberRoles]
+  );
+  return canRead;
+}
+
 export function getChannelTypeIcon(type: db.Channel['type']): IconType {
   switch (type) {
     case 'dm':

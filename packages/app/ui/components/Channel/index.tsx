@@ -165,6 +165,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const groups = useMemo(() => (group ? [group] : null), [group]);
     const currentUserId = useCurrentUserId();
     const canWrite = utils.useCanWrite(channel, currentUserId);
+    const canRead = utils.useCanRead(channel, currentUserId);
     const collectionRef = useRef<PostCollectionHandle>(null);
 
     const isChatChannel = channel ? getIsChatChannel(channel) : true;
@@ -426,16 +427,18 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                             )}
                           </AnimatePresence>
 
-                          {!canWrite || !negotiationMatch ? (
+                          {!canRead || !canWrite || !negotiationMatch ? (
                             <ReadOnlyNotice
                               type={
-                                !canWrite
-                                  ? 'read-only'
-                                  : isDM
-                                    ? 'dm-mismatch'
-                                    : isGroupDm
-                                      ? 'group-dm-mismatch'
-                                      : 'channel-mismatch'
+                                !canRead
+                                  ? 'no-longer-read'
+                                  : !canWrite
+                                    ? 'read-only'
+                                    : isDM
+                                      ? 'dm-mismatch'
+                                      : isGroupDm
+                                        ? 'group-dm-mismatch'
+                                        : 'channel-mismatch'
                               }
                             />
                           ) : channel.contentConfiguration == null ? (

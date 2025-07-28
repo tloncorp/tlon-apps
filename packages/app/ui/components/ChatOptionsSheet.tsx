@@ -140,6 +140,12 @@ export function GroupOptionsSheetLoader({
     setPane('initial');
   }, [setPane]);
 
+  useEffect(() => {
+    if (!open) {
+      resetPane();
+    }
+  }, [open, resetPane]);
+
   const title = utils.useGroupTitle(group) ?? 'Loading...';
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = utils.useIsAdmin(groupId, currentUserId);
@@ -796,9 +802,9 @@ export function ChatOptionsSheetContent({
           </ActionSheet.MainContent>
         </ActionSheet.Header>
       )}
-      <ActionSheet.ScrollableContent width={isWindowNarrow ? '100%' : 240}>
+      <ActionSheet.Content width={isWindowNarrow ? '100%' : 240}>
         <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
-      </ActionSheet.ScrollableContent>
+      </ActionSheet.Content>
     </>
   );
 }

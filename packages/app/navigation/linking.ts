@@ -1,4 +1,4 @@
-import { LinkingOptions } from '@react-navigation/native';
+import type { LinkingOptions } from '@react-navigation/native';
 
 import {
   DesktopBasePathStackParamList,

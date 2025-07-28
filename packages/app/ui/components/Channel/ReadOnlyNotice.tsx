@@ -5,11 +5,18 @@ import { SizableText, View, YStack } from 'tamagui';
 export function ReadOnlyNotice({
   type,
 }: {
-  type: 'read-only' | 'dm-mismatch' | 'group-dm-mismatch' | 'channel-mismatch';
+  type:
+    | 'read-only'
+    | 'dm-mismatch'
+    | 'group-dm-mismatch'
+    | 'channel-mismatch'
+    | 'no-longer-read';
 }) {
   const Message =
     type === 'read-only' ? (
-      <>'This channel is read-only for you.'</>
+      <>This channel is read-only for you.</>
+    ) : type === 'no-longer-read' ? (
+      <>You no longer have permission to read this channel.</>
     ) : (
       <>
         Your node&apos;s version of the Tlon app doesn&apos;t match the{' '}

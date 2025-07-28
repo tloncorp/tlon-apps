@@ -283,7 +283,7 @@ export async function inviteGroupMembers({
     chatId: groupId,
     type: 'group',
     contactIds,
-    status: 'invited',
+    joinStatus: 'invited',
   });
 
   logger.trackEvent(AnalyticsEvent.OnNetworkInvite, {
@@ -1025,7 +1025,7 @@ export async function kickUserFromGroup({
       chatId: groupId,
       type: 'group',
       contactIds: [contactId],
-      status: 'joined',
+      joinStatus: 'joined',
     });
   }
 }
@@ -1090,7 +1090,7 @@ export async function banUserFromGroup({
       chatId: groupId,
       type: 'group',
       contactIds: [contactId],
-      status: 'joined',
+      joinStatus: 'joined',
     });
 
     await db.deleteGroupMemberBans({
@@ -1174,7 +1174,11 @@ export async function acceptUserJoin({
     return;
   }
 
-  if (existingGroup.members.find((member) => member.contactId === contactId)) {
+  if (
+    existingGroup.members.find(
+      (member) => member.contactId === contactId && member.status === 'joined'
+    )
+  ) {
     console.error('User already in group', groupId, contactId);
     return;
   }
@@ -1200,7 +1204,7 @@ export async function acceptUserJoin({
     chatId: groupId,
     type: 'group',
     contactIds: [contactId],
-    status: 'joined',
+    joinStatus: 'joined',
   });
 
   await db.deleteGroupJoinRequests({

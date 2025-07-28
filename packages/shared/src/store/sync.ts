@@ -230,7 +230,7 @@ const syncRelevantChannelPosts = async (
   }
 };
 
-export const syncSettings = async (ctx?: SyncCtx) => {
+export const pullSettings = async (ctx?: SyncCtx) => {
   const settings = await syncQueue.add('settings', ctx, () =>
     api.getSettings()
   );
@@ -791,7 +791,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
           chatId: update.groupId,
           contactIds: update.ships,
           type: 'group',
-          status: 'joined',
+          joinStatus: 'joined',
         },
         ctx
       );
@@ -1641,7 +1641,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
             () => logger.crumb(`finished syncing contacts`)
           )
         : Promise.resolve(),
-      syncSettings({ priority: SyncPriority.Medium }).then(() =>
+      pullSettings({ priority: SyncPriority.Medium }).then(() =>
         logger.crumb(`finished syncing settings`)
       ),
       syncVolumeSettings({ priority: SyncPriority.Low }).then(() =>
