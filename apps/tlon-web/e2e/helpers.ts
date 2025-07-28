@@ -236,6 +236,77 @@ export async function unassignRoleFromMember(
 }
 
 /**
+ * Forwards a message to a specific contact via DM
+ */
+export async function forwardMessageToDM(
+  page: Page,
+  messageText: string,
+  contactId: string
+) {
+  await longPressMessage(page, messageText);
+  await page.getByText('Forward', { exact: true }).click();
+
+  // Verify forward sheet opened
+  await expect(page.getByText('Forward to channel')).toBeVisible();
+
+  // Search for the contact's DM
+  await page.getByPlaceholder('Search channels').fill(contactId);
+  await page.waitForTimeout(2000); // Wait longer for search results
+
+  // Try to click on the contact using a more specific selector
+  try {
+    // First try with test ID if available
+    const contactRow = page.getByTestId(`ChannelListItem-${contactId}`);
+    if (await contactRow.isVisible({ timeout: 2000 })) {
+      await contactRow.click();
+    } else {
+      // Fallback to text-based selection with force click to handle overlays
+      await page.getByText(contactId).first().click({ force: true });
+    }
+  } catch (error) {
+    // Final fallback: try clicking with force
+    await page.getByText(contactId).first().click({ force: true });
+  }
+
+  // Confirm forward
+  await page.getByText(`Forward to ${contactId}`).click();
+}
+
+/**
+ * Forwards a group reference to a specified channel
+ */
+export async function forwardGroupReference(
+  page: Page,
+  channelName: string
+) {
+  // Click the Forward button in group info
+  await page.getByText('Forward').click();
+
+  // Verify forward sheet opened
+  await expect(page.getByText('Forward group')).toBeVisible();
+
+  // Search for the channel
+  await page.getByPlaceholder('Search channels').fill(channelName);
+  await page.waitForTimeout(2000);
+
+  // Click on the channel in the modal (not the sidebar)
+  const channelRow = page.getByTestId(`ChannelListItem-${channelName}`);
+  await expect(channelRow).toBeVisible({ timeout: 5000 });
+  await channelRow.click();
+
+  // Wait for the confirm button to appear and become clickable
+  const confirmButton = page.getByText(`Forward to ${channelName}`);
+  await expect(confirmButton).toBeVisible({ timeout: 5000 });
+  await confirmButton.click();
+
+  // Verify toast appears
+  await expect(page.getByText('Forwarded')).toBeVisible({ timeout: 5000 });
+
+  // Verify modal closes
+  await expect(page.getByText('Forward to channel')).not.toBeVisible({ timeout: 3000 });
+}
+
+/**
  * Creates a new channel with title and type
  */
 export async function createChannel(

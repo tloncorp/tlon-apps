@@ -1,6 +1,5 @@
-import { ContentReference } from '../api';
 import { createDevLogger } from '../debug';
-import { getConstants } from '../domain';
+import { ContentReference, getConstants } from '../domain';
 import { citeToPath } from '../urbit';
 import { AppInvite, getBranchLinkMeta, isLureMeta } from './branch';
 

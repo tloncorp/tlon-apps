@@ -353,8 +353,12 @@
 ::  the group host then deletes her seat.
 ::
 ::  if a ship is asking to join the group, she can rescind this request
-::  by issuing a %leave poke. the group host then deletes the request
+::  by sending a %leave poke. the group host then deletes the request
 ::  and kicks the ask subscription.
+::
+::  TODO if a ship is in the pending list, she can signal invite rejection
+::  by sending a %leave poke. the group host then deleted her from the
+::  pending list.
 ::
 ++  test-c-groups-leave
   %-  eval-mare

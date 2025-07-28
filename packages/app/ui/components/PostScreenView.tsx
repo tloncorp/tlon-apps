@@ -4,6 +4,7 @@ import {
   useDebouncedValue,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import type * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import * as urbit from '@tloncorp/shared/urbit';
 import { Story } from '@tloncorp/shared/urbit';
@@ -18,6 +19,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, YStack } from 'tamagui';
 
@@ -110,7 +112,7 @@ export function PostScreenView({
   const [focusedPost, setFocusedPost] = useState<db.Post | null>(parentPost);
 
   const mode: 'single' | 'carousel' = useMemo(() => {
-    if (!isWindowNarrow) {
+    if (Platform.OS === 'web' || !isWindowNarrow) {
       return 'single';
     }
 
@@ -461,14 +463,26 @@ function SinglePostView({
   const sendReply = useCallback(
     async (content: urbit.Story) => {
       await store.sendReply({
-        authorId: currentUserId,
         content,
         channel: channel,
         parentId: parentPost.id,
         parentAuthor: parentPost.authorId,
       });
     },
-    [currentUserId, channel, parentPost, store]
+    [channel, parentPost, store]
+  );
+
+  const sendReplyFromDraft = useCallback(
+    async (draft: domain.PostDataDraftParent) => {
+      const finalized = await store.finalizePostDraft(draft);
+      await store.sendReply({
+        content: finalized.content,
+        channel: channel,
+        parentId: parentPost.id,
+        parentAuthor: parentPost.authorId,
+      });
+    },
+    [channel, parentPost, store]
   );
 
   const isChatLike = useMemo(
@@ -508,7 +522,8 @@ function SinglePostView({
               placeholder="Reply"
               shouldBlur={inputShouldBlur}
               setShouldBlur={setInputShouldBlur}
-              send={sendReply}
+              sendPost={sendReply}
+              sendPostFromDraft={sendReplyFromDraft}
               channelId={channel.id}
               groupMembers={groupMembers}
               groupRoles={groupRoles}
@@ -562,7 +577,8 @@ function SinglePostView({
             editPost={editPost}
             shouldBlur={inputShouldBlur}
             setShouldBlur={setInputShouldBlur}
-            send={async () => {}}
+            sendPost={async () => {}}
+            sendPostFromDraft={async () => {}}
             getDraft={getDraft}
             storeDraft={storeDraft}
             clearDraft={clearDraft}

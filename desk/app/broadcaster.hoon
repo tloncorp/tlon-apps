@@ -1,6 +1,6 @@
 ::  broadcaster: multi-target dms
 ::
-/-  c=chat, ch=channels, c3=chat-3
+/-  c=chat, ch=channels, c4=chat-4, c3=chat-3
 /+  cj=channel-json, dm,
     dbug, verb
 ::
@@ -13,7 +13,8 @@
 +$  cohort
   $:  targets=(set ship)
       logging=(list relive)
-      outward=(list writ:c)  ::NOTE  invented-here fake seal?
+      :: TODO: outward is unused, remove?
+      outward=(list writ:c4)
   ==
 +$  relive
   $:  wen=@da
@@ -88,7 +89,7 @@
     ==
   ++  outward-0-to-1
     |=  outward=(list writ:c3)
-    ^-  (list writ:c)
+    ^-  (list writ:c4)
     (turn outward writ-7-to-8:dm)
   --
 ::
