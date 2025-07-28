@@ -75,6 +75,7 @@ jobs:
         working-directory: ./apps/tlon-web
         env:
           VITE_INVITE_PROVIDER: http://localhost:39983
+          VITE_INVITE_SERVICE_ENDPOINT: https://serverless-infra.vercel.app/api/inviteLink
 
       - uses: actions/upload-artifact@v4
         if: always()
