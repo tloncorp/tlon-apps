@@ -2272,6 +2272,9 @@
       (se-update %channel nest [%add chan])
     ::
         %edit
+      =/  old=channel:g  (got:by-ch nest)
+      ::  preserve original timestamp
+      =.  added.chan  added.old
       =.  sections.group  (se-section-add-channel nest chan)
       =.  channels.group  (put:by-ch nest chan)
       (se-update %channel nest [%edit chan])
