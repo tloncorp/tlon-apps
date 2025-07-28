@@ -450,7 +450,13 @@ export async function getMainGroupRoute(
     }
 
     if (!isWindowNarrow) {
-      return getDesktopChannelRoute('Home', group.channels[0].id, groupId);
+      if (group.channels.length > 0) {
+        return getDesktopChannelRoute('Home', group.channels[0].id, groupId);
+      }
+      return {
+        name: 'GroupChannels',
+        params: { groupId },
+      } as const;
     }
 
     return {
