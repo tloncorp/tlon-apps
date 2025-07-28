@@ -16,6 +16,7 @@ import { useShip } from '@tloncorp/app/contexts/ship';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { unregisterBackgroundSyncTask } from '@tloncorp/app/lib/backgroundSync';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
+import { splashScreenProgress } from '@tloncorp/app/lib/splashscreen';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
   LoadingSpinner,
@@ -27,6 +28,7 @@ import {
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
 import * as db from '@tloncorp/shared/db';
 import { setBadgeCountAsync } from 'expo-notifications';
+import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useMemo, useState } from 'react';
 import { StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -34,6 +36,15 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { OnboardingStack } from './OnboardingStack';
 import AuthenticatedApp from './components/AuthenticatedApp';
 import { SignupProvider, useSignupContext } from './lib/signupContext';
+
+SplashScreen.preventAutoHideAsync().catch((err) => {
+  console.warn('Failed to prevent auto hide splash screen', err);
+});
+splashScreenProgress.emitter.on('complete', () => {
+  SplashScreen.hideAsync().catch((err) => {
+    console.warn('Failed to hide splash screen', err);
+  });
+});
 
 unregisterBackgroundSyncTask();
 

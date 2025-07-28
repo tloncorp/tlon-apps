@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { TamaguiProvider, TamaguiProviderProps } from 'tamagui';
 
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
+import { SplashScreenTask, splashScreenProgress } from '../lib/splashscreen';
 import { AppTheme } from '../types/theme';
 import { config } from '../ui';
 import { getDisplayTheme, normalizeTheme } from '../ui/utils/themeUtils';
@@ -63,6 +64,7 @@ function useSyncedAppTheme() {
     if (isLoading) {
       return;
     }
+    splashScreenProgress.complete(SplashScreenTask.loadTheme);
     const normalizedTheme =
       storedTheme == null ? 'auto' : normalizeTheme(storedTheme);
     setActiveTheme(getDisplayTheme(normalizedTheme, isDarkMode));
