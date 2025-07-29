@@ -126,13 +126,43 @@ export function assemblePostFromActivityEvent(event: db.ActivityEvent) {
   return post;
 }
 
-export function buildPendingPost({
+/**
+ * Builds an update you can pass to `db.updatePost()`.
+ */
+export function buildPostUpdate({
+  id,
+  content,
+  metadata,
+  deliveryStatus = 'pending',
+}: {
+  id: types.Post['id'];
+  content: ub.Story;
+  metadata?: db.PostMetadata;
+  deliveryStatus?: db.PostDeliveryStatus;
+}) {
+  const [postContent, postFlags] = api.toPostContent(content);
+  return {
+    title: metadata?.title ?? '',
+    image: metadata?.image ?? '',
+    content: JSON.stringify(postContent),
+    textContent: logic.getTextContent(
+      postContent,
+      logic.PlaintextPreviewConfig.inlineConfig
+    ),
+    images: api.getContentImages(id, content),
+    deliveryStatus,
+    ...postFlags,
+  } satisfies Partial<types.Post>;
+}
+
+export function buildPost({
   authorId,
   author,
   channel,
   content,
   metadata,
   parentId,
+  deliveryStatus = 'pending',
 }: {
   authorId: string;
   author?: types.Contact | null;
@@ -140,13 +170,20 @@ export function buildPendingPost({
   content: ub.Story;
   metadata?: db.PostMetadata;
   parentId?: string;
+  deliveryStatus?: db.PostDeliveryStatus;
 }): types.Post {
   const sentAt = Date.now();
   const id = getCanonicalPostId(unixToDa(sentAt).toString());
-  const [postContent, postFlags] = api.toPostContent(content);
   const type = logic.getPostTypeFromChannelId({
     channelId: channel.id,
     parentId,
+  });
+
+  const contentUpdate = buildPostUpdate({
+    id,
+    content,
+    metadata,
+    deliveryStatus,
   });
 
   return {
@@ -158,23 +195,14 @@ export function buildPendingPost({
     type,
     sentAt,
     receivedAt: sentAt,
-    title: metadata?.title ?? '',
-    image: metadata?.image ?? '',
-    content: JSON.stringify(postContent),
-    textContent: logic.getTextContent(
-      postContent,
-      logic.PlaintextPreviewConfig.inlineConfig
-    ),
-    images: api.getContentImages(id, content),
     reactions: [],
     replies: [],
     replyContactIds: [],
     replyCount: 0,
     hidden: false,
     parentId,
-    deliveryStatus: 'pending',
     syncedAt: Date.now(),
-    ...postFlags,
+    ...contentUpdate,
   };
 }
 

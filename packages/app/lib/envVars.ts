@@ -32,6 +32,7 @@ const envVars = {
   inviteServiceEndpoint: env.VITE_INVITE_SERVICE_ENDPOINT,
   inviteServiceIsDev: env.VITE_INVITE_SERVICE_IS_DEV,
   gitHash: env.VITE_GIT_HASH,
+  disableSplashModal: env.VITE_DISABLE_SPLASH_MODAL,
 } as Record<string, string | undefined>;
 
 export const DEV_SHIP_URL = envVars.devShipUrl ?? '';
@@ -74,6 +75,7 @@ export const INVITE_SERVICE_ENDPOINT = envVars.inviteServiceEndpoint ?? '';
 export const INVITE_SERVICE_IS_DEV =
   envVars.inviteServiceIsDev === 'true' ? true : undefined;
 export const GIT_HASH = envVars.gitHash ?? 'unknown';
+export const DISABLE_SPLASH_MODAL = envVars.disableSplashModal === 'true';
 
 export const ENV_VARS = {
   DEV_SHIP_URL,
@@ -106,4 +108,5 @@ export const ENV_VARS = {
   INVITE_SERVICE_ENDPOINT,
   INVITE_SERVICE_IS_DEV,
   GIT_HASH,
+  DISABLE_SPLASH_MODAL,
 };

@@ -18,6 +18,7 @@ function SummaryMessageRaw({
   const count = summary.all.length;
   const plural = summary.all.length > 1;
   const authors = useActivitySummaryAuthors(summary);
+  const shipsPlural = authors.length > 1;
 
   if (
     authors.length === 1 &&
@@ -122,7 +123,7 @@ function SummaryMessageRaw({
     return (
       <SummaryText>
         <ActivitySummaryAuthorList contactIds={authors} />
-        {` ${plural ? 'are' : 'is'} requesting to join the group`}
+        {` ${shipsPlural ? 'are' : 'is'} requesting to join the group`}
       </SummaryText>
     );
   }

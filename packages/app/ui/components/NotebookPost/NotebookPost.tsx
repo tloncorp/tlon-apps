@@ -125,6 +125,7 @@ export function NotebookPost({
       maxWidth={600}
       width={'100%'}
       marginHorizontal="auto"
+      testID="Post"
     >
       <NotebookPostFrame size={size} disabled={viewMode === 'activity'}>
         {post.hidden ? (

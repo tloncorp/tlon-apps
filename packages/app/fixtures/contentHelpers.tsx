@@ -1,7 +1,8 @@
 import { faker } from '@faker-js/faker';
 import { useQuery } from '@tanstack/react-query';
-import type { ContentReference, PostContent } from '@tloncorp/shared/api';
+import type { PostContent } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import type { ContentReference } from '@tloncorp/shared/domain';
 import * as ub from '@tloncorp/shared/urbit';
 
 import {
