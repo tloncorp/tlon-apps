@@ -1643,6 +1643,11 @@
     ::  delete the seat of the leaving member, unless he is the host
     ::
     ?:  &((~(has by seats.group) src.bowl) !=(p.flag src.bowl))
+      =.  se-core
+        %+  roll  ~(tap by channels.group)
+        |=  [[=nest:g *] =_se-core]
+        ?.  =(p.q.nest src.bowl)  se-core
+        (se-c-channel:se-core nest %del ~)
       (se-c-seat (sy src.bowl ~) [%del ~])
     =?  se-core  (~(has by pending.ad) src.bowl)
       =.  pending.ad  (~(del by pending.ad) src.bowl)
@@ -2069,7 +2074,7 @@
         %-  ~(rep in ships)
         |=  [=ship =_seats.group]
         (~(del by seats) ship)
-      ::  kick out deleted members from the groups updates path
+      ::  kick out deleted members from /updates subscription
       ::
       =/  kicks
         %+  roll  ~(tap by sup.bowl)
