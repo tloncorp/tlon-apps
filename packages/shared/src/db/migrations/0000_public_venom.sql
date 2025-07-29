@@ -315,6 +315,7 @@ CREATE TABLE `posts` (
 	`hidden` integer DEFAULT false,
 	`is_edited` integer,
 	`is_deleted` integer,
+	`deleted_at` integer,
 	`delivery_status` text,
 	`edit_status` text,
 	`delete_status` text,

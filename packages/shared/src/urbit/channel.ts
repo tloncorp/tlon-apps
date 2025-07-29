@@ -111,10 +111,19 @@ export interface PostEssay {
   meta: Metadata | null;
 }
 
+export type PostTombstone = {
+  author: Ship;
+  id: string;
+  ['deleted-at']: number;
+  seq: number;
+  type: 'tombstone';
+};
+
 export type Post = {
   seal: PostSeal;
   essay: PostEssay;
   revision?: string;
+  type: 'post';
 };
 
 export interface PagedPosts {
@@ -129,7 +138,7 @@ export interface PagedPostsMap extends Omit<PagedPosts, 'posts'> {
 }
 
 export interface Posts {
-  [time: string]: Post | null;
+  [time: string]: Post | PostTombstone | null;
 }
 
 export type PostTuple = [BigInteger, Post | null];
@@ -533,6 +542,7 @@ export const emptyPost: Post = {
     blob: null,
     meta: null,
   },
+  type: 'post',
 };
 
 export const emptyReply: Reply = {
@@ -614,15 +624,6 @@ export function newPostMap(entries?: PostTuple[], reverse = false): PageMap {
 }
 
 export type ChatMap = BTree<BigInteger, Post | Writ | Reply | null>;
-
-export function newChatMap(
-  entries?: [BigInteger, Post | Writ | Reply | null][],
-  reverse = false
-): ChatMap {
-  return new BTree<BigInteger, Post | Reply | null>(entries, (a, b) =>
-    reverse ? b.compare(a) : a.compare(b)
-  );
-}
 
 export interface PostSealDataResponse {
   id: string;

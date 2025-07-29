@@ -6,7 +6,14 @@ import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
-import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
+import {
+  ComponentProps,
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { useChannelContext } from '../../contexts';

@@ -68,9 +68,9 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     ]
   );
 
-  // useEffect(() => {
-  //   console.log(`bl:qk query key changed`, queryKey);
-  // }, [queryKey]);
+  useEffect(() => {
+    console.log(`bl:qk query key changed`, queryKey);
+  }, [queryKey]);
 
   const initialPageParam = useMemo(() => {
     return {
@@ -199,7 +199,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
         }
       }
       postsLogger.log(
-        'returning',
+        'ql: returning',
         secondResult?.length,
         'posts from db after syncing from api',
         {
@@ -366,7 +366,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
 
   useTrackReady(posts, query, options.channelId);
 
-  console.log(`bl: ${posts?.length} posts`, posts);
+  console.log(`bl:postsFinal ${posts?.length} posts`, posts);
 
   return useMemo(
     () => ({ posts, query, loadOlder, loadNewer, isLoading }),

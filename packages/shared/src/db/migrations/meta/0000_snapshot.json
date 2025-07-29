@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "fa57c18d-431a-478e-8503-76b428709c8b",
+  "id": "77fb88db-0b2b-400b-9d11-1ea42719b0c1",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2088,6 +2088,13 @@
         },
         "is_deleted": {
           "name": "is_deleted",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "deleted_at": {
+          "name": "deleted_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,

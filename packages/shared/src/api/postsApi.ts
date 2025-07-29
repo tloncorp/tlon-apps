@@ -342,7 +342,7 @@ export interface GetChannelPostsResponse {
   older?: string | null;
   newer?: string | null;
   posts: db.Post[];
-  deletedPosts?: string[];
+  deletedPosts?: db.Post[];
   totalPosts?: number;
 }
 
@@ -359,7 +359,7 @@ export const getChannelPosts = async ({
     ...[
       type === 'dm' ? 'v2/dm' : null,
       type === 'club' ? 'v2/club' : null,
-      type === 'channel' ? 'v3' : null,
+      type === 'channel' ? 'v4' : null,
     ],
     channelId,
     type === 'channel' ? 'posts' : 'writs',
@@ -373,7 +373,7 @@ export const getChannelPosts = async ({
   );
 
   const response = await with404Handler(
-    scry<ub.PagedWrits>({
+    scry<ub.PagedWrits | ub.PagedPosts>({
       app,
       path,
     }),
@@ -774,7 +774,7 @@ export const getPostWithReplies = async ({
     path = `/v2/club/${channelId}/writs/writ/id/${authorId}/${postId}`;
   } else if (isGroupChannelId(channelId)) {
     app = 'channels';
-    path = `/v3/${channelId}/posts/post/${postId}`;
+    path = `/v4/${channelId}/posts/post/${postId}`;
   } else {
     throw new Error('invalid channel id');
   }
@@ -833,18 +833,23 @@ export function toPagedPostsData(
 export function toPostsData(
   channelId: string,
   posts: ub.Posts | ub.Writs | Record<string, ub.Reply>
-): { posts: db.Post[]; deletedPosts: string[] } {
+): { posts: db.Post[]; deletedPosts: db.Post[] } {
   const entries = Object.entries(posts);
-  const deletedPosts: string[] = [];
+  const deletedPosts: db.Post[] = [];
   const otherPosts: db.Post[] = [];
 
   for (const [id, post] of entries) {
-    if (post === null) {
-      deletedPosts.push(id);
-    } else {
-      const postData = toPostData(channelId, post);
-      otherPosts.push(postData);
+    // if (post === null) {
+    //   deletedPosts.push(id);
+    // } else {
+    //   const postData = toPostData(channelId, post);
+    //   otherPosts.push(postData);
+    // }
+    const postData = toPostData(channelId, post);
+    if (isPostTombstone(post)) {
+      deletedPosts.push(postData);
     }
+    otherPosts.push(postData);
   }
 
   otherPosts.sort((a, b) => (a.receivedAt ?? 0) - (b.receivedAt ?? 0));
@@ -857,10 +862,12 @@ export function toPostsData(
 
 export function toPostData(
   channelId: string,
-  post: ub.Post | ub.Writ | ub.PostDataResponse
+  post: ub.Post | ub.PostTombstone | ub.Writ | ub.PostDataResponse
 ): db.Post {
   const channelType = channelId.split('/')[0];
-  const getPostType = (post: ub.Post | ub.PostDataResponse) => {
+  const getPostType = (
+    post: ub.Post | ub.PostTombstone | ub.Writ | ub.PostDataResponse
+  ) => {
     if (isNotice(post)) {
       return 'notice';
     }
@@ -876,6 +883,21 @@ export function toPostData(
     }
   };
   const type = getPostType(post);
+
+  if (isPostTombstone(post)) {
+    return {
+      id: getCanonicalPostId(post.id),
+      authorId: post.author,
+      channelId,
+      type,
+      sentAt: getReceivedAtFromId(post.id),
+      isDeleted: true,
+      deletedAt: post['deleted-at'],
+      receivedAt: getReceivedAtFromId(post.id),
+      sequenceNum: post.seq ? Number(post.seq) : null,
+    };
+  }
+
   const [content, flags] = toPostContent(post?.essay.content);
   const id = getCanonicalPostId(post.seal.id);
   const backendTime =
@@ -961,9 +983,15 @@ function getReceivedAtFromId(postId: string) {
 }
 
 function isPostDataResponse(
-  post: ub.Post | ub.PostDataResponse
+  post: ub.Post | ub.Writ | ub.PostDataResponse
 ): post is ub.PostDataResponse {
   return !!(post.seal.replies && !Array.isArray(post.seal.replies));
+}
+
+function isPostTombstone(
+  post: ub.Post | ub.PostTombstone | ub.Writ | ub.PostDataResponse
+): post is ub.PostTombstone {
+  return 'type' in post && post.type === 'tombstone';
 }
 
 function getReplyData(
@@ -1140,7 +1168,13 @@ function parseKindData(kindData?: ub.KindData): db.PostMetadata | undefined {
   }
 }
 
-function isNotice(post: ub.Post | ub.PostDataResponse | null) {
+function isNotice(
+  post: ub.Post | ub.PostTombstone | ub.Writ | ub.PostDataResponse | null
+) {
+  if (!post || isPostTombstone(post)) {
+    return false;
+  }
+
   return post?.essay.kind === '/chat/notice';
 }
 

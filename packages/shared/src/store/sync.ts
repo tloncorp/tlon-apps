@@ -513,9 +513,12 @@ export async function syncUpdatedPosts(
     posts: response.posts,
   });
 
-  await db.deletePosts({
-    ids: response.deletedPosts ?? [],
-  });
+  // TODO: remove? should be safe, tombstones will show up as normal posts with
+  // the right flags set
+
+  // await db.deletePosts({
+  //   ids: response.deletedPosts ?? [],
+  // });
 
   return response;
 }
@@ -1328,6 +1331,12 @@ export async function syncPosts(
   const response = await syncQueue.add('channelPosts', ctx, () =>
     api.getChannelPosts(options)
   );
+
+  console.log(
+    `bl:sync posts ${options.channelId}/${options.cursor}/${options.mode}`,
+    response.posts
+  );
+
   if (response.posts.length) {
     await db.insertChannelPosts({
       posts: response.posts,
