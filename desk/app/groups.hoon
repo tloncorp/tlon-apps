@@ -1629,9 +1629,9 @@
   ::
   ::  if the client then wishes to forfeit that registration,
   ::  he can issue a group leave request. the group host then:
-  ::  1. deletes the client's seat and kicks
-  ::     any outstanding group subscriptions. the host
-  ::     also cleans up the pending and request records.
+  ::  1. removes all channels hosted by the client and subsequently
+  ::     deletes the client's seat and kicks any outstanding group subscriptions.
+  ::     the host also cleans up the pending and request records.
   ::     (this is handled in +se-c-seat.)
   ::  2. deletes the client's ask request and kicks
   ::     any outstanding ask subscriptions.
@@ -2037,7 +2037,7 @@
         %+  roll  ~(tap in ships)
         |=  [=ship =_se-core]
         =*  ad  admissions.group.se-core
-        ::TODO kick the user from subscriptions
+        ::TODO kick from /ask sub
         =.  requests.ad
           (~(del by requests.ad) ship)
         =/  roles  (~(get by pending.ad) ship)
@@ -2060,7 +2060,7 @@
       ::  clean up ask and pending record
       ::
       =.  pending.ad   (~(del by pending.ad) ship)
-      ::TODO kick from subscriptions
+      ::TODO kick from /ask  sub
       =.  requests.ad  (~(del by requests.ad) ship)
       ::TODO if any of the ships was pending and invited,
       ::     cancel their tokens.
