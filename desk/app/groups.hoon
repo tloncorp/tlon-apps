@@ -2901,9 +2901,9 @@
           %fact
         =*  cage  cage.sign
         ?>  ?=(%group-token p.cage)
-        =+  !<(=token:g q.cage)
+        =+  !<(tok=(unit token:g) q.cage)
         =+  ship=(slav %p i.t.wire)
-        (go-a-invite ship `token ~)
+        (go-a-invite ship tok ~)
       ==
     ::
         ::  joined or left channels

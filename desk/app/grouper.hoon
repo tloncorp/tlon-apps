@@ -246,8 +246,7 @@
     ?.  .^(? %gu (weld prefix /$))
       %-  (tell %warn group-event '%groups not running' ~)
       [caz this]
-    =/  gnat=path  /(scot %p p.flag)/[q.flag]/noun
-    ?.  .^(? %gu :(weld prefix /groups gnat))
+    ?.  .^(? %gu (weld prefix /groups/(scot %p p.flag)/[q.flag]))
       %-  %^    tell
               %warn  
             group-event
