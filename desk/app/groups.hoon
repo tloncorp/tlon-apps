@@ -1537,10 +1537,6 @@
         ~
       `nest
     =.  section-order.group  (~(push of section-order.group) %default)
-    =/  =seat:g  (~(gut by seats.group) our.bowl *seat:g)
-    =.  joined.seat  now.bowl
-    =.  roles.seat  (~(put in roles.seat) %admin)
-    =.  seats.group  (~(put by seats.group) our.bowl seat)
     ::  populate group members and their roles
     ::
     ::  TODO  this should use +se-c-seat to create new seats
@@ -1561,6 +1557,14 @@
         |=  =role-id:g
         [role-id *role:g]
       group
+    ::  populate the admin seat. nb this must follow group memember
+    ::  seats population above, otherwise the group host might lose the
+    ::  admin role.
+    ::
+    =/  =seat:g  (~(gut by seats.group) our.bowl *seat:g)
+    =.  roles.seat  (~(put in roles.seat) %admin)
+    =.  seats.group  (~(put by seats.group) our.bowl seat)
+    ::
     =.  groups  (~(put by groups) flag [%pub *log:g] group)
     =+  se-core=(se-abed flag)
     =.  se-core  (se-update:se-core [%create group])
