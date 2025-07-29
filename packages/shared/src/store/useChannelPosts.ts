@@ -195,7 +195,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
 
   const rawPosts = useMemo<db.Post[] | null>(() => {
     const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? null;
-    if (!newPosts.length || query.hasPreviousPage) {
+    if (!newPosts.length) {
       return queryPosts;
     }
     const newestQueryPostId = queryPosts?.[0]?.id;
@@ -214,7 +214,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
         (p) => !newerPosts.some((newer) => newer.sentAt === p.sentAt)
       ) ?? [];
     return newestQueryPostId ? [...newerPosts, ...dedupedQueryPosts] : newPosts;
-  }, [query.data, query.hasPreviousPage, newPosts]);
+  }, [query.data, newPosts]);
 
   const deletedPosts = useDeletedPosts(options.channelId);
   const rawPostsWithDeleteFilterApplied = useMemo(() => {
@@ -286,9 +286,11 @@ function useTrackReady(
  */
 function addPostToNewPosts(post: db.Post, newPosts: db.Post[]) {
   postsLogger.log('new posts');
-  let nextPosts: db.Post[] | null = null;
-  const pendingPostIndex = newPosts?.findIndex(
-    (p) => p.deliveryStatus === 'pending' && p.sentAt === post.sentAt
+  let nextPosts: db.Post[] = [post, ...newPosts];
+  const pendingPostIndex = newPosts.findIndex(
+    (p) =>
+      (p.deliveryStatus === 'pending' || p.deliveryStatus === 'enqueued') &&
+      p.sentAt === post.sentAt
   );
   if (pendingPostIndex !== -1) {
     nextPosts = [
@@ -309,9 +311,33 @@ function addPostToNewPosts(post: db.Post, newPosts: db.Post[]) {
 
   postsLogger.log('processsed pending existing');
 
-  const finalPosts = (nextPosts ? nextPosts : [post, ...newPosts]).sort(
-    (a, b) => b.receivedAt - a.receivedAt
-  );
+  // newest posts should be at the start of the array
+  const finalPosts = nextPosts.sort((a, b) => {
+    const isUnconfirmed = (p: db.Post) =>
+      p.deliveryStatus === 'pending' ||
+      p.deliveryStatus === 'enqueued' ||
+      p.deliveryStatus === 'failed';
+
+    // reminder to self: negative value means a comes before (i.e. is newer than) b
+    switch (true) {
+      case isUnconfirmed(a) && isUnconfirmed(b):
+        return b.sentAt - a.sentAt;
+
+      case isUnconfirmed(a) && !isUnconfirmed(b):
+        // always show unconfirmed before confirmed
+        return -1;
+
+      case !isUnconfirmed(a) && isUnconfirmed(b):
+        // always show confirmed after unconfirmed
+        return 1;
+
+      case !isUnconfirmed(a) && !isUnconfirmed(b):
+        return b.receivedAt - a.receivedAt;
+
+      default:
+        throw new Error('Unexpected switch case');
+    }
+  });
   postsLogger.log('calculated final');
   return finalPosts;
 }

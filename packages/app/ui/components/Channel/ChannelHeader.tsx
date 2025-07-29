@@ -147,7 +147,9 @@ export function ChannelHeader({
       <ScreenHeader
         title={
           <Pressable flex={1} onPress={goToChatDetails}>
-            <ScreenHeader.Title>{displayTitle}</ScreenHeader.Title>
+            <ScreenHeader.Title testID="ChannelHeaderTitle">
+              {displayTitle}
+            </ScreenHeader.Title>
           </Pressable>
         }
         titleWidth={titleWidth()}

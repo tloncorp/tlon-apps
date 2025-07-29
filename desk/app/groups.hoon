@@ -20,7 +20,7 @@
       [~.groups^%0 ~ ~]
     %-  my
     :~  %groups^[~.groups^%0 ~ ~]
-        %channels-server^[~.channels^%1 ~ ~]
+        %channels-server^[~.channels^%2 ~ ~]
     ==
 %-  agent:dbug
 %+  verb  |
@@ -1774,6 +1774,16 @@
     |=  [=time =diff:g]
     ^+  go-core
     =.  go-core
+      ::  For channel edits, only emit update if something actually changed
+      ?:  ?&  ?=(%channel -.diff)
+              ?=(%edit -.q.diff)
+          ==
+        =/  =channel:g  (~(got by channels.group) p.diff)
+        =/  new-channel=channel:g  channel.q.diff
+        ::  Only emit update if channel data actually changed
+        ?.  =(channel new-channel)
+          (go-tell-update time diff)
+        go-core
       (go-tell-update time diff)
     =.  net
       ?:    ?=(%pub -.net)
