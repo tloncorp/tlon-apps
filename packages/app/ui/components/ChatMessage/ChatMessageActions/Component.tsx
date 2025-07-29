@@ -43,7 +43,7 @@ export function ChatMessageActions({
 }: ChatMessageActionsProps) {
   const currentUserId = useCurrentUserId();
   const channel = store.useChannel({ id: post.channelId });
-  const canWrite = useCanWrite(channel.data, currentUserId);
+  const canWrite = useCanWrite(channel.data!, currentUserId);
   const insets = useSafeAreaInsets();
   const PADDING_THRESHOLD = 40;
 
