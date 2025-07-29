@@ -415,7 +415,7 @@ export const getLatestPosts = async ({
     const { channels, dms } = await scry<ub.CombinedHeads>({
       app: 'groups-ui',
       path: formatScryPath(
-        'v2/heads',
+        'v3/heads',
         afterCursor ? formatCursor(afterCursor) : null,
         count
       ),
