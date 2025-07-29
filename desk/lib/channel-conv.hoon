@@ -446,6 +446,7 @@
       ^-  (list inline:v7:c)
       %+  murn  inlines
       |=  =inline:v8:c
+      ?@  inline  `inline
       ?:  ?=(%sect -.inline)  ~
       ?+  -.inline  `inline
           ?(%italics %bold %strike %blockquote)

@@ -2591,9 +2591,11 @@
         ==
     =/  posts=v-posts:c  (gas:on-v-posts:c *v-posts:c ls)
     =/  newer=(unit time)
-    =/  more  (tab:on-v-posts:c posts.channel `-:(rear ls) 1)
+      ?~  ls  ~
+      =/  more  (tab:on-v-posts:c posts.channel `-:(rear ls) 1)
       ?~(more ~ `-:(head more))
     =/  older=(unit time)
+      ?~  ls  ~
       =/  more  (bat:mo-v-posts:c posts.channel `-:(head ls) 1)
       ?~(more ~ `-:(head more))
     =/  count  (wyt:on-v-posts:c posts.channel)
