@@ -14,7 +14,7 @@
     "ios:release": "pnpm exec expo run:ios --configuration Release",
     "ios:preview": "expo run:ios --scheme=Landscape-preview",
     "generate": "pnpm generate:tailwind && pnpm run generate:ios",
-    "generate:ios": "react-native bundle --entry-file='index.js' --bundle-output='./ios/main.jsbundle' --dev=false --platform='ios' --assets-dest='./ios'",
+    "generate:ios": "react-native bundle --entry-file='apps/tlon-mobile/index.js' --bundle-output='./ios/main.jsbundle' --dev=false --platform='ios' --assets-dest='./ios'",
     "generate:tailwind": "tailwindcss --input input.css --output tailwind.css --no-autoprefixer && tailwind-rn",
     "lint": "eslint ./src",
     "lint:fix": "pnpm lint:fix:js",
