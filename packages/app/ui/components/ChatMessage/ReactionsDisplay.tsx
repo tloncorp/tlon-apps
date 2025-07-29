@@ -25,7 +25,7 @@ export function ReactionsDisplay({
   const currentUserId = useCurrentUserId();
   const [sheetOpen, setSheetOpen] = useState(false);
   const channel = store.useChannel({ id: post.channelId });
-  const canWrite = useCanWrite(channel.data, currentUserId);
+  const canWrite = useCanWrite(channel.data!, currentUserId);
 
   const handleSelectEmoji = useOnEmojiSelect(post, () => setSheetOpen(false));
 
