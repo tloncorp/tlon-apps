@@ -576,6 +576,11 @@
 ++  on-simple-posts    ((on id-post (may simple-post)) lte)
 ++  on-replies  ((on id-reply (may reply)) lte)
 ++  on-simple-replies  ((on id-reply simple-reply) lte)
+++  v9  v9:old
+++  v8  v8:old
+++  v7  v7:old
+++  v6  v6:old
+++  v1  v1:old
 ++  old
   |%
   ++  v9  .

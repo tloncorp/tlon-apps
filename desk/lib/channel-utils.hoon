@@ -1,5 +1,5 @@
 /-  c=channels, g=groups, ci=cite, m=meta, h=hooks
-/+  em=emojimart
+/+  em=emojimart, ccv=channel-conv
 ::  convert a post to a preview for a "said" response
 ::
 |%
@@ -12,8 +12,8 @@
 ::
 ::  versioning scheme
 ::
-::  +arm convert to v1:old:c type
-::  +arm-1 convert to v7:old:c type
+::  +arm convert to v1:c type
+::  +arm-1 convert to v7:c type
 ::  +arm-2 convert to v8 (current) type
 ::
 ++  uv-channels-1
@@ -23,7 +23,7 @@
   |=  channel=v-channel:c
   ^-  channel-0:c
   %*  .  *channel-0:c
-    posts  *posts:v7:old:c
+    posts  *posts:v7:c
     perm   +.perm.channel
     view   +.view.channel
     sort   +.sort.channel
@@ -32,12 +32,12 @@
 ::
 ++  uv-channels
   |=  [=v-channels:c full=?]
-  ^-  channels:v1:old:c
+  ^-  channels:v1:c
   %-  ~(run by v-channels)
   |=  channel=v-channel:c
-  ^-  channel:v1:old:c
+  ^-  channel:v1:c
   =/  base
-    %*  .  *channel:v1:old:c
+    %*  .  *channel:v1:c
       perm   +.perm.channel
       view   +.view.channel
       sort   +.sort.channel
@@ -52,6 +52,29 @@
   ==
 ::
 ++  uv-channels-2
+  |=  [=v-channels:c full=?]
+  ^-  channels:v8:c
+  %-  ~(run by v-channels)
+  |=  channel=v-channel:c
+  ^-  channel:v8:c
+  =/  base
+    %*  .  *channel:v8:c
+      count    count.channel
+      meta     +.meta.channel
+      perm     +.perm.channel
+      view     +.view.channel
+      sort     +.sort.channel
+      order    +.order.channel
+      pending  pending.channel
+    ==
+  ?.  full  base
+  %_  base
+    posts   (uv-posts-2 posts.channel)
+    net     net.channel
+    remark  remark.channel
+  ==
+::
+++  uv-channels-3
   |=  [=v-channels:c full=?]
   ^-  channels:c
   %-  ~(run by v-channels)
@@ -76,71 +99,71 @@
 ::
 ++  uv-posts
   |=  =v-posts:c
-  ^-  posts:v1:old:c
-  %+  gas:on-posts:v1:old:c  *posts:v1:old:c
+  ^-  posts:v1:c
+  %+  gas:on-posts:v1:c  *posts:v1:c
   %+  turn  (tap:on-v-posts:c v-posts)
   |=  [=id-post:c v-post=(may:c v-post:c)]
-  ^-  [id-post:c (unit post:v1:old:c)]
+  ^-  [id-post:c (unit post:v1:c)]
   [id-post ?:(?=(%| -.v-post) ~ `(uv-post +.v-post))]
 ::
 ++  uv-posts-1
   |=  =v-posts:c
-  ^-  posts:v7:old:c
-  %+  gas:on-posts:v7:old:c  *posts:v7:old:c
+  ^-  posts:v7:c
+  %+  gas:on-posts:v7:c  *posts:v7:c
   %+  turn  (tap:on-v-posts:c v-posts)
   |=  [=id-post:c v-post=(may:c v-post:c)]
-  ^-  [id-post:c (unit post:v7:old:c)]
+  ^-  [id-post:c (unit post:v7:c)]
   [id-post (bind (mu-v-post v-post) uv-post-1)]
 ::
 ++  uv-posts-2
   |=  =v-posts:c
-  ^-  posts:v8:old:c
-  %+  gas:on-posts:v8:old:c  *posts:v8:old:c
+  ^-  posts:v8:c
+  %+  gas:on-posts:v8:c  *posts:v8:c
   %+  turn  (tap:on-v-posts:c v-posts)
   |=  [=id-post:c v-post=(may:c v-post:c)]
-  ^-  [id-post:c (unit post:v8:old:c)]
+  ^-  [id-post:c (unit post:v8:c)]
   [id-post (bind (mu-v-post v-post) uv-post-2)]
 ::
 ++  uv-posts-3
   |=  =v-posts:c
-  ^-  posts:v9:old:c
-  %+  gas:on-posts:v9:old:c  *posts:v9:old:c
+  ^-  posts:v9:c
+  %+  gas:on-posts:v9:c  *posts:v9:c
   %+  turn  (tap:on-v-posts:c v-posts)
   |=  [=id-post:c v-post=(may:c v-post:c)]
-  ^-  [id-post:c (may:c post:v9:old:c)]
+  ^-  [id-post:c (may:c post:v9:c)]
   [id-post ?:(?=(%| -.v-post) v-post [%& (uv-post-3 +.v-post)])]
 ::
 ++  s-posts-1
   |=  =posts:c
-  ^-  simple-posts:v7:old:c
-  %+  gas:on-simple-posts:v7:old:c  *simple-posts:v7:old:c
+  ^-  simple-posts:v7:c
+  %+  gas:on-simple-posts:v7:c  *simple-posts:v7:c
   %+  turn  (tap:on-posts:c posts)
   |=  [=id-post:c post=(may:c post:c)]
-  ^-  [id-post:c (unit simple-post:v7:old:c)]
+  ^-  [id-post:c (unit simple-post:v7:c)]
   [id-post ?:(?=(%| -.post) ~ `(s-post-1 +.post))]
 ::
 ++  suv-posts
   |=  =v-posts:c
-  ^-  simple-posts:v1:old:c
-  %+  gas:on-simple-posts:v1:old:c  *simple-posts:v1:old:c
+  ^-  simple-posts:v1:c
+  %+  gas:on-simple-posts:v1:c  *simple-posts:v1:c
   %+  turn  (tap:on-v-posts:c v-posts)
   |=  [=id-post:c v-post=(may:c v-post:c)]
-  ^-  [id-post:c (unit simple-post:v1:old:c)]
+  ^-  [id-post:c (unit simple-post:v1:c)]
   [id-post ?:(?=(%| -.v-post) ~ `(suv-post +.v-post))]
 ::
 ++  suv-posts-1
   |=  =v-posts:c
-  ^-  simple-posts:v7:old:c
-  %+  gas:on-simple-posts:v7:old:c  *simple-posts:v7:old:c
+  ^-  simple-posts:v7:c
+  %+  gas:on-simple-posts:v7:c  *simple-posts:v7:c
   %+  turn  (tap:on-v-posts:c v-posts)
   |=  [=id-post:c v-post=(may:c v-post:c)]
-  ^-  [id-post:c (unit simple-post:v7:old:c)]
+  ^-  [id-post:c (unit simple-post:v7:c)]
   [id-post ?:(?=(%| -.v-post) ~ `(suv-post-1 +.v-post))]
 ::
 ::
 ++  uv-post
   |=  =v-post:c
-  ^-  post:v1:old:c
+  ^-  post:v1:c
   :_  [rev.v-post (essay-1 +>.v-post)]
   :*  id.v-post
       (reacts-1 (uv-reacts-1 reacts.v-post))
@@ -150,7 +173,7 @@
 ::
 ++  uv-post-1
   |=  =v-post:c
-  ^-  post:v7:old:c
+  ^-  post:v7:c
   :_  (rev-essay-1 +.v-post)
   :*  id.v-post
       (reacts-1 (uv-reacts-1 reacts.v-post))
@@ -160,8 +183,8 @@
 ::
 ++  uv-post-2
   |=  =v-post:c
-  ^-  post:v8:old:c
-  =/  =replies:v8:old:c
+  ^-  post:v8:c
+  =/  =replies:v8:c
     (uv-replies-2 id.v-post replies.v-post)
   :_  +.v-post
   :*  id.v-post
@@ -174,8 +197,8 @@
 ::
 ++  uv-post-3
   |=  =v-post:c
-  ^-  post:v9:old:c
-  =/  =replies:v9:old:c
+  ^-  post:v9:c
+  =/  =replies:v9:c
     (uv-replies-3 id.v-post replies.v-post)
   :_  +.v-post
   :*  id.v-post
@@ -188,7 +211,7 @@
 ::
 ++  s-post-1
   |=  =post:c
-  ^-  simple-post:v7:old:c
+  ^-  simple-post:v7:c
   :_  (essay-1 +>.post)
   =/  seal
     %=  -.post
@@ -201,7 +224,7 @@
 ::
 ++  s-post-2
   |=  =post:c
-  ^-  simple-post:v8:old:c
+  ^-  simple-post:v8:c
   :_  +>.post
   =/  seal
     =<  -  :: seal
@@ -222,91 +245,100 @@
   ==
 ++  suv-post
   |=  =v-post:c
-  ^-  simple-post:v1:old:c
+  ^-  simple-post:v1:c
   (s-post-1 (uv-post-3 v-post))
 ::
 ::
 ++  suv-post-1
   |=  =v-post:c
-  ^-  simple-post:v7:old:c
+  ^-  simple-post:v7:c
   (s-post-1 (uv-post-3 v-post))
 ::
 ++  uv-posts-without-replies
   |=  =v-posts:c
-  ^-  posts:v1:old:c
-  %+  gas:on-posts:v1:old:c  *posts:v1:old:c
+  ^-  posts:v1:c
+  %+  gas:on-posts:v1:c  *posts:v1:c
   %+  turn  (tap:on-v-posts:c v-posts)
   |=  [=id-post:c v-post=(may:c v-post:c)]
-  ^-  [id-post:c (unit post:v1:old:c)]
+  ^-  [id-post:c (unit post:v1:c)]
   [id-post (bind (mu-v-post v-post) uv-post-without-replies)]
 ::
 ++  uv-posts-without-replies-1
   |=  =v-posts:c
-  ^-  posts:v7:old:c
-  %+  gas:on-posts:v7:old:c  *posts:v7:old:c
+  ^-  posts:v7:c
+  %+  gas:on-posts:v7:c  *posts:v7:c
   %+  turn  (tap:on-v-posts:c v-posts)
   |=  [=id-post:c v-post=(may:c v-post:c)]
-  ^-  [id-post:c (unit post:v7:old:c)]
+  ^-  [id-post:c (unit post:v7:c)]
   [id-post (bind (mu-v-post v-post) uv-post-without-replies-1)]
+::
+++  uv-posts-without-replies-2
+  |=  =v-posts:c
+  ^-  posts:v8:c
+  %+  gas:on-posts:v8:c  *posts:v8:c
+  %+  turn  (tap:on-v-posts:c v-posts)
+  |=  [=id-post:c v-post=(may:c v-post:c)]
+  ^-  [id-post:c (unit post:v8:c)]
+  [id-post (bind (mu-v-post v-post) uv-post-without-replies-2)]
 ::
 ++  uv-posts-without-replies-3
   |=  =v-posts:c
-  ^-  posts:v9:old:c
-  %+  gas:on-posts:v9:old:c  *posts:v9:old:c
+  ^-  posts:v9:c
+  %+  gas:on-posts:v9:c  *posts:v9:c
   %+  turn  (tap:on-v-posts:c v-posts)
   |=  [=id-post:c v-post=(may:c v-post:c)]
-  ^-  [id-post:c (may:v9:old:c post:v9:old:c)]
+  ^-  [id-post:c (may:v9:c post:v9:c)]
   :-  id-post
   ?:  ?=(%| -.v-post)  v-post
   &+(uv-post-without-replies-3 +.v-post)
 ::
 ++  suv-posts-without-replies
   |=  =v-posts:c
-  ^-  simple-posts:v1:old:c
-  %+  gas:on-simple-posts:v1:old:c  *simple-posts:v1:old:c
+  ^-  simple-posts:v1:c
+  %+  gas:on-simple-posts:v1:c  *simple-posts:v1:c
   %+  turn  (tap:on-v-posts:c v-posts)
   |=  [=id-post:c v-post=(may:c v-post:c)]
-  ^-  [id-post:c (unit simple-post:v1:old:c)]
+  ^-  [id-post:c (unit simple-post:v1:c)]
   [id-post (bind (mu-v-post v-post) suv-post-without-replies)]
 ::
 ++  suv-posts-without-replies-1
   |=  =v-posts:c
-  ^-  simple-posts:v7:old:c
-  %+  gas:on-simple-posts:v7:old:c  *simple-posts:v7:old:c
+  ^-  simple-posts:v7:c
+  %+  gas:on-simple-posts:v7:c  *simple-posts:v7:c
   %+  turn  (tap:on-v-posts:c v-posts)
   |=  [=id-post:c v-post=(may:c v-post:c)]
-  ^-  [id-post:c (unit simple-post:v7:old:c)]
+  ^-  [id-post:c (unit simple-post:v7:c)]
   [id-post (bind (mu-v-post v-post) suv-post-without-replies-1)]
 ::
 ++  uv-post-without-replies
   |=  post=v-post:c
-  ^-  post:v1:old:c
+  ^-  post:v1:c
   :_  [rev.post (essay-1 +>.post)]
   :*  id.post
       (uv-reacts-1 reacts.post)
-      *replies:v1:old:c
+      *replies:v1:c
       (reply-meta-1 (get-reply-meta post))
   ==
 ::
 ++  uv-post-without-replies-1
   |=  post=v-post:c
-  ^-  post:v7:old:c
+  ^-  post:v7:c
   :_  [rev.post (essay-1 +>.post)]
   :*  id.post
       (uv-reacts-1 reacts.post)
-      *replies:v7:old:c
+      *replies:v7:c
       (reply-meta-1 (get-reply-meta post))
   ==
 ::
 ++  uv-post-without-replies-2
   |=  post=v-post:c
-  ^-  post:v8:old:c
+  ^-  post:v8:c
   :_  +.post
   :*  id.post
       seq.post
       mod-at.post
       (uv-reacts-2 reacts.post)
-      *replies:v8:old:c
+      *replies:v8:c
       (get-reply-meta post)
   ==
 ::
@@ -323,17 +355,17 @@
   ==
 ++  suv-post-without-replies
   |=  post=v-post:c
-  ^-  simple-post:v1:old:c
+  ^-  simple-post:v1:c
   (s-post-1 (uv-post-without-replies-3 post))
 ::
 ++  suv-post-without-replies-1
   |=  post=v-post:c
-  ^-  simple-post:v7:old:c
+  ^-  simple-post:v7:c
   (s-post-1 (uv-post-without-replies-3 post))
 ::
 ++  suv-post-without-replies-2
   |=  post=v-post:c
-  ^-  simple-post:v8:old:c
+  ^-  simple-post:v8:c
   (s-post-2 (uv-post-without-replies-3 post))
 ::
 ++  suv-post-without-replies-3
@@ -343,31 +375,31 @@
 ::
 ++  uv-replies
   |=  [parent-id=id-post:c =v-replies:c]
-  ^-  replies:v1:old:c
-  %+  gas:on-replies:v1:old:c  *replies:v1:old:c
+  ^-  replies:v1:c
+  %+  gas:on-replies:v1:c  *replies:v1:c
   %+  murn  (tap:on-v-replies:c v-replies)
   |=  [=time v-reply=(may:c v-reply:c)]
-  ^-  (unit [id-reply:c reply:v1:old:c])
+  ^-  (unit [id-reply:c reply:v1:c])
   ?:  ?=(%| -.v-reply)  ~
   `[time (uv-reply-1 parent-id +.v-reply)]
 ::
 ++  uv-replies-1
   |=  [parent-id=id-post:c =v-replies:c]
-  ^-  replies:v7:old:c
-  %+  gas:on-replies:v7:old:c  *replies:v7:old:c
+  ^-  replies:v7:c
+  %+  gas:on-replies:v7:c  *replies:v7:c
   %+  murn  (tap:on-v-replies:c v-replies)
   |=  [=time v-reply=(may:c v-reply:c)]
-  ^-  (unit [id-reply:c (unit reply:v7:old:c)])
+  ^-  (unit [id-reply:c (unit reply:v7:c)])
   ?:  ?=(%| -.v-reply)  `[time ~]
   `[time `(uv-reply-1 parent-id +.v-reply)]
 ::
 ++  uv-replies-2
   |=  [parent-id=id-post:c =v-replies:c]
-  ^-  replies:v8:old:c
-  %+  gas:on-replies:v8:old:c  *replies:v8:old:c
+  ^-  replies:v8:c
+  %+  gas:on-replies:v8:c  *replies:v8:c
   %+  murn  (tap:on-v-replies:c v-replies)
   |=  [=time v-reply=(may:c v-reply:c)]
-  ^-  (unit [id-reply:c (unit reply:v8:old:c)])
+  ^-  (unit [id-reply:c (unit reply:v8:c)])
   ?:  ?=(%| -.v-reply)  `[time ~]
   `[time `(uv-reply-2 parent-id +.v-reply)]
 ::
@@ -382,11 +414,11 @@
   [time [-.v-reply (uv-reply-2 parent-id +.v-reply)]]
 ++  s-replies-1
   |=  =replies:c
-  ^-  simple-replies:v7:old:c
-  %+  gas:on-simple-replies:v7:old:c  *simple-replies:v7:old:c
+  ^-  simple-replies:v7:c
+  %+  gas:on-simple-replies:v7:c  *simple-replies:v7:c
   %+  murn  (tap:on-replies:c replies)
   |=  [=time reply=(may:c reply:c)]
-  ^-  (unit [id-reply:c simple-reply:v7:old:c])
+  ^-  (unit [id-reply:c simple-reply:v7:c])
   ?:  ?=(%| -.reply)  ~
   (some [time (s-reply-1 +.reply)])
 ::
@@ -396,13 +428,13 @@
   %+  gas:on-simple-replies:c  *simple-replies:c
   %+  murn  (tap:on-replies:c replies)
   |=  [=time reply=(may:c reply:c)]
-  ^-  (unit [id-reply:c simple-reply:v8:old:c])
+  ^-  (unit [id-reply:c simple-reply:v8:c])
   ?:  ?=(%| -.reply)  ~
   (some [time (s-reply-2 +.reply)])
 ::
 ++  suv-replies-1
   |=  [parent-id=id-post:c =v-replies:c]
-  ^-  simple-replies:v7:old:c
+  ^-  simple-replies:v7:c
   (s-replies-1 (uv-replies-3 parent-id v-replies))
 ::
 ++  uv-reply-2
@@ -413,13 +445,13 @@
 ::
 ++  uv-reply-1
   |=  [parent-id=id-reply:c =v-reply:c]
-  ^-  reply:v7:old:c
+  ^-  reply:v7:c
   :_  [rev.v-reply (memo-1 +>.v-reply)]
   [id.v-reply parent-id (uv-reacts-1 reacts.v-reply)]
 ::
 ++  s-reply-1
   |=  =reply:c
-  ^-  simple-reply:v7:old:c
+  ^-  simple-reply:v7:c
   (simple-reply-1 -.reply +>.reply)
 ::
 ++  s-reply-2
@@ -429,7 +461,7 @@
 ::
 ++  suv-reply-1
   |=  [parent-id=id-reply:c =v-reply:c]
-  ^-  simple-reply:v7:old:c
+  ^-  simple-reply:v7:c
   (s-reply-1 (uv-reply-1 parent-id v-reply))
 ::
 ++  suv-reply-2
@@ -448,8 +480,8 @@
 ::
 ++  uv-reacts-1
   |=  =v-reacts:c
-  ^-  reacts:v7:old:c
-  %-  ~(gas by *reacts:v7:old:c)
+  ^-  reacts:v7:c
+  %-  ~(gas by *reacts:v7:c)
   %+  murn  ~(tap by v-reacts)
   |=  [=author:c (rev:c react=(unit react:c))]
   ?~  react  ~
@@ -459,7 +491,7 @@
 ::
 ++  react-1
   |=  =react:c
-  ^-  (unit react:v7:old:c)
+  ^-  (unit react:v7:c)
   ?@  react
     (rave:em react)
   ?-  -.react
@@ -468,26 +500,26 @@
 ::
 ++  reacts-1
   |=  =reacts:c
-  ^-  reacts:v7:old:c
+  ^-  reacts:v7:c
   %-  ~(rep by reacts)
-  |=  [[=author:c =react:c] =reacts:v7:old:c]
+  |=  [[=author:c =react:c] =reacts:v7:c]
   ?~  react=(react-1 react)
     reacts
   (~(put by reacts) (get-author-ship author) u.react)
 ::
 ++  replies-1
   |=  =replies:c
-  ^-  replies:v7:old:c
+  ^-  replies:v7:c
   %+  run:on-replies:c  replies
   |=  reply=(may:c reply:c)
-  ^-  (unit reply:v7:old:c)
+  ^-  (unit reply:v7:c)
   ?:  ?=(%| -.reply)  ~
   (some (reply-1 +.reply))
 ::
 ++  seal-1
   |=  =seal:c
-  ^-  seal:v7:old:c
-  %*  .  *seal:v7:old:c
+  ^-  seal:v7:c
+  %*  .  *seal:v7:c
     id       id.seal
     reacts   (reacts-1 reacts.seal)
     replies  (replies-1 replies.seal)
@@ -502,7 +534,7 @@
 ::
 ++  memo-1
   |=  =memo:c
-  ^-  memo:v7:old:c
+  ^-  memo:v7:c
   %=  memo
     author   (author-1 author.memo)
     content  (turn content.memo verse-1)
@@ -510,7 +542,7 @@
 ::
 ++  verse-1
   |=  =verse:c
-  ^-  verse:v7:old:c
+  ^-  verse:v7:c
   ?+  verse  verse
       [%inline *]
     [%inline (turn p.verse inline-1)]
@@ -527,7 +559,7 @@
 ::
 ++  listing-1
   |=  =listing:c
-  ^-  listing:v7:old:c
+  ^-  listing:v7:c
   ?-  -.listing
     %list  listing(q (turn q.listing listing-1), r (turn r.listing inline-1))
     %item  listing(p (turn p.listing inline-1))
@@ -535,7 +567,7 @@
 ::
 ++  inline-1
   |=  =inline:c
-  ^-  inline:v7:old:c
+  ^-  inline:v7:c
   ?@  inline  inline
   ?+  -.inline  inline
       ?(%italics %bold %strike %blockquote)
@@ -550,9 +582,9 @@
 ::
 ++  essay-1
   |=  =essay:c
-  ^-  essay:v7:old:c
+  ^-  essay:v7:c
   :-  (memo-1 -.essay)
-  ^-  kind-data:v7:old:c
+  ^-  kind-data:v7:c
   ?+    kind.essay  ~|(essay-1-fail+kind.essay !!)
     [%chat $@(~ [%notice ~])]  kind.essay
   ::
@@ -567,22 +599,22 @@
 ::
 ++  rev-essay-1
   |=  essay=(rev:c essay:c)
-  ^-  (rev:c essay:v7:old:c)
+  ^-  (rev:c essay:v7:c)
   [rev.essay (essay-1 +.essay)]
 ::
 ++  post-1
   |=  =post:c
-  ^-  post:v7:old:c
+  ^-  post:v7:c
   :-  (seal-1 -.post)
   [rev.post (essay-1 +>.post)]
 ::
 ++  posts-1
   |=  =posts:c
-  ^-  posts:v7:old:c
-  %+  gas:on-posts:v7:old:c  *posts:v7:old:c
+  ^-  posts:v7:c
+  %+  gas:on-posts:v7:c  *posts:v7:c
   %+  turn  (tap:on-posts:c posts)
   |=  [=id-post:c post=(may:c post:c)]
-  ^-  [id-post:c (unit post:v7:old:c)]
+  ^-  [id-post:c (unit post:v7:c)]
   :-  id-post
   ?:  ?=(%| -.post)  ~
   %-  some
@@ -590,29 +622,29 @@
 ::
 ++  reply-seal-1
   |=  =reply-seal:c
-  ^-  reply-seal:v7:old:c
+  ^-  reply-seal:v7:c
   reply-seal(reacts (reacts-1 reacts.reply-seal))
 ::
 ++  reply-1
   |=  =reply:c
-  ^-  reply:v7:old:c
+  ^-  reply:v7:c
   %=  reply
     -  (reply-seal-1 -.reply)         :: reply seal
     +  [rev.reply (memo-1 +>.reply)]  ::  memo
   ==
 ++  reply-meta-1
   |=  =reply-meta:c
-  ^-  reply-meta:v7:old:c
+  ^-  reply-meta:v7:c
   %=  reply-meta  last-repliers
     (~(run in last-repliers.reply-meta) get-author-ship)
   ==
 ++  r-channels-1
   |=  =r-channels:c
-  ^-  r-channels:v7:old:c
+  ^-  r-channels:v7:c
   =+  r-channel=r-channel.r-channels
   ?<  ?=(%meta -.r-channel)
   :-  nest.r-channels
-  ^-  r-channel:v7:old:c
+  ^-  r-channel:v7:c
   ?+    r-channel  r-channel
       [%posts *]
     :-  %posts
@@ -674,9 +706,9 @@
 ::
 ++  simple-post-1
   |=  post=simple-post:c
-  ^-  simple-post:v7:old:c
+  ^-  simple-post:v7:c
   :_  (essay-1 +.post)
-  ^-  simple-seal:v7:old:c
+  ^-  simple-seal:v7:c
   =,  -.post
   :*  id
       (reacts-1 reacts.post)
@@ -686,7 +718,7 @@
 ::
 ++  simple-reply-1
   |=  =simple-reply:c
-  ^-  simple-reply:v7:old:c
+  ^-  simple-reply:v7:c
   %=  simple-reply
     +  (memo-1 +.simple-reply)
     reacts  (reacts-1 reacts.simple-reply)
@@ -694,20 +726,20 @@
 ::
 ++  simple-replies-1
   |=  replies=simple-replies:c
-  ^-  simple-replies:v7:old:c
+  ^-  simple-replies:v7:c
   %+  run:on-simple-replies:c  replies
   simple-reply-1
 ::
 ++  reference-1
   |=  ref=reference:c
-  ^-  reference:v7:old:c
+  ^-  reference:v7:c
   ?-  -.ref
       %post
     =-  ref(post -)
     ?:  ?=(%& -.post.ref)
       (simple-post-1 +.post.ref)
-    %*  .  *simple-post:v7:old:c
-      content  `story:v7:old:c`[%inline ['[deleted message]']~]~
+    %*  .  *simple-post:v7:c
+      content  `story:v7:c`[%inline ['[deleted message]']~]~
       author  ~nul
     ==
   ::
@@ -715,15 +747,15 @@
     =-  ref(reply -)
     ?:  ?=(%& -.reply.ref)
       (simple-reply-1 +.reply.ref)
-    %*  .  *simple-reply:v7:old:c
-      content  `story:v7:old:c`[%inline ['[deleted reply]']~]~
+    %*  .  *simple-reply:v7:c
+      content  `story:v7:c`[%inline ['[deleted reply]']~]~
       author   ~nul
     ==
   ==
 ::
 ++  to-said-1
   |=  =said:c
-  ^-  said:v7:old:c
+  ^-  said:v7:c
   ::NOTE  the tombstone branches here _shouldn't_ get hit in practice,
   ::      because we generally don't return "said" results for deleted msgs
   ::      in the v7 api
@@ -745,62 +777,62 @@
   ^-  cage
   =/  post=(unit (may:c v-post:c))  (get:on-v-posts:c posts p.plan)
   ?~  q.plan
-    =/  post=simple-post:v7:old:c
+    =/  post=simple-post:v7:c
       ?~  post
         ::TODO  give "outline" that formally declares deletion
-        :-  *simple-seal:v7:old:c
+        :-  *simple-seal:v7:c
         ?-  kind.nest
-          %diary  [*memo:v7:old:c %diary 'Unknown post' '']
-          %heap   [*memo:v7:old:c %heap ~ 'Unknown link']
+          %diary  [*memo:v7:c %diary 'Unknown post' '']
+          %heap   [*memo:v7:c %heap ~ 'Unknown link']
           %chat   [[[%inline 'Unknown message' ~]~ ~nul *@da] %chat ~]
         ==
       ?:  ?=(%| -.u.post)
-        :-  *simple-seal:v7:old:c
+        :-  *simple-seal:v7:c
         ?-  kind.nest
-            %diary  [*memo:v7:old:c %diary 'This post was deleted' '']
-            %heap   [*memo:v7:old:c %heap ~ 'This link was deleted']
+            %diary  [*memo:v7:c %diary 'This post was deleted' '']
+            %heap   [*memo:v7:c %heap ~ 'This link was deleted']
             %chat
           [[[%inline 'This message was deleted' ~]~ ~nul *@da] %chat ~]
         ==
       (suv-post-without-replies-1 +.u.post)
-    [%channel-said !>(`said:v7:old:c`[nest %post post])]
+    [%channel-said !>(`said:v7:c`[nest %post post])]
   ::
-  =/  reply=[reply-seal:v7:old:c memo:v7:old:c]
+  =/  reply=[reply-seal:v7:c memo:v7:c]
     ?~  post
-      [*reply-seal:v7:old:c ~[%inline 'Comment on unknown post']~ ~nul *@da]
+      [*reply-seal:v7:c ~[%inline 'Comment on unknown post']~ ~nul *@da]
     ?:  ?=(%| -.u.post)
-      [*reply-seal:v7:old:c ~[%inline 'Comment on deleted post']~ ~nul *@da]
+      [*reply-seal:v7:c ~[%inline 'Comment on deleted post']~ ~nul *@da]
     =/  reply=(unit (may:c v-reply:c))  (get:on-v-replies:c replies.+.u.post u.q.plan)
     ?~  reply
-      [*reply-seal:v7:old:c ~[%inline 'Unknown comment']~ ~nul *@da]
+      [*reply-seal:v7:c ~[%inline 'Unknown comment']~ ~nul *@da]
     ?:  ?=(%| -.u.reply)
-      [*reply-seal:v7:old:c ~[%inline 'This comment was deleted']~ ~nul *@da]
+      [*reply-seal:v7:c ~[%inline 'This comment was deleted']~ ~nul *@da]
     (suv-reply-1 p.plan +.u.reply)
-  [%channel-said !>(`said:v7:old:c`[nest %reply p.plan reply])]
+  [%channel-said !>(`said:v7:c`[nest %reply p.plan reply])]
 ::
 ++  said-2
   |=  [=nest:c =plan:c posts=v-posts:c]
   ^-  cage
   =/  post=(unit (may:c v-post:c))  (get:on-v-posts:c posts p.plan)
   ?~  q.plan
-    =/  post=simple-post:v8:old:c
+    =/  post=simple-post:v8:c
       ?~  post
-        :-  *simple-seal:v8:old:c
+        :-  *simple-seal:v8:c
         ?-  kind.nest
           %diary  [*memo:c /diary/unknown ~ ~]
           %heap   [*memo:c /heap/unknown ~ ~]
           %chat   [*memo:c /chat/unknown ~ ~]
         ==
       ?:  ?=(%| -.u.post)
-        :-  *simple-seal:v8:old:c
+        :-  *simple-seal:v8:c
         ?-  kind.nest
             %diary  [*memo:c /diary/deleted ~ ~]
             %heap   [*memo:c /heap/deleted ~ ~]
             %chat   [*memo:c /chat/deleted ~ ~]
         ==
       (suv-post-without-replies-2 +.u.post)
-    [%channel-said-1 !>(`said:v8:old:c`[nest %post post])]
-  =/  reply=[reply-seal:v8:old:c memo:v8:old:c]
+    [%channel-said-1 !>(`said:v8:c`[nest %post post])]
+  =/  reply=[reply-seal:v8:c memo:v8:c]
     ::XX the missing/deleted handling here is not great,
     ::   and can't be fixed in the same manner as above.
     ::   it seems $reference should explicitly support
@@ -817,17 +849,17 @@
     ?:  ?=(%| -.u.reply)
       [*reply-seal:c ~[%inline 'This comment was deleted']~ ~nul *@da]
     (suv-reply-2 p.plan +.u.reply)
-  [%channel-said-1 !>(`said:v8:old:c`[nest %reply p.plan reply])]
+  [%channel-said-1 !>(`said:v8:c`[nest %reply p.plan reply])]
 ::
 ++  said-3
   |=  [=nest:c =plan:c posts=v-posts:c]
   ^-  cage
   =/  post=(unit (may:c v-post:c))  (get:on-v-posts:c posts p.plan)
   ?~  q.plan
-    =/  post=(may:v9:old:c simple-post:v9:old:c)
+    =/  post=(may:v9:c simple-post:v9:c)
       ?~  post
         :-  %&  ::TODO  should eventually just unitize $reference
-        :-  *simple-seal:v9:old:c
+        :-  *simple-seal:v9:c
         ?-  kind.nest
           %diary  [*memo:c /diary/unknown ~ ~]
           %heap   [*memo:c /heap/unknown ~ ~]
@@ -835,8 +867,8 @@
         ==
       ?:  ?=(%| -.u.post)  u.post
       &+(suv-post-without-replies-3 +.u.post)
-    [%channel-said-2 !>(`said:v9:old:c`[nest %post post])]
-  =/  reply=(may:v9:old:c simple-reply:v9:old:c)
+    [%channel-said-2 !>(`said:v9:c`[nest %post post])]
+  =/  reply=(may:v9:c simple-reply:v9:c)
     ::XX the missing/deleted handling here is not great,
     ::   and can't be fixed in the same manner as above.
     ::   it seems $reference should explicitly support
@@ -851,27 +883,30 @@
       &+[*reply-seal:c ~[%inline 'Unknown comment']~ ~nul *@da]
     ?:  ?=(%| -.u.reply)  u.reply
     &+(suv-reply-2 p.plan +.u.reply)
-  [%channel-said-2 !>(`said:v9:old:c`[nest %reply p.plan reply])]
+  [%channel-said-2 !>(`said:v9:c`[nest %reply p.plan reply])]
 ++  scan-1
   |=  =scan:c
-  ^-  scan:v7:old:c
+  ^-  scan:v7:c
   (turn scan reference-1)
 ::
 ++  scam-1
   |=  =scam:c
-  ^-  scam:v7:old:c
+  ^-  scam:v7:c
   scam(scan (scan-1 scan.scam))
 ::
+++  may-bind
+  |*  f=$-(* *)
+  |*  v=(may:c *)
+  ?:  ?=(%| -.v)  ~
+  `(f +.v)
 ++  mu-v-post
   |=  v-post=(may:c v-post:c)
   ^-  (unit v-post:c)
-  ?:  ?=(%| -.v-post)  ~
-  `+.v-post
+  ((may-bind same) v-post)
 ++  mu-v-reply
   |=  v-reply=(may:c v-reply:c)
   ^-  (unit v-reply:c)
-  ?:  ?=(%| -.v-reply)  ~
-  `+.v-reply
+  ((bake (may-bind same) (may:c v-reply:c)) v-reply)
 ++  was-mentioned
   |=  [=story:c who=ship vessel=(unit vessel:fleet:g)]
   ^-  ?
@@ -958,10 +993,10 @@
   =.  replyers  (~(put in replyers) author.+.reply)
   $(entries +.entries)
 ::
-++  channel-head-1
+++  channel-head
   =|  slip=_|
   |=  [since=(unit id-post:c) =nest:c v-channel:c]
-  ^-  (unit [_nest time (unit post:v7:old:c)])
+  ^-  (unit [_nest time (may:c post:v9:c)])
   ::  if there is no latest post, give nothing
   ::
   ?~  vp=(ram:on-v-posts:c posts)  ~
@@ -970,45 +1005,7 @@
   ?:  ?=(%| -.val.u.vp)
     $(slip &, posts +:(pop:on-v-posts:c posts))
   =*  result
-    `[nest recency.remark `(uv-post-without-replies-1 +.val.u.vp)]
-  ::  if the request is bounded, check that latest message is "in bounds"
-  ::  (and not presumably already known by the requester)
-  ::
-  ?:  ?|  ?=(~ since)
-          |((gth key.u.vp u.since) (gth recency.remark u.since))
-      ==
-    ::  latest is in range (or recency was changed), give it directly
-    ::
-    result
-  ::  "out of bounds", ...but! latest may have changed itself, or only
-  ::  be latest because something else was deleted. the latter case we
-  ::  already detected, and so easily branch on here:
-  ::
-  ?:  slip  result
-  ::  edits are detected through changelogs. look at the relevant log range,
-  ::  and see if any update affects the latest post.
-  ::NOTE  if our mops were the other way around, we could +dip:on instead
-  ::TODO  there's +dop in the mop extensions!
-  ::
-  =;  changed=?
-    ?.(changed ~ result)
-  %+  lien  (bap:log-on:c (lot:log-on:c log since ~))
-  |=  [key=time val=u-channel:c]
-  &(?=([%post * %set *] val) =(id.val key.u.vp))
-::
-++  channel-head-2
-  =|  slip=_|
-  |=  [since=(unit id-post:c) =nest:c v-channel:c]
-  ^-  (unit [_nest time (unit post:v8:old:c)])
-  ::  if there is no latest post, give nothing
-  ::
-  ?~  vp=(ram:on-v-posts:c posts)  ~
-  ::  if latest was deleted, try the next-latest message instead
-  ::
-  ?:  ?=(%| -.val.u.vp)
-    $(slip &, posts +:(pop:on-v-posts:c posts))
-  =*  result
-    `[nest recency.remark `(uv-post-without-replies-2 +.val.u.vp)]
+    `[nest recency.remark %& (uv-post-without-replies-3 +.val.u.vp)]
   ::  if the request is bounded, check that latest message is "in bounds"
   ::  (and not presumably already known by the requester)
   ::
@@ -1361,412 +1358,23 @@
       ;br;
     ==
   --
-++  simple-reply-7-to-8
-  |=  reply=simple-reply:v7:old:c
-  ^-  simple-reply:v8:old:c
-  reply(+ (memo-7-to-8 +.reply))  :: memo
-::
-++  said-7-to-8
-  |=  =said:v7:old:c
-  ^-  said:v8:old:c
-  %=  said  q
-    ?-    -.q.said
-        %post
-      ^-  [%post simple-post:v8:old:c]
-      =/  replies=simple-replies:v8:old:c
-        %+  run:on-simple-replies:v7:old:c
-          replies.post.q.said
-        simple-reply-7-to-8
-      =/  =simple-seal:v8:old:c
-        -.post.q.said(replies replies)
-      =/  =essay:c
-        (essay-7-to-8 +.post.q.said)
-      %=  q.said
-        ::  seal
-        -.post   simple-seal
-        ::  essay
-        +.post  essay
-      ==
-        %reply
-      ^-  $>(%reply reference:v8:old:c)
-      q.said(reply (simple-reply-7-to-8 reply.q.said))
-    ==
-  ==
-::
-++  said-8-to-9
-  |=  =said:v8:old:c
-  ^-  said:v9:old:c
-  %=  said  q
-    ?-    -.q.said
-        %post
-      ^-  [%post (may:v9:old:c simple-post:v9:old:c)]
-      :: =/  replies=simple-replies:v9:old:c
-      ::   %+  run:on-simple-replies:v8:old:c
-      ::     replies.post.q.said
-      ::   simple-reply-8-to-9
-      =/  =simple-seal:v9:old:c
-        :*  id.post.q.said
-            0
-            *@da
-            reacts.post.q.said
-            replies.post.q.said
-            reply-meta.post.q.said
-        ==
-      [%post %& simple-seal +.post.q.said]
-        %reply
-      ^-  $>(%reply reference:v9:old:c)
-      [%reply id-post.q.said %& reply.q.said]
-    ==
-  ==
-++  v-channels-8-to-9
-  |=  vc=v-channels:v8:old:c
-  ^-  v-channels:v9:old:c
-  %-  ~(run by vc)
-  |=  v=v-channel:v8:old:c
-  ^-  v-channel:v9:old:c
-  =/  nu-posts=v-posts:v9:old:c
-    (v-posts-8-to-9 posts.v)
-  =^  nu-log=log:v9:old:c  nu-posts
-    (log-8-to-9 log.v nu-posts)
-  ::NOTE  .future unused at the time of migration
-  v(posts nu-posts, log nu-log, future *future:v-channel:v9:old:c)
-::
-++  v-posts-8-to-9  ::NOTE  bunts tombstones! must call +log-8-to-9 afterwards!
-  |=  vp=v-posts:v8:old:c
-  ^-  v-posts:v9:old:c
-  %+  urn:mo-v-posts:v8:old:c  vp
-  |=  [=id-post:v8:old:c post=(unit v-post:v8:old:c)]
-  ^-  (may:v9:old:c v-post:v9:old:c)
-  ?~  post
-    [%| %*(. *tombstone:v9:old:c id id-post)]
-  :-  %&
-  u.post(replies (v-replies-8-to-9 replies.u.post))
-::
-++  v-replies-8-to-9
-  |=  vr=v-replies:v8:old:c
-  ^-  v-replies:v9:old:c
-  %+  urn:mo-v-replies:v8:old:c  vr
-  |=  [=id-reply:v8:old:c reply=(unit v-reply:v8:old:c)]
-  ^-  (may:v9:old:c v-reply:v9:old:c)
-  ?^  reply  [%& u.reply]
-  [%| %*(. *tombstone:v9:old:c id id-reply)]
-::
-++  log-8-to-9  ::  puts tombstone info into .vp too
-  |=  [l=log:v-channel:v8:old:c vp=v-posts:v9:old:c]
-  ^-  [log:v-channel:v9:old:c _vp]
-  |^  =+  do=(deep find-deleted-plans)
-      =<  [log=+ vp]
-      %-  (dyp:mo-log:v8:old:c u-channel:v9:old:c ,[=_vp =deets])
-      [l [vp *deets] do]
-  ::
-  +$  deets
-    (map plan:v9:old:c [=author:v9:old:c seq=@ud])
-  ::
-  ++  deep
-    |=  deletions=(set plan:v9:old:c)
-    |=  [[=_vp =deets] =time update=u-channel:v8:old:c]
-    ^-  [(unit u-channel:v9:old:c) _vp _deets]
-    ?+  update  [`update vp deets]
-        [%post * %set ^]
-      ::  creation: upgrade the update and store deets if we will care
-      ::
-      :+  %-  some
-          =;  p=v-post:v9:old:c
-            update(post.u-post &+p)
-          %=  u.post.u-post.update
-            replies  (v-replies-8-to-9 replies.u.post.u-post.update)
-          ==
-        vp
-      =/  =plan:v9:old:c  [id.update ~]
-      ?.  (~(has in deletions) plan)  deets
-      (~(put by deets) plan [author seq]:u.post.u-post.update)
-    ::
-        [%post * %set ~]
-      ::  deletion: create a proper tombstone and store it (in logs and vp)
-      ::
-      =/  =tombstone:v9:old:c
-        =/  [=author:v9:old:c seq=@ud]
-          =/  =plan:v9:old:c  [id.update ~]
-          ~?  !(~(has by deets) plan)  %log-8-to-9-seq-bunt
-          (~(gut by deets) plan *author:v9:old:c 0)
-        [id.update author seq time]
-      :+  `update(post.u-post |+tombstone)
-        (put:on-v-posts:v9:old:c vp id.update |+tombstone)
-      deets
-    ::
-        [%post * %reply * %set ^]
-      ::  creation: upgrade the update and store deets if we will care
-      ::
-      :+  `update(reply.u-reply.u-post &+u.reply.u-reply.u-post.update)
-        vp
-      =/  =plan:v9:old:c  [id.update `id.u-post.update]
-      ?.  (~(has in deletions) plan)  deets
-      ~!  u.reply.u-reply.u-post.update
-      ::NOTE  always seq=0 for replies
-      (~(put by deets) plan author.u.reply.u-reply.u-post.update 0)
-    ::
-        [%post * %reply * %set ~]
-      ::  deletion: create a proper tombstone and store it (in logs and vp)
-      ::
-      =/  =tombstone:v9:old:c
-        =/  [=author:v9:old:c seq=@ud]
-          =/  =plan:v9:old:c  [id `id.u-post]:update
-          ~?  !(~(has by deets) plan)  %log-8-to-9-seq-bunt-r
-          (~(gut by deets) plan *author:v9:old:c 0)
-        [id.u-post.update author seq time]
-      :+  `update(reply.u-reply.u-post |+tombstone)
-        %^  jib:mo-v-posts:v9:old:c  vp
-          id.update
-        |=  post=(may:v9:old:c v-post:v9:old:c)
-        ^+  post
-        ?:  ?=(%| -.post)  post
-        =-  post(replies -)
-        %^  put:on-v-replies:v9:old:c  replies.post
-          id.u-post.update
-        |+tombstone
-      deets
-    ==
-  ::
-  ++  find-deleted-plans
-    ::NOTE  no +rep:on...
-    =<  dels
-    %^  (dip:on-v-posts:v9:old:c ,dels=(set plan:v9:old:c))  vp
-      ~
-    |=  [dels=(set plan:v9:old:c) =id-post:v9:old:c post=(may:v9:old:c v-post:v9:old:c)]
-    ^-  [(unit (may:v9:old:c v-post:v9:old:c)) stop=? _dels]
-    =-  [~ | -]  ::  accumulate over everything
-    ?:  ?=(%| -.post)
-      (~(put in dels) id-post ~)
-    =<  dels
-    %^  (dip:on-v-replies:v9:old:c ,=_dels)  replies.post
-      dels
-    |=  [=_dels =id-reply:v9:old:c reply=(may:v9:old:c v-reply:v9:old:c)]
-    ^-  [(unit (may:v9:old:c v-reply:v9:old:c)) stop=? _dels]
-    =-  [~ | -]  ::  accumulate over everything
-    ?:  ?=(%& -.reply)  dels
-    (~(put in dels) id-post `id-reply)
-  --
-::
-++  v-channels-7-to-8
-  |=  vc=v-channels:v7:old:c
-  ^-  v-channels:v8:old:c
-  %-  ~(run by vc)
-  |=  v=v-channel:v7:old:c
-  ^-  v-channel:v8:old:c
-  =/  [log=log:v-channel:v8:old:c mod=(map id-post:c time)]
-    (log-7-to-8 log.v)
-  =/  [count=@ud =v-posts:v8:old:c]
-    (v-posts-7-to-8 posts.v mod)
-  =-  %=  w  -  :: change global in w
-        :*  posts.w
-            count
-            order.w
-            view.w
-            sort.w
-            perm.w
-            *(rev:c (unit @t))  ::  meta
-        ==
-      ==
-  ^=  w
-  %=  v
-    ::  global
-    posts  v-posts
-    ::  local
-    log      log
-    future   (future-8 log)
-    pending  (pending-7-to-8)
-  ==
-++  pending-7-to-8
-  |=  pending=pending-messages:v7:old:c
-  ^-  pending-messages:v8:old:c
-  %=  pending
-    posts    (~(run by posts.pending) essay-7-to-8)
-    replies  (~(run by replies.pending) memo-7-to-8)
-  ==
-++  memo-7-to-8
-  |=  =memo:v7:old:c
-  ^-  memo:v8:old:c
-  memo
-++  essay-7-to-8
-  |=  =essay:v7:old:c
-  ^-  essay:v8:old:c
-  :-  (memo-7-to-8 -.essay)  ::  memo
-  ?-    -.kind-data.essay
-      %diary
-    :-  /diary
-    :_  ~  ::  blob
-    %-  some
-    %*  .  *data:m
-      title  title.kind-data.essay
-      image  image.kind-data.essay
-    ==
-    ::
-      %heap
-    :-  /heap
-    :_  ~
-    (some %*(. *data:m title (fall title.kind-data.essay '')))
-    ::
-      %chat
-    ?~  kind.kind-data.essay
-      [/chat ~ ~]
-    ?>  ?=([%notice ~] kind.kind-data.essay)
-    [/chat/notice ~ ~]
-  ==
-++  v-posts-7-to-8
-  |=  [vp=v-posts:v7:old:c mod=(map id-post:c time)]
-  ^-  [@ud v-posts:v8:old:c]
-  =|  posts=v-posts:v8:old:c
-  %+  roll  (tap:on-v-posts:v7:old:c vp)
-  |=  [[=id-post:c post=(unit v-post:v7:old:c)] count=@ud =_posts]
-  ^+  [count posts]
-  ::  for each post traversed, even if it was deleted,
-  ::  .count increases to generate a correct post sequence number
-  ::
-  =.  count  +(count)
-  :-  count
-  ?~  post
-    ::NOTE  this used to just produce .posts as-is,
-    ::      which meant deleted msg tombstones got dropped!
-    ::      you will find logic to recover those in both channels agents.
-    (put:on-v-posts:v8:old:c posts id-post ~)
-  ::  insert seq and mod-at into seal
-  ::
-  =;  new-post=v-post:v8:old:c
-    (put:on-v-posts:v8:old:c posts id-post `new-post)
-  =*  seal  -.u.post
-  =*  essay  +.u.post
-  =/  new-seal=v-seal:v8:old:c
-    =/  mod-at=@da
-      %+  fall
-        (~(get by mod) id-post)
-      id.u.post
-    =+  seal(|1 [count mod-at |1.seal])
-    %=  -
-      replies  (v-replies-7-to-8 replies.seal)
-      reacts   (v-reacts-7-to-8 reacts.seal)
-    ==
-  ^-  v-post:v8:old:c
-  [new-seal [rev.essay (essay-7-to-8 +.essay)]]
-::
-++  v-replies-7-to-8
-  |=  =v-replies:v7:old:c
-  ^-  v-replies:v8:old:c
-  %+  run:on-v-replies:v7:old:c  v-replies
-  |=  v-reply=(unit v-reply:v7:old:c)
-  ^-  (unit v-reply:v8:old:c)
-  ?~  v-reply  ~
-  %=  v-reply
-    reacts.u  (v-reacts-7-to-8 reacts.u.v-reply)
-  ==
-::
-++  v-reacts-7-to-8
-  |=  =v-reacts:v7:old:c
-  ^-  v-reacts:v8:old:c
-  %-  ~(run by v-reacts)
-  |=  v-react=(rev:c (unit react:v7:old:c))
-  ^-  (rev:c (unit react:v8:old:c))
-  ?~  +.v-react  [-.v-react ~]
-  =+  rat=(kill:em u.v-react)
-  v-react(u (fall rat any+u.v-react))
-++  react-7-to-8
-  |=  =react:v7:old:c
-  ^-  react:c
-  =+  rat=(kill:em react)
-  (fall rat any+react)
-::
-::
-++  u-post-set-7-to-8
-  |=  [u=u-post:v7:old:c seq=@ud mod-at=@da]
-  ^-  $>(%set u-post:v8:old:c)
-  ?>  ?=(%set -.u)
-  ::  %post %set
-  ::
-  ?~  post.u  u
-  =*  post  u.post.u
-  :-  %set
-  =/  new-seal=v-seal:v8:old:c
-    :*  id.post
-        seq
-        mod-at
-        (v-replies-7-to-8 replies.post)
-        (v-reacts-7-to-8 reacts.post)
-    ==
-  (some [new-seal [rev.+.post (essay-7-to-8 +>.post)]])
-::
-++  u-post-not-set-7-to-8
-  |=  u=$<(%set u-post:v7:old:c)
-  ^-  $<(%set u-post:v8:old:c)
-  ?:  ?=(%essay -.u)
-    u(essay (essay-7-to-8 essay.u))
-  ::
-  ?:  ?=([%reply =id-reply:c %set *] u)
-    ?~  reply.u-reply.u  u
-    %=    u
-        reacts.u.reply.u-reply
-      %-  v-reacts-7-to-8
-      reacts.u.reply.u-reply.u
-    ==
-  ?:  ?=([%reply =id-reply:c %reacts *] u)
-    %=    u
-        reacts.u-reply
-      %-  v-reacts-7-to-8
-      reacts.u-reply.u
-    ==
-  ::  %reacts
-  ::
-  u(reacts (v-reacts-7-to-8 reacts.u))
-::
-++  log-7-to-8
-  |=  l=log:v-channel:v7:old:c
-  ^-  [log:v-channel:v8:old:c (map id-post:v8:old:c @da)]
-  =|  seq-log=(map id-post:v8:old:c @ud)
-  =|  =log:v8:old:c
-  =|  mod=(map id-post:v8:old:c @da)
-  =<  [log mod]
-  %+  roll  (tap:log-on:v7:old:c l)
-  |=  [[=time =u-channel:v7:old:c] [count=@ud =_seq-log] =_log =_mod]
-  ^+  [[count seq-log] log mod]
-  ?:  ?=(%create -.u-channel)
-    :-  [count seq-log]
-    :_  mod
-    (put:log-on:v8:old:c log time %create perm.u-channel ~)
-  ?.  ?=(%post -.u-channel)
-    :-  [count seq-log]
-    :_  mod
-    (put:log-on:v8:old:c log time u-channel)
-  ?.  ?=(%set -.u-post.u-channel)
-    :-  [count seq-log]
-    :_  (~(put by mod) id.u-channel time)
-    (put:log-on:v8:old:c log time %post id.u-channel (u-post-not-set-7-to-8 u-post.u-channel))
-  ::  %set
-  ::
-  ?~  post.u-post.u-channel
-    :-  [count seq-log]
-    :_  (~(put by mod) id.u-channel time)
-    (put:log-on:v8:old:c log time %post id.u-channel %set ~)
-  ::  %set post: increment .seq only for a new post
-  ::
-  =^  seq=@ud  count
-    ?~  seq=(~(get by seq-log) id.u-channel)
-      [. .]:+(count)
-    [u.seq count]
-  :-  :-  count
-      (~(put by seq-log) id.u-channel count)
-  :_  (~(put by mod) id.u-channel time)
-  %^  put:log-on:v8:old:c  log  time
-  :+  %post  id.u-channel
-  (u-post-set-7-to-8 u-post.u-channel seq id.u-channel)
-::
-++  future-8
-  |=  log=log:v8:old:c
-  ^-  future:v-channel:v8:old:c
-  %*  .  *future:v-channel:v8:old:c
-      diffs
-    %+  roll  (tap:log-on:v8:old:c log)
-    |=  [[time u=u-channel:v8:old:c] diffs=(jug id-post:c u-post:v8:old:c)]
-    ?.  ?=(%post -.u)  diffs
-    (~(put ju diffs) id.u u-post.u)
-  ==
+++  said-7-to-8  v8:said:v7:ccv
+++  said-8-to-9  v9:said:v8:ccv
+++  v-channels-8-to-9  v9:v-channels:v8:ccv
+++  v-posts-8-to-9  v9:v-posts:v8:ccv
+++  v-replies-8-to-9  v9:v-replies:v8:ccv
+++  log-8-to-9  v9:log:v8:ccv
+++  v-channels-7-to-8  v8:v-channels:v7:ccv
+++  pending-7-to-8  v8:pending:v7:ccv
+++  memo-7-to-8  v8:memo:v7:ccv
+++  essay-7-to-8  v8:essay:v7:ccv
+++  v-posts-7-to-8  v8:v-posts:v7:ccv
+++  v-replies-7-to-8  v8:v-replies:v7:ccv
+++  v-reacts-7-to-8  v8:v-reacts:v7:ccv
+++  react-7-to-8  v8:react:v7:ccv
+++  u-post-set-7-to-8  v8:u-post-set:v7:ccv
+++  u-post-not-set-7-to-8  v8:u-post-not-set:v7:ccv
+++  log-7-to-8  v7:log:v8:ccv
 ::
 ++  get-author-ship
   |=  =author:c

@@ -1,6 +1,6 @@
 /-  c=channels
 /+  j=channel-json
-|_  =channel-heads:v8:old:c
+|_  =channel-heads:v8:c
 ++  grad  %noun
 ++  grow
   |%
@@ -9,6 +9,6 @@
   --
 ++  grab
   |%
-  ++  noun  channel-heads:v8:old:c
+  ++  noun  channel-heads:v8:c
   --
 --

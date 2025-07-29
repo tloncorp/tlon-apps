@@ -1,6 +1,6 @@
 ::  summarize: utilities for summarizing groups/chat state in various ways
 ::
-::REVIEW  v8:old:c might have to be even older, like v1:old:c or w/e
+::REVIEW  v8:c might have to be even older, like v1:c or w/e
 /-  c=channels, ct=chat, chat=chat-2, groups
 ::
 |_  [our=@p now=@da]
@@ -38,21 +38,21 @@
       ==
   %+  roll
     %~  tap  by
-    .^  channels:v8:old:c
+    .^  channels:v8:c
       %gx
       (scry-path %channels /channels/channels)
     ==
-  |=  [[n=nest:c channel:v8:old:c] g=(map flag:groups @ud) s=@ud r=@ud]
+  |=  [[n=nest:c channel:v8:c] g=(map flag:groups @ud) s=@ud r=@ud]
   ?.  ?=(%chat kind.n)  [g s r]
-  =+  .^  paged-posts:v8:old:c
+  =+  .^  paged-posts:v8:c
         %gx
         %+  scry-path  %channels
         /chat/(scot %p ship.n)/[name.n]/posts/newer/(scot %ud (sub now range))/(scot %ud limit)/outline/channel-posts
       ==
   :-  %+  ~(put by g)  group.perm
-      (add (~(gut by g) group.perm 0) (wyt:on-posts:v8:old:c posts))
-  %+  roll  (tap:on-posts:v8:old:c posts)
-  |=  [[id-post:c p=(unit post:v8:old:c)] s=_s r=_r]
+      (add (~(gut by g) group.perm 0) (wyt:on-posts:v8:c posts))
+  %+  roll  (tap:on-posts:v8:c posts)
+  |=  [[id-post:c p=(unit post:v8:c)] s=_s r=_r]
   ?~  p  [s r]
   ?:(=(our author.u.p) [+(s) r] [s +(r)])
 ::
@@ -116,9 +116,9 @@
   =/  [duc=@ud faz=(list [g=flag:groups n=nest:c u=@ud])]
     %+  roll
       %~  tap  by
-      .^(channels:v8:old:c %gx (scry-path %channels /channels/channels))
+      .^(channels:v8:c %gx (scry-path %channels /channels/channels))
     =+  .^(=unreads:c %gx (scry-path %channels /unreads/channel-unreads))
-    |=  [[n=nest:c channel:v8:old:c] duc=@ud faz=(list [flag:groups nest:c @ud])]
+    |=  [[n=nest:c channel:v8:c] duc=@ud faz=(list [flag:groups nest:c @ud])]
     ?.  ?=(%chat kind.n)  [duc faz]  ::  ignore non-chat channels for now
     =/  =unread:c  (~(gut by unreads) n *unread:c)
     :-  (add duc count.unread)

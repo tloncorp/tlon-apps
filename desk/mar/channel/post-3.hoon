@@ -1,6 +1,6 @@
 /-  c=channels
 /+  j=channel-json
-|_  =post:v8:old:c
+|_  =post:v8:c
 ++  grad  %noun
 ++  grow
   |%
@@ -9,6 +9,6 @@
   --
 ++  grab
   |%
-  ++  noun  post:v8:old:c
+  ++  noun  post:v8:c
   --
 --

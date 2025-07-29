@@ -170,25 +170,25 @@
   +$  state-10  current-state
   +$  state-9
     $:  %9
-        =v-channels:v8:old:c
+        =v-channels:v8:c
         =hooks:h
         =pimp:imp
     ==
   +$  state-8
     $:  %8
-        =v-channels:v8:old:c
+        =v-channels:v8:c
         =hooks:h
         =pimp:imp
     ==
   +$  state-7
     $:  %7
-        =v-channels:v7:old:c
+        =v-channels:v7:c
         =hooks:h
         =pimp:imp
     ==
   +$  state-6
     $:  %6
-      =v-channels:v7:old:c
+      =v-channels:v7:c
       =pimp:imp
     ==
   ++  state-9-to-10
@@ -200,17 +200,17 @@
     ^-  state-9
     =-  s(- %9, v-channels -)
     %-  ~(run by v-channels.s)
-    |=  v=v-channel:v8:old:c
+    |=  v=v-channel:v8:c
     ^+  v
-    %+  roll  (tap:log-on:v8:old:c log.v)
-    |=  $:  [t=time u=u-channel:v8:old:c]
+    %+  roll  (tap:log-on:v8:c log.v)
+    |=  $:  [t=time u=u-channel:v8:c]
             chan=_v
         ==
     ?.  ?=([%post * %set ~] u)  chan
-    ~?  ?=([~ ~ *] (get:on-v-posts:v8:old:c posts.chan id.u))
+    ~?  ?=([~ ~ *] (get:on-v-posts:v8:c posts.chan id.u))
       %strange-existing-deleted-posts
     =-  chan(posts -)
-    (put:on-v-posts:v8:old:c posts.chan id.u ~)
+    (put:on-v-posts:v8:c posts.chan id.u ~)
   ++  state-7-to-8
     |=  s=state-7
     ^-  state-8
@@ -221,7 +221,7 @@
     [%7 v-channels *hooks:h pimp]
   +$  state-5
     $:  %5
-        =v-channels:v6:old:c
+        =v-channels:v6:c
         =pimp:imp
     ==
   ++  state-5-to-6
@@ -229,15 +229,15 @@
     ^-  state-6
     [%6 (v-channels-5-to-6 v-channels) pimp]
   ++  v-channels-5-to-6
-    |=  vc=v-channels:v6:old:c
-    ^-  v-channels:v7:old:c
+    |=  vc=v-channels:v6:c
+    ^-  v-channels:v7:c
     %-  ~(run by vc)
-    |=  v=v-channel:v6:old:c
-    ^-  v-channel:v7:old:c
+    |=  v=v-channel:v6:c
+    ^-  v-channel:v7:c
     v(pending [pending.v *last-updated:c])
   +$  state-4
     $:  %4
-        =v-channels:v6:old:c
+        =v-channels:v6:c
     ==
   ++  state-4-to-5
     |=  state-4
@@ -251,17 +251,17 @@
   ::
   ++  v-channel-2-to-3
     |=  v=v-channel-2
-    ^-  v-channel:v6:old:c
-    v(future [future.v *pending-messages:v7:old:c])
+    ^-  v-channel:v6:c
+    v(future [future.v *pending-messages:v7:c])
   ++  v-channels-2  (map nest:c v-channel-2)
   ++  v-channel-2
-    |^  ,[global:v-channel:v7:old:c local]
+    |^  ,[global:v-channel:v7:c local]
     +$  local
       $:  =net:c
-          =log:v7:old:c
+          =log:v7:c
           =remark:c
           =window:v-channel:c
-          =future:v-channel:v7:old:c
+          =future:v-channel:v7:c
       ==
     --
   ::
@@ -293,23 +293,23 @@
     --
   +$  log-1           ((mop time u-channel-1) lte)
   ++  log-on-1        ((on time u-channel-1) lte)
-  +$  u-channel-1     $%  $<(%post u-channel:v7:old:c)
+  +$  u-channel-1     $%  $<(%post u-channel:v7:c)
                           [%post id=id-post:c u-post=u-post-1]
                       ==
-  +$  u-post-1        $%  $<(?(%set %reply) u-post:v7:old:c)
+  +$  u-post-1        $%  $<(?(%set %reply) u-post:v7:c)
                           [%set post=(unit v-post-1)]
                           [%reply id=id-reply:c u-reply=u-reply-1]
                       ==
-  +$  u-reply-1       $%  $<(%set u-reply:v7:old:c)
+  +$  u-reply-1       $%  $<(%set u-reply:v7:c)
                           [%set reply=(unit v-reply-1)]
                       ==
   +$  v-posts-1       ((mop id-post:c (unit v-post-1)) lte)
   ++  on-v-posts-1    ((on id-post:c (unit v-post-1)) lte)
-  +$  v-post-1        [v-seal-1 (rev:c essay:v7:old:c)]
-  +$  v-seal-1        [id=id-post:c replies=v-replies-1 reacts=v-reacts:v7:old:c]
+  +$  v-post-1        [v-seal-1 (rev:c essay:v7:c)]
+  +$  v-seal-1        [id=id-post:c replies=v-replies-1 reacts=v-reacts:v7:c]
   +$  v-replies-1     ((mop id-reply:c (unit v-reply-1)) lte)
   ++  on-v-replies-1  ((on id-reply:c (unit v-reply-1)) lte)
-  +$  v-reply-1       [v-reply-seal:v7:old:c memo:v7:old:c]
+  +$  v-reply-1       [v-reply-seal:v7:c memo:v7:c]
   ++  state-1-to-2
     |=  s=state-1
     ^-  state-2
@@ -327,16 +327,16 @@
     (run:log-on-1 l u-channel-1-to-2)
   ++  u-channel-1-to-2
     |=  u=u-channel-1
-    ^-  u-channel:v7:old:c
+    ^-  u-channel:v7:c
     ?.  ?=([%post *] u)  u
     u(u-post (u-post-1-to-2 u-post.u))
   ++  future-1-to-2
     |=  f=future:v-channel-1
-    ^-  future:v-channel:v7:old:c
+    ^-  future:v-channel:v7:c
     f(diffs (~(run by diffs.f) |=(s=(set u-post-1) (~(run in s) u-post-1-to-2))))
   ++  u-post-1-to-2
     |=  u=u-post-1
-    ^-  u-post:v7:old:c
+    ^-  u-post:v7:c
     ?+  u  u
       [%set ~ *]           u(u.post (v-post-1-to-2 u.post.u))
       [%reply * %set ~ *]  u(u.reply.u-reply (v-reply-1-to-2 u.reply.u-reply.u))
@@ -352,7 +352,7 @@
     %+  run:on-v-replies-1  r
     |=(r=(unit v-reply-1) ?~(r ~ `(v-reply-1-to-2 u.r)))
   ++  v-reply-1-to-2
-    |=(r=v-reply-1 `v-reply:v7:old:c`[-.r 0 +.r])
+    |=(r=v-reply-1 `v-reply:v7:c`[-.r 0 +.r])
   ::
   ::  %0 to %1
   ::
@@ -433,10 +433,10 @@
         (emit [%pass /tombstones %agent [src.bowl %channels] %poke cage])
       :-  %noun
       !>  :+  %tombstones  nest
-      ^-  (list [id-post:v9:old:c tombstone:v9:old:c])
+      ^-  (list [id-post:v9:c tombstone:v9:c])
       %+  murn  (tap:on-v-posts:c posts.u.can)
       |=  [i=id-post:c p=(may:c v-post:c)]
-      ^-  (unit [id-post:v9:old:c tombstone:v9:old:c])
+      ^-  (unit [id-post:v9:c tombstone:v9:c])
       ?:(?=(%& -.p) ~ `[i +.p])
     ==
   ::
