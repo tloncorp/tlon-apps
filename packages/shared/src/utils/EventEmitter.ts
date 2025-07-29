@@ -1,5 +1,8 @@
 type AnyEventMap = { [key: string]: (...args: any[]) => void };
 
+export type EventMapForEmitter<Emitter extends EventEmitter> =
+  Emitter extends EventEmitter<infer M> ? M : never;
+
 export class EventEmitter<
   EventMap extends AnyEventMap = { [key: string]: (...args: any[]) => void },
 > {
@@ -14,6 +17,17 @@ export class EventEmitter<
 
     this.listeners[event]!.push(callback);
 
+    return this;
+  }
+
+  off<E extends keyof EventMap>(event: E, callback: EventMap[E]) {
+    if (!(event in this.listeners)) {
+      return;
+    }
+    this.listeners[event]!.splice(
+      this.listeners[event]!.findIndex((cb) => cb === callback),
+      1
+    );
     return this;
   }
 
