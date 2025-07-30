@@ -392,7 +392,6 @@ function ConnectedDesktopApp({
       if (!hasSyncedRef.current) {
         try {
           await sync.syncStart(false);
-          splashScreenProgress.complete(SplashScreenTask.initialSync);
           hasSyncedRef.current = true;
         } catch (e) {
           console.error('Error starting sync:', e);
