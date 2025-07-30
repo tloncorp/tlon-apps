@@ -372,7 +372,6 @@ function ConnectedDesktopApp({
   useDesktopNotifications(clientReady);
 
   useEffect(() => {
-    splashScreenProgress.add(SplashScreenTask.initialSync);
     splashScreenProgress.emitter.on('complete', () => {
       setClientReady(true);
     });
@@ -448,10 +447,6 @@ function ConnectedWebApp() {
 
   const isNewSignup = useMemo(() => {
     return logic.detectWebSignup();
-  }, []);
-
-  useEffect(() => {
-    splashScreenProgress.add(SplashScreenTask.startDatabase);
   }, []);
 
   useEffect(() => {
