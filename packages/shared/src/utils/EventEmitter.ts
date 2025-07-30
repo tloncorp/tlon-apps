@@ -24,10 +24,10 @@ export class EventEmitter<
     if (!(event in this.listeners)) {
       return;
     }
-    this.listeners[event]!.splice(
-      this.listeners[event]!.findIndex((cb) => cb === callback),
-      1
-    );
+    const index = this.listeners[event]!.findIndex((cb) => cb === callback);
+    if (index !== -1) {
+      this.listeners[event]!.splice(index, 1);
+    }
     return this;
   }
 
