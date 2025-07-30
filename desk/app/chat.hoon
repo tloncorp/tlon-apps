@@ -1809,7 +1809,7 @@
         ?.  ?=(%reply -.q.diff.delta)  ~
         ?~  had  ~
         (get-reply:cu-pact id.q.diff.delta replies.writ.u.had)
-      ::  Log shortcode reactions for group DMs
+      ::  log shortcode reactions for group DMs
       ::
       =?  cor  ?=(%add-react -.q.diff.delta)
         =/  react-text  
@@ -1846,7 +1846,7 @@
         =*  delt  delta.q.diff.delta
         =/  entry=(unit [=time =writ:c])  (get:cu-pact p.diff.delta)
         =?  meta.q.diff.delta  !=(~ entry)  `reply-meta.writ:(need entry)
-        ::  Log shortcode reactions for group DM replies
+        ::  log shortcode reactions for group DM replies
         ::
         =?  cor  ?=(%add-react -.delt)
           =/  react-text  
@@ -2237,7 +2237,7 @@
       ?.  ?=(%reply -.q.diff)  ~
       ?~  had  ~
       (get-reply:di-pact id.q.diff replies.writ.u.had)
-    ::  Log shortcode reactions for regular DMs
+    ::  log shortcode reactions for regular DMs
     ::
     =?  cor  ?=(%add-react -.q.diff)
       =/  react-text  
@@ -2277,7 +2277,7 @@
       =*  delta  delta.q.diff
       =/  entry=(unit [=time =writ:c])  (get:di-pact p.diff)
       =?  meta.q.diff  !=(~ entry)  `reply-meta.writ:(need entry)
-      ::  Log shortcode reactions for regular DM replies
+      ::  log shortcode reactions for regular DM replies
       ::
       =?  cor  ?=(%add-react -.delta)
         =/  react-text  
