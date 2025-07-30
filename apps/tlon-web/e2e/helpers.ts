@@ -275,10 +275,7 @@ export async function forwardMessageToDM(
 /**
  * Forwards a group reference to a specified channel
  */
-export async function forwardGroupReference(
-  page: Page,
-  channelName: string
-) {
+export async function forwardGroupReference(page: Page, channelName: string) {
   // Click the Forward button in group info
   await page.getByText('Forward').click();
 
@@ -303,7 +300,9 @@ export async function forwardGroupReference(
   await expect(page.getByText('Forwarded')).toBeVisible({ timeout: 5000 });
 
   // Verify modal closes
-  await expect(page.getByText('Forward to channel')).not.toBeVisible({ timeout: 3000 });
+  await expect(page.getByText('Forward to channel')).not.toBeVisible({
+    timeout: 3000,
+  });
 }
 
 /**
@@ -845,8 +844,9 @@ export async function verifyUnreadCount(
   channelName: string,
   expectedCount: number
 ) {
+  await page.waitForTimeout(1000);
   const channelItem = page.getByTestId(`ChannelListItem-${channelName}`);
-  
+
   if (expectedCount === 0) {
     // Should not have unread count visible - look for any text that matches numbers
     const countText = channelItem.getByText(/^\d+$/, { exact: true });
