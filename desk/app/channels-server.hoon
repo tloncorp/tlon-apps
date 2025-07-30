@@ -943,7 +943,16 @@
           ?@  q.new  q.new
           p.q.new
         ?~  (kill:em react-text)
-          (emit (tell:log %crit ~[leaf+"Shortcode reaction detected in channels-server (post)"] ~['context'^s+'channels_server_post_add_react' 'nest'^s+(spat [kind.nest (scot %p ship.nest) name.nest ~]) 'post_id'^s+(scot %uv id.c-post) 'react'^s+react-text]))
+          =/  message  ~[leaf+"Shortcode reaction detected in channels-server (post)"]
+          =/  nest-path  (spat [kind.nest (scot %p ship.nest) name.nest ~])
+          =/  post-id    (scot %uv id.c-post)
+          =/  metadata  
+            :~  'context'^s+'channels_server_post_add_react'
+                'nest'^s+nest-path
+                'post_id'^s+post-id
+                'react'^s+react-text
+            ==
+          (emit (tell:log %crit message metadata))
         ca-core
       =/  [update=? reacts=v-reacts:c]
         (ca-c-react reacts.u.u.post new)
@@ -967,7 +976,16 @@
           ?@  q.c-reply.c-post  q.c-reply.c-post
           p.q.c-reply.c-post
         ?~  (kill:em react-text)
-          (emit (tell:log %crit ~[leaf+"Shortcode reaction detected in channels-server (reply)"] ~['context'^s+'channels_server_reply_add_react' 'nest'^s+(spat [kind.nest (scot %p ship.nest) name.nest ~]) 'post_id'^s+(scot %uv id.c-post) 'react'^s+react-text]))
+          =/  message  ~[leaf+"Shortcode reaction detected in channels-server (reply)"]
+          =/  nest-path  (spat [kind.nest (scot %p ship.nest) name.nest ~])
+          =/  post-id    (scot %uv id.c-post)
+          =/  metadata  
+            :~  'context'^s+'channels_server_reply_add_react'
+                'nest'^s+nest-path
+                'post_id'^s+post-id
+                'react'^s+react-text
+            ==
+          (emit (tell:log %crit message metadata))
         ca-core
       =^  update=(unit u-post:c)  replies.u.u.post
         (ca-c-reply u.u.post c-reply.c-post)
