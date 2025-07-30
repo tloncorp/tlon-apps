@@ -340,6 +340,7 @@
     ::
         ::  deprecated
         %group-action-3
+      ?>  from-self
       =+  !<(=action:v2:gv vase)
       =*  flag  p.action
       =*  diff  q.q.action
@@ -416,8 +417,8 @@
     ::
         ::  deprecated
         %group-leave
-      =+  !<(=flag:g vase)
       ?>  from-self
+      =+  !<(=flag:g vase)
       ?<  =(our.bowl p.flag)
       go-abet:(go-leave:(go-abed:go-core flag) &)
     ::
@@ -462,11 +463,12 @@
       $(+< group-foreign-1+!>(a-foreigns))
     ::
         %group-cancel
-      =+  !<(=flag:g vase)
       ?>  from-self
+      =+  !<(=flag:g vase)
       fi-abet:fi-cancel:(fi-abed:fi-core flag)
     ::
         %group-invite
+      ?>  from-self
       =+  !<(invite-0=invite:v0:gv vase)
       ?:  =(q.invite-0 our.bowl)
         ::  invitee, deprecated
@@ -1715,7 +1717,8 @@
     ::      no longer allowed.
     ::
     ?<  (se-is-banned src.bowl)
-    =*  se-src-is-admin  (se-is-admin src.bowl)
+    =*  se-src-is-admin   (se-is-admin src.bowl)
+    =*  se-src-is-member  (se-is-member src.bowl)
     ::
     ?-    -.c-group
         %meta
@@ -1745,6 +1748,7 @@
       (se-c-section [section-id c-section]:c-group)
     ::
         %flag-content
+      ?>  se-src-is-member
       (se-c-flag-content [nest plan src]:c-group)
     ::
         %delete
@@ -2157,10 +2161,10 @@
       %+  roll  ~(tap in ships)
       |=  [=ship ivl=(list ship) =_se-core]
       ?.  (can-poke:neg bowl ship %groups)
-        ::  retry after .delay, with a maximum of 3 retries
+        ::  retry .retry times with doubling .delay
         ::
-        =+  delay=~m45
-        =+  retry=3
+        =+  delay=~h1
+        =+  retry=8
         =/  =wire  ^~
           %+  weld  /server/(scot %p our.bowl)/[q.flag]
           /invite/retry/(scot %p ship)/(scot %ud retry)/(scot %dr delay)
@@ -2739,6 +2743,7 @@
   ++  go-leave
     |=  send-leave=?
     ^+  go-core
+    ?>  from-self
     =.  cor
       (submit-activity [%del %group flag])
     ::NOTE  we leave all channels, not just those that
@@ -2764,8 +2769,7 @@
   ++  go-a-invite
     |=  =a-invite:g
     ?>  from-self
-    ?:  =(ship.a-invite src.bowl)
-      go-core
+    ?:  =(ship.a-invite src.bowl)  go-core
     ?:  &(?=(~ token.a-invite) !?=(%public privacy.ad))
       ::  if we don't have a suitable token for a non-public group,
       ::  we are going to request it
@@ -3386,6 +3390,8 @@
         %+  ~(jab by sections.group)  section.channel
         |=(=section:g section(order (~(del of order.section) nest)))
       =.  channels.group  (del:by-ch nest)
+      ::TODO should we leave the channel here to match logic in %add
+      ::     above?
       go-core
     ::
         %add-readers
@@ -3558,7 +3564,7 @@
   ++  go-response
     |=  =r-group:g
     ^+  go-core
-    ::  v1 response, requires v7
+    ::  v1 response
     ::
     =/  r-groups-7=r-groups:v7:gv  [flag r-group]
     =/  v1-paths  ~[/v1/groups [%v1 go-area]]
