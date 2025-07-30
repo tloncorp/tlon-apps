@@ -885,3 +885,53 @@ export async function isMobileViewport(page: Page) {
   const viewport = await page.viewportSize();
   return viewport && viewport.width < 768;
 }
+
+/**
+ * Adds a contact for testing purposes
+ */
+export async function addContactForTest(page: Page, contactId: string) {
+  await page.getByTestId('AvatarNavIcon').click();
+  await expect(page.getByText('Contacts')).toBeVisible();
+  await page.getByTestId('ContactsAddButton').click();
+  await expect(page.getByText('Add Contacts')).toBeVisible();
+  
+  await page.getByPlaceholder('Filter by nickname, @p').click();
+  await page.getByPlaceholder('Filter by nickname, @p').fill(contactId);
+  await page.waitForTimeout(2000);
+  
+  if (await page.getByTestId('ContactRow').first().isVisible()) {
+    await page.getByTestId('ContactRow').first().click();
+    await page.waitForTimeout(1000);
+    
+    if (await page.getByText(/Add \d+ contact/).isVisible()) {
+      await page.getByText(/Add \d+ contact/).click();
+      await page.waitForTimeout(2000);
+    }
+  }
+  
+  await expect(page.getByText('Contacts')).toBeVisible();
+}
+
+/**
+ * Removes a contact for testing cleanup
+ */
+export async function cleanupContactForTest(page: Page, contactId: string) {
+  try {
+    await page.getByTestId('AvatarNavIcon').click();
+    await expect(page.getByText('Contacts')).toBeVisible();
+    
+    if (await page.getByText(contactId).isVisible()) {
+      await page.getByText(contactId).click();
+      await expect(page.getByText('Profile')).toBeVisible();
+      
+      if (await page.getByText('Remove Contact').isVisible()) {
+        await page.getByText('Remove Contact').click();
+        await page.waitForTimeout(1000);
+      }
+      
+      await page.getByTestId('HeaderBackButton').click();
+    }
+  } catch (error) {
+    console.log(`Cleanup failed for contact ${contactId}:`, error);
+  }
+}
