@@ -3,7 +3,7 @@
 ::    this is the server-side from which /app/channels gets its data.
 ::
 /-  c=channels, g=groups, h=hooks, m=meta
-/+  utils=channel-utils, imp=import-aid
+/+  utils=channel-utils, imp=import-aid, em=emojimart
 /+  default-agent, verb, dbug,
     neg=negotiate, discipline, logs
 /+  hj=hooks-json
@@ -935,6 +935,15 @@
         ?~  react.p.result
           [%del-react id.c-post ship.p.result]
         [%add-react id.c-post [ship u.react]:p.result]
+      ::  Log shortcode reactions for posts
+      ::
+      =?  ca-core  ?=(%add-react -.new)
+        =/  react-text  
+          ?@  q.new  q.new
+          p.q.new
+        ?~  (kill:em react-text)
+          (emit [%pass /shortcode-log %agent [our.bowl %posthog] %poke %posthog-event !>([%event s+'Backend Shortcode Reaction Channels Post' ~['context'^s+'channels_server_post_add_react' 'nest'^s+(spat [kind.nest (scot %p ship.nest) name.nest ~]) 'post_id'^s+(scot %uv id.c-post) 'react'^s+react-text]])])
+        ca-core
       =/  [update=? reacts=v-reacts:c]
         (ca-c-react reacts.u.u.post new)
       ?.  update  no-op
@@ -950,6 +959,15 @@
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  no-op
       ?~  u.post  no-op
+      ::  Log shortcode reactions for replies
+      ::
+      =?  ca-core  ?=(%add-react -.c-reply.c-post)  
+        =/  react-text  
+          ?@  q.c-reply.c-post  q.c-reply.c-post
+          p.q.c-reply.c-post
+        ?~  (kill:em react-text)
+          (emit [%pass /shortcode-log %agent [our.bowl %posthog] %poke %posthog-event !>([%event s+'Backend Shortcode Reaction Channels Reply' ~['context'^s+'channels_server_reply_add_react' 'nest'^s+(spat [kind.nest (scot %p ship.nest) name.nest ~]) 'post_id'^s+(scot %uv id.c-post) 'react'^s+react-text]])])
+        ca-core
       =^  update=(unit u-post:c)  replies.u.u.post
         (ca-c-reply u.u.post c-reply.c-post)
       ?~  update  no-op
