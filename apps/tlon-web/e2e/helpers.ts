@@ -13,7 +13,7 @@ export async function navigateToChannel(page: Page, channelName: string) {
 
 export async function createGroup(page: Page) {
   await page.getByTestId('CreateChatSheetTrigger').click();
-  await page.getByText('New group').click();
+  await page.getByText('New group', { exact: true }).click();
   await page.getByText('Select contacts to invite').click();
   await page.getByText('Create group').click();
 
@@ -834,6 +834,28 @@ export async function verifyMessagePreview(
     await expect(
       page.getByTestId(`ChannelListItem-${channelTitle}`).getByText(messageText)
     ).toBeVisible({ timeout: 15000 });
+  }
+}
+
+/**
+ * Verifies unread count badge on channel list item
+ */
+export async function verifyUnreadCount(
+  page: Page,
+  channelName: string,
+  expectedCount: number
+) {
+  const channelItem = page.getByTestId(`ChannelListItem-${channelName}`);
+  
+  if (expectedCount === 0) {
+    // Should not have unread count visible - look for any text that matches numbers
+    const countText = channelItem.getByText(/^\d+$/, { exact: true });
+    await expect(countText).not.toBeVisible();
+  } else {
+    // Should show the expected count - look for text with the number
+    await expect(
+      channelItem.getByText(expectedCount.toString(), { exact: true })
+    ).toBeVisible({ timeout: 10000 });
   }
 }
 
