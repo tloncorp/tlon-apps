@@ -989,7 +989,8 @@ export const posts = sqliteTable(
     cacheId: uniqueIndex('cache_id').on(
       table.channelId,
       table.authorId,
-      table.sentAt
+      table.sentAt,
+      table.sequenceNum
     ),
     channelId: index('posts_channel_id').on(table.channelId, table.id),
     groupId: index('posts_group_id').on(table.groupId, table.id),

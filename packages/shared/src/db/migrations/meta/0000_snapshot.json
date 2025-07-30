@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "77fb88db-0b2b-400b-9d11-1ea42719b0c1",
+  "id": "3e162568-87e7-4974-9edc-7012daf11bbd",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2170,7 +2170,8 @@
           "columns": [
             "channel_id",
             "author_id",
-            "sent_at"
+            "sent_at",
+            "sequence_number"
           ],
           "isUnique": true
         },

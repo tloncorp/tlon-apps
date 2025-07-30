@@ -123,6 +123,10 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     },
     retryDelay: () => 500,
     queryFn: async (ctx): Promise<PostQueryPage> => {
+      function getRandomFourDigitNumber() {
+        return Math.floor(Math.random() * (9999 - 1000 + 1)) + 1000;
+      }
+      const queryFnId = getRandomFourDigitNumber();
       const queryOptions = ctx.pageParam || options;
 
       let cursorPost = null;
@@ -131,7 +135,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
       }
 
       console.log(
-        `ql: query fn running ${queryOptions.mode}:${cursorPost?.sequenceNum ?? queryOptions.cursor}`,
+        `ql:${queryFnId} query fn running ${queryOptions.mode}:${cursorPost?.sequenceNum ?? queryOptions.cursor}`,
         ctx.pageParam
       );
       postsLogger.log('loading posts', { queryOptions, options });
@@ -153,18 +157,22 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
       } else if (queryOptions.cursor) {
         const cursorPost = await db.getPost({ postId: queryOptions.cursor });
         if (cursorPost && cursorPost.sequenceNum) {
-          console.log(`ql: using cursor post`, cursorPost);
+          console.log(`ql:${queryFnId} using cursor post`, cursorPost);
           cached = await db.getSequencedChannelPosts({
             ...queryOptions,
             cursorSequenceNum: cursorPost.sequenceNum!,
           });
         } else {
-          console.log('ql: cursor post not found, syncing');
+          console.log(`ql:${queryFnId} cursor post not found, syncing`);
         }
       }
 
       if (cached?.length) {
-        postsLogger.log('returning', cached.length, 'posts from db');
+        postsLogger.log(
+          `ql:${queryFnId} returning`,
+          cached.length,
+          'posts from db'
+        );
         return {
           posts: cached,
           canFetchNewerPosts:
@@ -172,7 +180,9 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
         };
       }
 
-      postsLogger.log('no posts found in database, loading from api...');
+      postsLogger.log(
+        `ql:${queryFnId} no posts found in database, loading from api...`
+      );
       const res = await sync.syncPosts(
         {
           ...queryOptions,
@@ -183,9 +193,14 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
           abortSignal: abortControllerRef.current?.signal,
         }
       );
-      postsLogger.log('ql: loaded', res.posts?.length, 'posts from api', {
-        res,
-      });
+      postsLogger.log(
+        `ql:${queryFnId} loaded`,
+        res.posts?.length,
+        'posts from api',
+        {
+          res,
+        }
+      );
       let secondResult: db.Post[] = [];
       if (queryOptions.mode === 'newest') {
         secondResult = await db.getSequencedChannelPosts(queryOptions);
@@ -196,10 +211,18 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
             ...queryOptions,
             cursorSequenceNum: cursorPost.sequenceNum!,
           });
+        } else {
+          const allPosts = await db.getChanPosts({
+            channelId: queryOptions.channelId,
+          });
+          console.log(
+            `ql:${queryFnId} invariant violation, cannot find cursor post after fetching from api`,
+            allPosts
+          );
         }
       }
       postsLogger.log(
-        'ql: returning',
+        `ql:${queryFnId} returning`,
         secondResult?.length,
         'posts from db after syncing from api',
         {

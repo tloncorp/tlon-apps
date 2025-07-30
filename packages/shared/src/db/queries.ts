@@ -2975,11 +2975,12 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
     .onConflictDoUpdate({
       target: $posts.id,
       set: conflictUpdateSetAll($posts, ['hidden']),
-    })
-    .onConflictDoUpdate({
-      target: [$posts.authorId, $posts.channelId, $posts.sentAt],
-      set: conflictUpdateSetAll($posts, ['hidden']),
     });
+  // .onConflictDoUpdate({
+  //   target: [$posts.authorId, $posts.channelId, $posts.sentAt],
+  //   targetWhere: eq($posts.deliveryStatus, 'pending'),
+  //   set: conflictUpdateSetAll($posts, ['hidden']),
+  // });
 
   const reactions = posts
     .filter((p) => p.reactions && p.reactions.length > 0)
@@ -3254,6 +3255,17 @@ export const getPosts = createReadQuery(
   'getPosts',
   (ctx: QueryCtx) => {
     return ctx.db.select().from($posts);
+  },
+  ['posts']
+);
+
+export const getChanPosts = createReadQuery(
+  'getPosts',
+  (params: { channelId: string }, ctx: QueryCtx) => {
+    return ctx.db
+      .select()
+      .from($posts)
+      .where(eq($posts.channelId, params.channelId));
   },
   ['posts']
 );

@@ -327,7 +327,7 @@ CREATE TABLE `posts` (
 	`backend_time` text
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `cache_id` ON `posts` (`channel_id`,`author_id`,`sent_at`);--> statement-breakpoint
+CREATE UNIQUE INDEX `cache_id` ON `posts` (`channel_id`,`author_id`,`sent_at`,`sequence_number`);--> statement-breakpoint
 CREATE INDEX `posts_channel_id` ON `posts` (`channel_id`,`id`);--> statement-breakpoint
 CREATE INDEX `posts_group_id` ON `posts` (`group_id`,`id`);--> statement-breakpoint
 CREATE TABLE `settings` (
