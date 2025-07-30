@@ -1,11 +1,11 @@
-type AnyEventMap = { [key: string]: (...args: any[]) => void };
+type AnyEventMap = {
+  [key: string | symbol | number]: (...args: any[]) => void;
+};
 
 export type EventMapForEmitter<Emitter extends EventEmitter> =
   Emitter extends EventEmitter<infer M> ? M : never;
 
-export class EventEmitter<
-  EventMap extends AnyEventMap = { [key: string]: (...args: any[]) => void },
-> {
+export class EventEmitter<EventMap extends AnyEventMap = AnyEventMap> {
   private listeners: Partial<{
     [E in keyof EventMap]: Array<EventMap[E]>;
   }> = {};
