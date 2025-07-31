@@ -1036,6 +1036,9 @@ export function toPostReplyData(
     content: JSON.stringify(content),
     textContent: getTextContent(reply.memo.content),
     sentAt: reply.memo.sent,
+    // replies aren't sequenced, seq 0 is never genuine. drizzle has trouble
+    // targeting nulls for onConflictDoUpdate so we use a default value instead
+    sequenceNum: 0,
     backendTime,
     receivedAt: getReceivedAtFromId(id),
     replyCount: 0,

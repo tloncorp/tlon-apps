@@ -2959,11 +2959,24 @@ async function insertPosts(posts: Post[], ctx: QueryCtx) {
 }
 
 async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
+  console.log(`bl:insert inserting posts batch`, posts.length, posts);
   logger.log(
     'inserting post batch',
     posts.map((p) => [p.id, p.channelId])
   );
 
+  if (posts.length === 1) {
+    const existingPost = await ctx.db.query.posts.findFirst({
+      where: and(
+        eq($posts.sentAt, posts[0].sentAt),
+        eq($posts.channelId, posts[0].channelId),
+        eq($posts.authorId, posts[0].authorId)
+      ),
+    });
+    console.log(`bl:insert have matching existing post`, existingPost);
+  }
+
+  console.log('bl:driz START');
   await ctx.db
     .insert($posts)
     .values(
@@ -2975,12 +2988,30 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
     .onConflictDoUpdate({
       target: $posts.id,
       set: conflictUpdateSetAll($posts, ['hidden']),
+    })
+    .onConflictDoUpdate({
+      target: [
+        $posts.authorId,
+        $posts.channelId,
+        $posts.sentAt,
+        $posts.sequenceNum,
+      ],
+      // setWhere: eq($posts.deliveryStatus, 'pending'),
+      set: conflictUpdateSetAll($posts, ['hidden']),
     });
-  // .onConflictDoUpdate({
-  //   target: [$posts.authorId, $posts.channelId, $posts.sentAt],
-  //   targetWhere: eq($posts.deliveryStatus, 'pending'),
-  //   set: conflictUpdateSetAll($posts, ['hidden']),
-  // });
+
+  console.log('bl:driz END');
+
+  if (posts.length === 1) {
+    const existingPost = await ctx.db.query.posts.findMany({
+      where: and(
+        eq($posts.sentAt, posts[0].sentAt),
+        eq($posts.channelId, posts[0].channelId),
+        eq($posts.authorId, posts[0].authorId)
+      ),
+    });
+    console.log(`bl:insert duplicate posts after insert?`, existingPost.length);
+  }
 
   const reactions = posts
     .filter((p) => p.reactions && p.reactions.length > 0)

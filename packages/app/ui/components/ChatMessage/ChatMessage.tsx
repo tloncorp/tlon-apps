@@ -249,15 +249,25 @@ const ChatMessage = ({
         ) : null}
 
         <View paddingLeft={!isNotice ? '$4xl' : undefined}>
-          {/* <ChatContentRenderer
+          <ChatContentRenderer
             content={post.editStatus === 'failed' ? lastEditContent : content}
             isNotice={post.type === 'notice'}
             onPressImage={handleImagePressed}
             onLongPress={handleLongPress}
-          /> */}
-          <Text color="$green" size="$body" padding="$xl">
-            seq: {post.sequenceNum}, id: {post.id}
-          </Text>
+          />
+          {/* <Text color="$green" size="$body" padding="$xl">
+            {JSON.stringify(
+              {
+                seq: post.sequenceNum,
+                id: post.id,
+                sentAt: post.sentAt,
+                channelId: post.channelId,
+                authorId: post.authorId,
+              },
+              null,
+              2
+            )}
+          </Text> */}
         </View>
 
         {post.reactions && post.reactions.length > 0 && (

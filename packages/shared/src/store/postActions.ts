@@ -307,7 +307,7 @@ export async function sendReply({
     authorId,
     author,
     channel: channel,
-    sequenceNum: null, // replies do not have sequence numbers
+    sequenceNum: 0, // replies do not have sequence numbers, use 0
     content,
     parentId,
   });

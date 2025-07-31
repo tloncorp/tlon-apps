@@ -1290,6 +1290,7 @@ export async function handleAddPost(
       sentAt: post.sentAt,
       authorId: post.authorId,
     });
+    console.log(`bl: have cached reply for ${post.sentAt}?`, !!cachedReply);
     if (!cachedReply) {
       await db.addReplyToPost(
         {
