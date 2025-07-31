@@ -58,14 +58,17 @@ function useSyncedAppTheme() {
 
   // Query database for which theme the user has previously set
   const { data: storedThemeRaw, isLoading } = store.useThemeSettings();
+
   const storedTheme = useMemo(() => {
     if (isLoading) {
-      return null;
+      return { loaded: false } as const;
     }
     const appTheme =
       storedThemeRaw == null ? 'auto' : normalizeTheme(storedThemeRaw);
     const tamaguiTheme = getDisplayTheme(appTheme, isDarkMode);
     return {
+      loaded: true,
+
       /** `AppTheme` specified in settings - includes `auto`, which resolves to
        * another theme at runtime. */
       appTheme,
@@ -73,16 +76,16 @@ function useSyncedAppTheme() {
       /** Resolved Tamagui `ThemeName` derived from `appTheme` - maps
        * one-to-one with color set */
       tamaguiTheme,
-    };
+    } as const;
   }, [isLoading, storedThemeRaw, isDarkMode]);
 
   // Apply stored theme
   useEffect(() => {
-    if (storedTheme == null) {
+    if (!storedTheme.loaded) {
       return;
     }
-    setActiveTheme(storedTheme.tamaguiTheme);
 
+    setActiveTheme(storedTheme.tamaguiTheme);
     splashScreenProgress.complete(SplashScreenTask.loadTheme);
   }, [storedTheme]);
 
