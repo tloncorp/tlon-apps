@@ -20,13 +20,24 @@ export class ProgressManager<Task> {
     return this.pendingTasks.size === 0;
   }
 
+  hasTask(task: Task): boolean {
+    return this.pendingTasks.has(task) || this.completedTasks.has(task);
+  }
+
   /** Returns true if task was added; false if task is already pending */
-  add(task: Task): boolean {
-    if (this.pendingTasks.has(task)) {
-      return false; // Task is already pending
+  add(task: Task, timeoutMs?: number): boolean {
+    if (this.hasTask(task)) {
+      return false;
     }
     this.pendingTasks.add(task);
     this.updateProgress();
+
+    if (timeoutMs != null) {
+      setTimeout(() => {
+        this.complete(task);
+      }, timeoutMs);
+    }
+
     return true;
   }
 
