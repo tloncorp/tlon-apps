@@ -10,11 +10,6 @@ test('should test notebook functionality', async ({ zodSetup, tenSetup }) => {
   // Assert that we're on the Home page
   await expect(zodPage.getByText('Home')).toBeVisible();
 
-  // Clean up any existing group on zod
-  await helpers.cleanupExistingGroup(zodPage, 'Test Group');
-  await helpers.cleanupExistingGroup(zodPage, '~ten, ~zod');
-  await helpers.cleanupExistingGroup(zodPage);
-
   // Create a new group
   await helpers.createGroup(zodPage);
   const groupName = '~ten, ~zod';
