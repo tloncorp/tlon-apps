@@ -28,7 +28,7 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { View, XStack, styled } from 'tamagui';
+import { ScrollView, View, XStack, styled } from 'tamagui';
 
 import { RootStackParamList } from '../../../navigation/types';
 import { useChannelContext, useRequests } from '../../contexts';
@@ -297,9 +297,6 @@ export function GalleryPostDetailView({
   const logger = createDevLogger('GalleryPostDetailView', true);
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const formattedDate = useMemo(() => {
-    return makePrettyShortDate(new Date(post.receivedAt));
-  }, [post.receivedAt]);
   const content = usePostContent(post);
   const [viewReactionsOpen, setViewReactionsOpen] = useState(false);
 
@@ -453,13 +450,31 @@ function SmallPreview({
   'content'
 >) {
   const link = useBlockLink(content);
+  const isTextContent =
+    content[0]?.type === 'paragraph' ||
+    content[0]?.type === 'list' ||
+    content[0]?.type === 'blockquote';
+
   return link ? (
     <PreviewFrame {...props} previewType="link">
       <LinkPreview link={link} />
     </PreviewFrame>
   ) : (
     <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
-      <SmallContentRenderer height={'100%'} content={content} />
+      {isTextContent ? (
+        // ScrollView with scrollEnabled={false} acts as a measured container
+        // that properly clips text content on iOS/Android. Plain View with
+        // overflow="hidden" doesn't provide consistent text clipping behavior.
+        <ScrollView
+          flex={1}
+          scrollEnabled={false}
+          showsVerticalScrollIndicator={false}
+        >
+          <SmallContentRenderer content={content} />
+        </ScrollView>
+      ) : (
+        <SmallContentRenderer height={'100%'} content={content} />
+      )}
     </PreviewFrame>
   );
 }
@@ -488,8 +503,6 @@ const PreviewFrame = styled(View, {
           return {
             backgroundColor: '$secondaryBackground',
           };
-        case 'paragraph':
-        case 'list':
         case 'blockquote':
           return { paddingTop: '$3xl' };
       }
