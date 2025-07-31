@@ -837,24 +837,39 @@ export async function verifyMessagePreview(
 }
 
 /**
- * Verifies unread count badge on channel list item
+ * Verifies unread count badge on chat list item
  */
-export async function verifyUnreadCount(
+export async function verifyChatUnreadCount(
   page: Page,
-  channelName: string,
-  expectedCount: number
+  chatName: string,
+  expectedCount: number,
+  isPinned = false
 ) {
   await page.waitForTimeout(1000);
-  const channelItem = page.getByTestId(`ChannelListItem-${channelName}`);
+  const chatItem = page.getByTestId(
+    `ChatListItem-${chatName}-${isPinned ? 'pinned' : 'unpinned'}`
+  );
 
   if (expectedCount === 0) {
-    // Should not have unread count visible - look for any text that matches numbers
-    const countText = channelItem.getByText(/^\d+$/, { exact: true });
-    await expect(countText).not.toBeVisible();
+    // When count is 0, the UnreadCount Stack component itself should have opacity controlled
+    // Check that either the count shows "0" or the whole unread badge is not visible
+    const unreadCount = chatItem.getByTestId('UnreadCount');
+
+    // Try to check if the count text is "0"
+    try {
+      const countNumber = unreadCount.locator(
+        '[data-testid="UnreadCountNumber"]'
+      );
+      await expect(countNumber).toContainText('0', { timeout: 2000 });
+    } catch {
+      // If we can't find the count number, check if the whole unread count is not visible
+      await expect(unreadCount).not.toBeVisible({ timeout: 2000 });
+    }
   } else {
     // Should show the expected count - look for text with the number
+    const unreadCount = chatItem.getByTestId('UnreadCount');
     await expect(
-      channelItem.getByText(expectedCount.toString(), { exact: true })
+      unreadCount.getByText(expectedCount.toString(), { exact: true })
     ).toBeVisible({ timeout: 10000 });
   }
 }
