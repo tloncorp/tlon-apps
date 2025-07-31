@@ -130,12 +130,9 @@ export async function updateTheme(theme: AppTheme) {
   const oldTheme = existing?.theme;
 
   try {
-    const dbTheme = theme === 'auto' ? null : theme;
-    await db.insertSettings({ theme: dbTheme });
-    await setSetting('theme', theme === 'auto' ? '' : theme);
-    logger.trackEvent(AnalyticsEvent.ActionThemeUpdate, {
-      theme: theme === 'auto' ? 'auto' : theme,
-    });
+    await db.insertSettings({ theme });
+    await setSetting('theme', theme);
+    logger.trackEvent(AnalyticsEvent.ActionThemeUpdate, { theme });
   } catch (error) {
     logger.trackError(AnalyticsEvent.ErrorThemeUpdate, {
       theme,

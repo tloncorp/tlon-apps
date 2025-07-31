@@ -2,7 +2,7 @@ import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { differenceInDays, endOfToday, format } from 'date-fns';
 import emojiRegex from 'emoji-regex';
-import { backOff } from 'exponential-backoff';
+import { BackoffOptions, backOff } from 'exponential-backoff';
 import { useMemo } from 'react';
 
 import * as api from '../api';
@@ -583,11 +583,10 @@ export const getCompositeGroups = (
   });
 };
 
-export interface RetryConfig {
-  startingDelay?: number;
-  numOfAttempts?: number;
-  maxDelay?: number;
-}
+export type RetryConfig = Pick<
+  BackoffOptions,
+  'startingDelay' | 'numOfAttempts' | 'maxDelay'
+>;
 
 export const withRetry = <T>(fn: () => Promise<T>, config?: RetryConfig) => {
   return backOff(fn, {

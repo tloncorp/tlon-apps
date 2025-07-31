@@ -5,6 +5,7 @@ import { isBrowser } from 'browser-or-node';
 import { TimeoutError } from '../api';
 import { desig } from '../urbit';
 import * as utils from '../utils';
+import { EventEmitter } from '../utils/EventEmitter';
 import { UrbitHttpApiEvent, UrbitHttpApiEventType } from './events';
 import { EventSourceMessage, fetchEventSource } from './fetch-event-source';
 import {
@@ -26,12 +27,16 @@ import {
   Thread,
   headers,
 } from './types';
-import EventEmitter, { hexString, unpackJamBytes } from './utils';
+import { hexString, unpackJamBytes } from './utils';
 
 //TODO  move into nockjs utils
 function isNoun(a: any): a is Noun {
   return a instanceof Atom || a instanceof Cell;
 }
+
+type UrbitHttpApiEventMap = {
+  [E in keyof UrbitHttpApiEvent]: (event: UrbitHttpApiEvent[E]) => void;
+};
 
 /**
  * A class for interacting with an urbit ship, given its URL and code
@@ -40,7 +45,7 @@ export class Urbit {
   /**
    * Event emitter for debugging, see events.ts for full list of events
    */
-  private emitter = new EventEmitter();
+  private emitter = new EventEmitter<UrbitHttpApiEventMap>();
 
   /**
    * UID will be used for the channel: The current unix time plus a random hex string
@@ -227,20 +232,20 @@ export class Urbit {
 
   private emit<T extends UrbitHttpApiEventType>(
     event: T,
-    data: UrbitHttpApiEvent[T]
+    ...data: Parameters<UrbitHttpApiEventMap[T]>
   ) {
-    this.emitter.emit(event, data);
+    this.emitter.emit(event, ...data);
   }
 
-  on<T extends UrbitHttpApiEventType>(
+  on<T extends keyof UrbitHttpApiEventMap>(
     event: T,
-    callback: (data: UrbitHttpApiEvent[T]) => void
+    callback: UrbitHttpApiEventMap[T]
   ): void {
     this.emitter.on(event, callback);
 
     this.verbose && console.log(event, 'listening active');
     if (event === 'init') {
-      this.emitter.emit(event, {
+      this.emitter.emit('init', {
         uid: this.uid,
         subscriptions: [...this.outstandingSubscriptions.entries()].map(
           ([k, v]) => ({ id: k, app: v.app, path: v.path })
