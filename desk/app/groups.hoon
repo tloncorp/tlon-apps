@@ -1330,7 +1330,6 @@
       =+  net-group=(~(get by groups) u.flag)
       ?~  net-group  cor
       =*  group  u.net-group
-      ?>  (~(has by channels.group) nest.r-channels)
       =.  groups
         %+  ~(put by groups)  u.flag
         %_  group  active-channels
@@ -2752,6 +2751,10 @@
     ::
     =/  channels  ~(tap in ~(key by channels.group))
     =.  cor  (emil (leave-channels:go-pass channels))
+    =.  channels-index
+      %+  roll  ~(tap in ~(key by channels.group))
+      |=  [=nest:g =_channels-index]
+      (~(del by channels-index) nest)
     =?  cor  send-leave  (emit leave-group:go-pass)
     go-core(gone &)
   ::  +go-preview: generate the preview of the group
@@ -3360,15 +3363,29 @@
     ^+  go-core
     =*  by-ch  ~(. by channels.group)
     =*  chan  channel.u-channel
-    ?.  |(?=(%add -.u-channel) (has:by-ch nest))  go-core
     ?-    -.u-channel
         %add
       =.  go-core  (go-response %channel nest [%add chan])
+      =.  cor  (emil (join-channels:go-pass nest ~))
+      ::  repair .active-channels; we might be already joined, 
+      ::  and thus never hear the join response. this happens when
+      ::  a previously created channel is added to a new group.
+      ::
+      ::  TODO: the whole "listen to channels events to sync" strategy
+      ::  is too brittle.
+      ::
+      =/  pre=path
+        /(scot %p our.bowl)/channels/(scot %da now.bowl)
+      =/  active  .^(? %gu (weld pre /v3/[p.nest]/(scot %p p.q.nest)/[q.q.nest]))
+      =?  active-channels.group  active
+        (~(put by active-channels.group) nest)
       ?:  go-our-host  go-core
       ::
+      ?:  (has:by-ch nest)  go-core
       =.  sections.group  (go-section-add-channel nest chan)
       =.  channels.group  (put:by-ch nest chan)
-      =.  cor  (emil (join-channels:go-pass nest ~))
+      =.  channels-index
+        (~(put by channels-index) nest flag)
       go-core
     ::
         %edit
@@ -3381,6 +3398,18 @@
     ::
         %del
       =.  go-core  (go-response %channel nest [%del ~])
+      =.  cor  (emil (leave-channels:go-pass nest ~))
+      ::  NB: when a channel is deleted we must
+      ::      update .active-channels manually without waiting
+      ::      for leave response. this is because the channel
+      ::      is already gone from the .channels-index and can't
+      ::      be correlated with the group anymore.
+      ::
+      ::      TODO: this could be remedied if the channels %leave
+      ::      response would carry the associated group.
+      ::
+      =.  active-channels.group
+        (~(del by active-channels.group) nest)
       ?:  go-our-host  go-core
       ::
       =/  =channel:g   (got:by-ch nest)
@@ -3390,8 +3419,8 @@
         %+  ~(jab by sections.group)  section.channel
         |=(=section:g section(order (~(del of order.section) nest)))
       =.  channels.group  (del:by-ch nest)
-      ::TODO should we leave the channel here to match logic in %add
-      ::     above?
+      =.  channels-index
+        (~(del by channels-index) nest)
       go-core
     ::
         %add-readers
