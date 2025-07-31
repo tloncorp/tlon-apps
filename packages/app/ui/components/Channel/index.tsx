@@ -72,6 +72,8 @@ interface ChannelProps {
   selectedPostId?: string | null;
   posts: db.Post[] | null;
   group: db.Group | null;
+  groupIsLoading?: boolean;
+  groupError?: Error | null;
   goBack: () => void;
   goToChatDetails?: () => void;
   goToPost: (post: db.Post) => void;
@@ -122,6 +124,8 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       posts,
       selectedPostId,
       group,
+      groupIsLoading,
+      groupError, // Not currently used but available if needed for error handling
       goBack,
       goToChatDetails,
       goToSearch,
@@ -430,10 +434,10 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                           {!canRead ||
                           !canWrite ||
                           !negotiationMatch ||
-                          (channel.groupId && !group) ? (
+                          (channel.groupId && !group && !groupIsLoading) ? (
                             <ReadOnlyNotice
                               type={
-                                channel.groupId && !group
+                                channel.groupId && !group && !groupIsLoading
                                   ? 'group-deleted'
                                   : !canRead
                                     ? 'no-longer-read'
