@@ -427,18 +427,23 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                             )}
                           </AnimatePresence>
 
-                          {!canRead || !canWrite || !negotiationMatch ? (
+                          {!canRead ||
+                          !canWrite ||
+                          !negotiationMatch ||
+                          (channel.groupId && !group) ? (
                             <ReadOnlyNotice
                               type={
-                                !canRead
-                                  ? 'no-longer-read'
-                                  : !canWrite
-                                    ? 'read-only'
-                                    : isDM
-                                      ? 'dm-mismatch'
-                                      : isGroupDm
-                                        ? 'group-dm-mismatch'
-                                        : 'channel-mismatch'
+                                channel.groupId && !group
+                                  ? 'group-deleted'
+                                  : !canRead
+                                    ? 'no-longer-read'
+                                    : !canWrite
+                                      ? 'read-only'
+                                      : isDM
+                                        ? 'dm-mismatch'
+                                        : isGroupDm
+                                          ? 'group-dm-mismatch'
+                                          : 'channel-mismatch'
                               }
                             />
                           ) : channel.contentConfiguration == null ? (
