@@ -203,7 +203,11 @@ const ListItemCount = ({
         {muted && (
           <Icon type="Muted" customSize={[12, 12]} color={foregroundColor} />
         )}
-        <Text size="$label/m" color={foregroundColor}>
+        <Text
+          testID="UnreadCountNumber"
+          size="$label/m"
+          color={foregroundColor}
+        >
           {numberWithMax(count, 256)}
         </Text>
       </ListItemCountNumber>

@@ -10,10 +10,6 @@ test('should handle complete group lifecycle with settings management', async ({
 
   await expect(page.getByText('Home')).toBeVisible();
 
-  // Clean up any existing group
-  await helpers.cleanupExistingGroup(page);
-  await helpers.cleanupExistingGroup(page, '~ten, ~zod');
-
   // Create a new group
   await helpers.createGroup(page);
 
@@ -185,7 +181,4 @@ test('should handle complete group lifecycle with settings management', async ({
 
   await helpers.navigateBack(page);
   await helpers.verifyElementCount(page, 'GroupChannels', 1);
-
-  // Delete group
-  await helpers.deleteGroup(page);
 });

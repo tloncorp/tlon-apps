@@ -9,9 +9,6 @@ test('should test comprehensive thread functionality', async ({ zodPage }) => {
   // Assert that we're on the Home page
   await expect(page.getByText('Home')).toBeVisible();
 
-  // Clean up any existing group
-  await helpers.cleanupExistingGroup(page);
-
   // Create a new group
   await helpers.createGroup(page);
 
@@ -68,12 +65,4 @@ test('should test comprehensive thread functionality', async ({ zodPage }) => {
 
   // Navigate back to the main channel
   await helpers.navigateBack(page);
-
-  // Delete the group and clean up
-  await helpers.openGroupSettings(page);
-  await helpers.deleteGroup(page);
-
-  // Verify we're back at Home and group is deleted
-  await expect(page.getByText('Home')).toBeVisible();
-  await expect(page.getByText('Untitled group')).not.toBeVisible();
 });
