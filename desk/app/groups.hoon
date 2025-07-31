@@ -3207,7 +3207,7 @@
       =.  go-core
         %-  ~(rep in ships)
         |=  [=ship =_go-core]
-        ::  only notify about ships which had actually joined the group
+        ::  only notify about ships leaving which had actually joined the group
         ::
         ?~  seat=(~(get by seats.group) ship)  go-core
         ?:  =(*@da joined.u.seat)  go-core
@@ -3270,13 +3270,6 @@
   ++  go-u-role
     |=  [roles=(set role-id:g) =u-role:g]
     ^+  go-core
-    ::TODO review updates in other places. do we no-op
-    ::     when a resource does not exist?
-    ::
-    ?.  ?|  ?=(%add -.u-role)
-            =(roles (~(int in ~(key by roles.group)) roles))
-        ==
-      go-core
     ?-    -.u-role
         %add
       =.  go-core  (go-response %role roles [%add meta.u-role])
@@ -3367,7 +3360,7 @@
         %add
       =.  go-core  (go-response %channel nest [%add chan])
       =.  cor  (emil (join-channels:go-pass nest ~))
-      ::  repair .active-channels; we might be already joined, 
+      ::  repair .active-channels; we might be already joined,
       ::  and thus never hear the join response. this happens when
       ::  a previously created channel is added to a new group.
       ::
