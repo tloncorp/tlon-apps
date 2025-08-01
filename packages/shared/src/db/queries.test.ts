@@ -699,7 +699,6 @@ test('getMentionCandidates: limits results to 6', async () => {
 
   const candidates = await queries.getMentionCandidates({ chatId, query });
 
-  console.log('candidates', candidates);
 
   // Should not return more than 6 results
   expect(candidates.length).toBeLessThanOrEqual(6);
