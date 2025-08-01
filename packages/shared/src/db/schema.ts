@@ -968,6 +968,7 @@ export const posts = sqliteTable(
     hidden: boolean('hidden').default(false),
     isEdited: boolean('is_edited'),
     isDeleted: boolean('is_deleted'),
+    isSequenceStub: boolean('is_sequence_stub').default(false),
     deletedAt: timestamp('deleted_at'),
     deliveryStatus: text('delivery_status').$type<PostDeliveryStatus>(),
     editStatus: text('edit_status').$type<PostDeliveryStatus>(),

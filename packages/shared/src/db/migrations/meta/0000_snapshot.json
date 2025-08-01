@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "d1098cc8-d6cf-4e06-ab45-23c0cb95a3b5",
+  "id": "95d9ec7a-4d19-4112-9f35-cc70889a4062",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2092,6 +2092,14 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "is_sequence_stub": {
+          "name": "is_sequence_stub",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": false
         },
         "deleted_at": {
           "name": "deleted_at",

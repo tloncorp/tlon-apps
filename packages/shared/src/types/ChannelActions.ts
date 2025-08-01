@@ -1,6 +1,7 @@
 import * as db from '../db';
 
 export type Id =
+  | 'debugJson'
   | 'quote'
   | 'startThread'
   | 'muteThread'
@@ -65,6 +66,7 @@ export function channelActionIdsFor({
       ];
     case 'chat':
       return [
+        'debugJson',
         'quote',
         'startThread',
         'muteThread',
@@ -95,4 +97,5 @@ const STATIC_SPECS = {
   startThread: { isNetworkDependent: true },
   viewReactions: { isNetworkDependent: false },
   visibility: { isNetworkDependent: true },
+  debugJson: { isNetworkDependent: false },
 } satisfies Record<Id, StaticSpec>;

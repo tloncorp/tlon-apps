@@ -336,6 +336,7 @@ export type GetChannelPostsOptions = {
   includeReplies?: boolean;
   mode: 'older' | 'newer' | 'around' | 'newest';
   cursor?: Cursor;
+  sequenceBoundary?: number | null;
 };
 
 export interface GetChannelPostsResponse {
@@ -352,6 +353,7 @@ export const getChannelPosts = async ({
   mode = 'older',
   count = 20,
   includeReplies = false,
+  sequenceBoundary = null,
 }: GetChannelPostsOptions) => {
   const type = getChannelIdType(channelId);
   const app = type === 'channel' ? 'channels' : 'chat';
@@ -379,11 +381,20 @@ export const getChannelPosts = async ({
     }),
     { posts: [] }
   );
-  const posts = toPagedPostsData(channelId, response);
+  const postsResponse = toPagedPostsData(channelId, response);
+  const { posts: finalPosts, numStubs } = fillSequenceGaps(
+    postsResponse.posts,
+    {
+      lowerBound:
+        mode === 'newer' && sequenceBoundary ? sequenceBoundary : null,
+      upperBound:
+        mode === 'older' && sequenceBoundary ? sequenceBoundary : null,
+    }
+  );
 
   let withSeq = 0;
   let withoutSeq = 0;
-  for (const post of posts.posts) {
+  for (const post of finalPosts) {
     if (post.sequenceNum) {
       withSeq++;
     } else {
@@ -393,8 +404,104 @@ export const getChannelPosts = async ({
 
   console.log(`bl: got posts`, { path, withSeq, withoutSeq });
 
-  return posts;
+  return {
+    ...postsResponse,
+    posts: finalPosts,
+    // posts: postsResponse.posts,
+    numStubs,
+    numDeletes: postsResponse.deletedPosts?.length ?? 0,
+  };
 };
+
+// we need to account for gaps in sequence numbers to avoid ever locking up
+// if there's a contiguity bug on the backends. To accomplish this
+// without reintroducing windowing, we insert dummy posts whenever fetching a known
+// contiguous block of posts
+export function fillSequenceGaps(
+  responsePosts: db.Post[],
+  config: { upperBound: number | null; lowerBound: number | null }
+): { posts: db.Post[]; numStubs: number } {
+  // --- Step 1: Handle empty input ---
+  if (!responsePosts.length) {
+    return { posts: [], numStubs: 0 };
+  }
+
+  // --- Step 2: Find the min and max sequence numbers ---
+  const examplePost = responsePosts[0];
+  let minSeq = config.lowerBound ?? Infinity;
+  let maxSeq = config.upperBound ?? 0;
+  let numStubs = 0;
+
+  const existingPostMap = new Map<number, db.Post>();
+  for (const post of responsePosts) {
+    if (!post.sequenceNum) {
+      // this should never happen
+      logger.trackError('post missing sequence number', {
+        post, // TODO: IMPORTANT avoid logging message data this after internal testing
+      });
+      continue;
+    }
+
+    if (post.sequenceNum < minSeq) {
+      minSeq = post.sequenceNum;
+    }
+    if (post.sequenceNum > maxSeq) {
+      maxSeq = post.sequenceNum;
+    }
+    existingPostMap.set(post.sequenceNum, post);
+  }
+
+  // --- Step 3: Iterate through the range and fill gaps ---
+  const mergedPosts: db.Post[] = [];
+  let previousSentAt = examplePost.sentAt;
+  for (let i = minSeq; i <= maxSeq; i++) {
+    const existingPost = existingPostMap.get(i);
+    if (existingPost) {
+      previousSentAt = existingPost.sentAt;
+      mergedPosts.push(existingPost);
+    } else {
+      const nextSentAt = previousSentAt + 1;
+      mergedPosts.push(
+        buildSequenceStubPost({
+          channelId: examplePost.channelId,
+          type: examplePost.type,
+          sentAt: nextSentAt,
+          sequenceNum: i,
+        })
+      );
+      previousSentAt = nextSentAt;
+      numStubs++;
+    }
+  }
+
+  return { posts: mergedPosts, numStubs };
+}
+
+function buildSequenceStubPost({
+  channelId,
+  type,
+  sequenceNum,
+  sentAt,
+}: {
+  channelId: string;
+  type: db.PostType;
+  sequenceNum: number;
+  sentAt?: number;
+}): db.Post {
+  const stubPost: db.Post = {
+    id: `sequence-stub-${channelId}-${sequenceNum}`,
+    type,
+    channelId,
+    authorId: '~zod',
+    sentAt: sentAt ?? Date.now(),
+    receivedAt: sentAt ?? Date.now(),
+    content: null,
+    hidden: false,
+    sequenceNum,
+    isSequenceStub: true,
+  };
+  return stubPost;
+}
 
 export type PostWithUpdateTime = {
   channelId: string;

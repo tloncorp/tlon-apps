@@ -203,6 +203,11 @@ const Scroller = forwardRef(
       [handleSetActive]
     );
 
+    const { value: debugMessageJson } = db.debugMessageJson.useStorageItem();
+    useEffect(() => {
+      console.log(`bl: debug mode change`, debugMessageJson);
+    }, [debugMessageJson]);
+
     const theme = useTheme();
 
     const postsWithNeighbors: PostWithNeighbors[] | undefined = useMemo(
@@ -263,6 +268,7 @@ const Scroller = forwardRef(
             showDayDivider={showDividers && isFirstPostOfDay}
             showAuthor={showAuthor}
             isLastPostOfBlock={isLastPostOfBlock}
+            displayDebugMode={debugMessageJson}
             Component={renderItem}
             unreadCount={unreadCount}
             setViewReactionsPost={setViewReactionsPost}
@@ -314,6 +320,7 @@ const Scroller = forwardRef(
         itemWidth,
         setActiveMessage,
         setEditingPost,
+        debugMessageJson,
       ]
     );
 
@@ -585,6 +592,7 @@ const BaseScrollerItem = ({
   activeMessage,
   messageRef,
   isSelected,
+  displayDebugMode,
   isLastPostOfBlock,
   dividersEnabled,
   itemAspectRatio,
@@ -613,6 +621,7 @@ const BaseScrollerItem = ({
   activeMessage?: db.Post | null;
   messageRef: RefObject<RNView>;
   isSelected: boolean;
+  displayDebugMode?: boolean;
   isLastPostOfBlock: boolean;
   dividersEnabled: boolean;
   itemAspectRatio?: number;
@@ -708,6 +717,7 @@ const BaseScrollerItem = ({
         <Component
           editPost={editPost}
           isHighlighted={isSelected}
+          displayDebugMode={displayDebugMode}
           post={post}
           setViewReactionsPost={setViewReactionsPost}
           showAuthor={showAuthorLive}
@@ -733,22 +743,25 @@ export const PostBlockSeparator = styled(View, {
   width: '100%',
 });
 
-const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
-  const isItemEqual = isEqual(prev.item, next.item);
-  const isIndexEqual = prev.index === next.index;
+const ScrollerItem = BaseScrollerItem;
 
-  const areOtherPropsEqual =
-    prev.showAuthor === next.showAuthor &&
-    prev.showReplies === next.showReplies &&
-    prev.onPressReplies === next.onPressReplies &&
-    prev.onPressImage === next.onPressImage &&
-    prev.onPressPost === next.onPressPost &&
-    prev.onLongPressPost === next.onLongPressPost &&
-    prev.activeMessage === next.activeMessage &&
-    prev.itemWidth === next.itemWidth;
+// const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
+//   const isItemEqual = isEqual(prev.item, next.item);
+//   const isIndexEqual = prev.index === next.index;
 
-  return isItemEqual && areOtherPropsEqual && isIndexEqual;
-});
+//   const areOtherPropsEqual =
+//     prev.showAuthor === next.showAuthor &&
+//     prev.showReplies === next.showReplies &&
+//     prev.onPressReplies === next.onPressReplies &&
+//     prev.onPressImage === next.onPressImage &&
+//     prev.onPressPost === next.onPressPost &&
+//     prev.onLongPressPost === next.onLongPressPost &&
+//     prev.activeMessage === next.activeMessage &&
+//     prev.itemWidth === next.itemWidth &&
+//     prev.displayDebugMode === next.displayDebugMode;
+
+//   return isItemEqual && areOtherPropsEqual && isIndexEqual;
+// });
 
 const PressableMessage = React.memo(
   forwardRef<RNView, PropsWithChildren<{ isActive: boolean }>>(

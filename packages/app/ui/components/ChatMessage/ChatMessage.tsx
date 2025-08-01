@@ -46,6 +46,7 @@ const ChatMessage = ({
   setViewReactionsPost,
   isHighlighted,
   hideOverflowMenu,
+  displayDebugMode = false,
 }: {
   post: db.Post;
   showAuthor?: boolean;
@@ -62,6 +63,7 @@ const ChatMessage = ({
   onPressEdit?: () => void;
   setViewReactionsPost?: (post: db.Post) => void;
   isHighlighted?: boolean;
+  displayDebugMode?: boolean;
   hideOverflowMenu?: boolean;
 }) => {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
@@ -249,25 +251,29 @@ const ChatMessage = ({
         ) : null}
 
         <View paddingLeft={!isNotice ? '$4xl' : undefined}>
-          <ChatContentRenderer
-            content={post.editStatus === 'failed' ? lastEditContent : content}
-            isNotice={post.type === 'notice'}
-            onPressImage={handleImagePressed}
-            onLongPress={handleLongPress}
-          />
-          {/* <Text color="$green" size="$body" padding="$xl">
-            {JSON.stringify(
-              {
-                seq: post.sequenceNum,
-                id: post.id,
-                sentAt: post.sentAt,
-                channelId: post.channelId,
-                authorId: post.authorId,
-              },
-              null,
-              2
-            )}
-          </Text> */}
+          {displayDebugMode ? (
+            <Text color="$green" size="$body" padding="$xl">
+              {JSON.stringify(
+                {
+                  seq: post.sequenceNum,
+                  id: post.id,
+                  sentAt: post.sentAt,
+                  channelId: post.channelId,
+                  authorId: post.authorId,
+                  deliveryStatus: post.deliveryStatus,
+                },
+                null,
+                2
+              )}
+            </Text>
+          ) : (
+            <ChatContentRenderer
+              content={post.editStatus === 'failed' ? lastEditContent : content}
+              isNotice={post.type === 'notice'}
+              onPressImage={handleImagePressed}
+              onLongPress={handleLongPress}
+            />
+          )}
         </View>
 
         {post.reactions && post.reactions.length > 0 && (
@@ -394,6 +400,7 @@ export default memo(ChatMessage, (prev, next) => {
     prev.onPressImage === next.onPressImage &&
     prev.onLongPress === next.onLongPress &&
     prev.onPress === next.onPress;
+  prev.displayDebugMode === next.displayDebugMode;
 
   return isPostEqual && areOtherPropsEqual;
 });

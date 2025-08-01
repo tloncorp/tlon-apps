@@ -10,10 +10,12 @@ import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import { useLiveRef, useOptimizedQueryResults } from '../logic/utilHooks';
+import { usePendingPostsInChannel } from './dbHooks';
 import { queryClient } from './reactQuery';
 import { useCurrentSession } from './session';
 import * as sync from './sync';
 import { SyncPriority } from './syncQueue';
+import { mergePendingPosts } from './useMergePendingPosts';
 
 const postsLogger = createDevLogger('useChannelPosts', true);
 
@@ -183,7 +185,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
       postsLogger.log(
         `ql:${queryFnId} no posts found in database, loading from api...`
       );
-      const res = await sync.syncPosts(
+      const res = await sync.syncSequencedPosts(
         {
           ...queryOptions,
           count: options.count ?? 50,
@@ -280,11 +282,11 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
       // page order for allPages should be newest -> oldest
       // but apparently on channels with less than 50 posts, the order is reversed (on web only)
       const hasReachedNewest = allPages.some((p) => !p.canFetchNewerPosts);
-      console.log(
-        `has reached newest?`,
-        hasReachedNewest,
-        allPages.map((p) => p.canFetchNewerPosts)
-      );
+      // console.log(
+      //   `has reached newest?`,
+      //   hasReachedNewest,
+      //   allPages.map((p) => p.canFetchNewerPosts)
+      // );
 
       if (hasReachedNewest) {
         return undefined;
@@ -308,7 +310,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   //   }
   // }, [query]);
 
-  console.log(`bl: curr query`, query);
+  // console.log(`bl: curr query`, query);
 
   // When we get a new post from the listener, add it to the pending list
   // and attempt to update query data.
@@ -330,16 +332,16 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
 
   const rawPosts = useMemo<db.Post[] | null>(() => {
     const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? null;
-    console.log(`bl:q assembling raw posts`, {
-      queryPosts,
-      newPosts,
-      pages: query.data?.pages,
-    });
+    // console.log(`bl:q assembling raw posts`, {
+    //   queryPosts,
+    //   newPosts,
+    //   pages: query.data?.pages,
+    // });
     if (!newPosts.length || query.hasPreviousPage) {
-      console.log(`bl:q not at newest, hiding new posts`);
+      // console.log(`bl:q not at newest, hiding new posts`);
       return queryPosts;
     } else {
-      console.log(`bl:q at newest, showing new posts`, newPosts);
+      // console.log(`bl:q at newest, showing new posts`, newPosts);
     }
     const newestQueryPostId = queryPosts?.[0]?.id;
     const newerPosts = newPosts.filter(
@@ -365,15 +367,77 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     return newestQueryPostId ? [...newerPosts, ...dedupedQueryPosts] : newPosts;
   }, [query.data, query.hasPreviousPage, newPosts]);
 
-  const deletedPosts = useDeletedPosts(options.channelId);
-  const rawPostsWithDeleteFilterApplied = useMemo(() => {
-    if (!options.filterDeleted) {
-      return rawPosts;
+  const sequenceStubsRemoved = useMemo(() => {
+    if (!rawPosts?.length) {
+      return [];
     }
-    return rawPosts?.filter((p) => !p.isDeleted && !deletedPosts[p.id]);
-  }, [options.filterDeleted, rawPosts, deletedPosts]);
+    const filtered = rawPosts.filter((p) => !p.isSequenceStub);
+    console.log(`bl:stub filtered ${rawPosts.length - filtered.length} posts`);
+    return filtered;
+  }, [rawPosts]);
 
-  const posts = useOptimizedQueryResults(rawPostsWithDeleteFilterApplied);
+  const pendingPosts = usePendingPostsInChannel(options.channelId);
+  const postsWithPending = useMemo(
+    () =>
+      mergePendingPosts({
+        pendingPosts,
+        existingPosts: sequenceStubsRemoved ?? [],
+        hasNewest: !query.hasPreviousPage,
+      }),
+    [pendingPosts, sequenceStubsRemoved, query.hasPreviousPage]
+  );
+  // const postsWithPending = useMemo(() => {
+  //   if (!pendingPosts.length) {
+  //     return rawPosts;
+  //   }
+
+  //   if (!rawPosts?.length) {
+  //     return pendingPosts.reverse();
+  //   }
+
+  //   let pendingMarker = 0; // lowest index is oldest
+  //   let rawMarker = rawPosts?.length - 1; // highest index is oldest
+  //   const composite = [];
+  //   while (pendingMarker < pendingPosts.length || rawMarker >= 0) {
+  //     const currPending = pendingPosts[pendingMarker];
+  //     const currRaw = rawPosts[rawMarker];
+  //     const olderRaw =
+  //       rawMarker < rawPosts.length - 1 ? rawPosts[rawMarker + 1] : null;
+
+  //     if (currPending.sentAt === currRaw.sentAt) {
+  //       composite.push(currRaw);
+  //       pendingMarker++;
+  //       rawMarker--;
+  //       continue;
+  //     }
+
+  //     if (
+  //       currRaw &&
+  //       olderRaw &&
+  //       currPending.sentAt > olderRaw.sentAt &&
+  //       currPending.sentAt < currRaw.sentAt
+  //     ) {
+  //       composite.push(currPending);
+  //       pendingMarker++;
+  //       continue;
+  //     }
+
+  //     composite.push(currRaw);
+  //     rawMarker--;
+  //   }
+
+  //   return composite.reverse();
+  // }, [rawPosts, pendingPosts]);
+
+  const deletedPosts = useDeletedPosts(options.channelId);
+  const postsWithDeleteFilterApplied = useMemo(() => {
+    if (!options.filterDeleted) {
+      return postsWithPending;
+    }
+    return postsWithPending?.filter((p) => !p.isDeleted && !deletedPosts[p.id]);
+  }, [options.filterDeleted, postsWithPending, deletedPosts]);
+
+  const posts = useOptimizedQueryResults(postsWithDeleteFilterApplied);
 
   useRefreshPosts(options.channelId, posts);
 
@@ -389,7 +453,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
 
   useTrackReady(posts, query, options.channelId);
 
-  console.log(`bl:postsFinal ${posts?.length} posts`, posts);
+  // console.log(`bl:postsFinal ${posts?.length} posts`, posts);
 
   return useMemo(
     () => ({ posts, query, loadOlder, loadNewer, isLoading }),

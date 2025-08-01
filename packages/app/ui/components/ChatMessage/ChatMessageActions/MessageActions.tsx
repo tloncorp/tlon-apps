@@ -210,7 +210,13 @@ export async function handleAction({
 
   const [path, reference] = logic.postToContentReference(post);
 
+  console.log(`bl:action ${id}`);
+
   switch (id) {
+    case 'debugJson':
+      db.debugMessageJson.setValue(!(await db.debugMessageJson.getValue()));
+      console.log(`toggling debug`, await db.debugMessageJson.getValue());
+      break;
     case 'startThread':
       // give the actions time to fade out before navigating
       setTimeout(() => onReply?.(post), 50);
@@ -292,6 +298,8 @@ export function useDisplaySpecForChannelActionId(
 
   return useMemo(() => {
     switch (id) {
+      case 'debugJson':
+        return { label: 'Toggle debug' };
       case 'copyRef':
         return {
           label:

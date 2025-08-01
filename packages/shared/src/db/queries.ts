@@ -2574,7 +2574,8 @@ export const getSequencedChannelPosts = createReadQuery(
       const dbPosts = await ctx.db.query.posts.findMany({
         where: and(
           eq($posts.channelId, options.channelId),
-          not(eq($posts.type, 'reply'))
+          not(eq($posts.type, 'reply')),
+          isNull($posts.deliveryStatus)
         ),
         orderBy: [desc($posts.sequenceNum)],
         limit: count,
@@ -2615,7 +2616,8 @@ export const getSequencedChannelPosts = createReadQuery(
         where: and(
           eq($posts.channelId, options.channelId),
           not(eq($posts.type, 'reply')),
-          lt($posts.sequenceNum, options.cursorSequenceNum)
+          lt($posts.sequenceNum, options.cursorSequenceNum),
+          isNull($posts.deliveryStatus)
         ),
         orderBy: [desc($posts.sequenceNum)],
         limit: count,
@@ -2668,7 +2670,8 @@ export const getSequencedChannelPosts = createReadQuery(
         where: and(
           eq($posts.channelId, options.channelId),
           not(eq($posts.type, 'reply')),
-          gt($posts.sequenceNum, options.cursorSequenceNum)
+          gt($posts.sequenceNum, options.cursorSequenceNum),
+          isNull($posts.deliveryStatus)
         ),
         orderBy: [asc($posts.sequenceNum)],
         limit: count,
@@ -2726,7 +2729,8 @@ export const getSequencedChannelPosts = createReadQuery(
           eq($posts.channelId, options.channelId),
           not(eq($posts.type, 'reply')),
           gte($posts.sequenceNum, lowerBound),
-          lte($posts.sequenceNum, upperBound)
+          lte($posts.sequenceNum, upperBound),
+          isNull($posts.deliveryStatus)
         ),
         orderBy: [desc($posts.sequenceNum)],
       });
@@ -2959,7 +2963,6 @@ async function insertPosts(posts: Post[], ctx: QueryCtx) {
 }
 
 async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
-  console.log(`bl:insert inserting posts batch`, posts.length, posts);
   logger.log(
     'inserting post batch',
     posts.map((p) => [p.id, p.channelId])
@@ -2976,7 +2979,6 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
     console.log(`bl:insert have matching existing post`, existingPost);
   }
 
-  console.log('bl:driz START');
   await ctx.db
     .insert($posts)
     .values(
@@ -2996,11 +2998,8 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
         $posts.sentAt,
         $posts.sequenceNum,
       ],
-      // setWhere: eq($posts.deliveryStatus, 'pending'),
       set: conflictUpdateSetAll($posts, ['hidden']),
     });
-
-  console.log('bl:driz END');
 
   if (posts.length === 1) {
     const existingPost = await ctx.db.query.posts.findMany({
