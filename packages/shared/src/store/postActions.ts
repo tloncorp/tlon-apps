@@ -657,6 +657,10 @@ export async function addPostReaction(
     reactions: [{ postId: post.id, value: emoji, contactId: currentUserId }],
   });
 
+  const parentPost = post.parentId
+    ? await db.getPost({ postId: post.parentId })
+    : undefined;
+
   try {
     await sessionActionQueue.add(() =>
       api.addReaction({
@@ -666,6 +670,7 @@ export async function addPostReaction(
         our: currentUserId,
         postAuthor: post.authorId,
         parentId: post.parentId || undefined,
+        parentAuthorId: parentPost?.authorId || undefined,
       })
     );
   } catch (e) {
@@ -748,6 +753,10 @@ export async function removePostReaction(post: db.Post, currentUserId: string) {
   // optimistic update
   await db.deletePostReaction({ postId: post.id, contactId: currentUserId });
 
+  const parentPost = post.parentId
+    ? await db.getPost({ postId: post.parentId })
+    : undefined;
+
   try {
     await sessionActionQueue.add(() =>
       api.removeReaction({
@@ -756,6 +765,7 @@ export async function removePostReaction(post: db.Post, currentUserId: string) {
         our: currentUserId,
         postAuthor: post.authorId,
         parentId: post.parentId || undefined,
+        parentAuthorId: parentPost?.authorId || undefined,
       })
     );
   } catch (e) {
