@@ -46,7 +46,7 @@ export function EmojiToolbar({
     details.self.didReact &&
     !['👍', '❤️', '😂', '🌀'].some((code) => details.self.value.includes(code))
       ? details.self.value
-      : 'cyclone';
+      : '🌀';
 
   const handleSheetOpen = useCallback(() => {
     if (openExternalSheet && !isWindowNarrow) {
