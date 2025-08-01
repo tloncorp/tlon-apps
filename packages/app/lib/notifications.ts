@@ -177,7 +177,9 @@ export const connectNotifications = async () => {
 const channelIdFromNotification = (notif: Notifications.Notification) => {
   let out: string | null = null;
   if (
-    notif.request.trigger?.type === 'push' &&
+    notif.request.trigger &&
+    'type' in notif.request.trigger &&
+    notif.request.trigger.type === 'push' &&
     typeof notif.request.trigger.payload?.channelId === 'string'
   ) {
     out = notif.request.trigger.payload.channelId;
@@ -278,6 +280,7 @@ export async function scheduleNodeResumeNudge(ship: string) {
       data: { ship },
     },
     trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
       seconds: NUDGE_DELAY_SECONDS,
     },
   });

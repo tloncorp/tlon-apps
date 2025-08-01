@@ -1,11 +1,11 @@
-import { getSize, getSpace } from '@tamagui/get-token';
+import { getSpace } from '@tamagui/get-token';
 import { cloneElement, useContext } from 'react';
 import {
   ColorTokens,
   SizeTokens,
   Stack,
+  TextStyle,
   ThemeTokens,
-  ViewStyle,
   createStyledContext,
   styled,
   withStaticProperties,
@@ -51,7 +51,7 @@ export const ButtonFrame = styled(Stack, {
   gap: '$s',
   variants: {
     size: {
-      '...size': (name, { tokens }) => {
+      '...size': (name) => {
         return {
           // TODO: do we need to set the hight explicitly here? is text size + padding enough? Seems
           // to cause layout issues
@@ -188,7 +188,7 @@ export const ButtonText = styled(Text, {
         color: '$secondaryText',
       },
     },
-    disabled: {} as Record<'true' | 'false', ViewStyle>,
+    disabled: {} as Record<'true' | 'false', TextStyle>,
   } as const,
 });
 

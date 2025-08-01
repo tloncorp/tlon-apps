@@ -283,7 +283,9 @@ export function GroupReferenceLoaderComponent({
   );
 }
 
-const GroupReferenceLoader = React.memo(GroupReferenceLoaderComponent);
+const GroupReferenceLoader = React.memo(
+  GroupReferenceLoaderComponent
+) as typeof GroupReferenceLoaderComponent;
 
 export function GroupReference({
   data,

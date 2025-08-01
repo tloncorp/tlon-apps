@@ -149,7 +149,7 @@ const _Carousel = React.forwardRef<
     <GestureDetector gesture={tap}>
       <View {...passedProps}>
         <CarouselContext.Provider value={ctxValue}>
-          <FlatList
+          <FlatList<React.ReactNode>
             data={
               // Carousel's items will likely be sized to the viewport - if
               // they are shown before the viewport is measured, there's a good

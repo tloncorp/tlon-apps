@@ -1,0 +1,14 @@
+diff --git a/index.tsx b/index.tsx
+index 6464ae12194d6ed49d2e1a3fe201490178c49cb2..a8e1090becb2cc30171c5527cf2d6002f4ee776a 100644
+--- a/index.tsx
++++ b/index.tsx
+@@ -268,7 +268,8 @@ export const CountryPicker = ({
+                         }}
+                     >
+                         <TextInput
+-                            style={[styles.searchBar, style?.textInput]}
++                            // Patched -- fixes a typing issue caused by differing peer dependencies.
++                            style={[styles.searchBar as TextStyle, style?.textInput]}
+                             value={searchValue}
+                             onChangeText={setSearchValue}
+                             placeholder={inputPlaceholder || 'Search your country'}

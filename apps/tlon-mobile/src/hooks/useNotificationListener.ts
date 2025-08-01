@@ -63,9 +63,9 @@ function payloadFromNotification(
     if (Platform.OS === 'android') {
       return notification.request.content.data;
     } else {
-      return notification.request.trigger.type === 'push'
-        ? notification.request.trigger.payload
-        : notification.request.content.data;
+      const { content, trigger } = notification.request;
+      const isPush = trigger && 'type' in trigger && trigger.type === 'push';
+      return isPush ? trigger.payload : content.data;
     }
   })();
 

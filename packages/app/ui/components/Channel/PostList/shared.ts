@@ -16,7 +16,7 @@ export interface PostListMethods {
   scrollToIndex: (opts: { index: number; animated?: boolean }) => void;
 }
 
-export type PostListComponent = React.ForwardRefExoticComponent<{
+export type PostListComponentProps = {
   anchor: ScrollAnchor | null | undefined;
   channel: db.Channel;
   collectionLayoutType: PostCollectionLayoutType;
@@ -46,7 +46,6 @@ export type PostListComponent = React.ForwardRefExoticComponent<{
   onStartReached?: () => void;
   onStartReachedThreshold?: number;
   postsWithNeighbors: PostWithNeighbors[];
-  ref: React.Ref<PostListMethods>;
   renderEmptyComponent?: () => JSX.Element;
   renderItem: (opts: {
     item: PostWithNeighbors;
@@ -54,4 +53,8 @@ export type PostListComponent = React.ForwardRefExoticComponent<{
   }) => React.ReactElement | null;
   scrollEnabled?: boolean;
   style?: StyleProp<ViewStyle>;
-}>;
+};
+
+export type PostListComponent = ReturnType<
+  typeof React.forwardRef<PostListMethods, PostListComponentProps>
+>;
