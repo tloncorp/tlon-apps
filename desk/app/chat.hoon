@@ -1462,9 +1462,9 @@
       ?~  parent-time  reply-index
       =/  old-replies=v-replies:d  (~(gut by reply-index) u.parent-time *v-replies:d)
       %+  ~(put by reply-index)  u.parent-time
-      (put:on-v-replies:d old-replies time `(convert-quip time writ))
+      (put:on-v-replies:d old-replies time [%& (convert-quip time writ)])
     %+  gas:on-v-posts:d  *v-posts:d
-    =|  posts=(list [id-post:d (unit v-post:d)])
+    =|  posts=(list [id-post:d (may:d v-post:d)])
     =<  posts
     %+  roll  writs
     |=  [[=time =writ:t] count=@ud =_posts]
@@ -1478,7 +1478,7 @@
     =.  count  +(count)
     :-  count
     :_  posts
-    [time `(convert-post time count writ replies)]
+    [time %& (convert-post time count writ replies)]
   ::
   ++  convert-post
     |=  [id=@da seq=@ud old=writ:t replies=v-replies:d]
@@ -1580,32 +1580,32 @@
       =/  old-time  (~(get by index) id)
       ?~  old-time  ~
       =/  old-writ  (get:on:writs:t writs u.old-time)
-      ?~  old-writ  [%post u.old-time %set ~]~
+      ?~  old-writ  [%post u.old-time %set %| *tombstone:d]~
       ?~  replying.u.old-writ
         =/  new-post  (get:on-v-posts:d posts u.old-time)
         ?~  new-post  ~
         :_  ~
         :+  %post  u.old-time
         ?-  -.q.p.diff
-          %del                    [%set ~]
+          %del                    [%set %| *tombstone:d]
           ?(%add %edit)           [%set u.new-post]
-          ?(%add-feel %del-feel)  [%reacts ?~(u.new-post ~ reacts.u.u.new-post)]
+          ?(%add-feel %del-feel)  [%reacts ?:(?=(%| -.u.new-post) ~ reacts.+.u.new-post)]
        ==
       =/  new-post-id  (~(get by index) u.replying.u.old-writ)
       ?~  new-post-id  ~
       =/  new-post  (get:on-v-posts:d posts u.new-post-id)
       ?~  new-post  ~
-      ?~  u.new-post  ~
-      =/  new-quip  (get:on-v-replies:d replies.u.u.new-post u.old-time)
+      ?:  ?=(%| -.u.new-post)  ~
+      =/  new-quip  (get:on-v-replies:d replies.+.u.new-post u.old-time)
       ?~  new-quip  ~
       :_  ~
       :+  %post   u.new-post-id
       :+  %reply  u.old-time
       ^-  u-reply:d
       ?-  -.q.p.diff
-        %del                    [%set ~]
+        %del                    [%set %| *tombstone:d]
         ?(%add %edit)           [%set u.new-quip]
-        ?(%add-feel %del-feel)  [%reacts ?~(u.new-quip ~ reacts.u.u.new-quip)]
+        ?(%add-feel %del-feel)  [%reacts ?:(?=(%| -.u.new-quip) ~ reacts.+.u.new-quip)]
       ==
     ==
   --

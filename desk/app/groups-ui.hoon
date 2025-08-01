@@ -163,14 +163,19 @@
     ``ui-init-1+!>(`init-1:u`init)
   ::
       [%x %v1 %heads since=?(~ [u=@ ~])]
-    =+  .^(chan=channel-heads:v7:old:d (scry %gx %channels %v2 %heads (snoc since.pole %channel-heads)))
+    =+  .^(chan=channel-heads:v7:d (scry %gx %channels %v2 %heads (snoc since.pole %channel-heads)))
     =+  .^(chat=chat-heads:oc (scry %gx %chat %heads (snoc since.pole %chat-heads)))
     ``ui-heads+!>(`mixed-heads:u`[chan chat])
   ::
       [%x %v2 %heads since=?(~ [u=@ ~])]
-    =+  .^(chan=channel-heads:d (scry %gx %channels %v3 %heads (snoc since.pole %channel-heads-2)))
+    =+  .^(chan=channel-heads:v8:d (scry %gx %channels %v3 %heads (snoc since.pole %channel-heads-2)))
     =+  .^(chat=chat-heads:c (scry %gx %chat %v2 %heads (snoc since.pole %chat-heads-2)))
     ``ui-heads-2+!>(`mixed-heads-2:u`[chan chat])
+  ::
+      [%x %v3 %heads since=?(~ [u=@ ~])]
+    =+  .^(chan=channel-heads:v9:d (scry %gx %channels %v4 %heads (snoc since.pole %channel-heads-3)))
+    =+  .^(chat=chat-heads:c (scry %gx %chat %v2 %heads (snoc since.pole %chat-heads-2)))
+    ``ui-heads-3+!>(`mixed-heads-3:u`[chan chat])
   ::
       [%x %v2 %init ~]
     =+  .^([=groups-ui:v2:g =gangs:v2:g] (scry %gx %groups /init/v1/noun))
