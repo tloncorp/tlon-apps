@@ -459,6 +459,7 @@ export async function addReaction({
   emoji,
   our,
   postAuthor,
+  parentAuthorId,
   parentId,
 }: {
   channelId: string;
@@ -466,6 +467,7 @@ export async function addReaction({
   emoji: string;
   our: string;
   postAuthor: string;
+  parentAuthorId?: string;
   parentId?: string;
 }) {
   const isDmOrGroupDm =
@@ -474,11 +476,16 @@ export async function addReaction({
   if (isDmOrGroupDm) {
     if (isDmChannelId(channelId)) {
       if (parentId) {
-        const parentPost = await db.getPost({ postId: parentId });
-        if (!parentPost) {
-          throw new Error(`Parent post not found: ${parentId}`);
+        if (!parentId || !parentAuthorId) {
+          logger.trackError('Parent post not found', {
+            postId,
+            parentId,
+            parentAuthorId,
+            context: 'addReaction_parentPostNotFound',
+          });
+          return;
         }
-        const fullParentId = `${parentPost.authorId}/${parentId}`;
+        const fullParentId = `${parentAuthorId}/${parentId}`;
 
         const delta: ReplyDelta = {
           reply: {
@@ -507,12 +514,17 @@ export async function addReaction({
     } else {
       // Group DM reactions
       if (parentId) {
-        const parentPost = await db.getPost({ postId: parentId });
-        if (!parentPost) {
-          throw new Error(`Parent post not found: ${parentId}`);
+        if (!parentId || !parentAuthorId) {
+          logger.trackError('Parent post not found', {
+            postId,
+            parentId,
+            parentAuthorId,
+            context: 'addReaction_parentPostNotFound',
+          });
+          return;
         }
-        const fullParentId = `${parentPost.authorId}/${parentId}`;
-        
+        const fullParentId = `${parentAuthorId}/${parentId}`;
+
         const delta: ReplyDelta = {
           reply: {
             id: `${postAuthor}/${postId}`,
@@ -577,12 +589,14 @@ export async function removeReaction({
   our,
   postAuthor,
   parentId,
+  parentAuthorId,
 }: {
   channelId: string;
   postId: string;
   our: string;
   postAuthor: string;
   parentId?: string;
+  parentAuthorId?: string;
 }) {
   const isDmOrGroupDm =
     isDmChannelId(channelId) || isGroupDmChannelId(channelId);
@@ -590,11 +604,16 @@ export async function removeReaction({
   if (isDmOrGroupDm) {
     if (isDmChannelId(channelId)) {
       if (parentId) {
-        const parentPost = await db.getPost({ postId: parentId });
-        if (!parentPost) {
-          throw new Error(`Parent post not found: ${parentId}`);
+        if (!parentId || !parentAuthorId) {
+          logger.trackError('Parent post not found', {
+            postId,
+            parentId,
+            parentAuthorId,
+            context: 'removeReaction_parentPostNotFound',
+          });
+          return;
         }
-        const fullParentId = `${parentPost.authorId}/${parentId}`;
+        const fullParentId = `${parentAuthorId}/${parentId}`;
 
         const delta: ReplyDelta = {
           reply: {
@@ -615,12 +634,17 @@ export async function removeReaction({
     } else {
       // Group DM reactions
       if (parentId) {
-        const parentPost = await db.getPost({ postId: parentId });
-        if (!parentPost) {
-          throw new Error(`Parent post not found: ${parentId}`);
+        if (!parentId || !parentAuthorId) {
+          logger.trackError('Parent post not found', {
+            postId,
+            parentId,
+            parentAuthorId,
+            context: 'removeReaction_parentPostNotFound',
+          });
+          return;
         }
-        const fullParentId = `${parentPost.authorId}/${parentId}`;
-        
+        const fullParentId = `${parentAuthorId}/${parentId}`;
+
         const delta: ReplyDelta = {
           reply: {
             id: `${postAuthor}/${postId}`,
