@@ -1,6 +1,6 @@
-/-  g=groups
+/-  gv=groups-ver
 /+  j=groups-json
-|_  =groups-ui:zer:old:g
+|_  =groups-ui:zer:old:gv
 ++  grad  %noun
 ++  grow
   |%
@@ -9,6 +9,6 @@
   --
 ++  grab
   |%
-  ++  noun  groups-ui:zer:old:g
+  ++  noun  groups-ui:zer:old:gv
   --
 --

@@ -1,12 +1,12 @@
 /-  g=groups
-|_  =log:v2:g
+|_  tok=(unit token:g)
 ++  grad  %noun
 ++  grow
   |%
-  ++  noun  log
+  ++  noun  tok
   --
 ++  grab
   |%
-  ++  noun  log:v2:g
+  ++  noun  (unit token:g)
   --
 --

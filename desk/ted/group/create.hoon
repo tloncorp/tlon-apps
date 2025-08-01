@@ -1,10 +1,13 @@
 ::  create and preset a group
 ::
 ::  run via web at
+::  TODO modify spider to expose a new /v1 endpoint with a
+::  /thread/input/output syntax.
+::
 ::  https://ship/spider/groups/group-create-thread/group-create/group-ui-1
 ::
 /-  spider
-/-  g=groups, gt=groups-thread, c=channels, meta
+/-  g=groups, gv=groups-ver, gt=groups-thread, c=channels, meta
 /+  io=strandio
 ::  keep warm
 /=  in-mark  /mar/group/create-thread
@@ -22,40 +25,39 @@
 =*  channels  channels.create
 ;<  =bowl:spider  bind:m  get-bowl:io
 ?>  =(p.group-id.create our.bowl)
+::
 ;<  exists=?  bind:m
-  (scry:io ? /gx/groups/exists/(scot %p p.group-id.create)/[q.group-id.create]/noun)
-~&  group+[group-id.create exists=exists]
+  (scry:io ? /gu/groups/groups/(scot %p p.group-id.create)/[q.group-id.create])
 ::  create the group if it does not exist
 ::
 ;<  ~  bind:m
   ?:  exists  (pure:n ~)
-   =/  =create:g
+   =/  =create-group:g
      =,  create
      :*  q.group-id
-         title.meta
-         description.meta
-         image.meta
-         cover.meta
-         [%shut ~ ~]
-         %-  ~(gas by *(map ship (set sect:g)))
-         %+  turn  ~(tap in guest-list)
-         |=(=ship [ship ~])
+         meta
+         %secret     ::  privacy
+         [~ ~]       ::  banned
+         ::  members
          ::
-         &
+         %-  ~(gas by *(jug ship role-id:g))
+         %+  turn  ~(tap in guests)
+         |=(=ship ship^~)
      ==
-  (poke:io [our.bowl %groups] group-create+!>(`create:v6:g`create))
+  =/  =c-groups:g  [%create create-group]
+  (poke:io [our.bowl %groups] group-command+!>(c-groups))
 ::  set metadata and cordon if the group exists
 ;<  ~  bind:m
   ?.  exists  (pure:n ~)
   ;<  ~  bind:n
-    =/  =action:v5:g
+    =/  =action:v2:gv
       group-id.create^[now.bowl [%meta meta.create]]
-    (poke:io [our.bowl %groups] group-action-4+!>(action))
-  =/  =action:v5:g
+    (poke:io [our.bowl %groups] group-action-3+!>(action))
+  =/  =action:v2:gv
     :+  group-id.create
       now.bowl
-    [%cordon %shut %add-ships %pending guest-list.create]
-  (poke:io [our.bowl %groups] group-action-4+!>(action))
+    [%cordon %shut %add-ships %pending guests.create]
+  (poke:io [our.bowl %groups] group-action-3+!>(action))
 ;<  ~  bind:m
   |-
   ?~  channels  (pure:n ~)
@@ -65,7 +67,6 @@
     /[kind.channel-id]/(scot %p ship.channel-id)/[name.channel-id]
   ;<  exists=?  bind:n
     (scry:io ? (weld /gu/channels/v1 nest-path))
-  ~&  channel+[channel-id.create-channel exists=exists]
   ::  create the channel if it does not exist
   ::
   ;<  ~  bind:n
@@ -85,27 +86,14 @@
     (poke:io [our.bowl %channels] channel-action-1+!>(a-channels))
   ::  register the channel with %groups
   ;<  ~  bind:n
-    =/  =channel:v5:g
+    =/  =channel:v2:gv
       :-  [title.meta description.meta '' '']:create-channel
       [now.bowl %default | ~]
-    =/  =action:v5:g
+    =/  =action:v2:gv
       [group-id.create now.bowl %channel channel-id.create-channel %add channel]
-    (poke:io [our.bowl %groups] group-action-4+!>(action))
+    (poke:io [our.bowl %groups] group-action-3+!>(action))
   $(channels t.channels)
-::  send out group invites
-::
-;<  ~  bind:m
-  =+  guest-list=~(tap in guest-list.create)
-  |-
-  ?~  guest-list  (pure:n ~)
-  =/  =invite:v5:g
-    :_  i.guest-list
-    [our.bowl q.group-id.create]
-  ~&  invite+i.guest-list
-  ;<  ~  bind:n
-    (poke:io [our.bowl %groups] group-invite+!>(invite))
-  $(guest-list t.guest-list)
-::
-;<  =group-ui:v5:g  bind:m
-  (scry:io group-ui:v5:g /gx/groups/groups/(scot %p p.group-id.create)/[q.group-id.create]/v2/noun)
-(pure:m !>(group-ui))
+;<  group-ui-5=group-ui:v5:gv  bind:m
+  %+  scry:io  group-ui:v5:gv
+  /gx/groups/v1/ui/groups/(scot %p p.group-id.create)/[q.group-id.create]/noun
+(pure:m !>(group-ui-5))

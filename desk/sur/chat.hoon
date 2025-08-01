@@ -1,4 +1,4 @@
-/-  g=groups, d=channels
+/-  d=channels
 /-  meta
 |%
 ::
@@ -104,7 +104,8 @@
     (pair id delta)
   +$  delta
     ::  time and meta are units because we won't have it when we send,
-    ::  but we need it upon receipt
+    ::  but we need it upon receipt.
+    ::
     $%  [%add =essay time=(unit time)]
         [%del ~]
         [%reply =id meta=(unit reply-meta) =delta:replies]

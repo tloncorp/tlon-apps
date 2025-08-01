@@ -1,4 +1,4 @@
-/-  a=activity, c=channels, h=hark
+/-  a=activity, c=channels, gv=groups-ver, h=hark
 /+  cu=channel-utils
 ::
 |%
@@ -129,20 +129,20 @@
             ==
           ::
               %group-invite
-            =+  .^(=gangs:v5:g:a %gx /(scot %p our)/groups/(scot %da now)/v1/gangs/noun)
+            =+  .^(=foreigns:v7:gv %gx /(scot %p our)/groups/(scot %da now)/v1/foreigns/noun)
             :~  [%ship ship.event]
                 ' sent you an invite to '
-                ?~  gang=(~(get by gangs) group.event)  'a group'
-                ?~  pev.u.gang  'a group'
-                [%emph title.meta.u.pev.u.gang]
+                ?~  foreign=(~(get by foreigns) group.event)  'a group'
+                ?~  preview.u.foreign  'a group'
+                [%emph title.meta.u.preview.u.foreign]
             ==
           ::
               ?(%group-ask %group-join %group-kick %group-role)
-            =+  .^  =group:g:a  %gx
+            =+  .^  =group:v7:gv  %gx
                   (scot %p our)
                   %groups
                   (scot %da now)
-                  /groups/(scot %p p.group.event)/[q.group.event]/group
+                  /v2/groups/(scot %p p.group.event)/[q.group.event]/noun
                 ==
             ?-  -<.event
                 %group-ask
@@ -173,10 +173,10 @@
               %+  join  ', '
               %+  turn
                 ~(tap in roles.event)
-              |=  =sect:g:a
-              ?.  (~(has by cabals.group) sect)  sect
-              =/  cabal  (~(got by cabals.group) sect)
-              title.meta.cabal
+              |=  =sect:v0:gv
+              ?.  (~(has by roles.group) `role-id:v7:gv`sect)  sect
+              =/  role  (~(got by roles.group) `role-id:v7:gv`sect)
+              title.meta.role
             ==
           ::
               %contact
@@ -232,7 +232,7 @@
     ==
   ::
   ++  group-path
-    |=  group=flag:g:c
+    |=  group=flag:gv
     /groups/(scot %p p.group)/[q.group]
   ::
   ++  whom-path

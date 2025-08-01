@@ -1,5 +1,6 @@
-/-  a=activity, g=groups, c=chat
-/+  gj=groups-json, cj=channel-json, dj=contacts-json-1
+/-  a=activity, gv=groups-ver, c=chat
+/+  gj=groups-json, cj=channel-json, dj=contacts-json-1,
+    sj=story-json
 =*  z  ..zuse
 |%
 ++  enjs
@@ -43,8 +44,8 @@
     ^-  cord
     ?-  -.s
       %base  'base'
-      %group  (rap 3 'group/' (flag:enjs:gj flag.s) ~)
-      %channel  (rap 3 'channel/' (nest:enjs:gj nest.s) ~)
+      %group  (rap 3 'group/' (print-flag:enjs:gj flag.s) ~)
+      %channel  (rap 3 'channel/' (print-nest:enjs:gj nest.s) ~)
     ::
         %dm
       ?-  -.whom.s
@@ -55,7 +56,7 @@
         %thread
       %+  rap  3
       :~  'thread/'
-          (nest:enjs:gj channel.s)
+          (print-nest:enjs:gj channel.s)
           '/'
           (scot %ud time.key.s)
       ==
@@ -79,24 +80,26 @@
     |=  s=source:a
     %-  pairs
     ?-  -.s
-      %base  ~[base/~]
-      %group  ~[group/s/(flag:enjs:gj flag.s)]
+      %base  ~[base+~]
+      %group  ~[group+(flag:enjs:gj flag.s)]
       %dm  ~[dm+(whom whom.s)]
       %contact  ~[contact+(ship who.s)]
     ::
         %channel
       :~  :-  %channel
           %-  pairs
-          :~  nest/s/(nest:enjs:gj nest.s)
-              group/s/(flag:enjs:gj group.s)
+          ::XX we should use channel-json for encoding
+          ::   nests.
+          :~  nest+(nest:enjs:gj nest.s)
+              group+(flag:enjs:gj group.s)
           ==
       ==
     ::
         %thread
       :~  :-  %thread
           %-  pairs
-          :~  channel/s/(nest:enjs:gj channel.s)
-              group/s/(flag:enjs:gj group.s)
+          :~  channel/(nest:enjs:gj channel.s)
+              group/(flag:enjs:gj group.s)
               key+(msg-key key.s)
           ==
       ==
@@ -179,36 +182,36 @@
     ::
         %chan-init
       %-  pairs
-      :~  channel/s+(nest:enjs:gj channel.e)
-          group/s+(flag:enjs:gj group.e)
+      :~  channel/(nest:enjs:gj channel.e)
+          group/(flag:enjs:gj group.e)
       ==
     ::
         ?(%group-kick %group-join %group-ask %group-invite)
       %-  pairs
-      :~  group+s+(flag:enjs:gj group.e)
+      :~  group+(flag:enjs:gj group.e)
           ship+(ship ship.e)
       ==
     ::
         %flag-post
       %-  pairs
       :~  key+(msg-key key.e)
-          channel/s+(nest:enjs:gj channel.e)
-          group/s+(flag:enjs:gj group.e)
+          channel/(nest:enjs:gj channel.e)
+          group/(flag:enjs:gj group.e)
       ==
     ::
         %flag-reply
       %-  pairs
       :~  parent+(msg-key parent.e)
           key+(msg-key key.e)
-          channel/s+(nest:enjs:gj channel.e)
-          group/s+(flag:enjs:gj group.e)
+          channel/(nest:enjs:gj channel.e)
+          group/(flag:enjs:gj group.e)
       ==
     ::
         %dm-post
       %-  pairs
       :~  key+(msg-key key.e)
           whom+(whom whom.e)
-          content+(story:enjs:cj content.e)
+          content+(story:enjs:sj content.e)
           mention/b+mention.e
       ==
     ::
@@ -217,16 +220,16 @@
       :~  parent+(msg-key parent.e)
           key+(msg-key key.e)
           whom+(whom whom.e)
-          content+(story:enjs:cj content.e)
+          content+(story:enjs:sj content.e)
           mention/b+mention.e
       ==
     ::
         %post
       %-  pairs
       :~  key+(msg-key key.e)
-          channel/s+(nest:enjs:gj channel.e)
-          group/s+(flag:enjs:gj group.e)
-          content+(story:enjs:cj content.e)
+          channel/(nest:enjs:gj channel.e)
+          group/(flag:enjs:gj group.e)
+          content+(story:enjs:sj content.e)
           mention/b+mention.e
       ==
     ::
@@ -234,17 +237,17 @@
       %-  pairs
       :~  parent+(msg-key parent.e)
           key+(msg-key key.e)
-          channel/s+(nest:enjs:gj channel.e)
-          group/s+(flag:enjs:gj group.e)
-          content+(story:enjs:cj content.e)
+          channel/(nest:enjs:gj channel.e)
+          group/(flag:enjs:gj group.e)
+          content+(story:enjs:sj content.e)
           mention/b+mention.e
       ==
     ::
         %group-role
       %-  pairs
-      :~  group/s+(flag:enjs:gj group.e)
+      :~  group/(flag:enjs:gj group.e)
           ship+(ship ship.e)
-          roles+a+(turn ~(tap in roles.e) |=(role=sect:g s+role))
+          roles+a+(turn ~(tap in roles.e) |=(role=sect:v0:gv s+role))
       ==
     ::
         %contact
@@ -555,14 +558,14 @@
   ::
   ++  channel-source
     %-  ot
-    :~  nest/nest:dejs:cj
-        group/flag:dejs:gj
+    :~  nest+nest:dejs:cj
+        group+flag:dejs:gj
     ==
   ++  thread-source
     %-  ot
-    :~  key/msg-key
-        channel/nest:dejs:cj
-        group/flag:dejs:gj
+    :~  key+msg-key
+        channel+nest:dejs:cj
+        group+flag:dejs:gj
     ==
   ::
   ++  dm-thread-source
@@ -606,7 +609,7 @@
     :~  key/msg-key
         channel/nest:dejs:cj
         group/flag:dejs:gj
-        content/story:dejs:cj
+        content/story:dejs:sj
         mention/bo
     ==
   ::
@@ -616,7 +619,7 @@
         parent/msg-key
         channel/nest:dejs:cj
         group/flag:dejs:gj
-        content/story:dejs:cj
+        content/story:dejs:sj
         mention/bo
     ==
   ::
@@ -624,7 +627,7 @@
     %-  ot
     :~  key/msg-key
         whom/whom
-        content/story:dejs:cj
+        content/story:dejs:sj
         mention/bo
     ==
   ::
@@ -633,7 +636,7 @@
     :~  key/msg-key
         parent/msg-key
         whom/whom
-        content/story:dejs:cj
+        content/story:dejs:sj
         mention/bo
     ==
   ::

@@ -1,17 +1,8 @@
-/-  g=groups, d=channels, c=chat, a=activity, oc=chat-3
+/-  gv=groups-ver, d=channels, c=chat, a=activity, oc=chat-3
 |%
-+$  init-6
-  $:  groups=groups-ui:v5:g
-      =gangs:v6:g
-      channel=channel-0
-      =activity:a
-      pins=(list whom)
-      chat=chat-2
-      profile=?
-  ==
 +$  init-5
-  $:  groups=groups-ui:v5:g
-      =gangs:v5:g
+  $:  groups=groups-ui:v7:gv
+      =foreigns:v7:gv
       channel=channel-8
       =activity:a
       pins=(list whom)
@@ -19,8 +10,8 @@
       profile=?
   ==
 +$  init-4
-  $:  groups=groups-ui:v2:g
-      =gangs:v2:g
+  $:  groups=groups-ui:v2:gv
+      =gangs:v2:gv
       channel=channel-0
       =activity:a
       pins=(list whom)
@@ -28,8 +19,8 @@
       profile=?
   ==
 +$  init-3
-  $:  groups=groups-ui:v2:g
-      =gangs:v2:g
+  $:  groups=groups-ui:v2:gv
+      =gangs:v2:gv
       =channels:v7:old:d
       =activity:v3:old:a
       pins=(list whom)
@@ -37,8 +28,8 @@
       profile=?
   ==
 +$  init-2
-  $:  groups=groups-ui:v2:g
-      =gangs:v2:g
+  $:  groups=groups-ui:v2:gv
+      =gangs:v2:gv
       =channels:v7:old:d
       activity=activity:v2:old:a
       pins=(list whom)
@@ -47,8 +38,8 @@
   ==
 ::
 +$  init-1
-  $:  groups=groups-ui:v2:g
-      =gangs:v2:g
+  $:  groups=groups-ui:v2:gv
+      =gangs:v2:gv
       =channels:v7:old:d
       =unreads:d
       pins=(list whom)
@@ -57,8 +48,8 @@
   ==
 ::
 +$  init-0
-  $:  groups=groups-ui:v2:g
-      =gangs:v2:g
+  $:  groups=groups-ui:v2:gv
+      =gangs:v2:gv
       channels=channels-0:d
       =unreads:d
       pins=(list whom)
@@ -100,8 +91,8 @@
 ::  $whom: ID for an "item"
 ::
 +$  whom
-  $%  [%group =flag:g]
-      [%channel =nest:g]
+  $%  [%group =flag:v0:gv]
+      [%channel =nest:v0:gv]
       [%chat =whom:c]
   ==
 ::
