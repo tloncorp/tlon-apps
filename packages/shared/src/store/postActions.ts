@@ -665,6 +665,7 @@ export async function addPostReaction(
         emoji,
         our: currentUserId,
         postAuthor: post.authorId,
+        parentId: post.parentId || undefined,
       })
     );
   } catch (e) {
@@ -754,6 +755,7 @@ export async function removePostReaction(post: db.Post, currentUserId: string) {
         postId: post.id,
         our: currentUserId,
         postAuthor: post.authorId,
+        parentId: post.parentId || undefined,
       })
     );
   } catch (e) {
