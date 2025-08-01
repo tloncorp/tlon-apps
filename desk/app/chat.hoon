@@ -1815,7 +1815,7 @@
         =/  react-text  
           ?@  react.q.diff.delta  react.q.diff.delta
           p.react.q.diff.delta
-        ?~  (kill:em react-text)
+        ?^  (kill:em react-text)
           =/  message  ~[leaf+"Shortcode reaction detected in chat backend (group DM)"]
           =/  metadata  
             :~  'event'^s+'Backend Shortcode Reaction Chat GroupDM'
@@ -1859,7 +1859,7 @@
           =/  react-text  
             ?@  react.delt  react.delt
             p.react.delt
-          ?~  (kill:em react-text)
+          ?^  (kill:em react-text)
             =/  message  ~[leaf+"Shortcode reaction detected in chat backend (group DM reply)"]
             =/  metadata  
               :~  'event'^s+'Backend Shortcode Reaction Chat GroupDM Reply'
@@ -2259,7 +2259,7 @@
       =/  react-text  
         ?@  react.q.diff  react.q.diff
         p.react.q.diff
-      ?~  (kill:em react-text)
+      ?^  (kill:em react-text)
         =/  message  ~[leaf+"Shortcode reaction detected in chat backend (regular DM)"]
         =/  metadata  
           :~  'event'^s+'Backend Shortcode Reaction Chat DM'
@@ -2306,7 +2306,7 @@
         =/  react-text  
           ?@  react.delta  react.delta
           p.react.delta
-        ?~  (kill:em react-text)
+        ?^  (kill:em react-text)
           =/  message  ~[leaf+"Shortcode reaction detected in chat backend (regular DM reply)"]
           =/  metadata  
             :~  'event'^s+'Backend Shortcode Reaction Chat DM Reply'

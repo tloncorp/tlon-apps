@@ -942,7 +942,7 @@
         =/  react-text  
           ?@  q.new  q.new
           p.q.new
-        ?~  (kill:em react-text)
+        ?^  (kill:em react-text)
           =/  message  ~[leaf+"Shortcode reaction detected in channels-server (post)"]
           =/  nest-path  (spat [kind.nest (scot %p ship.nest) name.nest ~])
           =/  post-id    (scot %uv id.c-post)
@@ -975,7 +975,7 @@
         =/  react-text  
           ?@  q.c-reply.c-post  q.c-reply.c-post
           p.q.c-reply.c-post
-        ?~  (kill:em react-text)
+        ?^  (kill:em react-text)
           =/  message  ~[leaf+"Shortcode reaction detected in channels-server (reply)"]
           =/  nest-path  (spat [kind.nest (scot %p ship.nest) name.nest ~])
           =/  post-id    (scot %uv id.c-post)
