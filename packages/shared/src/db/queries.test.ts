@@ -646,7 +646,6 @@ test('getMentionCandidates: returns candidates in priority order', async () => {
 
   // Test the mention candidates query
   const candidates = await queries.getMentionCandidates({ chatId, query });
-  console.log('candidates', candidates);
 
   // Shouldn't contain duplicates
   expect(new Set(candidates.map((c) => c.id)).size).toBe(candidates.length);
@@ -661,6 +660,13 @@ test('getMentionCandidates: returns candidates in priority order', async () => {
       candidate.nickname?.toLowerCase().includes(query.toLowerCase())
   );
   expect(hasMatchingResults).toBe(true);
+
+  // Check priority ordering: group members (1) should come before others (2,3)
+  let lastPriority = 0;
+  for (const candidate of candidates) {
+    expect(candidate.priority).toBeGreaterThanOrEqual(lastPriority);
+    lastPriority = candidate.priority;
+  }
 
   // Test empty query returns empty array
   const emptyResults = await queries.getMentionCandidates({

@@ -42,7 +42,7 @@ import {
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import {
   MentionOption,
-  createMentionOptions,
+  createMentionRoleOptions,
   useMentions,
 } from './useMentions';
 
@@ -196,7 +196,7 @@ export default function BareChatInput({
   shouldBlur,
   setShouldBlur,
   channelId,
-  groupMembers,
+  groupId,
   groupRoles,
   storeDraft,
   clearDraft,
@@ -241,9 +241,10 @@ export default function BareChatInput({
   const [hasAutoFocused, setHasAutoFocused] = useState(false);
   const [needsHeightAdjustmentAfterLoad, setNeedsHeightAdjustmentAfterLoad] =
     useState(false);
-  const options = useMemo(() => {
-    return createMentionOptions(groupMembers, groupRoles);
-  }, [groupMembers, groupRoles]);
+
+  const roleOptions = useMemo(() => {
+    return createMentionRoleOptions(groupRoles);
+  }, [groupRoles]);
 
   const {
     mentions,
@@ -255,7 +256,7 @@ export default function BareChatInput({
     handleMention,
     handleSelectMention,
     handleMentionEscape,
-  } = useMentions({ options });
+  } = useMentions({ chatId: groupId ?? channelId, roleOptions });
   const maxInputHeight = useKeyboardHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
 
