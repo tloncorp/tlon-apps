@@ -1,11 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { escapeRegExp, isValidPatp } from '@tloncorp/shared';
-import { ALL_MENTION_ID as allID } from '@tloncorp/shared';
-import { getCurrentUserId } from '@tloncorp/shared/api';
+import { ALL_MENTION_ID as allID, isValidPatp } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useMemo, useState } from 'react';
 
-import { emptyContact } from '../../../fixtures/fakeData';
 import { formatUserId } from '../../utils';
 
 export const ALL_MENTION_ID = allID;
@@ -43,22 +40,9 @@ export function getMentionPriority(member: db.ChatMember): number {
   return 1;
 }
 
-export function createMentionOptions(
-  groupMembers: db.ChatMember[],
+export function createMentionRoleOptions(
   groupRoles: db.GroupRole[]
 ): MentionOption[] {
-  const currentUserId = getCurrentUserId();
-  const members = groupMembers
-    .filter((member) => member.contactId !== currentUserId)
-    .map<MentionOption>((member) => ({
-      id: member.contactId,
-      title: member.contact?.nickname || member.contactId,
-      subtitle: formatUserId(member.contactId, true)?.display,
-      type: 'contact',
-      priority: getMentionPriority(member),
-      contact: member.contact || emptyContact,
-    }));
-
   const roles = groupRoles.map<MentionOption>((role) => ({
     id: role.id,
     title: role.title || role.id,
@@ -74,10 +58,16 @@ export function createMentionOptions(
     type: 'group',
     priority: 5,
   };
-  return [all, ...members, ...roles].sort((a, b) => a.priority - b.priority);
+  return [...roles, all];
 }
 
-export const useMentions = ({ chatId }: { chatId: string }) => {
+export const useMentions = ({
+  chatId,
+  roleOptions,
+}: {
+  chatId: string;
+  roleOptions: MentionOption[];
+}) => {
   const [isMentionModeActive, setIsMentionModeActive] = useState(false);
   const [mentionStartIndex, setMentionStartIndex] = useState<number | null>(
     null
@@ -93,44 +83,40 @@ export const useMentions = ({ chatId }: { chatId: string }) => {
     queryKey: ['mentionCandidates', chatId, mentionSearchText],
     queryFn: () =>
       db.getMentionCandidates({ chatId, query: mentionSearchText }),
+    placeholderData: (previousData) => {
+      return previousData || [];
+    },
     enabled: isMentionModeActive && mentionSearchText.trim().length > 0,
+    select: (data) => {
+      return data.map((candidate) => ({
+        id: candidate.id,
+        title: candidate.nickname || candidate.id,
+        subtitle: formatUserId(candidate.id, true)?.display,
+        type: 'contact' as const,
+        priority: candidate.priority,
+        contact: {
+          id: candidate.id,
+          nickname: candidate.nickname,
+          avatarImage: candidate.avatarImage,
+          bio: candidate.bio,
+          status: candidate.status,
+          color: candidate.color,
+        } as db.Contact,
+      }));
+    },
   });
 
+  // Combine role options and mention candidates
   const validOptions = useMemo(() => {
-    const options: MentionOption[] = mentionCandidates.map((candidate) => ({
-      id: candidate.id,
-      title: candidate.priority_order + (candidate.nickname || candidate.id),
-      subtitle: formatUserId(candidate.id, true)?.display,
-      type: 'contact' as const,
-      priority: candidate.priority_order,
-      contact: {
-        id: candidate.id,
-        nickname: candidate.nickname,
-        avatarImage: candidate.avatarImage,
-        bio: candidate.bio,
-        status: candidate.status,
-        color: candidate.color,
-      } as db.Contact,
-    }));
-
-    // Add "All" option if we have a search term
-    if (isMentionModeActive && mentionSearchText.trim().length > 0) {
-      const allOption: MentionOption = {
-        id: ALL_MENTION_ID,
-        title: 'All',
-        subtitle: 'All members in this channel',
-        type: 'group',
-        priority: 0,
-      };
-
-      // Only include "All" if it matches the search
-      if ('all'.includes(mentionSearchText.toLowerCase())) {
-        options.unshift(allOption);
-      }
-    }
-
-    return options.sort((a, b) => a.priority - b.priority);
-  }, [mentionCandidates, isMentionModeActive, mentionSearchText]);
+    const validRoleOptions = roleOptions.filter(
+      (o) =>
+        mentionSearchText.trim().length > 0 &&
+        o.title?.toLowerCase().startsWith(mentionSearchText.toLowerCase())
+    );
+    return [...validRoleOptions, ...mentionCandidates].sort(
+      (a, b) => a.priority - b.priority
+    );
+  }, [roleOptions, mentionCandidates, mentionSearchText]);
 
   const hasMentionCandidates = useMemo(() => {
     return validOptions.length > 0;

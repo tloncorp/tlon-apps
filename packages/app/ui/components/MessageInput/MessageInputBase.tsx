@@ -36,6 +36,7 @@ export interface MessageInputProps {
     metadata?: db.PostMetadata
   ) => Promise<void>;
   channelId: string;
+  groupId?: string | null;
   groupMembers: db.ChatMember[];
   groupRoles: db.GroupRole[];
   storeDraft: (
