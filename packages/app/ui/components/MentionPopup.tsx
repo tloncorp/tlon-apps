@@ -1,14 +1,11 @@
-import * as db from '@tloncorp/shared/db';
-import { desig } from '@tloncorp/shared/urbit';
 import { Pressable } from '@tloncorp/ui';
-import {
+import React, {
   PropsWithRef,
   useEffect,
   useImperativeHandle,
   useMemo,
   useState,
 } from 'react';
-import React from 'react';
 import { Platform } from 'react-native';
 
 import { MentionOption } from './BareChatInput/useMentions';
