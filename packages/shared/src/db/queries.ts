@@ -795,7 +795,12 @@ export const getMentionCandidates = createReadQuery(
           CASE 
             WHEN ${$chatMembers.chatId} = ${chatId} THEN 1
             WHEN ${$contacts.isContact} = true THEN 2
-            ELSE 3
+        // Priority: group members, contacts, other group members
+        priority: sql<number>`
+          CASE 
+            WHEN ${$chatMembers.chatId} = ${chatId} THEN ${PRIORITY_GROUP_MEMBER}
+            WHEN ${$contacts.isContact} = true THEN ${PRIORITY_CONTACT}
+            ELSE ${PRIORITY_OTHER_GROUP_MEMBER}
           END
         `.as('priority'),
       })
