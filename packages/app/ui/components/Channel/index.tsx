@@ -1,7 +1,10 @@
 import { useIsFocused } from '@react-navigation/native';
 import {
   DraftInputId,
+  UploadedImageAttachment,
+  finalizeAndSendPost,
   isChatChannel as getIsChatChannel,
+  sendPost,
   useChannelPreview,
   useGroupPreview,
   usePostReference as usePostReferenceHook,
@@ -69,6 +72,8 @@ interface ChannelProps {
   selectedPostId?: string | null;
   posts: db.Post[] | null;
   group: db.Group | null;
+  groupIsLoading?: boolean;
+  groupError?: Error | null;
   goBack: () => void;
   goToChatDetails?: () => void;
   goToPost: (post: db.Post) => void;
@@ -77,7 +82,6 @@ interface ChannelProps {
   goToImageViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
   goToUserProfile: (userId: string) => void;
-  messageSender: (content: Story, channelId: string) => Promise<void>;
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
@@ -120,6 +124,8 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       posts,
       selectedPostId,
       group,
+      groupIsLoading,
+      groupError, // Not currently used but available if needed for error handling
       goBack,
       goToChatDetails,
       goToSearch,
@@ -128,7 +134,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       goToDm,
       goToUserProfile,
       goToGroupSettings,
-      messageSender,
       onScrollEndReached,
       onScrollStartReached,
       isLoadingPosts,
@@ -164,6 +169,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const groups = useMemo(() => (group ? [group] : null), [group]);
     const currentUserId = useCurrentUserId();
     const canWrite = utils.useCanWrite(channel, currentUserId);
+    const canRead = utils.useCanRead(channel, currentUserId);
     const collectionRef = useRef<PostCollectionHandle>(null);
 
     const isChatChannel = channel ? getIsChatChannel(channel) : true;
@@ -228,7 +234,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
               {
                 block: {
                   image: {
-                    src: attachment.uploadState.remoteUri,
+                    src: UploadedImageAttachment.uri(attachment),
                     height: attachment.file.height || 0,
                     width: attachment.file.width || 0,
                     alt: 'image',
@@ -238,7 +244,10 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
             ];
 
             // Send the post with just this image
-            await messageSender(story, channel.id);
+            await sendPost({
+              channelId: channel.id,
+              content: story,
+            });
           }
         } catch (error) {
           console.error('Error handling image drop:', error);
@@ -246,7 +255,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
           clearAttachments();
         }
       },
-      [channel, messageSender, uploadAssets, attachAssets, clearAttachments]
+      [channel, uploadAssets, attachAssets, clearAttachments]
     );
 
     /** when `null`, input is not shown or presentation is unknown */
@@ -271,7 +280,14 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         getDraft,
         group,
         onPresentationModeChange: setDraftInputPresentationMode,
-        send: messageSender,
+        sendPost: async (content, channelId, metadata) => {
+          await sendPost({
+            channelId,
+            content,
+            metadata,
+          });
+        },
+        sendPostFromDraft: finalizeAndSendPost,
         setEditingPost,
         setShouldBlur: setInputShouldBlur,
         shouldBlur: inputShouldBlur,
@@ -285,7 +301,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         getDraft,
         group,
         inputShouldBlur,
-        messageSender,
         setEditingPost,
         storeDraft,
       ]
@@ -416,16 +431,23 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                             )}
                           </AnimatePresence>
 
-                          {!canWrite || !negotiationMatch ? (
+                          {!canRead ||
+                          !canWrite ||
+                          !negotiationMatch ||
+                          (channel.groupId && !group && !groupIsLoading) ? (
                             <ReadOnlyNotice
                               type={
-                                !canWrite
-                                  ? 'read-only'
-                                  : isDM
-                                    ? 'dm-mismatch'
-                                    : isGroupDm
-                                      ? 'group-dm-mismatch'
-                                      : 'channel-mismatch'
+                                channel.groupId && !group && !groupIsLoading
+                                  ? 'group-deleted'
+                                  : !canRead
+                                    ? 'no-longer-read'
+                                    : !canWrite
+                                      ? 'read-only'
+                                      : isDM
+                                        ? 'dm-mismatch'
+                                        : isGroupDm
+                                          ? 'group-dm-mismatch'
+                                          : 'channel-mismatch'
                               }
                             />
                           ) : channel.contentConfiguration == null ? (

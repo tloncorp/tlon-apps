@@ -9,7 +9,8 @@ import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
-import { useChannelContext } from '../../contexts';
+import { useChannelContext, useCurrentUserId } from '../../contexts';
+import { useCanWrite } from '../../utils/channelUtils';
 import AuthorRow from '../AuthorRow';
 import { DefaultRendererProps } from '../PostContent/BlockRenderer';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
@@ -61,9 +62,11 @@ const ChatMessage = ({
   const [isHovered, setIsHovered] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const channel = useChannelContext();
+  const currentUserId = useCurrentUserId();
+  const canWrite = useCanWrite(channel, currentUserId);
   const postActionIds = useMemo(
-    () => ChannelAction.channelActionIdsFor({ channel }),
-    [channel]
+    () => ChannelAction.channelActionIdsFor({ channel, canWrite }),
+    [channel, canWrite]
   );
 
   const isNotice = post.type === 'notice';
@@ -175,6 +178,7 @@ const ChatMessage = ({
       onHoverOut={handleHoverOut}
       pressStyle="unset"
       cursor="default"
+      testID="Post"
     >
       <YStack
         backgroundColor={isHighlighted ? '$secondaryBackground' : undefined}

@@ -1,16 +1,10 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
 
 import * as helpers from './helpers';
-import shipManifest from './shipManifest.json';
+import { test } from './test-fixtures';
 
-const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
-
-test.use({ storageState: shipManifest['~zod'].authFile });
-
-test('should create, verify, and delete a group', async ({ page }) => {
-  // Launch and login
-  await page.goto(zodUrl);
-  await helpers.clickThroughWelcome(page);
+test('should create, verify, and delete a group', async ({ zodPage }) => {
+  const page = zodPage;
 
   // Assert that we're on the Home page
   await expect(page.getByText('Home')).toBeVisible();

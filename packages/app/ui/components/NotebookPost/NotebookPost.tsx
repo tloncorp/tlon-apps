@@ -21,7 +21,8 @@ import {
   styled,
 } from 'tamagui';
 
-import { useChannelContext } from '../../contexts';
+import { useChannelContext, useCurrentUserId } from '../../contexts';
+import { useCanWrite } from '../../utils/channelUtils';
 import { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
@@ -59,9 +60,11 @@ export function NotebookPost({
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const channel = useChannelContext();
+  const currentUserId = useCurrentUserId();
+  const canWrite = useCanWrite(channel, currentUserId);
   const postActionIds = useMemo(
-    () => ChannelAction.channelActionIdsFor({ channel }),
-    [channel]
+    () => ChannelAction.channelActionIdsFor({ channel, canWrite }),
+    [channel, canWrite]
   );
 
   const handleLongPress = useCallback(() => {
@@ -125,6 +128,7 @@ export function NotebookPost({
       maxWidth={600}
       width={'100%'}
       marginHorizontal="auto"
+      testID="Post"
     >
       <NotebookPostFrame size={size} disabled={viewMode === 'activity'}>
         {post.hidden ? (

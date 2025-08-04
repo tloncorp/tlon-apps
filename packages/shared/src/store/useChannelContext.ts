@@ -42,10 +42,6 @@ export const useChannelContext = ({
       parentId?: string,
       metadata?: PostMetadata
     ) => {
-      if (!channelQuery.data) {
-        return;
-      }
-
       postActions.editPost({
         post,
         content,
@@ -54,7 +50,7 @@ export const useChannelContext = ({
       });
       setEditingPost(undefined);
     },
-    [channelQuery.data]
+    []
   );
 
   // Version negotiation
@@ -92,5 +88,7 @@ export const useChannelContext = ({
     editPost,
     channel: channelQuery.data ?? null,
     group: groupQuery.data ?? null,
+    groupIsLoading: groupQuery.isLoading,
+    groupError: groupQuery.error,
   } as const;
 };

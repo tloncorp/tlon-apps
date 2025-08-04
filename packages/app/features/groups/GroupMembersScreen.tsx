@@ -5,8 +5,8 @@ import { useHandleGoBack } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
-import { useRootNavigation } from '../../navigation/utils';
 import { GroupMembersScreenView } from '../../ui';
+import { useRootNavigation } from '../../navigation/utils';
 
 type Props = NativeStackScreenProps<
   GroupSettingsStackParamList,
@@ -16,6 +16,7 @@ type Props = NativeStackScreenProps<
 export function GroupMembersScreen(props: Props) {
   const { groupId, fromChatDetails } = props.route.params;
   const { navigation } = props;
+  const { navigation: rootNavigation } = useRootNavigation();
   const {
     groupMembers,
     groupRoles,
@@ -35,24 +36,22 @@ export function GroupMembersScreen(props: Props) {
 
   const currentUserId = useCurrentUserId();
 
-  const { resetToDm } = useRootNavigation();
-
   const handleGoBack = useHandleGoBack(navigation, {
     groupId,
     fromChatDetails,
   });
 
-  const handleGoToDm = useCallback(
+  const handleGoToProfile = useCallback(
     (contactId: string) => {
-      return resetToDm(contactId);
+      return rootNavigation.navigate('UserProfile', { userId: contactId });
     },
-    [resetToDm]
+    [rootNavigation]
   );
 
   return (
     <GroupMembersScreenView
       goBack={handleGoBack}
-      onPressGoToDm={handleGoToDm}
+      onPressGoToProfile={handleGoToProfile}
       members={groupMembers}
       roles={groupRoles}
       groupId={groupId}

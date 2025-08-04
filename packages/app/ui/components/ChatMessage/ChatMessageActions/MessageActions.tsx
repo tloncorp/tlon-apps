@@ -1,6 +1,7 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { Attachment } from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCopy } from '@tloncorp/ui';
@@ -10,7 +11,7 @@ import { isWeb } from 'tamagui';
 
 import { useRenderCount } from '../../../../hooks/useRenderCount';
 import { useChannelContext, useCurrentUserId } from '../../../contexts';
-import { Attachment, useAttachmentContext } from '../../../contexts/attachment';
+import { useAttachmentContext } from '../../../contexts/attachment';
 import { triggerHaptic, useIsAdmin } from '../../../utils';
 import ActionList from '../../ActionList';
 import { useForwardPostSheet } from '../../ForwardPostSheet';
@@ -89,22 +90,25 @@ const ConnectedAction = memo(function ConnectedAction({
         // only show start thread if
         // 1. the message is delivered
         // 2. the message isn't a reply
-        // 3. an existing thread for that message doesn't already exist
-        return !post.deliveryStatus && !post.parentId && post.replyCount === 0;
+        return !post.deliveryStatus && !post.parentId;
       case 'muteThread':
         // only show mute for threads
         return post.parentId;
       case 'edit':
-        // only show edit for current user's posts OR admins of notebook posts
+        // only show edit for current user's posts
+        // OR admins for top-level notebook posts
         return (
           post.authorId === currentUserId ||
-          (channel.type === 'notebook' && currentUserIsAdmin)
+          (channel.type === 'notebook' && currentUserIsAdmin && !post.parentId)
         );
       case 'delete':
         // only show delete for current user's posts
         return post.authorId === currentUserId || currentUserIsAdmin;
       case 'viewReactions':
         return (post.reactions?.length ?? 0) > 0;
+      case 'visibility':
+        // prevent users from hiding their own posts
+        return post.authorId !== currentUserId;
       default:
         return true;
     }
@@ -112,7 +116,6 @@ const ConnectedAction = memo(function ConnectedAction({
     actionId,
     post.deliveryStatus,
     post.parentId,
-    post.replyCount,
     post.authorId,
     post.reactions?.length,
     currentUserId,

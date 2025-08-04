@@ -1,5 +1,6 @@
 import type { BridgeState, EditorBridge } from '@10play/tentap-editor';
 import * as db from '@tloncorp/shared/db';
+import type * as domain from '@tloncorp/shared/domain';
 import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { Button, LoadingSpinner } from '@tloncorp/ui';
 import { FloatingActionButton } from '@tloncorp/ui';
@@ -28,7 +29,8 @@ import InputMentionPopup from './InputMentionPopup';
 export interface MessageInputProps {
   shouldBlur: boolean;
   setShouldBlur: (shouldBlur: boolean) => void;
-  send: (
+  sendPostFromDraft: (draft: domain.PostDataDraft) => Promise<void>;
+  sendPost: (
     content: Story,
     channelId: string,
     metadata?: db.PostMetadata

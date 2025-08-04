@@ -3,9 +3,10 @@ import {
   createDrawerNavigator,
 } from '@react-navigation/drawer';
 import { DrawerNavigationState } from '@react-navigation/native';
+import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useRef } from 'react';
-import { View, getVariableValue, useTheme } from 'tamagui';
+import { useCallback, useRef, useState } from 'react';
+import { getVariableValue, useTheme } from 'tamagui';
 
 import { GlobalSearch } from '../../features/chat-list/GlobalSearch';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
@@ -18,6 +19,7 @@ import {
   useGlobalSearch,
   useWebAppUpdate,
 } from '../../ui';
+import { PersonalInviteSheet } from '../../ui/components/PersonalInviteSheet';
 import { RootDrawerParamList } from '../types';
 import { useRootNavigation } from '../utils';
 import { ActivityNavigator } from './ActivityNavigator';
@@ -36,6 +38,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
   const lastHomeStateRef =
     useRef<DrawerNavigationState<RootDrawerParamList> | null>(null);
   const { isOpen, setIsOpen } = useGlobalSearch();
+  const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
 
   const isRouteActive = useCallback(
     (routeName: keyof RootDrawerParamList) => {
@@ -75,6 +78,11 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
       props.navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
     }
   }, [props.navigation, isRouteActive]);
+
+  const handlePersonalInvitePress = useCallback(() => {
+    db.hasViewedPersonalInvite.setValue(true);
+    setPersonalInviteOpen(true);
+  }, []);
 
   return (
     <YStack flex={1} paddingVertical="$l">
@@ -138,6 +146,13 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
       </YStack>
       <YStack gap="$xl" marginTop="auto" alignItems="center">
         <NavIcon
+          type="AddPerson"
+          isActive={false}
+          shouldShowUnreads={false}
+          onPress={handlePersonalInvitePress}
+          testID="PersonalInviteNavIcon"
+        />
+        <NavIcon
           type="Settings"
           testID="SettingsNavIcon"
           isActive={isRouteActive('Settings')}
@@ -157,6 +172,11 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           onPress={() => setIsOpen(!isOpen)}
         />
       </YStack>
+      <PersonalInviteSheet
+        open={personalInviteOpen}
+        onOpenChange={() => setPersonalInviteOpen(false)}
+        onPressInviteFriends={handlePersonalInvitePress}
+      />
     </YStack>
   );
 };

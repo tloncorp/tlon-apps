@@ -1,13 +1,12 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useThemeSettings } from '@tloncorp/shared';
-import { subscribeToSettings } from '@tloncorp/shared/api';
-import { useContext, useEffect, useState } from 'react';
+import * as store from '@tloncorp/shared/store';
+import { useEffect, useState } from 'react';
 import { ScrollView, YStack } from 'tamagui';
 import { useTheme } from 'tamagui';
 
 import { useIsDarkMode } from '../../hooks/useIsDarkMode';
 import { RootStackParamList } from '../../navigation/types';
-import { ThemeContext, clearTheme, setTheme } from '../../provider';
 import { AppTheme } from '../../types/theme';
 import {
   ListItem,
@@ -25,7 +24,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Theme'>;
 export function ThemeScreen(props: Props) {
   const theme = useTheme();
   const { data: storedTheme, isLoading } = useThemeSettings();
-  const { setActiveTheme } = useContext(ThemeContext);
   const isDarkMode = useIsDarkMode();
   const [selectedTheme, setSelectedTheme] = useState<AppTheme>('auto');
   const [loadingTheme, setLoadingTheme] = useState<AppTheme | null>(null);
@@ -52,14 +50,10 @@ export function ThemeScreen(props: Props) {
 
     setLoadingTheme(value);
     try {
-      if (value === 'auto') {
-        setActiveTheme(isDarkMode ? 'dark' : 'light');
-        await clearTheme(setActiveTheme, isDarkMode);
-      } else {
-        setActiveTheme(value);
-        await setTheme(value, setActiveTheme);
-      }
+      await store.updateTheme(value);
       setSelectedTheme(value);
+    } catch (err) {
+      console.error('Failed to save theme preference:', err);
     } finally {
       setLoadingTheme(null);
     }
@@ -70,23 +64,6 @@ export function ThemeScreen(props: Props) {
       setSelectedTheme(normalizeTheme(storedTheme));
     }
   }, [storedTheme, isLoading]);
-
-  useEffect(() => {
-    subscribeToSettings((update) => {
-      if (update.type === 'updateSetting' && 'theme' in update.setting) {
-        const newTheme = update.setting.theme;
-        const themeValue = normalizeTheme(newTheme as AppTheme);
-
-        setSelectedTheme(themeValue);
-
-        if (themeValue === 'auto') {
-          setActiveTheme(isDarkMode ? 'dark' : 'light');
-        } else {
-          setActiveTheme(themeValue);
-        }
-      }
-    });
-  }, [isDarkMode, setActiveTheme]);
 
   return (
     <View backgroundColor={theme?.background?.val} flex={1}>
