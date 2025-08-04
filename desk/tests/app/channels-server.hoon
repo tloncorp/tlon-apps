@@ -12,6 +12,57 @@
 --
 ::
 |%
+::  channels agent will send pokes requesting sequence nrs, we must respond
+::
+++  test-send-sequence-nrs
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  (do-init dap agent)
+  ::  channel doesn't exist, should no-op
+  ::
+  ;<  caz=(list card)  bind:m
+    ((do-as ~fun) (do-poke %noun !>([%send-sequence-numbers *nest:c])))
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ::  channel exists, should send list of seqs nrs
+  ::
+  =/  state=state-8
+    =;  chan=v-channel:c
+      [%8 (~(put by *v-channels:c) *nest:c chan) *hooks:h *pimp:imp]
+    =;  posts
+      :_  *local:v-channel:c
+      ^-  global:v-channel:c
+      [posts count=333 *(rev:c arranged-posts:c) *(rev:c view:c) *(rev:c sort:c) *(rev:c perm:c) *(rev:c (unit @t))]
+    %+  gas:on-v-posts:c  ~
+    =*  k  ~2025.8.4
+    =;  p=v-post:c
+      [k `p]~
+    :*  [id=k seq=777 mod-at=k replies=~ reacts=~]
+        rev=0
+        [content=[[%inline 'a' ~] ~] author=~zod sent=k]
+        [kind=/chat meta=~ blob=~]
+    ==
+  ::  edit carefully to work around lib negotiate state.
+  ::  yes, the inner state is double-vased!
+  ::
+  ;<  save=vase  bind:m  get-save
+  =.  save
+    ;:  slop
+      (slot 2 save)  ::  lib discipline
+      (slot 6 save)  ::  lib negotiate
+      !>(!>(state))  ::  negotiate's double-vasing
+    ==
+  ;<  *  bind:m  (do-load agent `save)
+  ;<  caz=(list card)  bind:m
+    ((do-as ~fun) (do-poke %noun !>([%send-sequence-numbers *nest:c])))
+  %+  ex-cards  caz
+  =/  =vase
+    !>  :^  %sequence-numbers  *nest:c
+      333
+    ^-  (list [id-post:c (unit @ud)])
+    :~  [~2025.8.4 `777]
+    ==
+  :~  (ex-poke /numbers [~fun %channels] %noun vase)
+  ==
 ::  migration 7->8 used to drop message tombstones.
 ::  if we're in that state, we must recover them from the log.
 ::
