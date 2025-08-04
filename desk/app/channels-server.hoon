@@ -402,7 +402,7 @@
       ==
     ::
         [%send-sequence-numbers *]
-      =+  !<([%send-sequence-numbers =nest:c] vase)
+      =+  ;;([%send-sequence-numbers =nest:c] q.vase)
       ?~  can=(~(get by v-channels) nest)  cor
       =;  =cage
         (emit [%pass /numbers %agent [src.bowl %channels] %poke cage])
