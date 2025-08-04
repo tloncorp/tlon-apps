@@ -130,7 +130,12 @@
     ::  yes, the inner state is double-vased!
     ::
     ;<  save=vase  bind:m  get-save
-    =.  save  (slop (slot 2 save) !>(!>(bad-state)))
+    =.  save
+      ;:  slop
+        (slot 2 save)      ::  lib discipline
+        (slot 6 save)      ::  lib negotiate
+        !>(!>(bad-state))  :: negotiate's double-vasing
+      ==
     ;<  caz=(list card:agent:gall)  bind:m  (do-load agent `save)
     ::
     ;<  ~  bind:m  (ex-cards caz ~)
@@ -143,6 +148,8 @@
       (~(put by *v-channels:c) *nest:c chan)
     ::  again, carefully work around lib negotiate state.
     ::
-    (ex-equal !<(vase (slot 3 save)) !>(fixed-state))
+    =.  save  (slot 3 save)           ::  lib discipline
+    =.  save  !<(vase (slot 3 save))  ::  lib negotiate
+    (ex-equal save !>(fixed-state))
   --
 --

@@ -185,11 +185,6 @@
     ::TODO  annoying, can't do +do-load directly, but it always calls
     ::      +on-save, even if we provide a vase
     :: ;<  *  bind:m  (do-init dap channels-agent)
-    ::  edit carefully to work around lib negotiate state.
-    ::  yes, the inner state is double-vased!
-    ::
-    :: ;<  save=vase  bind:m  get-save
-    :: =.  save  (slop (slot 2 save) !>(!>(bad-state)))
     ;<  *  bind:m  (do-load channels-agent `!>(bad-state))
     ;<  caz=(list card)  bind:m
       =;  seqs=(list [id-post:c (unit @ud)])
@@ -212,8 +207,10 @@
       =.  posts.chan
         +:(del:on-v-posts:c posts.chan missing-key)
       (~(put by *v-channels:c) *nest:c chan)
-    ::  again, carefully work around lib negotiate state.
+    ::  carefully work around wrapper library state
     ::
-    (ex-equal !<(vase (slot 3 save)) !>(fixed-state))
+    =.  save  (slot 3 save)           ::  lib discipline
+    =.  save  !<(vase (slot 3 save))  ::  lib negotiate
+    (ex-equal save !>(fixed-state))
   --
 --
