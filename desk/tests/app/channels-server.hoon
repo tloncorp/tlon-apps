@@ -53,7 +53,7 @@
     ==
   ;<  *  bind:m  (do-load agent `save)
   ;<  caz=(list card)  bind:m
-    ((do-as ~fun) (do-poke %noun !>([%send-sequence-numbers *nest:c])))
+    ((do-as ~fun) (do-poke %noun -:!>(**) [%send-sequence-numbers *nest:c]))
   %+  ex-cards  caz
   =/  =vase
     !>  :^  %sequence-numbers  *nest:c

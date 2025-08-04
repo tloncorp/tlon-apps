@@ -188,7 +188,7 @@
     ;<  *  bind:m  (do-load channels-agent `!>(bad-state))
     ;<  caz=(list card)  bind:m
       =;  seqs=(list [id-post:c (unit @ud)])
-        (do-poke %noun !>([%sequence-numbers *nest:c 3 seqs]))
+        (do-poke %noun `vase`[-:!>(**) %sequence-numbers *nest:c 3 seqs])
       :~  [missing-key `1]
           [tombstone-key ~]
           [misnumber-key `3]
