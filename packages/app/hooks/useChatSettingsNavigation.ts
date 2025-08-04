@@ -13,12 +13,18 @@ export const useHandleGoBack = (
     GroupSettingsStackParamList,
     keyof GroupSettingsStackParamList
   >,
-  params: { groupId: string; fromChatDetails?: boolean }
+  params: {
+    groupId: string;
+    fromChatDetails?: boolean;
+    fromBlankChannel?: boolean;
+  }
 ) => {
-  const { groupId, fromChatDetails } = params;
+  const { groupId, fromChatDetails, fromBlankChannel } = params;
 
   return useCallback(() => {
-    if (fromChatDetails) {
+    if (fromBlankChannel) {
+      navigation.goBack();
+    } else if (fromChatDetails) {
       navigation.getParent()?.navigate('ChatDetails', {
         chatType: 'group',
         chatId: groupId,
@@ -26,7 +32,7 @@ export const useHandleGoBack = (
     } else {
       navigation.goBack();
     }
-  }, [navigation, fromChatDetails, groupId]);
+  }, [navigation, fromChatDetails, fromBlankChannel, groupId]);
 };
 
 export const useChatSettingsNavigation = () => {
