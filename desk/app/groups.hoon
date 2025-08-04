@@ -1161,6 +1161,12 @@
   ::
       [%contacts ~]
     (take-contacts sign)
+  ::
+    ::  deprecated
+    [%gangs *]  cor
+  ::
+    ::  deprecated
+    [%helm *]  cor
   ==
 ::
 ++  arvo

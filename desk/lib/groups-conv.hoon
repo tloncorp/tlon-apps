@@ -744,7 +744,7 @@
       ^-  (list update:v7:gv)
       =*  sect-to-role-id
         |=(sect:v5:gv `role-id:v7:gv`+<)
-      ?+    -.diff  ~|(update-7-from-diff-5-bad+-.diff !!)
+      ?-    -.diff
           %fleet
         %+  u-single  time
         [%seat p.diff (u-seat-from-diff time q.diff)]
@@ -780,6 +780,8 @@
       ::
         %create  (u-single time [%create (v7:group p.diff)])
         %del     (u-single time [%delete ~])
+      ::
+        %flag-content  (u-single time [%flag-content [nest post-key src]:diff])
       ==
       ::
       ++  u-single

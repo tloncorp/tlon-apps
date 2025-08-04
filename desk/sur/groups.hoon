@@ -264,8 +264,8 @@
       members=(jug ship role-id)
   ==
 ::  $plan: index into channel state
-::    p: Post being referred to
-::    q: Reply being referred to, if any
+::    p: post being referred to
+::    q: reply being referred to, if any
 ::
 +$  plan
   (pair time (unit time))
