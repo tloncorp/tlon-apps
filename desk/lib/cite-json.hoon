@@ -28,7 +28,12 @@
         where/s/(spat wer.cite)
     ==
   ::
-    %bait  ~|(%deprecated !!)
+      %bait
+    %-  pairs
+    :~  group/s/(flag grp.cite)
+        graph/s/(flag gra.cite)
+        where/s/(spat wer.cite)
+    ==
   ==
 ::
 ++  dejs
