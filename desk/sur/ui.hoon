@@ -66,9 +66,9 @@
       profile=?
   ==
 ::
-+$  mixed-heads  [chan=channel-heads:v7:d chat=chat-heads:oc]
-+$  mixed-heads-2  [chan=channel-heads:v8:d chat=chat-heads:c]
-+$  mixed-heads-3  [chan=channel-heads:v9:d chat=chat-heads:c]
++$  mixed-heads  [chan=channel-heads:v7:d chat=chat-heads:v3:c]
++$  mixed-heads-2  [chan=channel-heads:v8:d chat=chat-heads:v5:c]
++$  mixed-heads-3  [chan=channel-heads:v9:d chat=chat-heads:v6:c]
 ::
 +$  channel-8
   $:  =channels:d

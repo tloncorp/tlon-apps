@@ -1336,8 +1336,9 @@
     ?~  unread.unread  ~
     %+  murn
       (tab:on:writs:ch wit.pact `(sub time.u.unread.unread 1) count.u.unread.unread)
-    |=  [=time =writ:ch]
-    =/  key=message-key:a  [id.writ time]
+    |=  [=time writ=(may:ch writ:ch)]
+    ?:  ?=(%| -.writ)  ~
+    =/  key=message-key:a  [id time]:writ
     =/  mention
       (was-mentioned:ch-utils content.writ our.bowl ~)
     `[time %dm-post key whom content.writ mention]
@@ -1347,12 +1348,16 @@
       ~(tap by threads.unread)
     |=  [parent=message-key:ch [key=message-key:ch count=@ud]]
     ^-  (unit (list [time incoming-event:a]))
-    =/  writ=(unit writ:ch)  (get:on:writs:ch wit.pact time.parent)
+    =/  writ=(unit (may:ch writ:ch))
+      (get:on:writs:ch wit.pact time.parent)
     ?~  writ  ~
+    ?:  ?=(%| -.u.writ)  ~
     %-  some
-    %+  turn
+    %+  murn
       (tab:on:replies:ch replies.u.writ `(sub time.key 1) count)
-    |=  [=time =reply:ch]
+    |=  [=time reply=(may:ch reply:ch)]
+    ?:  ?=(%| -.reply)  ~
+    %-  some
     =/  mention
       (was-mentioned:ch-utils content.reply our.bowl ~)
     [time %dm-reply key parent whom content.reply mention]

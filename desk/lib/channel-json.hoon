@@ -328,7 +328,6 @@
   ::
   ++  may
     |*  [f=$-(* json) m=(may:c *)]
-    ~!  m
     ?-  -.m
       %&  (f +.m)
       %|  (tombstone +.m)

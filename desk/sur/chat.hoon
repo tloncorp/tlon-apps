@@ -1,4 +1,5 @@
 /-  g=groups, d=channels
+/-  c2=chat-2, c3=chat-3, c4=chat-4, c5=chat-5
 /-  meta
 |%
 ::
@@ -26,9 +27,20 @@
       [%show =id]
   ==
 +$  reference
-  $%  [%writ =writ]
-      [%reply =id =reply]
+  $%  [%writ writ=(may writ)]
+      [%reply =id reply=(may reply)]
   ==
++$  tombstone
+  $:  =id
+      seq=@ud
+      =time
+      =author
+      del-at=@da
+  ==
+++  may
+  |$  [data]
+  ::NOTE  not +each, avoids p= faces for better ergonomics
+  $%([%& data] [%| tombstone])
 ::
 ::  $seal: the id of a chat and its meta-responses
 ::
@@ -97,9 +109,9 @@
   =<  writs
   |%
   +$  writs
-    ((mop time writ) lte)
+    ((mop time (may writ)) lte)
   ++  on
-    ((^on time writ) lte)
+    ((^on time (may writ)) lte)
   +$  diff
     (pair id delta)
   +$  delta
@@ -127,9 +139,9 @@
   =<  replies
   |%
   +$  replies
-    ((mop time reply) lte)
+    ((mop time (may reply)) lte)
   ++  on
-    ((^on time reply) lte)
+    ((^on time (may reply)) lte)
   +$  delta
     $%  [%add =memo:d time=(unit time)]
         [%del ~]
@@ -271,4 +283,9 @@
       [%read-at p=time]
       [?(%watch %unwatch) ~]
   ==
+++  v2  c2
+++  v3  c3
+++  v4  c4
+++  v5  c5
+++  v6  .
 --

@@ -1,4 +1,4 @@
-/-  u=ui, g=groups, c=chat, d=channels, a=activity, oc=chat-3
+/-  u=ui, g=groups, c=chat, d=channels, a=activity
 /+  default-agent, dbug, verb, vita-client
 ::  performance, keep warm
 /+  mark-warmer
@@ -164,17 +164,17 @@
   ::
       [%x %v1 %heads since=?(~ [u=@ ~])]
     =+  .^(chan=channel-heads:v7:d (scry %gx %channels %v2 %heads (snoc since.pole %channel-heads)))
-    =+  .^(chat=chat-heads:oc (scry %gx %chat %heads (snoc since.pole %chat-heads)))
+    =+  .^(chat=chat-heads:v3:c (scry %gx %chat %heads (snoc since.pole %chat-heads)))
     ``ui-heads+!>(`mixed-heads:u`[chan chat])
   ::
       [%x %v2 %heads since=?(~ [u=@ ~])]
     =+  .^(chan=channel-heads:v8:d (scry %gx %channels %v3 %heads (snoc since.pole %channel-heads-2)))
-    =+  .^(chat=chat-heads:c (scry %gx %chat %v2 %heads (snoc since.pole %chat-heads-2)))
+    =+  .^(chat=chat-heads:v5:c (scry %gx %chat %v2 %heads (snoc since.pole %chat-heads-2)))
     ``ui-heads-2+!>(`mixed-heads-2:u`[chan chat])
   ::
       [%x %v3 %heads since=?(~ [u=@ ~])]
     =+  .^(chan=channel-heads:v9:d (scry %gx %channels %v4 %heads (snoc since.pole %channel-heads-3)))
-    =+  .^(chat=chat-heads:c (scry %gx %chat %v2 %heads (snoc since.pole %chat-heads-2)))
+    =+  .^(chat=chat-heads:v6:c (scry %gx %chat %v3 %heads (snoc since.pole %chat-heads-2)))
     ``ui-heads-3+!>(`mixed-heads-3:u`[chan chat])
   ::
       [%x %v2 %init ~]
