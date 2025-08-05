@@ -49,7 +49,10 @@
     --
   ++  v-reply
     |%
-    ++  v8  same
+    ++  v8
+      |=  vr=v-reply:v9:c
+      ^-  v-reply:v8:c
+      vr
     --
   ++  posts
     |%
@@ -741,7 +744,10 @@
     --
   ++  memo
     |%
-    ++  v8  same
+    ++  v8
+      |=  =memo:v7:c
+      ^-  memo:v8:c
+      memo
     --
   ++  react
     |%
