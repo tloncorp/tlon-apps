@@ -216,7 +216,7 @@
   ++  v-posts
     |%
     ++  v9
-      ::NOTE  bunts tombstones! must call +log-8-to-9 afterwards!
+      ::NOTE  bunts tombstones! must call +v9:log:v8 afterwards!
       |=  vp=v-posts:v8:c
       ^-  v-posts:v9:c
       %+  urn:mo-v-posts:v8:c  vp
