@@ -334,6 +334,7 @@
         go-abet:(go-a-invite:group-core a-invite.a-groups)
       ::
           %leave
+        ?>  from-self
         =/  group-core  (go-abed:go-core flag.a-groups)
         go-abet:(go-leave:group-core &)
       ==
@@ -2748,7 +2749,6 @@
   ++  go-leave
     |=  send-leave=?
     ^+  go-core
-    ?>  from-self
     =.  cor
       (submit-activity [%del %group flag])
     ::NOTE  we leave all channels, not just those that
