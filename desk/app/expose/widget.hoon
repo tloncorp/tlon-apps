@@ -31,7 +31,7 @@
     (gth u.aa u.bb)
   |=  ref=cite:c
   ^-  (unit manx)
-  =/  pon=(unit [=nest:g:c =post:d])
+  =/  pon=(unit [=nest:c =post:d])
     (grab-post:cite:u bowl ref)
   ?~  pon  ~
   %-  some
