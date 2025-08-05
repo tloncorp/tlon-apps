@@ -50,7 +50,7 @@ export async function finalizePostDraft(
     return {
       ...finalizedBase,
       isEdit: true,
-      parentId: draft.parentId,
+      editTargetPostId: draft.editTargetPostId,
     } satisfies domain.PostDataFinalizedEdit;
   } else {
     return finalizedBase satisfies domain.PostDataFinalizedParent;
@@ -79,7 +79,7 @@ export function finalizePostDraftUsingLocalAttachments(
     return {
       ...finalizedBase,
       isEdit: true,
-      parentId: draft.parentId,
+      editTargetPostId: draft.editTargetPostId,
     } satisfies domain.PostDataFinalizedEdit;
   } else {
     return finalizedBase satisfies domain.PostDataFinalizedParent;
@@ -90,25 +90,15 @@ export async function finalizeAndSendPost(
   draft: domain.PostDataDraft
 ): Promise<void> {
   if (draft.isEdit) {
-    const parentPost = await db.getPost({ postId: draft.parentId });
-    if (parentPost == null) {
-      throw new Error('attempted to edit post without parent');
-    }
-    const finalizedDraft = await finalizePostDraft(draft);
-    await editPost({
-      post: parentPost,
-      parentId: finalizedDraft.parentId,
-      content: finalizedDraft.content,
-      metadata: finalizedDraft.metadata,
-    });
-  } else {
-    await _sendPost({
-      channelId: draft.channelId,
-      buildOptimisticPostData: () =>
-        finalizePostDraftUsingLocalAttachments(draft),
-      buildFinalizedPostData: () => finalizePostDraft(draft),
-    });
+    throw new Error('Not implemented');
   }
+
+  await _sendPost({
+    channelId: draft.channelId,
+    buildOptimisticPostData: () =>
+      finalizePostDraftUsingLocalAttachments(draft),
+    buildFinalizedPostData: () => finalizePostDraft(draft),
+  });
 }
 
 export async function sendPost(postData: domain.PostDataFinalizedParent) {

@@ -481,7 +481,7 @@ export default function BareChatInput({
           return {
             ...draftBase,
             isEdit,
-            parentId: editingPost.id,
+            editTargetPostId: editingPost.id,
           };
         } else {
           return draftBase;
@@ -505,7 +505,7 @@ export default function BareChatInput({
           await editPost?.(
             editingPost,
             finalizedEdit.content,
-            finalizedEdit.parentId,
+            editingPost.parentId ?? undefined,
             finalizedEdit.metadata
           );
           setEditingPost?.(undefined);
