@@ -2975,11 +2975,15 @@
         fi-abet:(fi-watched:(fi-abed:fi-core flag) p.sign)
       ?^  p.sign
         %-  (fail:log %watch-ack 'group watch failed' u.p.sign)
-        ?:  (~(has by foreigns) flag)
-          ::  join in progress, leave the group to allow re-joining
-          (go-leave &)
-        ::TODO we should probably try resubscribing with a delay
-        go-core
+        ?.  (~(has by foreigns) flag)
+          ::TODO this should not be possible, but if it happens
+          ::     we don't have an invitation, thus no way to rejoin.
+          go-core
+        ::  join in progress, set error and leave the group
+        ::  to allow re-joining.
+        ::
+        =.  cor  fi-abet:fi-error:(fi-abed:fi-core flag)
+        (go-leave &)
       go-core
     ::
         %fact
