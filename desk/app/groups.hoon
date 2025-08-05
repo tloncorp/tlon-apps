@@ -853,8 +853,6 @@
     %+  roll
       ~(tap by groups)
     |=  [[=flag:g [=net:g *]] =_cor]
-    ::  only resubscribe to remote groups
-    ?:  ?=(%pub -.net)  cor
     go-abet:(go-safe-sub:(go-abed:go-core:cor flag) |)
   cor
 ::
@@ -2976,8 +2974,12 @@
       ?^  p.sign
         %-  (fail:log %watch-ack 'group watch failed' u.p.sign)
         ?.  (~(has by foreigns) flag)
-          ::TODO this should not be possible, but if it happens
-          ::     we don't have an invitation, thus no way to rejoin.
+          ::TODO  this should not be possible, but if it happens
+          ::      we don't have an invitation, and thus no way to rejoin.
+          ::      the user will still see the group, but it is going
+          ::      to be stale. it would be best to somehow surface
+          ::      it at the frontend.
+          ::
           go-core
         ::  join in progress, set error and leave the group
         ::  to allow re-joining.
