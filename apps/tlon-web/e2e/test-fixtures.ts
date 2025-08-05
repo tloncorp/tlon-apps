@@ -29,7 +29,6 @@ async function performCleanup(page: Page, shipName: string) {
       await helpers.cleanupExistingGroup(page, '~ten, ~zod');
       await helpers.cleanupExistingGroup(page, '~bus, ~zod');
       await helpers.cleanupExistingGroup(page);
-      await helpers.cleanupExistingGroup(page, 'Test Group');
       await helpers.cleanupExistingGroup(page, 'Invite Test');
     } else if (shipName === 'ten') {
       if (await page.getByTestId('ChannelListItem-~zod').isVisible()) {

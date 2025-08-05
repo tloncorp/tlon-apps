@@ -12,9 +12,11 @@ import { SearchState } from './types';
 function SearchResultComponent({
   onPress,
   post,
+  searchQuery,
 }: {
   onPress: () => void;
   post: db.Post;
+  searchQuery: string;
 }) {
   return (
     <View marginBottom="$m">
@@ -23,6 +25,7 @@ function SearchResultComponent({
         showAuthor
         hideProfilePreview
         onPress={onPress}
+        searchQuery={searchQuery}
       />
     </View>
   );
@@ -50,9 +53,13 @@ export function SearchResults({
 
   const renderItem = useCallback(
     ({ item: post }: { item: db.Post }) => (
-      <SearchResult onPress={() => navigateToPost(post)} post={post} />
+      <SearchResult
+        onPress={() => navigateToPost(post)}
+        post={post}
+        searchQuery={search.query}
+      />
     ),
-    [navigateToPost]
+    [navigateToPost, search.query]
   );
 
   const ListFooterComponent = useMemo(() => {

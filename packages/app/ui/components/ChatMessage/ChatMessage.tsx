@@ -40,6 +40,7 @@ const ChatMessage = ({
   setViewReactionsPost,
   isHighlighted,
   hideOverflowMenu,
+  searchQuery,
 }: {
   post: db.Post;
   showAuthor?: boolean;
@@ -57,6 +58,7 @@ const ChatMessage = ({
   setViewReactionsPost?: (post: db.Post) => void;
   isHighlighted?: boolean;
   hideOverflowMenu?: boolean;
+  searchQuery?: string;
 }) => {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -250,6 +252,7 @@ const ChatMessage = ({
             isNotice={post.type === 'notice'}
             onPressImage={handleImagePressed}
             onLongPress={handleLongPress}
+            searchQuery={searchQuery}
           />
         </View>
 
@@ -376,7 +379,8 @@ export default memo(ChatMessage, (prev, next) => {
     prev.onPressReplies === next.onPressReplies &&
     prev.onPressImage === next.onPressImage &&
     prev.onLongPress === next.onLongPress &&
-    prev.onPress === next.onPress;
+    prev.onPress === next.onPress &&
+    prev.searchQuery === next.searchQuery;
 
   return isPostEqual && areOtherPropsEqual;
 });

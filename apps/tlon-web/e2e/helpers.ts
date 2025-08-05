@@ -13,7 +13,7 @@ export async function navigateToChannel(page: Page, channelName: string) {
 
 export async function createGroup(page: Page) {
   await page.getByTestId('CreateChatSheetTrigger').click();
-  await page.getByText('New group').click();
+  await page.getByText('New group', { exact: true }).click();
   await page.getByText('Select contacts to invite').click();
   await page.getByText('Create group').click();
 
@@ -275,10 +275,7 @@ export async function forwardMessageToDM(
 /**
  * Forwards a group reference to a specified channel
  */
-export async function forwardGroupReference(
-  page: Page,
-  channelName: string
-) {
+export async function forwardGroupReference(page: Page, channelName: string) {
   // Click the Forward button in group info
   await page.getByText('Forward').click();
 
@@ -303,7 +300,9 @@ export async function forwardGroupReference(
   await expect(page.getByText('Forwarded')).toBeVisible({ timeout: 5000 });
 
   // Verify modal closes
-  await expect(page.getByText('Forward to channel')).not.toBeVisible({ timeout: 3000 });
+  await expect(page.getByText('Forward to channel')).not.toBeVisible({
+    timeout: 3000,
+  });
 }
 
 /**
@@ -834,6 +833,44 @@ export async function verifyMessagePreview(
     await expect(
       page.getByTestId(`ChannelListItem-${channelTitle}`).getByText(messageText)
     ).toBeVisible({ timeout: 15000 });
+  }
+}
+
+/**
+ * Verifies unread count badge on chat list item
+ */
+export async function verifyChatUnreadCount(
+  page: Page,
+  chatName: string,
+  expectedCount: number,
+  isPinned = false
+) {
+  await page.waitForTimeout(1000);
+  const chatItem = page.getByTestId(
+    `ChatListItem-${chatName}-${isPinned ? 'pinned' : 'unpinned'}`
+  );
+
+  if (expectedCount === 0) {
+    // When count is 0, the UnreadCount Stack component itself should have opacity controlled
+    // Check that either the count shows "0" or the whole unread badge is not visible
+    const unreadCount = chatItem.getByTestId('UnreadCount');
+
+    // Try to check if the count text is "0"
+    try {
+      const countNumber = unreadCount.locator(
+        '[data-testid="UnreadCountNumber"]'
+      );
+      await expect(countNumber).toContainText('0', { timeout: 2000 });
+    } catch {
+      // If we can't find the count number, check if the whole unread count is not visible
+      await expect(unreadCount).not.toBeVisible({ timeout: 2000 });
+    }
+  } else {
+    // Should show the expected count - look for text with the number
+    const unreadCount = chatItem.getByTestId('UnreadCount');
+    await expect(
+      unreadCount.getByText(expectedCount.toString(), { exact: true })
+    ).toBeVisible({ timeout: 10000 });
   }
 }
 
