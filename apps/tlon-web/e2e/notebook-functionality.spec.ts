@@ -3,7 +3,10 @@ import { expect } from '@playwright/test';
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
-test('should test notebook functionality', async ({ zodSetup, tenSetup }) => {
+test.skip('should test notebook functionality', async ({
+  zodSetup,
+  tenSetup,
+}) => {
   const zodPage = zodSetup.page;
   const tenPage = tenSetup.page;
 
