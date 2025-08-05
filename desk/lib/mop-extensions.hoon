@@ -122,8 +122,8 @@
   --
 ::  +dyp: stateful complete inorder traversal w/ value mutation
 ::
-::    Mutates .state on each run of .f. Traverses from left to right keys.
-::    Each run of .f can replace an item's value or delete the item.
+::    mutates .state on each run of .f. traverses from left to right keys.
+::    each run of .f can replace an item's value or delete the item.
 ::
 ++  dyp
   |*  [newval=mold state=mold]
