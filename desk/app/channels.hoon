@@ -1081,7 +1081,7 @@
         ~[path v0+path v1+path]
       ?~  got  cage.sign
       channel-said+!>((to-said-1:utils u.got))
-    =/  suffix
+    =/  suffix=^path
       [%said (scot %p src.bowl) (tail path)]
     =.  cor
       %^  give  %fact
@@ -1734,9 +1734,10 @@
       =;  share=?
         ?.  share
           channel-denied+!>(~)
-        ?:  ?=(%v4 version)
-          (said-3:utils nest plan posts.channel)
-        (said-2:utils nest plan posts.channel)
+        ?-  version
+          %v4         (said-3:utils nest plan posts.channel)
+          ?(%v2 %v3)  (said-2:utils nest plan posts.channel)
+        ==
       ?:  (can-read:ca-perms src.bowl)  &
       ?^  q.plan  |  ::NOTE  expose/+grab-post doesn't support replies
       ::  we need to grab the post first before we can check whether it's
