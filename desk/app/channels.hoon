@@ -2776,6 +2776,33 @@
       =.  out  (put:on-v-posts:c out changed u.post)
       $(updated t.updated)
     ::
+        [%range start=@ end=@ mode=?(%outline %post) ~]
+      ::TODO  support @da format in path for id (or timestamp) ranges?
+      =/  start=@ud
+        ?:  =(%$ start.pole)  1
+        (slav %ud start.pole)
+      =/  end=@ud
+        ?:  =(%$ end.pole)  (wyt:on posts.channel)  ::TODO  better end
+        (slav %ud end.pole)
+      %-  give-posts
+      :+  mode.pole  version
+      ::  queries near end more common, so we make a newest-first list,
+      ::  and walk it "backwards" until we extract our desired range
+      ::
+      =/  posts=(list [id-post:c p=(may:c v-post:c)])
+        (bap:on posts.channel)
+      =|  out=(list [id-post:c (may:c v-post:c)])
+      |-
+      ?~  posts  ~
+      =/  seq=@ud
+        ?-  -.p.i.posts
+          %&  seq.p.i.posts
+          %|  seq.p.i.posts
+        ==
+      ?:  (gth seq end)    $(posts t.posts)
+      ?:  (lth seq start)  ~  ::  done
+      [i.posts $(posts t.posts)]
+    ::
         [%post time=@ ~]
       =/  time  (slav %ud time.pole)
       =/  post  (get:on posts.channel time)
