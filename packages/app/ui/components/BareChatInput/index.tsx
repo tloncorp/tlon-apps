@@ -6,7 +6,6 @@ import {
   createDevLogger,
   diaryMixedToJSON,
   extractContentTypesFromPost,
-  finalizePostDraft,
 } from '@tloncorp/shared';
 import {
   contentReferenceToCite,
@@ -203,7 +202,6 @@ export default function BareChatInput({
   getDraft,
   editingPost,
   setEditingPost,
-  editPost,
   showAttachmentButton,
   paddingHorizontal,
   initialHeight = DEFAULT_MESSAGE_INPUT_HEIGHT,
@@ -497,21 +495,10 @@ export default function BareChatInput({
       clearAttachments();
       bareChatInputLogger.log('resetting input height');
       setInputHeight(initialHeight);
+      setEditingPost?.(undefined);
 
       try {
-        if (draft.isEdit && editingPost) {
-          const finalizedEdit = await finalizePostDraft(draft);
-
-          await editPost?.(
-            editingPost,
-            finalizedEdit.content,
-            editingPost.parentId ?? undefined,
-            finalizedEdit.metadata
-          );
-          setEditingPost?.(undefined);
-        } else {
-          await sendPostFromDraft(draft);
-        }
+        await sendPostFromDraft(draft);
       } catch (e) {
         bareChatInputLogger.error('Error sending message', e);
         setSendError(true);
@@ -534,7 +521,6 @@ export default function BareChatInput({
       editingPost,
       clearAttachments,
       clearDraft,
-      editPost,
       setEditingPost,
       image,
       channelType,

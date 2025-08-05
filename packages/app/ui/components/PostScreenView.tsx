@@ -473,14 +473,18 @@ function SinglePostView({
   );
 
   const sendReplyFromDraft = useCallback(
-    async (draft: domain.PostDataDraftParent) => {
-      const finalized = await store.finalizePostDraft(draft);
-      await store.sendReply({
-        content: finalized.content,
-        channel: channel,
-        parentId: parentPost.id,
-        parentAuthor: parentPost.authorId,
-      });
+    async (draft: domain.PostDataDraft) => {
+      if (draft.isEdit) {
+        await store.finalizeAndSendPost(draft);
+      } else {
+        const finalized = await store.finalizePostDraft(draft);
+        await store.sendReply({
+          content: finalized.content,
+          channel: channel,
+          parentId: parentPost.id,
+          parentAuthor: parentPost.authorId,
+        });
+      }
     },
     [channel, parentPost, store]
   );
