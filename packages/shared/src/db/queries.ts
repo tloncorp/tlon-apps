@@ -770,7 +770,7 @@ export const getMentionCandidates = createReadQuery(
     }: { chatId: string; limit?: number; query: string },
     ctx: QueryCtx
   ) => {
-    if (!query.trim()) return [];
+    if (!(query = query.trim())) return [];
 
     const idSearchTerm = `~${query.toLowerCase()}%`;
     const searchTerm = `${query.toLowerCase()}%`;
@@ -778,11 +778,7 @@ export const getMentionCandidates = createReadQuery(
     const candidatesQuery = ctx.db
       .select({
         id: $contacts.id,
-        nickname: sql<
-          string | null
-        >`COALESCE(${$contacts.nickname}, ${$contacts.customNickname})`.as(
-          'nickname'
-        ),
+        nickname: $contacts.nickname,
         avatarImage: $contacts.avatarImage,
         bio: $contacts.bio,
         status: $contacts.status,
@@ -811,8 +807,8 @@ export const getMentionCandidates = createReadQuery(
         and(
           // Match the search term against id or nickname
           or(
-            sql`LOWER(${$contacts.id}) LIKE ${idSearchTerm}`,
-            sql`LOWER(COALESCE(${$contacts.nickname}, ${$contacts.customNickname}, '')) LIKE ${searchTerm}`
+            sql`${$contacts.id} LIKE ${idSearchTerm}`,
+            sql`COALESCE(${$contacts.nickname}, '') LIKE ${searchTerm}`
           ),
           or(isNull($contacts.isBlocked), eq($contacts.isBlocked, false))
         )
@@ -822,9 +818,7 @@ export const getMentionCandidates = createReadQuery(
         // Order by priority first, then by whether they're a contact, then alphabetically
         asc(sql`priority`),
         desc($contacts.isContact),
-        asc(
-          sql`COALESCE(${$contacts.nickname}, ${$contacts.customNickname}, ${$contacts.id})`
-        )
+        asc(sql`${$contacts.nickname}, ${$contacts.id}`)
       )
       .limit(limit);
     return candidatesQuery;
