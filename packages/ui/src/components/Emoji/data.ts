@@ -46,13 +46,18 @@ export function getNativeEmoji(input: string): string | undefined {
       return shortcodeEmoji;
     }
 
+    // If input looks like a shortcode but wasn't found, return undefined
+    if (input.includes(':') || /^[a-zA-Z0-9_+-]+$/.test(input)) {
+      return undefined;
+    }
+
     // otherwise just make sure it's vaguely "emoji shaped" (i.e. not long text)
     const fancyCharCount = Array.from(
       input.split(/[\ufe00-\ufe0f]/).join('')
     ).length;
     const conservativeEmojiMaxLength = 4;
     if (fancyCharCount > conservativeEmojiMaxLength) {
-      throw new Error('Invalid non-shortcode emoji input');
+      return undefined;
     }
     return input;
   } catch (e) {
@@ -60,7 +65,7 @@ export function getNativeEmoji(input: string): string | undefined {
       input,
       error: e.toString(),
     });
-    return '🛑';
+    return undefined;
   }
 }
 
