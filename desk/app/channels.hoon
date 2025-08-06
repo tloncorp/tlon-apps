@@ -2680,6 +2680,7 @@
     |=  [=(pole knot) version=?(%v1 %v2 %v3 %v4)]
     ^-  (unit (unit cage))
     =*  on   on-v-posts:c
+    =*  mo   mo-v-posts:c
     ?+    pole  [~ ~]
         [%newest count=@ mode=?(%outline %post) ~]
       =/  count  (slav %ud count.pole)
@@ -2795,6 +2796,12 @@
       ::  and walk it "backwards" until we extract our desired range
       ::
       =/  posts=(list [id-post:c p=(may:c v-post:c)])
+        ::  if no end was specified, we know we just take from the end,
+        ::  so only listify the max amount of msgs we might process.
+        ::  (this assumes sequence nrs increment parallel to post ids!)
+        ::
+        ?:  =(%$ end.pole)
+          (bat:mo posts.channel ~ +((sub end start)))
         (bap:on posts.channel)
       =|  out=(list [id-post:c (may:c v-post:c)])
       |-
