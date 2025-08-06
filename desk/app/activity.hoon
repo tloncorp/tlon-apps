@@ -39,7 +39,7 @@
 ::    the children and save ourselves from having to do extra work.
 ::
 ::
-/-  a=activity, c=channels, ch=chat, g=groups
+/-  a=activity, c=channels, ch=chat, gv=groups-ver
 /+  *activity, ch-utils=channel-utils, v=volume, aj=activity-json,
     imp=import-aid
 /+  default-agent, verb, dbug, logs
@@ -112,6 +112,7 @@
   ++  on-fail
     |=  [=term =tang]
     ^-  (quip card _this)
+    %-  (slog term tang)
     :_  this
     [(fail:log term tang ~)]~
   --
@@ -278,22 +279,22 @@
   %+  welp
   /(scot %p our.bowl)/[dude]/(scot %da now.bowl)
   path
-++  get-vessel
-  |=  [=flag:g =ship]
-  ^-  (unit vessel:fleet:g)
+++  get-seat
+  |=  [=flag:gv =ship]
+  ^-  (unit seat:v7:gv)
   =/  base-path
     (scry-path %groups /)
-  =>  [flag=flag ship=ship base-path=base-path vessel=vessel:fleet:g ..zuse]  ~+
+  =>  [flag=flag ship=ship base-path=base-path seat=seat:v7:gv ..zuse]  ~+
   =/  groups-running
     .^(? %gu (weld base-path /$))
   ?.  groups-running  ~
   =/  group-exists
-    .^(? %gx (weld base-path /exists/(scot %p p.flag)/[q.flag]/noun))
+    .^(? %gu (weld base-path /groups/(scot %p p.flag)/[q.flag]))
   ?.  group-exists  ~
   %-  some
-  .^  vessel  %gx
+  .^  seat  %gx
     %+  weld  base-path
-    /groups/(scot %p p.flag)/[q.flag]/fleet/(scot %p ship)/vessel/noun
+    /groups/(scot %p p.flag)/[q.flag]/seats/(scot %p ship)/noun
   ==
 ++  poke
   |=  [=mark =vase]
@@ -523,7 +524,7 @@
     ``activity-summary-4+!>(activity)
   ::
       [%x %v4 %activity %threads host=@ group=@ kind=?(%chat %heap %diary) ship=@ name=@ ~]
-    =/  =flag:g  [(slav %p host.pole) group.pole]
+    =/  =flag:gv  [(slav %p host.pole) group.pole]
     =/  =nest:c  [kind.pole (slav %p ship.pole) name.pole]
     =/  =source:a  [%channel nest flag]
     =/  sum  (~(got by activity) source)
@@ -1215,8 +1216,8 @@
   =/  soft  (~(got by old-volumes:a) %soft)
   ::  bail early if we've set something other than the old default
   ?.  =(soft base-volume)  cor
-  =+  .^(=groups-ui:v2:g %gx (scry-path %groups /groups/light/v1/noun))
-  =/  groups  ~(tap by groups-ui)
+  =+  .^(=groups:v7:gv %gx (scry-path %groups /v2/groups/noun))
+  =+  groups=~(tap by groups)
   ::  iterate through all groups and set volume to old default
   |-
   ?~  groups
@@ -1225,7 +1226,7 @@
       (~(put by volume-settings) [%base ~] default-volumes:a)
     cor
   =*  next  $(groups t.groups)
-  =/  [=flag:g group=group-ui:v2:g]  i.groups
+  =/  [=flag:gv *]  i.groups
   ?:  (~(has by volume-settings) [%group flag])  next
   =.  volume-settings  (~(put by volume-settings) [%group flag] soft)
   next
@@ -1272,9 +1273,9 @@
     =/  key=message-key:a
       :_  time
       [(get-author-ship:ch-utils author.u.post) time]
-    =/  vessel=(unit vessel:fleet:g)  (get-vessel group our.bowl)
+    =/  seat=(unit seat:v7:gv)  (get-seat group our.bowl)
     =/  mention
-      (was-mentioned:ch-utils content.u.post our.bowl vessel)
+      (was-mentioned:ch-utils content.u.post our.bowl seat)
     `[time %post key nest group content.u.post mention]
   =/  replies=(list [time incoming-event:a])
     %-  zing
@@ -1298,9 +1299,9 @@
     =/  parent=message-key:a
       :_  id-post
       [(get-author-ship:ch-utils author.u.u.post) id-post]
-    =/  vessel=(unit vessel:fleet:g)  (get-vessel group our.bowl)
+    =/  seat=(unit seat:v7:gv)  (get-seat group our.bowl)
     =/  mention
-      (was-mentioned:ch-utils content.u.reply our.bowl vessel)
+      (was-mentioned:ch-utils content.u.reply our.bowl seat)
     [time %reply key parent nest group content.u.reply mention]
   =/  init-time
     ?:  &(=(posts ~) =(replies ~))  recency.unread
@@ -1363,29 +1364,26 @@
   (welp writs replies)
 ++  set-volumes
   |=  =channels:v8:c
-  =+  .^(=volume:v %gx (scry-path %groups /volume/all/noun))
   ::  set all existing channels to old default since new default is different
   =^  checkers  cor
-    =/  checkers=(map flag:g $-([ship nest:g] ?))  ~
+    =/  checkers=(map flag:gv $-([ship nest:gv] ?))  ~
     =/  entries  ~(tap by channels)
     |-
     ?~  entries  [checkers cor]
     =/  [=nest:c =channel:v8:c]  i.entries
     =*  group  group.perm.channel
-    =+  .^(exists=? %gx (scry-path %groups /exists/(scot %p p.group)/[q.group]/noun))
+    =+  .^(exists=? %gu (scry-path %groups /groups/(scot %p p.group)/[q.group]))
     ?.  exists  $(entries t.entries)
     =^  can-read  checkers
       ?^  gate=(~(get by checkers) group)  [u.gate checkers]
       =/  =path
         %+  scry-path  %groups
-        /groups/(scot %p p.group)/[q.group]/can-read/noun
-      =/  test=$-([ship nest:g] ?)
-        =>  [path=path nest=nest:g ..zuse]  ~+
+        /groups/(scot %p p.group)/[q.group]/channels/can-read/noun
+      =/  test=$-([ship nest:gv] ?)
+        =>  [path=path nest=nest:gv ..zuse]  ~+
         .^($-([ship nest] ?) %gx path)
       [test (~(put by checkers) group test)]
     =.  cor
-      ::  don't set channel default if group above it has setting
-      ?:  (~(has by area.volume) group)  cor
       %+  adjust  [%channel nest group]
       ?:  (can-read our.bowl nest)  `(my [%post & |] ~)
       `mute:a
@@ -1393,31 +1391,6 @@
   ::  set any overrides from previous volume settings
   =.  cor
     %+  adjust  [%base ~]
-    ::  use new default since we set all channels to old default
-    ?:  =(%soft base.volume)  `default-volumes:a
-    `(~(got by old-volumes:a) base.volume)
-  =.  cor
-    =/  entries  ~(tap by chan.volume)
-    |-
-    ?~  entries  cor
-    =/  [=nest:g =level:v]  i.entries
-    =*  next  $(entries t.entries)
-    ?.  ?=(?(%chat %diary %heap) -.nest)  next
-    =/  channel  (~(get by channels) nest)
-    ?~  channel  next
-    ?~  can-read=(~(get by checkers) group.perm.u.channel)  next
-    ::  don't override previously set mute from channel migration
-    ?.  (u.can-read our.bowl nest)  next
-    =.  cor
-      %+  adjust  [%channel nest group.perm.u.channel]
-      `(~(got by old-volumes:a) level)
-    next
-  =/  entries  ~(tap by area.volume)
-  |-
-  ?~  entries  cor
-  =*  head  i.entries
-  =.  cor
-    %+  adjust  [%group -.head]
-    `(~(got by old-volumes:a) +.head)
-  $(entries t.entries)
+    `default-volumes:a
+  cor
 --

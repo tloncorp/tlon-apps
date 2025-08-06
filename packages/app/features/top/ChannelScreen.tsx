@@ -62,6 +62,8 @@ export default function ChannelScreen(props: Props) {
     editPost,
     channel,
     group,
+    groupIsLoading,
+    groupError,
   } = useChannelContext({
     channelId: currentChannelId,
     draftKey: currentChannelId,
@@ -388,6 +390,8 @@ export default function ChannelScreen(props: Props) {
           hasNewerPosts={postsQuery.hasPreviousPage}
           hasOlderPosts={postsQuery.hasNextPage}
           group={group}
+          groupIsLoading={groupIsLoading}
+          groupError={groupError}
           posts={filteredPosts ?? null}
           selectedPostId={selectedPostId}
           goBack={props.navigation.goBack}

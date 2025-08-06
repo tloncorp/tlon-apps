@@ -1,3 +1,4 @@
+import * as store from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import React, { useEffect, useState } from 'react';
 import { Dimensions, LayoutChangeEvent } from 'react-native';
@@ -10,7 +11,9 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Popover, View, XStack, YStack } from 'tamagui';
 
+import { useCurrentUserId } from '../../../contexts';
 import { triggerHaptic } from '../../../utils';
+import { useCanWrite } from '../../../utils/channelUtils';
 import { EmojiToolbar } from './EmojiToolbar';
 import MessageActions from './MessageActions';
 import { MessageContainer } from './MessageContainer';
@@ -38,6 +41,9 @@ export function ChatMessageActions({
   onOpenChange,
   mode,
 }: ChatMessageActionsProps) {
+  const currentUserId = useCurrentUserId();
+  const channel = store.useChannel({ id: post.channelId });
+  const canWrite = useCanWrite(channel.data!, currentUserId);
   const insets = useSafeAreaInsets();
   const PADDING_THRESHOLD = 40;
 
@@ -154,13 +160,15 @@ export function ChatMessageActions({
             padding={1}
           >
             <YStack gap="$xs">
-              <XStack justifyContent="center">
-                <EmojiToolbar
-                  post={post}
-                  onDismiss={onDismiss}
-                  openExternalSheet={onShowEmojiPicker}
-                />
-              </XStack>
+              {canWrite && (
+                <XStack justifyContent="center">
+                  <EmojiToolbar
+                    post={post}
+                    onDismiss={onDismiss}
+                    openExternalSheet={onShowEmojiPicker}
+                  />
+                </XStack>
+              )}
               <MessageActions
                 post={post}
                 postActionIds={postActionIds}
@@ -184,7 +192,7 @@ export function ChatMessageActions({
             paddingHorizontal="$xl"
           >
             <YStack gap="$xs">
-              <EmojiToolbar post={post} onDismiss={onDismiss} />
+              {canWrite && <EmojiToolbar post={post} onDismiss={onDismiss} />}
               <MessageContainer post={post} />
               <MessageActions
                 post={post}

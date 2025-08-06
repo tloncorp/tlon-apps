@@ -31,7 +31,8 @@ import {
 import { View, XStack, styled } from 'tamagui';
 
 import { RootStackParamList } from '../../../navigation/types';
-import { useChannelContext, useRequests } from '../../contexts';
+import { useChannelContext, useCurrentUserId, useRequests } from '../../contexts';
+import { useCanWrite } from '../../utils/channelUtils';
 import { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
@@ -69,9 +70,11 @@ export function GalleryPost({
     hideOverflowMenu?: boolean;
   }) {
   const channel = useChannelContext();
+  const currentUserId = useCurrentUserId();
+  const canWrite = useCanWrite(channel, currentUserId);
   const postActionIds = useMemo(
-    () => ChannelAction.channelActionIdsFor({ channel }),
-    [channel]
+    () => ChannelAction.channelActionIdsFor({ channel, canWrite }),
+    [channel, canWrite]
   );
   const [showRetrySheet, setShowRetrySheet] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);

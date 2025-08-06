@@ -185,15 +185,10 @@
     ::TODO  annoying, can't do +do-load directly, but it always calls
     ::      +on-save, even if we provide a vase
     :: ;<  *  bind:m  (do-init dap channels-agent)
-    ::  edit carefully to work around lib negotiate state.
-    ::  yes, the inner state is double-vased!
-    ::
-    :: ;<  save=vase  bind:m  get-save
-    :: =.  save  (slop (slot 2 save) !>(!>(bad-state)))
     ;<  *  bind:m  (do-load channels-agent `!>(bad-state))
     ;<  caz=(list card)  bind:m
       =;  seqs=(list [id-post:c (unit @ud)])
-        (do-poke %noun !>([%sequence-numbers *nest:c 3 seqs]))
+        (do-poke %noun `vase`[-:!>(**) %sequence-numbers *nest:c 3 seqs])
       :~  [missing-key `1]
           [tombstone-key ~]
           [misnumber-key `3]
@@ -217,6 +212,7 @@
       =.  posts.chan
         +:(del:on-v-posts:c posts.chan tombstone-key)
       (~(put by *v-channels:c) *nest:c chan)
+<<<<<<< HEAD
     ::
     =.  save  (slot 3 save)  ::  move "through" discipline state
     =.  save  !<(vase (slot 3 save))  ::  move "through" negotiate state & shenanigans
@@ -333,6 +329,12 @@
     ::
     =.  save  (slot 3 save)  ::  move "through" discipline state
     =.  save  !<(vase (slot 3 save))  ::  move "through" negotiate state & shenanigans
+=======
+    ::  carefully work around wrapper library state
+    ::
+    =.  save  (slot 3 save)           ::  lib discipline
+    =.  save  !<(vase (slot 3 save))  ::  lib negotiate
+>>>>>>> develop
     (ex-equal save !>(fixed-state))
   --
 --

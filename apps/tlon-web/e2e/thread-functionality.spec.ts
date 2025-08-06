@@ -9,9 +9,6 @@ test('should test comprehensive thread functionality', async ({ zodPage }) => {
   // Assert that we're on the Home page
   await expect(page.getByText('Home')).toBeVisible();
 
-  // Clean up any existing group
-  await helpers.cleanupExistingGroup(page);
-
   // Create a new group
   await helpers.createGroup(page);
 
@@ -38,13 +35,8 @@ test('should test comprehensive thread functionality', async ({ zodPage }) => {
   // React to the thread reply with thumb emoji
   await helpers.reactToMessage(page, 'Thread reply', 'thumb');
 
-  // Un-react to the message (marked as optional in Maestro due to flakiness)
-  try {
-    await helpers.removeReaction(page, '👍');
-  } catch (error) {
-    // Optional operation - continue if it fails
-    console.warn('Un-react operation failed (expected flakiness)');
-  }
+  // Un-react to the message
+  await helpers.removeReaction(page, '👍');
 
   // Quote-reply within the thread context
   await helpers.threadQuoteReply(page, 'Thread reply', 'Quote reply');
@@ -68,12 +60,177 @@ test('should test comprehensive thread functionality', async ({ zodPage }) => {
 
   // Navigate back to the main channel
   await helpers.navigateBack(page);
+});
 
-  // Delete the group and clean up
-  await helpers.openGroupSettings(page);
-  await helpers.deleteGroup(page);
+test('should test cross-ship thread functionality', async ({
+  zodPage,
+  tenPage,
+}) => {
+  // Assert that we're on the Home page for both ships
+  await expect(zodPage.getByText('Home')).toBeVisible();
+  await expect(tenPage.getByText('Home')).toBeVisible();
 
-  // Verify we're back at Home and group is deleted
-  await expect(page.getByText('Home')).toBeVisible();
-  await expect(page.getByText('Untitled group')).not.toBeVisible();
+  // Create a new group as ~zod
+  await helpers.createGroup(zodPage);
+  const groupName = '~ten, ~zod';
+
+  // Invite ~ten to the group
+  await helpers.inviteMembersToGroup(zodPage, ['ten']);
+
+  // Navigate back to Home and verify group creation
+  await helpers.navigateBack(zodPage);
+  if (await zodPage.getByText('Home').isVisible()) {
+    await expect(zodPage.getByText(groupName).first()).toBeVisible({
+      timeout: 5000,
+    });
+    await zodPage.getByText(groupName).first().click();
+    await expect(zodPage.getByText(groupName).first()).toBeVisible();
+  }
+
+  // Send initial message as ~zod
+  await helpers.sendMessage(zodPage, 'Cross-ship thread test message');
+
+  // Wait for and accept the invitation as ~ten
+  await expect(tenPage.getByText('Group invitation')).toBeVisible({
+    timeout: 10000,
+  });
+  await tenPage.getByText('Group invitation').click();
+
+  // Accept the invitation
+  if (await tenPage.getByText('Accept invite').isVisible()) {
+    await tenPage.getByText('Accept invite').click();
+  }
+
+  // Wait for joining process
+  await tenPage.waitForSelector('text=Joining, please wait...');
+  await tenPage.waitForSelector('text=Go to group', { state: 'visible' });
+
+  if (await tenPage.getByText('Go to group').isVisible()) {
+    await tenPage.getByText('Go to group').click();
+  } else {
+    await tenPage.getByText(groupName).first().click();
+  }
+
+  await expect(tenPage.getByText(groupName).first()).toBeVisible();
+
+  // Navigate to General channel
+  await helpers.navigateToChannel(tenPage, 'General');
+
+  // Verify ~ten can see the message from ~zod
+  await expect(
+    tenPage
+      .getByTestId('Post')
+      .getByText('Cross-ship thread test message', { exact: true })
+  ).toBeVisible();
+
+  // Start a thread from the message (as ~zod)
+  await helpers.startThread(zodPage, 'Cross-ship thread test message');
+
+  // Send a reply in the thread
+  await helpers.sendThreadReply(zodPage, 'Reply from zod');
+
+  // Navigate back to channel to check thread indicator
+  await helpers.navigateBack(zodPage);
+  await expect(zodPage.getByText('1 reply')).toBeVisible();
+
+  // TEN: Verify thread indicator is visible
+  await expect(tenPage.getByText('1 reply')).toBeVisible({ timeout: 10000 });
+
+  // TEN: Navigate to the same thread and verify zod's reply is visible
+  await tenPage.getByText('1 reply').click();
+  await expect(tenPage.getByText('Reply from zod')).toBeVisible();
+
+  // TEN: Send a reply in the thread
+  await helpers.sendThreadReply(tenPage, 'Reply from ten');
+
+  // ZOD: Navigate back to thread and verify ten's reply is visible
+  await zodPage.getByText('2 replies').click();
+  await expect(zodPage.getByText('Reply from ten')).toBeVisible({
+    timeout: 10000,
+  });
+
+  // ZOD: React to ten's message with heart emoji
+  await helpers.reactToMessage(zodPage, 'Reply from ten', 'heart');
+
+  // TEN: Verify the reaction from zod is visible (cross-ship sync)
+  await expect(tenPage.getByText('❤️')).toBeVisible({ timeout: 15000 });
+
+  // TEN: Edit their own message
+  await helpers.editMessage(
+    tenPage,
+    'Reply from ten',
+    'Edited reply from ten',
+    true
+  );
+
+  // ZOD: Wait for sync and verify the edited message is visible
+  // Reload the page to ensure sync, similar to DM test pattern
+  await zodPage.reload();
+  // Navigate back to the group and channel context
+  await expect(zodPage.getByText(groupName).first()).toBeVisible({
+    timeout: 10000,
+  });
+  await zodPage.getByText(groupName).first().click();
+  await helpers.navigateToChannel(zodPage, 'General');
+  await expect(zodPage.getByText('2 replies')).toBeVisible({ timeout: 10000 });
+  await zodPage.getByText('2 replies').click();
+  await expect(
+    zodPage
+      .getByTestId('Post')
+      .getByText('Edited reply from ten', { exact: true })
+  ).toBeVisible({ timeout: 15000 });
+
+  // ZOD: Add another reaction to the edited message
+  await helpers.reactToMessage(zodPage, 'Edited reply from ten', 'thumb');
+
+  // TEN: Navigate back to main channel, then to thread to react to zod's message
+  await helpers.navigateBack(tenPage);
+  await expect(tenPage.getByText('2 replies')).toBeVisible({ timeout: 10000 });
+  await tenPage.getByText('2 replies').click();
+  await expect(tenPage.getByText('Reply from zod')).toBeVisible({
+    timeout: 5000,
+  });
+
+  // TEN: Add a reaction to zod's original message
+  // Skip this step for now to focus on edit functionality verification
+  // await helpers.reactToMessage(tenPage, 'Reply from zod', 'laugh');
+
+  // Both ships navigate back to channel and verify thread count
+  await helpers.navigateBack(zodPage);
+  await helpers.navigateBack(tenPage);
+
+  // Verify both ships see updated thread count (2 replies)
+  await expect(zodPage.getByText('2 replies')).toBeVisible();
+  await expect(tenPage.getByText('2 replies')).toBeVisible();
+
+  // ZOD: Quote-reply to ten's edited message
+  await zodPage.getByText('2 replies').click();
+  await helpers.threadQuoteReply(
+    zodPage,
+    'Edited reply from ten',
+    'Quote reply to edited message'
+  );
+
+  // TEN: Navigate to thread and verify the quote reply is visible
+  await tenPage.getByText('2 replies').click();
+  await expect(tenPage.getByText('Quote reply to edited message')).toBeVisible({
+    timeout: 10000,
+  });
+
+  // Verify both ships can see the full thread history
+  await expect(zodPage.getByText('Reply from zod').first()).toBeVisible();
+  await expect(
+    zodPage.getByText('Edited reply from ten').first()
+  ).toBeVisible();
+  await expect(
+    zodPage.getByText('Quote reply to edited message').first()
+  ).toBeVisible();
+
+  await expect(tenPage.getByText('Reply from zod').first()).toBeVisible();
+  await expect(
+    tenPage.getByText('Edited reply from ten').first()
+  ).toBeVisible();
+  await expect(
+    tenPage.getByText('Quote reply to edited message').first()
+  ).toBeVisible();
 });

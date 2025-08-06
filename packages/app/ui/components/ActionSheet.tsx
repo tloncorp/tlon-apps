@@ -139,6 +139,8 @@ const ActionSheetComponent = ({
   const { bottom } = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const maxHeight = height - bottom - getTokenValue('$2xl');
+  // For popovers, use a more conservative max height to ensure it fits in viewport
+  const popoverMaxHeight = Math.min(maxHeight, height * 0.5);
 
   if (!hasOpened.current && open) {
     hasOpened.current = true;
@@ -156,10 +158,22 @@ const ActionSheetComponent = ({
         onOpenChange={onOpenChange}
         allowFlip
         placement="bottom-end"
+        strategy="fixed"
       >
         <Popover.Trigger>{trigger}</Popover.Trigger>
-        <Popover.Content padding={1} borderColor="$border" borderWidth={1}>
-          {children}
+        <Popover.Content
+          padding={1}
+          borderColor="$border"
+          borderWidth={1}
+          maxHeight={popoverMaxHeight}
+          overflow="hidden"
+        >
+          <ScrollView
+            maxHeight={popoverMaxHeight - 32}
+            showsVerticalScrollIndicator={true}
+          >
+            {children}
+          </ScrollView>
         </Popover.Content>
       </Popover>
     );
