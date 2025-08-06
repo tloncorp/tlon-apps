@@ -1,7 +1,9 @@
+=<  data
 |%
 +$  mote
   $@  @                      ::  simple emoji
   [n=@ a=@ b=@ c=@ d=@ e=@]  ::  neutral & with skin tones
+::
 ++  data
   ^-  (map @t mote)
   %-  ~(gas by *(map @t mote))

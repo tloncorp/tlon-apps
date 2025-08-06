@@ -1,4 +1,4 @@
-/*  emoji-data  %jam  /lib/emoji/data/jam
+/*  emoji-data  %jam  /lib/emojimart/emoji/jam
 ::  emojimart: conversions for old-style emojimart-shortcode ":reacts:"
 ::
 |%
@@ -71,10 +71,8 @@
       [e.mote (cat 3 soc ':skin-tone-6:')]
       shots
   ==
-::  +data: to regenerate this data, run the following commands in the dojo:
-::         =e -build-file /=groups=/lib/emoji/data/hoon
-::         *data.jam (jam data:e)
-::         |cp %/data/jam /=groups=/lib/emoji/data/jam
+::  +data: to regenerate this data, run the following command in the dojo:
+::         *=groups=/lib/emojimart/emoji/jam _jam -build-file /=groups=/lib/emojimart/emoji/hoon
 ::
 ++  data
   ^~  !<((map @t mote) [-:!>(*(map @t mote)) (cue emoji-data)])
