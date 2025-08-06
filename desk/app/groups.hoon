@@ -3026,6 +3026,7 @@
       ?>  (gte time.update time.net)
       [%sub time.update init.net]
     =*  u-group  u-group.update
+    ~&  go-u-group+update
     ?-  -.u-group
       %create        (go-u-create group.u-group)
       %meta          (go-u-meta data.u-group)
@@ -3198,6 +3199,7 @@
   ++  go-u-seat
     |=  [ships=(set ship) =u-seat:g]
     ^+  go-core
+    ~&  go-u-seat+[ships u-seat]
     ?-    -.u-seat
         %add
       =.  go-core  (go-response %seat ships [%add seat.u-seat])
@@ -3244,7 +3246,8 @@
       =.  go-core
         %-  ~(rep in ships)
         |=  [=ship =_go-core]
-        =+  seat=(~(got by seats.group) ship)
+        ?~  tea=(~(get by seats.group) ship)  go-core
+        =*  seat  u.tea
         ?:  =(~ (~(dif in roles.u-seat) roles.seat))  go-core
         (go-activity:go-core %role ship roles.u-seat)
       ?:  go-our-host  go-core
@@ -3263,7 +3266,8 @@
       =.  go-core
         %-  ~(rep in ships)
         |=  [=ship =_go-core]
-        =+  seat=(~(got by seats.group) ship)
+        ?~  tea=(~(get by seats.group) ship)  go-core
+        =*  seat  u.tea
         ?:  =(~ (~(int in roles.u-seat) roles.seat))  go-core
         (go-activity:go-core %role ship roles.u-seat)
       ?:  go-our-host  go-core
