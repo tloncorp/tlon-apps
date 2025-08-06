@@ -1909,7 +1909,7 @@
     =?  ca-core  &(changed send)  (ca-response %meta meta.meta.channel)
     =/  old  posts.channel
     =.  posts.channel
-      ((uno:mo-v-posts:c posts.channel posts.chk) ca-apply-unit-post)
+      ((uno:mo-v-posts:c posts.channel posts.chk) ca-apply-may-post)
     =.  count.channel  count.chk
     =?  ca-core  &(send !=(old posts.channel))
       %+  ca-response  %posts
@@ -2168,7 +2168,7 @@
   ::  +ca-apply-* functions apply new copies of data to old copies,
   ::  keeping the most recent versions of each sub-piece of data
   ::
-  ++  ca-apply-unit-post
+  ++  ca-apply-may-post
     |=  [=id-post:c old=(may:c v-post:c) new=(may:c v-post:c)]
     ^-  (may:c v-post:c)
     ?:  ?=(%| -.old)  old
@@ -2372,7 +2372,8 @@
     =.  ca-core
       %^  give  %fact
         ~[/v3 v3+ca-area]
-      channel-response-4+!>(r-channels)
+      =/  rc=r-channels:v9:c  r-channels
+      channel-response-4+!>(rc)
     =.  ca-core
       %^  give  %fact
         ~[/v2 v2+ca-area]
@@ -2457,7 +2458,7 @@
         (lot:on-v-posts:c posts.channel `last-read.remark.channel ~)
       |=  [tim=time post=(may:c v-post:c)]
       ?&  ?=(%& -.post)
-          !=(author.post our.bowl)
+          !=((get-author-ship:utils author.post) our.bowl)
       ==
     =/  count  (lent unreads)
     =/  unread=(unit [id-post:c @ud])
@@ -2783,10 +2784,10 @@
       ?~  post  ~
       ?:  ?=(%| -.u.post)  `~
       ?-  version
-        %v1  ``channel-post+!>((uv-post:utils +.u.post))
-        %v2  ``channel-post-2+!>((uv-post-1:utils +.u.post))
-        %v3  ``channel-post-3+!>((uv-post-2:utils +.u.post))
-        %v4  ``channel-post-4+!>((uv-post-3:utils +.u.post))
+        %v1  ``channel-post+!>(`post:v1:c`(uv-post:utils +.u.post))
+        %v2  ``channel-post-2+!>(`post:v7:c`(uv-post-1:utils +.u.post))
+        %v3  ``channel-post-3+!>(`post:v8:c`(uv-post-2:utils +.u.post))
+        %v4  ``channel-post-4+!>(`post:v9:c`(uv-post-3:utils +.u.post))
       ==
     ::
         [%post %id time=@ %replies rest=*]

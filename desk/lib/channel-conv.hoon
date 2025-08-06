@@ -159,11 +159,16 @@
         :-  %reply
         :-  id-post.reference
         ?:  ?=(%| -.reply.reference)
-          *simple-reply:v8:c
+          ^-  simple-reply:v8:c
+          :-  [*@da *@da ~]
+          [~[[%inline ['[deleted reply]']~]] [author del-at]:reply.reference]
         +.reply.reference
       :-  %post
       ?:  ?=(%| -.post.reference)
-        *simple-post:v8:c
+        ^-  simple-post:v8:c
+        :-  [*@da ~ ~ 0 ~ ~]
+        :_  [/ ~ ~]
+        [~[[%inline ['[deleted post]']~]] [author del-at]:post.reference]
       =/  =simple-seal:v8:c
         :*  id.post.reference
             reacts.post.reference

@@ -387,21 +387,21 @@
   |=  [parent-id=id-post:c =v-replies:c]
   ^-  replies:v7:c
   %+  gas:on-replies:v7:c  *replies:v7:c
-  %+  murn  (tap:on-v-replies:c v-replies)
+  %+  turn  (tap:on-v-replies:c v-replies)
   |=  [=time v-reply=(may:c v-reply:c)]
-  ^-  (unit [id-reply:c (unit reply:v7:c)])
-  ?:  ?=(%| -.v-reply)  `[time ~]
-  `[time `(uv-reply-1 parent-id +.v-reply)]
+  ^-  [id-reply:c (unit reply:v7:c)]
+  ?:  ?=(%| -.v-reply)  [time ~]
+  [time `(uv-reply-1 parent-id +.v-reply)]
 ::
 ++  uv-replies-2
   |=  [parent-id=id-post:c =v-replies:c]
   ^-  replies:v8:c
   %+  gas:on-replies:v8:c  *replies:v8:c
-  %+  murn  (tap:on-v-replies:c v-replies)
+  %+  turn  (tap:on-v-replies:c v-replies)
   |=  [=time v-reply=(may:c v-reply:c)]
-  ^-  (unit [id-reply:c (unit reply:v8:c)])
-  ?:  ?=(%| -.v-reply)  `[time ~]
-  `[time `(uv-reply-2 parent-id +.v-reply)]
+  ^-  [id-reply:c (unit reply:v8:c)]
+  ?:  ?=(%| -.v-reply)  [time ~]
+  [time `(uv-reply-2 parent-id +.v-reply)]
 ::
 ++  uv-replies-3
   |=  [parent-id=id-post:c =v-replies:c]
