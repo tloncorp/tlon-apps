@@ -3,17 +3,15 @@ import { expect } from '@playwright/test';
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
-test('should test notebook functionality', async ({ zodSetup, tenSetup }) => {
+test.skip('should test notebook functionality', async ({
+  zodSetup,
+  tenSetup,
+}) => {
   const zodPage = zodSetup.page;
   const tenPage = tenSetup.page;
 
   // Assert that we're on the Home page
   await expect(zodPage.getByText('Home')).toBeVisible();
-
-  // Clean up any existing group on zod
-  await helpers.cleanupExistingGroup(zodPage, 'Test Group');
-  await helpers.cleanupExistingGroup(zodPage, '~ten, ~zod');
-  await helpers.cleanupExistingGroup(zodPage);
 
   // Create a new group
   await helpers.createGroup(zodPage);

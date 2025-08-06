@@ -1231,7 +1231,7 @@ export const handleChatUpdate = async (
       await db.deletePosts({ ids: [update.postId] }, ctx);
       break;
     case 'addReaction':
-      db.insertPostReactions(
+      await db.insertPostReactions(
         {
           reactions: [
             {
@@ -1245,7 +1245,7 @@ export const handleChatUpdate = async (
       );
       break;
     case 'deleteReaction':
-      db.deletePostReaction(
+      await db.deletePostReaction(
         {
           postId: update.postId,
           contactId: update.userId,

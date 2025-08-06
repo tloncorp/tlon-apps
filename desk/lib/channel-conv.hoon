@@ -49,7 +49,10 @@
     --
   ++  v-reply
     |%
-    ++  v8  same
+    ++  v8
+      |=  vr=v-reply:v9:c
+      ^-  v-reply:v8:c
+      vr
     --
   ++  posts
     |%
@@ -214,11 +217,16 @@
         :-  %reply
         :-  id-post.reference
         ?:  ?=(%| -.reply.reference)
-          *simple-reply:v8:c
+          ^-  simple-reply:v8:c
+          :-  [*@da *@da ~]
+          [~[[%inline ['[deleted reply]']~]] [author del-at]:reply.reference]
         +.reply.reference
       :-  %post
       ?:  ?=(%| -.post.reference)
-        *simple-post:v8:c
+        ^-  simple-post:v8:c
+        :-  [*@da ~ ~ 0 ~ ~]
+        :_  [/ ~ ~]
+        [~[[%inline ['[deleted post]']~]] [author del-at]:post.reference]
       =/  =simple-seal:v8:c
         :*  id.post.reference
             reacts.post.reference
@@ -271,7 +279,7 @@
   ++  v-posts
     |%
     ++  v9
-      ::NOTE  bunts tombstones! must call +log-8-to-9 afterwards!
+      ::NOTE  bunts tombstones! must call +v9:log:v8 afterwards!
       |=  vp=v-posts:v8:c
       ^-  v-posts:v9:c
       %+  urn:mo-v-posts:v8:c  vp
@@ -883,7 +891,10 @@
     --
   ++  memo
     |%
-    ++  v8  same
+    ++  v8
+      |=  =memo:v7:c
+      ^-  memo:v8:c
+      memo
     --
   ++  reacts
     |%

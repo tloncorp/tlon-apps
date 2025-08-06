@@ -1,7 +1,6 @@
 ::  summarize: utilities for summarizing groups/chat state in various ways
 ::
-::REVIEW  v8:c might have to be even older, like v1:c or w/e
-/-  c=channels, ct=chat, chat=chat-2, groups
+/-  c=channels, ct=chat, chat=chat-2, gv=groups-ver
 ::
 |_  [our=@p now=@da]
 ::  +range: period of time to summarize over
@@ -25,16 +24,16 @@
           most-sent-group=@t
       ==
   =-  :+  s  r
-      =/  g=flag:groups
+      =/  g=flag:gv
         =<  -
         ::TODO  crashes if no groups
         %+  snag  0
         %+  sort  ~(tap by g)
         |=([[* a=@ud] [* b=@ud]] (gth a b))
       =<  title.meta
-      .^  group:groups
+      .^  group:v7:gv
         %gx
-        (scry-path %groups /groups/(scot %p p.g)/[q.g]/group)
+        (scry-path %groups /v2/groups/(scot %p p.g)/[q.g]/noun)
       ==
   %+  roll
     %~  tap  by
@@ -42,7 +41,7 @@
       %gx
       (scry-path %channels /channels/channels)
     ==
-  |=  [[n=nest:c channel:v8:c] g=(map flag:groups @ud) s=@ud r=@ud]
+  |=  [[n=nest:c channel:v8:c] g=(map flag:gv @ud) s=@ud r=@ud]
   ?.  ?=(%chat kind.n)  [g s r]
   =+  .^  paged-posts:v8:c
         %gx
@@ -69,7 +68,7 @@
         %+  sort  ~(tap by g)
         |=([[* a=@ud] [* b=@ud]] (gth a b))
       =<  title.meta
-      .^  group:groups
+      .^  group:v2:gv
         %gx
         (scry-path %groups /groups/(scot %p p.g)/[q.g]/group)
       ==
@@ -113,12 +112,12 @@
   :-  dum
   ::  gather all chat channels & their groups & unread counts
   ::
-  =/  [duc=@ud faz=(list [g=flag:groups n=nest:c u=@ud])]
+  =/  [duc=@ud faz=(list [g=flag:gv n=nest:c u=@ud])]
     %+  roll
       %~  tap  by
       .^(channels:v8:c %gx (scry-path %channels /channels/channels))
     =+  .^(=unreads:c %gx (scry-path %channels /unreads/channel-unreads))
-    |=  [[n=nest:c channel:v8:c] duc=@ud faz=(list [flag:groups nest:c @ud])]
+    |=  [[n=nest:c channel:v8:c] duc=@ud faz=(list [flag:gv nest:c @ud])]
     ?.  ?=(%chat kind.n)  [duc faz]  ::  ignore non-chat channels for now
     =/  =unread:c  (~(gut by unreads) n *unread:c)
     :-  (add duc count.unread)
@@ -129,13 +128,13 @@
   ::
   ::NOTE  in rare cases, we might not know of the existence of the associated
   ::      group. simply skip past it and try the next one...
-  =+  .^(=groups:groups %gx (scry-path %groups /groups/groups))
+  =+  .^(=groups:v7:gv %gx (scry-path %groups /v2/groups/noun))
   |-
   ?~  faz  ['???' '???']  ::TODO  better copy
   ~|  i.faz
   ?.  (~(has by groups) g.i.faz)
     $(faz t.faz)
-  =/  =group:^groups  (~(got by groups) g.i.faz)
+  =/  =group:v7:gv  (~(got by groups) g.i.faz)
   ?~  chat=(~(get by channels.group) n.i.faz)
     $(faz t.faz)
   [title.meta.group title.meta.u.chat]
@@ -175,16 +174,16 @@
   ::
   ::NOTE  in rare cases, we might not know of the existence of the associated
   ::      group. simply skip past it and try the next one...
-  =+  .^  =groups:groups
+  =+  .^  =groups:v2:gv
         %gx
-        (scry-path %groups /groups/groups)
+        (scry-path %groups /groups/noun)
       ==
   |-
   ?~  faz  ['???' '???']  ::TODO  better copy
   ~|  i.faz
   ?.  (~(has by groups) g.i.faz)
     $(faz t.faz)
-  =/  =group:^groups  (~(got by groups) g.i.faz)
+  =/  =group:v2:gv  (~(got by groups) g.i.faz)
   ?~  chat=(~(get by channels.group) %chat c.i.faz)
     $(faz t.faz)
   [title.meta.group title.meta.u.chat]

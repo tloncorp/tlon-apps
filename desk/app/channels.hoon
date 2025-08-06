@@ -8,7 +8,7 @@
 ::    note: all subscriptions are handled by the subscriber library so
 ::    we can have resubscribe loop protection.
 ::
-/-  c=channels, g=groups, ha=hark, activity
+/-  c=channels, g=groups, gv=groups-ver, ha=hark, activity, story
 /-  meta
 /+  default-agent, verb, dbug,
     neg=negotiate, discipline, logs,
@@ -191,8 +191,11 @@
 =/  verbose  |
 %-  %-  agent:neg
     :+  notify=&
-      ~
-    [%channels-server^[~.channels^%2 ~ ~] ~ ~]
+      [~.channels^%2 ~ ~]
+    %-  my
+    :~  %groups^[~.groups^%1 ~ ~]
+        %channels-server^[~.channels^%2 ~ ~]
+    ==
 %-  agent:dbug
 %+  verb  |
 ::
@@ -255,6 +258,7 @@
   ++  on-fail
     |=  [=term =tang]
     ^-  (quip card _this)
+    %-  (slog term tang)
     :_  this
     [(fail:log term tang ~)]~
   ::
@@ -737,7 +741,7 @@
       ==
     ::
         [%sequence-numbers * @ *]
-      =+  !<([%sequence-numbers =nest:c count=@ud seqs=(list [id=id-post:v8:c seq=(unit @ud)])] vase)
+      =+  ;;([%sequence-numbers =nest:c count=@ud seqs=(list [id=id-post:c seq=(unit @ud)])] q.vase)
       ?>  =(src.bowl ship.nest)
       ?.  (~(has by v-channels) nest)  cor
       =.  v-channels
@@ -1081,7 +1085,7 @@
         ~[path v0+path v1+path]
       ?~  got  cage.sign
       channel-said+!>((v7:said:v9:ccv u.got))
-    =/  suffix
+    =/  suffix=^path
       [%said (scot %p src.bowl) (tail path)]
     =.  cor
       %^  give  %fact
@@ -1166,8 +1170,7 @@
       ((slog tank u.p.sign) cor)
     ::
         %fact
-      ?.  ?=(%group-action-4 p.cage.sign)  cor
-      (take-groups !<(=action:v5:g q.cage.sign))
+      (take-groups !<(=r-groups:v7:gv q.cage.sign))
     ==
   ::
       [%migrate ~]
@@ -1191,30 +1194,31 @@
     ==
   ==
 ::
-++  watch-groups  (safe-watch /groups [our.bowl %groups] /groups)
+++  watch-groups  (safe-watch /groups [our.bowl %groups] /v1/groups)
+::  +take-groups: process group update
 ::
 ++  take-groups
-  |=  =action:v5:g
+  |=  =r-groups:v7:gv
+  =*  flag  flag.r-groups
   =/  affected=(list nest:c)
     %+  murn  ~(tap by v-channels)
     |=  [=nest:c channel=v-channel:c]
-    ?.  =(p.action group.perm.perm.channel)  ~
+    ?.  =(flag group.perm.perm.channel)  ~
     `nest
-  =/  diff  q.q.action
-  ?+    diff  cor
-      [%fleet * %add-sects *]    (recheck-perms affected ~)
-      [%fleet * %del-sects *]    (recheck-perms affected ~)
-      [%channel * %edit *]       (recheck-perms affected ~)
-      [%channel * %del-sects *]  (recheck-perms affected ~)
-      [%channel * %add-sects *]  (recheck-perms affected ~)
-      [%cabal * %del *]
-    =/  =sect:g  (slav %tas p.diff)
-    %+  recheck-perms  affected
-    (~(gas in *(set sect:g)) ~[p.diff])
+  =*  r-group  r-group.r-groups
+  ?+    r-group  cor
+      [%seat * %add-roles *]       (recheck-perms affected ~)
+      [%seat * %del-roles *]       (recheck-perms affected ~)
+      [%channel * %edit *]         (recheck-perms affected ~)
+      [%channel * %add-readers *]  (recheck-perms affected ~)
+      [%channel * %del-readers *]  (recheck-perms affected ~)
+  ::
+      [%role * %del *]
+    (recheck-perms affected roles.r-group)
   ==
 ::
 ++  recheck-perms
-  |=  [affected=(list nest:c) sects=(set sect:g)]
+  |=  [affected=(list nest:c) sects=(set sect:v0:gv)]
   ~&  "%channel recheck permissions for {<affected>}"
   %+  roll  affected
   |=  [=nest:c co=_cor]
@@ -1379,22 +1383,22 @@
   |=  [agent=term =path]
   ^-  ^path
   (welp /(scot %p our.bowl)/[agent]/(scot %da now.bowl) path)
-++  get-vessel
+++  get-seat
   |=  [=flag:g =ship]
-  ^-  (unit vessel:fleet:g)
+  ^-  (unit seat:v7:gv)
   =/  base-path
     (scry-path %groups /)
-  =>  [flag=flag ship=ship base-path=base-path vessel=vessel:fleet:g ..zuse]  ~+
+  =>  [flag=flag ship=ship base-path=base-path seat=seat:v7:gv ..zuse]  ~+
   =/  groups-running
     .^(? %gu (weld base-path /$))
   ?.  groups-running  ~
   =/  group-exists
-    .^(? %gx (weld base-path /exists/(scot %p p.flag)/[q.flag]/noun))
+    .^(? %gu (weld base-path /groups/(scot %p p.flag)/[q.flag]))
   ?.  group-exists  ~
   %-  some
-  .^  vessel  %gx
+  .^  seat  %gx
     %+  weld  base-path
-    /groups/(scot %p p.flag)/[q.flag]/fleet/(scot %p ship)/vessel/noun
+    /groups/(scot %p p.flag)/[q.flag]/seats/(scot %p ship)/noun
   ==
 ++  ca-core
   |_  [=nest:c channel=v-channel:c gone=_|]
@@ -1436,8 +1440,8 @@
       ?:  =(author-ship our.bowl)
         =/  =source  [%channel nest group.perm.perm.channel]
         (send [%read source [%all `now.bowl |]] ~)
-      =/  vessel=(unit vessel:fleet:g)  (get-vessel group.perm.perm.channel our.bowl)
-      =/  mention=?  (was-mentioned:utils content our.bowl vessel)
+      =/  seat=(unit seat:v7:gv)  (get-seat group.perm.perm.channel our.bowl)
+      =/  mention=?  (was-mentioned:utils content our.bowl seat)
       =/  action
         [%add %post [[author-ship id] id] nest group.perm.perm.channel content mention]
       (send ~[action])
@@ -1452,8 +1456,8 @@
       =/  key=message-key
         [[(get-author-ship:utils author) id] id]
       =/  thread=source  [%thread key nest group]
-      =/  vessel=(unit vessel:fleet:g)  (get-vessel group.perm.perm.channel our.bowl)
-      =/  mention  (was-mentioned:utils content our.bowl vessel)
+      =/  seat=(unit seat:v7:gv)  (get-seat group.perm.perm.channel our.bowl)
+      =/  mention  (was-mentioned:utils content our.bowl seat)
       =/  =incoming-event  [%post key nest group content mention]
       (send [%del thread] [%del-event chan incoming-event] ~)
     ::
@@ -1469,8 +1473,8 @@
       ?:  =(reply-author our.bowl)
         =/  =source  [%thread parent-key nest group.perm.perm.channel]
         (send [%read source [%all `now.bowl |]] ~)
-      =/  vessel=(unit vessel:fleet:g)  (get-vessel group.perm.perm.channel our.bowl)
-      =/  mention=?  (was-mentioned:utils content our.bowl vessel)
+      =/  seat=(unit seat:v7:gv)  (get-seat group.perm.perm.channel our.bowl)
+      =/  mention=?  (was-mentioned:utils content our.bowl seat)
       =/  in-replies
           %+  lien  (tap:on-v-replies:c replies.parent)
           |=  [=time reply=(may:c v-reply:c)]
@@ -1512,8 +1516,8 @@
       =/  top=message-key
         [[parent-author id.parent] id.parent]
       =/  thread=source  [%thread top nest group]
-      =/  vessel=(unit vessel:fleet:g)  (get-vessel group.perm.perm.channel our.bowl)
-      =/  mention  (was-mentioned:utils content.reply our.bowl vessel)
+      =/  seat=(unit seat:v7:gv)  (get-seat group.perm.perm.channel our.bowl)
+      =/  mention  (was-mentioned:utils content.reply our.bowl seat)
       =/  =incoming-event  [%reply key top nest group content.reply mention]
       (send [%del-event thread incoming-event] ~)
     ::
@@ -1734,9 +1738,10 @@
       =;  share=?
         ?.  share
           channel-denied+!>(~)
-        ?:  ?=(%v4 version)
-          (said-3:utils nest plan posts.channel)
-        (said-2:utils nest plan posts.channel)
+        ?-  version
+          %v4         (said-3:utils nest plan posts.channel)
+          ?(%v2 %v3)  (said-2:utils nest plan posts.channel)
+        ==
       ?:  (can-read:ca-perms src.bowl)  &
       ?^  q.plan  |  ::NOTE  expose/+grab-post doesn't support replies
       ::  we need to grab the post first before we can check whether it's
@@ -1779,7 +1784,11 @@
     |=  [=wire =sign:agent:gall]
     ^+  ca-core
     ?+    wire  ~|(channel-strange-agent-wire+wire !!)
-      ~  ca-core  :: noop wire, should only send pokes
+        ~
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  ca-core
+      ((slog %ca-agent u.p.sign) ca-core)
+      :: ca-core  :: no-op wire, should only send pokes
       [%create ~]       (ca-take-create sign)
       [%updates ~]      (ca-take-update sign)
       [%backlog ~]      (ca-take-backlog sign)
@@ -1908,7 +1917,7 @@
     =?  ca-core  &(changed send)  (ca-response %meta meta.meta.channel)
     =/  old  posts.channel
     =.  posts.channel
-      ((uno:mo-v-posts:c posts.channel posts.chk) ca-apply-unit-post)
+      ((uno:mo-v-posts:c posts.channel posts.chk) ca-apply-may-post)
     =.  count.channel  count.chk
     =?  ca-core  &(send !=(old posts.channel))
       %+  ca-response  %posts
@@ -2167,7 +2176,7 @@
   ::  +ca-apply-* functions apply new copies of data to old copies,
   ::  keeping the most recent versions of each sub-piece of data
   ::
-  ++  ca-apply-unit-post
+  ++  ca-apply-may-post
     |=  [=id-post:c old=(may:c v-post:c) new=(may:c v-post:c)]
     ^-  (may:c v-post:c)
     ?:  ?=(%| -.old)  old
@@ -2221,8 +2230,8 @@
       ::
       ?.  ?=(kind:c -.kind.post)  ca-core
       =/  =rope:ha  (ca-rope -.kind.post id-post ~)
-      =/  vessel=(unit vessel:fleet:g)  (get-vessel group.perm.perm.channel our.bowl)
-      ?:  (was-mentioned:utils content.post our.bowl vessel)
+      =/  seat=(unit seat:v7:gv)  (get-seat group.perm.perm.channel our.bowl)
+      ?:  (was-mentioned:utils content.post our.bowl seat)
         ?.  (want-hark %mention)
           ca-core
         =/  cs=(list content:ha)
@@ -2286,8 +2295,8 @@
         ==
       ::  notify because we were mentioned in the reply
       ::
-      =/  vessel=(unit vessel:fleet:g)  (get-vessel group.perm.perm.channel our.bowl)
-      ?:  (was-mentioned:utils content.reply our.bowl vessel)
+      =/  seat=(unit seat:v7:gv)  (get-seat group.perm.perm.channel our.bowl)
+      ?:  (was-mentioned:utils content.reply our.bowl seat)
         ?.  (want-hark %mention)  ~
         `~[[%ship reply-author] ' mentioned you: ' (flatten:utils content.reply)]
       ::  notify because we ourselves responded to this post previously
@@ -2371,7 +2380,8 @@
     =.  ca-core
       %^  give  %fact
         ~[/v3 v3+ca-area]
-      channel-response-4+!>(r-channels)
+      =/  rc=r-channels:v9:c  r-channels
+      channel-response-4+!>(rc)
     =.  ca-core
       %^  give  %fact
         ~[/v2 v2+ca-area]
@@ -2456,7 +2466,7 @@
         (lot:on-v-posts:c posts.channel `last-read.remark.channel ~)
       |=  [tim=time post=(may:c v-post:c)]
       ?&  ?=(%& -.post)
-          !=(author.post our.bowl)
+          !=((get-author-ship:utils author.post) our.bowl)
       ==
     =/  count  (lent unreads)
     =/  unread=(unit [id-post:c @ud])
@@ -2680,6 +2690,7 @@
     |=  [=(pole knot) version=?(%v1 %v2 %v3 %v4)]
     ^-  (unit (unit cage))
     =*  on   on-v-posts:c
+    =*  mo   mo-v-posts:c
     ?+    pole  [~ ~]
         [%newest count=@ mode=?(%outline %post) ~]
       =/  count  (slav %ud count.pole)
@@ -2776,16 +2787,54 @@
       =.  out  (put:on-v-posts:c out changed u.post)
       $(updated t.updated)
     ::
+        [%range start=@ end=@ mode=?(%outline %post) ~]
+      ::TODO  support @da format in path for id (or timestamp) ranges?
+      =/  start=@ud
+        ?:  =(%$ start.pole)  1
+        (slav %ud start.pole)
+      =/  end=@ud
+        ?.  =(%$ end.pole)
+          (slav %ud end.pole)
+        ?~  latest=(ram:on posts.channel)  1
+        ?-  -.val.u.latest
+          %&  seq.val.u.latest
+          %|  seq.val.u.latest
+        ==
+      %-  give-posts
+      :+  mode.pole  version
+      ::  queries near end more common, so we make a newest-first list,
+      ::  and walk it "backwards" until we extract our desired range
+      ::
+      =/  posts=(list [id-post:c p=(may:c v-post:c)])
+        ::  if no end was specified, we know we just take from the end,
+        ::  so only listify the max amount of msgs we might process.
+        ::  (this assumes sequence nrs increment parallel to post ids!)
+        ::
+        ?:  =(%$ end.pole)
+          (bat:mo posts.channel ~ +((sub end start)))
+        (bap:on posts.channel)
+      =|  out=(list [id-post:c (may:c v-post:c)])
+      |-
+      ?~  posts  ~
+      =/  seq=@ud
+        ?-  -.p.i.posts
+          %&  seq.p.i.posts
+          %|  seq.p.i.posts
+        ==
+      ?:  (gth seq end)    $(posts t.posts)
+      ?:  (lth seq start)  ~  ::  done
+      [i.posts $(posts t.posts)]
+    ::
         [%post time=@ ~]
       =/  time  (slav %ud time.pole)
       =/  post  (get:on posts.channel time)
       ?~  post  ~
       ?:  ?=(%| -.u.post)  `~
       ?-  version
-        %v1  ``channel-post+!>((uv-post:utils +.u.post))
-        %v2  ``channel-post-2+!>((uv-post-1:utils +.u.post))
-        %v3  ``channel-post-3+!>((uv-post-2:utils +.u.post))
-        %v4  ``channel-post-4+!>((uv-post-3:utils +.u.post))
+        %v1  ``channel-post+!>(`post:v1:c`(uv-post:utils +.u.post))
+        %v2  ``channel-post-2+!>(`post:v7:c`(uv-post-1:utils +.u.post))
+        %v3  ``channel-post-3+!>(`post:v8:c`(uv-post-2:utils +.u.post))
+        %v4  ``channel-post-4+!>(`post:v9:c`(uv-post-3:utils +.u.post))
       ==
     ::
         [%post %id time=@ %replies rest=*]
@@ -3022,10 +3071,10 @@
     ++  match-story-mention
       |=  [nedl=ship =story:c]
       %+  lien  story
-      |=  =verse:c
+      |=  =verse:^story
       ?.  ?=(%inline -.verse)  |
       %+  lien  p.verse
-      |=  =inline:c
+      |=  =inline:^story
       ?+  -.inline  |
         %ship                                  =(nedl p.inline)
         ?(%bold %italics %strike %blockquote)  ^$(p.verse p.inline)
@@ -3047,10 +3096,10 @@
     ++  match-story-text
       |=  [nedl=@t =story:c]
       %+  lien  story
-      |=  =verse:c
+      |=  =verse:^story
       ?.  ?=(%inline -.verse)  |
       %+  lien  p.verse
-      |=  =inline:c
+      |=  =inline:^story
       ?@  inline
         (find nedl inline |)
       ?+  -.inline  |
@@ -3109,16 +3158,16 @@
   ::  need to change anything
   ::
   ++  ca-recheck
-    |=  sects=(set sect:g)
+    |=  sects=(set sect:v0:gv)
     =/  =flag:g  group.perm.perm.channel
     =/  exists-path
-      (scry-path %groups /exists/(scot %p p.flag)/[q.flag]/noun)
-    =+  .^(exists=? %gx exists-path)
+      (scry-path %groups /groups/(scot %p p.flag)/[q.flag])
+    =+  .^(exists=? %gu exists-path)
     ?.  exists  ca-core
     =/  =path
       %+  scry-path  %groups
-      /groups/(scot %p p.flag)/[q.flag]/v2/group-ui-1
-    =+  .^(group=group-ui:v5:g %gx path)
+      /v2/groups/(scot %p p.flag)/[q.flag]/noun
+    =+  .^(group=group:v7:gv %gx path)
     ?.  (~(has by channels.group) nest)  ca-core
     ::  toggle the volume based on permissions
     =/  =source:activity  [%channel nest flag]

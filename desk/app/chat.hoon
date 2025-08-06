@@ -1,4 +1,4 @@
-/-  c=chat, d=channels, g=groups, u=ui, e=epic, activity, meta
+/-  c=chat, d=channels, g=groups, u=ui, e=epic, activity, s=story, meta
 /-  ha=hark
 /-  contacts-0
 /+  default-agent, verb-lib=verb, dbug,
@@ -1526,7 +1526,7 @@
       =-  (snoc - [%inline q.p.old])
       %+  turn  p.p.old
       |=  =block:t
-      ^-  verse:d
+      ^-  verse:s
       :-  %block
       ?.  ?=([%cite %chan *] block)  block
       =;  new=(unit path)

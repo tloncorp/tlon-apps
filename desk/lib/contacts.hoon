@@ -55,6 +55,7 @@
     ==
   ::  +ges: get specialized to typed set
   ::
+  ::TODO  introduce more legible names, ges -> get-set etc.
   ++  ges
     |*  [key=@tas typ=value-type]
     ^-  (unit (set $>(_typ value)))

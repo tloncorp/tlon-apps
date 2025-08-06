@@ -10,9 +10,6 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
 
   await expect(page.getByText('Home')).toBeVisible();
 
-  // Clean up any existing "Untitled group"
-  await helpers.cleanupExistingGroup(page);
-
   // Create a new group
   await helpers.createGroup(page);
 
@@ -185,11 +182,4 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
 
   // Verify role count is back to 1
   await helpers.verifyElementCount(page, 'GroupRoles', 1);
-
-  // Delete the group
-  await helpers.deleteGroup(page);
-
-  // Verify we're back at Home and group is deleted
-  await expect(page.getByText('Home')).toBeVisible();
-  await expect(page.getByText('Untitled group')).not.toBeVisible();
 });

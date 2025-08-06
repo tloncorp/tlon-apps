@@ -15,7 +15,7 @@
 ::    commands _may_ become updates,
 ::    updates _may_ become responses.
 ::
-/-  g=groups, c=cite, m=meta
+/-  gv=groups-ver, c=cite, s=story, m=meta
 /+  mp=mop-extensions
 |%
 +|  %ancients
@@ -117,13 +117,10 @@
       last-repliers=(set author)
       last-reply=(unit time)
   ==
-::  $kind-data: metadata for a channel type's "post"
-::
-+$  kind-data
-  $%  [%diary title=@t image=@t]
-      [%heap title=(unit @t)]
-      [%chat kind=$@(~ [%notice ~])]
-  ==
++$  story  story:s
++$  verse  verse:s
++$  inline  inline:s
++$  listing  listing:s
 ::  $author: post author
 +$  author  $@(ship bot-meta)
 ::  $bot-meta: bot metadata
@@ -143,78 +140,6 @@
       =author
       sent=time
   ==
-::  $story: post body content
-::
-+$  story  (list verse)
-::  $verse: a chunk of post content
-::
-::    blocks stand on their own. inlines come in groups and get wrapped
-::    into a paragraph
-::
-+$  verse
-  $%  [%block p=block]
-      [%inline p=(list inline)]
-  ==
-::  $listing: recursive type for infinitely nested <ul> or <ol>
-+$  listing
-  $%  [%list p=?(%ordered %unordered %tasklist) q=(list listing) r=(list inline)]
-      [%item p=(list inline)]
-  ==
-::  $block: post content that sits outside of the normal text
-::
-::    %image: a visual, we record dimensions for better rendering
-::    %cite: an Urbit reference
-::    %header: a traditional HTML heading, h1-h6
-::    %listing: a traditional HTML list, ul and ol
-::    %code: a block of code
-::    %link: a link, with metadata for rendering a preview card
-::
-+$  block  $+  channel-block
-  $%  [%image src=cord height=@ud width=@ud alt=cord]
-      [%cite =cite:c]
-      [%header p=?(%h1 %h2 %h3 %h4 %h5 %h6) q=(list inline)]
-      [%listing p=listing]
-      [%rule ~]
-      [%code code=cord lang=cord]
-      [%link url=@t meta=(map ?(link-meta-key @t) @t)]
-  ==
-::  $link-meta-key: known-good %link $block meta keys
-::
-+$  link-meta-key
-  ?(%title %description %image %site-name %site-icon)
-::  $inline: post content that flows within a paragraph
-::
-::    @t: plain text
-::    %italics: italic text
-::    %bold: bold text
-::    %strike: strikethrough text
-::    %inline-code: code formatting for small snippets
-::    %blockquote: blockquote surrounded content
-::    %block: link/reference to blocks
-::    %ship: mention/reference to a ship
-::    %sect: mention/reference to a sect of users, ~ signifies everyone
-::    %code: code formatting for large snippets
-::    %tag: tag gets special signifier
-::    %link: link to a URL with a face
-::    %break: line break
-::
-+$  inline  $+  channel-inline
-  $@  @t
-  $%  [%italics p=(list inline)]
-      [%bold p=(list inline)]
-      [%strike p=(list inline)]
-      [%blockquote p=(list inline)]
-      [%inline-code p=cord]
-      [%code p=cord]
-      [%ship p=ship]
-      [%sect p=?(~ sect:g)]
-      [%block p=@ud q=cord]
-      [%tag p=cord]
-      [%link p=cord q=cord]
-      [%task p=?(%.y %.n) q=(list inline)]
-      [%break ~]
-  ==
-::
 +$  kind  ?(%diary %heap %chat)
 ::  $nest: identifier for a channel
 +$  nest  [=kind =ship name=term]
@@ -295,8 +220,8 @@
 ::  pointer back to the group it belongs to.
 ::
 +$  perm
-  $:  writers=(set sect:g)
-      group=flag:g
+  $:  writers=(set sect:v0:gv)
+      group=flag:gv
   ==
 ::
 ::  $log: a time ordered history of modifications to a channel
@@ -317,12 +242,12 @@
 +$  create-channel
   $:  =kind
       name=term
-      group=flag:g
+      group=flag:gv
       title=cord
       description=cord
       meta=(unit @t)
-      readers=(set sect:g)
-      writers=(set sect:g)
+      readers=(set sect:v0:gv)
+      writers=(set sect:v0:gv)
   ==
 ::
 ++  may
@@ -369,7 +294,7 @@
       [%toggle-post toggle=post-toggle]
   ==
 +$  a-channel
-  $%  [%join group=flag:g]
+  $%  [%join group=flag:gv]
       [%leave ~]
       a-remark
       c-channel
@@ -398,8 +323,8 @@
       [%sort =sort]
       [%meta meta=(unit @t)]
       [%order order=arranged-posts]
-      [%add-writers sects=(set sect:g)]
-      [%del-writers sects=(set sect:g)]
+      [%add-writers sects=(set sect:v0:gv)]
+      [%del-writers sects=(set sect:v0:gv)]
   ==
 ::
 +$  c-post
@@ -464,7 +389,7 @@
       [%perm =perm]
       [%meta meta=(unit @t)]
       [%create =perm]
-      [%join group=flag:g]
+      [%join group=flag:gv]
       [%leave ~]
       a-remark
   ==
@@ -740,7 +665,7 @@
           [%perm =perm]
           [%meta meta=(unit @t)]
           [%create =perm]
-          [%join group=flag:g]
+          [%join group=flag:gv]
           [%leave ~]
           a-remark
       ==
@@ -804,14 +729,14 @@
     +$  create-channel
       $:  =kind
           name=term
-          group=flag:g
+          group=flag:gv
           title=cord
           description=cord
-          readers=(set sect:g)
-          writers=(set sect:g)
+          readers=(set sect:gv)
+          writers=(set sect:gv)
       ==
     +$  a-channel
-      $%  [%join group=flag:g]
+      $%  [%join group=flag:gv]
           [%leave ~]
           a-remark
           c-channel
@@ -839,38 +764,15 @@
           sent=time
       ==
     +$  essay  [memo =kind-data]
-    +$  story  (list verse)
-    +$  verse
-      $%  [%block p=block]
-          [%inline p=(list inline)]
+    +$  kind-data
+      $%  [%diary title=@t image=@t]
+          [%heap title=(unit @t)]
+          [%chat kind=$@(~ [%notice ~])]
       ==
-    +$  listing
-      $%  [%list p=?(%ordered %unordered %tasklist) q=(list listing) r=(list inline)]
-          [%item p=(list inline)]
-      ==
-    +$  block
-      $%  [%image src=cord height=@ud width=@ud alt=cord]
-          [%cite =cite:c]
-          [%header p=?(%h1 %h2 %h3 %h4 %h5 %h6) q=(list inline)]
-          [%listing p=listing]
-          [%rule ~]
-          [%code code=cord lang=cord]
-      ==
-    +$  inline
-      $@  @t
-      $%  [%italics p=(list inline)]
-          [%bold p=(list inline)]
-          [%strike p=(list inline)]
-          [%blockquote p=(list inline)]
-          [%inline-code p=cord]
-          [%code p=cord]
-          [%ship p=ship]
-          [%block p=@ud q=cord]
-          [%tag p=cord]
-          [%link p=cord q=cord]
-          [%task p=?(%.y %.n) q=(list inline)]
-          [%break ~]
-      ==
+    ++  story  story:v0:ver:s
+    ++  verse  verse:v0:ver:s
+    ++  inline  inline:v0:ver:s
+    ++  listing  listing:v0:ver:s
     +$  channels  (map nest channel)
     ++  channel
       |^  ,[global local]
@@ -932,7 +834,7 @@
           [%perm =perm]
         ::
           [%create =perm]
-          [%join group=flag:g]
+          [%join group=flag:gv]
           [%leave ~]
           a-remark
       ==
@@ -986,8 +888,8 @@
           [%view =view]
           [%sort =sort]
           [%order order=arranged-posts]
-          [%add-writers sects=(set sect:g)]
-          [%del-writers sects=(set sect:g)]
+          [%add-writers sects=(set sect:v0:gv)]
+          [%del-writers sects=(set sect:v0:gv)]
       ==
     +$  c-post
       $%  [%add =essay]
