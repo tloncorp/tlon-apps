@@ -2681,6 +2681,7 @@
     |=  [=(pole knot) version=?(%v1 %v2 %v3 %v4)]
     ^-  (unit (unit cage))
     =*  on   on-v-posts:c
+    =*  mo   mo-v-posts:c
     ?+    pole  [~ ~]
         [%newest count=@ mode=?(%outline %post) ~]
       =/  count  (slav %ud count.pole)
@@ -2776,6 +2777,44 @@
         $(updated t.updated)
       =.  out  (put:on-v-posts:c out changed u.post)
       $(updated t.updated)
+    ::
+        [%range start=@ end=@ mode=?(%outline %post) ~]
+      ::TODO  support @da format in path for id (or timestamp) ranges?
+      =/  start=@ud
+        ?:  =(%$ start.pole)  1
+        (slav %ud start.pole)
+      =/  end=@ud
+        ?.  =(%$ end.pole)
+          (slav %ud end.pole)
+        ?~  latest=(ram:on posts.channel)  1
+        ?-  -.val.u.latest
+          %&  seq.val.u.latest
+          %|  seq.val.u.latest
+        ==
+      %-  give-posts
+      :+  mode.pole  version
+      ::  queries near end more common, so we make a newest-first list,
+      ::  and walk it "backwards" until we extract our desired range
+      ::
+      =/  posts=(list [id-post:c p=(may:c v-post:c)])
+        ::  if no end was specified, we know we just take from the end,
+        ::  so only listify the max amount of msgs we might process.
+        ::  (this assumes sequence nrs increment parallel to post ids!)
+        ::
+        ?:  =(%$ end.pole)
+          (bat:mo posts.channel ~ +((sub end start)))
+        (bap:on posts.channel)
+      =|  out=(list [id-post:c (may:c v-post:c)])
+      |-
+      ?~  posts  ~
+      =/  seq=@ud
+        ?-  -.p.i.posts
+          %&  seq.p.i.posts
+          %|  seq.p.i.posts
+        ==
+      ?:  (gth seq end)    $(posts t.posts)
+      ?:  (lth seq start)  ~  ::  done
+      [i.posts $(posts t.posts)]
     ::
         [%post time=@ ~]
       =/  time  (slav %ud time.pole)
