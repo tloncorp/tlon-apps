@@ -660,7 +660,7 @@
       ==
     ::
         [%sequence-numbers * @ *]
-      =+  !<([%sequence-numbers =nest:c count=@ud seqs=(list [id=id-post:c seq=(unit @ud)])] vase)
+      =+  ;;([%sequence-numbers =nest:c count=@ud seqs=(list [id=id-post:c seq=(unit @ud)])] q.vase)
       ?>  =(src.bowl ship.nest)
       ?.  (~(has by v-channels) nest)  cor
       =.  v-channels
