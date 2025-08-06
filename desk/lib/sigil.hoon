@@ -164,30 +164,6 @@
   ::
   ::
   ++  symbol
-    ::  sigil-symbols: svg symbols for phonemes, for use in /lib/sigil
-    ::
-    ::    the map is keyed by phoneme cords and contains functions for
-    ::    generating lists of manxes based on fore- and background colors,
-    ::    intended to be wrapped up in an svg <g> for further processing.
-    ::
-    ::    shapes and default attributes sourced from:
-    ::    https://github.com/urbit/sigil-js/blob/fdea06f/src/index.json
-    ::
-    ::NOTE  to reduce svg size, we exclude certain common/shared attributes.
-    ::      we expect the /lib/sigil to wrap these elements in a <g> which sets
-    ::      those attributes, letting them be inherited. they are as follows:
-    ::        =fill    fg
-    ::        =stroke  bg
-    ::        =stroke-linecap  "square"
-    ::        =stroke-width
-    ::      we assume the defaults specified above, and only include those
-    ::      attributes below if they deviate from those. (this includes adding
-    ::      stroke="none" for elements whose original specification did not
-    ::      include a stroke.)
-    ::      unfortunately, the vector-effect attribute cannot be inherted by <g>
-    ::      children, so we have to inline it for every element here.
-    ::      for ease of change, we leave excluded attributes as comments here.
-    ::
     ::  to regenerate the sigil data perform the following command in the dojo:
     ::  *=groups=/lib/sigil/symbols/jam _jam -build-file /=groups=/lib/sigil/symbols/hoon
     ^~
