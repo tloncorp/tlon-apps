@@ -1365,7 +1365,8 @@
       (~(ges cy:t con.response) groups+%flag)
     ?:  |(?=(~ groups) =(~ u.groups))  cor  ::TMI
     %+  roll  ~(tap in u.groups)
-    |=  [val=$>(%flag value:t) =_cor]
+    |=  [val=value:t =_cor]
+    ?>  ?=(%flag -.val)
     fi-abet:(fi-watch:(fi-abed:fi-core:cor p.val) %v1 /preview)
   ==
 ::
@@ -2612,7 +2613,8 @@
     |=  =ship
     ^-  ?
     ?:  =(ship p.flag)  &
-    =/  =seat:g  (~(got by seats.group) ship)
+    ?~   tea=(~(get by seats.group) ship)  |
+    =*  seat  u.tea
     !=(~ (~(int in roles.seat) admins.group))
   ::  +go-is-banned: check whether the ship is banned
   ::
