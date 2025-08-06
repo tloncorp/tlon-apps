@@ -1,0 +1,442 @@
+{
+  "~ravmel-ropdyl": [
+    {
+      "status": {
+        "type": "text",
+        "value": "Slow"
+      },
+      "avatar": {
+        "type": "look",
+        "value": ""
+      },
+      "cover": {
+        "type": "look",
+        "value": "https://storage.googleapis.com/tlon-prod-memex-assets/ravmel-ropdyl/2024.7.12..19.56.45..78d4.fdf3.b645.a1ca-F1DC0F51-1FEB-4171-96A3-CAF49D2B13EF.jpg"
+      },
+      "bio": {
+        "type": "text",
+        "value": "happy to chat, send a dm any time"
+      },
+      "nickname": {
+        "type": "text",
+        "value": "galen"
+      },
+      "expose-cites": {
+        "type": "set",
+        "value": []
+      },
+      "color": {
+        "type": "tint",
+        "value": "ff.ffff"
+      },
+      "groups": {
+        "type": "set",
+        "value": [
+          {
+            "type": "flag",
+            "value": "~ravmel-ropdyl/audio-video-images"
+          },
+          {
+            "type": "flag",
+            "value": "~ravmel-ropdyl/crate"
+          },
+          {
+            "type": "flag",
+            "value": "~nibset-napwyn/tlon"
+          }
+        ]
+      }
+    },
+    {}
+  ],
+  "~nocsyx-lassul": [
+    {
+      "status": {
+        "type": "text",
+        "value": "testing testing"
+      },
+      "lanyard-twitter-0-url": {
+        "type": "text",
+        "value": "https://verified.tlon.io/attestations/0we5xNQ.U0cx0.3t2Qe.B5GVa.KJdam.RIDu8.CHs~j.4Xt1v.c8yYA.CVbkA.45sMV.IHua9.g5Fo7.Y9ro3.x97VW.ZLrC0.q2GIa"
+      },
+      "lanyard-phone-0-url": {
+        "type": "text",
+        "value": "https://verified.tlon.io/attestations/0wdagU1.dFvYd.Ugaem.gLvg0.GRSkP.srFno.vaDTA.yAT54.7wvi8.GGwio.wYLAM.HFUT6.60DOO.XYhad.~~ZiU.ULTtz.bxF46"
+      },
+      "lanyard-twitter-0-value": {
+        "type": "text",
+        "value": "hmillerdev"
+      },
+      "lanyard-twitter-0-since": {
+        "type": "date",
+        "value": "~2025.3.28..20.05.07..2ab4"
+      },
+      "lanyard-twitter-0-sign": {
+        "type": "text",
+        "value": "0w1.MIeeD.01A80.rEmxQ.EJn9l.RFFiS.JAXN4.RrDWo.DrEbV.x4nAA.T9qAw.wHC7d.BrNha.0Jb0~.xbr0s.98~fn.JXsM3.gllxn.V038M.dzcSd.z4Uc3.AOdP8.NdPkM.ej4J0.7hBpn.tQf0c.ZClAs.ClIr6.BJq3U.1Opnh.QqntQ.L0bdL.0bj0w.60000.ddEke.sOGQ0.00000.000g0.X6NRp.LwehB.qmpFs.ClS~0.cIxP4.YmtI1"
+      },
+      "bio": {
+        "type": "text",
+        "value": ""
+      },
+      "lanyard-phone-0-since": {
+        "type": "date",
+        "value": "~2025.4.8..14.39.05..1fb0"
+      },
+      "nickname": {
+        "type": "text",
+        "value": "hunter ⚗️"
+      },
+      "lanyard-phone-0-sign": {
+        "type": "text",
+        "value": "0wdagU.1dFvY.dUgae.mgLvg.0GRSk.PsrFn.ovaDT.AyAT5.47wvi.8GGwi.owYLA.MHFUT.660DO.OXYha.d~~Zi.UULTt.zbxF4.6~80p.mVLq7.0Y1dL.0bj0w.60000.ddFd2.yh-M0.00000.000g0.VCNxq.fwehB.qmpFs.ClS~0.cIxP4.YmtI1"
+      },
+      "expose-cites": {
+        "type": "set",
+        "value": [
+          {
+            "type": "text",
+            "value": "/1/chan/diary/~bolbex-fogdys/bulletins/note/170141184507081880896958314240546963456"
+          },
+          {
+            "type": "text",
+            "value": "/1/chan/chat/~nocsyx-lassul/bongtable/msg/170141184506917737058735502437317083136"
+          }
+        ]
+      },
+      "color": {
+        "type": "tint",
+        "value": "61.00ff"
+      },
+      "groups": {
+        "type": "set",
+        "value": [
+          {
+            "type": "flag",
+            "value": "~tasrut-sippyx/raypeat"
+          },
+          {
+            "type": "flag",
+            "value": "~nocsyx-lassul/holy-grail-ui"
+          },
+          {
+            "type": "flag",
+            "value": "~minder-folden/valeria-city"
+          }
+        ]
+      }
+    },
+    {}
+  ],
+  "~pondus-watbel": [
+    {
+      "status": {
+        "type": "text",
+        "value": "☕️ "
+      },
+      "avatar": {
+        "type": "look",
+        "value": "https://storage.googleapis.com/tlon-prod-memex-assets/pondus-watbel/pondus-watbel/2025.4.3..21.57.32..b439.5810.624d.0d2f-2Q=="
+      },
+      "bio": {
+        "type": "text",
+        "value": "There's a bio here :)"
+      },
+      "nickname": {
+        "type": "text",
+        "value": "brian backup"
+      },
+      "groups": {
+        "type": "set",
+        "value": [
+          {
+            "type": "flag",
+            "value": "~latter-bolden/cell-phone-reviews"
+          },
+          {
+            "type": "flag",
+            "value": "~tocref-ripmyr/blatant-obnoxious-professional-networking"
+          },
+          {
+            "type": "flag",
+            "value": "~ronnys-rigwet/bike-shed"
+          },
+          {
+            "type": "flag",
+            "value": "~natnex-ronret/door-link"
+          }
+        ]
+      }
+    },
+    {}
+  ],
+  "~rilfun-lidlen": [
+    {
+      "status": {
+        "type": "text",
+        "value": "out of office, returning ~2025.6.30"
+      },
+      "lanyard-twitter-0-url": {
+        "type": "text",
+        "value": "https://verified.tlon.io/attestations/0w7zVLK.ZNVLN.BP5V7.gvEja.WwsEu.8kYJa.XLJd1.zueci.sHhGX.IGc47.kfa48.hXwpq.GUnow.dlp2B.ahNdx.kX3Jy.ZsEB9"
+      },
+      "lanyard-twitter-0-value": {
+        "type": "text",
+        "value": "nerveharp"
+      },
+      "location": {
+        "type": "text",
+        "value": "{\"type\":\"device\",\"address\":{\"road\":\"North Jennifer Lane\",\"county\":\"Citrus County\",\"state\":\"Florida\",\"ISO3166-2-lvl4\":\"US-FL\",\"country\":\"United States\",\"country_code\":\"us\"},\"placeId\":281724976,\"ianaTimezone\":\"America/New_York\",\"latitude\":28.897799638211612,\"longitude\":-82.28239067210177}"
+      },
+      "links": {
+        "type": "set",
+        "value": [
+          {
+            "type": "text",
+            "value": "{\"url\":\"https://ackl.in/\",\"title\":\"My Website\"}"
+          }
+        ]
+      },
+      "avatar": {
+        "type": "look",
+        "value": "https://dump.nerveharp.net/bucket/rilfun-lidlen/2025.4.23..19.6.59..6e97.8d4f.df3b.0645-9k%3D"
+      },
+      "cover": {
+        "type": "look",
+        "value": ""
+      },
+      "lanyard-twitter-0-since": {
+        "type": "date",
+        "value": "~2025.3.28..19.23.44..e263"
+      },
+      "lanyard-twitter-0-sign": {
+        "type": "text",
+        "value": "0wYvd.ZTKfd.-cKoL.8W3Z2.pnk3B.3N2DB.FntZF.EcrNN.yjBqd.ntBhw.wWxVg.x2fs3.bln2X.41GH8.kFie9.IaDot.InHB4.FfT03.8McjA.Vd3sR.djsMc.P8MdP.kMej4.J07hB.pntQf.0cY79.xq6lS.sClK7.w79Bt.7hFtT.iY0Im.I0Qng.60000.ddEk4.Me9z0.00000.000g0.X6NRp.LwehB.qmpFs.ClS~0.cIxP4.YmtI1"
+      },
+      "bio": {
+        "type": "text",
+        "value": "Tlon Corp 2021—"
+      },
+      "nickname": {
+        "type": "text",
+        "value": "james"
+      },
+      "expose-cites": {
+        "type": "set",
+        "value": [
+          {
+            "type": "text",
+            "value": "/1/chan/chat/~bolbex-fogdys/watercooler-4926/msg/170141184507083306458217928598044540928"
+          },
+          {
+            "type": "text",
+            "value": "/1/chan/chat/~bitpyx-dildus/interface/msg/170141184507016613851521011294043897856"
+          },
+          {
+            "type": "text",
+            "value": "/1/chan/chat/~rilfun-lidlen/s-s-20215/msg/170141184507048871227958870675118096384"
+          }
+        ]
+      },
+      "groups": {
+        "type": "set",
+        "value": [
+          {
+            "type": "flag",
+            "value": "~rilfun-lidlen/v6qo1"
+          },
+          {
+            "type": "flag",
+            "value": "~rilfun-lidlen/fashion"
+          },
+          {
+            "type": "flag",
+            "value": "~ronnys-rigwet/bike-shed"
+          },
+          {
+            "type": "flag",
+            "value": "~rilfun-lidlen/autoverse"
+          }
+        ]
+      }
+    },
+    {}
+  ],
+  "~fabled-faster": [
+    {
+      "status": {
+        "type": "text",
+        "value": "💭💭💭💭💭💭💭💭"
+      },
+      "lanyard-phone-0-url": {
+        "type": "text",
+        "value": "https://verified.tlon.io/attestations/0w8HJal.rHS8J.7Tojc.Onq-C.Inync.b5Nkm.r6gi5.YwRXW.7APtK.Zehi8.h0nGI.6h9K-.T~nZj.qAdyq.E3n97.qHUnI.Ya6MB"
+      },
+      "avatar": {
+        "type": "look",
+        "value": "https://storage.googleapis.com/tlon-prod-memex-assets/fabled-faster/fabled-faster/2025.3.23..2.4.2..cdd2.f1a9.fbe7.6c8b-3415B5B7-D5B6-4A42-A358-263ED5DBEAB3.jpg"
+      },
+      "cover": {
+        "type": "look",
+        "value": "https://storage.googleapis.com/tlon-prod-memex-assets/fabled-faster/fabled-faster/2024.10.8..20.3.17..d1a9.fbe7.6c8b.4395-B5EA7E39-F49D-4F6B-942F-8E20C93FFC28.jpg"
+      },
+      "bio": {
+        "type": "text",
+        "value": "alive\nL\nL\nL\nL\nL\nL\nL\nL\nL\nL\nL"
+      },
+      "lanyard-phone-0-since": {
+        "type": "date",
+        "value": "~2025.4.7..16.07.57..9096"
+      },
+      "nickname": {
+        "type": "text",
+        "value": "édouard"
+      },
+      "lanyard-phone-0-sign": {
+        "type": "text",
+        "value": "0w15tF.iHtuN.5E-X2.pCiXn.QRyYi.VxoKa.yPoO2.gLA6L.vgYCr.JTFOa.h282Z.lwO9d.TS~W~.GrkxI.jl0qV.8Xlv2.ZDxgS.4LV03.aTdXg.U7wfj.-6STM.60000.ddF85.Tp2m0.00000.000g0.VCNxq.fwehB.qmpFs.ClS~0.cIxP4.YmtI1"
+      },
+      "expose-cites": {
+        "type": "set",
+        "value": []
+      },
+      "color": {
+        "type": "tint",
+        "value": "db.dde9"
+      },
+      "groups": {
+        "type": "set",
+        "value": [
+          {
+            "type": "flag",
+            "value": "~tommur-dostyn/tlon-studio"
+          },
+          {
+            "type": "flag",
+            "value": "~fabled-faster/storage"
+          },
+          {
+            "type": "flag",
+            "value": "~dacler-ricwyt/new-new-new-york"
+          },
+          {
+            "type": "flag",
+            "value": "~topdem/structure"
+          },
+          {
+            "type": "flag",
+            "value": "~nibset-napwyn/tlon"
+          }
+        ]
+      }
+    },
+    {}
+  ],
+  "~latter-bolden": [
+    {
+      "status": {
+        "type": "text",
+        "value": ""
+      },
+      "avatar": {
+        "type": "look",
+        "value": ""
+      },
+      "bio": {
+        "type": "text",
+        "value": ""
+      },
+      "nickname": {
+        "type": "text",
+        "value": "brian"
+      },
+      "expose-cites": {
+        "type": "set",
+        "value": []
+      },
+      "color": {
+        "type": "tint",
+        "value": "0"
+      },
+      "groups": {
+        "type": "set",
+        "value": []
+      }
+    },
+    {}
+  ],
+  "~dovsem-bornyl": [
+    {
+      "status": {
+        "type": "text",
+        "value": "🇺🇸🚀 moon should be a state"
+      },
+      "lanyard-twitter-0-url": {
+        "type": "text",
+        "value": "https://verified.tlon.io/attestations/0wdOyWY.ZzA2P.TSQEt.er6~G.fjfSK.3sxfo.PWMgf.ENNcT.raJ3m.hSU7X.Sokw7.5S6wL.3iB6D.jXSji.w~gw7.OYyiT.4cSoG"
+      },
+      "lanyard-phone-0-url": {
+        "type": "text",
+        "value": "https://verified.tlon.io/attestations/0w4JV8Q.1ejz3.YLfeY.~mFCa.vXZ7V.V4HzO.lKjnD.o9BAt.f-76F.ZOxDi.7CRfV.uo-uH.baXh4.tJNma.8tiqB.QtV9T.o04Ib"
+      },
+      "lanyard-twitter-0-value": {
+        "type": "text",
+        "value": "zachalberico"
+      },
+      "avatar": {
+        "type": "look",
+        "value": "https://s3-dovsem-bornyl.zalberico.com/bucket/dovsem-bornyl/2024.3.12..12.20.52..87ef.9db2.2d0e.5604-IMG_8607.jpeg"
+      },
+      "cover": {
+        "type": "look",
+        "value": "https://s3-dovsem-bornyl.zalberico.com/bucket/dovsem-bornyl/2023.4.25..00.22.49-urbit-sea.jpg"
+      },
+      "lanyard-twitter-0-since": {
+        "type": "date",
+        "value": "~2025.4.5..19.14.02..eba0"
+      },
+      "lanyard-twitter-0-sign": {
+        "type": "text",
+        "value": "0w3sE.KLfoV.0IZZJ.a7jCN.LWzQP.ZHwT8.jSc-I.43Wcs.jdSOH.gRAtK.1-ZC5.81Ntx.EbMQF.hFQ-Z.AQEfQ.81YL8.AJN3d.CaLO0.61Eq6.1Mr79.Mp61C.sD1Oq.D1wsC.9q0ez.aOKXE.u0pTI.riVcH.4Scbg.NIbQ~.0ejaW.eziXK.BU1pV.f65~M.60000.ddE-e.uKKw0.00000.000g0.X6NRp.LwehB.qmpFs.ClS~0.cIxP4.YmtI1"
+      },
+      "bio": {
+        "type": "text",
+        "value": "PLTR -\u003E TLÖN -\u003E PLTR \n\nhttps://zalberico.com/"
+      },
+      "lanyard-phone-0-since": {
+        "type": "date",
+        "value": "~2025.4.5..19.14.42..e4ee"
+      },
+      "nickname": {
+        "type": "text",
+        "value": "Zach (~dovsem-bornyl)"
+      },
+      "lanyard-phone-0-sign": {
+        "type": "text",
+        "value": "0wBL9.6w9Os.ovBVV.TDWRc.Nj~vE.~f8Bs.uiJOq.YX1cI.zF~MU.RfKkc.WgYSF.~bP7P.Rppnq.8zJKa.Nh3Gj.kKzL9.eX00B.xvT03.aTdXg.U7w9V.f65~M.60000.ddE-e.EKjK0.00000.000g0.VCNxq.fwehB.qmpFs.ClS~0.cIxP4.YmtI1"
+      },
+      "color": {
+        "type": "tint",
+        "value": "ff.7300"
+      },
+      "groups": {
+        "type": "set",
+        "value": [
+          {
+            "type": "flag",
+            "value": "~raldeg/nativeplanet"
+          },
+          {
+            "type": "flag",
+            "value": "~dovsem-bornyl/sf-bay-area"
+          },
+          {
+            "type": "flag",
+            "value": "~dovsem-bornyl/autoverse"
+          }
+        ]
+      }
+    },
+    {}
+  ]
+}

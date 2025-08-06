@@ -760,6 +760,72 @@ export const getChannelsForPredictiveSync = createReadQuery(
   ['channels']
 );
 
+export const getMentionCandidates = createReadQuery(
+  'getMentionCandidates',
+  async (
+    {
+      chatId,
+      limit = 4,
+      query,
+    }: { chatId: string; limit?: number; query: string },
+    ctx: QueryCtx
+  ) => {
+    if (!(query = query.trim())) return [];
+
+    const idSearchTerm = `~${query.toLowerCase()}%`;
+    const searchTerm = `${query.toLowerCase()}%`;
+
+    const candidatesQuery = ctx.db
+      .select({
+        id: $contacts.id,
+        nickname: $contacts.nickname,
+        avatarImage: $contacts.avatarImage,
+        bio: $contacts.bio,
+        status: $contacts.status,
+        color: $contacts.color,
+        membershipType: $chatMembers.membershipType,
+        joinedAt: $chatMembers.joinedAt,
+        isBlocked: $contacts.isBlocked,
+        // Priority: 1 = group members, 2 = other contacts, 3 = other group members
+        priority: sql<number>`
+          CASE 
+            WHEN ${$chatMembers.chatId} = ${chatId} THEN 1
+            WHEN ${$contacts.isContact} = true THEN 2
+            ELSE 3
+          END
+        `.as('priority'),
+      })
+      .from($contacts)
+      .leftJoin(
+        $chatMembers,
+        and(
+          eq($chatMembers.contactId, $contacts.id),
+          eq($chatMembers.chatId, chatId)
+        )
+      )
+      .where(
+        and(
+          // Match the search term against id or nickname
+          or(
+            sql`${$contacts.id} LIKE ${idSearchTerm}`,
+            sql`COALESCE(${$contacts.nickname}, '') LIKE ${searchTerm}`
+          ),
+          or(isNull($contacts.isBlocked), eq($contacts.isBlocked, false))
+        )
+      )
+      .groupBy($contacts.id, $chatMembers.membershipType, $chatMembers.joinedAt)
+      .orderBy(
+        // Order by priority first, then by whether they're a contact, then alphabetically
+        asc(sql`priority`),
+        desc($contacts.isContact),
+        asc(sql`${$contacts.nickname}, ${$contacts.id}`)
+      )
+      .limit(limit);
+    return candidatesQuery;
+  },
+  ['chatMembers', 'contacts']
+);
+
 export const getChats = createReadQuery(
   'getChats',
   async (
