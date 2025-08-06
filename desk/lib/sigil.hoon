@@ -1,4 +1,4 @@
-/*  symbols  %jam  /lib/sigil/symbols/jam
+/*  symbols-data  %jam  /lib/sigil/symbols/jam
 ::  sigil: @p svg generation
 ::
 ::    usage: do a named import, then invoke as a function:
@@ -168,7 +168,7 @@
     ::  *=groups=/lib/sigil/symbols/jam _jam -build-file /=groups=/lib/sigil/symbols/hoon
     ^~
     =/  svgs=(map cord (list manx))
-      !<((map cord (list manx)) [-:!>(*(map cord (list manx))) (cue symbols)])
+      ;;((map cord (list manx)) (cue symbols-data))
     |=  [p=cord fg=tape bg=tape]
     ^-  (list manx)
     =/  m=(list manx)  (~(got by svgs) p)

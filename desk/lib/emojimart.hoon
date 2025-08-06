@@ -75,5 +75,5 @@
 ::         *=groups=/lib/emojimart/emoji/jam _jam -build-file /=groups=/lib/emojimart/emoji/hoon
 ::
 ++  data
-  ^~  !<((map @t mote) [-:!>(*(map @t mote)) (cue emoji-data)])
+  ^~  ;;((map @t mote) (cue emoji-data))
 --
