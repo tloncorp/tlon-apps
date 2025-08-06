@@ -2782,8 +2782,13 @@
         ?:  =(%$ start.pole)  1
         (slav %ud start.pole)
       =/  end=@ud
-        ?:  =(%$ end.pole)  (wyt:on posts.channel)  ::TODO  better end
-        (slav %ud end.pole)
+        ?.  =(%$ end.pole)
+          (slav %ud end.pole)
+        ?~  latest=(ram:on posts.channel)  1
+        ?-  -.val.u.latest
+          %&  seq.val.u.latest
+          %|  seq.val.u.latest
+        ==
       %-  give-posts
       :+  mode.pole  version
       ::  queries near end more common, so we make a newest-first list,
