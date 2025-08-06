@@ -170,6 +170,7 @@ async function runTest(): Promise<void> {
       ...playwrightFlags,
       testFile,
       '--retries=0',
+      '--reporter=list', // Use list reporter instead of HTML to avoid serving report
     ];
 
     const testProcess = childProcess.spawn('npx', args, {
