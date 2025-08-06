@@ -10,11 +10,6 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
   // Assert that we're on the Home page
   await expect(zodPage.getByText('Home')).toBeVisible();
 
-  // Clean up any existing group on zod
-  await helpers.cleanupExistingGroup(zodPage, 'Test Group');
-  await helpers.cleanupExistingGroup(zodPage, '~ten, ~zod');
-  await helpers.cleanupExistingGroup(zodPage);
-
   // Create a new group
   await helpers.createGroup(zodPage);
   const groupName = '~ten, ~zod';
@@ -147,7 +142,4 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
   await expect(
     zodPage.getByText('You have hidden or reported this post').first()
   ).not.toBeVisible();
-
-  // Clean up
-  await helpers.cleanupExistingGroup(zodPage);
 });

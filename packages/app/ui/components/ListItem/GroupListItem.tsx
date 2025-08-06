@@ -191,6 +191,7 @@ export const GroupListItem = ({
                     count={unreadCount}
                     muted={logic.isMuted(model.volumeSettings?.level, 'group')}
                     marginTop={isWeb ? 3 : 'unset'}
+                    testID="UnreadCount"
                   />
                 </>
               )}

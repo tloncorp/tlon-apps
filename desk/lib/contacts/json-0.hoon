@@ -37,7 +37,7 @@
     ::
         =-  groups+a+-
         %-  ~(rep in groups.c)
-        |=([f=flag:g j=(list json)] [s+(flag:enjs:gj f) j])
+        |=([f=flag:g j=(list json)] [(flag:enjs:gj f) j])
     ==
   ::
   ++  field
@@ -51,8 +51,8 @@
       %color      s+(rsh 3^2 (scot %ux color.f))  :: XX confirm
       %avatar     ?~(avatar.f ~ s+u.avatar.f)
       %cover      ?~(cover.f ~ s+u.cover.f)
-      %add-group  s+(flag:enjs:gj flag.f)
-      %del-group  s+(flag:enjs:gj flag.f)
+      %add-group  (flag:enjs:gj flag.f)
+      %del-group  (flag:enjs:gj flag.f)
     ==
   ::
   ++  rolodex

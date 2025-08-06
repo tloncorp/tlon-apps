@@ -90,8 +90,7 @@ const ConnectedAction = memo(function ConnectedAction({
         // only show start thread if
         // 1. the message is delivered
         // 2. the message isn't a reply
-        // 3. an existing thread for that message doesn't already exist
-        return !post.deliveryStatus && !post.parentId && post.replyCount === 0;
+        return !post.deliveryStatus && !post.parentId;
       case 'muteThread':
         // only show mute for threads
         return post.parentId;
@@ -117,7 +116,6 @@ const ConnectedAction = memo(function ConnectedAction({
     actionId,
     post.deliveryStatus,
     post.parentId,
-    post.replyCount,
     post.authorId,
     post.reactions?.length,
     currentUserId,

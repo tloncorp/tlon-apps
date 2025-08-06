@@ -88,5 +88,7 @@ export const useChannelContext = ({
     editPost,
     channel: channelQuery.data ?? null,
     group: groupQuery.data ?? null,
+    groupIsLoading: groupQuery.isLoading,
+    groupError: groupQuery.error,
   } as const;
 };
