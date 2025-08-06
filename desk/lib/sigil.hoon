@@ -18,7 +18,7 @@
 ::      what we do here is assume an svg _canvas_ of 128x128, draw the
 ::      symbols at their original sizes, and then scale them down to fit.
 ::
-/+  sigil-symbols
+/+  symbol=sigil-symbols
 ::
 ::  config
 ::
@@ -158,11 +158,10 @@
     ::TODO  exclude if both 0
     =+  (plan:pos i)
     ;g(transform (transform `[(sun:rd (mul x 128)) (sun:rd (mul y 128))] ~))
-      ;*  =+  ((symbol i.noms) fg bg)
+      ;*  =+  (symbol i.noms fg bg)
           ?.(icon - (scag 1 -))
     ==
   ::
-  ++  symbol  ~(got by sigil-symbols)
   ::
   ++  transform  ::TODO  take manx instead so we can omit attr entirely?
     |=  [translate=(unit [x=@rd y=@rd]) scale=(unit @rd)]
