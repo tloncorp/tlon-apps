@@ -21,6 +21,7 @@ import { ColorTokens, styled } from 'tamagui';
 import { useChannelContext, useNavigation, useRequests } from '../../contexts';
 import { ALL_MENTION_ID } from '../BareChatInput/useMentions';
 import { useContactName } from '../ContactNameV2';
+import { useContentContext } from './contentUtils';
 
 export const CodeText = styled(Text, {
   name: 'CodeText',
@@ -44,6 +45,12 @@ export const BoldText = styled(RawText, {
 export const ItalicText = styled(RawText, {
   name: 'ItalicText',
   fontStyle: 'italic',
+});
+
+export const HighlightedText = styled(RawText, {
+  name: 'HighlightedText',
+  backgroundColor: '$yellowSoft',
+  color: '$primaryText',
 });
 
 export const MentionText = styled(Text, {
@@ -124,6 +131,26 @@ export function InlineStyle({
   );
 }
 
+function highlightSearchTerm(
+  text: string,
+  searchQuery: string
+): React.ReactNode {
+  if (!searchQuery || searchQuery.trim() === '') {
+    return text;
+  }
+
+  const parts = text.split(
+    new RegExp(`(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
+  );
+
+  return parts.map((part, index) => {
+    if (part.toLowerCase() === searchQuery.toLowerCase()) {
+      return <HighlightedText key={index}>{part}</HighlightedText>;
+    }
+    return part;
+  });
+}
+
 export function InlineText({
   inline,
   color,
@@ -131,6 +158,17 @@ export function InlineText({
   inline: TextInlineData;
   color?: ColorTokens;
 }) {
+  const { searchQuery } = useContentContext();
+
+  if (searchQuery) {
+    const highlightedText = highlightSearchTerm(inline.text, searchQuery);
+    return color ? (
+      <RawText color={color}>{highlightedText}</RawText>
+    ) : (
+      highlightedText
+    );
+  }
+
   return color ? <RawText color={color}>{inline.text}</RawText> : inline.text;
 }
 

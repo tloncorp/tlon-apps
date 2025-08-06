@@ -56,6 +56,7 @@ function ContentRenderer({
   onPressImage,
   onLongPress,
   isNotice,
+  searchQuery,
   ...rest
 }: ContentRendererProps & {
   content: PostContent;
@@ -65,6 +66,7 @@ function ContentRenderer({
       onPressImage={onPressImage}
       onLongPress={onLongPress}
       isNotice={isNotice}
+      searchQuery={searchQuery}
     >
       <ContentRendererFrame {...rest}>
         {content.map((block, k) => {
