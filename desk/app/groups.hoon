@@ -3028,7 +3028,6 @@
       ?>  (gte time.update time.net)
       [%sub time.update init.net]
     =*  u-group  u-group.update
-    ~&  go-u-group+update
     ?-  -.u-group
       %create        (go-u-create group.u-group)
       %meta          (go-u-meta data.u-group)
@@ -3201,7 +3200,6 @@
   ++  go-u-seat
     |=  [ships=(set ship) =u-seat:g]
     ^+  go-core
-    ~&  go-u-seat+[ships u-seat]
     ?-    -.u-seat
         %add
       =.  go-core  (go-response %seat ships [%add seat.u-seat])
