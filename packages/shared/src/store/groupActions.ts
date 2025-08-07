@@ -1061,10 +1061,6 @@ export async function banUserFromGroup({
     return;
   }
 
-  if (existingGroup.privacy !== 'public') {
-    console.error('Group is not public', groupId);
-    return;
-  }
   // optimistic update
   await db.addGroupMemberBans({
     groupId,

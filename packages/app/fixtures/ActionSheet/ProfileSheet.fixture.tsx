@@ -3,11 +3,9 @@ import { brianContact } from '../fakeData';
 
 const ProfileSheetFixture = ({
   admin,
-  groupIsOpen,
   userIsBanned,
 }: {
   admin: boolean;
-  groupIsOpen: boolean;
   userIsBanned: boolean;
 }) => {
   return (
@@ -17,7 +15,6 @@ const ProfileSheetFixture = ({
       contact={brianContact}
       contactId={brianContact.id}
       currentUserIsAdmin={admin}
-      groupIsOpen={groupIsOpen}
       userIsBanned={userIsBanned}
       onPressBan={() => {}}
       onPressKick={() => {}}
@@ -29,29 +26,27 @@ const ProfileSheetFixture = ({
 export default {
   genericProfileSheet: (
     <AppDataContextProvider contacts={[brianContact]}>
-      <ProfileSheetFixture
-        admin={false}
-        groupIsOpen={true}
-        userIsBanned={false}
-      />
+      <ProfileSheetFixture admin={false} userIsBanned={false} />
     </AppDataContextProvider>
   ),
   groupMemberProfileSheetForAdmin: (
     <AppDataContextProvider contacts={[brianContact]}>
-      <ProfileSheetFixture
-        admin={true}
-        groupIsOpen={true}
-        userIsBanned={false}
-      />
+      <ProfileSheetFixture admin={true} userIsBanned={false} />
     </AppDataContextProvider>
   ),
   noContact: (
     <AppDataContextProvider contacts={[]}>
-      <ProfileSheetFixture
-        admin={true}
-        groupIsOpen={true}
-        userIsBanned={false}
-      />
+      <ProfileSheetFixture admin={true} userIsBanned={false} />
+    </AppDataContextProvider>
+  ),
+  privateGroupAdmin: (
+    <AppDataContextProvider contacts={[brianContact]}>
+      <ProfileSheetFixture admin={true} userIsBanned={false} />
+    </AppDataContextProvider>
+  ),
+  secretGroupAdmin: (
+    <AppDataContextProvider contacts={[brianContact]}>
+      <ProfileSheetFixture admin={true} userIsBanned={false} />
     </AppDataContextProvider>
   ),
 };

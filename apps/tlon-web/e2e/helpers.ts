@@ -140,12 +140,20 @@ export async function rejectGroupInvite(page: Page) {
 }
 
 export async function deleteGroup(page: Page, groupName?: string) {
+  await expect(page.getByTestId('GroupLeaveAction-Delete group')).toBeVisible({
+    timeout: 10000,
+  });
   await page.getByTestId('GroupLeaveAction-Delete group').click();
   await expect(
     page.getByText(`Delete ${groupName || 'Untitled group'}?`)
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 10000 });
+  await expect(
+    page.getByTestId('ActionSheetAction-Delete group').first()
+  ).toBeVisible({ timeout: 10000 });
   await page.getByTestId('ActionSheetAction-Delete group').click();
-  await expect(page.getByText(groupName || 'Untitled group')).not.toBeVisible();
+  await expect(page.getByText(groupName || 'Untitled group')).not.toBeVisible({
+    timeout: 20000,
+  });
 }
 
 export async function openGroupSettings(page: Page) {
@@ -293,6 +301,80 @@ export async function unassignRoleFromMember(
   await page.getByRole('dialog').getByText(roleName).click(); // This should unassign the role
 
   await page.waitForTimeout(2000);
+}
+
+/**
+ * Bans a user from a group
+ */
+export async function banUserFromGroup(page: Page, memberName: string) {
+  // Navigate to members page - always navigate since we might be in wrong context
+  await openGroupSettings(page);
+  await page.getByTestId('GroupMembers').click();
+
+  // Wait for members page to load - wait for member rows to appear
+  await page.waitForTimeout(2000);
+  await expect(page.getByTestId('MemberRow').first()).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Find and click on the member
+  await page.getByTestId('MemberRow').filter({ hasText: memberName }).click();
+
+  await expect(page.getByText('Ban User')).toBeVisible();
+  await page.getByText('Ban User').click();
+
+  // Wait for the action to complete and sheet to close
+  await page.waitForTimeout(3000);
+
+  // Close sheet if still open by pressing Escape
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(1000);
+}
+
+/**
+ * Unbans a user from a group
+ */
+export async function unbanUserFromGroup(page: Page, memberName: string) {
+  // Navigate to members page - always navigate since we might be in wrong context
+  await openGroupSettings(page);
+  await page.getByTestId('GroupMembers').click();
+
+  // Wait for members page to load - wait for member rows to appear
+  await page.waitForTimeout(2000);
+  await expect(page.getByTestId('MemberRow').first()).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Scroll down to find banned users section
+  await page.getByTestId('MemberRow').filter({ hasText: memberName }).click();
+
+  await expect(page.getByText('Unban User')).toBeVisible();
+  await page.getByText('Unban User').click();
+
+  await page.waitForTimeout(2000); // Wait for unban to complete
+}
+
+/**
+ * Kicks a user from a group
+ */
+export async function kickUserFromGroup(page: Page, memberName: string) {
+  // Navigate to members page - always navigate since we might be in wrong context
+  await openGroupSettings(page);
+  await page.getByTestId('GroupMembers').click();
+
+  // Wait for members page to load - wait for member rows to appear
+  await page.waitForTimeout(2000);
+  await expect(page.getByTestId('MemberRow').first()).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Find and click on the member
+  await page.getByTestId('MemberRow').filter({ hasText: memberName }).click();
+
+  await expect(page.getByText('Kick User')).toBeVisible();
+  await page.getByText('Kick User').click();
+
+  await page.waitForTimeout(2000); // Wait for kick to complete
 }
 
 /**
@@ -483,12 +565,29 @@ export async function toggleChatPin(page: Page) {
 /**
  * Changes group privacy setting
  */
-export async function setGroupPrivacy(page: Page, isPrivate: boolean) {
+export async function setGroupPrivacy(
+  page: Page,
+  privacy: 'public' | 'private' | 'secret'
+) {
   await page.getByText('Privacy').click();
-  if (isPrivate) {
-    await page.getByText('Private', { exact: true }).click();
+
+  await expect(page.getByText('Group privacy')).toBeVisible();
+
+  if (privacy === 'private') {
+    await page
+      .getByTestId('GroupPrivacyScreen-RadioInput')
+      .getByText('Private', { exact: true })
+      .click();
+  } else if (privacy === 'secret') {
+    await page
+      .getByTestId('GroupPrivacyScreen-RadioInput')
+      .getByText('Secret', { exact: true })
+      .click();
   } else {
-    await page.getByText('Public', { exact: true }).click();
+    await page
+      .getByTestId('GroupPrivacyScreen-RadioInput')
+      .getByText('Public', { exact: true })
+      .click();
   }
 }
 
