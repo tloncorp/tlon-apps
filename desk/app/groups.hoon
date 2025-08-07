@@ -808,11 +808,20 @@
       ?.  ?=([%contact ~] wire)  caz
       :_  caz
       [%pass wire %agent dock %leave ~]
-    ::  schedule foreigns and admissions migration
+    ::  clean up old group updates subscriptions
+    ::
+    =.  caz
+      %+  roll  ~(tap by wex.bowl)
+      |=  [[[=wire =dock] *] =_caz]
+      ?.  ?=([%groups @ @ %updates ~] wire)  caz
+      :_  caz
+      [%pass wire %agent dock %leave ~]
+    ::  schedule foreigns, admissions and groups subscription migrations
     ::
     =.  caz
       :-  [%pass /load/v7/foreigns %arvo %b %wait now.bowl]
       :-  [%pass /load/v7/admissions %arvo %b %wait now.bowl]
+      :-  [%pass /load/v7/subscriptions %arvo %b %wait now.bowl]
       caz
     =/  channels-index=(map nest:g flag:g)
       %-  ~(gas by *(map nest:g flag:g))
@@ -1279,6 +1288,19 @@
       %+  weld  /server/(scot %p our.bowl)/[q.flag]
       /invite/retry/(scot %p ship)/(scot %ud retry)/(scot %dr delay)
     (emit [%pass wire %arvo %b %wait (add now.bowl delay)])
+  ::
+      ::  v6 -> v7 migrate group subscriptions
+      ::
+      ::  the group updates subscription path has changed,
+      ::  so we must re-subscribe on the new path post load.
+      ::
+      [%load %v7 %subscriptions ~]
+    =.  cor
+      %+  roll
+        ~(tap by groups)
+      |=  [[=flag:g [=net:g *]] =_cor]
+      go-abet:(go-safe-sub:(go-abed:go-core:cor flag) |)
+    cor
   ==
 ::  does not overwite if wire and dock exist.  maybe it should
 ::  leave/rewatch if the path differs?
@@ -2976,12 +2998,7 @@
       ?^  p.sign
         %-  (fail:log %watch-ack 'group watch failed' u.p.sign)
         ?.  (~(has by foreigns) flag)
-          ::TODO  this should not be possible, but if it happens
-          ::      we don't have an invitation, and thus no way to rejoin.
-          ::      the user will still see the group, but it is going
-          ::      to be stale. it would be best to somehow surface
-          ::      it at the frontend.
-          ::
+          %-  (tell:log %crit 'misguided group watch-ack' ~)
           go-core
         ::  join in progress, set error and leave the group
         ::  to allow re-joining.
