@@ -1295,12 +1295,7 @@
       ::  so we must re-subscribe on the new path post load.
       ::
       [%load %v7 %subscriptions ~]
-    =.  cor
-      %+  roll
-        ~(tap by groups)
-      |=  [[=flag:g [=net:g *]] =_cor]
-      go-abet:(go-safe-sub:(go-abed:go-core:cor flag) |)
-    cor
+    inflate-io
   ==
 ::  does not overwite if wire and dock exist.  maybe it should
 ::  leave/rewatch if the path differs?
@@ -2998,6 +2993,12 @@
       ?^  p.sign
         %-  (fail:log %watch-ack 'group watch failed' u.p.sign)
         ?.  (~(has by foreigns) flag)
+          ::TODO  this should not be possible, but if it happens
+          ::      we don't have an invitation, and thus no way to rejoin.
+          ::      the user will still see the group, but it is going
+          ::      to be stale. it would be best to somehow surface
+          ::      it at the client.
+          ::
           %-  (tell:log %crit 'misguided group watch-ack' ~)
           go-core
         ::  join in progress, set error and leave the group
