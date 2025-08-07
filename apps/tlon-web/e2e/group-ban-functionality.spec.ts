@@ -107,6 +107,36 @@ test.describe('Group Ban and Kick Functionality', () => {
     await expect(
       tenPage.getByTestId('ChatListItem-Untitled group-unpinned')
     ).not.toBeVisible({ timeout: 5000 });
+    
+    // Navigate to group settings to re-invite
+    await helpers.openGroupSettings(zodPage);
+    
+    // Re-invite ~ten to the group (now that they've been unbanned)
+    await zodPage.getByText('Invite people').click();
+    await zodPage.getByPlaceholder('Filter by nickname, @p').fill('~ten');
+    await zodPage.waitForTimeout(1000);
+    await zodPage.getByTestId('ContactRow').getByText('~ten').first().click();
+    await zodPage.getByText('Invite 1 and continue').click();
+    await zodPage.waitForTimeout(3000); // Wait for invite to propagate
+    
+    // Refresh ~ten's page to ensure invite appears
+    await tenPage.reload();
+    await tenPage.waitForTimeout(2000);
+    
+    // ~ten accepts re-invite
+    await expect(tenPage.getByText('Group invitation')).toBeVisible({
+      timeout: 15000,
+    });
+    await tenPage.getByText('Group invitation').click();
+    await tenPage.getByText('Accept invite').click();
+    await tenPage.waitForSelector('text=Joining, please wait...');
+    await tenPage.waitForSelector('text=Go to group', { state: 'visible' });
+    await tenPage.getByText('Go to group').click();
+    
+    // Verify ~ten can access the group again after being unbanned and re-invited
+    await expect(tenPage.getByTestId('ChannelListItem-General')).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test('should allow banning and unbanning users in private groups', async ({
@@ -460,5 +490,36 @@ test.describe('Group Ban and Kick Functionality', () => {
     
     // There should be no "Banned Users" section after a kick (only after ban)
     await expect(zodPage.getByText('Banned Users')).not.toBeVisible({ timeout: 2000 });
+    
+    // Navigate back to group settings to re-invite (no unban needed for kicks)
+    await helpers.navigateBack(zodPage);
+    await helpers.openGroupSettings(zodPage);
+    
+    // Re-invite ~ten immediately (no unban required after kick)
+    await zodPage.getByText('Invite people').click();
+    await zodPage.getByPlaceholder('Filter by nickname, @p').fill('~ten');
+    await zodPage.waitForTimeout(1000);
+    await zodPage.getByTestId('ContactRow').getByText('~ten').first().click();
+    await zodPage.getByText('Invite 1 and continue').click();
+    await zodPage.waitForTimeout(3000); // Wait for invite to propagate
+    
+    // Refresh ~ten's page to ensure invite appears
+    await tenPage.reload();
+    await tenPage.waitForTimeout(2000);
+    
+    // ~ten accepts re-invite
+    await expect(tenPage.getByText('Group invitation')).toBeVisible({
+      timeout: 15000,
+    });
+    await tenPage.getByText('Group invitation').click();
+    await tenPage.getByText('Accept invite').click();
+    await tenPage.waitForSelector('text=Joining, please wait...');
+    await tenPage.waitForSelector('text=Go to group', { state: 'visible' });
+    await tenPage.getByText('Go to group').click();
+    
+    // Verify ~ten can access the group again after being kicked and re-invited
+    await expect(tenPage.getByTestId('ChannelListItem-General')).toBeVisible({
+      timeout: 10000,
+    });
   });
 });
