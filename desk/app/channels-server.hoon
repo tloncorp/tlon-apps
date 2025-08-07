@@ -430,7 +430,7 @@
       [i ?-(-.p %& `seq.p, %| `seq.p)]
     ::
         [%send-tombstones *]
-      =+  !<([%send-tombstones =nest:c] vase)
+      =+  ;;([%send-tombstones =nest:c] q.vase)
       ?~  can=(~(get by v-channels) nest)  cor
       =;  =cage
         (emit [%pass /tombstones %agent [src.bowl %channels] %poke cage])
