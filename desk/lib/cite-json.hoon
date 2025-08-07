@@ -1,55 +1,62 @@
 /-  c=cite
-/+  j=groups-json
 |%
 ++  enjs
   =,  enjs:format
+  =>
+    |%
+    ++  flag
+      |=  f=flag:c
+      (rap 3 (scot %p p.f) '/' q.f ~)
+    ++  nest
+      |=  n=nest:c
+      (rap 3 p.n '/' (flag q.n) ~)
+    --
   |=  =cite:c
   %+  frond  -.cite
   ?-    -.cite
-      %group  s/(flag:enjs:j flag.cite)
+      %group  s/(flag flag.cite)
   ::
       %desk
     %-  pairs
-    :~  flag/s/(flag:enjs:j flag.cite)
+    :~  flag/s/(flag flag.cite)
         where/s/(spat wer.cite)
     ==
   ::
       %chan
     %-  pairs
-    :~  nest/s/(nest:enjs:j nest.cite)
+    :~  nest/s/(nest nest.cite)
         where/s/(spat wer.cite)
     ==
   ::
       %bait
     %-  pairs
-    :~  group/s/(flag:enjs:j grp.cite)
-        graph/s/(flag:enjs:j gra.cite)
+    :~  group/s/(flag grp.cite)
+        graph/s/(flag gra.cite)
         where/s/(spat wer.cite)
     ==
   ==
 ::
 ++  dejs
   =,  dejs:format
+  =>
+    |%
+    ++  ship  ;~(pfix sig fed:ag)
+    ++  flag  ;~((glue fas) ship sym)
+    ++  nest  ;~((glue fas) sym flag)
+    --
   ^-  $-(json cite:c)
   %-  of
-  :~  group/flag:dejs:j
+  :~  group/(su flag)
       ::
       :-  %desk
       %-  ot
-      :~  flag/flag:dejs:j
+      :~  flag/(su flag)
           where/pa
       ==
       ::
       :-  %chan
       %-  ot
-      :~  nest/nest:dejs:j
-          where/pa
-      ==
-      ::
-      :-  %bait
-      %-  ot
-      :~  group/flag:dejs:j
-          graph/flag:dejs:j
+      :~  nest/(su nest)
           where/pa
       ==
   ==

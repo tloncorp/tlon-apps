@@ -616,7 +616,10 @@ export async function longPressMessage(page: Page, messageText: string) {
  */
 export async function startThread(page: Page, messageText: string) {
   await longPressMessage(page, messageText);
-  await page.getByText('Reply').click();
+  // Use exact match to avoid ambiguity with "1 reply" text
+  await expect(page.getByText('Reply', { exact: true })).toBeVisible();
+  await page.waitForTimeout(500);
+  await page.getByText('Reply', { exact: true }).click();
   await page.waitForTimeout(500);
   await expect(page.getByRole('textbox', { name: 'Reply' })).toBeVisible();
 }
@@ -679,19 +682,25 @@ export async function quoteReply(
   await longPressMessage(page, originalMessage);
   await page.getByText('Quote', { exact: true }).click();
 
-  // Verify quote interface appears
+  // In DM context, there's no "Chat Post" text, just quoted content in input
   if (!isDM) {
     await expect(page.getByText('Chat Post')).toBeVisible();
+    await expect(page.getByText(originalMessage).nth(1)).toBeVisible(); // Quote shows original
   }
-  await expect(page.getByText(originalMessage).nth(1)).toBeVisible(); // Quote shows original
 
-  await page.getByTestId('MessageInput').click();
-  if (!isDM) {
-    await page.fill('[data-testid="MessageInput"]', replyText);
+  const messageInput = page.getByTestId('MessageInput');
+  await messageInput.click();
+
+  if (isDM) {
+    // In DMs, the quote is already inserted as "> originalMessage"
+    // We need to append our reply text to the existing quoted content
+    const currentValue = await messageInput.inputValue();
+    await messageInput.fill(currentValue + '\n' + replyText);
   } else {
-    const inputText = await page.getByTestId('MessageInput').inputValue();
-    await page.getByTestId('MessageInput').fill(inputText + replyText);
+    // In group channels, we can just fill the reply text
+    await messageInput.fill(replyText);
   }
+
   await page.getByTestId('MessageInputSendButton').click();
 
   await expect(
@@ -705,7 +714,8 @@ export async function quoteReply(
 export async function threadQuoteReply(
   page: Page,
   originalMessage: string,
-  replyText: string
+  replyText: string,
+  isDM = false
 ) {
   // Use the thread-specific message interaction
   await page.getByText(originalMessage).first().click();
@@ -714,13 +724,26 @@ export async function threadQuoteReply(
   await page.waitForTimeout(500);
   await page.getByText('Quote', { exact: true }).click();
 
-  // Verify quote interface appears
-  await expect(page.getByText('Chat Post')).toBeVisible();
-  await expect(page.getByText(originalMessage).nth(1)).toBeVisible(); // Quote shows original
+  // In DM threads, there's no "Chat Post" text, just quoted content in reply input
+  if (!isDM) {
+    await expect(page.getByText('Chat Post')).toBeVisible();
+    await expect(page.getByText(originalMessage).nth(1)).toBeVisible(); // Quote shows original
+  }
 
   // Use thread-specific reply input
-  await page.getByPlaceholder('Reply').click();
-  await page.getByPlaceholder('Reply').fill(replyText);
+  const replyInput = page.getByPlaceholder('Reply');
+  await replyInput.click();
+
+  if (isDM) {
+    // In DM threads, the quote is already inserted as "> originalMessage"
+    // We need to append our reply text to the existing quoted content
+    const currentValue = await replyInput.inputValue();
+    await replyInput.fill(currentValue + '\n' + replyText);
+  } else {
+    // In group channels, we can just fill the reply text
+    await replyInput.fill(replyText);
+  }
+
   await page
     .locator('#reply-container')
     .getByTestId('MessageInputSendButton')
@@ -797,6 +820,8 @@ export async function editMessage(
   isThread = false
 ) {
   await longPressMessage(page, originalText);
+  // Wait a bit for the action menu to appear
+  await page.waitForTimeout(500);
   await page.getByText('Edit message').click();
 
   // Click on the message text to edit it

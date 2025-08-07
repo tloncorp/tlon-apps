@@ -1,522 +1,592 @@
-/-  meta, e=epic
+/-  meta, e=epic, s=story
 |%
 ::  +okay: protocol version, defunct
-::
 ++  okay  `epic:e`4
-::  $flag: ID for a group
+::  $flag: id for a group
 ::
 +$  flag  (pair ship term)
-::
-::  $nest: ID for a channel, {app}/{ship}/{name}
-::
+::  $nest: id for a channel
 +$  nest  (pair term flag)
+::  $section-id: section id
 ::
-::  $sect: ID for cabal, similar to a role
-::TODO rename sect -> role. It seems role is not in
-::     use anywhere?
++$  section-id  term
+::  $section: channel section metadata
 ::
-+$  sect  term
++$  section
+  $:  meta=data:meta
+      order=(list nest)
+  ==
+::  $seat: group membership (formerly $vessel)
 ::
-::  $zone: channel grouping
+::  .roles: the set of roles assigned to a seat
+::  .joined: the time a ship has joined
 ::
-::    includes its own metadata for display and keeps the order of
-::    channels within.
++$  seat
+  $:  roles=(set role-id)
+      joined=time
+  ==
+::  $role-id: group member role
 ::
-::    zone: the term that represents the ID of a zone
-::    realm: the metadata representing the zone and the order of channels
-::    delta: the set of actions that can be taken on a zone
-::      %add: create a zone
-::      %del: delete the zone
-::      %edit: modify the zone metadata
-::      %mov: reorders the zone in the group
-::      %mov-nest: reorders a channel within the zone
++$  role-id  term
+::  $role-meta: role metadata
 ::
-++  zone
-  |^  zone
-  ::
-  +$  zone  @tas
-  +$  realm
-    $:  met=data:meta
-        ord=(list nest)
-    ==
-  +$  diff  (pair zone delta)
-  +$  delta
-    $%  [%add meta=data:meta]
-        [%del ~]
-        [%edit meta=data:meta]
-        [%mov idx=@ud]
-        [%mov-nest =nest idx=@ud]
-    ==
-  --
++$  role  [meta=data:meta ~]
+::  $admins: set of privileged roles
 ::
-::  $fleet: group members and their associated metadata
+::    roles in this set are allowed to make modifications to the group
+::    and its various metadata and permissions
 ::
-::    vessel: a user's set of sects or roles and the time that they joined
-::    @da default represents an admin added member that has yet to join
++$  admins  (set role-id)
+::  $channel-preview: channel preview
 ::
-++  fleet
-  |^  fleet  
-  ::
-  +$  fleet  (map ship vessel)
-  +$  vessel
-    $:  sects=(set sect)
-        joined=time
-    ==
-  +$  diff
-    $%  [%add ~]
-        [%del ~]
-        [%add-sects sects=(set sect)]
-        [%del-sects sects=(set sect)]
-    ==
-  --
+::  .nest: channel id
+::  .meta: channel metadata
+::  .preview: group preview
 ::
-::  $channel: a medium for interaction
++$  channel-preview
+  $:  =nest
+      meta=data:meta
+      =preview
+  ==
+::  $channel: a collection of metadata about a channel
 ::
-++  channel
-  |^  channel
-  ::
-  +$  preview
-    $:  =nest
-        meta=data:meta
-        group=^preview
-    ==
-  ::
-  +$  channels  (map nest channel)
-  ::
-  ::  $channel: a collection of metadata about a channel
-  ::
-  ::    meta: title, description, image, cover
-  ::    added: when the channel was created
-  ::    zone: what zone or section to bucket in
-  ::    join: should the channel be joined by new members
-  ::    active: channel subscription status
-  ::    readers: what sects can see the channel, empty means anyone
-  ::
-  +$  channel
-    $:  meta=data:meta
-        added=time
-        =zone
-        join=?
-        readers=(set sect)
-    ==
-  ::
-  ::  $diff: represents the set of actions you can take on a channel
-  ::
-  ::    add: create a channel
-  ::    edit: edit a channel
-  ::    del: delete a channel
-  ::    add-sects: add sects to readers
-  ::    del-sects: delete sects from readers
-  ::    zone: change the zone of the channel
-  ::    join: toggle default join
-  ::
-  +$  diff
-    $%  [%add =channel]
-        [%edit =channel]
-        [%del ~]
-      ::
-        [%add-sects sects=(set sect)]
-        [%del-sects sects=(set sect)]
-      ::
-        [%zone =zone]
-      ::
-        [%join join=_|]
-    ==
-  --
+::  .meta: channel description
+::  .added: time channel was added
+::  .section: channel section
+::  .readers: roles with read permissions. empty set
+::            means the channel is accessible by everyone.
+::  .join: should the channel be joined by new members
 ::
++$  channel
+  $:  meta=data:meta
+      added=time
+      section=section-id
+      readers=(set role-id)
+      join=?
+  ==
+::  $channels-index: channels group ownership index
++$  channels-index  (map nest flag)
+::  $admissions: group entry policy
+::
+::  .privacy: determines group visibility
+::  .banned: ships and ranks blacklist
+::  .pending: pending ships
+::  .requests: entry requests
+::  .tokens: access tokens
+::  .referrals: token attribution
+::  .invited: invited guest list
+::
++$  admissions
+  $:  =privacy
+      =banned
+      pending=(jug ship role-id)
+      requests=(map ship (unit story:s))
+      tokens=(map token token-meta)
+      referrals=(jug ship token)
+      invited=(map ship [at=@da token=(unit token)])
+  ==
+::  $token: group access token
++$  token  @uv
+::  $token-meta: token metadata
+::
+::  .scheme: claim scheme
+::  .expiry: expiration date
+::  .label: optional label
+::
++$  token-meta
+  $:  scheme=claim-scheme
+      expiry=@da
+      label=(unit @t)
+      ::TODO add attribution or reverse lookup in admissions
+  ==
+::  $claim-scheme: token claim scheme
+::
+::  %forever: unlimited claims
+::  %limited: limited number of claims
+::  %personal: single claim by the named
+::
++$  claim-scheme
+  $%  [%forever ~]
+      [%limited count=@ud]
+      [%personal =ship]
+  ==
+::  $banned: blacklist
+::
++$  banned  [ships=(set ship) ranks=(set rank:title)]
+::  $privacy: group privacy
+::
+::  %public: group is indexed and open to public
+::  %private: group is indexed and invite-only
+::  %secret: group is hidden and invite-only
+::
++$  privacy  ?(%public %private %secret)
+::  $invite: group invitation
+::
+::  .flag: target group
+::  .time: time received
+::  .token: access token
+::  .from: inviter ship
+::  .note: letter
+::  .preview: group preview
+::  .sign: preview host signature
+::
+::  TODO: group invitation should be attested
+::        for by the group host, who should sign
+::        the [token from preview] triple.
+::
++$  invite
+  $:  =flag
+      =time
+      from=ship
+      token=(unit token)
+      note=(unit story:s)
+      =preview
+  ==
+::  $progress: group join in progress
+::
+::  %ask: asking for entry
+::  %join: joining with a token
+::  %watch: waiting for the subscription
+::  %done: subscribed to the group
+::  %error: error occured
+::
++$  progress  ?(%ask %join %watch %done %error)
+::  $lookup: preview in progress
+::
+::  %preview: waiting for preview
+::  %done: preview update received
+::  %error: error occured
+::
++$  lookup  ?(%preview %done %error)
+::  $foreign: view of a foreign group
+::
+::  .invites: received invites
+::  .lookup: preview in progress
+::  .preview: preview result
+::  .progress: join in progress
+::  .token: join token
+::
++$  foreign
+  $:  invites=(list invite)
+      lookup=(unit lookup)
+      preview=(unit preview)
+      progress=(unit progress)
+      token=(unit token)
+  ==
++$  foreigns  (map flag foreign)
 ::  $group: collection of people and the pathways in which they interact
 ::
 ::    group holds all data around members, permissions, channel
 ::    organization, and its own metadata to represent the group
 ::
+::  .meta: group metadata
+::  .admissions: entry policy
+::  .seats: members
+::  .roles: member roles
+::  .admins: administrators
+::  .channels: group channels
+::  .active-channels: joined channels
+::  .sections: channel sections
+::  .section-order: sections order
+::  .flagged-content: flagged content
+::
 +$  group
-  $:  =fleet
-      cabals=(map sect cabal)
-      zones=(map zone realm:zone)
-      zone-ord=(list zone)
-      =bloc
-      =channels:channel
+  $:  meta=data:meta
+    ::
+      =admissions
+      seats=(map ship seat)
+    ::
+      roles=(map role-id role)
+      =admins
+    ::
+      channels=(map nest channel)
       active-channels=(set nest)
-      imported=(set nest)
-      =cordon
-      secret=?
-      meta=data:meta
+    ::
+      sections=(map section-id section)
+      section-order=(list section-id)
+    ::
       =flagged-content
   ==
-+$  group-ui  [group init=? count=@ud]
-::  $cabal: metadata representing a $sect or role
 ::
-++  cabal
-  |^  cabal
-  ::
-  +$  cabal
-    [meta=data:meta ~]
-  ::
-  +$  diff
-    $%  [%add meta=data:meta]
-        [%edit meta=data:meta]
-        [%del ~]
-    ==
-  --
++$  group-ui
+  $:  =group
+      init=?
+      member-count=@ud
+  ==
+::  $net: an indicator of whether we are a host or a subscriber
 ::
-::  $cordon: group entry and visibility permissions
-::TODO rename cordon -> entry
-::
-++  cordon
-  |^  cordon
-  ::
-  ::  $open: a group with open entry, only bans are barred entry
-  ::
-  ++  open
-    |%
-    ::  $ban: set of ships and ranks/classes that are not allowed entry
-    ::
-    ::    bans can either be done at the individual ship level or by the
-    ::    rank level (comet/moon/etc.)
-    ::
-    +$  ban  [ships=(set ship) ranks=(set rank:title)]
-    +$  diff
-      $%  [%add-ships p=(set ship)]
-          [%del-ships p=(set ship)]
-        ::
-          [%add-ranks p=(set rank:title)]
-          [%del-ranks p=(set rank:title)]
-      ==
-    --
-  ::
-  ::  $shut: a group with closed entry, everyone barred entry
-  ::
-  ::    a shut cordon means that the group is closed, but still visible.
-  ::    people may request entry and either be accepted or denied or
-  ::    they may be invited directly
-  ::
-  ::    ask: represents those requesting entry
-  ::    pending: represents those who've been invited
-  ::
-  ++  shut
-    |%
-    +$  state  [pend=(set ship) ask=(set ship)]
-    +$  kind  ?(%ask %pending)
-    +$  diff
-      $%  [%add-ships p=kind q=(set ship)]
-          [%del-ships p=kind q=(set ship)]
-      ==
-    --
-  ::
-  ::  $cordon: a set of metadata to represent the entry policy for a group
-  ::
-  ::    open: a group with open entry, only bans barred entry
-  ::    shut: a group with closed entry, everyone barred entry
-  ::    afar: a custom entry policy defined by another agent
-  ::TODO  rename %afar -> %toll
-  ::
-  +$  cordon
-    $%  [%shut state:shut]
-        [%afar =flag =path desc=@t]
-        [%open =ban:open]
-    ==
-  ::
-  ::  $diff: the actions you can take on a cordon
-  ::
-  ::    %shut: closed policy
-  ::    %open: open policy
-  ::    %swap: replace with policy
-  ::
-  +$  diff
-    $%  [%shut p=diff:shut]
-        [%open p=diff:open]
-        [%swap p=cordon]
-    ==
-  --
-::
-::  $bloc: superuser sects
-::
-::    sects in the bloc set are allowed to make modifications to the group
-::    and its various metadata and permissions
-::
-++  bloc
-  |^  bloc
-  ::
-  +$  bloc  (set sect)
-  +$  diff
-    $%  [%add p=(set sect)]
-        [%del p=(set sect)]
-    ==
-  --
-::
-::  $diff: the general set of changes that can be made to a group
-::
-+$  diff
-  $%  [%fleet p=(set ship) q=diff:fleet]
-      [%cabal p=sect q=diff:cabal]
-      [%channel p=nest q=diff:channel]
-      [%bloc p=diff:bloc]
-      [%cordon p=diff:cordon]
-      [%zone p=diff:zone]
-      [%meta p=data:meta]
-      [%secret p=?]
-      [%create p=group]
-      [%del ~]
-      [%flag-content =nest =post-key src=ship]
++$  net
+  $~  [%pub ~]
+  $%  [%pub =log]
+      [%sub =time init=_|]
   ==
 ::
-::  $action: the complete set of data required to edit a group
-::
-+$  action
-  (pair flag update)
-::
-::  $update: a representation in time of a modification of a group
-::
-+$  update
-  (pair time diff)
-::
-::  $create: a request to make a group
-::
-+$  create
-  $:  name=term
-      title=cord
-      description=cord
-      image=cord
-      cover=cord
-      =cordon
-      members=(jug ship sect)
-      secret=?
-  ==
-::
-+$  init  [=time =group]
-::
-::  $groups-ui: map for frontend to display groups
 +$  groups-ui
   (map flag group-ui)
 +$  groups
   (map flag group)
 +$  net-groups
   (map flag [net group])
+::  $preview: a group preview
 ::
-::  $log: a time ordered map of all modifications to groups
-::
-+$  log
-  ((mop time diff) lte)
-::
-++  log-on
-  ((on time diff) lte)
-::
-::  $net: an indicator of whether I'm a host or subscriber
-::
-+$  net
-  $~  [%pub ~]
-  $%  [%pub p=log]
-      [%sub p=time load=_|]
-  ==
-::
-+$  post-key  [post=time reply=(unit time)]
-::
-+$  flaggers  (set ship)
-::  $flagged-content: flagged posts and replies that need admin review
-::
-+$  flagged-content  (map nest (map post-key flaggers))
-::
-::  $join: a join request, can elect to join all channels
-::
-+$  join
-  $:  =flag
-      join-all=?
-  ==
-::
-::  $knock: a request to enter a closed group
-::
-+$  knock  flag
-::
-::  $progress: the state of a group join
-::
-+$  progress
-  $?  %knocking
-      %adding
-      %watching
-      %error
-  ==
-::
-::  $claim: a mark for gangs to represent a join in progress
-::
-+$  claim
-  $:  join-all=?
-      =progress
-  ==
-::  $preview: the metadata and entry policy for a group
+::  .flag: group flag
+::  .meta: group metadata
+::  .time: preview timestamp
+::  .member-count: group member count
+::  .public: whether group is public
 ::
 +$  preview
   $:  =flag
       meta=data:meta
-      =cordon
       =time
-      secret=?
-      count=@ud
+      member-count=@ud
+      =privacy
   ==
-::
-+$  preview-response
-  (each preview access-error)
-::  $access-error: group access error
-::
-::  %missing: group does not exist
-::  %forbidden: access denied
-::
-+$  access-error  ?(%missing %forbidden)
-::
+::  $previews: collection of group previews
 ::
 +$  previews  (map flag preview)
+::  $preview-update: group preview update
 ::
-::  $invite: a marker to show you've been invited to a group
++$  preview-update  (unit preview)
+::  $create-group: a request to create a group
 ::
-+$  invite  (pair flag ship)
+::  .name: group name
+::  .meta: group meteadata
+::  .privacy: admission privacy
+::  .banned: admission restrictions
+::  .members: group members and their roles
 ::
-::  $gang: view of foreign group
-+$  gang
-  $:  cam=(unit claim)
-      pev=(unit preview)
-      vit=(unit invite)
-      err=(unit access-error)
++$  create-group
+  $:  name=term
+      meta=data:meta
+      =privacy
+      =banned
+      members=(jug ship role-id)
   ==
+::  $plan: index into channel state
+::    p: post being referred to
+::    q: reply being referred to, if any
 ::
-+$  gangs  (map flag gang)
++$  plan
+  (pair time (unit time))
+::  $flagged-content: flagged posts and replies that need admin review
 ::
-++  v6  v6:ver
-++  v5  v5:ver
-++  v2  v2:ver
++$  flagged-content  (map nest (jug plan ship))
 ::
-++  ver
-  |%
-  ++  v6  .
-  ::
-  ++  v5
-    |%
-    +$  gang
-      $:  cam=(unit claim)
-          pev=(unit preview)
-          vit=(unit invite)
-      ==
+::  %groups acur interface
+::
+::  a-* actions
+::    actions are requests to the agent
+::    as a group client. most actions
+::    become commands which are then passed
+::    on to the group host. actions can
+::    only originate locally.
+::
+::  c-* commands
+::    commands are requests to the agent
+::    as a group host. they are checked
+::    for permissions.
+::
+::  u-* updates
+::    updates are generated in response to
+::    a group change and disseminated to
+::    group members.
+::
+::  r-* responses
+::    responses are generated in response
+::    to a group change, and are disseminated
+::    to subscribers. most updates also trigger
+::    a response.
+::
+::  $a-groups: groups actions
+::
+::  %group: operate on a group
+::  %invite: send an invite
+::  %leave: leave a group
+::
++$  a-groups
+  $%  [%group =flag =a-group]
+      [%invite =flag =a-invite]
+      [%leave =flag]
+  ==
++$  a-group
+  $%  [%meta meta=data:meta]
+      [%entry =a-entry]
+      [%seat ships=(set ship) =a-seat]
+      [%role roles=(set role-id) =a-role]
+      [%channel =nest =a-channel]
+      [%section =section-id =a-section]
+      [%flag-content =nest =plan src=ship]
+  ==
+::  $a-invite: invite a ship
++$  a-invite
+  $:  =ship
+      token=(unit token)
+      note=(unit story:s)
+  ==
++$  a-entry  c-entry
++$  a-seat  c-seat
++$  a-role  c-role
++$  a-channel  c-channel
++$  a-section  c-section
+::  $c-groups: group commands
+::
+::   %create: create a new group
+::   %group: modify group state
+::   %ask: request to join a group
+::   %join: join a group with token
+::   %leave: leave a group
+::
++$  c-groups
+  $%  [%create =create-group]
+      [%group =flag =c-group]
     ::
-    +$  gangs  (map flag gang)
-    --
-  ::
-  ++  v2
-    |%
-    +$  preview
-      $:  =flag
-          meta=data:meta
-          =cordon
-          =time
-          secret=?
-      ==
+      [%ask =flag story=(unit story:s)]
+      [%join =flag token=(unit token)]
     ::
-    +$  previews  (map flag preview)
+      [%leave =flag]
+  ==
+::  $c-group: group command
+::
+::  %meta: update the metadata
+::  %entry: update the entry policy
+::  %seat: update seats
+::  %role: update roles
+::  %update: update a channel
+::  %section: update a section
+::  %flag-content: flag a post
+::  %delete: delete the group
+::
++$  c-group
+  $%  [%meta meta=data:meta]
+      [%entry =c-entry]
+      [%seat ships=(set ship) =c-seat]
+      [%role roles=(set role-id) =c-role]
+      [%channel =nest =c-channel]
+      [%section =section-id =c-section]
+      [%flag-content =nest =plan src=ship]
+      [%delete ~]
+  ==
++$  c-entry
+  $%  [%privacy =privacy]
+      [%ban =c-ban]
+      [%token =c-token]
+      [%pending ships=(set ship) =c-pending]
+      [%ask ships=(set ship) c-ask=?(%approve %deny)]
+  ==
++$  c-ban
+  $%  [%set ships=(set ship) ranks=(set rank:title)]
     ::
-    ++  channel
-      |^  channel
-      ::
-      +$  preview
-        $:  =nest
-            meta=data:meta
-            group=^preview
-        ==
-      ::
-      +$  channels  (map nest channel)
-      ::
-      +$  channel
-        $:  meta=data:meta
-            added=time
-            =zone
-            join=?
-            readers=(set sect)
-        ==
-      ::
-      +$  diff
-        $%  [%add =channel]
-            [%edit =channel]
-            [%del ~]
-          ::
-            [%add-sects sects=(set sect)]
-            [%del-sects sects=(set sect)]
-          ::
-            [%zone =zone]
-          ::
-            [%join join=_|]
-        ==
-      --
+      [%add-ships ships=(set ship)]
+      [%del-ships ships=(set ship)]
     ::
-    +$  group
-      $:  =fleet
-          cabals=(map sect cabal)
-          zones=(map zone realm:zone)
-          zone-ord=(list zone)
-          =bloc
-          =channels:channel
-          imported=(set nest)
-          =cordon
-          secret=?
-          meta=data:meta
-          =flagged-content
-      ==
+      [%add-ranks ranks=(set rank:title)]
+      [%del-ranks ranks=(set rank:title)]
+  ==
++$  c-pending
+  $%  [%add roles=(set role-id)]
+      [%edit roles=(set role-id)]
+      [%del ~]
+  ==
++$  c-token
+  $%  [%add =c-token-add]
+      [%del =token]
+  ==
++$  c-token-add
+  $:  scheme=claim-scheme
+      expiry=(unit @dr)
+      label=(unit @t)
+      referral=?
+  ==
+::  $c-role: role command
+::
+::  %add: add role
+::  %edit: edit the role metadata
+::  %del: delete the role
+::  %set-admin: grant admin privileges
+::  %del-admin: rescind admin priveleges
+::
++$  c-role
+  $%  [%add meta=data:meta]
+      [%edit meta=data:meta]
+      [%del ~]
+      [%set-admin ~]
+      [%del-admin ~]
+  ==
+::  $c-seat: membership command
+::
+::  %add: add a group member
+::  %del: remove a group member
+::  %add-roles: add member to roles
+::  %del-roles: remove member from roles
+::
++$  c-seat
+  $%  [%add ~]
+      [%del ~]
+      [%add-roles roles=(set role-id)]
+      [%del-roles roles=(set role-id)]
+  ==
+::  $c-channel: channel command
+::
+::  %add: add a channel
+::  %edit: edit the channel
+::  %del: delete the channel
+::  %add-readers: add roles to readers set
+::  %del-readers: delete roles from readers set
+::  %section: assign the channel to a section
+::  %join: set the join flag
+::
++$  c-channel
+  $%  [%add =channel]
+      [%edit =channel]
+      [%del ~]
     ::
-    +$  group-ui  [group saga=(unit saga:e)]
+      [%add-readers roles=(set role-id)]
+      [%del-readers roles=(set role-id)]
     ::
-    +$  diff
-      $%  [%fleet p=(set ship) q=diff:fleet]
-          [%cabal p=sect q=diff:cabal]
-          [%channel p=nest q=diff:channel]
-          [%bloc p=diff:bloc]
-          [%cordon p=diff:cordon]
-          [%zone p=diff:zone]
-          [%meta p=data:meta]
-          [%secret p=?]
-          [%create p=group]
-          [%del ~]
-          [%flag-content =nest =post-key src=ship]
-      ==
+      [%section =section-id]
     ::
-    +$  net
-      $~  [%pub ~]
-      $%  [%pub p=log]
-          [%sub p=time load=_| =saga:e]
-      ==
+      [%join join=_|]
+  ==
+::  $c-section: section command
+::
+::  %add: create a new section
+::  %edit: modify the section metadata
+::  %del: delete the section
+::  %move: reorder the section within a group
+::  %move-nest: reorders a channel within a section
+::
++$  c-section
+  $%  [%add meta=data:meta]
+      [%edit meta=data:meta]
+      [%del ~]
+      [%move idx=@ud]
+      [%move-nest =nest idx=@ud]
+  ==
++$  update  [=time =u-group]
++$  u-group
+  $%  [%create =group]
+      [%meta =data:meta]
+      [%entry =u-entry]
+      [%seat ships=(set ship) =u-seat]
+      [%role roles=(set role-id) =u-role]
+      [%channel =nest =u-channel]
+      [%section =section-id =u-section]
+      [%flag-content =nest =plan src=ship]
+      [%delete ~]
+  ==
++$  u-entry
+  $%  [%privacy =privacy]
+      [%ban =u-ban]
+      [%token =u-token]
+      [%pending =u-pending]
+      [%ask =u-ask]
+  ==
++$  u-ban
+  $%  [%set ships=(set ship) ranks=(set rank:title)]
     ::
-    +$  action
-      (pair flag update)
+      [%add-ships ships=(set ship)]
+      [%del-ships ships=(set ship)]
     ::
-    +$  update
-      (pair time diff)
-    ::
-    +$  init  [=time =group]
-    ::
-    +$  groups-ui
-      (map flag group-ui)
-    ::
-    +$  groups
-      (map flag group)
-    ::
-    +$  net-groups
-      (map flag [net group])
-    ::
-    +$  log
-      ((mop time diff) lte)
-    ::
-    ++  log-on
-      ((on time diff) lte)
-    ::
-    +$  progress
-      ?(%knocking %adding %watching %done %error)
-    ::
-    +$  claim
-      $:  join-all=?
-          =progress
-      ==
-    ::
-    +$  gang
-      $:  cam=(unit claim)
-          pev=(unit preview)
-          vit=(unit invite)
-      ==
-    ::
-    +$  gangs  (map flag gang)
-    --
-  --
+      [%add-ranks ranks=(set rank:title)]
+      [%del-ranks ranks=(set rank:title)]
+  ==
++$  u-token
+  $%  [%add =token meta=token-meta]
+      [%del =token]
+  ==
++$  u-pending
+  $%  [%add ships=(set ship) roles=(set role-id)]
+      [%edit ships=(set ship) roles=(set role-id)]
+      [%del ships=(set ship)]
+  ==
++$  u-ask
+  $%  [%add =ship story=(unit story:s)]
+      [%del ships=(set ship)]
+  ==
++$  u-role
+  $%  [%add meta=data:meta]
+      [%edit meta=data:meta]
+      [%del ~]
+      [%set-admin ~]
+      [%del-admin ~]
+  ==
++$  u-seat
+  $%  [%add =seat]
+      [%del ~]
+      [%add-roles roles=(set role-id)]
+      [%del-roles roles=(set role-id)]
+  ==
++$  u-channel
+  $%  [%add =channel]
+      [%edit =channel]
+      [%del ~]
+      [%add-readers roles=(set role-id)]
+      [%del-readers roles=(set role-id)]
+      [%section section=section-id]
+      [%join join=_|]
+  ==
++$  u-section
+  $%  [%add meta=data:meta]
+      [%edit meta=data:meta]
+      [%del ~]
+      [%move idx=@ud]
+      [%move-nest =nest idx=@ud]
+  ==
++$  r-groups  [=flag =r-group]
++$  r-group
+  $%  [%create =group]
+      [%meta meta=data:meta]
+      [%entry =r-entry]
+      [%seat ships=(set ship) =r-seat]
+      [%role roles=(set role-id) =r-role]
+      [%channel =nest =r-channel]
+      [%section =section-id =r-section]
+      [%flag-content =nest =plan src=ship]
+      [%delete ~]
+  ==
++$  r-entry
+  $%  [%privacy =privacy]
+      [%ban =r-ban]
+      [%token =r-token]
+      [%pending =r-pending]
+      [%ask =r-ask]
+  ==
++$  r-ban      u-ban
++$  r-token    u-token
++$  r-pending  u-pending
++$  r-ask      u-ask
++$  r-seat     u-seat
++$  r-role     u-role
++$  r-channel  u-channel
++$  r-section  u-section
+::  $a-foreigns: foreign action
+::
+::  %foreign: a foreign group action
+::  %invite: receive an .invite
+::
++$  a-foreigns
+  $%  [%foreign =flag =a-foreign]
+      [%invite =invite]
+  ==
+::  $a-foreign: foreign group action
+::
+::  %join: join the group
+::  %ask: ask for entry
+::  %cancel: cancel a join or an ask in progress
+::  %decline: decline an invitation
+::
++$  a-foreign
+  $%  [%join token=(unit token)]
+      [%ask story=(unit story:s)]
+      [%cancel ~]
+      [%decline token=(unit token)]
+  ==
+::  $init: initial group update
+::
++$  init  [=time =group]
+::
++$  log  ((mop time u-group) lte)
+::
+++  log-on  ((on time u-group) lte)
 --

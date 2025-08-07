@@ -3201,7 +3201,7 @@ export const deletePostReaction = createWriteQuery(
         )
       );
   },
-  ['postReactions']
+  ['posts', 'postReactions']
 );
 
 export const deletePosts = createWriteQuery(
