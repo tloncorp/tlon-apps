@@ -2976,13 +2976,7 @@
       ?^  p.sign
         %-  (fail:log %watch-ack 'group watch failed' u.p.sign)
         ?.  (~(has by foreigns) flag)
-          ::TODO  this should not be possible, but if it happens
-          ::      we don't have an invitation, and thus no way to rejoin.
-          ::      the user will still see the group, but it is going
-          ::      to be stale. it would be best to somehow surface
-          ::      it at the frontend.
-          ::
-          go-core
+          (go-safe-sub &)
         ::  join in progress, set error and leave the group
         ::  to allow re-joining.
         ::
