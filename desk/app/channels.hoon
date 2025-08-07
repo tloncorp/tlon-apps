@@ -191,10 +191,10 @@
 =/  verbose  |
 %-  %-  agent:neg
     :+  notify=&
-      [~.channels^%2 ~ ~]
+      [~.channels^%3 ~ ~]
     %-  my
     :~  %groups^[~.groups^%1 ~ ~]
-        %channels-server^[~.channels^%2 ~ ~]
+        %channels-server^[~.channels^%3 ~ ~]
     ==
 %-  agent:dbug
 %+  verb  |

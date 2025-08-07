@@ -50,7 +50,7 @@
 ::
 %-  %-  agent:neg
     :+  notify=|
-      [~.channels^%2 ~ ~]
+      [~.channels^%3 ~ ~]
     (my %groups^[~.groups^%1 ~ ~] ~)
 %-  agent:dbug
 %+  verb  |
@@ -695,7 +695,7 @@
 ::
 ++  watch-groups  (safe-watch /groups [our.bowl %groups] /v1/groups)
 ::  +take-groups: process group update
-::  
+::
 ++  take-groups
   |=  =r-groups:v7:gv
   =/  affected=(list nest:c)
