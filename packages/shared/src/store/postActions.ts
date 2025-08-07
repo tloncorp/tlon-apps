@@ -462,7 +462,7 @@ async function _editPost({
     editStatus: 'enqueued',
     lastEditContent: JSON.stringify(contentForDb),
     lastEditTitle: optimisticPostData.metadata?.title,
-    lastEditImage: optimisticPostData.metadata?.title,
+    lastEditImage: optimisticPostData.metadata?.image,
     ...flags,
   });
   logger.log('editPost optimistic update done');
