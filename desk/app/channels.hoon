@@ -766,7 +766,7 @@
       cor
     ::
         [%tombstones * *]
-      =+  !<([%tombstones =nest:c tombs=(list [id=id-post:v9:c tomb=tombstone:v9:c])] vase)
+      =+  ;;([%tombstones =nest:c tombs=(list [id=id-post:v9:c tomb=tombstone:v9:c])] q.vase)
       ?>  =(src.bowl ship.nest)
       ?.  (~(has by v-channels) nest)  cor
       =.  v-channels
