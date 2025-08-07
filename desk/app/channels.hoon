@@ -79,7 +79,7 @@
             :+  %channel-posts           &  -:!>(*vale:m-channel-posts)
             :+  %channel-posts-2         &  -:!>(*vale:m-channel-posts-2)
             :+  %channel-posts-3         &  -:!>(*vale:m-channel-posts-3)
-            :+  %channel-posts-4         &  -:!>(*vale:m-channel-posts-4)
+            :+  %channel-posts-4         |  -:!>(*vale:m-channel-posts-4)  ::TODO  make strict
             :+  %channel-replies         &  -:!>(*vale:m-channel-replies)
             :+  %channel-replies-2       &  -:!>(*vale:m-channel-replies-2)
             :+  %channel-replies-3       &  -:!>(*vale:m-channel-replies-3)
@@ -2634,7 +2634,13 @@
         %v4
       =;  =paged-posts:c
         ``channel-posts-4+!>(paged-posts)
-      :_  [newer older (wyt:on-v-posts:c posts.channel)]
+      =/  latest=@ud
+        ?~  latest=(ram:on-v-posts:c posts.channel)  1
+        ?-  -.val.u.latest
+          %&  seq.val.u.latest
+          %|  seq.val.u.latest
+        ==
+      :_  [newer older latest (wyt:on-v-posts:c posts.channel)]
       ?:  =(%post mode)  (uv-posts-3:utils posts)
       (uv-posts-without-replies-3:utils posts)
     ==
@@ -2738,6 +2744,12 @@
             ~
           `key:(head older)
         =/  count  (wyt:on-v-posts:c posts)
+        =/  latest=@ud
+          ?~  latest=(ram:on-v-posts:c posts.channel)  1
+          ?-  -.val.u.latest
+            %&  seq.val.u.latest
+            %|  seq.val.u.latest
+          ==
         ?-  version
         ::
             %v1
@@ -2757,7 +2769,7 @@
         ::
             %v4
             =/  =paged-posts:c
-              [(uv-posts-3:utils posts) newer older count]
+              [(uv-posts-3:utils posts) newer older latest count]
             ``channel-posts-4+!>(paged-posts)
         ==
       ::  walk both posts and logs, in chronological order, newest-first,
