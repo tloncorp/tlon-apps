@@ -669,7 +669,7 @@
 ::
 ++  watch-groups  (safe-watch /groups [our.bowl %groups] /v1/groups)
 ::  +take-groups: process group update
-::  
+::
 ++  take-groups
   |=  =r-groups:v7:gv
   =/  affected=(list nest:c)
@@ -679,6 +679,9 @@
     `nest
   =*  r-group  r-group.r-groups
   ?+    r-group  cor
+        [%seat * %add *]
+      (request-join flag.r-groups affected ships.r-group)
+    ::
       [%seat * %add-roles *]    (recheck-perms affected ~)
       [%seat * %del-roles *]     (recheck-perms affected ~)
       [%channel * %edit *]       (recheck-perms affected ~)
@@ -705,6 +708,20 @@
   |=  [=nest:c co=_cor]
   =/  ca  (ca-abed:ca-core:co nest)
   ca-abet:(ca-recheck:ca sects)
+::
+++  request-join
+  |=  [=flag:g affected=(list nest:c) ships=(set ship)]
+  %-  emil
+  %-  zing
+  %+  murn  affected
+  |=  =nest:c
+  ?:  =(ship.nest our.bowl)  ~
+  :-  ~
+  %+  turn  ~(tap in ships)
+  |=  =ship
+  =/  request=[nest:c flag:g]  [nest flag]
+  =/  =cage  [%channel-request-join !>(request)]
+  [%pass /request-join %agent [ship %channels] %poke cage]
 ::
 ++  ca-core
   |_  [=nest:c channel=v-channel:c gone=_|]
