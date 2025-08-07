@@ -164,21 +164,21 @@
 ++  uv-post
   |=  =v-post:c
   ^-  post:v1:c
-  :_  [rev.v-post (essay-1 +>.v-post)]
+  :_  [rev.v-post (v7:essay:v9:ccv +>.v-post)]
   :*  id.v-post
-      (reacts-1 (uv-reacts-1 reacts.v-post))
+      (v7:reacts:v9:ccv (uv-reacts reacts.v-post))
       (uv-replies id.v-post replies.v-post)
-      (reply-meta-1 (get-reply-meta v-post))
+      (v7:reply-meta:v9:ccv (get-reply-meta v-post))
   ==
 ::
 ++  uv-post-1
   |=  =v-post:c
   ^-  post:v7:c
-  :_  (rev-essay-1 +.v-post)
+  :_  [rev.v-post (v7:essay:v9:ccv +>.v-post)]
   :*  id.v-post
-      (reacts-1 (uv-reacts-1 reacts.v-post))
+      (v7:reacts:v9:ccv (uv-reacts reacts.v-post))
       (uv-replies-1 id.v-post replies.v-post)
-      (reply-meta-1 (get-reply-meta v-post))
+      (v7:reply-meta:v9:ccv (get-reply-meta v-post))
   ==
 ::
 ++  uv-post-2
@@ -190,7 +190,7 @@
   :*  id.v-post
       seq.v-post
       mod-at.v-post
-      (uv-reacts-2 reacts.v-post)
+      (uv-reacts reacts.v-post)
       replies
       (get-reply-meta v-post)
   ==
@@ -204,7 +204,7 @@
   :*  id.v-post
       seq.v-post
       mod-at.v-post
-      (uv-reacts-2 reacts.v-post)
+      (uv-reacts reacts.v-post)
       replies
       (get-reply-meta v-post)
   ==
@@ -212,12 +212,12 @@
 ++  s-post-1
   |=  =post:c
   ^-  simple-post:v7:c
-  :_  (essay-1 +>.post)
+  :_  (v7:essay:v9:ccv +>.post)
   =/  seal
     %=  -.post
-      reacts      (reacts-1 reacts.post)
+      reacts      (v7:reacts:v9:ccv reacts.post)
       replies     (s-replies-1 replies.post)
-      reply-meta  (reply-meta-1 reply-meta.post)
+      reply-meta  (v7:reply-meta:v9:ccv reply-meta.post)
     ==
   ::  remove .seq and .mod-at
   [- |3]:seal
@@ -229,7 +229,7 @@
   =/  seal
     =<  -  :: seal
     %=  post
-      reacts   (reacts-1 reacts.post)
+      reacts   (v7:reacts:v9:ccv reacts.post)
       replies  (s-replies-1 replies.post)
     ==
   ::  remove .seq and .mod-at
@@ -240,7 +240,7 @@
   ^-  simple-post:c
   :_  +>.post
   %=  -.post
-    reacts   (reacts-1 reacts.post)
+    reacts   (v7:reacts:v9:ccv reacts.post)
     replies  (s-replies-2 replies.post)
   ==
 ++  suv-post
@@ -313,21 +313,21 @@
 ++  uv-post-without-replies
   |=  post=v-post:c
   ^-  post:v1:c
-  :_  [rev.post (essay-1 +>.post)]
+  :_  [rev.post (v7:essay:v9:ccv +>.post)]
   :*  id.post
-      (uv-reacts-1 reacts.post)
+      (v7:reacts:v9:ccv (uv-reacts reacts.post))
       *replies:v1:c
-      (reply-meta-1 (get-reply-meta post))
+      (v7:reply-meta:v9:ccv (get-reply-meta post))
   ==
 ::
 ++  uv-post-without-replies-1
   |=  post=v-post:c
   ^-  post:v7:c
-  :_  [rev.post (essay-1 +>.post)]
+  :_  [rev.post (v7:essay:v9:ccv +>.post)]
   :*  id.post
-      (uv-reacts-1 reacts.post)
+      (v7:reacts:v9:ccv (uv-reacts reacts.post))
       *replies:v7:c
-      (reply-meta-1 (get-reply-meta post))
+      (v7:reply-meta:v9:ccv (get-reply-meta post))
   ==
 ::
 ++  uv-post-without-replies-2
@@ -337,7 +337,7 @@
   :*  id.post
       seq.post
       mod-at.post
-      (uv-reacts-2 reacts.post)
+      (uv-reacts reacts.post)
       *replies:v8:c
       (get-reply-meta post)
   ==
@@ -349,7 +349,7 @@
   :*  id.post
       seq.post
       mod-at.post
-      (uv-reacts-2 reacts.post)
+      (uv-reacts reacts.post)
       *replies:c
       (get-reply-meta post)
   ==
@@ -441,13 +441,13 @@
   |=  [parent-id=id-reply:c =v-reply:c]
   ^-  reply:c
   :_  +.v-reply
-  [id.v-reply parent-id (uv-reacts-1 reacts.v-reply)]
+  [id.v-reply parent-id (v7:reacts:v9:ccv (uv-reacts reacts.v-reply))]
 ::
 ++  uv-reply-1
   |=  [parent-id=id-reply:c =v-reply:c]
   ^-  reply:v7:c
-  :_  [rev.v-reply (memo-1 +>.v-reply)]
-  [id.v-reply parent-id (uv-reacts-1 reacts.v-reply)]
+  :_  [rev.v-reply (v7:memo:v9:ccv +>.v-reply)]
+  [id.v-reply parent-id (v7:reacts:v9:ccv (uv-reacts reacts.v-reply))]
 ::
 ++  s-reply-1
   |=  =reply:c
@@ -469,7 +469,7 @@
   ^-  simple-reply:c
   (s-reply-2 (uv-reply-2 parent-id v-reply))
 ::
-++  uv-reacts-2
+++  uv-reacts
   |=  =v-reacts:c
   ^-  reacts:c
   %-  ~(gas by *reacts:c)
@@ -478,250 +478,24 @@
   ?~  react  ~
   (some author u.react)
 ::
-++  uv-reacts-1
-  |=  =v-reacts:c
-  ^-  reacts:v7:c
-  %-  ~(gas by *reacts:v7:c)
-  %+  murn  ~(tap by v-reacts)
-  |=  [=author:c (rev:c react=(unit react:c))]
-  ?~  react  ~
-  ?~  react-1=(react-1 u.react)  ~
-  (some (get-author-ship author) u.react-1)
-::
-::
-++  react-1
-  |=  =react:c
-  ^-  (unit react:v7:c)
-  ?@  react
-    (rave:em react)
-  ?-  -.react
-    %any  (some p.react)
-  ==
-::
-++  reacts-1
-  |=  =reacts:c
-  ^-  reacts:v7:c
-  %-  ~(rep by reacts)
-  |=  [[=author:c =react:c] =reacts:v7:c]
-  ?~  react=(react-1 react)
-    reacts
-  (~(put by reacts) (get-author-ship author) u.react)
-::
-++  replies-1
-  |=  =replies:c
-  ^-  replies:v7:c
-  %+  run:on-replies:c  replies
-  |=  reply=(may:c reply:c)
-  ^-  (unit reply:v7:c)
-  ?:  ?=(%| -.reply)  ~
-  (some (reply-1 +.reply))
-::
-++  seal-1
-  |=  =seal:c
-  ^-  seal:v7:c
-  %*  .  *seal:v7:c
-    id       id.seal
-    reacts   (reacts-1 reacts.seal)
-    replies  (replies-1 replies.seal)
-    reply-meta  (reply-meta-1 reply-meta.seal)
-  ==
-::
-++  author-1
-  |=  =author:c
-  ^-  ship
-  ?@  author  author
-  ship.author
-::
-++  memo-1
-  |=  =memo:c
-  ^-  memo:v7:c
-  %=  memo
-    author   (author-1 author.memo)
-    content  (turn content.memo verse-1)
-  ==
-::
-++  verse-1
-  |=  =verse:s
-  ^-  verse:v7:c
-  ?+  verse  verse
-      [%inline *]
-    [%inline (turn p.verse inline-1)]
-  ::
-      [%block %header *]
-    verse(q.p (turn q.p.verse inline-1))
-  ::
-      [%block %listing *]
-    verse(p.p (listing-1 p.p.verse))
-  ::
-      [%block %link *]
-    [%inline [%link [. .]:url.p.verse] ~]  ::REVIEW
-  ==
-::
-++  listing-1
-  |=  =listing:s
-  ^-  listing:v7:c
-  ?-  -.listing
-    %list  listing(q (turn q.listing listing-1), r (turn r.listing inline-1))
-    %item  listing(p (turn p.listing inline-1))
-  ==
-::
-++  inline-1
-  |=  =inline:s
-  ^-  inline:v7:c
-  ?@  inline  inline
-  ?+  -.inline  inline
-      ?(%italics %bold %strike %blockquote)
-    inline(p (turn p.inline inline-1))
-  ::
-      %task
-    inline(q (turn q.inline inline-1))
-  ::
-      %sect
-    (cat 3 '@' ?~(p.inline 'all' p.inline))
-  ==
-::
-++  essay-1
-  |=  =essay:c
-  ^-  essay:v7:c
-  :-  (memo-1 -.essay)
-  ^-  kind-data:v7:c
-  ?+    kind.essay  ~|(essay-1-fail+kind.essay !!)
-    [%chat $@(~ [%notice ~])]  kind.essay
-  ::
-      [%diary ~]
-    ?~  meta.essay  [%diary '' '']
-    [%diary title image]:u.meta.essay
-  ::
-      [%heap ~]
-    ?~  meta.essay  [%heap ~]
-    [%heap `title.u.meta.essay]
-  ==
-::
-++  rev-essay-1
-  |=  essay=(rev:c essay:c)
-  ^-  (rev:c essay:v7:c)
-  [rev.essay (essay-1 +.essay)]
-::
-++  post-1
-  |=  =post:c
-  ^-  post:v7:c
-  :-  (seal-1 -.post)
-  [rev.post (essay-1 +>.post)]
-::
-++  posts-1
-  |=  =posts:c
-  ^-  posts:v7:c
-  %+  gas:on-posts:v7:c  *posts:v7:c
-  %+  turn  (tap:on-posts:c posts)
-  |=  [=id-post:c post=(may:c post:c)]
-  ^-  [id-post:c (unit post:v7:c)]
-  :-  id-post
-  ?:  ?=(%| -.post)  ~
-  %-  some
-  (post-1 +.post)
-::
-++  reply-seal-1
-  |=  =reply-seal:c
-  ^-  reply-seal:v7:c
-  reply-seal(reacts (reacts-1 reacts.reply-seal))
-::
-++  reply-1
-  |=  =reply:c
-  ^-  reply:v7:c
-  %=  reply
-    -  (reply-seal-1 -.reply)         :: reply seal
-    +  [rev.reply (memo-1 +>.reply)]  ::  memo
-  ==
-++  reply-meta-1
-  |=  =reply-meta:c
-  ^-  reply-meta:v7:c
-  %=  reply-meta  last-repliers
-    (~(run in last-repliers.reply-meta) get-author-ship)
-  ==
-++  r-channels-1
-  |=  =r-channels:c
-  ^-  r-channels:v7:c
-  =+  r-channel=r-channel.r-channels
-  ?<  ?=(%meta -.r-channel)
-  :-  nest.r-channels
-  ^-  r-channel:v7:c
-  ?+    r-channel  r-channel
-      [%posts *]
-    :-  %posts
-    (posts-1 posts.r-channel)
-    ::
-      [%post id-post:c %set *]
-    ?:  ?=(%| -.post.r-post.r-channel)
-      r-channel(post.r-post ~)
-    r-channel(post.r-post `(post-1 +.post.r-post.r-channel))
-    ::
-      [%post id-post:c %reply id-reply:c ^ %reacts *]
-    %=    r-channel
-        ::
-        reply-meta.r-post
-      (reply-meta-1 reply-meta.r-post.r-channel)
-      ::
-        reacts.r-reply.r-post
-      (reacts-1 reacts.r-reply.r-post.r-channel)
-    ==
-    ::
-      [%post id-post:c %reply id-reply:c ^ %set *]
-    :: ?~  reply.r-reply.r-post.r-channel
-    ::   %=    r-channel
-    ::       reply-meta.r-post
-    ::     (reply-meta-1 reply-meta.r-post.r-channel)
-    ::   ==
-    %=    r-channel
-        ::
-        reply.r-reply.r-post
-      ?:  ?=(%| -.reply.r-reply.r-post.r-channel)  ~
-      `(reply-1 +.reply.r-reply.r-post.r-channel)
-      ::
-        reply-meta.r-post
-      (reply-meta-1 reply-meta.r-post.r-channel)
-    ==
-    ::
-      [%post id-post:c %reacts *]
-    r-channel(reacts.r-post (reacts-1 reacts.r-post.r-channel))
-    ::
-      [%post id-post:c %essay *]
-    r-channel(essay.r-post (essay-1 essay.r-post.r-channel))
-    ::
-      [%pending client-id:c %post *]
-    %=    r-channel
-        essay.r-pending
-      (essay-1 essay.r-pending.r-channel)
-    ==
-    ::
-      [%pending client-id:c %reply *]
-    %=    r-channel
-        ::
-        reply-meta.r-pending
-      (reply-meta-1 reply-meta.r-pending.r-channel)
-      ::
-        memo.r-pending
-      (memo-1 memo.r-pending.r-channel)
-    ==
-  ==
-::
 ++  simple-post-1
   |=  post=simple-post:c
   ^-  simple-post:v7:c
-  :_  (essay-1 +.post)
+  :_  (v7:essay:v9:ccv +.post)
   ^-  simple-seal:v7:c
   =,  -.post
   :*  id
-      (reacts-1 reacts.post)
+      (v7:reacts:v9:ccv reacts.post)
       (simple-replies-1 replies.post)
-      (reply-meta-1 reply-meta.post)
+      (v7:reply-meta:v9:ccv reply-meta.post)
   ==
 ::
 ++  simple-reply-1
   |=  =simple-reply:c
   ^-  simple-reply:v7:c
   %=  simple-reply
-    +  (memo-1 +.simple-reply)
-    reacts  (reacts-1 reacts.simple-reply)
+    +  (v7:memo:v9:ccv +.simple-reply)
+    reacts  (v7:reacts:v9:ccv reacts.simple-reply)
   ==
 ::
 ++  simple-replies-1
@@ -752,14 +526,6 @@
       author   ~nul
     ==
   ==
-::
-++  to-said-1
-  |=  =said:c
-  ^-  said:v7:c
-  ::NOTE  the tombstone branches here _shouldn't_ get hit in practice,
-  ::      because we generally don't return "said" results for deleted msgs
-  ::      in the v7 api
-  said(q (reference-1 q.said))
 ::
 ++  have-plan  ::NOTE  matches +said-*
   |=  [=nest:c =plan:c posts=v-posts:c]
@@ -884,16 +650,6 @@
     ?:  ?=(%| -.u.reply)  u.reply
     &+(suv-reply-2 p.plan +.u.reply)
   [%channel-said-2 !>(`said:v9:c`[nest %reply p.plan reply])]
-++  scan-1
-  |=  =scan:c
-  ^-  scan:v7:c
-  (turn scan reference-1)
-::
-++  scam-1
-  |=  =scam:c
-  ^-  scam:v7:c
-  scam(scan (scan-1 scan.scam))
-::
 ++  may-bind
   |*  f=$-(* *)
   |*  v=(may:c *)

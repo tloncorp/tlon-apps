@@ -1,5 +1,5 @@
-/-  c=chat-2
-|_  =action:club:c
+/-  c=chat
+|_  =action:club:v2:c
 ++  grad  %noun
 ++  grow
   |%
@@ -7,6 +7,6 @@
   --
 ++  grab
   |%
-  ++  noun  action:club:c
+  ++  noun  action:club:v2:c
   --
 --

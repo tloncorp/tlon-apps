@@ -10,7 +10,7 @@
     ^-  ^json
     %-  pairs
     :~  channels/(channel-heads:v9:enjs:dj chan.mixed-heads-3)
-        dms/(chat-heads:enjs:cj chat.mixed-heads-3)
+        dms/(chat-heads:v6:enjs:cj chat.mixed-heads-3)
     ==
   --
 ++  grab

@@ -1,6 +1,6 @@
 ::  broadcaster: multi-target dms
 ::
-/-  c=chat, ch=channels, c4=chat-4, c3=chat-3
+/-  c=chat, ch=channels
 /+  cj=channel-json, dm,
     dbug, verb
 ::
