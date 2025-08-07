@@ -3,7 +3,7 @@ import { expect } from '@playwright/test';
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
-test.describe('Group Ban Functionality', () => {
+test.describe('Group Ban and Kick Functionality', () => {
   test('should allow banning and unbanning users in public groups', async ({
     zodSetup,
     tenSetup,
@@ -74,14 +74,11 @@ test.describe('Group Ban Functionality', () => {
     // The member might still be visible in banned section, so we just verify ban action worked
     // by checking that we can now see unban option if we click on them again
     const bannedSection = zodPage.getByText('Banned Users');
-    if (await bannedSection.isVisible({ timeout: 2000 })) {
-      // If banned section exists, click on ~ten there
-      await tenRow.click();
-      await expect(zodPage.getByText('Unban User')).toBeVisible();
-      // Close sheet after checking
-      await zodPage.keyboard.press('Escape');
-      await zodPage.waitForTimeout(1000);
-    }
+    await expect(bannedSection).toBeVisible({ timeout: 5000 });
+    
+    // Click on ~ten in the banned section
+    await tenRow.click();
+    await expect(zodPage.getByText('Unban User')).toBeVisible();
 
     // Verify ~ten can no longer see the group after being banned
     // Navigate to Home on ~ten's page
@@ -89,6 +86,24 @@ test.describe('Group Ban Functionality', () => {
     await tenPage.waitForTimeout(2000);
     
     // The group should not be visible in ~ten's chat list
+    await expect(
+      tenPage.getByTestId('ChatListItem-Untitled group-unpinned')
+    ).not.toBeVisible({ timeout: 5000 });
+
+    // Now unban ~ten
+    await zodPage.getByText('Unban User').click();
+    await zodPage.waitForTimeout(3000);
+    
+    // Close sheet
+    await zodPage.keyboard.press('Escape');
+    await zodPage.waitForTimeout(1000);
+    
+    // Verify ~ten is no longer in the banned section
+    // After unbanning, the banned section should disappear or ~ten should not be in it
+    await expect(zodPage.getByText('Banned Users')).not.toBeVisible({ timeout: 5000 });
+    
+    // After unbanning, ~ten still can't see the group (needs re-invite)
+    // This verifies that unbanning doesn't automatically restore access
     await expect(
       tenPage.getByTestId('ChatListItem-Untitled group-unpinned')
     ).not.toBeVisible({ timeout: 5000 });
@@ -368,5 +383,82 @@ test.describe('Group Ban Functionality', () => {
     // Close sheet
     await zodPage.keyboard.press('Escape');
     await zodPage.waitForTimeout(1000);
+  });
+
+  test('should allow kicking users from groups', async ({
+    zodSetup,
+    tenSetup,
+  }) => {
+    const zodPage = zodSetup.page;
+    const tenPage = tenSetup.page;
+
+    // Create a public group
+    await helpers.createGroup(zodPage);
+
+    // Invite ~ten
+    await helpers.openGroupSettings(zodPage);
+    await zodPage.getByText('Invite people').click();
+    await zodPage.getByPlaceholder('Filter by nickname, @p').fill('~ten');
+    await zodPage.waitForTimeout(1000);
+    await zodPage.getByTestId('ContactRow').getByText('~ten').first().click();
+    await zodPage.getByText('Invite 1 and continue').click();
+    await zodPage.waitForTimeout(1000);
+
+    // ~ten accepts invite
+    await expect(tenPage.getByText('Group invitation')).toBeVisible({
+      timeout: 10000,
+    });
+    await tenPage.getByText('Group invitation').click();
+    await tenPage.getByText('Accept invite').click();
+    await tenPage.waitForSelector('text=Joining, please wait...');
+    await tenPage.waitForSelector('text=Go to group', { state: 'visible' });
+    await tenPage.getByText('Go to group').click();
+
+    // Wait for group to load
+    await expect(tenPage.getByTestId('ChannelListItem-General')).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Navigate to members page and kick ~ten
+    await helpers.openGroupSettings(zodPage);
+    await zodPage.getByTestId('GroupMembers').click();
+    await zodPage.waitForTimeout(2000);
+
+    // Click on ~ten to open profile sheet
+    await zodPage.getByTestId('MemberRow').filter({ hasText: '~ten' }).click();
+
+    // Verify kick option is available and click it
+    await expect(zodPage.getByText('Kick User')).toBeVisible();
+    await zodPage.getByText('Kick User').click();
+
+    // Wait for kick to complete
+    await zodPage.waitForTimeout(3000);
+
+    // Close sheet if needed
+    await zodPage.keyboard.press('Escape');
+    await zodPage.waitForTimeout(1000);
+
+    // Verify ~ten is no longer in the members list
+    await expect(
+      zodPage.getByTestId('MemberRow').filter({ hasText: '~ten' })
+    ).not.toBeVisible({ timeout: 5000 });
+
+    // Verify ~ten can no longer see the group after being kicked
+    await tenPage.getByTestId('HomeNavIcon').click();
+    await tenPage.waitForTimeout(2000);
+    
+    // The group should not be visible in ~ten's chat list
+    await expect(
+      tenPage.getByTestId('ChatListItem-Untitled group-unpinned')
+    ).not.toBeVisible({ timeout: 5000 });
+
+    // Verify that unlike ban, ~ten doesn't appear in a "banned" section
+    // Navigate to group settings to check
+    await helpers.openGroupSettings(zodPage);
+    await zodPage.getByTestId('GroupMembers').click();
+    await zodPage.waitForTimeout(2000);
+    
+    // There should be no "Banned Users" section after a kick (only after ban)
+    await expect(zodPage.getByText('Banned Users')).not.toBeVisible({ timeout: 2000 });
   });
 });
