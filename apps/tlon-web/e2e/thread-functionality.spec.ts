@@ -192,8 +192,10 @@ test('should test cross-ship thread functionality', async ({
   });
 
   // TEN: Add a reaction to zod's original message
-  // Skip this step for now to focus on edit functionality verification
-  // await helpers.reactToMessage(tenPage, 'Reply from zod', 'laugh');
+  await helpers.reactToMessage(tenPage, 'Reply from zod', 'laughing');
+
+  // ZOD: Verify the reaction from ten is visible
+  await expect(zodPage.getByText('😆')).toBeVisible({ timeout: 15000 });
 
   // Both ships navigate back to channel and verify thread count
   await helpers.navigateBack(zodPage);

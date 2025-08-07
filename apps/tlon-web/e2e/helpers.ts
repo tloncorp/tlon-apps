@@ -17,16 +17,27 @@ export async function createGroup(page: Page) {
   await page.getByText('Select contacts to invite').click();
   await page.getByText('Create group').click();
 
-  await page.waitForTimeout(2000);
+  // Wait for group creation to complete and navigate to group
+  // Either we're already in the group or need to navigate to it
+  const channelHeader = page.getByTestId('ChannelHeaderTitle');
 
-  if (await page.getByTestId('ChannelHeaderTitle').isVisible()) {
-    await expect(page.getByText('Welcome to your group!')).toBeVisible();
-  } else {
+  try {
+    // Wait briefly to see if we're automatically navigated to the group
+    await expect(channelHeader).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Welcome to your group!')).toBeVisible({
+      timeout: 3000,
+    });
+  } catch {
+    // If not automatically navigated, go to the group manually
     await page.getByTestId('HomeNavIcon').click();
+    await expect(
+      page.getByTestId('ChatListItem-Untitled group-unpinned')
+    ).toBeVisible({ timeout: 10000 });
     await page.getByTestId('ChatListItem-Untitled group-unpinned').click();
-    await page.waitForTimeout(2000);
-    await expect(page.getByTestId('ChannelHeaderTitle')).toBeVisible();
-    await expect(page.getByText('Welcome to your group!')).toBeVisible();
+    await expect(channelHeader).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Welcome to your group!')).toBeVisible({
+      timeout: 5000,
+    });
   }
 }
 
@@ -59,13 +70,26 @@ export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
   await page.getByTestId('ActionSheetAction-Invite people').first().click();
 
   for (const memberId of memberIds) {
-    await page.getByPlaceholder('Filter by nickname').fill(memberId);
-    await page.waitForTimeout(2000);
-    await page.getByTestId('ContactRow').first().click();
+    const filterInput = page.getByPlaceholder('Filter by nickname');
+    await expect(filterInput).toBeVisible({ timeout: 5000 });
+    await filterInput.fill(memberId);
+
+    // Wait for contact to appear in search results
+    await expect(
+      page.getByTestId('ContactRow').getByText(memberId)
+    ).toBeVisible({
+      timeout: 10000,
+    });
+    await page.getByTestId('ContactRow').getByText(memberId).click();
   }
 
-  await page.getByText('continue').click();
-  await page.waitForTimeout(2000);
+  // Wait for continue button to update with selection count and click
+  const continueButton = page.getByText(/continue|Invite \d+ and continue/);
+  await expect(continueButton).toBeVisible({ timeout: 5000 });
+  await continueButton.click();
+
+  // Brief wait for invitation to be sent
+  await page.waitForTimeout(1000);
 }
 
 export async function rejectGroupInvite(page: Page) {
@@ -541,21 +565,53 @@ export async function createNotebookPost(
   title: string,
   content: string
 ) {
+  // Wait for add button to be ready and click
+  await expect(page.getByTestId('AddNotebookPost')).toBeVisible({
+    timeout: 10000,
+  });
   await page.getByTestId('AddNotebookPost').click();
-  await page.getByRole('textbox', { name: 'New Title' }).click();
-  await page.getByRole('textbox', { name: 'New Title' }).fill(title);
-  await page.waitForTimeout(1500);
-  await page.locator('iframe').contentFrame().getByRole('paragraph').click();
-  await page
-    .locator('iframe')
-    .contentFrame()
-    .locator('div')
-    .nth(2)
-    .fill(content);
-  await page.waitForTimeout(500);
-  await page.getByTestId('BigInputPostButton').click();
-  await page.waitForTimeout(500);
-  await expect(page.getByText(title)).toBeVisible();
+
+  // Fill in title with deterministic wait
+  const titleInput = page.getByRole('textbox', { name: 'New Title' });
+  await expect(titleInput).toBeVisible({ timeout: 5000 });
+  await titleInput.click();
+  await titleInput.fill(title);
+
+  // Wait for iframe to be properly loaded and accessible
+  const iframe = page.locator('iframe');
+  await expect(iframe).toBeVisible({ timeout: 10000 });
+
+  // Wait for iframe content to be ready
+  await iframe.waitFor({ state: 'attached' });
+  const contentFrame = iframe.contentFrame();
+  if (!contentFrame) {
+    throw new Error('Iframe content frame not available');
+  }
+
+  // Wait for editor to be initialized with placeholder text (with ellipsis)
+  await expect(contentFrame.getByRole('paragraph')).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Click in the editor area to focus
+  await contentFrame.getByRole('paragraph').click();
+
+  // Use more stable selector - target the paragraph element directly
+  const editorParagraph = contentFrame.getByRole('paragraph');
+  await expect(editorParagraph).toBeVisible({ timeout: 3000 });
+  await editorParagraph.fill(content);
+
+  // Wait for post button to be enabled and click
+  const postButton = page.getByTestId('BigInputPostButton');
+  await expect(postButton).toBeVisible({ timeout: 5000 });
+  await postButton.click();
+
+  // Wait for post to appear in the channel with the correct title
+  await expect(page.getByText(title).first()).toBeVisible({ timeout: 15000 });
+
+  // Wait for backend to sync the post data to prevent 500 "hosed" errors
+  // This prevents race conditions when immediately clicking the post
+  await page.waitForTimeout(3000);
 }
 
 // Gallery-related helper functions
@@ -586,29 +642,44 @@ export async function createGalleryPost(page: Page, content: string) {
 export async function sendMessage(page: Page, message: string) {
   await page.getByTestId('MessageInput').click();
   await page.fill('[data-testid="MessageInput"]', message);
-  await page.waitForTimeout(1500);
+  await expect(page.getByTestId('MessageInputSendButton')).toBeVisible({
+    timeout: 10000,
+  });
   await page.getByTestId('MessageInputSendButton').click({ force: true });
   // Wait for message to appear
-  await page.waitForTimeout(1000);
   await expect(
     page.getByTestId('Post').getByText(message, { exact: true }).first()
-  ).toBeVisible();
-  await page.waitForTimeout(1000);
+  ).toBeVisible({ timeout: 10000 });
 }
 
 /**
  * Long presses on a message to open the context menu
  */
 export async function longPressMessage(page: Page, messageText: string) {
+  await expect(
+    page.getByTestId('ChatMessageDeliveryStatus').first()
+  ).not.toBeVisible({ timeout: 10000 });
+
   // Not really a longpress since this is web.
-  await page
+  const postElement = page
     .getByTestId('Post')
-    .getByText(messageText)
-    .first()
-    .hover({ force: true });
-  await page.waitForTimeout(1000);
-  await page.getByTestId('MessageActionsTrigger').click();
-  await page.waitForTimeout(500);
+    .getByText(messageText, { exact: true })
+    .first();
+
+  // Ensure the post is visible and ready for interaction
+  await expect(postElement).toBeVisible({ timeout: 10000 });
+  await postElement.hover({ force: true });
+
+  // Wait for message actions trigger to appear
+  const actionsTrigger = page.getByTestId('MessageActionsTrigger');
+  await expect(actionsTrigger).toBeVisible({ timeout: 5000 });
+  await actionsTrigger.click();
+
+  // Wait for the action menu to be visible by checking for context-specific menu items
+  await page.getByTestId('ChatMessageActions').waitFor({
+    state: 'visible',
+    timeout: 5000,
+  });
 }
 
 /**
@@ -616,9 +687,10 @@ export async function longPressMessage(page: Page, messageText: string) {
  */
 export async function startThread(page: Page, messageText: string) {
   await longPressMessage(page, messageText);
-  // Use exact match to avoid ambiguity with "1 reply" text
-  await expect(page.getByText('Reply', { exact: true })).toBeVisible();
-  await page.waitForTimeout(500);
+  // Menu is already visible from longPressMessage, click Reply to start thread
+  await expect(page.getByText('Reply', { exact: true })).toBeVisible({
+    timeout: 10000,
+  });
   await page.getByText('Reply', { exact: true }).click();
   await page.waitForTimeout(500);
   await expect(page.getByRole('textbox', { name: 'Reply' })).toBeVisible();
@@ -644,7 +716,7 @@ export async function sendThreadReply(page: Page, replyText: string) {
 export async function reactToMessage(
   page: Page,
   messageText: string,
-  emoji: 'thumb' | 'heart' | 'laugh' = 'thumb'
+  emoji: 'thumb' | 'heart' | 'laughing' = 'thumb'
 ) {
   await longPressMessage(page, messageText);
   await page.getByTestId(`EmojiToolbarButton-${emoji}`).click();
@@ -653,7 +725,7 @@ export async function reactToMessage(
   const emojiMap = {
     thumb: '👍',
     heart: '❤️',
-    laugh: '😂',
+    laughing: '😆',
   };
 
   await expect(
@@ -820,8 +892,6 @@ export async function editMessage(
   isThread = false
 ) {
   await longPressMessage(page, originalText);
-  // Wait a bit for the action menu to appear
-  await page.waitForTimeout(500);
   await page.getByText('Edit message').click();
 
   // Click on the message text to edit it
@@ -837,7 +907,9 @@ export async function editMessage(
     await page.getByTestId('MessageInput').fill(newText);
     await page.getByTestId('MessageInputSendButton').click();
   }
-  await expect(page.getByText(newText, { exact: true })).toBeVisible();
+  await expect(page.getByText(newText, { exact: true })).toBeVisible({
+    timeout: 10000,
+  });
 }
 
 /**
@@ -946,4 +1018,102 @@ export async function leaveDM(page: Page, contactId: string) {
 export async function isMobileViewport(page: Page) {
   const viewport = await page.viewportSize();
   return viewport && viewport.width < 768;
+}
+
+/**
+ * Retry an interaction with exponential backoff
+ * Useful for handling DOM detachment and other transient failures
+ */
+export async function retryInteraction<T>(
+  action: () => Promise<T>,
+  options: {
+    maxAttempts?: number;
+    delayMs?: number;
+    description?: string;
+  } = {}
+): Promise<T> {
+  const {
+    maxAttempts = 3,
+    delayMs = 1000,
+    description = 'interaction',
+  } = options;
+  let lastError: Error = new Error('No attempts made');
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await action();
+    } catch (error) {
+      lastError = error as Error;
+      if (attempt < maxAttempts) {
+        console.log(`${description} attempt ${attempt} failed, retrying...`);
+        await new Promise((resolve) => setTimeout(resolve, delayMs * attempt)); // Exponential backoff
+      }
+    }
+  }
+
+  throw new Error(
+    `Failed ${description} after ${maxAttempts} attempts: ${lastError.message}`
+  );
+}
+
+/**
+ * Interact with a hidden post element (which doesn't have data-testid="Post")
+ */
+export async function interactWithHiddenPost(
+  page: Page,
+  action: 'Show post' | 'Delete post' | 'Report post'
+) {
+  const hiddenPostMessage = page
+    .getByText('You have hidden or reported this post')
+    .first();
+  await expect(hiddenPostMessage).toBeVisible({ timeout: 10000 });
+  await hiddenPostMessage.hover({ force: true });
+
+  // Wait for message actions trigger to appear
+  const actionsTrigger = page.getByTestId('MessageActionsTrigger');
+  await expect(actionsTrigger).toBeVisible({ timeout: 5000 });
+  await actionsTrigger.click();
+
+  // Click the requested action
+  await expect(page.getByText(action)).toBeVisible({ timeout: 5000 });
+  await page.getByText(action).click();
+
+  // Wait for action to complete
+  await page.waitForTimeout(500);
+}
+
+/**
+ * Wait for navigation to complete and verify we're not on an unexpected page
+ */
+export async function verifyNavigation(
+  page: Page,
+  expectedNotVisible?: string,
+  options: {
+    timeout?: number;
+    fallbackAction?: () => Promise<void>;
+  } = {}
+) {
+  const { timeout = 2000, fallbackAction } = options;
+
+  // Wait for navigation to settle
+  await page.waitForLoadState('networkidle', { timeout }).catch(() => {
+    // Network might not go idle in time, that's okay
+  });
+
+  // Check if we ended up on an unexpected page
+  if (expectedNotVisible) {
+    const unexpectedVisible = await page
+      .getByText(expectedNotVisible)
+      .isVisible()
+      .catch(() => false);
+    if (unexpectedVisible && fallbackAction) {
+      console.log(
+        `WARNING: Unexpected navigation to ${expectedNotVisible}, attempting recovery`
+      );
+      await fallbackAction();
+    }
+    return !unexpectedVisible;
+  }
+
+  return true;
 }

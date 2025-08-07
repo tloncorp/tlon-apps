@@ -3,6 +3,9 @@ import { expect } from '@playwright/test';
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
+// Increase timeout for these comprehensive tests
+test.setTimeout(90000);
+
 test('should test comprehensive chat functionality', async ({
   zodSetup,
   tenSetup,
@@ -204,7 +207,8 @@ test('should show and clear unread message counts', async ({
   await helpers.sendMessage(zodPage, 'Unread message test');
 
   // Navigate ~ten to home to prepare for unread testing
-  await tenPage.getByTestId('HomeNavIcon').click();
+  // Click the back button to go to Home
+  await tenPage.getByTestId('HeaderBackButton').first().click();
   await expect(tenPage.getByText('Home')).toBeVisible();
 
   // Verify unread count on ~ten's side
@@ -219,7 +223,7 @@ test('should show and clear unread message counts', async ({
   await expect(tenPage.getByText(groupName).first()).toBeVisible();
 
   // Navigate back to home and verify unread count is cleared
-  await tenPage.getByTestId('HomeNavIcon').click();
+  await tenPage.getByTestId('HeaderBackButton').first().click();
   await expect(tenPage.getByText('Home')).toBeVisible();
   await helpers.verifyChatUnreadCount(tenPage, 'Untitled group', 0);
 });
