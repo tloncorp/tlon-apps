@@ -463,12 +463,14 @@
   $:  =posts
       newer=(unit time)
       older=(unit time)
+      newest=@ud
       total=@ud
   ==
 +$  paged-simple-posts
   $:  posts=simple-posts
       newer=(unit time)
       older=(unit time)
+      newest=@ud
       total=@ud
   ==
 +$  posts  ((mop id-post (may post)) lte)

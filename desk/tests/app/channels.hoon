@@ -212,7 +212,6 @@
       =.  posts.chan
         +:(del:on-v-posts:c posts.chan tombstone-key)
       (~(put by *v-channels:c) *nest:c chan)
-<<<<<<< HEAD
     ::
     =.  save  (slot 3 save)  ::  move "through" discipline state
     =.  save  !<(vase (slot 3 save))  ::  move "through" negotiate state & shenanigans
@@ -306,7 +305,7 @@
     ;<  *  bind:m  (do-load channels-agent `!>(bad-state))
     ;<  caz=(list card)  bind:m
       =;  tombs=(list [id-post:v9:c tombstone:v9:c])
-        (do-poke %noun !>([%tombstones *nest:c tombs]))
+        (do-poke %noun -:!>(**) [%tombstones *nest:c tombs])
       :~  :*  key=missing-key
               [missing-key ~sul seq=1 del-at=~2025.7.23..09.10.11]
           ==
@@ -327,14 +326,8 @@
         sequence-fix-test-channel
       (~(put by *v-channels:c) *nest:c chan)
     ::
-    =.  save  (slot 3 save)  ::  move "through" discipline state
-    =.  save  !<(vase (slot 3 save))  ::  move "through" negotiate state & shenanigans
-=======
-    ::  carefully work around wrapper library state
-    ::
     =.  save  (slot 3 save)           ::  lib discipline
     =.  save  !<(vase (slot 3 save))  ::  lib negotiate
->>>>>>> develop
     (ex-equal save !>(fixed-state))
   --
 --

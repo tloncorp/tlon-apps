@@ -153,6 +153,7 @@
     :~  posts+(posts posts.pn)
         newer+?~(newer.pn ~ (id u.newer.pn))
         older+?~(older.pn ~ (id u.older.pn))
+        newest+(numb newest.pn)
         total+(numb total.pn)
     ==
   ++  paged-simple-posts
@@ -161,6 +162,7 @@
     :~  posts+(simple-posts posts.pn)
         newer+?~(newer.pn ~ (id u.newer.pn))
         older+?~(older.pn ~ (id u.older.pn))
+        newest+(numb newest.pn)
         total+(numb total.pn)
     ==
   +|  %rr
