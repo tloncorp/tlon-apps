@@ -52,7 +52,6 @@ export async function sendPost({
   logger.crumb('get author');
   const author = await db.getContact({ id: authorId });
   logger.crumb('build pending post');
-  // const nextSeq = await db.getNextSequenceNumber({ channelId: channel.id });
   const cachePost = db.buildPendingPost({
     authorId,
     author,

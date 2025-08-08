@@ -320,6 +320,9 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     setNewPosts([]);
   }, [options.channelId]);
 
+  // TODO: the following transforms should be cleaned up. There's probably low hanging
+  // fruit if we streamline newer posts, stub removal, pending weave, delete filter
+
   const rawPosts = useMemo<db.Post[] | null>(() => {
     const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? null;
     if (!newPosts.length || query.hasPreviousPage) {

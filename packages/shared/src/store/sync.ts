@@ -513,13 +513,6 @@ export async function syncUpdatedPosts(
     posts: response.posts,
   });
 
-  // TODO: remove? should be safe, tombstones will show up as normal posts with
-  // the right flags set
-
-  // await db.deletePosts({
-  //   ids: response.deletedPosts ?? [],
-  // });
-
   return response;
 }
 
@@ -1726,6 +1719,9 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     updateSession({ phase: 'ready' });
 
     // fire off relevant channel posts sync, but don't wait for it
+    // TODO: maybe re-enable. My hunch is it's quick to layer this in as a new scry
+    // that can do what we want in one round trip. Pairing that with changes might be
+    // a better path forward compared to reviving the functionality as it was.
     // syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
     //   logger.crumb(`finished channel predictive sync`);
     // });
