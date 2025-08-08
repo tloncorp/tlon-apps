@@ -22,10 +22,15 @@ function spyOn<T extends object, MethodName extends keyof T>(
 
 function InviteUsersSheetFixture() {
   const store = useMemo(() => {
-    const mockUseGroup = () => ({
-      data: group,
+    const mockUseGroup = ({ id }: { id?: string }) => ({
+      data: id ? group : undefined,
       isLoading: false,
       error: null,
+      isSuccess: !!id,
+      isError: false,
+      refetch: () => Promise.resolve(),
+      queryKey: ['group', id],
+      enabled: !!id,
     });
 
     // @ts-expect-error - fixture mock
@@ -33,8 +38,8 @@ function InviteUsersSheetFixture() {
   }, []);
 
   return (
-    <StoreProvider stub={store}>
-      <FixtureWrapper>
+    <FixtureWrapper>
+      <StoreProvider stub={store}>
         <AppDataContextProvider currentUserId="~zod" contacts={initialContacts}>
           <InviteUsersSheet
             open
@@ -43,8 +48,8 @@ function InviteUsersSheetFixture() {
             groupId={group.id}
           />
         </AppDataContextProvider>
-      </FixtureWrapper>
-    </StoreProvider>
+      </StoreProvider>
+    </FixtureWrapper>
   );
 }
 
