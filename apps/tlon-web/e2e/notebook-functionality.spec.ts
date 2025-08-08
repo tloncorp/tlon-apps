@@ -54,80 +54,108 @@ test('should test notebook functionality', async ({ zodSetup, tenSetup }) => {
 
   // Wait for the notebook post to appear - it might show content as title
   // Due to a possible UI bug, the title might not save correctly
-  const postText = await zodPage.getByText('New notebook post').isVisible({ timeout: 5000 })
+  const postText = await zodPage
+    .getByText('New notebook post')
+    .isVisible({ timeout: 5000 })
     .then(() => 'New notebook post')
     .catch(async () => {
       // If title isn't visible, check if content is being used as title
-      const contentVisible = await zodPage.getByText('Some text...').isVisible({ timeout: 2000 });
+      const contentVisible = await zodPage
+        .getByText('Some text...')
+        .isVisible({ timeout: 2000 });
       if (contentVisible) {
-        console.log('WARNING: Notebook post title not saved, content is being displayed instead');
+        console.log(
+          'WARNING: Notebook post title not saved, content is being displayed instead'
+        );
         return 'Some text...';
       }
       throw new Error('Neither title nor content found for notebook post');
     });
-  
+
   // Additional wait to ensure backend has synced the post data
   // This prevents 500 "hosed" errors when clicking immediately after creation
   console.log('Waiting for backend to sync post data...');
   await zodPage.waitForTimeout(2000);
-  
+
   // Try multiple strategies to click on the notebook post
   // The post might be rendered as a card/container that needs to be clicked
   console.log(`Attempting to click on notebook post with text: ${postText}`);
-  
+
   // Strategy 1: Try clicking the text element with force
   await zodPage.getByText(postText).first().click({ force: true });
-  
+
   // Verify navigation and recover if needed
   await helpers.verifyNavigation(zodPage, 'Home', {
     timeout: 3000,
     fallbackAction: async () => {
       // Try to navigate back to the group and channel
       await zodPage.getByText(groupName).first().click();
-      await expect(zodPage.getByTestId('ChannelListItem-Test Notebook')).toBeVisible({ timeout: 5000 });
+      await expect(
+        zodPage.getByTestId('ChannelListItem-Test Notebook')
+      ).toBeVisible({ timeout: 5000 });
       await zodPage.getByTestId('ChannelListItem-Test Notebook').click();
       // Wait for channel to load and find the post
       await zodPage.waitForTimeout(2000); // Give channel time to load
-      const postTextInChannel = await zodPage.getByText('New notebook post').isVisible({ timeout: 3000 })
+      const postTextInChannel = await zodPage
+        .getByText('New notebook post')
+        .isVisible({ timeout: 3000 })
         .then(() => 'New notebook post')
         .catch(() => 'Some text...');
-      await expect(zodPage.getByText(postTextInChannel)).toBeVisible({ timeout: 5000 });
+      await expect(zodPage.getByText(postTextInChannel)).toBeVisible({
+        timeout: 5000,
+      });
       // Try clicking the post again with force
       await zodPage.getByText(postTextInChannel).first().click({ force: true });
-    }
+    },
   });
-  
+
   // Now verify we're in the post detail view
-  await expect(zodPage.getByText('No replies yet')).toBeVisible({ timeout: 10000 });
+  await expect(zodPage.getByText('No replies yet')).toBeVisible({
+    timeout: 10000,
+  });
   await expect(
     zodPage.getByTestId('NotebookPostContent').getByText('Some text...')
   ).toBeVisible({ timeout: 5000 });
-  await expect(zodPage.getByTestId('MessageInput')).toBeVisible({ timeout: 5000 });
+  await expect(zodPage.getByTestId('MessageInput')).toBeVisible({
+    timeout: 5000,
+  });
 
   // Add a reply to the post
   await helpers.sendMessage(zodPage, 'This is a reply');
 
   // Edit the post - handle potential DOM detachment with retry logic
-  await helpers.retryInteraction(async () => {
-    const editButton = zodPage.getByTestId('ChannelHeaderEditButton');
-    await expect(editButton).toBeVisible({ timeout: 5000 });
-    await expect(editButton).toBeAttached({ timeout: 3000 });
-    await editButton.click();
-  }, { description: 'Edit button click', maxAttempts: 3 });
-  
+  await helpers.retryInteraction(
+    async () => {
+      const editButton = zodPage.getByTestId('ChannelHeaderEditButton');
+      await expect(editButton).toBeVisible({ timeout: 5000 });
+      await expect(editButton).toBeAttached({ timeout: 3000 });
+      await editButton.click();
+    },
+    { description: 'Edit button click', maxAttempts: 3 }
+  );
+
   // Wait for edit interface to be fully stable before interacting
   // Wait for edit mode UI elements to appear
-  await expect(zodPage.getByRole('textbox', { name: 'New Title' }).or(zodPage.locator('input[type="text"]').first())).toBeVisible({ timeout: 5000 });
-  
+  await expect(
+    zodPage
+      .getByRole('textbox', { name: 'New Title' })
+      .or(zodPage.locator('input[type="text"]').first())
+  ).toBeVisible({ timeout: 5000 });
+
   // Verify we're still in the correct context (not navigated to Home)
-  const homeVisible = await zodPage.getByText('Home').isVisible({ timeout: 1000 }).catch(() => false);
+  const homeVisible = await zodPage
+    .getByText('Home')
+    .isVisible({ timeout: 1000 })
+    .catch(() => false);
   if (homeVisible) {
-    throw new Error('Edit button click caused navigation back to Home screen - edit mode did not activate');
+    throw new Error(
+      'Edit button click caused navigation back to Home screen - edit mode did not activate'
+    );
   }
-  
+
   // Look for title input with more flexible selectors
   let titleInput = zodPage.getByRole('textbox', { name: 'New Title' });
-  
+
   // If the specific selector doesn't work, try alternatives
   try {
     await expect(titleInput).toBeVisible({ timeout: 5000 });
@@ -139,21 +167,24 @@ test('should test notebook functionality', async ({ zodSetup, tenSetup }) => {
     }
     await expect(titleInput).toBeVisible({ timeout: 5000 });
   }
-  
+
   await expect(titleInput).toBeAttached({ timeout: 5000 });
-  
+
   // Ensure element is stable and not being re-rendered
   await titleInput.waitFor({ state: 'visible', timeout: 5000 });
-  
+
   // Wait for title input to be ready for interaction
   await expect(titleInput).toBeEnabled({ timeout: 2000 });
-  
+
   // Use retry logic for filling the title
-  await helpers.retryInteraction(async () => {
-    await titleInput.fill('Edited title');
-    // Verify the fill was successful
-    await expect(titleInput).toHaveValue('Edited title');
-  }, { description: 'Fill title input', maxAttempts: 3, delayMs: 500 });
+  await helpers.retryInteraction(
+    async () => {
+      await titleInput.fill('Edited title');
+      // Verify the fill was successful
+      await expect(titleInput).toHaveValue('Edited title');
+    },
+    { description: 'Fill title input', maxAttempts: 3, delayMs: 500 }
+  );
 
   // Wait for iframe content to be ready
   await zodPage.locator('iframe').waitFor({ state: 'attached' });
@@ -191,34 +222,8 @@ test('should test notebook functionality', async ({ zodSetup, tenSetup }) => {
   // Navigate to the group as ~ten
   await expect(tenPage.getByText('Home')).toBeVisible();
 
-  // Wait for the group invitation and accept it
-  await expect(tenPage.getByText('Group invitation')).toBeVisible({
-    timeout: 15000,
-  });
-  await tenPage.getByText('Group invitation').click();
-
-  // Accept the invitation if present
-  const acceptButton = tenPage.getByText('Accept invite');
-  if (await acceptButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-    await acceptButton.click();
-  }
-
-  // Wait for joining process and navigate to group
-  const joiningMessage = await tenPage.getByText('Joining, please wait...').isVisible({ timeout: 5000 }).catch(() => false);
-  if (joiningMessage) {
-    await expect(tenPage.getByText('Go to group')).toBeVisible({
-      timeout: 15000,
-    });
-    await tenPage.getByText('Go to group').click();
-  } else {
-    // Fallback: navigate to group directly
-    await expect(tenPage.getByText(groupName).first()).toBeVisible({
-      timeout: 10000,
-    });
-    await tenPage.getByText(groupName).first().click();
-  }
-
-  await expect(tenPage.getByText(groupName).first()).toBeVisible();
+  // Accept the group invitation using the helper
+  await helpers.acceptGroupInvite(tenPage, groupName);
 
   // Navigate to the notebook channel
   await expect(

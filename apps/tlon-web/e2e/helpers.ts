@@ -94,7 +94,9 @@ export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
 
 export async function acceptGroupInvite(page: Page, groupName?: string) {
   // Wait for and click the invitation
-  await expect(page.getByText('Group invitation')).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText('Group invitation')).toBeVisible({
+    timeout: 10000,
+  });
   await page.getByText('Group invitation').click();
 
   // Accept the invitation
@@ -103,28 +105,45 @@ export async function acceptGroupInvite(page: Page, groupName?: string) {
     await acceptButton.click();
   }
 
-  // Wait for joining state with explicit timeout
-  await expect(page.getByText('Joining, please wait...')).toBeVisible({ 
-    timeout: 15000 
-  });
+  // Check if we see the joining state (this may be skipped if join is very fast)
+  const joiningMessage = await page
+    .getByText('Joining, please wait...')
+    .isVisible({ timeout: 5000 })
+    .catch(() => false);
 
-  // Wait for membership confirmation with extended timeout for CI
-  // CI environments need more time for cross-ship state synchronization
-  const goToGroupButton = page.getByText('Go to group');
-  await expect(goToGroupButton).toBeVisible({ 
-    timeout: 45000 
-  });
+  if (joiningMessage) {
+    // If we saw the joining message, wait for "Go to group" button
+    const goToGroupButton = page.getByText('Go to group');
+    await expect(goToGroupButton).toBeVisible({
+      timeout: 45000, // Extended timeout for CI environments
+    });
 
-  // Navigate to the group
-  if (await goToGroupButton.isVisible()) {
+    // Click the button to navigate to the group
     await goToGroupButton.click();
-  } else if (groupName && await page.getByText(groupName).first().isVisible()) {
-    await page.getByText(groupName).first().click();
+  } else {
+    // If joining was fast and we didn't see the joining message,
+    // check if "Go to group" button is already visible
+    const goToGroupButton = page.getByText('Go to group');
+    const buttonVisible = await goToGroupButton
+      .isVisible({ timeout: 5000 })
+      .catch(() => false);
+
+    if (buttonVisible) {
+      await goToGroupButton.click();
+    } else if (groupName) {
+      // Fallback: navigate to group directly if we're already past the invitation flow
+      await expect(page.getByText(groupName).first()).toBeVisible({
+        timeout: 10000,
+      });
+      await page.getByText(groupName).first().click();
+    }
   }
 
   // Verify we're in the group
   if (groupName) {
-    await expect(page.getByText(groupName).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(groupName).first()).toBeVisible({
+      timeout: 5000,
+    });
   }
 }
 
@@ -1082,7 +1101,10 @@ export async function retryInteraction<T>(
       lastError = error as Error;
       if (attempt < maxAttempts) {
         console.log(`${description} attempt ${attempt} failed, retrying...`);
-        await new Promise((resolve) => setTimeout(resolve, delayMs * attempt)); // Exponential backoff
+        // Use void to properly handle the promise without await
+        await new Promise<void>((resolve) =>
+          setTimeout(resolve, delayMs * attempt)
+        ); // Exponential backoff
       }
     }
   }
