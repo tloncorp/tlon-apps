@@ -9,10 +9,6 @@ test('should create, verify, and delete a group', async ({ zodPage }) => {
   // Assert that we're on the Home page
   await expect(page.getByText('Home')).toBeVisible();
 
-  // Clean up any existing group
-  await helpers.cleanupExistingGroup(page);
-  await helpers.cleanupExistingGroup(page, '~ten, ~zod');
-
   // Create a new group (this handles the entire creation flow)
   await helpers.createGroup(page);
 
