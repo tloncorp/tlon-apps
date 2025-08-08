@@ -4,7 +4,13 @@ import { Icon } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
-import { ElementRef, PropsWithChildren, useRef, useState } from 'react';
+import {
+  ElementRef,
+  PropsWithChildren,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   Alert,
   Dimensions,
@@ -15,7 +21,6 @@ import {
 } from 'react-native';
 import {
   Directions,
-  FlingGesture,
   Gesture,
   GestureDetector,
 } from 'react-native-gesture-handler';
@@ -66,15 +71,6 @@ export function ImageViewerScreenView(props: {
       triggerHaptic('zoomable');
     }
   }
-
-  const dismissGesture = Gesture.Fling()
-    .enabled(isAtMinZoom && !isWeb)
-    .direction(Directions.DOWN)
-    .onEnd((_event, success) => {
-      if (success) {
-        runOnJS(props.goBack)();
-      }
-    });
 
   const handleDownloadImage = async () => {
     if (isWeb) {
@@ -277,7 +273,10 @@ export function ImageViewerScreenView(props: {
   };
 
   return (
-    <ImageViewerContainer dismissGesture={dismissGesture}>
+    <ImageViewerContainer
+      dismiss={props.goBack}
+      dismissGestureEnabled={isAtMinZoom}
+    >
       <ZStack
         flex={1}
         backgroundColor="$black"
@@ -370,22 +369,40 @@ export function ImageViewerScreenView(props: {
   );
 }
 
-function ImageViewerContainer(
-  props: PropsWithChildren<{ dismissGesture?: FlingGesture }>
-) {
+function ImageViewerContainer({
+  dismiss,
+  dismissGestureEnabled,
+  children,
+}: PropsWithChildren<{
+  dismissGestureEnabled: boolean;
+  dismiss?: () => void;
+}>) {
+  const dismissGesture = useMemo(
+    () =>
+      Gesture.Fling()
+        .enabled(dismiss != null && dismissGestureEnabled && !isWeb)
+        .direction(Directions.DOWN)
+        .onEnd((_event, success) => {
+          if (success && dismiss != null) {
+            runOnJS(dismiss)();
+          }
+        }),
+    [dismiss, dismissGestureEnabled]
+  );
+
   // on web, we wrap in a modal to escape the drawer navigators
   if (isWeb) {
-    return <Modal animationType="none">{props.children}</Modal>;
+    return (
+      <Modal animationType="none" onRequestClose={dismiss}>
+        {children}
+      </Modal>
+    );
   }
 
-  if (!props.dismissGesture) {
+  if (!dismissGesture) {
     console.error('ImageViewerContainer requires a dismissGesture on mobile');
     return null;
   }
 
-  return (
-    <GestureDetector gesture={props.dismissGesture}>
-      {props.children}
-    </GestureDetector>
-  );
+  return <GestureDetector gesture={dismissGesture}>{children}</GestureDetector>;
 }
