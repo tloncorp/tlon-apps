@@ -30,6 +30,7 @@ export * from './components/EditProfileScreenView';
 export * from './components/EditableProfileImages';
 export * from './components/Embed';
 export * from './components/Emoji/EmojiPickerSheet';
+export * from './components/FacePile';
 export * from './components/FeatureFlagScreenView';
 export * from './components/Form';
 export * as Form from './components/Form';
