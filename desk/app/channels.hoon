@@ -2834,7 +2834,7 @@
           %|  seq.p.i.posts
         ==
       ?:  (gth seq end)    $(posts t.posts)
-      ?:  (lth seq start)  ~  ::  done
+      ?:  &(!=(0 seq) (lth seq start))  ~  ::  done
       [i.posts $(posts t.posts)]
     ::
         [%post time=@ ~]
