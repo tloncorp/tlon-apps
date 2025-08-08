@@ -13,11 +13,10 @@ interface _PostDataDraftBase {
 }
 export interface PostDataDraftParent extends _PostDataDraftBase {
   isEdit?: false;
-  parentId?: undefined;
 }
 export interface PostDataDraftEdit extends _PostDataDraftBase {
   isEdit: true;
-  parentId: string;
+  editTargetPostId: string;
 }
 
 /**
@@ -42,7 +41,7 @@ export interface PostDataFinalizedParent extends _PostDataFinalizedBase {
 
 export interface PostDataFinalizedEdit extends _PostDataFinalizedBase {
   isEdit: true;
-  parentId?: string;
+  editTargetPostId: string;
 }
 
 /**
