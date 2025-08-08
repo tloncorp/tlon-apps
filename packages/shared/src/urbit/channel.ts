@@ -137,8 +137,15 @@ export interface PagedPostsMap extends Omit<PagedPosts, 'posts'> {
   posts: PageMap;
 }
 
+export type PostLike = Post | PostTombstone;
+
+export interface SequencedPosts {
+  posts: Posts;
+  newest: number;
+}
+
 export interface Posts {
-  [time: string]: Post | PostTombstone | null;
+  [time: string]: PostLike;
 }
 
 export type PostTuple = [BigInteger, Post | null];

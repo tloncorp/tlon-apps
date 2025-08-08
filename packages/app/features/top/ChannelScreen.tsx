@@ -212,7 +212,7 @@ export default function ChannelScreen(props: Props) {
     ...(cursor && !clearedCursor
       ? {
           mode: 'around',
-          cursor,
+          cursorPostId: cursor,
           firstPageCount: 30,
         }
       : {
@@ -336,10 +336,10 @@ export default function ChannelScreen(props: Props) {
 
   const handleMarkRead = useCallback(async () => {
     if (channel && !channel.isPendingChannel) {
-      store.markChannelRead({
-        id: channel.id,
-        groupId: channel.groupId ?? undefined,
-      });
+      // store.markChannelRead({
+      //   id: channel.id,
+      //   groupId: channel.groupId ?? undefined,
+      // });
     }
   }, [channel?.type, channel?.id, channel?.groupId]);
 

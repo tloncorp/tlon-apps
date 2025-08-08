@@ -2523,7 +2523,7 @@ export type GetChannelPostsOptions = {
   cursor?: string;
 };
 
-export type GetPostsOptions = {
+export type GetSequencedPostsOptions = {
   channelId: string;
   count?: number;
   mode: 'newest' | 'older' | 'newer' | 'around';
@@ -2560,7 +2560,7 @@ export const getNextSequenceNumber = createReadQuery(
 
 export const getSequencedChannelPosts = createReadQuery(
   'getSequencedChannelPosts',
-  async (options: GetPostsOptions, ctx: QueryCtx): Promise<Post[]> => {
+  async (options: GetSequencedPostsOptions, ctx: QueryCtx): Promise<Post[]> => {
     seqLogger.log('getting sequenced channel posts', options);
     const count = options.count || 50;
     if (options.mode !== 'newest' && !options.cursorSequenceNum) {

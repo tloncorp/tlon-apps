@@ -329,6 +329,54 @@ export const sendReply = async ({
   const action = channelPostAction(channelId, postAction);
   await poke(action);
 };
+export interface GetSequencedPostsOptions {
+  channelId: string;
+  start: number;
+  end: number;
+}
+
+export const getSequencedChannelPosts = async (
+  options: GetSequencedPostsOptions
+) => {
+  const encodedStart = formatUd(options.start.toString());
+  const encodedEnd = formatUd(options.end.toString());
+  const endpoint = formatScryPath(
+    ...[
+      'v4',
+      options.channelId,
+      'posts',
+      'range',
+      encodedStart,
+      encodedEnd,
+      'outline',
+    ]
+  );
+
+  const response = await scry<ub.SequencedPosts>({
+    app: 'channels',
+    path: endpoint,
+  });
+
+  const clientPosts = toPostsData(options.channelId, response.posts).posts;
+  const withoutGaps = fillSequenceGaps(clientPosts, {
+    lowerBound: options.start,
+    upperBound: options.end,
+  });
+
+  if (withoutGaps.numStubs > 0) {
+    logger.log('filled sequence gaps', {
+      channelId: options.channelId,
+      start: options.start,
+      end: options.end,
+      numStubs: withoutGaps.numStubs,
+    });
+  }
+
+  return {
+    posts: withoutGaps.posts,
+    newestSequenceNum: Number(response.newest),
+  };
+};
 
 export type GetChannelPostsOptions = {
   channelId: string;
@@ -426,8 +474,9 @@ export function fillSequenceGaps(
     return { posts: [], numStubs: 0 };
   }
 
-  // --- Step 2: Find the min and max sequence numbers ---
-  const examplePost = responsePosts[0];
+  // --- Step 2: If not provided explicitly, use the data to determine the window ---
+  const explicitWindowProvided =
+    config.lowerBound !== null && config.upperBound !== null;
   let minSeq = config.lowerBound ?? Infinity;
   let maxSeq = config.upperBound ?? 0;
   let numStubs = 0;
@@ -437,22 +486,26 @@ export function fillSequenceGaps(
     if (!post.sequenceNum) {
       // this should never happen
       logger.trackError('post missing sequence number', {
-        post, // TODO: IMPORTANT avoid logging message data this after internal testing
+        postId: post.id, // TODO: IMPORTANT avoid logging message data this after internal testing
+        channelId: post.channelId,
       });
       continue;
     }
 
-    if (post.sequenceNum < minSeq) {
-      minSeq = post.sequenceNum;
-    }
-    if (post.sequenceNum > maxSeq) {
-      maxSeq = post.sequenceNum;
+    if (!explicitWindowProvided) {
+      if (post.sequenceNum < minSeq) {
+        minSeq = post.sequenceNum;
+      }
+      if (post.sequenceNum > maxSeq) {
+        maxSeq = post.sequenceNum;
+      }
     }
     existingPostMap.set(post.sequenceNum, post);
   }
 
   // --- Step 3: Iterate through the range and fill gaps ---
   const mergedPosts: db.Post[] = [];
+  const examplePost = responsePosts[0];
   let previousSentAt = examplePost.sentAt;
   for (let i = minSeq; i <= maxSeq; i++) {
     const existingPost = existingPostMap.get(i);

@@ -1321,6 +1321,46 @@ export async function handleAddPost(
   }
 }
 
+export async function syncSequencedPosts(
+  options: {
+    channelId: string;
+    cursorSequenceNum: number;
+    mode: 'newer' | 'older' | 'around';
+    count?: number;
+  },
+  ctx?: SyncCtx
+) {
+  let start, end: number;
+  if (options.mode === 'newer') {
+    start = options.cursorSequenceNum;
+    end = options.cursorSequenceNum + (options.count ?? 50);
+  } else if (options.mode === 'older') {
+    start = Math.max(1, options.cursorSequenceNum - (options.count ?? 50));
+    end = options.cursorSequenceNum;
+  } else {
+    const halfCount = Math.floor((options.count ?? 50) / 2);
+    start = Math.max(1, options.cursorSequenceNum - halfCount);
+    end = options.cursorSequenceNum + halfCount;
+  }
+  console.log(
+    `bl:syncSequencedPosts ${options.channelId}/${start}-${end} (${options.mode}:${options.cursorSequenceNum})`
+  );
+
+  const result = await syncQueue.add('sequencedChannelPosts', ctx, () =>
+    api.getSequencedChannelPosts({ channelId: options.channelId, start, end })
+  );
+
+  if (result.posts.length) {
+    await db.insertChannelPosts({
+      posts: result.posts,
+    });
+  }
+
+  // TODO: update channel pointer to newest sequence #
+
+  return result;
+}
+
 export async function syncPosts(
   options: api.GetChannelPostsOptions,
   ctx?: SyncCtx
@@ -1369,116 +1409,116 @@ export async function syncPosts(
   return response;
 }
 
-export async function syncSequencedPosts(
-  options: api.GetChannelPostsOptions,
-  ctx?: SyncCtx
-) {
-  logger.log(
-    'syncing sequenced posts',
-    `${options.channelId}/${options.cursor}/${options.mode}`
-  );
+// export async function syncSequencedPosts(
+//   options: api.GetChannelPostsOptions,
+//   ctx?: SyncCtx
+// ) {
+//   logger.log(
+//     'syncing sequenced posts',
+//     `${options.channelId}/${options.cursor}/${options.mode}`
+//   );
 
-  let sequenceBoundary = null;
+//   let sequenceBoundary = null;
 
-  if (options.cursor && ['newer', 'older'].includes(options.mode)) {
-    // we need to know the sequence number of the cursor, so make sure we have it
-    if (typeof options.cursor !== 'string') {
-      throw new Error('cannot get sequenced posts with date cursor');
-    }
+//   if (options.cursor && ['newer', 'older'].includes(options.mode)) {
+//     // we need to know the sequence number of the cursor, so make sure we have it
+//     if (typeof options.cursor !== 'string') {
+//       throw new Error('cannot get sequenced posts with date cursor');
+//     }
 
-    let cursorPost: db.Post | null = await db.getPost({
-      postId: options.cursor,
-    });
-    if (!cursorPost) {
-      const result = await syncQueue.add('getCursorPost', ctx, () => {
-        return api.getChannelPosts({
-          channelId: options.channelId,
-          cursor: options.cursor,
-          mode: 'around',
-          count: 1,
-        });
-      });
-      cursorPost = result.posts[0] ?? null;
-      if (!cursorPost) {
-        throw new Error(
-          `could not find post with id ${options.cursor} in channel ${options.channelId}`
-        );
-      }
-    }
+//     let cursorPost: db.Post | null = await db.getPost({
+//       postId: options.cursor,
+//     });
+//     if (!cursorPost) {
+//       const result = await syncQueue.add('getCursorPost', ctx, () => {
+//         return api.getChannelPosts({
+//           channelId: options.channelId,
+//           cursor: options.cursor,
+//           mode: 'around',
+//           count: 1,
+//         });
+//       });
+//       cursorPost = result.posts[0] ?? null;
+//       if (!cursorPost) {
+//         throw new Error(
+//           `could not find post with id ${options.cursor} in channel ${options.channelId}`
+//         );
+//       }
+//     }
 
-    if (!cursorPost.sequenceNum) {
-      console.error('bad cursor post', cursorPost);
-      throw new Error('cursor does not have sequence number');
-    }
+//     if (!cursorPost.sequenceNum) {
+//       console.error('bad cursor post', cursorPost);
+//       throw new Error('cursor does not have sequence number');
+//     }
 
-    console.log(`bl:syncSequencedPosts cursorPost seq`, cursorPost.sequenceNum);
+//     console.log(`bl:syncSequencedPosts cursorPost seq`, cursorPost.sequenceNum);
 
-    sequenceBoundary =
-      options.mode === 'newer'
-        ? cursorPost.sequenceNum + 1
-        : cursorPost.sequenceNum - 1;
-  }
+//     sequenceBoundary =
+//       options.mode === 'newer'
+//         ? cursorPost.sequenceNum + 1
+//         : cursorPost.sequenceNum - 1;
+//   }
 
-  const response = await syncQueue.add('channelPosts', ctx, () =>
-    api.getChannelPosts({ ...options, sequenceBoundary })
-  );
+//   const response = await syncQueue.add('channelPosts', ctx, () =>
+//     api.getChannelPosts({ ...options, sequenceBoundary })
+//   );
 
-  console.log(
-    `bl:sync posts ${options.channelId}/${options.cursor}/${options.mode}`,
-    response.posts
-  );
+//   console.log(
+//     `bl:sync posts ${options.channelId}/${options.cursor}/${options.mode}`,
+//     response.posts
+//   );
 
-  if (response.posts.length) {
-    await db.insertChannelPosts({
-      posts: response.posts,
-    });
-  }
+//   if (response.posts.length) {
+//     await db.insertChannelPosts({
+//       posts: response.posts,
+//     });
+//   }
 
-  // if (response.deletedPosts?.length) {
-  //   if (options.count && response.deletedPosts.length === options.count) {
-  //     // if the number of deleted ("null") posts matches the requested count,
-  //     // we should fetch more posts to ensure we're not missing any.
-  //     // if we don't do this, we may assume we're up to date when we're not.
-  //     await syncPosts(
-  //       {
-  //         ...options,
-  //         count: options.count * 2,
-  //       },
-  //       ctx
-  //     );
-  //   }
-  // }
+//   // if (response.deletedPosts?.length) {
+//   //   if (options.count && response.deletedPosts.length === options.count) {
+//   //     // if the number of deleted ("null") posts matches the requested count,
+//   //     // we should fetch more posts to ensure we're not missing any.
+//   //     // if we don't do this, we may assume we're up to date when we're not.
+//   //     await syncPosts(
+//   //       {
+//   //         ...options,
+//   //         count: options.count * 2,
+//   //       },
+//   //       ctx
+//   //     );
+//   //   }
+//   // }
 
-  const numIrregular = response.numDeletes + response.numStubs;
-  if (options.count && numIrregular >= options.count) {
-    await syncSequencedPosts({
-      ...options,
-      count: options.count * 2,
-    });
-  }
+//   const numIrregular = response.numDeletes + response.numStubs;
+//   if (options.count && numIrregular >= options.count) {
+//     await syncSequencedPosts({
+//       ...options,
+//       count: options.count * 2,
+//     });
+//   }
 
-  if (!response.newer) {
-    await db.updateChannel({
-      id: options.channelId,
-      syncedAt: Date.now(),
-    });
-  }
+//   if (!response.newer) {
+//     await db.updateChannel({
+//       id: options.channelId,
+//       syncedAt: Date.now(),
+//     });
+//   }
 
-  const oldestSeq = response.posts[response.posts.length - 1]?.sequenceNum;
-  const newestSeq = response.posts[0]?.sequenceNum;
+//   const oldestSeq = response.posts[response.posts.length - 1]?.sequenceNum;
+//   const newestSeq = response.posts[0]?.sequenceNum;
 
-  console.log(
-    `bl:syncSequenced ${options.channelId}/${options.mode}/${options.cursor}:${sequenceBoundary}`,
-    {
-      numStubs: response.numStubs,
-      sequenceBoundary,
-      posts: response.posts,
-      range: `${oldestSeq}-${newestSeq}`,
-    }
-  );
+//   console.log(
+//     `bl:syncSequenced ${options.channelId}/${options.mode}/${options.cursor}:${sequenceBoundary}`,
+//     {
+//       numStubs: response.numStubs,
+//       sequenceBoundary,
+//       posts: response.posts,
+//       range: `${oldestSeq}-${newestSeq}`,
+//     }
+//   );
 
-  return response;
-}
+//   return response;
+// }
 
 export async function syncGroupPreviews(groupIds: string[]) {
   const promises = groupIds.map(async (groupId) => {
