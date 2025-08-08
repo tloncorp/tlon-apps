@@ -715,7 +715,7 @@
   %-  zing
   %+  murn  affected
   |=  =nest:c
-  ?:  =(ship.nest our.bowl)  ~
+  ?.  =(ship.nest our.bowl)  ~
   :-  ~
   %+  turn  ~(tap in ships)
   |=  =ship
