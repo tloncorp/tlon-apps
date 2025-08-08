@@ -92,6 +92,42 @@ export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
   await page.waitForTimeout(1000);
 }
 
+export async function acceptGroupInvite(page: Page, groupName?: string) {
+  // Wait for and click the invitation
+  await expect(page.getByText('Group invitation')).toBeVisible({ timeout: 10000 });
+  await page.getByText('Group invitation').click();
+
+  // Accept the invitation
+  const acceptButton = page.getByText('Accept invite');
+  if (await acceptButton.isVisible()) {
+    await acceptButton.click();
+  }
+
+  // Wait for joining state with explicit timeout
+  await expect(page.getByText('Joining, please wait...')).toBeVisible({ 
+    timeout: 15000 
+  });
+
+  // Wait for membership confirmation with extended timeout for CI
+  // CI environments need more time for cross-ship state synchronization
+  const goToGroupButton = page.getByText('Go to group');
+  await expect(goToGroupButton).toBeVisible({ 
+    timeout: 45000 
+  });
+
+  // Navigate to the group
+  if (await goToGroupButton.isVisible()) {
+    await goToGroupButton.click();
+  } else if (groupName && await page.getByText(groupName).first().isVisible()) {
+    await page.getByText(groupName).first().click();
+  }
+
+  // Verify we're in the group
+  if (groupName) {
+    await expect(page.getByText(groupName).first()).toBeVisible({ timeout: 5000 });
+  }
+}
+
 export async function rejectGroupInvite(page: Page) {
   if (await page.getByText('Group invitation').isVisible()) {
     await page.getByText('Group invitation').click();

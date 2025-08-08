@@ -107,27 +107,8 @@ test.skip('Forward chat message from group channel to DM - verify toast and refe
   // Then verify the actual message content is visible
   await expect(zodPage.getByText(testMessage)).toBeVisible({ timeout: 10000 });
 
-  // Wait for the group invitation and accept it
-  await tenPage.waitForTimeout(3000);
-  await expect(tenPage.getByText('Group invitation')).toBeVisible();
-  await tenPage.getByText('Group invitation').click();
-
-  // Accept the invitation
-  if (await tenPage.getByText('Accept invite').isVisible()) {
-    await tenPage.getByText('Accept invite').click();
-  }
-
-  // Wait for joining process and go to group
-  await tenPage.waitForSelector('text=Joining, please wait...');
-  await tenPage.waitForSelector('text=Go to group', { state: 'visible' });
-
-  if (await tenPage.getByText('Go to group').isVisible()) {
-    await tenPage.getByText('Go to group').click();
-    // Wait a moment for navigation to complete
-    await tenPage.waitForTimeout(2000);
-  } else {
-    await tenPage.getByText(groupName).first().click();
-  }
+  // Accept the group invitation
+  await helpers.acceptGroupInvite(tenPage, groupName);
 
   // Navigate back to Home to access DMs
   await tenPage.getByTestId('HomeNavIcon').click();
