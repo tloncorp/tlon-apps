@@ -808,11 +808,20 @@
       ?.  ?=([%contact ~] wire)  caz
       :_  caz
       [%pass wire %agent dock %leave ~]
-    ::  schedule foreigns and admissions migration
+    ::  clean up old group updates subscriptions
+    ::
+    =.  caz
+      %+  roll  ~(tap by wex.bowl)
+      |=  [[[=wire =dock] *] =_caz]
+      ?.  ?=([%groups @ @ %updates ~] wire)  caz
+      :_  caz
+      [%pass wire %agent dock %leave ~]
+    ::  schedule foreigns, admissions and groups subscription migrations
     ::
     =.  caz
       :-  [%pass /load/v7/foreigns %arvo %b %wait now.bowl]
       :-  [%pass /load/v7/admissions %arvo %b %wait now.bowl]
+      :-  [%pass /load/v7/subscriptions %arvo %b %wait now.bowl]
       caz
     =/  channels-index=(map nest:g flag:g)
       %-  ~(gas by *(map nest:g flag:g))
@@ -1279,6 +1288,14 @@
       %+  weld  /server/(scot %p our.bowl)/[q.flag]
       /invite/retry/(scot %p ship)/(scot %ud retry)/(scot %dr delay)
     (emit [%pass wire %arvo %b %wait (add now.bowl delay)])
+  ::
+      ::  v6 -> v7 migrate group subscriptions
+      ::
+      ::  the group updates subscription path has changed,
+      ::  so we must re-subscribe on the new path post load.
+      ::
+      [%load %v7 %subscriptions ~]
+    inflate-io
   ==
 ::  does not overwite if wire and dock exist.  maybe it should
 ::  leave/rewatch if the path differs?
@@ -1365,7 +1382,8 @@
       (~(ges cy:t con.response) groups+%flag)
     ?:  |(?=(~ groups) =(~ u.groups))  cor  ::TMI
     %+  roll  ~(tap in u.groups)
-    |=  [val=$>(%flag value:t) =_cor]
+    |=  [val=value:t =_cor]
+    ?>  ?=(%flag -.val)
     fi-abet:(fi-watch:(fi-abed:fi-core:cor p.val) %v1 /preview)
   ==
 ::
@@ -2612,7 +2630,8 @@
     |=  =ship
     ^-  ?
     ?:  =(ship p.flag)  &
-    =/  =seat:g  (~(got by seats.group) ship)
+    ?~   tea=(~(get by seats.group) ship)  |
+    =*  seat  u.tea
     !=(~ (~(int in roles.seat) admins.group))
   ::  +go-is-banned: check whether the ship is banned
   ::
@@ -2978,8 +2997,9 @@
           ::      we don't have an invitation, and thus no way to rejoin.
           ::      the user will still see the group, but it is going
           ::      to be stale. it would be best to somehow surface
-          ::      it at the frontend.
+          ::      it at the client.
           ::
+          %-  (tell:log %crit 'misguided group watch-ack' ~)
           go-core
         ::  join in progress, set error and leave the group
         ::  to allow re-joining.
@@ -3244,7 +3264,8 @@
       =.  go-core
         %-  ~(rep in ships)
         |=  [=ship =_go-core]
-        =+  seat=(~(got by seats.group) ship)
+        ?~  tea=(~(get by seats.group) ship)  go-core
+        =*  seat  u.tea
         ?:  =(~ (~(dif in roles.u-seat) roles.seat))  go-core
         (go-activity:go-core %role ship roles.u-seat)
       ?:  go-our-host  go-core
@@ -3263,7 +3284,8 @@
       =.  go-core
         %-  ~(rep in ships)
         |=  [=ship =_go-core]
-        =+  seat=(~(got by seats.group) ship)
+        ?~  tea=(~(get by seats.group) ship)  go-core
+        =*  seat  u.tea
         ?:  =(~ (~(int in roles.u-seat) roles.seat))  go-core
         (go-activity:go-core %role ship roles.u-seat)
       ?:  go-our-host  go-core
