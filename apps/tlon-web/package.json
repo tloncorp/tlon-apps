@@ -33,7 +33,8 @@
     "e2e:codegen": "playwright codegen",
     "e2e:test": "tsc --isolatedModules --skipLibCheck ./rube/run-single-test.ts --outDir ./rube/dist && node ./rube/dist/run-single-test.js",
     "e2e:test:force": "cross-env FORCE_EXTRACTION=true pnpm e2e:test",
-    "e2e:playwright-dev": "tsc --isolatedModules --skipLibCheck ./rube/playwright-dev.ts --outDir ./rube/dist && node ./rube/dist/playwright-dev.js"
+    "e2e:playwright-dev": "tsc --isolatedModules --skipLibCheck ./rube/playwright-dev.ts --outDir ./rube/dist && node ./rube/dist/playwright-dev.js",
+    "e2e:playwright-dev:force": "cross-env FORCE_EXTRACTION=true pnpm e2e:playwright-dev"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [

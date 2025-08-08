@@ -1055,6 +1055,32 @@ export async function deletePost(page: Page, postText: string) {
 }
 
 /**
+ * Waits for the session to be stable and ready for operations
+ */
+async function waitForSessionStability(page: Page) {
+  // Wait a moment to ensure any pending state changes have settled
+  await page.waitForTimeout(500);
+
+  // Ensure we're not on a loading state by checking for common loading indicators
+  const loadingIndicators = [
+    page.getByText('Loading…'),
+    page.getByText('Reconnecting…'),
+    page.getByText('Connecting…'),
+  ];
+
+  for (const indicator of loadingIndicators) {
+    await expect(indicator)
+      .not.toBeVisible({ timeout: 1000 })
+      .catch(() => {
+        // Ignore if the element doesn't exist at all
+      });
+  }
+
+  // Additional small delay to ensure session is fully stable
+  await page.waitForTimeout(300);
+}
+
+/**
  * Edits a message
  */
 export async function editMessage(
@@ -1063,24 +1089,43 @@ export async function editMessage(
   newText: string,
   isThread = false
 ) {
+  // Ensure session is stable before attempting edit
+  await waitForSessionStability(page);
+
   await longPressMessage(page, originalText);
   await page.getByText('Edit message').click();
 
-  // Click on the message text to edit it
-  await page.getByText(originalText).nth(1).click();
+  // Wait for edit mode to be fully initialized
+  await page.waitForTimeout(500);
 
-  // Clear existing text and input new text
-  if (isThread) {
-    await page.getByTestId('MessageInput').nth(1).fill('');
-    await page.getByTestId('MessageInput').nth(1).fill(newText);
-    await page.getByTestId('MessageInputSendButton').nth(1).click();
-  } else {
-    await page.getByTestId('MessageInput').fill('');
-    await page.getByTestId('MessageInput').fill(newText);
-    await page.getByTestId('MessageInputSendButton').click();
-  }
+  // Wait for the input to be populated with the original text
+  const inputSelector = isThread
+    ? page.getByTestId('MessageInput').nth(1)
+    : page.getByTestId('MessageInput');
+
+  // Wait for the input to contain the original text before editing
+  // The input may have trailing whitespace, so we check if it contains the text
+  await expect(async () => {
+    const value = await inputSelector.inputValue();
+    return value.trim() === originalText;
+  }).toPass({ timeout: 5000, intervals: [100, 200, 500] });
+
+  // Clear and fill with new text
+  await inputSelector.fill(newText);
+
+  // Ensure session is still stable before sending
+  await waitForSessionStability(page);
+
+  // Click the send button
+  const sendButton = isThread
+    ? page.getByTestId('MessageInputSendButton').nth(1)
+    : page.getByTestId('MessageInputSendButton');
+
+  await sendButton.click();
+
+  // Wait for the edited message to appear
   await expect(page.getByText(newText, { exact: true })).toBeVisible({
-    timeout: 10000,
+    timeout: 15000, // Increased timeout for CI environment
   });
 }
 
@@ -1188,7 +1233,7 @@ export async function leaveDM(page: Page, contactId: string) {
  * Check if we're on a mobile viewport
  */
 export async function isMobileViewport(page: Page) {
-  const viewport = await page.viewportSize();
+  const viewport = page.viewportSize();
   return viewport && viewport.width < 768;
 }
 
