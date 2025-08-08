@@ -593,10 +593,11 @@
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
   ?+    pole  ~|(bad-agent-wire+pole !!)
-    [%logs ~]     cor
-    [%pimp ~]     cor
-    [%wake ~]     cor
-    [%numbers ~]  cor
+    [%logs ~]          cor
+    [%pimp ~]          cor
+    [%wake ~]          cor
+    [%numbers ~]       cor
+    [%request-join ~]  cor
   ::
       [=kind:c *]
     ?+    -.sign  !!
