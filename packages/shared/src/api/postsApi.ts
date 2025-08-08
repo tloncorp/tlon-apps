@@ -333,6 +333,7 @@ export interface GetSequencedPostsOptions {
   channelId: string;
   start: number;
   end: number;
+  includeReplies?: boolean;
 }
 
 export const getSequencedChannelPosts = async (
@@ -340,20 +341,40 @@ export const getSequencedChannelPosts = async (
 ) => {
   const encodedStart = formatUd(options.start.toString());
   const encodedEnd = formatUd(options.end.toString());
+  // const endpoint = formatScryPath(
+  //   ...[
+  //     'v4',
+  //     options.channelId,
+  //     'posts',
+  //     'range',
+  //     encodedStart,
+  //     encodedEnd,
+  //     'outline',
+  //   ]
+  // );
+
+  const type = getChannelIdType(options.channelId);
+  const app = type === 'channel' ? 'channels' : 'chat';
   const endpoint = formatScryPath(
     ...[
-      'v4',
-      options.channelId,
-      'posts',
-      'range',
-      encodedStart,
-      encodedEnd,
-      'outline',
+      // TODO: what dm/club versions?
+      type === 'dm' ? 'v2/dm' : null,
+      type === 'club' ? 'v2/club' : null,
+      type === 'channel' ? 'v4' : null,
+    ],
+    options.channelId,
+    type === 'channel' ? 'posts' : 'writs',
+    'range',
+    encodedStart,
+    encodedEnd,
+    ...[
+      type === 'channel' ? (options.includeReplies ? 'post' : 'outline') : null,
+      type !== 'channel' ? (options.includeReplies ? 'heavy' : 'light') : null,
     ]
   );
 
   const response = await scry<ub.SequencedPosts>({
-    app: 'channels',
+    app: app,
     path: endpoint,
   });
 
@@ -458,6 +479,7 @@ export const getChannelPosts = async ({
     // posts: postsResponse.posts,
     numStubs,
     numDeletes: postsResponse.deletedPosts?.length ?? 0,
+    newestSequenceNum: response.newest,
   };
 };
 

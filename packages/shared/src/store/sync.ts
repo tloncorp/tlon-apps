@@ -1356,6 +1356,13 @@ export async function syncSequencedPosts(
     });
   }
 
+  if (result.newestSequenceNum) {
+    await db.setLatestChannelSequenceNum({
+      channelId: options.channelId,
+      sequenceNum: result.newestSequenceNum,
+    });
+  }
+
   // TODO: update channel pointer to newest sequence #
 
   return result;
@@ -1381,6 +1388,13 @@ export async function syncPosts(
   if (response.posts.length) {
     await db.insertChannelPosts({
       posts: response.posts,
+    });
+  }
+
+  if (response.newestSequenceNum) {
+    await db.setLatestChannelSequenceNum({
+      channelId: options.channelId,
+      sequenceNum: response.newestSequenceNum,
     });
   }
 

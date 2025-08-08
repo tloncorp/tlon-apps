@@ -54,6 +54,7 @@ export async function createChannel({
     contentConfiguration:
       contentConfiguration ??
       channelContentConfigurationForChannelType(channelType),
+    lastPostSequenceNum: 0,
   };
 
   await db.insertChannels([newChannel]);

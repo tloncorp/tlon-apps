@@ -866,6 +866,7 @@ export const channels = sqliteTable(
     firstUnreadPostId: text('first_unread_post_id'),
     lastPostId: text('last_post_id'),
     lastPostAt: timestamp('last_post_at'),
+    lastPostSequenceNum: integer('last_post_sequence_num'),
     isPendingChannel: boolean('is_cached_pending_channel'),
     isNewMatchedContact: boolean('is_new_matched_contact'),
     isDmInvite: boolean('is_dm_invite').default(false),

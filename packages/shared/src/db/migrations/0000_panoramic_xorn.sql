@@ -93,6 +93,7 @@ CREATE TABLE `channels` (
 	`first_unread_post_id` text,
 	`last_post_id` text,
 	`last_post_at` integer,
+	`last_post_sequence_num` integer,
 	`is_cached_pending_channel` integer,
 	`is_new_matched_contact` integer,
 	`is_dm_invite` integer DEFAULT false,

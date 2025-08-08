@@ -2532,6 +2532,37 @@ export type GetSequencedPostsOptions = {
 
 const seqLogger = createDevLogger('seqPosts', true);
 
+export const getLatestChannelSequenceNum = createReadQuery(
+  'getLatestChannelSequenceNum',
+  async (
+    options: { channelId: string },
+    ctx: QueryCtx
+  ): Promise<number | null> => {
+    const channel = await ctx.db.query.channels.findFirst({
+      where: eq($channels.id, options.channelId),
+    });
+
+    return channel?.lastPostSequenceNum ?? null;
+  },
+  ['channels']
+);
+
+export const setLatestChannelSequenceNum = createWriteQuery(
+  'setLatestChannelSequenceNum',
+  async (
+    options: { channelId: string; sequenceNum: number },
+    ctx: QueryCtx
+  ) => {
+    await ctx.db
+      .update($channels)
+      .set({
+        lastPostSequenceNum: options.sequenceNum,
+      })
+      .where(eq($channels.id, options.channelId));
+  },
+  ['channels']
+);
+
 export const getNextSequenceNumber = createReadQuery(
   'getNextSequenceNumber',
   async (options: { channelId: string }, ctx: QueryCtx): Promise<number> => {
@@ -3086,6 +3117,18 @@ async function setLastPosts(newPosts: Post[] | null, ctx: QueryCtx) {
           and(eq($posts.channelId, $channels.id), not(eq($posts.type, 'reply')))
         )
         .orderBy(desc($posts.receivedAt))
+        .limit(1)}`,
+      lastPostSequenceNum: sql`${ctx.db
+        .select({ sequenceNum: $posts.sequenceNum })
+        .from($posts)
+        .where(
+          and(
+            eq($posts.channelId, $channels.id),
+            not(eq($posts.type, 'reply')),
+            isNotNull($posts.sequenceNum)
+          )
+        )
+        .orderBy(desc($posts.sequenceNum))
         .limit(1)}`,
     })
     .where(

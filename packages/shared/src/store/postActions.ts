@@ -52,12 +52,12 @@ export async function sendPost({
   logger.crumb('get author');
   const author = await db.getContact({ id: authorId });
   logger.crumb('build pending post');
-  const nextSeq = await db.getNextSequenceNumber({ channelId: channel.id });
+  // const nextSeq = await db.getNextSequenceNumber({ channelId: channel.id });
   const cachePost = db.buildPendingPost({
     authorId,
     author,
     channel,
-    sequenceNum: nextSeq, // placeholder, this will be overwritten by the server
+    sequenceNum: 0, // placeholder, this will be overwritten by the server
     content,
     metadata,
   });

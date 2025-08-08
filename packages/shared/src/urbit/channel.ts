@@ -131,6 +131,7 @@ export interface PagedPosts {
   newer: string | null;
   older: string | null;
   total: number;
+  newest: number;
 }
 
 export interface PagedPostsMap extends Omit<PagedPosts, 'posts'> {
