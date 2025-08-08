@@ -1052,7 +1052,7 @@
               %open
             ?-  -.p.diff
               %add-ships  [%entry %ban %add-ships p.p.diff]~
-              %del-ships  [%entry %ban %add-ships p.p.diff]~
+              %del-ships  [%entry %ban %del-ships p.p.diff]~
               %add-ranks  [%entry %ban %add-ranks p.p.diff]~
               %del-ranks  [%entry %ban %del-ranks p.p.diff]~
             ==

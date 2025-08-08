@@ -235,7 +235,6 @@ export function GroupMembersScreenView({
               setSelectedContact(null);
             }
           }}
-          groupIsOpen={groupPrivacyType === 'public'}
           contactId={selectedContact}
           contact={contacts.find((c) => c.id === selectedContact)}
           onPressKick={() => onPressKick(selectedContact)}

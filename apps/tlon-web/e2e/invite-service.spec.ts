@@ -29,7 +29,7 @@ test('should generate an invite link and be able to redeem group/personal invite
   await helpers.changeGroupName(zodPage, 'Invite Test');
 
   await helpers.openGroupSettings(zodPage);
-  await helpers.setGroupPrivacy(zodPage, false);
+  await helpers.setGroupPrivacy(zodPage, 'public');
 
   await helpers.openGroupSettings(zodPage);
   await helpers.navigateBack(zodPage);
