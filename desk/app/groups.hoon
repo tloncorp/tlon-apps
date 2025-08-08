@@ -2632,6 +2632,8 @@
         %flag-reply  [%flag-reply key parent nest group]
       ==
     go-core
+  ::  +go-is-init: check if group is initialized
+  ++  go-is-init  |(?=(%pub -.net) init.net)
   ::  +go-is-admin: check whether the ship has admin rights
   ::
   ++  go-is-admin
@@ -3034,12 +3036,15 @@
   ++  go-apply-log
     |=  =log:g
     ?~  log  go-core
+    =+  was-init=go-is-init
     =.  go-core
       %+  roll  (tap:log-on:g log)
       |=  [=update:g =_go-core]
       (go-u-group:go-core update)
     =?  net  ?=(%sub -.net)
       [%sub time.net &]
+    =?  go-core  !was-init
+      (go-response [%create group])
     ::  join the channels upon initial group log
     ::
     =/  readable-channels
@@ -3076,7 +3081,10 @@
   ++  go-u-create
     |=  gr=group:g
     ^+  go-core
-    =.  go-core  (go-response [%create gr])
+    ::  nb: we don't send out a response here because
+    ::  a synthetic %create response is sent after
+    ::  the group log has been fully applied in +go-apply-log.
+    ::
     ?:  go-our-host  go-core
     ::
     ?>  ?=(%sub -.net)
@@ -3634,6 +3642,10 @@
   ++  go-response
     |=  =r-group:g
     ^+  go-core
+    ::  do not sent out responses until group log
+    ::  has been applied, and the group initialized.
+    ::
+    ?.  go-is-init  go-core
     ::  v1 response
     ::
     =/  r-groups-7=r-groups:v7:gv  [flag r-group]
