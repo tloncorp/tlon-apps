@@ -10,10 +10,14 @@ test('should test direct message protocol mismatch', async ({ zodPage }) => {
 
   if (await zodPage.getByTestId('MessageInput').isVisible()) {
     await helpers.sendMessage(page, 'Hello, ~bus!');
-    // we need to reload the page to trigger the visible mismatch state
-    // TODO: fix this
-    await page.reload();
-  }
+    // navigate to home
+    await page.getByTestId('HomeNavIcon').click();
+    // give some time for the mismatch to register
+    await page.waitForTimeout(10000);
+    await page.getByTestId('ChannelListItem-~bus').click();
 
-  await expect(page.getByTestId('read-only-notice-dm-mismatch')).toBeVisible();
+    await expect(page.getByTestId('read-only-notice-dm-mismatch')).toBeVisible({
+      timeout: 10000,
+    });
+  }
 });

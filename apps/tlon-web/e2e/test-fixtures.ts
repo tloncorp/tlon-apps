@@ -18,6 +18,18 @@ const busUrl = `${shipManifest['~bus'].webUrl}/apps/groups/`;
 
 async function performCleanup(page: Page, shipName: string) {
   try {
+    // Dismiss any lingering modals from failed cleanup
+    try {
+      const cancelButton = page.getByText('Cancel');
+      if (await cancelButton.isVisible({ timeout: 2000 })) {
+        await cancelButton.click();
+        // Wait for modal to disappear
+        await cancelButton.waitFor({ state: 'hidden', timeout: 3000 });
+      }
+    } catch {
+      // No modal present, continue
+    }
+    
     await page.getByTestId('HomeNavIcon').click();
     if (shipName === 'zod') {
       if (await page.getByTestId('ChannelListItem-~ten').isVisible()) {

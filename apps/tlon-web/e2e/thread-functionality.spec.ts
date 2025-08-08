@@ -90,28 +90,8 @@ test('should test cross-ship thread functionality', async ({
   // Send initial message as ~zod
   await helpers.sendMessage(zodPage, 'Cross-ship thread test message');
 
-  // Wait for and accept the invitation as ~ten
-  await expect(tenPage.getByText('Group invitation')).toBeVisible({
-    timeout: 10000,
-  });
-  await tenPage.getByText('Group invitation').click();
-
-  // Accept the invitation
-  if (await tenPage.getByText('Accept invite').isVisible()) {
-    await tenPage.getByText('Accept invite').click();
-  }
-
-  // Wait for joining process
-  await tenPage.waitForSelector('text=Joining, please wait...');
-  await tenPage.waitForSelector('text=Go to group', { state: 'visible' });
-
-  if (await tenPage.getByText('Go to group').isVisible()) {
-    await tenPage.getByText('Go to group').click();
-  } else {
-    await tenPage.getByText(groupName).first().click();
-  }
-
-  await expect(tenPage.getByText(groupName).first()).toBeVisible();
+  // Accept the group invitation as ~ten
+  await helpers.acceptGroupInvite(tenPage, groupName);
 
   // Navigate to General channel
   await helpers.navigateToChannel(tenPage, 'General');
@@ -192,8 +172,10 @@ test('should test cross-ship thread functionality', async ({
   });
 
   // TEN: Add a reaction to zod's original message
-  // Skip this step for now to focus on edit functionality verification
-  // await helpers.reactToMessage(tenPage, 'Reply from zod', 'laugh');
+  await helpers.reactToMessage(tenPage, 'Reply from zod', 'laughing');
+
+  // ZOD: Verify the reaction from ten is visible
+  await expect(zodPage.getByText('😆')).toBeVisible({ timeout: 15000 });
 
   // Both ships navigate back to channel and verify thread count
   await helpers.navigateBack(zodPage);

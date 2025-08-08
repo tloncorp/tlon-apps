@@ -158,6 +158,7 @@ export function ChatMessageActions({
             borderColor="$border"
             borderWidth={1}
             padding={1}
+            testID="ChatMessageActions"
           >
             <YStack gap="$xs">
               {canWrite && (

@@ -35,27 +35,8 @@ test.skip('should invite ~bus to a group and test protocol mismatch', async ({
   await helpers.navigateBack(zodPage);
 
   // Step 2: ~bus accepts the invite
-
-  // Wait for and accept the group invitation
-  await zodPage.waitForTimeout(5000);
   await busPage.waitForTimeout(5000);
-  await expect(busPage.getByText('Group invitation')).toBeVisible();
-  await busPage.getByText('Group invitation').click();
-
-  // If there's an accept invitation button, click it
-  if (await busPage.getByText('Accept invite').isVisible()) {
-    await busPage.getByText('Accept invite').click();
-  }
-
-  await busPage.waitForSelector('text=Joining, please wait...');
-
-  await busPage.waitForSelector('text=Go to group', { state: 'visible' });
-
-  if (await busPage.getByText('Go to group').isVisible()) {
-    await busPage.getByText('Go to group').click();
-  } else {
-    await busPage.getByText('~bus, ~zod').click();
-  }
+  await helpers.acceptGroupInvite(busPage, '~bus, ~zod');
 
   // Navigate to the General channel
   await busPage.getByTestId('ChannelListItem-General').click();

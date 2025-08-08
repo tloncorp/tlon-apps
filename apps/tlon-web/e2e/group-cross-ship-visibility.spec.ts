@@ -60,24 +60,7 @@ test('should show group info, channel, and role changes to invited user', async 
   // await helpers.navigateBack(zodPage);
 
   // Step 3: ~ten accepts the invite
-  // Wait for and accept the group invitation
-  await tenPage.waitForTimeout(1000);
-  await expect(tenPage.getByText('Group invitation')).toBeVisible();
-  await tenPage.getByText('Group invitation').click();
-
-  // Accept the invitation if the button is visible
-  if (await tenPage.getByText('Accept invite').isVisible()) {
-    await tenPage.getByText('Accept invite').click();
-  }
-
-  await tenPage.waitForSelector('text=Joining, please wait...');
-  await tenPage.waitForSelector('text=Go to group', { state: 'visible' });
-
-  if (await tenPage.getByText('Go to group').isVisible()) {
-    await tenPage.getByText('Go to group').click();
-  } else {
-    await tenPage.getByText('~ten, ~zod').click();
-  }
+  await helpers.acceptGroupInvite(tenPage, '~ten, ~zod');
 
   // Step 4: ~zod makes ~ten an admin
   await helpers.openGroupSettings(zodPage);
