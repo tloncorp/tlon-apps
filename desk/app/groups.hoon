@@ -840,7 +840,13 @@
       ^-  (unit (pair flag:g gang:v6:gv))
       ?~  group=(~(get by groups) flag)
         `[flag gang]
-      ?:  ?=(%pub -<.u.group)  ~
+      =*  net  -.u.group
+      ?:  ?=(%pub -.net)  ~
+      ::  drop gang for groups that are already initialized,
+      ::  otherwise we risk losing user data during migration
+      ::  of group join flows. see /load/v7/foreigns case in +arvo.
+      ::
+      ?:  load.net  ~
       `[flag gang]
     :-  caz
     :*  %7
@@ -1231,6 +1237,7 @@
     ?~  progress.far  cor
     ?:  ?=(?(%done %error) u.progress.far)  cor
     =*  fc  (fi-abed:fi-core:cor flag)
+    ::
     =.  cor  fi-abet:fi-cancel:fc
     =<  fi-abet
     ?-    u.progress.far
@@ -1264,7 +1271,6 @@
     %-  se-compat-send-invites:(se-abed:se-core:cor flag)
     ~(key by pending.admissions.group)
   ::
-      ::
       ::  v6 -> v7 migrate invitations
       ::
       ::  some ships might be behind at the time of migration.
@@ -2183,6 +2189,8 @@
       %+  roll  ~(tap in ships)
       |=  [=ship ivl=(list ship) =_se-core]
       ?.  (can-poke:neg bowl ship %groups)
+        =.  se-core
+          (emit:se-core (initiate:neg [ship dap.bowl]))
         ::  retry .retry times with doubling .delay
         ::
         =+  delay=~h1
@@ -2191,7 +2199,7 @@
           %+  weld  /server/(scot %p our.bowl)/[q.flag]
           /invite/retry/(scot %p ship)/(scot %ud retry)/(scot %dr delay)
         :-  ivl
-        (emit [%pass wire %arvo %b %wait (add now.bowl delay)])
+        (emit:se-core [%pass wire %arvo %b %wait (add now.bowl delay)])
       :-  [ship ivl]
       se-core
     ?:  =(~ ivl)  se-core
@@ -2624,6 +2632,8 @@
         %flag-reply  [%flag-reply key parent nest group]
       ==
     go-core
+  ::  +go-is-init: check if group is initialized
+  ++  go-is-init  |(?=(%pub -.net) init.net)
   ::  +go-is-admin: check whether the ship has admin rights
   ::
   ++  go-is-admin
@@ -2999,11 +3009,17 @@
           ::      to be stale. it would be best to somehow surface
           ::      it at the client.
           ::
-          %-  (tell:log %crit 'misguided group watch-ack' ~)
+          %-  (tell:log %crit 'misguided group watch-nack' ~)
           go-core
         ::  join in progress, set error and leave the group
         ::  to allow re-joining.
         ::
+        ::  however, do not leave the group if it was already initialized
+        ::  to avoid data loss.
+        ::
+        ?:  &(?=(%sub -.net) init.net)
+          %-  (tell:log %crit 'watch-nack for initialized group' ~)
+          go-core
         =.  cor  fi-abet:fi-error:(fi-abed:fi-core flag)
         (go-leave &)
       go-core
@@ -3020,12 +3036,15 @@
   ++  go-apply-log
     |=  =log:g
     ?~  log  go-core
+    =+  was-init=go-is-init
     =.  go-core
       %+  roll  (tap:log-on:g log)
       |=  [=update:g =_go-core]
       (go-u-group:go-core update)
     =?  net  ?=(%sub -.net)
       [%sub time.net &]
+    =?  go-core  !was-init
+      (go-response [%create group])
     ::  join the channels upon initial group log
     ::
     =/  readable-channels
@@ -3062,7 +3081,10 @@
   ++  go-u-create
     |=  gr=group:g
     ^+  go-core
-    =.  go-core  (go-response [%create gr])
+    ::  nb: we don't send out a response here because
+    ::  a synthetic %create response is sent after
+    ::  the group log has been fully applied in +go-apply-log.
+    ::
     ?:  go-our-host  go-core
     ::
     ?>  ?=(%sub -.net)
@@ -3620,6 +3642,10 @@
   ++  go-response
     |=  =r-group:g
     ^+  go-core
+    ::  do not sent out responses until group log
+    ::  has been applied, and the group initialized.
+    ::
+    ?.  go-is-init  go-core
     ::  v1 response
     ::
     =/  r-groups-7=r-groups:v7:gv  [flag r-group]
