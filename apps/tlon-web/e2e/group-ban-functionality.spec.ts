@@ -28,14 +28,7 @@ test.describe('Group Ban and Kick Functionality', () => {
     await zodPage.waitForTimeout(1000);
 
     // ~ten accepts invite
-    await expect(tenPage.getByText('Group invitation')).toBeVisible({
-      timeout: 10000,
-    });
-    await tenPage.getByText('Group invitation').click();
-    await tenPage.getByText('Accept invite').click();
-    await tenPage.waitForSelector('text=Joining, please wait...');
-    await tenPage.waitForSelector('text=Go to group', { state: 'visible' });
-    await tenPage.getByText('Go to group').click();
+    await helpers.acceptGroupInvite(tenPage);
 
     // Wait for group to load
     await expect(tenPage.getByTestId('ChannelListItem-General')).toBeVisible({
@@ -124,14 +117,7 @@ test.describe('Group Ban and Kick Functionality', () => {
     await tenPage.waitForTimeout(2000);
     
     // ~ten accepts re-invite
-    await expect(tenPage.getByText('Group invitation')).toBeVisible({
-      timeout: 15000,
-    });
-    await tenPage.getByText('Group invitation').click();
-    await tenPage.getByText('Accept invite').click();
-    await tenPage.waitForSelector('text=Joining, please wait...');
-    await tenPage.waitForSelector('text=Go to group', { state: 'visible' });
-    await tenPage.getByText('Go to group').click();
+    await helpers.acceptGroupInvite(tenPage);
     
     // Verify ~ten can access the group again after being unbanned and re-invited
     await expect(tenPage.getByTestId('ChannelListItem-General')).toBeVisible({
@@ -162,14 +148,7 @@ test.describe('Group Ban and Kick Functionality', () => {
     await zodPage.waitForTimeout(1000);
 
     // ~ten accepts invite
-    await expect(tenPage.getByText('Group invitation')).toBeVisible({
-      timeout: 10000,
-    });
-    await tenPage.getByText('Group invitation').click();
-    await tenPage.getByText('Accept invite').click();
-    await tenPage.waitForSelector('text=Joining, please wait...');
-    await tenPage.waitForSelector('text=Go to group', { state: 'visible' });
-    await tenPage.getByText('Go to group').click();
+    await helpers.acceptGroupInvite(tenPage);
 
     // Wait for group to load
     await expect(tenPage.getByTestId('ChannelListItem-General')).toBeVisible({
@@ -235,14 +214,7 @@ test.describe('Group Ban and Kick Functionality', () => {
     await zodPage.waitForTimeout(1000);
 
     // ~ten accepts invite to secret group
-    await expect(tenPage.getByText('Group invitation')).toBeVisible({
-      timeout: 10000,
-    });
-    await tenPage.getByText('Group invitation').click();
-    await tenPage.getByText('Accept invite').click();
-    await tenPage.waitForSelector('text=Joining, please wait...');
-    await tenPage.waitForSelector('text=Go to group', { state: 'visible' });
-    await tenPage.getByText('Go to group').click();
+    await helpers.acceptGroupInvite(tenPage);
 
     // Navigate to members page and verify ban option exists
     await helpers.openGroupSettings(zodPage);
@@ -294,11 +266,7 @@ test.describe('Group Ban and Kick Functionality', () => {
     await zodPage.waitForTimeout(2000);
 
     // ~ten accepts invite
-    await expect(tenPage.getByText('Group invitation')).toBeVisible({
-      timeout: 10000,
-    });
-    await tenPage.getByText('Group invitation').click();
-    await tenPage.getByText('Accept invite').click();
+    await helpers.acceptGroupInvite(tenPage);
     await tenPage.waitForTimeout(3000);
 
     // Verify that ~zod (admin) can see ban option for regular members
@@ -342,11 +310,7 @@ test.describe('Group Ban and Kick Functionality', () => {
     await zodPage.waitForTimeout(2000);
 
     // ~ten accepts invite
-    await expect(tenPage.getByText('Group invitation')).toBeVisible({
-      timeout: 10000,
-    });
-    await tenPage.getByText('Group invitation').click();
-    await tenPage.getByText('Accept invite').click();
+    await helpers.acceptGroupInvite(tenPage);
     await tenPage.waitForTimeout(3000);
 
     // Verify that ~zod (admin) can see ban option for regular members
@@ -390,11 +354,7 @@ test.describe('Group Ban and Kick Functionality', () => {
     await zodPage.waitForTimeout(2000);
 
     // ~ten accepts invite
-    await expect(tenPage.getByText('Group invitation')).toBeVisible({
-      timeout: 10000,
-    });
-    await tenPage.getByText('Group invitation').click();
-    await tenPage.getByText('Accept invite').click();
+    await helpers.acceptGroupInvite(tenPage);
     await tenPage.waitForTimeout(3000);
 
     // Verify that ~zod (admin) can see ban option for regular members
@@ -435,14 +395,7 @@ test.describe('Group Ban and Kick Functionality', () => {
     await zodPage.waitForTimeout(1000);
 
     // ~ten accepts invite
-    await expect(tenPage.getByText('Group invitation')).toBeVisible({
-      timeout: 10000,
-    });
-    await tenPage.getByText('Group invitation').click();
-    await tenPage.getByText('Accept invite').click();
-    await tenPage.waitForSelector('text=Joining, please wait...');
-    await tenPage.waitForSelector('text=Go to group', { state: 'visible' });
-    await tenPage.getByText('Go to group').click();
+    await helpers.acceptGroupInvite(tenPage);
 
     // Wait for group to load
     await expect(tenPage.getByTestId('ChannelListItem-General')).toBeVisible({
@@ -508,14 +461,7 @@ test.describe('Group Ban and Kick Functionality', () => {
     await tenPage.waitForTimeout(2000);
     
     // ~ten accepts re-invite
-    await expect(tenPage.getByText('Group invitation')).toBeVisible({
-      timeout: 15000,
-    });
-    await tenPage.getByText('Group invitation').click();
-    await tenPage.getByText('Accept invite').click();
-    await tenPage.waitForSelector('text=Joining, please wait...');
-    await tenPage.waitForSelector('text=Go to group', { state: 'visible' });
-    await tenPage.getByText('Go to group').click();
+    await helpers.acceptGroupInvite(tenPage);
     
     // Verify ~ten can access the group again after being kicked and re-invited
     await expect(tenPage.getByTestId('ChannelListItem-General')).toBeVisible({
