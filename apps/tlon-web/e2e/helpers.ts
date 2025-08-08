@@ -757,13 +757,31 @@ export async function createNotebookPost(
 export async function createGalleryPost(page: Page, content: string) {
   await page.getByTestId('AddGalleryPost').click();
   await page.getByTestId('AddGalleryPostText').click();
-  await page.locator('iframe').contentFrame().getByRole('paragraph').click();
-  await page
-    .locator('iframe')
-    .contentFrame()
-    .locator('div')
-    .nth(2)
-    .fill(content);
+  
+  // Wait for iframe to be properly loaded and accessible
+  const iframe = page.locator('iframe');
+  await expect(iframe).toBeVisible({ timeout: 10000 });
+  
+  // Wait for iframe content to be ready
+  await iframe.waitFor({ state: 'attached' });
+  const contentFrame = iframe.contentFrame();
+  if (!contentFrame) {
+    throw new Error('Iframe content frame not available');
+  }
+  
+  // Wait for editor to be initialized
+  await expect(contentFrame.getByRole('paragraph')).toBeVisible({
+    timeout: 5000,
+  });
+  
+  // Click in the editor area to focus
+  await contentFrame.getByRole('paragraph').click();
+  
+  // Use more stable selector - target the paragraph element directly
+  const editorParagraph = contentFrame.getByRole('paragraph');
+  await expect(editorParagraph).toBeVisible({ timeout: 3000 });
+  await editorParagraph.fill(content);
+  
   await page.getByTestId('BigInputPostButton').click();
   await page.waitForTimeout(1500);
   await expect(page.getByText(content).first()).toBeVisible();
