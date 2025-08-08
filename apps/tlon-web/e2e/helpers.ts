@@ -12,6 +12,9 @@ export async function navigateToChannel(page: Page, channelName: string) {
 }
 
 export async function createGroup(page: Page) {
+  // Ensure session is stable before creating group
+  await waitForSessionStability(page);
+  
   await page.getByTestId('CreateChatSheetTrigger').click();
   await page.getByText('New group', { exact: true }).click();
   await page.getByText('Select contacts to invite').click();
@@ -159,6 +162,9 @@ export async function rejectGroupInvite(page: Page) {
 }
 
 export async function deleteGroup(page: Page, groupName?: string) {
+  // Ensure session is stable before deleting group
+  await waitForSessionStability(page);
+  
   await page.getByTestId('GroupLeaveAction-Delete group').click();
   await expect(
     page.getByText(`Delete ${groupName || 'Untitled group'}?`)
@@ -268,6 +274,9 @@ export async function createRole(
   title: string,
   description: string
 ) {
+  // Ensure session is stable before creating role
+  await waitForSessionStability(page);
+  
   await page.getByText('Add Role').click();
   await expect(page.getByRole('dialog').getByText('Add role')).toBeVisible();
 
@@ -392,6 +401,9 @@ export async function createChannel(
   title: string,
   type: 'chat' | 'notebook' | 'gallery' = 'chat'
 ) {
+  // Ensure session is stable before creating channel
+  await waitForSessionStability(page);
+  
   await page.getByText('New Channel').click();
   await expect(page.getByText('Create a new channel')).toBeVisible();
 
@@ -416,6 +428,9 @@ export async function editChannel(
   newTitle?: string,
   newDescription?: string
 ) {
+  // Ensure session is stable before editing channel
+  await waitForSessionStability(page);
+  
   await page
     .getByTestId(`ChannelItem-${channelName}-1`)
     .getByTestId('EditChannelButton')
@@ -437,6 +452,9 @@ export async function editChannel(
  * Deletes a channel
  */
 export async function deleteChannel(page: Page, channelName: string) {
+  // Ensure session is stable before deleting channel
+  await waitForSessionStability(page);
+  
   await page
     .getByTestId(`ChannelItem-${channelName}-1`)
     .getByTestId('EditChannelButton')
@@ -529,6 +547,9 @@ export async function setGroupNotifications(
  * Creates a channel section
  */
 export async function createChannelSection(page: Page, sectionName: string) {
+  // Ensure session is stable before creating channel section
+  await waitForSessionStability(page);
+  
   await page.getByText('New Section').click();
   await expect(page.getByText('Add section')).toBeVisible();
 
@@ -574,6 +595,9 @@ export async function openGroupCustomization(page: Page) {
  * Changes the group name
  */
 export async function changeGroupName(page: Page, newName: string) {
+  // Ensure session is stable before changing group name
+  await waitForSessionStability(page);
+  
   await page.getByTestId('GroupTitleInput').click();
   await fillFormField(page, 'GroupTitleInput', newName, true);
   await page.getByText('Save').click();
@@ -583,6 +607,9 @@ export async function changeGroupName(page: Page, newName: string) {
  * Changes the group description
  */
 export async function changeGroupDescription(page: Page, description: string) {
+  // Ensure session is stable before changing group description
+  await waitForSessionStability(page);
+  
   await page.getByTestId('GroupDescriptionInput').click();
   await fillFormField(page, 'GroupDescriptionInput', description, true);
   await page.getByText('Save').click();
@@ -659,6 +686,10 @@ export async function createNotebookPost(
   // Wait for post button to be enabled and click
   const postButton = page.getByTestId('BigInputPostButton');
   await expect(postButton).toBeVisible({ timeout: 5000 });
+  
+  // Ensure session is stable before posting
+  await waitForSessionStability(page);
+  
   await postButton.click();
 
   // Wait for post to appear in the channel with the correct title
@@ -684,6 +715,10 @@ export async function createGalleryPost(page: Page, content: string) {
     .locator('div')
     .nth(2)
     .fill(content);
+  
+  // Ensure session is stable before posting
+  await waitForSessionStability(page);
+  
   await page.getByTestId('BigInputPostButton').click();
   await page.waitForTimeout(1500);
   await expect(page.getByText(content).first()).toBeVisible();
@@ -695,6 +730,9 @@ export async function createGalleryPost(page: Page, content: string) {
  * Sends a message in the current channel
  */
 export async function sendMessage(page: Page, message: string) {
+  // Ensure session is stable before sending message
+  await waitForSessionStability(page);
+  
   await page.getByTestId('MessageInput').click();
   await page.fill('[data-testid="MessageInput"]', message);
   await expect(page.getByTestId('MessageInputSendButton')).toBeVisible({
@@ -755,6 +793,9 @@ export async function startThread(page: Page, messageText: string) {
  * Sends a reply in a thread
  */
 export async function sendThreadReply(page: Page, replyText: string) {
+  // Ensure session is stable before sending thread reply
+  await waitForSessionStability(page);
+  
   await page.getByRole('textbox', { name: 'Reply' }).click();
   await page.getByRole('textbox', { name: 'Reply' }).fill(replyText);
   await page
@@ -773,6 +814,9 @@ export async function reactToMessage(
   messageText: string,
   emoji: 'thumb' | 'heart' | 'laughing' = 'thumb'
 ) {
+  // Ensure session is stable before reacting to message
+  await waitForSessionStability(page);
+  
   await longPressMessage(page, messageText);
   await page.getByTestId(`EmojiToolbarButton-${emoji}`).click();
 
@@ -792,6 +836,9 @@ export async function reactToMessage(
  * Removes a reaction from a message
  */
 export async function removeReaction(page: Page, emoji: string = '👍') {
+  // Ensure session is stable before removing reaction
+  await waitForSessionStability(page);
+  
   const reactionButton = page.getByText(emoji);
   await reactionButton.click();
   await expect(reactionButton).not.toBeVisible();
@@ -806,6 +853,9 @@ export async function quoteReply(
   replyText: string,
   isDM = false
 ) {
+  // Ensure session is stable before quote reply
+  await waitForSessionStability(page);
+  
   await longPressMessage(page, originalMessage);
   await page.getByText('Quote', { exact: true }).click();
 
@@ -844,6 +894,9 @@ export async function threadQuoteReply(
   replyText: string,
   isDM = false
 ) {
+  // Ensure session is stable before thread quote reply
+  await waitForSessionStability(page);
+  
   // Use the thread-specific message interaction
   await page.getByText(originalMessage).first().click();
   await page.waitForTimeout(500);
@@ -887,6 +940,9 @@ export async function hideMessage(
   messageText: string,
   isDM = false
 ) {
+  // Ensure session is stable before hiding message
+  await waitForSessionStability(page);
+  
   await longPressMessage(page, messageText);
   await page.getByText('Hide message', { exact: true }).click();
   if (!isDM) {
@@ -904,6 +960,9 @@ export async function hideMessage(
  * Reports a message
  */
 export async function reportMessage(page: Page, messageText: string) {
+  // Ensure session is stable before reporting message
+  await waitForSessionStability(page);
+  
   await longPressMessage(page, messageText);
   await page.getByText('Report message').click();
   await expect(page.getByText(messageText, { exact: true })).not.toBeVisible();
@@ -917,6 +976,9 @@ export async function deleteMessage(
   messageText: string,
   isDM = false
 ) {
+  // Ensure session is stable before deleting message
+  await waitForSessionStability(page);
+  
   await longPressMessage(page, messageText);
   await page.getByText('Delete message').click();
   if (!isDM) {
@@ -932,6 +994,9 @@ export async function deleteMessage(
  * Deletes a post
  */
 export async function deletePost(page: Page, postText: string) {
+  // Ensure session is stable before deleting post
+  await waitForSessionStability(page);
+  
   await longPressMessage(page, postText);
   await page.getByText('Delete post').click();
   await expect(page.getByText(postText, { exact: true })).not.toBeVisible();
@@ -940,7 +1005,7 @@ export async function deletePost(page: Page, postText: string) {
 /**
  * Waits for the session to be stable and ready for operations
  */
-async function waitForSessionStability(page: Page) {
+export async function waitForSessionStability(page: Page) {
   // Wait a moment to ensure any pending state changes have settled
   await page.waitForTimeout(500);
 
