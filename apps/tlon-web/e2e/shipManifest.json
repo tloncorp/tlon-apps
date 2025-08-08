@@ -9,7 +9,8 @@
     "loopbackPort": "",
     "webUrl": "http://localhost:3000",
     "skipCommit": false,
-    "skipSetup": false
+    "skipSetup": false,
+    "skipAuth": false
   },
   "~bus": {
     "authFile": "e2e/.auth/bus.json",
@@ -21,7 +22,8 @@
     "loopbackPort": "",
     "webUrl": "http://localhost:3001",
     "skipCommit": true,
-    "skipSetup": false
+    "skipSetup": false,
+    "skipAuth": false
   },
   "~ten": {
     "authFile": "e2e/.auth/ten.json",
@@ -33,7 +35,8 @@
     "loopbackPort": "",
     "webUrl": "http://localhost:3002",
     "skipCommit": false,
-    "skipSetup": false
+    "skipSetup": false,
+    "skipAuth": false
   },
   "~mug": {
     "authFile": "e2e/.auth/mug.json",
@@ -45,6 +48,7 @@
     "loopbackPort": "",
     "webUrl": "http://localhost:3003",
     "skipCommit": false,
-    "skipSetup": false
+    "skipSetup": false,
+    "skipAuth": true
   }
 }
