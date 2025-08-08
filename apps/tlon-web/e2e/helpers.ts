@@ -69,6 +69,9 @@ export async function openGroupOptionsSheet(page: Page) {
 }
 
 export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
+  // Ensure session is stable before inviting members
+  await waitForSessionStability(page);
+
   await openGroupOptionsSheet(page);
   await page.getByTestId('ActionSheetAction-Invite people').first().click();
 
@@ -96,6 +99,9 @@ export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
 }
 
 export async function acceptGroupInvite(page: Page, groupName?: string) {
+  // Ensure session is stable before accepting invite
+  await waitForSessionStability(page);
+
   // Wait for and click the invitation
   await expect(page.getByText('Group invitation')).toBeVisible({
     timeout: 10000,
@@ -303,6 +309,9 @@ export async function assignRoleToMember(
   roleName: string,
   memberIndex = 0
 ) {
+  // Ensure session is stable before assigning role
+  await waitForSessionStability(page);
+
   const memberRow = page.getByTestId('MemberRow').nth(memberIndex);
   await expect(memberRow).toBeVisible();
   await memberRow.click();
@@ -322,6 +331,9 @@ export async function unassignRoleFromMember(
   roleName: string,
   memberIndex = 0
 ) {
+  // Ensure session is stable before unassigning role
+  await waitForSessionStability(page);
+
   const memberRow = page.getByTestId('MemberRow').nth(memberIndex);
   await memberRow.click();
 
@@ -413,6 +425,9 @@ export async function forwardMessageToDM(
   messageText: string,
   contactId: string
 ) {
+  // Ensure session is stable before forwarding message
+  await waitForSessionStability(page);
+
   await longPressMessage(page, messageText);
   await page.getByText('Forward', { exact: true }).click();
 
@@ -446,6 +461,9 @@ export async function forwardMessageToDM(
  * Forwards a group reference to a specified channel
  */
 export async function forwardGroupReference(page: Page, channelName: string) {
+  // Ensure session is stable before forwarding group reference
+  await waitForSessionStability(page);
+
   // Click the Forward button in group info
   await page.getByText('Forward').click();
 
@@ -581,6 +599,9 @@ export async function setChannelPermissions(
  * Toggles group/chat pin/unpin status
  */
 export async function toggleChatPin(page: Page) {
+  // Ensure session is stable before toggling pin
+  await waitForSessionStability(page);
+
   try {
     if (await page.getByText('Unpin').isVisible({ timeout: 1000 })) {
       await page.getByText('Unpin').click();
@@ -606,6 +627,9 @@ export async function setGroupPrivacy(
   page: Page,
   privacy: 'public' | 'private' | 'secret'
 ) {
+  // Ensure session is stable before changing privacy
+  await waitForSessionStability(page);
+
   await page.getByText('Privacy').click();
 
   await expect(page.getByText('Group privacy')).toBeVisible();
@@ -635,6 +659,9 @@ export async function setGroupNotifications(
   page: Page,
   level: 'All activity' | 'Posts, mentions, and replies' | 'Nothing'
 ) {
+  // Ensure session is stable before changing notifications
+  await waitForSessionStability(page);
+
   await page.getByTestId('GroupNotifications').click();
   await expect(
     page.getByText('Posts, mentions, and replies', { exact: true })
@@ -865,36 +892,56 @@ export async function sendMessage(page: Page, message: string) {
  * Long presses on a message to open the context menu
  */
 export async function longPressMessage(page: Page, messageText: string) {
-  await expect(
-    page.getByTestId('ChatMessageDeliveryStatus').first()
-  ).not.toBeVisible({ timeout: 10000 });
+  // Check if page is still valid
+  if (page.isClosed()) {
+    throw new Error('Page has been closed');
+  }
 
-  // Not really a longpress since this is web.
-  const postElement = page
-    .getByTestId('Post')
-    .getByText(messageText, { exact: true })
-    .first();
+  try {
+    await expect(
+      page.getByTestId('ChatMessageDeliveryStatus').first()
+    ).not.toBeVisible({ timeout: 10000 });
 
-  // Ensure the post is visible and ready for interaction
-  await expect(postElement).toBeVisible({ timeout: 10000 });
-  await postElement.hover({ force: true });
+    // Not really a longpress since this is web.
+    const postElement = page
+      .getByTestId('Post')
+      .getByText(messageText, { exact: true })
+      .first();
 
-  // Wait for message actions trigger to appear
-  const actionsTrigger = page.getByTestId('MessageActionsTrigger');
-  await expect(actionsTrigger).toBeVisible({ timeout: 5000 });
-  await actionsTrigger.click();
+    // Ensure the post is visible and ready for interaction
+    await expect(postElement).toBeVisible({ timeout: 10000 });
+    await postElement.hover({ force: true });
 
-  // Wait for the action menu to be visible by checking for context-specific menu items
-  await page.getByTestId('ChatMessageActions').waitFor({
-    state: 'visible',
-    timeout: 5000,
-  });
+    // Wait for message actions trigger to appear
+    const actionsTrigger = page.getByTestId('MessageActionsTrigger');
+    await expect(actionsTrigger).toBeVisible({ timeout: 5000 });
+    await actionsTrigger.click();
+
+    // Wait for the action menu to be visible by checking for context-specific menu items
+    await page.getByTestId('ChatMessageActions').waitFor({
+      state: 'visible',
+      timeout: 5000,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (
+      errorMessage?.includes('Target closed') ||
+      errorMessage?.includes('Target page, context or browser has been closed')
+    ) {
+      console.error('Page was closed during operation');
+      throw new Error('Test context was closed prematurely');
+    }
+    throw error;
+  }
 }
 
 /**
  * Starts a thread from a message
  */
 export async function startThread(page: Page, messageText: string) {
+  // Ensure session is stable before starting thread
+  await waitForSessionStability(page);
+
   await longPressMessage(page, messageText);
   // Menu is already visible from longPressMessage, click Reply to start thread
   await expect(page.getByText('Reply', { exact: true })).toBeVisible({
@@ -1177,9 +1224,6 @@ export async function editMessage(
   // Clear and fill with new text
   await inputSelector.fill(newText);
 
-  // Ensure session is still stable before sending
-  await waitForSessionStability(page);
-
   // Click the send button
   const sendButton = isThread
     ? page.getByTestId('MessageInputSendButton').nth(1)
@@ -1256,6 +1300,9 @@ export async function verifyChatUnreadCount(
  * Creates a direct message with a specified contact
  */
 export async function createDirectMessage(page: Page, contactId: string) {
+  // Ensure session is stable before creating DM
+  await waitForSessionStability(page);
+
   await page.getByTestId('CreateChatSheetTrigger').click();
   await expect(page.getByText('Create a new chat with one')).toBeVisible();
   await page.getByText('New direct message').click();
@@ -1278,6 +1325,9 @@ export async function createDirectMessage(page: Page, contactId: string) {
  * Leaves a direct message
  */
 export async function leaveDM(page: Page, contactId: string) {
+  // Ensure session is stable before leaving DM
+  await waitForSessionStability(page);
+
   await page.getByTestId('HomeNavIcon').click();
   await page.getByTestId(`ChannelListItem-${contactId}`).first().click();
   await page.waitForTimeout(500);
