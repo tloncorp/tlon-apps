@@ -44,6 +44,7 @@ export function GroupMetaScreen(props: Props) {
   const handleGoBack = useHandleGoBack(navigation, {
     groupId,
     fromChatDetails,
+    fromBlankChannel,
   });
 
   const handleSubmit = useCallback(
