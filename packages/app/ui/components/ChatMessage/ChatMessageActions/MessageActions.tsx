@@ -210,8 +210,6 @@ export async function handleAction({
 
   const [path, reference] = logic.postToContentReference(post);
 
-  console.log(`bl:action ${id}`);
-
   switch (id) {
     case 'debugJson':
       db.debugMessageJson.setValue(!(await db.debugMessageJson.getValue()));

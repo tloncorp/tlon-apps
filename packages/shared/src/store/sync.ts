@@ -1290,7 +1290,6 @@ export async function handleAddPost(
       sentAt: post.sentAt,
       authorId: post.authorId,
     });
-    console.log(`bl: have cached reply for ${post.sentAt}?`, !!cachedReply);
     if (!cachedReply) {
       await db.addReplyToPost(
         {
@@ -1342,9 +1341,6 @@ export async function syncSequencedPosts(
     start = Math.max(1, options.cursorSequenceNum - halfCount);
     end = options.cursorSequenceNum + halfCount;
   }
-  console.log(
-    `bl:syncSequencedPosts ${options.channelId}/${start}-${end} (${options.mode}:${options.cursorSequenceNum})`
-  );
 
   const result = await syncQueue.add('sequencedChannelPosts', ctx, () =>
     api.getSequencedChannelPosts({ channelId: options.channelId, start, end })
@@ -1363,8 +1359,6 @@ export async function syncSequencedPosts(
     });
   }
 
-  // TODO: update channel pointer to newest sequence #
-
   return result;
 }
 
@@ -1378,11 +1372,6 @@ export async function syncPosts(
   );
   const response = await syncQueue.add('channelPosts', ctx, () =>
     api.getChannelPosts(options)
-  );
-
-  console.log(
-    `bl:sync posts ${options.channelId}/${options.cursor}/${options.mode}`,
-    response.posts
   );
 
   if (response.posts.length) {
@@ -1422,117 +1411,6 @@ export async function syncPosts(
 
   return response;
 }
-
-// export async function syncSequencedPosts(
-//   options: api.GetChannelPostsOptions,
-//   ctx?: SyncCtx
-// ) {
-//   logger.log(
-//     'syncing sequenced posts',
-//     `${options.channelId}/${options.cursor}/${options.mode}`
-//   );
-
-//   let sequenceBoundary = null;
-
-//   if (options.cursor && ['newer', 'older'].includes(options.mode)) {
-//     // we need to know the sequence number of the cursor, so make sure we have it
-//     if (typeof options.cursor !== 'string') {
-//       throw new Error('cannot get sequenced posts with date cursor');
-//     }
-
-//     let cursorPost: db.Post | null = await db.getPost({
-//       postId: options.cursor,
-//     });
-//     if (!cursorPost) {
-//       const result = await syncQueue.add('getCursorPost', ctx, () => {
-//         return api.getChannelPosts({
-//           channelId: options.channelId,
-//           cursor: options.cursor,
-//           mode: 'around',
-//           count: 1,
-//         });
-//       });
-//       cursorPost = result.posts[0] ?? null;
-//       if (!cursorPost) {
-//         throw new Error(
-//           `could not find post with id ${options.cursor} in channel ${options.channelId}`
-//         );
-//       }
-//     }
-
-//     if (!cursorPost.sequenceNum) {
-//       console.error('bad cursor post', cursorPost);
-//       throw new Error('cursor does not have sequence number');
-//     }
-
-//     console.log(`bl:syncSequencedPosts cursorPost seq`, cursorPost.sequenceNum);
-
-//     sequenceBoundary =
-//       options.mode === 'newer'
-//         ? cursorPost.sequenceNum + 1
-//         : cursorPost.sequenceNum - 1;
-//   }
-
-//   const response = await syncQueue.add('channelPosts', ctx, () =>
-//     api.getChannelPosts({ ...options, sequenceBoundary })
-//   );
-
-//   console.log(
-//     `bl:sync posts ${options.channelId}/${options.cursor}/${options.mode}`,
-//     response.posts
-//   );
-
-//   if (response.posts.length) {
-//     await db.insertChannelPosts({
-//       posts: response.posts,
-//     });
-//   }
-
-//   // if (response.deletedPosts?.length) {
-//   //   if (options.count && response.deletedPosts.length === options.count) {
-//   //     // if the number of deleted ("null") posts matches the requested count,
-//   //     // we should fetch more posts to ensure we're not missing any.
-//   //     // if we don't do this, we may assume we're up to date when we're not.
-//   //     await syncPosts(
-//   //       {
-//   //         ...options,
-//   //         count: options.count * 2,
-//   //       },
-//   //       ctx
-//   //     );
-//   //   }
-//   // }
-
-//   const numIrregular = response.numDeletes + response.numStubs;
-//   if (options.count && numIrregular >= options.count) {
-//     await syncSequencedPosts({
-//       ...options,
-//       count: options.count * 2,
-//     });
-//   }
-
-//   if (!response.newer) {
-//     await db.updateChannel({
-//       id: options.channelId,
-//       syncedAt: Date.now(),
-//     });
-//   }
-
-//   const oldestSeq = response.posts[response.posts.length - 1]?.sequenceNum;
-//   const newestSeq = response.posts[0]?.sequenceNum;
-
-//   console.log(
-//     `bl:syncSequenced ${options.channelId}/${options.mode}/${options.cursor}:${sequenceBoundary}`,
-//     {
-//       numStubs: response.numStubs,
-//       sequenceBoundary,
-//       posts: response.posts,
-//       range: `${oldestSeq}-${newestSeq}`,
-//     }
-//   );
-
-//   return response;
-// }
 
 export async function syncGroupPreviews(groupIds: string[]) {
   const promises = groupIds.map(async (groupId) => {
@@ -1833,38 +1711,6 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         logger.crumb(`finished syncing contact discovery`);
       }),
     ];
-
-    // bl: TODO remove
-    // try {
-    //   // insert stubs
-    //   const stub1: db.Post = {
-    //     id: 'stub-post-1',
-    //     type: 'chat',
-    //     channelId: 'chat/~dozped-mogtec/welcome-4770',
-    //     authorId: '~pondus-watbel',
-    //     sentAt: 1753507589143,
-    //     receivedAt: 1753507589143,
-    //     content: null,
-    //     deliveryStatus: 'pending',
-    //     hidden: false,
-    //   };
-
-    //   const stub2: db.Post = {
-    //     id: 'stub-post-2',
-    //     type: 'chat',
-    //     channelId: 'chat/~dozped-mogtec/welcome-4770',
-    //     authorId: '~pondus-watbel',
-    //     sentAt: 1753244580787,
-    //     receivedAt: 1753244580787,
-    //     content: null,
-    //     deliveryStatus: 'sent',
-    //     hidden: false,
-    //   };
-    //   await db.insertChannelPosts({ posts: [stub1, stub2] });
-    //   console.log(`bl: inserted stubs`);
-    // } catch (e) {
-    //   console.error('failed to write stubs');
-    // }
 
     await Promise.all(lowPriorityPromises)
       .then(() => {

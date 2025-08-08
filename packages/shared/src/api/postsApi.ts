@@ -341,17 +341,6 @@ export const getSequencedChannelPosts = async (
 ) => {
   const encodedStart = formatUd(options.start.toString());
   const encodedEnd = formatUd(options.end.toString());
-  // const endpoint = formatScryPath(
-  //   ...[
-  //     'v4',
-  //     options.channelId,
-  //     'posts',
-  //     'range',
-  //     encodedStart,
-  //     encodedEnd,
-  //     'outline',
-  //   ]
-  // );
 
   const type = getChannelIdType(options.channelId);
   const app = type === 'channel' ? 'channels' : 'chat';
@@ -461,22 +450,9 @@ export const getChannelPosts = async ({
     }
   );
 
-  let withSeq = 0;
-  let withoutSeq = 0;
-  for (const post of finalPosts) {
-    if (post.sequenceNum) {
-      withSeq++;
-    } else {
-      withoutSeq++;
-    }
-  }
-
-  console.log(`bl: got posts`, { path, withSeq, withoutSeq });
-
   return {
     ...postsResponse,
     posts: finalPosts,
-    // posts: postsResponse.posts,
     numStubs,
     numDeletes: postsResponse.deletedPosts?.length ?? 0,
     newestSequenceNum: response.newest,

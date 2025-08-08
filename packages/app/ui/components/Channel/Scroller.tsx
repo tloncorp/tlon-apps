@@ -204,9 +204,6 @@ const Scroller = forwardRef(
     );
 
     const { value: debugMessageJson } = db.debugMessageJson.useStorageItem();
-    useEffect(() => {
-      console.log(`bl: debug mode change`, debugMessageJson);
-    }, [debugMessageJson]);
 
     const theme = useTheme();
 

@@ -90,12 +90,5 @@ export const mergePendingPosts = ({
     }
   }
 
-  console.log(`bl: useMMergePendingPosts`, {
-    pendingPosts,
-    existingPosts,
-    hasNewest,
-    mergedPosts,
-  });
-
   return mergedPosts;
 };
