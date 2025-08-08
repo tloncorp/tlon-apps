@@ -1,6 +1,6 @@
 /-  c=channels
 /+  j=channel-json
-|_  =replies:v1:old:c
+|_  =replies:v1:c
 ++  grad  %noun
 ++  grow
   |%
@@ -9,6 +9,6 @@
   --
 ++  grab
   |%
-  ++  noun  replies:v1:old:c
+  ++  noun  replies:v1:c
   --
 --

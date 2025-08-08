@@ -594,9 +594,9 @@
       ?~  replying.curio  index
       =/  old-replies=v-replies:c  (~(gut by index) u.replying.curio *v-replies:c)
       %+  ~(put by index)  u.replying.curio
-      (put:on-v-replies:c old-replies time `(convert-reply time curio))
+      (put:on-v-replies:c old-replies time %& (convert-reply time curio))
     %+  gas:on-v-posts:c  *v-posts:c
-    =|  posts=(list [id-post:c (unit v-post:c)])
+    =|  posts=(list [id-post:c (may:c v-post:c)])
     =<  posts
     %+  roll  curios
     |=  [[=time =curio:h] count=@ud =_posts]
@@ -607,7 +607,7 @@
     =.  count  +(count)
     :-  count
     :_  posts
-    [time `(convert-post time count curio replies)]
+    [time %& (convert-post time count curio replies)]
   ::
   ++  convert-post
     |=  [id=@da seq=@ud old=curio:h replies=v-replies:c]
@@ -705,30 +705,30 @@
         %curios
       =*  id  time
       =/  old-curio  (get:on:curios:h curios id)
-      ?~  old-curio  [%post id %set ~]~
+      ?~  old-curio  [%post id %set %| *tombstone:c]~
       ?~  replying.u.old-curio
         =/  new-post  (get:on-v-posts:c posts id)
         ?~  new-post  ~
         :_  ~
         :+  %post  id
         ?-  -.q.p.diff
-          %del                    [%set ~]
+          %del                    [%set %| *tombstone:c]
           ?(%add %edit)           [%set u.new-post]
-          ?(%add-feel %del-feel)  [%reacts ?~(u.new-post ~ reacts.u.u.new-post)]
+          ?(%add-feel %del-feel)  [%reacts ?:(?=(%| -.u.new-post) ~ reacts.+.u.new-post)]
         ==
       =/  new-post  (get:on-v-posts:c posts u.replying.u.old-curio)
       ?~  new-post  ~
-      ?~  u.new-post  ~
-      =/  new-reply  (get:on-v-replies:c replies.u.u.new-post id)
+      ?:  ?=(%| -.u.new-post)  ~
+      =/  new-reply  (get:on-v-replies:c replies.+.u.new-post id)
       ?~  new-reply  ~
       :_  ~
       :+  %post   u.replying.u.old-curio
       :+  %reply  id
       ^-  u-reply:c
       ?-  -.q.p.diff
-        %del                    [%set ~]
+        %del                    [%set %| *tombstone:c]
         ?(%add %edit)           [%set u.new-reply]
-        ?(%add-feel %del-feel)  [%reacts ?~(u.new-reply ~ reacts.u.u.new-reply)]
+        ?(%add-feel %del-feel)  [%reacts ?:(?=(%| -.u.new-reply) ~ reacts.+.u.new-reply)]
       ==
     ==
   --

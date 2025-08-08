@@ -3,7 +3,7 @@
 /=  channels-agent  /app/channels
 |%
 +$  current-state
-  $:  %9
+  $:  %10
       =v-channels:c
       voc=(map [nest:c plan:c] (unit said:c))
       hidden-posts=(set id-post:c)
@@ -63,7 +63,7 @@
     :-  [last-post-time 1 last-post-time ~ ~]
     [0 [[~ ~dev last-post-time] /chat ~ ~]]
   =/  posts=v-posts:c
-    (gas:on-v-posts:c *v-posts:c ~[[last-post-time `last-post]])
+    (gas:on-v-posts:c *v-posts:c ~[[last-post-time &+last-post]])
   =/  checkpoint  *u-checkpoint:c
   =/  =cage  [%channel-checkpoint !>(checkpoint(posts posts))]
   ;<  *  bind:m  (do-agent chk-wire the-dock %fact cage)
@@ -116,7 +116,7 @@
         :*  ^=  posts
             %+  gas:on-v-posts:c  ~
             :~  :*  key=missing-key
-                    ~
+                    %&
                     [id=missing-key seq=1 mod-at=~2025.6.25..14.41.11..9300 replies=~ reacts=~]
                     rev=0
                     :*  content=[[%inline 'one' [%break ~] ~] ~]
@@ -126,10 +126,10 @@
                     [kind=/chat meta=~ blob=~]
                 ==
                 :*  key=tombstone-key
-                    ~
+                    [%| *tombstone:c]
                 ==
                 :*  key=misnumber-key
-                    ~
+                    %&
                     [id=misnumber-key seq=3 mod-at=~2025.6.25..14.41.14..84fa replies=~ reacts=~]
                     rev=0
                     :*  content=[[%inline 'three' [%break ~] ~] ~]
@@ -161,7 +161,7 @@
     =/  m  (mare ,~)
     =/  bad-state=current-state
       =;  chans=v-channels:c
-        [%9 chans ~ ~ ~ *^subs:s *pimp:imp]
+        [%10 chans ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         sequence-fix-test-channel
       ::  bad 7->8 migration in old code had dropped the tombstone
@@ -179,8 +179,8 @@
         %+  put:on-v-posts:c  posts.chan
         :-  misnumber-key
         =+  (got:on-v-posts:c posts.chan misnumber-key)
-        ?>  ?=(^ -)
-        -(seq.u 2)
+        ?>  ?=(%& -<)
+        -(seq 2)
       (~(put by *v-channels:c) *nest:c chan)
     ::TODO  annoying, can't do +do-load directly, but it always calls
     ::      +on-save, even if we provide a vase
@@ -198,7 +198,7 @@
     ;<  save=vase  bind:m  get-save
     =/  fixed-state=current-state
       =;  chans=v-channels:c
-        [%9 chans ~ ~ ~ *^subs:s *pimp:imp]
+        [%10 chans ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         sequence-fix-test-channel
       ::  missing message will not have magically recovered,
@@ -206,8 +206,125 @@
       ::
       =.  posts.chan
         +:(del:on-v-posts:c posts.chan missing-key)
+      ::  now (after this test was initially written) we changed the behavior
+      ::  ignore tombstones, those get requested separately, see below
+      ::
+      =.  posts.chan
+        +:(del:on-v-posts:c posts.chan tombstone-key)
       (~(put by *v-channels:c) *nest:c chan)
-    ::  carefully work around wrapper library state
+    ::
+    =.  save  (slot 3 save)  ::  move "through" discipline state
+    =.  save  !<(vase (slot 3 save))  ::  move "through" negotiate state & shenanigans
+    (ex-equal save !>(fixed-state))
+  --
+::
+::  migration 8->9 adds tombstone metadata. hosts can retrieve the metadata
+::  from the log, but clients cannot, so they must ask the host.
+::  this test checks whether clients apply the response from the host correctly.
+::
+++  test-tombstones-fix
+  |^  test
+  ++  missing-key
+    ~2025.6.25..14.41.11..9300
+  ++  tombstone-key
+    ~2025.6.25..14.41.13..585b
+  ++  overwrite-key
+    ~2025.6.25..14.41.14..84fa
+  ++  sequence-fix-test-channel
+    ^-  v-channel:c
+    :-  ^-  global:v-channel:c
+        :*  ^=  posts
+            %+  gas:on-v-posts:c  ~
+            :~  :*  key=missing-key
+                    [%| missing-key ~sul seq=1 del-at=~2025.7.23..09.10.11]
+                ==
+                :*  key=tombstone-key
+                    [%| tombstone-key ~syx seq=2 del-at=~2025.7.23..08.07.06]
+                ==
+                :*  key=overwrite-key
+                    [%| overwrite-key ~fun seq=3 del-at=~2025.7.23..11.12.13]
+                ==
+            ==
+          ::
+            count=3
+            *(rev:c arranged-posts:c)
+            *(rev:c view:c)
+            *(rev:c sort:c)
+            *(rev:c perm:c)
+            *(rev:c (unit @t))
+        ==
+    ^-  local:v-channel:c
+    :*  *net:c
+        *log:c
+        *remark:c
+        *window:v-channel:c
+        *future:v-channel:c
+        *pending-messages:c
+        *last-updated:c
+    ==
+  ++  test
+    %-  eval-mare
+    =/  m  (mare ,~)
+    =/  bad-state=current-state
+      =;  chans=v-channels:c
+        [%10 chans ~ ~ ~ *^subs:s *pimp:imp]
+      =/  chan=v-channel:c
+        sequence-fix-test-channel
+      ::  client had just bunted tombstones
+      ::
+      =.  posts.chan
+        (put:on-v-posts:c posts.chan tombstone-key %| *tombstone:c)
+      ::  client has partial backlog, missing the first message
+      ::
+      =.  posts.chan
+        +:(del:on-v-posts:c posts.chan missing-key)
+      ::  client is behind on updates somehow, has a live post,
+      ::  but will receive a tombstone for it, must overwrite
+      ::
+      =.  posts.chan
+        %^  put:on-v-posts:c  posts.chan
+          overwrite-key
+        :*  %&
+            [id=overwrite-key seq=3 mod-at=~2025.6.25..14.41.11..9300 replies=~ reacts=~]
+            rev=0
+            :*  content=[[%inline 'one' [%break ~] ~] ~]
+                  author=~zod
+                  sent=~2025.6.25..14.41.11..9062.4dd2.f1a9.fbe7
+            ==
+            [kind=/chat meta=~ blob=~]
+        ==
+      (~(put by *v-channels:c) *nest:c chan)
+    ::TODO  annoying, can't do +do-load directly, but it always calls
+    ::      +on-save, even if we provide a vase
+    :: ;<  *  bind:m  (do-init dap channels-agent)
+    ::  edit carefully to work around lib negotiate state.
+    ::  yes, the inner state is double-vased!
+    ::
+    :: ;<  save=vase  bind:m  get-save
+    :: =.  save  (slop (slot 2 save) !>(!>(bad-state)))
+    ;<  *  bind:m  (do-load channels-agent `!>(bad-state))
+    ;<  caz=(list card)  bind:m
+      =;  tombs=(list [id-post:v9:c tombstone:v9:c])
+        (do-poke %noun -:!>(**) [%tombstones *nest:c tombs])
+      :~  :*  key=missing-key
+              [missing-key ~sul seq=1 del-at=~2025.7.23..09.10.11]
+          ==
+          :*  key=tombstone-key
+              [tombstone-key ~syx seq=2 del-at=~2025.7.23..08.07.06]
+          ==
+          :*  key=overwrite-key
+              [overwrite-key ~fun seq=3 del-at=~2025.7.23..11.12.13]
+          ==
+      ==
+    ::
+    ;<  ~  bind:m  (ex-cards caz ~)
+    ;<  save=vase  bind:m  get-save
+    =/  fixed-state=current-state
+      =;  chans=v-channels:c
+        [%10 chans ~ ~ ~ *^subs:s *pimp:imp]
+      =/  chan=v-channel:c
+        sequence-fix-test-channel
+      (~(put by *v-channels:c) *nest:c chan)
     ::
     =.  save  (slot 3 save)           ::  lib discipline
     =.  save  !<(vase (slot 3 save))  ::  lib negotiate
