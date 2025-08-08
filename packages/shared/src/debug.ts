@@ -295,8 +295,7 @@ export function createDevLogger(tag: string, enabled: boolean) {
           return;
         }
 
-        // const prefix = `${[sessionTimeLabel(), deltaLabel()].filter((v) => !!v).join(':')} [${tag}]`;
-        const prefix = `[${tag}]`;
+        const prefix = `${[sessionTimeLabel(), deltaLabel()].filter((v) => !!v).join(':')} [${tag}]`;
         if (debugEnabled) {
           useDebugStore.getState().appendLog({
             timestamp: Date.now(),

@@ -740,25 +740,23 @@ export const PostBlockSeparator = styled(View, {
   width: '100%',
 });
 
-const ScrollerItem = BaseScrollerItem;
+const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
+  const isItemEqual = isEqual(prev.item, next.item);
+  const isIndexEqual = prev.index === next.index;
 
-// const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
-//   const isItemEqual = isEqual(prev.item, next.item);
-//   const isIndexEqual = prev.index === next.index;
+  const areOtherPropsEqual =
+    prev.showAuthor === next.showAuthor &&
+    prev.showReplies === next.showReplies &&
+    prev.onPressReplies === next.onPressReplies &&
+    prev.onPressImage === next.onPressImage &&
+    prev.onPressPost === next.onPressPost &&
+    prev.onLongPressPost === next.onLongPressPost &&
+    prev.activeMessage === next.activeMessage &&
+    prev.itemWidth === next.itemWidth &&
+    prev.displayDebugMode === next.displayDebugMode;
 
-//   const areOtherPropsEqual =
-//     prev.showAuthor === next.showAuthor &&
-//     prev.showReplies === next.showReplies &&
-//     prev.onPressReplies === next.onPressReplies &&
-//     prev.onPressImage === next.onPressImage &&
-//     prev.onPressPost === next.onPressPost &&
-//     prev.onLongPressPost === next.onLongPressPost &&
-//     prev.activeMessage === next.activeMessage &&
-//     prev.itemWidth === next.itemWidth &&
-//     prev.displayDebugMode === next.displayDebugMode;
-
-//   return isItemEqual && areOtherPropsEqual && isIndexEqual;
-// });
+  return isItemEqual && areOtherPropsEqual && isIndexEqual;
+});
 
 const PressableMessage = React.memo(
   forwardRef<RNView, PropsWithChildren<{ isActive: boolean }>>(

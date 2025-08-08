@@ -20,7 +20,7 @@ function makePost(sentAt: number) {
 }
 
 describe('mergePendingPosts with hasNewest = true', () => {
-  // Test Case: Simple merge as per your example
+  // Test Case: Simple merge
   test('should correctly interleave a newer pending post', () => {
     const existingPosts = [makePost(5), makePost(1)];
     const pendingPosts = [makePost(4)];
