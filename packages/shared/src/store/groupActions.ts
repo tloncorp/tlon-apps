@@ -1061,6 +1061,21 @@ export async function banUserFromGroup({
     return;
   }
 
+  // Prevent banning the group owner
+  if (contactId === existingGroup.hostUserId) {
+    console.error('Cannot ban group owner', groupId, contactId);
+    return;
+  }
+
+  // Prevent banning admin users
+  const targetMember = existingGroup.members.find(
+    (member) => member.contactId === contactId
+  );
+  if (targetMember?.roles?.some((role) => role.roleId === 'admin')) {
+    console.error('Cannot ban admin users', groupId, contactId);
+    return;
+  }
+
   // optimistic update
   await db.addGroupMemberBans({
     groupId,
@@ -1126,6 +1141,15 @@ export async function unbanUserFromGroup({
     console.error('User is still in group', groupId, contactId);
     return;
   }
+
+  // Verify user is actually in the banned list
+  if (
+    !existingGroup.bannedMembers?.find((ban) => ban.contactId === contactId)
+  ) {
+    console.error('User is not in banned list', groupId, contactId);
+    return;
+  }
+
   // optimistic update
   await db.deleteGroupMemberBans({
     groupId,

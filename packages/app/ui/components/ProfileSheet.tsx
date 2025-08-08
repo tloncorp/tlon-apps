@@ -106,6 +106,7 @@ export function ProfileSheet({
 }) {
   const currentUserId = useCurrentUserId();
   const contactIsHost = groupHostId === contactId;
+  const contactIsAdmin = selectedUserRoles?.includes('admin');
 
   const handleBlock = useCallback(() => {
     if (contact && contact.isBlocked) {
@@ -155,7 +156,9 @@ export function ProfileSheet({
         onPressBan &&
         onPressUnban &&
         currentUserId !== contactId &&
-        !userIsInvited
+        !userIsInvited &&
+        !contactIsHost &&
+        !contactIsAdmin
           ? userIsBanned
             ? {
                 title: 'Unban User',
