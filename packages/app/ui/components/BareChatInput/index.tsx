@@ -481,7 +481,7 @@ export default function BareChatInput({
           return {
             ...draftBase,
             isEdit,
-            parentId: editingPost.id,
+            parentId: editingPost.parentId ?? '',
           };
         } else {
           return draftBase;

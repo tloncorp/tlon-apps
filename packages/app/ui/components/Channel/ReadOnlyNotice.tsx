@@ -10,13 +10,17 @@ export function ReadOnlyNotice({
     | 'dm-mismatch'
     | 'group-dm-mismatch'
     | 'channel-mismatch'
-    | 'no-longer-read';
+    | 'no-longer-read'
+    | 'channel-deleted'
+    | 'group-deleted';
 }) {
   const Message =
     type === 'read-only' ? (
       <>This channel is read-only for you.</>
     ) : type === 'no-longer-read' ? (
       <>You no longer have permission to read this channel.</>
+    ) : type === 'group-deleted' ? (
+      <>This group no longer exists.</>
     ) : (
       <>
         Your node&apos;s version of the Tlon app doesn&apos;t match the{' '}

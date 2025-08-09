@@ -8,7 +8,7 @@
 ::
 |%
 ++  render
-  |=  [=bowl:gall =nest:g:c msg=post:d]
+  |=  [=bowl:gall =nest:c msg=post:d]
   ^-  (unit manx)
   =/  author=@p
     (get-author-ship:u author.msg)

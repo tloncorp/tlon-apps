@@ -8,35 +8,28 @@ podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties
 ENV['RCT_NEW_ARCH_ENABLED'] = podfile_properties['newArchEnabled'] == 'true' ? '1' : '0'
 ENV['EX_DEV_CLIENT_NETWORK_INSPECTOR'] = '1' if podfile_properties['EX_DEV_CLIENT_NETWORK_INSPECTOR'] == 'true'
 
-use_autolinking_method_symbol = ('use' + '_native' + '_modules!').to_sym
-origin_autolinking_method = self.method(use_autolinking_method_symbol)
-self.define_singleton_method(use_autolinking_method_symbol) do |*args|
-  if ENV['EXPO_UNSTABLE_CORE_AUTOLINKING'] == '1'
-    Pod::UI.puts('Using expo-modules-autolinking as core autolinking source'.green)
-    config_command = [
-      'node',
-      '--no-warnings',
+if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'
+  config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run()"];
+else
+  config_command = [
+    'node',
+    '--no-warnings',
       '--eval',
       'require(require.resolve(\'expo-modules-autolinking\', { paths: [require.resolve(\'expo/package.json\')] }))(process.argv.slice(1))',
       'react-native-config',
       '--json',
-      '--platform',
-      'ios'
-    ]
-    origin_autolinking_method.call(config_command)
-  else
-    origin_autolinking_method.call()
-  end
+    '--platform',
+    'ios'
+  ]
 end
 
 platform :ios, podfile_properties['ios.deploymentTarget'] || '16.0'
 install! 'cocoapods',
   :deterministic_uuids => false
-
+ 
 prepare_react_native_project!
 
 def shared(podfile_properties)
-
   use_expo_modules!
   $config = use_native_modules!
 
@@ -96,13 +89,5 @@ post_install do |installer|
         config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
       end
     end
-  end
-end
-
-post_integrate do |installer|
-  begin
-    expo_patch_react_imports!(installer)
-  rescue => e
-    Pod::UI.warn e
   end
 end
