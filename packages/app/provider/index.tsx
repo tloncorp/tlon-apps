@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { TamaguiProvider, TamaguiProviderProps } from 'tamagui';
 
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
+import { SplashScreenTask, splashScreenProgress } from '../lib/splashscreen';
 import { AppTheme } from '../types/theme';
 import { config } from '../ui';
 import { getDisplayTheme, normalizeTheme } from '../ui/utils/themeUtils';
@@ -56,17 +57,37 @@ function useSyncedAppTheme() {
   );
 
   // Query database for which theme the user has previously set
-  const { data: storedTheme, isLoading } = store.useThemeSettings();
+  const { data: storedThemeRaw, isLoading } = store.useThemeSettings();
+
+  const storedTheme = useMemo(() => {
+    if (isLoading) {
+      return { loaded: false } as const;
+    }
+    const appTheme =
+      storedThemeRaw == null ? 'auto' : normalizeTheme(storedThemeRaw);
+    const tamaguiTheme = getDisplayTheme(appTheme, isDarkMode);
+    return {
+      loaded: true,
+
+      /** `AppTheme` specified in settings - includes `auto`, which resolves to
+       * another theme at runtime. */
+      appTheme,
+
+      /** Resolved Tamagui `ThemeName` derived from `appTheme` - maps
+       * one-to-one with color set */
+      tamaguiTheme,
+    } as const;
+  }, [isLoading, storedThemeRaw, isDarkMode]);
 
   // Apply stored theme
   useEffect(() => {
-    if (isLoading) {
+    if (!storedTheme.loaded) {
       return;
     }
-    const normalizedTheme =
-      storedTheme == null ? 'auto' : normalizeTheme(storedTheme);
-    setActiveTheme(getDisplayTheme(normalizedTheme, isDarkMode));
-  }, [isLoading, storedTheme, isDarkMode]);
+
+    setActiveTheme(storedTheme.tamaguiTheme);
+    splashScreenProgress.complete(SplashScreenTask.loadTheme);
+  }, [storedTheme]);
 
   return [activeTheme, setActiveTheme] as const;
 }
