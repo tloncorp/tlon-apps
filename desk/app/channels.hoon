@@ -2635,7 +2635,7 @@
       =;  =paged-posts:c
         ``channel-posts-4+!>(paged-posts)
       =/  latest=@ud
-        ?~  latest=(ram:on-v-posts:c posts.channel)  1
+        ?~  latest=(ram:on-v-posts:c posts.channel)  0
         ?-  -.val.u.latest
           %&  seq.val.u.latest
           %|  seq.val.u.latest
