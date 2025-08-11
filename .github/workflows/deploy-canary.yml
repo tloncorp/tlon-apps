@@ -2,6 +2,11 @@ name: Deploy Groups (canary)
 on:
   workflow_dispatch:
     inputs:
+      backend-only:
+        type: boolean
+        description: "Deploy backend changes only"
+        required: false
+        default: false
       tag:
         type: string
         required: false
@@ -16,6 +21,7 @@ jobs:
   build-frontend:
     runs-on: ubuntu-latest
     name: "Build Frontend"
+    if: ${{ github.event.inputs.backend-only != 'true' }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -48,7 +54,8 @@ jobs:
   glob:
     runs-on: ubuntu-latest
     name: "Make a glob"
-    needs: build-frontend
+    needs: [build-frontend]
+    if: ${{ github.event.inputs.backend-only != 'true' }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -82,7 +89,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     name: "Release to ~binnec-dozzod-marnus (canary)"
-    needs: glob
+    needs: [glob]
+    if:
+      ${{ always() && (needs.glob.result == 'success' || (needs.glob.result ==
+      'skipped' && github.event.inputs.backend-only == 'true')) }}
     steps:
       - uses: actions/checkout@v3
         with:
