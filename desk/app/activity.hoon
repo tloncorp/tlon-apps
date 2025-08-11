@@ -1237,14 +1237,14 @@
   =.  importing  &
   =.  indices   (~(put by indices) [%base ~] *index:a)
   =.  cor  set-chat-reads
-  =+  .^(=channels:c %gx (scry-path %channels /v3/channels/full/noun))
+  =+  .^(=channels:v8:c %gx (scry-path %channels /v3/channels/full/noun))
   =.  cor  (set-volumes channels)
   =.  cor  (set-channel-reads channels)
   =.  cor  refresh-all-summaries
   cor(importing |)
 ::
 ++  set-channel-reads
-  |=  =channels:c
+  |=  =channels:v8:c
   ^+  cor
   =+  .^(=unreads:c %gx (scry-path %channels /v1/unreads/noun))
   =/  entries  ~(tap by unreads)
@@ -1267,8 +1267,8 @@
   =/  posts=(list [time incoming-event:a])
     ?~  unread.unread  ~
     %+  murn
-      (tab:on-posts:c posts.u.channel `(sub id.u.unread.unread 1) count.u.unread.unread)
-    |=  [=time post=(unit post:c)]
+      (tab:on-posts:v8:c posts.u.channel `(sub id.u.unread.unread 1) count.u.unread.unread)
+    |=  [=time post=(unit post:v8:c)]
     ?~  post  ~
     =/  key=message-key:a
       :_  time
@@ -1283,12 +1283,12 @@
       ~(tap by threads.unread)
     |=  [=id-post:c [id=id-reply:c count=@ud]]
     ^-  (unit (list [time incoming-event:a]))
-    =/  post=(unit (unit post:c))  (get:on-posts:c posts.u.channel id-post)
+    =/  post=(unit (unit post:v8:c))  (get:on-posts:v8:c posts.u.channel id-post)
     ?~  post  ~
     ?~  u.post  ~
     %-  some
     %+  murn
-      (tab:on-replies:c replies.u.u.post `(sub id 1) count)
+      (tab:on-replies:v8:c replies.u.u.post `(sub id 1) count)
     |=  [=time reply=(unit reply:c)]
     ^-  (unit [^time incoming-event:a])
     ?~  reply  ~
@@ -1363,14 +1363,14 @@
   :-  [init-time %dm-invite whom]
   (welp writs replies)
 ++  set-volumes
-  |=  =channels:c
+  |=  =channels:v8:c
   ::  set all existing channels to old default since new default is different
   =^  checkers  cor
     =/  checkers=(map flag:gv $-([ship nest:gv] ?))  ~
     =/  entries  ~(tap by channels)
     |-
     ?~  entries  [checkers cor]
-    =/  [=nest:c =channel:c]  i.entries
+    =/  [=nest:c =channel:v8:c]  i.entries
     =*  group  group.perm.channel
     =+  .^(exists=? %gu (scry-path %groups /groups/(scot %p p.group)/[q.group]))
     ?.  exists  $(entries t.entries)

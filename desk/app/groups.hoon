@@ -144,8 +144,8 @@
       [~.groups^%1 ~ ~]
     %-  my
     :~  %groups^[~.groups^%1 ~ ~]
-        %channels^[~.channels^%2 ~ ~]
-        %channels-server^[~.channels^%2 ~ ~]
+        %channels^[~.channels^%3 ~ ~]
+        %channels-server^[~.channels^%3 ~ ~]
     ==
 %-  agent:dbug
 %+  verb  |

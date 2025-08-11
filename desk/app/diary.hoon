@@ -590,7 +590,7 @@
     |=  old=notes:a
     ^-  v-posts:d
     %+  gas:on-v-posts:d  *v-posts:d
-    =|  posts=(list [id-post:d (unit v-post:d)])
+    =|  posts=(list [id-post:d (may:d v-post:d)])
     =<  posts
     %+  roll  (tap:on:notes:a old)
     |=  [[=time =note:a] count=@ud =_posts]
@@ -598,7 +598,7 @@
     =.  count  +(count)
     :-  count
     :_  posts
-    [time `(convert-note time count note)]
+    [time %& (convert-note time count note)]
   ::
   ++  convert-note
     |=  [id=@da seq=@ud old=note:a]
@@ -615,8 +615,8 @@
     %+  gas:on-v-replies:d  *v-replies:d
     %+  turn  (tap:on:quips:a old)
     |=  [=time =quip:a]
-    ^-  [id-reply:d (unit v-reply:d)]
-    [time `(convert-quip time quip)]
+    ^-  [id-reply:d (may:d v-reply:d)]
+    [time %& (convert-quip time quip)]
   ::
   ++  convert-quip
     |=  [id=@da old=quip:a]
@@ -710,27 +710,27 @@
         %notes
       =*  id  time
       =/  old-note  (get:on:notes:a old id)
-      ?~  old-note  [%post id %set ~]~
+      ?~  old-note  [%post id %set %| *tombstone:d]~
       =/  new-post  (get:on-v-posts:d posts id)
       ?~  new-post  ~
       ?-  -.q.p.diff
-          %del                    [%post id %set ~]~
+          %del                    [%post id %set %| *tombstone:d]~
           ?(%add %edit)           [%post id %set u.new-post]~
           ?(%add-feel %del-feel)
-        [%post id %reacts ?~(u.new-post ~ reacts.u.u.new-post)]~
+        [%post id %reacts ?:(?=(%| -.u.new-post) ~ reacts.+.u.new-post)]~
       ::
           %quips
-        ?~  u.new-post  ~
+        ?:  ?=(%| -.u.new-post)  ~
         =*  id-reply  p.p.q.p.diff
-        =/  new-reply  (get:on-v-replies:d replies.u.u.new-post id-reply)
+        =/  new-reply  (get:on-v-replies:d replies.+.u.new-post id-reply)
         ?~  new-reply  ~
         :_  ~
         :+  %post   id
         :+  %reply  id-reply
         ?-  -.q.p.q.p.diff
-          %del                    [%set ~]
+          %del                    [%set %| *tombstone:d]
           %add                    [%set u.new-reply]
-          ?(%add-feel %del-feel)  [%reacts ?~(u.new-reply ~ reacts.u.u.new-reply)]
+          ?(%add-feel %del-feel)  [%reacts ?:(?=(%| -.u.new-reply) ~ reacts.+.u.new-reply)]
         ==
       ==
     ==
