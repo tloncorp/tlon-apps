@@ -1103,14 +1103,14 @@
     =/  =ship  (slav %p i.t.t.path)
     (di-peek:(di-abed:di-core ship) %x %v0 t.t.t.path)
   ::
-      [%x ?(%v1 %v2) %dm @ *]
+      [%x ?(%v1 %v2 %v3) %dm @ *]
     =/  =ship  (slav %p i.t.t.t.path)
     (di-peek:(di-abed:di-core ship) %x i.t.path t.t.t.t.path)
   ::
       [%x %club @ *]
     (cu-peek:(cu-abed (slav %uv i.t.t.path)) %x %v0 t.t.t.path)
   ::
-      [%x ?(%v1 %v2) %club @ *]
+      [%x ?(%v1 %v2 %v3) %club @ *]
     (cu-peek:(cu-abed (slav %uv i.t.t.t.path)) %x i.t.path t.t.t.t.path)
   ::
       [%u %dm @ *]
