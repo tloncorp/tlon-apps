@@ -96,8 +96,6 @@ export function PostScreenView({
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   goToDm: (participants: string[]) => void;
 } & ChannelContext) {
-  const groupMembers = group?.members ?? [];
-  const groupRoles = group?.roles ?? [];
   const isWindowNarrow = utils.useIsWindowNarrow();
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = utils.useIsAdmin(
@@ -524,6 +522,7 @@ function SinglePostView({
           <View id="reply-container" {...containingProperties}>
             <BareChatInput
               placeholder="Reply"
+              groupId={channel.groupId}
               shouldBlur={inputShouldBlur}
               setShouldBlur={setInputShouldBlur}
               sendPost={sendReply}
