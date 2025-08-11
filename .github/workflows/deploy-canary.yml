@@ -55,7 +55,6 @@ jobs:
     runs-on: ubuntu-latest
     name: "Make a glob"
     needs: [build-frontend]
-    if: ${{ github.event.inputs.backend-only != 'true' }}
     steps:
       - uses: actions/checkout@v3
         with:
