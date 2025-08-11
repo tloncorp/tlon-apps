@@ -2635,7 +2635,7 @@
       =;  =paged-posts:c
         ``channel-posts-4+!>(paged-posts)
       =/  latest=@ud
-        ?~  latest=(ram:on-v-posts:c posts.channel)  1
+        ?~  latest=(ram:on-v-posts:c posts.channel)  0
         ?-  -.val.u.latest
           %&  seq.val.u.latest
           %|  seq.val.u.latest
@@ -2745,7 +2745,7 @@
           `key:(head older)
         =/  count  (wyt:on-v-posts:c posts)
         =/  latest=@ud
-          ?~  latest=(ram:on-v-posts:c posts.channel)  1
+          ?~  latest=(ram:on-v-posts:c posts.channel)  0
           ?-  -.val.u.latest
             %&  seq.val.u.latest
             %|  seq.val.u.latest
@@ -2834,7 +2834,7 @@
           %|  seq.p.i.posts
         ==
       ?:  (gth seq end)    $(posts t.posts)
-      ?:  (lth seq start)  ~  ::  done
+      ?:  &(!=(0 seq) (lth seq start))  ~  ::  done
       [i.posts $(posts t.posts)]
     ::
         [%post time=@ ~]
