@@ -88,7 +88,10 @@
     --
   ++  reply
     |%
-    ++  v8  same
+    ++  v8
+      |=  =reply:v9:c
+      ^-  reply:v8:c
+      reply
     ++  v7  v7:reply:^v8
     --
   ++  seal
@@ -103,37 +106,58 @@
     --
   ++  author
     |%
-    ++  v8  same
+    ++  v8
+      |=  =author:v9:c
+      ^-  author:v8:c
+      author
     ++  v7  v7:author:^v8
     --
   ++  essay
     |%
-    ++  v8  same
+    ++  v8
+      |=  =essay:v9:c
+      ^-  essay:v8:c
+      essay
     ++  v7  v7:essay:^v8
     --
   ++  memo
     |%
-    ++  v8  same
+    ++  v8
+      |=  =memo:v9:c
+      ^-  memo:v8:c
+      memo
     ++  v7  v7:memo:^v8
     --
   ++  reacts
     |%
-    ++  v8  same
+    ++  v8
+      |=  =reacts:v9:c
+      ^-  reacts:v8:c
+      reacts
     ++  v7  v7:reacts:^v8
     --
   ++  react
     |%
-    ++  v8  same
+    ++  v8
+      |=  =react:v9:c
+      ^-  react:v8:c
+      react
     ++  v7  v7:react:^v8
     --
   ++  reply-meta
     |%
-    ++  v8  same
+    ++  v8
+      |=  =reply-meta:v9:c
+      ^-  reply-meta:v8:c
+      reply-meta
     ++  v7  v7:reply-meta:^v8
     --
   ++  reply-seal
     |%
-    ++  v8  same
+    ++  v8
+      |=  =reply-seal:v9:c
+      ^-  reply-seal:v8:c
+      reply-seal
     ++  v7  v7:reply-seal:^v8
     --
   ++  log
