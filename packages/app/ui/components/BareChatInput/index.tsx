@@ -1,6 +1,8 @@
 import {
+  Attachment,
   JSONToInlines,
   REF_REGEX,
+  TextAttachment,
   createDevLogger,
   diaryMixedToJSON,
   extractContentTypesFromPost,
@@ -10,37 +12,25 @@ import {
   toContentReference,
 } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import type * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
-import {
-  Block,
-  Story,
-  citeToPath,
-  constructStory,
-  pathToCite,
-} from '@tloncorp/shared/urbit';
-import { LoadingSpinner, useGlobalSearch } from '@tloncorp/ui';
-import { RawText, Text } from '@tloncorp/ui';
+import { Story, citeToPath, pathToCite } from '@tloncorp/shared/urbit';
+import { LoadingSpinner, RawText, Text, useGlobalSearch } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  View,
   YStack,
   getFontSize,
+  getTokenValue,
   getVariableValue,
+  isWeb,
   useTheme,
   useWindowDimensions,
 } from 'tamagui';
-import { getTokenValue } from 'tamagui';
-import { isWeb } from 'tamagui';
-import { View } from 'tamagui';
 
-import {
-  Attachment,
-  TextAttachment,
-  UploadedImageAttachment,
-  useAttachmentContext,
-  useStore,
-} from '../../contexts';
+import { useAttachmentContext, useStore } from '../../contexts';
 import { MentionController } from '../MentionPopup';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
 import { AttachmentPreviewList } from '../MessageInput/AttachmentPreviewList';
@@ -51,7 +41,7 @@ import {
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import {
   MentionOption,
-  createMentionOptions,
+  createMentionRoleOptions,
   useMentions,
 } from './useMentions';
 
@@ -204,16 +194,14 @@ function LinkPreviewLoading() {
 export default function BareChatInput({
   shouldBlur,
   setShouldBlur,
-  send,
   channelId,
-  groupMembers,
+  groupId,
   groupRoles,
   storeDraft,
   clearDraft,
   getDraft,
   editingPost,
   setEditingPost,
-  editPost,
   showAttachmentButton,
   paddingHorizontal,
   initialHeight = DEFAULT_MESSAGE_INPUT_HEIGHT,
@@ -226,6 +214,7 @@ export default function BareChatInput({
   goBack,
   shouldAutoFocus,
   showWayfindingTooltip,
+  sendPostFromDraft,
 }: MessageInputProps) {
   const { bottom, top } = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -241,7 +230,6 @@ export default function BareChatInput({
     clearAttachments,
     resetAttachments,
     removeAttachment,
-    waitForAttachmentUploads,
   } = useAttachmentContext();
   const [controlledText, setControlledText] = useState('');
   const [inputHeight, setInputHeight] = useState(initialHeight);
@@ -251,9 +239,10 @@ export default function BareChatInput({
   const [hasAutoFocused, setHasAutoFocused] = useState(false);
   const [needsHeightAdjustmentAfterLoad, setNeedsHeightAdjustmentAfterLoad] =
     useState(false);
-  const options = useMemo(() => {
-    return createMentionOptions(groupMembers, groupRoles);
-  }, [groupMembers, groupRoles]);
+
+  const roleOptions = useMemo(() => {
+    return createMentionRoleOptions(groupRoles);
+  }, [groupRoles]);
 
   const {
     mentions,
@@ -265,19 +254,16 @@ export default function BareChatInput({
     handleMention,
     handleSelectMention,
     handleMentionEscape,
-  } = useMentions({ options });
+  } = useMentions({ chatId: groupId ?? channelId, roleOptions });
   const maxInputHeight = useKeyboardHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
 
   usePasteHandler(addAttachment);
 
-  const [isSending, setIsSending] = useState(false);
   const [linkMetaLoading, setLinkMetaLoading] = useState(false);
   // Track current input session to cancel stale link previews
   const inputSessionRef = useRef(0);
-  const disableSend = useMemo(() => {
-    return editorIsEmpty || isSending;
-  }, [editorIsEmpty, isSending]);
+  const disableSend = editorIsEmpty;
 
   const processReferences = useCallback(
     (text: string): string => {
@@ -379,6 +365,17 @@ export default function BareChatInput({
                     },
                   });
                 }
+
+                const fileType = linkMetadata.mime.split('/')[1];
+                const fileName = url.split('/').pop();
+                console.log('fileName', fileName);
+
+                addAttachment({
+                  type: 'link',
+                  url: url,
+                  title: fileName,
+                  description: fileType,
+                });
               }
             })
             .finally(() => {
@@ -470,124 +467,45 @@ export default function BareChatInput({
     async (isEdit?: boolean) => {
       const jsonContent = textAndMentionsToContent(controlledText, mentions);
       const inlines = JSONToInlines(jsonContent);
-      const story = constructStory(inlines);
-      const metadata: db.PostMetadata = {};
 
-      try {
-        const finalAttachments = await waitForAttachmentUploads();
-
-        const blocks = finalAttachments
-          .filter((attachment) => attachment.type !== 'text')
-          .flatMap((attachment): Block[] => {
-            if (attachment.type === 'reference') {
-              const cite = pathToCite(attachment.path);
-              return cite ? [{ cite }] : [];
-            }
-            if (
-              attachment.type === 'image' &&
-              (!image || attachment.file.uri !== image?.uri)
-            ) {
-              return [
-                {
-                  image: {
-                    src: attachment.uploadState.remoteUri,
-                    height: attachment.file.height,
-                    width: attachment.file.width,
-                    alt: 'image',
-                  },
-                },
-              ];
-            }
-
-            if (
-              image &&
-              attachment.type === 'image' &&
-              attachment.file.uri === image?.uri &&
-              isEdit &&
-              channelType === 'gallery'
-            ) {
-              return [
-                {
-                  image: {
-                    src: image.uri,
-                    height: image.height,
-                    width: image.width,
-                    alt: 'image',
-                  },
-                },
-              ];
-            }
-
-            if (attachment.type === 'link') {
-              const { url, type, resourceType, ...meta } = attachment;
-              return [
-                {
-                  link: {
-                    url,
-                    meta,
-                  },
-                },
-              ];
-            }
-
-            return [];
-          });
-
-        if (blocks && blocks.length > 0) {
-          if (channelType === 'chat') {
-            story.unshift(...blocks.map((block) => ({ block })));
-          } else {
-            story.push(...blocks.map((block) => ({ block })));
-          }
-        }
-
-        if (image) {
-          const attachment = finalAttachments.find(
-            (a): a is UploadedImageAttachment =>
-              a.type === 'image' && a.file.uri === image.uri
-          );
-          if (!attachment) {
-            throw new Error('unable to attach image');
-          }
-          metadata['image'] = attachment.uploadState.remoteUri;
-        }
-      } catch (e) {
-        bareChatInputLogger.error('Error processing attachments', e);
-        setSendError(true);
-        return;
-      }
-
-      try {
-        // Cancel any pending link preview requests
-        inputSessionRef.current += 1;
-        setLinkMetaLoading(false);
-
-        setControlledText('');
-        bareChatInputLogger.log('clearing attachments');
-        clearAttachments();
-        bareChatInputLogger.log('resetting input height');
-        setInputHeight(initialHeight);
-
-        if (isEdit && editingPost) {
-          if (editingPost.parentId) {
-            await editPost?.(
-              editingPost,
-              story,
-              editingPost.parentId,
-              metadata
-            );
-          }
-          await editPost?.(editingPost, story, undefined, metadata);
-          setEditingPost?.(undefined);
+      const draft: domain.PostDataDraft = (() => {
+        const draftBase = {
+          channelId,
+          content: inlines,
+          attachments,
+          image: image?.uri,
+          channelType,
+        };
+        if (isEdit && editingPost?.id) {
+          return {
+            ...draftBase,
+            isEdit,
+            editTargetPostId: editingPost.id,
+          };
         } else {
-          await send(story, channelId, metadata);
+          return draftBase;
         }
+      })();
+
+      // Cancel any pending link preview requests
+      inputSessionRef.current += 1;
+      setLinkMetaLoading(false);
+
+      setControlledText('');
+      bareChatInputLogger.log('clearing attachments');
+      clearAttachments();
+      bareChatInputLogger.log('resetting input height');
+      setInputHeight(initialHeight);
+      setEditingPost?.(undefined);
+
+      try {
+        await sendPostFromDraft(draft);
       } catch (e) {
         bareChatInputLogger.error('Error sending message', e);
         setSendError(true);
       } finally {
         onSend?.();
-        bareChatInputLogger.log('sent message', story);
+        bareChatInputLogger.log('sent message');
         setMentions([]);
         bareChatInputLogger.log('clearing draft');
         await clearDraft();
@@ -596,18 +514,17 @@ export default function BareChatInput({
       }
     },
     [
+      sendPostFromDraft,
+      attachments,
       onSend,
       mentions,
       controlledText,
-      waitForAttachmentUploads,
       editingPost,
       clearAttachments,
       clearDraft,
-      editPost,
       setEditingPost,
       image,
       channelType,
-      send,
       channelId,
       setMentions,
       initialHeight,
@@ -617,13 +534,11 @@ export default function BareChatInput({
   const runSendMessage = useCallback(
     async (isEdit: boolean) => {
       try {
-        setIsSending(true);
         await sendMessage(isEdit);
       } catch (e) {
         bareChatInputLogger.trackError('failed to send', e);
         setSendError(true);
       } finally {
-        setIsSending(false);
         setTimeout(() => {
           // allow some time for send errors to be displayed
           // before clearing the error state
@@ -930,7 +845,6 @@ export default function BareChatInput({
       setShouldBlur={setShouldBlur}
       containerHeight={48}
       disableSend={disableSend}
-      isSending={isSending}
       sendError={sendError}
       showWayfindingTooltip={showWayfindingTooltip}
       isMentionModeActive={isMentionModeActive}

@@ -24,15 +24,19 @@ export interface StaticSpec {
 
 export function channelActionIdsFor({
   channel,
+  canWrite,
 }: {
   channel: db.Channel;
+  canWrite?: boolean;
 }): Id[] {
   const channelType = channel?.type;
+  let actions: Id[] = [];
+
   switch (channelType) {
     case undefined:
       return [];
     case 'gallery':
-      return [
+      actions = [
         'startThread',
         'muteThread',
         'copyRef',
@@ -42,8 +46,9 @@ export function channelActionIdsFor({
         'visibility',
         'delete',
       ];
+      break;
     case 'notebook':
-      return [
+      actions = [
         'startThread',
         'muteThread',
         'copyRef',
@@ -53,9 +58,10 @@ export function channelActionIdsFor({
         'visibility',
         'delete',
       ];
+      break;
     case 'dm':
     case 'groupDm':
-      return [
+      actions = [
         'quote',
         'startThread',
         'muteThread',
@@ -64,8 +70,9 @@ export function channelActionIdsFor({
         'visibility',
         'delete',
       ];
+      break;
     case 'chat':
-      return [
+      actions = [
         'debugJson',
         'quote',
         'startThread',
@@ -79,7 +86,16 @@ export function channelActionIdsFor({
         'report',
         'delete',
       ];
+      break;
   }
+
+  // Filter out write-dependent actions if user cannot write
+  if (canWrite === false) {
+    const writeOnlyActions: Id[] = ['quote', 'startThread', 'edit'];
+    actions = actions.filter((action) => !writeOnlyActions.includes(action));
+  }
+
+  return actions;
 }
 export function staticSpecForId(id: Id): StaticSpec {
   return STATIC_SPECS[id];

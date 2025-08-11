@@ -10,10 +10,6 @@ test('should handle complete group lifecycle with settings management', async ({
 
   await expect(page.getByText('Home')).toBeVisible();
 
-  // Clean up any existing group
-  await helpers.cleanupExistingGroup(page);
-  await helpers.cleanupExistingGroup(page, '~ten, ~zod');
-
   // Create a new group
   await helpers.createGroup(page);
 
@@ -57,12 +53,8 @@ test('should handle complete group lifecycle with settings management', async ({
   await helpers.openGroupSettings(page);
   await expect(page.getByText('Group info')).toBeVisible();
 
-  // Test reference copying
-  await page.getByText('Reference').click();
-  // Check for copy confirmation (optional)
-  await helpers.waitForElementAndAct(page, 'Copied', async () => {
-    await expect(page.getByText('Copied')).toBeVisible();
-  });
+  // Test forwarding group reference
+  await helpers.forwardGroupReference(page, 'Chat');
 
   // Test privacy settings
   await helpers.setGroupPrivacy(page, true);
@@ -189,7 +181,4 @@ test('should handle complete group lifecycle with settings management', async ({
 
   await helpers.navigateBack(page);
   await helpers.verifyElementCount(page, 'GroupChannels', 1);
-
-  // Delete group
-  await helpers.deleteGroup(page);
 });

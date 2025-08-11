@@ -3,7 +3,8 @@ import { expect } from '@playwright/test';
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
-test('should invite ~bus to a group and test protocol mismatch', async ({
+// Disabled. Since %groups on ~bus is now mismatched, invites are expected to fail
+test.skip('should invite ~bus to a group and test protocol mismatch', async ({
   zodSetup,
   busSetup,
 }) => {
@@ -14,9 +15,6 @@ test('should invite ~bus to a group and test protocol mismatch', async ({
   await helpers.rejectGroupInvite(busPage);
 
   // Step 1: ~zod creates a group and invites ~bus
-  // Clean up any existing group on zod
-  await helpers.cleanupExistingGroup(zodPage);
-  await helpers.cleanupExistingGroup(zodPage, '~bus, ~zod');
 
   // Create a new group on zod
   await helpers.createGroup(zodPage);

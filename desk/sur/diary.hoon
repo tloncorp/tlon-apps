@@ -1,4 +1,4 @@
-/-  g=groups, c=cite, e=epic
+/-  gv=groups-ver, c=cite, e=epic
 |%
 ++  okay  `epic:e`3
 ++  mar
@@ -222,7 +222,7 @@
 ::  $action: the complete set of data required to modify a diary
 ::
 +$  action
-  (pair flag:g update)
+  (pair flag:gv update)
 ::
 ::  $update: a representation in time of a modification to a diary
 ::
@@ -234,8 +234,8 @@
 +$  diff
   $%  [%notes p=diff:notes]
     ::
-      [%add-sects p=(set sect:g)]
-      [%del-sects p=(set sect:g)]
+      [%add-sects p=(set sect:v0:gv)]
+      [%del-sects p=(set sect:v0:gv)]
     ::
       [%create p=perm q=notes]
       [%view p=view]
@@ -287,18 +287,18 @@
 ::  pointer back to the group it belongs to.
 ::
 +$  perm
-  $:  writers=(set sect:g)
-      group=flag:g
+  $:  writers=(set sect:v0:gv)
+      group=flag:gv
   ==
 ::  $join: a group + channel flag to join a channel, group required for perms
 ::
 +$  join
-  $:  group=flag:g
-      chan=flag:g
+  $:  group=flag:gv
+      chan=flag:gv
   ==
 ::  $leave: a flag to pass for a channel leave
 ::
-+$  leave  flag:g
++$  leave  flag:gv
 ::
 ::  $create: represents a request to create a channel
 ::
@@ -310,12 +310,12 @@
 ::    read permission is stored with the group's data.
 ::
 +$  create
-  $:  group=flag:g
+  $:  group=flag:gv
       name=term
       title=cord
       description=cord
-      readers=(set sect:g)
-      writers=(set sect:g)
+      readers=(set role-id:v7:gv)
+      writers=(set role-id:v7:gv)
   ==
 ::
 +$  post-toggle

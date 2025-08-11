@@ -931,6 +931,7 @@ export const channelRelations = relations(channels, ({ one, many }) => ({
 }));
 
 export type PostDeliveryStatus =
+  | 'enqueued'
   | 'pending'
   | 'sent'
   | 'failed'

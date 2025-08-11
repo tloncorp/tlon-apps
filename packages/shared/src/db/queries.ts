@@ -758,6 +758,89 @@ export const getChannelsForPredictiveSync = createReadQuery(
   ['channels']
 );
 
+export const getMentionCandidates = createReadQuery(
+  'getMentionCandidates',
+  async (
+    {
+      chatId,
+      limit = 4,
+      query,
+    }: { chatId: string; limit?: number; query: string },
+    ctx: QueryCtx
+  ) => {
+    if (!(query = query.trim())) return [];
+
+    const idSearchTerm = `~${query.toLowerCase()}%`;
+    const searchTerm = `${query.toLowerCase()}%`;
+
+    const $candidates = ctx.db
+      .select({
+        id: sql<string>`COALESCE(${$contacts.id}, ${$chatMembers.contactId})`.as(
+          'id'
+        ),
+        nickname: $contacts.nickname,
+        avatarImage: $contacts.avatarImage,
+        bio: $contacts.bio,
+        status: $contacts.status,
+        color: $contacts.color,
+        membershipType: $chatMembers.membershipType,
+        joinedAt: $chatMembers.joinedAt,
+        isBlocked: $contacts.isBlocked,
+        // Priority: 1 = group members, 2 = other contacts, 3 = other group members
+        priority: sql<number>`
+          CASE 
+            WHEN ${$chatMembers.chatId} = ${chatId} THEN 1
+            WHEN ${$contacts.isContact} = true THEN 2
+            ELSE 3
+          END
+        `.as('priority'),
+      })
+      .from($contacts)
+      .fullJoin(
+        $chatMembers,
+        and(
+          eq($chatMembers.contactId, $contacts.id),
+          eq($chatMembers.chatId, chatId)
+        )
+      )
+      .where(
+        and(
+          // Match the search term against id or nickname
+          or(
+            sql`${$chatMembers.contactId} LIKE ${idSearchTerm}`,
+            sql`${$contacts.id} LIKE ${idSearchTerm}`,
+            sql`COALESCE(${$contacts.nickname}, '') LIKE ${searchTerm}`
+          ),
+          or(isNull($contacts.isBlocked), eq($contacts.isBlocked, false))
+        )
+      )
+      .as('candidates');
+
+    return (
+      ctx.db
+        .select({
+          id: $candidates.id,
+          nickname: $candidates.nickname,
+          avatarImage: $candidates.avatarImage,
+          bio: $candidates.bio,
+          status: $candidates.status,
+          color: $candidates.color,
+          membershipType: $candidates.membershipType,
+          joinedAt: $candidates.joinedAt,
+          isBlocked: $candidates.isBlocked,
+          priority: min($candidates.priority)
+            .mapWith((p) => parseInt(p))
+            .as('priority'),
+        })
+        .from($candidates)
+        // This call to sql is only necessary because of a drizzle type inference issue
+        .groupBy(sql`${$candidates.id}`)
+        .limit(limit)
+    );
+  },
+  ['chatMembers', 'contacts']
+);
+
 export const getChats = createReadQuery(
   'getChats',
   async (
@@ -1294,7 +1377,7 @@ export const insertChannelPerms = createWriteQuery(
         });
     }
   },
-  ['channelWriters', 'channels']
+  ['channelWriters', 'channelReaders', 'channels']
 );
 
 export const insertChannelOrder = createWriteQuery(
@@ -1386,11 +1469,12 @@ export const addChatMembers = createWriteQuery(
       chatId,
       contactIds,
       type,
+      joinStatus,
     }: {
       chatId: string;
       contactIds: string[];
       type: 'group' | 'channel';
-      status: 'invited' | 'joined';
+      joinStatus: 'invited' | 'joined';
     },
     ctx: QueryCtx
   ) => {
@@ -1402,10 +1486,15 @@ export const addChatMembers = createWriteQuery(
             chatId,
             contactId,
             membershipType: type,
-            status: 'invited' as 'invited' | 'joined',
+            status: joinStatus,
           }))
         )
-        .onConflictDoNothing();
+        .onConflictDoUpdate({
+          target: [$chatMembers.chatId, $chatMembers.contactId],
+          set: {
+            status: joinStatus as 'invited' | 'joined',
+          },
+        });
     });
   },
   ['chatMembers', 'groups']
@@ -2115,13 +2204,31 @@ export const updateChannel = createWriteQuery(
     logger.log('updateChannel', update.id, update);
 
     return withTransactionCtx(ctx, async (txCtx) => {
-      if (update.writerRoles && update.readerRoles) {
+      if (update.writerRoles || update.readerRoles) {
+        let writers = update.writerRoles?.map((role) => role.roleId as string);
+        let readers = update.readerRoles?.map((role) => role.roleId as string);
+
+        // If we only have one type of roles, get the existing roles for the other type
+        if (update.writerRoles && !update.readerRoles) {
+          // Only updating writers, preserve existing readers
+          const existingReaders = await txCtx.db.query.channelReaders.findMany({
+            where: eq($channelReaders.channelId, update.id),
+          });
+          readers = existingReaders.map((r) => r.roleId);
+        } else if (update.readerRoles && !update.writerRoles) {
+          // Only updating readers, preserve existing writers
+          const existingWriters = await txCtx.db.query.channelWriters.findMany({
+            where: eq($channelWriters.channelId, update.id),
+          });
+          writers = existingWriters.map((w) => w.roleId);
+        }
+
         await insertChannelPerms(
           [
             {
               channelId: update.id,
-              writers: update.writerRoles?.map((role) => role.roleId as string),
-              readers: update.readerRoles?.map((role) => role.roleId as string),
+              writers: writers || [],
+              readers: readers || [],
             },
           ],
           txCtx
@@ -3286,7 +3393,7 @@ export const deletePostReaction = createWriteQuery(
         )
       );
   },
-  ['postReactions']
+  ['posts', 'postReactions']
 );
 
 export const deletePosts = createWriteQuery(
@@ -3420,7 +3527,20 @@ export const getPendingPosts = createReadQuery(
       ),
     });
   },
-  []
+  ['posts']
+);
+
+export const getEnqueuedPosts = createReadQuery(
+  'getEnqueuedPosts',
+  (ctx: QueryCtx) => {
+    return ctx.db.query.posts.findMany({
+      where: eq($posts.deliveryStatus, 'enqueued'),
+      with: {
+        channel: true,
+      },
+    });
+  },
+  ['posts']
 );
 
 export const getPostWithRelations = createReadQuery(

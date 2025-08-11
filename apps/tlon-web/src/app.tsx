@@ -3,6 +3,8 @@ import {
   DarkTheme,
   DefaultTheme,
   NavigationContainer,
+  NavigationState,
+  PartialState,
   Route,
 } from '@react-navigation/native';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
@@ -14,11 +16,20 @@ import { useInviteParam } from '@tloncorp/app/hooks/useInviteParam';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useRenderCount } from '@tloncorp/app/hooks/useRenderCount';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
+import {
+  SplashScreenTask,
+  splashScreenProgress,
+} from '@tloncorp/app/lib/splashscreen';
 import { BasePathNavigator } from '@tloncorp/app/navigation/BasePathNavigator';
+import {
+  getNavigationIntentFromState,
+  getStateFromNavigationIntent,
+} from '@tloncorp/app/navigation/intent';
 import {
   getDesktopLinkingConfig,
   getMobileLinkingConfig,
 } from '@tloncorp/app/navigation/linking';
+import { CombinedParamList } from '@tloncorp/app/navigation/types';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
@@ -36,6 +47,7 @@ import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
+import { useEventEmitter } from '@tloncorp/shared/utils';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, {
@@ -290,6 +302,21 @@ function AppRoutes() {
     []
   );
 
+  const { onNavigationStateChange, initialStateRef } = useDeriveInitialNavState(
+    isMobile ? 'mobile' : 'desktop'
+  );
+
+  const platformHandleStateChange = isMobile
+    ? handleStateChangeMobile
+    : handleStateChangeDesktop;
+  const combinedStateChangeHandler = useCallback(
+    (state: NavigationState<CombinedParamList> | undefined) => {
+      platformHandleStateChange(state);
+      onNavigationStateChange(state);
+    },
+    [platformHandleStateChange, onNavigationStateChange]
+  );
+
   return (
     <AppDataProvider
       webAppNeedsUpdate={needsUpdate}
@@ -298,9 +325,11 @@ function AppRoutes() {
       <ForwardPostSheetProvider>
         {isMobile ? (
           <NavigationContainer
+            key="mobile"
+            initialState={initialStateRef.current.mobile}
             linking={mobileLinkingConfig}
             theme={theme}
-            onStateChange={handleStateChangeMobile}
+            onStateChange={combinedStateChangeHandler}
             documentTitle={{
               enabled: true,
               formatter: documentTitleFormatterMobile,
@@ -310,9 +339,11 @@ function AppRoutes() {
           </NavigationContainer>
         ) : (
           <NavigationContainer
+            key="desktop"
+            initialState={initialStateRef.current.desktop}
             linking={desktopLinkingConfig}
             theme={theme}
-            onStateChange={handleStateChangeDesktop}
+            onStateChange={combinedStateChangeHandler}
             documentTitle={{
               enabled: true,
               formatter: documentTitleFormatterDesktop,
@@ -341,6 +372,12 @@ function ConnectedDesktopApp({
   useDesktopNotifications(clientReady);
 
   useEffect(() => {
+    splashScreenProgress.emitter.on('complete', () => {
+      setClientReady(true);
+    });
+  }, []);
+
+  useEffect(() => {
     window.ship = ship;
     window.our = ship;
 
@@ -355,7 +392,6 @@ function ConnectedDesktopApp({
       if (!hasSyncedRef.current) {
         try {
           await sync.syncStart(false);
-          setClientReady(true);
           hasSyncedRef.current = true;
         } catch (e) {
           console.error('Error starting sync:', e);
@@ -485,6 +521,7 @@ function ConnectedWebApp() {
 
         if (databaseSizeBytes && databaseSizeBytes > 0) {
           setDbIsLoaded(true);
+          splashScreenProgress.complete(SplashScreenTask.startDatabase);
           break;
         }
 
@@ -504,7 +541,14 @@ function ConnectedWebApp() {
 
   useRenderCount('ConnectedWebApp');
 
-  if (!dbIsLoaded) {
+  const hideSplashScreen = useEventEmitter(
+    splashScreenProgress.emitter,
+    'complete',
+    useCallback(() => true, []),
+    splashScreenProgress.finished
+  );
+
+  if (!hideSplashScreen) {
     return (
       <View
         height="100%"
@@ -729,3 +773,52 @@ function RoutedApp() {
 }
 
 export default RoutedApp;
+
+const flipNavigator = (navigatorType: 'mobile' | 'desktop') =>
+  navigatorType === 'mobile' ? 'desktop' : 'mobile';
+
+/*
+ * On every nav state change, derive a corresponding navigation `initialState`
+ * that can be passed to a `NavigationContainer`.
+ *
+ * This conversion loses any history in the navigation state - this means
+ * that `goBack` will not work directly after switching navigators. Supporting
+ * history here seems too complex, so it's just a limitation until we have a
+ * unified router.
+ */
+function useDeriveInitialNavState(navigatorType: 'mobile' | 'desktop') {
+  const initialStateRef = useRef<
+    Partial<
+      Record<
+        typeof navigatorType,
+        | NavigationState<CombinedParamList>
+        | PartialState<NavigationState<CombinedParamList>>
+      >
+    >
+  >({});
+
+  const onNavigationStateChange = useCallback(
+    (state: NavigationState<CombinedParamList> | undefined) => {
+      if (!state) {
+        initialStateRef.current = {};
+        return;
+      }
+
+      initialStateRef.current[navigatorType] = state;
+      const navIntent = getNavigationIntentFromState(state, navigatorType);
+      if (navIntent) {
+        initialStateRef.current[flipNavigator(navigatorType)] =
+          getStateFromNavigationIntent(
+            navIntent,
+            flipNavigator(navigatorType)
+          ) ?? undefined;
+      }
+    },
+    [navigatorType]
+  );
+
+  return {
+    onNavigationStateChange,
+    initialStateRef,
+  };
+}

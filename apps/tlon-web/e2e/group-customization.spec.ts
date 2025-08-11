@@ -11,10 +11,6 @@ test('should customize group name, icon, and description', async ({
   // Assert that we're on the Home page
   await expect(page.getByText('Home')).toBeVisible();
 
-  // Clean up any existing group
-  await helpers.cleanupExistingGroup(page);
-  await helpers.cleanupExistingGroup(page, '~ten, ~zod');
-
   // Create a new group
   await helpers.createGroup(page);
 
@@ -57,11 +53,4 @@ test('should customize group name, icon, and description', async ({
     await expect(descriptionField).toHaveValue('This is a test group');
   }
   await page.getByText('Cancel').click();
-
-  // Delete the group and clean up
-  await helpers.deleteGroup(page, 'My Group');
-
-  // Verify we're back at Home and the renamed group is deleted
-  await expect(page.getByText('Home')).toBeVisible();
-  await expect(page.getByText('My Group')).not.toBeVisible();
 });

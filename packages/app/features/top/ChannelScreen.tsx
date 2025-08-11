@@ -32,7 +32,6 @@ import {
   Channel,
   ChatOptionsProvider,
   InviteUsersSheet,
-  useCurrentUserId,
   useIsWindowNarrow,
 } from '../../ui';
 
@@ -63,13 +62,14 @@ export default function ChannelScreen(props: Props) {
     editPost,
     channel,
     group,
+    groupIsLoading,
+    groupError,
   } = useChannelContext({
     channelId: currentChannelId,
     draftKey: currentChannelId,
   });
 
   const groupId = channel?.groupId ?? group?.id;
-  const currentUserId = useCurrentUserId();
 
   const channelIsPending = !channel || channel.isPendingChannel;
   useFocusEffect(
@@ -241,22 +241,6 @@ export default function ChannelScreen(props: Props) {
     [posts, channel]
   );
 
-  const sendPost = useCallback(
-    async (content: Story, _channelId: string, metadata?: db.PostMetadata) => {
-      if (!channel) {
-        throw new Error('Tried to send message before channel loaded');
-      }
-
-      await store.sendPost({
-        channel: channel,
-        authorId: currentUserId,
-        content,
-        metadata,
-      });
-    },
-    [currentUserId, channel]
-  );
-
   const handleDeletePost = useCallback(
     async (post: db.Post) => {
       if (!channel) {
@@ -411,10 +395,11 @@ export default function ChannelScreen(props: Props) {
           hasNewerPosts={postsQuery.hasPreviousPage}
           hasOlderPosts={postsQuery.hasNextPage}
           group={group}
+          groupIsLoading={groupIsLoading}
+          groupError={groupError}
           posts={filteredPosts ?? null}
           selectedPostId={selectedPostId}
           goBack={props.navigation.goBack}
-          messageSender={sendPost}
           goToPost={navigateToPost}
           goToImageViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}

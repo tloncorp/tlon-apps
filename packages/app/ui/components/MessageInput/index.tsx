@@ -17,6 +17,7 @@ import {
   ShortcutsBridge,
 } from '@tloncorp/editor/src/bridges';
 import {
+  Attachment,
   REF_REGEX,
   createDevLogger,
   extractContentTypesFromPost,
@@ -29,12 +30,10 @@ import {
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import {
-  Block,
   Inline,
   JSONContent,
   Story,
   citeToPath,
-  constructStory,
   isInline,
   pathToCite,
 } from '@tloncorp/shared/urbit';
@@ -59,15 +58,7 @@ import {
 } from 'tamagui';
 
 import { useBranchDomain, useBranchKey } from '../../contexts';
-import {
-  Attachment,
-  UploadedImageAttachment,
-  useAttachmentContext,
-} from '../../contexts/attachment';
-import {
-  createMentionOptions,
-  useMentions,
-} from '../BareChatInput/useMentions';
+import { useAttachmentContext } from '../../contexts/attachment';
 import { AttachmentPreviewList } from './AttachmentPreviewList';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
 import { processReferenceAndUpdateEditor } from './helpers';
@@ -123,10 +114,8 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     {
       shouldBlur,
       setShouldBlur,
-      send,
+      sendPost,
       channelId,
-      groupMembers,
-      groupRoles,
       storeDraft,
       clearDraft,
       getDraft,
@@ -137,7 +126,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       showInlineAttachments = true,
       showAttachmentButton = true,
       floatingActionButton = false,
-      backgroundColor = '$background',
       paddingHorizontal,
       initialHeight = DEFAULT_MESSAGE_INPUT_HEIGHT,
       placeholder = 'Message',
@@ -532,76 +520,15 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       async (isEdit?: boolean) => {
         const json = await editor.getJSON();
         const inlines = tiptap.JSONToInlines(json);
-        const story = constructStory(inlines);
-
         const finalAttachments = await waitForAttachmentUploads();
-
-        const blocks = finalAttachments.flatMap((attachment): Block[] => {
-          if (attachment.type === 'reference') {
-            const cite = pathToCite(attachment.path);
-            return cite ? [{ cite }] : [];
-          }
-          if (
-            attachment.type === 'image' &&
-            (!image || attachment.file.uri !== image?.uri)
-          ) {
-            return [
-              {
-                image: {
-                  src: attachment.uploadState.remoteUri,
-                  height: attachment.file.height,
-                  width: attachment.file.width,
-                  alt: 'image',
-                },
-              },
-            ];
-          }
-
-          if (
-            image &&
-            attachment.type === 'image' &&
-            attachment.file.uri === image?.uri &&
-            isEdit &&
-            channelType === 'gallery'
-          ) {
-            return [
-              {
-                image: {
-                  src: image.uri,
-                  height: image.height,
-                  width: image.width,
-                  alt: 'image',
-                },
-              },
-            ];
-          }
-
-          return [];
+        const { story, metadata } = logic.toPostData({
+          content: inlines,
+          attachments: finalAttachments,
+          channelType: channelType,
+          title,
+          image: image?.uri,
+          isEdit,
         });
-
-        if (blocks && blocks.length > 0) {
-          if (channelType === 'chat') {
-            story.unshift(...blocks.map((block) => ({ block })));
-          } else {
-            story.push(...blocks.map((block) => ({ block })));
-          }
-        }
-
-        const metadata: db.PostMetadata = {};
-        if (title && title.length > 0) {
-          metadata['title'] = title;
-        }
-
-        if (image) {
-          const attachment = finalAttachments.find(
-            (a): a is UploadedImageAttachment =>
-              a.type === 'image' && a.file.uri === image.uri
-          );
-          if (!attachment) {
-            throw new Error('unable to attach image');
-          }
-          metadata['image'] = attachment.uploadState.remoteUri;
-        }
 
         if (isEdit && editingPost) {
           if (editingPost.parentId) {
@@ -617,7 +544,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         } else {
           // not awaiting since we don't want to wait for the send to complete
           // before clearing the draft and the editor content
-          send(story, channelId, metadata);
+          sendPost(story, channelId, metadata);
         }
 
         onSend?.();
@@ -639,7 +566,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         title,
         image,
         channelType,
-        send,
+        sendPost,
         channelId,
         draftType,
       ]

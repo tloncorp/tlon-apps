@@ -4,9 +4,10 @@ import { Icon, IconType } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { ComponentProps, ReactElement, useMemo } from 'react';
 import {
-  getVariableValue,
+  ColorProp,
+  ColorTokens,
+  GetThemeValueForKey,
   styled,
-  useTheme,
   withStaticProperties,
 } from 'tamagui';
 import { Stack, View, XStack, YStack } from 'tamagui';
@@ -184,13 +185,12 @@ const ListItemCount = ({
   count: number;
   opacity?: number;
 } & ComponentProps<typeof Stack>) => {
-  const theme = useTheme();
-  const foregroundColor = getVariableValue(
-    notified ? theme.positiveActionText : theme.secondaryText
-  );
-  const backgroundColor = getVariableValue(
-    notified ? theme.positiveBackground : theme.secondaryBackground
-  );
+  const foregroundColor: ColorTokens = notified
+    ? '$positiveActionText'
+    : '$secondaryText';
+  const backgroundColor: ColorTokens = notified
+    ? '$positiveBackground'
+    : '$secondaryBackground';
   return (
     <Stack
       opacity={opacity}
@@ -203,7 +203,11 @@ const ListItemCount = ({
         {muted && (
           <Icon type="Muted" customSize={[12, 12]} color={foregroundColor} />
         )}
-        <Text size="$label/m" color={foregroundColor}>
+        <Text
+          testID="UnreadCountNumber"
+          size="$label/m"
+          color={foregroundColor}
+        >
           {numberWithMax(count, 256)}
         </Text>
       </ListItemCountNumber>

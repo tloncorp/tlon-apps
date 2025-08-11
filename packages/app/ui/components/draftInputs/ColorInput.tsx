@@ -18,7 +18,7 @@ export function ColorInput({
 
   const send = useCallback(async () => {
     try {
-      await draftInputContext.send(
+      await draftInputContext.sendPost(
         colorPost(workingColor),
         draftInputContext.channel.id
       );

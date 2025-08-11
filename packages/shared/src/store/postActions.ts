@@ -3,28 +3,129 @@ import { toPostContent } from '../api';
 import { PostContent, toUrbitStory } from '../api/postsApi';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import type * as domain from '../domain';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import * as urbit from '../urbit';
+import { sessionActionQueue } from './SessionActionQueue';
+import { finalizeAttachments, finalizeAttachmentsLocal } from './storage';
 import * as sync from './sync';
 import {
   deleteFromChannelPosts,
   rollbackDeletedChannelPost,
 } from './useChannelPosts';
 
-const logger = createDevLogger('postActions', false);
+export const logger = createDevLogger('postActions', false);
 
-export async function sendPost({
-  channel,
-  authorId,
-  content,
-  metadata,
+export async function failEnqueuedPosts() {
+  const enqueuedPosts = await db.getEnqueuedPosts();
+  await Promise.all(
+    enqueuedPosts.map(async (post) => {
+      await db.updatePost({ id: post.id, deliveryStatus: 'failed' });
+    })
+  );
+}
+
+export async function finalizePostDraft(
+  draft: domain.PostDataDraftParent
+): Promise<domain.PostDataFinalizedParent>;
+export async function finalizePostDraft(
+  draft: domain.PostDataDraftEdit
+): Promise<domain.PostDataFinalizedEdit>;
+export async function finalizePostDraft(
+  draft: domain.PostDataDraft
+): Promise<domain.PostDataFinalized> {
+  const { story, metadata } = logic.toPostData({
+    ...draft,
+    attachments: await finalizeAttachments(draft.attachments),
+  });
+
+  const finalizedBase = {
+    channelId: draft.channelId,
+    content: story,
+    metadata,
+  };
+
+  if (draft.isEdit) {
+    return {
+      ...finalizedBase,
+      isEdit: true,
+      editTargetPostId: draft.editTargetPostId,
+    } satisfies domain.PostDataFinalizedEdit;
+  } else {
+    return finalizedBase satisfies domain.PostDataFinalizedParent;
+  }
+}
+
+export function finalizePostDraftUsingLocalAttachments(
+  draft: domain.PostDataDraftParent
+): domain.PostDataFinalizedParent;
+export function finalizePostDraftUsingLocalAttachments(
+  draft: domain.PostDataDraftEdit
+): domain.PostDataFinalizedEdit;
+export function finalizePostDraftUsingLocalAttachments(
+  draft: domain.PostDataDraft
+): domain.PostDataFinalized {
+  const { story, metadata } = logic.toPostData({
+    ...draft,
+    attachments: finalizeAttachmentsLocal(draft.attachments),
+  });
+  const finalizedBase = {
+    channelId: draft.channelId,
+    content: story,
+    metadata,
+  };
+  if (draft.isEdit) {
+    return {
+      ...finalizedBase,
+      isEdit: true,
+      editTargetPostId: draft.editTargetPostId,
+    } satisfies domain.PostDataFinalizedEdit;
+  } else {
+    return finalizedBase satisfies domain.PostDataFinalizedParent;
+  }
+}
+
+export async function finalizeAndSendPost(
+  draft: domain.PostDataDraft
+): Promise<void> {
+  if (draft.isEdit) {
+    await editPostUsingDraft(draft);
+  } else {
+    await _sendPost({
+      channelId: draft.channelId,
+      buildOptimisticPostData: () =>
+        finalizePostDraftUsingLocalAttachments(draft),
+      buildFinalizedPostData: () => finalizePostDraft(draft),
+    });
+  }
+}
+
+export async function sendPost(postData: domain.PostDataFinalizedParent) {
+  return await _sendPost({
+    channelId: postData.channelId,
+    buildOptimisticPostData: () => postData,
+    buildFinalizedPostData: async () => postData,
+  });
+}
+
+async function _sendPost({
+  buildFinalizedPostData,
+  buildOptimisticPostData,
+  channelId,
 }: {
-  channel: db.Channel;
-  authorId: string;
-  content: urbit.Story;
-  metadata?: db.PostMetadata;
+  buildFinalizedPostData: () => Promise<domain.PostDataFinalizedParent>;
+  buildOptimisticPostData: () => domain.PostDataFinalizedParent;
+  channelId: string;
 }) {
+  const authorId = api.getCurrentUserId();
+
+  const channel = await db.getChannel({ id: channelId });
+  if (!channel) {
+    logger.trackError('Failed to forward post, unable to find channel');
+    return;
+  }
+
   logger.crumb('sending post', `channel type: ${channel.type}`);
   if (channel.isPendingChannel) {
     logger.trackEvent(
@@ -52,13 +153,15 @@ export async function sendPost({
   logger.crumb('get author');
   const author = await db.getContact({ id: authorId });
   logger.crumb('build pending post');
-  const cachePost = db.buildPendingPost({
+  const optimisticPostData = buildOptimisticPostData();
+  const cachePost = db.buildPost({
     authorId,
     author,
     channel,
     sequenceNum: 0, // placeholder, this will be overwritten by the server
-    content,
-    metadata,
+    content: optimisticPostData.content,
+    metadata: optimisticPostData.metadata,
+    deliveryStatus: 'enqueued',
   });
 
   let group: null | db.Group = null;
@@ -71,16 +174,37 @@ export async function sendPost({
   );
 
   logger.crumb('insert channel posts');
-  sync.handleAddPost(cachePost);
+  await sync.handleAddPost(cachePost);
   logger.crumb('done optimistic update');
   try {
-    logger.crumb('sending post to backend');
-    await api.sendPost({
-      channelId: channel.id,
-      authorId,
-      content,
-      metadata: metadata,
-      sentAt: cachePost.sentAt,
+    logger.crumb('enqueuing sending post to backend');
+
+    // Ensure uploads are started. Uploads are likely already started in UI,
+    // but may as well make sure they're started here to avoid blocking in
+    // SessionActionQueue.
+    const finalizedPostDataPromise = buildFinalizedPostData();
+
+    await sessionActionQueue.add(async () => {
+      logger.crumb('finalizing post');
+      const finalizedPostData = await finalizedPostDataPromise;
+      logger.crumb('updating post in db with finalized data');
+      await db.updatePost({
+        id: cachePost.id,
+        ...db.buildPostUpdate({
+          id: cachePost.id,
+          content: finalizedPostData.content,
+          metadata: finalizedPostData.metadata,
+          deliveryStatus: 'pending',
+        }),
+      });
+      logger.crumb('sending post to API');
+      return api.sendPost({
+        channelId: channel.id,
+        authorId,
+        content: finalizedPostData.content,
+        metadata: finalizedPostData.metadata,
+        sentAt: cachePost.sentAt,
+      });
     });
     logger.crumb('sent post to backend, syncing channel message delivery');
     sync.syncChannelMessageDelivery({ channelId: channel.id });
@@ -93,7 +217,7 @@ export async function sendPost({
       errorDetails: JSON.stringify(e, Object.getOwnPropertyNames(e)),
     });
     logger.crumb('failed to send post');
-    console.error('Failed to send post', {
+    logger.error('Failed to send post', {
       message: e.message,
       type: e.constructor?.name,
       stack: e.stack,
@@ -133,7 +257,7 @@ export async function retrySendPost({
     AnalyticsEvent.ActionSendPostRetry,
     logic.getModelAnalytics({ post, channel })
   );
-  if (post.deliveryStatus !== 'failed') {
+  if (post.deliveryStatus !== 'failed' && post.deliveryStatus !== 'enqueued') {
     console.error('Tried to retry send on non-failed post', post);
     return;
   }
@@ -152,7 +276,7 @@ export async function retrySendPost({
   }
 
   // optimistic update
-  await db.updatePost({ id: post.id, deliveryStatus: 'pending' });
+  await db.updatePost({ id: post.id, deliveryStatus: 'enqueued' });
 
   const content = JSON.parse(post.content as string) as PostContent;
   const story = toUrbitStory(content);
@@ -160,18 +284,21 @@ export async function retrySendPost({
   logger.log('retrySendPost: sending post', { post, story });
 
   try {
-    await api.sendPost({
-      channelId: post.channelId,
-      authorId: post.authorId,
-      content: story,
-      metadata:
-        post.image || post.title
-          ? {
-              title: post.title,
-              image: post.image,
-            }
-          : undefined,
-      sentAt: post.sentAt,
+    await sessionActionQueue.add(async () => {
+      await db.updatePost({ id: post.id, deliveryStatus: 'pending' });
+      return api.sendPost({
+        channelId: post.channelId,
+        authorId: post.authorId,
+        content: story,
+        metadata:
+          post.image || post.title
+            ? {
+                title: post.title,
+                image: post.image,
+              }
+            : undefined,
+        sentAt: post.sentAt,
+      });
     });
     await sync.syncChannelMessageDelivery({ channelId: post.channelId });
   } catch (e) {
@@ -209,8 +336,7 @@ export async function forwardPost({
   }
 
   return sendPost({
-    channel,
-    authorId: api.getCurrentUserId(),
+    channelId,
     content: [{ block: { cite: urbitReference } }],
     metadata:
       channel.type === 'notebook'
@@ -222,10 +348,59 @@ export async function forwardPost({
   });
 }
 
+export async function forwardGroup({
+  groupId,
+  channelId,
+}: {
+  groupId: string;
+  channelId: string;
+}) {
+  try {
+    logger.log('forwardGroup', { groupId, channelId });
+    logger.trackEvent(AnalyticsEvent.ActionForwardGroup);
+
+    const group = await db.getGroup({ id: groupId });
+    if (!group) {
+      logger.trackError('Failed to forward group, unable to find original');
+      return;
+    }
+
+    const channel = await db.getChannel({ id: channelId });
+    if (!channel) {
+      logger.trackError('Failed to forward group, unable to find channel');
+      return;
+    }
+
+    const urbitReference = urbit.pathToCite(
+      logic.getGroupReferencePath(groupId)
+    );
+    if (!urbitReference) {
+      logger.trackError(
+        'Failed to forward group, unable to get reference path'
+      );
+      return;
+    }
+
+    return sendPost({
+      channelId: channel.id,
+      content: [{ block: { cite: urbitReference } }],
+      metadata:
+        channel.type === 'notebook'
+          ? {
+              title: group.title ? `${group.title} group` : 'Forwarded group',
+            }
+          : undefined,
+    });
+  } catch (error) {
+    logger.trackError('Failed to forward group', error);
+    throw error;
+  }
+}
+
+/** @deprecated use `editPostUsingDraft` instead to be less blocking */
 export async function editPost({
   post,
   content,
-  parentId,
   metadata,
 }: {
   post: db.Post;
@@ -233,38 +408,87 @@ export async function editPost({
   parentId?: string;
   metadata?: db.PostMetadata;
 }) {
-  logger.log('editPost', { post, content, parentId, metadata });
+  const postData: domain.PostDataFinalizedEdit = {
+    channelId: post.channelId,
+    isEdit: true,
+    editTargetPostId: post.id,
+    content,
+    metadata,
+  };
+  await _editPost({
+    postBeforeEdit: post,
+    buildOptimisticPostData: () => postData,
+    buildFinalizedPostData: async () => postData,
+  });
+}
+
+export async function editPostUsingDraft(draft: domain.PostDataDraftEdit) {
+  const postBeforeEdit = await db.getPost({
+    postId: draft.editTargetPostId,
+  });
+  if (postBeforeEdit == null) {
+    throw new Error('Editing post not found');
+  }
+
+  await _editPost({
+    postBeforeEdit,
+    buildOptimisticPostData: () =>
+      finalizePostDraftUsingLocalAttachments(draft),
+    buildFinalizedPostData: () => finalizePostDraft(draft),
+  });
+}
+
+async function _editPost({
+  postBeforeEdit,
+  buildFinalizedPostData,
+  buildOptimisticPostData,
+}: {
+  postBeforeEdit: db.Post;
+  buildFinalizedPostData: () => Promise<domain.PostDataFinalizedEdit>;
+  buildOptimisticPostData: () => domain.PostDataFinalizedEdit;
+}) {
   logger.trackEvent(
     AnalyticsEvent.ActionStartedDM,
-    logic.getModelAnalytics({ post })
+    logic.getModelAnalytics({ post: postBeforeEdit })
   );
+
+  const optimisticPostData = buildOptimisticPostData();
+
   // optimistic update
-  const [contentForDb, flags] = toPostContent(content);
-  logger.log('editPost optimistic update', { contentForDb, flags });
+  const [contentForDb, flags] = toPostContent(optimisticPostData.content);
+  logger.log('editPost optimistic update', { optimisticPostData });
   await db.updatePost({
-    id: post.id,
+    id: optimisticPostData.editTargetPostId,
     content: JSON.stringify(contentForDb),
-    editStatus: 'pending',
+    editStatus: 'enqueued',
     lastEditContent: JSON.stringify(contentForDb),
-    lastEditTitle: metadata?.title,
-    lastEditImage: metadata?.image,
+    lastEditTitle: optimisticPostData.metadata?.title,
+    lastEditImage: optimisticPostData.metadata?.image,
     ...flags,
   });
   logger.log('editPost optimistic update done');
 
   try {
-    await api.editPost({
-      channelId: post.channelId,
-      postId: post.id,
-      authorId: post.authorId,
-      sentAt: post.sentAt,
-      content,
-      metadata,
-      parentId,
+    await sessionActionQueue.add(async () => {
+      const finalized = await buildFinalizedPostData();
+
+      await db.updatePost({
+        id: finalized.editTargetPostId,
+        editStatus: 'pending',
+      });
+      return api.editPost({
+        channelId: finalized.channelId,
+        postId: finalized.editTargetPostId,
+        authorId: postBeforeEdit.authorId,
+        sentAt: postBeforeEdit.sentAt,
+        content: finalized.content,
+        metadata: finalized.metadata,
+        parentId: postBeforeEdit.parentId ?? undefined,
+      });
     });
     logger.log('editPost api call done');
     await db.updatePost({
-      id: post.id,
+      id: postBeforeEdit.id,
       editStatus: 'sent',
       lastEditContent: null,
       lastEditTitle: null,
@@ -277,8 +501,8 @@ export async function editPost({
 
     // rollback optimistic update
     await db.updatePost({
-      id: post.id,
-      content: post.content,
+      id: postBeforeEdit.id,
+      content: postBeforeEdit.content,
       editStatus: 'failed',
     });
     logger.log('editPost rollback done');
@@ -288,27 +512,27 @@ export async function editPost({
 export async function sendReply({
   parentId,
   parentAuthor,
-  authorId,
   content,
   channel,
 }: {
   channel: db.Channel;
   parentId: string;
   parentAuthor: string;
-  authorId: string;
   content: urbit.Story;
 }) {
   logger.crumb('sending reply', channel.type);
   // optimistic update
   // TODO: make author available more efficiently
+  const authorId = api.getCurrentUserId();
   const author = await db.getContact({ id: authorId });
-  const cachePost = db.buildPendingPost({
+  const cachePost = db.buildPost({
     authorId,
     author,
     channel: channel,
     sequenceNum: 0, // replies do not have sequence numbers, use 0
     content,
     parentId,
+    deliveryStatus: 'enqueued',
   });
   await db.insertChannelPosts({ posts: [cachePost] });
   await db.addReplyToPost({
@@ -329,14 +553,16 @@ export async function sendReply({
 
   try {
     logger.crumb('sending reply to backend');
-    api.sendReply({
-      channelId: channel.id,
-      parentId,
-      parentAuthor,
-      authorId,
-      content,
-      sentAt: cachePost.sentAt,
-    });
+    await sessionActionQueue.add(() =>
+      api.sendReply({
+        channelId: channel.id,
+        parentId,
+        parentAuthor,
+        authorId,
+        content,
+        sentAt: cachePost.sentAt,
+      })
+    );
     sync.syncChannelMessageDelivery({ channelId: channel.id });
   } catch (e) {
     logger.crumb('failed to send reply');
@@ -357,7 +583,7 @@ export async function hidePost({ post }: { post: db.Post }) {
   await db.updatePost({ id: post.id, hidden: true });
 
   try {
-    await api.hidePost(post);
+    await sessionActionQueue.add(() => api.hidePost(post));
   } catch (e) {
     console.error('Failed to hide post', e);
 
@@ -371,7 +597,7 @@ export async function showPost({ post }: { post: db.Post }) {
   await db.updatePost({ id: post.id, hidden: false });
 
   try {
-    await api.showPost(post);
+    await sessionActionQueue.add(() => api.showPost(post));
   } catch (e) {
     console.error('Failed to show post', e);
 
@@ -391,11 +617,14 @@ export async function deletePost({ post }: { post: db.Post }) {
   // optimistic update
   deleteFromChannelPosts(post);
   await db.markPostAsDeleted(post.id);
-  await db.updatePost({ id: post.id, deleteStatus: 'pending' });
+  await db.updatePost({ id: post.id, deleteStatus: 'enqueued' });
   await db.updateChannel({ id: post.channelId, lastPostId: null });
 
   try {
-    await api.deletePost(post.channelId, post.id, post.authorId);
+    await db.updatePost({ id: post.id, deleteStatus: 'pending' });
+    await sessionActionQueue.add(() =>
+      api.deletePost(post.channelId, post.id, post.authorId)
+    );
     await db.updatePost({ id: post.id, deleteStatus: 'sent' });
   } catch (e) {
     console.error('Failed to delete post', e);
@@ -430,9 +659,11 @@ export async function reportPost({
 
   // optimistic update
   await db.updatePost({ id: post.id, hidden: true });
-
+  const groupId = post.groupId;
   try {
-    await api.reportPost(userId, post.groupId, post.channelId, post);
+    await sessionActionQueue.add(() =>
+      api.reportPost(userId, groupId, post.channelId, post)
+    );
     await hidePost({ post });
   } catch (e) {
     console.error('Failed to report post', e);
@@ -464,14 +695,22 @@ export async function addPostReaction(
     reactions: [{ postId: post.id, value: emoji, contactId: currentUserId }],
   });
 
+  const parentPost = post.parentId
+    ? await db.getPost({ postId: post.parentId })
+    : undefined;
+
   try {
-    await api.addReaction({
-      channelId: post.channelId,
-      postId: post.id,
-      emoji,
-      our: currentUserId,
-      postAuthor: post.authorId,
-    });
+    await sessionActionQueue.add(() =>
+      api.addReaction({
+        channelId: post.channelId,
+        postId: post.id,
+        emoji,
+        our: currentUserId,
+        postAuthor: post.authorId,
+        parentId: post.parentId || undefined,
+        parentAuthorId: parentPost?.authorId || undefined,
+      })
+    );
   } catch (e) {
     console.error('Failed to add post reaction', e);
     logger.trackEvent(AnalyticsEvent.ErrorReact, {
@@ -484,7 +723,8 @@ export async function addPostReaction(
 
 /**
  * Verifies whether a post was actually delivered to the server.
- * This is used for posts that are marked as 'needs_verification' due to connection issues.
+ * This is used for posts that are marked as 'needs_verification' due to
+ * connection issues.
  *
  * Uses authorId and sentAt to find matching posts on the server.
  */
@@ -552,13 +792,21 @@ export async function removePostReaction(post: db.Post, currentUserId: string) {
   // optimistic update
   await db.deletePostReaction({ postId: post.id, contactId: currentUserId });
 
+  const parentPost = post.parentId
+    ? await db.getPost({ postId: post.parentId })
+    : undefined;
+
   try {
-    await api.removeReaction({
-      channelId: post.channelId,
-      postId: post.id,
-      our: currentUserId,
-      postAuthor: post.authorId,
-    });
+    await sessionActionQueue.add(() =>
+      api.removeReaction({
+        channelId: post.channelId,
+        postId: post.id,
+        our: currentUserId,
+        postAuthor: post.authorId,
+        parentId: post.parentId || undefined,
+        parentAuthorId: parentPost?.authorId || undefined,
+      })
+    );
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.ErrorUnreact, {
       errorMessage: e.message,

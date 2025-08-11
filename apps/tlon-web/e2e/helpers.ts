@@ -13,7 +13,7 @@ export async function navigateToChannel(page: Page, channelName: string) {
 
 export async function createGroup(page: Page) {
   await page.getByTestId('CreateChatSheetTrigger').click();
-  await page.getByText('New group').click();
+  await page.getByText('New group', { exact: true }).click();
   await page.getByText('Select contacts to invite').click();
   await page.getByText('Create group').click();
 
@@ -211,7 +211,7 @@ export async function assignRoleToMember(
   await expect(memberRow).toBeVisible();
   await memberRow.click();
 
-  await expect(page.getByText('Send message')).toBeVisible();
+  await expect(page.getByText('Assign role')).toBeVisible();
   await page.getByText('Assign role').click();
   await page.getByRole('dialog').getByText(roleName).click();
 
@@ -233,6 +233,76 @@ export async function unassignRoleFromMember(
   await page.getByRole('dialog').getByText(roleName).click(); // This should unassign the role
 
   await page.waitForTimeout(2000);
+}
+
+/**
+ * Forwards a message to a specific contact via DM
+ */
+export async function forwardMessageToDM(
+  page: Page,
+  messageText: string,
+  contactId: string
+) {
+  await longPressMessage(page, messageText);
+  await page.getByText('Forward', { exact: true }).click();
+
+  // Verify forward sheet opened
+  await expect(page.getByText('Forward to channel')).toBeVisible();
+
+  // Search for the contact's DM
+  await page.getByPlaceholder('Search channels').fill(contactId);
+  await page.waitForTimeout(2000); // Wait longer for search results
+
+  // Try to click on the contact using a more specific selector
+  try {
+    // First try with test ID if available
+    const contactRow = page.getByTestId(`ChannelListItem-${contactId}`);
+    if (await contactRow.isVisible({ timeout: 2000 })) {
+      await contactRow.click();
+    } else {
+      // Fallback to text-based selection with force click to handle overlays
+      await page.getByText(contactId).first().click({ force: true });
+    }
+  } catch (error) {
+    // Final fallback: try clicking with force
+    await page.getByText(contactId).first().click({ force: true });
+  }
+
+  // Confirm forward
+  await page.getByText(`Forward to ${contactId}`).click();
+}
+
+/**
+ * Forwards a group reference to a specified channel
+ */
+export async function forwardGroupReference(page: Page, channelName: string) {
+  // Click the Forward button in group info
+  await page.getByText('Forward').click();
+
+  // Verify forward sheet opened
+  await expect(page.getByText('Forward group')).toBeVisible();
+
+  // Search for the channel
+  await page.getByPlaceholder('Search channels').fill(channelName);
+  await page.waitForTimeout(2000);
+
+  // Click on the channel in the modal (not the sidebar)
+  const channelRow = page.getByTestId(`ChannelListItem-${channelName}`);
+  await expect(channelRow).toBeVisible({ timeout: 5000 });
+  await channelRow.click();
+
+  // Wait for the confirm button to appear and become clickable
+  const confirmButton = page.getByText(`Forward to ${channelName}`);
+  await expect(confirmButton).toBeVisible({ timeout: 5000 });
+  await confirmButton.click();
+
+  // Verify toast appears
+  await expect(page.getByText('Forwarded')).toBeVisible({ timeout: 5000 });
+
+  // Verify modal closes
+  await expect(page.getByText('Forward to channel')).not.toBeVisible({
+    timeout: 3000,
+  });
 }
 
 /**
@@ -546,7 +616,10 @@ export async function longPressMessage(page: Page, messageText: string) {
  */
 export async function startThread(page: Page, messageText: string) {
   await longPressMessage(page, messageText);
-  await page.getByText('Reply').click();
+  // Use exact match to avoid ambiguity with "1 reply" text
+  await expect(page.getByText('Reply', { exact: true })).toBeVisible();
+  await page.waitForTimeout(500);
+  await page.getByText('Reply', { exact: true }).click();
   await page.waitForTimeout(500);
   await expect(page.getByRole('textbox', { name: 'Reply' })).toBeVisible();
 }
@@ -609,19 +682,25 @@ export async function quoteReply(
   await longPressMessage(page, originalMessage);
   await page.getByText('Quote', { exact: true }).click();
 
-  // Verify quote interface appears
+  // In DM context, there's no "Chat Post" text, just quoted content in input
   if (!isDM) {
     await expect(page.getByText('Chat Post')).toBeVisible();
+    await expect(page.getByText(originalMessage).nth(1)).toBeVisible(); // Quote shows original
   }
-  await expect(page.getByText(originalMessage).nth(1)).toBeVisible(); // Quote shows original
 
-  await page.getByTestId('MessageInput').click();
-  if (!isDM) {
-    await page.fill('[data-testid="MessageInput"]', replyText);
+  const messageInput = page.getByTestId('MessageInput');
+  await messageInput.click();
+
+  if (isDM) {
+    // In DMs, the quote is already inserted as "> originalMessage"
+    // We need to append our reply text to the existing quoted content
+    const currentValue = await messageInput.inputValue();
+    await messageInput.fill(currentValue + '\n' + replyText);
   } else {
-    const inputText = await page.getByTestId('MessageInput').inputValue();
-    await page.getByTestId('MessageInput').fill(inputText + replyText);
+    // In group channels, we can just fill the reply text
+    await messageInput.fill(replyText);
   }
+
   await page.getByTestId('MessageInputSendButton').click();
 
   await expect(
@@ -635,7 +714,8 @@ export async function quoteReply(
 export async function threadQuoteReply(
   page: Page,
   originalMessage: string,
-  replyText: string
+  replyText: string,
+  isDM = false
 ) {
   // Use the thread-specific message interaction
   await page.getByText(originalMessage).first().click();
@@ -644,13 +724,26 @@ export async function threadQuoteReply(
   await page.waitForTimeout(500);
   await page.getByText('Quote', { exact: true }).click();
 
-  // Verify quote interface appears
-  await expect(page.getByText('Chat Post')).toBeVisible();
-  await expect(page.getByText(originalMessage).nth(1)).toBeVisible(); // Quote shows original
+  // In DM threads, there's no "Chat Post" text, just quoted content in reply input
+  if (!isDM) {
+    await expect(page.getByText('Chat Post')).toBeVisible();
+    await expect(page.getByText(originalMessage).nth(1)).toBeVisible(); // Quote shows original
+  }
 
   // Use thread-specific reply input
-  await page.getByPlaceholder('Reply').click();
-  await page.getByPlaceholder('Reply').fill(replyText);
+  const replyInput = page.getByPlaceholder('Reply');
+  await replyInput.click();
+
+  if (isDM) {
+    // In DM threads, the quote is already inserted as "> originalMessage"
+    // We need to append our reply text to the existing quoted content
+    const currentValue = await replyInput.inputValue();
+    await replyInput.fill(currentValue + '\n' + replyText);
+  } else {
+    // In group channels, we can just fill the reply text
+    await replyInput.fill(replyText);
+  }
+
   await page
     .locator('#reply-container')
     .getByTestId('MessageInputSendButton')
@@ -727,6 +820,8 @@ export async function editMessage(
   isThread = false
 ) {
   await longPressMessage(page, originalText);
+  // Wait a bit for the action menu to appear
+  await page.waitForTimeout(500);
   await page.getByText('Edit message').click();
 
   // Click on the message text to edit it
@@ -763,6 +858,44 @@ export async function verifyMessagePreview(
     await expect(
       page.getByTestId(`ChannelListItem-${channelTitle}`).getByText(messageText)
     ).toBeVisible({ timeout: 15000 });
+  }
+}
+
+/**
+ * Verifies unread count badge on chat list item
+ */
+export async function verifyChatUnreadCount(
+  page: Page,
+  chatName: string,
+  expectedCount: number,
+  isPinned = false
+) {
+  await page.waitForTimeout(1000);
+  const chatItem = page.getByTestId(
+    `ChatListItem-${chatName}-${isPinned ? 'pinned' : 'unpinned'}`
+  );
+
+  if (expectedCount === 0) {
+    // When count is 0, the UnreadCount Stack component itself should have opacity controlled
+    // Check that either the count shows "0" or the whole unread badge is not visible
+    const unreadCount = chatItem.getByTestId('UnreadCount');
+
+    // Try to check if the count text is "0"
+    try {
+      const countNumber = unreadCount.locator(
+        '[data-testid="UnreadCountNumber"]'
+      );
+      await expect(countNumber).toContainText('0', { timeout: 2000 });
+    } catch {
+      // If we can't find the count number, check if the whole unread count is not visible
+      await expect(unreadCount).not.toBeVisible({ timeout: 2000 });
+    }
+  } else {
+    // Should show the expected count - look for text with the number
+    const unreadCount = chatItem.getByTestId('UnreadCount');
+    await expect(
+      unreadCount.getByText(expectedCount.toString(), { exact: true })
+    ).toBeVisible({ timeout: 10000 });
   }
 }
 

@@ -21,7 +21,7 @@ import { updateChannelSections } from './groupActions';
 import { verifyUserInviteLink } from './inviteActions';
 import { discoverContacts } from './lanyardActions';
 import { useLureState } from './lure';
-import { verifyPostDelivery } from './postActions';
+import { failEnqueuedPosts, verifyPostDelivery } from './postActions';
 import { Session, getSession, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
@@ -235,7 +235,7 @@ const syncRelevantChannelPosts = async (
   }
 };
 
-export const syncSettings = async (ctx?: SyncCtx) => {
+export const pullSettings = async (ctx?: SyncCtx) => {
   const settings = await syncQueue.add('settings', ctx, () =>
     api.getSettings()
   );
@@ -256,7 +256,7 @@ export const syncVolumeSettings = async (ctx?: SyncCtx) => {
   await db.setVolumes({ volumes: clientVolumes, deleteOthers: true });
 };
 
-export const syncSystemContacts = async (ctx?: SyncCtx) => {
+export const syncSystemContacts = async (_ctx?: SyncCtx) => {
   const systemContacts = await api.getSystemContacts();
   try {
     await db.insertSystemContacts({ systemContacts });
@@ -789,7 +789,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
           chatId: update.groupId,
           contactIds: update.ships,
           type: 'group',
-          status: 'joined',
+          joinStatus: 'joined',
         },
         ctx
       );
@@ -1228,7 +1228,7 @@ export const handleChatUpdate = async (
       await db.deletePosts({ ids: [update.postId] }, ctx);
       break;
     case 'addReaction':
-      db.insertPostReactions(
+      await db.insertPostReactions(
         {
           reactions: [
             {
@@ -1242,7 +1242,7 @@ export const handleChatUpdate = async (
       );
       break;
     case 'deleteReaction':
-      db.deletePostReaction(
+      await db.deletePostReaction(
         {
           postId: update.postId,
           contactId: update.userId,
@@ -1682,7 +1682,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
             () => logger.crumb(`finished syncing contacts`)
           )
         : Promise.resolve(),
-      syncSettings({ priority: SyncPriority.Medium }).then(() =>
+      pullSettings({ priority: SyncPriority.Medium }).then(() =>
         logger.crumb(`finished syncing settings`)
       ),
       syncVolumeSettings({ priority: SyncPriority.Low }).then(() =>
@@ -1717,6 +1717,8 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       });
 
     updateSession({ phase: 'ready' });
+
+    await failEnqueuedPosts();
 
     // fire off relevant channel posts sync, but don't wait for it
     // TODO: maybe re-enable. My hunch is it's quick to layer this in as a new scry

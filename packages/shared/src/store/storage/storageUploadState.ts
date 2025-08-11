@@ -1,17 +1,16 @@
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
 
 import { createDevLogger } from '../../debug';
+import {
+  Attachment,
+  FinalizedAttachment,
+  ImageAttachment,
+  UploadState,
+  UploadStateError,
+  UploadedImageAttachment,
+} from '../../domain';
 
-export type UploadStateError = { status: 'error'; errorMessage: string };
-export type UploadStateUploading = { status: 'uploading'; localUri: string };
-export type UploadStateSuccess = { status: 'success'; remoteUri: string };
-
-export type UploadState =
-  | UploadStateError
-  | UploadStateUploading
-  | UploadStateSuccess;
-
-const logger = createDevLogger('uploadState', true);
+const logger = createDevLogger('uploadState', false);
 let uploadStates: Record<string, UploadState> = {};
 
 export type UploadStateListener = (state: UploadState) => void;
@@ -46,6 +45,62 @@ export const useUploadStates = (keys: string[]) => {
     }, {});
   }, [states, keys]);
 };
+
+const isImageAttachment = (a: Attachment): a is ImageAttachment =>
+  a.type === 'image';
+const requiresUpload = isImageAttachment;
+
+export function finalizeAttachmentsLocal(
+  attachments: Attachment[]
+): FinalizedAttachment[] {
+  return attachments.map((attachment) => {
+    if (requiresUpload(attachment)) {
+      return buildFinalizedImageAttachment(attachment, {
+        status: 'uploading',
+        localUri: attachment.file.uri,
+      });
+    } else {
+      return attachment;
+    }
+  });
+}
+
+export async function finalizeAttachments(
+  attachments: Attachment[]
+): Promise<FinalizedAttachment[]> {
+  const assetAttachments = attachments.filter(requiresUpload);
+  const completedUploads = await waitForUploads(
+    assetAttachments.map((a) => a.file.uri)
+  );
+  return attachments.map((attachment) => {
+    if (requiresUpload(attachment)) {
+      return buildFinalizedImageAttachment(
+        attachment,
+        completedUploads[attachment.file.uri]
+      );
+    } else {
+      return attachment;
+    }
+  });
+}
+
+function buildFinalizedImageAttachment(
+  attachment: ImageAttachment,
+  uploadState: UploadState
+): UploadedImageAttachment {
+  switch (uploadState.status) {
+    case 'error':
+      throw new Error('Attachment is not an uploaded image attachment');
+
+    case 'success':
+    // fallthrough
+    case 'uploading':
+      return {
+        ...attachment,
+        uploadState,
+      };
+  }
+}
 
 export const waitForUploads = async (keys: string[]) => {
   return new Promise<Record<string, UploadState>>((resolve, reject) => {

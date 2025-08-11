@@ -32,7 +32,8 @@
     "e2e:headed": "playwright test --headed",
     "e2e:codegen": "playwright codegen",
     "e2e:test": "tsc --isolatedModules --skipLibCheck ./rube/run-single-test.ts --outDir ./rube/dist && node ./rube/dist/run-single-test.js",
-    "e2e:test:force": "cross-env FORCE_EXTRACTION=true pnpm e2e:test"
+    "e2e:test:force": "cross-env FORCE_EXTRACTION=true pnpm e2e:test",
+    "e2e:playwright-dev": "tsc --isolatedModules --skipLibCheck ./rube/playwright-dev.ts --outDir ./rube/dist && node ./rube/dist/playwright-dev.js"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
@@ -105,8 +106,8 @@
     "prosemirror-view": "~1.23.13",
     "@radix-ui/react-accordion": "^1.1.2",
     "@radix-ui/react-popover": "^1.0.2",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "react": "~18.3.1",
+    "react-dom": "~18.3.1",
     "react-dropzone": "^14.3.5",
     "react-error-boundary": "^3.1.4",
     "react-helmet": "^6.1.0",
@@ -139,7 +140,7 @@
     "@types/qrcode": "^1.5.2",
     "@types/react": "^18.2.46",
     "@types/react-beautiful-dnd": "^13.1.2",
-    "@types/react-dom": "^18.2.7",
+    "@types/react-dom": "~18.3.1",
     "@types/react-helmet": "^6.1.5",
     "@types/react-test-renderer": "^18.0.0",
     "@types/tar-fs": "^2.0.1",

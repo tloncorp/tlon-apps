@@ -2,7 +2,7 @@ import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { differenceInDays, endOfToday, format } from 'date-fns';
 import emojiRegex from 'emoji-regex';
-import { backOff } from 'exponential-backoff';
+import { BackoffOptions, backOff } from 'exponential-backoff';
 import { useMemo } from 'react';
 
 import * as api from '../api';
@@ -22,7 +22,7 @@ export const IMAGE_REGEX =
   /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.svg)(?:\?.*)?$/i;
 export const AUDIO_REGEX = /(\.mp3|\.wav|\.ogg|\.m4a)(?:\?.*)?$/i;
 export const VIDEO_REGEX = /(\.mov|\.mp4|\.ogv|\.webm)(?:\?.*)?$/i;
-export const URL_REGEX = /(https?:\/\/[^\s]+)/i;
+export const URL_REGEX = /^https?:\/\/[^\s]+$/i;
 export const PATP_REGEX = /(~[a-z0-9-]+)/i;
 export const IMAGE_URL_REGEX =
   /^(http(s?):)([/.\w\s-:]|%2*)*\.(?:jpg|img|png|gif|tiff|jpeg|webp|svg)(?:\?.*)?$/i;
@@ -155,7 +155,7 @@ export function makePrettyDaysSince(date: Date) {
     case 1:
       return 'Yesterday';
     default:
-      return `${diff}d`;
+      return `${diff}d ago`;
   }
 }
 
@@ -326,12 +326,12 @@ export function extractInlinesFromContent(story: api.PostContent): ub.Inline[] {
 
 export function extractReferencesFromContent(
   story: api.PostContent
-): api.ContentReference[] {
+): domain.ContentReference[] {
   const references =
     story !== null
       ? (story.filter(
           (s) => 'type' in s && s.type == 'reference'
-        ) as api.ContentReference[])
+        ) as domain.ContentReference[])
       : [];
 
   return references;
@@ -352,7 +352,7 @@ export const extractContentTypes = (
   content: Stringified<api.PostContent> | api.PostContent
 ): {
   inlines: ub.Inline[];
-  references: api.ContentReference[];
+  references: domain.ContentReference[];
   blocks: ub.Block[];
   story: api.PostContent;
 } => {
@@ -368,7 +368,7 @@ export const extractContentTypesFromPost = (
   post: db.Post | { content: api.PostContent }
 ): {
   inlines: ub.Inline[];
-  references: api.ContentReference[];
+  references: domain.ContentReference[];
   blocks: ub.Block[];
   story: api.PostContent;
 } => {
@@ -583,11 +583,10 @@ export const getCompositeGroups = (
   });
 };
 
-export interface RetryConfig {
-  startingDelay?: number;
-  numOfAttempts?: number;
-  maxDelay?: number;
-}
+export type RetryConfig = Pick<
+  BackoffOptions,
+  'startingDelay' | 'numOfAttempts' | 'maxDelay'
+>;
 
 export const withRetry = <T>(fn: () => Promise<T>, config?: RetryConfig) => {
   return backOff(fn, {

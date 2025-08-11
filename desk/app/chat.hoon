@@ -1,4 +1,4 @@
-/-  c=chat, d=channels, g=groups, u=ui, e=epic, activity, meta
+/-  c=chat, d=channels, g=groups, u=ui, e=epic, activity, s=story, meta
 /-  old-4=chat-4, old-3=chat-3, old-2=chat-2
 /-  ha=hark
 /-  contacts-0
@@ -971,11 +971,11 @@
     %-  (slog leaf/"Failed to heed contact {(trip ship.pole)}" u.p.sign)
     cor
   ::
-      [%v1 %dm ship=@ rest=*]
+      [?(%v1 %v2) %dm ship=@ rest=*]
     =/  =ship  (slav %p ship.pole)
     di-abet:(di-agent:(di-abed:di-core ship) rest.pole sign)
   ::
-      [%v1 %club id=@ rest=*]
+      [?(%v1 %v2) %club id=@ rest=*]
     =/  =id:club:c  (slav %uv id.pole)
     cu-abet:(cu-agent:(cu-abed id) rest.pole sign)
   ==
@@ -1527,7 +1527,7 @@
       =-  (snoc - [%inline q.p.old])
       %+  turn  p.p.old
       |=  =block:t
-      ^-  verse:d
+      ^-  verse:s
       :-  %block
       ?.  ?=([%cite %chan *] block)  block
       =;  new=(unit path)
@@ -2074,17 +2074,17 @@
   (give %fact ~[/ /dm/invited] ships+!>(invites))
 ::
 ++  verses-to-inlines  ::  for backcompat
-  |=  l=(list verse:d)
+  |=  l=(list verse:s)
   ^-  (list inline:old-2)
   %-  zing
   %+  turn  l
-  |=  v=verse:d
+  |=  v=verse:s
   ^-  (list inline:old-2)
   ?-  -.v
       %block   ~
       %inline
     %+  murn  p.v
-    |=  i=inline:d
+    |=  i=inline:s
     ^-  (unit inline:old-2)
     ?@  i    `i
     ?+  -.i  `i

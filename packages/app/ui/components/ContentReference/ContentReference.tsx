@@ -1,6 +1,6 @@
 // tamagui-ignore
-import { ContentReference } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import { ContentReference } from '@tloncorp/shared/domain';
 import { getChannelType } from '@tloncorp/shared/urbit';
 import { IconType } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
@@ -283,7 +283,9 @@ export function GroupReferenceLoaderComponent({
   );
 }
 
-const GroupReferenceLoader = React.memo(GroupReferenceLoaderComponent);
+const GroupReferenceLoader = React.memo(
+  GroupReferenceLoaderComponent
+) as typeof GroupReferenceLoaderComponent;
 
 export function GroupReference({
   data,
