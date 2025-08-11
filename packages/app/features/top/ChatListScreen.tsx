@@ -18,6 +18,7 @@ import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useFilteredChats } from '../../hooks/useFilteredChats';
 import { TabName } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
+import { triggerTaskForTesting } from '../../lib/backgroundSync';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
@@ -283,7 +284,8 @@ export function ChatListScreenView({
                   {isWindowNarrow ? (
                     <ScreenHeader.IconButton
                       type="Add"
-                      onPress={handlePressAddChat}
+                      // onPress={handlePressAddChat}
+                      onPress={triggerTaskForTesting}
                       testID="CreateChatSheetTrigger"
                     />
                   ) : (
