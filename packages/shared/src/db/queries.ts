@@ -775,9 +775,11 @@ export const getMentionCandidates = createReadQuery(
     const idSearchTerm = `~${query.toLowerCase()}%`;
     const searchTerm = `${query.toLowerCase()}%`;
 
-    const candidatesQuery = ctx.db
+    const $candidates = ctx.db
       .select({
-        id: $contacts.id,
+        id: sql<string>`COALESCE(${$contacts.id}, ${$chatMembers.contactId})`.as(
+          'id'
+        ),
         nickname: $contacts.nickname,
         avatarImage: $contacts.avatarImage,
         bio: $contacts.bio,
@@ -796,7 +798,7 @@ export const getMentionCandidates = createReadQuery(
         `.as('priority'),
       })
       .from($contacts)
-      .leftJoin(
+      .fullJoin(
         $chatMembers,
         and(
           eq($chatMembers.contactId, $contacts.id),
@@ -807,21 +809,36 @@ export const getMentionCandidates = createReadQuery(
         and(
           // Match the search term against id or nickname
           or(
+            sql`${$chatMembers.contactId} LIKE ${idSearchTerm}`,
             sql`${$contacts.id} LIKE ${idSearchTerm}`,
             sql`COALESCE(${$contacts.nickname}, '') LIKE ${searchTerm}`
           ),
           or(isNull($contacts.isBlocked), eq($contacts.isBlocked, false))
         )
       )
-      .groupBy($contacts.id, $chatMembers.membershipType, $chatMembers.joinedAt)
-      .orderBy(
-        // Order by priority first, then by whether they're a contact, then alphabetically
-        asc(sql`priority`),
-        desc($contacts.isContact),
-        asc(sql`${$contacts.nickname}, ${$contacts.id}`)
-      )
-      .limit(limit);
-    return candidatesQuery;
+      .as('candidates');
+
+    return (
+      ctx.db
+        .select({
+          id: $candidates.id,
+          nickname: $candidates.nickname,
+          avatarImage: $candidates.avatarImage,
+          bio: $candidates.bio,
+          status: $candidates.status,
+          color: $candidates.color,
+          membershipType: $candidates.membershipType,
+          joinedAt: $candidates.joinedAt,
+          isBlocked: $candidates.isBlocked,
+          priority: min($candidates.priority)
+            .mapWith((p) => parseInt(p))
+            .as('priority'),
+        })
+        .from($candidates)
+        // This call to sql is only necessary because of a drizzle type inference issue
+        .groupBy(sql`${$candidates.id}`)
+        .limit(limit)
+    );
   },
   ['chatMembers', 'contacts']
 );

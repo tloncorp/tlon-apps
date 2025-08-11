@@ -644,6 +644,13 @@ test('getMentionCandidates: returns candidates in priority order', async () => {
   const chatId = '~nibset-napwyn/tlon';
   const query = 'no';
 
+  await queries.addChatMembers({
+    chatId,
+    contactIds: ['~notestor'],
+    joinStatus: 'joined',
+    type: 'group',
+  });
+
   // Test the mention candidates query
   const candidates = await queries.getMentionCandidates({ chatId, query });
 
@@ -697,8 +704,11 @@ test('getMentionCandidates: limits results to 6', async () => {
   const chatId = '~nibset-napwyn/tlon';
   const query = 'a'; // Broad query that might match many results
 
-  const candidates = await queries.getMentionCandidates({ chatId, query });
-
+  const candidates = await queries.getMentionCandidates({
+    chatId,
+    query,
+    limit: 6,
+  });
 
   // Should not return more than 6 results
   expect(candidates.length).toBeLessThanOrEqual(6);
