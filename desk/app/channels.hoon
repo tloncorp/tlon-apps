@@ -865,6 +865,10 @@
       ca-abet:(ca-join:ca-core [nest group.a-channel]:a-channels)
     ca-abet:(ca-a-channel:(ca-abed:ca-core nest.a-channels) a-channel.a-channels)
   ::
+      %channel-request-join
+    =+  !<([=nest:c =flag:g] vase)
+    ca-abet:(ca-join:ca-core nest flag)
+  ::
       %channel-migration
     ?>  =(our src):bowl
     =+  !<(new-channels=v-channels:c vase)
@@ -1553,7 +1557,14 @@
   ++  ca-join
     |=  [n=nest:c group=flag:g]
     =.  nest  n
-    ?>  |(=(p.group src.bowl) from-self)
+    =/  =path  (scry-path %groups /v2/groups/(scot %p p.group)/[q.group]/noun)
+    =+  .^(grp=group:v7:gv %gx path)
+    =/  is-group-host=?  =(p.group src.bowl)
+    =/  is-channel-host=?
+      ?&  =(src.bowl ship.n)
+          (~(has by channels.grp) n)
+      ==
+    ?>  |(from-self is-group-host is-channel-host)
     ?:  (~(has by v-channels) nest)
       ::  we should already be in, but make sure our subscriptions still exist
       ::  just in case
