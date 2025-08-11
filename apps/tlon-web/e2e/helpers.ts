@@ -941,9 +941,6 @@ export async function threadQuoteReply(
   replyText: string,
   isDM = false
 ) {
-  // Ensure session is stable before thread quote reply
-  await waitForSessionStability(page);
-
   // Use the thread-specific message interaction
   await page.getByText(originalMessage).first().click();
   await page.waitForTimeout(500);
@@ -1053,26 +1050,32 @@ export async function deletePost(page: Page, postText: string) {
  * Waits for the session to be stable and ready for operations
  */
 export async function waitForSessionStability(page: Page) {
-  // Wait a moment to ensure any pending state changes have settled
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(200);
+  await page.waitForSelector('[data-testid="ScreenHeaderTitle"]', {
+    state: 'attached',
+    timeout: 5000,
+  });
 
-  // Ensure we're not on a loading state by checking for common loading indicators
-  const loadingIndicators = [
-    page.getByText('Loading…'),
-    page.getByText('Reconnecting…'),
-    page.getByText('Connecting…'),
+  const screenHeaderTitle = page.getByTestId('ScreenHeaderTitle');
+
+  const loadingStates = [
+    'Loading…',
+    'Connecting...',
+    'Reconnecting...',
+    'Initializing...',
+    'Disconnected',
   ];
 
-  for (const indicator of loadingIndicators) {
-    await expect(indicator)
+  for (const state of loadingStates) {
+    await expect(screenHeaderTitle.getByText(state))
       .not.toBeVisible({ timeout: 1000 })
-      .catch(() => {
-        // Ignore if the element doesn't exist at all
-      });
+      .catch(() => {}); // Element might not exist, that's okay
   }
 
-  // Additional small delay to ensure session is fully stable
-  await page.waitForTimeout(300);
+  // Check for message delivery status
+  await expect(page.getByTestId('ChatMessageDeliveryStatus').first())
+    .not.toBeVisible({ timeout: 1000 })
+    .catch(() => {});
 }
 
 /**
