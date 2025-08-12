@@ -13,12 +13,6 @@ test('Forward chat message from group channel to DM - verify toast and reference
   // Assert that we're on the Home page
   await expect(zodPage.getByText('Home')).toBeVisible();
 
-  // Clean up any existing groups and DMs
-  await helpers.cleanupExistingGroup(zodPage, '~ten, ~zod');
-  if (await zodPage.getByText('~ten', { exact: true }).isVisible()) {
-    await helpers.leaveDM(zodPage, '~ten');
-  }
-
   // Create DM between ~zod and ~ten
   await helpers.createDirectMessage(zodPage, '~ten');
   await zodPage.getByTestId('HomeNavIcon').click();
