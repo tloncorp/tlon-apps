@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "vite build",
+    "build:test": "cross-env VITE_DISABLE_SPLASH_MODAL=true vite build",
     "build:mock": "tsc && vite build --mode staging",
     "build:profile": "tsc && vite build --mode profile",
     "build:electron": "tsc && vite build --mode electron",
@@ -20,7 +21,6 @@
     "lint:all": "pnpm lint:format && pnpm run lint:fix",
     "lint:staged": "lint-staged",
     "mock": "vite --mode mock",
-    "serve": "vite preview",
     "serve-sw": "vite preview --mode sw",
     "tsc": "tsc --noEmit",
     "cosmos": "cosmos",
@@ -34,7 +34,9 @@
     "e2e:test": "tsc --isolatedModules --skipLibCheck ./rube/run-single-test.ts --outDir ./rube/dist && node ./rube/dist/run-single-test.js",
     "e2e:test:force": "cross-env FORCE_EXTRACTION=true pnpm e2e:test",
     "e2e:playwright-dev": "tsc --isolatedModules --skipLibCheck ./rube/playwright-dev.ts --outDir ./rube/dist && node ./rube/dist/playwright-dev.js",
-    "e2e:playwright-dev:force": "cross-env FORCE_EXTRACTION=true pnpm e2e:playwright-dev"
+    "e2e:playwright-dev:force": "cross-env FORCE_EXTRACTION=true pnpm e2e:playwright-dev",
+    "serve": "vite preview",
+    "e2e:prod:smoke": "pnpm build:test && cross-env USE_PRODUCTION_BUILD=true pnpm e2e:test production-smoke.spec.ts"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [

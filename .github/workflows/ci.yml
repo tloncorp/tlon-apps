@@ -55,6 +55,10 @@ jobs:
         run: pnpm exec playwright install chromium --with-deps
         working-directory: ./apps/tlon-web
 
+      - name: Run Production Build Smoke Test
+        run: pnpm e2e:prod:smoke
+        working-directory: ./apps/tlon-web
+
       # For some reason, caching is breaking with the new piers.
       # TODO: fix this.
       # - name: Cache E2E Piers
