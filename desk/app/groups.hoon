@@ -3681,8 +3681,7 @@
     ::
         [%seats ship=@ ~]
       =+  ship=(slav %p ship.pole)
-      ?~  seat=(~(get by seats.group) ship)  [~ ~]
-      ``noun+!>(u.seat)
+      ``noun+!>((~(get by seats.group) ship))
     ::
         [%seats ship=@ %is-admin ~]
       =+  ship=(slav %p ship.pole)
