@@ -90,7 +90,7 @@ The testing environment uses three pre-configured Urbit ships:
 
 -   **App Settings** (`app-settings.spec.ts`) - Application configuration
 -   **Profile Functionality** (`profile-functionality.spec.ts`) - User profile management
--   **Production Smoke Test** (`production-smoke.spec.ts`) - Verifies production build works without runtime errors
+-   **Production Smoke Test** (`production-smoke.test.ts`) - Verifies production build works without runtime errors (uses `.test.ts` extension to exclude from regular test runs)
 
 ## Running Tests
 

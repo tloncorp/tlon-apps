@@ -36,7 +36,7 @@
     "e2e:playwright-dev": "tsc --isolatedModules --skipLibCheck ./rube/playwright-dev.ts --outDir ./rube/dist && node ./rube/dist/playwright-dev.js",
     "e2e:playwright-dev:force": "cross-env FORCE_EXTRACTION=true pnpm e2e:playwright-dev",
     "serve": "vite preview",
-    "e2e:prod:smoke": "pnpm build:test && cross-env USE_PRODUCTION_BUILD=true pnpm e2e:test production-smoke.spec.ts",
+    "e2e:prod:smoke": "pnpm build:test && cross-env USE_PRODUCTION_BUILD=true pnpm e2e:test production-smoke.test.ts",
     "e2e:prod:smoke:force": "cross-env FORCE_EXTRACTION=true pnpm e2e:prod:smoke"
   },
   "lint-staged": {
