@@ -10,6 +10,7 @@ This directory contains end-to-end tests for the Tlon web app using Playwright. 
 -   Single test: `pnpm e2e:test filename.spec.ts` (automatic ship management)
 -   Single test (manual): `npx playwright test filename.spec.ts` (requires running ships)
 -   **Playwright MCP development: `pnpm e2e:playwright-dev` (starts ships + web servers for Claude Code Playwright MCP)**
+-   **Production smoke test: `pnpm e2e:prod:smoke` (builds production bundle and tests for runtime errors)**
 -   View results: `npx playwright show-report`
 -   If you have an issue with a run, try it again with `force`.
 
@@ -89,6 +90,7 @@ The testing environment uses three pre-configured Urbit ships:
 
 -   **App Settings** (`app-settings.spec.ts`) - Application configuration
 -   **Profile Functionality** (`profile-functionality.spec.ts`) - User profile management
+-   **Production Smoke Test** (`production-smoke.spec.ts`) - Verifies production build works without runtime errors
 
 ## Running Tests
 
@@ -124,7 +126,26 @@ pnpm e2e:headed
 
 # Generate test code using Playwright codegen
 pnpm e2e:codegen
+
+# Run production smoke test (builds production bundle and tests for runtime errors)
+pnpm e2e:prod:smoke
+
+# Run production smoke test with forced re-extraction
+pnpm e2e:prod:smoke:force
 ```
+
+### Production Testing
+
+The production smoke test (`pnpm e2e:prod:smoke`) is a special test that:
+1. Builds the application in production mode with `VITE_DISABLE_SPLASH_MODAL=true`
+2. Serves the production build using `vite preview`
+3. Runs a minimal smoke test to verify the app loads without runtime errors
+4. Uses the RuntimeErrorDetector to catch production-only issues like:
+   - Transpilation errors (e.g., "Cannot assign to read only property")
+   - Module loading failures
+   - Syntax errors that only appear in production builds
+
+This test is critical for catching issues that don't appear in development mode due to different transpilation or bundling behavior. It runs in CI before the full E2E suite to provide fast feedback on production build issues.
 
 ### Advanced Usage
 
@@ -207,6 +228,7 @@ The `helpers.ts` file provides numerous utility functions:
 -   `DEBUG_PLAYWRIGHT`: Enable debug output
 -   `CI`: Enables CI-specific configurations
 -   `FORCE_EXTRACTION`: Set to 'true' to bypass ship extraction checks and force re-extraction of all ships
+-   `USE_PRODUCTION_BUILD`: Set to 'true' to run tests against production build instead of dev server
 
 ## Development Workflow
 
