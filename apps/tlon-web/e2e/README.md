@@ -90,7 +90,7 @@ The testing environment uses three pre-configured Urbit ships:
 
 -   **App Settings** (`app-settings.spec.ts`) - Application configuration
 -   **Profile Functionality** (`profile-functionality.spec.ts`) - User profile management
--   **Production Smoke Test** (`production-smoke.test.ts`) - Verifies production build works without runtime errors (uses `.test.ts` extension to exclude from regular test runs)
+-   **Production Smoke Test** (`production-smoke.spec.ts`) - Verifies production build works without runtime errors (automatically skipped unless USE_PRODUCTION_BUILD=true)
 
 ## Running Tests
 
@@ -137,15 +137,18 @@ pnpm e2e:prod:smoke:force
 ### Production Testing
 
 The production smoke test (`pnpm e2e:prod:smoke`) is a special test that:
+
 1. Builds the application in production mode with `VITE_DISABLE_SPLASH_MODAL=true`
 2. Serves the production build using `vite preview`
 3. Runs a minimal smoke test to verify the app loads without runtime errors
 4. Uses the RuntimeErrorDetector to catch production-only issues like:
-   - Transpilation errors (e.g., "Cannot assign to read only property")
-   - Module loading failures
-   - Syntax errors that only appear in production builds
+    - Transpilation errors (e.g., "Cannot assign to read only property")
+    - Module loading failures
+    - Syntax errors that only appear in production builds
 
 This test is critical for catching issues that don't appear in development mode due to different transpilation or bundling behavior. It runs in CI before the full E2E suite to provide fast feedback on production build issues.
+
+**Note:** The production smoke test includes `test.skip()` logic that automatically skips it during regular test runs unless `USE_PRODUCTION_BUILD=true` is set. This prevents it from failing when running `pnpm e2e` which uses the dev server instead of a production build.
 
 ### Advanced Usage
 
@@ -263,19 +266,21 @@ pnpm e2e:playwright-dev
 ```
 
 This command:
+
 1. **Starts all three Urbit ships** (zod, bus, ten) with the latest backend code
 2. **Starts corresponding web servers** that connect to each ship:
-   - ~zod: http://localhost:3000/apps/groups/
-   - ~bus: http://localhost:3001/apps/groups/
-   - ~ten: http://localhost:3002/apps/groups/
+    - ~zod: http://localhost:3000/apps/groups/
+    - ~bus: http://localhost:3001/apps/groups/
+    - ~ten: http://localhost:3002/apps/groups/
 3. **Keeps everything running** until you stop it (Ctrl+C)
 4. **Handles cleanup** of all processes when stopped
 
 Once running, you can use Claude Code's Playwright MCP server to:
-- Navigate to any of the web URLs
-- Write new test scenarios interactively
-- Debug existing test issues
-- Take screenshots and inspect the UI
+
+-   Navigate to any of the web URLs
+-   Write new test scenarios interactively
+-   Debug existing test issues
+-   Take screenshots and inspect the UI
 
 The environment replicates exactly what the automated tests see, giving you a seamless development experience for e2e test creation and debugging.
 
@@ -290,31 +295,33 @@ claude mcp add playwright npx @playwright/mcp@latest
 **MCP Server Development Workflow (RECOMMENDED):**
 
 1. **Start the environment**: Run `./start-playwright-dev.sh` from project root
-   - This starts all ships and web servers in background
-   - Returns when ready with ship URLs and auth codes
-   - Saves process info for easy cleanup
+
+    - This starts all ships and web servers in background
+    - Returns when ready with ship URLs and auth codes
+    - Saves process info for easy cleanup
 
 2. **Use Playwright MCP server** to navigate and test while environment runs in background
 
 3. **Stop when done**: Choose one of:
-   - `kill [PID]` - Graceful shutdown (PID shown in start script output)
-   - `./stop-playwright-dev.sh` - Comprehensive cleanup
-   - `./stop-playwright-dev.sh --clean-logs` - Complete cleanup including logs
+    - `kill [PID]` - Graceful shutdown (PID shown in start script output)
+    - `./stop-playwright-dev.sh` - Comprehensive cleanup
+    - `./stop-playwright-dev.sh --clean-logs` - Complete cleanup including logs
 
 **Authentication Requirements:**
-- The MCP server does NOT maintain authentication state across Claude Code instances
-- ALL ships require manual authentication when using the MCP server
-- Authentication codes for manual entry:
-  - ~zod: `lidlut-tabwed-pillex-ridrup`
-  - ~ten: `lapseg-nolmel-riswen-hopryc` 
-  - ~bus: `riddec-bicrym-ridlev-pocsef`
-- When you navigate to any ship URL, enter the appropriate auth code on the login page
 
-**Cross-Ship Testing:**
-Open multiple browser tabs and navigate to different ship URLs:
-- ~zod: `http://localhost:3000/apps/groups/` 
-- ~ten: `http://localhost:3002/apps/groups/`
-- ~bus: `http://localhost:3001/apps/groups/`
+-   The MCP server does NOT maintain authentication state across Claude Code instances
+-   ALL ships require manual authentication when using the MCP server
+-   Authentication codes for manual entry:
+    -   ~zod: `lidlut-tabwed-pillex-ridrup`
+    -   ~ten: `lapseg-nolmel-riswen-hopryc`
+    -   ~bus: `riddec-bicrym-ridlev-pocsef`
+-   When you navigate to any ship URL, enter the appropriate auth code on the login page
+
+**Cross-Ship Testing:** Open multiple browser tabs and navigate to different ship URLs:
+
+-   ~zod: `http://localhost:3000/apps/groups/`
+-   ~ten: `http://localhost:3002/apps/groups/`
+-   ~bus: `http://localhost:3001/apps/groups/`
 
 ### Adding New Tests
 

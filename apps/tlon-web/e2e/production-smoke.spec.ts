@@ -2,6 +2,12 @@ import { expect } from '@playwright/test';
 
 import { test } from './test-fixtures';
 
+// Skip this test unless explicitly running production tests
+test.skip(
+  process.env.USE_PRODUCTION_BUILD !== 'true',
+  'Production test - run with USE_PRODUCTION_BUILD=true'
+);
+
 // Set explicit timeout for production build testing
 test.setTimeout(30000);
 
@@ -9,6 +15,9 @@ test.setTimeout(30000);
  * Minimal smoke test to verify production builds work correctly.
  * This test will catch runtime errors like the Expo 52 issue
  * where "Cannot assign to read only property" errors occur in production.
+ *
+ * This test is automatically skipped during normal test runs and only executes
+ * when USE_PRODUCTION_BUILD=true is set (via pnpm e2e:prod:smoke).
  */
 test('production build loads without runtime errors', async ({
   zodPage: page,
