@@ -204,7 +204,7 @@ export function deriveFullWrit(
     seq: '1',
   };
 
-  return { seal, essay: delta.add.essay };
+  return { seal, essay: delta.add.essay, type: 'writ' };
 }
 
 export function deriveFullWritReply({
