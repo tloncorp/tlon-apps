@@ -91,22 +91,22 @@
       ::  facts
       ::
       :~  [/ %channel-response %toggle-post ~]
-          [/said %channel-said ~]
+          [/said %channel-said %channel-denied ~]
           [/unreads %channel-unread-update ~]
         ::
           [/v0 %channel-response %toggle-post ~]
-          [/v0/said %channel-said ~]
+          [/v0/said %channel-said %channel-denied ~]
           [/v0/unreads %channel-unread-update ~]
         ::
           [/v1 %channel-response-2 %toggle-post ~]
           [/v1/hooks/preview %hook-channel-preview ~]  ::REVIEW
-          [/v1/said %channel-said ~]
+          [/v1/said %channel-said %channel-denied ~]
           [/v1/unreads %channel-unread-update ~]
         ::
           [/v2 %channel-response-3 ~]
-          [/v2/said %channel-said-1 ~]
+          [/v2/said %channel-said-1 %channel-denied ~]
         ::
-          [/v3/said %channel-said-1 ~]
+          [/v3/said %channel-said-1 %channel-denied ~]
       ==
     ::  scries
     ::
