@@ -1,4 +1,4 @@
-/*  emoji-data  %jam  /lib/emojimart/emoji/jam
+/*  emoji-data  %emojimart  /lib/emojimart/emoji/jam
 ::  emojimart: conversions for old-style emojimart-shortcode ":reacts:"
 ::
 |%
@@ -74,6 +74,5 @@
 ::  +data: to regenerate this data, run the following command in the dojo:
 ::         *=groups=/lib/emojimart/emoji/jam _jam -build-file /=groups=/lib/emojimart/emoji/hoon
 ::
-++  data
-  ^~  ;;((map @t mote) (cue emoji-data))
+++  data  emoji-data
 --
