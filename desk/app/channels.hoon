@@ -1243,8 +1243,7 @@
   =/  group-exists
     .^(? %gu (weld base-path /groups/(scot %p p.flag)/[q.flag]))
   ?.  group-exists  ~
-  %-  some
-  .^  seat  %gx
+  .^  (unit seat)  %gx
     %+  weld  base-path
     /groups/(scot %p p.flag)/[q.flag]/seats/(scot %p ship)/noun
   ==
