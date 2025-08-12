@@ -2645,7 +2645,7 @@
     !=(~ (~(int in roles.seat) admins.group))
   ::  +go-is-banned: check whether the ship is banned
   ::
- ++  go-is-banned
+  ++  go-is-banned
     |=  =ship
     =*  banned  banned.admissions.group
     ?|  (~(has in ranks.banned) (clan:title ship))
@@ -2771,6 +2771,20 @@
       %^  safe-watch  go-sub-wire  [p.flag server]
       (weld go-server-path /updates/(scot %p our.bowl)/(scot %da sub-time))
     go-core
+  ::  +go-restart-updates: resubscribe to the group, fetching full state
+  ::
+  ::    call this when encountering inconsistent state that suggests we need
+  ::    to get back in proper sync with the group host.
+  ::
+  ++  go-restart-updates
+    |=  why=@t
+    %-  (~(tell l ~) %crit 'fully restarting updates' why ~)
+    ::REVIEW  assert that we are not the host? and/or not %pub?
+    =.  cor  (emil leave-subs:go-pass)
+    =?  net  ?=(%sub -.net)
+      net(time *@da)
+    (go-start-updates &)
+  ::
   ::  +go-leave: leave the group and all channel subscriptions
   ::
   ++  go-leave
@@ -3052,6 +3066,8 @@
       ?.  (go-can-read our.bowl channel)  ~
       `nest
     =.  cor
+      ::REVIEW  only if it was not init? otherwise +go-restart-updates
+      ::        invocations may trigger channel joins unintentionally
       (emil (join-channels:go-pass ~(tap in readable-channels)))
     go-core
   ::  +go-u-group: apply group update
@@ -3173,7 +3189,8 @@
       ::TODO if a token we had used for inviting someone to the group
       ::     has been revoked, we should signal to the invitee.
       ::
-      ?>  (~(has by tokens.ad) token.u-token)
+      ?.  (~(has by tokens.ad) token.u-token)
+        (go-restart-updates 'missing deleted token')
       =.  tokens.ad  (~(del by tokens.ad) token.u-token)
       go-core
     ==
@@ -3471,7 +3488,8 @@
       go-core
     ::
         %add-readers
-      ?>  =(~ (~(dif in roles.u-channel) ~(key by roles.group)))
+      ?.  =(~ (~(dif in roles.u-channel) ~(key by roles.group)))
+        (go-restart-updates 'missing roles added as readers')
       =.  go-core  (go-response %channel nest [%add-readers roles.u-channel])
       ?:  go-our-host  go-core
       ::
@@ -3493,7 +3511,8 @@
       ?:  go-our-host  go-core
       ::
       =/  =channel:g  (got:by-ch nest)
-      ?>  (~(has by sections.group) section.u-channel)
+      ?.  (~(has by sections.group) section.u-channel)
+        (go-restart-updates 'missing updated section')
       =.  section.channel   section.u-channel
       =.  channels.group  (put:by-ch nest channel)
       =.  sections.group
