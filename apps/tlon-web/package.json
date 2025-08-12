@@ -125,6 +125,10 @@
     "workbox-precaching": "^6.5.4",
     "zustand": "^3.7.2"
   },
+  "peerDependencies": {
+    "react-native-safe-area-context": "*",
+    "react-native-screens": "*"
+  },
   "devDependencies": {
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
     "@faker-js/faker": "^8.4.1",
