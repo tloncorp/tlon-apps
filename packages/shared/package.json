@@ -50,9 +50,6 @@
     ]
   },
   "dependencies": {
-    "@react-native-async-storage/async-storage": "1.21.0",
-    "expo-contacts": "~13.0.5",
-    "expo-localization": "~15.0.3",
     "@urbit/aura": "^2.0.1",
     "@urbit/nockjs": "^1.6.0",
     "any-ascii": "^0.3.1",
@@ -71,12 +68,15 @@
     "vitest": "^1.4.0"
   },
   "peerDependencies": {
+    "@react-native-async-storage/async-storage": "*",
     "@tanstack/react-query": "^5.32.1",
     "@tiptap/core": "^2.6.6",
     "@tiptap/pm": "^2.6.6",
     "@tiptap/react": "^2.6.6",
     "@tiptap/suggestion": "^2.6.6",
     "drizzle-orm": "0.39.3",
+    "expo-contacts": "*",
+    "expo-localization": "*",
     "react": "^18.2.0",
     "zustand": "^3.7.2"
   }
