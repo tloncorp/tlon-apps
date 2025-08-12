@@ -350,9 +350,8 @@ export const getSequencedChannelPosts = async (
   const app = type === 'channel' ? 'channels' : 'chat';
   const endpoint = formatScryPath(
     ...[
-      // TODO: what dm/club versions?
-      type === 'dm' ? 'v2/dm' : null,
-      type === 'club' ? 'v2/club' : null,
+      type === 'dm' ? 'v3/dm' : null,
+      type === 'club' ? 'v3/club' : null,
       type === 'channel' ? 'v4' : null,
     ],
     options.channelId,
@@ -366,12 +365,12 @@ export const getSequencedChannelPosts = async (
     ]
   );
 
-  const response = await scry<ub.SequencedPosts>({
+  const response = await scry<ub.PagedPosts | ub.PagedWrits>({
     app: app,
     path: endpoint,
   });
 
-  const clientPosts = toPostsData(options.channelId, response.posts).posts;
+  const clientPosts = toPagedPostsData(options.channelId, response).posts;
   const withoutGaps = fillSequenceGaps(clientPosts, {
     lowerBound: options.start,
     upperBound: options.end,
@@ -421,8 +420,8 @@ export const getChannelPosts = async ({
   const app = type === 'channel' ? 'channels' : 'chat';
   const path = formatScryPath(
     ...[
-      type === 'dm' ? 'v2/dm' : null,
-      type === 'club' ? 'v2/club' : null,
+      type === 'dm' ? 'v3/dm' : null,
+      type === 'club' ? 'v3/club' : null,
       type === 'channel' ? 'v4' : null,
     ],
     channelId,
