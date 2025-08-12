@@ -3,8 +3,8 @@ import { toPostContent } from '../api';
 import { PostContent, toUrbitStory } from '../api/postsApi';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import { AnalyticsEvent } from '../domain';
 import type * as domain from '../domain';
+import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import * as urbit from '../urbit';
 import { sessionActionQueue } from './SessionActionQueue';
@@ -50,7 +50,7 @@ export async function finalizePostDraft(
     return {
       ...finalizedBase,
       isEdit: true,
-      parentId: draft.parentId,
+      editTargetPostId: draft.editTargetPostId,
     } satisfies domain.PostDataFinalizedEdit;
   } else {
     return finalizedBase satisfies domain.PostDataFinalizedParent;
@@ -79,7 +79,7 @@ export function finalizePostDraftUsingLocalAttachments(
     return {
       ...finalizedBase,
       isEdit: true,
-      parentId: draft.parentId,
+      editTargetPostId: draft.editTargetPostId,
     } satisfies domain.PostDataFinalizedEdit;
   } else {
     return finalizedBase satisfies domain.PostDataFinalizedParent;
@@ -90,17 +90,7 @@ export async function finalizeAndSendPost(
   draft: domain.PostDataDraft
 ): Promise<void> {
   if (draft.isEdit) {
-    const parentPost = await db.getPost({ postId: draft.parentId });
-    if (parentPost == null) {
-      throw new Error('attempted to edit post without parent');
-    }
-    const finalizedDraft = await finalizePostDraft(draft);
-    await editPost({
-      post: parentPost,
-      parentId: finalizedDraft.parentId,
-      content: finalizedDraft.content,
-      metadata: finalizedDraft.metadata,
-    });
+    await editPostUsingDraft(draft);
   } else {
     await _sendPost({
       channelId: draft.channelId,
@@ -406,10 +396,10 @@ export async function forwardGroup({
   }
 }
 
+/** @deprecated use `editPostUsingDraft` instead to be less blocking */
 export async function editPost({
   post,
   content,
-  parentId,
   metadata,
 }: {
   post: db.Post;
@@ -417,41 +407,87 @@ export async function editPost({
   parentId?: string;
   metadata?: db.PostMetadata;
 }) {
-  logger.log('editPost', { post, content, parentId, metadata });
+  const postData: domain.PostDataFinalizedEdit = {
+    channelId: post.channelId,
+    isEdit: true,
+    editTargetPostId: post.id,
+    content,
+    metadata,
+  };
+  await _editPost({
+    postBeforeEdit: post,
+    buildOptimisticPostData: () => postData,
+    buildFinalizedPostData: async () => postData,
+  });
+}
+
+export async function editPostUsingDraft(draft: domain.PostDataDraftEdit) {
+  const postBeforeEdit = await db.getPost({
+    postId: draft.editTargetPostId,
+  });
+  if (postBeforeEdit == null) {
+    throw new Error('Editing post not found');
+  }
+
+  await _editPost({
+    postBeforeEdit,
+    buildOptimisticPostData: () =>
+      finalizePostDraftUsingLocalAttachments(draft),
+    buildFinalizedPostData: () => finalizePostDraft(draft),
+  });
+}
+
+async function _editPost({
+  postBeforeEdit,
+  buildFinalizedPostData,
+  buildOptimisticPostData,
+}: {
+  postBeforeEdit: db.Post;
+  buildFinalizedPostData: () => Promise<domain.PostDataFinalizedEdit>;
+  buildOptimisticPostData: () => domain.PostDataFinalizedEdit;
+}) {
   logger.trackEvent(
     AnalyticsEvent.ActionStartedDM,
-    logic.getModelAnalytics({ post })
+    logic.getModelAnalytics({ post: postBeforeEdit })
   );
+
+  const optimisticPostData = buildOptimisticPostData();
+
   // optimistic update
-  const [contentForDb, flags] = toPostContent(content);
-  logger.log('editPost optimistic update', { contentForDb, flags });
+  const [contentForDb, flags] = toPostContent(optimisticPostData.content);
+  logger.log('editPost optimistic update', { optimisticPostData });
   await db.updatePost({
-    id: post.id,
+    id: optimisticPostData.editTargetPostId,
     content: JSON.stringify(contentForDb),
     editStatus: 'enqueued',
     lastEditContent: JSON.stringify(contentForDb),
-    lastEditTitle: metadata?.title,
-    lastEditImage: metadata?.image,
+    lastEditTitle: optimisticPostData.metadata?.title,
+    lastEditImage: optimisticPostData.metadata?.image,
     ...flags,
   });
   logger.log('editPost optimistic update done');
 
   try {
     await sessionActionQueue.add(async () => {
-      await db.updatePost({ id: post.id, editStatus: 'pending' });
+      const finalized = await buildFinalizedPostData();
+
+      await db.updatePost({
+        id: finalized.editTargetPostId,
+        editStatus: 'pending',
+      });
       return api.editPost({
-        channelId: post.channelId,
-        postId: post.id,
-        authorId: post.authorId,
-        sentAt: post.sentAt,
-        content,
-        metadata,
-        parentId,
+        channelId: finalized.channelId,
+        postId: finalized.editTargetPostId,
+        authorId: postBeforeEdit.authorId,
+        sentAt: postBeforeEdit.sentAt,
+        content: finalized.content,
+        metadata: finalized.metadata,
+        parentId: postBeforeEdit.parentId ?? undefined,
       });
     });
     logger.log('editPost api call done');
     await db.updatePost({
-      id: post.id,
+      id: postBeforeEdit.id,
       editStatus: 'sent',
       lastEditContent: null,
       lastEditTitle: null,
@@ -464,8 +500,8 @@ export async function editPost({
 
     // rollback optimistic update
     await db.updatePost({
-      id: post.id,
-      content: post.content,
+      id: postBeforeEdit.id,
+      content: postBeforeEdit.content,
       editStatus: 'failed',
     });
     logger.log('editPost rollback done');
@@ -685,7 +721,8 @@ export async function addPostReaction(
 
 /**
  * Verifies whether a post was actually delivered to the server.
- * This is used for posts that are marked as 'needs_verification' due to connection issues.
+ * This is used for posts that are marked as 'needs_verification' due to
+ * connection issues.
  *
  * Uses authorId and sentAt to find matching posts on the server.
  */
