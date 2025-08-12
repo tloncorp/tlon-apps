@@ -91,22 +91,22 @@
       ::  facts
       ::
       :~  [/ %channel-response %toggle-post ~]
-          [/said %channel-said ~]
+          [/said %channel-said %channel-denied ~]
           [/unreads %channel-unread-update ~]
         ::
           [/v0 %channel-response %toggle-post ~]
-          [/v0/said %channel-said ~]
+          [/v0/said %channel-said %channel-denied ~]
           [/v0/unreads %channel-unread-update ~]
         ::
           [/v1 %channel-response-2 %toggle-post ~]
           [/v1/hooks/preview %hook-channel-preview ~]  ::REVIEW
-          [/v1/said %channel-said ~]
+          [/v1/said %channel-said %channel-denied ~]
           [/v1/unreads %channel-unread-update ~]
         ::
           [/v2 %channel-response-3 ~]
-          [/v2/said %channel-said-1 ~]
+          [/v2/said %channel-said-1 %channel-denied ~]
         ::
-          [/v3/said %channel-said-1 ~]
+          [/v3/said %channel-said-1 %channel-denied ~]
       ==
     ::  scries
     ::
@@ -764,6 +764,10 @@
       ca-abet:(ca-join:ca-core [nest group.a-channel]:a-channels)
     ca-abet:(ca-a-channel:(ca-abed:ca-core nest.a-channels) a-channel.a-channels)
   ::
+      %channel-request-join
+    =+  !<([=nest:c =flag:g] vase)
+    ca-abet:(ca-join:ca-core nest flag)
+  ::
       %channel-migration
     ?>  =(our src):bowl
     =+  !<(new-channels=v-channels:c vase)
@@ -1239,8 +1243,7 @@
   =/  group-exists
     .^(? %gu (weld base-path /groups/(scot %p p.flag)/[q.flag]))
   ?.  group-exists  ~
-  %-  some
-  .^  seat  %gx
+  .^  (unit seat)  %gx
     %+  weld  base-path
     /groups/(scot %p p.flag)/[q.flag]/seats/(scot %p ship)/noun
   ==
@@ -1397,7 +1400,14 @@
   ++  ca-join
     |=  [n=nest:c group=flag:g]
     =.  nest  n
-    ?>  |(=(p.group src.bowl) from-self)
+    =/  =path  (scry-path %groups /v2/groups/(scot %p p.group)/[q.group]/noun)
+    =+  .^(grp=group:v7:gv %gx path)
+    =/  is-group-host=?  =(p.group src.bowl)
+    =/  is-channel-host=?
+      ?&  =(src.bowl ship.n)
+          (~(has by channels.grp) n)
+      ==
+    ?>  |(from-self is-group-host is-channel-host)
     ?:  (~(has by v-channels) nest)
       ::  we should already be in, but make sure our subscriptions still exist
       ::  just in case
@@ -1625,7 +1635,7 @@
     |=  [=wire =sign:agent:gall]
     ^+  ca-core
     ?+    wire  ~|(channel-strange-agent-wire+wire !!)
-        ~  
+        ~
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  ca-core
       ((slog %ca-agent u.p.sign) ca-core)

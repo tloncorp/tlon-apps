@@ -324,6 +324,7 @@
     ::
         %group-action-4
       =+  !<(=a-groups:v7:gv vase)
+      ?>  from-self
       ?-    -.a-groups
           %group
         =/  group-core  (go-abed:go-core flag.a-groups)
@@ -334,7 +335,6 @@
         go-abet:(go-a-invite:group-core a-invite.a-groups)
       ::
           %leave
-        ?>  from-self
         =/  group-core  (go-abed:go-core flag.a-groups)
         go-abet:(go-leave:group-core &)
       ==
@@ -808,11 +808,20 @@
       ?.  ?=([%contact ~] wire)  caz
       :_  caz
       [%pass wire %agent dock %leave ~]
-    ::  schedule foreigns and admissions migration
+    ::  clean up old group updates subscriptions
+    ::
+    =.  caz
+      %+  roll  ~(tap by wex.bowl)
+      |=  [[[=wire =dock] *] =_caz]
+      ?.  ?=([%groups @ @ %updates ~] wire)  caz
+      :_  caz
+      [%pass wire %agent dock %leave ~]
+    ::  schedule foreigns, admissions and groups subscription migrations
     ::
     =.  caz
       :-  [%pass /load/v7/foreigns %arvo %b %wait now.bowl]
       :-  [%pass /load/v7/admissions %arvo %b %wait now.bowl]
+      :-  [%pass /load/v7/subscriptions %arvo %b %wait now.bowl]
       caz
     =/  channels-index=(map nest:g flag:g)
       %-  ~(gas by *(map nest:g flag:g))
@@ -831,7 +840,13 @@
       ^-  (unit (pair flag:g gang:v6:gv))
       ?~  group=(~(get by groups) flag)
         `[flag gang]
-      ?:  ?=(%pub -<.u.group)  ~
+      =*  net  -.u.group
+      ?:  ?=(%pub -.net)  ~
+      ::  drop gang for groups that are already initialized,
+      ::  otherwise we risk losing user data during migration
+      ::  of group join flows. see /load/v7/foreigns case in +arvo.
+      ::
+      ?:  load.net  ~
       `[flag gang]
     :-  caz
     :*  %7
@@ -1222,6 +1237,7 @@
     ?~  progress.far  cor
     ?:  ?=(?(%done %error) u.progress.far)  cor
     =*  fc  (fi-abed:fi-core:cor flag)
+    ::
     =.  cor  fi-abet:fi-cancel:fc
     =<  fi-abet
     ?-    u.progress.far
@@ -1255,7 +1271,6 @@
     %-  se-compat-send-invites:(se-abed:se-core:cor flag)
     ~(key by pending.admissions.group)
   ::
-      ::
       ::  v6 -> v7 migrate invitations
       ::
       ::  some ships might be behind at the time of migration.
@@ -1279,6 +1294,14 @@
       %+  weld  /server/(scot %p our.bowl)/[q.flag]
       /invite/retry/(scot %p ship)/(scot %ud retry)/(scot %dr delay)
     (emit [%pass wire %arvo %b %wait (add now.bowl delay)])
+  ::
+      ::  v6 -> v7 migrate group subscriptions
+      ::
+      ::  the group updates subscription path has changed,
+      ::  so we must re-subscribe on the new path post load.
+      ::
+      [%load %v7 %subscriptions ~]
+    inflate-io
   ==
 ::  does not overwite if wire and dock exist.  maybe it should
 ::  leave/rewatch if the path differs?
@@ -1365,7 +1388,8 @@
       (~(ges cy:t con.response) groups+%flag)
     ?:  |(?=(~ groups) =(~ u.groups))  cor  ::TMI
     %+  roll  ~(tap in u.groups)
-    |=  [val=$>(%flag value:t) =_cor]
+    |=  [val=value:t =_cor]
+    ?>  ?=(%flag -.val)
     fi-abet:(fi-watch:(fi-abed:fi-core:cor p.val) %v1 /preview)
   ==
 ::
@@ -2165,6 +2189,8 @@
       %+  roll  ~(tap in ships)
       |=  [=ship ivl=(list ship) =_se-core]
       ?.  (can-poke:neg bowl ship %groups)
+        =.  se-core
+          (emit:se-core (initiate:neg [ship dap.bowl]))
         ::  retry .retry times with doubling .delay
         ::
         =+  delay=~h1
@@ -2173,7 +2199,7 @@
           %+  weld  /server/(scot %p our.bowl)/[q.flag]
           /invite/retry/(scot %p ship)/(scot %ud retry)/(scot %dr delay)
         :-  ivl
-        (emit [%pass wire %arvo %b %wait (add now.bowl delay)])
+        (emit:se-core [%pass wire %arvo %b %wait (add now.bowl delay)])
       :-  [ship ivl]
       se-core
     ?:  =(~ ivl)  se-core
@@ -2606,13 +2632,16 @@
         %flag-reply  [%flag-reply key parent nest group]
       ==
     go-core
+  ::  +go-is-init: check if group is initialized
+  ++  go-is-init  |(?=(%pub -.net) init.net)
   ::  +go-is-admin: check whether the ship has admin rights
   ::
   ++  go-is-admin
     |=  =ship
     ^-  ?
     ?:  =(ship p.flag)  &
-    =/  =seat:g  (~(got by seats.group) ship)
+    ?~   tea=(~(get by seats.group) ship)  |
+    =*  seat  u.tea
     !=(~ (~(int in roles.seat) admins.group))
   ::  +go-is-banned: check whether the ship is banned
   ::
@@ -2775,7 +2804,6 @@
   ::
   ++  go-a-invite
     |=  =a-invite:g
-    ?>  from-self
     ?:  =(ship.a-invite src.bowl)  go-core
     ?:  &(?=(~ token.a-invite) !?=(%public privacy.ad))
       ::  if we don't have a suitable token for a non-public group,
@@ -2810,7 +2838,6 @@
   ++  go-a-group
     |=  =a-group:g
     ^+  go-core
-    ?>  from-self
     (go-send-command /command/[-.a-group] `c-group:g`a-group)
   ::  +go-send-command:  send command to the group host
   ::
@@ -2978,12 +3005,19 @@
           ::      we don't have an invitation, and thus no way to rejoin.
           ::      the user will still see the group, but it is going
           ::      to be stale. it would be best to somehow surface
-          ::      it at the frontend.
+          ::      it at the client.
           ::
+          %-  (tell:log %crit 'misguided group watch-nack' ~)
           go-core
         ::  join in progress, set error and leave the group
         ::  to allow re-joining.
         ::
+        ::  however, do not leave the group if it was already initialized
+        ::  to avoid data loss.
+        ::
+        ?:  &(?=(%sub -.net) init.net)
+          %-  (tell:log %crit 'watch-nack for initialized group' ~)
+          go-core
         =.  cor  fi-abet:fi-error:(fi-abed:fi-core flag)
         (go-leave &)
       go-core
@@ -3000,12 +3034,15 @@
   ++  go-apply-log
     |=  =log:g
     ?~  log  go-core
+    =+  was-init=go-is-init
     =.  go-core
       %+  roll  (tap:log-on:g log)
       |=  [=update:g =_go-core]
       (go-u-group:go-core update)
     =?  net  ?=(%sub -.net)
       [%sub time.net &]
+    =?  go-core  !was-init
+      (go-response [%create group])
     ::  join the channels upon initial group log
     ::
     =/  readable-channels
@@ -3042,7 +3079,10 @@
   ++  go-u-create
     |=  gr=group:g
     ^+  go-core
-    =.  go-core  (go-response [%create gr])
+    ::  nb: we don't send out a response here because
+    ::  a synthetic %create response is sent after
+    ::  the group log has been fully applied in +go-apply-log.
+    ::
     ?:  go-our-host  go-core
     ::
     ?>  ?=(%sub -.net)
@@ -3244,7 +3284,8 @@
       =.  go-core
         %-  ~(rep in ships)
         |=  [=ship =_go-core]
-        =+  seat=(~(got by seats.group) ship)
+        ?~  tea=(~(get by seats.group) ship)  go-core
+        =*  seat  u.tea
         ?:  =(~ (~(dif in roles.u-seat) roles.seat))  go-core
         (go-activity:go-core %role ship roles.u-seat)
       ?:  go-our-host  go-core
@@ -3263,7 +3304,8 @@
       =.  go-core
         %-  ~(rep in ships)
         |=  [=ship =_go-core]
-        =+  seat=(~(got by seats.group) ship)
+        ?~  tea=(~(get by seats.group) ship)  go-core
+        =*  seat  u.tea
         ?:  =(~ (~(int in roles.u-seat) roles.seat))  go-core
         (go-activity:go-core %role ship roles.u-seat)
       ?:  go-our-host  go-core
@@ -3598,6 +3640,10 @@
   ++  go-response
     |=  =r-group:g
     ^+  go-core
+    ::  do not sent out responses until group log
+    ::  has been applied, and the group initialized.
+    ::
+    ?.  go-is-init  go-core
     ::  v1 response
     ::
     =/  r-groups-7=r-groups:v7:gv  [flag r-group]
@@ -3635,8 +3681,7 @@
     ::
         [%seats ship=@ ~]
       =+  ship=(slav %p ship.pole)
-      ?~  seat=(~(get by seats.group) ship)  [~ ~]
-      ``noun+!>(u.seat)
+      ``noun+!>((~(get by seats.group) ship))
     ::
         [%seats ship=@ %is-admin ~]
       =+  ship=(slav %p ship.pole)
