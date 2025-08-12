@@ -19,7 +19,9 @@ interface RuntimeError {
  */
 export class RuntimeErrorDetector {
   private errors: RuntimeError[] = [];
-  private criticalPatterns = [
+  
+  // Static patterns to avoid duplication between class and injected script
+  private static readonly CRITICAL_PATTERNS = [
     'Cannot assign to read only property',
     'Cannot set property',
     'TypeError: Attempted to assign to readonly property',
@@ -34,13 +36,16 @@ export class RuntimeErrorDetector {
   ];
 
   // Patterns to ignore - these are known non-critical errors
-  private ignoredPatterns = [
+  private static readonly IGNORED_PATTERNS = [
     'PostHog was initialized without a token',
     'Urbit client not set',
     'SQLITE_CONSTRAINT',
     'Cannot convert undefined or null to object',
     'react-native-reanimated',
   ];
+
+  private criticalPatterns = RuntimeErrorDetector.CRITICAL_PATTERNS;
+  private ignoredPatterns = RuntimeErrorDetector.IGNORED_PATTERNS;
 
   /**
    * Attach error detection to a Playwright page.
@@ -107,29 +112,11 @@ export class RuntimeErrorDetector {
     });
 
     // Inject client-side error handlers with filtering logic
-    await page.addInitScript(() => {
-      // Define patterns inline since we can't pass them as arguments
-      const ignoredPatterns = [
-        'PostHog was initialized without a token',
-        'Urbit client not set',
-        'SQLITE_CONSTRAINT',
-        'Cannot convert undefined or null to object',
-        'react-native-reanimated',
-      ];
-
-      const criticalPatterns = [
-        'Cannot assign to read only property',
-        'Cannot set property',
-        'TypeError: Attempted to assign to readonly property',
-        'Module not found',
-        'Cannot find module',
-        'Failed to resolve module',
-        'SyntaxError',
-        'Unexpected token',
-        'Failed to fetch dynamically imported module',
-        'ChunkLoadError',
-        'Loading chunk .* failed',
-      ];
+    // Pass patterns as parameters to avoid duplication
+    await page.addInitScript(
+      ({ critical, ignored }: { critical: string[]; ignored: string[] }) => {
+        const criticalPatterns = critical;
+        const ignoredPatterns = ignored;
 
       // Track errors in a global variable - use a type assertion for window
       interface WindowWithErrors extends Window {
@@ -211,7 +198,12 @@ export class RuntimeErrorDetector {
           console.error('[RuntimeErrorDetector] Critical rejection:', message);
         }
       });
-    });
+      },
+      {
+        critical: RuntimeErrorDetector.CRITICAL_PATTERNS,
+        ignored: RuntimeErrorDetector.IGNORED_PATTERNS,
+      }
+    );
   }
 
   /**

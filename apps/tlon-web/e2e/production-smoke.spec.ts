@@ -2,6 +2,9 @@ import { expect } from '@playwright/test';
 
 import { test } from './test-fixtures';
 
+// Set explicit timeout for production build testing
+test.setTimeout(30000);
+
 /**
  * Minimal smoke test to verify production builds work correctly.
  * This test will catch runtime errors like the Expo 52 issue
