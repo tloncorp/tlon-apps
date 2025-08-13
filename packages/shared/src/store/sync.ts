@@ -1345,12 +1345,10 @@ export async function syncSequencedPosts(
     });
   }
 
-  if (result.newestSequenceNum) {
-    await db.setLatestChannelSequenceNum({
-      channelId: options.channelId,
-      sequenceNum: result.newestSequenceNum,
-    });
-  }
+  await db.setLatestChannelSequenceNum({
+    channelId: options.channelId,
+    sequenceNum: result.newestSequenceNum,
+  });
 
   return result;
 }
@@ -1373,12 +1371,10 @@ export async function syncPosts(
     });
   }
 
-  if (response.newestSequenceNum) {
-    await db.setLatestChannelSequenceNum({
-      channelId: options.channelId,
-      sequenceNum: response.newestSequenceNum,
-    });
-  }
+  await db.setLatestChannelSequenceNum({
+    channelId: options.channelId,
+    sequenceNum: response.newestSequenceNum,
+  });
 
   if (response.deletedPosts?.length) {
     if (options.count && response.deletedPosts.length === options.count) {

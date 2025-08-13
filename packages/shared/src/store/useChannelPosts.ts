@@ -96,13 +96,16 @@ async function normalizeCursor(options: PageParam): Promise<PageParam> {
 }
 
 async function getLocalFirstPosts(options: UseChannelPostsPageParams) {
+  postsLogger.log(`localFirstPosts: running`, options);
   const posts = await db.getSequencedChannelPosts(options);
 
   // if we find local results, return them immediately
   if (posts.length) {
+    postsLogger.log(`localFirstPosts: found local posts`, posts);
     return posts;
   }
 
+  postsLogger.log(`localFirstPosts: no local posts found, syncing from API...`);
   // if we don't, sync the posts from the API...
   if (options.mode === 'newest') {
     await sync.syncPosts(
@@ -125,12 +128,14 @@ async function getLocalFirstPosts(options: UseChannelPostsPageParams) {
       { priority: SyncPriority.High }
     );
   }
+  postsLogger.log(`localFirstPosts: synced remote posts`);
 
   const syncedPosts = await db.getSequencedChannelPosts(options);
   if (!syncedPosts.length) {
-    console.error('invariant violation: no posts found after syncing');
+    postsLogger.error('invariant violation: no posts found after syncing');
   }
 
+  postsLogger.log(`localFirstPosts: found synced posts`, syncedPosts);
   return syncedPosts;
 }
 
