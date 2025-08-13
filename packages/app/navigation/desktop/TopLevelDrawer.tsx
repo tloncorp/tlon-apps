@@ -109,6 +109,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
               routes: [{ name: 'Messages' }],
             });
           }}
+          testID="MessagesNavIcon"
         />
         <NavIcon
           type="Notifications"

@@ -3,7 +3,7 @@
 ::    this is the server-side from which /app/channels gets its data.
 ::
 /-  c=channels, g=groups, gv=groups-ver, h=hooks, m=meta
-/+  utils=channel-utils, imp=import-aid
+/+  utils=channel-utils, imp=import-aid, em=emojimart
 /+  default-agent, verb, dbug,
     neg=negotiate, discipline, logs
 /+  hj=hooks-json
@@ -132,6 +132,7 @@
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
+++  log   ~(. logs [our.bowl /channels-server])
 ++  safe-watch
   |=  [=wire =dock =path]
   ^+  cor
@@ -593,10 +594,11 @@
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
   ?+    pole  ~|(bad-agent-wire+pole !!)
-    [%logs ~]     cor
-    [%pimp ~]     cor
-    [%wake ~]     cor
-    [%numbers ~]  cor
+    [%logs ~]          cor
+    [%pimp ~]          cor
+    [%wake ~]          cor
+    [%numbers ~]       cor
+    [%request-join ~]  cor
   ::
       [=kind:c *]
     ?+    -.sign  !!
@@ -669,7 +671,7 @@
 ::
 ++  watch-groups  (safe-watch /groups [our.bowl %groups] /v1/groups)
 ::  +take-groups: process group update
-::  
+::
 ++  take-groups
   |=  =r-groups:v7:gv
   =/  affected=(list nest:c)
@@ -679,6 +681,9 @@
     `nest
   =*  r-group  r-group.r-groups
   ?+    r-group  cor
+        [%seat * %add *]
+      (request-join flag.r-groups affected ships.r-group)
+    ::
       [%seat * %add-roles *]    (recheck-perms affected ~)
       [%seat * %del-roles *]     (recheck-perms affected ~)
       [%channel * %edit *]       (recheck-perms affected ~)
@@ -705,6 +710,20 @@
   |=  [=nest:c co=_cor]
   =/  ca  (ca-abed:ca-core:co nest)
   ca-abet:(ca-recheck:ca sects)
+::
+++  request-join
+  |=  [=flag:g affected=(list nest:c) ships=(set ship)]
+  %-  emil
+  %-  zing
+  %+  murn  affected
+  |=  =nest:c
+  ?.  =(ship.nest our.bowl)  ~
+  :-  ~
+  %+  turn  ~(tap in ships)
+  |=  =ship
+  =/  request=[nest:c flag:g]  [nest flag]
+  =/  =cage  [%channel-request-join !>(request)]
+  [%pass /request-join %agent [ship %channels] %poke cage]
 ::
 ++  ca-core
   |_  [=nest:c channel=v-channel:c gone=_|]
@@ -938,6 +957,24 @@
         ?~  react.p.result
           [%del-react id.c-post ship.p.result]
         [%add-react id.c-post [ship u.react]:p.result]
+      ::  log shortcode reactions for posts
+      ::
+      =?  ca-core  ?=(%add-react -.new)
+        =/  react-text  
+          ?@  q.new  q.new
+          p.q.new
+        ?^  (kill:em react-text)
+          =/  message  ~[leaf+"Shortcode reaction detected in channels-server (post)"]
+          =/  nest-path  (spat [kind.nest (scot %p ship.nest) name.nest ~])
+          =/  post-id    (scot %uv id.c-post)
+          =/  metadata  
+            :~  'context'^s+'channels_server_post_add_react'
+                'nest'^s+nest-path
+                'post_id'^s+post-id
+                'react'^s+react-text
+            ==
+          (emit (tell:log %crit message metadata))
+        ca-core
       =/  [update=? reacts=v-reacts:c]
         (ca-c-react reacts.u.u.post new)
       ?.  update  no-op
@@ -953,6 +990,24 @@
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  no-op
       ?~  u.post  no-op
+      ::  log shortcode reactions for replies
+      ::
+      =?  ca-core  ?=(%add-react -.c-reply.c-post)  
+        =/  react-text  
+          ?@  q.c-reply.c-post  q.c-reply.c-post
+          p.q.c-reply.c-post
+        ?^  (kill:em react-text)
+          =/  message  ~[leaf+"Shortcode reaction detected in channels-server (reply)"]
+          =/  nest-path  (spat [kind.nest (scot %p ship.nest) name.nest ~])
+          =/  post-id    (scot %uv id.c-post)
+          =/  metadata  
+            :~  'context'^s+'channels_server_reply_add_react'
+                'nest'^s+nest-path
+                'post_id'^s+post-id
+                'react'^s+react-text
+            ==
+          (emit (tell:log %crit message metadata))
+        ca-core
       =^  update=(unit u-post:c)  replies.u.u.post
         (ca-c-reply u.u.post c-reply.c-post)
       ?~  update  no-op

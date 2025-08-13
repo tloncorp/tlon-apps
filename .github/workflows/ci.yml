@@ -55,6 +55,23 @@ jobs:
         run: pnpm exec playwright install chromium --with-deps
         working-directory: ./apps/tlon-web
 
+      - name: Run Production Build Smoke Test
+        id: smoke-test
+        run: |
+          pnpm e2e:prod:smoke:force || (echo "::warning::Production smoke test failed, retrying..." && pnpm e2e:prod:smoke:force)
+        working-directory: ./apps/tlon-web
+        continue-on-error: false
+
+      - name: Upload Production Test Artifacts
+        if: failure() && steps.smoke-test.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-smoke-test-results
+          path: |
+            ./apps/tlon-web/test-results/
+            ./apps/tlon-web/playwright-report/
+          retention-days: 7
+
       # For some reason, caching is breaking with the new piers.
       # TODO: fix this.
       # - name: Cache E2E Piers
@@ -77,7 +94,8 @@ jobs:
           VITE_INVITE_PROVIDER: http://localhost:39983
           VITE_INVITE_SERVICE_ENDPOINT: https://serverless-infra.vercel.app/api/inviteLink
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload Playwright Report
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: playwright-report

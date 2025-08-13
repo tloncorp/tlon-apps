@@ -3,7 +3,8 @@ import { expect, test } from 'vitest';
 import { v0PeersToClientProfiles } from '../api';
 import { toClientGroups } from '../api/groupsApi';
 import * as schema from '../db/schema';
-import { syncInitData } from '../store/sync';
+import { syncContacts, syncInitData } from '../store/sync';
+import contactBookResponse from '../test/contactBook.json';
 import contactsResponse from '../test/contacts.json';
 import groupsResponse from '../test/groups.json';
 import {
@@ -12,6 +13,7 @@ import {
   setupDatabaseTestSuite,
 } from '../test/helpers';
 import initResponse from '../test/init.json';
+import suggestedContactsResponse from '../test/suggestedContacts.json';
 import type * as ub from '../urbit/groups';
 import * as queries from './queries';
 import { Post, PostWindow } from './types';
@@ -626,3 +628,88 @@ function getRangedPosts(channelId: string, start: number, end: number): Post[] {
   }
   return posts;
 }
+
+test('getMentionCandidates: returns candidates in priority order', async () => {
+  // Setup
+  setScryOutputs([initResponse]);
+  await syncInitData();
+  setScryOutputs([
+    contactsResponse,
+    contactBookResponse,
+    suggestedContactsResponse,
+  ]);
+  await syncContacts();
+
+  // Get a group with members
+  const chatId = '~nibset-napwyn/tlon';
+  const query = 'no';
+
+  await queries.addChatMembers({
+    chatId,
+    contactIds: ['~notestor'],
+    joinStatus: 'joined',
+    type: 'group',
+  });
+
+  // Test the mention candidates query
+  const candidates = await queries.getMentionCandidates({ chatId, query });
+
+  // Shouldn't contain duplicates
+  expect(new Set(candidates.map((c) => c.id)).size).toBe(candidates.length);
+
+  // Should return results matching the query
+  expect(candidates.length).toBeGreaterThan(0);
+
+  // Check that results contain the search term
+  const hasMatchingResults = candidates.every(
+    (candidate) =>
+      candidate.id.toLowerCase().includes(query.toLowerCase()) ||
+      candidate.nickname?.toLowerCase().includes(query.toLowerCase())
+  );
+  expect(hasMatchingResults).toBe(true);
+
+  // Check priority ordering: group members (1) should come before others (2,3)
+  let lastPriority = 0;
+  for (const candidate of candidates) {
+    expect(candidate.priority).toBeGreaterThanOrEqual(lastPriority);
+    lastPriority = candidate.priority;
+  }
+
+  // Test empty query returns empty array
+  const emptyResults = await queries.getMentionCandidates({
+    chatId,
+    query: '',
+  });
+  expect(emptyResults).toEqual([]);
+
+  // Test whitespace-only query returns empty array
+  const whitespaceResults = await queries.getMentionCandidates({
+    chatId,
+    query: '   ',
+  });
+  expect(whitespaceResults).toEqual([]);
+});
+
+test('getMentionCandidates: limits results to 6', async () => {
+  // Setup
+  setScryOutputs([initResponse]);
+  await syncInitData();
+  setScryOutputs([
+    contactsResponse,
+    contactBookResponse,
+    suggestedContactsResponse,
+  ]);
+  await syncContacts();
+
+  const chatId = '~nibset-napwyn/tlon';
+  const query = 'a'; // Broad query that might match many results
+
+  const candidates = await queries.getMentionCandidates({
+    chatId,
+    query,
+    limit: 6,
+  });
+
+  // Should not return more than 6 results
+  expect(candidates.length).toBeLessThanOrEqual(6);
+});
