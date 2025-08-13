@@ -989,14 +989,14 @@
       ::  log shortcode reactions for posts
       ::
       =?  ca-core  ?=(%add-react -.new)
-        =/  react-text  
+        =/  react-text
           ?@  q.new  q.new
           p.q.new
         ?^  (kill:em react-text)
           =/  message  ~[leaf+"Shortcode reaction detected in channels-server (post)"]
           =/  nest-path  (spat [kind.nest (scot %p ship.nest) name.nest ~])
           =/  post-id    (scot %uv id.c-post)
-          =/  metadata  
+          =/  metadata
             :~  'context'^s+'channels_server_post_add_react'
                 'nest'^s+nest-path
                 'post_id'^s+post-id
@@ -1018,23 +1018,18 @@
         %reply
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  no-op
-<<<<<<< HEAD
       ?:  ?=(%| -.u.post)  no-op
-      =^  update=(unit u-post:c)  replies.u.post
-        (ca-c-reply +.u.post c-reply.c-post)
-=======
-      ?~  u.post  no-op
       ::  log shortcode reactions for replies
       ::
-      =?  ca-core  ?=(%add-react -.c-reply.c-post)  
-        =/  react-text  
+      =?  ca-core  ?=(%add-react -.c-reply.c-post)
+        =/  react-text
           ?@  q.c-reply.c-post  q.c-reply.c-post
           p.q.c-reply.c-post
         ?^  (kill:em react-text)
           =/  message  ~[leaf+"Shortcode reaction detected in channels-server (reply)"]
           =/  nest-path  (spat [kind.nest (scot %p ship.nest) name.nest ~])
           =/  post-id    (scot %uv id.c-post)
-          =/  metadata  
+          =/  metadata
             :~  'context'^s+'channels_server_reply_add_react'
                 'nest'^s+nest-path
                 'post_id'^s+post-id
@@ -1042,9 +1037,8 @@
             ==
           (emit (tell:log %crit message metadata))
         ca-core
-      =^  update=(unit u-post:c)  replies.u.u.post
-        (ca-c-reply u.u.post c-reply.c-post)
->>>>>>> develop
+      =^  update=(unit u-post:c)  replies.u.post
+        (ca-c-reply +.u.post c-reply.c-post)
       ?~  update  no-op
       :-  `[%post id.c-post u.update]
       %=  ca-core
