@@ -680,6 +680,8 @@
     `nest
   =*  r-group  r-group.r-groups
   ?+    r-group  cor
+    [%create *]  (recheck-perms affected ~)
+  ::
         [%seat * %add *]
       (request-join flag.r-groups affected ships.r-group)
     ::

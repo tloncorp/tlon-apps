@@ -2482,6 +2482,27 @@
   ++  se-watch-updates
     |=  [=ship =@da]
     ^+  se-core
+    ::  for initial subscriptions, give a "flattened" log
+    ::
+    ?:  =(*@da da)
+      ::  filter out admin data
+      ::
+      =/  =group:g
+        ?:  (se-is-admin ship)  group
+        ::REVIEW  this matches the intent of +se-is-admin-update, right?
+        ::        but, for both that and this: isn't this by definition
+        ::        "inconsistent with host"? do we need a note in update
+        ::        handling logic that these parts of admission might be
+        ::        missing, and that that's sane?
+        ::        certainly the +go-restart-updates call in +go-u-entry-token
+        ::        might just need to be a no-op in light of this, right?
+        %_  group
+          tokens.admissions    ~
+          pending.admissions  ~
+          requests.admissions  ~
+        ==
+      (give %fact ~ group-log+!>(`log:g`[now.bowl^[%create group] ~ ~]))
+    ::
     =/  =log:g  (lot:log-on:g log `da ~)
     ::  filter out admin updates
     ::
