@@ -58,14 +58,14 @@ interface WritDeltaDel {
   del: null;
 }
 
-interface WritDeltaAddReact {
+export interface WritDeltaAddReact {
   'add-react': {
     react: string;
     author: string;
   };
 }
 
-interface WritDeltaDelReact {
+export interface WritDeltaDelReact {
   'del-react': string;
 }
 

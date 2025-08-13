@@ -29,6 +29,7 @@ export interface ContentContextProps {
   isNotice?: boolean;
   onPressImage?: (src: string) => void;
   onLongPress?: () => void;
+  searchQuery?: string;
 }
 
 export const ContentContext = createStyledContext<ContentContextProps>();

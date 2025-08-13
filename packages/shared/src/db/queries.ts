@@ -760,6 +760,89 @@ export const getChannelsForPredictiveSync = createReadQuery(
   ['channels']
 );
 
+export const getMentionCandidates = createReadQuery(
+  'getMentionCandidates',
+  async (
+    {
+      chatId,
+      limit = 4,
+      query,
+    }: { chatId: string; limit?: number; query: string },
+    ctx: QueryCtx
+  ) => {
+    if (!(query = query.trim())) return [];
+
+    const idSearchTerm = `~${query.toLowerCase()}%`;
+    const searchTerm = `${query.toLowerCase()}%`;
+
+    const $candidates = ctx.db
+      .select({
+        id: sql<string>`COALESCE(${$contacts.id}, ${$chatMembers.contactId})`.as(
+          'id'
+        ),
+        nickname: $contacts.nickname,
+        avatarImage: $contacts.avatarImage,
+        bio: $contacts.bio,
+        status: $contacts.status,
+        color: $contacts.color,
+        membershipType: $chatMembers.membershipType,
+        joinedAt: $chatMembers.joinedAt,
+        isBlocked: $contacts.isBlocked,
+        // Priority: 1 = group members, 2 = other contacts, 3 = other group members
+        priority: sql<number>`
+          CASE 
+            WHEN ${$chatMembers.chatId} = ${chatId} THEN 1
+            WHEN ${$contacts.isContact} = true THEN 2
+            ELSE 3
+          END
+        `.as('priority'),
+      })
+      .from($contacts)
+      .fullJoin(
+        $chatMembers,
+        and(
+          eq($chatMembers.contactId, $contacts.id),
+          eq($chatMembers.chatId, chatId)
+        )
+      )
+      .where(
+        and(
+          // Match the search term against id or nickname
+          or(
+            sql`${$chatMembers.contactId} LIKE ${idSearchTerm}`,
+            sql`${$contacts.id} LIKE ${idSearchTerm}`,
+            sql`COALESCE(${$contacts.nickname}, '') LIKE ${searchTerm}`
+          ),
+          or(isNull($contacts.isBlocked), eq($contacts.isBlocked, false))
+        )
+      )
+      .as('candidates');
+
+    return (
+      ctx.db
+        .select({
+          id: $candidates.id,
+          nickname: $candidates.nickname,
+          avatarImage: $candidates.avatarImage,
+          bio: $candidates.bio,
+          status: $candidates.status,
+          color: $candidates.color,
+          membershipType: $candidates.membershipType,
+          joinedAt: $candidates.joinedAt,
+          isBlocked: $candidates.isBlocked,
+          priority: min($candidates.priority)
+            .mapWith((p) => parseInt(p))
+            .as('priority'),
+        })
+        .from($candidates)
+        // This call to sql is only necessary because of a drizzle type inference issue
+        .groupBy(sql`${$candidates.id}`)
+        .limit(limit)
+    );
+  },
+  ['chatMembers', 'contacts']
+);
+
 export const getChats = createReadQuery(
   'getChats',
   async (
@@ -3201,7 +3284,7 @@ export const deletePostReaction = createWriteQuery(
         )
       );
   },
-  ['postReactions']
+  ['posts', 'postReactions']
 );
 
 export const deletePosts = createWriteQuery(

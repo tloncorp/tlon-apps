@@ -1,6 +1,7 @@
 import { BrowserContext, Page, test as base } from '@playwright/test';
 
 import * as helpers from './helpers';
+import { RuntimeErrorDetector } from './runtime-error-detector';
 import shipManifest from './shipManifest.json';
 
 type TestFixtures = {
@@ -18,6 +19,18 @@ const busUrl = `${shipManifest['~bus'].webUrl}/apps/groups/`;
 
 async function performCleanup(page: Page, shipName: string) {
   try {
+    // Dismiss any lingering modals from failed cleanup
+    try {
+      const cancelButton = page.getByText('Cancel');
+      if (await cancelButton.isVisible({ timeout: 2000 })) {
+        await cancelButton.click();
+        // Wait for modal to disappear
+        await cancelButton.waitFor({ state: 'hidden', timeout: 3000 });
+      }
+    } catch {
+      // No modal present, continue
+    }
+
     await page.getByTestId('HomeNavIcon').click();
     if (shipName === 'zod') {
       if (await page.getByTestId('ChannelListItem-~ten').isVisible()) {
@@ -29,7 +42,6 @@ async function performCleanup(page: Page, shipName: string) {
       await helpers.cleanupExistingGroup(page, '~ten, ~zod');
       await helpers.cleanupExistingGroup(page, '~bus, ~zod');
       await helpers.cleanupExistingGroup(page);
-      await helpers.cleanupExistingGroup(page, 'Test Group');
       await helpers.cleanupExistingGroup(page, 'Invite Test');
     } else if (shipName === 'ten') {
       if (await page.getByTestId('ChannelListItem-~zod').isVisible()) {
@@ -59,6 +71,12 @@ export const test = base.extend<TestFixtures>({
     });
     const page = await context.newPage();
 
+    // Attach error detector if in production mode
+    const errorDetector = new RuntimeErrorDetector();
+    if (process.env.USE_PRODUCTION_BUILD === 'true') {
+      await errorDetector.attachToPage(page);
+    }
+
     await page.goto(zodUrl);
     await page.waitForSelector('text=Home', { state: 'visible' });
     await page.evaluate(() => {
@@ -71,6 +89,14 @@ export const test = base.extend<TestFixtures>({
     await use({ context, page });
 
     await performCleanup(page, 'zod');
+
+    // Check for errors after test
+    if (process.env.USE_PRODUCTION_BUILD === 'true') {
+      await errorDetector.checkForErrors(page).catch((error) => {
+        console.error('Runtime errors detected in ship:', error.message);
+        throw error;
+      });
+    }
   },
 
   tenSetup: async ({ browser }, use) => {
@@ -78,6 +104,12 @@ export const test = base.extend<TestFixtures>({
       storageState: shipManifest['~ten'].authFile,
     });
     const page = await context.newPage();
+
+    // Attach error detector if in production mode
+    const errorDetector = new RuntimeErrorDetector();
+    if (process.env.USE_PRODUCTION_BUILD === 'true') {
+      await errorDetector.attachToPage(page);
+    }
 
     await page.goto(tenUrl);
     await page.waitForSelector('text=Home', { state: 'visible' });
@@ -90,6 +122,14 @@ export const test = base.extend<TestFixtures>({
     await use({ context, page });
 
     await performCleanup(page, 'ten');
+
+    // Check for errors after test
+    if (process.env.USE_PRODUCTION_BUILD === 'true') {
+      await errorDetector.checkForErrors(page).catch((error) => {
+        console.error('Runtime errors detected in ship:', error.message);
+        throw error;
+      });
+    }
   },
 
   busSetup: async ({ browser }, use) => {
@@ -97,6 +137,12 @@ export const test = base.extend<TestFixtures>({
       storageState: shipManifest['~bus'].authFile,
     });
     const page = await context.newPage();
+
+    // Attach error detector if in production mode
+    const errorDetector = new RuntimeErrorDetector();
+    if (process.env.USE_PRODUCTION_BUILD === 'true') {
+      await errorDetector.attachToPage(page);
+    }
 
     await page.goto(busUrl);
     await page.waitForSelector('text=Home', { state: 'visible' });
@@ -110,6 +156,14 @@ export const test = base.extend<TestFixtures>({
     await use({ context, page });
 
     await performCleanup(page, 'bus');
+
+    // Check for errors after test
+    if (process.env.USE_PRODUCTION_BUILD === 'true') {
+      await errorDetector.checkForErrors(page).catch((error) => {
+        console.error('Runtime errors detected in ship:', error.message);
+        throw error;
+      });
+    }
   },
 
   zodPage: async ({ zodSetup }, use) => {

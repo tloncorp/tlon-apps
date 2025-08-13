@@ -17,9 +17,12 @@ import {
   HiddenPosts,
   KindData,
   KindDataChat,
+  ReplyDelta,
   Story,
   WritDelta,
   WritDeltaAdd,
+  WritDeltaAddReact,
+  WritDeltaDelReact,
   WritDiff,
   checkNest,
   getChannelType,
@@ -456,12 +459,16 @@ export async function addReaction({
   emoji,
   our,
   postAuthor,
+  parentAuthorId,
+  parentId,
 }: {
   channelId: string;
   postId: string;
   emoji: string;
   our: string;
   postAuthor: string;
+  parentAuthorId?: string;
+  parentId?: string;
 }) {
   // Log if we're sending a shortcode to the server
   if (/^:[a-zA-Z0-9_+-]+:?$/.test(emoji)) {
@@ -479,13 +486,60 @@ export async function addReaction({
 
   if (isDmOrGroupDm) {
     if (isDmChannelId(channelId)) {
-      await poke({
-        app: 'chat',
-        mark: 'chat-dm-action-1',
-        json: {
-          ship: channelId,
-          diff: {
+      if (parentId) {
+        if (!parentId || !parentAuthorId) {
+          logger.trackError('Parent post not found', {
+            postId,
+            parentId,
+            parentAuthorId,
+            context: 'addReaction_parentPostNotFound',
+          });
+          return;
+        }
+        const fullParentId = `${parentAuthorId}/${parentId}`;
+
+        const delta: ReplyDelta = {
+          reply: {
             id: `${postAuthor}/${postId}`,
+            meta: null,
+            delta: {
+              'add-react': {
+                author: our,
+                react: emoji,
+              },
+            },
+          },
+        };
+        await poke(chatAction(channelId, fullParentId, delta));
+      } else {
+        const delta: WritDeltaAddReact = {
+          'add-react': {
+            react: emoji,
+            author: our,
+          },
+        };
+        const action = chatAction(channelId, `${postAuthor}/${postId}`, delta);
+        await poke(action);
+      }
+      return;
+    } else {
+      // Group DM reactions
+      if (parentId) {
+        if (!parentId || !parentAuthorId) {
+          logger.trackError('Parent post not found', {
+            postId,
+            parentId,
+            parentAuthorId,
+            context: 'addReaction_parentPostNotFound',
+          });
+          return;
+        }
+        const fullParentId = `${parentAuthorId}/${parentId}`;
+
+        const delta: ReplyDelta = {
+          reply: {
+            id: `${postAuthor}/${postId}`,
+            meta: null,
             delta: {
               'add-react': {
                 react: emoji,
@@ -493,46 +547,51 @@ export async function addReaction({
               },
             },
           },
-        },
-      });
-      return;
-    } else {
-      await poke({
-        app: 'chat',
-        mark: 'chat-club-action-1',
-        json: {
-          id: channelId,
-          diff: {
-            uid: '0v3',
-            delta: {
-              writ: {
-                delta: {
-                  'add-react': {
-                    react: emoji,
-                    author: our,
-                  },
-                },
-                id: `${postAuthor}/${postId}`,
-              },
-            },
+        };
+        await poke(chatAction(channelId, fullParentId, delta));
+      } else {
+        const delta: WritDeltaAddReact = {
+          'add-react': {
+            react: emoji,
+            author: our,
           },
-        },
-      });
+        };
+        await poke(chatAction(channelId, `${postAuthor}/${postId}`, delta));
+      }
       return;
     }
   }
 
-  await poke(
-    channelAction(channelId, {
-      post: {
-        'add-react': {
-          id: postId,
-          react: emoji,
-          ship: our,
+  if (parentId) {
+    await poke(
+      channelAction(channelId, {
+        post: {
+          reply: {
+            id: parentId,
+            action: {
+              'add-react': {
+                id: postId,
+                react: emoji,
+                ship: our,
+              },
+            },
+          },
         },
-      },
-    })
-  );
+      })
+    );
+  } else {
+    await poke(
+      channelAction(channelId, {
+        post: {
+          'add-react': {
+            id: postId,
+            react: emoji,
+            ship: our,
+          },
+        },
+      })
+    );
+  }
 }
 
 export async function removeReaction({
@@ -540,62 +599,110 @@ export async function removeReaction({
   postId,
   our,
   postAuthor,
+  parentId,
+  parentAuthorId,
 }: {
   channelId: string;
   postId: string;
   our: string;
   postAuthor: string;
+  parentId?: string;
+  parentAuthorId?: string;
 }) {
   const isDmOrGroupDm =
     isDmChannelId(channelId) || isGroupDmChannelId(channelId);
 
   if (isDmOrGroupDm) {
     if (isDmChannelId(channelId)) {
-      return poke({
-        app: 'chat',
-        mark: 'chat-dm-action-1',
-        json: {
-          ship: channelId,
-          diff: {
-            id: `${channelId}/${postId}`,
+      if (parentId) {
+        if (!parentId || !parentAuthorId) {
+          logger.trackError('Parent post not found', {
+            postId,
+            parentId,
+            parentAuthorId,
+            context: 'removeReaction_parentPostNotFound',
+          });
+          return;
+        }
+        const fullParentId = `${parentAuthorId}/${parentId}`;
+
+        const delta: ReplyDelta = {
+          reply: {
+            id: `${postAuthor}/${postId}`,
+            meta: null,
             delta: {
               'del-react': our,
             },
           },
-        },
-      });
+        };
+        return poke(chatAction(channelId, fullParentId, delta));
+      } else {
+        const delta: WritDeltaDelReact = {
+          'del-react': our,
+        };
+        return poke(chatAction(channelId, `${postAuthor}/${postId}`, delta));
+      }
     } else {
-      return poke({
-        app: 'chat',
-        mark: 'chat-club-action-1',
-        json: {
-          id: channelId,
-          diff: {
-            uid: '0v3',
+      // Group DM reactions
+      if (parentId) {
+        if (!parentId || !parentAuthorId) {
+          logger.trackError('Parent post not found', {
+            postId,
+            parentId,
+            parentAuthorId,
+            context: 'removeReaction_parentPostNotFound',
+          });
+          return;
+        }
+        const fullParentId = `${parentAuthorId}/${parentId}`;
+
+        const delta: ReplyDelta = {
+          reply: {
+            id: `${postAuthor}/${postId}`,
+            meta: null,
             delta: {
-              writ: {
-                delta: {
-                  'del-react': our,
-                },
-                id: `${postAuthor}/${postId}`,
+              'del-react': our,
+            },
+          },
+        };
+        return poke(chatAction(channelId, fullParentId, delta));
+      } else {
+        const delta: WritDeltaDelReact = {
+          'del-react': our,
+        };
+        return poke(chatAction(channelId, `${postAuthor}/${postId}`, delta));
+      }
+    }
+  }
+
+  if (parentId) {
+    return await poke(
+      channelAction(channelId, {
+        post: {
+          reply: {
+            id: parentId,
+            action: {
+              'del-react': {
+                id: postId,
+                ship: our,
               },
             },
           },
         },
-      });
-    }
-  }
-
-  return await poke(
-    channelAction(channelId, {
-      post: {
-        'del-react': {
-          id: postId,
-          ship: our,
+      })
+    );
+  } else {
+    return await poke(
+      channelAction(channelId, {
+        post: {
+          'del-react': {
+            id: postId,
+            ship: our,
+          },
         },
-      },
-    })
-  );
+      })
+    );
+  }
 }
 
 export async function showPost(post: db.Post) {

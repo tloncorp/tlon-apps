@@ -9,7 +9,8 @@ import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
-import { useChannelContext } from '../../contexts';
+import { useChannelContext, useCurrentUserId } from '../../contexts';
+import { useCanWrite } from '../../utils/channelUtils';
 import AuthorRow from '../AuthorRow';
 import { DefaultRendererProps } from '../PostContent/BlockRenderer';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
@@ -39,6 +40,7 @@ const ChatMessage = ({
   setViewReactionsPost,
   isHighlighted,
   hideOverflowMenu,
+  searchQuery,
 }: {
   post: db.Post;
   showAuthor?: boolean;
@@ -56,14 +58,17 @@ const ChatMessage = ({
   setViewReactionsPost?: (post: db.Post) => void;
   isHighlighted?: boolean;
   hideOverflowMenu?: boolean;
+  searchQuery?: string;
 }) => {
   const [showRetrySheet, setShowRetrySheet] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const channel = useChannelContext();
+  const currentUserId = useCurrentUserId();
+  const canWrite = useCanWrite(channel, currentUserId);
   const postActionIds = useMemo(
-    () => ChannelAction.channelActionIdsFor({ channel }),
-    [channel]
+    () => ChannelAction.channelActionIdsFor({ channel, canWrite }),
+    [channel, canWrite]
   );
 
   const isNotice = post.type === 'notice';
@@ -210,6 +215,7 @@ const ChatMessage = ({
             right={12}
             top={8}
             zIndex={199}
+            testID="ChatMessageDeliveryStatus"
           >
             <ChatMessageDeliveryStatus status={post.deliveryStatus} />
           </View>
@@ -247,6 +253,7 @@ const ChatMessage = ({
             isNotice={post.type === 'notice'}
             onPressImage={handleImagePressed}
             onLongPress={handleLongPress}
+            searchQuery={searchQuery}
           />
         </View>
 
@@ -373,7 +380,8 @@ export default memo(ChatMessage, (prev, next) => {
     prev.onPressReplies === next.onPressReplies &&
     prev.onPressImage === next.onPressImage &&
     prev.onLongPress === next.onLongPress &&
-    prev.onPress === next.onPress;
+    prev.onPress === next.onPress &&
+    prev.searchQuery === next.searchQuery;
 
   return isPostEqual && areOtherPropsEqual;
 });

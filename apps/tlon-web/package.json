@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "vite build",
+    "build:test": "cross-env VITE_DISABLE_SPLASH_MODAL=true vite build",
     "build:mock": "tsc && vite build --mode staging",
     "build:profile": "tsc && vite build --mode profile",
     "build:electron": "tsc && vite build --mode electron",
@@ -20,7 +21,6 @@
     "lint:all": "pnpm lint:format && pnpm run lint:fix",
     "lint:staged": "lint-staged",
     "mock": "vite --mode mock",
-    "serve": "vite preview",
     "serve-sw": "vite preview --mode sw",
     "tsc": "tsc --noEmit",
     "cosmos": "cosmos",
@@ -32,7 +32,12 @@
     "e2e:headed": "playwright test --headed",
     "e2e:codegen": "playwright codegen",
     "e2e:test": "tsc --isolatedModules --skipLibCheck ./rube/run-single-test.ts --outDir ./rube/dist && node ./rube/dist/run-single-test.js",
-    "e2e:test:force": "cross-env FORCE_EXTRACTION=true pnpm e2e:test"
+    "e2e:test:force": "cross-env FORCE_EXTRACTION=true pnpm e2e:test",
+    "e2e:playwright-dev": "tsc --isolatedModules --skipLibCheck ./rube/playwright-dev.ts --outDir ./rube/dist && node ./rube/dist/playwright-dev.js",
+    "e2e:playwright-dev:force": "cross-env FORCE_EXTRACTION=true pnpm e2e:playwright-dev",
+    "serve": "vite preview",
+    "e2e:prod:smoke": "pnpm build:test && cross-env USE_PRODUCTION_BUILD=true pnpm e2e:test production-smoke.spec.ts",
+    "e2e:prod:smoke:force": "cross-env FORCE_EXTRACTION=true pnpm e2e:prod:smoke"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
@@ -105,14 +110,12 @@
     "prosemirror-view": "~1.23.13",
     "@radix-ui/react-accordion": "^1.1.2",
     "@radix-ui/react-popover": "^1.0.2",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "react": "~18.3.1",
+    "react-dom": "~18.3.1",
     "react-dropzone": "^14.3.5",
     "react-error-boundary": "^3.1.4",
     "react-helmet": "^6.1.0",
     "react-intersection-observer": "^9.4.0",
-    "react-native-safe-area-context": "~4.10.5",
-    "react-native-screens": "~3.29.0",
     "react-native-web": "0.19.12",
     "sqlocal": "^0.11.1",
     "urbit-ob": "^5.0.1",
@@ -122,6 +125,10 @@
     "vite-plugin-svgr": "^4.2.0",
     "workbox-precaching": "^6.5.4",
     "zustand": "^3.7.2"
+  },
+  "peerDependencies": {
+    "react-native-safe-area-context": "*",
+    "react-native-screens": "*"
   },
   "devDependencies": {
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
@@ -139,7 +146,7 @@
     "@types/qrcode": "^1.5.2",
     "@types/react": "^18.2.46",
     "@types/react-beautiful-dnd": "^13.1.2",
-    "@types/react-dom": "^18.2.7",
+    "@types/react-dom": "~18.3.1",
     "@types/react-helmet": "^6.1.5",
     "@types/react-test-renderer": "^18.0.0",
     "@types/tar-fs": "^2.0.1",
