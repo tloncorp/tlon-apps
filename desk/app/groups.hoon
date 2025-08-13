@@ -3057,7 +3057,8 @@
       [%sub time.net &]
     =?  go-core  !was-init
       (go-response [%create group])
-    ::  join the channels upon initial group log
+    ::  join the channels upon initial group log,
+    ::  if this group hadn't been initialized yet
     ::
     =/  readable-channels
       %-  ~(gas in *(set nest:g))
@@ -3065,9 +3066,7 @@
       |=  [=nest:g =channel:g]
       ?.  (go-can-read our.bowl channel)  ~
       `nest
-    =.  cor
-      ::REVIEW  only if it was not init? otherwise +go-restart-updates
-      ::        invocations may trigger channel joins unintentionally
+    =?  cor  !was-init
       (emil (join-channels:go-pass ~(tap in readable-channels)))
     go-core
   ::  +go-u-group: apply group update
