@@ -1233,7 +1233,7 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   ?>  ?=(^ pole)
-  =?  +.pole  !?=([?(%v0 %v1 %v2 %v3 %v4) *] +.pole)
+  =?  +.pole  !?=([?(%v0 %v1 %v2 %v3 %v4 %v5) *] +.pole)
     [%v0 +.pole]
   ?+    pole  [~ ~]
     ::
