@@ -13,8 +13,8 @@ export class OPSQLite$SQLiteConnection
 {
   constructor(private connection: DB) {}
 
-  execute(query: string): void {
-    this.connection.execute(query);
+  async execute(query: string): Promise<void> {
+    await this.connection.execute(query);
   }
 
   updateHook(

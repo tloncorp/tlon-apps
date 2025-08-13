@@ -17,6 +17,7 @@ import {
 import { VitePWA } from 'vite-plugin-pwa';
 import svgr from 'vite-plugin-svgr';
 
+import expo52PatchPlugin from './expo52PatchPlugin';
 import packageJson from './package.json';
 import reactNativeWeb from './reactNativeWebPlugin';
 import manifest from './src/manifest';
@@ -67,6 +68,7 @@ export default ({ mode }: { mode: string }) => {
     if (mode === 'electron') {
       return [
         exportingRawText(/\.sql$/),
+        expo52PatchPlugin(), // Fix Expo 52 static name assignments
         react({
           babel: {
             plugins: [
@@ -90,6 +92,7 @@ export default ({ mode }: { mode: string }) => {
     return [
       process.env.SSL === 'true' ? (basicSsl() as PluginOption) : null,
       exportingRawText(/\.sql$/),
+      expo52PatchPlugin(), // Fix Expo 52 static name assignments
       urbitPlugin({
         base: 'groups',
         target: mode === 'dev2' ? SHIP_URL2 : SHIP_URL,
