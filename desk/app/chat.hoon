@@ -450,17 +450,16 @@
     ^-  dm:v6:c
     dm(pact (pact-9-to-10 pact.dm))
   ++  pact-9-to-10
-    |=  =pact:v5:c
+    |=  pact:v5:c
     ^-  pact:v6:c
-    %=    pact
-        wit
-      %+  gas:on:writs:v6:c  *writs:v6:c
-      %+  turn
-        (tap:on:writs:v5:c wit.pact)
-      |=  [=time =writ:v5:c]
-      :-  time
-      [%& (v6:writ:v5:cv writ)]
-    ==
+    =;  nu-wit
+      [num nu-wit dex upd=~]
+    %+  gas:on:writs:v6:c  *writs:v6:c
+    %+  turn
+      (tap:on:writs:v5:c wit)
+    |=  [=time =writ:v5:c]
+    :-  time
+    [%& (v6:writ:v5:cv writ)]
   ++  state-8-to-9
     |=  state-8
     ^-  state-9
@@ -858,9 +857,14 @@
           :_  [| +(n)]
           :-  ~
           ?:(?=(%| -.v) v(seq +(n)) v(seq +(n)))
-        :*  :+  num
-              wit
-            (~(uni by dex.pact.dm) dex.pact.hav)
+        :*  :^    num
+                wit
+              (~(uni by dex.pact.dm) dex.pact.hav)
+            ::NOTE  if we renumbered message above, arguably this should
+            ::      also add new upd entries for all those posts, but we
+            ::      assume (for now) that /changes consistency across exports
+            ::      isn't strictly necessary
+            (uni:updated-on:c upd.pact.dm upd.pact.hav)
           ::
             remark.hav
             net.hav
@@ -876,9 +880,10 @@
         :*  (~(uni in heard.club) heard.hav)
             remark.hav
           ::
-            :+  (max num.pact.club num.pact.hav)
-              (uni:on:writs:c wit.pact.club wit.pact.hav)
-            (~(uni by dex.pact.club) dex.pact.hav)
+            :^    (max num.pact.club num.pact.hav)
+                (uni:on:writs:c wit.pact.club wit.pact.hav)
+              (~(uni by dex.pact.club) dex.pact.hav)
+            (uni:updated-on:c upd.pact.club upd.pact.hav)
           ::
             crew.hav
         ==

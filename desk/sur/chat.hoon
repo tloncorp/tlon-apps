@@ -85,13 +85,19 @@
 ::  $reacts: a set of reactions to a chat message
 +$  reacts  (map author react)
 ::
-::  $pact: a double indexed map of chat messages, id -> time -> message
+::  $pact: a triple-indexed map of chat messages,
+::         .wit: time -> message
+::         .dex: id -> time
+::         .upd: edit-time -> time
 ::
 +$  pact
   $:  num=@ud  ::  number of msgs/highest nr msg, for sequence nr generation
       wit=writs
       dex=index
+      upd=last-updated
   ==
++$  last-updated  ((mop time time) lte)
+++  updated-on    ((on time time) lte)
 ::
 ::  $paged-writs: a set of time ordered chat messages, with page cursors
 ::
