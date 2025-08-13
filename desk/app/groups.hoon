@@ -2782,7 +2782,7 @@
     ::REVIEW  assert that we are not the host? and/or not %pub?
     =.  cor  (emil leave-subs:go-pass)
     =?  net  ?=(%sub -.net)
-      net(time *@da)
+      [%sub *@da |]
     (go-start-updates &)
   ::
   ::  +go-leave: leave the group and all channel subscriptions
