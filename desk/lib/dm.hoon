@@ -270,6 +270,23 @@
       (welp older newer)
     (welp (snoc older [time u.writ]) newer)
   (give-paged-writs mode ver writs)
+::
+++  changes
+  |=  since=@da
+  ^-  (unit writs:c)
+  ?:  (gte since key:(fall (ram:updated-on:c upd.pac) [key=since ~]))
+    ~
+  %-  some
+  ?~  wit.pac  ~
+  =/  updated  (tap:updated-on:c (lot:updated-on:c upd.pac `since ~))
+  ::NOTE  slightly faster than +put-ing continuously
+  =-  (gas:on:writs:c ~ -)
+  %+  roll  updated
+  |=  [[@da changed=time] out=(list [id=time (may:c writ:c)])]
+  ?~  writ=(get:on:writs:c wit.pac changed)
+    out
+  [[changed u.writ] out]
+::
 ++  peek
   |=  [care=@tas ver=?(%v0 %v1 %v2 %v3) =(pole knot)]
   ^-  (unit (unit cage))

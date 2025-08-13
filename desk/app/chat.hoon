@@ -13,6 +13,7 @@
 /+  chat-json
 ::
 /%  m-chat-blocked-by      %chat-blocked-by
+/%  m-chat-changed-writs   %chat-changed-writs
 /%  m-chat-club-action     %chat-club-action
 /%  m-chat-club-action-0   %chat-club-action-0
 /%  m-chat-club-action-1   %chat-club-action-1
@@ -62,6 +63,7 @@
     :+  ::  marks
         ::
         :~  :+  %chat-blocked-by      &  -:!>(*vale:m-chat-blocked-by)
+            :+  %chat-changed-writs   &  -:!>(*vale:m-chat-changed-writs)
             :+  %chat-club-action     |  -:!>(*vale:m-chat-club-action)
             :+  %chat-club-action-0   &  -:!>(*vale:m-chat-club-action-0)
             :+  %chat-club-action-1   &  -:!>(*vale:m-chat-club-action-1)
@@ -170,6 +172,7 @@
         [/x/v2/dm/$/writs/writ %chat-writ-2]
         [/x/v2/heads %chat-heads-2]
       ::
+        [/x/v3/changes/$ %chat-changed-writs]
         [/x/v3/club/$/search %chat-scan-3]
         [/x/v3/club/$/search/bounded %chat-scam-3]
         [/x/v3/club/$/writs %chat-paged-writs-3]
@@ -1093,6 +1096,34 @@
       %v1  ``[%chat-heads-1 !>((v4:heads:v6:cv (heads since)))]
       %v2  ``[%chat-heads-2 !>((v5:heads:v6:cv (heads since)))]
       %v3  ``[%chat-heads-3 !>(`chat-heads:v6:c`(heads since))]
+    ==
+  ::
+      [%x %v3 %changes since=@ rest=*]
+    =+  since=(slav %da i.t.t.t.path)
+    =/  changes=(map whom:c (unit writs:c))
+      %-  ~(gas by *(map whom:c (unit writs:c)))
+      %+  weld
+        %+  turn  ~(tap by dms)
+        |=  [who=ship =dm:c]
+        ^-  [whom:c (unit writs:c)]
+        :-  [%ship who]
+        (~(changes pac pact.dm) since)
+      %+  turn  ~(tap by clubs)
+      |=  [=id:club:c =club:c]
+      ^-  [whom:c (unit writs:c)]
+      :-  [%club id]
+      (~(changes pac pact.club) since)
+    ?+  t.t.t.t.path  [~ ~]
+      ~  ``chat-changed-writs+!>(changes)
+    ::
+        [%count ~]
+      :^  ~  ~  %json
+      !>  ^-  json
+      %-  numb:enjs:format
+      %-  ~(rep by changes)
+      |=  [[* w=(unit writs:c)] sum=@ud]
+      %+  add  sum
+      ?~(w 0 (wyt:on:writs:c u.w))
     ==
   ::
       [%x %dm ~]
