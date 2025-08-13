@@ -3,7 +3,7 @@ import { test as setup } from '@playwright/test';
 import shipManifest from './shipManifest.json';
 
 Object.entries(shipManifest).forEach(([key, ship]) => {
-  if (ship.skipSetup) {
+  if (ship.skipSetup || ship.skipAuth) {
     return;
   }
 

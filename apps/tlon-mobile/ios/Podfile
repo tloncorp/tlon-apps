@@ -23,7 +23,7 @@ else
   ]
 end
 
-platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
+platform :ios, podfile_properties['ios.deploymentTarget'] || '16.0'
 install! 'cocoapods',
   :deterministic_uuids => false
  

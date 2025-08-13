@@ -3,7 +3,7 @@
 ::    this is the server-side from which /app/channels gets its data.
 ::
 /-  c=channels, g=groups, gv=groups-ver, h=hooks, m=meta
-/+  utils=channel-utils, imp=import-aid
+/+  utils=channel-utils, imp=import-aid, em=emojimart
 /+  default-agent, verb, dbug,
     neg=negotiate, discipline, logs
 /+  hj=hooks-json
@@ -132,6 +132,7 @@
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
+++  log   ~(. logs [our.bowl /channels-server])
 ++  safe-watch
   |=  [=wire =dock =path]
   ^+  cor
@@ -985,6 +986,24 @@
         ?~  react.p.result
           [%del-react id.c-post ship.p.result]
         [%add-react id.c-post [ship u.react]:p.result]
+      ::  log shortcode reactions for posts
+      ::
+      =?  ca-core  ?=(%add-react -.new)
+        =/  react-text  
+          ?@  q.new  q.new
+          p.q.new
+        ?^  (kill:em react-text)
+          =/  message  ~[leaf+"Shortcode reaction detected in channels-server (post)"]
+          =/  nest-path  (spat [kind.nest (scot %p ship.nest) name.nest ~])
+          =/  post-id    (scot %uv id.c-post)
+          =/  metadata  
+            :~  'context'^s+'channels_server_post_add_react'
+                'nest'^s+nest-path
+                'post_id'^s+post-id
+                'react'^s+react-text
+            ==
+          (emit (tell:log %crit message metadata))
+        ca-core
       =/  [update=? reacts=v-reacts:c]
         (ca-c-react reacts.u.post new)
       ?.  update  no-op
@@ -999,9 +1018,33 @@
         %reply
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  no-op
+<<<<<<< HEAD
       ?:  ?=(%| -.u.post)  no-op
       =^  update=(unit u-post:c)  replies.u.post
         (ca-c-reply +.u.post c-reply.c-post)
+=======
+      ?~  u.post  no-op
+      ::  log shortcode reactions for replies
+      ::
+      =?  ca-core  ?=(%add-react -.c-reply.c-post)  
+        =/  react-text  
+          ?@  q.c-reply.c-post  q.c-reply.c-post
+          p.q.c-reply.c-post
+        ?^  (kill:em react-text)
+          =/  message  ~[leaf+"Shortcode reaction detected in channels-server (reply)"]
+          =/  nest-path  (spat [kind.nest (scot %p ship.nest) name.nest ~])
+          =/  post-id    (scot %uv id.c-post)
+          =/  metadata  
+            :~  'context'^s+'channels_server_reply_add_react'
+                'nest'^s+nest-path
+                'post_id'^s+post-id
+                'react'^s+react-text
+            ==
+          (emit (tell:log %crit message metadata))
+        ca-core
+      =^  update=(unit u-post:c)  replies.u.u.post
+        (ca-c-reply u.u.post c-reply.c-post)
+>>>>>>> develop
       ?~  update  no-op
       :-  `[%post id.c-post u.update]
       %=  ca-core

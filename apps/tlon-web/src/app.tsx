@@ -16,6 +16,10 @@ import { useInviteParam } from '@tloncorp/app/hooks/useInviteParam';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useRenderCount } from '@tloncorp/app/hooks/useRenderCount';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
+import {
+  SplashScreenTask,
+  splashScreenProgress,
+} from '@tloncorp/app/lib/splashscreen';
 import { BasePathNavigator } from '@tloncorp/app/navigation/BasePathNavigator';
 import {
   getNavigationIntentFromState,
@@ -43,6 +47,7 @@ import { sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
+import { useEventEmitter } from '@tloncorp/shared/utils';
 import cookies from 'browser-cookies';
 import { usePostHog } from 'posthog-js/react';
 import React, {
@@ -367,6 +372,12 @@ function ConnectedDesktopApp({
   useDesktopNotifications(clientReady);
 
   useEffect(() => {
+    splashScreenProgress.emitter.on('complete', () => {
+      setClientReady(true);
+    });
+  }, []);
+
+  useEffect(() => {
     window.ship = ship;
     window.our = ship;
 
@@ -381,7 +392,6 @@ function ConnectedDesktopApp({
       if (!hasSyncedRef.current) {
         try {
           await sync.syncStart(false);
-          setClientReady(true);
           hasSyncedRef.current = true;
         } catch (e) {
           console.error('Error starting sync:', e);
@@ -511,6 +521,7 @@ function ConnectedWebApp() {
 
         if (databaseSizeBytes && databaseSizeBytes > 0) {
           setDbIsLoaded(true);
+          splashScreenProgress.complete(SplashScreenTask.startDatabase);
           break;
         }
 
@@ -530,7 +541,14 @@ function ConnectedWebApp() {
 
   useRenderCount('ConnectedWebApp');
 
-  if (!dbIsLoaded) {
+  const hideSplashScreen = useEventEmitter(
+    splashScreenProgress.emitter,
+    'complete',
+    useCallback(() => true, []),
+    splashScreenProgress.finished
+  );
+
+  if (!hideSplashScreen) {
     return (
       <View
         height="100%"
