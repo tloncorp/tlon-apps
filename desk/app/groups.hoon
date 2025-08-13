@@ -3102,7 +3102,7 @@
     |=  =update:g
     ^+  go-core
     =?  net  ?=(%sub -.net)
-      ?>  (gte time.update time.net)
+      ?>  (gte time.update time.net)  ::REVIEW  restart subscription instead?
       [%sub time.update init.net]
     =*  u-group  u-group.update
     ?-  -.u-group
