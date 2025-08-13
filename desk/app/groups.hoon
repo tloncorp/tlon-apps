@@ -2779,10 +2779,16 @@
   ++  go-restart-updates
     |=  why=@t
     %-  (~(tell l ~) %crit 'fully restarting updates' why ~)
-    ::REVIEW  assert that we are not the host? and/or not %pub?
+    ::  if this gets called on the group host, something is horribly wrong
+    ::  and we should not mask over it by trying to clean it up: there's no
+    ::  sane source to clean up from, anyway.
+    ::
+    ?<  ?=(%pub -.net)
     =.  cor  (emil leave-subs:go-pass)
-    =?  net  ?=(%sub -.net)
-      [%sub *@da |]
+    ::  since we are trying to re-establish group state from scratch,
+    ::  consider it uninitialized
+    ::
+    =.  net  [%sub *@da |]
     (go-start-updates &)
   ::
   ::  +go-leave: leave the group and all channel subscriptions
