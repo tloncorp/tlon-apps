@@ -256,6 +256,7 @@ export const GroupChannelsScreenView = React.memo(
           // component mounts.
           key={group?.id}
           title={title}
+          subtitle={group?.description}
           borderBottom
           backAction={onBackPressed}
           rightControls={
