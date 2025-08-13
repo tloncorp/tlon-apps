@@ -15,6 +15,7 @@ import {
 } from 'tamagui';
 
 import { useRenderCount } from '../../hooks/useRenderCount';
+import { useRootNavigation } from '../../navigation/utils';
 import { useChatOptions, useCurrentUserId } from '../contexts';
 import { useGroupTitle, useIsAdmin } from '../utils/channelUtils';
 import { Badge } from './Badge';
@@ -56,11 +57,19 @@ export const GroupChannelsScreenView = React.memo(
     const isGroupAdmin = useIsAdmin(group?.id ?? '', userId);
 
     const chatOptions = useChatOptions();
+    const { navigateToChatDetails } = useRootNavigation();
+
     const handlePressOverflowButton = useCallback(() => {
       if (group) {
         chatOptions.open(group.id, 'group');
       }
     }, [group, chatOptions]);
+
+    const handleTitlePress = useCallback(() => {
+      if (group) {
+        navigateToChatDetails({ type: 'group', id: group.id });
+      }
+    }, [group, navigateToChatDetails]);
 
     const isPersonalGroup = useMemo(() => {
       return logic.isPersonalGroup(group, userId);
@@ -76,14 +85,6 @@ export const GroupChannelsScreenView = React.memo(
     );
 
     const title = useGroupTitle(group);
-
-    const titleWidth = useCallback(() => {
-      if (isGroupAdmin) {
-        return 55;
-      } else {
-        return 75;
-      }
-    }, [isGroupAdmin]);
 
     const listSectionTitleColor = getVariableValue(useTheme().secondaryText);
     const isWindowNarrow = useIsWindowNarrow();
@@ -259,6 +260,7 @@ export const GroupChannelsScreenView = React.memo(
           subtitle={group?.description}
           borderBottom
           backAction={onBackPressed}
+          onTitlePress={handleTitlePress}
           rightControls={
             <>
               {isGroupAdmin && (
