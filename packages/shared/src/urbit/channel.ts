@@ -49,7 +49,7 @@ export interface PostSeal {
   reacts: { [ship: Ship]: React };
   replies: ReplyTuple[] | null;
   meta: ReplyMeta;
-  seq: string;
+  seq?: number;
 }
 
 export interface ReplySeal {
@@ -539,7 +539,7 @@ export const emptyPost: Post = {
       lastRepliers: [],
       lastReply: null,
     },
-    seq: '1',
+    seq: 1,
   },
   revision: '0',
   essay: {

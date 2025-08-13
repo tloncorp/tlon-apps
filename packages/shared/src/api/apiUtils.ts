@@ -190,6 +190,8 @@ export function deriveFullWrit(
     ? bigInt(delta.add.time).toString()
     : unixToDa(delta.add.essay.sent).toString();
 
+  const seq = delta.add.seq ?? undefined;
+
   const seal: ub.WritSeal = {
     id,
     time,
@@ -200,8 +202,7 @@ export function deriveFullWrit(
       lastRepliers: [],
       lastReply: null,
     },
-    // TODO: this needs to be figured out before merging
-    seq: '1',
+    seq,
   };
 
   return { seal, essay: delta.add.essay, type: 'writ' };

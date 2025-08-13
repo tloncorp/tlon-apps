@@ -62,6 +62,7 @@ export interface WritDeltaAdd {
   add: {
     essay: WritEssay;
     time: string | null;
+    seq?: number;
   };
 }
 
@@ -130,6 +131,7 @@ export interface WritResponseAdd {
   add: {
     essay: WritEssay;
     time: string;
+    seq?: number;
   };
 }
 
