@@ -943,7 +943,7 @@
   ::  catch-all
   ::
       ~  ?>(from-self cor)
-      [?(%v1 %v2) ~]  ?>(from-self cor)
+      [?(%v1 %v2 %v3) ~]  ?>(from-self cor)
   ::
       [%clubs ~]  ?>(from-self cor)
       [%v1 %clubs ~]  ?>(from-self cor)
@@ -955,7 +955,7 @@
     =/  =ship  (slav %p ship.pole)
     di-abet:(di-watch:(di-abed:di-core ship) %v0 rest.pole)
   ::
-      [ver=?(%v1 %v2) %dm ship=@ rest=*]
+      [ver=?(%v1 %v2 %v3) %dm ship=@ rest=*]
     =/  =ship  (slav %p ship.pole)
     di-abet:(di-watch:(di-abed:di-core ship) ver.pole rest.pole)
   ::
@@ -963,7 +963,7 @@
     =/  =id:club:c  (slav %uv id.pole)
     cu-abet:(cu-watch:(cu-abed id) %v0 rest.pole)
   ::
-      [ver=?(%v1 %v2) %club id=@ rest=*]
+      [ver=?(%v1 %v2 %v3) %club id=@ rest=*]
     =/  =id:club:c  (slav %uv id.pole)
     cu-abet:(cu-watch:(cu-abed id) ver.pole rest.pole)
   ::
@@ -2321,7 +2321,7 @@
     (di-post-notice ' joined the chat')
   ::
   ++  di-watch
-    |=  [ver=?(%v0 %v1 %v2) =path]
+    |=  [ver=?(%v0 %v1 %v2 %v3) =path]
     ^+  di-core
     ?>  =(src.bowl our.bowl)
     ?+  path  !!
