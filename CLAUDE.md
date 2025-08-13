@@ -31,6 +31,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 -   `pnpm lint:fix` - Fix linting issues (per package)
 -   `pnpm lint:format` - Format code with prettier (per package)
 
+### Typechecking
+
+-   `pnpm -r tsc`
+
 ### Installing Dependencies
 
 -   `pnpm install` - Install all dependencies
@@ -110,18 +114,21 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   **Environment setup**: Use `pnpm e2e:playwright-dev` to start ships + web servers for MCP testing
 -   **IMPORTANT**: Always stop the `pnpm e2e:playwright-dev` script before running `pnpm e2e:test` or other e2e commands to avoid port conflicts
 -   **MCP Server Debugging Workflow (DEFAULT - RECOMMENDED):**
+
     1. **Run `./start-playwright-dev.sh` to start environment in background** - this will start the dev environment and return when ready
     2. Use Playwright MCP server tools to navigate and debug while environment runs in background
     3. **Stop the environment when done** using one of:
-       - `kill [PID]` - Graceful shutdown (PID shown in script output)
-       - `./stop-playwright-dev.sh` - Comprehensive cleanup that ensures all processes are stopped
-       - `./stop-playwright-dev.sh --clean-logs` - Also removes log files
-    
+        - `kill [PID]` - Graceful shutdown (PID shown in script output)
+        - `./stop-playwright-dev.sh` - Comprehensive cleanup that ensures all processes are stopped
+        - `./stop-playwright-dev.sh --clean-logs` - Also removes log files
+
     **Alternative (Manual Terminal Management):**
+
     1. **Ask user to run `pnpm e2e:playwright-dev` in a separate terminal** - this script runs continuously and must stay running
     2. **Wait for user confirmation** that ships and web servers are ready (user will see "Environment ready for Playwright MCP development!")
     3. Use Playwright MCP server tools to navigate and debug while the script continues running
     4. Ask user to stop the script (Ctrl+C) before running actual tests with `pnpm e2e:test <filename>`
+
 -   **Test Development**: Examine existing e2e test files in `apps/tlon-web/e2e/` to understand test structure, patterns, and helper function usage before creating new tests
 -   **Cross-ship testing with MCP**: For testing interactions between ships, simply open new browser tabs and navigate to different ship URLs:
     -   ~zod: `http://localhost:3000/apps/groups/`
