@@ -3138,7 +3138,7 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
       });
   }
 
-  deleteReplacedCachedPosts(ctx);
+  await deleteReplacedCachedPosts(ctx);
 
   logger.log('inserted posts');
   await setLastPosts(posts, ctx);
