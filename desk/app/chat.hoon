@@ -1996,7 +1996,7 @@
     ==
   ::
   ++  cu-watch
-    |=  [ver=?(%v0 %v1 %v2) =path]
+    |=  [ver=?(%v0 %v1 %v2 %v3) =path]
     ^+  cu-core
     ?>  =(src our):bowl
     ?+  path  !!
