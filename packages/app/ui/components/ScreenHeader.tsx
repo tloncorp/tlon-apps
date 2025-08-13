@@ -1,56 +1,101 @@
-import { useConnectionStatus, useDebouncedValue } from '@tloncorp/shared';
+import { useDebouncedValue } from '@tloncorp/shared';
 import { Icon, Text } from '@tloncorp/ui';
-import { ComponentProps, PropsWithChildren, ReactNode } from 'react';
+import { Children, PropsWithChildren, ReactNode } from 'react';
+import { Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, XStack, isWeb, styled, withStaticProperties } from 'tamagui';
+import { View, XStack, styled, withStaticProperties } from 'tamagui';
 
 export const ScreenHeaderComponent = ({
   children,
   title,
-  titleWidth = 100,
+  subtitle,
   leftControls,
   rightControls,
   isLoading,
   backAction,
-  showSessionStatus,
+  borderBottom,
+  onTitlePress,
 }: PropsWithChildren<{
   title?: string | ReactNode;
-  titleWidth?: 100 | 75 | 55;
+  subtitle?: string | ReactNode;
   leftControls?: ReactNode | null;
   rightControls?: ReactNode | null;
   isLoading?: boolean;
   backAction?: () => void;
   showSessionStatus?: boolean;
+  borderBottom?: boolean;
+  onTitlePress?: () => void;
 }>) => {
   const { top } = useSafeAreaInsets();
-  const resolvedTitle = useDebouncedValue(isLoading ? 'Loading…' : title, 200);
-  const connectionStatus = useConnectionStatus();
-  const textColor =
-    showSessionStatus === false
-      ? '$primaryText'
-      : connectionStatus !== 'Connected'
-        ? '$tertiaryText'
-        : '$primaryText';
+  const resolvedSubtitle = useDebouncedValue(
+    isLoading ? 'Loading…' : subtitle,
+    200
+  );
+
+  // Calculate number of action items to determine text width
+  const leftControlsCount = leftControls ? Children.count(leftControls) : 0;
+  const rightControlsCount = rightControls ? Children.count(rightControls) : 0;
+  const backButtonCount = backAction ? 1 : 0;
+  const totalActionItems =
+    leftControlsCount + rightControlsCount + backButtonCount;
+
+  // Determine maximum width based on number of action items or explicit titleWidth prop
+  const getTextMaxWidth = () => {
+    if (totalActionItems >= 4) return '55%';
+    if (totalActionItems >= 2) return '60%';
+    return '100%';
+  };
+
+  const textMaxWidth = getTextMaxWidth();
 
   return (
-    <View paddingTop={top} zIndex={50}>
-      <XStack
-        height="$4xl"
-        paddingHorizontal="$2xl"
-        paddingVertical="$l"
-        alignItems="center"
-        justifyContent="center"
-      >
-        {typeof resolvedTitle === 'string' ? (
-          <HeaderTitle
-            title={resolvedTitle}
-            color={textColor}
-            titleWidth={titleWidth}
-            testID="ScreenHeaderTitle"
-          />
-        ) : (
-          resolvedTitle
-        )}
+    <View
+      paddingTop={top}
+      zIndex={50}
+      borderColor="$border"
+      borderBottomWidth={borderBottom ? 1 : 0}
+    >
+      <XStack height="$5xl" justifyContent="center" alignItems="flex-end">
+        <View maxWidth={textMaxWidth}>
+          {((Wrapper) => (
+            <Wrapper>
+              <Text
+                color={'$secondaryText'}
+                size="$label/s"
+                numberOfLines={1}
+                height={'$xl'}
+                textAlign="center"
+              >
+                {resolvedSubtitle}
+              </Text>
+              <XStack
+                alignItems="center"
+                justifyContent="center"
+                height={'$4xl'}
+                gap={'$s'}
+              >
+                <Text
+                  size={'$label/2xl'}
+                  color={'$primaryText'}
+                  numberOfLines={1}
+                  maxWidth="100%"
+                >
+                  {title}
+                </Text>
+                {onTitlePress && (
+                  <Icon type="ChevronDown" color="$primaryText" size="$s" />
+                )}
+              </XStack>
+            </Wrapper>
+          ))(
+            onTitlePress
+              ? ({ children }: { children: ReactNode }) => (
+                  <Pressable onPress={onTitlePress}>{children}</Pressable>
+                )
+              : ({ children }: { children: ReactNode }) => <>{children}</>
+          )}
+        </View>
+
         <HeaderControls side="left">
           {backAction ? <HeaderBackButton onPress={backAction} /> : null}
           {leftControls}
@@ -101,42 +146,16 @@ const HeaderBackButton = ({ onPress }: { onPress?: () => void }) => {
 
 const HeaderTitleText = styled(Text, {
   size: '$label/2xl',
-  textAlign: 'center',
-  width: '100%',
-  paddingHorizontal: '$2xl',
   numberOfLines: 1,
 });
-
-function HeaderTitle({
-  title,
-  titleWidth = 100,
-  ...props
-}: {
-  title: string;
-  titleWidth?: 100 | 75 | 55;
-} & ComponentProps<typeof HeaderTitleText>) {
-  const renderedTitle = <HeaderTitleText {...props}>{title}</HeaderTitleText>;
-
-  return isWeb ? (
-    renderedTitle
-  ) : (
-    <View
-      style={{
-        flex: 1,
-        maxWidth: `${titleWidth}%`,
-      }}
-    >
-      {renderedTitle}
-    </View>
-  );
-}
 
 const HeaderControls = styled(XStack, {
   position: 'absolute',
   top: 0,
   bottom: 0,
+  paddingBottom: '$m',
   gap: '$xl',
-  alignItems: 'center',
+  alignItems: 'flex-end',
   zIndex: 1,
   variants: {
     side: {

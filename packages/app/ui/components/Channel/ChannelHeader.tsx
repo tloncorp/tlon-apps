@@ -1,7 +1,6 @@
 import { useConnectionStatus, useDebouncedValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useIsWindowNarrow } from '@tloncorp/ui';
-import { Pressable } from '@tloncorp/ui';
 import {
   Fragment,
   createContext,
@@ -13,8 +12,9 @@ import {
 } from 'react';
 
 import { useChatOptions } from '../../contexts';
-import { useChatTitle } from '../../utils';
+import { useChatDescription, useChatTitle } from '../../utils/channelUtils';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
+import { FacePile } from '../FacePile/FacePile';
 import { ScreenHeader } from '../ScreenHeader';
 
 export interface ChannelHeaderItemsContextValue {
@@ -78,24 +78,28 @@ export function useRegisterChannelHeaderItem(item: JSX.Element | null) {
 
 export function ChannelHeader({
   title,
+  description,
   channel,
   group,
   goBack,
   goToSearch,
   goToEdit,
   goToChatDetails,
+  goToProfile,
   showSpinner,
-  showSearchButton = true,
+  showSearchButton = false,
   showMenuButton = false,
   showEditButton = false,
 }: {
   title: string;
+  description: string;
   channel: db.Channel;
   group?: db.Group | null;
   goBack?: () => void;
   goToSearch?: () => void;
   goToEdit?: () => void;
   goToChatDetails?: () => void;
+  goToProfile?: () => void;
   showSpinner?: boolean;
   showSearchButton?: boolean;
   showMenuButton?: boolean;
@@ -106,6 +110,20 @@ export function ChannelHeader({
   const [openChatOptions, setOpenChatOptions] = useState(false);
   const connectionStatus = useConnectionStatus();
   const chatTitle = useChatTitle(channel, group);
+  const chatDescription = useChatDescription(channel, group);
+
+  const getChannelTypeName = (channelType: db.Channel['type']) => {
+    switch (channelType) {
+      case 'chat':
+        return 'Chat channel';
+      case 'notebook':
+        return 'Notebook channel';
+      case 'gallery':
+        return 'Gallery channel';
+      default:
+        return 'Channel';
+    }
+  };
 
   const handlePressOverflowMenu = useCallback(() => {
     chatOptions.open(channel.id, 'channel');
@@ -115,20 +133,136 @@ export function ChannelHeader({
   const isWindowNarrow = useIsWindowNarrow();
 
   const titleText = useMemo(() => {
-    if (connectionStatus === 'Connected') {
-      return chatTitle ?? title;
+    return chatTitle ?? title;
+  }, [chatTitle, title]);
+
+  const subtitleText = useMemo(() => {
+    if (connectionStatus !== 'Connected') {
+      const statusText =
+        connectionStatus === 'Connecting' || connectionStatus === 'Reconnecting'
+          ? 'Connecting...'
+          : connectionStatus === 'Idle'
+            ? 'Initializing...'
+            : 'Disconnected';
+      return statusText;
     }
 
-    const statusText =
-      connectionStatus === 'Connecting' || connectionStatus === 'Reconnecting'
-        ? 'Connecting...'
-        : connectionStatus === 'Idle'
-          ? 'Initializing...'
-          : 'Disconnected';
+    // DM (1:1) - "Direct message"
+    if (channel.type === 'dm') {
+      return 'Direct message';
+    }
 
-    return statusText;
-  }, [chatTitle, title, connectionStatus]);
+    // Group DM (multi-DM) - "Chat with N members"
+    if (channel.type === 'groupDm') {
+      const memberCount = channel.members?.length ?? 0;
+      const result = `Chat with ${memberCount} members`;
+      return result;
+    }
+
+    // Single-channel chat group
+    if (channel.type === 'chat' && group) {
+      const hasMultipleChannels = (group.channels?.length ?? 0) > 1;
+      console.log('Is multi-channel group:', hasMultipleChannels);
+
+      // If it's a single-channel group
+      if (!hasMultipleChannels) {
+        // If group has title and description, use description
+        if (group.title && group.title.trim() !== '' && group.description) {
+          return group.description;
+        }
+        // If it's a single-channel group without explicit title/description, show member count
+        const memberCount = group.members?.length ?? 0;
+        const result = `Chat with ${memberCount} members`;
+        return result;
+      }
+
+      // For multi-channel groups, check for descriptions first
+      if (chatDescription && chatDescription.trim()) {
+        return chatDescription;
+      }
+      if (description && description.trim()) {
+        return description;
+      }
+      // No description, return channel type
+      const channelType = getChannelTypeName(channel.type);
+      return channelType;
+    }
+
+    // For other channel types (notebook, gallery, etc.)
+    if (chatDescription && chatDescription.trim()) {
+      return chatDescription;
+    }
+    if (description && description.trim()) {
+      console.log('Returning description prop for other channel type');
+      return description;
+    }
+
+    // No description available, show channel type for non-DM channels
+    if (
+      channel.type === 'chat' ||
+      channel.type === 'notebook' ||
+      channel.type === 'gallery'
+    ) {
+      const channelType = getChannelTypeName(channel.type);
+      return channelType;
+    }
+
+    console.log('Returning empty string');
+    return '';
+  }, [connectionStatus, channel, group, chatDescription, description]);
+
   const displayTitle = useDebouncedValue(titleText, 300);
+  const displaySubtitle = useDebouncedValue(subtitleText, 300);
+
+  const shouldShowFacePile = useMemo(() => {
+    if (!channel) return false;
+
+    // Show for DMs and group DMs
+    if (channel.type === 'dm' || channel.type === 'groupDm') {
+      return true;
+    }
+
+    // Show for single-channel groups (when group has only one channel and no explicit title)
+    if (channel.type === 'chat' && group) {
+      const hasMultipleChannels = (group.channels?.length ?? 0) > 1;
+      const hasGroupTitle = group.title && group.title.trim() !== '';
+      return !hasMultipleChannels && !hasGroupTitle;
+    }
+
+    return false;
+  }, [channel, group]);
+
+  const facePileContacts = useMemo(() => {
+    if (!shouldShowFacePile || !channel?.members) return [];
+
+    // For DMs and group DMs, show all members
+    if (channel.type === 'dm' || channel.type === 'groupDm') {
+      return channel.members
+        .map((member) => member.contact)
+        .filter(Boolean) as db.Contact[];
+    }
+
+    // For single-channel groups, show group members
+    if (channel.type === 'chat' && group?.members) {
+      return group.members
+        .map((member) => member.contact)
+        .filter(Boolean) as db.Contact[];
+    }
+
+    return [];
+  }, [shouldShowFacePile, channel, group]);
+
+  const facePileTitle = useMemo(() => {
+    if (!shouldShowFacePile) return null;
+
+    if (channel.type === 'chat' && group) {
+      const memberCount = group.members?.length ?? 0;
+      return `Chat`;
+    }
+
+    // For DMs and group DMs, use the existing title logic
+    return displayTitle;
+  }, [shouldShowFacePile, channel, group, displayTitle]);
 
   const titleWidth = () => {
     if (showSearchButton && showMenuButton) {
@@ -142,19 +276,32 @@ export function ChannelHeader({
     }
   };
 
+  const handleTitlePress = useMemo(() => {
+    // For DMs, navigate to profile
+    if (channel.type === 'dm' && goToProfile) {
+      return goToProfile;
+    }
+
+    // For group DMs and group chats, navigate to chat details/group info
+    if (
+      (channel.type === 'groupDm' || channel.type === 'chat') &&
+      goToChatDetails
+    ) {
+      return goToChatDetails;
+    }
+
+    return undefined;
+  }, [channel.type, goToProfile, goToChatDetails]);
+
   return (
     <>
       <ScreenHeader
-        title={
-          <Pressable flex={1} onPress={goToChatDetails}>
-            <ScreenHeader.Title testID="ChannelHeaderTitle">
-              {displayTitle}
-            </ScreenHeader.Title>
-          </Pressable>
-        }
-        titleWidth={titleWidth()}
+        title={displayTitle}
+        subtitle={displaySubtitle}
         showSessionStatus
+        borderBottom
         isLoading={showSpinner}
+        onTitlePress={handleTitlePress}
         leftControls={goBack && <ScreenHeader.BackButton onPress={goBack} />}
         rightControls={
           <>

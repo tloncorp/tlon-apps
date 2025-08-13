@@ -176,6 +176,23 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const isDM = isDmChannelId(channel.id);
     const isGroupDm = isGroupDmChannelId(channel.id);
 
+    // For DMs, get the other participant's ID
+    const dmRecipientId = useMemo(() => {
+      if (isDM && channel.members) {
+        const otherMember = channel.members.find(
+          (member) => member.contactId !== currentUserId
+        );
+        return otherMember?.contactId;
+      }
+      return undefined;
+    }, [isDM, channel.members, currentUserId]);
+
+    const handleGoToProfile = useCallback(() => {
+      if (dmRecipientId) {
+        goToUserProfile(dmRecipientId);
+      }
+    }, [dmRecipientId, goToUserProfile]);
+
     const onPressGroupRef = useCallback((group: db.Group) => {
       setGroupPreview(group);
     }, []);
@@ -371,18 +388,15 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                           channel={channel}
                           group={group}
                           title={title ?? ''}
+                          description={''}
                           goBack={
                             isNarrow ||
                             draftInputPresentationMode === 'fullscreen'
                               ? handleGoBack
                               : undefined
                           }
-                          showSearchButton={
-                            isChatChannel &&
-                            draftInputPresentationMode !== 'fullscreen'
-                          }
-                          goToSearch={goToSearch}
                           goToChatDetails={goToChatDetails}
+                          goToProfile={handleGoToProfile}
                           showSpinner={isLoadingPosts}
                           showMenuButton={
                             draftInputPresentationMode !== 'fullscreen'
