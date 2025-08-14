@@ -6,7 +6,6 @@
   |%
   ++  noun  scan
   ++  json
-    =,  enjs:format
     a+(turn scan reference:v3:enjs:j)
   --
 ++  grab
