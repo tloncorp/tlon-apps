@@ -1295,7 +1295,7 @@
     ?~  time  ~
     =/  writ=(unit (may:c writ:c))  (get:on:writs:c wit.pact u.time)
     ?~  writ  ~&(%diff-to-response-miss ~)
-    ?:  ?=(%| -.u.writ)  ~&(%diff-to-response-miss ~)
+    ?:  ?=(%| -.u.writ)  ~&(%diff-to-response-miss-on-tomb ~)
     [%add essay.q.diff seq.u.writ u.time]
   ::
       %reply

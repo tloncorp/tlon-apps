@@ -187,7 +187,7 @@
           author.u.reply
           now
       ==
-    :-  pac
+    :-  pac(dex (~(del by dex.pac) id))
     (put:on:replies:c replies u.tim %| tombstone)
   ::
       %add-react
@@ -336,7 +336,11 @@
           %v1  ``chat-writ-1+!>((v4:writ:v5:cc (v5:writ:v6:cc +.writ)))
           %v2  ``chat-writ-2+!>((v5:writ:v6:cc +.writ))
       ==
-    ``loob+!>(?~((get ship `@da`time) | &))
+    =/  has-writ
+      ?:  ?=(%v3 ver)  ?~((get ship `@da`time) | &)
+      ?~  entry=(get ship `@da`time)  |
+      !?=(%| -.writ.u.entry)
+    ``loob+!>(has-writ)
   ==
 ::
 ++  search
