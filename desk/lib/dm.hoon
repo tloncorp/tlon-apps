@@ -26,7 +26,7 @@
       (lot:on:writs:c wit.pac `last-read ~)
     |=  [=time writ=(may:c writ:c)]
     =/  author  ?:(?=(%| -.writ) author.writ author.writ)
-    !=(author our)
+    !=((get-author-ship:cu author) our)
   =/  count  (lent unreads)
   =/  unread=(unit [message-key:c @ud])
     ::TODO  in the ~ case, we could traverse further up, to better handle
@@ -51,7 +51,7 @@
         (lot:on:replies:c replies.writ `last-read ~)
       |=  [* reply=(may:c reply:c)]
       =/  author  ?:(?=(%| -.reply) author.reply author.reply)
-      !=(author our)
+      !=((get-author-ship:cu author) our)
     =/  count=@ud  (lent unreads)
     :-  (add sum count)
     ?~  unreads  threads
