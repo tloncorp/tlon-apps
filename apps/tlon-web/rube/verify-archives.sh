@@ -20,6 +20,9 @@ NC='\033[0m' # No Color
 # Ships to verify
 SHIPS_TO_VERIFY=${SHIPS_TO_VERIFY:-"zod ten mug"}
 
+# Valid ships for input validation
+VALID_SHIPS=("zod" "ten" "mug" "bus")
+
 # Function to print colored output
 print_status() {
     echo -e "${GREEN}✓${NC} $1"
@@ -235,6 +238,15 @@ main() {
     
     # Check prerequisites
     check_prerequisites
+    
+    # Validate ship names
+    for ship in $SHIPS_TO_VERIFY; do
+        if ! printf '%s\n' "${VALID_SHIPS[@]}" | grep -qx "$ship"; then
+            print_error "Invalid ship name: $ship"
+            print_info "Valid ships: ${VALID_SHIPS[*]}"
+            exit 1
+        fi
+    done
     
     # Track results
     local failed_ships=()

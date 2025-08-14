@@ -9,7 +9,13 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 RUBE_DIR="$SCRIPT_DIR"
 DIST_DIR="$RUBE_DIR/dist"
 MANIFEST_FILE="$PROJECT_ROOT/apps/tlon-web/e2e/shipManifest.json"
-GCS_BUCKET="gs://bootstrap.urbit.org"
+
+# Security: Expected GCP configuration
+EXPECTED_PROJECT="tlon-groups-mobile"
+EXPECTED_BUCKET="gs://bootstrap.urbit.org"
+GCS_BUCKET="$EXPECTED_BUCKET"
+
+# Configuration flags
 DRY_RUN=${DRY_RUN:-false}
 SKIP_UPLOAD=${SKIP_UPLOAD:-false}
 SKIP_CLEANUP=${SKIP_CLEANUP:-false}
@@ -51,6 +57,9 @@ NC='\033[0m' # No Color
 
 # Ships to archive (bus is intentionally excluded as it's kept outdated)
 SHIPS_TO_ARCHIVE=("zod" "ten" "mug")
+
+# Valid ships for input validation
+VALID_SHIPS=("zod" "ten" "mug" "bus")
 
 # Function to print colored output
 print_status() {
@@ -145,15 +154,45 @@ check_prerequisites() {
         exit 1
     fi
     
-    # Check GCP project
+    # Check GCP project - SECURITY: Validate against expected project
     local project=$(gcloud config get-value project 2>/dev/null)
     if [ -z "$project" ]; then
         print_error "No GCP project configured"
-        print_info "Please run: gcloud config set project YOUR_PROJECT"
+        print_info "Please run: gcloud config set project $EXPECTED_PROJECT"
         exit 1
     fi
     
-    print_status "Prerequisites check passed (project: $project)"
+    if [ "$project" != "$EXPECTED_PROJECT" ]; then
+        print_error "Wrong GCP project configured: $project"
+        print_info "Expected project: $EXPECTED_PROJECT"
+        print_info "Please run: gcloud config set project $EXPECTED_PROJECT"
+        print_warning "Refusing to continue with wrong project to prevent accidental uploads"
+        exit 1
+    fi
+    
+    # SECURITY: Verify bucket access and permissions
+    print_info "Verifying GCS bucket access..."
+    if ! gsutil ls "$GCS_BUCKET" >/dev/null 2>&1; then
+        print_error "Cannot access bucket: $GCS_BUCKET"
+        print_info "Please check your authentication and permissions"
+        exit 1
+    fi
+    
+    # Test write permissions (create and remove a test file)
+    local test_file="test-write-permission-$$-$(date +%s).txt"
+    if [ "$DRY_RUN" = "false" ] && [ "$SKIP_UPLOAD" = "false" ]; then
+        echo "test" | gsutil -q cp - "$GCS_BUCKET/$test_file" 2>/dev/null
+        if [ $? -eq 0 ]; then
+            gsutil -q rm "$GCS_BUCKET/$test_file" 2>/dev/null
+            print_status "Bucket write permissions verified"
+        else
+            print_error "No write permissions to bucket: $GCS_BUCKET"
+            print_info "Please check your IAM permissions"
+            exit 1
+        fi
+    fi
+    
+    print_status "Prerequisites check passed (project: $project, bucket: $GCS_BUCKET)"
 }
 
 # Start ships and update to latest desk code
@@ -311,10 +350,20 @@ archive_pier() {
     # Clean the pier first
     clean_pier "$ship"
     
-    # Remove socket files one more time right before archiving (they may be recreated)
-    find "$DIST_DIR/$ship" -name "*.sock" -type s -delete 2>/dev/null || true
+    # Create comprehensive exclude file to prevent race conditions
+    local exclude_file=$(mktemp /tmp/tar-exclude.XXXXXX)
+    cat > "$exclude_file" <<EOF
+*.sock
+*.lock
+.vere.lock
+.http.ports
+core.*
+*.swp
+.urb/put/*
+.urb/dev-*
+EOF
     
-    # Create the archive (exclude socket files and extended attributes)
+    # Create the archive (exclude problematic files using exclude file)
     # Use subshell to avoid affecting parent directory
     (
         cd "$DIST_DIR/$ship"
@@ -324,15 +373,18 @@ archive_pier() {
         # Redirect stderr to suppress extended attributes warnings
         if tar --version 2>/dev/null | grep -q "GNU tar"; then
             # GNU tar
-            tar --exclude='*.sock' --format=gnu -czf "../$archive_name" "$ship/" 2>/dev/null
+            tar --exclude-from="$exclude_file" --format=gnu -czf "../$archive_name" "$ship/" 2>/dev/null
         elif command -v gtar &> /dev/null; then
             # GNU tar as gtar (common on macOS with homebrew)
-            gtar --exclude='*.sock' --format=gnu -czf "../$archive_name" "$ship/" 2>/dev/null
+            gtar --exclude-from="$exclude_file" --format=gnu -czf "../$archive_name" "$ship/" 2>/dev/null
         else
-            # BSD tar (macOS default) - suppress extended attributes warnings
-            tar --exclude='*.sock' -czf "../$archive_name" "$ship/" 2>/dev/null
+            # BSD tar (macOS default) - use -X flag for exclude file
+            tar -X "$exclude_file" -czf "../$archive_name" "$ship/" 2>/dev/null
         fi
     )
+    
+    # Clean up exclude file
+    rm -f "$exclude_file"
     
     # Verify archive was created
     if [ ! -f "$archive_path" ]; then
@@ -421,13 +473,29 @@ main() {
     # Check prerequisites
     check_prerequisites
     
+    # Backup manifest for potential rollback
+    local manifest_backup=""
+    if [ "$DRY_RUN" = "false" ] && [ "$SKIP_UPLOAD" = "false" ]; then
+        manifest_backup="$MANIFEST_FILE.backup.$(date +%Y%m%d_%H%M%S)"
+        cp "$MANIFEST_FILE" "$manifest_backup"
+        print_info "Created manifest backup: $manifest_backup"
+    fi
+    
     # Prepare ships with latest desk code
     prepare_ships
     
     # Archive and upload each ship
     local archived_files=()
+    local -A uploaded_archives  # Track successful uploads for potential rollback
     
     for ship in "${SHIPS_TO_ARCHIVE[@]}"; do
+        # Validate ship name
+        if ! printf '%s\n' "${VALID_SHIPS[@]}" | grep -qx "$ship"; then
+            print_error "Invalid ship name: $ship"
+            print_info "Valid ships: ${VALID_SHIPS[*]}"
+            continue
+        fi
+        
         print_info "Processing $ship..."
         
         # Check if pier exists
@@ -452,10 +520,21 @@ main() {
         
         archived_files+=("$archive_path")
         
-        # Upload to GCS
+        # Upload to GCS with transaction tracking
         if upload_archive "$archive_path"; then
-            # Update manifest
-            update_manifest "$ship" "$next_version"
+            uploaded_archives["$ship"]="rube-${ship}${next_version}.tgz"
+            
+            # Update manifest with rollback on failure
+            if ! update_manifest "$ship" "$next_version"; then
+                print_error "Manifest update failed for $ship"
+                print_warning "Archive uploaded but manifest not updated!"
+                print_info "Manual fix required:"
+                echo "  1. Update manifest manually with URL: https://bootstrap.urbit.org/rube-${ship}${next_version}.tgz"
+                echo "  2. Or delete uploaded archive: gsutil rm $GCS_BUCKET/rube-${ship}${next_version}.tgz"
+                
+                # Optional: Could implement automatic rollback here
+                # gsutil rm "$GCS_BUCKET/rube-${ship}${next_version}.tgz" 2>/dev/null
+            fi
         else
             print_error "Failed to upload $ship, skipping manifest update"
         fi
