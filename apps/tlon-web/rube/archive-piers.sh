@@ -99,6 +99,14 @@ cleanup() {
     
     if [ $exit_code -ne 0 ]; then
         print_error "Script failed with exit code $exit_code"
+        
+        # On failure, restore manifest from backup if it exists
+        if [ -n "${manifest_backup:-}" ] && [ -f "$manifest_backup" ]; then
+            print_info "Restoring manifest from backup due to failure..."
+            cp "$manifest_backup" "$MANIFEST_FILE"
+            rm -f "$manifest_backup"
+            print_status "Manifest restored"
+        fi
     fi
     
     # Stop any running playwright-dev processes
@@ -114,6 +122,11 @@ cleanup() {
             echo "$pids" | xargs kill -9 2>/dev/null || true
         fi
     done
+    
+    # Clean up the playwright-dev log file
+    if [ -f "$PROJECT_ROOT/apps/tlon-web/playwright-dev-archive.log" ]; then
+        rm -f "$PROJECT_ROOT/apps/tlon-web/playwright-dev-archive.log"
+    fi
 }
 
 trap cleanup EXIT
@@ -201,59 +214,148 @@ prepare_ships() {
     
     cd "$PROJECT_ROOT/apps/tlon-web"
     
-    # Use the start-playwright-dev.sh script to prepare ships
-    print_info "Starting playwright-dev environment..."
-    "$PROJECT_ROOT/start-playwright-dev.sh" &
-    local start_pid=$!
+    # The playwright-dev script runs rube which:
+    # 1. Nukes state on each ship
+    # 2. Sets up ~mug as the reel provider
+    # 3. Applies desk updates
+    # This is essential for proper test setup
     
-    # Wait for environment to be ready
-    local timeout=300  # 5 minutes
-    local counter=0
-    while [ $counter -lt $timeout ]; do
-        if grep -q "Environment ready for Playwright MCP development!" "$PROJECT_ROOT/apps/tlon-web/playwright-dev.log" 2>/dev/null; then
-            print_status "Ships are ready with latest desk code"
-            break
+    # However, the rube script has a 30-second timeout that's too short when applying desk updates
+    # We'll need to work around this by retrying or modifying the timeout
+    
+    print_info "Starting playwright-dev environment (this may take several minutes)..."
+    
+    # Try to run playwright-dev, but if it fails due to timeout, we'll retry
+    local max_retries=3
+    local retry_count=0
+    local success=false
+    
+    while [ $retry_count -lt $max_retries ] && [ "$success" = "false" ]; do
+        if [ $retry_count -gt 0 ]; then
+            print_warning "Retrying... (attempt $((retry_count + 1))/$max_retries)"
+            # Clean up any existing processes first
+            for port in 3000 3001 3002 3003 35453 36963 38473 39983; do
+                pids=$(lsof -ti:$port 2>/dev/null || true)
+                if [ -n "$pids" ]; then
+                    echo "$pids" | xargs kill -9 2>/dev/null || true
+                fi
+            done
+            sleep 5
         fi
         
-        if ! kill -0 $start_pid 2>/dev/null; then
-            print_error "Failed to start ships. Check playwright-dev.log for details"
-            exit 1
+        # Start the playwright-dev script with FORCE_EXTRACTION to give more time
+        print_info "Running playwright-dev with desk updates..."
+        
+        # Start playwright-dev in background so we can monitor and kill it when ships are ready
+        cd "$PROJECT_ROOT/apps/tlon-web"
+        FORCE_EXTRACTION=true pnpm e2e:playwright-dev > "$PROJECT_ROOT/apps/tlon-web/playwright-dev-archive.log" 2>&1 &
+        local playwright_pid=$!
+        
+        # Monitor for SHIP_SETUP_COMPLETE signal which indicates ships are fully ready
+        local wait_counter=0
+        local max_wait=600  # 10 minutes to allow for desk updates
+        local ships_ready=false
+        
+        print_info "Waiting for ship setup to complete (watching for SHIP_SETUP_COMPLETE signal)..."
+        
+        while [ $wait_counter -lt $max_wait ] && [ "$ships_ready" = "false" ]; do
+            # Check if process died
+            if ! kill -0 $playwright_pid 2>/dev/null; then
+                print_warning "Playwright-dev process ended unexpectedly"
+                # Check the log for errors
+                if grep -q "SHIP_SETUP_COMPLETE" "$PROJECT_ROOT/apps/tlon-web/playwright-dev-archive.log"; then
+                    print_status "Ships setup completed before process ended"
+                    ships_ready=true
+                    success=true
+                fi
+                break
+            fi
+            
+            # Check for SHIP_SETUP_COMPLETE signal in the log
+            if grep -q "SHIP_SETUP_COMPLETE" "$PROJECT_ROOT/apps/tlon-web/playwright-dev-archive.log"; then
+                print_status "SHIP_SETUP_COMPLETE signal detected - ships are fully ready!"
+                ships_ready=true
+                success=true
+                
+                # Kill the playwright-dev process now that ships are ready
+                # We don't need the web servers to start
+                print_info "Stopping playwright-dev (ships are ready, don't need web servers)..."
+                kill -TERM $playwright_pid 2>/dev/null || true
+                sleep 2
+                kill -9 $playwright_pid 2>/dev/null || true
+                break
+            fi
+            
+            # Also check ship readiness via HTTP as a fallback
+            if [ $((wait_counter % 30)) -eq 0 ] && [ $wait_counter -gt 60 ]; then
+                print_info "Checking ship readiness via HTTP..."
+                local all_ships_responding=true
+                for ship in "${SHIPS_TO_ARCHIVE[@]}"; do
+                    local port=$(jq -r ".\"~$ship\".httpPort" "$MANIFEST_FILE")
+                    if ! curl -s -f -m 5 "http://localhost:$port/~/scry/hood/kiln/pikes.json" >/dev/null 2>&1; then
+                        all_ships_responding=false
+                        break
+                    fi
+                done
+                
+                if [ "$all_ships_responding" = "true" ]; then
+                    print_status "All ships responding to HTTP requests"
+                    ships_ready=true
+                    success=true
+                    kill -TERM $playwright_pid 2>/dev/null || true
+                    sleep 2
+                    kill -9 $playwright_pid 2>/dev/null || true
+                    break
+                fi
+            fi
+            
+            sleep 2
+            wait_counter=$((wait_counter + 2))
+            
+            if [ $((wait_counter % 10)) -eq 0 ]; then
+                echo -n "."
+            fi
+        done
+        
+        # Make sure playwright-dev is stopped
+        if kill -0 $playwright_pid 2>/dev/null; then
+            print_info "Stopping playwright-dev..."
+            kill -9 $playwright_pid 2>/dev/null || true
         fi
         
-        sleep 2
-        counter=$((counter + 2))
-        
-        if [ $((counter % 10)) -eq 0 ]; then
-            echo -n "."
+        if [ "$ships_ready" = "false" ]; then
+            print_warning "Ships not ready after timeout"
+            print_info "Check playwright-dev-archive.log for details"
         fi
+        
+        retry_count=$((retry_count + 1))
     done
     
-    if [ $counter -ge $timeout ]; then
-        print_error "Timeout waiting for ships to be ready"
+    if [ "$success" = "false" ]; then
+        print_error "Failed to prepare ships after $max_retries attempts"
+        print_info "Check playwright-dev-archive.log for details"
         exit 1
     fi
     
-    # Give it a moment to stabilize
+    # Stop all ships gracefully
+    print_info "Stopping all ships..."
+    for port in 35453 36963 38473 39983; do
+        pids=$(lsof -ti:$port 2>/dev/null || true)
+        if [ -n "$pids" ]; then
+            echo "$pids" | xargs kill -TERM 2>/dev/null || true
+        fi
+    done
+    
+    # Give them time to shut down gracefully
     sleep 5
     
-    # Stop the environment gracefully
-    print_info "Stopping ships gracefully..."
-    if [ -f "$PROJECT_ROOT/apps/tlon-web/.playwright-dev.pid" ]; then
-        local pid=$(cat "$PROJECT_ROOT/apps/tlon-web/.playwright-dev.pid")
-        kill -TERM "$pid" 2>/dev/null || true
-        
-        # Wait for graceful shutdown
-        local shutdown_counter=0
-        while [ $shutdown_counter -lt 30 ] && kill -0 "$pid" 2>/dev/null; do
-            sleep 1
-            shutdown_counter=$((shutdown_counter + 1))
-        done
-        
-        # Force kill if still running
-        if kill -0 "$pid" 2>/dev/null; then
-            kill -9 "$pid" 2>/dev/null || true
+    # Force kill any remaining processes
+    for port in 35453 36963 38473 39983; do
+        pids=$(lsof -ti:$port 2>/dev/null || true)
+        if [ -n "$pids" ]; then
+            echo "$pids" | xargs kill -9 2>/dev/null || true
         fi
-    fi
+    done
     
     print_status "Ships prepared and stopped"
 }
@@ -486,7 +588,7 @@ main() {
     
     # Archive and upload each ship
     local archived_files=()
-    local -A uploaded_archives  # Track successful uploads for potential rollback
+    local uploaded_ships=()  # Track successful uploads for potential rollback
     
     for ship in "${SHIPS_TO_ARCHIVE[@]}"; do
         # Validate ship name
@@ -522,7 +624,7 @@ main() {
         
         # Upload to GCS with transaction tracking
         if upload_archive "$archive_path"; then
-            uploaded_archives["$ship"]="rube-${ship}${next_version}.tgz"
+            uploaded_ships+=("$ship:rube-${ship}${next_version}.tgz")
             
             # Update manifest with rollback on failure
             if ! update_manifest "$ship" "$next_version"; then
@@ -573,6 +675,18 @@ main() {
             print_error "Verification failed! Check the archives before committing."
             exit 1
         fi
+    fi
+    
+    # Clean up manifest backup on success
+    if [ "$DRY_RUN" = "false" ] && [ "$SKIP_UPLOAD" = "false" ] && [ -n "$manifest_backup" ] && [ -f "$manifest_backup" ]; then
+        print_info "Cleaning up manifest backup..."
+        rm -f "$manifest_backup"
+        print_status "Removed backup: $(basename "$manifest_backup")"
+    fi
+    
+    # Clean up playwright-dev log file
+    if [ -f "$PROJECT_ROOT/apps/tlon-web/playwright-dev-archive.log" ]; then
+        rm -f "$PROJECT_ROOT/apps/tlon-web/playwright-dev-archive.log"
     fi
     
     if [ "$DRY_RUN" = "false" ] && [ "$SKIP_UPLOAD" = "false" ]; then
