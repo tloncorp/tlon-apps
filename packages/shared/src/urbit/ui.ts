@@ -1,5 +1,11 @@
 import { Activity } from './activity';
-import { ChannelHeadsResponse, Channels } from './channel';
+import {
+  ChannelHeadsResponse,
+  Channels,
+  PagedPosts,
+  Post,
+  Posts,
+} from './channel';
 import { ChatHeadsResponse, DMInit, DMInit2 } from './dms';
 import { Gangs, Groups } from './groups';
 
@@ -28,4 +34,9 @@ export interface GroupsInit4 {
 export interface CombinedHeads {
   dms: ChatHeadsResponse;
   channels: ChannelHeadsResponse;
+}
+
+export interface Changes {
+  groups: Groups;
+  channels: Record<string, Posts>;
 }

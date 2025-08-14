@@ -163,6 +163,23 @@ export const syncBlockedUsers = async (ctx?: SyncCtx) => {
   await db.insertBlockedContacts({ blockedIds });
 };
 
+export const syncLatestChanges = async (
+  ctx?: SyncCtx,
+  queryCtx?: QueryCtx,
+  since?: number
+): Promise<void> => {
+  let syncFrom = (await db.changesSyncedAt.getValue()) ?? Date.now();
+  if (since) {
+    syncFrom = since;
+  }
+
+  const result = await syncQueue.add('latestChanges', ctx, () => {
+    return api.fetchChangesSince(syncFrom);
+  });
+
+  // db.insertChannelPosts()
+};
+
 export const syncLatestPosts = async (
   ctx?: SyncCtx,
   queryCtx?: QueryCtx,
@@ -1260,7 +1277,6 @@ export const handleChatUpdate = async (
       }
 
       await db.insertPostReactions(
-
         {
           reactions: [
             {
