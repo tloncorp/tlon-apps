@@ -62,6 +62,52 @@ This is a monorepo for Tlon Messenger containing multiple applications and share
 -   **desk/**: Urbit backend applications written in Hoon
     -   Core agents: %groups, %channels, %chat, %contacts, %activity, %profile
 
+## Platform-Specific Navigation Architecture
+
+**CRITICAL**: The app has completely different navigation implementations for mobile vs desktop/web. When making UI changes or adding testIDs for E2E tests, you MUST modify the correct platform-specific component.
+
+### Navigation Entry Points
+- **Mobile**: Uses `packages/app/navigation/RootStack.tsx`
+- **Desktop/Web**: Uses `packages/app/navigation/desktop/TopLevelDrawer.tsx`
+
+The platform is determined by `BasePathNavigator` using the `isMobile` prop:
+- `isMobile={true}` → Renders `RootStack` (mobile navigation)
+- `isMobile={false}` → Renders `TopLevelDrawer` (desktop navigation)
+
+### Main Navigation Components
+
+| Screen | Mobile Component | Desktop Component |
+|---|---|---|
+| **Contacts** | `features/top/ContactsScreen.tsx` | `navigation/desktop/ProfileNavigator.tsx` |
+| **Settings** | `features/settings/SettingsScreen.tsx` | `navigation/desktop/SettingsNavigator.tsx` |
+| **Activity** | `features/top/ActivityScreen.tsx` | `navigation/desktop/ActivityNavigator.tsx` |
+| **Messages** | `features/top/ChatListScreen.tsx` | `navigation/desktop/MessagesNavigator.tsx` |
+| **Home** | N/A (uses bottom tabs) | `navigation/desktop/HomeNavigator.tsx` |
+
+### E2E Testing Guidelines
+
+**Web E2E tests ALWAYS use desktop navigation components!**
+
+When adding testIDs for web E2E tests:
+1. Identify which main navigation component handles your screen (see table above)
+2. Add testID to the desktop component in `packages/app/navigation/desktop/`
+3. DO NOT modify the mobile component in `packages/app/features/`
+
+Example: To add a testID for the "Add Contact" button:
+- ❌ WRONG: Modify `packages/app/features/top/ContactsScreen.tsx`
+- ✅ CORRECT: Modify `packages/app/navigation/desktop/ProfileNavigator.tsx`
+
+### Debugging Platform-Specific Issues
+
+To identify which component to modify:
+1. **Check the file path pattern**:
+   - `/features/` = Mobile component
+   - `/navigation/desktop/` = Desktop component
+2. **Find screen mappings**:
+   - Mobile: Check `packages/app/navigation/RootStack.tsx` for `<Root.Screen>` definitions
+   - Desktop: Check `packages/app/navigation/desktop/TopLevelDrawer.tsx` for `<Drawer.Screen>` definitions
+3. **For testID issues**: Web builds render `testID` as `data-testid` in the DOM
+
 ## Key Technologies
 
 -   **Frontend**: React, TypeScript, React Native, Expo, Electron
