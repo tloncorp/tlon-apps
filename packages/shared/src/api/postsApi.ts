@@ -1080,13 +1080,14 @@ export function toPostsData(
   const deletedPosts: db.Post[] = [];
   const otherPosts: db.Post[] = [];
 
-  for (const [id, post] of entries) {
-    // if (post === null) {
-    //   deletedPosts.push(id);
-    // } else {
-    //   const postData = toPostData(channelId, post);
-    //   otherPosts.push(postData);
-    // }
+  for (const [, post] of entries) {
+    // post will only be null if it was deleted and we're interacting with an
+    // outdated version of the backend. we just ignore that here, which means
+    // that deleted posts will be converted to stubs and not be displayed, but
+    // only temporarily until the backend is updated.
+    if (post === null) {
+      continue;
+    }
     const postData = toPostData(channelId, post);
     if (isPostTombstone(post)) {
       deletedPosts.push(postData);
