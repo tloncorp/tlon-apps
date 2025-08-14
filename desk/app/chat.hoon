@@ -1583,7 +1583,7 @@
         ?-  -.q.p.diff
           %del                    [%set %| *tombstone:d]
           ?(%add %edit)           [%set u.new-post]
-          ?(%add-feel %del-feel)  [%reacts ?:(?=(%| -.u.new-post) ~ reacts.+.u.new-post)]
+          ?(%add-feel %del-feel)  [%reacts ?:(?=(%| -.u.new-post) ~ reacts.u.new-post)]
        ==
       =/  new-post-id  (~(get by index) u.replying.u.old-writ)
       ?~  new-post-id  ~
@@ -1599,7 +1599,7 @@
       ?-  -.q.p.diff
         %del                    [%set %| *tombstone:d]
         ?(%add %edit)           [%set u.new-quip]
-        ?(%add-feel %del-feel)  [%reacts ?:(?=(%| -.u.new-quip) ~ reacts.+.u.new-quip)]
+        ?(%add-feel %del-feel)  [%reacts ?:(?=(%| -.u.new-quip) ~ reacts.u.new-quip)]
       ==
     ==
   --
@@ -2079,7 +2079,7 @@
           ?:  ?=(%| -.writ.u.msg)  [%del ~]
           :-  %add
           ^-  memo:v2:cv
-          =,  +.writ.u.msg
+          =,  writ.u.msg
           [~ (get-author-ship:utils author) sent [%story ~ (verses-to-inlines content)]]
         ==
       cu-core
@@ -2298,7 +2298,7 @@
     ::
         %del
       =?  di-core  &(?=(^ had) ?=(%& -.writ.u.had))
-        =*  content  content.+.writ.u.had
+        =*  content  content.writ.u.had
         =/  mention  (was-mentioned:utils content our.bowl ~)
         (di-activity [%delete-post [id time]:writ.u.had] content mention)
       (di-give-writs-diff diff)
@@ -2309,7 +2309,7 @@
       ::  if we don't have the entry, we can't reply to it
       ?~  entry  di-core
       ?:  ?=(%| -.writ.u.entry)  di-core
-      =.  meta.q.diff  `reply-meta.+.writ:(need entry)
+      =.  meta.q.diff  `reply-meta.writ:(need entry)
       ::  log shortcode reactions for regular DM replies
       ::
       =?  cor  ?=(%add-react -.delta)
@@ -2333,10 +2333,10 @@
       ::
           %del
         =?  di-core  &(?=(^ reply) ?=(%& -.reply.u.reply))
-          =*  content  content.+.reply.u.reply
+          =*  content  content.reply.u.reply
           =/  mention  (was-mentioned:utils content our.bowl ~)
           =/  concern
-            [%delete-reply [id time]:+.reply.u.reply [id time]:+.writ.u.entry]
+            [%delete-reply [id time]:reply.u.reply [id time]:writ.u.entry]
           (di-activity concern content mention)
         (di-give-writs-diff diff)
       ::
@@ -2349,7 +2349,7 @@
         =.  recency.remark.dm  now.bowl
         =?  cor  &(!=(old-unread di-unread) !=(net.dm %invited))
           (give-unread ship/ship di-unread)
-        =/  top-con  [id time]:+.writ.u.entry
+        =/  top-con  [id time]:writ.u.entry
         =/  concern  [%reply [id.q.diff now.bowl] top-con]
         =/  mention  (was-mentioned:utils content.memo our.bowl ~)
         =.  di-core  (di-activity concern content.memo mention)
@@ -2469,7 +2469,7 @@
               [%del ~]
             :-  %add
             ^-  memo:v2:cv
-            =,  +.writ.u.msg
+            =,  writ.u.msg
             [~ (get-author-ship:utils author) sent [%story ~ (verses-to-inlines content)]]
           =/  =id:c     [(slav %p i.t.wire) (slav %ud i.t.t.wire)]
           =/  rid=time  (slav %ud i.t.t.t.wire)
@@ -2479,7 +2479,7 @@
             ^-  (unit memo:v7:d)
             ?~  id=(~(get by dex.pact.dm) our.bowl rid)  ~
             ?:  ?=(%| -.writ)  ~
-            ?~  rep=(get:on:replies:c replies.+.writ u.id)  ~
+            ?~  rep=(get:on:replies:c replies.writ u.id)  ~
             ?:  ?=(%| -.u.rep)  ~
             `(v7:memo:v8:chc +>.u.rep)
           :-  [our.bowl rid]

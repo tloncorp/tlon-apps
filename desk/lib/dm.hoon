@@ -44,7 +44,7 @@
     =/  parent   (get id)
     ?~  parent   [sum threads]
     ?:  ?=(%| -.writ.u.parent)  [sum threads]
-    =*  writ  +.writ.u.parent
+    =*  writ  writ.u.parent
     =/  unreads=(list [time (may:c reply:c)])
       %+  skim
         %-  bap:on:replies:c
