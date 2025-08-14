@@ -17,13 +17,10 @@
 /%  m-chat-club-action     %chat-club-action
 /%  m-chat-club-action-0   %chat-club-action-0
 /%  m-chat-club-action-1   %chat-club-action-1
-/%  m-chat-club-action-2   %chat-club-action-2
 /%  m-chat-dm-action       %chat-dm-action
 /%  m-chat-dm-action-1     %chat-dm-action-1
-/%  m-chat-dm-action-2     %chat-dm-action-2
 /%  m-chat-dm-diff         %chat-dm-diff
 /%  m-chat-dm-diff-1       %chat-dm-diff-1
-/%  m-chat-dm-diff-2       %chat-dm-diff-2
 /%  m-chat-heads           %chat-heads
 /%  m-chat-heads-1         %chat-heads-1
 /%  m-chat-heads-2         %chat-heads-2
@@ -66,13 +63,10 @@
             :+  %chat-club-action     |  -:!>(*vale:m-chat-club-action)
             :+  %chat-club-action-0   &  -:!>(*vale:m-chat-club-action-0)
             :+  %chat-club-action-1   &  -:!>(*vale:m-chat-club-action-1)
-            :+  %chat-club-action-2   &  -:!>(*vale:m-chat-club-action-2)
             :+  %chat-dm-action       &  -:!>(*vale:m-chat-dm-action)
             :+  %chat-dm-action-1     &  -:!>(*vale:m-chat-dm-action-1)
-            :+  %chat-dm-action-2     &  -:!>(*vale:m-chat-dm-action-2)
             :+  %chat-dm-diff         &  -:!>(*vale:m-chat-dm-diff)
             :+  %chat-dm-diff-1       &  -:!>(*vale:m-chat-dm-diff-1)
-            :+  %chat-dm-diff-2       &  -:!>(*vale:m-chat-dm-diff-2)
             :+  %chat-heads           &  -:!>(*vale:m-chat-heads)
             :+  %chat-heads-1         &  -:!>(*vale:m-chat-heads-1)
             :+  %chat-heads-2         &  -:!>(*vale:m-chat-heads-2)
@@ -126,9 +120,9 @@
           [/v2/clubs %chat-club-action-1 ~]
           [/v2/dm/$ %writ-response-2 ~]
         ::
-          [/v3 %chat-club-action-2 %writ-response-3 ~]
+          [/v3 %chat-club-action-1 %writ-response-3 ~]
           [/v3/club/$ %writ-response-3 ~]
-          [/v3/clubs %chat-club-action-2 ~]
+          [/v3/clubs %chat-club-action-1 ~]
           [/v3/dm/$ %writ-response-3 ~]
       ==
     ::  scries
@@ -764,14 +758,14 @@
       di-abet:(di-ingest-diff:(di-abed-soft:di-core p.action) q.action)
     di-abet:(di-proxy:(di-abed-soft:di-core p.action) q.action)
   ::
-      ?(%chat-dm-diff-1 %chat-dm-diff-2)
+      %chat-dm-diff-1
     =+  !<(=diff:dm:c vase)
     di-abet:(di-take-counter:(di-abed-soft:di-core src.bowl) diff)
   ::
       %chat-club-create
     cu-abet:(cu-create:cu-core !<(=create:club:c vase))
   ::
-      ?(%chat-club-action-1 %chat-club-action-2)
+      %chat-club-action-1
     =+  !<(=action:club:c vase)
     =/  cu  (cu-abed p.action)
     cu-abet:(cu-diff:cu q.action)
@@ -805,7 +799,7 @@
   ::
       ?(%chat-club-action %chat-club-action-0)
     =;  new=action:club:c
-      $(mark %chat-club-action-2, vase !>(new))
+      $(mark %chat-club-action-1, vase !>(new))
     =+  !<(=action:club:v3:cv vase)
     ?.  ?=(%writ -.q.q.action)  action
     action(diff.q.q (v4:diff-writs:v3:cc diff.q.q.action))
@@ -1679,7 +1673,7 @@
         =,  p.diff.q.diff
         /(scot %uv p.diff)/(scot %p p)/(scot %ud q)
       =/  =dock  [ship dap.bowl]
-      =/  =cage  chat-club-action-2+!>(`action:club:c`[id diff])
+      =/  =cage  chat-club-action-1+!>(`action:club:c`[id diff])
       [%pass wire %agent dock %poke cage]
     ::
     ++  gossip
@@ -1737,7 +1731,7 @@
       =/  cage  chat-club-action-1+!>(v5)
       (emit %give %fact ~[/v1 /v1/clubs /v2 /v2/clubs] cage)
     =.  cor
-      =/  cage  chat-club-action-2+!>(action)
+      =/  cage  chat-club-action-1+!>(action)
       (emit %give %fact ~[/v3 /v3/clubs] cage)
     cu-core
   ::

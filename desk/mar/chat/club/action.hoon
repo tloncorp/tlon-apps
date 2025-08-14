@@ -9,6 +9,6 @@
 ++  grab
   |%
   ++  noun  action:club:v3:cv
-  ++  json  club-action-0:v3:dejs:j
+  ++  json  club-action:v3:dejs:j
   --
 --

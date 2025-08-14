@@ -878,7 +878,7 @@
   ++  club-diff
     ^-  $-(json diff:club:c)
     %-  ot
-    :~  echo/ni
+    :~  uid/(se %uv)
         delta/club-delta
     ==
   ::
@@ -1003,7 +1003,6 @@
   ++  v3
     |%
     ::
-    ++  club-action-1  club-action
     ++  club-action
       ^-  $-(json action:club:v3:cv)
       %-  ot
@@ -1011,22 +1010,7 @@
           diff/club-diff
       ==
     ::
-    ++  club-action-0
-      ^-  $-(json action:club:v3:cv)
-      %-  ot
-      :~  id/(se %uv)
-          diff/club-diff-0
-      ==
-    ::
-    ++  club-diff-1  club-diff
     ++  club-diff
-      ^-  $-(json diff:club:v3:cv)
-      %-  ot
-      :~  echo/ni
-          delta/club-delta
-      ==
-    ::
-    ++  club-diff-0
       ^-  $-(json diff:club:v3:cv)
       %-  ot
       :~  uid/(se %uv)
