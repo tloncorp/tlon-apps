@@ -6,7 +6,6 @@ import {
   createDevLogger,
   diaryMixedToJSON,
   extractContentTypesFromPost,
-  finalizePostDraft,
 } from '@tloncorp/shared';
 import {
   contentReferenceToCite,
@@ -42,7 +41,7 @@ import {
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import {
   MentionOption,
-  createMentionOptions,
+  createMentionRoleOptions,
   useMentions,
 } from './useMentions';
 
@@ -196,14 +195,13 @@ export default function BareChatInput({
   shouldBlur,
   setShouldBlur,
   channelId,
-  groupMembers,
+  groupId,
   groupRoles,
   storeDraft,
   clearDraft,
   getDraft,
   editingPost,
   setEditingPost,
-  editPost,
   showAttachmentButton,
   paddingHorizontal,
   initialHeight = DEFAULT_MESSAGE_INPUT_HEIGHT,
@@ -241,9 +239,10 @@ export default function BareChatInput({
   const [hasAutoFocused, setHasAutoFocused] = useState(false);
   const [needsHeightAdjustmentAfterLoad, setNeedsHeightAdjustmentAfterLoad] =
     useState(false);
-  const options = useMemo(() => {
-    return createMentionOptions(groupMembers, groupRoles);
-  }, [groupMembers, groupRoles]);
+
+  const roleOptions = useMemo(() => {
+    return createMentionRoleOptions(groupRoles);
+  }, [groupRoles]);
 
   const {
     mentions,
@@ -255,7 +254,7 @@ export default function BareChatInput({
     handleMention,
     handleSelectMention,
     handleMentionEscape,
-  } = useMentions({ options });
+  } = useMentions({ chatId: groupId ?? channelId, roleOptions });
   const maxInputHeight = useKeyboardHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
 
@@ -481,7 +480,7 @@ export default function BareChatInput({
           return {
             ...draftBase,
             isEdit,
-            parentId: editingPost.parentId ?? '',
+            editTargetPostId: editingPost.id,
           };
         } else {
           return draftBase;
@@ -497,21 +496,10 @@ export default function BareChatInput({
       clearAttachments();
       bareChatInputLogger.log('resetting input height');
       setInputHeight(initialHeight);
+      setEditingPost?.(undefined);
 
       try {
-        if (draft.isEdit && editingPost) {
-          const finalizedEdit = await finalizePostDraft(draft);
-
-          await editPost?.(
-            editingPost,
-            finalizedEdit.content,
-            finalizedEdit.parentId,
-            finalizedEdit.metadata
-          );
-          setEditingPost?.(undefined);
-        } else {
-          await sendPostFromDraft(draft);
-        }
+        await sendPostFromDraft(draft);
       } catch (e) {
         bareChatInputLogger.error('Error sending message', e);
         setSendError(true);
@@ -534,7 +522,6 @@ export default function BareChatInput({
       editingPost,
       clearAttachments,
       clearDraft,
-      editPost,
       setEditingPost,
       image,
       channelType,

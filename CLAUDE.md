@@ -208,6 +208,15 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   **Test consolidation** - if multiple tests cover similar functionality, merge them into a single comprehensive test that covers all scenarios
 -   **Focus on unique test scenarios** - each test should cover distinct functionality or edge cases, not repeat the same operations
 
+**E2E Helper Function Design Principles:**
+
+-   **Single responsibility** - Each helper function should do one thing well (e.g., `longPressMessage` only opens the action menu, doesn't verify what's in it)
+-   **Use test IDs over text content** - Rely on semantic test IDs like `data-testid="ChatMessageActions"` instead of checking for specific menu text
+-   **Avoid context parameters** - Don't require callers to specify context (like 'chat', 'gallery', 'dm') unless absolutely necessary
+-   **Keep helpers simple** - A 25-line helper is better than a 100-line helper with complex conditional logic
+-   **Let tests handle variations** - The helper opens the menu; the test decides which action to click based on what it expects
+-   **Example of good design**: `longPressMessage()` uses `getByTestId('ChatMessageActions')` universally instead of checking for context-specific menu items
+
 ## Package Dependencies
 
 The monorepo uses a dependency hierarchy:

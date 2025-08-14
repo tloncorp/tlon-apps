@@ -65,29 +65,3 @@ export function uid(): string {
   }
   return str.slice(0, -1);
 }
-
-export default class EventEmitter {
-  private listeners: Record<string, ((...data: any[]) => void)[]> = {};
-
-  on(event: string, callback: (...data: any[]) => void) {
-    if (!(event in this.listeners)) {
-      this.listeners[event] = [];
-    }
-
-    this.listeners[event].push(callback);
-
-    return this;
-  }
-
-  emit(event: string, ...data: any): any {
-    if (!(event in this.listeners)) {
-      return null;
-    }
-
-    for (let i = 0; i < this.listeners[event].length; i++) {
-      const callback = this.listeners[event][i];
-
-      callback.call(this, ...data);
-    }
-  }
-}

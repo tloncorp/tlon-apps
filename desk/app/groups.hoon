@@ -329,6 +329,7 @@
     ::
         %group-action-4
       =+  !<(=a-groups:v7:gv vase)
+      ?>  from-self
       ?-    -.a-groups
           %group
         =/  group-core  (go-abed:go-core flag.a-groups)
@@ -339,7 +340,6 @@
         go-abet:(go-a-invite:group-core a-invite.a-groups)
       ::
           %leave
-        ?>  from-self
         =/  group-core  (go-abed:go-core flag.a-groups)
         go-abet:(go-leave:group-core &)
       ==
@@ -2829,7 +2829,6 @@
   ::
   ++  go-a-invite
     |=  =a-invite:g
-    ?>  from-self
     ?:  =(ship.a-invite src.bowl)  go-core
     ?:  &(?=(~ token.a-invite) !?=(%public privacy.ad))
       ::  if we don't have a suitable token for a non-public group,
@@ -2864,7 +2863,6 @@
   ++  go-a-group
     |=  =a-group:g
     ^+  go-core
-    ?>  from-self
     (go-send-command /command/[-.a-group] `c-group:g`a-group)
   ::  +go-send-command:  send command to the group host
   ::
@@ -3708,8 +3706,7 @@
     ::
         [%seats ship=@ ~]
       =+  ship=(slav %p ship.pole)
-      ?~  seat=(~(get by seats.group) ship)  [~ ~]
-      ``noun+!>(u.seat)
+      ``noun+!>((~(get by seats.group) ship))
     ::
         [%seats ship=@ %is-admin ~]
       =+  ship=(slav %p ship.pole)

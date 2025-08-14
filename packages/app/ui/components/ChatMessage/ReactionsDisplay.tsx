@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { Icon, SizableEmoji } from '@tloncorp/ui';
+import { Icon, SizableEmoji, getNativeEmoji } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
@@ -54,7 +54,13 @@ export function ReactionsDisplay({
       ) {
         store.removePostReaction(post, currentUserId);
       } else {
-        store.addPostReaction(post, value, currentUserId);
+        // Convert legacy shortcodes to native emojis before adding reaction
+        const nativeEmoji = getNativeEmoji(value);
+        if (nativeEmoji) {
+          store.addPostReaction(post, nativeEmoji, currentUserId);
+        }
+        // If nativeEmoji is undefined, it means the input was an invalid shortcode
+        // and we should not add the reaction
       }
     },
     [
