@@ -438,7 +438,7 @@
       |=  =post:v8:c
       ^-  post:v7:c
       :-  (v7:seal -.post)
-      [-.+.post (v7:essay +.+.post)]
+      [+<.post (v7:essay +>.post)]
     --
   ++  seal
     |%
@@ -679,6 +679,7 @@
         %=    r-channel
             reply-meta.r-post
           (v7:reply-meta reply-meta.r-post.r-channel)
+        ::
             reacts.r-reply.r-post
           (v7:reacts reacts.r-reply.r-post.r-channel)
         ==
@@ -687,6 +688,7 @@
         %=    r-channel
             reply-meta.r-post
           (v7:reply-meta reply-meta.r-post.r-channel)
+        ::
             reply.r-reply.r-post
           ?~  reply.r-reply.r-post.r-channel  ~
           (bind reply.r-reply.r-post.r-channel v7:reply)
@@ -708,6 +710,7 @@
         %=    r-channel
             reply-meta.r-pending
           (v7:reply-meta reply-meta.r-pending.r-channel)
+        ::
             memo.r-pending
           (v7:memo memo.r-pending.r-channel)
         ==

@@ -1,6 +1,6 @@
-/-  c=chat
+/-  cv=chat-ver
 /+  j=chat-json
-|_  =diff:dm:v5:c
+|_  =diff:dm:v5:cv
 ++  grad  %noun
 ++  grow
   |%
@@ -9,7 +9,7 @@
   --
 ++  grab
   |%
-  ++  noun  diff:dm:v5:c
+  ++  noun  diff:dm:v5:cv
   ++  json  writs-diff:v5:dejs:j
   --
 --

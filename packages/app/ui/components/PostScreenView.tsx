@@ -96,8 +96,6 @@ export function PostScreenView({
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   goToDm: (participants: string[]) => void;
 } & ChannelContext) {
-  const groupMembers = group?.members ?? [];
-  const groupRoles = group?.roles ?? [];
   const isWindowNarrow = utils.useIsWindowNarrow();
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = utils.useIsAdmin(
@@ -473,14 +471,18 @@ function SinglePostView({
   );
 
   const sendReplyFromDraft = useCallback(
-    async (draft: domain.PostDataDraftParent) => {
-      const finalized = await store.finalizePostDraft(draft);
-      await store.sendReply({
-        content: finalized.content,
-        channel: channel,
-        parentId: parentPost.id,
-        parentAuthor: parentPost.authorId,
-      });
+    async (draft: domain.PostDataDraft) => {
+      if (draft.isEdit) {
+        await store.finalizeAndSendPost(draft);
+      } else {
+        const finalized = await store.finalizePostDraft(draft);
+        await store.sendReply({
+          content: finalized.content,
+          channel: channel,
+          parentId: parentPost.id,
+          parentAuthor: parentPost.authorId,
+        });
+      }
     },
     [channel, parentPost, store]
   );
@@ -520,6 +522,7 @@ function SinglePostView({
           <View id="reply-container" {...containingProperties}>
             <BareChatInput
               placeholder="Reply"
+              groupId={channel.groupId}
               shouldBlur={inputShouldBlur}
               setShouldBlur={setInputShouldBlur}
               sendPost={sendReply}

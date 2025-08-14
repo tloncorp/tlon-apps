@@ -1,5 +1,5 @@
 /-  c=chat, d=channels, s=story, meta
-/+  mp=mop-extensions, cv=chat-conv, chv=channel-conv, cu=channel-utils
+/+  mp=mop-extensions, cc=chat-conv, cu=channel-utils
 |_  pac=pact:c
 ++  mope  ((mp time (may:c writ:c)) lte)
 ++  gas
@@ -26,14 +26,14 @@
       (lot:on:writs:c wit.pac `last-read ~)
     |=  [=time writ=(may:c writ:c)]
     =/  author  ?:(?=(%| -.writ) author.writ author.writ)
-    !=(author our)
+    !=((get-author-ship:cu author) our)
   =/  count  (lent unreads)
   =/  unread=(unit [message-key:c @ud])
     ::TODO  in the ~ case, we could traverse further up, to better handle
     ::      cases where the most recent message was deleted.
     ?~  unreads  ~
     =/  item=(may:c writ:c)  +:(rear unreads)
-    =/  =message-key:v6:c
+    =/  =message-key:c
       ?:(?=(%| -.item) [id time]:item [id time]:item)
     (some message-key count)
   ::  now do the same for all unread threads
@@ -44,20 +44,20 @@
     =/  parent   (get id)
     ?~  parent   [sum threads]
     ?:  ?=(%| -.writ.u.parent)  [sum threads]
-    =*  writ  +.writ.u.parent
+    =*  writ  writ.u.parent
     =/  unreads=(list [time (may:c reply:c)])
       %+  skim
         %-  bap:on:replies:c
         (lot:on:replies:c replies.writ `last-read ~)
       |=  [* reply=(may:c reply:c)]
       =/  author  ?:(?=(%| -.reply) author.reply author.reply)
-      !=(author our)
+      !=((get-author-ship:cu author) our)
     =/  count=@ud  (lent unreads)
     :-  (add sum count)
     ?~  unreads  threads
     %+  ~(put by threads)  [id time]:writ
     =/  item=(may:c reply:c)  +:(rear unreads)
-    =/  =message-key:v6:c
+    =/  =message-key:c
       ?:(?=(%| -.item) [id time]:item [id time]:item)
     [message-key count]
   [(add count sum) unread threads]
@@ -197,7 +197,7 @@
           author.u.reply
           now
       ==
-    :-  pac
+    :-  pac(dex (~(del by dex.pac) id))
     (put:on:replies:c replies u.tim %| tombstone)
   ::
       %add-react
@@ -230,11 +230,11 @@
   |=  [mode=?(%light %heavy) ver=?(%v0 %v1 %v2 %v3) ls=(list [time (may:c writ:c)])]
   ^-  (unit (unit cage))
   =;  p=paged-writs:c
-    =/  v4  (v4:paged-writs:v6:cv p)
+    =/  paged-writs-4  (v4:paged-writs:v6:cc p)
     ?-  ver
-      %v0  ``chat-paged-writs+!>((v3:paged-writs:v4:cv v4))
-      %v1  ``chat-paged-writs-1+!>(v4)
-      %v2  ``chat-paged-writs-2+!>((v5:paged-writs:v6:cv p))
+      %v0  ``chat-paged-writs+!>((v3:paged-writs:v4:cc paged-writs-4))
+      %v1  ``chat-paged-writs-1+!>(paged-writs-4)
+      %v2  ``chat-paged-writs-2+!>((v5:paged-writs:v6:cc p))
       %v3  ``chat-paged-writs-3+!>(p)
     ==
   =/  =writs:c
@@ -359,11 +359,15 @@
       ?:  ?=(%v3 ver)  ``chat-writ-3+!>(writ)
       ?:  ?=(%| -.writ)  [~ ~]
       ?-  ver
-          %v0  ``writ+!>((v3:writ:v5:cv (v5:writ:v6:cv +.writ)))
-          %v1  ``chat-writ-1+!>((v4:writ:v5:cv (v5:writ:v6:cv +.writ)))
-          %v2  ``chat-writ-2+!>((v5:writ:v6:cv +.writ))
+          %v0  ``writ+!>((v3:writ:v5:cc (v5:writ:v6:cc +.writ)))
+          %v1  ``chat-writ-1+!>((v4:writ:v5:cc (v5:writ:v6:cc +.writ)))
+          %v2  ``chat-writ-2+!>((v5:writ:v6:cc +.writ))
       ==
-    ``loob+!>(?~((get ship `@da`time) | &))
+    =/  has-writ
+      ?:  ?=(%v3 ver)  ?~((get ship `@da`time) | &)
+      ?~  entry=(get ship `@da`time)  |
+      !?=(%| -.writ.u.entry)
+    ``loob+!>(has-writ)
   ==
 ::
 ++  search

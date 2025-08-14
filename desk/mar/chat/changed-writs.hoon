@@ -1,6 +1,6 @@
-/-  c=chat
+/-  cv=chat-ver
 /+  j=chat-json
-|_  changes=(map whom:v6:c (unit writs:v6:c))
+|_  changes=(map whom:v6:cv (unit writs:v6:cv))
 ++  grad  %noun
 ++  grow
   |%
@@ -10,13 +10,13 @@
     %-  pairs:enjs:format
     =,  enjs:j
     %+  turn  ~(tap by changes)
-    |=  [=whom:v6:c writs=(unit writs:v6:c)]
+    |=  [=whom:v6:cv writs=(unit writs:v6:cv)]
     ^-  [@t json]
     :-  (^whom whom)
     ?~(writs ~ (^writs u.writs))
   --
 ++  grab
   |%
-  ++  noun  (map whom:v6:c (unit writs:v6:c))
+  ++  noun  (map whom:v6:cv (unit writs:v6:cv))
   --
 --
