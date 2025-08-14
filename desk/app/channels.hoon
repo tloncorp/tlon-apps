@@ -1284,17 +1284,20 @@
     ::
       [%x %v5 %changes since=@ rest=*]
     =+  since=(slav %da since.pole)
-    =/  changes=(map nest:c (unit v-posts:c))
-      %-  ~(run by v-channels)
-      |=  ch=v-channel:c
-      ^-  (unit v-posts:c)
+    =/  changes
+      %-  ~(gas by *(map nest:c v-posts:c))
+      %+  murn  ~(tap by v-channels)
+      |=  [=nest:c ch=v-channel:c]
+      ^-  (unit [nest:c v-posts:c])
       ?:  (gte since key:(fall (ram:updated-on:c last-updated.ch) [key=since ~]))
         ~
-      %-  some
       ?~  posts.ch  ~
       =/  updated
         %-  tap:updated-on:c
         (lot:updated-on:c last-updated.ch `since ~)
+      ?:  =(~ updated)  ~
+      %-  some
+      :-  nest
       ::NOTE  slightly faster than +put-ing continuously
       =-  (gas:on-v-posts:c ~ -)
       %+  roll  updated
@@ -1306,8 +1309,8 @@
         ~
       :^  ~  ~
         %channel-changed-posts
-      !>  ^-  (map nest:c (unit posts:c))
-      (~(run by changes) (curr bind uv-posts-3:utils))
+      !>  ^-  (map nest:c posts:c)
+      (~(run by changes) uv-posts-3:utils)
     ::
         [%count ~]
       ::REVIEW  really necessary?
@@ -1315,9 +1318,8 @@
       !>  ^-  json
       %-  numb:enjs:format
       %-  ~(rep by changes)
-      |=  [[* p=(unit v-posts:c)] sum=@ud]
-      %+  add  sum
-      ?~(p 0 (wyt:on-v-posts:c u.p))
+      |=  [[* p=v-posts:c] sum=@ud]
+      (add sum (wyt:on-v-posts:c p))
     ==
     ::
       [%x ?(%v0 %v1) %hidden-posts ~]  ``hidden-posts+!>(hidden-posts)
