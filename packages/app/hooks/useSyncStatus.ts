@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 
 function formatTimeAgo(timestamp: number): string {
@@ -27,21 +26,28 @@ function formatTimeAgo(timestamp: number): string {
 
 export function useSyncStatus() {
   const connectionStatus = store.useConnectionStatus();
-  const headsSyncedAt = db.headsSyncedAt.useValue();
+  const session = store.useCurrentSession();
+  
+  // Use session start time as the "last sync" time since that's when we 
+  // established the current connection and started receiving live data
+  const lastSyncTime = session?.startTime ?? 0;
 
   const subtitle = useMemo(() => {
     if (connectionStatus === 'Connected') {
-      const lastSyncTime = formatTimeAgo(headsSyncedAt);
-      return `Connected • Last synced ${lastSyncTime}`;
+      if (lastSyncTime === 0) {
+        return 'Connected • Sync pending...';
+      }
+      const formattedTime = formatTimeAgo(lastSyncTime);
+      return `Connected • Last sync ${formattedTime}`;
     } else {
       // Show connection status when not connected (Connecting, Reconnecting, etc.)
       return `${connectionStatus}...`;
     }
-  }, [connectionStatus, headsSyncedAt]);
+  }, [connectionStatus, lastSyncTime]);
 
   return {
     connectionStatus,
-    lastSyncTime: headsSyncedAt,
+    lastSyncTime,
     subtitle,
   };
 }
