@@ -7,12 +7,11 @@
   ++  noun  changes
   ++  json
     ^-  ^json
-    :-  %a
+    %-  pairs:enjs:format
     %+  turn  ~(tap by changes)
     |=  [=flag:v7:gv =group-ui:v7:gv]
-    =+  ui=(group-ui:v7:enjs:j group-ui)
-    ?>  ?=([%o *] ui)
-    ui(p (~(put by p.ui) 'flag' (flag:v7:enjs:j flag)))
+    :-  (print-flag:v7:enjs:j flag)
+    (group-ui:v7:enjs:j group-ui)
   --
 ++  grab
   |%
