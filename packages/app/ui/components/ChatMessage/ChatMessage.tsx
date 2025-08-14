@@ -6,7 +6,14 @@ import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
-import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
+import {
+  ComponentProps,
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { useChannelContext, useCurrentUserId } from '../../contexts';
@@ -40,6 +47,7 @@ const ChatMessage = ({
   setViewReactionsPost,
   isHighlighted,
   hideOverflowMenu,
+  displayDebugMode = false,
   searchQuery,
 }: {
   post: db.Post;
@@ -57,6 +65,7 @@ const ChatMessage = ({
   onPressEdit?: () => void;
   setViewReactionsPost?: (post: db.Post) => void;
   isHighlighted?: boolean;
+  displayDebugMode?: boolean;
   hideOverflowMenu?: boolean;
   searchQuery?: string;
 }) => {
@@ -248,13 +257,30 @@ const ChatMessage = ({
         ) : null}
 
         <View paddingLeft={!isNotice ? '$4xl' : undefined}>
-          <ChatContentRenderer
-            content={post.editStatus === 'failed' ? lastEditContent : content}
-            isNotice={post.type === 'notice'}
-            onPressImage={handleImagePressed}
-            onLongPress={handleLongPress}
-            searchQuery={searchQuery}
-          />
+          {displayDebugMode ? (
+            <Text color="$green" size="$body" padding="$xl">
+              {JSON.stringify(
+                {
+                  seq: post.sequenceNum,
+                  id: post.id,
+                  sentAt: post.sentAt,
+                  channelId: post.channelId,
+                  authorId: post.authorId,
+                  deliveryStatus: post.deliveryStatus,
+                },
+                null,
+                2
+              )}
+            </Text>
+          ) : (
+            <ChatContentRenderer
+              content={post.editStatus === 'failed' ? lastEditContent : content}
+              isNotice={post.type === 'notice'}
+              onPressImage={handleImagePressed}
+              onLongPress={handleLongPress}
+              searchQuery={searchQuery}
+            />
+          )}
         </View>
 
         {post.reactions && post.reactions.length > 0 && (
@@ -381,7 +407,8 @@ export default memo(ChatMessage, (prev, next) => {
     prev.onPressImage === next.onPressImage &&
     prev.onLongPress === next.onLongPress &&
     prev.onPress === next.onPress &&
-    prev.searchQuery === next.searchQuery;
+    prev.searchQuery === next.searchQuery &&
+    prev.displayDebugMode === next.displayDebugMode;
 
   return isPostEqual && areOtherPropsEqual;
 });

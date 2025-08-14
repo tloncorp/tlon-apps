@@ -54,6 +54,7 @@ type RenderItemProps = {
   onShowEmojiPicker?: () => void;
   onPressEdit?: () => void;
   isHighlighted?: boolean;
+  displayDebugMode?: boolean;
   contentRendererConfiguration?: Record<string, unknown>;
 };
 

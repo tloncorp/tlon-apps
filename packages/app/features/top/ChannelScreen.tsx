@@ -203,13 +203,16 @@ export default function ChannelScreen(props: Props) {
   } = store.useChannelPosts({
     enabled: !!channel && !channel?.isPendingChannel,
     channelId: currentChannelId,
-    count: 15,
+    // count: 15,
+    count: 50,
     hasCachedNewest,
     filterDeleted: !channelConfiguration?.includeDeletedPosts,
+    // filterDeleted: false,
+    // hasCachedNewest: true,
     ...(cursor && !clearedCursor
       ? {
           mode: 'around',
-          cursor,
+          cursorPostId: cursor,
           firstPageCount: 30,
         }
       : {
@@ -317,10 +320,12 @@ export default function ChannelScreen(props: Props) {
 
   const handleMarkRead = useCallback(async () => {
     if (channel && !channel.isPendingChannel) {
-      store.markChannelRead({
-        id: channel.id,
-        groupId: channel.groupId ?? undefined,
-      });
+      // TODO: re-enable, turned off for now for to enable easier
+      // testing for navigating to unreads
+      // store.markChannelRead({
+      //   id: channel.id,
+      //   groupId: channel.groupId ?? undefined,
+      // });
     }
   }, [channel?.type, channel?.id, channel?.groupId]);
 

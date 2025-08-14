@@ -331,3 +331,15 @@ export const lastPhoneContactSetRequest = createStorageItem<string | null>({
   defaultValue: null,
   persistAfterLogout: false,
 });
+
+export const debugMessageJson = createStorageItem<boolean>({
+  key: 'debugMessageJson',
+  defaultValue: false,
+  persistAfterLogout: false,
+});
+
+export const debugShowSequenceStubs = createStorageItem<boolean>({
+  key: 'debugShowSequenceStubs',
+  defaultValue: false,
+  persistAfterLogout: false,
+});

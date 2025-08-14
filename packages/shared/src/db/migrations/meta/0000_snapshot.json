@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "0f17c271-e1e5-49ef-aae0-666c3b66c643",
+  "id": "a108bc67-9524-43d1-a7aa-6c43f27c4dfa",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -601,6 +601,13 @@
         },
         "last_post_at": {
           "name": "last_post_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_post_sequence_num": {
+          "name": "last_post_sequence_num",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -1914,70 +1921,6 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "post_windows": {
-      "name": "post_windows",
-      "columns": {
-        "channel_id": {
-          "name": "channel_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "oldest_post_id": {
-          "name": "oldest_post_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "newest_post_id": {
-          "name": "newest_post_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "channel_id": {
-          "name": "channel_id",
-          "columns": [
-            "channel_id"
-          ],
-          "isUnique": false
-        },
-        "channel_oldest_post": {
-          "name": "channel_oldest_post",
-          "columns": [
-            "channel_id",
-            "oldest_post_id"
-          ],
-          "isUnique": false
-        },
-        "channel_newest_post": {
-          "name": "channel_newest_post",
-          "columns": [
-            "channel_id",
-            "newest_post_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "post_windows_channel_id_oldest_post_id_newest_post_id_pk": {
-          "columns": [
-            "channel_id",
-            "oldest_post_id",
-            "newest_post_id"
-          ],
-          "name": "post_windows_channel_id_oldest_post_id_newest_post_id_pk"
-        }
-      },
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
     "posts": {
       "name": "posts",
       "columns": {
@@ -2157,6 +2100,21 @@
           "notNull": false,
           "autoincrement": false
         },
+        "is_sequence_stub": {
+          "name": "is_sequence_stub",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": false
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "delivery_status": {
           "name": "delivery_status",
           "type": "text",
@@ -2199,6 +2157,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "sequence_number": {
+          "name": "sequence_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "synced_at": {
           "name": "synced_at",
           "type": "integer",
@@ -2220,7 +2185,8 @@
           "columns": [
             "channel_id",
             "author_id",
-            "sent_at"
+            "sent_at",
+            "sequence_number"
           ],
           "isUnique": true
         },

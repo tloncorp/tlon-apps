@@ -40,6 +40,7 @@ export const makeFakeChatWrit = (
         lastRepliers: [],
         lastReply: null,
       },
+      seq: '1',
     },
     essay: {
       kind: '/chat',
@@ -72,6 +73,7 @@ export const makeFakeChatNotice = (
         lastRepliers: [],
         lastReply: null,
       },
+      seq: '1',
     },
     essay: {
       kind: '/chat/notice',
