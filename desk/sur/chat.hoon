@@ -1,5 +1,4 @@
 /-  d=channels
-/-  c2=chat-2, c3=chat-3, c4=chat-4, c5=chat-5
 /-  meta
 |%
 ::
@@ -284,9 +283,4 @@
       [%read-at p=time]
       [?(%watch %unwatch) ~]
   ==
-++  v2  c2
-++  v3  c3
-++  v4  c4
-++  v5  c5
-++  v6  .
 --

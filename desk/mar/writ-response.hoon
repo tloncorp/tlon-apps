@@ -1,6 +1,6 @@
-/-  c=chat
+/-  cv=chat-ver
 /+  j=chat-json
-|_  [=whom:c =response:writs:v3:c]
+|_  [=whom:v3:cv =response:writs:v3:cv]
 ++  grad  %noun
 ++  grow
   |%
@@ -9,6 +9,6 @@
   --
 ++  grab
   |%
-  ++  noun  ,[whom:c response:writs:v3:c]
+  ++  noun  ,[whom:v3:cv response:writs:v3:cv]
   --
 --

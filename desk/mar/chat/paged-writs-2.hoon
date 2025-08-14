@@ -1,6 +1,6 @@
-/-  c=chat
+/-  cv=chat-ver
 /+  j=chat-json
-|_  =paged-writs:v5:c
+|_  =paged-writs:v5:cv
 ++  grad  %noun
 ++  grow
   |%
@@ -9,6 +9,6 @@
   --
 ++  grab
   |%
-  ++  noun  paged-writs:v5:c
+  ++  noun  paged-writs:v5:cv
   --
 --

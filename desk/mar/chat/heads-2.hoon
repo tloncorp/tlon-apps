@@ -1,6 +1,6 @@
-/-  c=chat
+/-  cv=chat-ver
 /+  j=chat-json
-|_  =chat-heads:v5:c
+|_  =chat-heads:v5:cv
 ++  grad  %noun
 ++  grow
   |%
@@ -9,6 +9,6 @@
   --
 ++  grab
   |%
-  ++  noun  chat-heads:v5:c
+  ++  noun  chat-heads:v5:cv
   --
 --

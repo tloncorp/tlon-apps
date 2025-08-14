@@ -1,5 +1,5 @@
 /-  c=chat, d=channels, s=story, meta
-/+  mp=mop-extensions, cv=chat-conv, chv=channel-conv, cu=channel-utils
+/+  mp=mop-extensions, cc=chat-conv, cu=channel-utils
 |_  pac=pact:c
 ++  mope  ((mp time (may:c writ:c)) lte)
 ++  gas
@@ -33,7 +33,7 @@
     ::      cases where the most recent message was deleted.
     ?~  unreads  ~
     =/  item=(may:c writ:c)  +:(rear unreads)
-    =/  =message-key:v6:c
+    =/  =message-key:c
       ?:(?=(%| -.item) [id time]:item [id time]:item)
     (some message-key count)
   ::  now do the same for all unread threads
@@ -57,7 +57,7 @@
     ?~  unreads  threads
     %+  ~(put by threads)  [id time]:writ
     =/  item=(may:c reply:c)  +:(rear unreads)
-    =/  =message-key:v6:c
+    =/  =message-key:c
       ?:(?=(%| -.item) [id time]:item [id time]:item)
     [message-key count]
   [(add count sum) unread threads]
@@ -220,11 +220,11 @@
   |=  [mode=?(%light %heavy) ver=?(%v0 %v1 %v2 %v3) ls=(list [time (may:c writ:c)])]
   ^-  (unit (unit cage))
   =;  p=paged-writs:c
-    =/  v4  (v4:paged-writs:v6:cv p)
+    =/  v4  (v4:paged-writs:v6:cc p)
     ?-  ver
-      %v0  ``chat-paged-writs+!>((v3:paged-writs:v4:cv v4))
+      %v0  ``chat-paged-writs+!>((v3:paged-writs:v4:cc v4))
       %v1  ``chat-paged-writs-1+!>(v4)
-      %v2  ``chat-paged-writs-2+!>((v5:paged-writs:v6:cv p))
+      %v2  ``chat-paged-writs-2+!>((v5:paged-writs:v6:cc p))
       %v3  ``chat-paged-writs-3+!>(p)
     ==
   =/  =writs:c
@@ -332,9 +332,9 @@
       ?:  ?=(%v3 ver)  ``chat-writ-3+!>(writ)
       ?:  ?=(%| -.writ)  [~ ~]
       ?-  ver
-          %v0  ``writ+!>((v3:writ:v5:cv (v5:writ:v6:cv +.writ)))
-          %v1  ``chat-writ-1+!>((v4:writ:v5:cv (v5:writ:v6:cv +.writ)))
-          %v2  ``chat-writ-2+!>((v5:writ:v6:cv +.writ))
+          %v0  ``writ+!>((v3:writ:v5:cc (v5:writ:v6:cc +.writ)))
+          %v1  ``chat-writ-1+!>((v4:writ:v5:cc (v5:writ:v6:cc +.writ)))
+          %v2  ``chat-writ-2+!>((v5:writ:v6:cc +.writ))
       ==
     ``loob+!>(?~((get ship `@da`time) | &))
   ==

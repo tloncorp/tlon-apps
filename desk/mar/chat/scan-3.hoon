@@ -1,6 +1,6 @@
-/-  c=chat
+/-  cv=chat-ver
 /+  j=chat-json
-|_  =scan:v6:c
+|_  =scan:v6:cv
 ++  grad  %noun
 ++  grow
   |%
@@ -11,6 +11,6 @@
   --
 ++  grab
   |%
-  +$  noun  scan:v6:c
+  +$  noun  scan:v6:cv
   --
 --

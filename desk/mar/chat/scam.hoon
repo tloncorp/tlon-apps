@@ -1,6 +1,6 @@
-/-  c=chat
+/-  cv=chat-ver
 /+  j=chat-json
-|_  =scam:v3:c
+|_  =scam:v3:cv
 ++  grad  %noun
 ++  grow
   |%
@@ -14,6 +14,6 @@
   --
 ++  grab
   |%
-  +$  noun  scam:v3:c
+  +$  noun  scam:v3:cv
   --
 --
