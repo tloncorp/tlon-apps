@@ -9,6 +9,7 @@ export const ScreenHeaderComponent = ({
   children,
   title,
   subtitle,
+  showSubtitle,
   leftControls,
   rightControls,
   isLoading,
@@ -18,6 +19,7 @@ export const ScreenHeaderComponent = ({
 }: PropsWithChildren<{
   title?: string | ReactNode;
   subtitle?: string | ReactNode;
+  showSubtitle?: boolean;
   leftControls?: ReactNode | null;
   rightControls?: ReactNode | null;
   isLoading?: boolean;
@@ -55,7 +57,11 @@ export const ScreenHeaderComponent = ({
       borderColor="$border"
       borderBottomWidth={borderBottom ? 1 : 0}
     >
-      <XStack height="$5xl" justifyContent="center" alignItems="flex-end">
+      <XStack
+        height={showSubtitle ? '$5xl' : '$4xl'}
+        justifyContent="center"
+        alignItems="flex-end"
+      >
         <View maxWidth={textMaxWidth}>
           {((Wrapper) => (
             <Wrapper>

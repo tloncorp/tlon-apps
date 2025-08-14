@@ -1,8 +1,14 @@
 import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { SectionListHeader, Text, useIsWindowNarrow } from '@tloncorp/ui';
+import {
+  SectionListHeader,
+  Text,
+  pluralize,
+  useIsWindowNarrow,
+} from '@tloncorp/ui';
 import { LoadingSpinner } from '@tloncorp/ui';
+import { capitalize } from 'lodash';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -85,6 +91,21 @@ export const GroupChannelsScreenView = React.memo(
     );
 
     const title = useGroupTitle(group);
+
+    const subtitle = useMemo(() => {
+      if (group?.description) {
+        return group.description;
+      }
+      const memberCount = group?.members?.length ?? 0;
+      const privacy = group?.privacy
+        ? `${capitalize(group.privacy)} group`
+        : 'Group';
+
+      if (memberCount > 0) {
+        return `${privacy} with ${memberCount} ${pluralize(memberCount, 'member')}`;
+      }
+      return privacy;
+    }, [group?.description, group?.members?.length, group?.privacy]);
 
     const listSectionTitleColor = getVariableValue(useTheme().secondaryText);
     const isWindowNarrow = useIsWindowNarrow();
@@ -257,7 +278,8 @@ export const GroupChannelsScreenView = React.memo(
           // component mounts.
           key={group?.id}
           title={title}
-          subtitle={group?.description}
+          subtitle={subtitle}
+          showSubtitle
           borderBottom
           backAction={onBackPressed}
           onTitlePress={handleTitlePress}
