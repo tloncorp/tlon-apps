@@ -152,7 +152,7 @@
       |=  =writ:v5:cv
       ^-  writ:v4:cv
       :_  +.writ
-      [id time reacts replies reply-meta]:-.writ
+      [id time reacts replies reply-meta]:writ
     ++  v3
       |=  =writ:v5:cv
       ^-  writ:v3:cv
