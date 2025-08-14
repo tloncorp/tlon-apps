@@ -279,6 +279,7 @@
 |_  [=bowl:gall cards=(list card)]
 ++  abet  [(flop cards) state]
 ++  cor   .
+++  plog  ~(. logs [our.bowl /logs])
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
@@ -743,6 +744,7 @@
         [%sequence-numbers * @ *]
       =+  ;;([%sequence-numbers =nest:c count=@ud seqs=(list [id=id-post:c seq=(unit @ud)])] q.vase)
       ?>  =(src.bowl ship.nest)
+      =.  cor  (emit (tell:plog %info ~['receiving sequence nrs' >nest<] ~))
       ?.  (~(has by v-channels) nest)  cor
       =.  v-channels
         %+  ~(jab by v-channels)  nest
@@ -768,6 +770,7 @@
         [%tombstones * *]
       =+  ;;([%tombstones =nest:c tombs=(list [id=id-post:v9:c tomb=tombstone:v9:c])] q.vase)
       ?>  =(src.bowl ship.nest)
+      =.  cor  (emit (tell:plog %info ~['receiving tombstones' >nest<] ~))
       ?.  (~(has by v-channels) nest)  cor
       =.  v-channels
         %+  ~(jab by v-channels)  nest
