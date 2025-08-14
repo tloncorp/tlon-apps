@@ -27,10 +27,10 @@ git clone --depth 1 --branch master https://github.com/tloncorp/landscape.git $l
 cd $source_repo
 cd /urbit || return
 curl -s --data '\''{"source":{"dojo":"+hood/mount %'$desk'"},"sink":{"app":"hood"}}'\'' http://localhost:12321
-rsync -avL --delete $source_repo/'$from'/ '$folder'
-rsync -avL $source_repo/landscape-dev/ '$folder'
-rsync -avL $urbit_repo/pkg/base-dev/ '$folder'
+rsync -avL --delete $urbit_repo/pkg/base-dev/ '$folder'
 rsync -avL $landscape_repo/desk-dev/ '$folder'
+rsync -avL $source_repo/landscape-dev/ '$folder'
+rsync -avL $source_repo/'$from'/ '$folder'
 curl -s --data '\''{"source":{"dojo":"+hood/commit %'$desk'"},"sink":{"app":"hood"}}'\'' http://localhost:12321
 rm -rf $source_repo
 rm -rf $urbit_repo

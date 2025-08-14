@@ -1174,7 +1174,24 @@ export const handleChannelsUpdate = async (
     case 'showPost':
       await db.updatePost({ id: update.postId, hidden: false }, ctx);
       break;
-    case 'updateReactions':
+    case 'updateReactions': {
+      // Check if any reactions contain shortcodes
+      const shortcodeReactions = update.reactions.filter((r) =>
+        /^:[a-zA-Z0-9_+-]+:?$/.test(r.value)
+      );
+
+      if (shortcodeReactions.length > 0) {
+        logger.trackError('Shortcode reactions in updateReactions sync', {
+          postId: update.postId,
+          shortcodeReactions: shortcodeReactions.map((r) => ({
+            user: r.contactId,
+            value: r.value,
+          })),
+          totalReactions: update.reactions.length,
+          context: 'channel_sync_updateReactions',
+        });
+      }
+
       await db.replacePostReactions(
         {
           postId: update.postId,
@@ -1183,6 +1200,7 @@ export const handleChannelsUpdate = async (
         ctx
       );
       break;
+    }
     case 'markPostSent':
       await db.updatePost({ id: update.cacheId, deliveryStatus: 'sent' }, ctx);
       break;
@@ -1228,7 +1246,18 @@ export const handleChatUpdate = async (
       await db.deletePosts({ ids: [update.postId] }, ctx);
       break;
     case 'addReaction':
+      // Check if we're inserting a shortcode reaction from chat/DM
+      if (/^:[a-zA-Z0-9_+-]+:?$/.test(update.react)) {
+        logger.trackError('Shortcode reaction being inserted from chat sync', {
+          postId: update.postId,
+          userId: update.userId,
+          react: update.react,
+          context: 'chat_sync_addReaction',
+        });
+      }
+
       await db.insertPostReactions(
+
         {
           reactions: [
             {
