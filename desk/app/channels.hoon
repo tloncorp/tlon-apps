@@ -741,6 +741,24 @@
         [~ %| *]  (run-import p.u.pimp)
       ==
     ::
+        [?(%request-seqs %request-tombs) nest:c]
+      ::NOTE  if the poke we send from this gets nacked, we will set a timer
+      ::      to retry. if the ship/situation is healthy there will likely
+      ::      already be a timer for retrying this poke. having multiple timers
+      ::      isn't the end of the world, it will just do the same work twice,
+      ::      with any subsequent invocations being no-ops. nonetheless,
+      ::      probably best to not run this indiscriminately. check for
+      ::      presence of the relevant timers for this agent first! patience.
+      ::NOTE  we set the timer instead of sending the poke right away. timer
+      ::      handling will check lib negotiate before poking.
+      =+  ;;(=nest:c +.q.vase)
+      %-  emit
+      =/  =wire  /[kind.nest]/(scot %p ship.nest)/[name.nest]
+      :+  %pass
+        :_  wire
+        [?-(-.q.vase %request-seqs %numbers, %request-tombs %tombstones)]
+      [%arvo %b %wait now.bowl]
+    ::
         [%sequence-numbers * @ *]
       =+  ;;([%sequence-numbers =nest:c count=@ud seqs=(list [id=id-post:c seq=(unit @ud)])] q.vase)
       ?>  =(src.bowl ship.nest)
