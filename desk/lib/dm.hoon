@@ -87,18 +87,28 @@
 ++  reduce
   |=  [now=time =id:c del=delta:writs:c]
   ^+  pac
+  ::  if the post pre-exists we can add it directly,
+  ::  %add is handled specially below.
+  ::
+  =?  upd.pac  &(!?=(%add -.del) (~(has by dex.pac) id))
+    (put:updated-on:c upd.pac now (~(got by dex.pac) id))
   ?-  -.del
       %add
     ?:  (~(has by dex.pac) id)
       pac
     =.  num.pac  +(num.pac)
+    =+  og-now=now
     |-
+    ::TODO  consider: og-now for the time.seal,
+    ::      but only if we never use it as a lookup/key!
     =/  =seal:c  [id num.pac now ~ ~ [0 ~ ~]]
     ?:  (has:on:writs:c wit.pac now)
       $(now `@da`(add now ^~((div ~s1 (bex 16)))))
-    =.  wit.pac
-      (put:on:writs:c wit.pac now %& seal essay.del)
-    pac(dex (~(put by dex.pac) id now))
+    %_  pac
+      wit  (put:on:writs:c wit.pac now %& seal essay.del)
+      dex  (~(put by dex.pac) id now)
+      upd  (put:updated-on:c upd.pac og-now now)
+    ==
   ::
       %del
     =/  tim=(unit time)  (~(get by dex.pac) id)
@@ -260,6 +270,23 @@
       (welp older newer)
     (welp (snoc older [time u.writ]) newer)
   (give-paged-writs mode ver writs)
+::
+++  changes
+  |=  since=@da
+  ^-  (unit writs:c)
+  ?:  (gte since key:(fall (ram:updated-on:c upd.pac) [key=since ~]))
+    ~
+  %-  some
+  ?~  wit.pac  ~
+  =/  updated  (tap:updated-on:c (lot:updated-on:c upd.pac `since ~))
+  ::NOTE  slightly faster than +put-ing continuously
+  =-  (gas:on:writs:c ~ -)
+  %+  roll  updated
+  |=  [[@da changed=time] out=(list [id=time (may:c writ:c)])]
+  ?~  writ=(get:on:writs:c wit.pac changed)
+    out
+  [[changed u.writ] out]
+::
 ++  peek
   |=  [care=@tas ver=?(%v0 %v1 %v2 %v3) =(pole knot)]
   ^-  (unit (unit cage))

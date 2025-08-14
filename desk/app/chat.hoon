@@ -14,6 +14,7 @@
 /+  chat-json
 ::
 /%  m-chat-blocked-by      %chat-blocked-by
+/%  m-chat-changed-writs   %chat-changed-writs
 /%  m-chat-club-action     %chat-club-action
 /%  m-chat-club-action-0   %chat-club-action-0
 /%  m-chat-club-action-1   %chat-club-action-1
@@ -60,6 +61,7 @@
     :+  ::  marks
         ::
         :~  :+  %chat-blocked-by      &  -:!>(*vale:m-chat-blocked-by)
+            :+  %chat-changed-writs   &  -:!>(*vale:m-chat-changed-writs)
             ::  our previous mark version was actually incorrect so to
             ::  correct, we need to turn off checking here
             ::  TODO: flip back on next upgrade
@@ -168,6 +170,7 @@
         [/x/v2/dm/$/writs/writ %chat-writ-2]
         [/x/v2/heads %chat-heads-2]
       ::
+        [/x/v3/changes/$ %chat-changed-writs]
         [/x/v3/club/$/search %chat-scan-3]
         [/x/v3/club/$/search/bounded %chat-scam-3]
         [/x/v3/club/$/writs %chat-paged-writs-3]
@@ -448,17 +451,16 @@
     ^-  dm:v6:cv
     dm(pact (pact-9-to-10 pact.dm))
   ++  pact-9-to-10
-    |=  =pact:v5:cv
+    |=  pact:v5:cv
     ^-  pact:v6:cv
-    %=    pact
-        wit
-      %+  gas:on:writs:v6:cv  *writs:v6:cv
-      %+  turn
-        (tap:on:writs:v5:cv wit.pact)
-      |=  [=time =writ:v5:cv]
-      :-  time
-      [%& (v6:writ:v5:cc writ)]
-    ==
+    =;  nu-wit
+      [num nu-wit dex upd=~]
+    %+  gas:on:writs:v6:cv  *writs:v6:cv
+    %+  turn
+      (tap:on:writs:v5:cv wit)
+    |=  [=time =writ:v5:cv]
+    :-  time
+    [%& (v6:writ:v5:cc writ)]
   ++  state-8-to-9
     |=  state-8
     ^-  state-9
@@ -856,9 +858,14 @@
           :_  [| +(n)]
           :-  ~
           ?:(?=(%| -.v) v(seq +(n)) v(seq +(n)))
-        :*  :+  num
-              wit
-            (~(uni by dex.pact.dm) dex.pact.hav)
+        :*  :^    num
+                wit
+              (~(uni by dex.pact.dm) dex.pact.hav)
+            ::NOTE  if we renumbered message above, arguably this should
+            ::      also add new upd entries for all those posts, but we
+            ::      assume (for now) that /changes consistency across exports
+            ::      isn't strictly necessary
+            (uni:updated-on:c upd.pact.dm upd.pact.hav)
           ::
             remark.hav
             net.hav
@@ -874,9 +881,10 @@
         :*  (~(uni in heard.club) heard.hav)
             remark.hav
           ::
-            :+  (max num.pact.club num.pact.hav)
-              (uni:on:writs:c wit.pact.club wit.pact.hav)
-            (~(uni by dex.pact.club) dex.pact.hav)
+            :^    (max num.pact.club num.pact.hav)
+                (uni:on:writs:c wit.pact.club wit.pact.hav)
+              (~(uni by dex.pact.club) dex.pact.hav)
+            (uni:updated-on:c upd.pact.club upd.pact.hav)
           ::
             crew.hav
         ==
@@ -1086,6 +1094,34 @@
       %v1  ``[%chat-heads-1 !>((v4:heads:v6:cc (heads since)))]
       %v2  ``[%chat-heads-2 !>((v5:heads:v6:cc (heads since)))]
       %v3  ``[%chat-heads-3 !>(`chat-heads:v6:cv`(heads since))]
+    ==
+  ::
+      [%x %v3 %changes since=@ rest=*]
+    =+  since=(slav %da i.t.t.t.path)
+    =/  changes=(map whom:c (unit writs:c))
+      %-  ~(gas by *(map whom:c (unit writs:c)))
+      %+  weld
+        %+  turn  ~(tap by dms)
+        |=  [who=ship =dm:c]
+        ^-  [whom:c (unit writs:c)]
+        :-  [%ship who]
+        (~(changes pac pact.dm) since)
+      %+  turn  ~(tap by clubs)
+      |=  [=id:club:c =club:c]
+      ^-  [whom:c (unit writs:c)]
+      :-  [%club id]
+      (~(changes pac pact.club) since)
+    ?+  t.t.t.t.path  [~ ~]
+      ~  ``chat-changed-writs+!>(changes)
+    ::
+        [%count ~]
+      :^  ~  ~  %json
+      !>  ^-  json
+      %-  numb:enjs:format
+      %-  ~(rep by changes)
+      |=  [[* w=(unit writs:c)] sum=@ud]
+      %+  add  sum
+      ?~(w 0 (wyt:on:writs:c u.w))
     ==
   ::
       [%x %dm ~]
