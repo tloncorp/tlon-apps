@@ -9,7 +9,7 @@ export const ScreenHeaderComponent = ({
   children,
   title,
   subtitle,
-  showSubtitle,
+  showSubtitle = false,
   leftControls,
   rightControls,
   isLoading,
@@ -44,7 +44,7 @@ export const ScreenHeaderComponent = ({
   // Determine maximum width based on number of action items or explicit titleWidth prop
   const getTextMaxWidth = () => {
     if (totalActionItems >= 4) return '55%';
-    if (totalActionItems >= 2) return '60%';
+    if (totalActionItems >= 2) return '75%';
     return '100%';
   };
 
@@ -57,23 +57,21 @@ export const ScreenHeaderComponent = ({
       borderColor="$border"
       borderBottomWidth={borderBottom ? 1 : 0}
     >
-      <XStack
-        height={showSubtitle ? '$5xl' : '$4xl'}
-        justifyContent="center"
-        alignItems="flex-end"
-      >
+      <XStack justifyContent="center" alignItems="flex-end">
         <View maxWidth={textMaxWidth}>
           {((Wrapper) => (
             <Wrapper>
-              <Text
-                color={'$secondaryText'}
-                size="$label/s"
-                numberOfLines={1}
-                height={'$xl'}
-                textAlign="center"
-              >
-                {resolvedSubtitle}
-              </Text>
+              {showSubtitle && (
+                <Text
+                  color={'$secondaryText'}
+                  size="$label/s"
+                  numberOfLines={1}
+                  height={'$xl'}
+                  textAlign="center"
+                >
+                  {resolvedSubtitle}
+                </Text>
+              )}
               <XStack
                 alignItems="center"
                 justifyContent="center"

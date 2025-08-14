@@ -1,4 +1,8 @@
-import { useConnectionStatus, useDebouncedValue } from '@tloncorp/shared';
+import {
+  useConnectionStatus,
+  useContact,
+  useDebouncedValue,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
@@ -112,6 +116,10 @@ export function ChannelHeader({
   const chatTitle = useChatTitle(channel, group);
   const chatDescription = useChatDescription(channel, group);
 
+  // Get contact info for 1:1 DMs - only fetch when we have a valid contact ID
+  const dmContactId = channel.type === 'dm' ? channel.contactId : null;
+  const { data: dmContact } = useContact({ id: dmContactId || '' });
+
   const getChannelTypeName = (channelType: db.Channel['type']) => {
     switch (channelType) {
       case 'chat':
@@ -147,8 +155,11 @@ export function ChannelHeader({
       return statusText;
     }
 
-    // DM (1:1) - "Direct message"
+    // DM (1:1) - Show contact's status if available, otherwise "Direct message"
     if (channel.type === 'dm') {
+      if (dmContactId && dmContact?.status) {
+        return dmContact.status;
+      }
       return 'Direct message';
     }
 
@@ -162,7 +173,6 @@ export function ChannelHeader({
     // Single-channel chat group
     if (channel.type === 'chat' && group) {
       const hasMultipleChannels = (group.channels?.length ?? 0) > 1;
-      console.log('Is multi-channel group:', hasMultipleChannels);
 
       // If it's a single-channel group
       if (!hasMultipleChannels) {
@@ -193,7 +203,6 @@ export function ChannelHeader({
       return chatDescription;
     }
     if (description && description.trim()) {
-      console.log('Returning description prop for other channel type');
       return description;
     }
 
@@ -207,9 +216,16 @@ export function ChannelHeader({
       return channelType;
     }
 
-    console.log('Returning empty string');
     return '';
-  }, [connectionStatus, channel, group, chatDescription, description]);
+  }, [
+    connectionStatus,
+    channel,
+    group,
+    chatDescription,
+    description,
+    dmContactId,
+    dmContact?.status,
+  ]);
 
   const displayTitle = useDebouncedValue(titleText, 300);
   const displaySubtitle = useDebouncedValue(subtitleText, 300);
@@ -299,6 +315,7 @@ export function ChannelHeader({
         title={displayTitle}
         subtitle={displaySubtitle}
         showSessionStatus
+        showSubtitle
         borderBottom
         isLoading={showSpinner}
         onTitlePress={handleTitlePress}
