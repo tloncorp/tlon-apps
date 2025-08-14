@@ -60,6 +60,9 @@
     :+  ::  marks
         ::
         :~  :+  %chat-blocked-by      &  -:!>(*vale:m-chat-blocked-by)
+            ::  our previous mark version was actually incorrect so to
+            ::  correct, we need to turn off checking here
+            ::  TODO: flip back on next upgrade
             :+  %chat-club-action     |  -:!>(*vale:m-chat-club-action)
             :+  %chat-club-action-0   &  -:!>(*vale:m-chat-club-action-0)
             :+  %chat-club-action-1   &  -:!>(*vale:m-chat-club-action-1)
@@ -1723,12 +1726,12 @@
   ::
   ++  cu-give-action
     |=  =action:club:c
-    =/  v5  (v5:action-club:v6:cc action)
+    =/  action-5  (v5:action-club:v6:cc action)
     =.  cor
-      =/  =cage  chat-club-action+!>((v3:action-club:v5:cc v5))
+      =/  =cage  chat-club-action+!>((v3:action-club:v5:cc action-5))
       (emit %give %fact ~[/ /clubs] cage)
     =.  cor
-      =/  cage  chat-club-action-1+!>(v5)
+      =/  cage  chat-club-action-1+!>(action-5)
       (emit %give %fact ~[/v1 /v1/clubs /v2 /v2/clubs] cage)
     =.  cor
       =/  cage  chat-club-action-1+!>(action)

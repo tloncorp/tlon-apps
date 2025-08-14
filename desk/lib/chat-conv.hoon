@@ -305,7 +305,7 @@
             %add
           :*  %add
               (v7:memo:v9:ccv -.essay.delta)
-              ?:(=(/chat-notice kind.essay.delta) [%notice ~] ~)
+              ?:(=(/chat/notice kind.essay.delta) [%notice ~] ~)
               time.delta
           ==
         ::
@@ -490,7 +490,7 @@
         [%reply id.q.diff meta.q.diff (v4:delta-replies delta.q.diff)]
       ::
           %add-react
-        [%add-react ship.q.diff (v7:react:v8:ccv react.q.diff)]
+        [%add-react ship.q.diff (v8:react:v7:ccv react.q.diff)]
       ==
     --
   ++  delta-replies
@@ -507,7 +507,7 @@
       |=  =delta:replies:v3:cv
       ^-  delta:replies:v4:cv
       ?:  ?=(%add-react -.delta)
-        delta(react (v7:react:v8:ccv react.delta))
+        delta(react (v8:react:v7:ccv react.delta))
       delta
     --
   --

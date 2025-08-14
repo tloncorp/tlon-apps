@@ -220,10 +220,10 @@
   |=  [mode=?(%light %heavy) ver=?(%v0 %v1 %v2 %v3) ls=(list [time (may:c writ:c)])]
   ^-  (unit (unit cage))
   =;  p=paged-writs:c
-    =/  v4  (v4:paged-writs:v6:cc p)
+    =/  paged-writs-4  (v4:paged-writs:v6:cc p)
     ?-  ver
-      %v0  ``chat-paged-writs+!>((v3:paged-writs:v4:cc v4))
-      %v1  ``chat-paged-writs-1+!>(v4)
+      %v0  ``chat-paged-writs+!>((v3:paged-writs:v4:cc paged-writs-4))
+      %v1  ``chat-paged-writs-1+!>(paged-writs-4)
       %v2  ``chat-paged-writs-2+!>((v5:paged-writs:v6:cc p))
       %v3  ``chat-paged-writs-3+!>(p)
     ==
