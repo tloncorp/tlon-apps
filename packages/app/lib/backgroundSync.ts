@@ -4,7 +4,6 @@ import {
   syncUnreads,
 } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
-import * as db from '@tloncorp/shared/db';
 import * as BackgroundTask from 'expo-background-task';
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
@@ -12,15 +11,28 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { configureUrbitClient } from '../hooks/useConfigureUrbitClient';
 
-const logger = createDevLogger('backgroundSync', true);
+// TODO: remove, for use in debugging background tasks
+// Notifications.setNotificationHandler({
+//   handleNotification: async () => ({
+//     shouldShowBanner: true,
+//     shouldShowList: true,
+//     shouldPlaySound: false,
+//     shouldSetBadge: false,
+//     shouldShowAlert: true,
+//   }),
+// });
 
-function summarizePost(post: db.Post) {
-  return {
-    channel: post.channelId,
-    content: post.content,
-    syncedAt: post.syncedAt,
-  };
-}
+// function debugLog(message: string) {
+//   Notifications.scheduleNotificationAsync({
+//     content: {
+//       title: 'Background Log',
+//       body: message,
+//     },
+//     trigger: null,
+//   });
+// }
+
+const logger = createDevLogger('backgroundSync', true);
 
 async function performSync() {
   const taskExecutionId = uuidv4();
@@ -91,17 +103,20 @@ async function performSync() {
   }
 }
 
-export function triggerTaskForTesting() {
+export async function triggerTaskForTesting() {
   logger.log('Triggering background sync task for testing');
-  BackgroundTask.triggerTaskWorkerForTestingAsync();
+  const result = await BackgroundTask.triggerTaskWorkerForTestingAsync();
+  logger.log('Finished test trigger', { result });
 }
 
 const TASK_ID = 'backgroundSync';
+
 export async function unregisterBackgroundSyncTask() {
   await Notifications.unregisterTaskAsync(TASK_ID);
   await BackgroundTask.unregisterTaskAsync(TASK_ID);
   await TaskManager.unregisterTaskAsync(TASK_ID);
 }
+
 export function registerBackgroundSyncTask() {
   TaskManager.defineTask<Record<string, unknown>>(
     TASK_ID,
@@ -127,17 +142,19 @@ export function registerBackgroundSyncTask() {
     }
   );
 
-  logger.log('Registered background sync task');
   (async () => {
     try {
-      await Notifications.registerTaskAsync(TASK_ID);
-      logger.log('Registered notification task');
-      await BackgroundTask.registerTaskAsync(TASK_ID, {
-        // Uses expo-notification default - at time of writing, 10 minutes on
-        // Android, system minimum on iOS (10-15 minutes)
-        // minimumInterval: undefined,
-      });
-      logger.log('Registered background fetch');
+      if (await TaskManager.isTaskRegisteredAsync(TASK_ID)) {
+        logger.log('Background sync task is registered');
+      } else {
+        logger.log('Background sync task is not registered, registering now');
+        await BackgroundTask.registerTaskAsync(TASK_ID, {
+          // Uses expo-notification default - at time of writing, 10 minutes on
+          // Android, system minimum on iOS (10-15 minutes)
+          minimumInterval: 15 * 60,
+        });
+        logger.log('Registered background sync task');
+      }
     } catch (err) {
       logger.error('Failed to register background sync task', err);
     }
