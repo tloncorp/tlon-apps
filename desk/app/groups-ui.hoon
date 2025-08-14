@@ -243,6 +243,11 @@
           profile
       ==
     ``ui-init-5+!>(init)
+  ::
+      [%x %v5 %changes since=@ ~]
+    =+  .^(channels=json (scry %gx %channels /v5/changes/[since.pole]/json))
+    =+  .^(groups=json (scry %gx %groups /v2/changes/[since.pole]/json))
+    ``json+!>((pairs:enjs:format 'channels'^channels 'groups'^groups ~))
   ==
 ::
 ++  poke
