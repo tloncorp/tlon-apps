@@ -13,6 +13,34 @@ GCS_BUCKET="gs://bootstrap.urbit.org"
 DRY_RUN=${DRY_RUN:-false}
 SKIP_UPLOAD=${SKIP_UPLOAD:-false}
 SKIP_CLEANUP=${SKIP_CLEANUP:-false}
+VERIFY_AFTER_UPLOAD=${VERIFY_AFTER_UPLOAD:-false}
+
+# Parse command line arguments
+for arg in "$@"; do
+    case $arg in
+        --verify)
+            VERIFY_AFTER_UPLOAD=true
+            shift
+            ;;
+        --help)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --verify              Run verify-archives.sh after successful upload"
+            echo "  --help                Show this help message"
+            echo ""
+            echo "Environment variables:"
+            echo "  DRY_RUN=true          Show what would be done without making changes"
+            echo "  SKIP_UPLOAD=true      Create archives but skip GCS upload"
+            echo "  SKIP_CLEANUP=true     Keep local archives after upload"
+            echo ""
+            exit 0
+            ;;
+        *)
+            # Unknown option
+            ;;
+    esac
+done
 
 # Colors for output
 RED='\033[0;31m'
@@ -191,6 +219,48 @@ prepare_ships() {
     print_status "Ships prepared and stopped"
 }
 
+# Quick local validation of archive
+validate_archive_locally() {
+    local archive_path=$1
+    local ship=$2
+    local temp_extract=$(mktemp -d)
+    
+    print_info "Quick validation of $ship archive..." >&2
+    
+    # Extract archive to temp directory
+    if ! tar -xzf "$archive_path" -C "$temp_extract" 2>/dev/null; then
+        print_error "Failed to extract archive for validation" >&2
+        rm -rf "$temp_extract"
+        return 1
+    fi
+    
+    # Check essential structure
+    if [ ! -d "$temp_extract/$ship" ]; then
+        print_error "Invalid structure: missing $ship directory" >&2
+        rm -rf "$temp_extract"
+        return 1
+    fi
+    
+    # Check for essential files
+    local essential_files=(
+        "$ship/groups/sys.kelvin"
+        "$ship/groups/desk.bill"
+        "$ship/.urb"
+    )
+    
+    for file_path in "${essential_files[@]}"; do
+        if [ ! -e "$temp_extract/$file_path" ]; then
+            print_error "Missing essential: $file_path" >&2
+            rm -rf "$temp_extract"
+            return 1
+        fi
+    done
+    
+    print_status "Local validation passed" >&2
+    rm -rf "$temp_extract"
+    return 0
+}
+
 # Clean pier before archiving
 clean_pier() {
     local ship=$1
@@ -273,6 +343,14 @@ archive_pier() {
     
     local size=$(du -h "$archive_path" | cut -f1)
     print_status "Created $archive_name ($size)" >&2
+    
+    # Validate archive locally before considering it successful
+    if ! validate_archive_locally "$archive_path" "$ship"; then
+        print_error "Archive validation failed for $ship" >&2
+        rm -f "$archive_path"
+        echo ""  # Return empty string on validation failure
+        return 1
+    fi
     
     # Return the full path
     echo "$archive_path"
@@ -406,12 +484,35 @@ main() {
     
     print_status "Archive and upload process complete!"
     
-    if [ "$DRY_RUN" = "false" ] && [ "$SKIP_UPLOAD" = "false" ]; then
-        print_info "Next steps:"
-        echo "  1. Verify the new archives work: ./verify-archives.sh"
-        echo "  2. Commit the updated shipManifest.json"
-        echo "  3. Create a PR with the changes"
+    # Run verification if requested
+    if [ "$VERIFY_AFTER_UPLOAD" = "true" ] && [ "$DRY_RUN" = "false" ] && [ "$SKIP_UPLOAD" = "false" ]; then
+        print_info "Running verification of uploaded archives..."
+        echo ""
+        if "$SCRIPT_DIR/verify-archives.sh"; then
+            print_status "Verification successful!"
+        else
+            print_error "Verification failed! Check the archives before committing."
+            exit 1
+        fi
     fi
+    
+    if [ "$DRY_RUN" = "false" ] && [ "$SKIP_UPLOAD" = "false" ]; then
+        if [ "$VERIFY_AFTER_UPLOAD" = "false" ]; then
+            print_info "Next steps:"
+            echo "  1. Verify the new archives work: ./verify-archives.sh"
+            echo "  2. Commit the updated shipManifest.json"
+            echo "  3. Create a PR with the changes"
+            echo ""
+            print_info "Tip: Use --verify flag to automatically verify after upload"
+        else
+            print_info "Next steps:"
+            echo "  1. Commit the updated shipManifest.json"
+            echo "  2. Create a PR with the changes"
+        fi
+    fi
+    
+    # Exit with success
+    exit 0
 }
 
 # Run main function

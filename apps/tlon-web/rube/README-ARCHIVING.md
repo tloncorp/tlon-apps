@@ -17,15 +17,20 @@ Main script that automates the entire pier archiving and upload process.
 2. Applies latest desk updates to ships
 3. Gracefully stops the environment
 4. Archives each pier (except ~bus which is intentionally kept outdated)
-5. Uploads archives to `gs://bootstrap.urbit.org/`
-6. Updates `shipManifest.json` with new URLs
-7. Optionally cleans up local archives
+5. **Validates archives locally** before upload (structure and essential files)
+6. Uploads archives to `gs://bootstrap.urbit.org/`
+7. Updates `shipManifest.json` with new URLs
+8. Optionally runs full verification of uploaded archives
+9. Optionally cleans up local archives
 
 **Usage:**
 
 ```bash
 # Normal run - archives, uploads, and updates manifest
 ./archive-piers.sh
+
+# Run with automatic verification after upload (recommended for releases)
+./archive-piers.sh --verify
 
 # Dry run - shows what would be done without making changes
 DRY_RUN=true ./archive-piers.sh
@@ -38,7 +43,15 @@ SKIP_CLEANUP=true ./archive-piers.sh
 
 # Combine flags
 DRY_RUN=true SKIP_CLEANUP=true ./archive-piers.sh
+
+# Show help
+./archive-piers.sh --help
 ```
+
+**New Features:**
+- **Local validation**: Archives are now validated locally before upload to catch issues early
+- **--verify flag**: Automatically runs full verification after upload
+- **Better error handling**: Script exits with proper codes for CI/CD integration
 
 **Prerequisites:**
 - `gcloud` CLI installed and authenticated
@@ -67,6 +80,60 @@ Helper script to verify that uploaded archives work correctly.
 SHIPS_TO_VERIFY="zod ten" ./verify-archives.sh
 ```
 
+## Best Practices
+
+### When to Use Each Tool
+
+**archive-piers.sh**:
+- Creating new archives after desk updates
+- Preparing releases
+- Monthly maintenance updates
+
+**verify-archives.sh**:
+- After uploading new archives (if not using --verify flag)
+- When e2e tests fail unexpectedly (to rule out archive issues)
+- Before major releases
+- In CI/CD pipelines to validate manifest integrity
+
+### Recommended Workflows
+
+#### For Regular Updates
+```bash
+# Complete workflow with automatic verification
+./archive-piers.sh --verify
+```
+
+#### For Quick Testing
+```bash
+# Create and upload without verification (faster, less safe)
+./archive-piers.sh
+# Verify manually later if needed
+./verify-archives.sh
+```
+
+#### For CI/CD Integration
+```bash
+# In your CI pipeline
+./verify-archives.sh || exit 1  # Fail fast if archives are broken
+```
+
+### Safety Features
+
+1. **Local Validation**: Every archive is validated locally before upload
+   - Checks archive can be extracted
+   - Verifies pier structure
+   - Confirms essential files exist
+
+2. **Upload Verification**: Use `--verify` flag for end-to-end validation
+   - Downloads from GCS
+   - Tests pier booting
+   - Ensures manifest URLs are correct
+
+3. **Dry Run Mode**: Test the process without making changes
+   - See what would be uploaded
+   - Check version increments
+   - Validate prerequisites
+
 ## Process Workflow
 
 ### When to Archive New Piers
@@ -85,18 +152,20 @@ Archive new piers when:
    git status  # Check for uncommitted changes
    ```
 
-2. **Run the archive script**
+2. **Run the archive script with verification (recommended)**
    ```bash
    cd apps/tlon-web/rube/
-   ./archive-piers.sh
+   ./archive-piers.sh --verify
    ```
-
-3. **Verify the new archives**
+   
+   Or without automatic verification:
    ```bash
+   ./archive-piers.sh
+   # Then manually verify:
    ./verify-archives.sh
    ```
 
-4. **Commit the updated manifest**
+3. **Commit the updated manifest**
    ```bash
    git add ../e2e/shipManifest.json
    git commit -m "Update e2e pier archives to version X"
