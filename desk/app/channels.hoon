@@ -1352,15 +1352,21 @@
     =/  host=ship  (slav %p ship.pole)
     =/  =nest:c    [kind.pole host name.pole]
     %-  emit
+    :+  %pass  pole
+    ?.  (can-poke:neg bowl host %channels-server)
+      [%arvo %b %wait :(add now.bowl ~m15 (~(rad og eny.bowl) ~m15))]
     =/  =cage  [%noun !>([%send-sequence-numbers nest])]
-    [%pass pole %agent [host %channels-server] %poke cage]
+    [%agent [host %channels-server] %poke cage]
   ::
       [%tombstones kind=?(%chat %diary %heap) ship=@ name=@ ~]
     =/  host=ship  (slav %p ship.pole)
     =/  =nest:c    [kind.pole host name.pole]
     %-  emit
+    :+  %pass  pole
+    ?.  (can-poke:neg bowl host %channels-server)
+      [%arvo %b %wait :(add now.bowl ~m15 (~(rad og eny.bowl) ~m15))]
     =/  =cage  [%noun !>([%send-tombstones nest])]
-    [%pass pole %agent [host %channels-server] %poke cage]
+    [%agent [host %channels-server] %poke cage]
   ==
 ::
 ++  unreads
