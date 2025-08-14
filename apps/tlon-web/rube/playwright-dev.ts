@@ -28,18 +28,24 @@ const manifestPath = path.join(
 );
 const shipManifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 
-// Handle cleanup on exit
-process.on('SIGINT', cleanup);
-process.on('SIGTERM', cleanup);
+// Handle cleanup on exit - make synchronous for reliability
+process.on('SIGINT', () => {
+  cleanup();
+  process.exit(0);
+});
+process.on('SIGTERM', () => {
+  cleanup();
+  process.exit(0);
+});
 process.on('exit', cleanup);
 
-async function cleanup() {
+function cleanup() {
   if (isShuttingDown) return;
   isShuttingDown = true;
 
   console.log('\n🧹 Cleaning up...');
 
-  // Kill web servers
+  // Kill web servers with proper process group cleanup
   if (webServers.length > 0) {
     console.log('Stopping web servers...');
     for (const server of webServers) {
@@ -53,17 +59,47 @@ async function cleanup() {
     }
   }
 
-  // Kill rube process
+  // Kill rube process first
   if (rubeProcess && !rubeProcess.killed && rubeProcess.pid) {
     console.log('Stopping ships...');
     try {
-      process.kill(-rubeProcess.pid, 'SIGTERM');
+      // Try graceful termination first
+      rubeProcess.kill('SIGTERM');
+
+      // Wait briefly for graceful shutdown
+      const timeout = Date.now() + 1000;
+      while (Date.now() < timeout) {
+        try {
+          process.kill(rubeProcess.pid, 0);
+        } catch {
+          break; // Process is dead
+        }
+      }
+
+      // Force kill if still running
+      try {
+        rubeProcess.kill('SIGKILL');
+      } catch {}
     } catch (error) {
       console.log('Rube process already terminated');
     }
   }
 
-  // Additional cleanup - kill any remaining processes on our ports
+  // CRITICAL: Use pattern-based killing to clean up all Urbit processes
+  // This is necessary because Urbit spawns serf sub-processes that aren't tracked
+  try {
+    // Kill all Urbit processes matching our rube pattern
+    const killUrbitCmd = `ps aux | grep urbit | grep "rube/dist" | grep -v grep | awk '{print $2}' | while read pid; do kill -9 $pid 2>/dev/null; done`;
+    childProcess.execSync(killUrbitCmd, { stdio: 'ignore' });
+
+    // Also kill any Vite dev server processes
+    const killViteCmd = `ps aux | grep "vite dev" | grep -v grep | awk '{print $2}' | while read pid; do kill -9 $pid 2>/dev/null; done`;
+    childProcess.execSync(killViteCmd, { stdio: 'ignore' });
+  } catch {
+    // Ignore errors - processes might not exist
+  }
+
+  // Additional cleanup - kill any remaining processes on our ports (synchronous)
   const ports: string[] = [];
   Object.values(shipManifest).forEach((ship: Ship) => {
     ports.push(ship.httpPort);
@@ -79,7 +115,23 @@ async function cleanup() {
   const uniquePorts = Array.from(new Set(ports));
   for (const port of uniquePorts) {
     try {
-      childProcess.exec(`lsof -ti:${port} | xargs kill -9 2>/dev/null || true`);
+      // First try lsof (most common)
+      try {
+        childProcess.execSync(
+          `command -v lsof >/dev/null 2>&1 && lsof -ti:${port} | xargs kill -9 2>/dev/null || true`,
+          { stdio: 'ignore' }
+        );
+      } catch {
+        // If lsof doesn't exist, try fuser as fallback
+        try {
+          childProcess.execSync(
+            `command -v fuser >/dev/null 2>&1 && fuser -k ${port}/tcp 2>/dev/null || true`,
+            { stdio: 'ignore' }
+          );
+        } catch {
+          // Neither tool available - skip port cleanup
+        }
+      }
     } catch (error) {
       // Ignore errors - processes might not exist
     }

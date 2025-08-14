@@ -44,13 +44,14 @@ if (!fs.existsSync(testPath)) {
 
 let rubeProcess: childProcess.ChildProcess | null = null;
 let isShuttingDown = false;
+const pidFile = path.join(__dirname, '.run-single-test.pid');
 
 // Handle cleanup on exit
 process.on('SIGINT', cleanup);
 process.on('SIGTERM', cleanup);
 process.on('exit', cleanup);
 
-async function cleanup() {
+function cleanup() {
   if (isShuttingDown) return;
   isShuttingDown = true;
 
@@ -59,10 +60,49 @@ async function cleanup() {
   if (rubeProcess && !rubeProcess.killed && rubeProcess.pid) {
     console.log('Killing rube process...');
     try {
-      // Kill the entire process group to ensure all child processes are terminated
-      process.kill(-rubeProcess.pid, 'SIGTERM');
+      // Try graceful termination first
+      rubeProcess.kill('SIGTERM');
+
+      // Give it a moment to terminate gracefully
+      const timeout = Date.now() + 1000;
+      while (Date.now() < timeout) {
+        try {
+          process.kill(rubeProcess.pid, 0); // Check if still alive
+        } catch {
+          break; // Process is dead
+        }
+      }
+
+      // Force kill if still running
+      try {
+        rubeProcess.kill('SIGKILL');
+      } catch {}
     } catch (error) {
       console.log('Process already terminated');
+    }
+  }
+
+  // CRITICAL: Use pattern-based killing to clean up all Urbit processes
+  // This is necessary because Urbit spawns serf sub-processes that aren't tracked
+  try {
+    // Kill all Urbit processes matching our rube pattern
+    console.log('Killing Urbit processes...');
+    // Use a subshell to handle empty output gracefully on macOS
+    const killUrbitCmd = `pids=$(ps aux | grep urbit | grep "rube/dist" | grep -v grep | awk '{print $2}'); [ -n "$pids" ] && echo "$pids" | xargs kill -9 2>/dev/null || true`;
+    childProcess.execSync(killUrbitCmd, { stdio: 'ignore' });
+
+    // Also kill any node processes running rube
+    const killNodeRubeCmd = `pids=$(ps aux | grep "node.*rube/dist/index.js" | grep -v grep | awk '{print $2}'); [ -n "$pids" ] && echo "$pids" | xargs kill -9 2>/dev/null || true`;
+    childProcess.execSync(killNodeRubeCmd, { stdio: 'ignore' });
+
+    // Also kill any Vite dev server processes
+    console.log('Killing Vite processes...');
+    const killViteCmd = `pids=$(ps aux | grep "vite dev" | grep -v grep | awk '{print $2}'); [ -n "$pids" ] && echo "$pids" | xargs kill -9 2>/dev/null || true`;
+    childProcess.execSync(killViteCmd, { stdio: 'ignore' });
+  } catch (error) {
+    // Only log if it's a real error, not just "no processes found"
+    if (error.status !== 1) {
+      console.log('Error during pattern-based cleanup:', error.message);
     }
   }
 
@@ -92,13 +132,56 @@ async function cleanup() {
   const uniquePorts = Array.from(new Set(ports));
   for (const port of uniquePorts) {
     try {
-      childProcess.exec(`lsof -ti:${port} | xargs kill -9 2>/dev/null || true`);
+      // First try lsof (most common)
+      try {
+        childProcess.execSync(
+          `command -v lsof >/dev/null 2>&1 && lsof -ti:${port} | xargs kill -9 2>/dev/null || true`,
+          { stdio: 'ignore' }
+        );
+      } catch {
+        // If lsof doesn't exist, try fuser as fallback
+        try {
+          childProcess.execSync(
+            `command -v fuser >/dev/null 2>&1 && fuser -k ${port}/tcp 2>/dev/null || true`,
+            { stdio: 'ignore' }
+          );
+        } catch {
+          // Neither tool available - skip port cleanup
+        }
+      }
     } catch (error) {
       // Ignore errors - processes might not exist
     }
   }
 
+  // Clean up PID file
+  try {
+    fs.unlinkSync(pidFile);
+  } catch {}
+
+  // Verify cleanup was successful
+  try {
+    const remainingUrbit = childProcess
+      .execSync(
+        `ps aux | grep urbit | grep "rube/dist" | grep -v grep | wc -l`,
+        { encoding: 'utf8' }
+      )
+      .trim();
+
+    if (remainingUrbit !== '0') {
+      console.log(
+        `⚠️ Warning: ${remainingUrbit} Urbit processes may still be running after cleanup`
+      );
+      console.log('  Run ./rube-cleanup.sh for complete cleanup');
+    }
+  } catch {
+    // Ignore verification errors
+  }
+
   console.log('Cleanup complete!');
+
+  // Exit the process after cleanup
+  process.exit(0);
 }
 
 async function waitForReadiness() {
@@ -197,6 +280,26 @@ async function runTest(): Promise<void> {
 
 async function main() {
   try {
+    // Check for existing instance
+    if (fs.existsSync(pidFile)) {
+      try {
+        const oldPid = parseInt(fs.readFileSync(pidFile, 'utf8'));
+        process.kill(oldPid, 0);
+        console.error(
+          '❌ Another run-single-test instance is already running!'
+        );
+        console.error(`PID: ${oldPid}`);
+        console.error('Kill it first or wait for it to complete.');
+        process.exit(1);
+      } catch {
+        // Process doesn't exist, clean up stale file
+        fs.unlinkSync(pidFile);
+      }
+    }
+
+    // Save our PID
+    fs.writeFileSync(pidFile, process.pid.toString());
+
     console.log(
       '🚀 Starting ships and web servers (without running full test suite)...'
     );
@@ -205,7 +308,7 @@ async function main() {
     rubeProcess = childProcess.spawn('pnpm', ['rube'], {
       stdio: ['ignore', 'pipe', 'pipe'],
       cwd: path.join(__dirname, '../..'), // Go up two levels from rube/dist
-      detached: true, // Create a new process group
+      // Don't detach - we want it to be part of our process group for cleanup
       env: {
         ...process.env,
         SKIP_TESTS: 'true', // This tells rube to stop before running tests
@@ -250,10 +353,18 @@ async function main() {
     await new Promise<void>((resolve) => {
       let dots = 0;
       const startTime = Date.now();
+      let timer: NodeJS.Timeout | null = null;
 
       console.log('⏳ Waiting for ships to complete setup');
 
       const checkSetup = () => {
+        if (isShuttingDown) {
+          // Stop the timer if we're shutting down
+          if (timer) clearTimeout(timer);
+          resolve();
+          return;
+        }
+
         if (setupComplete) {
           // Clear the current line and print completion message
           process.stdout.write('\r' + ' '.repeat(60) + '\r');
@@ -269,7 +380,7 @@ async function main() {
           process.stdout.write(
             `\r   Setting up ships${dotString} (${timeString})`
           );
-          setTimeout(checkSetup, 1000);
+          timer = setTimeout(checkSetup, 1000);
         }
       };
       checkSetup();

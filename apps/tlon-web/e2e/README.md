@@ -366,6 +366,26 @@ The Rube system automatically:
 -   Browser console: Accessible through debug mode, also accessible through Playwright traces
 -   Network requests: Captured in Playwright traces, also accessible through debug mode
 
+### Process Cleanup
+
+The e2e infrastructure now includes robust cleanup handling:
+
+1. **Automatic cleanup on Ctrl+C**: When you interrupt `pnpm e2e` or other e2e commands with Ctrl+C, all processes (including Urbit ships and their serf sub-processes) are now properly cleaned up.
+
+2. **Emergency cleanup script**: If processes get stuck or orphaned, use the emergency cleanup script:
+   ```bash
+   ./rube-cleanup.sh
+   ```
+   This will forcefully terminate all rube-related processes including:
+   - Urbit ships and serf processes
+   - Vite dev servers
+   - Any orphaned Node.js processes from the test infrastructure
+
+3. **How cleanup works**: The infrastructure uses pattern-based process killing to ensure even untracked sub-processes (like Urbit's serf) are properly terminated. This happens automatically when:
+   - Tests complete normally
+   - You interrupt with Ctrl+C
+   - The process exits for any reason
+
 ## Maintenance
 
 ### Updating Ship Images
