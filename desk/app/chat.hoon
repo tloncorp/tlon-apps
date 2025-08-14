@@ -369,6 +369,43 @@
   ++  four     old-4
   ++  five     c
   ::
+<<<<<<< Updated upstream
+=======
+  ++  state-9-to-10
+    |=  state-9
+    ^-  state-10
+    :*  %10
+        (~(run by dms) dm-9-to-10)
+        (~(run by clubs) club-9-to-10)
+        pins
+        sends
+        blocked
+        blocked-by
+        hidden-messages
+        old-chats
+        old-pins
+    ==
+  ++  club-9-to-10
+    |=  =club:v5:cv
+    ^-  club:v6:cv
+    club(pact (pact-9-to-10 pact.club))
+  ++  dm-9-to-10
+    |=  =dm:v5:cv
+    ^-  dm:v6:cv
+    dm(pact (pact-9-to-10 pact.dm))
+  ++  pact-9-to-10
+    |=  pact:v5:cv
+    ^-  pact:v6:cv
+    =;  [num=@ud writs=(list [time (may:v6:cv writ:v6:cv)])]
+      [num (gas:on:writs:v6:cv ~ writs) dex upd=~]
+    %+  roll  (tap:on:writs:v5:cv wit)
+    |=  [[=time =writ:v5:cv] num=@ud writs=(list [time (may:v6:cv writ:v6:cv)])]
+    ^+  [num writs]
+    =.  num  +(num)
+    :-  num
+    =/  new-writ  (v6:writ:v5:cc writ)
+    [[time %& new-writ(seq num)] writs]
+>>>>>>> Stashed changes
   ++  state-8-to-9
     |=  state-8
     ^-  state-9
