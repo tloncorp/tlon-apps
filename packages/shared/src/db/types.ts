@@ -142,3 +142,8 @@ export function isSystemContact(
   const hasEmail = 'email' in contact;
   return hasPhone || hasEmail;
 }
+
+export interface ChangesResult {
+  groups: Group[];
+  posts: Post[];
+}

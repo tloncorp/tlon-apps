@@ -89,6 +89,7 @@ import {
   ActivityEvent,
   Attestation,
   BaseUnread,
+  ChangesResult,
   Channel,
   ChannelUnread,
   Chat,
@@ -3047,6 +3048,17 @@ export const getChannelSearchResults = createReadQuery(
     });
   },
   []
+);
+
+export const insertChanges = createWriteQuery(
+  'insertChanges',
+  async (input: ChangesResult, ctx: QueryCtx) => {
+    withTransactionCtx(ctx, async (txCtx) => {
+      await insertChannelPosts({ posts: input.posts }, txCtx);
+      await insertGroups({ groups: input.groups }, txCtx);
+    });
+  },
+  ['posts', 'groups', 'channels']
 );
 
 export const insertChannelPosts = createWriteQuery(

@@ -1,6 +1,8 @@
 import {
   createDevLogger,
+  syncLatestChanges,
   syncLatestPosts,
+  syncSince,
   syncUnreads,
 } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
@@ -71,10 +73,10 @@ async function performSync() {
   logger.log('Configured urbit client.');
 
   try {
-    const unreadsStart = Date.now();
-    await syncUnreads();
-    timings.unreadsDuration = Date.now() - unreadsStart;
-    logger.trackEvent('Background sync: unreads complete', { taskExecutionId });
+    const changesStart = Date.now();
+    await syncSince();
+    timings.changesDuration = Date.now() - changesStart;
+    logger.trackEvent('Background sync: changes complete', { taskExecutionId });
 
     const latestPostsStart = Date.now();
     await syncLatestPosts();
@@ -98,6 +100,7 @@ async function performSync() {
       duration: Date.now() - timings.start,
       unreadsDuration: timings.unreadsDuration,
       latestPostsDuration: timings.latestPostsDuration,
+      changesDuration: timings.changesDuration,
       taskExecutionId,
     });
   }

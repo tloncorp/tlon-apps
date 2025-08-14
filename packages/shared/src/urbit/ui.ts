@@ -38,5 +38,5 @@ export interface CombinedHeads {
 
 export interface Changes {
   groups: Groups;
-  channels: Record<string, Posts>;
+  channels: Record<string, Posts | null>;
 }
