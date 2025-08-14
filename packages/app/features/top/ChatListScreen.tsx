@@ -18,6 +18,7 @@ import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useFilteredChats } from '../../hooks/useFilteredChats';
 import { TabName } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
+import { useSyncStatus } from '../../hooks/useSyncStatus';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
@@ -99,20 +100,18 @@ export function ChatListScreenView({
     }, 200);
   }, [navigation]);
 
-  const connStatus = store.useConnectionStatus();
-  const notReadyMessage: string | null = useMemo(() => {
-    // if not fully connected yet, show status
-    if (connStatus !== 'Connected') {
-      return `${connStatus}...`;
-    }
-
+  const { connectionStatus: connStatus, subtitle: syncSubtitle } = useSyncStatus();
+  const isLoading = useMemo(() => {
     // if still loading the screen data, show loading
-    if (!chats || (!chats.unpinned.length && !chats.pinned.length)) {
+    return !chats || (!chats.unpinned.length && !chats.pinned.length);
+  }, [chats]);
+  
+  const subtitle = useMemo(() => {
+    if (isLoading) {
       return 'Loading...';
     }
-
-    return null;
-  }, [connStatus, chats]);
+    return syncSubtitle;
+  }, [isLoading, syncSubtitle]);
 
   /* Log an error if this screen takes more than 30 seconds to resolve to "Connected" */
   const connectionTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -264,7 +263,9 @@ export function ChatListScreenView({
         <NavigationProvider focusedChannelId={focusedChannelId}>
           <View userSelect="none" flex={1}>
             <ScreenHeader
-              title={notReadyMessage ?? 'Home'}
+              title="Home"
+              subtitle={subtitle}
+              showSubtitle={true}
               leftControls={
                 personalInvite ? (
                   <ScreenHeader.IconButton
