@@ -397,7 +397,13 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                           }
                           goToChatDetails={goToChatDetails}
                           goToProfile={handleGoToProfile}
+                          goToSearch={goToSearch}
                           showSpinner={isLoadingPosts}
+                          showSearchButton={
+                            channel.type === 'chat' || 
+                            channel.type === 'dm' || 
+                            channel.type === 'groupDm'
+                          }
                           showMenuButton={
                             draftInputPresentationMode !== 'fullscreen'
                           }
