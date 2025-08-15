@@ -23,7 +23,7 @@ export function FeatureFlagScreenView({
       <ScreenHeader
         useHorizontalTitleLayout={!isWindowNarrow}
         borderBottom
-        backAction={isWindowNarrow ? () => onBackPressed : undefined}
+        backAction={isWindowNarrow ? onBackPressed : undefined}
         title={'Feature Previews'}
       />
       <ScrollView
