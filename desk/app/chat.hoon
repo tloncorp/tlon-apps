@@ -1101,16 +1101,16 @@
     =/  changes=(map whom:c (unit writs:c))
       %-  ~(gas by *(map whom:c (unit writs:c)))
       %+  weld
-        %+  turn  ~(tap by dms)
+        %+  murn  ~(tap by dms)
         |=  [who=ship =dm:c]
-        ^-  [whom:c (unit writs:c)]
-        :-  [%ship who]
-        (~(changes pac pact.dm) since)
-      %+  turn  ~(tap by clubs)
+        ^-  (unit [whom:c (unit writs:c)])
+        ?~  changes=(~(changes pac pact.dm) since)  ~
+        `[[%ship who] changes]
+      %+  murn  ~(tap by clubs)
       |=  [=id:club:c =club:c]
-      ^-  [whom:c (unit writs:c)]
-      :-  [%club id]
-      (~(changes pac pact.club) since)
+      ^-  (unit [whom:c (unit writs:c)])
+      ?~  changes=(~(changes pac pact.club) since)  ~
+      `[[%club id] changes]
     ?+  t.t.t.t.path  [~ ~]
       ~  ``chat-changed-writs+!>(changes)
     ::
