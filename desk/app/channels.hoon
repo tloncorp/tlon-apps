@@ -1112,7 +1112,7 @@
       %^  give  %fact
         ~[path v0+path v1+path]
       ?~  got  cage.sign
-      channel-said+!>((to-said-1:utils u.got))
+      channel-said+!>((v7:said:v9:ccv u.got))
     =/  suffix=^path
       [%said (scot %p src.bowl) (tail path)]
     =.  cor
@@ -2166,7 +2166,7 @@
       ?:  =(merged reacts.u.post)  ca-core
       =.  posts.channel
         (put:on-v-posts:c posts.channel id-post u.post(reacts merged))
-      (ca-response %post id-post %reacts (uv-reacts-2:utils merged))
+      (ca-response %post id-post %reacts (uv-reacts:utils merged))
     ::
         %essay
       =.  ca-core  (ca-heed ~[author.u.post])
@@ -2229,7 +2229,7 @@
     =.  ca-core  (ca-heed ~(tap in ~(key by reacts.u.reply)))
     =/  merged  (ca-apply-reacts reacts.u.reply reacts.u-reply)
     ?:  =(merged reacts.u.reply)  ca-core
-    (put-reply u.reply(reacts merged) %reacts (uv-reacts-2:utils merged))
+    (put-reply u.reply(reacts merged) %reacts (uv-reacts:utils merged))
     ::
     ::  put a reply into a post by id
     ::
@@ -2474,7 +2474,7 @@
     =.  ca-core
       %^  give  %fact
         ~[/v1 v1+ca-area]
-      channel-response-2+!>((r-channels-1:utils r-channels))
+      channel-response-2+!>((v7:r-channels:v9:ccv r-channels))
     =;  r-simple=r-channels-simple-post:v7:c
       %^  give  %fact
         ~[/ ca-area /v0 v0+ca-area]
@@ -2499,39 +2499,39 @@
         `(s-reply-1:utils +.reply.r-reply.r-post.r-channel)
         ::
           reply-meta.r-post
-        (reply-meta-1:utils reply-meta.r-post.r-channel)
+        (v7:reply-meta:v9:ccv reply-meta.r-post.r-channel)
       ==
     ::
         [%post * %reply * * %reacts *]
       %=    r-channel
           ::
           reply-meta.r-post
-        (reply-meta-1:utils reply-meta.r-post.r-channel)
+        (v7:reply-meta:v9:ccv reply-meta.r-post.r-channel)
         ::
           reacts.r-reply.r-post
-        (reacts-1:utils reacts.r-reply.r-post.r-channel)
+        (v7:reacts:v9:ccv reacts.r-reply.r-post.r-channel)
       ==
     ::
         [%post * %reacts *]
-      r-channel(reacts.r-post (reacts-1:utils reacts.r-post.r-channel))
+      r-channel(reacts.r-post (v7:reacts:v9:ccv reacts.r-post.r-channel))
     ::
         [%post id-post:c %essay *]
-      r-channel(essay.r-post (essay-1:utils essay.r-post.r-channel))
+      r-channel(essay.r-post (v7:essay:v9:ccv essay.r-post.r-channel))
     ::
         [%pending client-id:c %post *]
       %=    r-channel
           essay.r-pending
-        (essay-1:utils essay.r-pending.r-channel)
+        (v7:essay:v9:ccv essay.r-pending.r-channel)
       ==
     ::
         [%pending client-id:c %reply *]
       %=    r-channel
           ::
           reply-meta.r-pending
-        (reply-meta-1:utils reply-meta.r-pending.r-channel)
+        (v7:reply-meta:v9:ccv reply-meta.r-pending.r-channel)
         ::
           memo.r-pending
-        (memo-1:utils memo.r-pending.r-channel)
+        (v7:memo:v9:ccv memo.r-pending.r-channel)
       ==
     ==
   ::

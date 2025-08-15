@@ -86,6 +86,80 @@
       ^-  (unit reply:v8:c)
       ?:(?=(%| -.reply) ~ `+.reply)
     --
+  ++  reply
+    |%
+    ++  v8
+      |=  =reply:v9:c
+      ^-  reply:v8:c
+      reply
+    ++  v7  v7:reply:^v8
+    --
+  ++  seal
+    |%
+    ++  v8
+      |=  =seal:v9:c
+      ^-  seal:v8:c
+      seal(replies (v8:replies replies.seal))
+    ++  v7
+      |=  =seal:v9:c
+      (v7:seal:^v8 (v8 seal))
+    --
+  ++  author
+    |%
+    ++  v8
+      |=  =author:v9:c
+      ^-  author:v8:c
+      author
+    ++  v7  v7:author:^v8
+    --
+  ++  essay
+    |%
+    ++  v8
+      |=  =essay:v9:c
+      ^-  essay:v8:c
+      essay
+    ++  v7  v7:essay:^v8
+    --
+  ++  memo
+    |%
+    ++  v8
+      |=  =memo:v9:c
+      ^-  memo:v8:c
+      memo
+    ++  v7  v7:memo:^v8
+    --
+  ++  reacts
+    |%
+    ++  v8
+      |=  =reacts:v9:c
+      ^-  reacts:v8:c
+      reacts
+    ++  v7  v7:reacts:^v8
+    --
+  ++  react
+    |%
+    ++  v8
+      |=  =react:v9:c
+      ^-  react:v8:c
+      react
+    ++  v7  v7:react:^v8
+    --
+  ++  reply-meta
+    |%
+    ++  v8
+      |=  =reply-meta:v9:c
+      ^-  reply-meta:v8:c
+      reply-meta
+    ++  v7  v7:reply-meta:^v8
+    --
+  ++  reply-seal
+    |%
+    ++  v8
+      |=  =reply-seal:v9:c
+      ^-  reply-seal:v8:c
+      reply-seal
+    ++  v7  v7:reply-seal:^v8
+    --
   ++  log
     |%
     ++  v8
@@ -116,6 +190,10 @@
     --
   ++  r-channels
     |%
+    ++  v7
+      |=  =r-channels:v9:c
+      ^-  r-channels:v7:c
+      (v7:r-channels:^v8 (v8 r-channels))
     ++  v8
       |=  [=nest:c =r-channel:v9:c]
       ^-  r-channels:v8:c
@@ -149,6 +227,10 @@
       |=  =said:v9:c
       ^-  said:v8:c
       said(q (v8:reference q.said))
+    ++  v7
+      |=  =said:v9:c
+      ^-  said:v7:c
+      (v7:said:^v8 (v8 said))
     --
   ++  reference
     |%
@@ -341,16 +423,32 @@
         (~(put in dels) id-post `id-reply)
       --
     --
+  ++  posts
+    |%
+    ++  v7
+      |=  =posts:v8:c
+      ^-  posts:v7:c
+      %-  ~(run by posts)
+      |=  post=(unit post:v8:c)
+      (bind post v7:^post)
+    --
   ++  post
     |%
     ++  v7
       |=  =post:v8:c
       ^-  post:v7:c
-      :_  [-.+.post (v7:essay +.+.post)]
-      :*  id.post
-          (v7:reacts reacts.post)
-          (v7:replies replies.post)
-          (v7:reply-meta reply-meta.post)
+      :-  (v7:seal -.post)
+      [+<.post (v7:essay +>.post)]
+    --
+  ++  seal
+    |%
+    ++  v7
+      |=  =seal:v8:c
+      ^-  seal:v7:c
+      :*  id.seal
+          (v7:reacts reacts.seal)
+          (v7:replies replies.seal)
+          (v7:reply-meta reply-meta.seal)
       ==
     --
   ++  essay
@@ -393,6 +491,16 @@
       :*  id.reply
           parent-id.reply
           (v7:reacts reacts.reply)
+      ==
+    --
+  ++  reply-seal
+    |%
+    ++  v7
+      |=  =reply-seal:v8:c
+      ^-  reply-seal:v7:c
+      :*  id.reply-seal
+          parent-id.reply-seal
+          (v7:reacts reacts.reply-seal)
       ==
     --
   ++  simple-replies
@@ -552,6 +660,60 @@
           %reply
         ^-  $>(%reply reference:v7:c)
         reference(reply (v7:simple-reply:v8 reply.reference))
+      ==
+    --
+  ++  r-channels
+    |%
+    ++  v7
+      |=  [=nest:c =r-channel:v8:c]
+      ^-  r-channels:v7:c
+      ?<  ?=(%meta -.r-channel)
+      :-  nest
+      ?+  r-channel  r-channel
+        [%posts *]  [%posts (v7:posts posts.r-channel)]
+      ::
+          [%post * %set *]
+        r-channel(post.r-post (bind post.r-post.r-channel v7:post))
+      ::
+          [%post * %reply * ^ %reacts *]
+        %=    r-channel
+            reply-meta.r-post
+          (v7:reply-meta reply-meta.r-post.r-channel)
+        ::
+            reacts.r-reply.r-post
+          (v7:reacts reacts.r-reply.r-post.r-channel)
+        ==
+      ::
+          [%post * %reply * ^ %set *]
+        %=    r-channel
+            reply-meta.r-post
+          (v7:reply-meta reply-meta.r-post.r-channel)
+        ::
+            reply.r-reply.r-post
+          ?~  reply.r-reply.r-post.r-channel  ~
+          (bind reply.r-reply.r-post.r-channel v7:reply)
+        ==
+      ::
+          [%post * %reacts *]
+        r-channel(reacts.r-post (v7:reacts reacts.r-post.r-channel))
+      ::
+          [%post * %essay *]
+        r-channel(essay.r-post (v7:essay essay.r-post.r-channel))
+      ::
+          [%pending * %post *]
+        %=    r-channel
+            essay.r-pending
+          (v7:essay essay.r-pending.r-channel)
+        ==
+      ::
+          [%pending * %reply *]
+        %=    r-channel
+            reply-meta.r-pending
+          (v7:reply-meta reply-meta.r-pending.r-channel)
+        ::
+            memo.r-pending
+          (v7:memo memo.r-pending.r-channel)
+        ==
       ==
     --
   ++  scan
@@ -747,12 +909,26 @@
         [/chat/notice ~ ~]
       ==
     --
+  ++  author
+    |%
+    ++  v8
+      |=  =ship
+      ^-  author:v8:c
+      ship
+    --
   ++  memo
     |%
     ++  v8
       |=  =memo:v7:c
       ^-  memo:v8:c
       memo
+    --
+  ++  reacts
+    |%
+    ++  v8
+      |=  =reacts:v7:c
+      ^-  reacts:v8:c
+      (~(run by reacts) v8:react)
     --
   ++  react
     |%
@@ -768,6 +944,13 @@
       |=  reply=simple-reply:v7:c
       ^-  simple-reply:v8:c
       reply(+ (v8:memo:v7 +.reply))
+    --
+  ++  reply-meta
+    |%
+    ++  v8
+      |=  rm=reply-meta:v7:c
+      ^-  reply-meta:v8:c
+      rm(last-repliers (~(run in last-repliers.rm) v8:author))
     --
   ++  said
     |%

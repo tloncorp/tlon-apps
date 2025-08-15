@@ -1,6 +1,6 @@
-/-  c=chat
+/-  cv=chat-ver
 /+  j=chat-json
-|_  =action:dm:c
+|_  =action:dm:v6:cv
 ++  grad  %noun
 ++  grow
   |%
@@ -9,7 +9,7 @@
   --
 ++  grab
   |%
-  ++  noun  action:dm:c
+  ++  noun  action:dm:v6:cv
   ++  json  dm-action:dejs:j
   --
 --
