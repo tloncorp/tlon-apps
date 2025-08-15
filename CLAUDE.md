@@ -24,6 +24,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 -   `pnpm run test` - Run all tests with updates
 -   `pnpm run test:ci` - Run all tests in CI mode
 -   `pnpm run e2e` - Run end-to-end tests (web)
+-   `pnpm run e2e:test <file1> [file2...]` - Run specific e2e test file(s) with automatic ship management
 
 ### Linting
 
@@ -301,7 +302,7 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   `./stop-playwright-dev.sh` - Comprehensive cleanup of all e2e processes
 -   `./apps/tlon-web/rube-cleanup.sh` - Emergency cleanup when processes are stuck
 -   `pnpm e2e:playwright-dev` - Starts ships and web servers (runs indefinitely)
--   `pnpm e2e:test <file>` - Runs a single test file with ship setup
+-   `pnpm e2e:test <file1> [file2...]` - Runs one or more test files with ship setup (useful for testing interactions)
 -   `pnpm e2e` - Full test suite (now properly handles Ctrl+C interruption)
 
 **Process Cleanup Improvements:**

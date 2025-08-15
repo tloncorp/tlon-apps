@@ -109,8 +109,14 @@ pnpm e2e
 # Run a single test with automatic ship management
 pnpm e2e:test chat-functionality.spec.ts
 
+# Run multiple tests together to check interactions
+pnpm e2e:test chat-functionality.spec.ts direct-message.spec.ts
+
 # Run a single test in debug mode
 pnpm e2e:test --debug chat-functionality.spec.ts
+
+# Run multiple tests with flags
+pnpm e2e:test --headed group-lifecycle.spec.ts group-customization.spec.ts
 
 # Run a single test with multiple flags
 pnpm e2e:test --headed --debug chat-functionality.spec.ts
@@ -160,11 +166,18 @@ npx playwright test chat-functionality.spec.ts
 # Run specific test file with automatic ship management (recommended for development)
 pnpm e2e:test chat-functionality.spec.ts
 
+# Run multiple test files together (useful for testing interactions)
+pnpm e2e:test group-lifecycle.spec.ts group-customization.spec.ts
+pnpm e2e:test --debug dm-thread-functionality.spec.ts thread-functionality.spec.ts
+
 # Force re-extraction of all ships (useful for clean slate testing)
 pnpm e2e:force
 
 # Force re-extraction with single test
 pnpm e2e:test:force chat-functionality.spec.ts
+
+# Force re-extraction with multiple tests
+pnpm e2e:test:force chat-functionality.spec.ts direct-message.spec.ts
 
 # Run tests matching pattern
 npx playwright test --grep "group"
@@ -235,26 +248,35 @@ The `helpers.ts` file provides numerous utility functions:
 
 ## Development Workflow
 
-### Running Individual Tests
+### Running Individual or Multiple Tests
 
-For development convenience, use the automated single-test runner:
+For development convenience, use the automated test runner:
 
 ```bash
 # This will automatically:
 # 1. Boot all three ships (zod, bus, ten) without running tests
 # 2. Start the web servers
 # 3. Wait for everything to be ready
-# 4. Run your specific test only
+# 4. Run your specific test(s)
 # 5. Clean up all processes when done
+
+# Single test file
 pnpm e2e:test notebook-functionality.spec.ts
 
-# For debugging individual tests:
+# Multiple test files (useful for testing interactions)
+pnpm e2e:test chat-functionality.spec.ts direct-message.spec.ts
+pnpm e2e:test group-lifecycle.spec.ts group-customization.spec.ts group-info-settings.spec.ts
+
+# For debugging tests:
 pnpm e2e:test --debug notebook-functionality.spec.ts
-pnpm e2e:test --headed notebook-functionality.spec.ts
+pnpm e2e:test --headed chat-functionality.spec.ts direct-message.spec.ts
 pnpm e2e:test --ui notebook-functionality.spec.ts
 ```
 
-The script (located at `rube/run-single-test.ts`) uses a modified version of rube that stops before running the full test suite, then executes only your specific test. This handles all the orchestration for you, so you don't need to manually start ships or remember to clean up afterwards. This is especially useful when iterating on a single test during development.
+The script (located at `rube/run-selected-tests.ts`) uses a modified version of rube that stops before running the full test suite, then executes only your specific test(s). This handles all the orchestration for you, so you don't need to manually start ships or remember to clean up afterwards. This is especially useful when:
+- Iterating on a single test during development
+- Testing how multiple tests interact with each other
+- Debugging test pollution or ordering issues without running the full suite
 
 ### Playwright MCP Development
 
