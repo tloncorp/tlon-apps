@@ -281,6 +281,15 @@ export function ChannelHeader({
       return <GroupAvatar model={group} size="$2xl" />;
     }
 
+    // For notebook and gallery channels, show group avatar only in vertical layout (narrow/mobile)
+    if (
+      (channel.type === 'notebook' || channel.type === 'gallery') &&
+      group &&
+      isWindowNarrow
+    ) {
+      return <GroupAvatar model={group} size="$2xl" />;
+    }
+
     return null;
   }, [channel, group, dmContactId, facePileContacts, isWindowNarrow]);
 
