@@ -82,11 +82,14 @@ export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
 
     // Wait for contact to appear in search results
     await expect(
-      page.getByTestId('ContactRow').getByText(memberId)
+      page.getByTestId('ContactRow').getByText(`~${memberId}`, { exact: true })
     ).toBeVisible({
       timeout: 10000,
     });
-    await page.getByTestId('ContactRow').getByText(memberId).click();
+    await page
+      .getByTestId('ContactRow')
+      .getByText(`~${memberId}`, { exact: true })
+      .click();
   }
 
   // Wait for continue button to update with selection count and click
@@ -1408,21 +1411,8 @@ export async function cleanupContactNicknames(page: Page) {
             timeout: 5000,
           });
 
-          // Click Edit
-          await page.getByText('Edit').click();
-          await expect(page.getByText('Edit Profile')).toBeVisible({
-            timeout: 5000,
-          });
-
-          // Clear the nickname field
-          const nicknameInput = page.getByTestId('ProfileNicknameInput');
-          await nicknameInput.click();
-          await nicknameInput.fill('');
-          console.log(`[CLEANUP] Cleared nickname: ${nickname}`);
-
-          // Save changes
-          await page.getByText('Done').click();
-          await page.waitForTimeout(2000);
+          // Remove the contact from the contacts list
+          await page.getByText('Remove Contact').click();
 
           // Navigate back to contacts
           await page.getByTestId('AvatarNavIcon').click();
@@ -1435,7 +1425,7 @@ export async function cleanupContactNicknames(page: Page) {
         }
       } catch (error) {
         console.log(
-          `[CLEANUP] Failed to clear nickname ${nickname}:`,
+          `[CLEANUP] Failed to remove contact ${nickname}:`,
           error.message
         );
         // Try to get back to contacts
