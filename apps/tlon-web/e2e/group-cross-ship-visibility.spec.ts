@@ -18,7 +18,7 @@ test('should show group info, channel, and role changes to invited user', async 
   await helpers.openGroupSettings(zodPage);
 
   // Change group info - set privacy to private
-  await helpers.setGroupPrivacy(zodPage, true);
+  await helpers.setGroupPrivacy(zodPage, 'private');
   await helpers.navigateBack(zodPage);
 
   // Verify privacy setting on zod's side

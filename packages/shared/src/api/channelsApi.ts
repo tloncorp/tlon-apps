@@ -327,6 +327,20 @@ export const toChannelsUpdate = (
           logger.log('delete post event');
           return { type: 'deletePost', postId, channelId };
         } else if ('reacts' in postResponse && postResponse.reacts !== null) {
+          // Check for shortcodes in raw reactions from server
+          const shortcodeReactions = Object.entries(postResponse.reacts).filter(([, v]) => 
+            typeof v === 'string' && /^:[a-zA-Z0-9_+-]+:?$/.test(v)
+          );
+          
+          if (shortcodeReactions.length > 0) {
+            logger.trackError('Shortcode reactions received from server (post)', {
+              postId,
+              shortcodeReactions: shortcodeReactions.map(([k, v]) => ({ user: k, value: v })),
+              allReacts: postResponse.reacts,
+              context: 'channel_post_update'
+            });
+          }
+          
           const updatedReacts = toReactionsData(postResponse.reacts, postId);
           logger.log('update reactions event');
           return { type: 'updateReactions', postId, reactions: updatedReacts };
@@ -353,6 +367,20 @@ export const toChannelsUpdate = (
           logger.log('delete reply event');
           return { type: 'deletePost', postId: replyId, channelId };
         } else if ('reacts' in replyResponse && replyResponse.reacts !== null) {
+          // Check for shortcodes in raw reply reactions from server
+          const shortcodeReactions = Object.entries(replyResponse.reacts).filter(([, v]) => 
+            typeof v === 'string' && /^:[a-zA-Z0-9_+-]+:?$/.test(v)
+          );
+          
+          if (shortcodeReactions.length > 0) {
+            logger.trackError('Shortcode reactions received from server (reply)', {
+              replyId,
+              shortcodeReactions: shortcodeReactions.map(([k, v]) => ({ user: k, value: v })),
+              allReacts: replyResponse.reacts,
+              context: 'channel_reply_update'
+            });
+          }
+          
           const updatedReacts = toReactionsData(replyResponse.reacts, replyId);
           logger.log('update reply reactions event');
           return {

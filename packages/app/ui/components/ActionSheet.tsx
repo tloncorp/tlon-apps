@@ -11,6 +11,7 @@ import {
   ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
 } from 'react';
@@ -141,6 +142,24 @@ const ActionSheetComponent = ({
   const maxHeight = height - bottom - getTokenValue('$2xl');
   // For popovers, use a more conservative max height to ensure it fits in viewport
   const popoverMaxHeight = Math.min(maxHeight, height * 0.5);
+
+  // listen for escape key to close the sheet
+  // this is helpful for e2e tests
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onOpenChange(false);
+      }
+    };
+    if (open) {
+      window.addEventListener('keydown', handleEscape);
+      return () => window.removeEventListener('keydown', handleEscape);
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [onOpenChange, open]);
 
   if (!hasOpened.current && open) {
     hasOpened.current = true;
