@@ -45,6 +45,11 @@ export function updateChannelCursor(channelId: string, cursor: string) {
   }
 }
 
+// Update the last event received timestamp for real-time events
+export function updateLastEventTime() {
+  db.lastEventReceivedAt.setValue(Date.now());
+}
+
 // Used to keep track of which groups/channels we're a part of. If we
 // see something new, we refetch init data. Fallback in case we miss
 // something over %channels or %groups
@@ -646,6 +651,7 @@ export const syncPushNotificationsSetting = async (ctx?: SyncCtx) => {
 
 async function handleLanyardUpdate(update: api.LanyardUpdate) {
   logger.log('received lanyard update', update.type);
+  updateLastEventTime();
   switch (update.type) {
     // for right now, we'll handle any subscription event as a signal to resync
     default:
@@ -656,6 +662,7 @@ async function handleLanyardUpdate(update: api.LanyardUpdate) {
 
 async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
   logger.log('received group update', update.type);
+  updateLastEventTime();
 
   let channelNavSection: db.GroupNavSectionChannel | null | undefined;
   let group: db.Group | null | undefined;
@@ -961,6 +968,7 @@ const handleActivityUpdate = async (
   activityEvents: api.ActivityEvent[],
   ctx: QueryCtx
 ) => {
+  updateLastEventTime();
   const activitySnapshot: api.ActivityUpdateQueue = activityEvents.reduce(
     (memo, event) => {
       switch (event.type) {
@@ -1038,6 +1046,7 @@ export const handleContactUpdate = async (
   update: api.ContactsUpdate,
   ctx?: QueryCtx
 ) => {
+  updateLastEventTime();
   switch (update.type) {
     case 'upsertContact':
       await db.upsertContact(update.contact, ctx);
@@ -1058,6 +1067,7 @@ export const handleContactUpdate = async (
 };
 
 export const handleStorageUpdate = async (update: api.StorageUpdate) => {
+  updateLastEventTime();
   switch (update.type) {
     case 'storageCredentialsChanged': {
       await db.storageCredentials.setValue(update.credentials);
@@ -1123,6 +1133,7 @@ export const handleSettingsUpdate = async (
   update: api.SettingsUpdate,
   ctx?: QueryCtx
 ) => {
+  updateLastEventTime();
   switch (update.type) {
     case 'updateSetting':
       await db.insertSettings(
@@ -1141,6 +1152,7 @@ export const handleChannelsUpdate = async (
   ctx: QueryCtx
 ) => {
   logger.log('event: channels update', update);
+  updateLastEventTime();
   switch (update.type) {
     case 'addPost':
       await handleAddPost(update.post, undefined, ctx);
@@ -1216,6 +1228,7 @@ export const handleChatUpdate = async (
   ctx: QueryCtx
 ) => {
   logger.log('event: chat update', update);
+  updateLastEventTime();
 
   switch (update.type) {
     case 'showPost':
