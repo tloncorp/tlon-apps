@@ -1098,19 +1098,21 @@
   ::
       [%x %v3 %changes since=@ rest=*]
     =+  since=(slav %da i.t.t.t.path)
-    =/  changes=(map whom:c (unit writs:c))
-      %-  ~(gas by *(map whom:c (unit writs:c)))
+    =/  changes=(map whom:c writs:c)
+      %-  ~(gas by *(map whom:c writs:c))
       %+  weld
-        %+  turn  ~(tap by dms)
+        %+  murn  ~(tap by dms)
         |=  [who=ship =dm:c]
-        ^-  [whom:c (unit writs:c)]
-        :-  [%ship who]
-        (~(changes pac pact.dm) since)
-      %+  turn  ~(tap by clubs)
+        ^-  (unit [whom:c writs:c])
+        %+  bind
+          (~(changes pac pact.dm) since)
+        (lead [%ship who])
+      %+  murn  ~(tap by clubs)
       |=  [=id:club:c =club:c]
-      ^-  [whom:c (unit writs:c)]
-      :-  [%club id]
-      (~(changes pac pact.club) since)
+      ^-  (unit [whom:c writs:c])
+      %+  bind
+        (~(changes pac pact.club) since)
+      (lead [%club id])
     ?+  t.t.t.t.path  [~ ~]
       ~  ``chat-changed-writs+!>(changes)
     ::
@@ -1119,9 +1121,8 @@
       !>  ^-  json
       %-  numb:enjs:format
       %-  ~(rep by changes)
-      |=  [[* w=(unit writs:c)] sum=@ud]
-      %+  add  sum
-      ?~(w 0 (wyt:on:writs:c u.w))
+      |=  [[* w=writs:c] sum=@ud]
+      (add sum (wyt:on:writs:c w))
     ==
   ::
       [%x %dm ~]
