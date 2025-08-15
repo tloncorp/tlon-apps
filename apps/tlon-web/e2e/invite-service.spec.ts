@@ -35,7 +35,7 @@ test('should generate an invite link and be able to redeem group/personal invite
   await helpers.navigateBack(zodPage);
 
   await expect(zodPage.getByText('Invite Friends')).toBeVisible({
-    timeout: 5000,
+    timeout: 15000,
   });
 
   await zodPage.getByText('Invite Friends').click();

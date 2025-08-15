@@ -891,6 +891,7 @@ export async function removeReaction(page: Page, emoji: string = '👍') {
 
   const reactionButton = page.getByText(emoji);
   await reactionButton.click();
+  await page.waitForTimeout(1000);
   await expect(reactionButton).not.toBeVisible();
 }
 
@@ -1411,6 +1412,18 @@ export async function cleanupContactNicknames(page: Page) {
             timeout: 5000,
           });
 
+          // Click the Edit button
+          await page.getByText('Edit').click();
+          await expect(page.getByText('Edit Profile')).toBeVisible({
+            timeout: 5000,
+          });
+
+          // Clear the nickname field
+          await page.getByTestId('ProfileNicknameInput').click();
+          await page.getByTestId('ProfileNicknameInput').fill('');
+          await page.getByText('Done').click();
+          await page.waitForTimeout(2000);
+
           // Remove the contact from the contacts list
           await page.getByText('Remove Contact').click();
 
@@ -1440,69 +1453,6 @@ export async function cleanupContactNicknames(page: Page) {
           // Continue with next nickname
         }
       }
-    }
-
-    // Also try to clean up any remaining contacts by looking for ContactRow elements
-    try {
-      const contactRows = await page
-        .locator('[data-testid="ContactRow"]')
-        .all();
-
-      for (const row of contactRows) {
-        const rowText = (await row.textContent()) || '';
-
-        // Skip "You" and any already cleaned @p names
-        if (
-          rowText.includes('You') ||
-          rowText.includes('~zod') ||
-          rowText.includes('~ten') ||
-          rowText.includes('~bus')
-        ) {
-          continue;
-        }
-
-        // This might be a contact with a custom nickname
-        console.log(
-          `[CLEANUP] Found potential custom contact: ${rowText.substring(0, 30)}...`
-        );
-
-        await row.click();
-
-        if (await page.getByText('Profile').isVisible({ timeout: 3000 })) {
-          if (await page.getByText('Edit').isVisible({ timeout: 2000 })) {
-            await page.getByText('Edit').click();
-
-            if (
-              await page.getByText('Edit Profile').isVisible({ timeout: 3000 })
-            ) {
-              const nicknameInput = page.getByTestId('ProfileNicknameInput');
-              const currentValue = await nicknameInput.inputValue();
-
-              if (currentValue && currentValue.trim() !== '') {
-                await nicknameInput.click();
-                await nicknameInput.fill('');
-                console.log(
-                  `[CLEANUP] Cleared custom nickname: ${currentValue}`
-                );
-                await page.getByText('Done').click();
-                await page.waitForTimeout(2000);
-              } else {
-                if (
-                  await page.getByText('Cancel').isVisible({ timeout: 1000 })
-                ) {
-                  await page.getByText('Cancel').click();
-                }
-              }
-            }
-          }
-        }
-
-        // Navigate back to contacts
-        await page.getByTestId('AvatarNavIcon').click();
-        await expect(page.getByText('Contacts')).toBeVisible({ timeout: 3000 });
-      }
-    } catch (error) {
-      console.log('[CLEANUP] Error during contact row cleanup:', error.message);
     }
   } catch (error) {
     console.log('[CLEANUP] cleanupContactNicknames failed:', error.message);
