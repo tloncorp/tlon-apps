@@ -209,10 +209,11 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %10
+    $:  %11
         =v-channels:c
         voc=(map [nest:c plan:c] (unit said:c))
         hidden-posts=(set id-post:c)
+        debounce=(jug nest:c @da)  ::  temporary bandaid
       ::
         ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
         ::
@@ -342,12 +343,17 @@
         [%pass [%tombstones wire] %arvo note]
     ==
   =.  cor  (emil caz-9)
-  ?>  ?=(%10 -.old)
+  =?  old  ?=(%10 -.old)  (state-10-to-11 old)
+  ?>  ?=(%11 -.old)
+  ::  periodically clear .debounce to avoid space leak
+  ::
+  =.  debounce  ~
   =.  state  old
   inflate-io
   ::
   +$  versioned-state
-    $%  state-10
+    $%  state-11
+        state-10
         state-9
         state-8
         state-7
@@ -359,7 +365,20 @@
         state-1
         state-0
     ==
-  +$  state-10  current-state
+  +$  state-11  current-state
+  +$  state-10
+    $:  %10
+        =v-channels:v9:c
+        voc=(map [nest:v9:c plan:v9:c] (unit said:v9:c))
+        hidden-posts=(set id-post:v9:c)
+      ::
+        ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
+        ::
+        pending-ref-edits=(jug ship [=kind:v9:c name=term])
+        :: delayed resubscribes
+        =^subs:s
+        =pimp:imp
+    ==
   +$  state-9
     $:  %9  ::NOTE  otherwise identical to state-8
         =v-channels:v8:c
@@ -412,6 +431,11 @@
         =^subs:s
         =pimp:imp
     ==
+  ::
+  ++  state-10-to-11
+    |=  state-10
+    ^-  state-11
+    [%11 v-channels voc hidden-posts debounce=~ pending-ref-edits subs pimp]
   ::
   ++  state-9-to-10
     |=  s=state-9
@@ -1663,6 +1687,16 @@
       ?(%read %read-at %watch %unwatch)  (ca-a-remark a-channel)
     ::
         %post
+      ::  the client retries very aggressively. as a temporary bandaid,
+      ::  track the post we've sent, and silently drop any duplicates
+      ::  (based on the .sent timestamp).
+      ::
+      ?:  ?&  ?=(%add -.c-post.a-channel)
+              (~(has ju debounce) nest sent.essay.c-post.a-channel)
+          ==
+        ca-core
+      =?  debounce  ?=(%add -.c-post.a-channel)
+        (~(put ju debounce) nest sent.essay.c-post.a-channel)
       =/  source=(unit source:activity)
         ?.  ?=(%reply -.c-post.a-channel)
           `[%channel nest group.perm.perm.channel]

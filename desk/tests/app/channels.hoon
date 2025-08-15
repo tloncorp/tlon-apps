@@ -3,10 +3,11 @@
 /=  channels-agent  /app/channels
 |%
 +$  current-state
-  $:  %10
+  $:  %11
       =v-channels:c
       voc=(map [nest:c plan:c] (unit said:c))
       hidden-posts=(set id-post:c)
+      debounce=(jug nest:c @da)
     ::
       ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
       ::
@@ -100,6 +101,45 @@
   ;<  *  bind:m  (do-poke %channel-action-1 !>([%channel the-nest %join the-group]))
   (do-agent chk-wire the-dock %watch-ack ~)
 ::
+::  should have a temporary debounce bandaid in place that prevents messages
+::  with the same sent-at timestamp from being sent repeatedly
+::
+++  test-debounce
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  (set-scry-gate scry)
+  ;<  *  bind:m  (do-init %channels channels-agent)
+  ;<  *  bind:m
+    %+  do-poke  %channel-action-1
+    !>  ^-  a-channels:c
+    [%create %chat %test *flag:gv:c 'title' 'desc' ~ ~ ~]
+  ;<  save-1=vase  bind:m  get-save
+  =/  send=a-channels:c
+    =;  =essay:c
+      [%channel [%chat ~zod %test] %post %add essay]
+    [[*story:c ~zod sent=~2025.8.7] /chat ~ ~]
+  ::  first time posting should process as normal:
+  ::  give facts, update state.
+  ::
+  ;<  caz=(list card)  bind:m  (do-poke %channel-action-1 !>(send))
+  ;<  ~  bind:m  (ex-cards caz [. . . . . ~]:|=(* ~))
+  ;<  save-2=vase  bind:m  get-save
+  ;<  ~  bind:m
+    ^-  form:m
+    |=  s=state
+    ?.  =(q.save-1 q.save-2)  &+[~ s]
+    |+['expected state to change, it did not']~
+  ::  second time posting should no-op:
+  ::  no cards, state unchanged.
+  ::
+  ;<  caz=(list card)  bind:m  (do-poke %channel-action-1 !>(send))
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  save-3=vase  bind:m  get-save
+  ^-  form:m
+  |=  s=state
+  ?:  =(q.save-2 q.save-3)  &+[~ s]
+  |+['expected state to be unchanged, but it changed']~
+::
 ::  migration 7->8 used to drop message tombstones.
 ::  if we're in that state, we must recover them from the log.
 ::
@@ -162,7 +202,7 @@
     =/  m  (mare ,~)
     =/  bad-state=current-state
       =;  chans=v-channels:c
-        [%10 chans ~ ~ ~ *^subs:s *pimp:imp]
+        [%11 chans ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         sequence-fix-test-channel
       ::  bad 7->8 migration in old code had dropped the tombstone
@@ -199,7 +239,7 @@
     ;<  save=vase  bind:m  get-save
     =/  fixed-state=current-state
       =;  chans=v-channels:c
-        [%10 chans ~ ~ ~ *^subs:s *pimp:imp]
+        [%11 chans ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         sequence-fix-test-channel
       ::  missing message will not have magically recovered,
@@ -268,7 +308,7 @@
     =/  m  (mare ,~)
     =/  bad-state=current-state
       =;  chans=v-channels:c
-        [%10 chans ~ ~ ~ *^subs:s *pimp:imp]
+        [%11 chans ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         tombstone-fix-test-channel
       ::  client had just bunted tombstones
@@ -322,7 +362,7 @@
     ;<  save=vase  bind:m  get-save
     =/  fixed-state=current-state
       =;  chans=v-channels:c
-        [%10 chans ~ ~ ~ *^subs:s *pimp:imp]
+        [%11 chans ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         tombstone-fix-test-channel
       (~(put by *v-channels:c) *nest:c chan)
