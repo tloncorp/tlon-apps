@@ -8,6 +8,7 @@ import { View, XStack, styled, withStaticProperties } from 'tamagui';
 export const ScreenHeaderComponent = ({
   children,
   title,
+  titleIcon,
   subtitle,
   showSubtitle = false,
   leftControls,
@@ -19,6 +20,7 @@ export const ScreenHeaderComponent = ({
   useHorizontalTitleLayout = false,
 }: PropsWithChildren<{
   title?: string | ReactNode;
+  titleIcon?: ReactNode;
   subtitle?: string | ReactNode;
   showSubtitle?: boolean;
   leftControls?: ReactNode | null;
@@ -91,6 +93,7 @@ export const ScreenHeaderComponent = ({
             gap={'$s'}
             height={'$4xl'}
           >
+            {titleIcon}
             <Text
               size={'$label/2xl'}
               color={'$primaryText'}

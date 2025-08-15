@@ -24,8 +24,8 @@ import { useRenderCount } from '../../hooks/useRenderCount';
 import { useRootNavigation } from '../../navigation/utils';
 import { useChatOptions, useCurrentUserId } from '../contexts';
 import { useGroupTitle, useIsAdmin } from '../utils/channelUtils';
+import { GroupAvatar } from './Avatar';
 import { Badge } from './Badge';
-import { ChatOptionsSheet } from './ChatOptionsSheet';
 import { ChannelListItem } from './ListItem/ChannelListItem';
 import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
 import { ScreenHeader } from './ScreenHeader';
@@ -56,7 +56,6 @@ export const GroupChannelsScreenView = React.memo(
   }: GroupChannelsScreenViewProps) {
     useRenderCount('GroupChannelsScreenView');
     const [showCreateChannel, setShowCreateChannel] = useState(false);
-    const [openChatOptions, setOpenChatOptions] = useState(false);
     const sortBy = db.channelSortPreference.useValue();
     const insets = useSafeAreaInsets();
     const userId = useCurrentUserId();
@@ -64,12 +63,6 @@ export const GroupChannelsScreenView = React.memo(
 
     const chatOptions = useChatOptions();
     const { navigateToChatDetails } = useRootNavigation();
-
-    const handlePressOverflowButton = useCallback(() => {
-      if (group) {
-        chatOptions.open(group.id, 'group');
-      }
-    }, [group, chatOptions]);
 
     const handleTitlePress = useCallback(() => {
       if (group) {
@@ -278,6 +271,7 @@ export const GroupChannelsScreenView = React.memo(
           // component mounts.
           key={group?.id}
           title={title}
+          titleIcon={group ? <GroupAvatar model={group} size="$2xl" /> : null}
           subtitle={subtitle}
           showSubtitle={isWindowNarrow}
           borderBottom

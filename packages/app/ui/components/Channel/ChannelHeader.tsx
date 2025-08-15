@@ -15,9 +15,8 @@ import {
   useState,
 } from 'react';
 
-import { useChatOptions } from '../../contexts';
 import { useChatDescription, useChatTitle } from '../../utils/channelUtils';
-import { ChatOptionsSheet } from '../ChatOptionsSheet';
+import { ContactAvatar, GroupAvatar } from '../Avatar';
 import { FacePile } from '../FacePile/FacePile';
 import { ScreenHeader } from '../ScreenHeader';
 
@@ -82,6 +81,7 @@ export function useRegisterChannelHeaderItem(item: JSX.Element | null) {
 
 export function ChannelHeader({
   title,
+  titleIcon,
   description,
   channel,
   group,
@@ -96,6 +96,7 @@ export function ChannelHeader({
   showEditButton = false,
 }: {
   title: string;
+  titleIcon?: React.ReactNode;
   description: string;
   channel: db.Channel;
   group?: db.Group | null;
@@ -224,26 +225,8 @@ export function ChannelHeader({
   const displayTitle = useDebouncedValue(titleText, 300);
   const displaySubtitle = useDebouncedValue(subtitleText, 300);
 
-  const shouldShowFacePile = useMemo(() => {
-    if (!channel) return false;
-
-    // Show for DMs and group DMs
-    if (channel.type === 'dm' || channel.type === 'groupDm') {
-      return true;
-    }
-
-    // Show for single-channel groups (when group has only one channel and no explicit title)
-    if (channel.type === 'chat' && group) {
-      const hasMultipleChannels = (group.channels?.length ?? 0) > 1;
-      const hasGroupTitle = group.title && group.title.trim() !== '';
-      return !hasMultipleChannels && !hasGroupTitle;
-    }
-
-    return false;
-  }, [channel, group]);
-
   const facePileContacts = useMemo(() => {
-    if (!shouldShowFacePile || !channel?.members) return [];
+    if (!channel?.members) return [];
 
     // For DMs and group DMs, show all members
     if (channel.type === 'dm' || channel.type === 'groupDm') {
@@ -260,31 +243,46 @@ export function ChannelHeader({
     }
 
     return [];
-  }, [shouldShowFacePile, channel, group]);
+  }, [channel, group]);
 
-  const facePileTitle = useMemo(() => {
-    if (!shouldShowFacePile) return null;
+  const avatarElement = useMemo(() => {
+    // For DMs, show the other user's avatar
+    if (channel.type === 'dm' && dmContactId) {
+      return <ContactAvatar contactId={dmContactId} size="$2xl" />;
+    }
 
+    // For group DMs, show FacePile
+    if (channel.type === 'groupDm' && facePileContacts.length > 0) {
+      return <FacePile contacts={facePileContacts} maxVisible={3} />;
+    }
+
+    // For group channels
     if (channel.type === 'chat' && group) {
-      const memberCount = group.members?.length ?? 0;
-      return `Chat`;
+      const hasMultipleChannels = (group.channels?.length ?? 0) > 1;
+      const hasGroupTitle = group.title && group.title.trim() !== '';
+      const isSingleChannelGroup = !hasMultipleChannels && !hasGroupTitle;
+
+      // Don't show group icons for channels within multi-channel groups when using horizontal layout
+      if (!isSingleChannelGroup && !isWindowNarrow) {
+        return null;
+      }
+
+      // If group has an avatar, use it
+      if (group.iconImage) {
+        return <GroupAvatar model={group} size="$2xl" />;
+      }
+
+      // For single-channel groups without explicit title, use FacePile
+      if (isSingleChannelGroup && facePileContacts.length > 0) {
+        return <FacePile contacts={facePileContacts} maxVisible={3} />;
+      }
+
+      // For other cases (single-channel groups or vertical layout), use group avatar (with fallback)
+      return <GroupAvatar model={group} size="$2xl" />;
     }
 
-    // For DMs and group DMs, use the existing title logic
-    return displayTitle;
-  }, [shouldShowFacePile, channel, group, displayTitle]);
-
-  const titleWidth = () => {
-    if (showSearchButton && showMenuButton) {
-      return 55;
-    } else if (contextItems.length > 0 && showMenuButton) {
-      return 55;
-    } else if (showSearchButton || showMenuButton) {
-      return 75;
-    } else {
-      return 100;
-    }
-  };
+    return null;
+  }, [channel, group, dmContactId, facePileContacts, isWindowNarrow]);
 
   const handleTitlePress = useMemo(() => {
     // For DMs, navigate to profile
@@ -310,6 +308,7 @@ export function ChannelHeader({
     <>
       <ScreenHeader
         title={displayTitle}
+        titleIcon={avatarElement || titleIcon}
         subtitle={displaySubtitle}
         showSessionStatus
         showSubtitle
