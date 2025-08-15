@@ -7,6 +7,7 @@ import { useTheme } from 'tamagui';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupActions } from '../../hooks/useGroupActions';
+import { useSyncStatus } from '../../hooks/useSyncStatus';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
@@ -21,6 +22,7 @@ export function ActivityScreen(props: Props) {
   const [contactsTabEnabled] = useFeatureFlag('contactsTab');
   const { performGroupAction } = useGroupActions();
   const { navigateToChannel, navigateToPost } = useRootNavigation();
+  const { subtitle } = useSyncStatus();
 
   const allFetcher = store.useInfiniteBucketedActivity('all');
   const mentionsFetcher = store.useInfiniteBucketedActivity('mentions');
@@ -83,6 +85,7 @@ export function ActivityScreen(props: Props) {
           goToUserProfile={handleGoToUserProfile}
           refresh={handleRefreshActivity}
           onGroupAction={performGroupAction}
+          subtitle={subtitle}
         />
         <NavBarView
           navigateToContacts={() => props.navigation.navigate('Contacts')}

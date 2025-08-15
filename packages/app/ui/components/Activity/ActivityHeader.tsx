@@ -2,6 +2,7 @@ import * as db from '@tloncorp/shared/db';
 import React from 'react';
 import { View } from 'tamagui';
 
+import { useIsWindowNarrow } from '../..';
 import { ScreenHeader } from '../ScreenHeader';
 import { Tabs } from '../Tabs';
 
@@ -10,14 +11,21 @@ export type ActivityTab = 'all' | 'threads' | 'mentions';
 function ActivityHeaderRaw({
   activeTab,
   onTabPress,
+  subtitle,
 }: {
   activeTab: db.ActivityBucket;
   onTabPress: (tab: db.ActivityBucket) => void;
+  subtitle?: string;
 }) {
+  const isWindowNarrow = useIsWindowNarrow();
   return (
     <View>
       <View width="100%">
-        <ScreenHeader title="Activity" />
+        <ScreenHeader
+          title="Activity"
+          subtitle={subtitle}
+          showSubtitle={isWindowNarrow}
+        />
       </View>
       <Tabs>
         <Tabs.Tab
