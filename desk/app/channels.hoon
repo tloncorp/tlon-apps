@@ -284,6 +284,7 @@
 |_  [=bowl:gall cards=(list card)]
 ++  abet  [(flop cards) state]
 ++  cor   .
+++  plog  ~(. logs [our.bowl /logs])
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
@@ -317,31 +318,29 @@
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
   =?  old  ?=(%6 -.old)  (state-6-to-7 old)
   =?  old  ?=(%7 -.old)  (state-7-to-8 old)
-  =^  caz-8=(list card)  old
-    ?.  ?=(%8 -.old)  [~ old]
-    :_  (state-8-to-9 old)
-    %+  turn  ~(tap in ~(key by v-channels.old))
-    |=  =nest:c
-    ^-  card
-    :+  %pass
-      /numbers/[kind.nest]/(scot %p ship.nest)/[name.nest]
-    ::  slightly staggered to spread load. might not be strictly necessary
-    ::  for this, but good practice.
-    ::
-    [%arvo %b %wait (add now.bowl (~(rad og (sham our.bowl nest)) ~m15))]
-  =.  cor  (emil caz-8)
+  =?  old  ?=(%8 -.old)  (state-8-to-9 old)
   =^  caz-9=(list card)  old
     ?.  ?=(%9 -.old)  [~ old]
     :_  (state-9-to-10 old)
+    %-  zing
     %+  turn  ~(tap in ~(key by v-channels.old))
     |=  =nest:c
-    ^-  card
-    :+  %pass
-      /tombstones/[kind.nest]/(scot %p ship.nest)/[name.nest]
-    ::  slightly staggered to spread load. might not be strictly necessary
-    ::  for this, but good practice.
-    ::
-    [%arvo %b %wait (add now.bowl (~(rad og (sham our.bowl nest)) ~m15))]
+    ^-  (list card)
+    =/  =wire
+      /[kind.nest]/(scot %p ship.nest)/[name.nest]
+    =/  note=note-arvo
+      ::  slightly staggered to spread load. might not be strictly necessary
+      ::  for this, but good practice.
+      ::
+      [%b %wait (add now.bowl (~(rad og (sham our.bowl nest)) ~m15))]
+    ::NOTE  we used to do the /numbers ones during 8-to-9 migration,
+    ::      but the logic for handling those timer events was flawed initially,
+    ::      so we re-set those timers here to retry. if this results in
+    ::      duplicate timers, so be it. doing the work twice is wasteful but
+    ::      harmless.
+    :~  [%pass [%numbers wire] %arvo note]
+        [%pass [%tombstones wire] %arvo note]
+    ==
   =.  cor  (emil caz-9)
   ?>  ?=(%10 -.old)
   =.  state  old
@@ -745,9 +744,28 @@
         [~ %| *]  (run-import p.u.pimp)
       ==
     ::
+        [?(%request-seqs %request-tombs) nest:c]
+      ::NOTE  if the poke we send from this gets nacked, we will set a timer
+      ::      to retry. if the ship/situation is healthy there will likely
+      ::      already be a timer for retrying this poke. having multiple timers
+      ::      isn't the end of the world, it will just do the same work twice,
+      ::      with any subsequent invocations being no-ops. nonetheless,
+      ::      probably best to not run this indiscriminately. check for
+      ::      presence of the relevant timers for this agent first! patience.
+      ::NOTE  we set the timer instead of sending the poke right away. timer
+      ::      handling will check lib negotiate before poking.
+      =+  ;;(=nest:c +.q.vase)
+      %-  emit
+      =/  =wire  /[kind.nest]/(scot %p ship.nest)/[name.nest]
+      :+  %pass
+        :_  wire
+        [?-(-.q.vase %request-seqs %numbers, %request-tombs %tombstones)]
+      [%arvo %b %wait now.bowl]
+    ::
         [%sequence-numbers * @ *]
       =+  ;;([%sequence-numbers =nest:c count=@ud seqs=(list [id=id-post:c seq=(unit @ud)])] q.vase)
       ?>  =(src.bowl ship.nest)
+      =.  cor  (emit (tell:plog %info ~['receiving sequence nrs' >nest<] ~))
       ?.  (~(has by v-channels) nest)  cor
       =.  v-channels
         %+  ~(jab by v-channels)  nest
@@ -773,6 +791,7 @@
         [%tombstones * *]
       =+  ;;([%tombstones =nest:c tombs=(list [id=id-post:v9:c tomb=tombstone:v9:c])] q.vase)
       ?>  =(src.bowl ship.nest)
+      =.  cor  (emit (tell:plog %info ~['receiving tombstones' >nest<] ~))
       ?.  (~(has by v-channels) nest)  cor
       =.  v-channels
         %+  ~(jab by v-channels)  nest
@@ -1395,15 +1414,21 @@
     =/  host=ship  (slav %p ship.pole)
     =/  =nest:c    [kind.pole host name.pole]
     %-  emit
+    :+  %pass  pole
+    ?.  (can-poke:neg bowl host %channels-server)
+      [%arvo %b %wait :(add now.bowl ~m15 (~(rad og eny.bowl) ~m15))]
     =/  =cage  [%noun !>([%send-sequence-numbers nest])]
-    [%pass pole %agent [host %channels-server] %poke cage]
+    [%agent [host %channels-server] %poke cage]
   ::
       [%tombstones kind=?(%chat %diary %heap) ship=@ name=@ ~]
     =/  host=ship  (slav %p ship.pole)
     =/  =nest:c    [kind.pole host name.pole]
     %-  emit
+    :+  %pass  pole
+    ?.  (can-poke:neg bowl host %channels-server)
+      [%arvo %b %wait :(add now.bowl ~m15 (~(rad og eny.bowl) ~m15))]
     =/  =cage  [%noun !>([%send-tombstones nest])]
-    [%pass pole %agent [host %channels-server] %poke cage]
+    [%agent [host %channels-server] %poke cage]
   ==
 ::
 ++  unreads

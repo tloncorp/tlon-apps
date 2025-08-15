@@ -453,14 +453,15 @@
   ++  pact-9-to-10
     |=  pact:v5:cv
     ^-  pact:v6:cv
-    =;  nu-wit
-      [num nu-wit dex upd=~]
-    %+  gas:on:writs:v6:cv  *writs:v6:cv
-    %+  turn
-      (tap:on:writs:v5:cv wit)
-    |=  [=time =writ:v5:cv]
-    :-  time
-    [%& (v6:writ:v5:cc writ)]
+    =;  [num=@ud writs=(list [time (may:v6:cv writ:v6:cv)])]
+      [num (gas:on:writs:v6:cv ~ writs) dex upd=~]
+    %+  roll  (tap:on:writs:v5:cv wit)
+    |=  [[=time =writ:v5:cv] num=@ud writs=(list [time (may:v6:cv writ:v6:cv)])]
+    ^+  [num writs]
+    =.  num  +(num)
+    :-  num
+    =/  new-writ  (v6:writ:v5:cc writ)
+    [[time %& new-writ(seq num)] writs]
   ++  state-8-to-9
     |=  state-8
     ^-  state-9
@@ -486,19 +487,18 @@
   ++  pact-8-to-9
     |=  =pact:v4:cv
     ^-  pact:v5:cv
-    =;  [num=@ud writs=(list [time writ:v5:cv])]
-      [num (gas:on:writs:v5:cv ~ writs) dex.pact]
-    %+  roll  (tap:on:writs:v4:cv wit.pact)
-    |=  [[=time =writ:v4:cv] num=@ud writs=(list [time writ:v5:cv])]
-    ^+  [num writs]
-    =.  num  +(num)
-    :-  num
-    [[time (writ-8-to-9 num writ)] writs]
+    =;  writs=(list [time writ:v5:cv])
+      ::  default num here because it will be numbered above
+      [0 (gas:on:writs:v5:cv ~ writs) dex.pact]
+    %+  turn  (tap:on:writs:v4:cv wit.pact)
+    |=  [=time =writ:v4:cv]
+    [time (writ-8-to-9 writ)]
   ++  writ-8-to-9
-    |=  [seq=@ud =writ:v4:cv]
+    |=  =writ:v4:cv
     ^-  writ:v5:cv
     =,  -.writ
-    [[id seq time reacts replies reply-meta] +.writ]
+    ::  default seq here because it will be numbered above
+    [[id 0 time reacts replies reply-meta] +.writ]
   ::
   ++  state-7-to-8
     |=  state-7
