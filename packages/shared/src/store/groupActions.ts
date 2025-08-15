@@ -174,7 +174,7 @@ export async function createGroup(params: {
     // rollback optimistic update
     await db.deleteGroup(params.group.id);
 
-    console.error(`${params.group.id}: failed to create group`, e);
+    logger.error(`${params.group.id}: failed to create group`, e);
     logger.trackEvent(AnalyticsEvent.ErrorCreateGroup, {
       errorMessage: e.message,
       stack: e.stack,
@@ -209,7 +209,7 @@ export async function acceptGroupInvitation(group: db.Group) {
   try {
     await api.joinGroup(group.id);
   } catch (e) {
-    console.error('Failed to accept group invitation', e);
+    logger.error('Failed to accept group invitation', e);
     await db.updateGroup({ id: group.id, joinStatus: 'errored' });
   }
 }
@@ -226,7 +226,7 @@ export async function rejectGroupInvitation(group: db.Group) {
   try {
     await api.rejectGroupInvitation(group.id);
   } catch (e) {
-    console.error('Failed to reject group invitation', e);
+    logger.error('Failed to reject group invitation', e);
     // rollback optimistic update
     await db.insertGroups({ groups: [group] });
   }
@@ -243,7 +243,7 @@ export async function requestGroupInvitation(group: db.Group) {
   try {
     await api.requestGroupInvitation(group.id);
   } catch (e) {
-    console.error('Failed to request group invitation', e);
+    logger.error('Failed to request group invitation', e);
     await db.updateGroup({ id: group.id, haveRequestedInvite: false });
   }
 }
@@ -256,7 +256,7 @@ export async function rescindGroupInvitationRequest(group: db.Group) {
   try {
     await api.rescindGroupInvitationRequest(group.id);
   } catch (e) {
-    console.error('Failed to rescind group invitation request', e);
+    logger.error('Failed to rescind group invitation request', e);
     // rollback optimistic update
     await db.updateGroup({ id: group.id, haveRequestedInvite: true });
   }
@@ -274,7 +274,7 @@ export async function inviteGroupMembers({
   const existingGroup = await db.getGroup({ id: groupId });
 
   if (!existingGroup) {
-    console.error('Group not found', groupId);
+    logger.error('Group not found', groupId);
     return;
   }
 
@@ -325,7 +325,7 @@ export async function cancelGroupJoin(group: db.Group) {
   try {
     await api.cancelGroupJoin(group.id);
   } catch (e) {
-    console.error('Failed to cancel group join', e);
+    logger.error('Failed to cancel group join', e);
     // rollback optimistic update
     await db.updateGroup({
       id: group.id,
@@ -346,7 +346,7 @@ export async function joinGroup(group: db.Group) {
   try {
     await api.joinGroup(group.id);
   } catch (e) {
-    console.error('Failed to join group', e);
+    logger.error('Failed to join group', e);
     // rollback optimistic update
     await db.updateGroup({ id: group.id, joinStatus: null });
   }
@@ -424,7 +424,7 @@ export async function updateGroupMeta(group: db.Group) {
       },
     });
   } catch (e) {
-    console.error('Failed to update group', e);
+    logger.error('Failed to update group', e);
     // rollback optimistic update
     if (existingGroup) {
       await db.updateGroup(existingGroup);
@@ -445,7 +445,7 @@ export async function deleteGroup(group: db.Group) {
   try {
     await api.deleteGroup(group.id);
   } catch (e) {
-    console.error('Failed to delete group', e);
+    logger.error('Failed to delete group', e);
     // rollback optimistic update
     await db.insertGroups({ groups: [group] });
   }
@@ -487,7 +487,7 @@ export async function addNavSection(
       navSection: newNavSection,
     });
   } catch (e) {
-    console.error('Failed to add nav section', e);
+    logger.error('Failed to add nav section', e);
     // rollback optimistic update
     if (existingGroup) {
       await db.updateGroup(existingGroup);
@@ -518,7 +518,7 @@ export async function updateNavSectionMeta(
       navSection,
     });
   } catch (e) {
-    console.error('Failed to update nav section', e);
+    logger.error('Failed to update nav section', e);
     // rollback optimistic update
     if (existingGroup) {
       await db.updateGroup(existingGroup);
@@ -541,7 +541,7 @@ export async function moveNavSection(
   );
 
   if (sectionIndex === -1) {
-    console.error('Section not found', navSectionId);
+    logger.error('Section not found', navSectionId);
     return;
   }
 
@@ -553,7 +553,7 @@ export async function moveNavSection(
 
     if (index < newIndex && index >= sectionIndex) {
       if (!section.sectionIndex) {
-        console.error('sectionIndex not found', section);
+        logger.error('sectionIndex not found', section);
         return section;
       }
 
@@ -565,7 +565,7 @@ export async function moveNavSection(
 
     if (index > newIndex && index <= sectionIndex) {
       if (!section.sectionIndex) {
-        console.error('sectionIndex not found', section);
+        logger.error('sectionIndex not found', section);
         return section;
       }
 
@@ -598,7 +598,7 @@ export async function moveNavSection(
       index: newIndex,
     });
   } catch (e) {
-    console.error('Failed to move nav section', e);
+    logger.error('Failed to move nav section', e);
     // rollback optimistic update
     if (existingGroup) {
       await db.updateGroup(existingGroup);
@@ -636,7 +636,7 @@ export async function addChannelToNavSection({
   );
 
   if (!navSection && navSectionId !== 'default') {
-    console.error('Nav section not found', navSectionId);
+    logger.error('Nav section not found', navSectionId);
     return;
   }
 
@@ -677,7 +677,7 @@ export async function addChannelToNavSection({
     logger.log('added channel to nav section');
   } catch (e) {
     logger.log('failed to add channel to nav section', e);
-    console.error('Failed to add channel', e);
+    logger.error('Failed to add channel', e);
 
     // rollback optimistic update - first remove from new section
     await db.deleteChannelFromNavSection({
@@ -893,7 +893,7 @@ export async function updateNavSection({
   );
 
   if (!existingNavSection) {
-    console.error('Nav section not found', navSection.id);
+    logger.error('Nav section not found', navSection.id);
     return;
   }
 
@@ -919,7 +919,7 @@ export async function updateNavSection({
       navSection,
     });
   } catch (e) {
-    console.error('Failed to update nav section', e);
+    logger.error('Failed to update nav section', e);
     // rollback optimistic update
     if (existingGroup) {
       await db.updateGroup(existingGroup);
@@ -939,7 +939,7 @@ export async function deleteNavSection(group: db.Group, navSectionId: string) {
   );
 
   if (!existingNavSection) {
-    console.error('Nav section not found', navSectionId);
+    logger.error('Nav section not found', navSectionId);
     return;
   }
 
@@ -959,7 +959,7 @@ export async function deleteNavSection(group: db.Group, navSectionId: string) {
       sectionId: existingNavSection.sectionId,
     });
   } catch (e) {
-    console.error('Failed to delete nav section', e);
+    logger.error('Failed to delete nav section', e);
     // rollback optimistic update
     await db.updateGroup({
       id: group.id,
@@ -989,7 +989,7 @@ export async function kickUserFromGroup({
   const existingGroup = await db.getGroup({ id: groupId });
 
   if (!existingGroup) {
-    console.error('Group not found', groupId);
+    logger.error('Group not found', groupId);
     return;
   }
 
@@ -999,12 +999,12 @@ export async function kickUserFromGroup({
   );
 
   if (!existingGroup.members) {
-    console.error('Group members not found', groupId);
+    logger.error('Group members not found', groupId);
     return;
   }
 
   if (!existingGroup.members.find((member) => member.contactId === contactId)) {
-    console.error('User not found in group', groupId, contactId);
+    logger.error('User not found in group', groupId, contactId);
     return;
   }
   // optimistic update
@@ -1019,7 +1019,7 @@ export async function kickUserFromGroup({
       contactIds: [contactId],
     });
   } catch (e) {
-    console.error('Failed to kick user from group', e);
+    logger.error('Failed to kick user from group', e);
     // rollback optimistic update
     await db.addChatMembers({
       chatId: groupId,
@@ -1042,7 +1042,7 @@ export async function banUserFromGroup({
   const existingGroup = await db.getGroup({ id: groupId });
 
   if (!existingGroup) {
-    console.error('Group not found', groupId);
+    logger.error('Group not found', groupId);
     return;
   }
 
@@ -1052,18 +1052,18 @@ export async function banUserFromGroup({
   );
 
   if (!existingGroup.members) {
-    console.error('Group members not found', groupId);
+    logger.error('Group members not found', groupId);
     return;
   }
 
   if (!existingGroup.members.find((member) => member.contactId === contactId)) {
-    console.error('User not found in group', groupId, contactId);
+    logger.error('User not found in group', groupId, contactId);
     return;
   }
 
   // Prevent banning the group owner
   if (contactId === existingGroup.hostUserId) {
-    console.error('Cannot ban group owner', groupId, contactId);
+    logger.error('Cannot ban group owner', groupId, contactId);
     return;
   }
 
@@ -1072,7 +1072,7 @@ export async function banUserFromGroup({
     (member) => member.contactId === contactId
   );
   if (targetMember?.roles?.some((role) => role.roleId === 'admin')) {
-    console.error('Cannot ban admin users', groupId, contactId);
+    logger.error('Cannot ban admin users', groupId, contactId);
     return;
   }
 
@@ -1095,7 +1095,7 @@ export async function banUserFromGroup({
 
     await api.banUsersFromGroup({ groupId: groupId, contactIds: [contactId] });
   } catch (e) {
-    console.error('Failed to ban user from group', e);
+    logger.error('Failed to ban user from group', e);
     // rollback optimistic update
     await db.addChatMembers({
       chatId: groupId,
@@ -1123,7 +1123,7 @@ export async function unbanUserFromGroup({
   const existingGroup = await db.getGroup({ id: groupId });
 
   if (!existingGroup) {
-    console.error('Group not found', groupId);
+    logger.error('Group not found', groupId);
     return;
   }
 
@@ -1133,12 +1133,12 @@ export async function unbanUserFromGroup({
   );
 
   if (!existingGroup.members) {
-    console.error('Group members not found', groupId);
+    logger.error('Group members not found', groupId);
     return;
   }
 
   if (existingGroup.members.find((member) => member.contactId === contactId)) {
-    console.error('User is still in group', groupId, contactId);
+    logger.error('User is still in group', groupId, contactId);
     return;
   }
 
@@ -1146,7 +1146,7 @@ export async function unbanUserFromGroup({
   if (
     !existingGroup.bannedMembers?.find((ban) => ban.contactId === contactId)
   ) {
-    console.error('User is not in banned list', groupId, contactId);
+    logger.error('User is not in banned list', groupId, contactId);
     return;
   }
 
@@ -1159,7 +1159,7 @@ export async function unbanUserFromGroup({
   try {
     await api.unbanUsersFromGroup({ groupId, contactIds: [contactId] });
   } catch (e) {
-    console.error('Failed to unban user from group', e);
+    logger.error('Failed to unban user from group', e);
     // rollback optimistic update
     await db.addGroupMemberBans({
       groupId,
@@ -1180,7 +1180,7 @@ export async function acceptUserJoin({
   const existingGroup = await db.getGroup({ id: groupId });
 
   if (!existingGroup) {
-    console.error('Group not found', groupId);
+    logger.error('Group not found', groupId);
     return;
   }
 
@@ -1190,7 +1190,7 @@ export async function acceptUserJoin({
   );
 
   if (!existingGroup.members) {
-    console.error('Group members not found', groupId);
+    logger.error('Group members not found', groupId);
     return;
   }
 
@@ -1199,24 +1199,24 @@ export async function acceptUserJoin({
       (member) => member.contactId === contactId && member.status === 'joined'
     )
   ) {
-    console.error('User already in group', groupId, contactId);
+    logger.error('User already in group', groupId, contactId);
     return;
   }
 
   if (!existingGroup.joinRequests) {
-    console.error('Group join requests not found', groupId);
+    logger.error('Group join requests not found', groupId);
     return;
   }
 
   if (
     !existingGroup.joinRequests.find((member) => member.contactId === contactId)
   ) {
-    console.error('User not found in join requests', groupId, contactId);
+    logger.error('User not found in join requests', groupId, contactId);
     return;
   }
 
   if (existingGroup.privacy !== 'private') {
-    console.error('Group is not private', groupId);
+    logger.error('Group is not private', groupId);
     return;
   }
   // optimistic update
@@ -1235,7 +1235,7 @@ export async function acceptUserJoin({
   try {
     await api.acceptGroupJoin({ groupId: groupId, contactIds: [contactId] });
   } catch (e) {
-    console.error('Failed to accept user join request', e);
+    logger.error('Failed to accept user join request', e);
     // rollback optimistic update
     await db.removeChatMembers({
       chatId: groupId,
@@ -1261,7 +1261,7 @@ export async function rejectUserJoin({
   const existingGroup = await db.getGroup({ id: groupId });
 
   if (!existingGroup) {
-    console.error('Group not found', groupId);
+    logger.error('Group not found', groupId);
     return;
   }
 
@@ -1271,19 +1271,19 @@ export async function rejectUserJoin({
   );
 
   if (!existingGroup.joinRequests) {
-    console.error('Group join requests not found', groupId);
+    logger.error('Group join requests not found', groupId);
     return;
   }
 
   if (
     !existingGroup.joinRequests.find((member) => member.contactId === contactId)
   ) {
-    console.error('User not found in join requests', groupId, contactId);
+    logger.error('User not found in join requests', groupId, contactId);
     return;
   }
 
   if (existingGroup.privacy !== 'private') {
-    console.error('Group is not private', groupId);
+    logger.error('Group is not private', groupId);
     return;
   }
   // optimistic update
@@ -1295,7 +1295,7 @@ export async function rejectUserJoin({
   try {
     await api.rejectGroupJoin({ groupId: groupId, contactIds: [contactId] });
   } catch (e) {
-    console.error('Failed to accept user join request', e);
+    logger.error('Failed to accept user join request', e);
     // rollback optimistic update
     await db.addGroupJoinRequests({
       groupId,
@@ -1310,7 +1310,7 @@ export async function leaveGroup(groupId: string) {
   const existingGroup = await db.getGroup({ id: groupId });
 
   if (!existingGroup) {
-    console.error('Group not found', groupId);
+    logger.error('Group not found', groupId);
     return;
   }
 
@@ -1325,7 +1325,7 @@ export async function leaveGroup(groupId: string) {
   try {
     await api.leaveGroup(groupId);
   } catch (e) {
-    console.error('Failed to leave group', e);
+    logger.error('Failed to leave group', e);
     // rollback optimistic update
     await db.insertGroups({ groups: [existingGroup] });
   }
@@ -1346,7 +1346,7 @@ export async function markGroupRead(groupId: string, deep: boolean = false) {
   try {
     await api.readGroup(group, deep);
   } catch (e) {
-    console.error('Failed to read group', e);
+    logger.error('Failed to read group', e);
     // rollback optimistic update
     if (existingUnread) {
       await db.insertGroupUnreads([existingUnread]);
@@ -1375,7 +1375,7 @@ export async function addGroupRole({
   try {
     await api.addGroupRole({ groupId, roleId, meta });
   } catch (e) {
-    console.error('Failed to add group role', e);
+    logger.error('Failed to add group role', e);
     // rollback optimistic update
     await db.deleteGroupRole({ groupId, roleId: roleId });
   }
@@ -1399,7 +1399,7 @@ export async function updateGroupRole({
   const existingRole = await db.getGroupRole({ groupId, roleId });
 
   if (!existingRole) {
-    console.error('Role not found', groupId, roleId);
+    logger.error('Role not found', groupId, roleId);
     return;
   }
 
@@ -1409,7 +1409,7 @@ export async function updateGroupRole({
   try {
     await api.updateGroupRole({ groupId, roleId, meta });
   } catch (e) {
-    console.error('Failed to update group role', e);
+    logger.error('Failed to update group role', e);
     // rollback optimistic update
     await db.updateGroupRole({
       groupId,
@@ -1438,7 +1438,7 @@ export async function deleteGroupRole({
   const existingRole = await db.getGroupRole({ groupId, roleId });
 
   if (!existingRole) {
-    console.error('Role not found', groupId, roleId);
+    logger.error('Role not found', groupId, roleId);
     return;
   }
 
@@ -1448,7 +1448,7 @@ export async function deleteGroupRole({
   try {
     await api.deleteGroupRole({ groupId, roleId });
   } catch (e) {
-    console.error('Failed to delete group role', e);
+    logger.error('Failed to delete group role', e);
     // rollback optimistic update
     await db.addGroupRole({ groupId, roleId, meta: existingRole });
   }
@@ -1472,7 +1472,7 @@ export async function addMembersToRole({
   const existingRole = await db.getGroupRole({ groupId, roleId });
 
   if (!existingRole) {
-    console.error('Role not found', groupId, roleId);
+    logger.error('Role not found', groupId, roleId);
     return;
   }
 
@@ -1482,7 +1482,7 @@ export async function addMembersToRole({
   try {
     await api.addMembersToRole({ groupId, roleId, ships: contactIds });
   } catch (e) {
-    console.error('Failed to add members to role', e);
+    logger.error('Failed to add members to role', e);
     // rollback optimistic update
     await db.removeMembersFromRole({ groupId, roleId, contactIds });
   }
@@ -1506,7 +1506,7 @@ export async function removeMembersFromRole({
   const existingRole = await db.getGroupRole({ groupId, roleId });
 
   if (!existingRole) {
-    console.error('Role not found', groupId, roleId);
+    logger.error('Role not found', groupId, roleId);
     return;
   }
 
@@ -1516,7 +1516,7 @@ export async function removeMembersFromRole({
   try {
     await api.removeMembersFromRole({ groupId, roleId, ships: contactIds });
   } catch (e) {
-    console.error('Failed to remove members from role', e);
+    logger.error('Failed to remove members from role', e);
     // rollback optimistic update
     await db.addMembersToRole({ groupId, roleId, contactIds });
   }
