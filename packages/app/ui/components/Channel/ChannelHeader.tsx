@@ -319,6 +319,7 @@ export function ChannelHeader({
         borderBottom
         isLoading={showSpinner}
         onTitlePress={handleTitlePress}
+        useHorizontalTitleLayout={!isWindowNarrow}
         leftControls={goBack && <ScreenHeader.BackButton onPress={goBack} />}
         rightControls={
           <>

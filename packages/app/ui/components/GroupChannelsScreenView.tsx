@@ -279,7 +279,7 @@ export const GroupChannelsScreenView = React.memo(
           key={group?.id}
           title={title}
           subtitle={subtitle}
-          showSubtitle
+          showSubtitle={isWindowNarrow}
           borderBottom
           backAction={onBackPressed}
           onTitlePress={handleTitlePress}

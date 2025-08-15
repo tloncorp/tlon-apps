@@ -1,7 +1,7 @@
 import { useDebouncedValue } from '@tloncorp/shared';
 import { Icon, Text } from '@tloncorp/ui';
 import { Children, PropsWithChildren, ReactNode } from 'react';
-import { Pressable } from 'react-native';
+import { Pressable, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, styled, withStaticProperties } from 'tamagui';
 
@@ -16,6 +16,7 @@ export const ScreenHeaderComponent = ({
   backAction,
   borderBottom,
   onTitlePress,
+  useHorizontalTitleLayout = false,
 }: PropsWithChildren<{
   title?: string | ReactNode;
   subtitle?: string | ReactNode;
@@ -27,6 +28,7 @@ export const ScreenHeaderComponent = ({
   showSessionStatus?: boolean;
   borderBottom?: boolean;
   onTitlePress?: () => void;
+  useHorizontalTitleLayout?: boolean;
 }>) => {
   const { top } = useSafeAreaInsets();
   const resolvedSubtitle = useDebouncedValue(
@@ -50,6 +52,15 @@ export const ScreenHeaderComponent = ({
 
   const textMaxWidth = getTextMaxWidth();
 
+  const horizontalTitleStack: ViewStyle = {
+    flexDirection: 'row-reverse',
+    justifyContent: 'flex-end',
+    paddingLeft: 18,
+    flex: 1,
+    alignItems: 'baseline',
+    gap: 8,
+  };
+
   return (
     <View
       paddingTop={top}
@@ -57,8 +68,8 @@ export const ScreenHeaderComponent = ({
       borderColor="$border"
       borderBottomWidth={borderBottom ? 1 : 0}
     >
-      <XStack justifyContent="center" alignItems="flex-end">
-        <View maxWidth={textMaxWidth}>
+      <XStack justifyContent="center">
+        <View maxWidth={textMaxWidth} flex={1}>
           {((Wrapper) => (
             <Wrapper>
               {showSubtitle && (
@@ -94,7 +105,16 @@ export const ScreenHeaderComponent = ({
           ))(
             onTitlePress
               ? ({ children }: { children: ReactNode }) => (
-                  <Pressable onPress={onTitlePress}>{children}</Pressable>
+                  <Pressable
+                    style={useHorizontalTitleLayout ? horizontalTitleStack : undefined}
+                    onPress={onTitlePress}
+                  >
+                    {children}
+                  </Pressable>
+                )
+              : useHorizontalTitleLayout
+              ? ({ children }: { children: ReactNode }) => (
+                  <View style={horizontalTitleStack}>{children}</View>
                 )
               : ({ children }: { children: ReactNode }) => <>{children}</>
           )}
