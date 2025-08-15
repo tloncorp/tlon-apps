@@ -18,6 +18,7 @@
 ::  performance, keep warm
 /+  channel-json
 ::
+/%  m-channel-changed-posts   %channel-changed-posts
 /%  m-channel-heads           %channel-heads
 /%  m-channel-heads-2         %channel-heads-2
 /%  m-channel-heads-3         %channel-heads-3
@@ -68,7 +69,8 @@
 %-  %-  discipline
     :+  ::  marks
         ::
-        :~  :+  %channel-heads           &  -:!>(*vale:m-channel-heads)
+        :~  :+  %channel-changed-posts   &  -:!>(*vale:m-channel-changed-posts)
+            :+  %channel-heads           &  -:!>(*vale:m-channel-heads)
             :+  %channel-heads-2         &  -:!>(*vale:m-channel-heads-2)
             :+  %channel-heads-3         &  -:!>(*vale:m-channel-heads-3)
             :+  %channel-perm            &  -:!>(*vale:m-channel-perm)
@@ -186,6 +188,9 @@
         [/x/v4/$/$/$/posts/post %channel-post-4]
         [/x/v4/$/$/$/posts/post/id/$/replies %channel-replies-4]
         [/x/v4/$/$/$/posts/post/id/$/replies/reply %channel-reply-2]
+      ::
+        ::TODO  other v5 scries
+        [/x/v5/changes %channel-changed-posts]
     ==
 ::
 =/  verbose  |
@@ -1252,7 +1257,7 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   ?>  ?=(^ pole)
-  =?  +.pole  !?=([?(%v0 %v1 %v2 %v3 %v4) *] +.pole)
+  =?  +.pole  !?=([?(%v0 %v1 %v2 %v3 %v4 %v5) *] +.pole)
     [%v0 +.pole]
   ?+    pole  [~ ~]
     ::
@@ -1295,6 +1300,46 @@
       [%x %v5 %init ~]
     =/  init  [(uv-channels-3:utils v-channels |) hidden-posts]
     ``noun+!>(`[channels:v9:c (set id-post:c)]`init)
+    ::
+      [%x %v5 %changes since=@ rest=*]
+    =+  since=(slav %da since.pole)
+    =/  changes
+      %-  ~(gas by *(map nest:c v-posts:c))
+      %+  murn  ~(tap by v-channels)
+      |=  [=nest:c ch=v-channel:c]
+      ^-  (unit [nest:c v-posts:c])
+      ?:  (gte since key:(fall (ram:updated-on:c last-updated.ch) [key=since ~]))
+        ~
+      ?~  posts.ch  ~
+      =/  updated
+        %-  tap:updated-on:c
+        (lot:updated-on:c last-updated.ch `since ~)
+      ?:  =(~ updated)  ~
+      %-  some
+      :-  nest
+      ::NOTE  slightly faster than +put-ing continuously
+      =-  (gas:on-v-posts:c ~ -)
+      %+  roll  updated
+      |=  [[@da changed=id-post:c] out=(list [id-post:c (may:c v-post:c)])]
+      ?~  post=(get:on-v-posts:c posts.ch changed)
+        out
+      [[changed u.post] out]
+    ?+  rest.pole  [~ ~]
+        ~
+      :^  ~  ~
+        %channel-changed-posts
+      !>  ^-  (map nest:c posts:c)
+      (~(run by changes) uv-posts-3:utils)
+    ::
+        [%count ~]
+      ::REVIEW  really necessary?
+      :^  ~  ~  %json
+      !>  ^-  json
+      %-  numb:enjs:format
+      %-  ~(rep by changes)
+      |=  [[* p=v-posts:c] sum=@ud]
+      (add sum (wyt:on-v-posts:c p))
+    ==
     ::
       [%x ?(%v0 %v1) %hidden-posts ~]  ``hidden-posts+!>(hidden-posts)
       [%x ?(%v0 %v1) %unreads ~]  ``channel-unreads+!>(unreads)

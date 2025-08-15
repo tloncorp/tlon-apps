@@ -28,6 +28,7 @@
 /%  m-groups-ui          %groups-ui
 /%  m-groups-ui-1        %groups-ui-1
 /%  m-groups-ui-2        %groups-ui-2
+/%  m-group-changed-groups  %group-changed-groups
 /%  m-group-preview      %group-preview
 /%  m-group-preview-3    %group-preview-3
 /%  m-group-previews     %group-previews
@@ -58,6 +59,8 @@
           :+  %groups-ui          &  -:!>(*vale:m-groups-ui)
           :+  %groups-ui-1        &  -:!>(*vale:m-groups-ui-1)
           :+  %groups-ui-2        &  -:!>(*vale:m-groups-ui-2)
+        ::
+          :+  %group-changed-groups  &  -:!>(*vale:m-group-changed-groups)
         ::
           :+  %group-preview      &  -:!>(*vale:m-group-preview)
           :+  %group-preview      &  -:!>(*vale:m-group-preview)
@@ -111,6 +114,8 @@
       [/x/v0/groups %groups]
       [/x/v1/groups %groups-1]
       [/x/v2/groups %groups-2]
+    ::
+      [/x/v2/changes %group-changed-groups]
     ::
       [/x/v2/groups/$/$/channels/can-read %noun]
       [/x/v2/groups/$/$/channels/$/$/$/can-write %noun]
@@ -1051,6 +1056,26 @@
     [%x %groups ~]  $(pole /x/v0/groups)
     ::  deprecated
     [%x %groups %light ~]  $(pole /x/v0/light/groups)
+  ::
+      [%x %v2 %changes since=@ rest=*]
+    =+  since=(slav %da since.pole)
+    :^  ~  ~
+      %group-changed-groups
+    !>  ^-  (map flag:v7:gv group-ui:v7:gv)
+    %-  ~(gas by *(map flag:v7:gv group-ui:v7:gv))
+    %+  murn  ~(tap in groups)
+    |=  [=flag:g =net:g =group:g]
+    ^-  (unit [flag:v7:gv group-ui:v7:gv])
+    =/  fresh=?
+      %+  lth  since
+      ?-  -.net
+        %sub  time.net
+        %pub  key:(fall (ram:log-on:g log.net) [key=now.bowl ~])
+      ==
+    ?.  fresh  ~
+    %-  some
+    :-  flag
+    (group-ui:group:v7:gc net (drop-seats:group:v7:gc group our.bowl))
   ::
       [%x ver=?(%v0 %v1 %v2) %groups ship=@ name=@ rest=*]
     =+  ship=(slav %p ship.pole)
