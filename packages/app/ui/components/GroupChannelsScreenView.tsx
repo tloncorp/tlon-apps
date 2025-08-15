@@ -291,19 +291,6 @@ export const GroupChannelsScreenView = React.memo(
                   onPress={() => setShowCreateChannel(true)}
                 />
               )}
-              {!isWindowNarrow && group ? (
-                <ChatOptionsSheet
-                  open={openChatOptions}
-                  onOpenChange={setOpenChatOptions}
-                  chat={{ type: 'group', id: group.id }}
-                  trigger={<ScreenHeader.IconButton type="Overflow" />}
-                />
-              ) : (
-                <ScreenHeader.IconButton
-                  type="Overflow"
-                  onPress={handlePressOverflowButton}
-                />
-              )}
             </>
           }
         />

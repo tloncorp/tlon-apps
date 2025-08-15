@@ -110,8 +110,6 @@ export function ChannelHeader({
   showEditButton?: boolean;
   post?: db.Post;
 }) {
-  const chatOptions = useChatOptions();
-  const [openChatOptions, setOpenChatOptions] = useState(false);
   const connectionStatus = useConnectionStatus();
   const chatTitle = useChatTitle(channel, group);
   const chatDescription = useChatDescription(channel, group);
@@ -132,10 +130,6 @@ export function ChannelHeader({
         return 'Channel';
     }
   };
-
-  const handlePressOverflowMenu = useCallback(() => {
-    chatOptions.open(channel.id, 'channel');
-  }, [channel.id, chatOptions]);
 
   const contextItems = useContext(ChannelHeaderItemsContext)?.items ?? [];
   const isWindowNarrow = useIsWindowNarrow();
@@ -300,10 +294,10 @@ export function ChannelHeader({
 
     // For group DMs, group chats, notebooks, and galleries, navigate to chat details/group info
     if (
-      (channel.type === 'groupDm' || 
-       channel.type === 'chat' || 
-       channel.type === 'notebook' || 
-       channel.type === 'gallery') &&
+      (channel.type === 'groupDm' ||
+        channel.type === 'chat' ||
+        channel.type === 'notebook' ||
+        channel.type === 'gallery') &&
       goToChatDetails
     ) {
       return goToChatDetails;
@@ -333,22 +327,6 @@ export function ChannelHeader({
             {contextItems.map((item, index) => (
               <Fragment key={index}>{item}</Fragment>
             ))}
-            {showMenuButton ? (
-              isWindowNarrow ? (
-                <ScreenHeader.IconButton
-                  type="Overflow"
-                  onPress={handlePressOverflowMenu}
-                  testID="ChannelOptionsSheetTrigger"
-                />
-              ) : (
-                <ChatOptionsSheet
-                  open={openChatOptions}
-                  onOpenChange={setOpenChatOptions}
-                  chat={{ type: 'channel', id: channel.id }}
-                  trigger={<ScreenHeader.IconButton type="Overflow" />}
-                />
-              )
-            ) : null}
             {showEditButton && (
               <ScreenHeader.TextButton
                 onPress={goToEdit}

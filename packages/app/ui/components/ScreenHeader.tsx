@@ -36,7 +36,6 @@ export const ScreenHeaderComponent = ({
     200
   );
 
-  // Calculate number of action items to determine text width
   const leftControlsCount = leftControls ? Children.count(leftControls) : 0;
   const backButtonCount = backAction ? 1 : 0;
 
@@ -81,7 +80,7 @@ export const ScreenHeaderComponent = ({
               numberOfLines={1}
               height={'$xl'}
               textAlign="center"
-              paddingHorizontal={'$xl'}
+              paddingHorizontal={useHorizontalTitleLayout ? '$xl' : '$2xl'}
             >
               {resolvedSubtitle}
             </Text>
@@ -96,12 +95,12 @@ export const ScreenHeaderComponent = ({
               size={'$label/2xl'}
               color={'$primaryText'}
               numberOfLines={1}
-              maxWidth={186}
+              maxWidth={useHorizontalTitleLayout ? 'unset' : 185}
             >
               {title}
             </Text>
             {onTitlePress && (
-              <Icon type="ChevronDown" color="$primaryText" size="$s" />
+              <Icon type="ChevronRight" color="$primaryText" size="$s" />
             )}
           </XStack>
         </>
@@ -130,6 +129,7 @@ const HeaderIconButton = styled(Icon, {
 const HeaderTextButton = styled(Text, {
   size: '$label/2xl',
   paddingHorizontal: '$s',
+  paddingVertical: '$m',
   cursor: 'pointer',
   pressStyle: {
     opacity: 0.5,
