@@ -197,7 +197,7 @@
           author.u.reply
           now
       ==
-    :-  pac(dex (~(del by dex.pac) id))
+    :-  pac
     (put:on:replies:c replies u.tim %| tombstone)
   ::
       %add-react
