@@ -151,9 +151,15 @@ const ActionSheetComponent = ({
         onOpenChange(false);
       }
     };
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
-  }, [onOpenChange]);
+    if (open) {
+      window.addEventListener('keydown', handleEscape);
+      return () => window.removeEventListener('keydown', handleEscape);
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [onOpenChange, open]);
 
   if (!hasOpened.current && open) {
     hasOpened.current = true;
