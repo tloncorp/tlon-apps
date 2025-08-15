@@ -110,7 +110,8 @@ export function UserProfileScreen({ route, navigation }: Props) {
         >
           <View flex={1} backgroundColor={theme.secondaryBackground.val}>
             <ScreenHeader
-              title="Profile"
+              title={isWindowNarrow ? 'Profile' : null}
+              useHorizontalTitleLayout={!isWindowNarrow}
               leftControls={
                 shouldShowBackButton ? (
                   <ScreenHeader.BackButton

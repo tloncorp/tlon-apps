@@ -133,6 +133,7 @@ export default function ContactsScreen(props: Props) {
         <View flex={1} width="100%" maxWidth={600} marginHorizontal="auto">
           <ScreenHeader
             title="Contacts"
+            borderBottom
             leftControls={
               <ScreenHeader.IconButton
                 type="Add"

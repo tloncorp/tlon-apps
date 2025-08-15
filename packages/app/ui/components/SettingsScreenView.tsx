@@ -45,7 +45,11 @@ export function SettingsScreenView(props: Props) {
 
   return (
     <>
-      <ScreenHeader title="Settings" backAction={props.onBackPressed} />
+      <ScreenHeader
+        title="Settings"
+        backAction={props.onBackPressed}
+        borderBottom
+      />
       <ScrollView>
         <YStack flex={1} padding="$l" gap="$s">
           <SettingsAction

@@ -72,6 +72,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
     <View height="100%">
       <ScreenHeader
         title="Contacts"
+        borderBottom
         rightControls={
           <ScreenHeader.IconButton
             type="Add"

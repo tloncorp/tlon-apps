@@ -13,6 +13,7 @@ import {
   ScreenHeader,
   ScrollView,
   View,
+  useIsWindowNarrow,
 } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'WompWomp'>;
@@ -42,11 +43,15 @@ export function UserBugReportScreen({ navigation }: Props) {
     [navigation]
   );
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   return (
     <View backgroundColor="$background" flex={1}>
       <ScreenHeader
         title="Report a bug"
-        backAction={() => navigation.goBack()}
+        useHorizontalTitleLayout={!isWindowNarrow}
+        borderBottom
+        backAction={isWindowNarrow ? () => navigation.goBack() : undefined}
       />
       <KeyboardAvoidingView
         style={{

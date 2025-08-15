@@ -88,7 +88,9 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
       <View flex={1} backgroundColor="$background">
         <ScreenHeader
           title="Push Notifications"
-          backAction={() => navigation.goBack()}
+          useHorizontalTitleLayout={!isWindowNarrow}
+          borderBottom
+          backAction={isWindowNarrow ? () => navigation.goBack() : undefined}
         />
         <View
           marginTop="$m"
