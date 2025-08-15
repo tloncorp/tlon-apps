@@ -37,7 +37,7 @@ export function ViewReactionsPane({
           tabVal === 'all' ? (
             'All'
           ) : (
-            <Text size="$emoji/m">{getNativeEmoji(tabVal)}</Text>
+            <Text size="$emoji/m">{getNativeEmoji(tabVal) || '❓'}</Text>
           ),
       };
     });
@@ -74,7 +74,7 @@ export function ViewReactionsPane({
           showUserId
           showEndContent
           endContent={
-            <Text size="$emoji/m">{getNativeEmoji(reaction.value)}</Text>
+            <Text size="$emoji/m">{getNativeEmoji(reaction.value) || '❓'}</Text>
           }
         ></ContactListItem>
       );

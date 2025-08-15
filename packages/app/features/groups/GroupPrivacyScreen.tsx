@@ -70,6 +70,7 @@ export function GroupPrivacyScreen(props: Props) {
             options={privacyOptions}
             value={group.privacy}
             onChange={handlePrivacyChange}
+            testID="GroupPrivacyScreen-RadioInput"
           />
         ) : null}
       </Form.FormFrame>
