@@ -313,31 +313,29 @@
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
   =?  old  ?=(%6 -.old)  (state-6-to-7 old)
   =?  old  ?=(%7 -.old)  (state-7-to-8 old)
-  =^  caz-8=(list card)  old
-    ?.  ?=(%8 -.old)  [~ old]
-    :_  (state-8-to-9 old)
-    %+  turn  ~(tap in ~(key by v-channels.old))
-    |=  =nest:c
-    ^-  card
-    :+  %pass
-      /numbers/[kind.nest]/(scot %p ship.nest)/[name.nest]
-    ::  slightly staggered to spread load. might not be strictly necessary
-    ::  for this, but good practice.
-    ::
-    [%arvo %b %wait (add now.bowl (~(rad og (sham our.bowl nest)) ~m15))]
-  =.  cor  (emil caz-8)
+  =?  old  ?=(%8 -.old)  (state-8-to-9 old)
   =^  caz-9=(list card)  old
     ?.  ?=(%9 -.old)  [~ old]
     :_  (state-9-to-10 old)
+    %-  zing
     %+  turn  ~(tap in ~(key by v-channels.old))
     |=  =nest:c
-    ^-  card
-    :+  %pass
-      /tombstones/[kind.nest]/(scot %p ship.nest)/[name.nest]
-    ::  slightly staggered to spread load. might not be strictly necessary
-    ::  for this, but good practice.
-    ::
-    [%arvo %b %wait (add now.bowl (~(rad og (sham our.bowl nest)) ~m15))]
+    ^-  (list card)
+    =/  =wire
+      /[kind.nest]/(scot %p ship.nest)/[name.nest]
+    =/  note=note-arvo
+      ::  slightly staggered to spread load. might not be strictly necessary
+      ::  for this, but good practice.
+      ::
+      [%b %wait (add now.bowl (~(rad og (sham our.bowl nest)) ~m15))]
+    ::NOTE  we used to do the /numbers ones during 8-to-9 migration,
+    ::      but the logic for handling those timer events was flawed initially,
+    ::      so we re-set those timers here to retry. if this results in
+    ::      duplicate timers, so be it. doing the work twice is wasteful but
+    ::      harmless.
+    :~  [%pass [%numbers wire] %arvo note]
+        [%pass [%tombstones wire] %arvo note]
+    ==
   =.  cor  (emil caz-9)
   ?>  ?=(%10 -.old)
   =.  state  old
