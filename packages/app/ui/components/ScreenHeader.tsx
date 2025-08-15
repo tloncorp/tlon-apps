@@ -38,27 +38,31 @@ export const ScreenHeaderComponent = ({
 
   // Calculate number of action items to determine text width
   const leftControlsCount = leftControls ? Children.count(leftControls) : 0;
-  const rightControlsCount = rightControls ? Children.count(rightControls) : 0;
   const backButtonCount = backAction ? 1 : 0;
-  const totalActionItems =
-    leftControlsCount + rightControlsCount + backButtonCount;
-
-  // Determine maximum width based on number of action items or explicit titleWidth prop
-  const getTextMaxWidth = () => {
-    if (totalActionItems >= 4) return '55%';
-    if (totalActionItems >= 2) return '75%';
-    return '100%';
-  };
-
-  const textMaxWidth = getTextMaxWidth();
 
   const horizontalTitleStack: ViewStyle = {
     flexDirection: 'row-reverse',
     justifyContent: 'flex-end',
-    paddingLeft: 18,
-    flex: 1,
-    alignItems: 'baseline',
-    gap: 8,
+    paddingLeft: 24 + leftControlsCount * 28 + backButtonCount * 28,
+    alignItems: 'center',
+  };
+
+  const getWrapperStyle = () => {
+    if (useHorizontalTitleLayout) {
+      return horizontalTitleStack;
+    }
+  };
+
+  const renderTitleWrapper = (children: ReactNode) => {
+    const wrapperStyle = getWrapperStyle();
+    if (onTitlePress) {
+      return (
+        <Pressable style={wrapperStyle} onPress={onTitlePress}>
+          {children}
+        </Pressable>
+      );
+    }
+    return <View style={wrapperStyle}>{children}</View>;
   };
 
   return (
@@ -68,67 +72,48 @@ export const ScreenHeaderComponent = ({
       borderColor="$border"
       borderBottomWidth={borderBottom ? 1 : 0}
     >
-      <XStack justifyContent="center">
-        <View maxWidth={textMaxWidth} flex={1}>
-          {((Wrapper) => (
-            <Wrapper>
-              {showSubtitle && (
-                <Text
-                  color={'$secondaryText'}
-                  size="$label/s"
-                  numberOfLines={1}
-                  height={'$xl'}
-                  textAlign="center"
-                >
-                  {resolvedSubtitle}
-                </Text>
-              )}
-              <XStack
-                alignItems="center"
-                justifyContent="center"
-                height={'$4xl'}
-                gap={'$s'}
-              >
-                <Text
-                  size={'$label/2xl'}
-                  color={'$primaryText'}
-                  numberOfLines={1}
-                  maxWidth="100%"
-                >
-                  {title}
-                </Text>
-                {onTitlePress && (
-                  <Icon type="ChevronDown" color="$primaryText" size="$s" />
-                )}
-              </XStack>
-            </Wrapper>
-          ))(
-            onTitlePress
-              ? ({ children }: { children: ReactNode }) => (
-                  <Pressable
-                    style={useHorizontalTitleLayout ? horizontalTitleStack : undefined}
-                    onPress={onTitlePress}
-                  >
-                    {children}
-                  </Pressable>
-                )
-              : useHorizontalTitleLayout
-              ? ({ children }: { children: ReactNode }) => (
-                  <View style={horizontalTitleStack}>{children}</View>
-                )
-              : ({ children }: { children: ReactNode }) => <>{children}</>
+      {renderTitleWrapper(
+        <>
+          {showSubtitle && (
+            <Text
+              color={'$secondaryText'}
+              size="$label/s"
+              numberOfLines={1}
+              height={'$xl'}
+              textAlign="center"
+              paddingHorizontal={'$xl'}
+            >
+              {resolvedSubtitle}
+            </Text>
           )}
-        </View>
-
-        <HeaderControls side="left">
-          {backAction ? <HeaderBackButton onPress={backAction} /> : null}
-          {leftControls}
-        </HeaderControls>
-        <HeaderControls flex={1} side="right">
-          {rightControls}
-        </HeaderControls>
-        {children}
-      </XStack>
+          <XStack
+            alignItems="center"
+            justifyContent="center"
+            gap={'$s'}
+            height={'$4xl'}
+          >
+            <Text
+              size={'$label/2xl'}
+              color={'$primaryText'}
+              numberOfLines={1}
+              maxWidth={186}
+            >
+              {title}
+            </Text>
+            {onTitlePress && (
+              <Icon type="ChevronDown" color="$primaryText" size="$s" />
+            )}
+          </XStack>
+        </>
+      )}
+      <HeaderControls side="left">
+        {backAction ? <HeaderBackButton onPress={backAction} /> : null}
+        {leftControls}
+      </HeaderControls>
+      <HeaderControls flex={1} side="right">
+        {rightControls}
+      </HeaderControls>
+      {children}
     </View>
   );
 };
@@ -175,21 +160,16 @@ const HeaderTitleText = styled(Text, {
 
 const HeaderControls = styled(XStack, {
   position: 'absolute',
-  top: 0,
-  bottom: 0,
-  paddingBottom: '$m',
-  gap: '$xl',
-  alignItems: 'flex-end',
+  bottom: '$m',
+  gap: '$l',
   zIndex: 1,
   variants: {
     side: {
       left: {
         left: '$xl',
-        justifyContent: 'flex-start',
       },
       right: {
         right: '$xl',
-        justifyContent: 'flex-end',
       },
     },
   } as const,
