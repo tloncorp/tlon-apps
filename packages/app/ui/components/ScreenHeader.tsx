@@ -44,7 +44,7 @@ export const ScreenHeaderComponent = ({
   const horizontalTitleStack: ViewStyle = {
     flexDirection: 'row-reverse',
     justifyContent: 'flex-end',
-    paddingLeft: 24 + leftControlsCount * 28 + backButtonCount * 28,
+    paddingLeft: 18 + leftControlsCount * 28 + backButtonCount * 28,
     alignItems: 'center',
   };
 

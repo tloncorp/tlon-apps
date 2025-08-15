@@ -1,6 +1,6 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Button } from '@tloncorp/ui';
+import { Button, useIsWindowNarrow } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { omit } from 'lodash';
@@ -726,6 +726,8 @@ export function ManageChannelsScreenView({
     handleMoveChannelToNavSection,
   ]);
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   return (
     <View backgroundColor="$background" flex={1}>
       <YStack
@@ -733,7 +735,12 @@ export function ManageChannelsScreenView({
         justifyContent="space-between"
         flex={1}
       >
-        <ScreenHeader title="Manage channels" backAction={goBack} />
+        <ScreenHeader
+          title="Manage channels"
+          useHorizontalTitleLayout={!isWindowNarrow}
+          backAction={goBack}
+          borderBottom
+        />
         <YStack
           backgroundColor="$background"
           gap="$2xl"

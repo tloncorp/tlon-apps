@@ -1,6 +1,6 @@
 import { parseGroupId } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
-import { SectionListHeader } from '@tloncorp/ui';
+import { SectionListHeader, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { SectionList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -200,10 +200,17 @@ export function GroupMembersScreenView({
 
   const { host: groupHostId } = parseGroupId(groupId);
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   return (
     <>
       <View backgroundColor="$background" flex={1}>
-        <ScreenHeader title="Members" backAction={goBack} />
+        <ScreenHeader
+          title="Members"
+          useHorizontalTitleLayout={!isWindowNarrow}
+          backAction={goBack}
+          borderBottom
+        />
         <SectionList
           sections={sectionedData}
           keyExtractor={keyExtractor}

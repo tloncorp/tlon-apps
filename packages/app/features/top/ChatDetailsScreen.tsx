@@ -113,6 +113,7 @@ export function ChatDetailsScreenView() {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         backAction={handlePressBack}
+        useHorizontalTitleLayout={!isWindowNarrow}
         title={chatType === 'group' ? 'Group info' : 'Channel info'}
         rightControls={
           currentUserIsAdmin ? (
@@ -578,4 +579,3 @@ function GroupQuickActions({ group }: { group: db.Group }) {
     </ScrollView>
   );
 }
-

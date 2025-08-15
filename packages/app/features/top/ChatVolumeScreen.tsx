@@ -16,6 +16,7 @@ import {
   ScreenHeader,
   View,
   useChatOptions,
+  useIsWindowNarrow,
 } from '../../ui';
 
 // Account for both root and group settings navigation stacks
@@ -118,9 +119,15 @@ function ChatVolumeScreenView({
     chatId,
   ]);
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   return (
     <View backgroundColor={'$secondaryBackground'} flex={1}>
-      <ScreenHeader title="Notifications" backAction={handleBackNavigation} />
+      <ScreenHeader
+        title="Notifications"
+        backAction={handleBackNavigation}
+        useHorizontalTitleLayout={!isWindowNarrow}
+      />
       <Form.FormFrame backgroundType="secondary">
         <Form.RadioInput
           options={volumeOptions}
