@@ -493,14 +493,15 @@
   ^-  essay:v7:old:c
   :-  (memo-1 -.essay)
   ^-  kind-data:v7:old:c
-  ?+    kind.essay  ~|(essay-1-fail+kind.essay !!)
+  ?+    kind.essay  [%chat ~]
     [%chat $@(~ [%notice ~])]  kind.essay
+    [%chat *]                  [%chat ~]
   ::
-      [%diary ~]
+      [%diary *]
     ?~  meta.essay  [%diary '' '']
     [%diary title image]:u.meta.essay
   ::
-      [%heap ~]
+      [%heap *]
     ?~  meta.essay  [%heap ~]
     [%heap `title.u.meta.essay]
   ==
