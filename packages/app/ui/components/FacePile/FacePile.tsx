@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, XStack } from 'tamagui';
 
 import { ContactAvatar } from '../Avatar';
@@ -14,7 +14,10 @@ export const FacePile = React.memo(function FacePileComponent({
   contacts,
   maxVisible = 4,
 }: FacePileProps) {
-  const visibleContacts = contacts.slice(0, maxVisible);
+  const visibleContacts = useMemo(
+    () => contacts.slice(0, maxVisible),
+    [contacts, maxVisible]
+  );
   const overflowCount = Math.max(0, contacts.length - maxVisible);
 
   return (
@@ -28,7 +31,7 @@ export const FacePile = React.memo(function FacePileComponent({
           <ContactAvatar
             contactId={contact.id}
             contactOverride={contact}
-            size='$2xl'
+            size="$2xl"
           />
         </View>
       ))}
