@@ -232,14 +232,19 @@ If archived ships fail to boot during verification:
 
 If you see port conflict errors:
 ```bash
-# Kill any existing e2e processes
+# Kill any existing e2e processes (preferred method)
 ./stop-playwright-dev.sh
+
+# Or use the emergency cleanup script
+./apps/tlon-web/rube-cleanup.sh
 
 # Or manually kill processes on e2e ports
 for port in 3000 3001 3002 35453 36963 38473; do
   lsof -ti:$port | xargs kill -9 2>/dev/null || true
 done
 ```
+
+Note: The infrastructure now includes improved cleanup handling that automatically terminates all processes (including Urbit serf sub-processes) when scripts are interrupted with Ctrl+C.
 
 ## Manual Archive Process (Fallback)
 

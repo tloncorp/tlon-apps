@@ -246,13 +246,20 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 **Important Scripts:**
 -   `./start-playwright-dev.sh` - Starts ships in background, returns when ready
 -   `./stop-playwright-dev.sh` - Comprehensive cleanup of all e2e processes
+-   `./apps/tlon-web/rube-cleanup.sh` - Emergency cleanup when processes are stuck
 -   `pnpm e2e:playwright-dev` - Starts ships and web servers (runs indefinitely)
 -   `pnpm e2e:test <file>` - Runs a single test file with ship setup
+-   `pnpm e2e` - Full test suite (now properly handles Ctrl+C interruption)
+
+**Process Cleanup Improvements:**
+-   **Automatic cleanup**: Ctrl+C now properly cleans up all processes including Urbit serf sub-processes
+-   **Emergency cleanup**: Run `./apps/tlon-web/rube-cleanup.sh` if processes get stuck
+-   **Pattern-based killing**: Infrastructure uses pattern matching to find and kill all related processes
 
 **Common E2E Testing Pitfalls:**
 -   **Ship readiness**: Checking for `.http.ports` files doesn't mean ships are ready - wait for SHIP_SETUP_COMPLETE
 -   **Desk updates**: Applying desk updates can take 5-10 minutes, default timeouts may be too short
--   **Process cleanup**: Always ensure proper cleanup of Urbit ships and web servers (ports 3000-3003, 35453, 36963, 38473, 39983)
+-   **Process cleanup**: Now handled automatically, but use `rube-cleanup.sh` for emergency recovery
 -   **Manifest changes**: Always backup `shipManifest.json` before modifying - it's critical for e2e tests
 
 **GCP Integration for E2E Archives:**
