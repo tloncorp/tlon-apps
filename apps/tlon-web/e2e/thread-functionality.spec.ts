@@ -144,14 +144,12 @@ test('should test cross-ship thread functionality', async ({
   );
 
   // ZOD: Wait for sync and verify the edited message is visible
-  // Reload the page to ensure sync, similar to DM test pattern
-  await zodPage.reload();
-  // Navigate back to the group and channel context
-  await expect(zodPage.getByText(groupName).first()).toBeVisible({
+  await expect(
+    zodPage.getByTestId('ScreenHeaderTitle').getByText(groupName).first()
+  ).toBeVisible({
     timeout: 10000,
   });
-  await zodPage.getByText(groupName).first().click();
-  await helpers.navigateToChannel(zodPage, 'General');
+  await helpers.navigateBack(zodPage);
   await expect(zodPage.getByText('2 replies')).toBeVisible({ timeout: 10000 });
   await zodPage.getByText('2 replies').click();
   await expect(

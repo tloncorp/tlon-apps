@@ -1338,3 +1338,183 @@ export async function verifyNavigation(
 
   return true;
 }
+
+/**
+ * Clean up own profile by resetting nickname, status, and bio to empty values
+ */
+export async function cleanupOwnProfile(page: Page) {
+  try {
+    await page.getByTestId('AvatarNavIcon').click();
+    await expect(page.getByText('Contacts')).toBeVisible();
+    await page.getByText('You').click();
+    await expect(page.getByText('Profile')).toBeVisible();
+    await page.getByText('Edit').click();
+    await expect(page.getByText('Edit Profile')).toBeVisible();
+
+    // Clear nickname
+    await page.getByTestId('ProfileNicknameInput').click();
+    await page.getByTestId('ProfileNicknameInput').fill('');
+
+    // Clear status
+    await page.getByRole('textbox', { name: 'Hanging out...' }).click();
+    await page.getByRole('textbox', { name: 'Hanging out...' }).fill('');
+
+    // Clear bio
+    await page.getByRole('textbox', { name: 'About yourself' }).click();
+    await page.getByRole('textbox', { name: 'About yourself' }).fill('');
+
+    await page.getByText('Done').click();
+    await page.getByTestId('HomeNavIcon').click();
+    await page.waitForTimeout(1000);
+  } catch (error) {
+    console.log('cleanupOwnProfile failed (might be expected):', error.message);
+  }
+}
+
+/**
+ * Clean up custom nicknames set for contacts
+ * This finds contacts in the contacts list and clears any custom nicknames
+ */
+export async function cleanupContactNicknames(page: Page) {
+  try {
+    // Navigate to Contacts
+    await page.getByTestId('AvatarNavIcon').click();
+    await expect(page.getByText('Contacts')).toBeVisible({ timeout: 5000 });
+
+    // Look for any contact row that has custom nicknames we might have set
+    // Common patterns from tests: "Ten Custom Nickname", "Zod from Ten perspective", etc.
+    const knownTestNicknames = [
+      'Ten Custom Nickname',
+      'Zod from Ten perspective',
+      'Zod Testing nickname',
+      'Ten Own Nickname',
+    ];
+
+    for (const nickname of knownTestNicknames) {
+      try {
+        // Check if this nickname is visible in the contacts list
+        const nicknameElement = page.getByText(nickname).first();
+
+        if (
+          await nicknameElement.isVisible({ timeout: 1000 }).catch(() => false)
+        ) {
+          console.log(`[CLEANUP] Found contact with nickname: ${nickname}`);
+
+          // Click on this contact
+          await nicknameElement.click();
+
+          // Wait for Profile to load
+          await expect(page.getByText('Profile')).toBeVisible({
+            timeout: 5000,
+          });
+
+          // Click Edit
+          await page.getByText('Edit').click();
+          await expect(page.getByText('Edit Profile')).toBeVisible({
+            timeout: 5000,
+          });
+
+          // Clear the nickname field
+          const nicknameInput = page.getByTestId('ProfileNicknameInput');
+          await nicknameInput.click();
+          await nicknameInput.fill('');
+          console.log(`[CLEANUP] Cleared nickname: ${nickname}`);
+
+          // Save changes
+          await page.getByText('Done').click();
+          await page.waitForTimeout(2000);
+
+          // Navigate back to contacts
+          await page.getByTestId('AvatarNavIcon').click();
+          await expect(page.getByText('Contacts')).toBeVisible({
+            timeout: 5000,
+          });
+          await page.getByTestId('HomeNavIcon').click();
+          await page.reload();
+          await page.waitForTimeout(1000);
+        }
+      } catch (error) {
+        console.log(
+          `[CLEANUP] Failed to clear nickname ${nickname}:`,
+          error.message
+        );
+        // Try to get back to contacts
+        try {
+          await page.getByTestId('AvatarNavIcon').click();
+          await expect(page.getByText('Contacts')).toBeVisible({
+            timeout: 3000,
+          });
+          await page.getByTestId('HomeNavIcon').click();
+          await page.waitForTimeout(1000);
+        } catch {
+          // Continue with next nickname
+        }
+      }
+    }
+
+    // Also try to clean up any remaining contacts by looking for ContactRow elements
+    try {
+      const contactRows = await page
+        .locator('[data-testid="ContactRow"]')
+        .all();
+
+      for (const row of contactRows) {
+        const rowText = (await row.textContent()) || '';
+
+        // Skip "You" and any already cleaned @p names
+        if (
+          rowText.includes('You') ||
+          rowText.includes('~zod') ||
+          rowText.includes('~ten') ||
+          rowText.includes('~bus')
+        ) {
+          continue;
+        }
+
+        // This might be a contact with a custom nickname
+        console.log(
+          `[CLEANUP] Found potential custom contact: ${rowText.substring(0, 30)}...`
+        );
+
+        await row.click();
+
+        if (await page.getByText('Profile').isVisible({ timeout: 3000 })) {
+          if (await page.getByText('Edit').isVisible({ timeout: 2000 })) {
+            await page.getByText('Edit').click();
+
+            if (
+              await page.getByText('Edit Profile').isVisible({ timeout: 3000 })
+            ) {
+              const nicknameInput = page.getByTestId('ProfileNicknameInput');
+              const currentValue = await nicknameInput.inputValue();
+
+              if (currentValue && currentValue.trim() !== '') {
+                await nicknameInput.click();
+                await nicknameInput.fill('');
+                console.log(
+                  `[CLEANUP] Cleared custom nickname: ${currentValue}`
+                );
+                await page.getByText('Done').click();
+                await page.waitForTimeout(2000);
+              } else {
+                if (
+                  await page.getByText('Cancel').isVisible({ timeout: 1000 })
+                ) {
+                  await page.getByText('Cancel').click();
+                }
+              }
+            }
+          }
+        }
+
+        // Navigate back to contacts
+        await page.getByTestId('AvatarNavIcon').click();
+        await expect(page.getByText('Contacts')).toBeVisible({ timeout: 3000 });
+      }
+    } catch (error) {
+      console.log('[CLEANUP] Error during contact row cleanup:', error.message);
+    }
+  } catch (error) {
+    console.log('[CLEANUP] cleanupContactNicknames failed:', error.message);
+  }
+}

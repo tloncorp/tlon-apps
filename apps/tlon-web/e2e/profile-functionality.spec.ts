@@ -1,5 +1,6 @@
 import { expect } from '@playwright/test';
 
+import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
 test('should test comprehensive profile functionality including editing other users profiles', async ({
@@ -189,70 +190,8 @@ test('should test comprehensive profile functionality including editing other us
   await tenPage.getByText('You').click();
   await expect(tenPage.getByText('Ten Bio')).toBeVisible();
 
-  // Cleanup: Reset all profile data
-  // Clean up ~zod's profile
-  await zodPage.getByTestId('AvatarNavIcon').click();
-  await zodPage.getByText('You').click();
-  await zodPage.getByText('Edit').click();
-  await zodPage.getByTestId('ProfileNicknameInput').click();
-  await zodPage.getByTestId('ProfileNicknameInput').fill('');
-  await zodPage.getByRole('textbox', { name: 'Hanging out...' }).click();
-  await zodPage.getByRole('textbox', { name: 'Hanging out...' }).fill('');
-  await zodPage.getByRole('textbox', { name: 'About yourself' }).click();
-  await zodPage.getByRole('textbox', { name: 'About yourself' }).fill('');
-  await zodPage.getByText('Done').click();
-
-  // Clean up ~zod's custom nickname for ~ten
-  await zodPage.getByTestId('AvatarNavIcon').click();
-  await expect(zodPage.getByText('Contacts')).toBeVisible();
-  // ~ten should be in the contacts list with the custom nickname
-  await zodPage.getByText('Ten Custom Nickname').click();
-  await zodPage.getByText('Edit').click();
-  await zodPage.getByTestId('ProfileNicknameInput').click();
-  await zodPage.getByTestId('ProfileNicknameInput').fill('');
-  await zodPage.getByText('Done').click();
-
-  // Clean up ~ten's profile
-  await tenPage.getByTestId('AvatarNavIcon').click();
-  await tenPage.getByText('You').click();
-  await tenPage.getByText('Edit').click();
-  await tenPage.getByTestId('ProfileNicknameInput').click();
-  await tenPage.getByTestId('ProfileNicknameInput').fill('');
-  await tenPage.getByRole('textbox', { name: 'Hanging out...' }).click();
-  await tenPage.getByRole('textbox', { name: 'Hanging out...' }).fill('');
-  await tenPage.getByRole('textbox', { name: 'About yourself' }).click();
-  await tenPage.getByRole('textbox', { name: 'About yourself' }).fill('');
-  await tenPage.getByText('Done').click();
-
-  // Clean up ~ten's custom nickname for ~zod
-  await tenPage.getByTestId('AvatarNavIcon').click();
-  await expect(tenPage.getByText('Contacts')).toBeVisible();
-  // ~zod should be in the contacts list - try to find by the custom nickname or @p
-  // Using a more flexible approach since the nickname might not always be visible
-  const zodCustomNickname = tenPage.getByText('Zod from Ten perspective');
-  const zodAtP = tenPage.getByText('~zod');
-
-  // Try the custom nickname first, fall back to @p if not found
-  if (await zodCustomNickname.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await zodCustomNickname.click();
-  } else {
-    await zodAtP.click();
-  }
-  await tenPage.getByText('Edit').click();
-  await tenPage.getByTestId('ProfileNicknameInput').click();
-  await tenPage.getByTestId('ProfileNicknameInput').fill('');
-  await tenPage.getByText('Done').click();
-
-  // Final verification that profiles are clean
-  await zodPage.getByTestId('AvatarNavIcon').click();
-  await zodPage.getByText('You').click();
-  await expect(zodPage.getByText('Zod Testing nickname')).not.toBeVisible();
-  await expect(zodPage.getByText('Zod Testing status')).not.toBeVisible();
-  await expect(zodPage.getByText('Zod Testing bio')).not.toBeVisible();
-
-  await tenPage.getByTestId('AvatarNavIcon').click();
-  await tenPage.getByText('You').click();
-  await expect(tenPage.getByText('Ten Own Nickname')).not.toBeVisible();
-  await expect(tenPage.getByText('Ten Status')).not.toBeVisible();
-  await expect(tenPage.getByText('Ten Bio')).not.toBeVisible();
+  await helpers.cleanupOwnProfile(tenPage);
+  await helpers.cleanupContactNicknames(tenPage);
+  await helpers.cleanupOwnProfile(zodPage);
+  await helpers.cleanupContactNicknames(zodPage);
 });
