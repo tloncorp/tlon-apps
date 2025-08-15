@@ -1,4 +1,4 @@
-/-  g=groups, c=channels
+/-  g=groups, gv=groups-ver, c=channels
 /+  *test-agent, s=subscriber, imp=import-aid
 /=  channels-agent  /app/channels
 |%
@@ -28,8 +28,9 @@
 ++  the-group  [~zod %test]
 ++  scry
   |=  =(pole knot)
-  ?+  pole  !!
+  ?+  pole  ~|(`path`pole !!)
     [%gu ship=@t %activity @ ~ ~]  `!>(|)
+    [%gx @ %groups @ %v2 %groups host=@ term=@ %noun ~]  `!>(*group:v7:gv)
   ==
 ++  test-checkpoint-sub
   %-  eval-mare
@@ -230,7 +231,7 @@
     ~2025.6.25..14.41.13..585b
   ++  overwrite-key
     ~2025.6.25..14.41.14..84fa
-  ++  sequence-fix-test-channel
+  ++  tombstone-fix-test-channel
     ^-  v-channel:c
     :-  ^-  global:v-channel:c
         :*  ^=  posts
@@ -269,7 +270,7 @@
       =;  chans=v-channels:c
         [%10 chans ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
-        sequence-fix-test-channel
+        tombstone-fix-test-channel
       ::  client had just bunted tombstones
       ::
       =.  posts.chan
@@ -323,7 +324,7 @@
       =;  chans=v-channels:c
         [%10 chans ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
-        sequence-fix-test-channel
+        tombstone-fix-test-channel
       (~(put by *v-channels:c) *nest:c chan)
     ::
     =.  save  (slot 3 save)           ::  lib discipline
