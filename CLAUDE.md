@@ -90,6 +90,15 @@ This is a monorepo for Tlon Messenger containing multiple applications and share
 -   Builds on top of web application
 -   Uses Electron for native desktop features
 
+### Shell Script Compatibility
+
+When writing or modifying bash scripts, ensure compatibility with both macOS and Linux:
+-   Use `#!/bin/bash` shebang (not `#!/bin/sh`) for consistent behavior
+-   Avoid bash-specific features that vary by version (e.g., associative arrays with `declare -A`)
+-   Handle differences between BSD (macOS) and GNU (Linux) tools, especially `tar`, `sed`, `grep`
+-   Test scripts on both macOS and Linux when possible
+-   Use portable command options (e.g., `grep -E` instead of `egrep`)
+
 ## Testing
 
 -   **Unit tests**: Vitest for shared packages, Jest for mobile
@@ -216,6 +225,49 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   **Keep helpers simple** - A 25-line helper is better than a 100-line helper with complex conditional logic
 -   **Let tests handle variations** - The helper opens the menu; the test decides which action to click based on what it expects
 -   **Example of good design**: `longPressMessage()` uses `getByTestId('ChatMessageActions')` universally instead of checking for context-specific menu items
+
+### E2E Test Infrastructure
+
+**Understanding the rube script:**
+-   `pnpm rube` or `pnpm e2e` runs the core test infrastructure
+-   Rube performs critical setup: nukes ship state, sets ~mug as reel provider, applies desk updates
+-   Ships are considered ready when rube outputs "SHIP_SETUP_COMPLETE" signal
+-   Ship readiness can be verified via HTTP: `http://localhost:{port}/~/scry/hood/kiln/pikes.json`
+-   Default timeout is 30 seconds (can be extended with FORCE_EXTRACTION=true environment variable)
+
+**Pier Archiving and Updates:**
+-   Test piers are pre-configured Urbit ships stored as archives in GCS
+-   Archives are referenced in `apps/tlon-web/e2e/shipManifest.json`
+-   To update pier archives: `./apps/tlon-web/rube/archive-piers.sh`
+-   To verify archives: `./apps/tlon-web/rube/verify-archives.sh`
+-   ~bus is intentionally kept outdated for protocol mismatch testing
+-   Archive naming convention: `rube-{ship}{version}.tgz` (e.g., `rube-zod15.tgz`)
+
+**Important Scripts:**
+-   `./start-playwright-dev.sh` - Starts ships in background, returns when ready
+-   `./stop-playwright-dev.sh` - Comprehensive cleanup of all e2e processes
+-   `./apps/tlon-web/rube-cleanup.sh` - Emergency cleanup when processes are stuck
+-   `pnpm e2e:playwright-dev` - Starts ships and web servers (runs indefinitely)
+-   `pnpm e2e:test <file>` - Runs a single test file with ship setup
+-   `pnpm e2e` - Full test suite (now properly handles Ctrl+C interruption)
+
+**Process Cleanup Improvements:**
+-   **Automatic cleanup**: Ctrl+C now properly cleans up all processes including Urbit serf sub-processes
+-   **Emergency cleanup**: Run `./apps/tlon-web/rube-cleanup.sh` if processes get stuck
+-   **Pattern-based killing**: Infrastructure uses pattern matching to find and kill all related processes
+
+**Common E2E Testing Pitfalls:**
+-   **Ship readiness**: Checking for `.http.ports` files doesn't mean ships are ready - wait for SHIP_SETUP_COMPLETE
+-   **Desk updates**: Applying desk updates can take 5-10 minutes, default timeouts may be too short
+-   **Process cleanup**: Now handled automatically, but use `rube-cleanup.sh` for emergency recovery
+-   **Manifest changes**: Always backup `shipManifest.json` before modifying - it's critical for e2e tests
+
+**GCP Integration for E2E Archives:**
+-   E2E test piers are stored in GCS: `gs://bootstrap.urbit.org/`
+-   GCP project: `tlon-groups-mobile` (hardcoded for security)
+-   Archives are publicly readable once uploaded
+-   Authentication required: `gcloud auth login`
+-   Verify access: `gsutil ls gs://bootstrap.urbit.org/`
 
 ## Package Dependencies
 

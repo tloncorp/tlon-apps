@@ -24,7 +24,7 @@
     "serve-sw": "vite preview --mode sw",
     "tsc": "tsc --noEmit",
     "cosmos": "cosmos",
-    "rube": "tsc --isolatedModules --skipLibCheck ./rube/index.ts --outDir ./rube/dist && node ./rube/dist/index.js",
+    "rube": "./rube-runner.sh",
     "e2e": "pnpm rube",
     "e2e:force": "cross-env FORCE_EXTRACTION=true pnpm e2e",
     "e2e:debug": "cross-env DEBUG_PLAYWRIGHT=true pnpm e2e",
