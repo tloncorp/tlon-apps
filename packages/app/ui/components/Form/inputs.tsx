@@ -439,6 +439,7 @@ export const RadioInput = <T,>({
           option={option}
           onPress={onChange}
           checked={value === option.value}
+          testID={`RadioInputRow-${option.title}`}
         />
       ))}
     </YStack>
