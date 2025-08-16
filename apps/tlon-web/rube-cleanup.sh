@@ -50,7 +50,7 @@ echo "🔍 Step 1: Looking for running rube/node processes..."
 echo ""
 
 # Kill node processes running rube scripts
-RUBE_PIDS=$(ps aux | grep -E "node.*rube/(dist/)?index\.js|node.*rube/(dist/)?playwright-dev\.js|node.*rube/(dist/)?run-single-test\.js" | grep -v grep | awk '{print $2}' || true)
+RUBE_PIDS=$(ps aux | grep -E "node.*rube/(dist/)?index\.js|node.*rube/(dist/)?playwright-dev\.js|node.*rube/(dist/)?run-selected-tests\.js" | grep -v grep | awk '{print $2}' || true)
 if [ -n "$RUBE_PIDS" ]; then
     echo -e "${YELLOW}Found rube node processes:${NC}"
     echo "$RUBE_PIDS"
@@ -135,7 +135,7 @@ echo ""
 PID_FILES=(
     "$DIST_DIR/.rube.pid"
     "$DIST_DIR/.rube-children.json"
-    "$DIST_DIR/.run-single-test.pid"
+    "$DIST_DIR/.run-selected-tests.pid"
     "$SCRIPT_DIR/.playwright-dev.pid"
     "$SCRIPT_DIR/playwright-dev.log"
 )
