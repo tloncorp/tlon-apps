@@ -7,6 +7,9 @@ export async function channelIsLoaded(page: Page) {
 }
 
 export async function navigateToChannel(page: Page, channelName: string) {
+  await expect(page.getByTestId(`ChannelListItem-${channelName}`)).toBeVisible({
+    timeout: 10000,
+  });
   await page.getByTestId(`ChannelListItem-${channelName}`).click();
   await channelIsLoaded(page);
 }
@@ -160,12 +163,12 @@ export async function acceptGroupInvite(page: Page, groupName?: string) {
 }
 
 export async function rejectGroupInvite(page: Page) {
-  if (await page.getByText('Group invitation').isVisible()) {
+  if (await page.getByText('Group invitation').isVisible({ timeout: 10000 })) {
     await page.getByText('Group invitation').click();
   }
 
   // If there's a reject invitation button, click it
-  if (await page.getByText('Reject invite').isVisible()) {
+  if (await page.getByText('Reject invite').isVisible({ timeout: 10000 })) {
     await page.getByText('Reject invite').click();
   }
 }
@@ -1228,7 +1231,7 @@ export async function leaveDM(page: Page, contactId: string) {
   await page.waitForTimeout(500);
   // without this reload we'll still see previous messages in the DM
   // TODO: figure out why this is happening
-  await page.reload();
+  // await page.reload();
   await expect(
     page.getByTestId(`ChannelListItem-${contactId}`)
   ).not.toBeVisible();
@@ -1348,113 +1351,275 @@ export async function verifyNavigation(
  */
 export async function cleanupOwnProfile(page: Page) {
   try {
+    // Navigate to profile
     await page.getByTestId('AvatarNavIcon').click();
-    await expect(page.getByText('Contacts')).toBeVisible();
-    await page.getByText('You').click();
-    await expect(page.getByText('Profile')).toBeVisible();
-    await page.getByText('Edit').click();
-    await expect(page.getByText('Edit Profile')).toBeVisible();
+    await expect(page.getByText('Contacts')).toBeVisible({ timeout: 5000 });
 
-    // Clear nickname
-    await page.getByTestId('ProfileNicknameInput').click();
-    await page.getByTestId('ProfileNicknameInput').fill('');
+    // Check if "You" is visible, if not we might already be on profile
+    const youButton = page.getByText('You');
+    if (await youButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await youButton.click();
+    }
 
-    // Clear status
-    await page.getByRole('textbox', { name: 'Hanging out...' }).click();
-    await page.getByRole('textbox', { name: 'Hanging out...' }).fill('');
+    // Wait for Profile to be visible
+    await expect(page.getByText('Profile')).toBeVisible({ timeout: 5000 });
 
-    // Clear bio
-    await page.getByRole('textbox', { name: 'About yourself' }).click();
-    await page.getByRole('textbox', { name: 'About yourself' }).fill('');
+    // Click Edit button
+    const editButton = page.getByText('Edit');
+    if (await editButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await editButton.click();
+      await expect(page.getByText('Edit Profile')).toBeVisible({
+        timeout: 5000,
+      });
 
-    await page.getByText('Done').click();
+      // Clear all profile fields
+      try {
+        // Clear nickname
+        const nicknameInput = page.getByTestId('ProfileNicknameInput');
+        if (
+          await nicknameInput.isVisible({ timeout: 1000 }).catch(() => false)
+        ) {
+          await nicknameInput.click();
+          await nicknameInput.clear();
+          await nicknameInput.fill('');
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      try {
+        // Clear status
+        const statusInput = page.getByRole('textbox', {
+          name: 'Hanging out...',
+        });
+        if (await statusInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+          await statusInput.click();
+          await statusInput.clear();
+          await statusInput.fill('');
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      try {
+        // Clear bio
+        const bioInput = page.getByRole('textbox', { name: 'About yourself' });
+        if (await bioInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+          await bioInput.click();
+          await bioInput.clear();
+          await bioInput.fill('');
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      // Save changes
+      await page.getByText('Done').click();
+      await page.waitForTimeout(1000);
+    }
+    // Navigate back to home
     await page.getByTestId('HomeNavIcon').click();
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(500);
   } catch (error) {
-    console.log('cleanupOwnProfile failed (might be expected):', error.message);
+    // Try to navigate home even on error
+    try {
+      await page.getByTestId('HomeNavIcon').click();
+    } catch {
+      // Ignore navigation errors
+    }
   }
 }
 
 /**
- * Clean up custom nicknames set for contacts
- * This finds contacts in the contacts list and clears any custom nicknames
+ * Clean up custom nicknames set for contacts and remove all contacts
+ * This dynamically finds all contacts and clears nicknames/removes them
  */
 export async function cleanupContactNicknames(page: Page) {
-  try {
-    // Navigate to Contacts
-    await page.getByTestId('AvatarNavIcon').click();
-    await expect(page.getByText('Contacts')).toBeVisible({ timeout: 5000 });
+  // Get all contacts dynamically (returns ship IDs for reliable removal)
+  const contacts = await getAllContacts(page);
 
-    // Look for any contact row that has custom nicknames we might have set
-    // Common patterns from tests: "Ten Custom Nickname", "Zod from Ten perspective", etc.
-    const knownTestNicknames = [
-      'Ten Custom Nickname',
-      'Zod from Ten perspective',
-      'Zod Testing nickname',
-      'Ten Own Nickname',
-    ];
+  for (const contactId of contacts) {
+    // First clear any custom nickname using ship ID
+    await clearContactNickname(page, contactId);
 
-    for (const nickname of knownTestNicknames) {
-      try {
-        // Check if this nickname is visible in the contacts list
-        const nicknameElement = page.getByText(nickname).first();
+    // Then remove the contact using ship ID
+    await removeContact(page, contactId);
+  }
+}
 
-        if (
-          await nicknameElement.isVisible({ timeout: 1000 }).catch(() => false)
-        ) {
-          console.log(`[CLEANUP] Found contact with nickname: ${nickname}`);
+/**
+ * Get all contacts from the contacts list
+ * Returns an array of ship IDs (e.g., "~zod", "~ten") for reliable removal
+ */
+export async function getAllContacts(page: Page): Promise<string[]> {
+  const contacts: string[] = [];
 
-          // Click on this contact
-          await nicknameElement.click();
+  // Navigate to Contacts
+  await page.getByTestId('AvatarNavIcon').click();
+  await expect(page.getByText('Contacts')).toBeVisible({ timeout: 5000 });
 
-          // Wait for Profile to load
-          await expect(page.getByText('Profile')).toBeVisible({
-            timeout: 5000,
-          });
+  // Wait for contacts to load
+  await page.waitForTimeout(1000);
 
-          // Click the Edit button
-          await page.getByText('Edit').click();
-          await expect(page.getByText('Edit Profile')).toBeVisible({
-            timeout: 5000,
-          });
+  // Try to get ship IDs from aria-labels (more reliable than text content)
+  const contactElements = await page
+    .locator('[aria-label^="ContactListItem-"]')
+    .all();
 
-          // Clear the nickname field
-          await page.getByTestId('ProfileNicknameInput').click();
-          await page.getByTestId('ProfileNicknameInput').fill('');
-          await page.getByText('Done').click();
-          await page.waitForTimeout(2000);
-
-          // Remove the contact from the contacts list
-          await page.getByText('Remove Contact').click();
-
-          // Navigate back to contacts
-          await page.getByTestId('AvatarNavIcon').click();
-          await expect(page.getByText('Contacts')).toBeVisible({
-            timeout: 5000,
-          });
-          await page.getByTestId('HomeNavIcon').click();
-          await page.reload();
-          await page.waitForTimeout(1000);
-        }
-      } catch (error) {
-        console.log(
-          `[CLEANUP] Failed to remove contact ${nickname}:`,
-          error.message
-        );
-        // Try to get back to contacts
-        try {
-          await page.getByTestId('AvatarNavIcon').click();
-          await expect(page.getByText('Contacts')).toBeVisible({
-            timeout: 3000,
-          });
-          await page.getByTestId('HomeNavIcon').click();
-          await page.waitForTimeout(1000);
-        } catch {
-          // Continue with next nickname
+  for (const element of contactElements) {
+    const ariaLabel = await element.getAttribute('aria-label');
+    if (ariaLabel) {
+      // Extract ship ID from aria-label (e.g., "ContactListItem-~zod" -> "~zod")
+      const shipId = ariaLabel.replace('ContactListItem-', '');
+      if (shipId && shipId.startsWith('~')) {
+        // Skip own ship
+        const ownShip = page.url().includes('localhost:3000')
+          ? '~zod'
+          : page.url().includes('localhost:3002')
+            ? '~ten'
+            : '~bus';
+        if (shipId !== ownShip) {
+          contacts.push(shipId);
         }
       }
     }
-  } catch (error) {
-    console.log('[CLEANUP] cleanupContactNicknames failed:', error.message);
+  }
+
+  // Navigate back to home to leave in clean state
+  await page.getByTestId('HomeNavIcon').click();
+
+  return contacts;
+}
+
+/**
+ * Remove a specific contact from the contacts list
+ * @param page - The page object
+ * @param contactNameOrId - The name, nickname, or ship ID (e.g., "~zod") of the contact to remove
+ */
+export async function removeContact(page: Page, contactNameOrId: string) {
+  // Navigate to Contacts
+  await page.getByTestId('AvatarNavIcon').click();
+  await expect(page.getByText('Contacts')).toBeVisible({ timeout: 5000 });
+
+  // Determine if we have a ship ID or contact name
+  const isShipId = contactNameOrId.startsWith('~');
+  let contactElement;
+
+  if (isShipId) {
+    // Use aria-label selector for ship IDs (more reliable when nicknames change)
+    contactElement = page.locator(
+      `[aria-label="ContactListItem-${contactNameOrId}"]`
+    );
+  } else {
+    // Fall back to text-based search for contact names
+    contactElement = page.getByText(contactNameOrId).first();
+  }
+
+  if (await contactElement.isVisible({ timeout: 2000 }).catch(() => false)) {
+    // Check if this is the "You" contact (skip removal) - only for text-based search
+    if (
+      !isShipId &&
+      (await contactElement
+        .getByText('You')
+        .isVisible({ timeout: 2000 })
+        .catch(() => false))
+    ) {
+      return;
+    }
+
+    await contactElement.click();
+
+    // Wait for Profile to load
+    await expect(page.getByText('Profile')).toBeVisible({ timeout: 5000 });
+
+    // Look for Remove Contact button - it should be on the profile view, not in edit mode
+    const removeButton = page.getByText('Remove Contact');
+    if (await removeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await removeButton.click();
+      await page.waitForTimeout(1000);
+
+      // Handle any confirmation dialog if present
+      const confirmButton = page.getByText('Remove', { exact: true });
+      if (await confirmButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await confirmButton.click();
+      }
+    }
+
+    // Navigate back to home
+    await page.getByTestId('HomeNavIcon').click();
+    await page.waitForTimeout(500);
+  }
+}
+
+/**
+ * Remove all contacts from both ships
+ * This is a comprehensive cleanup that removes all contacts
+ */
+export async function removeAllContacts(page: Page) {
+  const contacts = await getAllContacts(page);
+
+  for (const contact of contacts) {
+    // Skip self references
+    if (contact.includes('You')) {
+      continue;
+    }
+    // Skip own ship (check if we're on zod or ten)
+    const ownShip = page.url().includes('localhost:3000') ? '~zod' : '~ten';
+    if (contact === ownShip || contact.includes(ownShip.substring(1))) {
+      continue;
+    }
+    await removeContact(page, contact);
+  }
+}
+
+/**
+ * Clear custom nickname for a specific contact
+ * @param page - The page object
+ * @param contactNameOrId - The name, nickname, or ship ID (e.g., "~zod") of the contact
+ */
+export async function clearContactNickname(
+  page: Page,
+  contactNameOrId: string
+) {
+  // Navigate to Contacts
+  await page.getByTestId('AvatarNavIcon').click();
+  await expect(page.getByText('Contacts')).toBeVisible({ timeout: 5000 });
+
+  // Determine if we have a ship ID or contact name
+  const isShipId = contactNameOrId.startsWith('~');
+  let contactElement;
+
+  if (isShipId) {
+    // Use aria-label selector for ship IDs (more reliable when nicknames change)
+    contactElement = page.locator(
+      `[aria-label="ContactListItem-${contactNameOrId}"]`
+    );
+  } else {
+    // Fall back to text-based search for contact names
+    contactElement = page.getByText(contactNameOrId).first();
+  }
+
+  if (await contactElement.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await contactElement.click();
+
+    // Wait for Profile to load
+    await expect(page.getByText('Profile')).toBeVisible({ timeout: 5000 });
+
+    // Click Edit button
+    await page.getByText('Edit').click();
+    await expect(page.getByText('Edit Profile')).toBeVisible({
+      timeout: 5000,
+    });
+
+    // Clear the nickname field
+    await page.getByTestId('ProfileNicknameInput').click();
+    await page.getByTestId('ProfileNicknameInput').fill('');
+
+    // Save changes
+    await page.getByText('Done').click();
+    await page.waitForTimeout(1000);
+
+    // Navigate back home
+    await page.getByTestId('HomeNavIcon').click();
   }
 }

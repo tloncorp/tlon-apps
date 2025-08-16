@@ -271,6 +271,24 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   **Test consolidation** - if multiple tests cover similar functionality, merge them into a single comprehensive test that covers all scenarios
 -   **Focus on unique test scenarios** - each test should cover distinct functionality or edge cases, not repeat the same operations
 
+**Contact Relationship Management:**
+
+-   **Personal invite links create contacts automatically** - visiting `inviteToken=${token}` URLs adds the token owner as a contact
+-   **Contact relationships are asymmetric** - ~ten having ~zod as contact doesn't mean ~zod has ~ten
+-   **Always clean up contacts** - any test creating contacts must remove them: `await page.getByText('Remove contact').click()`
+-   **Check both ships** - when debugging contact issues, check both sides of the relationship
+
+**Test Pollution Debugging Strategy:**
+
+1. **Run test in isolation first** - `pnpm e2e:test failing-test.spec.ts`
+2. **If it passes, find the polluting test** - run subsets of tests alphabetically before the failing test
+3. **Check for missing cleanup** - look for tests that create contacts, profiles, or other persistent state
+4. **Common pollution sources**:
+   -   `invite-service.spec.ts` - creates contacts via invite links
+   -   Tests with profile editing - may leave custom nicknames
+   -   Tests creating DMs - both ships must clean up
+   -   Tests with group invites - may leave pending invitations
+
 **E2E Helper Function Design Principles:**
 
 -   **Single responsibility** - Each helper function should do one thing well (e.g., `longPressMessage` only opens the action menu, doesn't verify what's in it)
@@ -322,6 +340,13 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   Archives are publicly readable once uploaded
 -   Authentication required: `gcloud auth login`
 -   Verify access: `gsutil ls gs://bootstrap.urbit.org/`
+
+**Test State Persistence Issues:**
+-   Ship state is nuked between full test runs, but NOT between individual tests in the same run
+-   Contact relationships persist across tests within a run
+-   Profile modifications (nicknames, status, bio) persist
+-   Some state changes are asymmetric and require cleanup on specific ships
+-   Use `test-fixtures.ts` performCleanup() for systematic cleanup
 
 ## Package Dependencies
 

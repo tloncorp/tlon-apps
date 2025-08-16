@@ -68,4 +68,10 @@ test('should generate an invite link and be able to redeem group/personal invite
   await tenPage.goto(tenUserInviteUrl);
   await tenPage.waitForTimeout(6000);
   await expect(tenPage.getByText('Remove contact')).toBeVisible();
+  
+  // Clean up: Remove ~zod from ~ten's contacts to prevent test pollution
+  await tenPage.getByText('Remove contact').click();
+  await tenPage.waitForTimeout(1000);
+  // Verify the contact was removed
+  await expect(tenPage.getByText('Remove contact')).not.toBeVisible();
 });

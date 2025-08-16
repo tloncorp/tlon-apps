@@ -190,8 +190,15 @@ test('should test comprehensive profile functionality including editing other us
   await tenPage.getByText('You').click();
   await expect(tenPage.getByText('Ten Bio')).toBeVisible();
 
+  // Clean up ~ten's profile and contacts
   await helpers.cleanupOwnProfile(tenPage);
   await helpers.cleanupContactNicknames(tenPage);
+
+  // Clean up ~zod's profile and contacts
   await helpers.cleanupOwnProfile(zodPage);
   await helpers.cleanupContactNicknames(zodPage);
+
+  // Add a longer wait to ensure profile changes propagate
+  await zodPage.waitForTimeout(3000);
+  await tenPage.waitForTimeout(3000);
 });
