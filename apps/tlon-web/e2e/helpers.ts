@@ -1229,9 +1229,6 @@ export async function leaveDM(page: Page, contactId: string) {
   await page.waitForTimeout(500);
   await page.getByTestId('ActionSheetAction-Leave chat').click();
   await page.waitForTimeout(500);
-  // without this reload we'll still see previous messages in the DM
-  // TODO: figure out why this is happening
-  // await page.reload();
   await expect(
     page.getByTestId(`ChannelListItem-${contactId}`)
   ).not.toBeVisible();
@@ -1350,84 +1347,61 @@ export async function verifyNavigation(
  * Clean up own profile by resetting nickname, status, and bio to empty values
  */
 export async function cleanupOwnProfile(page: Page) {
-  try {
-    // Navigate to profile
-    await page.getByTestId('AvatarNavIcon').click();
-    await expect(page.getByText('Contacts')).toBeVisible({ timeout: 5000 });
+  // Navigate to profile
+  await page.getByTestId('AvatarNavIcon').click();
+  await expect(page.getByText('Contacts')).toBeVisible({ timeout: 5000 });
 
-    // Check if "You" is visible, if not we might already be on profile
-    const youButton = page.getByText('You');
-    if (await youButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await youButton.click();
-    }
-
-    // Wait for Profile to be visible
-    await expect(page.getByText('Profile')).toBeVisible({ timeout: 5000 });
-
-    // Click Edit button
-    const editButton = page.getByText('Edit');
-    if (await editButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await editButton.click();
-      await expect(page.getByText('Edit Profile')).toBeVisible({
-        timeout: 5000,
-      });
-
-      // Clear all profile fields
-      try {
-        // Clear nickname
-        const nicknameInput = page.getByTestId('ProfileNicknameInput');
-        if (
-          await nicknameInput.isVisible({ timeout: 1000 }).catch(() => false)
-        ) {
-          await nicknameInput.click();
-          await nicknameInput.clear();
-          await nicknameInput.fill('');
-        }
-      } catch (e) {
-        // ignore
-      }
-
-      try {
-        // Clear status
-        const statusInput = page.getByRole('textbox', {
-          name: 'Hanging out...',
-        });
-        if (await statusInput.isVisible({ timeout: 1000 }).catch(() => false)) {
-          await statusInput.click();
-          await statusInput.clear();
-          await statusInput.fill('');
-        }
-      } catch (e) {
-        // ignore
-      }
-
-      try {
-        // Clear bio
-        const bioInput = page.getByRole('textbox', { name: 'About yourself' });
-        if (await bioInput.isVisible({ timeout: 1000 }).catch(() => false)) {
-          await bioInput.click();
-          await bioInput.clear();
-          await bioInput.fill('');
-        }
-      } catch (e) {
-        // ignore
-      }
-
-      // Save changes
-      await page.getByText('Done').click();
-      await page.waitForTimeout(1000);
-    }
-    // Navigate back to home
-    await page.getByTestId('HomeNavIcon').click();
-    await page.waitForTimeout(500);
-  } catch (error) {
-    // Try to navigate home even on error
-    try {
-      await page.getByTestId('HomeNavIcon').click();
-    } catch {
-      // Ignore navigation errors
-    }
+  // Check if "You" is visible, if not we might already be on profile
+  const youButton = page.getByText('You');
+  if (await youButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await youButton.click();
   }
+
+  // Wait for Profile to be visible
+  await expect(page.getByText('Profile')).toBeVisible({ timeout: 5000 });
+
+  // Click Edit button
+  const editButton = page.getByText('Edit');
+  if (await editButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await editButton.click();
+    await expect(page.getByText('Edit Profile')).toBeVisible({
+      timeout: 5000,
+    });
+
+    // Clear all profile fields
+    // Clear nickname
+    const nicknameInput = page.getByTestId('ProfileNicknameInput');
+    if (await nicknameInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await nicknameInput.click();
+      await nicknameInput.clear();
+      await nicknameInput.fill('');
+    }
+
+    // Clear status
+    const statusInput = page.getByRole('textbox', {
+      name: 'Hanging out...',
+    });
+    if (await statusInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await statusInput.click();
+      await statusInput.clear();
+      await statusInput.fill('');
+    }
+
+    // Clear bio
+    const bioInput = page.getByRole('textbox', { name: 'About yourself' });
+    if (await bioInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await bioInput.click();
+      await bioInput.clear();
+      await bioInput.fill('');
+    }
+
+    // Save changes
+    await page.getByText('Done').click();
+    await page.waitForTimeout(1000);
+  }
+  // Navigate back to home
+  await page.getByTestId('HomeNavIcon').click();
+  await page.waitForTimeout(500);
 }
 
 /**
@@ -1494,35 +1468,33 @@ export async function getAllContacts(page: Page): Promise<string[]> {
 /**
  * Remove a specific contact from the contacts list
  * @param page - The page object
- * @param contactNameOrId - The name, nickname, or ship ID (e.g., "~zod") of the contact to remove
+ * @param shipId - The ship ID (e.g., "~zod") of the contact to remove
  */
-export async function removeContact(page: Page, contactNameOrId: string) {
+export async function removeContact(page: Page, shipId: string) {
+  // Validate ship ID format
+  if (!shipId.startsWith('~')) {
+    console.log(
+      `[CLEANUP] Invalid ship ID format: ${shipId} (must start with ~)`
+    );
+    return;
+  }
+
   // Navigate to Contacts
   await page.getByTestId('AvatarNavIcon').click();
   await expect(page.getByText('Contacts')).toBeVisible({ timeout: 5000 });
 
-  // Determine if we have a ship ID or contact name
-  const isShipId = contactNameOrId.startsWith('~');
-  let contactElement;
-
-  if (isShipId) {
-    // Use aria-label selector for ship IDs (more reliable when nicknames change)
-    contactElement = page.locator(
-      `[aria-label="ContactListItem-${contactNameOrId}"]`
-    );
-  } else {
-    // Fall back to text-based search for contact names
-    contactElement = page.getByText(contactNameOrId).first();
-  }
+  // Use aria-label selector for ship IDs (more reliable when nicknames change)
+  const contactElement = page.locator(
+    `[aria-label="ContactListItem-${shipId}"]`
+  );
 
   if (await contactElement.isVisible({ timeout: 2000 }).catch(() => false)) {
-    // Check if this is the "You" contact (skip removal) - only for text-based search
+    // Check if this is the "You" contact (skip removal)
     if (
-      !isShipId &&
-      (await contactElement
+      await contactElement
         .getByText('You')
         .isVisible({ timeout: 2000 })
-        .catch(() => false))
+        .catch(() => false)
     ) {
       return;
     }
