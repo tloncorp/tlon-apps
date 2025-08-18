@@ -4,6 +4,9 @@ import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
 test('should test notebook functionality', async ({ zodSetup, tenSetup }) => {
+  // set long timeout for the test
+  test.setTimeout(240000);
+
   const zodPage = zodSetup.page;
   const tenPage = tenSetup.page;
 

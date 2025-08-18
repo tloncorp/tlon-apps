@@ -22,7 +22,22 @@ test('should customize group name, icon, and description', async ({
     await expect(page.getByText('Untitled group').first()).toBeVisible();
   }
 
-  // Open the Customize group screen
+  // Verify we're in the blank channel state (Welcome to your group! message)
+  await expect(page.getByText('Welcome to your group!')).toBeVisible();
+
+  // Open the Customize group screen from the blank channel
+  await helpers.openGroupCustomization(page);
+
+  // Verify we're on the group customization screen
+  await expect(page.getByText('Edit group info')).toBeVisible();
+
+  // Click Cancel to verify navigation back to blank channel
+  await page.getByText('Cancel').click();
+
+  // Verify we're back to the blank channel state
+  await expect(page.getByText('Welcome to your group!')).toBeVisible();
+
+  // Open the Customize group screen again to continue with the test
   await helpers.openGroupCustomization(page);
 
   // Change the group name
@@ -54,3 +69,4 @@ test('should customize group name, icon, and description', async ({
   }
   await page.getByText('Cancel').click();
 });
+
