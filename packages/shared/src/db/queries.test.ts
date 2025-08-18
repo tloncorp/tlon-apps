@@ -528,3 +528,183 @@ test('getMentionCandidates: limits results to 6', async () => {
   // Should not return more than 6 results
   expect(candidates.length).toBeLessThanOrEqual(6);
 });
+
+test('insertPosts: removes cached posts when real posts arrive', async () => {
+  const channelId = 'test-channel';
+  const authorId = '~zod';
+  const sentAt = Date.now();
+
+  // Setup channel
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+
+  // Insert a cached post (sequenceNum: 0 indicates cached/optimistic post)
+  const cachedPost: Post = {
+    id: 'cached-post-id',
+    type: 'chat',
+    channelId,
+    authorId,
+    sentAt,
+    receivedAt: sentAt,
+    sequenceNum: 0, // This marks it as a cached post
+    content: JSON.stringify([{ inline: ['Cached message'] }]),
+    syncedAt: Date.now(),
+  };
+
+  await queries.insertChannelPosts({ posts: [cachedPost] });
+
+  // Verify cached post exists
+  const postsBeforeReal = await queries.getChanPosts({ channelId });
+  expect(postsBeforeReal.length).toBe(1);
+  expect(postsBeforeReal[0].id).toBe('cached-post-id');
+  expect(postsBeforeReal[0].sequenceNum).toBe(0);
+
+  // Insert a real post from server with same channel, author, and sentAt
+  const realPost: Post = {
+    id: 'real-post-id',
+    type: 'chat',
+    channelId,
+    authorId,
+    sentAt, // Same sentAt as cached post
+    receivedAt: sentAt,
+    sequenceNum: 5, // Real sequence number from server
+    content: JSON.stringify([{ inline: ['Real message'] }]),
+    syncedAt: Date.now(),
+  };
+
+  await queries.insertChannelPosts({ posts: [realPost] });
+
+  // Verify cached post is removed and only real post remains
+  const postsAfterReal = await queries.getChanPosts({ channelId });
+  expect(postsAfterReal.length).toBe(1);
+  expect(postsAfterReal[0].id).toBe('real-post-id');
+  expect(postsAfterReal[0].sequenceNum).toBe(5);
+});
+
+test('insertPosts: keeps cached posts when no matching real post arrives', async () => {
+  const channelId = 'test-channel-2';
+  const authorId = '~zod';
+
+  // Setup channel
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+
+  // Insert cached posts with different sentAt times
+  const cachedPost1: Post = {
+    id: 'cached-post-1',
+    type: 'chat',
+    channelId,
+    authorId,
+    sentAt: 1000,
+    receivedAt: 1000,
+    sequenceNum: 0,
+    content: JSON.stringify([{ inline: ['Cached message 1'] }]),
+    syncedAt: Date.now(),
+  };
+
+  const cachedPost2: Post = {
+    id: 'cached-post-2',
+    type: 'chat',
+    channelId,
+    authorId,
+    sentAt: 2000,
+    receivedAt: 2000,
+    sequenceNum: 0,
+    content: JSON.stringify([{ inline: ['Cached message 2'] }]),
+    syncedAt: Date.now(),
+  };
+
+  await queries.insertChannelPosts({ posts: [cachedPost1, cachedPost2] });
+
+  // Insert a real post that doesn't match either cached post
+  const realPost: Post = {
+    id: 'real-post-different',
+    type: 'chat',
+    channelId,
+    authorId,
+    sentAt: 3000, // Different sentAt
+    receivedAt: 3000,
+    sequenceNum: 10,
+    content: JSON.stringify([{ inline: ['Real message'] }]),
+    syncedAt: Date.now(),
+  };
+
+  await queries.insertChannelPosts({ posts: [realPost] });
+
+  // Verify all posts remain (cached posts not removed since no match)
+  const posts = await queries.getChanPosts({ channelId });
+  expect(posts.length).toBe(3);
+
+  const cachedPosts = posts.filter((p) => p.sequenceNum === 0);
+  const realPosts = posts.filter((p) => p.sequenceNum !== 0);
+
+  expect(cachedPosts.length).toBe(2);
+  expect(realPosts.length).toBe(1);
+  expect(realPosts[0].id).toBe('real-post-different');
+});
+
+test('insertPosts: removes only matching cached posts', async () => {
+  const channelId = 'test-channel-3';
+  const authorId = '~zod';
+  const otherAuthorId = '~bus';
+  const sentAt = 5000;
+
+  // Setup channel
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+
+  // Insert cached posts - one that will match, one that won't
+  const cachedPostMatching: Post = {
+    id: 'cached-matching',
+    type: 'chat',
+    channelId,
+    authorId,
+    sentAt,
+    receivedAt: sentAt,
+    sequenceNum: 0,
+    content: JSON.stringify([{ inline: ['Cached matching'] }]),
+    syncedAt: Date.now(),
+  };
+
+  const cachedPostNonMatching: Post = {
+    id: 'cached-non-matching',
+    type: 'chat',
+    channelId,
+    authorId: otherAuthorId, // Different author
+    sentAt,
+    receivedAt: sentAt,
+    sequenceNum: 0,
+    content: JSON.stringify([{ inline: ['Cached non-matching'] }]),
+    syncedAt: Date.now(),
+  };
+
+  await queries.insertChannelPosts({
+    posts: [cachedPostMatching, cachedPostNonMatching],
+  });
+
+  // Insert real post that matches only the first cached post
+  const realPost: Post = {
+    id: 'real-post-matching',
+    type: 'chat',
+    channelId,
+    authorId, // Matches first cached post
+    sentAt, // Matches first cached post
+    receivedAt: sentAt,
+    sequenceNum: 15,
+    content: JSON.stringify([{ inline: ['Real matching'] }]),
+    syncedAt: Date.now(),
+  };
+
+  await queries.insertChannelPosts({ posts: [realPost] });
+
+  // Verify only the matching cached post was removed
+  const posts = await queries.getChanPosts({ channelId });
+  expect(posts.length).toBe(2);
+
+  const cachedPosts = posts.filter((p) => p.sequenceNum === 0);
+  const realPosts = posts.filter((p) => p.sequenceNum !== 0);
+
+  expect(cachedPosts.length).toBe(1);
+  expect(cachedPosts[0].id).toBe('cached-non-matching');
+  expect(cachedPosts[0].authorId).toBe(otherAuthorId);
+
+  expect(realPosts.length).toBe(1);
+  expect(realPosts[0].id).toBe('real-post-matching');
+});

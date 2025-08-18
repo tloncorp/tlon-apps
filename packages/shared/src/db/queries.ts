@@ -19,6 +19,7 @@ import {
   lte,
   max,
   min,
+  ne,
   not,
   notInArray,
   or,
@@ -3149,6 +3150,8 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
       });
   }
 
+  await deleteReplacedCachedPosts(ctx);
+
   logger.log('inserted posts');
   await setLastPosts(posts, ctx);
   logger.log('set last posts');
@@ -3157,6 +3160,36 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
     ctx
   );
   logger.log('clear matched pending');
+}
+
+async function deleteReplacedCachedPosts(ctx: QueryCtx) {
+  const $cachedPosts = ctx.db
+    .select()
+    .from($posts)
+    .where(eq($posts.sequenceNum, 0))
+    .as('cached_posts');
+
+  const receivedPosts = await ctx.db
+    .select({
+      id: $cachedPosts.id,
+    })
+    .from($posts)
+    .innerJoin(
+      $cachedPosts,
+      and(
+        ne($posts.sequenceNum, 0),
+        eq($posts.channelId, $cachedPosts.channelId),
+        eq($posts.sentAt, $cachedPosts.sentAt),
+        eq($posts.authorId, $cachedPosts.authorId)
+      )
+    );
+
+  await ctx.db.delete($posts).where(
+    inArray(
+      $posts.id,
+      receivedPosts.map((p) => p.id)
+    )
+  );
 }
 
 export const resetHiddenPosts = createWriteQuery(

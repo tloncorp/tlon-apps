@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import { KeyboardAvoidingView } from '@tloncorp/ui';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -74,6 +74,7 @@ export function EditProfileScreenView(props: Props) {
   const {
     control,
     handleSubmit,
+    reset,
     formState: { isDirty, isValid },
   } = useForm({
     mode: 'onChange',
@@ -84,6 +85,22 @@ export function EditProfileScreenView(props: Props) {
       avatarImage: currentAvatarImage ?? '',
     },
   });
+
+  useEffect(() => {
+    reset({
+      nickname: currentNickname ?? '',
+      status: userContact?.status ?? '',
+      bio: userContact?.bio ?? '',
+      avatarImage: currentAvatarImage ?? '',
+    });
+  }, [
+    props.userId,
+    currentNickname,
+    userContact?.status,
+    userContact?.bio,
+    currentAvatarImage,
+    reset,
+  ]);
 
   const handlePressDone = useCallback(() => {
     if (isDirty) {
