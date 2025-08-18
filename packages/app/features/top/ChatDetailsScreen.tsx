@@ -25,6 +25,7 @@ import {
   ScrollView,
   TlonText,
   View,
+  WidgetPane,
   XStack,
   YStack,
   createActionGroup,
@@ -210,6 +211,12 @@ function ChatDetailsScreenContent({
 
       <YStack gap="$l">
         {chatType === 'group' && <GroupQuickActions group={group} />}
+        {chatType === 'group' && group.description && (
+          <WidgetPane>
+            <WidgetPane.Title>Description</WidgetPane.Title>
+            <TlonText.Text size="$label/l">{group.description}</TlonText.Text>
+          </WidgetPane>
+        )}
         {chatType === 'group' && <GroupSettings group={group} />}
 
         {members?.length ? (
