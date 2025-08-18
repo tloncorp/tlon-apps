@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { ChannelPrivacyType } from '@tloncorp/shared/urbit/groups';
-import { Button } from '@tloncorp/ui';
+import { Button, useIsWindowNarrow } from '@tloncorp/ui';
 import { FormInput } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
@@ -133,6 +133,8 @@ export function EditChannelScreenView({
     }
   }, [channel, reset]);
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   return (
     <FormProvider {...form}>
       <View backgroundColor="$background" flex={1}>
@@ -143,6 +145,8 @@ export function EditChannelScreenView({
         >
           <ScreenHeader
             title="Edit channel"
+            borderBottom
+            useHorizontalTitleLayout={!isWindowNarrow}
             backAction={goBack}
             isLoading={isLoading}
           />

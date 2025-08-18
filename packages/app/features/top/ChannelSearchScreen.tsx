@@ -2,17 +2,19 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useChannel, useChannelSearch, useGroup } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import { useCallback, useState } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
+  ScreenHeader,
   SearchBar,
   SearchResults,
+  View,
   XStack,
   YStack,
   useChannelTitle,
   useGroupTitle,
+  useIsWindowNarrow,
 } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChannelSearch'>;
@@ -55,9 +57,17 @@ export default function ChannelSearchScreen(props: Props) {
     [props.navigation, resetToChannel, groupId]
   );
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   return (
-    <SafeAreaView edges={['top']} style={{ flex: 1 }}>
-      <YStack flex={1} gap="$l" padding="$l" backgroundColor="$background">
+    <YStack flex={1} backgroundColor="$background">
+      <ScreenHeader
+        title={`Search ${title ?? ''}`}
+        useHorizontalTitleLayout={!isWindowNarrow}
+        backAction={props.navigation.goBack}
+        borderBottom
+      />
+      <View padding="$2xl">
         <XStack>
           <SearchBar
             onChangeQuery={setQuery}
@@ -81,7 +91,7 @@ export default function ChannelSearchScreen(props: Props) {
             searchedThroughDate,
           }}
         />
-      </YStack>
-    </SafeAreaView>
+      </View>
+    </YStack>
   );
 }
