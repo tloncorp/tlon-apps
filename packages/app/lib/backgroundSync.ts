@@ -124,6 +124,7 @@ export function registerBackgroundSyncTask() {
   TaskManager.defineTask<Record<string, unknown>>(
     TASK_ID,
     async ({ error }): Promise<BackgroundTask.BackgroundTaskResult> => {
+      console.log(`bl: TASK CALLED`, TASK_ID);
       logger.log(`Running background sync background task`);
       if (error) {
         logger.error(`Failed background sync background task`, error.message);
@@ -158,6 +159,8 @@ export function registerBackgroundSyncTask() {
         });
         logger.log('Registered background sync task');
       }
+      const status = await TaskManager.getRegisteredTasksAsync();
+      logger.log('Current registered tasks:', status);
     } catch (err) {
       logger.error('Failed to register background sync task', err);
     }
