@@ -149,6 +149,11 @@ export function EditChannelScreenView({
             useHorizontalTitleLayout={!isWindowNarrow}
             backAction={goBack}
             isLoading={isLoading}
+            rightControls={
+              <ScreenHeader.TextButton onPress={handleSubmit(handleSave)}>
+                Save
+              </ScreenHeader.TextButton>
+            }
           />
           <YStack
             backgroundColor="$background"
@@ -182,9 +187,6 @@ export function EditChannelScreenView({
               <ChannelPermissionsSelector groupRoles={group.roles} />
             )}
             <YStack gap="$2xl">
-              <Button hero onPress={handleSubmit(handleSave)}>
-                <Button.Text>Save</Button.Text>
-              </Button>
               <Button heroDestructive onPress={handlePressDelete}>
                 <Button.Text>Delete channel for everyone</Button.Text>
               </Button>

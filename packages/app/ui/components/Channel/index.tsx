@@ -426,7 +426,8 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                             !!channel.groupId &&
                             (channel.type === 'chat' ||
                               channel.type === 'notebook' ||
-                              channel.type === 'gallery')
+                              channel.type === 'gallery') &&
+                            draftInputPresentationMode !== 'fullscreen'
                           }
                           goToEdit={handleGoToEditChannel}
                         />

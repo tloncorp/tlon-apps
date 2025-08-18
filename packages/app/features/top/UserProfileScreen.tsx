@@ -121,9 +121,11 @@ export function UserProfileScreen({ route, navigation }: Props) {
               }
               rightControls={
                 canEdit ? (
-                  <ScreenHeader.TextButton onPress={handlePressEdit}>
-                    Edit
-                  </ScreenHeader.TextButton>
+                  <ScreenHeader.IconButton
+                    onPress={handlePressEdit}
+                    testID="ContactEditButton"
+                    type="Draw"
+                  />
                 ) : null
               }
             />
