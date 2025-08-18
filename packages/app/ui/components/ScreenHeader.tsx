@@ -1,9 +1,9 @@
 import { useDebouncedValue } from '@tloncorp/shared';
-import { Icon, Text } from '@tloncorp/ui';
+import { Icon, Text, View } from '@tloncorp/ui';
 import { Children, PropsWithChildren, ReactNode } from 'react';
 import { Pressable, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, XStack, styled, withStaticProperties } from 'tamagui';
+import { XStack, styled, withStaticProperties } from 'tamagui';
 
 export const ScreenHeaderComponent = ({
   children,
@@ -76,16 +76,21 @@ export const ScreenHeaderComponent = ({
       {renderTitleWrapper(
         <>
           {showSubtitle && (
-            <Text
-              color={'$secondaryText'}
-              size="$label/s"
-              numberOfLines={1}
-              height={'$xl'}
-              textAlign="center"
-              paddingHorizontal={useHorizontalTitleLayout ? '$xl' : '$2xl'}
+            <View
+              height={useHorizontalTitleLayout ? '$4xl' : '$xl'}
+              alignItems="center"
+              justifyContent="center"
+              paddingHorizontal={useHorizontalTitleLayout ? '$l' : '$2xl'}
             >
-              {resolvedSubtitle}
-            </Text>
+              <Text
+                color={'$secondaryText'}
+                size="$label/s"
+                numberOfLines={1}
+                paddingTop={useHorizontalTitleLayout ? 5 : undefined}
+              >
+                {resolvedSubtitle}
+              </Text>
+            </View>
           )}
           <XStack
             alignItems="center"

@@ -92,7 +92,6 @@ export function ChannelHeader({
   goToProfile,
   showSpinner,
   showSearchButton = false,
-  showMenuButton = false,
   showEditButton = false,
 }: {
   title: string;
@@ -107,7 +106,6 @@ export function ChannelHeader({
   goToProfile?: () => void;
   showSpinner?: boolean;
   showSearchButton?: boolean;
-  showMenuButton?: boolean;
   showEditButton?: boolean;
   post?: db.Post;
 }) {
