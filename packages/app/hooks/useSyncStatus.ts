@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useRef, useState } from 'react';
+import { useMemo, useEffect } from 'react';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 
@@ -20,38 +20,57 @@ function formatTimeAgo(timestamp: number): string {
   }
 }
 
+// Global timer to ensure all instances of useSyncStatus show the same time
+let globalRefreshTimeoutRef: NodeJS.Timeout | null = null;
+const globalStartTimeRef: number = Date.now();
+let activeHookCount = 0;
+
+function startGlobalRefreshTimer() {
+  if (globalRefreshTimeoutRef) return; // Already running
+  
+  const scheduleNextRefresh = () => {
+    const elapsedTime = Date.now() - globalStartTimeRef;
+    const fifteenMinutes = 15 * 60 * 1000;
+    const threeMinutes = 3 * 60 * 1000;
+    const thirtyMinutes = 30 * 60 * 1000;
+    
+    const interval = elapsedTime < fifteenMinutes ? threeMinutes : thirtyMinutes;
+    
+    globalRefreshTimeoutRef = setTimeout(() => {
+      // Increment the shared counter to trigger all hooks to re-render
+      db.syncStatusRefreshCounter.getValue().then(current => {
+        db.syncStatusRefreshCounter.setValue(current + 1);
+      });
+      scheduleNextRefresh();
+    }, interval);
+  };
+  
+  scheduleNextRefresh();
+}
+
+function stopGlobalRefreshTimer() {
+  if (globalRefreshTimeoutRef) {
+    clearTimeout(globalRefreshTimeoutRef);
+    globalRefreshTimeoutRef = null;
+  }
+}
+
 export function useSyncStatus() {
   const connectionStatus = store.useConnectionStatus();
   const session = store.useCurrentSession();
   const headsSyncedAt = db.headsSyncedAt.useValue();
   const lastEventReceivedAt = db.lastEventReceivedAt.useValue();
+  const refreshCounter = db.syncStatusRefreshCounter.useValue();
   
-  // State for forcing updates to refresh the "time ago" text
-  const [refreshCounter, setRefreshCounter] = useState(0);
-  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const startTimeRef = useRef<number>(Date.now());
-  
-  // Progressive refresh schedule: 3 minutes for first 15 minutes, then 30 minutes
+  // Track active hooks to manage global timer
   useEffect(() => {
-    const scheduleNextRefresh = () => {
-      const elapsedTime = Date.now() - startTimeRef.current;
-      const fifteenMinutes = 15 * 60 * 1000;
-      const threeMinutes = 3 * 60 * 1000;
-      const thirtyMinutes = 30 * 60 * 1000;
-      
-      const interval = elapsedTime < fifteenMinutes ? threeMinutes : thirtyMinutes;
-      
-      refreshTimeoutRef.current = setTimeout(() => {
-        setRefreshCounter(prev => prev + 1);
-        scheduleNextRefresh();
-      }, interval);
-    };
-    
-    scheduleNextRefresh();
+    activeHookCount++;
+    startGlobalRefreshTimer();
     
     return () => {
-      if (refreshTimeoutRef.current) {
-        clearTimeout(refreshTimeoutRef.current);
+      activeHookCount--;
+      if (activeHookCount === 0) {
+        stopGlobalRefreshTimer();
       }
     };
   }, []);
