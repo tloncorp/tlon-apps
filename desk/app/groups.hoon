@@ -2799,6 +2799,7 @@
   ::
   ++  go-restart-updates
     |=  why=@t
+    ^+  go-core
     %-  (~(tell l ~) %crit 'fully restarting updates' why ~)
     ::  if this gets called on the group host, something is horribly wrong
     ::  and we should not mask over it by trying to clean it up: there's no
@@ -3101,8 +3102,11 @@
   ++  go-u-group
     |=  =update:g
     ^+  go-core
+    ?:  ?&(?=(%sub -.net) (lth time.update time.net))
+      ::  update out of sync, restart
+      (go-restart-updates 'update out of order')
     =?  net  ?=(%sub -.net)
-      ?>  (gte time.update time.net)  ::REVIEW  restart subscription instead?
+      ?>  (gte time.update time.net)
       [%sub time.update init.net]
     =*  u-group  u-group.update
     ?-  -.u-group
@@ -3318,8 +3322,7 @@
       ::  otherwise any past kicks stored in the group log
       ::  would kick us out on a subsequent rejoin.
       ::
-      =/  init=?  ?:(?=(%sub -.net) init.net &)
-      =?  go-core  &(leave init)  (go-leave |)
+      =?  go-core  &(leave go-is-init)  (go-leave |)
       go-core
     ::
         %add-roles
@@ -3404,31 +3407,21 @@
         %-  ~(urn by seats.group)
         |=  [* =seat:g]
         seat(roles (~(dif in roles.seat) roles))
-      ::  remove roles from channels
+      ::  remove roles from readers
       ::
       =/  channels  ~(tap by channels.group)
+      ::  nb: this used to sent pokes to the local channels-server
+      ::  to delete the role from the writers set of a hosted channel. 
+      ::  however, channels-server already listens to updates from groups
+      ::  and updates permissions accordingly.
+      ::
       =.  go-core
         |-
         ?~  channels  go-core
         =*  next  $(channels t.channels)
         =/  [=nest:g =channel:g]  i.channels
         ::  repair readers as needed
-        ::
         =.  go-core  (go-channel-del-roles nest roles)
-        ::  repair writers as needed
-        ::
-        ::  not host
-        ?:  !=(our.bowl p.q.nest)  next
-        =+  .^(has=? %gu (channels-scry nest))
-        ::  missing channel
-        ?.  has  next
-        ::  unsupported channel
-        ?.  ?=(?(%chat %heap %diary) p.nest)  next
-        =/  =c-channels:d
-          [%channel nest %del-writers (sects:v2:roles:v7:gc roles)]
-        =/  cage  channel-command+!>(c-channels)
-        =/  dock  [p.q.nest %channels-server]
-        =.  cor  (emit %pass /channels/perms %agent dock %poke cage)
         next
       go-core
     ::
@@ -3470,6 +3463,9 @@
       =?  active-channels.group  active
         (~(put by active-channels.group) nest)
       ?:  go-our-host  go-core
+      ::TODO handle duplicate channel add properly. either
+      ::     should restart updates, or remove the channel from existing
+      ::     section first.
       ::
       ?:  (has:by-ch nest)  go-core
       =.  sections.group  (go-section-add-channel nest chan)
@@ -3632,7 +3628,8 @@
         (go-response %section section-id [%move-nest [nest idx]:u-section])
       ?:  go-our-host  go-core
       ::
-      ?.  (~(has by sections.group) section-id)  go-core
+      ?.  (~(has by sections.group) section-id)
+        (go-restart-updates 'missing section')
       =/  =section:g  (~(got by sections.group) section-id)
       ?.  (~(has of order.section) nest.u-section)  go-core
       =.  order.section
