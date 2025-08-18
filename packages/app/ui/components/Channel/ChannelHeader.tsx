@@ -334,12 +334,11 @@ export function ChannelHeader({
               <Fragment key={index}>{item}</Fragment>
             ))}
             {showEditButton && (
-              <ScreenHeader.TextButton
+              <ScreenHeader.IconButton
                 onPress={goToEdit}
                 testID="ChannelHeaderEditButton"
-              >
-                Edit
-              </ScreenHeader.TextButton>
+                type="Settings"
+              />
             )}
           </>
         }
