@@ -8,34 +8,48 @@ import { Ship } from './index';
 
 // Parse command line arguments
 const args = process.argv.slice(2);
-const testFile = args.find((arg) => arg.endsWith('.spec.ts'));
+const testFiles = args.filter((arg) => arg.endsWith('.spec.ts'));
 const playwrightFlags = args.filter((arg) => !arg.endsWith('.spec.ts'));
 
-if (!testFile) {
-  console.error('Usage: pnpm e2e:test [flags] <test-file.spec.ts>');
+if (testFiles.length === 0) {
+  console.error('Usage: pnpm e2e:test [flags] <test-file.spec.ts> [test-file2.spec.ts ...]');
   console.error('Examples:');
+  console.error('  # Single test file:');
   console.error('  pnpm e2e:test chat-functionality.spec.ts');
   console.error('  pnpm e2e:test --debug chat-functionality.spec.ts');
-  console.error('  pnpm e2e:test --headed --debug chat-functionality.spec.ts');
+  console.error('  ');
+  console.error('  # Multiple test files:');
+  console.error('  pnpm e2e:test chat-functionality.spec.ts direct-message.spec.ts');
+  console.error('  pnpm e2e:test --headed group-lifecycle.spec.ts group-customization.spec.ts');
   console.error('');
   console.error('Common flags: --debug, --headed, --ui, --trace=on');
   process.exit(1);
 }
 
-// Validate that the test file exists
+// Validate that all test files exist
 // Note: __dirname will be rube/dist when compiled, so we need to go up two levels
-const testPath = path.join(__dirname, '../../e2e', testFile);
-if (!fs.existsSync(testPath)) {
-  console.error(`❌ Test file not found: ${testFile}`);
-  console.error(`   Expected location: ${testPath}`);
+const invalidFiles: string[] = [];
+const validTestPaths: string[] = [];
+
+for (const testFile of testFiles) {
+  const testPath = path.join(__dirname, '../../e2e', testFile);
+  if (!fs.existsSync(testPath)) {
+    invalidFiles.push(testFile);
+  } else {
+    validTestPaths.push(testPath);
+  }
+}
+
+if (invalidFiles.length > 0) {
+  console.error(`❌ Test file(s) not found: ${invalidFiles.join(', ')}`);
   console.error('');
   console.error('Available test files:');
   try {
     const e2eDir = path.join(__dirname, '../../e2e');
-    const testFiles = fs
+    const availableFiles = fs
       .readdirSync(e2eDir)
       .filter((f) => f.endsWith('.spec.ts'));
-    testFiles.forEach((file) => console.error(`   - ${file}`));
+    availableFiles.forEach((file) => console.error(`   - ${file}`));
   } catch {
     console.error('   (Could not list available files)');
   }
@@ -44,7 +58,7 @@ if (!fs.existsSync(testPath)) {
 
 let rubeProcess: childProcess.ChildProcess | null = null;
 let isShuttingDown = false;
-const pidFile = path.join(__dirname, '.run-single-test.pid');
+const pidFile = path.join(__dirname, '.run-selected-tests.pid');
 
 // Handle cleanup on exit
 process.on('SIGINT', cleanup);
@@ -235,23 +249,30 @@ async function waitForReadiness() {
 }
 
 async function runTest(): Promise<void> {
-  if (!testFile) {
-    throw new Error('Test file is required');
+  if (testFiles.length === 0) {
+    throw new Error('Test file(s) required');
   }
 
   const flagsDisplay =
     playwrightFlags.length > 0
       ? ` with flags: ${playwrightFlags.join(' ')}`
       : '';
-  console.log(`🧪 Running test: ${testFile}${flagsDisplay}`);
+  
+  // Display which tests are being run
+  if (testFiles.length === 1) {
+    console.log(`🧪 Running test: ${testFiles[0]}${flagsDisplay}`);
+  } else {
+    console.log(`🧪 Running ${testFiles.length} tests${flagsDisplay}:`);
+    testFiles.forEach(file => console.log(`   - ${file}`));
+  }
 
   return new Promise<void>((resolve, reject) => {
-    // Build the command arguments: playwright test [flags] testFile --retries=0
+    // Build the command arguments: playwright test [flags] testFile1 testFile2 ... --retries=0
     const args: string[] = [
       'playwright',
       'test',
       ...playwrightFlags,
-      testFile,
+      ...testFiles,
       '--retries=0',
       '--reporter=list', // Use list reporter instead of HTML to avoid serving report
     ];
@@ -263,11 +284,11 @@ async function runTest(): Promise<void> {
 
     testProcess.on('close', (code: number | null) => {
       if (code === 0) {
-        console.log('✅ Test completed successfully!');
+        console.log('✅ Tests completed successfully!');
         resolve();
       } else {
-        console.log(`❌ Test failed with exit code ${code}`);
-        reject(new Error(`Test failed with exit code ${code}`));
+        console.log(`❌ Tests failed with exit code ${code}`);
+        reject(new Error(`Tests failed with exit code ${code}`));
       }
     });
 
@@ -286,7 +307,7 @@ async function main() {
         const oldPid = parseInt(fs.readFileSync(pidFile, 'utf8'));
         process.kill(oldPid, 0);
         console.error(
-          '❌ Another run-single-test instance is already running!'
+          '❌ Another run-selected-tests instance is already running!'
         );
         console.error(`PID: ${oldPid}`);
         console.error('Kill it first or wait for it to complete.');
@@ -388,7 +409,7 @@ async function main() {
 
     await waitForReadiness();
 
-    // Run the single test
+    // Run the test(s)
     await runTest();
 
     console.log('🎉 Test run complete!');

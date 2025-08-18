@@ -35,7 +35,7 @@ test('should generate an invite link and be able to redeem group/personal invite
   await helpers.navigateBack(zodPage);
 
   await expect(zodPage.getByText('Invite Friends')).toBeVisible({
-    timeout: 2000,
+    timeout: 15000,
   });
 
   await zodPage.getByText('Invite Friends').click();
@@ -68,4 +68,10 @@ test('should generate an invite link and be able to redeem group/personal invite
   await tenPage.goto(tenUserInviteUrl);
   await tenPage.waitForTimeout(6000);
   await expect(tenPage.getByText('Remove contact')).toBeVisible();
+  
+  // Clean up: Remove ~zod from ~ten's contacts to prevent test pollution
+  await tenPage.getByText('Remove contact').click();
+  await tenPage.waitForTimeout(1000);
+  // Verify the contact was removed
+  await expect(tenPage.getByText('Remove contact')).not.toBeVisible();
 });

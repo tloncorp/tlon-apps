@@ -97,17 +97,9 @@ test('should show group info, channel, and role changes to invited user', async 
   // Verify channels are visible in settings
   await tenPage.getByTestId('GroupChannels').getByText('Channels').click();
   await expect(tenPage.getByText('Manage channels')).toBeVisible();
+  await expect(tenPage.getByTestId('ChannelListItem-General')).toBeVisible();
   await expect(
-    tenPage
-      .locator('div')
-      .filter({ hasText: /^General$/ })
-      .first()
-  ).toBeVisible();
-  await expect(
-    tenPage
-      .locator('div')
-      .filter({ hasText: /^Test Channel$/ })
-      .first()
+    tenPage.getByTestId('ChannelListItem-Test Channel')
   ).toBeVisible();
 
   // Verify channel section is visible

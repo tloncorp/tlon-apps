@@ -24,12 +24,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 -   `pnpm run test` - Run all tests with updates
 -   `pnpm run test:ci` - Run all tests in CI mode
 -   `pnpm run e2e` - Run end-to-end tests (web)
+-   `pnpm run e2e:test <file1> [file2...]` - Run specific e2e test file(s) with automatic ship management
 
 ### Linting
 
 -   `pnpm run lint:all` - Run linting across all packages
 -   `pnpm lint:fix` - Fix linting issues (per package)
 -   `pnpm lint:format` - Format code with prettier (per package)
+
+### Typechecking
+
+-   `pnpm -r tsc`
 
 ### Installing Dependencies
 
@@ -57,6 +62,52 @@ This is a monorepo for Tlon Messenger containing multiple applications and share
 
 -   **desk/**: Urbit backend applications written in Hoon
     -   Core agents: %groups, %channels, %chat, %contacts, %activity, %profile
+
+## Platform-Specific Navigation Architecture
+
+**CRITICAL**: The app has completely different navigation implementations for mobile vs desktop/web. When making UI changes or adding testIDs for E2E tests, you MUST modify the correct platform-specific component.
+
+### Navigation Entry Points
+- **Mobile**: Uses `packages/app/navigation/RootStack.tsx`
+- **Desktop/Web**: Uses `packages/app/navigation/desktop/TopLevelDrawer.tsx`
+
+The platform is determined by `BasePathNavigator` using the `isMobile` prop:
+- `isMobile={true}` → Renders `RootStack` (mobile navigation)
+- `isMobile={false}` → Renders `TopLevelDrawer` (desktop navigation)
+
+### Main Navigation Components
+
+| Screen | Mobile Component | Desktop Component |
+|---|---|---|
+| **Contacts** | `features/top/ContactsScreen.tsx` | `navigation/desktop/ProfileNavigator.tsx` |
+| **Settings** | `features/settings/SettingsScreen.tsx` | `navigation/desktop/SettingsNavigator.tsx` |
+| **Activity** | `features/top/ActivityScreen.tsx` | `navigation/desktop/ActivityNavigator.tsx` |
+| **Messages** | `features/top/ChatListScreen.tsx` | `navigation/desktop/MessagesNavigator.tsx` |
+| **Home** | N/A (uses bottom tabs) | `navigation/desktop/HomeNavigator.tsx` |
+
+### E2E Testing Guidelines
+
+**Web E2E tests ALWAYS use desktop navigation components!**
+
+When adding testIDs for web E2E tests:
+1. Identify which main navigation component handles your screen (see table above)
+2. Add testID to the desktop component in `packages/app/navigation/desktop/`
+3. DO NOT modify the mobile component in `packages/app/features/`
+
+Example: To add a testID for the "Add Contact" button:
+- ❌ WRONG: Modify `packages/app/features/top/ContactsScreen.tsx`
+- ✅ CORRECT: Modify `packages/app/navigation/desktop/ProfileNavigator.tsx`
+
+### Debugging Platform-Specific Issues
+
+To identify which component to modify:
+1. **Check the file path pattern**:
+   - `/features/` = Mobile component
+   - `/navigation/desktop/` = Desktop component
+2. **Find screen mappings**:
+   - Mobile: Check `packages/app/navigation/RootStack.tsx` for `<Root.Screen>` definitions
+   - Desktop: Check `packages/app/navigation/desktop/TopLevelDrawer.tsx` for `<Drawer.Screen>` definitions
+3. **For testID issues**: Web builds render `testID` as `data-testid` in the DOM
 
 ## Key Technologies
 
@@ -119,18 +170,21 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   **Environment setup**: Use `pnpm e2e:playwright-dev` to start ships + web servers for MCP testing
 -   **IMPORTANT**: Always stop the `pnpm e2e:playwright-dev` script before running `pnpm e2e:test` or other e2e commands to avoid port conflicts
 -   **MCP Server Debugging Workflow (DEFAULT - RECOMMENDED):**
+
     1. **Run `./start-playwright-dev.sh` to start environment in background** - this will start the dev environment and return when ready
     2. Use Playwright MCP server tools to navigate and debug while environment runs in background
     3. **Stop the environment when done** using one of:
-       - `kill [PID]` - Graceful shutdown (PID shown in script output)
-       - `./stop-playwright-dev.sh` - Comprehensive cleanup that ensures all processes are stopped
-       - `./stop-playwright-dev.sh --clean-logs` - Also removes log files
-    
+        - `kill [PID]` - Graceful shutdown (PID shown in script output)
+        - `./stop-playwright-dev.sh` - Comprehensive cleanup that ensures all processes are stopped
+        - `./stop-playwright-dev.sh --clean-logs` - Also removes log files
+
     **Alternative (Manual Terminal Management):**
+
     1. **Ask user to run `pnpm e2e:playwright-dev` in a separate terminal** - this script runs continuously and must stay running
     2. **Wait for user confirmation** that ships and web servers are ready (user will see "Environment ready for Playwright MCP development!")
     3. Use Playwright MCP server tools to navigate and debug while the script continues running
     4. Ask user to stop the script (Ctrl+C) before running actual tests with `pnpm e2e:test <filename>`
+
 -   **Test Development**: Examine existing e2e test files in `apps/tlon-web/e2e/` to understand test structure, patterns, and helper function usage before creating new tests
 -   **Cross-ship testing with MCP**: For testing interactions between ships, simply open new browser tabs and navigate to different ship URLs:
     -   ~zod: `http://localhost:3000/apps/groups/`
@@ -217,6 +271,24 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   **Test consolidation** - if multiple tests cover similar functionality, merge them into a single comprehensive test that covers all scenarios
 -   **Focus on unique test scenarios** - each test should cover distinct functionality or edge cases, not repeat the same operations
 
+**Contact Relationship Management:**
+
+-   **Personal invite links create contacts automatically** - visiting `inviteToken=${token}` URLs adds the token owner as a contact
+-   **Contact relationships are asymmetric** - ~ten having ~zod as contact doesn't mean ~zod has ~ten
+-   **Always clean up contacts** - any test creating contacts must remove them: `await page.getByText('Remove contact').click()`
+-   **Check both ships** - when debugging contact issues, check both sides of the relationship
+
+**Test Pollution Debugging Strategy:**
+
+1. **Run test in isolation first** - `pnpm e2e:test failing-test.spec.ts`
+2. **If it passes, find the polluting test** - run subsets of tests alphabetically before the failing test
+3. **Check for missing cleanup** - look for tests that create contacts, profiles, or other persistent state
+4. **Common pollution sources**:
+   -   `invite-service.spec.ts` - creates contacts via invite links
+   -   Tests with profile editing - may leave custom nicknames
+   -   Tests creating DMs - both ships must clean up
+   -   Tests with group invites - may leave pending invitations
+
 **E2E Helper Function Design Principles:**
 
 -   **Single responsibility** - Each helper function should do one thing well (e.g., `longPressMessage` only opens the action menu, doesn't verify what's in it)
@@ -248,7 +320,7 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   `./stop-playwright-dev.sh` - Comprehensive cleanup of all e2e processes
 -   `./apps/tlon-web/rube-cleanup.sh` - Emergency cleanup when processes are stuck
 -   `pnpm e2e:playwright-dev` - Starts ships and web servers (runs indefinitely)
--   `pnpm e2e:test <file>` - Runs a single test file with ship setup
+-   `pnpm e2e:test <file1> [file2...]` - Runs one or more test files with ship setup (useful for testing interactions)
 -   `pnpm e2e` - Full test suite (now properly handles Ctrl+C interruption)
 
 **Process Cleanup Improvements:**
@@ -268,6 +340,13 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   Archives are publicly readable once uploaded
 -   Authentication required: `gcloud auth login`
 -   Verify access: `gsutil ls gs://bootstrap.urbit.org/`
+
+**Test State Persistence Issues:**
+-   Ship state is nuked between full test runs, but NOT between individual tests in the same run
+-   Contact relationships persist across tests within a run
+-   Profile modifications (nicknames, status, bio) persist
+-   Some state changes are asymmetric and require cleanup on specific ships
+-   Use `test-fixtures.ts` performCleanup() for systematic cleanup
 
 ## Package Dependencies
 

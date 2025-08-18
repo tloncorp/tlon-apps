@@ -146,19 +146,21 @@ const ActionSheetComponent = ({
   // listen for escape key to close the sheet
   // this is helpful for e2e tests
   useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onOpenChange(false);
+    if (Platform.OS === 'web') {
+      const handleEscape = (event: KeyboardEvent) => {
+        if (event.key === 'Escape') {
+          onOpenChange(false);
+        }
+      };
+      if (open) {
+        window.addEventListener('keydown', handleEscape);
+        return () => window.removeEventListener('keydown', handleEscape);
       }
-    };
-    if (open) {
-      window.addEventListener('keydown', handleEscape);
-      return () => window.removeEventListener('keydown', handleEscape);
-    }
 
-    return () => {
-      window.removeEventListener('keydown', handleEscape);
-    };
+      return () => {
+        window.removeEventListener('keydown', handleEscape);
+      };
+    }
   }, [onOpenChange, open]);
 
   if (!hasOpened.current && open) {

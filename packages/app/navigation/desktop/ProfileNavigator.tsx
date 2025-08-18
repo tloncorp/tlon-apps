@@ -76,6 +76,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
         rightControls={
           <ScreenHeader.IconButton
             type="Add"
+            testID="ContactsAddButton"
             onPress={() => navigate('AddContacts')}
           />
         }
