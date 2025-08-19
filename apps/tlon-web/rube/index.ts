@@ -26,10 +26,20 @@ const childrenFile = path.join(rubeDir, '.rube-children.json');
 // Detect if we're running on Fedora or similar systems with memory layout issues
 function isProblematicLinux(): boolean {
   try {
-    if (process.platform !== 'linux') return false;
+    if (process.platform !== 'linux') {
+      console.log('[rube] Platform is not Linux, no memory fixes needed');
+      return false;
+    }
     const osRelease = fs.readFileSync('/etc/os-release', 'utf8');
-    return /fedora|rhel|centos|rocky|alma/i.test(osRelease);
-  } catch {
+    const isFedoraLike = /fedora|rhel|centos|rocky|alma/i.test(osRelease);
+    if (isFedoraLike) {
+      console.log('[rube] Detected Fedora/RHEL-like system from /etc/os-release');
+    } else {
+      console.log('[rube] Linux detected but not Fedora/RHEL-like');
+    }
+    return isFedoraLike;
+  } catch (e) {
+    console.log('[rube] Could not read /etc/os-release:', e.message);
     return false;
   }
 }
@@ -48,8 +58,12 @@ function getMemoryFixCommand(): { command: string; args: string[] } | null {
       args: [arch, '-R']
     };
   } catch {
-    console.warn('[rube] Warning: Running on Fedora/RHEL but setarch not found');
-    return null;
+    console.warn('[rube] Warning: Running on Fedora/RHEL but setarch not found - applying basic memory fixes');
+    // Even without setarch, apply the ulimit and env var fixes
+    return {
+      command: '',
+      args: []
+    };
   }
 }
 
@@ -313,30 +327,56 @@ const bootShip = (
   let urbitProcess: childProcess.ChildProcess;
   
   if (memoryFix) {
-    // Run urbit with setarch to disable ASLR on problematic systems
-    const urbitArgs = [
-      ...memoryFix.args,
-      binaryPath,
-      pierPath,
-      '-d',
-      '--http-port',
-      httpPort,
-    ];
-    console.log(`[rube] Executing: ${memoryFix.command} ${urbitArgs.join(' ')}`);
-    
-    // Use shell to set ulimit and run the command
-    const shellCommand = `ulimit -s unlimited && exec ${memoryFix.command} ${urbitArgs.join(' ')}`;
-    console.log(`[rube] Full command with ulimit: ${shellCommand}`);
-    
-    urbitProcess = childProcess.spawn('/bin/bash', ['-c', shellCommand], {
-      env: {
-        ...process.env,
-        // Additional memory management environment variables
-        MALLOC_ARENA_MAX: '1',
-        MALLOC_MMAP_THRESHOLD_: '131072',
-        MALLOC_TRIM_THRESHOLD_: '131072',
-      },
-    });
+    // Apply memory fixes for problematic systems
+    if (memoryFix.command) {
+      // Run urbit with setarch to disable ASLR
+      const urbitArgs = [
+        ...memoryFix.args,
+        binaryPath,
+        pierPath,
+        '-d',
+        '--http-port',
+        httpPort,
+      ];
+      console.log(`[rube] Executing: ${memoryFix.command} ${urbitArgs.join(' ')}`);
+      
+      // Use shell to set ulimit and run the command with proper escaping
+      const escapedArgs = urbitArgs.map(arg => `'${arg.replace(/'/g, "'\\''")}'`).join(' ');
+      const shellCommand = `ulimit -s unlimited && ulimit -v unlimited && exec ${escapedArgs}`;
+      console.log(`[rube] Full command with ulimit: ${shellCommand}`);
+      
+      urbitProcess = childProcess.spawn('/bin/bash', ['-c', shellCommand], {
+        env: {
+          ...process.env,
+          // Additional memory management environment variables
+          MALLOC_ARENA_MAX: '1',
+          MALLOC_MMAP_THRESHOLD_: '131072',
+          MALLOC_TRIM_THRESHOLD_: '131072',
+        },
+      });
+    } else {
+      // setarch not available, just apply ulimit and env var fixes
+      const urbitArgs = [
+        binaryPath,
+        pierPath,
+        '-d',
+        '--http-port',
+        httpPort,
+      ];
+      const escapedArgs = urbitArgs.map(arg => `'${arg.replace(/'/g, "'\\''")}'`).join(' ');
+      const shellCommand = `ulimit -s unlimited && ulimit -v unlimited && exec ${escapedArgs}`;
+      console.log(`[rube] Running with memory limits (no setarch): ${shellCommand}`);
+      
+      urbitProcess = childProcess.spawn('/bin/bash', ['-c', shellCommand], {
+        env: {
+          ...process.env,
+          // Additional memory management environment variables
+          MALLOC_ARENA_MAX: '1',
+          MALLOC_MMAP_THRESHOLD_: '131072',
+          MALLOC_TRIM_THRESHOLD_: '131072',
+        },
+      });
+    }
   } else {
     // Normal spawn for non-problematic systems
     urbitProcess = childProcess.spawn(binaryPath, [
