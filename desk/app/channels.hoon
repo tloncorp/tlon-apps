@@ -69,7 +69,7 @@
 %-  %-  discipline
     :+  ::  marks
         ::
-        :~  :+  %channel-changed-posts   &  -:!>(*vale:m-channel-changed-posts)
+        :~  :+  %channel-changed-posts   |  -:!>(*vale:m-channel-changed-posts)
             :+  %channel-heads           &  -:!>(*vale:m-channel-heads)
             :+  %channel-heads-2         &  -:!>(*vale:m-channel-heads-2)
             :+  %channel-heads-3         &  -:!>(*vale:m-channel-heads-3)
