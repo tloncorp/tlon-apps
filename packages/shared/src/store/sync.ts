@@ -163,6 +163,59 @@ export const syncBlockedUsers = async (ctx?: SyncCtx) => {
   await db.insertBlockedContacts({ blockedIds });
 };
 
+export const syncSince = async () => {
+  const syncCtx: SyncCtx = { priority: SyncPriority.High };
+  logger.log(`syncing since...`);
+  try {
+    await batchEffects('syncSince', async (queryCtx) => {
+      await Promise.all([
+        syncLatestChanges({ syncCtx, queryCtx }),
+        syncUnreads(syncCtx, queryCtx),
+      ]);
+    });
+  } catch (e) {
+    logger.trackError('sync since failed', {
+      errorMessage: e.message,
+      stack: e.stack,
+    });
+  }
+  logger.log(`sync since complete`);
+  updateSession({ isSyncing: false });
+};
+
+export const syncLatestChanges = async ({
+  syncCtx,
+  queryCtx,
+  since,
+}: {
+  syncCtx?: SyncCtx;
+  queryCtx?: QueryCtx;
+  since?: number;
+}): Promise<void> => {
+  const start = Date.now();
+  let syncFrom = (await db.changesSyncedAt.getValue()) ?? start;
+  if (since) {
+    syncFrom = since;
+  }
+
+  const result = await syncQueue.add('latestChanges', syncCtx, () => {
+    return api.fetchChangesSince(syncFrom);
+  });
+  logger.log(`fetched latest changes`, result);
+
+  await db.insertChanges(result, queryCtx);
+  await db.changesSyncedAt.setValue(start);
+  logger.log(`synced latest changes`);
+
+  const duration = Date.now() - start;
+  logger.trackEvent('synced latest changes', {
+    duration,
+    syncWindow: Date.now() - syncFrom,
+    numPosts: result.posts.length,
+    numGroups: result.groups.length,
+  });
+};
+
 export const syncLatestPosts = async (
   ctx?: SyncCtx,
   queryCtx?: QueryCtx,
@@ -433,14 +486,16 @@ export const syncDms = async (ctx?: SyncCtx) => {
   await db.insertChannels([...dms, ...groupDms]);
 };
 
-export const syncUnreads = async (ctx?: SyncCtx) => {
+export const syncUnreads = async (ctx?: SyncCtx, queryCtx?: QueryCtx) => {
   const unreads = await syncQueue.add('unreads', ctx, () =>
     api.getGroupAndChannelUnreads()
   );
   checkForNewlyJoined(unreads);
-  return batchEffects('initialUnreads', (ctx) =>
-    persistUnreads({ unreads, ctx, includesAllUnreads: true })
-  );
+  return queryCtx
+    ? persistUnreads({ unreads, ctx: queryCtx, includesAllUnreads: true })
+    : batchEffects('initialUnreads', (ctx) =>
+        persistUnreads({ unreads, ctx, includesAllUnreads: true })
+      );
 };
 
 export const syncChannelThreadUnreads = async (
@@ -1257,7 +1312,6 @@ export const handleChatUpdate = async (
       }
 
       await db.insertPostReactions(
-
         {
           reactions: [
             {

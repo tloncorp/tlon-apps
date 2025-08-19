@@ -18,6 +18,7 @@ import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useFilteredChats } from '../../hooks/useFilteredChats';
 import { TabName } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
+import { triggerTaskForTesting } from '../../lib/backgroundSync';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
@@ -100,10 +101,15 @@ export function ChatListScreenView({
   }, [navigation]);
 
   const connStatus = store.useConnectionStatus();
+  const isSyncing = store.useIsSyncing();
   const notReadyMessage: string | null = useMemo(() => {
     // if not fully connected yet, show status
-    if (connStatus !== 'Connected') {
-      return `${connStatus}...`;
+    // if (connStatus !== 'Connected') {
+    //   return `${connStatus}...`;
+    // }
+
+    if (isSyncing) {
+      return 'Syncing...';
     }
 
     // if still loading the screen data, show loading
@@ -112,7 +118,7 @@ export function ChatListScreenView({
     }
 
     return null;
-  }, [connStatus, chats]);
+  }, [isSyncing, chats]);
 
   /* Log an error if this screen takes more than 30 seconds to resolve to "Connected" */
   const connectionTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -283,7 +289,8 @@ export function ChatListScreenView({
                   {isWindowNarrow ? (
                     <ScreenHeader.IconButton
                       type="Add"
-                      onPress={handlePressAddChat}
+                      // onPress={handlePressAddChat}
+                      onPress={triggerTaskForTesting}
                       testID="CreateChatSheetTrigger"
                     />
                   ) : (

@@ -75,6 +75,7 @@
     "expo-asset": "~11.0.5",
     "expo-av": "~15.0.2",
     "expo-background-fetch": "~13.0.6",
+    "expo-background-task": "~0.2.8",
     "expo-battery": "~9.0.2",
     "expo-blur": "~14.0.3",
     "expo-clipboard": "~7.0.1",

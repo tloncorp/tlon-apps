@@ -7,6 +7,7 @@ import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedCo
 import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
 import { useUpdatePresentedNotifications } from '@tloncorp/app/lib/notifications';
+import { hapticPerfSignal } from '@tloncorp/app/lib/platformHelpers';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import {
@@ -14,7 +15,7 @@ import {
   PortalProvider,
   ZStack,
 } from '@tloncorp/app/ui';
-import { sync } from '@tloncorp/shared';
+import { sync, updateSession } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -39,7 +40,7 @@ function AuthenticatedApp() {
     (status: AppStatus) => {
       // app returned from background
       if (status === 'active') {
-        sync.syncUnreads({ priority: sync.SyncPriority.High });
+        // sync.syncUnreads({ priority: sync.SyncPriority.High });
         sync.syncPinnedItems({ priority: sync.SyncPriority.High });
       }
 
@@ -52,6 +53,8 @@ function AuthenticatedApp() {
 
       // app opened or returned from background
       if (status === 'opened' || status === 'active') {
+        updateSession({ isSyncing: true });
+        hapticPerfSignal(sync.syncSince, 'syncSince', 2000);
         telemetry.captureAppActive();
         checkNodeStopped();
         refreshHostingAuth();
