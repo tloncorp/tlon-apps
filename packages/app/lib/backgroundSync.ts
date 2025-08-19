@@ -78,13 +78,6 @@ async function performSync() {
     timings.changesDuration = Date.now() - changesStart;
     logger.trackEvent('Background sync: changes complete', { taskExecutionId });
 
-    const latestPostsStart = Date.now();
-    await syncLatestPosts();
-    timings.latestPostsDuration = Date.now() - latestPostsStart;
-    logger.trackEvent('Background sync: latest posts complete', {
-      taskExecutionId,
-    });
-
     logger.trackEvent('Background sync complete', {
       taskExecutionId,
     });
@@ -98,8 +91,6 @@ async function performSync() {
   } finally {
     logger.trackEvent('Background sync timing', {
       duration: Date.now() - timings.start,
-      unreadsDuration: timings.unreadsDuration,
-      latestPostsDuration: timings.latestPostsDuration,
       changesDuration: timings.changesDuration,
       taskExecutionId,
     });
