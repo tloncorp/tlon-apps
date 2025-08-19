@@ -2,7 +2,10 @@ name: CI (Test and Build)
 on: pull_request
 jobs:
   test-build:
-    runs-on: ubuntu-latest
+    runs-on:
+      - self-hosted
+      - Linux
+      - X64
     steps:
       - name: Checkout
         uses: actions/checkout@v4
