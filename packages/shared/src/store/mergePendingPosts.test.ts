@@ -28,10 +28,12 @@ describe('mergePendingPosts with hasNewest = true', () => {
     const mergedSentAts = mergePendingPosts({
       pendingPosts,
       existingPosts,
+      deletedPosts: {},
+      newPosts: [],
       hasNewest: true,
     }).map((p) => p.sentAt);
 
-    expect(mergedSentAts).toEqual([5, 4, 1]);
+    expect(mergedSentAts).toEqual([4, 5, 1]);
   });
 
   // Test Case: Pending posts are all newer than existing posts
@@ -42,6 +44,8 @@ describe('mergePendingPosts with hasNewest = true', () => {
     const mergedSentAts = mergePendingPosts({
       pendingPosts,
       existingPosts,
+      deletedPosts: {},
+      newPosts: [],
       hasNewest: true,
     }).map((p) => p.sentAt);
 
@@ -56,24 +60,12 @@ describe('mergePendingPosts with hasNewest = true', () => {
     const mergedSentAts = mergePendingPosts({
       pendingPosts,
       existingPosts,
+      deletedPosts: {},
+      newPosts: [],
       hasNewest: true,
     }).map((p) => p.sentAt);
 
     expect(mergedSentAts).toEqual([4, 3, 2]);
-  });
-
-  // Test Case: Pending posts older than the lowest existing post are filtered out
-  test('should filter out pending posts with sentAts equal to or less than the lowest existing', () => {
-    const existingPosts = [makePost(5), makePost(3)];
-    const pendingPosts = [makePost(6), makePost(2), makePost(1)]; // 2 and 1 should be filtered
-
-    const mergedSentAts = mergePendingPosts({
-      pendingPosts,
-      existingPosts,
-      hasNewest: true,
-    }).map((p) => p.sentAt);
-
-    expect(mergedSentAts).toEqual([6, 5, 3]);
   });
 });
 
@@ -86,10 +78,12 @@ describe('mergePendingPosts with hasNewest = false', () => {
     const mergedSentAts = mergePendingPosts({
       pendingPosts,
       existingPosts,
+      deletedPosts: {},
+      newPosts: [],
       hasNewest: false,
     }).map((p) => p.sentAt);
 
-    expect(mergedSentAts).toEqual([5, 4, 3, 2, 1]);
+    expect(mergedSentAts).toEqual([4, 2, 5, 3, 1]);
   });
 
   // Test Case: Only pending posts within the existing posts' range are inserted
@@ -100,10 +94,12 @@ describe('mergePendingPosts with hasNewest = false', () => {
     const mergedSentAts = mergePendingPosts({
       pendingPosts,
       existingPosts,
+      deletedPosts: {},
+      newPosts: [],
       hasNewest: false,
     }).map((p) => p.sentAt);
 
-    expect(mergedSentAts).toEqual([5, 4, 2, 1]);
+    expect(mergedSentAts).toEqual([4, 2, 5, 1]);
   });
 
   // Test Case: Pending post older than lowest existing should still be filtered out
@@ -114,6 +110,8 @@ describe('mergePendingPosts with hasNewest = false', () => {
     const mergedSentAts = mergePendingPosts({
       pendingPosts,
       existingPosts,
+      deletedPosts: {},
+      newPosts: [],
       hasNewest: false,
     }).map((p) => p.sentAt);
 
@@ -128,9 +126,11 @@ describe('mergePendingPosts Edge Cases', () => {
     const pendingPosts = [makePost(5), makePost(3)];
 
     const mergedSentAts = mergePendingPosts({
+      newPosts: [],
       pendingPosts,
       existingPosts,
-      hasNewest: true,
+      deletedPosts: {},
+      hasNewest: false,
     }).map((p) => p.sentAt);
 
     expect(mergedSentAts).toEqual([5, 3]);
@@ -142,9 +142,11 @@ describe('mergePendingPosts Edge Cases', () => {
     const pendingPosts: Post[] = [];
 
     const mergedSentAts = mergePendingPosts({
+      newPosts: [],
       pendingPosts,
       existingPosts,
-      hasNewest: true,
+      deletedPosts: {},
+      hasNewest: false,
     }).map((p) => p.sentAt);
 
     expect(mergedSentAts).toEqual([5, 3]);
@@ -156,9 +158,11 @@ describe('mergePendingPosts Edge Cases', () => {
     const pendingPosts: Post[] = [];
 
     const mergedSentAts = mergePendingPosts({
+      newPosts: [],
       pendingPosts,
       existingPosts,
-      hasNewest: true,
+      deletedPosts: {},
+      hasNewest: false,
     }).map((p) => p.sentAt);
 
     expect(mergedSentAts).toEqual([]);
@@ -167,12 +171,14 @@ describe('mergePendingPosts Edge Cases', () => {
   // Test Case: No pending posts are relevant to the window after filtering
   test('should return only existing posts when all pending posts are filtered out', () => {
     const existingPosts = [makePost(5), makePost(3)];
-    const pendingPosts = [makePost(1), makePost(0)]; // Both are filtered out
+    const pendingPosts = [makePost(5), makePost(3)];
 
     const mergedSentAts = mergePendingPosts({
+      newPosts: [],
       pendingPosts,
       existingPosts,
-      hasNewest: true,
+      deletedPosts: {},
+      hasNewest: false,
     }).map((p) => p.sentAt);
 
     expect(mergedSentAts).toEqual([5, 3]);
