@@ -46,6 +46,16 @@ test('should test notebook functionality', async ({ zodSetup, tenSetup }) => {
   await expect(
     zodPage.getByTestId('ChannelListItem-Test Notebook')
   ).toBeVisible({ timeout: 15000 });
+
+  // if "Join" is visible, wait until it's not.
+  const joinButton = zodPage
+    .getByTestId('ChannelListItem-Test Notebook')
+    .getByText('Join');
+
+  if (await joinButton.isVisible()) {
+    await joinButton.waitFor({ state: 'hidden', timeout: 10000 });
+  }
+
   await zodPage.getByTestId('ChannelListItem-Test Notebook').click();
 
   // create a new notebook post

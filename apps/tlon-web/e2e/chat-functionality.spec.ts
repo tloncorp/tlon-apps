@@ -88,11 +88,7 @@ test('should test comprehensive chat functionality', async ({
   }
 
   // Report the message
-  if (
-    await zodPage.getByText('Report this message', { exact: true }).isVisible()
-  ) {
-    await helpers.reportMessage(zodPage, 'Report this message');
-  }
+  await helpers.reportMessage(zodPage, 'Report this message');
 
   // Send a message and delete it
   await helpers.sendMessage(zodPage, 'Delete this message');
