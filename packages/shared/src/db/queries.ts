@@ -2160,6 +2160,7 @@ async function insertChannelsInternal(channels: Channel[], ctx: QueryCtx) {
       set: conflictUpdateSetAll($channels, [
         'lastPostId',
         'lastPostAt',
+        'lastPostSequenceNum',
         'currentUserIsMember',
       ]),
     });
@@ -3261,6 +3262,7 @@ async function setLastPosts(newPosts: Post[] | null, ctx: QueryCtx) {
       and(
         inArray($channels.id, channelIds),
         or(
+          isNull($channels.lastPostSequenceNum),
           isNull($channels.lastPostId),
           lt(
             $channels.lastPostId,
