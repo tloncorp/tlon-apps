@@ -165,7 +165,7 @@ export const syncBlockedUsers = async (ctx?: SyncCtx) => {
 
 export const syncSince = async () => {
   const syncCtx: SyncCtx = { priority: SyncPriority.High };
-  console.log(`bl: syncing since...`);
+  logger.log(`syncing since...`);
   try {
     await batchEffects('syncSince', async (queryCtx) => {
       await Promise.all([
@@ -174,9 +174,12 @@ export const syncSince = async () => {
       ]);
     });
   } catch (e) {
-    console.error('bl: sync since failed', e);
+    logger.trackError('sync since failed', {
+      errorMessage: e.message,
+      stack: e.stack,
+    });
   }
-  console.log(`bl: sync since complete`);
+  logger.log(`sync since complete`);
   updateSession({ isSyncing: false });
 };
 
@@ -198,11 +201,11 @@ export const syncLatestChanges = async ({
   const result = await syncQueue.add('latestChanges', syncCtx, () => {
     return api.fetchChangesSince(syncFrom);
   });
-  console.log(`bl: fetched latest changes`, result);
+  logger.log(`fetched latest changes`, result);
 
   await db.insertChanges(result, queryCtx);
   await db.changesSyncedAt.setValue(start);
-  console.log(`bl: synced latest changes`);
+  logger.log(`synced latest changes`);
 
   const duration = Date.now() - start;
   logger.trackEvent('synced latest changes', {
