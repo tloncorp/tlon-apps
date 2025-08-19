@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { KeyboardAvoidingView } from '@tloncorp/ui';
+import { KeyboardAvoidingView, useIsWindowNarrow } from '@tloncorp/ui';
 import {
   PropsWithChildren,
   useCallback,
@@ -70,15 +70,14 @@ export function MetaEditorScreenView({
 
   const insets = useSafeAreaInsets();
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   return (
     <View flex={1} backgroundColor={'$secondaryBackground'}>
       <ScreenHeader
         title={title}
-        leftControls={
-          <ScreenHeader.TextButton onPress={goBack}>
-            Cancel
-          </ScreenHeader.TextButton>
-        }
+        backAction={goBack}
+        useHorizontalTitleLayout={!isWindowNarrow}
         rightControls={
           <ScreenHeader.TextButton
             onPress={runSubmit}

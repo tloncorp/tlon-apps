@@ -23,6 +23,7 @@ import {
   View,
   XStack,
   YStack,
+  useIsWindowNarrow,
 } from '../../ui';
 
 const BUILD_VERSION = `${Platform.OS === 'ios' ? 'iOS' : 'Android'} ${Application.nativeBuildVersion}`;
@@ -112,11 +113,17 @@ export function AppInfoScreen(props: Props) {
     });
   }, [uploadLogs, hasClients, currentUserId]);
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   return (
     <View flex={1} backgroundColor="$background">
       <ScreenHeader
         title="App info"
-        backAction={() => props.navigation.goBack()}
+        useHorizontalTitleLayout={!isWindowNarrow}
+        borderBottom
+        backAction={
+          isWindowNarrow ? () => props.navigation.goBack() : undefined
+        }
       />
       <ScrollView
         contentContainerStyle={{

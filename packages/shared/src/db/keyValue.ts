@@ -282,6 +282,16 @@ export const headsSyncedAt = createStorageItem<number>({
   defaultValue: 0,
 });
 
+export const lastEventReceivedAt = createStorageItem<number>({
+  key: 'lastEventReceivedAt',
+  defaultValue: 0,
+});
+
+export const syncStatusRefreshCounter = createStorageItem<number>({
+  key: 'syncStatusRefreshCounter',
+  defaultValue: 0,
+});
+
 export const anyalticsDigestUpdatedAt = createStorageItem<number | null>({
   key: 'analyticsDigestUpdatedAt',
   defaultValue: null,

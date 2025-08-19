@@ -187,6 +187,7 @@ export const MessagesSidebar = memo(
             <View userSelect="none" flex={1}>
               <ScreenHeader
                 title={notReadyMessage ?? screenTitle}
+                borderBottom
                 leftControls={
                   <MessagesFilterMenu>
                     <ScreenHeader.IconButton type="Filter" />

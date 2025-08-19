@@ -1,8 +1,14 @@
 import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { SectionListHeader, Text, useIsWindowNarrow } from '@tloncorp/ui';
+import {
+  SectionListHeader,
+  Text,
+  pluralize,
+  useIsWindowNarrow,
+} from '@tloncorp/ui';
 import { LoadingSpinner } from '@tloncorp/ui';
+import { capitalize } from 'lodash';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,10 +21,11 @@ import {
 } from 'tamagui';
 
 import { useRenderCount } from '../../hooks/useRenderCount';
+import { useRootNavigation } from '../../navigation/utils';
 import { useChatOptions, useCurrentUserId } from '../contexts';
 import { useGroupTitle, useIsAdmin } from '../utils/channelUtils';
+import { GroupAvatar } from './Avatar';
 import { Badge } from './Badge';
-import { ChatOptionsSheet } from './ChatOptionsSheet';
 import { ChannelListItem } from './ListItem/ChannelListItem';
 import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
 import { ScreenHeader } from './ScreenHeader';
@@ -49,18 +56,19 @@ export const GroupChannelsScreenView = React.memo(
   }: GroupChannelsScreenViewProps) {
     useRenderCount('GroupChannelsScreenView');
     const [showCreateChannel, setShowCreateChannel] = useState(false);
-    const [openChatOptions, setOpenChatOptions] = useState(false);
     const sortBy = db.channelSortPreference.useValue();
     const insets = useSafeAreaInsets();
     const userId = useCurrentUserId();
     const isGroupAdmin = useIsAdmin(group?.id ?? '', userId);
 
     const chatOptions = useChatOptions();
-    const handlePressOverflowButton = useCallback(() => {
+    const { navigateToChatDetails } = useRootNavigation();
+
+    const handleTitlePress = useCallback(() => {
       if (group) {
-        chatOptions.open(group.id, 'group');
+        navigateToChatDetails({ type: 'group', id: group.id });
       }
-    }, [group, chatOptions]);
+    }, [group, navigateToChatDetails]);
 
     const isPersonalGroup = useMemo(() => {
       return logic.isPersonalGroup(group, userId);
@@ -77,13 +85,20 @@ export const GroupChannelsScreenView = React.memo(
 
     const title = useGroupTitle(group);
 
-    const titleWidth = useCallback(() => {
-      if (isGroupAdmin) {
-        return 55;
-      } else {
-        return 75;
+    const subtitle = useMemo(() => {
+      if (group?.description) {
+        return group.description;
       }
-    }, [isGroupAdmin]);
+      const memberCount = group?.members?.length ?? 0;
+      const privacy = group?.privacy
+        ? `${capitalize(group.privacy)} group`
+        : 'Group';
+
+      if (memberCount > 0) {
+        return `${privacy} with ${memberCount} ${pluralize(memberCount, 'member')}`;
+      }
+      return privacy;
+    }, [group?.description, group?.members?.length, group?.privacy]);
 
     const listSectionTitleColor = getVariableValue(useTheme().secondaryText);
     const isWindowNarrow = useIsWindowNarrow();
@@ -256,27 +271,18 @@ export const GroupChannelsScreenView = React.memo(
           // component mounts.
           key={group?.id}
           title={title}
-          titleWidth={titleWidth()}
+          titleIcon={group ? <GroupAvatar model={group} size="$2xl" /> : null}
+          subtitle={subtitle}
+          showSubtitle={isWindowNarrow}
+          borderBottom
           backAction={onBackPressed}
+          onTitlePress={handleTitlePress}
           rightControls={
             <>
               {isGroupAdmin && (
                 <ScreenHeader.IconButton
                   type="Add"
                   onPress={() => setShowCreateChannel(true)}
-                />
-              )}
-              {!isWindowNarrow && group ? (
-                <ChatOptionsSheet
-                  open={openChatOptions}
-                  onOpenChange={setOpenChatOptions}
-                  chat={{ type: 'group', id: group.id }}
-                  trigger={<ScreenHeader.IconButton type="Overflow" />}
-                />
-              ) : (
-                <ScreenHeader.IconButton
-                  type="Overflow"
-                  onPress={handlePressOverflowButton}
                 />
               )}
             </>

@@ -45,7 +45,11 @@ export function SettingsScreenView(props: Props) {
 
   return (
     <>
-      <ScreenHeader title="Settings" backAction={props.onBackPressed} />
+      <ScreenHeader
+        title="Settings"
+        backAction={props.onBackPressed}
+        borderBottom
+      />
       <ScrollView>
         <YStack flex={1} padding="$l" gap="$s">
           <SettingsAction
@@ -67,7 +71,7 @@ export function SettingsScreenView(props: Props) {
             leftIcon="Lock"
             rightIcon={'ChevronRight'}
             onPress={props.onPrivacyPressed}
-            isFocused={props.focusedRouteName === 'BlockedUsers'}
+            isFocused={props.focusedRouteName === 'PrivacySettings'}
           />
           {props.hasHostedAuth && (
             <SettingsAction
