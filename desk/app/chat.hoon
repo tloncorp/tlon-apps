@@ -61,7 +61,7 @@
     :+  ::  marks
         ::
         :~  :+  %chat-blocked-by      &  -:!>(*vale:m-chat-blocked-by)
-            :+  %chat-changed-writs   &  -:!>(*vale:m-chat-changed-writs)
+            :+  %chat-changed-writs   |  -:!>(*vale:m-chat-changed-writs)
             ::  our previous mark version was actually incorrect so to
             ::  correct, we need to turn off checking here
             ::  TODO: flip back on next upgrade
