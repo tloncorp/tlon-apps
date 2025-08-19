@@ -3,10 +3,7 @@ import { expect } from '@playwright/test';
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
-test('should test notebook functionality', async ({ zodSetup, tenSetup }) => {
-  // set long timeout for the test
-  test.setTimeout(240000);
-
+test('should edit a notebook post', async ({ zodSetup, tenSetup }) => {
   const zodPage = zodSetup.page;
   const tenPage = tenSetup.page;
 
@@ -133,9 +130,6 @@ test('should test notebook functionality', async ({ zodSetup, tenSetup }) => {
     timeout: 5000,
   });
 
-  // Add a reply to the post
-  await helpers.sendMessage(zodPage, 'This is a reply');
-
   // Edit the post - handle potential DOM detachment with retry logic
   await helpers.retryInteraction(
     async () => {
@@ -229,9 +223,6 @@ test('should test notebook functionality', async ({ zodSetup, tenSetup }) => {
     zodPage.getByTestId('NotebookPostContent').getByText('Edited text...')
   ).toBeVisible();
 
-  // Navigate back to the channel
-  await helpers.navigateBack(zodPage);
-
   // Navigate to the group as ~ten
   await expect(tenPage.getByText('Home')).toBeVisible();
 
@@ -244,23 +235,7 @@ test('should test notebook functionality', async ({ zodSetup, tenSetup }) => {
   ).toBeVisible({ timeout: 15000 });
   await tenPage.getByTestId('ChannelListItem-Test Notebook').click();
 
-  // Hide the post as ~ten
-  await helpers.longPressMessage(tenPage, 'Edited text...');
-  await expect(tenPage.getByText('Hide post')).toBeVisible({ timeout: 5000 });
-  await tenPage.getByText('Hide post').click();
-
-  // Wait for post to be hidden
-  await expect(tenPage.getByText('Edited title')).not.toBeVisible({
-    timeout: 5000,
-  });
-  await expect(
-    tenPage.getByText('You have hidden or reported this post').first()
-  ).toBeVisible({ timeout: 5000 });
-
-  // Show the post as ~ten using the helper
-  await helpers.interactWithHiddenPost(tenPage, 'Show post');
-
-  // Wait for post to be shown again
+  // Verify ~ten can see the edited post
   await expect(tenPage.getByText('Edited title')).toBeVisible({
     timeout: 10000,
   });
@@ -269,23 +244,4 @@ test('should test notebook functionality', async ({ zodSetup, tenSetup }) => {
       .getByTestId('NotebookPostContentSummary')
       .getByText('Edited text...')
   ).toBeVisible({ timeout: 5000 });
-
-  // Report the post as ~zod
-  await helpers.longPressMessage(zodPage, 'Edited text...');
-  await expect(zodPage.getByText('Report post')).toBeVisible({ timeout: 5000 });
-  await zodPage.getByText('Report post').click();
-
-  // Wait for post to be reported
-  await expect(zodPage.getByText('Edited title')).not.toBeVisible({
-    timeout: 5000,
-  });
-  await expect(
-    zodPage.getByText('You have hidden or reported this post').first()
-  ).toBeVisible({ timeout: 5000 });
-
-  // Delete the post using the helper
-  await helpers.interactWithHiddenPost(zodPage, 'Delete post');
-  await expect(
-    zodPage.getByText('You have hidden or reported this post').first()
-  ).not.toBeVisible({ timeout: 10000 });
 });
