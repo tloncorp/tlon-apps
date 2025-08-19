@@ -23,6 +23,35 @@ const rubeDir = __dirname;
 const pidFile = path.join(rubeDir, '.rube.pid');
 const childrenFile = path.join(rubeDir, '.rube-children.json');
 
+// Detect if we're running on Fedora or similar systems with memory layout issues
+function isProblematicLinux(): boolean {
+  try {
+    if (process.platform !== 'linux') return false;
+    const osRelease = fs.readFileSync('/etc/os-release', 'utf8');
+    return /fedora|rhel|centos|rocky|alma/i.test(osRelease);
+  } catch {
+    return false;
+  }
+}
+
+// Get memory layout fix command for problematic Linux distributions
+function getMemoryFixCommand(): { command: string; args: string[] } | null {
+  if (!isProblematicLinux()) return null;
+  
+  // Check if setarch is available
+  try {
+    childProcess.execSync('which setarch', { stdio: 'ignore' });
+    console.log('[rube] Detected Fedora/RHEL - using setarch to disable ASLR for Urbit');
+    return {
+      command: 'setarch',
+      args: [process.arch === 'x64' ? 'x86_64' : process.arch, '-R']
+    };
+  } catch {
+    console.warn('[rube] Warning: Running on Fedora/RHEL but setarch not found');
+    return null;
+  }
+}
+
 const manifestPath = path.join(
   __dirname,
   '..',
@@ -277,22 +306,53 @@ const bootShip = (
   console.log(
     `Booting ship ${pierPath} on port ${httpPort} with ${binaryPath}`
   );
-  const urbitProcess = childProcess.spawn(binaryPath, [
-    pierPath,
-    '-d',
-    '--http-port',
-    httpPort,
-  ]);
+  
+  // Apply memory layout fixes for Fedora/RHEL systems
+  const memoryFix = getMemoryFixCommand();
+  let urbitProcess: childProcess.ChildProcess;
+  
+  if (memoryFix) {
+    // Run urbit with setarch to disable ASLR on problematic systems
+    const urbitArgs = [
+      ...memoryFix.args,
+      binaryPath,
+      pierPath,
+      '-d',
+      '--http-port',
+      httpPort,
+    ];
+    urbitProcess = childProcess.spawn(memoryFix.command, urbitArgs, {
+      env: {
+        ...process.env,
+        // Additional memory management environment variables
+        MALLOC_ARENA_MAX: '1',
+        MALLOC_MMAP_THRESHOLD_: '131072',
+        MALLOC_TRIM_THRESHOLD_: '131072',
+      },
+    });
+  } else {
+    // Normal spawn for non-problematic systems
+    urbitProcess = childProcess.spawn(binaryPath, [
+      pierPath,
+      '-d',
+      '--http-port',
+      httpPort,
+    ]);
+  }
 
   spawnedProcesses.push(urbitProcess);
 
-  urbitProcess.stdout.on('data', (data) => {
-    console.log(`[Urbit STDOUT (${ship})]: ${data}`);
-  });
+  if (urbitProcess.stdout) {
+    urbitProcess.stdout.on('data', (data) => {
+      console.log(`[Urbit STDOUT (${ship})]: ${data}`);
+    });
+  }
 
-  urbitProcess.stderr.on('data', (data) => {
-    console.error(`[Urbit STDERR (${ship})]: ${data}`);
-  });
+  if (urbitProcess.stderr) {
+    urbitProcess.stderr.on('data', (data) => {
+      console.error(`[Urbit STDERR (${ship})]: ${data}`);
+    });
+  }
 
   urbitProcess.on('close', (code) => {
     console.log(`Urbit process exited with code ${code}`);
