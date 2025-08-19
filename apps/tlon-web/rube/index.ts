@@ -33,7 +33,9 @@ function isProblematicLinux(): boolean {
     const osRelease = fs.readFileSync('/etc/os-release', 'utf8');
     const isFedoraLike = /fedora|rhel|centos|rocky|alma/i.test(osRelease);
     if (isFedoraLike) {
-      console.log('[rube] Detected Fedora/RHEL-like system from /etc/os-release');
+      console.log(
+        '[rube] Detected Fedora/RHEL-like system from /etc/os-release'
+      );
     } else {
       console.log('[rube] Linux detected but not Fedora/RHEL-like');
     }
@@ -47,22 +49,26 @@ function isProblematicLinux(): boolean {
 // Get memory layout fix command for problematic Linux distributions
 function getMemoryFixCommand(): { command: string; args: string[] } | null {
   if (!isProblematicLinux()) return null;
-  
+
   // Check if setarch is available
   try {
     childProcess.execSync('which setarch', { stdio: 'ignore' });
     const arch = process.arch === 'x64' ? 'x86_64' : process.arch;
-    console.log(`[rube] Detected Fedora/RHEL - using setarch ${arch} -R to disable ASLR for Urbit`);
+    console.log(
+      `[rube] Detected Fedora/RHEL - using setarch ${arch} -R to disable ASLR for Urbit`
+    );
     return {
       command: 'setarch',
-      args: [arch, '-R']
+      args: [arch, '-R'],
     };
   } catch {
-    console.warn('[rube] Warning: Running on Fedora/RHEL but setarch not found - applying basic memory fixes');
+    console.warn(
+      '[rube] Warning: Running on Fedora/RHEL but setarch not found - applying basic memory fixes'
+    );
     // Even without setarch, apply the ulimit and env var fixes
     return {
       command: '',
-      args: []
+      args: [],
     };
   }
 }
@@ -321,11 +327,11 @@ const bootShip = (
   console.log(
     `Booting ship ${pierPath} on port ${httpPort} with ${binaryPath}`
   );
-  
+
   // Apply memory layout fixes for Fedora/RHEL systems
   const memoryFix = getMemoryFixCommand();
   let urbitProcess: childProcess.ChildProcess;
-  
+
   if (memoryFix) {
     // Apply memory fixes for problematic systems
     if (memoryFix.command) {
@@ -338,13 +344,18 @@ const bootShip = (
         '--http-port',
         httpPort,
       ];
-      console.log(`[rube] Executing: ${memoryFix.command} ${urbitArgs.join(' ')}`);
-      
+      console.log(
+        `[rube] Executing: ${memoryFix.command} ${urbitArgs.join(' ')}`
+      );
+
       // Use shell to set ulimit and run the command with proper escaping
-      const escapedArgs = urbitArgs.map(arg => `'${arg.replace(/'/g, "'\\''")}'`).join(' ');
-      const shellCommand = `ulimit -s unlimited && ulimit -v unlimited && exec ${escapedArgs}`;
+      const escapedArgs = urbitArgs
+        .slice(2)
+        .map((arg) => `'${arg.replace(/'/g, "'\\''")}'`)
+        .join(' '); // Skip setarch and -R
+      const shellCommand = `ulimit -s unlimited && ulimit -v unlimited && exec ${memoryFix.command} ${memoryFix.args.join(' ')} ${escapedArgs}`;
       console.log(`[rube] Full command with ulimit: ${shellCommand}`);
-      
+
       urbitProcess = childProcess.spawn('/bin/bash', ['-c', shellCommand], {
         env: {
           ...process.env,
@@ -356,17 +367,15 @@ const bootShip = (
       });
     } else {
       // setarch not available, just apply ulimit and env var fixes
-      const urbitArgs = [
-        binaryPath,
-        pierPath,
-        '-d',
-        '--http-port',
-        httpPort,
-      ];
-      const escapedArgs = urbitArgs.map(arg => `'${arg.replace(/'/g, "'\\''")}'`).join(' ');
+      const urbitArgs = [binaryPath, pierPath, '-d', '--http-port', httpPort];
+      const escapedArgs = urbitArgs
+        .map((arg) => `'${arg.replace(/'/g, "'\\''")}'`)
+        .join(' ');
       const shellCommand = `ulimit -s unlimited && ulimit -v unlimited && exec ${escapedArgs}`;
-      console.log(`[rube] Running with memory limits (no setarch): ${shellCommand}`);
-      
+      console.log(
+        `[rube] Running with memory limits (no setarch): ${shellCommand}`
+      );
+
       urbitProcess = childProcess.spawn('/bin/bash', ['-c', shellCommand], {
         env: {
           ...process.env,
