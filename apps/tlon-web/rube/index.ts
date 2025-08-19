@@ -41,10 +41,11 @@ function getMemoryFixCommand(): { command: string; args: string[] } | null {
   // Check if setarch is available
   try {
     childProcess.execSync('which setarch', { stdio: 'ignore' });
-    console.log('[rube] Detected Fedora/RHEL - using setarch to disable ASLR for Urbit');
+    const arch = process.arch === 'x64' ? 'x86_64' : process.arch;
+    console.log(`[rube] Detected Fedora/RHEL - using setarch ${arch} -R to disable ASLR for Urbit`);
     return {
       command: 'setarch',
-      args: [process.arch === 'x64' ? 'x86_64' : process.arch, '-R']
+      args: [arch, '-R']
     };
   } catch {
     console.warn('[rube] Warning: Running on Fedora/RHEL but setarch not found');
@@ -321,7 +322,13 @@ const bootShip = (
       '--http-port',
       httpPort,
     ];
-    urbitProcess = childProcess.spawn(memoryFix.command, urbitArgs, {
+    console.log(`[rube] Executing: ${memoryFix.command} ${urbitArgs.join(' ')}`);
+    
+    // Use shell to set ulimit and run the command
+    const shellCommand = `ulimit -s unlimited && exec ${memoryFix.command} ${urbitArgs.join(' ')}`;
+    console.log(`[rube] Full command with ulimit: ${shellCommand}`);
+    
+    urbitProcess = childProcess.spawn('/bin/bash', ['-c', shellCommand], {
       env: {
         ...process.env,
         // Additional memory management environment variables
