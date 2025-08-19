@@ -52,10 +52,9 @@ jobs:
           key:
             playwright-${{ runner.os }}-${{
             steps.playwright-version.outputs.version }}
-
       - name: Install Playwright Browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install chromium --with-deps
+        run: pnpm exec playwright install chromium
         working-directory: ./apps/tlon-web
 
       - name: Run Production Build Smoke Test
