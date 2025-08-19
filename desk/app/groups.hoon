@@ -3495,6 +3495,9 @@
       ::
       =/  =channel:g  (got:by-ch nest)
       ?>  (~(has by sections.group) section.u-channel)
+      =.  sections.group
+        %+  ~(jab by sections.group)  section.channel
+        |=(=section:g section(order (~(del of order.section) nest)))
       =.  section.channel   section.u-channel
       =.  channels.group  (put:by-ch nest channel)
       =.  sections.group
