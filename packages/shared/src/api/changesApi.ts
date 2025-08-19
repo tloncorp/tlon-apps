@@ -2,6 +2,7 @@ import { formatDa, unixToDa } from '@urbit/aura';
 
 import * as db from '../db';
 import * as ub from '../urbit';
+import { v1PeerToClientProfile } from './contactsApi';
 import { toClientGroups } from './groupsApi';
 import { toPostsData } from './postsApi';
 import { scry } from './urbit';
@@ -16,9 +17,18 @@ export async function fetchChangesSince(
   });
 
   const groups = toClientGroups(response.groups, true);
-  const posts = Object.entries(response.channels).flatMap(
+
+  const channelPosts = Object.entries(response.channels).flatMap(
     ([channelId, posts]) => (posts ? toPostsData(channelId, posts).posts : [])
   );
+  const chatPosts = Object.entries(response.chat).flatMap(([chatId, posts]) =>
+    posts ? toPostsData(chatId, posts).posts : []
+  );
+  const posts = [...channelPosts, ...chatPosts];
 
-  return { groups, posts };
+  const contacts = Object.entries(response.contacts).map(([id, profile]) =>
+    v1PeerToClientProfile(id, profile)
+  );
+
+  return { groups, posts, contacts };
 }

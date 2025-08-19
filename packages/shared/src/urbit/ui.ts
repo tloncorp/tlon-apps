@@ -6,7 +6,8 @@ import {
   Post,
   Posts,
 } from './channel';
-import { ChatHeadsResponse, DMInit, DMInit2 } from './dms';
+import { ContactBookProfile } from './contact';
+import { ChatHeadsResponse, DMInit, DMInit2, Writs } from './dms';
 import { Gangs, Groups } from './groups';
 
 // v4
@@ -39,4 +40,6 @@ export interface CombinedHeads {
 export interface Changes {
   groups: Groups;
   channels: Record<string, Posts | null>;
+  chat: Record<string, Writs | null>;
+  contacts: Record<string, ContactBookProfile>;
 }

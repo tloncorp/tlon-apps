@@ -198,6 +198,7 @@ export const syncLatestChanges = async ({
   const result = await syncQueue.add('latestChanges', syncCtx, () => {
     return api.fetchChangesSince(syncFrom);
   });
+  console.log(`bl: fetched latest changes`, result);
 
   await db.insertChanges(result, queryCtx);
   await db.changesSyncedAt.setValue(start);

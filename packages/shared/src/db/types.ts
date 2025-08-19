@@ -146,4 +146,5 @@ export function isSystemContact(
 export interface ChangesResult {
   groups: Group[];
   posts: Post[];
+  contacts: Contact[];
 }

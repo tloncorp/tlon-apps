@@ -3057,6 +3057,7 @@ export const insertChanges = createWriteQuery(
     withTransactionCtx(ctx, async (txCtx) => {
       await insertChannelPosts({ posts: input.posts }, txCtx);
       await insertGroups({ groups: input.groups }, txCtx);
+      await insertContacts(input.contacts, txCtx);
     });
   },
   ['posts', 'groups', 'channels']
