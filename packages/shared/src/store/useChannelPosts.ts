@@ -325,61 +325,29 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     setNewPosts([]);
   }, [options.channelId]);
 
-  // TODO: the following transforms should be cleaned up. There's probably low hanging
-  // fruit if we streamline newer posts, stub removal, pending weave, delete filter
+  const pendingPosts = usePendingPostsInChannel(options.channelId);
+  const deletedPosts = useDeletedPosts(options.channelId);
 
   const rawPosts = useMemo<db.Post[] | null>(() => {
-    const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? null;
-    if (!newPosts.length) {
-      return queryPosts;
-    }
-    const newestQueryPostId = queryPosts?.[0]?.id;
-    const newerPosts = newPosts.filter(
-      (p) => !newestQueryPostId || p.id > newestQueryPostId
-    );
+    const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? [];
+    return mergePendingPosts({
+      newPosts,
+      pendingPosts,
+      existingPosts: queryPosts,
+      deletedPosts,
+      filterDeleted: options.filterDeleted,
+      hasNewest: !query.hasPreviousPage,
+    });
+  }, [
+    query.data?.pages,
+    query.hasPreviousPage,
+    newPosts,
+    pendingPosts,
+    deletedPosts,
+    options.filterDeleted,
+  ]);
 
-    // Deduping is necessary because the query data may not have been updated
-    // at this point and we may have already added the post.
-    // This is most likely to happen in bad network conditions or when the
-    // ship is under heavy load.
-    // This seems to be caused by an async issue where clearMatchedPendingPosts
-    // is called before the new post is added to the query data.
-    // TODO: Figure out why this is happening.
-    const dedupedQueryPosts =
-      queryPosts?.filter(
-        (p) => !newerPosts.some((newer) => newer.sentAt === p.sentAt)
-      ) ?? [];
-    return newestQueryPostId ? [...newerPosts, ...dedupedQueryPosts] : newPosts;
-  }, [query.data, newPosts]);
-
-  const sequenceStubsRemoved = useMemo(() => {
-    if (!rawPosts?.length) {
-      return [];
-    }
-    const filtered = rawPosts.filter((p) => !p.isSequenceStub);
-    return filtered;
-  }, [rawPosts]);
-
-  const pendingPosts = usePendingPostsInChannel(options.channelId);
-  const postsWithPending = useMemo(
-    () =>
-      mergePendingPosts({
-        pendingPosts,
-        existingPosts: sequenceStubsRemoved ?? [],
-        hasNewest: !query.hasPreviousPage,
-      }),
-    [pendingPosts, sequenceStubsRemoved, query.hasPreviousPage]
-  );
-
-  const deletedPosts = useDeletedPosts(options.channelId);
-  const postsWithDeleteFilterApplied = useMemo(() => {
-    if (!options.filterDeleted) {
-      return postsWithPending;
-    }
-    return postsWithPending?.filter((p) => !p.isDeleted && !deletedPosts[p.id]);
-  }, [options.filterDeleted, postsWithPending, deletedPosts]);
-
-  const posts = useOptimizedQueryResults(postsWithDeleteFilterApplied);
+  const posts = useOptimizedQueryResults(rawPosts);
 
   useRefreshPosts(options.channelId, posts);
 
