@@ -7,6 +7,28 @@ jobs:
       - Linux
       - X64
     steps:
+      - name: Clean workspace (Fedora container fix)
+        if: runner.os == 'Linux'
+        run: |
+          # Clean up any root-owned files from previous container runs
+          if [ -f /etc/os-release ] && grep -qiE "fedora|rhel|centos|rocky|alma" /etc/os-release; then
+            echo "Detected Fedora - fixing permissions on workspace from previous runs"
+            # The workspace path exists even before checkout
+            WORKSPACE_PATH="${{ github.workspace }}"
+            if [ -d "$WORKSPACE_PATH" ]; then
+              echo "Fixing permissions on $WORKSPACE_PATH"
+              # Use podman to fix permissions as root
+              podman run --rm \
+                -v "$WORKSPACE_PATH:/workspace:Z" \
+                --security-opt label=disable \
+                docker.io/ubuntu:22.04 \
+                bash -c "find /workspace -type d -exec chmod 755 {} + 2>/dev/null || true; find /workspace -type f -exec chmod 644 {} + 2>/dev/null || true; chmod -R a+rw /workspace 2>/dev/null || true"
+            else
+              echo "Workspace doesn't exist yet, skipping cleanup"
+            fi
+          fi
+        continue-on-error: true
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -200,8 +222,8 @@ jobs:
                 # Run tests
                 pnpm e2e:force
                 
-                # Fix permissions on created files for host user
-                chmod -R 777 /workspace/apps/tlon-web/rube/dist || true
+                # Fix permissions on all created files for host user
+                chmod -R 777 /workspace || true
               "
           else
             echo "Not on Fedora/RHEL - running tests directly"
