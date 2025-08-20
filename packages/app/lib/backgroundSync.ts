@@ -1,38 +1,11 @@
-import {
-  createDevLogger,
-  syncLatestChanges,
-  syncLatestPosts,
-  syncSince,
-  syncUnreads,
-} from '@tloncorp/shared';
+import { createDevLogger, syncSince } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
-import * as BackgroundTask from 'expo-background-task';
+import * as BackgroundFetch from 'expo-background-fetch';
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import { v4 as uuidv4 } from 'uuid';
 
 import { configureUrbitClient } from '../hooks/useConfigureUrbitClient';
-
-// TODO: remove, for use in debugging background tasks
-// Notifications.setNotificationHandler({
-//   handleNotification: async () => ({
-//     shouldShowBanner: true,
-//     shouldShowList: true,
-//     shouldPlaySound: false,
-//     shouldSetBadge: false,
-//     shouldShowAlert: true,
-//   }),
-// });
-
-// function debugLog(message: string) {
-//   Notifications.scheduleNotificationAsync({
-//     content: {
-//       title: 'Background Log',
-//       body: message,
-//     },
-//     trigger: null,
-//   });
-// }
 
 const logger = createDevLogger('backgroundSync', true);
 
@@ -76,11 +49,7 @@ async function performSync() {
     const changesStart = Date.now();
     await syncSince();
     timings.changesDuration = Date.now() - changesStart;
-    logger.trackEvent('Background sync: changes complete', { taskExecutionId });
-
-    logger.trackEvent('Background sync complete', {
-      taskExecutionId,
-    });
+    logger.trackEvent('Background sync complete', { taskExecutionId });
   } catch (err) {
     logger.trackError('Background sync failed', {
       error: err.toString(),
@@ -97,41 +66,35 @@ async function performSync() {
   }
 }
 
-export async function triggerTaskForTesting() {
-  logger.log('Triggering background sync task for testing');
-  const result = await BackgroundTask.triggerTaskWorkerForTestingAsync();
-  logger.log('Finished test trigger', { result });
-}
+const TASK_ID = 'backgroundFetch';
 
-const TASK_ID = 'backgroundSync';
-
-export async function unregisterBackgroundSyncTask() {
+export async function unregisterBackgroundFetchTask() {
   await Notifications.unregisterTaskAsync(TASK_ID);
-  await BackgroundTask.unregisterTaskAsync(TASK_ID);
+  await BackgroundFetch.unregisterTaskAsync(TASK_ID);
   await TaskManager.unregisterTaskAsync(TASK_ID);
 }
 
 export function registerBackgroundSyncTask() {
   TaskManager.defineTask<Record<string, unknown>>(
     TASK_ID,
-    async ({ error }): Promise<BackgroundTask.BackgroundTaskResult> => {
+    async ({ error }): Promise<BackgroundFetch.BackgroundFetchResult> => {
       logger.log(`Running background sync background task`);
       if (error) {
         logger.error(`Failed background sync background task`, error.message);
-        return BackgroundTask.BackgroundTaskResult.Failed;
+        return BackgroundFetch.BackgroundFetchResult.Failed;
       }
 
       try {
         await performSync();
         // We always return NewData because we don't have a way to know whether
         // there actually was new data.
-        return BackgroundTask.BackgroundTaskResult.Success;
+        return BackgroundFetch.BackgroundFetchResult.NewData;
       } catch (err) {
         logger.error(
           'Failed background sync',
           err instanceof Error ? err.message : err
         );
-        return BackgroundTask.BackgroundTaskResult.Failed;
+        return BackgroundFetch.BackgroundFetchResult.NewData;
       }
     }
   );
@@ -142,7 +105,7 @@ export function registerBackgroundSyncTask() {
         logger.log('Background sync task is registered');
       } else {
         logger.log('Background sync task is not registered, registering now');
-        await BackgroundTask.registerTaskAsync(TASK_ID, {
+        await BackgroundFetch.registerTaskAsync(TASK_ID, {
           // Uses expo-notification default - at time of writing, 10 minutes on
           // Android, system minimum on iOS (10-15 minutes)
           minimumInterval: 15 * 60,
