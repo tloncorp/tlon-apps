@@ -15,63 +15,11 @@ import * as path from 'path';
 import * as tar from 'tar-fs';
 import * as zlib from 'zlib';
 
-// TODO: write a script to update and package a pier then upload it to gcs
-
 const spawnedProcesses: childProcess.ChildProcess[] = [];
 const startHashes: { [ship: string]: { [desk: string]: string } } = {};
 const rubeDir = __dirname;
 const pidFile = path.join(rubeDir, '.rube.pid');
 const childrenFile = path.join(rubeDir, '.rube-children.json');
-
-// Detect if we're running on Fedora or similar systems with memory layout issues
-function isProblematicLinux(): boolean {
-  try {
-    if (process.platform !== 'linux') {
-      console.log('[rube] Platform is not Linux, no memory fixes needed');
-      return false;
-    }
-    const osRelease = fs.readFileSync('/etc/os-release', 'utf8');
-    const isFedoraLike = /fedora|rhel|centos|rocky|alma/i.test(osRelease);
-    if (isFedoraLike) {
-      console.log(
-        '[rube] Detected Fedora/RHEL-like system from /etc/os-release'
-      );
-    } else {
-      console.log('[rube] Linux detected but not Fedora/RHEL-like');
-    }
-    return isFedoraLike;
-  } catch (e) {
-    console.log('[rube] Could not read /etc/os-release:', e.message);
-    return false;
-  }
-}
-
-// Get memory layout fix command for problematic Linux distributions
-function getMemoryFixCommand(): { command: string; args: string[] } | null {
-  if (!isProblematicLinux()) return null;
-
-  // Check if setarch is available
-  try {
-    childProcess.execSync('which setarch', { stdio: 'ignore' });
-    const arch = process.arch === 'x64' ? 'x86_64' : process.arch;
-    console.log(
-      `[rube] Detected Fedora/RHEL - using setarch ${arch} -R to disable ASLR for Urbit`
-    );
-    return {
-      command: 'setarch',
-      args: [arch, '-R'],
-    };
-  } catch {
-    console.warn(
-      '[rube] Warning: Running on Fedora/RHEL but setarch not found - applying basic memory fixes'
-    );
-    // Even without setarch, apply the ulimit and env var fixes
-    return {
-      command: '',
-      args: [],
-    };
-  }
-}
 
 const manifestPath = path.join(
   __dirname,
@@ -282,35 +230,6 @@ const killExistingUrbitProcesses = async (): Promise<void> => {
   });
 };
 
-const killExistingViteDevServerProcesses = async (): Promise<void> => {
-  const command = killExistingViteCommand();
-  return new Promise((resolve) => {
-    childProcess.exec(
-      command,
-      { maxBuffer: 1024 * 1024 },
-      (error, stdout, stderr) => {
-        // Always resolve - we don't want to fail if there's nothing to kill
-        if (
-          error &&
-          !error.message.includes('No such process') &&
-          !error.message.includes('SIGKILL')
-        ) {
-          console.log(`Note killing vite processes: ${error.message}`);
-        }
-        if (stderr && !stderr.includes('No such process')) {
-          console.log(`stderr: ${stderr}`);
-        }
-        if (stdout && stdout.trim()) {
-          console.log(`Killed vite processes: ${stdout}`);
-        } else {
-          console.log(`No vite dev server processes to kill`);
-        }
-        resolve();
-      }
-    );
-  });
-};
-
 const bootShip = (
   binaryPath: string,
   pierPath: string,
@@ -328,73 +247,12 @@ const bootShip = (
     `Booting ship ${pierPath} on port ${httpPort} with ${binaryPath}`
   );
 
-  // Apply memory layout fixes for Fedora/RHEL systems
-  const memoryFix = getMemoryFixCommand();
-  let urbitProcess: childProcess.ChildProcess;
-
-  if (memoryFix) {
-    // Apply memory fixes for problematic systems
-    if (memoryFix.command) {
-      // Run urbit with setarch to disable ASLR
-      const urbitArgs = [
-        ...memoryFix.args,
-        binaryPath,
-        pierPath,
-        '-d',
-        '--http-port',
-        httpPort,
-      ];
-      console.log(
-        `[rube] Executing: ${memoryFix.command} ${urbitArgs.join(' ')}`
-      );
-
-      // Use shell to set ulimit and run the command with proper escaping
-      const escapedArgs = urbitArgs
-        .slice(2)
-        .map((arg) => `'${arg.replace(/'/g, "'\\''")}'`)
-        .join(' '); // Skip setarch and -R
-      const shellCommand = `ulimit -s unlimited && ulimit -v unlimited && exec ${memoryFix.command} ${memoryFix.args.join(' ')} ${escapedArgs}`;
-      console.log(`[rube] Full command with ulimit: ${shellCommand}`);
-
-      urbitProcess = childProcess.spawn('/bin/bash', ['-c', shellCommand], {
-        env: {
-          ...process.env,
-          // Additional memory management environment variables
-          MALLOC_ARENA_MAX: '1',
-          MALLOC_MMAP_THRESHOLD_: '131072',
-          MALLOC_TRIM_THRESHOLD_: '131072',
-        },
-      });
-    } else {
-      // setarch not available, just apply ulimit and env var fixes
-      const urbitArgs = [binaryPath, pierPath, '-d', '--http-port', httpPort];
-      const escapedArgs = urbitArgs
-        .map((arg) => `'${arg.replace(/'/g, "'\\''")}'`)
-        .join(' ');
-      const shellCommand = `ulimit -s unlimited && ulimit -v unlimited && exec ${escapedArgs}`;
-      console.log(
-        `[rube] Running with memory limits (no setarch): ${shellCommand}`
-      );
-
-      urbitProcess = childProcess.spawn('/bin/bash', ['-c', shellCommand], {
-        env: {
-          ...process.env,
-          // Additional memory management environment variables
-          MALLOC_ARENA_MAX: '1',
-          MALLOC_MMAP_THRESHOLD_: '131072',
-          MALLOC_TRIM_THRESHOLD_: '131072',
-        },
-      });
-    }
-  } else {
-    // Normal spawn for non-problematic systems
-    urbitProcess = childProcess.spawn(binaryPath, [
-      pierPath,
-      '-d',
-      '--http-port',
-      httpPort,
-    ]);
-  }
+  const urbitProcess = childProcess.spawn(binaryPath, [
+    pierPath,
+    '-d',
+    '--http-port',
+    httpPort,
+  ]);
 
   spawnedProcesses.push(urbitProcess);
 

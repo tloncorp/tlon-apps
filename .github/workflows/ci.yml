@@ -7,18 +7,6 @@ jobs:
       - Linux
       - X64
     steps:
-      - name: Clean up previous run artifacts (Fedora workaround)
-        run: |
-          # Fix permissions on files created by previous container runs
-          if [ -f /etc/os-release ] && grep -qiE "fedora|rhel|centos|rocky|alma" /etc/os-release; then
-            echo "Cleaning up potential root-owned files from previous runs"
-            # Use sudo to fix permissions or remove files created by containers
-            if [ -d "${{ github.workspace }}/apps/tlon-web/rube/dist" ]; then
-              sudo chmod -R 777 "${{ github.workspace }}/apps/tlon-web/rube/dist" || true
-              sudo rm -rf "${{ github.workspace }}/apps/tlon-web/rube/dist" || true
-            fi
-          fi
-          
       - name: Checkout
         uses: actions/checkout@v4
 
