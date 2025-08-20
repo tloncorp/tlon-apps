@@ -97,6 +97,7 @@ jobs:
                 -w /workspace \
                 --network host \
                 --security-opt label=disable \
+                -e CI=true \
                 docker.io/ubuntu:22.04 \
                 bash -c "
                   # Install dependencies
@@ -177,6 +178,7 @@ jobs:
               -w /workspace \
               --network host \
               --security-opt label=disable \
+              -e CI=true \
               -e VITE_INVITE_PROVIDER="${VITE_INVITE_PROVIDER}" \
               -e VITE_INVITE_SERVICE_ENDPOINT="${VITE_INVITE_SERVICE_ENDPOINT}" \
               -e FORCE_EXTRACTION=true \
