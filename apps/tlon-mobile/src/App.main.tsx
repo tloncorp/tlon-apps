@@ -155,13 +155,13 @@ export default function ConnectedApp() {
   const migrationState = useMigrations();
 
   return (
-    <ErrorBoundary>
-      <FeatureFlagConnectedInstrumentationProvider>
-        <NavigationContainer
-          theme={isDarkMode ? DarkTheme : DefaultTheme}
-          ref={navigationContainerRef}
-        >
-          <BaseProviderStack migrationState={migrationState}>
+    <FeatureFlagConnectedInstrumentationProvider>
+      <NavigationContainer
+        theme={isDarkMode ? DarkTheme : DefaultTheme}
+        ref={navigationContainerRef}
+      >
+        <BaseProviderStack migrationState={migrationState}>
+          <ErrorBoundary>
             <BranchProvider>
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <SignupProvider>
@@ -173,10 +173,10 @@ export default function ConnectedApp() {
                 </SignupProvider>
               </GestureHandlerRootView>
             </BranchProvider>
-          </BaseProviderStack>
-        </NavigationContainer>
-      </FeatureFlagConnectedInstrumentationProvider>
-    </ErrorBoundary>
+          </ErrorBoundary>
+        </BaseProviderStack>
+      </NavigationContainer>
+    </FeatureFlagConnectedInstrumentationProvider>
   );
 }
 
