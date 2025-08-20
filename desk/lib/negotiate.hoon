@@ -393,6 +393,7 @@
       =|  cards=(list card)
       |-
       ?~  kik  [[cards inner] state]
+      ~&  [%simulated-kick (pack-wire i.kik) +.i.kik]
       =.  wex.bowl  (~(del by wex.bowl) (pack-wire i.kik) +.i.kik)
       =^  caz  inner
         %.  [wire.i.kik %kick ~]

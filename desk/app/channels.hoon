@@ -1166,6 +1166,7 @@
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
+  ~&  [src.bowl (spat pole) -.sign]
   ?+    pole  ~|(bad-agent-wire+pole !!)
       ~          cor
       [%pimp ~]  cor
@@ -1203,7 +1204,9 @@
   ::
       [=kind:c ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
-    ca-abet:(ca-agent:(ca-abed:ca-core kind.pole ship name.pole) rest.pole sign)
+    =/  =nest:c  [kind.pole ship name.pole]
+    ?.  (~(has by v-channels) nest)  cor
+    ca-abet:(ca-agent:(ca-abed:ca-core nest) rest.pole sign)
   ::
       [%said =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
