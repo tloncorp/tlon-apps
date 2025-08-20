@@ -201,11 +201,12 @@ export const syncLatestChanges = async ({
   const result = await syncQueue.add('latestChanges', syncCtx, () => {
     return api.fetchChangesSince(syncFrom);
   });
-  logger.log(`fetched latest changes`, result);
+  const doneFetching = Date.now();
+  console.log(`bl: fetched latest changes: ${doneFetching - start}ms`, result);
 
   await db.insertChanges(result, queryCtx);
   await db.changesSyncedAt.setValue(start);
-  logger.log(`synced latest changes`);
+  console.log(`bl: inserted latest changes: ${Date.now() - doneFetching}ms`);
 
   const duration = Date.now() - start;
   logger.trackEvent('synced latest changes', {
