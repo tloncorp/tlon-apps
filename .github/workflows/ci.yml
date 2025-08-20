@@ -153,12 +153,12 @@ jobs:
           if [ -f /etc/os-release ] && grep -qiE "fedora|rhel|centos|rocky|alma" /etc/os-release; then
             echo "Detected Fedora/RHEL - running tests in Ubuntu container for Urbit compatibility"
             
-            # Read Node version from .nvmrc
-            NODE_VERSION=$(cat .nvmrc)
+            # Read Node version from .nvmrc (two directories up from apps/tlon-web)
+            NODE_VERSION=$(cat ../../.nvmrc)
             echo "Using Node.js version: $NODE_VERSION"
             
             podman run --rm \
-              -v "$PWD:/workspace:Z" \
+              -v "$PWD/../..:/workspace:Z" \
               -w /workspace \
               --network host \
               --security-opt label=disable \
