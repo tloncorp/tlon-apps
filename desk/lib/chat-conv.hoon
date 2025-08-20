@@ -28,8 +28,10 @@
     ++  v5
       |=  =paged-writs:v6:cv
       ^-  paged-writs:v5:cv
-      %=    paged-writs
-          writs  (v5:writs writs.paged-writs)
+      :*  (v5:writs writs.paged-writs)
+          newer.paged-writs
+          older.paged-writs
+          total.paged-writs
       ==
     ++  v4
       |=  =paged-writs:v6:cv

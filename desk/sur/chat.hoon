@@ -104,6 +104,7 @@
   $:  =writs
       newer=(unit time)
       older=(unit time)
+      newest=@ud
       total=@ud
   ==
 ::

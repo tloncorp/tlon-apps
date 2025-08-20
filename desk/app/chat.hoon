@@ -79,7 +79,7 @@
             :+  %chat-paged-writs     &  -:!>(*vale:m-chat-paged-writs)
             :+  %chat-paged-writs-1   &  -:!>(*vale:m-chat-paged-writs-1)
             :+  %chat-paged-writs-2   &  -:!>(*vale:m-chat-paged-writs-2)
-            :+  %chat-paged-writs-3   &  -:!>(*vale:m-chat-paged-writs-3)
+            :+  %chat-paged-writs-3   |  -:!>(*vale:m-chat-paged-writs-3)
             :+  %chat-scam            &  -:!>(*vale:m-chat-scam)
             :+  %chat-scam-1          &  -:!>(*vale:m-chat-scam-1)
             :+  %chat-scam-2          &  -:!>(*vale:m-chat-scam-2)

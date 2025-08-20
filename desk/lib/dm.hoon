@@ -245,6 +245,12 @@
     :-  time
     ?:  ?=(%| -.writ)  writ
     writ(replies *replies:c)
+  =/  latest=@ud
+    ?~  latest=(ram:on:writs:c writs)  0
+    ?-  -.val.u.latest
+      %&  seq.val.u.latest
+      %|  seq.val.u.latest
+    ==
   =/  newer=(unit time)
     ?:  =(~ ls)  ~
     =/  more  (tab:on:writs:c wit.pac `-:(rear ls) 1)
@@ -256,6 +262,7 @@
   :*  writs
       newer
       older
+      latest
       (wyt:on:writs:c writs)
   ==
 ::

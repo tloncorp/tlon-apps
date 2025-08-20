@@ -342,6 +342,7 @@
     :~  writs+(writs writs.pw)
         newer+?~(newer.pw ~ (time-id u.newer.pw))
         older+?~(older.pw ~ (time-id u.older.pw))
+        newest+(numb newest.pw)
         total+(numb total.pw)
     ==
   ::
