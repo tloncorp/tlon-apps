@@ -157,12 +157,15 @@ export function useIsAdmin(chatId: string, userId: string): boolean {
   return isAdmin;
 }
 
-export function useCanWrite(channel: db.Channel, userId: string): boolean {
+export function useCanWrite(
+  channel: db.Channel | null | undefined,
+  userId: string
+): boolean {
   const writers = useMemo(
-    () => channel.writerRoles?.map((role) => role.roleId) ?? [],
-    [channel.writerRoles]
+    () => channel?.writerRoles?.map((role) => role.roleId) ?? [],
+    [channel?.writerRoles]
   );
-  const memberRoles = useMemberRoles(channel.groupId ?? '', userId);
+  const memberRoles = useMemberRoles(channel?.groupId ?? '', userId);
   const canWrite = useMemo(
     () =>
       writers.length === 0 ||
