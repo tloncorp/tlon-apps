@@ -343,3 +343,9 @@ export const debugShowSequenceStubs = createStorageItem<boolean>({
   defaultValue: false,
   persistAfterLogout: false,
 });
+
+export const debugPermittedSchedulerId = createStorageItem<string | null>({
+  key: 'debugPermittedSchedulerId',
+  defaultValue: null,
+  persistAfterLogout: true,
+});
