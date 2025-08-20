@@ -684,9 +684,9 @@
         [%seat * %add *]
       (request-join flag.r-groups affected ships.r-group)
     ::
-      [%seat * %add-roles *]    (recheck-perms affected ~)
-      [%seat * %del-roles *]     (recheck-perms affected ~)
-      [%channel * %edit *]       (recheck-perms affected ~)
+      [%seat * %add-roles *]       (recheck-perms affected ~)
+      [%seat * %del-roles *]       (recheck-perms affected ~)
+      [%channel * %edit *]         (recheck-perms affected ~)
       [%channel * %add-readers *]  (recheck-perms affected ~)
       [%channel * %del-readers *]  (recheck-perms affected ~)
   ::
