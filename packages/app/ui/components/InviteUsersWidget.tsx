@@ -22,11 +22,6 @@ const InviteUsersWidgetComponent = ({
   const [loading, setLoading] = useState(false);
   const [invitees, setInvitees] = useState<string[]>([]);
 
-  // Extract existing group member IDs to mark them as immutable
-  const existingMemberIds = useMemo(() => {
-    return group.members?.map(member => member.contactId) ?? [];
-  }, [group.members]);
-
   const handleInviteGroupMembers = useCallback(async () => {
     setLoading(true);
     try {
@@ -66,7 +61,6 @@ const InviteUsersWidgetComponent = ({
           searchPlaceholder="Filter by nickname, @p"
           onSelectedChange={setInvitees}
           onScrollChange={onScrollChange}
-          immutableIds={existingMemberIds}
         />
       </ActionSheet.ContentBlock>
       <ActionSheet.ContentBlock>
