@@ -319,11 +319,14 @@ export const ChatOptionsProvider = ({
     if (groupId) {
       if (onPressInvite) {
         onPressInvite?.(groupId);
+        closeSheet();
       } else {
         // if not handled by the parent, open built in invite sheet
-        setInviteSheetOpen(true);
+        closeSheet();
+        setTimeout(() => {
+          setInviteSheetOpen(true);
+        }, 300);
       }
-      closeSheet();
     }
   }, [closeSheet, groupId, onPressInvite]);
 
