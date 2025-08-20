@@ -9,30 +9,41 @@ import { storage } from '@tloncorp/shared/db';
 import * as BackgroundTask from 'expo-background-task';
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
+import { AppState } from 'react-native';
 import { v4 as uuidv4 } from 'uuid';
 
 import { configureUrbitClient } from '../hooks/useConfigureUrbitClient';
 
 // TODO: remove, for use in debugging background tasks
-// Notifications.setNotificationHandler({
-//   handleNotification: async () => ({
-//     shouldShowBanner: true,
-//     shouldShowList: true,
-//     shouldPlaySound: false,
-//     shouldSetBadge: false,
-//     shouldShowAlert: true,
-//   }),
-// });
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+    shouldShowAlert: true,
+  }),
+});
 
-// function debugLog(message: string) {
-//   Notifications.scheduleNotificationAsync({
-//     content: {
-//       title: 'Background Log',
-//       body: message,
-//     },
-//     trigger: null,
-//   });
-// }
+const DEBUG_LOGS: string[] = [];
+
+AppState.addEventListener('change', (nextState) => {
+  if (nextState === 'active') {
+    console.log(DEBUG_LOGS);
+  }
+});
+
+function debugLog(message: string) {
+  DEBUG_LOGS.push(message);
+
+  Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Background Log',
+      body: message,
+    },
+    trigger: null,
+  });
+}
 
 const logger = createDevLogger('backgroundSync', true);
 
@@ -64,13 +75,13 @@ async function performSync() {
 
   logger.trackEvent('Initiating background sync', { taskExecutionId });
 
-  logger.log('Configuring urbit client...');
+  debugLog('Configuring urbit client...');
   configureUrbitClient({
     ship: shipInfo.ship,
     shipUrl: shipInfo.shipUrl,
     authType: shipInfo.authType,
   });
-  logger.log('Configured urbit client.');
+  debugLog('Configured urbit client.');
 
   try {
     const changesStart = Date.now();
@@ -107,9 +118,15 @@ async function performSync() {
 }
 
 export async function triggerTaskForTesting() {
-  logger.log('Triggering background sync task for testing');
-  const result = await BackgroundTask.triggerTaskWorkerForTestingAsync();
-  logger.log('Finished test trigger', { result });
+  debugLog('Triggering background sync task for testing');
+  let result: any = null;
+  try {
+    result = await BackgroundTask.triggerTaskWorkerForTestingAsync();
+  } catch (err) {
+    debugLog(`Error: ${err.message}`);
+  } finally {
+    debugLog(`Finished test trigger ${result}`);
+  }
 }
 
 const TASK_ID = 'backgroundSync';
@@ -124,7 +141,7 @@ export function registerBackgroundSyncTask() {
   TaskManager.defineTask<Record<string, unknown>>(
     TASK_ID,
     async ({ error }): Promise<BackgroundTask.BackgroundTaskResult> => {
-      logger.log(`Running background sync background task`);
+      debugLog(`Running background sync background task`);
       if (error) {
         logger.error(`Failed background sync background task`, error.message);
         return BackgroundTask.BackgroundTaskResult.Failed;
@@ -147,16 +164,13 @@ export function registerBackgroundSyncTask() {
 
   (async () => {
     try {
+      console.log('Status', await BackgroundTask.getStatusAsync());
       if (await TaskManager.isTaskRegisteredAsync(TASK_ID)) {
-        logger.log('Background sync task is registered');
+        debugLog('Background sync task is registered');
       } else {
-        logger.log('Background sync task is not registered, registering now');
-        await BackgroundTask.registerTaskAsync(TASK_ID, {
-          // Uses expo-notification default - at time of writing, 10 minutes on
-          // Android, system minimum on iOS (10-15 minutes)
-          minimumInterval: 15 * 60,
-        });
-        logger.log('Registered background sync task');
+        debugLog('Background sync task is not registered, registering now');
+        await BackgroundTask.registerTaskAsync(TASK_ID);
+        debugLog('Registered background sync task');
       }
     } catch (err) {
       logger.error('Failed to register background sync task', err);
