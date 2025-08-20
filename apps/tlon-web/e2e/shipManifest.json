@@ -1,7 +1,7 @@
 {
   "~zod": {
     "authFile": "e2e/.auth/zod.json",
-    "downloadUrl": "https://bootstrap.urbit.org/rube-zod10.tgz",
+    "downloadUrl": "https://bootstrap.urbit.org/rube-zod15.tgz",
     "url": "http://localhost:35453",
     "ship": "zod",
     "code": "lidlut-tabwed-pillex-ridrup",
@@ -9,7 +9,8 @@
     "loopbackPort": "",
     "webUrl": "http://localhost:3000",
     "skipCommit": false,
-    "skipSetup": false
+    "skipSetup": false,
+    "skipAuth": false
   },
   "~bus": {
     "authFile": "e2e/.auth/bus.json",
@@ -21,11 +22,12 @@
     "loopbackPort": "",
     "webUrl": "http://localhost:3001",
     "skipCommit": true,
-    "skipSetup": false
+    "skipSetup": false,
+    "skipAuth": false
   },
   "~ten": {
     "authFile": "e2e/.auth/ten.json",
-    "downloadUrl": "https://bootstrap.urbit.org/rube-ten10.tgz",
+    "downloadUrl": "https://bootstrap.urbit.org/rube-ten15.tgz",
     "url": "http://localhost:38473",
     "ship": "ten",
     "code": "lapseg-nolmel-riswen-hopryc",
@@ -33,11 +35,12 @@
     "loopbackPort": "",
     "webUrl": "http://localhost:3002",
     "skipCommit": false,
-    "skipSetup": false
+    "skipSetup": false,
+    "skipAuth": false
   },
   "~mug": {
     "authFile": "e2e/.auth/mug.json",
-    "downloadUrl": "https://bootstrap.urbit.org/rube-mug13.tgz",
+    "downloadUrl": "https://bootstrap.urbit.org/rube-mug15.tgz",
     "url": "http://localhost:39983",
     "ship": "mug",
     "code": "ravsut-bolryd-hapsum-pastul",
@@ -45,6 +48,7 @@
     "loopbackPort": "",
     "webUrl": "http://localhost:3003",
     "skipCommit": false,
-    "skipSetup": false
+    "skipSetup": false,
+    "skipAuth": true
   }
 }

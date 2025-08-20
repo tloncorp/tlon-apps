@@ -595,7 +595,9 @@
     =.  cor  core
     =/  keep=?
       ?+    pole  |
-          [%groups *]  &(=(%groups dude) =(our.bowl ship) =(/groups path))
+          [%groups *]
+        &(=(%groups dude) =(our.bowl sub-ship) =(/v1/groups path))
+      ::
           [=kind:c ship=@ name=@ %updates ~]
         ?.  =(server dude)  |
         ?.  =((scot %p sub-ship) ship.pole)  |

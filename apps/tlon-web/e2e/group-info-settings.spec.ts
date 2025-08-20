@@ -57,7 +57,7 @@ test('should handle complete group lifecycle with settings management', async ({
   await helpers.forwardGroupReference(page, 'Chat');
 
   // Test privacy settings
-  await helpers.setGroupPrivacy(page, true);
+  await helpers.setGroupPrivacy(page, 'private');
   await helpers.navigateBack(page);
   await expect(page.getByText('Private group with 1 member')).toBeVisible();
   await expect(
