@@ -45,6 +45,10 @@ jobs:
         working-directory: ./apps/tlon-web
 
       - name: Cache Playwright browsers
+        # Skip cache on Fedora since we'll use container
+        if:
+          ${{ !contains(runner.os, 'Linux') || !contains(runner.name, 'fedora')
+          }}
         uses: actions/cache@v4
         id: playwright-cache
         with:
@@ -54,13 +58,67 @@ jobs:
             steps.playwright-version.outputs.version }}
       - name: Install Playwright Browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install chromium
+        run: |
+          # Only install on non-Fedora systems since Fedora will use container
+          if [ -f /etc/os-release ] && grep -qiE "fedora|rhel|centos|rocky|alma" /etc/os-release; then
+            echo "Skipping browser install on Fedora - will be installed in container"
+          else
+            pnpm exec playwright install chromium
+          fi
         working-directory: ./apps/tlon-web
 
       - name: Run Production Build Smoke Test
         id: smoke-test
         run: |
-          pnpm e2e:prod:smoke:force || (echo "::warning::Production smoke test failed, retrying..." && pnpm e2e:prod:smoke:force)
+          # Check if we're on Fedora and need container workaround
+          if [ -f /etc/os-release ] && grep -qiE "fedora|rhel|centos|rocky|alma" /etc/os-release; then
+            echo "Detected Fedora/RHEL - running smoke test in Ubuntu container"
+            
+            # Read Node version from .nvmrc
+            NODE_VERSION=$(cat ../../.nvmrc)
+            echo "Using Node.js version: $NODE_VERSION"
+            
+            # Function to run test in container
+            run_smoke_test() {
+              podman run --rm \
+                -v "$PWD/../..:/workspace:Z" \
+                -w /workspace \
+                --network host \
+                --security-opt label=disable \
+                docker.io/ubuntu:22.04 \
+                bash -c "
+                  # Install dependencies
+                  apt-get update && apt-get install -y curl git build-essential netcat-openbsd
+                  
+                  # Install specific Node.js version
+                  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+                  apt-get install -y nodejs
+                  npm install -g n
+                  n ${NODE_VERSION}
+                  hash -r
+                  
+                  # Install pnpm
+                  npm install -g pnpm@9.0.5
+                  
+                  # Install dependencies
+                  cd /workspace
+                  pnpm install --frozen-lockfile
+                  
+                  # Install Playwright browsers and dependencies
+                  cd apps/tlon-web
+                  pnpm exec playwright install --with-deps chromium
+                  
+                  # Run production smoke test
+                  pnpm e2e:prod:smoke:force
+                "
+            }
+            
+            # Try once, retry if failed
+            run_smoke_test || (echo "::warning::Production smoke test failed, retrying..." && run_smoke_test)
+          else
+            echo "Not on Fedora/RHEL - running smoke test directly"
+            pnpm e2e:prod:smoke:force || (echo "::warning::Production smoke test failed, retrying..." && pnpm e2e:prod:smoke:force)
+          fi
         working-directory: ./apps/tlon-web
         continue-on-error: false
 
@@ -89,8 +147,58 @@ jobs:
       #       e2e-piers-
 
       - name: Run E2E Tests for Groups
-        # Use force for good measure. We're not using the cached piers right now but we will in the future.
-        run: pnpm e2e:force
+        # Use Ubuntu container to avoid Fedora/Urbit binary compatibility issues
+        run: |
+          # Check if we're on Fedora and need container workaround
+          if [ -f /etc/os-release ] && grep -qiE "fedora|rhel|centos|rocky|alma" /etc/os-release; then
+            echo "Detected Fedora/RHEL - running tests in Ubuntu container for Urbit compatibility"
+            
+            # Read Node version from .nvmrc
+            NODE_VERSION=$(cat .nvmrc)
+            echo "Using Node.js version: $NODE_VERSION"
+            
+            podman run --rm \
+              -v "$PWD:/workspace:Z" \
+              -w /workspace \
+              --network host \
+              --security-opt label=disable \
+              -e VITE_INVITE_PROVIDER="${VITE_INVITE_PROVIDER}" \
+              -e VITE_INVITE_SERVICE_ENDPOINT="${VITE_INVITE_SERVICE_ENDPOINT}" \
+              -e FORCE_EXTRACTION=true \
+              docker.io/ubuntu:22.04 \
+              bash -c "
+                # Install dependencies
+                apt-get update && apt-get install -y curl git build-essential netcat-openbsd
+                
+                # Install specific Node.js version
+                curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+                apt-get install -y nodejs
+                npm install -g n
+                n ${NODE_VERSION}
+                hash -r
+                
+                # Install pnpm
+                npm install -g pnpm@9
+                
+                # Verify versions
+                echo 'Node version:' && node --version
+                echo 'pnpm version:' && pnpm --version
+                
+                # Install dependencies
+                cd /workspace
+                pnpm install --frozen-lockfile
+                
+                # Install Playwright browsers and dependencies
+                cd apps/tlon-web
+                pnpm exec playwright install --with-deps chromium
+                
+                # Run tests
+                pnpm e2e:force
+              "
+          else
+            echo "Not on Fedora/RHEL - running tests directly"
+            pnpm e2e:force
+          fi
         working-directory: ./apps/tlon-web
         env:
           VITE_INVITE_PROVIDER: http://localhost:39983
