@@ -131,9 +131,6 @@ async function getLocalFirstPosts(options: UseChannelPostsPageParams) {
   postsLogger.log(`localFirstPosts: synced remote posts`);
 
   const syncedPosts = await db.getSequencedChannelPosts(options);
-  if (!syncedPosts.length) {
-    postsLogger.error('invariant violation: no posts found after syncing');
-  }
 
   postsLogger.log(`localFirstPosts: found synced posts`, syncedPosts);
   return syncedPosts;
