@@ -38,7 +38,6 @@ type SubscriptionPost = [db.Post, string | undefined];
 type UseChannelPostsParams = UseChannelPostsPageParams & {
   enabled: boolean;
   firstPageCount?: number;
-  hasCachedNewest?: boolean;
   filterDeleted?: boolean;
 };
 
@@ -178,7 +177,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     return Date.now();
   }, []);
 
-  const { enabled, firstPageCount, ...pageParam } = options;
+  const { enabled } = options;
 
   const queryKey = useMemo(
     () => [
@@ -187,17 +186,10 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
         options.channelId,
         options.cursorPostId,
         options.filterDeleted,
-        options.hasCachedNewest,
         mountTime,
       ],
     ],
-    [
-      options.channelId,
-      options.cursorPostId,
-      options.filterDeleted,
-      options.hasCachedNewest,
-      mountTime,
-    ]
+    [options.channelId, options.cursorPostId, options.filterDeleted, mountTime]
   );
 
   const initialPageParam = useMemo(() => {
@@ -207,7 +199,6 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
       cursorPostId: options.cursorPostId,
       mode: options.mode ?? 'newest',
       filterDeleted: options.filterDeleted ?? false,
-      hasCachedNewest: options.hasCachedNewest ?? false,
     } as UseChannelPostsPageParams;
   }, [options]);
 

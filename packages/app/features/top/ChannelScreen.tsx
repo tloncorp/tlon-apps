@@ -144,17 +144,6 @@ export default function ChannelScreen(props: Props) {
 
   const { performGroupAction } = useGroupActions();
 
-  const session = store.useCurrentSession();
-  const hasCachedNewest = useMemo(() => {
-    if (!channel) {
-      return false;
-    }
-    return store.hasChannelCachedNewestPosts({
-      session,
-      channel,
-    });
-  }, [channel, session]);
-
   const cursor = useMemo(() => {
     if (!channel) {
       return undefined;
@@ -205,7 +194,6 @@ export default function ChannelScreen(props: Props) {
     channelId: currentChannelId,
     // count: 15,
     count: 50,
-    hasCachedNewest,
     filterDeleted: !channelConfiguration?.includeDeletedPosts,
     // filterDeleted: false,
     // hasCachedNewest: true,
