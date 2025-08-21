@@ -3,16 +3,14 @@ import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
   ComponentProps,
-  cloneElement,
   forwardRef,
-  isValidElement,
   useCallback,
   useEffect,
   useImperativeHandle,
   useMemo,
   useState,
 } from 'react';
-import { Alert, Modal } from 'react-native';
+import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Popover, View, YStack } from 'tamagui';
 
@@ -26,7 +24,6 @@ import {
   GroupPreviewAction,
   GroupPreviewPane,
   LoadingSpinner,
-  Pressable,
   SimpleActionSheet,
   Text,
   TextInput,
@@ -312,7 +309,10 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
   );
 
   const handleTypeSelected = useCallback((type: ChatType) => {
-    setStep(`create${capitalize(type)}` as Step);
+    setStep('initial');
+    setTimeout(() => {
+      setStep(`create${capitalize(type)}` as Step);
+    }, 300);
   }, []);
 
   const handleSubmit = useCallback(
@@ -377,7 +377,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       </Popover.Trigger>
       <Popover.Content
         elevate
-        zIndex={1000000}
+        zIndex="$xl"
         position="relative"
         borderColor="$border"
         borderWidth={1}
