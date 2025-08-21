@@ -9,7 +9,6 @@ import { isEqual } from 'lodash';
 import { memo, useEffect } from 'react';
 import { View, getVariableValue, useTheme } from 'tamagui';
 
-import { InviteUsersScreen } from '../../features/InviteUsersScreen';
 import { ChannelMembersScreen } from '../../features/channels/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../../features/channels/ChannelMetaScreen';
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
@@ -87,10 +86,6 @@ function MainStack() {
       initialRouteName="Messages"
     >
       <MainStackNavigator.Screen name="Messages" component={Empty} />
-      <MainStackNavigator.Screen
-        name="InviteUsers"
-        component={InviteUsersScreen}
-      />
     </MainStackNavigator.Navigator>
   );
 }
@@ -156,10 +151,6 @@ function ChannelStack(
         <ChannelStackNavigator.Screen
           name="ChannelMeta"
           component={ChannelMetaScreen}
-        />
-        <ChannelStackNavigator.Screen
-          name="InviteUsers"
-          component={InviteUsersScreen}
         />
       </ChannelStackNavigator.Group>
     </ChannelStackNavigator.Navigator>

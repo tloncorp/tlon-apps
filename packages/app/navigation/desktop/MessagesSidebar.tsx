@@ -98,7 +98,7 @@ export const MessagesSidebar = memo(
     }, [connStatus]);
 
     const resolvedChats = useResolvedChats(chats);
-    const { navigateToGroup, navigateToChannel, navigation } = useRootNavigation();
+    const { navigateToGroup, navigateToChannel } = useRootNavigation();
 
     const createChatSheetRef = useRef<CreateChatSheetMethods | null>(null);
     const onPressChat = useCallback(
@@ -125,7 +125,6 @@ export const MessagesSidebar = memo(
         setSelectedGroupId(null);
       }
     }, []);
-
 
     const isTlonEmployee = useMemo(() => {
       const allChats = [...resolvedChats.pinned, ...resolvedChats.unpinned];
@@ -158,10 +157,6 @@ export const MessagesSidebar = memo(
       activeTab: 'talk',
     });
 
-    const handleInvite = useCallback((groupId: string) => {
-      navigation.navigate('InviteUsers', { groupId });
-    }, [navigation]);
-
     useRenderCount('MessagesSidebar');
 
     return (
@@ -172,10 +167,7 @@ export const MessagesSidebar = memo(
         useApp={db.appInfo.useValue}
         useGroup={store.useGroupPreview}
       >
-        <ChatOptionsProvider
-          {...useChatSettingsNavigation()}
-          onPressInvite={handleInvite}
-        >
+        <ChatOptionsProvider {...useChatSettingsNavigation()}>
           <NavigationProvider focusedChannelId={focusedChannelId}>
             <View userSelect="none" flex={1}>
               <ScreenHeader

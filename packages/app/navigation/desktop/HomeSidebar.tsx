@@ -110,7 +110,7 @@ export const HomeSidebar = memo(
     }, [connStatus]);
 
     const resolvedChats = useResolvedChats(chats);
-    const { navigateToGroup, navigateToChannel, navigation } = useRootNavigation();
+    const { navigateToGroup, navigateToChannel } = useRootNavigation();
 
     const createChatSheetRef = useRef<CreateChatSheetMethods | null>(null);
     const onPressChat = useCallback(
@@ -144,7 +144,6 @@ export const HomeSidebar = memo(
       }
     }, []);
 
-
     const isTlonEmployee = useMemo(() => {
       const allChats = [...resolvedChats.pinned, ...resolvedChats.unpinned];
       return !!allChats.find(
@@ -170,10 +169,6 @@ export const HomeSidebar = memo(
       setIsOpen(true);
     }, [setIsOpen]);
 
-    const handlePressInvite = useCallback((groupId: string) => {
-      navigation.navigate('InviteUsers', { groupId });
-    }, [navigation]);
-
     const displayData = useFilteredChats({
       ...resolvedChats,
       searchQuery: '',
@@ -192,10 +187,7 @@ export const HomeSidebar = memo(
         useApp={db.appInfo.useValue}
         useGroup={store.useGroupPreview}
       >
-        <ChatOptionsProvider
-          {...useChatSettingsNavigation()}
-          onPressInvite={handlePressInvite}
-        >
+        <ChatOptionsProvider {...useChatSettingsNavigation()}>
           <NavigationProvider focusedChannelId={focusedChannelId}>
             <View userSelect="none" flex={1}>
               <ScreenHeader
