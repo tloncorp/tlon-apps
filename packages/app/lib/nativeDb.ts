@@ -96,6 +96,7 @@ export class NativeDb extends BaseDb {
       this.connection.delete();
       this.connection = null;
       this.client = null;
+      this.didMigrate = false;
 
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
         context: 'purgeDb: closed the connection, cleared the client',
