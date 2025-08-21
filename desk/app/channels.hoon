@@ -1203,6 +1203,8 @@
   ::
       [=kind:c ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
+    =/  =nest:c  [kind.pole ship name.pole]
+    ?.  (~(has by v-channels) nest)  cor
     ca-abet:(ca-agent:(ca-abed:ca-core kind.pole ship name.pole) rest.pole sign)
   ::
       [%said =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
