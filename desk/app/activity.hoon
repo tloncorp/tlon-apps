@@ -574,6 +574,16 @@
   ::
       [%x any %notifications-allowed ~]
     ``activity-allowed+!>(`notifications-allowed:a`allowed)
+  ::
+      [%x %v4 %activity %changes since=@ ~]
+    =/  since=time  (slav %da since.pole)
+    =;  summaries=activity:a
+      ``activity-summary-4+!>(summaries)
+    %-  ~(gas by *activity:a)
+    %+  skim
+      ~(tap by activity)
+    |=  [=source:a as=activity-summary:a]
+    (gte newest.as since)
   ==
 ::
 ++  feed

@@ -245,13 +245,15 @@
     ``ui-init-5+!>(init)
   ::
       [%x %v5 %changes since=@ ~]
+    =+  .^(activity=json (scry %gx %activity /v4/activity/changes/[since.pole]/json))
     =+  .^(channels=json (scry %gx %channels /v5/changes/[since.pole]/json))
     =+  .^(chat=json (scry %gx %chat /v3/changes/[since.pole]/json))
     =+  .^(groups=json (scry %gx %groups /v1/changes/[since.pole]/json))
     =+  .^(contacts=json (scry %gx %contacts /v1/changes/[since.pole]/json))
     :^  ~  ~  %json
     !>  %-  pairs:enjs:format
-    :~  'channels'^channels
+    :~  'activity'^activity
+        'channels'^channels
         'chat'^chat
         'groups'^groups
         'contacts'^contacts
