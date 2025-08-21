@@ -118,7 +118,7 @@ export type CombinedParamList = RootStackParamList & RootDrawerParamList;
 
 export type HomeDrawerParamList = Pick<
   RootStackParamList,
-  'ChatList' | 'GroupChannels'
+  'ChatList' | 'GroupChannels' | 'InviteUsers'
 > & {
   MainContent: undefined;
   Channel:
@@ -173,6 +173,7 @@ export type DesktopChannelStackParamList = Pick<
   | 'ChannelMembers'
   | 'ChannelMeta'
   | 'ChannelTemplate'
+  | 'InviteUsers'
 > & { ChannelRoot: RootStackParamList['Channel'] };
 
 export type GroupSettingsStackParamList = {

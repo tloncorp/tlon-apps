@@ -1,11 +1,11 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { createDevLogger } from '@tloncorp/shared';
-import * as store from '@tloncorp/shared/store';
 import { Button, LoadingSpinner } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack, getTokenValue } from 'tamagui';
 
+import { RootStackParamList } from '../navigation/types';
 import {
   ContactBook,
   NavigationProvider,
@@ -14,7 +14,6 @@ import {
   useStore,
 } from '../ui';
 import { InviteFriendsToTlonButton } from '../ui/components/InviteFriendsToTlonButton';
-import { RootStackParamList } from '../navigation/types';
 
 const logger = createDevLogger('InviteUsersScreen', false);
 
@@ -32,7 +31,7 @@ export function InviteUsersScreen() {
 
   const handleInviteGroupMembers = useCallback(async () => {
     if (!group) return;
-    
+
     setLoading(true);
     try {
       await store.inviteGroupMembers({
@@ -76,16 +75,13 @@ export function InviteUsersScreen() {
   return (
     <NavigationProvider>
       <View flex={1} backgroundColor="$background">
-        <ScreenHeader
-          title="Invite People"
-          backAction={handleGoBack}
-        />
-        
+        <ScreenHeader title="Invite People" backAction={handleGoBack} />
+
         <YStack flex={1} paddingHorizontal={getTokenValue('$l')}>
           <PaddedBlock>
             <InviteFriendsToTlonButton group={group} />
           </PaddedBlock>
-          
+
           <YStack flex={1}>
             <ContactBook
               multiSelect
@@ -94,7 +90,7 @@ export function InviteUsersScreen() {
               onSelectedChange={setInvitees}
             />
           </YStack>
-          
+
           <PaddedBlock paddingBottom={bottom}>
             <Button
               hero
