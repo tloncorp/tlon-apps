@@ -166,12 +166,14 @@ export function useCanWrite(
     [channel?.writerRoles]
   );
   const memberRoles = useMemberRoles(channel?.groupId ?? '', userId);
-  const canWrite = useMemo(
-    () =>
-      writers.length === 0 ||
-      memberRoles.some((role) => writers.includes(role)),
-    [writers, memberRoles]
-  );
+  const canWrite = useMemo(() => {
+    if (!channel) {
+      return false;
+    }
+    return (
+      writers.length === 0 || memberRoles.some((role) => writers.includes(role))
+    );
+  }, [channel, writers, memberRoles]);
   return canWrite;
 }
 
