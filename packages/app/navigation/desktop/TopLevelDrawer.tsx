@@ -116,6 +116,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           activeType="NotificationsFilled"
           hasUnreads={haveUnreadUnseenActivity}
           isActive={isRouteActive('Activity')}
+          testID="ActivityNavIcon"
           onPress={() => {
             saveHomeState();
             props.navigation.reset({
