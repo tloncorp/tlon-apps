@@ -19,6 +19,7 @@ import {
   ChatOptionsProvider,
   GroupPreviewAction,
   GroupPreviewSheet,
+  InviteUsersSheet,
   NavigationProvider,
   RequestsProvider,
   ScreenHeader,
@@ -38,6 +39,7 @@ interface Props {
 export const MessagesSidebar = memo(
   ({ previewGroupId, focusedChannelId }: Props) => {
     const screenTitle = 'Messages';
+    const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>();
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
       previewGroupId ?? null
     );
@@ -126,6 +128,12 @@ export const MessagesSidebar = memo(
       }
     }, []);
 
+    const handleInviteSheetOpenChange = useCallback((open: boolean) => {
+      if (!open) {
+        setInviteSheetGroup(null);
+      }
+    }, []);
+
     const isTlonEmployee = useMemo(() => {
       const allChats = [...resolvedChats.pinned, ...resolvedChats.unpinned];
       return !!allChats.find(
@@ -157,6 +165,10 @@ export const MessagesSidebar = memo(
       activeTab: 'talk',
     });
 
+    const handleInvite = useCallback((groupId: string) => {
+      setInviteSheetGroup(groupId);
+    }, []);
+
     useRenderCount('MessagesSidebar');
 
     return (
@@ -167,7 +179,10 @@ export const MessagesSidebar = memo(
         useApp={db.appInfo.useValue}
         useGroup={store.useGroupPreview}
       >
-        <ChatOptionsProvider {...useChatSettingsNavigation()}>
+        <ChatOptionsProvider
+          {...useChatSettingsNavigation()}
+          onPressInvite={handleInvite}
+        >
           <NavigationProvider focusedChannelId={focusedChannelId}>
             <View userSelect="none" flex={1}>
               <ScreenHeader
@@ -198,6 +213,12 @@ export const MessagesSidebar = memo(
                 onOpenChange={handleGroupPreviewSheetOpenChange}
                 group={selectedGroup ?? undefined}
                 onActionComplete={handleGroupAction}
+              />
+              <InviteUsersSheet
+                open={inviteSheetGroup !== null}
+                onOpenChange={handleInviteSheetOpenChange}
+                onInviteComplete={() => setInviteSheetGroup(null)}
+                groupId={inviteSheetGroup ?? undefined}
               />
             </View>
           </NavigationProvider>
