@@ -54,6 +54,9 @@ export type RootStackParamList = {
   PushNotificationSettings: undefined;
   AddContacts: undefined;
   InviteSystemContacts: undefined;
+  InviteUsers: {
+    groupId?: string;
+  };
   UserProfile: {
     userId: string;
   };

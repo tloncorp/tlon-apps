@@ -20,7 +20,6 @@ import {
   ChatOptionsProvider,
   GroupPreviewAction,
   GroupPreviewSheet,
-  InviteUsersSheet,
   NavigationProvider,
   RequestsProvider,
   ScreenHeader,
@@ -41,7 +40,6 @@ interface Props {
 export const HomeSidebar = memo(
   ({ previewGroupId, focusedChannelId }: Props) => {
     const screenTitle = 'Home';
-    const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>();
 
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
       previewGroupId ?? null
@@ -112,7 +110,7 @@ export const HomeSidebar = memo(
     }, [connStatus]);
 
     const resolvedChats = useResolvedChats(chats);
-    const { navigateToGroup, navigateToChannel } = useRootNavigation();
+    const { navigateToGroup, navigateToChannel, navigation } = useRootNavigation();
 
     const createChatSheetRef = useRef<CreateChatSheetMethods | null>(null);
     const onPressChat = useCallback(
@@ -146,11 +144,6 @@ export const HomeSidebar = memo(
       }
     }, []);
 
-    const handleInviteSheetOpenChange = useCallback((open: boolean) => {
-      if (!open) {
-        setInviteSheetGroup(null);
-      }
-    }, []);
 
     const isTlonEmployee = useMemo(() => {
       const allChats = [...resolvedChats.pinned, ...resolvedChats.unpinned];
@@ -178,8 +171,8 @@ export const HomeSidebar = memo(
     }, [setIsOpen]);
 
     const handlePressInvite = useCallback((groupId: string) => {
-      setInviteSheetGroup(groupId);
-    }, []);
+      navigation.navigate('InviteUsers', { groupId });
+    }, [navigation]);
 
     const displayData = useFilteredChats({
       ...resolvedChats,
@@ -249,12 +242,6 @@ export const HomeSidebar = memo(
                 onOpenChange={handleGroupPreviewSheetOpenChange}
                 group={selectedGroup ?? undefined}
                 onActionComplete={handleGroupAction}
-              />
-              <InviteUsersSheet
-                open={inviteSheetGroup !== null}
-                onOpenChange={handleInviteSheetOpenChange}
-                onInviteComplete={() => setInviteSheetGroup(null)}
-                groupId={inviteSheetGroup ?? undefined}
               />
               <SplashModal open={showSplash} setOpen={() => {}} />
             </View>

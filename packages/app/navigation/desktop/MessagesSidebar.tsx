@@ -19,7 +19,6 @@ import {
   ChatOptionsProvider,
   GroupPreviewAction,
   GroupPreviewSheet,
-  InviteUsersSheet,
   NavigationProvider,
   RequestsProvider,
   ScreenHeader,
@@ -39,7 +38,6 @@ interface Props {
 export const MessagesSidebar = memo(
   ({ previewGroupId, focusedChannelId }: Props) => {
     const screenTitle = 'Messages';
-    const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>();
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
       previewGroupId ?? null
     );
@@ -100,7 +98,7 @@ export const MessagesSidebar = memo(
     }, [connStatus]);
 
     const resolvedChats = useResolvedChats(chats);
-    const { navigateToGroup, navigateToChannel } = useRootNavigation();
+    const { navigateToGroup, navigateToChannel, navigation } = useRootNavigation();
 
     const createChatSheetRef = useRef<CreateChatSheetMethods | null>(null);
     const onPressChat = useCallback(
@@ -128,11 +126,6 @@ export const MessagesSidebar = memo(
       }
     }, []);
 
-    const handleInviteSheetOpenChange = useCallback((open: boolean) => {
-      if (!open) {
-        setInviteSheetGroup(null);
-      }
-    }, []);
 
     const isTlonEmployee = useMemo(() => {
       const allChats = [...resolvedChats.pinned, ...resolvedChats.unpinned];
@@ -166,8 +159,8 @@ export const MessagesSidebar = memo(
     });
 
     const handleInvite = useCallback((groupId: string) => {
-      setInviteSheetGroup(groupId);
-    }, []);
+      navigation.navigate('InviteUsers', { groupId });
+    }, [navigation]);
 
     useRenderCount('MessagesSidebar');
 
@@ -213,12 +206,6 @@ export const MessagesSidebar = memo(
                 onOpenChange={handleGroupPreviewSheetOpenChange}
                 group={selectedGroup ?? undefined}
                 onActionComplete={handleGroupAction}
-              />
-              <InviteUsersSheet
-                open={inviteSheetGroup !== null}
-                onOpenChange={handleInviteSheetOpenChange}
-                onInviteComplete={() => setInviteSheetGroup(null)}
-                groupId={inviteSheetGroup ?? undefined}
               />
             </View>
           </NavigationProvider>

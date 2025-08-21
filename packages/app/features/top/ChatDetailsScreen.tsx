@@ -16,7 +16,6 @@ import {
   DeleteSheet,
   ForwardGroupSheetProvider,
   Icon,
-  InviteUsersSheet,
   ListItem,
   PaddedBlock,
   Pressable,
@@ -44,16 +43,10 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ChatDetails'>;
 export function ChatDetailsScreen(props: Props) {
   const { chatType, chatId } = props.route.params;
 
-  const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
-  const handleInvitePressed = useCallback((group: string) => {
-    setInviteSheetGroup(group);
-  }, []);
-
-  const handleInviteSheetOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      setInviteSheetGroup(null);
-    }
-  }, []);
+  const { navigation } = useRootNavigation();
+  const handleInvitePressed = useCallback((groupId: string) => {
+    navigation.navigate('InviteUsers', { groupId });
+  }, [navigation]);
 
   return (
     <ForwardGroupSheetProvider>
@@ -67,12 +60,6 @@ export function ChatDetailsScreen(props: Props) {
         {...useChatSettingsNavigation()}
       >
         <ChatDetailsScreenView />
-        <InviteUsersSheet
-          open={inviteSheetGroup !== null}
-          onOpenChange={handleInviteSheetOpenChange}
-          onInviteComplete={() => setInviteSheetGroup(null)}
-          groupId={inviteSheetGroup ?? undefined}
-        />
       </ChatOptionsProvider>
     </ForwardGroupSheetProvider>
   );
