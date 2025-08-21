@@ -20,19 +20,19 @@ type InviteUsersScreenRouteProp = RouteProp<RootStackParamList, 'InviteUsers'>;
 export function InviteUsersScreen() {
   const navigation = useNavigation();
   const route = useRoute<InviteUsersScreenRouteProp>();
-  const { groupId } = route.params;
+  const { groupId } = route.params ?? {};
   const { bottom } = useSafeAreaInsets();
   const store = useStore();
-  const { data: group } = store.useGroup({ id: groupId });
+  const { data: group } = store.useGroup({ id: groupId ?? '' });
 
   const handleGoBack = useCallback(() => {
     navigation.goBack();
   }, [navigation]);
 
   const { loading, invitees, setInvitees, handleInvite, buttonText } =
-    useInviteGroupMembers(groupId, handleGoBack);
+    useInviteGroupMembers(groupId ?? '', handleGoBack);
 
-  if (!group) {
+  if (!group || !groupId) {
     return (
       <NavigationProvider>
         <YStack flex={1} justifyContent="center" alignItems="center">
