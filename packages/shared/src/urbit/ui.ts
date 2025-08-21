@@ -1,11 +1,5 @@
 import { Activity } from './activity';
-import {
-  ChannelHeadsResponse,
-  Channels,
-  PagedPosts,
-  Post,
-  Posts,
-} from './channel';
+import { ChannelHeadsResponse, Channels, Posts } from './channel';
 import { ContactBookProfile } from './contact';
 import { ChatHeadsResponse, DMInit, DMInit2, Writs } from './dms';
 import { Gangs, Groups } from './groups';
@@ -42,4 +36,5 @@ export interface Changes {
   channels: Record<string, Posts | null>;
   chat: Record<string, Writs | null>;
   contacts: Record<string, ContactBookProfile>;
+  activity: Activity;
 }

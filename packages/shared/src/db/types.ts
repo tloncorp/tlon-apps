@@ -143,8 +143,16 @@ export function isSystemContact(
   return hasPhone || hasEmail;
 }
 
+export type ActivityInit = {
+  baseUnread?: BaseUnread;
+  groupUnreads: GroupUnread[];
+  channelUnreads: ChannelUnread[];
+  threadActivity: ThreadUnreadState[];
+};
+
 export interface ChangesResult {
   groups: Group[];
   posts: Post[];
   contacts: Contact[];
+  unreads: ActivityInit;
 }

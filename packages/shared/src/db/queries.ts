@@ -3055,13 +3055,24 @@ export const getChannelSearchResults = createReadQuery(
 export const insertChanges = createWriteQuery(
   'insertChanges',
   async (input: ChangesResult, ctx: QueryCtx) => {
-    withTransactionCtx(ctx, async (txCtx) => {
+    return withTransactionCtx(ctx, async (txCtx) => {
       await insertChannelPosts({ posts: input.posts }, txCtx);
       await insertGroups({ groups: input.groups }, txCtx);
       await insertContacts(input.contacts, txCtx);
+      await insertGroupUnreads(input.unreads.groupUnreads, ctx);
+      await insertChannelUnreads(input.unreads.channelUnreads, ctx);
+      await insertThreadUnreads(input.unreads.threadActivity, ctx);
     });
   },
-  ['posts', 'groups', 'channels']
+  [
+    'posts',
+    'groups',
+    'channels',
+    'groupUnreads',
+    'channelUnreads',
+    'threadUnreads',
+    'contacts',
+  ]
 );
 
 export const insertChannelPosts = createWriteQuery(
@@ -4198,7 +4209,7 @@ export const clearChannelUnread = createWriteQuery(
   async (channelId: string, ctx: QueryCtx) => {
     return ctx.db
       .update($channelUnreads)
-      .set({ countWithoutThreads: 0, firstUnreadPostId: null })
+      .set({ count: 0, countWithoutThreads: 0, firstUnreadPostId: null })
       .where(eq($channelUnreads.channelId, channelId));
   },
   ['channelUnreads']

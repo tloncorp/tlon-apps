@@ -2,6 +2,7 @@ import { formatDa, unixToDa } from '@urbit/aura';
 
 import * as db from '../db';
 import * as ub from '../urbit';
+import { toClientUnreads } from './activityApi';
 import { v1PeerToClientProfile } from './contactsApi';
 import { toClientGroups } from './groupsApi';
 import { toPostsData } from './postsApi';
@@ -30,5 +31,7 @@ export async function fetchChangesSince(
     v1PeerToClientProfile(id, profile)
   );
 
-  return { groups, posts, contacts };
+  const unreads = toClientUnreads(response.activity);
+
+  return { groups, posts, contacts, unreads };
 }

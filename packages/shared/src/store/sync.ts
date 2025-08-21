@@ -168,10 +168,7 @@ export const syncSince = async () => {
   logger.log(`syncing since...`);
   try {
     await batchEffects('syncSince', async (queryCtx) => {
-      await Promise.all([
-        syncLatestChanges({ syncCtx, queryCtx }),
-        syncUnreads(syncCtx, queryCtx),
-      ]);
+      await syncLatestChanges({ syncCtx, queryCtx });
     });
   } catch (e) {
     logger.trackError('sync since failed', {
@@ -202,11 +199,11 @@ export const syncLatestChanges = async ({
     return api.fetchChangesSince(syncFrom);
   });
   const doneFetching = Date.now();
-  console.log(`bl: fetched latest changes: ${doneFetching - start}ms`, result);
+  logger.log(`fetched latest changes: ${doneFetching - start}ms`, result);
 
   await db.insertChanges(result, queryCtx);
   await db.changesSyncedAt.setValue(start);
-  console.log(`bl: inserted latest changes: ${Date.now() - doneFetching}ms`);
+  logger.log(`inserted latest changes: ${Date.now() - doneFetching}ms`);
 
   const duration = Date.now() - start;
   logger.trackEvent('synced latest changes', {
@@ -651,7 +648,7 @@ export const persistUnreads = async ({
   ctx,
   includesAllUnreads,
 }: {
-  unreads: api.ActivityInit;
+  unreads: db.ActivityInit;
   ctx?: QueryCtx;
   includesAllUnreads?: boolean;
 }) => {
