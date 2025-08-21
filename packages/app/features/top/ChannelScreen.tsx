@@ -308,12 +308,10 @@ export default function ChannelScreen(props: Props) {
 
   const handleMarkRead = useCallback(async () => {
     if (channel && !channel.isPendingChannel) {
-      // TODO: re-enable, turned off for now for to enable easier
-      // testing for navigating to unreads
-      // store.markChannelRead({
-      //   id: channel.id,
-      //   groupId: channel.groupId ?? undefined,
-      // });
+      store.markChannelRead({
+        id: channel.id,
+        groupId: channel.groupId ?? undefined,
+      });
     }
   }, [channel?.type, channel?.id, channel?.groupId]);
 
