@@ -58,6 +58,7 @@ if (invalidFiles.length > 0) {
 
 let rubeProcess: childProcess.ChildProcess | null = null;
 let isShuttingDown = false;
+let exitCode = 0; // Track the exit code for proper process termination
 const pidFile = path.join(__dirname, '.run-selected-tests.pid');
 
 // Handle cleanup on exit
@@ -194,8 +195,8 @@ function cleanup() {
 
   console.log('Cleanup complete!');
 
-  // Exit the process after cleanup
-  process.exit(0);
+  // Exit the process after cleanup with the appropriate exit code
+  process.exit(exitCode);
 }
 
 async function waitForReadiness() {
@@ -288,6 +289,7 @@ async function runTest(): Promise<void> {
         resolve();
       } else {
         console.log(`❌ Tests failed with exit code ${code}`);
+        exitCode = code || 1;
         reject(new Error(`Tests failed with exit code ${code}`));
       }
     });
@@ -360,13 +362,15 @@ async function main() {
 
     rubeProcess.on('error', (error: Error) => {
       console.error('Failed to start rube:', error);
-      process.exit(1);
+      exitCode = 1;
+      cleanup();
     });
 
     rubeProcess.on('close', (code: number | null) => {
       if (!isShuttingDown && !setupComplete) {
         console.error(`Rube process exited unexpectedly with code ${code}`);
-        process.exit(1);
+        exitCode = 1;
+        cleanup();
       }
     });
 
@@ -415,7 +419,7 @@ async function main() {
     console.log('🎉 Test run complete!');
   } catch (error) {
     console.error('Error:', error.message);
-    process.exit(1);
+    exitCode = 1;
   } finally {
     cleanup();
   }
