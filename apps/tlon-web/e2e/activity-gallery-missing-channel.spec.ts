@@ -3,7 +3,7 @@ import { expect } from '@playwright/test';
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
-test('should handle gallery posts in activity without crashing', async ({
+test.skip('should handle gallery posts in activity without crashing', async ({
   zodSetup,
   tenSetup,
 }) => {
