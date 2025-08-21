@@ -31,9 +31,13 @@ import {
 import { View, XStack, styled } from 'tamagui';
 
 import { RootStackParamList } from '../../../navigation/types';
-import { useChannelContext, useCurrentUserId, useRequests } from '../../contexts';
-import { useCanWrite } from '../../utils/channelUtils';
+import {
+  useChannelContext,
+  useCurrentUserId,
+  useRequests,
+} from '../../contexts';
 import { MinimalRenderItemProps } from '../../contexts/componentsKits';
+import { useCanWrite } from '../../utils/channelUtils';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ReactionsDisplay } from '../ChatMessage/ReactionsDisplay';
