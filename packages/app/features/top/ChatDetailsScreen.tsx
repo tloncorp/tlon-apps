@@ -16,6 +16,7 @@ import {
   DeleteSheet,
   ForwardGroupSheetProvider,
   Icon,
+  InviteUsersSheet,
   ListItem,
   PaddedBlock,
   Pressable,
@@ -44,9 +45,18 @@ export function ChatDetailsScreen(props: Props) {
   const { chatType, chatId } = props.route.params;
 
   const { navigation } = useRootNavigation();
+  const isWindowNarrow = useIsWindowNarrow();
+  const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
+  
   const handleInvitePressed = useCallback((groupId: string) => {
-    navigation.navigate('InviteUsers', { groupId });
-  }, [navigation]);
+    if (isWindowNarrow) {
+      // Mobile: Use navigation to screen
+      navigation.navigate('InviteUsers', { groupId });
+    } else {
+      // Desktop: Use sheet
+      setInviteSheetGroup(groupId);
+    }
+  }, [isWindowNarrow, navigation]);
 
   return (
     <ForwardGroupSheetProvider>
@@ -60,6 +70,18 @@ export function ChatDetailsScreen(props: Props) {
         {...useChatSettingsNavigation()}
       >
         <ChatDetailsScreenView />
+        {!isWindowNarrow && (
+          <InviteUsersSheet
+            open={inviteSheetGroup !== null}
+            onOpenChange={(open) => {
+              if (!open) {
+                setInviteSheetGroup(null);
+              }
+            }}
+            groupId={inviteSheetGroup ?? undefined}
+            onInviteComplete={() => setInviteSheetGroup(null)}
+          />
+        )}
       </ChatOptionsProvider>
     </ForwardGroupSheetProvider>
   );

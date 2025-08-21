@@ -4,7 +4,7 @@ import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
@@ -13,6 +13,7 @@ import { useRootNavigation } from '../../navigation/utils';
 import {
   ChatOptionsProvider,
   GroupChannelsScreenView,
+  InviteUsersSheet,
   NavigationProvider,
   useIsWindowNarrow,
 } from '../../ui';
@@ -33,12 +34,13 @@ export function GroupChannelsScreenContent({
   focusedChannelId?: string;
 }) {
   const isFocused = useIsFocused();
+  const isWindowNarrow = useIsWindowNarrow();
   const { group } = useGroupContext({ groupId: id, isFocused });
+  const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
   const { data: unjoinedChannels } = store.useUnjoinedGroupChannels(
     group?.id ?? ''
   );
   const { navigateToChannel, navigation } = useRootNavigation();
-  const isWindowNarrow = useIsWindowNarrow();
 
   const handleChannelSelected = useCallback(
     (channel: db.Channel) => {
@@ -79,9 +81,15 @@ export function GroupChannelsScreenContent({
 
   const handlePressInvite = useCallback(
     (groupId: string) => {
-      navigation.navigate('InviteUsers', { groupId });
+      if (isWindowNarrow) {
+        // Mobile: Use navigation to screen
+        navigation.navigate('InviteUsers', { groupId });
+      } else {
+        // Desktop: Use sheet
+        setInviteSheetGroup(groupId);
+      }
     },
-    [navigation]
+    [isWindowNarrow, navigation]
   );
 
   return (
@@ -99,6 +107,18 @@ export function GroupChannelsScreenContent({
           unjoinedChannels={unjoinedChannels}
         />
       </NavigationProvider>
+      {!isWindowNarrow && (
+        <InviteUsersSheet
+          open={inviteSheetGroup !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setInviteSheetGroup(null);
+            }
+          }}
+          groupId={inviteSheetGroup ?? undefined}
+          onInviteComplete={() => setInviteSheetGroup(null)}
+        />
+      )}
     </ChatOptionsProvider>
   );
 }

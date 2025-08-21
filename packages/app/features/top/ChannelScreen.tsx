@@ -20,6 +20,7 @@ import React, {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from 'react';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
@@ -31,6 +32,8 @@ import {
   AttachmentProvider,
   Channel,
   ChatOptionsProvider,
+  InviteUsersSheet,
+  useIsWindowNarrow,
 } from '../../ui';
 
 const logger = createDevLogger('ChannelScreen', false);
@@ -139,6 +142,8 @@ export default function ChannelScreen(props: Props) {
   const { navigateToImage, navigateToPost, navigateToRef, navigateToSearch } =
     useChannelNavigation({ channelId: currentChannelId });
   const { navigation } = useRootNavigation();
+  const isWindowNarrow = useIsWindowNarrow();
+  const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
 
   const { performGroupAction } = useGroupActions();
 
@@ -322,9 +327,18 @@ export default function ChannelScreen(props: Props) {
     }
   }, [channel?.type, channel?.id, channel?.groupId]);
 
-  const handlePressInvite = useCallback((groupId: string) => {
-    navigation.navigate('InviteUsers', { groupId });
-  }, [navigation]);
+  const handlePressInvite = useCallback(
+    (groupId: string) => {
+      if (isWindowNarrow) {
+        // Mobile: Use navigation to screen
+        navigation.navigate('InviteUsers', { groupId });
+      } else {
+        // Desktop: Use sheet
+        setInviteSheetGroup(groupId);
+      }
+    },
+    [isWindowNarrow, navigation]
+  );
 
   const canUpload = useCanUpload();
 
@@ -416,6 +430,18 @@ export default function ChannelScreen(props: Props) {
           onPressScrollToBottom={handleScrollToBottom}
         />
       </AttachmentProvider>
+      {!isWindowNarrow && (
+        <InviteUsersSheet
+          open={inviteSheetGroup !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setInviteSheetGroup(null);
+            }
+          }}
+          groupId={inviteSheetGroup ?? undefined}
+          onInviteComplete={() => setInviteSheetGroup(null)}
+        />
+      )}
     </ChatOptionsProvider>
   );
 }
