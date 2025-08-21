@@ -10,6 +10,7 @@ import { configureUrbitClient } from '../hooks/useConfigureUrbitClient';
 const logger = createDevLogger('backgroundSync', true);
 
 async function performSync() {
+  logger.trackEvent('performing background sync');
   const taskExecutionId = uuidv4();
   const timings: Record<string, number> = {
     start: Date.now(),
@@ -78,9 +79,12 @@ export function registerBackgroundSyncTask() {
   TaskManager.defineTask<Record<string, unknown>>(
     TASK_ID,
     async ({ error }): Promise<BackgroundFetch.BackgroundFetchResult> => {
-      logger.log(`Running background sync background task`);
+      logger.trackEvent(`Running background task`);
       if (error) {
-        logger.error(`Failed background sync background task`, error.message);
+        logger.trackError(`Failed background task`, {
+          context: 'called with error',
+          errorMessage: error.message,
+        });
         return BackgroundFetch.BackgroundFetchResult.Failed;
       }
 
@@ -90,10 +94,10 @@ export function registerBackgroundSyncTask() {
         // there actually was new data.
         return BackgroundFetch.BackgroundFetchResult.NewData;
       } catch (err) {
-        logger.error(
-          'Failed background sync',
-          err instanceof Error ? err.message : err
-        );
+        logger.trackError('Failed background task', {
+          context: 'catch',
+          errorMessage: err instanceof Error ? err.message : err,
+        });
         return BackgroundFetch.BackgroundFetchResult.NewData;
       }
     }
@@ -102,7 +106,7 @@ export function registerBackgroundSyncTask() {
   (async () => {
     try {
       if (await TaskManager.isTaskRegisteredAsync(TASK_ID)) {
-        logger.log('Background sync task is registered');
+        logger.trackEvent('Background sync task is registered');
       } else {
         logger.log('Background sync task is not registered, registering now');
         await BackgroundFetch.registerTaskAsync(TASK_ID, {
@@ -110,12 +114,16 @@ export function registerBackgroundSyncTask() {
           // Android, system minimum on iOS (10-15 minutes)
           minimumInterval: 15 * 60,
         });
-        logger.log('Registered background sync task');
+        logger.trackEvent('Background sync task is registered');
       }
       const status = await TaskManager.getRegisteredTasksAsync();
-      logger.log('Current registered tasks:', status);
+      logger.trackEvent('Current registered tasks:', {
+        tasks: status,
+      });
     } catch (err) {
-      logger.error('Failed to register background sync task', err);
+      logger.trackEvent('Failed to register background task', {
+        errorMessage: err instanceof Error ? err.message : err,
+      });
     }
   })();
 }
