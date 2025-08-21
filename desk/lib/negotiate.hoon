@@ -342,8 +342,10 @@
       ^-  (list card)
       ::  kick incoming subs for protocols we no longer support
       ::
+      =/  old  ~(tap by (~(dif by ole) neu))
+      ~&  [%ours-changed %kicking old]
       %+  weld
-        %+  turn  ~(tap by (~(dif by ole) neu))
+        %+  turn  old
         |=  [=protocol =version]
         [%give %kick [/~/negotiate/version/[protocol]]~ ~]
       ::  give updates for protocols whose supported version changed
@@ -352,6 +354,7 @@
       |=  [=protocol =version]
       ^-  (unit card)
       ?:  =(`version (~(get by ole) protocol))  ~
+      ~&  [%ours-changed 'giving version' version 'for protocol' protocol]
       `[%give %fact [/~/negotiate/version/[protocol]]~ %noun !>(version)]
     ::
     ++  heed-changed
@@ -607,7 +610,10 @@
           [%version @ ~]  ::  /~/negotiate/version/[protocol]
         ::  it is important that we nack if we don't expose this protocol
         ::
-        [[%give %fact ~ %noun !>((~(got by ours) i.t.t.t.path))]~ this]
+        =/  key  i.t.t.t.path
+        =/  version  (~(got by ours) key)
+        ~&  [%version-watched src.bowl key version]
+        [[%give %fact ~ %noun !>(version)]~ this]
       ::
           [%notify ?([%json ~] ~)]  ::  /~/negotiate/notify(/json)
         ?>  =(our src):bowl
@@ -642,6 +648,7 @@
         ?-  -.sign
             %fact
           =*  mark  p.cage.sign
+          ~&  [%heed-fact-received mark for]
           =*  vase  q.cage.sign
           ?.  =(%noun mark)
             ~&  [negotiate+dap.bowl %ignoring-unexpected-fact mark=mark]
@@ -663,6 +670,7 @@
           ::  if we still care, consider the version "unknown" for now,
           ::  and try re-subscribing later
           ::
+          ~&  [%heed-nacked for]
           =^  a  state  (heed-changed:up for ~)
           =^  [caz=(list card) nin=_inner]  state
             (simulate-kicks:up kik.a inner)
@@ -673,6 +681,7 @@
           [[(retry-timer:up ~m30 [%watch t.t.wire]) (weld caz.a caz)] this]
         ::
             %kick
+          ~&  [%heed-kicked for]
           :_  this
           ::  to prevent pathological kicks from exploding, we always
           ::  wait a couple seconds before resubscribing.
@@ -707,6 +716,7 @@
       ?.  ?=(%x i.path)  [~ ~]
       ?+  t.t.t.path  [~ ~]
         [%version ~]  ``noun+!>(ours)
+        [%state ~]  ``noun+!>(state)
       ::
           [%version @ @ @ ~]
         =/  for=[gill:gall protocol]
@@ -785,6 +795,7 @@
           =/  for=[gill:gall protocol]
             =*  w  t.t.t.t.t.wire
             [[(slav %p i.w) i.t.w] i.t.t.w]
+          ~&  [%heed-retry for 'attempting to watch for version']
           [[(watch-version:up for)]~ this]
         ==
       ==

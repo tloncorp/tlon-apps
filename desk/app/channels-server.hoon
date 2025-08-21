@@ -48,11 +48,11 @@
     :~  [/x/v0/hooks %hook-full]
     ==
 ::
+%-  agent:dbug
 %-  %-  agent:neg
     :+  notify=|
       [~.channels^%3 ~ ~]
     (my %groups^[~.groups^%1 ~ ~] ~)
-%-  agent:dbug
 %+  verb  |
 ::
 ^-  agent:gall
@@ -419,8 +419,10 @@
     ::
         [%send-sequence-numbers *]
       =+  ;;([%send-sequence-numbers =nest:c] q.vase)
+      ~&  [%got-poke %send-sequence-numbers nest]
       ?~  can=(~(get by v-channels) nest)  cor
       =;  =cage
+        ~&  [%sending-sequence-numbers src.bowl]
         (emit [%pass /numbers %agent [src.bowl %channels] %poke cage])
       :-  %noun
       !>  :^  %sequence-numbers  nest
@@ -432,8 +434,10 @@
     ::
         [%send-tombstones *]
       =+  ;;([%send-tombstones =nest:c] q.vase)
+      ~&  [%got-poke %send-tombstones nest]
       ?~  can=(~(get by v-channels) nest)  cor
       =;  =cage
+        ~&  [%sending-tombstones src.bowl]
         (emit [%pass /tombstones %agent [src.bowl %channels] %poke cage])
       :-  %noun
       !>  :+  %tombstones  nest

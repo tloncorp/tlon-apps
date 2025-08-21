@@ -194,6 +194,7 @@
     ==
 ::
 =/  verbose  |
+%-  agent:dbug
 %-  %-  agent:neg
     :+  notify=&
       [~.channels^%3 ~ ~]
@@ -201,7 +202,6 @@
     :~  %groups^[~.groups^%1 ~ ~]
         %channels-server^[~.channels^%3 ~ ~]
     ==
-%-  agent:dbug
 %+  verb  |
 ::
 ^-  agent:gall
@@ -329,11 +329,13 @@
     ^-  (list card)
     =/  =wire
       /[kind.nest]/(scot %p ship.nest)/[name.nest]
+    =/  duration  (~(rad og (sham our.bowl nest)) ~m15)
     =/  note=note-arvo
       ::  slightly staggered to spread load. might not be strictly necessary
       ::  for this, but good practice.
       ::
-      [%b %wait (add now.bowl (~(rad og (sham our.bowl nest)) ~m15))]
+      [%b %wait (add now.bowl duration)]
+    ~&  [wire `@dr`duration %fires-at `@da`(add now.bowl duration)]
     ::NOTE  we used to do the /numbers ones during 8-to-9 migration,
     ::      but the logic for handling those timer events was flawed initially,
     ::      so we re-set those timers here to retry. if this results in
@@ -789,6 +791,7 @@
         [%sequence-numbers * @ *]
       =+  ;;([%sequence-numbers =nest:c count=@ud seqs=(list [id=id-post:c seq=(unit @ud)])] q.vase)
       ?>  =(src.bowl ship.nest)
+      ~&  ['receiving-sequence-nrs' nest count]
       =.  cor  (emit (tell:plog %info ~['receiving sequence nrs' >nest<] ~))
       ?.  (~(has by v-channels) nest)  cor
       =.  v-channels
@@ -815,6 +818,7 @@
         [%tombstones * *]
       =+  ;;([%tombstones =nest:c tombs=(list [id=id-post:v9:c tomb=tombstone:v9:c])] q.vase)
       ?>  =(src.bowl ship.nest)
+      ~&  ['receiving-tombstones' nest (lent tombs)]
       =.  cor  (emit (tell:plog %info ~['receiving tombstones' >nest<] ~))
       ?.  (~(has by v-channels) nest)  cor
       =.  v-channels
@@ -1428,6 +1432,9 @@
     channel-heads-3+!>(`channel-heads:v9:c`heads)
   ==
 ::
+++  relevant
+  |=  =ship
+  |(=(ship ~nocsyx-lassul) =(ship ~dabben-larbet) =(ship ~bitpyx-dildus))
 ++  arvo
   |=  [=(pole knot) sign=sign-arvo]
   ^+  cor
@@ -1441,22 +1448,32 @@
   ::
       [%numbers kind=?(%chat %diary %heap) ship=@ name=@ ~]
     =/  host=ship  (slav %p ship.pole)
+    ~?  (relevant host)  [(spat pole) %waking-up]
     =/  =nest:c    [kind.pole host name.pole]
     %-  emit
     :+  %pass  pole
     ?.  (can-poke:neg bowl host %channels-server)
+      =/  duration  (~(rad og eny.bowl) ~m15)
+      ~?  (relevant host)
+        [%cant-poke (spat pole) %fires-in `@dr`(add ~m15 duration)]
       [%arvo %b %wait :(add now.bowl ~m15 (~(rad og eny.bowl) ~m15))]
     =/  =cage  [%noun !>([%send-sequence-numbers nest])]
+    ~&  [%asking-numbers host nest]
     [%agent [host %channels-server] %poke cage]
   ::
       [%tombstones kind=?(%chat %diary %heap) ship=@ name=@ ~]
     =/  host=ship  (slav %p ship.pole)
+    ~?  (relevant host)  [(spat pole) %waking-up]
     =/  =nest:c    [kind.pole host name.pole]
     %-  emit
     :+  %pass  pole
     ?.  (can-poke:neg bowl host %channels-server)
-      [%arvo %b %wait :(add now.bowl ~m15 (~(rad og eny.bowl) ~m15))]
+      =/  duration  (~(rad og eny.bowl) ~m15)
+      ~?  (relevant host)
+        [%cant-poke (spat pole) %fires-in `@dr`(add ~m15 duration)]
+      [%arvo %b %wait :(add now.bowl ~m15 duration)]
     =/  =cage  [%noun !>([%send-tombstones nest])]
+    ~&  [%asking-tombstones host nest]
     [%agent [host %channels-server] %poke cage]
   ==
 ::
