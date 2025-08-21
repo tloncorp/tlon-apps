@@ -233,8 +233,6 @@ PODS:
     - ExpoModulesCore
   - ExpoBackgroundFetch (13.0.6):
     - ExpoModulesCore
-  - ExpoBackgroundTask (0.2.8):
-    - ExpoModulesCore
   - ExpoBattery (9.0.2):
     - ExpoModulesCore
   - ExpoBlur (14.0.3):
@@ -2297,7 +2295,6 @@ DEPENDENCIES:
   - expo-dev-menu-interface (from `../../../node_modules/expo-dev-menu-interface/ios`)
   - ExpoAsset (from `../../../node_modules/expo-asset/ios`)
   - ExpoBackgroundFetch (from `../../../node_modules/expo-background-fetch/ios`)
-  - ExpoBackgroundTask (from `../../../node_modules/expo-background-task/ios`)
   - ExpoBattery (from `../../../node_modules/expo-battery/ios`)
   - ExpoBlur (from `../../../node_modules/expo-blur/ios`)
   - ExpoClipboard (from `../../../node_modules/expo-clipboard/ios`)
@@ -2478,8 +2475,6 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-asset/ios"
   ExpoBackgroundFetch:
     :path: "../../../node_modules/expo-background-fetch/ios"
-  ExpoBackgroundTask:
-    :path: "../../../node_modules/expo-background-task/ios"
   ExpoBattery:
     :path: "../../../node_modules/expo-battery/ios"
   ExpoBlur:
@@ -2719,7 +2714,6 @@ SPEC CHECKSUMS:
   expo-dev-menu-interface: 00dc42302a72722fdecec3fa048de84a9133bcc4
   ExpoAsset: 48386d40d53a8c1738929b3ed509bcad595b5516
   ExpoBackgroundFetch: 72d9978cf6addacc6fb5e211ef99f74146a52d76
-  ExpoBackgroundTask: 6c1990438e45b5c4bbbc7d75aa6b688d53602fe8
   ExpoBattery: d2e508fb7a2a6214d97ff598274c8bd71b704ce6
   ExpoBlur: 392c1207f71d0ecf22371621c1fbd44ba84d9742
   ExpoClipboard: 44fd1c8959ee8f6175d059dc011b154c9709a969
