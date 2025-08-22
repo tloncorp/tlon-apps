@@ -110,6 +110,9 @@ jobs:
                 -e CI=true \
                 docker.io/ubuntu:22.04 \
                 bash -c "
+                  # Exit on any error, undefined variable, or pipe failure
+                  set -euo pipefail
+                  
                   # Install dependencies
                   apt-get update && apt-get install -y curl git build-essential netcat-openbsd
                   
@@ -131,7 +134,6 @@ jobs:
                   cd apps/tlon-web
                   pnpm exec playwright install --with-deps chromium
                   
-                  # Run production smoke test
                   pnpm e2e:prod:smoke:force
                   
                   # Fix permissions on created files for host user
@@ -194,6 +196,9 @@ jobs:
               -e FORCE_EXTRACTION=true \
               docker.io/ubuntu:22.04 \
               bash -c "
+                # Exit on any error, undefined variable, or pipe failure
+                set -euo pipefail
+                
                 # Install dependencies
                 apt-get update && apt-get install -y curl git build-essential netcat-openbsd
                 
@@ -219,7 +224,6 @@ jobs:
                 cd apps/tlon-web
                 pnpm exec playwright install --with-deps chromium
                 
-                # Run tests
                 pnpm e2e:force
                 
                 # Fix permissions on all created files for host user
