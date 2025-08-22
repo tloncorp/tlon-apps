@@ -88,27 +88,32 @@
     =+  !<(=a-log:l vase)
     ?-    -.a-log
         %log
+      =*  event  +>-.a-log
       =/  level=@ud
-        ~!  +<-.a-log
-        ?-  +<-.a-log
+        ?-  -.event
           %fail  (get-level %crit)
           %tell  (get-level vol.a-log)
         ==
       ::  output to dojo if we have a level set and its higher than the event
       %-  ?~  dojo  same
-          ?.  (lte level (get-level u.dojo))  same
-          ?-  +<-.a-log
-            %tell  (slog echo.a-log)
+          ?.  (gte level (get-level u.dojo))  same
+          ?-  -.event
+              %tell
+            =/  =tang
+              :_  ~
+              :+  %rose  [~ ~ ~]
+              [[%leaf "{<agent.a-log>}: "] echo.a-log]
+            (%*(. slog pri level) tang)
           ::
               %fail
-            %-  (slog `@t`desc.a-log ~)
-            (slog trace.a-log)
+            %-  (%*(. slog pri level) [%leaf "{<agent.a-log>}: {<desc.a-log>}"] ~)
+            (%*(. slog pri level) trace.a-log)
           ==
       ::  output to posthog if we have a level set and its higher than the event
       ?~  posthog  cor
-      ?.  (lte level (get-level u.posthog))
+      ?.  (gte level (get-level u.posthog))
         cor
-      (send-posthog-event sap.bowl now.bowl +.a-log)
+      (send-posthog-event sap.bowl now.bowl +>.a-log)
     ::
         %set-dojo
       cor(dojo vol.a-log)

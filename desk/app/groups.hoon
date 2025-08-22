@@ -177,7 +177,7 @@
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
-      log   ~(. logs [our.bowl /logs])
+      log   ~(. logs [our.bowl dap.bowl /logs])
       cor   ~(. +> [bowl ~])
   ++  on-init
     ^-  (quip card _this)
@@ -262,14 +262,6 @@
     |=  [vol=volume:logs =echo:logs]
     =/  =card
       (~(tell logs our.bowl /logs) vol echo deez)
-    =/  pri
-      ?-  vol
-        %dbug  0
-        %info  1
-        %warn  2
-        %crit  3
-      ==
-    %-  %-  %*(. slog pri pri)  echo
     |*  etc=*
     =.  cor  (emit card)
     etc

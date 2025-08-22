@@ -1,6 +1,6 @@
 /-  *logs
 =<
-  |_  [our=ship =wire]
+  |_  [our=ship agent=dude:gall =wire]
   ::
   ++  fail
     |=  [desc=term trace=tang =log-data]
@@ -19,7 +19,7 @@
   ++  pass
     |=  [event=log-event data=log-data]
     ^-  card:agent:gall
-    [%pass wire %agent [our %logs] %poke log-action+!>([%log event data])]
+    [%pass wire %agent [our %logs] %poke log-action+!>([%log agent event data])]
   --
 |%
 ::

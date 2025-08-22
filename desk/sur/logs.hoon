@@ -8,10 +8,10 @@
 ++  volume-level
   ^~  ^-  (map volume @ud)
   %-  my
-  :~  [%dbug 3]
-      [%info 2]
-      [%warn 1]
-      [%crit 0]
+  :~  [%dbug 0]
+      [%info 1]
+      [%warn 2]
+      [%crit 3]
   ==
 ::  $log-event
 ::
@@ -28,7 +28,7 @@
 +$  log-data  (list (pair @t json))
 ::
 +$  a-log
-  $%  [%log log-event data=log-data]
+  $%  [%log agent=dude:gall log-event data=log-data]
       [%set-dojo vol=(unit volume)]
       [%set-posthog vol=(unit volume)]
   ==
