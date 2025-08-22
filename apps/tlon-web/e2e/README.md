@@ -274,9 +274,10 @@ pnpm e2e:test --ui notebook-functionality.spec.ts
 ```
 
 The script (located at `rube/run-selected-tests.ts`) uses a modified version of rube that stops before running the full test suite, then executes only your specific test(s). This handles all the orchestration for you, so you don't need to manually start ships or remember to clean up afterwards. This is especially useful when:
-- Iterating on a single test during development
-- Testing how multiple tests interact with each other
-- Debugging test pollution or ordering issues without running the full suite
+
+-   Iterating on a single test during development
+-   Testing how multiple tests interact with each other
+-   Debugging test pollution or ordering issues without running the full suite
 
 ### Playwright MCP Development
 
@@ -380,11 +381,11 @@ The Rube system automatically:
 3. **Authentication failures**: Delete `.auth/` directory and re-run tests
 4. **Timeout errors**: Increase timeout in configuration or check ship readiness
 5. **Corrupted ship state**: Ship state is automatically nuked before each run. If issues persist, use `FORCE_EXTRACTION=true` to force complete re-extraction of all ships
-6. **Test passes individually but fails in full suite**: 
-   - Run a subset of tests to isolate the problem: `pnpm e2e:test [working-test] [failing-test]`
-   - Gradually add more tests that run alphabetically before the failing test
-   - Check for missing cleanup in tests that run before the failing test
-   - Common culprits: invite links creating contacts, profile modifications, asymmetric relationships
+6. **Test passes individually but fails in full suite**:
+    - Run a subset of tests to isolate the problem: `pnpm e2e:test [working-test] [failing-test]`
+    - Gradually add more tests that run alphabetically before the failing test
+    - Check for missing cleanup in tests that run before the failing test
+    - Common culprits: invite links creating contacts, profile modifications, asymmetric relationships
 
 ### Logs and Debugging
 
@@ -400,18 +401,21 @@ The e2e infrastructure now includes robust cleanup handling:
 1. **Automatic cleanup on Ctrl+C**: When you interrupt `pnpm e2e` or other e2e commands with Ctrl+C, all processes (including Urbit ships and their serf sub-processes) are now properly cleaned up.
 
 2. **Emergency cleanup script**: If processes get stuck or orphaned, use the emergency cleanup script:
-   ```bash
-   ./rube-cleanup.sh
-   ```
-   This will forcefully terminate all rube-related processes including:
-   - Urbit ships and serf processes
-   - Vite dev servers
-   - Any orphaned Node.js processes from the test infrastructure
+
+    ```bash
+    ./rube-cleanup.sh
+    ```
+
+    This will forcefully terminate all rube-related processes including:
+
+    - Urbit ships and serf processes
+    - Vite dev servers
+    - Any orphaned Node.js processes from the test infrastructure
 
 3. **How cleanup works**: The infrastructure uses pattern-based process killing to ensure even untracked sub-processes (like Urbit's serf) are properly terminated. This happens automatically when:
-   - Tests complete normally
-   - You interrupt with Ctrl+C
-   - The process exits for any reason
+    - Tests complete normally
+    - You interrupt with Ctrl+C
+    - The process exits for any reason
 
 ## Maintenance
 
@@ -457,6 +461,7 @@ Some tests create persistent state that isn't immediately obvious:
 -   **Asymmetric State**: Some relationships are one-way (e.g., ~ten having ~zod as a contact doesn't mean ~zod has ~ten as a contact).
 
 **Critical**: Any test that creates contact relationships MUST clean them up, including:
+
 -   Clicking "Remove contact" after testing invite links
 -   Using `helpers.removeContact()` or `helpers.cleanupContactNicknames()`
 -   Ensuring both sides of a relationship are cleaned if bidirectional
@@ -464,6 +469,7 @@ Some tests create persistent state that isn't immediately obvious:
 ### Test Isolation and Cleanup
 
 **Complete Cleanup Checklist:**
+
 -   ✅ Groups created and joined
 -   ✅ DM conversations (both participants must leave)
 -   ✅ Contact relationships (including those from invite links)
@@ -474,6 +480,7 @@ Some tests create persistent state that isn't immediately obvious:
 **Warning**: Incomplete cleanup causes test pollution that may only manifest when running the full suite.
 
 **Essential Cleanup Helpers:**
+
 -   `cleanupOwnProfile(page)` - removes custom profile data
 -   `cleanupContactNicknames(page)` - removes all contact nicknames and contacts
 -   `removeContact(page, contactId)` - removes specific contact
@@ -487,7 +494,7 @@ Some tests create persistent state that isn't immediately obvious:
 -   Tests run on every pull request via `.github/workflows/ci.yml`
 -   Playwright browsers are cached, but ship piers are **not cached** (due to current issues)
 -   Each CI run downloads fresh ship images (~1.5GB total)
--   Full CI run including setup takes approximately 7-10 minutes
+-   Full CI run including setup takes approximately 25 minutes
 
 ### CI-Specific Behavior
 
@@ -506,7 +513,7 @@ npx playwright show-report /path/to/downloaded/playwright-report
 
 ## Performance Considerations
 
--   Full test suite takes approximately 7-10 minutes
+-   Full test suite takes approximately 15 minutes
 -   Each ship requires ~500MB disk space + memory for Urbit process
 -   Tests run sequentially to avoid state conflicts
 -   Consider running subset of tests (or a single test) during development

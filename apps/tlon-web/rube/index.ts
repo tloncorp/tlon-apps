@@ -15,8 +15,6 @@ import * as path from 'path';
 import * as tar from 'tar-fs';
 import * as zlib from 'zlib';
 
-// TODO: write a script to update and package a pier then upload it to gcs
-
 const spawnedProcesses: childProcess.ChildProcess[] = [];
 const startHashes: { [ship: string]: { [desk: string]: string } } = {};
 const rubeDir = __dirname;
@@ -232,35 +230,6 @@ const killExistingUrbitProcesses = async (): Promise<void> => {
   });
 };
 
-const killExistingViteDevServerProcesses = async (): Promise<void> => {
-  const command = killExistingViteCommand();
-  return new Promise((resolve) => {
-    childProcess.exec(
-      command,
-      { maxBuffer: 1024 * 1024 },
-      (error, stdout, stderr) => {
-        // Always resolve - we don't want to fail if there's nothing to kill
-        if (
-          error &&
-          !error.message.includes('No such process') &&
-          !error.message.includes('SIGKILL')
-        ) {
-          console.log(`Note killing vite processes: ${error.message}`);
-        }
-        if (stderr && !stderr.includes('No such process')) {
-          console.log(`stderr: ${stderr}`);
-        }
-        if (stdout && stdout.trim()) {
-          console.log(`Killed vite processes: ${stdout}`);
-        } else {
-          console.log(`No vite dev server processes to kill`);
-        }
-        resolve();
-      }
-    );
-  });
-};
-
 const bootShip = (
   binaryPath: string,
   pierPath: string,
@@ -277,6 +246,7 @@ const bootShip = (
   console.log(
     `Booting ship ${pierPath} on port ${httpPort} with ${binaryPath}`
   );
+
   const urbitProcess = childProcess.spawn(binaryPath, [
     pierPath,
     '-d',
@@ -286,13 +256,17 @@ const bootShip = (
 
   spawnedProcesses.push(urbitProcess);
 
-  urbitProcess.stdout.on('data', (data) => {
-    console.log(`[Urbit STDOUT (${ship})]: ${data}`);
-  });
+  if (urbitProcess.stdout) {
+    urbitProcess.stdout.on('data', (data) => {
+      console.log(`[Urbit STDOUT (${ship})]: ${data}`);
+    });
+  }
 
-  urbitProcess.stderr.on('data', (data) => {
-    console.error(`[Urbit STDERR (${ship})]: ${data}`);
-  });
+  if (urbitProcess.stderr) {
+    urbitProcess.stderr.on('data', (data) => {
+      console.error(`[Urbit STDERR (${ship})]: ${data}`);
+    });
+  }
 
   urbitProcess.on('close', (code) => {
     console.log(`Urbit process exited with code ${code}`);

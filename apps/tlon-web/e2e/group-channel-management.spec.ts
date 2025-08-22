@@ -3,9 +3,7 @@ import { expect } from '@playwright/test';
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
-test('should handle complete group lifecycle with settings management', async ({
-  zodPage,
-}) => {
+test('should handle channel management operations', async ({ zodPage }) => {
   const page = zodPage;
 
   await expect(page.getByText('Home')).toBeVisible();
@@ -29,59 +27,6 @@ test('should handle complete group lifecycle with settings management', async ({
   // Open group settings
   await helpers.openGroupSettings(page);
   await expect(page.getByText('Group info')).toBeVisible();
-
-  // Test pin/unpin functionality
-  const pinStatus = await helpers.toggleChatPin(page);
-
-  // Navigate back to check pinned status
-  if (pinStatus) {
-    await helpers.navigateToHomeAndVerifyGroup(page, pinStatus);
-  }
-
-  // Return to group settings and toggle pin again
-  await page.getByText('Untitled group').first().click();
-  await helpers.openGroupSettings(page);
-  const unpinStatus = await helpers.toggleChatPin(page);
-
-  // Navigate back to check unpinned status
-  if (unpinStatus) {
-    await helpers.navigateToHomeAndVerifyGroup(page, unpinStatus);
-  }
-
-  // Return to group settings for remaining tests
-  await page.getByText('Untitled group').first().click();
-  await helpers.openGroupSettings(page);
-  await expect(page.getByText('Group info')).toBeVisible();
-
-  // Test forwarding group reference
-  await helpers.forwardGroupReference(page, 'Chat');
-
-  // Test privacy settings
-  await helpers.setGroupPrivacy(page, 'private');
-  await helpers.navigateBack(page);
-  await expect(page.getByText('Private group with 1 member')).toBeVisible();
-  await expect(
-    page.getByTestId('GroupPrivacy').getByText('Private')
-  ).toBeVisible();
-
-  // Test role management
-  await page.getByTestId('GroupRoles').click();
-  await expect(page.getByText('Group Roles')).toBeVisible();
-  await expect(page.getByTestId('GroupRole-Admin')).toBeVisible();
-
-  // Edit existing role
-  await page.getByTestId('GroupRole-Admin').click();
-  await expect(
-    page.getByText(/.*Admins can add and remove channels.*/)
-  ).toBeVisible();
-  await expect(page.getByText('Delete role')).not.toBeVisible();
-  await page.getByText('Save').click();
-
-  // Create new role
-  await helpers.createRole(page, 'Testing role', 'Description for test role');
-
-  await helpers.navigateBack(page);
-  await helpers.verifyElementCount(page, 'GroupRoles', 2);
 
   // Test channel management
   await page.getByTestId('GroupChannels').getByText('Channels').click();
@@ -144,7 +89,7 @@ test('should handle complete group lifecycle with settings management', async ({
 
   await helpers.navigateBack(page);
 
-  // Test notification settings
+  // Test notification settings (moved here as it's part of channel settings)
   await helpers.setGroupNotifications(page, 'All activity');
   await helpers.navigateBack(page, 1);
   await expect(

@@ -318,8 +318,8 @@ export const ChatOptionsProvider = ({
   const handlePressInvite = useCallback(() => {
     if (groupId) {
       if (onPressInvite) {
-        onPressInvite?.(groupId);
         closeSheet();
+        onPressInvite?.(groupId);
       } else {
         // if not handled by the parent, open built in invite sheet
         closeSheet();
