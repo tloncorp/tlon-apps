@@ -18,9 +18,11 @@ export function SizableEmoji(
   const lineHeight = getFontSize(fontSize) + MAGIC_HEIGHT_ADJUSTMENT_CONSTANT;
   const finalEmoji = useMemo(() => getNativeEmoji(emojiInput), [emojiInput]);
 
+  // If getNativeEmoji returns undefined (invalid shortcode), show a placeholder emoji
+  // This prevents empty display for legacy shortcodes in the database
   return (
     <SizableText {...rest} lineHeight={lineHeight} fontSize={fontSize}>
-      {finalEmoji}
+      {finalEmoji || '❓'}
     </SizableText>
   );
 }

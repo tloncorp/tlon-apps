@@ -9,6 +9,8 @@ This directory contains end-to-end tests for the Tlon web app using Playwright. 
 -   Development: `pnpm e2e:ui` (interactive debugging)
 -   Single test: `pnpm e2e:test filename.spec.ts` (automatic ship management)
 -   Single test (manual): `npx playwright test filename.spec.ts` (requires running ships)
+-   **Playwright MCP development: `pnpm e2e:playwright-dev` (starts ships + web servers for Claude Code Playwright MCP)**
+-   **Production smoke test: `pnpm e2e:prod:smoke` (builds production bundle and tests for runtime errors)**
 -   View results: `npx playwright show-report`
 -   If you have an issue with a run, try it again with `force`.
 
@@ -88,6 +90,7 @@ The testing environment uses three pre-configured Urbit ships:
 
 -   **App Settings** (`app-settings.spec.ts`) - Application configuration
 -   **Profile Functionality** (`profile-functionality.spec.ts`) - User profile management
+-   **Production Smoke Test** (`production-smoke.spec.ts`) - Verifies production build works without runtime errors (automatically skipped unless USE_PRODUCTION_BUILD=true)
 
 ## Running Tests
 
@@ -106,8 +109,14 @@ pnpm e2e
 # Run a single test with automatic ship management
 pnpm e2e:test chat-functionality.spec.ts
 
+# Run multiple tests together to check interactions
+pnpm e2e:test chat-functionality.spec.ts direct-message.spec.ts
+
 # Run a single test in debug mode
 pnpm e2e:test --debug chat-functionality.spec.ts
+
+# Run multiple tests with flags
+pnpm e2e:test --headed group-lifecycle.spec.ts group-customization.spec.ts
 
 # Run a single test with multiple flags
 pnpm e2e:test --headed --debug chat-functionality.spec.ts
@@ -123,7 +132,29 @@ pnpm e2e:headed
 
 # Generate test code using Playwright codegen
 pnpm e2e:codegen
+
+# Run production smoke test (builds production bundle and tests for runtime errors)
+pnpm e2e:prod:smoke
+
+# Run production smoke test with forced re-extraction
+pnpm e2e:prod:smoke:force
 ```
+
+### Production Testing
+
+The production smoke test (`pnpm e2e:prod:smoke`) is a special test that:
+
+1. Builds the application in production mode with `VITE_DISABLE_SPLASH_MODAL=true`
+2. Serves the production build using `vite preview`
+3. Runs a minimal smoke test to verify the app loads without runtime errors
+4. Uses the RuntimeErrorDetector to catch production-only issues like:
+    - Transpilation errors (e.g., "Cannot assign to read only property")
+    - Module loading failures
+    - Syntax errors that only appear in production builds
+
+This test is critical for catching issues that don't appear in development mode due to different transpilation or bundling behavior. It runs in CI before the full E2E suite to provide fast feedback on production build issues.
+
+**Note:** The production smoke test includes `test.skip()` logic that automatically skips it during regular test runs unless `USE_PRODUCTION_BUILD=true` is set. This prevents it from failing when running `pnpm e2e` which uses the dev server instead of a production build.
 
 ### Advanced Usage
 
@@ -135,11 +166,18 @@ npx playwright test chat-functionality.spec.ts
 # Run specific test file with automatic ship management (recommended for development)
 pnpm e2e:test chat-functionality.spec.ts
 
+# Run multiple test files together (useful for testing interactions)
+pnpm e2e:test group-lifecycle.spec.ts group-customization.spec.ts
+pnpm e2e:test --debug dm-thread-functionality.spec.ts thread-functionality.spec.ts
+
 # Force re-extraction of all ships (useful for clean slate testing)
 pnpm e2e:force
 
 # Force re-extraction with single test
 pnpm e2e:test:force chat-functionality.spec.ts
+
+# Force re-extraction with multiple tests
+pnpm e2e:test:force chat-functionality.spec.ts direct-message.spec.ts
 
 # Run tests matching pattern
 npx playwright test --grep "group"
@@ -206,35 +244,113 @@ The `helpers.ts` file provides numerous utility functions:
 -   `DEBUG_PLAYWRIGHT`: Enable debug output
 -   `CI`: Enables CI-specific configurations
 -   `FORCE_EXTRACTION`: Set to 'true' to bypass ship extraction checks and force re-extraction of all ships
+-   `USE_PRODUCTION_BUILD`: Set to 'true' to run tests against production build instead of dev server
 
 ## Development Workflow
 
-### Running Individual Tests
+### Running Individual or Multiple Tests
 
-For development convenience, use the automated single-test runner:
+For development convenience, use the automated test runner:
 
 ```bash
 # This will automatically:
 # 1. Boot all three ships (zod, bus, ten) without running tests
 # 2. Start the web servers
 # 3. Wait for everything to be ready
-# 4. Run your specific test only
+# 4. Run your specific test(s)
 # 5. Clean up all processes when done
+
+# Single test file
 pnpm e2e:test notebook-functionality.spec.ts
 
-# For debugging individual tests:
+# Multiple test files (useful for testing interactions)
+pnpm e2e:test chat-functionality.spec.ts direct-message.spec.ts
+pnpm e2e:test group-lifecycle.spec.ts group-customization.spec.ts group-info-settings.spec.ts
+
+# For debugging tests:
 pnpm e2e:test --debug notebook-functionality.spec.ts
-pnpm e2e:test --headed notebook-functionality.spec.ts
+pnpm e2e:test --headed chat-functionality.spec.ts direct-message.spec.ts
 pnpm e2e:test --ui notebook-functionality.spec.ts
 ```
 
-The script (located at `rube/run-single-test.ts`) uses a modified version of rube that stops before running the full test suite, then executes only your specific test. This handles all the orchestration for you, so you don't need to manually start ships or remember to clean up afterwards. This is especially useful when iterating on a single test during development.
+The script (located at `rube/run-selected-tests.ts`) uses a modified version of rube that stops before running the full test suite, then executes only your specific test(s). This handles all the orchestration for you, so you don't need to manually start ships or remember to clean up afterwards. This is especially useful when:
+
+-   Iterating on a single test during development
+-   Testing how multiple tests interact with each other
+-   Debugging test pollution or ordering issues without running the full suite
+
+### Playwright MCP Development
+
+For developers using Claude Code with the Playwright MCP server to write or update e2e tests:
+
+```bash
+# Start the complete e2e environment (ships + web servers)
+pnpm e2e:playwright-dev
+```
+
+This command:
+
+1. **Starts all three Urbit ships** (zod, bus, ten) with the latest backend code
+2. **Starts corresponding web servers** that connect to each ship:
+    - ~zod: http://localhost:3000/apps/groups/
+    - ~bus: http://localhost:3001/apps/groups/
+    - ~ten: http://localhost:3002/apps/groups/
+3. **Keeps everything running** until you stop it (Ctrl+C)
+4. **Handles cleanup** of all processes when stopped
+
+Once running, you can use Claude Code's Playwright MCP server to:
+
+-   Navigate to any of the web URLs
+-   Write new test scenarios interactively
+-   Debug existing test issues
+-   Take screenshots and inspect the UI
+
+The environment replicates exactly what the automated tests see, giving you a seamless development experience for e2e test creation and debugging.
+
+### **MCP Server Configuration**
+
+Configure Claude Code to use the Playwright MCP server (no persistent authentication):
+
+```bash
+claude mcp add playwright npx @playwright/mcp@latest
+```
+
+**MCP Server Development Workflow (RECOMMENDED):**
+
+1. **Start the environment**: Run `./start-playwright-dev.sh` from project root
+
+    - This starts all ships and web servers in background
+    - Returns when ready with ship URLs and auth codes
+    - Saves process info for easy cleanup
+
+2. **Use Playwright MCP server** to navigate and test while environment runs in background
+
+3. **Stop when done**: Choose one of:
+    - `kill [PID]` - Graceful shutdown (PID shown in start script output)
+    - `./stop-playwright-dev.sh` - Comprehensive cleanup
+    - `./stop-playwright-dev.sh --clean-logs` - Complete cleanup including logs
+
+**Authentication Requirements:**
+
+-   The MCP server does NOT maintain authentication state across Claude Code instances
+-   ALL ships require manual authentication when using the MCP server
+-   Authentication codes for manual entry:
+    -   ~zod: `lidlut-tabwed-pillex-ridrup`
+    -   ~ten: `lapseg-nolmel-riswen-hopryc`
+    -   ~bus: `riddec-bicrym-ridlev-pocsef`
+-   When you navigate to any ship URL, enter the appropriate auth code on the login page
+
+**Cross-Ship Testing:** Open multiple browser tabs and navigate to different ship URLs:
+
+-   ~zod: `http://localhost:3000/apps/groups/`
+-   ~ten: `http://localhost:3002/apps/groups/`
+-   ~bus: `http://localhost:3001/apps/groups/`
 
 ### Adding New Tests
 
 1. Create new `.spec.ts` file in the `e2e` directory
 2. Import required helpers and ship manifest
-3. Use appropriate authentication state
+3. Handle manual authentication as needed (see MCP Server Configuration above)
 4. Follow established patterns for navigation and cleanup
 5. Add reusable functions to `helpers.ts` if needed
 
@@ -265,6 +381,11 @@ The Rube system automatically:
 3. **Authentication failures**: Delete `.auth/` directory and re-run tests
 4. **Timeout errors**: Increase timeout in configuration or check ship readiness
 5. **Corrupted ship state**: Ship state is automatically nuked before each run. If issues persist, use `FORCE_EXTRACTION=true` to force complete re-extraction of all ships
+6. **Test passes individually but fails in full suite**:
+    - Run a subset of tests to isolate the problem: `pnpm e2e:test [working-test] [failing-test]`
+    - Gradually add more tests that run alphabetically before the failing test
+    - Check for missing cleanup in tests that run before the failing test
+    - Common culprits: invite links creating contacts, profile modifications, asymmetric relationships
 
 ### Logs and Debugging
 
@@ -272,6 +393,29 @@ The Rube system automatically:
 -   Ship logs: Check rube output for Urbit ship status
 -   Browser console: Accessible through debug mode, also accessible through Playwright traces
 -   Network requests: Captured in Playwright traces, also accessible through debug mode
+
+### Process Cleanup
+
+The e2e infrastructure now includes robust cleanup handling:
+
+1. **Automatic cleanup on Ctrl+C**: When you interrupt `pnpm e2e` or other e2e commands with Ctrl+C, all processes (including Urbit ships and their serf sub-processes) are now properly cleaned up.
+
+2. **Emergency cleanup script**: If processes get stuck or orphaned, use the emergency cleanup script:
+
+    ```bash
+    ./rube-cleanup.sh
+    ```
+
+    This will forcefully terminate all rube-related processes including:
+
+    - Urbit ships and serf processes
+    - Vite dev servers
+    - Any orphaned Node.js processes from the test infrastructure
+
+3. **How cleanup works**: The infrastructure uses pattern-based process killing to ensure even untracked sub-processes (like Urbit's serf) are properly terminated. This happens automatically when:
+    - Tests complete normally
+    - You interrupt with Ctrl+C
+    - The process exits for any reason
 
 ## Maintenance
 
@@ -308,6 +452,41 @@ When adding new test scenarios:
 -   Tests use cleanup helpers to remove created groups/channels
 -   Authentication state is reused across tests for performance
 
+### Hidden Test Dependencies and Side Effects
+
+Some tests create persistent state that isn't immediately obvious:
+
+-   **Personal Invite Links**: When a user visits another user's personal invite link, it automatically creates a one-way contact relationship. The visitor adds the invitee as a contact.
+-   **Contact Relationships**: Unlike groups and DMs, contact relationships created through invite links or explicit "Add Contact" actions persist across tests unless explicitly cleaned up.
+-   **Asymmetric State**: Some relationships are one-way (e.g., ~ten having ~zod as a contact doesn't mean ~zod has ~ten as a contact).
+
+**Critical**: Any test that creates contact relationships MUST clean them up, including:
+
+-   Clicking "Remove contact" after testing invite links
+-   Using `helpers.removeContact()` or `helpers.cleanupContactNicknames()`
+-   Ensuring both sides of a relationship are cleaned if bidirectional
+
+### Test Isolation and Cleanup
+
+**Complete Cleanup Checklist:**
+
+-   ✅ Groups created and joined
+-   ✅ DM conversations (both participants must leave)
+-   ✅ Contact relationships (including those from invite links)
+-   ✅ Custom profile data and nicknames
+-   ✅ Pending invitations
+-   ✅ Any modified settings
+
+**Warning**: Incomplete cleanup causes test pollution that may only manifest when running the full suite.
+
+**Essential Cleanup Helpers:**
+
+-   `cleanupOwnProfile(page)` - removes custom profile data
+-   `cleanupContactNicknames(page)` - removes all contact nicknames and contacts
+-   `removeContact(page, contactId)` - removes specific contact
+-   `cleanupExistingGroup(page, groupName)` - removes group if it exists
+-   `leaveDM(page, ship)` - leaves DM conversation
+
 ## Continuous Integration
 
 ### GitHub Actions Workflow
@@ -315,7 +494,7 @@ When adding new test scenarios:
 -   Tests run on every pull request via `.github/workflows/ci.yml`
 -   Playwright browsers are cached, but ship piers are **not cached** (due to current issues)
 -   Each CI run downloads fresh ship images (~1.5GB total)
--   Full CI run including setup takes approximately 7-10 minutes
+-   Full CI run including setup takes approximately 25 minutes
 
 ### CI-Specific Behavior
 
@@ -334,7 +513,7 @@ npx playwright show-report /path/to/downloaded/playwright-report
 
 ## Performance Considerations
 
--   Full test suite takes approximately 7-10 minutes
+-   Full test suite takes approximately 15 minutes
 -   Each ship requires ~500MB disk space + memory for Urbit process
 -   Tests run sequentially to avoid state conflicts
 -   Consider running subset of tests (or a single test) during development

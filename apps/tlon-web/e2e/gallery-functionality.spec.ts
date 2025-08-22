@@ -10,11 +10,6 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
   // Assert that we're on the Home page
   await expect(zodPage.getByText('Home')).toBeVisible();
 
-  // Clean up any existing group on zod
-  await helpers.cleanupExistingGroup(zodPage, 'Test Group');
-  await helpers.cleanupExistingGroup(zodPage, '~ten, ~zod');
-  await helpers.cleanupExistingGroup(zodPage);
-
   // Create a new group
   await helpers.createGroup(zodPage);
   const groupName = '~ten, ~zod';
@@ -87,27 +82,8 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
   // Navigate to the group as ~ten
   await expect(tenPage.getByText('Home')).toBeVisible();
 
-  // Wait for the group invitation and accept it
-  await tenPage.waitForTimeout(3000);
-  await expect(tenPage.getByText('Group invitation')).toBeVisible();
-  await tenPage.getByText('Group invitation').click();
-
-  // Accept the invitation
-  if (await tenPage.getByText('Accept invite').isVisible()) {
-    await tenPage.getByText('Accept invite').click();
-  }
-
-  // Wait for joining process and go to group
-  await tenPage.waitForSelector('text=Joining, please wait...');
-  await tenPage.waitForSelector('text=Go to group', { state: 'visible' });
-
-  if (await tenPage.getByText('Go to group').isVisible()) {
-    await tenPage.getByText('Go to group').click();
-  } else {
-    await tenPage.getByText(groupName).first().click();
-  }
-
-  await expect(tenPage.getByText(groupName).first()).toBeVisible();
+  // Accept the group invitation
+  await helpers.acceptGroupInvite(tenPage, groupName);
 
   // Navigate to the gallery channel
   await tenPage.getByTestId('ChannelListItem-Test Gallery').click();
@@ -147,7 +123,4 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
   await expect(
     zodPage.getByText('You have hidden or reported this post').first()
   ).not.toBeVisible();
-
-  // Clean up
-  await helpers.cleanupExistingGroup(zodPage);
 });

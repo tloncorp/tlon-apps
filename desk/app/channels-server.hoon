@@ -2,8 +2,8 @@
 ::
 ::    this is the server-side from which /app/channels gets its data.
 ::
-/-  c=channels, g=groups, h=hooks, m=meta
-/+  utils=channel-utils, imp=import-aid
+/-  c=channels, g=groups, gv=groups-ver, h=hooks, m=meta
+/+  utils=channel-utils, imp=import-aid, em=emojimart
 /+  default-agent, verb, dbug,
     neg=negotiate, discipline, logs
 /+  hj=hooks-json
@@ -49,7 +49,9 @@
     ==
 ::
 %-  %-  agent:neg
-    [| [~.channels^%2 ~ ~] ~]
+    :+  notify=|
+      [~.channels^%2 ~ ~]
+    (my %groups^[~.groups^%1 ~ ~] ~)
 %-  agent:dbug
 %+  verb  |
 ::
@@ -105,6 +107,7 @@
   ++  on-fail
     |=  [=term =tang]
     ^-  (quip card _this)
+    %-  (slog term tang)
     :_  this
     [(fail:log term tang ~)]~
   ::
@@ -129,6 +132,7 @@
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
+++  log   ~(. logs [our.bowl /channels-server])
 ++  safe-watch
   |=  [=wire =dock =path]
   ^+  cor
@@ -385,7 +389,7 @@
   inflate-io
 ::
 ++  inflate-io
-  (safe-watch /groups [our.bowl %groups] /groups)
+  watch-groups
 ::
 ++  poke
   |=  [=mark =vase]
@@ -402,7 +406,7 @@
       ==
     ::
         [%send-sequence-numbers *]
-      =+  !<([%send-sequence-numbers =nest:c] vase)
+      =+  ;;([%send-sequence-numbers =nest:c] q.vase)
       ?~  can=(~(get by v-channels) nest)  cor
       =;  =cage
         (emit [%pass /numbers %agent [src.bowl %channels] %poke cage])
@@ -590,16 +594,17 @@
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
   ?+    pole  ~|(bad-agent-wire+pole !!)
-    [%logs ~]     cor
-    [%pimp ~]     cor
-    [%wake ~]     cor
-    [%numbers ~]  cor
+    [%logs ~]          cor
+    [%pimp ~]          cor
+    [%wake ~]          cor
+    [%numbers ~]       cor
+    [%request-join ~]  cor
   ::
       [=kind:c *]
     ?+    -.sign  !!
         %poke-ack
       ?~  p.sign  cor
-      %-  (slog 'diary-server: poke failure' >wire< u.p.sign)
+      %-  (slog '%channels-server: poke failure' >wire< u.p.sign)
       cor
     ==
   ::
@@ -621,8 +626,7 @@
       ((slog tank u.p.sign) cor)
     ::
         %fact
-      ?.  ?=(%group-action-4 p.cage.sign)  cor
-      (take-groups !<(action:v5:g q.cage.sign))
+      (take-groups !<(r-groups:v7:gv q.cage.sign))
     ==
   ::
       [%migrate ~]
@@ -665,45 +669,61 @@
     (wake-hook rest.pole)
   ==
 ::
-++  watch-groups  (safe-watch /groups [our.bowl %groups] /groups)
+++  watch-groups  (safe-watch /groups [our.bowl %groups] /v1/groups)
+::  +take-groups: process group update
+::
 ++  take-groups
-  |=  =action:v5:g
+  |=  =r-groups:v7:gv
   =/  affected=(list nest:c)
     %+  murn  ~(tap by v-channels)
     |=  [=nest:c channel=v-channel:c]
-    ?.  =(p.action group.perm.perm.channel)  ~
+    ?.  =(flag.r-groups group.perm.perm.channel)  ~
     `nest
-  =/  diff  q.q.action
-  ?+    diff  cor
-      [%fleet * %del ~]
+  =*  r-group  r-group.r-groups
+  ?+    r-group  cor
+        [%seat * %add *]
+      (request-join flag.r-groups affected ships.r-group)
+    ::
+      [%seat * %add-roles *]       (recheck-perms affected ~)
+      [%seat * %del-roles *]       (recheck-perms affected ~)
+      [%channel * %edit *]         (recheck-perms affected ~)
+      [%channel * %add-readers *]  (recheck-perms affected ~)
+      [%channel * %del-readers *]  (recheck-perms affected ~)
+  ::
+      [%role * %del *]
+    (recheck-perms affected roles.r-group)
+  ::
+      [%seat * %del ~]
     ~&  "%channel-server: revoke perms for {<affected>}"
     %+  roll  affected
-    |=  [=nest:c co=_cor]
-    ^+  cor
-    %+  roll  ~(tap in p.diff)
-    |=  [=ship ci=_co]
-    ^+  cor
-    =/  ca  (ca-abed:ca-core:ci nest)
+    |=  [=nest:c =_cor]
+    %-  ~(rep in ships.r-group)
+    |=  [=ship =_cor]
+    =/  ca  (ca-abed:ca-core:cor nest)
     ca-abet:(ca-revoke:ca ship)
-  ::
-      [%fleet * %add-sects *]    (recheck-perms affected ~)
-      [%fleet * %del-sects *]    (recheck-perms affected ~)
-      [%channel * %edit *]       (recheck-perms affected ~)
-      [%channel * %del-sects *]  (recheck-perms affected ~)
-      [%channel * %add-sects *]  (recheck-perms affected ~)
-      [%cabal * %del *]
-    =/  =sect:g  (slav %tas p.diff)
-    %+  recheck-perms  affected
-    (~(gas in *(set sect:g)) ~[p.diff])
   ==
 ::
 ++  recheck-perms
-  |=  [affected=(list nest:c) sects=(set sect:g)]
+  |=  [affected=(list nest:c) sects=(set role-id:v7:gv)]
   ~&  "%channel-server recheck permissions for {<affected>}"
   %+  roll  affected
   |=  [=nest:c co=_cor]
   =/  ca  (ca-abed:ca-core:co nest)
   ca-abet:(ca-recheck:ca sects)
+::
+++  request-join
+  |=  [=flag:g affected=(list nest:c) ships=(set ship)]
+  %-  emil
+  %-  zing
+  %+  murn  affected
+  |=  =nest:c
+  ?.  =(ship.nest our.bowl)  ~
+  :-  ~
+  %+  turn  ~(tap in ships)
+  |=  =ship
+  =/  request=[nest:c flag:g]  [nest flag]
+  =/  =cage  [%channel-request-join !>(request)]
+  [%pass /request-join %agent [ship %channels] %poke cage]
 ::
 ++  ca-core
   |_  [=nest:c channel=v-channel:c gone=_|]
@@ -768,9 +788,10 @@
     =.  nest  n
     ?:  (~(has by v-channels) n)
       %-  (slog leaf+"channel-server: create already exists: {<n>}" ~)
+      ~&  (~(got by v-channels) n)
       ca-core
     ?>  can-nest
-    ?>  am-host:ca-perms
+    ?>  our-host:ca-perms
     ?>  ((sane %tas) name.nest)
     =.  channel
       %*  .  *v-channel:c
@@ -783,33 +804,34 @@
       =/  =path  /[kind.nest]/[name.nest]/create
       =.  ca-core  (give %fact ~[path] cage)
       (give %kick ~[path] ~)
-    =/  =channel:g
+    =/  =channel:v2:gv
       :-  [title description '' '']:new
       [now.bowl %default | readers.new]
-    =/  =action:v5:g
+    =/  =action:v2:gv
       [group.new now.bowl %channel nest %add channel]
-    =/  =dock    [p.group.new %groups]
+    =/  =dock    [our.bowl %groups]
     =/  =wire    (snoc ca-area %create)
-    (emit %pass wire %agent dock %poke group-action-4+!>(action))
+    (emit %pass wire %agent dock %poke group-action-3+!>(action))
     ::
-    ::  +can-nest: does group exist, are we allowed
+    ::  +can-nest: does the group exist, are we an admin
     ::
     ++  can-nest
       ^-  ?
       =/  groups
-        .^  groups:v5:g
+        .^  groups:v7:gv
           %gx
-          /(scot %p our.bowl)/groups/(scot %da now.bowl)/v1/groups/groups-1
+          /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/noun
         ==
-      =/  gop  (~(got by groups) group.new)
-      %-  ~(any in bloc.gop)
-      ~(has in sects:(~(got by fleet.gop) our.bowl))
+      =+  group=(~(get by groups) group.new)
+      ?~  group  |
+      =+  seat=(~(got by seats.u.group) our.bowl)
+      !=(~ (~(int in admins.u.group) roles.seat))
     --
   ::
   ++  ca-c-channel
     |=  =c-channel:c
     ^+  ca-core
-    ?>  am-host:ca-perms
+    ?>  our-host:ca-perms
     ?-    -.c-channel
         %view
       ?>  (is-admin:ca-perms src.bowl)
@@ -935,6 +957,24 @@
         ?~  react.p.result
           [%del-react id.c-post ship.p.result]
         [%add-react id.c-post [ship u.react]:p.result]
+      ::  log shortcode reactions for posts
+      ::
+      =?  ca-core  ?=(%add-react -.new)
+        =/  react-text  
+          ?@  q.new  q.new
+          p.q.new
+        ?^  (kill:em react-text)
+          =/  message  ~[leaf+"Shortcode reaction detected in channels-server (post)"]
+          =/  nest-path  (spat [kind.nest (scot %p ship.nest) name.nest ~])
+          =/  post-id    (scot %uv id.c-post)
+          =/  metadata  
+            :~  'context'^s+'channels_server_post_add_react'
+                'nest'^s+nest-path
+                'post_id'^s+post-id
+                'react'^s+react-text
+            ==
+          (emit (tell:log %crit message metadata))
+        ca-core
       =/  [update=? reacts=v-reacts:c]
         (ca-c-react reacts.u.u.post new)
       ?.  update  no-op
@@ -950,6 +990,24 @@
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  no-op
       ?~  u.post  no-op
+      ::  log shortcode reactions for replies
+      ::
+      =?  ca-core  ?=(%add-react -.c-reply.c-post)  
+        =/  react-text  
+          ?@  q.c-reply.c-post  q.c-reply.c-post
+          p.q.c-reply.c-post
+        ?^  (kill:em react-text)
+          =/  message  ~[leaf+"Shortcode reaction detected in channels-server (reply)"]
+          =/  nest-path  (spat [kind.nest (scot %p ship.nest) name.nest ~])
+          =/  post-id    (scot %uv id.c-post)
+          =/  metadata  
+            :~  'context'^s+'channels_server_reply_add_react'
+                'nest'^s+nest-path
+                'post_id'^s+post-id
+                'react'^s+react-text
+            ==
+          (emit (tell:log %crit message metadata))
+        ca-core
       =^  update=(unit u-post:c)  replies.u.u.post
         (ca-c-reply u.u.post c-reply.c-post)
       ?~  update  no-op
@@ -1118,7 +1176,7 @@
     (emit:ca %give %kick ~[path] `ship)
   ::
   ++  ca-recheck
-    |=  sects=(set sect:g)
+    |=  sects=(set sect:v0:gv)
     ::  if we have sects, we need to delete them from writers
     =?  ca-core  !=(sects ~)
       =/  =c-channels:c  [%channel nest %del-writers sects]
@@ -1148,14 +1206,14 @@
 ++  get-hook-bowl
   |=  [channel=(unit [nest:c v-channel:c]) =config:h]
   ^-  bowl:h
-  =/  group=(unit group-ui:v2:g)
+  =/  group=(unit group:v7:gv)
     ?~  channel  ~
     =*  flag  group.perm.perm.+.u.channel
     %-  some
-    ?.  .^(? %gu (scry-path %groups /$))  *group-ui:v2:g
-    ?.  .^(? %gx (scry-path %groups /exists/(scot %p p.flag)/[q.flag]/noun))
-      *group-ui:v2:g
-    .^(group-ui:v2:g %gx (scry-path %groups /groups/(scot %p p.flag)/[q.flag]/v1/group-ui))
+    ?.  .^(? %gu (scry-path %groups /$))  *group:v7:gv
+    ?.  .^(? %gu (scry-path %groups /groups/(scot %p p.flag)/[q.flag]))
+      *group:v7:gv
+    .^(group:v7:gv %gx (scry-path %groups /v2/groups/(scot %p p.flag)/[q.flag]/noun))
   :*  channel
       group
       v-channels
@@ -1384,7 +1442,7 @@
     (emit [%pass /hooks/effect %agent [our.bowl %channels] %poke cage])
   ::
       %groups
-    =/  =cage  group-action-3+!>(action.effect)
+    =/  =cage  group-action-4+!>(`a-groups:v7:gv`a-groups.effect)
     (emit [%pass /hooks/effect %agent [our.bowl %groups] %poke cage])
   ::
       %activity

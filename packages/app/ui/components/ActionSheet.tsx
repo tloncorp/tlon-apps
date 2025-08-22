@@ -11,6 +11,7 @@ import {
   ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
 } from 'react';
@@ -139,6 +140,28 @@ const ActionSheetComponent = ({
   const { bottom } = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const maxHeight = height - bottom - getTokenValue('$2xl');
+  // For popovers, use a more conservative max height to ensure it fits in viewport
+  const popoverMaxHeight = Math.min(maxHeight, height * 0.5);
+
+  // listen for escape key to close the sheet
+  // this is helpful for e2e tests
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const handleEscape = (event: KeyboardEvent) => {
+        if (event.key === 'Escape') {
+          onOpenChange(false);
+        }
+      };
+      if (open) {
+        window.addEventListener('keydown', handleEscape);
+        return () => window.removeEventListener('keydown', handleEscape);
+      }
+
+      return () => {
+        window.removeEventListener('keydown', handleEscape);
+      };
+    }
+  }, [onOpenChange, open]);
 
   if (!hasOpened.current && open) {
     hasOpened.current = true;
@@ -156,10 +179,22 @@ const ActionSheetComponent = ({
         onOpenChange={onOpenChange}
         allowFlip
         placement="bottom-end"
+        strategy="fixed"
       >
         <Popover.Trigger>{trigger}</Popover.Trigger>
-        <Popover.Content padding={1} borderColor="$border" borderWidth={1}>
-          {children}
+        <Popover.Content
+          padding={1}
+          borderColor="$border"
+          borderWidth={1}
+          maxHeight={popoverMaxHeight}
+          overflow="hidden"
+        >
+          <ScrollView
+            maxHeight={popoverMaxHeight - 32}
+            showsVerticalScrollIndicator={true}
+          >
+            {children}
+          </ScrollView>
         </Popover.Content>
       </Popover>
     );

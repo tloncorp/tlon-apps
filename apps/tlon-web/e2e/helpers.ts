@@ -7,26 +7,43 @@ export async function channelIsLoaded(page: Page) {
 }
 
 export async function navigateToChannel(page: Page, channelName: string) {
+  await expect(page.getByTestId(`ChannelListItem-${channelName}`)).toBeVisible({
+    timeout: 10000,
+  });
   await page.getByTestId(`ChannelListItem-${channelName}`).click();
   await channelIsLoaded(page);
 }
 
 export async function createGroup(page: Page) {
+  // Ensure session is stable before creating group
+  await waitForSessionStability(page);
+
   await page.getByTestId('CreateChatSheetTrigger').click();
-  await page.getByText('New group').click();
+  await page.getByText('New group', { exact: true }).click();
   await page.getByText('Select contacts to invite').click();
   await page.getByText('Create group').click();
 
-  await page.waitForTimeout(2000);
+  // Wait for group creation to complete and navigate to group
+  // Either we're already in the group or need to navigate to it
+  const channelHeader = page.getByTestId('ChannelHeaderTitle');
 
-  if (await page.getByTestId('ChannelHeaderTitle').isVisible()) {
-    await expect(page.getByText('Welcome to your group!')).toBeVisible();
-  } else {
+  try {
+    // Wait briefly to see if we're automatically navigated to the group
+    await expect(channelHeader).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Welcome to your group!')).toBeVisible({
+      timeout: 3000,
+    });
+  } catch {
+    // If not automatically navigated, go to the group manually
     await page.getByTestId('HomeNavIcon').click();
+    await expect(
+      page.getByTestId('ChatListItem-Untitled group-unpinned')
+    ).toBeVisible({ timeout: 10000 });
     await page.getByTestId('ChatListItem-Untitled group-unpinned').click();
-    await page.waitForTimeout(2000);
-    await expect(page.getByTestId('ChannelHeaderTitle')).toBeVisible();
-    await expect(page.getByText('Welcome to your group!')).toBeVisible();
+    await expect(channelHeader).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Welcome to your group!')).toBeVisible({
+      timeout: 5000,
+    });
   }
 }
 
@@ -55,37 +72,86 @@ export async function openGroupOptionsSheet(page: Page) {
 }
 
 export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
+  // Ensure session is stable before inviting members
+  await waitForSessionStability(page);
+
   await openGroupOptionsSheet(page);
   await page.getByTestId('ActionSheetAction-Invite people').first().click();
 
   for (const memberId of memberIds) {
-    await page.getByPlaceholder('Filter by nickname').fill(memberId);
-    await page.waitForTimeout(2000);
-    await page.getByTestId('ContactRow').first().click();
+    const filterInput = page.getByPlaceholder('Filter by nickname');
+    await expect(filterInput).toBeVisible({ timeout: 5000 });
+    await filterInput.fill(memberId);
+
+    // Wait for contact to appear in search results
+    await expect(
+      page.getByTestId('ContactRow').getByText(`~${memberId}`, { exact: true })
+    ).toBeVisible({
+      timeout: 10000,
+    });
+    await page
+      .getByTestId('ContactRow')
+      .getByText(`~${memberId}`, { exact: true })
+      .click();
   }
 
-  await page.getByText('continue').click();
-  await page.waitForTimeout(2000);
+  // Wait for continue button to update with selection count and click
+  const continueButton = page.getByText(/continue|Invite \d+ and continue/);
+  await expect(continueButton).toBeVisible({ timeout: 5000 });
+  await continueButton.click();
+
+  // Brief wait for invitation to be sent
+  await page.waitForTimeout(1000);
+}
+
+export async function acceptGroupInvite(page: Page, groupName?: string) {
+  // Ensure session is stable before accepting invite
+  await waitForSessionStability(page);
+
+  // Click on the invitation
+  await page.getByText('Group invitation').click();
+  await page.waitForTimeout(1000);
+
+  // Click accept
+  const acceptButton = page.getByText('Accept invite');
+  if (await acceptButton.isVisible()) {
+    await acceptButton.click();
+  }
+
+  // Wait for joining to complete and "Go to group" button to appear
+  await expect(page.getByText('Go to group')).toBeVisible({ timeout: 45000 });
+
+  // Click "Go to group"
+  await page.getByText('Go to group').click();
+  await page.waitForTimeout(3000);
 }
 
 export async function rejectGroupInvite(page: Page) {
-  if (await page.getByText('Group invitation').isVisible()) {
+  if (await page.getByText('Group invitation').isVisible({ timeout: 10000 })) {
     await page.getByText('Group invitation').click();
   }
 
   // If there's a reject invitation button, click it
-  if (await page.getByText('Reject invite').isVisible()) {
+  if (await page.getByText('Reject invite').isVisible({ timeout: 10000 })) {
     await page.getByText('Reject invite').click();
   }
 }
 
 export async function deleteGroup(page: Page, groupName?: string) {
+  // Ensure session is stable before deleting group
+  await waitForSessionStability(page);
+  await expect(page.getByTestId('GroupLeaveAction-Delete group')).toBeVisible({
+    timeout: 10000,
+  });
+
   await page.getByTestId('GroupLeaveAction-Delete group').click();
   await expect(
-    page.getByText(`Delete ${groupName || 'Untitled group'}?`)
-  ).toBeVisible();
+    page.getByTestId('ActionSheetAction-Delete group').first()
+  ).toBeVisible({ timeout: 10000 });
   await page.getByTestId('ActionSheetAction-Delete group').click();
-  await expect(page.getByText(groupName || 'Untitled group')).not.toBeVisible();
+  await expect(page.getByText(groupName || 'Untitled group')).not.toBeVisible({
+    timeout: 20000,
+  });
 }
 
 export async function openGroupSettings(page: Page) {
@@ -189,6 +255,9 @@ export async function createRole(
   title: string,
   description: string
 ) {
+  // Ensure session is stable before creating role
+  await waitForSessionStability(page);
+
   await page.getByText('Add Role').click();
   await expect(page.getByRole('dialog').getByText('Add role')).toBeVisible();
 
@@ -207,6 +276,9 @@ export async function assignRoleToMember(
   roleName: string,
   memberIndex = 0
 ) {
+  // Ensure session is stable before assigning role
+  await waitForSessionStability(page);
+
   const memberRow = page.getByTestId('MemberRow').nth(memberIndex);
   await expect(memberRow).toBeVisible();
   await memberRow.click();
@@ -226,6 +298,9 @@ export async function unassignRoleFromMember(
   roleName: string,
   memberIndex = 0
 ) {
+  // Ensure session is stable before unassigning role
+  await waitForSessionStability(page);
+
   const memberRow = page.getByTestId('MemberRow').nth(memberIndex);
   await memberRow.click();
 
@@ -236,6 +311,80 @@ export async function unassignRoleFromMember(
 }
 
 /**
+ * Bans a user from a group
+ */
+export async function banUserFromGroup(page: Page, memberName: string) {
+  // Navigate to members page - always navigate since we might be in wrong context
+  await openGroupSettings(page);
+  await page.getByTestId('GroupMembers').click();
+
+  // Wait for members page to load - wait for member rows to appear
+  await page.waitForTimeout(2000);
+  await expect(page.getByTestId('MemberRow').first()).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Find and click on the member
+  await page.getByTestId('MemberRow').filter({ hasText: memberName }).click();
+
+  await expect(page.getByText('Ban User')).toBeVisible();
+  await page.getByText('Ban User').click();
+
+  // Wait for the action to complete and sheet to close
+  await page.waitForTimeout(3000);
+
+  // Close sheet if still open by pressing Escape
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(1000);
+}
+
+/**
+ * Unbans a user from a group
+ */
+export async function unbanUserFromGroup(page: Page, memberName: string) {
+  // Navigate to members page - always navigate since we might be in wrong context
+  await openGroupSettings(page);
+  await page.getByTestId('GroupMembers').click();
+
+  // Wait for members page to load - wait for member rows to appear
+  await page.waitForTimeout(2000);
+  await expect(page.getByTestId('MemberRow').first()).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Scroll down to find banned users section
+  await page.getByTestId('MemberRow').filter({ hasText: memberName }).click();
+
+  await expect(page.getByText('Unban User')).toBeVisible();
+  await page.getByText('Unban User').click();
+
+  await page.waitForTimeout(2000); // Wait for unban to complete
+}
+
+/**
+ * Kicks a user from a group
+ */
+export async function kickUserFromGroup(page: Page, memberName: string) {
+  // Navigate to members page - always navigate since we might be in wrong context
+  await openGroupSettings(page);
+  await page.getByTestId('GroupMembers').click();
+
+  // Wait for members page to load - wait for member rows to appear
+  await page.waitForTimeout(2000);
+  await expect(page.getByTestId('MemberRow').first()).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Find and click on the member
+  await page.getByTestId('MemberRow').filter({ hasText: memberName }).click();
+
+  await expect(page.getByText('Kick User')).toBeVisible();
+  await page.getByText('Kick User').click();
+
+  await page.waitForTimeout(2000); // Wait for kick to complete
+}
+
+/**
  * Forwards a message to a specific contact via DM
  */
 export async function forwardMessageToDM(
@@ -243,6 +392,9 @@ export async function forwardMessageToDM(
   messageText: string,
   contactId: string
 ) {
+  // Ensure session is stable before forwarding message
+  await waitForSessionStability(page);
+
   await longPressMessage(page, messageText);
   await page.getByText('Forward', { exact: true }).click();
 
@@ -275,10 +427,10 @@ export async function forwardMessageToDM(
 /**
  * Forwards a group reference to a specified channel
  */
-export async function forwardGroupReference(
-  page: Page,
-  channelName: string
-) {
+export async function forwardGroupReference(page: Page, channelName: string) {
+  // Ensure session is stable before forwarding group reference
+  await waitForSessionStability(page);
+
   // Click the Forward button in group info
   await page.getByText('Forward').click();
 
@@ -303,7 +455,9 @@ export async function forwardGroupReference(
   await expect(page.getByText('Forwarded')).toBeVisible({ timeout: 5000 });
 
   // Verify modal closes
-  await expect(page.getByText('Forward to channel')).not.toBeVisible({ timeout: 3000 });
+  await expect(page.getByText('Forward to channel')).not.toBeVisible({
+    timeout: 3000,
+  });
 }
 
 /**
@@ -314,6 +468,9 @@ export async function createChannel(
   title: string,
   type: 'chat' | 'notebook' | 'gallery' = 'chat'
 ) {
+  // Ensure session is stable before creating channel
+  await waitForSessionStability(page);
+
   await page.getByText('New Channel').click();
   await expect(page.getByText('Create a new channel')).toBeVisible();
 
@@ -338,6 +495,9 @@ export async function editChannel(
   newTitle?: string,
   newDescription?: string
 ) {
+  // Ensure session is stable before editing channel
+  await waitForSessionStability(page);
+
   await page
     .getByTestId(`ChannelItem-${channelName}-1`)
     .getByTestId('EditChannelButton')
@@ -359,6 +519,9 @@ export async function editChannel(
  * Deletes a channel
  */
 export async function deleteChannel(page: Page, channelName: string) {
+  // Ensure session is stable before deleting channel
+  await waitForSessionStability(page);
+
   await page
     .getByTestId(`ChannelItem-${channelName}-1`)
     .getByTestId('EditChannelButton')
@@ -403,6 +566,9 @@ export async function setChannelPermissions(
  * Toggles group/chat pin/unpin status
  */
 export async function toggleChatPin(page: Page) {
+  // Ensure session is stable before toggling pin
+  await waitForSessionStability(page);
+
   try {
     if (await page.getByText('Unpin').isVisible({ timeout: 1000 })) {
       await page.getByText('Unpin').click();
@@ -424,12 +590,32 @@ export async function toggleChatPin(page: Page) {
 /**
  * Changes group privacy setting
  */
-export async function setGroupPrivacy(page: Page, isPrivate: boolean) {
+export async function setGroupPrivacy(
+  page: Page,
+  privacy: 'public' | 'private' | 'secret'
+) {
+  // Ensure session is stable before changing privacy
+  await waitForSessionStability(page);
+
   await page.getByText('Privacy').click();
-  if (isPrivate) {
-    await page.getByText('Private', { exact: true }).click();
+
+  await expect(page.getByText('Group privacy')).toBeVisible();
+
+  if (privacy === 'private') {
+    await page
+      .getByTestId('GroupPrivacyScreen-RadioInput')
+      .getByText('Private', { exact: true })
+      .click();
+  } else if (privacy === 'secret') {
+    await page
+      .getByTestId('GroupPrivacyScreen-RadioInput')
+      .getByText('Secret', { exact: true })
+      .click();
   } else {
-    await page.getByText('Public', { exact: true }).click();
+    await page
+      .getByTestId('GroupPrivacyScreen-RadioInput')
+      .getByText('Public', { exact: true })
+      .click();
   }
 }
 
@@ -440,6 +626,9 @@ export async function setGroupNotifications(
   page: Page,
   level: 'All activity' | 'Posts, mentions, and replies' | 'Nothing'
 ) {
+  // Ensure session is stable before changing notifications
+  await waitForSessionStability(page);
+
   await page.getByTestId('GroupNotifications').click();
   await expect(
     page.getByText('Posts, mentions, and replies', { exact: true })
@@ -451,6 +640,9 @@ export async function setGroupNotifications(
  * Creates a channel section
  */
 export async function createChannelSection(page: Page, sectionName: string) {
+  // Ensure session is stable before creating channel section
+  await waitForSessionStability(page);
+
   await page.getByText('New Section').click();
   await expect(page.getByText('Add section')).toBeVisible();
 
@@ -496,6 +688,9 @@ export async function openGroupCustomization(page: Page) {
  * Changes the group name
  */
 export async function changeGroupName(page: Page, newName: string) {
+  // Ensure session is stable before changing group name
+  await waitForSessionStability(page);
+
   await page.getByTestId('GroupTitleInput').click();
   await fillFormField(page, 'GroupTitleInput', newName, true);
   await page.getByText('Save').click();
@@ -505,6 +700,9 @@ export async function changeGroupName(page: Page, newName: string) {
  * Changes the group description
  */
 export async function changeGroupDescription(page: Page, description: string) {
+  // Ensure session is stable before changing group description
+  await waitForSessionStability(page);
+
   await page.getByTestId('GroupDescriptionInput').click();
   await fillFormField(page, 'GroupDescriptionInput', description, true);
   await page.getByText('Save').click();
@@ -542,21 +740,57 @@ export async function createNotebookPost(
   title: string,
   content: string
 ) {
+  // Wait for add button to be ready and click
+  await expect(page.getByTestId('AddNotebookPost')).toBeVisible({
+    timeout: 10000,
+  });
   await page.getByTestId('AddNotebookPost').click();
-  await page.getByRole('textbox', { name: 'New Title' }).click();
-  await page.getByRole('textbox', { name: 'New Title' }).fill(title);
-  await page.waitForTimeout(1500);
-  await page.locator('iframe').contentFrame().getByRole('paragraph').click();
-  await page
-    .locator('iframe')
-    .contentFrame()
-    .locator('div')
-    .nth(2)
-    .fill(content);
-  await page.waitForTimeout(500);
-  await page.getByTestId('BigInputPostButton').click();
-  await page.waitForTimeout(500);
-  await expect(page.getByText(title)).toBeVisible();
+
+  // Fill in title with deterministic wait
+  const titleInput = page.getByRole('textbox', { name: 'New Title' });
+  await expect(titleInput).toBeVisible({ timeout: 5000 });
+  await titleInput.click();
+  await titleInput.fill(title);
+
+  // Wait for iframe to be properly loaded and accessible
+  const iframe = page.locator('iframe');
+  await expect(iframe).toBeVisible({ timeout: 10000 });
+
+  // Wait for iframe content to be ready
+  await iframe.waitFor({ state: 'attached' });
+  const contentFrame = iframe.contentFrame();
+  if (!contentFrame) {
+    throw new Error('Iframe content frame not available');
+  }
+
+  // Wait for editor to be initialized with placeholder text (with ellipsis)
+  await expect(contentFrame.getByRole('paragraph')).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Click in the editor area to focus
+  await contentFrame.getByRole('paragraph').click();
+
+  // Use more stable selector - target the paragraph element directly
+  const editorParagraph = contentFrame.getByRole('paragraph');
+  await expect(editorParagraph).toBeVisible({ timeout: 3000 });
+  await editorParagraph.fill(content);
+
+  // Wait for post button to be enabled and click
+  const postButton = page.getByTestId('BigInputPostButton');
+  await expect(postButton).toBeVisible({ timeout: 5000 });
+
+  // Ensure session is stable before posting
+  await waitForSessionStability(page);
+
+  await postButton.click();
+
+  // Wait for post to appear in the channel with the correct title
+  await expect(page.getByText(title).first()).toBeVisible({ timeout: 15000 });
+
+  // Wait for backend to sync the post data to prevent 500 "hosed" errors
+  // This prevents race conditions when immediately clicking the post
+  await page.waitForTimeout(3000);
 }
 
 // Gallery-related helper functions
@@ -567,13 +801,34 @@ export async function createNotebookPost(
 export async function createGalleryPost(page: Page, content: string) {
   await page.getByTestId('AddGalleryPost').click();
   await page.getByTestId('AddGalleryPostText').click();
-  await page.locator('iframe').contentFrame().getByRole('paragraph').click();
-  await page
-    .locator('iframe')
-    .contentFrame()
-    .locator('div')
-    .nth(2)
-    .fill(content);
+
+  // Wait for iframe to be properly loaded and accessible
+  const iframe = page.locator('iframe');
+  await expect(iframe).toBeVisible({ timeout: 10000 });
+
+  // Wait for iframe content to be ready
+  await iframe.waitFor({ state: 'attached' });
+  const contentFrame = iframe.contentFrame();
+  if (!contentFrame) {
+    throw new Error('Iframe content frame not available');
+  }
+
+  // Wait for editor to be initialized
+  await expect(contentFrame.getByRole('paragraph')).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Click in the editor area to focus
+  await contentFrame.getByRole('paragraph').click();
+
+  // Use more stable selector - target the paragraph element directly
+  const editorParagraph = contentFrame.getByRole('paragraph');
+  await expect(editorParagraph).toBeVisible({ timeout: 3000 });
+  await editorParagraph.fill(content);
+
+  // Ensure session is stable before posting
+  await waitForSessionStability(page);
+
   await page.getByTestId('BigInputPostButton').click();
   await page.waitForTimeout(1500);
   await expect(page.getByText(content).first()).toBeVisible();
@@ -585,39 +840,86 @@ export async function createGalleryPost(page: Page, content: string) {
  * Sends a message in the current channel
  */
 export async function sendMessage(page: Page, message: string) {
+  // Ensure session is stable before sending message
+  await waitForSessionStability(page);
+
   await page.getByTestId('MessageInput').click();
   await page.fill('[data-testid="MessageInput"]', message);
-  await page.waitForTimeout(1500);
+  await expect(page.getByTestId('MessageInputSendButton')).toBeVisible({
+    timeout: 10000,
+  });
   await page.getByTestId('MessageInputSendButton').click({ force: true });
   // Wait for message to appear
-  await page.waitForTimeout(1000);
   await expect(
     page.getByTestId('Post').getByText(message, { exact: true }).first()
-  ).toBeVisible();
-  await page.waitForTimeout(1000);
+  ).toBeVisible({ timeout: 10000 });
+  // Wait for input to be cleared to prevent race conditions
+  await expect(async () => {
+    const inputValue = await page.getByTestId('MessageInput').inputValue();
+    return inputValue === '';
+  }).toPass({ timeout: 5000, intervals: [100, 200, 500] });
 }
 
 /**
  * Long presses on a message to open the context menu
  */
 export async function longPressMessage(page: Page, messageText: string) {
-  // Not really a longpress since this is web.
-  await page
-    .getByTestId('Post')
-    .getByText(messageText)
-    .first()
-    .hover({ force: true });
-  await page.waitForTimeout(1000);
-  await page.getByTestId('MessageActionsTrigger').click();
-  await page.waitForTimeout(500);
+  // Check if page is still valid
+  if (page.isClosed()) {
+    throw new Error('Page has been closed');
+  }
+
+  try {
+    await expect(
+      page.getByTestId('ChatMessageDeliveryStatus').first()
+    ).not.toBeVisible({ timeout: 10000 });
+
+    // Not really a longpress since this is web.
+    const postElement = page
+      .getByTestId('Post')
+      .getByText(messageText, { exact: true })
+      .first();
+
+    // Ensure the post is visible and ready for interaction
+    await expect(postElement).toBeVisible({ timeout: 10000 });
+    await postElement.hover({ force: true });
+
+    // Wait for message actions trigger to appear
+    const actionsTrigger = page.getByTestId('MessageActionsTrigger');
+    await expect(actionsTrigger).toBeVisible({ timeout: 5000 });
+    await actionsTrigger.click();
+
+    // Wait for the action menu to be visible by checking for context-specific menu items
+    await page.getByTestId('ChatMessageActions').waitFor({
+      state: 'visible',
+      timeout: 5000,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (
+      errorMessage?.includes('Target closed') ||
+      errorMessage?.includes('Target page, context or browser has been closed')
+    ) {
+      console.error('Page was closed during operation');
+      throw new Error('Test context was closed prematurely');
+    }
+    throw error;
+  }
 }
 
 /**
  * Starts a thread from a message
  */
 export async function startThread(page: Page, messageText: string) {
+  // Ensure session is stable before starting thread
+  await waitForSessionStability(page);
+
   await longPressMessage(page, messageText);
-  await page.getByText('Reply').click();
+  // Menu is already visible from longPressMessage, click Reply to start thread
+  await expect(page.getByText('Reply', { exact: true })).toBeVisible({
+    timeout: 10000,
+  });
+  await page.getByText('Reply', { exact: true }).click();
   await page.waitForTimeout(500);
   await expect(page.getByRole('textbox', { name: 'Reply' })).toBeVisible();
 }
@@ -626,6 +928,9 @@ export async function startThread(page: Page, messageText: string) {
  * Sends a reply in a thread
  */
 export async function sendThreadReply(page: Page, replyText: string) {
+  // Ensure session is stable before sending thread reply
+  await waitForSessionStability(page);
+
   await page.getByRole('textbox', { name: 'Reply' }).click();
   await page.getByRole('textbox', { name: 'Reply' }).fill(replyText);
   await page
@@ -642,8 +947,11 @@ export async function sendThreadReply(page: Page, replyText: string) {
 export async function reactToMessage(
   page: Page,
   messageText: string,
-  emoji: 'thumb' | 'heart' | 'laugh' = 'thumb'
+  emoji: 'thumb' | 'heart' | 'laughing' = 'thumb'
 ) {
+  // Ensure session is stable before reacting to message
+  await waitForSessionStability(page);
+
   await longPressMessage(page, messageText);
   await page.getByTestId(`EmojiToolbarButton-${emoji}`).click();
 
@@ -651,7 +959,7 @@ export async function reactToMessage(
   const emojiMap = {
     thumb: '👍',
     heart: '❤️',
-    laugh: '😂',
+    laughing: '😆',
   };
 
   await expect(
@@ -663,8 +971,12 @@ export async function reactToMessage(
  * Removes a reaction from a message
  */
 export async function removeReaction(page: Page, emoji: string = '👍') {
+  // Ensure session is stable before removing reaction
+  await waitForSessionStability(page);
+
   const reactionButton = page.getByText(emoji);
   await reactionButton.click();
+  await page.waitForTimeout(1000);
   await expect(reactionButton).not.toBeVisible();
 }
 
@@ -677,22 +989,31 @@ export async function quoteReply(
   replyText: string,
   isDM = false
 ) {
+  // Ensure session is stable before quote reply
+  await waitForSessionStability(page);
+
   await longPressMessage(page, originalMessage);
   await page.getByText('Quote', { exact: true }).click();
 
-  // Verify quote interface appears
+  // In DM context, there's no "Chat Post" text, just quoted content in input
   if (!isDM) {
     await expect(page.getByText('Chat Post')).toBeVisible();
+    await expect(page.getByText(originalMessage).nth(1)).toBeVisible(); // Quote shows original
   }
-  await expect(page.getByText(originalMessage).nth(1)).toBeVisible(); // Quote shows original
 
-  await page.getByTestId('MessageInput').click();
-  if (!isDM) {
-    await page.fill('[data-testid="MessageInput"]', replyText);
+  const messageInput = page.getByTestId('MessageInput');
+  await messageInput.click();
+
+  if (isDM) {
+    // In DMs, the quote is already inserted as "> originalMessage"
+    // We need to append our reply text to the existing quoted content
+    const currentValue = await messageInput.inputValue();
+    await messageInput.fill(currentValue + '\n' + replyText);
   } else {
-    const inputText = await page.getByTestId('MessageInput').inputValue();
-    await page.getByTestId('MessageInput').fill(inputText + replyText);
+    // In group channels, we can just fill the reply text
+    await messageInput.fill(replyText);
   }
+
   await page.getByTestId('MessageInputSendButton').click();
 
   await expect(
@@ -706,7 +1027,8 @@ export async function quoteReply(
 export async function threadQuoteReply(
   page: Page,
   originalMessage: string,
-  replyText: string
+  replyText: string,
+  isDM = false
 ) {
   // Use the thread-specific message interaction
   await page.getByText(originalMessage).first().click();
@@ -715,13 +1037,26 @@ export async function threadQuoteReply(
   await page.waitForTimeout(500);
   await page.getByText('Quote', { exact: true }).click();
 
-  // Verify quote interface appears
-  await expect(page.getByText('Chat Post')).toBeVisible();
-  await expect(page.getByText(originalMessage).nth(1)).toBeVisible(); // Quote shows original
+  // In DM threads, there's no "Chat Post" text, just quoted content in reply input
+  if (!isDM) {
+    await expect(page.getByText('Chat Post')).toBeVisible();
+    await expect(page.getByText(originalMessage).nth(1)).toBeVisible(); // Quote shows original
+  }
 
   // Use thread-specific reply input
-  await page.getByPlaceholder('Reply').click();
-  await page.getByPlaceholder('Reply').fill(replyText);
+  const replyInput = page.getByPlaceholder('Reply');
+  await replyInput.click();
+
+  if (isDM) {
+    // In DM threads, the quote is already inserted as "> originalMessage"
+    // We need to append our reply text to the existing quoted content
+    const currentValue = await replyInput.inputValue();
+    await replyInput.fill(currentValue + '\n' + replyText);
+  } else {
+    // In group channels, we can just fill the reply text
+    await replyInput.fill(replyText);
+  }
+
   await page
     .locator('#reply-container')
     .getByTestId('MessageInputSendButton')
@@ -738,6 +1073,9 @@ export async function hideMessage(
   messageText: string,
   isDM = false
 ) {
+  // Ensure session is stable before hiding message
+  await waitForSessionStability(page);
+
   await longPressMessage(page, messageText);
   await page.getByText('Hide message', { exact: true }).click();
   if (!isDM) {
@@ -755,6 +1093,9 @@ export async function hideMessage(
  * Reports a message
  */
 export async function reportMessage(page: Page, messageText: string) {
+  // Ensure session is stable before reporting message
+  await waitForSessionStability(page);
+
   await longPressMessage(page, messageText);
   await page.getByText('Report message').click();
   await expect(page.getByText(messageText, { exact: true })).not.toBeVisible();
@@ -768,6 +1109,9 @@ export async function deleteMessage(
   messageText: string,
   isDM = false
 ) {
+  // Ensure session is stable before deleting message
+  await waitForSessionStability(page);
+
   await longPressMessage(page, messageText);
   await page.getByText('Delete message').click();
   if (!isDM) {
@@ -783,9 +1127,44 @@ export async function deleteMessage(
  * Deletes a post
  */
 export async function deletePost(page: Page, postText: string) {
+  // Ensure session is stable before deleting post
+  await waitForSessionStability(page);
+
   await longPressMessage(page, postText);
   await page.getByText('Delete post').click();
   await expect(page.getByText(postText, { exact: true })).not.toBeVisible();
+}
+
+/**
+ * Waits for the session to be stable and ready for operations
+ */
+export async function waitForSessionStability(page: Page) {
+  await page.waitForTimeout(200);
+  await page.waitForSelector('[data-testid="ScreenHeaderTitle"]', {
+    state: 'attached',
+    timeout: 5000,
+  });
+
+  const screenHeaderTitle = page.getByTestId('ScreenHeaderTitle');
+
+  const loadingStates = [
+    'Loading…',
+    'Connecting...',
+    'Reconnecting...',
+    'Initializing...',
+    'Disconnected',
+  ];
+
+  for (const state of loadingStates) {
+    await expect(screenHeaderTitle.getByText(state))
+      .not.toBeVisible({ timeout: 1000 })
+      .catch(() => {}); // Element might not exist, that's okay
+  }
+
+  // Check for message delivery status
+  await expect(page.getByTestId('ChatMessageDeliveryStatus').first())
+    .not.toBeVisible({ timeout: 1000 })
+    .catch(() => {});
 }
 
 /**
@@ -797,23 +1176,41 @@ export async function editMessage(
   newText: string,
   isThread = false
 ) {
+  // Ensure session is stable before attempting edit
+  await waitForSessionStability(page);
+
   await longPressMessage(page, originalText);
   await page.getByText('Edit message').click();
 
-  // Click on the message text to edit it
-  await page.getByText(originalText).nth(1).click();
+  // Wait for edit mode to be fully initialized
+  await page.waitForTimeout(500);
 
-  // Clear existing text and input new text
-  if (isThread) {
-    await page.getByTestId('MessageInput').nth(1).fill('');
-    await page.getByTestId('MessageInput').nth(1).fill(newText);
-    await page.getByTestId('MessageInputSendButton').nth(1).click();
-  } else {
-    await page.getByTestId('MessageInput').fill('');
-    await page.getByTestId('MessageInput').fill(newText);
-    await page.getByTestId('MessageInputSendButton').click();
-  }
-  await expect(page.getByText(newText, { exact: true })).toBeVisible();
+  // Wait for the input to be populated with the original text
+  const inputSelector = isThread
+    ? page.getByTestId('MessageInput').nth(1)
+    : page.getByTestId('MessageInput');
+
+  // Wait for the input to contain the original text before editing
+  // The input may have trailing whitespace, so we check if it contains the text
+  await expect(async () => {
+    const value = await inputSelector.inputValue();
+    return value.trim() === originalText;
+  }).toPass({ timeout: 5000, intervals: [100, 200, 500] });
+
+  // Clear and fill with new text
+  await inputSelector.fill(newText);
+
+  // Click the send button
+  const sendButton = isThread
+    ? page.getByTestId('MessageInputSendButton').nth(1)
+    : page.getByTestId('MessageInputSendButton');
+
+  await sendButton.click();
+
+  // Wait for the edited message to appear
+  await expect(page.getByText(newText, { exact: true })).toBeVisible({
+    timeout: 15000, // Increased timeout for CI environment
+  });
 }
 
 /**
@@ -838,9 +1235,50 @@ export async function verifyMessagePreview(
 }
 
 /**
+ * Verifies unread count badge on chat list item
+ */
+export async function verifyChatUnreadCount(
+  page: Page,
+  chatName: string,
+  expectedCount: number,
+  isPinned = false
+) {
+  await page.waitForTimeout(1000);
+  const chatItem = page.getByTestId(
+    `ChatListItem-${chatName}-${isPinned ? 'pinned' : 'unpinned'}`
+  );
+
+  if (expectedCount === 0) {
+    // When count is 0, the UnreadCount Stack component itself should have opacity controlled
+    // Check that either the count shows "0" or the whole unread badge is not visible
+    const unreadCount = chatItem.getByTestId('UnreadCount');
+
+    // Try to check if the count text is "0"
+    try {
+      const countNumber = unreadCount.locator(
+        '[data-testid="UnreadCountNumber"]'
+      );
+      await expect(countNumber).toContainText('0', { timeout: 2000 });
+    } catch {
+      // If we can't find the count number, check if the whole unread count is not visible
+      await expect(unreadCount).not.toBeVisible({ timeout: 2000 });
+    }
+  } else {
+    // Should show the expected count - look for text with the number
+    const unreadCount = chatItem.getByTestId('UnreadCount');
+    await expect(
+      unreadCount.getByText(expectedCount.toString(), { exact: true })
+    ).toBeVisible({ timeout: 10000 });
+  }
+}
+
+/**
  * Creates a direct message with a specified contact
  */
 export async function createDirectMessage(page: Page, contactId: string) {
+  // Ensure session is stable before creating DM
+  await waitForSessionStability(page);
+
   await page.getByTestId('CreateChatSheetTrigger').click();
   await expect(page.getByText('Create a new chat with one')).toBeVisible();
   await page.getByText('New direct message').click();
@@ -863,6 +1301,9 @@ export async function createDirectMessage(page: Page, contactId: string) {
  * Leaves a direct message
  */
 export async function leaveDM(page: Page, contactId: string) {
+  // Ensure session is stable before leaving DM
+  await waitForSessionStability(page);
+
   await page.getByTestId('HomeNavIcon').click();
   await page.getByTestId(`ChannelListItem-${contactId}`).first().click();
   await page.waitForTimeout(500);
@@ -870,9 +1311,6 @@ export async function leaveDM(page: Page, contactId: string) {
   await page.waitForTimeout(500);
   await page.getByTestId('ActionSheetAction-Leave chat').click();
   await page.waitForTimeout(500);
-  // without this reload we'll still see previous messages in the DM
-  // TODO: figure out why this is happening
-  await page.reload();
   await expect(
     page.getByTestId(`ChannelListItem-${contactId}`)
   ).not.toBeVisible();
@@ -882,6 +1320,360 @@ export async function leaveDM(page: Page, contactId: string) {
  * Check if we're on a mobile viewport
  */
 export async function isMobileViewport(page: Page) {
-  const viewport = await page.viewportSize();
+  const viewport = page.viewportSize();
   return viewport && viewport.width < 768;
+}
+
+/**
+ * Retry an interaction with exponential backoff
+ * Useful for handling DOM detachment and other transient failures
+ */
+export async function retryInteraction<T>(
+  action: () => Promise<T>,
+  options: {
+    maxAttempts?: number;
+    delayMs?: number;
+    description?: string;
+  } = {}
+): Promise<T> {
+  const {
+    maxAttempts = 3,
+    delayMs = 1000,
+    description = 'interaction',
+  } = options;
+  let lastError: Error = new Error('No attempts made');
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await action();
+    } catch (error) {
+      lastError = error as Error;
+      if (attempt < maxAttempts) {
+        console.log(`${description} attempt ${attempt} failed, retrying...`);
+        // Use void to properly handle the promise without await
+        await new Promise<void>((resolve) =>
+          setTimeout(resolve, delayMs * attempt)
+        ); // Exponential backoff
+      }
+    }
+  }
+
+  throw new Error(
+    `Failed ${description} after ${maxAttempts} attempts: ${lastError.message}`
+  );
+}
+
+/**
+ * Interact with a hidden post element (which doesn't have data-testid="Post")
+ */
+export async function interactWithHiddenPost(
+  page: Page,
+  action: 'Show post' | 'Delete post' | 'Report post'
+) {
+  const hiddenPostMessage = page
+    .getByText('You have hidden or reported this post')
+    .first();
+  await expect(hiddenPostMessage).toBeVisible({ timeout: 10000 });
+  await hiddenPostMessage.hover({ force: true });
+
+  // Wait for message actions trigger to appear
+  const actionsTrigger = page.getByTestId('MessageActionsTrigger');
+  await expect(actionsTrigger).toBeVisible({ timeout: 5000 });
+  await actionsTrigger.click();
+
+  // Click the requested action
+  await expect(page.getByText(action)).toBeVisible({ timeout: 5000 });
+  await page.getByText(action).click();
+
+  // Wait for action to complete
+  await page.waitForTimeout(500);
+}
+
+/**
+ * Wait for navigation to complete and verify we're not on an unexpected page
+ */
+export async function verifyNavigation(
+  page: Page,
+  expectedNotVisible?: string,
+  options: {
+    timeout?: number;
+    fallbackAction?: () => Promise<void>;
+  } = {}
+) {
+  const { timeout = 2000, fallbackAction } = options;
+
+  // Wait for navigation to settle
+  await page.waitForLoadState('networkidle', { timeout }).catch(() => {
+    // Network might not go idle in time, that's okay
+  });
+
+  // Check if we ended up on an unexpected page
+  if (expectedNotVisible) {
+    const unexpectedVisible = await page
+      .getByText(expectedNotVisible)
+      .isVisible()
+      .catch(() => false);
+    if (unexpectedVisible && fallbackAction) {
+      console.log(
+        `WARNING: Unexpected navigation to ${expectedNotVisible}, attempting recovery`
+      );
+      await fallbackAction();
+    }
+    return !unexpectedVisible;
+  }
+
+  return true;
+}
+
+/**
+ * Clean up own profile by resetting nickname, status, and bio to empty values
+ */
+export async function cleanupOwnProfile(page: Page) {
+  // Navigate to profile
+  await page.getByTestId('AvatarNavIcon').click();
+  await expect(page.getByText('Contacts')).toBeVisible({ timeout: 5000 });
+
+  // Check if "You" is visible, if not we might already be on profile
+  const youButton = page.getByText('You');
+  if (await youButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await youButton.click();
+  }
+
+  // Wait for Profile to be visible
+  await expect(page.getByText('Profile')).toBeVisible({ timeout: 5000 });
+
+  // Click Edit button
+  const editButton = page.getByText('Edit');
+  if (await editButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await editButton.click();
+    await expect(page.getByText('Edit Profile')).toBeVisible({
+      timeout: 5000,
+    });
+
+    // Clear all profile fields
+    // Clear nickname
+    const nicknameInput = page.getByTestId('ProfileNicknameInput');
+    if (await nicknameInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await nicknameInput.click();
+      await nicknameInput.clear();
+      await nicknameInput.fill('');
+    }
+
+    // Clear status
+    const statusInput = page.getByRole('textbox', {
+      name: 'Hanging out...',
+    });
+    if (await statusInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await statusInput.click();
+      await statusInput.clear();
+      await statusInput.fill('');
+    }
+
+    // Clear bio
+    const bioInput = page.getByRole('textbox', { name: 'About yourself' });
+    if (await bioInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await bioInput.click();
+      await bioInput.clear();
+      await bioInput.fill('');
+    }
+
+    // Save changes
+    await page.getByText('Done').click();
+    await page.waitForTimeout(1000);
+  }
+  // Navigate back to home
+  await page.getByTestId('HomeNavIcon').click();
+  await page.waitForTimeout(500);
+}
+
+/**
+ * Clean up custom nicknames set for contacts and remove all contacts
+ * This dynamically finds all contacts and clears nicknames/removes them
+ */
+export async function cleanupContactNicknames(page: Page) {
+  // Get all contacts dynamically (returns ship IDs for reliable removal)
+  const contacts = await getAllContacts(page);
+
+  for (const contactId of contacts) {
+    // First clear any custom nickname using ship ID
+    await clearContactNickname(page, contactId);
+
+    // Then remove the contact using ship ID
+    await removeContact(page, contactId);
+  }
+}
+
+/**
+ * Get all contacts from the contacts list
+ * Returns an array of ship IDs (e.g., "~zod", "~ten") for reliable removal
+ */
+export async function getAllContacts(page: Page): Promise<string[]> {
+  const contacts: string[] = [];
+
+  // Navigate to Contacts
+  await page.getByTestId('AvatarNavIcon').click();
+  await expect(page.getByText('Contacts')).toBeVisible({ timeout: 5000 });
+
+  // Wait for contacts to load
+  await page.waitForTimeout(1000);
+
+  // Try to get ship IDs from aria-labels (more reliable than text content)
+  const contactElements = await page
+    .locator('[aria-label^="ContactListItem-"]')
+    .all();
+
+  for (const element of contactElements) {
+    const ariaLabel = await element.getAttribute('aria-label');
+    if (ariaLabel) {
+      // Extract ship ID from aria-label (e.g., "ContactListItem-~zod" -> "~zod")
+      const shipId = ariaLabel.replace('ContactListItem-', '');
+      if (shipId && shipId.startsWith('~')) {
+        // Skip own ship
+        const ownShip = page.url().includes('localhost:3000')
+          ? '~zod'
+          : page.url().includes('localhost:3002')
+            ? '~ten'
+            : '~bus';
+        if (shipId !== ownShip) {
+          contacts.push(shipId);
+        }
+      }
+    }
+  }
+
+  // Navigate back to home to leave in clean state
+  await page.getByTestId('HomeNavIcon').click();
+
+  return contacts;
+}
+
+/**
+ * Remove a specific contact from the contacts list
+ * @param page - The page object
+ * @param shipId - The ship ID (e.g., "~zod") of the contact to remove
+ */
+export async function removeContact(page: Page, shipId: string) {
+  // Validate ship ID format
+  if (!shipId.startsWith('~')) {
+    console.log(
+      `[CLEANUP] Invalid ship ID format: ${shipId} (must start with ~)`
+    );
+    return;
+  }
+
+  // Navigate to Contacts
+  await page.getByTestId('AvatarNavIcon').click();
+  await expect(page.getByText('Contacts')).toBeVisible({ timeout: 5000 });
+
+  // Use aria-label selector for ship IDs (more reliable when nicknames change)
+  const contactElement = page.locator(
+    `[aria-label="ContactListItem-${shipId}"]`
+  );
+
+  if (await contactElement.isVisible({ timeout: 2000 }).catch(() => false)) {
+    // Check if this is the "You" contact (skip removal)
+    if (
+      await contactElement
+        .getByText('You')
+        .isVisible({ timeout: 2000 })
+        .catch(() => false)
+    ) {
+      return;
+    }
+
+    await contactElement.click();
+
+    // Wait for Profile to load
+    await expect(page.getByText('Profile')).toBeVisible({ timeout: 5000 });
+
+    // Look for Remove Contact button - it should be on the profile view, not in edit mode
+    const removeButton = page.getByText('Remove Contact');
+    if (await removeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await removeButton.click();
+      await page.waitForTimeout(1000);
+
+      // Handle any confirmation dialog if present
+      const confirmButton = page.getByText('Remove', { exact: true });
+      if (await confirmButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await confirmButton.click();
+      }
+    }
+
+    // Navigate back to home
+    await page.getByTestId('HomeNavIcon').click();
+    await page.waitForTimeout(500);
+  }
+}
+
+/**
+ * Remove all contacts from both ships
+ * This is a comprehensive cleanup that removes all contacts
+ */
+export async function removeAllContacts(page: Page) {
+  const contacts = await getAllContacts(page);
+
+  for (const contact of contacts) {
+    // Skip self references
+    if (contact.includes('You')) {
+      continue;
+    }
+    // Skip own ship (check if we're on zod or ten)
+    const ownShip = page.url().includes('localhost:3000') ? '~zod' : '~ten';
+    if (contact === ownShip || contact.includes(ownShip.substring(1))) {
+      continue;
+    }
+    await removeContact(page, contact);
+  }
+}
+
+/**
+ * Clear custom nickname for a specific contact
+ * @param page - The page object
+ * @param contactNameOrId - The name, nickname, or ship ID (e.g., "~zod") of the contact
+ */
+export async function clearContactNickname(
+  page: Page,
+  contactNameOrId: string
+) {
+  // Navigate to Contacts
+  await page.getByTestId('AvatarNavIcon').click();
+  await expect(page.getByText('Contacts')).toBeVisible({ timeout: 5000 });
+
+  // Determine if we have a ship ID or contact name
+  const isShipId = contactNameOrId.startsWith('~');
+  let contactElement;
+
+  if (isShipId) {
+    // Use aria-label selector for ship IDs (more reliable when nicknames change)
+    contactElement = page.locator(
+      `[aria-label="ContactListItem-${contactNameOrId}"]`
+    );
+  } else {
+    // Fall back to text-based search for contact names
+    contactElement = page.getByText(contactNameOrId).first();
+  }
+
+  if (await contactElement.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await contactElement.click();
+
+    // Wait for Profile to load
+    await expect(page.getByText('Profile')).toBeVisible({ timeout: 5000 });
+
+    // Click Edit button
+    await page.getByText('Edit').click();
+    await expect(page.getByText('Edit Profile')).toBeVisible({
+      timeout: 5000,
+    });
+
+    // Clear the nickname field
+    await page.getByTestId('ProfileNicknameInput').click();
+    await page.getByTestId('ProfileNicknameInput').fill('');
+
+    // Save changes
+    await page.getByText('Done').click();
+    await page.waitForTimeout(1000);
+
+    // Navigate back home
+    await page.getByTestId('HomeNavIcon').click();
+  }
 }

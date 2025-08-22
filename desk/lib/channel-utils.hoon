@@ -1,4 +1,4 @@
-/-  c=channels, g=groups, ci=cite, m=meta, h=hooks
+/-  c=channels, gv=groups-ver, ci=cite, s=story, m=meta, h=hooks
 /+  em=emojimart
 ::  convert a post to a preview for a "said" response
 ::
@@ -449,7 +449,7 @@
   ==
 ::
 ++  verse-1
-  |=  =verse:c
+  |=  =verse:s
   ^-  verse:v7:old:c
   ?+  verse  verse
       [%inline *]
@@ -466,7 +466,7 @@
   ==
 ::
 ++  listing-1
-  |=  =listing:c
+  |=  =listing:s
   ^-  listing:v7:old:c
   ?-  -.listing
     %list  listing(q (turn q.listing listing-1), r (turn r.listing inline-1))
@@ -474,7 +474,7 @@
   ==
 ::
 ++  inline-1
-  |=  =inline:c
+  |=  =inline:s
   ^-  inline:v7:old:c
   ?@  inline  inline
   ?+  -.inline  inline
@@ -493,14 +493,15 @@
   ^-  essay:v7:old:c
   :-  (memo-1 -.essay)
   ^-  kind-data:v7:old:c
-  ?+    kind.essay  ~|(essay-1-fail+kind.essay !!)
+  ?+    kind.essay  [%chat ~]
     [%chat $@(~ [%notice ~])]  kind.essay
+    [%chat *]                  [%chat ~]
   ::
-      [%diary ~]
+      [%diary *]
     ?~  meta.essay  [%diary '' '']
     [%diary title image]:u.meta.essay
   ::
-      [%heap ~]
+      [%heap *]
     ?~  meta.essay  [%heap ~]
     [%heap `title.u.meta.essay]
   ==
@@ -752,36 +753,36 @@
   scam(scan (scan-1 scan.scam))
 ::
 ++  was-mentioned
-  |=  [=story:c who=ship vessel=(unit vessel:fleet:g)]
+  |=  [=story:s who=ship seat=(unit seat:v7:gv)]
   ^-  ?
   %+  lien  story
-  |=  =verse:c
+  |=  =verse:s
   ?:  ?=(%block -.verse)  |
   %+  lien  p.verse
-  |=  =inline:c
+  |=  =inline:s
   ?@  inline  |
   ?+  -.inline  |
     %ship  =(who p.inline)
   ::
       %sect
     ?~  p.inline  &
-    ?~  vessel  |
-    (~(has in sects.u.vessel) p.inline)
+    ?~  seat  |
+    (~(has in roles.u.seat) `role-id:v7:gv`p.inline)
   ==
 ::
 ++  flatten
-  |=  content=(list verse:c)
+  |=  content=(list verse:s)
   ^-  cord
   %+  rap   3
   %+  turn  content
-  |=  v=verse:c
+  |=  v=verse:s
   ^-  cord
   ?-  -.v
       %block  ''
       %inline
     %+  rap  3
     %+  turn  p.v
-    |=  c=inline:c
+    |=  c=inline:s
     ^-  cord
     ?@  c  c
     ?-  -.c
@@ -912,12 +913,12 @@
   &(?=([%post * %set *] val) =(id.val key.u.vp))
 ::
 ++  perms
-  |_  [our=@p now=@da =nest:c group=flag:g]
-  ++  am-host  =(our ship.nest)
+  |_  [our=@p now=@da =nest:c group=flag:gv]
+  ++  our-host  =(our ship.nest)
   ++  groups-scry
     ^-  path
     :-  (scot %p our)
-    /groups/(scot %da now)/groups/(scot %p p.group)/[q.group]
+    /groups/(scot %da now)/v2/groups/(scot %p p.group)/[q.group]
   ::
   ++  is-admin
     |=  her=ship
@@ -926,39 +927,40 @@
     ;:  weld
         /gx
         groups-scry
-        /fleet/(scot %p her)/is-bloc/loob
+        /seats/(scot %p her)/is-admin/noun
     ==  ==
-  ::
-  ++  can-write
-    |=  [her=ship writers=(set sect:g)]
-    ?:  =(ship.nest her)  &
-    =/  =path
-      %+  welp  groups-scry
-      :+  %channel  kind.nest
-      /(scot %p ship.nest)/[name.nest]/can-write/(scot %p her)/noun
-    =+  .^(write=(unit [bloc=? sects=(set sect:g)]) %gx path)
-    ?~  write  |
-    =/  perms  (need write)
-    ?:  |(bloc.perms =(~ writers))  &
-    !=(~ (~(int in writers) sects.perms))
   ::
   ++  can-read
     |=  her=ship
     ?:  =(our her)  &
     =/  =path
       %+  welp  groups-scry
-      /can-read/noun
-    =/  test=$-([ship nest:g] ?)
-      =>  [path=path nest=nest:g ..zuse]  ~+
+      /channels/can-read/noun
+    =/  test=$-([ship nest:gv] ?)
+      =>  [path=path nest=nest:gv ..zuse]  ~+
       .^($-([ship nest] ?) %gx path)
     (test her nest)
+  ::
+  ++  can-write
+    |=  [her=ship writers=(set role-id:v7:gv)]
+    ?:  =(ship.nest her)  &
+    =/  =path
+      %+  welp  groups-scry
+      :+  %channels
+        kind.nest
+      /(scot %p ship.nest)/[name.nest]/can-write/(scot %p her)/noun
+    =+  .^(write=(unit [admin=? roles=(set role-id:v7:gv)]) %gx path)
+    ?~  write  |
+    =/  perms  (need write)
+    ?:  |(admin.perms =(~ writers))  &
+    !=(~ (~(int in writers) roles.perms))
   --
 ::
 ++  cite
   |%
   ++  ref-to-pointer  ::TODO  formalize "pointer" type?
     |=  ref=cite:ci
-    ^-  (unit [=nest:g =plan:c])
+    ^-  (unit [=nest:gv =plan:c])
     ?.  ?=(%chan -.ref)
       ~
     ::TODO  the whole "deconstruct the ref path" situation is horrendous
@@ -973,7 +975,7 @@
   ::
   ++  grab-post
     |=  [=bowl:gall ref=cite:ci]
-    ^-  (unit [=nest:g =post:c])
+    ^-  (unit [=nest:gv =post:c])
     ?~  point=(ref-to-pointer ref)
       ~
     =,  u.point
@@ -990,7 +992,7 @@
     ==
   ::
   ++  from-post
-    |=  [=nest:g =id-post:c kind=path]
+    |=  [=nest:gv =id-post:c kind=path]
     ^-  cite:ci
     =/  kind=@ta
       ?+  kind  ~&([%from-post-strange-kind kind] %msg)
@@ -1002,14 +1004,14 @@
   --
 ::
 ++  flatten-inline
-  |=  i=inline:c
+  |=  i=inline:s
   ^-  cord
   ?@  i  i
   ?-  -.i
     ?(%italics %bold %strike %blockquote)  (rap 3 (turn p.i flatten-inline))
     ?(%inline-code %code %tag)  p.i
     %ship   (scot %p p.i)
-    %sect  ?~(p.i '@all' (cat 3 '@' p.i))
+    %sect   ?~(p.i '@all' (cat 3 '@' p.i))
     %block  q.i
     %link   q.i
     %task   (rap 3 (turn q.i flatten-inline))
@@ -1017,8 +1019,8 @@
   ==
 ::
 ++  first-inline
-  |=  content=story:c
-  ^-  (list inline:c)
+  |=  content=story:s
+  ^-  (list inline:s)
   ?~  content  ~
   ?:  ?=(%inline -.i.content)
     p.i.content
@@ -1047,12 +1049,12 @@
   |%
   ++  content  story
   ++  story
-    |=  content=story:c
+    |=  content=story:s
     ^-  marl
     (zing (turn content verse))
   ::
   ++  verse
-    |=  =verse:c
+    |=  =verse:s
     ^-  marl
     ?-  -.verse
       %block  (block p.verse)
@@ -1067,7 +1069,7 @@
     ==
   ::
   ++  block
-    |=  =block:c
+    |=  =block:s
     ^-  marl
     ?-  -.block
         %image
@@ -1122,7 +1124,7 @@
             %ordered
           ;ol
             ;*  %+  turn  q.p.block
-                |=  l=listing:c
+                |=  l=listing:s
                 ;li
                   ;*  (^block %listing l)
                 ==
@@ -1131,7 +1133,7 @@
             %unordered
           ;ul
             ;*  %+  turn  q.p.block
-                |=  l=listing:c
+                |=  l=listing:s
                 ;li
                   ;*  (^block %listing l)
                 ==
@@ -1140,7 +1142,7 @@
             %tasklist
           ;ul.tasklist
             ;*  %+  turn  q.p.block
-                |=  l=listing:c
+                |=  l=listing:s
                 ;li
                   ;*  (^block %listing l)
                 ==
@@ -1166,7 +1168,7 @@
     ==
   ::
   ++  inline
-    |=  =inline:c
+    |=  =inline:s
     ^-  manx
     ?@  inline
       ;span:"{(trip inline)}"

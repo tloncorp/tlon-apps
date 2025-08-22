@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { Icon, SizableEmoji } from '@tloncorp/ui';
+import { Icon, SizableEmoji, getNativeEmoji } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
@@ -9,6 +9,7 @@ import { Tooltip, View, XStack } from 'tamagui';
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
 import { triggerHaptic } from '../../utils';
+import { useCanWrite } from '../../utils/channelUtils';
 import { ReactionListItem, useReactionDetails } from '../../utils/postUtils';
 import { EmojiPickerSheet } from '../Emoji';
 
@@ -23,6 +24,8 @@ export function ReactionsDisplay({
 }) {
   const currentUserId = useCurrentUserId();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const channel = store.useChannel({ id: post.channelId });
+  const canWrite = useCanWrite(channel.data, currentUserId);
 
   const handleSelectEmoji = useOnEmojiSelect(post, () => setSheetOpen(false));
 
@@ -41,6 +44,9 @@ export function ReactionsDisplay({
 
   const handleModifyYourReaction = useCallback(
     (value: string) => {
+      if (!canWrite) {
+        return;
+      }
       triggerHaptic('baseButtonClick');
       if (
         reactionDetails.self.didReact &&
@@ -48,7 +54,13 @@ export function ReactionsDisplay({
       ) {
         store.removePostReaction(post, currentUserId);
       } else {
-        store.addPostReaction(post, value, currentUserId);
+        // Convert legacy shortcodes to native emojis before adding reaction
+        const nativeEmoji = getNativeEmoji(value);
+        if (nativeEmoji) {
+          store.addPostReaction(post, nativeEmoji, currentUserId);
+        }
+        // If nativeEmoji is undefined, it means the input was an invalid shortcode
+        // and we should not add the reaction
       }
     },
     [
@@ -56,6 +68,7 @@ export function ReactionsDisplay({
       post,
       reactionDetails.self.didReact,
       reactionDetails.self.value,
+      canWrite,
     ]
   );
 
@@ -92,6 +105,7 @@ export function ReactionsDisplay({
               key={reaction.value}
               onPress={() => handleModifyYourReaction(reaction.value)}
               testID={`ReactionDisplay-minimal`}
+              disabled={!canWrite}
             >
               <Tooltip placement="top" delay={0} restMs={25}>
                 <Tooltip.Trigger>
@@ -167,8 +181,9 @@ export function ReactionsDisplay({
                     }
                     gap={'$s'}
                     disabled={
-                      reactionDetails.self.didReact &&
-                      reaction.value !== reactionDetails.self.value
+                      !canWrite ||
+                      (reactionDetails.self.didReact &&
+                        reaction.value !== reactionDetails.self.value)
                     }
                   >
                     <SizableEmoji
@@ -196,7 +211,7 @@ export function ReactionsDisplay({
         </XStack>
       </Pressable>
 
-      {post.type !== 'chat' && post.type !== 'reply' ? (
+      {post.type !== 'chat' && post.type !== 'reply' && canWrite ? (
         <>
           <Pressable onPress={() => setSheetOpen(true)}>
             <View
