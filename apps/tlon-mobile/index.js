@@ -10,7 +10,7 @@ import { useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { registerRootComponent } from 'expo';
 import 'expo-dev-client';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import 'react-native-get-random-values';
 import {
   ReanimatedLogLevel,
@@ -28,7 +28,6 @@ BigInt.prototype.toJSON = function () {
 
 // Modifies fetch to support server sent events which
 // are required for Urbit client subscriptions
-setupDb();
 addCustomEnabledLoggers(ENABLED_LOGGERS);
 setStorage(AsyncStorage);
 
@@ -39,6 +38,15 @@ configureReanimatedLogger({
 });
 
 function Main(props) {
+  const [isDbReady, setIsDbReady] = useState(false);
+  useEffect(() => {
+    async function checkDb() {
+      await setupDb();
+      setIsDbReady(true);
+    }
+    checkDb();
+  }, []);
+
   useEffect(() => {
     async function init() {
       const appInfo = await db.appInfo.getValue();
@@ -50,7 +58,7 @@ function Main(props) {
 
   return (
     <TailwindProvider utilities={utilities}>
-      <App {...props} />
+      {isDbReady ? <App {...props} /> : null}
     </TailwindProvider>
   );
 }

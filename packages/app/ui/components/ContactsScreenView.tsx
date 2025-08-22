@@ -96,6 +96,8 @@ export function ContactsScreenView(props: Props) {
           size="$4xl"
           contactId={item.id}
           showNickname
+          testID="ContactListItem"
+          aria-label={`ContactListItem-${item.id}`}
           showEndContent
           endContent={
             item.isContactSuggestion && !isSelf ? (
