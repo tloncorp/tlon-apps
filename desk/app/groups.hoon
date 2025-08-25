@@ -859,8 +859,8 @@
 ++  inflate-io
   ^+  cor
   ::
-  =.  cor  (watch-contacts | |)
-  =.  cor  (watch-channels | |)
+  =.  cor  (watch-contacts |)
+  =.  cor  (watch-channels |)
   ::
   =.  cor
     %+  roll
@@ -1302,13 +1302,24 @@
   ==
 ::  +safe-watch: safely watch a subscription path
 ::
-::  if .force is set, rewatch even if we have duplicate wire
+::  nb: this will not resubscribe if the subscription is
+::  still in the state, despite a leave card that might be in the
+::  queue.
 ::
 ++  safe-watch
   |=  [=wire =dock =path]
-  |=  [delay=? force=?]
+  |=  delay=?
   ^+  cor
-  ?:  &(!force (~(has by wex.bowl) wire dock))  cor
+  ?:  (~(has by wex.bowl) wire dock)  cor
+  =^  caz=(list card)  subs
+    (~(subscribe s [subs bowl]) wire dock path delay)
+  (emil caz)
+::  +safe-force-watch: safely force watch a subscription path
+::
+++  safe-force-watch
+  |=  [=wire =dock =path]
+  |=  delay=?
+  ^+  cor
   =^  caz=(list card)  subs
     (~(subscribe s [subs bowl]) wire dock path delay)
   (emil caz)
@@ -1321,7 +1332,7 @@
   ?+    -.sign  cor
   ::
       %kick
-    (watch-channels & |)
+    (watch-channels &)
   ::
       %fact
     ?.  =(%channel-response-2 p.cage.sign)  cor
@@ -1374,7 +1385,7 @@
   ^+  cor
   ?+  -.sign  cor
       %kick
-    (watch-contacts & |)
+    (watch-contacts &)
   ::
       %watch-ack
     cor
@@ -2758,7 +2769,7 @@
     =+  log=~(. l `'group-join')
     ?:  go-has-sub  go-core
     %-  (tell:log %dbug leaf+"+go-safe-sub subscribing to {<flag>}" ~)
-    (go-start-updates delay |)
+    (go-start-updates delay)
   ::  +go-leave-subs: leave group subscriptions
   ::
   ++  go-leave-subs
@@ -2771,15 +2782,30 @@
   ::  +go-start-updates: subscribe to the group for updates
   ::
   ++  go-start-updates
-    |=  [delay=? force=?]
+    |=  delay=?
     ^+  go-core
     =/  sub-time=@da
       ?:  ?=(%pub -.net)  *@da
       time.net
-    =.  cor
-      %.  [delay force]
-      %^  safe-watch  go-sub-wire  [p.flag server]
+    =/  sub-path=path
       (weld go-server-path /updates/(scot %p our.bowl)/(scot %da sub-time))
+    =.  cor
+      %.  delay
+      (safe-watch go-sub-wire [p.flag server] sub-path)
+    go-core
+  ::  +go-force-start-updates: force subscribe to the group for updates
+  ::
+  ++  go-force-start-updates
+    |=  delay=?
+    ^+  go-core
+    =/  sub-time=@da
+      ?:  ?=(%pub -.net)  *@da
+      time.net
+    =/  sub-path=path
+      (weld go-server-path /updates/(scot %p our.bowl)/(scot %da sub-time))
+    =.  cor
+      %.  delay
+      (safe-force-watch go-sub-wire [p.flag server] sub-path)
     go-core
   ::  +go-restart-updates: resubscribe to the group, fetching full state
   ::
@@ -2800,7 +2826,7 @@
     ::  consider it uninitialized
     ::
     =.  net  [%sub *@da |]
-    (go-start-updates & &)
+    (go-force-start-updates &)
   ::
   ::  +go-leave: leave the group and all channel subscriptions
   ::
@@ -4058,7 +4084,7 @@
     =^  caz=(list card)  subs
       (~(unsubscribe s [subs bowl]) wire dock)
     =.  cor  (emil caz)
-    =.  cor  %.  [delay |]
+    =.  cor  %.  delay
       (safe-watch (weld fi-area /preview) [p.flag dap.bowl] fi-preview-path)
     fi-core
   ::  +fi-watch-index: handle index watch request
