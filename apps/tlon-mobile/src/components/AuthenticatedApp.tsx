@@ -20,7 +20,7 @@ import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 
 import { checkAnalyticsDigest, useCheckAppUpdated } from '../hooks/analytics';
-import { useBackgroundData } from '../hooks/useBackgroundData';
+import { useCachedChanges } from '../hooks/useBackgroundData';
 import { useCheckNodeStopped } from '../hooks/useCheckNodeStopped';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
@@ -36,11 +36,13 @@ function AuthenticatedApp() {
   useNetworkLogger();
   useCheckAppUpdated();
   useFindSuggestedContacts();
+  const checkForCachedChanges = useCachedChanges();
 
   const handleAppStatusChange = useCallback(
-    (status: AppStatus) => {
+    async (status: AppStatus) => {
       // app opened or returned from background
       if (status === 'opened' || status === 'active') {
+        await checkForCachedChanges();
         updateSession({ isSyncing: true });
         hapticPerfSignal(sync.syncSince, 'syncSince', 2000);
         telemetry.captureAppActive();
@@ -84,8 +86,6 @@ function AuthenticatedApp() {
 export default function ConnectedAuthenticatedApp() {
   const [clientReady, setClientReady] = useState(false);
   const configureClient = useConfigureUrbitClient();
-
-  useBackgroundData();
 
   useEffect(() => {
     configureClient();

@@ -95,23 +95,6 @@ class NotificationService: UNNotificationServiceExtension {
         case let .activityEventJson(activityEventRaw):
             var notifContent = bestAttemptContent ?? UNNotificationContent()
             
-            print("bl: starting file proof of concept")
-            do {
-                let fakeData: [String: String] = ["data": "hello, world"]
-                let jsonData = try JSONSerialization.data(withJSONObject: fakeData, options: .prettyPrinted)
-                if let sharedContainerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.io.tlon.groups") {
-                    let fileURL = sharedContainerURL.appendingPathComponent("shared_data.json")
-                    print("bl: writing to \(fileURL)")
-                    try jsonData.write(to: fileURL, options: [.atomic])
-                    print("✅ [NotificationService] Successfully wrote hardcoded data to shared file")
-                } else {
-                    print("❌ [NotificationService] Could not find shared App Group container.")
-                }
-
-            } catch {
-                print("❌ [NotificationService] Failed to create or write data: \(error.localizedDescription)")
-            }
-            
           if let activityEventRaw {
             notifContent = await applyNotif(
                 activityEventRaw,
@@ -121,6 +104,10 @@ class NotificationService: UNNotificationServiceExtension {
           
           contentHandler(notifContent)
           return
+            
+          // after we handle the notification, try to sync changes
+//          try await ChangesLoader.sync()
+            
           
         case let .failedFetchContents(err):
           packErrorOnNotification(err)

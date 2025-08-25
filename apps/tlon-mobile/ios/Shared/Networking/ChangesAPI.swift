@@ -1,10 +1,3 @@
-//
-//  ChangesAPI.swift
-//  Landscape
-//
-//  Created by brian. on 8/24/25.
-//
-
 import Alamofire
 import Foundation
 
@@ -31,7 +24,7 @@ func getEncodedTime(from date: Date) -> String {
 }
 
 
-// Copy of the @urbit/aura-js logic for producing hoon date strings (@da)
+// Minimal date formatting needed for hitting the API
 class UrbitDate {
     
     // Constants from the Urbit system
