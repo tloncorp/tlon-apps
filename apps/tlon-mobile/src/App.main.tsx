@@ -45,21 +45,29 @@ SplashScreen.preventAutoHideAsync().catch((err) => {
 });
 
 const useSplashHider = () => {
-  const [splashHidden, setSplashHidden] = useState(false);
+  const [splashHidden, setSplashHidden] = useState(
+    splashScreenProgress.finished
+  );
 
   useEffect(() => {
-    splashScreenProgress.emitter.on('complete', async () => {
+    const onComplete = () => {
       try {
         withRetry(async () => {
           await SplashScreen.hideAsync();
           setSplashHidden(true);
         });
-      } catch (error) {
+      } catch (err) {
         splashscreenLogger.trackError('Failed to hide splash screen', {
-          error,
+          errorMessage: err.message,
         });
       }
-    });
+    };
+
+    splashScreenProgress.emitter.on('complete', onComplete);
+
+    return () => {
+      splashScreenProgress.emitter.off('complete', onComplete);
+    };
   }, []);
 
   return splashHidden;
