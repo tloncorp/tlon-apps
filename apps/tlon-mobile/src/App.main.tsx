@@ -78,6 +78,14 @@ const App = () => {
   usePreloadedEmojis();
 
   useEffect(() => {
+    // if not logged in, we never want to show the splash screen
+    // after the app initializes
+    if (!isAuthenticated) {
+      SplashScreen.hideAsync();
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
     const unsubscribeFromNetInfo = NetInfo.addEventListener(
       ({ isConnected }) => {
         setConnected(isConnected ?? true);
