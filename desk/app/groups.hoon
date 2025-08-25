@@ -3292,7 +3292,8 @@
       =.  seats.group
         %-  ~(rep in ships)
         |=  [=ship =_seats.group]
-        =+  seat=(~(got by seats) ship)
+        ?~  tea=(~(get by seats.group) ship)  seats
+        =*  seat  u.tea
         =.  seat
           seat(roles (~(uni in roles.seat) roles.u-seat))
         (~(put by seats) ship seat)
@@ -3312,7 +3313,8 @@
       =.  seats.group
         %-  ~(rep in ships)
         |=  [=ship =_seats.group]
-        =+  seat=(~(got by seats) ship)
+        ?~  tea=(~(get by seats.group) ship)  seats
+        =*  seat  u.tea
         =.  seat
           seat(roles (~(dif in roles.seat) roles.u-seat))
         (~(put by seats) ship seat)
