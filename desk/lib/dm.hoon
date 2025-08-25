@@ -2,6 +2,7 @@
 /-  old-4=chat-4, old-3=chat-3
 /+  mp=mop-extensions, cu=channel-utils
 |_  pac=pact:c
+++  size-limit  256.000  :: 256KB
 ++  mope  ((mp time writ:c) lte)
 ++  gas
   |=  ls=(list [=time =writ:c])
@@ -78,6 +79,7 @@
   ^+  pac
   ?-  -.del
       %add
+    ?>  (lte (met 3 (jam del)) size-limit)
     ?:  (~(has by dex.pac) id)
       pac
     =.  num.pac  +(num.pac)
@@ -143,6 +145,7 @@
   ?-  -.delta
       %add
     |-
+    ?>  (lte (met 3 (jam delta)) size-limit)
     ?:  (has:on:replies:c replies now)
       $(now `@da`(add now ^~((div ~s1 (bex 16)))))
     =/  reply-seal  [id parent-id now ~]
