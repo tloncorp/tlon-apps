@@ -54,32 +54,6 @@ splashScreenProgress.emitter.on('complete', async () => {
 
 registerBackgroundSyncTask();
 
-// Used for debugging our background task identifier from Info.plist
-const UrbitModule = NativeModules.UrbitModule;
-if (UrbitModule) {
-  UrbitModule.getDebugInfo()
-    .then((identifiers: string[]) => {
-      if (identifiers.length) {
-        db.debugPermittedSchedulerId.setValue(identifiers[0]);
-        splashscreenLogger.trackEvent(
-          `set debug Permitted Scheduler ID to ${identifiers[0]}`
-        );
-      } else {
-        throw new Error('No permitted scheduler identifiers found');
-      }
-    })
-    .catch((error: any) => {
-      splashscreenLogger.trackError(
-        'Failed to find permitted scheduler identifiers',
-        {
-          errorMessage:
-            error instanceof Error ? error.message : error.toString(),
-          stack: error instanceof Error ? error.stack : undefined,
-        }
-      );
-    });
-}
-
 // Android notification tap handler passes initial params here
 const App = () => {
   const isDarkMode = useIsDarkMode();
