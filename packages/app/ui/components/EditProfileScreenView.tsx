@@ -238,7 +238,7 @@ export function EditProfileScreenView(props: Props) {
               }}
               rules={{
                 pattern: {
-                  value: /^(?!file).+/,
+                  value: /^(?!file|data).+/,
                   message: 'Image has not finished uploading',
                 },
               }}
