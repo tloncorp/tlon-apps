@@ -44,13 +44,26 @@ SplashScreen.preventAutoHideAsync().catch((err) => {
   console.warn('Failed to prevent auto hide splash screen', err);
 });
 
-splashScreenProgress.emitter.on('complete', async () => {
-  try {
-    await withRetry(() => SplashScreen.hideAsync());
-  } catch (error) {
-    splashscreenLogger.trackError('Failed to hide splash screen', { error });
-  }
-});
+const useSplashHider = () => {
+  const [splashHidden, setSplashHidden] = useState(false);
+
+  useEffect(() => {
+    splashScreenProgress.emitter.on('complete', async () => {
+      try {
+        withRetry(async () => {
+          await SplashScreen.hideAsync();
+          setSplashHidden(true);
+        });
+      } catch (error) {
+        splashscreenLogger.trackError('Failed to hide splash screen', {
+          error,
+        });
+      }
+    });
+  }, []);
+
+  return splashHidden;
+};
 
 unregisterBackgroundSyncTask();
 
@@ -76,14 +89,6 @@ const App = () => {
   }, [signupContext.email, signupContext.phoneNumber]);
 
   usePreloadedEmojis();
-
-  useEffect(() => {
-    // if not logged in, we never want to show the splash screen
-    // after the app initializes
-    if (!isAuthenticated) {
-      SplashScreen.hideAsync();
-    }
-  }, [isAuthenticated]);
 
   useEffect(() => {
     const unsubscribeFromNetInfo = NetInfo.addEventListener(
@@ -161,6 +166,7 @@ export default function ConnectedApp() {
   const isDarkMode = useIsDarkMode();
   const navigationContainerRef = useNavigationContainerRef();
   const migrationState = useMigrations();
+  const splashIsHidden = useSplashHider();
 
   return (
     <FeatureFlagConnectedInstrumentationProvider>
@@ -173,7 +179,7 @@ export default function ConnectedApp() {
             <BranchProvider>
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <SignupProvider>
-                  <App />
+                  {splashIsHidden ? <App /> : null}
 
                   {__DEV__ && (
                     <DevTools navigationContainerRef={navigationContainerRef} />
