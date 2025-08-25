@@ -2270,6 +2270,9 @@
     ::
         %set-admin
       =.  admins.group  (~(uni in admins.group) roles)
+      ::XX when a user becomes an admin, the group host should sync
+      ::   admin-restricted updates since the last sync.
+      ::
       (se-update %role roles [%set-admin ~])
     ::
         %del-admin
@@ -2484,7 +2487,7 @@
           pending.admissions   ~
           requests.admissions  ~
         ==
-      ::  clear .active-channels, as this updated locally
+      ::  clear .active-channels, as this is updated locally
       =.  active-channels.group  ~
       (give %fact ~ group-log+!>(`log:g`[now.bowl^[%create group] ~ ~]))
     ::
