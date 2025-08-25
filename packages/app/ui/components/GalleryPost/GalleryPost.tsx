@@ -20,7 +20,7 @@ import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { differenceInDays } from 'date-fns';
-import { now, truncate } from 'lodash';
+import { truncate } from 'lodash';
 import {
   ComponentProps,
   PropsWithChildren,
@@ -28,12 +28,16 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { ScrollView, View, XStack, styled } from 'tamagui';
+import { View, XStack, styled } from 'tamagui';
 
 import { RootStackParamList } from '../../../navigation/types';
-import { useChannelContext, useCurrentUserId, useRequests } from '../../contexts';
-import { useCanWrite } from '../../utils/channelUtils';
+import {
+  useChannelContext,
+  useCurrentUserId,
+  useRequests,
+} from '../../contexts';
 import { MinimalRenderItemProps } from '../../contexts/componentsKits';
+import { useCanWrite } from '../../utils/channelUtils';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ReactionsDisplay } from '../ChatMessage/ReactionsDisplay';
@@ -161,6 +165,7 @@ export function GalleryPost({
           pointerEvents="none"
           size={size}
           embedded={embedded}
+          isPreview={true}
         />
         {showHeaderFooter && (
           <GalleryPostFooter post={post} deliveryFailed={deliveryFailed} />
@@ -362,6 +367,7 @@ export function GalleryPostDetailView({
           size="$l"
           onPressImage={handlePressImage}
           testID="GalleryPostContent"
+          isPreview={false}
         />
       </View>
 
@@ -406,14 +412,18 @@ export function GalleryPostDetailView({
 
 export function GalleryContentRenderer({
   post,
+  isPreview = false,
   ...props
 }: {
   post: db.Post;
   onPressImage?: (src: string) => void;
   size?: '$s' | '$l';
+  isPreview?: boolean;
 } & Omit<ComponentProps<typeof PreviewFrame>, 'content'>) {
   const content = usePostContent(post);
   const previewContent = usePreviewContent(content);
+  // Use full content for detail views, preview content for previews
+  const displayContent = isPreview ? previewContent : content;
 
   if (post.hidden) {
     return (
@@ -424,9 +434,9 @@ export function GalleryContentRenderer({
   }
 
   return props.size === '$l' ? (
-    <LargePreview content={previewContent} {...props} />
+    <LargePreview content={displayContent} {...props} />
   ) : (
-    <SmallPreview content={previewContent} {...props} />
+    <SmallPreview content={displayContent} {...props} />
   );
 }
 
@@ -453,10 +463,6 @@ function SmallPreview({
   'content'
 >) {
   const link = useBlockLink(content);
-  const isTextContent =
-    content[0]?.type === 'paragraph' ||
-    content[0]?.type === 'list' ||
-    content[0]?.type === 'blockquote';
 
   return link ? (
     <PreviewFrame {...props} previewType="link">
@@ -464,20 +470,7 @@ function SmallPreview({
     </PreviewFrame>
   ) : (
     <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
-      {isTextContent ? (
-        // ScrollView with scrollEnabled={false} acts as a measured container
-        // that properly clips text content on iOS/Android. Plain View with
-        // overflow="hidden" doesn't provide consistent text clipping behavior.
-        <ScrollView
-          flex={1}
-          scrollEnabled={false}
-          showsVerticalScrollIndicator={false}
-        >
-          <SmallContentRenderer content={content} />
-        </ScrollView>
-      ) : (
-        <SmallContentRenderer height={'100%'} content={content} />
-      )}
+      <SmallContentRenderer height={'100%'} content={content} />
     </PreviewFrame>
   );
 }
@@ -616,6 +609,7 @@ const SmallContentRenderer = createContentRenderer({
     },
     lineText: {
       size: '$label/s',
+      trimmed: false,
     },
     image: {
       height: '100%',
@@ -699,7 +693,24 @@ function usePreviewContent(content: BlockData[]): BlockData[] {
     } else if (groupedBlocks.link?.length) {
       return [groupedBlocks.link[0]];
     }
-    return firstBlockIsPreviewable(content) ? content.slice(0, 1) : content;
+
+    // For previewable first blocks (image/video/reference), show just that
+    if (firstBlockIsPreviewable(content)) {
+      return content.slice(0, 1);
+    }
+
+    // For text-only content, check if it's all text blocks
+    const isTextContent = content.every(
+      (block) =>
+        !['image', 'video', 'reference', 'link', 'embed'].includes(block.type)
+    );
+
+    if (isTextContent) {
+      // Limit to first 2 blocks to prevent overflow in preview
+      return content.slice(0, 2);
+    }
+
+    return content;
   }, [content]);
 }
 
