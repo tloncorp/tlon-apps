@@ -284,8 +284,7 @@
       =+  ;;(=flag:g +.q.vase)
       ?.  |(=(our src):bowl =(p.flag src.bowl))
         cor
-      ?~  g=(~(get by groups) flag)
-        cor
+      ?.  (~(has by groups) flag)  cor
       go-abet:(go-safe-sub:(go-abed:go-core flag) |)
     ::
         %pimp-ready
@@ -641,10 +640,6 @@
     =.  cor  (emil:cor caz)
     ::  force leave
     (emit:cor [%pass wire %agent dock %leave ~])
-  ::  v4 -> v5: initialize $group .active-channels
-  ::
-  =?  cor  ?=(%4 -.old)
-    (emit [%pass /load/active-channels %arvo %b %wait now.bowl])
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
   =^  caz-6-to-7=(list card)  old
@@ -652,6 +647,9 @@
     (state-6-to-7 old)
   =?  cor  !=(~ caz-6-to-7)  (emil caz-6-to-7)
   ?>  ?=(%7 -.old)
+  ::  initialize .active-channels on each reload
+  =.  cor
+    (emit [%pass /load/active-channels %arvo %b %wait now.bowl])
   =.  state  old
   inflate-io
   ::
@@ -861,8 +859,8 @@
 ++  inflate-io
   ^+  cor
   ::
-  =.  cor  (watch-contacts |)
-  =.  cor  (watch-channels |)
+  =.  cor  (watch-contacts | |)
+  =.  cor  (watch-channels | |)
   ::
   =.  cor
     %+  roll
@@ -1194,7 +1192,6 @@
       (~(handle-wakeup s [subs bowl]) pole)
     (emil caz)
   ::
-      :: v4 -> v5
       :: initialize .active-channels in $group
       ::
       [%load %active-channels ~]
@@ -1303,14 +1300,15 @@
       [%load %v7 %subscriptions ~]
     inflate-io
   ==
-::  does not overwite if wire and dock exist.  maybe it should
-::  leave/rewatch if the path differs?
+::  +safe-watch: safely watch a subscription path
+::
+::  if .force is set, rewatch even if we have duplicate wire
 ::
 ++  safe-watch
   |=  [=wire =dock =path]
-  |=  delay=?
+  |=  [delay=? force=?]
   ^+  cor
-  ?:  (~(has by wex.bowl) wire dock)  cor
+  ?:  &(!force (~(has by wex.bowl) wire dock))  cor
   =^  caz=(list card)  subs
     (~(subscribe s [subs bowl]) wire dock path delay)
   (emil caz)
@@ -1323,7 +1321,7 @@
   ?+    -.sign  cor
   ::
       %kick
-    (watch-channels &)
+    (watch-channels & |)
   ::
       %fact
     ?.  =(%channel-response-2 p.cage.sign)  cor
@@ -1376,7 +1374,7 @@
   ^+  cor
   ?+  -.sign  cor
       %kick
-    (watch-contacts &)
+    (watch-contacts & |)
   ::
       %watch-ack
     cor
@@ -2266,22 +2264,7 @@
         =*  next  $(channels t.channels)
         =/  [=nest:g =channel:g]  i.channels
         ::  repair readers as needed
-        ::
         =.  se-core  (se-channel-del-roles nest roles)
-        ::  repair writers as needed
-        ::
-        ::  not host
-        ?:  !=(our.bowl p.q.nest)  next
-        =+  .^(has=? %gu (channels-scry nest))
-        ::  missing channel
-        ?.  has  next
-        ::  unsupported channel
-        ?.  ?=(?(%chat %heap %diary) p.nest)  next
-        =/  cmd=c-channels:d
-          [%channel nest %del-writers (sects:v2:roles:v7:gc roles)]
-        =/  cage  channel-command+!>(cmd)
-        =/  dock  [p.q.nest %channels-server]
-        =.  se-core  (emit %pass /channels/perms %agent dock %poke cage)
         next
       (se-update %role roles [%del ~])
     ::
@@ -2498,10 +2481,12 @@
         ::        might just need to be a no-op in light of this, right?
         %_  group
           tokens.admissions    ~
-          pending.admissions  ~
+          pending.admissions   ~
           requests.admissions  ~
         ==
-      (give %fact ~ group-log+!>(`log:g`[now.bowl^[%create group] ~ ~]))
+      ::  clear .active-channels, as these are updated locally
+      =.  active-channels.group  ~
+      (give %fact ~ group-log+!>(`log:g`[now.bowl^[%create `group:g`group] ~ ~]))
     ::
     =/  =log:g  (lot:log-on:g log `da ~)
     ::  filter out admin updates
@@ -2618,7 +2603,7 @@
       (~(put by groups) flag net group)
     ?.  gone  cor
     =.  go-core  (go-response [%delete ~])
-    (emil leave-subs:go-pass)
+    go-leave-subs
   ::  +go-area: group base path
   ++  go-area  `path`/groups/(scot %p p.flag)/[q.flag]
   ::  go-server-path: group server base path
@@ -2696,14 +2681,6 @@
       =/  =path  (weld go-server-path /token/(scot %p ship))
       [%pass wire %agent dock %watch path]
     ::
-    ++  leave-subs
-      ^-  (list card)
-      =/  =wire  (snoc go-area %updates)
-      =/  =dock  [p.flag dap.bowl]
-      =^  caz=(list card)  subs
-        (~(unsubscribe s [subs bowl]) wire dock)
-      caz
-    ::
     ++  leave-group
       ^-  card
       =/  =wire  (weld go-area /command/leave)
@@ -2778,17 +2755,26 @@
     =+  log=~(. l `'group-join')
     ?:  go-has-sub  go-core
     %-  (tell:log %dbug leaf+"+go-safe-sub subscribing to {<flag>}" ~)
-    (go-start-updates delay)
+    (go-start-updates delay |)
+  ::  +go-leave-subs: leave group subscriptions
+  ::
+  ++  go-leave-subs
+    ^+  cor
+    =/  =wire  (snoc go-area %updates)
+    =/  =dock  [p.flag dap.bowl]
+    =^  caz=(list card)  subs
+      (~(unsubscribe s [subs bowl]) wire dock)
+    (emil caz)
   ::  +go-start-updates: subscribe to the group for updates
   ::
   ++  go-start-updates
-    |=  delay=?
+    |=  [delay=? force=?]
     ^+  go-core
     =/  sub-time=@da
       ?:  ?=(%pub -.net)  *@da
       time.net
     =.  cor
-      %.  delay
+      %.  [delay force]
       %^  safe-watch  go-sub-wire  [p.flag server]
       (weld go-server-path /updates/(scot %p our.bowl)/(scot %da sub-time))
     go-core
@@ -2806,12 +2792,12 @@
     ::  sane source to clean up from, anyway.
     ::
     ?<  ?=(%pub -.net)
-    =.  cor  (emil leave-subs:go-pass)
+    =.  cor  go-leave-subs
     ::  since we are trying to re-establish group state from scratch,
     ::  consider it uninitialized
     ::
     =.  net  [%sub *@da |]
-    (go-start-updates &)
+    (go-start-updates & &)
   ::
   ::  +go-leave: leave the group and all channel subscriptions
   ::
@@ -3387,6 +3373,8 @@
       =.  go-core  (go-response %role roles [%edit meta.u-role])
       ?:  go-our-host  go-core
       ::
+      ?.  =(~ (~(dif in roles) ~(key by roles.group)))
+        (go-restart-updates 'missing roles edited')
       =.  roles.group
         %-  ~(rep in roles)
         |=  [=role-id:g =_roles.group]
@@ -3411,7 +3399,7 @@
       ::
       =/  channels  ~(tap by channels.group)
       ::  nb: this used to sent pokes to the local channels-server
-      ::  to delete the role from the writers set of a hosted channel. 
+      ::  to delete the role from the writers set of a hosted channel.
       ::  however, channels-server already listens to updates from groups
       ::  and updates permissions accordingly.
       ::
@@ -3463,7 +3451,7 @@
         ?.  ?=(kind:d p.nest)  |
         .^(? %gu (weld pre /v3/[p.nest]/(scot %p p.q.nest)/[q.q.nest]))
       =?  active-channels.group  active
-        (~(put by active-channels.group) nest)
+        (~(put in active-channels.group) nest)
       ?:  go-our-host  go-core
       ::TODO handle duplicate channel add properly. either
       ::     should restart updates, or remove the channel from existing
@@ -3497,9 +3485,14 @@
       ::      response would carry the associated group.
       ::
       =.  active-channels.group
-        (~(del by active-channels.group) nest)
+        (~(del in active-channels.group) nest)
       ?:  go-our-host  go-core
       ::
+      ?.  (has:by-ch nest)
+        ::  we must make sure we properly delete the channel
+        ::  to clean it up from sections.
+        ::
+        (go-restart-updates 'missing channel deleted')
       =/  =channel:g   (got:by-ch nest)
       =.  sections.group
         ?.  (~(has by sections.group) section.channel)
@@ -3527,6 +3520,8 @@
       =.  go-core  (go-response %channel nest [%del-readers roles.u-channel])
       ?:  go-our-host  go-core
       ::
+      ?.  (has:by-ch nest)
+        (go-restart-updates 'missing channel')
       =.  go-core  (go-channel-del-roles nest roles.u-channel)
       go-core
     ::
@@ -3534,6 +3529,8 @@
       =.  go-core  (go-response %channel nest [%section section.u-channel])
       ?:  go-our-host  go-core
       ::
+      ?.  (has:by-ch nest)
+        (go-restart-updates 'missing channel')
       =/  =channel:g  (got:by-ch nest)
       ?.  (~(has by sections.group) section.u-channel)
         (go-restart-updates 'missing updated section')
@@ -3594,6 +3591,8 @@
       =.  go-core  (go-response %section section-id [%edit meta.u-section])
       ?:  go-our-host  go-core
       ::
+      ?.  (~(has by sections.group) section-id)
+        (go-restart-updates 'missing section')
       =.  sections.group
         %+  ~(jab by sections.group)  section-id
         |=  =section:g
@@ -4047,7 +4046,7 @@
     =^  caz=(list card)  subs
       (~(unsubscribe s [subs bowl]) wire dock)
     =.  cor  (emil caz)
-    =.  cor  %.  delay
+    =.  cor  %.  [delay |]
       (safe-watch (weld fi-area /preview) [p.flag dap.bowl] fi-preview-path)
     fi-core
   ::  +fi-watch-index: handle index watch request
