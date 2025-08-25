@@ -3,6 +3,7 @@ import { Atom, Cell, Noun, dejs, enjs, jam } from '@urbit/nockjs';
 import { isBrowser } from 'browser-or-node';
 
 import { TimeoutError } from '../api';
+import { createDevLogger } from '../debug';
 import { desig } from '../urbit';
 import * as utils from '../utils';
 import { UrbitHttpApiEvent, UrbitHttpApiEventType } from './events';
@@ -27,6 +28,8 @@ import {
   headers,
 } from './types';
 import EventEmitter, { hexString, unpackJamBytes } from './utils';
+
+const logger = createDevLogger('UrbitHttpApi');
 
 //TODO  move into nockjs utils
 function isNoun(a: any): a is Noun {
@@ -571,6 +574,8 @@ export class Urbit {
   private async sendNounsToChannel(...args: (Noun | any)[]): Promise<void> {
     const options = this.fetchOptionsNoun('PUT', 'noun');
     const body = formatUw(jam(dejs.list(args)).number.toString());
+    this.validatePokeBodySize(body);
+
     const response = await this.fetchFn(this.channelUrl, {
       ...options,
       signal: this.channelAbort.signal,
@@ -596,11 +601,14 @@ export class Urbit {
   }
 
   private async sendJSONtoChannel(...json: (Message | Ack)[]): Promise<void> {
+    const body = JSON.stringify(json);
+    this.validatePokeBodySize(body);
+
     const response = await this.fetchFn(this.channelUrl, {
       ...this.fetchOptions,
       signal: this.channelAbort.signal,
       method: 'PUT',
-      body: JSON.stringify(json),
+      body,
     });
 
     if (!response.ok) {
@@ -621,6 +629,18 @@ export class Urbit {
       }
 
       await this.eventSource();
+    }
+  }
+
+  /**
+   * Validates the size of the poke body.
+   * This prevents us from accidentally sending large payloads (eg base64 images)
+   * @param body The body to validate.
+   */
+  validatePokeBodySize(body: string) {
+    if (body.length / 1024 > 512) {
+      logger.trackError('Body too large to send to channel');
+      throw new Error('Body too large to send to channel');
     }
   }
 
