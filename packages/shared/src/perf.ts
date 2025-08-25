@@ -22,42 +22,9 @@ type PerformanceMonitoringStore = {
 const usePerformanceMonitoringStore = create<PerformanceMonitoringStore>(
   (set, getState) => ({
     endpoint: null,
-    setEndpoint: (e) => {
-      const { enabled } = getState();
+    setEndpoint: (e) => set({ endpoint: e }),
 
-      // If we're setting an endpoint and monitoring is already enabled,
-      // enable it on the new endpoint
-      if (e && enabled) {
-        e.setEnabled(true);
-      }
-
-      set({ endpoint: e });
-    },
-
-    setEnabled: (enabled) => {
-      const { endpoint } = getState();
-
-      // If trying to enable but endpoint is not set yet, just update the state
-      // The endpoint will handle enabling when it's set
-      if (enabled && endpoint === null) {
-        console.warn(
-          'Performance monitoring endpoint not set yet, deferring enable'
-        );
-        set((prev) => ({
-          ...prev,
-          enabled,
-        }));
-        return;
-      }
-
-      // If endpoint exists, propagate the enabled state to it
-      endpoint?.setEnabled(enabled);
-
-      set((prev) => ({
-        ...prev,
-        enabled,
-      }));
-    },
+    setEnabled: (enabled) => set((prev) => ({ ...prev, enabled })),
 
     enabled: false,
 
@@ -99,12 +66,17 @@ export function InstrumentationProvider({
   const { setEndpoint, setEnabled } = usePerformanceMonitoringStore();
 
   useEffect(() => {
-    // Set endpoint first
     setEndpoint(endpoint);
+    setEnabled(collectionEnabled);
 
-    // Then enable/disable collection only if endpoint exists
     if (endpoint) {
-      setEnabled(collectionEnabled);
+      endpoint.setEnabled(collectionEnabled);
+    }
+
+    if (collectionEnabled && !endpoint) {
+      console.warn(
+        'Performance monitoring endpoint not set yet, deferring enable'
+      );
     }
 
     return () => {
