@@ -63,6 +63,12 @@ const useSplashHider = () => {
       }
     };
 
+    // check if progress completed before mounting
+    if (splashScreenProgress.finished) {
+      onComplete();
+      return;
+    }
+
     splashScreenProgress.emitter.on('complete', onComplete);
 
     return () => {
