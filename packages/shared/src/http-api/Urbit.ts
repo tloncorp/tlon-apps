@@ -29,7 +29,7 @@ import {
 } from './types';
 import EventEmitter, { hexString, unpackJamBytes } from './utils';
 
-const logger = createDevLogger('UrbitHttpApi');
+const logger = createDevLogger('UrbitHttpApi', false);
 
 //TODO  move into nockjs utils
 function isNoun(a: any): a is Noun {
