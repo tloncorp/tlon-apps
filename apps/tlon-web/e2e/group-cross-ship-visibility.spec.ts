@@ -18,7 +18,7 @@ test('should show group info, channel, and role changes to invited user', async 
   await helpers.openGroupSettings(zodPage);
 
   // Change group info - set privacy to private
-  await helpers.setGroupPrivacy(zodPage, true);
+  await helpers.setGroupPrivacy(zodPage, 'private');
   await helpers.navigateBack(zodPage);
 
   // Verify privacy setting on zod's side
@@ -60,24 +60,7 @@ test('should show group info, channel, and role changes to invited user', async 
   // await helpers.navigateBack(zodPage);
 
   // Step 3: ~ten accepts the invite
-  // Wait for and accept the group invitation
-  await tenPage.waitForTimeout(1000);
-  await expect(tenPage.getByText('Group invitation')).toBeVisible();
-  await tenPage.getByText('Group invitation').click();
-
-  // Accept the invitation if the button is visible
-  if (await tenPage.getByText('Accept invite').isVisible()) {
-    await tenPage.getByText('Accept invite').click();
-  }
-
-  await tenPage.waitForSelector('text=Joining, please wait...');
-  await tenPage.waitForSelector('text=Go to group', { state: 'visible' });
-
-  if (await tenPage.getByText('Go to group').isVisible()) {
-    await tenPage.getByText('Go to group').click();
-  } else {
-    await tenPage.getByText('~ten, ~zod').click();
-  }
+  await helpers.acceptGroupInvite(tenPage, '~ten, ~zod');
 
   // Step 4: ~zod makes ~ten an admin
   await helpers.openGroupSettings(zodPage);
@@ -114,17 +97,9 @@ test('should show group info, channel, and role changes to invited user', async 
   // Verify channels are visible in settings
   await tenPage.getByTestId('GroupChannels').getByText('Channels').click();
   await expect(tenPage.getByText('Manage channels')).toBeVisible();
+  await expect(tenPage.getByTestId('ChannelListItem-General')).toBeVisible();
   await expect(
-    tenPage
-      .locator('div')
-      .filter({ hasText: /^General$/ })
-      .first()
-  ).toBeVisible();
-  await expect(
-    tenPage
-      .locator('div')
-      .filter({ hasText: /^Test Channel$/ })
-      .first()
+    tenPage.getByTestId('ChannelListItem-Test Channel')
   ).toBeVisible();
 
   // Verify channel section is visible

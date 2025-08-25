@@ -5,12 +5,15 @@ import shipManifest from './e2e/shipManifest.json';
 /**
  * @see https://playwright.dev/docs/test-configuration
  */
+const isProductionMode = process.env.USE_PRODUCTION_BUILD === 'true';
 const webServers = Object.entries(shipManifest).map(
   ([key, ship]: [string, any]) => ({
-    command: `cross-env SHIP_URL=${ship.url} VITE_DISABLE_SPLASH_MODAL=true pnpm dev-no-ssl`,
+    command: isProductionMode
+      ? `cross-env SHIP_URL=${ship.url} VITE_DISABLE_SPLASH_MODAL=true pnpm serve --port ${ship.webUrl.match(/:(\d+)/)?.[1] || '3000'} --host`
+      : `cross-env SHIP_URL=${ship.url} VITE_DISABLE_SPLASH_MODAL=true pnpm dev-no-ssl`,
     url: `${ship.webUrl}/apps/groups/`,
     reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
+    timeout: isProductionMode ? 180 * 1000 : 120 * 1000,
   })
 );
 
@@ -25,7 +28,7 @@ export default defineConfig({
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
 
-  retries: 2,
+  retries: process.env.CI ? 2 : 0,
 
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : 1,

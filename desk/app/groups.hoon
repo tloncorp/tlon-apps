@@ -3173,7 +3173,6 @@
       ::TODO if a token we had used for inviting someone to the group
       ::     has been revoked, we should signal to the invitee.
       ::
-      ?>  (~(has by tokens.ad) token.u-token)
       =.  tokens.ad  (~(del by tokens.ad) token.u-token)
       go-core
     ==
@@ -3423,7 +3422,9 @@
       ::
       =/  pre=path
         /(scot %p our.bowl)/channels/(scot %da now.bowl)
-      =/  active  .^(? %gu (weld pre /v3/[p.nest]/(scot %p p.q.nest)/[q.q.nest]))
+      =/  active
+        ?.  ?=(kind:d p.nest)  |
+        .^(? %gu (weld pre /v3/[p.nest]/(scot %p p.q.nest)/[q.q.nest]))
       =?  active-channels.group  active
         (~(put by active-channels.group) nest)
       ?:  go-our-host  go-core
@@ -3494,6 +3495,9 @@
       ::
       =/  =channel:g  (got:by-ch nest)
       ?>  (~(has by sections.group) section.u-channel)
+      =.  sections.group
+        %+  ~(jab by sections.group)  section.channel
+        |=(=section:g section(order (~(del of order.section) nest)))
       =.  section.channel   section.u-channel
       =.  channels.group  (put:by-ch nest channel)
       =.  sections.group
