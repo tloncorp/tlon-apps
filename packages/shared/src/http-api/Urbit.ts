@@ -883,6 +883,17 @@ export class Urbit {
    * @returns The scry result
    */
   async scry<T = any>(params: Scry): Promise<T> {
+    const { result } = await this.scryWithInfo(params);
+    return result;
+  }
+
+  async scryWithInfo<T = any>(
+    params: Scry
+  ): Promise<{
+    responseStatus: number;
+    responseSizeInBytes: number;
+    result: T;
+  }> {
     const { app, path, timeout } = params;
     const signal = timeout ? utils.createTimeoutSignal(timeout) : undefined;
     const response = await this.fetchFn(
@@ -898,10 +909,25 @@ export class Urbit {
       return Promise.reject(response);
     }
 
-    return await response.json();
+    const result = await response.json();
+    const responseSize = response.headers.get('content-length');
+    return {
+      responseStatus: response.status,
+      responseSizeInBytes: Number(responseSize),
+      result,
+    };
   }
 
   async scryNoun(params: Scry): Promise<Noun> {
+    const { result } = await this.scryNounWithInfo(params);
+    return result;
+  }
+
+  async scryNounWithInfo(params: Scry): Promise<{
+    responseStatus: number;
+    responseSizeInBytes: number;
+    result: Noun;
+  }> {
     const { app, path } = params;
 
     try {
@@ -925,7 +951,12 @@ export class Urbit {
 
       try {
         const unpacked = await unpackJamBytes(buffer);
-        return unpacked;
+        const responseSize = response.headers.get('content-length');
+        return {
+          responseStatus: response.status,
+          responseSizeInBytes: Number(responseSize),
+          result: unpacked,
+        };
       } catch (e) {
         console.error('Unpack failed', e);
         throw e;

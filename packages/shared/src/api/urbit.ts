@@ -578,20 +578,22 @@ export async function scry<T>({
     shouldTimeoutAfter: timeout ?? DEFAULT_SCRY_TIMEOUT,
   });
   try {
-    const result = await config.client.scry<T>({
-      app,
-      path,
-      timeout: timeout ?? DEFAULT_SCRY_TIMEOUT,
-    });
-    trackDuration('success');
+    const { result, responseSizeInBytes, responseStatus } =
+      await config.client.scryWithInfo<T>({
+        app,
+        path,
+        timeout: timeout ?? DEFAULT_SCRY_TIMEOUT,
+      });
+    trackDuration('success', { responseSizeInBytes, responseStatus });
     return result;
   } catch (res) {
     logger.log('bad scry', app, path, res.status);
     if (res.status === 403) {
       logger.log('scry failed with 403, authing to try again');
       await reauth();
-      const result = await config.client.scry<T>({ app, path });
-      trackDuration('success');
+      const { result, responseSizeInBytes, responseStatus } =
+        await config.client.scryWithInfo<T>({ app, path });
+      trackDuration('success', { responseSizeInBytes, responseStatus });
       return result;
     }
     trackDuration('error', {
@@ -624,20 +626,22 @@ export async function scryNoun({
     shouldTimeoutAfter: timeout ?? DEFAULT_SCRY_TIMEOUT,
   });
   try {
-    const result = await config.client.scryNoun({
-      app,
-      path,
-      timeout: timeout ?? DEFAULT_SCRY_TIMEOUT,
-    });
-    trackDuration('success');
+    const { result, responseSizeInBytes, responseStatus } =
+      await config.client.scryNounWithInfo({
+        app,
+        path,
+        timeout: timeout ?? DEFAULT_SCRY_TIMEOUT,
+      });
+    trackDuration('success', { responseSizeInBytes, responseStatus });
     return result;
   } catch (res) {
     logger.log('bad scry', app, path, res.status);
     if (res.status === 403) {
       logger.log('scry failed with 403, authing to try again');
       await reauth();
-      const result = config.client.scryNoun({ app, path });
-      trackDuration('success');
+      const { result, responseSizeInBytes, responseStatus } =
+        await config.client.scryNounWithInfo({ app, path });
+      trackDuration('success', { responseSizeInBytes, responseStatus });
       return result;
     }
     trackDuration('error', {
