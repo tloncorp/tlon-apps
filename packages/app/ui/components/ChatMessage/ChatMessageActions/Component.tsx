@@ -43,7 +43,7 @@ export function ChatMessageActions({
 }: ChatMessageActionsProps) {
   const currentUserId = useCurrentUserId();
   const channel = store.useChannel({ id: post.channelId });
-  const canWrite = useCanWrite(channel.data!, currentUserId);
+  const canWrite = useCanWrite(channel.data, currentUserId);
   const insets = useSafeAreaInsets();
   const PADDING_THRESHOLD = 40;
 
@@ -158,6 +158,7 @@ export function ChatMessageActions({
             borderColor="$border"
             borderWidth={1}
             padding={1}
+            testID="ChatMessageActions"
           >
             <YStack gap="$xs">
               {canWrite && (

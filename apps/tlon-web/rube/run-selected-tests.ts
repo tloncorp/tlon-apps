@@ -8,34 +8,48 @@ import { Ship } from './index';
 
 // Parse command line arguments
 const args = process.argv.slice(2);
-const testFile = args.find((arg) => arg.endsWith('.spec.ts'));
+const testFiles = args.filter((arg) => arg.endsWith('.spec.ts'));
 const playwrightFlags = args.filter((arg) => !arg.endsWith('.spec.ts'));
 
-if (!testFile) {
-  console.error('Usage: pnpm e2e:test [flags] <test-file.spec.ts>');
+if (testFiles.length === 0) {
+  console.error('Usage: pnpm e2e:test [flags] <test-file.spec.ts> [test-file2.spec.ts ...]');
   console.error('Examples:');
+  console.error('  # Single test file:');
   console.error('  pnpm e2e:test chat-functionality.spec.ts');
   console.error('  pnpm e2e:test --debug chat-functionality.spec.ts');
-  console.error('  pnpm e2e:test --headed --debug chat-functionality.spec.ts');
+  console.error('  ');
+  console.error('  # Multiple test files:');
+  console.error('  pnpm e2e:test chat-functionality.spec.ts direct-message.spec.ts');
+  console.error('  pnpm e2e:test --headed group-lifecycle.spec.ts group-customization.spec.ts');
   console.error('');
   console.error('Common flags: --debug, --headed, --ui, --trace=on');
   process.exit(1);
 }
 
-// Validate that the test file exists
+// Validate that all test files exist
 // Note: __dirname will be rube/dist when compiled, so we need to go up two levels
-const testPath = path.join(__dirname, '../../e2e', testFile);
-if (!fs.existsSync(testPath)) {
-  console.error(`❌ Test file not found: ${testFile}`);
-  console.error(`   Expected location: ${testPath}`);
+const invalidFiles: string[] = [];
+const validTestPaths: string[] = [];
+
+for (const testFile of testFiles) {
+  const testPath = path.join(__dirname, '../../e2e', testFile);
+  if (!fs.existsSync(testPath)) {
+    invalidFiles.push(testFile);
+  } else {
+    validTestPaths.push(testPath);
+  }
+}
+
+if (invalidFiles.length > 0) {
+  console.error(`❌ Test file(s) not found: ${invalidFiles.join(', ')}`);
   console.error('');
   console.error('Available test files:');
   try {
     const e2eDir = path.join(__dirname, '../../e2e');
-    const testFiles = fs
+    const availableFiles = fs
       .readdirSync(e2eDir)
       .filter((f) => f.endsWith('.spec.ts'));
-    testFiles.forEach((file) => console.error(`   - ${file}`));
+    availableFiles.forEach((file) => console.error(`   - ${file}`));
   } catch {
     console.error('   (Could not list available files)');
   }
@@ -44,13 +58,15 @@ if (!fs.existsSync(testPath)) {
 
 let rubeProcess: childProcess.ChildProcess | null = null;
 let isShuttingDown = false;
+let exitCode = 0; // Track the exit code for proper process termination
+const pidFile = path.join(__dirname, '.run-selected-tests.pid');
 
 // Handle cleanup on exit
 process.on('SIGINT', cleanup);
 process.on('SIGTERM', cleanup);
 process.on('exit', cleanup);
 
-async function cleanup() {
+function cleanup() {
   if (isShuttingDown) return;
   isShuttingDown = true;
 
@@ -59,10 +75,49 @@ async function cleanup() {
   if (rubeProcess && !rubeProcess.killed && rubeProcess.pid) {
     console.log('Killing rube process...');
     try {
-      // Kill the entire process group to ensure all child processes are terminated
-      process.kill(-rubeProcess.pid, 'SIGTERM');
+      // Try graceful termination first
+      rubeProcess.kill('SIGTERM');
+
+      // Give it a moment to terminate gracefully
+      const timeout = Date.now() + 1000;
+      while (Date.now() < timeout) {
+        try {
+          process.kill(rubeProcess.pid, 0); // Check if still alive
+        } catch {
+          break; // Process is dead
+        }
+      }
+
+      // Force kill if still running
+      try {
+        rubeProcess.kill('SIGKILL');
+      } catch {}
     } catch (error) {
       console.log('Process already terminated');
+    }
+  }
+
+  // CRITICAL: Use pattern-based killing to clean up all Urbit processes
+  // This is necessary because Urbit spawns serf sub-processes that aren't tracked
+  try {
+    // Kill all Urbit processes matching our rube pattern
+    console.log('Killing Urbit processes...');
+    // Use a subshell to handle empty output gracefully on macOS
+    const killUrbitCmd = `pids=$(ps aux | grep urbit | grep "rube/dist" | grep -v grep | awk '{print $2}'); [ -n "$pids" ] && echo "$pids" | xargs kill -9 2>/dev/null || true`;
+    childProcess.execSync(killUrbitCmd, { stdio: 'ignore' });
+
+    // Also kill any node processes running rube
+    const killNodeRubeCmd = `pids=$(ps aux | grep "node.*rube/dist/index.js" | grep -v grep | awk '{print $2}'); [ -n "$pids" ] && echo "$pids" | xargs kill -9 2>/dev/null || true`;
+    childProcess.execSync(killNodeRubeCmd, { stdio: 'ignore' });
+
+    // Also kill any Vite dev server processes
+    console.log('Killing Vite processes...');
+    const killViteCmd = `pids=$(ps aux | grep "vite dev" | grep -v grep | awk '{print $2}'); [ -n "$pids" ] && echo "$pids" | xargs kill -9 2>/dev/null || true`;
+    childProcess.execSync(killViteCmd, { stdio: 'ignore' });
+  } catch (error) {
+    // Only log if it's a real error, not just "no processes found"
+    if (error.status !== 1) {
+      console.log('Error during pattern-based cleanup:', error.message);
     }
   }
 
@@ -92,13 +147,56 @@ async function cleanup() {
   const uniquePorts = Array.from(new Set(ports));
   for (const port of uniquePorts) {
     try {
-      childProcess.exec(`lsof -ti:${port} | xargs kill -9 2>/dev/null || true`);
+      // First try lsof (most common)
+      try {
+        childProcess.execSync(
+          `command -v lsof >/dev/null 2>&1 && lsof -ti:${port} | xargs kill -9 2>/dev/null || true`,
+          { stdio: 'ignore' }
+        );
+      } catch {
+        // If lsof doesn't exist, try fuser as fallback
+        try {
+          childProcess.execSync(
+            `command -v fuser >/dev/null 2>&1 && fuser -k ${port}/tcp 2>/dev/null || true`,
+            { stdio: 'ignore' }
+          );
+        } catch {
+          // Neither tool available - skip port cleanup
+        }
+      }
     } catch (error) {
       // Ignore errors - processes might not exist
     }
   }
 
+  // Clean up PID file
+  try {
+    fs.unlinkSync(pidFile);
+  } catch {}
+
+  // Verify cleanup was successful
+  try {
+    const remainingUrbit = childProcess
+      .execSync(
+        `ps aux | grep urbit | grep "rube/dist" | grep -v grep | wc -l`,
+        { encoding: 'utf8' }
+      )
+      .trim();
+
+    if (remainingUrbit !== '0') {
+      console.log(
+        `⚠️ Warning: ${remainingUrbit} Urbit processes may still be running after cleanup`
+      );
+      console.log('  Run ./rube-cleanup.sh for complete cleanup');
+    }
+  } catch {
+    // Ignore verification errors
+  }
+
   console.log('Cleanup complete!');
+
+  // Exit the process after cleanup with the appropriate exit code
+  process.exit(exitCode);
 }
 
 async function waitForReadiness() {
@@ -152,23 +250,30 @@ async function waitForReadiness() {
 }
 
 async function runTest(): Promise<void> {
-  if (!testFile) {
-    throw new Error('Test file is required');
+  if (testFiles.length === 0) {
+    throw new Error('Test file(s) required');
   }
 
   const flagsDisplay =
     playwrightFlags.length > 0
       ? ` with flags: ${playwrightFlags.join(' ')}`
       : '';
-  console.log(`🧪 Running test: ${testFile}${flagsDisplay}`);
+  
+  // Display which tests are being run
+  if (testFiles.length === 1) {
+    console.log(`🧪 Running test: ${testFiles[0]}${flagsDisplay}`);
+  } else {
+    console.log(`🧪 Running ${testFiles.length} tests${flagsDisplay}:`);
+    testFiles.forEach(file => console.log(`   - ${file}`));
+  }
 
   return new Promise<void>((resolve, reject) => {
-    // Build the command arguments: playwright test [flags] testFile --retries=0
+    // Build the command arguments: playwright test [flags] testFile1 testFile2 ... --retries=0
     const args: string[] = [
       'playwright',
       'test',
       ...playwrightFlags,
-      testFile,
+      ...testFiles,
       '--retries=0',
       '--reporter=list', // Use list reporter instead of HTML to avoid serving report
     ];
@@ -180,11 +285,12 @@ async function runTest(): Promise<void> {
 
     testProcess.on('close', (code: number | null) => {
       if (code === 0) {
-        console.log('✅ Test completed successfully!');
+        console.log('✅ Tests completed successfully!');
         resolve();
       } else {
-        console.log(`❌ Test failed with exit code ${code}`);
-        reject(new Error(`Test failed with exit code ${code}`));
+        console.log(`❌ Tests failed with exit code ${code}`);
+        exitCode = code || 1;
+        reject(new Error(`Tests failed with exit code ${code}`));
       }
     });
 
@@ -197,6 +303,26 @@ async function runTest(): Promise<void> {
 
 async function main() {
   try {
+    // Check for existing instance
+    if (fs.existsSync(pidFile)) {
+      try {
+        const oldPid = parseInt(fs.readFileSync(pidFile, 'utf8'));
+        process.kill(oldPid, 0);
+        console.error(
+          '❌ Another run-selected-tests instance is already running!'
+        );
+        console.error(`PID: ${oldPid}`);
+        console.error('Kill it first or wait for it to complete.');
+        process.exit(1);
+      } catch {
+        // Process doesn't exist, clean up stale file
+        fs.unlinkSync(pidFile);
+      }
+    }
+
+    // Save our PID
+    fs.writeFileSync(pidFile, process.pid.toString());
+
     console.log(
       '🚀 Starting ships and web servers (without running full test suite)...'
     );
@@ -205,7 +331,7 @@ async function main() {
     rubeProcess = childProcess.spawn('pnpm', ['rube'], {
       stdio: ['ignore', 'pipe', 'pipe'],
       cwd: path.join(__dirname, '../..'), // Go up two levels from rube/dist
-      detached: true, // Create a new process group
+      // Don't detach - we want it to be part of our process group for cleanup
       env: {
         ...process.env,
         SKIP_TESTS: 'true', // This tells rube to stop before running tests
@@ -236,13 +362,15 @@ async function main() {
 
     rubeProcess.on('error', (error: Error) => {
       console.error('Failed to start rube:', error);
-      process.exit(1);
+      exitCode = 1;
+      cleanup();
     });
 
     rubeProcess.on('close', (code: number | null) => {
       if (!isShuttingDown && !setupComplete) {
         console.error(`Rube process exited unexpectedly with code ${code}`);
-        process.exit(1);
+        exitCode = 1;
+        cleanup();
       }
     });
 
@@ -250,10 +378,18 @@ async function main() {
     await new Promise<void>((resolve) => {
       let dots = 0;
       const startTime = Date.now();
+      let timer: NodeJS.Timeout | null = null;
 
       console.log('⏳ Waiting for ships to complete setup');
 
       const checkSetup = () => {
+        if (isShuttingDown) {
+          // Stop the timer if we're shutting down
+          if (timer) clearTimeout(timer);
+          resolve();
+          return;
+        }
+
         if (setupComplete) {
           // Clear the current line and print completion message
           process.stdout.write('\r' + ' '.repeat(60) + '\r');
@@ -269,7 +405,7 @@ async function main() {
           process.stdout.write(
             `\r   Setting up ships${dotString} (${timeString})`
           );
-          setTimeout(checkSetup, 1000);
+          timer = setTimeout(checkSetup, 1000);
         }
       };
       checkSetup();
@@ -277,13 +413,13 @@ async function main() {
 
     await waitForReadiness();
 
-    // Run the single test
+    // Run the test(s)
     await runTest();
 
     console.log('🎉 Test run complete!');
   } catch (error) {
     console.error('Error:', error.message);
-    process.exit(1);
+    exitCode = 1;
   } finally {
     cleanup();
   }

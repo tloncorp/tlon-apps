@@ -7,6 +7,7 @@ import { ChannelMetaScreen } from '../features/channels/ChannelMetaScreen';
 import { ChannelTemplateScreen } from '../features/channels/ChannelTemplateScreen';
 import { AddContactsScreen } from '../features/contacts/AddContactsScreen';
 import { InviteSystemContactsScreen } from '../features/contacts/InviteSystemContactsScreen';
+import { InviteUsersScreen } from '../features/InviteUsersScreen';
 import { AttestationScreen } from '../features/profile/AttestationScreen';
 import { AppInfoScreen } from '../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../features/settings/BlockedUsersScreen';
@@ -129,6 +130,10 @@ export function RootStack() {
       <Root.Screen
         name="InviteSystemContacts"
         component={InviteSystemContactsScreen}
+      />
+      <Root.Screen
+        name="InviteUsers"
+        component={InviteUsersScreen}
       />
     </Root.Navigator>
   );

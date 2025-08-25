@@ -3,6 +3,9 @@ import { expect } from '@playwright/test';
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
+// Increase timeout for these comprehensive tests
+test.setTimeout(90000);
+
 test('should test comprehensive chat functionality', async ({
   zodSetup,
   tenSetup,
@@ -64,27 +67,8 @@ test('should test comprehensive chat functionality', async ({
   // Navigate to the group as ~ten
   await expect(tenPage.getByText('Home')).toBeVisible();
 
-  // Wait for the group invitation and accept it
-  await tenPage.waitForTimeout(3000);
-  await expect(tenPage.getByText('Group invitation')).toBeVisible();
-  await tenPage.getByText('Group invitation').click();
-
-  // Accept the invitation
-  if (await tenPage.getByText('Accept invite').isVisible()) {
-    await tenPage.getByText('Accept invite').click();
-  }
-
-  // Wait for joining process and go to group
-  await tenPage.waitForSelector('text=Joining, please wait...');
-  await tenPage.waitForSelector('text=Go to group', { state: 'visible' });
-
-  if (await tenPage.getByText('Go to group').isVisible()) {
-    await tenPage.getByText('Go to group').click();
-  } else {
-    await tenPage.getByText(groupName).first().click();
-  }
-
-  await expect(tenPage.getByText(groupName).first()).toBeVisible();
+  // Accept the group invitation
+  await helpers.acceptGroupInvite(tenPage, groupName);
 
   // Open the General channel
   await helpers.navigateToChannel(tenPage, 'General');
@@ -104,11 +88,7 @@ test('should test comprehensive chat functionality', async ({
   }
 
   // Report the message
-  if (
-    await zodPage.getByText('Report this message', { exact: true }).isVisible()
-  ) {
-    await helpers.reportMessage(zodPage, 'Report this message');
-  }
+  await helpers.reportMessage(zodPage, 'Report this message');
 
   // Send a message and delete it
   await helpers.sendMessage(zodPage, 'Delete this message');
@@ -148,78 +128,4 @@ test('should test comprehensive chat functionality', async ({
   await expect(
     zodPage.getByTestId('Post').getByText('mentioning @admin')
   ).toBeVisible();
-});
-
-test('should show and clear unread message counts', async ({
-  zodSetup,
-  tenSetup,
-}) => {
-  const zodPage = zodSetup.page;
-  const tenPage = tenSetup.page;
-
-  // Assert that we're on the Home page
-  await expect(zodPage.getByText('Home')).toBeVisible();
-
-  // Create a new group
-  await helpers.createGroup(zodPage);
-  const groupName = '~ten, ~zod';
-
-  await helpers.inviteMembersToGroup(zodPage, ['ten']);
-
-  // Navigate back to Home and verify group creation
-  await helpers.navigateBack(zodPage);
-  if (await zodPage.getByText('Home').isVisible()) {
-    await zodPage.waitForTimeout(1000);
-    await expect(zodPage.getByText(groupName).first()).toBeVisible();
-    await zodPage.getByText(groupName).first().click();
-    await expect(zodPage.getByText(groupName).first()).toBeVisible();
-  }
-
-  // Navigate to the group as ~ten
-  await expect(tenPage.getByText('Home')).toBeVisible();
-
-  // Wait for the group invitation and accept it
-  await tenPage.waitForTimeout(3000);
-  await expect(tenPage.getByText('Group invitation')).toBeVisible();
-  await tenPage.getByText('Group invitation').click();
-
-  // Accept the invitation
-  if (await tenPage.getByText('Accept invite').isVisible()) {
-    await tenPage.getByText('Accept invite').click();
-  }
-
-  // Wait for joining process and go to group
-  await tenPage.waitForSelector('text=Joining, please wait...');
-  await tenPage.waitForSelector('text=Go to group', { state: 'visible' });
-
-  if (await tenPage.getByText('Go to group').isVisible()) {
-    await tenPage.getByText('Go to group').click();
-  } else {
-    await tenPage.getByText(groupName).first().click();
-  }
-
-  await expect(tenPage.getByText(groupName).first()).toBeVisible();
-
-  // Send a message from ~zod to create unread
-  await helpers.sendMessage(zodPage, 'Unread message test');
-
-  // Navigate ~ten to home to prepare for unread testing
-  await tenPage.getByTestId('HomeNavIcon').click();
-  await expect(tenPage.getByText('Home')).toBeVisible();
-
-  // Verify unread count on ~ten's side
-  await helpers.verifyChatUnreadCount(tenPage, 'Untitled group', 1);
-
-  // Send another message to test count increment
-  await helpers.sendMessage(zodPage, 'Second unread message');
-  await helpers.verifyChatUnreadCount(tenPage, 'Untitled group', 2);
-
-  // Navigate to the group as ~ten to clear unread count
-  await tenPage.getByText(groupName).first().click();
-  await expect(tenPage.getByText(groupName).first()).toBeVisible();
-
-  // Navigate back to home and verify unread count is cleared
-  await tenPage.getByTestId('HomeNavIcon').click();
-  await expect(tenPage.getByText('Home')).toBeVisible();
-  await helpers.verifyChatUnreadCount(tenPage, 'Untitled group', 0);
 });

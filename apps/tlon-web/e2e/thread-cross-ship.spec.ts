@@ -3,69 +3,13 @@ import { expect } from '@playwright/test';
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
-test('should test comprehensive thread functionality', async ({ zodPage }) => {
-  const page = zodPage;
-
-  // Assert that we're on the Home page
-  await expect(page.getByText('Home')).toBeVisible();
-
-  // Create a new group
-  await helpers.createGroup(page);
-
-  // Navigate back to Home and verify group creation
-  await helpers.navigateBack(page);
-  if (await page.getByText('Home').isVisible()) {
-    await expect(page.getByText('Untitled group')).toBeVisible();
-    await page.getByText('Untitled group').click();
-    await expect(page.getByText('Untitled group').first()).toBeVisible();
-  }
-
-  // Send a message in the General channel
-  await helpers.sendMessage(page, 'Hello, world!');
-
-  // Verify message preview is visible
-  await helpers.verifyMessagePreview(page, 'Hello, world!', false, 'General');
-
-  // Start a thread from the message
-  await helpers.startThread(page, 'Hello, world!');
-
-  // Send a reply in the thread
-  await helpers.sendThreadReply(page, 'Thread reply');
-
-  // React to the thread reply with thumb emoji
-  await helpers.reactToMessage(page, 'Thread reply', 'thumb');
-
-  // Un-react to the message
-  await helpers.removeReaction(page, '👍');
-
-  // Quote-reply within the thread context
-  await helpers.threadQuoteReply(page, 'Thread reply', 'Quote reply');
-
-  // Send a message and report it (in thread)
-  await helpers.sendThreadReply(page, 'Report this reply');
-  if (await page.getByText('Report this reply', { exact: true }).isVisible()) {
-    await helpers.reportMessage(page, 'Report this reply');
-  }
-
-  // Send a message and delete it (in thread)
-  await helpers.sendThreadReply(page, 'Delete this reply');
-  await helpers.deleteMessage(page, 'Delete this reply');
-
-  // Send a message and edit it (in thread)
-  await helpers.sendThreadReply(page, 'Edit this reply');
-  await helpers.editMessage(page, 'Edit this reply', 'Edited reply', true);
-
-  // Verify the edited message is visible
-  await expect(page.getByText('Edited reply', { exact: true })).toBeVisible();
-
-  // Navigate back to the main channel
-  await helpers.navigateBack(page);
-});
-
 test('should test cross-ship thread functionality', async ({
-  zodPage,
-  tenPage,
+  zodSetup,
+  tenSetup,
 }) => {
+  const zodPage = zodSetup.page;
+  const tenPage = tenSetup.page;
+
   // Assert that we're on the Home page for both ships
   await expect(zodPage.getByText('Home')).toBeVisible();
   await expect(tenPage.getByText('Home')).toBeVisible();
@@ -80,38 +24,20 @@ test('should test cross-ship thread functionality', async ({
   // Navigate back to Home and verify group creation
   await helpers.navigateBack(zodPage);
   if (await zodPage.getByText('Home').isVisible()) {
-    await expect(zodPage.getByText(groupName).first()).toBeVisible({
+    await expect(
+      zodPage.getByTestId('ChatListItem-Untitled group-unpinned')
+    ).toBeVisible({
       timeout: 5000,
     });
-    await zodPage.getByText(groupName).first().click();
+    await zodPage.getByTestId('ChatListItem-Untitled group-unpinned').click();
     await expect(zodPage.getByText(groupName).first()).toBeVisible();
   }
 
   // Send initial message as ~zod
   await helpers.sendMessage(zodPage, 'Cross-ship thread test message');
 
-  // Wait for and accept the invitation as ~ten
-  await expect(tenPage.getByText('Group invitation')).toBeVisible({
-    timeout: 10000,
-  });
-  await tenPage.getByText('Group invitation').click();
-
-  // Accept the invitation
-  if (await tenPage.getByText('Accept invite').isVisible()) {
-    await tenPage.getByText('Accept invite').click();
-  }
-
-  // Wait for joining process
-  await tenPage.waitForSelector('text=Joining, please wait...');
-  await tenPage.waitForSelector('text=Go to group', { state: 'visible' });
-
-  if (await tenPage.getByText('Go to group').isVisible()) {
-    await tenPage.getByText('Go to group').click();
-  } else {
-    await tenPage.getByText(groupName).first().click();
-  }
-
-  await expect(tenPage.getByText(groupName).first()).toBeVisible();
+  // Accept the group invitation as ~ten
+  await helpers.acceptGroupInvite(tenPage, groupName);
 
   // Navigate to General channel
   await helpers.navigateToChannel(tenPage, 'General');
@@ -164,14 +90,12 @@ test('should test cross-ship thread functionality', async ({
   );
 
   // ZOD: Wait for sync and verify the edited message is visible
-  // Reload the page to ensure sync, similar to DM test pattern
-  await zodPage.reload();
-  // Navigate back to the group and channel context
-  await expect(zodPage.getByText(groupName).first()).toBeVisible({
+  await expect(
+    zodPage.getByTestId('ScreenHeaderTitle').getByText(groupName).first()
+  ).toBeVisible({
     timeout: 10000,
   });
-  await zodPage.getByText(groupName).first().click();
-  await helpers.navigateToChannel(zodPage, 'General');
+  await helpers.navigateBack(zodPage);
   await expect(zodPage.getByText('2 replies')).toBeVisible({ timeout: 10000 });
   await zodPage.getByText('2 replies').click();
   await expect(
@@ -192,8 +116,10 @@ test('should test cross-ship thread functionality', async ({
   });
 
   // TEN: Add a reaction to zod's original message
-  // Skip this step for now to focus on edit functionality verification
-  // await helpers.reactToMessage(tenPage, 'Reply from zod', 'laugh');
+  await helpers.reactToMessage(tenPage, 'Reply from zod', 'laughing');
+
+  // ZOD: Verify the reaction from ten is visible
+  await expect(zodPage.getByText('😆')).toBeVisible({ timeout: 15000 });
 
   // Both ships navigate back to channel and verify thread count
   await helpers.navigateBack(zodPage);

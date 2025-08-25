@@ -109,12 +109,14 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
               routes: [{ name: 'Messages' }],
             });
           }}
+          testID="MessagesNavIcon"
         />
         <NavIcon
           type="Notifications"
           activeType="NotificationsFilled"
           hasUnreads={haveUnreadUnseenActivity}
           isActive={isRouteActive('Activity')}
+          testID="ActivityNavIcon"
           onPress={() => {
             saveHomeState();
             props.navigation.reset({

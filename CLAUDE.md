@@ -24,12 +24,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 -   `pnpm run test` - Run all tests with updates
 -   `pnpm run test:ci` - Run all tests in CI mode
 -   `pnpm run e2e` - Run end-to-end tests (web)
+-   `pnpm run e2e:test <file1> [file2...]` - Run specific e2e test file(s) with automatic ship management
 
 ### Linting
 
 -   `pnpm run lint:all` - Run linting across all packages
 -   `pnpm lint:fix` - Fix linting issues (per package)
 -   `pnpm lint:format` - Format code with prettier (per package)
+
+### Typechecking
+
+-   `pnpm -r tsc`
 
 ### Installing Dependencies
 
@@ -57,6 +62,52 @@ This is a monorepo for Tlon Messenger containing multiple applications and share
 
 -   **desk/**: Urbit backend applications written in Hoon
     -   Core agents: %groups, %channels, %chat, %contacts, %activity, %profile
+
+## Platform-Specific Navigation Architecture
+
+**CRITICAL**: The app has completely different navigation implementations for mobile vs desktop/web. When making UI changes or adding testIDs for E2E tests, you MUST modify the correct platform-specific component.
+
+### Navigation Entry Points
+- **Mobile**: Uses `packages/app/navigation/RootStack.tsx`
+- **Desktop/Web**: Uses `packages/app/navigation/desktop/TopLevelDrawer.tsx`
+
+The platform is determined by `BasePathNavigator` using the `isMobile` prop:
+- `isMobile={true}` → Renders `RootStack` (mobile navigation)
+- `isMobile={false}` → Renders `TopLevelDrawer` (desktop navigation)
+
+### Main Navigation Components
+
+| Screen | Mobile Component | Desktop Component |
+|---|---|---|
+| **Contacts** | `features/top/ContactsScreen.tsx` | `navigation/desktop/ProfileNavigator.tsx` |
+| **Settings** | `features/settings/SettingsScreen.tsx` | `navigation/desktop/SettingsNavigator.tsx` |
+| **Activity** | `features/top/ActivityScreen.tsx` | `navigation/desktop/ActivityNavigator.tsx` |
+| **Messages** | `features/top/ChatListScreen.tsx` | `navigation/desktop/MessagesNavigator.tsx` |
+| **Home** | N/A (uses bottom tabs) | `navigation/desktop/HomeNavigator.tsx` |
+
+### E2E Testing Guidelines
+
+**Web E2E tests ALWAYS use desktop navigation components!**
+
+When adding testIDs for web E2E tests:
+1. Identify which main navigation component handles your screen (see table above)
+2. Add testID to the desktop component in `packages/app/navigation/desktop/`
+3. DO NOT modify the mobile component in `packages/app/features/`
+
+Example: To add a testID for the "Add Contact" button:
+- ❌ WRONG: Modify `packages/app/features/top/ContactsScreen.tsx`
+- ✅ CORRECT: Modify `packages/app/navigation/desktop/ProfileNavigator.tsx`
+
+### Debugging Platform-Specific Issues
+
+To identify which component to modify:
+1. **Check the file path pattern**:
+   - `/features/` = Mobile component
+   - `/navigation/desktop/` = Desktop component
+2. **Find screen mappings**:
+   - Mobile: Check `packages/app/navigation/RootStack.tsx` for `<Root.Screen>` definitions
+   - Desktop: Check `packages/app/navigation/desktop/TopLevelDrawer.tsx` for `<Drawer.Screen>` definitions
+3. **For testID issues**: Web builds render `testID` as `data-testid` in the DOM
 
 ## Key Technologies
 
@@ -90,6 +141,15 @@ This is a monorepo for Tlon Messenger containing multiple applications and share
 -   Builds on top of web application
 -   Uses Electron for native desktop features
 
+### Shell Script Compatibility
+
+When writing or modifying bash scripts, ensure compatibility with both macOS and Linux:
+-   Use `#!/bin/bash` shebang (not `#!/bin/sh`) for consistent behavior
+-   Avoid bash-specific features that vary by version (e.g., associative arrays with `declare -A`)
+-   Handle differences between BSD (macOS) and GNU (Linux) tools, especially `tar`, `sed`, `grep`
+-   Test scripts on both macOS and Linux when possible
+-   Use portable command options (e.g., `grep -E` instead of `egrep`)
+
 ## Testing
 
 -   **Unit tests**: Vitest for shared packages, Jest for mobile
@@ -110,18 +170,21 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   **Environment setup**: Use `pnpm e2e:playwright-dev` to start ships + web servers for MCP testing
 -   **IMPORTANT**: Always stop the `pnpm e2e:playwright-dev` script before running `pnpm e2e:test` or other e2e commands to avoid port conflicts
 -   **MCP Server Debugging Workflow (DEFAULT - RECOMMENDED):**
+
     1. **Run `./start-playwright-dev.sh` to start environment in background** - this will start the dev environment and return when ready
     2. Use Playwright MCP server tools to navigate and debug while environment runs in background
     3. **Stop the environment when done** using one of:
-       - `kill [PID]` - Graceful shutdown (PID shown in script output)
-       - `./stop-playwright-dev.sh` - Comprehensive cleanup that ensures all processes are stopped
-       - `./stop-playwright-dev.sh --clean-logs` - Also removes log files
-    
+        - `kill [PID]` - Graceful shutdown (PID shown in script output)
+        - `./stop-playwright-dev.sh` - Comprehensive cleanup that ensures all processes are stopped
+        - `./stop-playwright-dev.sh --clean-logs` - Also removes log files
+
     **Alternative (Manual Terminal Management):**
+
     1. **Ask user to run `pnpm e2e:playwright-dev` in a separate terminal** - this script runs continuously and must stay running
     2. **Wait for user confirmation** that ships and web servers are ready (user will see "Environment ready for Playwright MCP development!")
     3. Use Playwright MCP server tools to navigate and debug while the script continues running
     4. Ask user to stop the script (Ctrl+C) before running actual tests with `pnpm e2e:test <filename>`
+
 -   **Test Development**: Examine existing e2e test files in `apps/tlon-web/e2e/` to understand test structure, patterns, and helper function usage before creating new tests
 -   **Cross-ship testing with MCP**: For testing interactions between ships, simply open new browser tabs and navigate to different ship URLs:
     -   ~zod: `http://localhost:3000/apps/groups/`
@@ -207,6 +270,83 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   **Avoid duplicate e2e test functionality** - consolidate similar test scenarios into comprehensive tests rather than creating multiple redundant tests
 -   **Test consolidation** - if multiple tests cover similar functionality, merge them into a single comprehensive test that covers all scenarios
 -   **Focus on unique test scenarios** - each test should cover distinct functionality or edge cases, not repeat the same operations
+
+**Contact Relationship Management:**
+
+-   **Personal invite links create contacts automatically** - visiting `inviteToken=${token}` URLs adds the token owner as a contact
+-   **Contact relationships are asymmetric** - ~ten having ~zod as contact doesn't mean ~zod has ~ten
+-   **Always clean up contacts** - any test creating contacts must remove them: `await page.getByText('Remove contact').click()`
+-   **Check both ships** - when debugging contact issues, check both sides of the relationship
+
+**Test Pollution Debugging Strategy:**
+
+1. **Run test in isolation first** - `pnpm e2e:test failing-test.spec.ts`
+2. **If it passes, find the polluting test** - run subsets of tests alphabetically before the failing test
+3. **Check for missing cleanup** - look for tests that create contacts, profiles, or other persistent state
+4. **Common pollution sources**:
+   -   `invite-service.spec.ts` - creates contacts via invite links
+   -   Tests with profile editing - may leave custom nicknames
+   -   Tests creating DMs - both ships must clean up
+   -   Tests with group invites - may leave pending invitations
+
+**E2E Helper Function Design Principles:**
+
+-   **Single responsibility** - Each helper function should do one thing well (e.g., `longPressMessage` only opens the action menu, doesn't verify what's in it)
+-   **Use test IDs over text content** - Rely on semantic test IDs like `data-testid="ChatMessageActions"` instead of checking for specific menu text
+-   **Avoid context parameters** - Don't require callers to specify context (like 'chat', 'gallery', 'dm') unless absolutely necessary
+-   **Keep helpers simple** - A 25-line helper is better than a 100-line helper with complex conditional logic
+-   **Let tests handle variations** - The helper opens the menu; the test decides which action to click based on what it expects
+-   **Example of good design**: `longPressMessage()` uses `getByTestId('ChatMessageActions')` universally instead of checking for context-specific menu items
+
+### E2E Test Infrastructure
+
+**Understanding the rube script:**
+-   `pnpm rube` or `pnpm e2e` runs the core test infrastructure
+-   Rube performs critical setup: nukes ship state, sets ~mug as reel provider, applies desk updates
+-   Ships are considered ready when rube outputs "SHIP_SETUP_COMPLETE" signal
+-   Ship readiness can be verified via HTTP: `http://localhost:{port}/~/scry/hood/kiln/pikes.json`
+-   Default timeout is 30 seconds (can be extended with FORCE_EXTRACTION=true environment variable)
+
+**Pier Archiving and Updates:**
+-   Test piers are pre-configured Urbit ships stored as archives in GCS
+-   Archives are referenced in `apps/tlon-web/e2e/shipManifest.json`
+-   To update pier archives: `./apps/tlon-web/rube/archive-piers.sh`
+-   To verify archives: `./apps/tlon-web/rube/verify-archives.sh`
+-   ~bus is intentionally kept outdated for protocol mismatch testing
+-   Archive naming convention: `rube-{ship}{version}.tgz` (e.g., `rube-zod15.tgz`)
+
+**Important Scripts:**
+-   `./start-playwright-dev.sh` - Starts ships in background, returns when ready
+-   `./stop-playwright-dev.sh` - Comprehensive cleanup of all e2e processes
+-   `./apps/tlon-web/rube-cleanup.sh` - Emergency cleanup when processes are stuck
+-   `pnpm e2e:playwright-dev` - Starts ships and web servers (runs indefinitely)
+-   `pnpm e2e:test <file1> [file2...]` - Runs one or more test files with ship setup (useful for testing interactions)
+-   `pnpm e2e` - Full test suite (now properly handles Ctrl+C interruption)
+
+**Process Cleanup Improvements:**
+-   **Automatic cleanup**: Ctrl+C now properly cleans up all processes including Urbit serf sub-processes
+-   **Emergency cleanup**: Run `./apps/tlon-web/rube-cleanup.sh` if processes get stuck
+-   **Pattern-based killing**: Infrastructure uses pattern matching to find and kill all related processes
+
+**Common E2E Testing Pitfalls:**
+-   **Ship readiness**: Checking for `.http.ports` files doesn't mean ships are ready - wait for SHIP_SETUP_COMPLETE
+-   **Desk updates**: Applying desk updates can take 5-10 minutes, default timeouts may be too short
+-   **Process cleanup**: Now handled automatically, but use `rube-cleanup.sh` for emergency recovery
+-   **Manifest changes**: Always backup `shipManifest.json` before modifying - it's critical for e2e tests
+
+**GCP Integration for E2E Archives:**
+-   E2E test piers are stored in GCS: `gs://bootstrap.urbit.org/`
+-   GCP project: `tlon-groups-mobile` (hardcoded for security)
+-   Archives are publicly readable once uploaded
+-   Authentication required: `gcloud auth login`
+-   Verify access: `gsutil ls gs://bootstrap.urbit.org/`
+
+**Test State Persistence Issues:**
+-   Ship state is nuked between full test runs, but NOT between individual tests in the same run
+-   Contact relationships persist across tests within a run
+-   Profile modifications (nicknames, status, bio) persist
+-   Some state changes are asymmetric and require cleanup on specific ships
+-   Use `test-fixtures.ts` performCleanup() for systematic cleanup
 
 ## Package Dependencies
 

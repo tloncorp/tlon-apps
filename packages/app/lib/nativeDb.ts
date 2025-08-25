@@ -17,6 +17,7 @@ export class NativeDb extends BaseDb {
   private connection: SQLiteConnection | null = null;
   private isProcessingChanges: boolean = false;
   private changesPending: boolean = false;
+  private didMigrate: boolean = false;
 
   async setupDb() {
     logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
@@ -36,9 +37,9 @@ export class NativeDb extends BaseDb {
       );
       // Experimental SQLite settings. May cause crashes. More here:
       // https://ospfranco.notion.site/Configuration-6b8b9564afcc4ac6b6b377fe34475090
-      this.connection.execute('PRAGMA mmap_size=268435456');
-      this.connection.execute('PRAGMA journal_mode=DELETE');
-      this.connection.execute('PRAGMA synchronous=OFF');
+      await this.connection.execute('PRAGMA mmap_size=268435456');
+      await this.connection.execute('PRAGMA journal_mode=DELETE');
+      await this.connection.execute('PRAGMA synchronous=OFF');
 
       this.connection.updateHook(() => this.handleUpdate());
 
@@ -95,6 +96,7 @@ export class NativeDb extends BaseDb {
       this.connection.delete();
       this.connection = null;
       this.client = null;
+      this.didMigrate = false;
 
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
         context: 'purgeDb: closed the connection, cleared the client',
@@ -126,6 +128,10 @@ export class NativeDb extends BaseDb {
   }
 
   async runMigrations() {
+    if (this.didMigrate) {
+      return;
+    }
+
     logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
       context: 'runMigrations: starting migrations',
     });
@@ -142,7 +148,8 @@ export class NativeDb extends BaseDb {
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
         context: 'runMigrations: successfully migrated DB',
       });
-      this.connection?.execute(TRIGGER_SETUP);
+      await this.connection?.execute(TRIGGER_SETUP);
+      this.didMigrate = true;
       return;
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
@@ -163,6 +170,7 @@ export class NativeDb extends BaseDb {
         context:
           'runMigrations: migration retry: successfully migrated on retry (this should not happen often)',
       });
+      this.didMigrate = true;
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context: 'runMigrations: migration retry failed. Giving up',

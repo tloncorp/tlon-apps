@@ -15,10 +15,11 @@ import * as path from 'path';
 import * as tar from 'tar-fs';
 import * as zlib from 'zlib';
 
-// TODO: write a script to update and package a pier then upload it to gcs
-
 const spawnedProcesses: childProcess.ChildProcess[] = [];
 const startHashes: { [ship: string]: { [desk: string]: string } } = {};
+const rubeDir = __dirname;
+const pidFile = path.join(rubeDir, '.rube.pid');
+const childrenFile = path.join(rubeDir, '.rube-children.json');
 
 const manifestPath = path.join(
   __dirname,
@@ -199,43 +200,33 @@ const getUrbitBinary = async () => {
 };
 
 const killExistingUrbitProcesses = async (): Promise<void> => {
-  const pathToBinary = path.join(__dirname, 'urbit_extracted/urbit');
   console.log('Kill existing urbit processes');
-  const command = `ps aux | grep urbit | grep ${pathToBinary} | awk '{print $2}' | xargs kill -9`;
+  const command = killExistingUrbitCommand();
 
-  return new Promise((resolve, reject) => {
-    childProcess.exec(command, (error, stdout, stderr) => {
-      if (error && !error.message.includes('No such process')) {
-        console.error(`Error killing process: ${error.message}`);
-        reject(error);
-        return;
-      }
-      if (stderr && !stderr.includes('No such process')) {
-        console.error(`stderr: ${stderr}`);
-        resolve();
-        return;
-      }
-      resolve();
-      console.log(`stdout: ${stdout}`);
-    });
-  });
-};
-
-const killExistingViteDevServerProcesses = async (): Promise<void> => {
-  const command = `ps aux | grep "vite dev" | awk '{print $2}' | xargs kill -9`;
   return new Promise((resolve) => {
-    childProcess.exec(command, (error, stdout, stderr) => {
-      if (error) {
-        console.error(
-          `Error killing vite dev server processes: ${error.message}`
-        );
+    childProcess.exec(
+      command,
+      { maxBuffer: 1024 * 1024 },
+      (error, stdout, stderr) => {
+        // Always resolve - we don't want to fail if there's nothing to kill
+        if (error) {
+          // Only log if it's not a "no process" error
+          if (
+            !error.message.includes('No such process') &&
+            !error.message.includes('SIGKILL')
+          ) {
+            console.log(`Note: ${error.message}`);
+          }
+        }
+        if (stderr && !stderr.includes('No such process')) {
+          console.log(`stderr: ${stderr}`);
+        }
+        if (stdout && stdout.trim()) {
+          console.log(`Killed processes: ${stdout}`);
+        }
+        resolve();
       }
-      if (stderr && !stderr.includes('No such process')) {
-        console.error(`stderr: ${stderr}`);
-      }
-      console.log(`Killed vite dev server processes`);
-      resolve();
-    });
+    );
   });
 };
 
@@ -255,6 +246,7 @@ const bootShip = (
   console.log(
     `Booting ship ${pierPath} on port ${httpPort} with ${binaryPath}`
   );
+
   const urbitProcess = childProcess.spawn(binaryPath, [
     pierPath,
     '-d',
@@ -264,13 +256,17 @@ const bootShip = (
 
   spawnedProcesses.push(urbitProcess);
 
-  urbitProcess.stdout.on('data', (data) => {
-    console.log(`[Urbit STDOUT (${ship})]: ${data}`);
-  });
+  if (urbitProcess.stdout) {
+    urbitProcess.stdout.on('data', (data) => {
+      console.log(`[Urbit STDOUT (${ship})]: ${data}`);
+    });
+  }
 
-  urbitProcess.stderr.on('data', (data) => {
-    console.error(`[Urbit STDERR (${ship})]: ${data}`);
-  });
+  if (urbitProcess.stderr) {
+    urbitProcess.stderr.on('data', (data) => {
+      console.error(`[Urbit STDERR (${ship})]: ${data}`);
+    });
+  }
 
   urbitProcess.on('close', (code) => {
     console.log(`Urbit process exited with code ${code}`);
@@ -764,38 +760,171 @@ const runPlaywrightTests = async (shipsNeedingUpdates: string[]) => {
   }
 };
 
-const cleanupSpawnedProcesses = async () => {
+const cleanupSpawnedProcesses = () => {
   console.log('Cleaning up spawned processes...');
-  const killPromises = spawnedProcesses.map((proc) => {
-    if (!proc.killed) {
-      console.log(`Killing process PID: ${proc.pid}`);
-      proc.kill();
-      return new Promise((resolve) => proc.on('close', resolve));
+
+  // First disconnect stdio to prevent output after exit
+  spawnedProcesses.forEach((proc) => {
+    if (!proc.killed && proc.pid) {
+      try {
+        // Disconnect stdio streams to prevent output
+        if (proc.stdout) proc.stdout.destroy();
+        if (proc.stderr) proc.stderr.destroy();
+        if (proc.stdin) proc.stdin.destroy();
+      } catch {
+        // Ignore errors
+      }
     }
-    return Promise.resolve();
   });
-  await Promise.all(killPromises);
-  await killExistingUrbitProcesses();
-  await killExistingViteDevServerProcesses();
+
+  // Then try graceful termination with SIGTERM for direct children
+  spawnedProcesses.forEach((proc) => {
+    if (!proc.killed && proc.pid) {
+      try {
+        console.log(`Killing process PID: ${proc.pid}`);
+        proc.kill('SIGTERM');
+      } catch {
+        // Process may already be dead
+      }
+    }
+  });
+
+  // Give processes 1 second to terminate gracefully
+  const timeout = Date.now() + 1000;
+  while (Date.now() < timeout) {
+    if (spawnedProcesses.every((p) => p.killed)) break;
+  }
+
+  // Force kill any remaining direct children
+  spawnedProcesses.forEach((proc) => {
+    if (!proc.killed && proc.pid) {
+      try {
+        proc.kill('SIGKILL');
+      } catch {
+        // Process may already be dead
+      }
+    }
+  });
+
+  // CRITICAL: Use pattern-based killing to clean up all Urbit processes
+  // This is necessary because Urbit spawns serf sub-processes that aren't tracked
+  try {
+    // Kill all Urbit processes matching our rube pattern
+    const killUrbitCmd = `ps aux | grep urbit | grep "rube/dist" | grep -v grep | awk '{print $2}' | while read pid; do kill -9 $pid 2>/dev/null; done`;
+    childProcess.execSync(killUrbitCmd, { stdio: 'ignore' });
+
+    // Also use our existing commands as additional cleanup
+    childProcess.execSync(killExistingUrbitCommand(), { stdio: 'ignore' });
+    childProcess.execSync(killExistingViteCommand(), { stdio: 'ignore' });
+
+    // Kill any processes on our known ports
+    const ports = [
+      '35453',
+      '36963',
+      '38473',
+      '39983',
+      '3000',
+      '3001',
+      '3002',
+      '3003',
+    ];
+    ports.forEach((port) => {
+      try {
+        // First try lsof (most common)
+        try {
+          const cmd = `command -v lsof >/dev/null 2>&1 && lsof -ti:${port} | xargs kill -9 2>/dev/null || true`;
+          childProcess.execSync(cmd, { stdio: 'ignore' });
+        } catch {
+          // If lsof doesn't exist, try fuser as fallback
+          try {
+            const cmd = `command -v fuser >/dev/null 2>&1 && fuser -k ${port}/tcp 2>/dev/null || true`;
+            childProcess.execSync(cmd, { stdio: 'ignore' });
+          } catch {
+            // Neither tool available - skip port cleanup
+          }
+        }
+      } catch {
+        // Ignore errors for ports that may not be in use
+      }
+    });
+  } catch {
+    // Ignore command errors
+  }
+
+  // Clean up PID files
+  try {
+    fs.unlinkSync(pidFile);
+    fs.unlinkSync(childrenFile);
+  } catch {
+    // Ignore PID file cleanup errors
+  }
+
+  // Verify cleanup was successful
+  try {
+    const remainingUrbit = childProcess
+      .execSync(
+        `ps aux | grep urbit | grep "rube/dist" | grep -v grep | wc -l`,
+        { encoding: 'utf8' }
+      )
+      .trim();
+
+    if (remainingUrbit !== '0') {
+      console.log(
+        `⚠️ Warning: ${remainingUrbit} Urbit processes may still be running after cleanup`
+      );
+      console.log('  Run ./rube-cleanup.sh for complete cleanup');
+    }
+  } catch {
+    // Ignore verification errors
+  }
+
   console.log('Cleanup complete.');
 };
 
-process.on('exit', () => {
+const killExistingUrbitCommand = (): string => {
+  const pathToBinary = path.join(__dirname, 'urbit_extracted/urbit');
+  // Use a subshell to handle empty xargs input gracefully on both macOS and Linux
+  return `pids=$(ps aux | grep urbit | grep ${pathToBinary} | grep -v grep | awk '{print $2}'); [ -n "$pids" ] && echo "$pids" | xargs kill -9 2>/dev/null || true`;
+};
+
+const killExistingViteCommand = (): string => {
+  // Use a subshell to handle empty xargs input gracefully on both macOS and Linux
+  return `pids=$(ps aux | grep "vite dev" | grep -v grep | awk '{print $2}'); [ -n "$pids" ] && echo "$pids" | xargs kill -9 2>/dev/null || true`;
+};
+
+// Synchronous cleanup handlers for reliability
+let hasCleanedUp = false;
+
+const performCleanup = () => {
+  if (hasCleanedUp) return;
+  hasCleanedUp = true;
   cleanupSpawnedProcesses();
+};
+
+process.on('exit', (code) => {
+  // Always try cleanup on exit if not done yet
+  if (!hasCleanedUp) {
+    console.log(`Process exiting with code ${code}, running cleanup...`);
+    performCleanup();
+  }
 });
-process.on('SIGINT', async () => {
-  await cleanupSpawnedProcesses();
+
+process.on('SIGINT', () => {
+  console.log('\nReceived SIGINT, cleaning up...');
+  performCleanup();
   console.log('SIGINT cleanup finished.');
   process.exit(0);
 });
-process.on('SIGTERM', async () => {
-  await cleanupSpawnedProcesses();
+
+process.on('SIGTERM', () => {
+  console.log('\nReceived SIGTERM, cleaning up...');
+  performCleanup();
   console.log('SIGTERM cleanup finished.');
   process.exit(0);
 });
-process.on('uncaughtException', async (err) => {
+process.on('uncaughtException', (err) => {
   console.error('Uncaught exception:', err);
-  await cleanupSpawnedProcesses();
+  cleanupSpawnedProcesses();
   console.log('Uncaught exception cleanup finished.');
   process.exit(1);
 });
@@ -1010,8 +1139,49 @@ const setReelServiceShip = async () => {
   await new Promise((resolve) => setTimeout(resolve, 2000));
 };
 
+const checkExistingInstance = (): boolean => {
+  try {
+    if (fs.existsSync(pidFile)) {
+      const oldPid = parseInt(fs.readFileSync(pidFile, 'utf8'));
+      // Check if process is still running
+      try {
+        process.kill(oldPid, 0);
+        return true; // Process exists
+      } catch {
+        // Process doesn't exist, clean up stale file
+        fs.unlinkSync(pidFile);
+      }
+    }
+  } catch {
+    // Ignore file read errors
+  }
+  return false;
+};
+
+const savePidFiles = () => {
+  try {
+    // Save main process PID
+    fs.writeFileSync(pidFile, process.pid.toString());
+
+    // Save children PIDs
+    const childPids = spawnedProcesses.filter((p) => p.pid).map((p) => p.pid);
+    fs.writeFileSync(childrenFile, JSON.stringify(childPids));
+  } catch (e) {
+    console.error('Error saving PID files:', e);
+  }
+};
+
 const main = async () => {
   console.time('Total Script Execution');
+
+  // Check for existing instance
+  if (checkExistingInstance()) {
+    console.error('❌ Another rube instance is already running!');
+    console.error(`Check PID file: ${pidFile}`);
+    console.error('To force cleanup, run: ./rube-cleanup.sh');
+    process.exit(1);
+  }
+
   if (targetShip && !ships[targetShip]) {
     console.error(`Invalid ship name: ${targetShip}`);
     process.exit(1);
@@ -1028,6 +1198,7 @@ const main = async () => {
     await killExistingUrbitProcesses();
 
     bootAllShips();
+    savePidFiles(); // Save PIDs after spawning processes
 
     await checkShipReadinessForCommands();
     await getPortsFromFiles();
