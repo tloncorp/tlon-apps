@@ -2484,9 +2484,9 @@
           pending.admissions   ~
           requests.admissions  ~
         ==
-      ::  clear .active-channels, as these are updated locally
+      ::  clear .active-channels, as this updated locally
       =.  active-channels.group  ~
-      (give %fact ~ group-log+!>(`log:g`[now.bowl^[%create `group:g`group] ~ ~]))
+      (give %fact ~ group-log+!>(`log:g`[now.bowl^[%create group] ~ ~]))
     ::
     =/  =log:g  (lot:log-on:g log `da ~)
     ::  filter out admin updates
@@ -3070,6 +3070,15 @@
     =?  net  ?=(%sub -.net)
       [%sub time.net &]
     =?  go-core  !was-init
+      ::  initialize active-channels on group init
+      ::
+      =/  nests
+        ~(tap in ~(key by channels.group))
+      =?  active-channels.group  !=(~ nests)
+        %-  silt
+        %+  skim  nests
+        |=  =nest:g
+        .^(? %gu (channels-scry nest))
       (go-response [%create group])
     ::  join the channels upon initial group log,
     ::  if this group hadn't been initialized yet
