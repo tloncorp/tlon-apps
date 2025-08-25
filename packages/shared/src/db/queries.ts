@@ -2718,6 +2718,9 @@ export const getSequencedChannelPosts = createReadQuery(
           not(eq($posts.type, 'reply')),
           isNull($posts.deliveryStatus)
         ),
+        with: {
+          reactions: true,
+        },
         orderBy: [desc($posts.sequenceNum)],
         limit: count,
       });
@@ -2760,6 +2763,9 @@ export const getSequencedChannelPosts = createReadQuery(
           lt($posts.sequenceNum, options.cursorSequenceNum),
           isNull($posts.deliveryStatus)
         ),
+        with: {
+          reactions: true,
+        },
         orderBy: [desc($posts.sequenceNum)],
         limit: count,
       });
@@ -2814,6 +2820,9 @@ export const getSequencedChannelPosts = createReadQuery(
           gt($posts.sequenceNum, options.cursorSequenceNum),
           isNull($posts.deliveryStatus)
         ),
+        with: {
+          reactions: true,
+        },
         orderBy: [asc($posts.sequenceNum)],
         limit: count,
       });
@@ -2873,6 +2882,9 @@ export const getSequencedChannelPosts = createReadQuery(
           lte($posts.sequenceNum, upperBound),
           isNull($posts.deliveryStatus)
         ),
+        with: {
+          reactions: true,
+        },
         orderBy: [desc($posts.sequenceNum)],
       });
       seqLogger.log(

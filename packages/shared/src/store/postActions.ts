@@ -680,13 +680,16 @@ export async function addPostReaction(
 ) {
   // Reject shortcodes - they should be converted to native emojis before reaching this function
   if (/^:[a-zA-Z0-9_+-]+:?$/.test(emoji)) {
-    logger.trackError('Shortcode provided to addPostReaction - this should not happen', {
-      postId: post.id,
-      channelId: post.channelId,
-      emoji,
-      context: 'store_layer_shortcode_rejected',
-      stack: new Error().stack
-    });
+    logger.trackError(
+      'Shortcode provided to addPostReaction - this should not happen',
+      {
+        postId: post.id,
+        channelId: post.channelId,
+        emoji,
+        context: 'store_layer_shortcode_rejected',
+        stack: new Error().stack,
+      }
+    );
     return; // Don't add shortcode reactions
   }
 
@@ -696,11 +699,11 @@ export async function addPostReaction(
       postId: post.id,
       channelId: post.channelId,
       emoji,
-      context: 'store_layer_invalid_emoji'
+      context: 'store_layer_invalid_emoji',
     });
     return;
   }
-  
+
   const channel = await db.getChannel({ id: post.channelId });
   let group = null;
   if (channel && channel.groupId) {
