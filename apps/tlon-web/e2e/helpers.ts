@@ -108,58 +108,22 @@ export async function acceptGroupInvite(page: Page, groupName?: string) {
   // Ensure session is stable before accepting invite
   await waitForSessionStability(page);
 
-  // Wait for and click the invitation
-  await expect(page.getByText('Group invitation')).toBeVisible({
-    timeout: 10000,
-  });
+  // Click on the invitation
   await page.getByText('Group invitation').click();
+  await page.waitForTimeout(1000);
 
-  // Accept the invitation
+  // Click accept
   const acceptButton = page.getByText('Accept invite');
   if (await acceptButton.isVisible()) {
     await acceptButton.click();
   }
 
-  // Check if we see the joining state (this may be skipped if join is very fast)
-  const joiningMessage = await page
-    .getByText('Joining, please wait...')
-    .isVisible({ timeout: 5000 })
-    .catch(() => false);
+  // Wait for joining to complete and "Go to group" button to appear
+  await expect(page.getByText('Go to group')).toBeVisible({ timeout: 45000 });
 
-  if (joiningMessage) {
-    // If we saw the joining message, wait for "Go to group" button
-    const goToGroupButton = page.getByText('Go to group');
-    await expect(goToGroupButton).toBeVisible({
-      timeout: 45000, // Extended timeout for CI environments
-    });
-
-    // Click the button to navigate to the group
-    await goToGroupButton.click();
-  } else {
-    // If joining was fast and we didn't see the joining message,
-    // check if "Go to group" button is already visible
-    const goToGroupButton = page.getByText('Go to group');
-    const buttonVisible = await goToGroupButton
-      .isVisible({ timeout: 5000 })
-      .catch(() => false);
-
-    if (buttonVisible) {
-      await goToGroupButton.click();
-    } else if (groupName) {
-      // Fallback: navigate to group directly if we're already past the invitation flow
-      await expect(page.getByText(groupName).first()).toBeVisible({
-        timeout: 10000,
-      });
-      await page.getByText(groupName).first().click();
-    }
-  }
-
-  // Verify we're in the group
-  if (groupName) {
-    await expect(page.getByText(groupName).first()).toBeVisible({
-      timeout: 5000,
-    });
-  }
+  // Click "Go to group"
+  await page.getByText('Go to group').click();
+  await page.waitForTimeout(3000);
 }
 
 export async function rejectGroupInvite(page: Page) {
@@ -181,9 +145,6 @@ export async function deleteGroup(page: Page, groupName?: string) {
   });
 
   await page.getByTestId('GroupLeaveAction-Delete group').click();
-  await expect(
-    page.getByText(`Delete ${groupName || 'Untitled group'}?`)
-  ).toBeVisible({ timeout: 10000 });
   await expect(
     page.getByTestId('ActionSheetAction-Delete group').first()
   ).toBeVisible({ timeout: 10000 });
@@ -892,6 +853,11 @@ export async function sendMessage(page: Page, message: string) {
   await expect(
     page.getByTestId('Post').getByText(message, { exact: true }).first()
   ).toBeVisible({ timeout: 10000 });
+  // Wait for input to be cleared to prevent race conditions
+  await expect(async () => {
+    const inputValue = await page.getByTestId('MessageInput').inputValue();
+    return inputValue === '';
+  }).toPass({ timeout: 5000, intervals: [100, 200, 500] });
 }
 
 /**

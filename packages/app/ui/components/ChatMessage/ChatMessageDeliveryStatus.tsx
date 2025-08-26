@@ -14,6 +14,7 @@ export const ChatMessageDeliveryStatus = XStack.styleable<{
       padding={'$l'}
       backgroundColor={'$transparentBackground'}
       borderRadius={'$xs'}
+      testID="ChatMessageDeliveryStatus"
       {...props}
     >
       <Icon

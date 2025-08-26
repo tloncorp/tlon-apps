@@ -26,7 +26,7 @@
                             </imageView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="Rmq-lb-GrQ"/>
-                        <color key="backgroundColor" name="SplashBackgroundColor"/>
+                        <color key="backgroundColor" name="SplashScreenBackground"/>
                         <constraints>
                             <constraint firstItem="2FL-HY-QpX" firstAttribute="centerY" secondItem="Rmq-lb-GrQ" secondAttribute="centerY" id="5Yo-7L-9la"/>
                             <constraint firstItem="2FL-HY-QpX" firstAttribute="centerX" secondItem="Rmq-lb-GrQ" secondAttribute="centerX" id="SFb-XB-F4R"/>
@@ -40,7 +40,7 @@
     </scenes>
     <resources>
         <image name="SplashIcon" width="269" height="269"/>
-        <namedColor name="SplashBackgroundColor">
+        <namedColor name="SplashScreenBackground">
             <color red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>
     </resources>

@@ -3,13 +3,10 @@ import { expect } from '@playwright/test';
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
-test.skip('Forward chat message from group channel to DM - verify toast and reference message', async ({
+test('Forward chat message from group channel to DM - verify toast and reference message', async ({
   zodSetup,
   tenSetup,
 }) => {
-  // FIXME: This test is currently skipped because the forward functionality is broken.
-  // The issue: Forward operation shows success toast but message doesn't actually appear in DM.
-  // This is a real application bug that needs to be fixed.
   const zodPage = zodSetup.page;
   const tenPage = tenSetup.page;
 
@@ -31,6 +28,7 @@ test.skip('Forward chat message from group channel to DM - verify toast and refe
   await zodPage.getByTestId('HomeNavIcon').click();
 
   // Accept the DM on ~ten's side
+  await tenPage.reload();
   await tenPage.getByTestId('HomeNavIcon').click();
   await expect(tenPage.getByText('Home')).toBeVisible({ timeout: 10000 });
   await tenPage.getByTestId('ChannelListItem-~zod').click();
@@ -98,14 +96,16 @@ test.skip('Forward chat message from group channel to DM - verify toast and refe
     timeout: 10000,
   });
   await zodPage.getByTestId('ChannelListItem-~ten').click();
-  
+
   // Wait for DM to load
   await zodPage.waitForTimeout(2000);
-  
+
   // Verify it shows as a forwarded/referenced message with "Chat Post" header
   await expect(zodPage.getByText('Chat Post')).toBeVisible({ timeout: 10000 });
   // Then verify the actual message content is visible
-  await expect(zodPage.getByText(testMessage)).toBeVisible({ timeout: 10000 });
+  await expect(zodPage.getByTestId('Post').getByText(testMessage)).toBeVisible({
+    timeout: 10000,
+  });
 
   // Accept the group invitation
   await helpers.acceptGroupInvite(tenPage, groupName);
