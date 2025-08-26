@@ -420,11 +420,11 @@
         [%send-sequence-numbers *]
       =+  ;;([%send-sequence-numbers =nest:c] q.vase)
       =.  cor
-        (emit (tell:log %dbug ~[>[src.bowl %sending-sequence-numbers]<] ~))
+        (emit (tell:log %dbug ~[>[%got-poke %send-sequence-numbers nest]<] ~))
       ?~  can=(~(get by v-channels) nest)  cor
       =;  =cage
         %-  emil
-        :~  (tell:log %dbug ~[>[src.bowl %sending-sequence-numbers]<] ~)
+        :~  (tell:log %dbug ~[>[%sending-sequence-numbers src.bowl]<] ~)
             [%pass /numbers %agent [src.bowl %channels] %poke cage]
         ==
       :-  %noun
@@ -437,11 +437,11 @@
     ::
         [%send-tombstones *]
       =+  ;;([%send-tombstones =nest:c] q.vase)
-      =.  cor  (emit (tell:log %dbug ~[>[src.bowl %sending-tombstones]<] ~))
+      =.  cor  (emit (tell:log %dbug ~[>[%got-poke %send-tombstones nest]<] ~))
       ?~  can=(~(get by v-channels) nest)  cor
       =;  =cage
         %-  emil
-        :~  (tell:log %dbug ~[>[src.bowl %sending-tombstones]<] ~)
+        :~  (tell:log %dbug ~[>[%sending-tombstones src.bowl]<] ~)
             [%pass /tombstones %agent [src.bowl %channels] %poke cage]
         ==
       :-  %noun
