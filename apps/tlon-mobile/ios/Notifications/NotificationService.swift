@@ -90,6 +90,9 @@ class NotificationService: UNNotificationServiceExtension {
         bestAttemptContent = (request.content.mutableCopy() as? UNMutableNotificationContent)
 
       Task { [weak bestAttemptContent] in
+        // this should probably come after the notif is resolved?
+        try await ChangesLoader.sync()
+          
         let parsedNotification = await PushNotificationManager.parseNotificationUserInfo(request.content.userInfo)
         switch parsedNotification {
         case let .activityEventJson(activityEventRaw):
@@ -103,10 +106,8 @@ class NotificationService: UNNotificationServiceExtension {
           }
           
           contentHandler(notifContent)
-          return
             
-          // after we handle the notification, try to sync changes
-//          try await ChangesLoader.sync()
+          return
             
           
         case let .failedFetchContents(err):

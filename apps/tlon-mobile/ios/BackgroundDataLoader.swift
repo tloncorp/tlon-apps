@@ -36,11 +36,17 @@ class BackgroundDataLoader: NSObject {
     }
     
     @objc(setLastSyncTimestamp:resolver:rejecter:)
-        func setLastSyncTimestamp(timestamp: NSNumber?,
+        func setLastSyncTimestamp(timestamp: NSNumber,
                                  resolver resolve: @escaping RCTPromiseResolveBlock,
                                  rejecter reject: @escaping RCTPromiseRejectBlock) {
             do {
-                let date = timestamp.map { Date(timeIntervalSince1970: $0.doubleValue / 1000.0) }
+                let date: Date?
+                if timestamp.doubleValue == 0.0 {
+                    date = nil // Interpret 0 as a command to reset the timestamp
+                } else {
+                    date = Date(timeIntervalSince1970: timestamp.doubleValue / 1000.0)
+                }
+
                 try ChangesLoader.setLastSyncTimestamp(date)
                 resolve(true)
             } catch {
