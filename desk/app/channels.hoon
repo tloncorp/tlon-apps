@@ -194,7 +194,6 @@
     ==
 ::
 =/  verbose  |
-%-  agent:dbug
 %-  %-  agent:neg
     :+  notify=&
       [~.channels^%3 ~ ~]
@@ -202,6 +201,7 @@
     :~  %groups^[~.groups^%1 ~ ~]
         %channels-server^[~.channels^%3 ~ ~]
     ==
+%-  agent:dbug
 %+  verb  |
 ::
 ^-  agent:gall

@@ -48,11 +48,11 @@
     :~  [/x/v0/hooks %hook-full]
     ==
 ::
-%-  agent:dbug
 %-  %-  agent:neg
     :+  notify=|
       [~.channels^%3 ~ ~]
     (my %groups^[~.groups^%1 ~ ~] ~)
+%-  agent:dbug
 %+  verb  |
 ::
 ^-  agent:gall
