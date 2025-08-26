@@ -10,16 +10,18 @@ export const splashScreenProgress = (() => {
   const progressManager = new ProgressManager<SplashScreenTask>(new Set());
 
   // Setup tasks on progress manager
-  Platform.select({
-    web: [SplashScreenTask.loadTheme, SplashScreenTask.startDatabase],
-    default: [SplashScreenTask.loadTheme],
-  }).forEach((task) => {
-    // Web needs actual data before showing UI, so no timeout for database task.
-    // Native uses 5 second timeout as a nice-to-have.
-    const timeout =
-      Platform.OS === 'web' && task === SplashScreenTask.startDatabase
-        ? undefined // No timeout - wait for actual data
-        : 5000; // Keep 5s timeout for other tasks/platforms
+  const taskConfigs = Platform.select({
+    web: [
+      [SplashScreenTask.loadTheme, 5000],
+      // Web needs actual data before showing UI, so no timeout for database task
+      [SplashScreenTask.startDatabase, undefined],
+    ] as Array<[SplashScreenTask, number | undefined]>,
+    default: [[SplashScreenTask.loadTheme, 5000]] as Array<
+      [SplashScreenTask, number | undefined]
+    >,
+  });
+
+  taskConfigs?.forEach(([task, timeout]) => {
     progressManager.add(task, timeout);
   });
 
