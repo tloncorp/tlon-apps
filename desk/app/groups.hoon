@@ -263,6 +263,14 @@
     =/  =card
       (~(tell logs our.bowl /logs) vol echo deez)
     |*  etc=*
+    =/  pri
+      ?-  vol
+        %dbug  0
+        %info  1
+        %warn  2
+        %crit  3
+      ==
+    %-  %-  %*(. slog pri pri)  echo
     =.  cor  (emit card)
     etc
   ::  +deez: log message details

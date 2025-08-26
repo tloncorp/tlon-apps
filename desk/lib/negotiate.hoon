@@ -259,18 +259,13 @@
       ::  always track the subscriptions we want to have
       ::
       =*  gill=gill:gall  [ship name]:q.card
-      =^  cards=(list ^card)  want
-        ?.  ?=(%watch -.task.q.card)  [~ want]
+      =?  want  ?=(%watch -.task.q.card)
         =/  wan  (~(gut by want) gill ~)
         ?:  (~(has by wan) p.card)
-          :_  want
-          =/  echo
-            >[%duplicate-wire dap=dap.bowl wire=p.card path=path.task.q.card]<
-          ~[(tell:log %dbug ~[echo] ~)]
-        :-  ~
+          ~&  [%duplicate-wire dap=dap.bowl wire=p.card path=path.task.q.card]
+          want
         %+  ~(put by want)  gill
         (~(put by wan) p.card path.task.q.card)
-      =/  next  [(welp cards -.pass) +.pass]
       =?  want  ?=(%leave -.task.q.card)
         =/  wan  (~(gut by want) gill ~)
         =.  wan  (~(del by wan) p.card)
@@ -309,7 +304,7 @@
         ::  if we aren't certain of a match, ensure we've started negotiation
         ::
         =^  caz  state  (negotiate-missing gill)
-        [[card (weld cards caz)] state]
+        [[card caz] state]
       ::  watches will get reestablished once our versions match, but if we
       ::  haven't started negotiation yet, we should do that now
       ::
@@ -578,9 +573,7 @@
             =*  sub  i.suz
             ?:  ?=([%~.~ %negotiate *] wire.sub)
               $(suz t.suz)
-            =.  cards
-              %+  snoc  cards
-              (tell:log %dbug ~[>[%negotiate dap.bowl %re-doing-sub sub]<] ~)
+            ~&  [%negotiate dap.bowl %re-doing-sub sub]
             =.  cards       (snoc cards [%pass wire.sub %agent gill.sub %leave ~])
             =.  wex.bowl    (~(del by wex.bowl) -.sub)
             =^  caz  inner  (on-agent:og wire.sub %kick ~)
@@ -670,8 +663,8 @@
             ~[(tell:log %dbug ~[>[%heed-fact-received mark for]<] ~)]
           =*  vase  q.cage.sign
           ?.  =(%noun mark)
-            :_  this
-            ~[(tell:log %dbug ~[>[negotiate+dap.bowl %ignoring-unexpected-fact mark=mark]<] ~)]
+            ~&  [negotiate+dap.bowl %ignoring-unexpected-fact mark=mark]
+            [cards this]
           =+  !<(=version vase)
           =^  a  state  (heed-changed:up for `version)
           =^  [caz=(list card) nin=_inner]  state
@@ -714,8 +707,8 @@
           ==
         ::
             %poke-ack
-          :_  this
-          ~[(tell:log %dbug ~[>[negotiate+dap.bowl %unexpected-poke-ack wire]<] ~)]
+          ~&  [negotiate+dap.bowl %unexpected-poke-ack wire]
+          [~ this]
         ==
       ==
     ::

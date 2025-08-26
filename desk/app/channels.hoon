@@ -1008,7 +1008,8 @@
   ?-  -.egg-any
       ?(%15 %16)
     ?.  ?=(%live +<.egg-any)
-      (emit (tell:plog %dbug ~[>[dap.bowl %egg-any-not-live]<] ~))
+      ~&  [dap.bowl %egg-any-not-live]
+      cor
     =/  bak
       (load -:!>(*versioned-state:load) +>.old-state.egg-any)
     ::  restore as much data as we can. we don't restart subscriptions here,

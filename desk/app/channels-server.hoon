@@ -479,8 +479,8 @@
     ?-  pimp
       ~         cor(pimp `|+egg-any)
       [~ %& *]  (run-import egg-any)
-      [~ %| *]  =.  pimp  `|+egg-any
-                (emit (tell:log %warn ~[>[dap.bowl %overwriting-pending-import]<] ~))
+      [~ %| *]  ~&  [dap.bowl %overwriting-pending-import]
+                cor(pimp `|+egg-any)
     ==
   ::
       %hook-setup-template
@@ -527,7 +527,8 @@
   ?-  -.egg-any
       ?(%15 %16)
     ?.  ?=(%live +<.egg-any)
-      (emit (tell:log %warn ~[>[dap.bowl %egg-any-not-live]<] ~))
+      ~&  [dap.bowl %egg-any-not-live]
+      cor
     =/  bak
       (load -:!>(*versioned-state:load) +>.old-state.egg-any)
     ::  for channels that we're gonna restore, tell previous subscribers to
@@ -728,8 +729,7 @@
     (recheck-perms affected roles.r-group)
   ::
       [%seat * %del ~]
-    =.  cor
-      (emit (tell:log %dbug ~[>"%channel-server: revoke perms for {<affected>}"<] ~))
+    ~&  "%channel-server recheck permissions for {<affected>}"
     %+  roll  affected
     |=  [=nest:c =_cor]
     %-  ~(rep in ships.r-group)
@@ -823,7 +823,8 @@
     |^
     =.  nest  n
     ?:  (~(has by v-channels) n)
-      (emit (tell:log %warn [leaf+"channel-server: create already exists: {<n>}" ~] ~))
+      %-  (slog leaf+"channel-server: create already exists: {<n>}" ~)
+      ca-core
     ?>  can-nest
     ?>  our-host:ca-perms
     ?>  ((sane %tas) name.nest)
