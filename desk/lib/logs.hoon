@@ -19,7 +19,7 @@
   ++  pass
     |=  [event=log-event data=log-data]
     ^-  card:agent:gall
-    [%pass wire %agent [our %logs] %poke log-action+!>([%log event data])]
+    [%pass wire %agent [our %logs] %poke log-action+!>(`a-log`[%log event data])]
   --
 |%
 ::

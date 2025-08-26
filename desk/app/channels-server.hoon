@@ -419,9 +419,14 @@
     ::
         [%send-sequence-numbers *]
       =+  ;;([%send-sequence-numbers =nest:c] q.vase)
+      =.  cor
+        (emit (tell:log %dbug ~[>[%got-poke %send-sequence-numbers nest]<] ~))
       ?~  can=(~(get by v-channels) nest)  cor
       =;  =cage
-        (emit [%pass /numbers %agent [src.bowl %channels] %poke cage])
+        %-  emil
+        :~  (tell:log %dbug ~[>[%sending-sequence-numbers src.bowl]<] ~)
+            [%pass /numbers %agent [src.bowl %channels] %poke cage]
+        ==
       :-  %noun
       !>  :^  %sequence-numbers  nest
         count.u.can
@@ -432,9 +437,13 @@
     ::
         [%send-tombstones *]
       =+  ;;([%send-tombstones =nest:c] q.vase)
+      =.  cor  (emit (tell:log %dbug ~[>[%got-poke %send-tombstones nest]<] ~))
       ?~  can=(~(get by v-channels) nest)  cor
       =;  =cage
-        (emit [%pass /tombstones %agent [src.bowl %channels] %poke cage])
+        %-  emil
+        :~  (tell:log %dbug ~[>[%sending-tombstones src.bowl]<] ~)
+            [%pass /tombstones %agent [src.bowl %channels] %poke cage]
+        ==
       :-  %noun
       !>  :+  %tombstones  nest
       ^-  (list [id-post:v9:c tombstone:v9:c])
@@ -814,7 +823,6 @@
     =.  nest  n
     ?:  (~(has by v-channels) n)
       %-  (slog leaf+"channel-server: create already exists: {<n>}" ~)
-      ~&  (~(got by v-channels) n)
       ca-core
     ?>  can-nest
     ?>  our-host:ca-perms
