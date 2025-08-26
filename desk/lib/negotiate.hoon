@@ -106,7 +106,7 @@
   ++  helper
     |_  [=bowl:gall state-1]
     +*  state  +<+
-    ++  log  ~(. logs our.bowl /negotiate/logs)
+    ++  log  ~(. logs our.bowl /~/negotiate/logs)
     ++  match
       |=  =gill:gall
       ^-  ?
@@ -504,7 +504,7 @@
     +*  this    .
         up    ~(. helper bowl state)
         og    ~(. inner inner-bowl:up)
-        log   ~(. logs our.bowl /negotiate/logs)
+        log   ~(. logs our.bowl /~/negotiate/logs)
     ++  on-init
       ^-  (quip card _this)
       =.  ours   our-versions
@@ -650,6 +650,7 @@
       !:
       ~|  wire=t.t.wire
       ?+  t.t.wire  ~|([%negotiate %unexpected-wire] !!)
+        [%logs ~]    [~ this]
         [%notify ~]  [~ this]
       ::
           [%heed @ @ @ ~]
