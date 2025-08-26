@@ -8,7 +8,7 @@
 ::
 +$  subs  (map wire sub)
 ::
-++  verb  &
+++  verb  |
 ++  subscriber
   |_  [=subs bowl:gall]
   ++  interval  ~s30

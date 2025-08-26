@@ -1,3 +1,4 @@
+/+  logs
 ::  negotiate: hands-off version negotiation
 ::
 ::      v1.0.1: greenhorn ambassador
@@ -105,6 +106,7 @@
   ++  helper
     |_  [=bowl:gall state-1]
     +*  state  +<+
+    ++  log  ~(. logs our.bowl dap.bowl /negotiate)
     ++  match
       |=  =gill:gall
       ^-  ?
@@ -257,13 +259,18 @@
       ::  always track the subscriptions we want to have
       ::
       =*  gill=gill:gall  [ship name]:q.card
-      =?  want  ?=(%watch -.task.q.card)
+      =^  cards=(list ^card)  want
+        ?.  ?=(%watch -.task.q.card)  [~ want]
         =/  wan  (~(gut by want) gill ~)
         ?:  (~(has by wan) p.card)
-          ~&  [%duplicate-wire dap=dap.bowl wire=p.card path=path.task.q.card]
-          want
+          :_  want
+          =/  echo
+            >[%duplicate-wire dap=dap.bowl wire=p.card path=path.task.q.card]<
+          ~[(tell:log %dbug ~[echo] ~)]
+        :-  ~
         %+  ~(put by want)  gill
         (~(put by wan) p.card path.task.q.card)
+      =/  next  [(welp cards -.pass) +.pass]
       =?  want  ?=(%leave -.task.q.card)
         =/  wan  (~(gut by want) gill ~)
         =.  wan  (~(del by wan) p.card)
@@ -302,7 +309,7 @@
         ::  if we aren't certain of a match, ensure we've started negotiation
         ::
         =^  caz  state  (negotiate-missing gill)
-        [[card caz] state]
+        [[card (weld cards caz)] state]
       ::  watches will get reestablished once our versions match, but if we
       ::  haven't started negotiation yet, we should do that now
       ::
@@ -343,19 +350,23 @@
       ::  kick incoming subs for protocols we no longer support
       ::
       =/  old  ~(tap by (~(dif by ole) neu))
-      ~&  [%ours-changed %kicking old]
+      :-  (tell:log %dbug ~[>[%ours-changed %kicking old]<] ~)
       %+  weld
         %+  turn  old
         |=  [=protocol =version]
         [%give %kick [/~/negotiate/version/[protocol]]~ ~]
       ::  give updates for protocols whose supported version changed
       ::
+      ^-  (list card)
+      %-  zing
       %+  murn  ~(tap by neu)
       |=  [=protocol =version]
-      ^-  (unit card)
+      ^-  (unit (list card))
       ?:  =(`version (~(get by ole) protocol))  ~
-      ~&  [%ours-changed 'giving version' version 'for protocol' protocol]
-      `[%give %fact [/~/negotiate/version/[protocol]]~ %noun !>(version)]
+      %-  some
+      :~  (tell:log %dbug ~[>[%ours-changed 'giving version' version 'for protocol' protocol]<] ~)
+          [%give %fact [/~/negotiate/version/[protocol]]~ %noun !>(version)]
+      ==
     ::
     ++  heed-changed
       |=  [for=[=gill:gall protocol] new=(unit version)]
@@ -396,7 +407,9 @@
       =|  cards=(list card)
       |-
       ?~  kik  [[cards inner] state]
-      ~&  [%simulated-kick (pack-wire i.kik) +.i.kik]
+      =.  cards
+        :_  cards
+        (tell:log %dbug ~[>[%simulated-kick (pack-wire i.kik) +.i.kik]<] ~)
       =.  wex.bowl  (~(del by wex.bowl) (pack-wire i.kik) +.i.kik)
       =^  caz  inner
         %.  [wire.i.kik %kick ~]
@@ -496,6 +509,7 @@
     +*  this    .
         up    ~(. helper bowl state)
         og    ~(. inner inner-bowl:up)
+        log   ~(. logs our.bowl dap.bowl /negotiate)
     ++  on-init
       ^-  (quip card _this)
       =.  ours   our-versions
@@ -564,7 +578,9 @@
             =*  sub  i.suz
             ?:  ?=([%~.~ %negotiate *] wire.sub)
               $(suz t.suz)
-            ~&  [%negotiate dap.bowl %re-doing-sub sub]
+            =.  cards
+              %+  snoc  cards
+              (tell:log %dbug ~[>[%negotiate dap.bowl %re-doing-sub sub]<] ~)
             =.  cards       (snoc cards [%pass wire.sub %agent gill.sub %leave ~])
             =.  wex.bowl    (~(del by wex.bowl) -.sub)
             =^  caz  inner  (on-agent:og wire.sub %kick ~)
@@ -612,8 +628,10 @@
         ::
         =/  key  i.t.t.t.path
         =/  version  (~(got by ours) key)
-        ~&  [%version-watched src.bowl key version]
-        [[%give %fact ~ %noun !>(version)]~ this]
+        :_  this
+        :~  (tell:log %dbug ~[>[%version-watched src.bowl key version]<] ~)
+            [%give %fact ~ %noun !>(version)]
+        ==
       ::
           [%notify ?([%json ~] ~)]  ::  /~/negotiate/notify(/json)
         ?>  =(our src):bowl
@@ -648,17 +666,18 @@
         ?-  -.sign
             %fact
           =*  mark  p.cage.sign
-          ~&  [%heed-fact-received mark for]
+          =/  cards=(list card)
+            ~[(tell:log %dbug ~[>[%heed-fact-received mark for]<] ~)]
           =*  vase  q.cage.sign
           ?.  =(%noun mark)
-            ~&  [negotiate+dap.bowl %ignoring-unexpected-fact mark=mark]
-            [~ this]
+            :_  this
+            ~[(tell:log %dbug ~[>[negotiate+dap.bowl %ignoring-unexpected-fact mark=mark]<] ~)]
           =+  !<(=version vase)
           =^  a  state  (heed-changed:up for `version)
           =^  [caz=(list card) nin=_inner]  state
             (simulate-kicks:up kik.a inner)
           =.  inner  nin
-          [(weld caz.a caz) this]
+          [(weld cards (weld caz.a caz)) this]
         ::
             %watch-ack
           ?~  p.sign  [~ this]
@@ -670,7 +689,6 @@
           ::  if we still care, consider the version "unknown" for now,
           ::  and try re-subscribing later
           ::
-          ~&  [%heed-nacked for]
           =^  a  state  (heed-changed:up for ~)
           =^  [caz=(list card) nin=_inner]  state
             (simulate-kicks:up kik.a inner)
@@ -678,10 +696,12 @@
           ::  30 minutes might cost us some responsiveness but in return we
           ::  save both ourselves and others from a lot of needless retries.
           ::
-          [[(retry-timer:up ~m30 [%watch t.t.wire]) (weld caz.a caz)] this]
+          :_  this
+          :-  (retry-timer:up ~m30 [%watch t.t.wire])
+          :-  (tell:log %dbug ~[>[%heed-nacked for]<] ~)
+          (weld caz.a caz)
         ::
             %kick
-          ~&  [%heed-kicked for]
           :_  this
           ::  to prevent pathological kicks from exploding, we always
           ::  wait a couple seconds before resubscribing.
@@ -689,11 +709,13 @@
           ::  difference between "clog" kicks and "unexpected crash" kicks,
           ::  so we cannot take more accurate/appropriate action here.
           ::
-          [(retry-timer:up ~s15 [%watch t.t.wire])]~
+          :~  (retry-timer:up ~s15 [%watch t.t.wire])
+              (tell:log %dbug ~[>[%heed-kicked for]<] ~)
+          ==
         ::
             %poke-ack
-          ~&  [negotiate+dap.bowl %unexpected-poke-ack wire]
-          [~ this]
+          :_  this
+          ~[(tell:log %dbug ~[>[negotiate+dap.bowl %unexpected-poke-ack wire]<] ~)]
         ==
       ==
     ::
@@ -795,8 +817,12 @@
           =/  for=[gill:gall protocol]
             =*  w  t.t.t.t.t.wire
             [[(slav %p i.w) i.t.w] i.t.t.w]
-          ~&  [%heed-retry for 'attempting to watch for version']
-          [[(watch-version:up for)]~ this]
+          :_  this
+          :~  (watch-version:up for)
+              %^  tell:log   %dbug
+                ~[>[%heed-retry for 'attempting to watch for version']<]
+              ~
+          ==
         ==
       ==
     ::

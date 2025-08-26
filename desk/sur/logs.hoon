@@ -28,7 +28,7 @@
 +$  log-data  (list (pair @t json))
 ::
 +$  a-log
-  $%  [%log agent=dude:gall log-event data=log-data]
+  $%  [%log agent=dude:gall event=log-event data=log-data]
       [%set-dojo vol=(unit volume)]
       [%set-posthog vol=(unit volume)]
   ==
