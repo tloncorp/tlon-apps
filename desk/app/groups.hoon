@@ -262,7 +262,6 @@
     |=  [vol=volume:logs =echo:logs]
     =/  =card
       (~(tell logs our.bowl /logs) vol echo deez)
-    |*  etc=*
     =/  pri
       ?-  vol
         %dbug  0
@@ -271,6 +270,7 @@
         %crit  3
       ==
     %-  %-  %*(. slog pri pri)  echo
+    |*  etc=*
     =.  cor  (emit card)
     etc
   ::  +deez: log message details
