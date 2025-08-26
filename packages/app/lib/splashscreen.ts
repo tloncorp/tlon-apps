@@ -14,9 +14,13 @@ export const splashScreenProgress = (() => {
     web: [SplashScreenTask.loadTheme, SplashScreenTask.startDatabase],
     default: [SplashScreenTask.loadTheme],
   }).forEach((task) => {
-    // 5 seconds timeout for each task - this assumes that all of the tasks
-    // above are strictly "nice-to-haves" and should not block app load.
-    progressManager.add(task, 5000);
+    // Web needs actual data before showing UI, so no timeout for database task.
+    // Native uses 5 second timeout as a nice-to-have.
+    const timeout =
+      Platform.OS === 'web' && task === SplashScreenTask.startDatabase
+        ? undefined // No timeout - wait for actual data
+        : 5000; // Keep 5s timeout for other tasks/platforms
+    progressManager.add(task, timeout);
   });
 
   return progressManager;
