@@ -1448,7 +1448,7 @@
     ?.  (can-poke:neg bowl host %channels-server)
       =/  duration  (~(rad og eny.bowl) ~m15)
       =/  wait=card
-        [%pass pole %arvo %b %wait :(add now.bowl ~m15 (~(rad og eny.bowl) ~m15))]
+        [%pass pole %arvo %b %wait :(add now.bowl ~m15 duration)]
       =/  =tang
         ~[>[%cant-poke (spat pole) %fires-in `@dr`(add ~m15 duration)]<]
       (emil wait (tell:plog %dbug tang ~) ~)
