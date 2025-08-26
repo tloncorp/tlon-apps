@@ -275,6 +275,13 @@ export function GroupOptionsSheetContent({
     [onOpenChange]
   );
 
+  const wrappedInviteAction = useCallback(() => {
+    // Just call the invite handler - let the context manage the sheet lifecycle
+    if (onPressInvite) {
+      onPressInvite();
+    }
+  }, [onPressInvite]);
+
   const handlePressChatDetails = useCallback(() => {
     onPressChatDetails({ type: 'group', id: group.id });
   }, [group.id, onPressChatDetails]);
@@ -314,7 +321,7 @@ export function GroupOptionsSheetContent({
           canInvite
             ? {
                 title: 'Invite people',
-                action: wrappedAction.bind(null, onPressInvite, false),
+                action: wrappedInviteAction,
                 endIcon: 'ChevronRight',
               }
             : {
@@ -345,11 +352,11 @@ export function GroupOptionsSheetContent({
       handlePressChatDetails,
       isPinned,
       markGroupRead,
-      onPressInvite,
       onPressNotifications,
       onPressSort,
       togglePinned,
       wrappedAction,
+      wrappedInviteAction,
       handleCancel,
       isErrored,
     ]

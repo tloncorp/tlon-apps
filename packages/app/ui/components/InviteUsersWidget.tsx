@@ -1,14 +1,11 @@
-import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
 import { Button } from '@tloncorp/ui';
-import React, { useCallback, useMemo, useState } from 'react';
+import React from 'react';
 
+import { useInviteGroupMembers } from '../../hooks/useInviteUsers';
 import { ActionSheet } from './ActionSheet';
 import { ContactBook } from './ContactBook';
 import { InviteFriendsToTlonButton } from './InviteFriendsToTlonButton';
-
-const logger = createDevLogger('InviteUsersWidget', false);
 
 const InviteUsersWidgetComponent = ({
   group,
@@ -19,40 +16,8 @@ const InviteUsersWidgetComponent = ({
   onInviteComplete: () => void;
   onScrollChange?: (scrolling: boolean) => void;
 }) => {
-  const [loading, setLoading] = useState(false);
-  const [invitees, setInvitees] = useState<string[]>([]);
-
-  // Extract existing group member IDs to mark them as immutable
-  const existingMemberIds = useMemo(() => {
-    return group.members?.map(member => member.contactId) ?? [];
-  }, [group.members]);
-
-  const handleInviteGroupMembers = useCallback(async () => {
-    setLoading(true);
-    try {
-      await store.inviteGroupMembers({
-        groupId: group.id,
-        contactIds: invitees,
-      });
-      setLoading(false);
-      onInviteComplete();
-    } catch (error) {
-      logger.trackError('Error inviting group members', {
-        errorMessage: error.message,
-        errorStack: error.stack,
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [invitees, group.id, onInviteComplete]);
-
-  const buttonText = useMemo(() => {
-    if (invitees.length === 0) {
-      return `Select people to invite`;
-    }
-
-    return `Invite ${invitees.length} and continue`;
-  }, [invitees]);
+  const { loading, invitees, setInvitees, handleInvite, buttonText } =
+    useInviteGroupMembers(group.id, onInviteComplete);
 
   return (
     <>
@@ -66,13 +31,12 @@ const InviteUsersWidgetComponent = ({
           searchPlaceholder="Filter by nickname, @p"
           onSelectedChange={setInvitees}
           onScrollChange={onScrollChange}
-          immutableIds={existingMemberIds}
         />
       </ActionSheet.ContentBlock>
       <ActionSheet.ContentBlock>
         <Button
           hero
-          onPress={handleInviteGroupMembers}
+          onPress={handleInvite}
           disabled={invitees.length === 0 || loading}
           gap="$xl"
         >

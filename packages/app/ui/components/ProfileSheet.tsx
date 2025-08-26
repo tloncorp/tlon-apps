@@ -76,7 +76,6 @@ export function ProfileSheet({
   open,
   currentUserIsAdmin,
   groupHostId,
-  groupIsOpen,
   userIsBanned,
   userIsInvited,
   onPressGoToProfile,
@@ -94,7 +93,6 @@ export function ProfileSheet({
   onOpenChange: (open: boolean) => void;
   currentUserIsAdmin?: boolean;
   groupHostId?: string;
-  groupIsOpen?: boolean;
   userIsBanned?: boolean;
   userIsInvited?: boolean;
   onPressKick?: () => void;
@@ -108,6 +106,7 @@ export function ProfileSheet({
 }) {
   const currentUserId = useCurrentUserId();
   const contactIsHost = groupHostId === contactId;
+  const contactIsAdmin = selectedUserRoles?.includes('admin');
 
   const handleBlock = useCallback(() => {
     if (contact && contact.isBlocked) {
@@ -154,7 +153,12 @@ export function ProfileSheet({
               onOpenChange(false);
             },
           },
-        groupIsOpen && currentUserId !== contactId && !userIsInvited
+        onPressBan &&
+        onPressUnban &&
+        currentUserId !== contactId &&
+        !userIsInvited &&
+        !contactIsHost &&
+        !contactIsAdmin
           ? userIsBanned
             ? {
                 title: 'Unban User',

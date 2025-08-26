@@ -34,13 +34,13 @@ export function GroupChannelsScreenContent({
   focusedChannelId?: string;
 }) {
   const isFocused = useIsFocused();
-  const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
+  const isWindowNarrow = useIsWindowNarrow();
   const { group } = useGroupContext({ groupId: id, isFocused });
+  const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
   const { data: unjoinedChannels } = store.useUnjoinedGroupChannels(
     group?.id ?? ''
   );
   const { navigateToChannel, navigation } = useRootNavigation();
-  const isWindowNarrow = useIsWindowNarrow();
 
   const handleChannelSelected = useCallback(
     (channel: db.Channel) => {
@@ -81,9 +81,15 @@ export function GroupChannelsScreenContent({
 
   const handlePressInvite = useCallback(
     (groupId: string) => {
-      setInviteSheetGroup(groupId);
+      if (isWindowNarrow) {
+        // Mobile: Use navigation to screen
+        navigation.navigate('InviteUsers', { groupId });
+      } else {
+        // Desktop: Use sheet
+        setInviteSheetGroup(groupId);
+      }
     },
-    [setInviteSheetGroup]
+    [isWindowNarrow, navigation]
   );
 
   return (
@@ -101,16 +107,18 @@ export function GroupChannelsScreenContent({
           unjoinedChannels={unjoinedChannels}
         />
       </NavigationProvider>
-      <InviteUsersSheet
-        open={inviteSheetGroup !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setInviteSheetGroup(null);
-          }
-        }}
-        groupId={inviteSheetGroup ?? undefined}
-        onInviteComplete={() => setInviteSheetGroup(null)}
-      />
+      {!isWindowNarrow && (
+        <InviteUsersSheet
+          open={inviteSheetGroup !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setInviteSheetGroup(null);
+            }
+          }}
+          groupId={inviteSheetGroup ?? undefined}
+          onInviteComplete={() => setInviteSheetGroup(null)}
+        />
+      )}
     </ChatOptionsProvider>
   );
 }

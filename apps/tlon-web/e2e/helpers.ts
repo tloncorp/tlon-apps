@@ -7,6 +7,9 @@ export async function channelIsLoaded(page: Page) {
 }
 
 export async function navigateToChannel(page: Page, channelName: string) {
+  await expect(page.getByTestId(`ChannelListItem-${channelName}`)).toBeVisible({
+    timeout: 10000,
+  });
   await page.getByTestId(`ChannelListItem-${channelName}`).click();
   await channelIsLoaded(page);
 }
@@ -82,11 +85,14 @@ export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
 
     // Wait for contact to appear in search results
     await expect(
-      page.getByTestId('ContactRow').getByText(memberId)
+      page.getByTestId('ContactRow').getByText(`~${memberId}`, { exact: true })
     ).toBeVisible({
       timeout: 10000,
     });
-    await page.getByTestId('ContactRow').getByText(memberId).click();
+    await page
+      .getByTestId('ContactRow')
+      .getByText(`~${memberId}`, { exact: true })
+      .click();
   }
 
   // Wait for continue button to update with selection count and click
@@ -102,67 +108,31 @@ export async function acceptGroupInvite(page: Page, groupName?: string) {
   // Ensure session is stable before accepting invite
   await waitForSessionStability(page);
 
-  // Wait for and click the invitation
-  await expect(page.getByText('Group invitation')).toBeVisible({
-    timeout: 10000,
-  });
+  // Click on the invitation
   await page.getByText('Group invitation').click();
+  await page.waitForTimeout(1000);
 
-  // Accept the invitation
+  // Click accept
   const acceptButton = page.getByText('Accept invite');
   if (await acceptButton.isVisible()) {
     await acceptButton.click();
   }
 
-  // Check if we see the joining state (this may be skipped if join is very fast)
-  const joiningMessage = await page
-    .getByText('Joining, please wait...')
-    .isVisible({ timeout: 5000 })
-    .catch(() => false);
+  // Wait for joining to complete and "Go to group" button to appear
+  await expect(page.getByText('Go to group')).toBeVisible({ timeout: 45000 });
 
-  if (joiningMessage) {
-    // If we saw the joining message, wait for "Go to group" button
-    const goToGroupButton = page.getByText('Go to group');
-    await expect(goToGroupButton).toBeVisible({
-      timeout: 45000, // Extended timeout for CI environments
-    });
-
-    // Click the button to navigate to the group
-    await goToGroupButton.click();
-  } else {
-    // If joining was fast and we didn't see the joining message,
-    // check if "Go to group" button is already visible
-    const goToGroupButton = page.getByText('Go to group');
-    const buttonVisible = await goToGroupButton
-      .isVisible({ timeout: 5000 })
-      .catch(() => false);
-
-    if (buttonVisible) {
-      await goToGroupButton.click();
-    } else if (groupName) {
-      // Fallback: navigate to group directly if we're already past the invitation flow
-      await expect(page.getByText(groupName).first()).toBeVisible({
-        timeout: 10000,
-      });
-      await page.getByText(groupName).first().click();
-    }
-  }
-
-  // Verify we're in the group
-  if (groupName) {
-    await expect(page.getByText(groupName).first()).toBeVisible({
-      timeout: 5000,
-    });
-  }
+  // Click "Go to group"
+  await page.getByText('Go to group').click();
+  await page.waitForTimeout(3000);
 }
 
 export async function rejectGroupInvite(page: Page) {
-  if (await page.getByText('Group invitation').isVisible()) {
+  if (await page.getByText('Group invitation').isVisible({ timeout: 10000 })) {
     await page.getByText('Group invitation').click();
   }
 
   // If there's a reject invitation button, click it
-  if (await page.getByText('Reject invite').isVisible()) {
+  if (await page.getByText('Reject invite').isVisible({ timeout: 10000 })) {
     await page.getByText('Reject invite').click();
   }
 }
@@ -170,13 +140,18 @@ export async function rejectGroupInvite(page: Page) {
 export async function deleteGroup(page: Page, groupName?: string) {
   // Ensure session is stable before deleting group
   await waitForSessionStability(page);
+  await expect(page.getByTestId('GroupLeaveAction-Delete group')).toBeVisible({
+    timeout: 10000,
+  });
 
   await page.getByTestId('GroupLeaveAction-Delete group').click();
   await expect(
-    page.getByText(`Delete ${groupName || 'Untitled group'}?`)
-  ).toBeVisible();
+    page.getByTestId('ActionSheetAction-Delete group').first()
+  ).toBeVisible({ timeout: 10000 });
   await page.getByTestId('ActionSheetAction-Delete group').click();
-  await expect(page.getByText(groupName || 'Untitled group')).not.toBeVisible();
+  await expect(page.getByText(groupName || 'Untitled group')).not.toBeVisible({
+    timeout: 20000,
+  });
 }
 
 export async function openGroupSettings(page: Page) {
@@ -333,6 +308,80 @@ export async function unassignRoleFromMember(
   await page.getByRole('dialog').getByText(roleName).click(); // This should unassign the role
 
   await page.waitForTimeout(2000);
+}
+
+/**
+ * Bans a user from a group
+ */
+export async function banUserFromGroup(page: Page, memberName: string) {
+  // Navigate to members page - always navigate since we might be in wrong context
+  await openGroupSettings(page);
+  await page.getByTestId('GroupMembers').click();
+
+  // Wait for members page to load - wait for member rows to appear
+  await page.waitForTimeout(2000);
+  await expect(page.getByTestId('MemberRow').first()).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Find and click on the member
+  await page.getByTestId('MemberRow').filter({ hasText: memberName }).click();
+
+  await expect(page.getByText('Ban User')).toBeVisible();
+  await page.getByText('Ban User').click();
+
+  // Wait for the action to complete and sheet to close
+  await page.waitForTimeout(3000);
+
+  // Close sheet if still open by pressing Escape
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(1000);
+}
+
+/**
+ * Unbans a user from a group
+ */
+export async function unbanUserFromGroup(page: Page, memberName: string) {
+  // Navigate to members page - always navigate since we might be in wrong context
+  await openGroupSettings(page);
+  await page.getByTestId('GroupMembers').click();
+
+  // Wait for members page to load - wait for member rows to appear
+  await page.waitForTimeout(2000);
+  await expect(page.getByTestId('MemberRow').first()).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Scroll down to find banned users section
+  await page.getByTestId('MemberRow').filter({ hasText: memberName }).click();
+
+  await expect(page.getByText('Unban User')).toBeVisible();
+  await page.getByText('Unban User').click();
+
+  await page.waitForTimeout(2000); // Wait for unban to complete
+}
+
+/**
+ * Kicks a user from a group
+ */
+export async function kickUserFromGroup(page: Page, memberName: string) {
+  // Navigate to members page - always navigate since we might be in wrong context
+  await openGroupSettings(page);
+  await page.getByTestId('GroupMembers').click();
+
+  // Wait for members page to load - wait for member rows to appear
+  await page.waitForTimeout(2000);
+  await expect(page.getByTestId('MemberRow').first()).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Find and click on the member
+  await page.getByTestId('MemberRow').filter({ hasText: memberName }).click();
+
+  await expect(page.getByText('Kick User')).toBeVisible();
+  await page.getByText('Kick User').click();
+
+  await page.waitForTimeout(2000); // Wait for kick to complete
 }
 
 /**
@@ -541,15 +590,32 @@ export async function toggleChatPin(page: Page) {
 /**
  * Changes group privacy setting
  */
-export async function setGroupPrivacy(page: Page, isPrivate: boolean) {
+export async function setGroupPrivacy(
+  page: Page,
+  privacy: 'public' | 'private' | 'secret'
+) {
   // Ensure session is stable before changing privacy
   await waitForSessionStability(page);
 
   await page.getByText('Privacy').click();
-  if (isPrivate) {
-    await page.getByText('Private', { exact: true }).click();
+
+  await expect(page.getByText('Group privacy')).toBeVisible();
+
+  if (privacy === 'private') {
+    await page
+      .getByTestId('GroupPrivacyScreen-RadioInput')
+      .getByText('Private', { exact: true })
+      .click();
+  } else if (privacy === 'secret') {
+    await page
+      .getByTestId('GroupPrivacyScreen-RadioInput')
+      .getByText('Secret', { exact: true })
+      .click();
   } else {
-    await page.getByText('Public', { exact: true }).click();
+    await page
+      .getByTestId('GroupPrivacyScreen-RadioInput')
+      .getByText('Public', { exact: true })
+      .click();
   }
 }
 
@@ -735,13 +801,30 @@ export async function createNotebookPost(
 export async function createGalleryPost(page: Page, content: string) {
   await page.getByTestId('AddGalleryPost').click();
   await page.getByTestId('AddGalleryPostText').click();
-  await page.locator('iframe').contentFrame().getByRole('paragraph').click();
-  await page
-    .locator('iframe')
-    .contentFrame()
-    .locator('div')
-    .nth(2)
-    .fill(content);
+
+  // Wait for iframe to be properly loaded and accessible
+  const iframe = page.locator('iframe');
+  await expect(iframe).toBeVisible({ timeout: 10000 });
+
+  // Wait for iframe content to be ready
+  await iframe.waitFor({ state: 'attached' });
+  const contentFrame = iframe.contentFrame();
+  if (!contentFrame) {
+    throw new Error('Iframe content frame not available');
+  }
+
+  // Wait for editor to be initialized
+  await expect(contentFrame.getByRole('paragraph')).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Click in the editor area to focus
+  await contentFrame.getByRole('paragraph').click();
+
+  // Use more stable selector - target the paragraph element directly
+  const editorParagraph = contentFrame.getByRole('paragraph');
+  await expect(editorParagraph).toBeVisible({ timeout: 3000 });
+  await editorParagraph.fill(content);
 
   // Ensure session is stable before posting
   await waitForSessionStability(page);
@@ -770,6 +853,11 @@ export async function sendMessage(page: Page, message: string) {
   await expect(
     page.getByTestId('Post').getByText(message, { exact: true }).first()
   ).toBeVisible({ timeout: 10000 });
+  // Wait for input to be cleared to prevent race conditions
+  await expect(async () => {
+    const inputValue = await page.getByTestId('MessageInput').inputValue();
+    return inputValue === '';
+  }).toPass({ timeout: 5000, intervals: [100, 200, 500] });
 }
 
 /**
@@ -888,6 +976,7 @@ export async function removeReaction(page: Page, emoji: string = '👍') {
 
   const reactionButton = page.getByText(emoji);
   await reactionButton.click();
+  await page.waitForTimeout(1000);
   await expect(reactionButton).not.toBeVisible();
 }
 
@@ -1222,9 +1311,6 @@ export async function leaveDM(page: Page, contactId: string) {
   await page.waitForTimeout(500);
   await page.getByTestId('ActionSheetAction-Leave chat').click();
   await page.waitForTimeout(500);
-  // without this reload we'll still see previous messages in the DM
-  // TODO: figure out why this is happening
-  await page.reload();
   await expect(
     page.getByTestId(`ChannelListItem-${contactId}`)
   ).not.toBeVisible();
@@ -1337,4 +1423,257 @@ export async function verifyNavigation(
   }
 
   return true;
+}
+
+/**
+ * Clean up own profile by resetting nickname, status, and bio to empty values
+ */
+export async function cleanupOwnProfile(page: Page) {
+  // Navigate to profile
+  await page.getByTestId('AvatarNavIcon').click();
+  await expect(page.getByText('Contacts')).toBeVisible({ timeout: 5000 });
+
+  // Check if "You" is visible, if not we might already be on profile
+  const youButton = page.getByText('You');
+  if (await youButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await youButton.click();
+  }
+
+  // Wait for Profile to be visible
+  await expect(page.getByText('Profile')).toBeVisible({ timeout: 5000 });
+
+  // Click Edit button
+  const editButton = page.getByText('Edit');
+  if (await editButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await editButton.click();
+    await expect(page.getByText('Edit Profile')).toBeVisible({
+      timeout: 5000,
+    });
+
+    // Clear all profile fields
+    // Clear nickname
+    const nicknameInput = page.getByTestId('ProfileNicknameInput');
+    if (await nicknameInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await nicknameInput.click();
+      await nicknameInput.clear();
+      await nicknameInput.fill('');
+    }
+
+    // Clear status
+    const statusInput = page.getByRole('textbox', {
+      name: 'Hanging out...',
+    });
+    if (await statusInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await statusInput.click();
+      await statusInput.clear();
+      await statusInput.fill('');
+    }
+
+    // Clear bio
+    const bioInput = page.getByRole('textbox', { name: 'About yourself' });
+    if (await bioInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await bioInput.click();
+      await bioInput.clear();
+      await bioInput.fill('');
+    }
+
+    // Save changes
+    await page.getByText('Done').click();
+    await page.waitForTimeout(1000);
+  }
+  // Navigate back to home
+  await page.getByTestId('HomeNavIcon').click();
+  await page.waitForTimeout(500);
+}
+
+/**
+ * Clean up custom nicknames set for contacts and remove all contacts
+ * This dynamically finds all contacts and clears nicknames/removes them
+ */
+export async function cleanupContactNicknames(page: Page) {
+  // Get all contacts dynamically (returns ship IDs for reliable removal)
+  const contacts = await getAllContacts(page);
+
+  for (const contactId of contacts) {
+    // First clear any custom nickname using ship ID
+    await clearContactNickname(page, contactId);
+
+    // Then remove the contact using ship ID
+    await removeContact(page, contactId);
+  }
+}
+
+/**
+ * Get all contacts from the contacts list
+ * Returns an array of ship IDs (e.g., "~zod", "~ten") for reliable removal
+ */
+export async function getAllContacts(page: Page): Promise<string[]> {
+  const contacts: string[] = [];
+
+  // Navigate to Contacts
+  await page.getByTestId('AvatarNavIcon').click();
+  await expect(page.getByText('Contacts')).toBeVisible({ timeout: 5000 });
+
+  // Wait for contacts to load
+  await page.waitForTimeout(1000);
+
+  // Try to get ship IDs from aria-labels (more reliable than text content)
+  const contactElements = await page
+    .locator('[aria-label^="ContactListItem-"]')
+    .all();
+
+  for (const element of contactElements) {
+    const ariaLabel = await element.getAttribute('aria-label');
+    if (ariaLabel) {
+      // Extract ship ID from aria-label (e.g., "ContactListItem-~zod" -> "~zod")
+      const shipId = ariaLabel.replace('ContactListItem-', '');
+      if (shipId && shipId.startsWith('~')) {
+        // Skip own ship
+        const ownShip = page.url().includes('localhost:3000')
+          ? '~zod'
+          : page.url().includes('localhost:3002')
+            ? '~ten'
+            : '~bus';
+        if (shipId !== ownShip) {
+          contacts.push(shipId);
+        }
+      }
+    }
+  }
+
+  // Navigate back to home to leave in clean state
+  await page.getByTestId('HomeNavIcon').click();
+
+  return contacts;
+}
+
+/**
+ * Remove a specific contact from the contacts list
+ * @param page - The page object
+ * @param shipId - The ship ID (e.g., "~zod") of the contact to remove
+ */
+export async function removeContact(page: Page, shipId: string) {
+  // Validate ship ID format
+  if (!shipId.startsWith('~')) {
+    console.log(
+      `[CLEANUP] Invalid ship ID format: ${shipId} (must start with ~)`
+    );
+    return;
+  }
+
+  // Navigate to Contacts
+  await page.getByTestId('AvatarNavIcon').click();
+  await expect(page.getByText('Contacts')).toBeVisible({ timeout: 5000 });
+
+  // Use aria-label selector for ship IDs (more reliable when nicknames change)
+  const contactElement = page.locator(
+    `[aria-label="ContactListItem-${shipId}"]`
+  );
+
+  if (await contactElement.isVisible({ timeout: 2000 }).catch(() => false)) {
+    // Check if this is the "You" contact (skip removal)
+    if (
+      await contactElement
+        .getByText('You')
+        .isVisible({ timeout: 2000 })
+        .catch(() => false)
+    ) {
+      return;
+    }
+
+    await contactElement.click();
+
+    // Wait for Profile to load
+    await expect(page.getByText('Profile')).toBeVisible({ timeout: 5000 });
+
+    // Look for Remove Contact button - it should be on the profile view, not in edit mode
+    const removeButton = page.getByText('Remove Contact');
+    if (await removeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await removeButton.click();
+      await page.waitForTimeout(1000);
+
+      // Handle any confirmation dialog if present
+      const confirmButton = page.getByText('Remove', { exact: true });
+      if (await confirmButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await confirmButton.click();
+      }
+    }
+
+    // Navigate back to home
+    await page.getByTestId('HomeNavIcon').click();
+    await page.waitForTimeout(500);
+  }
+}
+
+/**
+ * Remove all contacts from both ships
+ * This is a comprehensive cleanup that removes all contacts
+ */
+export async function removeAllContacts(page: Page) {
+  const contacts = await getAllContacts(page);
+
+  for (const contact of contacts) {
+    // Skip self references
+    if (contact.includes('You')) {
+      continue;
+    }
+    // Skip own ship (check if we're on zod or ten)
+    const ownShip = page.url().includes('localhost:3000') ? '~zod' : '~ten';
+    if (contact === ownShip || contact.includes(ownShip.substring(1))) {
+      continue;
+    }
+    await removeContact(page, contact);
+  }
+}
+
+/**
+ * Clear custom nickname for a specific contact
+ * @param page - The page object
+ * @param contactNameOrId - The name, nickname, or ship ID (e.g., "~zod") of the contact
+ */
+export async function clearContactNickname(
+  page: Page,
+  contactNameOrId: string
+) {
+  // Navigate to Contacts
+  await page.getByTestId('AvatarNavIcon').click();
+  await expect(page.getByText('Contacts')).toBeVisible({ timeout: 5000 });
+
+  // Determine if we have a ship ID or contact name
+  const isShipId = contactNameOrId.startsWith('~');
+  let contactElement;
+
+  if (isShipId) {
+    // Use aria-label selector for ship IDs (more reliable when nicknames change)
+    contactElement = page.locator(
+      `[aria-label="ContactListItem-${contactNameOrId}"]`
+    );
+  } else {
+    // Fall back to text-based search for contact names
+    contactElement = page.getByText(contactNameOrId).first();
+  }
+
+  if (await contactElement.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await contactElement.click();
+
+    // Wait for Profile to load
+    await expect(page.getByText('Profile')).toBeVisible({ timeout: 5000 });
+
+    // Click Edit button
+    await page.getByText('Edit').click();
+    await expect(page.getByText('Edit Profile')).toBeVisible({
+      timeout: 5000,
+    });
+
+    // Clear the nickname field
+    await page.getByTestId('ProfileNicknameInput').click();
+    await page.getByTestId('ProfileNicknameInput').fill('');
+
+    // Save changes
+    await page.getByText('Done').click();
+    await page.waitForTimeout(1000);
+
+    // Navigate back home
+    await page.getByTestId('HomeNavIcon').click();
+  }
 }

@@ -15,3 +15,5 @@ expo-env.d.ts
 # Playwright MCP development logs
 apps/tlon-web/playwright-dev.log
 apps/tlon-web/.playwright-dev.pid
+
+dump.sqlite3

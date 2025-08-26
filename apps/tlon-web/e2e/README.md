@@ -109,8 +109,14 @@ pnpm e2e
 # Run a single test with automatic ship management
 pnpm e2e:test chat-functionality.spec.ts
 
+# Run multiple tests together to check interactions
+pnpm e2e:test chat-functionality.spec.ts direct-message.spec.ts
+
 # Run a single test in debug mode
 pnpm e2e:test --debug chat-functionality.spec.ts
+
+# Run multiple tests with flags
+pnpm e2e:test --headed group-lifecycle.spec.ts group-customization.spec.ts
 
 # Run a single test with multiple flags
 pnpm e2e:test --headed --debug chat-functionality.spec.ts
@@ -160,11 +166,18 @@ npx playwright test chat-functionality.spec.ts
 # Run specific test file with automatic ship management (recommended for development)
 pnpm e2e:test chat-functionality.spec.ts
 
+# Run multiple test files together (useful for testing interactions)
+pnpm e2e:test group-lifecycle.spec.ts group-customization.spec.ts
+pnpm e2e:test --debug dm-thread-functionality.spec.ts thread-functionality.spec.ts
+
 # Force re-extraction of all ships (useful for clean slate testing)
 pnpm e2e:force
 
 # Force re-extraction with single test
 pnpm e2e:test:force chat-functionality.spec.ts
+
+# Force re-extraction with multiple tests
+pnpm e2e:test:force chat-functionality.spec.ts direct-message.spec.ts
 
 # Run tests matching pattern
 npx playwright test --grep "group"
@@ -235,26 +248,36 @@ The `helpers.ts` file provides numerous utility functions:
 
 ## Development Workflow
 
-### Running Individual Tests
+### Running Individual or Multiple Tests
 
-For development convenience, use the automated single-test runner:
+For development convenience, use the automated test runner:
 
 ```bash
 # This will automatically:
 # 1. Boot all three ships (zod, bus, ten) without running tests
 # 2. Start the web servers
 # 3. Wait for everything to be ready
-# 4. Run your specific test only
+# 4. Run your specific test(s)
 # 5. Clean up all processes when done
+
+# Single test file
 pnpm e2e:test notebook-functionality.spec.ts
 
-# For debugging individual tests:
+# Multiple test files (useful for testing interactions)
+pnpm e2e:test chat-functionality.spec.ts direct-message.spec.ts
+pnpm e2e:test group-lifecycle.spec.ts group-customization.spec.ts group-info-settings.spec.ts
+
+# For debugging tests:
 pnpm e2e:test --debug notebook-functionality.spec.ts
-pnpm e2e:test --headed notebook-functionality.spec.ts
+pnpm e2e:test --headed chat-functionality.spec.ts direct-message.spec.ts
 pnpm e2e:test --ui notebook-functionality.spec.ts
 ```
 
-The script (located at `rube/run-single-test.ts`) uses a modified version of rube that stops before running the full test suite, then executes only your specific test. This handles all the orchestration for you, so you don't need to manually start ships or remember to clean up afterwards. This is especially useful when iterating on a single test during development.
+The script (located at `rube/run-selected-tests.ts`) uses a modified version of rube that stops before running the full test suite, then executes only your specific test(s). This handles all the orchestration for you, so you don't need to manually start ships or remember to clean up afterwards. This is especially useful when:
+
+-   Iterating on a single test during development
+-   Testing how multiple tests interact with each other
+-   Debugging test pollution or ordering issues without running the full suite
 
 ### Playwright MCP Development
 
@@ -358,6 +381,11 @@ The Rube system automatically:
 3. **Authentication failures**: Delete `.auth/` directory and re-run tests
 4. **Timeout errors**: Increase timeout in configuration or check ship readiness
 5. **Corrupted ship state**: Ship state is automatically nuked before each run. If issues persist, use `FORCE_EXTRACTION=true` to force complete re-extraction of all ships
+6. **Test passes individually but fails in full suite**:
+    - Run a subset of tests to isolate the problem: `pnpm e2e:test [working-test] [failing-test]`
+    - Gradually add more tests that run alphabetically before the failing test
+    - Check for missing cleanup in tests that run before the failing test
+    - Common culprits: invite links creating contacts, profile modifications, asymmetric relationships
 
 ### Logs and Debugging
 
@@ -365,6 +393,29 @@ The Rube system automatically:
 -   Ship logs: Check rube output for Urbit ship status
 -   Browser console: Accessible through debug mode, also accessible through Playwright traces
 -   Network requests: Captured in Playwright traces, also accessible through debug mode
+
+### Process Cleanup
+
+The e2e infrastructure now includes robust cleanup handling:
+
+1. **Automatic cleanup on Ctrl+C**: When you interrupt `pnpm e2e` or other e2e commands with Ctrl+C, all processes (including Urbit ships and their serf sub-processes) are now properly cleaned up.
+
+2. **Emergency cleanup script**: If processes get stuck or orphaned, use the emergency cleanup script:
+
+    ```bash
+    ./rube-cleanup.sh
+    ```
+
+    This will forcefully terminate all rube-related processes including:
+
+    - Urbit ships and serf processes
+    - Vite dev servers
+    - Any orphaned Node.js processes from the test infrastructure
+
+3. **How cleanup works**: The infrastructure uses pattern-based process killing to ensure even untracked sub-processes (like Urbit's serf) are properly terminated. This happens automatically when:
+    - Tests complete normally
+    - You interrupt with Ctrl+C
+    - The process exits for any reason
 
 ## Maintenance
 
@@ -401,6 +452,41 @@ When adding new test scenarios:
 -   Tests use cleanup helpers to remove created groups/channels
 -   Authentication state is reused across tests for performance
 
+### Hidden Test Dependencies and Side Effects
+
+Some tests create persistent state that isn't immediately obvious:
+
+-   **Personal Invite Links**: When a user visits another user's personal invite link, it automatically creates a one-way contact relationship. The visitor adds the invitee as a contact.
+-   **Contact Relationships**: Unlike groups and DMs, contact relationships created through invite links or explicit "Add Contact" actions persist across tests unless explicitly cleaned up.
+-   **Asymmetric State**: Some relationships are one-way (e.g., ~ten having ~zod as a contact doesn't mean ~zod has ~ten as a contact).
+
+**Critical**: Any test that creates contact relationships MUST clean them up, including:
+
+-   Clicking "Remove contact" after testing invite links
+-   Using `helpers.removeContact()` or `helpers.cleanupContactNicknames()`
+-   Ensuring both sides of a relationship are cleaned if bidirectional
+
+### Test Isolation and Cleanup
+
+**Complete Cleanup Checklist:**
+
+-   ✅ Groups created and joined
+-   ✅ DM conversations (both participants must leave)
+-   ✅ Contact relationships (including those from invite links)
+-   ✅ Custom profile data and nicknames
+-   ✅ Pending invitations
+-   ✅ Any modified settings
+
+**Warning**: Incomplete cleanup causes test pollution that may only manifest when running the full suite.
+
+**Essential Cleanup Helpers:**
+
+-   `cleanupOwnProfile(page)` - removes custom profile data
+-   `cleanupContactNicknames(page)` - removes all contact nicknames and contacts
+-   `removeContact(page, contactId)` - removes specific contact
+-   `cleanupExistingGroup(page, groupName)` - removes group if it exists
+-   `leaveDM(page, ship)` - leaves DM conversation
+
 ## Continuous Integration
 
 ### GitHub Actions Workflow
@@ -408,7 +494,7 @@ When adding new test scenarios:
 -   Tests run on every pull request via `.github/workflows/ci.yml`
 -   Playwright browsers are cached, but ship piers are **not cached** (due to current issues)
 -   Each CI run downloads fresh ship images (~1.5GB total)
--   Full CI run including setup takes approximately 7-10 minutes
+-   Full CI run including setup takes approximately 25 minutes
 
 ### CI-Specific Behavior
 
@@ -427,7 +513,7 @@ npx playwright show-report /path/to/downloaded/playwright-report
 
 ## Performance Considerations
 
--   Full test suite takes approximately 7-10 minutes
+-   Full test suite takes approximately 15 minutes
 -   Each ship requires ~500MB disk space + memory for Urbit process
 -   Tests run sequentially to avoid state conflicts
 -   Consider running subset of tests (or a single test) during development

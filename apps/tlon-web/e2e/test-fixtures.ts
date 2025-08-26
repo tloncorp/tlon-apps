@@ -31,7 +31,6 @@ async function performCleanup(page: Page, shipName: string) {
       // No modal present, continue
     }
 
-    await page.getByTestId('HomeNavIcon').click();
     if (shipName === 'zod') {
       if (await page.getByTestId('ChannelListItem-~ten').isVisible()) {
         await helpers.leaveDM(page, '~ten');
@@ -39,6 +38,7 @@ async function performCleanup(page: Page, shipName: string) {
       if (await page.getByTestId('ChannelListItem-~bus').isVisible()) {
         await helpers.leaveDM(page, '~bus');
       }
+      await helpers.cleanupExistingGroup(page, 'My Group');
       await helpers.cleanupExistingGroup(page, '~ten, ~zod');
       await helpers.cleanupExistingGroup(page, '~bus, ~zod');
       await helpers.cleanupExistingGroup(page);

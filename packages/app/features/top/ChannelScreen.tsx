@@ -27,6 +27,7 @@ import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import type { RootStackParamList } from '../../navigation/types';
+import { useRootNavigation } from '../../navigation/utils';
 import {
   AttachmentProvider,
   Channel,
@@ -46,7 +47,6 @@ export default function ChannelScreen(props: Props) {
     startDraft: false,
   };
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
-  const isWindowNarrow = useIsWindowNarrow();
 
   useEffect(() => {
     setCurrentChannelId(channelId);
@@ -141,6 +141,9 @@ export default function ChannelScreen(props: Props) {
 
   const { navigateToImage, navigateToPost, navigateToRef, navigateToSearch } =
     useChannelNavigation({ channelId: currentChannelId });
+  const { navigation } = useRootNavigation();
+  const isWindowNarrow = useIsWindowNarrow();
+  const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
 
   const { performGroupAction } = useGroupActions();
 
@@ -324,16 +327,18 @@ export default function ChannelScreen(props: Props) {
     }
   }, [channel?.type, channel?.id, channel?.groupId]);
 
-  const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>();
-  const handlePressInvite = useCallback((groupId: string) => {
-    setInviteSheetGroup(groupId);
-  }, []);
-
-  const handleInviteSheetOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      setInviteSheetGroup(null);
-    }
-  }, []);
+  const handlePressInvite = useCallback(
+    (groupId: string) => {
+      if (isWindowNarrow) {
+        // Mobile: Use navigation to screen
+        navigation.navigate('InviteUsers', { groupId });
+      } else {
+        // Desktop: Use sheet
+        setInviteSheetGroup(groupId);
+      }
+    },
+    [isWindowNarrow, navigation]
+  );
 
   const canUpload = useCanUpload();
 
@@ -424,15 +429,19 @@ export default function ChannelScreen(props: Props) {
           startDraft={startDraft}
           onPressScrollToBottom={handleScrollToBottom}
         />
-        {!isWindowNarrow && (
-          <InviteUsersSheet
-            open={!!inviteSheetGroup}
-            onOpenChange={handleInviteSheetOpenChange}
-            groupId={inviteSheetGroup ?? undefined}
-            onInviteComplete={() => setInviteSheetGroup(null)}
-          />
-        )}
       </AttachmentProvider>
+      {!isWindowNarrow && (
+        <InviteUsersSheet
+          open={inviteSheetGroup !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setInviteSheetGroup(null);
+            }
+          }}
+          groupId={inviteSheetGroup ?? undefined}
+          onInviteComplete={() => setInviteSheetGroup(null)}
+        />
+      )}
     </ChatOptionsProvider>
   );
 }
