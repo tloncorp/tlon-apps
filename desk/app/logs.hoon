@@ -5,13 +5,7 @@
 =>
   |%
   +$  card  card:agent:gall
-  +$  current-state
-    $:  %1
-        :: what level to output to dojo
-        dojo=(unit volume:l)
-        :: what level to send to posthog
-        posthog=(unit volume:l)
-    ==
+  +$  current-state  [%0 ~]
   --
 =|  current-state
 =*  state  -
@@ -23,14 +17,8 @@
       cor  ~(. +> [bowl ~])
   ::
   ++  on-init  on-init:def
-  ++  on-save  !>(state)
-  ++  on-load
-    |=  =vase
-    ^-  (quip card _this)
-    =^  cards  state
-      abet:(load:cor vase)
-    [cards this]
-  ::
+  ++  on-save  on-save:def
+  ++  on-load  on-load:def
   ++  on-poke
     |=  [=mark =vase]
     ^-  (quip card _this)
@@ -64,21 +52,6 @@
   ::
   (emit %pass /posthog [%arvo %k %fard fard])
 ::
-++  load
-  |^  |=  =vase
-  ^+  cor
-  =+  !<(old=any-state vase)
-  =?  old  ?=(~ old)  state-0-to-1
-  ?>  ?=(%1 -.old)
-  =.  state  old
-  cor
-  +$  any-state  ?(state-0 state-1)
-  +$  state-0  ~
-  +$  state-1  current-state
-  ++  state-0-to-1
-    [%1 `%warn `%info]
-  --
-::
 ++  poke
   |=  [=mark =vase]
   ^+  cor
@@ -88,44 +61,10 @@
     =+  !<(=a-log:l vase)
     ?-    -.a-log
         %log
-      =*  event  event.a-log
-      =/  level=@ud
-        ?-  -.event
-          %fail  (get-level %crit)
-          %tell  (get-level vol.event)
-        ==
-      ::  output to dojo if we have a level set and its higher than the event
-      %-  ?~  dojo  same
-          ?.  (gte level (get-level u.dojo))  same
-          ?-  -.event
-              %tell
-            =/  =tang
-              :_  ~
-              :+  %rose  [~ ~ ~]
-              [[%leaf "{<agent.a-log>}: "] echo.event]
-            (%*(. slog pri level) tang)
-          ::
-              %fail
-            %-  (%*(. slog pri level) [%leaf "{<agent.a-log>}: {<desc.event>}"] ~)
-            (%*(. slog pri level) trace.event)
-          ==
-      ::  output to posthog if we have a level set and its higher than the event
-      ?~  posthog  cor
-      ?.  (gte level (get-level u.posthog))
-        cor
-      (send-posthog-event sap.bowl now.bowl [event data]:a-log)
-    ::
-        %set-dojo
-      cor(dojo vol.a-log)
-    ::
-        %set-posthog
-      cor(posthog vol.a-log)
+      (send-posthog-event sap.bowl now.bowl +.a-log)
     ==
   ==
 ::
-++  get-level
-  |=  =volume:l
-  (~(got by volume-level:l) volume)
 ++  arvo
   |=  [=(pole knot) =sign-arvo]
   ?+    pole  ~|(bad-arvo-wire+pole !!)

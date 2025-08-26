@@ -66,7 +66,7 @@
 |_  =bowl:gall
 +*  this  .
     def   ~(. (default-agent this %|) bowl)
-    log   ~(. logs [our.bowl dap.bowl /logs])
+    log   ~(. logs [our.bowl /logs])
 ::
 ++  on-init
   ^-  (quip card _this)

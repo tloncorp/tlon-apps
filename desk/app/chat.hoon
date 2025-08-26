@@ -223,7 +223,7 @@
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
-      log   ~(. logs [our.bowl dap.bowl /logs])
+      log   ~(. logs [our.bowl /logs])
       cor   ~(. +> [bowl ~])
   ++  on-init
     ^-  (quip card _this)
@@ -1649,7 +1649,7 @@
 ++  cu-core
   |_  [=id:club:c =club:c gone=_| counter=@ud]
   +*  cu-pact  ~(. pac pact.club)
-      log      ~(. logs [our.bowl dap.bowl /logs])
+      log      ~(. logs [our.bowl /logs])
   ++  cu-core  .
   ++  cu-abet
     ::  shouldn't need cleaning, but just in case
@@ -2180,7 +2180,7 @@
   |_  [=ship =dm:c gone=_|]
   +*  di-pact  ~(. pac pact.dm)
       di-hark  ~(. hark-dm:ch [now.bowl ship])
-      log      ~(. logs [our.bowl dap.bowl /logs])
+      log      ~(. logs [our.bowl /logs])
   ++  di-core  .
   ++  di-abet
     =.  dms

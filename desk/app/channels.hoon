@@ -229,7 +229,7 @@
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
-      log   ~(. logs [our.bowl dap.bowl /logs])
+      log   ~(. logs [our.bowl /logs])
       cor   ~(. +> [bowl ~])
   ++  on-init
     ^-  (quip card _this)
@@ -285,7 +285,7 @@
 |_  [=bowl:gall cards=(list card)]
 ++  abet  [(flop cards) state]
 ++  cor   .
-++  plog  ~(. logs [our.bowl dap.bowl /logs])
+++  plog  ~(. logs [our.bowl /logs])
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
