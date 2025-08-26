@@ -320,9 +320,6 @@
 		C87F249B7EFCDBC3E54B1447 /* Pods_Landscape_preview.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Landscape_preview.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		D32B35882E5A5301002707E2 /* BackgroundCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundCache.swift; sourceTree = "<group>"; };
 		D32B358F2E5B5A29002707E2 /* BackgroundCache.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BackgroundCache.m; sourceTree = "<group>"; };
-		D32B35952E5B5A55002707E2 /* Notifications-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Notifications-Bridging-Header.h"; sourceTree = "<group>"; };
-		D32B35962E5B5A55002707E2 /* LandscapeTests-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "LandscapeTests-Bridging-Header.h"; sourceTree = "<group>"; };
-		D32B35972E5B5A55002707E2 /* Notifications-preview-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Notifications-preview-Bridging-Header.h"; sourceTree = "<group>"; };
 		D3715FE72E5B6CAB00570A4C /* ChangesLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangesLoader.swift; sourceTree = "<group>"; };
 		D3715FED2E5B6E1800570A4C /* Changes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Changes.swift; sourceTree = "<group>"; };
 		D3715FF32E5B6FC700570A4C /* ChangesAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangesAPI.swift; sourceTree = "<group>"; };
@@ -501,9 +498,6 @@
 				700B635F2A71E0810017F40F /* SettingsStore.swift */,
 				7036E3532ACD0FC90020A9FB /* UserDefaultsStore.swift */,
 				5A1EB9522CAC451A00029EDC /* GroupStore.swift */,
-				D32B35952E5B5A55002707E2 /* Notifications-Bridging-Header.h */,
-				D32B35962E5B5A55002707E2 /* LandscapeTests-Bridging-Header.h */,
-				D32B35972E5B5A55002707E2 /* Notifications-preview-Bridging-Header.h */,
 			);
 			path = Storage;
 			sourceTree = "<group>";

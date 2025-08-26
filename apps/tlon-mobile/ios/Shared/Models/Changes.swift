@@ -62,12 +62,10 @@ struct CachedChanges: Codable {
         self.changesData = try changes.toJSONData()
     }
     
-    // Get the ChangesResult back out
     func getChanges() throws -> ChangesResult {
         return try ChangesResult(from: changesData)
     }
     
-    // For RN consumption - includes metadata
     func toJSON() throws -> Data {
         let dict: [String: Any] = [
             "beginTimestamp": beginTimestamp.timeIntervalSince1970,
