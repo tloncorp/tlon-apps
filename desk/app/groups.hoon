@@ -284,8 +284,7 @@
       =+  ;;(=flag:g +.q.vase)
       ?.  |(=(our src):bowl =(p.flag src.bowl))
         cor
-      ?~  g=(~(get by groups) flag)
-        cor
+      ?.  (~(has by groups) flag)  cor
       go-abet:(go-safe-sub:(go-abed:go-core flag) |)
     ::
         %pimp-ready
@@ -638,13 +637,7 @@
     ?.  ?=([%epic ~] wire)  cor
     =^  caz=(list card)  subs.cor
       (~(unsubscribe s [subs bowl]) wire dock)
-    =.  cor  (emil:cor caz)
-    ::  force leave
-    (emit:cor [%pass wire %agent dock %leave ~])
-  ::  v4 -> v5: initialize $group .active-channels
-  ::
-  =?  cor  ?=(%4 -.old)
-    (emit [%pass /load/active-channels %arvo %b %wait now.bowl])
+    (emil:cor caz)
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
   =^  caz-6-to-7=(list card)  old
@@ -652,6 +645,9 @@
     (state-6-to-7 old)
   =?  cor  !=(~ caz-6-to-7)  (emil caz-6-to-7)
   ?>  ?=(%7 -.old)
+  ::  initialize .active-channels on each reload
+  =.  cor
+    (emit [%pass /load/active-channels %arvo %b %wait now.bowl])
   =.  state  old
   inflate-io
   ::
@@ -1194,7 +1190,6 @@
       (~(handle-wakeup s [subs bowl]) pole)
     (emil caz)
   ::
-      :: v4 -> v5
       :: initialize .active-channels in $group
       ::
       [%load %active-channels ~]
@@ -1303,8 +1298,11 @@
       [%load %v7 %subscriptions ~]
     inflate-io
   ==
-::  does not overwite if wire and dock exist.  maybe it should
-::  leave/rewatch if the path differs?
+::  +safe-watch: safely watch a subscription path
+::
+::  nb: this will not resubscribe if the subscription is
+::  still in the state, despite a leave card that might be in the
+::  queue.
 ::
 ++  safe-watch
   |=  [=wire =dock =path]
@@ -1313,6 +1311,19 @@
   ?:  (~(has by wex.bowl) wire dock)  cor
   =^  caz=(list card)  subs
     (~(subscribe s [subs bowl]) wire dock path delay)
+  (emil caz)
+::  +eager-leave: eagerly unsubscribe from a path
+::
+::  deletes the subscription entry from wex.bowl
+::  to enable a subsequent safe-watch and cancels
+::  a possible resubscription timer.
+::
+++  eager-leave
+  |=  [=wire =dock]
+  ^+  cor
+  =.  wex.bowl  (~(del by wex.bowl) wire dock)
+  =^  caz=(list card)  subs
+    (~(unsubscribe s [subs bowl]) wire dock)
   (emil caz)
 ::
 ++  watch-channels
@@ -2266,22 +2277,7 @@
         =*  next  $(channels t.channels)
         =/  [=nest:g =channel:g]  i.channels
         ::  repair readers as needed
-        ::
         =.  se-core  (se-channel-del-roles nest roles)
-        ::  repair writers as needed
-        ::
-        ::  not host
-        ?:  !=(our.bowl p.q.nest)  next
-        =+  .^(has=? %gu (channels-scry nest))
-        ::  missing channel
-        ?.  has  next
-        ::  unsupported channel
-        ?.  ?=(?(%chat %heap %diary) p.nest)  next
-        =/  cmd=c-channels:d
-          [%channel nest %del-writers (sects:v2:roles:v7:gc roles)]
-        =/  cage  channel-command+!>(cmd)
-        =/  dock  [p.q.nest %channels-server]
-        =.  se-core  (emit %pass /channels/perms %agent dock %poke cage)
         next
       (se-update %role roles [%del ~])
     ::
@@ -2489,18 +2485,18 @@
       ::
       =/  =group:g
         ?:  (se-is-admin ship)  group
-        ::REVIEW  this matches the intent of +se-is-admin-update, right?
-        ::        but, for both that and this: isn't this by definition
-        ::        "inconsistent with host"? do we need a note in update
-        ::        handling logic that these parts of admission might be
-        ::        missing, and that that's sane?
-        ::        certainly the +go-restart-updates call in +go-u-entry-token
-        ::        might just need to be a no-op in light of this, right?
+        ::  only admins receive state updates regarding
+        ::  tokens, pending ships and requests. when a user
+        ::  becomes an admin, or looses admin rights, it is brought up
+        ::  to date by a subscription restart.
+        ::
         %_  group
           tokens.admissions    ~
-          pending.admissions  ~
+          pending.admissions   ~
           requests.admissions  ~
         ==
+      ::  clear .active-channels, as this is updated locally
+      =.  active-channels.group  ~
       (give %fact ~ group-log+!>(`log:g`[now.bowl^[%create group] ~ ~]))
     ::
     =/  =log:g  (lot:log-on:g log `da ~)
@@ -2618,7 +2614,8 @@
       (~(put by groups) flag net group)
     ?.  gone  cor
     =.  go-core  (go-response [%delete ~])
-    (emil leave-subs:go-pass)
+    =.  go-core  go-leave-subs
+    cor
   ::  +go-area: group base path
   ++  go-area  `path`/groups/(scot %p p.flag)/[q.flag]
   ::  go-server-path: group server base path
@@ -2696,14 +2693,6 @@
       =/  =path  (weld go-server-path /token/(scot %p ship))
       [%pass wire %agent dock %watch path]
     ::
-    ++  leave-subs
-      ^-  (list card)
-      =/  =wire  (snoc go-area %updates)
-      =/  =dock  [p.flag dap.bowl]
-      =^  caz=(list card)  subs
-        (~(unsubscribe s [subs bowl]) wire dock)
-      caz
-    ::
     ++  leave-group
       ^-  card
       =/  =wire  (weld go-area /command/leave)
@@ -2779,6 +2768,12 @@
     ?:  go-has-sub  go-core
     %-  (tell:log %dbug leaf+"+go-safe-sub subscribing to {<flag>}" ~)
     (go-start-updates delay)
+  ::  +go-leave-subs: leave group subscriptions
+  ::
+  ++  go-leave-subs
+    ^+  go-core
+    =.  cor  (eager-leave go-sub-wire [p.flag dap.bowl])
+    go-core
   ::  +go-start-updates: subscribe to the group for updates
   ::
   ++  go-start-updates
@@ -2787,31 +2782,44 @@
     =/  sub-time=@da
       ?:  ?=(%pub -.net)  *@da
       time.net
+    =/  sub-path=path
+      (weld go-server-path /updates/(scot %p our.bowl)/(scot %da sub-time))
     =.  cor
       %.  delay
-      %^  safe-watch  go-sub-wire  [p.flag server]
-      (weld go-server-path /updates/(scot %p our.bowl)/(scot %da sub-time))
+      (safe-watch go-sub-wire [p.flag server] sub-path)
     go-core
   ::  +go-restart-updates: resubscribe to the group, fetching full state
   ::
   ::    call this when encountering inconsistent state that suggests we need
   ::    to get back in proper sync with the group host.
   ::
+  ::    when .why is not null, the restart is considered abnormal and
+  ::    logged as a critical error.
+  ::
   ++  go-restart-updates
-    |=  why=@t
+    |=  error=(unit @t)
     ^+  go-core
-    %-  (~(tell l ~) %crit 'fully restarting updates' why ~)
+    %-  ?~  error  same
+      (~(tell l ~) %crit 'fully restarting updates' u.error ~)
+    =.  go-core   go-leave-subs
     ::  if this gets called on the group host, something is horribly wrong
     ::  and we should not mask over it by trying to clean it up: there's no
     ::  sane source to clean up from, anyway.
     ::
     ?<  ?=(%pub -.net)
-    =.  cor  (emil leave-subs:go-pass)
     ::  since we are trying to re-establish group state from scratch,
-    ::  consider it uninitialized
+    ::  consider it uninitialized.
     ::
     =.  net  [%sub *@da |]
-    (go-start-updates &)
+    (go-start-updates ?~(error | &))
+  ::  +go-lost-admin: adjust the group state when admin rights were revoked
+  ::
+  ++  go-lost-admin
+    %_  go-core
+        tokens.admissions.group    ~
+        pending.admissions.group   ~
+        requests.admissions.group  ~
+    ==
   ::
   ::  +go-leave: leave the group and all channel subscriptions
   ::
@@ -3084,6 +3092,15 @@
     =?  net  ?=(%sub -.net)
       [%sub time.net &]
     =?  go-core  !was-init
+      ::  initialize active-channels on group init
+      ::
+      =/  nests
+        ~(tap in ~(key by channels.group))
+      =?  active-channels.group  !=(~ nests)
+        %-  silt
+        %+  skim  nests
+        |=  =nest:g
+        .^(? %gu (channels-scry nest))
       (go-response [%create group])
     ::  join the channels upon initial group log,
     ::  if this group hadn't been initialized yet
@@ -3104,7 +3121,7 @@
     ^+  go-core
     ?:  ?&(?=(%sub -.net) (lth time.update time.net))
       ::  update out of sync, restart
-      (go-restart-updates 'update out of order')
+      (go-restart-updates `'update out of order')
     =?  net  ?=(%sub -.net)
       ?>  (gte time.update time.net)
       [%sub time.update init.net]
@@ -3220,7 +3237,7 @@
       ::     has been revoked, we should signal to the invitee.
       ::
       ?.  (~(has by tokens.ad) token.u-token)
-        (go-restart-updates 'missing deleted token')
+        (go-restart-updates `'missing deleted token')
       =.  tokens.ad  (~(del by tokens.ad) token.u-token)
       go-core
     ==
@@ -3336,6 +3353,7 @@
         (go-activity:go-core %role ship roles.u-seat)
       ?:  go-our-host  go-core
       ::
+      =+  was-admin=(go-is-admin our.bowl)
       =.  seats.group
         %-  ~(rep in ships)
         |=  [=ship =_seats.group]
@@ -3343,6 +3361,8 @@
         =.  seat
           seat(roles (~(uni in roles.seat) roles.u-seat))
         (~(put by seats) ship seat)
+      ?:  !=(was-admin (go-is-admin our.bowl))
+        (go-restart-updates ~)
       go-core
     ::
         %del-roles
@@ -3356,6 +3376,7 @@
         (go-activity:go-core %role ship roles.u-seat)
       ?:  go-our-host  go-core
       ::
+      =+  was-admin=(go-is-admin our.bowl)
       =.  seats.group
         %-  ~(rep in ships)
         |=  [=ship =_seats.group]
@@ -3363,9 +3384,22 @@
         =.  seat
           seat(roles (~(dif in roles.seat) roles.u-seat))
         (~(put by seats) ship seat)
+      ::  a role was revoked and our admin status has changed,
+      ::  which means we lost admin rights.
+      ::
+      ?:  !=(was-admin (go-is-admin our.bowl))
+        go-lost-admin
       go-core
     ==
   ::  +go-u-role: apply role update
+  ::
+  ::  group roles enable members to acquire permissions to read
+  ::  or write to group channels. a role can also be granted admin rights,
+  ::  which enables any member to administer the group.
+  ::
+  ::  when a user acquires or loses admin rights, his group subscription
+  ::  must be restarted in order to receive or prune admin-restricted
+  ::  group data.
   ::
   ++  go-u-role
     |=  [roles=(set role-id:g) =u-role:g]
@@ -3387,6 +3421,8 @@
       =.  go-core  (go-response %role roles [%edit meta.u-role])
       ?:  go-our-host  go-core
       ::
+      ?.  =(~ (~(dif in roles) ~(key by roles.group)))
+        (go-restart-updates `'missing roles edited')
       =.  roles.group
         %-  ~(rep in roles)
         |=  [=role-id:g =_roles.group]
@@ -3399,6 +3435,7 @@
       =.  go-core  (go-response %role roles [%del ~])
       ?:  go-our-host  go-core
       ::
+      =+  was-admin=(go-is-admin our.bowl)
       =.  roles.group
         %-  ~(rep in roles)
         |=  [=role-id:g =_roles.group]
@@ -3411,7 +3448,7 @@
       ::
       =/  channels  ~(tap by channels.group)
       ::  nb: this used to sent pokes to the local channels-server
-      ::  to delete the role from the writers set of a hosted channel. 
+      ::  to delete the role from the writers set of a hosted channel.
       ::  however, channels-server already listens to updates from groups
       ::  and updates permissions accordingly.
       ::
@@ -3423,20 +3460,34 @@
         ::  repair readers as needed
         =.  go-core  (go-channel-del-roles nest roles)
         next
+      ::  a role was deleted and our admin status has changed,
+      ::  which means we lost admin rights.
+      ::
+      ?:  !=(was-admin (go-is-admin our.bowl))
+        go-lost-admin
       go-core
     ::
         %set-admin
       =.  go-core  (go-response %role roles [%set-admin ~])
       ?:  go-our-host  go-core
       ::
+      =+  was-admin=(go-is-admin our.bowl)
       =.  admins.group  (~(uni in admins.group) roles)
+      ?:  !=(was-admin (go-is-admin our.bowl))
+        (go-restart-updates ~)
       go-core
     ::
         %del-admin
       =.  go-core  (go-response %role roles [%del-admin ~])
       ?:  go-our-host  go-core
       ::
+      =+  was-admin=(go-is-admin our.bowl)
       =.  admins.group  (~(dif in admins.group) roles)
+      ::  a role lost admin rights and our admin status has changed,
+      ::  which means we lost admin rights.
+      ::
+      ?:  !=(was-admin (go-is-admin our.bowl))
+        go-lost-admin
       go-core
     ==
   ::  +go-u-channel: apply channel update
@@ -3463,7 +3514,7 @@
         ?.  ?=(kind:d p.nest)  |
         .^(? %gu (weld pre /v3/[p.nest]/(scot %p p.q.nest)/[q.q.nest]))
       =?  active-channels.group  active
-        (~(put by active-channels.group) nest)
+        (~(put in active-channels.group) nest)
       ?:  go-our-host  go-core
       ::TODO handle duplicate channel add properly. either
       ::     should restart updates, or remove the channel from existing
@@ -3497,9 +3548,14 @@
       ::      response would carry the associated group.
       ::
       =.  active-channels.group
-        (~(del by active-channels.group) nest)
+        (~(del in active-channels.group) nest)
       ?:  go-our-host  go-core
       ::
+      ?.  (has:by-ch nest)
+        ::  we must make sure we properly delete the channel
+        ::  to clean it up from sections.
+        ::
+        (go-restart-updates `'missing deleted channel')
       =/  =channel:g   (got:by-ch nest)
       =.  sections.group
         ?.  (~(has by sections.group) section.channel)
@@ -3513,7 +3569,7 @@
     ::
         %add-readers
       ?.  =(~ (~(dif in roles.u-channel) ~(key by roles.group)))
-        (go-restart-updates 'missing roles added as readers')
+        (go-restart-updates `'missing channel added readers')
       =.  go-core  (go-response %channel nest [%add-readers roles.u-channel])
       ?:  go-our-host  go-core
       ::
@@ -3527,6 +3583,8 @@
       =.  go-core  (go-response %channel nest [%del-readers roles.u-channel])
       ?:  go-our-host  go-core
       ::
+      ?.  (has:by-ch nest)
+        (go-restart-updates `'missing channel deleted readers')
       =.  go-core  (go-channel-del-roles nest roles.u-channel)
       go-core
     ::
@@ -3534,10 +3592,11 @@
       =.  go-core  (go-response %channel nest [%section section.u-channel])
       ?:  go-our-host  go-core
       ::
+      ?.  (has:by-ch nest)
+        (go-restart-updates `'missing channel modified section')
       =/  =channel:g  (got:by-ch nest)
       ?.  (~(has by sections.group) section.u-channel)
-        (go-restart-updates 'missing updated section')
-      ?>  (~(has by sections.group) section.u-channel)
+        (go-restart-updates `'missing channel updated section')
       =.  sections.group
         %+  ~(jab by sections.group)  section.channel
         |=(=section:g section(order (~(del of order.section) nest)))
@@ -3595,6 +3654,8 @@
       =.  go-core  (go-response %section section-id [%edit meta.u-section])
       ?:  go-our-host  go-core
       ::
+      ?.  (~(has by sections.group) section-id)
+        (go-restart-updates `'missing edited section')
       =.  sections.group
         %+  ~(jab by sections.group)  section-id
         |=  =section:g
@@ -3635,7 +3696,7 @@
       ?:  go-our-host  go-core
       ::
       ?.  (~(has by sections.group) section-id)
-        (go-restart-updates 'missing section')
+        (go-restart-updates `'missing channel section')
       =/  =section:g  (~(got by sections.group) section-id)
       ?.  (~(has of order.section) nest.u-section)  go-core
       =.  order.section
@@ -4045,9 +4106,7 @@
     =.  lookup  `%preview
     =/  =wire  (weld fi-area /preview)
     =/  =dock  [p.flag dap.bowl]
-    =^  caz=(list card)  subs
-      (~(unsubscribe s [subs bowl]) wire dock)
-    =.  cor  (emil caz)
+    =.  cor  (eager-leave wire dock)
     =.  cor  %.  delay
       (safe-watch (weld fi-area /preview) [p.flag dap.bowl] fi-preview-path)
     fi-core
