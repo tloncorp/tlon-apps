@@ -175,10 +175,10 @@
 		C83014822C7BA74C00D9A5CA /* UIFont+SystemDesign.m in Sources */ = {isa = PBXBuildFile; fileRef = C83014812C7BA74C00D9A5CA /* UIFont+SystemDesign.m */; };
 		C83014832C7BA74C00D9A5CA /* UIFont+SystemDesign.m in Sources */ = {isa = PBXBuildFile; fileRef = C83014812C7BA74C00D9A5CA /* UIFont+SystemDesign.m */; };
 		D0A57BA86BAF5327C2EECEE4 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = F61ADD28CFDBC6EFBD36E3DA /* ExpoModulesProvider.swift */; };
-		D32B358A2E5A530A002707E2 /* BackgroundDataLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D32B35882E5A5301002707E2 /* BackgroundDataLoader.swift */; };
-		D32B358C2E5A530A002707E2 /* BackgroundDataLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D32B35882E5A5301002707E2 /* BackgroundDataLoader.swift */; };
-		D32B35912E5B5A32002707E2 /* BackgroundDataLoader.m in Sources */ = {isa = PBXBuildFile; fileRef = D32B358F2E5B5A29002707E2 /* BackgroundDataLoader.m */; };
-		D32B35932E5B5A32002707E2 /* BackgroundDataLoader.m in Sources */ = {isa = PBXBuildFile; fileRef = D32B358F2E5B5A29002707E2 /* BackgroundDataLoader.m */; };
+		D32B358A2E5A530A002707E2 /* BackgroundCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = D32B35882E5A5301002707E2 /* BackgroundCache.swift */; };
+		D32B358C2E5A530A002707E2 /* BackgroundCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = D32B35882E5A5301002707E2 /* BackgroundCache.swift */; };
+		D32B35912E5B5A32002707E2 /* BackgroundCache.m in Sources */ = {isa = PBXBuildFile; fileRef = D32B358F2E5B5A29002707E2 /* BackgroundCache.m */; };
+		D32B35932E5B5A32002707E2 /* BackgroundCache.m in Sources */ = {isa = PBXBuildFile; fileRef = D32B358F2E5B5A29002707E2 /* BackgroundCache.m */; };
 		D3715FE82E5B6CAD00570A4C /* ChangesLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3715FE72E5B6CAB00570A4C /* ChangesLoader.swift */; };
 		D3715FE92E5B6CAD00570A4C /* ChangesLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3715FE72E5B6CAB00570A4C /* ChangesLoader.swift */; };
 		D3715FEA2E5B6CAD00570A4C /* ChangesLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3715FE72E5B6CAB00570A4C /* ChangesLoader.swift */; };
@@ -318,8 +318,8 @@
 		C83014812C7BA74C00D9A5CA /* UIFont+SystemDesign.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "UIFont+SystemDesign.m"; path = "Landscape/UIFont+SystemDesign.m"; sourceTree = "<group>"; };
 		C83014842C7BA7A800D9A5CA /* UIFont+SystemDesign.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "UIFont+SystemDesign.h"; sourceTree = "<group>"; };
 		C87F249B7EFCDBC3E54B1447 /* Pods_Landscape_preview.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Landscape_preview.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		D32B35882E5A5301002707E2 /* BackgroundDataLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundDataLoader.swift; sourceTree = "<group>"; };
-		D32B358F2E5B5A29002707E2 /* BackgroundDataLoader.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BackgroundDataLoader.m; sourceTree = "<group>"; };
+		D32B35882E5A5301002707E2 /* BackgroundCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundCache.swift; sourceTree = "<group>"; };
+		D32B358F2E5B5A29002707E2 /* BackgroundCache.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BackgroundCache.m; sourceTree = "<group>"; };
 		D32B35952E5B5A55002707E2 /* Notifications-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Notifications-Bridging-Header.h"; sourceTree = "<group>"; };
 		D32B35962E5B5A55002707E2 /* LandscapeTests-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "LandscapeTests-Bridging-Header.h"; sourceTree = "<group>"; };
 		D32B35972E5B5A55002707E2 /* Notifications-preview-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Notifications-preview-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -403,8 +403,8 @@
 				70EAEAB42A57A99100FE96E4 /* UrbitModule.swift */,
 				70EAEAB62A57AAF200FE96E4 /* UrbitModule.m */,
 				63E27E122C5AF5B8008ACB45 /* HTTPCookieStorage+forwardChanges.swift */,
-				D32B358F2E5B5A29002707E2 /* BackgroundDataLoader.m */,
-				D32B35882E5A5301002707E2 /* BackgroundDataLoader.swift */,
+				D32B358F2E5B5A29002707E2 /* BackgroundCache.m */,
+				D32B35882E5A5301002707E2 /* BackgroundCache.swift */,
 				70D386652A60A37000AFB46E /* Extensions */,
 				74D2BEF1344CF71A07C17F5E /* PrivacyInfo.xcprivacy */,
 			);
@@ -1324,7 +1324,7 @@
 			files = (
 				70D386592A609BFC00AFB46E /* UrbitAPI.swift in Sources */,
 				709FC0ED2AC1E25D00B0644D /* Club.swift in Sources */,
-				D32B358A2E5A530A002707E2 /* BackgroundDataLoader.swift in Sources */,
+				D32B358A2E5A530A002707E2 /* BackgroundCache.swift in Sources */,
 				7083A16C2AFB01A30022404A /* TlonError.swift in Sources */,
 				632793BE2C4AE4B500F942B1 /* Error+isAFTimeout.swift in Sources */,
 				7036E3542ACD0FC90020A9FB /* UserDefaultsStore.swift in Sources */,
@@ -1353,7 +1353,7 @@
 				13B07FC11A68108700A75B9A /* main.m in Sources */,
 				638753082CC7036C003942F5 /* ShortcutsManager.swift in Sources */,
 				63EC5CC02CD0495B0098C343 /* SQLiteDB.swift in Sources */,
-				D32B35932E5B5A32002707E2 /* BackgroundDataLoader.m in Sources */,
+				D32B35932E5B5A32002707E2 /* BackgroundCache.m in Sources */,
 				D3715FEE2E5B6E1D00570A4C /* Changes.swift in Sources */,
 				70EAEAB52A57A99100FE96E4 /* UrbitModule.swift in Sources */,
 				700B63622A71E0D70017F40F /* ContactStore.swift in Sources */,
@@ -1441,7 +1441,7 @@
 			files = (
 				70DBBFEA2B7C60B50021EA96 /* UrbitAPI.swift in Sources */,
 				70DBBFEB2B7C60B50021EA96 /* Club.swift in Sources */,
-				D32B358C2E5A530A002707E2 /* BackgroundDataLoader.swift in Sources */,
+				D32B358C2E5A530A002707E2 /* BackgroundCache.swift in Sources */,
 				70DBBFEC2B7C60B50021EA96 /* TlonError.swift in Sources */,
 				632793BF2C4AE4B500F942B1 /* Error+isAFTimeout.swift in Sources */,
 				70DBBFED2B7C60B50021EA96 /* UserDefaultsStore.swift in Sources */,
@@ -1470,7 +1470,7 @@
 				70DBBFFD2B7C60B50021EA96 /* main.m in Sources */,
 				638753092CC7036C003942F5 /* ShortcutsManager.swift in Sources */,
 				63EC5CC12CD0495B0098C343 /* SQLiteDB.swift in Sources */,
-				D32B35912E5B5A32002707E2 /* BackgroundDataLoader.m in Sources */,
+				D32B35912E5B5A32002707E2 /* BackgroundCache.m in Sources */,
 				D3715FF02E5B6E1D00570A4C /* Changes.swift in Sources */,
 				70DBBFFF2B7C60B50021EA96 /* UrbitModule.swift in Sources */,
 				70DBC0002B7C60B50021EA96 /* ContactStore.swift in Sources */,

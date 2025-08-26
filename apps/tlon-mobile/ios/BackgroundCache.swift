@@ -1,8 +1,8 @@
 import Foundation
 import React
 
-@objc(BackgroundDataLoader)
-class BackgroundDataLoader: NSObject {
+@objc(BackgroundCache)
+class BackgroundCache: NSObject {
   
     private let appGroupIdentifier = "group.io.tlon.groups"
     private let sharedFileName = "shared_data.json"

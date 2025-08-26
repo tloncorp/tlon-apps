@@ -9,8 +9,8 @@ import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect } from 'react';
 import { NativeModules, Platform } from 'react-native';
 
-const BackgroundDataLoader = NativeModules.BackgroundDataLoader;
-const ENABLED = Platform.OS === 'ios' && BackgroundDataLoader;
+const BackgroundCache = NativeModules.BackgroundCache;
+const ENABLED = Platform.OS === 'ios' && BackgroundCache;
 
 const logger = createDevLogger('cachedChanges', true);
 
@@ -23,7 +23,7 @@ export function useCachedChanges() {
         async (newStamp) => {
           try {
             logger.log('changes sync stamp updated, sending to native module');
-            await BackgroundDataLoader.setLastSyncTimestamp(newStamp);
+            await BackgroundCache.setLastSyncTimestamp(newStamp);
           } catch (e) {
             logger.trackError(
               `Failed to send last sync timetamp to native module`,
@@ -41,7 +41,7 @@ export function useCachedChanges() {
 
     let cacheResult = null;
     try {
-      cacheResult = await BackgroundDataLoader.retrieveBackgroundData();
+      cacheResult = await BackgroundCache.retrieveBackgroundData();
     } catch (e) {
       logger.trackError(`Failed to retrieve background data`, e);
     }
