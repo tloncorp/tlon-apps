@@ -729,7 +729,7 @@
     (recheck-perms affected roles.r-group)
   ::
       [%seat * %del ~]
-    ~&  "%channel-server recheck permissions for {<affected>}"
+    ~&  "%channel-server revoke perms for {<affected>}"
     %+  roll  affected
     |=  [=nest:c =_cor]
     %-  ~(rep in ships.r-group)
@@ -740,8 +740,7 @@
 ::
 ++  recheck-perms
   |=  [affected=(list nest:c) sects=(set role-id:v7:gv)]
-  =.  cor
-    (emit (tell:log %dbug ~[>"%channel-server recheck permissions for {<affected>}"<] ~))
+  ~&  "%channel-server recheck permissions for {<affected>}"
   %+  roll  affected
   |=  [=nest:c co=_cor]
   =/  ca  (ca-abed:ca-core:co nest)
