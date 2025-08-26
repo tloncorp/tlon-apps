@@ -1312,13 +1312,13 @@
   =^  caz=(list card)  subs
     (~(subscribe s [subs bowl]) wire dock path delay)
   (emil caz)
-::  +safe-unwatch: safely unsubscribe from a path
+::  +eager-leave: eagerly unsubscribe from a path
 ::
 ::  deletes the subscription entry from wex.bowl
 ::  to enable a subsequent safe-watch and cancels
 ::  a possible resubscription timer.
 ::
-++  safe-unwatch
+++  eager-leave
   |=  [=wire =dock]
   ^+  cor
   =.  wex.bowl  (~(del by wex.bowl) wire dock)
@@ -2772,7 +2772,7 @@
   ::
   ++  go-leave-subs
     ^+  go-core
-    =.  cor  (safe-unwatch go-sub-wire [p.flag dap.bowl])
+    =.  cor  (eager-leave go-sub-wire [p.flag dap.bowl])
     go-core
   ::  +go-start-updates: subscribe to the group for updates
   ::
@@ -2797,10 +2797,10 @@
   ::    logged as a critical error.
   ::
   ++  go-restart-updates
-    |=  why=(unit @t)
+    |=  error=(unit @t)
     ^+  go-core
-    %-  ?~  why  same
-      (~(tell l ~) %crit 'fully restarting updates' u.why ~)
+    %-  ?~  error  same
+      (~(tell l ~) %crit 'fully restarting updates' u.error ~)
     =.  go-core   go-leave-subs
     ::  if this gets called on the group host, something is horribly wrong
     ::  and we should not mask over it by trying to clean it up: there's no
@@ -2811,7 +2811,18 @@
     ::  consider it uninitialized.
     ::
     =.  net  [%sub *@da |]
-    (go-start-updates ?~(why | &))
+    (go-start-updates ?~(error | &))
+  ::  +go-lost-admin: adjust the group state when admin rights were revoked
+  ::
+  ++  go-lost-admin
+    ^+  go-core
+    =.  group
+      %_  group
+        tokens.admissions    ~
+        pending.admissions   ~
+        requests.admissions  ~
+      ==
+    go-core
   ::
   ::  +go-leave: leave the group and all channel subscriptions
   ::
@@ -3377,7 +3388,7 @@
           seat(roles (~(dif in roles.seat) roles.u-seat))
         (~(put by seats) ship seat)
       ?:  !=(was-admin (go-is-admin our.bowl))
-        (go-restart-updates ~)
+        go-lost-admin
       go-core
     ==
   ::  +go-u-role: apply role update
@@ -3450,7 +3461,7 @@
         =.  go-core  (go-channel-del-roles nest roles)
         next
       ?:  !=(was-admin (go-is-admin our.bowl))
-        (go-restart-updates ~)
+        go-lost-admin
       go-core
     ::
         %set-admin
@@ -3459,7 +3470,6 @@
       ::
       =+  was-admin=(go-is-admin our.bowl)
       =.  admins.group  (~(uni in admins.group) roles)
-
       ?:  !=(was-admin (go-is-admin our.bowl))
         (go-restart-updates ~)
       go-core
@@ -3471,7 +3481,7 @@
       =+  was-admin=(go-is-admin our.bowl)
       =.  admins.group  (~(dif in admins.group) roles)
       ?:  !=(was-admin (go-is-admin our.bowl))
-        (go-restart-updates ~)
+        go-lost-admin
       go-core
     ==
   ::  +go-u-channel: apply channel update
@@ -4090,7 +4100,7 @@
     =.  lookup  `%preview
     =/  =wire  (weld fi-area /preview)
     =/  =dock  [p.flag dap.bowl]
-    =.  cor  (safe-unwatch wire dock)
+    =.  cor  (eager-leave wire dock)
     =.  cor  %.  delay
       (safe-watch (weld fi-area /preview) [p.flag dap.bowl] fi-preview-path)
     fi-core
