@@ -729,7 +729,7 @@
     (recheck-perms affected roles.r-group)
   ::
       [%seat * %del ~]
-    ~&  "%channel-server revoke perms for {<affected>}"
+    ~&  "%channel-server: revoke perms for {<affected>}"
     %+  roll  affected
     |=  [=nest:c =_cor]
     %-  ~(rep in ships.r-group)
