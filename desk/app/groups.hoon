@@ -2815,14 +2815,11 @@
   ::  +go-lost-admin: adjust the group state when admin rights were revoked
   ::
   ++  go-lost-admin
-    ^+  go-core
-    =.  group
-      %_  group
-        tokens.admissions    ~
-        pending.admissions   ~
-        requests.admissions  ~
-      ==
-    go-core
+    %_  go-core
+        tokens.admissions.group    ~
+        pending.admissions.group   ~
+        requests.admissions.group  ~
+    ==
   ::
   ::  +go-leave: leave the group and all channel subscriptions
   ::
@@ -3387,6 +3384,9 @@
         =.  seat
           seat(roles (~(dif in roles.seat) roles.u-seat))
         (~(put by seats) ship seat)
+      ::  a role was revoked and our admin status has changed,
+      ::  which means we lost admin rights.
+      ::
       ?:  !=(was-admin (go-is-admin our.bowl))
         go-lost-admin
       go-core
@@ -3460,6 +3460,9 @@
         ::  repair readers as needed
         =.  go-core  (go-channel-del-roles nest roles)
         next
+      ::  a role was deleted and our admin status has changed,
+      ::  which means we lost admin rights.
+      ::
       ?:  !=(was-admin (go-is-admin our.bowl))
         go-lost-admin
       go-core
@@ -3480,6 +3483,9 @@
       ::
       =+  was-admin=(go-is-admin our.bowl)
       =.  admins.group  (~(dif in admins.group) roles)
+      ::  a role lost admin rights and our admin status has changed,
+      ::  which means we lost admin rights.
+      ::
       ?:  !=(was-admin (go-is-admin our.bowl))
         go-lost-admin
       go-core
