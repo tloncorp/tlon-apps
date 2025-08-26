@@ -46,29 +46,25 @@ test('should handle channel management operations', async ({ zodPage }) => {
   await helpers.verifyElementCount(page, 'GroupChannels', 2);
 
   // Test channel reordering
-  // TODO: figure out why this is flaky
-  // await page.getByTestId('GroupChannels').click();
+  await page.getByTestId('GroupChannels').click();
 
-  // // Move channel down
-  // await page.getByTestId('MoveChannelDownButton').first().click();
+  // Move channel down
+  await page.getByTestId('MoveChannelDownButton').first().click();
 
-  // await page.waitForTimeout(2000);
+  // Wait for the channel to appear at index 0 with a longer timeout
+  await expect(
+    page.getByTestId('ChannelItem-Second chat channel-0')
+  ).toBeVisible({ timeout: 10000 });
 
-  // // Wait for the channel to appear at index 0 with a longer timeout
-  // await expect(
-  //   page.getByTestId('ChannelItem-Second chat channel-0')
-  // ).toBeVisible({ timeout: 10000 });
+  // Move channel up
+  await page.getByTestId('MoveChannelUpButton').nth(1).click();
 
-  // // Move channel up
-  // await page.getByTestId('MoveChannelUpButton').nth(1).click();
-
-  // // Wait for the channel to appear at index 1 with a longer timeout
-  // await expect(
-  //   page.getByTestId('ChannelItem-Second chat channel-1')
-  // ).toBeVisible({ timeout: 10000 });
+  // Wait for the channel to appear at index 1 with a longer timeout
+  await expect(
+    page.getByTestId('ChannelItem-Second chat channel-1')
+  ).toBeVisible({ timeout: 10000 });
 
   // Edit channel
-  await page.getByTestId('GroupChannels').click();
   await helpers.editChannel(
     page,
     'Second chat channel',
