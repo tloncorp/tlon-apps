@@ -48,6 +48,14 @@ test('should handle channel management operations', async ({ zodPage }) => {
   // Test channel reordering
   await page.getByTestId('GroupChannels').click();
 
+  // Wait for both channels to be visible
+  await expect(page.getByTestId('ChannelItem-General-0')).toBeVisible({
+    timeout: 10000,
+  });
+  await expect(
+    page.getByTestId('ChannelItem-Second chat channel-1')
+  ).toBeVisible({ timeout: 10000 });
+
   // Move channel down
   await page.getByTestId('MoveChannelDownButton').first().click();
 
