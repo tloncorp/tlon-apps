@@ -574,6 +574,16 @@
   ::
       [%x any %notifications-allowed ~]
     ``activity-allowed+!>(`notifications-allowed:a`allowed)
+  ::
+      [%x %v4 %activity %changes since=@ ~]
+    =/  since=time  (slav %da since.pole)
+    =;  summaries=activity:a
+      ``activity-summary-4+!>(summaries)
+    %-  ~(gas by *activity:a)
+    %+  skim
+      ~(tap by activity)
+    |=  [=source:a as=activity-summary:a]
+    (gte newest.as since)
   ==
 ::
 ++  feed
@@ -1236,14 +1246,14 @@
   =.  importing  &
   =.  indices   (~(put by indices) [%base ~] *index:a)
   =.  cor  set-chat-reads
-  =+  .^(=channels:c %gx (scry-path %channels /v3/channels/full/noun))
+  =+  .^(=channels:v8:c %gx (scry-path %channels /v3/channels/full/noun))
   =.  cor  (set-volumes channels)
   =.  cor  (set-channel-reads channels)
   =.  cor  refresh-all-summaries
   cor(importing |)
 ::
 ++  set-channel-reads
-  |=  =channels:c
+  |=  =channels:v8:c
   ^+  cor
   =+  .^(=unreads:c %gx (scry-path %channels /v1/unreads/noun))
   =/  entries  ~(tap by unreads)
@@ -1266,8 +1276,8 @@
   =/  posts=(list [time incoming-event:a])
     ?~  unread.unread  ~
     %+  murn
-      (tab:on-posts:c posts.u.channel `(sub id.u.unread.unread 1) count.u.unread.unread)
-    |=  [=time post=(unit post:c)]
+      (tab:on-posts:v8:c posts.u.channel `(sub id.u.unread.unread 1) count.u.unread.unread)
+    |=  [=time post=(unit post:v8:c)]
     ?~  post  ~
     =/  key=message-key:a
       :_  time
@@ -1282,12 +1292,12 @@
       ~(tap by threads.unread)
     |=  [=id-post:c [id=id-reply:c count=@ud]]
     ^-  (unit (list [time incoming-event:a]))
-    =/  post=(unit (unit post:c))  (get:on-posts:c posts.u.channel id-post)
+    =/  post=(unit (unit post:v8:c))  (get:on-posts:v8:c posts.u.channel id-post)
     ?~  post  ~
     ?~  u.post  ~
     %-  some
     %+  murn
-      (tab:on-replies:c replies.u.u.post `(sub id 1) count)
+      (tab:on-replies:v8:c replies.u.u.post `(sub id 1) count)
     |=  [=time reply=(unit reply:c)]
     ^-  (unit [^time incoming-event:a])
     ?~  reply  ~
@@ -1336,8 +1346,9 @@
     ?~  unread.unread  ~
     %+  murn
       (tab:on:writs:ch wit.pact `(sub time.u.unread.unread 1) count.u.unread.unread)
-    |=  [=time =writ:ch]
-    =/  key=message-key:a  [id.writ time]
+    |=  [=time writ=(may:ch writ:ch)]
+    ?:  ?=(%| -.writ)  ~
+    =/  key=message-key:a  [id time]:writ
     =/  mention
       (was-mentioned:ch-utils content.writ our.bowl ~)
     `[time %dm-post key whom content.writ mention]
@@ -1347,12 +1358,16 @@
       ~(tap by threads.unread)
     |=  [parent=message-key:ch [key=message-key:ch count=@ud]]
     ^-  (unit (list [time incoming-event:a]))
-    =/  writ=(unit writ:ch)  (get:on:writs:ch wit.pact time.parent)
+    =/  writ=(unit (may:ch writ:ch))
+      (get:on:writs:ch wit.pact time.parent)
     ?~  writ  ~
+    ?:  ?=(%| -.u.writ)  ~
     %-  some
-    %+  turn
+    %+  murn
       (tab:on:replies:ch replies.u.writ `(sub time.key 1) count)
-    |=  [=time =reply:ch]
+    |=  [=time reply=(may:ch reply:ch)]
+    ?:  ?=(%| -.reply)  ~
+    %-  some
     =/  mention
       (was-mentioned:ch-utils content.reply our.bowl ~)
     [time %dm-reply key parent whom content.reply mention]
@@ -1362,14 +1377,14 @@
   :-  [init-time %dm-invite whom]
   (welp writs replies)
 ++  set-volumes
-  |=  =channels:c
+  |=  =channels:v8:c
   ::  set all existing channels to old default since new default is different
   =^  checkers  cor
     =/  checkers=(map flag:gv $-([ship nest:gv] ?))  ~
     =/  entries  ~(tap by channels)
     |-
     ?~  entries  [checkers cor]
-    =/  [=nest:c =channel:c]  i.entries
+    =/  [=nest:c =channel:v8:c]  i.entries
     =*  group  group.perm.channel
     =+  .^(exists=? %gu (scry-path %groups /groups/(scot %p p.group)/[q.group]))
     ?.  exists  $(entries t.entries)

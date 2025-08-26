@@ -1,14 +1,14 @@
-/-  c=chat-3
+/-  cv=chat-ver
 /+  j=chat-json
-|_  =paged-writs:c
+|_  =paged-writs:v3:cv
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  paged-writs
-  ++  json  (paged-writs:v7:enjs:j paged-writs)
+  ++  json  (paged-writs:v3:enjs:j paged-writs)
   --
 ++  grab
   |%
-  ++  noun  paged-writs:c
+  ++  noun  paged-writs:v3:cv
   --
 --

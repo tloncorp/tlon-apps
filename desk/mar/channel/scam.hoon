@@ -1,6 +1,6 @@
 /-  c=channels
 /+  j=channel-json
-|_  =scam:v7:old:c
+|_  =scam:v7:c
 ++  grad  %noun
 ++  grow
   |%
@@ -14,6 +14,6 @@
   --
 ++  grab
   |%
-  +$  noun  scam:v7:old:c
+  +$  noun  scam:v7:c
   --
 --
