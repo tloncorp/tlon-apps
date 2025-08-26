@@ -3079,10 +3079,7 @@
   ++  go-u-create
     |=  gr=group:g
     ^+  go-core
-    ::  nb: we don't send out a response here because
-    ::  a synthetic %create response is sent after
-    ::  the group log has been fully applied in +go-apply-log.
-    ::
+    =.  go-core  (go-response [%create gr])
     ?:  go-our-host  go-core
     ::
     ?>  ?=(%sub -.net)
