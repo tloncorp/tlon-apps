@@ -28,6 +28,8 @@
 /%  m-groups-ui          %groups-ui
 /%  m-groups-ui-1        %groups-ui-1
 /%  m-groups-ui-2        %groups-ui-2
+/%  m-group-changed-groups-1  %group-changed-groups-1
+/%  m-group-changed-groups-2  %group-changed-groups-2
 /%  m-group-preview      %group-preview
 /%  m-group-preview-3    %group-preview-3
 /%  m-group-previews     %group-previews
@@ -58,6 +60,9 @@
           :+  %groups-ui          &  -:!>(*vale:m-groups-ui)
           :+  %groups-ui-1        &  -:!>(*vale:m-groups-ui-1)
           :+  %groups-ui-2        &  -:!>(*vale:m-groups-ui-2)
+        ::
+          :+  %group-changed-groups-1  |  -:!>(*vale:m-group-changed-groups-1)
+          :+  %group-changed-groups-2  |  -:!>(*vale:m-group-changed-groups-2)
         ::
           :+  %group-preview      &  -:!>(*vale:m-group-preview)
           :+  %group-preview      &  -:!>(*vale:m-group-preview)
@@ -112,6 +117,9 @@
       [/x/v1/groups %groups-1]
       [/x/v2/groups %groups-2]
     ::
+      [/x/v1/changes %group-changed-groups-1]
+      [/x/v2/changes %group-changed-groups-2]
+    ::
       [/x/v2/groups/$/$/channels/can-read %noun]
       [/x/v2/groups/$/$/channels/$/$/$/can-write %noun]
       [/x/groups/$/$/seats/$ %noun]
@@ -144,8 +152,8 @@
       [~.groups^%1 ~ ~]
     %-  my
     :~  %groups^[~.groups^%1 ~ ~]
-        %channels^[~.channels^%2 ~ ~]
-        %channels-server^[~.channels^%2 ~ ~]
+        %channels^[~.channels^%3 ~ ~]
+        %channels-server^[~.channels^%3 ~ ~]
     ==
 %-  agent:dbug
 %+  verb  |
@@ -965,6 +973,7 @@
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
+  |^
   ?+    pole  [~ ~]
   ::
     ::
@@ -1052,6 +1061,18 @@
     ::  deprecated
     [%x %groups %light ~]  $(pole /x/v0/light/groups)
   ::
+      [%x %v1 %changes since=@ rest=*]
+    =+  since=(slav %da since.pole)
+    :^  ~  ~
+      %group-changed-groups-1
+    !>((~(run by (changes since)) group-ui:v5:group:v7:gc))
+  ::
+      [%x %v2 %changes since=@ rest=*]
+    =+  since=(slav %da since.pole)
+    :^  ~  ~
+      %group-changed-groups-2
+    !>((~(run by (changes since)) group-ui:group:v7:gc))
+  ::
       [%x ver=?(%v0 %v1 %v2) %groups ship=@ name=@ rest=*]
     =+  ship=(slav %p ship.pole)
     =/  =flag:g  [ship name.pole]
@@ -1110,6 +1131,24 @@
     ?~  far=(~(get by foreigns) flag)  [~ ~]
     ``foreign-1+!>(`foreign:v7:gv`u.far)
   ==
+  ++  changes
+    |=  since=time
+    ^-  (map flag:v7:gv [net:v7:gv group:v7:gv])
+    %-  ~(gas by *(map flag:v7:gv [net:v7:gv group:v7:gv]))
+    %+  murn  ~(tap in groups)
+    |=  [=flag:g =net:g =group:g]
+    ^-  (unit [flag:v7:gv [net:v7:gv group:v7:gv]])
+    =/  fresh=?
+      %+  lth  since
+      ?-  -.net
+        %sub  time.net
+        %pub  key:(fall (ram:log-on:g log.net) [key=now.bowl ~])
+      ==
+    ?.  fresh  ~
+    %-  some
+    :-  flag
+    [net (drop-seats:group:v7:gc group our.bowl)]
+  --
 ::
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]

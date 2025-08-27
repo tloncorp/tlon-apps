@@ -1,3 +1,4 @@
+/+  logs
 ::  negotiate: hands-off version negotiation
 ::
 ::      v1.0.1: greenhorn ambassador
@@ -105,6 +106,7 @@
   ++  helper
     |_  [=bowl:gall state-1]
     +*  state  +<+
+    ++  log  ~(. logs our.bowl /~/negotiate/logs)
     ++  match
       |=  =gill:gall
       ^-  ?
@@ -342,17 +344,24 @@
       ^-  (list card)
       ::  kick incoming subs for protocols we no longer support
       ::
+      =/  old  ~(tap by (~(dif by ole) neu))
+      :-  (tell:log %dbug ~[>[%ours-changed %kicking old]<] ~)
       %+  weld
-        %+  turn  ~(tap by (~(dif by ole) neu))
+        %+  turn  old
         |=  [=protocol =version]
         [%give %kick [/~/negotiate/version/[protocol]]~ ~]
       ::  give updates for protocols whose supported version changed
       ::
+      ^-  (list card)
+      %-  zing
       %+  murn  ~(tap by neu)
       |=  [=protocol =version]
-      ^-  (unit card)
+      ^-  (unit (list card))
       ?:  =(`version (~(get by ole) protocol))  ~
-      `[%give %fact [/~/negotiate/version/[protocol]]~ %noun !>(version)]
+      %-  some
+      :~  (tell:log %dbug ~[>[%ours-changed 'giving version' version 'for protocol' protocol]<] ~)
+          [%give %fact [/~/negotiate/version/[protocol]]~ %noun !>(version)]
+      ==
     ::
     ++  heed-changed
       |=  [for=[=gill:gall protocol] new=(unit version)]
@@ -393,6 +402,9 @@
       =|  cards=(list card)
       |-
       ?~  kik  [[cards inner] state]
+      =.  cards
+        :_  cards
+        (tell:log %dbug ~[>[%simulated-kick (pack-wire i.kik) +.i.kik]<] ~)
       =.  wex.bowl  (~(del by wex.bowl) (pack-wire i.kik) +.i.kik)
       =^  caz  inner
         %.  [wire.i.kik %kick ~]
@@ -492,6 +504,7 @@
     +*  this    .
         up    ~(. helper bowl state)
         og    ~(. inner inner-bowl:up)
+        log   ~(. logs our.bowl /~/negotiate/logs)
     ++  on-init
       ^-  (quip card _this)
       =.  ours   our-versions
@@ -606,7 +619,12 @@
           [%version @ ~]  ::  /~/negotiate/version/[protocol]
         ::  it is important that we nack if we don't expose this protocol
         ::
-        [[%give %fact ~ %noun !>((~(got by ours) i.t.t.t.path))]~ this]
+        =/  key  i.t.t.t.path
+        =/  version  (~(got by ours) key)
+        :_  this
+        :~  (tell:log %dbug ~[>[%version-watched src.bowl key version]<] ~)
+            [%give %fact ~ %noun !>(version)]
+        ==
       ::
           [%notify ?([%json ~] ~)]  ::  /~/negotiate/notify(/json)
         ?>  =(our src):bowl
@@ -632,6 +650,7 @@
       !:
       ~|  wire=t.t.wire
       ?+  t.t.wire  ~|([%negotiate %unexpected-wire] !!)
+        [%logs ~]    [~ this]
         [%notify ~]  [~ this]
       ::
           [%heed @ @ @ ~]
@@ -641,16 +660,18 @@
         ?-  -.sign
             %fact
           =*  mark  p.cage.sign
+          =/  cards=(list card)
+            ~[(tell:log %dbug ~[>[%heed-fact-received mark for]<] ~)]
           =*  vase  q.cage.sign
           ?.  =(%noun mark)
             ~&  [negotiate+dap.bowl %ignoring-unexpected-fact mark=mark]
-            [~ this]
+            [cards this]
           =+  !<(=version vase)
           =^  a  state  (heed-changed:up for `version)
           =^  [caz=(list card) nin=_inner]  state
             (simulate-kicks:up kik.a inner)
           =.  inner  nin
-          [(weld caz.a caz) this]
+          [(weld cards (weld caz.a caz)) this]
         ::
             %watch-ack
           ?~  p.sign  [~ this]
@@ -669,7 +690,10 @@
           ::  30 minutes might cost us some responsiveness but in return we
           ::  save both ourselves and others from a lot of needless retries.
           ::
-          [[(retry-timer:up ~m30 [%watch t.t.wire]) (weld caz.a caz)] this]
+          :_  this
+          :-  (retry-timer:up ~m30 [%watch t.t.wire])
+          :-  (tell:log %dbug ~[>[%heed-nacked for]<] ~)
+          (weld caz.a caz)
         ::
             %kick
           :_  this
@@ -679,7 +703,9 @@
           ::  difference between "clog" kicks and "unexpected crash" kicks,
           ::  so we cannot take more accurate/appropriate action here.
           ::
-          [(retry-timer:up ~s15 [%watch t.t.wire])]~
+          :~  (retry-timer:up ~s15 [%watch t.t.wire])
+              (tell:log %dbug ~[>[%heed-kicked for]<] ~)
+          ==
         ::
             %poke-ack
           ~&  [negotiate+dap.bowl %unexpected-poke-ack wire]
@@ -706,6 +732,7 @@
       ?.  ?=(%x i.path)  [~ ~]
       ?+  t.t.t.path  [~ ~]
         [%version ~]  ``noun+!>(ours)
+        [%state ~]  ``noun+!>(state)
       ::
           [%version @ @ @ ~]
         =/  for=[gill:gall protocol]
@@ -784,7 +811,12 @@
           =/  for=[gill:gall protocol]
             =*  w  t.t.t.t.t.wire
             [[(slav %p i.w) i.t.w] i.t.t.w]
-          [[(watch-version:up for)]~ this]
+          :_  this
+          :~  (watch-version:up for)
+              %^  tell:log   %dbug
+                ~[>[%heed-retry for 'attempting to watch for version']<]
+              ~
+          ==
         ==
       ==
     ::

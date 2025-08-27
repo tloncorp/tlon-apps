@@ -1,6 +1,6 @@
 /-  c=channels
 /+  j=channel-json
-|_  =paged-simple-posts:v7:old:c
+|_  =paged-simple-posts:v7:c
 ++  grad  %noun
 ++  grow
   |%
@@ -9,6 +9,6 @@
   --
 ++  grab
   |%
-  ++  noun  paged-simple-posts:v7:old:c
+  ++  noun  paged-simple-posts:v7:c
   --
 --
