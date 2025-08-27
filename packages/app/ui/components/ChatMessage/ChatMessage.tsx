@@ -215,7 +215,6 @@ const ChatMessage = ({
             right={12}
             top={8}
             zIndex={199}
-            testID="ChatMessageDeliveryStatus"
           >
             <ChatMessageDeliveryStatus status={post.deliveryStatus} />
           </View>

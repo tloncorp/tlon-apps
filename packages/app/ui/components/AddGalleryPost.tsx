@@ -18,7 +18,10 @@ export default function AddGalleryPost({
     {
       title: 'Image',
       action: () => {
-        setRoute('add-attachment');
+        setRoute('gallery');
+        setTimeout(() => {
+          setRoute('add-attachment');
+        }, 300);
       },
       testID: 'AddGalleryPostImage',
     },

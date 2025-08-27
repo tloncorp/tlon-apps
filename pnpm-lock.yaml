@@ -320,8 +320,8 @@ importers:
         specifier: ~13.0.1
         version: 13.0.1(expo@52.0.47(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(babel-plugin-react-compiler@0.0.0-experimental-592953e-20240517)(encoding@0.1.13)(graphql@16.6.0)(react-native-webview@13.12.5(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))
       expo-splash-screen:
-        specifier: ~0.29.24
-        version: 0.29.24(expo@52.0.47(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(babel-plugin-react-compiler@0.0.0-experimental-592953e-20240517)(encoding@0.1.13)(graphql@16.6.0)(react-native-webview@13.12.5(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))
+        specifier: 0.28.5
+        version: 0.28.5(expo-modules-autolinking@2.0.8)(expo@52.0.47(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(babel-plugin-react-compiler@0.0.0-experimental-592953e-20240517)(encoding@0.1.13)(graphql@16.6.0)(react-native-webview@13.12.5(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))
       expo-status-bar:
         specifier: ~2.0.1
         version: 2.0.1(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1)
@@ -3022,6 +3022,11 @@ packages:
   '@expo/plist@0.2.2':
     resolution: {integrity: sha512-ZZGvTO6vEWq02UAPs3LIdja+HRO18+LRI5QuDl6Hs3Ps7KX7xU6Y6kjahWKY37Rx2YjNpX07dGpBFzzC+vKa2g==}
 
+  '@expo/prebuild-config@8.0.5':
+    resolution: {integrity: sha512-foLI8g4u7FncTka6sE2K7C0CF4xY/NnUJTKXicyLdcqzHYpeqDqc9Lge3tIU0vQWH2e+OUDTS3gp+RdtkEE0eg==}
+    peerDependencies:
+      expo-modules-autolinking: 2.0.0-preview.2
+
   '@expo/prebuild-config@8.2.0':
     resolution: {integrity: sha512-CxiPpd980s0jyxi7eyN3i/7YKu3XL+8qPjBZUCYtc0+axpGweqIkq2CslyLSKHyqVyH/zlPkbVgWdyiYavFS5Q==}
 
@@ -3966,6 +3971,9 @@ packages:
 
   '@react-native/normalize-colors@0.74.88':
     resolution: {integrity: sha512-He5oTwPBxvXrxJ91dZzpxR7P+VYmc9IkJfhuH8zUiU50ckrt+xWNjtVugPdUv4LuVjmZ36Vk2EX8bl1gVn2dVA==}
+
+  '@react-native/normalize-colors@0.76.1':
+    resolution: {integrity: sha512-/+CUk/wGWIdXbJYVLw/q6Fs8Z0x91zzfXIbNiZUdSW1TNEDmytkF371H8a1/Nx3nWa1RqCMVsaZHCG4zqxeDvg==}
 
   '@react-native/normalize-colors@0.76.9':
     resolution: {integrity: sha512-TUdMG2JGk72M9d8DYbubdOlrzTYjw+YMe/xOnLU4viDgWRHsCbtRS9x0IAxRjs3amj/7zmK3Atm8jUPvdAc8qw==}
@@ -7602,6 +7610,11 @@ packages:
 
   expo-sms@13.0.1:
     resolution: {integrity: sha512-nb9VMfTZinuFdR4NULoBjrDQVssyKhyw5IZfKOjUjXHTA3kqFsz0FtA+VAZpGCtk+N2l4tvNst0gSMm/0WV6NQ==}
+    peerDependencies:
+      expo: '*'
+
+  expo-splash-screen@0.28.5:
+    resolution: {integrity: sha512-Eaf9p6duoVupPUZgMSxg9DpqpX7Wgz0o0ZHu5PfgJzC4EGzVYb6Oam0v1tR0oKzgnweESOKlGTP4v+1O09D0ug==}
     peerDependencies:
       expo: '*'
 
@@ -15182,6 +15195,23 @@ snapshots:
       base64-js: 1.5.1
       xmlbuilder: 14.0.0
 
+  '@expo/prebuild-config@8.0.5(expo-modules-autolinking@2.0.8)':
+    dependencies:
+      '@expo/config': 10.0.11
+      '@expo/config-plugins': 9.0.17
+      '@expo/config-types': 52.0.5
+      '@expo/image-utils': 0.6.5
+      '@expo/json-file': 9.0.2
+      '@react-native/normalize-colors': 0.76.1
+      debug: 4.4.1
+      expo-modules-autolinking: 2.0.8
+      fs-extra: 9.1.0
+      resolve-from: 5.0.0
+      semver: 7.6.3
+      xml2js: 0.6.0
+    transitivePeerDependencies:
+      - supports-color
+
   '@expo/prebuild-config@8.2.0':
     dependencies:
       '@expo/config': 10.0.11
@@ -16679,6 +16709,8 @@ snapshots:
   '@react-native/normalize-colors@0.73.2': {}
 
   '@react-native/normalize-colors@0.74.88': {}
+
+  '@react-native/normalize-colors@0.76.1': {}
 
   '@react-native/normalize-colors@0.76.9': {}
 
@@ -21590,6 +21622,14 @@ snapshots:
   expo-sms@13.0.1(expo@52.0.47(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(babel-plugin-react-compiler@0.0.0-experimental-592953e-20240517)(encoding@0.1.13)(graphql@16.6.0)(react-native-webview@13.12.5(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1)):
     dependencies:
       expo: 52.0.47(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(babel-plugin-react-compiler@0.0.0-experimental-592953e-20240517)(encoding@0.1.13)(graphql@16.6.0)(react-native-webview@13.12.5(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1)
+
+  expo-splash-screen@0.28.5(expo-modules-autolinking@2.0.8)(expo@52.0.47(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(babel-plugin-react-compiler@0.0.0-experimental-592953e-20240517)(encoding@0.1.13)(graphql@16.6.0)(react-native-webview@13.12.5(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1)):
+    dependencies:
+      '@expo/prebuild-config': 8.0.5(expo-modules-autolinking@2.0.8)
+      expo: 52.0.47(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(babel-plugin-react-compiler@0.0.0-experimental-592953e-20240517)(encoding@0.1.13)(graphql@16.6.0)(react-native-webview@13.12.5(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1)
+    transitivePeerDependencies:
+      - expo-modules-autolinking
+      - supports-color
 
   expo-splash-screen@0.29.24(expo@52.0.47(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(babel-plugin-react-compiler@0.0.0-experimental-592953e-20240517)(encoding@0.1.13)(graphql@16.6.0)(react-native-webview@13.12.5(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1))(react-native@0.76.9(@babel/core@7.25.2)(@babel/preset-env@7.26.0(@babel/core@7.25.2))(@react-native-community/cli@13.6.9(encoding@0.1.13))(@types/react@18.3.23)(encoding@0.1.13)(react@18.3.1))(react@18.3.1)):
     dependencies:

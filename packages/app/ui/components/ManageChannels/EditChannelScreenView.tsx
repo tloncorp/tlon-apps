@@ -316,7 +316,7 @@ export function ChannelPermissionsSelector({
   );
 
   return (
-    <YStack gap="$2xl">
+    <YStack gap="$2xl" width="100%">
       <RadioInput
         options={Object.entries(PRIVACY_TYPE).map(([type, settings]) => ({
           title: settings.title,
@@ -331,7 +331,7 @@ export function ChannelPermissionsSelector({
         onChange={(type) => handleSelectPrivacyType(type as ChannelPrivacyType)}
       />
       {custom && (
-        <YStack gap="$m">
+        <YStack gap="$m" width="100%">
           <ChannelRoleSelector
             options={options}
             label="Readers"
@@ -372,7 +372,7 @@ export function ChannelRoleSelector({
 }) {
   const [open, setOpen] = useState(false);
   const trigger = (
-    <XStack gap="$s">
+    <XStack gap="$s" flexWrap="wrap" width="100%" maxWidth="100%">
       {roles.map((role) => (
         <Button
           size="$s"
@@ -381,6 +381,7 @@ export function ChannelRoleSelector({
           backgroundColor="$background"
           borderRadius="$s"
           onPress={() => setOpen(true)}
+          flexShrink={0}
         >
           <Button.Text fontSize="$xs">{role.label}</Button.Text>
         </Button>
@@ -389,16 +390,17 @@ export function ChannelRoleSelector({
   );
 
   return (
-    <YStack gap="$m">
+    <YStack gap="$m" width="100%">
       <Text>{label}</Text>
       <Pressable onPress={() => setOpen(true)} testID={testID}>
-        <XStack
-          gap="$s"
+        <View
           backgroundColor="$secondaryBackground"
           borderWidth={1}
           borderRadius="$m"
           borderColor="$border"
           padding="$s"
+          width="100%"
+          overflow="hidden"
         >
           <ActionSheet
             trigger={trigger}
@@ -434,7 +436,7 @@ export function ChannelRoleSelector({
               ))}
             </ActionSheet.ActionGroup>
           </ActionSheet>
-        </XStack>
+        </View>
       </Pressable>
     </YStack>
   );
