@@ -132,7 +132,7 @@
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
-++  log   ~(. logs [our.bowl /channels-server])
+++  log   ~(. logs [our.bowl /logs])
 ++  safe-watch
   |=  [=wire =dock =path]
   ^+  cor
