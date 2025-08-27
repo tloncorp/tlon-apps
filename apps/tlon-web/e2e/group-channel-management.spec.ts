@@ -85,7 +85,7 @@ test('should handle channel management operations', async ({ zodPage }) => {
   await page.getByTestId('GroupChannels').click();
   await page.waitForTimeout(500);
   await expect(
-    page.getByText('Testing channel renaming').first()
+    page.getByTestId('ChannelItem-Testing channel renaming-1')
   ).toBeVisible();
 
   // Create channel section
@@ -121,7 +121,14 @@ test('should handle channel management operations', async ({ zodPage }) => {
   // Delete channel and verify count update
   await page.waitForTimeout(2000);
   await page.getByTestId('GroupChannels').click();
-  await helpers.deleteChannel(page, 'Testing channel renaming');
+
+  // After renaming, the channel should preserve its position at index 1
+  // Verify the channel is still at position 1 before deleting
+  await expect(
+    page.getByTestId('ChannelItem-Testing channel renaming-1')
+  ).toBeVisible({ timeout: 5000 });
+
+  await helpers.deleteChannel(page, 'Testing channel renaming', 1);
 
   await expect(page.getByText('Manage channels')).toBeVisible();
   await expect(
