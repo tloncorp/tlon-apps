@@ -1,19 +1,8 @@
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { useIsWindowNarrow } from '@tloncorp/ui';
-import { Button } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
-import { Pressable } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
+import { Button, Icon, Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
-import {
-  ComponentProps,
-  memo,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { useChannelContext, useCurrentUserId } from '../../contexts';
@@ -61,8 +50,8 @@ const ChatMessage = ({
   onLongPress?: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => Promise<void>;
   onPressDelete?: (post: db.Post) => void;
-  onShowEmojiPicker?: () => void;
-  onPressEdit?: () => void;
+  onShowEmojiPicker?: (post: db.Post) => void;
+  onPressEdit?: (post: db.Post) => void;
   setViewReactionsPost?: (post: db.Post) => void;
   isHighlighted?: boolean;
   displayDebugMode?: boolean;
@@ -133,6 +122,14 @@ const ChatMessage = ({
     onPressDelete?.(post);
     setShowRetrySheet(false);
   }, [onPressDelete, post]);
+
+  const handleEditPressed = useCallback(() => {
+    onPressEdit?.(post);
+  }, [post, onPressEdit]);
+
+  const handleEmojiPickerPressed = useCallback(() => {
+    onShowEmojiPicker?.(post);
+  }, [post, onShowEmojiPicker]);
 
   const handleHoverIn = useCallback(() => {
     if (isWeb) {
@@ -320,9 +317,9 @@ const ChatMessage = ({
             }}
             onOpenChange={setIsPopoverOpen}
             onReply={handleRepliesPressed}
-            onEdit={onPressEdit}
+            onEdit={handleEditPressed}
             onViewReactions={setViewReactionsPost}
-            onShowEmojiPicker={onShowEmojiPicker}
+            onShowEmojiPicker={handleEmojiPickerPressed}
             trigger={
               <Button
                 backgroundColor="transparent"

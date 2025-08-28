@@ -142,6 +142,7 @@ export default function ChannelScreen(props: Props) {
   const { navigateToImage, navigateToPost, navigateToRef, navigateToSearch } =
     useChannelNavigation({ channelId: currentChannelId });
   const { navigation } = useRootNavigation();
+  const navigationRef = useRef(props.navigation);
   const isWindowNarrow = useIsWindowNarrow();
   const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
 
@@ -292,21 +293,21 @@ export default function ChannelScreen(props: Props) {
 
   const handleChatDetailsPressed = useCallback(() => {
     if (group) {
-      props.navigation.navigate('ChatDetails', {
+      navigationRef.current.navigate('ChatDetails', {
         chatType: 'group',
         chatId: group.id,
       });
     }
-  }, [group, props.navigation]);
+  }, [group, navigationRef]);
 
   const handleGoToDm = useCallback(
     async (participants: string[]) => {
       const dmChannel = await store.upsertDmChannel({
         participants,
       });
-      props.navigation.push('DM', { channelId: dmChannel.id });
+      navigationRef.current.push('DM', { channelId: dmChannel.id });
     },
-    [props.navigation]
+    [navigationRef]
   );
 
   const handleMarkRead = useCallback(async () => {
@@ -337,19 +338,19 @@ export default function ChannelScreen(props: Props) {
 
   const handleGoToUserProfile = useCallback(
     (userId: string) => {
-      props.navigation.navigate('UserProfile', { userId });
+      navigationRef.current.navigate('UserProfile', { userId });
     },
-    [props.navigation]
+    [navigationRef]
   );
 
   const handleGoToGroupSettings = useCallback(() => {
     if (group) {
-      props.navigation.navigate('GroupSettings', {
+      navigationRef.current.navigate('GroupSettings', {
         screen: 'GroupMembers',
         params: { groupId: group.id },
       });
     }
-  }, [group, props.navigation]);
+  }, [group, navigationRef]);
 
   const channelRef = useRef<React.ElementRef<typeof Channel>>(null);
   const handleConfigureChannel = useCallback(() => {
@@ -358,16 +359,22 @@ export default function ChannelScreen(props: Props) {
     }
   }, [channelRef]);
 
+  const initialChat = useMemo(
+    () =>
+      ({
+        type: 'channel',
+        id: currentChannelId,
+      }) as const,
+    [currentChannelId]
+  );
+
   if (!channel) {
     return null;
   }
 
   return (
     <ChatOptionsProvider
-      initialChat={{
-        type: 'channel',
-        id: currentChannelId,
-      }}
+      initialChat={initialChat}
       useGroup={store.useGroup}
       onPressConfigureChannel={handleConfigureChannel}
       {...chatOptionsNavProps}
@@ -390,7 +397,7 @@ export default function ChannelScreen(props: Props) {
           groupError={groupError}
           posts={filteredPosts ?? null}
           selectedPostId={selectedPostId}
-          goBack={props.navigation.goBack}
+          goBack={navigationRef.current.goBack}
           goToPost={navigateToPost}
           goToImageViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}
