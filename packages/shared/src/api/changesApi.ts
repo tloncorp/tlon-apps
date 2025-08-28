@@ -17,21 +17,25 @@ export async function fetchChangesSince(
     path: `/v5/changes/${encodedTimestamp}`,
   });
 
-  const groups = toClientGroups(response.groups, true);
+  return parseChanges(response);
+}
 
-  const channelPosts = Object.entries(response.channels).flatMap(
+export function parseChanges(input: ub.Changes): db.ChangesResult {
+  const groups = toClientGroups(input.groups, true);
+
+  const channelPosts = Object.entries(input.channels).flatMap(
     ([channelId, posts]) => (posts ? toPostsData(channelId, posts).posts : [])
   );
-  const chatPosts = Object.entries(response.chat).flatMap(([chatId, posts]) =>
+  const chatPosts = Object.entries(input.chat).flatMap(([chatId, posts]) =>
     posts ? toPostsData(chatId, posts).posts : []
   );
   const posts = [...channelPosts, ...chatPosts];
 
-  const contacts = Object.entries(response.contacts).map(([id, profile]) =>
+  const contacts = Object.entries(input.contacts).map(([id, profile]) =>
     v1PeerToClientProfile(id, profile)
   );
 
-  const unreads = toClientUnreads(response.activity);
+  const unreads = toClientUnreads(input.activity);
 
   return { groups, posts, contacts, unreads };
 }

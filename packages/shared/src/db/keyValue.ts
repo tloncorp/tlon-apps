@@ -282,8 +282,9 @@ export const headsSyncedAt = createStorageItem<number>({
   defaultValue: 0,
 });
 
+export const CHANGES_SYNCED_AT_KEY = 'changesSyncedAt';
 export const changesSyncedAt = createStorageItem<number | null>({
-  key: 'changesSyncedAt',
+  key: CHANGES_SYNCED_AT_KEY,
   defaultValue: null,
 });
 

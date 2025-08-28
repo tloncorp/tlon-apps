@@ -11,6 +11,9 @@ export const connectNotifyProvider = async (address: string) => {
       'connect-provider-with-binding': {
         who: NOTIFY_PROVIDER,
         service: NOTIFY_SERVICE,
+        // For use in dev:
+        // who: 'wannec-dozzod-marnus',
+        // service: 'tlon-groups-dev',
         address,
         binding: Platform.OS === 'android' ? 'fcm' : 'apn',
       },

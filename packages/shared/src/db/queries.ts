@@ -2640,7 +2640,7 @@ export type GetSequencedPostsOptions = {
   cursorSequenceNum?: number;
 };
 
-const seqLogger = createDevLogger('seqPosts', true);
+const seqLogger = createDevLogger('seqPosts', false);
 
 export const getLatestChannelSequenceNum = createReadQuery(
   'getLatestChannelSequenceNum',
