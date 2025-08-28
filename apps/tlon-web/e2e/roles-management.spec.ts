@@ -3,6 +3,64 @@ import { expect } from '@playwright/test';
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
+test('should prevent Admin role from being edited', async ({ zodPage }) => {
+  const page = zodPage;
+
+  await expect(page.getByText('Home')).toBeVisible();
+
+  // Create a new group
+  await helpers.createGroup(page);
+
+  // Handle welcome message if present
+  if (await page.getByText('Welcome to your group!').isVisible()) {
+    await expect(page.getByText('Welcome to your group!')).toBeVisible();
+  }
+
+  // Navigate back to Home and verify group creation
+  if (await page.getByTestId('HeaderBackButton').first().isVisible()) {
+    await helpers.navigateBack(page);
+  } else {
+    await helpers.navigateBack(page, 1);
+  }
+
+  if (await page.getByText('Home').isVisible()) {
+    await expect(page.getByText('Untitled group').first()).toBeVisible();
+    await page.getByText('Untitled group').first().click();
+    await expect(page.getByText('Untitled group').first()).toBeVisible();
+  }
+
+  // Open group settings and navigate to Roles
+  await helpers.openGroupSettings(page);
+  await expect(page.getByText('Group info')).toBeVisible();
+  await page.getByTestId('GroupRoles').click();
+
+  // Verify Admin role is visible
+  await expect(page.getByTestId('GroupRole-Admin')).toBeVisible();
+
+  // Try to click on Admin role - it should not open the edit sheet
+  await page.getByTestId('GroupRole-Admin').click();
+
+  // Verify the edit sheet did not open (Edit role text should not be visible)
+  await expect(page.getByText('Edit role')).not.toBeVisible();
+
+  // Verify that Admin role doesn't have a chevron icon (indicating it's not clickable)
+  const adminRoleElement = page.getByTestId('GroupRole-Admin');
+  const chevronIcon = adminRoleElement.locator('[data-icon="ChevronRight"]');
+  await expect(chevronIcon).not.toBeVisible();
+
+  // Create a regular role to verify that other roles still work
+  await helpers.createRole(page, 'Regular role', 'This role can be edited');
+
+  // Verify the regular role can be clicked and edited
+  await page.getByText('Regular role').click();
+  await expect(page.getByText('Edit role')).toBeVisible();
+
+  // Close the edit sheet by clicking Save button
+  await page.getByText('Save').click();
+  await page.waitForTimeout(1000);
+  await expect(page.getByText('Edit role')).not.toBeVisible();
+});
+
 test('should manage roles lifecycle: create, assign, modify permissions, rename, and delete', async ({
   zodPage,
 }) => {

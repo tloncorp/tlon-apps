@@ -41,17 +41,21 @@ test('should handle group privacy and role management', async ({ zodPage }) => {
   await expect(page.getByText('Group Roles')).toBeVisible();
   await expect(page.getByTestId('GroupRole-Admin')).toBeVisible();
 
-  // Edit existing role
-  await page.getByTestId('GroupRole-Admin').click();
-  await expect(
-    page.getByText(/.*Admins can add and remove channels.*/)
-  ).toBeVisible();
-  await expect(page.getByText('Delete role')).not.toBeVisible();
-  await page.getByText('Save').click();
-
   // Create new role
   await helpers.createRole(page, 'Testing role', 'Description for test role');
 
   await helpers.navigateBack(page);
   await helpers.verifyElementCount(page, 'GroupRoles', 2);
+
+  // Edit existing role
+  await page.getByTestId('GroupRoles').click();
+  await page.getByTestId('GroupRole-Testing role').click();
+  await expect(page.getByText(/.*Description for test role.*/)).toBeVisible();
+  await helpers.fillFormField(
+    page,
+    'RoleDescriptionInput',
+    'Updated description'
+  );
+  await page.getByText('Save').click();
+  await expect(page.getByText('Updated description')).toBeVisible();
 });
