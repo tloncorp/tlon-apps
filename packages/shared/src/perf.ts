@@ -22,22 +22,9 @@ type PerformanceMonitoringStore = {
 const usePerformanceMonitoringStore = create<PerformanceMonitoringStore>(
   (set, getState) => ({
     endpoint: null,
-    setEndpoint: (e) => {
-      set({ endpoint: e });
-    },
+    setEndpoint: (e) => set({ endpoint: e }),
 
-    setEnabled: (enabled) => {
-      const { endpoint } = getState();
-      if (enabled && endpoint == null) {
-        throw new Error('Performance monitoring endpoint not set');
-      }
-      endpoint?.setEnabled(enabled);
-
-      set((prev) => ({
-        ...prev,
-        enabled,
-      }));
-    },
+    setEnabled: (enabled) => set((prev) => ({ ...prev, enabled })),
 
     enabled: false,
 
@@ -79,12 +66,23 @@ export function InstrumentationProvider({
   const { setEndpoint, setEnabled } = usePerformanceMonitoringStore();
 
   useEffect(() => {
-    setEnabled(collectionEnabled);
-  }, [collectionEnabled, setEnabled]);
-
-  useEffect(() => {
     setEndpoint(endpoint);
-  }, [setEndpoint, endpoint]);
+    setEnabled(collectionEnabled);
+
+    if (endpoint) {
+      endpoint.setEnabled(collectionEnabled);
+    }
+
+    if (collectionEnabled && !endpoint) {
+      console.warn(
+        'Performance monitoring endpoint not set yet, deferring enable'
+      );
+    }
+
+    return () => {
+      setEndpoint(null);
+    };
+  }, [endpoint, collectionEnabled, setEndpoint, setEnabled]);
 
   return children;
 }

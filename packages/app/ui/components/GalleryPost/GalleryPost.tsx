@@ -20,7 +20,7 @@ import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { differenceInDays } from 'date-fns';
-import { now, truncate } from 'lodash';
+import { truncate } from 'lodash';
 import {
   ComponentProps,
   PropsWithChildren,
@@ -165,6 +165,7 @@ export function GalleryPost({
           pointerEvents="none"
           size={size}
           embedded={embedded}
+          isPreview={true}
         />
         {showHeaderFooter && (
           <GalleryPostFooter post={post} deliveryFailed={deliveryFailed} />
@@ -304,9 +305,6 @@ export function GalleryPostDetailView({
   const logger = createDevLogger('GalleryPostDetailView', true);
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const formattedDate = useMemo(() => {
-    return makePrettyShortDate(new Date(post.receivedAt));
-  }, [post.receivedAt]);
   const content = usePostContent(post);
   const [viewReactionsOpen, setViewReactionsOpen] = useState(false);
 
@@ -369,6 +367,7 @@ export function GalleryPostDetailView({
           size="$l"
           onPressImage={handlePressImage}
           testID="GalleryPostContent"
+          isPreview={false}
         />
       </View>
 
@@ -413,14 +412,18 @@ export function GalleryPostDetailView({
 
 export function GalleryContentRenderer({
   post,
+  isPreview = false,
   ...props
 }: {
   post: db.Post;
   onPressImage?: (src: string) => void;
   size?: '$s' | '$l';
+  isPreview?: boolean;
 } & Omit<ComponentProps<typeof PreviewFrame>, 'content'>) {
   const content = usePostContent(post);
   const previewContent = usePreviewContent(content);
+  // Use full content for detail views, preview content for previews
+  const displayContent = isPreview ? previewContent : content;
 
   if (post.hidden) {
     return (
@@ -431,9 +434,9 @@ export function GalleryContentRenderer({
   }
 
   return props.size === '$l' ? (
-    <LargePreview content={previewContent} {...props} />
+    <LargePreview content={displayContent} {...props} />
   ) : (
-    <SmallPreview content={previewContent} {...props} />
+    <SmallPreview content={displayContent} {...props} />
   );
 }
 
@@ -460,6 +463,7 @@ function SmallPreview({
   'content'
 >) {
   const link = useBlockLink(content);
+
   return link ? (
     <PreviewFrame {...props} previewType="link">
       <LinkPreview link={link} />
@@ -495,8 +499,6 @@ const PreviewFrame = styled(View, {
           return {
             backgroundColor: '$secondaryBackground',
           };
-        case 'paragraph':
-        case 'list':
         case 'blockquote':
           return { paddingTop: '$3xl' };
       }
@@ -607,6 +609,7 @@ const SmallContentRenderer = createContentRenderer({
     },
     lineText: {
       size: '$label/s',
+      trimmed: false,
     },
     image: {
       height: '100%',
@@ -690,7 +693,24 @@ function usePreviewContent(content: BlockData[]): BlockData[] {
     } else if (groupedBlocks.link?.length) {
       return [groupedBlocks.link[0]];
     }
-    return firstBlockIsPreviewable(content) ? content.slice(0, 1) : content;
+
+    // For previewable first blocks (image/video/reference), show just that
+    if (firstBlockIsPreviewable(content)) {
+      return content.slice(0, 1);
+    }
+
+    // For text-only content, check if it's all text blocks
+    const isTextContent = content.every(
+      (block) =>
+        !['image', 'video', 'reference', 'link', 'embed'].includes(block.type)
+    );
+
+    if (isTextContent) {
+      // Limit to first 2 blocks to prevent overflow in preview
+      return content.slice(0, 2);
+    }
+
+    return content;
   }, [content]);
 }
 
