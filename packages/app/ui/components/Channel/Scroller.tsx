@@ -613,8 +613,8 @@ const BaseScrollerItem = ({
   onLongPressPost: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => Promise<void>;
   onPressDelete: (post: db.Post) => void;
-  onShowEmojiPicker: () => void;
-  onPressEdit?: () => void;
+  onShowEmojiPicker: (post: db.Post) => void;
+  onPressEdit?: (post: db.Post) => void;
   activeMessage?: db.Post | null;
   messageRef: RefObject<RNView>;
   isSelected: boolean;

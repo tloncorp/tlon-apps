@@ -14,13 +14,9 @@ import {
   BlockType,
   PostContent,
 } from '@tloncorp/shared/logic';
-import { Button } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
-import { Pressable } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
-import { useIsWindowNarrow } from '@tloncorp/ui';
+import { Button, Icon, Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { differenceInDays } from 'date-fns';
-import { now, truncate } from 'lodash';
+import { truncate } from 'lodash';
 import {
   ComponentProps,
   PropsWithChildren,
@@ -132,6 +128,10 @@ export function GalleryPost({
     e.stopPropagation();
   }, []);
 
+  const handleEditPressed = useCallback(() => {
+    onPressEdit?.(post);
+  }, [onPressEdit, post]);
+
   if (post.isDeleted) {
     return null;
   }
@@ -192,7 +192,7 @@ export function GalleryPost({
               }}
               onOpenChange={setIsPopoverOpen}
               onReply={handlePress}
-              onEdit={onPressEdit}
+              onEdit={handleEditPressed}
               mode="await-trigger"
               trigger={
                 <Button

@@ -1,5 +1,6 @@
 import { layoutForType } from '@tloncorp/shared';
 import * as React from 'react';
+import { useMemo } from 'react';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -120,6 +121,10 @@ export const PostList: PostListComponent = React.forwardRef(
       })
     );
 
+    const listStyle = useMemo(() => {
+      return [style, readyToDisplayPosts ? null : { opacity: 0 }];
+    }, [readyToDisplayPosts, style]);
+
     return (
       <Animated.FlatList<PostWithNeighbors>
         ref={listRef}
@@ -144,10 +149,10 @@ export const PostList: PostListComponent = React.forwardRef(
           // list is empty instead of adversarily transforming the empty component.
           (postsWithNeighbors?.length || 0) === 0 ? false : inverted
         }
-        maxToRenderPerBatch={8}
-        windowSize={8}
+        maxToRenderPerBatch={15}
+        windowSize={6}
         numColumns={numColumns}
-        style={[style, readyToDisplayPosts ? null : { opacity: 0 }]}
+        style={listStyle}
         onEndReached={onEndReached}
         onEndReachedThreshold={onEndReachedThreshold}
         onStartReached={onStartReached}

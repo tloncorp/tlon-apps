@@ -358,16 +358,22 @@ export default function ChannelScreen(props: Props) {
     }
   }, [channelRef]);
 
+  const initialChat = useMemo(
+    () =>
+      ({
+        type: 'channel',
+        id: currentChannelId,
+      }) as const,
+    [currentChannelId]
+  );
+
   if (!channel) {
     return null;
   }
 
   return (
     <ChatOptionsProvider
-      initialChat={{
-        type: 'channel',
-        id: currentChannelId,
-      }}
+      initialChat={initialChat}
       useGroup={store.useGroup}
       onPressConfigureChannel={handleConfigureChannel}
       {...chatOptionsNavProps}
