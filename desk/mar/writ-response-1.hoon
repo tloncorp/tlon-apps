@@ -1,14 +1,14 @@
-/-  c=chat-4
+/-  cv=chat-ver
 /+  j=chat-json
-|_  [=whom:c =response:writs:c]
+|_  [=whom:v4:cv =response:writs:v4:cv]
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  [whom response]
-  ++  json  (writs-response:v8:enjs:j whom response)
+  ++  json  (writs-response:v4:enjs:j whom response)
   --
 ++  grab
   |%
-  ++  noun  ,[whom:c response:writs:c]
+  ++  noun  ,[whom:v4:cv response:writs:v4:cv]
   --
 --

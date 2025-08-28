@@ -371,14 +371,14 @@
         ?>  ?=(^ q.field)
         ::  do not broadcast empty changes
         ::
-        ?:  (is-value-empty q.field) 
+        ?:  (is-value-empty q.field)
           cards
         ::
         =/  val=(unit value)  (~(get by con) p.field)
         ?~  val
           [(pass-activity who field) cards]
         ?<  ?=(~ u.val)
-        ::NOTE  currently shouldn't happen in practice 
+        ::NOTE  currently shouldn't happen in practice
         ?.  =(-.q.field -.u.val)  cards
         ?:  =(p.q.field p.u.val)  cards
         ?.  ?=(%set -.q.field)
@@ -714,6 +714,17 @@
         ?:  (~(has by dir) who)  dir
         (~(put by dir) who con.for.far)
       ``contact-directory-0+!>(dir)
+      ::
+        [%x %v1 %changes since=@ ~]
+      =+  since=(slav %da since.pat)
+      :^  ~  ~
+        %contact-changed-contacts
+      !>  ^-  (map ship profile)
+      %-  ~(rep by peers)
+      |=  [[who=ship foreign] out=(map ship profile)]
+      ?~  for                  out
+      ?:  (lte wen.for since)  out
+      (~(put by out) who for)
       ::
         [%u %v1 %contact her=@p ~]
       ?~  who=(slaw %p her.pat)

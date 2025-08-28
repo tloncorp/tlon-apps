@@ -1,14 +1,14 @@
-/-  c=chat-4
+/-  cv=chat-ver
 /+  j=chat-json
-|_  =writ:c
+|_  =writ:v4:cv
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  writ
-  ++  json  (writ:v8:enjs:j writ)
+  ++  json  (writ:v4:enjs:j writ)
   --
 ++  grab
   |%
-  ++  noun  writ:c
+  ++  noun  writ:v4:cv
   --
 --
