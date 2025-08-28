@@ -4,9 +4,8 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { LoadingSpinner } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Spinner, YStack } from 'tamagui';
+import { YStack } from 'tamagui';
 
-import { useStore } from '../contexts';
 import { triggerHaptic, useGroupTitle } from '../utils';
 import {
   ActionGroup,
@@ -203,15 +202,9 @@ export function getActionGroups(
     cancelJoin: () => void;
   }
 ): ActionGroup[] {
-  if (status.isMember) {
-    return createActionGroups([
-      'positive',
-      {
-        title: 'Go to group',
-        action: actions.goToGroup,
-      },
-    ]);
-  } else if (status.isJoining) {
+  if (status.isJoining) {
+    // Check isJoining first, even if isMember is true
+    // This handles the case where group is still syncing
     return createActionGroups(
       [
         'disabled',
@@ -228,6 +221,15 @@ export function getActionGroups(
         },
       ]
     );
+  } else if (status.isMember) {
+    // Only show "Go to group" if NOT joining (fully synced)
+    return createActionGroups([
+      'positive',
+      {
+        title: 'Go to group',
+        action: actions.goToGroup,
+      },
+    ]);
   } else if (status.isErrored) {
     return createActionGroups([
       'negative',

@@ -1,7 +1,7 @@
 import { sync, useUpdateChannel } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useCurrentUserId } from './useCurrentUser';
 
@@ -13,6 +13,9 @@ export const useGroupContext = ({
   isFocused?: boolean;
 }) => {
   const currentUserId = useCurrentUserId();
+  const [syncRetryCount, setSyncRetryCount] = useState(0);
+  const MAX_SYNC_RETRIES = 3;
+  
   const groupQuery = store.useGroup({
     id: groupId,
   });
@@ -24,6 +27,44 @@ export const useGroupContext = ({
   }, [groupId]);
 
   const group = groupQuery.data ?? null;
+
+  // Reset retry count when group successfully syncs (channels load)
+  useEffect(() => {
+    if (group && group.channels && group.channels.length > 0) {
+      setSyncRetryCount(0);
+    }
+  }, [group]);
+
+  // Retry sync if we detect a likely sync failure
+  // (nav sections exist but channels haven't loaded)
+  useEffect(() => {
+    if (
+      groupId &&
+      group &&
+      group.channels?.length === 0 &&
+      group.navSections &&
+      group.navSections.length > 0 &&
+      group.navSections.some((s) => s.channels && s.channels.length > 0) &&
+      syncRetryCount < MAX_SYNC_RETRIES
+    ) {
+      // Nav sections reference channels but channels array is empty
+      // This indicates a likely sync failure - retry after delay with exponential backoff
+      const delay = 5000 * Math.pow(2, syncRetryCount); // 5s, 10s, 20s
+      const timer = setTimeout(() => {
+        console.log(
+          `Retrying sync for group ${groupId} - attempt ${syncRetryCount + 1}/${MAX_SYNC_RETRIES} (delay: ${delay}ms)`
+        );
+        sync.syncGroup(
+          groupId,
+          { priority: store.SyncPriority.High },
+          { force: true }
+        );
+        setSyncRetryCount(prev => prev + 1);
+      }, delay);
+
+      return () => clearTimeout(timer);
+    }
+  }, [groupId, group, syncRetryCount]);
 
   const currentUserIsAdmin = useMemo(() => {
     return group?.members.some(

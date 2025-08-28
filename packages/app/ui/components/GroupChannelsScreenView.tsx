@@ -299,7 +299,12 @@ export const GroupChannelsScreenView = React.memo(
               paddingBottom: insets.bottom,
             }}
           />
-        ) : group && group.channels && group.channels.length === 0 ? (
+        ) : group &&
+          group.channels &&
+          group.channels.length === 0 &&
+          !group.joinStatus ? (
+          // Only show "no access" if we're certain the group has fully synced
+          // and there are truly no channels available
           <YStack
             flex={1}
             justifyContent="center"
@@ -315,6 +320,7 @@ export const GroupChannelsScreenView = React.memo(
             </Text>
           </YStack>
         ) : (
+          // Show loading spinner while channels are syncing
           <YStack flex={1} justifyContent="center" alignItems="center">
             <LoadingSpinner />
           </YStack>
