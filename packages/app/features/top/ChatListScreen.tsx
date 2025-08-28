@@ -99,9 +99,12 @@ export function ChatListScreenView({
     }, 200);
   }, [navigation]);
 
-  const handlePressInvite = useCallback((groupId: string) => {
-    navigation.navigate('InviteUsers', { groupId });
-  }, [navigation]);
+  const handlePressInvite = useCallback(
+    (groupId: string) => {
+      navigation.navigate('InviteUsers', { groupId });
+    },
+    [navigation]
+  );
 
   const connStatus = store.useConnectionStatus();
   const isSyncing = store.useIsSyncing();
@@ -269,7 +272,7 @@ export function ChatListScreenView({
       useApp={db.appInfo.useValue}
       useGroup={store.useGroupPreview}
     >
-      <ChatOptionsProvider 
+      <ChatOptionsProvider
         {...useChatSettingsNavigation()}
         onPressInvite={handlePressInvite}
       >

@@ -1,14 +1,38 @@
 import { createDevLogger, syncSince } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
 import * as BackgroundFetch from 'expo-background-fetch';
+import * as BackgroundTask from 'expo-background-task';
+import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import { v4 as uuidv4 } from 'uuid';
 
 import { configureUrbitClient } from '../hooks/useConfigureUrbitClient';
 
+// TODO: remove, for use in debugging background tasks
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+    shouldShowAlert: true,
+  }),
+});
+
+function debugLog(message: string) {
+  Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Background Log',
+      body: message,
+    },
+    trigger: null,
+  });
+}
+
 const logger = createDevLogger('backgroundSync', true);
 
 async function performSync() {
+  debugLog('Initiating background sync');
   const taskExecutionId = uuidv4();
   logger.trackEvent('Initiating background sync', { taskExecutionId });
   const timings: Record<string, number> = {
@@ -35,7 +59,7 @@ async function performSync() {
     return;
   }
 
-  logger.log('Configuring urbit client...');
+  logger.trackEvent('Configuring urbit client...');
   configureUrbitClient({
     ship: shipInfo.ship,
     shipUrl: shipInfo.shipUrl,
@@ -65,9 +89,19 @@ async function performSync() {
 
 const TASK_ID = 'tlon:backgroundSync:v1';
 
+export async function triggerBackgroundTaskTest() {
+  try {
+    await BackgroundTask.triggerTaskWorkerForTestingAsync();
+    console.log(`bl: triggered testing task from js`);
+  } catch (error) {
+    console.error(`bl: failed to trigger testing task from js`, error);
+  }
+}
+
 export async function unregisterBackgroundSyncTask() {
-  await BackgroundFetch.unregisterTaskAsync(TASK_ID);
   await TaskManager.unregisterTaskAsync(TASK_ID);
+  await BackgroundTask.unregisterTaskAsync(TASK_ID);
+  await BackgroundFetch.unregisterTaskAsync(TASK_ID);
 }
 
 export async function removeLegacyTasks() {
@@ -79,12 +113,13 @@ export async function removeLegacyTasks() {
         logger.trackEvent('Removing legacy background task', {
           taskId: task.taskName,
         });
-        await BackgroundFetch.unregisterTaskAsync(task.taskName);
         await TaskManager.unregisterTaskAsync(task.taskName);
+        await BackgroundFetch.unregisterTaskAsync(task.taskName);
+        await BackgroundTask.unregisterTaskAsync(task.taskName);
       })
     );
   } catch (e) {
-    logger.trackError('Failed to remove legacy background tasks', {
+    logger.trackEvent('Failed to remove legacy background tasks', {
       errorMessage: e instanceof Error ? e.message : e,
     });
   }
@@ -95,25 +130,28 @@ export async function registerBackgroundSyncTask() {
 
   TaskManager.defineTask<Record<string, unknown>>(
     TASK_ID,
-    async ({ error }): Promise<BackgroundFetch.BackgroundFetchResult> => {
+    async ({ error }): Promise<BackgroundTask.BackgroundTaskResult> => {
       logger.trackEvent(`Running background task`);
+      debugLog('Running background task');
       if (error) {
         logger.trackError(`Failed background task`, {
           context: 'called with error',
           errorMessage: error.message,
         });
-        return BackgroundFetch.BackgroundFetchResult.Failed;
+        return BackgroundTask.BackgroundTaskResult.Failed;
       }
 
       try {
         await performSync();
-        return BackgroundFetch.BackgroundFetchResult.NewData;
+        debugLog('Background sync successful');
+        return BackgroundTask.BackgroundTaskResult.Success;
       } catch (err) {
+        debugLog('Background sync failed');
         logger.trackError('Failed background task', {
           context: 'catch',
           errorMessage: err instanceof Error ? err.message : err,
         });
-        return BackgroundFetch.BackgroundFetchResult.Failed;
+        return BackgroundTask.BackgroundTaskResult.Failed;
       }
     }
   );
@@ -123,8 +161,10 @@ export async function registerBackgroundSyncTask() {
       if (await TaskManager.isTaskRegisteredAsync(TASK_ID)) {
         logger.trackEvent('Background sync task is registered');
       } else {
-        logger.log('Background sync task is not registered, registering now');
-        await BackgroundFetch.registerTaskAsync(TASK_ID, {
+        logger.trackEvent(
+          'Background sync task is not registered, registering now'
+        );
+        await BackgroundTask.registerTaskAsync(TASK_ID, {
           // Uses expo-notification default - at time of writing, 10 minutes on
           // Android, system minimum on iOS (10-15 minutes)
           // minimumInterval: 15 * 60,
@@ -136,7 +176,7 @@ export async function registerBackgroundSyncTask() {
         tasks: status,
       });
     } catch (err) {
-      logger.trackEvent('Failed to register background task', {
+      logger.trackError('Failed to register background task', {
         errorMessage: err instanceof Error ? err.message : err,
       });
     }
