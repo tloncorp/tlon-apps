@@ -2,37 +2,35 @@ import { createDevLogger, syncSince } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as BackgroundTask from 'expo-background-task';
-import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import { v4 as uuidv4 } from 'uuid';
 
 import { configureUrbitClient } from '../hooks/useConfigureUrbitClient';
 
 // TODO: remove, for use in debugging background tasks
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-    shouldShowAlert: true,
-  }),
-});
+// Notifications.setNotificationHandler({
+//   handleNotification: async () => ({
+//     shouldShowBanner: true,
+//     shouldShowList: true,
+//     shouldPlaySound: false,
+//     shouldSetBadge: false,
+//     shouldShowAlert: true,
+//   }),
+// });
 
-function debugLog(message: string) {
-  Notifications.scheduleNotificationAsync({
-    content: {
-      title: 'Background Log',
-      body: message,
-    },
-    trigger: null,
-  });
-}
+// function debugLog(message: string) {
+//   Notifications.scheduleNotificationAsync({
+//     content: {
+//       title: 'Background Log',
+//       body: message,
+//     },
+//     trigger: null,
+//   });
+// }
 
 const logger = createDevLogger('backgroundSync', true);
 
 async function performSync() {
-  debugLog('Initiating background sync');
   const taskExecutionId = uuidv4();
   logger.trackEvent('Initiating background sync', { taskExecutionId });
   const timings: Record<string, number> = {
@@ -132,7 +130,6 @@ export async function registerBackgroundSyncTask() {
     TASK_ID,
     async ({ error }): Promise<BackgroundTask.BackgroundTaskResult> => {
       logger.trackEvent(`Running background task`);
-      debugLog('Running background task');
       if (error) {
         logger.trackError(`Failed background task`, {
           context: 'called with error',
@@ -143,10 +140,8 @@ export async function registerBackgroundSyncTask() {
 
       try {
         await performSync();
-        debugLog('Background sync successful');
         return BackgroundTask.BackgroundTaskResult.Success;
       } catch (err) {
-        debugLog('Background sync failed');
         logger.trackError('Failed background task', {
           context: 'catch',
           errorMessage: err instanceof Error ? err.message : err,
