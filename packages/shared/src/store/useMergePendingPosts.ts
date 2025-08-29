@@ -41,7 +41,6 @@ export const mergePendingPosts = ({
   });
   if (!existingPosts.length) return newAndPendingPosts;
 
-  // --- Step 2: Establish the Filtering Window for pendingPosts ---
   const lowerPaginationBound = existingPosts[existingPosts.length - 1].sentAt;
   const upperPaginationBound = hasNewest ? Infinity : existingPosts[0].sentAt;
 
