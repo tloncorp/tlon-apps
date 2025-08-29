@@ -202,9 +202,18 @@ export function getActionGroups(
     cancelJoin: () => void;
   }
 ): ActionGroup[] {
-  if (status.isJoining) {
-    // Check isJoining first, even if isMember is true
-    // This handles the case where group is still syncing
+  if (status.isMember) {
+    // If user is a member, always allow navigation to the group
+    // The group view will handle showing appropriate loading states
+    return createActionGroups([
+      'positive',
+      {
+        title: 'Go to group',
+        action: actions.goToGroup,
+      },
+    ]);
+  } else if (status.isJoining) {
+    // Only show "Joining" state when not yet a member
     return createActionGroups(
       [
         'disabled',
@@ -221,15 +230,6 @@ export function getActionGroups(
         },
       ]
     );
-  } else if (status.isMember) {
-    // Only show "Go to group" if NOT joining (fully synced)
-    return createActionGroups([
-      'positive',
-      {
-        title: 'Go to group',
-        action: actions.goToGroup,
-      },
-    ]);
   } else if (status.isErrored) {
     return createActionGroups([
       'negative',
