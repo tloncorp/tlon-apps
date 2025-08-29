@@ -486,10 +486,7 @@ export function fillSequenceGaps(
   for (const post of responsePosts) {
     if (typeof post.sequenceNum !== 'number') {
       // this should never happen
-      logger.trackError('post missing sequence number', {
-        postId: post.id, // TODO: IMPORTANT avoid logging message data this after internal testing
-        channelId: post.channelId,
-      });
+      logger.trackError('post missing sequence number while filling gaps');
       continue;
     }
 
