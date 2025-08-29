@@ -692,6 +692,8 @@
   =?  +.pole  !?=([%v0 *] +.pole)
     [%v0 +.pole]
   ?+  pole  [~ ~]
+      [%x %v0 %v-channels ~]
+    ``noun+!>(v-channels)
       [%x %v0 %hooks ~]
     ``hook-full+!>(hooks)
   ==
