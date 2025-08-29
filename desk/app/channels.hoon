@@ -790,6 +790,19 @@
         [?-(-.q.vase %request-seqs %numbers, %request-tombs %tombstones)]
       [%arvo %b %wait now.bowl]
     ::
+        %request-seq-recovery
+      =;  [cards=(list card) *]
+        (emil cards)
+      %+  roll
+        ~(tap in ~(key by v-channels))
+      |=  [=nest:c cards=(list card) eny=_eny.bowl]
+      =/  duration  (~(rad og eny) ~m3)
+      =/  =wire  /[kind.nest]/(scot %p ship.nest)/[name.nest]
+      :_  (shax (jam [nest eny.bowl]))
+      :-  [%pass [%numbers wire] %arvo %b %wait (add now.bowl duration)]
+      :-  [%pass [%tombstones wire] %arvo %b %wait (add now.bowl duration)]
+      cards
+    ::
         [%sequence-numbers * @ *]
       =+  ;;([%sequence-numbers =nest:c count=@ud seqs=(list [id=id-post:c seq=(unit @ud)])] q.vase)
       ?>  =(src.bowl ship.nest)
