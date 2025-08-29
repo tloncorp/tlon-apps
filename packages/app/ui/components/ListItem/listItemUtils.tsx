@@ -26,12 +26,12 @@ export function getGroupStatus(group: db.Group) {
   const isRequested = group.haveRequestedInvite;
   const isInvite = group.haveInvite;
 
-  const state = isNew
-    ? 'new'
+  const state = isJoining
+    ? 'joining'
     : isErrored
       ? 'errored'
-      : isJoining
-        ? 'joining'
+      : isNew
+        ? 'new'
         : isRequested
           ? 'requested'
           : isInvite

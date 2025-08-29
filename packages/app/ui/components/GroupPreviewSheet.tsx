@@ -4,9 +4,8 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { LoadingSpinner } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Spinner, YStack } from 'tamagui';
+import { YStack } from 'tamagui';
 
-import { useStore } from '../contexts';
 import { triggerHaptic, useGroupTitle } from '../utils';
 import {
   ActionGroup,
@@ -204,6 +203,8 @@ export function getActionGroups(
   }
 ): ActionGroup[] {
   if (status.isMember) {
+    // If user is a member, always allow navigation to the group
+    // The group view will handle showing appropriate loading states
     return createActionGroups([
       'positive',
       {
@@ -212,6 +213,7 @@ export function getActionGroups(
       },
     ]);
   } else if (status.isJoining) {
+    // Only show "Joining" state when not yet a member
     return createActionGroups(
       [
         'disabled',

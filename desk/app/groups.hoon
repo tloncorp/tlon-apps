@@ -3531,6 +3531,9 @@
       =.  go-core  (go-response %channel nest [%section section.u-channel])
       ?:  go-our-host  go-core
       ::
+      ?.  (~(has by channels.group) nest)
+        ~&  >>  "groups: warning: section update for non-existent channel {<nest>} in group {<flag>} at {<now.bowl>}"
+        go-core
       =/  =channel:g  (got:by-ch nest)
       ?>  (~(has by sections.group) section.u-channel)
       =.  sections.group
