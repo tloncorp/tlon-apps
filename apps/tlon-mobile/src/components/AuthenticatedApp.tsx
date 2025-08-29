@@ -15,7 +15,7 @@ import {
   PortalProvider,
   ZStack,
 } from '@tloncorp/app/ui';
-import { sync, updateSession } from '@tloncorp/shared';
+import { sync, syncSince, updateSession } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -41,7 +41,7 @@ function AuthenticatedApp() {
       // app opened or returned from background
       if (status === 'opened' || status === 'active') {
         updateSession({ isSyncing: true });
-        hapticPerfSignal(sync.syncSince, 'syncSince', 2000);
+        syncSince();
         telemetry.captureAppActive();
         checkNodeStopped();
         refreshHostingAuth();
@@ -50,7 +50,6 @@ function AuthenticatedApp() {
 
       // app returned from background
       if (status === 'active') {
-        // sync.syncUnreads({ priority: sync.SyncPriority.High });
         setTimeout(() => {
           sync.syncPinnedItems({ priority: sync.SyncPriority.High });
         }, 100);

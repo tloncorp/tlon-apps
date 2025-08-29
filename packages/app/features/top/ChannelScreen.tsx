@@ -196,11 +196,8 @@ export default function ChannelScreen(props: Props) {
   } = store.useChannelPosts({
     enabled: !!channel && !channel?.isPendingChannel,
     channelId: currentChannelId,
-    // count: 15,
-    count: 50,
+    count: 30,
     filterDeleted: !channelConfiguration?.includeDeletedPosts,
-    // filterDeleted: false,
-    // hasCachedNewest: true,
     ...(cursor && !clearedCursor
       ? {
           mode: 'around',

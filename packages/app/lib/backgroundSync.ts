@@ -7,27 +7,6 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { configureUrbitClient } from '../hooks/useConfigureUrbitClient';
 
-// TODO: remove, for use in debugging background tasks
-// Notifications.setNotificationHandler({
-//   handleNotification: async () => ({
-//     shouldShowBanner: true,
-//     shouldShowList: true,
-//     shouldPlaySound: false,
-//     shouldSetBadge: false,
-//     shouldShowAlert: true,
-//   }),
-// });
-
-// function debugLog(message: string) {
-//   Notifications.scheduleNotificationAsync({
-//     content: {
-//       title: 'Background Log',
-//       body: message,
-//     },
-//     trigger: null,
-//   });
-// }
-
 const logger = createDevLogger('backgroundSync', true);
 
 async function performSync() {
@@ -86,12 +65,6 @@ async function performSync() {
 }
 
 const TASK_ID = 'tlon:backgroundSync:v1';
-
-export async function unregisterBackgroundSyncTask() {
-  await TaskManager.unregisterTaskAsync(TASK_ID);
-  await BackgroundTask.unregisterTaskAsync(TASK_ID);
-  await BackgroundFetch.unregisterTaskAsync(TASK_ID);
-}
 
 export async function removeLegacyTasks() {
   try {

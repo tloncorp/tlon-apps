@@ -213,7 +213,6 @@ export async function handleAction({
   switch (id) {
     case 'debugJson':
       db.debugMessageJson.setValue(!(await db.debugMessageJson.getValue()));
-      console.log(`toggling debug`, await db.debugMessageJson.getValue());
       break;
     case 'startThread':
       // give the actions time to fade out before navigating

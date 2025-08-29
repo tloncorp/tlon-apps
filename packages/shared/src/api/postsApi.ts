@@ -516,7 +516,7 @@ export function fillSequenceGaps(
     } else {
       const nextSentAt = previousSentAt + 1;
       mergedPosts.push(
-        buildSequenceStubPost({
+        toSequenceStubPost({
           channelId: examplePost.channelId,
           type: examplePost.type,
           sentAt: nextSentAt,
@@ -529,32 +529,6 @@ export function fillSequenceGaps(
   }
 
   return { posts: mergedPosts, numStubs };
-}
-
-function buildSequenceStubPost({
-  channelId,
-  type,
-  sequenceNum,
-  sentAt,
-}: {
-  channelId: string;
-  type: db.PostType;
-  sequenceNum: number;
-  sentAt?: number;
-}): db.Post {
-  const stubPost: db.Post = {
-    id: `sequence-stub-${channelId}-${sequenceNum}`,
-    type,
-    channelId,
-    authorId: '~zod',
-    sentAt: sentAt ?? Date.now(),
-    receivedAt: sentAt ?? Date.now(),
-    content: null,
-    hidden: false,
-    sequenceNum,
-    isSequenceStub: true,
-  };
-  return stubPost;
 }
 
 export type PostWithUpdateTime = {
@@ -592,7 +566,7 @@ export const getLatestPosts = async ({
       };
     });
   } catch (e) {
-    console.log('failed to sync heads');
+    logger.trackError('failed to sync heads');
     return [];
   }
 };
@@ -1322,6 +1296,32 @@ export function toPostReplyData(
     syncedAt: Date.now(),
     ...flags,
   };
+}
+
+export function toSequenceStubPost({
+  channelId,
+  type,
+  sequenceNum,
+  sentAt,
+}: {
+  channelId: string;
+  type: db.PostType;
+  sequenceNum: number;
+  sentAt?: number;
+}): db.Post {
+  const stubPost: db.Post = {
+    id: `sequence-stub-${channelId}-${sequenceNum}`,
+    type,
+    channelId,
+    authorId: '~zod',
+    sentAt: sentAt ?? Date.now(),
+    receivedAt: sentAt ?? Date.now(),
+    content: null,
+    hidden: false,
+    sequenceNum,
+    isSequenceStub: true,
+  };
+  return stubPost;
 }
 
 export function toPostContent(story?: ub.Story): PostContentAndFlags {

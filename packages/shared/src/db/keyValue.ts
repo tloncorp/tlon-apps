@@ -338,12 +338,6 @@ export const debugMessageJson = createStorageItem<boolean>({
   persistAfterLogout: false,
 });
 
-export const debugShowSequenceStubs = createStorageItem<boolean>({
-  key: 'debugShowSequenceStubs',
-  defaultValue: false,
-  persistAfterLogout: false,
-});
-
 export const debugPermittedSchedulerId = createStorageItem<string | null>({
   key: 'debugPermittedSchedulerId',
   defaultValue: null,
