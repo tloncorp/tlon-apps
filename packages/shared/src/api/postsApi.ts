@@ -445,12 +445,7 @@ export const getChannelPosts = async ({
   const postsResponse = toPagedPostsData(channelId, response);
   const { posts: finalPosts, numStubs } = fillSequenceGaps(
     postsResponse.posts,
-    {
-      lowerBound:
-        mode === 'newer' && sequenceBoundary ? sequenceBoundary : null,
-      upperBound:
-        mode === 'older' && sequenceBoundary ? sequenceBoundary : null,
-    }
+    { upperBound: null, lowerBound: null }
   );
 
   return {
