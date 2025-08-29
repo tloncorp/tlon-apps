@@ -6,19 +6,18 @@
 =/  m  (strand ,vase)
 ^-  form:m
 |^
-=/  =nest:c  (need !<((unit nest:c) arg))
-~&  "getting channel for {<nest>}"
 ;<  =v-channels:c  bind:m
   (scry:s v-channels:c /gx/channels-server/v0/v-channels/noun)
 ~&  "got channels"
-?~  channel=(~(get by v-channels) nest)
-  ~&  "channel not found"
+=;  problematic-channels=(set nest:c)
+  ~?  >>>  !=(0 ~(wyt in problematic-channels))
+    [%problematic-channels problematic-channels]
   (pure:m !>(~))
-~&  "got channel"
-=*  chan  u.channel
-=/  =log:c  log.chan
+%+  roll
+  ~(tap by v-channels)
+|=  [[=nest:c =v-channel:c] probs=(set nest:c)]
 =/  [=state *]
-  %^  (dip:log-on:c state)  log
+  %^  (dip:log-on:c state)  log.v-channel
     *state
   |=  [=state =time update=u-channel:v9:c]
   ?+  update  [~ | state]
@@ -35,9 +34,10 @@
     state(dels (~(put by dels.state) id.post [time seq.post]))
   ==
 ::  compare dels vs adds, both in existence of add and time ordering
-=/  missing-adds=(set id-post:c)
-  (~(dif in ~(key by dels.state)) ~(key by adds.state))
-~&  [%missing-adds missing-adds]
+=/  missing-adds=(list id-post:c)
+  ~(tap in (~(dif in ~(key by dels.state)) ~(key by adds.state)))
+=/  has-missing-adds  (check-list missing-adds)
+~?  >>  has-missing-adds  [nest %missing-adds missing-adds]
 =/  order-issues=(list id-post:c)
   %+  murn
     ~(tap by adds.state)
@@ -48,7 +48,8 @@
   ?:  (lte time log-time.u.del)  ~
   ::  otherwise return this id
   `id
-~&  [%order-issues order-issues]
+=/  has-order-issues  (check-list order-issues)
+~?  >>  has-order-issues  [nest %order-issues order-issues]
 =/  disagreed-seqs=(list id-post:c)
   %+  murn
     ~(tap by dels.state)
@@ -58,14 +59,16 @@
   ::  if the seqs match, we're good
   ?:  =(seq seq.u.add)  ~
   `id
-~&  [%disagreeing-add-del disagreed-seqs]
+=/  has-disagreed-seqs  (check-list disagreed-seqs)
+~?  >>  has-disagreed-seqs  [nest %disagreeing-add-del disagreed-seqs]
 =/  [* duplicates=(map id-post:c @ud)]
   %+  roll
     ~(tap by adds.state)
   |=  [[id=id-post:c time=@da seq=@ud] [seen=(set @ud) dupes=(map id-post:c @ud)]]
   ?.  (~(has in seen) seq)  [(~(put in seen) seq) dupes]
   [seen (~(put by dupes) id seq)]
-~&  [%duplicate-sequences duplicates]
+=/  has-duplicates  !=(0 ~(wyt by duplicates))
+~?  >>  has-duplicates  [nest %duplicate-sequences duplicates]
 =/  merged-seqs=(set @ud)
   %-  sy
   %+  turn
@@ -73,15 +76,18 @@
   |=([* * seq=@ud] seq)
 :: this should equal last sequence number
 =/  total=@ud  ~(wyt in merged-seqs)
-~&  [%total-sequences total]
-=/  seq-range=(set @ud)  ?.((gth total 0) ~ (sy (gulf 1 total)))
+=/  total-posts  (wyt:on-v-posts:c posts.v-channel)
+~&  >  [nest %total-sequences total]
+~&  >  [nest %total-posts total-posts]
+=/  seq-range=(set @ud)  ?:(=(0 total) ~ (sy (gulf 1 total)))
 =/  missing-nos=(set @ud)  (~(dif in seq-range) merged-seqs)
-~&  [%missing-sequence-numbers missing-nos]
+=/  has-missing-nos  !=(0 ~(wyt in missing-nos))
+~?  >>  has-missing-nos  [nest %missing-sequence-numbers missing-nos]
 =/  disagreeing-sequences=(list id-post:c)
   %+  murn
     ~(tap by (~(uni by adds.state) dels.state))
   |=  [id=id-post:c time=@da seq=@ud]
-  ?~  post=(get:on-v-posts:c posts.chan id)  ~
+  ?~  post=(get:on-v-posts:c posts.v-channel id)  ~
   =/  post-seq
     ?-  -.u.post
       %&  seq.u.post
@@ -89,11 +95,24 @@
     ==
   ?:  =(seq post-seq)  ~
   `id
-~&  [%disagreeing-sequences disagreeing-sequences]
-(pure:m !>(~))
+=/  has-disagreeing-sequences  (check-list disagreeing-sequences)
+~?  >>  has-disagreeing-sequences  [nest %disagreeing-sequences disagreeing-sequences]
+=/  has-problems
+  ?|  has-disagreeing-sequences
+      has-disagreed-seqs
+      has-order-issues
+      has-missing-adds
+      has-missing-nos
+      has-duplicates
+  ==
+?.  has-problems  probs
+(~(put in probs) nest)
 +$  state
   $:  adds=(map id-post:c [log-time=@da seq=@ud])
       dels=(map id-post:c [log-time=@da seq=@ud])
       edits=(map id-post:c count=@ud)
   ==
+++  check-list
+  |=  lst=(list id-post:c)
+  !=(0 (lent lst))
 --
