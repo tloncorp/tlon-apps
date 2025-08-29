@@ -2936,10 +2936,41 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
     posts.map((p) => [p.id, p.channelId])
   );
 
+  // Check if we have pending hidden post IDs to apply
+  const settings = await ctx.db.query.settings.findFirst({
+    where: eq($settings.id, SETTINGS_SINGLETON_KEY),
+  });
+  const pendingHiddenIds = Array.isArray(settings?.pendingHiddenPostIds)
+    ? (settings.pendingHiddenPostIds as string[])
+    : [];
+
+  if (pendingHiddenIds.length > 0) {
+    logger.log('Found pending hidden post IDs:', pendingHiddenIds);
+  }
+
+  const pendingHiddenIdsSet = new Set(pendingHiddenIds);
+
+  // Apply hidden state to posts that match pending IDs
+  const postsWithHiddenState = posts.map((p) => ({
+    ...p,
+    hidden: pendingHiddenIdsSet.has(p.id) || p.hidden,
+  }));
+
+  // Track which posts were marked as hidden from the pending list
+  const hiddenFromPending = posts.filter((p) => pendingHiddenIdsSet.has(p.id));
+  const hiddenInBatch = postsWithHiddenState.filter((p) => p.hidden);
+
+  if (hiddenInBatch.length > 0) {
+    logger.log(
+      'Marking posts as hidden during insert:',
+      hiddenInBatch.map((p) => p.id)
+    );
+  }
+
   await ctx.db
     .insert($posts)
     .values(
-      posts.map((p) => ({
+      postsWithHiddenState.map((p) => ({
         ...p,
         groupId: sql`(SELECT ${$channels.groupId} FROM ${$channels} WHERE ${$channels.id} = ${p.channelId})`,
       }))
@@ -2975,21 +3006,97 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
     ctx
   );
   logger.log('clear matched pending');
+
+  // Clean up applied hidden post IDs from the pending list
+  if (hiddenFromPending.length > 0 && pendingHiddenIds.length > 0) {
+    const appliedIds = new Set(hiddenFromPending.map((p) => p.id));
+    const remainingPendingIds = pendingHiddenIds.filter(
+      (id) => !appliedIds.has(id)
+    );
+
+    await ctx.db
+      .update($settings)
+      .set({ pendingHiddenPostIds: remainingPendingIds })
+      .where(eq($settings.id, SETTINGS_SINGLETON_KEY));
+
+    logger.log(
+      'Cleaned up applied hidden IDs, remaining:',
+      remainingPendingIds.length
+    );
+  }
 }
 
 export const resetHiddenPosts = createWriteQuery(
   'resetHiddenPosts',
   async (postIds: string[], ctx: QueryCtx) => {
-    if (postIds.length === 0) return;
+    if (postIds.length === 0) {
+      logger.log('resetHiddenPosts called with empty array');
+      // Clear stored hidden post IDs if empty array
+      await ctx.db
+        .insert($settings)
+        .values({ id: SETTINGS_SINGLETON_KEY, pendingHiddenPostIds: [] })
+        .onConflictDoUpdate({
+          target: $settings.id,
+          set: { pendingHiddenPostIds: [] },
+        });
+      return;
+    }
 
-    logger.log('resetHiddenPosts', postIds);
+    logger.log(
+      'resetHiddenPosts called with',
+      postIds.length,
+      'posts:',
+      postIds
+    );
 
+    // Store the hidden post IDs in settings for later application
     await ctx.db
-      .update($posts)
-      .set({ hidden: inArray($posts.id, postIds) })
-      .where(or($posts.hidden, inArray($posts.id, postIds)));
+      .insert($settings)
+      .values({ id: SETTINGS_SINGLETON_KEY, pendingHiddenPostIds: postIds })
+      .onConflictDoUpdate({
+        target: $settings.id,
+        set: { pendingHiddenPostIds: postIds },
+      });
+    logger.log('Stored hidden post IDs in settings for later application');
+
+    // Check what posts exist with these IDs
+    const existingPosts = await ctx.db.query.posts.findMany({
+      where: inArray($posts.id, postIds),
+      columns: { id: true },
+    });
+    logger.log(
+      'Found matching posts in DB:',
+      existingPosts.map((p) => p.id)
+    );
+
+    // Update any posts that already exist
+    if (existingPosts.length > 0) {
+      const existingIds = existingPosts.map((p) => p.id);
+      await ctx.db
+        .update($posts)
+        .set({ hidden: true })
+        .where(inArray($posts.id, existingIds));
+      logger.log('Updated existing posts to hidden:', existingIds);
+    }
+
+    // Also unhide posts that should no longer be hidden
+    const currentlyHidden = await ctx.db.query.posts.findMany({
+      where: eq($posts.hidden, true),
+      columns: { id: true },
+    });
+    const idsToUnhide = currentlyHidden
+      .map((p) => p.id)
+      .filter((id) => !postIds.includes(id));
+
+    if (idsToUnhide.length > 0) {
+      await ctx.db
+        .update($posts)
+        .set({ hidden: false })
+        .where(inArray($posts.id, idsToUnhide));
+      logger.log('Unhid posts:', idsToUnhide);
+    }
   },
-  ['posts']
+  ['posts', 'settings']
 );
 
 export const getHiddenPosts = createReadQuery(
