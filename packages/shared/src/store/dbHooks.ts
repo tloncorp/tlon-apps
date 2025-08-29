@@ -681,5 +681,5 @@ export const usePendingPostsInChannel = (channelId: string) => {
   });
 
   const pendingPosts = logic.useOptimizedQueryResults(data);
-  return pendingPosts;
+  return pendingPosts ?? [];
 };
