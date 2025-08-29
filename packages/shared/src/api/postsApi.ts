@@ -484,7 +484,7 @@ export function fillSequenceGaps(
 
   const existingPostMap = new Map<number, db.Post>();
   for (const post of responsePosts) {
-    if (!post.sequenceNum) {
+    if (typeof post.sequenceNum !== 'number') {
       // this should never happen
       logger.trackError('post missing sequence number', {
         postId: post.id, // TODO: IMPORTANT avoid logging message data this after internal testing
@@ -654,10 +654,10 @@ export async function addReaction({
       postId,
       emoji,
       context: 'addReaction_api',
-      stack: new Error().stack
+      stack: new Error().stack,
     });
   }
-  
+
   const isDmOrGroupDm =
     isDmChannelId(channelId) || isGroupDmChannelId(channelId);
 
@@ -1228,17 +1228,20 @@ export function toPostData(
       const reacts = post?.seal.reacts ?? {};
       // Check for shortcodes in initial post reactions
       if (Object.keys(reacts).length > 0) {
-        const shortcodeReactions = Object.entries(reacts).filter(([, v]) => 
-          typeof v === 'string' && /^:[a-zA-Z0-9_+-]+:?$/.test(v)
+        const shortcodeReactions = Object.entries(reacts).filter(
+          ([, v]) => typeof v === 'string' && /^:[a-zA-Z0-9_+-]+:?$/.test(v)
         );
-        
+
         if (shortcodeReactions.length > 0) {
           logger.trackError('Shortcode reactions in initial post load', {
             postId: id,
             channelId,
-            shortcodeReactions: shortcodeReactions.map(([k, v]) => ({ user: k, value: v })),
+            shortcodeReactions: shortcodeReactions.map(([k, v]) => ({
+              user: k,
+              value: v,
+            })),
             allReacts: reacts,
-            context: 'initial_post_load'
+            context: 'initial_post_load',
           });
         }
       }
@@ -1475,26 +1478,29 @@ export function toReactionsData(
     .filter(([, r]) => {
       const isString = typeof r === 'string';
       if (!isString) {
-        logger.log('toReactionsData: filtering out non-string reaction', { 
-          postId, 
+        logger.log('toReactionsData: filtering out non-string reaction', {
+          postId,
           reaction: r,
-          type: typeof r 
+          type: typeof r,
         });
       }
       return isString;
     })
     .map(([name, reaction]) => {
       // Detect and log shortcode patterns
-      if (typeof reaction === 'string' && /^:[a-zA-Z0-9_+-]+:?$/.test(reaction)) {
+      if (
+        typeof reaction === 'string' &&
+        /^:[a-zA-Z0-9_+-]+:?$/.test(reaction)
+      ) {
         logger.trackError('Shortcode reaction detected in toReactionsData', {
           postId,
           contactId: name,
           reaction,
           context: 'channel_reactions',
-          stack: new Error().stack // To trace where this is called from
+          stack: new Error().stack, // To trace where this is called from
         });
       }
-      
+
       return {
         contactId: name,
         postId,
