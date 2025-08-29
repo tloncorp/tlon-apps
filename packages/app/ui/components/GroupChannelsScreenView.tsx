@@ -313,10 +313,12 @@ export const GroupChannelsScreenView = React.memo(
             padding="$m"
           >
             <Text color="$primaryText" fontSize="$m" textAlign="center">
-              You don&apos;t have access to any channels in this group.
+              No channels available in this group yet.
             </Text>
             <Text color="$primaryText" fontSize="$m" textAlign="center">
-              Please contact the group host to request access.
+              {isGroupAdmin
+                ? 'Create a channel to get started.'
+                : 'The group host can create channels or grant you access to existing ones.'}
             </Text>
           </YStack>
         ) : (
