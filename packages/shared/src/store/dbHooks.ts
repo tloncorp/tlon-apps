@@ -673,8 +673,6 @@ export const useTelemetrySettings = () => {
 };
 
 export const usePendingPostsInChannel = (channelId: string) => {
-  const [cacheKey, setCacheKey] = useState('');
-  const pendingPosts = useRef<db.Post[]>([]);
   const deps = useKeyFromQueryDeps(db.getPendingPosts);
   const { data } = useQuery({
     queryKey: [['pendingPosts', channelId], deps],
@@ -682,18 +680,6 @@ export const usePendingPostsInChannel = (channelId: string) => {
     enabled: Boolean(channelId),
   });
 
-  useEffect(() => {
-    const pending = data ?? [];
-    const sorted = pending.sort((a, b) => a.sentAt - b.sentAt);
-    const nextCacheKey = sorted.reduce(
-      (acc, post) => `${acc}:${post.sentAt}`,
-      ''
-    );
-    if (nextCacheKey !== cacheKey) {
-      setCacheKey(nextCacheKey);
-      pendingPosts.current = sorted.reverse();
-    }
-  }, [cacheKey, data]);
-
-  return pendingPosts.current;
+  const pendingPosts = logic.useOptimizedQueryResults(data);
+  return pendingPosts;
 };
