@@ -285,7 +285,12 @@ export const GroupChannelsScreenView = React.memo(
         {isPersonalGroup && group && (
           <WayfindingNotice.GroupChannels group={group} />
         )}
-        {group && group.channels && group.channels.length ? (
+        {group && group.joinStatus === 'joining' ? (
+          // Show loading spinner while group is syncing
+          <YStack flex={1} justifyContent="center" alignItems="center">
+            <LoadingSpinner />
+          </YStack>
+        ) : group && group.channels && group.channels.length > 0 ? (
           <FlashList
             data={listItems}
             renderItem={renderItem}
@@ -299,12 +304,8 @@ export const GroupChannelsScreenView = React.memo(
               paddingBottom: insets.bottom,
             }}
           />
-        ) : group &&
-          group.channels &&
-          group.channels.length === 0 &&
-          !group.joinStatus ? (
-          // Only show "no access" if we're certain the group has fully synced
-          // and there are truly no channels available
+        ) : group && group.channels && group.channels.length === 0 ? (
+          // Only show "no channels" message when we're certain the group has fully synced
           <YStack
             flex={1}
             justifyContent="center"
@@ -322,7 +323,7 @@ export const GroupChannelsScreenView = React.memo(
             </Text>
           </YStack>
         ) : (
-          // Show loading spinner while channels are syncing
+          // Show loading spinner while waiting for group data
           <YStack flex={1} justifyContent="center" alignItems="center">
             <LoadingSpinner />
           </YStack>
