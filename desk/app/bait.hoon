@@ -1,4 +1,4 @@
-/-  reel
+/-  reel, groups-ver
 /+  default-agent, verb, dbug, server, logs, *reel
 |%
 +$  card  card:agent:gall
@@ -6,6 +6,7 @@
   $%  state-0
       state-1
       state-2
+      state-3
   ==
 ::
 +$  state-0
@@ -19,6 +20,11 @@
 +$  state-2
   $:  %2
       token-metadata=(map token:reel metadata:reel)
+  ==
++$  state-3
+  $:  %3
+      token-metadata=(map token:reel metadata:reel)
+      stable-id=(jug cord token:reel)
   ==
 --
 ::
@@ -58,7 +64,7 @@
   ==
 --
 ::
-=|  state-2
+=|  state-3
 =*  state  -
 ::
 %-  agent:dbug
@@ -76,12 +82,10 @@
 ++  on-load
   |=  old-state=vase
   ^-  (quip card _this)
-  =/  old  !<(versioned-state old-state)
-  ?-  -.old
-      %2
-    `this(state old)
-  ::
-      %1
+  =+  !<(old=versioned-state old-state)
+  =?  old  ?=(%0 -.old)
+    *state-2
+  =?  old  ?=(%1 -.old)
     =/  new-metadata
       %-  ~(gas by *(map token:reel metadata:reel))
       %+  turn
@@ -90,11 +94,23 @@
       =/  new-token
         (rap 3 (scot %p inviter) '/' token ~)
       [new-token meta]
-    `this(state [%2 new-metadata])
-  ::
-      %0
-    `this(state *state-2)
-  ==
+    [%2 new-metadata]
+  =?  old  ?=(%2 -.old)
+    :: scan the token-metadata to construct the stable-id index
+    ::
+    =|  stable-id=(jug cord token:reel)
+    =.  stable-id
+      %+  roll  ~(tap by token-metadata)
+      |=  [[=token:reel =metadata:reel] =_stable-id]
+      ?~  id=(~(get by fields.metadata) 'group')
+        stable-id
+      ::  don't index personal invite links
+      ?:  =(u.id '~zod/personal-invite-link')  stable-id
+      (~(put ju stable-id) u.id token)
+    [%3 token-metadata.old stable-id]
+  ?>  ?=(%3 -.old)
+  =.  state  old
+  `this
 ::
 ++  on-poke
   |=  [=mark =vase]
@@ -230,13 +246,56 @@
       %bait-describe
     =+  !<([=nonce:reel =metadata:reel] vase)
     =/  =token:reel  (scot %uv (end [3 16] eny.bowl))
-    :_  this(token-metadata (~(put by token-metadata) token metadata))
+    ::  record the token metadata and add the token to the stable-id set
+    ::  if the group field exists.
+    ::
+    =.  token-metadata
+      (~(put by token-metadata) token metadata)
+    =+  id=(~(get by fields.metadata) 'group')
+    =?  stable-id  &(?=(^ id) !=(id '~zod/personal-invite-link'))
+      (~(put ju stable-id) u.id token)
+    :_  this
     =/  =cage  reel-confirmation+!>([nonce token])
     ~[[%pass /confirm/[nonce] %agent [src.bowl %reel] %poke cage]]
   ::
       %bait-undescribe
     =+  !<(token=cord vase)
-    `this(token-metadata (~(del by token-metadata) token))
+    =+  metadata=(~(get by token-metadata) token)
+    =?  stable-id  ?=(^ metadata)
+      ?~  id=(~(get by fields.u.metadata) 'group')
+        stable-id
+      (~(del ju stable-id) u.id token)
+    `this
+  ::
+      ::  update the invite metadata by token. if the metadata refer a group,
+      ::  update the set of invites linked through the group id.
+      ::
+      %bait-update
+    =+  !<([=token:reel update=metadata:reel] vase)
+    ~&  bait-update+[token update]
+    ?~  meta=(~(get by token-metadata) token)  `this
+    ::  update the invite
+    ::
+    =.  token-metadata
+      %+  ~(jab by token-metadata)  token
+      |=  =metadata:reel
+      metadata(fields (~(uni by fields.metadata) fields.update))
+    ?~  id=(~(get by fields.u.meta) 'group')  `this
+    ::  update linked invites
+    ::
+    =/  flag=(unit flag:groups-ver)  (rush %test flag)
+    ?~  flag  `this
+    ::  only the group host is allowed to update linked invites
+    ?>  =(p.u.flag src.bowl)
+    =.  token-metadata
+      %+  roll  ~(tap in (~(get ju stable-id) u.id))
+      |=  [=token:reel =_token-metadata]
+      ?~  metadata=(~(get by token-metadata) token)
+        token-metadata
+      ~&  bait-update-linked-invite+token
+      %+  ~(put by token-metadata)  token
+      u.metadata(fields (~(uni by fields.u.metadata) fields.update))
+    `this
   ::
       %bind-slash
     :_  this

@@ -1,5 +1,6 @@
 /-  reel
 |%
+++  flag  ;~((glue fas) ;~(pfix sig fed:ag) sym)
 ++  enjs-metadata
   |=  =metadata:reel
   ^-  json

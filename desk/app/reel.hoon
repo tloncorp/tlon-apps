@@ -1,5 +1,5 @@
-/-  reel
-/+  default-agent, verb, dbug, logs, *reel
+/-  reel, groups-ver
+/+  default-agent, verb, dbug, logs, *reel, s=subscriber, t=contacts
 |%
 +$  card  card:agent:gall
 +$  versioned-state
@@ -8,6 +8,7 @@
       state-2
       state-3
       state-4
+      state-5
   ==
 ::
 ::  vic: URL of bait service
@@ -54,13 +55,24 @@
       open-describes=(set token:reel)
       stable-id=(map cord token:reel)
   ==
-++  flag  ;~((glue fas) ;~(pfix sig fed:ag) sym)
++$  state-5
+  $:  %5
+      vic=@t
+      civ=ship
+      our-profile=contact:t
+      our-metadata=(map token:reel metadata:reel)
+      open-link-requests=(set (pair ship cord))
+      open-describes=(set token:reel)
+      stable-id=(map cord token:reel)
+      =^subs:s
+  ==
+::
 ::  url with old style token
 ++  url-for-token
   |=  [vic=cord token=cord]
   (cat 3 vic token)
 --
-=|  state-4
+=|  state-5
 =*  state  -
 ::
 %-  agent:dbug
@@ -69,19 +81,34 @@
 +*  this  .
     def   ~(. (default-agent this %|) bowl)
     log   ~(. logs [our.bowl /logs])
+  ::
+    groups-path    /v1/groups
+    contacts-path  /v1/news
 ::
 ++  on-init
   ^-  (quip card _this)
-  `this(vic 'https://tlon.network/lure/', civ ~loshut-lonreg)
+  :_  this(vic 'https://tlon.network/lure/', civ ~loshut-lonreg)
+  :~  [%pass /groups %agent [our.bowl %groups] %watch groups-path]
+      [%pass /contacts %agent [our.bowl %contacts] %watch contacts-path]
+  ==
 ::
 ++  on-save  !>(state)
 ++  on-load
-  |=  old-state=vase
+  |=  =vase
   ^-  (quip card _this)
-  =/  old  !<(versioned-state old-state)
-  ?-  -.old
-      %4
-    =.  state  old
+  =+  !<(old=versioned-state vase)
+  =?  old  ?=(%0 -.old)
+    [%4 'https://tlon.network/lure/' ~loshut-lonreg ~ ~ ~ ~]
+  =?  old  ?=(%1 -.old)
+    [%4 'https://tlon.network/lure/' ~loshut-lonreg ~ ~ ~ ~]
+  =?  old  ?=(%2 -.old)
+    [%4 vic.old civ.old our-metadata.old ~ ~ ~]
+  =?  old  ?=(%3 -.old)
+    [%4 vic.old civ.old our-metadata.old outstanding-pokes.old ~ ~]
+  =?  old  ?=(%4 -.old)
+    ::  normalize lure invites: we cast tokens which are not a @uv string
+    ::  into a flag form.
+    ::
     =^  new-md  stable-id
       %+  roll
         ~(tap by our-metadata)
@@ -94,15 +121,22 @@
       =/  new  (rap 3 (scot %p our.bowl) '/' token ~)
       :-  (~(put by md) new metadata)
       (~(put by id) new new)
-    `this(our-metadata new-md)
-      %3
-    `this(state [%4 vic.old civ.old our-metadata.old outstanding-pokes.old ~ ~])
-      %2
-    `this(state [%4 vic.old civ.old our-metadata.old ~ ~ ~])
-      %1
-    `this(state [%4 'https://tlon.network/lure/' ~loshut-lonreg ~ ~ ~ ~])
-      %0
-    `this(state [%4 'https://tlon.network/lure/' ~loshut-lonreg ~ ~ ~ ~])
+    :*  %5
+        vic.old
+        civ.old
+        *contact:t  ::  profile
+        new-md
+        open-link-requests.old
+        open-describes.old
+        stable-id
+        ~  ::  subs
+    ==
+  ?>  ?=(%5 -.old)
+  =.  state  old
+  :_  this
+  ::TODO do not rewatch if we have cards in wex.bowl
+  :~  [%pass /groups %agent [our.bowl %groups] %watch groups-path]
+      [%pass /contacts %agent [our.bowl %contacts] %watch contacts-path]
   ==
 ::
 ++  on-poke
@@ -141,8 +175,9 @@
           ['inviter' (scot %p src.bowl)]
           ['group' id]
       ==
-    ::  the nonce here is a temporary identifier for the metadata
-    ::  a new one will be assigned by the bait provider and returned to us
+    ::  the nonce here is a temporary identifier for the metadata.
+    ::  a new one will be assigned by the bait provider and returned to us.
+    ::
     =/  =nonce:reel  (scot %da now.bowl)
     ::  delete old metadata if we have an existing token for this id
     =?  our-metadata  ?=(^ old-token)
@@ -208,6 +243,7 @@
       ?.  (~(has by our-metadata) full-token)  `[full-token '']
       `[full-token (url-for-token vic full-token)]
     ~[[%pass [%token-link-want token ~] %agent [src dap]:bowl %poke %reel-give-token-link !>(result)]]
+  ::
       %reel-give-token-link
     =+  !<(result=(unit [cord cord]) vase)
     ?~  result  `this
@@ -221,7 +257,118 @@
   |=  [=wire =sign:agent:gall]
   ^-  (quip card _this)
   =/  =(pole knot)  wire
-  ?+  pole  (on-agent:def wire sign)
+  ?+    pole  (on-agent:def wire sign)
+      [%update %contact ~]  `this  ::  TODO log failure
+      [%update %group ~]  `this :: TODO log failure
+  ::
+      [%contacts ~]
+    ?+    -.sign  (on-agent:def wire sign)
+        %kick
+      =^  caz=(list card)  subs
+        (~(subscribe s [subs bowl]) /contacts [our.bowl %contacts] contacts-path &)
+      [caz this]
+    ::
+        %watch-ack
+      ?~  p.sign  `this
+      :_  this
+      ~[(fail:log %watch-ack ['failed to subscribe to contacts' u.p.sign] ~)]
+    ::
+        %fact
+      =+  !<(=response:t q.cage.sign)
+      ?.  ?=(%self -.response)  `this
+      =*  profile  con.response
+      =>
+        |%
+        ::  +hand: choose right and test equality
+        ++  hand
+          |*  [a=(unit) b=(unit)]
+          ^-  [_b ?]
+          ?~  a  [b ?=(~ b)]
+          ?~  b  [~ ?=(~ a)]
+          [b =(u.a u.b)]
+        --
+      ::  check profile for relevant changes
+      ::
+      =/  [nickname=(unit @t) axe=?]
+        %+  hand
+          (~(get cy:t our-profile) %nickname %text)
+        (~(get cy:t profile) %nickname %text)
+      =/  [avatar=(unit @t) bax=?]
+        %+  hand
+          (~(get cy:t our-profile) %avatar %look)
+        (~(get cy:t profile) %avatar %look)
+      =/  [color=(unit @ux) cax=?]
+        %+  hand
+          (~(get cy:t our-profile) %color %tint)
+        (~(get cy:t profile) %color %tint)
+      =.  our-profile  profile
+      ::  nothing relevant has changed, skip the update
+      ?:  &(axe bax cax)  `this
+      =|  update=metadata:reel
+      =.  tag.update  'group-0'
+      =.  fields.update
+        %-  ~(gas by *(map cord cord))
+        :~  'inviterNickname'^?^(nickname u.nickname (scot %p our.bowl))
+            'inviterAvatarImage'^?^(avatar u.avatar '')
+            'inviterColor'^?^(color (rsh [3 2] u.color) '')
+        ==
+      ::  update our lure links with new nickname and avatar image
+      ::
+      =.  our-metadata
+        %-  ~(run by our-metadata)
+        |=  meta=metadata:reel
+        meta(fields (~(uni by fields.meta) fields.update))
+      ::  request the bait provider to update our invite links
+      ::
+      =/  caz=(list card)
+        %+  turn  ~(tap by our-metadata)
+        |=  [=token:reel =metadata:reel]
+        [%pass /update/contact %agent [civ %bait] %poke bait-update+!>([token metadata])]
+      [caz this]
+    ==
+  ::
+      [%groups ~]
+    ?+    -.sign  (on-agent:def wire sign)
+        %kick
+      =^  caz=(list card)  subs
+        (~(subscribe s [subs bowl]) /groups [our.bowl %groups] groups-path &)
+      [caz this]
+    ::
+        %watch-ack
+      ?~  p.sign  `this
+      :_  this
+      ~[(fail:log %watch-ack ['failed to subscribe to groups' u.p.sign] ~)]
+    ::
+        %fact
+      =+  !<(=r-groups:v7:groups-ver q.cage.sign)
+      ?.  ?=(%meta -.r-group.r-groups)  `this
+      =*  flag  flag.r-groups
+      =*  meta  meta.r-group.r-groups
+      =+  id=(rap 3 (scot %p p.flag) '/' q.flag ~)
+      ::TODO this should not occur, but we should log it if it does.
+      ?~  token=(~(get by stable-id) id)  `this
+      =|  =metadata:reel
+      =.  tag.metadata  'groups-0'
+      =.  fields.metadata
+        %-  ~(gas by *(map cord cord))
+        :~  'invitedGroupTitle'^title.meta
+            'invitedGroupDescription'^description.meta
+            'invitedGroupIconImageUrl'^image.meta
+        ==
+      ::  update our group invite link
+      ::
+      =.  our-metadata
+        ?~  our-meta=(~(get by our-metadata) u.token)
+          our-metadata
+        %+  ~(put by our-metadata)  u.token
+        u.our-meta(fields (~(uni by fields.u.our-meta) fields.metadata))
+      ::  update the bait provider if we are the group host
+      ::
+      ?.  =(p.flag our.bowl)  `this
+      :_  this
+      [%pass /update/group %agent [civ %bait] %poke bait-update+!>([u.token metadata])]~
+    ==
+  ::
       [%token-link @ name=@ ~]
     ?+  -.sign  (on-agent:def wire sign)
         %poke-ack
