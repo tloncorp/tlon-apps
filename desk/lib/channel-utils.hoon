@@ -1132,6 +1132,152 @@
 ++  u-post-set-7-to-8  v8:u-post-set:v7:ccv
 ++  u-post-not-set-7-to-8  v8:u-post-not-set:v7:ccv
 ++  log-7-to-8  v7:log:v8:ccv
+::  +repair-channel: patches seq nr and tombstone problems
+::
+::    various migrations and adjustments might have caused channel state to
+::    become inconsistent. the below addresses the following problems:
+::    - orphaned/bunted tombstones, in both the log and posts lists
+::    - inconsistent sequence nrs between log entries
+::    - inconsistent sequence nrs between log and posts
+::    - gaps in sequence nrs in the posts
+::    - duplicate sequence nrs in the posts
+::    it achieves this by walking the log from past to present. it tracks a
+::    fresh .count, incrementing only for the first observed message creation.
+::    it tracks the count (sequence nr) and author at message creation time.
+::    (so, yes, we mint sequence numbers from scratch here.)
+::    when encountering edits or deletes, it reuses those exact details,
+::    changing both the log entry and post itself as necessary.
+::    after you run this (on the channel host), take care to make clients
+::    (re-)request the seqs and tombs!
+::
+++  repair-channel
+  |=  [n=nest:v9:c v=v-channel:v9:c]
+  ^+  v
+  ~&  >  [%repairing nest=n]
+  ~>  %bout.[0 'repairing channel']
+  =.  v  (repair-from-log n v)
+  =.  posts.v  (drop-bad-tombstones posts.v)
+  v
+++  drop-bad-tombstones
+  |=  posts=v-posts:v9:c
+  ^+  posts
+  =<  +
+  %-  (dip:on-v-posts:v9:c ,~)
+  :+  posts  ~
+  |=  [~ =id-post:v9:c post=(may:v9:c v-post:v9:c)]
+  ^-  [(unit _post) stop=? ~]
+  :_  [| ~]
+  ?.  ?=(%| -.post)  `post
+  ?:  &(=(*@ud seq.post) =(*@p author.post))
+    ~?  >>>  !=(id.post del-at.post)  [%dropping-tombstone-but-had-real-id id.post]
+    ~
+  `post
+++  repair-from-log
+  |=  [n=nest:v9:c v=v-channel:v9:c]
+  ^+  v
+  ::  do a "repair" pass over the channel: walk the log and mint new seq nrs,
+  ::  hard-set all seq nrs and authors, and ensure that the log contains
+  ::  consistent sequence nrs for every post id.
+  ::
+  =-  v(posts posts, count count, log ->)
+  =/  store  (map id-post:v9:c ,[seq=@ud aut=author:v9:c])
+  %-  (dyp:mo-log:v9:c u-channel:v9:c ,[=_posts.v =store count=@ud])
+  :+  log.v
+    [posts.v *store 0]
+  |=  [[posts=v-posts:v9:c =store count=@ud] =time update=u-channel:v9:c]
+  ^-  [(unit u-channel:v9:c) _posts _store _count]
+  =*  info  [nest=n id=id.update log=time]
+  ?+  update  [`update posts store count]
+      [%post * %set %& *]
+    ~|  info
+    ?.  (~(has by store) id.update)
+      ::  encountering for the first time, post creation.
+      ::  (re-)set immutables in the posts storage, and remember them for later.
+      ::
+      =.  count  +(count)
+      ::~?  >>  !=(count seq.post.u-post.update)  [%mismatch-log-seq count=count in-log=seq.post.u-post.update]
+      =.  store
+        %+  ~(put by store)  id.update
+        [count author.post.u-post.update]
+      =.  posts
+        ::TODO  non-crashing in prod?
+        ~|  %missing-post
+        %^  jab:mo-v-posts:v9:c  posts
+          id.update
+        |=  post=(may:v9:c v-post:v9:c)
+        ?-  -.post
+          %&  ::~?  >>  !=(seq.post count)        [%fixing-seqs in-posts=seq.post in-logs=seq.post.u-post.update count=count]
+              ::~?  >>  !=(author.post author.post.u-post.update)  [%fixing-author in-posts=author.post in-logs=author.post.u-post.update]
+              post(seq count, author author.post.u-post.update)
+          %|  ::~?  >>  !=(seq.post count)        [%fixing-seqs in-posts=seq.post in-logs=seq.post.u-post.update count=count]
+              ::~?  >>  !=(author.post author.post.u-post.update)  [%fixing-author in-posts=author.post in-logs=author.post.u-post.update]
+              post(seq count, author author.post.u-post.update)
+        ==
+      =.  seq.post.u-post.update  count
+      [`update posts store count]
+    ::  encountering for the second time, post edit.
+    ::  ensure immutables remain consistent, even in the log.
+    ::
+    =+  (~(got by store) id.update)
+    ~?  >>  !=(seq seq.post.u-post.update)     [%fixing-log-seq in-store=seq in-log=seq.post.u-post.update]
+    ~?  >>  !=(aut author.post.u-post.update)  [%fixing-log-author in-store=aut in-log=author.post.u-post.update]
+    =.  update  update(seq.post.u-post seq, author.post.u-post aut)
+    =.  posts
+      ::REVIEW  non-crashing in prod? what would you do?
+      ~|  %missing-post-2
+      %^  jab:mo-v-posts:v9:c  posts
+        id.update
+      |=  post=(may:v9:c v-post:v9:c)
+      ::NOTE  if these result in changes, that means the logic in the branch
+      ::      above didn't do its job correctly!
+      ?-  -.post
+        %&  ~?  >>>  !=(seq.post seq.post.u-post.update)        [%fixing-seqs-2 in-posts=seq.post in-logs=seq.post.u-post.update]
+            ~?  >>>  !=(author.post author.post.u-post.update)  [%fixing-author-2 in-posts=author.post in-logs=author.post.u-post.update]
+            post(seq seq.post.u-post.update, author author.post.u-post.update)
+        %|  ~?  >>>  !=(seq.post seq.post.u-post.update)        [%fixing-seqs-2 in-posts=seq.post in-logs=seq.post.u-post.update]
+            ~?  >>>  !=(author.post author.post.u-post.update)  [%fixing-author-2 in-posts=author.post in-logs=author.post.u-post.update]
+            post(seq seq.post.u-post.update, author author.post.u-post.update)
+      ==
+    [`update posts store count]
+  ::
+      [%post * %set %| *]
+    ~|  info
+    ::  deletion. make sure log and post are consistent with previous entry.
+    ::
+    ?.  (~(has by store) id.update)
+      ::  we might have bunted tombstones in for which no real post data
+      ::  exists. these likely originate from bad diary/heap migration way
+      ::  back when. drop them from the log and from the state.
+      ?:  &(=(0 seq.post.u-post.update) =(id.post.u-post.update del-at.post.u-post.update))
+        ::~&  >>>  [%dropping-bunted-delete info]
+        [~ +:(del:on-v-posts:v9:c posts id.update) store count]
+      ~|  [%deleting-without-creation info]
+      !!
+    =+  (~(got by store) id.update)
+    ~?  >>  !=(seq seq.post.u-post.update)     [%fixing-del-log-seq in-store=seq in-log=seq.post.u-post.update]
+    ~?  >>  !=(aut author.post.u-post.update)  [%fixing-del-log-author in-store=aut in-log=author.post.u-post.update]
+    =.  update  update(seq.post.u-post seq, author.post.u-post aut)
+    =.  posts
+      ::REVIEW  non-crashing in prod? what would you do?
+      ~|  %missing-post-3
+      %^  jab:mo-v-posts:v9:c  posts
+        id.update
+      |=  post=(may:v9:c v-post:v9:c)
+      ::NOTE  if these result in changes, that means the logic in the branch
+      ::      above didn't do its job correctly!
+      ?-  -.post
+        %&  ~&  >>>  [%deleted-post-wasnt-in-posts info]
+            ~?  >>>  !=(seq.post seq.post.u-post.update)        [%fixing-seqs-3 in-posts=seq.post in-logs=seq.post.u-post.update]
+            ~?  >>>  !=(author.post author.post.u-post.update)  [%fixing-author-3 in-posts=author.post in-logs=author.post.u-post.update]
+            post(seq seq.post.u-post.update, author author.post.u-post.update)
+        %|  ~?  >>>  !=(seq.post seq.post.u-post.update)        [%fixing-seqs-3 in-posts=seq.post in-logs=seq.post.u-post.update]
+            ~?  >>>  !=(author.post author.post.u-post.update)  [%fixing-author-3 in-posts=author.post in-logs=author.post.u-post.update]
+            post(seq seq.post.u-post.update, author author.post.u-post.update)
+      ==
+    [`update posts store count]
+  ::
+    ::NOTE  we do not worry about replies
+  ==
 ::
 ++  get-author-ship
   |=  =author:c
