@@ -87,15 +87,6 @@ async function performSync() {
 
 const TASK_ID = 'tlon:backgroundSync:v1';
 
-export async function triggerBackgroundTaskTest() {
-  try {
-    await BackgroundTask.triggerTaskWorkerForTestingAsync();
-    console.log(`triggered testing task from js`);
-  } catch (error) {
-    console.error(`failed to trigger testing task from js`, error);
-  }
-}
-
 export async function unregisterBackgroundSyncTask() {
   await TaskManager.unregisterTaskAsync(TASK_ID);
   await BackgroundTask.unregisterTaskAsync(TASK_ID);
