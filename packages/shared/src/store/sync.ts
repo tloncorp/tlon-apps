@@ -1594,6 +1594,7 @@ export const handleDiscontinuity = async () => {
     return;
   }
   updateSession(null);
+  syncSince();
 
   // drop potentially outdated newest post markers
   channelCursors.clear();
