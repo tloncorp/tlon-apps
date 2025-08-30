@@ -99,7 +99,6 @@ export type Reaction = BaseModel<'postReactions'>;
 export type Pin = BaseModel<'pins'>;
 export type PinType = schema.PinType;
 export type Settings = BaseModel<'settings'>;
-export type PostWindow = BaseModel<'postWindows'>;
 export type VolumeSettings = BaseModel<'volumeSettings'>;
 export type Attestation = BaseModel<'attestations'>;
 export type AttestationStatus = schema.AttestationStatus;
@@ -142,4 +141,18 @@ export function isSystemContact(
   const hasPhone = 'phoneNumber' in contact;
   const hasEmail = 'email' in contact;
   return hasPhone || hasEmail;
+}
+
+export type ActivityInit = {
+  baseUnread?: BaseUnread;
+  groupUnreads: GroupUnread[];
+  channelUnreads: ChannelUnread[];
+  threadActivity: ThreadUnreadState[];
+};
+
+export interface ChangesResult {
+  groups: Group[];
+  posts: Post[];
+  contacts: Contact[];
+  unreads: ActivityInit;
 }

@@ -2,16 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSCameraUsageDescription</key>
-	<string>Tlon needs camera access to take photos for sharing.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Tlon needs access to your photo library to upload photos for sharing.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Tlon needs access to your microphone to allow you to share audio.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Tlon needs access to your photo library to save images to your library.</string>
-	<key>NSContactsUsageDescription</key>
-	<string>Tlon Messenger wants to access your contacts.</string>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.expo.modules.backgroundtask.processing</string>
+	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -52,6 +46,16 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Tlon needs camera access to take photos for sharing.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Tlon Messenger wants to access your contacts.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Tlon needs access to your microphone to allow you to share audio.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Tlon needs access to your photo library to save images to your library.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Tlon needs access to your photo library to upload photos for sharing.</string>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>INSendMessageIntent</string>
@@ -61,6 +65,7 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
+		<string>processing</string>
 		<string>remote-notification</string>
 	</array>
 	<key>UILaunchStoryboardName</key>

@@ -108,7 +108,7 @@ export function subscribeToChatUpdates(
   subscribe(
     {
       app: 'chat',
-      path: '/v1',
+      path: '/v3',
     },
     (event: ub.WritResponse | ub.ClubAction | string[]) => {
       logger.log('raw chat sub event', event);

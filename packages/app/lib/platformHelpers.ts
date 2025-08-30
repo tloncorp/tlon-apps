@@ -1,6 +1,11 @@
 import { NetInfoState, fetch } from '@react-native-community/netinfo';
+import { createDevLogger } from '@tloncorp/shared';
 import * as Battery from 'expo-battery';
 import * as Updates from 'expo-updates';
+
+import { triggerHaptic } from '../ui';
+
+const perfLogger = createDevLogger('perf', false);
 
 interface DebugPlatformState {
   network: string;
@@ -48,4 +53,20 @@ export function getEasUpdateDisplay(updates: typeof Updates): string {
   }
 
   return updates.updateId ?? 'unknown';
+}
+
+export async function hapticPerfSignal(
+  func: () => Promise<any>,
+  tag: string,
+  threshold: number
+): Promise<void> {
+  const start = performance.now();
+  await func();
+  const duration = performance.now() - start;
+  perfLogger.log(tag, duration);
+  if (duration > threshold) {
+    triggerHaptic('error');
+  } else {
+    triggerHaptic('success');
+  }
 }

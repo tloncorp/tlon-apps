@@ -54,43 +54,47 @@ export function useTypedReset() {
 
 function useResetToChannel() {
   const navigation = useNavigation();
+  const navigationRef = logic.useMutableRef(navigation);
   const reset = useTypedReset();
   const isWindowNarrow = useIsWindowNarrow();
   const { lastOpenTab } = useGlobalSearch();
 
-  return function resetToChannel(
-    channelId: string,
-    options?: {
-      groupId?: string;
-      selectedPostId?: string | null;
-      startDraft?: boolean;
-    }
-  ) {
-    const screenName = screenNameFromChannelId(channelId);
+  return useCallback(
+    function resetToChannel(
+      channelId: string,
+      options?: {
+        groupId?: string;
+        selectedPostId?: string | null;
+        startDraft?: boolean;
+      }
+    ) {
+      const screenName = screenNameFromChannelId(channelId);
 
-    if (isWindowNarrow) {
-      reset([
-        { name: 'ChatList' },
-        {
-          name: screenName,
-          params: {
-            channelId,
-            ...options,
+      if (isWindowNarrow) {
+        reset([
+          { name: 'ChatList' },
+          {
+            name: screenName,
+            params: {
+              channelId,
+              ...options,
+            },
           },
-        },
-      ]);
-    } else {
-      const tab = getTab(navigation, lastOpenTab);
-      logger.log('resetToChannel', { tab, channelId, options });
-      const channelRoute = getDesktopChannelRoute(
-        tab,
-        channelId,
-        options?.groupId,
-        options?.selectedPostId ?? undefined
-      );
-      reset([channelRoute]);
-    }
-  };
+        ]);
+      } else {
+        const tab = getTab(navigationRef.current, lastOpenTab);
+        logger.log('resetToChannel', { tab, channelId, options });
+        const channelRoute = getDesktopChannelRoute(
+          tab,
+          channelId,
+          options?.groupId,
+          options?.selectedPostId ?? undefined
+        );
+        reset([channelRoute]);
+      }
+    },
+    [isWindowNarrow, lastOpenTab, navigationRef, reset]
+  );
 }
 
 function useResetToDm() {

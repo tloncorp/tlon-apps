@@ -477,6 +477,10 @@ export class Urbit {
           if (!(error instanceof FatalError)) {
             const context: any = {};
             if (error instanceof SSEBadResponseError) {
+              if (error.status === 500) {
+                this.seamlessReset();
+                return;
+              }
               context.message = error.message;
               context.requestStatus = error.status;
             }

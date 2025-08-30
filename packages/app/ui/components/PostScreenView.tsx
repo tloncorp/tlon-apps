@@ -614,7 +614,7 @@ function CarouselPostScreenContent({
     channelId: channelId,
     count: 10,
     mode: 'around',
-    cursor: initialPostId,
+    cursorPostId: initialPostId,
     firstPageCount: 50,
     filterDeleted: true,
   });

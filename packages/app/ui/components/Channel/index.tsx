@@ -338,10 +338,12 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       []
     );
 
+    const channelProviderValue = useMemo(() => ({ channel }), [channel]);
+
     return (
       <ScrollContextProvider>
         <GroupsProvider groups={groups}>
-          <ChannelProvider value={{ channel }}>
+          <ChannelProvider value={channelProviderValue}>
             <RequestsProvider
               usePost={usePost}
               usePostReference={usePostReference}

@@ -66,7 +66,8 @@
       "@10play/tentap-editor@0.5.21": "patches/@10play__tentap-editor@0.5.21.patch",
       "drizzle-orm@0.39.3": "patches/drizzle-orm@0.39.3.patch",
       "@tamagui/sheet@1.126.12": "patches/@tamagui__sheet@1.126.12.patch",
-      "react-native-country-codes-picker@2.3.5": "patches/react-native-country-codes-picker@2.3.5.patch"
+      "react-native-country-codes-picker@2.3.5": "patches/react-native-country-codes-picker@2.3.5.patch",
+      "expo-background-task@0.1.4": "patches/expo-background-task@0.1.4.patch"
     },
     "allowNonAppliedPatches": true,
     "overrides": {

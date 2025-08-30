@@ -282,6 +282,11 @@ export const headsSyncedAt = createStorageItem<number>({
   defaultValue: 0,
 });
 
+export const changesSyncedAt = createStorageItem<number | null>({
+  key: 'changesSyncedAt',
+  defaultValue: null,
+});
+
 export const anyalticsDigestUpdatedAt = createStorageItem<number | null>({
   key: 'analyticsDigestUpdatedAt',
   defaultValue: null,
@@ -325,4 +330,16 @@ export const lastPhoneContactSetRequest = createStorageItem<string | null>({
   key: 'lastPhoneContactSetRequest',
   defaultValue: null,
   persistAfterLogout: false,
+});
+
+export const debugMessageJson = createStorageItem<boolean>({
+  key: 'debugMessageJson',
+  defaultValue: false,
+  persistAfterLogout: false,
+});
+
+export const debugPermittedSchedulerId = createStorageItem<string | null>({
+  key: 'debugPermittedSchedulerId',
+  defaultValue: null,
+  persistAfterLogout: true,
 });

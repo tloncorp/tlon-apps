@@ -51,6 +51,7 @@ ${JSON.stringify(appInfo)}
 
 export function AppInfoScreen(props: Props) {
   const appInfo = db.appInfo.useValue();
+  const permittedSchedulerId = db.debugPermittedSchedulerId.useValue();
   const {
     enabled,
     logs,
@@ -164,6 +165,11 @@ export function AppInfoScreen(props: Props) {
               </SizableText>
             </View>
           )}
+          <AppSetting
+            title="Permitted Scheduler ID"
+            value={permittedSchedulerId ?? 'Not found'}
+            copyable
+          />
 
           <XStack
             key="debug-toggle"

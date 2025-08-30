@@ -51,7 +51,7 @@ export function useAnchorScrollLock({
         setDidAnchorSearchTimeout(true);
       }, 2000);
     }
-  }, [posts?.length, didAnchorSearchTimeout, readyToDisplayPosts]);
+  }, [posts?.length, readyToDisplayPosts]);
 
   // Find the index of the anchor post in the posts array
   const anchorIndex = useMemo(() => {
@@ -172,15 +172,32 @@ export function useAnchorScrollLock({
     }
   }, [anchor?.postId]);
 
-  return {
-    readyToDisplayPosts,
-    scrollerItemProps: {
+  const scrollerItemProps = useMemo(
+    () => ({
       onLayout: handleItemLayout,
-    },
-    flatlistProps: {
+    }),
+    [handleItemLayout]
+  );
+
+  const flatlistProps = useMemo(
+    () => ({
       onScrollBeginDrag: handleScrollBeginDrag,
       onScrollToIndexFailed: handleScrollToIndexFailed,
       maintainVisibleContentPosition: maintainVisibleContentPositionConfig,
-    },
-  };
+    }),
+    [
+      handleScrollBeginDrag,
+      handleScrollToIndexFailed,
+      maintainVisibleContentPositionConfig,
+    ]
+  );
+
+  return useMemo(
+    () => ({
+      readyToDisplayPosts,
+      scrollerItemProps,
+      flatlistProps,
+    }),
+    [readyToDisplayPosts, scrollerItemProps, flatlistProps]
+  );
 }

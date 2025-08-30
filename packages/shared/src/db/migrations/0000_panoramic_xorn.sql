@@ -93,6 +93,7 @@ CREATE TABLE `channels` (
 	`first_unread_post_id` text,
 	`last_post_id` text,
 	`last_post_at` integer,
+	`last_post_sequence_num` integer,
 	`is_cached_pending_channel` integer,
 	`is_new_matched_contact` integer,
 	`is_dm_invite` integer DEFAULT false,
@@ -289,16 +290,6 @@ CREATE TABLE `post_reactions` (
 	FOREIGN KEY (`post_id`) REFERENCES `posts`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `post_windows` (
-	`channel_id` text NOT NULL,
-	`oldest_post_id` text NOT NULL,
-	`newest_post_id` text NOT NULL,
-	PRIMARY KEY(`channel_id`, `oldest_post_id`, `newest_post_id`)
-);
---> statement-breakpoint
-CREATE INDEX `channel_id` ON `post_windows` (`channel_id`);--> statement-breakpoint
-CREATE INDEX `channel_oldest_post` ON `post_windows` (`channel_id`,`oldest_post_id`);--> statement-breakpoint
-CREATE INDEX `channel_newest_post` ON `post_windows` (`channel_id`,`newest_post_id`);--> statement-breakpoint
 CREATE TABLE `posts` (
 	`id` text PRIMARY KEY NOT NULL,
 	`author_id` text NOT NULL,
@@ -325,17 +316,20 @@ CREATE TABLE `posts` (
 	`hidden` integer DEFAULT false,
 	`is_edited` integer,
 	`is_deleted` integer,
+	`is_sequence_stub` integer DEFAULT false,
+	`deleted_at` integer,
 	`delivery_status` text,
 	`edit_status` text,
 	`delete_status` text,
 	`last_edit_content` text,
 	`last_edit_title` text,
 	`last_edit_image` text,
+	`sequence_number` integer,
 	`synced_at` integer,
 	`backend_time` text
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `cache_id` ON `posts` (`channel_id`,`author_id`,`sent_at`);--> statement-breakpoint
+CREATE UNIQUE INDEX `cache_id` ON `posts` (`channel_id`,`author_id`,`sent_at`,`sequence_number`);--> statement-breakpoint
 CREATE INDEX `posts_channel_id` ON `posts` (`channel_id`,`id`);--> statement-breakpoint
 CREATE INDEX `posts_group_id` ON `posts` (`group_id`,`id`);--> statement-breakpoint
 CREATE TABLE `settings` (

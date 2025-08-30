@@ -1,5 +1,6 @@
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -47,31 +48,36 @@ export const useScrollDirectionTracker = ({
     setIsAtBottomProp?.(isAtBottom);
   }, [isAtBottom, setIsAtBottomProp]);
 
-  return {
-    onScroll: useAnimatedScrollHandler((event) => {
-      const { y } = event.contentOffset;
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    const { y } = event.contentOffset;
 
-      if (y < 0 || y > event.contentSize.height) {
-        return;
-      }
+    if (y < 0 || y > event.contentSize.height) {
+      return;
+    }
 
-      scrollValue.value = clamp(
-        scrollValue.value + (y - previousScrollValue.value) / 200,
-        0,
-        1
-      );
+    scrollValue.value = clamp(
+      scrollValue.value + (y - previousScrollValue.value) / 200,
+      0,
+      1
+    );
 
-      previousScrollValue.value = y;
+    previousScrollValue.value = y;
 
-      const atBottom = y <= AT_BOTTOM_THRESHOLD;
+    const atBottom = y <= AT_BOTTOM_THRESHOLD;
 
-      if (previousAtBottom.value !== atBottom) {
-        previousAtBottom.value = atBottom;
-        runOnJS(setIsAtBottom)(atBottom);
-      }
+    if (previousAtBottom.value !== atBottom) {
+      previousAtBottom.value = atBottom;
+      runOnJS(setIsAtBottom)(atBottom);
+    }
+  });
+
+  return useMemo(
+    () => ({
+      onScroll: scrollHandler,
+      isAtBottom,
     }),
-    isAtBottom,
-  };
+    [scrollHandler, isAtBottom]
+  );
 };
 
 function useViewportHeight() {
@@ -93,19 +99,22 @@ function useViewportHeight() {
 export const ScrollContextProvider: React.FC<React.PropsWithChildren> = ({
   children,
 }) => {
-  // Animated
   const scrollValue = useSharedValue(0);
 
-  // Methods
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     scrollValue.value = withTiming(0, {
       duration: 150,
       easing: Easing.out(Easing.cubic),
     });
-  };
+  }, [scrollValue]);
+
+  const contextValue = useMemo(
+    () => [scrollValue, handleReset] as ScrollContextTuple,
+    [scrollValue, handleReset]
+  );
 
   return (
-    <ScrollContext.Provider value={[scrollValue, handleReset]}>
+    <ScrollContext.Provider value={contextValue}>
       {children}
     </ScrollContext.Provider>
   );

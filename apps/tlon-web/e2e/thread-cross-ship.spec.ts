@@ -138,7 +138,7 @@ test('should test cross-ship thread functionality', async ({
   );
 
   // TEN: Navigate to thread and verify the quote reply is visible
-  await tenPage.getByText('2 replies').click();
+  await tenPage.getByText('3 replies').click();
   await expect(tenPage.getByText('Quote reply to edited message')).toBeVisible({
     timeout: 10000,
   });

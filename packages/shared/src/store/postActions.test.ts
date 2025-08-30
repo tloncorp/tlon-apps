@@ -73,7 +73,7 @@ describe('sendPost', () => {
     expect(scry).toHaveBeenLastCalledWith(
       expect.objectContaining({
         app: 'chat',
-        path: `/v1/dm/${TEST_CHANNEL}/writs/newest/20/light`,
+        path: `/v3/dm/${TEST_CHANNEL}/writs/newest/20/light`,
       })
     );
   });

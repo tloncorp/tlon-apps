@@ -140,6 +140,9 @@ export function fetchEventSource(
         }
 
         if (response.status < 200 || response.status >= 300) {
+          if (response.status === 500) {
+            dispose();
+          }
           throw new SSEBadResponseError(
             'Invalid server response',
             response.status

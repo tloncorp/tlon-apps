@@ -20,7 +20,18 @@ export type Ship = string;
 export interface Writ {
   seal: WritSeal;
   essay: WritEssay;
+  type: 'writ';
 }
+
+export type WritTombstone = {
+  author: Ship;
+  id: string;
+  ['deleted-at']: number;
+  seq: number;
+  type: 'tombstone';
+};
+
+export type WritLike = Writ | WritTombstone;
 
 export type WritEssay = PostEssay;
 
@@ -51,6 +62,7 @@ export interface WritDeltaAdd {
   add: {
     essay: WritEssay;
     time: string | null;
+    seq?: number;
   };
 }
 
@@ -119,6 +131,7 @@ export interface WritResponseAdd {
   add: {
     essay: WritEssay;
     time: string;
+    seq?: number;
   };
 }
 
@@ -210,7 +223,7 @@ export interface Pact {
 }
 
 export interface Writs {
-  [time: Patda]: Writ;
+  [time: Patda]: WritLike;
 }
 
 export interface PagedWrits {
@@ -218,6 +231,7 @@ export interface PagedWrits {
   newer: string | null;
   older: string | null;
   total: number;
+  newest: number;
 }
 
 export type WritPageMap = BTree<BigInteger, Writ | null>;

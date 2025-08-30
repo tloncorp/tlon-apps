@@ -19,6 +19,7 @@ import {
   lte,
   max,
   min,
+  ne,
   not,
   notInArray,
   or,
@@ -75,7 +76,6 @@ import {
   groups as $groups,
   pins as $pins,
   postReactions as $postReactions,
-  postWindows as $postWindows,
   posts as $posts,
   settings as $settings,
   systemContactSentInvites as $systemContactSentInvites,
@@ -90,6 +90,7 @@ import {
   ActivityEvent,
   Attestation,
   BaseUnread,
+  ChangesResult,
   Channel,
   ChannelUnread,
   Chat,
@@ -103,7 +104,6 @@ import {
   Pin,
   PinType,
   Post,
-  PostWindow,
   Reaction,
   ReplyMeta,
   Settings,
@@ -2160,6 +2160,7 @@ async function insertChannelsInternal(channels: Channel[], ctx: QueryCtx) {
       set: conflictUpdateSetAll($channels, [
         'lastPostId',
         'lastPostAt',
+        'lastPostSequenceNum',
         'currentUserIsMember',
       ]),
     });
@@ -2568,41 +2569,61 @@ export const setLeftGroups = createWriteQuery(
   ['groups', 'channels']
 );
 
-export const getPostWindow = createReadQuery(
-  'getPostWindow',
+export const checkUnreadChannelBackfill = createReadQuery(
+  'checkUnreadChannelBackfill',
   async (
     {
       channelId,
       postId,
     }: {
       channelId: string;
-      /**
-       * Find window containing this post ID.
-       * If omitted, returns window with newest post.
-       */
-      postId: string | null;
+      postId: string;
     },
     ctx: QueryCtx
   ) => {
-    // Find the window (set of contiguous posts) that this cursor belongs to.
-    // These are the posts that we can return safely without gaps and without hitting the api.
-    return await ctx.db.query.postWindows.findFirst({
-      where: and(
-        // For this channel
-        eq($postWindows.channelId, channelId),
-
-        // window.oldest <= postId <= window.newest
-        postId ? gte($postWindows.newestPostId, postId) : undefined,
-        postId ? lte($postWindows.oldestPostId, postId) : undefined
-      ),
-      orderBy: [desc($postWindows.newestPostId)],
-      columns: {
-        oldestPostId: true,
-        newestPostId: true,
-      },
+    const post = await ctx.db.query.posts.findFirst({
+      where: eq($posts.id, postId),
     });
+    if (!post?.sequenceNum) {
+      return null;
+    }
+
+    const newerPosts = await ctx.db.query.posts.findMany({
+      where: and(
+        eq($posts.channelId, channelId),
+        not(eq($posts.type, 'reply')),
+        gte($posts.sequenceNum, post.sequenceNum)
+      ),
+      orderBy: [asc($posts.sequenceNum)],
+      limit: 1000, // reasonable limit to avoid huge queries
+    });
+
+    if (newerPosts.length === 0) {
+      return null;
+    }
+
+    // Find the newest contiguous sequence number starting from unread post
+    let newestContiguousSeq = post.sequenceNum;
+    let newestContiguousPostId = post.id;
+    for (let i = 0; i < newerPosts.length; i++) {
+      if (
+        !newerPosts[i].sequenceNum ||
+        newerPosts[i].sequenceNum !== newestContiguousSeq + 1
+      ) {
+        break;
+      }
+      newestContiguousSeq = newerPosts[i].sequenceNum!;
+      newestContiguousPostId = newerPosts[i].id;
+    }
+
+    return {
+      unreadSequenceNum: post.sequenceNum,
+      newestContiguousSequenceNum: newestContiguousSeq,
+      newestContiguousPostId: newestContiguousPostId,
+      numberContiguous: newestContiguousSeq - post.sequenceNum + 1,
+    };
   },
-  ['postWindows']
+  ['posts']
 );
 
 export type GetChannelPostsOptions = {
@@ -2612,138 +2633,328 @@ export type GetChannelPostsOptions = {
   cursor?: string;
 };
 
-export const getChannelPosts = createReadQuery(
-  'getChannelPosts',
+export type GetSequencedPostsOptions = {
+  channelId: string;
+  count?: number;
+  mode: 'newest' | 'older' | 'newer' | 'around';
+  cursorSequenceNum?: number;
+};
+
+const seqLogger = createDevLogger('seqPosts', false);
+
+export const getLatestChannelSequenceNum = createReadQuery(
+  'getLatestChannelSequenceNum',
   async (
-    { channelId, cursor, mode, count = 50 }: GetChannelPostsOptions,
+    options: { channelId: string },
     ctx: QueryCtx
-  ): Promise<Post[]> => {
-    // Find the window (set of contiguous posts) that this cursor belongs to.
-    // These are the posts that we can return safely without gaps and without hitting the api.
-    const window = await getPostWindow(
-      { channelId, postId: cursor ?? null },
-      ctx
+  ): Promise<number | null> => {
+    const channel = await ctx.db.query.channels.findFirst({
+      where: eq($channels.id, options.channelId),
+    });
+
+    return channel?.lastPostSequenceNum ?? null;
+  },
+  ['channels']
+);
+
+export const setLatestChannelSequenceNum = createWriteQuery(
+  'setLatestChannelSequenceNum',
+  async (
+    options: { channelId: string; sequenceNum: number },
+    ctx: QueryCtx
+  ) => {
+    await ctx.db
+      .update($channels)
+      .set({
+        lastPostSequenceNum: options.sequenceNum,
+      })
+      .where(eq($channels.id, options.channelId));
+  },
+  ['channels']
+);
+
+export const getNextSequenceNumber = createReadQuery(
+  'getNextSequenceNumber',
+  async (options: { channelId: string }, ctx: QueryCtx): Promise<number> => {
+    const channel = await ctx.db.query.channels.findFirst({
+      where: eq($channels.id, options.channelId),
+      with: {
+        lastPost: true,
+      },
+    });
+
+    const nextSeq = channel?.lastPost?.sequenceNum ?? Infinity;
+    seqLogger.log(
+      `got next sequence number (${nextSeq}) for channel`,
+      options.channelId
     );
-    // If the cursor isn't part of any window, we return an empty array.
-    if (!window) {
-      return [];
+
+    if (nextSeq === Infinity) {
+      // we sync latest posts for all channels, so this shouldn't happen
+      logger.trackError('Optimistic sequence number fallback hit');
     }
 
-    const relationConfig = {
-      author: true,
-      reactions: {
-        with: {
-          contact: true,
-        },
-      },
-      threadUnread: true,
-      volumeSettings: true,
-    } as const;
+    return nextSeq + 1;
+  },
+  ['channels', 'posts']
+);
 
-    if (mode === 'newer' || mode === 'newest' || mode === 'older') {
-      // Simple case: just grab a set of posts from either side of the cursor.
-      const posts = await ctx.db.query.posts.findMany({
+export const getSequencedChannelPosts = createReadQuery(
+  'getSequencedChannelPosts',
+  async (options: GetSequencedPostsOptions, ctx: QueryCtx): Promise<Post[]> => {
+    seqLogger.log('getting sequenced channel posts', options);
+    const count = options.count || 50;
+    if (options.mode !== 'newest' && !options.cursorSequenceNum) {
+      throw new Error(
+        'cursorSequenceNum is required for mode other than newest'
+      );
+    }
+
+    // mode: newest
+    if (options.mode === 'newest') {
+      const dbPosts = await ctx.db.query.posts.findMany({
         where: and(
-          // From this channel
-          eq($posts.channelId, channelId),
-          // Not a reply
+          eq($posts.channelId, options.channelId),
           not(eq($posts.type, 'reply')),
-          // In the target window
-          gte($posts.id, window.oldestPostId),
-          lte($posts.id, window.newestPostId),
-          // Depending on mode, either older or newer than cursor. If mode is
-          // `newest`, we don't need to filter by cursor.
-          cursor && mode === 'older' ? lt($posts.id, cursor) : undefined,
-          cursor && mode === 'newer' ? gt($posts.id, cursor) : undefined
+          isNull($posts.deliveryStatus)
         ),
-        with: relationConfig,
-        // If newer, we have to ensure that these are the newer posts directly following the cursor
-        orderBy: [mode === 'newer' ? asc($posts.id) : desc($posts.id)],
+        with: {
+          reactions: true,
+        },
+        orderBy: [desc($posts.sequenceNum)],
         limit: count,
       });
-      // We always want to return posts newest-first
-      if (mode === 'newer') {
-        posts.reverse();
-      }
-      return posts;
-    } else if (mode === 'around') {
-      if (!cursor) {
-        throw new Error('missing cursor');
-      }
+      seqLogger.log(`grabbed newest ${dbPosts.length} db posts`, dbPosts);
 
-      // It's a bit more complicated to get posts around a cursor. Basic process is:
-      // - Start with a query for all posts in the window, selecting
-      //   row_number() to track their position within the window.
-      // - Find the row number of the cursor post within this window.
-      // - Find min row and max row by offsetting the cursor row by half the
-      //   count in each direction.
-      // - Grab post ids from the window query where row number is between min and max.
-
-      // Get all posts in the window
-      const $windowQuery = ctx.db
-        .select({
-          id: $posts.id,
-          rowNumber: sql`row_number() OVER (ORDER BY ${$posts.id})`
-            .mapWith(Number)
-            .as('rowNumber'),
-        })
-        .from($posts)
-        .where(
-          and(
-            eq($posts.channelId, channelId),
-            not(eq($posts.type, 'reply')),
-            gte($posts.id, window.oldestPostId),
-            lte($posts.id, window.newestPostId)
-          )
-        )
-        .as('posts');
-
-      // Get the row number of the cursor post
-      const position = await ctx.db
-        .select({
-          // finds the highest row number for posts with IDs less than or equal to the cursor.
-          // If the cursor posts, exists, it will be the row number of that post.
-          index:
-            sql`coalesce(max(case when ${$windowQuery.id} <= ${cursor} then ${$windowQuery.rowNumber} end), 0)`
-              .mapWith(Number)
-              .as('index'),
-        })
-        .from($windowQuery)
-        .get();
-
-      if (!position) {
+      if (dbPosts.length === 0) {
         return [];
       }
 
-      // Calculate min and max rows
-      const itemsBefore = Math.floor((count - 1) / 2);
-      const itemsAfter = Math.ceil((count - 1) / 2);
-      const startRow = position.index - itemsBefore;
-      const endRow = position.index + itemsAfter;
+      const newestContiguousPosts: Post[] = [];
+      const newestPost = dbPosts[0];
+      newestContiguousPosts.push(newestPost);
 
-      // Actually grab posts
-      return await ctx.db.query.posts.findMany({
-        where: inArray(
-          $posts.id,
-          ctx.db
-            .select({
-              id: $windowQuery.id,
-            })
-            .from($windowQuery)
-            .where(
-              and(
-                gte($windowQuery.rowNumber, startRow),
-                lte($windowQuery.rowNumber, endRow)
-              )
-            )
+      let seq = newestPost.sequenceNum!;
+      seqLogger.log(`newest post is ${seq}`);
+      for (let i = 1; i < dbPosts.length; i++) {
+        const post = dbPosts[i];
+        // If the sequence number is not continuous, we stop.
+        if (post.sequenceNum !== seq - 1) {
+          break;
+        }
+        newestContiguousPosts.push(post);
+        seq--;
+      }
+
+      seqLogger.log(
+        `found ${newestContiguousPosts.length} contiguous posts from newest`,
+        newestContiguousPosts.map((p) => p.sequenceNum)
+      );
+
+      return newestContiguousPosts.slice(0, count);
+    }
+
+    // mode: older
+    if (options.mode === 'older' && options.cursorSequenceNum) {
+      const dbPosts = await ctx.db.query.posts.findMany({
+        where: and(
+          eq($posts.channelId, options.channelId),
+          not(eq($posts.type, 'reply')),
+          lt($posts.sequenceNum, options.cursorSequenceNum),
+          isNull($posts.deliveryStatus)
         ),
-        with: relationConfig,
-        orderBy: [desc($posts.id)],
+        with: {
+          reactions: true,
+        },
+        orderBy: [desc($posts.sequenceNum)],
         limit: count,
       });
-    } else {
-      throw new Error('invalid mode');
+      seqLogger.log(
+        `grabbed ${dbPosts.length} db posts older than ${options.cursorSequenceNum}`,
+        dbPosts
+      );
+
+      if (dbPosts.length === 0) {
+        return [];
+      }
+
+      const contiguousOlderPosts: Post[] = [];
+      const firstPost = dbPosts[0];
+
+      if (firstPost.sequenceNum !== options.cursorSequenceNum - 1) {
+        seqLogger.log('do not have next oldest post locally', {
+          needed: options.cursorSequenceNum - 1,
+          found: firstPost.sequenceNum,
+        });
+        return [];
+      }
+
+      contiguousOlderPosts.push(firstPost);
+
+      let seq = firstPost.sequenceNum!;
+      seqLogger.log(`next post is ${seq}`);
+      for (let i = 1; i < dbPosts.length; i++) {
+        const post = dbPosts[i];
+        // If the sequence number is not continuous, we stop.
+        if (post.sequenceNum !== seq - 1) {
+          break;
+        }
+        contiguousOlderPosts.push(post);
+        seq--;
+      }
+
+      seqLogger.log(
+        `found ${contiguousOlderPosts.length} contiguous older posts from ${options.cursorSequenceNum}`,
+        contiguousOlderPosts.map((p) => p.sequenceNum)
+      );
+
+      return contiguousOlderPosts;
     }
+
+    // mode: newer
+    if (options.mode === 'newer' && options.cursorSequenceNum) {
+      const dbPosts = await ctx.db.query.posts.findMany({
+        where: and(
+          eq($posts.channelId, options.channelId),
+          not(eq($posts.type, 'reply')),
+          gt($posts.sequenceNum, options.cursorSequenceNum),
+          isNull($posts.deliveryStatus)
+        ),
+        with: {
+          reactions: true,
+        },
+        orderBy: [asc($posts.sequenceNum)],
+        limit: count,
+      });
+      seqLogger.log(
+        `grabbed ${dbPosts.length} db posts newer than ${options.cursorSequenceNum}`,
+        dbPosts
+      );
+
+      if (dbPosts.length === 0) {
+        return [];
+      }
+
+      const contiguousNewerPosts: Post[] = [];
+      const firstPost = dbPosts[0];
+
+      if (firstPost.sequenceNum !== options.cursorSequenceNum + 1) {
+        seqLogger.log('do not have next newest post locally', {
+          needed: options.cursorSequenceNum + 1,
+          found: firstPost.sequenceNum,
+        });
+        return [];
+      }
+
+      contiguousNewerPosts.push(firstPost);
+
+      let seq = firstPost.sequenceNum!;
+      seqLogger.log(`next post is ${seq}`);
+      for (let i = 1; i < dbPosts.length; i++) {
+        const post = dbPosts[i];
+        // If the sequence number is not continuous, we stop.
+        if (post.sequenceNum !== seq + 1) {
+          break;
+        }
+        contiguousNewerPosts.unshift(post);
+        seq++;
+      }
+
+      seqLogger.log(
+        `found ${contiguousNewerPosts.length} contiguous newer posts from ${options.cursorSequenceNum}`,
+        contiguousNewerPosts
+      );
+
+      return contiguousNewerPosts;
+    }
+
+    // mode: around
+    if (options.mode === 'around' && options.cursorSequenceNum) {
+      const halfWindow = Math.ceil(count / 2);
+      const upperBound = options.cursorSequenceNum + halfWindow;
+      const lowerBound = Math.max(options.cursorSequenceNum - halfWindow, 0);
+
+      const dbPosts = await ctx.db.query.posts.findMany({
+        where: and(
+          eq($posts.channelId, options.channelId),
+          not(eq($posts.type, 'reply')),
+          gte($posts.sequenceNum, lowerBound),
+          lte($posts.sequenceNum, upperBound),
+          isNull($posts.deliveryStatus)
+        ),
+        with: {
+          reactions: true,
+        },
+        orderBy: [desc($posts.sequenceNum)],
+      });
+      seqLogger.log(
+        `grabbed ${dbPosts.length} db posts around ${options.cursorSequenceNum}`,
+        dbPosts
+      );
+
+      if (dbPosts.length === 0) {
+        return [];
+      }
+
+      const cursorIndex = dbPosts.findIndex(
+        (p) => p.sequenceNum === options.cursorSequenceNum
+      );
+
+      if (cursorIndex === -1) {
+        seqLogger.log('cursor post not found in db posts', {
+          cursorSequenceNum: options.cursorSequenceNum,
+        });
+        return [];
+      }
+
+      // Get posts newer than the cursor (they come before cursor in desc order)
+      const newerCandidates = dbPosts.slice(0, cursorIndex).reverse();
+      const contiguousNewerPosts: Post[] = [];
+
+      // Build contiguous newer posts (working backwards from cursor + 1)
+      let expectedSeq = options.cursorSequenceNum + 1;
+      for (const post of newerCandidates) {
+        if (post.sequenceNum !== expectedSeq) {
+          break; // Gap found, stop
+        }
+        contiguousNewerPosts.push(post);
+        expectedSeq++;
+      }
+
+      // Get posts older than the cursor (they come after cursor in desc order)
+      const olderCandidates = dbPosts.slice(cursorIndex + 1);
+      const contiguousOlderPosts: Post[] = [];
+
+      // Build contiguous older posts (working forwards from cursor - 1)
+      expectedSeq = options.cursorSequenceNum - 1;
+      for (const post of olderCandidates) {
+        if (post.sequenceNum !== expectedSeq) {
+          break; // Gap found, stop
+        }
+        contiguousOlderPosts.push(post);
+        expectedSeq--;
+      }
+
+      const newerToTake = Math.min(contiguousNewerPosts.length, halfWindow);
+      const olderToTake = Math.min(
+        contiguousOlderPosts.length,
+        count - 1 - newerToTake
+      );
+
+      const aroundPosts = [
+        ...contiguousNewerPosts.slice(0, newerToTake).reverse(),
+        dbPosts[cursorIndex],
+        ...contiguousOlderPosts.slice(0, olderToTake),
+      ];
+
+      seqLogger.log(
+        `found ${aroundPosts.length} posts around cursor`,
+        aroundPosts
+      );
+      return aroundPosts;
+    }
+
+    throw new Error('Invalid mode');
   },
   ['posts']
 );
@@ -2853,19 +3064,36 @@ export const getChannelSearchResults = createReadQuery(
   []
 );
 
+export const insertChanges = createWriteQuery(
+  'insertChanges',
+  async (input: ChangesResult, ctx: QueryCtx) => {
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await insertChannelPosts({ posts: input.posts }, txCtx);
+      await insertGroups({ groups: input.groups }, txCtx);
+      await insertContacts(input.contacts, txCtx);
+      await insertGroupUnreads(input.unreads.groupUnreads, ctx);
+      await insertChannelUnreads(input.unreads.channelUnreads, ctx);
+      await insertThreadUnreads(input.unreads.threadActivity, ctx);
+    });
+  },
+  [
+    'posts',
+    'groups',
+    'channels',
+    'groupUnreads',
+    'channelUnreads',
+    'threadUnreads',
+    'contacts',
+  ]
+);
+
 export const insertChannelPosts = createWriteQuery(
   'insertChannelPosts',
   async (
     {
-      channelId,
       posts,
-      newer,
-      older,
     }: {
-      channelId: string;
       posts: Post[];
-      newer?: string | null;
-      older?: string | null;
     },
     ctx: QueryCtx
   ) => {
@@ -2879,24 +3107,9 @@ export const insertChannelPosts = createWriteQuery(
       );
       await insertPosts(posts, txCtx);
       logger.log('inserted posts');
-      // If these are non-reply posts, update group + channel last post as well as post windows.
-      const topLevelPosts = posts.filter((p) => p.type !== 'reply');
-      if (topLevelPosts.length) {
-        logger.log('updating post windows');
-        await updatePostWindows(
-          {
-            channelId,
-            newPosts: topLevelPosts,
-            newer,
-            older,
-          },
-          txCtx
-        );
-        logger.log('updated windows');
-      }
     });
   },
-  ['posts', 'postWindows']
+  ['posts']
 );
 
 export const insertLatestPosts = createWriteQuery(
@@ -2911,11 +3124,6 @@ export const insertLatestPosts = createWriteQuery(
         posts.map((p) => p.channelId)
       );
       await insertPosts(posts, txCtx);
-      const postUpdates = posts.map((post) => ({
-        channelId: post.channelId,
-        newPosts: [post],
-      }));
-      await Promise.all(postUpdates.map((p) => updatePostWindows(p, txCtx)));
     });
   },
   ['posts']
@@ -2931,11 +3139,6 @@ async function insertPosts(posts: Post[], ctx: QueryCtx) {
 }
 
 async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
-  logger.log(
-    'inserting post batch',
-    posts.map((p) => [p.id, p.channelId])
-  );
-
   await ctx.db
     .insert($posts)
     .values(
@@ -2949,7 +3152,12 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
       set: conflictUpdateSetAll($posts, ['hidden']),
     })
     .onConflictDoUpdate({
-      target: [$posts.authorId, $posts.channelId, $posts.sentAt],
+      target: [
+        $posts.authorId,
+        $posts.channelId,
+        $posts.sentAt,
+        $posts.sequenceNum,
+      ],
       set: conflictUpdateSetAll($posts, ['hidden']),
     });
 
@@ -2967,6 +3175,8 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
       });
   }
 
+  await deleteReplacedCachedPosts(ctx);
+
   logger.log('inserted posts');
   await setLastPosts(posts, ctx);
   logger.log('set last posts');
@@ -2975,6 +3185,36 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
     ctx
   );
   logger.log('clear matched pending');
+}
+
+async function deleteReplacedCachedPosts(ctx: QueryCtx) {
+  const $cachedPosts = ctx.db
+    .select()
+    .from($posts)
+    .where(eq($posts.sequenceNum, 0))
+    .as('cached_posts');
+
+  const receivedPosts = await ctx.db
+    .select({
+      id: $cachedPosts.id,
+    })
+    .from($posts)
+    .innerJoin(
+      $cachedPosts,
+      and(
+        ne($posts.sequenceNum, 0),
+        eq($posts.channelId, $cachedPosts.channelId),
+        eq($posts.sentAt, $cachedPosts.sentAt),
+        eq($posts.authorId, $cachedPosts.authorId)
+      )
+    );
+
+  await ctx.db.delete($posts).where(
+    inArray(
+      $posts.id,
+      receivedPosts.map((p) => p.id)
+    )
+  );
 }
 
 export const resetHiddenPosts = createWriteQuery(
@@ -3028,11 +3268,24 @@ async function setLastPosts(newPosts: Post[] | null, ctx: QueryCtx) {
         )
         .orderBy(desc($posts.receivedAt))
         .limit(1)}`,
+      lastPostSequenceNum: sql`${ctx.db
+        .select({ sequenceNum: $posts.sequenceNum })
+        .from($posts)
+        .where(
+          and(
+            eq($posts.channelId, $channels.id),
+            not(eq($posts.type, 'reply')),
+            isNotNull($posts.sequenceNum)
+          )
+        )
+        .orderBy(desc($posts.sequenceNum))
+        .limit(1)}`,
     })
     .where(
       and(
         inArray($channels.id, channelIds),
         or(
+          isNull($channels.lastPostSequenceNum),
           isNull($channels.lastPostId),
           lt(
             $channels.lastPostId,
@@ -3109,79 +3362,6 @@ async function clearMatchedPendingPosts(posts: Post[], ctx: QueryCtx) {
       )
     )
     .returning({ id: $posts.id });
-}
-
-async function updatePostWindows(
-  {
-    channelId,
-    newPosts,
-    newer,
-    older,
-  }: {
-    channelId: string;
-    newPosts: Post[];
-    newer?: string | null;
-    older?: string | null;
-  },
-  ctx: QueryCtx
-) {
-  // Create candidate window based on input
-  const window = {
-    channelId,
-    newestPostId: newPosts[newPosts.length - 1].id,
-    oldestPostId: newPosts[0].id,
-  };
-
-  const referenceWindow = {
-    channelId,
-    newestPostId: newer || window.newestPostId,
-    oldestPostId: older || window.oldestPostId,
-  };
-
-  // Calculate min and max post id of windows that overlap with this one
-  const { oldestId, newestId } = (
-    await ctx.db
-      .select({
-        oldestId: min($postWindows.oldestPostId),
-        newestId: max($postWindows.newestPostId),
-      })
-      .from($postWindows)
-      .where(overlapsWindow(referenceWindow))
-  )[0];
-
-  logger.log(
-    'deleting intersecting windows',
-    referenceWindow,
-    oldestId,
-    newestId
-  );
-  // Delete intersecting windows.
-  await ctx.db.delete($postWindows).where(overlapsWindow(referenceWindow));
-
-  // Calculate final range of merged windows by intersecting existing min and
-  // max with candidate window.
-  const resolvedStart =
-    oldestId && oldestId < window.oldestPostId ? oldestId : window.oldestPostId;
-  const resolvedEnd =
-    newestId && newestId > window.newestPostId ? newestId : window.newestPostId;
-
-  const finalWindow = {
-    channelId: window.channelId,
-    oldestPostId: resolvedStart,
-    newestPostId: resolvedEnd,
-  };
-
-  logger.log('inserting final window', finalWindow);
-  // Insert final window.
-  await ctx.db.insert($postWindows).values(finalWindow).onConflictDoNothing();
-}
-
-function overlapsWindow(window: PostWindow) {
-  return and(
-    eq($postWindows.channelId, window.channelId),
-    lte($postWindows.oldestPostId, window.newestPostId),
-    gte($postWindows.newestPostId, window.oldestPostId)
-  );
 }
 
 export const updatePost = createWriteQuery(
@@ -3299,6 +3479,17 @@ export const getPosts = createReadQuery(
   'getPosts',
   (ctx: QueryCtx) => {
     return ctx.db.select().from($posts);
+  },
+  ['posts']
+);
+
+export const getChanPosts = createReadQuery(
+  'getPosts',
+  (params: { channelId: string }, ctx: QueryCtx) => {
+    return ctx.db
+      .select()
+      .from($posts)
+      .where(eq($posts.channelId, params.channelId));
   },
   ['posts']
 );
@@ -4030,7 +4221,7 @@ export const clearChannelUnread = createWriteQuery(
   async (channelId: string, ctx: QueryCtx) => {
     return ctx.db
       .update($channelUnreads)
-      .set({ countWithoutThreads: 0, firstUnreadPostId: null })
+      .set({ count: 0, countWithoutThreads: 0, firstUnreadPostId: null })
       .where(eq($channelUnreads.channelId, channelId));
   },
   ['channelUnreads']

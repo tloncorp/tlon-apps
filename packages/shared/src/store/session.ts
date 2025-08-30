@@ -8,6 +8,7 @@ export type Session = {
   startTime?: number;
   channelStatus?: ChannelStatus;
   phase?: SyncPhase;
+  isSyncing?: boolean;
 };
 
 // Session — time when subscriptions were first initialized after which we can assume
@@ -74,6 +75,11 @@ export function useInitializedClient() {
     subscribeToInitializedClient,
     getInitializedClient
   );
+}
+
+export function useIsSyncing() {
+  const currentSession = useCurrentSession();
+  return currentSession?.isSyncing ?? true;
 }
 
 export function useConnectionStatus() {

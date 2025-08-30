@@ -1,10 +1,6 @@
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { useIsWindowNarrow } from '@tloncorp/ui';
-import { Button } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
-import { Pressable } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
+import { Button, Icon, Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
@@ -40,6 +36,7 @@ const ChatMessage = ({
   setViewReactionsPost,
   isHighlighted,
   hideOverflowMenu,
+  displayDebugMode = false,
   searchQuery,
 }: {
   post: db.Post;
@@ -53,10 +50,11 @@ const ChatMessage = ({
   onLongPress?: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => Promise<void>;
   onPressDelete?: (post: db.Post) => void;
-  onShowEmojiPicker?: () => void;
-  onPressEdit?: () => void;
+  onShowEmojiPicker?: (post: db.Post) => void;
+  onPressEdit?: (post: db.Post) => void;
   setViewReactionsPost?: (post: db.Post) => void;
   isHighlighted?: boolean;
+  displayDebugMode?: boolean;
   hideOverflowMenu?: boolean;
   searchQuery?: string;
 }) => {
@@ -124,6 +122,14 @@ const ChatMessage = ({
     onPressDelete?.(post);
     setShowRetrySheet(false);
   }, [onPressDelete, post]);
+
+  const handleEditPressed = useCallback(() => {
+    onPressEdit?.(post);
+  }, [post, onPressEdit]);
+
+  const handleEmojiPickerPressed = useCallback(() => {
+    onShowEmojiPicker?.(post);
+  }, [post, onShowEmojiPicker]);
 
   const handleHoverIn = useCallback(() => {
     if (isWeb) {
@@ -247,13 +253,30 @@ const ChatMessage = ({
         ) : null}
 
         <View paddingLeft={!isNotice ? '$4xl' : undefined}>
-          <ChatContentRenderer
-            content={post.editStatus === 'failed' ? lastEditContent : content}
-            isNotice={post.type === 'notice'}
-            onPressImage={handleImagePressed}
-            onLongPress={handleLongPress}
-            searchQuery={searchQuery}
-          />
+          {displayDebugMode ? (
+            <Text color="$green" size="$body" padding="$xl">
+              {JSON.stringify(
+                {
+                  seq: post.sequenceNum,
+                  id: post.id,
+                  sentAt: post.sentAt,
+                  channelId: post.channelId,
+                  authorId: post.authorId,
+                  deliveryStatus: post.deliveryStatus,
+                },
+                null,
+                2
+              )}
+            </Text>
+          ) : (
+            <ChatContentRenderer
+              content={post.editStatus === 'failed' ? lastEditContent : content}
+              isNotice={post.type === 'notice'}
+              onPressImage={handleImagePressed}
+              onLongPress={handleLongPress}
+              searchQuery={searchQuery}
+            />
+          )}
         </View>
 
         {post.reactions && post.reactions.length > 0 && (
@@ -294,9 +317,9 @@ const ChatMessage = ({
             }}
             onOpenChange={setIsPopoverOpen}
             onReply={handleRepliesPressed}
-            onEdit={onPressEdit}
+            onEdit={handleEditPressed}
             onViewReactions={setViewReactionsPost}
-            onShowEmojiPicker={onShowEmojiPicker}
+            onShowEmojiPicker={handleEmojiPickerPressed}
             trigger={
               <Button
                 backgroundColor="transparent"
@@ -380,7 +403,8 @@ export default memo(ChatMessage, (prev, next) => {
     prev.onPressImage === next.onPressImage &&
     prev.onLongPress === next.onLongPress &&
     prev.onPress === next.onPress &&
-    prev.searchQuery === next.searchQuery;
+    prev.searchQuery === next.searchQuery &&
+    prev.displayDebugMode === next.displayDebugMode;
 
   return isPostEqual && areOtherPropsEqual;
 });
