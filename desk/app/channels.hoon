@@ -209,7 +209,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %11
+    $:  %12
         =v-channels:c
         voc=(map [nest:c plan:c] (unit said:c))
         hidden-posts=(set id-post:c)
@@ -320,9 +320,15 @@
   =?  old  ?=(%6 -.old)  (state-6-to-7 old)
   =?  old  ?=(%7 -.old)  (state-7-to-8 old)
   =?  old  ?=(%8 -.old)  (state-8-to-9 old)
-  =^  caz-9=(list card)  old
-    ?.  ?=(%9 -.old)  [~ old]
-    :_  (state-9-to-10 old)
+  =?  old  ?=(%9 -.old)  (state-9-to-10 old)
+  =?  old  ?=(%10 -.old)  (state-10-to-11 old)
+  =^  caz-11=(list card)  old
+    ?.  ?=(%11 -.old)  [~ old]
+    :_  (state-11-to-12 old)
+    ::NOTE  we used to do this during 9-to-10, but we still had bad data,
+    ::      so now we do it again for those who had already done it, and
+    ::      kick it off fresh for those coming from older versions.
+    ::      see also the similar note below.
     %-  zing
     %+  turn  ~(tap in ~(key by v-channels.old))
     |=  =nest:c
@@ -344,9 +350,8 @@
         [%pass [%tombstones wire] %arvo note]
         (tell:plog %dbug ~[>[wire `@dr`duration %fires-at `@da`(add now.bowl duration)]<] ~)
     ==
-  =.  cor  (emil caz-9)
-  =?  old  ?=(%10 -.old)  (state-10-to-11 old)
-  ?>  ?=(%11 -.old)
+  =.  cor  (emil caz-11)
+  ?>  ?=(%12 -.old)
   ::  periodically clear .debounce to avoid space leak
   ::
   =.  debounce  ~
@@ -354,7 +359,8 @@
   inflate-io
   ::
   +$  versioned-state
-    $%  state-11
+    $%  state-12
+        state-11
         state-10
         state-9
         state-8
@@ -367,7 +373,8 @@
         state-1
         state-0
     ==
-  +$  state-11  current-state
+  +$  state-12  current-state
+  +$  state-11  _%*(. *state-12 - %11)
   +$  state-10
     $:  %10
         =v-channels:v9:c
@@ -433,6 +440,13 @@
         =^subs:s
         =pimp:imp
     ==
+  ::
+  ++  state-11-to-12
+    |=  s=state-11
+    =-  s(- %12, v-channels (~(run by v-channels.s) -))
+    |=  v=v-channel:v9:c
+    ^+  v
+    v(posts (drop-bad-tombstones:utils posts.v))
   ::
   ++  state-10-to-11
     |=  state-10
@@ -828,8 +842,9 @@
         =.  posts.channel
           ::NOTE  this will insert deleted posts that we didn't previously know
           ::      about, potentially resulting in a "gapped" backlog.
-          ::      you'd expect to track that in window.channel, except that's
-          ::      filled _anywhere at all_, so it's safe to ignore here too.
+          ::      you'd expect to track that in window.channel, except that is
+          ::      not filled _anywhere at all_, so it's safe to ignore here too.
+          ~?  >>>  =(0 seq.tomb.i.tombs)  [%bad-tombstone-for nest id=id.i.tombs]
           (put:on-v-posts:c posts.channel [id |+tomb]:i.tombs)
         $(tombs t.tombs)
       cor
