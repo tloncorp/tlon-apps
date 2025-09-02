@@ -64,7 +64,7 @@ async function performSync() {
   }
 }
 
-const TASK_ID = 'tlon:backgroundSync:v1';
+const TASK_ID = 'tlon:backgroundSync:v2';
 
 export async function removeLegacyTasks() {
   try {
