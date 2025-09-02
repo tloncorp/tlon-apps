@@ -125,7 +125,6 @@
 ::
 ++  on-init
   ^-  (quip card _this)
-  ::XX  change this before releasing!
   :_  this(vic 'https://tlon.network/lure/', civ ~loshut-lonreg)
   :~  [%pass /groups %agent [our.bowl %groups] %watch groups-path]
       [%pass /contacts %agent [our.bowl %contacts] %watch contacts-path]
