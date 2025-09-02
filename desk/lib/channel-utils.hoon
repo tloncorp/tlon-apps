@@ -1141,20 +1141,16 @@
 ::    - inconsistent sequence nrs between log and posts
 ::    - gaps in sequence nrs in the posts
 ::    - duplicate sequence nrs in the posts
-::    it achieves this by walking the log from past to present. it tracks a
-::    fresh .count, incrementing only for the first observed message creation.
-::    it tracks the count (sequence nr) and author at message creation time.
-::    (so, yes, we mint sequence numbers from scratch here.)
-::    when encountering edits or deletes, it reuses those exact details,
-::    changing both the log entry and post itself as necessary.
+::    it achieves this by walking the posts from past to present. it tracks a
+::    fresh .count, incrementing only for every known top-level message, and
+::    tracks an id->seq mapping. that mapping is then used in walking the log,
+::    making sure the log has matching and consisent sequence numbers.
 ::    after you run this (on the channel host), take care to make clients
 ::    (re-)request the seqs and tombs!
 ::
 ++  repair-channel
   |=  [n=nest:v9:c v=v-channel:v9:c]
   ^+  v
-  ~&  >  [%repairing nest=n]
-  ~>  %bout.[0 'repairing channel']
   ::  renumber posts based on the order in which they show up,
   ::  dropping bad tombstones along the way
   ::
@@ -1194,15 +1190,13 @@
   :_  [| ~]
   ?.  ?=(%| -.post)  `post
   ?:  &(=(*@ud seq.post) =(*@p author.post))
-    ~?  >>>  !=(id.post del-at.post)  [%dropping-tombstone-but-had-real-id id.post]
     ~
   `post
 ++  renumber-log
   |=  [n=nest:v9:c =log:v9:c seqs=(map id-post:v9:c @ud) dead=(set id-post:v9:c)]
   ^+  log
-  ::  do a "repair" pass over the channel: walk the log and mint new seq nrs,
-  ::  hard-set all seq nrs and authors, and ensure that the log contains
-  ::  consistent sequence nrs for every post id.
+  ::  do a "repair" pass over the log: walk it and re-apply sequence nrs,
+  ::  ensuring that the log contains consistent sequence nrs for every post id.
   ::
   =<  +
   %-  (dip:log-on:v9:c ,~)
@@ -1215,12 +1209,12 @@
     ~|  info
     ?.  (~(has by seqs) id.update)
       ?:  (~(has in dead) id.update)
-        ~&  >>>  [%couldve-recovered-maybe update]
+        ::NOTE  since we removed the matching post from the post list,
+        ::      we must drop this related log entry too.
         [~ | ~]
       ~|  [%log-for-unknown id=id.update]
       !!  ::TODO  safe on prod?
     =+  seq=(~(got by seqs) id.update)
-    ~?  >>  !=(seq seq.post.u-post.update)     [%fixing-log-seq in-store=seq in-log=seq.post.u-post.update]
     =.  update  update(seq.post.u-post seq)
     [`update | ~]
   ::
@@ -1229,12 +1223,10 @@
     ~|  info
     ?.  (~(has by seqs) id.update)
       ?:  (~(has in dead) id.update)
-        ~&  >>>  [%couldve-recovered-maybe update]
         [`update | ~]
       ~|  [%log-for-unknown id=id.update]
       !!
     =+  seq=(~(got by seqs) id.update)
-    ::~?  >>  !=(seq seq.post.u-post.update)     [%fixing-log-seq in-store=seq in-log=seq.post.u-post.update]
     =.  update  update(seq.post.u-post seq)
     [`update | ~]
   ::
