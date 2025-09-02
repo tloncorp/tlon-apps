@@ -398,7 +398,6 @@
       =*  flag  flag.r-groups
       =*  meta  meta.r-group.r-groups
       =+  id=(rap 3 (scot %p p.flag) '/' q.flag ~)
-      ::TODO this should not occur, but we should log it if it does.
       ?~  token=(~(get by stable-id) id)  `this
       =|  update=metadata:reel
       =.  tag.update  'groups-0'
