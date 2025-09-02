@@ -1212,8 +1212,8 @@
         ::NOTE  since we removed the matching post from the post list,
         ::      we must drop this related log entry too.
         [~ | ~]
-      ~|  [%log-for-unknown id=id.update]
-      !!  ::TODO  safe on prod?
+      ~&  >>>  [%log-for-unknown id=id.update]
+      [~ | ~]
     =+  seq=(~(got by seqs) id.update)
     =.  update  update(seq.post.u-post seq)
     [`update | ~]
@@ -1226,8 +1226,8 @@
         ::NOTE  since we removed the matching tombstone in the post list,
         ::      we must drop this related log entry too.
         [~ | ~]
-      ~|  [%log-for-unknown id=id.update]
-      !!
+      ~&  >>>  [%log-for-unknown id=id.update]
+      [~ | ~]
     =+  seq=(~(got by seqs) id.update)
     =.  update  update(seq.post.u-post seq)
     [`update | ~]
