@@ -375,7 +375,7 @@
       ::
       =/  caz=(list card)
         %+  turn  ~(tap by our-metadata)
-        |=  [=token:reel metadata:reel]
+        |=  [=token:reel *]
         [%pass /update/contact %agent [civ %bait] %poke bait-update+!>([token update])]
       [caz this]
     ==
