@@ -256,10 +256,10 @@
     %-  %^  tell:log  %info
           ~[leaf+"invite link for {(trip id)} created"]
         ~['event'^s+'Invite Link Created' 'lure-id'^s+token]
-    :_  this(our-metadata (~(del by our-metadata) token))
-    ::  swap out the nonce for the token in our-metadata
-    =.  our-metadata
-      (~(put by (~(del by our-metadata) nonce)) token u.md)
+    :_  %_  this  our-metadata
+          ::  swap out the nonce for the token in our-metadata
+          (~(put by (~(del by our-metadata) nonce)) token u.md)
+        ==
     =/  url  (cat 3 vic token)
     =/  path  (stab (cat 3 '/v1/id-link/' id))
     ~[[%give %fact ~[path] %json !>(s+url)]]
