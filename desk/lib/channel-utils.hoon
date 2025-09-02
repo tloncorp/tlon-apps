@@ -1223,7 +1223,9 @@
     ~|  info
     ?.  (~(has by seqs) id.update)
       ?:  (~(has in dead) id.update)
-        [`update | ~]
+        ::NOTE  since we removed the matching tombstone in the post list,
+        ::      we must drop this related log entry too.
+        [~ | ~]
       ~|  [%log-for-unknown id=id.update]
       !!
     =+  seq=(~(got by seqs) id.update)
