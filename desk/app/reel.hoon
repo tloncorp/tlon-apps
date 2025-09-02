@@ -77,16 +77,55 @@
 ::
 %-  agent:dbug
 %+  verb  |
+=>
+|%
+::  |l: logs core
+::
+++  l
+  |_  [=bowl:gall =log-data:logs]
+  ++  fail
+    |=  [desc=term =tang]
+    %-  link
+    %-  %-  %*(. slog pri 3)  [leaf+"fail" tang]
+    (~(fail logs our.bowl /logs) desc tang log-data)
+  ::
+  ++  tell
+    |=  [vol=volume:logs =echo:logs =log-data:logs]
+    =/  pri
+      ?-  vol
+        %dbug  0
+        %info  1
+        %warn  2
+        %crit  3
+      ==
+    %-  link
+    %-  %-  %*(. slog pri pri)  echo
+    (~(tell logs our.bowl /logs) vol echo (weld ^log-data log-data))
+  ::  +deez: log message details
+  ::
+  :: ++  deez
+  ::   ^-  (list (pair @t json))
+  ::   =;  l=(list (unit (pair @t json)))
+  ::     (murn l same)
+  ::   :~  ?~(flow ~ `'flow'^s+u.flow)
+  ::   ==
+  ++  link
+    |=  cad=card
+    |*  [caz=(list card) etc=*]
+    [[cad caz] etc]
+  --
+--
 |_  =bowl:gall
 +*  this  .
     def   ~(. (default-agent this %|) bowl)
-    log   ~(. logs [our.bowl /logs])
+    log   ~(. l bowl ~)
   ::
     groups-path    /v1/groups
     contacts-path  /v1/news
 ::
 ++  on-init
   ^-  (quip card _this)
+  ::XX  change this before releasing!
   :_  this(vic 'https://tlon.network/lure/', civ ~loshut-lonreg)
   :~  [%pass /groups %agent [our.bowl %groups] %watch groups-path]
       [%pass /contacts %agent [our.bowl %contacts] %watch contacts-path]
@@ -134,9 +173,13 @@
   ?>  ?=(%5 -.old)
   =.  state  old
   :_  this
-  ::TODO do not rewatch if we have cards in wex.bowl
-  :~  [%pass /groups %agent [our.bowl %groups] %watch groups-path]
-      [%pass /contacts %agent [our.bowl %contacts] %watch contacts-path]
+  %-  murn  :_  same
+  ^-  (list (unit card))
+  :~  ?:  (~(has by wex.bowl) /groups [our.bowl %groups])  ~
+      `[%pass /groups %agent [our.bowl %groups] %watch groups-path]
+    ::
+      ?:  (~(has by wex.bowl) /contacts [our.bowl %contacts])  ~
+      `[%pass /contacts %agent [our.bowl %contacts] %watch contacts-path]
   ==
 ::
 ++  on-poke
@@ -191,6 +234,7 @@
       %reel-confirmation
     ?>  =(civ src.bowl)
     =+  !<(confirmation:reel vase)
+    =+  log=~(. l bowl 'flow'^s+'lure' ~)
     =.  open-describes  (~(del in open-describes) nonce)
     =/  ids=(list [id=cord =token:reel])
       %+  skim
@@ -198,37 +242,38 @@
       |=  [key=cord =token:reel]
       =(nonce token)
     ?~  ids
-      :_  this  :_  ~
-      %^  tell:log  %warn
-        ~[leaf+"no stable id found for nonce {<nonce>}"]
-      ~['event'^s+'Nonce Revoked' 'flow'^s+'lure']
+      %-  %^  tell:log  %warn
+            ~[leaf+"no stable id found for nonce {<nonce>}"]
+          ~['event'^s+'Nonce Revoked']
+      `this
     =*  id  -<.ids
     ?~  md=(~(get by our-metadata) nonce)
-      :_  this  :_  ~
-      %^  tell:log  %crit
-        ~[leaf+"no metadata for nonce {<nonce>}"]
-      ~['event'^s+'Invite Creation Failed' 'flow'^s+'lure']
+      %-  %^  tell:log  %crit
+            ~[leaf+"no metadata for nonce {<nonce>}"]
+          ~['event'^s+'Invite Creation Failed']
+      `this
     ::  update the token the id points to
     =.  stable-id  (~(put by stable-id) id token)
+    %-  %^  tell:log  %info
+          ~[leaf+"invite link for {(trip id)} created"]
+        ~['event'^s+'Invite Link Created' 'lure-id'^s+token]
+    :_  this(our-metadata (~(del by our-metadata) token))
     ::  swap out the nonce for the token in our-metadata
     =.  our-metadata
       (~(put by (~(del by our-metadata) nonce)) token u.md)
-    :_  this
     =/  url  (cat 3 vic token)
     =/  path  (stab (cat 3 '/v1/id-link/' id))
-    :-  %^  tell:log  %info
-          ~[leaf+"invite link for {(trip id)} created"]
-        ~['event'^s+'Invite Link Created' 'flow'^s+'lure' 'lure-id'^s+token]
     ~[[%give %fact ~[path] %json !>(s+url)]]
   ::
       %reel-undescribe
     ?>  =(our.bowl src.bowl)
     =+  !<(=token:reel vase)
+    =+  log=~(. l bowl 'flow'^s+'lure' ~)
     ::  the token here should be the actual token given to us by the provider
-    :_  this(our-metadata (~(del by our-metadata) token))
-    :-  %^  tell:log  %info
+    %-  %^  tell:log  %info
           ~[leaf+"invite link removed"]
-        ~['event'^s+'Invite Link Removed' 'flow'^s+'lure' 'lure-id'^s+token]
+        ~['event'^s+'Invite Link Removed' 'lure-id'^s+token]
+    :_  this(our-metadata (~(del by our-metadata) token))
     ~[[%pass /undescribe %agent [civ %bait] %poke %bait-undescribe !>(token)]]
   ::  old pokes for getting links, we no longer use these because all links
   ::  are unique to that ship/user and can be scried out
@@ -258,8 +303,17 @@
   ^-  (quip card _this)
   =/  =(pole knot)  wire
   ?+    pole  (on-agent:def wire sign)
-      [%update %contact ~]  `this  ::  TODO log failure
-      [%update %group ~]  `this :: TODO log failure
+      [%update %contact ~]
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign  `this
+    %-  (fail:log %poke-ack 'profile update failed' u.p.sign)
+    `this
+  ::
+      [%update %group ~]
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign  `this
+    %-  (fail:log %poke-ack 'group meta update failed' u.p.sign)
+    `this
   ::
       [%contacts ~]
     ?+    -.sign  (on-agent:def wire sign)
@@ -270,8 +324,8 @@
     ::
         %watch-ack
       ?~  p.sign  `this
-      :_  this
-      ~[(fail:log %watch-ack ['failed to subscribe to contacts' u.p.sign] ~)]
+      %-  (fail:log %watch-ack 'failed to subscribe to contacts' u.p.sign)
+      `this
     ::
         %fact
       =+  !<(=response:t q.cage.sign)
@@ -308,8 +362,8 @@
       =.  tag.update  'group-0'
       =.  fields.update
         %-  ~(gas by *(map cord cord))
-        :~  'inviterNickname'^?^(nickname u.nickname (scot %p our.bowl))
-            'inviterAvatarImage'^?^(avatar u.avatar '')
+        :~  'inviterNickname'^(fall nickname '')
+            'inviterAvatarImage'^(fall avatar '')
             'inviterColor'^?^(color (rsh [3 2] u.color) '')
         ==
       ::  update our lure links with new nickname and avatar image
@@ -322,8 +376,8 @@
       ::
       =/  caz=(list card)
         %+  turn  ~(tap by our-metadata)
-        |=  [=token:reel =metadata:reel]
-        [%pass /update/contact %agent [civ %bait] %poke bait-update+!>([token metadata])]
+        |=  [=token:reel metadata:reel]
+        [%pass /update/contact %agent [civ %bait] %poke bait-update+!>([token update])]
       [caz this]
     ==
   ::
@@ -336,8 +390,8 @@
     ::
         %watch-ack
       ?~  p.sign  `this
-      :_  this
-      ~[(fail:log %watch-ack ['failed to subscribe to groups' u.p.sign] ~)]
+      %-  (fail:log %watch-ack 'failed to subscribe to groups' u.p.sign)
+      `this
     ::
         %fact
       =+  !<(=r-groups:v7:groups-ver q.cage.sign)
@@ -347,9 +401,9 @@
       =+  id=(rap 3 (scot %p p.flag) '/' q.flag ~)
       ::TODO this should not occur, but we should log it if it does.
       ?~  token=(~(get by stable-id) id)  `this
-      =|  =metadata:reel
-      =.  tag.metadata  'groups-0'
-      =.  fields.metadata
+      =|  update=metadata:reel
+      =.  tag.update  'groups-0'
+      =.  fields.update
         %-  ~(gas by *(map cord cord))
         :~  'invitedGroupTitle'^title.meta
             'invitedGroupDescription'^description.meta
@@ -361,12 +415,12 @@
         ?~  our-meta=(~(get by our-metadata) u.token)
           our-metadata
         %+  ~(put by our-metadata)  u.token
-        u.our-meta(fields (~(uni by fields.u.our-meta) fields.metadata))
+        u.our-meta(fields (~(uni by fields.u.our-meta) fields.update))
       ::  update the bait provider if we are the group host
       ::
       ?.  =(p.flag our.bowl)  `this
       :_  this
-      [%pass /update/group %agent [civ %bait] %poke bait-update+!>([u.token metadata])]~
+      [%pass /update/group %agent [civ %bait] %poke bait-update+!>([u.token update])]~
     ==
   ::
       [%token-link @ name=@ ~]
@@ -450,7 +504,6 @@
     =/  url  (cat 3 vic u.token)
     ``json+!>(s+url)
   ==
-::
 ++  on-arvo
   |=  [=wire =sign-arvo]
   ^-  (quip card:agent:gall _this)
@@ -458,8 +511,8 @@
       [%set-ship ~]
     ?>  ?=([%khan %arow *] sign-arvo)
     ?:  ?=(%.n -.p.sign-arvo)
-      :_  this
-      ~[(tell:log %warn ~['fetch bait ship failed'] ~)]
+      %-  (tell:log %warn ~['fetch bait ship failed'] ~)
+      `this
     `this
   ::
       [%expire @ @ ~]
@@ -477,6 +530,6 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  :_  this
-  [(fail:log term tang ~)]~
+  %-  (fail:log term tang)
+  `this
 --
