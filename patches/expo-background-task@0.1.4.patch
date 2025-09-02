@@ -94,7 +94,7 @@ index 6e619ddac321235838ee255d9d453e4119a7c0dd..46f5da9c51bc21ad56f5972bef9b6430
    }
  }
 diff --git a/ios/BackgroundTaskScheduler.swift b/ios/BackgroundTaskScheduler.swift
-index 20e3e590008cf187f00ce069e4f06f70e246a546..fd0bafed891d970670fc856fcb128caa04945b79 100644
+index 20e3e590008cf187f00ce069e4f06f70e246a546..fec8bcc768b338271af342dd301e731e33b063c5 100644
 --- a/ios/BackgroundTaskScheduler.swift
 +++ b/ios/BackgroundTaskScheduler.swift
 @@ -10,8 +10,9 @@ public class BackgroundTaskScheduler {
@@ -108,22 +108,16 @@ index 20e3e590008cf187f00ce069e4f06f70e246a546..fd0bafed891d970670fc856fcb128caa
  
    /**
     * Call when a task is registered to keep track of how many background task consumers we have
-@@ -21,6 +22,14 @@ public class BackgroundTaskScheduler {
+@@ -21,6 +22,8 @@ public class BackgroundTaskScheduler {
        intervalSeconds = Double(minutes) * 60
      }
      numberOfRegisteredTasksOfThisType += 1
 +
 +    print("tlonDebug: did register, count is now \(numberOfRegisteredTasksOfThisType)")
-+
-+    if numberOfRegisteredTasksOfThisType == 1 {
-+      Task {
-+        try await tryScheduleWorker()
-+      }
-+    }
    }
  
    /**
-@@ -28,6 +37,7 @@ public class BackgroundTaskScheduler {
+@@ -28,6 +31,7 @@ public class BackgroundTaskScheduler {
     */
    public static func didUnregisterTask() {
      numberOfRegisteredTasksOfThisType -= 1
@@ -131,7 +125,7 @@ index 20e3e590008cf187f00ce069e4f06f70e246a546..fd0bafed891d970670fc856fcb128caa
    }
  
    /**
-@@ -43,17 +53,15 @@ public class BackgroundTaskScheduler {
+@@ -43,17 +47,15 @@ public class BackgroundTaskScheduler {
      await stopWorker()
  
      // Create request
@@ -153,7 +147,7 @@ index 20e3e590008cf187f00ce069e4f06f70e246a546..fd0bafed891d970670fc856fcb128caa
      } catch let error as BGTaskScheduler.Error {
        switch error.code {
        case .unavailable:
-@@ -77,6 +85,7 @@ public class BackgroundTaskScheduler {
+@@ -77,6 +79,7 @@ public class BackgroundTaskScheduler {
     */
    public static func stopWorker() async {
      BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: BackgroundTaskConstants.BackgroundWorkerIdentifier)
@@ -161,7 +155,7 @@ index 20e3e590008cf187f00ce069e4f06f70e246a546..fd0bafed891d970670fc856fcb128caa
    }
  
    /**
-@@ -84,7 +93,9 @@ public class BackgroundTaskScheduler {
+@@ -84,7 +87,9 @@ public class BackgroundTaskScheduler {
     */
    public static func isWorkerRunning() async -> Bool {
      let requests = await BGTaskScheduler.shared.pendingTaskRequests()
