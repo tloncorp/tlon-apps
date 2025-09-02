@@ -209,7 +209,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %12
+    $:  %13
         =v-channels:c
         voc=(map [nest:c plan:c] (unit said:c))
         hidden-posts=(set id-post:c)
@@ -322,13 +322,14 @@
   =?  old  ?=(%8 -.old)  (state-8-to-9 old)
   =?  old  ?=(%9 -.old)  (state-9-to-10 old)
   =?  old  ?=(%10 -.old)  (state-10-to-11 old)
-  =^  caz-11=(list card)  old
-    ?.  ?=(%11 -.old)  [~ old]
-    :_  (state-11-to-12 old)
-    ::NOTE  we used to do this during 9-to-10, but we still had bad data,
-    ::      so now we do it again for those who had already done it, and
-    ::      kick it off fresh for those coming from older versions.
-    ::      see also the similar note below.
+  =?  old  ?=(%11 -.old)  (state-11-to-12 old)
+  =^  caz-12=(list card)  old
+    ?.  ?=(%12 -.old)  [~ old]
+    :_  (state-12-to-13 old)
+    ::NOTE  we used to do this during 9-to-10, and later during 11-to-12,
+    ::      but we still had bad data, so now we do it again for those who had
+    ::      already done it, and kick it off fresh for those coming from older
+    ::      versions. see also the similar note below.
     %-  zing
     %+  turn  ~(tap in ~(key by v-channels.old))
     |=  =nest:c
@@ -350,8 +351,8 @@
         [%pass [%tombstones wire] %arvo note]
         (tell:plog %dbug ~[>[wire `@dr`duration %fires-at `@da`(add now.bowl duration)]<] ~)
     ==
-  =.  cor  (emil caz-11)
-  ?>  ?=(%12 -.old)
+  =.  cor  (emil caz-12)
+  ?>  ?=(%13 -.old)
   ::  periodically clear .debounce to avoid space leak
   ::
   =.  debounce  ~
@@ -359,7 +360,8 @@
   inflate-io
   ::
   +$  versioned-state
-    $%  state-12
+    $%  state-13
+        state-12
         state-11
         state-10
         state-9
@@ -373,7 +375,8 @@
         state-1
         state-0
     ==
-  +$  state-12  current-state
+  +$  state-13  current-state
+  +$  state-12  _%*(. *state-13 - %12)
   +$  state-11  _%*(. *state-12 - %11)
   +$  state-10
     $:  %10
@@ -441,12 +444,18 @@
         =pimp:imp
     ==
   ::
-  ++  state-11-to-12
-    |=  s=state-11
-    =-  s(- %12, v-channels (~(run by v-channels.s) -))
+  ++  state-12-to-13
+    |=  s=state-12
+    =-  s(- %13, v-channels (~(run by v-channels.s) -))
     |=  v=v-channel:v9:c
     ^+  v
     v(posts (drop-bad-tombstones:utils posts.v))
+  ::
+  ++  state-11-to-12
+    |=  s=state-11
+    ::NOTE  this used to do the +state-12-to-13 logic,
+    ::      but we moved that down the line.
+    s(- %12)
   ::
   ++  state-10-to-11
     |=  state-10
