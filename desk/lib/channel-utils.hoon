@@ -1205,7 +1205,7 @@
   ^-  [(unit u-channel:v9:c) stop=? ~]
   =*  info  [nest=n id=id.update log=time]
   ?+  update  [`update | ~]
-      [%post * %set %& *]
+      [%post * %set *]
     ~|  info
     ?.  (~(has by seqs) id.update)
       ?:  (~(has in dead) id.update)
@@ -1215,21 +1215,11 @@
       ~&  >>>  [%log-for-unknown id=id.update]
       [~ | ~]
     =+  seq=(~(got by seqs) id.update)
-    =.  update  update(seq.post.u-post seq)
-    [`update | ~]
-  ::
-      [%post * %set %| *]
-    ::TODO  dedupe with above code
-    ~|  info
-    ?.  (~(has by seqs) id.update)
-      ?:  (~(has in dead) id.update)
-        ::NOTE  since we removed the matching tombstone in the post list,
-        ::      we must drop this related log entry too.
-        [~ | ~]
-      ~&  >>>  [%log-for-unknown id=id.update]
-      [~ | ~]
-    =+  seq=(~(got by seqs) id.update)
-    =.  update  update(seq.post.u-post seq)
+    =.  update
+      ?-  -.post.u-post.update
+        %&  update(seq.post.u-post seq)
+        %|  update(seq.post.u-post seq)
+      ==
     [`update | ~]
   ::
     ::NOTE  we do not worry about replies
