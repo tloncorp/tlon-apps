@@ -20,14 +20,18 @@ export function isColor(value: string) {
   return value[0] === '#';
 }
 
+// Limit max image string size since this isn't currently limited serverside +
+// it's possible for these to be massive and cause issues.
+const maxImageStringSize = 2048;
+
 export function toClientMeta(meta: ub.GroupMeta): db.ClientMeta {
-  const iconImage = meta.image;
+  const iconImage = meta.image.length > maxImageStringSize ? '' : meta.image;
   const iconImageData = iconImage
     ? isColor(iconImage)
       ? { iconImageColor: iconImage }
       : { iconImage: iconImage }
     : {};
-  const coverImage = meta.cover;
+  const coverImage = meta.cover.length > maxImageStringSize ? '' : meta.cover;
   const coverImageData = coverImage
     ? isColor(coverImage)
       ? { coverImageColor: coverImage }
