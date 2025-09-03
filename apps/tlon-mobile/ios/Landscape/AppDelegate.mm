@@ -32,6 +32,9 @@
   [[NSHTTPCookieStorage sharedHTTPCookieStorage] forwardChangesTo: [NSHTTPCookieStorage forDefaultAppGroup]];
   
   [ShortcutsManager setup];
+  
+  // Start processing notification service extension logs
+  [NotificationLogProcessor startPeriodicProcessing];
 
   return [super application:application didFinishLaunchingWithOptions:launchOptions];
 }

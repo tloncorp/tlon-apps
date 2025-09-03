@@ -70,18 +70,6 @@ target 'Landscape-preview' do
   shared(podfile_properties)
 end
 
-target 'Notifications' do
-  Pod::UI.puts 'Building Notifications'
-  use_frameworks! :linkage => :static
-  pod 'PostHog', '~> 3.0'
-end
-
-target 'Notifications-preview' do
-  Pod::UI.puts 'Building Notifications-preview'
-  use_frameworks! :linkage => :static
-  pod 'PostHog', '~> 3.0'
-end
-
 post_install do |installer|
   react_native_post_install(
     installer,

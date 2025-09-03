@@ -6,14 +6,13 @@
 //
 
 import Foundation
-import PostHog
 
 private let NOTIFICATION_SERVICE_ERROR = "Notification Service Error"
 private let NOTIFICATION_SERVICE_DELIVERED = "Notification Service Delivery Successful"
 
 class NotificationLogger {
-    private static var isPostHogInitialized = false
-    private static let initLock = NSLock()
+    private static let appGroupIdentifier = "group.tlon.Landscape"
+    private static let logFileName = "notification_logs.json"
     
     static func logError(_ error: NotificationError) {
         let properties = getLogPayload(uid: error.uid, message: error.message, error: error)
@@ -24,45 +23,35 @@ class NotificationLogger {
         log(eventName: NOTIFICATION_SERVICE_DELIVERED, properties: properties)
     }
     
-    private static func ensurePostHogInitialized() {
-        initLock.lock()
-        defer { initLock.unlock() }
-        
-        guard !isPostHogInitialized else { return }
-        
-        do {
-            // Get PostHog API key from Expo constants (similar to Android implementation)
-            guard let constantsPath = Bundle.main.path(forResource: "app", ofType: "config"),
-                  let constantsData = NSData(contentsOfFile: constantsPath),
-                  let constantsJson = try JSONSerialization.jsonObject(with: constantsData as Data) as? [String: Any],
-                  let extra = constantsJson["extra"] as? [String: Any],
-                  let apiKey = extra["postHogApiKey"] as? String,
-                  !apiKey.isEmpty else {
-                NSLog("PostHog API key not found in Expo constants, skipping initialization")
-                return
-            }
-            
-            let config = PostHogConfig(
-                apiKey: apiKey,
-                host: "https://data-bridge-v1.vercel.app/ingest"
-            )
-            PostHogSDK.shared.setup(config)
-            isPostHogInitialized = true
-            NSLog("PostHog initialized in notification service with key from Expo constants")
-        } catch {
-            NSLog("Failed to initialize PostHog in notification service: \(error)")
-        }
-    }
-    
     private static func log(eventName: String, properties: [String: Any] = [:]) {
-        ensurePostHogInitialized()
-        
-        do {
-            PostHogSDK.shared.capture(eventName, properties: properties)
-            NSLog("PostHog event captured: \(eventName), \(properties)")
-        } catch {
-            NSLog("PostHog fallback - Event: \(eventName), Properties: \(properties), Error: \(error)")
+        // Write to shared UserDefaults that main app can read and send to PostHog
+        guard let userDefaults = UserDefaults(suiteName: appGroupIdentifier) else {
+            NSLog("Could not access app group UserDefaults")
+            return
         }
+        
+        let logEntry: [String: Any] = [
+            "timestamp": Date().timeIntervalSince1970,
+            "eventName": eventName,
+            "properties": properties
+        ]
+        
+        // Get existing logs
+        var existingLogs = userDefaults.array(forKey: "notificationLogs") as? [[String: Any]] ?? []
+        
+        // Append new log entry
+        existingLogs.append(logEntry)
+        
+        // Keep only recent logs (last 100 entries to prevent from growing too large)
+        if existingLogs.count > 100 {
+            existingLogs = Array(existingLogs.suffix(100))
+        }
+        
+        // Save back to UserDefaults
+        userDefaults.set(existingLogs, forKey: "notificationLogs")
+        userDefaults.synchronize()
+        
+        NSLog("Notification log written: \(eventName), \(properties)")
     }
 }
 
