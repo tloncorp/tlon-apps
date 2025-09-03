@@ -32,7 +32,11 @@ module.exports = mergeConfig(config, {
       return (
         connect()
           .use(metroMiddleware)
-          .use('/open-sqlite', (req, res) => {
+          .use((req, res, next) => {
+            // Handle both /open-sqlite and /apps/tlon-mobile/open-sqlite
+            if (!req.url.includes('/open-sqlite')) {
+              return next();
+            }
             const dbPath = new URL(
               'http://localhost' + req.url
             ).searchParams.get('path');
@@ -44,7 +48,11 @@ module.exports = mergeConfig(config, {
            * - databaseSourcePath: path to the SQLite database in the simulator.
            * - outputPath: path for output file, relative to workspace root
            */
-          .use('/dump-sqlite', (req, res) => {
+          .use((req, res, next) => {
+            // Handle both /dump-sqlite and /apps/tlon-mobile/dump-sqlite
+            if (!req.url.includes('/dump-sqlite')) {
+              return next();
+            }
             const params = new URL('http://localhost' + req.url).searchParams;
             const dbPath = params.get('databaseSourcePath');
             const outputPath = params.get('outputPath');
@@ -65,7 +73,11 @@ module.exports = mergeConfig(config, {
            * - targetPath: path of database on simulator that will be overwritten
            *   with contents of file at `sourcePath`
            */
-          .use('/restore-sqlite', (req, res) => {
+          .use((req, res, next) => {
+            // Handle both /restore-sqlite and /apps/tlon-mobile/restore-sqlite
+            if (!req.url.includes('/restore-sqlite')) {
+              return next();
+            }
             const params = new URL('http://localhost' + req.url).searchParams;
             const sourcePath = params.get('sourcePath');
             const targetPath = params.get('targetPath');
