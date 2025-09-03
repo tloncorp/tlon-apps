@@ -16,6 +16,11 @@ class NotificationService: UNNotificationServiceExtension {
             let scriptURL = Bundle.main.url(forResource: "bundle", withExtension: "js"),
             let script = try? String(contentsOf: scriptURL)
         else {
+            // Log script loading failure if we can extract uid from notification
+            if let userInfo = notification.userInfo as? [String: Any],
+               let uid = userInfo["uid"] as? String {
+                NotificationLogger.logError(PreviewRenderFailed(uid: uid, activityEvent: "Unknown", underlyingError: NSError(domain: "com.tlon.landscape.notifications", code: 2001, userInfo: [NSLocalizedDescriptionKey: "Failed to load JavaScript bundle"])))
+            }
             return notification
         }
         context.evaluateScript(script)
@@ -26,6 +31,11 @@ class NotificationService: UNNotificationServiceExtension {
             ])
         
         guard let preview = try? previewRaw?.decode(as: NotificationPreviewPayload.self) else {
+            // Log preview decoding failure if we can extract uid from notification
+            if let userInfo = notification.userInfo as? [String: Any],
+               let uid = userInfo["uid"] as? String {
+                NotificationLogger.logError(PreviewRenderFailed(uid: uid, activityEvent: "Unknown", underlyingError: NSError(domain: "com.tlon.landscape.notifications", code: 2002, userInfo: [NSLocalizedDescriptionKey: "Failed to decode notification preview"])))
+            }
             return notification
         }
         
@@ -78,8 +88,21 @@ class NotificationService: UNNotificationServiceExtension {
         interaction.direction = .incoming
         do {
             try await interaction.donate()
-            return try notification.updating(from: intent)
+            let result = try notification.updating(from: intent)
+            
+            // Log successful delivery if we can extract uid
+            if let userInfo = notification.userInfo as? [String: Any],
+               let uid = userInfo["uid"] as? String {
+                NotificationLogger.logDelivery(properties: ["uid": uid, "message": "Rich notification delivered successfully"])
+            }
+            
+            return result
         } catch {
+            // Log interaction failure if we can extract uid from notification
+            if let userInfo = notification.userInfo as? [String: Any],
+               let uid = userInfo["uid"] as? String {
+                NotificationLogger.logError(NotificationDisplayFailed(uid: uid, activityEvent: "Unknown", underlyingError: error))
+            }
             NSLog("Error: \(error)")
             return notification
         }
@@ -106,11 +129,19 @@ class NotificationService: UNNotificationServiceExtension {
           return
           
         case let .failedFetchContents(err):
+          // Extract uid for logging
+          if let uid = request.content.userInfo["uid"] as? String {
+              NotificationLogger.logError(ActivityEventFetchFailed(uid: uid, underlyingError: err))
+          }
           packErrorOnNotification(err)
           contentHandler(bestAttemptContent!)
           return
           
         case .invalid:
+          // Log invalid notification
+          if let uid = request.content.userInfo["uid"] as? String {
+              NotificationLogger.logError(NotificationError(uid: uid, message: "Invalid notification format", code: 2003))
+          }
           fallthrough
           
         case .dismiss:
@@ -131,6 +162,13 @@ class NotificationService: UNNotificationServiceExtension {
     override func serviceExtensionTimeWillExpire() {
         // Called just before the extension will be terminated by the system.
         // Use this as an opportunity to deliver your "best attempt" at modified content, otherwise the original push payload will be used.
+        
+        // Log timeout if we can extract uid from notification
+        if let bestAttemptContent = bestAttemptContent,
+           let uid = bestAttemptContent.userInfo["uid"] as? String {
+            NotificationLogger.logError(NotificationError(uid: uid, message: "Notification service extension timed out", code: 2004))
+        }
+        
         if let contentHandler, let bestAttemptContent {
             contentHandler(bestAttemptContent)
         }

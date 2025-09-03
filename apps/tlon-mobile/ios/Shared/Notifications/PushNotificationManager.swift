@@ -30,6 +30,8 @@ import NotificationCenter
                 let aerData = try await PocketAPI.shared.fetchRawPushNotificationContents(uid)
                 return .activityEventJson(try JSONSerialization.jsonObject(with: aerData))
             } catch {
+                // Log fetch failure
+                NotificationLogger.logError(ActivityEventFetchFailed(uid: uid, underlyingError: error))
                 return .failedFetchContents(error)
             }
 
