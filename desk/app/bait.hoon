@@ -137,7 +137,7 @@
     ::
     =|  stable-id=(jug cord token:reel)
     =.  stable-id
-      %+  roll  ~(tap by token-metadata)
+      %+  roll  ~(tap by token-metadata.old)
       |=  [[=token:reel =metadata:reel] =_stable-id]
       ?~  id=(~(get by fields.metadata) 'group')
         stable-id
@@ -231,7 +231,7 @@
         [~ ~]
       ?>  =('2' u.type)
       :-  `[%bite-2 token joiner metadata]
-      ?~  inviter-field=(~(get by fields.metadata) 'inviter')
+      ?~  inviter-field=(~(get by fields.metadata) 'inviterUserId')
         ~
       `(slav %p u.inviter-field)
     ==
@@ -343,7 +343,15 @@
     [%http-response *]  `this
   ==
 ++  on-leave  on-leave:def
-++  on-peek   on-peek:def
+++  on-peek
+  |=  =path
+  ^-  (unit (unit cage))
+  ?+    path  (on-peek:def path)
+      [%x token=@ %metadata ~]
+    ?~  meta=(~(get by token-metadata) i.t.path)
+      [~ ~]
+    ``noun+!>(u.meta)
+  ==
 ++  on-arvo
   |=  [=wire =sign-arvo]
   ^-  (quip card _this)
