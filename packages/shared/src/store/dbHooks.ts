@@ -3,7 +3,7 @@ import {
   UseQueryResult,
   useQuery,
 } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import * as api from '../api';
 import { getMessagesFilter } from '../api';
@@ -381,16 +381,27 @@ export const useMemberRoles = (chatId: string, userId: string) => {
 
 export const useGroupPreview = (groupId: string) => {
   const deps = useKeyFromQueryDeps(db.getGroup, groupId);
-  return useQuery({
+  const { data: group } = useGroup({ id: groupId });
+
+  const { data: groupPreview, ...rest } = useQuery({
     queryKey: [['groupPreview', groupId], deps],
     refetchOnReconnect: false,
     refetchOnMount: false,
-    enabled: !!groupId,
-    queryFn: async () => {
-      const [preview] = await syncGroupPreviews([groupId]);
-      return preview;
-    },
+    enabled: !!groupId && !group,
+    queryFn: async () => await api.getGroupPreview(groupId),
+    placeholderData: group ?? undefined,
   });
+
+  useEffect(() => {
+    if (groupId && !group && groupPreview) {
+      db.insertUnjoinedGroups([groupPreview]);
+    }
+  }, [groupId, group, groupPreview]);
+
+  return {
+    data: group ?? groupPreview ?? undefined,
+    ...rest,
+  };
 };
 
 export const useSystemContacts = () => {
