@@ -274,7 +274,7 @@ export const GroupChannelsScreenView = React.memo(
           titleIcon={group ? <GroupAvatar model={group} size="$2xl" /> : null}
           subtitle={subtitle}
           showSubtitle={isWindowNarrow}
-          borderBottom
+          borderBottom={isWindowNarrow}
           backAction={onBackPressed}
           onTitlePress={handleTitlePress}
           rightControls={

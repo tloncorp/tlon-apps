@@ -207,7 +207,6 @@ export const HomeSidebar = memo(
             <View userSelect="none" flex={1}>
               <ScreenHeader
                 title={notReadyMessage ?? screenTitle}
-                borderBottom
                 rightControls={
                   <>
                     <ScreenHeader.IconButton

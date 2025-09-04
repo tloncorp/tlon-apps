@@ -70,6 +70,7 @@ export const ScreenHeaderComponent = ({
     <View
       paddingTop={top}
       zIndex={50}
+      backgroundColor={'$background'}
       borderColor="$border"
       borderBottomWidth={borderBottom ? 1 : 0}
     >

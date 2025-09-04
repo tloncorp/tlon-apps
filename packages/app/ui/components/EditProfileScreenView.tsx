@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import { KeyboardAvoidingView } from '@tloncorp/ui';
+import { KeyboardAvoidingView, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Alert } from 'react-native';
@@ -175,15 +175,15 @@ export function EditProfileScreenView(props: Props) {
     store.updateProfilePinnedGroups(groups);
   }, []);
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   return (
     <View flex={1} backgroundColor={theme.background.val}>
       <ScreenHeader
         title="Edit Profile"
-        leftControls={
-          <ScreenHeader.TextButton onPress={handlePressCancel}>
-            Cancel
-          </ScreenHeader.TextButton>
-        }
+        backAction={handlePressCancel}
+        borderBottom
+        useHorizontalTitleLayout={!isWindowNarrow}
         rightControls={
           <ScreenHeader.TextButton
             onPress={handlePressDone}
