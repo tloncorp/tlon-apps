@@ -40,7 +40,7 @@
       ['group' '~zod/personal-invite-link']
       ['bite-type' '2']
   ==
-++  do-register-invite
+++  do-bait-describe
   |=  [id=@uv =metadata:reel]
   =/  m  (mare ,(list card))
   ^-  form:m
@@ -229,9 +229,9 @@
   ^-  form:m
   ;<  *  bind:m  (do-init dap bait-agent)
   ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(eny 0v123)))
-  ;<  *  bind:m  (do-register-invite 0v1 group-invite-meta)
-  ;<  *  bind:m  (do-register-invite 0v2 group-invite-meta)
-  ;<  *  bind:m  (do-register-invite 0v3 group-invite-meta)
+  ;<  *  bind:m  (do-bait-describe 0v1 group-invite-meta)
+  ;<  *  bind:m  (do-bait-describe 0v2 group-invite-meta)
+  ;<  *  bind:m  (do-bait-describe 0v3 group-invite-meta)
   ::  a group lure invite can be updated by anyone with the token.
   ::  ordinary group members do not update the associated invites.
   ::
@@ -266,7 +266,7 @@
   ^-  form:m
   ;<  *  bind:m  (do-init dap bait-agent)
   ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(eny 0v123)))
-  ;<  *  bind:m  (do-register-invite 0v1 group-invite-meta)
+  ;<  *  bind:m  (do-bait-describe 0v1 group-invite-meta)
   =/  =request:http
     :*  %'POST'
         '/lure/0v1'

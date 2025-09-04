@@ -24,12 +24,21 @@
     |=  [desc=term trace=tang]
     =/  =card
       (~(fail logs our /logs) desc trace deez)
+    %-  %-  %*(. slog pri 3)  [leaf+"fail" trace]
     (link card)
   ::
   ++  tell
     |=  [vol=volume:logs =echo:logs =log-data:logs]
     =/  =card
       (~(tell logs our /logs) vol echo (weld log-data deez))
+    =/  pri
+      ?-  vol
+        %dbug  0
+        %info  1
+        %warn  2
+        %crit  3
+      ==
+    %-  %-  %*(. slog pri pri)  echo
     (link card)
   ::  +deez: log message details
   ::
@@ -206,7 +215,7 @@
       --
     =^  caz=(list card)  this
       =*  dm-event  'DM Invite Fail'
-      ?~  inviter=(~(get by fields.metadata.bite) 'inviter')
+      ?~  inviter=(~(get by fields.metadata.bite) 'inviterUserId')
         %-  %^  tell  %crit  dm-event
             ~['inviter field missing in lure bite']
         `this

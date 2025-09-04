@@ -214,7 +214,7 @@
     =.  fields.metadata
       %-  ~(gas by fields.metadata)
       :~  ['bite-type' '2']
-          ['inviter' (scot %p src.bowl)]
+          ['inviterUserId' (scot %p src.bowl)]
           ['group' id]
       ==
     ::  the nonce here is a temporary identifier for the metadata.
@@ -358,12 +358,12 @@
       ::  nothing relevant has changed, skip the update
       ?:  &(axe bax cax)  `this
       =|  update=metadata:reel
-      =.  tag.update  'group-0'
+      =.  tag.update  'groups-0'
       =.  fields.update
         %-  ~(gas by *(map cord cord))
         :~  'inviterNickname'^(fall nickname '')
             'inviterAvatarImage'^(fall avatar '')
-            'inviterColor'^?^(color (rsh [3 2] u.color) '')
+            'inviterColor'^?^(color (rsh [3 2] (scot %ux u.color)) '')
         ==
       ::  update our lure links with new nickname and avatar image
       ::
@@ -376,7 +376,7 @@
       =/  caz=(list card)
         %+  turn  ~(tap by our-metadata)
         |=  [=token:reel *]
-        [%pass /update/contact %agent [civ %bait] %poke bait-update+!>([token update])]
+        [%pass /update/profile %agent [civ %bait] %poke bait-update+!>([token update])]
       [caz this]
     ==
   ::
