@@ -240,11 +240,12 @@ export const ImageInput = XStack.styleable<{
 
   return (
     <>
-      <XStack gap="$m" ref={ref} opacity={canUpload ? 1 : 0.5}>
+      <XStack gap="$m" ref={ref}>
         <ImageInputButtonFrame
           group
           onPress={handleSheetToggled}
           disabled={!canUpload}
+          opacity={canUpload ? 1 : 0.5}
         >
           <ImageInputButtonText disabled={!canUpload}>
             {!canUpload ? 'Storage not configured' : buttonLabel}
@@ -254,6 +255,7 @@ export const ImageInput = XStack.styleable<{
           height={isWindowNarrow ? undefined : '100%'}
           onPress={handleSheetToggled}
           disabled={!canUpload}
+          opacity={!canUpload && !assetUri ? 0.5 : 1}
         >
           <Icon type="Camera" color={canUpload ? '$tertiaryText' : '$border'} />
           {placeholderUri ? (
