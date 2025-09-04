@@ -484,9 +484,7 @@ export class Urbit {
               context.message = error.message;
               context.requestStatus = error.status;
             }
-            if (error instanceof SSETimeoutError) {
-              context.message = error.message;
-            }
+            context.message = error.message;
             this.emit('status-update', { status: 'reconnecting', context });
             return Math.min(5000, Math.pow(2, this.errorCount - 1) * 750);
           }
@@ -520,7 +518,7 @@ export class Urbit {
     this.sseClientInitialized = false;
   }
 
-  private seamlessReset() {
+  seamlessReset() {
     // called if a channel was reaped by %eyre before we reconnected
     // so we have to make a new channel.
     this.uid = `${Math.floor(Date.now() / 1000)}-${hexString(6)}`;
