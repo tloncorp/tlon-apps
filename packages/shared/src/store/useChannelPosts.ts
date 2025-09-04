@@ -181,7 +181,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   const [newPosts, setNewPosts] = useState<db.Post[]>([]);
   const handleNewPost = useCallback(
     (post: db.Post) => {
-      if (post.channelId === options.channelId) {
+      if (post.channelId === options.channelId && post.type !== 'reply') {
         setNewPosts((posts) => addPostToNewPosts(post, posts));
       }
     },
