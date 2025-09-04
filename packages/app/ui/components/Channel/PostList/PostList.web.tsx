@@ -152,8 +152,14 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
       insideScrolledToBottomBoundary,
     ]);
 
+    const viewportHeight =
+      useTrackContentRect(scrollerRef.current)?.height ?? 0;
+    const scrollerContentsKey = React.useMemo(
+      () => [orderedData, viewportHeight],
+      [orderedData, viewportHeight]
+    );
     useStickToScrollStart({
-      scrollerContentsKey: orderedData,
+      scrollerContentsKey,
       scrollerRef,
       inverted,
       hasNewerPosts,
