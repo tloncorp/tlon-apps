@@ -16,7 +16,7 @@ import {
   useState,
 } from 'react';
 import React from 'react';
-import { Alert, TextInput as RNTextInput } from 'react-native';
+import { TextInput as RNTextInput } from 'react-native';
 import {
   ScrollView,
   Spinner,
@@ -205,10 +205,14 @@ export const ImageInput = XStack.styleable<{
 
   const handleSheetToggled = useCallback(() => {
     if (!canUpload) {
-      Alert.alert('Configure storage to upload images');
+      showToast({
+        message: 'Please configure storage settings to upload images',
+        duration: 3000,
+      });
+      return; // Don't open the sheet
     }
     setSheetOpen((open) => !open);
-  }, [canUpload]);
+  }, [canUpload, showToast]);
 
   const { attachment } = useMappedImageAttachments(
     assetUri ? { attachment: assetUri } : {}
@@ -236,15 +240,22 @@ export const ImageInput = XStack.styleable<{
 
   return (
     <>
-      <XStack gap="$m" ref={ref}>
-        <ImageInputButtonFrame group onPress={handleSheetToggled}>
-          <ImageInputButtonText>{buttonLabel}</ImageInputButtonText>
+      <XStack gap="$m" ref={ref} opacity={canUpload ? 1 : 0.5}>
+        <ImageInputButtonFrame
+          group
+          onPress={handleSheetToggled}
+          disabled={!canUpload}
+        >
+          <ImageInputButtonText disabled={!canUpload}>
+            {!canUpload ? 'Storage not configured' : buttonLabel}
+          </ImageInputButtonText>
         </ImageInputButtonFrame>
         <ImageInputPreviewFrame
           height={isWindowNarrow ? undefined : '100%'}
           onPress={handleSheetToggled}
+          disabled={!canUpload}
         >
-          <Icon type="Camera" color="$tertiaryText" />
+          <Icon type="Camera" color={canUpload ? '$tertiaryText' : '$border'} />
           {placeholderUri ? (
             <ImageInputPreviewImage source={{ uri: placeholderUri }} />
           ) : null}
@@ -275,6 +286,14 @@ const ImageInputButtonFrame = styled(InputFrame, {
   padding: '$xl',
   flex: 1,
   pressStyle: { backgroundColor: '$border' },
+  variants: {
+    disabled: {
+      true: {
+        cursor: 'not-allowed',
+        pressStyle: { backgroundColor: 'transparent' },
+      },
+    },
+  },
 });
 
 const ImageInputButtonText = styled(Text, {
@@ -283,6 +302,14 @@ const ImageInputButtonText = styled(Text, {
   color: '$secondaryText',
   lineHeight: '$s',
   '$group-press': { color: '$tertiaryText' },
+  variants: {
+    disabled: {
+      true: {
+        color: '$tertiaryText',
+        '$group-press': { color: '$tertiaryText' },
+      },
+    },
+  },
 });
 
 const ImageInputPreviewFrame = styled(View, {
@@ -293,6 +320,14 @@ const ImageInputPreviewFrame = styled(View, {
   alignItems: 'center',
   justifyContent: 'center',
   pressStyle: { opacity: 0.5 },
+  variants: {
+    disabled: {
+      true: {
+        cursor: 'not-allowed',
+        pressStyle: { opacity: 1 },
+      },
+    },
+  },
 });
 
 const ImageInputPreviewImage = styled(Image, {
