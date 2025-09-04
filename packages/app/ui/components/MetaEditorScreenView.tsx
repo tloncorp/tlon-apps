@@ -123,7 +123,7 @@ export function MetaEditorScreenView({
               }}
               rules={{
                 pattern: {
-                  value: /^(?!file).+/,
+                  value: /^(?!file|data).+/,
                   message: 'Image has not finished uploading',
                 },
               }}

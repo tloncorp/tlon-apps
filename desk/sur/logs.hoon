@@ -7,7 +7,7 @@
 +$  volume  ?(%dbug %info %warn %crit)
 ::  $log-event
 ::
-::  %fail: agent failure
+::  %fail: agent failure (always considered critical)
 ::  %tell: agent message
 ::
 +$  log-event
@@ -20,6 +20,6 @@
 +$  log-data  (list (pair @t json))
 ::
 +$  a-log
-  $%  [%log log-event data=log-data]
+  $%  [%log event=log-event data=log-data]
   ==
 --

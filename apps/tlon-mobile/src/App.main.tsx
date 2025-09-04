@@ -44,13 +44,40 @@ SplashScreen.preventAutoHideAsync().catch((err) => {
   console.warn('Failed to prevent auto hide splash screen', err);
 });
 
-splashScreenProgress.emitter.on('complete', async () => {
-  try {
-    await withRetry(() => SplashScreen.hideAsync());
-  } catch (error) {
-    splashscreenLogger.trackError('Failed to hide splash screen', { error });
-  }
-});
+const useSplashHider = () => {
+  const [splashHidden, setSplashHidden] = useState(
+    splashScreenProgress.finished
+  );
+
+  useEffect(() => {
+    const onComplete = () => {
+      try {
+        withRetry(async () => {
+          await SplashScreen.hideAsync();
+          setSplashHidden(true);
+        });
+      } catch (err) {
+        splashscreenLogger.trackError('Failed to hide splash screen', {
+          errorMessage: err.message,
+        });
+      }
+    };
+
+    // check if progress completed before mounting
+    if (splashScreenProgress.finished) {
+      onComplete();
+      return;
+    }
+
+    splashScreenProgress.emitter.on('complete', onComplete);
+
+    return () => {
+      splashScreenProgress.emitter.off('complete', onComplete);
+    };
+  }, []);
+
+  return splashHidden;
+};
 
 unregisterBackgroundSyncTask();
 
@@ -153,19 +180,20 @@ export default function ConnectedApp() {
   const isDarkMode = useIsDarkMode();
   const navigationContainerRef = useNavigationContainerRef();
   const migrationState = useMigrations();
+  const splashIsHidden = useSplashHider();
 
   return (
-    <ErrorBoundary>
-      <FeatureFlagConnectedInstrumentationProvider>
-        <NavigationContainer
-          theme={isDarkMode ? DarkTheme : DefaultTheme}
-          ref={navigationContainerRef}
-        >
-          <BaseProviderStack migrationState={migrationState}>
+    <FeatureFlagConnectedInstrumentationProvider>
+      <NavigationContainer
+        theme={isDarkMode ? DarkTheme : DefaultTheme}
+        ref={navigationContainerRef}
+      >
+        <BaseProviderStack migrationState={migrationState}>
+          <ErrorBoundary>
             <BranchProvider>
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <SignupProvider>
-                  <App />
+                  {splashIsHidden ? <App /> : null}
 
                   {__DEV__ && (
                     <DevTools navigationContainerRef={navigationContainerRef} />
@@ -173,10 +201,10 @@ export default function ConnectedApp() {
                 </SignupProvider>
               </GestureHandlerRootView>
             </BranchProvider>
-          </BaseProviderStack>
-        </NavigationContainer>
-      </FeatureFlagConnectedInstrumentationProvider>
-    </ErrorBoundary>
+          </ErrorBoundary>
+        </BaseProviderStack>
+      </NavigationContainer>
+    </FeatureFlagConnectedInstrumentationProvider>
   );
 }
 

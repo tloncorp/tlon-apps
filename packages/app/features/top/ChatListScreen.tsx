@@ -100,18 +100,15 @@ export function ChatListScreenView({
     }, 200);
   }, [navigation]);
 
-  const { connectionStatus: connStatus, subtitle: syncSubtitle } = useSyncStatus();
-  const isLoading = useMemo(() => {
-    // if still loading the screen data, show loading
-    return !chats || (!chats.unpinned.length && !chats.pinned.length);
-  }, [chats]);
-  
-  const subtitle = useMemo(() => {
-    if (isLoading) {
-      return 'Loading...';
-    }
-    return syncSubtitle;
-  }, [isLoading, syncSubtitle]);
+  const handlePressInvite = useCallback(
+    (groupId: string) => {
+      navigation.navigate('InviteUsers', { groupId });
+    },
+    [navigation]
+  );
+
+  const connStatus = store.useConnectionStatus();
+  const { subtitle } = useSyncStatus();
 
   /* Log an error if this screen takes more than 30 seconds to resolve to "Connected" */
   const connectionTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -259,7 +256,10 @@ export function ChatListScreenView({
       useApp={db.appInfo.useValue}
       useGroup={store.useGroupPreview}
     >
-      <ChatOptionsProvider {...useChatSettingsNavigation()}>
+      <ChatOptionsProvider
+        {...useChatSettingsNavigation()}
+        onPressInvite={handlePressInvite}
+      >
         <NavigationProvider focusedChannelId={focusedChannelId}>
           <View userSelect="none" flex={1}>
             <ScreenHeader

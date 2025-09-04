@@ -1,6 +1,6 @@
 /-  c=channels
 /+  j=channel-json
-|_  =simple-reply:v7:old:c
+|_  =simple-reply:v7:c
 ++  grad  %noun
 ++  grow
   |%
@@ -9,6 +9,6 @@
   --
 ++  grab
   |%
-  ++  noun  simple-reply:v7:old:c
+  ++  noun  simple-reply:v7:c
   --
 --
