@@ -1,4 +1,4 @@
-import { VariantsFromValues, useIsWindowNarrow } from '@tloncorp/ui';
+import { VariantsFromValues, useIsWindowNarrow, useToast } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
 import { Icon, IconType } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
@@ -189,6 +189,7 @@ export const ImageInput = XStack.styleable<{
   );
   const { canUpload } = useAttachmentContext();
   const isWindowNarrow = useIsWindowNarrow();
+  const showToast = useToast();
 
   useEffect(() => {
     if (assetUri !== value) {
@@ -216,8 +217,18 @@ export const ImageInput = XStack.styleable<{
   useEffect(() => {
     if (attachment && attachment.uploadState?.status === 'success') {
       setAssetUri?.(attachment.uploadState.remoteUri);
+    } else if (attachment && attachment.uploadState?.status === 'error') {
+      // Show toast with error message
+      const errorMessage =
+        attachment.uploadState.errorMessage || 'Upload failed';
+      showToast({
+        message: `Failed to upload image: ${errorMessage}`,
+        duration: 5000,
+      });
+      // Clear the failed upload so user can try again
+      setAssetUri(undefined);
     }
-  }, [attachment]);
+  }, [attachment, showToast]);
 
   const handleImageRemoved = useCallback(() => {
     setAssetUri(undefined);
