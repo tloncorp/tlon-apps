@@ -10,13 +10,19 @@ export const splashScreenProgress = (() => {
   const progressManager = new ProgressManager<SplashScreenTask>(new Set());
 
   // Setup tasks on progress manager
-  Platform.select({
-    web: [SplashScreenTask.loadTheme, SplashScreenTask.startDatabase],
-    default: [SplashScreenTask.loadTheme],
-  }).forEach((task) => {
-    // 5 seconds timeout for each task - this assumes that all of the tasks
-    // above are strictly "nice-to-haves" and should not block app load.
-    progressManager.add(task, 5000);
+  const taskConfigs = Platform.select({
+    web: [
+      [SplashScreenTask.loadTheme, 5000],
+      // Web needs actual data before showing UI, so no timeout for database task
+      [SplashScreenTask.startDatabase, undefined],
+    ] as Array<[SplashScreenTask, number | undefined]>,
+    default: [[SplashScreenTask.loadTheme, 5000]] as Array<
+      [SplashScreenTask, number | undefined]
+    >,
+  });
+
+  taskConfigs?.forEach(([task, timeout]) => {
+    progressManager.add(task, timeout);
   });
 
   return progressManager;

@@ -26,9 +26,20 @@
       [%show =id]
   ==
 +$  reference
-  $%  [%writ =writ]
-      [%reply =id =reply]
+  $%  [%writ writ=(may writ)]
+      [%reply =id reply=(may reply)]
   ==
++$  tombstone
+  $:  =id
+      seq=@ud
+      =time
+      =author
+      del-at=@da
+  ==
+++  may
+  |$  [data]
+  ::NOTE  not +each, avoids p= faces for better ergonomics
+  $%([%& data] [%| tombstone])
 ::
 ::  $seal: the id of a chat and its meta-responses
 ::
@@ -73,13 +84,19 @@
 ::  $reacts: a set of reactions to a chat message
 +$  reacts  (map author react)
 ::
-::  $pact: a double indexed map of chat messages, id -> time -> message
+::  $pact: a triple-indexed map of chat messages,
+::         .wit: time -> message
+::         .dex: id -> time
+::         .upd: edit-time -> time
 ::
 +$  pact
   $:  num=@ud  ::  number of msgs/highest nr msg, for sequence nr generation
       wit=writs
       dex=index
+      upd=last-updated
   ==
++$  last-updated  ((mop time time) lte)
+++  updated-on    ((on time time) lte)
 ::
 ::  $paged-writs: a set of time ordered chat messages, with page cursors
 ::
@@ -87,6 +104,7 @@
   $:  =writs
       newer=(unit time)
       older=(unit time)
+      newest=@ud
       total=@ud
   ==
 ::
@@ -97,9 +115,9 @@
   =<  writs
   |%
   +$  writs
-    ((mop time writ) lte)
+    ((mop time (may writ)) lte)
   ++  on
-    ((^on time writ) lte)
+    ((^on time (may writ)) lte)
   +$  diff
     (pair id delta)
   +$  delta
@@ -128,9 +146,9 @@
   =<  replies
   |%
   +$  replies
-    ((mop time reply) lte)
+    ((mop time (may reply)) lte)
   ++  on
-    ((^on time reply) lte)
+    ((^on time (may reply)) lte)
   +$  delta
     $%  [%add =memo:d time=(unit time)]
         [%del ~]
