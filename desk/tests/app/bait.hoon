@@ -245,10 +245,16 @@
   ;<  *  bind:m  (do-poke bait-update+!>([~.0v1 metadata]))
   ;<  title=(unit @t)  bind:m  (get-metadata-field 0v1 'invitedGroupTitle')
   ;<  ~  bind:m  (ex-equal !>(title) !>(`'Early Sunrise'))
+  ;<  title=(unit @t)  bind:m  (get-metadata-field 0v2 'invitedGroupTitle')
+  ;<  ~  bind:m  (ex-equal !>(title) !>(`'Sunrise'))
+  ;<  title=(unit @t)  bind:m  (get-metadata-field 0v3 'invitedGroupTitle')
+  ;<  ~  bind:m  (ex-equal !>(title) !>(`'Sunrise'))
   ::  the group host automatically updates all associated lure invites
   ::
   ;<  ~  bind:m  (set-src ~sampel-palnet)
-  ;<  *  bind:m  (do-poke bait-update+!>([~.0v2 metadata]))
+  ;<  *  bind:m  (do-poke bait-update-group+!>([~sampel-palnet^%sunrise metadata]))
+  ;<  title=(unit @t)  bind:m  (get-metadata-field 0v2 'invitedGroupTitle')
+  ;<  ~  bind:m  (ex-equal !>(title) !>(`'Early Sunrise'))
   ;<  title=(unit @t)  bind:m  (get-metadata-field 0v3 'invitedGroupTitle')
   ;<  ~  bind:m  (ex-equal !>(title) !>(`'Early Sunrise'))
   (pure:m ~)

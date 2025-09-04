@@ -365,7 +365,8 @@
             'inviterAvatarImage'^(fall avatar '')
             'inviterColor'^?^(color (rsh [3 2] (scot %ux u.color)) '')
         ==
-      ::  update our lure links with new nickname and avatar image
+      ::  update our lure links with new nickname, avatar image
+      ::  and color.
       ::
       =.  our-metadata
         %-  ~(run by our-metadata)
@@ -398,7 +399,7 @@
       =*  flag  flag.r-groups
       =*  meta  meta.r-group.r-groups
       =+  id=(rap 3 (scot %p p.flag) '/' q.flag ~)
-      ?~  token=(~(get by stable-id) id)  `this
+      =+  token=(~(get by stable-id) id)
       =|  update=metadata:reel
       =.  tag.update  'groups-0'
       =.  fields.update
@@ -409,7 +410,7 @@
         ==
       ::  update our group invite link
       ::
-      =.  our-metadata
+      =?  our-metadata  ?=(^ token)
         ?~  our-meta=(~(get by our-metadata) u.token)
           our-metadata
         %+  ~(put by our-metadata)  u.token
@@ -418,7 +419,7 @@
       ::
       ?.  =(p.flag our.bowl)  `this
       :_  this
-      [%pass /update/group %agent [civ %bait] %poke bait-update+!>([u.token update])]~
+      [%pass /update/group %agent [civ %bait] %poke bait-update-group+!>([flag update])]~
     ==
   ::
       [%token-link @ name=@ ~]

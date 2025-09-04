@@ -292,14 +292,14 @@
       %bait-undescribe
     =+  !<(token=cord vase)
     =+  metadata=(~(get by token-metadata) token)
+    =.  token-metadata  (~(del by token-metadata) token)
     =?  stable-id  ?=(^ metadata)
       ?~  id=(~(get by fields.u.metadata) 'group')
         stable-id
       (~(del ju stable-id) u.id token)
     `this
   ::
-      ::  update the invite metadata by token. if the metadata refer a group,
-      ::  update the set of invites linked through the group id.
+      ::  update an invite by token
       ::
       %bait-update
     =+  !<([=token:reel update=metadata:reel] vase)
@@ -310,15 +310,19 @@
       %+  ~(jab by token-metadata)  token
       |=  =metadata:reel
       metadata(fields (~(uni by fields.metadata) fields.update))
-    ?~  id=(~(get by fields.u.meta) 'group')  `this
+    `this
+  ::
+      ::  update invites associated with a group
+      ::
+      %bait-update-group
+    =+  !<([=flag:groups-ver update=metadata:reel] vase)
     ::  update linked invites
     ::
-    =/  flag=(unit flag:groups-ver)  (rush u.id flag)
-    ?~  flag  `this
-    ::  only the group host is allowed to update linked invites
-    ?.  =(p.u.flag src.bowl)  `this
+    =+  id=(rap 3 (scot %p p.flag) '/' q.flag ~)
+    ::  only the group host is allowed to update associated invites
+    ?.  =(p.flag src.bowl)  `this
     =.  token-metadata
-      %+  roll  ~(tap in (~(get ju stable-id) u.id))
+      %+  roll  ~(tap in (~(get ju stable-id) id))
       |=  [=token:reel =_token-metadata]
       ?~  metadata=(~(get by token-metadata) token)
         token-metadata
