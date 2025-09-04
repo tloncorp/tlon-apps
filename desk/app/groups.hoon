@@ -2790,7 +2790,7 @@
   ++  go-safe-sub
     |=  delay=?
     ^+  go-core
-    =+  log=~(. l `'group-join')
+    =*  log  ~(. l `'group-join')
     ?:  go-has-sub  go-core
     =.  cor  (tell:log %dbug leaf+"+go-safe-sub subscribing to {<flag>}" ~)
     (go-start-updates delay)
@@ -3031,7 +3031,7 @@
       %kick  (go-safe-sub &)
     ::
         %watch-ack
-      =+  log=~(. l `'group-join')
+      =*  log  ~(. l `'group-join')
       =?  cor  (~(has by foreigns) flag)
         fi-abet:(fi-watched:(fi-abed:fi-core flag) p.sign)
       ?^  p.sign
@@ -3903,7 +3903,7 @@
   ++  fi-join
     |=  tok=(unit token:g)
     ^+  fi-core
-    =+  log=~(. l `%group-join)
+    =*  log  ~(. l `%group-join)
     =.  cor  (emit (initiate:neg [p.flag server]))
     =+  net-group=(~(get by groups) flag)
     ::  leave the ask subscription in case it has not yet closed
@@ -4080,7 +4080,7 @@
         ::  poked with token to join the group
         ::
         [%join token=@ ~]
-      =+  log=~(. l `'group-join')
+      =*  log  ~(. l `'group-join')
       ?>  ?=(%poke-ack -.sign)
       ::  we aren't joining anymore, ignore
       ?.  &(?=(^ progress) =(%join u.progress))  fi-core
@@ -4108,7 +4108,7 @@
         ::  asked to join the group
         ::
         [%ask ~]
-      =+  log=~(. l `'group-join')
+      =*  log  ~(. l `'group-join')
       ?.  &(?=(^ progress) =(%ask u.progress))
         ::  we aren't asking anymore, ignore
         fi-core
@@ -4141,7 +4141,7 @@
         ::  requested a group preview
         ::
         [%preview ~]
-      =+  log=~(. l `'group-preview')
+      =*  log  ~(. l `'group-preview')
       ?+    -.sign  ~|(fi-agent-bad-preview+[pole -.sign] !!)
           %kick
         ?~  lookup
@@ -4190,7 +4190,7 @@
     ::
         :: command poke
         [%command *]
-      =+  log=~(. l `'foreign-group-command')
+      =*  log  ~(. l `'foreign-group-command')
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  fi-core
       =.  cor  (fail:log 'poke-ack' 'foreign group command' u.p.sign)
