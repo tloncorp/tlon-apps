@@ -137,12 +137,14 @@ export function fetchEventSource(
           onerror?.(new ReapError('Channel reaped'));
           resolve();
           return;
+        } else if (response.status === 500) {
+          dispose();
+          onerror?.(new SSEBadResponseError('Server error', 500));
+          resolve();
+          return;
         }
 
         if (response.status < 200 || response.status >= 300) {
-          if (response.status === 500) {
-            dispose();
-          }
           throw new SSEBadResponseError(
             'Invalid server response',
             response.status
