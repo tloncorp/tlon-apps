@@ -13,11 +13,7 @@ import { getConstants } from '../domain/constants';
 import * as logic from '../logic';
 import * as ub from '../urbit';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
-import {
-  syncChannelPreivews,
-  syncGroupPreviews,
-  syncPostReference,
-} from './sync';
+import { syncChannelPreivews, syncPostReference } from './sync';
 import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 export * from './useChannelSearch';
