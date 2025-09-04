@@ -25,6 +25,7 @@ git clone --depth 1 https://github.com/urbit/urbit.git $urbit_repo -b '$URBIT_RE
 landscape_repo=$(mktemp --dry-run /tmp/repo.landscape.XXXXXXXXX)
 git clone --depth 1 --branch master https://github.com/tloncorp/landscape.git $landscape_repo
 cd $source_repo
+git rev-parse --short HEAD > desk/commit.txt
 cd /urbit || return
 curl -s --data '\''{"source":{"dojo":"+hood/mount %'$desk'"},"sink":{"app":"hood"}}'\'' http://localhost:12321
 rsync -avL --delete $urbit_repo/pkg/base-dev/ '$folder'

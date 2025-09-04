@@ -2,10 +2,15 @@
 ::
 /-  l=logs
 /+  default-agent
+::
+/*  commit  %txt  /commit/txt
+::
 =>
   |%
   +$  card  card:agent:gall
   +$  current-state  [%0 ~]
+  ::
+  ++  commit  ?~(^commit 'unknown' i.^commit)
   --
 =|  current-state
 =*  state  -
@@ -61,6 +66,7 @@
     =+  !<(=a-log:l vase)
     ?-    -.a-log
         %log
+      =.  data.a-log  ['commit'^s+commit data.a-log]
       (send-posthog-event sap.bowl now.bowl +.a-log)
     ==
   ==
