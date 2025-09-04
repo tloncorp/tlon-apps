@@ -661,7 +661,21 @@
   =?  cor  !=(~ caz-6-to-7)  (emil caz-6-to-7)
   ?>  ?=(%7 -.old)
   =.  state  old
-  inflate-io
+  =.  cor  inflate-io
+  ::  until client bugs are fixed and data validation happens on-ingress,
+  ::  always trawl our groups for raw image data (or really, metadata of a
+  ::  size that could be raw image data) and unset those.
+  ::
+  %+  roll  ~(tap by groups)
+  |=  [[=flag:g =net:g =group:g] =_cor]
+  ?.  (gth (met 3 image.meta.group) 3.000)  cor
+  ?:  =(p.flag our.bowl)
+    ::  if it's our group, edit the metadata and send out updates about it
+    ::
+    se-abet:(se-c-group:(se-abed:se-core flag) %meta meta.group(image ''))
+  ::  if it's not ours, just clean it up locally so it doesn't clog our pipes
+  ::
+  cor(groups (~(put by groups) flag net group(image.meta '')))
   ::
   +$  any-state
     $%  state-7
