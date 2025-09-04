@@ -1260,6 +1260,7 @@ export const handleChatUpdate = async (
       }
 
       await db.insertPostReactions(
+
         {
           reactions: [
             {
@@ -1706,6 +1707,11 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     updateSession({ phase: 'ready' });
 
     await failEnqueuedPosts();
+
+    // fire off relevant channel posts sync, but don't wait for it
+    syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
+      logger.crumb(`finished channel predictive sync`);
+    });
 
     // post sync initialization work
     await verifyUserInviteLink();
