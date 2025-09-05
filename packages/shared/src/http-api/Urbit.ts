@@ -868,6 +868,27 @@ export class Urbit {
     }
   }
 
+  async checkIsNodeBusy(): Promise<'available' | 'busy' | 'unknown'> {
+    try {
+      const response = await this.fetchFn(`${this.url}/~_~/healthz`, {
+        method: 'GET',
+      });
+      if (response.status === 204) {
+        return 'available';
+      }
+      if (response.status === 429) {
+        return 'busy';
+      }
+      logger.trackEvent('Unexpected node busy response', {
+        status: response.status,
+      });
+      return 'unknown';
+    } catch (e) {
+      logger.trackEvent('Failed to check if node is busy', { error: e });
+      return 'unknown';
+    }
+  }
+
   /**
    * Scry into an gall agent at a path
    *
