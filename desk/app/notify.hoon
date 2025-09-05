@@ -1,6 +1,7 @@
 ::
 /-  *notify, resource, a=activity, c=channels, h=hark, meta
-/+  cu=channel-utils, n=notify, default-agent, verb, dbug, agentio
+/+  cu=channel-utils, n=notify, logs,
+    default-agent, verb, dbug, agentio
 /$  activity-event-to-json  %activity-event  %json
 /$  hark-yarn-to-json       %hark-yarn       %json
 ::
@@ -146,6 +147,25 @@
   ^-  state-7
   old(- %7, notifications ~)
 ::
+::  +log: specialized wrapper for logging library
+::
+++  log
+  |_  our=@p
+  ++  fail
+    |=  [desc=term trace=tang]
+    %-  link
+    (~(fail logs our /logs) desc trace ~)
+  ::
+  ++  tell
+    |=  [=volume:logs =echo:logs]
+    %-  link
+    (~(tell logs our /logs) volume echo ~)
+  ::
+  ++  link  ::  construct accumulator
+    |=  cad=card
+    |*  [caz=(list card) etc=*]
+    [[cad caz] etc]
+  --
 --
 ::
 =|  current-state
@@ -158,6 +178,7 @@
 =<
   |_  =bowl:gall
   +*  this  .
+      l     ~(. log our.bowl)
       def   ~(. (default-agent this %|) bowl)
       do    ~(. +> bowl)
       io    ~(. agentio bowl)
@@ -466,6 +487,7 @@
         `[%pass /hark/copy %agent [our.bowl %hark] %poke %hark-action !>(action)]
       ::
           %kick
+        %-  (tell:l %info 'notify activity kick' ~)
         :_  this
         [%pass wire %agent [our.bowl %activity] %watch /notifications]~
       ==
@@ -486,13 +508,16 @@
         [(send-notification:do u.entry who update)]~
       ::
           %kick
+        %-  (tell:l %info 'notify client kick' ~)
         :_  this
         [(watch:pass [who %notify] /notify/(scot %p who)/[service])]~
       ::
           %watch-ack
         ?~  p.sign
           `this
-        ((slog u.p.sign) `this)
+        =/  =tang
+          ['notify watch-nack' >wire< u.p.sign]
+        ((tell:l %crit tang) ((slog tang) `this))
       ==
     ==
   ::
@@ -540,11 +565,12 @@
       ?>  ?=(%http-response +<.sign-arvo)
       =*  res  client-response.sign-arvo
       ?>  ?=(%finished -.res)
-      %.  `this
       =*  status  status-code.response-header.res
-      ?:  =(200 status)  same
-      %+  slog
-        leaf/"Error sending notfication, status: {(scow %ud status)}"
+      ?:  =(200 status)  `this
+      =;  =tang
+        %-  (tell:l %crit tang)
+        ((slog tang) `this)
+      :-  leaf/"Error sending notfication, status: {(scow %ud status)}"
       ?~  full-file.res  ~
       ~[leaf/(trip `@t`q.data.u.full-file.res)]
     ::
@@ -559,7 +585,10 @@
       ~[(~(wait pass:io /clear) (add now.bowl clear-interval))]
     ==
   ::
-  ++  on-fail   on-fail:def
+  ++  on-fail
+    |=  [=term =tang]
+    ^-  (quip card _this)
+    ((fail:l term tang) `this)
   --
 |_  bowl=bowl:gall
 ::
