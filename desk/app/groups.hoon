@@ -668,7 +668,11 @@
   ::
   %+  roll  ~(tap by groups)
   |=  [[=flag:g =net:g =group:g] =_cor]
-  ?.  (gth (met 3 image.meta.group) 3.000)  cor
+  ?:  ?|  =('' image.meta.group)
+          =('http' (end 3^4 image.meta.group))
+          =('#' (end 3 image.meta.group))
+      ==
+    cor
   ?:  =(p.flag our.bowl)
     ::  if it's our group, edit the metadata and send out updates about it
     ::
