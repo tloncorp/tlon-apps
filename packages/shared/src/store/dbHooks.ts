@@ -317,15 +317,42 @@ export const useGroups = (options: db.GetGroupsOptions) => {
   });
 };
 
-export const useGroup = ({ id }: { id?: string }) => {
+export const useGroup = ({
+  id,
+  include,
+}: {
+  id?: string;
+  include?: db.RelatedGroupModels[];
+}) => {
   return useQuery({
     enabled: !!id,
-    queryKey: [['group', id], useKeyFromQueryDeps(db.getGroup, id)],
+    queryKey: [
+      ['group', id].concat(include || []),
+      useKeyFromQueryDeps(db.getGroup, { id, include }),
+    ],
     queryFn: () => {
       if (!id) {
         throw new Error('missing group id');
       }
-      return db.getGroup({ id });
+      return db.getGroup({ id, include });
+    },
+  });
+};
+
+export const useGroupWithAllModels = ({ id }: { id?: string }) => {
+  return useQuery({
+    enabled: !!id,
+    queryKey: [
+      ['group-all', id],
+      useKeyFromQueryDeps(db.getGroupWithEverything, { id }),
+    ],
+    queryFn: async () => {
+      if (!id) {
+        throw new Error('missing group id');
+      }
+      const group = await db.getGroupWithEverything({ id });
+      console.log('fetched group with all models', group);
+      return group;
     },
   });
 };

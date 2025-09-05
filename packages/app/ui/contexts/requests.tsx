@@ -1,5 +1,6 @@
 import {
   useChannelPreview,
+  useGroup,
   useGroupPreview,
   usePostReference,
   usePostWithRelations,
@@ -19,7 +20,8 @@ import {
 type State = {
   usePost: typeof usePostWithRelations;
   useChannel: typeof useChannelPreview;
-  useGroup: typeof useGroupPreview;
+  useGroup: typeof useGroup;
+  useGroupPreview: typeof useGroupPreview;
   useApp: (id: string) => void;
   usePostReference: typeof usePostReference;
 };
@@ -29,7 +31,8 @@ type ContextValue = State;
 const Context = createContext<ContextValue>({
   usePost: usePostWithRelations,
   useChannel: useChannelPreview,
-  useGroup: useGroupPreview,
+  useGroup,
+  useGroupPreview,
   useApp: () => {},
   usePostReference: usePostReference,
 });
@@ -47,7 +50,8 @@ export const useRequests = () => {
 type RequestProviderProps = {
   usePost: typeof usePostWithRelations;
   useChannel: typeof useChannelPreview;
-  useGroup: typeof useGroupPreview;
+  useGroup: typeof useGroup;
+  useGroupPreview: typeof useGroupPreview;
   useApp: (id: string) => void;
   usePostReference: typeof usePostReference;
 };
@@ -58,11 +62,19 @@ export const RequestsProvider = ({
   usePostReference,
   useChannel,
   useGroup,
+  useGroupPreview,
   useApp,
 }: PropsWithChildren<RequestProviderProps>) => {
   const value = useMemo(
-    () => ({ usePost, useChannel, useGroup, useApp, usePostReference }),
-    [usePost, useChannel, useGroup, useApp, usePostReference]
+    () => ({
+      usePost,
+      useChannel,
+      useGroup,
+      useGroupPreview,
+      useApp,
+      usePostReference,
+    }),
+    [usePost, useChannel, useGroup, useGroupPreview, useApp, usePostReference]
   );
   return <Context.Provider value={value}>{children}</Context.Provider>;
 };

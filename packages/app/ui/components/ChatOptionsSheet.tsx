@@ -151,7 +151,7 @@ export function GroupOptionsSheetLoader({
   const currentUserIsAdmin = utils.useIsAdmin(groupId, currentUserId);
   const { data: groupUnread, isFetched: groupUnreadIsFetched } =
     store.useGroupUnread({ groupId });
-  const { data: groupData } = store.useGroup({ id: groupId });
+  const { data: groupData } = store.useGroupWithAllModels({ id: groupId });
   const isWindowNarrow = useIsWindowNarrow();
 
   if ((!group && !groupData) || !groupUnreadIsFetched) {
@@ -511,6 +511,7 @@ const ChannelOptionsSheetLoader = memo(
 
     const { data: group } = store.useGroup({
       id: groupId,
+      include: ['channels'],
     });
     const groupTitle = utils.useGroupTitle(group) ?? 'group';
     const channelTitle =

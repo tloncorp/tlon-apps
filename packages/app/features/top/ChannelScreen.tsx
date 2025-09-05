@@ -10,6 +10,7 @@ import * as store from '@tloncorp/shared/store';
 import {
   useCanUpload,
   useChannelPreview,
+  useGroup,
   useGroupPreview,
   usePostReference,
   usePostWithRelations,
@@ -413,7 +414,8 @@ export default function ChannelScreen(props: Props) {
           markRead={handleMarkRead}
           usePost={usePostWithRelations}
           usePostReference={usePostReference}
-          useGroup={useGroupPreview}
+          useGroup={useGroup}
+          useGroupPreview={useGroupPreview}
           onGroupAction={performGroupAction}
           useChannel={useChannelPreview}
           storeDraft={storeDraft}

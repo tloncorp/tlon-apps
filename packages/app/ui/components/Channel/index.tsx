@@ -6,6 +6,7 @@ import {
   isChatChannel as getIsChatChannel,
   sendPost,
   useChannelPreview,
+  useGroup,
   useGroupPreview,
   usePostReference as usePostReferenceHook,
   usePostWithRelations,
@@ -89,7 +90,8 @@ interface ChannelProps {
   onPressRef: (channel: db.Channel, post: db.Post) => void;
   markRead: () => void;
   usePost: typeof usePostWithRelations;
-  useGroup: typeof useGroupPreview;
+  useGroup: typeof useGroup;
+  useGroupPreview: typeof useGroupPreview;
   usePostReference: typeof usePostReferenceHook;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   useChannel: typeof useChannelPreview;
@@ -347,6 +349,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
               usePostReference={usePostReference}
               useChannel={useChannel}
               useGroup={useGroup}
+              useGroupPreview={useGroupPreview}
               useApp={useApp}
               // useBlockUser={() => {}}
             >

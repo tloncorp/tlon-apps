@@ -436,7 +436,7 @@ export async function getMainGroupRoute(
   groupId: string,
   isWindowNarrow: boolean
 ) {
-  const group = await db.getGroup({ id: groupId });
+  const group = await db.getGroup({ id: groupId, include: ['channels'] });
   const lastVisitedChannelId = await db
     .lastVisitedChannelId(groupId)
     .getValue();

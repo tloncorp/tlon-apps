@@ -83,7 +83,7 @@ export function EditChannelScreenView({
     formState: { errors },
   } = form;
 
-  const { data: group } = store.useGroup({
+  const { data: group } = store.useGroupWithAllModels({
     id: channel?.groupId ?? '',
   });
 

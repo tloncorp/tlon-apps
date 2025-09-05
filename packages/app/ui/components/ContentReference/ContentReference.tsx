@@ -85,7 +85,7 @@ export function PostReferenceLoader({
     channelId: channelId,
   });
   const { data: channel } = useChannel({ id: channelId });
-  const { data: group } = useGroup(channel?.groupId ?? '');
+  const { data: group } = useGroup({ id: channel?.groupId ?? '' });
   const { onPressRef, onPressGroupRef } = useNavigation();
   const handlePress = useCallback(async () => {
     if (channel && postQuery.data && group && group.currentUserIsMember) {
@@ -265,10 +265,14 @@ export function GroupReferenceLoaderComponent({
 }: {
   groupId: string;
 } & ReferenceProps) {
-  const { useGroup } = useRequests();
+  const { useGroupPreview } = useRequests();
   const { onPressGroupRef } = useNavigation();
-  const { data: group, isLoading, isError, error } = useGroup(groupId);
-  const onPress = useBoundHandler(group, onPressGroupRef);
+  const { data: group, isLoading, isError, error } = useGroupPreview(groupId);
+  const onPress = useCallback(() => {
+    if (group) {
+      onPressGroupRef?.(group);
+    }
+  }, [group, onPressGroupRef]);
 
   return (
     <GroupReference

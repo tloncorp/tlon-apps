@@ -99,9 +99,12 @@ export function ChatListScreenView({
     }, 200);
   }, [navigation]);
 
-  const handlePressInvite = useCallback((groupId: string) => {
-    navigation.navigate('InviteUsers', { groupId });
-  }, [navigation]);
+  const handlePressInvite = useCallback(
+    (groupId: string) => {
+      navigation.navigate('InviteUsers', { groupId });
+    },
+    [navigation]
+  );
 
   const connStatus = store.useConnectionStatus();
   const notReadyMessage: string | null = useMemo(() => {
@@ -262,9 +265,10 @@ export function ChatListScreenView({
       useChannel={store.useChannelPreview}
       usePost={store.usePostWithRelations}
       useApp={db.appInfo.useValue}
-      useGroup={store.useGroupPreview}
+      useGroup={store.useGroup}
+      useGroupPreview={store.useGroupPreview}
     >
-      <ChatOptionsProvider 
+      <ChatOptionsProvider
         {...useChatSettingsNavigation()}
         onPressInvite={handlePressInvite}
       >

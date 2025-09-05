@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import {
   useChannelPreview,
+  useGroup,
   useGroupPreview,
   usePostWithRelations,
 } from '@tloncorp/shared';
@@ -88,7 +89,8 @@ const baseProps: ComponentProps<typeof Channel> = {
   usePost: usePostWithRelations,
   usePostReference: usePostReference,
   useChannel: useChannelPreview,
-  useGroup: useGroupPreview,
+  useGroup,
+  useGroupPreview,
   onGroupAction: () => {},
   getDraft: async () => ({}),
   storeDraft: async () => {},

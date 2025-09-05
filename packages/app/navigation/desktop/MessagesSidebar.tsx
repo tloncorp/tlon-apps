@@ -177,7 +177,8 @@ export const MessagesSidebar = memo(
         useChannel={store.useChannelPreview}
         usePost={store.usePostWithRelations}
         useApp={db.appInfo.useValue}
-        useGroup={store.useGroupPreview}
+        useGroup={store.useGroup}
+        useGroupPreview={store.useGroupPreview}
       >
         <ChatOptionsProvider
           {...useChatSettingsNavigation()}

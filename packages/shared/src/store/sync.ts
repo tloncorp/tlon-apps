@@ -1260,7 +1260,6 @@ export const handleChatUpdate = async (
       }
 
       await db.insertPostReactions(
-
         {
           reactions: [
             {
@@ -1394,8 +1393,9 @@ export async function syncPosts(
 }
 
 export async function syncGroupPreviews(groupIds: string[]) {
+  const groups = await db.getGroupPreviews(groupIds);
   const promises = groupIds.map(async (groupId) => {
-    const group = await db.getGroup({ id: groupId });
+    const group = groups.find((g) => g.id === groupId);
     if (group?.currentUserIsMember) {
       return group;
     }

@@ -790,7 +790,7 @@ export const getMentionCandidates = createReadQuery(
         isBlocked: $contacts.isBlocked,
         // Priority: 1 = group members, 2 = other contacts, 3 = other group members
         priority: sql<number>`
-          CASE 
+          CASE
             WHEN ${$chatMembers.chatId} = ${chatId} THEN 1
             WHEN ${$contacts.isContact} = true THEN 2
             ELSE 3
@@ -3465,15 +3465,96 @@ export const getPersonalGroup = createReadQuery(
   ]
 );
 
+export type RelatedGroupModels =
+  | 'unread'
+  | 'pin'
+  | 'channels'
+  | 'roles'
+  | 'members'
+  | 'joinRequests'
+  | 'bannedMembers'
+  | 'navSections'
+  | 'volumeSettings';
+
 export const getGroup = createReadQuery(
   'getGroup',
   async (
-    {
-      id,
-      includeUnjoinedChannels = false,
-    }: { id: string; includeUnjoinedChannels?: boolean },
+    { id, include }: { id: string; include?: RelatedGroupModels[] },
     ctx: QueryCtx
   ) => {
+    return ctx.db.query.groups
+      .findFirst({
+        where: (groups, { eq }) => eq(groups.id, id),
+        with: {
+          unread: include?.includes('unread') ? true : undefined,
+          pin: include?.includes('pin') ? true : undefined,
+          channels: include?.includes('channels')
+            ? {
+                where: (channels, { eq }) =>
+                  eq(channels.currentUserIsMember, true),
+                with: {
+                  lastPost: true,
+                  unread: true,
+                  volumeSettings: true,
+                  writerRoles: true,
+                  readerRoles: true,
+                },
+              }
+            : undefined,
+          roles: include?.includes('roles') ? true : undefined,
+          members: include?.includes('members')
+            ? {
+                with: {
+                  contact: true,
+                  roles: true,
+                },
+              }
+            : undefined,
+          joinRequests: include?.includes('joinRequests') ? true : undefined,
+          bannedMembers: include?.includes('bannedMembers') ? true : undefined,
+          navSections: include?.includes('navSections')
+            ? {
+                with: {
+                  channels: true,
+                },
+              }
+            : undefined,
+          volumeSettings: include?.includes('volumeSettings')
+            ? true
+            : undefined,
+        },
+      })
+      .then(returnNullIfUndefined);
+  },
+  ({ include }) => {
+    return (include || []).map((item) => {
+      switch (item) {
+        case 'unread':
+          return 'channelUnreads';
+        case 'pin':
+          return 'groups';
+        case 'channels':
+          return 'channels';
+        case 'roles':
+          return 'groupRoles';
+        case 'members':
+          return 'chatMembers';
+        case 'joinRequests':
+          return 'groupJoinRequests';
+        case 'bannedMembers':
+          return 'groupMemberBans';
+        case 'navSections':
+          return 'groupNavSectionChannels';
+        case 'volumeSettings':
+          return 'volumeSettings';
+      }
+    });
+  }
+);
+
+export const getGroupWithEverything = createReadQuery(
+  'getGroupWithEverything',
+  async ({ id }: { id: string }, ctx: QueryCtx) => {
     return ctx.db.query.groups
       .findFirst({
         where: (groups, { eq }) => eq(groups.id, id),
@@ -3481,9 +3562,7 @@ export const getGroup = createReadQuery(
           unread: true,
           pin: true,
           channels: {
-            where: includeUnjoinedChannels
-              ? undefined
-              : (channels, { eq }) => eq(channels.currentUserIsMember, true),
+            where: (channels, { eq }) => eq(channels.currentUserIsMember, true),
             with: {
               lastPost: true,
               unread: true,
@@ -3516,6 +3595,7 @@ export const getGroup = createReadQuery(
     'channelUnreads',
     'volumeSettings',
     'channels',
+    'chatMembers',
     'groupJoinRequests',
     'groupMemberBans',
     'groupNavSectionChannels',

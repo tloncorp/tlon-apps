@@ -84,7 +84,10 @@ export function InlineGroupMention({
 }>) {
   const { useGroup } = useRequests();
   const channel = useChannelContext();
-  const { data: group } = useGroup(channel.groupId ?? '');
+  const { data: group } = useGroup({
+    id: channel.groupId ?? '',
+    include: ['roles'],
+  });
   const { onGoToGroupSettings } = useNavigation();
   const handlePress = useCallback(() => {
     onGoToGroupSettings?.();
