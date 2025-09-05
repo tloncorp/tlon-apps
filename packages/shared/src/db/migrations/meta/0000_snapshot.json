@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "0f17c271-e1e5-49ef-aae0-666c3b66c643",
+  "id": "3d1380f9-1e43-47d3-ba20-fff21a63b788",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2421,6 +2421,13 @@
         "disable_tlon_infra_enhancement": {
           "name": "disable_tlon_infra_enhancement",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "pending_hidden_post_ids": {
+          "name": "pending_hidden_post_ids",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false

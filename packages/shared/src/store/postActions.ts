@@ -602,7 +602,7 @@ export async function hidePost({ post }: { post: db.Post }) {
   try {
     await sessionActionQueue.add(() => api.hidePost(post));
   } catch (e) {
-    console.error('Failed to hide post', e);
+    logger.trackError('Failed to hide post', e);
 
     // rollback optimistic update
     await db.updatePost({ id: post.id, hidden: false });
@@ -670,7 +670,12 @@ export async function reportPost({
   post: db.Post;
 }) {
   if (!post.groupId) {
-    console.error('Cannot report post without groupId', post);
+    logger.trackError('Cannot report post without groupId', {
+      postId: post.id,
+      channelId: post.channelId,
+      authorId: post.authorId,
+      sentAt: post.sentAt,
+    });
     return;
   }
 
@@ -683,7 +688,7 @@ export async function reportPost({
     );
     await hidePost({ post });
   } catch (e) {
-    console.error('Failed to report post', e);
+    logger.trackError('Failed to report post', e);
 
     // rollback optimistic update
     await db.updatePost({ id: post.id, hidden: false });
