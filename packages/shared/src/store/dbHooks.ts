@@ -678,3 +678,15 @@ export const useTelemetrySettings = () => {
     },
   });
 };
+
+export const usePendingPostsInChannel = (channelId: string) => {
+  const deps = useKeyFromQueryDeps(db.getPendingPosts);
+  const { data } = useQuery({
+    queryKey: [['pendingPosts', channelId], deps],
+    queryFn: () => db.getPendingPosts(channelId),
+    enabled: Boolean(channelId),
+  });
+
+  const pendingPosts = logic.useOptimizedQueryResults(data);
+  return pendingPosts ?? [];
+};

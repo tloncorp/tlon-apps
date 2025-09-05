@@ -1,5 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useMutableRef } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback } from 'react';
 
@@ -11,6 +12,7 @@ export const useGroupNavigation = () => {
     useNavigation<
       NativeStackNavigationProp<RootStackParamList, 'Channel' | 'Post'>
     >();
+  const navigationRef = useMutableRef(navigation);
   const { resetToGroup } = useRootNavigation();
 
   const goToChannel = useCallback(
@@ -19,12 +21,18 @@ export const useGroupNavigation = () => {
       params?: Omit<RootStackParamList['Channel'], 'channelId'>
     ) => {
       if (typeof channel === 'string') {
-        navigation.navigate('Channel', { channelId: channel, ...params });
+        navigationRef.current.navigate('Channel', {
+          channelId: channel,
+          ...params,
+        });
       } else {
-        navigation.navigate('Channel', { channelId: channel.id, ...params });
+        navigationRef.current.navigate('Channel', {
+          channelId: channel.id,
+          ...params,
+        });
       }
     },
-    [navigation]
+    [navigationRef]
   );
 
   const goToGroup = useCallback(
@@ -35,8 +43,8 @@ export const useGroupNavigation = () => {
   );
 
   const goToHome = useCallback(() => {
-    navigation.navigate('ChatList');
-  }, [navigation]);
+    navigationRef.current.navigate('ChatList');
+  }, [navigationRef]);
 
   return {
     goToChannel,
