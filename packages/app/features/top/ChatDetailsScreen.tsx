@@ -25,6 +25,7 @@ import {
   ScrollView,
   TlonText,
   View,
+  WidgetPane,
   XStack,
   YStack,
   createActionGroup,
@@ -32,11 +33,13 @@ import {
   pluralize,
   useChatOptions,
   useChatTitle,
+  useCopy,
   useCurrentUserId,
   useForwardGroupSheet,
   useGroupTitle,
   useIsAdmin,
   useIsWindowNarrow,
+  useToast,
 } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatDetails'>;
@@ -122,6 +125,7 @@ export function ChatDetailsScreenView() {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         backAction={handlePressBack}
+        useHorizontalTitleLayout={!isWindowNarrow}
         title={chatType === 'group' ? 'Group info' : 'Channel info'}
         rightControls={
           currentUserIsAdmin ? (
@@ -218,6 +222,12 @@ function ChatDetailsScreenContent({
 
       <YStack gap="$l">
         {chatType === 'group' && <GroupQuickActions group={group} />}
+        {chatType === 'group' && group.description && (
+          <WidgetPane>
+            <WidgetPane.Title>Description</WidgetPane.Title>
+            <TlonText.Text size="$label/l">{group.description}</TlonText.Text>
+          </WidgetPane>
+        )}
         {chatType === 'group' && <GroupSettings group={group} />}
 
         {members?.length ? (
@@ -539,6 +549,8 @@ function ChatMembersList({
 function GroupQuickActions({ group }: { group: db.Group }) {
   const { markGroupRead, togglePinned } = useChatOptions();
   const forwardGroupSheet = useForwardGroupSheet();
+  const { doCopy } = useCopy(group.id);
+  const showToast = useToast();
 
   const isPinned = group?.pin;
   const canMarkRead = !(group.unread?.count === 0);
@@ -546,6 +558,11 @@ function GroupQuickActions({ group }: { group: db.Group }) {
   const handleForwardGroup = useCallback(() => {
     forwardGroupSheet.open(group);
   }, [forwardGroupSheet, group]);
+
+  const handleCopyFlag = useCallback(async () => {
+    await doCopy();
+    showToast({ message: 'Group ID copied to clipboard' });
+  }, [doCopy, showToast]);
 
   const actions = useMemo(
     () =>
@@ -564,9 +581,20 @@ function GroupQuickActions({ group }: { group: db.Group }) {
         {
           title: 'Forward',
           action: handleForwardGroup,
+        },
+        {
+          title: 'Copy ID',
+          action: handleCopyFlag,
         }
       ),
-    [canMarkRead, markGroupRead, isPinned, togglePinned, handleForwardGroup]
+    [
+      canMarkRead,
+      markGroupRead,
+      isPinned,
+      togglePinned,
+      handleCopyFlag,
+      handleForwardGroup,
+    ]
   );
 
   return (
@@ -587,4 +615,3 @@ function GroupQuickActions({ group }: { group: db.Group }) {
     </ScrollView>
   );
 }
-

@@ -23,6 +23,7 @@ export function ActivityScreenView({
   onGroupAction,
   bucketFetchers,
   refresh,
+  subtitle,
 }: {
   isFocused: boolean;
   goToChannel: (channel: db.Channel, selectedPostId?: string) => void;
@@ -32,6 +33,7 @@ export function ActivityScreenView({
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   bucketFetchers: store.BucketFetchers;
   refresh: () => Promise<void>;
+  subtitle?: string;
 }) {
   const store = useStore();
   const { data: activitySeenMarker } = store.useActivitySeenMarker();
@@ -170,6 +172,7 @@ export function ActivityScreenView({
       onRefreshTriggered={onRefresh}
       seenMarker={activitySeenMarker ?? Date.now()}
       onGroupAction={onGroupAction}
+      subtitle={subtitle}
     />
   );
 }
@@ -185,6 +188,7 @@ export function ActivityScreenContent({
   onRefreshTriggered,
   onGroupAction,
   seenMarker,
+  subtitle,
 }: {
   activeTab: db.ActivityBucket;
   onPressTab: (tab: db.ActivityBucket) => void;
@@ -196,6 +200,7 @@ export function ActivityScreenContent({
   onRefreshTriggered: () => void;
   seenMarker: number;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
+  subtitle?: string;
 }) {
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const handleGroupAction = useCallback(
@@ -233,7 +238,7 @@ export function ActivityScreenContent({
   return (
     <NavigationProvider onPressGroupRef={setSelectedGroup}>
       <View flex={1}>
-        <ActivityHeader activeTab={activeTab} onTabPress={onPressTab} />
+        <ActivityHeader activeTab={activeTab} onTabPress={onPressTab} subtitle={subtitle} />
         {events.length > 0 && (
           <FlatList
             data={events}

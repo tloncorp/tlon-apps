@@ -287,6 +287,11 @@ export const changesSyncedAt = createStorageItem<number | null>({
   defaultValue: null,
 });
 
+export const lastEventReceivedAt = createStorageItem<number>({
+  key: 'lastEventReceivedAt',
+  defaultValue: 0,
+});
+
 export const anyalticsDigestUpdatedAt = createStorageItem<number | null>({
   key: 'analyticsDigestUpdatedAt',
   defaultValue: null,
