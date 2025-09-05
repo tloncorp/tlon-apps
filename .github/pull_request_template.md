@@ -19,6 +19,7 @@
   - [ ] Message sync
   - [ ] Channel display
   - [ ] Notifications
+  - [ ] Other:
 
 ## Rollback plan
 

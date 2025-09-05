@@ -333,6 +333,63 @@ export const sendReply = async ({
   const action = channelPostAction(channelId, postAction);
   await poke(action);
 };
+export interface GetSequencedPostsOptions {
+  channelId: string;
+  start: number;
+  end: number;
+  includeReplies?: boolean;
+}
+
+export const getSequencedChannelPosts = async (
+  options: GetSequencedPostsOptions
+) => {
+  const encodedStart = formatUd(options.start.toString());
+  const encodedEnd = formatUd(options.end.toString());
+
+  const type = getChannelIdType(options.channelId);
+  const app = type === 'channel' ? 'channels' : 'chat';
+  const endpoint = formatScryPath(
+    ...[
+      type === 'dm' ? 'v3/dm' : null,
+      type === 'club' ? 'v3/club' : null,
+      type === 'channel' ? 'v4' : null,
+    ],
+    options.channelId,
+    type === 'channel' ? 'posts' : 'writs',
+    'range',
+    encodedStart,
+    encodedEnd,
+    ...[
+      type === 'channel' ? (options.includeReplies ? 'post' : 'outline') : null,
+      type !== 'channel' ? (options.includeReplies ? 'heavy' : 'light') : null,
+    ]
+  );
+
+  const response = await scry<ub.PagedPosts | ub.PagedWrits>({
+    app: app,
+    path: endpoint,
+  });
+
+  const clientPosts = toPagedPostsData(options.channelId, response).posts;
+  const withoutGaps = fillSequenceGaps(clientPosts, {
+    lowerBound: options.start,
+    upperBound: options.end,
+  });
+
+  if (withoutGaps.numStubs > 0) {
+    logger.log('filled sequence gaps', {
+      channelId: options.channelId,
+      start: options.start,
+      end: options.end,
+      numStubs: withoutGaps.numStubs,
+    });
+  }
+
+  return {
+    posts: withoutGaps.posts,
+    newestSequenceNum: Number(response.newest),
+  };
+};
 
 export type GetChannelPostsOptions = {
   channelId: string;
@@ -340,13 +397,14 @@ export type GetChannelPostsOptions = {
   includeReplies?: boolean;
   mode: 'older' | 'newer' | 'around' | 'newest';
   cursor?: Cursor;
+  sequenceBoundary?: number | null;
 };
 
 export interface GetChannelPostsResponse {
   older?: string | null;
   newer?: string | null;
   posts: db.Post[];
-  deletedPosts?: string[];
+  deletedPosts?: db.Post[];
   totalPosts?: number;
 }
 
@@ -356,14 +414,15 @@ export const getChannelPosts = async ({
   mode = 'older',
   count = 20,
   includeReplies = false,
+  sequenceBoundary = null,
 }: GetChannelPostsOptions) => {
   const type = getChannelIdType(channelId);
   const app = type === 'channel' ? 'channels' : 'chat';
   const path = formatScryPath(
     ...[
-      type === 'dm' ? 'v1/dm' : null,
-      type === 'club' ? 'v1/club' : null,
-      type === 'channel' ? 'v3' : null,
+      type === 'dm' ? 'v3/dm' : null,
+      type === 'club' ? 'v3/club' : null,
+      type === 'channel' ? 'v4' : null,
     ],
     channelId,
     type === 'channel' ? 'posts' : 'writs',
@@ -375,15 +434,94 @@ export const getChannelPosts = async ({
       type !== 'channel' ? (includeReplies ? 'heavy' : 'light') : null,
     ]
   );
+
   const response = await with404Handler(
-    scry<ub.PagedWrits>({
+    scry<ub.PagedWrits | ub.PagedPosts>({
       app,
       path,
     }),
     { posts: [] }
   );
-  return toPagedPostsData(channelId, response);
+  const postsResponse = toPagedPostsData(channelId, response);
+  const { posts: finalPosts, numStubs } = fillSequenceGaps(
+    postsResponse.posts,
+    { upperBound: null, lowerBound: null }
+  );
+
+  return {
+    ...postsResponse,
+    posts: finalPosts,
+    numStubs,
+    numDeletes: postsResponse.deletedPosts?.length ?? 0,
+    newestSequenceNum: response.newest,
+  };
 };
+
+// we need to account for gaps in sequence numbers to avoid ever locking up
+// if there's a contiguity bug on the backends. To accomplish this
+// without reintroducing windowing, we insert dummy posts whenever fetching a known
+// contiguous block of posts
+export function fillSequenceGaps(
+  responsePosts: db.Post[],
+  config: { upperBound: number | null; lowerBound: number | null }
+): { posts: db.Post[]; numStubs: number } {
+  // --- Step 1: Handle empty input ---
+  if (!responsePosts.length) {
+    return { posts: [], numStubs: 0 };
+  }
+
+  // --- Step 2: If not provided explicitly, use the data to determine the window ---
+  const explicitWindowProvided =
+    config.lowerBound !== null && config.upperBound !== null;
+  let minSeq = config.lowerBound ?? Infinity;
+  let maxSeq = config.upperBound ?? 0;
+  let numStubs = 0;
+
+  const existingPostMap = new Map<number, db.Post>();
+  for (const post of responsePosts) {
+    if (typeof post.sequenceNum !== 'number') {
+      // this should never happen
+      logger.trackError('post missing sequence number while filling gaps');
+      continue;
+    }
+
+    if (!explicitWindowProvided) {
+      if (post.sequenceNum < minSeq) {
+        minSeq = post.sequenceNum;
+      }
+      if (post.sequenceNum > maxSeq) {
+        maxSeq = post.sequenceNum;
+      }
+    }
+    existingPostMap.set(post.sequenceNum, post);
+  }
+
+  // --- Step 3: Iterate through the range and fill gaps ---
+  const mergedPosts: db.Post[] = [];
+  const examplePost = responsePosts[0];
+  let previousSentAt = examplePost.sentAt;
+  for (let i = minSeq; i <= maxSeq; i++) {
+    const existingPost = existingPostMap.get(i);
+    if (existingPost) {
+      previousSentAt = existingPost.sentAt;
+      mergedPosts.push(existingPost);
+    } else {
+      const nextSentAt = previousSentAt + 1;
+      mergedPosts.push(
+        toSequenceStubPost({
+          channelId: examplePost.channelId,
+          type: examplePost.type,
+          sentAt: nextSentAt,
+          sequenceNum: i,
+        })
+      );
+      previousSentAt = nextSentAt;
+      numStubs++;
+    }
+  }
+
+  return { posts: mergedPosts, numStubs };
+}
 
 export type PostWithUpdateTime = {
   channelId: string;
@@ -400,24 +538,29 @@ export const getLatestPosts = async ({
   afterCursor?: Cursor;
   count?: number;
 }): Promise<GetLatestPostsResponse> => {
-  const { channels, dms } = await scry<ub.CombinedHeads>({
-    app: 'groups-ui',
-    path: formatScryPath(
-      'v1/heads',
-      afterCursor ? formatCursor(afterCursor) : null,
-      count
-    ),
-  });
+  try {
+    const { channels, dms } = await scry<ub.CombinedHeads>({
+      app: 'groups-ui',
+      path: formatScryPath(
+        'v3/heads',
+        afterCursor ? formatCursor(afterCursor) : null,
+        count
+      ),
+    });
 
-  return [...channels, ...dms].map((head) => {
-    const channelId = 'nest' in head ? head.nest : head.whom;
-    const latestPost = toPostData(channelId, head.latest);
-    return {
-      channelId: channelId,
-      updatedAt: head.recency,
-      latestPost,
-    };
-  });
+    return [...channels, ...dms].map((head) => {
+      const channelId = 'nest' in head ? head.nest : head.whom;
+      const latestPost = toPostData(channelId, head.latest);
+      return {
+        channelId: channelId,
+        updatedAt: head.recency,
+        latestPost,
+      };
+    });
+  } catch (e) {
+    logger.trackError('failed to sync heads');
+    return [];
+  }
 };
 
 export interface GetChangedPostsOptions {
@@ -477,10 +620,10 @@ export async function addReaction({
       postId,
       emoji,
       context: 'addReaction_api',
-      stack: new Error().stack
+      stack: new Error().stack,
     });
   }
-  
+
   const isDmOrGroupDm =
     isDmChannelId(channelId) || isGroupDmChannelId(channelId);
 
@@ -867,13 +1010,13 @@ export const getPostWithReplies = async ({
 
   if (isDmChannelId(channelId)) {
     app = 'chat';
-    path = `/v1/dm/${channelId}/writs/writ/id/${authorId}/${postId}`;
+    path = `/v2/dm/${channelId}/writs/writ/id/${authorId}/${postId}`;
   } else if (isGroupDmChannelId(channelId)) {
     app = 'chat';
-    path = `/v1/club/${channelId}/writs/writ/id/${authorId}/${postId}`;
+    path = `/v2/club/${channelId}/writs/writ/id/${authorId}/${postId}`;
   } else if (isGroupChannelId(channelId)) {
     app = 'channels';
-    path = `/v3/${channelId}/posts/post/${postId}`;
+    path = `/v4/${channelId}/posts/post/${postId}`;
   } else {
     throw new Error('invalid channel id');
   }
@@ -909,18 +1052,24 @@ export function toPagedPostsData(
 export function toPostsData(
   channelId: string,
   posts: ub.Posts | ub.Writs | Record<string, ub.Reply>
-): { posts: db.Post[]; deletedPosts: string[] } {
+): { posts: db.Post[]; deletedPosts: db.Post[] } {
   const entries = Object.entries(posts);
-  const deletedPosts: string[] = [];
+  const deletedPosts: db.Post[] = [];
   const otherPosts: db.Post[] = [];
 
-  for (const [id, post] of entries) {
+  for (const [, post] of entries) {
+    // post will only be null if it was deleted and we're interacting with an
+    // outdated version of the backend. we just ignore that here, which means
+    // that deleted posts will be converted to stubs and not be displayed, but
+    // only temporarily until the backend is updated.
     if (post === null) {
-      deletedPosts.push(id);
-    } else {
-      const postData = toPostData(channelId, post);
-      otherPosts.push(postData);
+      continue;
     }
+    const postData = toPostData(channelId, post);
+    if (isPostTombstone(post)) {
+      deletedPosts.push(postData);
+    }
+    otherPosts.push(postData);
   }
 
   otherPosts.sort((a, b) => (a.receivedAt ?? 0) - (b.receivedAt ?? 0));
@@ -933,10 +1082,12 @@ export function toPostsData(
 
 export function toPostData(
   channelId: string,
-  post: ub.Post | ub.Writ | ub.PostDataResponse
+  post: ub.Post | ub.PostTombstone | ub.Writ | ub.PostDataResponse
 ): db.Post {
   const channelType = channelId.split('/')[0];
-  const getPostType = (post: ub.Post | ub.PostDataResponse) => {
+  const getPostType = (
+    post: ub.Post | ub.PostTombstone | ub.Writ | ub.PostDataResponse
+  ) => {
     if (isNotice(post)) {
       return 'notice';
     }
@@ -952,6 +1103,21 @@ export function toPostData(
     }
   };
   const type = getPostType(post);
+
+  if (isPostTombstone(post)) {
+    return {
+      id: getCanonicalPostId(post.id),
+      authorId: post.author,
+      channelId,
+      type,
+      sentAt: getReceivedAtFromId(post.id),
+      isDeleted: true,
+      deletedAt: post['deleted-at'],
+      receivedAt: getReceivedAtFromId(post.id),
+      sequenceNum: post.seq ? Number(post.seq) : null,
+    };
+  }
+
   const [content, flags] = toPostContent(post?.essay.content);
   const id = getCanonicalPostId(post.seal.id);
   const backendTime =
@@ -992,11 +1158,18 @@ export function toPostData(
     },
   ];
 
+  // top level posts will have a sequence number, but replies will not
+  let sequenceNum = null;
+  if ('seq' in post.seal) {
+    sequenceNum = Number(post.seal.seq);
+  }
+
   return {
     id,
     channelId,
     type,
     backendTime,
+    sequenceNum,
     // Kind data will override
     title: post.essay.meta?.title ?? '',
     image: post.essay.meta?.image ?? '',
@@ -1021,17 +1194,20 @@ export function toPostData(
       const reacts = post?.seal.reacts ?? {};
       // Check for shortcodes in initial post reactions
       if (Object.keys(reacts).length > 0) {
-        const shortcodeReactions = Object.entries(reacts).filter(([, v]) => 
-          typeof v === 'string' && /^:[a-zA-Z0-9_+-]+:?$/.test(v)
+        const shortcodeReactions = Object.entries(reacts).filter(
+          ([, v]) => typeof v === 'string' && /^:[a-zA-Z0-9_+-]+:?$/.test(v)
         );
-        
+
         if (shortcodeReactions.length > 0) {
           logger.trackError('Shortcode reactions in initial post load', {
             postId: id,
             channelId,
-            shortcodeReactions: shortcodeReactions.map(([k, v]) => ({ user: k, value: v })),
+            shortcodeReactions: shortcodeReactions.map(([k, v]) => ({
+              user: k,
+              value: v,
+            })),
             allReacts: reacts,
-            context: 'initial_post_load'
+            context: 'initial_post_load',
           });
         }
       }
@@ -1049,9 +1225,15 @@ function getReceivedAtFromId(postId: string) {
 }
 
 function isPostDataResponse(
-  post: ub.Post | ub.PostDataResponse
+  post: ub.Post | ub.Writ | ub.PostDataResponse
 ): post is ub.PostDataResponse {
   return !!(post.seal.replies && !Array.isArray(post.seal.replies));
+}
+
+function isPostTombstone(
+  post: ub.Post | ub.PostTombstone | ub.Writ | ub.PostDataResponse
+): post is ub.PostTombstone {
+  return 'type' in post && post.type === 'tombstone';
 }
 
 function getReplyData(
@@ -1096,6 +1278,9 @@ export function toPostReplyData(
     content: JSON.stringify(content),
     textContent: getTextContent(reply.memo.content),
     sentAt: reply.memo.sent,
+    // replies aren't sequenced, seq 0 is never genuine. drizzle has trouble
+    // targeting nulls for onConflictDoUpdate so we use a default value instead
+    sequenceNum: 0,
     backendTime,
     receivedAt: getReceivedAtFromId(id),
     replyCount: 0,
@@ -1103,6 +1288,32 @@ export function toPostReplyData(
     syncedAt: Date.now(),
     ...flags,
   };
+}
+
+export function toSequenceStubPost({
+  channelId,
+  type,
+  sequenceNum,
+  sentAt,
+}: {
+  channelId: string;
+  type: db.PostType;
+  sequenceNum: number;
+  sentAt?: number;
+}): db.Post {
+  const stubPost: db.Post = {
+    id: `sequence-stub-${channelId}-${sequenceNum}`,
+    type,
+    channelId,
+    authorId: '~zod',
+    sentAt: sentAt ?? Date.now(),
+    receivedAt: sentAt ?? Date.now(),
+    content: null,
+    hidden: false,
+    sequenceNum,
+    isSequenceStub: true,
+  };
+  return stubPost;
 }
 
 export function toPostContent(story?: ub.Story): PostContentAndFlags {
@@ -1228,7 +1439,13 @@ function parseKindData(kindData?: ub.KindData): db.PostMetadata | undefined {
   }
 }
 
-function isNotice(post: ub.Post | ub.PostDataResponse | null) {
+function isNotice(
+  post: ub.Post | ub.PostTombstone | ub.Writ | ub.PostDataResponse | null
+) {
+  if (!post || isPostTombstone(post)) {
+    return false;
+  }
+
   return post?.essay.kind === '/chat/notice';
 }
 
@@ -1253,26 +1470,29 @@ export function toReactionsData(
     .filter(([, r]) => {
       const isString = typeof r === 'string';
       if (!isString) {
-        logger.log('toReactionsData: filtering out non-string reaction', { 
-          postId, 
+        logger.log('toReactionsData: filtering out non-string reaction', {
+          postId,
           reaction: r,
-          type: typeof r 
+          type: typeof r,
         });
       }
       return isString;
     })
     .map(([name, reaction]) => {
       // Detect and log shortcode patterns
-      if (typeof reaction === 'string' && /^:[a-zA-Z0-9_+-]+:?$/.test(reaction)) {
+      if (
+        typeof reaction === 'string' &&
+        /^:[a-zA-Z0-9_+-]+:?$/.test(reaction)
+      ) {
         logger.trackError('Shortcode reaction detected in toReactionsData', {
           postId,
           contactId: name,
           reaction,
           context: 'channel_reactions',
-          stack: new Error().stack // To trace where this is called from
+          stack: new Error().stack, // To trace where this is called from
         });
       }
-      
+
       return {
         contactId: name,
         postId,
