@@ -13,6 +13,7 @@ export const useGroupContext = ({
   isFocused?: boolean;
 }) => {
   const currentUserId = useCurrentUserId();
+  
   const groupQuery = store.useGroup({
     id: groupId,
   });

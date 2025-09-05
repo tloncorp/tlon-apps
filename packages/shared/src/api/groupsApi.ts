@@ -1600,14 +1600,55 @@ export function groupIsSyncing(group: ub.Group) {
   // channels, meta, etc. there's no perfect way to handle this, so we attempt
   // to use a few different heuristics to detect it. example responses here:
   // https://gist.github.com/dnbrwstr/747c3beaa216bc235880c77d55e06448
-  return (
+
+  // Check for completely empty group (initial join state)
+  const isCompletelyEmpty =
     !group['zone-ord'].length &&
     !group.bloc.length &&
     group.meta?.title === '' &&
     group.meta?.description === '' &&
     group.meta?.cover === '' &&
     group.meta?.image === '' &&
-    Object.keys(group.channels).length === 0
+    Object.keys(group.channels).length === 0;
+
+  // Check for partially synced state where we have metadata but no channels
+  // This can happen when metadata syncs before channels
+  const hasMetadataButNoChannels =
+    (group.meta?.title !== '' ||
+      group.meta?.description !== '' ||
+      group['zone-ord'].length > 0 ||
+      group.bloc.length > 0) &&
+    Object.keys(group.channels).length === 0;
+
+  // Check if nav sections reference channels that don't exist yet
+  // This indicates channels haven't finished syncing
+  const hasNavSectionsButMissingChannels =
+    group['zone-ord'].length > 0 &&
+    group.zones &&
+    Object.values(group.zones).some(
+      (zone) => zone.idx && zone.idx.length > 0
+    ) &&
+    Object.keys(group.channels).length === 0;
+
+  // Additional check: if group has nav sections but all are empty,
+  // and there are no channels, it's likely legitimately empty, not syncing
+  const hasEmptyNavSections =
+    group['zone-ord'].length > 0 &&
+    group.zones &&
+    Object.values(group.zones).every(
+      (zone) => !zone.idx || zone.idx.length === 0
+    );
+
+  // If all nav sections are empty and there are no channels,
+  // this is likely a legitimate state, not a sync issue
+  if (hasEmptyNavSections && Object.keys(group.channels).length === 0) {
+    return false;
+  }
+
+  return (
+    isCompletelyEmpty ||
+    hasMetadataButNoChannels ||
+    hasNavSectionsButMissingChannels
   );
 }
 
