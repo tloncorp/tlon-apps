@@ -672,7 +672,7 @@
   ?:  =(p.flag our.bowl)
     ::  if it's our group, edit the metadata and send out updates about it
     ::
-    se-abet:(se-c-group:(se-abed:se-core flag) %meta meta.group(image ''))
+    se-abet:(se-c-group:(se-abed:se-core:cor flag) %meta meta.group(image ''))
   ::  if it's not ours, just clean it up locally so it doesn't clog our pipes
   ::
   cor(groups (~(put by groups) flag net group(image.meta '')))
