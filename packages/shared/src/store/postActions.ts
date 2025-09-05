@@ -158,6 +158,7 @@ async function _sendPost({
     authorId,
     author,
     channel,
+    sequenceNum: 0, // placeholder, this will be overwritten by the server
     content: optimisticPostData.content,
     metadata: optimisticPostData.metadata,
     deliveryStatus: 'enqueued',
@@ -547,11 +548,12 @@ export async function sendReply({
     authorId,
     author,
     channel: channel,
+    sequenceNum: 0, // replies do not have sequence numbers, use 0
     content,
     parentId,
     deliveryStatus: 'enqueued',
   });
-  await db.insertChannelPosts({ channelId: channel.id, posts: [cachePost] });
+  await db.insertChannelPosts({ posts: [cachePost] });
   await db.addReplyToPost({
     parentId,
     replyAuthor: cachePost.authorId,

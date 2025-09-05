@@ -8,7 +8,8 @@ import { getDbPath, purgeDb } from './nativeDb';
 let metroBundlerURL: string | null = null;
 if (__DEV__) {
   const scriptURL = NativeModules.SourceCode.scriptURL;
-  metroBundlerURL = scriptURL.split('index.bundle?')[0] ?? null;
+  metroBundlerURL =
+    scriptURL.split('apps/tlon-mobile/index.bundle?')[0] ?? null;
 }
 
 type ExpoDevMenuItem = Parameters<typeof registerDevMenuItems>[0][0];
