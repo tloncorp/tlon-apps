@@ -302,10 +302,21 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 
 **Understanding the rube script:**
 -   `pnpm rube` or `pnpm e2e` runs the core test infrastructure
--   Rube performs critical setup: nukes ship state, sets ~mug as reel provider, applies desk updates
+-   Rube performs critical setup: nukes ship state, sets ~mug as reel provider, configures S3 storage (if env vars set), applies desk updates
 -   Ships are considered ready when rube outputs "SHIP_SETUP_COMPLETE" signal
 -   Ship readiness can be verified via HTTP: `http://localhost:{port}/~/scry/hood/kiln/pikes.json`
 -   Default timeout is 30 seconds (can be extended with FORCE_EXTRACTION=true environment variable)
+
+**S3 Storage Configuration for E2E Tests:**
+-   Optional: Image upload tests will be skipped if not configured
+-   Set these environment variables to enable image uploads in e2e tests:
+    -   `E2E_S3_ENDPOINT` - S3 endpoint URL (e.g., `https://s3.amazonaws.com`)
+    -   `E2E_S3_ACCESS_KEY_ID` - AWS access key ID
+    -   `E2E_S3_SECRET_ACCESS_KEY` - AWS secret access key
+    -   `E2E_S3_BUCKET_NAME` - S3 bucket name for test uploads
+    -   `E2E_S3_REGION` - AWS region (optional, defaults to `us-east-1`)
+-   Storage is configured automatically during ship setup if environment variables are present
+-   Each test ship gets the same S3 configuration
 
 **Pier Archiving and Updates:**
 -   Test piers are pre-configured Urbit ships stored as archives in GCS
