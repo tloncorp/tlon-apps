@@ -2602,7 +2602,7 @@
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  se-core
       =.  cor
-        %+  ~(tell l ~)  %crit
+        %+  tell:l  %crit
         [leaf+"failed to invite ship {<ship>}" u.p.sign]
       se-core
     ==
@@ -3941,17 +3941,17 @@
   ++  fi-watched
     |=  p=(unit tang)
     ^+  fi-core
-    =+  l=~(. l `'group-join')
+    =*  log  ~(. l `'group-join')
     ?~  progress
       ::NOTE  the $foreign in state might be "stale", if it's no longer
       ::      tracking progress it's safe for it to ignore $group subscription
       ::      updates.
       fi-core
     ?^  p
-      =.  cor  (fail:l %watch-ack leaf+"failed to join the group {<flag>}" ~)
+      =.  cor  (fail:log %watch-ack leaf+"failed to join the group {<flag>}" ~)
       =.  progress  `%error
       fi-core
-    =.  cor  (tell:l %dbug leaf+"group {<flag>} joined successfully" ~)
+    =.  cor  (tell:log %dbug leaf+"group {<flag>} joined successfully" ~)
     =.  progress  `%done
     fi-core
   ::  +fi-error: end a foreign sequence with an error
