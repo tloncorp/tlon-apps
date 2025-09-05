@@ -3,6 +3,7 @@ import {
   UseQueryResult,
   useQuery,
 } from '@tanstack/react-query';
+import { isMatch, pick } from 'lodash';
 import { useEffect, useMemo } from 'react';
 
 import * as api from '../api';
@@ -389,7 +390,19 @@ export const useGroupPreview = (groupId: string) => {
   });
 
   useEffect(() => {
-    if (groupId && !group && groupPreview) {
+    const unknownGroup = groupId && !group && groupPreview;
+    const fields = [
+      'title',
+      'description',
+      'privacy',
+      'iconImage',
+      'coverImage',
+      'iconImageColor',
+      'coverImageColor',
+    ] as const;
+    const groupDiff =
+      group && groupPreview && !isMatch(group, pick(groupPreview, fields));
+    if (unknownGroup || groupDiff) {
       db.insertUnjoinedGroups([groupPreview]);
     }
   }, [groupId, group, groupPreview]);
