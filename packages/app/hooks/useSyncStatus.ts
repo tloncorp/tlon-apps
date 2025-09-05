@@ -1,4 +1,4 @@
-import { useMemo, useEffect } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 
@@ -20,59 +20,37 @@ function formatTimeAgo(timestamp: number): string {
   }
 }
 
-// Global timer to ensure all instances of useSyncStatus show the same time
-let globalRefreshTimeoutRef: NodeJS.Timeout | null = null;
-const globalStartTimeRef: number = Date.now();
-let activeHookCount = 0;
-
-function startGlobalRefreshTimer() {
-  if (globalRefreshTimeoutRef) return; // Already running
-  
-  const scheduleNextRefresh = () => {
-    const elapsedTime = Date.now() - globalStartTimeRef;
-    const fifteenMinutes = 15 * 60 * 1000;
-    const threeMinutes = 3 * 60 * 1000;
-    const thirtyMinutes = 30 * 60 * 1000;
-    
-    const interval = elapsedTime < fifteenMinutes ? threeMinutes : thirtyMinutes;
-    
-    globalRefreshTimeoutRef = setTimeout(() => {
-      // Increment the shared counter to trigger all hooks to re-render
-      db.syncStatusRefreshCounter.getValue().then(current => {
-        db.syncStatusRefreshCounter.setValue(current + 1);
-      });
-      scheduleNextRefresh();
-    }, interval);
-  };
-  
-  scheduleNextRefresh();
-}
-
-function stopGlobalRefreshTimer() {
-  if (globalRefreshTimeoutRef) {
-    clearTimeout(globalRefreshTimeoutRef);
-    globalRefreshTimeoutRef = null;
-  }
-}
 
 export function useSyncStatus() {
   const connectionStatus = store.useConnectionStatus();
   const session = store.useCurrentSession();
   const headsSyncedAt = db.headsSyncedAt.useValue();
+  const changesSyncedAt = db.changesSyncedAt.useValue();
   const lastEventReceivedAt = db.lastEventReceivedAt.useValue();
-  const refreshCounter = db.syncStatusRefreshCounter.useValue();
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   
-  // Track active hooks to manage global timer
+  // Set up periodic refresh for time display updates
   useEffect(() => {
-    activeHookCount++;
-    startGlobalRefreshTimer();
+    const startTime = Date.now();
     
-    return () => {
-      activeHookCount--;
-      if (activeHookCount === 0) {
-        stopGlobalRefreshTimer();
-      }
+    const scheduleRefresh = () => {
+      const elapsedTime = Date.now() - startTime;
+      const fifteenMinutes = 15 * 60 * 1000;
+      const threeMinutes = 3 * 60 * 1000;
+      const thirtyMinutes = 30 * 60 * 1000;
+      
+      // More frequent updates in the first 15 minutes, then less frequent
+      const interval = elapsedTime < fifteenMinutes ? threeMinutes : thirtyMinutes;
+      
+      return setTimeout(() => {
+        setRefreshTrigger(prev => prev + 1);
+        scheduleRefresh();
+      }, interval);
     };
+    
+    const timeoutId = scheduleRefresh();
+    
+    return () => clearTimeout(timeoutId);
   }, []);
   
   const subtitle = useMemo(() => {
@@ -91,7 +69,7 @@ export function useSyncStatus() {
     }
     
     // Find the most recent sync time from available sources
-    const syncTimes = [sessionStartTime, headsSyncedAt, lastEventReceivedAt].filter(time => time > 0);
+    const syncTimes = [sessionStartTime, headsSyncedAt, changesSyncedAt ?? 0, lastEventReceivedAt].filter(time => time > 0);
     
     if (syncTimes.length > 0) {
       const mostRecentSync = Math.max(...syncTimes);
@@ -99,14 +77,14 @@ export function useSyncStatus() {
       return `Connected • Last sync ${formattedTime}`;
     }
     return 'Connected • Sync pending...';
-    // refreshCounter is needed to force periodic updates
+    // refreshTrigger is needed to force periodic updates
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connectionStatus, session, headsSyncedAt, lastEventReceivedAt, refreshCounter]);
+  }, [connectionStatus, session, headsSyncedAt, changesSyncedAt, lastEventReceivedAt, refreshTrigger]);
 
   const mostRecentSyncTime = useMemo(() => {
-    const syncTimes = [session?.startTime ?? 0, headsSyncedAt, lastEventReceivedAt].filter(time => time > 0);
+    const syncTimes = [session?.startTime ?? 0, headsSyncedAt, changesSyncedAt ?? 0, lastEventReceivedAt].filter(time => time > 0);
     return syncTimes.length > 0 ? Math.max(...syncTimes) : 0;
-  }, [session?.startTime, headsSyncedAt, lastEventReceivedAt]);
+  }, [session?.startTime, headsSyncedAt, changesSyncedAt, lastEventReceivedAt]);
 
   return {
     connectionStatus,

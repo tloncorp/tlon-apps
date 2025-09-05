@@ -127,6 +127,8 @@ export function ChatListScreenView({
     return null;
   }, [isSyncing, chats]);
 
+  const { subtitle: syncSubtitle } = useSyncStatus();
+
   /* Log an error if this screen takes more than 30 seconds to resolve to "Connected" */
   const connectionTimeout = useRef<NodeJS.Timeout | null>(null);
   const connectionAttempts = useRef(0);
@@ -281,8 +283,8 @@ export function ChatListScreenView({
           <View userSelect="none" flex={1}>
             <ScreenHeader
               title="Home"
-              subtitle={notReadyMessage ?? undefined}
-              showSubtitle={!!notReadyMessage}
+              subtitle={syncSubtitle}
+              showSubtitle={true}
               leftControls={
                 personalInvite ? (
                   <ScreenHeader.IconButton
