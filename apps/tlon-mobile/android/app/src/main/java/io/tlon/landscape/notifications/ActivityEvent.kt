@@ -136,6 +136,7 @@ sealed class PreviewContentNode {
     data class GangTitle(val gangId: String) : PreviewContentNode()
     data class GroupTitle(val groupId: String) : PreviewContentNode()
     data class UserNickname(val ship: String) : PreviewContentNode()
+    data class PostSource(val groupId: String, val channelId: String) : PreviewContentNode()
 
     companion object {
         fun parseFromJson(source: JSONObject): PreviewContentNode =
@@ -149,6 +150,7 @@ sealed class PreviewContentNode {
                 "gangTitle" -> GangTitle(source.getString("gangId"))
                 "groupTitle" -> GroupTitle(source.getString("groupId"))
                 "userNickname" -> UserNickname(source.getString("ship"))
+                "postSource" -> PostSource(source.getString("groupId"), source.getString("channelId"))
                 else -> throw Error("Unrecognized PreviewContentNode from JS")
             }
     }
@@ -163,6 +165,15 @@ class PreviewContentNodeRenderer(private val api: TalkApi) {
             is PreviewContentNode.GroupTitle -> api.fetchGroupTitle(node.groupId) ?: node.groupId
             is PreviewContentNode.GangTitle -> api.fetchGangTitle(node.gangId) ?: node.gangId
             is ChannelTitle -> api.fetchChannelTitle(node.channelId) ?: node.channelId
+            is PreviewContentNode.PostSource -> this.render(
+              ConcatenateStrings(
+                ConcatenateStrings(
+                  GroupTitle(node.groupId),
+                  StringLiteral(": ")
+                ),
+                ChannelTitle(node.channelId)
+              )
+            )
         }
 }
 
