@@ -16,7 +16,7 @@ import initResponse from '../test/init.json';
 import suggestedContactsResponse from '../test/suggestedContacts.json';
 import type * as ub from '../urbit/groups';
 import * as queries from './queries';
-import { Post, PostWindow } from './types';
+import { Post } from './types';
 
 const groupsData = toClientGroups(
   groupsResponse as unknown as Record<string, ub.Group>,
@@ -306,312 +306,126 @@ test('inserts contacts without overriding block data', async () => {
 
 const refDate = Date.now();
 
-const windowA = {
-  channelId: 'tst',
-  oldestPostId: '010',
-  newestPostId: '100',
-  newer: '101',
-  older: '009',
-};
-
-const windowB = {
-  channelId: 'tst',
-  oldestPostId: '200',
-  newestPostId: '300',
-  newer: '301',
-  older: '199',
-};
-
-const windowImmediatelyBeforeA = {
-  channelId: 'tst',
-  oldestPostId: '000',
-  newestPostId: '009',
-  newer: '010',
-  older: undefined,
-};
-
-const windowBefore = {
-  channelId: 'tst',
-  oldestPostId: '000',
-  newestPostId: '005',
-  newer: '006',
-  older: undefined,
-};
-
-const windowIntersectingA = {
-  channelId: 'tst',
-  oldestPostId: '005',
-  newestPostId: '050',
-  newer: '051',
-  older: '004',
-};
-
-const windowFillingGap = {
-  channelId: 'tst',
-  oldestPostId: '095',
-  newestPostId: '205',
-  newer: '206',
-  older: '094',
-};
-
-const windowIntersectingB = {
-  channelId: 'tst',
-  oldestPostId: '250',
-  newestPostId: '350',
-  newer: '351',
-  older: '249',
-};
-
-const windowCoveringAll = {
-  channelId: 'tst',
-  oldestPostId: '000',
-  newestPostId: '400',
-  newer: '401',
-  older: undefined,
-};
-
-const testCases: {
-  label: string;
-  window: PostWindow;
-  expected: PostWindow[];
-}[] = [
-  {
-    label: 'two identical windows',
-    window: windowA,
-    expected: [windowA, windowB],
-  },
-  {
-    label: 'before A',
-    window: windowBefore,
-    expected: [windowBefore, windowA, windowB],
-  },
-  {
-    label: 'contiguous with A',
-    window: windowImmediatelyBeforeA,
-    expected: [
-      {
-        channelId: 'tst',
-        oldestPostId: windowImmediatelyBeforeA.oldestPostId,
-        newestPostId: windowA.newestPostId,
-      },
-      windowB,
-    ],
-  },
-  {
-    label: 'intersecting A (before)',
-    window: windowIntersectingA,
-    expected: [
-      {
-        channelId: 'tst',
-        oldestPostId: windowIntersectingA.oldestPostId,
-        newestPostId: windowA.newestPostId,
-      },
-      windowB,
-    ],
-  },
-  {
-    label: 'fill gap between A and B',
-    window: windowFillingGap,
-    expected: [
-      {
-        channelId: 'tst',
-        oldestPostId: windowA.oldestPostId,
-        newestPostId: windowB.newestPostId,
-      },
-    ],
-  },
-  {
-    label: 'intersecting B (after)',
-    window: windowIntersectingB,
-    expected: [
-      windowA,
-      {
-        channelId: 'tst',
-        oldestPostId: windowB.oldestPostId,
-        newestPostId: windowIntersectingB.newestPostId,
-      },
-    ],
-  },
-  {
-    label: 'covering all',
-    window: windowCoveringAll,
-    expected: [windowCoveringAll],
-  },
-];
-
-let sentTime = Date.now();
-
-function insertPostsForWindow(
-  window: PostWindow & { older?: string; newer?: string }
-) {
-  console.log(`Inserting posts for window: ${JSON.stringify(window)}`);
-  return queries.insertChannelPosts({
-    channelId: window.channelId,
-    older: window.older,
-    newer: window.newer,
-    posts: [
-      {
-        id: window.oldestPostId,
-        type: 'chat',
-        channelId: window.channelId,
-        authorId: 'test',
-        receivedAt: 0,
-        sentAt: sentTime++,
-        syncedAt: 0,
-      },
-      {
-        id: window.newestPostId,
-        type: 'chat',
-        channelId: window.channelId,
-        authorId: 'test',
-        receivedAt: 0,
-        sentAt: sentTime++,
-        syncedAt: 0,
-      },
-    ],
-  });
-}
-
-function getPostWindows({ channelId }: { channelId: string }) {
-  return getClient()?.query.postWindows.findMany({
-    where: (table, { eq }) =>
-      channelId ? eq(schema.postWindows.channelId, channelId) : undefined,
-    orderBy: (table, { asc }) => asc(schema.postWindows.oldestPostId),
-  });
-}
-
-test.each(testCases)('insert window: $label', async ({ window, expected }) => {
-  await setupWindows();
-  await insertPostsForWindow(window);
-  const windows = await getPostWindows({ channelId: window.channelId });
-  expect(windows).toEqual(
-    expected.map((w) => ({
-      channelId: w.channelId,
-      oldestPostId: w.oldestPostId,
-      newestPostId: w.newestPostId,
-    }))
-  );
-});
-
-const filterTestCases = [
-  {
-    label: 'before first window',
-    startPostId: '0005',
-    count: 5,
-    newer: [],
-    older: [],
-  },
-  {
-    label: 'within first window',
-    startPostId: '0010',
-    count: 5,
-    newer: ['0015', '0014', '0013', '0012', '0011'],
-    older: [],
-  },
-  {
-    label: 'to exact end of first window',
-    startPostId: '0014',
-    count: 5,
-    newer: ['0019', '0018', '0017', '0016', '0015'],
-    older: ['0013', '0012', '0011', '0010'],
-  },
-  {
-    label: 'past end of first window',
-    startPostId: '0017',
-    count: 5,
-    newer: ['0019', '0018'],
-    older: ['0016', '0015', '0014', '0013', '0012'],
-  },
-  {
-    label: 'into second window',
-    startPostId: '0021',
-    count: 5,
-    newer: [],
-    older: [],
-  },
-  {
-    label: 'within second window',
-    startPostId: '0025',
-    count: 5,
-    newer: ['0030', '0029', '0028', '0027', '0026'],
-    older: [],
-  },
-  {
-    label: 'outside of any window',
-    startPostId: '0040',
-    count: 5,
-    newer: [],
-    older: [],
-  },
-  {
-    label: 'before first window, into first window',
-    startPostId: '0005',
-    count: 5,
-    newer: [],
-    older: [],
-  },
-];
-
-test.each(filterTestCases)('filter posts: $label', async (testCase) => {
-  const channelId = 'tst';
+test('sequenced posts: gets newest posts', async () => {
+  const channelId = 'test';
   await queries.insertChannels([{ id: channelId, type: 'chat' }]);
-  const firstRange = getRangedPosts(channelId, 10, 20);
-  const secondRange = getRangedPosts(channelId, 25, 35);
-  await queries.insertChannelPosts({
-    channelId,
-    posts: firstRange,
-    newer: null,
-    older: null,
-  });
-  await queries.insertChannelPosts({
-    channelId,
-    posts: secondRange,
-    newer: null,
-    older: null,
-  });
-
-  const newestPosts = await queries.getChannelPosts({
+  const posts = getRangedPosts(channelId, 10, 20);
+  await queries.insertChannelPosts({ posts });
+  const newestPosts = await queries.getSequencedChannelPosts({
+    mode: 'newest',
     channelId,
     count: 5,
-    mode: 'newest',
   });
   expect(newestPosts.length).toEqual(5);
-
-  const postsAround = await queries.getChannelPosts({
-    channelId,
-    count: 5,
-    cursor: '0015',
-    mode: 'around',
-  });
-  expect(postsAround.map((p) => p.id)).toEqual([
-    '0017',
-    '0016',
-    '0015',
-    '0014',
-    '0013',
-  ]);
-
-  for (const mode of ['newer', 'older'] as const) {
-    const posts = await queries.getChannelPosts({
-      channelId,
-      count: testCase.count,
-      cursor: testCase.startPostId,
-      mode,
-    });
-    expect(
-      posts.map((p) => p.id),
-      mode
-    ).toEqual(testCase[mode]);
-  }
+  expect(newestPosts[0].sequenceNum).toEqual(19);
+  expect(newestPosts[4].sequenceNum).toEqual(15);
 });
 
-async function setupWindows() {
-  await Promise.all([
-    queries.insertChannels([{ id: 'tst', type: 'chat' }]),
-    insertPostsForWindow(windowA),
-    insertPostsForWindow(windowB),
-  ]);
-}
+test('sequenced posts: gets newer posts', async () => {
+  const channelId = 'test';
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  const posts = getRangedPosts(channelId, 1, 20);
+  await queries.insertChannelPosts({ posts });
+  const newestPosts = await queries.getSequencedChannelPosts({
+    mode: 'newer',
+    channelId,
+    cursorSequenceNum: 5,
+    count: 7,
+  });
+  expect(newestPosts.length).toEqual(7);
+  expect(newestPosts[0].sequenceNum).toEqual(12);
+  expect(newestPosts[6].sequenceNum).toEqual(6);
+});
+
+test('sequenced posts: gets older posts', async () => {
+  const channelId = 'test';
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  const posts = getRangedPosts(channelId, 1, 20);
+  await queries.insertChannelPosts({ posts });
+  const newestPosts = await queries.getSequencedChannelPosts({
+    mode: 'older',
+    channelId,
+    cursorSequenceNum: 12,
+    count: 10,
+  });
+  expect(newestPosts.length).toEqual(10);
+  expect(newestPosts[0].sequenceNum).toEqual(11);
+  expect(newestPosts[9].sequenceNum).toEqual(2);
+});
+
+test('sequenced posts: gets older posts', async () => {
+  const channelId = 'test';
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  const posts = getRangedPosts(channelId, 1, 20);
+  await queries.insertChannelPosts({ posts });
+  const newestPosts = await queries.getSequencedChannelPosts({
+    mode: 'around',
+    channelId,
+    cursorSequenceNum: 8,
+    count: 10,
+  });
+  expect(newestPosts.length).toEqual(10);
+  expect(newestPosts[0].sequenceNum).toEqual(13);
+  expect(newestPosts[9].sequenceNum).toEqual(4);
+});
+
+test('sequenced posts: does not find newer out of bounds posts', async () => {
+  const channelId = 'test';
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  const posts = getRangedPosts(channelId, 1, 20);
+  await queries.insertChannelPosts({ posts });
+  const newestPosts = await queries.getSequencedChannelPosts({
+    mode: 'newer',
+    channelId,
+    cursorSequenceNum: 28,
+    count: 10,
+  });
+  expect(newestPosts.length).toEqual(0);
+});
+
+test('sequenced posts: does not find older out of bounds posts', async () => {
+  const channelId = 'test';
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  const posts = getRangedPosts(channelId, 10, 20);
+  await queries.insertChannelPosts({ posts });
+  const newestPosts = await queries.getSequencedChannelPosts({
+    mode: 'older',
+    channelId,
+    cursorSequenceNum: 5,
+    count: 10,
+  });
+  expect(newestPosts.length).toEqual(0);
+});
+
+test('sequenced posts: does not find out of bounds around posts', async () => {
+  const channelId = 'test';
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  const window1 = getRangedPosts(channelId, 1, 10);
+  const window2 = getRangedPosts(channelId, 20, 30);
+  await queries.insertChannelPosts({ posts: [...window1, ...window2] });
+  const newestPosts = await queries.getSequencedChannelPosts({
+    mode: 'around',
+    channelId,
+    cursorSequenceNum: 15,
+    count: 10,
+  });
+  expect(newestPosts.length).toEqual(0);
+});
+
+test('sequenced posts: respects contiguous boundary in newer mode', async () => {
+  const channelId = 'test';
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  const posts = getRangedPosts(channelId, 1, 20);
+  await queries.insertChannelPosts({ posts });
+  const newestPosts = await queries.getSequencedChannelPosts({
+    mode: 'newer',
+    channelId,
+    cursorSequenceNum: 15,
+    count: 10,
+  });
+  expect(newestPosts.length).toEqual(4);
+  expect(newestPosts[0].sequenceNum).toEqual(19);
+});
 
 function getRangedPosts(channelId: string, start: number, end: number): Post[] {
   const posts: Post[] = [];
@@ -622,6 +436,7 @@ function getRangedPosts(channelId: string, start: number, end: number): Post[] {
       channelId,
       receivedAt: refDate + i,
       sentAt: refDate + i,
+      sequenceNum: i,
       authorId: 'test',
       syncedAt: 0,
     });
@@ -712,4 +527,184 @@ test('getMentionCandidates: limits results to 6', async () => {
 
   // Should not return more than 6 results
   expect(candidates.length).toBeLessThanOrEqual(6);
+});
+
+test('insertPosts: removes cached posts when real posts arrive', async () => {
+  const channelId = 'test-channel';
+  const authorId = '~zod';
+  const sentAt = Date.now();
+
+  // Setup channel
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+
+  // Insert a cached post (sequenceNum: 0 indicates cached/optimistic post)
+  const cachedPost: Post = {
+    id: 'cached-post-id',
+    type: 'chat',
+    channelId,
+    authorId,
+    sentAt,
+    receivedAt: sentAt,
+    sequenceNum: 0, // This marks it as a cached post
+    content: JSON.stringify([{ inline: ['Cached message'] }]),
+    syncedAt: Date.now(),
+  };
+
+  await queries.insertChannelPosts({ posts: [cachedPost] });
+
+  // Verify cached post exists
+  const postsBeforeReal = await queries.getChanPosts({ channelId });
+  expect(postsBeforeReal.length).toBe(1);
+  expect(postsBeforeReal[0].id).toBe('cached-post-id');
+  expect(postsBeforeReal[0].sequenceNum).toBe(0);
+
+  // Insert a real post from server with same channel, author, and sentAt
+  const realPost: Post = {
+    id: 'real-post-id',
+    type: 'chat',
+    channelId,
+    authorId,
+    sentAt, // Same sentAt as cached post
+    receivedAt: sentAt,
+    sequenceNum: 5, // Real sequence number from server
+    content: JSON.stringify([{ inline: ['Real message'] }]),
+    syncedAt: Date.now(),
+  };
+
+  await queries.insertChannelPosts({ posts: [realPost] });
+
+  // Verify cached post is removed and only real post remains
+  const postsAfterReal = await queries.getChanPosts({ channelId });
+  expect(postsAfterReal.length).toBe(1);
+  expect(postsAfterReal[0].id).toBe('real-post-id');
+  expect(postsAfterReal[0].sequenceNum).toBe(5);
+});
+
+test('insertPosts: keeps cached posts when no matching real post arrives', async () => {
+  const channelId = 'test-channel-2';
+  const authorId = '~zod';
+
+  // Setup channel
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+
+  // Insert cached posts with different sentAt times
+  const cachedPost1: Post = {
+    id: 'cached-post-1',
+    type: 'chat',
+    channelId,
+    authorId,
+    sentAt: 1000,
+    receivedAt: 1000,
+    sequenceNum: 0,
+    content: JSON.stringify([{ inline: ['Cached message 1'] }]),
+    syncedAt: Date.now(),
+  };
+
+  const cachedPost2: Post = {
+    id: 'cached-post-2',
+    type: 'chat',
+    channelId,
+    authorId,
+    sentAt: 2000,
+    receivedAt: 2000,
+    sequenceNum: 0,
+    content: JSON.stringify([{ inline: ['Cached message 2'] }]),
+    syncedAt: Date.now(),
+  };
+
+  await queries.insertChannelPosts({ posts: [cachedPost1, cachedPost2] });
+
+  // Insert a real post that doesn't match either cached post
+  const realPost: Post = {
+    id: 'real-post-different',
+    type: 'chat',
+    channelId,
+    authorId,
+    sentAt: 3000, // Different sentAt
+    receivedAt: 3000,
+    sequenceNum: 10,
+    content: JSON.stringify([{ inline: ['Real message'] }]),
+    syncedAt: Date.now(),
+  };
+
+  await queries.insertChannelPosts({ posts: [realPost] });
+
+  // Verify all posts remain (cached posts not removed since no match)
+  const posts = await queries.getChanPosts({ channelId });
+  expect(posts.length).toBe(3);
+
+  const cachedPosts = posts.filter((p) => p.sequenceNum === 0);
+  const realPosts = posts.filter((p) => p.sequenceNum !== 0);
+
+  expect(cachedPosts.length).toBe(2);
+  expect(realPosts.length).toBe(1);
+  expect(realPosts[0].id).toBe('real-post-different');
+});
+
+test('insertPosts: removes only matching cached posts', async () => {
+  const channelId = 'test-channel-3';
+  const authorId = '~zod';
+  const otherAuthorId = '~bus';
+  const sentAt = 5000;
+
+  // Setup channel
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+
+  // Insert cached posts - one that will match, one that won't
+  const cachedPostMatching: Post = {
+    id: 'cached-matching',
+    type: 'chat',
+    channelId,
+    authorId,
+    sentAt,
+    receivedAt: sentAt,
+    sequenceNum: 0,
+    content: JSON.stringify([{ inline: ['Cached matching'] }]),
+    syncedAt: Date.now(),
+  };
+
+  const cachedPostNonMatching: Post = {
+    id: 'cached-non-matching',
+    type: 'chat',
+    channelId,
+    authorId: otherAuthorId, // Different author
+    sentAt,
+    receivedAt: sentAt,
+    sequenceNum: 0,
+    content: JSON.stringify([{ inline: ['Cached non-matching'] }]),
+    syncedAt: Date.now(),
+  };
+
+  await queries.insertChannelPosts({
+    posts: [cachedPostMatching, cachedPostNonMatching],
+  });
+
+  // Insert real post that matches only the first cached post
+  const realPost: Post = {
+    id: 'real-post-matching',
+    type: 'chat',
+    channelId,
+    authorId, // Matches first cached post
+    sentAt, // Matches first cached post
+    receivedAt: sentAt,
+    sequenceNum: 15,
+    content: JSON.stringify([{ inline: ['Real matching'] }]),
+    syncedAt: Date.now(),
+  };
+
+  await queries.insertChannelPosts({ posts: [realPost] });
+
+  // Verify only the matching cached post was removed
+  const posts = await queries.getChanPosts({ channelId });
+  expect(posts.length).toBe(2);
+
+  const cachedPosts = posts.filter((p) => p.sequenceNum === 0);
+  const realPosts = posts.filter((p) => p.sequenceNum !== 0);
+
+  expect(cachedPosts.length).toBe(1);
+  expect(cachedPosts[0].id).toBe('cached-non-matching');
+  expect(cachedPosts[0].authorId).toBe(otherAuthorId);
+
+  expect(realPosts.length).toBe(1);
+  expect(realPosts[0].id).toBe('real-post-matching');
 });

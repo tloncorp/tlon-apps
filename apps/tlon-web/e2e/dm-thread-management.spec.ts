@@ -123,6 +123,7 @@ test('should test DM thread management and multiple threads', async ({
 
   // Navigate back to main DM view
   await helpers.navigateBack(zodPage);
+  await zodPage.waitForTimeout(1000);
 
   // Should see thread indicators now (at least one from the original thread)
   const replyElements = await zodPage.getByText(/\d+ repl(y|ies)/).count();

@@ -108,7 +108,24 @@ export function ChatListScreenView({
   );
 
   const connStatus = store.useConnectionStatus();
-  const { subtitle } = useSyncStatus();
+  const isSyncing = store.useIsSyncing();
+  const notReadyMessage: string | null = useMemo(() => {
+    // if not fully connected yet, show status
+    // if (connStatus !== 'Connected') {
+    //   return `${connStatus}...`;
+    // }
+
+    if (isSyncing) {
+      return 'Syncing...';
+    }
+
+    // if still loading the screen data, show loading
+    if (!chats || (!chats.unpinned.length && !chats.pinned.length)) {
+      return 'Loading...';
+    }
+
+    return null;
+  }, [isSyncing, chats]);
 
   /* Log an error if this screen takes more than 30 seconds to resolve to "Connected" */
   const connectionTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -264,8 +281,8 @@ export function ChatListScreenView({
           <View userSelect="none" flex={1}>
             <ScreenHeader
               title="Home"
-              subtitle={subtitle}
-              showSubtitle={true}
+              subtitle={notReadyMessage ?? undefined}
+              showSubtitle={!!notReadyMessage}
               leftControls={
                 personalInvite ? (
                   <ScreenHeader.IconButton

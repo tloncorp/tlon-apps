@@ -98,7 +98,7 @@ export async function getPagedActivityByBucket({
 }): Promise<{
   events: db.ActivityEvent[];
   nextCursor: number | null;
-  relevantUnreads: ActivityInit;
+  relevantUnreads: db.ActivityInit;
 }> {
   logger.log(
     `fetching next activity page for bucket ${bucket} with cursor`,
@@ -973,14 +973,7 @@ export type ActivityUpdateQueue = {
   activityEvents: db.ActivityEvent[];
 };
 
-export type ActivityInit = {
-  baseUnread?: db.BaseUnread;
-  groupUnreads: db.GroupUnread[];
-  channelUnreads: db.ChannelUnread[];
-  threadActivity: db.ThreadUnreadState[];
-};
-
-export const toClientUnreads = (activity: ub.Activity): ActivityInit => {
+export const toClientUnreads = (activity: ub.Activity): db.ActivityInit => {
   const groupUnreads: db.GroupUnread[] = [];
   const channelUnreads: db.ChannelUnread[] = [];
   const threadActivity: db.ThreadUnreadState[] = [];
