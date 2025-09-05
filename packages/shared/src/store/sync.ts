@@ -214,6 +214,19 @@ export const syncLatestChanges = async ({
   });
 };
 
+export const syncCachedChanges = async (input: {
+  begin: number;
+  end: number;
+  changes: db.ChangesResult;
+}) => {
+  const syncedAt = await db.changesSyncedAt.getValue();
+  if (syncedAt && input.begin <= syncedAt && input.end > syncedAt) {
+    // cached changes are valid, insert them
+    await db.insertChanges(input.changes);
+    await db.changesSyncedAt.setValue(input.end);
+  }
+};
+
 export const syncLatestPosts = async (
   ctx?: SyncCtx,
   queryCtx?: QueryCtx,
