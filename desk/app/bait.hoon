@@ -342,6 +342,7 @@
       %+  ~(put by token-metadata)  token
       u.metadata(fields (~(uni by fields.u.metadata) fields.update))
     ::  update branch links
+    ::
     =/  caz=(list card)
       %+  roll  ~(tap in (~(get ju stable-id) id))
       |=  [=token:reel caz=(list card)]
