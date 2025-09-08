@@ -174,7 +174,11 @@
   (pure:m ~)
 ::  +test-groups-update: group metadata update
 ::
-::  a group lure invite metadata are updated when the group metadata changes.
+::  a group lure invite metadata are updated by the group host
+::  when the group metadata changes.
+::
+::  when a group is deleted, the group host signals this by setting
+::  appropiate field in the link metadata.
 ::
 ++  test-groups-update
   %-  eval-mare
@@ -224,6 +228,27 @@
   ;<  ~  bind:m
     %+  ex-equal  !>((~(get by fields.metadata) 'invitedGroupDescription'))
     !>(`'Sunrise, sunset.')
+  ::  when a group is deleted, the group host updates the provider with
+  ::  invitedGroupDeleted set to true.
+  ::
+  =/  =r-groups:v7:gv
+    [~sampel-palnet^%sunrise %delete ~]
+  ;<  caz=(list card)  bind:m  
+    (do-agent /groups [~sampel-palnet %groups] %fact group-response-1+!>(r-groups))
+  =/  update=metadata:reel
+    :-  %groups-0
+    %-  ~(gas by *(map cord cord))
+    :~  'invitedGroupDeleted'^'true'
+    ==
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (ex-poke /update/group [provider %bait] bait-update-group+!>([~sampel-palnet^%sunrise update]))
+    ==
+  ;<  =metadata:reel  bind:m  
+    (get-full-peek metadata:reel /x/v1/metadata/~sampel-palnet/sunrise)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(get by fields.metadata) 'invitedGroupDeleted'))
+    !>(`'true')
   (pure:m ~)
 ::  +test-contacts-update: user profile update
 ::
