@@ -217,7 +217,7 @@
         ?~  inviter
           %-  %^  tell:log  %crit  ~['inviter not found']
               ~['event'^s+'Inviter Not Found']
-            :_  this
+          :_  this
           (give (not-found 'inviter not found'))
         %-  %^  tell:log  %info  ~[leaf+"{<joiner>} redeemed lure invite from {<u.inviter>}"]
             ~['event'^s+'Invite Redeemed']
@@ -394,8 +394,7 @@
   ::
       [%branch token=@ ~]
     ?>  ?=([%khan %arow *] sign-arvo)
-    ?:  ?=(%& -.p.sign-arvo)
-      `this
+    ?:  ?=(%& -.p.sign-arvo)  `this
     =*  token  i.t.wire
     =*  goof  p.p.sign-arvo
     =*  log  ~(. l bowl 'flow'^s+'lure' ~)

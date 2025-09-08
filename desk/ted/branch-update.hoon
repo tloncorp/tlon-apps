@@ -84,7 +84,6 @@
 =.  meta  (~(del by meta) 'state')
 =.  meta  (~(del by meta) 'creation_source')
 ::
-=+  invite-url=`@t`(rap 3 base-url '/' token ~)
 =/  write=request:http
   :*  %'PUT'
       %-  crip  "{(trip branch-url)}?".
