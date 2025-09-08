@@ -24,7 +24,6 @@ export const useGroupContext = ({
   }, [groupId]);
 
   const group = groupQuery.data ?? null;
-  console.log('Group context', { groupId, group, isFocused });
 
   const currentUserIsAdmin = useMemo(() => {
     return group?.members.some(
