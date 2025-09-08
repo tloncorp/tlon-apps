@@ -666,6 +666,24 @@
   ::  always trawl our groups for raw image data (or really, metadata of a
   ::  size that could be raw image data) and unset those.
   ::
+  =.  foreigns
+    %-  ~(run by foreigns)
+    |=  =foreign:g
+    ?~  preview.foreign
+      ::  no preview, nothing to do
+      ::
+      foreign
+    =*  meta  meta.u.preview.foreign
+    ?:  ?|  =('' image.meta)
+            =('http' (end 3^4 image.meta))
+            =('#' (end 3 image.meta))
+        ==
+      ::  no raw image data, nothing to do
+      ::
+      foreign
+    ::  strip out raw image data
+    ::
+    foreign(image.meta.u.preview '')
   %+  roll  ~(tap by groups)
   |=  [[=flag:g =net:g =group:g] =_cor]
   ?:  ?|  =('' image.meta.group)
