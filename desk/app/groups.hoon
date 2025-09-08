@@ -666,20 +666,40 @@
   ::  always trawl our groups for raw image data (or really, metadata of a
   ::  size that could be raw image data) and unset those.
   ::
-  %+  roll  ~(tap by groups)
-  |=  [[=flag:g =net:g =group:g] =_cor]
-  ?:  ?|  =('' image.meta.group)
-          =('http' (end 3^4 image.meta.group))
-          =('#' (end 3 image.meta.group))
-      ==
-    cor
-  ?:  =(p.flag our.bowl)
-    ::  if it's our group, edit the metadata and send out updates about it
+  =.  cor
+    %+  roll  ~(tap by groups)
+    |=  [[=flag:g =net:g =group:g] =_cor]
+    ?:  ?|  =('' image.meta.group)
+            =('http' (end 3^4 image.meta.group))
+            =('#' (end 3 image.meta.group))
+        ==
+      cor
+    ?:  =(p.flag our.bowl)
+      ::  if it's our group, edit the metadata and send out updates about it
+      ::
+      se-abet:(se-c-group:(se-abed:se-core:cor flag) %meta meta.group(image ''))
+    ::  if it's not ours, just clean it up locally so it doesn't clog our pipes
     ::
-    se-abet:(se-c-group:(se-abed:se-core:cor flag) %meta meta.group(image ''))
-  ::  if it's not ours, just clean it up locally so it doesn't clog our pipes
-  ::
-  cor(groups (~(put by groups) flag net group(image.meta '')))
+    cor(groups (~(put by groups) flag net group(image.meta '')))
+  %+  roll  ~(tap by foreigns)
+  |=  [[=flag:g =foreign:g] =_cor]
+  ?~  preview.foreign
+    ::  no preview, nothing to do
+    ::
+    cor
+  =*  meta  meta.u.preview.foreign
+  ?:  ?|  =('' image.meta)
+          =('http' (end 3^4 image.meta))
+          =('#' (end 3 image.meta))
+      ==
+    ::  no raw image data, nothing to do
+    ::
+    cor
+  =/  new-foreign=foreign:g
+    ::  strip out raw image data
+    ::
+    foreign(image.meta.u.preview '')
+  cor(foreigns (~(put by foreigns) flag new-foreign))
   ::
   +$  any-state
     $%  state-7
