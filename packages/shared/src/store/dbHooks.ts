@@ -350,9 +350,7 @@ export const useGroupWithAllModels = ({ id }: { id?: string }) => {
       if (!id) {
         throw new Error('missing group id');
       }
-      const group = await db.getGroupWithEverything({ id });
-      console.log('fetched group with all models', group);
-      return group;
+      return db.getGroupWithEverything({ id });
     },
   });
 };
