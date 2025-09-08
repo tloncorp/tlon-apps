@@ -1456,6 +1456,11 @@
     ?>  =(p.flag our.bowl)
     =?  se-core  gone
       (se-update [%delete ~])
+    ::  if the group is about to be deleted, this our only
+    ::  chance to trigger +go-core update.
+    ::
+    =?  cor  gone
+      go-abet:(go-u-group:(go-abed:go-core flag) now.bowl %delete ~)
     %_  cor  groups
       ?:  gone
         (~(del by groups) flag)
