@@ -195,22 +195,42 @@ export const syncLatestChanges = async ({
     syncFrom = since;
   }
 
+  const threeDaysAgo = start - 3 * 24 * 60 * 60 * 1000;
+  if (syncFrom < threeDaysAgo) {
+    logger.trackEvent('Sync latest stale, falling back');
+    try {
+      await debouncedSyncInit(syncCtx);
+      await db.changesSyncedAt.setValue(start);
+    } catch (e) {
+      logger.trackError('Failed latest changes fallback', {
+        errorMessage: e.message,
+        stack: e.stack,
+      });
+    }
+    return;
+  }
+
   const result = await syncQueue.add('latestChanges', syncCtx, () => {
     return api.fetchChangesSince(syncFrom);
   });
+  const msToFetch = Date.now() - start;
   const doneFetching = Date.now();
   logger.log(`fetched latest changes: ${doneFetching - start}ms`, result);
 
   await db.insertChanges(result, queryCtx);
+  const msToWrite = Date.now() - doneFetching;
   await db.changesSyncedAt.setValue(start);
   logger.log(`inserted latest changes: ${Date.now() - doneFetching}ms`);
 
   const duration = Date.now() - start;
   logger.trackEvent('synced latest changes', {
     duration,
+    nodeBusyStatus: result.nodeBusyStatus,
     syncWindow: Date.now() - syncFrom,
     numPosts: result.posts.length,
     numGroups: result.groups.length,
+    msToFetch,
+    msToWrite,
   });
 };
 
