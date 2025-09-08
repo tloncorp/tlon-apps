@@ -10,6 +10,7 @@
   $:  %3
       token-metadata=(map token:reel metadata:reel)
       stable-id=(jug cord token:reel)
+      branch-secret=@t
   ==
 ++  dap  %bait-test
 ++  group-invite-meta
@@ -130,7 +131,7 @@
         :-  %group-0
         %-  my
         :~  'invitedGroupTitle'^'Sunrise' 
-            'group'^'~sampel-palnet/sunrise'
+            'invitedGroupId'^'~sampel-palnet/sunrise'
             'inviterName'^'~sampel-palnet'
         ==
       ::
@@ -139,7 +140,7 @@
         :-  %group-0
         %-  my
         :~  'invitedGroupTitle'^'Sunrise' 
-            'group'^'~sampel-palnet/sunrise'
+            'invitedGroupId'^'~sampel-palnet/sunrise'
             'inviterName'^'~palfed-samnet'
         ==
       ::
@@ -148,7 +149,7 @@
         :-  %group-0
         %-  my
         :~  'inviterUserId'^'~sampel-palnet' 
-            'group'^'~zod/personal-invite-link'
+            'invitedGroupId'^'~zod/personal-invite-link'
             'inviterName'^'~sampel-palnet'
             'inviteType'^'user'
         ==
@@ -221,9 +222,10 @@
 ::  a group lure invite can be updated by anyone with the token.
 ::  ordinary group members do not update the associated invites.
 ::
-::  the group host automatically updates all associated lure invites.
+::  the group updates all associated lure using the
+::  %bait-update-group poke.
 ::
-++  test-bait-update
+++  test-bait-metadata-update
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -234,6 +236,7 @@
   ;<  *  bind:m  (do-bait-describe 0v3 group-invite-meta)
   ::  a group lure invite can be updated by anyone with the token.
   ::  ordinary group members do not update the associated invites.
+  ::  the provider will also trigger the -bait-update thread.
   ::
   =/  =metadata:reel
     ^-  metadata:reel
@@ -242,17 +245,28 @@
     :~  ['invitedGroupTitle' 'Early Sunrise']
     ==
   ;<  ~  bind:m  (set-src ~sampel-botnet)
-  ;<  *  bind:m  (do-poke bait-update+!>([~.0v1 metadata]))
+  ;<  caz=(list card)  bind:m  (do-poke bait-update+!>([~.0v1 metadata]))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (ex-poke-wire /branch/0v1)
+    ==
   ;<  title=(unit @t)  bind:m  (get-metadata-field 0v1 'invitedGroupTitle')
   ;<  ~  bind:m  (ex-equal !>(title) !>(`'Early Sunrise'))
   ;<  title=(unit @t)  bind:m  (get-metadata-field 0v2 'invitedGroupTitle')
   ;<  ~  bind:m  (ex-equal !>(title) !>(`'Sunrise'))
   ;<  title=(unit @t)  bind:m  (get-metadata-field 0v3 'invitedGroupTitle')
   ;<  ~  bind:m  (ex-equal !>(title) !>(`'Sunrise'))
-  ::  the group host automatically updates all associated lure invites
+  ::  the group host automatically updates all associated lure invites,
+  ::  also triggering branch.io metadata update.
   ::
   ;<  ~  bind:m  (set-src ~sampel-palnet)
-  ;<  *  bind:m  (do-poke bait-update-group+!>([~sampel-palnet^%sunrise metadata]))
+  ;<  caz=(list card)  bind:m  
+    (do-poke bait-update-group+!>([~sampel-palnet^%sunrise metadata]))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (ex-poke-wire /branch/0v2)
+        (ex-poke-wire /branch/0v3)
+    ==
   ;<  title=(unit @t)  bind:m  (get-metadata-field 0v2 'invitedGroupTitle')
   ;<  ~  bind:m  (ex-equal !>(title) !>(`'Early Sunrise'))
   ;<  title=(unit @t)  bind:m  (get-metadata-field 0v3 'invitedGroupTitle')

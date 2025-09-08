@@ -215,7 +215,7 @@
       %-  ~(gas by fields.metadata)
       :~  ['bite-type' '2']
           ['inviterUserId' (scot %p src.bowl)]
-          ['group' id]
+          ['invitedGroupId' id]
       ==
     ::  the nonce here is a temporary identifier for the metadata.
     ::  a new one will be assigned by the bait provider and returned to us.

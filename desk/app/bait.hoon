@@ -25,6 +25,7 @@
   $:  %3
       token-metadata=(map token:reel metadata:reel)
       stable-id=(jug cord token:reel)
+      branch-secret=@t
   ==
 --
 |%
@@ -139,12 +140,12 @@
     =.  stable-id
       %+  roll  ~(tap by token-metadata.old)
       |=  [[=token:reel =metadata:reel] =_stable-id]
-      ?~  id=(~(get by fields.metadata) 'group')
+      ?~  id=(~(get by fields.metadata) 'invitedGroupId')
         stable-id
       ::  don't index personal invite links
       ?:  =(u.id '~zod/personal-invite-link')  stable-id
       (~(put ju stable-id) u.id token)
-    [%3 token-metadata.old stable-id]
+    [%3 token-metadata.old stable-id '']
   ?>  ?=(%3 -.old)
   =.  state  old
   `this
@@ -153,6 +154,13 @@
   |=  [=mark =vase]
   ^-  (quip card _this)
   ?+    mark  (on-poke:def mark vase)
+      %noun
+    ?+    q.vase  !!
+        [%branch-secret @t]
+      =+  ;;(secret=@t +.q.vase)
+      `this(branch-secret secret)
+    ==
+  ::
       %handle-http-request
     =+  !<([id=@ta inbound-request:eyre] vase)
     |^
@@ -181,7 +189,7 @@
       ==
     ::
         %'POST'
-      =+  log=~(. l bowl 'flow'^s+'lure' ~)
+      =*  log  ~(. l bowl 'flow'^s+'lure' ~)
       ?~  body.request
         %-  %^  tell:log  %crit
               ~['POST request body not found']
@@ -199,7 +207,7 @@
       =/  token
         ?~  ext.full-line  i.line
         (crip "{(trip i.line)}.{(trip u.ext.full-line)}")
-      =+  log=~(. l bowl 'flow'^s+'lure' 'lure-id'^s+token 'lure-joiner'^s+(scot %p joiner) ~)
+      =*  log  ~(. l bowl 'flow'^s+'lure' 'lure-id'^s+token 'lure-joiner'^s+(scot %p joiner) ~)
       =;  [bite=(unit bite:reel) inviter=(unit ship)]
         ?~  bite
           %-  %^  tell:log  %crit  ~[leaf+"invite token {<token>} not found"]
@@ -282,7 +290,7 @@
     ::
     =.  token-metadata
       (~(put by token-metadata) token metadata)
-    =+  id=(~(get by fields.metadata) 'group')
+    =+  id=(~(get by fields.metadata) 'invitedGroupId')
     =?  stable-id  &(?=(^ id) !=(u.id '~zod/personal-invite-link'))
       (~(put ju stable-id) u.id token)
     :_  this
@@ -294,7 +302,7 @@
     =+  metadata=(~(get by token-metadata) token)
     =.  token-metadata  (~(del by token-metadata) token)
     =?  stable-id  ?=(^ metadata)
-      ?~  id=(~(get by fields.u.metadata) 'group')
+      ?~  id=(~(get by fields.u.metadata) 'invitedGroupId')
         stable-id
       (~(del ju stable-id) u.id token)
     `this
@@ -310,7 +318,12 @@
       %+  ~(jab by token-metadata)  token
       |=  =metadata:reel
       metadata(fields (~(uni by fields.metadata) fields.update))
-    `this
+    ::  update the branch link metadata
+    ::
+    =/  fard=(fyrd:khan cage)
+      [q.byk.bowl %branch-update noun+!>(`[token update])]
+    :_  this
+    [%pass /branch/[token] %arvo %k %fard fard]~
   ::
       ::  update invites associated with a group
       ::
@@ -328,7 +341,16 @@
         token-metadata
       %+  ~(put by token-metadata)  token
       u.metadata(fields (~(uni by fields.u.metadata) fields.update))
-    `this
+    ::  update branch links
+    =/  caz=(list card)
+      %+  roll  ~(tap in (~(get ju stable-id) id))
+      |=  [=token:reel caz=(list card)]
+      ?~  metadata=(~(get by token-metadata) token)  caz
+      =/  fard=(fyrd:khan cage)
+        [q.byk.bowl %branch-update noun+!>(`[token update])]
+      :_  caz
+      [%pass /branch/[token] %arvo %k %fard fard]
+    [caz this]
   ::
       %bind-slash
     :_  this
@@ -355,15 +377,35 @@
     ?~  meta=(~(get by token-metadata) i.t.path)
       [~ ~]
     ``noun+!>(u.meta)
+  ::
+      [%x %branch-secret ~]
+    ``noun+!>(branch-secret)
   ==
 ++  on-arvo
   |=  [=wire =sign-arvo]
   ^-  (quip card _this)
-  ?+    sign-arvo  (on-arvo:def wire sign-arvo)
-      [%eyre %bound *]
+  ?+    wire  (on-arvo:def wire sign-arvo)
+      [%eyre %connect ~]
+    ?>  ?=([%eyre %bound *] sign-arvo)
     ~?  !accepted.sign-arvo
       [dap.bowl 'eyre bind rejected!' binding.sign-arvo]
     [~ this]
+  ::
+      [%branch token=@ ~]
+    ?>  ?=([%khan %arow *] sign-arvo)
+    ?:  ?=(%& -.p.sign-arvo)
+      `this
+    =*  token  i.t.wire
+    =*  goof  p.p.sign-arvo
+    =*  log  ~(. l bowl 'flow'^s+'lure' ~)
+    %-  %^  tell:log  %crit
+        :*  'failed to update lure invite branch metadata'
+            token
+            mote.goof
+            tang.goof
+        ==
+        ~
+    `this
   ==
 ::
 ++  on-fail

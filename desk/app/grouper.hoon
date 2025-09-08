@@ -241,7 +241,7 @@
     ?:  &(?=(^ invite-type) =('user' u.invite-type))
       [caz this]
     =*  group-event  'Group Invite Fail'
-    ?~  group=(~(get by fields.metadata.bite) 'group')
+    ?~  group=(~(get by fields.metadata.bite) 'invitedGroupId')
       %-  (tell %warn group-event 'group field missing' ~)
       [caz this]
     =/  =flag:gv  (flag:dejs:gj s+u.group)
