@@ -107,6 +107,13 @@ struct NotificationPreviewContentNodeRenderer {
         case let .userNickname(ship):
             return (try? await ContactStore.sharedInstance.getOrFetchItem(ship)?.displayName) ?? ship
         case let .postSource(channelId, groupId):
+            // If the post source is a single-channel group, we want to omit the channel title.
+            if let isSingleChannelGroup = try? await GroupStore.sharedInstance.getOrFetchItem(groupId)?.channels.count == 1 {
+                if isSingleChannelGroup {
+                    return await render(.groupTitle(groupId: groupId))
+                }
+            }
+            
             return await render(
                 .concatenateStrings(
                     first: .groupTitle(groupId: groupId),

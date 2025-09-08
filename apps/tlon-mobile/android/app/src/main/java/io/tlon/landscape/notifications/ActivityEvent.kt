@@ -165,18 +165,36 @@ class PreviewContentNodeRenderer(private val api: TalkApi) {
             is PreviewContentNode.GroupTitle -> api.fetchGroupTitle(node.groupId) ?: node.groupId
             is PreviewContentNode.GangTitle -> api.fetchGangTitle(node.gangId) ?: node.gangId
             is ChannelTitle -> api.fetchChannelTitle(node.channelId) ?: node.channelId
-            is PreviewContentNode.PostSource -> this.render(
-              ConcatenateStrings(
-                ConcatenateStrings(
-                  GroupTitle(node.groupId),
-                  StringLiteral(": ")
-                ),
-                ChannelTitle(node.channelId)
-              )
-            )
+            is PreviewContentNode.PostSource -> {
+                val c = api.fetchGroupChannelCount(node.groupId)
+                val isSingleChannelGroup = c == 1
+                if (isSingleChannelGroup) {
+                    // for single-channel groups, we use just the group title as the source title
+                    render(PreviewContentNode.GroupTitle(node.groupId))
+                } else {
+                    // for all other groups, we use this format for source title:
+                    //     Group title: Channel title
+                    render(
+                        ConcatenateStrings(
+                            ConcatenateStrings(
+                                PreviewContentNode.GroupTitle(node.groupId),
+                                StringLiteral(": ")
+                            ),
+                            ChannelTitle(node.channelId)
+                        )
+                    )
+                }
+            }
         }
 }
 
+private suspend fun TalkApi.fetchGroupChannelCount(groupId: String): Int? {
+    val response = suspendTalkObjectCallback { cb -> fetchGroups(cb) }
+    return response
+        ?.getJSONObject(groupId)
+        ?.getJSONObject("channels")
+        ?.length()
+}
 private suspend fun TalkApi.fetchChannelTitle(channelId: String): String? {
     val response = suspendTalkObjectCallback { cb -> fetchGroupChannel(channelId, cb) }
     return response?.getJSONObject("meta")?.getString("title")
