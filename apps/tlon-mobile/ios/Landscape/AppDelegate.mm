@@ -6,6 +6,7 @@
 #import "ExpoModulesCore-Swift.h"
 #import "Landscape-Swift.h"
 #import <RNBranch/RNBranch.h>
+#import "NotificationLogProcessor-Swift.h"
 
 @implementation AppDelegate
 
@@ -30,9 +31,9 @@
   // Ideally, we'd exclusively use the app group storage for all cookie read/writes, but I could
   // not get the auth cookie to be written to that storage.
   [[NSHTTPCookieStorage sharedHTTPCookieStorage] forwardChangesTo: [NSHTTPCookieStorage forDefaultAppGroup]];
-  
+
   [ShortcutsManager setup];
-  
+
   // Start processing notification service extension logs
   [NotificationLogProcessor startPeriodicProcessing];
 

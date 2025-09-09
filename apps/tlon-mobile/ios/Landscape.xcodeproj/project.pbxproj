@@ -17,6 +17,8 @@
 		5A1EB9552CAC451A00029EDC /* GroupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1EB9522CAC451A00029EDC /* GroupStore.swift */; };
 		5A1EB9562CAC451A00029EDC /* GroupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1EB9522CAC451A00029EDC /* GroupStore.swift */; };
 		5A1EB9572CAC451A00029EDC /* GroupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1EB9522CAC451A00029EDC /* GroupStore.swift */; };
+		5A829AB02E70CE0E0044507C /* NotificationLogProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A829AAF2E70CE0E0044507C /* NotificationLogProcessor.swift */; };
+		5A829AB12E70CE0E0044507C /* NotificationLogProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A829AAF2E70CE0E0044507C /* NotificationLogProcessor.swift */; };
 		5AA9810E2E68C91600FBE023 /* NotificationLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AA9810D2E68C91600FBE023 /* NotificationLogger.swift */; };
 		5AA9810F2E68C91600FBE023 /* NotificationLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AA9810D2E68C91600FBE023 /* NotificationLogger.swift */; };
 		5AA981102E68C91600FBE023 /* NotificationLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AA9810D2E68C91600FBE023 /* NotificationLogger.swift */; };
@@ -243,6 +245,7 @@
 		13B07FB71A68108700A75B9A /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = main.m; path = Landscape/main.m; sourceTree = "<group>"; };
 		3B0B210E999A7E0E1A345468 /* Pods-Landscape-preview.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Landscape-preview.release.xcconfig"; path = "Target Support Files/Pods-Landscape-preview/Pods-Landscape-preview.release.xcconfig"; sourceTree = "<group>"; };
 		5A1EB9522CAC451A00029EDC /* GroupStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupStore.swift; sourceTree = "<group>"; };
+		5A829AAF2E70CE0E0044507C /* NotificationLogProcessor.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = NotificationLogProcessor.swift; path = Landscape/NotificationLogProcessor.swift; sourceTree = "<group>"; };
 		5AA9810D2E68C91600FBE023 /* NotificationLogger.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NotificationLogger.swift; sourceTree = "<group>"; };
 		6303C77F2DB17BC100A40B07 /* NotificationPreviewPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationPreviewPayload.swift; sourceTree = "<group>"; };
 		630DE0B82C51A1500053603B /* LandscapePreview-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "LandscapePreview-Bridging-Header.h"; path = "Landscape/LandscapePreview-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -363,6 +366,7 @@
 		13B07FAE1A68108700A75B9A /* Landscape */ = {
 			isa = PBXGroup;
 			children = (
+				5A829AAF2E70CE0E0044507C /* NotificationLogProcessor.swift */,
 				63EC5CBF2CD049540098C343 /* SQLiteDB.swift */,
 				635BCB092CC6F954004D52AA /* Intents */,
 				BB2F792B24A3F905000567C9 /* Supporting */,
@@ -1310,6 +1314,7 @@
 				700B63602A71E0810017F40F /* SettingsStore.swift in Sources */,
 				635BCB0B2CC6F969004D52AA /* OpenAppIntent.swift in Sources */,
 				70D386712A60A3E600AFB46E /* UIColor+Extension.swift in Sources */,
+				5A829AB02E70CE0E0044507C /* NotificationLogProcessor.swift in Sources */,
 				700B635B2A71DF860017F40F /* PocketUserAPI.swift in Sources */,
 				6374ACFD2C4ACD7500E637C0 /* Login.swift in Sources */,
 				7036E3562ACD17600020A9FB /* ClubStore.swift in Sources */,
@@ -1419,6 +1424,7 @@
 				70DBBFF72B7C60B50021EA96 /* UIColor+Extension.swift in Sources */,
 				635BCB0C2CC6F969004D52AA /* OpenAppIntent.swift in Sources */,
 				70DBBFF82B7C60B50021EA96 /* PocketUserAPI.swift in Sources */,
+				5A829AB12E70CE0E0044507C /* NotificationLogProcessor.swift in Sources */,
 				C83014832C7BA74C00D9A5CA /* UIFont+SystemDesign.m in Sources */,
 				6374ACFE2C4ACD7500E637C0 /* Login.swift in Sources */,
 				70DBBFF92B7C60B50021EA96 /* ClubStore.swift in Sources */,
