@@ -155,9 +155,10 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
 
     const viewportHeight =
       useTrackContentRect(scrollerRef.current)?.height ?? 0;
-    const scrollerContentsKey = React.useMemo(() => {
-      const out = [scrollHeight, orderedData];
 
+    const scrollerContentsKey = useIdentityHash(
+      scrollHeight,
+      orderedData,
       // HACK: When the viewport shrinks in height, the browser prioritizes
       // anchoring the content at the top of the viewport - so the content at
       // the bottom of the viewport gets hidden "under the fold." To avoid
@@ -170,12 +171,8 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
       // On Firefox, if we just avoid sticking to bottom while viewport is
       // resizing, we keep stuck to the bottom _after_ the send (although the
       // chat gets hidden during drafting), which is better than unsticking.
-      if (!IS_FIREFOX) {
-        out.push(viewportHeight);
-      }
-
-      return out;
-    }, [scrollHeight, orderedData, viewportHeight]);
+      IS_FIREFOX ? undefined : viewportHeight
+    );
     const hasInFlightPost = React.useMemo(
       () =>
         postsWithNeighbors.some(
@@ -796,4 +793,25 @@ function useTrackContentRect(element: HTMLElement | null) {
     }
   }, [resizeObserver, element]);
   return contentRect;
+}
+
+// returns a value with a new identity whenever any of the deps' identities change
+function useIdentityHash(...deps: unknown[]): unknown {
+  const [hash, newHash] = React.useReducer((x) => x + 1, 0);
+  const prevDepsRef = React.useRef(deps);
+  React.useEffect(() => {
+    if (prevDepsRef.current.length !== deps.length) {
+      prevDepsRef.current = deps;
+      newHash();
+      return;
+    }
+    for (let i = 0; i < deps.length; i++) {
+      if (prevDepsRef.current[i] !== deps[i]) {
+        prevDepsRef.current = deps;
+        newHash();
+        return;
+      }
+    }
+  }, [deps]);
+  return hash;
 }
