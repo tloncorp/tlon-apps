@@ -28,8 +28,12 @@
           "name": "activity_event_contact_group_pins_activity_event_id_activity_events_id_fk",
           "tableFrom": "activity_event_contact_group_pins",
           "tableTo": "activity_events",
-          "columnsFrom": ["activity_event_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "activity_event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -37,15 +41,22 @@
           "name": "activity_event_contact_group_pins_group_id_groups_id_fk",
           "tableFrom": "activity_event_contact_group_pins",
           "tableTo": "groups",
-          "columnsFrom": ["group_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "activity_event_contact_group_pins_activity_event_id_group_id_pk": {
-          "columns": ["activity_event_id", "group_id"],
+          "columns": [
+            "activity_event_id",
+            "group_id"
+          ],
           "name": "activity_event_contact_group_pins_activity_event_id_group_id_pk"
         }
       },
@@ -186,7 +197,10 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "activity_events_id_bucket_id_pk": {
-          "columns": ["id", "bucket_id"],
+          "columns": [
+            "id",
+            "bucket_id"
+          ],
           "name": "activity_events_id_bucket_id_pk"
         }
       },
@@ -355,7 +369,10 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "channel_readers_channel_id_role_id_pk": {
-          "columns": ["channel_id", "role_id"],
+          "columns": [
+            "channel_id",
+            "role_id"
+          ],
           "name": "channel_readers_channel_id_role_id_pk"
         }
       },
@@ -450,7 +467,10 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "channel_writers_channel_id_role_id_pk": {
-          "columns": ["channel_id", "role_id"],
+          "columns": [
+            "channel_id",
+            "role_id"
+          ],
           "name": "channel_writers_channel_id_role_id_pk"
         }
       },
@@ -654,12 +674,16 @@
       "indexes": {
         "last_post_id": {
           "name": "last_post_id",
-          "columns": ["last_post_id"],
+          "columns": [
+            "last_post_id"
+          ],
           "isUnique": false
         },
         "last_post_at": {
           "name": "last_post_at",
-          "columns": ["last_post_at"],
+          "columns": [
+            "last_post_at"
+          ],
           "isUnique": false
         }
       },
@@ -668,8 +692,12 @@
           "name": "channels_group_id_groups_id_fk",
           "tableFrom": "channels",
           "tableTo": "groups",
-          "columnsFrom": ["group_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -709,15 +737,23 @@
           "name": "chat_member_roles_group_id_groups_id_fk",
           "tableFrom": "chat_member_roles",
           "tableTo": "groups",
-          "columnsFrom": ["group_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "chat_member_roles_group_id_contact_id_role_id_pk": {
-          "columns": ["group_id", "contact_id", "role_id"],
+          "columns": [
+            "group_id",
+            "contact_id",
+            "role_id"
+          ],
           "name": "chat_member_roles_group_id_contact_id_role_id_pk"
         }
       },
@@ -767,7 +803,10 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "group_members_chat_id_contact_id_pk": {
-          "columns": ["chat_id", "contact_id"],
+          "columns": [
+            "chat_id",
+            "contact_id"
+          ],
           "name": "group_members_chat_id_contact_id_pk"
         }
       },
@@ -798,8 +837,12 @@
           "name": "contact_attestations_contact_id_contacts_id_fk",
           "tableFrom": "contact_attestations",
           "tableTo": "contacts",
-          "columnsFrom": ["contact_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "contact_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -807,15 +850,22 @@
           "name": "contact_attestations_attestation_id_attestations_id_fk",
           "tableFrom": "contact_attestations",
           "tableTo": "attestations",
-          "columnsFrom": ["attestation_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "attestation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "contact_attestations_contact_id_attestation_id_pk": {
-          "columns": ["contact_id", "attestation_id"],
+          "columns": [
+            "contact_id",
+            "attestation_id"
+          ],
           "name": "contact_attestations_contact_id_attestation_id_pk"
         }
       },
@@ -846,8 +896,12 @@
           "name": "contact_group_pins_contact_id_contacts_id_fk",
           "tableFrom": "contact_group_pins",
           "tableTo": "contacts",
-          "columnsFrom": ["contact_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "contact_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -855,15 +909,22 @@
           "name": "contact_group_pins_group_id_groups_id_fk",
           "tableFrom": "contact_group_pins",
           "tableTo": "groups",
-          "columnsFrom": ["group_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "contact_group_pins_contact_id_group_id_pk": {
-          "columns": ["contact_id", "group_id"],
+          "columns": [
+            "contact_id",
+            "group_id"
+          ],
           "name": "contact_group_pins_contact_id_group_id_pk"
         }
       },
@@ -1038,15 +1099,22 @@
           "name": "group_flagged_posts_group_id_groups_id_fk",
           "tableFrom": "group_flagged_posts",
           "tableTo": "groups",
-          "columnsFrom": ["group_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "group_flagged_posts_group_id_post_id_pk": {
-          "columns": ["group_id", "post_id"],
+          "columns": [
+            "group_id",
+            "post_id"
+          ],
           "name": "group_flagged_posts_group_id_post_id_pk"
         }
       },
@@ -1084,15 +1152,22 @@
           "name": "group_join_requests_group_id_groups_id_fk",
           "tableFrom": "group_join_requests",
           "tableTo": "groups",
-          "columnsFrom": ["group_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "group_join_requests_group_id_contact_id_pk": {
-          "columns": ["group_id", "contact_id"],
+          "columns": [
+            "group_id",
+            "contact_id"
+          ],
           "name": "group_join_requests_group_id_contact_id_pk"
         }
       },
@@ -1130,15 +1205,22 @@
           "name": "group_member_bans_group_id_groups_id_fk",
           "tableFrom": "group_member_bans",
           "tableTo": "groups",
-          "columnsFrom": ["group_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "group_member_bans_group_id_contact_id_pk": {
-          "columns": ["group_id", "contact_id"],
+          "columns": [
+            "group_id",
+            "contact_id"
+          ],
           "name": "group_member_bans_group_id_contact_id_pk"
         }
       },
@@ -1176,15 +1258,22 @@
           "name": "group_member_invites_group_id_groups_id_fk",
           "tableFrom": "group_member_invites",
           "tableTo": "groups",
-          "columnsFrom": ["group_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "group_member_invites_group_id_contact_id_pk": {
-          "columns": ["group_id", "contact_id"],
+          "columns": [
+            "group_id",
+            "contact_id"
+          ],
           "name": "group_member_invites_group_id_contact_id_pk"
         }
       },
@@ -1222,8 +1311,12 @@
           "name": "group_nav_section_channels_group_nav_section_id_group_nav_sections_id_fk",
           "tableFrom": "group_nav_section_channels",
           "tableTo": "group_nav_sections",
-          "columnsFrom": ["group_nav_section_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "group_nav_section_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1231,15 +1324,22 @@
           "name": "group_nav_section_channels_channel_id_channels_id_fk",
           "tableFrom": "group_nav_section_channels",
           "tableTo": "channels",
-          "columnsFrom": ["channel_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "channel_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "group_nav_section_channels_group_nav_section_id_channel_id_pk": {
-          "columns": ["group_nav_section_id", "channel_id"],
+          "columns": [
+            "group_nav_section_id",
+            "channel_id"
+          ],
           "name": "group_nav_section_channels_group_nav_section_id_channel_id_pk"
         }
       },
@@ -1326,8 +1426,12 @@
           "name": "group_nav_sections_group_id_groups_id_fk",
           "tableFrom": "group_nav_sections",
           "tableTo": "groups",
-          "columnsFrom": ["group_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1367,15 +1471,22 @@
           "name": "group_rank_bans_group_id_groups_id_fk",
           "tableFrom": "group_rank_bans",
           "tableTo": "groups",
-          "columnsFrom": ["group_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "group_rank_bans_group_id_rank_id_pk": {
-          "columns": ["group_id", "rank_id"],
+          "columns": [
+            "group_id",
+            "rank_id"
+          ],
           "name": "group_rank_bans_group_id_rank_id_pk"
         }
       },
@@ -1448,15 +1559,22 @@
           "name": "group_roles_group_id_groups_id_fk",
           "tableFrom": "group_roles",
           "tableTo": "groups",
-          "columnsFrom": ["group_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "group_roles_group_id_id_pk": {
-          "columns": ["group_id", "id"],
+          "columns": [
+            "group_id",
+            "id"
+          ],
           "name": "group_roles_group_id_id_pk"
         }
       },
@@ -1728,15 +1846,22 @@
           "name": "post_images_post_id_posts_id_fk",
           "tableFrom": "post_images",
           "tableTo": "posts",
-          "columnsFrom": ["post_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "post_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "post_images_post_id_src_pk": {
-          "columns": ["post_id", "src"],
+          "columns": [
+            "post_id",
+            "src"
+          ],
           "name": "post_images_post_id_src_pk"
         }
       },
@@ -1774,15 +1899,22 @@
           "name": "post_reactions_post_id_posts_id_fk",
           "tableFrom": "post_reactions",
           "tableTo": "posts",
-          "columnsFrom": ["post_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "post_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "post_reactions_contact_id_post_id_pk": {
-          "columns": ["contact_id", "post_id"],
+          "columns": [
+            "contact_id",
+            "post_id"
+          ],
           "name": "post_reactions_contact_id_post_id_pk"
         }
       },
@@ -2050,17 +2182,28 @@
       "indexes": {
         "cache_id": {
           "name": "cache_id",
-          "columns": ["channel_id", "author_id", "sent_at", "sequence_number"],
+          "columns": [
+            "channel_id",
+            "author_id",
+            "sent_at",
+            "sequence_number"
+          ],
           "isUnique": true
         },
         "posts_channel_id": {
           "name": "posts_channel_id",
-          "columns": ["channel_id", "id"],
+          "columns": [
+            "channel_id",
+            "id"
+          ],
           "isUnique": false
         },
         "posts_group_id": {
           "name": "posts_group_id",
-          "columns": ["group_id", "id"],
+          "columns": [
+            "group_id",
+            "id"
+          ],
           "isUnique": false
         }
       },
@@ -2247,13 +2390,6 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "pending_hidden_post_ids": {
-          "name": "pending_hidden_post_ids",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {},
@@ -2291,7 +2427,10 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "system_contact_sent_invites_invited_to_system_contact_id_pk": {
-          "columns": ["invited_to", "system_contact_id"],
+          "columns": [
+            "invited_to",
+            "system_contact_id"
+          ],
           "name": "system_contact_sent_invites_invited_to_system_contact_id_pk"
         }
       },
@@ -2407,7 +2546,10 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "thread_unreads_channel_id_thread_id_pk": {
-          "columns": ["channel_id", "thread_id"],
+          "columns": [
+            "channel_id",
+            "thread_id"
+          ],
           "name": "thread_unreads_channel_id_thread_id_pk"
         }
       },
