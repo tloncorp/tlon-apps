@@ -133,11 +133,13 @@ export function buildPostUpdate({
   id,
   content,
   metadata,
+  sequenceNum,
   deliveryStatus = 'pending',
 }: {
   id: types.Post['id'];
   content: ub.Story;
   metadata?: db.PostMetadata;
+  sequenceNum?: number | null;
   deliveryStatus?: db.PostDeliveryStatus;
 }) {
   const [postContent, postFlags] = api.toPostContent(content);
@@ -151,6 +153,7 @@ export function buildPostUpdate({
     ),
     images: api.getContentImages(id, content),
     deliveryStatus,
+    sequenceNum,
     ...postFlags,
   } satisfies Partial<types.Post>;
 }
@@ -159,6 +162,7 @@ export function buildPost({
   authorId,
   author,
   channel,
+  sequenceNum,
   content,
   metadata,
   parentId,
@@ -167,6 +171,7 @@ export function buildPost({
   authorId: string;
   author?: types.Contact | null;
   channel: types.Channel;
+  sequenceNum: number | null;
   content: ub.Story;
   metadata?: db.PostMetadata;
   parentId?: string;
@@ -184,6 +189,7 @@ export function buildPost({
     content,
     metadata,
     deliveryStatus,
+    sequenceNum,
   });
 
   return {

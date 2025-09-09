@@ -5,7 +5,6 @@ import * as domain from '../domain';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { withRetry } from '../logic';
-import { syncGroupPreviews } from './sync';
 
 const logger = createDevLogger('hostingActions', true);
 
