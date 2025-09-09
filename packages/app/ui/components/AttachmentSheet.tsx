@@ -6,7 +6,7 @@ import { Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useAttachmentContext } from '../contexts';
-import { getClipboardImageWithFallbacks } from '../utils';
+import { getClipboardImageWithFallbacks, createImageAssetFromClipboardData } from '../utils';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { ListItem } from './ListItem';
 
@@ -61,8 +61,9 @@ export default function AttachmentSheet({
     checkClipboard();
   }, [showAttachmentSheet, getClipboardImageData]);
 
-  const pasteFromClipboard = useCallback(async () => {
+  const createAssetFromClipboard = useCallback(async () => {
     onOpenChange(false);
+    // Wait for sheet close animation to complete before pasting
     setTimeout(async () => {
       try {
         const clipboardData = await getClipboardImageData();
@@ -71,34 +72,10 @@ export default function AttachmentSheet({
           throw new Error('No image data available in clipboard');
         }
 
-        const { data: imageData, mimeType } = clipboardData;
-
-        if (imageData) {
-          const uri = imageData.startsWith('data:')
-            ? imageData
-            : `data:${mimeType};base64,${imageData}`;
-
-          const clipboardAsset: ImagePicker.ImagePickerAsset = {
-            assetId: `clipboard-${Date.now()}`,
-            uri,
-            width: 300,
-            height: 300,
-            fileName:
-              mimeType === 'image/jpeg'
-                ? 'clipboard-image.jpg'
-                : 'clipboard-image.png',
-            fileSize: 0,
-            type: 'image',
-            duration: undefined,
-            exif: undefined,
-            base64: undefined,
-          };
-
-          attachAssets([clipboardAsset]);
-          onAttach?.([clipboardAsset]);
-        }
+        const clipboardAsset = createImageAssetFromClipboardData(clipboardData);
+        attachAssets([clipboardAsset]);
+        onAttach?.([clipboardAsset]);
       } catch (error) {
-        console.error('Error pasting from clipboard:', error);
         logger.trackError('Error pasting from clipboard', { error });
       }
     }, 50);
@@ -265,7 +242,7 @@ export default function AttachmentSheet({
             hasClipboardImage && {
               title: 'Paste from Clipboard',
               description: 'Use the image currently in your clipboard',
-              action: pasteFromClipboard,
+              action: createAssetFromClipboard,
             },
         ],
         showClearOption && [
@@ -283,7 +260,7 @@ export default function AttachmentSheet({
       showClearOption,
       takePicture,
       hasClipboardImage,
-      pasteFromClipboard,
+      createAssetFromClipboard,
     ]
   );
 
