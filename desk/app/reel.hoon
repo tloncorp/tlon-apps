@@ -395,19 +395,27 @@
     ::
         %fact
       =+  !<(=r-groups:v7:groups-ver q.cage.sign)
-      ?.  ?=(%meta -.r-group.r-groups)  `this
       =*  flag  flag.r-groups
-      =*  meta  meta.r-group.r-groups
       =+  id=(rap 3 (scot %p p.flag) '/' q.flag ~)
       =+  token=(~(get by stable-id) id)
       =|  update=metadata:reel
       =.  tag.update  'groups-0'
       =.  fields.update
-        %-  ~(gas by *(map cord cord))
-        :~  'invitedGroupTitle'^title.meta
-            'invitedGroupDescription'^description.meta
-            'invitedGroupIconImageUrl'^image.meta
+        ?+    -.r-group.r-groups  ~
+            %meta
+          =*  meta  meta.r-group.r-groups
+          %-  ~(gas by *(map cord cord))
+          :~  'invitedGroupTitle'^title.meta
+              'invitedGroupDescription'^description.meta
+              'invitedGroupIconImageUrl'^image.meta
+          ==
+        ::
+            %delete
+          %-  ~(gas by *(map cord cord))
+          :~  'invitedGroupDeleted'^'true'
+          ==
         ==
+      ?:  =(~ fields.update)  `this
       ::  update our group invite link
       ::
       =?  our-metadata  ?=(^ token)

@@ -75,6 +75,18 @@
   ^-  form:m
   ;<  =metadata:reel  bind:m  (get-metadata id)
   (pure:m (~(get by fields.metadata) field))
+::  +ex-arvo-wire: assert arvo note wire
+::
+++  ex-arvo-wire
+  |=  =wire
+  |=  car=card
+  ^-  tang
+  =*  fail
+    %-  expect-eq:test
+    [!>(`card`[%pass wire %arvo *note-arvo]) !>(`card`car)]
+  ?.  ?=([%pass * %arvo *] car)  fail
+  ?.  =(wire p.car)              fail
+  ~
 ::  +ex-poke-wire: assert poke wire
 ::
 ++  ex-poke-wire
@@ -225,7 +237,7 @@
 ::  the group updates all associated lure using the
 ::  %bait-update-group poke.
 ::
-++  test-bait-metadata-update
+++  test-bait-update
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -248,7 +260,7 @@
   ;<  caz=(list card)  bind:m  (do-poke bait-update+!>([~.0v1 metadata]))
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-poke-wire /branch/0v1)
+    :~  (ex-arvo-wire /branch/0v1)
     ==
   ;<  title=(unit @t)  bind:m  (get-metadata-field 0v1 'invitedGroupTitle')
   ;<  ~  bind:m  (ex-equal !>(title) !>(`'Early Sunrise'))
@@ -264,8 +276,9 @@
     (do-poke bait-update-group+!>([~sampel-palnet^%sunrise metadata]))
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-poke-wire /branch/0v2)
-        (ex-poke-wire /branch/0v3)
+    :~  (ex-arvo-wire /branch/0v2)
+        (ex-arvo-wire /branch/0v1)
+        (ex-arvo-wire /branch/0v3)
     ==
   ;<  title=(unit @t)  bind:m  (get-metadata-field 0v2 'invitedGroupTitle')
   ;<  ~  bind:m  (ex-equal !>(title) !>(`'Early Sunrise'))
