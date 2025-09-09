@@ -1022,11 +1022,14 @@
     %-  (slog leaf/"Failed to heed contact {(trip ship.pole)}" u.p.sign)
     cor
   ::
-      [?(%v1 %v2) %dm ship=@ rest=*]
+    [?(%v1 %v2) %dm ship=@ rest=*]  $(pole +.pole)
+    [?(%v1 %v2) %club id=@ rest=*]  $(pole +.pole)
+  ::
+      [%dm ship=@ rest=*]
     =/  =ship  (slav %p ship.pole)
     di-abet:(di-agent:(di-abed:di-core ship) rest.pole sign)
   ::
-      [?(%v1 %v2) %club id=@ rest=*]
+      [%club id=@ rest=*]
     =/  =id:club:c  (slav %uv id.pole)
     cu-abet:(cu-agent:(cu-abed id) rest.pole sign)
   ==

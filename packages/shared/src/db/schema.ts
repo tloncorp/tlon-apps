@@ -869,6 +869,7 @@ export const channels = sqliteTable(
     firstUnreadPostId: text('first_unread_post_id'),
     lastPostId: text('last_post_id'),
     lastPostAt: timestamp('last_post_at'),
+    lastPostSequenceNum: integer('last_post_sequence_num'),
     isPendingChannel: boolean('is_cached_pending_channel'),
     isNewMatchedContact: boolean('is_new_matched_contact'),
     isDmInvite: boolean('is_dm_invite').default(false),
@@ -948,7 +949,7 @@ export const posts = sqliteTable(
     groupId: text('group_id'),
     parentId: text('parent_id'),
     type: text('type')
-      .$type<'block' | 'chat' | 'notice' | 'note' | 'reply'>()
+      .$type<'block' | 'chat' | 'notice' | 'note' | 'reply' | 'delete'>()
       .notNull(),
     title: text('title'),
     image: text('image'),
@@ -972,12 +973,15 @@ export const posts = sqliteTable(
     hidden: boolean('hidden').default(false),
     isEdited: boolean('is_edited'),
     isDeleted: boolean('is_deleted'),
+    isSequenceStub: boolean('is_sequence_stub').default(false),
+    deletedAt: timestamp('deleted_at'),
     deliveryStatus: text('delivery_status').$type<PostDeliveryStatus>(),
     editStatus: text('edit_status').$type<PostDeliveryStatus>(),
     deleteStatus: text('delete_status').$type<PostDeliveryStatus>(),
     lastEditContent: text('last_edit_content', { mode: 'json' }),
     lastEditTitle: text('last_edit_title'),
     lastEditImage: text('last_edit_image'),
+    sequenceNum: integer('sequence_number'),
     /**
      * If `syncedAt` is null, it indicates that the post is unconfirmed by sync.
      */
@@ -991,7 +995,8 @@ export const posts = sqliteTable(
     cacheId: uniqueIndex('cache_id').on(
       table.channelId,
       table.authorId,
-      table.sentAt
+      table.sentAt,
+      table.sequenceNum
     ),
     channelId: index('posts_channel_id').on(table.channelId, table.id),
     groupId: index('posts_group_id').on(table.groupId, table.id),
@@ -1076,28 +1081,3 @@ export const postReactionsRelations = relations(postReactions, ({ one }) => ({
     references: [contacts.id],
   }),
 }));
-
-export const postWindows = sqliteTable(
-  'post_windows',
-  {
-    channelId: text('channel_id').notNull(),
-    oldestPostId: text('oldest_post_id').notNull(),
-    newestPostId: text('newest_post_id').notNull(),
-  },
-  (table) => {
-    return {
-      pk: primaryKey({
-        columns: [table.channelId, table.oldestPostId, table.newestPostId],
-      }),
-      channelIdIndex: index('channel_id').on(table.channelId),
-      channelOldestPostIndex: index('channel_oldest_post').on(
-        table.channelId,
-        table.oldestPostId
-      ),
-      channelNewestPostIndex: index('channel_newest_post').on(
-        table.channelId,
-        table.newestPostId
-      ),
-    };
-  }
-);

@@ -158,6 +158,7 @@ async function _sendPost({
     authorId,
     author,
     channel,
+    sequenceNum: 0, // placeholder, this will be overwritten by the server
     content: optimisticPostData.content,
     metadata: optimisticPostData.metadata,
     deliveryStatus: 'enqueued',
@@ -285,19 +286,38 @@ export async function retrySendPost({
   try {
     await sessionActionQueue.add(async () => {
       await db.updatePost({ id: post.id, deliveryStatus: 'pending' });
-      return api.sendPost({
-        channelId: post.channelId,
-        authorId: post.authorId,
-        content: story,
-        metadata:
-          post.image || post.title
-            ? {
-                title: post.title,
-                image: post.image,
-              }
-            : undefined,
-        sentAt: post.sentAt,
-      });
+
+      if (post.parentId) {
+        const parentPost = await db.getPost({ postId: post.parentId });
+        if (!parentPost) {
+          throw new Error(
+            `Parent post ${post.parentId} not found for thread retry`
+          );
+        }
+
+        return api.sendReply({
+          channelId: post.channelId,
+          parentId: post.parentId,
+          parentAuthor: parentPost.authorId,
+          authorId: post.authorId,
+          content: story,
+          sentAt: post.sentAt,
+        });
+      } else {
+        return api.sendPost({
+          channelId: post.channelId,
+          authorId: post.authorId,
+          content: story,
+          metadata:
+            post.image || post.title
+              ? {
+                  title: post.title,
+                  image: post.image,
+                }
+              : undefined,
+          sentAt: post.sentAt,
+        });
+      }
     });
     await sync.syncChannelMessageDelivery({ channelId: post.channelId });
   } catch (e) {
@@ -528,11 +548,12 @@ export async function sendReply({
     authorId,
     author,
     channel: channel,
+    sequenceNum: 0, // replies do not have sequence numbers, use 0
     content,
     parentId,
     deliveryStatus: 'enqueued',
   });
-  await db.insertChannelPosts({ channelId: channel.id, posts: [cachePost] });
+  await db.insertChannelPosts({ posts: [cachePost] });
   await db.addReplyToPost({
     parentId,
     replyAuthor: cachePost.authorId,

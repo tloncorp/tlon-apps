@@ -60,8 +60,8 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %10
-        =v-channels:c
+    $:  %11
+        =v-channels:v9:c
         =hooks:h
         =pimp:imp
     ==
@@ -154,12 +154,14 @@
   =?  old  ?=(%7 -.old)  (state-7-to-8 old)
   =?  old  ?=(%8 -.old)  (state-8-to-9 old)
   =?  old  ?=(%9 -.old)  (state-9-to-10 old)
-  ?>  ?=(%10 -.old)
+  =?  old  ?=(%10 -.old)  (state-10-to-11 old)
+  ?>  ?=(%11 -.old)
   =.  state  old
   inflate-io
   ::
   +$  versioned-state
-    $%  state-10
+    $%  state-11
+        state-10
         state-9
         state-8
         state-7
@@ -171,7 +173,13 @@
         state-1
         state-0
     ==
-  +$  state-10  current-state
+  +$  state-11  current-state
+  +$  state-10
+    $:  %10
+        =v-channels:v9:c
+        =hooks:h
+        =pimp:imp
+    ==
   +$  state-9
     $:  %9
         =v-channels:v8:c
@@ -195,6 +203,12 @@
       =v-channels:v7:c
       =pimp:imp
     ==
+  ++  state-10-to-11
+    |=  s=state-10
+    ^-  state-11
+    ~>  %bout.[0 'repairing all channels']
+    s(- %11, v-channels (~(urn by v-channels.s) repair-channel:utils))
+  ::
   ++  state-9-to-10
     |=  s=state-9
     ^-  state-10
@@ -692,6 +706,8 @@
   =?  +.pole  !?=([%v0 *] +.pole)
     [%v0 +.pole]
   ?+  pole  [~ ~]
+      [%x %v0 %v-channels ~]
+    ``noun+!>(v-channels)
       [%x %v0 %hooks ~]
     ``hook-full+!>(hooks)
   ==
@@ -716,6 +732,9 @@
     `nest
   =*  r-group  r-group.r-groups
   ?+    r-group  cor
+      [%create *]
+    (full-recheck-perms affected ~(key by roles.group.r-group))
+  ::
         [%seat * %add *]
       (request-join flag.r-groups affected ships.r-group)
     ::
@@ -745,6 +764,14 @@
   |=  [=nest:c co=_cor]
   =/  ca  (ca-abed:ca-core:co nest)
   ca-abet:(ca-recheck:ca sects)
+::
+++  full-recheck-perms
+  |=  [affected=(list nest:c) sects=(set role-id:v7:gv)]
+  ~&  "%channel-server fully recheck permissions for {<affected>}"
+  %+  roll  affected
+  |=  [=nest:c co=_cor]
+  =/  ca  (ca-abed:ca-core:co nest)
+  ca-abet:(ca-full-recheck:ca sects)
 ::
 ++  request-join
   |=  [=flag:g affected=(list nest:c) ships=(set ship)]
@@ -1220,6 +1247,34 @@
     ::  if we have sects, we need to delete them from writers
     =?  ca-core  !=(sects ~)
       =/  =c-channels:c  [%channel nest %del-writers sects]
+      =/  =cage  [%channel-command !>(c-channels)]
+      (emit %pass ca-area %agent [our.bowl dap.bowl] %poke cage)
+    ::  if subs read permissions removed, kick
+    %+  roll  ~(tap in ca-subscriptions)
+    |=  [[=ship =path] ca=_ca-core]
+    ?:  (can-read:ca-perms:ca ship)  ca
+    (emit:ca %give %kick ~[path] `ship)
+  ::  +ca-full-recheck: sync permissions to current group state
+  ::
+  ::  nb: here sects is the current set of group roles.
+  ::
+  ::  +ca-recheck performs incremental book-keeping when prompted
+  ::  by a relevant groups response. however, if a group state has been
+  ::  reset, we need to perform a deeper permission sync:
+  ::  (1) scan our channels and remove any missing group roles from the
+  ::      writers set.
+  ::  (2) scan the list of subscribers and kick those without
+  ::      read permissions.
+  ::
+  ++  ca-full-recheck
+    |=  sects=(set sect:v0:gv)
+    ::  if we have sects, we need to sync channel writers
+    ::  to remove any missing sects.
+    ::
+    =/  missing=(set sect:v0:gv)
+      (~(dif in writers.perm.perm.channel) sects)
+    =?  ca-core  !=(missing ~)
+      =/  =c-channels:c  [%channel nest %del-writers missing]
       =/  =cage  [%channel-command !>(c-channels)]
       (emit %pass ca-area %agent [our.bowl dap.bowl] %poke cage)
     ::  if subs read permissions removed, kick

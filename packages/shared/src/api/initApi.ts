@@ -1,6 +1,6 @@
 import * as db from '../db';
 import type * as ub from '../urbit';
-import { ActivityInit, toClientUnreads } from './activityApi';
+import { toClientUnreads } from './activityApi';
 import { ChannelInit, toClientChannelsInit } from './channelsApi';
 import { toClientDms, toClientGroupDms } from './chatApi';
 import {
@@ -16,7 +16,7 @@ export interface InitData {
   pins: db.Pin[];
   groups: db.Group[];
   unjoinedGroups: db.Group[];
-  activity: ActivityInit;
+  activity: db.ActivityInit;
   channels: db.Channel[];
   channelPerms: ChannelInit[];
   joinedGroups: string[];
