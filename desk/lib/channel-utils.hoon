@@ -1132,6 +1132,98 @@
 ++  u-post-set-7-to-8  v8:u-post-set:v7:ccv
 ++  u-post-not-set-7-to-8  v8:u-post-not-set:v7:ccv
 ++  log-7-to-8  v7:log:v8:ccv
+::  +repair-channel: patches seq nr and tombstone problems
+::
+::    various migrations and adjustments might have caused channel state to
+::    become inconsistent. the below addresses the following problems:
+::    - orphaned/bunted tombstones, in both the log and posts lists
+::    - inconsistent sequence nrs between log entries
+::    - inconsistent sequence nrs between log and posts
+::    - gaps in sequence nrs in the posts
+::    - duplicate sequence nrs in the posts
+::    it achieves this by walking the posts from past to present. it tracks a
+::    fresh .count, incrementing only for every known top-level message, and
+::    tracks an id->seq mapping. that mapping is then used in walking the log,
+::    making sure the log has matching and consisent sequence numbers.
+::    after you run this (on the channel host), take care to make clients
+::    (re-)request the seqs and tombs!
+::
+++  repair-channel
+  |=  [n=nest:v9:c v=v-channel:v9:c]
+  ^+  v
+  ::  renumber posts based on the order in which they show up,
+  ::  dropping bad tombstones along the way
+  ::
+  ::TODO  could do +drop-bad-tombstones separately here
+  ::      if we no longer need .dead
+  =^  [count=@ud seqs=(map id-post:v9:c @ud) dead=(set id-post:v9:c)]  posts.v
+    (renumber-posts posts.v)
+  =.  count.v  count
+  =.  log.v  (renumber-log n log.v seqs dead)
+  v
+++  renumber-posts
+  |=  posts=v-posts:v9:c
+  =/  state  ,[count=@ud seqs=(map id-post:v9:c @ud) dead=(set id-post:v9:c)]
+  ^-  [state _posts]
+  %-  (dip:on-v-posts:v9:c state)
+  :+  posts  *state
+  |=  [state =id-post:v9:c post=(may:v9:c v-post:v9:c)]
+  ^-  [(unit _post) stop=? state]
+  ?:  &(?=(%| -.post) =(*@ud seq.post) =(*@p author.post))
+    [~ | count seqs (~(put in dead) id-post)]
+  =.  count  +(count)
+  =.  seqs   (~(put by seqs) id-post count)
+  =.  post
+    ?-  -.post
+      %&  post(seq count)
+      %|  post(seq count)
+    ==
+  [`post | count seqs dead]
+++  drop-bad-tombstones
+  |=  posts=v-posts:v9:c
+  ^+  posts
+  =<  +
+  %-  (dip:on-v-posts:v9:c ,~)
+  :+  posts  ~
+  |=  [~ =id-post:v9:c post=(may:v9:c v-post:v9:c)]
+  ^-  [(unit _post) stop=? ~]
+  :_  [| ~]
+  ?.  ?=(%| -.post)  `post
+  ?:  &(=(*@ud seq.post) =(*@p author.post))
+    ~
+  `post
+++  renumber-log
+  |=  [n=nest:v9:c =log:v9:c seqs=(map id-post:v9:c @ud) dead=(set id-post:v9:c)]
+  ^+  log
+  ::  do a "repair" pass over the log: walk it and re-apply sequence nrs,
+  ::  ensuring that the log contains consistent sequence nrs for every post id.
+  ::
+  =<  +
+  %-  (dip:log-on:v9:c ,~)
+  :+  log  ~
+  |=  [~ =time update=u-channel:v9:c]
+  ^-  [(unit u-channel:v9:c) stop=? ~]
+  =*  info  [nest=n id=id.update log=time]
+  ?+  update  [`update | ~]
+      [%post * %set *]
+    ~|  info
+    ?.  (~(has by seqs) id.update)
+      ?:  (~(has in dead) id.update)
+        ::NOTE  since we removed the matching post from the post list,
+        ::      we must drop this related log entry too.
+        [~ | ~]
+      ~&  >>>  [%log-for-unknown id=id.update]
+      [~ | ~]
+    =+  seq=(~(got by seqs) id.update)
+    =.  update
+      ?-  -.post.u-post.update
+        %&  update(seq.post.u-post seq)
+        %|  update(seq.post.u-post seq)
+      ==
+    [`update | ~]
+  ::
+    ::NOTE  we do not worry about replies
+  ==
 ::
 ++  get-author-ship
   |=  =author:c
