@@ -64,16 +64,11 @@
   |=  =state
   =/  res  ((get-peek path) state)
   ?:  ?=(%| -.res)  res
-  =/  peek=(unit (unit cage))
-    +<.res
+  =/  peek  out.p.res
   ?~  peek
     |+~['invalid scry path' (spat path)]
   ?~  u.peek
     |+~['unexpected empty result at scry path' (spat path)]
-  ::XX there is a compiler bug here if .q face is missing
-  ::   from the peek. it compiles, but fails at runtime when
-  ::   the result is dereferenced.
-  ::
   &+[!<(mold q.u.u.peek) state]
 ++  get-metadata
   |=  id=@uv
