@@ -155,16 +155,27 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
 
     const viewportHeight =
       useTrackContentRect(scrollerRef.current)?.height ?? 0;
-    const scrollerContentsKey = React.useMemo(
-      () =>
-        // HACK: Firefox triggers a mysterious scroll on the next keypress after
-        // the viewport height changes, which causes the scroll to unstick from
-        // bottom. If we just don't try to stick to bottom while viewport is
-        // resizing, we keep stuck to the bottom _after_ the send (although the
-        // chat gets hidden during drafting), which is better than unsticking.
-        IS_FIREFOX ? orderedData : [orderedData, viewportHeight],
-      [orderedData, viewportHeight]
-    );
+    const scrollerContentsKey = React.useMemo(() => {
+      const out = [scrollHeight, orderedData];
+
+      // HACK: When the viewport shrinks in height, the browser prioritizes
+      // anchoring the content at the top of the viewport - so the content at
+      // the bottom of the viewport gets hidden "under the fold." To avoid
+      // this, we want to trigger "stick-to-scroll-start" when the viewport
+      // height changes. This works for Chrome and Safari.
+      //
+      // Firefox triggers a mysterious scroll on the next keypress after
+      // the viewport height changes, which causes the scroll to unstick from
+      // bottom - not great!
+      // On Firefox, if we just avoid sticking to bottom while viewport is
+      // resizing, we keep stuck to the bottom _after_ the send (although the
+      // chat gets hidden during drafting), which is better than unsticking.
+      if (!IS_FIREFOX) {
+        out.push(viewportHeight);
+      }
+
+      return out;
+    }, [scrollHeight, orderedData, viewportHeight]);
     const hasInFlightPost = React.useMemo(
       () =>
         postsWithNeighbors.some(
