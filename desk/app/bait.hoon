@@ -15,15 +15,15 @@
   ==
 +$  state-1
   $:  %1
-      token-metadata=(map [inviter=ship token=cord] metadata:reel)
+      token-metadata=(map [inviter=ship token=cord] metadata:v0:reel)
   ==
 +$  state-2
   $:  %2
-      token-metadata=(map token:reel metadata:reel)
+      token-metadata=(map token:reel metadata:v0:reel)
   ==
 +$  state-3
   $:  %3
-      token-metadata=(map token:reel metadata:reel)
+      token-metadata=(map token:reel metadata:v1:reel)
       stable-id=(jug cord token:reel)
       branch-secret=@t
   ==
@@ -34,7 +34,7 @@
   ^-  manx
   =/  description
     ?.  =(tag.metadata 'groups-0')  ""
-    (trip (~(got by fields.metadata) 'description'))
+    (trip (~(got by fields.metadata) %'invitedGroupDescription'))
   ;html
     ;head
       ;title:"Lure"
@@ -125,10 +125,10 @@
     *state-2
   =?  old  ?=(%1 -.old)
     =/  new-metadata
-      %-  ~(gas by *(map token:reel metadata:reel))
+      %-  ~(gas by *(map token:reel metadata:v0:reel))
       %+  turn
         ~(tap by token-metadata.old)
-      |=  [[inviter=ship =token:reel] meta=metadata:reel]
+      |=  [[inviter=ship =token:reel] meta=metadata:v0:reel]
       =/  new-token
         (rap 3 (scot %p inviter) '/' token ~)
       [new-token meta]
@@ -139,13 +139,19 @@
     =|  stable-id=(jug cord token:reel)
     =.  stable-id
       %+  roll  ~(tap by token-metadata.old)
-      |=  [[=token:reel =metadata:reel] =_stable-id]
-      ?~  id=(~(get by fields.metadata) 'invitedGroupId')
+      |=  [[=token:reel =metadata:v0:reel] =_stable-id]
+      =+  id-old=(~(get by fields.metadata) 'group')
+      =+  id-new=(~(get by fields.metadata) 'invitedGroupId')
+      ?~  id=(hunt |=(^ |) id-old id-new)
         stable-id
       ::  don't index personal invite links
       ?:  =(u.id '~zod/personal-invite-link')  stable-id
       (~(put ju stable-id) u.id token)
-    [%3 token-metadata.old stable-id '']
+    :*  %3
+        (~(run by token-metadata.old) v1:metadata:v0:conv)
+        stable-id
+        ''
+    ==
   ?>  ?=(%3 -.old)
   =.  state  old
   `this
@@ -235,11 +241,11 @@
         :_  `inviter
         `[%bite-1 old-token joiner inviter]
       =/  =metadata:reel  (~(gut by token-metadata) token *metadata:reel)
-      ?~  type=(~(get by fields.metadata) 'bite-type')
+      ?~  type=(~(get by fields.metadata) %'bite-type')
         [~ ~]
       ?>  =('2' u.type)
       :-  `[%bite-2 token joiner metadata]
-      ?~  inviter-field=(~(get by fields.metadata) 'inviterUserId')
+      ?~  inviter-field=(~(get by fields.metadata) %'inviterUserId')
         ~
       `(slav %p u.inviter-field)
     ==
@@ -290,7 +296,7 @@
     ::
     =.  token-metadata
       (~(put by token-metadata) token metadata)
-    =+  id=(~(get by fields.metadata) 'invitedGroupId')
+    =+  id=(~(get by fields.metadata) %'invitedGroupId')
     =?  stable-id  &(?=(^ id) !=(u.id '~zod/personal-invite-link'))
       (~(put ju stable-id) u.id token)
     :_  this
@@ -302,7 +308,7 @@
     =+  metadata=(~(get by token-metadata) token)
     =.  token-metadata  (~(del by token-metadata) token)
     =?  stable-id  ?=(^ metadata)
-      ?~  id=(~(get by fields.u.metadata) 'invitedGroupId')
+      ?~  id=(~(get by fields.u.metadata) %'invitedGroupId')
         stable-id
       (~(del ju stable-id) u.id token)
     `this

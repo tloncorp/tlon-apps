@@ -20,26 +20,26 @@
   ^-  metadata:reel
   :-  %group-0
   %-  my
-  :~  ['inviterUserId' '~sampel-palnet']
-      ['inviterNickname' 'Sampel Palnet']
-      ['inviterAvatarImage' 'https://sampel-palnet.arvo.network/avatar.png']
-      ['invitedGroupTitle' 'Sunrise']
-      ['invitedGroupDescription' '']
-      ['invitedGroupId' '~sampel-palnet/sunrise']
-      ['invitedGroupIconImageUrl' 'https://sampel-palnet.arvo.network/sunrise.jpg']
-      ['bite-type' '2']
+  :~  [%'inviterUserId' '~sampel-palnet']
+      [%'inviterNickname' 'Sampel Palnet']
+      [%'inviterAvatarImage' 'https://sampel-palnet.arvo.network/avatar.png']
+      [%'invitedGroupTitle' 'Sunrise']
+      [%'invitedGroupDescription' '']
+      [%'invitedGroupId' '~sampel-palnet/sunrise']
+      [%'invitedGroupIconImageUrl' 'https://sampel-palnet.arvo.network/sunrise.jpg']
+      [%'bite-type' '2']
   ==
 ++  personal-invite-meta
   ^~
   ^-  metadata:reel
   :-  %group-0
   %-  my
-  :~  ['inviterUserId' '~sampel-palnet']
-      ['inviterNickname' 'Sampel Palnet']
-      ['inviterAvatarImage' 'https://sampel-palnet.arvo.network/avatar.png']
-      ['inviteType' 'user']
-      ['invitedGroupId' '~zod/personal-invite-link']
-      ['bite-type' '2']
+  :~  [%'inviterUserId' '~sampel-palnet']
+      [%'inviterNickname' 'Sampel Palnet']
+      [%'inviterAvatarImage' 'https://sampel-palnet.arvo.network/avatar.png']
+      [%'inviteType' 'user']
+      [%'invitedGroupId' '~zod/personal-invite-link']
+      [%'bite-type' '2']
   ==
 ++  do-register-invite
   |=  [=token:reel =metadata:reel]
@@ -48,7 +48,7 @@
   =+  nonce=(scot %da ~2025.9.3)
   ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(now ~2025.9.3)))
   ;<  ~  bind:m   (set-src ~sampel-palnet)
-  =+  id=(~(got by fields.metadata) 'invitedGroupId')
+  =+  id=(~(got by fields.metadata) %'invitedGroupId')
   ;<  caz=(list card)  bind:m  (do-poke reel-describe+!>([id metadata]))
   ;<  ~  bind:m
     %+  ex-cards  caz
@@ -74,7 +74,7 @@
   |=  id=@uv
   (get-full-peek metadata:reel /x/(scot %uv id)/metadata)
 ++  get-metadata-field
-  |=  [id=@uv field=@t]
+  |=  [id=@uv =field:reel]
   =/  m  (mare (unit @t))
   ^-  form:m
   ;<  =metadata:reel  bind:m  (get-metadata id)
@@ -186,7 +186,7 @@
   ;<  =metadata:reel  bind:m  
     (get-full-peek metadata:reel /x/v1/metadata/~sampel-palnet/sunrise)
   ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by fields.metadata) 'invitedGroupTitle'))
+    %+  ex-equal  !>((~(get by fields.metadata) %'invitedGroupTitle'))
     !>(`'Sunrise')
   ::  when the agent receives group metadata update, it asks the
   ::  provider to update the invite link, and also updates its local
@@ -204,10 +204,10 @@
     (do-agent /groups [~sampel-palnet %groups] %fact group-response-1+!>(r-groups))
   =/  update=metadata:reel
     :-  %groups-0
-    %-  ~(gas by *(map cord cord))
-    :~  'invitedGroupTitle'^'Early Sunrise'
-        'invitedGroupDescription'^'Sunrise, sunset.'
-        'invitedGroupIconImageUrl'^'https://sampel-palnet.arvo.network/early-sunrise.jpg'
+    %-  ~(gas by *(map field:reel cord))
+    :~  %'invitedGroupTitle'^'Early Sunrise'
+        %'invitedGroupDescription'^'Sunrise, sunset.'
+        %'invitedGroupIconImageUrl'^'https://sampel-palnet.arvo.network/early-sunrise.jpg'
     ==
   ;<  ~  bind:m
     %+  ex-cards  caz
@@ -216,12 +216,12 @@
   ;<  =metadata:reel  bind:m  
     (get-full-peek metadata:reel /x/v1/metadata/~sampel-palnet/sunrise)
   ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by fields.metadata) 'invitedGroupTitle'))
+    %+  ex-equal  !>((~(get by fields.metadata) %'invitedGroupTitle'))
     !>(`'Early Sunrise')
   ;<  =metadata:reel  bind:m  
     (get-full-peek metadata:reel /x/v1/metadata/~sampel-palnet/sunrise)
   ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by fields.metadata) 'invitedGroupDescription'))
+    %+  ex-equal  !>((~(get by fields.metadata) %'invitedGroupDescription'))
     !>(`'Sunrise, sunset.')
   ::  when a group is deleted, the group host updates the provider with
   ::  invitedGroupDeleted set to true.
@@ -232,8 +232,8 @@
     (do-agent /groups [~sampel-palnet %groups] %fact group-response-1+!>(r-groups))
   =/  update=metadata:reel
     :-  %groups-0
-    %-  ~(gas by *(map cord cord))
-    :~  'invitedGroupDeleted'^'true'
+    %-  ~(gas by *(map field:reel cord))
+    :~  %'invitedGroupDeleted'^'true'
     ==
   ;<  ~  bind:m
     %+  ex-cards  caz
@@ -242,7 +242,7 @@
   ;<  =metadata:reel  bind:m  
     (get-full-peek metadata:reel /x/v1/metadata/~sampel-palnet/sunrise)
   ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by fields.metadata) 'invitedGroupDeleted'))
+    %+  ex-equal  !>((~(get by fields.metadata) %'invitedGroupDeleted'))
     !>(`'true')
   (pure:m ~)
 ::  +test-contacts-update: user profile update
@@ -265,12 +265,12 @@
   ;<  =metadata:reel  bind:m  
     (get-full-peek metadata:reel /x/v1/metadata/~sampel-palnet/sunrise)
   ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by fields.metadata) 'inviterNickname'))
+    %+  ex-equal  !>((~(get by fields.metadata) %'inviterNickname'))
     !>(`'Sampel Palnet')
   ;<  =metadata:reel  bind:m  
     (get-full-peek metadata:reel /x/v1/metadata/~zod/personal-invite-link)
   ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by fields.metadata) 'inviterNickname'))
+    %+  ex-equal  !>((~(get by fields.metadata) %'inviterNickname'))
     !>(`'Sampel Palnet')
   ::  when the agent receives profile metadata update, it asks the
   ::  provider to update the invite link, and also updates its local
@@ -288,10 +288,10 @@
     (do-agent /contacts [~sampel-palnet %contacts] %fact contact-response-0+!>(response))
   =/  update=metadata:reel
     :-  %groups-0
-    %-  ~(gas by *(map cord cord))
-    :~  'inviterNickname'^'Best Sampel'
-        'inviterAvatarImage'^'https://sampel-palnet.arvo.network/best-sampel.jpg'
-        'inviterColor'^'ff.0000'
+    %-  ~(gas by *(map field:reel cord))
+    :~  %'inviterNickname'^'Best Sampel'
+        %'inviterAvatarImage'^'https://sampel-palnet.arvo.network/best-sampel.jpg'
+        %'inviterColor'^'ff.0000'
     ==
   ;<  ~  bind:m
     %+  ex-cards  caz
@@ -303,26 +303,26 @@
   ;<  =metadata:reel  bind:m  
     (get-full-peek metadata:reel /x/v1/metadata/~sampel-palnet/sunrise)
   ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by fields.metadata) 'inviterNickname'))
+    %+  ex-equal  !>((~(get by fields.metadata) %'inviterNickname'))
     !>(`'Best Sampel')
   ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by fields.metadata) 'inviterAvatarImage'))
+    %+  ex-equal  !>((~(get by fields.metadata) %'inviterAvatarImage'))
     !>(`'https://sampel-palnet.arvo.network/best-sampel.jpg')
   ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by fields.metadata) 'inviterColor'))
+    %+  ex-equal  !>((~(get by fields.metadata) %'inviterColor'))
     !>(`'ff.0000')
   ::  verify that the local group invite has been updated
   ::
   ;<  =metadata:reel  bind:m  
     (get-full-peek metadata:reel /x/v1/metadata/~sampel-palnet/sunrise)
   ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by fields.metadata) 'inviterNickname'))
+    %+  ex-equal  !>((~(get by fields.metadata) %'inviterNickname'))
     !>(`'Best Sampel')
   ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by fields.metadata) 'inviterAvatarImage'))
+    %+  ex-equal  !>((~(get by fields.metadata) %'inviterAvatarImage'))
     !>(`'https://sampel-palnet.arvo.network/best-sampel.jpg')
   ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by fields.metadata) 'inviterColor'))
+    %+  ex-equal  !>((~(get by fields.metadata) %'inviterColor'))
     !>(`'ff.0000')
   ::  verify that unrelated profile updates do not trigger an update
   ::
