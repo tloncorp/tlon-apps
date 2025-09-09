@@ -6,7 +6,7 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCopy } from '@tloncorp/ui';
 import { memo, useMemo } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useRenderCount } from '../../../../hooks/useRenderCount';
@@ -257,8 +257,17 @@ export async function handleAction({
       post.hidden ? store.showPost({ post }) : store.hidePost({ post });
       break;
     case 'forward':
-      onForward?.(post);
-      break;
+      // On iOS, dismiss the current modal first, then open the forward sheet
+      // to avoid race condition between two modals
+      if (Platform.OS === 'ios') {
+        dismiss();
+        setTimeout(() => onForward?.(post), 300);
+      } else {
+        onForward?.(post);
+        dismiss();
+      }
+      triggerHaptic('success');
+      return; // Early return to avoid double dismiss
   }
 
   triggerHaptic('success');
