@@ -317,10 +317,11 @@ export function ManageChannelsScreenView({
     return groupNavSectionsWithChannels.map((s) => ({
       id: s.sectionId,
       title: s.title ?? 'Untitled Section',
-      channels: s.channels.map((c) => ({
+      channels: s.channels.map((c, idx) => ({
         id: c.id,
         title: c.title ?? 'Untitled Channel',
         type: c.type,
+        index: idx,
       })),
     }));
   });
@@ -333,10 +334,11 @@ export function ManageChannelsScreenView({
     const newNavSections = groupNavSectionsWithChannels.map((s) => ({
       id: s.sectionId,
       title: s.title ?? 'Untitled Section',
-      channels: s.channels.map((c) => ({
+      channels: s.channels.map((c, idx) => ({
         id: c.id,
         title: c.title ?? 'Untitled Channel',
         type: c.type,
+        index: idx,
       })),
     }));
     const currentTotalChannels = sections.reduce(

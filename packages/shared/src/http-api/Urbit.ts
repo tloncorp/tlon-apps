@@ -477,12 +477,14 @@ export class Urbit {
           if (!(error instanceof FatalError)) {
             const context: any = {};
             if (error instanceof SSEBadResponseError) {
+              if (error.status === 500) {
+                this.seamlessReset();
+                return;
+              }
               context.message = error.message;
               context.requestStatus = error.status;
             }
-            if (error instanceof SSETimeoutError) {
-              context.message = error.message;
-            }
+            context.message = error.message;
             this.emit('status-update', { status: 'reconnecting', context });
             return Math.min(5000, Math.pow(2, this.errorCount - 1) * 750);
           }
@@ -516,7 +518,7 @@ export class Urbit {
     this.sseClientInitialized = false;
   }
 
-  private seamlessReset() {
+  seamlessReset() {
     // called if a channel was reaped by %eyre before we reconnected
     // so we have to make a new channel.
     this.uid = `${Math.floor(Date.now() / 1000)}-${hexString(6)}`;
@@ -863,6 +865,27 @@ export class Urbit {
       if (!response.ok) {
         throw new Error('Failed to DELETE channel in node context');
       }
+    }
+  }
+
+  async checkIsNodeBusy(): Promise<'available' | 'busy' | 'unknown'> {
+    try {
+      const response = await this.fetchFn(`${this.url}/~_~/healthz`, {
+        method: 'GET',
+      });
+      if (response.status === 204) {
+        return 'available';
+      }
+      if (response.status === 429) {
+        return 'busy';
+      }
+      logger.trackEvent('Unexpected node busy response', {
+        status: response.status,
+      });
+      return 'unknown';
+    } catch (e) {
+      logger.trackEvent('Failed to check if node is busy', { error: e });
+      return 'unknown';
     }
   }
 
