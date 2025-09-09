@@ -525,6 +525,11 @@
         ~[[%give %kick ~[path] ~]]
       (on-arvo:def wire sign-arvo)
     ==
+  ::
+      [%~.~ %retry rest=*]
+    =^  caz=(list card)  subs
+      (~(handle-wakeup s [subs bowl]) wire)
+    [caz this]
   ==
 ++  on-fail
   |=  [=term =tang]
