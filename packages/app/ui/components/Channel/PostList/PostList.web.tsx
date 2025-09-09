@@ -9,6 +9,7 @@ import { PostList as PostListNative } from './PostListFlatList';
 import { PostListComponent, PostWithNeighbors } from './shared';
 
 const FORCE_MANUAL_SCROLL_ANCHORING: boolean = false;
+const IS_FIREFOX = navigator.userAgent.includes('Firefox');
 
 export const PostList: PostListComponent = React.forwardRef((props, ref) => {
   const [webScrollerEnabled] = useFeatureFlag('webScroller');
@@ -152,6 +153,18 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
       insideScrolledToBottomBoundary,
     ]);
 
+    const viewportHeight =
+      useTrackContentRect(scrollerRef.current)?.height ?? 0;
+    const scrollerContentsKey = React.useMemo(
+      () =>
+        // HACK: Firefox triggers a mysterious scroll on the next keypress after
+        // the viewport height changes, which causes the scroll to unstick from
+        // bottom. If we just don't try to stick to bottom while viewport is
+        // resizing, we keep stuck to the bottom _after_ the send (although the
+        // chat gets hidden during drafting), which is better than unsticking.
+        IS_FIREFOX ? orderedData : [orderedData, viewportHeight],
+      [orderedData, viewportHeight]
+    );
     const hasInFlightPost = React.useMemo(
       () =>
         postsWithNeighbors.some(
@@ -162,7 +175,7 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
       [postsWithNeighbors]
     );
     useStickToScrollStart({
-      scrollerContentsKey: orderedData,
+      scrollerContentsKey,
       scrollerRef,
       inverted,
       // - If we don't have all the newest posts, we want to wait to autoscroll
