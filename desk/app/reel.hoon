@@ -147,10 +147,10 @@
     ::  normalize lure invites: we cast tokens which are not a @uv string
     ::  into a flag form.
     ::
-    =^  new-md  stable-id
+    =^  norm-md  stable-id
       %+  roll
-        ~(tap by our-metadata)
-      |=  [[=token:reel =metadata:reel] [md=_our-metadata id=_stable-id]]
+        ~(tap by our-metadata.old)
+      |=  [[=token:reel =metadata:reel] [md=_our-metadata.old id=_stable-id]]
       ?^  (slaw %uv token)  [md id]
       ?^  (rush token flag)
         :-  md
@@ -163,7 +163,7 @@
         vic.old
         civ.old
         *contact:t  ::  profile
-        new-md
+        norm-md
         open-link-requests.old
         open-describes.old
         stable-id
