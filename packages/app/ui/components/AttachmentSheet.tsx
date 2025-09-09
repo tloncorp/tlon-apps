@@ -1,4 +1,3 @@
-import Clipboard from '@react-native-clipboard/clipboard';
 import { PLACEHOLDER_ASSET_URI, createDevLogger } from '@tloncorp/shared';
 import { Button } from '@tloncorp/ui';
 import * as ImagePicker from 'expo-image-picker';
@@ -7,6 +6,7 @@ import { Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useAttachmentContext } from '../contexts';
+import { getClipboardImageWithFallbacks } from '../utils';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { ListItem } from './ListItem';
 
@@ -40,27 +40,7 @@ export default function AttachmentSheet({
     mimeType: string;
   } | null> => {
     try {
-      const hasImage = await Clipboard.hasImage();
-      if (!hasImage) return null;
-
-      // iOS supports getImagePNG/getImageJPG but not the generic getImage
-      try {
-        const imageData = await Clipboard.getImagePNG();
-        return { data: imageData, mimeType: 'image/png' };
-      } catch (pngError) {
-        try {
-          const imageData = await Clipboard.getImageJPG();
-          return { data: imageData, mimeType: 'image/jpeg' };
-        } catch (jpgError) {
-          // If both specific methods fail, try generic getImage for Android compatibility
-          try {
-            const imageData = await Clipboard.getImage();
-            return { data: imageData, mimeType: 'image/png' };
-          } catch (genericError) {
-            return null;
-          }
-        }
-      }
+      return await getClipboardImageWithFallbacks();
     } catch (error) {
       logger.trackError('Clipboard access failed', { error });
       return null;
