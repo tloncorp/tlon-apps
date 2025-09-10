@@ -1707,7 +1707,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
 
     try {
       await batchEffects('sync start (high)', async (queryCtx) => {
-        await syncSince(queryCtx);
+        await syncSince({ queryCtx });
 
         // this allows us to run the api calls first in parallel but handle
         // writing the data in a specific order
