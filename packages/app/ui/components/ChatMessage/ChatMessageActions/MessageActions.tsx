@@ -6,7 +6,7 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCopy } from '@tloncorp/ui';
 import { memo, useMemo } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useRenderCount } from '../../../../hooks/useRenderCount';
@@ -211,6 +211,9 @@ export async function handleAction({
   const [path, reference] = logic.postToContentReference(post);
 
   switch (id) {
+    case 'debugJson':
+      db.debugMessageJson.setValue(!(await db.debugMessageJson.getValue()));
+      break;
     case 'startThread':
       // give the actions time to fade out before navigating
       setTimeout(() => onReply?.(post), 50);
@@ -254,8 +257,17 @@ export async function handleAction({
       post.hidden ? store.showPost({ post }) : store.hidePost({ post });
       break;
     case 'forward':
-      onForward?.(post);
-      break;
+      // On iOS, dismiss the current modal first, then open the forward sheet
+      // to avoid race condition between two modals
+      if (Platform.OS === 'ios') {
+        dismiss();
+        setTimeout(() => onForward?.(post), 300);
+      } else {
+        onForward?.(post);
+        dismiss();
+      }
+      triggerHaptic('success');
+      return; // Early return to avoid double dismiss
   }
 
   triggerHaptic('success');
@@ -292,6 +304,8 @@ export function useDisplaySpecForChannelActionId(
 
   return useMemo(() => {
     switch (id) {
+      case 'debugJson':
+        return { label: 'Toggle debug' };
       case 'copyRef':
         return {
           label:

@@ -14,7 +14,7 @@ import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
-import { unregisterBackgroundSyncTask } from '@tloncorp/app/lib/backgroundSync';
+import { registerBackgroundSyncTask } from '@tloncorp/app/lib/backgroundSync';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { splashScreenProgress } from '@tloncorp/app/lib/splashscreen';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
@@ -32,7 +32,7 @@ import { withRetry } from '@tloncorp/shared/logic';
 import { setBadgeCountAsync } from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useMemo, useState } from 'react';
-import { StatusBar } from 'react-native';
+import { NativeModules, StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { OnboardingStack } from './OnboardingStack';
@@ -44,15 +44,42 @@ SplashScreen.preventAutoHideAsync().catch((err) => {
   console.warn('Failed to prevent auto hide splash screen', err);
 });
 
-splashScreenProgress.emitter.on('complete', async () => {
-  try {
-    await withRetry(() => SplashScreen.hideAsync());
-  } catch (error) {
-    splashscreenLogger.trackError('Failed to hide splash screen', { error });
-  }
-});
+const useSplashHider = () => {
+  const [splashHidden, setSplashHidden] = useState(
+    splashScreenProgress.finished
+  );
 
-unregisterBackgroundSyncTask();
+  useEffect(() => {
+    const onComplete = () => {
+      try {
+        withRetry(async () => {
+          await SplashScreen.hideAsync();
+          setSplashHidden(true);
+        });
+      } catch (err) {
+        splashscreenLogger.trackError('Failed to hide splash screen', {
+          errorMessage: err.message,
+        });
+      }
+    };
+
+    // check if progress completed before mounting
+    if (splashScreenProgress.finished) {
+      onComplete();
+      return;
+    }
+
+    splashScreenProgress.emitter.on('complete', onComplete);
+
+    return () => {
+      splashScreenProgress.emitter.off('complete', onComplete);
+    };
+  }, []);
+
+  return splashHidden;
+};
+
+registerBackgroundSyncTask();
 
 // Android notification tap handler passes initial params here
 const App = () => {
@@ -153,6 +180,7 @@ export default function ConnectedApp() {
   const isDarkMode = useIsDarkMode();
   const navigationContainerRef = useNavigationContainerRef();
   const migrationState = useMigrations();
+  const splashIsHidden = useSplashHider();
 
   return (
     <FeatureFlagConnectedInstrumentationProvider>
@@ -165,7 +193,7 @@ export default function ConnectedApp() {
             <BranchProvider>
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <SignupProvider>
-                  <App />
+                  {splashIsHidden ? <App /> : null}
 
                   {__DEV__ && (
                     <DevTools navigationContainerRef={navigationContainerRef} />

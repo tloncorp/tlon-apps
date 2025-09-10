@@ -9,8 +9,8 @@
     =,  enjs:format
     ^-  ^json
     %-  pairs
-    :~  channels/(channel-heads:enjs:dj chan.mixed-heads-2)
-        dms/(chat-heads:enjs:cj chat.mixed-heads-2)
+    :~  channels/(channel-heads:v8:enjs:dj chan.mixed-heads-2)
+        dms/(chat-heads:v5:enjs:cj chat.mixed-heads-2)
     ==
   --
 ++  grab

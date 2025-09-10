@@ -1,16 +1,15 @@
-/-  c=chat-3
+/-  cv=chat-ver
 /+  j=chat-json
-|_  =scan:c
+|_  =scan:v3:cv
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  scan
   ++  json
-    =,  enjs:format
-    a+(turn scan reference:v7:enjs:j)
+    a+(turn scan reference:v3:enjs:j)
   --
 ++  grab
   |%
-  +$  noun  scan:c
+  +$  noun  scan:v3:cv
   --
 --
