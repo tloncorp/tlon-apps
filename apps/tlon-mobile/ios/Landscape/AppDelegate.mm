@@ -6,7 +6,6 @@
 #import "ExpoModulesCore-Swift.h"
 #import "Landscape-Swift.h"
 #import <RNBranch/RNBranch.h>
-#import "NotificationLogProcessor-Swift.h"
 
 @implementation AppDelegate
 

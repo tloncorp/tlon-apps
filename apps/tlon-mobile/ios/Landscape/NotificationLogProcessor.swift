@@ -8,7 +8,8 @@
 import Foundation
 import PostHog
 
-class NotificationLogProcessor {
+@objc
+class NotificationLogProcessor: NSObject {
     private static let appGroupIdentifier = "group.tlon.Landscape"
 
     static func processAndSendLogs() {
@@ -49,6 +50,7 @@ class NotificationLogProcessor {
         NSLog("Successfully processed \(logs.count) notification logs")
     }
 
+    @objc
     static func startPeriodicProcessing() {
         // Process logs immediately
         processAndSendLogs()
