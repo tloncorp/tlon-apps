@@ -3,7 +3,6 @@ import { isEqual } from 'lodash';
 import * as React from 'react';
 import { View } from 'react-native';
 
-import { useFeatureFlag } from '../../../../lib/featureFlags';
 import { ScrollAnchor } from '../Scroller';
 import { PostList as PostListNative } from './PostListFlatList';
 import { PostListComponent, PostWithNeighbors } from './shared';
@@ -12,9 +11,7 @@ const FORCE_MANUAL_SCROLL_ANCHORING: boolean = false;
 const IS_FIREFOX = navigator.userAgent.includes('Firefox');
 
 export const PostList: PostListComponent = React.forwardRef((props, ref) => {
-  const [webScrollerEnabled] = useFeatureFlag('webScroller');
-
-  if (webScrollerEnabled && props.numColumns === 1) {
+  if (props.numColumns === 1) {
     return <PostListSingleColumn {...props} ref={ref} />;
   } else {
     // Use the native implementation for multi-column lists
