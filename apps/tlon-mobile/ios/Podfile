@@ -63,11 +63,13 @@ end
 target 'Landscape' do
   Pod::UI.puts 'Building Landscape'
   shared(podfile_properties)
+  pod 'PostHog', '~> 3.0'
 end
 
 target 'Landscape-preview' do
   Pod::UI.puts 'Building Landscape-preview'
   shared(podfile_properties)
+  pod 'PostHog', '~> 3.0'
 end
 
 post_install do |installer|
