@@ -203,6 +203,8 @@ const Scroller = forwardRef(
       [handleSetActive]
     );
 
+    const { value: debugMessageJson } = db.debugMessageJson.useStorageItem();
+
     const theme = useTheme();
 
     const postsWithNeighbors: PostWithNeighbors[] | undefined = useMemo(
@@ -263,6 +265,7 @@ const Scroller = forwardRef(
             showDayDivider={showDividers && isFirstPostOfDay}
             showAuthor={showAuthor}
             isLastPostOfBlock={isLastPostOfBlock}
+            displayDebugMode={debugMessageJson}
             Component={renderItem}
             unreadCount={unreadCount}
             setViewReactionsPost={setViewReactionsPost}
@@ -314,6 +317,7 @@ const Scroller = forwardRef(
         itemWidth,
         setActiveMessage,
         setEditingPost,
+        debugMessageJson,
       ]
     );
 
@@ -585,6 +589,7 @@ const BaseScrollerItem = ({
   activeMessage,
   messageRef,
   isSelected,
+  displayDebugMode,
   isLastPostOfBlock,
   dividersEnabled,
   itemAspectRatio,
@@ -608,11 +613,12 @@ const BaseScrollerItem = ({
   onLongPressPost: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => Promise<void>;
   onPressDelete: (post: db.Post) => void;
-  onShowEmojiPicker: () => void;
-  onPressEdit?: () => void;
+  onShowEmojiPicker: (post: db.Post) => void;
+  onPressEdit?: (post: db.Post) => void;
   activeMessage?: db.Post | null;
   messageRef: RefObject<RNView>;
   isSelected: boolean;
+  displayDebugMode?: boolean;
   isLastPostOfBlock: boolean;
   dividersEnabled: boolean;
   itemAspectRatio?: number;
@@ -708,6 +714,7 @@ const BaseScrollerItem = ({
         <Component
           editPost={editPost}
           isHighlighted={isSelected}
+          displayDebugMode={displayDebugMode}
           post={post}
           setViewReactionsPost={setViewReactionsPost}
           showAuthor={showAuthorLive}
@@ -745,7 +752,8 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
     prev.onPressPost === next.onPressPost &&
     prev.onLongPressPost === next.onLongPressPost &&
     prev.activeMessage === next.activeMessage &&
-    prev.itemWidth === next.itemWidth;
+    prev.itemWidth === next.itemWidth &&
+    prev.displayDebugMode === next.displayDebugMode;
 
   return isItemEqual && areOtherPropsEqual && isIndexEqual;
 });

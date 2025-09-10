@@ -1,10 +1,6 @@
 import { ChannelAction, makePrettyShortDate } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Image } from '@tloncorp/ui';
-import { Button } from '@tloncorp/ui';
-import { Icon } from '@tloncorp/ui';
-import { Pressable } from '@tloncorp/ui';
-import { Text } from '@tloncorp/ui';
+import { Button, Icon, Image, Pressable, Text } from '@tloncorp/ui';
 import {
   ComponentProps,
   useCallback,
@@ -22,8 +18,8 @@ import {
 } from 'tamagui';
 
 import { useChannelContext, useCurrentUserId } from '../../contexts';
-import { useCanWrite } from '../../utils/channelUtils';
 import { MinimalRenderItemProps } from '../../contexts/componentsKits';
+import { useCanWrite } from '../../utils/channelUtils';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
@@ -80,6 +76,10 @@ export function NotebookPost({
     onPressDelete?.(post);
     setShowRetrySheet(false);
   }, [onPressDelete, post]);
+
+  const handleEditPostPressed = useCallback(() => {
+    onPressEdit?.(post);
+  }, [onPressEdit, post]);
 
   const deliveryFailed =
     post.deliveryStatus === 'failed' ||
@@ -196,7 +196,7 @@ export function NotebookPost({
                 setIsHovered(false);
               }}
               onOpenChange={setIsPopoverOpen}
-              onEdit={onPressEdit}
+              onEdit={handleEditPostPressed}
               onReply={handlePress}
               mode="await-trigger"
               trigger={
