@@ -402,6 +402,31 @@
     (i.exes i.caz)
   $(exes t.exes, caz t.caz)
 ::
+++  ex-filter-cards
+  |=  [caz=(list card) fit=$-(card ?) exes=(list $-(card tang))]
+  =?  caz  drop-verb
+    ::  remove cards unconditionally emitted by /lib/verb
+    ::
+    %+  skip  caz
+    |=  =card
+    ?=([%give %fact [[%verb ?(%events %events-plus) ~] ~] *] card)
+  =.  caz  (skip caz fit)
+  =/  m  (mare ,~)
+  ^-  form:m
+  |=  s=state
+  =;  =tang
+    ?~(tang &+[~ s] |+tang)
+  |-  ^-  tang
+  ?~  exes
+    ?~  caz
+      ~
+    ['got more cards than expected' >caz< ~]
+  ?~  caz
+    ['expected more cards than got' ~]
+  %+  weld
+    (i.exes i.caz)
+  $(exes t.exes, caz t.caz)
+::
 ++  ex-card
   |=  caw=card
   |=  cav=card
@@ -435,6 +460,18 @@
   =/  =tang  (expect-eq:test vase q.cage.task.q.car)
   ?~  tang  ~
   ['in %poke vase on ,' tang]
+::
+++  ex-poke-wire
+  |=  =wire
+  |=  car=card
+  ^-  tang
+  =*  fail
+    %-  expect-eq:test
+    [!>(`card`[%pass wire %agent *gill:gall %poke *mark *vase]) !>(`card`car)]
+  ?.  ?=([%pass * %agent * %poke *] car)  fail
+  =/  =tang  (expect-eq:test !>(wire) !>(p.car))
+  ?~  tang  ~
+  ['in %poke wire,' tang]
 ::
 ++  ex-task
   |=  [=wire =gill:gall =task:agent:gall]
