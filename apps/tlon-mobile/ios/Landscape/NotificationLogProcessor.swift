@@ -10,9 +10,11 @@ import PostHog
 
 @objc
 class NotificationLogProcessor: NSObject {
-    private static let appGroupIdentifier = "group.tlon.Landscape"
+    @objc static let `default` = NotificationLogProcessor()
+    
+    private let appGroupIdentifier = "group.tlon.Landscape"
 
-    static func processAndSendLogs() {
+    func processAndSendLogs() {
         guard let userDefaults = UserDefaults(suiteName: appGroupIdentifier) else {
             NSLog("Could not access app group UserDefaults for notification logs")
             return
@@ -51,13 +53,13 @@ class NotificationLogProcessor: NSObject {
     }
 
     @objc
-    static func startPeriodicProcessing() {
+    func startPeriodicProcessing() {
         // Process logs immediately
         processAndSendLogs()
 
         // Set up timer to process logs every 30 seconds
-        Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { _ in
-            processAndSendLogs()
+        Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
+            self?.processAndSendLogs()
         }
     }
 }

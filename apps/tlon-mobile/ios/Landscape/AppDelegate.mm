@@ -34,7 +34,7 @@
   [ShortcutsManager setup];
 
   // Start processing notification service extension logs
-  [NotificationLogProcessor startPeriodicProcessing];
+  [[NotificationLogProcessor default] startPeriodicProcessing];
 
   return [super application:application didFinishLaunchingWithOptions:launchOptions];
 }
