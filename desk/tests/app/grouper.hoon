@@ -9,26 +9,26 @@
   ^-  metadata:reel
   :-  %group-0
   %-  my
-  :~  ['inviterUserId' '~sampel-palnet']
-      ['inviterNickname' 'Sampel Palnet']
-      ['inviterAvatarImage' 'https://sampel-palnet.arvo.network/avatar.png']
-      ['invitedGroupTitle' 'Sunrise']
-      ['invitedGroupDescription' '']
-      ['invitedGroupId' '~sampel-palnet/sunrise']
-      ['invitedGroupIconImageUrl' 'https://sampel-palnet.arvo.network/sunrise.jpg']
-      ['bite-type' '2']
+  :~  [%'inviterUserId' '~sampel-palnet']
+      [%'inviterNickname' 'Sampel Palnet']
+      [%'inviterAvatarImage' 'https://sampel-palnet.arvo.network/avatar.png']
+      [%'invitedGroupTitle' 'Sunrise']
+      [%'invitedGroupDescription' '']
+      [%'invitedGroupId' '~sampel-palnet/sunrise']
+      [%'invitedGroupIconImageUrl' 'https://sampel-palnet.arvo.network/sunrise.jpg']
+      [%'bite-type' '2']
   ==
 ++  personal-invite-meta
   ^~
   ^-  metadata:reel
   :-  %group-0
   %-  my
-  :~  ['inviterUserId' '~sampel-palnet']
-      ['inviterNickname' 'Sampel Palnet']
-      ['inviterAvatarImage' 'https://sampel-palnet.arvo.network/avatar.png']
-      ['inviteType' 'user']
-      ['invitedGroupId' '~zod/personal-invite-link']
-      ['bite-type' '2']
+  :~  [%'inviterUserId' '~sampel-palnet']
+      [%'inviterNickname' 'Sampel Palnet']
+      [%'inviterAvatarImage' 'https://sampel-palnet.arvo.network/avatar.png']
+      [%'inviteType' 'user']
+      [%'invitedGroupId' '~zod/personal-invite-link']
+      [%'bite-type' '2']
   ==
 ++  get-full-peek
   |*  [=mold =path]
@@ -93,7 +93,6 @@
     [%gu @ %groups @ %groups %~.~sampel-palnet %sunrise ~]  `!>(&)
 
   ==
-
 ::  +test-personal-bite: test personal invite bite
 ::  
 ::  when a personal bite is received by the grouper agent it issues

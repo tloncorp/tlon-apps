@@ -30,27 +30,27 @@
   $:  %1
       vic=@t
       civ=ship
-      our-metadata=(map cord metadata:reel)
+      our-metadata=(map cord metadata:v0:reel)
   ==
 +$  state-2
   $:  %2
       vic=@t
       civ=ship
-      our-metadata=(map cord metadata:reel)
+      our-metadata=(map cord metadata:v0:reel)
       outstanding-pokes=(set (pair ship cord))
   ==
 +$  state-3
   $:  %3
       vic=@t
       civ=ship
-      our-metadata=(map cord metadata:reel)
+      our-metadata=(map cord metadata:v0:reel)
       outstanding-pokes=(set (pair ship cord))
   ==
 +$  state-4
   $:  %4
       vic=@t
       civ=ship
-      our-metadata=(map token:reel metadata:reel)
+      our-metadata=(map token:reel metadata:v0:reel)
       open-link-requests=(set (pair ship cord))
       open-describes=(set token:reel)
       stable-id=(map cord token:reel)
@@ -60,7 +60,7 @@
       vic=@t
       civ=ship
       our-profile=contact:t
-      our-metadata=(map token:reel metadata:reel)
+      our-metadata=(map token:reel metadata:v1:reel)
       open-link-requests=(set (pair ship cord))
       open-describes=(set token:reel)
       stable-id=(map cord token:reel)
@@ -159,11 +159,13 @@
       =/  new  (rap 3 (scot %p our.bowl) '/' token ~)
       :-  (~(put by md) new metadata)
       (~(put by id) new new)
+    ::  normalize lure invites: migrate old group fields
+    ::
     :*  %5
         vic.old
         civ.old
         *contact:t  ::  profile
-        norm-md
+        (~(run by norm-md) v1:metadata:v0:conv)
         open-link-requests.old
         open-describes.old
         stable-id
@@ -209,13 +211,18 @@
   ::
       %reel-describe
     ?>  =(our.bowl src.bowl)
-    =+  !<([id=cord =metadata:reel] vase)
+    =+  !<([id=cord old-metadata=metadata:v0:reel] vase)
     =/  old-token  (~(get by stable-id) id)
+    ::TODO when the client is cleaned up of old fields, we should
+    ::     directly convert to new metadata type from json.
+    ::
+    =/  =metadata:reel
+      (v1:metadata:v0:conv old-metadata)
     =.  fields.metadata
       %-  ~(gas by fields.metadata)
-      :~  ['bite-type' '2']
-          ['inviterUserId' (scot %p src.bowl)]
-          ['invitedGroupId' id]
+      :~  [%'bite-type' '2']
+          [%'inviterUserId' (scot %p src.bowl)]
+          [%'invitedGroupId' id]
       ==
     ::  the nonce here is a temporary identifier for the metadata.
     ::  a new one will be assigned by the bait provider and returned to us.
@@ -360,10 +367,10 @@
       =|  update=metadata:reel
       =.  tag.update  'groups-0'
       =.  fields.update
-        %-  ~(gas by *(map cord cord))
-        :~  'inviterNickname'^(fall nickname '')
-            'inviterAvatarImage'^(fall avatar '')
-            'inviterColor'^?^(color (rsh [3 2] (scot %ux u.color)) '')
+        %-  ~(gas by *(map field:reel cord))
+        :~  %'inviterNickname'^(fall nickname '')
+            %'inviterAvatarImage'^(fall avatar '')
+            %'inviterColor'^?^(color (rsh [3 2] (scot %ux u.color)) '')
         ==
       ::  update our lure links with new nickname, avatar image
       ::  and color.
@@ -404,15 +411,15 @@
         ?+    -.r-group.r-groups  ~
             %meta
           =*  meta  meta.r-group.r-groups
-          %-  ~(gas by *(map cord cord))
-          :~  'invitedGroupTitle'^title.meta
-              'invitedGroupDescription'^description.meta
-              'invitedGroupIconImageUrl'^image.meta
+          %-  ~(gas by *(map field:reel cord))
+          :~  %'invitedGroupTitle'^title.meta
+              %'invitedGroupDescription'^description.meta
+              %'invitedGroupIconImageUrl'^image.meta
           ==
         ::
             %delete
-          %-  ~(gas by *(map cord cord))
-          :~  'invitedGroupDeleted'^'true'
+          %-  ~(gas by *(map field:reel cord))
+          :~  %'invitedGroupDeleted'^'true'
           ==
         ==
       ?:  =(~ fields.update)  `this

@@ -1,5 +1,5 @@
 /-  reel, gv=groups-ver, meta
-/+  *test-agent, test, s=subscriber, t=contacts
+/+  *test-agent, test, s=subscriber, t=contacts, reel-utils=reel
 /=  reel-agent  /app/reel
 |%
 +$  state-5
@@ -15,10 +15,10 @@
   ==
 ++  dap  %reel-test
 ++  provider  ~loshut-lonreg
-++  group-invite-meta
+++  old-group-invite-meta
   ^~
-  ^-  metadata:reel
-  :-  %group-0
+  ^-  metadata:v0:reel
+  :-  %groups-0
   %-  my
   :~  ['inviterUserId' '~sampel-palnet']
       ['inviterNickname' 'Sampel Palnet']
@@ -29,10 +29,24 @@
       ['invitedGroupIconImageUrl' 'https://sampel-palnet.arvo.network/sunrise.jpg']
       ['bite-type' '2']
   ==
-++  personal-invite-meta
+++  group-invite-meta
   ^~
   ^-  metadata:reel
-  :-  %group-0
+  :-  %groups-0
+  %-  my
+  :~  [%'inviterUserId' '~sampel-palnet']
+      [%'inviterNickname' 'Sampel Palnet']
+      [%'inviterAvatarImage' 'https://sampel-palnet.arvo.network/avatar.png']
+      [%'invitedGroupTitle' 'Sunrise']
+      [%'invitedGroupDescription' '']
+      [%'invitedGroupId' '~sampel-palnet/sunrise']
+      [%'invitedGroupIconImageUrl' 'https://sampel-palnet.arvo.network/sunrise.jpg']
+      [%'bite-type' '2']
+  ==
+++  old-personal-invite-meta
+  ^~
+  ^-  metadata:v0:reel
+  :-  %groups-0
   %-  my
   :~  ['inviterUserId' '~sampel-palnet']
       ['inviterNickname' 'Sampel Palnet']
@@ -41,18 +55,30 @@
       ['invitedGroupId' '~zod/personal-invite-link']
       ['bite-type' '2']
   ==
+++  personal-invite-meta
+  ^~
+  ^-  metadata:reel
+  :-  %groups-0
+  %-  my
+  :~  [%'inviterUserId' '~sampel-palnet']
+      [%'inviterNickname' 'Sampel Palnet']
+      [%'inviterAvatarImage' 'https://sampel-palnet.arvo.network/avatar.png']
+      [%'inviteType' 'user']
+      [%'invitedGroupId' '~zod/personal-invite-link']
+      [%'bite-type' '2']
+  ==
 ++  do-register-invite
-  |=  [=token:reel =metadata:reel]
+  |=  [=token:reel =metadata:v0:reel]
   =/  m  (mare ,(list card))
   ^-  form:m
   =+  nonce=(scot %da ~2025.9.3)
   ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(now ~2025.9.3)))
   ;<  ~  bind:m   (set-src ~sampel-palnet)
-  =+  id=(~(got by fields.metadata) 'invitedGroupId')
+  =+  id=(~(got by fields.metadata) %'invitedGroupId')
   ;<  caz=(list card)  bind:m  (do-poke reel-describe+!>([id metadata]))
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-poke /describe [provider %bait] bait-describe+!>([nonce metadata]))
+    :~  (ex-poke /describe [provider %bait] bait-describe+!>([nonce (v1:metadata:v0:conv:reel-utils metadata)]))
     ==
   ;<  *  bind:m  (set-src provider)
   ;<  caz=(list card)  bind:m  (do-poke reel-confirmation+!>([nonce token]))
@@ -74,7 +100,7 @@
   |=  id=@uv
   (get-full-peek metadata:reel /x/(scot %uv id)/metadata)
 ++  get-metadata-field
-  |=  [id=@uv field=@t]
+  |=  [id=@uv =field:reel]
   =/  m  (mare (unit @t))
   ^-  form:m
   ;<  =metadata:reel  bind:m  (get-metadata id)
@@ -131,12 +157,12 @@
   ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(now ~2025.9.3, our ~sampel-palnet)))
   ::  a group invite can be requested from reel
   ::
-  =+  nonce=(scot %da ~2025.9.3)
+  =/  =nonce:reel  (scot %da ~2025.9.3)
   ;<  ~  bind:m   (set-src ~sampel-palnet)
-  ;<  caz=(list card)  bind:m  (do-poke reel-describe+!>(['~sampel-palnet/sunrise' group-invite-meta]))
+  ;<  caz=(list card)  bind:m  (do-poke reel-describe+!>(['~sampel-palnet/sunrise' old-group-invite-meta]))
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-poke /describe [provider %bait] bait-describe+!>([nonce group-invite-meta]))
+    :~  (ex-poke /describe [provider %bait] bait-describe+!>(`[nonce:reel metadata:reel]`[nonce group-invite-meta]))
     ==
   ::  when the agent receives a confirmation, it registers the group invite
   ::  link locally.
@@ -152,7 +178,7 @@
   ::
   =+  nonce=(scot %da ~2025.9.3)
   ;<  ~  bind:m   (set-src ~sampel-palnet)
-  ;<  caz=(list card)  bind:m  (do-poke reel-describe+!>(['~zod/personal-invite-link' personal-invite-meta]))
+  ;<  caz=(list card)  bind:m  (do-poke reel-describe+!>(['~zod/personal-invite-link' old-personal-invite-meta]))
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  (ex-poke /describe [provider %bait] bait-describe+!>([nonce personal-invite-meta]))
@@ -182,11 +208,11 @@
   ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(our ~sampel-palnet)))
   ;<  caz=(list card)  bind:m  (do-init dap reel-agent)
   ;<  *  bind:m  (do-agent /groups [~sampel-palnet %groups] %watch-ack ~)
-  ;<  *  bind:m  (do-register-invite ~.0v1 group-invite-meta)
+  ;<  *  bind:m  (do-register-invite ~.0v1 old-group-invite-meta)
   ;<  =metadata:reel  bind:m  
     (get-full-peek metadata:reel /x/v1/metadata/~sampel-palnet/sunrise)
   ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by fields.metadata) 'invitedGroupTitle'))
+    %+  ex-equal  !>((~(get by fields.metadata) %'invitedGroupTitle'))
     !>(`'Sunrise')
   ::  when the agent receives group metadata update, it asks the
   ::  provider to update the invite link, and also updates its local
@@ -204,10 +230,10 @@
     (do-agent /groups [~sampel-palnet %groups] %fact group-response-1+!>(r-groups))
   =/  update=metadata:reel
     :-  %groups-0
-    %-  ~(gas by *(map cord cord))
-    :~  'invitedGroupTitle'^'Early Sunrise'
-        'invitedGroupDescription'^'Sunrise, sunset.'
-        'invitedGroupIconImageUrl'^'https://sampel-palnet.arvo.network/early-sunrise.jpg'
+    %-  ~(gas by *(map field:reel cord))
+    :~  %'invitedGroupTitle'^'Early Sunrise'
+        %'invitedGroupDescription'^'Sunrise, sunset.'
+        %'invitedGroupIconImageUrl'^'https://sampel-palnet.arvo.network/early-sunrise.jpg'
     ==
   ;<  ~  bind:m
     %+  ex-cards  caz
@@ -216,12 +242,12 @@
   ;<  =metadata:reel  bind:m  
     (get-full-peek metadata:reel /x/v1/metadata/~sampel-palnet/sunrise)
   ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by fields.metadata) 'invitedGroupTitle'))
+    %+  ex-equal  !>((~(get by fields.metadata) %'invitedGroupTitle'))
     !>(`'Early Sunrise')
   ;<  =metadata:reel  bind:m  
     (get-full-peek metadata:reel /x/v1/metadata/~sampel-palnet/sunrise)
   ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by fields.metadata) 'invitedGroupDescription'))
+    %+  ex-equal  !>((~(get by fields.metadata) %'invitedGroupDescription'))
     !>(`'Sunrise, sunset.')
   ::  when a group is deleted, the group host updates the provider with
   ::  invitedGroupDeleted set to true.
@@ -232,8 +258,8 @@
     (do-agent /groups [~sampel-palnet %groups] %fact group-response-1+!>(r-groups))
   =/  update=metadata:reel
     :-  %groups-0
-    %-  ~(gas by *(map cord cord))
-    :~  'invitedGroupDeleted'^'true'
+    %-  ~(gas by *(map field:reel cord))
+    :~  %'invitedGroupDeleted'^'true'
     ==
   ;<  ~  bind:m
     %+  ex-cards  caz
@@ -242,7 +268,7 @@
   ;<  =metadata:reel  bind:m  
     (get-full-peek metadata:reel /x/v1/metadata/~sampel-palnet/sunrise)
   ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by fields.metadata) 'invitedGroupDeleted'))
+    %+  ex-equal  !>((~(get by fields.metadata) %'invitedGroupDeleted'))
     !>(`'true')
   (pure:m ~)
 ::  +test-contacts-update: user profile update
@@ -261,16 +287,16 @@
   ;<  caz=(list card)  bind:m  (do-init dap reel-agent)
   ;<  *  bind:m  (do-agent /contacts [~sampel-palnet %contacts] %watch-ack ~)
   ;<  *  bind:m  (do-register-invite ~.0v1 group-invite-meta)
-  ;<  *  bind:m  (do-register-invite ~.0v2 personal-invite-meta)
+  ;<  *  bind:m  (do-register-invite ~.0v2 old-personal-invite-meta)
   ;<  =metadata:reel  bind:m  
     (get-full-peek metadata:reel /x/v1/metadata/~sampel-palnet/sunrise)
   ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by fields.metadata) 'inviterNickname'))
+    %+  ex-equal  !>((~(get by fields.metadata) %'inviterNickname'))
     !>(`'Sampel Palnet')
   ;<  =metadata:reel  bind:m  
     (get-full-peek metadata:reel /x/v1/metadata/~zod/personal-invite-link)
   ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by fields.metadata) 'inviterNickname'))
+    %+  ex-equal  !>((~(get by fields.metadata) %'inviterNickname'))
     !>(`'Sampel Palnet')
   ::  when the agent receives profile metadata update, it asks the
   ::  provider to update the invite link, and also updates its local
@@ -288,10 +314,10 @@
     (do-agent /contacts [~sampel-palnet %contacts] %fact contact-response-0+!>(response))
   =/  update=metadata:reel
     :-  %groups-0
-    %-  ~(gas by *(map cord cord))
-    :~  'inviterNickname'^'Best Sampel'
-        'inviterAvatarImage'^'https://sampel-palnet.arvo.network/best-sampel.jpg'
-        'inviterColor'^'ff.0000'
+    %-  ~(gas by *(map field:reel cord))
+    :~  %'inviterNickname'^'Best Sampel'
+        %'inviterAvatarImage'^'https://sampel-palnet.arvo.network/best-sampel.jpg'
+        %'inviterColor'^'ff.0000'
     ==
   ;<  ~  bind:m
     %+  ex-cards  caz
@@ -303,26 +329,26 @@
   ;<  =metadata:reel  bind:m  
     (get-full-peek metadata:reel /x/v1/metadata/~sampel-palnet/sunrise)
   ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by fields.metadata) 'inviterNickname'))
+    %+  ex-equal  !>((~(get by fields.metadata) %'inviterNickname'))
     !>(`'Best Sampel')
   ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by fields.metadata) 'inviterAvatarImage'))
+    %+  ex-equal  !>((~(get by fields.metadata) %'inviterAvatarImage'))
     !>(`'https://sampel-palnet.arvo.network/best-sampel.jpg')
   ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by fields.metadata) 'inviterColor'))
+    %+  ex-equal  !>((~(get by fields.metadata) %'inviterColor'))
     !>(`'ff.0000')
   ::  verify that the local group invite has been updated
   ::
   ;<  =metadata:reel  bind:m  
     (get-full-peek metadata:reel /x/v1/metadata/~sampel-palnet/sunrise)
   ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by fields.metadata) 'inviterNickname'))
+    %+  ex-equal  !>((~(get by fields.metadata) %'inviterNickname'))
     !>(`'Best Sampel')
   ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by fields.metadata) 'inviterAvatarImage'))
+    %+  ex-equal  !>((~(get by fields.metadata) %'inviterAvatarImage'))
     !>(`'https://sampel-palnet.arvo.network/best-sampel.jpg')
   ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by fields.metadata) 'inviterColor'))
+    %+  ex-equal  !>((~(get by fields.metadata) %'inviterColor'))
     !>(`'ff.0000')
   ::  verify that unrelated profile updates do not trigger an update
   ::

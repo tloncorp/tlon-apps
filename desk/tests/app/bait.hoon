@@ -4,42 +4,40 @@
 |%
 +$  state-2
   $:  %2
-      token-metadata=(map token:reel metadata:reel)
+      token-metadata=(map token:reel metadata:v0:reel)
   ==
 +$  state-3
   $:  %3
-      token-metadata=(map token:reel metadata:reel)
+      token-metadata=(map token:reel metadata:v1:reel)
       stable-id=(jug cord token:reel)
       branch-secret=@t
   ==
 ++  dap  %bait-test
 ++  group-invite-meta
   ^~
-  ^-  metadata:reel
+  ^-  metadata:v1:reel
   :-  %group-0
   %-  my
-  :~  ['inviterUserId' '~sampel-palnet']
-      ['inviterNickname' 'Sampel Palnet']
-      ['inviterAvatarImage' 'https://sampel-palnet.arvo.network/avatar.png']
-      ['invitedGroupTitle' 'Sunrise']
-      ['invitedGroupDescription' '']
-      ['invitedGroupId' '~sampel-palnet/sunrise']
-      ['invitedGroupIconImageUrl' 'https://sampel-palnet.arvo.network/sunrise.jpg']
-      ['group' '~sampel-palnet/sunrise']
-      ['bite-type' '2']
+  :~  [%'inviterUserId' '~sampel-palnet']
+      [%'inviterNickname' 'Sampel Palnet']
+      [%'inviterAvatarImage' 'https://sampel-palnet.arvo.network/avatar.png']
+      [%'invitedGroupTitle' 'Sunrise']
+      [%'invitedGroupDescription' '']
+      [%'invitedGroupId' '~sampel-palnet/sunrise']
+      [%'invitedGroupIconImageUrl' 'https://sampel-palnet.arvo.network/sunrise.jpg']
+      [%'bite-type' '2']
   ==
 ++  personal-invite-meta
   ^~
-  ^-  metadata:reel
+  ^-  metadata:v1:reel
   :-  %group-0
   %-  my
-  :~  ['inviterUserId' '~sampel-palnet']
-      ['inviterNickname' 'Sampel Palnet']
-      ['inviterAvatarImage' 'https://sampel-palnet.arvo.network/avatar.png']
-      ['inviteType' 'user']
-      ['invitedGroupId' '']
-      ['group' '~zod/personal-invite-link']
-      ['bite-type' '2']
+  :~  [%'inviterUserId' '~sampel-palnet']
+      [%'inviterNickname' 'Sampel Palnet']
+      [%'inviterAvatarImage' 'https://sampel-palnet.arvo.network/avatar.png']
+      [%'inviteType' 'user']
+      [%'invitedGroupId' '']
+      [%'bite-type' '2']
   ==
 ++  do-bait-describe
   |=  [id=@uv =metadata:reel]
@@ -70,7 +68,7 @@
   |=  id=@uv
   (get-full-peek metadata:reel /x/(scot %uv id)/metadata)
 ++  get-metadata-field
-  |=  [id=@uv field=@t]
+  |=  [id=@uv =field:reel]
   =/  m  (mare (unit @t))
   ^-  form:m
   ;<  =metadata:reel  bind:m  (get-metadata id)
@@ -124,22 +122,22 @@
   ?.  ?=([%give %fact *] car)  fail
   ?.  =(paths paths.p.car)     fail
   ~
-::  +test-state-2-to-3: test v2 -> v3 migration
+::  +test-migration-2-to-3: test v2 -> v3 migration
 ::
 ::  the v3 migration introduces a stable-id index in the bait agent.
 ::  this index maps group ids to a set of associated lure invites to
 ::  facilitate quick lookup when a group metadata are updated.
 ::
-++  test-state-2-to-3
+++  test-migration-2-to-3
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   =/  =state-2
     :-  %2
-    ^-  (map token:reel metadata:reel)
+    ^-  (map token:reel metadata:v0:reel)
     %-    my
     :~  :-  ~.0v1 
-        ^-  metadata:reel
+        ^-  metadata:v0:reel
         :-  %group-0
         %-  my
         :~  'invitedGroupTitle'^'Sunrise' 
@@ -148,16 +146,16 @@
         ==
       ::
         :-  ~.0v2
-        ^-  metadata:reel
+        ^-  metadata:v0:reel
         :-  %group-0
         %-  my
-        :~  'invitedGroupTitle'^'Sunrise' 
-            'invitedGroupId'^'~sampel-palnet/sunrise'
+        :~  'title'^'Sunrise' 
+            'group'^'~sampel-palnet/sunrise'
             'inviterName'^'~palfed-samnet'
         ==
       ::
         :-  ~.0v3  
-        ^-  metadata:reel
+        ^-  metadata:v0:reel
         :-  %group-0
         %-  my
         :~  'inviterUserId'^'~sampel-palnet' 
@@ -170,7 +168,7 @@
   ;<  *  bind:m  (do-init dap bait-agent)
   ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(eny 0v123)))
   ;<  caz=(list card)  bind:m  (do-load bait-agent `!>(state-2))
-  ::  after the migration, the ~sampel-palnet/sunrise group is indexed with two invites.
+  ::  the ~sampel-palnet/sunrise group is indexed with two invites.
   ::  the personal invite has not been indexed.
   ::
   ;<  save=vase  bind:m  get-save
@@ -183,6 +181,13 @@
     %+  ex-equal  
       !>((~(get by stable-id.state) '~zod/personal-invite-link'))
     !>(`(unit (set token:reel))`~)
+  ::  the 0v3 invite has the 'invitedGroupId' field set – it was migrated
+  ::  from the old 'group' field
+  ::
+  ;<  group=(unit @t)  bind:m  (get-metadata-field 0v2 %'invitedGroupId')
+  ;<  ~  bind:m  (ex-equal !>(group) !>(`'~sampel-palnet/sunrise'))
+  ;<  title=(unit @t)  bind:m  (get-metadata-field 0v2 %'invitedGroupTitle')
+  ;<  ~  bind:m  (ex-equal !>(title) !>(`'Sunrise'))
   (pure:m ~)
 ::  +test-bait-describe: test lure invite registration
 ::  
@@ -254,7 +259,7 @@
     ^-  metadata:reel
     :-  %group-0
     %-  my
-    :~  ['invitedGroupTitle' 'Early Sunrise']
+    :~  [%'invitedGroupTitle' 'Early Sunrise']
     ==
   ;<  ~  bind:m  (set-src ~sampel-botnet)
   ;<  caz=(list card)  bind:m  (do-poke bait-update+!>([~.0v1 metadata]))
@@ -262,11 +267,11 @@
     %+  ex-cards  caz
     :~  (ex-arvo-wire /branch/0v1)
     ==
-  ;<  title=(unit @t)  bind:m  (get-metadata-field 0v1 'invitedGroupTitle')
+  ;<  title=(unit @t)  bind:m  (get-metadata-field 0v1 %'invitedGroupTitle')
   ;<  ~  bind:m  (ex-equal !>(title) !>(`'Early Sunrise'))
-  ;<  title=(unit @t)  bind:m  (get-metadata-field 0v2 'invitedGroupTitle')
+  ;<  title=(unit @t)  bind:m  (get-metadata-field 0v2 %'invitedGroupTitle')
   ;<  ~  bind:m  (ex-equal !>(title) !>(`'Sunrise'))
-  ;<  title=(unit @t)  bind:m  (get-metadata-field 0v3 'invitedGroupTitle')
+  ;<  title=(unit @t)  bind:m  (get-metadata-field 0v3 %'invitedGroupTitle')
   ;<  ~  bind:m  (ex-equal !>(title) !>(`'Sunrise'))
   ::  the group host automatically updates all associated lure invites,
   ::  also triggering branch.io metadata update.
@@ -280,9 +285,9 @@
         (ex-arvo-wire /branch/0v1)
         (ex-arvo-wire /branch/0v3)
     ==
-  ;<  title=(unit @t)  bind:m  (get-metadata-field 0v2 'invitedGroupTitle')
+  ;<  title=(unit @t)  bind:m  (get-metadata-field 0v2 %'invitedGroupTitle')
   ;<  ~  bind:m  (ex-equal !>(title) !>(`'Early Sunrise'))
-  ;<  title=(unit @t)  bind:m  (get-metadata-field 0v3 'invitedGroupTitle')
+  ;<  title=(unit @t)  bind:m  (get-metadata-field 0v3 %'invitedGroupTitle')
   ;<  ~  bind:m  (ex-equal !>(title) !>(`'Early Sunrise'))
   (pure:m ~)
 ::  +test-invite-post
