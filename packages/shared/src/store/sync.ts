@@ -275,7 +275,7 @@ export const syncLatestPosts = async (
  * This function internally enqueues work on the sync queue; do not
  * explicitly enqueue this function, or else sync threads will get clogged up.
  */
-const syncRelevantChannelPosts = async (
+export const syncRelevantChannelPosts = async (
   ctx?: SyncCtx,
   queryCtx?: QueryCtx
 ): Promise<void> => {
@@ -1817,14 +1817,6 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     updateSession({ phase: 'ready' });
 
     await failEnqueuedPosts();
-
-    // fire off relevant channel posts sync, but don't wait for it
-    // TODO: maybe re-enable. My hunch is it's quick to layer this in as a new scry
-    // that can do what we want in one round trip. Pairing that with changes might be
-    // a better path forward compared to reviving the functionality as it was.
-    // syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
-    //   logger.crumb(`finished channel predictive sync`);
-    // });
 
     // post sync initialization work
     await verifyUserInviteLink();
