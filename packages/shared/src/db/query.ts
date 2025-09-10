@@ -68,7 +68,7 @@ export const createReadQuery = <TOptions, TReturn>(
 export const createWriteQuery = <TOptions, TReturn>(
   label: string,
   queryFn: QueryFn<TOptions, TReturn>,
-  tableEffects: TableName[]
+  tableEffects: TableParam<TOptions>
 ): WrappedQuery<TOptions, TReturn> => {
   return createQuery(queryFn, {
     label,

@@ -163,14 +163,21 @@ export const syncBlockedUsers = async (ctx?: SyncCtx) => {
   await db.insertBlockedContacts({ blockedIds });
 };
 
-export const syncSince = async (ctx?: QueryCtx) => {
-  const syncCtx: SyncCtx = { priority: SyncPriority.High };
+export const syncSince = async ({
+  queryCtx,
+  syncCtx = { priority: SyncPriority.High },
+  since,
+}: {
+  queryCtx?: QueryCtx;
+  syncCtx?: SyncCtx;
+  since?: number;
+} = {}) => {
   logger.log(`syncing since...`);
   try {
-    await (ctx
-      ? syncLatestChanges({ syncCtx, queryCtx: ctx })
-      : batchEffects('syncSince', async (queryCtx) => {
-          await syncLatestChanges({ syncCtx, queryCtx });
+    await (queryCtx
+      ? syncLatestChanges({ since, syncCtx, queryCtx })
+      : batchEffects('syncSince', async (batchCtx) => {
+          await syncLatestChanges({ since, syncCtx, queryCtx: batchCtx });
         }));
   } catch (e) {
     logger.trackError('sync since failed', {
