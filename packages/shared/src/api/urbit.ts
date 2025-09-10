@@ -106,7 +106,7 @@ const config: Config = {
   handleAuthFailure: undefined,
 };
 
-export const client = new Proxy(
+const client = new Proxy(
   {},
   {
     get: function (target, prop, receiver) {

@@ -5,7 +5,6 @@ import {
   RNFile,
   StorageConfiguration,
   StorageCredentials,
-  client,
   scry,
 } from '../../api';
 import { createDevLogger } from '../../debug';
