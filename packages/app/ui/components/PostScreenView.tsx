@@ -9,7 +9,7 @@ import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import * as urbit from '@tloncorp/shared/urbit';
-import { Story } from '@tloncorp/shared/urbit';
+import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { Carousel, ForwardingProps } from '@tloncorp/ui';
 import { KeyboardAvoidingView } from '@tloncorp/ui';
 import {
@@ -75,6 +75,98 @@ interface ChannelContext {
   onPressDelete: (post: db.Post) => void;
 }
 
+interface GalleryDraftInputProps {
+  channel: db.Channel;
+  editPost: (
+    post: db.Post,
+    content: Story,
+    parentId?: string,
+    metadata?: db.PostMetadata
+  ) => Promise<void>;
+  editingPost?: db.Post;
+  getDraft: (draftType?: string) => Promise<JSONContent | null>;
+  group: db.Group | null;
+  clearDraft: (draftType?: string) => Promise<void>;
+  setEditingPost?: (post: db.Post | undefined) => void;
+  setShouldBlur: (shouldBlur: boolean) => void;
+  shouldBlur: boolean;
+  storeDraft: (content: JSONContent, draftType?: string) => Promise<void>;
+}
+
+const GalleryDraftInput = memo(function GalleryDraftInput({
+  channel,
+  editPost,
+  editingPost,
+  getDraft,
+  group,
+  clearDraft,
+  setEditingPost,
+  setShouldBlur,
+  shouldBlur,
+  storeDraft,
+}: GalleryDraftInputProps) {
+  const configuration = useMemo(
+    () =>
+      channel.contentConfiguration == null
+        ? undefined
+        : ChannelContentConfiguration.draftInput(channel.contentConfiguration)
+            .configuration,
+    [channel.contentConfiguration]
+  );
+
+  const noOpCallbacks = useMemo(
+    () => ({
+      onPresentationModeChange: () => {},
+      sendPost: async () => {},
+      sendPostFromDraft: async () => {},
+    }),
+    []
+  );
+
+  const draftInputContext = useMemo(
+    () => ({
+      configuration,
+      draftInputRef: { current: null },
+      editPost,
+      editingPost,
+      getDraft,
+      group,
+      channel,
+      clearDraft,
+      onPresentationModeChange: noOpCallbacks.onPresentationModeChange,
+      sendPost: noOpCallbacks.sendPost,
+      sendPostFromDraft: noOpCallbacks.sendPostFromDraft,
+      setEditingPost,
+      setShouldBlur,
+      shouldBlur,
+      storeDraft,
+    }),
+    [
+      configuration,
+      editPost,
+      editingPost,
+      getDraft,
+      group,
+      channel,
+      clearDraft,
+      noOpCallbacks.onPresentationModeChange,
+      noOpCallbacks.sendPost,
+      noOpCallbacks.sendPostFromDraft,
+      setEditingPost,
+      setShouldBlur,
+      shouldBlur,
+      storeDraft,
+    ]
+  );
+
+  return (
+    <DraftInputView
+      draftInputContext={draftInputContext}
+      type={DraftInputId.gallery}
+    />
+  );
+});
+
 export function PostScreenView({
   channel,
   group,
@@ -101,6 +193,7 @@ export function PostScreenView({
 } & ChannelContext) {
   const isWindowNarrow = utils.useIsWindowNarrow();
   const currentUserId = useCurrentUserId();
+  const currentUserIsAdmin = utils.useIsAdmin(group?.id ?? '', currentUserId);
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
 
   // If this screen is showing a single post, this is equivalent to `parentPost`.
@@ -127,7 +220,7 @@ export function PostScreenView({
     if (channel.type === 'notebook' && mode !== 'single') {
       return false;
     }
-    
+
     // For gallery posts, allow editing in both single and carousel modes
     // since we're editing the currently focused post in the carousel
     if (channel.type === 'gallery' || mode === 'single') {
@@ -135,7 +228,7 @@ export function PostScreenView({
         !editingPost &&
         negotiationMatch &&
         (channel.type === 'notebook' || channel.type === 'gallery') &&
-        parentPost?.authorId === currentUserId
+        (parentPost?.authorId === currentUserId || currentUserIsAdmin)
       );
     }
 
@@ -147,24 +240,18 @@ export function PostScreenView({
     channel.type,
     parentPost?.authorId,
     currentUserId,
+    currentUserIsAdmin,
   ]);
 
   const handleEditPress = useCallback(() => {
-    const postToEdit = mode === 'carousel' ? (focusedPost ?? parentPost) : parentPost;
-    setEditingPost?.(postToEdit ?? undefined);
-  }, [mode, focusedPost, parentPost, setEditingPost]);
+    setEditingPost?.(focusedPost ?? undefined);
+  }, [focusedPost, setEditingPost]);
 
   const { bottom } = useSafeAreaInsets();
 
   const isEditingParent = useMemo(() => {
-    if (!editingPost) return false;
-    // In single mode, check if editing the parent post
-    if (mode === 'single') {
-      return editingPost.id === parentPost?.id;
-    }
-    // In carousel mode, check if editing the focused post OR the parent post
-    return editingPost.id === focusedPost?.id || editingPost.id === parentPost?.id;
-  }, [editingPost, parentPost, mode, focusedPost]);
+    return editingPost?.id === focusedPost?.id;
+  }, [editingPost, focusedPost]);
 
   const onPressGroupRef = useCallback((group: db.Group) => {
     setGroupPreview(group);
@@ -528,7 +615,10 @@ function SinglePostView({
       {negotiationMatch &&
         channel &&
         canWrite &&
-        !(isEditingParent && (channel.type === 'notebook' || channel.type === 'gallery')) && (
+        !(
+          isEditingParent &&
+          (channel.type === 'notebook' || channel.type === 'gallery')
+        ) && (
           <View id="reply-container" {...containingProperties}>
             <BareChatInput
               placeholder="Reply"
@@ -583,30 +673,17 @@ function SinglePostView({
           backgroundColor="$background"
         >
           {channel.type === 'gallery' ? (
-            <DraftInputView
-              draftInputContext={{
-                configuration:
-                  channel.contentConfiguration == null
-                    ? undefined
-                    : ChannelContentConfiguration.draftInput(
-                        channel.contentConfiguration
-                      ).configuration,
-                draftInputRef: { current: null },
-                editPost,
-                editingPost,
-                getDraft,
-                group,
-                channel,
-                clearDraft,
-                onPresentationModeChange: () => {},
-                sendPost: async () => {},
-                sendPostFromDraft: async () => {},
-                setEditingPost,
-                setShouldBlur: setInputShouldBlur,
-                shouldBlur: inputShouldBlur,
-                storeDraft,
-              }}
-              type={DraftInputId.gallery}
+            <GalleryDraftInput
+              channel={channel}
+              editPost={editPost}
+              editingPost={editingPost}
+              getDraft={getDraft}
+              group={group}
+              clearDraft={clearDraft}
+              setEditingPost={setEditingPost}
+              setShouldBlur={setInputShouldBlur}
+              shouldBlur={inputShouldBlur}
+              storeDraft={storeDraft}
             />
           ) : (
             <BigInput
