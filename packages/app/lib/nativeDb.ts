@@ -3,6 +3,7 @@ import { AnalyticsEvent, AnalyticsSeverity, escapeLog } from '@tloncorp/shared';
 import * as kv from '@tloncorp/shared/db';
 import { schema, setClient } from '@tloncorp/shared/db';
 
+import { COSMOS_ENABLED } from '../constants';
 import {
   BaseDb,
   enableLogger,
@@ -19,6 +20,10 @@ export class NativeDb extends BaseDb {
   private changesPending: boolean = false;
   private didMigrate: boolean = false;
 
+  // NB: the iOS code in SQLiteDB.swift relies on this path - if you change
+  // this, you should change that too.
+  private databaseName: string = COSMOS_ENABLED ? ':memory:' : 'tlon.sqlite';
+
   async setupDb() {
     logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
       context: 'setupDb: starting setup',
@@ -31,9 +36,7 @@ export class NativeDb extends BaseDb {
     }
     try {
       this.connection = new OPSQLite$SQLiteConnection(
-        // NB: the iOS code in SQLiteDB.swift relies on this path - if you change
-        // this, you should change that too.
-        open({ location: 'default', name: 'tlon.sqlite' })
+        open({ location: 'default', name: this.databaseName })
       );
       // Experimental SQLite settings. May cause crashes. More here:
       // https://ospfranco.notion.site/Configuration-6b8b9564afcc4ac6b6b377fe34475090
