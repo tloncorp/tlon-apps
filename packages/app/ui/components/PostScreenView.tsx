@@ -1,8 +1,10 @@
 import {
+  DraftInputId,
   isChatChannel as getIsChatChannel,
   makePrettyDayAndTime,
   useDebouncedValue,
 } from '@tloncorp/shared';
+import { ChannelContentConfiguration } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
@@ -38,6 +40,7 @@ import {
   ChannelHeader,
   ChannelHeaderItemsProvider,
 } from './Channel/ChannelHeader';
+import { DraftInputView } from './Channel/DraftInputView';
 import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
@@ -98,10 +101,6 @@ export function PostScreenView({
 } & ChannelContext) {
   const isWindowNarrow = utils.useIsWindowNarrow();
   const currentUserId = useCurrentUserId();
-  const currentUserIsAdmin = utils.useIsAdmin(
-    channel.groupId ?? '',
-    currentUserId
-  );
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
 
   // If this screen is showing a single post, this is equivalent to `parentPost`.
@@ -124,37 +123,48 @@ export function PostScreenView({
   }, [channel, parentPost, isWindowNarrow]);
 
   const showEdit = useMemo(() => {
-    // This logic assumes this screen only shows a single post - if we're
-    // swapping out different posts (e.g. in a carousel), we'll need to rewrite
-    // this to look at the currently-focused post.
-    // No need to at the moment because we only allow edit in notebooks.
-    if (mode !== 'single') {
+    // For notebook posts, only show edit button in single mode
+    if (channel.type === 'notebook' && mode !== 'single') {
       return false;
     }
+    
+    // For gallery posts, allow editing in both single and carousel modes
+    // since we're editing the currently focused post in the carousel
+    if (channel.type === 'gallery' || mode === 'single') {
+      return (
+        !editingPost &&
+        negotiationMatch &&
+        (channel.type === 'notebook' || channel.type === 'gallery') &&
+        parentPost?.authorId === currentUserId
+      );
+    }
 
-    return (
-      !editingPost &&
-      channel.type === 'notebook' &&
-      (parentPost?.authorId === currentUserId || currentUserIsAdmin)
-    );
+    return false;
   }, [
     mode,
     editingPost,
+    negotiationMatch,
     channel.type,
     parentPost?.authorId,
     currentUserId,
-    currentUserIsAdmin,
   ]);
 
   const handleEditPress = useCallback(() => {
-    setEditingPost?.(parentPost ?? undefined);
-  }, [parentPost, setEditingPost]);
+    const postToEdit = mode === 'carousel' ? (focusedPost ?? parentPost) : parentPost;
+    setEditingPost?.(postToEdit ?? undefined);
+  }, [mode, focusedPost, parentPost, setEditingPost]);
 
   const { bottom } = useSafeAreaInsets();
 
   const isEditingParent = useMemo(() => {
-    return editingPost && editingPost.id === parentPost?.id;
-  }, [editingPost, parentPost]);
+    if (!editingPost) return false;
+    // In single mode, check if editing the parent post
+    if (mode === 'single') {
+      return editingPost.id === parentPost?.id;
+    }
+    // In carousel mode, check if editing the focused post OR the parent post
+    return editingPost.id === focusedPost?.id || editingPost.id === parentPost?.id;
+  }, [editingPost, parentPost, mode, focusedPost]);
 
   const onPressGroupRef = useCallback((group: db.Group) => {
     setGroupPreview(group);
@@ -518,7 +528,7 @@ function SinglePostView({
       {negotiationMatch &&
         channel &&
         canWrite &&
-        !(isEditingParent && channel.type === 'notebook') && (
+        !(isEditingParent && (channel.type === 'notebook' || channel.type === 'gallery')) && (
           <View id="reply-container" {...containingProperties}>
             <BareChatInput
               placeholder="Reply"
@@ -572,22 +582,50 @@ function SinglePostView({
           bottom={0}
           backgroundColor="$background"
         >
-          <BigInput
-            channelType={urbit.getChannelType(parentPost.channelId)}
-            channelId={parentPost?.channelId}
-            editingPost={editingPost}
-            setEditingPost={setEditingPost}
-            editPost={editPost}
-            shouldBlur={inputShouldBlur}
-            setShouldBlur={setInputShouldBlur}
-            sendPost={async () => {}}
-            sendPostFromDraft={async () => {}}
-            getDraft={getDraft}
-            storeDraft={storeDraft}
-            clearDraft={clearDraft}
-            groupMembers={groupMembers}
-            groupRoles={groupRoles}
-          />
+          {channel.type === 'gallery' ? (
+            <DraftInputView
+              draftInputContext={{
+                configuration:
+                  channel.contentConfiguration == null
+                    ? undefined
+                    : ChannelContentConfiguration.draftInput(
+                        channel.contentConfiguration
+                      ).configuration,
+                draftInputRef: { current: null },
+                editPost,
+                editingPost,
+                getDraft,
+                group,
+                channel,
+                clearDraft,
+                onPresentationModeChange: () => {},
+                sendPost: async () => {},
+                sendPostFromDraft: async () => {},
+                setEditingPost,
+                setShouldBlur: setInputShouldBlur,
+                shouldBlur: inputShouldBlur,
+                storeDraft,
+              }}
+              type={DraftInputId.gallery}
+            />
+          ) : (
+            <BigInput
+              channelType={urbit.getChannelType(parentPost.channelId)}
+              channelId={parentPost?.channelId}
+              editingPost={editingPost}
+              setEditingPost={setEditingPost}
+              editPost={editPost}
+              shouldBlur={inputShouldBlur}
+              setShouldBlur={setInputShouldBlur}
+              sendPost={async () => {}}
+              sendPostFromDraft={async () => {}}
+              getDraft={getDraft}
+              storeDraft={storeDraft}
+              clearDraft={clearDraft}
+              groupMembers={groupMembers}
+              groupRoles={groupRoles}
+            />
+          )}
         </View>
       ) : null}
     </YStack>
