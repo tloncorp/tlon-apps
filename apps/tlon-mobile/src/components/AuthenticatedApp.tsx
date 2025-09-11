@@ -37,7 +37,7 @@ function AuthenticatedApp() {
 
   const handleAppStatusChange = useCallback(
     (status: AppStatus) => {
-      // app opened
+      // app opened or returned from background
       if (status === 'opened' || status === 'active') {
         telemetry.captureAppActive();
         checkNodeStopped();
