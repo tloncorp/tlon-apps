@@ -163,13 +163,22 @@ export const syncBlockedUsers = async (ctx?: SyncCtx) => {
   await db.insertBlockedContacts({ blockedIds });
 };
 
-export const syncSince = async () => {
-  const syncCtx: SyncCtx = { priority: SyncPriority.High };
+export const syncSince = async ({
+  queryCtx,
+  syncCtx = { priority: SyncPriority.High },
+  since,
+}: {
+  queryCtx?: QueryCtx;
+  syncCtx?: SyncCtx;
+  since?: number;
+} = {}) => {
   logger.log(`syncing since...`);
   try {
-    await batchEffects('syncSince', async (queryCtx) => {
-      await syncLatestChanges({ syncCtx, queryCtx });
-    });
+    await (queryCtx
+      ? syncLatestChanges({ since, syncCtx, queryCtx })
+      : batchEffects('syncSince', async (batchCtx) => {
+          await syncLatestChanges({ since, syncCtx, queryCtx: batchCtx });
+        }));
   } catch (e) {
     logger.trackError('sync since failed', {
       errorMessage: e.message,
@@ -188,6 +197,7 @@ export const syncLatestChanges = async ({
   syncCtx?: SyncCtx;
   queryCtx?: QueryCtx;
   since?: number;
+  yieldWriter?: boolean;
 }): Promise<void> => {
   const start = Date.now();
   let syncFrom = (await db.changesSyncedAt.getValue()) ?? start;
@@ -306,7 +316,7 @@ export const syncRelevantChannelPosts = async (
   }
 };
 
-export const pullSettings = async (ctx?: SyncCtx) => {
+export const syncSettings = async (ctx?: SyncCtx) => {
   const settings = await syncQueue.add('settings', ctx, () =>
     api.getSettings()
   );
@@ -439,7 +449,11 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
   }
 };
 
-export const syncContacts = async (ctx?: SyncCtx, yieldWriter = false) => {
+export const syncContacts = async (
+  ctx?: SyncCtx,
+  queryCtx?: QueryCtx,
+  yieldWriter?: boolean
+) => {
   const contacts = await syncQueue.add('contacts', ctx, () =>
     api.getContacts()
   );
@@ -447,7 +461,7 @@ export const syncContacts = async (ctx?: SyncCtx, yieldWriter = false) => {
 
   const writer = async () => {
     try {
-      await db.insertContacts(contacts);
+      await db.insertContacts(contacts, queryCtx);
       LocalCache.cacheContacts(contacts);
     } catch (e) {
       logger.error('error inserting contacts', e);
@@ -1614,7 +1628,6 @@ export const handleDiscontinuity = async () => {
     return;
   }
   updateSession(null);
-  syncSince();
 
   // drop potentially outdated newest post markers
   channelCursors.clear();
@@ -1685,27 +1698,34 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
   const startTime = Date.now();
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
 
+  if (!alreadySubscribed) {
+    await db.headsSyncedAt.resetValue();
+  }
+
   try {
     let didLoadCachedContacts = false;
 
     try {
-      await batchEffects('sync start (high)', async (ctx) => {
+      await batchEffects('sync start (high)', async (queryCtx) => {
+        await syncSince({ queryCtx });
+
         // this allows us to run the api calls first in parallel but handle
         // writing the data in a specific order
         const yieldWriter = true;
+        const highPrioritySyncCtx = {
+          priority: SyncPriority.High,
+          retry: true,
+        };
 
         // first kickoff the fetching
         const syncInitPromise = syncInitData(
-          { priority: SyncPriority.High, retry: true },
-          ctx,
+          highPrioritySyncCtx,
+          queryCtx,
           yieldWriter
         );
         const syncLatestPostsPromise = syncLatestPosts(
-          {
-            priority: SyncPriority.High,
-            retry: true,
-          },
-          ctx,
+          highPrioritySyncCtx,
+          queryCtx,
           yieldWriter
         );
         const subsPromise = alreadySubscribed
@@ -1718,10 +1738,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         // if we don't have cached contacts, we need to load them with high priority
         const syncContactsPromise = didLoadCachedContacts
           ? () => Promise.resolve()
-          : syncContacts(
-              { priority: SyncPriority.High, retry: true },
-              yieldWriter
-            );
+          : syncContacts(highPrioritySyncCtx, queryCtx, yieldWriter);
 
         const trackStep = (function () {
           let last = Date.now();
@@ -1780,7 +1797,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
             () => logger.crumb(`finished syncing contacts`)
           )
         : Promise.resolve(),
-      pullSettings({ priority: SyncPriority.Medium }).then(() =>
+      syncSettings({ priority: SyncPriority.Medium }).then(() =>
         logger.crumb(`finished syncing settings`)
       ),
       syncVolumeSettings({ priority: SyncPriority.Low }).then(() =>

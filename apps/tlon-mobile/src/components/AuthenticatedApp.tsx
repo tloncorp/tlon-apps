@@ -39,8 +39,6 @@ function AuthenticatedApp() {
     (status: AppStatus) => {
       // app opened or returned from background
       if (status === 'opened' || status === 'active') {
-        updateSession({ isSyncing: true });
-        syncSince();
         telemetry.captureAppActive();
         checkNodeStopped();
         refreshHostingAuth();
@@ -49,16 +47,11 @@ function AuthenticatedApp() {
 
       // app returned from background
       if (status === 'active') {
+        updateSession({ isSyncing: true });
+        syncSince();
         setTimeout(() => {
           sync.syncPinnedItems({ priority: sync.SyncPriority.High });
         }, 100);
-      }
-
-      // app opened
-      if (status === 'opened') {
-        db.headsSyncedAt.resetValue().then(() => {
-          sync.syncLatestPosts({ priority: sync.SyncPriority.High });
-        });
       }
     },
     [checkNodeStopped, telemetry]
