@@ -3139,6 +3139,11 @@ async function insertPosts(posts: Post[], ctx: QueryCtx) {
 }
 
 async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
+  logger.log(
+    'inserting post batch',
+    posts.map((p) => [p.id, p.channelId])
+  );
+
   await ctx.db
     .insert($posts)
     .values(
@@ -3224,6 +3229,8 @@ export const resetHiddenPosts = createWriteQuery(
 
     logger.log('resetHiddenPosts', postIds);
 
+    // Update posts to match the hidden state
+    // Set hidden=true for posts in the list, hidden=false for posts not in the list
     await ctx.db
       .update($posts)
       .set({ hidden: inArray($posts.id, postIds) })
