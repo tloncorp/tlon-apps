@@ -223,13 +223,16 @@ export const syncLatestChanges = async ({
   const result = await syncQueue.add('latestChanges', syncCtx, () => {
     return api.fetchChangesSince(syncFrom);
   });
+  logger.trackEvent('sync changes debug', { context: 'fetched changes' });
   const msToFetch = Date.now() - start;
   const doneFetching = Date.now();
   logger.log(`fetched latest changes: ${doneFetching - start}ms`, result);
 
   await db.insertChanges(result, queryCtx);
+  logger.trackEvent('sync changes debug', { context: 'inserted changes' });
   const msToWrite = Date.now() - doneFetching;
   await db.changesSyncedAt.setValue(start);
+  logger.trackEvent('sync changes debug', { context: 'updated timestamp' });
   logger.log(`inserted latest changes: ${Date.now() - doneFetching}ms`);
 
   const duration = Date.now() - start;
