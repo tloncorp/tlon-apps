@@ -48,7 +48,7 @@ function AuthenticatedApp() {
       // app returned from background
       if (status === 'active') {
         updateSession({ isSyncing: true });
-        syncSince();
+        syncSince({ callCtx: { cause: 'app-foregrounded' } });
         setTimeout(() => {
           sync.syncPinnedItems({ priority: sync.SyncPriority.High });
         }, 100);
