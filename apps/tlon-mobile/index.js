@@ -3,14 +3,13 @@ import PlatformState from '@tloncorp/app';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
 // Setup custom dev menu items
 import '@tloncorp/app/lib/devMenuItems';
-import { setupDb } from '@tloncorp/app/lib/nativeDb';
 import { setStorage } from '@tloncorp/app/ui';
 import { addCustomEnabledLoggers } from '@tloncorp/shared';
 import { useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { registerRootComponent } from 'expo';
 import 'expo-dev-client';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import 'react-native-get-random-values';
 import {
   ReanimatedLogLevel,
@@ -19,6 +18,7 @@ import {
 import { TailwindProvider } from 'tailwind-rn';
 
 import App from './src/App';
+import { GateOnDbReady } from './src/components/GateOnDbReady';
 import utilities from './tailwind.json';
 
 // Extend BigInt so serialization will never crash in JSON.parse
@@ -38,15 +38,6 @@ configureReanimatedLogger({
 });
 
 function Main(props) {
-  const [isDbReady, setIsDbReady] = useState(false);
-  useEffect(() => {
-    async function checkDb() {
-      await setupDb();
-      setIsDbReady(true);
-    }
-    checkDb();
-  }, []);
-
   useEffect(() => {
     async function init() {
       const appInfo = await db.appInfo.getValue();
@@ -58,7 +49,9 @@ function Main(props) {
 
   return (
     <TailwindProvider utilities={utilities}>
-      {isDbReady ? <App {...props} /> : null}
+      <GateOnDbReady>
+        <App {...props} />
+      </GateOnDbReady>
     </TailwindProvider>
   );
 }
