@@ -519,12 +519,16 @@ export async function editChannel(
 /**
  * Deletes a channel
  */
-export async function deleteChannel(page: Page, channelName: string) {
+export async function deleteChannel(
+  page: Page,
+  channelName: string,
+  channelIndex = 0
+) {
   // Ensure session is stable before deleting channel
   await waitForSessionStability(page);
 
   await page
-    .getByTestId(`ChannelItem-${channelName}-1`)
+    .getByTestId(`ChannelItem-${channelName}-${channelIndex}`)
     .getByTestId('EditChannelButton')
     .first()
     .click();
@@ -947,6 +951,7 @@ export async function sendThreadReply(page: Page, replyText: string) {
     .locator('#reply-container')
     .getByTestId('MessageInputSendButton')
     .click();
+  await page.waitForTimeout(1000);
   await expect(page.getByText(replyText, { exact: true })).toBeVisible();
   await page.waitForTimeout(1000);
 }
@@ -1072,6 +1077,7 @@ export async function threadQuoteReply(
     .getByTestId('MessageInputSendButton')
     .click();
 
+  await page.waitForTimeout(1000);
   await expect(page.getByText(replyText, { exact: true })).toBeVisible();
 }
 

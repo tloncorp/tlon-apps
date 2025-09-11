@@ -158,6 +158,7 @@ async function _sendPost({
     authorId,
     author,
     channel,
+    sequenceNum: 0, // placeholder, this will be overwritten by the server
     content: optimisticPostData.content,
     metadata: optimisticPostData.metadata,
     deliveryStatus: 'enqueued',
@@ -547,11 +548,12 @@ export async function sendReply({
     authorId,
     author,
     channel: channel,
+    sequenceNum: 0, // replies do not have sequence numbers, use 0
     content,
     parentId,
     deliveryStatus: 'enqueued',
   });
-  await db.insertChannelPosts({ channelId: channel.id, posts: [cachePost] });
+  await db.insertChannelPosts({ posts: [cachePost] });
   await db.addReplyToPost({
     parentId,
     replyAuthor: cachePost.authorId,
@@ -602,7 +604,7 @@ export async function hidePost({ post }: { post: db.Post }) {
   try {
     await sessionActionQueue.add(() => api.hidePost(post));
   } catch (e) {
-    console.error('Failed to hide post', e);
+    logger.trackError('Failed to hide post', e);
 
     // rollback optimistic update
     await db.updatePost({ id: post.id, hidden: false });
@@ -670,7 +672,12 @@ export async function reportPost({
   post: db.Post;
 }) {
   if (!post.groupId) {
-    console.error('Cannot report post without groupId', post);
+    logger.trackError('Cannot report post without groupId', {
+      postId: post.id,
+      channelId: post.channelId,
+      authorId: post.authorId,
+      sentAt: post.sentAt,
+    });
     return;
   }
 
@@ -683,7 +690,7 @@ export async function reportPost({
     );
     await hidePost({ post });
   } catch (e) {
-    console.error('Failed to report post', e);
+    logger.trackError('Failed to report post', e);
 
     // rollback optimistic update
     await db.updatePost({ id: post.id, hidden: false });

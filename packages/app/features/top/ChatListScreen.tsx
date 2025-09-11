@@ -99,15 +99,23 @@ export function ChatListScreenView({
     }, 200);
   }, [navigation]);
 
-  const handlePressInvite = useCallback((groupId: string) => {
-    navigation.navigate('InviteUsers', { groupId });
-  }, [navigation]);
+  const handlePressInvite = useCallback(
+    (groupId: string) => {
+      navigation.navigate('InviteUsers', { groupId });
+    },
+    [navigation]
+  );
 
   const connStatus = store.useConnectionStatus();
+  const isSyncing = store.useIsSyncing();
   const notReadyMessage: string | null = useMemo(() => {
     // if not fully connected yet, show status
-    if (connStatus !== 'Connected') {
-      return `${connStatus}...`;
+    // if (connStatus !== 'Connected') {
+    //   return `${connStatus}...`;
+    // }
+
+    if (isSyncing) {
+      return 'Syncing...';
     }
 
     // if still loading the screen data, show loading
@@ -116,7 +124,7 @@ export function ChatListScreenView({
     }
 
     return null;
-  }, [connStatus, chats]);
+  }, [isSyncing, chats]);
 
   /* Log an error if this screen takes more than 30 seconds to resolve to "Connected" */
   const connectionTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -264,7 +272,7 @@ export function ChatListScreenView({
       useApp={db.appInfo.useValue}
       useGroup={store.useGroupPreview}
     >
-      <ChatOptionsProvider 
+      <ChatOptionsProvider
         {...useChatSettingsNavigation()}
         onPressInvite={handlePressInvite}
       >

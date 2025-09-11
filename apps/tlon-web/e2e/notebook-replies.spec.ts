@@ -137,6 +137,7 @@ test('should add and verify replies to a notebook post', async ({
   await helpers.sendMessage(zodPage, 'This is a reply from ~zod');
 
   // Verify the reply was posted
+  await zodPage.waitForTimeout(1000);
   await expect(zodPage.getByText('This is a reply from ~zod')).toBeVisible({
     timeout: 5000,
   });
@@ -165,6 +166,7 @@ test('should add and verify replies to a notebook post', async ({
   await helpers.sendMessage(tenPage, 'This is a reply from ~ten');
 
   // Verify both replies are visible
+  await tenPage.waitForTimeout(1000);
   await expect(tenPage.getByText('This is a reply from ~ten')).toBeVisible({
     timeout: 5000,
   });
