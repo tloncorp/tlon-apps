@@ -3070,14 +3070,21 @@ export const getChannelSearchResults = createReadQuery(
 export const insertChanges = createWriteQuery(
   'insertChanges',
   async (input: ChangesResult, ctx: QueryCtx) => {
-    return withTransactionCtx(ctx, async (txCtx) => {
-      await insertChannelPosts({ posts: input.posts }, txCtx);
-      await insertGroups({ groups: input.groups }, txCtx);
-      await insertContacts(input.contacts, txCtx);
-      await insertGroupUnreads(input.unreads.groupUnreads, ctx);
-      await insertChannelUnreads(input.unreads.channelUnreads, ctx);
-      await insertThreadUnreads(input.unreads.threadActivity, ctx);
-    });
+    try {
+      await withTransactionCtx(ctx, async (txCtx) => {
+        await insertChannelPosts({ posts: input.posts }, txCtx);
+        await insertGroups({ groups: input.groups }, txCtx);
+        await insertContacts(input.contacts, txCtx);
+        await insertGroupUnreads(input.unreads.groupUnreads, ctx);
+        await insertChannelUnreads(input.unreads.channelUnreads, ctx);
+        await insertThreadUnreads(input.unreads.threadActivity, ctx);
+      });
+    } catch (e) {
+      logger.trackError('failed to insert changes', {
+        errorMessage: e instanceof Error ? e.message : e.toString(),
+      });
+      throw e;
+    }
   },
   []
 );
