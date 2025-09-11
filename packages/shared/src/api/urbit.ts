@@ -601,7 +601,7 @@ export async function scry<T>({
       return result;
     }
     trackDuration('error', {
-      message: res.message,
+      errorMessage: res.message,
       responseStatus: res.status,
     });
     throw new BadResponseError(res.status, res.toString());
@@ -787,6 +787,7 @@ function createDurationTracker<T extends Record<string, any>>(
       ...data,
       ...properties,
       status,
+      scryStatus: status,
       duration: Date.now() - startTime,
     });
   };
