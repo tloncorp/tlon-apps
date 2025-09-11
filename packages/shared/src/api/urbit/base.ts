@@ -1,9 +1,9 @@
 import { Noun } from '@urbit/nockjs';
 import _ from 'lodash';
 
-import { createDevLogger, escapeLog, runIfDev } from '../debug';
-import { AnalyticsEvent, getConstants } from '../domain';
-import * as Hosting from '../domain/hosting';
+import { createDevLogger, escapeLog, runIfDev } from '../../debug';
+import { AnalyticsEvent, getConstants } from '../../domain';
+import * as Hosting from '../../domain/hosting';
 import {
   AuthError,
   ChannelStatus,
@@ -11,9 +11,9 @@ import {
   PokeInterface,
   Thread,
   Urbit,
-} from '../http-api';
-import { preSig } from '../urbit';
-import { getLandscapeAuthCookie } from './landscapeApi';
+} from '../../http-api';
+import { preSig } from '../../urbit';
+import { getLandscapeAuthCookie } from './../landscapeApi';
 
 const logger = createDevLogger('urbit', false);
 
