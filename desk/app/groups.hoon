@@ -2876,7 +2876,7 @@
   ++  go-restart-updates
     |=  error=(unit @t)
     ^+  go-core
-    %-  ?~  error  same
+    =.  cor  ?~  error  cor
       (~(tell l ~) %crit 'fully restarting updates' u.error ~)
     =.  go-core   go-leave-subs
     ::  if this gets called on the group host, something is horribly wrong
