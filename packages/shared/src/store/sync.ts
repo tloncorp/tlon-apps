@@ -166,21 +166,29 @@ export const syncBlockedUsers = async (ctx?: SyncCtx) => {
 export const syncSince = async ({
   queryCtx,
   syncCtx = { priority: SyncPriority.High },
+  callCtx = {},
   since,
 }: {
   queryCtx?: QueryCtx;
   syncCtx?: SyncCtx;
+  callCtx?: { cause?: string };
   since?: number;
 } = {}) => {
   logger.log(`syncing since...`);
   try {
     await (queryCtx
-      ? syncLatestChanges({ since, syncCtx, queryCtx })
+      ? syncLatestChanges({ since, syncCtx, queryCtx, callCtx })
       : batchEffects('syncSince', async (batchCtx) => {
-          await syncLatestChanges({ since, syncCtx, queryCtx: batchCtx });
+          await syncLatestChanges({
+            since,
+            syncCtx,
+            queryCtx: batchCtx,
+            callCtx,
+          });
         }));
   } catch (e) {
     logger.trackError('sync since failed', {
+      ...callCtx,
       errorMessage: e.message,
       stack: e.stack,
     });
@@ -192,10 +200,12 @@ export const syncSince = async ({
 export const syncLatestChanges = async ({
   syncCtx,
   queryCtx,
+  callCtx = {},
   since,
 }: {
   syncCtx?: SyncCtx;
   queryCtx?: QueryCtx;
+  callCtx?: { cause?: string };
   since?: number;
   yieldWriter?: boolean;
 }): Promise<void> => {
@@ -223,17 +233,30 @@ export const syncLatestChanges = async ({
   const result = await syncQueue.add('latestChanges', syncCtx, () => {
     return api.fetchChangesSince(syncFrom);
   });
+  logger.trackEvent('sync changes debug', {
+    context: 'fetched changes',
+    ...callCtx,
+  });
   const msToFetch = Date.now() - start;
   const doneFetching = Date.now();
   logger.log(`fetched latest changes: ${doneFetching - start}ms`, result);
 
   await db.insertChanges(result, queryCtx);
+  logger.trackEvent('sync changes debug', {
+    context: 'inserted changes',
+    ...callCtx,
+  });
   const msToWrite = Date.now() - doneFetching;
   await db.changesSyncedAt.setValue(start);
+  logger.trackEvent('sync changes debug', {
+    context: 'updated timestamp',
+    ...callCtx,
+  });
   logger.log(`inserted latest changes: ${Date.now() - doneFetching}ms`);
 
   const duration = Date.now() - start;
   logger.trackEvent('synced latest changes', {
+    ...callCtx,
     duration,
     nodeBusyStatus: result.nodeBusyStatus,
     syncWindow: Date.now() - syncFrom,
@@ -1707,7 +1730,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
 
     try {
       await batchEffects('sync start (high)', async (queryCtx) => {
-        await syncSince({ queryCtx });
+        await syncSince({ queryCtx, callCtx: { cause: 'sync-start' } });
 
         // this allows us to run the api calls first in parallel but handle
         // writing the data in a specific order

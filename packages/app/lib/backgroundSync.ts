@@ -45,7 +45,7 @@ async function performSync() {
 
   try {
     const changesStart = Date.now();
-    await syncSince();
+    await syncSince({ callCtx: { cause: 'background-sync' } });
     timings.changesDuration = Date.now() - changesStart;
     logger.trackEvent('Background sync complete', { taskExecutionId });
   } catch (err) {
