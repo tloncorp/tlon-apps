@@ -7,6 +7,7 @@
 
 import Foundation
 import PostHog
+import ExpoModulesCore
 
 @objc
 class NotificationLogProcessor: NSObject {
@@ -54,6 +55,11 @@ class NotificationLogProcessor: NSObject {
 
     @objc
     func startPeriodicProcessing() {
+        print("configuring posthog")
+        let config = PostHogConfig(apiKey: "phc_6BDPOnBfls3Axc5WAbmN8pQKk3YqhfWoc0tXj9d9kx0", host: "https://eu.i.posthog.com")
+        PostHogSDK.shared.setup(config)
+        
+        print("posthog setup")
         // Process logs immediately
         processAndSendLogs()
 

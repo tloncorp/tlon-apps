@@ -1,6 +1,7 @@
 import * as db from '../db';
 
 export type Id =
+  | 'debugJson'
   | 'quote'
   | 'startThread'
   | 'muteThread'
@@ -30,7 +31,7 @@ export function channelActionIdsFor({
 }): Id[] {
   const channelType = channel?.type;
   let actions: Id[] = [];
-  
+
   switch (channelType) {
     case undefined:
       return [];
@@ -72,6 +73,7 @@ export function channelActionIdsFor({
       break;
     case 'chat':
       actions = [
+        'debugJson',
         'quote',
         'startThread',
         'muteThread',
@@ -90,7 +92,7 @@ export function channelActionIdsFor({
   // Filter out write-dependent actions if user cannot write
   if (canWrite === false) {
     const writeOnlyActions: Id[] = ['quote', 'startThread', 'edit'];
-    actions = actions.filter(action => !writeOnlyActions.includes(action));
+    actions = actions.filter((action) => !writeOnlyActions.includes(action));
   }
 
   return actions;
@@ -111,4 +113,5 @@ const STATIC_SPECS = {
   startThread: { isNetworkDependent: true },
   viewReactions: { isNetworkDependent: false },
   visibility: { isNetworkDependent: true },
+  debugJson: { isNetworkDependent: false },
 } satisfies Record<Id, StaticSpec>;

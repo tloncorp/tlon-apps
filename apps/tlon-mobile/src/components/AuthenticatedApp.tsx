@@ -14,7 +14,7 @@ import {
   PortalProvider,
   ZStack,
 } from '@tloncorp/app/ui';
-import { sync } from '@tloncorp/shared';
+import { sync, syncSince, updateSession } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -37,10 +37,21 @@ function AuthenticatedApp() {
 
   const handleAppStatusChange = useCallback(
     (status: AppStatus) => {
+      // app opened or returned from background
+      if (status === 'opened' || status === 'active') {
+        updateSession({ isSyncing: true });
+        syncSince();
+        telemetry.captureAppActive();
+        checkNodeStopped();
+        refreshHostingAuth();
+        checkAnalyticsDigest();
+      }
+
       // app returned from background
       if (status === 'active') {
-        sync.syncUnreads({ priority: sync.SyncPriority.High });
-        sync.syncPinnedItems({ priority: sync.SyncPriority.High });
+        setTimeout(() => {
+          sync.syncPinnedItems({ priority: sync.SyncPriority.High });
+        }, 100);
       }
 
       // app opened
@@ -48,14 +59,6 @@ function AuthenticatedApp() {
         db.headsSyncedAt.resetValue().then(() => {
           sync.syncLatestPosts({ priority: sync.SyncPriority.High });
         });
-      }
-
-      // app opened or returned from background
-      if (status === 'opened' || status === 'active') {
-        telemetry.captureAppActive();
-        checkNodeStopped();
-        refreshHostingAuth();
-        checkAnalyticsDigest();
       }
     },
     [checkNodeStopped, telemetry]

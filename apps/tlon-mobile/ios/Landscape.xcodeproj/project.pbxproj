@@ -913,7 +913,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "pnpm run --filter scripts build\n";
+			shellScript = "export PATH=/opt/homebrew/bin:$PATH\npnpm run --filter scripts build\n";
 		};
 		70DBBFE62B7C60B50021EA96 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1523,7 +1523,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 6.2.3;
+				MARKETING_VERSION = 7.0.1;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1561,7 +1561,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 6.2.3;
+				MARKETING_VERSION = 7.0.1;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1785,7 +1785,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 6.2.3;
+				MARKETING_VERSION = 7.0.1;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1828,7 +1828,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 6.2.3;
+				MARKETING_VERSION = 7.0.1;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",

@@ -45,6 +45,7 @@ export async function scaffoldPersonalGroup() {
       groupId: PersonalGroupKeys.groupId,
       type: 'chat',
       title: PersonalGroupKeys.chatChannelName,
+      lastPostSequenceNum: 0,
     };
 
     const collectionChannel: db.Channel = {
@@ -52,6 +53,7 @@ export async function scaffoldPersonalGroup() {
       groupId: PersonalGroupKeys.groupId,
       type: 'gallery',
       title: PersonalGroupKeys.collectionChannelName,
+      lastPostSequenceNum: 0,
     };
 
     const notebookChannel: db.Channel = {
@@ -59,6 +61,7 @@ export async function scaffoldPersonalGroup() {
       groupId: PersonalGroupKeys.groupId,
       type: 'notebook',
       title: PersonalGroupKeys.notebookChannelName,
+      lastPostSequenceNum: 0,
     };
 
     personalGroup.channels = [chatChannel, collectionChannel, notebookChannel];
@@ -137,6 +140,7 @@ export async function createDefaultGroup(
     type: 'chat',
     title: 'General',
     currentUserIsMember: true,
+    lastPostSequenceNum: 0,
   };
   newGroup.channels = [defaultChannel];
 

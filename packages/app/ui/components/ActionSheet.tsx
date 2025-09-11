@@ -673,7 +673,7 @@ export const SimpleActionSheetHeader = ({
       {icon ? icon : null}
       <ListItem.MainContent>
         <ListItem.Title>{title}</ListItem.Title>
-        {subtitle && <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>}
+        {subtitle ? <ListItem.Subtitle>{subtitle}</ListItem.Subtitle> : null}
       </ListItem.MainContent>
     </ActionSheet.Header>
   );

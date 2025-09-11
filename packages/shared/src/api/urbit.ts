@@ -556,6 +556,10 @@ async function track<R>(
   });
 }
 
+export async function checkIsNodeBusy() {
+  return config.client?.checkIsNodeBusy() || Promise.resolve('unknown');
+}
+
 export async function scry<T>({
   app,
   path,

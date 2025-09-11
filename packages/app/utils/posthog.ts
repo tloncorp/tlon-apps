@@ -2,6 +2,7 @@ import crashlytics from '@react-native-firebase/crashlytics';
 import { useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import PostHog from 'posthog-react-native';
+import { NativeModules, Platform } from 'react-native';
 
 import { GIT_HASH, POST_HOG_API_KEY } from '../constants';
 

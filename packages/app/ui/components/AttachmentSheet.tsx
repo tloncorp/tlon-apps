@@ -1,11 +1,12 @@
 import { PLACEHOLDER_ASSET_URI, createDevLogger } from '@tloncorp/shared';
 import { Button } from '@tloncorp/ui';
 import * as ImagePicker from 'expo-image-picker';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useAttachmentContext } from '../contexts';
+import { getClipboardImageWithFallbacks, createImageAssetFromClipboardData } from '../utils';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { ListItem } from './ListItem';
 
@@ -31,6 +32,54 @@ export default function AttachmentSheet({
 
   const { attachAssets, clearAttachments, removeAttachment } =
     useAttachmentContext();
+
+  const [hasClipboardImage, setHasClipboardImage] = useState(false);
+
+  const getClipboardImageData = useCallback(async (): Promise<{
+    data: string;
+    mimeType: string;
+  } | null> => {
+    try {
+      return await getClipboardImageWithFallbacks();
+    } catch (error) {
+      logger.trackError('Clipboard access failed', { error });
+      return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!showAttachmentSheet || isWeb) {
+      setHasClipboardImage(false);
+      return;
+    }
+
+    const checkClipboard = async () => {
+      const clipboardData = await getClipboardImageData();
+      setHasClipboardImage(!!clipboardData);
+    };
+
+    checkClipboard();
+  }, [showAttachmentSheet, getClipboardImageData]);
+
+  const createAssetFromClipboard = useCallback(async () => {
+    onOpenChange(false);
+    // Wait for sheet close animation to complete before pasting
+    setTimeout(async () => {
+      try {
+        const clipboardData = await getClipboardImageData();
+
+        if (!clipboardData) {
+          throw new Error('No image data available in clipboard');
+        }
+
+        const clipboardAsset = createImageAssetFromClipboardData(clipboardData);
+        attachAssets([clipboardAsset]);
+        onAttach?.([clipboardAsset]);
+      } catch (error) {
+        logger.trackError('Error pasting from clipboard', { error });
+      }
+    }, 50);
+  }, [attachAssets, onAttach, onOpenChange, getClipboardImageData]);
 
   const placeholderAsset: ImagePicker.ImagePickerAsset = useMemo(
     () => ({
@@ -78,7 +127,7 @@ export default function AttachmentSheet({
         }
 
         const result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ['images'],
           allowsEditing: false,
           quality: 0.5,
           exif: false,
@@ -136,7 +185,7 @@ export default function AttachmentSheet({
         }, 200);
 
         const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ['images'],
           allowsEditing: false,
           quality: 0.5,
           exif: false,
@@ -189,6 +238,12 @@ export default function AttachmentSheet({
             description: 'Use your camera to take a photo',
             action: takePicture,
           },
+          !isWeb &&
+            hasClipboardImage && {
+              title: 'Paste from Clipboard',
+              description: 'Use the image currently in your clipboard',
+              action: createAssetFromClipboard,
+            },
         ],
         showClearOption && [
           'negative',
@@ -199,7 +254,14 @@ export default function AttachmentSheet({
           },
         ]
       ),
-    [onClearAttachments, pickImage, showClearOption, takePicture]
+    [
+      onClearAttachments,
+      pickImage,
+      showClearOption,
+      takePicture,
+      hasClipboardImage,
+      createAssetFromClipboard,
+    ]
   );
 
   const title = 'Attach a file';

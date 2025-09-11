@@ -3,17 +3,15 @@ import { isEqual } from 'lodash';
 import * as React from 'react';
 import { View } from 'react-native';
 
-import { useFeatureFlag } from '../../../../lib/featureFlags';
 import { ScrollAnchor } from '../Scroller';
 import { PostList as PostListNative } from './PostListFlatList';
 import { PostListComponent, PostWithNeighbors } from './shared';
 
 const FORCE_MANUAL_SCROLL_ANCHORING: boolean = false;
+const IS_FIREFOX = navigator.userAgent.includes('Firefox');
 
 export const PostList: PostListComponent = React.forwardRef((props, ref) => {
-  const [webScrollerEnabled] = useFeatureFlag('webScroller');
-
-  if (webScrollerEnabled && props.numColumns === 1) {
+  if (props.numColumns === 1) {
     return <PostListSingleColumn {...props} ref={ref} />;
   } else {
     // Use the native implementation for multi-column lists
@@ -152,11 +150,41 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
       insideScrolledToBottomBoundary,
     ]);
 
+    const viewportHeight =
+      useTrackContentRect(scrollerRef.current)?.height ?? 0;
+    const scrollerContentsKey = React.useMemo(
+      () =>
+        // HACK: Firefox triggers a mysterious scroll on the next keypress after
+        // the viewport height changes, which causes the scroll to unstick from
+        // bottom. If we just don't try to stick to bottom while viewport is
+        // resizing, we keep stuck to the bottom _after_ the send (although the
+        // chat gets hidden during drafting), which is better than unsticking.
+        IS_FIREFOX ? orderedData : [orderedData, viewportHeight],
+      [orderedData, viewportHeight]
+    );
+    const hasInFlightPost = React.useMemo(
+      () =>
+        postsWithNeighbors.some(
+          (x) =>
+            x.post.deliveryStatus === 'pending' ||
+            x.post.deliveryStatus === 'enqueued'
+        ),
+      [postsWithNeighbors]
+    );
     useStickToScrollStart({
-      scrollerContentsKey: orderedData,
+      scrollerContentsKey,
       scrollerRef,
       inverted,
-      hasNewerPosts,
+      // - If we don't have all the newest posts, we want to wait to autoscroll
+      //   to the newer messages until we've loaded everything - otherwise, we'll
+      //   scroll on each page that comes in, which is jarring.
+      // - However, we opt out of this behavior if the user sends a message
+      //   before load is completed: we definitely want to show and scroll to any
+      //   newly-sent message, regardless of channel load state. (If this case is
+      //   triggered during a long "catch up" load, we'll autoscroll on each page
+      //   load until the channel is fully loaded. It'd be better to only scroll
+      //   to the sent message once, but I don't see a robust way of doing that.)
+      disable: hasNewerPosts && !hasInFlightPost,
     });
 
     React.useImperativeHandle(forwardedRef, () => ({
@@ -518,13 +546,13 @@ function useStickToScrollStart({
   inverted,
   scrollerContentsKey,
   scrollerRef,
-  hasNewerPosts,
+  disable,
 }: {
   inverted: boolean;
   /** This value must change when the scroll height of the scroller changes */
   scrollerContentsKey: unknown;
   scrollerRef: React.RefObject<HTMLDivElement>;
-  hasNewerPosts: boolean;
+  disable: boolean;
 }) {
   const shouldStickToStartRef = React.useRef(false);
 
@@ -534,8 +562,8 @@ function useStickToScrollStart({
   });
 
   React.useEffect(() => {
-    shouldStickToStartRef.current = !hasNewerPosts && isAtStart;
-  }, [isAtStart, hasNewerPosts]);
+    shouldStickToStartRef.current = !disable && isAtStart;
+  }, [isAtStart, disable]);
 
   React.useEffect(() => {
     const scroller = scrollerRef.current;
