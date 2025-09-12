@@ -25,7 +25,6 @@
 ::      (ex-cards caz (ex-fact [/echo]~ %noun !>([~dev 123])) ~)
 ::
 /+  test
-!.
 ::
 =/  drop-verb=?  &
 ::
@@ -308,6 +307,17 @@
   |=  s=state
   &+[(~(on-peek agent.s bowl.s) path) s]
 ::
+++  get-full-peek
+  |=  =path
+  =/  m  (mare ,cage)
+  ^-  form:m
+  |=  s=state
+  =/  peek=(unit (unit cage))
+    (~(on-peek agent.s bowl.s) path)
+  ?.  ?=(^ peek)  |+~['invalid scry path' (spat path)]
+  ?.  ?=(^ u.peek)  |+~['unexpected empty result at scry path' (spat path)]
+  &+[u.u.peek s]
+::
 ++  get-agent
   =/  m  (mare agent)
   ^-  form:m
@@ -445,6 +455,18 @@
   =/  =tang  (expect-eq:test vase q.cage.p.car)
   ?~  tang  ~
   ['in %fact vase,' tang]
+::
+++  ex-fact-paths
+  |=  paths=(list path)
+  |=  car=card
+  ^-  tang
+  =*  nope
+    %-  expect-eq:test
+    [!>(`card`[%give %fact paths *mark *vase]) !>(`card`car)]
+  ?.  ?=([%give %fact *] car)  nope
+  =/  =tang  (expect-eq:test !>(paths) !>(paths.p.car))
+  ?~  tang  ~
+  ['in %fact paths,' tang]
 ::
 ++  ex-poke
   |=  [=wire =gill:gall =mark =vase]
