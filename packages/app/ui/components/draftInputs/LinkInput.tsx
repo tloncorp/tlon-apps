@@ -13,6 +13,12 @@ import * as ub from '@tloncorp/shared/urbit';
 import { Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import {
+  AccessibilityInfo,
+  EmitterSubscription,
+  Keyboard,
+  Platform,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, useTheme } from 'tamagui';
 
@@ -40,6 +46,12 @@ interface LinkInputProps {
 const TITLE_MAX_LENGTH = 240;
 const DESCRIPTION_MAX_LENGTH = 580;
 
+const KEYBOARD_EXTRA_PADDING = 50;
+const DEFAULT_BOTTOM_PADDING = 20;
+const LABEL_HEIGHT = 40;
+const SCROLL_OFFSET_PADDING = 20;
+const HEADER_HEIGHT = 48;
+
 const PostRenderer = createContentRenderer({
   blockSettings: {
     link: {
@@ -53,6 +65,14 @@ const PostRenderer = createContentRenderer({
 export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const inputPositions = useRef<{ title: number; description: number }>({
+    title: 0,
+    description: 0,
+  });
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const keyboardListenerRef = useRef<EmitterSubscription | null>(null);
   const initialValues = useMemo(() => {
     if (!editingPost) {
       return null;
@@ -94,6 +114,39 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
   useEffect(() => {
     setIsPendingDebounce(form.url !== url);
   }, [form.url, url]);
+
+  useEffect(() => {
+    const showListener = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showListener.remove();
+      hideListener.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
+
+    const subscription = AccessibilityInfo.addEventListener(
+      'reduceMotionChanged',
+      setReduceMotion
+    );
+
+    return () => subscription?.remove();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (keyboardListenerRef.current) {
+        keyboardListenerRef.current.remove();
+      }
+    };
+  }, []);
   const { data, isLoading } = store.useLinkGrabber(url);
   const hasIssue = data && (data.type === 'error' || data.type === 'redirect');
   const isEmbed = useMemo(() => {
@@ -166,6 +219,7 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
       };
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { url: retrievedUrl, type, ...meta } = data;
     return {
       ...meta,
@@ -173,6 +227,36 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
       url,
     };
   }, [data, hasIssue, isEmbed, url]);
+
+  // Auto-scroll to input when focused
+  const handleInputFocus = useCallback(
+    (inputY: number) => {
+      if (keyboardListenerRef.current) {
+        keyboardListenerRef.current.remove();
+      }
+
+      keyboardListenerRef.current = Keyboard.addListener(
+        'keyboardDidShow',
+        () => {
+          if (scrollViewRef.current) {
+            const scrollOffset =
+              inputY - (LABEL_HEIGHT + SCROLL_OFFSET_PADDING);
+
+            scrollViewRef.current?.scrollTo({
+              y: Math.max(0, scrollOffset),
+              animated: !reduceMotion,
+            });
+          }
+
+          if (keyboardListenerRef.current) {
+            keyboardListenerRef.current.remove();
+            keyboardListenerRef.current = null;
+          }
+        }
+      );
+    },
+    [reduceMotion]
+  );
 
   const handlePressDone = useCallback(() => {
     if (isDirty && isValid) {
@@ -225,6 +309,7 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
           });
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { url, type, ...meta } = block;
         return onSave({
           content: {
@@ -267,17 +352,31 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
 
   return (
     <View flex={1} backgroundColor={theme.background.val}>
-      <KeyboardAvoidingView>
+      <KeyboardAvoidingView
+        // Account for status bar + header
+        keyboardVerticalOffset={
+          Platform.OS === 'ios' ? insets.top + HEADER_HEIGHT : 0
+        }
+      >
         <ScrollView
+          ref={scrollViewRef}
           keyboardDismissMode="on-drag"
           flex={1}
           contentContainerStyle={{
+            flexGrow: 1,
             width: '100%',
             maxWidth: 600,
             marginHorizontal: 'auto',
+            paddingBottom:
+              keyboardHeight > 0
+                ? keyboardHeight + KEYBOARD_EXTRA_PADDING
+                : insets.bottom + DEFAULT_BOTTOM_PADDING,
           }}
+          bounces={true}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={true}
         >
-          <FormFrame paddingBottom={insets.bottom + 20}>
+          <FormFrame paddingBottom="$4xl">
             {block && <PostRenderer content={[block]} />}
             {hasIssue && !isEmbed && (
               <View
@@ -316,39 +415,54 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
               )}
             </View>
 
-            <ControlledTextField
-              name="title"
-              label="Title"
-              control={control}
-              inputProps={{
-                placeholder: 'Link title',
-                testID: 'LinkTitleInput',
+            <View
+              onLayout={(e) => {
+                inputPositions.current.title = e.nativeEvent.layout.y;
               }}
-              rules={{
-                maxLength: {
-                  value: TITLE_MAX_LENGTH,
-                  message: `Title is limited to ${TITLE_MAX_LENGTH} characters`,
-                },
-              }}
-            />
+            >
+              <ControlledTextField
+                name="title"
+                label="Title"
+                control={control}
+                inputProps={{
+                  placeholder: 'Link title',
+                  testID: 'LinkTitleInput',
+                  onFocus: () => handleInputFocus(inputPositions.current.title),
+                }}
+                rules={{
+                  maxLength: {
+                    value: TITLE_MAX_LENGTH,
+                    message: `Title is limited to ${TITLE_MAX_LENGTH} characters`,
+                  },
+                }}
+              />
+            </View>
 
-            <ControlledTextareaField
-              name="description"
-              label="Description"
-              control={control}
-              inputProps={{
-                placeholder: 'Describe this link...',
-                numberOfLines: 3,
-                multiline: true,
-                testID: 'LinkDescriptionInput',
+            <View
+              onLayout={(e) => {
+                inputPositions.current.description = e.nativeEvent.layout.y;
               }}
-              rules={{
-                maxLength: {
-                  value: DESCRIPTION_MAX_LENGTH,
-                  message: `Description is limited to ${DESCRIPTION_MAX_LENGTH} characters`,
-                },
-              }}
-            />
+            >
+              <ControlledTextareaField
+                name="description"
+                label="Description"
+                control={control}
+                inputProps={{
+                  placeholder: 'Describe this link...',
+                  numberOfLines: 3,
+                  multiline: true,
+                  testID: 'LinkDescriptionInput',
+                  onFocus: () =>
+                    handleInputFocus(inputPositions.current.description),
+                }}
+                rules={{
+                  maxLength: {
+                    value: DESCRIPTION_MAX_LENGTH,
+                    message: `Description is limited to ${DESCRIPTION_MAX_LENGTH} characters`,
+                  },
+                }}
+              />
+            </View>
           </FormFrame>
         </ScrollView>
       </KeyboardAvoidingView>
