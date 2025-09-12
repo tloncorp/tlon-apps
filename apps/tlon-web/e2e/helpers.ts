@@ -149,15 +149,9 @@ export async function deleteGroup(page: Page, groupName?: string) {
     page.getByTestId('ActionSheetAction-Delete group').first()
   ).toBeVisible({ timeout: 10000 });
   await page.getByTestId('ActionSheetAction-Delete group').click();
-  // Use first() to avoid strict mode violations when multiple groups have same name
-  try {
-    await expect(page.getByText(groupName || 'Untitled group').first()).not.toBeVisible({
-      timeout: 20000,
-    });
-  } catch (error) {
-    // If there are still groups with the same name, that's okay - we deleted one of them
-    console.log(`Group deletion completed, but other groups with same name may still exist`);
-  }
+  await expect(page.getByText(groupName || 'Untitled group')).not.toBeVisible({
+    timeout: 20000,
+  });
 }
 
 export async function openGroupSettings(page: Page) {
@@ -221,26 +215,18 @@ export async function waitForElementAndAct(
  * Handles cleanup of existing "Untitled group" if present
  */
 export async function cleanupExistingGroup(page: Page, groupName?: string) {
-  try {
-    const targetName = groupName || 'Untitled group';
-    
-    // Use a more specific selector to avoid strict mode violations
-    const groupItems = page.locator(`[data-testid^="ChatListItem-"]:has-text("${targetName}")`);
-    const count = await groupItems.count();
-    
-    if (count > 0) {
-      // Clean up all groups with this name
-      for (let i = 0; i < count; i++) {
-        const firstItem = groupItems.first();
-        if (await firstItem.isVisible()) {
-          await firstItem.click();
-          await openGroupSettings(page);
-          await deleteGroup(page, groupName);
-        }
-      }
-    }
-  } catch (error) {
-    console.log(`Failed to cleanup group "${groupName || 'Untitled group'}": ${error.message}`);
+  if (
+    await page
+      .getByText(groupName || 'Untitled group')
+      .first()
+      .isVisible()
+  ) {
+    await page
+      .getByText(groupName || 'Untitled group')
+      .first()
+      .click();
+    await openGroupSettings(page);
+    await deleteGroup(page, groupName);
   }
 }
 
