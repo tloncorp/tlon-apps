@@ -273,7 +273,7 @@ export function GroupMembersScreenView({
         <View paddingHorizontal="$l" paddingBottom="$s">
           <TextInput
             icon="Search"
-            placeholder="Search by name or @p handle"
+            placeholder="Search by name or ID"
             value={searchQuery}
             onChangeText={setSearchQuery}
             spellCheck={false}
