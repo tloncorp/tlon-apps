@@ -20,11 +20,7 @@ export class NativeDb extends BaseDb {
   private changesPending: boolean = false;
   private didMigrate: boolean = false;
 
-  // NB: the iOS code in SQLiteDB.swift relies on this path - if you change
-  // this, you should change that too.
-  private databaseName: string = COSMOS_ENABLED ? ':memory:' : 'tlon.sqlite';
-
-  async setupDb() {
+  async setupDb(inMemory: boolean = false) {
     logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
       context: 'setupDb: starting setup',
     });
@@ -36,7 +32,13 @@ export class NativeDb extends BaseDb {
     }
     try {
       this.connection = new OPSQLite$SQLiteConnection(
-        open({ location: 'default', name: this.databaseName })
+        open(
+          inMemory
+            ? { name: ':memory:' }
+            : // NB: the iOS code in SQLiteDB.swift relies on this path - if you change
+              // this, you should change that too.
+              { location: 'default', name: 'tlon.sqlite' }
+        )
       );
       // Experimental SQLite settings. May cause crashes. More here:
       // https://ospfranco.notion.site/Configuration-6b8b9564afcc4ac6b6b377fe34475090
@@ -188,7 +190,7 @@ export class NativeDb extends BaseDb {
 
 // Create singleton instance
 const nativeDb = new NativeDb();
-export const setupDb = () => nativeDb.setupDb();
+export const setupDb = nativeDb.setupDb.bind(nativeDb);
 export const purgeDb = () => nativeDb.purgeDb();
 export const getDbPath = () => nativeDb.getDbPath();
 export const resetDb = () => nativeDb.resetDb();

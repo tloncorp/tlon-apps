@@ -37,6 +37,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { OnboardingStack } from './OnboardingStack';
 import AuthenticatedApp from './components/AuthenticatedApp';
+import { GateOnDbReady } from './components/GateOnDbReady';
 import { SignupProvider, useSignupContext } from './lib/signupContext';
 
 const splashscreenLogger = createDevLogger('splashscreen', false);
@@ -183,28 +184,32 @@ export default function ConnectedApp() {
   const splashIsHidden = useSplashHider();
 
   return (
-    <FeatureFlagConnectedInstrumentationProvider>
-      <NavigationContainer
-        theme={isDarkMode ? DarkTheme : DefaultTheme}
-        ref={navigationContainerRef}
-      >
-        <BaseProviderStack migrationState={migrationState}>
-          <ErrorBoundary>
-            <BranchProvider>
-              <GestureHandlerRootView style={{ flex: 1 }}>
-                <SignupProvider>
-                  {splashIsHidden ? <App /> : null}
+    <GateOnDbReady>
+      <FeatureFlagConnectedInstrumentationProvider>
+        <NavigationContainer
+          theme={isDarkMode ? DarkTheme : DefaultTheme}
+          ref={navigationContainerRef}
+        >
+          <BaseProviderStack migrationState={migrationState}>
+            <ErrorBoundary>
+              <BranchProvider>
+                <GestureHandlerRootView style={{ flex: 1 }}>
+                  <SignupProvider>
+                    {splashIsHidden ? <App /> : null}
 
-                  {__DEV__ && (
-                    <DevTools navigationContainerRef={navigationContainerRef} />
-                  )}
-                </SignupProvider>
-              </GestureHandlerRootView>
-            </BranchProvider>
-          </ErrorBoundary>
-        </BaseProviderStack>
-      </NavigationContainer>
-    </FeatureFlagConnectedInstrumentationProvider>
+                    {__DEV__ && (
+                      <DevTools
+                        navigationContainerRef={navigationContainerRef}
+                      />
+                    )}
+                  </SignupProvider>
+                </GestureHandlerRootView>
+              </BranchProvider>
+            </ErrorBoundary>
+          </BaseProviderStack>
+        </NavigationContainer>
+      </FeatureFlagConnectedInstrumentationProvider>
+    </GateOnDbReady>
   );
 }
 

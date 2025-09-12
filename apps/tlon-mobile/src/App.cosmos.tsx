@@ -3,6 +3,7 @@ import React, { Component } from 'react';
 import { NativeFixtureLoader } from 'react-cosmos-native';
 
 import { moduleWrappers, rendererConfig } from '../../../cosmos.imports';
+import { GateOnDbReady } from './components/GateOnDbReady';
 
 export default class CosmosApp extends Component {
   componentDidMount(): void {
@@ -14,12 +15,14 @@ export default class CosmosApp extends Component {
 
   render() {
     return (
-      <NativeFixtureLoader
-        rendererConfig={rendererConfig}
-        // @ts-expect-error - TODO: fix types
-        moduleWrappers={moduleWrappers}
-        initialFixtureId={{ path: 'apps/tlon-mobile/src/App.fixture.tsx' }}
-      />
+      <GateOnDbReady inMemory>
+        <NativeFixtureLoader
+          rendererConfig={rendererConfig}
+          // @ts-expect-error - TODO: fix types
+          moduleWrappers={moduleWrappers}
+          initialFixtureId={{ path: 'apps/tlon-mobile/src/App.fixture.tsx' }}
+        />
+      </GateOnDbReady>
     );
   }
 }

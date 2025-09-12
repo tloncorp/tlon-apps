@@ -18,7 +18,6 @@ import {
 import { TailwindProvider } from 'tailwind-rn';
 
 import App from './src/App';
-import { GateOnDbReady } from './src/components/GateOnDbReady';
 import utilities from './tailwind.json';
 
 // Extend BigInt so serialization will never crash in JSON.parse
@@ -49,9 +48,7 @@ function Main(props) {
 
   return (
     <TailwindProvider utilities={utilities}>
-      <GateOnDbReady>
-        <App {...props} />
-      </GateOnDbReady>
+      <App {...props} />
     </TailwindProvider>
   );
 }
