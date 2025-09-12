@@ -1128,6 +1128,46 @@
       (add sum (wyt:on:writs:c w))
     ==
   ::
+      [%x %v3 %init-posts channels=@ context=@ ~]
+    =+  channels=(slav %ud i.t.t.t.path)
+    =+  context=(slav %ud i.t.t.t.t.path)
+    =*  a  activity
+    =/  activity
+      %-  ~(gas by *activity:a)
+      .^  (list [source:a activity-summary:a])  %gx
+        (scry-path %activity /v4/activity/unreads/activity-summary-pairs-4)
+      ==
+    :^  ~  ~  %chat-changed-writs
+    !>  %-  ~(gas by *(map whom:c writs:c))
+    =*  type  $%([%ship who=ship =dm:c] [%club =id:club:c =club:c])
+    %+  turn
+      %+  scag  channels
+      %+  sort
+        (welp (turn ~(tap by dms) (lead %ship)) (turn ~(tap by clubs) (lead %club)))
+      |=  [a=type b=type]
+      %+  gth
+        ?-(-.a %ship recency.remark.dm.a, %club recency.remark.club.a)
+      ?-(-.b %ship recency.remark.dm.b, %club recency.remark.club.b)
+    |=  arg=type
+    ^-  [whom:c writs:c]
+    =/  [=whom:c =pact:c]
+      ?-  -.arg
+        %ship  [[%ship who.arg] pact.dm.arg]
+        %club  [[%club id.arg] pact.club.arg]
+      ==
+    :-  whom
+    %+  gas:on:writs:c  ~
+    =/  around=(unit time)
+      ?~  act=(~(get by activity) %dm whom)  ~
+      ?~(unread.u.act ~ `time.u.unread.u.act)
+    ?~  around
+      ::NOTE  equivalent of /newest scry
+      (top:mope:pac wit.pact context)
+    ::NOTE  analogous to /around scry
+    =/  older  (bat:mope:pac wit.pact `+(u.around) context)
+    =/  newer  (tab:on:writs:c wit.pact `u.around context)
+    (weld older newer)
+  ::
       [%x %dm ~]
     ``ships+!>(~(key by accepted-dms))
   ::
