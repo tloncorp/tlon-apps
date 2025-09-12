@@ -28,7 +28,7 @@ import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
 export { SyncPriority, syncQueue } from './syncQueue';
 
-const logger = createDevLogger('sync', false);
+const logger = createDevLogger('sync', true);
 
 // Used to track latest post we've seen for each channel.
 // Updated when:
@@ -1690,73 +1690,77 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
 
     try {
       await batchEffects('sync start (high)', async (ctx) => {
-        // this allows us to run the api calls first in parallel but handle
-        // writing the data in a specific order
-        const yieldWriter = true;
+        try {
+          // this allows us to run the api calls first in parallel but handle
+          // writing the data in a specific order
+          const yieldWriter = true;
 
-        // first kickoff the fetching
-        const syncInitPromise = syncInitData(
-          { priority: SyncPriority.High, retry: true },
-          ctx,
-          yieldWriter
-        );
-        const syncLatestPostsPromise = syncLatestPosts(
-          {
-            priority: SyncPriority.High,
-            retry: true,
-          },
-          ctx,
-          yieldWriter
-        );
-        const subsPromise = alreadySubscribed
-          ? Promise.resolve()
-          : setupHighPrioritySubscriptions({
-              priority: SyncPriority.High - 1,
-            }).then(() => logger.crumb('subscribed high priority'));
+          // first kickoff the fetching
+          const syncInitPromise = syncInitData(
+            { priority: SyncPriority.High, retry: true },
+            ctx,
+            yieldWriter
+          );
+          const syncLatestPostsPromise = syncLatestPosts(
+            {
+              priority: SyncPriority.High,
+              retry: true,
+            },
+            ctx,
+            yieldWriter
+          );
+          const subsPromise = alreadySubscribed
+            ? Promise.resolve()
+            : setupHighPrioritySubscriptions({
+                priority: SyncPriority.High - 1,
+              }).then(() => logger.crumb('subscribed high priority'));
 
-        didLoadCachedContacts = await LocalCache.loadCachedContacts();
-        // if we don't have cached contacts, we need to load them with high priority
-        const syncContactsPromise = didLoadCachedContacts
-          ? () => Promise.resolve()
-          : syncContacts(
-              { priority: SyncPriority.High, retry: true },
-              yieldWriter
-            );
+          didLoadCachedContacts = await LocalCache.loadCachedContacts();
+          // if we don't have cached contacts, we need to load them with high priority
+          const syncContactsPromise = didLoadCachedContacts
+            ? () => Promise.resolve()
+            : syncContacts(
+                { priority: SyncPriority.High, retry: true },
+                yieldWriter
+              );
 
-        const trackStep = (function () {
-          let last = Date.now();
-          return (event: AnalyticsEvent) => {
-            const now = Date.now();
-            logger.trackEvent(event, { duration: now - last });
-            last = now;
-          };
-        })();
+          const trackStep = (function () {
+            let last = Date.now();
+            return (event: AnalyticsEvent) => {
+              const now = Date.now();
+              logger.trackEvent(event, { duration: now - last });
+              last = now;
+            };
+          })();
 
-        // then enforce the ordering of writes to avoid race conditions
-        const initWriter = await syncInitPromise;
-        trackStep(AnalyticsEvent.InitDataFetched);
-        await initWriter();
-        trackStep(AnalyticsEvent.InitDataWritten);
-        logger.crumb('finished writing init data');
+          // then enforce the ordering of writes to avoid race conditions
+          const initWriter = await syncInitPromise;
+          trackStep(AnalyticsEvent.InitDataFetched);
+          await initWriter();
+          trackStep(AnalyticsEvent.InitDataWritten);
+          logger.crumb('finished writing init data');
 
-        const latestPostsWriter = await syncLatestPostsPromise;
-        trackStep(AnalyticsEvent.LatestPostsFetched);
-        await latestPostsWriter();
-        trackStep(AnalyticsEvent.LatestPostsWritten);
-        logger.crumb('finished writing latest posts');
+          const latestPostsWriter = await syncLatestPostsPromise;
+          trackStep(AnalyticsEvent.LatestPostsFetched);
+          await latestPostsWriter();
+          trackStep(AnalyticsEvent.LatestPostsWritten);
+          logger.crumb('finished writing latest posts');
 
-        const contactsWriter = await syncContactsPromise;
-        await contactsWriter();
+          const contactsWriter = await syncContactsPromise;
+          await contactsWriter();
 
-        await subsPromise;
-        trackStep(AnalyticsEvent.SubscriptionsEstablished);
-        logger.crumb('finished initializing high priority subs');
+          await subsPromise;
+          trackStep(AnalyticsEvent.SubscriptionsEstablished);
+          logger.crumb('finished initializing high priority subs');
 
-        logger.crumb(`finished high priority init sync`);
-        logger.trackEvent(AnalyticsEvent.SessionInitialized, {
-          duration: Date.now() - startTime,
-        });
-        updateSession({ startTime: Date.now() });
+          logger.crumb(`finished high priority init sync`);
+          logger.trackEvent(AnalyticsEvent.SessionInitialized, {
+            duration: Date.now() - startTime,
+          });
+          updateSession({ startTime: Date.now() });
+        } catch (err) {
+          console.error('Error during high priority sync:', err);
+        }
       });
     } catch (err) {
       logger.trackError(AnalyticsEvent.ErrorSyncStartHighPriority, {

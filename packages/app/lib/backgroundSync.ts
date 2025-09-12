@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { configureUrbitClient } from '../hooks/useConfigureUrbitClient';
 
-const logger = createDevLogger('backgroundSync', true);
+const logger = createDevLogger('backgroundSync', false);
 
 async function performSync() {
   const taskExecutionId = uuidv4();

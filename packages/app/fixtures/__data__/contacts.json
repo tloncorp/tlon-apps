@@ -1,0 +1,2619 @@
+{
+  "~sitful-hatred": {
+    "status": "networked subject guy",
+    "avatar": "https://ams3.digitaloceanspaces.com/urbits3/sitful-hatred/2024.3.8..1.3.41..3f3b.645a.1cac.0831-nixonwojak-large.png",
+    "cover": "https://urbits3.ams3.digitaloceanspaces.com/sitful-hatred/2021.12.20..22.11.32-eclipser.jpg",
+    "bio": "🐛 reid from texas ⏣ subject.network webmaster 💻 nativeplanet.io gang 👺 av by ~tocrex-holpen 🐛",
+    "nickname": "⍨𝖘𝖎𝖙𝖋𝖚𝖑-𝖍𝖆𝖙𝖗𝖊𝖉 🐛",
+    "color": "0x98.6db2",
+    "groups": ["~matwet/networked-subject", "~raldeg/nativeplanet"]
+  },
+  "~mister-doller-fadlet-sigmev": null,
+  "~soptyp-dirfes": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "kaxline",
+    "color": "0x44.d3ff",
+    "groups": []
+  },
+  "~ravmel-ropdyl": {
+    "status": "listening to music",
+    "avatar": null,
+    "cover": "https://20-urbit.s3.us-west-1.amazonaws.com/ravmel-ropdyl/2021.2.13..00.31.09-Manaslu-crevasses.jpg",
+    "bio": "happy to chat, send a dm any time",
+    "nickname": "galen",
+    "color": "0xff.ffff",
+    "groups": [
+      "~ravmel-ropdyl/audio-video-images",
+      "~nibset-napwyn/tlon",
+      "~ravmel-ropdyl/crate"
+    ]
+  },
+  "~pagdyr-wisrec": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "rocket",
+    "color": "0x51.5f4c",
+    "groups": []
+  },
+  "~siddef": null,
+  "~tobnym-lindul": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://www.collegerank.net/wp-content/uploads/2014/06/Class-of-1951-Vassar-College-Observatory.jpg",
+    "bio": "😺💪😎👍\n\nFriend of ~shartlug-wipenug",
+    "nickname": "",
+    "color": "0x3f.6c72",
+    "groups": []
+  },
+  "~nocsyx-lassul": {
+    "status": "technomancing an electron wrapper for urbit",
+    "avatar": null,
+    "cover": "https://i.pinimg.com/originals/20/62/59/2062590a440f717a2ae1065ad8e8a4c7.gif",
+    "bio": "Technomancer. Gaining clarity on reality daily, building calm, maintainable, and resilient systems.",
+    "nickname": "~nocsyx-lassul ⚗️",
+    "color": "0x52.00ff",
+    "groups": ["~nocsyx-lassul/holy-grail-ui"]
+  },
+  "~panrux-docsef": null,
+  "~wolfes-parmul": {
+    "status": "",
+    "avatar": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR9Un8kKRF9pVoZ5EmTUiup8Ecnsdk3ZXWZ6w&usqp=CAU",
+    "cover": "https://lirp.cdn-website.com/8c4e1a12/dms3rep/multi/opt/canastra-640w.jpg",
+    "bio": "Computer Psychologist ",
+    "nickname": "Daniel Vianna ",
+    "color": "0x0",
+    "groups": []
+  },
+  "~sollun-sortyd": {
+    "status": "",
+    "avatar": "",
+    "cover": "https://d2w9rnfcy7mm78.cloudfront.net/2598973/original_2046e9ae7d36327053d93e4e09ae089c.png?1535157205?bc=1",
+    "bio": "",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~bosser-hatber": {
+    "status": "",
+    "avatar": null,
+    "cover": "",
+    "bio": "",
+    "nickname": "james (~bosser-hatber)",
+    "color": "0xff.dd00",
+    "groups": []
+  },
+  "~livren-dilpur": null,
+  "~toldev-sopbel": {
+    "status": "",
+    "avatar": "https://storage.googleapis.com/tlon-prod-memex-assets/toldev-sopbel/2024.3.1..19.44.30..4dd2.f1a9.fbe7.06c8-out.png",
+    "cover": null,
+    "bio": "",
+    "nickname": "_Hugh-hosted",
+    "color": "0x0",
+    "groups": []
+  },
+  "~rivfur-livmet": null,
+  "~mopfel-winrux": {
+    "status": "",
+    "avatar": "",
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x0",
+    "groups": [
+      "~mopfel-winrux/nockpu",
+      "~nattyv/nativeplanet",
+      "~mopfel-winrux/solar-photography"
+    ]
+  },
+  "~fosteg-rapsym": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "El Salvador Urbiter!  I went to Urbit Assembly Miami Conference in 2022, since then I Got interesting in learned more. Urbit is the future",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~hardel-topmet": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "Juan Raphael Diaz Simões",
+    "color": "0xff.c100",
+    "groups": []
+  },
+  "~battus-datsun": null,
+  "~nismut-tamwep": {
+    "status": "Open",
+    "avatar": "",
+    "cover": "https://www.antiquesandthearts.com/wp-content/uploads/2022/03/drawing_hands.jpg",
+    "bio": "Jesus is Lord",
+    "nickname": "~nismut-tamwep (Bob)",
+    "color": "0x10.4ff1",
+    "groups": [
+      "~halbex-palheb/uf-public",
+      "~dister-dozzod-lapdeg/battery-payload",
+      "~sonwet/the-cryptocurrency-forum",
+      "~tirrel/the-marketplace",
+      "~middev/the-forge"
+    ]
+  },
+  "~racfer-hattes": null,
+  "~molmer-hacwyt": null,
+  "~dapsud-piddep": {
+    "status": "",
+    "avatar": "https://storage.googleapis.com/tlon-prod-memex-assets/dapsud-piddep/2023.12.8..3.48.5..cc49.ba5e.353f.7ced-IMG_0355.jpeg",
+    "cover": "https://storage.googleapis.com/tlon-prod-memex-assets/dapsud-piddep/2023.12.8..3.49.19..4e56.0418.9374.bc6a-IMG_5356.jpeg",
+    "bio": "Get@Me",
+    "nickname": "GULLAH MANE",
+    "color": "0x0",
+    "groups": []
+  },
+  "~tonlur-hidlyn": {
+    "status": "OK",
+    "avatar": "",
+    "cover": null,
+    "bio": "cool",
+    "nickname": "ed (self-hosted)",
+    "color": "0xb7.b7b7",
+    "groups": ["~natnex-ronret/door-link", "~nibset-napwyn/tlon"]
+  },
+  "~tagpeg-soghus": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0xff.0000",
+    "groups": []
+  },
+  "~rolwyl-litlut": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://storage.googleapis.com/tlon-prod-memex-assets/rolwyl-litlut/2024.3.3..1.51.1..4b43.9581.0624.dd2f-station.png",
+    "bio": "You can't prove it's a simulation",
+    "nickname": "Mariano",
+    "color": "0x70.ccff",
+    "groups": []
+  },
+  "~samtyd-lodhet": null,
+  "~tonned-fampet": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://i.imgur.com/xvPxI6d.png",
+    "bio": "",
+    "nickname": "",
+    "color": "0x4f.397c",
+    "groups": ["~hadryl-riclun/parenting-on-mars", "~tonned-fampet/agencement"]
+  },
+  "~radtyd-raclyd-halpyx-saplyn--modpec-socbep-pallyn-wanzod": null,
+  "~mitnev-sovsur": null,
+  "~rivmud-fabwen": {
+    "status": "🌞",
+    "avatar": "https://i.imgur.com/bC3RE46.gif",
+    "cover": "https://i.imgur.com/Yh73s1U.png",
+    "bio": "Working on %wiki...\n\nAdd me on ~holnes/whom!",
+    "nickname": "『~𝒓𝒊𝒗𝒎𝒖𝒅-𝒇𝒂𝒃𝒘𝒆𝒏』",
+    "color": "0x6656",
+    "groups": [
+      "~holnes/based-in-the-heartland",
+      "~rivmud-fabwen/wiki",
+      "~rivmud-fabwen/whom"
+    ]
+  },
+  "~finwes-somfes": null,
+  "~pondus-watbel": {
+    "status": "",
+    "avatar": "https://d2w9rnfcy7mm78.cloudfront.net/24933700/original_92dc8654172254b5422d0d6249270afe.png?1701105163?bc=0",
+    "cover": "https://d1z5o5vuzqe9y4.cloudfront.net/uploads/39683a_Airy-living-room-at-Castle-Rock-the-Lowell-and-Agnes-Walter-House_Photographs-in-the-Carol-M.-Highsmith-Archive-Library-of-Congress-Prints-and-Photographs-Division.jpg",
+    "bio": "but an echo of ~latter-bolden",
+    "nickname": "brian (backup)",
+    "color": "0x0",
+    "groups": []
+  },
+  "~hacpen-davnym": {
+    "status": "As a member of the Senate I will gladly accept ETH donations to fund my ongoing activities",
+    "avatar": null,
+    "cover": null,
+    "bio": "This is serious, Mum.",
+    "nickname": "ᛟ ᚣ",
+    "color": "0x0",
+    "groups": ["~motluc-nammex/h00ncr3w", "~nartes-fasrum/urbytes"]
+  },
+  "~nimnum-wisdev": {
+    "status": "preparing for my end",
+    "avatar": null,
+    "cover": "",
+    "bio": "Seeking sanctification in the everyday through my duties as husband and father.\n\n⛪️ Catholicism  ⚪️ urbit 🟠 Bitcoin 📖 Learning 🏛 Classics & Philosophy 🔒 Privacy & Security 🤖 Programming 🌴 Florida",
+    "nickname": "Greg (~nimnum-wisdev)",
+    "color": "0x24.4653",
+    "groups": [
+      "~darduc-mitfen/holy-martian-empire",
+      "~darduc-mitfen/catholicism",
+      "~nibset-napwyn/tlon",
+      "~mister-hoster-sidnym-ladrut/views-of-the-hyperlattice",
+      "~hiddev-dannut/new-hooniverse"
+    ]
+  },
+  "~topfet-parmed": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "in sunny Sweden",
+    "nickname": "~topfet-parmed",
+    "color": "0x0",
+    "groups": []
+  },
+  "~radbur-sivmus": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "Ezekiel",
+    "color": "0x0",
+    "groups": []
+  },
+  "~faster-fabled-faster": {
+    "status": "gotta go fast",
+    "avatar": "https://d2w9rnfcy7mm78.cloudfront.net/12147915/original_194d6198288d2cd9fca611e0bd509c46.png",
+    "cover": null,
+    "bio": "ultimate beauty",
+    "nickname": "",
+    "color": "0x32.a05b",
+    "groups": []
+  },
+  "~middev": {
+    "status": "",
+    "avatar": "",
+    "cover": null,
+    "bio": "~littel-wolfur's star",
+    "nickname": "",
+    "color": "0x0",
+    "groups": ["~middev/the-forge"]
+  },
+  "~dacsur-torryl-solfer-magfed": null,
+  "~pittux-ricsup": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "https://moss.garden",
+    "nickname": "dkim",
+    "color": "0x0",
+    "groups": []
+  },
+  "~niblyx-malnus": null,
+  "~wictuc-sicrud": null,
+  "~bidhul-morren": {
+    "status": "",
+    "avatar": "",
+    "cover": "",
+    "bio": "",
+    "nickname": "Sephira 🎀✨",
+    "color": "0xfc.7092",
+    "groups": []
+  },
+  "~lidrep-sigfep": {
+    "status": "",
+    "avatar": "https://storage.googleapis.com/tlon-prod-memex-assets/lidrep-sigfep/2024.3.13..23.46.35..5810.624d.d2f1.a9fb-IMG_1625.jpeg",
+    "cover": "https://storage.googleapis.com/tlon-prod-memex-assets/lidrep-sigfep/2024.3.14..0.44.50..9e35.3f7c.ed91.6872-IMG_1770.jpeg",
+    "bio": "",
+    "nickname": "‎ ‎ ‎ ",
+    "color": "0x0",
+    "groups": []
+  },
+  "~molsur-winnel": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "~molsur-winnel (Max A)",
+    "color": "0x10.bc04",
+    "groups": []
+  },
+  "~hadsec-modnyx": {
+    "status": "",
+    "avatar": "https://i.imgur.com/LKifNVF.png",
+    "cover": "https://pbs.twimg.com/media/F1sHgvZWYAAMQys?format=jpg&name=large",
+    "bio": "",
+    "nickname": "Kevin (~hadsec-modnyx)",
+    "color": "0x0",
+    "groups": []
+  },
+  "~tapnep-wisdyl": null,
+  "~palbec-tobweg": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "jules",
+    "color": "0xf2",
+    "groups": []
+  },
+  "~ripwen-sabrup": {
+    "status": "non-doing",
+    "avatar": "",
+    "cover": "https://marryp-worryd.fra1.digitaloceanspaces.com/ripwen-sabrup/2021.5.23..12.24.30-Screenshot%202021-04-17%20at%2023%2C25%2C09.png",
+    "bio": "non-being non-doing non-thing\n",
+    "nickname": "namelessnobody",
+    "color": "0x0",
+    "groups": ["~ripwen-sabrup/max-zoom-photos-jpg", "~topdem/structure"]
+  },
+  "~natnex-ronret": {
+    "status": "skam",
+    "avatar": "https://d2w9rnfcy7mm78.cloudfront.net/14508528/original_8c4afdfe9dc9866dc2aade68beea9740.png",
+    "cover": null,
+    "bio": "romina@tlon.io –––– romi.link –––– door.link",
+    "nickname": "romi",
+    "color": "0x0",
+    "groups": [
+      "~natnex-ronret/door-link",
+      "~nibset-napwyn/tlon",
+      "~natnex-ronret/romina-s-office",
+      "~ravmel-ropdyl/crate"
+    ]
+  },
+  "~poldel-hollup": null,
+  "~maslen-haslut": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~lavlyn-litmeg": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "Leading the hosting org at Tlon.",
+    "nickname": "lukas",
+    "color": "0xd3.1212",
+    "groups": ["~lavlyn-litmeg/urbit-switzerland"]
+  },
+  "~batset-motred": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "James M (~batset-motred)",
+    "color": "0x0",
+    "groups": []
+  },
+  "~rabsef-bicrym": {
+    "status": "Conspiring about Conspiracies",
+    "avatar": "",
+    "cover": "https://freedom-club.sfo2.digitaloceanspaces.com/rabsef-bicrym/2021.2.12..08.00.26-32284E2E-9436-4DF2-959F-9A923FEE3988.jpeg",
+    "bio": "No Heart Reacts.",
+    "nickname": "~rabsef \"please don't give me <3 reacts\" bicrym",
+    "color": "0xff.d500",
+    "groups": [
+      "~mister-hilper-dozzod-dalten/quartus",
+      "~hiddev-dannut/new-hooniverse"
+    ]
+  },
+  "~dorsen-witnes": {
+    "status": "",
+    "avatar": "https://pbs.twimg.com/profile_images/1572652267211468801/T39RcnAD_400x400.jpg",
+    "cover": null,
+    "bio": "helping martians find their dream job in crypto ",
+    "nickname": "marcus ",
+    "color": "0xec.8d09",
+    "groups": []
+  },
+  "~dismes-fotseb": null,
+  "~bantus-follus": {
+    "status": "",
+    "avatar": "",
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x9a.2a2a",
+    "groups": []
+  },
+  "~wannem-mognet": null,
+  "~nappeg-latrus": {
+    "status": "",
+    "avatar": "",
+    "cover": "",
+    "bio": "",
+    "nickname": "",
+    "color": "0x1.6d00",
+    "groups": []
+  },
+  "~riprud-tidmel": {
+    "status": "",
+    "avatar": "",
+    "cover": "https://smiski.com/e/wp-content/uploads/2016/03/about01.png",
+    "bio": "product strategy at tlon\nmarisa@tlon.io\nmhope.eth",
+    "nickname": "marisa",
+    "color": "0xff.00ff",
+    "groups": [
+      "~tocref-ripmyr/soft-coded",
+      "~litneb-maltyp/eau-de-urbit",
+      "~natnex-ronret/door-link",
+      "~lomdev-fitnet/sex-magazine",
+      "~mallus-fabres/urbitches",
+      "~nibset-napwyn/tlon"
+    ]
+  },
+  "~narmer-nossyx": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "creator of the CWE grindset.\nhttps://cwecapital.club\nCIO of https://cwecapital.org\n\nhost of Crypto Wagie Extreme on YT.\n",
+    "nickname": "Jack Extreme",
+    "color": "0x0",
+    "groups": []
+  },
+  "~davtyv-simpyx": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://d2w9rnfcy7mm78.cloudfront.net/7766282/original_85ebf98ddff0907bcc8513440edae5d2.jpg?1592977646?bc=0",
+    "bio": "very patient ",
+    "nickname": "",
+    "color": "0x685",
+    "groups": []
+  },
+  "~worrux-havwyx": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "~broken-wolfur",
+    "color": "0x0",
+    "groups": []
+  },
+  "~motluc-nammex": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "Darigo",
+    "color": "0x0",
+    "groups": ["~motluc-nammex/h00ncr3w", "~tirrel/the-marketplace"]
+  },
+  "~tondes-wanbex": {
+    "status": "",
+    "avatar": "",
+    "cover": "",
+    "bio": "iOS Engineer\n\n\n",
+    "nickname": "Daniel",
+    "color": "0xff.0000",
+    "groups": []
+  },
+  "~landen-ragsen": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "~dovsem-bornyl's Tlon Hosted Ship",
+    "nickname": "Zach (~landen-ragsen)",
+    "color": "0x0",
+    "groups": []
+  },
+  "~losten-mildev": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://cdn.denisonyachtsales.com/wp-content/uploads/2020/07/About-Sailboats@2x.jpg",
+    "bio": "~shartnug-wipeslog LIVES!!!",
+    "nickname": "",
+    "color": "0x34.92ab",
+    "groups": []
+  },
+  "~liblun-fonwyt": null,
+  "~haddef-sigwen": {
+    "status": "shinto skimmer",
+    "avatar": "https://s3.us-east-1.amazonaws.com/haddefsigwen1/haddef-sigwen/2023.6.07..18.57.36-hanekawa%20-%20sq.png",
+    "cover": "https://s3.us-east-1.amazonaws.com/haddefsigwen1/haddef-sigwen/2021.2.22..05.32.12-image.png",
+    "bio": "all-purpose gynoid; significant Other",
+    "nickname": "maru",
+    "color": "0x0",
+    "groups": ["~paldev/group", "~topdem/structure"]
+  },
+  "~larnet-havsem": {
+    "status": "",
+    "avatar": "https://avatars.githubusercontent.com/u/3400690",
+    "cover": null,
+    "bio": "",
+    "nickname": "Hugh",
+    "color": "0x0",
+    "groups": []
+  },
+  "~saltun-bidwyl": {
+    "status": "",
+    "avatar": "https://pbs.twimg.com/profile_images/1652680191829766145/D7mvqceJ_400x400.jpg",
+    "cover": "https://pbs.twimg.com/profile_banners/1368626890802659330/1682864638/1500x500",
+    "bio": "architect of onchain realities",
+    "nickname": "Aaron Elijah Mars",
+    "color": "0x32.2f4e",
+    "groups": ["~saltun-bidwyl/kowloon"]
+  },
+  "~walter-hoddel": {
+    "status": "",
+    "avatar": "https://walter-hoddel-public.s3.amazonaws.com/walter-hoddel-80s.png",
+    "cover": "https://walter-hoddel-public.s3.amazonaws.com/Wallpapers/Nature/tree-wallpaper-background-hd-62998-65013-hd-wallpapers.jpg",
+    "bio": "Father, programmer and sysadmin. Linux enthusiast since 2001 and Christian since 1988. Favorite authors are G.K. Chesterton, Orson Scott Card, and Neal Stephenson.",
+    "nickname": "Walter Hoddel",
+    "color": "0x4808",
+    "groups": []
+  },
+  "~nislus-pocned": {
+    "status": "",
+    "avatar": "https://dl.openseauserdata.com/cache/originImage/files/abaf8d950cfd0c5a5f9012097e859be8.gif",
+    "cover": "https://dl.openseauserdata.com/cache/originImage/files/9083846cd8043a0781f6abad004d98c9.jpg",
+    "bio": "unsweet tea, please",
+    "nickname": "",
+    "color": "0x0",
+    "groups": [
+      "~matwet/networked-subject",
+      "~listud-donrec/vaporwave-world",
+      "~nislus-pocned/another-day-in-paradise-2-0"
+    ]
+  },
+  "~silsyn-wathep": {
+    "status": "",
+    "avatar": "https://storage.wholezero.org/fostyr-ridrup/2024.1.19..18.4.34..ea3d.70a3.d70a.3d70-silsyn-wathep.svg",
+    "cover": "https://storage.wholezero.org/fostyr-ridrup/2024.1.18..5.3.30..47ae.147a.e147.ae14-icepines.jpg",
+    "bio": "backup ship is ~fostyr-ridrup",
+    "nickname": "",
+    "color": "0x3b.3429",
+    "groups": []
+  },
+  "~wiczod-hacmes": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://storage.googleapis.com/tlon-prod-memex-assets/wiczod-hacmes/2024.2.9..5.5.57..2624.dd2f.1a9f.be76-gjlwbw67beqdbqafbzfw.webp",
+    "bio": "",
+    "nickname": "hunter (~nocsyx-lassul's imposter)",
+    "color": "0xff.269b",
+    "groups": []
+  },
+  "~dacnec-tilfeb": null,
+  "~ramsyd-sanryg": null,
+  "~watseb-sogwyt": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "jeremytunnell.com",
+    "nickname": "Jeremy T",
+    "color": "0xdf.1111",
+    "groups": []
+  },
+  "~midsum-salrux": {
+    "status": "",
+    "avatar": "https://i.imgur.com/8RpHNCz.png",
+    "cover": "https://public-files.gumroad.com/rpwxw6kvu3ez91c6ph3jwwegjqac",
+    "bio": "nathan at tlon | https://github.com/midsum-salrux/",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~sipryl-ramsub": {
+    "status": "",
+    "avatar": "",
+    "cover": null,
+    "bio": "",
+    "nickname": "special agent explore intrepid",
+    "color": "0x0",
+    "groups": []
+  },
+  "~togten": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://togten.com:9001/finned-palmer/togten/2023.8.31..19.16.01-2023.1.23..11.46.30-Forest.png",
+    "bio": "",
+    "nickname": "~togten (~finned-palmer)",
+    "color": "0x0",
+    "groups": []
+  },
+  "~foplys-mogrex": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "one torn",
+    "color": "0x0",
+    "groups": []
+  },
+  "~librex-dozryc": {
+    "status": "workin' like a dog all day on the *MRB*",
+    "avatar": null,
+    "cover": "https://i.gyazo.com/17b3cab724f3baf2078c9334aba02715.png",
+    "bio": "",
+    "nickname": "Noah K",
+    "color": "0x8c.0d0d",
+    "groups": ["~bidbel/a"]
+  },
+  "~sidnym-ladrut": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://images.unsplash.com/photo-1543430704-9b1f6dbcec76",
+    "bio": "\"Look not too long in the face of the fire, O man! Never dream with thy hand on the helm! Turn not thy back to the compass; accept the first hint of the hitching tiller; believe not the artificial fire, when its redness makes all things look ghastly. To-morrow, in the natural sun, the skies will be bright; those who glared like devils in the forking flames, the morn will show in far other, at least gentler, relief; the glorious, golden, glad sun, the only true lamp- all others but liars!\"\n- Herman Melville, Moby Dick",
+    "nickname": "~sidnym-ladrut ☘",
+    "color": "0x28.a745",
+    "groups": [
+      "~mister-hoster-sidnym-ladrut/tui",
+      "~mister-hoster-sidnym-ladrut/vi",
+      "~mister-hoster-sidnym-ladrut/views-of-the-hyperlattice",
+      "~tocwex/syndicate-public"
+    ]
+  },
+  "~sicdev-pilnup": {
+    "status": "",
+    "avatar": "https://sfo2.digitaloceanspaces.com/dalten/sicdev-pilnup/2022.12.09..16.11.26-dalten-collective-blank.png",
+    "cover": "https://sfo2.digitaloceanspaces.com/dalten/sicdev-pilnup/2023.10.17..02.29.00-27788309f59913e62c0923310fbd1093.png",
+    "bio": "Founder of the Dalten Collective, founding team for MakerDAO, MetaCartel Ventures, Octu Ventures, and Hydra.",
+    "nickname": "~sicdev-pilnup (kenny)",
+    "color": "0x0",
+    "groups": []
+  },
+  "~lagrev-nocfep": {
+    "status": "",
+    "avatar": "https://raw.githubusercontent.com/sigilante/pixiesticks/master/ln-logo.png",
+    "cover": "https://pbs.twimg.com/profile_banners/1193627371817050113/1679009928/1500x500",
+    "bio": "https://calendar.app.google/ufr6wJQoLv33WZRcA",
+    "nickname": "𐐝𐐮𐐾𐐮𐑊𐐰𐑌𐐻𐐨",
+    "color": "0x0",
+    "groups": ["~magbel/deseret-third-book", "~magbel/in-tenebris-silva"]
+  },
+  "~wispem-wantex": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "alessio (~wispem-wantex)",
+    "color": "0xe1.6101",
+    "groups": []
+  },
+  "~dirtel-forrev": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~macrep-racdec-macrep-racdec": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "lynko (moon)",
+    "color": "0x0",
+    "groups": []
+  },
+  "~darsyn-figdyt": {
+    "status": "",
+    "avatar": "https://storage.googleapis.com/tlon-prod-memex-assets/darsyn-figdyt/2024.1.28..20.32.30..fae1.47ae.147a.e147-_DSC5794-12.jpg",
+    "cover": "https://storage.googleapis.com/tlon-prod-memex-assets/darsyn-figdyt/2024.1.28..20.33.14..cfdf.3b64.5a1c.ac08-_DSC4872-2.jpg",
+    "bio": "photo maker",
+    "nickname": "",
+    "color": "0xff.6a5a",
+    "groups": ["~darsyn-figdyt/colorless-photography"]
+  },
+  "~sanwex-dilber": {
+    "status": "",
+    "avatar": "",
+    "cover": "",
+    "bio": "≋≋≋⁂≋≋≋◑≋≋≋◖ ❀ @everynightdawns ❀ ◗≋≋≋◐≋≋≋⁂≋≋≋",
+    "nickname": "Yiro Luar",
+    "color": "0xdd.eeaa",
+    "groups": []
+  },
+  "~darted-laster": null,
+  "~midweb-polsyx": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://s3.midweb-polsyx.startram.io/bucket/midweb-polsyx/2023.7.31..09.19.11-Midweb-polsyx%20header2.png",
+    "bio": "I'm Bjørn. Doing Corpo SAP by day and Urbit by night - also bugs!\nCome join the hunt at six-legs-or-above",
+    "nickname": "",
+    "color": "0x23.4a3d",
+    "groups": [
+      "~nattyv/nativeplanet",
+      "~ripwen-sabrup/max-zoom-photos-jpg",
+      "~midweb-polsyx/six-legs-or-above"
+    ]
+  },
+  "~linlev-minweg": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "shadow eleanor",
+    "color": "0xd6.ff71",
+    "groups": []
+  },
+  "~radmyl-barpyl": null,
+  "~sopnys-rabtyd": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x3e.a99d",
+    "groups": []
+  },
+  "~malbus": null,
+  "~fidrex-ligdyl": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~fandel-modpub": null,
+  "~ladrul-davref": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "~Jaqeow-Spareow",
+    "color": "0x0",
+    "groups": []
+  },
+  "~ticryn-ritsyd": null,
+  "~malmur-halmex": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "bill",
+    "color": "0xfe.fb41",
+    "groups": []
+  },
+  "~hanfel-dovned": {
+    "status": "",
+    "avatar": "https://i.imgur.com/kO5Qj0s.png",
+    "cover": "https://ip.trueachievements.com/remote/www.trueachievements.com/customimages/078635.jpg",
+    "bio": "Resident Developer at Urbit Labs.",
+    "nickname": "",
+    "color": "0x55.00bd",
+    "groups": ["~hanfel-dovned/warpzone"]
+  },
+  "~rovmug-ticfyn": {
+    "status": "",
+    "avatar": "",
+    "cover": "",
+    "bio": "Resist technique, pursue the real",
+    "nickname": "",
+    "color": "0x23.95a9",
+    "groups": []
+  },
+  "~tarnyl-sillyn": {
+    "status": "Brumating",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0xb2",
+    "groups": []
+  },
+  "~racbus-davlun": null,
+  "~ritpub-sipsyl": {
+    "status": "Lift not my head from bloody ground, bear not my body home. For all the earth is Roman earth, and I shall die in Rome.",
+    "avatar": "https://media.ritpub-sipsyl.us-chi1.upcloudobjects.com/ritpub-sipsyl/2022.7.25..14.30.35-ritpub-sipsyl-heraldry.svg",
+    "cover": null,
+    "bio": "Developer at [Zorp](https://zorp.io)\n\n**Projects:** [Ares](https://github.com/urbit/ares) [St Rita Farm](https://stritafarm.com)\n",
+    "nickname": "Edward Amsden",
+    "color": "0xff.ffff",
+    "groups": ["~padwet/penguins", "~middev/the-forge"]
+  },
+  "~narful-tolfyr": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x46.58f3",
+    "groups": []
+  },
+  "~fipryc-hoprev": {
+    "status": "",
+    "avatar": null,
+    "cover": "",
+    "bio": "",
+    "nickname": "",
+    "color": "0x3c.ef63",
+    "groups": []
+  },
+  "~hacful-tonteg": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "kyrre",
+    "color": "0x0",
+    "groups": []
+  },
+  "~polrel-witter": {
+    "status": "",
+    "avatar": "",
+    "cover": "https://bowl.polrel-witter.xyz/bucket/polrel-witter/2023.12.13..12.06.23-F5cyVZjXgAIL7hY.jpeg",
+    "bio": "hooning, gooning | apps @ ~mocbel",
+    "nickname": "",
+    "color": "0xa2.bcf9",
+    "groups": [
+      "~dister-dozzod-niblyx-malnus/towards-a-timeless-way-of-building",
+      "~minder-folden/valeria-city"
+    ]
+  },
+  "~linfen-natbyn": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x87.0f0f",
+    "groups": []
+  },
+  "~hastuc-dibtux": {
+    "status": "Network Spirituality",
+    "avatar": "https://lh3.googleusercontent.com/M1kx277EWn0x1PR_kMb3hSJLj086mhasqkm3WkdUFLV4lhHJ6mZWFMaPBERn3A2iFubegTHe8dDDcx20iuJSK0o0bmu_UiwKXhNj=s0",
+    "cover": "https://urbit.ewr1.vultrobjects.com/hastuc-dibtux/2021.2.12..03.56.32-A2E46340-7F0E-478D-97F5-ED85E0123459.jpeg",
+    "bio": "```\nURBIT GUERILLA IN KURTZ SPACE __GODS OWN PROTOTYPE __ENFANT TERRIBLE @ TLON __HYPERTHYMIC CYBORG __LOVE MAXIMALIST\n```",
+    "nickname": "~𝚑𝚊𝚜𝚝𝚞𝚌-𝚍𝚒𝚋𝚝𝚞𝚡 ⟳",
+    "color": "0xee.5431",
+    "groups": ["~ladpeg-pintem/freenode", "~hastuc-dibtux/pharma"]
+  },
+  "~famhut-wolpyx": {
+    "status": "",
+    "avatar": null,
+    "cover": "",
+    "bio": "sometimes hodling, sometimes fodling",
+    "nickname": "Luke",
+    "color": "0x1a.568e",
+    "groups": []
+  },
+  "~talfus-laddus": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "Urbit Expense Sharing App: https://github.com/matthiasschaub/tahuti\n\nPersonal Site: https://talfus-laddus.de/ ",
+    "nickname": "Matthias (~talfus-laddus)",
+    "color": "0xff.e500",
+    "groups": []
+  },
+  "~fogfeb-picsel": {
+    "status": "",
+    "avatar": "",
+    "cover": null,
+    "bio": "Now at ~sigmes-modfyn",
+    "nickname": "",
+    "color": "0xec.2a00",
+    "groups": []
+  },
+  "~forfel-norfel": {
+    "status": "",
+    "avatar": "https://forfel-norfel.nyc3.digitaloceanspaces.com/forfel-norfel/2021.4.19..01.17.59-jFxTGPA.gif",
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x0",
+    "groups": [
+      "~pagwex-dovwyn/the-double-r-diner",
+      "~pagwex-dovwyn/fortified-wine-club",
+      "~pagwex-dovwyn/navigator"
+    ]
+  },
+  "~watter-parter": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x1d.3d60",
+    "groups": []
+  },
+  "~fanfun-mocbud": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "Peter McEvoy",
+    "color": "0x94.bc77",
+    "groups": []
+  },
+  "~ricsul-bilwyt-dozzod-nisfeb": {
+    "status": "sumus inevitabiles",
+    "avatar": "https://cloud.sneagan.com/s/2XTHtNNeJZLZSsp/download/ricsul-bilwyt.png",
+    "cover": "https://imgs.search.brave.com/kZPZxb4BHKyAQBMJV5qYK0Y4Zl2hXTyj_567ZWUdW8c/rs:fit:1200:715:1/g:ce/aHR0cHM6Ly9tZWRp/YTMuZ2lwaHkuY29t/L21lZGlhLzFxaXgz/Ykl3RURGQzFFZkww/WS9naXBoeS5naWY.gif",
+    "bio": "",
+    "nickname": "jackson",
+    "color": "0xed.0707",
+    "groups": []
+  },
+  "~winter-paches": {
+    "status": "founding & developing",
+    "avatar": null,
+    "cover": "https://nyc3.digitaloceanspaces.com/zax-urbit/winter-paches/2022.12.09..21.21.31-Snowy%20Mountain.jpg",
+    "bio": "Builder :: Disciple :: Engineer :: Reactionary",
+    "nickname": "blow, blow, thou winter wind",
+    "color": "0x28.1ac4",
+    "groups": [
+      "~winter-paches/the-great-north",
+      "~minder-folden/valeria-city",
+      "~darlur/bookends",
+      "~middev/the-forge",
+      "~darlur/hammock-coast"
+    ]
+  },
+  "~filfep-rabrec": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "~filfep-rabrec",
+    "color": "0x3366",
+    "groups": []
+  },
+  "~tacsup-datsyn": {
+    "status": "spaced out ",
+    "avatar": "",
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~sombud-dotnub": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "ob",
+    "color": "0x0",
+    "groups": []
+  },
+  "~lartec-bosled": null,
+  "~labtul-moltev": null,
+  "~finmep-lanteb": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://peekabooo.icu/images/turn-blue-urbit-2.png",
+    "bio": "THE INFAMOUS HACKER KNOWN AS URBIT",
+    "nickname": "~finmep-lanteb (ālēx sħēlkōvnykōv)",
+    "color": "0xd.d33f",
+    "groups": [
+      "~mister-hoster-dozzod-sorwet/sunset",
+      "~winter-paches/the-great-north",
+      "~listud-donrec/vaporwave-world",
+      "~walbex/chess-improvements-bounty-workspace"
+    ]
+  },
+  "~sogrum-savluc": {
+    "status": "Building with Dalten/Quartus",
+    "avatar": null,
+    "cover": null,
+    "bio": "VP Engineering and cofounder at Vaporware (https://twitter.com/__vaporware__) / https://vaporware.network.  \n\n\npreviously on Dalten Collective's Quartus team, where we built some of your favorite apps, like %gora, %grove and %urdl \n\n\nMore: https://vinneycavallo.com\n",
+    "nickname": "~sogrum🌫️💾",
+    "color": "0x87.6930",
+    "groups": [
+      "~sogrum-savluc/sogrum",
+      "~mister-hilper-dozzod-dalten/quartus",
+      "~dalten/dalten-collective-public",
+      "~ligbel/vaporware-public",
+      "~sogrum-savluc/boston-and-new-england",
+      "~dalten/aera"
+    ]
+  },
+  "~poster-hoster-midlev-mindyr": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x2",
+    "groups": []
+  },
+  "~hapnyl-fotlyx": {
+    "status": "",
+    "avatar": "https://storage.googleapis.com/tlon-prod-memex-assets/hapnyl-fotlyx/2023.12.19..17.5.22..547a.e147.ae14.7ae1-IMG_3145.jpeg",
+    "cover": "https://storage.googleapis.com/tlon-prod-memex-assets/hapnyl-fotlyx/2023.12.19..17.6.18..6831.26e9.78d4.fdf3-IMG_5175.gif",
+    "bio": "Hi\n",
+    "nickname": "sunbum (sunbum)",
+    "color": "0x0",
+    "groups": []
+  },
+  "~winnup-libfel": {
+    "status": "",
+    "avatar": "",
+    "cover": "",
+    "bio": "",
+    "nickname": "",
+    "color": "0x10.85e5",
+    "groups": []
+  },
+  "~rosmut-hodpub": {
+    "status": "",
+    "avatar": "https://d2w9rnfcy7mm78.cloudfront.net/24593738/original_ca84b4a719def5fc04952a8eaac4dacc.png",
+    "cover": "https://d2w9rnfcy7mm78.cloudfront.net/16901148/original_41295e01d0b7a26440e0124fe4068b05.png",
+    "bio": "kitten",
+    "nickname": "kitten",
+    "color": "0xfd.6420",
+    "groups": []
+  },
+  "~lomped-firser": {
+    "status": "Vale Queen Elizabeth II",
+    "avatar": "",
+    "cover": "https://i.pinimg.com/originals/4b/44/c7/4b44c748a8734e5852cd88387663065f.jpg",
+    "bio": "",
+    "nickname": "Lumphead",
+    "color": "0x32.814d",
+    "groups": [
+      "~nibset-napwyn/remote-life",
+      "~lomped-firser/puppers-and-doggos",
+      "~lomped-firser/juggling-club",
+      "~littel-wolfur/----the-forge",
+      "~lomped-firser/anglicans",
+      "~wolref-podlex/foundation",
+      "~lomped-firser/areography"
+    ]
+  },
+  "~bacfur-bitfed": {
+    "status": "",
+    "avatar": "",
+    "cover": "https://i.imgur.com/RfF8Vao.jpeg",
+    "bio": "back after breaching",
+    "nickname": "Max",
+    "color": "0x0",
+    "groups": []
+  },
+  "~fipdel": null,
+  "~fitpyl-rocnec": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "Lifeboat of ~ronnys-rigwet",
+    "nickname": "~ronnys-rigwet's alt",
+    "color": "0x0",
+    "groups": []
+  },
+  "~hapdec-rittyp": null,
+  "~fipfyn-datlyn": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "rame",
+    "color": "0x0",
+    "groups": []
+  },
+  "~master-malwyl": {
+    "status": "",
+    "avatar": "https://del.ams3.cdn.digitaloceanspaces.com/ryan.jpg",
+    "cover": null,
+    "bio": "https://azimuth.shop",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~davwyd-sordem": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://nyc3.digitaloceanspaces.com/davwyd-sordem/davwyd-sordem/2023.6.22..23.56.56-1840x1232x2.black-teal-yellow-red.preview.png",
+    "bio": "",
+    "nickname": "mnrr",
+    "color": "0x0",
+    "groups": [
+      "~davwyd-sordem/mnrr",
+      "~davwyd-sordem/muster",
+      "~dibref-labter/arbit"
+    ]
+  },
+  "~polwex": {
+    "status": "",
+    "avatar": "",
+    "cover": null,
+    "bio": "CTO Sortug Development. Lead dev of %trill",
+    "nickname": "",
+    "color": "0x25.60b9",
+    "groups": [
+      "~hoster-dozzod-sortug/trill",
+      "~sortug/development",
+      "~hoster-dozzod-sortug/ufa"
+    ]
+  },
+  "~rilfun-lidlen": {
+    "status": "",
+    "avatar": "",
+    "cover": "https://nyc3.digitaloceanspaces.com/rilfun-lidlen/rilfun-lidlen/2024.3.1..18.14.17..7958.1062.4dd2.f1a9-image000000.jpg",
+    "bio": "A product manager at Tlon, a runner, a cyclist, a dad.",
+    "nickname": "james",
+    "color": "0x0",
+    "groups": [
+      "~linfyr-tanbur/tasty-coffee-tips",
+      "~nattyv/nativeplanet",
+      "~ripwen-sabrup/max-zoom-photos-jpg",
+      "~padwet/penguins",
+      "~topdem/structure"
+    ]
+  },
+  "~tiller-tolbus": {
+    "status": "Paving the world in nouns. ",
+    "avatar": "",
+    "cover": "https://tiller-tolbus.nyc3.digitaloceanspaces.com/tiller-tolbus/2022.4.06..15.04.49-main-qimg-c40b421aae3e92768326a3a5b7ee7f3d-lq.jpg",
+    "bio": "Paving the world in nouns. ",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~dolmun-fasleg": null,
+  "~divryd-litpun": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "BeastOrchestra",
+    "color": "0x0",
+    "groups": []
+  },
+  "~divmec-panfex": {
+    "status": "Back and loving it",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~rondys-morlec": null,
+  "~falteg-magted": null,
+  "~sogmus-narmed": null,
+  "~dalwes-migdec": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://lh6.googleusercontent.com/-1_gV-wEoCOY/TYUpG03pPuI/AAAAAAAAAKM/MECq5qnSvqY/s1600/2+-+Peter+Doig+-+Ski+Jacket%252C+1994%252C+oil+on+canvas%252C+295x351cm.jpg",
+    "bio": "comms @ tlon",
+    "nickname": "eleanor",
+    "color": "0xa1.8aff",
+    "groups": ["~natnex-ronret/door-link", "~tommur-dostyn/tlon-studio"]
+  },
+  "~dabben-larbet": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~habrul-sarwer": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "ᛣᛖᛡᛚ",
+    "color": "0x1e.6427",
+    "groups": []
+  },
+  "~rapfyr-diglyt": {
+    "status": "Unsure if I'm a butterfly",
+    "avatar": "https://rapfyrdiglyt.s3.us-west-2.amazonaws.com/rapfyr-diglyt/2021.6.03..18.43.38-rapfyr-girl-head.png",
+    "cover": "https://rapfyrdiglyt.s3.us-west-2.amazonaws.com/rapfyr-diglyt/2021.6.03..18.43.14-rapfyrgirl-top-heavy.jpeg",
+    "bio": "",
+    "nickname": "",
+    "color": "0x90.05c2",
+    "groups": []
+  },
+  "~sarlev-sarsen": {
+    "status": "probably doing a thing",
+    "avatar": "https://sfo3.digitaloceanspaces.com/sarlev-sarsen/2023.9.22..04.08.24-sarlevpfp_smol_gh.jpeg",
+    "cover": "https://sfo3.digitaloceanspaces.com/sarlev-sarsen/2022.11.12..06.19.10-IMG_9253.jpg",
+    "bio": "liberty, growth, crypto, hijinks, innovation, agency.\n\nworking on syndicates",
+    "nickname": "",
+    "color": "0xc2.1e1e",
+    "groups": [
+      "~dalten/dalten-collective-public",
+      "~hiddev-dannut/new-hooniverse",
+      "~sovref-hasfyr/scholia-pugillatoria",
+      "~tocwex/syndicate-public"
+    ]
+  },
+  "~difrym-hocsep": {
+    "status": "",
+    "avatar": "",
+    "cover": "",
+    "bio": "Engineer who works on industrial robots and control systems.",
+    "nickname": "",
+    "color": "0xf6.5c05",
+    "groups": []
+  },
+  "~ridlur-figbud": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://www.enjpg.com/img/2020/studio-ghibli-desktop-2.jpg",
+    "bio": "please like and subscribe",
+    "nickname": "Gavin",
+    "color": "0x1d.1d25",
+    "groups": []
+  },
+  "~wolref-podlex": {
+    "status": "",
+    "avatar": "https://wolref-podlex.s3.us-west-2.amazonaws.com/wolref-podlex/2021.2.13..11.16.50-06A2BA7F-327A-4535-B4F2-C7EB8D508048.jpeg",
+    "cover": "https://wolref-podlex.s3-us-west-2.amazonaws.com/wolref-podlex/2021.2.12..00.55.37-IMG_4057.jpg",
+    "bio": "executive director @ Urbit foundation",
+    "nickname": "josh",
+    "color": "0x0",
+    "groups": ["~wolref-podlex/tea", "~halbex-palheb/uf-public"]
+  },
+  "~falnut-micwel": null,
+  "~nibset-napwyn": {
+    "status": "",
+    "avatar": "https://d2w9rnfcy7mm78.cloudfront.net/21278289/original_4990262c97dd5410c9e6541b935d505b.png?1680812532?bc=0",
+    "cover": "https://d2w9rnfcy7mm78.cloudfront.net/21278291/original_c9d4f590b4ca56408630f55dd3ab8db9.jpg?1680812532?bc=0",
+    "bio": "woke up this morning feeling so ~~local~~",
+    "nickname": "~local",
+    "color": "0x0",
+    "groups": []
+  },
+  "~nospur-sontud": {
+    "status": "",
+    "avatar": "https://storage.googleapis.com/tlon-prod-memex-assets/nospur-sontud/2024.1.21..2.53.25..31a9.fbe7.6c8b.4395-cannad PFP.png",
+    "cover": null,
+    "bio": "urbit lover",
+    "nickname": "nospur",
+    "color": "0x52.5252",
+    "groups": []
+  },
+  "~poldec-tonteg": {
+    "status": "full metal animist",
+    "avatar": null,
+    "cover": "https://sfo2.digitaloceanspaces.com/poldec-tonteg-content/poldec-tonteg/2023.5.11..15.21.39-lhasa-1942.jpg%21Large.jpg",
+    "bio": "encryption, digital money, anonymous networks, digital pseudonyms, zero knowledge, reputations, information markets, black markets, collapse of governments\n\nDirector @ [The Combine](https://the-combine.org)\n\nBook some time to say [hello](https://calendly.com/the-combine/intro)\n\nbackup ship is ~famreb-todmec\n\n[audio sigil](https://soundcloud.com/lukaskalmar/poldec-tonteg) by ~pinsyt-nossub",
+    "nickname": "",
+    "color": "0xf2.bd58",
+    "groups": []
+  },
+  "~pitlyn-mintul-nomryg-nilref": null,
+  "~matnex-posnem": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~dotrev-ralmur": null,
+  "~taglys-mocmun": {
+    "status": "",
+    "avatar": "https://uploads-ssl.webflow.com/63dbac4916846daf6af45151/63e11b3639c3d3dce14eb14c_Planet_01.png",
+    "cover": "https://nexus.blacksky.network/img/sigil_6.gif",
+    "bio": "",
+    "nickname": "Hermes Corp",
+    "color": "0xc7.3ccc",
+    "groups": ["~tichus-holnet/urblon", "~rovsen-malnec/autonomous-ecologies"]
+  },
+  "~matlus-sipbyl": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x3b.8f43",
+    "groups": []
+  },
+  "~hodrun-solmud": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "Freelance IT and web. I like to process audio. Former lives include various fever dreams such as working on truck scales, frying donuts, recommending classical CDs, hotel management, a career as a recitalist and opera singer, getting an MBA like an idiot.",
+    "nickname": "",
+    "color": "0x2c.734d",
+    "groups": []
+  },
+  "~rivmyr-ronpem": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://images.unsplash.com/photo-1554147090-e1221a04a025?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1148&q=80",
+    "bio": "",
+    "nickname": "~rivmyr-ronpem ䷘",
+    "color": "0xff.eeaa",
+    "groups": [
+      "~ripwen-sabrup/max-zoom-photos-jpg",
+      "~natnex-ronret/door-link",
+      "~rivmyr-ronpem/homepage"
+    ]
+  },
+  "~panwed-mottyl": null,
+  "~mosnel-locpyl": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "alt midsum",
+    "color": "0x33.1858",
+    "groups": []
+  },
+  "~simfur-ritwed": null,
+  "~navpec-racryc": {
+    "status": "",
+    "avatar": "https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fimg.freepik.com%2Fpremium-vector%2Fhands-robot-human-hands-touching-with-fingers-virtual-reality-artificial-intelligence-technology-concept-hand-draw-sketch-design-illustration_460848-13479.jpg%3Fw%3D2000&f=1&nofb=1&ipt=a17de9263d7712481855d50e1633d5acdba14c8e075cd68aafebddb1bbb01010&ipo=images",
+    "cover": "https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fcdn.pureluxe-services.nl%2Fwp-content%2Fuploads%2F2022%2F04%2Fbunkeren-03.jpg&f=1&nofb=1&ipt=dc86f390780e22b56392d086527e3656712bc5853ad9ca1659ba6cbcc3aa8de2&ipo=images",
+    "bio": "",
+    "nickname": "L",
+    "color": "0xff.aa00",
+    "groups": []
+  },
+  "~fabled-faster": {
+    "status": "Build-a-Bear",
+    "avatar": "",
+    "cover": "https://fabled-faster.nyc3.digitaloceanspaces.com/fabled-faster/2022.6.04..03.49.08-BG0003.png",
+    "bio": "thaumaturge at tlon\n\ned@tlon.io\n\nbc1qa256ysm78ss0k66ul8fd0g68m2zdmg8m3rncy4",
+    "nickname": "éd",
+    "color": "0x0",
+    "groups": [
+      "~fabled-faster/storage",
+      "~fabled-faster/wind",
+      "~nibset-napwyn/tlon",
+      "~fabled-faster/structure",
+      "~fabled-faster/new-york"
+    ]
+  },
+  "~roslet-tanner": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://storage.googleapis.com/tlon-prod-memex-assets/roslet-tanner/2023.11.12..0.10.5..3f3b.645a.1cac.0831-IMG_3379.jpeg",
+    "bio": "",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~dotpyl-pagler": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "FANGTANG Network Technology",
+    "color": "0x0",
+    "groups": ["~dotpyl-pagler/fangtang-public"]
+  },
+  "~santyr-nidres": {
+    "status": "",
+    "avatar": "",
+    "cover": null,
+    "bio": "",
+    "nickname": "sen",
+    "color": "0x0",
+    "groups": []
+  },
+  "~datnem-rosnex-bidtud-moltyv--witfer-naptun-fogled-wanzod": null,
+  "~latter-bolden": {
+    "status": "",
+    "avatar": "https://d2w9rnfcy7mm78.cloudfront.net/15647695/original_cb11ce061e9dd1e5dbe444f8dd8fa319.png",
+    "cover": "https://upload.wikimedia.org/wikipedia/commons/7/70/Paolo_Monti_-_Servizio_fotografico_%28Imperia%2C_1981%29_-_BEIC_6330932.jpg",
+    "bio": "",
+    "nickname": "brian",
+    "color": "0x0",
+    "groups": []
+  },
+  "~risruc-habteb": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0xe8.e844",
+    "groups": []
+  },
+  "~dapler-patrux": {
+    "status": "",
+    "avatar": "https://pbs.twimg.com/profile_images/1759637834296623104/Z5tqJpEq_400x400.jpg",
+    "cover": null,
+    "bio": "Rebel for hire. 731",
+    "nickname": "Sicrul-731",
+    "color": "0x0",
+    "groups": []
+  },
+  "~dacdul-lodsud": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "~dacdul-lodsud",
+    "color": "0x0",
+    "groups": []
+  },
+  "~socsel-pacted": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "~socsel-pacted",
+    "color": "0x7aff",
+    "groups": []
+  },
+  "~mornec-ridhut": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://losaec1ain.sgp1.digitaloceanspaces.com/losaec1ain/mornec-ridhut/2024.3.22..4.53.25..1eb8.51eb.851e.b851-1550015881346.png",
+    "bio": "Mr. Bones' Wild Ride 2: Electric Boogaloo",
+    "nickname": "",
+    "color": "0xff.c800",
+    "groups": ["~mornec-ridhut/workshop"]
+  },
+  "~sipbec-dinsul": null,
+  "~larlyt-nocset": {
+    "status": "wanderer",
+    "avatar": "https://ln-urbit.nyc3.digitaloceanspaces.com/db/avatars/protoPilot010.jpg",
+    "cover": "https://ln-urbit.nyc3.digitaloceanspaces.com/db/wallpapers/megastructure_TNA01.png",
+    "bio": "bullish ulthar skinjob ツ\n\n| backup contact: xsoth@protonmail.ch",
+    "nickname": "noc",
+    "color": "0x0",
+    "groups": [
+      "~normul-postem/bell-labs-squatters-rights",
+      "~hodrun-solmud/old",
+      "~datnut-pollen/mega-harvard-institute-for-advanced-levels",
+      "~larlyt-nocset/ln-001",
+      "~natnex-ronret/door-link",
+      "~nibset-napwyn/tlon"
+    ]
+  },
+  "~fighet-parnet": {
+    "status": "",
+    "avatar": "",
+    "cover": "https://fighet-parnet.github.io/2023/07/28/DSC_3455.jpg",
+    "bio": "big on nature, being physically capable, music, systems programming. i want to live on a farm",
+    "nickname": "",
+    "color": "0xe6.4a4a",
+    "groups": []
+  },
+  "~norsyr-torryn": {
+    "status": "busy parenting ~littel-todler-norsyr-torryn",
+    "avatar": "https://yosoyubik.fra1.digitaloceanspaces.com/norsyr-torryn/2022.4.15..05.56.05-norsyr-torryn.png",
+    "cover": "https://yosoyubik.fra1.digitaloceanspaces.com/norsyr-torryn/2022.1.29..14.29.53-D4f1izbUUAI1GJe.jpg",
+    "bio": "ｙｏｓｏｙｕｂｉｋ: https://github.com/yosoyubik\n____________________________________________________________________\n𝙸'𝚖 𝚝𝚑𝚎 𝚔𝚒𝚗𝚐 𝚘𝚏 𝚖𝚢 𝚘𝚠𝚗 𝚕𝚊𝚗𝚍.................................................................\n𝙵𝚊𝚌𝚒𝚗𝚐 𝚝𝚎𝚖𝚙𝚎𝚜𝚝𝚜 𝚘𝚏 𝚍𝚞𝚜𝚝, 𝙸'𝚕𝚕 𝚏𝚒𝚐𝚑𝚝 𝚞𝚗𝚝𝚒𝚕 𝚝𝚑𝚎 𝚎𝚗𝚍..........................\n𝙲𝚛𝚎𝚊𝚝𝚞𝚛𝚎𝚜 𝚘𝚏 𝚖𝚢 𝚍𝚛𝚎𝚊𝚖𝚜, 𝚛𝚊𝚒𝚜𝚎 𝚞𝚙 𝚊𝚗𝚍 𝚍𝚊𝚗𝚌𝚎 𝚠𝚒𝚝𝚑 𝚖𝚎........................\n𝙽𝚘𝚠 𝚊𝚗𝚍 𝚏𝚘𝚛𝚎𝚟𝚎𝚛 𝙸'𝚖 𝚢𝚘𝚞𝚛 𝚔𝚒𝚗𝚐............................................................\n____________________________________________________________________\n𝙮 𝙙𝙞𝙘𝙚𝙣 𝙦𝙪𝙚 𝙡𝙡𝙪𝙚𝙫𝙚 𝙥𝙤𝙧 𝙣𝙤𝙨𝙤𝙩𝙧𝙤𝙨 𝙮 𝙦𝙪𝙚 𝙡𝙖 𝙣𝙞𝙚𝙫𝙚 𝙚𝙨 𝙣𝙪𝙚𝙨𝙩𝙧𝙖\n",
+    "nickname": "",
+    "color": "0x0",
+    "groups": [
+      "~norsyr-torryn/nordics",
+      "~norsyr-torryn/advent-of-hoon",
+      "~norsyr-torryn/hispanohablantes",
+      "~poster-hoster-midlev-mindyr/astrolabe",
+      "~norsyr-torryn/canvas"
+    ]
+  },
+  "~maclyr-nimnyl": {
+    "status": "",
+    "avatar": "",
+    "cover": "https://media.tilde.zone/system/accounts/headers/109/302/223/532/923/678/original/6ef9cf19b49bcb5e.jpg",
+    "bio": "",
+    "nickname": "Andrew Cowie",
+    "color": "0x0",
+    "groups": []
+  },
+  "~tirput-divmut": null,
+  "~hadmex-racsud": null,
+  "~dovsem-bornyl": {
+    "status": "",
+    "avatar": "https://s3-dovsem-bornyl.zalberico.com/bucket/dovsem-bornyl/2024.3.12..12.20.52..87ef.9db2.2d0e.5604-IMG_8607.jpeg",
+    "cover": "https://s3-dovsem-bornyl.zalberico.com/bucket/dovsem-bornyl/2023.4.25..00.22.49-urbit-sea.jpg",
+    "bio": "PLTR -> TLÖN -> PLTR https://zalberico.com/",
+    "nickname": "Zach (~dovsem-bornyl)",
+    "color": "0xff.7300",
+    "groups": [
+      "~dovsem-bornyl/autoverse",
+      "~dovsem-bornyl/sf-bay-area",
+      "~raldeg/nativeplanet"
+    ]
+  },
+  "~tansyr-tilbus": {
+    "status": "",
+    "avatar": "",
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~sapdex-diflyx": {
+    "status": "",
+    "avatar": "",
+    "cover": null,
+    "bio": "Native apps developer @ Tlon",
+    "nickname": "Alec",
+    "color": "0x52ff",
+    "groups": []
+  },
+  "~holnel-holwer": {
+    "status": "",
+    "avatar": "",
+    "cover": null,
+    "bio": "Building WSFM.com",
+    "nickname": "Chad",
+    "color": "0xf6.0a0a",
+    "groups": []
+  },
+  "~nodsup-halnux": {
+    "status": "Plainswalking",
+    "avatar": "",
+    "cover": "https://nodsup-halnux.nyc3.digitaloceanspaces.com/IDImages/S&P2.jpg",
+    "bio": "Accessing a viable future boils down to one's ability to expand negative capability, while learning to stare into the sea of information without going blind.",
+    "nickname": "",
+    "color": "0x6.3c5e",
+    "groups": [
+      "~nodsup-halnux/exiled-ends-of-the-earth-eee",
+      "~nodsup-halnux/recognition"
+    ]
+  },
+  "~masseg-simrev": null,
+  "~wolsyr-taller": null,
+  "~digref-nimpen": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "I both wimple and crisp",
+    "nickname": "Wez",
+    "color": "0x0",
+    "groups": []
+  },
+  "~lidreg-dillut": {
+    "status": "out there",
+    "avatar": null,
+    "cover": "",
+    "bio": "please dm for an invite to the \"hard and fast electronic music group\".\n\nnot sure what groups to join? there's a list of groups in my notepad.",
+    "nickname": "",
+    "color": "0x2a.2d49",
+    "groups": [
+      "~lidreg-dillut/notes",
+      "~habder-pacted/embassy-zone",
+      "~litmus-ritten/iwtf",
+      "~habder-pacted/vivarium"
+    ]
+  },
+  "~macdeg-halben": {
+    "status": "",
+    "avatar": "https://storage.googleapis.com/tlon-prod-memex-assets/macdeg-halben/2023.11.22..11.45.21..3958.1062.4dd2.f1a9-tumblr_202587049da65680759724ea45bd4abe_725be4c8_540.png",
+    "cover": "https://storage.googleapis.com/tlon-prod-memex-assets/macdeg-halben/2023.11.27..18.1.5..6000-IMG_20231122_0001.jpeg",
+    "bio": "",
+    "nickname": "kid4today",
+    "color": "0xff.ffff",
+    "groups": []
+  },
+  "~finned-palmer": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://togten.com:9001/finned-palmer/finned-palmer/2023.9.27..13.02.32-j-balla-photography-HvC0VnTkV5M-unsplash.jpg",
+    "bio": "engineer at tlon",
+    "nickname": "Patrick (~finned-palmer)",
+    "color": "0x2e.3cff",
+    "groups": ["~darduc-mitfen/catholicism", "~nibset-napwyn/tlon"]
+  },
+  "~dacbec-dosbus": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "Group host. Contact: ~dibtul-havdux",
+    "nickname": "",
+    "color": "0x20.baf7",
+    "groups": []
+  },
+  "~sigmes-modfyn": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "mærīø—Previously also known as ~fogfeb-picsel or ~halwyx-dacsyr among others.",
+    "nickname": "",
+    "color": "0xdbaa",
+    "groups": [
+      "~sigmes-modfyn/sigmes-notebook",
+      "~litmus-ritten/iwtf",
+      "~litmus-ritten/ccru",
+      "~dibref-labter/arbit"
+    ]
+  },
+  "~dabmul-matdel": {
+    "status": "",
+    "avatar": "",
+    "cover": "",
+    "bio": "",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~macpem-micsec": {
+    "status": "Exploring",
+    "avatar": "https://assets.jaesharp.com/~/macpem-micsec/2023.5.09..00.11.18-avatar-a192.png",
+    "cover": "https://assets.jaesharp.com/~/macpem-micsec/2023.5.09..00.11.26-header.jpg",
+    "bio": "Systems Engineer, Scientist, and Professional Dilettante. I will not kneel before ~zod.\n\nFediverse: https://jaesharp.social/@j\nGithub: https://github.com/justinlynn\n\nMy posts and/or content represent solely my own viewpoints and not the viewpoints of any other associated person or entity - if I am speaking on behalf of another person or entity, I will state so explicitly.",
+    "nickname": "J (~macpem-micsec)",
+    "color": "0x20.4a87",
+    "groups": [
+      "~rondev/group-discovery",
+      "~bitbet-bolbel/urbit-community",
+      "~halbex-palheb/uf-public",
+      "~nibset-napwyn/tlon"
+    ]
+  },
+  "~bonbud-macryg": {
+    "status": "",
+    "avatar": "https://i.imgur.com/zAG3Lzm.png",
+    "cover": "https://i.imgur.com/4ql36cD.png",
+    "bio": "designerwriterdeveloper",
+    "nickname": "",
+    "color": "0x0",
+    "groups": ["~simsur-ronbet/sharing", "~simsur-ronbet/scotland"]
+  },
+  "~nordus-mocwyl": {
+    "status": "rest day",
+    "avatar": null,
+    "cover": "https://lh3.googleusercontent.com/C69P9DDJ8Ip8mdbUf0J_6k98iX08CBIXVawK-SiIVRMVV8A65rzyLd8kb0dG5BWOkl2vEbFDDPpkmpgkNY3oiFn77opnZRwHoGJwdw=h600",
+    "bio": "“The information we allow into consciousness becomes extremely important; it is, in fact, what determines the content and the quality of life.”\n—Mihaly Csikszentmihalyi on Attention",
+    "nickname": "nord bird",
+    "color": "0x7.6948",
+    "groups": ["~nordus-mocwyl/howm", "~nordus-mocwyl/harmontown"]
+  },
+  "~fidwed-sipwyn": null,
+  "~hasdeb-hanpun": {
+    "status": "",
+    "avatar": "https://storage.googleapis.com/tlon-prod-memex-assets/hasdeb-hanpun/2024.2.21..21.3.15..ddb2.2d0e.5604.1893-Screenshot-2024-02-21-at-10.31.29 AM.png",
+    "cover": null,
+    "bio": "",
+    "nickname": "ed (test unit)",
+    "color": "0xe8.bb1d",
+    "groups": ["~nibset-napwyn/tlon", "~tommur-dostyn/tlon-studio"]
+  },
+  "~motful-malpex-nocsyx-lassul": null,
+  "~dirnub-todhex": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://storage.googleapis.com/tlon-prod-memex-assets/dirnub-todhex/2024.2.23..14.28.27..a3d7.0a3d.70a3.d70a-IMG_6535.jpeg",
+    "bio": "jwpe.eth.\nIn service of Life.",
+    "nickname": "~jwpe",
+    "color": "0x0",
+    "groups": []
+  },
+  "~tiplen-tarryc": {
+    "status": "",
+    "avatar": "https://pbs.twimg.com/media/D6NvN83W4AAxygM?format=jpg&name=large",
+    "cover": "https://images.unsplash.com/photo-1542191538-0ed9b8b04d02",
+    "bio": "✍️ : https://indianbronson.substack.com/\n🐦 : @lndian_bronson\n🗣️ : @Indian_Bronson",
+    "nickname": "Indian_Bronson",
+    "color": "0x0",
+    "groups": []
+  },
+  "~fodlun-forhes": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "colin",
+    "color": "0xc0.c0c0",
+    "groups": []
+  },
+  "~diswes-nilfep": null,
+  "~sigwyd-posmyn": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0xc8.0139",
+    "groups": []
+  },
+  "~tocres-lidsev": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "cursed finmep-lanteb",
+    "color": "0x8.8901",
+    "groups": []
+  },
+  "~hanmus-mapfun": null,
+  "~rovnys-ricfer": {
+    "status": "",
+    "avatar": "",
+    "cover": "https://pbs.twimg.com/profile_banners/716444875395215360/1651626314/1500x500",
+    "bio": "CTO | Urbit Foundation\n\nhttps://twitter.com/rovnys\n\nhttps://github.com/belisarius222",
+    "nickname": "",
+    "color": "0x20.00a0",
+    "groups": [
+      "~dister-dozzod-lapdeg/battery-payload",
+      "~magbel/core-school",
+      "~halbex-palheb/uf-public",
+      "~middev/the-forge"
+    ]
+  },
+  "~rivpyl-sidfyl": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://i.ibb.co/g7p4xt8/Ez-U-puu-Vk-AAm0-Bc.jpg",
+    "bio": "Kelvin Grindset",
+    "nickname": "Rui",
+    "color": "0xde.dede",
+    "groups": [
+      "~paldev/group",
+      "~litmus-ritten/iwtf",
+      "~racwet/marte",
+      "~matwet/networked-subject"
+    ]
+  },
+  "~palfun-foslup": {
+    "status": "MAXIMIZING URBIT",
+    "avatar": null,
+    "cover": "https://i.imgur.com/0xAXrPk.jpg",
+    "bio": "URBIT MAXIMALIST.",
+    "nickname": "",
+    "color": "0x2a.a779",
+    "groups": []
+  },
+  "~dozbep-soller": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "~dozbep-soller",
+    "color": "0x0",
+    "groups": []
+  },
+  "~tollys-rabfyn": null,
+  "~wanten-fanbec": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "JL",
+    "color": "0xc7.f60a",
+    "groups": []
+  },
+  "~bitter-bitduc": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://nyc3.digitaloceanspaces.com/bitter-bitduc/bitter-bitduc/2023.8.22..20.57.06-IMG_0261.jpeg",
+    "bio": "hosting @ tlon",
+    "nickname": "Daniel",
+    "color": "0x57.5757",
+    "groups": ["~nibset-napwyn/tlon"]
+  },
+  "~rapwyc-pollet": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "only planet on south west coast of ireland",
+    "nickname": "",
+    "color": "0x54.8063",
+    "groups": []
+  },
+  "~nilsem-mitmes": null,
+  "~solfer-magfed": {
+    "status": "",
+    "avatar": "",
+    "cover": null,
+    "bio": "",
+    "nickname": "Dan",
+    "color": "0xff.ffd6",
+    "groups": []
+  },
+  "~firwet-hildef": {
+    "status": "",
+    "avatar": "https://files.catbox.moe/m5kk3d.png",
+    "cover": "https://cdn.discordapp.com/attachments/509942008777932812/928773822482616402/7u7OYbt-monarch-butterfly-wallpaper.jpg",
+    "bio": ":))",
+    "nickname": "TheHostOfTheSun",
+    "color": "0xb2.ec5d",
+    "groups": []
+  },
+  "~topnet-topmul": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~tiptux-dibmeb-nocsyx-lassul": null,
+  "~binhec-rabfyl": null,
+  "~habmec-wanlev": null,
+  "~socryx-topled": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "OG Urbit/Kubernetes nerd",
+    "nickname": "yebyen",
+    "color": "0xff.0033",
+    "groups": []
+  },
+  "~simfyl-larred": null,
+  "~midlev-mindyr": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://i.imgur.com/tfq46rl.png",
+    "bio": "Orthodox Christian\n\nProgrammer, musician, artist, and whatever else I feel like on a given day\n\nWorking on Turf",
+    "nickname": "",
+    "color": "0xd4.4c02",
+    "groups": [
+      "~nocsyx-lassul/holy-grail-ui",
+      "~poster-hoster-midlev-mindyr/turf",
+      "~tollys-dantes/burding",
+      "~poster-hoster-midlev-mindyr/astrolabe",
+      "~topnup-firber/the-portico"
+    ]
+  },
+  "~macduc-haldem": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x60.7243",
+    "groups": []
+  },
+  "~littel-wolfur": {
+    "status": "merry christmas ",
+    "avatar": "https://nyc3.digitaloceanspaces.com/archiv/littel-wolfur/2021.2.02..03.02.00-image.png",
+    "cover": "https://nyc3.digitaloceanspaces.com/archiv/littel-wolfur/2021.2.22..22.25.15-screen.jpg",
+    "bio": "",
+    "nickname": "",
+    "color": "0x0",
+    "groups": ["~middev/os-emacs", "~middev/guiturbit", "~middev/the-forge"]
+  },
+  "~dalweb-donfun": {
+    "status": "",
+    "avatar": "https://ams3.digitaloceanspaces.com/dalweb-donfun/dalweb-donfun/2023.7.09..08.06.37-dalweb.png",
+    "cover": "https://pbs.twimg.com/profile_banners/1475486037359087616/1664755532/1500x500",
+    "bio": "Deputy Executive Director @ Urbit Foundation",
+    "nickname": "Thomas",
+    "color": "0x0",
+    "groups": [
+      "~halbex-palheb/uf-public",
+      "~dalweb-donfun/urbit-deutschland",
+      "~dalweb-donfun/eurbit",
+      "~siddef/uf-meetups",
+      "~paldev/nlbit"
+    ]
+  },
+  "~wolfer-fiddem": null,
+  "~dinnyt-divsud": {
+    "status": "",
+    "avatar": "https://i1.wp.com/www.atlasarms.org/wp-content/uploads/2021/01/Screenshot_20201231_171537.png?w=420&ssl=1",
+    "cover": "https://www.atlasarms.org/wp-content/uploads/2020/09/WhiteLogo-600x352.png",
+    "bio": "Ops @ Atlas Arms Manufacturing",
+    "nickname": "Michael",
+    "color": "0x0",
+    "groups": []
+  },
+  "~nomryg-nilref": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "Jack Fox",
+    "color": "0x0",
+    "groups": [
+      "~dister-dozzod-lapdeg/battery-payload",
+      "~raldeg/nativeplanet",
+      "~pitlyn-mintul-nomryg-nilref/obelisk"
+    ]
+  },
+  "~binpyx-dozmer": {
+    "status": "",
+    "avatar": "",
+    "cover": "https://nyc3.digitaloceanspaces.com/bitter-bitduc/bitter-bitduc/2023.8.22..20.57.06-IMG_0261.jpeg",
+    "bio": "hosting @ tlon",
+    "nickname": "Daniel (~binpyx-dozmer)",
+    "color": "0x0",
+    "groups": []
+  },
+  "~labsef-toprem": null,
+  "~mastyr-bottec": {
+    "status": "",
+    "avatar": "https://files.catbox.moe/6bxp0p.svg",
+    "cover": "https://ca-times.brightspotcdn.com/dims4/default/f097d1b/2147483647/strip/true/crop/3000x2000+0+0/resize/1200x800!/format/webp/quality/80/?url=https%3A%2F%2Fcalifornia-times-brightspot.s3.amazonaws.com%2F2c%2F0e%2Fb0ea78684099ab0d2bd9213175c0%2Fsierra-moon.jpg",
+    "bio": "Engineer at the Urbit Foundation",
+    "nickname": "",
+    "color": "0x0",
+    "groups": [
+      "~mopfel-winrux/nockpu",
+      "~halbex-palheb/uf-public",
+      "~dister-dozzod-lapdeg/battery-payload",
+      "~ritpub-sipsyl/new-mars",
+      "~ramlyx-sibdyt/guild",
+      "~ritpub-sipsyl/runtime-hackers"
+    ]
+  },
+  "~datder-sonnet": {
+    "status": "in ~zod we trust",
+    "avatar": null,
+    "cover": "https://pbs.twimg.com/profile_banners/922197314579697666/1508704898/1500x500",
+    "bio": "aka Tom",
+    "nickname": "",
+    "color": "0x3.6c7b",
+    "groups": ["~batbex/gem-rubyists", "~hodler-datder-sonnet/hodl"]
+  },
+  "~ripnyt-ripnyt": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://ripnyt-ripnyt.sfo3.digitaloceanspaces.com/ripnyt-ripnyt/2022.7.05..06.58.02-039_IMG_3865.jpg",
+    "bio": "I like trees.",
+    "nickname": "Gabriel🌲~ripnyt-ripnyt",
+    "color": "0x25.3729",
+    "groups": []
+  },
+  "~tasrut-sippyx": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://storage.googleapis.com/tlon-prod-memex-assets/tasrut-sippyx/2024.3.15..16.56.40..38d4.fdf3.b645.a1ca-dan-v-747TVGA33wo-unsplash.jpg",
+    "bio": "been learning hoon, and will keep learning hoon until I learn hoon",
+    "nickname": "",
+    "color": "0x7.0c0a",
+    "groups": []
+  },
+  "~poster-findul": {
+    "status": "trusting the plan",
+    "avatar": null,
+    "cover": "https://glliusorg.files.wordpress.com/2017/10/master-copy2.jpg",
+    "bio": "from bauhaus to /ourhausfrau/",
+    "nickname": "andrea o",
+    "color": "0x8f51",
+    "groups": []
+  },
+  "~narnym-ristem": {
+    "status": "",
+    "avatar": "https://pbs.twimg.com/profile_images/1702054489740447745/WDzA8KFu_400x400.jpg",
+    "cover": "https://pbs.twimg.com/profile_banners/1481297220867604481/1694636388/1500x500",
+    "bio": "",
+    "nickname": "~ռǟʀռʏʍ-ʀɨֆȶɛʍ",
+    "color": "0xff.ffff",
+    "groups": []
+  },
+  "~sognyt-sigsev": {
+    "status": "",
+    "avatar": "",
+    "cover": "https://storage.googleapis.com/tlon-prod-memex-assets/sognyt-sigsev/2024.1.13..3.6.48..2106.24dd.2f1a.9fbe-IMG_4400.jpeg",
+    "bio": "Flying Higher and Higher",
+    "nickname": "SEVEN",
+    "color": "0xf9.f5ee",
+    "groups": ["~halbex-palheb/uf-public"]
+  },
+  "~barter-simsum": {
+    "status": "breached. please re-add a pal",
+    "avatar": "https://barter-simsum.nyc3.digitaloceanspaces.com/barter-simsum/barter-simsum/2023.8.02..05.10.07-ralph.jpg",
+    "cover": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/US-Fractional_%281st_Issue%29-%240.50-Spinner_Prototype.jpg/1280px-US-Fractional_%281st_Issue%29-%240.50-Spinner_Prototype.jpg",
+    "bio": "UF SOLDIER",
+    "nickname": "",
+    "color": "0x63.0330",
+    "groups": []
+  },
+  "~dibref-labter": {
+    "status": "fidelio",
+    "avatar": "",
+    "cover": "https://s3.escaping.network/borges/dibref-labter/2023.4.27..19.51.06-eyes-wide-shut-banner-825088245.jpg",
+    "bio": "fidelio\nhttps://escaping.network",
+    "nickname": "leo",
+    "color": "0xff.0080",
+    "groups": [
+      "~dibref-labter/leo",
+      "~natnex-ronret/door-link",
+      "~dibref-labter/arbit"
+    ]
+  },
+  "~botbyn-dolrum": null,
+  "~lindut-sonfex": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "aspen",
+    "color": "0x64.6464",
+    "groups": []
+  },
+  "~hidnus-wisdem": {
+    "status": "",
+    "avatar": "",
+    "cover": "https://ordinals.com/content/2505462cbcede60b846c7574e5261f52416b5a5374ca2a0d2a41b485cf682ed0i0",
+    "bio": "Revelation 21:4",
+    "nickname": "Your Friend Wisdem",
+    "color": "0xbe.3131",
+    "groups": ["~nattyv/nativeplanet", "~tirrel/the-marketplace"]
+  },
+  "~rinbyr-dannup": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "~rinbyr-dannup",
+    "color": "0x0",
+    "groups": []
+  },
+  "~locted-ransyl-rabwes-ronlet--socnem-davhec-ridtel-samzod": null,
+  "~ronhet-figtyv-dinleb-rambep": null,
+  "~bordex-ripdur": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "South Bend, Indiana - I work on Kubernetes and I'm a Flux maintainer (fluxcd.io)",
+    "nickname": "Kingdon",
+    "color": "0x1.b3d2",
+    "groups": []
+  },
+  "~moglep-mapruc": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "midsummersdeath",
+    "color": "0x3d.4d78",
+    "groups": []
+  },
+  "~bicbus-liglyd": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "~bicbus-liglyd",
+    "color": "0x0",
+    "groups": []
+  },
+  "~tadbus-pidbel": null,
+  "~dovnec-bonder": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "~dovnec-bonder (nico)",
+    "color": "0x4f.7a28",
+    "groups": []
+  },
+  "~dalhec-banler": {
+    "status": "",
+    "avatar": "https://s3.dalhec-banler.startram.io/bucket/dalhec-banler/2023.9.13..19.46.42-dalhec-banler.png",
+    "cover": "https://s3.dalhec-banler.startram.io/bucket/dalhec-banler/2023.9.13..19.24.54-1.png",
+    "bio": "Operations + Logistics @ Native Planet inc.\n\nHome Base: Austin, TX \n\nHomebrewer, 1/4 time event producer, father, husband, tinkerer, and part time rabblerouser.",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~tomdul-binted": null,
+  "~tiplur-bilrex": {
+    "status": "",
+    "avatar": "https://i.ibb.co/c8zTKVD/signal-2021-09-05-155124-027-B2.jpg",
+    "cover": "https://upload.wikimedia.org/wikipedia/commons/5/50/Zenaida_macrouraAWP17AA.jpg",
+    "bio": "Ontario; \n\"Cut the universe at its joints\";\nPhysician by trade;\nhttps://twitter.com/tiplur_bilrex",
+    "nickname": "Tiplur",
+    "color": "0x0",
+    "groups": [
+      "~middel-salbyt/dominion-of-canada",
+      "~bintus-ragret/e-acc",
+      "~tillys-fasryp/urbfit-lyftev",
+      "~natnex-ronret/door-link",
+      "~tiplur-bilrex/applied-fallabilism---a-design-concept-for-superintelligent-machines"
+    ]
+  },
+  "~haddeg-ribmeb": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x4d.c9ff",
+    "groups": []
+  },
+  "~hassun-hassel": {
+    "status": "",
+    "avatar": "https://pbs.twimg.com/profile_images/1591615644570714113/JJk--TwD_400x400.jpg",
+    "cover": "https://pbs.twimg.com/profile_banners/1403017635768553475/1668303769/600x200",
+    "bio": "Gathering information about #urbit to select and highlight fascinating stories. Please, DM me about what got you interested in Urbit!",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~dapryc-tilryn": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://images.adsttc.com/media/images/55e8/8d8e/e258/46be/0e00/0019/newsletter/1265545139.jpg?1441303944",
+    "bio": "",
+    "nickname": "",
+    "color": "0xff.e3c9",
+    "groups": []
+  },
+  "~pacfel-tilweg": null,
+  "~dozreg-toplud": {
+    "status": "",
+    "avatar": "https://i.imgur.com/q7ZhkEw.png",
+    "cover": null,
+    "bio": "Fais ce que dois, advienne que pourra. Building urwasm: WebAssembly interpreter on Urbit https://github.com/Quodss/urwasm",
+    "nickname": "dozreg",
+    "color": "0xad.d8e6",
+    "groups": ["~fansef-dastus/urwasm"]
+  },
+  "~motduc-lavdyl": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "justbuild",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~donrel-monned": null,
+  "~ramteb-tinmut": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "Carthago delenda est!",
+    "nickname": "~ramteb-tinmut",
+    "color": "0x27.c7b5",
+    "groups": ["~ramteb-tinmut/cdmx"]
+  },
+  "~nildys": {
+    "status": "",
+    "avatar": "https://media.discordapp.net/attachments/992156432160006224/1005209501756035172/Crator_journey_into_the_singularity_data_code_boat_colorful_bin_050f773e-5bbe-4458-82fe-79a38dc89420.png?width=417&height=417",
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~novlud-padtyv": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "Engineer at Tirrel",
+    "nickname": "ixv",
+    "color": "0x0",
+    "groups": ["~tirrel/the-marketplace", "~tirrel/tirrel-support"]
+  },
+  "~dinnyr-ramtyn-pitrut-botbus--sonmeb-taspex-macdux-marzod": null,
+  "~fidzod-fidfes": null,
+  "~dinleb-rambep": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x79.0d0d",
+    "groups": []
+  },
+  "~nocmex-tomsyn": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "https://www.ceo-worldwide.com/executive-profile.php?iman=87993",
+    "nickname": "NOCmeX",
+    "color": "0xc235",
+    "groups": []
+  },
+  "~podful-dordel": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~nallux-dozryl": {
+    "status": "18 Dragon Subduing Palms",
+    "avatar": "https://img.favpng.com/17/9/2/guo-jing-the-legend-of-the-condor-heroes-huang-yaoshi-the-return-of-the-condor-heroes-the-heaven-sword-and-dragon-saber-png-favpng-47nSqZ60rrB4ems3aWJUZCdzN.jpg",
+    "cover": "https://urbitas.sgp1.digitaloceanspaces.com/nallux-dozryl/2022.10.11..11.09.37-image.png",
+    "bio": "I like Urbit\nhttps://www.nativeplanet.io/",
+    "nickname": "",
+    "color": "0x9c.8ee1",
+    "groups": ["~rondev/group-discovery", "~raldeg/nativeplanet"]
+  },
+  "~tinnus-napbus": {
+    "status": "",
+    "avatar": "https://m.tinnus-napbus.xyz/pub/octopus.svg",
+    "cover": "https://pub.m.tinnus-napbus.xyz/bg/jellyfish-600-300.jpg",
+    "bio": "https://github.com/tinnus-napbus",
+    "nickname": "",
+    "color": "0xf9.ce71",
+    "groups": []
+  },
+  "~tapper-botsub": {
+    "status": "dialed in",
+    "avatar": null,
+    "cover": null,
+    "bio": "aloft",
+    "nickname": "",
+    "color": "0x6f.aa89",
+    "groups": []
+  },
+  "~fopweg-nolnyt": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "Matt (~fopweg-nolnyt)",
+    "color": "0x0",
+    "groups": []
+  },
+  "~nodmel-todsyr": {
+    "status": "",
+    "avatar": "https://storage.googleapis.com/tlon-prod-memex-assets/nodmel-todsyr/2024.1.25..21.52.12..f333.3333.3333.3333-nodmel-todsyr.png",
+    "cover": "https://storage.googleapis.com/tlon-prod-memex-assets/nodmel-todsyr/2024.1.25..21.52.56..1db2.2d0e.5604.1893-header.jpg",
+    "bio": "",
+    "nickname": "",
+    "color": "0x8.004c",
+    "groups": []
+  },
+  "~hobfer-navtel": null,
+  "~posper-hacteb": null,
+  "~simsur-sivbex": null,
+  "~maldev-master": null,
+  "~dordyn-foldyr": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://storage.googleapis.com/tlon-prod-memex-assets/dordyn-foldyr/2023.12.9..21.58.43..8d91.6872.b020.c49b-IMG_2564.jpeg",
+    "bio": "",
+    "nickname": "",
+    "color": "0x8.46bc",
+    "groups": ["~dordyn-foldyr/public"]
+  },
+  "~sarpen-laplux": {
+    "status": "",
+    "avatar": "https://dalten.sfo2.digitaloceanspaces.com/sarpen-laplux/2022.10.02..18.13.30-planetgirl2-square.png",
+    "cover": "https://dalten.sfo2.digitaloceanspaces.com/sarpen-laplux/2022.10.02..18.13.10-planetgirl2-square.png",
+    "bio": "",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~nodreb-borrus": {
+    "status": "",
+    "avatar": "https://urbit.me/api/images/nodreb-borrus.png",
+    "cover": null,
+    "bio": "",
+    "nickname": "~nodreb-borrus",
+    "color": "0x23.2323",
+    "groups": []
+  },
+  "~fodluc-wicbus": {
+    "status": "",
+    "avatar": "https://pbs.twimg.com/profile_images/1518222549951426561/Yu3xGG02_400x400.png",
+    "cover": "https://pbs.twimg.com/profile_banners/773586855698759680/1687974020/1500x500",
+    "bio": "",
+    "nickname": "frcbss",
+    "color": "0xff.ffff",
+    "groups": []
+  },
+  "~migrev-dolseg": {
+    "status": "freestyle living",
+    "avatar": "https://nyc3.digitaloceanspaces.com/drain/migrev-dolseg/2022.10.01..13.16.45-icon.png",
+    "cover": null,
+    "bio": "https://migrev-dolseg.com/feeds",
+    "nickname": "will",
+    "color": "0x8a.1de0",
+    "groups": []
+  },
+  "~bonsep-pinmex": null,
+  "~master-morzod": null,
+  "~hopfyn-masmyn": {
+    "status": "",
+    "avatar": "https://i.imgur.com/x2Quu4i.jpg",
+    "cover": "https://i.imgur.com/Etm5qDX.jpg",
+    "bio": "https://maggieleber.github.io/",
+    "nickname": "MaggieL",
+    "color": "0xff",
+    "groups": [
+      "~hopfyn-masmyn/matrisync",
+      "~bilsyl-marpen/ur-blinding-me-with-science",
+      "~nibset-napwyn/tlon"
+    ]
+  },
+  "~sicrep-docrem": {
+    "status": "",
+    "avatar": "https://d2w9rnfcy7mm78.cloudfront.net/3486833/original_bdede310b22d967d6040f83cd599bd84.png?1548348725?bc=1",
+    "cover": "https://d2w9rnfcy7mm78.cloudfront.net/2286340/original_7c6d542ae3bf6d78c68815ae9bd7c4bf.jpg?1528501022?bc=1",
+    "bio": "self-hosted since 2019",
+    "nickname": "dillon (~sicrep-docrem)",
+    "color": "0xf6.ee09",
+    "groups": []
+  },
+  "~balpub-fopmyn-rolwyl-litlut": {
+    "status": "",
+    "avatar": null,
+    "cover": "http://dotsur.co/mariano/denver.jpg",
+    "bio": "",
+    "nickname": "Mariano's moon",
+    "color": "0x67.4684",
+    "groups": []
+  },
+  "~bilsyl-marpen": {
+    "status": "",
+    "avatar": "https://i.postimg.cc/brgYGt0L/GRACE-JONES-1-A-AIRBRUSH-100-X-100.png",
+    "cover": "https://i.postimg.cc/vZVC8SRh/yves-klein-REVERSE.png",
+    "bio": "Yes",
+    "nickname": "Elliot",
+    "color": "0x0",
+    "groups": []
+  },
+  "~liglec-lagdep": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "~liglec-lagdep",
+    "color": "0x0",
+    "groups": []
+  },
+  "~litmus-ritten": {
+    "status": "Nyquil Ortolan Advocate",
+    "avatar": "https://sfo3.digitaloceanspaces.com/iwtf-life7/litmus-ritten/2023.12.08..02.55.41-moon-3.svg",
+    "cover": "https://iwtf-life7.sfo3.digitaloceanspaces.com/backdrops/hlc-hero-2024-aspect.png",
+    "bio": "we have guided men and unguided missiles",
+    "nickname": "",
+    "color": "0x25.aff5",
+    "groups": [
+      "~litmus-ritten/iwtf",
+      "~litmus-ritten/ccru",
+      "~litmus-ritten/utwg"
+    ]
+  },
+  "~wisnux-sarfun": null,
+  "~tommur-dostyn": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "Tlon Studio",
+    "color": "0x0",
+    "groups": []
+  },
+  "~salfer-biswed": {
+    "status": "",
+    "avatar": "https://storage.googleapis.com/tlon-prod-memex-assets/salfer-biswed/2024.2.23..18.36.9..1a1c.ac08.3126.e978-bluberries_90s_aesthetic_woman_with_platinum_and_dark_blue_and__dd7c74b3-6668-4a84-85ae-2fc122b6636a.PNG",
+    "cover": "https://storage.googleapis.com/tlon-prod-memex-assets/salfer-biswed/2024.2.23..18.36.27..370a.3d70.a3d7.0a3d-fdh.png",
+    "bio": "🫐 X: @0xblooberries\n🫐 TG: @bloo_berries\n🫐 Urbit Group for Gamers: /1/group/~salfer-biswed/gamers",
+    "nickname": "blooberries.x",
+    "color": "0x19.6d1a",
+    "groups": [
+      "~salfer-biswed/urbit-iberia",
+      "~salfer-biswed/shefi-ers",
+      "~natnex-ronret/door-link",
+      "~salfer-biswed/gamers"
+    ]
+  },
+  "~fostyr-ridrup": {
+    "status": "",
+    "avatar": "https://storage.wholezero.org/fostyr-ridrup/2024.1.19..18.4.34..ea3d.70a3.d70a.3d70-silsyn-wathep.svg",
+    "cover": "https://storage.wholezero.org/fostyr-ridrup/2024.1.18..5.3.30..47ae.147a.e147.ae14-icepines.jpg",
+    "bio": "backup ship of ~silsyn-wathep",
+    "nickname": "~silsyn-backup",
+    "color": "0x3b.3429",
+    "groups": []
+  },
+  "~silmud-rampel": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "My scented candle smells like old books and pizza.",
+    "nickname": "",
+    "color": "0x12.3123",
+    "groups": []
+  },
+  "~ronlur-midtep-latter-bolden": {
+    "status": "",
+    "avatar": "https://www.edge.org/sites/default/files/styles/member-photo/public/member-pictures/picture-26-1410826638.jpg?itok=rmlEHzW3",
+    "cover": null,
+    "bio": "",
+    "nickname": "Stew",
+    "color": "0x0",
+    "groups": []
+  },
+  "~fodwyt-ragful": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "When someone suggested, not long ago, that I write in reply to the argument against nock, my first reaction was to ask myself why I should argue with people who don't know the score.",
+    "nickname": "frodwith",
+    "color": "0x0",
+    "groups": []
+  },
+  "~rallyr-pilnyx": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0xff.8a00",
+    "groups": []
+  },
+  "~marpem": {
+    "status": "",
+    "avatar": "https://marpem-files.sfo2.digitaloceanspaces.com/marpem.webp",
+    "cover": "https://marpem-files.sfo2.digitaloceanspaces.com/1515301269798.jpg",
+    "bio": "",
+    "nickname": "",
+    "color": "0x0",
+    "groups": ["~marpem/fermentation"]
+  },
+  "~padtud-picled": null,
+  "~salfep-novpem": {
+    "status": "",
+    "avatar": "https://storage.googleapis.com/tlon-prod-memex-assets/salfep-novpem/2024.1.13..7.21.4..9f7c.ed91.6872.b020-F94wQveWoAA5zy_.jpeg",
+    "cover": null,
+    "bio": "",
+    "nickname": "kader arnold",
+    "color": "0x0",
+    "groups": []
+  },
+  "~worbur-dorneb": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://tom.so/media/a-drawing.jpg",
+    "bio": "https://tom.so",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~worwyn-marler": {
+    "status": "",
+    "avatar": "",
+    "cover": "https://twitter.com/critesjosh_/header_photo",
+    "bio": "working on privacy @ https://aztec.network. \n\nfind me on twitter, https://twitter.com/critesjosh_",
+    "nickname": "Josh Crites",
+    "color": "0x0",
+    "groups": []
+  },
+  "~tidren-nosryg": {
+    "status": "status test",
+    "avatar": null,
+    "cover": null,
+    "bio": "Zoomer in residence at the Urbit Foundation",
+    "nickname": "Sam",
+    "color": "0x0",
+    "groups": []
+  },
+  "~dasnet-lapdyn": null,
+  "~ronnys-rigwet": {
+    "status": "",
+    "avatar": "https://bucket.youfoundron.com/bucket/ronnys-rigwet/2023.8.03..23.10.04-zap.png",
+    "cover": "https://pbs.twimg.com/profile_banners/2239289947/1545101565/1500x500",
+    "bio": "",
+    "nickname": "Ron (~ronnys-rigwet)",
+    "color": "0x0",
+    "groups": [
+      "~famhut-wolpyx/boomer-jams",
+      "~ronnys-rigwet/bike-shed",
+      "~ronnys-rigwet/corkmasters",
+      "~ronnys-rigwet/sacrificial-lemons"
+    ]
+  },
+  "~midlyx-hatrys": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "rando",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~ponmep-litsem": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x1.878c",
+    "groups": []
+  },
+  "~wicdev-wisryt": null,
+  "~hanpun-widset": {
+    "status": "",
+    "avatar": "https://storage.googleapis.com/tlon-prod-memex-assets/hanpun-widset/2024.2.19..1.48.39..bba5.e353.f7ce.d916-pfp.jpg",
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x0",
+    "groups": []
+  },
+  "~widlus-wolrep": {
+    "status": "",
+    "avatar": "https://nyc3.digitaloceanspaces.com/urbit-bucket/urbit-bucket/2023.5.22..16.24.41-1eae15cea0648d7e4f8e7689b7deedf209e1f2aer1-560-560v2-hq.png",
+    "cover": "https://nyc3.digitaloceanspaces.com/urbit-bucket/urbit-bucket/2023.5.22..16.24.41-1eae15cea0648d7e4f8e7689b7deedf209e1f2aer1-560-560v2-hq.png",
+    "bio": "A humble Portal Score farmer",
+    "nickname": "Angel",
+    "color": "0x0",
+    "groups": []
+  },
+  "~tocref-ripmyr": {
+    "status": "",
+    "avatar": "https://upload.wikimedia.org/wikipedia/commons/d/d4/Recycle_symbol_Taiwan.svg",
+    "cover": "https://nyc3.digitaloceanspaces.com/bladee/tocref-ripmyr/2022.11.15..02.20.19-90899.jpg",
+    "bio": "dilettante",
+    "nickname": "Dan",
+    "color": "0x0",
+    "groups": [
+      "~natnex-ronret/door-link",
+      "~napmer-rilnut/wet-brain",
+      "~tocref-ripmyr/groupchat",
+      "~fabled-faster/structure"
+    ]
+  },
+  "~fanfyr-rittug": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "Lex [~fanfyr-rittug]",
+    "color": "0x69.7abf",
+    "groups": []
+  },
+  "~forhep-tomrul": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "",
+    "color": "0x62.8f91",
+    "groups": []
+  },
+  "~maltec-dirfex": {
+    "status": "",
+    "avatar": "",
+    "cover": "",
+    "bio": "",
+    "nickname": "gpapy",
+    "color": "0x8c.ff82",
+    "groups": [
+      "~bitbet-bolbel/urbit-community",
+      "~natnex-ronret/door-link",
+      "~halbex-palheb/uf-public"
+    ]
+  },
+  "~litsed-wisren": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "Formerly known as ~botwet.  Third.Earth founder. Sold to Holium 1/23.",
+    "nickname": "(botwet)",
+    "color": "0x0",
+    "groups": []
+  },
+  "~tamlut-modnys": {
+    "status": "",
+    "avatar": "https://cdn.zmescience.com/wp-content/uploads/2016/06/ouroboros.png.jpeg",
+    "cover": "https://i.ibb.co/Ky287ng/5d5cd032e46f13517cd5ae7694ca3245.jpg",
+    "bio": "URBIT DEVELOPER RELATIONS AND EDUCATION, VERY NORMAL AND NOT INSANE.\n\nBook a meeting with me here: https://calendar.app.google/LvjLj23u1JBdW1Vy8",
+    "nickname": "Jack (~tamlut-modnys)",
+    "color": "0x0",
+    "groups": [
+      "~todset-partug/urmetica",
+      "~halbex-palheb/uf-public",
+      "~hiddev-dannut/new-hooniverse"
+    ]
+  },
+  "~soches-pilled": {
+    "status": "",
+    "avatar": null,
+    "cover": "https://d2w9rnfcy7mm78.cloudfront.net/17365104/original_e3cc2881b89a73093582f9b693a7abe0.png",
+    "bio": "Otherwise known as Deng Xiaoping 2\nVisit my personal website at deng.poker.",
+    "nickname": "",
+    "color": "0x5f.3a3a",
+    "groups": ["~soches-pilled/palestra", "~marlur/steppe-engineering"]
+  },
+  "~fitwel-haltyd": null,
+  "~roswes-witlus": null,
+  "~borref-micdyr-tobryd-pagtud--falrel-havwyc-loctep-samzod": null,
+  "~ranren-ranlen": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "twitter.com/ranren_ranlen",
+    "nickname": "",
+    "color": "0x9c.98a8",
+    "groups": []
+  },
+  "~hocnum-forryp": {
+    "status": "",
+    "avatar": null,
+    "cover": null,
+    "bio": "",
+    "nickname": "~hocnum-forryp",
+    "color": "0x0",
+    "groups": []
+  }
+}

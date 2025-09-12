@@ -1,0 +1,1792 @@
+{
+  "posts": {
+    "170.141.184.506.535.164.684.262.900.635.183.087.616": {
+      "seal": {
+        "id": "170141184506535164684262900635183087616",
+        "replies": {
+          "170.141.184.506.535.176.367.510.061.158.978.551.808": {
+            "memo": {
+              "author": "~rilfun-lidlen",
+              "sent": 1701276293246,
+              "content": [
+                {
+                  "inline": [
+                    "you should check out structure, a design-oriented group/collective",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506535176367510061158978551808",
+              "parent-id": "170141184506535164684262900635183087616",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.535.175.988.130.769.198.961.917.952": {
+            "memo": {
+              "author": "~rilfun-lidlen",
+              "sent": 1701276274149,
+              "content": [{ "inline": ["nice and welcome", { "break": null }] }]
+            },
+            "seal": {
+              "id": "170141184506535175988130769198961917952",
+              "parent-id": "170141184506535164684262900635183087616",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.535.200.687.391.653.522.952.945.664": {
+            "memo": {
+              "author": "~tarwyd-matmul",
+              "sent": 1701277605921,
+              "content": [{ "inline": ["thank you", { "break": null }] }]
+            },
+            "seal": {
+              "id": "170141184506535200687391653522952945664",
+              "parent-id": "170141184506535164684262900635183087616",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.535.176.444.548.073.434.824.835.072": {
+            "memo": {
+              "author": "~rilfun-lidlen",
+              "sent": 1701276298857,
+              "content": [
+                { "block": { "cite": { "group": "~topdem/structure" } } },
+                { "inline": [] }
+              ]
+            },
+            "seal": {
+              "id": "170141184506535176444548073434824835072",
+              "parent-id": "170141184506535164684262900635183087616",
+              "reacts": {}
+            }
+          }
+        },
+        "reacts": {},
+        "meta": {
+          "replyCount": 4,
+          "lastReply": 1701277613246,
+          "lastRepliers": ["~rilfun-lidlen", "~tarwyd-matmul"]
+        }
+      },
+      "essay": {
+        "author": "~tarwyd-matmul",
+        "kind-data": { "chat": null },
+        "sent": 1701275662689,
+        "content": [
+          {
+            "inline": [
+              "Greetings",
+              { "break": null },
+              "I'm an interface designer with years of experience and am looking for interesting long-term projects or collaborations",
+              { "break": null }
+            ]
+          }
+        ]
+      },
+      "type": "post"
+    },
+    "170.141.184.506.536.962.871.190.015.156.707.917.824": {
+      "seal": {
+        "id": "170141184506536962871190015156707917824",
+        "replies": {},
+        "reacts": {},
+        "meta": { "replyCount": 0, "lastReply": null, "lastRepliers": [] }
+      },
+      "essay": {
+        "author": "~rigtyr-winset",
+        "kind-data": { "chat": null },
+        "sent": 1701373141068,
+        "content": [{ "inline": ["what?", { "break": null }] }]
+      },
+      "type": "post"
+    },
+    "170.141.184.506.532.450.271.239.260.650.803.822.592": {
+      "seal": {
+        "id": "170141184506532450271239260650803822592",
+        "replies": {},
+        "reacts": { "~ravmel-ropdyl": ":+1:", "~pilrus-rollun": ":+1:" },
+        "meta": { "replyCount": 0, "lastReply": null, "lastRepliers": [] }
+      },
+      "essay": {
+        "author": "~salfer-biswed",
+        "kind-data": { "chat": null },
+        "sent": 1701128512598,
+        "content": [
+          {
+            "inline": [
+              "hola all - onchain sleuth/global drifter, not a grifter. met some urbiters in Paris, but getting back in to the swing of things here. ",
+              { "break": null }
+            ]
+          }
+        ]
+      },
+      "type": "post"
+    },
+    "170.141.184.506.536.976.085.339.604.563.068.452.864": {
+      "seal": {
+        "id": "170141184506536976085339604563068452864",
+        "replies": {},
+        "reacts": {},
+        "meta": { "replyCount": 0, "lastReply": null, "lastRepliers": [] }
+      },
+      "essay": {
+        "author": "~rigtyr-winset",
+        "kind-data": { "chat": null },
+        "sent": 1701373857338,
+        "content": [
+          { "inline": ["; ~ripdys is your neighbor", { "break": null }] }
+        ]
+      },
+      "type": "post"
+    },
+    "170.141.184.506.533.018.525.293.632.299.523.375.104": {
+      "seal": {
+        "id": "170141184506533018525293632299523375104",
+        "replies": {
+          "170.141.184.506.533.509.783.757.947.741.929.472.000": {
+            "memo": {
+              "author": "~barmyl-sigted",
+              "sent": 1701185948925,
+              "content": [
+                { "inline": ["Welcome to urbit!", { "break": null }] }
+              ]
+            },
+            "seal": {
+              "id": "170141184506533509783757947741929472000",
+              "parent-id": "170141184506533018525293632299523375104",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.533.323.206.298.313.055.159.713.792": {
+            "memo": {
+              "author": "~pilrus-rollun",
+              "sent": 1701175834486,
+              "content": [
+                {
+                  "inline": [
+                    "If you have time to read a short book, I'd highly recommend it.",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506533323206298313055159713792",
+              "parent-id": "170141184506533018525293632299523375104",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.533.585.839.050.726.423.788.519.424": {
+            "memo": {
+              "author": "~fabled-faster",
+              "sent": 1701190071824,
+              "content": [{ "inline": ["Howdy, welcome", { "break": null }] }]
+            },
+            "seal": {
+              "id": "170141184506533585839050726423788519424",
+              "parent-id": "170141184506533018525293632299523375104",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.534.632.936.022.879.831.840.522.240": {
+            "memo": {
+              "author": "~raclyr-fadlyd",
+              "sent": 1701246834849,
+              "content": [{ "inline": ["thanks all! :) ", { "break": null }] }]
+            },
+            "seal": {
+              "id": "170141184506534632936022879831840522240",
+              "parent-id": "170141184506533018525293632299523375104",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.533.323.049.300.296.770.233.827.328": {
+            "memo": {
+              "author": "~pilrus-rollun",
+              "sent": 1701175825735,
+              "content": [
+                { "block": { "cite": { "group": "~bidbel/a" } } },
+                {
+                  "inline": [
+                    "There is an interesting book about Urbit, its origin and its future shared in this group.",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506533323049300296770233827328",
+              "parent-id": "170141184506533018525293632299523375104",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.533.301.448.925.220.693.281.341.440": {
+            "memo": {
+              "author": "~rilfun-lidlen",
+              "sent": 1701174647549,
+              "content": [
+                {
+                  "inline": ["welcome! the vibes are good ", { "break": null }]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506533301448925220693281341440",
+              "parent-id": "170141184506533018525293632299523375104",
+              "reacts": {}
+            }
+          }
+        },
+        "reacts": {
+          "~natnex-ronret": ":wave:",
+          "~malmur-halmex": ":wave:",
+          "~famhut-wolpyx": ":wave:",
+          "~rigtyr-winset": ":joy:",
+          "~fognyl-tonfel": ":wave:"
+        },
+        "meta": {
+          "replyCount": 6,
+          "lastReply": 1701246835383,
+          "lastRepliers": ["~raclyr-fadlyd", "~fabled-faster", "~barmyl-sigted"]
+        }
+      },
+      "essay": {
+        "author": "~raclyr-fadlyd",
+        "kind-data": { "chat": null },
+        "sent": 1701159317412,
+        "content": [
+          {
+            "inline": [
+              "hi all! new here and trying to properly understand urbit. So far it's giving me vibes of the old-internet which I like",
+              { "break": null }
+            ]
+          }
+        ]
+      },
+      "type": "post"
+    },
+    "170.141.184.506.536.976.155.911.855.148.894.257.152": {
+      "seal": {
+        "id": "170141184506536976155911855148894257152",
+        "replies": {},
+        "reacts": {},
+        "meta": { "replyCount": 0, "lastReply": null, "lastRepliers": [] }
+      },
+      "essay": {
+        "author": "~rigtyr-winset",
+        "kind-data": { "chat": null },
+        "sent": 1701373861046,
+        "content": [{ "inline": ["lol!", { "break": null }] }]
+      },
+      "type": "post"
+    },
+    "170.141.184.506.536.962.800.864.055.175.503.937.536": {
+      "seal": {
+        "id": "170141184506536962800864055175503937536",
+        "replies": {},
+        "reacts": {},
+        "meta": { "replyCount": 0, "lastReply": null, "lastRepliers": [] }
+      },
+      "essay": {
+        "author": "~rigtyr-winset",
+        "kind-data": { "chat": null },
+        "sent": 1701373136993,
+        "content": [
+          { "inline": ["; ~topdem is your neighbor ", { "break": null }] }
+        ]
+      },
+      "type": "post"
+    },
+    "170.141.184.506.536.961.460.817.141.626.482.720.768": {
+      "seal": {
+        "id": "170141184506536961460817141626482720768",
+        "replies": {
+          "170.141.184.506.537.056.109.268.551.178.498.605.056": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701378195721,
+              "content": [
+                {
+                  "inline": [
+                    "port 1.10.0 arthyn - A ship runner and manager for Urbit OS",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537056109268551178498605056",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.055.124.713.274.215.967.490.048": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701378142354,
+              "content": [
+                {
+                  "inline": [
+                    "if i install a self-hosting urbit like that snaps i cant jump to this ~rigtyr-winset urbit id?",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537055124713274215967490048",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.062.718.967.537.089.552.318.464": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701378553608,
+              "content": [{ "inline": ["is not the first", { "break": null }] }]
+            },
+            "seal": {
+              "id": "170141184506537062718967537089552318464",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.087.480.251.995.481.689.817.088": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701379896353,
+              "content": [
+                { "inline": ["time to go to sleep", { "break": null }] }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537087480251995481689817088",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.036.945.858.787.466.132.062.208": {
+            "memo": {
+              "author": "~ravmel-ropdyl",
+              "sent": 1701377156473,
+              "content": [{ "inline": ["yep makes sense", { "break": null }] }]
+            },
+            "seal": {
+              "id": "170141184506537036945858787466132062208",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.019.061.348.594.837.140.537.344": {
+            "memo": {
+              "author": "~ravmel-ropdyl",
+              "sent": 1701376187092,
+              "content": [
+                {
+                  "inline": [
+                    "right so: we (tlon) are running an urbit node for you",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537019061348594837140537344",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": { "~rigtyr-winset": ":+1:" }
+            }
+          },
+          "170.141.184.506.537.003.470.316.497.169.920.557.056": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701375342166,
+              "content": [
+                {
+                  "inline": [
+                    " Get the scoop in Tlon Studio (~tommur-dostyn/tlon-studio).",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537003470316497169920557056",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.047.334.633.492.345.058.754.560": {
+            "memo": {
+              "author": "~finned-palmer",
+              "sent": 1701377721031,
+              "content": [
+                {
+                  "inline": [
+                    "You can export, you can't currently import afaik",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537047334633492345058754560",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": { "~rigtyr-winset": ":+1:" }
+            }
+          },
+          "170.141.184.506.537.005.189.957.749.561.165.348.864": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701375435382,
+              "content": [
+                {
+                  "inline": [
+                    "but a loong time curious guy who track by email news this strange animal",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537005189957749561165348864",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.007.443.439.657.707.236.229.120": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701375556686,
+              "content": [
+                {
+                  "inline": [
+                    "jumping around i managed to set my nickname",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537007443439657707236229120",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.028.302.573.463.564.766.412.800": {
+            "memo": {
+              "author": "~ravmel-ropdyl",
+              "sent": 1701376688255,
+              "content": [
+                { "inline": ["those are pretty old!", { "break": null }] }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537028302573463564766412800",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.067.811.212.405.555.322.683.392": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701378830089,
+              "content": [
+                {
+                  "inline": [
+                    "what is that \"Management Address\"?",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537067811212405555322683392",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.028.704.849.056.030.334.648.320": {
+            "memo": {
+              "author": "~ravmel-ropdyl",
+              "sent": 1701376710068,
+              "content": [
+                {
+                  "inline": [
+                    "I was just curious where you were seeing the neighbor messages",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537028704849056030334648320",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.041.643.470.953.508.958.633.984": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701377411365,
+              "content": [{ "inline": ["lolz!", { "break": null }] }]
+            },
+            "seal": {
+              "id": "170141184506537041643470953508958633984",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.062.344.849.012.444.257.845.248": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701378524656,
+              "content": [
+                {
+                  "block": {
+                    "image": {
+                      "width": 1920,
+                      "alt": "Screenshot_20231130_230746.png",
+                      "src": "https://storage.googleapis.com/tlon-prod-memex-assets/rigtyr-winset/2023.11.30..21.8.36..1333.3333.3333.3333-Screenshot_20231130_230746.png",
+                      "height": 1036
+                    }
+                  }
+                },
+                { "inline": [] }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537062344849012444257845248",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.033.016.569.725.051.966.849.024": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701376941948,
+              "content": [
+                {
+                  "inline": [
+                    {
+                      "link": {
+                        "href": "https://rigtyr-winset.tlon.network/apps/webterm/",
+                        "content": "https://rigtyr-winset.tlon.network/apps/webterm/"
+                      }
+                    },
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537033016569725051966849024",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.536.994.919.714.690.649.886.294.016": {
+            "memo": {
+              "author": "~ravmel-ropdyl",
+              "sent": 1701374878553,
+              "content": [{ "inline": ["you are here now", { "break": null }] }]
+            },
+            "seal": {
+              "id": "170141184506536994919714690649886294016",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.056.330.476.076.200.705.916.928": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701378207721,
+              "content": [
+                { "inline": ["is still too old?", { "break": null }] }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537056330476076200705916928",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.014.040.149.980.817.976.721.408": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701375914620,
+              "content": [
+                {
+                  "inline": [
+                    "is all run directly in brave browser",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537014040149980817976721408",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.003.082.390.499.017.061.564.416": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701375321125,
+              "content": [
+                {
+                  "inline": [
+                    "i think so i mean i join from my desktop browser tlon studio app from my some email",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537003082390499017061564416",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.536.995.175.315.643.076.368.662.528": {
+            "memo": {
+              "author": "~ravmel-ropdyl",
+              "sent": 1701374892417,
+              "content": [
+                { "inline": ["did you boot locally?", { "break": null }] }
+              ]
+            },
+            "seal": {
+              "id": "170141184506536995175315643076368662528",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.087.680.248.973.633.865.646.080": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701379907198,
+              "content": [
+                { "inline": ["thanks all pals for help!", { "break": null }] }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537087680248973633865646080",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.015.388.298.588.621.660.749.824": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701375987909,
+              "content": [
+                {
+                  "inline": [
+                    "where i set a login pasword and get a free tlon handler from a bunch of 10",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537015388298588621660749824",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.005.865.678.119.126.811.279.360": {
+            "memo": {
+              "author": "~ravmel-ropdyl",
+              "sent": 1701375470963,
+              "content": [
+                {
+                  "inline": [
+                    "did you sign up with our hosting service?",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537005865678119126811279360",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.044.188.620.328.747.355.078.656": {
+            "memo": {
+              "author": "~ravmel-ropdyl",
+              "sent": 1701377549426,
+              "content": [
+                {
+                  "inline": [
+                    "the second screenshot is the one that is outside of the urbit node",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537044188620328747355078656",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.035.785.699.998.258.100.699.136": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701377093881,
+              "content": [
+                {
+                  "inline": [
+                    "pals and face is \"installed by me\" in this browser instance",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537035785699998258100699136",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.007.631.388.943.906.242.560.000": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701375567739,
+              "content": [
+                { "inline": ["some extended bio", { "break": null }] }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537007631388943906242560000",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.056.882.736.735.906.454.044.672": {
+            "memo": {
+              "author": "~finned-palmer",
+              "sent": 1701378237493,
+              "content": [
+                { "inline": ["yeah port is deprecated", { "break": null }] }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537056882736735906454044672",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": { "~rigtyr-winset": ":grin:" }
+            }
+          },
+          "170.141.184.506.537.045.115.721.214.938.683.801.600": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701377599768,
+              "content": [
+                {
+                  "block": {
+                    "image": {
+                      "width": 1920,
+                      "alt": "Screenshot_20231130_225225.png",
+                      "src": "https://storage.googleapis.com/tlon-prod-memex-assets/rigtyr-winset/2023.11.30..20.53.11..b374.bc6a.7ef9.db22-Screenshot_20231130_225225.png",
+                      "height": 1036
+                    }
+                  }
+                },
+                { "inline": [] }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537045115721214938683801600",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.003.989.547.194.258.580.045.824": {
+            "memo": {
+              "author": "~ravmel-ropdyl",
+              "sent": 1701375370206,
+              "content": [{ "inline": ["ah", { "break": null }] }]
+            },
+            "seal": {
+              "id": "170141184506537003989547194258580045824",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.032.036.551.543.239.034.798.080": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701376890737,
+              "content": [
+                {
+                  "block": {
+                    "image": {
+                      "width": 1920,
+                      "alt": "Screenshot_20231130_224027.png",
+                      "src": "https://storage.googleapis.com/tlon-prod-memex-assets/rigtyr-winset/2023.11.30..20.40.46..9687.2b02.0c49.ba5e-Screenshot_20231130_224027.png",
+                      "height": 1036
+                    }
+                  }
+                },
+                {
+                  "inline": [
+                    "as a linux old beard my first jump was in that terminal",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537032036551543239034798080",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.028.518.706.839.181.810.728.960": {
+            "memo": {
+              "author": "~ravmel-ropdyl",
+              "sent": 1701376699975,
+              "content": [
+                {
+                  "inline": [
+                    "I'm a fan of hosting, I think it's the most convenient",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537028518706839181810728960",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.019.634.853.578.410.125.426.688": {
+            "memo": {
+              "author": "~ravmel-ropdyl",
+              "sent": 1701376218392,
+              "content": [
+                {
+                  "inline": [
+                    "urbit as a system is pretty old, but the app and hosting are quite new",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537019634853578410125426688",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": { "~rigtyr-winset": ":innocent:" }
+            }
+          },
+          "170.141.184.506.537.068.099.542.986.798.743.420.928": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701378845049,
+              "content": [
+                {
+                  "block": {
+                    "image": {
+                      "width": 1920,
+                      "alt": "Screenshot_20231130_231050.png",
+                      "src": "https://storage.googleapis.com/tlon-prod-memex-assets/rigtyr-winset/2023.11.30..21.13.57..5d2f.1a9f.be76.c8b4-Screenshot_20231130_231050.png",
+                      "height": 1036
+                    }
+                  }
+                },
+                { "inline": [] }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537068099542986798743420928",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.012.659.921.106.968.625.807.360": {
+            "memo": {
+              "author": "~ravmel-ropdyl",
+              "sent": 1701375840240,
+              "content": [{ "inline": ["nice penguin", { "break": null }] }]
+            },
+            "seal": {
+              "id": "170141184506537012659921106968625807360",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.041.901.423.910.840.835.244.032": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701377425519,
+              "content": [
+                {
+                  "block": {
+                    "image": {
+                      "width": 1920,
+                      "alt": "Screenshot_20231130_225000.png",
+                      "src": "https://storage.googleapis.com/tlon-prod-memex-assets/rigtyr-winset/2023.11.30..20.50.16..68b4.3958.1062.4dd2-Screenshot_20231130_225000.png",
+                      "height": 1036
+                    }
+                  }
+                },
+                { "inline": [] }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537041901423910840835244032",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.043.612.136.495.495.841.316.864": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701377518255,
+              "content": [
+                { "inline": ["with some extra info", { "break": null }] }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537043612136495495841316864",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.005.720.995.196.022.930.014.208": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701375464179,
+              "content": [
+                {
+                  "inline": [
+                    "i got something like a web terminal",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537005720995196022930014208",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.005.353.363.825.165.886.029.824": {
+            "memo": {
+              "author": "~ravmel-ropdyl",
+              "sent": 1701375444141,
+              "content": [{ "inline": ["welcome", { "break": null }] }]
+            },
+            "seal": {
+              "id": "170141184506537005353363825165886029824",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.025.093.398.722.568.075.083.776": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701376514340,
+              "content": [
+                {
+                  "inline": [
+                    "should install and make a try on this route also?",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537025093398722568075083776",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.007.865.824.103.983.990.439.936": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701375580445,
+              "content": [
+                { "inline": ["and my beloved avatar", { "break": null }] }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537007865824103983990439936",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.052.776.600.323.324.704.194.560": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701378014859,
+              "content": [
+                {
+                  "block": {
+                    "cite": {
+                      "chan": {
+                        "nest": "chat/~nibset-napwyn/intros",
+                        "where": "/msg/170141184506536961460817141626482720768/170141184506537047334633492345058754560"
+                      }
+                    }
+                  }
+                },
+                { "inline": ["I cant import?", { "break": null }] }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537052776600323324704194560",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.044.837.994.359.017.906.896.896": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701377584704,
+              "content": [{ "inline": ["yeah i see ...", { "break": null }] }]
+            },
+            "seal": {
+              "id": "170141184506537044837994359017906896896",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.012.816.083.424.047.697.756.160": {
+            "memo": {
+              "author": "~ravmel-ropdyl",
+              "sent": 1701375848702,
+              "content": [
+                {
+                  "inline": [
+                    "sounds like you're running the node yourself",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537012816083424047697756160",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.013.651.207.013.574.262.128.640": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701375894049,
+              "content": [
+                {
+                  "inline": [
+                    "i am not sure, new to all this ",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537013651207013574262128640",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.047.434.002.884.848.198.352.896": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701377723845,
+              "content": [
+                {
+                  "inline": [
+                    "Reveal the Master Ticket of ~rigtyr-winset",
+                    { "break": null },
+                    "Your Urbit ID is a digital asset. Specifically, it is an NFT on the Ethereum blockchain",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537047434002884848198352896",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.022.718.477.813.419.912.200.192": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701376385466,
+              "content": [
+                {
+                  "inline": [
+                    "that is the \"hosting service\" you ask about?",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537022718477813419912200192",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.077.145.328.520.197.092.409.344": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701379335782,
+              "content": [
+                {
+                  "inline": [
+                    {
+                      "link": {
+                        "href": "https://urbit.org/getting-started",
+                        "content": "https://urbit.org/getting-started"
+                      }
+                    },
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537077145328520197092409344",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.005.538.778.710.674.589.614.080": {
+            "memo": {
+              "author": "~ravmel-ropdyl",
+              "sent": 1701375454202,
+              "content": [
+                { "inline": ["it is a strange animal", { "break": null }] }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537005538778710674589614080",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.024.720.285.626.539.591.073.792": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701376486606,
+              "content": [
+                {
+                  "inline": [
+                    "snap search urbit",
+                    { "break": null },
+                    "Name    Version  Publisher  Notes  Summary",
+                    { "break": null },
+                    "port    1.10.0   arthyn     -      A ship runner and manager for Urbit OS",
+                    { "break": null },
+                    "taisho  0.6.2    arthyn     -      A ship runner and manager for Urbit OS",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537024720285626539591073792",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.014.243.547.176.688.817.274.880": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701375926022,
+              "content": [
+                { "inline": ["as a bunch of tabs", { "break": null }] }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537014243547176688817274880",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.044.696.423.986.206.492.065.792": {
+            "memo": {
+              "author": "~ravmel-ropdyl",
+              "sent": 1701377554975,
+              "content": [
+                {
+                  "inline": [
+                    "that's our infrastructure, telling you if your node is online",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537044696423986206492065792",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.087.392.896.799.409.491.148.800": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701379890961,
+              "content": [
+                {
+                  "inline": [
+                    "oky doky till now i think is enough time allocated to this tlon urbit",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537087392896799409491148800",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.028.893.263.901.840.820.404.224": {
+            "memo": {
+              "author": "~ravmel-ropdyl",
+              "sent": 1701376719554,
+              "content": [
+                {
+                  "inline": [
+                    "but if you're hosted you don't have to open the web terminal",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537028893263901840820404224",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.077.977.022.618.607.414.149.120": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701379381074,
+              "content": [
+                {
+                  "inline": [
+                    "so, you tell me that the urbit snaps is too old to bother about ....",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537077977022618607414149120",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.057.155.724.397.644.353.634.304": {
+            "memo": {
+              "author": "~finned-palmer",
+              "sent": 1701378252178,
+              "content": [
+                {
+                  "inline": [
+                    "and yeah if you were to export you could just run ~rigtyr-winset locally",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537057155724397644353634304",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": { "~rigtyr-winset": ":+1:" }
+            }
+          },
+          "170.141.184.506.537.073.551.524.415.974.777.290.752": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701379140716,
+              "content": [
+                {
+                  "block": {
+                    "image": {
+                      "width": 1920,
+                      "alt": "Screenshot_20231130_231605.png",
+                      "src": "https://storage.googleapis.com/tlon-prod-memex-assets/rigtyr-winset/2023.11.30..21.18.53..9c6a.7ef9.db22.d0e5-Screenshot_20231130_231605.png",
+                      "height": 1036
+                    }
+                  }
+                },
+                { "inline": [] }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537073551524415974777290752",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.077.129.542.559.078.228.688.896": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701379334739,
+              "content": [
+                {
+                  "inline": [
+                    "well is a deeeeep rabit hole to explore here!",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537077129542559078228688896",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.008.303.016.948.785.492.262.912": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701375604129,
+              "content": [{ "inline": ["hosting service?", { "break": null }] }]
+            },
+            "seal": {
+              "id": "170141184506537008303016948785492262912",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.019.307.848.898.316.613.976.064": {
+            "memo": {
+              "author": "~ravmel-ropdyl",
+              "sent": 1701376200668,
+              "content": [
+                {
+                  "inline": [
+                    "it's also possible to self-host, but our route is very easy",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537019307848898316613976064",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.043.090.060.367.867.613.806.592": {
+            "memo": {
+              "author": "~finned-palmer",
+              "sent": 1701377490908,
+              "content": [
+                {
+                  "inline": [
+                    "Yep, your node is hosted in the cloud by Tlon",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537043090060367867613806592",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": { "~rigtyr-winset": ":sunglasses:" }
+            }
+          },
+          "170.141.184.506.537.005.826.879.326.862.037.745.664": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701375469753,
+              "content": [
+                { "inline": ["and some other things", { "break": null }] }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537005826879326862037745664",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.024.375.600.377.258.976.477.184": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701376475440,
+              "content": [
+                {
+                  "inline": [
+                    "when i search in my ubuntu i see two urbit snaps",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537024375600377258976477184",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.040.172.864.968.237.443.448.832": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701377324164,
+              "content": [
+                {
+                  "inline": [
+                    "you talk about this as \"service hosting\"?",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537040172864968237443448832",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.069.135.829.986.780.972.580.864": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701378901893,
+              "content": [
+                {
+                  "inline": [
+                    "a separate ethereum adress from \"Ownership Adress\"?",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537069135829986780972580864",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.014.577.641.648.495.716.728.832": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701375944294,
+              "content": [
+                { "inline": ["from that tlon studio url", { "break": null }] }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537014577641648495716728832",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.073.377.245.243.494.700.679.168": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701379123993,
+              "content": [
+                { "inline": ["my sponsor is daften", { "break": null }] }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537073377245243494700679168",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.017.692.191.257.721.726.566.400": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701376113059,
+              "content": [
+                {
+                  "inline": [
+                    "look like all this urbit tlons is like solid pads but older as an ideea and development",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537017692191257721726566400",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.045.509.968.015.168.557.285.376": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701377621135,
+              "content": [
+                {
+                  "inline": [
+                    "so i can export and import my urbit",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537045509968015168557285376",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.040.394.182.268.500.567.916.544": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701377343807,
+              "content": [
+                {
+                  "block": {
+                    "image": {
+                      "width": 1920,
+                      "alt": "Screenshot_20231130_224815.png",
+                      "src": "https://storage.googleapis.com/tlon-prod-memex-assets/rigtyr-winset/2023.11.30..20.48.49..bc6a.7ef9.db22.d0e5-Screenshot_20231130_224815.png",
+                      "height": 1036
+                    }
+                  }
+                },
+                { "inline": [] }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537040394182268500567916544",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.028.783.434.899.203.112.828.928": {
+            "memo": {
+              "author": "~ravmel-ropdyl",
+              "sent": 1701376714336,
+              "content": [
+                {
+                  "inline": [
+                    "they fly by in the command line if you self-host",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537028783434899203112828928",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.030.184.571.452.847.554.560.000": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701376790211,
+              "content": [
+                {
+                  "inline": [
+                    "its trom terminal browser tab app",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537030184571452847554560000",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.061.902.219.478.467.589.701.632": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701378509691,
+              "content": [
+                {
+                  "inline": [
+                    "well, look like i am the owner of another NTF digital asset!",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537061902219478467589701632",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.004.764.150.286.092.632.850.432": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701375403986,
+              "content": [
+                {
+                  "inline": [
+                    "my firts time to really use this urbit universe",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537004764150286092632850432",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.043.436.443.474.207.747.080.192": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701377508723,
+              "content": [
+                {
+                  "inline": [
+                    "i get back from where i begin, first screenshot",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537043436443474207747080192",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.034.052.546.821.084.837.576.704": {
+            "memo": {
+              "author": "~rigtyr-winset",
+              "sent": 1701376999943,
+              "content": [
+                { "inline": ["just curios whats about it", { "break": null }] }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537034052546821084837576704",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          },
+          "170.141.184.506.537.079.570.498.905.137.595.023.360": {
+            "memo": {
+              "author": "~finned-palmer",
+              "sent": 1701379466587,
+              "content": [
+                {
+                  "inline": [
+                    "yeah, port is just a GUI for running a ship locally. taisho is an even older version of port. port will not work if you try to run your (up to date) ship on it",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506537079570498905137595023360",
+              "parent-id": "170141184506536961460817141626482720768",
+              "reacts": {}
+            }
+          }
+        },
+        "reacts": {},
+        "meta": {
+          "replyCount": 77,
+          "lastReply": 1701379907334,
+          "lastRepliers": ["~ravmel-ropdyl", "~finned-palmer", "~rigtyr-winset"]
+        }
+      },
+      "essay": {
+        "author": "~rigtyr-winset",
+        "kind-data": { "chat": null },
+        "sent": 1701373064761,
+        "content": [
+          { "inline": ["well i am here now what? hi?", { "break": null }] }
+        ]
+      },
+      "type": "post"
+    },
+    "170.141.184.506.534.344.268.520.029.938.121.703.424": {
+      "seal": {
+        "id": "170141184506534344268520029938121703424",
+        "replies": {
+          "170.141.184.506.534.352.961.482.309.529.197.608.960": {
+            "memo": {
+              "author": "~famhut-wolpyx",
+              "sent": 1701231657192,
+              "content": [
+                {
+                  "inline": [
+                    "Welcome. What brought you here?",
+                    { "break": null }
+                  ]
+                }
+              ]
+            },
+            "seal": {
+              "id": "170141184506534352961482309529197608960",
+              "parent-id": "170141184506534344268520029938121703424",
+              "reacts": {}
+            }
+          }
+        },
+        "reacts": {
+          "~ravmel-ropdyl": ":wave:",
+          "~natnex-ronret": ":wave:",
+          "~famhut-wolpyx": ":wave:",
+          "~salfer-biswed": ":wave:"
+        },
+        "meta": {
+          "replyCount": 1,
+          "lastReply": 1701231657933,
+          "lastRepliers": ["~famhut-wolpyx"]
+        }
+      },
+      "essay": {
+        "author": "~rilhut-bicted",
+        "kind-data": { "chat": null },
+        "sent": 1701231185987,
+        "content": [{ "inline": ["Hello", { "break": null }] }]
+      },
+      "type": "post"
+    },
+    "170.141.184.506.534.828.767.269.048.506.879.311.872": {
+      "seal": {
+        "id": "170141184506534828767269048506879311872",
+        "replies": {
+          "170.141.184.506.535.176.616.223.320.905.351.168.000": {
+            "memo": {
+              "author": "~rilfun-lidlen",
+              "sent": 1701276308174,
+              "content": [{ "inline": ["hi and welcome!", { "break": null }] }]
+            },
+            "seal": {
+              "id": "170141184506535176616223320905351168000",
+              "parent-id": "170141184506534828767269048506879311872",
+              "reacts": {}
+            }
+          }
+        },
+        "reacts": {},
+        "meta": {
+          "replyCount": 1,
+          "lastReply": 1701276308346,
+          "lastRepliers": ["~rilfun-lidlen"]
+        }
+      },
+      "essay": {
+        "author": "~fognyl-tonfel",
+        "kind-data": { "chat": null },
+        "sent": 1701257441629,
+        "content": [{ "inline": ["hello there", { "break": null }] }]
+      },
+      "type": "post"
+    }
+  },
+  "total": 398,
+  "newer": "170141184506537116435921182628878745600",
+  "older": "170141184506530749178920714885344002048"
+}

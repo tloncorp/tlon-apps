@@ -1,0 +1,37 @@
+{
+  "posts": {
+    "170.141.184.506.557.720.336.518.574.524.422.160.384": {
+      "seal": {
+        "id": "170141184506557720336518574524422160384",
+        "replies": {},
+        "reacts": {},
+        "meta": {
+          "replyCount": 0,
+          "lastReply": null,
+          "lastRepliers": []
+        }
+      },
+      "essay": {
+        "author": "~taptyc-lorbyl",
+        "kind-data": {
+          "chat": null
+        },
+        "sent": 1702498405806,
+        "content": [
+          {
+            "inline": [
+              "note: this group is now done; please use the \"Leader Chat\" chanel in the Tlon Studio group (~tommur-dostyn/tlon-studio) for all insiders-based concerns. this message will remain for a week until we delete this group altogether.",
+              {
+                "break": null
+              }
+            ]
+          }
+        ]
+      },
+      "type": "post"
+    }
+  },
+  "total": 60,
+  "newer": null,
+  "older": "170141184506555643529019274122407968768"
+}

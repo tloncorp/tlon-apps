@@ -10,6 +10,7 @@ import { Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Portal, getTokenValue, styled } from 'tamagui';
 
+import * as MOCK_ME from './MOCK_ME';
 import { Text } from './TextV2';
 import { View } from './View';
 
@@ -190,7 +191,7 @@ function ToastView({
           }
           testID="ToastMessage"
         >
-          <ToastText>{message}</ToastText>
+          <ToastText>{MOCK_ME.message}</ToastText>
         </ToastBox>
       </Pressable>
     </View>

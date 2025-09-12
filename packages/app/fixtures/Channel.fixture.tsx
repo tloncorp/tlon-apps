@@ -23,6 +23,8 @@ import {
 } from '../ui';
 import { UnconnectedChannelConfigurationBar as ChannelConfigurationBar } from '../ui/components/ManageChannels/CreateChannelSheet';
 import { FixtureWrapper } from './FixtureWrapper';
+import * as fakeApiData from './__data__';
+import { useMockScry } from './__mocks__/mockUtils';
 import {
   createFakePost,
   createFakePosts,
@@ -117,6 +119,8 @@ export const ChannelFixture = (props: {
     }),
     [props.negotiationMatch]
   );
+
+  useMockScry('groups-ui', '/v4/init', async () => fakeApiData.init);
 
   return (
     <ChannelFixtureWrapper theme={props.theme}>

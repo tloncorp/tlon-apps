@@ -1,0 +1,42 @@
+{
+  "seal": {
+    "id": "~fabled-faster/170.141.184.506.522.404.989.134.482.281.343.708.299",
+    "replies": {
+      "170.141.184.506.522.411.543.493.251.733.867.462.656": {
+        "memo": {
+          "author": "~solfer-magfed",
+          "sent": 1700584311215,
+          "content": [
+            { "inline": ["along our incredibly journey?", { "break": null }] }
+          ]
+        },
+        "seal": {
+          "id": "~solfer-magfed/170.141.184.506.522.411.522.251.810.170.392.218.173",
+          "parent-id": "~fabled-faster/170.141.184.506.522.404.989.134.482.281.343.708.299",
+          "time": "170141184506522411543493251733867462656",
+          "reacts": {}
+        }
+      }
+    },
+    "time": "170141184506522406046632044896203046912",
+    "reacts": {},
+    "meta": {
+      "replyCount": 1,
+      "lastReply": 1700584312367,
+      "lastRepliers": ["~solfer-magfed"]
+    }
+  },
+  "essay": {
+    "author": "~fabled-faster",
+    "kind-data": { "chat": null },
+    "sent": 1700583957054,
+    "content": [
+      {
+        "inline": [
+          "it certainly makes for a more focused navigation scheme, but when you have 1:1 dms co-located with groups with 100s of people, we'd need to do more work making this entry point more useful ",
+          { "break": null }
+        ]
+      }
+    ]
+  }
+}

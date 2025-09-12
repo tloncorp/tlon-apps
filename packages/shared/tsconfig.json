@@ -3,9 +3,7 @@
   "compilerOptions": {
     "strict": true,
     "allowSyntheticDefaultImports": true,
-    "declaration": true,
     "declarationMap": true,
-    "": true,
     "rootDir": "./src",
     "outDir": "dist",
     "composite": true,
