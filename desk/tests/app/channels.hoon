@@ -3,11 +3,11 @@
 /=  channels-agent  /app/channels
 |%
 +$  current-state
-  $:  %11
+  $:  %13
       =v-channels:c
       voc=(map [nest:c plan:c] (unit said:c))
       hidden-posts=(set id-post:c)
-      debounce=(jug nest:c @da)
+      debounce=(jug nest:c @da)  ::  temporary bandaid
     ::
       ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
       ::
@@ -33,6 +33,15 @@
     [%gu ship=@t %activity @ ~ ~]  `!>(|)
     [%gx @ %groups @ %v2 %groups host=@ term=@ %noun ~]  `!>(*group:v7:gv)
   ==
+++  skip-poke-wire
+  |=  wire=path
+  |=  =card
+  ?.  ?=([%pass * %agent * %poke *] card)  |
+  =(wire p.card)
+++  ex-cards
+  |=  [caz=(list card) exes=(list $-(card tang))]
+  (ex-filter-cards caz (skip-poke-wire /logs) exes)
+::
 ++  test-checkpoint-sub
   %-  eval-mare
   =/  m  (mare ,~)
@@ -202,7 +211,7 @@
     =/  m  (mare ,~)
     =/  bad-state=current-state
       =;  chans=v-channels:c
-        [%11 chans ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%13 chans ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         sequence-fix-test-channel
       ::  bad 7->8 migration in old code had dropped the tombstone
@@ -239,7 +248,7 @@
     ;<  save=vase  bind:m  get-save
     =/  fixed-state=current-state
       =;  chans=v-channels:c
-        [%11 chans ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%13 chans ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         sequence-fix-test-channel
       ::  missing message will not have magically recovered,
@@ -308,7 +317,7 @@
     =/  m  (mare ,~)
     =/  bad-state=current-state
       =;  chans=v-channels:c
-        [%11 chans ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%13 chans ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         tombstone-fix-test-channel
       ::  client had just bunted tombstones
@@ -362,7 +371,7 @@
     ;<  save=vase  bind:m  get-save
     =/  fixed-state=current-state
       =;  chans=v-channels:c
-        [%11 chans ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%13 chans ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         tombstone-fix-test-channel
       (~(put by *v-channels:c) *nest:c chan)

@@ -29,8 +29,8 @@
   ;<  *  bind:m  (ex-equal !>(~(wyt by pre)) !>(count))
   ;<  new=vase  bind:m  get-save
   =/  want-indices  post
-  =+  !<(=new-state new)
-  =/  new-indices  indices.new-state
+  =+  !<(=state-8 new)
+  =/  new-indices  indices.state-8
   (ex-equal !>(new-indices) !>(want-indices))
 ::
 ++  test-fix-init
@@ -44,17 +44,19 @@
   =/  start-state  [%6 %some indices pre-fix volumes]
   ;<  caz=(list card:agent:gall)  bind:m  (do-load activity-agent `!>(start-state))
   ;<  *  bind:m  (ex-equal !>(~(wyt by pre-fix)) !>(11))
-  =/  cage  noun+!>(%fix-init-unreads)
   ;<  bowl  bind:m  get-bowl
   ;<  *  bind:m
     %+  ex-cards  caz
-    ~[(ex-poke /fix-init-unreads [~zod dap] cage)]
-  ;<  *  bind:m  (do-poke cage)
+    :~  (ex-poke /adjust-old-default [~zod dap] noun+!>(%adjust-old-default))
+        (ex-poke /fix-init-unreads [~zod dap] noun+!>(%fix-init-unreads))
+    ==
+  ;<  *  bind:m  (do-poke noun+!>(%adjust-old-default))
+  ;<  *  bind:m  (do-poke noun+!>(%fix-init-unreads))
   ;<  new=vase  bind:m  get-save
-  =+  !<(=new-state new)
-  (ex-equal !>(activity.new-state) !>(post-fix))
-+$  new-state
-  $:  %6
+  =+  !<(=state-8 new)
+  (ex-equal !>(activity.state-8) !>(post-fix))
++$  state-8
+  $:  %8
       allowed=notifications-allowed:a
       =indices:a
       =activity:a

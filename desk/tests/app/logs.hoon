@@ -7,15 +7,18 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ;<  *  bind:m  (do-init dap agent)
-  :: ;<  *  bind:m  (set-scry-gate ,~)
   ;<  *  bind:m  (jab-bowl |=(b=bowl b(sap /gall/test)))
   ;<  =bowl:gall  bind:m  get-bowl
-  =/  ev-fail=log-event:l
-    [%fail %test-fail leaf+"test stacktrace" ~]
+  =/  fail=log-event:l
+    [%fail %test-fail leaf+"test stacktrace"]
   ;<  caz=(list card)  bind:m
-    (do-poke log-action+!>([%log ev-fail]))
+    (do-poke log-action+!>(`a-log:l`[%log fail ~]))
+  =/  =log-item:l
+    [now.bowl fail]
+  =/  =log-data:l
+    ~['commit'^s+'development']
   =/  fard=(fyrd:khan cage)
-    [q.byk.bowl %posthog noun+!>(`[`path`/gall/test [now.bowl ev-fail]])]
+    [q.byk.bowl %posthog noun+!>(`[`path`/gall/test log-item log-data])]
   ::  expect log submission -posthog
   ::
   ?>  ?=([[%pass *] ~] caz)
@@ -31,5 +34,5 @@
   ::
   %+  ex-equal
     !>((~(nest ut p.q.args.fard) | p.q.args.p.q.card))
-    !>(&)
+  !>(&)
 --
