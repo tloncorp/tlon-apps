@@ -11,7 +11,7 @@
     %-  pairs
     :~  groups/(groups-ui:v2:enjs:gj groups.init)
         gangs/(gangs:v2:enjs:gj gangs.init)
-        channels/(channels:v7:enjs:dj channels.init)
+        channels/(channels:v1:enjs:dj channels.init)
         activity/(activity:v3:enjs:aj activity.init)
         pins/a/(turn pins.init whom:enjs:gj)
         profile/b/profile.init

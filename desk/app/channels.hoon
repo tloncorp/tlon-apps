@@ -1338,7 +1338,7 @@
     ::  /x/v/init: get unreads and unversioned channels
     ::
       [%x ?(%v0 %v1) %init ~]
-    ``noun+!>([unreads (uv-channels-1:utils v-channels)])
+    ``noun+!>([unreads (uv-channels:utils v-channels |)])
     ::
       [%x %v2 %init ~]
     ``noun+!>([unreads (uv-channels:utils v-channels |)])
