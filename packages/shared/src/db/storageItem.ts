@@ -32,6 +32,21 @@ export type StorageItem<T> = {
 
 const storageItems: Array<StorageItem<any>> = [];
 
+const storageItemListeners = new Map<
+  string,
+  Array<(value: any) => Promise<void>>
+>();
+
+export function registerStorageItemListener<T>(
+  key: string,
+  listener: (value: T) => Promise<void>
+) {
+  if (!storageItemListeners.has(key)) {
+    storageItemListeners.set(key, []);
+  }
+  storageItemListeners.get(key)?.push(listener);
+}
+
 export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
   const {
     key,
@@ -87,6 +102,9 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
     updateLock = updateLock.then(async () => {
       await storage.setItem(key, serialize(defaultValue));
       queryClient.invalidateQueries({ queryKey: [key] });
+      storageItemListeners.get(key)?.forEach((listener) => {
+        listener(defaultValue);
+      });
       logger.log(`reset value ${key}`);
     });
     await updateLock;
@@ -106,6 +124,9 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
       await storage.setItem(key, serialize(newValue));
       queryClient.invalidateQueries({
         queryKey: config.queryKey ? config.queryKey : [key],
+      });
+      storageItemListeners.get(key)?.forEach((listener) => {
+        listener(newValue);
       });
       logger.log(`set value ${key}`, newValue);
     });
