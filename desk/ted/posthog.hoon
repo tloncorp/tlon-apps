@@ -27,7 +27,6 @@
 ::
 ;<  hash=@uv  bind:m  (scry:io @uv %cz q.byk.bowl ~)
 ::
-
 =/  id=@t
   ?.  is-fake
     (scot %p our.bowl)

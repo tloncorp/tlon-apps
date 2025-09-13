@@ -24,12 +24,21 @@
     |=  [desc=term trace=tang]
     =/  =card
       (~(fail logs our /logs) desc trace deez)
+    %-  %-  %*(. slog pri 3)  [leaf+"fail" trace]
     (link card)
   ::
   ++  tell
     |=  [vol=volume:logs =echo:logs =log-data:logs]
     =/  =card
       (~(tell logs our /logs) vol echo (weld log-data deez))
+    =/  pri
+      ?-  vol
+        %dbug  0
+        %info  1
+        %warn  2
+        %crit  3
+      ==
+    %-  %-  %*(. slog pri pri)  echo
     (link card)
   ::  +deez: log message details
   ::
@@ -206,7 +215,7 @@
       --
     =^  caz=(list card)  this
       =*  dm-event  'DM Invite Fail'
-      ?~  inviter=(~(get by fields.metadata.bite) 'inviter')
+      ?~  inviter=(~(get by fields.metadata.bite) %'inviterUserId')
         %-  %^  tell  %crit  dm-event
             ~['inviter field missing in lure bite']
         `this
@@ -226,13 +235,13 @@
       :_  this
       [%pass wir %agent dock %poke cage]~
     ::
-    =+  invite-type=(~(get by fields.metadata.bite) 'inviteType')
+    =+  invite-type=(~(get by fields.metadata.bite) %'inviteType')
     ::
     ::  don't send group invite if this is a personal bite
     ?:  &(?=(^ invite-type) =('user' u.invite-type))
       [caz this]
     =*  group-event  'Group Invite Fail'
-    ?~  group=(~(get by fields.metadata.bite) 'group')
+    ?~  group=(~(get by fields.metadata.bite) %'invitedGroupId')
       %-  (tell %warn group-event 'group field missing' ~)
       [caz this]
     =/  =flag:gv  (flag:dejs:gj s+u.group)
