@@ -50,6 +50,8 @@ export function BlockedUsersScreen(props: Props) {
       <ScreenHeader
         backAction={isNarrow ? () => props.navigation.goBack() : undefined}
         title="Blocked users"
+        useHorizontalTitleLayout={!isNarrow}
+        borderBottom
       />
       <View
         flex={1}

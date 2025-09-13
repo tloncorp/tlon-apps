@@ -21,6 +21,7 @@ import {
   TextInput,
   View,
   YStack,
+  useIsWindowNarrow,
 } from '../../ui';
 
 type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'GroupRoles'>;
@@ -128,9 +129,15 @@ function GroupRolesScreenView({
     [deleteGroupRole]
   );
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader backAction={handleGoBack} title={'Group Roles'} />
+      <ScreenHeader
+        backAction={handleGoBack}
+        title={'Group Roles'}
+        useHorizontalTitleLayout={!isWindowNarrow}
+      />
       <ScrollView
         flex={1}
         contentContainerStyle={{

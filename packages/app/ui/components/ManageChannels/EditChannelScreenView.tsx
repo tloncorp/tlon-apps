@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { ChannelPrivacyType } from '@tloncorp/shared/urbit/groups';
-import { Button } from '@tloncorp/ui';
+import { Button, useIsWindowNarrow } from '@tloncorp/ui';
 import { FormInput } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
@@ -133,6 +133,8 @@ export function EditChannelScreenView({
     }
   }, [channel, reset]);
 
+  const isWindowNarrow = useIsWindowNarrow();
+
   return (
     <FormProvider {...form}>
       <View backgroundColor="$background" flex={1}>
@@ -143,8 +145,15 @@ export function EditChannelScreenView({
         >
           <ScreenHeader
             title="Edit channel"
+            borderBottom
+            useHorizontalTitleLayout={!isWindowNarrow}
             backAction={goBack}
             isLoading={isLoading}
+            rightControls={
+              <ScreenHeader.TextButton onPress={handleSubmit(handleSave)}>
+                Save
+              </ScreenHeader.TextButton>
+            }
           />
           <YStack
             backgroundColor="$background"
@@ -178,9 +187,6 @@ export function EditChannelScreenView({
               <ChannelPermissionsSelector groupRoles={group.roles} />
             )}
             <YStack gap="$2xl">
-              <Button hero onPress={handleSubmit(handleSave)}>
-                <Button.Text>Save</Button.Text>
-              </Button>
               <Button heroDestructive onPress={handlePressDelete}>
                 <Button.Text>Delete channel for everyone</Button.Text>
               </Button>
