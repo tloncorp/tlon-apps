@@ -1761,7 +1761,7 @@
     =/  =id:c             [ship now.bowl]
     =/  =delta:writs:c    (make-notice ship text)
     =/  w-d=diff:writs:c  [id delta]
-    =.  pact.club  (reduce:cu-pact now.bowl w-d)
+    =.  pact.club  (reduce:cu-pact now.bowl from-self w-d)
     (cu-give-writs-diff w-d)
   ::
   ++  cu-give-action
@@ -1868,7 +1868,7 @@
             ==
           (emit (tell:log %crit message metadata))
         cor
-      =.  pact.club  (reduce:cu-pact now.bowl diff.delta)
+      =.  pact.club  (reduce:cu-pact now.bowl from-self diff.delta)
       ?-  -.q.diff.delta
           ?(%add-react %del-react)  (cu-give-writs-diff diff.delta)
           %add
@@ -2319,7 +2319,7 @@
           ==
         (emit (tell:log %crit message metadata))
       cor
-    =.  pact.dm  (reduce:di-pact now.bowl diff)
+    =.  pact.dm  (reduce:di-pact now.bowl from-self diff)
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
       (give-invites ship)
     ?-  -.q.diff

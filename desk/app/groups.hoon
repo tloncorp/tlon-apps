@@ -1482,6 +1482,7 @@
 ++  from-self  =(our src):bowl
 ::  +se-core: group server core
 ::
+++  size-limit  256.000  :: 256KB
 ++  se-core
   |_  [=flag:g =log:g =group:g gone=_|]
   ::
@@ -1620,6 +1621,7 @@
     |=  [=flag:g create=create-group:g]
     ?>  from-self
     ?>  ((sane %tas) name.create)
+    ?>  (lte (met 3 (jam create)) size-limit)
     =/  =flag:g  [our.bowl name.create]
     =/  =admissions:g
       %*  .  *admissions:g
@@ -1730,6 +1732,7 @@
     ^+  se-core
     ?<  (se-is-banned src.bowl)
     ?<  ?=(%secret privacy.ad)
+    ?>  (lte (met 3 (jam story)) size-limit)
     ?:  (se-is-joined src.bowl)  se-core
     ?:  ?=(%public privacy.ad)
       ::  public group: wait until we receive the ask watch
@@ -1837,6 +1840,7 @@
     ?-    -.c-group
         %meta
       ?>  se-src-is-admin
+      ?>  (lte (met 3 (jam meta.c-group)) size-limit)
       ?:  =(meta.group meta.c-group)  se-core
       =.  meta.group  meta.c-group
       (se-update %meta meta.group)
@@ -2378,6 +2382,7 @@
     ?:  &(?=(%add -.c-channel) (has:by-ch nest))  se-core
     ?-    -.c-channel
         %add
+      ?>  (lte (met 3 (jam chan)) size-limit)
       =.  added.chan  now.bowl
       =.  sections.group  (se-section-add-channel nest chan)
       =.  channels.group  (put:by-ch nest chan)
@@ -2386,6 +2391,7 @@
       (se-update %channel nest [%add chan])
     ::
         %edit
+      ?>  (lte (met 3 (jam chan)) size-limit)
       =/  old=channel:g  (got:by-ch nest)
       ::  preserve original timestamp
       =.  added.chan  added.old
@@ -2464,12 +2470,14 @@
     ^+  se-core
     ?-    -.c-section
         %add
+      ?>  (lte (met 3 (jam meta.c-section)) size-limit)
       =/  =section:g  [meta.c-section ~]
       =.  sections.group  (~(put by sections.group) section-id section)
       =.  section-order.group  (~(push of section-order.group) section-id)
       (se-update %section section-id [%add meta.c-section])
     ::
         %edit
+      ?>  (lte (met 3 (jam meta.c-section)) size-limit)
       =.  sections.group
         %+  ~(jab by sections.group)  section-id
         |=  =section:g

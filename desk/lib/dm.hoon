@@ -1,6 +1,7 @@
 /-  c=chat, d=channels, s=story, meta
 /+  mp=mop-extensions, cc=chat-conv, cu=channel-utils
 |_  pac=pact:c
+++  size-limit  256.000  :: 256KB
 ++  mope  ((mp time (may:c writ:c)) lte)
 ++  gas
   |=  ls=(list [=time writ=(may:c writ:c)])
@@ -85,7 +86,7 @@
   (need (get id))
 ::
 ++  reduce
-  |=  [now=time =id:c del=delta:writs:c]
+  |=  [now=time from-self=? =id:c del=delta:writs:c]
   ^+  pac
   ::  if the post pre-exists we can add it directly,
   ::  %add is handled specially below.
@@ -94,6 +95,12 @@
     (put:updated-on:c upd.pac now (~(got by dex.pac) id))
   ?-  -.del
       %add
+    =/  within-limit  (lte (met 3 (jam del)) size-limit)
+    ::  if not from us, and it exceeds size limit, no-op (to prevent nack)
+    ?:  &(!from-self !within-limit)
+      pac
+    ::  if from us, and it exceeds size limit, crash
+    ?>  within-limit
     ?:  (~(has by dex.pac) id)
       pac
     =.  num.pac  +(num.pac)
@@ -130,7 +137,8 @@
     %+  jab  id
     |=  writ=(may:c writ:c)
     ?:  ?=(%| -.writ)  [pac writ]
-    =/  [=pact:c =replies:c]  (reduce-reply replies.writ now id [id delta]:del)
+    =/  [=pact:c =replies:c]
+      (reduce-reply replies.writ now from-self id [id delta]:del)
     :-  pact
     %=    writ
       replies  replies
@@ -171,11 +179,17 @@
   ==
 ::
 ++  reduce-reply
-  |=  [=replies:c now=time parent-id=id:c =id:c delta=delta:replies:c]
+  |=  [=replies:c now=time from-self=? parent-id=id:c =id:c delta=delta:replies:c]
   ^-  [pact:c replies:c]
   ?-  -.delta
       %add
     |-
+    =/  within-limit  (lte (met 3 (jam delta)) size-limit)
+    ::  if not from us, and it exceeds size limit, no-op (to prevent nack)
+    ?:  &(!from-self !within-limit)
+      [pac replies]
+    ::  if from us, and it exceeds size limit, crash
+    ?>  within-limit
     ?:  (has:on:replies:c replies now)
       $(now `@da`(add now ^~((div ~s1 (bex 16)))))
     =/  reply-seal  [id parent-id now ~]
