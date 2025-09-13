@@ -1,5 +1,5 @@
 /-  g=groups, gv=groups-ver, c=channels
-/+  *test-agent, s=subscriber, imp=import-aid
+/+  *test-agent, test, utils=channel-utils, s=subscriber, imp=import-aid
 /=  channels-agent  /app/channels
 |%
 +$  current-state
@@ -371,4 +371,32 @@
     =.  save  !<(vase (slot 3 save))  ::  lib negotiate
     (ex-equal save !>(fixed-state))
   --
+::
+++  test-drop-bad-links
+  =/  =story:c
+    :~  [%block %image 'https://good.com/' 1 2 'alt']
+        [%block %image 'data:image/png;bad' 1 2 'alt']
+        [%block %image '#good' 1 2 'alt']
+        [%block %link 'data:image/png;bad' ~]
+        :-  %inline
+        :~  [%link 'http://good.net/' 'txt']
+            [%link 'data:image/png;bad' 'txt']
+            [%link '#good' 'txt']
+            [%link '/good' 'txt']
+        ==
+    ==
+  %+  expect-eq:test
+    !>  ^-  story:c
+    :~  [%block %image 'https://good.com/' 1 2 'alt']
+        [%block %image '' 1 2 'alt']
+        [%block %image '#good' 1 2 'alt']
+        [%block %link '' ~]
+        :-  %inline
+        :~  [%link 'http://good.net/' 'txt']
+            [%link '' 'txt']
+            [%link '#good' 'txt']
+            [%link '/good' 'txt']
+        ==
+    ==
+  !>((drop-bad-links:utils story))
 --
