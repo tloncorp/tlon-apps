@@ -5,7 +5,6 @@ import {
 import { View, getVariableValue, useTheme } from '@tamagui/core';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
-import { Platform } from 'react-native';
 
 import { AppInfoScreen } from '../../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../../features/settings/BlockedUsersScreen';
@@ -151,9 +150,7 @@ function useHasHostedAuth() {
         setHasHostedAuth(true);
       }
     }
-    if (Platform.OS !== 'web') {
-      getHostingInfo();
-    }
+    getHostingInfo();
   }, []);
 
   return hasHostedAuth;
