@@ -6,10 +6,12 @@ import * as TaskManager from 'expo-task-manager';
 import { v4 as uuidv4 } from 'uuid';
 
 import { configureUrbitClient } from '../hooks/useConfigureUrbitClient';
+import { setupDb } from './nativeDb';
 
 const logger = createDevLogger('backgroundSync', true);
 
 async function performSync() {
+  await setupDb();
   const taskExecutionId = uuidv4();
   logger.trackEvent('Initiating background sync', { taskExecutionId });
   const timings: Record<string, number> = {
