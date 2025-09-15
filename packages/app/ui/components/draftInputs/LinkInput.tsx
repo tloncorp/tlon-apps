@@ -10,7 +10,12 @@ import {
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/shared/urbit';
-import { Text } from '@tloncorp/ui';
+import {
+  DEFAULT_BOTTOM_PADDING,
+  HEADER_HEIGHT,
+  KEYBOARD_EXTRA_PADDING,
+  Text,
+} from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Platform } from 'react-native';
@@ -42,11 +47,8 @@ interface LinkInputProps {
 const TITLE_MAX_LENGTH = 240;
 const DESCRIPTION_MAX_LENGTH = 580;
 
-const KEYBOARD_EXTRA_PADDING = 50;
-const DEFAULT_BOTTOM_PADDING = 20;
 const LABEL_HEIGHT = 40;
 const SCROLL_OFFSET_PADDING = 20;
-const HEADER_HEIGHT = 48;
 
 const PostRenderer = createContentRenderer({
   blockSettings: {

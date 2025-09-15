@@ -1,3 +1,4 @@
+import { DEFAULT_KEYBOARD_OFFSET } from '@tloncorp/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   EmitterSubscription,
@@ -26,8 +27,6 @@ interface UseKeyboardAwareScrollReturn {
   getInputPosition: (inputId: string) => number | undefined;
 }
 
-const DEFAULT_SCROLL_OFFSET = 60;
-
 /**
  * Hook to handle keyboard-aware scrolling for forms with multiple inputs.
  * Automatically scrolls to focused inputs when keyboard appears.
@@ -46,7 +45,7 @@ const DEFAULT_SCROLL_OFFSET = 60;
  * ```
  */
 export function useKeyboardAwareScroll({
-  scrollOffset = DEFAULT_SCROLL_OFFSET,
+  scrollOffset = DEFAULT_KEYBOARD_OFFSET,
   enabled = true,
 }: UseKeyboardAwareScrollOptions = {}): UseKeyboardAwareScrollReturn {
   const scrollViewRef = useRef<ScrollView>(null);

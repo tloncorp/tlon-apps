@@ -37,6 +37,7 @@ import {
   isInline,
   pathToCite,
 } from '@tloncorp/shared/urbit';
+import { HEADER_HEIGHT } from '@tloncorp/ui';
 import {
   forwardRef,
   useCallback,
@@ -160,12 +161,11 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const [isSending, setIsSending] = useState(false);
     const { bottom, top } = useSafeAreaInsets();
     const { height } = useWindowDimensions();
-    const headerHeight = 48;
     const titleInputHeight = 48;
     const imageInputButtonHeight = 50;
     const maxInputHeightBasic = useMemo(
-      () => height - headerHeight - bottom - top,
-      [height, bottom, top, headerHeight]
+      () => height - HEADER_HEIGHT - bottom - top,
+      [height, bottom, top]
     );
     const bigInputHeightBasic = useMemo(() => {
       const extraHeaderSpace =

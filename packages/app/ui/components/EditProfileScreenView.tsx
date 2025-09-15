@@ -1,5 +1,9 @@
 import * as db from '@tloncorp/shared/db';
-import { KeyboardAvoidingView } from '@tloncorp/ui';
+import {
+  DEFAULT_BOTTOM_PADDING,
+  KEYBOARD_EXTRA_PADDING,
+  KeyboardAvoidingView,
+} from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Alert } from 'react-native';
@@ -214,7 +218,9 @@ export function EditProfileScreenView(props: Props) {
             maxWidth: 600,
             marginHorizontal: 'auto',
             paddingBottom:
-              keyboardHeight > 0 ? keyboardHeight + 50 : insets.bottom + 20,
+              keyboardHeight > 0
+                ? keyboardHeight + KEYBOARD_EXTRA_PADDING
+                : insets.bottom + DEFAULT_BOTTOM_PADDING,
           }}
         >
           <FormFrame>
