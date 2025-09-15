@@ -13,11 +13,12 @@ import * as ub from '@tloncorp/shared/urbit';
 import { Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { EmitterSubscription, Keyboard, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, useTheme } from 'tamagui';
 
 import { KeyboardAvoidingView, LoadingSpinner } from '../..';
+import { useKeyboardAwareScroll } from '../../hooks/useKeyboardAwareScroll';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import {
   ControlledTextField,
@@ -60,13 +61,16 @@ const PostRenderer = createContentRenderer({
 export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const scrollViewRef = useRef<ScrollView>(null);
-  const inputPositions = useRef<{ title: number; description: number }>({
-    title: 0,
-    description: 0,
+
+  const {
+    scrollViewRef,
+    keyboardHeight,
+    handleInputFocus,
+    registerInputLayout,
+    getInputPosition,
+  } = useKeyboardAwareScroll({
+    scrollOffset: LABEL_HEIGHT + SCROLL_OFFSET_PADDING,
   });
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const keyboardListenerRef = useRef<EmitterSubscription | null>(null);
   const initialValues = useMemo(() => {
     if (!editingPost) {
       return null;
@@ -108,28 +112,6 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
   useEffect(() => {
     setIsPendingDebounce(form.url !== url);
   }, [form.url, url]);
-
-  useEffect(() => {
-    const showListener = Keyboard.addListener('keyboardDidShow', (e) => {
-      setKeyboardHeight(e.endCoordinates.height);
-    });
-    const hideListener = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardHeight(0);
-    });
-
-    return () => {
-      showListener.remove();
-      hideListener.remove();
-    };
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (keyboardListenerRef.current) {
-        keyboardListenerRef.current.remove();
-      }
-    };
-  }, []);
   const { data, isLoading } = store.useLinkGrabber(url);
   const hasIssue = data && (data.type === 'error' || data.type === 'redirect');
   const isEmbed = useMemo(() => {
@@ -210,32 +192,6 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
       url,
     };
   }, [data, hasIssue, isEmbed, url]);
-
-  // Auto-scroll to input when focused
-  const handleInputFocus = useCallback((inputY: number) => {
-    if (keyboardListenerRef.current) {
-      keyboardListenerRef.current.remove();
-    }
-
-    keyboardListenerRef.current = Keyboard.addListener(
-      'keyboardDidShow',
-      () => {
-        if (scrollViewRef.current) {
-          const scrollOffset = inputY - (LABEL_HEIGHT + SCROLL_OFFSET_PADDING);
-
-          scrollViewRef.current?.scrollTo({
-            y: Math.max(0, scrollOffset),
-            animated: true,
-          });
-        }
-
-        if (keyboardListenerRef.current) {
-          keyboardListenerRef.current.remove();
-          keyboardListenerRef.current = null;
-        }
-      }
-    );
-  }, []);
 
   const handlePressDone = useCallback(() => {
     if (isDirty && isValid) {
@@ -394,11 +350,7 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
               )}
             </View>
 
-            <View
-              onLayout={(e) => {
-                inputPositions.current.title = e.nativeEvent.layout.y;
-              }}
-            >
+            <View onLayout={registerInputLayout('title')}>
               <ControlledTextField
                 name="title"
                 label="Title"
@@ -406,7 +358,12 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
                 inputProps={{
                   placeholder: 'Link title',
                   testID: 'LinkTitleInput',
-                  onFocus: () => handleInputFocus(inputPositions.current.title),
+                  onFocus: () => {
+                    const position = getInputPosition('title');
+                    if (position !== undefined) {
+                      handleInputFocus(position);
+                    }
+                  },
                 }}
                 rules={{
                   maxLength: {
@@ -417,11 +374,7 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
               />
             </View>
 
-            <View
-              onLayout={(e) => {
-                inputPositions.current.description = e.nativeEvent.layout.y;
-              }}
-            >
+            <View onLayout={registerInputLayout('description')}>
               <ControlledTextareaField
                 name="description"
                 label="Description"
@@ -431,8 +384,12 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
                   numberOfLines: 3,
                   multiline: true,
                   testID: 'LinkDescriptionInput',
-                  onFocus: () =>
-                    handleInputFocus(inputPositions.current.description),
+                  onFocus: () => {
+                    const position = getInputPosition('description');
+                    if (position !== undefined) {
+                      handleInputFocus(position);
+                    }
+                  },
                 }}
                 rules={{
                   maxLength: {

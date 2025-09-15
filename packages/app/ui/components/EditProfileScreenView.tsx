@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, useTheme } from 'tamagui';
 
 import { useContact, useCurrentUserId, useStore } from '../contexts';
+import { useKeyboardAwareScroll } from '../hooks/useKeyboardAwareScroll';
 import { SigilAvatar } from './Avatar';
 import { EditAttestationsDisplay } from './EditProfile/EditAttestationsDisplay';
 import { FavoriteGroupsDisplay } from './FavoriteGroupsDisplay';
@@ -31,6 +32,14 @@ export function EditProfileScreenView(props: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();
+
+  const {
+    scrollViewRef,
+    keyboardHeight,
+    handleInputFocus,
+    registerInputLayout,
+    getInputPosition,
+  } = useKeyboardAwareScroll();
   const userContact = useContact(props.userId);
   const [pinnedGroups, setPinnedGroups] = useState<db.Group[]>(
     (userContact?.pinnedGroups
@@ -197,15 +206,18 @@ export function EditProfileScreenView(props: Props) {
 
       <KeyboardAvoidingView>
         <ScrollView
+          ref={scrollViewRef}
           keyboardDismissMode="on-drag"
           flex={1}
           contentContainerStyle={{
             width: '100%',
             maxWidth: 600,
             marginHorizontal: 'auto',
+            paddingBottom:
+              keyboardHeight > 0 ? keyboardHeight + 50 : insets.bottom + 20,
           }}
         >
-          <FormFrame paddingBottom={insets.bottom + 20}>
+          <FormFrame>
             <XStack alignItems="flex-end" gap="$m">
               <View flex={1}>
                 <ControlledTextField
@@ -263,36 +275,52 @@ export function EditProfileScreenView(props: Props) {
 
             {isCurrUser ? (
               <>
-                <ControlledTextField
-                  name="status"
-                  label="Status"
-                  control={control}
-                  inputProps={{
-                    placeholder: 'Hanging out...',
-                  }}
-                  rules={{
-                    maxLength: {
-                      value: 50,
-                      message: 'Your status is limited to 50 characters',
-                    },
-                  }}
-                />
-                <ControlledTextareaField
-                  name="bio"
-                  label="Bio"
-                  control={control}
-                  inputProps={{
-                    placeholder: 'About yourself',
-                    numberOfLines: 5,
-                    multiline: true,
-                  }}
-                  rules={{
-                    maxLength: {
-                      value: 300,
-                      message: 'Your bio is limited to 300 characters',
-                    },
-                  }}
-                />
+                <View onLayout={registerInputLayout('status')}>
+                  <ControlledTextField
+                    name="status"
+                    label="Status"
+                    control={control}
+                    inputProps={{
+                      placeholder: 'Hanging out...',
+                      onFocus: () => {
+                        const position = getInputPosition('status');
+                        if (position !== undefined) {
+                          handleInputFocus(position);
+                        }
+                      },
+                    }}
+                    rules={{
+                      maxLength: {
+                        value: 50,
+                        message: 'Your status is limited to 50 characters',
+                      },
+                    }}
+                  />
+                </View>
+                <View onLayout={registerInputLayout('bio')}>
+                  <ControlledTextareaField
+                    name="bio"
+                    label="Bio"
+                    control={control}
+                    inputProps={{
+                      placeholder: 'About yourself',
+                      numberOfLines: 5,
+                      multiline: true,
+                      onFocus: () => {
+                        const position = getInputPosition('bio');
+                        if (position !== undefined) {
+                          handleInputFocus(position);
+                        }
+                      },
+                    }}
+                    rules={{
+                      maxLength: {
+                        value: 300,
+                        message: 'Your bio is limited to 300 characters',
+                      },
+                    }}
+                  />
+                </View>
                 <Field label="Pinned groups">
                   <FavoriteGroupsDisplay
                     groups={pinnedGroups}
