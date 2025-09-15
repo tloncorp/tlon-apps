@@ -2240,17 +2240,19 @@
   ++  se-send-invites
     |=  ships=(set ship)
     ^+  se-core
-    ::TODO record each invited ship in .invited.ad?
     %+  roll  ~(tap in ships)
     |=  [=ship =_se-core]
-    =*  her  +<-
-    =*  acc  +<+
-    =,  se-core
-    =/  =wire  (weld se-area /invite/(scot %p her))
-    =^  tok=(unit token:g)  acc
+    =/  =wire  (weld se-area /invite/(scot %p ship))
+    =^  tok=(unit token:g)  se-core
       ?:  ?=(%public privacy.ad)
-        [~ acc]
-      (se-c-entry-token [%add personal+her ~ ~ |])
+        [~ se-core]
+      (se-c-entry-token:se-core [%add personal+ship ~ ~ |])
+    ::TODO  revoke invites for each ship if present
+    :: =.  invited.admissions.group.se-core
+    ::   %-  ~(uni by invited.admissions.group.se-core)
+    ::   %-  malt
+    ::   %+  turn  ~(tap in ships)
+    ::   |=(=^ship [ship [now.bowl tok]])
     =/  =invite:g
         :*  flag
             now.bowl
@@ -2262,7 +2264,7 @@
     =/  =a-foreigns:v7:gv
       [%invite invite]
     =/  cage  group-foreign-1+!>(a-foreigns)
-    (emit [%pass wire %agent [her dap.bowl] %poke cage])
+    (emit:se-core [%pass wire %agent [ship dap.bowl] %poke cage])
   ::  +se-compat-send-invites: send invites in compatible manner
   ::
   ::  if a ship is in sync, we send the invitation as usual.
@@ -4191,13 +4193,6 @@
     ?>  from-self
     =.  cor  (emil (get-index:fi-pass ship))
     fi-core
-  ::TODO unfortunate inherintance from old groups:
-  ::     since updates are sent out in +fi-abet,
-  ::     any calls to fi-agent will send out the whole update,
-  ::     even though no foreign group might be change. we
-  ::     should rather manually generate updates at the points
-  ::     that foreigns is affected.
-  ::
   ::  +fi-agent: receive foreign sign
   ::
   ++  fi-agent
