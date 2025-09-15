@@ -5,40 +5,62 @@ import JavaScriptCore
 class NotificationService: UNNotificationServiceExtension {
     var contentHandler: ((UNNotificationContent) -> Void)?
     var bestAttemptContent: UNMutableNotificationContent?
-  
+
     private func applyNotif(_ rawActivityEvent: Any, notification: UNMutableNotificationContent) async -> UNNotificationContent {
-        let context = JSContext()!
-        context.exceptionHandler = { context, exception in
-            NSLog(exception?.toString() ?? "No exception found")
-        }
-        
-        guard
-            let scriptURL = Bundle.main.url(forResource: "bundle", withExtension: "js"),
-            let script = try? String(contentsOf: scriptURL)
-        else {
-            // Log script loading failure if we can extract uid from notification
-            if let userInfo = notification.userInfo as? [String: Any],
-               let uid = userInfo["uid"] as? String {
-                NotificationLogger.logError(PreviewRenderFailed(uid: uid, activityEvent: "Unknown", underlyingError: NSError(domain: "com.tlon.landscape.notifications", code: 2001, userInfo: [NSLocalizedDescriptionKey: "Failed to load JavaScript bundle"])))
-            }
+        // Extract uid first - if we can't find it, we can't do proper error logging
+        guard let userInfo = notification.userInfo as? [String: Any],
+              let uid = userInfo["uid"] as? String else {
+            NSLog("Cannot process notification: missing uid")
             return notification
         }
-        context.evaluateScript(script)
+
+        do {
+            return try await processRichNotification(rawActivityEvent, notification: notification, uid: uid)
+        } catch {
+            // Log the error and fall back to original notification
+            if let notificationError = error as? NotificationError {
+                NotificationLogger.logError(notificationError)
+            } else {
+                NotificationLogger.logError(NotificationError(uid: uid, message: "Unknown notification processing error", underlyingError: error))
+            }
+            // Log fallback delivery since we're returning original notification
+            NotificationLogger.logDelivery(properties: ["uid": uid, "message": "Fallback notification delivered successfully"])
+            return notification
+        }
+    }
+
+    private func processRichNotification(_ rawActivityEvent: Any, notification: UNMutableNotificationContent, uid: String) async throws -> UNNotificationContent {
+
+        // Convert to JSON string first for error logging
+        let activityEventJsonString = (try? JSONSerialization.jsonString(withJSONObject: rawActivityEvent)) ?? "Unknown"
         
+        let context = JSContext()!
+        context.exceptionHandler = { context, exception in
+            
+        }
+
+        // Store the JSON string in notification userInfo
+        notification.userInfo["activityEventJsonString"] = activityEventJsonString
+
+        guard let scriptURL = Bundle.main.url(forResource: "bundle", withExtension: "js") else {
+            throw PreviewRenderFailed(uid: uid, activityEvent: activityEventJsonString, underlyingError: NSError(domain: "com.tlon.landscape.notifications", code: 2001, userInfo: [NSLocalizedDescriptionKey: "Failed to find JavaScript bundle"]))
+        }
+
+        guard let script = try? String(contentsOf: scriptURL) else {
+            throw PreviewRenderFailed(uid: uid, activityEvent: activityEventJsonString, underlyingError: NSError(domain: "com.tlon.landscape.notifications", code: 2001, userInfo: [NSLocalizedDescriptionKey: "Failed to load JavaScript bundle"]))
+        }
+
+        context.evaluateScript(script)
+
         let previewRaw = context.objectForKeyedSubscript("tlon")
             .invokeMethod("renderActivityEventPreview", withArguments: [
                 rawActivityEvent,
             ])
-        
+
         guard let preview = try? previewRaw?.decode(as: NotificationPreviewPayload.self) else {
-            // Log preview decoding failure if we can extract uid from notification
-            if let userInfo = notification.userInfo as? [String: Any],
-               let uid = userInfo["uid"] as? String {
-                NotificationLogger.logError(PreviewRenderFailed(uid: uid, activityEvent: "Unknown", underlyingError: NSError(domain: "com.tlon.landscape.notifications", code: 2002, userInfo: [NSLocalizedDescriptionKey: "Failed to decode notification preview"])))
-            }
-            return notification
+            throw PreviewRenderFailed(uid: uid, activityEvent: activityEventJsonString, underlyingError: NSError(domain: "com.tlon.landscape.notifications", code: 2002, userInfo: [NSLocalizedDescriptionKey: "Failed to decode notification preview"]))
         }
-        
+
         // If we have a preview, make sure to fully replace server-provided title / body.
         notification.title = ""
         notification.body = ""
@@ -53,14 +75,11 @@ class NotificationService: UNNotificationServiceExtension {
             notification.threadIdentifier = await renderer.render(groupingKey)
         }
         notification.sound = UNNotificationSound.default
-        if let activityEventJsonString = try? JSONSerialization.jsonString(withJSONObject: rawActivityEvent) {
-            notification.userInfo = ["activityEventJsonString": activityEventJsonString]
-        }
 
         guard let message = preview.message else {
             return notification
         }
-        
+
         let sender = await INPerson.from(shipName: message.senderId, withImage: true)
         var speakableGroupName: INSpeakableString? = nil
         if let conversationTitle = message.conversationTitle {
@@ -83,28 +102,21 @@ class NotificationService: UNNotificationServiceExtension {
         if intent.speakableGroupName != nil, let image = sender.image {
             intent.setImage(image, forParameterNamed: \.speakableGroupName)
         }
-        
+
         let interaction = INInteraction(intent: intent, response: nil)
         interaction.direction = .incoming
+
         do {
             try await interaction.donate()
             let result = try notification.updating(from: intent)
-            
-            // Log successful delivery if we can extract uid
-            if let userInfo = notification.userInfo as? [String: Any],
-               let uid = userInfo["uid"] as? String {
-                NotificationLogger.logDelivery(properties: ["uid": uid, "message": "Rich notification delivered successfully"])
-            }
-            
+
+            // Log successful rich notification delivery
+            NotificationLogger.logDelivery(properties: ["uid": uid, "message": "Rich notification delivered successfully"])
+
             return result
         } catch {
-            // Log interaction failure if we can extract uid from notification
-            if let userInfo = notification.userInfo as? [String: Any],
-               let uid = userInfo["uid"] as? String {
-                NotificationLogger.logError(NotificationDisplayFailed(uid: uid, activityEvent: "Unknown", underlyingError: error))
-            }
-            NSLog("Error: \(error)")
-            return notification
+            // Throw NotificationDisplayFailed instead of handling here
+            throw NotificationDisplayFailed(uid: uid, activityEvent: activityEventJsonString, underlyingError: error)
         }
     }
 
@@ -124,26 +136,32 @@ class NotificationService: UNNotificationServiceExtension {
                 notification: notifContent.mutableCopy() as! UNMutableNotificationContent
             )
           }
-          
+
           contentHandler(notifContent)
           return
-          
+
         case let .failedFetchContents(err):
           // Extract uid for logging
           if let uid = request.content.userInfo["uid"] as? String {
+              NSLog("🔍 DEBUG: Logging error for failed fetch contents, uid: \(uid)")
               NotificationLogger.logError(ActivityEventFetchFailed(uid: uid, underlyingError: err))
+              NSLog("🔍 DEBUG: Logging fallback delivery for failed fetch contents, uid: \(uid)")
+              NotificationLogger.logDelivery(properties: ["uid": uid, "message": "Fallback notification delivered successfully"])
+              NSLog("🔍 DEBUG: Both logs completed for uid: \(uid)")
+          } else {
+              NSLog("🔍 DEBUG: No uid found in failed fetch contents case")
           }
           packErrorOnNotification(err)
           contentHandler(bestAttemptContent!)
           return
-          
+
         case .invalid:
           // Log invalid notification
           if let uid = request.content.userInfo["uid"] as? String {
               NotificationLogger.logError(NotificationError(uid: uid, message: "Invalid notification format", code: 2003))
           }
           fallthrough
-          
+
         case .dismiss:
           contentHandler(bestAttemptContent!)
           return
@@ -162,13 +180,13 @@ class NotificationService: UNNotificationServiceExtension {
     override func serviceExtensionTimeWillExpire() {
         // Called just before the extension will be terminated by the system.
         // Use this as an opportunity to deliver your "best attempt" at modified content, otherwise the original push payload will be used.
-        
+
         // Log timeout if we can extract uid from notification
         if let bestAttemptContent = bestAttemptContent,
            let uid = bestAttemptContent.userInfo["uid"] as? String {
             NotificationLogger.logError(NotificationError(uid: uid, message: "Notification service extension timed out", code: 2004))
         }
-        
+
         if let contentHandler, let bestAttemptContent {
             contentHandler(bestAttemptContent)
         }

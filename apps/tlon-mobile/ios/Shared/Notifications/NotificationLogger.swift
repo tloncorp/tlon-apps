@@ -11,22 +11,96 @@ private let NOTIFICATION_SERVICE_ERROR = "Notification Service Error"
 private let NOTIFICATION_SERVICE_DELIVERED = "Notification Service Delivery Successful"
 
 class NotificationLogger {
-    private static let appGroupIdentifier = "group.tlon.Landscape"
-    private static let logFileName = "notification_logs.json"
+    private static let postHogApiKey = "phc_6BDPOnBfls3Axc5WAbmN8pQKk3YqhfWoc0tXj9d9kx0"
+    private static let postHogHost = "https://eu.i.posthog.com"
+    private static let loginStore = LoginStore()
     
     static func logError(_ error: NotificationError) {
+        NSLog("🔍 DEBUG: NotificationLogger.logError called with uid: \(error.uid)")
         let properties = getLogPayload(uid: error.uid, message: error.message, error: error)
-        log(eventName: NOTIFICATION_SERVICE_ERROR, properties: properties)
+        sendToPostHog(eventName: NOTIFICATION_SERVICE_ERROR, properties: properties)
     }
     
     static func logDelivery(properties: [String: Any] = [:]) {
-        log(eventName: NOTIFICATION_SERVICE_DELIVERED, properties: properties)
+        NSLog("🔍 DEBUG: NotificationLogger.logDelivery called with properties: \(properties)")
+        sendToPostHog(eventName: NOTIFICATION_SERVICE_DELIVERED, properties: properties)
     }
     
-    private static func log(eventName: String, properties: [String: Any] = [:]) {
-        // Write to shared UserDefaults that main app can read and send to PostHog
-        guard let userDefaults = UserDefaults(suiteName: appGroupIdentifier) else {
-            NSLog("Could not access app group UserDefaults")
+    private static func sendToPostHog(eventName: String, properties: [String: Any] = [:]) {
+        // Send directly to PostHog REST API
+        guard let url = URL(string: "\(postHogHost)/capture/") else {
+            NSLog("Invalid PostHog URL")
+            fallbackToUserDefaults(eventName: eventName, properties: properties)
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 10.0 // 10 second timeout
+        
+        // Generate a unique distinct_id for the notification service extension
+        // UIDevice is not available in notification service extensions, so use bundle identifier
+        let bundleId = Bundle.main.bundleIdentifier ?? "unknown"
+        
+        guard let distinctId = try? loginStore.read()?.shipName else {
+            NSLog("Unable to find ship")
+            return
+        }
+        
+        let eventData: [String: Any] = [
+            "api_key": postHogApiKey,
+            "event": eventName,
+            "properties": properties.merging([
+                "source": "notification_service_extension",
+                "$lib": "ios-notification-extension",
+                "$lib_version": "1.0.0"
+            ]) { (_, new) in new },
+            "distinct_id": distinctId,
+            "timestamp": ISO8601DateFormatter().string(from: Date())
+        ]
+        
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: eventData)
+            request.httpBody = jsonData
+            
+            NSLog("Sending event to PostHog: \(eventName)")
+            
+            let task = URLSession.shared.dataTask(with: request) { data, response, error in
+                if let error = error {
+                    NSLog("PostHog request failed: \(error.localizedDescription)")
+                    // Fallback to UserDefaults for main app to process later
+                    fallbackToUserDefaults(eventName: eventName, properties: properties)
+                    return
+                }
+                
+                if let httpResponse = response as? HTTPURLResponse {
+                    if httpResponse.statusCode == 200 {
+                        NSLog("✅ Successfully sent event to PostHog: \(eventName)")
+                    } else {
+                        NSLog("❌ PostHog request failed with status: \(httpResponse.statusCode)")
+                        if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                            NSLog("Response body: \(responseString)")
+                        }
+                        // Fallback to UserDefaults for main app to process later
+                        fallbackToUserDefaults(eventName: eventName, properties: properties)
+                    }
+                }
+            }
+            
+            task.resume()
+        } catch {
+            NSLog("Failed to serialize PostHog event data: \(error.localizedDescription)")
+            fallbackToUserDefaults(eventName: eventName, properties: properties)
+        }
+    }
+    
+    // Fallback to UserDefaults if direct PostHog call fails
+    private static func fallbackToUserDefaults(eventName: String, properties: [String: Any]) {
+        NSLog("Using UserDefaults fallback for event: \(eventName)")
+        
+        guard let userDefaults = UserDefaults(suiteName: "group.tlon.Landscape") else {
+            NSLog("Could not access app group UserDefaults for fallback")
             return
         }
         
@@ -51,7 +125,7 @@ class NotificationLogger {
         userDefaults.set(existingLogs, forKey: "notificationLogs")
         userDefaults.synchronize()
         
-        NSLog("Notification log written: \(eventName), \(properties)")
+        NSLog("Event saved to UserDefaults for later processing: \(eventName)")
     }
 }
 
