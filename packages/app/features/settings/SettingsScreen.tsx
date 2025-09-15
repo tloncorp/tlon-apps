@@ -2,6 +2,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMutableRef } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 import { getVariableValue, useTheme } from 'tamagui';
 
 import { useDMLureLink } from '../../hooks/useBranchLink';
@@ -92,7 +93,9 @@ function useHasHostedAuth() {
         setHasHostedAuth(true);
       }
     }
-    getHostingInfo();
+    if (Platform.OS !== 'web') {
+      getHostingInfo();
+    }
   }, []);
 
   return hasHostedAuth;
