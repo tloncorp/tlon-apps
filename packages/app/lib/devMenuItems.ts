@@ -1,7 +1,7 @@
 import * as api from '@tloncorp/shared/api';
 import Constants from 'expo-constants';
 import { registerDevMenuItems } from 'expo-dev-menu';
-import { Alert, DevSettings, NativeModules } from 'react-native';
+import { Alert, DevSettings } from 'react-native';
 import * as DeviceInfo from 'react-native-device-info';
 
 import { getDbPath, purgeDb } from './nativeDb';
