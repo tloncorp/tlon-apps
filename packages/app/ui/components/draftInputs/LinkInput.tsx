@@ -13,12 +13,7 @@ import * as ub from '@tloncorp/shared/urbit';
 import { Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import {
-  AccessibilityInfo,
-  EmitterSubscription,
-  Keyboard,
-  Platform,
-} from 'react-native';
+import { EmitterSubscription, Keyboard, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, useTheme } from 'tamagui';
 
@@ -71,7 +66,6 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
     description: 0,
   });
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const [reduceMotion, setReduceMotion] = useState(false);
   const keyboardListenerRef = useRef<EmitterSubscription | null>(null);
   const initialValues = useMemo(() => {
     if (!editingPost) {
@@ -127,17 +121,6 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
       showListener.remove();
       hideListener.remove();
     };
-  }, []);
-
-  useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
-
-    const subscription = AccessibilityInfo.addEventListener(
-      'reduceMotionChanged',
-      setReduceMotion
-    );
-
-    return () => subscription?.remove();
   }, []);
 
   useEffect(() => {
@@ -229,34 +212,30 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
   }, [data, hasIssue, isEmbed, url]);
 
   // Auto-scroll to input when focused
-  const handleInputFocus = useCallback(
-    (inputY: number) => {
-      if (keyboardListenerRef.current) {
-        keyboardListenerRef.current.remove();
-      }
+  const handleInputFocus = useCallback((inputY: number) => {
+    if (keyboardListenerRef.current) {
+      keyboardListenerRef.current.remove();
+    }
 
-      keyboardListenerRef.current = Keyboard.addListener(
-        'keyboardDidShow',
-        () => {
-          if (scrollViewRef.current) {
-            const scrollOffset =
-              inputY - (LABEL_HEIGHT + SCROLL_OFFSET_PADDING);
+    keyboardListenerRef.current = Keyboard.addListener(
+      'keyboardDidShow',
+      () => {
+        if (scrollViewRef.current) {
+          const scrollOffset = inputY - (LABEL_HEIGHT + SCROLL_OFFSET_PADDING);
 
-            scrollViewRef.current?.scrollTo({
-              y: Math.max(0, scrollOffset),
-              animated: !reduceMotion,
-            });
-          }
-
-          if (keyboardListenerRef.current) {
-            keyboardListenerRef.current.remove();
-            keyboardListenerRef.current = null;
-          }
+          scrollViewRef.current?.scrollTo({
+            y: Math.max(0, scrollOffset),
+            animated: true,
+          });
         }
-      );
-    },
-    [reduceMotion]
-  );
+
+        if (keyboardListenerRef.current) {
+          keyboardListenerRef.current.remove();
+          keyboardListenerRef.current = null;
+        }
+      }
+    );
+  }, []);
 
   const handlePressDone = useCallback(() => {
     if (isDirty && isValid) {
