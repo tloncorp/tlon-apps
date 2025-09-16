@@ -1892,11 +1892,11 @@
   ::  +se-c-entry-ban: execute an entry ban command
   ::
   ::  the entry ban command is used to forbid a ship or a class of
-  ::  ships of certain rank from joining the group, requesting to join
+  ::  ships of specified rank from joining the group, requesting to join
   ::  the group, or executing any commands on the group host.
   ::
   ::  the ship and rank blacklists do not affect the group host.
-  ::  it is illegal to execute any $c-ban commands that affects
+  ::  it is forbidden to execute any $c-ban commands that affect
   ::  the group host in any way.
   ::
   ::  the rank blacklist does not affect admins. it is illegal
@@ -3937,6 +3937,7 @@
 ::
 ++  fi-core
   |_  [=flag:g foreign:g]
+  +*  foreign  +<+
   ::
   ++  fi-core  .
   ::  +fi-abed: init
@@ -3951,21 +3952,19 @@
   ::
   ++  fi-abet
     ^+  cor
-    =.  foreigns  (~(put by foreigns) flag +<+)
-    ::TODO figure out the foreign lifetime logic after designining
-    ::     new endpoints for the client
-    ::
+    =+  old-foreign=(~(get by foreigns) flag)
+    =.  foreigns  (~(put by foreigns) flag foreign)
     =?  foreigns  ?=([~ %done] progress)
       (~(del by foreigns) flag)
-    =.  fi-core  fi-give-update
+    =?  fi-core  |(?=(~ old-foreign) !=(u.old-foreign foreign))
+      fi-give-update
     cor
   ::  +fi-give-update: give foreigns update
   ::
   ++  fi-give-update
-    =/  foreigns  (~(put by foreigns) flag +<+)
-    =/  gangs-2
-      (~(run by foreigns) gang:v2:foreign:v7:gc)
-    =.  cor  (give %fact ~[/gangs/updates] gangs+!>(gangs-2))
+    =/  gang-2
+      (gang:v2:foreign:v7:gc foreign)
+    =.  cor  (give %fact ~[/gangs/updates] gangs+!>(`gangs:v2:gv`(my flag^gang-2 ~)))
     fi-core
   ::
   ++  fi-activity
