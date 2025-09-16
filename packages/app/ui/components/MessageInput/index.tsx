@@ -172,15 +172,8 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         channelType === 'notebook'
           ? titleInputHeight + imageInputButtonHeight + 150
           : 0;
-      return height - top - headerHeight - extraHeaderSpace;
-    }, [
-      height,
-      top,
-      headerHeight,
-      titleInputHeight,
-      imageInputButtonHeight,
-      channelType,
-    ]);
+      return height - top - HEADER_HEIGHT - extraHeaderSpace;
+    }, [height, top, titleInputHeight, imageInputButtonHeight, channelType]);
     const [bigInputHeight, setBigInputHeight] = useState(bigInputHeightBasic);
     const [maxInputHeight, setMaxInputHeight] = useState(maxInputHeightBasic);
 
@@ -725,7 +718,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
             // Calculate available height for editor - more precise with keyboard
             const availableHeight =
-              height - keyboardHeight - top - headerHeight - extraHeaderSpace;
+              height - keyboardHeight - top - HEADER_HEIGHT - extraHeaderSpace;
 
             setBigInputHeight(availableHeight);
           }
