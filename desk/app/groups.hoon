@@ -1887,11 +1887,11 @@
   ::  +se-c-entry-ban: execute an entry ban command
   ::
   ::  the entry ban command is used to forbid a ship or a class of
-  ::  ships of certain rank from joining the group, requesting to join
+  ::  ships of specified rank from joining the group, requesting to join
   ::  the group, or executing any commands on the group host.
   ::
   ::  the ship and rank blacklists do not affect the group host.
-  ::  it is illegal to execute any $c-ban commands that affects
+  ::  it is forbidden to execute any $c-ban commands that affect
   ::  the group host in any way.
   ::
   ::  the rank blacklist does not affect admins. it is illegal
