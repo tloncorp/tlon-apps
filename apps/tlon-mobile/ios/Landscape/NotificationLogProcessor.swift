@@ -1,10 +1,3 @@
-//
-//  NotificationLogProcessor.swift
-//  Landscape
-//
-//  Created by Claude Code
-//
-
 import Foundation
 import PostHog
 import ExpoModulesCore
@@ -13,15 +6,10 @@ import ExpoModulesCore
 class NotificationLogProcessor: NSObject {
     @objc static let `default` = NotificationLogProcessor()
     
-    private let appGroupIdentifier = "group.tlon.Landscape"
+    private let userDefaults = UserDefaults.forDefaultAppGroup
 
     func processAndSendLogs() {
-        guard let userDefaults = UserDefaults(suiteName: appGroupIdentifier) else {
-            NSLog("Could not access app group UserDefaults for notification logs")
-            return
-        }
-
-        guard let logs = userDefaults.array(forKey: "notificationLogs") as? [[String: Any]] else {
+        guard let logs = userDefaults.dictionary(forKey: "notificationLogs") as? [String: [Data]] else {
             return // No logs to process
         }
 
@@ -29,34 +17,37 @@ class NotificationLogProcessor: NSObject {
             return
         }
 
-        NSLog("Processing \(logs.count) notification logs")
+        print("Processing notification logs for \(logs.count) user(s)")
+        
+        // Decode from JSON
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601 // match your encoding strategy
 
         // Send each log to PostHog
-        for logEntry in logs {
-            guard let eventName = logEntry["eventName"] as? String,
-                  let properties = logEntry["properties"] as? [String: Any],
-                  let timestamp = logEntry["timestamp"] as? Double else {
-                continue
+        for userLogs in logs {
+            PostHogSDK.shared.identify(userLogs.key)
+            
+            for logEntry in userLogs.value {
+                do {
+                    let decodedEvent = try decoder.decode(LogEvent.self, from: logEntry)
+                    // Convert CodableValue properties to [String: Any] for PostHog
+                    PostHogSDK.shared.capture(decodedEvent.eventName, properties: decodedEvent.postHogProperties)
+                } catch {
+                    print("Failed to decode event: \(error)")
+                }
             }
-
-            var postHogProperties = properties
-            postHogProperties["source"] = "notification_service_extension"
-            postHogProperties["timestamp"] = timestamp
-
-            PostHogSDK.shared.capture(eventName, properties: postHogProperties)
         }
 
         // Clear the logs after processing
         userDefaults.removeObject(forKey: "notificationLogs")
-        userDefaults.synchronize()
 
-        NSLog("Successfully processed \(logs.count) notification logs")
+        print("Successfully processed notification logs for \(logs.count) user(s)")
     }
 
     @objc
     func startPeriodicProcessing() {
         print("configuring posthog")
-        let config = PostHogConfig(apiKey: "phc_6BDPOnBfls3Axc5WAbmN8pQKk3YqhfWoc0tXj9d9kx0", host: "https://eu.i.posthog.com")
+        let config = PostHogConfig(apiKey: UserDefaults.postHogApiKey, host: "https://eu.i.posthog.com")
         PostHogSDK.shared.setup(config)
         
         print("posthog setup")

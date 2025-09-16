@@ -38,6 +38,12 @@ posthogAsync?.then((client) => {
   posthog?.register({
     gitHash: GIT_HASH,
   });
+
+  // Write PostHog API key to UserDefaults for iOS native access
+  if (Platform.OS === 'ios' && POST_HOG_API_KEY) {
+    const { UrbitModule } = NativeModules;
+    UrbitModule?.setPostHogApiKey(POST_HOG_API_KEY);
+  }
 });
 
 const capture = (event: string, properties?: { [key: string]: any }) => {

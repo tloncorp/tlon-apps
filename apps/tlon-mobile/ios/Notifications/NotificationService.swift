@@ -10,8 +10,8 @@ class NotificationService: UNNotificationServiceExtension {
         // Extract uid first - if we can't find it, we can't do proper error logging
         guard let userInfo = notification.userInfo as? [String: Any],
               let uid = userInfo["uid"] as? String else {
-            NSLog("Cannot process notification: missing uid")
-            NotificationLogger.logDelivery(properties: ["message": "Fallback notification delivered successfully"])
+            print("Cannot process notification: missing uid")
+            NotificationLogger.logDelivery(properties: ["message": .string("Fallback notification delivered successfully")])
             return notification
         }
 
@@ -25,8 +25,8 @@ class NotificationService: UNNotificationServiceExtension {
             }
             
             NotificationLogger.sendToPostHog(events: [
-                LogEvent.error(err),
-                LogEvent.delivery(["uid": uid, "message": "Fallback notification delivered successfully"])
+                LogEventData.error(err),
+                LogEventData.delivery(["uid": .string(uid), "message": .string("Fallback notification delivered successfully")])
             ])
             return notification
         }
@@ -114,7 +114,7 @@ class NotificationService: UNNotificationServiceExtension {
             let result = try notification.updating(from: intent)
 
             // Log successful rich notification delivery
-            NotificationLogger.logDelivery(properties: ["uid": uid, "message": "Rich notification delivered successfully"])
+            NotificationLogger.logDelivery(properties: ["uid": .string(uid), "message": .string("Rich notification delivered successfully")])
 
             return result
         } catch {
@@ -147,12 +147,12 @@ class NotificationService: UNNotificationServiceExtension {
           // Extract uid for logging
           if let uid = request.content.userInfo["uid"] as? String {
               NotificationLogger.sendToPostHog(events: [
-                LogEvent.error(ActivityEventFetchFailed(uid: uid, underlyingError: err)),
-                LogEvent.delivery(["uid": uid, "message": "Fallback notification delivered successfully"])
+                LogEventData.error(ActivityEventFetchFailed(uid: uid, underlyingError: err)),
+                LogEventData.delivery(["uid": .string(uid), "message": .string("Fallback notification delivered successfully")])
               ])
-              NSLog("Both logs completed for uid: \(uid)")
+              print("Both logs completed for uid: \(uid)")
           } else {
-              NSLog("No uid found in failed fetch contents case")
+              print("No uid found in failed fetch contents case")
           }
           packErrorOnNotification(err)
           contentHandler(bestAttemptContent!)

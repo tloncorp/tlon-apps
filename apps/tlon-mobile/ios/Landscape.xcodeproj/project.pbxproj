@@ -17,6 +17,11 @@
 		5A1EB9552CAC451A00029EDC /* GroupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1EB9522CAC451A00029EDC /* GroupStore.swift */; };
 		5A1EB9562CAC451A00029EDC /* GroupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1EB9522CAC451A00029EDC /* GroupStore.swift */; };
 		5A1EB9572CAC451A00029EDC /* GroupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1EB9522CAC451A00029EDC /* GroupStore.swift */; };
+		5A55792F2E7A16BC004DD85A /* NotificationLogging.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A55792E2E7A16BC004DD85A /* NotificationLogging.swift */; };
+		5A5579302E7A16BC004DD85A /* NotificationLogging.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A55792E2E7A16BC004DD85A /* NotificationLogging.swift */; };
+		5A5579312E7A16BC004DD85A /* NotificationLogging.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A55792E2E7A16BC004DD85A /* NotificationLogging.swift */; };
+		5A5579322E7A16BC004DD85A /* NotificationLogging.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A55792E2E7A16BC004DD85A /* NotificationLogging.swift */; };
+		5A5579332E7A16BC004DD85A /* NotificationLogging.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A55792E2E7A16BC004DD85A /* NotificationLogging.swift */; };
 		5A829AB02E70CE0E0044507C /* NotificationLogProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A829AAF2E70CE0E0044507C /* NotificationLogProcessor.swift */; };
 		5A829AB12E70CE0E0044507C /* NotificationLogProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A829AAF2E70CE0E0044507C /* NotificationLogProcessor.swift */; };
 		5AA9810E2E68C91600FBE023 /* NotificationLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AA9810D2E68C91600FBE023 /* NotificationLogger.swift */; };
@@ -245,6 +250,7 @@
 		13B07FB71A68108700A75B9A /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = main.m; path = Landscape/main.m; sourceTree = "<group>"; };
 		3B0B210E999A7E0E1A345468 /* Pods-Landscape-preview.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Landscape-preview.release.xcconfig"; path = "Target Support Files/Pods-Landscape-preview/Pods-Landscape-preview.release.xcconfig"; sourceTree = "<group>"; };
 		5A1EB9522CAC451A00029EDC /* GroupStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupStore.swift; sourceTree = "<group>"; };
+		5A55792E2E7A16BC004DD85A /* NotificationLogging.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NotificationLogging.swift; sourceTree = "<group>"; };
 		5A829AAF2E70CE0E0044507C /* NotificationLogProcessor.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = NotificationLogProcessor.swift; path = Landscape/NotificationLogProcessor.swift; sourceTree = "<group>"; };
 		5AA9810D2E68C91600FBE023 /* NotificationLogger.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NotificationLogger.swift; sourceTree = "<group>"; };
 		6303C77F2DB17BC100A40B07 /* NotificationPreviewPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationPreviewPayload.swift; sourceTree = "<group>"; };
@@ -461,6 +467,7 @@
 		63E7040D2C540FD6006CF214 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				5A55792E2E7A16BC004DD85A /* NotificationLogging.swift */,
 				709FC0EC2AC1E25D00B0644D /* Club.swift */,
 				700B635C2A71DFE90017F40F /* Contact.swift */,
 				70D3866A2A60A38400AFB46E /* Group.swift */,
@@ -1316,6 +1323,7 @@
 				70D3866C2A60A38400AFB46E /* Group.swift in Sources */,
 				63A5A04F2CD05CB900928EED /* ChannelEntity.swift in Sources */,
 				700B63602A71E0810017F40F /* SettingsStore.swift in Sources */,
+				5A55792F2E7A16BC004DD85A /* NotificationLogging.swift in Sources */,
 				635BCB0B2CC6F969004D52AA /* OpenAppIntent.swift in Sources */,
 				70D386712A60A3E600AFB46E /* UIColor+Extension.swift in Sources */,
 				5A829AB02E70CE0E0044507C /* NotificationLogProcessor.swift in Sources */,
@@ -1354,6 +1362,7 @@
 				630DE0CE2C51A8780053603B /* GroupChannelStore.swift in Sources */,
 				63E27E0E2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
 				630DE0CF2C51A8780053603B /* PocketUserAPI.swift in Sources */,
+				5A5579332E7A16BC004DD85A /* NotificationLogging.swift in Sources */,
 				630DE0D02C51A8780053603B /* UserDefaultsStore.swift in Sources */,
 				5A1EB9572CAC451A00029EDC /* GroupStore.swift in Sources */,
 				5AA981122E68C91600FBE023 /* NotificationLogger.swift in Sources */,
@@ -1387,6 +1396,7 @@
 				632793C92C4AE7C900F942B1 /* GroupChannelStore.swift in Sources */,
 				63E27E0D2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
 				632793C62C4AE56F00F942B1 /* PocketUserAPI.swift in Sources */,
+				5A5579322E7A16BC004DD85A /* NotificationLogging.swift in Sources */,
 				632793C42C4AE53A00F942B1 /* UserDefaultsStore.swift in Sources */,
 				5A1EB9562CAC451A00029EDC /* GroupStore.swift in Sources */,
 				5AA981112E68C91600FBE023 /* NotificationLogger.swift in Sources */,
@@ -1426,6 +1436,7 @@
 				70DBBFF62B7C60B50021EA96 /* SettingsStore.swift in Sources */,
 				63A5A04E2CD05CB900928EED /* ChannelEntity.swift in Sources */,
 				70DBBFF72B7C60B50021EA96 /* UIColor+Extension.swift in Sources */,
+				5A5579302E7A16BC004DD85A /* NotificationLogging.swift in Sources */,
 				635BCB0C2CC6F969004D52AA /* OpenAppIntent.swift in Sources */,
 				70DBBFF82B7C60B50021EA96 /* PocketUserAPI.swift in Sources */,
 				5A829AB12E70CE0E0044507C /* NotificationLogProcessor.swift in Sources */,
@@ -1476,6 +1487,7 @@
 				70F99AA72B2D337600D77256 /* ClubStore.swift in Sources */,
 				70F99AAC2B2D338E00D77256 /* UrbitModule.swift in Sources */,
 				70F99A9C2B2D336500D77256 /* UIColor+Extension.swift in Sources */,
+				5A5579312E7A16BC004DD85A /* NotificationLogging.swift in Sources */,
 				70F99A9E2B2D336800D77256 /* Contact.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
