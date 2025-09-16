@@ -308,7 +308,7 @@
   |=  s=state
   &+[(~(on-peek agent.s bowl.s) path) s]
 ::
-++  get-full-peek
+++  got-peek
   |=  =path
   =/  m  (mare ,cage)
   ^-  form:m

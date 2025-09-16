@@ -92,7 +92,7 @@
 ::   =/  m  (mare ,~)
 ::   ^-  form:m
 ::   ;<  =bowl:gall  bind:m  get-bowl
-::   ;<  peek=cage  bind:m  (get-full-peek /x/v2/groups/~zod/my-test-group)
+::   ;<  peek=cage  bind:m  (got-peek /x/v2/groups/~zod/my-test-group)
 ::   =+  !<(=group:g q.peek)
 ::   =/  actions-2=(list action:v2:gv)
 ::     %-  zing
@@ -121,7 +121,7 @@
 ::   ::  extract group - it is needed for facts down-conversion
 ::   ::
 ::   ;<  =bowl:gall  bind:m  get-bowl
-::   ;<  peek=cage  bind:m  (get-full-peek /x/v2/groups/~zod/my-test-group)
+::   ;<  peek=cage  bind:m  (got-peek /x/v2/groups/~zod/my-test-group)
 ::   =+  !<(=group:g q.peek)
 ::   ::  assemble expected
 ::   ::
@@ -160,7 +160,7 @@
   ^-  form:m
   ;<  *  bind:m  do-groups-init
   ;<  caz=(list card)  bind:m  (do-create-group %secret)
-  ;<  peek=cage  bind:m  (get-full-peek /x/v2/groups/~zod/my-test-group)
+  ;<  peek=cage  bind:m  (got-peek /x/v2/groups/~zod/my-test-group)
   =+  !<(=group:g q.peek)
   ;<  ~  bind:m
     %+  ex-cards  caz
@@ -298,7 +298,7 @@
     ((do-as ~dev) (do-watch ask-path))
   ;<  ~  bind:m
     (ex-u-groups caz [%entry %ask [%add ~dev `story]]~)
-  ;<  peek=cage  bind:m  (get-full-peek /x/v2/groups/~zod/my-test-group)
+  ;<  peek=cage  bind:m  (got-peek /x/v2/groups/~zod/my-test-group)
   =+  !<(=group:g q.peek)
   ;<  ~  bind:m
     %+  ex-equal
@@ -372,7 +372,7 @@
     ((do-as ~dev) (do-watch ask-path))
   ;<  ~  bind:m
     (ex-u-groups caz [%entry %ask [%add ~dev `story]]~)
-  ;<  peek=cage  bind:m  (get-full-peek /x/v2/groups/~zod/my-test-group)
+  ;<  peek=cage  bind:m  (got-peek /x/v2/groups/~zod/my-test-group)
   =+  !<(=group:g q.peek)
   ;<  ~  bind:m
     %+  ex-equal
@@ -406,7 +406,7 @@
     ['New Title' 'New description' '' '']
   ;<  caz=(list card)  bind:m
     ((do-as ~zod) (do-c-group [%meta meta]))
-  ;<  peek=cage  bind:m  (get-full-peek /x/v2/groups/~zod/my-test-group)
+  ;<  peek=cage  bind:m  (got-peek /x/v2/groups/~zod/my-test-group)
   =+  !<(=group:g q.peek)
   ;<  ~  bind:m
     (ex-equal !>(meta.group) !>(meta))
@@ -435,7 +435,7 @@
     ((do-as ~zod) (do-c-group [%entry %privacy %secret]))
   ;<  ~  bind:m
     (ex-u-groups caz [%entry %privacy %secret]~)
-  ;<  peek=cage  bind:m  (get-full-peek /x/v2/groups/~zod/my-test-group)
+  ;<  peek=cage  bind:m  (got-peek /x/v2/groups/~zod/my-test-group)
   =+  !<(=group:g q.peek)
   ;<  ~  bind:m
     (ex-equal !>(privacy.admissions.group) !>(%secret))
@@ -455,7 +455,7 @@
     ((do-as ~zod) (do-c-group [%seat (sy ~dev ~) %add-roles (sy %admin ~)]))
   ;<  *  bind:m
     ((do-as ~dev) (do-c-group [%entry %privacy %secret]))
-  ;<  peek=cage  bind:m  (get-full-peek /x/v2/groups/~zod/my-test-group)
+  ;<  peek=cage  bind:m  (got-peek /x/v2/groups/~zod/my-test-group)
   =+  !<(=group:g q.peek)
   ;<  ~  bind:m
     (ex-equal !>(privacy.admissions.group) !>(%secret))
