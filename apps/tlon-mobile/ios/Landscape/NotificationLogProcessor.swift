@@ -16,6 +16,9 @@ class NotificationLogProcessor: NSObject {
         if logs.isEmpty {
             return
         }
+        
+        // Clear the logs while processing to prevent double entry
+        userDefaults.removeObject(forKey: "notificationLogs")
 
         print("Processing notification logs for \(logs.count) user(s)")
         
@@ -37,9 +40,6 @@ class NotificationLogProcessor: NSObject {
                 }
             }
         }
-
-        // Clear the logs after processing
-        userDefaults.removeObject(forKey: "notificationLogs")
 
         print("Successfully processed notification logs for \(logs.count) user(s)")
     }

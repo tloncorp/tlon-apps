@@ -39,7 +39,7 @@ class NotificationService: UNNotificationServiceExtension {
         
         let context = JSContext()!
         context.exceptionHandler = { context, exception in
-            
+            print(exception?.toString() ?? "No exception found")
         }
 
         // Store the JSON string in notification userInfo
