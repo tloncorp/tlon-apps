@@ -10,10 +10,12 @@ import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import { useLiveRef, useOptimizedQueryResults } from '../logic/utilHooks';
+import { usePendingPostsInChannel } from './dbHooks';
 import { queryClient } from './reactQuery';
 import { useCurrentSession } from './session';
 import * as sync from './sync';
 import { SyncPriority } from './syncQueue';
+import { mergePendingPosts } from './useMergePendingPosts';
 
 const postsLogger = createDevLogger('useChannelPosts', false);
 
@@ -26,14 +28,16 @@ type PostQueryPage = {
    */
   canFetchNewerPosts: boolean;
 };
-type UseChannelPostsPageParams = db.GetChannelPostsOptions;
+type UseChannelPostsPageParams = db.GetSequencedPostsOptions & {
+  cursorPostId?: string | null;
+};
+type PageParam = UseChannelPostsPageParams;
 type PostQueryData = InfiniteData<PostQueryPage, unknown>;
 type SubscriptionPost = [db.Post, string | undefined];
 
 type UseChannelPostsParams = UseChannelPostsPageParams & {
   enabled: boolean;
   firstPageCount?: number;
-  hasCachedNewest?: boolean;
   filterDeleted?: boolean;
 };
 
@@ -46,12 +50,30 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     return Date.now();
   }, []);
 
-  const { enabled, firstPageCount, ...pageParam } = options;
+  const { enabled } = options;
 
   const queryKey = useMemo(
-    () => [['channelPosts', options.channelId, options.cursor, mountTime]],
-    [options.channelId, options.cursor, mountTime]
+    () => [
+      [
+        'channelPosts',
+        options.channelId,
+        options.cursorPostId,
+        options.filterDeleted,
+        mountTime,
+      ],
+    ],
+    [options.channelId, options.cursorPostId, options.filterDeleted, mountTime]
   );
+
+  const initialPageParam = useMemo(() => {
+    return {
+      count: options.firstPageCount,
+      channelId: options.channelId,
+      cursorPostId: options.cursorPostId,
+      mode: options.mode ?? 'newest',
+      filterDeleted: options.filterDeleted ?? false,
+    } as UseChannelPostsPageParams;
+  }, [options]);
 
   const abortControllerRef = useRef<AbortController | null>(
     new AbortController()
@@ -68,10 +90,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
 
   const query = useInfiniteQuery({
     enabled,
-    initialPageParam: {
-      ...pageParam,
-      count: firstPageCount,
-    } as UseChannelPostsPageParams,
+    initialPageParam,
     refetchOnMount: false,
     retry(failureCount, error) {
       postsLogger.trackError('failed to load posts', {
@@ -85,73 +104,45 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     },
     retryDelay: () => 500,
     queryFn: async (ctx): Promise<PostQueryPage> => {
-      const queryOptions = ctx.pageParam || options;
-      postsLogger.log('loading posts', { queryOptions, options });
-      // We should figure out why this is necessary.
-      if (
-        queryOptions &&
-        queryOptions.mode === 'newest' &&
-        !options.hasCachedNewest
-      ) {
-        await sync.syncPosts(queryOptions, {
-          priority: SyncPriority.High,
-          abortSignal: abortControllerRef.current?.signal,
-        });
-      }
-      const cached = await db.getChannelPosts(queryOptions);
-      if (cached?.length) {
-        postsLogger.log('returning', cached.length, 'posts from db');
-        return { posts: cached, canFetchNewerPosts: true };
-      }
+      const queryOptions = await normalizeCursor(
+        ctx.pageParam || initialPageParam
+      );
 
-      postsLogger.log('no posts found in database, loading from api...');
-      const res = await sync.syncPosts(
-        {
-          ...queryOptions,
-          count: options.count ?? 50,
-        },
-        {
-          priority: SyncPriority.High,
-          abortSignal: abortControllerRef.current?.signal,
-        }
+      const posts = await getLocalFirstPosts(queryOptions);
+      const canFetchNewerPosts = await hasNewerPosts(
+        queryOptions.channelId,
+        posts
       );
-      postsLogger.log('loaded', res.posts?.length, 'posts from api', { res });
-      const secondResult = await db.getChannelPosts(queryOptions);
-      postsLogger.log(
-        'returning',
-        secondResult?.length,
-        'posts from db after syncing from api'
-      );
+
       return {
-        posts: secondResult ?? [],
-        canFetchNewerPosts: res.newer != null,
+        posts,
+        canFetchNewerPosts,
       };
     },
     queryKey,
     getNextPageParam: (
       lastPage,
       _allPages,
-      lastPageParam
+      _lastPageParam
     ): UseChannelPostsPageParams | undefined => {
-      const lastPageIsEmpty = !lastPage.posts.at(-1)?.id;
+      const oldestPost = lastPage.posts.at(-1);
+      const lastPageIsEmpty = !oldestPost?.id;
+
+      // corner case: if somehow we don't have any posts, we can't load more
       if (lastPageIsEmpty) {
-        // If we've only tried to get newer posts + that's failed, try using the
-        // same cursor to get older posts instead. This can happen when the
-        // first cached page is empty.
-        if (lastPageParam?.mode === 'newer') {
-          return {
-            ...options,
-            mode: 'older',
-            cursor: lastPageParam.cursor,
-          };
-        } else {
-          return undefined;
-        }
+        return undefined;
       }
+
+      // main check: if we're at the beginning of the sequence, we're done
+      if (oldestPost && oldestPost.sequenceNum === 1) {
+        return undefined;
+      }
+
       return {
-        ...options,
+        channelId: options.channelId,
+        count: options.count ?? 50,
         mode: 'older',
-        cursor: lastPage.posts.at(-1)?.id,
+        cursorSequenceNum: oldestPost.sequenceNum!,
       };
     },
     getPreviousPageParam: (
@@ -162,6 +153,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
       // if any page has reached the newest post, we can't fetch any newer posts
       // page order for allPages should be newest -> oldest
       // but apparently on channels with less than 50 posts, the order is reversed (on web only)
+      // TODO: ^ verify?
       const hasReachedNewest = allPages.some((p) => !p.canFetchNewerPosts);
 
       if (hasReachedNewest) {
@@ -169,9 +161,10 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
       }
 
       return {
-        ...options,
+        channelId: options.channelId,
+        count: options.count ?? 50,
         mode: 'newer',
-        cursor: firstPage.posts[0]?.id,
+        cursorSequenceNum: firstPage.posts[0].sequenceNum!,
       };
     },
   });
@@ -181,7 +174,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   const [newPosts, setNewPosts] = useState<db.Post[]>([]);
   const handleNewPost = useCallback(
     (post: db.Post) => {
-      if (post.channelId === options.channelId) {
+      if (post.channelId === options.channelId && post.type !== 'reply') {
         setNewPosts((posts) => addPostToNewPosts(post, posts));
       }
     },
@@ -193,38 +186,29 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     setNewPosts([]);
   }, [options.channelId]);
 
-  const rawPosts = useMemo<db.Post[] | null>(() => {
-    const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? null;
-    if (!newPosts.length) {
-      return queryPosts;
-    }
-    const newestQueryPostId = queryPosts?.[0]?.id;
-    const newerPosts = newPosts.filter(
-      (p) => !newestQueryPostId || p.id > newestQueryPostId
-    );
-    // Deduping is necessary because the query data may not have been updated
-    // at this point and we may have already added the post.
-    // This is most likely to happen in bad network conditions or when the
-    // ship is under heavy load.
-    // This seems to be caused by an async issue where clearMatchedPendingPosts
-    // is called before the new post is added to the query data.
-    // TODO: Figure out why this is happening.
-    const dedupedQueryPosts =
-      queryPosts?.filter(
-        (p) => !newerPosts.some((newer) => newer.sentAt === p.sentAt)
-      ) ?? [];
-    return newestQueryPostId ? [...newerPosts, ...dedupedQueryPosts] : newPosts;
-  }, [query.data, newPosts]);
-
+  const pendingPosts = usePendingPostsInChannel(options.channelId);
   const deletedPosts = useDeletedPosts(options.channelId);
-  const rawPostsWithDeleteFilterApplied = useMemo(() => {
-    if (!options.filterDeleted) {
-      return rawPosts;
-    }
-    return rawPosts?.filter((p) => !p.isDeleted && !deletedPosts[p.id]);
-  }, [options.filterDeleted, rawPosts, deletedPosts]);
 
-  const posts = useOptimizedQueryResults(rawPostsWithDeleteFilterApplied);
+  const rawPosts = useMemo<db.Post[] | null>(() => {
+    const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? [];
+    return mergePendingPosts({
+      newPosts,
+      pendingPosts,
+      existingPosts: queryPosts,
+      deletedPosts,
+      filterDeleted: options.filterDeleted,
+      hasNewest: !query.hasPreviousPage,
+    });
+  }, [
+    query.data?.pages,
+    query.hasPreviousPage,
+    newPosts,
+    pendingPosts,
+    deletedPosts,
+    options.filterDeleted,
+  ]);
+
+  const posts = useOptimizedQueryResults(rawPosts);
 
   useRefreshPosts(options.channelId, posts);
 
@@ -245,6 +229,133 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     [posts, query, loadOlder, loadNewer, isLoading]
   );
 };
+
+/*
+  We want to operate on sequence numbers, but our unread markers are keyed by postId.
+  This encapsulate the logic for obtaining a sequence based cursor.
+*/
+async function normalizeCursor(options: PageParam): Promise<PageParam> {
+  // only attempt to transform if we have a postId shaped cursor
+  if (!options.cursorPostId) {
+    return options;
+  }
+
+  // first check locally to see if we already have the post
+  const cursorPost = await db.getPost({
+    postId: options.cursorPostId,
+  });
+  if (cursorPost && cursorPost.sequenceNum) {
+    return {
+      ...options,
+      cursorPostId: null,
+      cursorSequenceNum: cursorPost.sequenceNum,
+    };
+  }
+
+  // if not, grab it from the API. Proactively snag surrounding posts while we're there
+  await sync.syncPosts(
+    {
+      channelId: options.channelId,
+      cursor: options.cursorPostId,
+      mode: 'around',
+      count: options.count,
+    },
+    { priority: SyncPriority.High }
+  );
+
+  const syncedCursorPost = await db.getPost({
+    postId: options.cursorPostId,
+  });
+
+  if (syncedCursorPost && syncedCursorPost.sequenceNum) {
+    return {
+      ...options,
+      cursorPostId: null,
+      cursorSequenceNum: syncedCursorPost.sequenceNum,
+    };
+  }
+
+  // should always have it after fetching, if we don't it's an error
+  throw new Error('Failed to normalize cursor');
+}
+
+async function getLocalFirstPosts(options: UseChannelPostsPageParams) {
+  postsLogger.log(`localFirstPosts: running`, options);
+  const posts = await db.getSequencedChannelPosts(options);
+
+  // if we find local results, return them immediately
+  if (posts.length) {
+    postsLogger.log(`localFirstPosts: found local posts`, posts);
+    return posts;
+  }
+
+  postsLogger.log(`localFirstPosts: no local posts found, syncing from API...`);
+  // if we don't, sync the posts from the API...
+  if (options.mode === 'newest') {
+    await sync.syncPosts(
+      { channelId: options.channelId, mode: 'newest', count: 50 },
+      { priority: SyncPriority.High }
+    );
+  } else {
+    if (!options.cursorSequenceNum) {
+      throw new Error(
+        `invariant violation: cannot fetch sequenced posts from API without sequence number`
+      );
+    }
+    await sync.syncSequencedPosts(
+      {
+        channelId: options.channelId,
+        cursorSequenceNum: options.cursorSequenceNum,
+        mode: options.mode,
+        count: options.count ?? 50,
+      },
+      { priority: SyncPriority.High }
+    );
+  }
+  postsLogger.log(`localFirstPosts: synced remote posts`);
+
+  const syncedPosts = await db.getSequencedChannelPosts(options);
+
+  postsLogger.log(`localFirstPosts: found synced posts`, syncedPosts);
+  return syncedPosts;
+}
+
+/*
+ * For use in the paginated infinite query. We keep track of the latest
+ * sequence number for every channel and use that as our primary cue for
+ * when to stop loading more posts. It's paramount to keep that up
+ * to date and do so quickly whenever the app opens.
+ *
+ * Note: once we're already at the beginning, new posts (sent by us or heard
+ * over the sub) make their way into the result set via our post listeners.
+ * These run outside the context of the infinite query.
+ */
+async function hasNewerPosts(channelId: string, posts: db.Post[]) {
+  const latestSequenceNum = await db.getLatestChannelSequenceNum({
+    channelId,
+  });
+
+  // Even for empty channels, we should have a value here. If somehow we don't,
+  // assume there's more to load and assume the next load will rectify sequence state.
+  if (latestSequenceNum === null) {
+    postsLogger.trackError(
+      'invariant violation: channel missing latest sequence number'
+    );
+    return true;
+  }
+
+  // corner case: empty channel, nothing to load
+  if (latestSequenceNum === 0) {
+    return false;
+  }
+
+  const largestSeq = posts?.[0].sequenceNum;
+  if (!largestSeq) {
+    return true;
+  }
+
+  return largestSeq < latestSequenceNum;
+}
 
 /**
  * Send a posthog event once we either have ~enough posts to fill the screen, or

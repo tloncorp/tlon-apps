@@ -1,26 +1,28 @@
-import { createDevLogger, syncStart } from '@tloncorp/shared';
+import { createDevLogger, syncSince } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
-import * as db from '@tloncorp/shared/db';
 import * as BackgroundFetch from 'expo-background-fetch';
-import * as Notifications from 'expo-notifications';
+import * as BackgroundTask from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
+import { v4 as uuidv4 } from 'uuid';
 
 import { configureUrbitClient } from '../hooks/useConfigureUrbitClient';
+import { setupDb } from './nativeDb';
 
 const logger = createDevLogger('backgroundSync', true);
 
-function summarizePost(post: db.Post) {
-  return {
-    channel: post.channelId,
-    content: post.content,
-    syncedAt: post.syncedAt,
-  };
-}
-
 async function performSync() {
+  await setupDb();
+  const taskExecutionId = uuidv4();
+  logger.trackEvent('Initiating background sync', { taskExecutionId });
+  const timings: Record<string, number> = {
+    start: Date.now(),
+  };
   const shipInfo = await storage.shipInfo.getValue();
   if (shipInfo == null) {
-    logger.info('No ship info found, skipping sync');
+    logger.trackEvent('Skipping background sync', {
+      context: 'no ship info',
+      taskExecutionId,
+    });
     return;
   }
 
@@ -29,78 +31,115 @@ async function performSync() {
     shipInfo.shipUrl == null ||
     shipInfo.authType == null
   ) {
-    logger.info('Ship info missing necessary fields');
+    logger.trackEvent('Skipping background sync', {
+      context: 'incomplete auth',
+      taskExecutionId,
+    });
     return;
   }
 
-  logger.trackEvent('Performing Background Sync');
-
-  logger.log('Configuring urbit client...');
+  logger.trackEvent('Configuring urbit client...');
   configureUrbitClient({
     ship: shipInfo.ship,
     shipUrl: shipInfo.shipUrl,
     authType: shipInfo.authType,
   });
-  logger.log('Configured urbit client.');
 
-  logger.log('Starting background sync...');
-  await syncStart(
-    // we pass alreadySubscribed=true to avoid making subscriptions
-    true
-  );
-  logger.log('Completed background sync.');
+  try {
+    const changesStart = Date.now();
+    await syncSince({ callCtx: { cause: 'background-sync' } });
+    timings.changesDuration = Date.now() - changesStart;
+    logger.trackEvent('Background sync complete', { taskExecutionId });
+  } catch (err) {
+    logger.trackError('Background sync failed', {
+      error: err.toString(),
+      errorMessage: err instanceof Error ? err.message : undefined,
+      taskExecutionId,
+      stack: err instanceof Error ? err.stack : undefined,
+    });
+  } finally {
+    logger.trackEvent('Background sync timing', {
+      duration: Date.now() - timings.start,
+      changesDuration: timings.changesDuration,
+      taskExecutionId,
+    });
+  }
 }
 
-const TASK_ID = 'backgroundSync';
-export async function unregisterBackgroundSyncTask() {
-  await Notifications.unregisterTaskAsync(TASK_ID);
-  await BackgroundFetch.unregisterTaskAsync(TASK_ID);
-  await TaskManager.unregisterTaskAsync(TASK_ID);
+const TASK_ID = 'tlon:backgroundSync:v2';
+
+export async function removeLegacyTasks() {
+  try {
+    const registered = await TaskManager.getRegisteredTasksAsync();
+    const toRemove = registered.filter((task) => task.taskName !== TASK_ID);
+    await Promise.all(
+      toRemove.map(async (task) => {
+        logger.trackEvent('Removing legacy background task', {
+          taskId: task.taskName,
+        });
+        await TaskManager.unregisterTaskAsync(task.taskName);
+        await BackgroundFetch.unregisterTaskAsync(task.taskName);
+        await BackgroundTask.unregisterTaskAsync(task.taskName);
+      })
+    );
+  } catch (e) {
+    logger.trackEvent('Failed to remove legacy background tasks', {
+      errorMessage: e instanceof Error ? e.message : e,
+    });
+  }
 }
-export function registerBackgroundSyncTask() {
+
+export async function registerBackgroundSyncTask() {
+  await removeLegacyTasks();
+
   TaskManager.defineTask<Record<string, unknown>>(
     TASK_ID,
-    async ({ error }): Promise<BackgroundFetch.BackgroundFetchResult> => {
-      logger.log(`Running background sync background task`);
+    async ({ error }): Promise<BackgroundTask.BackgroundTaskResult> => {
+      logger.trackEvent(`Running background task`);
       if (error) {
-        logger.error(`Failed background sync background task`, error.message);
-        return BackgroundFetch.BackgroundFetchResult.Failed;
+        logger.trackError(`Failed background task`, {
+          context: 'called with error',
+          errorMessage: error.message,
+        });
+        return BackgroundTask.BackgroundTaskResult.Failed;
       }
 
       try {
         await performSync();
-        // We always return NewData because we don't have a way to know whether
-        // there actually was new data.
-        return BackgroundFetch.BackgroundFetchResult.NewData;
+        return BackgroundTask.BackgroundTaskResult.Success;
       } catch (err) {
-        logger.error(
-          'Failed background sync',
-          err instanceof Error ? err.message : err
-        );
-        return BackgroundFetch.BackgroundFetchResult.Failed;
+        logger.trackError('Failed background task', {
+          context: 'catch',
+          errorMessage: err instanceof Error ? err.message : err,
+        });
+        return BackgroundTask.BackgroundTaskResult.Failed;
       }
     }
   );
 
-  logger.log('Registered background sync task');
   (async () => {
     try {
-      await Notifications.registerTaskAsync(TASK_ID);
-      logger.log('Registered notification task');
-      await BackgroundFetch.registerTaskAsync(TASK_ID, {
-        // Uses expo-notification default - at time of writing, 10 minutes on
-        // Android, system minimum on iOS (10-15 minutes)
-        // minimumInterval: undefined,
-
-        // Android-only
-        // We could flip these to be more aggressive; let's start with lower
-        // usage to avoid slamming battery.
-        stopOnTerminate: true,
-        startOnBoot: false,
+      if (await TaskManager.isTaskRegisteredAsync(TASK_ID)) {
+        logger.trackEvent('Background sync task is registered');
+      } else {
+        logger.trackEvent(
+          'Background sync task is not registered, registering now'
+        );
+        await BackgroundTask.registerTaskAsync(TASK_ID, {
+          // Uses expo-notification default - at time of writing, 10 minutes on
+          // Android, system minimum on iOS (10-15 minutes)
+          // minimumInterval: 15 * 60,
+        });
+        logger.trackEvent('Background sync task is registered');
+      }
+      const status = await TaskManager.getRegisteredTasksAsync();
+      logger.trackEvent('Current registered tasks:', {
+        tasks: status,
       });
-      logger.log('Registered background fetch');
     } catch (err) {
-      logger.error('Failed to register background sync task', err);
+      logger.trackError('Failed to register background task', {
+        errorMessage: err instanceof Error ? err.message : err,
+      });
     }
   })();
 }

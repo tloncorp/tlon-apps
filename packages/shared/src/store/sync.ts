@@ -163,29 +163,138 @@ export const syncBlockedUsers = async (ctx?: SyncCtx) => {
   await db.insertBlockedContacts({ blockedIds });
 };
 
+export const syncSince = async ({
+  queryCtx,
+  syncCtx = { priority: SyncPriority.High },
+  callCtx = {},
+  since,
+}: {
+  queryCtx?: QueryCtx;
+  syncCtx?: SyncCtx;
+  callCtx?: { cause?: string };
+  since?: number;
+} = {}) => {
+  logger.log(`syncing since...`);
+  try {
+    await (queryCtx
+      ? syncLatestChanges({ since, syncCtx, queryCtx, callCtx })
+      : batchEffects('syncSince', async (batchCtx) => {
+          await syncLatestChanges({
+            since,
+            syncCtx,
+            queryCtx: batchCtx,
+            callCtx,
+          });
+        }));
+  } catch (e) {
+    logger.trackError('sync since failed', {
+      ...callCtx,
+      errorMessage: e.message,
+      stack: e.stack,
+    });
+  }
+  logger.log(`sync since complete`);
+  updateSession({ isSyncing: false });
+};
+
+export const syncLatestChanges = async ({
+  syncCtx,
+  queryCtx,
+  callCtx = {},
+  since,
+}: {
+  syncCtx?: SyncCtx;
+  queryCtx?: QueryCtx;
+  callCtx?: { cause?: string };
+  since?: number;
+  yieldWriter?: boolean;
+}): Promise<void> => {
+  const start = Date.now();
+  let syncFrom = (await db.changesSyncedAt.getValue()) ?? start;
+  if (since) {
+    syncFrom = since;
+  }
+
+  const threeDaysAgo = start - 3 * 24 * 60 * 60 * 1000;
+  if (syncFrom < threeDaysAgo) {
+    logger.trackEvent('Sync latest stale, falling back');
+    try {
+      await debouncedSyncInit(syncCtx);
+      await db.changesSyncedAt.setValue(start);
+    } catch (e) {
+      logger.trackError('Failed latest changes fallback', {
+        errorMessage: e.message,
+        stack: e.stack,
+      });
+    }
+    return;
+  }
+
+  const result = await syncQueue.add('latestChanges', syncCtx, () => {
+    return api.fetchChangesSince(syncFrom);
+  });
+  logger.trackEvent('sync changes debug', {
+    context: 'fetched changes',
+    ...callCtx,
+  });
+  const msToFetch = Date.now() - start;
+  const doneFetching = Date.now();
+  logger.log(`fetched latest changes: ${doneFetching - start}ms`, result);
+
+  await db.insertChanges(result, queryCtx);
+  logger.trackEvent('sync changes debug', {
+    context: 'inserted changes',
+    ...callCtx,
+  });
+  const msToWrite = Date.now() - doneFetching;
+  await db.changesSyncedAt.setValue(start);
+  logger.trackEvent('sync changes debug', {
+    context: 'updated timestamp',
+    ...callCtx,
+  });
+  logger.log(`inserted latest changes: ${Date.now() - doneFetching}ms`);
+
+  const duration = Date.now() - start;
+  logger.trackEvent('synced latest changes', {
+    ...callCtx,
+    duration,
+    nodeBusyStatus: result.nodeBusyStatus,
+    syncWindow: Date.now() - syncFrom,
+    numPosts: result.posts.length,
+    numGroups: result.groups.length,
+    msToFetch,
+    msToWrite,
+  });
+};
+
 export const syncLatestPosts = async (
   ctx?: SyncCtx,
   queryCtx?: QueryCtx,
   yieldWriter?: boolean
 ): Promise<() => Promise<void>> => {
-  const syncedAt = await db.headsSyncedAt.getValue();
-  const result = await syncQueue.add('latestPosts', ctx, () =>
-    api.getLatestPosts({
-      afterCursor: new Date(syncedAt),
-    })
-  );
-  logger.crumb('got latest posts from api');
-  const allPosts = result.map((p) => p.latestPost);
-  const writer = async (): Promise<void> => {
-    allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
-    await db.insertLatestPosts(allPosts, queryCtx);
-    await db.headsSyncedAt.setValue(Date.now());
-  };
+  try {
+    const syncedAt = await db.headsSyncedAt.getValue();
+    const result = await syncQueue.add('latestPosts', ctx, () =>
+      api.getLatestPosts({
+        afterCursor: new Date(syncedAt),
+      })
+    );
+    logger.crumb('got latest posts from api');
+    const allPosts = result.map((p) => p.latestPost);
+    const writer = async (): Promise<void> => {
+      allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
+      await db.insertLatestPosts(allPosts, queryCtx);
+      await db.headsSyncedAt.setValue(Date.now());
+    };
 
-  if (yieldWriter) {
-    return writer;
-  } else {
-    await writer();
+    if (yieldWriter) {
+      return writer;
+    } else {
+      await writer();
+      return () => Promise.resolve();
+    }
+  } catch (e) {
+    logger.trackError('failed to sync latest posts');
     return () => Promise.resolve();
   }
 };
@@ -199,7 +308,7 @@ export const syncLatestPosts = async (
  * This function internally enqueues work on the sync queue; do not
  * explicitly enqueue this function, or else sync threads will get clogged up.
  */
-const syncRelevantChannelPosts = async (
+export const syncRelevantChannelPosts = async (
   ctx?: SyncCtx,
   queryCtx?: QueryCtx
 ): Promise<void> => {
@@ -230,7 +339,7 @@ const syncRelevantChannelPosts = async (
   }
 };
 
-export const pullSettings = async (ctx?: SyncCtx) => {
+export const syncSettings = async (ctx?: SyncCtx) => {
   const settings = await syncQueue.add('settings', ctx, () =>
     api.getSettings()
   );
@@ -363,7 +472,11 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
   }
 };
 
-export const syncContacts = async (ctx?: SyncCtx, yieldWriter = false) => {
+export const syncContacts = async (
+  ctx?: SyncCtx,
+  queryCtx?: QueryCtx,
+  yieldWriter?: boolean
+) => {
   const contacts = await syncQueue.add('contacts', ctx, () =>
     api.getContacts()
   );
@@ -371,7 +484,7 @@ export const syncContacts = async (ctx?: SyncCtx, yieldWriter = false) => {
 
   const writer = async () => {
     try {
-      await db.insertContacts(contacts);
+      await db.insertContacts(contacts, queryCtx);
       LocalCache.cacheContacts(contacts);
     } catch (e) {
       logger.error('error inserting contacts', e);
@@ -428,14 +541,16 @@ export const syncDms = async (ctx?: SyncCtx) => {
   await db.insertChannels([...dms, ...groupDms]);
 };
 
-export const syncUnreads = async (ctx?: SyncCtx) => {
+export const syncUnreads = async (ctx?: SyncCtx, queryCtx?: QueryCtx) => {
   const unreads = await syncQueue.add('unreads', ctx, () =>
     api.getGroupAndChannelUnreads()
   );
   checkForNewlyJoined(unreads);
-  return batchEffects('initialUnreads', (ctx) =>
-    persistUnreads({ unreads, ctx, includesAllUnreads: true })
-  );
+  return queryCtx
+    ? persistUnreads({ unreads, ctx: queryCtx, includesAllUnreads: true })
+    : batchEffects('initialUnreads', (ctx) =>
+        persistUnreads({ unreads, ctx, includesAllUnreads: true })
+      );
 };
 
 export const syncChannelThreadUnreads = async (
@@ -486,7 +601,6 @@ export async function syncPostReference(options: {
   // event.
   const response = await api.getPostReference(options);
   await db.insertChannelPosts({
-    channelId: options.channelId,
     posts: [response],
   });
 }
@@ -506,12 +620,7 @@ export async function syncUpdatedPosts(
 
   // ignore cursors since we're always fetching from old posts we have
   await db.insertChannelPosts({
-    channelId: options.channelId,
     posts: response.posts,
-  });
-
-  await db.deletePosts({
-    ids: response.deletedPosts ?? [],
   });
 
   return response;
@@ -538,7 +647,6 @@ export async function syncThreadPosts(
   );
   logger.log('got thread posts from api', response);
   await db.insertChannelPosts({
-    channelId,
     posts: [response, ...(response.replies ?? [])],
   });
 }
@@ -597,7 +705,7 @@ export const persistUnreads = async ({
   ctx,
   includesAllUnreads,
 }: {
-  unreads: api.ActivityInit;
+  unreads: db.ActivityInit;
   ctx?: QueryCtx;
   includesAllUnreads?: boolean;
 }) => {
@@ -1215,7 +1323,6 @@ export const handleChannelsUpdate = async (
     case 'initialPostsOnChannelJoin':
       await db.insertChannelPosts(
         {
-          channelId: update.channelId,
           posts: update.posts,
         },
         ctx
@@ -1260,7 +1367,6 @@ export const handleChatUpdate = async (
       }
 
       await db.insertPostReactions(
-
         {
           reactions: [
             {
@@ -1328,7 +1434,6 @@ export async function handleAddPost(
     }
     await db.insertChannelPosts(
       {
-        channelId: post.channelId,
         posts: [post],
       },
       ctx
@@ -1339,13 +1444,51 @@ export async function handleAddPost(
     updateChannelCursor(post.channelId, post.id);
     await db.insertChannelPosts(
       {
-        channelId: post.channelId,
         posts: [post],
-        older,
       },
       ctx
     );
   }
+}
+
+export async function syncSequencedPosts(
+  options: {
+    channelId: string;
+    cursorSequenceNum: number;
+    mode: 'newer' | 'older' | 'around';
+    count?: number;
+  },
+  ctx?: SyncCtx
+) {
+  let start, end: number;
+  if (options.mode === 'newer') {
+    start = options.cursorSequenceNum;
+    end = options.cursorSequenceNum + (options.count ?? 50);
+  } else if (options.mode === 'older') {
+    start = Math.max(1, options.cursorSequenceNum - (options.count ?? 50));
+    end = options.cursorSequenceNum;
+  } else {
+    const halfCount = Math.floor((options.count ?? 50) / 2);
+    start = Math.max(1, options.cursorSequenceNum - halfCount);
+    end = options.cursorSequenceNum + halfCount;
+  }
+
+  const result = await syncQueue.add('sequencedChannelPosts', ctx, () =>
+    api.getSequencedChannelPosts({ channelId: options.channelId, start, end })
+  );
+
+  if (result.posts.length) {
+    await db.insertChannelPosts({
+      posts: result.posts,
+    });
+  }
+
+  await db.setLatestChannelSequenceNum({
+    channelId: options.channelId,
+    sequenceNum: result.newestSequenceNum,
+  });
+
+  return result;
 }
 
 export async function syncPosts(
@@ -1359,14 +1502,17 @@ export async function syncPosts(
   const response = await syncQueue.add('channelPosts', ctx, () =>
     api.getChannelPosts(options)
   );
+
   if (response.posts.length) {
     await db.insertChannelPosts({
-      channelId: options.channelId,
       posts: response.posts,
-      newer: response.newer,
-      older: response.older,
     });
   }
+
+  await db.setLatestChannelSequenceNum({
+    channelId: options.channelId,
+    sequenceNum: response.newestSequenceNum,
+  });
 
   if (response.deletedPosts?.length) {
     if (options.count && response.deletedPosts.length === options.count) {
@@ -1575,27 +1721,34 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
   const startTime = Date.now();
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
 
+  if (!alreadySubscribed) {
+    await db.headsSyncedAt.resetValue();
+  }
+
   try {
     let didLoadCachedContacts = false;
 
     try {
-      await batchEffects('sync start (high)', async (ctx) => {
+      await batchEffects('sync start (high)', async (queryCtx) => {
+        await syncSince({ queryCtx, callCtx: { cause: 'sync-start' } });
+
         // this allows us to run the api calls first in parallel but handle
         // writing the data in a specific order
         const yieldWriter = true;
+        const highPrioritySyncCtx = {
+          priority: SyncPriority.High,
+          retry: true,
+        };
 
         // first kickoff the fetching
         const syncInitPromise = syncInitData(
-          { priority: SyncPriority.High, retry: true },
-          ctx,
+          highPrioritySyncCtx,
+          queryCtx,
           yieldWriter
         );
         const syncLatestPostsPromise = syncLatestPosts(
-          {
-            priority: SyncPriority.High,
-            retry: true,
-          },
-          ctx,
+          highPrioritySyncCtx,
+          queryCtx,
           yieldWriter
         );
         const subsPromise = alreadySubscribed
@@ -1608,10 +1761,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         // if we don't have cached contacts, we need to load them with high priority
         const syncContactsPromise = didLoadCachedContacts
           ? () => Promise.resolve()
-          : syncContacts(
-              { priority: SyncPriority.High, retry: true },
-              yieldWriter
-            );
+          : syncContacts(highPrioritySyncCtx, queryCtx, yieldWriter);
 
         const trackStep = (function () {
           let last = Date.now();
@@ -1670,7 +1820,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
             () => logger.crumb(`finished syncing contacts`)
           )
         : Promise.resolve(),
-      pullSettings({ priority: SyncPriority.Medium }).then(() =>
+      syncSettings({ priority: SyncPriority.Medium }).then(() =>
         logger.crumb(`finished syncing settings`)
       ),
       syncVolumeSettings({ priority: SyncPriority.Low }).then(() =>
@@ -1707,11 +1857,6 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     updateSession({ phase: 'ready' });
 
     await failEnqueuedPosts();
-
-    // fire off relevant channel posts sync, but don't wait for it
-    syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
-      logger.crumb(`finished channel predictive sync`);
-    });
 
     // post sync initialization work
     await verifyUserInviteLink();
@@ -1875,7 +2020,7 @@ async function stepFillChannelGap({
     count: 30,
   } as const;
 
-  const syncParams: api.GetChannelPostsOptions = await (async () => {
+  const syncParams: api.GetChannelPostsOptions | null = await (async () => {
     const unread = await db.getChannelUnread({ channelId });
     const unreadPostId = unread?.firstUnreadPostId;
     if (unreadPostId == null) {
@@ -1886,11 +2031,11 @@ async function stepFillChannelGap({
       };
     }
 
-    const mainWindow = await db.getPostWindow({
+    const backfillInfo = await db.checkUnreadChannelBackfill({
       channelId,
       postId: unreadPostId,
     });
-    if (mainWindow == null) {
+    if (backfillInfo == null) {
       // unread is outside a window - we want to show the unread to the user,
       // so start fetching around the unread.
       return {
@@ -1900,13 +2045,22 @@ async function stepFillChannelGap({
       };
     }
 
+    // if we already have a large set of posts after the unread, don't backfill more
+    if (backfillInfo.numberContiguous > 100) {
+      return null;
+    }
+
     // we know what window we want to grow - fetch newer posts
     return {
       ...baseSyncParams,
       mode: 'newer' as const,
-      cursor: mainWindow.newestPostId,
+      cursor: backfillInfo.newestContiguousPostId,
     };
   })();
+
+  if (syncParams == null) {
+    return null;
+  }
 
   const resp = await syncPosts(syncParams, syncCtx);
   return { fetchedPosts: resp.posts };

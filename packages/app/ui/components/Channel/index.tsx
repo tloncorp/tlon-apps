@@ -191,7 +191,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
 
     const inView = useIsFocused();
     const hasLoaded = !!(posts && channel);
-    const hasUnreads = (channel?.unread?.count ?? 0) > 0;
+    const hasUnreads = (channel?.unread?.countWithoutThreads ?? 0) > 0;
     useEffect(() => {
       if (hasUnreads && hasLoaded && inView) {
         markRead();
@@ -338,10 +338,12 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       []
     );
 
+    const channelProviderValue = useMemo(() => ({ channel }), [channel]);
+
     return (
       <ScrollContextProvider>
         <GroupsProvider groups={groups}>
-          <ChannelProvider value={{ channel }}>
+          <ChannelProvider value={channelProviderValue}>
             <RequestsProvider
               usePost={usePost}
               usePostReference={usePostReference}
