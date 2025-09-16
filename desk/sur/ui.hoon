@@ -21,7 +21,7 @@
 +$  init-3
   $:  groups=groups-ui:v2:gv
       =gangs:v2:gv
-      =channels:v7:old:d
+      =channels:v1:old:d
       =activity:v3:old:a
       pins=(list whom)
       chat=chat-1
@@ -30,7 +30,7 @@
 +$  init-2
   $:  groups=groups-ui:v2:gv
       =gangs:v2:gv
-      =channels:v7:old:d
+      =channels:v1:old:d
       activity=activity:v2:old:a
       pins=(list whom)
       chat=chat-1
@@ -40,7 +40,7 @@
 +$  init-1
   $:  groups=groups-ui:v2:gv
       =gangs:v2:gv
-      =channels:v7:old:d
+      =channels:v1:old:d
       =unreads:d
       pins=(list whom)
       chat=chat-0
@@ -50,7 +50,7 @@
 +$  init-0
   $:  groups=groups-ui:v2:gv
       =gangs:v2:gv
-      channels=channels-0:d
+      channels=channels:v1:old:d
       =unreads:d
       pins=(list whom)
       chat=chat-0
@@ -62,7 +62,7 @@
 +$  mixed-heads-3  [chan=channel-heads:v9:d chat=chat-heads:v6:cv]
 ::
 +$  channel-8
-  $:  =channels:d
+  $:  =channels:v8:d
       hidden-posts=(set id-post:d)
   ==
 +$  channel-0
