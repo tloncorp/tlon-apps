@@ -321,7 +321,7 @@
     (do-poke handle-http-request+!>([~.0vabc inbound-request]))
   =/  =bite:reel
     [%bite-2 ~.0v1 ~sampel-botnet group-invite-meta]
-  %+  ex-cards  caz
+  %+  %*(. ex-cards drop-logs |)  caz
   :~  (ex-poke-wire /logs)
       (ex-poke /bite [~sampel-palnet %reel] reel-bite+!>(bite))
       (ex-fact-paths ~[/http-response/0vabc])

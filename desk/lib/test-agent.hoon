@@ -25,9 +25,7 @@
 ::      (ex-cards caz (ex-fact [/echo]~ %noun !>([~dev 123])) ~)
 ::
 /+  test
-::
-=/  drop-verb=?  &
-=/  drop-logs=?  &
+!.
 ::
 ^?
 |%
@@ -390,6 +388,8 @@
   ?-(-.res %| &+[~ state], %& |+['expected failure, but succeeded']~)
 ::
 ++  ex-cards
+  =/  drop-verb=?  &
+  =/  drop-logs=?  &
   |=  [caz=(list card) exes=(list $-(card tang))]
   =?  caz  drop-verb
     ::  remove cards unconditionally emitted by /lib/verb

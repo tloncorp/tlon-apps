@@ -152,7 +152,7 @@
       ~[inline+~['lure invite ~.0v1']]
     [%invite ~sampel-palnet^%sunrise [joiner ~ `note]]
   ;<  ~  bind:m
-    %+  ex-cards  caz
+    %+  %*(. ex-cards drop-logs |)  caz
     :~  (ex-poke-wire /logs)
         (ex-poke /invite [our.bowl %groups] group-action-4+!>(a-groups))
         (ex-poke /dm/(scot %p joiner)/0v1 [our.bowl %chat] chat-dm-action-1+!>(action))
