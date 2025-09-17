@@ -1338,7 +1338,7 @@
     ::  /x/v/init: get unreads and unversioned channels
     ::
       [%x ?(%v0 %v1) %init ~]
-    ``noun+!>([unreads (uv-channels-1:utils v-channels)])
+    ``noun+!>([unreads (uv-channels:utils v-channels |)])
     ::
       [%x %v2 %init ~]
     ``noun+!>([unreads (uv-channels:utils v-channels |)])
@@ -1543,6 +1543,7 @@
     %+  weld  base-path
     /groups/(scot %p p.flag)/[q.flag]/seats/(scot %p ship)/noun
   ==
+++  size-limit  256.000  :: 256KB
 ++  ca-core
   |_  [=nest:c channel=v-channel:c gone=_|]
   ++  ca-core  .
@@ -1824,6 +1825,7 @@
         ?+  -.rest  [pending ca-core]
             %add
           =/  essay  essay.rest
+          ?>  (lte (met 3 (jam essay)) size-limit)
           =/  client-id
             [(get-author-ship:utils author.essay) sent.essay]
           =/  new-posts  (~(put by posts.pending) client-id essay)
@@ -1834,6 +1836,7 @@
           ?+  -.c-reply.rest  [pending ca-core]
               %add
             =/  memo  memo.c-reply.rest
+            ?>  (lte (met 3 (jam memo)) size-limit)
             =/  post  (get:on-v-posts:c posts.channel id.rest)
             ?~  post  [pending ca-core]
             ?:  ?=(%| -.u.post)  [pending ca-core]
