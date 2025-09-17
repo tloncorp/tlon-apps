@@ -1,4 +1,4 @@
-import { daToUnix, parseUw, patp } from '@urbit/aura';
+import { daToUnix, parse, render } from '@urbit/aura';
 import { Atom, Cell, Noun, cue, dwim, enjs, jam } from '@urbit/nockjs';
 import _ from 'lodash';
 
@@ -31,7 +31,7 @@ export type Sign = HalfSign | FullSign;
 
 export function parseSigned(sign: string): Sign | null {
   // the noun is @uw encoded, first we have to unwrap it
-  const uw = parseUw(sign);
+  const uw = parse('uw', sign);
   const at = new Atom(uw);
   const noun = cue(at); // (signed ?(half-sign-data full-sign-data))
 
@@ -43,7 +43,7 @@ export function parseSigned(sign: string): Sign | null {
   if (!(providerAtom instanceof Atom)) {
     throw new Error('Bad Sign: provider not an atom');
   }
-  const provider = patp(providerAtom.number);
+  const provider = render('p', providerAtom.number);
 
   const TARGET = 14; // TODO: mask instead of magic #
   const signedData = noun.at(Atom.fromInt(TARGET)) as Noun | null; // dat (signed-data)
@@ -176,7 +176,7 @@ function parseHalfSign(noun: Noun): HalfSign {
     throw new Error('Bad half Sign 3');
   }
 
-  const contactId = patp(b.head.number);
+  const contactId = render('p', b.head.number);
   const type = enjs.cord(b.tail) as db.AttestationType;
 
   return { signType: 'half', when, type, contactId };
@@ -198,7 +198,7 @@ function parseFullSign(noun: Noun): FullSign {
   if (!(b.head instanceof Atom)) {
     throw new Error('Bad full Sign 3');
   }
-  const contactId = patp(b.head.number);
+  const contactId = render('p', b.head.number);
 
   const c = b.tail;
   if (!(c instanceof Cell)) {

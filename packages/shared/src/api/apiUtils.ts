@@ -1,7 +1,7 @@
 import {
-  formatUd as baseFormatUd,
+  render,
   daToUnix,
-  parseUd,
+  parse,
   unixToDa,
 } from '@urbit/aura';
 import bigInt from 'big-integer';
@@ -57,17 +57,16 @@ export function fromClientMeta(meta: db.ClientMeta): ub.GroupMeta {
 }
 
 export function formatUd(ud: string) {
-  // @ts-expect-error string will get converted internally, so doesn't actually have to
-  //be a bigint
-  return baseFormatUd(ud);
+  //REVIEW  horrible signature
+  return render('ud', BigInt(ud));
 }
 
 export function udToDate(da: string) {
-  return daToUnix(parseUd(da));
+  return daToUnix(parse('ud', da));
 }
 
 export function formatDateParam(date: Date) {
-  return baseFormatUd(unixToDa(date!.getTime()));
+  return render('ud', unixToDa(date!.getTime()));
 }
 
 export function isDmChannelId(channelId: string) {

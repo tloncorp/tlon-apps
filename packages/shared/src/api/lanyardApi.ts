@@ -1,4 +1,4 @@
-import { formatUv, parseUw } from '@urbit/aura';
+import { render, parse } from '@urbit/aura';
 import { Atom, Cell, Noun, dejs, dwim, enjs } from '@urbit/nockjs';
 
 import * as db from '../db';
@@ -31,12 +31,12 @@ export function subscribeToLanyardUpdates(
 
 export async function checkAttestedSignature(signData: string) {
   const nonce = Math.floor(Math.random() * 1000000);
-  const encodedNonce = formatUv(BigInt(nonce));
+  const encodedNonce = render('uv', BigInt(nonce));
 
   const query = [
     null,
     [null, nonce],
-    ['valid-jam', new Atom(parseUw(signData))],
+    ['valid-jam', new Atom(parse('uw', signData))],
   ];
   const noun = dwim(query);
 
@@ -71,7 +71,7 @@ export async function discoverContacts(
     const parsedLastSalt = storedLastSalt?.replaceAll('.', '') ?? '0x0';
     const lastSalt = BigInt(parsedLastSalt);
     const nonce = Math.floor(Math.random() * 1000000);
-    const encodedNonce = formatUv(BigInt(nonce));
+    const encodedNonce = render('uv', BigInt(nonce));
     const payload = [
       null,
       [null, nonce],

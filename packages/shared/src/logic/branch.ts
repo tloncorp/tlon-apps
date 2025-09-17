@@ -1,4 +1,4 @@
-import { isValidPatp } from '@urbit/aura';
+import { slaw } from '@urbit/aura';
 
 import { getPostInfoFromWer } from '../api/harkApi';
 import { createDevLogger } from '../debug';
@@ -128,7 +128,7 @@ export function extractLureMetadata(branchParams: any) {
   ) {
     // fall back to v1 style lures where the id is a flag
     const [ship, _] = branchParams.lure.split('/');
-    if (isValidPatp(ship)) {
+    if (slaw('p', ship) !== null) {
       extracted.inviterUserId = ship;
       extracted.invitedGroupId = branchParams.lure;
     }
@@ -177,7 +177,7 @@ export const createDeepLink = async ({
   if (type === 'wer') {
     const parts = path.split('/');
     const isDMLure =
-      parts.length === 2 && parts[0] === 'dm' && isValidPatp(parts[1]);
+      parts.length === 2 && parts[0] === 'dm' && slaw('p', parts[1]) !== null;
     if (!isDMLure && !getPostInfoFromWer(path)) {
       logger.crumb(`Invalid path: ${path}`);
       return undefined;
