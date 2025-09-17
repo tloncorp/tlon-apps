@@ -118,7 +118,7 @@ export function SettingsScreenView(props: Props) {
             onPress={props.onExperimentalFeaturesPressed}
             isFocused={props.focusedRouteName === 'FeatureFlags'}
           />
-          {props.hasHostedAuth ? (
+          {!isWeb ? (
             <LogoutDialog onConfirm={props.onLogoutPressed ?? (() => {})}>
               <SettingsAction
                 title="Log out"
