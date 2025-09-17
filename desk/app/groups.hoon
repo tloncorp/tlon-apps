@@ -445,11 +445,11 @@
         %group-join
       ?>  from-self
       =+  !<(=join:v0:gv vase)
-      ~|  f=flag.join
-      =/  =foreign:v7:gv  (~(got by foreigns) flag.join)
+      =/  far=(unit foreign:v7:gv)  (~(get by foreigns) flag.join)
       =/  tok=(unit token:g)
-        ?~  invites.foreign  ~
-        token.i.invites.foreign
+        ?~  far  ~
+        ?~  invites.u.far  ~
+        token.i.invites.u.far
       fi-abet:(fi-join:(fi-abed:fi-core flag.join) tok)
     ::
         %group-knock
