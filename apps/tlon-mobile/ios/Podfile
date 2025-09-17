@@ -26,12 +26,14 @@ end
 platform :ios, podfile_properties['ios.deploymentTarget'] || '16.0'
 install! 'cocoapods',
   :deterministic_uuids => false
- 
+
 prepare_react_native_project!
 
 def shared(podfile_properties)
   use_expo_modules!
   $config = use_native_modules!
+
+  pod 'PostHog', '~> 3.0'
 
   use_frameworks! :linkage => :static
   $RNFirebaseAsStaticFramework = true
@@ -63,13 +65,11 @@ end
 target 'Landscape' do
   Pod::UI.puts 'Building Landscape'
   shared(podfile_properties)
-  pod 'PostHog', '~> 3.0'
 end
 
 target 'Landscape-preview' do
   Pod::UI.puts 'Building Landscape-preview'
   shared(podfile_properties)
-  pod 'PostHog', '~> 3.0'
 end
 
 post_install do |installer|
