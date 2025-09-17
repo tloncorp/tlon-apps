@@ -1,4 +1,4 @@
-import { formatUv, isValidPatp, unixToDa } from '@urbit/aura';
+import { slaw, render, unixToDa } from '@urbit/aura';
 
 import { PostContent } from '../api';
 import { ChannelType } from '../db';
@@ -312,12 +312,12 @@ export function whomIsMultiDm(whom: string): boolean {
 // ship + term, term being a @tas: lower-case letters, numbers, and hyphens
 export function whomIsFlag(whom: string): boolean {
   return (
-    /^~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) && isValidPatp(whom.split('/')[0])
+    /^~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) && slaw('p', whom.split('/')[0]) !== null
   );
 }
 
 export function createMultiDmId(seed = Date.now()) {
-  return formatUv(unixToDa(seed));
+  return render('uv', unixToDa(seed));
 }
 
 export function getJoinStatusFromGang(gang: ubg.Gang): GroupJoinStatus | null {
@@ -365,7 +365,7 @@ export function extractGroupPrivacy(
 }
 
 export function createSectionId() {
-  const idParts = formatUv(BigInt(Date.now())).split('.');
+  const idParts = render('uv', BigInt(Date.now())).split('.');
   const newSectionId = `z${idParts[idParts.length - 1]}`;
 
   return newSectionId;

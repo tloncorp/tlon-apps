@@ -5,7 +5,7 @@ import {
   PasteRule,
 } from '@tiptap/core';
 import { JSONContent } from '@tiptap/react';
-import { deSig, isValidPatp } from '@urbit/aura';
+import { deSig, slaw } from '@urbit/aura';
 import { isEqual, reduce } from 'lodash';
 
 import { Story } from '../urbit/channel';
@@ -385,7 +385,7 @@ export function JSONToInlines(
     case 'at-mention': {
       const id = json.attrs?.id;
       const ship = preSig(id);
-      if (isValidPatp(ship)) {
+      if (slaw('p', ship) !== null) {
         return [{ ship }];
       }
 
