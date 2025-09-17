@@ -5,6 +5,14 @@
 +$  echo  (list tank)
 ::  $volume: echo volume
 +$  volume  ?(%dbug %info %warn %crit)
+++  volume-level
+  ^~  ^-  (map volume @ud)
+  %-  my
+  :~  [%dbug 0]
+      [%info 1]
+      [%warn 2]
+      [%crit 3]
+  ==
 ::  $log-event
 ::
 ::  %fail: agent failure (always considered critical)
@@ -21,5 +29,6 @@
 ::
 +$  a-log
   $%  [%log event=log-event data=log-data]
+      [%set-posthog vol=(unit volume)]
   ==
 --
