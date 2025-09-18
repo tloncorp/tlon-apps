@@ -3684,9 +3684,10 @@
       =/  =channel:g  (got:by-ch nest)
       ?.  (~(has by sections.group) section.u-channel)
         (go-restart-updates `'missing channel updated section')
-      =.  sections.group
-        %+  ~(jab by sections.group)  section.channel
-        |=(=section:g section(order (~(del of order.section) nest)))
+      =+  section=(~(get by sections.group) section.channel)
+      =?  sections.group  ?=(^ section)
+        %+  ~(put by sections.group)  section.channel
+        u.section(order (~(del of order.u.section) nest))
       =.  section.channel   section.u-channel
       =.  channels.group  (put:by-ch nest channel)
       =.  sections.group
