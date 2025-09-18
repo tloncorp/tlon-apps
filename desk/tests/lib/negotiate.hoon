@@ -111,7 +111,6 @@
     %json
   =/  git=@t  (rap 3 (scot %p p.gill) '/' q.gill ~)
   !>(`json`o+(~(gas by *(map @t json)) 'match'^b+match 'gill'^s+git ~))
-::
 --
 ::
 |%

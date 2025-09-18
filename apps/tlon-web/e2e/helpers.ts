@@ -1,4 +1,5 @@
 import { Page, expect } from '@playwright/test';
+import * as path from 'path';
 
 export async function channelIsLoaded(page: Page) {
   await expect(
@@ -518,12 +519,16 @@ export async function editChannel(
 /**
  * Deletes a channel
  */
-export async function deleteChannel(page: Page, channelName: string) {
+export async function deleteChannel(
+  page: Page,
+  channelName: string,
+  channelIndex = 0
+) {
   // Ensure session is stable before deleting channel
   await waitForSessionStability(page);
 
   await page
-    .getByTestId(`ChannelItem-${channelName}-1`)
+    .getByTestId(`ChannelItem-${channelName}-${channelIndex}`)
     .getByTestId('EditChannelButton')
     .first()
     .click();
@@ -712,22 +717,31 @@ export async function changeGroupDescription(page: Page, description: string) {
  * Attempts to change group icon (handles web file picker behavior)
  */
 export async function changeGroupIcon(page: Page, imagePath?: string) {
+  // Click on "Change icon image" to open the attachment dialog
   await page.getByText('Change icon image').click();
 
-  const fileInput = page.locator('input[type="file"]');
-  if (await fileInput.isVisible()) {
-    if (imagePath) {
-      // Upload a specific image file
-      await fileInput.setInputFiles(imagePath);
-    } else {
-      // Just verify the interface is accessible and cancel
-      await expect(fileInput).toBeVisible();
-      const cancelButton = page.getByText('Cancel');
-      if (await cancelButton.isVisible()) {
-        await cancelButton.click();
-      }
-    }
-  }
+  // Wait for the attachment dialog to appear
+  await expect(page.getByText('Attach a file')).toBeVisible({ timeout: 5000 });
+
+  // Use provided image path or default to test image
+  const imageToUpload =
+    imagePath || path.join(__dirname, 'assets', 'test-group-icon.jpg');
+
+  // Intercept the file chooser dialog
+  // This is Playwright's official way to handle file uploads
+  const [fileChooser] = await Promise.all([
+    // Wait for the file chooser to be triggered
+    page.waitForEvent('filechooser'),
+    // Click the button that triggers the file chooser
+    page.getByText('Upload an image', { exact: true }).click(),
+  ]);
+
+  // Set the files on the file chooser
+  await fileChooser.setFiles(imageToUpload);
+
+  // Wait for upload to complete and dialog to close
+  // The AttachmentSheet should close automatically after file selection
+  await page.waitForTimeout(3000);
 }
 
 // Notebook-related helper functions

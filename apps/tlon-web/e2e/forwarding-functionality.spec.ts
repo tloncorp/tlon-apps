@@ -123,7 +123,11 @@ test('Forward chat message from group channel to DM - verify toast and reference
 
   // Step 4: ~ten verifies forwarded message appears as a reference/citation
   // Verify it shows as a forwarded/referenced message with "Chat Post" header
-  await expect(tenPage.getByText('Chat Post')).toBeVisible();
+  await expect(
+    tenPage.getByTestId('Post').getByText('Chat Post')
+  ).toBeVisible();
   // Then verify the actual message content is visible
-  await expect(tenPage.getByText(testMessage)).toBeVisible();
+  await expect(
+    tenPage.getByTestId('Post').getByText(testMessage)
+  ).toBeVisible();
 });
