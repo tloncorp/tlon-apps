@@ -9,7 +9,7 @@ PODS:
   - EXAV (15.0.2):
     - ExpoModulesCore
     - ReactCommon/turbomodule/core
-  - EXConstants (18.0.8):
+  - EXConstants (17.0.8):
     - ExpoModulesCore
   - EXImageLoader (5.0.0):
     - ExpoModulesCore
@@ -2492,7 +2492,7 @@ DEPENDENCIES:
   - EASClient (from `../../../node_modules/expo-eas-client/ios`)
   - EXApplication (from `../../../node_modules/expo-application/ios`)
   - EXAV (from `../../../node_modules/expo-av/ios`)
-  - EXConstants (from `../node_modules/expo-constants/ios`)
+  - EXConstants (from `../../../node_modules/expo-constants/ios`)
   - EXImageLoader (from `../../../node_modules/expo-image-loader/ios`)
   - EXJSONUtils (from `../../../node_modules/expo-json-utils/ios`)
   - EXManifests (from `../../../node_modules/expo-manifests/ios`)
@@ -2663,7 +2663,7 @@ EXTERNAL SOURCES:
   EXAV:
     :path: "../../../node_modules/expo-av/ios"
   EXConstants:
-    :path: "../node_modules/expo-constants/ios"
+    :path: "../../../node_modules/expo-constants/ios"
   EXImageLoader:
     :path: "../../../node_modules/expo-image-loader/ios"
   EXJSONUtils:
@@ -2915,7 +2915,7 @@ SPEC CHECKSUMS:
   EASClient: 88b5fd19d0787186a0c7e6ba76deb2d4f96395ce
   EXApplication: 4c72f6017a14a65e338c5e74fca418f35141e819
   EXAV: 4c41f0a6ae54a0b96597abc90e37962ab2ee0d85
-  EXConstants: 7e4654405af367ff908c863fe77a8a22d60bd37d
+  EXConstants: fcfc75800824ac2d5c592b5bc74130bad17b146b
   EXImageLoader: e5da974e25b13585c196b658a440720c075482d5
   EXJSONUtils: 01fc7492b66c234e395dcffdd5f53439c5c29c93
   EXManifests: a19d50504b8826546a4782770317bc83fffec87d

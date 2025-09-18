@@ -79,7 +79,7 @@
     "expo-battery": "~9.0.2",
     "expo-blur": "~14.0.3",
     "expo-clipboard": "~7.0.1",
-    "expo-constants": "~18.0.8",
+    "expo-constants": "17.0.8",
     "expo-contacts": "~14.0.5",
     "expo-dev-client": "~5.0.20",
     "expo-device": "~7.0.3",
