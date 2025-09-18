@@ -422,8 +422,37 @@ export function GalleryContentRenderer({
 } & Omit<ComponentProps<typeof PreviewFrame>, 'content'>) {
   const content = usePostContent(post);
   const previewContent = usePreviewContent(content);
-  // Use full content for detail views, preview content for previews
-  const displayContent = isPreview ? previewContent : content;
+
+  // For gallery detail views of image posts, only show images
+  // since CaptionContentRenderer handles text separately below
+  const displayContent = useMemo(() => {
+    if (!isPreview && props.size === '$l') {
+      // Only filter if content is PURELY image + text (no other media)
+      const contentTypes = new Set(content.map((block) => block.type));
+      const textTypes = [
+        'paragraph',
+        'heading',
+        'list',
+        'blockquote',
+        'bigEmoji',
+        'inlineCode',
+        'code',
+      ];
+      const hasOnlyImageAndText = Array.from(contentTypes).every(
+        (type) => type === 'image' || textTypes.includes(type)
+      );
+
+      if (hasOnlyImageAndText && contentTypes.has('image')) {
+        // Filter to only image blocks for posts with images and text
+        // Text will be handled by CaptionContentRenderer
+        return content.filter((block) => block.type === 'image');
+      }
+      // For posts with mixed media (video, links, etc), show full content
+      return content;
+    }
+    // For previews, use preview content
+    return previewContent;
+  }, [content, previewContent, isPreview, props.size]);
 
   if (post.hidden) {
     return (
