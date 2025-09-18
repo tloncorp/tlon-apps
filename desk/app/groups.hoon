@@ -254,9 +254,7 @@
     =/  =card
       (~(fail logs our.bowl /logs) desc tang deez)
     %-  %-  %*(. slog pri 3)  [leaf+"fail" tang]
-    |*  etc=*
-    =.  cor  (emit card)
-    etc
+    (emit card)
   ::
   ++  tell
     |=  [vol=volume:logs =echo:logs]
@@ -270,9 +268,7 @@
         %crit  3
       ==
     %-  %-  %*(. slog pri pri)  echo
-    |*  etc=*
-    =.  cor  (emit card)
-    etc
+    (emit card)
   ::  +deez: log message details
   ::
   ++  deez
@@ -1517,6 +1513,7 @@
 ++  from-self  =(our src):bowl
 ::  +se-core: group server core
 ::
+++  size-limit  256.000  :: 256KB
 ++  se-core
   |_  [=flag:g =log:g =group:g gone=_|]
   ::
@@ -1542,6 +1539,11 @@
     ?>  =(p.flag our.bowl)
     =?  se-core  gone
       (se-update [%delete ~])
+    ::  if the group is about to be deleted, this our only
+    ::  chance to trigger +go-core update.
+    ::
+    =?  cor  gone
+      go-abet:(go-u-group:(go-abed:go-core flag) now.bowl %delete ~)
     %_  cor  groups
       ?:  gone
         (~(del by groups) flag)
@@ -1673,6 +1675,7 @@
     |=  [=flag:g create=create-group:g]
     ?>  from-self
     ?>  ((sane %tas) name.create)
+    ?>  (lte (met 3 (jam create)) size-limit)
     =/  =flag:g  [our.bowl name.create]
     =/  =admissions:g
       %*  .  *admissions:g
@@ -1783,6 +1786,7 @@
     ^+  se-core
     ?<  (se-is-banned src.bowl)
     ?<  ?=(%secret privacy.ad)
+    ?>  (lte (met 3 (jam story)) size-limit)
     ?:  (se-is-joined src.bowl)  se-core
     ?:  ?=(%public privacy.ad)
       ::  public group: wait until we receive the ask watch
@@ -1890,6 +1894,7 @@
     ?-    -.c-group
         %meta
       ?>  se-src-is-admin
+      ?>  (lte (met 3 (jam meta.c-group)) size-limit)
       ?:  =(meta.group meta.c-group)  se-core
       =.  meta.group  meta.c-group
       (se-update %meta meta.group)
@@ -2444,6 +2449,7 @@
     ?:  &(?=(%add -.c-channel) (has:by-ch nest))  se-core
     ?-    -.c-channel
         %add
+      ?>  (lte (met 3 (jam chan)) size-limit)
       =.  added.chan  now.bowl
       =.  sections.group  (se-section-add-channel nest chan)
       =.  channels.group  (put:by-ch nest chan)
@@ -2452,6 +2458,7 @@
       (se-update %channel nest [%add chan])
     ::
         %edit
+      ?>  (lte (met 3 (jam chan)) size-limit)
       =/  old=channel:g  (got:by-ch nest)
       ::  preserve original timestamp
       =.  added.chan  added.old
@@ -2530,12 +2537,14 @@
     ^+  se-core
     ?-    -.c-section
         %add
+      ?>  (lte (met 3 (jam meta.c-section)) size-limit)
       =/  =section:g  [meta.c-section ~]
       =.  sections.group  (~(put by sections.group) section-id section)
       =.  section-order.group  (~(push of section-order.group) section-id)
       (se-update %section section-id [%add meta.c-section])
     ::
         %edit
+      ?>  (lte (met 3 (jam meta.c-section)) size-limit)
       =.  sections.group
         %+  ~(jab by sections.group)  section-id
         |=  =section:g
@@ -2942,9 +2951,9 @@
   ++  go-safe-sub
     |=  delay=?
     ^+  go-core
-    =+  log=~(. l `'group-join')
+    =*  log  ~(. l `'group-join')
     ?:  go-has-sub  go-core
-    %-  (tell:log %dbug leaf+"+go-safe-sub subscribing to {<flag>}" ~)
+    =.  cor  (tell:log %dbug leaf+"+go-safe-sub subscribing to {<flag>}" ~)
     (go-start-updates delay)
   ::  +go-leave-subs: leave group subscriptions
   ::
@@ -2977,7 +2986,7 @@
   ++  go-restart-updates
     |=  error=(unit @t)
     ^+  go-core
-    %-  ?~  error  same
+    =.  cor  ?~  error  cor
       (~(tell l ~) %crit 'fully restarting updates' u.error ~)
     =.  go-core   go-leave-subs
     ::  if this gets called on the group host, something is horribly wrong
@@ -3143,7 +3152,7 @@
         [%wake ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
-      %-  (fail:l %poke-ack 'failed subscriber wake' u.p.sign)
+      =.  cor  (fail:l %poke-ack 'failed subscriber wake' u.p.sign)
       go-core
     ::
       [%updates ~]  (go-take-update sign)
@@ -3153,7 +3162,7 @@
         [%command cmd=@t ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
-      %-  (fail:l %poke-ack leaf+"group command {<cmd.i.t.wire>} failed" u.p.sign)
+      =.  cor  (fail:l %poke-ack leaf+"group command {<cmd.i.t.wire>} failed" u.p.sign)
       go-core
     ::
         ::  invited a ship to the group
@@ -3188,7 +3197,7 @@
       ::
           %watch-ack
         ?~  p.sign  go-core
-        %-  (fail:l %watch-ack 'failed invite token request' u.p.sign)
+        =.  cor  (fail:l %watch-ack 'failed invite token request' u.p.sign)
         go-core
       ::
           %fact
@@ -3207,11 +3216,11 @@
       ?-    i.wire
         ::
             %join-channels
-          %-  (fail:l %poke-ack 'failed to join channels' u.p.sign)
+          =.  cor  (fail:l %poke-ack 'failed to join channels' u.p.sign)
           go-core
         ::
             %leave-channels
-          %-  (fail:l %poke-ack 'failed to leave channels' u.p.sign)
+          =.  cor  (fail:l %poke-ack 'failed to leave channels' u.p.sign)
           go-core
       ==
     ::
@@ -3229,7 +3238,7 @@
       ::
           %watch-ack
         ?~  p.sign  go-core
-        %-  (fail:l %watch-ack 'failed channel preview request' u.p.sign)
+        =.  cor  (fail:l %watch-ack 'failed channel preview request' u.p.sign)
         go-core
       ::
           %fact
@@ -3245,11 +3254,11 @@
       %kick  (go-safe-sub &)
     ::
         %watch-ack
-      =+  log=~(. l `'group-join')
+      =*  log  ~(. l `'group-join')
       =?  cor  (~(has by foreigns) flag)
         fi-abet:(fi-watched:(fi-abed:fi-core flag) p.sign)
       ?^  p.sign
-        %-  (fail:log %watch-ack 'group watch failed' u.p.sign)
+        =.  cor  (fail:log %watch-ack 'group watch failed' u.p.sign)
         ?.  (~(has by foreigns) flag)
           ::TODO  this should not be possible, but if it happens
           ::      we don't have an invitation, and thus no way to rejoin.
@@ -3257,7 +3266,7 @@
           ::      to be stale. it would be best to somehow surface
           ::      it at the client.
           ::
-          %-  (tell:log %crit 'misguided group watch-nack' ~)
+          =.  cor  (tell:log %crit 'misguided group watch-nack' ~)
           go-core
         ::  join in progress, set error and leave the group
         ::  to allow re-joining.
@@ -3266,7 +3275,7 @@
         ::  to avoid data loss.
         ::
         ?:  &(?=(%sub -.net) init.net)
-          %-  (tell:log %crit 'watch-nack for initialized group' ~)
+          =.  cor  (tell:log %crit 'watch-nack for initialized group' ~)
           go-core
         =.  cor  fi-abet:fi-error:(fi-abed:fi-core flag)
         (go-leave &)
@@ -3342,7 +3351,10 @@
   ++  go-u-create
     |=  gr=group:g
     ^+  go-core
-    =.  go-core  (go-response [%create gr])
+    ::  nb: we don't send out a response here because
+    ::  a synthetic %create response is sent after
+    ::  the group log has been fully applied in +go-apply-log.
+    ::
     ?:  go-our-host  go-core
     ::
     ?>  ?=(%sub -.net)
@@ -4172,7 +4184,7 @@
   ++  fi-join
     |=  tok=(unit token:g)
     ^+  fi-core
-    =+  log=~(. l `%group-join)
+    =*  log  ~(. l `%group-join)
     =.  cor  (emit (initiate:neg [p.flag server]))
     =+  net-group=(~(get by groups) flag)
     ::  leave the ask subscription in case it has not yet closed
@@ -4186,7 +4198,7 @@
       fi-core
     =.  progress  `%join
     =.  token  tok
-    %-  (tell:log %dbug leaf+"+fi-join with token {<tok>}" ~)
+    =.  cor  (tell:log %dbug leaf+"+fi-join with token {<tok>}" ~)
     =.  cor  (emit (join:fi-pass tok))
     fi-core
   ::  +fi-ask: ask to join the group
@@ -4210,17 +4222,17 @@
   ++  fi-watched
     |=  p=(unit tang)
     ^+  fi-core
-    =+  l=~(. l `'group-join')
+    =*  log  ~(. l `'group-join')
     ?~  progress
       ::NOTE  the $foreign in state might be "stale", if it's no longer
       ::      tracking progress it's safe for it to ignore $group subscription
       ::      updates.
       fi-core
     ?^  p
-      %-  (fail:l %watch-ack leaf+"failed to join the group {<flag>}" ~)
+      =.  cor  (fail:log %watch-ack leaf+"failed to join the group {<flag>}" ~)
       =.  progress  `%error
       fi-core
-    %-  (tell:l %dbug leaf+"group {<flag>} joined successfully" ~)
+    =.  cor  (tell:log %dbug leaf+"group {<flag>} joined successfully" ~)
     =.  progress  `%done
     fi-core
   ::  +fi-error: end a foreign sequence with an error
@@ -4259,7 +4271,7 @@
         ::NB  should never be hit as long as we delete
         ::    foreigns on done.
         %done
-      %-  (tell:l %warn 'cancel invoked on a %done foreign group' ~)
+      =.  cor  (tell:l %warn 'cancel invoked on a %done foreign group' ~)
       fi-core
     ==
   ::  +fi-invite: receive a group invitation
@@ -4340,12 +4352,12 @@
         ::  poked with token to join the group
         ::
         [%join token=@ ~]
-      =+  log=~(. l `'group-join')
+      =*  log  ~(. l `'group-join')
       ?>  ?=(%poke-ack -.sign)
       ::  we aren't joining anymore, ignore
       ?.  &(?=(^ progress) =(%join u.progress))  fi-core
       ?^  p.sign
-        %-  (tell:log %warn 'group join with token failed' u.p.sign)
+        =.  cor  (tell:log %warn 'group join with token failed' u.p.sign)
         =.  progress  `%error
         fi-core
       =.  progress  `%watch
@@ -4368,26 +4380,26 @@
         ::  asked to join the group
         ::
         [%ask ~]
-      =+  log=~(. l `'group-join')
+      =*  log  ~(. l `'group-join')
       ?.  &(?=(^ progress) =(%ask u.progress))
         ::  we aren't asking anymore, ignore
         fi-core
       ?-    -.sign
           %poke-ack
         ?^  p.sign
-          %-  (tell:log %warn 'group ask failed' u.p.sign)
+          =.  cor  (tell:log %warn 'group ask failed' u.p.sign)
           =.  progress  `%error
           fi-core
         fi-core
       ::
           %kick
-        %-  (tell:log %warn 'group ask kicked' ~)
+        =.  cor  (tell:log %warn 'group ask kicked' ~)
         =.  progress  `%error
         fi-core
       ::
           %watch-ack
         ?^  p.sign
-          %-  (fail:log %watch-ack 'group ask watch' u.p.sign)
+          =.  cor  (fail:log %watch-ack 'group ask watch' u.p.sign)
           =.  progress  `%error
           fi-core
         fi-core
@@ -4401,14 +4413,14 @@
         ::  requested a group preview
         ::
         [%preview ~]
-      =+  log=~(. l `'group-preview')
+      =*  log  ~(. l `'group-preview')
       ?+    -.sign  ~|(fi-agent-bad-preview+[pole -.sign] !!)
           %kick
         ?~  lookup
-          %-  (tell:log %warn 'unexpected preview kick' ~)
+          =.  cor  (tell:log %warn 'unexpected preview kick' ~)
           fi-core
         ?:  ?=(%preview u.lookup)
-          %-  (tell:log %info 'retrying preview after kick' ~)
+          =.  cor  (tell:log %info 'retrying preview after kick' ~)
           (fi-safe-preview &)
         fi-core
       ::
@@ -4417,7 +4429,7 @@
         ?>  ?=([~ %preview] lok)
         ?~  p.sign  fi-core
         =.  lookup  `%error
-        %-  (fail:log 'watch-ack' 'group preview watch' u.p.sign)
+        =.  cor  (fail:log 'watch-ack' 'group preview watch' u.p.sign)
         fi-core
       ::
           %fact
@@ -4450,10 +4462,10 @@
     ::
         :: command poke
         [%command *]
-      =+  log=~(. l `'foreign-group-command')
+      =*  log  ~(. l `'foreign-group-command')
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  fi-core
-      %-  (fail:log 'poke-ack' 'foreign group command' u.p.sign)
+      =.  cor  (fail:log 'poke-ack' 'foreign group command' u.p.sign)
       fi-core
     ==
   ::  +fi-take-index: receive ship index
