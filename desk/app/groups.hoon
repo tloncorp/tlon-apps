@@ -2735,7 +2735,7 @@
       =+  ship=(slav %p i.t.path)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  se-core
-      %-  %+  ~(tell l ~)  %crit
+      =.  cor  %+  ~(tell l ~)  %crit
           [leaf+"failed to invite {<ship>}" u.p.sign]
       se-core
     ::
@@ -2743,7 +2743,7 @@
       =+  ship=(slav %p i.t.path)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  se-core
-      %-  %+  ~(tell l ~)  %crit
+      =.  cor  %+  ~(tell l ~)  %crit
           [leaf+"failed to invite {<ship>} (backcompat)" u.p.sign]
       se-core
     ::
@@ -2751,7 +2751,7 @@
       =+  ship=(slav %p i.t.path)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  se-core
-      %-  %+  ~(tell l ~)  %crit
+      =.  cor  %+  ~(tell l ~)  %crit
           [leaf+"failed to revoke invite for {<ship>}" u.p.sign]
       se-core
     ==
@@ -3170,7 +3170,7 @@
         [%invite ship=@ ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
-      %-  (fail:l %poke-ack leaf+"failed to invite {<ship>}" u.p.sign)
+      =.  cor  (fail:l %poke-ack leaf+"failed to invite {<ship>}" u.p.sign)
       go-core
     ::
         ::  invited a ship to the group (backcompat)
@@ -3178,14 +3178,14 @@
         [%invite ship=@ %old ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
-      %-  (fail:l %poke-ack leaf+"failed to invite {<ship>} (backcompat)" u.p.sign)
+      =.  cor  (fail:l %poke-ack leaf+"failed to invite {<ship>} (backcompat)" u.p.sign)
       go-core
         ::  revoked invitation
         ::
         [%invite %revoke ship=@ ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
-      %-  (fail:l %poke-ack leaf+"failed to revoke invite for {<ship>}" u.p.sign)
+      =.  cor  (fail:l %poke-ack leaf+"failed to revoke invite for {<ship>}" u.p.sign)
       go-core
     ::
         ::  requested a personal invite token for a ship
