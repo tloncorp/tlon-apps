@@ -459,7 +459,11 @@ function ConnectedWebApp() {
       if (!hasSyncedRef.current) {
         // Web doesn't persist database, so headsSyncedAt is misleading
         await db.headsSyncedAt.resetValue();
-        sync.syncStart(false);
+        sync
+          .syncStart(false)
+          .then(() =>
+            sync.syncRelevantChannelPosts({ priority: sync.SyncPriority.Low })
+          );
         hasSyncedRef.current = true;
         telemetry.captureAppActive('web');
       }

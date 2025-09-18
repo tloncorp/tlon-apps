@@ -17,7 +17,7 @@ import * as sync from './sync';
 import { SyncPriority } from './syncQueue';
 import { mergePendingPosts } from './useMergePendingPosts';
 
-const postsLogger = createDevLogger('useChannelPosts', true);
+const postsLogger = createDevLogger('useChannelPosts', false);
 
 type PostQueryPage = {
   posts: db.Post[];
