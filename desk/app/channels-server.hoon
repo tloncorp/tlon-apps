@@ -60,7 +60,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %11
+    $:  %12
         =v-channels:v9:c
         =hooks:h
         =pimp:imp
@@ -155,12 +155,14 @@
   =?  old  ?=(%8 -.old)  (state-8-to-9 old)
   =?  old  ?=(%9 -.old)  (state-9-to-10 old)
   =?  old  ?=(%10 -.old)  (state-10-to-11 old)
-  ?>  ?=(%11 -.old)
+  =?  old  ?=(%11 -.old)  (state-11-to-12 old)
+  ?>  ?=(%12 -.old)
   =.  state  old
   inflate-io
   ::
   +$  versioned-state
-    $%  state-11
+    $%  state-12
+        state-11
         state-10
         state-9
         state-8
@@ -173,7 +175,8 @@
         state-1
         state-0
     ==
-  +$  state-11  current-state
+  +$  state-12  current-state
+  +$  state-11  _%*(. *state-12 - %11)
   +$  state-10
     $:  %10
         =v-channels:v9:c
@@ -203,6 +206,12 @@
       =v-channels:v7:c
       =pimp:imp
     ==
+  ::
+  ++  state-11-to-12
+    |=  s=state-11
+    ^-  state-12
+    s(- %12, v-channels (~(run by v-channels.s) channel-drop-bad-links:utils))
+  ::
   ++  state-10-to-11
     |=  s=state-10
     ^-  state-11

@@ -209,7 +209,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %13
+    $:  %14
         =v-channels:c
         voc=(map [nest:c plan:c] (unit said:c))
         hidden-posts=(set id-post:c)
@@ -352,7 +352,8 @@
         (tell:plog %dbug ~[>[wire `@dr`duration %fires-at `@da`(add now.bowl duration)]<] ~)
     ==
   =.  cor  (emil caz-12)
-  ?>  ?=(%13 -.old)
+  =?  old  ?=(%13 -.old)  (state-13-to-14 old)
+  ?>  ?=(%14 -.old)
   ::  periodically clear .debounce to avoid space leak
   ::
   =.  debounce  ~
@@ -360,7 +361,8 @@
   inflate-io
   ::
   +$  versioned-state
-    $%  state-13
+    $%  state-14
+        state-13
         state-12
         state-11
         state-10
@@ -375,7 +377,8 @@
         state-1
         state-0
     ==
-  +$  state-13  current-state
+  +$  state-14  current-state
+  +$  state-13  _%*(. *state-14 - %13)
   +$  state-12  _%*(. *state-13 - %12)
   +$  state-11  _%*(. *state-12 - %11)
   +$  state-10
@@ -442,6 +445,23 @@
         :: delayed resubscribes
         =^subs:s
         =pimp:imp
+    ==
+  ::
+  ++  state-13-to-14
+    |=  s=state-13
+    ^-  state-14
+    %=  s  -  %14
+      v-channels  (~(run by v-channels.s) channel-drop-bad-links:utils)
+    ::
+        voc
+      %-  ~(run by voc.s)
+      |=  s=(unit said:v9:c)
+      ^+  s
+      ?~  s  ~
+      ?+  q.u.s  s
+        [%post %& *]     s(content.post.q.u (drop-bad-links:utils content.post.q.u.s))
+        [%reply @ %& *]  s(content.reply.q.u (drop-bad-links:utils content.reply.q.u.s))
+      ==
     ==
   ::
   ++  state-12-to-13
