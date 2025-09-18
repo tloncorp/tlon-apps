@@ -1275,6 +1275,7 @@
         %-  silt
         %+  skim  nests
         |=  =nest:g
+        ?.  ?=(kind:d p.nest)  |
         .^(? %gu (channels-scry nest))
       ==
     cor
