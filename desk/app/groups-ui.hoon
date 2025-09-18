@@ -229,7 +229,7 @@
     ``ui-init-4+!>(init)
   ::
       [%x %v5 %init ~]
-    =+  .^([=groups-ui:v7:gv =foreigns:v7:gv] (scry %gx %groups /v2/init/noun))
+    =+  .^([=groups-ui:v8:gv =foreigns:v8:gv] (scry %gx %groups /v2/init/noun))
     =+  .^(=channel-8:u (scry %gx %channels /v4/init/noun))
     =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
     =+  .^(=activity:a (scry %gx %activity /v4/activity/noun))

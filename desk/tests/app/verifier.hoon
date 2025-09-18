@@ -19,16 +19,6 @@
 ++  twitter-api-bearer  'someBearerToken'
 ++  attempt-timeout     ~h1
 ::
-++  skip-poke-wire
-  |=  wire=path
-  |=  =card
-  ?.  ?=([%pass * %agent * %poke *] card)  |
-  =(wire p.card)
-::
-++  ex-cards
-  |=  [caz=(list card) exes=(list $-(card tang))]
-  (ex-filter-cards caz (skip-poke-wire /logs) exes)
-::
 ++  ex-verifier-update
   =/  initial=?  |
   |=  [for=@p upd=update:v]

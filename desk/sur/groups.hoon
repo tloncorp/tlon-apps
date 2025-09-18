@@ -147,6 +147,7 @@
       token=(unit token)
       note=(unit story:s)
       =preview
+      valid=?
   ==
 ::  $progress: group join in progress
 ::
@@ -567,6 +568,7 @@
 +$  a-foreigns
   $%  [%foreign =flag =a-foreign]
       [%invite =invite]
+      [%revoke =flag token=(unit token)]
   ==
 ::  $a-foreign: foreign group action
 ::

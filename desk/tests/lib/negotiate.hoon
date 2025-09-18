@@ -111,16 +111,6 @@
     %json
   =/  git=@t  (rap 3 (scot %p p.gill) '/' q.gill ~)
   !>(`json`o+(~(gas by *(map @t json)) 'match'^b+match 'gill'^s+git ~))
-::
-++  skip-poke-wire
-  |=  wire=path
-  |=  =card
-  ?.  ?=([%pass * %agent * %poke *] card)  |
-  =(wire p.card)
-::
-++  ex-cards
-  |=  [caz=(list card) exes=(list $-(card tang))]
-  (ex-filter-cards caz (skip-poke-wire /~/negotiate/logs) exes)
 --
 ::
 |%

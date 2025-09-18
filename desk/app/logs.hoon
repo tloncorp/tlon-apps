@@ -10,7 +10,7 @@
   +$  card  card:agent:gall
   +$  current-state  [%0 ~]
   ::
-  ++  commit  ?~(^commit 'unknown' i.^commit)
+  ++  commit  ?~(^commit 'unknown' -.^commit)
   --
 =|  current-state
 =*  state  -

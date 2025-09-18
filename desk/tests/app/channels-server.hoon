@@ -7,19 +7,8 @@
 ::
 +$  current-state
   [%11 =v-channels:v9:c =hooks:h =pimp:imp]
-  :: [%10 =v-channels:c =hooks:h =pimp:imp]
 +$  state-8
   [%8 =v-channels:v8:c =hooks:h =pimp:imp]
-::
-++  skip-poke-wire
-  |=  wire=path
-  |=  =card
-  ?.  ?=([%pass * %agent * %poke *] card)  |
-  =(wire p.card)
-::
-++  ex-cards
-  |=  [caz=(list card) exes=(list $-(card tang))]
-  (ex-filter-cards caz (skip-poke-wire /logs) exes)
 --
 ::
 |%

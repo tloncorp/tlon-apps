@@ -27,6 +27,7 @@
 /+  test
 ::
 =/  drop-verb=?  &
+=/  drop-logs=?  &
 ::
 ^?
 |%
@@ -307,7 +308,7 @@
   |=  s=state
   &+[(~(on-peek agent.s bowl.s) path) s]
 ::
-++  get-full-peek
+++  got-peek
   |=  =path
   =/  m  (mare ,cage)
   ^-  form:m
@@ -396,31 +397,14 @@
     %+  skip  caz
     |=  =card
     ?=([%give %fact [[%verb ?(%events %events-plus) ~] ~] *] card)
-  =/  m  (mare ,~)
-  ^-  form:m
-  |=  s=state
-  =;  =tang
-    ?~(tang &+[~ s] |+tang)
-  |-  ^-  tang
-  ?~  exes
-    ?~  caz
-      ~
-    ['got more cards than expected' >caz< ~]
-  ?~  caz
-    ['expected more cards than got' ~]
-  %+  weld
-    (i.exes i.caz)
-  $(exes t.exes, caz t.caz)
-::
-++  ex-filter-cards
-  |=  [caz=(list card) fit=$-(card ?) exes=(list $-(card tang))]
-  =?  caz  drop-verb
-    ::  remove cards unconditionally emitted by /lib/verb
+  =?  caz  drop-logs
+    ::  unconditionnaly remove logging cards
     ::
     %+  skip  caz
     |=  =card
-    ?=([%give %fact [[%verb ?(%events %events-plus) ~] ~] *] card)
-  =.  caz  (skip caz fit)
+    ?|  ?=([%pass [%logs ~] %agent [ship=@ %logs] %poke *] card)
+        ?=([%pass [%~.~ %negotiate %logs ~] %agent [ship=@ %logs] %poke *] card)
+    ==
   =/  m  (mare ,~)
   ^-  form:m
   |=  s=state

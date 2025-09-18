@@ -33,14 +33,6 @@
     [%gu ship=@t %activity @ ~ ~]  `!>(|)
     [%gx @ %groups @ %v2 %groups host=@ term=@ %noun ~]  `!>(*group:v7:gv)
   ==
-++  skip-poke-wire
-  |=  wire=path
-  |=  =card
-  ?.  ?=([%pass * %agent * %poke *] card)  |
-  =(wire p.card)
-++  ex-cards
-  |=  [caz=(list card) exes=(list $-(card tang))]
-  (ex-filter-cards caz (skip-poke-wire /logs) exes)
 ::
 ++  test-checkpoint-sub
   %-  eval-mare
