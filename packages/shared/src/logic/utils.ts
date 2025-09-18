@@ -231,13 +231,19 @@ export function makePrettyDayAndDateAndTime(date: Date): DateDayTimeDisplay {
 const emojiTestRegex = emojiRegex();
 
 export function containsOnlyEmoji(input: string): boolean {
-  if (input.length > 10) {
+  const normalized = input.trim();
+
+  if (normalized.length === 0) {
+    return false;
+  }
+
+  if (normalized.length > 10) {
     return false;
   }
   // Lots of gotchas trying to figure out length of an emoji string. This is a
   // reasonably reliable way to do it in hermes. Should keep an eye on perf.
   // Some info here: https://stackoverflow.com/questions/54369513/how-to-count-the-correct-length-of-a-string-with-emojis-in-javascript
-  return [...input].every((char) => {
+  return [...normalized].every((char) => {
     return !!char.match(emojiTestRegex);
   });
 }
