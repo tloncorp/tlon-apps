@@ -13,7 +13,7 @@
         posthog=(unit volume:l)
     ==
   ::
-  ++  commit  ?~(^commit 'unknown' i.^commit)
+  ++  commit  ?~(^commit 'unknown' -.^commit)
   --
 =|  current-state
 =*  state  -
