@@ -427,31 +427,16 @@ export function GalleryContentRenderer({
   // since CaptionContentRenderer handles text separately below
   const displayContent = useMemo(() => {
     if (!isPreview && props.size === '$l') {
-      // Only filter if content is PURELY image + text (no other media)
-      const contentTypes = new Set(content.map((block) => block.type));
-      const textTypes = [
-        'paragraph',
-        'heading',
-        'list',
-        'blockquote',
-        'bigEmoji',
-        'inlineCode',
-        'code',
-      ];
-      const hasOnlyImageAndText = Array.from(contentTypes).every(
-        (type) => type === 'image' || textTypes.includes(type)
-      );
-
-      if (hasOnlyImageAndText && contentTypes.has('image')) {
-        // Filter to only image blocks for posts with images and text
-        // Text will be handled by CaptionContentRenderer
+      // Check if this is an image post
+      const hasImage = content.some((block) => block.type === 'image');
+      if (hasImage) {
+        // For image posts, only show images in main content area
+        // Caption text will be handled by CaptionContentRenderer below
         return content.filter((block) => block.type === 'image');
       }
-      // For posts with mixed media (video, links, etc), show full content
-      return content;
     }
-    // For previews, use preview content
-    return previewContent;
+    // For non-image posts and previews, use appropriate content
+    return isPreview ? previewContent : content;
   }, [content, previewContent, isPreview, props.size]);
 
   if (post.hidden) {
