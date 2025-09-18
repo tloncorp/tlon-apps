@@ -27,8 +27,6 @@
 /+  test
 !.
 ::
-=/  drop-verb=?  &
-::
 ^?
 |%
 ::  voodoo basics
@@ -308,6 +306,17 @@
   |=  s=state
   &+[(~(on-peek agent.s bowl.s) path) s]
 ::
+++  got-peek
+  |=  =path
+  =/  m  (mare ,cage)
+  ^-  form:m
+  |=  s=state
+  =/  peek=(unit (unit cage))
+    (~(on-peek agent.s bowl.s) path)
+  ?.  ?=(^ peek)  |+~['invalid scry path' (spat path)]
+  ?.  ?=(^ u.peek)  |+~['unexpected empty result at scry path' (spat path)]
+  &+[u.u.peek s]
+::
 ++  get-agent
   =/  m  (mare agent)
   ^-  form:m
@@ -379,6 +388,8 @@
   ?-(-.res %| &+[~ state], %& |+['expected failure, but succeeded']~)
 ::
 ++  ex-cards
+  =/  drop-verb=?  &
+  =/  drop-logs=?  &
   |=  [caz=(list card) exes=(list $-(card tang))]
   =?  caz  drop-verb
     ::  remove cards unconditionally emitted by /lib/verb
@@ -386,6 +397,14 @@
     %+  skip  caz
     |=  =card
     ?=([%give %fact [[%verb ?(%events %events-plus) ~] ~] *] card)
+  =?  caz  drop-logs
+    ::  unconditionnaly remove logging cards
+    ::
+    %+  skip  caz
+    |=  =card
+    ?|  ?=([%pass [%logs ~] %agent [ship=@ %logs] %poke *] card)
+        ?=([%pass [%~.~ %negotiate %logs ~] %agent [ship=@ %logs] %poke *] card)
+    ==
   =/  m  (mare ,~)
   ^-  form:m
   |=  s=state
@@ -421,6 +440,18 @@
   ?~  tang  ~
   ['in %fact vase,' tang]
 ::
+++  ex-fact-paths
+  |=  paths=(list path)
+  |=  car=card
+  ^-  tang
+  =*  nope
+    %-  expect-eq:test
+    [!>(`card`[%give %fact paths *mark *vase]) !>(`card`car)]
+  ?.  ?=([%give %fact *] car)  nope
+  =/  =tang  (expect-eq:test !>(paths) !>(paths.p.car))
+  ?~  tang  ~
+  ['in %fact paths,' tang]
+::
 ++  ex-poke
   |=  [=wire =gill:gall =mark =vase]
   |=  car=card
@@ -435,6 +466,18 @@
   =/  =tang  (expect-eq:test vase q.cage.task.q.car)
   ?~  tang  ~
   ['in %poke vase on ,' tang]
+::
+++  ex-poke-wire
+  |=  =wire
+  |=  car=card
+  ^-  tang
+  =*  fail
+    %-  expect-eq:test
+    [!>(`card`[%pass wire %agent *gill:gall %poke *mark *vase]) !>(`card`car)]
+  ?.  ?=([%pass * %agent * %poke *] car)  fail
+  =/  =tang  (expect-eq:test !>(wire) !>(p.car))
+  ?~  tang  ~
+  ['in %poke wire,' tang]
 ::
 ++  ex-task
   |=  [=wire =gill:gall =task:agent:gall]

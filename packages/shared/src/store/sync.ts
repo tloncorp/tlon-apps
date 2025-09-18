@@ -166,15 +166,32 @@ export const syncBlockedUsers = async (ctx?: SyncCtx) => {
   await db.insertBlockedContacts({ blockedIds });
 };
 
-export const syncSince = async () => {
-  const syncCtx: SyncCtx = { priority: SyncPriority.High };
+export const syncSince = async ({
+  queryCtx,
+  syncCtx = { priority: SyncPriority.High },
+  callCtx = {},
+  since,
+}: {
+  queryCtx?: QueryCtx;
+  syncCtx?: SyncCtx;
+  callCtx?: { cause?: string };
+  since?: number;
+} = {}) => {
   logger.log(`syncing since...`);
   try {
-    await batchEffects('syncSince', async (queryCtx) => {
-      await syncLatestChanges({ syncCtx, queryCtx });
-    });
+    await (queryCtx
+      ? syncLatestChanges({ since, syncCtx, queryCtx, callCtx })
+      : batchEffects('syncSince', async (batchCtx) => {
+          await syncLatestChanges({
+            since,
+            syncCtx,
+            queryCtx: batchCtx,
+            callCtx,
+          });
+        }));
   } catch (e) {
     logger.trackError('sync since failed', {
+      ...callCtx,
       errorMessage: e.message,
       stack: e.stack,
     });
@@ -186,11 +203,14 @@ export const syncSince = async () => {
 export const syncLatestChanges = async ({
   syncCtx,
   queryCtx,
+  callCtx = {},
   since,
 }: {
   syncCtx?: SyncCtx;
   queryCtx?: QueryCtx;
+  callCtx?: { cause?: string };
   since?: number;
+  yieldWriter?: boolean;
 }): Promise<void> => {
   const start = Date.now();
   let syncFrom = (await db.changesSyncedAt.getValue()) ?? start;
@@ -216,17 +236,30 @@ export const syncLatestChanges = async ({
   const result = await syncQueue.add('latestChanges', syncCtx, () => {
     return api.fetchChangesSince(syncFrom);
   });
+  logger.trackEvent('sync changes debug', {
+    context: 'fetched changes',
+    ...callCtx,
+  });
   const msToFetch = Date.now() - start;
   const doneFetching = Date.now();
   logger.log(`fetched latest changes: ${doneFetching - start}ms`, result);
 
   await db.insertChanges(result, queryCtx);
+  logger.trackEvent('sync changes debug', {
+    context: 'inserted changes',
+    ...callCtx,
+  });
   const msToWrite = Date.now() - doneFetching;
   await db.changesSyncedAt.setValue(start);
+  logger.trackEvent('sync changes debug', {
+    context: 'updated timestamp',
+    ...callCtx,
+  });
   logger.log(`inserted latest changes: ${Date.now() - doneFetching}ms`);
 
   const duration = Date.now() - start;
   logger.trackEvent('synced latest changes', {
+    ...callCtx,
     duration,
     nodeBusyStatus: result.nodeBusyStatus,
     syncWindow: Date.now() - syncFrom,
@@ -278,7 +311,7 @@ export const syncLatestPosts = async (
  * This function internally enqueues work on the sync queue; do not
  * explicitly enqueue this function, or else sync threads will get clogged up.
  */
-const syncRelevantChannelPosts = async (
+export const syncRelevantChannelPosts = async (
   ctx?: SyncCtx,
   queryCtx?: QueryCtx
 ): Promise<void> => {
@@ -309,7 +342,7 @@ const syncRelevantChannelPosts = async (
   }
 };
 
-export const pullSettings = async (ctx?: SyncCtx) => {
+export const syncSettings = async (ctx?: SyncCtx) => {
   const settings = await syncQueue.add('settings', ctx, () =>
     api.getSettings()
   );
@@ -442,7 +475,11 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
   }
 };
 
-export const syncContacts = async (ctx?: SyncCtx, yieldWriter = false) => {
+export const syncContacts = async (
+  ctx?: SyncCtx,
+  queryCtx?: QueryCtx,
+  yieldWriter?: boolean
+) => {
   const contacts = await syncQueue.add('contacts', ctx, () =>
     api.getContacts()
   );
@@ -450,7 +487,7 @@ export const syncContacts = async (ctx?: SyncCtx, yieldWriter = false) => {
 
   const writer = async () => {
     try {
-      await db.insertContacts(contacts);
+      await db.insertContacts(contacts, queryCtx);
       LocalCache.cacheContacts(contacts);
     } catch (e) {
       logger.error('error inserting contacts', e);
@@ -1617,7 +1654,6 @@ export const handleDiscontinuity = async () => {
     return;
   }
   updateSession(null);
-  syncSince();
 
   // drop potentially outdated newest post markers
   channelCursors.clear();
@@ -1688,27 +1724,34 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
   const startTime = Date.now();
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
 
+  if (!alreadySubscribed) {
+    await db.headsSyncedAt.resetValue();
+  }
+
   try {
     let didLoadCachedContacts = false;
 
     try {
-      await batchEffects('sync start (high)', async (ctx) => {
+      await batchEffects('sync start (high)', async (queryCtx) => {
+        await syncSince({ queryCtx, callCtx: { cause: 'sync-start' } });
+
         // this allows us to run the api calls first in parallel but handle
         // writing the data in a specific order
         const yieldWriter = true;
+        const highPrioritySyncCtx = {
+          priority: SyncPriority.High,
+          retry: true,
+        };
 
         // first kickoff the fetching
         const syncInitPromise = syncInitData(
-          { priority: SyncPriority.High, retry: true },
-          ctx,
+          highPrioritySyncCtx,
+          queryCtx,
           yieldWriter
         );
         const syncLatestPostsPromise = syncLatestPosts(
-          {
-            priority: SyncPriority.High,
-            retry: true,
-          },
-          ctx,
+          highPrioritySyncCtx,
+          queryCtx,
           yieldWriter
         );
         const subsPromise = alreadySubscribed
@@ -1721,10 +1764,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         // if we don't have cached contacts, we need to load them with high priority
         const syncContactsPromise = didLoadCachedContacts
           ? () => Promise.resolve()
-          : syncContacts(
-              { priority: SyncPriority.High, retry: true },
-              yieldWriter
-            );
+          : syncContacts(highPrioritySyncCtx, queryCtx, yieldWriter);
 
         const trackStep = (function () {
           let last = Date.now();
@@ -1797,7 +1837,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
             () => logger.crumb(`finished syncing contacts`)
           )
         : Promise.resolve(),
-      pullSettings({ priority: SyncPriority.Medium }).then(() =>
+      syncSettings({ priority: SyncPriority.Medium }).then(() =>
         logger.crumb(`finished syncing settings`)
       ),
       syncVolumeSettings({ priority: SyncPriority.Low }).then(() =>
@@ -1834,14 +1874,6 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     updateSession({ phase: 'ready' });
 
     await failEnqueuedPosts();
-
-    // fire off relevant channel posts sync, but don't wait for it
-    // TODO: maybe re-enable. My hunch is it's quick to layer this in as a new scry
-    // that can do what we want in one round trip. Pairing that with changes might be
-    // a better path forward compared to reviving the functionality as it was.
-    // syncRelevantChannelPosts({ priority: SyncPriority.Low }).then(() => {
-    //   logger.crumb(`finished channel predictive sync`);
-    // });
 
     // post sync initialization work
     await verifyUserInviteLink();

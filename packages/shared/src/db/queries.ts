@@ -1195,15 +1195,18 @@ export const insertGroups = createWriteQuery(
       await setLastPosts(null, txCtx);
     });
   },
-  [
-    'groups',
-    'groupRoles',
-    'contacts',
-    'chatMembers',
-    'chatMemberGroupRoles',
-    'channels',
-    'pins',
-  ]
+  ({ groups }) =>
+    groups.length
+      ? [
+          'groups',
+          'groupRoles',
+          'contacts',
+          'chatMembers',
+          'chatMemberGroupRoles',
+          'channels',
+          'pins',
+        ]
+      : []
 );
 
 export const insertGroupPreviews = createWriteQuery(
@@ -1228,7 +1231,7 @@ export const insertGroupPreviews = createWriteQuery(
       }
     });
   },
-  ['groups']
+  ({ groups }) => (groups.length ? ['groups'] : [])
 );
 
 export const updateGroup = createWriteQuery(
@@ -3067,24 +3070,23 @@ export const getChannelSearchResults = createReadQuery(
 export const insertChanges = createWriteQuery(
   'insertChanges',
   async (input: ChangesResult, ctx: QueryCtx) => {
-    return withTransactionCtx(ctx, async (txCtx) => {
-      await insertChannelPosts({ posts: input.posts }, txCtx);
-      await insertGroups({ groups: input.groups }, txCtx);
-      await insertContacts(input.contacts, txCtx);
-      await insertGroupUnreads(input.unreads.groupUnreads, ctx);
-      await insertChannelUnreads(input.unreads.channelUnreads, ctx);
-      await insertThreadUnreads(input.unreads.threadActivity, ctx);
-    });
+    try {
+      await withTransactionCtx(ctx, async (txCtx) => {
+        await insertChannelPosts({ posts: input.posts }, txCtx);
+        await insertGroups({ groups: input.groups }, txCtx);
+        await insertContacts(input.contacts, txCtx);
+        await insertGroupUnreads(input.unreads.groupUnreads, ctx);
+        await insertChannelUnreads(input.unreads.channelUnreads, ctx);
+        await insertThreadUnreads(input.unreads.threadActivity, ctx);
+      });
+    } catch (e) {
+      logger.trackError('failed to insert changes', {
+        errorMessage: e instanceof Error ? e.message : e.toString(),
+      });
+      throw e;
+    }
   },
-  [
-    'posts',
-    'groups',
-    'channels',
-    'groupUnreads',
-    'channelUnreads',
-    'threadUnreads',
-    'contacts',
-  ]
+  []
 );
 
 export const insertChannelPosts = createWriteQuery(
@@ -3109,7 +3111,7 @@ export const insertChannelPosts = createWriteQuery(
       logger.log('inserted posts');
     });
   },
-  ['posts']
+  ({ posts }) => (posts.length ? ['posts'] : [])
 );
 
 export const insertLatestPosts = createWriteQuery(
@@ -4120,7 +4122,10 @@ export const insertContacts = createWriteQuery(
       }
     });
   },
-  ['contacts', 'groups', 'contactGroups', 'contactAttestations']
+  (contacts) =>
+    contacts.length
+      ? ['contacts', 'groups', 'contactGroups', 'contactAttestations']
+      : []
 );
 
 export const deleteContact = createWriteQuery(
@@ -4143,7 +4148,7 @@ export const insertGroupUnreads = createWriteQuery(
         set: conflictUpdateSetAll($groupUnreads),
       });
   },
-  ['groupUnreads']
+  (unreads) => (unreads.length ? ['groupUnreads'] : [])
 );
 
 export const insertBaseUnread = createWriteQuery(
@@ -4220,7 +4225,7 @@ export const insertChannelUnreads = createWriteQuery(
       }
     });
   },
-  ['channelUnreads']
+  (unreads) => (unreads.length ? ['channelUnreads'] : [])
 );
 
 export const clearChannelUnread = createWriteQuery(
@@ -4259,17 +4264,17 @@ export const updateChannelUnreadCount = createWriteQuery(
 
 export const insertThreadUnreads = createWriteQuery(
   'insertThreadUnreads',
-  async (threadActivity: ThreadUnreadState[], ctx: QueryCtx) => {
-    if (!threadActivity.length) return;
+  async (unreads: ThreadUnreadState[], ctx: QueryCtx) => {
+    if (!unreads.length) return;
     return ctx.db
       .insert($threadUnreads)
-      .values(threadActivity)
+      .values(unreads)
       .onConflictDoUpdate({
         target: [$threadUnreads.threadId, $threadUnreads.channelId],
         set: conflictUpdateSetAll($threadUnreads),
       });
   },
-  ['threadUnreads', 'channelUnreads']
+  (unreads) => (unreads.length ? ['threadUnreads', 'channelUnreads'] : [])
 );
 
 export const getThreadUnreadsByChannel = createReadQuery(

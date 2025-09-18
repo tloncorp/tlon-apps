@@ -601,7 +601,7 @@ export async function scry<T>({
       return result;
     }
     trackDuration('error', {
-      message: res.message,
+      errorMessage: res.message,
       responseStatus: res.status,
     });
     throw new BadResponseError(res.status, res.toString());
@@ -735,31 +735,34 @@ async function reauth() {
     const code = await config.getCode();
     config.pendingAuth = new Promise<string>((resolve, reject) => {
       const tryAuth = async () => {
-        logger.log('trying to auth with code', code);
-        const authCookie = await getLandscapeAuthCookie(config.shipUrl, code);
+        try {
+          logger.log('trying to auth with code', code);
+          const authCookie = await getLandscapeAuthCookie(config.shipUrl, code);
 
-        if (!authCookie && tries < 3) {
-          logger.log('auth failed, trying again', tries);
-          tries++;
-          setTimeout(tryAuth, 1000 + 2 ** tries * 1000);
-          return;
-        }
+          if (!authCookie && tries < 3) {
+            logger.log('auth failed, trying again', tries);
+            tries++;
+            setTimeout(tryAuth, 1000 + 2 ** tries * 1000);
+            return;
+          }
 
-        if (!authCookie) {
-          if (config.handleAuthFailure) {
-            logger.log('auth failed, calling auth failure handler');
+          if (!authCookie) {
             config.pendingAuth = null;
-            return config.handleAuthFailure();
+            if (config.handleAuthFailure) {
+              logger.log('auth failed, calling auth failure handler');
+              config.handleAuthFailure();
+            }
+
+            reject(new Error("Couldn't authenticate with urbit"));
+            return;
           }
 
           config.pendingAuth = null;
-          reject(new Error("Couldn't authenticate with urbit"));
+          resolve(authCookie);
           return;
+        } catch (e) {
+          reject(new Error(`Error during reauth: ${e}`));
         }
-
-        config.pendingAuth = null;
-        resolve(authCookie);
-        return;
       };
 
       tryAuth();
@@ -787,6 +790,7 @@ function createDurationTracker<T extends Record<string, any>>(
       ...data,
       ...properties,
       status,
+      scryStatus: status,
       duration: Date.now() - startTime,
     });
   };
