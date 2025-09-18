@@ -24,7 +24,9 @@
       def  ~(. (default-agent this %|) bowl)
       cor  ~(. +> [bowl ~])
   ::
-  ++  on-init  on-init:def
+  ++  on-init
+    ^-  (quip card _this)
+    `this(posthog `%info)
   ++  on-save  !>(state)
   ++  on-load
     |=  =vase
