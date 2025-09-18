@@ -2,7 +2,7 @@
 /+  *test-agent
 /=  agent  /app/logs
 |%
-++  dap  %logs-test
+++  dap  %logs
 ++  test-log-fail
   %-  eval-mare
   =/  m  (mare ,~)
