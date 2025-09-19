@@ -284,5 +284,93 @@
     :~  [my-flag %create my-group]
     ==
   (pure:m ~)
+::  +test-public-invites: test public group invitations
 ::
+::  a group member can send an invite to a public group
+::  without requiring a token.
+::
+::  the invitee is recorded on the invited list.
+::
+::  when another invite is sent to the same ship,
+::  the previous invite is revoked first.
+::
+++  test-public-invites
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  do-groups-init
+  ;<  *  bind:m  do-join-group
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(src ~dev)))
+  ::  invite ~fun to a public group
+  ::
+  ;<  caz=(list card)  bind:m 
+    (do-a-groups [%invite my-flag ~fun ~ ~])
+  ::  verify both old and new invites are sent
+  ::
+  ;<  =bowl  bind:m  get-bowl
+  ;<  peek=cage  bind:m  (got-peek /x/groups/(scot %p p:my-flag)/[q:my-flag]/preview)
+  =+  preview=!<(preview:g q.peek)
+  ;<  ~  bind:m
+    =/  =invite:v8:gv
+      :*  my-flag
+          now.bowl
+          our.bowl
+          ~        ::  token
+          ~        ::  note
+          preview  ::  preview
+          &
+      ==
+    =/  a-foreigns-7-fun=a-foreigns:v7:gv
+      [%invite (v7:invite:v8:gc invite)]
+    =/  a-foreigns-8-fun=a-foreigns:v8:gv
+      [%invite invite]
+    %+  ex-cards  caz
+    :~  (ex-poke (weld go-area /invite/send/~fun/old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
+        (ex-fact-negotiate [~fun my-agent] %groups)
+        (ex-poke (weld go-area /invite/send/~fun) [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
+    ==
+  ::  verify the invitee is recorded on the invited list
+  ::
+  ;<  peek=cage  bind:m  
+    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ::  verify records on the invited list
+  ::
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(get by invited.admissions.group) ~fun))
+    !>(`[now.bowl ~])
+  ::  repeat the invite
+  ::
+  ;<  caz=(list card)  bind:m 
+    (do-a-groups [%invite my-flag ~fun ~ ~])
+  ;<  =^bowl  bind:m  get-bowl
+  ;<  peek=cage  bind:m  (got-peek /x/groups/(scot %p p:my-flag)/[q:my-flag]/preview)
+  =+  preview=!<(preview:g q.peek)
+  ;<  ~  bind:m
+    =/  =invite:v8:gv
+      :*  my-flag
+          now.bowl
+          our.bowl
+          ~        ::  token
+          ~        ::  note
+          preview  ::  preview
+          &
+      ==
+    =/  a-foreigns-7-fun=a-foreigns:v7:gv
+      [%invite (v7:invite:v8:gc invite(time now.bowl))]
+    =/  a-foreigns-8-fun=a-foreigns:v8:gv
+      [%invite invite(time now.bowl)]
+    %+  ex-cards  caz
+    :~  (ex-poke (weld go-area /invite/revoke/~fun) [~fun my-agent] group-foreign-2+!>([%revoke my-flag ~]))
+        (ex-poke (weld go-area /invite/send/~fun/old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
+        (ex-poke (weld go-area /invite/send/~fun) [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
+    ==
+  ::  verify records on the invited list
+  ::
+  ;<  peek=cage  bind:m  
+    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(get by invited.admissions.group) ~fun))
+    !>(`[now.bowl ~])
+  (pure:m ~)
 --

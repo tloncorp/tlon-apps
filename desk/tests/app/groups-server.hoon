@@ -1,11 +1,11 @@
 ::  groups unit tests
 ::
 /-  g=groups, gv=groups-ver, meta, s=story
-/+  *test, *test-agent
+/+  *test, *test-agent, negotiate
 /+  gc=groups-conv
 /=  groups-agent  /app/groups
 |%
-++  my-agent  %groups-test
+++  my-agent  %groups
 ++  my-flag  `flag:g`[~zod %my-test-group]
 ++  my-area  `path`/groups/~zod/my-test-group
 ++  tick  ^~((div ~s1 (bex 16)))
@@ -16,6 +16,26 @@
   ?+    path  ~
     [%gu ship=@ %activity now=@ rest=*]  `!>(|)
   ==
+::
+++  do-negotiate
+  |=  [=gill:gall =protocol:negotiate =version:negotiate]
+  =/  m  (mare ,(list card))
+  ;<  caz=(list card)  bind:m
+    %^  do-agent  (heed-wire gill protocol)
+      gill
+    [%watch-ack ~]
+  ;<  cax=(list card)  bind:m
+    %^  do-agent  (heed-wire gill protocol)
+      gill
+    [%fact %noun !>(version)]
+  (pure:m (weld caz cax))
+::  +do-neg-agent: pass a sign on a negotiate inner-watch wire
+::
+++  do-neg-agent
+  |=  [=wire =gill:gall =sign:agent:gall]
+  =/  neg-wire=^wire
+    (weld /~/negotiate/inner-watch/(scot %p p.gill)/[q.gill] wire)
+  (do-agent neg-wire gill sign)
 ++  do-groups-init
   =/  m  (mare ,(list card))
   ^-  form:m
@@ -93,6 +113,17 @@
   ;<  =bowl:gall  bind:m  get-bowl
   ;<  caz=(list card)  bind:m  (do-poke group-command+!>([%join my-flag ~]))
   (pure:m caz)
+::
+::
+++  heed-wire
+  |=  [=gill:gall =protocol:negotiate]
+  /~/negotiate/heed/(scot %p p.gill)/[q.gill]/[protocol]
+::
+++  ex-fact-negotiate
+  |=  [=gill:gall =protocol:negotiate]
+  %^  ex-task  (heed-wire gill protocol)
+    gill
+  [%watch /~/negotiate/version/[q.gill]]
 ::
 ++  ex-u-groups
   |=  [caz=(list card) us-groups=(list u-group:v7:gv)]
@@ -481,19 +512,21 @@
   ;<  ~  bind:m
     (ex-equal !>(privacy.admissions.group) !>(%secret))
   (pure:m ~)
-::  +test-server-send-invite: test server group invitations 
+::  +test-invites: test server group invitations
 ::
 ::  group server properly records invited ships in admissions.
 
 ::  if a ship is invited a second time, the previous invitation
 ::  is revoked.
 ::
-++  test-server-send-invite
+++  test-invites
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  *  bind:m  do-groups-init
   ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(eny 0v123)))
+  ::  create a group with members. each member is to receive an invite.
+  ::
   ;<  caz=(list card)  bind:m  (do-create-group-with-members %private ~[~dev ~fun])
   ;<  =bowl  bind:m  get-bowl
   ;<  peek=cage  bind:m  (got-peek /x/groups/(scot %p p:my-flag)/[q:my-flag]/preview)
@@ -524,16 +557,28 @@
     :~  ::
         ::  invite ~dev
         (ex-poke (snoc dev-wire %old) [~dev my-agent] group-foreign-1+!>(a-foreigns-7-dev))
+        (ex-fact-negotiate [~dev my-agent] %groups)
         (ex-poke dev-wire [~dev my-agent] group-foreign-2+!>(a-foreigns-8-dev))
         ::
         ::  invite ~fun
         (ex-poke (snoc fun-wire %old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
+        (ex-fact-negotiate [~fun my-agent] %groups)
         (ex-poke fun-wire [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
         ::
         ::  self-join and foreigns update
         (ex-poke-wire /foreigns/(scot %p p:my-flag)/[q:my-flag]/join/public)
         (ex-fact-paths ~[/gangs/updates])
     ==
-  ::TODO verify invited.admissions has two records
+  ;<  peek=cage  bind:m
+    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ::  verify records on the invited list
+  ::
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(get by invited.admissions.group) ~dev))
+    !>(`[now.bowl `0v123])
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(get by invited.admissions.group) ~fun))
+    !>(`[now.bowl `0v124])
   (pure:m ~)
 --
