@@ -8,9 +8,12 @@
 =>
   |%
   +$  card  card:agent:gall
-  +$  current-state  [%0 ~]
+  +$  current-state
+    $:  %1
+        posthog=(unit volume:l)
+    ==
   ::
-  ++  commit  ?~(^commit 'unknown' i.^commit)
+  ++  commit  ?~(^commit 'unknown' -.^commit)
   --
 =|  current-state
 =*  state  -
@@ -21,9 +24,17 @@
       def  ~(. (default-agent this %|) bowl)
       cor  ~(. +> [bowl ~])
   ::
-  ++  on-init  on-init:def
-  ++  on-save  on-save:def
-  ++  on-load  on-load:def
+  ++  on-init
+    ^-  (quip card _this)
+    `this(posthog `%info)
+  ++  on-save  !>(state)
+  ++  on-load
+    |=  =vase
+    ^-  (quip card _this)
+    =^  cards  state
+      abet:(load:cor vase)
+    [cards this]
+  ::
   ++  on-poke
     |=  [=mark =vase]
     ^-  (quip card _this)
@@ -57,6 +68,21 @@
   ::
   (emit %pass /posthog [%arvo %k %fard fard])
 ::
+++  load
+  |^  |=  =vase
+  ^+  cor
+  =+  !<(old=any-state vase)
+  =?  old  ?=(~ old)  state-0-to-1
+  ?>  ?=(%1 -.old)
+  =.  state  old
+  cor
+  +$  any-state  ?(state-0 state-1)
+  +$  state-0  ~
+  +$  state-1  current-state
+  ++  state-0-to-1
+    [%1 `%info]
+  --
+::
 ++  poke
   |=  [=mark =vase]
   ^+  cor
@@ -66,8 +92,19 @@
     =+  !<(=a-log:l vase)
     ?-    -.a-log
         %log
+      ?~  posthog  cor
+      =/  level=@ud
+        ?-  -.event.a-log
+          %fail  (~(got by volume-level:l) %crit)
+          %tell  (~(got by volume-level:l) vol.event.a-log)
+        ==
+      ?.  (gte level (~(got by volume-level:l) u.posthog))
+        cor
       =.  data.a-log  ['commit'^s+commit data.a-log]
       (send-posthog-event sap.bowl now.bowl +.a-log)
+    ::
+        %set-posthog
+      cor(posthog vol.a-log)
     ==
   ==
 ::

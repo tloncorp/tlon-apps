@@ -10,7 +10,7 @@ const ID_LINK_TIMEOUT = 3 * 1000;
 // 2. Must be flag shaped for %grouper not to crash
 const SELF_INVITE_KEY = '~zod/personal-invite-link';
 
-export function groupsDescribe(meta: GroupMeta & InviteLinkMetadata) {
+export function groupsDescribe(meta: InviteLinkMetadata) {
   return {
     tag: 'groups-0',
     fields: { ...meta }, // makes typescript happy
@@ -77,13 +77,6 @@ export async function createPersonalInviteLink(
   await createInviteLink(
     SELF_INVITE_KEY,
     groupsDescribe({
-      // legacy keys
-      title: 'Personal Invite',
-      description: '',
-      cover: '',
-      image: '',
-
-      // new-style metadata keys
       inviterUserId: currentUserId,
       inviterNickname: currentUser?.nickname ?? '',
       inviterAvatarImage: currentUser?.avatarImage ?? '',

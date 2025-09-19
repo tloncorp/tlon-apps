@@ -1,3 +1,4 @@
+import { syncSince } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
 import Constants from 'expo-constants';
 import { registerDevMenuItems } from 'expo-dev-menu';
@@ -25,6 +26,20 @@ const simulatorOnlyMenuItems: ExpoDevMenuItem[] = [
       const databaseSourcePath = (await getDbPath()) ?? '';
 
       sendBundlerRequest('dump-sqlite', { databaseSourcePath, outputPath });
+    },
+  },
+  {
+    name: 'Background sync',
+    callback: async () => {
+      await syncSince();
+    },
+  },
+  {
+    name: 'Background sync (since 24 hours ago)',
+    callback: async () => {
+      await syncSince({
+        since: Date.now() - 24 * 60 * 60 * 1000,
+      });
     },
   },
   {
