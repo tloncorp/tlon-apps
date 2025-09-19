@@ -10,10 +10,6 @@ export const featureMeta = {
     default: false,
     label: 'Enable collecting and reporting performance data',
   },
-  webScroller: {
-    default: false,
-    label: 'Use web-native scroll implementation for chats',
-  },
   customChannelCreation: {
     default: false,
     label: 'Enable creating custom channels',

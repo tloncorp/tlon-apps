@@ -445,11 +445,11 @@
         %group-join
       ?>  from-self
       =+  !<(=join:v0:gv vase)
-      ~|  f=flag.join
-      =/  =foreign:v7:gv  (~(got by foreigns) flag.join)
+      =/  far=(unit foreign:v7:gv)  (~(get by foreigns) flag.join)
       =/  tok=(unit token:g)
-        ?~  invites.foreign  ~
-        token.i.invites.foreign
+        ?~  far  ~
+        ?~  invites.u.far  ~
+        token.i.invites.u.far
       fi-abet:(fi-join:(fi-abed:fi-core flag.join) tok)
     ::
         %group-knock
@@ -1275,6 +1275,7 @@
         %-  silt
         %+  skim  nests
         |=  =nest:g
+        ?.  ?=(kind:d p.nest)  |
         .^(? %gu (channels-scry nest))
       ==
     cor
@@ -1478,6 +1479,7 @@
 ++  from-self  =(our src):bowl
 ::  +se-core: group server core
 ::
+++  size-limit  256.000  :: 256KB
 ++  se-core
   |_  [=flag:g =log:g =group:g gone=_|]
   ::
@@ -1503,6 +1505,11 @@
     ?>  =(p.flag our.bowl)
     =?  se-core  gone
       (se-update [%delete ~])
+    ::  if the group is about to be deleted, this our only
+    ::  chance to trigger +go-core update.
+    ::
+    =?  cor  gone
+      go-abet:(go-u-group:(go-abed:go-core flag) now.bowl %delete ~)
     %_  cor  groups
       ?:  gone
         (~(del by groups) flag)
@@ -1616,6 +1623,7 @@
     |=  [=flag:g create=create-group:g]
     ?>  from-self
     ?>  ((sane %tas) name.create)
+    ?>  (lte (met 3 (jam create)) size-limit)
     =/  =flag:g  [our.bowl name.create]
     =/  =admissions:g
       %*  .  *admissions:g
@@ -1726,6 +1734,7 @@
     ^+  se-core
     ?<  (se-is-banned src.bowl)
     ?<  ?=(%secret privacy.ad)
+    ?>  (lte (met 3 (jam story)) size-limit)
     ?:  (se-is-joined src.bowl)  se-core
     ?:  ?=(%public privacy.ad)
       ::  public group: wait until we receive the ask watch
@@ -1833,6 +1842,7 @@
     ?-    -.c-group
         %meta
       ?>  se-src-is-admin
+      ?>  (lte (met 3 (jam meta.c-group)) size-limit)
       ?:  =(meta.group meta.c-group)  se-core
       =.  meta.group  meta.c-group
       (se-update %meta meta.group)
@@ -1887,11 +1897,11 @@
   ::  +se-c-entry-ban: execute an entry ban command
   ::
   ::  the entry ban command is used to forbid a ship or a class of
-  ::  ships of certain rank from joining the group, requesting to join
+  ::  ships of specified rank from joining the group, requesting to join
   ::  the group, or executing any commands on the group host.
   ::
   ::  the ship and rank blacklists do not affect the group host.
-  ::  it is illegal to execute any $c-ban commands that affects
+  ::  it is forbidden to execute any $c-ban commands that affect
   ::  the group host in any way.
   ::
   ::  the rank blacklist does not affect admins. it is illegal
@@ -2374,6 +2384,7 @@
     ?:  &(?=(%add -.c-channel) (has:by-ch nest))  se-core
     ?-    -.c-channel
         %add
+      ?>  (lte (met 3 (jam chan)) size-limit)
       =.  added.chan  now.bowl
       =.  sections.group  (se-section-add-channel nest chan)
       =.  channels.group  (put:by-ch nest chan)
@@ -2382,6 +2393,7 @@
       (se-update %channel nest [%add chan])
     ::
         %edit
+      ?>  (lte (met 3 (jam chan)) size-limit)
       =/  old=channel:g  (got:by-ch nest)
       ::  preserve original timestamp
       =.  added.chan  added.old
@@ -2460,12 +2472,14 @@
     ^+  se-core
     ?-    -.c-section
         %add
+      ?>  (lte (met 3 (jam meta.c-section)) size-limit)
       =/  =section:g  [meta.c-section ~]
       =.  sections.group  (~(put by sections.group) section-id section)
       =.  section-order.group  (~(push of section-order.group) section-id)
       (se-update %section section-id [%add meta.c-section])
     ::
         %edit
+      ?>  (lte (met 3 (jam meta.c-section)) size-limit)
       =.  sections.group
         %+  ~(jab by sections.group)  section-id
         |=  =section:g
@@ -3671,9 +3685,10 @@
       =/  =channel:g  (got:by-ch nest)
       ?.  (~(has by sections.group) section.u-channel)
         (go-restart-updates `'missing channel updated section')
-      =.  sections.group
-        %+  ~(jab by sections.group)  section.channel
-        |=(=section:g section(order (~(del of order.section) nest)))
+      =+  section=(~(get by sections.group) section.channel)
+      =?  sections.group  ?=(^ section)
+        %+  ~(put by sections.group)  section.channel
+        u.section(order (~(del of order.u.section) nest))
       =.  section.channel   section.u-channel
       =.  channels.group  (put:by-ch nest channel)
       =.  sections.group

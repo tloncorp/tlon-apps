@@ -37,6 +37,7 @@ import {
   isInline,
   pathToCite,
 } from '@tloncorp/shared/urbit';
+import { HEADER_HEIGHT } from '@tloncorp/ui';
 import {
   forwardRef,
   useCallback,
@@ -160,27 +161,19 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const [isSending, setIsSending] = useState(false);
     const { bottom, top } = useSafeAreaInsets();
     const { height } = useWindowDimensions();
-    const headerHeight = 48;
     const titleInputHeight = 48;
     const imageInputButtonHeight = 50;
     const maxInputHeightBasic = useMemo(
-      () => height - headerHeight - bottom - top,
-      [height, bottom, top, headerHeight]
+      () => height - HEADER_HEIGHT - bottom - top,
+      [height, bottom, top]
     );
     const bigInputHeightBasic = useMemo(() => {
       const extraHeaderSpace =
         channelType === 'notebook'
           ? titleInputHeight + imageInputButtonHeight + 150
           : 0;
-      return height - top - headerHeight - extraHeaderSpace;
-    }, [
-      height,
-      top,
-      headerHeight,
-      titleInputHeight,
-      imageInputButtonHeight,
-      channelType,
-    ]);
+      return height - top - HEADER_HEIGHT - extraHeaderSpace;
+    }, [height, top, titleInputHeight, imageInputButtonHeight, channelType]);
     const [bigInputHeight, setBigInputHeight] = useState(bigInputHeightBasic);
     const [maxInputHeight, setMaxInputHeight] = useState(maxInputHeightBasic);
 
@@ -725,7 +718,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
 
             // Calculate available height for editor - more precise with keyboard
             const availableHeight =
-              height - keyboardHeight - top - headerHeight - extraHeaderSpace;
+              height - keyboardHeight - top - HEADER_HEIGHT - extraHeaderSpace;
 
             setBigInputHeight(availableHeight);
           }
