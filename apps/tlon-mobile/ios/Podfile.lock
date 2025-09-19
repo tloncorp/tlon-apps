@@ -472,6 +472,7 @@ PODS:
     - React
     - React-callinvoker
     - React-Core
+  - PostHog (3.31.0)
   - PromisesObjC (2.4.0)
   - PromisesSwift (2.4.0):
     - PromisesObjC (= 2.4.0)
@@ -2348,6 +2349,7 @@ DEPENDENCIES:
   - glog (from `../../../node_modules/react-native/third-party-podspecs/glog.podspec`)
   - hermes-engine (from `../../../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
   - "op-sqlite (from `../../../node_modules/@op-engineering/op-sqlite`)"
+  - PostHog (~> 3.0)
   - RCT-Folly (from `../../../node_modules/react-native/third-party-podspecs/RCT-Folly.podspec`)
   - RCT-Folly/Fabric (from `../../../node_modules/react-native/third-party-podspecs/RCT-Folly.podspec`)
   - RCTDeprecation (from `../../../node_modules/react-native/ReactApple/Libraries/RCTFoundation/RCTDeprecation`)
@@ -2451,6 +2453,7 @@ SPEC REPOS:
     - libdav1d
     - libwebp
     - nanopb
+    - PostHog
     - PromisesObjC
     - PromisesSwift
     - ReachabilitySwift
@@ -2788,6 +2791,7 @@ SPEC CHECKSUMS:
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
   nanopb: 438bc412db1928dac798aa6fd75726007be04262
   op-sqlite: f800d2eeb9ca5c8931c612d4673f559fa23a5889
+  PostHog: fcb0bc4425a69a2b0ee0ff5782b298a23aedcc83
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   PromisesSwift: 9d77319bbe72ebf6d872900551f7eeba9bce2851
   RCT-Folly: ea9d9256ba7f9322ef911169a9f696e5857b9e17
@@ -2879,6 +2883,6 @@ SPEC CHECKSUMS:
   UMAppLoader: 7e7e0eaa7854ffd652c00a68c443afb28c3bedba
   Yoga: 1259c7a8cbaccf7b4c3ddf8ee36ca11be9dee407
 
-PODFILE CHECKSUM: cfdeceec80bf2f186cb06f550d3ae13ae1ed4571
+PODFILE CHECKSUM: 4cfd531bbf838f01a722fb92e52782ff853e6616
 
 COCOAPODS: 1.16.2

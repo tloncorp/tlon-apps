@@ -11,4 +11,14 @@ extension UserDefaults {
             return UserDefaults.standard
         }
     }
+
+    /**
+     * Gets the PostHog API key from shared UserDefaults.
+     * This key is set by the React Native layer and can be accessed by native iOS code.
+     */
+    class var postHogApiKey: String {
+        return UserDefaults.forDefaultAppGroup.string(forKey: "postHogApiKey")
+            // staging key as fallback
+            ?? "phc_6BDPOnBfls3Axc5WAbmN8pQKk3YqhfWoc0tXj9d9kx0"
+    }
 }

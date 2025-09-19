@@ -26,4 +26,9 @@ class UrbitModule: NSObject {
     @objc func clearUrbit() {
         try? UrbitModule.loginStore.delete()
     }
+
+    @objc(setPostHogApiKey:)
+    func setPostHogApiKey(apiKey: String) {
+        UserDefaults.forDefaultAppGroup.set(apiKey, forKey: "postHogApiKey")
+    }
 }

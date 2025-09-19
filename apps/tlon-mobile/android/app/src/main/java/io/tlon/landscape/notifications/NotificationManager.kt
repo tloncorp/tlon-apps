@@ -68,7 +68,7 @@ suspend fun processNotification(context: Context, uid: String) {
         extras.putString("activityEventJsonString", activityEventJSON)
 
         showRichNotification(context, uid, preview, extras)
-        NotificationLogger.logDelivery(mapOf("uid" to uid, "message" to "Rich notification delivered"))
+        NotificationLogger.logDelivery(mapOf("uid" to uid, "message" to "Rich notification delivered successfully"))
     } catch (e: Exception) {
         throw RichNotificationDisplayFailed(uid, activityEventJSON, e);
     }
@@ -206,7 +206,7 @@ class ActivityEventFetchFailed(
 class ActivityEventMissing(
     uid: String,
     cause: Throwable? = null
-): NotificationException("Activity event fetch failed", uid, null, cause)
+): NotificationException("Activity event is missing", uid, null, cause)
 
 class PreviewRenderFailed(
     uid: String,
@@ -223,4 +223,4 @@ class RichNotificationDisplayFailed(
     uid: String,
     activityEvent: String,
     cause: Throwable? = null
-): NotificationException("Rich notification display failed", uid, activityEvent, cause)
+): NotificationException("Notification display failed", uid, activityEvent, cause)

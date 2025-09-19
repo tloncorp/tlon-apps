@@ -30,8 +30,11 @@
   // Ideally, we'd exclusively use the app group storage for all cookie read/writes, but I could
   // not get the auth cookie to be written to that storage.
   [[NSHTTPCookieStorage sharedHTTPCookieStorage] forwardChangesTo: [NSHTTPCookieStorage forDefaultAppGroup]];
-  
+
   [ShortcutsManager setup];
+
+  // Start processing notification service extension logs
+  [[NotificationLogProcessor default] startPeriodicProcessing];
 
   return [super application:application didFinishLaunchingWithOptions:launchOptions];
 }

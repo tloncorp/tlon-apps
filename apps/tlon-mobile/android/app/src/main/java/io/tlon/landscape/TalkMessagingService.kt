@@ -133,7 +133,7 @@ class TalkMessagingService : FirebaseMessagingService() {
             NotificationManagerCompat.from(context).notify(id, builder.build())
             NotificationLogger.logDelivery(mapOf(
                 "uid" to uid,
-                "message" to "Fallback notification delivered"
+                "message" to "Fallback notification delivered successfully"
             ))
             Log.i(TALK_MESSAGING_SERVICE, "Showed fallback notification for uid: $uid, reason: ${exception.message}")
         } catch (e: Exception) {
