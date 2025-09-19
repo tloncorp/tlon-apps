@@ -4,10 +4,12 @@ import android.app.Application;
 import android.content.res.Configuration;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.lifecycle.ProcessLifecycleOwner;
 
 import com.facebook.react.PackageList;
 import com.facebook.react.ReactApplication;
+import com.facebook.react.ReactHost;
 import com.facebook.react.ReactNativeHost;
 import com.facebook.react.ReactPackage;
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint;
@@ -63,6 +65,12 @@ public class MainApplication extends Application implements ReactApplication {
   public ReactNativeHost getReactNativeHost() {
     return mReactNativeHost;
   }
+
+    @Nullable
+    @Override
+    public ReactHost getReactHost() {
+        return ReactNativeHostWrapper.createReactHost(getApplicationContext(), getReactNativeHost());
+    }
 
   @Override
   public void onCreate()  {

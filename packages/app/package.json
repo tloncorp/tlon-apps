@@ -15,26 +15,27 @@
     "@tloncorp/editor": "workspace:*",
     "@tloncorp/shared": "workspace:*",
     "@tloncorp/ui": "workspace:*",
+    "posthog-js": "^1.234.4",
     "refractor": "^4.8.0",
-    "sqlocal": "^0.11.1",
-    "posthog-js": "^1.234.4"
+    "sqlocal": "^0.11.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.55",
     "@types/react-native": "0.73.0"
   },
   "peerDependencies": {
-    "expo-splash-screen": "*",
-    "react-native-fetch-api": "*",
-    "react-native-polyfill-globals": "*",
-    "react-native-safe-area-context": "*",
     "@10play/tentap-editor": "*",
     "@react-native-firebase/perf": "*",
     "expo-blur": "*",
     "expo-notifications": "*",
+    "expo-splash-screen": "*",
+    "expo-constants": "*",
     "lodash": "^4.17.21",
     "react-native-device-info": "*",
     "react-native-email-link": "*",
+    "react-native-fetch-api": "*",
+    "react-native-polyfill-globals": "*",
+    "react-native-safe-area-context": "*",
     "tamagui": "~1.126.12",
     "zustand": "^3.7.2"
   }

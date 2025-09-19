@@ -1,17 +1,13 @@
 import { syncSince } from '@tloncorp/shared';
 import * as api from '@tloncorp/shared/api';
+import Constants from 'expo-constants';
 import { registerDevMenuItems } from 'expo-dev-menu';
-import { Alert, DevSettings, NativeModules } from 'react-native';
+import { Alert, DevSettings } from 'react-native';
 import * as DeviceInfo from 'react-native-device-info';
 
 import { getDbPath, purgeDb } from './nativeDb';
 
-let metroBundlerURL: string | null = null;
-if (__DEV__) {
-  const scriptURL = NativeModules.SourceCode.scriptURL;
-  metroBundlerURL =
-    scriptURL.split('apps/tlon-mobile/index.bundle?')[0] ?? null;
-}
+const metroBundlerURL = Constants.expoConfig?.hostUri;
 
 type ExpoDevMenuItem = Parameters<typeof registerDevMenuItems>[0][0];
 
