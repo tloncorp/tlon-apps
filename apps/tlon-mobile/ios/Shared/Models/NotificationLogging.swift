@@ -58,12 +58,7 @@ extension LogEvent {
                     "errorMessage": .string(error.localizedDescription),
                     "errorType": .string(String(describing: type(of: error)))
                 ]
-
-                if let nsError = error as NSError? {
-                    payload["errorCode"] = .int(nsError.code)
-                    payload["errorDomain"] = .string(nsError.domain)
-                }
-
+                
                 return payload
             }()
         }
@@ -78,7 +73,6 @@ extension LogEvent {
 
     var asPostHogEvent: [String: Any] {
         [
-            "api_key": UserDefaults.postHogApiKey,
             "event": eventName,
             "properties": properties.merging([
                 "source": .string("notification_service_extension"),
@@ -91,85 +85,46 @@ extension LogEvent {
     }
 }
 
-// Custom error types for iOS notifications
-class NotificationError: NSError {
-    let uid: String
-    let message: String
-
-    init(uid: String, message: String, code: Int = 0, underlyingError: Error? = nil) {
-        self.uid = uid
-        self.message = message
-        super.init(
-            domain: "com.tlon.landscape.notifications",
-            code: code,
-            userInfo: [
-                NSLocalizedDescriptionKey: message,
-                "uid": uid,
-                NSUnderlyingErrorKey: underlyingError as Any
-            ]
-        )
+enum NotificationError: Error, LocalizedError {
+    case activityEventFetchFailed(uid: String, underlyingError: Error? = nil)
+    case activityEventMissing(uid: String, underlyingError: Error? = nil)
+    case previewRenderFailed(uid: String, activityEvent: String, underlyingError: Error? = nil)
+    case previewEmpty(uid: String, activityEvent: String, underlyingError: Error? = nil)
+    case notificationDisplayFailed(uid: String, activityEvent: String? = nil, underlyingError: Error? = nil)
+    case unknown(uid: String, message: String = "Unknown notification processing error", underlyingError: Error? = nil)
+    
+    var message: String {
+        switch self {
+        case .activityEventFetchFailed: return "Activity event fetch failed"
+        case .activityEventMissing: return "Activity event is missing"
+        case .previewRenderFailed: return "Preview render failed"
+        case .previewEmpty: return "Preview is empty"
+        case .notificationDisplayFailed: return "Notification display failed"
+        case .unknown(_, let message, _): return message
+        }
+    }
+    
+    var uid: String {
+        switch self {
+        case .activityEventFetchFailed(let uid, _),
+             .activityEventMissing(let uid, _),
+             .previewRenderFailed(let uid, _, _),
+             .previewEmpty(let uid, _, _),
+             .notificationDisplayFailed(let uid, _, _),
+             .unknown(let uid, _, _):
+            return uid
+        }
     }
 
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-}
-
-class ActivityEventFetchFailed: NotificationError {
-    init(uid: String, underlyingError: Error? = nil) {
-        super.init(uid: uid, message: "Activity event fetch failed", code: 1001, underlyingError: underlyingError)
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-}
-
-class ActivityEventMissing: NotificationError {
-    init(uid: String) {
-        super.init(uid: uid, message: "Activity event is missing", code: 1002)
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-}
-
-class PreviewRenderFailed: NotificationError {
-    let activityEvent: String
-
-    init(uid: String, activityEvent: String, underlyingError: Error? = nil) {
-        self.activityEvent = activityEvent
-        super.init(uid: uid, message: "Preview render failed", code: 1003, underlyingError: underlyingError)
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-}
-
-class PreviewEmpty: NotificationError {
-    let activityEvent: String
-
-    init(uid: String, activityEvent: String) {
-        self.activityEvent = activityEvent
-        super.init(uid: uid, message: "Preview is empty", code: 1004)
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-}
-
-class NotificationDisplayFailed: NotificationError {
-    let activityEvent: String?
-
-    init(uid: String, activityEvent: String? = nil, underlyingError: Error? = nil) {
-        self.activityEvent = activityEvent
-        super.init(uid: uid, message: "Notification display failed", code: 1005, underlyingError: underlyingError)
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
+    var localizedDescription: String? {
+        switch self {
+        case .activityEventFetchFailed(_, let underlyingError),
+             .activityEventMissing(_, let underlyingError),
+             .previewRenderFailed(_, _, let underlyingError),
+             .previewEmpty(_, _, let underlyingError),
+             .notificationDisplayFailed(_, _, let underlyingError),
+             .unknown(_, _, let underlyingError):
+            return underlyingError?.localizedDescription
+        }
     }
 }

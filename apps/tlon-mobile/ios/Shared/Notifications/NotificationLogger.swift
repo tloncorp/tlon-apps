@@ -4,18 +4,19 @@ class NotificationLogger {
     static let postHogApiKey = UserDefaults.postHogApiKey
     private static let postHogHost = "https://eu.i.posthog.com"
     private static let loginStore = LoginStore()
+    private static let userDefaults = UserDefaults.forDefaultAppGroup
 
-    static func logError(_ error: NotificationError) {
+    static func logError(_ error: NotificationError) async {
         print("NotificationLogger.logError called with uid: \(error.uid)")
-        sendToPostHog(events: [LogEventData.error(error)])
+        await sendToPostHog(events: [LogEventData.error(error)])
     }
 
-    static func logDelivery(properties: [String: CodableValue] = [:]) {
+    static func logDelivery(properties: [String: CodableValue] = [:]) async {
         print("NotificationLogger.logDelivery called with properties: \(properties)")
-        sendToPostHog(events: [LogEventData.delivery(properties)])
+        await sendToPostHog(events: [LogEventData.delivery(properties)])
     }
 
-    static func sendToPostHog(events: [LogEventData]) {
+    static func sendToPostHog(events: [LogEventData]) async {
         guard let userId = try? loginStore.read()?.shipName else {
             print("Unable to find ship")
             return
@@ -28,52 +29,46 @@ class NotificationLogger {
             return
         }
 
+        let eventData: [[String: Any]] = events.map({
+            return LogEvent(userId: userId, data: $0).asPostHogEvent
+        })
+        
+        let payload: [String: Any] = [
+            "api_key": postHogApiKey,
+            "batch": eventData
+        ]
+        
+        let eventNames = eventData.map({ $0["event"] })
+        print("Sending events to PostHog: \(eventNames)")
+
+        do {
+            try await makePostHogRequest(url: url, payload: payload)
+        } catch {
+            print("Failed to serialize PostHog event data: \(error.localizedDescription)")
+            fallbackToUserDefaults(userId: userId, events: events)
+        }
+    }
+    
+    private static func makePostHogRequest(url: URL, payload: [String: Any]) async throws {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 10.0 // 10 second timeout
-
-        // Generate a unique distinct_id for the notification service extension
-        // UIDevice is not available in notification service extensions, so use bundle identifier
-        let bundleId = Bundle.main.bundleIdentifier ?? "unknown"
-
-        let eventData: [[String: Any]] = events.map({
-            return LogEvent(userId: userId, data: $0).asPostHogEvent
-        })
-
-        do {
-            let jsonData = try JSONSerialization.data(withJSONObject: eventData)
-            request.httpBody = jsonData
-
-            let eventNames = eventData.map({ $0["event"] })
-            print("Sending events to PostHog: \(eventNames)")
-
-            let task = URLSession.shared.dataTask(with: request) { data, response, error in
-                if let error = error {
-                    print("PostHog request failed: \(error.localizedDescription)")
-                    // Fallback to UserDefaults for main app to process later
-                    fallbackToUserDefaults(userId: userId, events: events)
-                    return
+        
+        let jsonData = try JSONSerialization.data(withJSONObject: payload)
+        request.httpBody = jsonData
+        
+        let ( data, response ) = try await URLSession.shared.data(for: request)
+        if let httpResponse = response as? HTTPURLResponse {
+            if httpResponse.statusCode == 200 {
+                print("✅ Successfully sent events to PostHog")
+            } else {
+                print("❌ PostHog request failed with status: \(httpResponse.statusCode)")
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("Response body: \(responseString)")
                 }
-
-                if let httpResponse = response as? HTTPURLResponse {
-                    if httpResponse.statusCode == 200 {
-                        print("✅ Successfully sent events to PostHog: \(eventNames)")
-                    } else {
-                        print("❌ PostHog request failed with status: \(httpResponse.statusCode)")
-                        if let data = data, let responseString = String(data: data, encoding: .utf8) {
-                            print("Response body: \(responseString)")
-                        }
-                        // Fallback to UserDefaults for main app to process later
-                        fallbackToUserDefaults(userId: userId, events: events)
-                    }
-                }
+                throw PostHogError.errorResponse
             }
-
-            task.resume()
-        } catch {
-            print("Failed to serialize PostHog event data: \(error.localizedDescription)")
-            fallbackToUserDefaults(userId: userId, events: events)
         }
     }
 
@@ -81,22 +76,9 @@ class NotificationLogger {
     private static func fallbackToUserDefaults(userId: String, events: [LogEventData]) {
         print("Using UserDefaults fallback for events")
 
-        guard let userDefaults = UserDefaults(suiteName: "group.tlon.Landscape") else {
-            print("Could not access app group UserDefaults for fallback")
-            return
-        }
-
         let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        
         let logEntries: [Data] = events.compactMap({
-            do {
-                let event = LogEvent(userId: userId, data: $0)
-                return try encoder.encode(event)
-            } catch {
-                print("Unable to encode LogEvent")
-                return nil
-            }
+            try? encoder.encode(LogEvent(userId: userId, data: $0))
         })
         
         // Get existing logs
@@ -122,3 +104,7 @@ class NotificationLogger {
     }
 }
 
+enum PostHogError: Error {
+    case requestFailed
+    case errorResponse
+}

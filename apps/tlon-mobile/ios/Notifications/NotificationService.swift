@@ -11,7 +11,7 @@ class NotificationService: UNNotificationServiceExtension {
         guard let userInfo = notification.userInfo as? [String: Any],
               let uid = userInfo["uid"] as? String else {
             print("Cannot process notification: missing uid")
-            NotificationLogger.logDelivery(properties: ["message": .string("Fallback notification delivered successfully")])
+            await NotificationLogger.logDelivery(properties: ["message": .string("Fallback notification delivered successfully")])
             return notification
         }
 
@@ -21,12 +21,12 @@ class NotificationService: UNNotificationServiceExtension {
             let err = if let notificationError = error as? NotificationError {
                 notificationError
             } else {
-                NotificationError(uid: uid, message: "Unknown notification processing error", underlyingError: error)
+                NotificationError.unknown(uid: uid, underlyingError: error)
             }
             
-            NotificationLogger.sendToPostHog(events: [
-                LogEventData.error(err),
-                LogEventData.delivery(["uid": .string(uid), "message": .string("Fallback notification delivered successfully")])
+            await NotificationLogger.sendToPostHog(events: [
+                .error(err),
+                .delivery(["uid": .string(uid), "message": .string("Fallback notification delivered successfully")])
             ])
             return notification
         }
@@ -46,11 +46,11 @@ class NotificationService: UNNotificationServiceExtension {
         notification.userInfo["activityEventJsonString"] = activityEventJsonString
 
         guard let scriptURL = Bundle.main.url(forResource: "bundle", withExtension: "js") else {
-            throw PreviewRenderFailed(uid: uid, activityEvent: activityEventJsonString, underlyingError: NSError(domain: "com.tlon.landscape.notifications", code: 2001, userInfo: [NSLocalizedDescriptionKey: "Failed to find JavaScript bundle"]))
+            throw NotificationError.previewRenderFailed(uid: uid, activityEvent: activityEventJsonString)
         }
 
         guard let script = try? String(contentsOf: scriptURL) else {
-            throw PreviewRenderFailed(uid: uid, activityEvent: activityEventJsonString, underlyingError: NSError(domain: "com.tlon.landscape.notifications", code: 2001, userInfo: [NSLocalizedDescriptionKey: "Failed to load JavaScript bundle"]))
+            throw NotificationError.previewRenderFailed(uid: uid, activityEvent: activityEventJsonString)
         }
 
         context.evaluateScript(script)
@@ -61,7 +61,7 @@ class NotificationService: UNNotificationServiceExtension {
             ])
 
         guard let preview = try? previewRaw?.decode(as: NotificationPreviewPayload.self) else {
-            throw PreviewRenderFailed(uid: uid, activityEvent: activityEventJsonString, underlyingError: NSError(domain: "com.tlon.landscape.notifications", code: 2002, userInfo: [NSLocalizedDescriptionKey: "Failed to decode notification preview"]))
+            throw NotificationError.previewRenderFailed(uid: uid, activityEvent: activityEventJsonString)
         }
 
         // If we have a preview, make sure to fully replace server-provided title / body.
@@ -114,12 +114,12 @@ class NotificationService: UNNotificationServiceExtension {
             let result = try notification.updating(from: intent)
 
             // Log successful rich notification delivery
-            NotificationLogger.logDelivery(properties: ["uid": .string(uid), "message": .string("Rich notification delivered successfully")])
+            await NotificationLogger.logDelivery(properties: ["uid": .string(uid), "message": .string("Rich notification delivered successfully")])
 
             return result
         } catch {
             // Throw NotificationDisplayFailed instead of handling here
-            throw NotificationDisplayFailed(uid: uid, activityEvent: activityEventJsonString, underlyingError: error)
+            throw NotificationError.notificationDisplayFailed(uid: uid, activityEvent: activityEventJsonString, underlyingError: error)
         }
     }
 
@@ -146,9 +146,9 @@ class NotificationService: UNNotificationServiceExtension {
         case let .failedFetchContents(err):
           // Extract uid for logging
           if let uid = request.content.userInfo["uid"] as? String {
-              NotificationLogger.sendToPostHog(events: [
-                LogEventData.error(ActivityEventFetchFailed(uid: uid, underlyingError: err)),
-                LogEventData.delivery(["uid": .string(uid), "message": .string("Fallback notification delivered successfully")])
+              await NotificationLogger.sendToPostHog(events: [
+                .error(NotificationError.activityEventFetchFailed(uid: uid, underlyingError: err)),
+                .delivery(["uid": .string(uid), "message": .string("Fallback notification delivered successfully")])
               ])
               print("Both logs completed for uid: \(uid)")
           } else {
@@ -161,7 +161,7 @@ class NotificationService: UNNotificationServiceExtension {
         case .invalid:
           // Log invalid notification
           if let uid = request.content.userInfo["uid"] as? String {
-              NotificationLogger.logError(NotificationError(uid: uid, message: "Invalid notification format", code: 2003))
+              await NotificationLogger.logError(NotificationError.unknown(uid: uid, message: "Invalid notification format"))
           }
           fallthrough
 
@@ -187,7 +187,9 @@ class NotificationService: UNNotificationServiceExtension {
         // Log timeout if we can extract uid from notification
         if let bestAttemptContent = bestAttemptContent,
            let uid = bestAttemptContent.userInfo["uid"] as? String {
-            NotificationLogger.logError(NotificationError(uid: uid, message: "Notification service extension timed out", code: 2004))
+            Task {
+                await NotificationLogger.logError(NotificationError.unknown(uid: uid, message: "Notification service extension timed out"))
+            }
         }
 
         if let contentHandler, let bestAttemptContent {

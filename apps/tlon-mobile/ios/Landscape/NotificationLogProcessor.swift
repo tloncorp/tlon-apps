@@ -8,7 +8,7 @@ class NotificationLogProcessor: NSObject {
     
     private let userDefaults = UserDefaults.forDefaultAppGroup
 
-    func processAndSendLogs() {
+    private func processAndSendLogs() {
         guard let logs = userDefaults.dictionary(forKey: "notificationLogs") as? [String: [Data]] else {
             return // No logs to process
         }
@@ -24,7 +24,6 @@ class NotificationLogProcessor: NSObject {
         
         // Decode from JSON
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601 // match your encoding strategy
 
         // Send each log to PostHog
         for userLogs in logs {
