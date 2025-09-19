@@ -84,8 +84,8 @@
         ::
           :+  %gangs              &  -:!>(*vale:m-gangs)
         ::
-          :+  %foreign-1          &  -:!>(*vale:m-foreign-1)
-          :+  %foreigns-1         &  -:!>(*vale:m-foreigns-1)
+          :+  %foreign-1          |  -:!>(*vale:m-foreign-1)
+          :+  %foreigns-1         |  -:!>(*vale:m-foreigns-1)
       ==
     ::  facts
     ::
@@ -163,10 +163,10 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %7
+    $:  %8
         groups=net-groups:v7:gv
         =channels-index:v7:gv
-        =foreigns:v7:gv
+        =foreigns:v8:gv
         =^subs:s
         =pimp:imp
     ==
@@ -380,7 +380,7 @@
               %ask
             ::  only allow client ask requests
             ?>  =(q.cordon-diff (silt our.bowl ~))
-            =/  =a-foreigns:v7:gv
+            =/  =a-foreigns:v8:gv
               [%foreign flag %ask ~]
             $(+< group-foreign-1+!>(a-foreigns))
           ::
@@ -426,11 +426,11 @@
       ?<  =(our.bowl p.flag)
       go-abet:(go-leave:(go-abed:go-core flag) &)
     ::
-    ::  foreign groups interface
+    ::  foreign group interface  v2
     ::
-        %group-foreign-1
-      =+  !<(=a-foreigns:v7:gv vase)
-      ?-    -.a-foreigns
+        %group-foreign-2
+    =+  !<(=a-foreigns:v8:gv vase)
+      ?+    -.a-foreigns  ~|(%a-foreigns-revoke-not-implemented !!)
           %foreign
         =/  foreign-core  (fi-abed:fi-core flag.a-foreigns)
         fi-abet:(fi-a-foreign:foreign-core a-foreign.a-foreigns)
@@ -440,12 +440,21 @@
         fi-abet:(fi-invite:foreign-core invite.a-foreigns)
       ==
     ::
+    ::  foreign groups interface v1
+    ::
+        %group-foreign-1
+      =+  !<(a-foreigns-7=a-foreigns:v7:gv vase)
+      =/  =a-foreigns:v8:gv
+        ?.  ?=(%invite -.a-foreigns-7)  a-foreigns-7
+        [%invite (v8:invite:v7:gc invite.a-foreigns-7)]
+      $(+< group-foreign-2+!>(a-foreigns))
+    ::
     ::  deprecated gang interface
     ::
         %group-join
       ?>  from-self
       =+  !<(=join:v0:gv vase)
-      =/  far=(unit foreign:v7:gv)  (~(get by foreigns) flag.join)
+      =/  far=(unit foreign:v8:gv)  (~(get by foreigns) flag.join)
       =/  tok=(unit token:g)
         ?~  far  ~
         ?~  invites.u.far  ~
@@ -488,12 +497,12 @@
       =+  !<(=flag:g vase)
       ?>  from-self
       ~|  f=flag
-      =/  =foreign:v7:gv  (~(got by foreigns) flag)
+      =/  =foreign:v8:gv  (~(got by foreigns) flag)
       ::  backward compatibility: decline all invites
       ::
       %+  roll  invites.foreign
       |=  [=invite:g =_cor]
-      =/  =a-foreigns:v7:gv
+      =/  =a-foreigns:v8:gv
         [%foreign flag %decline token.invite]
       (poke:cor group-foreign-1+!>(a-foreigns))
   ::
@@ -648,10 +657,12 @@
     ?.  ?=(%6 -.old)  [~ old]
     (state-6-to-7 old)
   =?  cor  !=(~ caz-6-to-7)  (emil caz-6-to-7)
-  ?>  ?=(%7 -.old)
+  =?  old  ?=(%7 -.old)  (state-7-to-8 old)
+  ?>  ?=(%8 -.old)
   ::  initialize .active-channels on each reload
   =.  cor
     (emit [%pass /load/active-channels %arvo %b %wait now.bowl])
+
   =.  state  old
   =.  cor  inflate-io
   ::  until client bugs are fixed and data validation happens on-ingress,
@@ -692,7 +703,8 @@
   cor(groups (~(put by groups) flag net group(image.meta '')))
   ::
   +$  any-state
-    $%  state-7
+    $%  state-8
+        state-7
         state-6
         state-5
         state-4
@@ -778,8 +790,16 @@
         =^subs:s
         =pimp:imp
     ==
+  +$  state-7
+    $:  %7
+        groups=net-groups:v7:gv
+        =channels-index:v7:gv
+        =foreigns:v7:gv
+        =^subs:s
+        =pimp:imp
+    ==
   ::
-  +$   state-7  current-state
+  +$   state-8  current-state
   ::
   ++  state-0-to-1
     |=  state-0
@@ -891,6 +911,14 @@
         (~(run by xeno) v7:gang:v6:gc)
         subs
         ~  ::  pimp
+    ==
+  ::
+  ++  state-7-to-8
+    |=  =state-7
+    ^-  state-8
+    %=  state-7
+      -  %8
+      foreigns  (~(run by foreigns.state-7) v8:foreign:v7:gc)
     ==
   --
 ::
@@ -1035,7 +1063,8 @@
         ~
       %-  some
       :-  flag
-      (gang:v2:foreign:v7:gc foreign)
+      %-  gang:v2:foreign:v7:gc
+      (v7:foreign:v8:gc foreign)
     ``noun+!>([groups-light-ui-2 gangs-2])
   ::
       [%x %v2 %init ~]
@@ -1044,11 +1073,11 @@
       |=  [=flag:g =net:v7:gv =group:v7:gv]
       =*  light-group  (drop-seats:group:v7:gc group our.bowl)
       =+  (group-ui:group:v7:gc net light-group)
-      ::  recompute member count after dropping seats
+      ::  restore member count after dropping seats
       ::TODO is this correct in other scries?
       ::
       -(member-count ~(wyt by seats.group))
-    ``noun+!>([groups-light-ui-7 `foreigns:v7:gv`foreigns])
+    ``noun+!>([groups-light-ui-7 `foreigns:v8:gv`foreigns])
   ::
        [%x ver=?(%v0 %v1 %v2) %groups ~]
     =/  groups-7=groups:v7:gv  (~(run by groups) tail)
@@ -1151,13 +1180,19 @@
     ``loob+!>((~(has by groups) [ship name.pole]))
   ::
       [%x ver=?(%v1) %foreigns ~]
-    ``foreigns-1+!>(`foreigns:v7:gv`foreigns)
+    ?-    ver.pole
+        %v1
+      ``foreigns-1+!>(`foreigns:v8:gv`foreigns)
+    ==
   ::
       [%x ver=?(%v1) %foreigns ship=@ name=@ ~]
     =+  ship=(slav %p ship.pole)
     =/  =flag:g  [ship name.pole]
     ?~  far=(~(get by foreigns) flag)  [~ ~]
-    ``foreign-1+!>(`foreign:v7:gv`u.far)
+    ?-    ver.pole
+        %v1
+      ``foreign-1+!>(`foreign:v8:gv`u.far)
+    ==
   ==
   ++  changes
     |=  since=time
@@ -1369,6 +1404,8 @@
       ::
       [%load %v7 %subscriptions ~]
     inflate-io
+  ::
+      ::  revoke expired invite
   ==
 ::  +safe-watch: safely watch a subscription path
 ::
@@ -1555,6 +1592,24 @@
   ::
   ++  se-pass
     |%
+    ++  send-invite
+      |=  [=ship =invite:v8:gv]
+      =/  =wire  (weld se-area /invite/send/(scot %p ship))
+      =/  =a-foreigns:v8:gv
+        [%invite invite]
+      [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
+    ++  send-old-invite
+      |=  [=ship =invite:v7:gv]
+      =/  =wire  (weld se-area /invite/send/(scot %p ship)/old)
+      =/  =a-foreigns:v7:gv
+        [%invite invite]
+      [%pass wire %agent [ship dap.bowl] %poke group-foreign-1+!>(a-foreigns)]
+    ++  revoke-invite
+      |=  [=ship tok=(unit token:g)]
+      =/  =wire  (weld se-area /invite/revoke/(scot %p ship))
+      =/  =a-foreigns:v8:gv
+        [%revoke flag tok]
+      [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
     --
   ::  +se-is-joined: check if the ship has already joined the group
   ::
@@ -2246,17 +2301,13 @@
   ++  se-send-invites
     |=  ships=(set ship)
     ^+  se-core
-    ::TODO record each invited ship in .invited.ad?
     %+  roll  ~(tap in ships)
     |=  [=ship =_se-core]
-    =*  her  +<-
-    =*  acc  +<+
-    =,  se-core
-    =/  =wire  (weld se-area /invite/(scot %p her))
-    =^  tok=(unit token:g)  acc
+    =/  =wire  (weld se-area /invite/send/(scot %p ship))
+    =^  tok=(unit token:g)  se-core
       ?:  ?=(%public privacy.ad)
-        [~ acc]
-      (se-c-entry-token [%add personal+her ~ ~ |])
+        [~ se-core]
+      (se-c-entry-token:se-core [%add personal+ship ~ ~ |])
     =/  =invite:g
         :*  flag
             now.bowl
@@ -2264,11 +2315,36 @@
             tok
             ~  ::  note
             se-preview
+            &  ::  valid
         ==
-    =/  =a-foreigns:v7:gv
-      [%invite invite]
-    =/  cage  group-foreign-1+!>(a-foreigns)
-    (emit [%pass wire %agent [her dap.bowl] %poke cage])
+    (se-send-invite:se-core ship invite)
+  ::  +se-send-invite: invite a ship with token
+  ::
+  ::  if a ship had been previously invited, we first
+  ::  revoke the invite before sending a new one.
+  ::
+  ++  se-send-invite
+    |=  [=ship =invite:g]
+    ^+  se-core
+    =.  se-core  (se-revoke-invite ship)
+    =.  invited.ad
+      (~(put by invited.ad) ship [now.bowl token.invite])
+    ::TODO sent only for backcompat. Remove when the update
+    ::     settles in the network.
+    ::
+    =.  se-core
+      (emit (send-old-invite:se-pass ship (v7:invite:v8:gc invite)))
+    (emit (send-invite:se-pass ship invite))
+  ::  +se-revoke-invite: revoke a previously issued invite
+  ::
+  ++  se-revoke-invite
+    |=  =ship
+    ^+  se-core
+    =+  invited=(~(get by invited.ad) ship)
+    =?  se-core  ?=(^ invited)
+      (emit (revoke-invite:se-pass ship token.u.invited))
+    =.  invited.ad  (~(del by invited.ad) ship)
+    se-core
   ::  +se-compat-send-invites: send invites in compatible manner
   ::
   ::  if a ship is in sync, we send the invitation as usual.
@@ -2660,17 +2736,34 @@
     ::
     =.  se-core  (give %fact ~ group-token+!>(~))
     (give %kick ~ ~)
+  ::  +se-agent: handle server signs
+  ::
   ++  se-agent
     |=  [=path =sign:agent:gall]
     ^+  se-core
     ?+    path  ~|(se-agent-bad-path+path !!)
-        [%invite ship=@ ~]
+        [%invite %send ship=@ ~]
       =+  ship=(slav %p i.t.path)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  se-core
-      =.  cor
-        %+  tell:l  %crit
-        [leaf+"failed to invite ship {<ship>}" u.p.sign]
+      =.  cor  %+  ~(tell l ~)  %crit
+          [leaf+"failed to invite {<ship>}" u.p.sign]
+      se-core
+    ::
+        [%invite %send ship=@ %old ~]
+      =+  ship=(slav %p i.t.path)
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  se-core
+      =.  cor  %+  ~(tell l ~)  %crit
+          [leaf+"failed to invite {<ship>} (backcompat)" u.p.sign]
+      se-core
+    ::
+        [%invite %revoke ship=@ ~]
+      =+  ship=(slav %p i.t.path)
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  se-core
+      =.  cor  %+  ~(tell l ~)  %crit
+          [leaf+"failed to revoke invite for {<ship>}" u.p.sign]
       se-core
     ==
   --
@@ -2681,6 +2774,7 @@
   +*  ad  admissions.group
   ::
   ++  go-core  .
+  ++  emit  |=(=card go-core(cor cor(cards [card cards])))
   ::  +go-abed: init
   ::
   ++  go-abed
@@ -2771,6 +2865,24 @@
   ::
   ++  go-pass
     |%
+    ++  send-invite
+      |=  [=ship =invite:v8:gv]
+      =/  =wire  (weld go-area /invite/send/(scot %p ship))
+      =/  =a-foreigns:v8:gv
+        [%invite invite]
+      [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
+    ++  send-old-invite
+      |=  [=ship =invite:v7:gv]
+      =/  =wire  (weld go-area /invite/send/(scot %p ship)/old)
+      =/  =a-foreigns:v7:gv
+        [%invite invite]
+      [%pass wire %agent [ship dap.bowl] %poke group-foreign-1+!>(a-foreigns)]
+    ++  revoke-invite
+      |=  [=ship tok=(unit token:g)]
+      =/  =wire  (weld go-area /invite/revoke/(scot %p ship))
+      =/  =a-foreigns:v8:gv
+        [%revoke flag tok]
+      [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
     ++  request-token
       |=  =ship
       ^-  card
@@ -2924,7 +3036,7 @@
       %+  roll  ~(tap in ~(key by channels.group))
       |=  [=nest:g =_channels-index]
       (~(del by channels-index) nest)
-    =?  cor  send-leave  (emit leave-group:go-pass)
+    =?  go-core  send-leave  (emit leave-group:go-pass)
     go-core(gone &)
   ::  +go-preview: generate the preview of the group
   ::
@@ -2947,28 +3059,45 @@
       ::
       ::  TODO: this loses the note.a-invite.
       ::
-      =.  cor  (emit (request-token:go-pass ship.a-invite))
+      =.  go-core  (emit (request-token:go-pass ship.a-invite))
       go-core
-    =/  =wire
-      %+  weld  go-area
-      /invite/(scot %p ship.a-invite)
-    =/  =invite:v7:gv
+    =/  =invite:v8:gv
       :*  flag
           now.bowl
           our.bowl
           token.a-invite
           note.a-invite
           go-preview
+          &  :: valid
       ==
+    (go-send-invite ship.a-invite invite)
+  ::  +go-send-invite: invite a ship with token and record
+  ::
+  ::  if a ship had been previously invited, we first
+  ::  revoke the invite before sending a new one.
+  ::
+  ++  go-send-invite
+    |=  [=ship =invite:g]
+    ^+  go-core
+    =.  go-core  (go-revoke-invite ship)
     =.  invited.ad
-      (~(put by invited.ad) ship.a-invite [now.bowl token.a-invite])
-    =.  cor
-      =/  =cage
-        group-foreign-1+!>(`a-foreigns:v7:gv`[%invite invite])
-      %^  emit  %pass  wire
-      [%agent [ship.a-invite dap.bowl] %poke cage]
+      (~(put by invited.ad) ship [now.bowl token.invite])
+    ::TODO sent only for backcompat. Remove when the update
+    ::     settles in the network.
+    ::
+    =.  go-core
+      (emit (send-old-invite:go-pass ship (v7:invite:v8:gc invite)))
+    (emit (send-invite:go-pass ship invite))
+  ::  +go-revoke-invite: revoke a previously issued invite
+  ::
+  ++  go-revoke-invite
+    |=  =ship
+    ^+  go-core
+    =+  invited=(~(get by invited.ad) ship)
+    =?  go-core  ?=(^ invited)
+      (emit (revoke-invite:go-pass ship token.u.invited))
+    =.  invited.ad  (~(del by invited.ad) ship)
     go-core
-
   ::  +go-a-group: execute group action
   ::
   ++  go-a-group
@@ -2983,8 +3112,7 @@
     ?>  from-self
     =/  =^wire  (weld go-area wire)
     =/  =cage  group-command+!>(`c-groups:g`[%group flag c-group])
-    =.  cor  (emit %pass wire %agent [p.flag server] %poke cage)
-    go-core
+    (emit %pass wire %agent [p.flag server] %poke cage)
   ::  +go-watch: handle group watch request
   ::
   ++  go-watch
@@ -3024,15 +3152,15 @@
       (v2:channel-preview:v7:gc channel-preview)
     =/  path-0=path  ?:  watch  ~
       /chan/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
-    =.  cor  (emit %give %fact ~[path-0] channel-preview+!>(preview-2))
-    =?  cor  watch  (emit %give %kick ~[path-0] ~)
+    =.  go-core  (emit %give %fact ~[path-0] channel-preview+!>(preview-2))
+    =?  go-core  watch  (emit %give %kick ~[path-0] ~)
     ::  v1
     ::
     =/  preview-7=channel-preview:v7:gv  channel-preview
     =/  path-1=path  ?:  watch  ~
       /v1/channels/[p.nest]/(scot %p p.q.nest)/[q.q.nest]/preview
-    =.  cor  (emit %give %fact ~[path-1] channel-preview-1+!>(preview-7))
-    =?  cor  watch  (emit %give %kick ~[path-1] ~)
+    =.  go-core  (emit %give %fact ~[path-1] channel-preview-1+!>(preview-7))
+    =?  go-core  watch  (emit %give %kick ~[path-1] ~)
     go-core
   ++  go-agent
     |=  [=wire =sign:agent:gall]
@@ -3061,7 +3189,22 @@
         [%invite ship=@ ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
-      =.  cor  (fail:l %poke-ack 'failed to invite a ship' u.p.sign)
+      =.  cor  (fail:l %poke-ack leaf+"failed to invite {<ship>}" u.p.sign)
+      go-core
+    ::
+        ::  invited a ship to the group (backcompat)
+        ::
+        [%invite ship=@ %old ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  go-core
+      =.  cor  (fail:l %poke-ack leaf+"failed to invite {<ship>} (backcompat)" u.p.sign)
+      go-core
+        ::  revoked invitation
+        ::
+        [%invite %revoke ship=@ ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  go-core
+      =.  cor  (fail:l %poke-ack leaf+"failed to revoke invite for {<ship>}" u.p.sign)
       go-core
     ::
         ::  requested a personal invite token for a ship
@@ -3110,8 +3253,7 @@
           /chan/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
         =/  path-1=path
           /v1/channels/[p.nest]/(scot %p p.q.nest)/[q.q.nest]/preview
-        =.  cor  (emit %give %kick ~[path-0 path-1] ~)
-        go-core
+        (emit %give %kick ~[path-0 path-1] ~)
       ::
           %watch-ack
         ?~  p.sign  go-core
@@ -3975,8 +4117,12 @@
   ::  +fi-give-update: give foreigns update
   ::
   ++  fi-give-update
+    ::TODO rewire the client to use the new endpoint
+    ::     and send facts on /v1/foreigns path
+    ::
     =/  gang-2
-      (gang:v2:foreign:v7:gc foreign)
+      %-  gang:v2:foreign:v7:gc
+      (v7:foreign:v8:gc foreign)
     =.  cor  (give %fact ~[/gangs/updates] gangs+!>(`gangs:v2:gv`(my flag^gang-2 ~)))
     fi-core
   ::
@@ -4206,13 +4352,6 @@
     ?>  from-self
     =.  cor  (emil (get-index:fi-pass ship))
     fi-core
-  ::TODO unfortunate inherintance from old groups:
-  ::     since updates are sent out in +fi-abet,
-  ::     any calls to fi-agent will send out the whole update,
-  ::     even though no foreign group might be change. we
-  ::     should rather manually generate updates at the points
-  ::     that foreigns is affected.
-  ::
   ::  +fi-agent: receive foreign sign
   ::
   ++  fi-agent
@@ -4368,7 +4507,7 @@
       =.  foreigns
         %+  roll  ~(tap by previews)
         |=  [[=flag:gv =preview:v7:gv] =_foreigns]
-        =+  far=(~(gut by foreigns) flag *foreign:v7:gv)
+        =+  far=(~(gut by foreigns) flag *foreign:v8:gv)
         (~(put by foreigns) flag far(preview `preview))
       ::  v1
       ::

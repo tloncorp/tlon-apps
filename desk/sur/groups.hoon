@@ -7,6 +7,12 @@
 +$  flag  (pair ship term)
 ::  $nest: id for a channel
 +$  nest  (pair term flag)
+::  $plan: index into channel state
+::    p: post being referred to
+::    q: reply being referred to, if any
+::
++$  plan
+  (pair time (unit time))
 ::  $section-id: section id
 ::
 +$  section-id  term
@@ -141,6 +147,7 @@
       token=(unit token)
       note=(unit story:s)
       =preview
+      valid=?
   ==
 ::  $progress: group join in progress
 ::
@@ -263,17 +270,10 @@
       =banned
       members=(jug ship role-id)
   ==
-::  $plan: index into channel state
-::    p: post being referred to
-::    q: reply being referred to, if any
-::
-+$  plan
-  (pair time (unit time))
 ::  $flagged-content: flagged posts and replies that need admin review
 ::
 +$  flagged-content  (map nest (jug plan ship))
-::
-::  %groups acur interface
+::  %groups cqrs interface
 ::
 ::  a-* actions
 ::    actions are requests to the agent
@@ -568,6 +568,7 @@
 +$  a-foreigns
   $%  [%foreign =flag =a-foreign]
       [%invite =invite]
+      [%revoke =flag token=(unit token)]
   ==
 ::  $a-foreign: foreign group action
 ::
