@@ -13,7 +13,7 @@ import {
 } from '../domain';
 import { withRetry } from '../logic';
 
-const logger = createDevLogger('hostingApi', true);
+const logger = createDevLogger('hostingApi', false);
 
 interface HostingResponseErrorDetails {
   status: number | null;
@@ -109,9 +109,7 @@ const hostingFetch = async <T extends object>(
   }
 
   const responseText = await response.text();
-  if (__DEV__) {
-    console.debug('Response:', response.status, responseText);
-  }
+  logger.log('Response:', response.status, responseText);
 
   let result: { message: string } | T = { message: 'Empty response' };
   try {

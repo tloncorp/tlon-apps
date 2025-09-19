@@ -61,8 +61,6 @@ export function GroupMetaScreen(props: Props) {
       } else {
         onPressChatDetails({ type: 'group', id: groupId });
       }
-
-      store.createGroupInviteLink(groupId);
     },
     [
       setGroupMetadata,
