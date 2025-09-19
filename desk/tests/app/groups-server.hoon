@@ -515,7 +515,7 @@
 ::  +test-invites: test server group invitations
 ::
 ::  group server properly records invited ships in admissions.
-
+::
 ::  if a ship is invited a second time, the previous invitation
 ::  is revoked.
 ::
@@ -569,6 +569,9 @@
         (ex-poke-wire /foreigns/(scot %p p:my-flag)/[q:my-flag]/join/public)
         (ex-fact-paths ~[/gangs/updates])
     ==
+  ::TODO implement a +get-scry, +got-scry to return
+  ::     typed values.
+  ::
   ;<  peek=cage  bind:m
     (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)

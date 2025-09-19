@@ -1403,6 +1403,8 @@
       ::
       [%load %v7 %subscriptions ~]
     inflate-io
+  ::
+      ::  revoke expired invite
   ==
 ::  +safe-watch: safely watch a subscription path
 ::
@@ -2323,9 +2325,7 @@
   ++  se-send-invite
     |=  [=ship =invite:g]
     ^+  se-core
-    =+  invited=(~(get by invited.ad) ship)
-    =?  se-core  ?=(^ invited)
-      (emit (revoke-invite:se-pass ship token.u.invited))
+    =.  se-core  (se-revoke-invite ship)
     =.  invited.ad
       (~(put by invited.ad) ship [now.bowl token.invite])
     ::TODO sent only for backcompat. Remove when the update
@@ -2334,6 +2334,16 @@
     =.  se-core
       (emit (send-old-invite:se-pass ship (v7:invite:v8:gc invite)))
     (emit (send-invite:se-pass ship invite))
+  ::  +se-revoke-invite: revoke a previously issued invite
+  ::
+  ++  se-revoke-invite
+    |=  =ship
+    ^+  se-core
+    =+  invited=(~(get by invited.ad) ship)
+    =?  se-core  ?=(^ invited)
+      (emit (revoke-invite:se-pass ship token.u.invited))
+    =.  invited.ad  (~(del by invited.ad) ship)
+    se-core
   ::  +se-compat-send-invites: send invites in compatible manner
   ::
   ::  if a ship is in sync, we send the invitation as usual.
@@ -3068,9 +3078,7 @@
   ++  go-send-invite
     |=  [=ship =invite:g]
     ^+  go-core
-    =+  invited=(~(get by invited.ad) ship)
-    =?  go-core  ?=(^ invited)
-      (emit (revoke-invite:go-pass ship token.u.invited))
+    =.  go-core  (go-revoke-invite ship)
     =.  invited.ad
       (~(put by invited.ad) ship [now.bowl token.invite])
     ::TODO sent only for backcompat. Remove when the update
@@ -3079,6 +3087,16 @@
     =.  go-core
       (emit (send-old-invite:go-pass ship (v7:invite:v8:gc invite)))
     (emit (send-invite:go-pass ship invite))
+  ::  +go-revoke-invite: revoke a previously issued invite
+  ::
+  ++  go-revoke-invite
+    |=  =ship
+    ^+  go-core
+    =+  invited=(~(get by invited.ad) ship)
+    =?  go-core  ?=(^ invited)
+      (emit (revoke-invite:go-pass ship token.u.invited))
+    =.  invited.ad  (~(del by invited.ad) ship)
+    go-core
   ::  +go-a-group: execute group action
   ::
   ++  go-a-group
