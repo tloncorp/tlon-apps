@@ -8,6 +8,13 @@
       "when": 1754627490397,
       "tag": "0000_panoramic_xorn",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1758581582665,
+      "tag": "0001_curly_menace",
+      "breakpoints": true
     }
   ]
 }

@@ -58,6 +58,7 @@ export const settings = sqliteTable('settings', {
   completedWayfindingSplash: boolean('completed_wayfinding_splash'),
   completedWayfindingTutorial: boolean('completed_wayfinding_tutorial'),
   disableTlonInfraEnhancement: boolean('disable_tlon_infra_enhancement'),
+  nagStateContactBookPrompt: text('nag_state_contact_book_prompt'),
 });
 
 export const systemContacts = sqliteTable('system_contacts', {

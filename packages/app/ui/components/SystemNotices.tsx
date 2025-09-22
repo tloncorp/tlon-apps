@@ -1,10 +1,10 @@
-import * as db from '@tloncorp/shared/db';
 import { Button, Text } from '@tloncorp/ui';
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
 import { XStack, YStack, isWeb, styled } from 'tamagui';
 
 import { useContactPermissions } from '../../hooks/useContactPermissions';
+import { useNag } from '../../hooks/useNag';
 import { useStore } from '../contexts';
 
 const SystemNotices = {
@@ -40,11 +40,15 @@ export function ContactBookPrompt(props: {
 }) {
   const store = useStore();
   const perms = useContactPermissions();
-  const didDismiss = db.didDismissSystemContactsPrompt.useStorageItem();
+  const contactBookNag = useNag({
+    key: 'contactBookPrompt',
+    refreshInterval: 10 * 1000,
+    refreshCycle: 3,
+  });
 
   const handleDismiss = useCallback(() => {
-    didDismiss.setValue(true);
-  }, [didDismiss]);
+    contactBookNag.dismiss();
+  }, [contactBookNag]);
 
   const handlePrimaryAction = useCallback(async () => {
     if (perms.canAskPermission) {
@@ -54,20 +58,23 @@ export function ContactBookPrompt(props: {
           Alert.alert('Success', 'Your contacts have been synced.');
         });
         await store.syncContactDiscovery().catch(() => {
-          didDismiss.setValue(true);
+          contactBookNag.eliminate();
         });
+        contactBookNag.eliminate();
+      } else {
+        contactBookNag.dismiss();
       }
-      didDismiss.setValue(true);
     } else {
       perms.openSettings();
     }
-  }, [didDismiss, perms, store]);
+  }, [contactBookNag, perms, store]);
 
   if (
     isWeb ||
     perms.isLoading ||
     perms.status === 'granted' ||
-    didDismiss.value
+    contactBookNag.isLoading ||
+    !contactBookNag.shouldShow
   ) {
     return null;
   }

@@ -315,10 +315,6 @@ export const wayfindingProgress = createStorageItem<WayfindingProgress>({
   },
 });
 
-export const didDismissSystemContactsPrompt = createStorageItem<boolean>({
-  key: 'didDismissSystemContactsPrompt',
-  defaultValue: false,
-});
 
 export const lastLanyardSalt = createStorageItem<string | null>({
   key: 'lastLanyardSalt',

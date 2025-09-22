@@ -1,0 +1,1 @@
+ALTER TABLE `settings` ADD `nag_state_contact_book_prompt` text;

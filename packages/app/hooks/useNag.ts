@@ -10,7 +10,6 @@ import {
   serializeNagState,
   deserializeNagState,
   getLocalStorageKey,
-  getSettingsKey,
   filterNagKeys,
   type NagState,
   type NagConfig,
@@ -31,12 +30,8 @@ export {
   serializeNagState,
   deserializeNagState,
   getLocalStorageKey,
-  getSettingsKey,
   filterNagKeys,
   validateNagConfig,
-  // Backward compatibility - deprecated
-  dismissNag,
-  eliminateNagState,
 } from './nagLogic';
 
 /**
@@ -58,9 +53,42 @@ export interface NagHookReturn {
 }
 
 /**
- * Get stored state for a nag key from localStorage (fallback)
+ * Map nag keys to their corresponding schema fields
  */
-function getLocalNagState(key: string): NagState {
+function getSchemaField(nagKey: string): keyof db.Settings | null {
+  switch (nagKey) {
+    case 'contactBookPrompt':
+      return 'nagStateContactBookPrompt';
+    default:
+      return null;
+  }
+}
+
+/**
+ * Get stored state for a nag key
+ * Uses database as primary storage with localStorage fallback
+ */
+async function getNagState(key: string): Promise<NagState> {
+  try {
+    // Try database first (includes server sync)
+    const settings = await db.getSettings();
+    if (settings) {
+      const schemaField = getSchemaField(key);
+      if (schemaField) {
+        const rawState = settings[schemaField as keyof typeof settings];
+        if (typeof rawState === 'string') {
+          const state = deserializeNagState(rawState);
+          if (state) {
+            return state;
+          }
+        }
+      }
+    }
+  } catch (error) {
+    logger.log(`Failed to get nag state from database for key "${key}":`, error);
+  }
+
+  // Fallback to localStorage for unregistered nags or database errors
   try {
     const stored = localStorage.getItem(getLocalStorageKey(key));
     if (stored) {
@@ -70,61 +98,45 @@ function getLocalNagState(key: string): NagState {
       }
     }
   } catch (error) {
-    logger.log(`Failed to get local nag state for key "${key}":`, error);
+    logger.log(`Failed to get nag state from localStorage for key "${key}":`, error);
   }
 
   return createDefaultNagState();
 }
 
 /**
- * Save state for a nag key to localStorage (fallback)
+ * Save state for a nag key
+ * Uses database + server sync for registered nags, localStorage for others
  */
-function setLocalNagState(key: string, state: NagState): void {
-  try {
-    localStorage.setItem(getLocalStorageKey(key), serializeNagState(state));
-  } catch (error) {
-    logger.log(`Failed to save local nag state for key "${key}":`, error);
-  }
-}
+async function saveNagState(key: string, state: NagState): Promise<void> {
+  const stateJson = serializeNagState(state);
+  const schemaField = getSchemaField(key);
 
-/**
- * Get stored state for a nag key from server settings
- */
-async function getServerNagState(key: string): Promise<NagState | null> {
-  try {
-    const settings = await db.getSettings();
-    const settingsKey = getSettingsKey(key);
+  if (schemaField) {
+    // Registered nag: use database + server sync
+    try {
+      logger.log(`Setting nag state for key "${key}" (field: ${String(schemaField)}) with value:`, stateJson);
 
-    // Type-safe access to settings with proper validation
-    if (settings && typeof settings === 'object') {
-      const rawState = (settings as Record<string, unknown>)[settingsKey];
-      if (typeof rawState === 'string') {
-        return deserializeNagState(rawState);
-      }
+      // Store in local database immediately
+      await db.insertSettings({ [schemaField]: stateJson });
+
+      // Sync to server using the proper schema field name
+      await setSetting(String(schemaField), stateJson);
+
+      logger.log(`Successfully set nag state for key "${key}"`);
+    } catch (error) {
+      logger.log(`Failed to save nag state for key "${key}":`, error);
+      throw error;
     }
-  } catch (error) {
-    logger.log(`Failed to get server nag state for key "${key}":`, error);
-  }
-
-  return null;
-}
-
-/**
- * Save state for a nag key to server settings
- */
-async function setServerNagState(key: string, state: NagState): Promise<void> {
-  try {
-    const settingsKey = getSettingsKey(key);
-    const stateJson = serializeNagState(state);
-
-    // Store in local database optimistically
-    await db.insertSettings({ [settingsKey]: stateJson });
-
-    // Sync to server
-    await setSetting(settingsKey, stateJson);
-  } catch (error) {
-    logger.log(`Failed to save server nag state for key "${key}":`, error);
-    throw error;
+  } else {
+    // Unregistered nag: use localStorage only
+    try {
+      localStorage.setItem(getLocalStorageKey(key), stateJson);
+      logger.log(`Saved unregistered nag "${key}" to localStorage`);
+    } catch (error) {
+      logger.log(`Failed to save nag state to localStorage for key "${key}":`, error);
+      throw error;
+    }
   }
 }
 
@@ -219,17 +231,21 @@ export function useNag(config: NagConfig): NagHookReturn {
       setIsLoading(true);
 
       try {
-        let state: NagState | null = null;
-
-        if (!localOnly) {
-          // Try to load from server first
-          state = await getServerNagState(key);
-        }
-
-        if (!state) {
-          // Fallback to localStorage
-          state = getLocalNagState(key);
-        }
+        const state = localOnly
+          ? (() => {
+              // For localOnly, use localStorage directly
+              try {
+                const stored = localStorage.getItem(getLocalStorageKey(key));
+                if (stored) {
+                  const state = deserializeNagState(stored);
+                  if (state) return state;
+                }
+              } catch (error) {
+                logger.log(`Failed to get local nag state for key "${key}":`, error);
+              }
+              return createDefaultNagState();
+            })()
+          : await getNagState(key);
 
         setNagState(state);
       } catch (error) {
@@ -254,15 +270,19 @@ export function useNag(config: NagConfig): NagHookReturn {
     // Update local state immediately for responsiveness
     setNagState(newState);
 
-    // Save to localStorage as immediate fallback
-    setLocalNagState(key, newState);
-
-    if (!localOnly) {
+    if (localOnly) {
+      // For localOnly, use localStorage directly
       try {
-        // Attempt to save to server
-        await setServerNagState(key, newState);
+        localStorage.setItem(getLocalStorageKey(key), serializeNagState(newState));
       } catch (error) {
-        logger.log(`Failed to sync nag state to server for key "${key}":`, error);
+        logger.log(`Failed to save local nag state for key "${key}":`, error);
+      }
+    } else {
+      try {
+        // Use unified save function (database + server or localStorage)
+        await saveNagState(key, newState);
+      } catch (error) {
+        logger.log(`Failed to save nag state for key "${key}":`, error);
         // Local state already updated, so user experience continues smoothly
       }
     }
@@ -308,27 +328,33 @@ export function useNag(config: NagConfig): NagHookReturn {
  */
 export async function eliminateNag(key: string, localOnly: boolean = false): Promise<void> {
   try {
-    let currentState: NagState | null = null;
-
-    if (!localOnly) {
-      currentState = await getServerNagState(key);
-    }
-
-    if (!currentState) {
-      currentState = getLocalNagState(key);
-    }
+    // Get current state
+    const currentState = localOnly
+      ? (() => {
+          try {
+            const stored = localStorage.getItem(getLocalStorageKey(key));
+            if (stored) {
+              const state = deserializeNagState(stored);
+              if (state) return state;
+            }
+          } catch (error) {
+            logger.log(`Failed to get local nag state for key "${key}":`, error);
+          }
+          return createDefaultNagState();
+        })()
+      : await getNagState(key);
 
     const newState = createEliminatedState(currentState);
 
-    // Always update localStorage
-    setLocalNagState(key, newState);
-
-    if (!localOnly) {
+    // Save eliminated state
+    if (localOnly) {
       try {
-        await setServerNagState(key, newState);
+        localStorage.setItem(getLocalStorageKey(key), serializeNagState(newState));
       } catch (error) {
-        logger.log(`Failed to sync eliminated nag "${key}" to server:`, error);
+        logger.log(`Failed to save local nag state for key "${key}":`, error);
       }
+    } else {
+      await saveNagState(key, newState);
     }
   } catch (error) {
     logger.log(`Failed to eliminate nag "${key}":`, error);
@@ -353,9 +379,9 @@ export async function resetNag(key: string, localOnly: boolean = false): Promise
 
     if (!localOnly) {
       try {
-        // Reset to default state on server
+        // Reset to default state using the unified save function
         const defaultState = createDefaultNagState();
-        await setServerNagState(key, defaultState);
+        await saveNagState(key, defaultState);
       } catch (error) {
         logger.log(`Failed to reset nag "${key}" on server:`, error);
       }
@@ -379,17 +405,20 @@ export async function resetNag(key: string, localOnly: boolean = false): Promise
  */
 export async function getNagStats(key: string, localOnly: boolean = false): Promise<NagState> {
   try {
-    let state: NagState | null = null;
-
-    if (!localOnly) {
-      state = await getServerNagState(key);
-    }
-
-    if (!state) {
-      state = getLocalNagState(key);
-    }
-
-    return state;
+    return localOnly
+      ? (() => {
+          try {
+            const stored = localStorage.getItem(getLocalStorageKey(key));
+            if (stored) {
+              const state = deserializeNagState(stored);
+              if (state) return state;
+            }
+          } catch (error) {
+            logger.log(`Failed to get local nag state for key "${key}":`, error);
+          }
+          return createDefaultNagState();
+        })()
+      : await getNagState(key);
   } catch (error) {
     logger.log(`Failed to get nag stats for key "${key}":`, error);
     return createDefaultNagState();
