@@ -240,15 +240,7 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
               justifyContent: inverted ? 'flex-end' : 'flex-start',
             }}
           >
-            <View
-              style={[
-                {
-                  flex: 1,
-                  flexDirection: 'column',
-                },
-                contentContainerStyle,
-              ]}
-            >
+            <View style={[{ flexDirection: 'column' }, contentContainerStyle]}>
               {orderedData.map((item, index) => (
                 <PostListItem key={item.post.id} item={item} index={index}>
                   {renderItem({ item, index })}
