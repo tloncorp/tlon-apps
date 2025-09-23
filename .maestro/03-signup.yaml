@@ -1,0 +1,62 @@
+appId: io.tlon.groups
+---
+- runFlow: subflows/launch.yaml
+- assertVisible: 'Sign up'
+
+# enter signup flow
+- tapOn: 'Sign up'
+- assertVisible: 'join.tlon.io/0v4.pca0n.evapv...'
+
+# add invite link
+- tapOn: 'join.tlon.io/0v4.pca0n.evapv...'
+- inputText: 'https://join.tlon.io/0v3.ek16k.h4oiu.6kl8g.v0h6v.t48o2'
+
+# select email signup
+- assertVisible: Or if you'd prefer, sign up with an email address
+- tapOn: Or if you'd prefer, sign up with an email address
+
+# get test email and use it
+- runScript: scripts/generateSignupEmail.js
+- inputText: ${output.signupEmail}
+- tapOn: Sign up
+
+# get OTP and submit it digit by digit. Attempting to insert
+# all at once causes flakiness. extendedWaitUntil calls are a
+# workaround to delay next digit insertion
+- runScript: scripts/getEmailOtp.js
+
+- inputText: ${output.otpDigit1}
+- extendedWaitUntil:
+    visible: invalidText
+    optional: true
+    timeout: 100
+
+- inputText: ${output.otpDigit2}
+- extendedWaitUntil:
+    visible: invalidText
+    optional: true
+    timeout: 100
+
+- inputText: ${output.otpDigit3}
+- extendedWaitUntil:
+    visible: invalidText
+    optional: true
+    timeout: 100
+
+- inputText: ${output.otpDigit4}
+- extendedWaitUntil:
+    visible: invalidText
+    optional: true
+    timeout: 100
+
+- inputText: ${output.otpDigit5}
+- extendedWaitUntil:
+    visible: invalidText
+    optional: true
+    timeout: 100
+
+- inputText: ${output.otpDigit6}
+- extendedWaitUntil:
+    visible: invalidText
+    optional: true
+    timeout: 100
