@@ -9,8 +9,8 @@ const isProductionMode = process.env.USE_PRODUCTION_BUILD === 'true';
 const webServers = Object.entries(shipManifest).map(
   ([key, ship]: [string, any]) => ({
     command: isProductionMode
-      ? `cross-env SHIP_URL=${ship.url} VITE_DISABLE_SPLASH_MODAL=true pnpm serve --port ${ship.webUrl.match(/:(\d+)/)?.[1] || '3000'} --host`
-      : `cross-env SHIP_URL=${ship.url} VITE_DISABLE_SPLASH_MODAL=true pnpm dev-no-ssl`,
+      ? `cross-env SHIP_URL=${ship.url}  VITE_INVITE_PROVIDER=http://localhost:39983 VITE_DISABLE_SPLASH_MODAL=true pnpm serve --port ${ship.webUrl.match(/:(\d+)/)?.[1] || '3000'} --host`
+      : `cross-env SHIP_URL=${ship.url} VITE_INVITE_PROVIDER=http://localhost:39983 VITE_DISABLE_SPLASH_MODAL=true pnpm dev-no-ssl`,
     url: `${ship.webUrl}/apps/groups/`,
     reuseExistingServer: !process.env.CI,
     timeout: isProductionMode ? 180 * 1000 : 120 * 1000,
