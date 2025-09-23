@@ -200,13 +200,6 @@ export function getSettingsKey(nagKey: string): string {
 }
 
 /**
- * Filters localStorage keys to find all nag-related keys
- */
-export function filterNagKeys(allKeys: string[]): string[] {
-  return allKeys.filter(key => key.startsWith('nag_state_'));
-}
-
-/**
  * Validates nag configuration
  */
 export function validateNagConfig(config: NagConfig): string[] {

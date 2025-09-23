@@ -9,7 +9,6 @@ import {
   deserializeNagState,
   getLocalStorageKey,
   getSettingsKey,
-  filterNagKeys,
   validateNagConfig,
   type NagState,
   type NagConfig,
@@ -218,32 +217,6 @@ describe('nagLogic', () => {
     it('should generate correct settings key', () => {
       expect(getSettingsKey('test')).toBe('nagState_test');
       expect(getSettingsKey('onboarding')).toBe('nagState_onboarding');
-    });
-  });
-
-  describe('filterNagKeys', () => {
-    it('should filter nag-related keys', () => {
-      const keys = [
-        'nag_state_test1',
-        'nag_state_test2',
-        'other_key',
-        'nag_state_another',
-        'something_else',
-      ];
-
-      const result = filterNagKeys(keys);
-
-      expect(result).toEqual([
-        'nag_state_test1',
-        'nag_state_test2',
-        'nag_state_another',
-      ]);
-    });
-
-    it('should return empty array if no nag keys', () => {
-      const keys = ['other_key', 'something_else'];
-      const result = filterNagKeys(keys);
-      expect(result).toEqual([]);
     });
   });
 

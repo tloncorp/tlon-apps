@@ -10,7 +10,6 @@ import {
   serializeNagState,
   deserializeNagState,
   getLocalStorageKey,
-  filterNagKeys,
   type NagState,
   type NagConfig,
 } from './nagLogic';
@@ -30,7 +29,6 @@ export {
   serializeNagState,
   deserializeNagState,
   getLocalStorageKey,
-  filterNagKeys,
   validateNagConfig,
 } from './nagLogic';
 
@@ -307,60 +305,6 @@ export function useNag(config: NagConfig): NagHookReturn {
     isLoading,
   };
 }
-
-/**
- * Utility function to manually eliminate a nag without needing the hook
- * Useful for eliminating nags from outside components or in response to global events
- *
- * @param key The nag key to eliminate
- * @param localOnly Whether to only update localStorage (skip server sync)
- *
- * @example
- * // Eliminate onboarding nag when user completes tutorial
- * eliminateNag('onboarding');
- *
- * @example
- * // Eliminate feature nag when user uses the feature
- * async function useFeature() {
- *   await eliminateNag('newFeature');
- *   // ... feature logic
- * }
- */
-export async function eliminateNag(key: string, localOnly: boolean = false): Promise<void> {
-  try {
-    // Get current state
-    const currentState = localOnly
-      ? (() => {
-          try {
-            const stored = localStorage.getItem(getLocalStorageKey(key));
-            if (stored) {
-              const state = deserializeNagState(stored);
-              if (state) return state;
-            }
-          } catch (error) {
-            logger.log(`Failed to get local nag state for key "${key}":`, error);
-          }
-          return createDefaultNagState();
-        })()
-      : await getNagState(key);
-
-    const newState = createEliminatedState(currentState);
-
-    // Save eliminated state
-    if (localOnly) {
-      try {
-        localStorage.setItem(getLocalStorageKey(key), serializeNagState(newState));
-      } catch (error) {
-        logger.log(`Failed to save local nag state for key "${key}":`, error);
-      }
-    } else {
-      await saveNagState(key, newState);
-    }
-  } catch (error) {
-    logger.log(`Failed to eliminate nag "${key}":`, error);
-  }
-}
-
 /**
  * Utility function to reset a nag back to its initial state
  * Useful for testing or administrative functions
@@ -391,68 +335,3 @@ export async function resetNag(key: string, localOnly: boolean = false): Promise
   }
 }
 
-/**
- * Utility function to get current nag statistics
- * Useful for analytics or debugging
- *
- * @param key The nag key to inspect
- * @param localOnly Whether to only check localStorage (skip server query)
- * @returns Current nag state information
- *
- * @example
- * const stats = await getNagStats('onboarding');
- * console.log(`Nag dismissed ${stats.dismissCount} times`);
- */
-export async function getNagStats(key: string, localOnly: boolean = false): Promise<NagState> {
-  try {
-    return localOnly
-      ? (() => {
-          try {
-            const stored = localStorage.getItem(getLocalStorageKey(key));
-            if (stored) {
-              const state = deserializeNagState(stored);
-              if (state) return state;
-            }
-          } catch (error) {
-            logger.log(`Failed to get local nag state for key "${key}":`, error);
-          }
-          return createDefaultNagState();
-        })()
-      : await getNagState(key);
-  } catch (error) {
-    logger.log(`Failed to get nag stats for key "${key}":`, error);
-    return createDefaultNagState();
-  }
-}
-
-/**
- * Utility function to clear all nag data
- * Useful for user privacy controls or testing
- *
- * @param localOnly Whether to only clear localStorage (skip server cleanup)
- *
- * @example
- * // Clear all nag data when user clears app data
- * await clearAllNags();
- */
-export async function clearAllNags(localOnly: boolean = false): Promise<void> {
-  try {
-    // Clear localStorage
-    const keys = Object.keys(localStorage);
-    const nagKeys = filterNagKeys(keys);
-    nagKeys.forEach(key => localStorage.removeItem(key));
-
-    if (!localOnly) {
-      try {
-        // Clear server settings - this would require knowing all nag keys
-        // In practice, this might be better handled by a server-side cleanup function
-        // For now, we'll warn that server cleanup is manual
-        logger.log('Server-side nag cleanup requires manual intervention. Only localStorage cleared.');
-      } catch (error) {
-        logger.log('Failed to clear server nag data:', error);
-      }
-    }
-  } catch (error) {
-    logger.log('Failed to clear nag data:', error);
-  }
-}
