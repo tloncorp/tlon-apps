@@ -62,6 +62,20 @@ export const setSetting = async (key: string, val: any) => {
   });
 };
 
+export const deleteSetting = async (key: string) => {
+  return poke({
+    app: 'settings',
+    mark: 'settings-event',
+    json: {
+      'del-entry': {
+        desk: 'groups',
+        'bucket-key': getBucket(key),
+        'entry-key': key,
+      },
+    },
+  });
+};
+
 export const getSettings = async () => {
   const results = await scry<ub.GroupsDeskSettings>({
     app: 'settings',
