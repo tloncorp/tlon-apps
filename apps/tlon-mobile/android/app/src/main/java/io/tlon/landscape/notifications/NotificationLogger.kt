@@ -18,8 +18,13 @@ object NotificationLogger {
 
     private fun log(eventName: String, properties: Map<String, Any> = emptyMap()) {
         try {
-            PostHog.capture(eventName, properties = properties)
-            Log.i("PostHog", "Event captured: $eventName, $properties")
+            val enhancedProperties = properties.toMutableMap().apply {
+                put("source", "notification_service_extension")
+                put("\$lib", "android-notification-extension")
+                put("\$lib_version", "1.0.0")
+            }
+            PostHog.capture(eventName, properties = enhancedProperties)
+            Log.i("PostHog", "Event captured: $eventName, $enhancedProperties")
         } catch (e: Exception) {
             Log.d("PostHogFallback", "Event: $eventName, Properties: $properties, Error: ${e.message}")
         }
