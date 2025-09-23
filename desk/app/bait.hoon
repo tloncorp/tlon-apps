@@ -1,4 +1,4 @@
-/-  reel
+/-  reel, groups-ver
 /+  default-agent, verb, dbug, server, logs, *reel
 |%
 +$  card  card:agent:gall
@@ -6,6 +6,7 @@
   $%  state-0
       state-1
       state-2
+      state-3
   ==
 ::
 +$  state-0
@@ -14,21 +15,26 @@
   ==
 +$  state-1
   $:  %1
-      token-metadata=(map [inviter=ship token=cord] metadata:reel)
+      token-metadata=(map [inviter=ship token=cord] metadata:v0:reel)
   ==
 +$  state-2
   $:  %2
-      token-metadata=(map token:reel metadata:reel)
+      token-metadata=(map token:reel metadata:v0:reel)
+  ==
++$  state-3
+  $:  %3
+      token-metadata=(map token:reel metadata:v1:reel)
+      stable-id=(jug cord token:reel)
+      branch-secret=@t
   ==
 --
-::
 |%
 ++  landing-page
   |=  =metadata:reel
   ^-  manx
   =/  description
     ?.  =(tag.metadata 'groups-0')  ""
-    (trip (~(got by fields.metadata) 'description'))
+    (trip (~(got by fields.metadata) %'invitedGroupDescription'))
   ;html
     ;head
       ;title:"Lure"
@@ -58,15 +64,53 @@
   ==
 --
 ::
-=|  state-2
+=|  state-3
 =*  state  -
 ::
 %-  agent:dbug
 %+  verb  |
+=>
+|%
+::  |l: logs core
+::
+++  l
+  |_  [=bowl:gall =log-data:logs]
+  ++  fail
+    |=  [desc=term =tang]
+    %-  link
+    %-  %-  %*(. slog pri 3)  [leaf+"fail" tang]
+    (~(fail logs our.bowl /logs) desc tang log-data)
+  ::
+  ++  tell
+    |=  [vol=volume:logs =echo:logs =log-data:logs]
+    =/  pri
+      ?-  vol
+        %dbug  0
+        %info  1
+        %warn  2
+        %crit  3
+      ==
+    %-  link
+    %-  %-  %*(. slog pri pri)  echo
+    (~(tell logs our.bowl /logs) vol echo (weld ^log-data log-data))
+  ::  +deez: log message details
+  ::
+  :: ++  deez
+  ::   ^-  (list (pair @t json))
+  ::   =;  l=(list (unit (pair @t json)))
+  ::     (murn l same)
+  ::   :~  ?~(flow ~ `'flow'^s+u.flow)
+  ::   ==
+  ++  link
+    |=  cad=card
+    |*  [caz=(list card) etc=*]
+    [[cad caz] etc]
+  --
+--
 |_  =bowl:gall
 +*  this  .
     def   ~(. (default-agent this %|) bowl)
-    log   ~(. logs [our.bowl /logs])
+    log   ~(. l bowl ~)
 ::
 ++  on-init
   ^-  (quip card _this)
@@ -76,34 +120,56 @@
 ++  on-load
   |=  old-state=vase
   ^-  (quip card _this)
-  =/  old  !<(versioned-state old-state)
-  ?-  -.old
-      %2
-    `this(state old)
-  ::
-      %1
+  =+  !<(old=versioned-state old-state)
+  =?  old  ?=(%0 -.old)
+    *state-2
+  =?  old  ?=(%1 -.old)
     =/  new-metadata
-      %-  ~(gas by *(map token:reel metadata:reel))
+      %-  ~(gas by *(map token:reel metadata:v0:reel))
       %+  turn
         ~(tap by token-metadata.old)
-      |=  [[inviter=ship =token:reel] meta=metadata:reel]
+      |=  [[inviter=ship =token:reel] meta=metadata:v0:reel]
       =/  new-token
         (rap 3 (scot %p inviter) '/' token ~)
       [new-token meta]
-    `this(state [%2 new-metadata])
-  ::
-      %0
-    `this(state *state-2)
-  ==
+    [%2 new-metadata]
+  =?  old  ?=(%2 -.old)
+    :: scan the token-metadata to construct the stable-id index
+    ::
+    =|  stable-id=(jug cord token:reel)
+    =.  stable-id
+      %+  roll  ~(tap by token-metadata.old)
+      |=  [[=token:reel =metadata:v0:reel] =_stable-id]
+      =+  id-old=(~(get by fields.metadata) 'group')
+      =+  id-new=(~(get by fields.metadata) 'invitedGroupId')
+      ?~  id=(hunt |=(^ |) id-old id-new)
+        stable-id
+      ::  don't index personal invite links
+      ?:  =(u.id '~zod/personal-invite-link')  stable-id
+      (~(put ju stable-id) u.id token)
+    :*  %3
+        (~(run by token-metadata.old) v1:metadata:v0:conv)
+        stable-id
+        ''
+    ==
+  ?>  ?=(%3 -.old)
+  =.  state  old
+  `this
 ::
 ++  on-poke
   |=  [=mark =vase]
   ^-  (quip card _this)
   ?+    mark  (on-poke:def mark vase)
+      %noun
+    ?+    q.vase  !!
+        [%branch-secret @t]
+      =+  ;;(secret=@t +.q.vase)
+      `this(branch-secret secret)
+    ==
+  ::
       %handle-http-request
     =+  !<([id=@ta inbound-request:eyre] vase)
     |^
-    :_  this
     =/  full-line=request-line:server  (parse-request-line:server url.request)
     =/  line
       ?:  ?=([%lure @ *] site.full-line)
@@ -111,10 +177,11 @@
       ?:  ?=([@ @ *] site.full-line)
         site.full-line
       !!
-    ?+    method.request  (give not-found:gen:server)
-      %'GET'  (get-request line)
+    ?+    method.request  [(give not-found:gen:server) this]
+      %'GET'  [(get-request line) this]
     ::
         %'OPTIONS'
+      :_  this
       %-  give
       =;  =header-list:http
         [[204 header-list] ~]
@@ -128,47 +195,41 @@
       ==
     ::
         %'POST'
+      =*  log  ~(. l bowl 'flow'^s+'lure' ~)
       ?~  body.request
-        :_  (give (not-found 'body not found'))
-        %^  tell:log  %crit
-          ~['POST body not found']
-        ~['event'^s+'Lure POST Fail' 'flow'^s+'lure']
+        %-  %^  tell:log  %crit
+              ~['POST request body not found']
+            ~['event'^s+'Lure POST Fail']
+        :_  this
+        (give (not-found 'body not found'))
       ?.  =('ship=%7E' (end [3 8] q.u.body.request))
-        :_  (give (not-found 'ship not found in body'))
-        %^  tell:log  %crit
-          ~['ship not found in POST body']
-        ~['event'^s+'Lure POST Fail' 'flow'^s+'lure']
+        %-  %^  tell:log  %crit
+              ~['ship not found in POST body']
+            ~['event'^s+'Lure POST Fail']
+        :_  this
+        (give (not-found 'ship not found in body'))
       =/  joiner=@p  (slav %p (cat 3 '~' (rsh [3 8] q.u.body.request)))
       ::
       =/  token
         ?~  ext.full-line  i.line
         (crip "{(trip i.line)}.{(trip u.ext.full-line)}")
-      =>
-        |%
-        ++  lure-log
-          |=  [=volume:logs event=@t =echo:logs]
-          %^  tell:log  volume
-            echo
-          :~  'event'^s+event
-              'flow'^s+'lure'
-              'lure-id'^s+token
-              'lure-joiner'^s+(scot %p joiner)
-          ==
-        --
+      =*  log  ~(. l bowl 'flow'^s+'lure' 'lure-id'^s+token 'lure-joiner'^s+(scot %p joiner) ~)
       =;  [bite=(unit bite:reel) inviter=(unit ship)]
         ?~  bite
-          :_  (give (not-found 'invite token not found'))
-          %^  lure-log  %crit  'Invite Token Missing'
-          ~[leaf+"invite token {<token>} not found"]
+          %-  %^  tell:log  %crit  ~[leaf+"invite token {<token>} not found"]
+              ~['event'^s+'Invite Token Missing']
+          :_  this
+          (give (not-found 'invite token not found'))
         ?~  inviter
-          :_  (give (not-found 'inviter not found'))
-          %^  lure-log  %crit  'Inviter Not Found'
-          ~['inviter not found']
+          %-  %^  tell:log  %crit  ~['inviter not found']
+              ~['event'^s+'Inviter Not Found']
+          :_  this
+          (give (not-found 'inviter not found'))
+        %-  %^  tell:log  %info  ~[leaf+"{<joiner>} redeemed lure invite from {<u.inviter>}"]
+            ~['event'^s+'Invite Redeemed']
+        :_  this
         ^-  (list card)
-        :*  %^  lure-log  %info  'Invite Redeemed'
-            ~[leaf+"{<joiner>} redeemed lure invite from {<u.inviter>}"]
-            ::
-            :*  %pass  /bite  %agent  [u.inviter %reel]
+        :*  :*  %pass  /bite  %agent  [u.inviter %reel]
                 %poke  %reel-bite  !>(u.bite)
             ==
           (give (manx-response:gen:server (sent-page joiner)))
@@ -180,11 +241,11 @@
         :_  `inviter
         `[%bite-1 old-token joiner inviter]
       =/  =metadata:reel  (~(gut by token-metadata) token *metadata:reel)
-      ?~  type=(~(get by fields.metadata) 'bite-type')
+      ?~  type=(~(get by fields.metadata) %'bite-type')
         [~ ~]
       ?>  =('2' u.type)
       :-  `[%bite-2 token joiner metadata]
-      ?~  inviter-field=(~(get by fields.metadata) 'inviter')
+      ?~  inviter-field=(~(get by fields.metadata) %'inviterUserId')
         ~
       `(slav %p u.inviter-field)
     ==
@@ -230,13 +291,73 @@
       %bait-describe
     =+  !<([=nonce:reel =metadata:reel] vase)
     =/  =token:reel  (scot %uv (end [3 16] eny.bowl))
-    :_  this(token-metadata (~(put by token-metadata) token metadata))
+    ::  record the token metadata and add the token to the stable-id set
+    ::  if the group field exists.
+    ::
+    =.  token-metadata
+      (~(put by token-metadata) token metadata)
+    =+  id=(~(get by fields.metadata) %'invitedGroupId')
+    =?  stable-id  &(?=(^ id) !=(u.id '~zod/personal-invite-link'))
+      (~(put ju stable-id) u.id token)
+    :_  this
     =/  =cage  reel-confirmation+!>([nonce token])
     ~[[%pass /confirm/[nonce] %agent [src.bowl %reel] %poke cage]]
   ::
       %bait-undescribe
     =+  !<(token=cord vase)
-    `this(token-metadata (~(del by token-metadata) token))
+    =+  metadata=(~(get by token-metadata) token)
+    =.  token-metadata  (~(del by token-metadata) token)
+    =?  stable-id  ?=(^ metadata)
+      ?~  id=(~(get by fields.u.metadata) %'invitedGroupId')
+        stable-id
+      (~(del ju stable-id) u.id token)
+    `this
+  ::
+      ::  update an invite by token
+      ::
+      %bait-update
+    =+  !<([=token:reel update=metadata:reel] vase)
+    ?~  meta=(~(get by token-metadata) token)  `this
+    ::  update the invite
+    ::
+    =.  token-metadata
+      %+  ~(jab by token-metadata)  token
+      |=  =metadata:reel
+      metadata(fields (~(uni by fields.metadata) fields.update))
+    ::  update the branch link metadata
+    ::
+    =/  fard=(fyrd:khan cage)
+      [q.byk.bowl %branch-update noun+!>(`[token update])]
+    :_  this
+    [%pass /branch/[token] %arvo %k %fard fard]~
+  ::
+      ::  update invites associated with a group
+      ::
+      %bait-update-group
+    =+  !<([=flag:groups-ver update=metadata:reel] vase)
+    ::  update linked invites
+    ::
+    =+  id=(rap 3 (scot %p p.flag) '/' q.flag ~)
+    ::  only the group host is allowed to update associated invites
+    ?.  =(p.flag src.bowl)  `this
+    =.  token-metadata
+      %+  roll  ~(tap in (~(get ju stable-id) id))
+      |=  [=token:reel =_token-metadata]
+      ?~  metadata=(~(get by token-metadata) token)
+        token-metadata
+      %+  ~(put by token-metadata)  token
+      u.metadata(fields (~(uni by fields.u.metadata) fields.update))
+    ::  update branch links
+    ::
+    =/  caz=(list card)
+      %+  roll  ~(tap in (~(get ju stable-id) id))
+      |=  [=token:reel caz=(list card)]
+      ?~  metadata=(~(get by token-metadata) token)  caz
+      =/  fard=(fyrd:khan cage)
+        [q.byk.bowl %branch-update noun+!>(`[token update])]
+      :_  caz
+      [%pass /branch/[token] %arvo %k %fard fard]
+    [caz this]
   ::
       %bind-slash
     :_  this
@@ -255,20 +376,47 @@
     [%http-response *]  `this
   ==
 ++  on-leave  on-leave:def
-++  on-peek   on-peek:def
+++  on-peek
+  |=  =path
+  ^-  (unit (unit cage))
+  ?+    path  (on-peek:def path)
+      [%x token=@ %metadata ~]
+    ?~  meta=(~(get by token-metadata) i.t.path)
+      [~ ~]
+    ``noun+!>(u.meta)
+  ::
+      [%x %branch-secret ~]
+    ``noun+!>(branch-secret)
+  ==
 ++  on-arvo
   |=  [=wire =sign-arvo]
   ^-  (quip card _this)
-  ?+    sign-arvo  (on-arvo:def wire sign-arvo)
-      [%eyre %bound *]
+  ?+    wire  (on-arvo:def wire sign-arvo)
+      [%eyre %connect ~]
+    ?>  ?=([%eyre %bound *] sign-arvo)
     ~?  !accepted.sign-arvo
       [dap.bowl 'eyre bind rejected!' binding.sign-arvo]
     [~ this]
+  ::
+      [%branch token=@ ~]
+    ?>  ?=([%khan %arow *] sign-arvo)
+    ?:  ?=(%& -.p.sign-arvo)  `this
+    =*  token  i.t.wire
+    =*  goof  p.p.sign-arvo
+    =*  log  ~(. l bowl 'flow'^s+'lure' ~)
+    %-  %^  tell:log  %crit
+        :*  'failed to update lure invite branch metadata'
+            token
+            mote.goof
+            tang.goof
+        ==
+        ~
+    `this
   ==
 ::
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  :_  this
-  [(fail:log term tang ~)]~
+  %-  (fail:log term tang)
+  `this
 --

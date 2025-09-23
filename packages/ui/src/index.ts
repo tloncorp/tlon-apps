@@ -1,5 +1,12 @@
+// Layout constants
 export const DESKTOP_TOPLEVEL_SIDEBAR_WIDTH = 48;
 export const DESKTOP_SIDEBAR_WIDTH = 325;
+
+// Common UI dimensions
+export const HEADER_HEIGHT = 48;
+export const DEFAULT_KEYBOARD_OFFSET = 60;
+export const KEYBOARD_EXTRA_PADDING = 50;
+export const DEFAULT_BOTTOM_PADDING = 20;
 
 export * from './types';
 export * from './components/Button';

@@ -13,3 +13,6 @@ stats.html
 /playwright/.cache/
 
 /e2e/.auth/
+
+# Environment files
+.env.test
