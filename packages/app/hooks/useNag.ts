@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
-import { setSetting } from '../../shared/src/api/settingsApi';
+import { setSetting, deleteSetting } from '../../shared/src/api/settingsApi';
 import * as db from '../../shared/src/db';
 import { createDevLogger } from '../../shared/src/debug';
 import {
@@ -14,10 +14,7 @@ import {
   type NagConfig,
 } from './nagLogic';
 
-// Import NagConfig from nagLogic
-// This consolidates all configuration interfaces in one place
-
-const logger = createDevLogger('useNag', false);
+const logger = createDevLogger('useNag', true);
 
 // Re-export types and pure functions from nagLogic for convenience
 export type { NagState, NagConfig, NagBehaviorConfig } from './nagLogic';
@@ -317,21 +314,54 @@ export function useNag(config: NagConfig): NagHookReturn {
  * await resetNag('onboarding');
  */
 export async function resetNag(key: string, localOnly: boolean = false): Promise<void> {
+  logger.log(`Starting resetNag for key "${key}", localOnly: ${localOnly}`);
+  
   try {
-    // Always remove from localStorage
-    localStorage.removeItem(getLocalStorageKey(key));
+    // Remove from localStorage (web) or AsyncStorage equivalent if available
+    try {
+      const localStorageKey = getLocalStorageKey(key);
+      logger.log(`Attempting to remove localStorage/AsyncStorage key: ${localStorageKey}`);
+      
+      // Only try localStorage if it exists (web environment)
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.removeItem(localStorageKey);
+        logger.log(`Removed from localStorage: ${localStorageKey}`);
+      } else {
+        logger.log(`localStorage not available (React Native environment), skipping localStorage removal`);
+      }
+    } catch (error) {
+      logger.log(`Failed to remove from localStorage:`, error);
+      // Continue anyway - this isn't critical for registered nags
+    }
 
     if (!localOnly) {
-      try {
-        // Reset to default state using the unified save function
-        const defaultState = createDefaultNagState();
-        await saveNagState(key, defaultState);
-      } catch (error) {
-        logger.log(`Failed to reset nag "${key}" on server:`, error);
+      const schemaField = getSchemaField(key);
+      logger.log(`Schema field for key "${key}": ${String(schemaField)}`);
+      
+      if (schemaField) {
+        try {
+          // For registered nags, remove from database and server
+          logger.log(`Setting database field ${String(schemaField)} to null`);
+          await db.insertSettings({ [schemaField]: null });
+          
+          logger.log(`Deleting server setting: ${String(schemaField)}`);
+          await deleteSetting(String(schemaField));
+          
+          logger.log(`Successfully reset nag "${key}" on server`);
+        } catch (error) {
+          logger.log(`Failed to reset nag "${key}" on server:`, error);
+          throw error;
+        }
+      } else {
+        logger.log(`No schema field found for key "${key}", skipping server operations`);
       }
     }
+    
+    logger.log(`Successfully reset nag "${key}"`);
   } catch (error) {
     logger.log(`Failed to reset nag state for key "${key}":`, error);
+    console.error(`resetNag error for "${key}":`, error);
+    throw error; 
   }
 }
 
