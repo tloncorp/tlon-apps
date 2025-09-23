@@ -24,7 +24,7 @@ type BenchmarkResult = {
   averageMs: number;
 };
 
-const DEFAULT_ITERATIONS = 5;
+const DEFAULT_ITERATIONS = 20;
 const DEFAULT_GROUP_ID = '~dabben-larbet/tlon';
 const DEFAULT_CHANNEL_ID = 'chat/~bolbex-fogdys/watercooler-4926';
 const DEFAULT_POST_ID = '170.141.184.507.564.814.050.592.658.866.080.579.584';
@@ -444,10 +444,13 @@ export function QueryBenchScreen() {
     >
       <Text size="$label/xl">Query Benchmarks</Text>
 
-      <View flexDirection="row" gap="$m">
+      <View flexDirection="row" gap="$m" alignItems="center">
         <Button disabled={isRunning || !benchmarkData} onPress={runBenchmarks}>
           <Button.Text>{isRunning ? 'Running…' : `Run all`}</Button.Text>
         </Button>
+        <Text color="$secondaryText" fontSize="$s">
+          {iterations} iterations
+        </Text>
         <Button
           disabled={isRunning}
           onPress={() => setIterations((n) => Math.max(1, n - 5))}
@@ -474,6 +477,34 @@ export function QueryBenchScreen() {
       ) : null}
 
       <ScrollView style={{ flex: 1 }}>
+        <View
+          flexDirection="row"
+          alignItems="center"
+          paddingVertical="$m"
+          paddingHorizontal="$m"
+          borderBottomWidth={2}
+          borderBottomColor="$border"
+          backgroundColor="$secondaryBackground"
+        >
+          <View flex={4} marginRight="$m">
+            <Text fontSize="$s" fontWeight="600" color="$secondaryText">
+              Query
+            </Text>
+          </View>
+
+          <View flex={2} alignItems="flex-end" marginRight="$m">
+            <Text fontSize="$s" fontWeight="600" color="$secondaryText">
+              Avg
+            </Text>
+          </View>
+
+          <View flex={1} alignItems="flex-end">
+            <Text fontSize="$s" fontWeight="600" color="$secondaryText">
+              Run
+            </Text>
+          </View>
+        </View>
+
         {cases
           .sort((a, b) => {
             const resultA = results.find((r) => r.id === a.id);
@@ -493,39 +524,44 @@ export function QueryBenchScreen() {
             return (
               <View
                 key={benchCase.id}
-                marginBottom="$m"
-                padding="$m"
-                borderWidth={1}
-                borderColor="$border"
-                borderRadius="$m"
+                flexDirection="row"
+                alignItems="center"
+                paddingVertical="$s"
+                paddingHorizontal="$m"
+                borderBottomWidth={1}
+                borderBottomColor="$border"
+                backgroundColor={
+                  result ? '$background' : '$secondaryBackground'
+                }
               >
-                <View
-                  flexDirection="row"
-                  justifyContent="space-between"
-                  alignItems="flex-start"
-                  marginBottom="$s"
-                >
-                  <Text flex={1} marginRight="$m">
+                <View flex={4} marginRight="$m">
+                  <Text fontSize="$s" numberOfLines={1}>
                     {benchCase.label}
                   </Text>
+                </View>
+
+                <View flex={2} alignItems="flex-end" marginRight="$m">
+                  {result ? (
+                    <Text fontSize="$s" fontWeight="600">
+                      {result.averageMs.toFixed(1)}ms
+                    </Text>
+                  ) : (
+                    <Text fontSize="$xs" color="$tertiaryText">
+                      —
+                    </Text>
+                  )}
+                </View>
+
+                <View flex={1} alignItems="flex-end">
                   <Button
                     disabled={isDisabled}
                     onPress={() => runIndividualBenchmark(benchCase)}
                   >
-                    <Button.Text>
-                      {isIndividualRunning ? 'Running…' : 'Run'}
+                    <Button.Text fontSize="$xs">
+                      {isIndividualRunning ? '⏳' : '▶'}
                     </Button.Text>
                   </Button>
                 </View>
-
-                {result && (
-                  <>
-                    <Text>Average: {result.averageMs.toFixed(1)} ms</Text>
-                    <Text color="$tertiaryText">
-                      Runs: {result.durationsMs.join(', ')} ms
-                    </Text>
-                  </>
-                )}
               </View>
             );
           })}
