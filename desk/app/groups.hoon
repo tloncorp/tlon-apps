@@ -1410,6 +1410,7 @@
   ::
       ::  prune expired tokens
       [%server %tokens ~]
+    ?>  ?=([%behn %wake ~] sign)
     =.  cor  (emit (set-timer /server/tokens (add now.bowl server-tokens-timer)))
     %+  roll  ~(tap by groups)
     |=  [[=flag:g *] =_cor]
@@ -1561,6 +1562,7 @@
     ::  chance to trigger +go-core update.
     ::
     =?  cor  gone
+      ::NB  this fires even if we are not self-subscribed
       go-abet:(go-u-group:(go-abed:go-core flag) now.bowl %delete ~)
     %_  cor  groups
       ?:  gone
@@ -1727,6 +1729,10 @@
         ~
       `nest
     =.  section-order.group  (~(push of section-order.group) %default)
+    ::TODO now that we have pending ships, we should add members
+    ::     to the pending list rather than artificially creating their
+    ::     seats.
+    ::
     ::  populate group members and their roles
     ::
     ::  TODO  this should use +se-c-seat to create new seats
@@ -1767,6 +1773,12 @@
       %+  roll  ~(tap in ~(key by channels.group))
       |=  [=nest:g =_channels-index]
       (~(del by channels-index) nest)
+    ::  revoke all invitations
+    ::
+    =.  se-core
+      %+  roll  ~(tap by invited.ad)
+      |=  [[=ship [at=@da tok=(unit token:g)]] =_se-core]
+      (emit:se-core (revoke-invite:se-pass ship tok))
     se-core(gone &)
   ::  +se-join: handle group join request
   ::
@@ -2034,7 +2046,7 @@
   ::
   ::  when the banned list has been updated, we must make sure
   ::  it comes into effect. in particular, we must:
-  ::  1. kick banned group members
+  ::  1. delete and kick banned group members
   ::  2. deny outstanding ask requests
   ::  3. deny pending requests
   ::  4. prune the invited list and revoke invites
@@ -2060,7 +2072,7 @@
       (~(put in ships) ship)
     =?  se-core  !=(~ ask-ships)
       (se-c-entry-ask ask-ships %deny)
-    ::  deny pending requests
+    ::  prune pending requests
     ::
     =/  pending-ships=(set ship)
       %+  roll  ~(tap in ~(key by pending.ad))
@@ -2126,14 +2138,15 @@
   ::
   ++  se-revoke-token-invites
     |=  =token:g
+    ^+  se-core
     %+  roll  ~(tap by invited.ad)
     |=  [[=ship [at=@da tok=(unit token:g)]] =_se-core]
     ?.  ?=(^ tok)  se-core
     ?.  =(u.tok token)  se-core
     =.  invited.admissions.group.se-core
       (~(del by invited.admissions.group.se-core) ship)
-    (emit (revoke-invite:se-pass:se-core ship tok))
-  ::  +se-prune-tokens: delete any expired tokens
+    (emit:se-core (revoke-invite:se-pass:se-core ship tok))
+  ::  +se-prune-tokens: delete any expired tokens and revoke invites
   ::
   ++  se-prune-tokens
     ^+  se-core
@@ -3119,6 +3132,13 @@
       |=  [=nest:g =_channels-index]
       (~(del by channels-index) nest)
     =?  go-core  send-leave  (emit leave-group:go-pass)
+    ?:  go-our-host  go-core(gone &)
+    ::  revoke all invitations
+    ::
+    =.  go-core
+      %+  roll  ~(tap by invited.ad)
+      |=  [[=ship [at=@da tok=(unit token:g)]] =_go-core]
+      (emit:go-core (revoke-invite:go-pass ship tok))
     go-core(gone &)
   ::  +go-preview: generate the preview of the group
   ::
@@ -3185,20 +3205,20 @@
     ?~  token  go-core
     =+  token-meta=(~(get by tokens.ad) token)
     =?  go-core  &(?=(^ token-meta) ?=(%personal -.scheme.u.token-meta))
-      (go-a-group %entry %token %del token)
+      (go-send-command /command/entry %entry %token %del token)
     (emit (revoke-invite:go-pass ship `token))
   ::  +go-a-group: execute group action
   ::
   ++  go-a-group
     |=  =a-group:g
     ^+  go-core
+    ?>  from-self
     (go-send-command /command/[-.a-group] `c-group:g`a-group)
   ::  +go-send-command:  send command to the group host
   ::
   ++  go-send-command
     |=  [=wire =c-group:g]
     ^+  go-core
-    ?>  from-self
     =/  =^wire  (weld go-area wire)
     =/  =cage  group-command+!>(`c-groups:g`[%group flag c-group])
     (emit %pass wire %agent [p.flag server] %poke cage)
@@ -3571,7 +3591,7 @@
       =.  tokens.ad  (~(del by tokens.ad) token.u-token)
       (go-revoke-token-invites token.u-token)
     ==
-  ::  +go-revoke-token-invites: revoke any invites associated with a token
+  ::  +go-revoke-token-invites: revoke all invites associated with a token
   ::
   ++  go-revoke-token-invites
     |=  =token:g
@@ -3581,7 +3601,7 @@
     ?.  =(u.tok token)  go-core
     =.  invited.admissions.group.go-core
       (~(del by invited.admissions.group.go-core) ship)
-    (emit (revoke-invite:go-pass:go-core ship tok))
+    (emit:go-core (revoke-invite:go-pass:go-core ship tok))
   ::  +go-u-entry-pending: apply entry pending update
   ::
   ++  go-u-entry-pending
@@ -4411,8 +4431,13 @@
   ++  fi-invite
     |=  =invite:g
     ^+  fi-core
-    :: guard against invite spoofing
+    ::  guard against invite spoofing
     ?>  =(from.invite src.bowl)
+    ::  drop invites received from banned ships
+    ::
+    ?:  =-  (~(has in blocked) src.bowl)
+        blocked=.^((set ship) /(scot %p our.bowl)/chat/(scot %da now.bowl)/blocked)
+      fi-core
     =.  invites  [invite(time now.bowl) invites]
     ::  make sure we keep the latest preview
     ::
