@@ -9,7 +9,6 @@ import {
   createDefaultNagState,
   serializeNagState,
   deserializeNagState,
-  getLocalStorageKey,
   type NagState,
   type NagConfig,
 } from './nagLogic';
@@ -25,7 +24,6 @@ export {
   createDefaultNagState,
   serializeNagState,
   deserializeNagState,
-  getLocalStorageKey,
   validateNagConfig,
 } from './nagLogic';
 
@@ -63,39 +61,28 @@ function getSchemaField(nagKey: string): keyof db.Settings | null {
 
 /**
  * Get stored state for a nag key
- * Uses database as primary storage with localStorage fallback
+ * Uses database storage only - all nags must be registered in schema
  */
 async function getNagState(key: string): Promise<NagState> {
+  const schemaField = getSchemaField(key);
+  if (!schemaField) {
+    throw new Error(`Nag key "${key}" is not registered. Add it to getSchemaField() and the database schema.`);
+  }
+
   try {
-    // Try database first (includes server sync)
     const settings = await db.getSettings();
     if (settings) {
-      const schemaField = getSchemaField(key);
-      if (schemaField) {
-        const rawState = settings[schemaField as keyof typeof settings];
-        if (typeof rawState === 'string') {
-          const state = deserializeNagState(rawState);
-          if (state) {
-            return state;
-          }
+      const rawState = settings[schemaField as keyof typeof settings];
+      if (typeof rawState === 'string') {
+        const state = deserializeNagState(rawState);
+        if (state) {
+          return state;
         }
       }
     }
   } catch (error) {
     logger.log(`Failed to get nag state from database for key "${key}":`, error);
-  }
-
-  // Fallback to localStorage for unregistered nags or database errors
-  try {
-    const stored = localStorage.getItem(getLocalStorageKey(key));
-    if (stored) {
-      const state = deserializeNagState(stored);
-      if (state) {
-        return state;
-      }
-    }
-  } catch (error) {
-    logger.log(`Failed to get nag state from localStorage for key "${key}":`, error);
+    throw error;
   }
 
   return createDefaultNagState();
@@ -103,37 +90,29 @@ async function getNagState(key: string): Promise<NagState> {
 
 /**
  * Save state for a nag key
- * Uses database + server sync for registered nags, localStorage for others
+ * Uses database + server sync only - all nags must be registered in schema
  */
 async function saveNagState(key: string, state: NagState): Promise<void> {
-  const stateJson = serializeNagState(state);
   const schemaField = getSchemaField(key);
+  if (!schemaField) {
+    throw new Error(`Nag key "${key}" is not registered. Add it to getSchemaField() and the database schema.`);
+  }
 
-  if (schemaField) {
-    // Registered nag: use database + server sync
-    try {
-      logger.log(`Setting nag state for key "${key}" (field: ${String(schemaField)}) with value:`, stateJson);
+  const stateJson = serializeNagState(state);
 
-      // Store in local database immediately
-      await db.insertSettings({ [schemaField]: stateJson });
+  try {
+    logger.log(`Setting nag state for key "${key}" (field: ${String(schemaField)}) with value:`, stateJson);
 
-      // Sync to server using the proper schema field name
-      await setSetting(String(schemaField), stateJson);
+    // Store in local database immediately
+    await db.insertSettings({ [schemaField]: stateJson });
 
-      logger.log(`Successfully set nag state for key "${key}"`);
-    } catch (error) {
-      logger.log(`Failed to save nag state for key "${key}":`, error);
-      throw error;
-    }
-  } else {
-    // Unregistered nag: use localStorage only
-    try {
-      localStorage.setItem(getLocalStorageKey(key), stateJson);
-      logger.log(`Saved unregistered nag "${key}" to localStorage`);
-    } catch (error) {
-      logger.log(`Failed to save nag state to localStorage for key "${key}":`, error);
-      throw error;
-    }
+    // Sync to server using the proper schema field name
+    await setSetting(String(schemaField), stateJson);
+
+    logger.log(`Successfully set nag state for key "${key}"`);
+  } catch (error) {
+    logger.log(`Failed to save nag state for key "${key}":`, error);
+    throw error;
   }
 }
 
@@ -146,8 +125,8 @@ async function saveNagState(key: string, state: NagState): Promise<void> {
  *
  * @remarks
  * **Storage Strategy:**
- * - Primary: Server-side storage via %settings agent (syncs across devices)
- * - Fallback: localStorage (offline functionality)
+ * - Server-side storage via %settings agent (syncs across devices)
+ * - All nags must be registered in schema - no localStorage fallback
  * - Optimistic updates: Local state updated immediately, server sync in background
  *
  * **Visibility Logic:**
@@ -175,16 +154,6 @@ async function saveNagState(key: string, state: NagState): Promise<void> {
  *   refreshCycle: 3 // max 3 dismissals
  * });
  * // Reappears every 7 days, stops after 3 dismissals
- * ```
- *
- * @example
- * **Local-only nag (no server sync):**
- * ```typescript
- * const tempNag = useNag({
- *   key: 'tempNotification',
- *   localOnly: true
- * });
- * // Useful for session-based or offline-only notifications
  * ```
  *
  * @example
@@ -217,7 +186,7 @@ async function saveNagState(key: string, state: NagState): Promise<void> {
  * ```
  */
 export function useNag(config: NagConfig): NagHookReturn {
-  const { key, refreshInterval, refreshCycle, localOnly = false } = config;
+  const { key, refreshInterval, refreshCycle } = config;
 
   const [nagState, setNagState] = useState<NagState>(createDefaultNagState());
   const [isLoading, setIsLoading] = useState(true);
@@ -228,21 +197,7 @@ export function useNag(config: NagConfig): NagHookReturn {
       setIsLoading(true);
 
       try {
-        const state = localOnly
-          ? (() => {
-              // For localOnly, use localStorage directly
-              try {
-                const stored = localStorage.getItem(getLocalStorageKey(key));
-                if (stored) {
-                  const state = deserializeNagState(stored);
-                  if (state) return state;
-                }
-              } catch (error) {
-                logger.log(`Failed to get local nag state for key "${key}":`, error);
-              }
-              return createDefaultNagState();
-            })()
-          : await getNagState(key);
+        const state = await getNagState(key);
 
         setNagState(state);
       } catch (error) {
@@ -255,7 +210,7 @@ export function useNag(config: NagConfig): NagHookReturn {
     }
 
     loadNagState();
-  }, [key, localOnly]);
+  }, [key]);
 
   const shouldShow = useMemo(() => {
     if (isLoading) return false;
@@ -267,23 +222,13 @@ export function useNag(config: NagConfig): NagHookReturn {
     // Update local state immediately for responsiveness
     setNagState(newState);
 
-    if (localOnly) {
-      // For localOnly, use localStorage directly
-      try {
-        localStorage.setItem(getLocalStorageKey(key), serializeNagState(newState));
-      } catch (error) {
-        logger.log(`Failed to save local nag state for key "${key}":`, error);
-      }
-    } else {
-      try {
-        // Use unified save function (database + server or localStorage)
-        await saveNagState(key, newState);
-      } catch (error) {
-        logger.log(`Failed to save nag state for key "${key}":`, error);
-        // Local state already updated, so user experience continues smoothly
-      }
+    try {
+      await saveNagState(key, newState);
+    } catch (error) {
+      logger.log(`Failed to save nag state for key "${key}":`, error);
+      // Local state already updated, so user experience continues smoothly
     }
-  }, [key, localOnly]);
+  }, [key]);
 
   const dismiss = useCallback(() => {
     const newState = createDismissedState(nagState);
@@ -309,61 +254,32 @@ export function useNag(config: NagConfig): NagHookReturn {
  * Useful for testing or administrative functions
  *
  * @param key The nag key to reset
- * @param localOnly Whether to only reset localStorage (skip server sync)
  *
  * @example
  * // Reset a nag for testing
  * await resetNag('onboarding');
  */
-export async function resetNag(key: string, localOnly: boolean = false): Promise<void> {
-  logger.log(`Starting resetNag for key "${key}", localOnly: ${localOnly}`);
-  
-  try {
-    // Remove from localStorage (web) or AsyncStorage equivalent if available
-    try {
-      const localStorageKey = getLocalStorageKey(key);
-      logger.log(`Attempting to remove localStorage/AsyncStorage key: ${localStorageKey}`);
-      
-      // Only try localStorage if it exists (web environment)
-      if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.removeItem(localStorageKey);
-        logger.log(`Removed from localStorage: ${localStorageKey}`);
-      } else {
-        logger.log(`localStorage not available (React Native environment), skipping localStorage removal`);
-      }
-    } catch (error) {
-      logger.log(`Failed to remove from localStorage:`, error);
-      // Continue anyway - this isn't critical for registered nags
-    }
+export async function resetNag(key: string): Promise<void> {
+  const schemaField = getSchemaField(key);
+  if (!schemaField) {
+    throw new Error(`Nag key "${key}" is not registered. Add it to getSchemaField() and the database schema.`);
+  }
 
-    if (!localOnly) {
-      const schemaField = getSchemaField(key);
-      logger.log(`Schema field for key "${key}": ${String(schemaField)}`);
-      
-      if (schemaField) {
-        try {
-          // For registered nags, remove from database and server
-          logger.log(`Setting database field ${String(schemaField)} to null`);
-          await db.insertSettings({ [schemaField]: null });
-          
-          logger.log(`Deleting server setting: ${String(schemaField)}`);
-          await deleteSetting(String(schemaField));
-          
-          logger.log(`Successfully reset nag "${key}" on server`);
-        } catch (error) {
-          logger.log(`Failed to reset nag "${key}" on server:`, error);
-          throw error;
-        }
-      } else {
-        logger.log(`No schema field found for key "${key}", skipping server operations`);
-      }
-    }
-    
+  logger.log(`Starting resetNag for key "${key}"`);
+
+  try {
+    // Remove from database and server
+    logger.log(`Setting database field ${String(schemaField)} to null`);
+    await db.insertSettings({ [schemaField]: null });
+
+    logger.log(`Deleting server setting: ${String(schemaField)}`);
+    await deleteSetting(String(schemaField));
+
     logger.log(`Successfully reset nag "${key}"`);
   } catch (error) {
     logger.log(`Failed to reset nag state for key "${key}":`, error);
     console.error(`resetNag error for "${key}":`, error);
-    throw error; 
+    throw error;
   }
 }
 

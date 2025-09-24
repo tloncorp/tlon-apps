@@ -18,13 +18,11 @@ export interface NagBehaviorConfig {
 }
 
 /**
- * Complete configuration for a nag, including storage settings
+ * Complete configuration for a nag
  */
 export interface NagConfig extends NagBehaviorConfig {
   /** Unique identifier for this nag */
   key: string;
-  /** Whether to use only localStorage (skip server storage) */
-  localOnly?: boolean;
 }
 
 /**
@@ -185,12 +183,6 @@ export function deserializeNagState(serialized: string): NagState | null {
   }
 }
 
-/**
- * Generates the localStorage key for a nag
- */
-export function getLocalStorageKey(nagKey: string): string {
-  return `nag_state_${nagKey}`;
-}
 
 /**
  * Generates the settings key for a nag

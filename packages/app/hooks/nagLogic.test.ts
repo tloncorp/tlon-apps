@@ -7,7 +7,6 @@ import {
   createDefaultNagState,
   serializeNagState,
   deserializeNagState,
-  getLocalStorageKey,
   getSettingsKey,
   validateNagConfig,
   type NagState,
@@ -206,12 +205,6 @@ describe('nagLogic', () => {
     });
   });
 
-  describe('getLocalStorageKey', () => {
-    it('should generate correct localStorage key', () => {
-      expect(getLocalStorageKey('test')).toBe('nag_state_test');
-      expect(getLocalStorageKey('onboarding')).toBe('nag_state_onboarding');
-    });
-  });
 
   describe('getSettingsKey', () => {
     it('should generate correct settings key', () => {
