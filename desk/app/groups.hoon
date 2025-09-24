@@ -438,6 +438,8 @@
           %invite
         =/  foreign-core  (fi-abed:fi-core flag.invite.a-foreigns)
         fi-abet:(fi-invite:foreign-core invite.a-foreigns)
+      ::
+          :: %revoke
       ==
     ::
     ::  foreign groups interface v1
@@ -631,8 +633,7 @@
 ::  +init: initialize agent
 ++  init
   ^+  cor
-  =.  cor  inflate-io
-  cor
+  inflate-io
 ::  +load: load next state
 ++  load
   |^  |=  =vase
@@ -663,7 +664,6 @@
   ::  initialize .active-channels on each reload
   =.  cor
     (emit [%pass /load/active-channels %arvo %b %wait now.bowl])
-
   =.  state  old
   =.  cor  inflate-io
   ::  until client bugs are fixed and data validation happens on-ingress,
@@ -2141,7 +2141,7 @@
     ^+  se-core
     %+  roll  ~(tap by invited.ad)
     |=  [[=ship [at=@da tok=(unit token:g)]] =_se-core]
-    ?.  ?=(^ tok)  se-core
+    ?~  tok  se-core
     ?.  =(u.tok token)  se-core
     =.  invited.admissions.group.se-core
       (~(del by invited.admissions.group.se-core) ship)
@@ -2430,7 +2430,7 @@
     =.  invited.ad  (~(del by invited.ad) ship)
     ::  revoke invitation if found
     ::
-    ?.  ?=(^ invited)  se-core
+    ?~  invited  se-core
     =*  token  token.u.invited
     =.  se-core  (emit (revoke-invite:se-pass ship token))
     ::  delete personal token if found
@@ -2815,6 +2815,7 @@
   ++  se-watch-token
     |=  =ship
     ^+  se-core
+    :: prevent inviting banned
     =^  tok=(unit token:g)  se-core
       (se-c-entry-token %add [personal+ship ~ ~ &])
     =.  se-core  (give %fact ~ group-token+!>(tok))
@@ -3155,6 +3156,7 @@
   ++  go-a-invite
     |=  =a-invite:g
     ?:  =(ship.a-invite src.bowl)  go-core
+    ::TODO prevent inviting banned, here and in +se-core
     ?:  &(?=(~ token.a-invite) !?=(%public privacy.ad))
       ::  if we don't have a suitable token for a non-public group,
       ::  we are going to request it
@@ -3200,19 +3202,23 @@
     ^+  go-core
     =+  invited=(~(get by invited.ad) ship)
     =.  invited.ad  (~(del by invited.ad) ship)
-    ?.  &(?=(^ invited) ?=(^ token.u.invited))  go-core
-    =*  token  u.token.u.invited
+    ::  revoke invitation if found
+    ::
+    ?~  invited  go-core
+    =*  token  token.u.invited
+    =.  go-core  (emit (revoke-invite:go-pass ship token))
+    ::  request to delete personal token if found
+    ::
     ?~  token  go-core
-    =+  token-meta=(~(get by tokens.ad) token)
+    =+  token-meta=(~(get by tokens.ad) u.token)
     =?  go-core  &(?=(^ token-meta) ?=(%personal -.scheme.u.token-meta))
-      (go-send-command /command/entry %entry %token %del token)
-    (emit (revoke-invite:go-pass ship `token))
+      (go-send-command /command/entry %entry %token %del u.token)
+    go-core
   ::  +go-a-group: execute group action
   ::
   ++  go-a-group
     |=  =a-group:g
     ^+  go-core
-    ?>  from-self
     (go-send-command /command/[-.a-group] `c-group:g`a-group)
   ::  +go-send-command:  send command to the group host
   ::
@@ -3597,7 +3603,7 @@
     |=  =token:g
     %+  roll  ~(tap by invited.ad)
     |=  [[=ship [at=@da tok=(unit token:g)]] =_go-core]
-    ?.  ?=(^ tok)  go-core
+    ?~  tok  go-core
     ?.  =(u.tok token)  go-core
     =.  invited.admissions.group.go-core
       (~(del by invited.admissions.group.go-core) ship)
@@ -4433,10 +4439,10 @@
     ^+  fi-core
     ::  guard against invite spoofing
     ?>  =(from.invite src.bowl)
-    ::  drop invites received from banned ships
+    ::  drop invites received from user-blocked ships
     ::
-    ?:  =-  (~(has in blocked) src.bowl)
-        blocked=.^((set ship) /(scot %p our.bowl)/chat/(scot %da now.bowl)/blocked)
+    ?:  =;  blocked  (~(has in blocked) src.bowl)
+        .^((set ship) %gx /(scot %p our.bowl)/chat/(scot %da now.bowl)/blocked/ships)
       fi-core
     =.  invites  [invite(time now.bowl) invites]
     ::  make sure we keep the latest preview

@@ -378,7 +378,8 @@
     =/  a-foreigns-8-fun=a-foreigns:v8:gv
       [%invite invite(time now.bowl)]
     %+  ex-cards  caz
-    :~  (ex-poke (weld go-area /invite/send/~fun/old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
+    :~  (ex-poke (weld go-area /invite/revoke/~fun) [~fun my-agent] group-foreign-2+!>([%revoke my-flag ~]))
+        (ex-poke (weld go-area /invite/send/~fun/old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
         (ex-poke (weld go-area /invite/send/~fun) [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
     ==
   ::  verify records on the invited list
@@ -466,8 +467,8 @@
     =/  a-foreigns-8-fun=a-foreigns:v8:gv
       [%invite invite]
     %+  ex-cards  caz
-    :~  (ex-c-group %entry %token %del 0v123)
-        (ex-poke (weld go-area /invite/revoke/~fun) [~fun my-agent] group-foreign-2+!>([%revoke my-flag `0v123]))
+    :~  (ex-poke (weld go-area /invite/revoke/~fun) [~fun my-agent] group-foreign-2+!>([%revoke my-flag `0v123]))
+        (ex-c-group %entry %token %del 0v123)
         (ex-poke (weld go-area /invite/send/~fun/old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
         (ex-poke (weld go-area /invite/send/~fun) [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
     ==
@@ -529,8 +530,8 @@
   ;<  ~  bind:m
     %+  ex-cards-r-groups  caz
     :~  |+[my-flag [%entry %ban %add-ships (sy ~fun ~)]]
-        &+(ex-c-group %entry %token %del 0v123)
         &+(ex-poke (weld go-area /invite/revoke/~fun) [~fun my-agent] group-foreign-2+!>([%revoke my-flag `0v123]))
+        &+(ex-c-group %entry %token %del 0v123)
     ==
   ::  verify records on the invited list
   ::
