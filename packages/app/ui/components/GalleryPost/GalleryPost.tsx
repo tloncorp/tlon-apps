@@ -422,8 +422,22 @@ export function GalleryContentRenderer({
 } & Omit<ComponentProps<typeof PreviewFrame>, 'content'>) {
   const content = usePostContent(post);
   const previewContent = usePreviewContent(content);
-  // Use full content for detail views, preview content for previews
-  const displayContent = isPreview ? previewContent : content;
+
+  // For gallery detail views of image posts, only show images
+  // since CaptionContentRenderer handles text separately below
+  const displayContent = useMemo(() => {
+    if (!isPreview && props.size === '$l') {
+      // Check if this is an image post
+      const hasImage = content.some((block) => block.type === 'image');
+      if (hasImage) {
+        // For image posts, only show images in main content area
+        // Caption text will be handled by CaptionContentRenderer below
+        return content.filter((block) => block.type === 'image');
+      }
+    }
+    // For non-image posts and previews, use appropriate content
+    return isPreview ? previewContent : content;
+  }, [content, previewContent, isPreview, props.size]);
 
   if (post.hidden) {
     return (

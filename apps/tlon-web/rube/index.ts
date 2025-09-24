@@ -1345,9 +1345,7 @@ const main = async () => {
 
     // Nuke state and set reel service ship before mount/commit operations,
     // this makes it more likely that the ships will be ready for click commands
-    if (!process.env.FORCE_EXTRACTION) {
-      await nukeStateOnShips();
-    }
+    await nukeStateOnShips();
     await setReelServiceShip();
     await setStorageConfiguration();
 
