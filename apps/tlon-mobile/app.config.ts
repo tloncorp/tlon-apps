@@ -56,8 +56,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     runtimeVersion: '4.0.2',
     // demo builds triggered by GitHub require this to be explicitly set rather than handled
     // elsewhere
-    bundleIdentifier:
-      process.env.EAS_BUILD_PROFILE === 'demo' ? 'io.tlon.groups' : undefined,
+    bundleIdentifier: ['demo', 'e2e'].includes(process.env.EAS_BUILD_PROFILE!)
+      ? 'io.tlon.groups'
+      : undefined,
     config: {
       usesNonExemptEncryption: false,
     },

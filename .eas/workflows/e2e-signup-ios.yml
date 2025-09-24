@@ -1,0 +1,19 @@
+name: e2e-test-ios
+
+on:
+  schedule:
+    - cron: "0 15 * * *"
+
+jobs:
+  build_ios_for_e2e:
+    type: build
+    params:
+      platform: ios
+      profile: e2e
+
+  maestro_test:
+    needs: [build_ios_for_e2e]
+    type: maestro
+    params:
+      build_id: ${{ needs.build_ios_for_e2e.outputs.build_id }}
+      flow_path: ["../../.maestro/03-signup.yaml"]

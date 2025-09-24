@@ -89,6 +89,20 @@
       "ios": {
         "scheme": "Landscape-local"
       }
+    },
+    "e2e": {
+      "extends": "base",
+      "withoutCredentials": true,
+      "ios": {
+        "simulator": true,
+        "scheme": "Landscape",
+        "image": "macos-sonoma-14.6-xcode-16.0"
+      },
+      "android": {
+        "gradleCommand": ":app:bundleProductionRelease",
+        "buildType": "apk",
+        "image": "latest"
+      }
     }
   },
   "submit": {
