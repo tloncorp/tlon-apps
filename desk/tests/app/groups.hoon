@@ -115,7 +115,8 @@
     |=  =card
     ?.  ?=([%pass [%~.~ %negotiate %inner-watch @ @ *] *] card)
       card
-    ?>  ?=([%pass * %agent ^ %watch *] card)
+    ?.  ?=([%pass * %agent ^ %watch *] card)
+      card
     [%pass |5.p.card q.card]
   (^ex-cards caz exe)
 ::
@@ -599,5 +600,59 @@
   ;<  ~  bind:m
     %+  ex-equal  !>((~(get by invited.admissions.group) ~fun))
     !>(~)
+  (pure:m ~)
+::  +test-invites-group-deleted: test that invites are revoked when a group is deleted
+::
+++  test-invites-group-deleted
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  do-groups-init
+  ;<  *  bind:m  do-join-group
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(src ~dev)))
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  *  bind:m
+    =/  =update:g
+      [now.bowl %entry %privacy %private]
+    (do-neg-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
+  ::  invite ~fun to a private group
+  ::
+  ;<  *  bind:m  ((do-as ~dev) (do-a-groups [%invite my-flag ~fun ~ ~]))
+  ::  receive generated token
+  ::
+  ;<  *  bind:m
+    =/  =update:g
+      [now.bowl %entry %token %add 0v123 [personal+~fun (add now.bowl ~d365) ~]]
+    (do-neg-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
+  ;<  caz=(list card)  bind:m
+    (do-neg-agent (weld go-area /invite/~fun/token) [~zod my-agent] %fact group-token+!>(`0v123))
+  ;<  *  bind:m
+    (do-neg-agent (weld go-area /invite/~fun/token) [~zod my-agent] %kick ~)
+  ::  verify invites are sent
+  ::
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  =invite:g  bind:m  (get-invite `0v123)
+  ;<  ~  bind:m
+    =/  a-foreigns-7-fun=a-foreigns:v7:gv
+      [%invite (v7:invite:v8:gc invite)]
+    =/  a-foreigns-8-fun=a-foreigns:v8:gv
+      [%invite invite]
+    %+  ex-cards  caz
+    :~  (ex-poke (weld go-area /invite/send/~fun/old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
+        (ex-fact-negotiate [~fun my-agent] %groups)
+        (ex-poke (weld go-area /invite/send/~fun) [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
+    ==
+  ::  group is deleted. verify the invitation is revoked.
+  ::
+  ;<  caz=(list card)  bind:m
+    =/  =update:g
+      [now.bowl %delete ~]
+    (do-neg-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (ex-poke (weld go-area /invite/revoke/~fun) [~fun my-agent] group-foreign-2+!>([%revoke my-flag `0v123]))
+        (ex-fact-paths ~[/v1/groups /v1/groups/(scot %p p:my-flag)/[q:my-flag]])
+        (ex-fact-paths ~[/groups/ui])
+        (ex-task :(weld /~/negotiate/inner-watch/(scot %p p:my-flag)/[my-agent] go-area /updates) [~zod my-agent] %leave ~)
+    ==
   (pure:m ~)
 --
