@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
-import { setSetting, deleteSetting } from '../../shared/src/api/settingsApi';
+import { setSetting } from '../../shared/src/api/settingsApi';
 import * as db from '../../shared/src/db';
 import { createDevLogger } from '../../shared/src/debug';
 import {
@@ -249,37 +249,3 @@ export function useNag(config: NagConfig): NagHookReturn {
     isLoading,
   };
 }
-/**
- * Utility function to reset a nag back to its initial state
- * Useful for testing or administrative functions
- *
- * @param key The nag key to reset
- *
- * @example
- * // Reset a nag for testing
- * await resetNag('onboarding');
- */
-export async function resetNag(key: string): Promise<void> {
-  const schemaField = getSchemaField(key);
-  if (!schemaField) {
-    throw new Error(`Nag key "${key}" is not registered. Add it to getSchemaField() and the database schema.`);
-  }
-
-  logger.log(`Starting resetNag for key "${key}"`);
-
-  try {
-    // Remove from database and server
-    logger.log(`Setting database field ${String(schemaField)} to null`);
-    await db.insertSettings({ [schemaField]: null });
-
-    logger.log(`Deleting server setting: ${String(schemaField)}`);
-    await deleteSetting(String(schemaField));
-
-    logger.log(`Successfully reset nag "${key}"`);
-  } catch (error) {
-    logger.log(`Failed to reset nag state for key "${key}":`, error);
-    console.error(`resetNag error for "${key}":`, error);
-    throw error;
-  }
-}
-
