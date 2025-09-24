@@ -2,6 +2,7 @@ import crashlytics from '@react-native-firebase/crashlytics';
 import { useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import PostHog from 'posthog-react-native';
+import { NativeModules, Platform } from 'react-native';
 
 import { GIT_HASH, POST_HOG_API_KEY } from '../constants';
 
@@ -37,6 +38,12 @@ posthogAsync?.then((client) => {
   posthog?.register({
     gitHash: GIT_HASH,
   });
+
+  // Write PostHog API key to UserDefaults for iOS native access
+  if (Platform.OS === 'ios' && POST_HOG_API_KEY) {
+    const { UrbitModule } = NativeModules;
+    UrbitModule?.setPostHogApiKey(POST_HOG_API_KEY);
+  }
 });
 
 const capture = (event: string, properties?: { [key: string]: any }) => {
