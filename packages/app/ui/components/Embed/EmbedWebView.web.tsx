@@ -35,27 +35,34 @@ interface EmbedWebViewProps {
   url: string;
   provider: EmbedProviderConfig;
   embedHtml?: string;
+  embedHeight?: number;
   onHeightChange?: (height: number) => void;
   onError?: (error: any) => void;
 }
 
 export const EmbedWebView = memo<EmbedWebViewProps>(
-  ({ url, provider, embedHtml, onHeightChange, onError }) => {
+  ({ url, provider, embedHtml, embedHeight, onHeightChange, onError }) => {
     const primaryBackground = useTheme().background.val;
     const isDark = useIsDarkTheme();
     const [isLoading, setIsLoading] = useState(true);
-    const [webViewHeight, setWebViewHeight] = useState(provider.defaultHeight);
+
+    // Use explicit height if provided, otherwise use default
+    const calculatedHeight = useMemo(() => {
+      return embedHeight || provider.defaultHeight;
+    }, [provider.defaultHeight, embedHeight]);
+
+    const [webViewHeight, setWebViewHeight] = useState(calculatedHeight);
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const tweetContainerRef = useRef<HTMLDivElement>(null);
 
     const twitterContainerStyle = useMemo(
       (): CSSProperties => ({
         height: webViewHeight,
-        width: provider.defaultWidth,
+        width: '100%',
         backgroundColor: primaryBackground,
         overflow: 'hidden',
       }),
-      [webViewHeight, provider.defaultWidth, primaryBackground]
+      [webViewHeight, primaryBackground]
     );
 
     const tweetVisibilityStyle = useMemo(
@@ -71,15 +78,21 @@ export const EmbedWebView = memo<EmbedWebViewProps>(
         height: '100%',
         width: '100%',
         visibility: isLoading ? 'hidden' : ('visible' as const),
+        ...(provider.aspectRatio && {
+          aspectRatio:
+            provider.aspectRatio === 16 / 9
+              ? '16 / 9'
+              : `${provider.aspectRatio}`,
+        }),
       }),
-      [isLoading]
+      [isLoading, provider.aspectRatio]
     );
 
     const onIframeLoad = useCallback(() => {
       setIsLoading(false);
-      setWebViewHeight(provider.defaultHeight);
-      onHeightChange?.(provider.defaultHeight);
-    }, [provider.defaultHeight, onHeightChange]);
+      setWebViewHeight(calculatedHeight);
+      onHeightChange?.(calculatedHeight);
+    }, [calculatedHeight, onHeightChange]);
 
     const onIframeError = useCallback(
       (e: React.SyntheticEvent<HTMLIFrameElement, Event>) => {
@@ -180,8 +193,8 @@ export const EmbedWebView = memo<EmbedWebViewProps>(
 
     const loadingSpinner = isLoading && (
       <View
-        width={provider.defaultWidth}
-        height={provider.defaultHeight}
+        width="100%"
+        height={calculatedHeight}
         backgroundColor="$secondaryBackground"
         justifyContent="center"
         alignItems="center"
@@ -208,11 +221,13 @@ export const EmbedWebView = memo<EmbedWebViewProps>(
     // For other providers, we can use their embed URLs directly
     return (
       <View
-        height={webViewHeight}
-        width={provider.defaultWidth}
+        width="100%"
         backgroundColor={primaryBackground}
         borderRadius="$s"
         overflow="hidden"
+        {...(provider.aspectRatio && {
+          aspectRatio: provider.aspectRatio,
+        })}
       >
         {loadingSpinner}
         <iframe

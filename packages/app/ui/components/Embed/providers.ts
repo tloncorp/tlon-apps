@@ -2,11 +2,13 @@ interface EmbedProviderConfig {
   name: string;
   defaultHeight: number;
   defaultWidth?: number;
+  aspectRatio?: number;
   generateHtml: (
     url: string,
     embedHtml?: string,
     isDark?: boolean,
-    constrainHeight?: boolean
+    constrainHeight?: boolean,
+    height?: number
   ) => string;
   extractId?: (url: string) => string | null;
   getCustomStyles?: () => string;
@@ -64,30 +66,38 @@ const youtubeConfig: EmbedProviderConfig = {
   name: 'YouTube',
   defaultHeight: 180,
   defaultWidth: 320,
+  aspectRatio: 16 / 9,
   extractId: extractYoutubeId,
-  generateHtml: (url: string) => {
+  generateHtml: (
+    url: string,
+    embedHtml?: string,
+    isDark?: boolean,
+    constrainHeight?: boolean,
+    height?: number
+  ) => {
     const videoId = extractYoutubeId(url);
+    const embedHeight = height || 180;
     return `
       <!DOCTYPE html>
       <html>
         <head>
           <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
           <style>
-            html, body { 
-              margin: 0; 
-              padding: 0; 
+            html, body {
+              margin: 0;
+              padding: 0;
               background: transparent;
             }
             iframe {
               width: 100% !important;
-              height: 180px !important;
+              height: ${embedHeight}px !important;
               margin: 0 !important;
             }
           </style>
           <script>
             window.addEventListener('load', () => {
-              window.ReactNativeWebView.postMessage(JSON.stringify({ 
-                height: 180
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                height: ${embedHeight}
               }));
             });
           </script>
