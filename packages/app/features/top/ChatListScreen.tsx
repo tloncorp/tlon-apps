@@ -35,6 +35,7 @@ import {
   useGlobalSearch,
   useIsWindowNarrow,
 } from '../../ui';
+import SystemNotices from '../../ui/components/SystemNotices';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { ChatList } from '../chat-list/ChatList';
 import { ChatListSearch } from '../chat-list/ChatListSearch';
@@ -339,6 +340,7 @@ export function ChatListScreenView({
             />
           </View>
         </NavigationProvider>
+        {chats && <SystemNotices.NotifcationsPrompt />}
         <NavBarView
           navigateToContacts={() => {
             navigation.navigate('Contacts');
