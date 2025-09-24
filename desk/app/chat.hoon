@@ -180,6 +180,7 @@
         [/x/v3/dm/$/writs %chat-paged-writs-3]
         [/x/v3/dm/$/writs/writ %chat-writ-3]
         [/x/v3/heads %chat-heads-3]
+        [/x/v3/init-posts %chat-changed-writs]
     ==
 ::
 %-  %-  agent:neg

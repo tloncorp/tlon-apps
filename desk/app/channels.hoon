@@ -191,6 +191,7 @@
       ::
         ::TODO  other v5 scries
         [/x/v5/changes %channel-changed-posts]
+        [/x/v5/init-posts %channel-changed-posts]
     ==
 ::
 =/  verbose  |
