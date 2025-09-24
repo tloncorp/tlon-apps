@@ -54,7 +54,7 @@ const PersonalInviteSheetContent = ({
   }, [systemContacts]);
 
   return (
-    <View flex={1} paddingHorizontal={40}>
+    <YStack flex={1} paddingHorizontal={40} gap="$m">
       <Text size="$label/m" color="$secondaryText" marginBottom="$2xl">
         Anyone you invite will skip the waitlist and be added to your contacts.
         You&apos;ll receive a DM when they join.
@@ -69,7 +69,7 @@ const PersonalInviteSheetContent = ({
           />
         )}
       </View>
-      <YStack gap="$m">
+      <YStack paddingBottom="$l" gap="$m">
         <PersonalInviteButton />
         {hasSystemContacts && (
           <Pressable onPress={() => onPressInviteFriends()}>
@@ -85,6 +85,6 @@ const PersonalInviteSheetContent = ({
           </Pressable>
         )}
       </YStack>
-    </View>
+    </YStack>
   );
 };
