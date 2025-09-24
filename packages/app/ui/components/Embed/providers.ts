@@ -109,6 +109,8 @@ const youtubeConfig: EmbedProviderConfig = {
             src="https://www.youtube.com/embed/${videoId}"
             frameborder="0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            // This is necessary to prevent periodic "Error code 153" errors
+            referrerpolicy="strict-origin-when-cross-origin"
             allowfullscreen>
           </iframe>
         </body>
