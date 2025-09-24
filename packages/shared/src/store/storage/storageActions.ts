@@ -21,6 +21,23 @@ const logger = createDevLogger('storageActions', false);
 
 export const PLACEHOLDER_ASSET_URI = 'placeholder-asset-id';
 
+function getExtensionFromMimeType(mimeType?: string): string {
+  if (!mimeType) {
+    return '.jpg';
+  }
+
+  const mimeToExt: Record<string, string> = {
+    'image/jpeg': '.jpg',
+    'image/jpg': '.jpg',
+    'image/png': '.png',
+    'image/gif': '.gif',
+    'image/webp': '.webp',
+    'image/heic': '.heic',
+    'image/heif': '.heif',
+  };
+  return mimeToExt[mimeType.toLowerCase()] || '.jpg';
+}
+
 export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
   if (asset.uri === PLACEHOLDER_ASSET_URI) {
     logger.log('placeholder image, skipping upload');
@@ -38,6 +55,7 @@ export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
   try {
     logger.log('resizing asset', asset.uri);
     let resizedAsset = asset;
+    const originalMimeType = asset.mimeType;
     // avoid resizing gifs
     if (!asset.mimeType?.includes('gif')) {
       resizedAsset = await manipulateAsync(
@@ -51,7 +69,10 @@ export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
         { compress: 0.75 }
       );
     }
-    const remoteUri = await performUpload(resizedAsset, isWeb);
+    const remoteUri = await performUpload(
+      { ...resizedAsset, mimeType: originalMimeType },
+      isWeb
+    );
     logger.crumb('upload succeeded');
     logger.log('final uri', remoteUri);
     setUploadState(asset.uri, { status: 'success', remoteUri });
@@ -63,7 +84,7 @@ export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
 };
 
 export const performUpload = async (
-  params: Pick<RNFile, 'uri' | 'height' | 'width'>,
+  params: Pick<RNFile, 'uri' | 'height' | 'width'> & { mimeType?: string },
   isWeb = false
 ) => {
   logger.log('performing upload', params.uri, 'isWeb', isWeb);
@@ -83,9 +104,14 @@ export const performUpload = async (
   }
 
   const contentType = file.type;
+  const baseFileName = params.uri.split('/').pop()?.split('?')[0] || 'image';
+  const extension = getExtensionFromMimeType(params.mimeType || contentType);
+  const fileName = baseFileName.includes('.')
+    ? baseFileName
+    : `${baseFileName}${extension}`;
   const fileKey = `${deSig(getCurrentUserId())}/${deSig(
     formatDa(unixToDa(new Date().getTime()))
-  )}-${params.uri.split('/').pop()?.split('?')[0]}`;
+  )}-${fileName}`;
   logger.log('asset key:', fileKey);
 
   if (hasHostingUploadCreds(config, credentials)) {

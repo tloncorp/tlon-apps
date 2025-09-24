@@ -32,6 +32,30 @@ import { triggerHaptic } from '../utils';
 
 const logger = createDevLogger('imageViewer', false);
 
+function ensureFileExtension(filename: string, contentType?: string): string {
+  if (/\.(jpg|jpeg|png|gif|webp|heic|heif)$/i.test(filename)) {
+    return filename;
+  }
+
+  if (contentType) {
+    const mimeToExt: Record<string, string> = {
+      'image/jpeg': '.jpg',
+      'image/jpg': '.jpg',
+      'image/png': '.png',
+      'image/gif': '.gif',
+      'image/webp': '.webp',
+      'image/heic': '.heic',
+      'image/heif': '.heif',
+    };
+    const ext = mimeToExt[contentType.toLowerCase()];
+    if (ext) {
+      return `${filename}${ext}`;
+    }
+  }
+
+  return `${filename}.jpg`;
+}
+
 export function ImageViewerScreenView(props: {
   uri?: string;
   goBack: () => void;
@@ -89,10 +113,13 @@ export function ImageViewerScreenView(props: {
         }
 
         const blob = await response.blob();
+        const contentType = response.headers.get('content-type') || blob.type;
 
         const blobUrl = URL.createObjectURL(blob);
 
-        const filename = props.uri.split('/').pop() || 'downloaded-image.jpg';
+        const baseFilename =
+          props.uri.split('/').pop()?.split('?')[0] || 'downloaded-image';
+        const filename = ensureFileExtension(baseFilename, contentType);
 
         // Create download link and trigger click
         const a = document.createElement('a');
@@ -204,7 +231,9 @@ export function ImageViewerScreenView(props: {
           return;
         }
 
-        const filename = props.uri.split('/').pop() || 'downloaded-image.jpg';
+        const baseFilename =
+          props.uri.split('/').pop()?.split('?')[0] || 'downloaded-image';
+        const filename = ensureFileExtension(baseFilename);
         const localUri = `${FileSystem.documentDirectory}${filename}`;
 
         try {
