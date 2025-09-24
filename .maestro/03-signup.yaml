@@ -64,6 +64,7 @@ appId: io.tlon.groups
 
 # set a nickname
 - assertVisible: Sampel Palnet
+- runScript: scripts/recordStartTime.js
 - tapOn: Sampel Palnet
 - inputText: E2E Tester
 - assertVisible: Next
@@ -73,6 +74,8 @@ appId: io.tlon.groups
 - extendedWaitUntil:
     visible: Welcome to Tlon Messenger
     timeout: 600000
+
+- runScript: scripts/recordDuration.js
 
 # click through welcome tour
 - assertVisible: Let's get started
