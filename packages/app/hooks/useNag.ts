@@ -54,6 +54,8 @@ function getSchemaField(nagKey: string): keyof db.Settings | null {
   switch (nagKey) {
     case 'contactBookPrompt':
       return 'nagStateContactBookPrompt';
+    case 'notificationsPrompt':
+      return 'nagStateNotificationsPrompt';
     default:
       return null;
   }
