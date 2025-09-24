@@ -188,7 +188,7 @@
   =^  caz=(list card)  old
     ?.  ?=(%5 -.old)  `old
     :_  old(- %6)
-    =+  wait=(mul ~s1 (~(rad og eny.bowl) 3.600))
+    =+  wait=(~(rad og eny.bowl) ~h1)
     [%pass /load/profile %arvo %b %wait (add now.bowl wait)]~
   ?>  ?=(%6 -.old)
   =.  state  old
