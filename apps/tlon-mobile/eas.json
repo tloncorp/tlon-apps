@@ -93,6 +93,9 @@
     "e2e": {
       "extends": "base",
       "withoutCredentials": true,
+      "env": {
+        "AUTOMATED_TEST": "true"
+      },
       "ios": {
         "simulator": true,
         "scheme": "Landscape",

@@ -9,7 +9,7 @@ appId: io.tlon.groups
 
 # add invite link
 - tapOn: 'join.tlon.io/0v4.pca0n.evapv...'
-- inputText: 'https://join.tlon.io/0v3.ek16k.h4oiu.6kl8g.v0h6v.t48o2'
+- inputText: 'https://join.tlon.io/0v1.f8gid.4jcvs.56moq.0ij3u.tqamk' # ~pondus-watbel Bot Farm
 
 # select email signup
 - assertVisible: Or if you'd prefer, sign up with an email address
@@ -23,6 +23,7 @@ appId: io.tlon.groups
 # get OTP and submit it digit by digit. Attempting to insert
 # all at once causes flakiness. extendedWaitUntil calls are a
 # workaround to delay next digit insertion
+- assertVisible: Check your email for a confirmation code
 - runScript: scripts/getEmailOtp.js
 
 - inputText: ${output.otpDigit1}
@@ -33,7 +34,7 @@ appId: io.tlon.groups
 
 - inputText: ${output.otpDigit2}
 - extendedWaitUntil:
-    visible: invalidText
+    visible: invalidTexts
     optional: true
     timeout: 100
 
@@ -60,3 +61,38 @@ appId: io.tlon.groups
     visible: invalidText
     optional: true
     timeout: 100
+
+# set a nickname
+- assertVisible: Sampel Palnet
+- tapOn: Sampel Palnet
+- inputText: E2E Tester
+- assertVisible: Next
+- tapOn: Next
+
+# wait until setup is complete
+- extendedWaitUntil:
+    visible: Welcome to Tlon Messenger
+    timeout: 600000
+
+# click through welcome tour
+- assertVisible: Let's get started
+- tapOn: Let's get started
+
+- assertVisible: Got it
+- tapOn: Got it
+
+- assertVisible: One quick thing
+- tapOn: One quick thing
+
+- assertVisible: Invite friends
+- tapOn: Invite friends
+
+- assertVisible: Finish
+- tapOn: Finish
+
+# assert everything we expect to be there is
+- assertVisible: Tlon Support
+- assertVisible: E2E Tester's Group
+- assertVisible: Bot Farm
+- assertVisible: brian testing
+- assertVisible: Tlon Studio
