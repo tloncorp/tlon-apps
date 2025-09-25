@@ -430,7 +430,7 @@
     ::
         %group-foreign-2
     =+  !<(=a-foreigns:v8:gv vase)
-      ?+    -.a-foreigns  ~|(%a-foreigns-revoke-not-implemented !!)
+      ?-    -.a-foreigns
           %foreign
         =/  foreign-core  (fi-abed:fi-core flag.a-foreigns)
         fi-abet:(fi-a-foreign:foreign-core a-foreign.a-foreigns)
@@ -439,7 +439,9 @@
         =/  foreign-core  (fi-abed:fi-core flag.invite.a-foreigns)
         fi-abet:(fi-invite:foreign-core invite.a-foreigns)
       ::
-          :: %revoke
+          %revoke
+        =/  foreign-core  (fi-abed:fi-core flag.a-foreigns)
+        fi-abet:(fi-revoke:foreign-core token.a-foreigns)
       ==
     ::
     ::  foreign groups interface v1
@@ -2844,7 +2846,7 @@
     ?.  =(%public privacy.ad)  ::TMI
       :: for a private group we wait until the request is approved
       se-core
-    ::  for a public group we send back an invite
+    ::  for a public group we send back an null token
     ::
     =.  se-core  (give %fact ~ group-token+!>(~))
     (give %kick ~ ~)
@@ -4470,6 +4472,19 @@
       preview
     =.  fi-core  (fi-activity %group-invite src.bowl)
     fi-core
+  ::  fi-revoke: revoke a group invitation
+  ::
+  ++  fi-revoke
+    |=  tok=(unit token:g)
+    ^+  fi-core
+    %_  fi-core  invites
+      %+  turn  invites
+      |=  =invite:g
+      ?.  =(tok token.invite)  invite
+      ::  guard against revocation spoofing
+      ?>  =(src.bowl from.invite)
+      invite(valid |)
+    ==
   ::  +fi-decline: reject a group invitation
   ::
   ++  fi-decline

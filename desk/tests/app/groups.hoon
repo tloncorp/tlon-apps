@@ -59,7 +59,8 @@
   |=  =path
   ^-  (unit vase)
   ?+    path  ~
-    [%gu ship=@ %activity now=@ rest=*]  `!>(|)
+    [%gu ship=@ %activity now=@ rest=*]         `!>(|)
+    [%gx ship=@ %chat now=@ %blocked %ships ~]  `!>(~)
   ==
 ++  is-negotiate-card
   |=  =card
@@ -301,6 +302,78 @@
     %+  ex-r-groups  caz
     :~  [my-flag %create my-group]
     ==
+  (pure:m ~)
+::  +test-a-foreigns-revoke: test invite revocation
+::
+++  test-a-foreigns-revoke
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  do-groups-init
+  ::  receive a public and a private group invitation from ~fun
+  ::
+  ;<  =bowl:gall  bind:m  get-bowl
+  =/  public=invite:v8:gv
+    :*  ~nec^%nec-public
+        now.bowl
+        ~fun
+        ~               ::  token
+        ~               ::  note
+        *preview:v8:gv  ::  preview
+        &
+    ==
+  =/  private=invite:v8:gv
+    :*  ~nec^%nec-private
+        now.bowl
+        ~fun
+        `0v123          ::  token
+        ~               ::  note
+        *preview:v8:gv  ::  preview
+        &
+    ==
+  ;<  *  bind:m
+    %-  (do-as ~fun)
+    (do-poke group-foreign-2+!>([%invite public]))
+  ;<  *  bind:m
+    %-  (do-as ~fun)
+    (do-poke group-foreign-2+!>([%invite private]))
+  ;<  peek=cage  bind:m  (got-peek /x/v1/foreigns/~nec/nec-public)
+  =+  foreign=!<(foreign:v8:gv q.peek)
+  ;<  ~  bind:m
+    %+  ex-equal  !>(invites.foreign)
+    !>(~[public])
+  ;<  peek=cage  bind:m  (got-peek /x/v1/foreigns/~nec/nec-private)
+  =+  foreign=!<(foreign:v8:gv q.peek)
+  ;<  ~  bind:m
+    %+  ex-equal  !>(invites.foreign)
+    !>(~[private])
+  ::  verify that the invitations can't be revoked by a third-party
+  ::
+  ;<  ~  bind:m
+    %-  ex-fail
+    %-  (do-as ~fed)
+    (do-poke group-foreign-2+!>([%revoke ~nec^%nec-public ~]))
+  ;<  ~  bind:m
+    %-  ex-fail
+    %-  (do-as ~fed)
+    (do-poke group-foreign-2+!>([%revoke ~nec^%nec-private `0v123]))
+  ::  verify that the invitations can be revoked by the inviter
+  ::
+  ;<  *  bind:m
+    %-  (do-as ~fun)
+    (do-poke group-foreign-2+!>([%revoke ~nec^%nec-public ~]))
+  ;<  peek=cage  bind:m  (got-peek /x/v1/foreigns/~nec/nec-public)
+  =+  foreign=!<(foreign:v8:gv q.peek)
+  ;<  ~  bind:m
+    %+  ex-equal  !>(invites.foreign)
+    !>(~[public(valid |)])
+  ;<  *  bind:m
+    %-  (do-as ~fun)
+    (do-poke group-foreign-2+!>([%revoke ~nec^%nec-private `0v123]))
+  ;<  peek=cage  bind:m  (got-peek /x/v1/foreigns/~nec/nec-private)
+  =+  foreign=!<(foreign:v8:gv q.peek)
+  ;<  ~  bind:m
+    %+  ex-equal  !>(invites.foreign)
+    !>(~[private(valid |)])
   (pure:m ~)
 ::  +test-public-invites: test public group invitations
 ::
