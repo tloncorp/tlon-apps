@@ -5,9 +5,6 @@ import {
   createDismissedState,
   createEliminatedState,
   createDefaultNagState,
-  serializeNagState,
-  deserializeNagState,
-  getSettingsKey,
   validateNagConfig,
   type NagState,
   type NagConfig,
@@ -169,49 +166,6 @@ describe('nagLogic', () => {
     });
   });
 
-  describe('serializeNagState and deserializeNagState', () => {
-    it('should serialize and deserialize state correctly', () => {
-      const state: NagState = {
-        lastDismissed: fixedTime,
-        dismissCount: 5,
-        eliminated: true,
-      };
-
-      const serialized = serializeNagState(state);
-      const deserialized = deserializeNagState(serialized);
-
-      expect(deserialized).toEqual(state);
-    });
-
-    it('should return null for invalid JSON', () => {
-      const result = deserializeNagState('invalid json');
-      expect(result).toBeNull();
-    });
-
-    it('should return null for missing required fields', () => {
-      const invalidState = JSON.stringify({ lastDismissed: 123 }); // missing fields
-      const result = deserializeNagState(invalidState);
-      expect(result).toBeNull();
-    });
-
-    it('should return null for wrong types', () => {
-      const invalidState = JSON.stringify({
-        lastDismissed: 'not a number',
-        dismissCount: 0,
-        eliminated: false,
-      });
-      const result = deserializeNagState(invalidState);
-      expect(result).toBeNull();
-    });
-  });
-
-
-  describe('getSettingsKey', () => {
-    it('should generate correct settings key', () => {
-      expect(getSettingsKey('test')).toBe('nagState_test');
-      expect(getSettingsKey('onboarding')).toBe('nagState_onboarding');
-    });
-  });
 
   describe('validateNagConfig', () => {
     it('should pass validation for valid config', () => {

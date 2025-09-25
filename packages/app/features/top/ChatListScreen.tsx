@@ -340,7 +340,7 @@ export function ChatListScreenView({
             />
           </View>
         </NavigationProvider>
-        {chats && <SystemNotices.NotificationsPrompt />}
+        {displayData && <SystemNotices.NotificationsPrompt />}
         <NavBarView
           navigateToContacts={() => {
             navigation.navigate('Contacts');
