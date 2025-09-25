@@ -339,3 +339,25 @@ export const debugPermittedSchedulerId = createStorageItem<string | null>({
   defaultValue: null,
   persistAfterLogout: true,
 });
+
+export type NagState = {
+  lastDismissed: number;
+  dismissCount: number;
+  eliminated: boolean;
+};
+
+const defaultNagState: NagState = {
+  lastDismissed: 0,
+  dismissCount: 0,
+  eliminated: false,
+};
+
+export const createNagStorageItem = (key: string) => {
+  return createStorageItem<NagState>({
+    key: `nag:${key}`,
+    defaultValue: defaultNagState,
+  });
+};
+
+export const contactBookPromptNag = createNagStorageItem('contactBookPrompt');
+export const notificationsPromptNag = createNagStorageItem('notificationsPrompt');

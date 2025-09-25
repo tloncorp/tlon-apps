@@ -1,29 +1,23 @@
-import { useCallback, useMemo, useState, useEffect } from 'react';
-import { setSetting } from '@tloncorp/shared/api';
-import * as db from '@tloncorp/shared/db';
+import { useCallback, useMemo } from 'react';
+import * as kv from '@tloncorp/shared/db';
 import { createDevLogger } from '@tloncorp/shared';
 import {
   shouldShowNag,
   createDismissedState,
   createEliminatedState,
-  createDefaultNagState,
-  serializeNagState,
-  deserializeNagState,
-  type NagState,
   type NagConfig,
 } from './nagLogic';
+import type { NagState } from '@tloncorp/shared/db';
 
 const logger = createDevLogger('useNag', true);
 
-// Re-export types and pure functions from nagLogic for convenience
-export type { NagState, NagConfig, NagBehaviorConfig } from './nagLogic';
+// Re-export types and pure functions for convenience
+export type { NagConfig, NagBehaviorConfig } from './nagLogic';
+export type { NagState } from '@tloncorp/shared/db';
 export {
   shouldShowNag,
   createDismissedState,
   createEliminatedState,
-  createDefaultNagState,
-  serializeNagState,
-  deserializeNagState,
   validateNagConfig,
 } from './nagLogic';
 
@@ -46,73 +40,16 @@ export interface NagHookReturn {
 }
 
 /**
- * Map nag keys to their corresponding schema fields
+ * Map nag keys to their corresponding storage items
  */
-function getSchemaField(nagKey: string): keyof db.Settings | null {
+function getNagStorageItem(nagKey: string) {
   switch (nagKey) {
     case 'contactBookPrompt':
-      return 'nagStateContactBookPrompt';
+      return kv.contactBookPromptNag;
     case 'notificationsPrompt':
-      return 'nagStateNotificationsPrompt';
+      return kv.notificationsPromptNag;
     default:
-      return null;
-  }
-}
-
-/**
- * Get stored state for a nag key
- * Uses database storage only - all nags must be registered in schema
- */
-async function getNagState(key: string): Promise<NagState> {
-  const schemaField = getSchemaField(key);
-  if (!schemaField) {
-    throw new Error(`Nag key "${key}" is not registered. Add it to getSchemaField() and the database schema.`);
-  }
-
-  try {
-    const settings = await db.getSettings();
-    if (settings) {
-      const rawState = settings[schemaField as keyof typeof settings];
-      if (typeof rawState === 'string') {
-        const state = deserializeNagState(rawState);
-        if (state) {
-          return state;
-        }
-      }
-    }
-  } catch (error) {
-    logger.log(`Failed to get nag state from database for key "${key}":`, error);
-    throw error;
-  }
-
-  return createDefaultNagState();
-}
-
-/**
- * Save state for a nag key
- * Uses database + server sync only - all nags must be registered in schema
- */
-async function saveNagState(key: string, state: NagState): Promise<void> {
-  const schemaField = getSchemaField(key);
-  if (!schemaField) {
-    throw new Error(`Nag key "${key}" is not registered. Add it to getSchemaField() and the database schema.`);
-  }
-
-  const stateJson = serializeNagState(state);
-
-  try {
-    logger.log(`Setting nag state for key "${key}" (field: ${String(schemaField)}) with value:`, stateJson);
-
-    // Store in local database immediately
-    await db.insertSettings({ [schemaField]: stateJson });
-
-    // Sync to server using the proper schema field name
-    await setSetting(String(schemaField), stateJson);
-
-    logger.log(`Successfully set nag state for key "${key}"`);
-  } catch (error) {
-    logger.log(`Failed to save nag state for key "${key}":`, error);
-    throw error;
+      return kv.createNagStorageItem(nagKey);
   }
 }
 
@@ -125,9 +62,9 @@ async function saveNagState(key: string, state: NagState): Promise<void> {
  *
  * @remarks
  * **Storage Strategy:**
- * - Server-side storage via %settings agent (syncs across devices)
- * - All nags must be registered in schema - no localStorage fallback
- * - Optimistic updates: Local state updated immediately, server sync in background
+ * - Client-side storage via keyValue store (localStorage/SecureStore)
+ * - Automatic registration: No need to pre-register nag keys in schema
+ * - Optimistic updates: Local state updated immediately, persisted automatically
  *
  * **Visibility Logic:**
  * 1. Never shown if permanently eliminated
@@ -187,30 +124,9 @@ async function saveNagState(key: string, state: NagState): Promise<void> {
  */
 export function useNag(config: NagConfig): NagHookReturn {
   const { key, refreshInterval, refreshCycle } = config;
+  const storageItem = getNagStorageItem(key);
 
-  const [nagState, setNagState] = useState<NagState>(createDefaultNagState());
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Load initial state
-  useEffect(() => {
-    async function loadNagState() {
-      setIsLoading(true);
-
-      try {
-        const state = await getNagState(key);
-
-        setNagState(state);
-      } catch (error) {
-        logger.log(`Failed to load nag state for key "${key}":`, error);
-        // Use default state on error
-        setNagState(createDefaultNagState());
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    loadNagState();
-  }, [key]);
+  const { value: nagState, isLoading, setValue } = storageItem.useStorageItem();
 
   const shouldShow = useMemo(() => {
     if (isLoading) return false;
@@ -219,16 +135,13 @@ export function useNag(config: NagConfig): NagHookReturn {
   }, [nagState, refreshInterval, refreshCycle, isLoading]);
 
   const updateNagState = useCallback(async (newState: NagState) => {
-    // Update local state immediately for responsiveness
-    setNagState(newState);
-
     try {
-      await saveNagState(key, newState);
+      await setValue(newState);
+      logger.log(`Successfully updated nag state for key "${key}"`);
     } catch (error) {
       logger.log(`Failed to save nag state for key "${key}":`, error);
-      // Local state already updated, so user experience continues smoothly
     }
-  }, [key]);
+  }, [setValue, key]);
 
   const dismiss = useCallback(() => {
     const newState = createDismissedState(nagState);
