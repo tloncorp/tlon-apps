@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
-import { setSetting } from '../../shared/src/api/settingsApi';
-import * as db from '../../shared/src/db';
-import { createDevLogger } from '../../shared/src/debug';
+import { setSetting } from '@tloncorp/shared/api';
+import * as db from '@tloncorp/shared/db';
+import { createDevLogger } from '@tloncorp/shared';
 import {
   shouldShowNag,
   createDismissedState,
