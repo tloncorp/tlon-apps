@@ -10,7 +10,7 @@ import { useStore } from '../contexts';
 
 const SystemNotices = {
   ContactBookPrompt,
-  NotifcationsPrompt,
+  NotificationsPrompt,
 };
 
 const NoticeFrame = styled(YStack, {
@@ -34,7 +34,7 @@ const NoticeTitle = styled(Text, {
 
 export default SystemNotices;
 
-export function NotifcationsPrompt() {
+export function NotificationsPrompt() {
   const notifNag = useNag({
     key: 'notificationsPrompt',
     refreshInterval: 24 * 60 * 60 * 1000, // 24 hours
