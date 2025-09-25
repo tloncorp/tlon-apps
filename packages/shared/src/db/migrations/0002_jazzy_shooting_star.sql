@@ -1,1 +1,0 @@
-ALTER TABLE `settings` ADD `nag_state_notifications_prompt` text;
