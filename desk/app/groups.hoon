@@ -688,20 +688,28 @@
     ::  strip out raw image data
     ::
     foreign(image.meta.u.preview '')
-  %+  roll  ~(tap by groups)
-  |=  [[=flag:g =net:g =group:g] =_cor]
-  ?:  ?|  =('' image.meta.group)
-          =('http' (end 3^4 image.meta.group))
-          =('#' (end 3 image.meta.group))
-      ==
-    cor
-  ?:  =(p.flag our.bowl)
-    ::  if it's our group, edit the metadata and send out updates about it
+  =.  cor
+    %+  roll  ~(tap by groups)
+    |=  [[=flag:g =net:g =group:g] =_cor]
+    ?:  ?|  =('' image.meta.group)
+            =('http' (end 3^4 image.meta.group))
+            =('#' (end 3 image.meta.group))
+        ==
+      cor
+    ?:  =(p.flag our.bowl)
+      ::  if it's our group, edit the metadata and send out updates about it
+      ::
+      se-abet:(se-c-group:(se-abed:se-core:cor flag) %meta meta.group(image ''))
+    ::  if it's not ours, just clean it up locally so it doesn't clog our pipes
     ::
-    se-abet:(se-c-group:(se-abed:se-core:cor flag) %meta meta.group(image ''))
-  ::  if it's not ours, just clean it up locally so it doesn't clog our pipes
+    cor(groups (~(put by groups) flag net group(image.meta '')))
+  ::  prune expired tokens and revoke associated invites
   ::
-  cor(groups (~(put by groups) flag net group(image.meta '')))
+  =.  cor
+    %+  roll  ~(tap by groups)
+    |=  [[=flag:g *] =_cor]
+    se-abet:se-prune-tokens:(se-abed:se-core:cor flag)
+  cor
   ::
   +$  any-state
     $%  state-8
@@ -934,9 +942,6 @@
       ~(tap by groups)
     |=  [[=flag:g [=net:g *]] =_cor]
     go-abet:(go-safe-sub:(go-abed:go-core:cor flag) |)
-  ::  perodically prune expired invites
-  ::
-  =.  cor  (emit (set-timer /server/tokens (add now.bowl server-tokens-timer)))
   cor
 ::
 ++  watch
@@ -1408,13 +1413,14 @@
       [%load %v7 %subscriptions ~]
     inflate-io
   ::
-      ::  prune expired tokens
-      [%server %tokens ~]
+      ::  delete expired token
+      ::
+      [%server %groups ship=@ name=@ %tokens token=@uv %expire ~]
     ?>  ?=([%behn %wake ~] sign)
-    =.  cor  (emit (set-timer /server/tokens (add now.bowl server-tokens-timer)))
-    %+  roll  ~(tap by groups)
-    |=  [[=flag:g *] =_cor]
-    se-abet:se-prune-tokens:(se-abed:se-core:cor flag)
+    =+  ship=(slav %p ship.pole)
+    =/  =flag:g  [ship name.pole]
+    =/  =token:g  (slav %uv token.pole)
+    se-abet:(se-expire-token:(se-abed:se-core flag) token)
   ==
 ::  +safe-watch: safely watch a subscription path
 ::
@@ -2117,6 +2123,9 @@
             (add now.bowl (fall expiry ~d365))
             label
         ==
+      =.  se-core
+        =/  =wire  (weld se-area /tokens/(scot %uv token)/expire)
+        (emit (set-timer wire expiry.token-meta))
       ::TODO implement referrals
       :: =?  referrals.ad  referral.c-token-add
       ::   (~(put ju referrals.ad) src.bowl)
@@ -2134,6 +2143,13 @@
       :-  ~
       (se-update [%entry %token %del token.c-token])
     ==
+  ::  +se-expire-token: delete an expired token
+  ::
+  ++  se-expire-token
+    |=  =token:g
+    ^+  se-core
+    ?.  (~(has by tokens.ad) token)  se-core
+    +:(se-c-entry-token %del token)
   ::  +se-revoke-token-invites: revoke any invites associated with a token
   ::
   ++  se-revoke-token-invites

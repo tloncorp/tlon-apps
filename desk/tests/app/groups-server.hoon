@@ -158,6 +158,10 @@
     ~[/server/groups/~zod/my-test-group/updates/~zod/(scot %da *@da)]
   group-update+!>(`update:g`[time u-group])
 ::
+++  ex-arvo-token-expire
+  |=  [token=@uv expiry=@da]
+  (ex-arvo (weld se-area /tokens/(scot %uv token)/expire) %b %wait expiry)
+::
 ++  test-c-groups-create
   %-  eval-mare
   =/  m  (mare ,~)
@@ -290,6 +294,7 @@
   ^-  form:m
   ;<  *  bind:m  do-groups-init
   ;<  *  bind:m  (do-create-group %private)
+  ;<  *  bind:m  (jab-bowl |=(=bowl bowl(eny 0v123)))
   ::  a ship can ask to join the group. the request is recorded and
   ::  broadcasted.
   ::
@@ -319,8 +324,9 @@
   ;<  =bowl:gall  bind:m  get-bowl
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-update now.bowl [%entry %token [%add 0v0 [personal+~dev (add now.bowl ~d365) ~]]])
-        (ex-fact ~[ask-path] group-token+!>(`(unit token:g)``0v0))
+    :~  (ex-arvo-token-expire 0v123 (add now.bowl ~d365))
+        (ex-update now.bowl [%entry %token [%add 0v123 [personal+~dev (add now.bowl ~d365) ~]]])
+        (ex-fact ~[ask-path] group-token+!>(`(unit token:g)``0v123))
         (ex-card [%give %kick ~[ask-path] ~])
         (ex-update (add now.bowl tick) [%entry %ask %del (sy ~dev ~)])
     ==
@@ -538,6 +544,7 @@
     %+  ex-cards  caz
     :~  ::
         ::  generate new token
+        (ex-arvo-token-expire 0v123 expiry.token-meta)
         (ex-update now.bowl [%entry %token %add 0v123 token-meta])
         ::
         ::  invite ~nec
@@ -592,14 +599,17 @@
       [%invite (v7:invite:v8:gc invite(token `0v124))]
     =/  a-foreigns-8-fun=a-foreigns:v8:gv
       [%invite invite(token `0v124)]
+    =+  expiry=(add now.bowl ~d365)
     %+  ex-cards  caz
     :~  ::
         ::  invite ~dev
+        (ex-arvo-token-expire 0v123 expiry)
         (ex-poke (snoc dev-wire %old) [~dev my-agent] group-foreign-1+!>(a-foreigns-7-dev))
         (ex-fact-negotiate [~dev my-agent] %groups)
         (ex-poke dev-wire [~dev my-agent] group-foreign-2+!>(a-foreigns-8-dev))
         ::
         ::  invite ~fun
+        (ex-arvo-token-expire 0v124 expiry)
         (ex-poke (snoc fun-wire %old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
         (ex-fact-negotiate [~fun my-agent] %groups)
         (ex-poke fun-wire [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
@@ -641,6 +651,7 @@
     %+  ex-cards  caz
     :~  ::
         ::  generate new token
+        (ex-arvo-token-expire 0v125 expiry.token-meta)
         (ex-update now.bowl [%entry %token %add 0v125 token-meta])
         ::
         ::  revoke previous invitation
@@ -769,6 +780,7 @@
     %+  ex-cards  caz
     :~  ::
         ::  invite ~dev
+        (ex-arvo-token-expire 0v123 (add now.bowl ~d365))
         (ex-poke (snoc dev-wire %old) [~dev my-agent] group-foreign-1+!>(a-foreigns-7-dev))
         (ex-fact-negotiate [~dev my-agent] %groups)
         (ex-poke dev-wire [~dev my-agent] group-foreign-2+!>(a-foreigns-8-dev))
@@ -835,6 +847,7 @@
     %+  ex-cards  caz
     :~  ::
         ::  invite ~dev
+        (ex-arvo-token-expire 0v123 (add now.bowl ~d365))
         (ex-poke (snoc dev-wire %old) [~dev my-agent] group-foreign-1+!>(a-foreigns-7-dev))
         (ex-fact-negotiate [~dev my-agent] %groups)
         (ex-poke dev-wire [~dev my-agent] group-foreign-2+!>(a-foreigns-8-dev))
@@ -901,6 +914,7 @@
     %+  ex-cards  caz
     :~  ::
         ::  invite ~dev
+        (ex-arvo-token-expire 0v123 (add now.bowl ~d365))
         (ex-poke (snoc dev-wire %old) [~dev my-agent] group-foreign-1+!>(a-foreigns-7-dev))
         (ex-fact-negotiate [~dev my-agent] %groups)
         (ex-poke dev-wire [~dev my-agent] group-foreign-2+!>(a-foreigns-8-dev))
@@ -924,13 +938,12 @@
   ::  the invite revoked.
   ::
   ;<  *  bind:m  (wait ~d365)
-  ;<  caz=(list card)  bind:m  (do-arvo /server/tokens [%behn %wake ~])
+  ;<  caz=(list card)  bind:m  (do-arvo (weld se-area /tokens/0v123/expire) [%behn %wake ~])
   ;<  =^bowl  bind:m  get-bowl
   ;<  ~  bind:m
     =/  dev-revoke-wire=wire  (weld se-area /invite/revoke/~dev)
     %+  ex-cards  caz
-    :~  (ex-arvo /server/tokens %b %wait (add now.bowl ~d1))
-        ::
+    :~  ::
         ::  revoke previous invitation
         (ex-poke dev-revoke-wire [~dev my-agent] group-foreign-2+!>([%revoke my-flag `0v123]))
         (ex-update now.bowl [%entry %token %del 0v123])
@@ -969,14 +982,17 @@
       [%invite (v7:invite:v8:gc invite(token `0v124))]
     =/  a-foreigns-8-fun=a-foreigns:v8:gv
       [%invite invite(token `0v124)]
+    =+  expiry=(add now.bowl ~d365)
     %+  ex-cards  caz
     :~  ::
         ::  invite ~dev
+        (ex-arvo-token-expire 0v123 expiry)
         (ex-poke (snoc dev-wire %old) [~dev my-agent] group-foreign-1+!>(a-foreigns-7-dev))
         (ex-fact-negotiate [~dev my-agent] %groups)
         (ex-poke dev-wire [~dev my-agent] group-foreign-2+!>(a-foreigns-8-dev))
         ::
         ::  invite ~fun
+        (ex-arvo-token-expire 0v124 expiry)
         (ex-poke (snoc fun-wire %old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
         (ex-fact-negotiate [~fun my-agent] %groups)
         (ex-poke fun-wire [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
