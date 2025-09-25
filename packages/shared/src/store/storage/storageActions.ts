@@ -3,7 +3,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { deSig, unixToDa } from '@urbit/aura';
 import { formatDa } from '@urbit/aura';
 import * as FileSystem from 'expo-file-system';
-import { manipulateAsync } from 'expo-image-manipulator';
+import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';
 import { ImagePickerAsset } from 'expo-image-picker';
 
 import { RNFile, getCurrentUserId } from '../../api';
@@ -38,6 +38,22 @@ function getExtensionFromMimeType(mimeType?: string): string {
   return mimeToExt[mimeType.toLowerCase()] || '.jpg';
 }
 
+function getSaveFormat(mimeType?: string): SaveFormat {
+  if (!mimeType) {
+    return SaveFormat.JPEG;
+  }
+
+  const lowercaseMime = mimeType.toLowerCase();
+  if (lowercaseMime.includes('png')) {
+    return SaveFormat.PNG;
+  }
+  if (lowercaseMime.includes('webp')) {
+    return SaveFormat.WEBP;
+  }
+  // expo-image-manipulator only supports JPEG, PNG, and WEBP
+  return SaveFormat.JPEG;
+}
+
 export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
   if (asset.uri === PLACEHOLDER_ASSET_URI) {
     logger.log('placeholder image, skipping upload');
@@ -58,6 +74,7 @@ export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
     const originalMimeType = asset.mimeType;
     // avoid resizing gifs
     if (!asset.mimeType?.includes('gif')) {
+      const format = getSaveFormat(asset.mimeType);
       resizedAsset = await manipulateAsync(
         asset.uri,
         [
@@ -66,7 +83,10 @@ export const uploadAsset = async (asset: ImagePickerAsset, isWeb = false) => {
               asset.width > asset.height ? { width: 1200 } : { height: 1200 },
           },
         ],
-        { compress: 0.75 }
+        {
+          compress: 0.75,
+          format,
+        }
       );
     }
     const remoteUri = await performUpload(
