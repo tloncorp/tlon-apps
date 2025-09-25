@@ -6,7 +6,7 @@ import m0000 from './0000_panoramic_xorn.sql';
   export default {
     journal,
     migrations: {
-      m0000,
+      m0000
     }
   }
   
