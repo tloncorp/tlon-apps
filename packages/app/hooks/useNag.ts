@@ -5,6 +5,7 @@ import {
   shouldShowNag,
   createDismissedState,
   createEliminatedState,
+  createDefaultNagState,
   type NagConfig,
 } from './nagLogic';
 import type { NagState } from '@tloncorp/shared/db';
@@ -17,6 +18,7 @@ export {
   shouldShowNag,
   createDismissedState,
   createEliminatedState,
+  createDefaultNagState,
   validateNagConfig,
 } from './nagLogic';
 
@@ -24,6 +26,7 @@ export interface NagHookReturn {
   shouldShow: boolean;
   dismiss: () => void;
   eliminate: () => void;
+  reset: () => void;
   dismissCount: number;
   isEliminated: boolean;
   isLoading: boolean;
@@ -38,8 +41,17 @@ export function useNag(config: NagConfig): NagHookReturn {
   const shouldShow = useMemo(() => {
     if (isLoading) return false;
 
-    return shouldShowNag(nagState, { refreshInterval, refreshCycle });
-  }, [nagState, refreshInterval, refreshCycle, isLoading]);
+    const result = shouldShowNag(nagState, { refreshInterval, refreshCycle });
+
+    logger.log(`shouldShow for "${key}":`, {
+      result,
+      nagState,
+      config: { refreshInterval, refreshCycle },
+      timeSinceLastDismissal: Date.now() - nagState.lastDismissed,
+    });
+
+    return result;
+  }, [nagState, refreshInterval, refreshCycle, isLoading, key]);
 
   const updateNagState = useCallback(async (updater: (prev: NagState) => NagState) => {
     try {
@@ -50,17 +62,24 @@ export function useNag(config: NagConfig): NagHookReturn {
   }, [setValue, key]);
 
   const dismiss = useCallback(() => {
+    logger.log(`Dismissing nag "${key}"`);
     updateNagState(createDismissedState);
-  }, [updateNagState]);
+  }, [updateNagState, key]);
 
   const eliminate = useCallback(() => {
     updateNagState(createEliminatedState);
   }, [updateNagState]);
 
+  const reset = useCallback(() => {
+    logger.log(`Resetting nag "${key}"`);
+    updateNagState(() => createDefaultNagState());
+  }, [updateNagState, key]);
+
   return {
     shouldShow,
     dismiss,
     eliminate,
+    reset,
     dismissCount: nagState.dismissCount,
     isEliminated: nagState.eliminated,
     isLoading,
