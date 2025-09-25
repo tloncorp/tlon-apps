@@ -29,6 +29,7 @@ function getBucket(key: string): string {
     case 'disableTlonInfraEnhancement':
     case 'enableTelemetry':
     case 'nagStateContactBookPrompt':
+    case 'nagStateNotificationsPrompt':
       return 'groups';
     case 'disableAvatars':
     case 'disableNicknames':
@@ -121,6 +122,8 @@ export const toClientSettings = (
       settings.desk.groups?.disableTlonInfraEnhancement ?? false,
     // Nag system settings
     nagStateContactBookPrompt: settings.desk.groups?.nagStateContactBookPrompt,
+    nagStateNotificationsPrompt:
+      settings.desk.groups?.nagStateNotificationsPrompt,
   };
 };
 

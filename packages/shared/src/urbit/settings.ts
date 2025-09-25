@@ -71,6 +71,7 @@ export type GroupsSettings = {
   completedWayfindingTutorial?: boolean;
   disableTlonInfraEnhancement?: boolean;
   nagStateContactBookPrompt?: string;
+  nagStateNotificationsPrompt?: string;
 };
 
 export type TalkSettings = {
