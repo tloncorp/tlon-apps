@@ -359,5 +359,3 @@ export const createNagStorageItem = (key: string) => {
   });
 };
 
-export const contactBookPromptNag = createNagStorageItem('contactBookPrompt');
-export const notificationsPromptNag = createNagStorageItem('notificationsPrompt');

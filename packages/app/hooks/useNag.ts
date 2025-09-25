@@ -29,20 +29,9 @@ export interface NagHookReturn {
   isLoading: boolean;
 }
 
-function getNagStorageItem(nagKey: string) {
-  switch (nagKey) {
-    case 'contactBookPrompt':
-      return kv.contactBookPromptNag;
-    case 'notificationsPrompt':
-      return kv.notificationsPromptNag;
-    default:
-      return kv.createNagStorageItem(nagKey);
-  }
-}
-
 export function useNag(config: NagConfig): NagHookReturn {
   const { key, refreshInterval, refreshCycle } = config;
-  const storageItem = getNagStorageItem(key);
+  const storageItem = kv.createNagStorageItem(key);
 
   const { value: nagState, isLoading, setValue } = storageItem.useStorageItem();
 
@@ -52,23 +41,21 @@ export function useNag(config: NagConfig): NagHookReturn {
     return shouldShowNag(nagState, { refreshInterval, refreshCycle });
   }, [nagState, refreshInterval, refreshCycle, isLoading]);
 
-  const updateNagState = useCallback(async (newState: NagState) => {
+  const updateNagState = useCallback(async (updater: (prev: NagState) => NagState) => {
     try {
-      await setValue(newState);
+      await setValue(updater);
     } catch (error) {
       logger.log(`Failed to save nag state for key "${key}":`, error);
     }
   }, [setValue, key]);
 
   const dismiss = useCallback(() => {
-    const newState = createDismissedState(nagState);
-    updateNagState(newState);
-  }, [nagState, updateNagState]);
+    updateNagState(createDismissedState);
+  }, [updateNagState]);
 
   const eliminate = useCallback(() => {
-    const newState = createEliminatedState(nagState);
-    updateNagState(newState);
-  }, [nagState, updateNagState]);
+    updateNagState(createEliminatedState);
+  }, [updateNagState]);
 
   return {
     shouldShow,
