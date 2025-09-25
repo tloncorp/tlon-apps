@@ -9,4 +9,3 @@ import m0000 from './0000_panoramic_xorn.sql';
       m0000
     }
   }
-  
