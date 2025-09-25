@@ -223,7 +223,8 @@ export function GalleryInput({
       }
 
       // Create a story with the caption and image blocks
-      const story = constructStory([caption || '']);
+      // Only include caption if it exists (avoid empty strings)
+      const story = caption ? constructStory([caption]) : constructStory([]);
 
       // Extract and add image blocks to the story
       const blocks = imageAttachments.map((attachment) => {

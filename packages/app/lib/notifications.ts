@@ -120,11 +120,6 @@ export const useNotificationPermissions = (): domain.NotifPerms => {
 };
 
 export const requestNotificationToken = async () => {
-  // Skip if running on emulator
-  if (!Device.isDevice) {
-    return undefined;
-  }
-
   const isGranted = await requestNotificationPermissionsIfNeeded();
 
   // Skip if permission explicitly not granted

@@ -796,6 +796,7 @@
   =/  =cage  [%channel-request-join !>(request)]
   [%pass /request-join %agent [ship %channels] %poke cage]
 ::
+++  size-limit  256.000  :: 256KB
 ++  ca-core
   |_  [=nest:c channel=v-channel:c gone=_|]
   +*  ca-posts  ~(. not posts.channel)
@@ -923,6 +924,7 @@
     ::
         %meta
       ?>  (is-admin:ca-perms src.bowl)
+      ?>  (lte (met 3 (jam meta.c-channel)) size-limit)
       =^  changed  meta.channel  (next-rev:c meta.channel meta.c-channel)
       ?.  changed  ca-core
       (ca-update %meta meta.channel)
@@ -959,6 +961,7 @@
         %add
       ?>  |(=(src.bowl our.bowl) =(src.bowl author.essay.c-post))
       ?>  =(kind.nest -.kind.essay.c-post)
+      ?>  (lte (met 3 (jam essay.c-post)) size-limit)
       =/  id=id-post:c
         |-
         =/  post  (get:on-v-posts:c posts.channel now.bowl)
@@ -979,6 +982,7 @@
     ::
         %edit
       ?>  |(=(src.bowl author.essay.c-post) (is-admin:ca-perms src.bowl))
+      ?>  (lte (met 3 (jam essay.c-post)) size-limit)
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  no-op
       ?:  ?=(%| -.u.post)  no-op
@@ -1100,6 +1104,7 @@
     ?-    -.c-reply
         %add
       ?>  =(src.bowl author.memo.c-reply)
+      ?>  (lte (met 3 (jam memo.c-reply)) size-limit)
       =/  id=id-reply:c
         |-
         =/  reply  (get:on-v-replies:c replies now.bowl)
@@ -1123,6 +1128,7 @@
       ?~  reply    `replies
       ?:  ?=(%| -.u.reply)  `replies
       ?>  =(src.bowl author.u.reply)
+      ?>  (lte (met 3 (jam memo.c-reply)) size-limit)
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-reply %edit parent +.u.reply memo.c-reply]
         (run-hooks event nest 'edit blocked')

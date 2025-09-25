@@ -15,6 +15,24 @@ import * as path from 'path';
 import * as tar from 'tar-fs';
 import * as zlib from 'zlib';
 
+// Load .env.test file if it exists
+const envTestPath = path.join(__dirname, '..', '..', '.env.test');
+if (fs.existsSync(envTestPath)) {
+  const envContent = fs.readFileSync(envTestPath, 'utf8');
+  envContent.split('\n').forEach((line) => {
+    // Skip comments and empty lines
+    if (line && !line.startsWith('#') && line.includes('=')) {
+      const [key, ...valueParts] = line.split('=');
+      const value = valueParts.join('=').trim();
+      // Only set if not already set (allow command-line overrides)
+      if (!process.env[key.trim()]) {
+        process.env[key.trim()] = value;
+      }
+    }
+  });
+  console.log('Loaded environment variables from .env.test');
+}
+
 const spawnedProcesses: childProcess.ChildProcess[] = [];
 const startHashes: { [ship: string]: { [desk: string]: string } } = {};
 const rubeDir = __dirname;
@@ -1054,18 +1072,57 @@ const executeClickCommand = async (
   hoonCommand: string,
   options: { useKhan?: boolean } = {}
 ): Promise<string> => {
+  const decodeClickResult = (out: string): string | null => {
+    try {
+      // Extract after '%noun' up to the next ']'
+      const m = out.match(/%noun\s+([^\]]+)/);
+      if (!m) return null;
+      const payload = m[1].trim();
+
+      // Case 1: space-separated byte values (tape)
+      if (/^[0-9 ]+$/.test(payload)) {
+        const bytes = payload
+          .trim()
+          .split(/\s+/)
+          .map((n) => parseInt(n, 10))
+          .filter((n) => Number.isFinite(n) && n > 0 && n < 256);
+        if (bytes.length > 0) {
+          return String.fromCharCode(...bytes);
+        }
+      }
+
+      // Case 2: single atom (e.g., %ok -> 27503)
+      if (/^\d+$/.test(payload)) {
+        const n = parseInt(payload, 10);
+        if (n === 27503) return '%ok';
+        return String(payload);
+      }
+
+      return null;
+    } catch {
+      return null;
+    }
+  };
   return new Promise((resolve, reject) => {
-    // Create a ship-specific wrapper script on the fly.
-    // This is the only method I've found that works reliably without
-    // running into formatting issues
+    // Create a ship-specific wrapper script and a temp input file to leverage
+    // click's -i mode, which safely escapes quotes/newlines for newt.
+    const tmpId = Date.now();
     const tempWrapperPath = path.join(
       path.dirname(__dirname),
-      `temp-click-${ship.ship}-${Date.now()}.sh`
+      `temp-click-${ship.ship}-${tmpId}.sh`
+    );
+    const tempInputPath = path.join(
+      path.dirname(__dirname),
+      `temp-click-input-${ship.ship}-${tmpId}.hoon`
     );
 
     const clickFlags = options.useKhan ? '-k' : '';
     const urbitBinary = path.join(__dirname, 'urbit_extracted', 'urbit');
-    const wrapperContent = `#!/bin/bash\n./click -b ${urbitBinary} ${clickFlags} ./dist/${ship.ship}/${ship.ship} $'${hoonCommand}'\n`;
+
+    // Write Hoon source exactly as-is; click -i will escape it correctly.
+    fs.writeFileSync(tempInputPath, hoonCommand, 'utf8');
+
+    const wrapperContent = `#!/bin/bash\n./click -b ${urbitBinary} ${clickFlags} -i ${tempInputPath} ./dist/${ship.ship}/${ship.ship}\n`;
 
     console.log(
       `Creating temporary wrapper for ${ship.ship}: ${tempWrapperPath}`
@@ -1083,11 +1140,24 @@ const executeClickCommand = async (
         stdout: string,
         stderr: string
       ) => {
-        // Clean up temp wrapper
+        // Clean up temp wrapper and input
         try {
-          fs.unlinkSync(tempWrapperPath);
+          if (fs.existsSync(tempWrapperPath)) {
+            fs.unlinkSync(tempWrapperPath);
+          } else {
+            console.log(`Wrapper already deleted: ${tempWrapperPath}`);
+          }
         } catch (e) {
           console.error(`Error deleting temp wrapper for ${ship.ship}:`, e);
+        }
+        try {
+          if (fs.existsSync(tempInputPath)) {
+            fs.unlinkSync(tempInputPath);
+          } else {
+            console.log(`Input file already deleted: ${tempInputPath}`);
+          }
+        } catch (e) {
+          console.error(`Error deleting temp input for ${ship.ship}:`, e);
         }
 
         if (error) {
@@ -1102,7 +1172,12 @@ const executeClickCommand = async (
           console.error(`Click stderr for ${ship.ship}:`, stderr);
         }
         console.log(`Successfully executed click command for ${ship.ship}`);
-        console.log(`Click stdout:`, stdout);
+        const decoded = decodeClickResult(stdout);
+        if (decoded !== null) {
+          console.log(`Click result:`, decoded);
+        } else {
+          console.log(`Click stdout:`, stdout);
+        }
         resolve(stdout);
       }
     );
@@ -1128,7 +1203,7 @@ const setReelServiceShip = async () => {
       await new Promise((resolve) => setTimeout(resolve, 5000));
 
       // Execute the click command using the generalized function
-      const hoonCommand = `=/  m  (strand ,vase)  ;<  ~  bind:m  (poke [~${ship.ship} %reel] %reel-command !>([%set-ship ~mug]))  (pure:m !>(\\\\\\\'success\\\\\\\'))`;
+      const hoonCommand = `=/  m  (strand ,vase)  ;<  ~  bind:m  (poke [~${ship.ship} %reel] %reel-command !>([%set-ship ~mug]))  (pure:m !>(%ok))`;
       await executeClickCommand(ship, hoonCommand, { useKhan: true });
     } catch (e) {
       console.error(`Error setting service ship on ${ship.ship}:`, e);
@@ -1136,6 +1211,69 @@ const setReelServiceShip = async () => {
   }
 
   // Give the command time to complete
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+};
+
+const setStorageConfiguration = async () => {
+  // Check if storage configuration environment variables are set
+  const s3Endpoint = process.env.E2E_S3_ENDPOINT;
+  const s3AccessKeyId = process.env.E2E_S3_ACCESS_KEY_ID;
+  const s3SecretAccessKey = process.env.E2E_S3_SECRET_ACCESS_KEY;
+  const s3BucketName = process.env.E2E_S3_BUCKET_NAME;
+  const s3Region = process.env.E2E_S3_REGION || 'us-east-1';
+
+  if (!s3Endpoint || !s3AccessKeyId || !s3SecretAccessKey || !s3BucketName) {
+    console.log(
+      'Storage configuration environment variables not set, skipping S3 setup'
+    );
+    console.log('To enable image uploads in e2e tests, set:');
+    console.log(
+      '  E2E_S3_ENDPOINT, E2E_S3_ACCESS_KEY_ID, E2E_S3_SECRET_ACCESS_KEY, E2E_S3_BUCKET_NAME'
+    );
+    return;
+  }
+
+  console.log('Configuring S3 storage on all ships');
+
+  for (const ship of Object.values(ships) as Ship[]) {
+    if ((targetShip && targetShip !== ship.ship) || ship.skipCommit === true) {
+      continue;
+    }
+
+    try {
+      console.log(`Configuring S3 storage on ${ship.ship}`);
+
+      // Use khan thread to issue pure Hoon pokes (dojo syntax like :storage is not valid here)
+      const toHoonTape = (s: string) =>
+        s.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
+      // Set endpoint (single-line to avoid parser indentation issues)
+      let hoonCommand = `=/  m  (strand ,vase)  ;<  ~  bind:m  (poke [~${ship.ship} %storage] %storage-action !>([%set-endpoint (crip "${toHoonTape(s3Endpoint)}")]))  (pure:m !>(%ok))`;
+      await executeClickCommand(ship, hoonCommand, { useKhan: true });
+
+      // Set access key ID
+      hoonCommand = `=/  m  (strand ,vase)  ;<  ~  bind:m  (poke [~${ship.ship} %storage] %storage-action !>([%set-access-key-id (crip "${toHoonTape(s3AccessKeyId)}")]))  (pure:m !>(%ok))`;
+      await executeClickCommand(ship, hoonCommand, { useKhan: true });
+
+      // Set secret access key
+      hoonCommand = `=/  m  (strand ,vase)  ;<  ~  bind:m  (poke [~${ship.ship} %storage] %storage-action !>([%set-secret-access-key (crip "${toHoonTape(s3SecretAccessKey)}")]))  (pure:m !>(%ok))`;
+      await executeClickCommand(ship, hoonCommand, { useKhan: true });
+
+      // Set region
+      hoonCommand = `=/  m  (strand ,vase)  ;<  ~  bind:m  (poke [~${ship.ship} %storage] %storage-action !>([%set-region (crip "${toHoonTape(s3Region)}")]))  (pure:m !>(%ok))`;
+      await executeClickCommand(ship, hoonCommand, { useKhan: true });
+
+      // Set current bucket
+      hoonCommand = `=/  m  (strand ,vase)  ;<  ~  bind:m  (poke [~${ship.ship} %storage] %storage-action !>([%set-current-bucket (crip "${toHoonTape(s3BucketName)}")]))  (pure:m !>(%ok))`;
+      await executeClickCommand(ship, hoonCommand, { useKhan: true });
+
+      console.log(`Successfully configured S3 storage on ${ship.ship}`);
+    } catch (e) {
+      console.error(`Error setting storage configuration on ${ship.ship}:`, e);
+    }
+  }
+
+  // Give the commands time to complete
   await new Promise((resolve) => setTimeout(resolve, 2000));
 };
 
@@ -1207,10 +1345,9 @@ const main = async () => {
 
     // Nuke state and set reel service ship before mount/commit operations,
     // this makes it more likely that the ships will be ready for click commands
-    if (!process.env.FORCE_EXTRACTION) {
-      await nukeStateOnShips();
-    }
+    await nukeStateOnShips();
     await setReelServiceShip();
+    await setStorageConfiguration();
 
     // Mount desks first so Urbit writes its current state to filesystem
     await mountDesks();

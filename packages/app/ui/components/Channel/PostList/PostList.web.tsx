@@ -3,7 +3,6 @@ import { isEqual } from 'lodash';
 import * as React from 'react';
 import { View } from 'react-native';
 
-import { useFeatureFlag } from '../../../../lib/featureFlags';
 import { ScrollAnchor } from '../Scroller';
 import { PostList as PostListNative } from './PostListFlatList';
 import { PostListComponent, PostWithNeighbors } from './shared';
@@ -12,9 +11,7 @@ const FORCE_MANUAL_SCROLL_ANCHORING: boolean = false;
 const IS_FIREFOX = navigator.userAgent.includes('Firefox');
 
 export const PostList: PostListComponent = React.forwardRef((props, ref) => {
-  const [webScrollerEnabled] = useFeatureFlag('webScroller');
-
-  if (webScrollerEnabled && props.numColumns === 1) {
+  if (props.numColumns === 1) {
     return <PostListSingleColumn {...props} ref={ref} />;
   } else {
     // Use the native implementation for multi-column lists
@@ -155,15 +152,23 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
 
     const viewportHeight =
       useTrackContentRect(scrollerRef.current)?.height ?? 0;
-    const scrollerContentsKey = React.useMemo(
-      () =>
-        // HACK: Firefox triggers a mysterious scroll on the next keypress after
-        // the viewport height changes, which causes the scroll to unstick from
-        // bottom. If we just don't try to stick to bottom while viewport is
-        // resizing, we keep stuck to the bottom _after_ the send (although the
-        // chat gets hidden during drafting), which is better than unsticking.
-        IS_FIREFOX ? orderedData : [orderedData, viewportHeight],
-      [orderedData, viewportHeight]
+
+    const scrollerContentsKey = useIdentityHash(
+      scrollHeight,
+      orderedData,
+      // HACK: When the viewport shrinks in height, the browser prioritizes
+      // anchoring the content at the top of the viewport - so the content at
+      // the bottom of the viewport gets hidden "under the fold." To avoid
+      // this, we want to trigger "stick-to-scroll-start" when the viewport
+      // height changes. This works for Chrome and Safari.
+      //
+      // Firefox triggers a mysterious scroll on the next keypress after
+      // the viewport height changes, which causes the scroll to unstick from
+      // bottom - not great!
+      // On Firefox, if we just avoid sticking to bottom while viewport is
+      // resizing, we keep stuck to the bottom _after_ the send (although the
+      // chat gets hidden during drafting), which is better than unsticking.
+      IS_FIREFOX ? undefined : viewportHeight
     );
     const hasInFlightPost = React.useMemo(
       () =>
@@ -232,19 +237,10 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
               minHeight: '100%',
               flexDirection: 'column',
               alignItems: 'stretch',
-              justifyContent: 'flex-end',
+              justifyContent: inverted ? 'flex-end' : 'flex-start',
             }}
           >
-            <View
-              style={[
-                {
-                  flex: 1,
-                  flexDirection: 'column',
-                  justifyContent: inverted ? 'flex-end' : 'flex-start',
-                },
-                contentContainerStyle,
-              ]}
-            >
+            <View style={[{ flexDirection: 'column' }, contentContainerStyle]}>
               {orderedData.map((item, index) => (
                 <PostListItem key={item.post.id} item={item} index={index}>
                   {renderItem({ item, index })}
@@ -785,4 +781,25 @@ function useTrackContentRect(element: HTMLElement | null) {
     }
   }, [resizeObserver, element]);
   return contentRect;
+}
+
+// returns a value with a new identity whenever any of the deps' identities change
+function useIdentityHash(...deps: unknown[]): unknown {
+  const [hash, newHash] = React.useReducer((x) => x + 1, 0);
+  const prevDepsRef = React.useRef(deps);
+  React.useEffect(() => {
+    if (prevDepsRef.current.length !== deps.length) {
+      prevDepsRef.current = deps;
+      newHash();
+      return;
+    }
+    for (let i = 0; i < deps.length; i++) {
+      if (prevDepsRef.current[i] !== deps[i]) {
+        prevDepsRef.current = deps;
+        newHash();
+        return;
+      }
+    }
+  }, [deps]);
+  return hash;
 }

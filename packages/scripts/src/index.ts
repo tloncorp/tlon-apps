@@ -1,5 +1,5 @@
 import { parseContactUpdateEvent } from '@tloncorp/shared/api';
-import { PlaintextPreviewConfig, getTextContent } from '@tloncorp/shared/logic';
+import { getTextContent } from '@tloncorp/shared/logic';
 import type * as ub from '@tloncorp/shared/urbit';
 import {
   ActivityIncomingEvent,
@@ -11,6 +11,16 @@ import {
 type PreviewContentNode =
   | { type: 'channelTitle'; channelId: string }
   | { type: 'groupTitle'; groupId: string }
+  | {
+      /**
+       * A user-friendly representation of a post source, usually a channel in a
+       * group; e.g. "My Group: Main channel", or, if `groupId` points to a
+       * single-channel group, just "My Group".
+       */
+      type: 'postSource';
+      channelId: string;
+      groupId: string;
+    }
   | { type: 'gangTitle'; gangId: string }
   | { type: 'userNickname'; ship: string }
   | { type: 'stringLiteral'; content: string }
@@ -44,6 +54,12 @@ namespace PreviewContentNode {
   }
   export function channelTitle(channelId: string): PreviewContentNode {
     return { type: 'channelTitle', channelId };
+  }
+  export function postSource(opts: {
+    groupId: string;
+    channelId: string;
+  }): PreviewContentNode {
+    return { type: 'postSource', ...opts };
   }
   export function userNickname(ship: string): PreviewContentNode {
     return { type: 'userNickname', ship };
@@ -83,6 +99,7 @@ export function renderActivityEventPreview({
     channelTitle,
     userNickname,
     concatenateAll: concat,
+    postSource,
   } = PreviewContentNode;
   const source = getSourceForEvent(ev);
 
@@ -108,21 +125,20 @@ export function renderActivityEventPreview({
     info: Pick<ub.PostEvent['post'], 'key' | 'channel' | 'content' | 'group'>
   ): PreviewContentPayload {
     const base = buildMessageNotification(info);
-    const groupAndChannel = concat([
-      groupTitle(info.group),
-      lit(': '),
-      channelTitle(info.channel),
-    ]);
+    const sourceTitle = postSource({
+      groupId: info.group,
+      channelId: info.channel,
+    });
     return {
       ...base,
       notification: {
         ...base.notification,
-        title: groupAndChannel,
+        title: sourceTitle,
       },
       message: {
         ...base.message,
         type: 'group',
-        conversationTitle: groupAndChannel,
+        conversationTitle: sourceTitle,
       },
     };
   }
