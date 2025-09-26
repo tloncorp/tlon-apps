@@ -1,11 +1,12 @@
-const SERVERLESS_INFRA_ENDPOINT = 'https://serverless-infra.vercel.app/api';
-
-const response = http.post(`${SERVERLESS_INFRA_ENDPOINT}/retreiveE2eOtp`, {
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({ email: output.signupEmail }),
-});
+const response = http.post(
+  `${process.env.SERVERLESS_INFRA_API}/retreiveE2eOtp`,
+  {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email: output.signupEmail }),
+  }
+);
 
 const otp = response.body;
 if (!otp || otp.length !== 6) {
