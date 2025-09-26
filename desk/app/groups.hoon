@@ -2860,7 +2860,7 @@
     ^+  se-core
     ?+    path  ~|(se-agent-bad-path+path !!)
         [%invite %send ship=@ ~]
-      =+  ship=(slav %p i.t.path)
+      =+  ship=(slav %p i.t.t.path)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  se-core
       =.  cor  %+  ~(tell l ~)  %crit
@@ -2868,7 +2868,7 @@
       se-core
     ::
         [%invite %send ship=@ %old ~]
-      =+  ship=(slav %p i.t.path)
+      =+  ship=(slav %p i.t.t.path)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  se-core
       =.  cor  %+  ~(tell l ~)  %crit
@@ -2876,7 +2876,7 @@
       se-core
     ::
         [%invite %revoke ship=@ ~]
-      =+  ship=(slav %p i.t.path)
+      =+  ship=(slav %p i.t.t.path)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  se-core
       =.  cor  %+  ~(tell l ~)  %crit
