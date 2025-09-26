@@ -9,4 +9,3 @@ import m0000 from './0000_thick_gunslinger.sql';
       m0000
     }
   }
-  
