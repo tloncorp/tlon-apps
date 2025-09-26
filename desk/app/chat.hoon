@@ -115,17 +115,17 @@
           [/epic %epic ~]
           [/unreads %chat-unread-update ~]
         ::
-          [/v1 %chat-club-action-1 %writ-response-1 ~]
+          [/v1 %chat-club-action-1 %writ-response-1 %ships ~]
           [/v1/club/$ %writ-response-1 ~]
           [/v1/clubs %chat-club-action-1 ~]
           [/v1/dm/$ %writ-response-1 ~]
         ::
-          [/v2 %chat-club-action-1 %writ-response-2 ~]
+          [/v2 %chat-club-action-1 %writ-response-2 %ships ~]
           [/v2/club/$ %writ-response-2 ~]
           [/v2/clubs %chat-club-action-1 ~]
           [/v2/dm/$ %writ-response-2 ~]
         ::
-          [/v3 %chat-club-action-1 %writ-response-3 ~]
+          [/v3 %chat-club-action-1 %writ-response-3 %ships ~]
           [/v3/club/$ %writ-response-3 ~]
           [/v3/clubs %chat-club-action-1 ~]
           [/v3/dm/$ %writ-response-3 ~]
@@ -702,7 +702,9 @@
   ::
       %chat-dm-rsvp
     =+  !<(=rsvp:dm:c vase)
-    di-abet:(di-rsvp:(di-abed:di-core ship.rsvp) ok.rsvp)
+    ::  use soft abed since user could be in a state where they need to accept/decline
+    ::  and the DM isn't actually in state
+    di-abet:(di-rsvp:(di-abed-soft:di-core ship.rsvp) ok.rsvp)
   ::
       %chat-blocked
     ?<  from-self
@@ -2148,12 +2150,12 @@
   (~(has in nets) net.dm)
 ::
 ++  give-invites
-  |=  =ship
+  |=  [s=@p n=@tas]
   =/  invites
-    ?:  (~(has by dms) ship)
-      ~(key by pending-dms)
-    (~(put in ~(key by pending-dms)) ship)
-  (give %fact ~[/ /dm/invited] ships+!>(invites))
+    ?:  =(n %invited)
+      (~(put in ~(key by pending-dms)) s)
+    ~(key by pending-dms)
+  (give %fact ~[/ /dm/invited /v1 /v2 /v3] ships+!>(invites))
 ::
 ++  verses-to-inlines  ::  for backcompat
   |=  l=(list verse:d)
@@ -2321,7 +2323,7 @@
       cor
     =.  pact.dm  (reduce:di-pact now.bowl from-self diff)
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
-      (give-invites ship)
+      (give-invites ship net.dm)
     ?-  -.q.diff
         ?(%add-react %del-react)  (di-give-writs-diff diff)
     ::
@@ -2417,6 +2419,10 @@
     ?>  |(=(src.bowl ship) =(our src):bowl)
     ::  TODO hook into archive
     ?.  ok
+      ::  when declining/leaving a DM, send updated invite list to subscribers
+      ::  remove the current ship from the list since we're declining it
+      =/  updated-invites  (~(del in ~(key by pending-dms)) ship)
+      =.  cor  (give %fact ~[/ /dm/invited /v1 /v2 /v3] ships+!>(updated-invites))
       %-  (note:wood %odd leaf/"gone {<ship>}" ~)
       ?:  =(src.bowl ship)
         di-core
@@ -2424,6 +2430,11 @@
     =.  cor
       (emit [%pass /contacts/heed %agent [our.bowl %contacts] %poke contact-action-0+!>([%heed ~[ship]])])
     =.  net.dm  %done
+    ::  when accepting a DM, also send updated invite list to subscribers
+    ::  remove the accepted DM from the list since it's no longer an invite
+    =/  updated-invites  (~(del in ~(key by pending-dms)) ship)
+    =.  cor
+      (give %fact ~[/ /dm/invited /v1 /v2 /v3] ships+!>(updated-invites))
     (di-post-notice ' joined the chat')
   ::
   ++  di-watch
