@@ -43,5 +43,12 @@
 +$  action  ?(%notify %dismiss)
 ::
 +$  update
-  [=uid =action]
+  [notify-count=@ud =uid =action]
+++  v0
+  |%
+  ::
+  +$  update
+    [=uid =action]
+  --
+++  v1  .
 --

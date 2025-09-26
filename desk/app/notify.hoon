@@ -187,10 +187,11 @@
   ++  on-init
     :_  this
     :*  (~(watch-our pass:io /activity) %activity /notifications)
+        (~(watch-our pass:io /unreads) %activity /v4/unreads)
         (~(wait pass:io /clear) (add now.bowl clear-interval))
         [%pass /eyre %arvo %e %connect [~ /apps/groups/~/notify] dap.bowl]
       ::
-        ?.  =(~rivfur-livmet our.bowl)  ~
+        ?.  =(~wanmep-witnul-nocsyx-lassul our.bowl)  ~
         [%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)]~
     ==
   ::
@@ -206,9 +207,11 @@
     :_  this(state migrated)
     ?:  (~(has by wex.bowl) [/activity our.bowl %activity])
       caz
-    :-  (~(watch-our pass:io /activity) %activity /notifications)
-    ?.  =(~rivfur-livmet our.bowl)  caz
-    [[%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)] caz]
+    :*  (~(watch-our pass:io /activity) %activity /notifications)
+        (~(watch-our pass:io /unreads) %activity /v4/unreads)
+        ?.  =(~wanmep-witnul-nocsyx-lassul our.bowl)  caz
+        [[%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)] caz]
+    ==
   ::
   ++  on-poke
     |=  [=mark =vase]
@@ -281,12 +284,12 @@
               address.act
               binding.act
           ==
-        =/  =wire  /agentio-watch/notify/(scot %p src.bowl)/[service.act]
+        =/  =wire  /agentio-watch/v1/notify/(scot %p src.bowl)/[service.act]
         =?  cards  !(~(has by wex.bowl) wire src.bowl %notify)
           :_  cards
           %+  watch:pass
             [src.bowl %notify]
-          /notify/(scot %p src.bowl)/[service.act]
+          /v1/notify/(scot %p src.bowl)/[service.act]
         :-  cards
         state(provider-state (~(put by provider-state) service.act u.entry))
       ::
@@ -303,7 +306,7 @@
           :_  ~
           %+  leave-path:pass
             [src.bowl %notify]
-          /notify/(scot %p src.bowl)/[service.act]
+          /v1/notify/(scot %p src.bowl)/[service.act]
         :~  %:  remove-binding:do
                 service.act
                 u.entry
@@ -313,7 +316,7 @@
             ==
             %+  leave-path:pass
               [src.bowl %notify]
-            /notify/(scot %p src.bowl)/[service.act]
+            /v1/notify/(scot %p src.bowl)/[service.act]
         ==
       ==
     ::
@@ -390,7 +393,7 @@
     ++  provider-state-message
       ^-  (quip card _state)
       ~&  "provider-state-message"
-      ?>  =(our.bowl ~rivfur-livmet)
+      ?>  =(our.bowl ~wanmep-witnul-nocsyx-lassul)
       =/  now  now.bowl
       =/  time-since-last  (sub `@`last-timer `@`now)
       ~&  ['time since last daily-stats-interval' time-since-last]
@@ -425,6 +428,12 @@
     ::
         [%notify @ @ ~]
       =*  service  i.t.t.path
+      ?.  (~(has ju providers.client-state) src.bowl service)
+        ~|("permission denied" !!)
+      `this
+    ::
+        [%v1 %notify @ @ ~]
+      =*  service  i.t.t.t.path
       ?.  (~(has ju providers.client-state) src.bowl service)
         ~|("permission denied" !!)
       `this
@@ -470,10 +479,23 @@
         ?.  ?=(%activity-event p.cage.sign)
           `this
         =+  !<([=time-id:a =event:a] q.cage.sign)
+        =+  .^(=activity:a %gx (scry:io %activity /v4/activity/activity-summary-4))
+        =/  notify-count=@ud
+          notify-count:(~(gut by activity) [%base ~] *activity-summary:a)
+        =/  [v0-paths=(list path) v1-paths=(list path)]
+          %+  roll  ~(tap by sup.bowl)
+          |=  [[duct ship =path] v0=(list path) v1=(list path)]
+          ?:  ?=(%notify -.path)  [[path v0] v1]
+          [v0 [path v1]]
         :_  this(notifications (~(put by notifications) time-id [event ~]))
         =-  (zing (turn - drop))
         ^-  (list (unit card))
-        :_  [(fact-all:io %notify-update !>(`update`[`@`time-id %notify]))]~
+        =/  =update:v1
+          [notify-count `@`time-id %notify]
+        ~&  ['notify update' update +.update v0-paths v1-paths]
+        :_  :~  `(fact:io notify-update-1+!>(update) v1-paths)
+                `(fact:io notify-update+!>(`update:v0`+.update) v0-paths)
+            ==
         ::  if supported, convert the event to a hark notification (yarn) and
         ::  inject it into hark, so that old clients may continue retrieving
         ::  notifications from hark, using the id this agent gives them in the
@@ -492,6 +514,38 @@
         [%pass wire %agent [our.bowl %activity] %watch /notifications]~
       ==
     ::
+        [%unreads ~]
+      ?+  -.sign  (on-agent:def wire sign)
+          %fact
+        ?.  ?=(%activity-update-4 p.cage.sign)
+          `this
+        =+  !<(=update:a q.cage.sign)
+        ~&  ['unreads update' update]
+        ?.  ?=(%read -.update)
+          `this
+        ?^  unread.activity-summary.update
+          `this
+        =+  .^(=activity:a %gx (scry:io %activity /v4/activity/activity-summary-4))
+        =/  notify-count=@ud
+          notify-count:(~(gut by activity) [%base ~] *activity-summary:a)
+        :_  this
+        =/  v1-paths
+          %+  murn  ~(tap by sup.bowl)
+          |=  [duct ship =path]
+          ?:  ?=(%notify -.path)  ~
+          `path
+        =/  =update:v1
+          ::  the "newest" item in a recently read activity source
+          ::  is what we need to know which notifications to dismiss
+          [notify-count `@`newest.activity-summary.update %dismiss]
+        ~[(fact:io notify-update-1+!>(update) v1-paths)]
+      ::
+          %kick
+        %-  (tell:l %info 'notify unreads kick' ~)
+        :_  this
+        [%pass wire %agent [our.bowl %activity] %watch /v4/unreads]~
+      ==
+    ::
     ::  subscription from provider to client
     ::
         [%agentio-watch %notify @ @ ~]
@@ -500,12 +554,12 @@
       ?+  -.sign  (on-agent:def wire sign)
           %fact
         ?>  ?=(%notify-update p.cage.sign)
-        =+  !<(=update q.cage.sign)
+        =+  !<(=update:v0 q.cage.sign)
         :_  this
         =/  entry=(unit provider-entry)  (~(get by provider-state) service)
         ?~  entry
           ~
-        [(send-notification:do u.entry who update)]~
+        [(send-notification:do u.entry who [0 update])]~
       ::
           %kick
         %-  (tell:l %info 'notify client kick' ~)
@@ -518,6 +572,38 @@
         =/  =tang
           ['notify watch-nack' >wire< u.p.sign]
         ((tell:l %crit tang) ((slog tang) `this))
+      ==
+    ::
+    ::  subscription from provider to client
+    ::
+        [%agentio-watch %v1 %notify @ @ ~]
+      =/  who      (slav %p i.t.t.t.wire)
+      =*  service  i.t.t.t.t.wire
+      ?+  -.sign  (on-agent:def wire sign)
+          %fact
+        ?>  ?=(%notify-update-1 p.cage.sign)
+        =+  !<(=update:v1 q.cage.sign)
+        :_  this
+        =/  entry=(unit provider-entry)  (~(get by provider-state) service)
+        ?~  entry
+          ~
+        [(send-notification:do u.entry who update)]~
+      ::
+          %kick
+        %-  (tell:l %info 'notify client kick' ~)
+        :_  this
+        [(watch:pass [who %notify] /v1/notify/(scot %p who)/[service])]~
+      ::
+          %watch-ack
+        ?~  p.sign
+          `this
+        =/  =tang
+          ['notify watch-nack' >wire< u.p.sign]
+        %-  (tell:l %crit tang)
+        %-  (slog tang)
+        :_  this
+        ::  attempt watching old path for compatibility with old clients
+        [(watch:pass [who %notify] /notify/(scot %p who)/[service])]~
       ==
     ==
   ::
@@ -539,6 +625,7 @@
       ?>  ?=(%iris -.sign-arvo)
       ?>  ?=(%http-response +<.sign-arvo)
       ?>  ?=(%finished -.client-response.sign-arvo)
+      ~&  client-response.sign-arvo
       ?>  ?=(^ full-file.client-response.sign-arvo)
       =/  =mime-data:iris  u.full-file.client-response.sign-arvo
       ?>  =('application/json' type.mime-data)
@@ -563,6 +650,7 @@
         [%send-notification *]
       ?>  ?=(%iris -.sign-arvo)
       ?>  ?=(%http-response +<.sign-arvo)
+      ~&  client-response.sign-arvo
       =*  res  client-response.sign-arvo
       ?>  ?=(%finished -.res)
       =*  status  status-code.response-header.res
@@ -591,12 +679,6 @@
     ((fail:l term tang) `this)
   --
 |_  bowl=bowl:gall
-::
-++  filter-notifications
-  |=  =action:h
-  ^-  (unit update)
-  ?.  ?=(%add-yarn -.action)  ~
-  `[id.yarn.action %notify]
 ::
 ++  is-whitelisted
   |=  [who=@p entry=provider-entry]
@@ -674,7 +756,9 @@
     :~  identity+(rsh [3 1] (scot %p who))
         action+`@t`action.update
         uid+(scot %uv uid.update)
-        id+(scot %da uid.update)
+        ::  we use @ud here for string comparison on client dismissals
+        id+(scot %ud uid.update)
+        notify-count+(scot %ud notify-count.update)
     ==
   %:  post-form
       /send-notification/(scot %uv (sham eny.bowl))
