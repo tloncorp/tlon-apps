@@ -273,7 +273,7 @@
 ::  $flagged-content: flagged posts and replies that need admin review
 ::
 +$  flagged-content  (map nest (jug plan ship))
-::  %groups cqrs interface
+::  %groups acur interface
 ::
 ::  a-* actions
 ::    actions are requests to the agent

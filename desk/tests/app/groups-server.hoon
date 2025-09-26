@@ -7,7 +7,8 @@
 |%
 ++  my-agent  %groups
 ++  my-flag  `flag:g`[~zod %my-test-group]
-++  my-area  `path`/groups/~zod/my-test-group
+++  go-area  `path`/groups/~zod/my-test-group
+++  se-area  `path`/server/groups/~zod/my-test-group
 ++  tick  ^~((div ~s1 (bex 16)))
 ::
 ++  my-scry-gate
@@ -17,6 +18,23 @@
     [%gu ship=@ %activity now=@ rest=*]  `!>(|)
   ==
 ::
+++  get-invite
+  |=  tok=(unit token:g)
+  =/  m  (mare ,invite:v8:gv)
+  ^-  form:m
+  ;<  =bowl  bind:m  get-bowl
+  ;<  peek=cage  bind:m  (got-peek /x/groups/(scot %p p:my-flag)/[q:my-flag]/preview)
+  =+  preview=!<(preview:g q.peek)
+  =/  =invite:v8:gv
+    :*  my-flag
+        now.bowl
+        our.bowl
+        tok
+        ~        ::  note
+        preview  ::  preview
+        &
+    ==
+  (pure:m invite)
 ++  do-groups-init
   =/  m  (mare ,(list card))
   ^-  form:m
@@ -40,7 +58,7 @@
   ::  self-join the group
   ::
   ;<  *  bind:m  (do-poke group-command+!>([%join my-flag ~]))
-  ;<  *  bind:m  (do-watch (weld `path`[%server my-area] /updates/~zod/(scot %da *@da)))
+  ;<  *  bind:m  (do-watch (weld se-area /updates/~zod/(scot %da *@da)))
   ;<  =bowl:gall  bind:m  get-bowl
   (pure:m caz)
 ::
@@ -61,7 +79,7 @@
   ::  self-join the group
   ::
   ;<  *  bind:m  (do-poke group-command+!>([%join my-flag ~]))
-  ;<  *  bind:m  (do-watch (weld `path`[%server my-area] /updates/~zod/(scot %da *@da)))
+  ;<  *  bind:m  (do-watch (weld se-area /updates/~zod/(scot %da *@da)))
   ;<  =bowl:gall  bind:m  get-bowl
   (pure:m caz)
 ::
@@ -110,72 +128,9 @@
     ~[/server/groups/~zod/my-test-group/updates/~zod/(scot %da *@da)]
   group-update+!>(`update:g`[time u-group])
 ::
-:: ++  ex-r-groups
-::   |=  [caz=(list card) rs-groups=(list r-groups:v7:gv)]
-::   =/  m  (mare ,~)
-::   ^-  form:m
-::   ;<  =bowl:gall  bind:m  get-bowl
-::   ;<  peek=cage  bind:m  (got-peek /x/v2/groups/~zod/my-test-group)
-::   =+  !<(=group:g q.peek)
-::   =/  actions-2=(list action:v2:gv)
-::     %-  zing
-::     %+  turn  rs-groups
-::     |=  =r-groups:v7:gv
-::     %+  turn
-::       (diff:v2:r-group:v7:gc r-group.r-groups [seats admissions]:group)
-::     |=  =diff:v2:gv
-::     [flag.r-groups now.bowl diff]
-::   %+  ex-cards  caz
-::   %+  welp
-::     %+  turn  rs-groups
-::     |=  =r-groups:v7:gv
-::     %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
-::     group-response-1+!>(r-groups)
-::   %+  turn  actions-2
-::   |=  =action:v2:gv
-::   (ex-fact ~[/groups/ui] group-action-3+!>(action))
-:: ::
-:: ++  ex-cards-r-groups
-::   |=  $:  caz=(list card)
-::           exes=(list (each $-(card tang) r-groups:v7:gv))
-::       ==
-::   =/  m  (mare ,~)
-::   ^-  form:m
-::   ::  extract group - it is needed for facts down-conversion
-::   ::
-::   ;<  =bowl:gall  bind:m  get-bowl
-::   ;<  peek=cage  bind:m  (got-peek /x/v2/groups/~zod/my-test-group)
-::   =+  !<(=group:g q.peek)
-::   ::  assemble expected
-::   ::
-::   %+  ex-cards  caz
-::   %-  flop
-::   %+  roll  exes
-::   |=  [exe=(each $-(card tang) r-groups:v7:gv) out=(list $-(card tang))]
-::   ?:  ?=(%& -.exe)
-::     ::  expected card
-::     ::
-::     [p.exe out]
-::   ::  expected r-groups
-::   ::
-::   =*  r-groups  p.exe
-::   =/  actions-2=(list action:v2:gv)
-::     %+  turn
-::       (diff:v2:r-group:v7:gc r-group.r-groups [seats admissions]:group)
-::     |=  =diff:v2:gv
-::     [flag.r-groups now.bowl diff]
-::   %+  welp
-::     %+  turn  actions-2
-::     |=  =action:v2:gv
-::     (ex-fact ~[/groups/ui] group-action-3+!>(action))
-::   :-  %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
-::       group-response-1+!>(r-groups)
-::   out
-::
-::  +test-c-groups-create: test group creation
-::
-::  group can be created. the host self-joins the group.
-::  double creation is prohibited.
+++  ex-arvo-token-expire
+  |=  [token=@uv expiry=@da]
+  (ex-arvo (weld se-area /tokens/(scot %uv token)/expire) %b %wait expiry)
 ::
 ++  test-c-groups-create
   %-  eval-mare
@@ -279,7 +234,7 @@
   ;<  *  bind:m
     (do-poke group-command+!>([%ask my-flag `story]))
   ::  one man's path is another man's wire
-  =/  ask-path=path  (weld `path`[%server my-area] /ask/~dev)
+  =/  ask-path=path  (weld se-area /ask/~dev)
   ;<  caz=(list card)  bind:m
     ((do-as ~dev) (do-watch ask-path))
   ::  the request is immediately approved and an (empty) invite
@@ -309,12 +264,13 @@
   ^-  form:m
   ;<  *  bind:m  do-groups-init
   ;<  *  bind:m  (do-create-group %private)
+  ;<  *  bind:m  (jab-bowl |=(=bowl bowl(eny 0v123)))
   ::  a ship can ask to join the group. the request is recorded and
   ::  broadcasted.
   ::
   =/  =story:s
     [inline+['an appeal to host']~]~
-  =/  ask-path=path  (weld `path`[%server my-area] /ask/~dev)
+  =/  ask-path=path  (weld se-area /ask/~dev)
   ;<  caz=(list card)  bind:m
     ((do-as ~dev) (do-c-groups [%ask my-flag `story]))
   ;<  *  bind:m
@@ -338,8 +294,9 @@
   ;<  =bowl:gall  bind:m  get-bowl
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-update now.bowl [%entry %token [%add 0v0 [personal+~dev (add now.bowl ~d365) ~]]])
-        (ex-fact ~[ask-path] group-token+!>(`(unit token:g)``0v0))
+    :~  (ex-arvo-token-expire 0v123 (add now.bowl ~d365))
+        (ex-update now.bowl [%entry %token [%add 0v123 [personal+~dev (add now.bowl ~d365) ~]]])
+        (ex-fact ~[ask-path] group-token+!>(`(unit token:g)``0v123))
         (ex-card [%give %kick ~[ask-path] ~])
         (ex-update (add now.bowl tick) [%entry %ask %del (sy ~dev ~)])
     ==
@@ -388,7 +345,7 @@
   ;<  *  bind:m  (do-set-privacy %private)
   =/  =story:s
     [inline+['an appeal to host']~]~
-  =/  ask-path=path  (weld `path`[%server my-area] /ask/~dev)
+  =/  ask-path=path  (weld se-area /ask/~dev)
   ;<  caz=(list card)  bind:m
     ((do-as ~dev) (do-c-groups [%ask my-flag `story]))
   ;<  *  bind:m
@@ -483,14 +440,114 @@
   ;<  ~  bind:m
     (ex-equal !>(privacy.admissions.group) !>(%secret))
   (pure:m ~)
-::  +test-invites: test server group invitations
+::  +test-c-entry-ban: test ship banning
+::
+::  when a ship is banned, it is kicked from the group.
+::
+::  its ask request is denied.
+::
+::  it is removed from the pending list.
+::
+::  the invite and an associated personal token are revoked.
+::
+++  test-c-entry-ban
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  do-groups-init
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(eny 0v123)))
+  ::  create a private group with members. ~dev is sent an invite.
+  ::
+  ;<  caz=(list card)  bind:m  (do-create-group-with-members %private ~[~dev])
+  ::  we ban ~dev. the invite and the corresponding token are revoked.
+  ::
+  ;<  caz=(list card)  bind:m  (do-c-group [%entry %ban %add-ships (sy ~dev ~)])
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  =invite:v8:gv  bind:m  (get-invite `0v123)
+  ;<  ~  bind:m
+    =/  dev-revoke-wire=wire  (weld se-area /invite/revoke/~dev)
+    %+  ex-cards  caz
+    :~  (ex-update now.bowl [%seat (sy ~dev ~) %del ~])
+        ::
+        ::  revoke group invitation and delete the token
+        (ex-poke dev-revoke-wire [~dev my-agent] group-foreign-2+!>([%revoke my-flag `0v123]))
+        (ex-update (add now.bowl tick) [%entry %token %del 0v123])
+      ::
+        (ex-update (add now.bowl (mul tick 2)) [%entry %ban %add-ships (sy ~dev ~)])
+    ==
+  ::  ~fun requests to join the group. it is then banned, and its ask
+  ::  request is denied.
+  ::
+  =/  =story:s
+    [inline+['an appeal to host']~]~
+  =/  ask-path=path  (weld se-area /ask/~fun)
+  ;<  caz=(list card)  bind:m
+    ((do-as ~fun) (do-c-groups [%ask my-flag `story]))
+  ;<  *  bind:m
+    ((do-as ~fun) (do-watch ask-path))
+  ;<  ~  bind:m
+    (ex-u-groups caz [%entry %ask [%add ~fun `story]]~)
+  ::
+  ;<  caz=(list card)  bind:m  (do-c-group [%entry %ban %add-ships (sy ~fun ~)])
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (ex-card [%give %kick ~[ask-path] ~])
+        (ex-update now.bowl [%entry %ask %del (sy ~fun ~)])
+        (ex-update (add now.bowl tick) [%entry %ban %add-ships (sy ~fun ~)])
+    ==
+  ::  ~nec is added to the pending list and is then banned.
+  ::  the invite and the token are revoked.
+  ::
+  ;<  caz=(list card)  bind:m
+    (do-c-group [%entry %pending (sy ~nec ~) %add ~])
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  =invite:v8:gv  bind:m  (get-invite `0v123)
+  ;<  ~  bind:m
+    =/  nec-wire=wire  (weld se-area /invite/send/~nec)
+    =/  a-foreigns-7=a-foreigns:v7:gv
+      [%invite (v7:invite:v8:gc invite)]
+    =/  a-foreigns-8=a-foreigns:v8:gv
+      [%invite invite]
+    =/  =token-meta:g
+      [[%personal ~nec] (add now.bowl ~d365) ~]
+    %+  ex-cards  caz
+    :~  ::
+        ::  generate new token
+        (ex-arvo-token-expire 0v123 expiry.token-meta)
+        (ex-update now.bowl [%entry %token %add 0v123 token-meta])
+        ::
+        ::  invite ~nec
+        (ex-poke (snoc nec-wire %old) [~nec my-agent] group-foreign-1+!>(a-foreigns-7))
+        (ex-fact-negotiate [~nec my-agent] %groups)
+        (ex-poke nec-wire [~nec my-agent] group-foreign-2+!>(a-foreigns-8))
+        ::
+        ::  entry update
+        (ex-update (add now.bowl tick) [%entry %pending %add (sy ~nec ~) ~])
+    ==
+  ;<  caz=(list card)  bind:m  (do-c-group [%entry %ban %add-ships (sy ~nec ~)])
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  =invite:v8:gv  bind:m  (get-invite `0v123)
+  ;<  ~  bind:m
+    =/  nec-revoke-wire=wire  (weld se-area /invite/revoke/~nec)
+    %+  ex-cards  caz
+    :~  ::
+        ::  revoke group invitation and delete the token
+        (ex-poke nec-revoke-wire [~nec my-agent] group-foreign-2+!>([%revoke my-flag `0v123]))
+        (ex-update now.bowl [%entry %token %del 0v123])
+      ::
+        (ex-update (add now.bowl tick) [%entry %pending %del (sy ~nec ~)])
+        (ex-update (add now.bowl (mul tick 2)) [%entry %ban %add-ships (sy ~nec ~)])
+    ==
+  (pure:m ~)
+::  +test-private-invites: test private group invitations
 ::
 ::  group server properly records invited ships in admissions.
 ::
 ::  if a ship is invited a second time, the previous invitation
 ::  is revoked.
 ::
-++  test-invites
+++  test-private-invites
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -500,22 +557,10 @@
   ::
   ;<  caz=(list card)  bind:m  (do-create-group-with-members %private ~[~dev ~fun])
   ;<  =bowl  bind:m  get-bowl
-  ;<  peek=cage  bind:m  (got-peek /x/groups/(scot %p p:my-flag)/[q:my-flag]/preview)
-  =+  preview=!<(preview:g q.peek)
+  ;<  =invite:v8:gv  bind:m  (get-invite `0v123)
   ;<  ~  bind:m
-    =/  =invite:v8:gv
-      :*  my-flag
-          now.bowl
-          our.bowl
-          `0v123
-          ~        ::  note
-          preview  ::  preview
-          &
-      ==
-    =/  dev-wire=wire
-      /server/groups/(scot %p p:my-flag)/[q:my-flag]/invite/send/~dev
-    =/  fun-wire=wire
-      /server/groups/(scot %p p:my-flag)/[q:my-flag]/invite/send/~fun
+    =/  dev-wire=wire  (weld se-area /invite/send/~dev)
+    =/  fun-wire=wire  (weld se-area /invite/send/~fun)
     =/  a-foreigns-7-dev=a-foreigns:v7:gv
       [%invite (v7:invite:v8:gc invite)]
     =/  a-foreigns-8-dev=a-foreigns:v8:gv
@@ -524,13 +569,16 @@
       [%invite (v7:invite:v8:gc invite(token `0v124))]
     =/  a-foreigns-8-fun=a-foreigns:v8:gv
       [%invite invite(token `0v124)]
+    =+  expiry=(add now.bowl ~d365)
     %+  ex-cards  caz
     :~  ::
         ::  invite ~dev
+        (ex-arvo-token-expire 0v123 expiry)
         (ex-poke (snoc dev-wire %old) [~dev my-agent] group-foreign-1+!>(a-foreigns-7-dev))
         (ex-poke dev-wire [~dev my-agent] group-foreign-2+!>(a-foreigns-8-dev))
         ::
         ::  invite ~fun
+        (ex-arvo-token-expire 0v124 expiry)
         (ex-poke (snoc fun-wire %old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
         (ex-poke fun-wire [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
         ::
@@ -552,5 +600,403 @@
   ;<  ~  bind:m
     %+  ex-equal  !>((~(get by invited.admissions.group) ~fun))
     !>(`[now.bowl `0v124])
+  ::  repeat the invite, make sure the previous invitation is revoked
+  ::  and the invited list updated.
+  ::
+  ;<  caz=(list card)  bind:m
+    (do-c-group [%entry %pending (sy ~fun ~) %add ~])
+  ;<  =^bowl  bind:m  get-bowl
+  ;<  =invite:v8:gv  bind:m  (get-invite `0v125)
+  ;<  ~  bind:m
+    =/  fun-wire=wire  (weld se-area /invite/send/~fun)
+    =/  fun-revoke-wire=wire  (weld se-area /invite/revoke/~fun)
+    =/  a-foreigns-7-fun=a-foreigns:v7:gv
+      [%invite (v7:invite:v8:gc invite)]
+    =/  a-foreigns-8-fun=a-foreigns:v8:gv
+      [%invite invite]
+    =/  =token-meta:g
+      [[%personal ~fun] (add now.bowl ~d365) ~]
+    %+  ex-cards  caz
+    :~  ::
+        ::  generate new token
+        (ex-arvo-token-expire 0v125 expiry.token-meta)
+        (ex-update now.bowl [%entry %token %add 0v125 token-meta])
+        ::
+        ::  revoke previous invitation
+        (ex-poke fun-revoke-wire [~fun my-agent] group-foreign-2+!>([%revoke my-flag `0v124]))
+        (ex-update (add now.bowl tick) [%entry %token %del 0v124])
+        ::
+        ::  invite ~fun
+        (ex-poke (snoc fun-wire %old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
+        (ex-poke fun-wire [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
+        ::
+        ::  entry update
+        (ex-update (add now.bowl (mul tick 2)) [%entry %pending %add (sy ~fun ~) ~])
+    ==
+  (pure:m ~)
+::  +test-public-invites: test public group invitations
+::
+::  group server properly records invited ships in admissions.
+::
+::  if a ship is invited a second time, the previous invitation
+::  is revoked.
+::
+++  test-public-invites
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  do-groups-init
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(eny 0v123)))
+  ::  create a group with members. each member is to receive an invite.
+  ::
+  ;<  caz=(list card)  bind:m  (do-create-group-with-members %public ~[~dev ~fun])
+  ;<  =bowl  bind:m  get-bowl
+  ;<  =invite:v8:gv  bind:m  (get-invite ~)
+  ;<  ~  bind:m
+    =/  dev-wire=wire  (weld se-area /invite/send/~dev)
+    =/  fun-wire=wire  (weld se-area /invite/send/~fun)
+    =/  a-foreigns-7=a-foreigns:v7:gv
+      [%invite (v7:invite:v8:gc invite)]
+    =/  a-foreigns-8=a-foreigns:v8:gv
+      [%invite invite]
+    %+  ex-cards  caz
+    :~  ::
+        ::  invite ~dev
+        (ex-poke (snoc dev-wire %old) [~dev my-agent] group-foreign-1+!>(a-foreigns-7))
+        (ex-fact-negotiate [~dev my-agent] %groups)
+        (ex-poke dev-wire [~dev my-agent] group-foreign-2+!>(a-foreigns-8))
+        ::
+        ::  invite ~fun
+        (ex-poke (snoc fun-wire %old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7))
+        (ex-fact-negotiate [~fun my-agent] %groups)
+        (ex-poke fun-wire [~fun my-agent] group-foreign-2+!>(a-foreigns-8))
+        ::
+        ::  self-join and foreigns update
+        (ex-poke-wire /foreigns/(scot %p p:my-flag)/[q:my-flag]/join/public)
+        (ex-fact-paths ~[/gangs/updates])
+    ==
+  ::TODO implement a +get-scry, +got-scry to return
+  ::     typed values.
+  ::
+  ;<  peek=cage  bind:m
+    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ::  verify records on the invited list
+  ::
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(get by invited.admissions.group) ~dev))
+    !>(`[now.bowl ~])
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(get by invited.admissions.group) ~fun))
+    !>(`[now.bowl ~])
+  ::  repeat the invite, make sure the previous invitation is revoked
+  ::  and the invited list updated.
+  ::
+  ;<  caz=(list card)  bind:m
+    (do-c-group [%entry %pending (sy ~fun ~) %add ~])
+  ;<  =^bowl  bind:m  get-bowl
+  ;<  =invite:v8:gv  bind:m  (get-invite ~)
+  ;<  ~  bind:m
+    =/  fun-wire=wire  (weld se-area /invite/send/~fun)
+    =/  fun-revoke-wire=wire  (weld se-area /invite/revoke/~fun)
+    =/  a-foreigns-7-fun=a-foreigns:v7:gv
+      [%invite (v7:invite:v8:gc invite)]
+    =/  a-foreigns-8-fun=a-foreigns:v8:gv
+      [%invite invite]
+    =/  =token-meta:g
+      [[%personal ~fun] (add now.bowl ~d365) ~]
+    %+  ex-cards  caz
+    :~  ::
+        ::  revoke previous invitation
+        (ex-poke fun-revoke-wire [~fun my-agent] group-foreign-2+!>([%revoke my-flag ~]))
+        ::
+        ::  invite ~fun
+        (ex-poke (snoc fun-wire %old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
+        (ex-poke fun-wire [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
+        ::
+        ::  entry update
+        (ex-update now.bowl [%entry %pending %add (sy ~fun ~) ~])
+    ==
+  ;<  peek=cage  bind:m
+    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ::  verify records on the invited list
+  ::
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(get by invited.admissions.group) ~fun))
+    !>(`[now.bowl ~])
+  (pure:m ~)
+::  +test-invites-banned: test invite revocation for banned ships
+::
+++  test-invites-banned
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  do-groups-init
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(eny 0v123)))
+  ::  create a group with members. each member is to receive an invite.
+  ::
+  ;<  caz=(list card)  bind:m  (do-create-group-with-members %private ~[~dev])
+  ;<  =bowl  bind:m  get-bowl
+  ;<  =invite:v8:gv  bind:m  (get-invite `0v123)
+  ;<  ~  bind:m
+    =/  dev-wire=wire  (weld se-area /invite/send/~dev)
+    =/  a-foreigns-7-dev=a-foreigns:v7:gv
+      [%invite (v7:invite:v8:gc invite)]
+    =/  a-foreigns-8-dev=a-foreigns:v8:gv
+      [%invite invite]
+    %+  ex-cards  caz
+    :~  ::
+        ::  invite ~dev
+        (ex-arvo-token-expire 0v123 (add now.bowl ~d365))
+        (ex-poke (snoc dev-wire %old) [~dev my-agent] group-foreign-1+!>(a-foreigns-7-dev))
+        (ex-fact-negotiate [~dev my-agent] %groups)
+        (ex-poke dev-wire [~dev my-agent] group-foreign-2+!>(a-foreigns-8-dev))
+        ::
+        ::  self-join and foreigns update
+        (ex-poke-wire /foreigns/(scot %p p:my-flag)/[q:my-flag]/join/public)
+        (ex-fact-paths ~[/gangs/updates])
+    ==
+  ::TODO implement a +get-scry, +got-scry to return
+  ::     typed values.
+  ::
+  ;<  peek=cage  bind:m
+    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ::  verify records on the invited list
+  ::
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(get by invited.admissions.group) ~dev))
+    !>(`[now.bowl `0v123])
+  ::  ban ~dev and verify the invite is revoked, and the token deleted
+  ::
+  ;<  caz=(list card)  bind:m
+    (do-c-group [%entry %ban %add-ships (sy ~dev ~)])
+  ;<  =^bowl  bind:m  get-bowl
+  ;<  ~  bind:m
+    =/  dev-revoke-wire=wire  (weld se-area /invite/revoke/~dev)
+    %+  ex-cards  caz
+    :~  (ex-update now.bowl [%seat (sy ~dev ~) %del ~])
+        ::
+        ::  revoke previous invitation
+        (ex-poke dev-revoke-wire [~dev my-agent] group-foreign-2+!>([%revoke my-flag `0v123]))
+        (ex-update (add now.bowl tick) [%entry %token %del 0v123])
+      ::
+        (ex-update (add now.bowl (mul tick 2)) [%entry %ban %add-ships (sy ~dev ~)])
+    ==
+  ::  verify records on the invited list
+  ::
+  ;<  peek=cage  bind:m
+    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(get by invited.admissions.group) ~dev))
+    !>(~)
+  (pure:m ~)
+::  +test-invites-deleted-token: test invites are revoked when a token is deleted
+::
+++  test-invites-deleted-token
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  do-groups-init
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(eny 0v123)))
+  ::  create a group with members. each member is to receive an invite.
+  ::
+  ;<  caz=(list card)  bind:m  (do-create-group-with-members %private ~[~dev])
+  ;<  =bowl  bind:m  get-bowl
+  ;<  =invite:v8:gv  bind:m  (get-invite `0v123)
+  ;<  ~  bind:m
+    =/  dev-wire=wire  (weld se-area /invite/send/~dev)
+    =/  a-foreigns-7-dev=a-foreigns:v7:gv
+      [%invite (v7:invite:v8:gc invite)]
+    =/  a-foreigns-8-dev=a-foreigns:v8:gv
+      [%invite invite]
+    %+  ex-cards  caz
+    :~  ::
+        ::  invite ~dev
+        (ex-arvo-token-expire 0v123 (add now.bowl ~d365))
+        (ex-poke (snoc dev-wire %old) [~dev my-agent] group-foreign-1+!>(a-foreigns-7-dev))
+        (ex-fact-negotiate [~dev my-agent] %groups)
+        (ex-poke dev-wire [~dev my-agent] group-foreign-2+!>(a-foreigns-8-dev))
+        ::
+        ::  self-join and foreigns update
+        (ex-poke-wire /foreigns/(scot %p p:my-flag)/[q:my-flag]/join/public)
+        (ex-fact-paths ~[/gangs/updates])
+    ==
+  ::TODO implement a +get-scry, +got-scry to return
+  ::     typed values.
+  ::
+  ;<  peek=cage  bind:m
+    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ::  verify records on the invited list
+  ::
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(get by invited.admissions.group) ~dev))
+    !>(`[now.bowl `0v123])
+  ::  delete token and verify the invitation is revoked
+  ::
+  ;<  caz=(list card)  bind:m
+    (do-c-group [%entry %token %del 0v123])
+  ;<  =^bowl  bind:m  get-bowl
+  ;<  ~  bind:m
+    =/  dev-revoke-wire=wire  (weld se-area /invite/revoke/~dev)
+    %+  ex-cards  caz
+    :~  ::
+        ::  revoke previous invitation
+        (ex-poke dev-revoke-wire [~dev my-agent] group-foreign-2+!>([%revoke my-flag `0v123]))
+        (ex-update now.bowl [%entry %token %del 0v123])
+      ::
+    ==
+  ::  verify records on the invited list
+  ::
+  ;<  peek=cage  bind:m
+    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(get by invited.admissions.group) ~dev))
+    !>(~)
+  (pure:m ~)
+::  +test-invites-expired: test expired invites are revoked
+::
+::  when a token expires, it is deleted, and any associated invitations revoked.
+::
+++  test-invites-expired
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  do-groups-init
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(eny 0v123)))
+  ::  create a group with members. each member is to receive an invite.
+  ::
+  ;<  caz=(list card)  bind:m  (do-create-group-with-members %private ~[~dev])
+  ;<  =bowl  bind:m  get-bowl
+  ;<  =invite:v8:gv  bind:m  (get-invite `0v123)
+  ;<  ~  bind:m
+    =/  dev-wire=wire  (weld se-area /invite/send/~dev)
+    =/  a-foreigns-7-dev=a-foreigns:v7:gv
+      [%invite (v7:invite:v8:gc invite)]
+    =/  a-foreigns-8-dev=a-foreigns:v8:gv
+      [%invite invite]
+    %+  ex-cards  caz
+    :~  ::
+        ::  invite ~dev
+        (ex-arvo-token-expire 0v123 (add now.bowl ~d365))
+        (ex-poke (snoc dev-wire %old) [~dev my-agent] group-foreign-1+!>(a-foreigns-7-dev))
+        (ex-fact-negotiate [~dev my-agent] %groups)
+        (ex-poke dev-wire [~dev my-agent] group-foreign-2+!>(a-foreigns-8-dev))
+        ::
+        ::  self-join and foreigns update
+        (ex-poke-wire /foreigns/(scot %p p:my-flag)/[q:my-flag]/join/public)
+        (ex-fact-paths ~[/gangs/updates])
+    ==
+  ::TODO implement a +get-scry, +got-scry to return
+  ::     typed values.
+  ::
+  ;<  peek=cage  bind:m
+    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ::  verify records on the invited list
+  ::
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(get by invited.admissions.group) ~dev))
+    !>(`[now.bowl `0v123])
+  ::  wait until token expires, and verify it is deleted and
+  ::  the invite revoked.
+  ::
+  ;<  *  bind:m  (wait ~d365)
+  ;<  caz=(list card)  bind:m  (do-arvo (weld se-area /tokens/0v123/expire) [%behn %wake ~])
+  ;<  =^bowl  bind:m  get-bowl
+  ;<  ~  bind:m
+    =/  dev-revoke-wire=wire  (weld se-area /invite/revoke/~dev)
+    %+  ex-cards  caz
+    :~  ::
+        ::  revoke previous invitation
+        (ex-poke dev-revoke-wire [~dev my-agent] group-foreign-2+!>([%revoke my-flag `0v123]))
+        (ex-update now.bowl [%entry %token %del 0v123])
+      ::
+    ==
+  ::  verify records on the invited list
+  ::
+  ;<  peek=cage  bind:m
+    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(get by invited.admissions.group) ~dev))
+    !>(~)
+  (pure:m ~)
+::  +test-invites-group-deleted: test invites are revoked when the group is deleted
+::
+++  test-invites-group-deleted
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  do-groups-init
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(eny 0v123)))
+  ::  create a group with members. each member is to receive an invite.
+  ::
+  ;<  caz=(list card)  bind:m  (do-create-group-with-members %private ~[~dev ~fun])
+  ;<  =bowl  bind:m  get-bowl
+  ;<  =invite:v8:gv  bind:m  (get-invite `0v123)
+  ;<  ~  bind:m
+    =/  dev-wire=wire  (weld se-area /invite/send/~dev)
+    =/  fun-wire=wire  (weld se-area /invite/send/~fun)
+    =/  a-foreigns-7-dev=a-foreigns:v7:gv
+      [%invite (v7:invite:v8:gc invite)]
+    =/  a-foreigns-8-dev=a-foreigns:v8:gv
+      [%invite invite]
+    =/  a-foreigns-7-fun=a-foreigns:v7:gv
+      [%invite (v7:invite:v8:gc invite(token `0v124))]
+    =/  a-foreigns-8-fun=a-foreigns:v8:gv
+      [%invite invite(token `0v124)]
+    =+  expiry=(add now.bowl ~d365)
+    %+  ex-cards  caz
+    :~  ::
+        ::  invite ~dev
+        (ex-arvo-token-expire 0v123 expiry)
+        (ex-poke (snoc dev-wire %old) [~dev my-agent] group-foreign-1+!>(a-foreigns-7-dev))
+        (ex-fact-negotiate [~dev my-agent] %groups)
+        (ex-poke dev-wire [~dev my-agent] group-foreign-2+!>(a-foreigns-8-dev))
+        ::
+        ::  invite ~fun
+        (ex-arvo-token-expire 0v124 expiry)
+        (ex-poke (snoc fun-wire %old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
+        (ex-fact-negotiate [~fun my-agent] %groups)
+        (ex-poke fun-wire [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
+        ::
+        ::  self-join and foreigns update
+        (ex-poke-wire /foreigns/(scot %p p:my-flag)/[q:my-flag]/join/public)
+        (ex-fact-paths ~[/gangs/updates])
+    ==
+  ::TODO implement a +get-scry, +got-scry to return
+  ::     typed values.
+  ::
+  ;<  peek=cage  bind:m
+    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+  =+  group=!<(group:g q.peek)
+  ::  verify records on the invited list
+  ::
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(get by invited.admissions.group) ~dev))
+    !>(`[now.bowl `0v123])
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(get by invited.admissions.group) ~fun))
+    !>(`[now.bowl `0v124])
+  ::  delete the group and verify the invites are revoked
+  ::
+  ;<  caz=(list card)  bind:m
+    (do-c-group [%delete ~])
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  ~  bind:m
+    =/  revoke-wire=wire  (weld se-area /invite/revoke)
+    %+  ex-cards  caz
+    :~  (ex-poke (snoc revoke-wire ~.~dev) [~dev my-agent] group-foreign-2+!>([%revoke my-flag `0v123]))
+        (ex-poke (snoc revoke-wire ~.~fun) [~fun my-agent] group-foreign-2+!>([%revoke my-flag `0v124]))
+        (ex-update now.bowl [%delete ~])
+        (ex-fact-paths ~[/v1/groups /v1/groups/(scot %p p:my-flag)/[q:my-flag]])
+        (ex-fact-paths ~[/groups/ui])
+        (ex-task :(weld /~/negotiate/inner-watch/(scot %p p:my-flag)/[my-agent] go-area /updates) [~zod my-agent] %leave ~)
+    ==
   (pure:m ~)
 --
