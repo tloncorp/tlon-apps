@@ -4481,8 +4481,7 @@
       %+  turn  invites
       |=  =invite:g
       ?.  =(tok token.invite)  invite
-      ::  guard against revocation spoofing
-      ?>  =(src.bowl from.invite)
+      ?.  =(src.bowl from.invite)  invite
       invite(valid |)
     ==
   ::  +fi-decline: reject a group invitation

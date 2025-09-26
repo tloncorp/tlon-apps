@@ -336,42 +336,50 @@
   ;<  *  bind:m
     %-  (do-as ~fun)
     (do-poke group-foreign-2+!>([%invite private]))
-  ;<  peek=cage  bind:m  (got-peek /x/v1/foreigns/~nec/nec-public)
-  =+  foreign=!<(foreign:v8:gv q.peek)
   ;<  ~  bind:m
+    ;<  peek=cage  bind:m  (got-peek /x/v1/foreigns/~nec/nec-public)
+    =+  foreign=!<(foreign:v8:gv q.peek)
     %+  ex-equal  !>(invites.foreign)
     !>(~[public])
-  ;<  peek=cage  bind:m  (got-peek /x/v1/foreigns/~nec/nec-private)
-  =+  foreign=!<(foreign:v8:gv q.peek)
   ;<  ~  bind:m
+    ;<  peek=cage  bind:m  (got-peek /x/v1/foreigns/~nec/nec-private)
+    =+  foreign=!<(foreign:v8:gv q.peek)
     %+  ex-equal  !>(invites.foreign)
     !>(~[private])
   ::  verify that the invitations can't be revoked by a third-party
   ::
-  ;<  ~  bind:m
-    %-  ex-fail
+  ;<  *  bind:m
     %-  (do-as ~fed)
     (do-poke group-foreign-2+!>([%revoke ~nec^%nec-public ~]))
   ;<  ~  bind:m
-    %-  ex-fail
+    ;<  peek=cage  bind:m  (got-peek /x/v1/foreigns/~nec/nec-public)
+    =+  foreign=!<(foreign:v8:gv q.peek)
+    %+  ex-equal  !>(invites.foreign)
+    !>(~[public])
+  ;<  *  bind:m
     %-  (do-as ~fed)
     (do-poke group-foreign-2+!>([%revoke ~nec^%nec-private `0v123]))
+  ;<  ~  bind:m
+    ;<  peek=cage  bind:m  (got-peek /x/v1/foreigns/~nec/nec-private)
+    =+  foreign=!<(foreign:v8:gv q.peek)
+    %+  ex-equal  !>(invites.foreign)
+    !>(~[private])
   ::  verify that the invitations can be revoked by the inviter
   ::
   ;<  *  bind:m
     %-  (do-as ~fun)
     (do-poke group-foreign-2+!>([%revoke ~nec^%nec-public ~]))
-  ;<  peek=cage  bind:m  (got-peek /x/v1/foreigns/~nec/nec-public)
-  =+  foreign=!<(foreign:v8:gv q.peek)
   ;<  ~  bind:m
+    ;<  peek=cage  bind:m  (got-peek /x/v1/foreigns/~nec/nec-public)
+    =+  foreign=!<(foreign:v8:gv q.peek)
     %+  ex-equal  !>(invites.foreign)
     !>(~[public(valid |)])
   ;<  *  bind:m
     %-  (do-as ~fun)
     (do-poke group-foreign-2+!>([%revoke ~nec^%nec-private `0v123]))
-  ;<  peek=cage  bind:m  (got-peek /x/v1/foreigns/~nec/nec-private)
-  =+  foreign=!<(foreign:v8:gv q.peek)
   ;<  ~  bind:m
+    ;<  peek=cage  bind:m  (got-peek /x/v1/foreigns/~nec/nec-private)
+    =+  foreign=!<(foreign:v8:gv q.peek)
     %+  ex-equal  !>(invites.foreign)
     !>(~[private(valid |)])
   (pure:m ~)
