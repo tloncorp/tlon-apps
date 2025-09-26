@@ -1240,6 +1240,12 @@
   ::
       [%server %groups ship=@ name=@ rest=*]
     =+  ship=(slav %p ship.pole)
+    ::  ignore responses after group has been deleted 
+    ::
+    ?:  ?&  !(~(has by groups) ship name.pole)
+            ?=([%invite %revoke ship=@ ~] rest.pole)
+        ==
+      cor
     se-abet:(se-agent:(se-abed:se-core ship name.pole) rest.pole sign)
   ::
       [%groups ship=@ name=@ rest=*]
@@ -1252,7 +1258,6 @@
                 ?=([%command %leave ~] rest.pole)
                 ?=([%leave-channels ~] rest.pole)
             ==
-
         ==
       cor
     go-abet:(go-agent:(go-abed:go-core ship name.pole) rest.pole sign)
