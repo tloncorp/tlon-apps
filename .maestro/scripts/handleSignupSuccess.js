@@ -1,17 +1,17 @@
-const endpoint = `${process.env.SERVERLESS_INFRA_API}/sendAlertBotMessage`;
+const endpoint = `${MAESTRO_SERVERLESS_INFRA_API}/sendAlertBotMessage`;
 
 if (output.didComplete) {
   const duration = Number(output.operationEnd) - Number(output.operationStart);
   const durationSeconds = (duration / 1000).toFixed(0);
-  const accountURL = `${process.env.HOSTING_DASH}/users?users-email=${output.signupEmail}`;
-  const workflowsURL = `${process.env.EXPO_PROJECT}/workflows`;
+  const accountURL = `${MAESTRO_HOSTING_DASH}/users?users-email=${output.signupEmail}`;
+  const workflowsURL = `${MAESTRO_EXPO_PROJECT}/workflows`;
 
   http.post(endpoint, {
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      apiKey: 'dtv@kvp!zde2abq7CKX',
+      apiKey: MAESTRO_ALERT_BOT_API_KEY,
       content: [
         {
           inline: [

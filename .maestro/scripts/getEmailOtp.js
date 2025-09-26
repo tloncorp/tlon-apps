@@ -1,12 +1,9 @@
-const response = http.post(
-  `${process.env.SERVERLESS_INFRA_API}/retreiveE2eOtp`,
-  {
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ email: output.signupEmail }),
-  }
-);
+const response = http.post(`${MAESTRO_SERVERLESS_INFRA_API}/retreiveE2eOtp`, {
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ email: output.signupEmail }),
+});
 
 const otp = response.body;
 if (!otp || otp.length !== 6) {

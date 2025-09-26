@@ -25,6 +25,6 @@ jobs:
     steps:
       - name: Handle failure
         run: |
-          curl -X POST '${{ env.SERVERLESS_INFRA_API }}/sendAlertBotMessage' \
+          curl -X POST '${{ env.MAESTRO_SERVERLESS_INFRA_API }}/sendAlertBotMessage' \
           -H 'Content-Type: application/json' \
-          -d '{ "apiKey": "${{ env.ALERT_BOT_API_KEY }}", "content": [{ "inline": [ "❌ E2E Signup Failure: Workflow did not succeed (", { "link": { "href": "${{ env.EXPO_PROJECT }}/workflows", "content": "info" } }, ")"] }]}'
+          -d '{ "apiKey": "${{ env.MAESTRO_ALERT_BOT_API_KEY }}", "content": [{ "inline": [ "❌ E2E Signup Failure: Workflow did not succeed (", { "link": { "href": "${{ env.MAESTRO_EXPO_PROJECT }}/workflows", "content": "info" } }, ")"] }]}'
