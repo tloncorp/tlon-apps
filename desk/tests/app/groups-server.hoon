@@ -1,7 +1,7 @@
 ::  groups unit tests
 ::
 /-  g=groups, gv=groups-ver, meta, s=story
-/+  *test, *test-agent, negotiate
+/+  *test, *test-negotiate-agent
 /+  gc=groups-conv
 /=  groups-agent  /app/groups
 |%
@@ -35,26 +35,6 @@
         &
     ==
   (pure:m invite)
-::
-++  do-negotiate
-  |=  [=gill:gall =protocol:negotiate =version:negotiate]
-  =/  m  (mare ,(list card))
-  ;<  caz=(list card)  bind:m
-    %^  do-agent  (heed-wire gill protocol)
-      gill
-    [%watch-ack ~]
-  ;<  cax=(list card)  bind:m
-    %^  do-agent  (heed-wire gill protocol)
-      gill
-    [%fact %noun !>(version)]
-  (pure:m (weld caz cax))
-::  +do-neg-agent: pass a sign on a negotiate inner-watch wire
-::
-++  do-neg-agent
-  |=  [=wire =gill:gall =sign:agent:gall]
-  =/  neg-wire=^wire
-    (weld /~/negotiate/inner-watch/(scot %p p.gill)/[q.gill] wire)
-  (do-agent neg-wire gill sign)
 ++  do-groups-init
   =/  m  (mare ,(list card))
   ^-  form:m
@@ -133,16 +113,6 @@
   ;<  caz=(list card)  bind:m  (do-poke group-command+!>([%join my-flag ~]))
   (pure:m caz)
 ::
-::
-++  heed-wire
-  |=  [=gill:gall =protocol:negotiate]
-  /~/negotiate/heed/(scot %p p.gill)/[q.gill]/[protocol]
-::
-++  ex-fact-negotiate
-  |=  [=gill:gall =protocol:negotiate]
-  %^  ex-task  (heed-wire gill protocol)
-    gill
-  [%watch /~/negotiate/version/[q.gill]]
 ::
 ++  ex-u-groups
   |=  [caz=(list card) us-groups=(list u-group:v7:gv)]
@@ -605,13 +575,11 @@
         ::  invite ~dev
         (ex-arvo-token-expire 0v123 expiry)
         (ex-poke (snoc dev-wire %old) [~dev my-agent] group-foreign-1+!>(a-foreigns-7-dev))
-        (ex-fact-negotiate [~dev my-agent] %groups)
         (ex-poke dev-wire [~dev my-agent] group-foreign-2+!>(a-foreigns-8-dev))
         ::
         ::  invite ~fun
         (ex-arvo-token-expire 0v124 expiry)
         (ex-poke (snoc fun-wire %old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
-        (ex-fact-negotiate [~fun my-agent] %groups)
         (ex-poke fun-wire [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
         ::
         ::  self-join and foreigns update

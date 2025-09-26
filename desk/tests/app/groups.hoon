@@ -1,7 +1,7 @@
 ::  groups subscriber unit tests
 ::
 /-  g=groups, gv=groups-ver, meta, s=story
-/+  *test, *test-agent, negotiate
+/+  *test, *test-negotiate-agent
 /+  gc=groups-conv
 /=  groups-agent  /app/groups
 |%
@@ -62,9 +62,6 @@
     [%gu ship=@ %activity now=@ rest=*]         `!>(|)
     [%gx ship=@ %chat now=@ %blocked %ships ~]  `!>(~)
   ==
-++  is-negotiate-card
-  |=  =card
-  ?=([%pass [%~.~ %negotiate *] *] card)
 ++  do-groups-init
   =/  m  (mare ,(list card))
   ^-  form:m
@@ -97,49 +94,6 @@
     %-  gang:v2:foreign:v7:gc
     (v7:foreign:v8:gc foreign)
   (ex-fact ~[/gangs/updates] gangs+!>(`gangs:v2:gv`(my my-flag^gang ~)))
-::
-++  heed-wire
-  |=  [=gill:gall =protocol:negotiate]
-  /~/negotiate/heed/(scot %p p.gill)/[q.gill]/[protocol]
-::
-++  ex-fact-negotiate
-  |=  [=gill:gall =protocol:negotiate]
-  %^  ex-task  (heed-wire gill protocol)
-    gill
-  [%watch /~/negotiate/version/[q.gill]]
-::  +ex-cards: lib-negotiate compatible +ex-cards
-::
-++  ex-cards
-  |=  [caz=(list card) exe=(list $-(card tang))]
-  =.  caz
-    %+  turn  caz
-    |=  =card
-    ?.  ?=([%pass [%~.~ %negotiate %inner-watch @ @ *] *] card)
-      card
-    ?.  ?=([%pass * %agent ^ %watch *] card)
-      card
-    [%pass |5.p.card q.card]
-  (^ex-cards caz exe)
-::
-++  do-negotiate
-  |=  [=gill:gall =protocol:negotiate =version:negotiate]
-  =/  m  (mare ,(list card))
-  ;<  caz=(list card)  bind:m
-    %^  do-agent  (heed-wire gill protocol)
-      gill
-    [%watch-ack ~]
-  ;<  cax=(list card)  bind:m
-    %^  do-agent  (heed-wire gill protocol)
-      gill
-    [%fact %noun !>(version)]
-  (pure:m (weld caz cax))
-::  +do-neg-fact: pass a sign on a negotiate inner-watch wire
-::
-++  do-neg-agent
-  |=  [=wire =gill:gall =sign:agent:gall]
-  =/  neg-wire=^wire
-    (weld /~/negotiate/inner-watch/(scot %p p.gill)/[q.gill] wire)
-  (do-agent neg-wire gill sign)
 ::
 ++  do-a-groups
   |=  =a-groups:g
@@ -257,11 +211,9 @@
   ;<  caz=(list card)  bind:m  (do-a-foreigns [%foreign my-flag %join ~])
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-fact-negotiate [~zod my-agent] %groups)
-        (ex-poke (weld fi-area /join/public) [~zod my-agent] group-command+!>([%join my-flag ~]))
+    :~  (ex-poke (weld fi-area /join/public) [~zod my-agent] group-command+!>([%join my-flag ~]))
         (ex-foreign-response %*(. *foreign:g progress `%join))
     ==
-  ;<  *  bind:m  (do-negotiate [~zod my-agent] %groups %1)
   ;<  caz=(list card)  bind:m
     %-  (do-as ~zod)
     %^  do-agent  (weld fi-area /join/public)
@@ -278,7 +230,7 @@
     ==
   ;<  =bowl  bind:m  get-bowl
   ;<  *  bind:m
-    %^  do-neg-agent  (weld go-area /updates)
+    %^  do-agent  (weld go-area /updates)
       [~zod my-agent]
     [%watch-ack ~]
   =/  init-log=log:g
@@ -287,7 +239,7 @@
     :~  now.bowl^[%create my-group]
     ==
   ;<  caz=(list card)  bind:m
-    %^  do-neg-agent  (weld go-area /updates)
+    %^  do-agent  (weld go-area /updates)
       [~zod my-agent]
     [%fact group-log+!>(init-log)]
   (pure:m caz)
@@ -424,7 +376,6 @@
       [%invite invite]
     %+  ex-cards  caz
     :~  (ex-poke (weld go-area /invite/send/~fun/old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
-        (ex-fact-negotiate [~fun my-agent] %groups)
         (ex-poke (weld go-area /invite/send/~fun) [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
     ==
   ::  verify the invitee is recorded on the invited list
