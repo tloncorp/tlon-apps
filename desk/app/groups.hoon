@@ -144,6 +144,8 @@
       [/x/v1/foreigns/$/$ %foreign-1]
     ::
       [/x/groups/$/$/v1 %group-ui]  ::  deprecated
+    ::
+      [/x/groups/$/$/preview %noun]
   ==
 =/  verbose  |
 ::
@@ -267,6 +269,7 @@
         %warn  2
         %crit  3
       ==
+    ?:  &(?=(%dbug vol) !verbose)  cor
     %-  %-  %*(. slog pri pri)  echo
     (emit card)
   ::  +deez: log message details

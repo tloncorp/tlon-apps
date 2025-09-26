@@ -519,7 +519,6 @@
         ::
         ::  invite ~nec
         (ex-poke (snoc nec-wire %old) [~nec my-agent] group-foreign-1+!>(a-foreigns-7))
-        (ex-fact-negotiate [~nec my-agent] %groups)
         (ex-poke nec-wire [~nec my-agent] group-foreign-2+!>(a-foreigns-8))
         ::
         ::  entry update
@@ -663,12 +662,10 @@
     :~  ::
         ::  invite ~dev
         (ex-poke (snoc dev-wire %old) [~dev my-agent] group-foreign-1+!>(a-foreigns-7))
-        (ex-fact-negotiate [~dev my-agent] %groups)
         (ex-poke dev-wire [~dev my-agent] group-foreign-2+!>(a-foreigns-8))
         ::
         ::  invite ~fun
         (ex-poke (snoc fun-wire %old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7))
-        (ex-fact-negotiate [~fun my-agent] %groups)
         (ex-poke fun-wire [~fun my-agent] group-foreign-2+!>(a-foreigns-8))
         ::
         ::  self-join and foreigns update
@@ -750,7 +747,6 @@
         ::  invite ~dev
         (ex-arvo-token-expire 0v123 (add now.bowl ~d365))
         (ex-poke (snoc dev-wire %old) [~dev my-agent] group-foreign-1+!>(a-foreigns-7-dev))
-        (ex-fact-negotiate [~dev my-agent] %groups)
         (ex-poke dev-wire [~dev my-agent] group-foreign-2+!>(a-foreigns-8-dev))
         ::
         ::  self-join and foreigns update
@@ -817,7 +813,6 @@
         ::  invite ~dev
         (ex-arvo-token-expire 0v123 (add now.bowl ~d365))
         (ex-poke (snoc dev-wire %old) [~dev my-agent] group-foreign-1+!>(a-foreigns-7-dev))
-        (ex-fact-negotiate [~dev my-agent] %groups)
         (ex-poke dev-wire [~dev my-agent] group-foreign-2+!>(a-foreigns-8-dev))
         ::
         ::  self-join and foreigns update
@@ -884,7 +879,6 @@
         ::  invite ~dev
         (ex-arvo-token-expire 0v123 (add now.bowl ~d365))
         (ex-poke (snoc dev-wire %old) [~dev my-agent] group-foreign-1+!>(a-foreigns-7-dev))
-        (ex-fact-negotiate [~dev my-agent] %groups)
         (ex-poke dev-wire [~dev my-agent] group-foreign-2+!>(a-foreigns-8-dev))
         ::
         ::  self-join and foreigns update
@@ -956,13 +950,11 @@
         ::  invite ~dev
         (ex-arvo-token-expire 0v123 expiry)
         (ex-poke (snoc dev-wire %old) [~dev my-agent] group-foreign-1+!>(a-foreigns-7-dev))
-        (ex-fact-negotiate [~dev my-agent] %groups)
         (ex-poke dev-wire [~dev my-agent] group-foreign-2+!>(a-foreigns-8-dev))
         ::
         ::  invite ~fun
         (ex-arvo-token-expire 0v124 expiry)
         (ex-poke (snoc fun-wire %old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
-        (ex-fact-negotiate [~fun my-agent] %groups)
         (ex-poke fun-wire [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
         ::
         ::  self-join and foreigns update
@@ -996,7 +988,7 @@
         (ex-update now.bowl [%delete ~])
         (ex-fact-paths ~[/v1/groups /v1/groups/(scot %p p:my-flag)/[q:my-flag]])
         (ex-fact-paths ~[/groups/ui])
-        (ex-task :(weld /~/negotiate/inner-watch/(scot %p p:my-flag)/[my-agent] go-area /updates) [~zod my-agent] %leave ~)
+        (ex-task (weld go-area /updates) [~zod my-agent] %leave ~)
     ==
   (pure:m ~)
 --
