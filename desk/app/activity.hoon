@@ -885,9 +885,7 @@
 ++  refresh-summary
   |=  =source:a
   =/  summary  (summarize-unreads source (get-index source))
-  =.  activity
-    (~(put by activity) source summary)
-  (give-unreads source)
+  cor(activity (~(put by activity) source summary))
 ::
 ++  refresh
   |=  =source:a
@@ -951,6 +949,7 @@
     ?:  from-parent
       (refresh-summary source)
     =.  cor  (refresh source)
+    =.  cor  (give-reads source)
     =/  new-activity=activity:a
       %+  roll
         :(weld (get-parents:src source) ~[source] ?:(deep.action children ~))
@@ -960,7 +959,7 @@
     (give-update [%activity new-activity] [%hose ~])
   ==
 ::
-++  give-unreads
+++  give-reads
   |=  =source:a
   ^+  cor
   =/  summary  (~(got by activity) source)
