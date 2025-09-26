@@ -33,6 +33,7 @@ const envVars = {
   inviteServiceIsDev: env.VITE_INVITE_SERVICE_IS_DEV,
   gitHash: env.VITE_GIT_HASH,
   disableSplashModal: env.VITE_DISABLE_SPLASH_MODAL,
+  automatedTest: env.VITE_AUTOMATED_TEST,
 } as Record<string, string | undefined>;
 
 export const DEV_SHIP_URL = envVars.devShipUrl ?? '';
