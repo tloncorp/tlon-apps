@@ -1,1 +1,0 @@
-output.operationStart = Date.now();

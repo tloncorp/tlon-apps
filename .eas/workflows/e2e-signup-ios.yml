@@ -1,4 +1,4 @@
-name: e2e-test-ios
+name: e2e-signup
 
 on:
   schedule:
@@ -17,3 +17,14 @@ jobs:
     params:
       build_id: ${{ needs.build_ios_for_e2e.outputs.build_id }}
       flow_path: ["../../.maestro/03-signup.yaml"]
+
+  notify_webhook:
+    name: Webhook
+    after: [maestro_test]
+    if: ${{ failure() }}
+    steps:
+      - name: Handle failure
+        run: |
+          curl -X POST '${{ env.SERVERLESS_INFRA_API }}/sendAlertBotMessage' \
+          -H 'Content-Type: application/json' \
+          -d '{ "apiKey": "${{ env.ALERT_BOT_API_KEY }}", "content": [{ "inline": [ "❌ E2E Signup Failure: Workflow did not succeed (", { "link": { "href": "${{ env.EXPO_PROJECT }}/workflows", "content": "info" } }, ")"] }]}'

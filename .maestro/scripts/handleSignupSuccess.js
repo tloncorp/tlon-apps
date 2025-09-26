@@ -1,29 +1,38 @@
-const SERVERLESS_INFRA_ENDPOINT = 'https://serverless-infra.vercel.app/api';
-const accountURL = `${process.env.HOSTING_ADMIN_URL}/users?users-email=${output.signupEmail}`;
-const content = [];
+const endpoint = `${process.env.SERVERLESS_INFRA_API}/sendAlertBotMessage`;
 
-http.post(`${SERVERLESS_INFRA_ENDPOINT}/sendAlertBotMessage`, {
-  body: JSON.stringify({
-    apiKey: process.env.ALERT_BOT_API_KEY,
-    content: [
-      {
-        inline: [
-          'Signup Success: ',
-          {
-            link: {
-              href: accountURL,
-              content: 'automated user',
+if (output.didComplete) {
+  const duration = Number(output.operationEnd) - Number(output.operationStart);
+  const durationSeconds = (duration / 1000).toFixed(0);
+  const accountURL = `${process.env.HOSTING_DASH}/users?users-email=${output.signupEmail}`;
+  const workflowsURL = `${process.env.EXPO_PROJECT}/workflows`;
+
+  http.post(endpoint, {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      apiKey: 'dtv@kvp!zde2abq7CKX',
+      content: [
+        {
+          inline: [
+            '✅ E2E Signup Success: ',
+            {
+              link: {
+                href: accountURL,
+                content: 'automated user',
+              },
             },
-          },
-          ` completed signup in ${outputs.durationSeconds} seconds`,
-          {
-            link: {
-              href: accountURL,
-              content: 'automated user',
+            ` completed signup in ${durationSeconds} seconds (`,
+            {
+              link: {
+                href: workflowsURL,
+                content: 'info',
+              },
             },
-          },
-        ],
-      },
-    ],
-  }),
-});
+            `)`,
+          ],
+        },
+      ],
+    }),
+  });
+}

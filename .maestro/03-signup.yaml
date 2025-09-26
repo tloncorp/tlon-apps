@@ -1,4 +1,6 @@
 appId: io.tlon.groups
+onFlowComplete:
+  - runScript: scripts/handleSignupSuccess.js
 ---
 - runFlow: subflows/launch.yaml
 - assertVisible: 'Sign up'
@@ -64,7 +66,7 @@ appId: io.tlon.groups
 
 # set a nickname
 - assertVisible: Sampel Palnet
-- runScript: scripts/recordStartTime.js
+- evalScript: ${output.operationStart = Date.now()}
 - tapOn: Sampel Palnet
 - inputText: E2E Tester
 - assertVisible: Next
@@ -75,7 +77,7 @@ appId: io.tlon.groups
     visible: Welcome to Tlon Messenger
     timeout: 600000
 
-- runScript: scripts/recordDuration.js
+- evalScript: ${output.operationEnd = Date.now()}
 
 # click through welcome tour
 - assertVisible: Let's get started
@@ -99,3 +101,5 @@ appId: io.tlon.groups
 - assertVisible: Bot Farm
 - assertVisible: brian testing
 - assertVisible: Tlon Studio
+
+- evalScript: ${output.didComplete = true}
