@@ -1,5 +1,9 @@
 import { ImageZoom, Zoomable } from '@likashefqet/react-native-image-zoom';
-import { createDevLogger } from '@tloncorp/shared';
+import {
+  createDevLogger,
+  ensureFileExtension,
+  downloadImageForWeb
+} from '@tloncorp/shared';
 import { Icon } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
 import * as FileSystem from 'expo-file-system';
@@ -31,30 +35,6 @@ import { Stack, View, XStack, YStack, ZStack, isWeb } from 'tamagui';
 import { triggerHaptic } from '../utils';
 
 const logger = createDevLogger('imageViewer', false);
-
-function ensureFileExtension(filename: string, contentType?: string): string {
-  if (/\.(jpg|jpeg|png|gif|webp|heic|heif)$/i.test(filename)) {
-    return filename;
-  }
-
-  if (contentType) {
-    const mimeToExt: Record<string, string> = {
-      'image/jpeg': '.jpg',
-      'image/jpg': '.jpg',
-      'image/png': '.png',
-      'image/gif': '.gif',
-      'image/webp': '.webp',
-      'image/heic': '.heic',
-      'image/heif': '.heif',
-    };
-    const ext = mimeToExt[contentType.toLowerCase()];
-    if (ext) {
-      return `${filename}${ext}`;
-    }
-  }
-
-  return `${filename}.jpg`;
-}
 
 export function ImageViewerScreenView(props: {
   uri?: string;
@@ -103,34 +83,7 @@ export function ImageViewerScreenView(props: {
       }
 
       try {
-        const response = await fetch(props.uri);
-        if (!response.ok) {
-          logger.trackError('Failed to fetch image', {
-            status: response.status,
-            uri: props.uri,
-          });
-          console.error('Failed to fetch image:', response.statusText);
-        }
-
-        const blob = await response.blob();
-        const contentType = response.headers.get('content-type') || blob.type;
-
-        const blobUrl = URL.createObjectURL(blob);
-
-        const baseFilename =
-          props.uri.split('/').pop()?.split('?')[0] || 'downloaded-image';
-        const filename = ensureFileExtension(baseFilename, contentType);
-
-        // Create download link and trigger click
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = filename;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+        await downloadImageForWeb(props.uri);
       } catch (error) {
         logger.trackError('Download error:', error);
         console.error('Download error:', error);

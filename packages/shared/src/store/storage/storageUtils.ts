@@ -11,7 +11,43 @@ import {
 import { createDevLogger } from '../../debug';
 import { desig } from '../../urbit';
 
-const logger = createDevLogger('storage utils', true);
+const logger = createDevLogger('storage utils', false);
+
+const mimeToExt: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/jpg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+  'image/heic': '.heic',
+  'image/heif': '.heif',
+};
+
+export function ensureFileExtension(
+  filename: string,
+  contentType?: string
+): string {
+  if (/\.(jpg|jpeg|png|gif|webp|heic|heif)$/i.test(filename)) {
+    return filename;
+  }
+
+  if (contentType) {
+    const ext = mimeToExt[contentType.toLowerCase()];
+    if (ext) {
+      return `${filename}${ext}`;
+    }
+  }
+
+  return `${filename}.jpg`;
+}
+
+export function getExtensionFromMimeType(mimeType?: string): string {
+  if (!mimeType) {
+    return '.jpg';
+  }
+
+  return mimeToExt[mimeType.toLowerCase()] || '.jpg';
+}
 
 export const fetchFileFromUri = async (
   uri: string,
@@ -122,4 +158,30 @@ export const getMemexUpload = async (
 export const getHostingUploadURL = async () => {
   const isHosted = api.getCurrentUserIsHosted();
   return isHosted ? MEMEX_BASE_URL : '';
+};
+
+export const downloadImageForWeb = async (uri: string) => {
+  const response = await fetch(uri);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch image: ${response.statusText}`);
+  }
+
+  const blob = await response.blob();
+  const contentType = response.headers.get('content-type') || blob.type;
+  const blobUrl = URL.createObjectURL(blob);
+
+  const baseFilename =
+    uri.split('/').pop()?.split('?')[0] || 'downloaded-image';
+  const filename = ensureFileExtension(baseFilename, contentType);
+
+  // Create download link and trigger click
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = filename;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
 };

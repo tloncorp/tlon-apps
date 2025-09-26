@@ -12,6 +12,7 @@ import { createDevLogger, escapeLog } from '../../debug';
 import { setUploadState } from './storageUploadState';
 import {
   fetchFileFromUri,
+  getExtensionFromMimeType,
   getMemexUpload,
   hasCustomS3Creds,
   hasHostingUploadCreds,
@@ -20,23 +21,6 @@ import {
 const logger = createDevLogger('storageActions', false);
 
 export const PLACEHOLDER_ASSET_URI = 'placeholder-asset-id';
-
-function getExtensionFromMimeType(mimeType?: string): string {
-  if (!mimeType) {
-    return '.jpg';
-  }
-
-  const mimeToExt: Record<string, string> = {
-    'image/jpeg': '.jpg',
-    'image/jpg': '.jpg',
-    'image/png': '.png',
-    'image/gif': '.gif',
-    'image/webp': '.webp',
-    'image/heic': '.heic',
-    'image/heif': '.heif',
-  };
-  return mimeToExt[mimeType.toLowerCase()] || '.jpg';
-}
 
 function getSaveFormat(mimeType?: string): SaveFormat {
   if (!mimeType) {
