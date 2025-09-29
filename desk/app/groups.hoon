@@ -312,20 +312,28 @@
         fi-abet:(fi-join:(fi-abed:fi-core flag) ~)
       ::
           %group
-        =/  server-core  (se-abed:se-core flag.c-groups)
-        se-abet:(se-c-group:server-core c-group.c-groups)
+        =/  se-core  (se-abed:se-core flag.c-groups)
+        ~|  %se-is-banned
+        ?<  (se-is-banned:se-core src.bowl)
+        se-abet:(se-c-group:se-core c-group.c-groups)
       ::
           %join
-        =*  server-core  (se-abed:se-core flag.c-groups)
-        se-abet:(se-c-join:server-core token.c-groups)
+        =/  se-core  (se-abed:se-core flag.c-groups)
+        ~|  %se-is-banned
+        ?<  (se-is-banned:se-core src.bowl)
+        se-abet:(se-c-join:se-core token.c-groups)
       ::
           %ask
-        =*  server-core  (se-abed:se-core flag.c-groups)
-        se-abet:(se-c-ask:server-core story.c-groups)
+        =/  se-core  (se-abed:se-core flag.c-groups)
+        ~|  %se-is-banned
+        ?<  (se-is-banned:se-core src.bowl)
+        se-abet:(se-c-ask:se-core story.c-groups)
       ::
           %leave
-        =*  server-core  (se-abed:se-core flag.c-groups)
-        se-abet:se-c-leave:server-core
+        =/  se-core  (se-abed:se-core flag.c-groups)
+        ~|  %se-is-banned
+        ?<  (se-is-banned:se-core src.bowl)
+        se-abet:se-c-leave:se-core
       ==
     ::
         %group-action-4
@@ -962,12 +970,18 @@
       [%server %groups ship=@ name=@ rest=*]
     =+  ship=(slav %p ship.pole)
     ?>  =(our.bowl ship)
-    se-abet:(se-watch:(se-abed:se-core [our.bowl name.pole]) rest.pole)
+    =/  se-core  (se-abed:se-core [our.bowl name.pole])
+    ~|  %se-is-banned
+    ?<  (se-is-banned:se-core src.bowl)
+    se-abet:(se-watch:se-core rest.pole)
   ::
       [%server %groups ship=@ name=@ %preview ~]
     =+  ship=(slav %p ship.pole)
     ?>  =(our.bowl ship)
     ?:  (~(has by groups) our.bowl name.pole)
+      =/  se-core  (se-abed:se-core [our.bowl name.pole])
+      ~|  %se-is-banned
+      ?<  (se-is-banned:se-core src.bowl)
       se-abet:(se-watch:(se-abed:se-core [our.bowl name.pole]) /preview)
     =/  =preview-update:v7:gv  ~
     =.  cor
@@ -1036,9 +1050,9 @@
   ^-  (unit [flag:g preview:v7:gv])
   ?.  &(=(our.bowl p.flag) !?=(%secret privacy.admissions.group))
     ~
-  =/  sc  (se-abed:se-core flag)
-  ?:  (se-is-banned:sc src.bowl)  ~
-  `[flag se-preview:sc]
+  =/  se-core  (se-abed:se-core flag)
+  ?:  (se-is-banned:se-core src.bowl)  ~
+  `[flag se-preview:se-core]
 ::
 ++  peek
   |=  =(pole knot)
@@ -1243,7 +1257,7 @@
     ::  ignore responses after group has been deleted 
     ::
     ?:  ?&  !(~(has by groups) ship name.pole)
-            ?=([%invite %revoke ship=@ ~] rest.pole)
+            &(?=(%poke-ack -.sign) ?=([%invite %revoke ship=@ ~] rest.pole))
         ==
       cor
     se-abet:(se-agent:(se-abed:se-core ship name.pole) rest.pole sign)
@@ -1810,8 +1824,6 @@
   ++  se-c-join
     |=  tok=(unit token:g)
     ^+  se-core
-    ::XX  se-is-banned should be at top level.
-    ?<  (se-is-banned src.bowl)
     =^  access=?  ad
       (se-admit src.bowl tok)
     ~|  %se-c-join-access-denied
@@ -1830,7 +1842,6 @@
   ++  se-c-ask
     |=  story=(unit story:s:g) ::XX something is messed up with story imports
     ^+  se-core
-    ?<  (se-is-banned src.bowl)
     ?<  ?=(%secret privacy.ad)
     ?>  (lte (met 3 (jam story)) size-limit)
     ?:  (se-is-joined src.bowl)  se-core
@@ -1862,7 +1873,6 @@
   ::
   ++  se-c-leave
     ^+  se-core
-    ?<  (se-is-banned src.bowl)
     ::  delete the seat of the leaving member, unless he is the host
     ::
     ?:  &((~(has by seats.group) src.bowl) !=(p.flag src.bowl))
@@ -1933,7 +1943,6 @@
     ::      subscriptions, and kick subscriptions from people that are
     ::      no longer allowed.
     ::
-    ?<  (se-is-banned src.bowl)
     =*  se-src-is-admin   (se-is-admin src.bowl)
     =*  se-src-is-member  (se-is-member src.bowl)
     ::
@@ -2727,7 +2736,6 @@
   ++  se-watch
     |=  =path
     ^+  se-core
-    ?<  (se-is-banned src.bowl)
     ?+    path  ~|(se-watch-bad+path !!)
         ::  receive updates since .after time
         ::
