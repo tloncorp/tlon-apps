@@ -194,13 +194,15 @@ export const EmbedWebView = memo<EmbedWebViewProps>(
     const loadingSpinner = isLoading && (
       <View
         width="100%"
-        height={calculatedHeight}
         backgroundColor="$secondaryBackground"
         justifyContent="center"
         alignItems="center"
         borderRadius="$s"
+        {...(provider.aspectRatio
+          ? { aspectRatio: provider.aspectRatio }
+          : { height: calculatedHeight })}
       >
-        <LoadingSpinner />
+        <LoadingSpinner color="$primaryText" />
       </View>
     );
 
