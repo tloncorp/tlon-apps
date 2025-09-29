@@ -33,6 +33,7 @@ interface EmbedWebViewProps {
   url: string;
   provider: EmbedProviderConfig;
   embedHtml?: string;
+  embedHeight?: number;
   onHeightChange?: (height: number) => void;
   onError?: (error: any) => void;
 }
@@ -84,14 +85,25 @@ function webViewReducer(
 }
 
 export const EmbedWebView = memo<EmbedWebViewProps>(
-  ({ url, provider, embedHtml, onError }) => {
+  ({ url, provider, embedHtml, embedHeight, onError }) => {
     const theme = useTheme();
     const primaryBackground = useMemo(() => theme.background.val, [theme]);
+
+    // Calculate height based on aspect ratio if available
+    const calculatedHeight = useMemo(() => {
+      // If we have an aspect ratio and no explicit height, calculate based on screen width
+      if (provider.aspectRatio && !embedHeight) {
+        const { width: screenWidth } = Dimensions.get('window');
+        // Use screen width to maintain aspect ratio
+        return screenWidth / provider.aspectRatio;
+      }
+      return embedHeight || provider.defaultHeight;
+    }, [provider.aspectRatio, provider.defaultHeight, embedHeight]);
 
     const initialState: WebViewState = {
       isLoading: true,
       hideTweetMedia: false,
-      webViewHeight: provider.defaultHeight,
+      webViewHeight: calculatedHeight,
     };
 
     const [state, dispatch] = useReducer(webViewReducer, initialState);
@@ -111,8 +123,8 @@ export const EmbedWebView = memo<EmbedWebViewProps>(
 
     const baseHtml = useMemo(() => {
       if (!embedHtml || !url) return '';
-      return provider.generateHtml(url, embedHtml, isDark, hideTweetMedia);
-    }, [url, embedHtml, isDark, provider, hideTweetMedia]);
+      return provider.generateHtml(url, embedHtml, isDark, hideTweetMedia, calculatedHeight);
+    }, [url, embedHtml, isDark, provider, hideTweetMedia, calculatedHeight]);
 
     const html = useMemo(() => {
       if (!baseHtml) return '';
@@ -277,8 +289,8 @@ export const EmbedWebView = memo<EmbedWebViewProps>(
       <>
         {isLoading && (
           <View
-            width={provider.defaultWidth}
-            height={provider.defaultHeight}
+            width="100%"
+            height={calculatedHeight}
             backgroundColor="$secondaryBackground"
             justifyContent="center"
             alignItems="center"
@@ -288,7 +300,7 @@ export const EmbedWebView = memo<EmbedWebViewProps>(
           </View>
         )}
         <View
-          width={provider.defaultWidth}
+          width="100%"
           height={isLoading ? 0 : webViewHeight}
           backgroundColor={primaryBackground}
           borderRadius="$s"
