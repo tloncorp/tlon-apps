@@ -732,6 +732,9 @@
     `nest
   =*  r-group  r-group.r-groups
   ?+    r-group  cor
+      [%create *]
+    (full-recheck-perms affected ~(key by roles.group.r-group))
+  ::
         [%seat * %add *]
       (request-join flag.r-groups affected ships.r-group)
     ::
@@ -762,6 +765,14 @@
   =/  ca  (ca-abed:ca-core:co nest)
   ca-abet:(ca-recheck:ca sects)
 ::
+++  full-recheck-perms
+  |=  [affected=(list nest:c) sects=(set role-id:v7:gv)]
+  ~&  "%channel-server fully recheck permissions for {<affected>}"
+  %+  roll  affected
+  |=  [=nest:c co=_cor]
+  =/  ca  (ca-abed:ca-core:co nest)
+  ca-abet:(ca-full-recheck:ca sects)
+::
 ++  request-join
   |=  [=flag:g affected=(list nest:c) ships=(set ship)]
   %-  emil
@@ -776,6 +787,7 @@
   =/  =cage  [%channel-request-join !>(request)]
   [%pass /request-join %agent [ship %channels] %poke cage]
 ::
+++  size-limit  256.000  :: 256KB
 ++  ca-core
   |_  [=nest:c channel=v-channel:c gone=_|]
   +*  ca-posts  ~(. not posts.channel)
@@ -903,6 +915,7 @@
     ::
         %meta
       ?>  (is-admin:ca-perms src.bowl)
+      ?>  (lte (met 3 (jam meta.c-channel)) size-limit)
       =^  changed  meta.channel  (next-rev:c meta.channel meta.c-channel)
       ?.  changed  ca-core
       (ca-update %meta meta.channel)
@@ -939,6 +952,7 @@
         %add
       ?>  |(=(src.bowl our.bowl) =(src.bowl author.essay.c-post))
       ?>  =(kind.nest -.kind.essay.c-post)
+      ?>  (lte (met 3 (jam essay.c-post)) size-limit)
       =/  id=id-post:c
         |-
         =/  post  (get:on-v-posts:c posts.channel now.bowl)
@@ -959,6 +973,7 @@
     ::
         %edit
       ?>  |(=(src.bowl author.essay.c-post) (is-admin:ca-perms src.bowl))
+      ?>  (lte (met 3 (jam essay.c-post)) size-limit)
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  no-op
       ?:  ?=(%| -.u.post)  no-op
@@ -1080,6 +1095,7 @@
     ?-    -.c-reply
         %add
       ?>  =(src.bowl author.memo.c-reply)
+      ?>  (lte (met 3 (jam memo.c-reply)) size-limit)
       =/  id=id-reply:c
         |-
         =/  reply  (get:on-v-replies:c replies now.bowl)
@@ -1103,6 +1119,7 @@
       ?~  reply    `replies
       ?:  ?=(%| -.u.reply)  `replies
       ?>  =(src.bowl author.u.reply)
+      ?>  (lte (met 3 (jam memo.c-reply)) size-limit)
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-reply %edit parent +.u.reply memo.c-reply]
         (run-hooks event nest 'edit blocked')
@@ -1236,6 +1253,34 @@
     ::  if we have sects, we need to delete them from writers
     =?  ca-core  !=(sects ~)
       =/  =c-channels:c  [%channel nest %del-writers sects]
+      =/  =cage  [%channel-command !>(c-channels)]
+      (emit %pass ca-area %agent [our.bowl dap.bowl] %poke cage)
+    ::  if subs read permissions removed, kick
+    %+  roll  ~(tap in ca-subscriptions)
+    |=  [[=ship =path] ca=_ca-core]
+    ?:  (can-read:ca-perms:ca ship)  ca
+    (emit:ca %give %kick ~[path] `ship)
+  ::  +ca-full-recheck: sync permissions to current group state
+  ::
+  ::  nb: here sects is the current set of group roles.
+  ::
+  ::  +ca-recheck performs incremental book-keeping when prompted
+  ::  by a relevant groups response. however, if a group state has been
+  ::  reset, we need to perform a deeper permission sync:
+  ::  (1) scan our channels and remove any missing group roles from the
+  ::      writers set.
+  ::  (2) scan the list of subscribers and kick those without
+  ::      read permissions.
+  ::
+  ++  ca-full-recheck
+    |=  sects=(set sect:v0:gv)
+    ::  if we have sects, we need to sync channel writers
+    ::  to remove any missing sects.
+    ::
+    =/  missing=(set sect:v0:gv)
+      (~(dif in writers.perm.perm.channel) sects)
+    =?  ca-core  !=(missing ~)
+      =/  =c-channels:c  [%channel nest %del-writers missing]
       =/  =cage  [%channel-command !>(c-channels)]
       (emit %pass ca-area %agent [our.bowl dap.bowl] %poke cage)
     ::  if subs read permissions removed, kick

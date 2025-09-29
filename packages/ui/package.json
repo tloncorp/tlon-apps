@@ -32,7 +32,7 @@
   "dependencies": {
     "@emoji-mart/data": "^1.1.2",
     "@likashefqet/react-native-image-zoom": "^4.2.0",
-    "@react-native-clipboard/clipboard": "^1.14.0",
+    "@react-native-clipboard/clipboard": "^1.16.3",
     "@tamagui/animations-moti": "~1.126.12",
     "@tamagui/get-token": "~1.126.12",
     "@tamagui/image": "~1.126.12",
@@ -57,16 +57,16 @@
     "@urbit/sigil-js": "^2.2.0",
     "expo-av": "*",
     "expo-blur": "*",
+    "expo-haptics": "*",
     "expo-image": "*",
     "expo-image-picker": "*",
     "expo-media-library": "*",
-    "expo-haptics": "*",
     "react": "*",
+    "react-native-context-menu-view": "*",
+    "react-native-gesture-handler": "*",
     "react-native-reanimated": "*",
     "react-native-safe-area-context": "*",
-    "react-native-svg": "*",
-    "react-native-context-menu-view": "*",
-    "react-native-gesture-handler": "*"
+    "react-native-svg": "*"
   },
   "devDependencies": {
     "@tamagui/build": "~1.126.12"

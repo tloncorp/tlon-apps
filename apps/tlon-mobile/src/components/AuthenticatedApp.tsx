@@ -7,7 +7,6 @@ import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedCo
 import { useNetworkLogger } from '@tloncorp/app/hooks/useNetworkLogger';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
 import { useUpdatePresentedNotifications } from '@tloncorp/app/lib/notifications';
-import { hapticPerfSignal } from '@tloncorp/app/lib/platformHelpers';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import {
@@ -40,8 +39,6 @@ function AuthenticatedApp() {
     (status: AppStatus) => {
       // app opened or returned from background
       if (status === 'opened' || status === 'active') {
-        updateSession({ isSyncing: true });
-        syncSince();
         telemetry.captureAppActive();
         checkNodeStopped();
         refreshHostingAuth();
@@ -50,16 +47,11 @@ function AuthenticatedApp() {
 
       // app returned from background
       if (status === 'active') {
+        updateSession({ isSyncing: true });
+        syncSince({ callCtx: { cause: 'app-foregrounded' } });
         setTimeout(() => {
           sync.syncPinnedItems({ priority: sync.SyncPriority.High });
         }, 100);
-      }
-
-      // app opened
-      if (status === 'opened') {
-        db.headsSyncedAt.resetValue().then(() => {
-          sync.syncLatestPosts({ priority: sync.SyncPriority.High });
-        });
       }
     },
     [checkNodeStopped, telemetry]

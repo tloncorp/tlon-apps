@@ -6,7 +6,7 @@
 ++  dap  %channels-server
 ::
 +$  current-state
-  [%10 =v-channels:c =hooks:h =pimp:imp]
+  [%11 =v-channels:v9:c =hooks:h =pimp:imp]
 +$  state-8
   [%8 =v-channels:v8:c =hooks:h =pimp:imp]
 --
@@ -58,9 +58,9 @@
   %+  ex-cards  caz
   =/  =vase
     !>  :^  %sequence-numbers  *nest:c
-      333
+      1
     ^-  (list [id-post:c (unit @ud)])
-    :~  [~2025.8.4 `777]
+    :~  [~2025.8.4 `1]
     ==
   :~  (ex-poke /numbers [~fun %channels] %noun vase)
   ==
@@ -288,7 +288,7 @@
     ;<  save=vase  bind:m  get-save
     =/  fixed-state=current-state
       =;  chans=v-channels:c
-        [%10 chans *hooks:h *pimp:imp]
+        [%11 chans *hooks:h *pimp:imp]
       =/  chan=v-channel:c
         tombstone-rescue-test-channel-new
       (~(put by *v-channels:c) *nest:c chan)

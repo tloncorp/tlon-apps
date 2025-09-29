@@ -2,7 +2,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createDevLogger } from '@tloncorp/shared';
 import { useCallback } from 'react';
 import { useForm } from 'react-hook-form';
-import { Alert, KeyboardAvoidingView } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform } from 'react-native';
 
 import { RootStackParamList } from '../../navigation/types';
 import {
@@ -20,6 +20,20 @@ type Props = NativeStackScreenProps<RootStackParamList, 'WompWomp'>;
 
 const logger = createDevLogger('bug-report', false);
 
+const showAlert = () => {
+  if (Platform.OS === 'web') {
+    window.alert(
+      'Bug report sent. Our team will investigate. Thank you for your feedback!'
+    );
+    return;
+  }
+  Alert.alert(
+    'Bug report sent',
+    'Our team will investigate. Thank you for your feedback!',
+    [{ text: 'OK' }]
+  );
+};
+
 export function UserBugReportScreen({ navigation }: Props) {
   const { control, handleSubmit } = useForm({
     defaultValues: {
@@ -34,13 +48,9 @@ export function UserBugReportScreen({ navigation }: Props) {
         logger.crumb(submission.additionalNotes);
       }
       logger.trackError('User manually submitted a bug report');
-      Alert.alert(
-        'Bug report sent',
-        'Our team will investigate. Thank you for your feedback!',
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
-      );
+      showAlert();
     },
-    [navigation]
+    []
   );
 
   const isWindowNarrow = useIsWindowNarrow();

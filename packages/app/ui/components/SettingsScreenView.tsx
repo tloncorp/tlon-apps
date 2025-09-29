@@ -130,7 +130,7 @@ export function SettingsScreenView(props: Props) {
             onPress={props.onExperimentalFeaturesPressed}
             isFocused={props.focusedRouteName === 'FeatureFlags'}
           />
-          {isWeb ? (
+          {!isWeb ? (
             <LogoutDialog onConfirm={props.onLogoutPressed ?? (() => {})}>
               <SettingsAction
                 title="Log out"
@@ -138,13 +138,7 @@ export function SettingsScreenView(props: Props) {
                 onPress={handleLogoutPressed}
               />
             </LogoutDialog>
-          ) : (
-            <SettingsAction
-              title="Log out"
-              leftIcon="LogOut"
-              onPress={handleLogoutPressed}
-            />
-          )}
+          ) : null}
         </YStack>
       </ScrollView>
     </>

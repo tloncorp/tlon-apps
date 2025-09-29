@@ -156,8 +156,8 @@ function GroupRolesScreenView({
             borderWidth: 0,
           }}
         >
-          {groupRoles.map((role) => (
-            <Pressable key={role.id} onPress={() => handleSetEditRole(role)}>
+          {groupRoles.map((role) =>
+            role.title === 'Admin' ? (
               <ListItem
                 key={role.id}
                 paddingHorizontal="$2xl"
@@ -173,20 +173,39 @@ function GroupRolesScreenView({
                     <ListItem.Subtitle>{role.description}</ListItem.Subtitle>
                   )}
                 </ActionSheet.MainContent>
-
-                <ListItem.EndContent
-                  flexDirection="row"
-                  gap="$xl"
-                  alignItems="center"
-                >
-                  <ActionSheet.ActionIcon
-                    type="ChevronRight"
-                    color="$tertiaryText"
-                  />
-                </ListItem.EndContent>
               </ListItem>
-            </Pressable>
-          ))}
+            ) : (
+              <Pressable key={role.id} onPress={() => handleSetEditRole(role)}>
+                <ListItem
+                  key={role.id}
+                  paddingHorizontal="$2xl"
+                  backgroundColor={'$background'}
+                  borderRadius="$2xl"
+                  testID={`GroupRole-${role.title}`}
+                >
+                  <ActionSheet.MainContent>
+                    <ActionSheet.ActionTitle>
+                      {role.title}
+                    </ActionSheet.ActionTitle>
+                    {role.description && (
+                      <ListItem.Subtitle>{role.description}</ListItem.Subtitle>
+                    )}
+                  </ActionSheet.MainContent>
+
+                  <ListItem.EndContent
+                    flexDirection="row"
+                    gap="$xl"
+                    alignItems="center"
+                  >
+                    <ActionSheet.ActionIcon
+                      type="ChevronRight"
+                      color="$tertiaryText"
+                    />
+                  </ListItem.EndContent>
+                </ListItem>
+              </Pressable>
+            )
+          )}
           <Pressable onPress={() => setShowAddRole(true)}>
             <ListItem
               paddingHorizontal="$2xl"

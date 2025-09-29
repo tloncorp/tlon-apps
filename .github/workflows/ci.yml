@@ -176,6 +176,14 @@ jobs:
 
       - name: Run E2E Tests for Groups
         # Use Ubuntu container to avoid Fedora/Urbit binary compatibility issues
+        env:
+          VITE_INVITE_PROVIDER: http://localhost:39983
+          VITE_INVITE_SERVICE_ENDPOINT: https://serverless-infra.vercel.app/api/inviteLink
+          E2E_S3_ENDPOINT: ${{ secrets.E2E_S3_ENDPOINT }}
+          E2E_S3_ACCESS_KEY_ID: ${{ secrets.E2E_S3_ACCESS_KEY_ID }}
+          E2E_S3_SECRET_ACCESS_KEY: ${{ secrets.E2E_S3_SECRET_ACCESS_KEY }}
+          E2E_S3_BUCKET_NAME: ${{ secrets.E2E_S3_BUCKET_NAME }}
+          E2E_S3_REGION: ${{ secrets.E2E_S3_REGION }}
         run: |
           # Check if we're on Fedora and need container workaround
           if [ -f /etc/os-release ] && grep -qiE "fedora|rhel|centos|rocky|alma" /etc/os-release; then
@@ -193,6 +201,11 @@ jobs:
               -e CI=true \
               -e VITE_INVITE_PROVIDER="${VITE_INVITE_PROVIDER}" \
               -e VITE_INVITE_SERVICE_ENDPOINT="${VITE_INVITE_SERVICE_ENDPOINT}" \
+              -e E2E_S3_ENDPOINT="${E2E_S3_ENDPOINT}" \
+              -e E2E_S3_ACCESS_KEY_ID="${E2E_S3_ACCESS_KEY_ID}" \
+              -e E2E_S3_SECRET_ACCESS_KEY="${E2E_S3_SECRET_ACCESS_KEY}" \
+              -e E2E_S3_BUCKET_NAME="${E2E_S3_BUCKET_NAME}" \
+              -e E2E_S3_REGION="${E2E_S3_REGION}" \
               -e FORCE_EXTRACTION=true \
               docker.io/ubuntu:22.04 \
               bash -c "
@@ -234,9 +247,6 @@ jobs:
             pnpm e2e:force
           fi
         working-directory: ./apps/tlon-web
-        env:
-          VITE_INVITE_PROVIDER: http://localhost:39983
-          VITE_INVITE_SERVICE_ENDPOINT: https://serverless-infra.vercel.app/api/inviteLink
 
       - name: Upload Playwright Report
         uses: actions/upload-artifact@v4

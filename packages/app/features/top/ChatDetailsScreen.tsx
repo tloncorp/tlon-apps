@@ -50,16 +50,19 @@ export function ChatDetailsScreen(props: Props) {
   const { navigation } = useRootNavigation();
   const isWindowNarrow = useIsWindowNarrow();
   const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
-  
-  const handleInvitePressed = useCallback((groupId: string) => {
-    if (isWindowNarrow) {
-      // Mobile: Use navigation to screen
-      navigation.navigate('InviteUsers', { groupId });
-    } else {
-      // Desktop: Use sheet
-      setInviteSheetGroup(groupId);
-    }
-  }, [isWindowNarrow, navigation]);
+
+  const handleInvitePressed = useCallback(
+    (groupId: string) => {
+      if (isWindowNarrow) {
+        // Mobile: Use navigation to screen
+        navigation.navigate('InviteUsers', { groupId });
+      } else {
+        // Desktop: Use sheet
+        setInviteSheetGroup(groupId);
+      }
+    },
+    [isWindowNarrow, navigation]
+  );
 
   return (
     <ForwardGroupSheetProvider>
@@ -208,7 +211,7 @@ function ChatDetailsScreenContent({
     >
       <ListItem alignItems="center" gap="$xl">
         {chatType === 'group' ? (
-          <ListItem.GroupIcon model={group} size="$5xl" />
+          <ListItem.GroupIcon testID="GroupIcon" model={group} size="$5xl" />
         ) : (
           <ListItem.ChannelIcon model={channel} size="$5xl" />
         )}

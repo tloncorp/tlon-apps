@@ -224,7 +224,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
 
     const inView = useIsFocused();
     const hasLoaded = !!(posts && channel);
-    const hasUnreads = (channel?.unread?.count ?? 0) > 0;
+    const hasUnreads = (channel?.unread?.countWithoutThreads ?? 0) > 0;
     useEffect(() => {
       if (hasUnreads && hasLoaded && inView) {
         markRead();
