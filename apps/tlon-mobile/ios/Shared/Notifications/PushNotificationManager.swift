@@ -11,34 +11,36 @@ import NotificationCenter
 
 @objc final class PushNotificationManager: NSObject {
     enum ParseNotificationResult {
-        case activityEventJson(Any?)
-        case dismiss(uid: String)
+        case notify(uid: String, notifyCount: Int, event: Any)
+        case dismiss(uid: String, id: String, notifyCount: Int, event: Any)
         case invalid
         case failedFetchContents(Error)
     }
 
     static func parseNotificationUserInfo(_ userInfo: [AnyHashable: Any]) async -> ParseNotificationResult {
+        let notifyCount: Int = Int(userInfo["notify-count"] as? String ?? "0") ?? 0
         guard let action = userInfo["action"] as? String,
-              let uid = userInfo["uid"] as? String
+              let uid = userInfo["uid"] as? String,
+              let id = userInfo["id"] as? String
         else {
             return .invalid
         }
 
-        switch action {
-        case "notify":
-            do {
-                let aerData = try await PocketAPI.shared.fetchRawPushNotificationContents(uid)
-                return .activityEventJson(try JSONSerialization.jsonObject(with: aerData))
-            } catch {
-                // Failure will be logged later
-                return .failedFetchContents(error)
+        do {
+            let aerData = try await PocketAPI.shared.fetchRawPushNotificationContents(uid)
+            let event = try JSONSerialization.jsonObject(with: aerData)
+            switch action {
+            case "notify":
+                return .notify(uid: uid, notifyCount: notifyCount, event: event)
+            case "dismiss":
+                return .dismiss(uid: uid, id: id, notifyCount: notifyCount, event: event)
+
+            default:
+                return .invalid
             }
 
-        case "dismiss":
-            return .dismiss(uid: uid)
-
-        default:
-            return .invalid
+        } catch {
+            return .failedFetchContents(error)
         }
     }
 }
