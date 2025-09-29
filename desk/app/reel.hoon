@@ -393,18 +393,50 @@
             %'inviterColor'^?^(color (rsh [3 2] (scot %ux u.color)) '')
         ==
       ::  update our lure links with new nickname, avatar image
-      ::  and color.
+      ::  and color. also update open-graph metadata.
       ::
-      =.  our-metadata
-        %-  ~(run by our-metadata)
-        |=  meta=metadata:reel
-        meta(fields (~(uni by fields.meta) fields.update))
-      ::  request the bait provider to update our invite links
-      ::
-      =/  caz=(list card)
-        %+  turn  ~(tap by our-metadata)
-        |=  [=token:reel *]
-        [%pass /update/profile %agent [civ %bait] %poke bait-update+!>([token update])]
+      =^  caz=(list card)  our-metadata
+        %+  ~(rib by our-metadata)  *(list card)
+        |=  [[=token:reel meta=metadata:reel] caz=(list card)]
+        ^-  [(list card) [token:reel metadata:reel]]
+        =;  [new-meta=metadata:reel new-update=_update]
+          :_  [token new-meta]
+          :_  caz
+          [%pass /update/profile %agent [civ %bait] %poke bait-update+!>([token new-update])]
+        =;  =_update
+          :_  update
+          meta(fields (~(uni by fields.meta) fields.update))
+        =+  type=(~(get by fields.meta) %'inviteType')
+        ::  by default we assume a group invite
+        ::
+        ?~  type
+          =/  group-title=@t
+            =+  til=(~(get by fields.meta) %'invitedGroupTitle')
+            ?:  |(?=(~ til) =('' u.til))
+              'a Groupchat'
+            u.til
+          =/  title=@t
+            %-  crip
+            ?:  |(?=(~ nickname) =('' u.nickname))
+              "Tlon Messenger: You're Invited to a Groupchat"
+            "Tlon Messenger: {(trip u.nickname)} invited you to {(trip group-title)}"
+          =.  fields.update
+            (~(put by fields.update) %'$og_title' title)
+          =.  fields.update
+            (~(put by fields.update) %'$twitter_title' title)
+          update
+        ::  non-empty inviteType, assume a personal invite
+        ::
+        =/  title=@t
+          %-  crip
+          ?:  |(?=(~ nickname) =('' u.nickname))
+            "Tlon Messenger: You've Been Invited"
+          "Tlon Messenger: {(trip u.nickname)} Sent You an Invite"
+        =.  fields.update
+          (~(put by fields.update) %'$og_title' title)
+        =.  fields.update
+          (~(put by fields.update) %'$twitter_title' title)
+        update
       [caz this]
     ==
   ::
@@ -431,10 +463,21 @@
         ?+    -.r-group.r-groups  ~
             %meta
           =*  meta  meta.r-group.r-groups
+          =+  nickname=(~(get cy:t our-profile) %nickname %text)
+          =/  group-title=@t
+            ?:  =('' title.meta)  'a Groupchat'
+            title.meta
+          =/  title=@t
+            %-  crip
+            ?:  |(?=(~ nickname) =('' u.nickname))
+              "Tlon Messenger: You're Invited to a Groupchat"
+            "Tlon Messenger: {(trip u.nickname)} invited you to {(trip group-title)}"
           %-  ~(gas by *(map field:reel cord))
           :~  %'invitedGroupTitle'^title.meta
               %'invitedGroupDescription'^description.meta
               %'invitedGroupIconImageUrl'^image.meta
+              %'$og_title'^title
+              %'$twitter_title'^title
           ==
         ::
             %delete
