@@ -2,7 +2,7 @@ name: e2e-signup
 
 on:
   schedule:
-    - cron: "0 * * * *"
+    - cron: "30 * * * *"
 
 jobs:
   build_ios_for_e2e:
