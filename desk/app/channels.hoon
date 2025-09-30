@@ -1396,6 +1396,10 @@
       (add sum (wyt:on-v-posts:c p))
     ==
   ::
+    ::  /init-posts:
+    ::    .channels: amount of most-recently-active channels to include
+    ::    .context:  amount of latest msgs, or msgs %around unread marker
+    ::
       [%x %v5 %init-posts channels=@ context=@ ~]
     =+  channels=(slav %ud channels.pole)
     =+  context=(slav %ud context.pole)

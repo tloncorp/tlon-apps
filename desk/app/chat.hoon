@@ -1129,6 +1129,10 @@
       (add sum (wyt:on:writs:c w))
     ==
   ::
+    ::  /init-posts:
+    ::    .channels: amount of most-recently-active chats to include
+    ::    .context:  amount of latest msgs, or msgs %around unread marker
+    ::
       [%x %v3 %init-posts channels=@ context=@ ~]
     =+  channels=(slav %ud i.t.t.t.path)
     =+  context=(slav %ud i.t.t.t.t.path)
