@@ -391,7 +391,7 @@
               %ask
             ::  only allow client ask requests
             ?>  =(q.cordon-diff (silt our.bowl ~))
-            =/  =a-foreigns:v8:gv
+            =/  =a-foreigns:v7:gv
               [%foreign flag %ask ~]
             $(+< group-foreign-1+!>(a-foreigns))
           ::
@@ -517,7 +517,7 @@
       ::
       %+  roll  invites.foreign
       |=  [=invite:g =_cor]
-      =/  =a-foreigns:v8:gv
+      =/  =a-foreigns:v7:gv
         [%foreign flag %decline token.invite]
       (poke:cor group-foreign-1+!>(a-foreigns))
   ::
@@ -1018,6 +1018,8 @@
       [%v1 %foreigns ship=@ name=@ rest=*]
     =+  ship=(slav %p ship.pole)
     fi-abet:(fi-watch:(fi-abed:fi-core ship name.pole) %v1 rest.pole)
+  ::
+      [%v1 %foreigns ~]  ?>(from-self cor)
   ::
       ::  deprecated
       [%gangs ship=@ name=@ %preview ~]
@@ -4289,12 +4291,10 @@
   ::  +fi-give-update: give foreigns update
   ::
   ++  fi-give-update
-    ::TODO rewire the client to use the new endpoint
-    ::     and send facts on /v1/foreigns path
-    ::
     =/  gang-2
       %-  gang:v2:foreign:v7:gc
       (v7:foreign:v8:gc foreign)
+    =.  cor  (give %fact ~[/v1/foreigns] foreigns-1+!>(`foreigns:v8:gv`(my flag^foreign ~)))
     =.  cor  (give %fact ~[/gangs/updates] gangs+!>(`gangs:v2:gv`(my flag^gang-2 ~)))
     fi-core
   ::
