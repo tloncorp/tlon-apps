@@ -16,7 +16,7 @@ jobs:
     type: maestro
     params:
       build_id: ${{ needs.build_ios_for_e2e.outputs.build_id }}
-      flow_path: ["../../../.maestro/03-signup.yaml"]
+      flow_path: ["../../.maestro/03-signup.yaml"]
 
   notify_webhook:
     name: Webhook
