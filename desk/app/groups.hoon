@@ -721,6 +721,7 @@
   =.  cor
     %+  roll  ~(tap by groups)
     |=  [[=flag:g *] =_cor]
+    ?.  =(p.flag our.bowl)  cor
     se-abet:se-prune-tokens:(se-abed:se-core:cor flag)
   cor
   ::
