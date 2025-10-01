@@ -511,10 +511,15 @@ export function EmbedBlock({
     return null;
   }
 
+  // Extract height from props if available
+  const embedHeight =
+    typeof props.height === 'number' ? props.height : undefined;
+
   return (
     <EmbedContent
       url={block.url}
       content={block.content}
+      height={embedHeight}
       renderWrapper={(children) =>
         children ? (
           <View width="100%" {...props}>
@@ -609,10 +614,17 @@ export function BlockRenderer({ block }: { block: cn.BlockData }) {
 
   // Special handling for embed blocks - let EmbedContent decide if wrapper should render
   if (block.type === 'embed') {
+    // Extract height from wrapperProps if available
+    const embedHeight =
+      typeof wrapperProps?.height === 'number'
+        ? wrapperProps.height
+        : undefined;
+
     return (
       <EmbedContent
         url={block.url}
         content={block.content}
+        height={embedHeight}
         renderWrapper={(children) =>
           children ? (
             <Wrapper

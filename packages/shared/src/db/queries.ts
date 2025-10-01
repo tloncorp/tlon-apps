@@ -897,7 +897,9 @@ export const getChats = createReadQuery(
       id: g.id,
       type: 'group',
       pin: g.pin,
-      timestamp: g.unread?.updatedAt ?? g.lastPostAt ?? 0,
+      timestamp: g.haveInvite
+        ? g.unread?.updatedAt ?? 0
+        : g.lastPostAt ?? g.unread?.updatedAt ?? 0,
       volumeSettings: g.volumeSettings,
       unreadCount: g.unread?.count ?? 0,
       group: g,
@@ -3603,7 +3605,8 @@ export const getPendingPosts = createReadQuery(
     return ctx.db.query.posts.findMany({
       where: and(
         eq($posts.channelId, channelId),
-        isNotNull($posts.deliveryStatus)
+        isNotNull($posts.deliveryStatus),
+        not(eq($posts.type, 'reply'))
       ),
     });
   },

@@ -1,14 +1,16 @@
-import * as db from '@tloncorp/shared/db';
 import { Button, Text } from '@tloncorp/ui';
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
 import { XStack, YStack, isWeb, styled } from 'tamagui';
 
 import { useContactPermissions } from '../../hooks/useContactPermissions';
+import { useNag } from '../../hooks/useNag';
+import { useNotificationPermissions } from '../../lib/notifications';
 import { useStore } from '../contexts';
 
 const SystemNotices = {
   ContactBookPrompt,
+  NotificationsPrompt,
 };
 
 const NoticeFrame = styled(YStack, {
@@ -32,6 +34,91 @@ const NoticeTitle = styled(Text, {
 
 export default SystemNotices;
 
+export function NotificationsPrompt() {
+  const notifNag = useNag({
+    key: 'notificationsPrompt',
+    refreshInterval: 24 * 60 * 60 * 1000, // 24 hours
+    refreshCycle: 3,
+  });
+
+  const perms = useNotificationPermissions();
+
+  const handleDismiss = useCallback(() => {
+    notifNag.dismiss();
+  }, [notifNag]);
+
+  const handlePrimaryAction = useCallback(async () => {
+    if (perms.canAskPermission) {
+      await perms.requestPermissions();
+      if (perms.hasPermission) {
+        Alert.alert('Success', 'You will now receive notifications.');
+        notifNag.eliminate();
+      } else {
+        notifNag.dismiss();
+      }
+    } else {
+      perms.openSettings();
+    }
+  }, [perms, notifNag]);
+
+  if (
+    isWeb ||
+    !perms.initialized ||
+    perms.hasPermission ||
+    notifNag.isLoading ||
+    !notifNag.shouldShow
+  ) {
+    return null;
+  }
+
+  return (
+    <NoticeFrame>
+      <YStack gap="$5xl">
+        <YStack gap="$xl">
+          <NoticeTitle>Enable notifications</NoticeTitle>
+          <NoticeBody>
+            Tlon Messenger works best if you enable push notifications on your
+            device.
+          </NoticeBody>
+        </YStack>
+        <XStack gap="$m" justifyContent="flex-end">
+          <Button
+            padding="$xl"
+            paddingHorizontal="$2xl"
+            backgroundColor="$systemNoticeBackground"
+            borderColor="$positiveBorder"
+            borderWidth={1.6}
+            pressStyle={{
+              opacity: 0.7,
+              backgroundColor: '$systemNoticeBackground',
+            }}
+            onPress={handleDismiss}
+          >
+            <Button.Text color="$systemNoticeText" fontWeight="500">
+              Not Now
+            </Button.Text>
+          </Button>
+          <Button
+            backgroundColor="$systemNoticeText"
+            padding="$xl"
+            paddingHorizontal="$2xl"
+            borderWidth={0}
+            pressStyle={{
+              opacity: 0.8,
+              backgroundColor: '$systemNoticeText',
+            }}
+            onPress={handlePrimaryAction}
+          >
+            <Button.Text color="$systemNoticeBackground" fontWeight="500">
+              {perms.canAskPermission ? 'Enable' : 'Settings'}
+            </Button.Text>
+          </Button>
+        </XStack>
+      </YStack>
+    </NoticeFrame>
+  );
+}
+
 export function ContactBookPrompt(props: {
   status: 'denied' | 'granted' | 'undetermined';
   onDismiss: () => void;
@@ -40,11 +127,13 @@ export function ContactBookPrompt(props: {
 }) {
   const store = useStore();
   const perms = useContactPermissions();
-  const didDismiss = db.didDismissSystemContactsPrompt.useStorageItem();
+  const contactBookNag = useNag({
+    key: 'contactBookPrompt',
+  });
 
   const handleDismiss = useCallback(() => {
-    didDismiss.setValue(true);
-  }, [didDismiss]);
+    contactBookNag.dismiss();
+  }, [contactBookNag]);
 
   const handlePrimaryAction = useCallback(async () => {
     if (perms.canAskPermission) {
@@ -54,20 +143,23 @@ export function ContactBookPrompt(props: {
           Alert.alert('Success', 'Your contacts have been synced.');
         });
         await store.syncContactDiscovery().catch(() => {
-          didDismiss.setValue(true);
+          contactBookNag.eliminate();
         });
+        contactBookNag.eliminate();
+      } else {
+        contactBookNag.dismiss();
       }
-      didDismiss.setValue(true);
     } else {
       perms.openSettings();
     }
-  }, [didDismiss, perms, store]);
+  }, [contactBookNag, perms, store]);
 
   if (
     isWeb ||
     perms.isLoading ||
     perms.status === 'granted' ||
-    didDismiss.value
+    contactBookNag.isLoading ||
+    !contactBookNag.shouldShow
   ) {
     return null;
   }

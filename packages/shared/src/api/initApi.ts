@@ -16,13 +16,13 @@ export interface InitData {
   pins: db.Pin[];
   groups: db.Group[];
   unjoinedGroups: db.Group[];
-  activity: db.ActivityInit;
   channels: db.Channel[];
   channelPerms: ChannelInit[];
   joinedGroups: string[];
   joinedChannels: string[];
   hiddenPostIds: string[];
   blockedUsers: string[];
+  unreads: db.ActivityInit;
 }
 
 export const getInitData = async () => {
@@ -31,6 +31,10 @@ export const getInitData = async () => {
     path: '/v4/init',
   });
 
+  return toInitData(response);
+};
+
+export const toInitData = (response: ub.GroupsInit4): InitData => {
   const pins = toClientPinnedItems(response.pins);
   const channelReaders = extractChannelReaders(response.groups);
   const channelsInit = toClientChannelsInit(
