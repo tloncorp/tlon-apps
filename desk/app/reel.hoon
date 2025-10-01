@@ -9,6 +9,7 @@
       state-3
       state-4
       state-5
+      state-6
   ==
 ::
 ::  vic: URL of bait service
@@ -66,13 +67,24 @@
       stable-id=(map cord token:reel)
       =^subs:s
   ==
++$  state-6
+  $:  %6
+      vic=@t
+      civ=ship
+      our-profile=contact:t
+      our-metadata=(map token:reel metadata:v1:reel)
+      open-link-requests=(set (pair ship cord))
+      open-describes=(set token:reel)
+      stable-id=(map cord token:reel)
+      =^subs:s
+  ==
 ::
 ::  url with old style token
 ++  url-for-token
   |=  [vic=cord token=cord]
   (cat 3 vic token)
 --
-=|  state-5
+=|  state-6
 =*  state  -
 ::
 %-  agent:dbug
@@ -86,7 +98,7 @@
   ++  fail
     |=  [desc=term =tang]
     %-  link
-    %-  %-  %*(. slog pri 3)  [leaf+"fail" tang]
+    %-  %-  %*(. slog pri 3)  [leaf+"fail" desc tang]
     (~(fail logs our.bowl /logs) desc tang log-data)
   ::
   ++  tell
@@ -171,9 +183,17 @@
         stable-id
         ~  ::  subs
     ==
-  ?>  ?=(%5 -.old)
+  ::  v5 -> v6: trigger invites profile update
+  ::
+  =^  caz=(list card)  old
+    ?.  ?=(%5 -.old)  `old
+    :_  old(- %6)
+    =+  wait=(~(rad og eny.bowl) ~h1)
+    [%pass /load/profile %arvo %b %wait (add now.bowl wait)]~
+  ?>  ?=(%6 -.old)
   =.  state  old
   :_  this
+  %+  weld  caz
   %-  murn  :_  same
   ^-  (list (unit card))
   :~  ?:  (~(has by wex.bowl) /groups [our.bowl %groups])  ~
@@ -545,6 +565,13 @@
     =^  caz=(list card)  subs
       (~(handle-wakeup s [subs bowl]) wire)
     [caz this]
+  ::
+      ::
+      ::  trigger invites profile update
+      [%load %profile ~]
+    =/  profile
+      .^(contact:t %gx /(scot %p our.bowl)/contacts/(scot %da now.bowl)/v1/self/contact-1)
+    (on-agent /contacts %fact contact-response-0+!>([%self profile]))
   ==
 ++  on-fail
   |=  [=term =tang]
