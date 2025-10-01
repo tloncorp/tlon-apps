@@ -6,7 +6,7 @@ class NotificationService: UNNotificationServiceExtension {
     var contentHandler: ((UNNotificationContent) -> Void)?
     var bestAttemptContent: UNMutableNotificationContent?
 
-    private func applyNotif(_ rawActivityEvent: Any, uid: String, badgeCount: Int, notification: UNMutableNotificationContent) async -> UNNotificationContent {
+    private func applyNotif(_ rawActivityEvent: Any, uid: String, notification: UNMutableNotificationContent) async -> UNNotificationContent {
         do {
             return try await processRichNotification(rawActivityEvent, notification: notification, uid: uid)
         } catch {
@@ -89,53 +89,6 @@ class NotificationService: UNNotificationServiceExtension {
         }
     }
 
-    private func dismissNotifs(id: String, source: String) {
-        let center = UNUserNotificationCenter.current()
-        center.getNotificationSettings { settings in
-            switch settings.authorizationStatus {
-            case .notDetermined:
-                // User hasn't been asked yet - good time to request
-                print("Not determined")
-            case .denied:
-                // User denied - need to direct to Settings
-                print("Denied")
-            case .authorized:
-                print("Authorized")
-            case .provisional:
-                print("Provisional authorization")
-            case .ephemeral:
-                print("Ephemeral authorization")
-            @unknown default:
-                print("Unknown status")
-            }
-        }
-        
-        center.getDeliveredNotifications { notifications in
-            // An array to hold the identifiers of delivered notifications you want to dismiss
-            var identifiersToDismiss: [String] = []
-
-            for notification in notifications {
-                // Implement your custom logic here to decide which notifications to dismiss
-                if notification.request.identifier.contains("some_criteria") {
-                    identifiersToDismiss.append(notification.request.identifier)
-                }
-
-                let grouping = notification.request.content.threadIdentifier
-                if let notifId = notification.request.content.userInfo["id"] as? String {
-                    if grouping == source {
-                        // ids are sortable as strings
-                        if notifId < id {
-                            identifiersToDismiss.append(notifId)
-                        }
-                    }
-                }
-            }
-
-            // Dismiss the selected notifications
-            center.removeDeliveredNotifications(withIdentifiers: identifiersToDismiss)
-        }
-    }
-
     private func getPreview(rawActivityEvent: Any, uid: String, activityEventJsonString: String) throws -> NotificationPreviewPayload {
         let context = JSContext()!
         context.exceptionHandler = { context, exception in
@@ -171,35 +124,21 @@ class NotificationService: UNNotificationServiceExtension {
       Task { [weak bestAttemptContent] in
         let parsedNotification = await PushNotificationManager.parseNotificationUserInfo(request.content.userInfo)
           switch parsedNotification {
-          case .notify(let uid, let notifyCount, let event):
+          case .notify(let uid, let event):
               var notifContent = bestAttemptContent ?? UNNotificationContent()
               
+              print("[notifications] badge count \(notifContent.badge ?? NSNumber(0))")
               notifContent = await applyNotif(
                 event,
                 uid: uid,
-                badgeCount: notifyCount,
                 notification: notifContent.mutableCopy() as! UNMutableNotificationContent
               )
               
               contentHandler(notifContent)
               return
               
-          case .dismiss(let uid, let id, let notifyCount, let event):
-              let activityEventJsonString = (try? JSONSerialization.jsonString(withJSONObject: event)) ?? "Unknown"
-              do {
-                  let preview = try getPreview(rawActivityEvent: event, uid: uid, activityEventJsonString: activityEventJsonString)
-                  let renderer = NotificationPreviewContentNodeRenderer()
-                  
-                  if let groupingKey = preview.notification.groupingKey {
-                      let source = await renderer.render(groupingKey)
-                      dismissNotifs(id: id, source: source)
-                      try await UNUserNotificationCenter.current().setBadgeCount(notifyCount)
-                  }
-              } catch {
-                  print("Dismissal handling failed")
-                  await NotificationLogger.logError(NotificationError.notificationDismissalFailed(uid: uid, activityEvent: activityEventJsonString))
-              }
-              
+          case .dismiss:
+              // should not be hit, but empty notification just in case
               if let bestAttemptContent = bestAttemptContent {
                   bestAttemptContent.title = ""
                   bestAttemptContent.subtitle = ""
@@ -277,23 +216,6 @@ extension Encodable {
 private struct RenderNotificationPreviewResult: Codable {
     let title: String?
     let body: String?
-}
-
-extension JSValue {
-    func decode<T: Decodable>(as type: T.Type) throws -> T {
-        guard
-            let object = self.toObject(),
-            JSONSerialization.isValidJSONObject(object)
-        else {
-            throw NSError(
-                domain: "JSValueError",
-                code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "JSValue is not a valid JSON object"]
-            )
-        }
-        let jsonData = try JSONSerialization.data(withJSONObject: object, options: [])
-        return try JSONDecoder().decode(T.self, from: jsonData)
-    }
 }
 
 extension JSONSerialization {

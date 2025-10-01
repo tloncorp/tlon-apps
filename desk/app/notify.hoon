@@ -1,6 +1,6 @@
 ::
 /-  *notify, resource, a=activity, c=channels, h=hark, meta
-/+  cu=channel-utils, n=notify, logs,
+/+  cu=channel-utils, n=notify, logs, aj=activity-json,
     default-agent, verb, dbug, agentio
 /$  activity-event-to-json  %activity-event  %json
 /$  hark-yarn-to-json       %hark-yarn       %json
@@ -490,11 +490,12 @@
         :_  this(notifications (~(put by notifications) time-id [event ~]))
         =-  (zing (turn - drop))
         ^-  (list (unit card))
+        =/  update-0=update:v0  [`@`time-id %notify]
         =/  =update:v1
-          [notify-count `@`time-id %notify]
+          [notify-count `@`time-id %notify ~]
         ~&  ['notify update' update +.update v0-paths v1-paths]
         :_  :~  `(fact:io notify-update-1+!>(update) v1-paths)
-                `(fact:io notify-update+!>(`update:v0`+.update) v0-paths)
+                `(fact:io notify-update+!>(update-0) v0-paths)
             ==
         ::  if supported, convert the event to a hark notification (yarn) and
         ::  inject it into hark, so that old clients may continue retrieving
@@ -534,10 +535,11 @@
           |=  [duct ship =path]
           ?:  ?=(%notify -.path)  ~
           `path
+        =/  source=@t  (string-source:enjs:aj source.update)
         =/  =update:v1
           ::  the "newest" item in a recently read activity source
           ::  is what we need to know which notifications to dismiss
-          [notify-count `@`newest.activity-summary.update %dismiss]
+          [notify-count `@`newest.activity-summary.update %dismiss source]
         ~[(fact:io notify-update-1+!>(update) v1-paths)]
       ::
           %kick
@@ -559,7 +561,12 @@
         =/  entry=(unit provider-entry)  (~(get by provider-state) service)
         ?~  entry
           ~
-        [(send-notification:do u.entry who [0 update])]~
+        =/  =update:v1
+          ?-  action.update
+              %notify   [0 uid.update %notify ~]
+              %dismiss  [0 uid.update %dismiss '']
+          ==
+        [(send-notification:do u.entry who update)]~
       ::
           %kick
         %-  (tell:l %info 'notify client kick' ~)
@@ -596,7 +603,8 @@
       ::
           %watch-ack
         ?~  p.sign
-          `this
+          :_  this
+          ~[(leave-path:pass [src.bowl %notify] /notify/(scot %p src.bowl)/[service])]
         =/  =tang
           ['notify watch-nack' >wire< u.p.sign]
         %-  (tell:l %crit tang)
@@ -754,11 +762,12 @@
   ~&  "sending notification to {<who>} with {<update>} with {<notify-endpoint.entry>}"
   =/  params=(list [@t @t])
     :~  identity+(rsh [3 1] (scot %p who))
-        action+`@t`action.update
+        action+`@t`-.action.update
         uid+(scot %uv uid.update)
         ::  we use @ud here for string comparison on client dismissals
         id+(scot %ud uid.update)
         notify-count+(scot %ud notify-count.update)
+        dismiss-source+?.(?=(%dismiss -.action.update) '' source.action.update)
     ==
   %:  post-form
       /send-notification/(scot %uv (sham eny.bowl))

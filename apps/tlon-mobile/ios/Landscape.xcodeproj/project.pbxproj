@@ -17,6 +17,21 @@
 		5A1EB9552CAC451A00029EDC /* GroupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1EB9522CAC451A00029EDC /* GroupStore.swift */; };
 		5A1EB9562CAC451A00029EDC /* GroupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1EB9522CAC451A00029EDC /* GroupStore.swift */; };
 		5A1EB9572CAC451A00029EDC /* GroupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1EB9522CAC451A00029EDC /* GroupStore.swift */; };
+		5A277C482E8B35F80030DB0E /* NotificationPreviewPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A277C472E8B35F80030DB0E /* NotificationPreviewPayload.swift */; };
+		5A277C492E8B35F80030DB0E /* NotificationPreviewPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A277C472E8B35F80030DB0E /* NotificationPreviewPayload.swift */; };
+		5A277C4A2E8B35F80030DB0E /* NotificationPreviewPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A277C472E8B35F80030DB0E /* NotificationPreviewPayload.swift */; };
+		5A277C4B2E8B35F80030DB0E /* NotificationPreviewPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A277C472E8B35F80030DB0E /* NotificationPreviewPayload.swift */; };
+		5A277C4C2E8B35F80030DB0E /* NotificationPreviewPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A277C472E8B35F80030DB0E /* NotificationPreviewPayload.swift */; };
+		5A277C4E2E8B36AA0030DB0E /* NotificationDismissHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A277C4D2E8B36AA0030DB0E /* NotificationDismissHandler.swift */; };
+		5A277C4F2E8B36AA0030DB0E /* NotificationDismissHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A277C4D2E8B36AA0030DB0E /* NotificationDismissHandler.swift */; };
+		5A277C502E8B36AA0030DB0E /* NotificationDismissHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A277C4D2E8B36AA0030DB0E /* NotificationDismissHandler.swift */; };
+		5A277C512E8B36AA0030DB0E /* NotificationDismissHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A277C4D2E8B36AA0030DB0E /* NotificationDismissHandler.swift */; };
+		5A277C522E8B36AA0030DB0E /* NotificationDismissHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A277C4D2E8B36AA0030DB0E /* NotificationDismissHandler.swift */; };
+		5A277C542E8B38320030DB0E /* JSValue+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A277C532E8B38320030DB0E /* JSValue+Extension.swift */; };
+		5A277C552E8B38320030DB0E /* JSValue+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A277C532E8B38320030DB0E /* JSValue+Extension.swift */; };
+		5A277C562E8B38320030DB0E /* JSValue+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A277C532E8B38320030DB0E /* JSValue+Extension.swift */; };
+		5A277C572E8B38320030DB0E /* JSValue+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A277C532E8B38320030DB0E /* JSValue+Extension.swift */; };
+		5A277C582E8B38320030DB0E /* JSValue+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A277C532E8B38320030DB0E /* JSValue+Extension.swift */; };
 		5A55792F2E7A16BC004DD85A /* NotificationLogging.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A55792E2E7A16BC004DD85A /* NotificationLogging.swift */; };
 		5A5579302E7A16BC004DD85A /* NotificationLogging.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A55792E2E7A16BC004DD85A /* NotificationLogging.swift */; };
 		5A5579312E7A16BC004DD85A /* NotificationLogging.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A55792E2E7A16BC004DD85A /* NotificationLogging.swift */; };
@@ -29,8 +44,6 @@
 		5AA981102E68C91600FBE023 /* NotificationLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AA9810D2E68C91600FBE023 /* NotificationLogger.swift */; };
 		5AA981112E68C91600FBE023 /* NotificationLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AA9810D2E68C91600FBE023 /* NotificationLogger.swift */; };
 		5AA981122E68C91600FBE023 /* NotificationLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AA9810D2E68C91600FBE023 /* NotificationLogger.swift */; };
-		6303C7802DB17BC200A40B07 /* NotificationPreviewPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6303C77F2DB17BC100A40B07 /* NotificationPreviewPayload.swift */; };
-		6303C7812DB17BC200A40B07 /* NotificationPreviewPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6303C77F2DB17BC100A40B07 /* NotificationPreviewPayload.swift */; };
 		630DE0B72C51A0F80053603B /* Error+isAFTimeout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632793BD2C4AE4B500F942B1 /* Error+isAFTimeout.swift */; };
 		630DE0C52C51A8780053603B /* UIColor+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386702A60A3E600AFB46E /* UIColor+Extension.swift */; };
 		630DE0C62C51A8780053603B /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635C2A71DFE90017F40F /* Contact.swift */; };
@@ -182,8 +195,10 @@
 		70F99AAB2B2D337600D77256 /* UserDefaultsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3532ACD0FC90020A9FB /* UserDefaultsStore.swift */; };
 		70F99AAC2B2D338E00D77256 /* UrbitModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70EAEAB42A57A99100FE96E4 /* UrbitModule.swift */; };
 		855125DEE814E6B0DFE6229D /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 9D6B23EFDEDD5888235A22BB /* PrivacyInfo.xcprivacy */; };
+		AA0FE320B86E4AD5A2E68DE9 /* bundle.js in Resources */ = {isa = PBXBuildFile; fileRef = 6354B01B2DA4510400A00356 /* bundle.js */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		C184662C2ABBDFF1008EA8C0 /* GoogleService-Info-io.tlon.groups.plist in Resources */ = {isa = PBXBuildFile; fileRef = C184662B2ABBDFF1008EA8C0 /* GoogleService-Info-io.tlon.groups.plist */; };
+		C5AA2DA09E0243819EFF88B6 /* bundle.js in Resources */ = {isa = PBXBuildFile; fileRef = 6354B01B2DA4510400A00356 /* bundle.js */; };
 		C83014822C7BA74C00D9A5CA /* UIFont+SystemDesign.m in Sources */ = {isa = PBXBuildFile; fileRef = C83014812C7BA74C00D9A5CA /* UIFont+SystemDesign.m */; };
 		C83014832C7BA74C00D9A5CA /* UIFont+SystemDesign.m in Sources */ = {isa = PBXBuildFile; fileRef = C83014812C7BA74C00D9A5CA /* UIFont+SystemDesign.m */; };
 		D0A57BA86BAF5327C2EECEE4 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = F61ADD28CFDBC6EFBD36E3DA /* ExpoModulesProvider.swift */; };
@@ -250,10 +265,12 @@
 		13B07FB71A68108700A75B9A /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = main.m; path = Landscape/main.m; sourceTree = "<group>"; };
 		3B0B210E999A7E0E1A345468 /* Pods-Landscape-preview.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Landscape-preview.release.xcconfig"; path = "Target Support Files/Pods-Landscape-preview/Pods-Landscape-preview.release.xcconfig"; sourceTree = "<group>"; };
 		5A1EB9522CAC451A00029EDC /* GroupStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupStore.swift; sourceTree = "<group>"; };
+		5A277C472E8B35F80030DB0E /* NotificationPreviewPayload.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NotificationPreviewPayload.swift; sourceTree = "<group>"; };
+		5A277C4D2E8B36AA0030DB0E /* NotificationDismissHandler.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = NotificationDismissHandler.swift; path = Landscape/NotificationDismissHandler.swift; sourceTree = "<group>"; };
+		5A277C532E8B38320030DB0E /* JSValue+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "JSValue+Extension.swift"; sourceTree = "<group>"; };
 		5A55792E2E7A16BC004DD85A /* NotificationLogging.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NotificationLogging.swift; sourceTree = "<group>"; };
 		5A829AAF2E70CE0E0044507C /* NotificationLogProcessor.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = NotificationLogProcessor.swift; path = Landscape/NotificationLogProcessor.swift; sourceTree = "<group>"; };
 		5AA9810D2E68C91600FBE023 /* NotificationLogger.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NotificationLogger.swift; sourceTree = "<group>"; };
-		6303C77F2DB17BC100A40B07 /* NotificationPreviewPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationPreviewPayload.swift; sourceTree = "<group>"; };
 		630DE0B82C51A1500053603B /* LandscapePreview-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "LandscapePreview-Bridging-Header.h"; path = "Landscape/LandscapePreview-Bridging-Header.h"; sourceTree = "<group>"; };
 		630DE0E22C51A8790053603B /* Notifications-preview.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Notifications-preview.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		630DE0EB2C51AC840053603B /* UserDefaults+appGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UserDefaults+appGroup.swift"; sourceTree = "<group>"; };
@@ -372,6 +389,7 @@
 		13B07FAE1A68108700A75B9A /* Landscape */ = {
 			isa = PBXGroup;
 			children = (
+				5A277C4D2E8B36AA0030DB0E /* NotificationDismissHandler.swift */,
 				5A829AAF2E70CE0E0044507C /* NotificationLogProcessor.swift */,
 				63EC5CBF2CD049540098C343 /* SQLiteDB.swift */,
 				635BCB092CC6F954004D52AA /* Intents */,
@@ -429,7 +447,6 @@
 		6374ACE02C49DA9600E637C0 /* Notifications */ = {
 			isa = PBXGroup;
 			children = (
-				6303C77F2DB17BC100A40B07 /* NotificationPreviewPayload.swift */,
 				6354B01B2DA4510400A00356 /* bundle.js */,
 				6374ACEB2C49DAB600E637C0 /* Notifications.entitlements */,
 				636788082C90DC2600F5331E /* Notifications-preview.entitlements */,
@@ -460,6 +477,7 @@
 				70D386702A60A3E600AFB46E /* UIColor+Extension.swift */,
 				630DE0EB2C51AC840053603B /* UserDefaults+appGroup.swift */,
 				63E27E0A2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift */,
+				5A277C532E8B38320030DB0E /* JSValue+Extension.swift */,
 			);
 			path = Extensions;
 			sourceTree = "<group>";
@@ -494,6 +512,7 @@
 		70D386522A609BFC00AFB46E /* Notifications */ = {
 			isa = PBXGroup;
 			children = (
+				5A277C472E8B35F80030DB0E /* NotificationPreviewPayload.swift */,
 				5AA9810D2E68C91600FBE023 /* NotificationLogger.swift */,
 				70D386532A609BFC00AFB46E /* PushNotificationManager.swift */,
 			);
@@ -620,6 +639,7 @@
 				FD10A7F022414F080027D42C /* Start Packager */,
 				E99812A83EA5B4CD5D501DE3 /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
+				6354B0192DA44FB700A00356 /* Build JS bundle */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				70DBC01A2B7C61690021EA96 /* Copy GoogleService-Info.plist */,
@@ -696,6 +716,7 @@
 				70DBBFE72B7C60B50021EA96 /* Start Packager */,
 				70DBBFE82B7C60B50021EA96 /* [Expo] Configure project */,
 				70DBBFE92B7C60B50021EA96 /* Sources */,
+				6354B0192DA44FB700A00356 /* Build JS bundle */,
 				70DBC0022B7C60B50021EA96 /* Frameworks */,
 				70DBC0072B7C60B50021EA96 /* Resources */,
 				70DBC01B2B7C61A20021EA96 /* Copy GoogleService-Info.plist */,
@@ -796,6 +817,7 @@
 				C184662C2ABBDFF1008EA8C0 /* GoogleService-Info-io.tlon.groups.plist in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
 				70D386722A61F2E400AFB46E /* main.jsbundle in Resources */,
+				C5AA2DA09E0243819EFF88B6 /* bundle.js in Resources */,
 				4ACCD7281520ED84DDC2759A /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -825,6 +847,7 @@
 				70DBC00B2B7C60B50021EA96 /* SplashScreen.storyboard in Resources */,
 				70DBC0182B7C61130021EA96 /* GoogleService-Info-io.tlon.groups.preview.plist in Resources */,
 				70DBC00C2B7C60B50021EA96 /* main.jsbundle in Resources */,
+				AA0FE320B86E4AD5A2E68DE9 /* bundle.js in Resources */,
 				855125DEE814E6B0DFE6229D /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1305,6 +1328,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5A277C4E2E8B36AA0030DB0E /* NotificationDismissHandler.swift in Sources */,
 				70D386592A609BFC00AFB46E /* UrbitAPI.swift in Sources */,
 				709FC0ED2AC1E25D00B0644D /* Club.swift in Sources */,
 				7083A16C2AFB01A30022404A /* TlonError.swift in Sources */,
@@ -1324,6 +1348,7 @@
 				63A5A04F2CD05CB900928EED /* ChannelEntity.swift in Sources */,
 				700B63602A71E0810017F40F /* SettingsStore.swift in Sources */,
 				5A55792F2E7A16BC004DD85A /* NotificationLogging.swift in Sources */,
+				5A277C542E8B38320030DB0E /* JSValue+Extension.swift in Sources */,
 				635BCB0B2CC6F969004D52AA /* OpenAppIntent.swift in Sources */,
 				70D386712A60A3E600AFB46E /* UIColor+Extension.swift in Sources */,
 				5A829AB02E70CE0E0044507C /* NotificationLogProcessor.swift in Sources */,
@@ -1340,6 +1365,7 @@
 				700B63622A71E0D70017F40F /* ContactStore.swift in Sources */,
 				63E27E132C5AF5B9008ACB45 /* HTTPCookieStorage+forwardChanges.swift in Sources */,
 				6374ACF92C4ACD5100E637C0 /* LoginStore.swift in Sources */,
+				5A277C482E8B35F80030DB0E /* NotificationPreviewPayload.swift in Sources */,
 				630DE0EC2C51AC840053603B /* UserDefaults+appGroup.swift in Sources */,
 				5AA9810E2E68C91600FBE023 /* NotificationLogger.swift in Sources */,
 				D0A57BA86BAF5327C2EECEE4 /* ExpoModulesProvider.swift in Sources */,
@@ -1353,7 +1379,6 @@
 				630DE0C52C51A8780053603B /* UIColor+Extension.swift in Sources */,
 				630DE0C62C51A8780053603B /* Contact.swift in Sources */,
 				630DE0C72C51A8780053603B /* Club.swift in Sources */,
-				6303C7812DB17BC200A40B07 /* NotificationPreviewPayload.swift in Sources */,
 				630DE0C82C51A8780053603B /* UrbitAPI.swift in Sources */,
 				630DE0C92C51A8780053603B /* Group.swift in Sources */,
 				630DE0CA2C51A8780053603B /* TlonError.swift in Sources */,
@@ -1363,10 +1388,12 @@
 				63E27E0E2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
 				630DE0CF2C51A8780053603B /* PocketUserAPI.swift in Sources */,
 				5A5579332E7A16BC004DD85A /* NotificationLogging.swift in Sources */,
+				5A277C522E8B36AA0030DB0E /* NotificationDismissHandler.swift in Sources */,
 				630DE0D02C51A8780053603B /* UserDefaultsStore.swift in Sources */,
 				5A1EB9572CAC451A00029EDC /* GroupStore.swift in Sources */,
 				5AA981122E68C91600FBE023 /* NotificationLogger.swift in Sources */,
 				630DE0D12C51A8780053603B /* ContactStore.swift in Sources */,
+				5A277C4C2E8B35F80030DB0E /* NotificationPreviewPayload.swift in Sources */,
 				630DE0D22C51A8780053603B /* NotificationService.swift in Sources */,
 				630DE0D32C51A8780053603B /* ClubStore.swift in Sources */,
 				63566D1D2C530A370048E3C4 /* INPerson+Extension.swift in Sources */,
@@ -1377,6 +1404,7 @@
 				630DE0D72C51A8780053603B /* Login.swift in Sources */,
 				630DE0D82C51A8780053603B /* PocketAPI.swift in Sources */,
 				630DE0D92C51A8780053603B /* PocketNotificationsAPI.swift in Sources */,
+				5A277C582E8B38320030DB0E /* JSValue+Extension.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1387,7 +1415,6 @@
 				632793CE2C4AE81E00F942B1 /* UIColor+Extension.swift in Sources */,
 				632793C52C4AE56500F942B1 /* Contact.swift in Sources */,
 				632793CC2C4AE7E500F942B1 /* Club.swift in Sources */,
-				6303C7802DB17BC200A40B07 /* NotificationPreviewPayload.swift in Sources */,
 				632793BB2C4AE49600F942B1 /* UrbitAPI.swift in Sources */,
 				632793CD2C4AE7EC00F942B1 /* Group.swift in Sources */,
 				632793C82C4AE78400F942B1 /* TlonError.swift in Sources */,
@@ -1397,10 +1424,12 @@
 				63E27E0D2C5AF26C008ACB45 /* Alamofire+sessionWithSharedCookieStorage.swift in Sources */,
 				632793C62C4AE56F00F942B1 /* PocketUserAPI.swift in Sources */,
 				5A5579322E7A16BC004DD85A /* NotificationLogging.swift in Sources */,
+				5A277C512E8B36AA0030DB0E /* NotificationDismissHandler.swift in Sources */,
 				632793C42C4AE53A00F942B1 /* UserDefaultsStore.swift in Sources */,
 				5A1EB9562CAC451A00029EDC /* GroupStore.swift in Sources */,
 				5AA981112E68C91600FBE023 /* NotificationLogger.swift in Sources */,
 				632793C32C4AE53500F942B1 /* ContactStore.swift in Sources */,
+				5A277C4B2E8B35F80030DB0E /* NotificationPreviewPayload.swift in Sources */,
 				6374ACE22C49DA9600E637C0 /* NotificationService.swift in Sources */,
 				632793CB2C4AE7D900F942B1 /* ClubStore.swift in Sources */,
 				63566D1C2C530A370048E3C4 /* INPerson+Extension.swift in Sources */,
@@ -1411,6 +1440,7 @@
 				632793BA2C4AE01B00F942B1 /* Login.swift in Sources */,
 				632793B82C4ADEED00F942B1 /* PocketAPI.swift in Sources */,
 				632793B72C4ADEAC00F942B1 /* PocketNotificationsAPI.swift in Sources */,
+				5A277C572E8B38320030DB0E /* JSValue+Extension.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1418,6 +1448,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5A277C4F2E8B36AA0030DB0E /* NotificationDismissHandler.swift in Sources */,
 				70DBBFEA2B7C60B50021EA96 /* UrbitAPI.swift in Sources */,
 				70DBBFEB2B7C60B50021EA96 /* Club.swift in Sources */,
 				70DBBFEC2B7C60B50021EA96 /* TlonError.swift in Sources */,
@@ -1431,11 +1462,13 @@
 				70DBBFF12B7C60B50021EA96 /* Contact.swift in Sources */,
 				70DBBFF22B7C60B50021EA96 /* UrbitModule.m in Sources */,
 				70DBBFF32B7C60B50021EA96 /* INPerson+Extension.swift in Sources */,
+				5A277C492E8B35F80030DB0E /* NotificationPreviewPayload.swift in Sources */,
 				70DBBFF42B7C60B50021EA96 /* Error+logWithDomain.swift in Sources */,
 				70DBBFF52B7C60B50021EA96 /* Group.swift in Sources */,
 				70DBBFF62B7C60B50021EA96 /* SettingsStore.swift in Sources */,
 				63A5A04E2CD05CB900928EED /* ChannelEntity.swift in Sources */,
 				70DBBFF72B7C60B50021EA96 /* UIColor+Extension.swift in Sources */,
+				5A277C552E8B38320030DB0E /* JSValue+Extension.swift in Sources */,
 				5A5579302E7A16BC004DD85A /* NotificationLogging.swift in Sources */,
 				635BCB0C2CC6F969004D52AA /* OpenAppIntent.swift in Sources */,
 				70DBBFF82B7C60B50021EA96 /* PocketUserAPI.swift in Sources */,
@@ -1475,10 +1508,12 @@
 				632793C02C4AE4B500F942B1 /* Error+isAFTimeout.swift in Sources */,
 				70F99AA92B2D337600D77256 /* GroupChannelStore.swift in Sources */,
 				70F99A9F2B2D336800D77256 /* Group.swift in Sources */,
+				5A277C502E8B36AA0030DB0E /* NotificationDismissHandler.swift in Sources */,
 				70F99AA32B2D336E00D77256 /* PocketUserAPI.swift in Sources */,
 				5A1EB9552CAC451A00029EDC /* GroupStore.swift in Sources */,
 				70F99AA22B2D336E00D77256 /* UrbitAPI.swift in Sources */,
 				70F99AAA2B2D337600D77256 /* SettingsStore.swift in Sources */,
+				5A277C4A2E8B35F80030DB0E /* NotificationPreviewPayload.swift in Sources */,
 				70F99AA62B2D336E00D77256 /* PocketChatAPI.swift in Sources */,
 				70F99A9D2B2D336500D77256 /* Error+logWithDomain.swift in Sources */,
 				5AA981102E68C91600FBE023 /* NotificationLogger.swift in Sources */,
@@ -1489,6 +1524,7 @@
 				70F99A9C2B2D336500D77256 /* UIColor+Extension.swift in Sources */,
 				5A5579312E7A16BC004DD85A /* NotificationLogging.swift in Sources */,
 				70F99A9E2B2D336800D77256 /* Contact.swift in Sources */,
+				5A277C562E8B38320030DB0E /* JSValue+Extension.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
