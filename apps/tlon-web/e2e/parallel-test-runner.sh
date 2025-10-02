@@ -96,7 +96,16 @@ fi
 
 # Create results directory
 mkdir -p "$PROJECT_ROOT/apps/tlon-web/$RESULTS_DIR"
-rm -rf "$PROJECT_ROOT/apps/tlon-web/$RESULTS_DIR/shard-"*
+
+# Clean up previous test results using Docker (to handle root-owned files)
+if [ -d "$PROJECT_ROOT/apps/tlon-web/$RESULTS_DIR" ] && [ "$(ls -A "$PROJECT_ROOT/apps/tlon-web/$RESULTS_DIR" 2>/dev/null | grep -c "^shard-")" -gt 0 ]; then
+    echo -e "${YELLOW}Cleaning up previous test results...${NC}"
+    # Use a lightweight container to remove root-owned files
+    $CONTAINER_CMD run --rm \
+        -v "$PROJECT_ROOT/apps/tlon-web/$RESULTS_DIR:/cleanup" \
+        alpine:latest \
+        sh -c "rm -rf /cleanup/shard-* /cleanup/blob-reports-temp /cleanup/merged-report /cleanup/artifacts 2>/dev/null || true"
+fi
 
 # Clean up any existing containers with retries
 echo -e "${YELLOW}Cleaning up any existing containers...${NC}"

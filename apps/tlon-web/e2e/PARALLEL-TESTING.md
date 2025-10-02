@@ -93,6 +93,11 @@ node ./rube/dist/index.js --help    # Test script
 - Ensure no other services are using ports 3000-3032
 - Check: `lsof -i :3000` (repeat for other ports)
 
+### Permission denied errors on cleanup
+- Files created by Docker containers are owned by root
+- The script automatically uses Docker to clean up these files
+- Manual cleanup if needed: `docker run --rm -v "$(pwd)/test-results:/cleanup" alpine:latest rm -rf /cleanup/shard-*`
+
 ## CI Configuration
 
 Add to GitHub Actions (adjust shard count based on available resources):
