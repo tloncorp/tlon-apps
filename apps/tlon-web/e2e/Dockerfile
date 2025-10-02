@@ -63,22 +63,23 @@ COPY ../../../desk/ /workspace/desk/
 
 # Pre-download and extract ships + Urbit binary in parallel
 # URLs must match those in shipManifest.json
-RUN mkdir -p /opt/ships && \
-    cd /opt/ships && \
+SHELL ["/bin/bash", "-c"]
+RUN mkdir -p /opt/ships && cd /opt/ships && \
     echo "Downloading ship archives and Urbit binary in parallel..." && \
+    set -e && \
     curl -L -o zod.tgz https://bootstrap.urbit.org/rube-zod18.tgz & \
     curl -L -o bus.tgz https://bootstrap.urbit.org/rube-bus9.tgz & \
     curl -L -o ten.tgz https://bootstrap.urbit.org/rube-ten18.tgz & \
     curl -L -o mug.tgz https://bootstrap.urbit.org/rube-mug18.tgz & \
     curl -L https://github.com/urbit/vere/releases/latest/download/linux-x86_64.tgz -o urbit.tgz & \
-    wait && \
+    wait || exit 1 && \
     echo "All downloads complete, extracting..." && \
     tar -xzf zod.tgz & \
     tar -xzf bus.tgz & \
     tar -xzf ten.tgz & \
     tar -xzf mug.tgz & \
     tar -xzf urbit.tgz & \
-    wait && \
+    wait || exit 1 && \
     rm *.tgz && \
     mkdir urbit-binary && \
     mv vere-*-linux-x86_64 urbit-binary/urbit && \
