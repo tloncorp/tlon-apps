@@ -315,7 +315,6 @@ export const wayfindingProgress = createStorageItem<WayfindingProgress>({
   },
 });
 
-
 export const lastLanyardSalt = createStorageItem<string | null>({
   key: 'lastLanyardSalt',
   defaultValue: null,
@@ -340,6 +339,12 @@ export const debugPermittedSchedulerId = createStorageItem<string | null>({
   persistAfterLogout: true,
 });
 
+export const didSyncInitialPosts = createStorageItem<boolean>({
+  key: 'didSyncInitialPosts',
+  defaultValue: false,
+  persistAfterLogout: false,
+});
+
 export type NagState = {
   lastDismissed: number;
   dismissCount: number;
@@ -358,4 +363,3 @@ export const createNagStorageItem = (key: string) => {
     defaultValue: defaultNagState,
   });
 };
-
