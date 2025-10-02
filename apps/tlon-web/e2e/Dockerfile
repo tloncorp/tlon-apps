@@ -59,34 +59,30 @@ COPY ../../../packages/ /workspace/packages/
 COPY ../../../apps/tlon-web/ /workspace/apps/tlon-web/
 COPY ../../../desk/ /workspace/desk/
 
-# Pre-download and extract ships to speed up container startup
+# Pre-download and extract ships + Urbit binary in parallel
 # URLs must match those in shipManifest.json
 RUN mkdir -p /opt/ships && \
     cd /opt/ships && \
-    echo "Downloading ship archives..." && \
-    curl -L -o zod.tgz https://bootstrap.urbit.org/rube-zod18.tgz && \
-    curl -L -o bus.tgz https://bootstrap.urbit.org/rube-bus9.tgz && \
-    curl -L -o ten.tgz https://bootstrap.urbit.org/rube-ten18.tgz && \
-    curl -L -o mug.tgz https://bootstrap.urbit.org/rube-mug18.tgz && \
-    echo "Extracting ships..." && \
-    tar -xzf zod.tgz && \
-    tar -xzf bus.tgz && \
-    tar -xzf ten.tgz && \
-    tar -xzf mug.tgz && \
+    echo "Downloading ship archives and Urbit binary in parallel..." && \
+    curl -L -o zod.tgz https://bootstrap.urbit.org/rube-zod18.tgz & \
+    curl -L -o bus.tgz https://bootstrap.urbit.org/rube-bus9.tgz & \
+    curl -L -o ten.tgz https://bootstrap.urbit.org/rube-ten18.tgz & \
+    curl -L -o mug.tgz https://bootstrap.urbit.org/rube-mug18.tgz & \
+    curl -L https://github.com/urbit/vere/releases/latest/download/linux-x86_64.tgz -o urbit.tgz & \
+    wait && \
+    echo "All downloads complete, extracting..." && \
+    tar -xzf zod.tgz & \
+    tar -xzf bus.tgz & \
+    tar -xzf ten.tgz & \
+    tar -xzf mug.tgz & \
+    tar -xzf urbit.tgz & \
+    wait && \
     rm *.tgz && \
-    echo "Ships extracted to /opt/ships" && \
-    ls -la /opt/ships/
-
-# Download and extract Urbit binary (using GitHub releases URL)
-RUN cd /opt/ships && \
-    echo "Downloading Urbit binary..." && \
-    curl -L https://github.com/urbit/vere/releases/latest/download/linux-x86_64.tgz -o urbit.tgz && \
-    tar -xzf urbit.tgz && \
-    rm urbit.tgz && \
     mkdir urbit-binary && \
     mv vere-*-linux-x86_64 urbit-binary/urbit && \
     chmod +x urbit-binary/urbit && \
-    echo "Urbit binary ready at /opt/ships/urbit-binary/urbit"
+    echo "Ships and binary ready at /opt/ships" && \
+    ls -la /opt/ships/
 
 # Install Playwright browsers and dependencies
 WORKDIR /workspace/apps/tlon-web
