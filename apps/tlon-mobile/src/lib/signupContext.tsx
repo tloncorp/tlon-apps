@@ -89,16 +89,12 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
         postHog,
       };
       runPostSignupActions(postSignupParams);
-      logger.trackEvent('Signup Timing Test', bootReport ?? {});
       logger.trackEvent('hosted signup report', {
-        bootDuration:
-          bootReport && bootReport.completedAt && bootReport.startedAt
-            ? bootReport.completedAt - bootReport.startedAt
-            : null,
+        ...bootReport,
         userSatWaitingFor: values.userWasReadyAt
-          ? Date.now() - values.userWasReadyAt
+          ? Number(((Date.now() - values.userWasReadyAt) / 1000).toFixed(1))
           : null,
-        timeUnit: 'ms',
+        timeUnit: 's',
       });
     } catch (e) {
       logger.trackError('post signup error', {
