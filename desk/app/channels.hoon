@@ -12,7 +12,7 @@
 /-  meta
 /+  default-agent, verb, dbug,
     neg=negotiate, discipline, logs,
-    sparse, imp=import-aid
+    sparse, kol, imp=import-aid
 /+  utils=channel-utils, volume, s=subscriber,
     em=emojimart, ccv=channel-conv
 ::  performance, keep warm
@@ -69,7 +69,7 @@
 %-  %-  discipline
     :+  ::  marks
         ::
-        :~  :+  %channel-changed-posts   |  -:!>(*vale:m-channel-changed-posts)
+        :~  :+  %channel-changed-posts   |  -:!>(*vale:m-channel-changed-posts)  ::TODO  make strict
             :+  %channel-heads           &  -:!>(*vale:m-channel-heads)
             :+  %channel-heads-2         &  -:!>(*vale:m-channel-heads-2)
             :+  %channel-heads-3         &  -:!>(*vale:m-channel-heads-3)
@@ -209,11 +209,12 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %14
+    $:  %15
         =v-channels:c
         voc=(map [nest:c plan:c] (unit said:c))
         hidden-posts=(set id-post:c)
         debounce=(jug nest:c @da)  ::  temporary bandaid
+        last-updated=(list [=nest:c =time])  ::  newest first, one-per-nest
       ::
         ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
         ::
@@ -283,6 +284,7 @@
     [cards this]
   --
 |_  [=bowl:gall cards=(list card)]
++*  ol    (kol gte)
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  plog  ~(. logs [our.bowl /logs])
@@ -353,7 +355,8 @@
     ==
   =.  cor  (emil caz-12)
   =?  old  ?=(%13 -.old)  (state-13-to-14 old)
-  ?>  ?=(%14 -.old)
+  =?  old  ?=(%14 -.old)  (state-14-to-15 old)
+  ?>  ?=(%15 -.old)
   ::  periodically clear .debounce to avoid space leak
   ::
   =.  debounce  ~
@@ -361,7 +364,8 @@
   inflate-io
   ::
   +$  versioned-state
-    $%  state-14
+    $%  state-15
+        state-14
         state-13
         state-12
         state-11
@@ -377,7 +381,17 @@
         state-1
         state-0
     ==
-  +$  state-14  current-state
+  +$  state-15  current-state
+  +$  state-14
+    $:  %14
+        =v-channels:c
+        voc=(map [nest:c plan:c] (unit said:c))
+        hidden-posts=(set id-post:c)
+        debounce=(jug nest:c @da)
+        pending-ref-edits=(jug ship [=kind:c name=term])
+        =^subs:s
+        =pimp:imp
+    ==
   +$  state-13  _%*(. *state-14 - %13)
   +$  state-12  _%*(. *state-13 - %12)
   +$  state-11  _%*(. *state-12 - %11)
@@ -446,6 +460,11 @@
         =^subs:s
         =pimp:imp
     ==
+  ::
+  ++  state-14-to-15
+    |=  state-14
+    ^-  state-15
+    [%15 v-channels voc hidden-posts debounce last-updated=~ pending-ref-edits subs pimp]
   ::
   ++  state-13-to-14
     |=  s=state-13
@@ -1378,10 +1397,10 @@
       [%x %v5 %changes since=@ rest=*]
     =+  since=(slav %da since.pole)
     =/  changes
-      %-  ~(gas by *(map nest:c v-posts:c))
+      %-  ~(gas by *(map nest:c (unit v-posts:c)))
       %+  murn  ~(tap by v-channels)
       |=  [=nest:c ch=v-channel:c]
-      ^-  (unit [nest:c v-posts:c])
+      ^-  (unit [nest:c (unit v-posts:c)])
       ?:  (gte since key:(fall (ram:updated-on:c last-updated.ch) [key=since ~]))
         ~
       ?~  posts.ch  ~
@@ -1392,18 +1411,26 @@
       %-  some
       :-  nest
       ::NOTE  slightly faster than +put-ing continuously
-      =-  (gas:on-v-posts:c ~ -)
+      =-  `(gas:on-v-posts:c ~ -)
       %+  roll  updated
       |=  [[@da changed=id-post:c] out=(list [id-post:c (may:c v-post:c)])]
       ?~  post=(get:on-v-posts:c posts.ch changed)
         out
       [[changed u.post] out]
+    =.  changes
+      %+  roll  (~(top ol last-updated) since)
+      |=  [[=nest:c @da] =_changes]
+      ?.  (~(has by v-channels) nest)
+        (~(put by changes) nest ~)  ::  include deletions
+      ?.  (~(has by changes) nest)
+        (~(put by changes) nest `~)  ::  include additions
+      changes
     ?+  rest.pole  [~ ~]
         ~
       :^  ~  ~
         %channel-changed-posts
-      !>  ^-  (map nest:c posts:c)
-      (~(run by changes) uv-posts-3:utils)
+      !>  ^-  (map nest:c (unit posts:c))
+      (~(run by changes) (curr bind uv-posts-3:utils))
     ::
         [%count ~]
       ::REVIEW  really necessary?
@@ -1411,8 +1438,9 @@
       !>  ^-  json
       %-  numb:enjs:format
       %-  ~(rep by changes)
-      |=  [[* p=v-posts:c] sum=@ud]
-      (add sum (wyt:on-v-posts:c p))
+      |=  [[* p=(unit v-posts:c)] sum=@ud]
+      ?~  p  sum
+      (add sum (wyt:on-v-posts:c u.p))
     ==
     ::
       [%x ?(%v0 %v1) %hidden-posts ~]  ``hidden-posts+!>(hidden-posts)
@@ -1579,6 +1607,8 @@
     |=  [=wire =dock]
     ca-core(cor (^unsubscribe wire dock))
   ++  ca-abet
+    =?  last-updated  |(gone !(~(has by v-channels) nest))
+      (~(put ol last-updated) nest now.bowl)
     %_    cor
         v-channels
       ?:(gone (~(del by v-channels) nest) (~(put by v-channels) nest channel))
@@ -1966,6 +1996,8 @@
   ++  ca-agent
     |=  [=wire =sign:agent:gall]
     ^+  ca-core
+    =?  last-updated  ?=(%fact -.sign)
+      (~(put ol last-updated) nest now.bowl)
     ?+    wire  ~|(channel-strange-agent-wire+wire !!)
         ~
       ?>  ?=(%poke-ack -.sign)
