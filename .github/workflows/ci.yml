@@ -17,8 +17,8 @@ jobs:
             WORKSPACE_PATH="${{ github.workspace }}"
             if [ -d "$WORKSPACE_PATH" ]; then
               echo "Wiping entire workspace: $WORKSPACE_PATH"
-              # Use podman to delete everything as root - let checkout recreate it
-              podman run --rm \
+              # Use sudo podman to run as root and delete root-owned files
+              sudo podman run --rm \
                 -v "$WORKSPACE_PATH:/workspace:Z" \
                 --security-opt label=disable \
                 docker.io/alpine:latest \
@@ -252,7 +252,8 @@ jobs:
             WORKSPACE_PATH="${{ github.workspace }}"
             if [ -d "$WORKSPACE_PATH" ]; then
               echo "Wiping entire workspace: $WORKSPACE_PATH"
-              podman run --rm \
+              # Use sudo podman to run as root and delete root-owned files
+              sudo podman run --rm \
                 -v "$WORKSPACE_PATH:/workspace:Z" \
                 --security-opt label=disable \
                 docker.io/alpine:latest \
