@@ -74,7 +74,13 @@ fi
 build_image() {
     echo -e "${YELLOW}Building test container image...${NC}"
     cd "$PROJECT_ROOT/apps/tlon-web/e2e"
-    $CONTAINER_CMD build -t $IMAGE_NAME -f Dockerfile "$PROJECT_ROOT"
+    # Enable BuildKit for cache mounts and parallel downloads
+    if [ "$CONTAINER_CMD" = "docker" ]; then
+        DOCKER_BUILDKIT=1 $CONTAINER_CMD build -t $IMAGE_NAME -f Dockerfile "$PROJECT_ROOT"
+    else
+        # Podman supports BuildKit syntax by default
+        $CONTAINER_CMD build -t $IMAGE_NAME -f Dockerfile "$PROJECT_ROOT"
+    fi
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}Container image built successfully${NC}"
     else

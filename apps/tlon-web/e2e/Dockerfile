@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.4
 # E2E Test Container for Tlon Web
 FROM ubuntu:22.04
 
@@ -51,8 +52,9 @@ COPY ../../../patches/ /workspace/patches/
 # Copy .npmrc if it exists (for npm configurations)
 COPY ../../../.npmrc* /workspace/
 
-# Install dependencies (this layer will be cached unless dependencies change)
-RUN pnpm install --frozen-lockfile
+# Install dependencies (with cache mount for faster rebuilds)
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
 # Now copy only the source code we need (excluding what's in .dockerignore)
 COPY ../../../packages/ /workspace/packages/
