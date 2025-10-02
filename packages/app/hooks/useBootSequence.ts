@@ -394,6 +394,7 @@ export function useBootSequence() {
     tryingInviteHandling.current = null;
 
     sequenceStartTimeRef.current = 0;
+    lastPhaseCompletedAt.current = null;
   }, []);
 
   // once finished, set the report
