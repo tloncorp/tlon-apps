@@ -37,8 +37,9 @@ export default SystemNotices;
 export function NotificationsPrompt() {
   const notifNag = useNag({
     key: 'notificationsPrompt',
-    refreshInterval: 24 * 60 * 60 * 1000, // 24 hours
+    refreshInterval: 24 * 60 * 60 * 1000,
     refreshCycle: 3,
+    initialDelay: 3 * 24 * 60 * 60 * 1000,
   });
 
   const perms = useNotificationPermissions();

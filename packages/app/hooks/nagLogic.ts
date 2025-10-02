@@ -2,11 +2,13 @@ export interface NagState {
   lastDismissed: number;
   dismissCount: number;
   eliminated: boolean;
+  firstEligibleTime: number;
 }
 
 export interface NagBehaviorConfig {
   refreshInterval?: number;
   refreshCycle?: number;
+  initialDelay?: number;
 }
 
 export interface NagConfig extends NagBehaviorConfig {
@@ -23,9 +25,14 @@ export function shouldShowNag(
     return false;
   }
 
-  // If never dismissed, show it
+  // If never dismissed, check if initial delay has elapsed
   if (state.dismissCount === 0) {
-    return true;
+    // If firstEligibleTime is 0, initialize it now
+    if (state.firstEligibleTime === 0) {
+      return false; // Will be initialized in the hook
+    }
+    // Check if initial delay has elapsed
+    return currentTime >= state.firstEligibleTime;
   }
 
   // If we have a refresh cycle limit and we've hit it, don't show
@@ -66,6 +73,7 @@ export function createDefaultNagState(): NagState {
     lastDismissed: 0,
     dismissCount: 0,
     eliminated: false,
+    firstEligibleTime: 0,
   };
 }
 

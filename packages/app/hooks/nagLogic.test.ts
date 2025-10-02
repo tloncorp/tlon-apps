@@ -11,14 +11,36 @@ import {
 } from './nagLogic';
 
 describe('nagLogic', () => {
-  const fixedTime = 1000000000000; // Fixed timestamp for testing
+  const fixedTime = 1000000000000;
 
   describe('shouldShowNag', () => {
-    it('should show nag initially when never dismissed', () => {
-      const state = createDefaultNagState();
+    it('should show nag initially when never dismissed and eligible time has passed', () => {
+      const state: NagState = {
+        ...createDefaultNagState(),
+        firstEligibleTime: fixedTime - 1000,
+      };
       const config = {};
 
       expect(shouldShowNag(state, config, fixedTime)).toBe(true);
+    });
+
+    it('should not show nag before initial delay has elapsed', () => {
+      const state: NagState = {
+        ...createDefaultNagState(),
+        firstEligibleTime: fixedTime + 1000,
+      };
+      const config = {
+        initialDelay: 2000,
+      };
+
+      expect(shouldShowNag(state, config, fixedTime)).toBe(false);
+    });
+
+    it('should not show nag if firstEligibleTime is not set (0)', () => {
+      const state = createDefaultNagState();
+      const config = {};
+
+      expect(shouldShowNag(state, config, fixedTime)).toBe(false);
     });
 
     it('should not show nag if eliminated', () => {
@@ -26,6 +48,7 @@ describe('nagLogic', () => {
         lastDismissed: 0,
         dismissCount: 0,
         eliminated: true,
+        firstEligibleTime: 0,
       };
       const config = {};
 
@@ -37,6 +60,7 @@ describe('nagLogic', () => {
         lastDismissed: fixedTime - 1000,
         dismissCount: 1,
         eliminated: false,
+        firstEligibleTime: 0,
       };
       const config = {};
 
@@ -49,6 +73,7 @@ describe('nagLogic', () => {
         lastDismissed: oneDayAgo,
         dismissCount: 1,
         eliminated: false,
+        firstEligibleTime: 0,
       };
       const config = {
         refreshInterval: 12 * 60 * 60 * 1000, // 12 hours
@@ -63,6 +88,7 @@ describe('nagLogic', () => {
         lastDismissed: oneHourAgo,
         dismissCount: 1,
         eliminated: false,
+        firstEligibleTime: 0,
       };
       const config = {
         refreshInterval: 12 * 60 * 60 * 1000, // 12 hours
@@ -77,6 +103,7 @@ describe('nagLogic', () => {
         lastDismissed: oneDayAgo,
         dismissCount: 3, // At limit
         eliminated: false,
+        firstEligibleTime: 0,
       };
       const config = {
         refreshInterval: 12 * 60 * 60 * 1000, // 12 hours
@@ -92,9 +119,10 @@ describe('nagLogic', () => {
         lastDismissed: oneDayAgo,
         dismissCount: 2, // Under limit
         eliminated: false,
+        firstEligibleTime: 0,
       };
       const config = {
-        refreshInterval: 12 * 60 * 60 * 1000, // 12 hours
+        refreshInterval: 12 * 60 * 60 * 1000,
         refreshCycle: 3,
       };
 
@@ -108,6 +136,7 @@ describe('nagLogic', () => {
         lastDismissed: 0,
         dismissCount: 0,
         eliminated: false,
+        firstEligibleTime: 0,
       };
 
       const result = createDismissedState(initialState, fixedTime);
@@ -116,6 +145,7 @@ describe('nagLogic', () => {
         lastDismissed: fixedTime,
         dismissCount: 1,
         eliminated: false,
+        firstEligibleTime: 0,
       });
     });
 
@@ -124,6 +154,7 @@ describe('nagLogic', () => {
         lastDismissed: fixedTime - 1000,
         dismissCount: 2,
         eliminated: false,
+        firstEligibleTime: 0,
       };
 
       const result = createDismissedState(initialState, fixedTime);
@@ -132,6 +163,7 @@ describe('nagLogic', () => {
         lastDismissed: fixedTime,
         dismissCount: 3,
         eliminated: false,
+        firstEligibleTime: 0,
       });
     });
   });
@@ -142,6 +174,7 @@ describe('nagLogic', () => {
         lastDismissed: fixedTime,
         dismissCount: 2,
         eliminated: false,
+        firstEligibleTime: 0,
       };
 
       const result = createEliminatedState(initialState);
@@ -150,6 +183,7 @@ describe('nagLogic', () => {
         lastDismissed: fixedTime,
         dismissCount: 2,
         eliminated: true,
+        firstEligibleTime: 0,
       });
     });
   });
@@ -162,6 +196,7 @@ describe('nagLogic', () => {
         lastDismissed: 0,
         dismissCount: 0,
         eliminated: false,
+        firstEligibleTime: 0,
       });
     });
   });
