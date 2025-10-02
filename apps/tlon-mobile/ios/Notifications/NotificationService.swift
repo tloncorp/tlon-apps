@@ -126,12 +126,12 @@ class NotificationService: UNNotificationServiceExtension {
           switch parsedNotification {
           case .notify(let uid, let event):
               var notifContent = bestAttemptContent ?? UNNotificationContent()
-              
+              let notification = notifContent.mutableCopy() as! UNMutableNotificationContent
               print("[notifications] badge count \(notifContent.badge ?? NSNumber(0))")
               notifContent = await applyNotif(
                 event,
                 uid: uid,
-                notification: notifContent.mutableCopy() as! UNMutableNotificationContent
+                notification: notification
               )
               
               contentHandler(notifContent)

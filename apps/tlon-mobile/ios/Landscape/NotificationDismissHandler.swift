@@ -26,12 +26,14 @@ import JavaScriptCore
         }
 
         guard let source = userInfo["dismissSource"] as? String,
-              let count = userInfo["notifyCount"] as? Int,
+              let notifyCount = userInfo["notifyCount"] as? String,
               let uid = userInfo["uid"] as? String,
               let id = userInfo["id"] as? String else {
             print("[dismisser] Missing required fields. dismissSource: \(userInfo["dismissSource"] ?? "nil"), notifyCount: \(userInfo["notifyCount"] ?? "nil"), uid: \(userInfo["uid"] ?? "nil"), id: \(userInfo["id"] ?? "nil")")
             return
         }
+        
+        let count = Int(notifyCount) ?? 0
 
         print("[dismisser] Dismissing notifications \(source) new count \(count) id \(id)")
         // Fetch the activity event to get grouping information
@@ -60,20 +62,16 @@ import JavaScriptCore
             guard let notificationId = notification.request.content.userInfo["id"] as? String else {
                 continue
             }
-            
-            print("[dismisser] notification: grouping \(threadIdentifier) id \(notificationId)")
 
             if threadIdentifier == source {
                 // Dismiss notifications with IDs that are less than the dismiss ID (older messages)
                 let comparison = notificationId.compare(dismissId)
-                print ("[dismisser] comparing ids \(dismissId) and \(notificationId) result: \(comparison)")
                 if comparison == .orderedAscending || comparison == .orderedSame {
                     identifiersToDismiss.append(notification.request.identifier)
                 }
             }
         }
 
-        print("[dismisser] ids to dismiss \(identifiersToDismiss)")
         if !identifiersToDismiss.isEmpty {
             center.removeDeliveredNotifications(withIdentifiers: identifiersToDismiss)
             print("[dismisser] Dismissed \(identifiersToDismiss.count) notifications for grouping: \(source)")

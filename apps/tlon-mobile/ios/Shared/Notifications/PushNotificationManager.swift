@@ -19,8 +19,7 @@ import NotificationCenter
 
     static func parseNotificationUserInfo(_ userInfo: [AnyHashable: Any]) async -> ParseNotificationResult {
         guard let action = userInfo["action"] as? String,
-              let uid = userInfo["uid"] as? String,
-              let id = userInfo["id"] as? String
+              let uid = userInfo["uid"] as? String
         else {
             return .invalid
         }

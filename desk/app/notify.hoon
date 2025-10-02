@@ -493,7 +493,6 @@
         =/  update-0=update:v0  [`@`time-id %notify]
         =/  =update:v1
           [notify-count `@`time-id %notify ~]
-        ~&  ['notify update' update +.update v0-paths v1-paths]
         :_  :~  `(fact:io notify-update-1+!>(update) v1-paths)
                 `(fact:io notify-update+!>(update-0) v0-paths)
             ==
@@ -521,7 +520,6 @@
         ?.  ?=(%activity-update-4 p.cage.sign)
           `this
         =+  !<(=update:a q.cage.sign)
-        ~&  ['unreads update' update]
         ?.  ?=(%read -.update)
           `this
         ?^  unread.activity-summary.update
@@ -633,7 +631,6 @@
       ?>  ?=(%iris -.sign-arvo)
       ?>  ?=(%http-response +<.sign-arvo)
       ?>  ?=(%finished -.client-response.sign-arvo)
-      ~&  client-response.sign-arvo
       ?>  ?=(^ full-file.client-response.sign-arvo)
       =/  =mime-data:iris  u.full-file.client-response.sign-arvo
       ?>  =('application/json' type.mime-data)
@@ -658,7 +655,6 @@
         [%send-notification *]
       ?>  ?=(%iris -.sign-arvo)
       ?>  ?=(%http-response +<.sign-arvo)
-      ~&  client-response.sign-arvo
       =*  res  client-response.sign-arvo
       ?>  ?=(%finished -.res)
       =*  status  status-code.response-header.res
