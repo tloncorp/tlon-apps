@@ -191,6 +191,7 @@
       ::
         ::TODO  other v5 scries
         [/x/v5/changes %channel-changed-posts]
+        [/x/v5/init-posts %channel-changed-posts]
     ==
 ::
 =/  verbose  |
@@ -1414,7 +1415,43 @@
       |=  [[* p=v-posts:c] sum=@ud]
       (add sum (wyt:on-v-posts:c p))
     ==
+  ::
+    ::  /init-posts:
+    ::    .channels: amount of most-recently-active channels to include
+    ::    .context:  amount of latest msgs, or msgs %around unread marker
     ::
+      [%x %v5 %init-posts channels=@ context=@ ~]
+    =+  channels=(slav %ud channels.pole)
+    =+  context=(slav %ud context.pole)
+    =*  a  activity
+    =/  activity
+      %-  ~(gas by *activity:a)
+      .^  (list [source:a activity-summary:a])  %gx
+        (scry-path %activity /v4/activity/unreads/activity-summary-pairs-4)
+      ==
+    :^  ~  ~  %channel-changed-posts
+    !>  %-  ~(gas by *(map nest:c posts:c))
+    %+  turn
+      %+  scag  channels
+      %+  sort  ~(tap by v-channels)
+      |=  [[* a=v-channel:c] [* b=v-channel:c]]
+      (gth recency.remark.a recency.remark.b)
+    |=  [=nest:c chan=v-channel:c]
+    ^-  [_nest posts:c]
+    :-  nest
+    %-  uv-posts-3:utils
+    %+  gas:on-v-posts:c  ~
+    =/  around=(unit id-post:c)
+      ?~  act=(~(get by activity) [%channel nest group.perm.perm.chan])  ~
+      ?~(unread.u.act ~ `time.u.unread.u.act)
+    ?~  around
+      ::NOTE  equivalent of /newest scry
+      (top:mo-v-posts:c posts.chan context)
+    ::NOTE  analogous to /around scry
+    =/  older  (bat:mo-v-posts:c posts.chan `+(u.around) context)
+    =/  newer  (tab:on-v-posts:c posts.chan `u.around context)
+    (weld older newer)
+  ::
       [%x ?(%v0 %v1) %hidden-posts ~]  ``hidden-posts+!>(hidden-posts)
       [%x ?(%v0 %v1) %unreads ~]  ``channel-unreads+!>(unreads)
       [%x v=?(%v0 %v1 %v2 %v3 %v4) =kind:c ship=@ name=@ rest=*]
